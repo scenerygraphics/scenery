@@ -1,0 +1,3 @@
+package scenery
+
+interface HasGeometry
