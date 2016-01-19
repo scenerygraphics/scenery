@@ -69,11 +69,11 @@ dependencies
 
     // usage: gradle .... -Plocal=true
 	if (project.hasProperty('local')) {
-		println 'Using local clearGL sources'
+		println 'Using local clearX sources'
 		compile project(':cleargl')
 	}
 	else {
-		println 'Using clearCUDA and clearGL from Maven repository'/**/
+		println 'Using clearX from Maven repository'/**/
 		compile group: "net.clearvolume", name: "cleargl", version: "(,1.1.0]", changing: true, transitive: true
 	}
 
@@ -200,7 +200,7 @@ if(hasProperty('bintray_user') && hasProperty('bintray_key') )
 			licenses = ['Apache-2.0']
 			labels = [
 				'scenery',
-                'scenegraph',
+        'scenegraph',
 				'Visualization',
 				'3D',
 				'OpenGL'
