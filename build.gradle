@@ -89,7 +89,8 @@ repositories
 	{ url "http://oss.sonatype.org/content/groups/public" }
 	maven
 	{ url  "http://dl.bintray.com/rtlib/CoreMem" }
-
+	maven
+	{ url  "http://dl.bintray.com/clearvolume/ClearVolume"  }
 }
 
 
