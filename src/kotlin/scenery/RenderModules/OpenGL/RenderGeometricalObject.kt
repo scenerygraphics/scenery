@@ -1,100 +1,83 @@
-package scenery
+package scenery.RenderModules.OpenGL
 
-import cleargl.GLCloseable
 import cleargl.GLError
-import cleargl.GLInterface
 import cleargl.GLProgram
 import com.jogamp.opengl.GL
-import com.jogamp.opengl.GLException
+import scenery.GeometryType
+import scenery.HasGeometry
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.util.*
 
 /**
- * GeometricalObject -
-
- * Created by Ulrik Guenther on 05/02/15.
+ * Created by ulrik on 20/01/16.
  */
-open class GeometricalObject : Node, GLCloseable, GLInterface, Renderable {
+
+fun GeometryType.toOpenGLType(): Int {
+    return when(this) {
+        GeometryType.TRIANGLE_STRIP -> GL.GL_TRIANGLE_STRIP
+        GeometryType.POLYGON -> GL.GL_TRIANGLES
+        GeometryType.TRIANGLES -> GL.GL_TRIANGLES
+        GeometryType.TRIANGLE_FAN -> GL.GL_TRIANGLE_FAN
+        GeometryType.POINTS -> GL.GL_POINTS
+    }
+}
+
+open class RenderGeometricalObject : OpenGLRenderModule {
     protected val additionalBufferIds = Hashtable<String, Int>()
 
     protected val mVertexArrayObject = IntArray(1)
     protected val mVertexBuffers = IntArray(3)
     protected val mIndexBuffer = IntArray(1)
+    protected var program: GLProgram
+    protected val gl: GL
+    protected val geometryObject: HasGeometry
 
     var isDynamic = false
-    override var dirty: Boolean = true
-    override var initialized: Boolean = false
-
-    protected var mGeometryType: Int
-    // length of vectors and texcoords
-    protected var mGeometrySize = 3
-    protected var mTextureCoordSize = 2
+    var initialized: Boolean = false
 
     protected var mStoredIndexCount = 0
     protected var mStoredPrimitiveCount = 0
 
     protected val mId: Int
 
-    constructor() : super(java.util.UUID.randomUUID().toString()) {
-        mGeometryType = GL.GL_POINTS
+    constructor(gl: GL, program: GLProgram, geometryObject: HasGeometry) {
         mId = -1
+        this.gl = gl
+        this.program = program
+        this.geometryObject = geometryObject
     }
 
-    constructor(
-                pVectorSize: Int,
-                pGeometryType: Int) : super(UUID.randomUUID().toString()) {
-
-        mGeometrySize = pVectorSize
-        mTextureCoordSize = mGeometrySize - 1
-        mGeometryType = pGeometryType
-
-        mId = counter
-        counter++
-    }
-
-    constructor(
-            pGLProgram: GLProgram,
-            pVectorSize: Int,
-            pGeometryType: Int) : super(UUID.randomUUID().toString()) {
-
-        mGeometrySize = pVectorSize
-        mTextureCoordSize = mGeometrySize - 1
-        mGeometryType = pGeometryType
-        program = pGLProgram
-
-        mId = counter
-        counter++
-    }
-
-    override fun init(): Boolean {
-        if(renderer == null) {
-            return false
-        }
+    override fun initialize(): Boolean {
         // generate VAO for attachment of VBO and indices
-        gl!!.gL3.glGenVertexArrays(1, mVertexArrayObject, 0)
+        gl.gL3.glGenVertexArrays(1, mVertexArrayObject, 0)
 
         // generate three VBOs for coords, normals, texcoords
-        gl!!.glGenBuffers(3, mVertexBuffers, 0)
-        gl!!.glGenBuffers(1, mIndexBuffer, 0)
+        gl.glGenBuffers(3, mVertexBuffers, 0)
+        gl.glGenBuffers(1, mIndexBuffer, 0)
 
-        if(program == null) {
-            program = GLProgram.buildProgram(gl!!, GLProgram::class.java,
+        if (program == null) {
+            program = GLProgram.buildProgram(gl, RenderGeometricalObject::class.java,
                     "shaders/Default.vs", "shaders/Default.fs")
         }
+
+        setVerticesAndCreateBuffer(FloatBuffer.wrap(geometryObject.vertices))
+        setNormalsAndCreateBuffer(FloatBuffer.wrap(geometryObject.normals))
+        setTextureCoordsAndCreateBuffer(FloatBuffer.wrap(geometryObject.texcoords))
+        setIndicesAndCreateBuffer(IntBuffer.wrap(geometryObject.indices))
 
         initialized = true
         return true
     }
 
     fun setVerticesAndCreateBuffer(pVertexBuffer: FloatBuffer) {
-        mStoredPrimitiveCount = pVertexBuffer.remaining() / mGeometrySize
+        mStoredPrimitiveCount = pVertexBuffer.remaining() / geometryObject.vertexSize
 
-        gl!!.gL3.glBindVertexArray(mVertexArrayObject[0])
-        gl!!.glBindBuffer(GL.GL_ARRAY_BUFFER, mVertexBuffers[0])
+        gl.gL3.glBindVertexArray(mVertexArrayObject[0])
+        gl.glBindBuffer(GL.GL_ARRAY_BUFFER, mVertexBuffers[0])
 
-        gl!!.gL3.glEnableVertexAttribArray(0)
-        gl!!.glBufferData(GL.GL_ARRAY_BUFFER,
+        gl.gL3.glEnableVertexAttribArray(0)
+        gl.glBufferData(GL.GL_ARRAY_BUFFER,
                 (pVertexBuffer.limit() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
                 pVertexBuffer,
                 if (isDynamic)
@@ -102,15 +85,15 @@ open class GeometricalObject : Node, GLCloseable, GLInterface, Renderable {
                 else
                     GL.GL_STATIC_DRAW)
 
-        gl!!.gL3.glVertexAttribPointer(0,
-                mGeometrySize,
+        gl.gL3.glVertexAttribPointer(0,
+                geometryObject.vertexSize,
                 GL.GL_FLOAT,
                 false,
                 0,
                 0)
 
-        gl!!.gL3.glBindVertexArray(0)
-        gl!!.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+        gl.gL3.glBindVertexArray(0)
+        gl.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
     }
 
     fun setArbitraryAndCreateBuffer(name: String,
@@ -118,21 +101,21 @@ open class GeometricalObject : Node, GLCloseable, GLInterface, Renderable {
                                     pBufferGeometrySize: Int) {
         // create additional buffers
         if (!additionalBufferIds.containsKey(name)) {
-            gl!!.glGenBuffers(1,
+            gl.glGenBuffers(1,
                     mVertexBuffers,
-                    mVertexBuffers.size() - 1)
+                    mVertexBuffers.size - 1)
             additionalBufferIds.put(name,
-                    mVertexBuffers[mVertexBuffers.size() - 1])
+                    mVertexBuffers[mVertexBuffers.size - 1])
         }
 
-        mStoredPrimitiveCount = pBuffer.remaining() / mGeometrySize
+        mStoredPrimitiveCount = pBuffer.remaining() / geometryObject.vertexSize
 
-        gl!!.gL3.glBindVertexArray(mVertexArrayObject[0])
-        gl!!.glBindBuffer(GL.GL_ARRAY_BUFFER,
-                mVertexBuffers[mVertexBuffers.size() - 1])
+        gl.gL3.glBindVertexArray(mVertexArrayObject[0])
+        gl.glBindBuffer(GL.GL_ARRAY_BUFFER,
+                mVertexBuffers[mVertexBuffers.size - 1])
 
-        gl!!.gL3.glEnableVertexAttribArray(0)
-        gl!!.glBufferData(GL.GL_ARRAY_BUFFER,
+        gl.gL3.glEnableVertexAttribArray(0)
+        gl.glBufferData(GL.GL_ARRAY_BUFFER,
                 (pBuffer.limit() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
                 pBuffer,
                 if (isDynamic)
@@ -140,28 +123,28 @@ open class GeometricalObject : Node, GLCloseable, GLInterface, Renderable {
                 else
                     GL.GL_STATIC_DRAW)
 
-        gl!!.gL3.glVertexAttribPointer(mVertexBuffers.size() - 1,
+        gl.gL3.glVertexAttribPointer(mVertexBuffers.size - 1,
                 pBufferGeometrySize,
                 GL.GL_FLOAT,
                 false,
                 0,
                 0)
 
-        gl!!.gL3.glBindVertexArray(0)
-        gl!!.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+        gl.gL3.glBindVertexArray(0)
+        gl.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
     }
 
     fun updateVertices(pVertexBuffer: FloatBuffer) {
-        mStoredPrimitiveCount = pVertexBuffer.remaining() / mGeometrySize
+        mStoredPrimitiveCount = pVertexBuffer.remaining() / geometryObject.vertexSize
 
         if (!isDynamic)
             throw UnsupportedOperationException("Cannot update non dynamic buffers!")
 
-        gl!!.gL3.glBindVertexArray(mVertexArrayObject[0])
-        gl!!.glBindBuffer(GL.GL_ARRAY_BUFFER, mVertexBuffers[0])
+        gl.gL3.glBindVertexArray(mVertexArrayObject[0])
+        gl.glBindBuffer(GL.GL_ARRAY_BUFFER, mVertexBuffers[0])
 
-        gl!!.gL3.glEnableVertexAttribArray(0)
-        gl!!.glBufferData(GL.GL_ARRAY_BUFFER,
+        gl.gL3.glEnableVertexAttribArray(0)
+        gl.glBufferData(GL.GL_ARRAY_BUFFER,
                 (pVertexBuffer.limit() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
                 pVertexBuffer,
                 if (isDynamic)
@@ -169,23 +152,23 @@ open class GeometricalObject : Node, GLCloseable, GLInterface, Renderable {
                 else
                     GL.GL_STATIC_DRAW)
 
-        gl!!.gL3.glVertexAttribPointer(0,
-                mGeometrySize,
+        gl.gL3.glVertexAttribPointer(0,
+                geometryObject.vertexSize,
                 GL.GL_FLOAT,
                 false,
                 0,
                 0)
 
-        gl!!.gL3.glBindVertexArray(0)
-        gl!!.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+        gl.gL3.glBindVertexArray(0)
+        gl.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
     }
 
     fun setNormalsAndCreateBuffer(pNormalBuffer: FloatBuffer) {
-        gl!!.gL3.glBindVertexArray(mVertexArrayObject[0])
-        gl!!.glBindBuffer(GL.GL_ARRAY_BUFFER, mVertexBuffers[1])
+        gl.gL3.glBindVertexArray(mVertexArrayObject[0])
+        gl.glBindBuffer(GL.GL_ARRAY_BUFFER, mVertexBuffers[1])
 
-        gl!!.gL3.glEnableVertexAttribArray(1)
-        gl!!.glBufferData(GL.GL_ARRAY_BUFFER,
+        gl.gL3.glEnableVertexAttribArray(1)
+        gl.glBufferData(GL.GL_ARRAY_BUFFER,
                 (pNormalBuffer.limit() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
                 pNormalBuffer,
                 if (isDynamic)
@@ -193,47 +176,47 @@ open class GeometricalObject : Node, GLCloseable, GLInterface, Renderable {
                 else
                     GL.GL_STATIC_DRAW)
 
-        gl!!.gL3.glVertexAttribPointer(1,
-                mGeometrySize,
+        gl.gL3.glVertexAttribPointer(1,
+                geometryObject.vertexSize,
                 GL.GL_FLOAT,
                 false,
                 0,
                 0)
 
-        gl!!.gL3.glBindVertexArray(0)
-        gl!!.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+        gl.gL3.glBindVertexArray(0)
+        gl.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
     }
 
     fun updateNormals(pNormalBuffer: FloatBuffer) {
         if (!isDynamic)
             throw UnsupportedOperationException("Cannot update non dynamic buffers!")
 
-        gl!!.gL3.glBindVertexArray(mVertexArrayObject[0])
-        gl!!.glBindBuffer(GL.GL_ARRAY_BUFFER, mVertexBuffers[1])
+        gl.gL3.glBindVertexArray(mVertexArrayObject[0])
+        gl.glBindBuffer(GL.GL_ARRAY_BUFFER, mVertexBuffers[1])
 
-        gl!!.gL3.glEnableVertexAttribArray(1)
-        gl!!.glBufferSubData(GL.GL_ARRAY_BUFFER,
+        gl.gL3.glEnableVertexAttribArray(1)
+        gl.glBufferSubData(GL.GL_ARRAY_BUFFER,
                 0,
                 (pNormalBuffer.limit() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
                 pNormalBuffer)
 
-        gl!!.gL3.glVertexAttribPointer(1,
-                mGeometrySize,
+        gl.gL3.glVertexAttribPointer(1,
+                geometryObject.vertexSize,
                 GL.GL_FLOAT,
                 false,
                 0,
                 0)
 
-        gl!!.gL3.glBindVertexArray(0)
-        gl!!.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+        gl.gL3.glBindVertexArray(0)
+        gl.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
     }
 
     fun setTextureCoordsAndCreateBuffer(pTextureCoordsBuffer: FloatBuffer) {
-        gl!!.gL3.glBindVertexArray(mVertexArrayObject[0])
-        gl!!.glBindBuffer(GL.GL_ARRAY_BUFFER, mVertexBuffers[2])
+        gl.gL3.glBindVertexArray(mVertexArrayObject[0])
+        gl.glBindBuffer(GL.GL_ARRAY_BUFFER, mVertexBuffers[2])
 
-        gl!!.gL3.glEnableVertexAttribArray(2)
-        gl!!.glBufferData(GL.GL_ARRAY_BUFFER,
+        gl.gL3.glEnableVertexAttribArray(2)
+        gl.glBufferData(GL.GL_ARRAY_BUFFER,
                 (pTextureCoordsBuffer.limit() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
                 pTextureCoordsBuffer,
                 if (isDynamic)
@@ -241,49 +224,49 @@ open class GeometricalObject : Node, GLCloseable, GLInterface, Renderable {
                 else
                     GL.GL_STATIC_DRAW)
 
-        gl!!.gL3.glVertexAttribPointer(2,
-                mTextureCoordSize,
+        gl.gL3.glVertexAttribPointer(2,
+                geometryObject.texcoordSize,
                 GL.GL_FLOAT,
                 false,
                 0,
                 0)
 
-        gl!!.gL3.glBindVertexArray(0)
-        gl!!.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+        gl.gL3.glBindVertexArray(0)
+        gl.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
     }
 
     fun updateTextureCoords(pTextureCoordsBuffer: FloatBuffer) {
         if (!isDynamic)
             throw UnsupportedOperationException("Cannot update non dynamic buffers!")
 
-        gl!!.gL3.glBindVertexArray(mVertexArrayObject[0])
+        gl.gL3.glBindVertexArray(mVertexArrayObject[0])
         GLError.printGLErrors(gl, "1")
 
-        gl!!.gL3.glBindBuffer(GL.GL_ARRAY_BUFFER,
+        gl.gL3.glBindBuffer(GL.GL_ARRAY_BUFFER,
                 mVertexBuffers[2])
         GLError.printGLErrors(gl, "2")
 
-        gl!!.gL3.glEnableVertexAttribArray(2)
+        gl.gL3.glEnableVertexAttribArray(2)
         GLError.printGLErrors(gl, "3")
 
-        gl!!.glBufferSubData(GL.GL_ARRAY_BUFFER,
+        gl.glBufferSubData(GL.GL_ARRAY_BUFFER,
                 0,
                 (pTextureCoordsBuffer.limit() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
                 pTextureCoordsBuffer)
         GLError.printGLErrors(gl, "4")
 
-        gl!!.gL3.glVertexAttribPointer(2,
-                mTextureCoordSize,
+        gl.gL3.glVertexAttribPointer(2,
+                geometryObject.texcoordSize,
                 GL.GL_FLOAT,
                 false,
                 0,
                 0)
         GLError.printGLErrors(gl, "5")
 
-        gl!!.gL3.glBindVertexArray(0)
+        gl.gL3.glBindVertexArray(0)
         GLError.printGLErrors(gl, "6")
 
-        gl!!.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+        gl.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
         GLError.printGLErrors(gl, "7")
 
     }
@@ -292,10 +275,10 @@ open class GeometricalObject : Node, GLCloseable, GLInterface, Renderable {
 
         mStoredIndexCount = pIndexBuffer.remaining()
 
-        gl!!.gL3.glBindVertexArray(mVertexArrayObject[0])
-        gl!!.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, mIndexBuffer[0])
+        gl.gL3.glBindVertexArray(mVertexArrayObject[0])
+        gl.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, mIndexBuffer[0])
 
-        gl!!.glBufferData(GL.GL_ELEMENT_ARRAY_BUFFER,
+        gl.glBufferData(GL.GL_ELEMENT_ARRAY_BUFFER,
                 (pIndexBuffer.limit() * (Integer.SIZE / java.lang.Byte.SIZE)).toLong(),
                 pIndexBuffer,
                 if (isDynamic)
@@ -303,8 +286,8 @@ open class GeometricalObject : Node, GLCloseable, GLInterface, Renderable {
                 else
                     GL.GL_STATIC_DRAW)
 
-        gl!!.gL3.glBindVertexArray(0)
-        gl!!.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, 0)
+        gl.gL3.glBindVertexArray(0)
+        gl.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, 0)
     }
 
     fun updateIndices(pIndexBuffer: IntBuffer) {
@@ -313,16 +296,16 @@ open class GeometricalObject : Node, GLCloseable, GLInterface, Renderable {
 
         mStoredIndexCount = pIndexBuffer.remaining()
 
-        gl!!.gL3.glBindVertexArray(mVertexArrayObject[0])
-        gl!!.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, mIndexBuffer[0])
+        gl.gL3.glBindVertexArray(mVertexArrayObject[0])
+        gl.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, mIndexBuffer[0])
 
-        gl!!.glBufferSubData(GL.GL_ELEMENT_ARRAY_BUFFER,
+        gl.glBufferSubData(GL.GL_ELEMENT_ARRAY_BUFFER,
                 0,
                 (pIndexBuffer.limit() * (Integer.SIZE / java.lang.Byte.SIZE)).toLong(),
                 pIndexBuffer)
 
-        gl!!.gL3.glBindVertexArray(0)
-        gl!!.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, 0)
+        gl.gL3.glBindVertexArray(0)
+        gl.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, 0)
     }
 
     override fun draw() {
@@ -344,47 +327,34 @@ open class GeometricalObject : Node, GLCloseable, GLInterface, Renderable {
             program!!.getUniform("ProjectionMatrix").setFloatMatrix(this.projection!!.floatArray,
                     false)*/
 
-        gl!!.gL3.glBindVertexArray(mVertexArrayObject[0])
+        gl.gL3.glBindVertexArray(mVertexArrayObject[0])
 
         if (mStoredIndexCount > 0) {
-            gl!!.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER,
+            gl.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER,
                     mIndexBuffer[0])
-            gl!!.glDrawElements(mGeometryType,
+            gl.glDrawElements(geometryObject.geometryType.toOpenGLType(),
                     pCount,
                     GL.GL_UNSIGNED_INT,
                     pOffset.toLong())
 
-            gl!!.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, 0)
+            gl.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, 0)
         } else {
-            gl!!.glDrawArrays(mGeometryType, pOffset, pCount)
+            gl.glDrawArrays(geometryObject.geometryType.toOpenGLType(), pOffset, pCount)
         }
 
-        gl!!.gL3.glUseProgram(0)
+        gl.gL3.glUseProgram(0)
     }
 
-    @Throws(GLException::class)
-    override fun close() {
-        gl!!.gL3.glDeleteVertexArrays(mVertexArrayObject.size(),
+    fun close() {
+        gl.gL3.glDeleteVertexArrays(mVertexArrayObject.size(),
                 mVertexArrayObject,
                 0)
 
-        gl!!.glDeleteBuffers(mVertexBuffers.size(), mVertexBuffers, 0)
-        gl!!.glDeleteBuffers(mIndexBuffer.size(), mIndexBuffer, 0)
+        gl.glDeleteBuffers(mVertexBuffers.size, mVertexBuffers, 0)
+        gl.glDeleteBuffers(mIndexBuffer.size, mIndexBuffer, 0)
     }
 
-    override fun getGL(): GL? {
-        if (renderer == null) {
-            if(program == null) {
-                return null;
-            } else {
-                return program!!.gl
-            }
-        }
-
-        return renderer!!.getGL()
-    }
-
-    override fun getId(): Int {
+    fun getId(): Int {
         return mId
     }
 
@@ -415,5 +385,4 @@ open class GeometricalObject : Node, GLCloseable, GLInterface, Renderable {
             buf.rewind()
         }
     }
-
 }

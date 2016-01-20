@@ -1,19 +1,22 @@
 package scenery
 
-import cleargl.GLMatrix
-import com.jogamp.opengl.GL
-import java.nio.FloatBuffer
 import java.util.*
 
 /**
  * Created by ulrik on 18/01/16.
  */
-class Sphere(radius: Float, segments: Int) : GeometricalObject(3, GL.GL_TRIANGLE_STRIP){
+class Sphere(radius: Float, segments: Int) : HasGeometry {
     var radius: Float
     var segments: Int
 
-    var vertices: FloatArray? = null
-    var normals: FloatArray? = null
+    override val vertexSize = 3;
+    override val texcoordSize = 2;
+    override val geometryType = GeometryType.TRIANGLE_STRIP;
+
+    override var vertices: FloatArray = floatArrayOf()
+    override var normals: FloatArray = floatArrayOf()
+    override var texcoords: FloatArray = floatArrayOf()
+    override var indices: IntArray = intArrayOf()
 
     init {
         this.radius = radius
@@ -59,17 +62,4 @@ class Sphere(radius: Float, segments: Int) : GeometricalObject(3, GL.GL_TRIANGLE
         normals = nbuffer.toFloatArray()
     }
 
-    override fun init(): Boolean {
-        // null GLSL program, aka use the default shaders
-        val program = null
-
-        super.init()
-
-        setVerticesAndCreateBuffer(FloatBuffer.wrap(vertices))
-        setNormalsAndCreateBuffer(FloatBuffer.wrap(normals))
-
-        this.model = GLMatrix.getIdentity()
-
-        return true
-    }
 }
