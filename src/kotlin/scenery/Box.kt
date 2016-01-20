@@ -1,20 +1,20 @@
 package scenery
 
-import cleargl.GLMatrix
 import cleargl.GLVector
-import com.jogamp.opengl.GL
-import java.nio.FloatBuffer
-import java.nio.IntBuffer
 
 /**
  * Created by ulrik on 14/12/15.
  */
-class Box(sizes: GLVector) : GeometricalObject(3, GL.GL_TRIANGLES) {
-    var vertices: FloatArray? = null
-    var normals: FloatArray? = null
-    var texcoords: FloatArray? = null
-    var indices: IntArray? = null
+class Box(sizes: GLVector) : HasGeometry {
+    override var vertices: FloatArray = floatArrayOf()
+    override var normals: FloatArray = floatArrayOf()
+    override var texcoords: FloatArray = floatArrayOf()
+    override var indices: IntArray = intArrayOf()
     var sizes: GLVector
+
+    override val vertexSize = 3;
+    override val texcoordSize = 2;
+    override val geometryType = GeometryType.TRIANGLES;
 
     init {
          this.sizes = sizes
@@ -122,22 +122,5 @@ class Box(sizes: GLVector) : GeometricalObject(3, GL.GL_TRIANGLES) {
             1.0f, 1.0f,
             0.0f, 1.0f
         )
-    }
-
-    override fun init(): Boolean {
-        // null GLSL program, aka use the default shaders
-        val program = null
-
-        super.init()
-
-        setVerticesAndCreateBuffer(FloatBuffer.wrap(vertices))
-        setNormalsAndCreateBuffer(FloatBuffer.wrap(normals))
-        setTextureCoordsAndCreateBuffer(FloatBuffer.wrap(texcoords))
-        setIndicesAndCreateBuffer(IntBuffer.wrap(indices))
-
-        this.model = GLMatrix.getIdentity()
-        this.model.scale(this.sizes.x(), this.sizes.y(), this.sizes.z())
-
-        return true
     }
 }
