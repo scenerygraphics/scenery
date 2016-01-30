@@ -5,7 +5,7 @@ import java.util.*
 /**
  * Created by ulrik on 18/01/16.
  */
-class Sphere(radius: Float, segments: Int) : HasGeometry {
+class Sphere(radius: Float, segments: Int) : Node("sphere"), HasGeometry {
     var radius: Float
     var segments: Int
 

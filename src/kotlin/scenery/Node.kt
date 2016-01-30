@@ -10,6 +10,7 @@ import java.sql.Timestamp
 import java.util.*
 
 open class Node(open var name: String) : Renderable {
+    override var material: Material? = null
     override var initialized: Boolean = false
     override var dirty: Boolean = true
     override var visible: Boolean = true
@@ -22,6 +23,12 @@ open class Node(open var name: String) : Renderable {
     open var nodeType = "Node"
 
     override var program: GLProgram? = null
+    override var world: GLMatrix = GLMatrix.getIdentity()
+        set(m) {
+            this.iworld = m.invert()
+            field = m
+        }
+    override var iworld: GLMatrix = GLMatrix.getIdentity()
     override var model: GLMatrix = GLMatrix.getIdentity()
         set(m) {
             this.imodel = m.invert()
@@ -52,7 +59,7 @@ open class Node(open var name: String) : Renderable {
     override var mvp: GLMatrix? = null
 
     override var position: GLVector? = null
-    override var scale: GLVector? = null
+    override var scale: GLVector = GLVector(1.0f, 1.0f, 1.0f)
     override var rotation: Quaternion = Quaternion(0.0f, 0.0f, 0.0f, 1.0f);
 
     public var children: ArrayList<Node>
@@ -63,7 +70,8 @@ open class Node(open var name: String) : Renderable {
     var createdAt: Long = 0
     var modifiedAt: Long = 0
 
-    protected var needsUpdate = false
+    protected var needsUpdate = true
+    protected var needsUpdateWorld = true
 
     init {
         this.createdAt = (Timestamp(Date().time).time).toLong()
@@ -108,40 +116,50 @@ open class Node(open var name: String) : Renderable {
 
     }
 
-    fun updateWorld(recursive: Boolean) {
-        if (needsUpdate) {
-            if (this.parent == null) {
-                this.composeModel()
+    fun updateWorld(recursive: Boolean, force: Boolean = false) {
+        if (needsUpdate or force) {
+            this.composeModel()
+            needsUpdate = false
+            needsUpdateWorld = true
+        }
+
+        if(needsUpdateWorld or force) {
+            if (this.parent == null || this.parent is Scene) {
+                this.world = this.model.clone()
             } else {
-                val m = parent!!.model
+                val m = parent!!.world.clone()
 
-                this.composeModel()
                 m.mult(this.model)
-
-                this.model = m
+                this.world = m
             }
+
+            this.needsUpdateWorld = false
         }
 
         if (recursive) {
-            for (c in this.children) {
-                c.updateWorld(true)
-            }
-
+            this.children.forEach { it.updateWorld(true) }
             // also update linked nodes -- they might need updated
             // model/view/proj matrices as well
-            for (c in this.linkedNodes) {
-                c.updateWorld(true)
-            }
+            this.linkedNodes.forEach { it.updateWorld(true) }
         }
     }
 
     fun composeModel() {
         val w = GLMatrix.getIdentity()
-        w.mult(GLMatrix.getScaling(this.scale))
-        w.mult(GLMatrix.getTranslation(this.position))
+        System.err.println("Position of ${name}: ${this.position!!}")
+        w.translate(this.position!!.x(), this.position!!.y(), this.position!!.z())
+        w.scale(this.scale!!.x(), this.scale!!.y(), this.scale!!.z())
         w.mult(this.rotation)
 
         this.model = w
+    }
+
+    fun composeWorld() {
+        val w = GLMatrix.getIdentity()
+        w.translate(this.position!!.x(), this.position!!.y(), this.position!!.z())
+        w.mult(this.rotation)
+
+        this.world = w
     }
 
     fun composeModelView() {

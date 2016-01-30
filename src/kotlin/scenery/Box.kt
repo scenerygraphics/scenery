@@ -5,19 +5,18 @@ import cleargl.GLVector
 /**
  * Created by ulrik on 14/12/15.
  */
-class Box(sizes: GLVector) : HasGeometry {
+class Box(sizes: GLVector) : Node("box"), HasGeometry {
     override var vertices: FloatArray = floatArrayOf()
     override var normals: FloatArray = floatArrayOf()
     override var texcoords: FloatArray = floatArrayOf()
     override var indices: IntArray = intArrayOf()
-    var sizes: GLVector
 
     override val vertexSize = 3;
     override val texcoordSize = 2;
     override val geometryType = GeometryType.TRIANGLES;
 
     init {
-         this.sizes = sizes
+         this.scale = sizes
          val side = 2.0f
          val side2 = side / 2.0f
 

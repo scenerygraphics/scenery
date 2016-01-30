@@ -1,10 +1,11 @@
-package scenery.RenderModules.OpenGL
+package scenery.rendermodules.opengl
 
 import cleargl.GLError
 import cleargl.GLProgram
 import com.jogamp.opengl.GL
 import scenery.GeometryType
 import scenery.HasGeometry
+import scenery.Node
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.util.*
@@ -24,12 +25,13 @@ fun GeometryType.toOpenGLType(): Int {
 }
 
 open class RenderGeometricalObject : OpenGLRenderModule {
+    override var node: Node
     protected val additionalBufferIds = Hashtable<String, Int>()
 
     protected val mVertexArrayObject = IntArray(1)
     protected val mVertexBuffers = IntArray(3)
     protected val mIndexBuffer = IntArray(1)
-    protected var program: GLProgram
+    override var program: GLProgram?
     protected val gl: GL
     protected val geometryObject: HasGeometry
 
@@ -41,11 +43,12 @@ open class RenderGeometricalObject : OpenGLRenderModule {
 
     protected val mId: Int
 
-    constructor(gl: GL, program: GLProgram, geometryObject: HasGeometry) {
+    constructor(gl: GL, program: GLProgram?, geometryObject: Node) {
         mId = -1
         this.gl = gl
         this.program = program
-        this.geometryObject = geometryObject
+        this.geometryObject = geometryObject as HasGeometry
+        this.node = geometryObject
     }
 
     override fun initialize(): Boolean {
@@ -58,13 +61,19 @@ open class RenderGeometricalObject : OpenGLRenderModule {
 
         if (program == null) {
             program = GLProgram.buildProgram(gl, RenderGeometricalObject::class.java,
-                    "shaders/Default.vs", "shaders/Default.fs")
+                    "Default.vs", "Default.fs")
         }
 
         setVerticesAndCreateBuffer(FloatBuffer.wrap(geometryObject.vertices))
         setNormalsAndCreateBuffer(FloatBuffer.wrap(geometryObject.normals))
-        setTextureCoordsAndCreateBuffer(FloatBuffer.wrap(geometryObject.texcoords))
-        setIndicesAndCreateBuffer(IntBuffer.wrap(geometryObject.indices))
+
+        if(geometryObject.texcoords.size > 0) {
+            setTextureCoordsAndCreateBuffer(FloatBuffer.wrap(geometryObject.texcoords))
+        }
+
+        if(geometryObject.indices.size > 0) {
+            setIndicesAndCreateBuffer(IntBuffer.wrap(geometryObject.indices))
+        }
 
         initialized = true
         return true
@@ -317,7 +326,7 @@ open class RenderGeometricalObject : OpenGLRenderModule {
     }
 
     fun draw(pOffset: Int, pCount: Int) {
-        //program!!.use(gl)
+        program!!.use(gl)
 
         /*if (this.modelView != null)
             program!!.getUniform("ModelViewMatrix").setFloatMatrix(this.modelView!!.floatArray,
