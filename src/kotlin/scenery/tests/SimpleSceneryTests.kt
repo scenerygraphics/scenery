@@ -138,6 +138,7 @@ class SimpleSceneryTests {
                     scene.initList.forEach {
                         o -> objectMap.put(o, renderMappings[o.javaClass.interfaces.first().toString().substringAfterLast(".")]!!.constructors.first().call(lGL, null, o))
                     }
+
                     objectMap.forEach { key, o -> o.initialize(); }
                 } catch (e: GLException) {
                     e.printStackTrace()
