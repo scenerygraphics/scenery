@@ -1,6 +1,7 @@
 package scenery.tests
 
 import cleargl.*
+import cleargl.util.arcball.ArcBall
 import com.jogamp.opengl.GL
 import com.jogamp.opengl.GLAutoDrawable
 import com.jogamp.opengl.GLException
@@ -12,8 +13,7 @@ import scenery.*
 import scenery.controls.JOGLMouseAndKeyHandler
 import scenery.rendermodules.opengl.OpenGLRenderModule
 import scenery.rendermodules.opengl.RenderGeometricalObject
-import java.io.IOException
-import java.io.StringReader
+import java.io.*
 import java.util.*
 import kotlin.concurrent.thread
 
@@ -31,14 +31,22 @@ class SimpleSceneryTests {
             "HasGeometry" to RenderGeometricalObject::class
     )
 
-    internal class MyDragBehaviour(private val name: String) : DragBehaviour {
+    internal class ArcBallDragBehaviour(private val name: String, private val node: Node, private val w: Int, private val h: Int) : DragBehaviour {
+        private val arcball = ArcBall()
+
+        init {
+            arcball.setBounds(w.toFloat(), h.toFloat())
+        }
 
         override fun init(x: Int, y: Int) {
+            arcball.setBounds(w.toFloat(), h.toFloat())
+            arcball.click(w.toFloat(), h.toFloat())
             System.err.println("$name: init($x, $y)")
         }
 
         override fun drag(x: Int, y: Int) {
-            System.err.println("$name: drag($x, $y)")
+            arcball.setBounds(w.toFloat(), h.toFloat())
+            node.rotation = arcball.drag(x.toFloat(), y.toFloat())
         }
 
         override fun end(x: Int, y: Int) {
@@ -117,8 +125,7 @@ class SimpleSceneryTests {
                     boxes.last().addChild(sphere)
 
                     val cam_view = GLMatrix.getIdentity()
-                    cam_view.setCamera(-50.0f, -50.0f, -50.0f, 0.0f, -5.0f, -5.0f, 0.0f, 1.0f, 0.0f)
-//                    cam_view.translate(-5.0f, -5.0f, 30.0f)
+                    cam_view.translate(-5.0f, -5.0f, 30.0f)
 
                     val cam_proj = GLMatrix()
                     cam_proj.setPerspectiveProjectionMatrix(
@@ -193,19 +200,13 @@ class SimpleSceneryTests {
                 if (pHeight == 0)
                     pHeight = 1
                 val ratio = 1.0f * pWidth / pHeight
-                // setPerspectiveProjectionMatrix(53.13f, ratio, 1.0f, 30.0f);
-/*                clearGLWindow.setOrthoProjectionMatrix(-2f,
-                        2f,
-                        -2f,
-                        2f,
-                        10f,
-                        -10f)*/
             }
 
             override fun display(pDrawable: GLAutoDrawable) {
                 renderOrderList.clear()
 
                 val cam: Camera = scene.findObserver()
+                var view: GLMatrix
                 var mv: GLMatrix
                 var mvp: GLMatrix
                 var proj: GLMatrix
@@ -230,10 +231,12 @@ class SimpleSceneryTests {
 //                    n.node.model.scale(n.node.scale!!.x(), n.node.scale!!.y(), n.node.scale!!.z())
                     n.node.updateWorld(true, false)
 
-                    mv = cam.view!!.clone()
+                    view = cam.view!!.clone()
+                    view.mult(cam.rotation)
+
+                    mv = view.clone()
                     mv.mult(n.node.world)
 
-                    proj = cam.projection!!.clone()
                     proj = cam.projection!!.clone()
                     mvp = proj.clone()
                     mvp.mult(mv)
@@ -307,30 +310,35 @@ class SimpleSceneryTests {
         /*
 		 * Load YAML config "file".
 		 */
-        val reader = StringReader("---\n" +
-                "- !mapping" + "\n" +
-                "  action: drag1" + "\n" +
-                "  contexts: [all]" + "\n" +
-                "  triggers: [button1, G]" + "\n" +
-                "- !mapping" + "\n" +
-                "  action: scroll1" + "\n" +
-                "  contexts: [all]" + "\n" +
-                "  triggers: [scroll]" + "\n" +
-                "")
-        val triggers = YamlConfigIO.read(reader)
-        val config = InputTriggerConfig(triggers)
+        var reader: Reader
+
+        try {
+            reader = FileReader(System.getProperty("user.home") + "/.scenery.keybindings")
+        } catch (e: FileNotFoundException) {
+            System.err.println("Falling back to default keybindings...")
+            reader = StringReader("---\n" +
+                    "- !mapping" + "\n" +
+                    "  action: drag1" + "\n" +
+                    "  contexts: [all]" + "\n" +
+                    "  triggers: [button1, G]" + "\n" +
+                    "- !mapping" + "\n" +
+                    "  action: scroll1" + "\n" +
+                    "  contexts: [all]" + "\n" +
+                    "  triggers: [scroll]" + "\n" +
+                    "")
+        }
+
+        val config = InputTriggerConfig(YamlConfigIO.read(reader))
 
         /*
 		 * Create behaviours and input mappings.
 		 */
-        behaviourMap.put("drag1", MyDragBehaviour("drag1"))
-        behaviourMap.put("drag2", MyDragBehaviour("drag2"))
+        behaviourMap.put("drag1", ArcBallDragBehaviour("drag1", scene.findObserver(), lClearGLWindow.width, lClearGLWindow.height))
         behaviourMap.put("scroll1", MyScrollBehaviour("scroll1"))
         behaviourMap.put("click1", MyClickBehaviour("click1"))
 
         val adder = config.inputTriggerAdder(inputMap, "all")
         adder.put("drag1") // put input trigger as defined in config
-        adder.put("drag2", "button1", "shift A") // default triggers if not defined in config
         adder.put("scroll1", "scroll")
         adder.put("click1", "button1", "B")
         adder.put("click1", "button3", "X")
