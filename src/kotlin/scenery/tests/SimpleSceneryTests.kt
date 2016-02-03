@@ -5,10 +5,15 @@ import com.jogamp.opengl.GL
 import com.jogamp.opengl.GLAutoDrawable
 import com.jogamp.opengl.GLException
 import org.junit.Test
+import org.scijava.ui.behaviour.*
+import org.scijava.ui.behaviour.io.InputTriggerConfig
+import org.scijava.ui.behaviour.io.yaml.YamlConfigIO
 import scenery.*
+import scenery.controls.JOGLMouseAndKeyHandler
 import scenery.rendermodules.opengl.OpenGLRenderModule
 import scenery.rendermodules.opengl.RenderGeometricalObject
 import java.io.IOException
+import java.io.StringReader
 import java.util.*
 import kotlin.concurrent.thread
 
@@ -25,6 +30,35 @@ class SimpleSceneryTests {
     private val renderMappings = hashMapOf(
             "HasGeometry" to RenderGeometricalObject::class
     )
+
+    internal class MyDragBehaviour(private val name: String) : DragBehaviour {
+
+        override fun init(x: Int, y: Int) {
+            System.err.println("$name: init($x, $y)")
+        }
+
+        override fun drag(x: Int, y: Int) {
+            System.err.println("$name: drag($x, $y)")
+        }
+
+        override fun end(x: Int, y: Int) {
+            System.err.println("$name: end($x, $y)")
+        }
+    }
+
+    internal class MyClickBehaviour(private val name: String) : ClickBehaviour {
+
+        override fun click(x: Int, y: Int) {
+            System.err.println("$name: click($x, $y)")
+        }
+    }
+
+    internal class MyScrollBehaviour(private val name: String) : ScrollBehaviour {
+
+        override fun scroll(wheelRotation: Double, isHorizontal: Boolean, x: Int, y: Int) {
+            System.err.println("$name: scroll($wheelRotation, $isHorizontal, $x, $y)")
+        }
+    }
 
     @Test
     public fun demo() {
@@ -218,13 +252,11 @@ class SimpleSceneryTests {
                         n.program!!.getUniform("Material.Shinyness").setFloat(0.5f);
 
                         if(n.node.material != null) {
-                            System.err.println("Using custom material for ${n.node.name}")
                             n.program!!.getUniform("Material.Ka").setFloatVector(n.node.material!!.ambient);
                             n.program!!.getUniform("Material.Kd").setFloatVector(n.node.material!!.diffuse);
                             n.program!!.getUniform("Material.Ks").setFloatVector(n.node.material!!.specular);
                         }
                         else {
-                            System.err.println("Using default material for ${n.node.name}")
                             n.program!!.getUniform("Material.Ka").setFloatVector3(n.node.position?.toFloatBuffer());
                             n.program!!.getUniform("Material.Kd").setFloatVector3(n.node.position?.toFloatBuffer());
                             n.program!!.getUniform("Material.Ks").setFloatVector3(n.node.position?.toFloatBuffer());
@@ -251,13 +283,58 @@ class SimpleSceneryTests {
         }
 
         lClearGLWindowEventListener.isDebugMode = true
-
         val lClearGLWindow = ClearGLWindow("demo: ClearGLWindow",
                 1280,
                 720,
                 lClearGLWindowEventListener)
         lClearGLWindow.isVisible = true
         lClearGLWindow.setFPS(300)
+
+        val inputMap = InputTriggerMap()
+        val behaviourMap = BehaviourMap()
+
+        /*
+		 * Create a MouseAndKeyHandler that dispatches to registered Behaviours.
+		 */
+        val handler = JOGLMouseAndKeyHandler()
+        handler.setInputMap(inputMap)
+        handler.setBehaviourMap(behaviourMap)
+
+        lClearGLWindow.addKeyListener(handler)
+        lClearGLWindow.addMouseListener(handler)
+        lClearGLWindow.addWindowListener(handler)
+
+        /*
+		 * Load YAML config "file".
+		 */
+        val reader = StringReader("---\n" +
+                "- !mapping" + "\n" +
+                "  action: drag1" + "\n" +
+                "  contexts: [all]" + "\n" +
+                "  triggers: [button1, G]" + "\n" +
+                "- !mapping" + "\n" +
+                "  action: scroll1" + "\n" +
+                "  contexts: [all]" + "\n" +
+                "  triggers: [scroll]" + "\n" +
+                "")
+        val triggers = YamlConfigIO.read(reader)
+        val config = InputTriggerConfig(triggers)
+
+        /*
+		 * Create behaviours and input mappings.
+		 */
+        behaviourMap.put("drag1", MyDragBehaviour("drag1"))
+        behaviourMap.put("drag2", MyDragBehaviour("drag2"))
+        behaviourMap.put("scroll1", MyScrollBehaviour("scroll1"))
+        behaviourMap.put("click1", MyClickBehaviour("click1"))
+
+        val adder = config.inputTriggerAdder(inputMap, "all")
+        adder.put("drag1") // put input trigger as defined in config
+        adder.put("drag2", "button1", "shift A") // default triggers if not defined in config
+        adder.put("scroll1", "scroll")
+        adder.put("click1", "button1", "B")
+        adder.put("click1", "button3", "X")
+
         lClearGLWindow.start()
 
         while (lClearGLWindow.isVisible) {

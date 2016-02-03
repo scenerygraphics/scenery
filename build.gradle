@@ -75,6 +75,8 @@ dependencies
 	compile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.1'
     compile ('org.jogamp.jogl:jogl-all:2.3.1'){transitive = true}
 
+    compile 'org.scijava:ui-behaviour:1.0.1-SNAPSHOT'
+
     // usage: gradle .... -Plocal=true
 	if (project.hasProperty('local')) {
 		println 'Using local clearX sources'
@@ -99,6 +101,8 @@ repositories
 	{ url  "http://dl.bintray.com/rtlib/CoreMem" }
 	maven
 	{ url  "http://dl.bintray.com/clearvolume/ClearVolume"  }
+    
+    mavenLocal()
 }
 
 
