@@ -120,16 +120,16 @@ open class GeometricalObject : Node, GLCloseable, GLInterface, Renderable {
         if (!additionalBufferIds.containsKey(name)) {
             gl!!.glGenBuffers(1,
                     mVertexBuffers,
-                    mVertexBuffers.size() - 1)
+                    mVertexBuffers.size - 1)
             additionalBufferIds.put(name,
-                    mVertexBuffers[mVertexBuffers.size() - 1])
+                    mVertexBuffers[mVertexBuffers.size - 1])
         }
 
         mStoredPrimitiveCount = pBuffer.remaining() / mGeometrySize
 
         gl!!.gL3.glBindVertexArray(mVertexArrayObject[0])
         gl!!.glBindBuffer(GL.GL_ARRAY_BUFFER,
-                mVertexBuffers[mVertexBuffers.size() - 1])
+                mVertexBuffers[mVertexBuffers.size - 1])
 
         gl!!.gL3.glEnableVertexAttribArray(0)
         gl!!.glBufferData(GL.GL_ARRAY_BUFFER,
@@ -140,7 +140,7 @@ open class GeometricalObject : Node, GLCloseable, GLInterface, Renderable {
                 else
                     GL.GL_STATIC_DRAW)
 
-        gl!!.gL3.glVertexAttribPointer(mVertexBuffers.size() - 1,
+        gl!!.gL3.glVertexAttribPointer(mVertexBuffers.size - 1,
                 pBufferGeometrySize,
                 GL.GL_FLOAT,
                 false,
@@ -364,12 +364,12 @@ open class GeometricalObject : Node, GLCloseable, GLInterface, Renderable {
 
     @Throws(GLException::class)
     override fun close() {
-        gl!!.gL3.glDeleteVertexArrays(mVertexArrayObject.size(),
+        gl!!.gL3.glDeleteVertexArrays(mVertexArrayObject.size,
                 mVertexArrayObject,
                 0)
 
-        gl!!.glDeleteBuffers(mVertexBuffers.size(), mVertexBuffers, 0)
-        gl!!.glDeleteBuffers(mIndexBuffer.size(), mIndexBuffer, 0)
+        gl!!.glDeleteBuffers(mVertexBuffers.size, mVertexBuffers, 0)
+        gl!!.glDeleteBuffers(mIndexBuffer.size, mIndexBuffer, 0)
     }
 
     override fun getGL(): GL? {

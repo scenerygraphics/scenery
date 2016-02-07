@@ -59,8 +59,24 @@ open class Node(open var name: String) : Renderable {
     override var mvp: GLMatrix? = null
 
     override var position: GLVector? = null
+        set(v) {
+            this.needsUpdate = true
+            this.needsUpdateWorld = true
+            field = v
+        }
+
     override var scale: GLVector = GLVector(1.0f, 1.0f, 1.0f)
+        set(v) {
+            this.needsUpdate = true
+            this.needsUpdateWorld = true
+            field = v
+        }
     override var rotation: Quaternion = Quaternion(0.0f, 0.0f, 0.0f, 1.0f);
+        set(q) {
+            this.needsUpdate = true
+            this.needsUpdateWorld = true
+            field = q
+        }
 
     public var children: ArrayList<Node>
     public var linkedNodes: ArrayList<Node>
@@ -70,8 +86,8 @@ open class Node(open var name: String) : Renderable {
     var createdAt: Long = 0
     var modifiedAt: Long = 0
 
-    protected var needsUpdate = true
-    protected var needsUpdateWorld = true
+    public var needsUpdate = true
+    public var needsUpdateWorld = true
 
     init {
         this.createdAt = (Timestamp(Date().time).time).toLong()
@@ -117,20 +133,28 @@ open class Node(open var name: String) : Renderable {
     }
 
     fun updateWorld(recursive: Boolean, force: Boolean = false) {
+//        System.err.println("Updating world of ${name}")
+
         if (needsUpdate or force) {
             this.composeModel()
             needsUpdate = false
             needsUpdateWorld = true
         }
 
+//        System.err.println("3: Model of ${name} is: ${model}")
+
         if(needsUpdateWorld or force) {
             if (this.parent == null || this.parent is Scene) {
+//                System.err.println("${name} has no parent, cloning model")
                 this.world = this.model.clone()
             } else {
                 val m = parent!!.world.clone()
-
+//                System.err.println("parent (${parent!!.name}): ${m}")
+//                System.err.println("this (${this.name}): ${this.model}")
                 m.mult(this.model)
+
                 this.world = m
+//                System.err.println("this world (${this.name}): ${m}")
             }
 
             this.needsUpdateWorld = false
@@ -146,20 +170,14 @@ open class Node(open var name: String) : Renderable {
 
     fun composeModel() {
         val w = GLMatrix.getIdentity()
-        System.err.println("Position of ${name}: ${this.position!!}")
-        w.translate(this.position!!.x(), this.position!!.y(), this.position!!.z())
-        w.scale(this.scale!!.x(), this.scale!!.y(), this.scale!!.z())
         w.mult(this.rotation)
+        w.scale(this.scale.x(), this.scale.y(), this.scale.z())
+        w.translate(this.position!!.x(), this.position!!.y(), this.position!!.z())
 
+
+//        System.err.println("1: Model of ${name} is: ${w}")
         this.model = w
-    }
-
-    fun composeWorld() {
-        val w = GLMatrix.getIdentity()
-        w.translate(this.position!!.x(), this.position!!.y(), this.position!!.z())
-        w.mult(this.rotation)
-
-        this.world = w
+//        System.err.println("2: Model of ${name} is: ${model}")
     }
 
     fun composeModelView() {

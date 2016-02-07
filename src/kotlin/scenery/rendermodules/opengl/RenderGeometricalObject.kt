@@ -355,7 +355,7 @@ open class RenderGeometricalObject : OpenGLRenderModule {
     }
 
     fun close() {
-        gl.gL3.glDeleteVertexArrays(mVertexArrayObject.size(),
+        gl.gL3.glDeleteVertexArrays(mVertexArrayObject.size,
                 mVertexArrayObject,
                 0)
 
