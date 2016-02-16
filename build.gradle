@@ -27,31 +27,19 @@ sourceSets
 	main
 	{
         kotlin
-        { srcDirs = ['src/kotlin'] }
+        { srcDirs = ['src/main/kotlin'] }
 		resources
-		{  srcDirs = ['src/resources']
+		{  srcDirs = ['src/main/resources']
         }
 	}
 	test
 	{
         kotlin
-        { srcDirs = ['src/kotlin'] }
+        { srcDirs = ['src/test/kotlin'] }
 		resources
-		{  srcDirs = ['src/resources'] }
+		{  srcDirs = ['src/test/resources'] }
 	}
-	main.java.srcDirs += 'src/main/kotlin'
 }
-
-processResources {
-    from('src/kotlin') {
-        include '**/*.fs'
-        include '**/*.vs'
-        include '**/*.gs'
-        include '**/*.tcs'
-        include '**/*.tes'
-    }
-}
-
 
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
