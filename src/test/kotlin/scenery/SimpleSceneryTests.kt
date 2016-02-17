@@ -1,17 +1,18 @@
 package scenery.tests
 
 import cleargl.*
-import cleargl.util.arcball.ArcBall
 import com.jogamp.opengl.GL
 import com.jogamp.opengl.GLAutoDrawable
 import com.jogamp.opengl.GLException
-import com.jogamp.opengl.math.Quaternion
 import org.junit.Test
-import org.scijava.ui.behaviour.*
+import org.scijava.ui.behaviour.BehaviourMap
+import org.scijava.ui.behaviour.InputTriggerMap
 import org.scijava.ui.behaviour.io.InputTriggerConfig
 import org.scijava.ui.behaviour.io.yaml.YamlConfigIO
 import scenery.*
 import scenery.controls.JOGLMouseAndKeyHandler
+import scenery.controls.behaviours.FPSCameraControl
+import scenery.controls.behaviours.MovementCommand
 import scenery.rendermodules.opengl.OpenGLRenderModule
 import scenery.rendermodules.opengl.RenderGeometricalObject
 import java.io.*
@@ -32,45 +33,6 @@ class SimpleSceneryTests {
     private val renderMappings = hashMapOf(
             "HasGeometry" to RenderGeometricalObject::class
     )
-
-    internal class ArcBallDragBehaviour(private val name: String, private val node: Node, private val w: Int, private val h: Int) : DragBehaviour {
-        private val arcball = ArcBall()
-        private var last = Quaternion(0.0f, 0.0f, 0.0f, 1.0f)
-
-        init {
-            arcball.setBounds(w.toFloat(), h.toFloat())
-        }
-
-        override fun init(x: Int, y: Int) {
-            arcball.setBounds(w.toFloat(), h.toFloat())
-            arcball.setCurrent(node.rotation)
-            arcball.click(w.toFloat(), h.toFloat())
-            System.err.println("$name: init($x, $y)")
-        }
-
-        override fun drag(x: Int, y: Int) {
-            arcball.setBounds(w.toFloat(), h.toFloat())
-            node.rotation = arcball.drag(x.toFloat(), y.toFloat())
-        }
-
-        override fun end(x: Int, y: Int) {
-            System.err.println("$name: end($x, $y)")
-        }
-    }
-
-    internal class MyClickBehaviour(private val name: String) : ClickBehaviour {
-
-        override fun click(x: Int, y: Int) {
-            System.err.println("$name: click($x, $y)")
-        }
-    }
-
-    internal class MyScrollBehaviour(private val name: String) : ScrollBehaviour {
-
-        override fun scroll(wheelRotation: Double, isHorizontal: Boolean, x: Int, y: Int) {
-            System.err.println("$name: scroll($wheelRotation, $isHorizontal, $x, $y)")
-        }
-    }
 
     @Test
     public fun demo() {
@@ -94,7 +56,6 @@ class SimpleSceneryTests {
                                 rangeRandomizer(0.5f, 4.0f),
                                 rangeRandomizer(0.5f, 4.0f)))
                     }
-
 
                     boxes.map { i ->
                         i.position =
@@ -138,7 +99,7 @@ class SimpleSceneryTests {
                     meshM.diffuse = GLVector(0.5f, 0.5f, 0.5f)
                     meshM.specular = GLVector(0.8f, 0.8f, 0.8f)
 
-                    mesh.readFromOBJ("/Users/ulrik/Downloads/sponza_obj/sponza.obj")
+                    mesh.readFromOBJ("SCENERY_DIRECTORY/models/titan.obj")
                     mesh.material = meshM
                     mesh.position = GLVector(155.5f, 150.5f, 55.0f)
                     mesh.scale = GLVector(0.1f, 0.1f, 0.1f)
@@ -149,7 +110,7 @@ class SimpleSceneryTests {
                     boxes.first().addChild(sphere)
 
                     val cam_view = GLMatrix.getIdentity()
-                    cam_view.setCamera(55.0f, 155.0f, -135.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f)
+                    cam_view.setCamera(cam.position, cam.position + cam.forward, cam.up)
 
                     val cam_proj = GLMatrix()
                     cam_proj.setPerspectiveProjectionMatrix(
@@ -260,16 +221,15 @@ class SimpleSceneryTests {
 
                 renderOrderList.sort { a, b -> (a.node.position!!.z() - b.node.position!!.z()).toInt() }
 
+                cam.view?.setCamera(cam.position, cam.position + cam.forward, cam.up)
+
                 for(n in renderOrderList) {
 //                    n.node.model = GLMatrix.getIdentity()
 //                    n.node.model.translate(n.node.position!!.x(), n.node.position!!.y(), n.node.position!!.z())
 //                    n.node.model.scale(n.node.scale!!.x(), n.node.scale!!.y(), n.node.scale!!.z())
                     n.node.updateWorld(true, false)
 
-                    view = cam.view!!.clone()
-                    view.mult(cam.rotation)
-
-                    mv = view.clone()
+                    mv = cam.view!!.clone().mult(cam.rotation)
                     mv.mult(n.node.world)
 
                     proj = cam.projection!!.clone()
@@ -369,15 +329,22 @@ class SimpleSceneryTests {
         /*
 		 * Create behaviours and input mappings.
 		 */
-        behaviourMap.put("drag1", ArcBallDragBehaviour("drag1", scene.findObserver(), lClearGLWindow.width, lClearGLWindow.height))
-        behaviourMap.put("scroll1", MyScrollBehaviour("scroll1"))
-        behaviourMap.put("click1", MyClickBehaviour("click1"))
+        behaviourMap.put("drag1", FPSCameraControl("drag1", scene.findObserver(), lClearGLWindow.width, lClearGLWindow.height))
+
+        behaviourMap.put("move_forward", MovementCommand("move_forward", "forward", scene.findObserver()))
+        behaviourMap.put("move_back", MovementCommand("move_back", "back", scene.findObserver()))
+        behaviourMap.put("move_left", MovementCommand("move_left", "left", scene.findObserver()))
+        behaviourMap.put("move_right", MovementCommand("move_right", "right", scene.findObserver()))
 
         val adder = config.inputTriggerAdder(inputMap, "all")
         adder.put("drag1") // put input trigger as defined in config
         adder.put("scroll1", "scroll")
         adder.put("click1", "button1", "B")
         adder.put("click1", "button3", "X")
+        adder.put("move_forward", "W")
+        adder.put("move_left", "A")
+        adder.put("move_back", "S")
+        adder.put("move_right", "D")
 
         lClearGLWindow.start()
 

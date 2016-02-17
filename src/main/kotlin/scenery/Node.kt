@@ -54,7 +54,7 @@ open class Node(open var name: String) : Renderable {
     override var imodelView: GLMatrix? = null
     override var mvp: GLMatrix? = null
 
-    override var position: GLVector? = null
+    override var position: GLVector = GLVector(0.0f, 0.0f, 0.0f)
         set(v) {
             this.needsUpdate = true
             this.needsUpdateWorld = true
