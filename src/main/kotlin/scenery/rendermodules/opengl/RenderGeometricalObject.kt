@@ -61,7 +61,7 @@ open class RenderGeometricalObject : OpenGLRenderModule {
 
         if (program == null) {
             program = GLProgram.buildProgram(gl, RenderGeometricalObject::class.java,
-                    "Default.vs", "Default.fs")
+                    "shaders/Default.vs", "shaders/Default.fs")
         }
 
         setVerticesAndCreateBuffer(FloatBuffer.wrap(geometryObject.vertices))
@@ -326,15 +326,7 @@ open class RenderGeometricalObject : OpenGLRenderModule {
     }
 
     fun draw(pOffset: Int, pCount: Int) {
-        program!!.use(gl)
-
-        /*if (this.modelView != null)
-            program!!.getUniform("ModelViewMatrix").setFloatMatrix(this.modelView!!.floatArray,
-                    false)
-
-        if (this.projection != null)
-            program!!.getUniform("ProjectionMatrix").setFloatMatrix(this.projection!!.floatArray,
-                    false)*/
+        program?.use(gl)
 
         gl.gL3.glBindVertexArray(mVertexArrayObject[0])
 

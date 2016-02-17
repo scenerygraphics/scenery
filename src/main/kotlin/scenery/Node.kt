@@ -2,9 +2,7 @@
 package scenery
 
 import cleargl.GLMatrix
-import cleargl.GLProgram
 import cleargl.GLVector
-import cleargl.RendererInterface
 import com.jogamp.opengl.math.Quaternion
 import java.sql.Timestamp
 import java.util.*
@@ -19,10 +17,8 @@ open class Node(open var name: String) : Renderable {
         return true
     }
 
-    override var renderer: RendererInterface? = null
     open var nodeType = "Node"
 
-    override var program: GLProgram? = null
     override var world: GLMatrix = GLMatrix.getIdentity()
         set(m) {
             this.iworld = m.invert()
@@ -100,7 +96,6 @@ open class Node(open var name: String) : Renderable {
         this.children = ArrayList<Node>()
         this.linkedNodes = ArrayList<Node>()
         // null should be the signal to use the default shader
-        this.program = null
     }
 
     fun addChild(child: Node) {
@@ -125,10 +120,6 @@ open class Node(open var name: String) : Renderable {
     }
 
     open fun draw() {
-
-    }
-
-    fun setMVP(m: GLMatrix, v: GLMatrix, p: GLMatrix) {
 
     }
 

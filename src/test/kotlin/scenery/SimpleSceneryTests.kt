@@ -5,6 +5,7 @@ import cleargl.util.arcball.ArcBall
 import com.jogamp.opengl.GL
 import com.jogamp.opengl.GLAutoDrawable
 import com.jogamp.opengl.GLException
+import com.jogamp.opengl.math.Quaternion
 import org.junit.Test
 import org.scijava.ui.behaviour.*
 import org.scijava.ui.behaviour.io.InputTriggerConfig
@@ -26,6 +27,7 @@ class SimpleSceneryTests {
     private val scene: Scene = Scene()
     private var objectMap = HashMap<Node, OpenGLRenderModule>()
     private var renderOrderList: ArrayList<OpenGLRenderModule> = ArrayList()
+    private var frameNum = 0
 
     private val renderMappings = hashMapOf(
             "HasGeometry" to RenderGeometricalObject::class
@@ -33,6 +35,7 @@ class SimpleSceneryTests {
 
     internal class ArcBallDragBehaviour(private val name: String, private val node: Node, private val w: Int, private val h: Int) : DragBehaviour {
         private val arcball = ArcBall()
+        private var last = Quaternion(0.0f, 0.0f, 0.0f, 1.0f)
 
         init {
             arcball.setBounds(w.toFloat(), h.toFloat())
@@ -40,6 +43,7 @@ class SimpleSceneryTests {
 
         override fun init(x: Int, y: Int) {
             arcball.setBounds(w.toFloat(), h.toFloat())
+            arcball.setCurrent(node.rotation)
             arcball.click(w.toFloat(), h.toFloat())
             System.err.println("$name: init($x, $y)")
         }
@@ -102,30 +106,50 @@ class SimpleSceneryTests {
                     }
 
                     var companionBox = Box(GLVector(5.0f, 5.0f, 5.0f))
-                    companionBox.position = GLVector(-2.0f, 3.0f, 0.5f)
-                    companionBox.rotation.rotateByEuler(2.4f, 1.2f, 0.5f)
+                    companionBox.position = GLVector(1.0f, 1.0f, 1.0f)
                     companionBox.name = "Le Box de la Compagnion"
                     val companionBoxMaterial = PhongMaterial()
-                    companionBoxMaterial.ambient = GLVector.getNullVector(3);
+                    companionBoxMaterial.ambient = GLVector(1.0f, 0.5f, 0.0f)
                     companionBoxMaterial.diffuse = GLVector(1.0f, 0.0f, 0.0f)
-                    companionBoxMaterial.specular = GLVector.getNullVector(3);
+                    companionBoxMaterial.specular = GLVector(1.0f, 0.0f, 0.0f)
 
                     companionBox.material = companionBoxMaterial
                     scene.initList.add(companionBox)
 
-                    boxes.last().addChild(companionBox)
+                    boxes.first().addChild(companionBox)
 
                     val sphere = Sphere(0.5f, 20)
-                    sphere.position = GLVector(5.0f, -1.2f, 2.0f)
+                    sphere.position = GLVector(0.5f, -1.2f, 0.5f)
+                    sphere.scale = GLVector(5.0f, 5.0f, 5.0f)
 
-                    val hullbox = Box(GLVector(75.0f, 75.0f, 75.0f))
+                    val hullbox = Box(GLVector(100.0f, 100.0f, 100.0f))
                     hullbox.position = GLVector(0.0f, 0.0f, 0.0f)
+                    val hullboxM = PhongMaterial()
+                    hullboxM.ambient = GLVector(0.6f, 0.6f, 0.6f)
+                    hullboxM.diffuse = GLVector(0.4f, 0.4f, 0.4f)
+                    hullboxM.specular = GLVector(0.0f, 0.0f, 0.0f)
+                    hullbox.material = hullboxM
+
                     scene.initList.add(hullbox)
 
-                    boxes.last().addChild(sphere)
+                    val mesh = Mesh()
+                    val meshM = PhongMaterial()
+                    meshM.ambient = GLVector(0.5f, 0.5f, 0.5f)
+                    meshM.diffuse = GLVector(0.5f, 0.5f, 0.5f)
+                    meshM.specular = GLVector(0.8f, 0.8f, 0.8f)
+
+                    mesh.readFromOBJ("/Users/ulrik/Downloads/sponza_obj/sponza.obj")
+                    mesh.material = meshM
+                    mesh.position = GLVector(155.5f, 150.5f, 55.0f)
+                    mesh.scale = GLVector(0.1f, 0.1f, 0.1f)
+
+                    scene.addChild(mesh)
+                    scene.initList.add(mesh)
+
+                    boxes.first().addChild(sphere)
 
                     val cam_view = GLMatrix.getIdentity()
-                    cam_view.translate(-5.0f, -5.0f, 30.0f)
+                    cam_view.setCamera(55.0f, 155.0f, -135.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f)
 
                     val cam_proj = GLMatrix()
                     cam_proj.setPerspectiveProjectionMatrix(
@@ -154,6 +178,7 @@ class SimpleSceneryTests {
                             boxes.mapIndexed {
                                 i, box ->
                                 box.position!!.set(i % 3, step * ticks)
+                                box.needsUpdate = true
                             }
 
                             if (ticks >= 500 && reverse == false) {
@@ -171,8 +196,10 @@ class SimpleSceneryTests {
 
                             Thread.sleep(20)
 
-                            companionBox.rotation.z += 0.01f
-                            companionBox.rotation.w -+ 0.01f
+                            boxes.first().rotation.rotateByEuler(0.01f, 0.0f, 0.0f)
+                            boxes.first().needsUpdate = true
+                            companionBox.needsUpdate = true
+                            sphere.needsUpdate = true
                         }
                     }
 
@@ -203,6 +230,7 @@ class SimpleSceneryTests {
             }
 
             override fun display(pDrawable: GLAutoDrawable) {
+                frameNum++
                 renderOrderList.clear()
 
                 val cam: Camera = scene.findObserver()
@@ -216,6 +244,13 @@ class SimpleSceneryTests {
                 val lGL = pDrawable.gl
 
                 lGL.glClear(GL.GL_COLOR_BUFFER_BIT or GL.GL_DEPTH_BUFFER_BIT)
+                lGL.glEnable(GL.GL_DEPTH_TEST)
+
+                lGL.glEnable(GL.GL_CULL_FACE)
+                lGL.glFrontFace(GL.GL_CCW)
+                lGL.glCullFace(GL.GL_BACK)
+
+                lGL.glDepthFunc(GL.GL_LEQUAL)
 
                 scene.discover(scene, { n -> n is Renderable}).forEach {
                     objectMap[it]?.let {
@@ -243,13 +278,14 @@ class SimpleSceneryTests {
 
                     n.program?.let {
                         n.program!!.use(lGL)
+                        n.program!!.getUniform("ModelMatrix")!!.setFloatMatrix(n.node.world, false);
                         n.program!!.getUniform("ModelViewMatrix")!!.setFloatMatrix(mv, false)
                         n.program!!.getUniform("ProjectionMatrix")!!.setFloatMatrix(cam.projection, false)
                         n.program!!.getUniform("MVP")!!.setFloatMatrix(mvp, false)
                         n.program!!.getUniform("offset")!!.setFloatVector3(n.node.position?.toFloatBuffer())
 
                         n.program!!.getUniform("Light.Ld").setFloatVector3(1.0f, 1.0f, 0.8f);
-                        n.program!!.getUniform("Light.Position").setFloatVector3(-5.0f, 5.0f, 5.0f);
+                        n.program!!.getUniform("Light.Position").setFloatVector3(5.0f, 5.0f, 5.0f);
                         n.program!!.getUniform("Light.La").setFloatVector3(0.4f, 0.4f, 0.4f);
                         n.program!!.getUniform("Light.Ls").setFloatVector3(0.0f, 0.0f, 0.0f);
                         n.program!!.getUniform("Material.Shinyness").setFloat(0.5f);
@@ -291,7 +327,7 @@ class SimpleSceneryTests {
                 720,
                 lClearGLWindowEventListener)
         lClearGLWindow.isVisible = true
-        lClearGLWindow.setFPS(300)
+        lClearGLWindow.setFPS(60)
 
         val inputMap = InputTriggerMap()
         val behaviourMap = BehaviourMap()

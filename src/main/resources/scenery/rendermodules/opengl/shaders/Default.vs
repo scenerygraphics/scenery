@@ -8,9 +8,11 @@ out VertexData {
     vec3 Position;
     vec3 Normal;
     vec2 TexCoord;
+    vec3 FragPosition;
 } VertexOut;
 
 uniform mat4 ModelViewMatrix;
+uniform mat4 ModelMatrix;
 uniform mat3 NormalMatrix;
 uniform mat4 ProjectionMatrix;
 uniform mat4 MVP;
@@ -19,10 +21,10 @@ uniform vec3 offset;
 
 void main()
 {
-    VertexOut.Normal = vertexNormal;
+    VertexOut.Normal = mat3(transpose(inverse(ModelMatrix)))*vertexNormal;
     VertexOut.Position = vec3( ModelViewMatrix * vec4(vertexPosition, 1.0));
-    VertexOut.Position.z = VertexOut.Position.z;
     VertexOut.TexCoord = vertexTexCoord;
+    VertexOut.FragPosition = vec3(ModelMatrix * vec4(vertexPosition, 1.0));
 
     gl_Position = MVP * vec4(vertexPosition + offset, 1.0);
 }

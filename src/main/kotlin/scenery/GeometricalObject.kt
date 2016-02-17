@@ -34,6 +34,9 @@ open class GeometricalObject : Node, GLCloseable, GLInterface, Renderable {
     protected var mStoredIndexCount = 0
     protected var mStoredPrimitiveCount = 0
 
+    protected var program: GLProgram? = null
+    protected var renderer: cleargl.RendererInterface? = null
+
     protected val mId: Int
 
     constructor() : super(java.util.UUID.randomUUID().toString()) {

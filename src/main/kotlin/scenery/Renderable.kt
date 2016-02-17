@@ -1,13 +1,11 @@
 package scenery
 
 import cleargl.GLMatrix
-import cleargl.GLProgram
 import cleargl.GLVector
 import cleargl.RendererInterface
 import com.jogamp.opengl.math.Quaternion
 
 interface Renderable {
-    var program: GLProgram?
     var model: GLMatrix
     var imodel: GLMatrix
 
@@ -28,7 +26,6 @@ interface Renderable {
 
     var initialized: Boolean
     var dirty: Boolean
-    var renderer: RendererInterface?
     var visible: Boolean
 
     var material: Material?
