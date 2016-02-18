@@ -1,11 +1,25 @@
+# Binary files
 bin/
 build/
+
+# Eclipse projects & settings
 .project
 .classpath
 .settings/*
+
+# local gradle files and settings
 .gradle
+gradle.properties
+
+# IntelliJ project files -- create by `gradle idea` - do not commit!
 .idea
+*.ipr
+*.iws
+*.iml
 *.class
+
+# log files and metadata
+Thumbs.db
 .DS_Store
 hs_err_pid*
 log.txt
