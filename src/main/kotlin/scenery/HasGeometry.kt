@@ -56,9 +56,27 @@ interface HasGeometry {
                     }
                     "mtllib" -> {
                     }
+                    "o" -> {
+                    }
+                // vertices are specified as v x y z
                     "v" -> tokens.drop(1).forEach { tmpV.add(it.toFloat()) }
+
+                // normal coords are specified as vn x y z
                     "vn" -> tokens.drop(1).forEach { tmpN.add(it.toFloat()) }
-                    "vt" -> tokens.drop(1).dropLast(1).forEach { tmpUV.add(it.toFloat()) }
+
+                // UV coords maybe vt t1 t2 0.0 or vt t1 t2
+                    "vt" -> {
+                        if (tokens.drop(1).size == 3) {
+                            tokens.drop(1).dropLast(1)
+                        } else {
+                            tokens.drop(1)
+                        }.forEach { tmpUV.add(it.toFloat()) }
+                    }
+
+                // faces can reference to three or more vertices in these notations:
+                // f v1 v2 ... vn
+                // f v1//vn1 v2//vn2 ... vn//vnn
+                // f v1/vt1/vn1 v2/vt2/vn2 ... vn/vtn/vnn
                     "f" -> {
                         count++
                         val elements = tokens.drop(1).map { it.split("/") }
@@ -69,15 +87,9 @@ interface HasGeometry {
 
                         var range = ArrayList<Int>()
                         if(vertices.size == 3) {
-                            range.addAll((0..vertices.size-1).toList())
+                            range.addAll(listOf(0, 1, 2))
                         } else if(vertices.size == 4) {
-                            range.add(0)
-                            range.add(1)
-                            range.add(2)
-
-                            range.add(0)
-                            range.add(2)
-                            range.add(3)
+                            range.addAll(listOf(0, 1, 2, 0, 2, 3))
                         }
                         else {
                             System.err.println("Polygonal triangulation is not yet supported")
@@ -85,31 +97,45 @@ interface HasGeometry {
                             // TODO: Implement polygons!
                         }
 
-                        fun toBufferIndex(num: Int, vectorSize: Int, offset: Int): Int {
-                            return (num-1)*vectorSize+offset
+                        fun toBufferIndex(obj: List<Number>, num: Int, vectorSize: Int, offset: Int): Int {
+                            val index: Int
+                            if (num >= 0) {
+                                index = (num - 1) * vectorSize + offset
+                            } else {
+                                index = (obj.size / vectorSize + num) * vectorSize + offset
+                            }
+
+                            return index
+                        }
+
+                        fun defaultHandler(x: Int): Float {
+                            System.err.println("Could not find v/n/uv for index $x. File broken?")
+                            return 0.0f
                         }
 
                         for(i in range) {
-                            vbuffer.add(tmpV.get(toBufferIndex(vertices[i], 3, 0)))
-                            vbuffer.add(tmpV.get(toBufferIndex(vertices[i], 3, 1)))
-                            vbuffer.add(tmpV.get(toBufferIndex(vertices[i], 3, 2)))
+                            vbuffer.add(tmpV.getOrElse(toBufferIndex(tmpV, vertices[i], 3, 0), ::defaultHandler))
+                            vbuffer.add(tmpV.getOrElse(toBufferIndex(tmpV, vertices[i], 3, 1), ::defaultHandler))
+                            vbuffer.add(tmpV.getOrElse(toBufferIndex(tmpV, vertices[i], 3, 2), ::defaultHandler))
 
                             if(normals.size == vertices.size) {
-                                nbuffer.add(tmpN.get(toBufferIndex(normals[i], 3, 0)))
-                                nbuffer.add(tmpN.get(toBufferIndex(normals[i], 3, 1)))
-                                nbuffer.add(tmpN.get(toBufferIndex(normals[i], 3, 2)))
+                                nbuffer.add(tmpN.getOrElse(toBufferIndex(tmpN, normals[i], 3, 0), ::defaultHandler))
+                                nbuffer.add(tmpN.getOrElse(toBufferIndex(tmpN, normals[i], 3, 1), ::defaultHandler))
+                                nbuffer.add(tmpN.getOrElse(toBufferIndex(tmpN, normals[i], 3, 2), ::defaultHandler))
                             }
 
                             if(uvs.size == vertices.size) {
-                                tbuffer.add(tmpUV.get(toBufferIndex(uvs[i], 2, 0)))
-                                tbuffer.add(tmpUV.get(toBufferIndex(uvs[i], 2, 1)))
+                                tbuffer.add(tmpUV.getOrElse(toBufferIndex(tmpUV, uvs[i], 2, 0), ::defaultHandler))
+                                tbuffer.add(tmpUV.getOrElse(toBufferIndex(tmpUV, uvs[i], 2, 1), ::defaultHandler))
                             }
                         }
                     }
                     "s" -> {
-                    } // TODO: Implement smooth shading across faces
+                        // TODO: Implement smooth shading across faces
+                    }
                     "g" -> {
-                    } // TODO: Implement groups
+                        // TODO: Implement groups
+                    }
                     "usemtl" -> {
                         // TODO: Implement materials
                     }
