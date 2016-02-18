@@ -11,7 +11,6 @@ import scenery.Camera
 class MovementCommand(private val name: String, private val direction: String, private val cam: Camera) : ClickBehaviour {
 
     override fun click(x: Int, y: Int) {
-        System.out.println("Moving $direction")
         when (direction) {
             "forward" -> cam.position = cam.position + cam.forward * 1.0f
             "back" -> cam.position = cam.position - cam.forward * 1.0f
