@@ -35,28 +35,39 @@ struct MaterialInfo {
 };
 uniform MaterialInfo Material;
 
-vec4 Phong(vec3 FragPos, vec3 viewPos, vec3 Normal) {
-    // Ambient
-    float ambientStrength = 0.5f;
-    vec3 ambient = ambientStrength * Light.La;
+vec4 BlinnPhong(vec3 FragPos, vec3 viewPos, vec3 Normal) {
+      bool blinn = true;
+      vec3 color = Material.Kd;
+      // Ambient
+      vec3 ambient = 0.05 * Material.Ka;
 
-    // Diffuse
-    vec3 norm = normalize(Normal);
-    vec3 lightDir = normalize(Light.Position - FragPos);
-    float diff = max(dot(norm, lightDir), 0.0);
-    vec3 diffuse = diff * Light.Ld;
+      // Diffuse
+      vec3 lightDir = normalize(Light.Position - FragPos);
+      vec3 normal = normalize(Normal);
+      float diff = max(dot(lightDir, Normal), 0.0);
+      vec3 diffuse = diff * color;
 
-    // Specular
-    float specularStrength = 0.5f;
-    vec3 viewDir = normalize(viewPos - FragPos);
-    vec3 reflectDir = reflect(-lightDir, norm);
-    float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32);
-    vec3 specular = specularStrength * spec * Light.Ls;
+      // Specular
+      vec3 viewDir = normalize(viewPos - FragPos);
+      vec3 reflectDir = reflect(-lightDir, Normal);
+      float spec = 0.0;
 
-    vec3 result = (ambient + diffuse + specular) * Material.Ka;
-    return vec4(result, 1.0f);
+      if(blinn)
+      {
+          vec3 halfwayDir = normalize(lightDir + viewDir);
+          spec = pow(max(dot(normal, halfwayDir), 0.0), 16.0);
+      }
+
+      else
+      {
+          vec3 reflectDir = reflect(-lightDir, normal);
+          spec = pow(max(dot(viewDir, reflectDir), 0.0), 8.0);
+      }
+
+      vec3 specular = Light.Ls * spec; // assuming bright white light color
+      return vec4(ambient + diffuse + specular, 1.0f);
 }
 
 void main() {
-    FragColor = Phong(VertexIn.FragPosition, CameraPosition, VertexIn.Normal);
+    FragColor = BlinnPhong(VertexIn.FragPosition, CameraPosition, VertexIn.Normal);
 }
