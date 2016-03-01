@@ -8,6 +8,9 @@ import java.sql.Timestamp
 import java.util.*
 
 open class Node(open var name: String) : Renderable {
+
+    public var metadata: ArrayList<NodeMetadata> = ArrayList()
+
     override var material: Material? = null
     override var initialized: Boolean = false
     override var dirty: Boolean = true
