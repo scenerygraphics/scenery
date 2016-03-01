@@ -99,7 +99,7 @@ class SimpleSceneryTests {
                     meshM.diffuse = GLVector(0.5f, 0.5f, 0.5f)
                     meshM.specular = GLVector(0.8f, 0.8f, 0.8f)
 
-                    mesh.readFromOBJ("SCENERY_DIRECTORY/models/titan.obj")
+                    mesh.readFromOBJ("/Users/ulrik/Downloads/sponza_obj/sponza.obj")
                     mesh.material = meshM
                     mesh.position = GLVector(155.5f, 150.5f, 55.0f)
                     mesh.scale = GLVector(0.1f, 0.1f, 0.1f)
@@ -165,7 +165,7 @@ class SimpleSceneryTests {
                     }
 
                     scene.initList.forEach {
-                        o -> objectMap.put(o, renderMappings[o.javaClass.interfaces.first().toString().substringAfterLast(".")]!!.constructors.first().call(lGL, null, o))
+                        o -> objectMap.put(o, renderMappings[o.javaClass.interfaces.first().toString().substringAfterLast(".")]!!.constructors.first().call(lGL, o))
                     }
 
                     objectMap.forEach { key, o -> o.initialize(); }
@@ -236,29 +236,32 @@ class SimpleSceneryTests {
                     mvp = proj.clone()
                     mvp.mult(mv)
 
-                    n.program?.let {
-                        n.program!!.use(lGL)
-                        n.program!!.getUniform("ModelMatrix")!!.setFloatMatrix(n.node.world, false);
-                        n.program!!.getUniform("ModelViewMatrix")!!.setFloatMatrix(mv, false)
-                        n.program!!.getUniform("ProjectionMatrix")!!.setFloatMatrix(cam.projection, false)
-                        n.program!!.getUniform("MVP")!!.setFloatMatrix(mvp, false)
-                        n.program!!.getUniform("offset")!!.setFloatVector3(n.node.position?.toFloatBuffer())
 
-                        n.program!!.getUniform("Light.Ld").setFloatVector3(1.0f, 1.0f, 0.8f);
-                        n.program!!.getUniform("Light.Position").setFloatVector3(5.0f, 5.0f, 5.0f);
-                        n.program!!.getUniform("Light.La").setFloatVector3(0.4f, 0.4f, 0.4f);
-                        n.program!!.getUniform("Light.Ls").setFloatVector3(0.0f, 0.0f, 0.0f);
-                        n.program!!.getUniform("Material.Shinyness").setFloat(0.5f);
+                    val program: GLProgram? = n.program
+
+                    program?.let {
+                        program.use(lGL)
+                        program.getUniform("ModelMatrix")!!.setFloatMatrix(n.node.world, false);
+                        program.getUniform("ModelViewMatrix")!!.setFloatMatrix(mv, false)
+                        program.getUniform("ProjectionMatrix")!!.setFloatMatrix(cam.projection, false)
+                        program.getUniform("MVP")!!.setFloatMatrix(mvp, false)
+                        program.getUniform("offset")!!.setFloatVector3(n.node.position?.toFloatBuffer())
+
+                        program.getUniform("Light.Ld").setFloatVector3(1.0f, 1.0f, 0.8f);
+                        program.getUniform("Light.Position").setFloatVector3(5.0f, 5.0f, 5.0f);
+                        program.getUniform("Light.La").setFloatVector3(0.4f, 0.4f, 0.4f);
+                        program.getUniform("Light.Ls").setFloatVector3(0.0f, 0.0f, 0.0f);
+                        program.getUniform("Material.Shinyness").setFloat(0.5f);
 
                         if(n.node.material != null) {
-                            n.program!!.getUniform("Material.Ka").setFloatVector(n.node.material!!.ambient);
-                            n.program!!.getUniform("Material.Kd").setFloatVector(n.node.material!!.diffuse);
-                            n.program!!.getUniform("Material.Ks").setFloatVector(n.node.material!!.specular);
+                            program.getUniform("Material.Ka").setFloatVector(n.node.material!!.ambient);
+                            program.getUniform("Material.Kd").setFloatVector(n.node.material!!.diffuse);
+                            program.getUniform("Material.Ks").setFloatVector(n.node.material!!.specular);
                         }
                         else {
-                            n.program!!.getUniform("Material.Ka").setFloatVector3(n.node.position?.toFloatBuffer());
-                            n.program!!.getUniform("Material.Kd").setFloatVector3(n.node.position?.toFloatBuffer());
-                            n.program!!.getUniform("Material.Ks").setFloatVector3(n.node.position?.toFloatBuffer());
+                            program.getUniform("Material.Ka").setFloatVector3(n.node.position?.toFloatBuffer());
+                            program.getUniform("Material.Kd").setFloatVector3(n.node.position?.toFloatBuffer());
+                            program.getUniform("Material.Ks").setFloatVector3(n.node.position?.toFloatBuffer());
                         }
                     }
                     n.draw()

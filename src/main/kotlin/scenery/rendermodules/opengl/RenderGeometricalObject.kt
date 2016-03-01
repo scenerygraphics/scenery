@@ -25,13 +25,13 @@ fun GeometryType.toOpenGLType(): Int {
 }
 
 open class RenderGeometricalObject : OpenGLRenderModule {
+    override var program: GLProgram? = null
     override var node: Node
     protected val additionalBufferIds = Hashtable<String, Int>()
 
     protected val mVertexArrayObject = IntArray(1)
     protected val mVertexBuffers = IntArray(3)
     protected val mIndexBuffer = IntArray(1)
-    override var program: GLProgram?
     protected val gl: GL
     protected val geometryObject: HasGeometry
 
@@ -43,10 +43,9 @@ open class RenderGeometricalObject : OpenGLRenderModule {
 
     protected val mId: Int
 
-    constructor(gl: GL, program: GLProgram?, geometryObject: Node) {
+    constructor(gl: GL, geometryObject: Node) {
         mId = -1
         this.gl = gl
-        this.program = program
         this.geometryObject = geometryObject as HasGeometry
         this.node = geometryObject
     }
@@ -59,9 +58,11 @@ open class RenderGeometricalObject : OpenGLRenderModule {
         gl.glGenBuffers(3, mVertexBuffers, 0)
         gl.glGenBuffers(1, mIndexBuffer, 0)
 
-        if (program == null) {
-            program = GLProgram.buildProgram(gl, RenderGeometricalObject::class.java,
+        if (node.material == null || node.material !is OpenGLMaterial || (node.material as OpenGLMaterial).program == null) {
+            this.program = GLProgram.buildProgram(gl, RenderGeometricalObject::class.java,
                     "shaders/Default.vs", "shaders/Default.fs")
+        } else {
+            this.program = (node.material as OpenGLMaterial).program
         }
 
         setVerticesAndCreateBuffer(FloatBuffer.wrap(geometryObject.vertices))
