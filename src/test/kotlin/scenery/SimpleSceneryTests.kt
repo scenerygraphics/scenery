@@ -13,6 +13,8 @@ import scenery.*
 import scenery.controls.JOGLMouseAndKeyHandler
 import scenery.controls.behaviours.FPSCameraControl
 import scenery.controls.behaviours.MovementCommand
+import scenery.controls.behaviours.ToggleCommand
+import scenery.rendermodules.opengl.DeferredLightingRenderer
 import scenery.rendermodules.opengl.OpenGLRenderModule
 import scenery.rendermodules.opengl.RenderGeometricalObject
 import java.io.*
@@ -29,6 +31,7 @@ class SimpleSceneryTests {
     private var objectMap = HashMap<Node, OpenGLRenderModule>()
     private var renderOrderList: ArrayList<OpenGLRenderModule> = ArrayList()
     private var frameNum = 0
+    private var deferredRenderer: DeferredLightingRenderer? = null
 
     private val renderMappings = hashMapOf(
             "HasGeometry" to RenderGeometricalObject::class
@@ -40,9 +43,12 @@ class SimpleSceneryTests {
 
             private var mClearGLWindow: ClearGLDisplayable? = null
 
+
             override fun init(pDrawable: GLAutoDrawable) {
                 super.init(pDrawable)
                 try {
+                    deferredRenderer = DeferredLightingRenderer(pDrawable.gl.gL4, mClearGLWindow!!.width, mClearGLWindow!!.height)
+
                     val lGL = pDrawable.gl
                     lGL.glEnable(GL.GL_DEPTH_TEST)
                     lGL.glClearColor(0.0f, 0.0f, 0.0f, 1.0f)
@@ -164,11 +170,7 @@ class SimpleSceneryTests {
                         }
                     }
 
-                    scene.initList.forEach {
-                        o -> objectMap.put(o, renderMappings[o.javaClass.interfaces.first().toString().substringAfterLast(".")]!!.constructors.first().call(lGL, o))
-                    }
-
-                    objectMap.forEach { key, o -> o.initialize(); }
+                    deferredRenderer?.initializeScene(scene)
                 } catch (e: GLException) {
                     e.printStackTrace()
                 } catch (e: IOException) {
@@ -191,82 +193,10 @@ class SimpleSceneryTests {
             }
 
             override fun display(pDrawable: GLAutoDrawable) {
-                frameNum++
-                renderOrderList.clear()
-
-                val cam: Camera = scene.findObserver()
-                var view: GLMatrix
-                var mv: GLMatrix
-                var mvp: GLMatrix
-                var proj: GLMatrix
-
                 super.display(pDrawable)
 
-                val lGL = pDrawable.gl
-
-                lGL.glClear(GL.GL_COLOR_BUFFER_BIT or GL.GL_DEPTH_BUFFER_BIT)
-                lGL.glEnable(GL.GL_DEPTH_TEST)
-
-                lGL.glEnable(GL.GL_CULL_FACE)
-                lGL.glFrontFace(GL.GL_CCW)
-                lGL.glCullFace(GL.GL_BACK)
-
-                lGL.glDepthFunc(GL.GL_LEQUAL)
-
-                scene.discover(scene, { n -> n is Renderable}).forEach {
-                    objectMap[it]?.let {
-                        renderOrderList.add(it)
-                    }
-                }
-
-                renderOrderList.sort { a, b -> (a.node.position!!.z() - b.node.position!!.z()).toInt() }
-
-                cam.view?.setCamera(cam.position, cam.position + cam.forward, cam.up)
-
-                for(n in renderOrderList) {
-//                    n.node.model = GLMatrix.getIdentity()
-//                    n.node.model.translate(n.node.position!!.x(), n.node.position!!.y(), n.node.position!!.z())
-//                    n.node.model.scale(n.node.scale!!.x(), n.node.scale!!.y(), n.node.scale!!.z())
-                    n.node.updateWorld(true, false)
-
-                    mv = cam.view!!.clone().mult(cam.rotation)
-                    mv.mult(n.node.world)
-
-                    proj = cam.projection!!.clone()
-                    mvp = proj.clone()
-                    mvp.mult(mv)
-
-
-                    val program: GLProgram? = n.program
-
-                    program?.let {
-                        program.use(lGL)
-                        program.getUniform("ModelMatrix")!!.setFloatMatrix(n.node.world, false);
-                        program.getUniform("ModelViewMatrix")!!.setFloatMatrix(mv, false)
-                        program.getUniform("ProjectionMatrix")!!.setFloatMatrix(cam.projection, false)
-                        program.getUniform("MVP")!!.setFloatMatrix(mvp, false)
-                        program.getUniform("offset")!!.setFloatVector3(n.node.position?.toFloatBuffer())
-
-                        program.getUniform("Light.Ld").setFloatVector3(1.0f, 1.0f, 0.8f);
-                        program.getUniform("Light.Position").setFloatVector3(5.0f, 5.0f, 5.0f);
-                        program.getUniform("Light.La").setFloatVector3(0.4f, 0.4f, 0.4f);
-                        program.getUniform("Light.Ls").setFloatVector3(0.0f, 0.0f, 0.0f);
-                        program.getUniform("Material.Shinyness").setFloat(0.5f);
-
-                        if(n.node.material != null) {
-                            program.getUniform("Material.Ka").setFloatVector(n.node.material!!.ambient);
-                            program.getUniform("Material.Kd").setFloatVector(n.node.material!!.diffuse);
-                            program.getUniform("Material.Ks").setFloatVector(n.node.material!!.specular);
-                        }
-                        else {
-                            program.getUniform("Material.Ka").setFloatVector3(n.node.position?.toFloatBuffer());
-                            program.getUniform("Material.Kd").setFloatVector3(n.node.position?.toFloatBuffer());
-                            program.getUniform("Material.Ks").setFloatVector3(n.node.position?.toFloatBuffer());
-                        }
-                    }
-                    n.draw()
-                }
-
+                frameNum++
+                deferredRenderer?.render(scene)
                 clearGLWindow.windowTitle =  "%.1f fps".format(pDrawable.animator?.lastFPS)
             }
 
@@ -339,6 +269,8 @@ class SimpleSceneryTests {
         behaviourMap.put("move_left", MovementCommand("move_left", "left", scene.findObserver()))
         behaviourMap.put("move_right", MovementCommand("move_right", "right", scene.findObserver()))
 
+        behaviourMap.put("toggle_debug", ToggleCommand("toggle_debug", deferredRenderer!!, "toggleDebug"))
+
         val adder = config.inputTriggerAdder(inputMap, "all")
         adder.put("drag1") // put input trigger as defined in config
         adder.put("scroll1", "scroll")
@@ -348,6 +280,8 @@ class SimpleSceneryTests {
         adder.put("move_left", "A")
         adder.put("move_back", "S")
         adder.put("move_right", "D")
+
+        adder.put("toggle_debug", "X")
 
         lClearGLWindow.start()
 
