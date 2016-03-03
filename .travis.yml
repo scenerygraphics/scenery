@@ -1,18 +1,21 @@
 language: java
-script: "gradle build"
+
 jdk:
   - oraclejdk8
-before_script:
-  - cd ..
-  - git clone -b scenegraph git://github.com/ClearVolume/ClearGL.git
-  - git clone git://github.com/scijava/ui-behaviour.git
-  - cd ui-behaviour
-  - mvn install
 
-install: gradle assemble --stacktrace
+install:
+  - cd ..
+  - git clone -b scenegraph git://github.com/ClearVolume/ClearGL.git cleargl
+  - echo "include 'cleargl'" >> settings.gradle
+  - echo "include 'scenery'" >> settings.gradle
+  - cd scenery
+
+script: 
+  - gradle build -Plocal=true --stacktrace
 
 before_cache:
   - rm -f $HOME/.gradle/caches/modules-2/modules-2.lock
+
 cache:
   directories:
     - $HOME/.gradle/caches/
