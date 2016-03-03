@@ -3,7 +3,6 @@ package scenery.rendermodules.opengl
 import cleargl.GLFramebuffer
 import cleargl.GLMatrix
 import cleargl.GLProgram
-import cleargl.GLVector
 import com.jogamp.opengl.GL
 import com.jogamp.opengl.GL4
 import scenery.*
@@ -22,9 +21,6 @@ class DeferredLightingRenderer {
     protected var height: Int
     protected var geometryBuffer: GLFramebuffer
     protected var lightingPassProgram: GLProgram
-
-    protected var lights = ArrayList<GLVector>()
-    protected var colors = ArrayList<GLVector>()
 
     protected var debugBuffers = 0;
 
@@ -46,10 +42,6 @@ class DeferredLightingRenderer {
                 arrayOf("shaders/Dummy.vs", "shaders/FullscreenQuadGenerator.gs", "shaders/DeferredLighting.fs"))
 
         fun rangeRandomizer(min: Float, max: Float): Float = min + (Math.random().toFloat() * ((max - min) + 1.0f))
-        (0..32).forEach {
-            lights.add(GLVector(rangeRandomizer(-250.0f, 250.0f), rangeRandomizer(-250.0f, 250.0f), rangeRandomizer(-250.0f, 250.0f)))
-            colors.add(GLVector(rangeRandomizer(0.0f, 1.0f), rangeRandomizer(0.0f,1.0f), rangeRandomizer(0.0f, 1.0f)))
-        }
     }
 
     fun toggleDebug() {
@@ -152,9 +144,11 @@ class DeferredLightingRenderer {
 
         lightingPassProgram.bind()
 
-        for(i in 0..32) {
-            lightingPassProgram.getUniform("lights[$i].Position").setFloatVector(lights[i])
-            lightingPassProgram.getUniform("lights[$i].Color").setFloatVector(colors[i])
+        val lights = scene.discover(scene, {it is PointLight})
+
+        for(i in 0..lights.size-1) {
+            lightingPassProgram.getUniform("lights[$i].Position").setFloatVector(lights[i].position)
+            lightingPassProgram.getUniform("lights[$i].Color").setFloatVector((lights[i] as PointLight).emissionColor)
         }
 
         lightingPassProgram.getUniform("gPosition").setInt(0)
