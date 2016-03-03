@@ -50,7 +50,7 @@ void main()
         }
         // depth
         if(textureCoord.x > 0.5 && textureCoord.y < 0.5) {
-            FragColor = vec4(exp(1.0/Depth), 1.0f);
+            FragColor = vec4(vec3(pow(Depth.r, 256.0)), 1.0f);
         }
         // normal
         if(textureCoord.x > 0.5 && textureCoord.y > 0.5) {
