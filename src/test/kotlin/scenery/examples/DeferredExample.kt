@@ -72,6 +72,21 @@ class DeferredExample {
                         scene.initList.add(i)
                     }
 
+                    var lights = (0..32).map {
+                        PointLight()
+                    }
+
+                    lights.map {
+                        it.position = GLVector(rangeRandomizer(-100.0f, 100.0f),
+                                rangeRandomizer(-100.0f, 100.0f),
+                                rangeRandomizer(-100.0f, 100.0f))
+                        it.emissionColor = GLVector(rangeRandomizer(0.0f, 1.0f),
+                                rangeRandomizer(0.0f, 1.0f),
+                                rangeRandomizer(0.0f, 1.0f))
+
+                        scene.addChild(it)
+                    }
+
                     var companionBox = Box(GLVector(5.0f, 5.0f, 5.0f))
                     companionBox.position = GLVector(1.0f, 1.0f, 1.0f)
                     companionBox.name = "Le Box de la Compagnion"
@@ -146,6 +161,11 @@ class DeferredExample {
                                 i, box ->
                                 box.position!!.set(i % 3, step * ticks)
                                 box.needsUpdate = true
+                            }
+
+                            lights.mapIndexed {
+                                i, light ->
+                                light.position.set(i % 3, step * ticks)
                             }
 
                             if (ticks >= 500 && reverse == false) {
