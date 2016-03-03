@@ -39,7 +39,7 @@ class DeferredLightingRenderer {
         System.out.println(geometryBuffer.toString())
 
         lightingPassProgram = GLProgram.buildProgram(gl, RenderGeometricalObject::class.java,
-                arrayOf("shaders/Dummy.vs", "shaders/FullscreenQuadGenerator.gs", "shaders/DeferredLighting.fs"))
+                arrayOf("shaders/Dummy.vert", "shaders/FullscreenQuadGenerator.geom", "shaders/DeferredLighting.frag"))
     }
 
     fun toggleDebug() {
@@ -185,7 +185,7 @@ class DeferredLightingRenderer {
 
         if (node.material == null || node.material !is OpenGLMaterial || (node.material as OpenGLMaterial).program == null) {
             s.program = GLProgram.buildProgram(gl, RenderGeometricalObject::class.java,
-                    arrayOf("shaders/DefaultDeferred.vs", "shaders/DefaultDeferred.fs"))
+                    arrayOf("shaders/DefaultDeferred.vert", "shaders/DefaultDeferred.frag"))
         } else {
             s.program = (node.material as OpenGLMaterial).program
         }
