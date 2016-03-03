@@ -40,8 +40,6 @@ class DeferredLightingRenderer {
 
         lightingPassProgram = GLProgram.buildProgram(gl, RenderGeometricalObject::class.java,
                 arrayOf("shaders/Dummy.vs", "shaders/FullscreenQuadGenerator.gs", "shaders/DeferredLighting.fs"))
-
-        fun rangeRandomizer(min: Float, max: Float): Float = min + (Math.random().toFloat() * ((max - min) + 1.0f))
     }
 
     fun toggleDebug() {
@@ -86,15 +84,15 @@ class DeferredLightingRenderer {
             renderOrderList.add(it)
         }
 
-        renderOrderList.sort { a, b -> (a.position!!.z() - b.position!!.z()).toInt() }
+        renderOrderList.sort { a, b -> (a.position.z() - b.position.z()).toInt() }
 
         cam.view?.setCamera(cam.position, cam.position + cam.forward, cam.up)
 
         for (n in renderOrderList) {
             val s = getOpenGLObjectStateFromNode(n)
             n.model = GLMatrix.getIdentity()
-            n.model.translate(n.position!!.x(), n.position!!.y(), n.position!!.z())
-            n.model.scale(n.scale!!.x(), n.scale!!.y(), n.scale!!.z())
+            n.model.translate(n.position.x(), n.position.y(), n.position.z())
+            n.model.scale(n.scale.x(), n.scale.y(), n.scale.z())
             n.updateWorld(true, false)
 
             mv = cam.view!!.clone().mult(cam.rotation)
@@ -124,9 +122,9 @@ class DeferredLightingRenderer {
                     program.getUniform("Material.Kd").setFloatVector(n.material!!.diffuse);
                     program.getUniform("Material.Ks").setFloatVector(n.material!!.specular);
                 } else {
-                    program.getUniform("Material.Ka").setFloatVector3(n.position?.toFloatBuffer());
-                    program.getUniform("Material.Kd").setFloatVector3(n.position?.toFloatBuffer());
-                    program.getUniform("Material.Ks").setFloatVector3(n.position?.toFloatBuffer());
+                    program.getUniform("Material.Ka").setFloatVector3(n.position.toFloatBuffer());
+                    program.getUniform("Material.Kd").setFloatVector3(n.position.toFloatBuffer());
+                    program.getUniform("Material.Ks").setFloatVector3(n.position.toFloatBuffer());
                 }
             }
 
@@ -214,7 +212,7 @@ class DeferredLightingRenderer {
         val s = getOpenGLObjectStateFromNode(node);
         val pVertexBuffer: FloatBuffer = FloatBuffer.wrap((node as HasGeometry).vertices)
 
-        s.mStoredPrimitiveCount = pVertexBuffer.remaining() / (node as HasGeometry).vertexSize
+        s.mStoredPrimitiveCount = pVertexBuffer.remaining() / node.vertexSize
 
         gl.gL3.glBindVertexArray(s.mVertexArrayObject[0])
         gl.glBindBuffer(GL.GL_ARRAY_BUFFER, s.mVertexBuffers[0])
@@ -229,7 +227,7 @@ class DeferredLightingRenderer {
                     GL.GL_STATIC_DRAW)
 
         gl.gL3.glVertexAttribPointer(0,
-                (node as HasGeometry).vertexSize,
+                node.vertexSize,
                 GL.GL_FLOAT,
                 false,
                 0,
@@ -323,7 +321,7 @@ class DeferredLightingRenderer {
                     GL.GL_STATIC_DRAW)
 
         gl.gL3.glVertexAttribPointer(1,
-                (node as HasGeometry).vertexSize,
+                node.vertexSize,
                 GL.GL_FLOAT,
                 false,
                 0,
@@ -374,7 +372,7 @@ class DeferredLightingRenderer {
                     GL.GL_STATIC_DRAW)
 
         gl.gL3.glVertexAttribPointer(2,
-                (node as HasGeometry).texcoordSize,
+                node.texcoordSize,
                 GL.GL_FLOAT,
                 false,
                 0,
