@@ -2,6 +2,13 @@ language: java
 script: "gradle build"
 jdk:
   - oraclejdk8
+before_script:
+  - cd ..
+  - git clone -b scenegraph git://github.com/ClearVolume/ClearGL.git
+  - git clone git://github.com/scijava/ui-behaviour.git
+  - cd ui-behaviour
+  - mvn install
+
 install: gradle assemble --stacktrace
 
 before_cache:
