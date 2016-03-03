@@ -3,12 +3,20 @@ language: java
 jdk:
   - oraclejdk8
 
+before_install:
+  - "sudo apt-get install libX11-dev xorg-dev libgl1-mesa-dev"
+
 install:
   - cd ..
   - git clone -b scenegraph git://github.com/ClearVolume/ClearGL.git cleargl
   - echo "include 'cleargl'" >> settings.gradle
   - echo "include 'scenery'" >> settings.gradle
   - cd scenery
+
+before_script:
+  - "export DISPLAY=:99.0"
+  - "sh -e /etc/init.d/xvfb start"
+  - sleep 5
 
 script: 
   - gradle build -Plocal=true --stacktrace
