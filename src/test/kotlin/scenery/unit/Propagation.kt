@@ -1,4 +1,4 @@
-package scenery.tests
+package scenery.tests.unit
 
 import cleargl.GLMatrix
 import cleargl.GLVector
@@ -9,7 +9,7 @@ import scenery.Scene
 /**
  * Created by ulrik on 28/01/16.
  */
-class ScenegraphTests {
+class Propagation {
     @Test
     fun testTransformationPropagation() {
         val scene = Scene()

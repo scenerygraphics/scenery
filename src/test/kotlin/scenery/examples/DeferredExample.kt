@@ -1,4 +1,4 @@
-package scenery.tests
+package scenery.tests.examples
 
 import cleargl.*
 import com.jogamp.opengl.GL
@@ -24,7 +24,7 @@ import kotlin.concurrent.thread
 /**
  * Created by ulrik on 20/01/16.
  */
-class SimpleSceneryTests {
+class DeferredExample {
 
 
     private val scene: Scene = Scene()

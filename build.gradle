@@ -18,10 +18,6 @@ apply plugin: 'maven'
 apply plugin: 'maven-publish'
 apply plugin: 'idea'
 
-
-//***********************************************************************************
-// JAVA CODE BUILDING
-
 sourceSets
 {
 	main
@@ -44,17 +40,44 @@ sourceSets
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
-
 test
 {
 	testLogging.showStandardStreams = true
-	testLogging
-	{ events "passed", "skipped", "failed" }
-
-	exclude '**/demo/**'
-	exclude '**/run/**'
+	testLogging { events "started", "passed", "skipped", "failed" }
 
 	maxHeapSize = "4G"
+}
+
+task runExamples(type: Test) {
+    include '**/examples/**'
+    exclude '**/unit/**'
+    exclude '**/performance/**'
+}
+
+task unitTest(type: Test) {
+     beforeTest { descriptor ->
+     logger.lifecycle("Running test: ${descriptor}")
+    }
+    
+	testLogging.showStandardStreams = true
+	testLogging { events "started", "passed", "skipped", "failed" }
+
+    include '**/unit/**'
+    exclude '**/examples/**'
+    exclude '**/performance/**'
+}
+
+task performanceTest(type: Test) {
+     beforeTest { descriptor ->
+     logger.lifecycle("Running test: ${descriptor}")
+    }
+    
+	testLogging.showStandardStreams = true
+	testLogging { events "started", "passed", "skipped", "failed" }
+
+    include '**/performance/**'
+    exclude '**/examples/**'
+    exclude '**/unit/**'
 }
 
 dependencies
@@ -97,8 +120,6 @@ repositories
     mavenLocal()
 }
 
-
-
 task sourcesJar(type: Jar, dependsOn:classes) {
 	classifier = 'sources'
 	from sourceSets.main.allSource
@@ -117,23 +138,6 @@ if (JavaVersion.current().isJava8Compatible()) {
 	}
 }
 
-//***********************************************************************************
-// TEST PROG
-
-task TestProgFatJar(type:Jar) {
-	archiveName = "TestProg.jar"
-	from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
-	with jar
-
-	manifest {
-		attributes("Class-Path": ".", 'Main-Class': 'scenery.testprog.JOGLTestProgram')
-	}
-}
-
-
-
-
-//***********************************************************************************
 // BINTRAY PUBLISHING
 
 /*
