@@ -1,7 +1,6 @@
 package scenery.tests.examples
 
 import cleargl.*
-import com.jogamp.opengl.GL
 import com.jogamp.opengl.GLAutoDrawable
 import com.jogamp.opengl.GLException
 import org.junit.Test
@@ -15,10 +14,7 @@ import scenery.controls.behaviours.FPSCameraControl
 import scenery.controls.behaviours.MovementCommand
 import scenery.controls.behaviours.ToggleCommand
 import scenery.rendermodules.opengl.DeferredLightingRenderer
-import scenery.rendermodules.opengl.OpenGLRenderModule
-import scenery.rendermodules.opengl.RenderGeometricalObject
 import java.io.*
-import java.util.*
 import kotlin.concurrent.thread
 
 /**
@@ -28,17 +24,10 @@ class DeferredExample {
 
 
     private val scene: Scene = Scene()
-    private var objectMap = HashMap<Node, OpenGLRenderModule>()
-    private var renderOrderList: ArrayList<OpenGLRenderModule> = ArrayList()
     private var frameNum = 0
     private var deferredRenderer: DeferredLightingRenderer? = null
 
-    private val renderMappings = hashMapOf(
-            "HasGeometry" to RenderGeometricalObject::class
-    )
-
-    @Test
-    public fun demo() {
+    @Test fun demo() {
         val lClearGLWindowEventListener = object : ClearGLDefaultEventListener() {
 
             private var mClearGLWindow: ClearGLDisplayable? = null
@@ -48,10 +37,6 @@ class DeferredExample {
                 super.init(pDrawable)
                 try {
                     deferredRenderer = DeferredLightingRenderer(pDrawable.gl.gL4, mClearGLWindow!!.width, mClearGLWindow!!.height)
-
-                    val lGL = pDrawable.gl
-                    lGL.glEnable(GL.GL_DEPTH_TEST)
-                    lGL.glClearColor(0.0f, 0.0f, 0.0f, 1.0f)
 
                     val cam: Camera = DetachedHeadCamera()
 
@@ -77,9 +62,9 @@ class DeferredExample {
                     }
 
                     lights.map {
-                        it.position = GLVector(rangeRandomizer(-100.0f, 100.0f),
-                                rangeRandomizer(-100.0f, 100.0f),
-                                rangeRandomizer(-100.0f, 100.0f))
+                        it.position = GLVector(rangeRandomizer(-600.0f, 600.0f),
+                                rangeRandomizer(-600.0f, 600.0f),
+                                rangeRandomizer(-600.0f, 600.0f))
                         it.emissionColor = GLVector(rangeRandomizer(0.0f, 1.0f),
                                 rangeRandomizer(0.0f, 1.0f),
                                 rangeRandomizer(0.0f, 1.0f))
@@ -118,9 +103,9 @@ class DeferredExample {
                     val meshM = PhongMaterial()
                     meshM.ambient = GLVector(0.5f, 0.5f, 0.5f)
                     meshM.diffuse = GLVector(0.5f, 0.5f, 0.5f)
-                    meshM.specular = GLVector(0.8f, 0.8f, 0.8f)
+                    meshM.specular = GLVector(0.0f, 0.0f, 0.0f)
 
-                    mesh.readFromOBJ("/Users/ulrik/Downloads/sponza_obj/sponza.obj")
+                    mesh.readFromOBJ("/Users/ulrik/Code/ClearVolume/scenery/models/sponza.obj")
                     mesh.material = meshM
                     mesh.position = GLVector(155.5f, 150.5f, 55.0f)
                     mesh.scale = GLVector(0.1f, 0.1f, 0.1f)
@@ -135,7 +120,7 @@ class DeferredExample {
 
                     val cam_proj = GLMatrix()
                     cam_proj.setPerspectiveProjectionMatrix(
-                            50.0f / 180.0f * Math.PI.toFloat(),
+                            70.0f / 180.0f * Math.PI.toFloat(),
                             pDrawable.surfaceWidth.toFloat()/pDrawable.surfaceHeight.toFloat(), 0.1f, 1000.0f)
                     cam_proj.invert()
 
@@ -159,16 +144,23 @@ class DeferredExample {
                         while (true) {
                             boxes.mapIndexed {
                                 i, box ->
-                                box.position!!.set(i % 3, step * ticks)
+                                box.position.set(i % 3, step * ticks)
                                 box.needsUpdate = true
                             }
 
                             lights.mapIndexed {
                                 i, light ->
-                                light.position.set(i % 3, step * ticks)
+//                                light.position.set(i % 3, step*10 * ticks)
+                                val phi = Math.PI * 2.0f * ticks/5000.0f
+
+                                light.position = GLVector(
+                                        i*10*Math.sin(phi).toFloat()+Math.exp(i.toDouble()).toFloat(),
+                                        step*ticks,
+                                        i*10*Math.cos(phi).toFloat()+Math.exp(i.toDouble()).toFloat())
+
                             }
 
-                            if (ticks >= 500 && reverse == false) {
+                            if (ticks >= 5000 && reverse == false) {
                                 reverse = true
                             }
                             if (ticks <= 0 && reverse == true) {
@@ -181,7 +173,7 @@ class DeferredExample {
                                 ticks++
                             }
 
-                            Thread.sleep(20)
+                            Thread.sleep(10)
 
                             boxes.first().rotation.rotateByEuler(0.01f, 0.0f, 0.0f)
                             boxes.first().needsUpdate = true
@@ -235,7 +227,7 @@ class DeferredExample {
         }
 
         lClearGLWindowEventListener.isDebugMode = true
-        val lClearGLWindow = ClearGLWindow("demo: ClearGLWindow",
+        val lClearGLWindow = ClearGLWindow("scenery: DeferredExample",
                 1280,
                 720,
                 lClearGLWindowEventListener)
