@@ -10,10 +10,12 @@ uniform sampler2D gDepth;
 struct Light {
     vec3 Position;
     vec3 Color;
+    float Intensity;
 };
 
-const int NR_LIGHTS = 32;
-uniform Light lights[NR_LIGHTS];
+const int MAX_NUM_LIGHTS = 128;
+uniform int numLights;
+uniform Light lights[MAX_NUM_LIGHTS];
 uniform vec3 viewPos;
 
 uniform int debugDeferredBuffers = 0;
@@ -33,11 +35,11 @@ void main()
         vec3 lighting = Albedo.rgb * 0.1; // hard-coded ambient component
         vec3 viewDir = normalize(viewPos - FragPos);
 
-        for(int i = 0; i < NR_LIGHTS; ++i)
+        for(int i = 0; i < numLights; ++i)
         {
             // Diffuse
             vec3 lightDir = normalize(lights[i].Position - FragPos);
-            vec3 diffuse = max(dot(Normal, lightDir), 0.0) * Albedo.rgb * 0.1 * lights[i].Color;
+            vec3 diffuse = max(dot(Normal, lightDir), 0.0) * lights[i].Intensity * Albedo.rgb * lights[i].Color;
             lighting += diffuse;
         }
 

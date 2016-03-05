@@ -32,7 +32,6 @@ class DeferredExample {
 
             private var mClearGLWindow: ClearGLDisplayable? = null
 
-
             override fun init(pDrawable: GLAutoDrawable) {
                 super.init(pDrawable)
                 try {
@@ -57,7 +56,7 @@ class DeferredExample {
                         scene.initList.add(i)
                     }
 
-                    var lights = (0..32).map {
+                    var lights = (0..64).map {
                         PointLight()
                     }
 
@@ -68,6 +67,7 @@ class DeferredExample {
                         it.emissionColor = GLVector(rangeRandomizer(0.0f, 1.0f),
                                 rangeRandomizer(0.0f, 1.0f),
                                 rangeRandomizer(0.0f, 1.0f))
+                        it.intensity = rangeRandomizer(0.001f, 0.01f)
 
                         scene.addChild(it)
                     }
@@ -212,10 +212,6 @@ class DeferredExample {
                 clearGLWindow.windowTitle =  "%.1f fps".format(pDrawable.animator?.lastFPS)
             }
 
-            override fun dispose(pDrawable: GLAutoDrawable) {
-                super.dispose(pDrawable)
-            }
-
             override fun setClearGLWindow(pClearGLWindow: ClearGLWindow) {
                 mClearGLWindow = pClearGLWindow
             }
@@ -226,11 +222,11 @@ class DeferredExample {
 
         }
 
-        lClearGLWindowEventListener.isDebugMode = true
         val lClearGLWindow = ClearGLWindow("scenery: DeferredExample",
                 1280,
                 720,
                 lClearGLWindowEventListener)
+
         lClearGLWindow.isVisible = true
         lClearGLWindow.setFPS(60)
 

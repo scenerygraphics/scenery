@@ -143,10 +143,12 @@ class DeferredLightingRenderer {
         lightingPassProgram.bind()
 
         val lights = scene.discover(scene, {it is PointLight})
+        lightingPassProgram.getUniform("numLights").setInt(lights.size)
 
         for(i in 0..lights.size-1) {
             lightingPassProgram.getUniform("lights[$i].Position").setFloatVector(lights[i].position)
             lightingPassProgram.getUniform("lights[$i].Color").setFloatVector((lights[i] as PointLight).emissionColor)
+            lightingPassProgram.getUniform("lights[$i].Intensity").setFloat((lights[i] as PointLight).intensity)
         }
 
         lightingPassProgram.getUniform("gPosition").setInt(0)
