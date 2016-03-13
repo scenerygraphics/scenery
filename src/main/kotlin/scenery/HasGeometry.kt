@@ -44,6 +44,8 @@ interface HasGeometry {
         inputStream.close()
         var count = 0
 
+        var targetObject = this
+
         System.out.println("Reading from OBJ file")
         lines.forEach {
             line ->
@@ -134,7 +136,23 @@ interface HasGeometry {
                         // TODO: Implement smooth shading across faces
                     }
                     "g" -> {
-                        // TODO: Implement groups
+                        targetObject.vertices = (vbuffer.clone() as ArrayList<Float>).toFloatArray()
+                        targetObject.normals = (nbuffer.clone() as ArrayList<Float>).toFloatArray()
+                        targetObject.texcoords = (tbuffer.clone() as ArrayList<Float>).toFloatArray()
+
+                        vbuffer.clear()
+                        nbuffer.clear()
+                        tbuffer.clear()
+
+                        // add new child mesh
+                        if(this is Mesh) {
+                            var child = Mesh()
+                            child.name = tokens[1]
+                            child.material = PhongMaterial()
+
+                            this.addChild(child)
+                            targetObject = child
+                        }
                     }
                     "usemtl" -> {
                         // TODO: Implement materials
@@ -147,9 +165,9 @@ interface HasGeometry {
         val end = System.nanoTime()
         System.out.println("Read ${vbuffer.size}/${nbuffer.size}/${tbuffer.size} v/t/uv of model ${name} in ${(end-start)/1e6} ms")
 
-        vertices = vbuffer.toFloatArray()
-        normals = nbuffer.toFloatArray()
-        texcoords = tbuffer.toFloatArray()
+        targetObject.vertices = vbuffer.toFloatArray()
+        targetObject.normals = nbuffer.toFloatArray()
+        targetObject.texcoords = tbuffer.toFloatArray()
     }
 
     fun readFromSTL(filename: String) {
