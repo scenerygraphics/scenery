@@ -88,6 +88,8 @@ open class Node(open var name: String) : Renderable {
     public var needsUpdate = true
     public var needsUpdateWorld = true
 
+    public var textures: ArrayList<String> = ArrayList()
+
     init {
         this.createdAt = (Timestamp(Date().time).time).toLong()
         this.model = GLMatrix.getIdentity()
@@ -127,28 +129,20 @@ open class Node(open var name: String) : Renderable {
     }
 
     fun updateWorld(recursive: Boolean, force: Boolean = false) {
-//        System.err.println("Updating world of ${name}")
-
         if (needsUpdate or force) {
             this.composeModel()
             needsUpdate = false
             needsUpdateWorld = true
         }
 
-//        System.err.println("3: Model of ${name} is: ${model}")
-
         if(needsUpdateWorld or force) {
             if (this.parent == null || this.parent is Scene) {
-//                System.err.println("${name} has no parent, cloning model")
                 this.world = this.model.clone()
             } else {
                 val m = parent!!.world.clone()
-//                System.err.println("parent (${parent!!.name}): ${m}")
-//                System.err.println("this (${this.name}): ${this.model}")
                 m.mult(this.model)
 
                 this.world = m
-//                System.err.println("this world (${this.name}): ${m}")
             }
 
             this.needsUpdateWorld = false
@@ -168,10 +162,7 @@ open class Node(open var name: String) : Renderable {
         w.scale(this.scale.x(), this.scale.y(), this.scale.z())
         w.translate(this.position!!.x(), this.position!!.y(), this.position!!.z())
 
-
-//        System.err.println("1: Model of ${name} is: ${w}")
         this.model = w
-//        System.err.println("2: Model of ${name} is: ${model}")
     }
 
     fun composeModelView() {

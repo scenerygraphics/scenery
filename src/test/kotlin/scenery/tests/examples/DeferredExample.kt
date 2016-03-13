@@ -67,7 +67,7 @@ class DeferredExample {
                         it.emissionColor = GLVector(rangeRandomizer(0.0f, 1.0f),
                                 rangeRandomizer(0.0f, 1.0f),
                                 rangeRandomizer(0.0f, 1.0f))
-                        it.intensity = rangeRandomizer(0.001f, 0.01f)
+                        it.intensity = rangeRandomizer(0.0001f, 0.001f)
 
                         scene.addChild(it)
                     }
@@ -109,6 +109,8 @@ class DeferredExample {
                     mesh.material = meshM
                     mesh.position = GLVector(155.5f, 150.5f, 55.0f)
                     mesh.scale = GLVector(0.1f, 0.1f, 0.1f)
+                    mesh.updateWorld(true, true)
+                    mesh.name = "Sponza_Mesh"
 
                     scene.addChild(mesh)
                     scene.initList.add(mesh)
@@ -278,6 +280,7 @@ class DeferredExample {
         behaviourMap.put("move_right", MovementCommand("move_right", "right", scene.findObserver()))
 
         behaviourMap.put("toggle_debug", ToggleCommand("toggle_debug", deferredRenderer!!, "toggleDebug"))
+        behaviourMap.put("toggle_ssao", ToggleCommand("toggle_ssao", deferredRenderer!!, "toggleSSAO"))
 
         val adder = config.inputTriggerAdder(inputMap, "all")
         adder.put("drag1") // put input trigger as defined in config
@@ -290,6 +293,7 @@ class DeferredExample {
         adder.put("move_right", "D")
 
         adder.put("toggle_debug", "X")
+        adder.put("toggle_ssao", "O")
 
         lClearGLWindow.start()
 

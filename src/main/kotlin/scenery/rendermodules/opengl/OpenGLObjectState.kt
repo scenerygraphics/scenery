@@ -1,6 +1,7 @@
 package scenery.rendermodules.opengl
 
 import cleargl.GLProgram
+import cleargl.GLTexture
 import scenery.NodeMetadata
 import java.util.*
 
@@ -14,6 +15,7 @@ class OpenGLObjectState : NodeMetadata {
 
     var program: GLProgram? = null
     val additionalBufferIds = Hashtable<String, Int>()
+    val textures = HashMap<String, GLTexture>()
 
     val mVertexArrayObject = IntArray(1)
     val mVertexBuffers = IntArray(3)

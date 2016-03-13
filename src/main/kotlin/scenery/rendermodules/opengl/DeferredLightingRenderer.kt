@@ -3,6 +3,7 @@ package scenery.rendermodules.opengl
 import cleargl.GLFramebuffer
 import cleargl.GLMatrix
 import cleargl.GLProgram
+import cleargl.GLTexture
 import com.jogamp.opengl.GL
 import com.jogamp.opengl.GL4
 import scenery.*
@@ -23,6 +24,7 @@ class DeferredLightingRenderer {
     protected var lightingPassProgram: GLProgram
 
     protected var debugBuffers = 0;
+    protected var doSSAO = 0;
 
     constructor(gl: GL4, width: Int, height: Int) {
         this.gl = gl
@@ -50,12 +52,22 @@ class DeferredLightingRenderer {
         }
     }
 
+    fun toggleSSAO() {
+        if(doSSAO == 0) {
+            System.out.println("SSAO is now on")
+            doSSAO = 1;
+        } else {
+            System.out.println("SSAO is now off")
+            doSSAO = 0;
+        }
+    }
+
     fun getOpenGLObjectStateFromNode(node: Node): OpenGLObjectState {
         return node.metadata.find { it.consumers.contains("DeferredLightingRenderer") } as OpenGLObjectState
     }
 
     fun initializeScene(scene: Scene) {
-        scene.initList.filter { it is HasGeometry }.forEach {
+        scene.discover(scene, { it is HasGeometry }).forEach {
             it.metadata.add(OpenGLObjectState())
             initializeNode(it)
         }
@@ -126,6 +138,18 @@ class DeferredLightingRenderer {
                     program.getUniform("Material.Kd").setFloatVector3(n.position.toFloatBuffer());
                     program.getUniform("Material.Ks").setFloatVector3(n.position.toFloatBuffer());
                 }
+
+                var samplerIndex = 5;
+                s.textures.forEach { s, glTexture ->
+                    gl.glActiveTexture(GL.GL_TEXTURE0 + samplerIndex)
+                    gl.glBindTexture(GL.GL_TEXTURE_2D, glTexture.id)
+                    program.getUniform("ObjectTextures[0]").setInt(samplerIndex)
+                }
+
+                if(s.textures.size > 0){
+                    System.err.println("Setting mat type for $n.name")
+                    program.getUniform("materialType").setInt(1)
+                }
             }
 
             drawNode(n)
@@ -156,7 +180,10 @@ class DeferredLightingRenderer {
         lightingPassProgram.getUniform("gAlbedoSpec").setInt(2)
         lightingPassProgram.getUniform("gDepth").setInt(3)
 
-        lightingPassProgram.getUniform("debugDeferredBuffers").setInt(debugBuffers);
+        lightingPassProgram.getUniform("debugDeferredBuffers").setInt(debugBuffers)
+        lightingPassProgram.getUniform("ssao_filterRadius").setFloatVector2(0.001f, 0.001f)
+        lightingPassProgram.getUniform("ssao_distanceThreshold").setFloat(0.5f)
+        lightingPassProgram.getUniform("doSSAO").setInt(doSSAO);
 
         renderFullscreenQuad(lightingPassProgram)
     }
@@ -193,7 +220,6 @@ class DeferredLightingRenderer {
         }
 
         if(node is HasGeometry) {
-
             setVerticesAndCreateBufferForNode(node)
             setNormalsAndCreateBufferForNode(node)
 
@@ -204,6 +230,10 @@ class DeferredLightingRenderer {
             if (node.indices.size > 0) {
                 setIndicesAndCreateBufferForNode(node)
             }
+        }
+
+        node.textures.forEach {
+            s.textures.put(it, GLTexture.loadFromFile(gl, it, true, 1))
         }
 
         s.initialized = true

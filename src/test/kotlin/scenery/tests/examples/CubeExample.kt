@@ -32,6 +32,7 @@ class CubeExample {
                 boxmaterial.diffuse = GLVector(0.0f, 1.0f, 0.0f)
                 boxmaterial.specular = GLVector(1.0f, 1.0f, 1.0f)
                 box.position = GLVector(0.0f, 0.0f, 1.1f)
+                box.textures.add("/Users/ulrik/Code/ClearVolume/scenery/textures/helix.png")
 
                 scene.addChild(box)
                 scene.initList.add(box)
@@ -42,7 +43,8 @@ class CubeExample {
 
                 lights.mapIndexed { i, light ->
                     light.position = GLVector(2.0f * i, 2.0f * i, 2.0f * i)
-                    light.emissionColor = GLVector(i * 0.33f, 1.0f, 1.0f)
+                    light.emissionColor = GLVector(1.0f, 0.0f, 1.0f)
+                    light.intensity = 0.2f*(i+1);
                     scene.addChild(light)
                 }
 
@@ -60,7 +62,7 @@ class CubeExample {
 
                 thread {
                     while (true) {
-                        box.rotation.rotateByEuler(0.0f, 0.01f, 0.01f)
+                        box.rotation.rotateByAngleY(0.01f)
                         box.needsUpdate = true
 
                         Thread.sleep(20)
