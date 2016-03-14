@@ -35,7 +35,6 @@ class CubeExample {
                 box.textures.add("/Users/ulrik/Code/ClearVolume/scenery/textures/helix.png")
 
                 scene.addChild(box)
-                scene.initList.add(box)
 
                 var lights = (0..2).map {
                     PointLight()

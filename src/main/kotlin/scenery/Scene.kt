@@ -5,7 +5,6 @@ import java.util.*
 open class Scene : Node("RootNode") {
 
     public var activeObserver: Camera? = null
-    public var initList: ArrayList<Node> = ArrayList()
 
     fun addNode(n: Node, parent: Node) {
         if (n.name == "RootNode") {

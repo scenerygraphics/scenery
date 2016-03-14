@@ -35,7 +35,9 @@ class DeferredExample {
             override fun init(pDrawable: GLAutoDrawable) {
                 super.init(pDrawable)
                 try {
-                    deferredRenderer = DeferredLightingRenderer(pDrawable.gl.gL4, mClearGLWindow!!.width, mClearGLWindow!!.height)
+                    deferredRenderer = DeferredLightingRenderer(pDrawable.gl.gL4,
+                            mClearGLWindow!!.width,
+                            mClearGLWindow!!.height)
 
                     val cam: Camera = DetachedHeadCamera()
 
@@ -53,7 +55,6 @@ class DeferredExample {
                                         rangeRandomizer(-10.0f, 10.0f),
                                         rangeRandomizer(-10.0f, 10.0f))
                         scene.addChild(i)
-                        scene.initList.add(i)
                     }
 
                     var lights = (0..64).map {
@@ -81,7 +82,6 @@ class DeferredExample {
                     companionBoxMaterial.specular = GLVector(1.0f, 0.0f, 0.0f)
 
                     companionBox.material = companionBoxMaterial
-                    scene.initList.add(companionBox)
 
                     boxes.first().addChild(companionBox)
 
@@ -97,8 +97,6 @@ class DeferredExample {
                     hullboxM.specular = GLVector(0.0f, 0.0f, 0.0f)
                     hullbox.material = hullboxM
 
-                    scene.initList.add(hullbox)
-
                     val mesh = Mesh()
                     val meshM = PhongMaterial()
                     meshM.ambient = GLVector(0.5f, 0.5f, 0.5f)
@@ -113,25 +111,16 @@ class DeferredExample {
                     mesh.name = "Sponza_Mesh"
 
                     scene.addChild(mesh)
-                    scene.initList.add(mesh)
 
                     boxes.first().addChild(sphere)
 
-                    val cam_view = GLMatrix.getIdentity()
-                    cam_view.setCamera(cam.position, cam.position + cam.forward, cam.up)
-
-                    val cam_proj = GLMatrix()
-                    cam_proj.setPerspectiveProjectionMatrix(
-                            70.0f / 180.0f * Math.PI.toFloat(),
-                            pDrawable.surfaceWidth.toFloat()/pDrawable.surfaceHeight.toFloat(), 0.1f, 1000.0f)
-                    cam_proj.invert()
-
-                    cam.projection = cam_proj
-                    cam.view = cam_view
-                    cam.active = true
                     cam.position = GLVector(0.0f, 0.0f, 0.0f)
+                    cam.view = GLMatrix().setCamera(cam.position, cam.position + cam.forward, cam.up)
 
-                    scene.initList.add(sphere)
+                    cam.projection = GLMatrix().setPerspectiveProjectionMatrix(
+                            70.0f / 180.0f * Math.PI.toFloat(),
+                            pDrawable.surfaceWidth.toFloat() / pDrawable.surfaceHeight.toFloat(), 0.1f, 1000.0f).invert()
+                    cam.active = true
 
                     scene.addChild(cam)
 
