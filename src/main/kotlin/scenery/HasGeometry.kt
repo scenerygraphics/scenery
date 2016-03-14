@@ -26,6 +26,10 @@ interface HasGeometry {
         var tmpN = ArrayList<Float>()
         var tmpUV = ArrayList<Float>()
 
+        var vertexCount = 0
+        var normalCount = 0
+        var uvCount = 0
+
         var f = File(filename)
         if(!f.exists()) {
             System.out.println("Could not read from ${filename}, file does not exist.")
@@ -140,6 +144,10 @@ interface HasGeometry {
                         targetObject.normals = (nbuffer.clone() as ArrayList<Float>).toFloatArray()
                         targetObject.texcoords = (tbuffer.clone() as ArrayList<Float>).toFloatArray()
 
+                        vertexCount += targetObject.vertices.size
+                        normalCount += targetObject.normals.size
+                        uvCount += targetObject.texcoords.size
+
                         vbuffer.clear()
                         nbuffer.clear()
                         tbuffer.clear()
@@ -163,11 +171,16 @@ interface HasGeometry {
         }
 
         val end = System.nanoTime()
-        System.out.println("Read ${vbuffer.size}/${nbuffer.size}/${tbuffer.size} v/t/uv of model ${name} in ${(end-start)/1e6} ms")
 
         targetObject.vertices = vbuffer.toFloatArray()
         targetObject.normals = nbuffer.toFloatArray()
         targetObject.texcoords = tbuffer.toFloatArray()
+
+        vertexCount += targetObject.vertices.size
+        normalCount += targetObject.normals.size
+        uvCount += targetObject.texcoords.size
+
+        System.out.println("Read ${vertexCount / vertexSize}/${normalCount / vertexSize}/${uvCount / texcoordSize} v/t/uv of model ${name} in ${(end - start) / 1e6} ms")
     }
 
     fun readFromSTL(filename: String) {
