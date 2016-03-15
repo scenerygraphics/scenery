@@ -50,7 +50,7 @@ interface HasGeometry {
 
         var targetObject = this
 
-        System.out.println("Reading from OBJ file")
+        System.out.println("Reading from OBJ file $filename")
         lines.forEach {
             line ->
             val tokens = line.trim().trimEnd().split(" ").filter { it.length > 0 }
@@ -88,8 +88,8 @@ interface HasGeometry {
                         val elements = tokens.drop(1).map { it.split("/") }
 
                         val vertices = elements.map { it[0].toInt() }
-                        val uvs = elements.filter { it.size > 1 }. map { it[1].toInt() }
-                        val normals = elements.filter { it.size > 2 }.map { it[2].toInt() }
+                        val uvs = elements.filter { it.size > 1 && it.getOrElse(1, {""}).length > 0 }.map { it[1].toInt() }
+                        val normals = elements.filter { it.size > 2 && it.getOrElse(2, {""}).length > 0 }.map { it[2].toInt() }
 
                         var range = ArrayList<Int>()
                         if(vertices.size == 3) {
@@ -206,7 +206,7 @@ interface HasGeometry {
         inputStream.close()
 
         val readFromAscii = {
-            System.out.println("Reading from ASCII STL file")
+            System.out.println("Reading from ASCII STL file $filename")
             lines.forEach {
                 line ->
                 val tokens = line.trim().trimEnd().split(" ")
@@ -224,7 +224,7 @@ interface HasGeometry {
             }}
 
         val readFromBinary = {
-            System.out.println("Reading from binary STL file")
+            System.out.println("Reading from binary STL file $filename")
             val f = FileInputStream(filename)
             val b = BufferedInputStream(f)
             var headerB: ByteArray = ByteArray(80)
