@@ -267,6 +267,7 @@ class DeferredExample {
         behaviourMap.put("move_back", MovementCommand("move_back", "back", scene.findObserver()))
         behaviourMap.put("move_left", MovementCommand("move_left", "left", scene.findObserver()))
         behaviourMap.put("move_right", MovementCommand("move_right", "right", scene.findObserver()))
+        behaviourMap.put("move_up", MovementCommand("move_up", "up", scene.findObserver()))
 
         behaviourMap.put("toggle_debug", ToggleCommand("toggle_debug", deferredRenderer!!, "toggleDebug"))
         behaviourMap.put("toggle_ssao", ToggleCommand("toggle_ssao", deferredRenderer!!, "toggleSSAO"))
@@ -280,6 +281,7 @@ class DeferredExample {
         adder.put("move_left", "A")
         adder.put("move_back", "S")
         adder.put("move_right", "D")
+        adder.put("move_up", "SPACE")
 
         adder.put("toggle_debug", "X")
         adder.put("toggle_ssao", "O")

@@ -16,6 +16,7 @@ class MovementCommand(private val name: String, private val direction: String, p
             "back" -> cam.position = cam.position - cam.forward * 1.0f
             "left" -> cam.position = cam.position - cam.forward.cross(cam.up).normalized * 1.0f
             "right" -> cam.position = cam.position + cam.forward.cross(cam.up).normalized * 1.0f
+            "up" -> cam.position = cam.position + cam.up * 1.0f
         }
     }
 }
