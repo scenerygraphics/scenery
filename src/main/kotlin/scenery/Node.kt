@@ -21,6 +21,7 @@ open class Node(open var name: String) : Renderable {
     }
 
     open var nodeType = "Node"
+    open var useClassDerivedShader = false
 
     override var world: GLMatrix = GLMatrix.getIdentity()
         set(m) {

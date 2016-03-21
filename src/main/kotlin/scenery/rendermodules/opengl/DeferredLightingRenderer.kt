@@ -16,6 +16,7 @@ import java.util.*
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
+
 class DeferredLightingRenderer {
     protected var gl: GL4
     protected var width: Int
@@ -31,18 +32,31 @@ class DeferredLightingRenderer {
         this.width = width
         this.height = height
 
+        // create 32bit position buffer, 16bit normal buffer, 8bit diffuse buffer and 24bit depth buffer
         geometryBuffer = GLFramebuffer(this.gl, width, height)
+        geometryBuffer.addFloatRGBBuffer(this.gl, 32)
         geometryBuffer.addFloatRGBBuffer(this.gl, 16)
-        geometryBuffer.addFloatRGBBuffer(this.gl, 16)
-        geometryBuffer.addUnsignedByteRGBABuffer(this.gl, 16)
-        geometryBuffer.addDepthBuffer(this.gl, 32)
+        geometryBuffer.addUnsignedByteRGBABuffer(this.gl, 8)
+        geometryBuffer.addDepthBuffer(this.gl, 24)
 
         geometryBuffer.checkAndSetDrawBuffers(this.gl)
         System.out.println(geometryBuffer.toString())
 
-        lightingPassProgram = GLProgram.buildProgram(gl, RenderGeometricalObject::class.java,
+        lightingPassProgram = GLProgram.buildProgram(gl, DeferredLightingRenderer::class.java,
                 arrayOf("shaders/Dummy.vert", "shaders/FullscreenQuadGenerator.geom", "shaders/DeferredLighting.frag"))
     }
+
+    protected fun GeometryType.toOpenGLType(): Int {
+        return when(this) {
+            GeometryType.TRIANGLE_STRIP -> GL.GL_TRIANGLE_STRIP
+            GeometryType.POLYGON -> GL.GL_TRIANGLES
+            GeometryType.TRIANGLES -> GL.GL_TRIANGLES
+            GeometryType.TRIANGLE_FAN -> GL.GL_TRIANGLE_FAN
+            GeometryType.POINTS -> GL.GL_POINTS
+            GeometryType.LINE -> GL.GL_LINE_STRIP
+        }
+    }
+
 
     fun toggleDebug() {
         if(debugBuffers == 0) {
@@ -152,6 +166,10 @@ class DeferredLightingRenderer {
                 }
             }
 
+            if(n is HasGeometry) {
+                n.preDraw()
+            }
+
             drawNode(n)
         }
 
@@ -213,8 +231,22 @@ class DeferredLightingRenderer {
         gl.glGenBuffers(1, s.mIndexBuffer, 0)
 
         if (node.material == null || node.material !is OpenGLMaterial || (node.material as OpenGLMaterial).program == null) {
-            s.program = GLProgram.buildProgram(gl, RenderGeometricalObject::class.java,
-                    arrayOf("shaders/DefaultDeferred.vert", "shaders/DefaultDeferred.frag"))
+            if(node.useClassDerivedShader) {
+                val javaClass = node.javaClass.simpleName
+                val className = javaClass.substring(javaClass.indexOf(".") + 1)
+
+                val shaders = arrayOf(".vert", ".geom", ".tese", ".tesc", ".frag", ".comp")
+                        .map { "shaders/$className$it" }
+                        .filter {
+                            DeferredLightingRenderer::class.java.getResource(it) != null
+                        }
+
+                s.program = GLProgram.buildProgram(gl, DeferredLightingRenderer::class.java,
+                        shaders.toTypedArray())
+            } else {
+                s.program = GLProgram.buildProgram(gl, DeferredLightingRenderer::class.java,
+                        arrayOf("shaders/DefaultDeferred.vert", "shaders/DefaultDeferred.frag"))
+            }
         } else {
             s.program = (node.material as OpenGLMaterial).program
         }

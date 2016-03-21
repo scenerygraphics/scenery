@@ -16,6 +16,10 @@ interface HasGeometry {
     var texcoords: FloatArray
     var indices: IntArray
 
+    fun preDraw() {
+
+    }
+
     fun readFromOBJ(filename: String) {
         var name: String = ""
         var vbuffer = ArrayList<Float>()
