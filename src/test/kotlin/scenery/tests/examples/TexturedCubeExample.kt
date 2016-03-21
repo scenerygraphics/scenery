@@ -12,7 +12,7 @@ import kotlin.concurrent.thread
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class CubeExample {
+class TexturedCubeExample {
     private val scene: Scene = Scene()
     private var frameNum = 0
     private var deferredRenderer: DeferredLightingRenderer? = null
@@ -27,12 +27,12 @@ class CubeExample {
                 deferredRenderer = DeferredLightingRenderer(pDrawable.gl.gL4, mClearGLWindow!!.width, mClearGLWindow!!.height)
 
                 var box = Box(GLVector(1.0f, 1.0f, 1.0f))
-
                 var boxmaterial = PhongMaterial()
                 boxmaterial.ambient = GLVector(1.0f, 0.0f, 0.0f)
                 boxmaterial.diffuse = GLVector(0.0f, 1.0f, 0.0f)
                 boxmaterial.specular = GLVector(1.0f, 1.0f, 1.0f)
                 box.position = GLVector(0.0f, 0.0f, 1.1f)
+                box.textures.add(this.javaClass.getResource("textures/helix.png").file)
 
                 scene.addChild(box)
 
@@ -42,8 +42,8 @@ class CubeExample {
 
                 lights.mapIndexed { i, light ->
                     light.position = GLVector(2.0f * i, 2.0f * i, 2.0f * i)
-                    light.emissionColor = GLVector(0.1f, 0.1f, 0.1f)
-                    light.intensity = 0.02f*(i+1);
+                    light.emissionColor = GLVector(1.0f, 0.0f, 1.0f)
+                    light.intensity = 0.2f*(i+1);
                     scene.addChild(light)
                 }
 
