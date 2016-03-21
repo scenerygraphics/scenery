@@ -9,9 +9,8 @@ in VertexData {
     vec3 Normal;
     vec2 TexCoord;
     vec3 FragPosition;
+    vec4 Color;
 } VertexIn;
-
-layout( location = 0) out vec4 FragColor;
 
 uniform vec3 LightIntensity = vec3(0.8);
 uniform float Absorption = 0.5;
@@ -42,7 +41,8 @@ uniform MaterialInfo Material;
 const int MAX_TEXTURES = 8;
 const int MATERIAL_TYPE_STATIC = 0;
 const int MATERIAL_TYPE_TEXTURED = 1;
-uniform int materialType = MATERIAL_TYPE_STATIC;
+const int MATERIAL_TYPE_MAT = 2;
+uniform int materialType = MATERIAL_TYPE_MAT;
 uniform sampler2D ObjectTextures[MAX_TEXTURES];
 
 void main() {
@@ -51,8 +51,10 @@ void main() {
     // Also store the per-fragment normals into the gbuffer
     gNormal = normalize(VertexIn.Normal);
     // And the diffuse per-fragment color
-    if(materialType == MATERIAL_TYPE_STATIC) {
+    if(materialType == MATERIAL_TYPE_MAT) {
         gAlbedoSpec.rgb = Material.Ka;
+    } else if(materialType == MATERIAL_TYPE_STATIC) {
+        gAlbedoSpec.rgb = VertexIn.Color.rgb;
     } else {
         gAlbedoSpec.rgb = texture(ObjectTextures[0], VertexIn.TexCoord).rgb;
     }

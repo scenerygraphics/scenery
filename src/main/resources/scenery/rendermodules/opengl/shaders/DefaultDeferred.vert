@@ -9,6 +9,7 @@ out VertexData {
     vec3 Normal;
     vec2 TexCoord;
     vec3 FragPosition;
+    vec4 Color;
 } VertexOut;
 
 uniform mat4 ModelViewMatrix;
@@ -24,6 +25,7 @@ void main()
     VertexOut.Position = vec3( ModelViewMatrix * vec4(vertexPosition, 1.0));
     VertexOut.TexCoord = vertexTexCoord;
     VertexOut.FragPosition = vec3(ModelMatrix * vec4(vertexPosition, 1.0));
+    VertexOut.Color = vec4(0.0f, 0.0f, 0.0f, 0.0f);
 
     gl_Position = MVP * vec4(vertexPosition, 1.0);
 }
