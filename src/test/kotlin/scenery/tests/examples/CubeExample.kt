@@ -4,6 +4,7 @@ import cleargl.*
 import com.jogamp.opengl.GLAutoDrawable
 import org.junit.Test
 import scenery.*
+import scenery.controls.ClearGLInputHandler
 import scenery.rendermodules.opengl.DeferredLightingRenderer
 import kotlin.concurrent.thread
 
@@ -94,6 +95,9 @@ class CubeExample {
                 lClearGLWindowEventListener)
         lClearGLWindow.isVisible = true
         lClearGLWindow.setFPS(60)
+
+        val inputHandler = ClearGLInputHandler(scene, deferredRenderer as Any, lClearGLWindow)
+        inputHandler.useDefaultBindings(System.getProperty("user.home") + "/.sceneryExamples.bindings")
 
         lClearGLWindow.start()
 
