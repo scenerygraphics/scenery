@@ -1,13 +1,13 @@
 package scenery.rendermodules.opengl
 
 import cleargl.GLProgram
-import scenery.PhongMaterial
+import scenery.Material
 
 /**
  * <Description>
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class OpenGLMaterial : PhongMaterial() {
+class OpenGLMaterial : Material() {
     var program: GLProgram? = null
 }

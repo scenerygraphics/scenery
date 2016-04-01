@@ -89,8 +89,6 @@ open class Node(open var name: String) : Renderable {
     public var needsUpdate = true
     public var needsUpdateWorld = true
 
-    public var textures: ArrayList<String> = ArrayList()
-
     init {
         this.createdAt = (Timestamp(Date().time).time).toLong()
         this.model = GLMatrix.getIdentity()

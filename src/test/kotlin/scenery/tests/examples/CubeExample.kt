@@ -34,6 +34,7 @@ class CubeExample {
                 boxmaterial.diffuse = GLVector(0.0f, 1.0f, 0.0f)
                 boxmaterial.specular = GLVector(1.0f, 1.0f, 1.0f)
                 box.position = GLVector(0.0f, 0.0f, 1.1f)
+                box.material = boxmaterial
 
                 scene.addChild(box)
 
@@ -43,8 +44,8 @@ class CubeExample {
 
                 lights.mapIndexed { i, light ->
                     light.position = GLVector(2.0f * i, 2.0f * i, 2.0f * i)
-                    light.emissionColor = GLVector(0.1f, 0.1f, 0.1f)
-                    light.intensity = 0.02f*(i+1);
+                    light.emissionColor = GLVector(0.0f, 0.1f, 0.8f)
+                    light.intensity = 0.8f;
                     scene.addChild(light)
                 }
 

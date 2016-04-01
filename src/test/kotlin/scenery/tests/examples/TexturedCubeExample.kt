@@ -28,13 +28,14 @@ class TexturedCubeExample {
                 deferredRenderer = DeferredLightingRenderer(pDrawable.gl.gL4, mClearGLWindow!!.width, mClearGLWindow!!.height)
 
                 var box = Box(GLVector(1.0f, 1.0f, 1.0f))
-                var boxmaterial = PhongMaterial()
+                var boxmaterial = Material()
                 boxmaterial.ambient = GLVector(1.0f, 0.0f, 0.0f)
                 boxmaterial.diffuse = GLVector(0.0f, 1.0f, 0.0f)
                 boxmaterial.specular = GLVector(1.0f, 1.0f, 1.0f)
-                box.position = GLVector(0.0f, 0.0f, 1.1f)
-                box.textures.add(this.javaClass.getResource("textures/helix.png").file)
+                boxmaterial.textures.add(this.javaClass.getResource("textures/helix.png").file)
+                box.material = boxmaterial
 
+                box.position = GLVector(0.0f, 0.0f, 1.1f)
                 scene.addChild(box)
 
                 var lights = (0..2).map {

@@ -264,8 +264,9 @@ class DeferredLightingRenderer {
             }
         }
 
-        node.textures.forEach {
+        node.material?.textures?.forEach {
             s.textures.put(it, GLTexture.loadFromFile(gl, it, true, 1))
+            System.out.println("Added texture $it")
         }
 
         s.initialized = true
