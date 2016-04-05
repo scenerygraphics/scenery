@@ -17,9 +17,11 @@ before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then /usr/libexec/java_home -V; fi
 
 install:
-  - git clone -b scenegraph git://github.com/ClearVolume/ClearGL.git ../cleargl
+  - cd ..
+  - git clone -b scenegraph git://github.com/ClearVolume/ClearGL.git cleargl
   - echo "include 'cleargl'" >> ../settings.gradle
   - echo "include 'scenery'" >> ../settings.gradle
+  - cd scenery
 
 script: 
   - gradle build -Plocal=true -x test
