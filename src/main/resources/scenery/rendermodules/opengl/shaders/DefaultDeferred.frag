@@ -12,23 +12,12 @@ in VertexData {
     vec4 Color;
 } VertexIn;
 
-uniform vec3 LightIntensity = vec3(0.8);
-uniform float Absorption = 0.5;
-
 uniform mat4 ModelViewMatrix;
 uniform mat4 MVP;
 
 uniform vec3 CameraPosition;
 
 float PI = 3.14159265358979323846264;
-
-struct LightInfo {
-    vec3 Position;
-    vec3 La;
-    vec3 Ld;
-    vec3 Ls;
-};
-uniform LightInfo Light;
 
 struct MaterialInfo {
     vec3 Ka;
@@ -55,9 +44,10 @@ void main() {
         gAlbedoSpec.rgb = Material.Ka;
     } else if(materialType == MATERIAL_TYPE_STATIC) {
         gAlbedoSpec.rgb = VertexIn.Color.rgb;
+        gAlbedoSpec.a = Material.Ks.r * Material.Shinyness;
     } else {
         gAlbedoSpec.rgb = texture(ObjectTextures[0], VertexIn.TexCoord).rgb;
+        gAlbedoSpec.a = texture(ObjectTextures[1], VertexIn.TexCoord).r;
     }
     // Store specular intensity in gAlbedoSpec's alpha component
-    gAlbedoSpec.a = Material.Ks.r * Material.Shinyness;
 }

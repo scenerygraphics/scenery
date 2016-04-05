@@ -22,10 +22,17 @@ class DeferredLightingRenderer {
     protected var width: Int
     protected var height: Int
     protected var geometryBuffer: GLFramebuffer
+    protected var hdrBuffer: GLFramebuffer
     protected var lightingPassProgram: GLProgram
+    protected var hdrPassProgram: GLProgram
+
+    protected var textures = HashMap<String, GLTexture>()
 
     protected var debugBuffers = 0;
     protected var doSSAO = 0;
+    protected var doHDR = 0;
+    protected var exposure = 0.02f;
+    protected var gamma = 2.2f;
 
     constructor(gl: GL4, width: Int, height: Int) {
         this.gl = gl
@@ -42,8 +49,15 @@ class DeferredLightingRenderer {
         geometryBuffer.checkAndSetDrawBuffers(this.gl)
         System.out.println(geometryBuffer.toString())
 
+        // create HDR buffer
+        hdrBuffer = GLFramebuffer(this.gl, width, height)
+        hdrBuffer.addFloatRGBBuffer(this.gl, 32)
+
         lightingPassProgram = GLProgram.buildProgram(gl, DeferredLightingRenderer::class.java,
                 arrayOf("shaders/Dummy.vert", "shaders/FullscreenQuadGenerator.geom", "shaders/DeferredLighting.frag"))
+
+        hdrPassProgram = GLProgram.buildProgram(gl, DeferredLightingRenderer::class.java,
+                arrayOf("shaders/Dummy.vert", "shaders/FullscreenQuadGenerator.geom", "shaders/HDR.frag"))
     }
 
     protected fun GeometryType.toOpenGLType(): Int {
@@ -73,6 +87,26 @@ class DeferredLightingRenderer {
         } else {
             System.out.println("SSAO is now off")
             doSSAO = 0;
+        }
+    }
+
+    fun increaseExposure() {
+        exposure += 0.05f
+    }
+
+    fun decreaseExposure() {
+        if(exposure - 0.05f > 0.0f) {
+            exposure -= 0.05f
+        }
+    }
+
+    fun increaseGamma() {
+        gamma += 0.05f
+    }
+
+    fun decreaseGamma() {
+        if(gamma - 0.05f > 0.0f) {
+            gamma -= 0.05f
         }
     }
 
@@ -110,15 +144,16 @@ class DeferredLightingRenderer {
             renderOrderList.add(it)
         }
 
-        renderOrderList.sort { a, b -> (a.position.z() - b.position.z()).toInt() }
+        //renderOrderList.sort { a, b -> (a.position.z() - b.position.z()).toInt() }
 
         cam.view?.setCamera(cam.position, cam.position + cam.forward, cam.up)
 
         for (n in renderOrderList) {
             val s = getOpenGLObjectStateFromNode(n)
-            n.model = GLMatrix.getIdentity()
+            /*n.model = GLMatrix.getIdentity()
             n.model.translate(n.position.x(), n.position.y(), n.position.z())
             n.model.scale(n.scale.x(), n.scale.y(), n.scale.z())
+            */
             n.updateWorld(true, false)
 
             mv = cam.view!!.clone().mult(cam.rotation)
@@ -137,10 +172,6 @@ class DeferredLightingRenderer {
                 program.getUniform("ProjectionMatrix")!!.setFloatMatrix(cam.projection, false)
                 program.getUniform("MVP")!!.setFloatMatrix(mvp, false)
 
-                program.getUniform("Light.Ld").setFloatVector3(1.0f, 1.0f, 0.8f);
-                program.getUniform("Light.Position").setFloatVector3(5.0f, 5.0f, 5.0f);
-                program.getUniform("Light.La").setFloatVector3(0.4f, 0.4f, 0.4f);
-                program.getUniform("Light.Ls").setFloatVector3(0.0f, 0.0f, 0.0f);
                 program.getUniform("Material.Shinyness").setFloat(0.001f);
 
                 if (n.material != null) {
@@ -155,13 +186,15 @@ class DeferredLightingRenderer {
 
                 var samplerIndex = 5;
                 s.textures.forEach { s, glTexture ->
-                    gl.glActiveTexture(GL.GL_TEXTURE0 + samplerIndex)
-                    gl.glBindTexture(GL.GL_TEXTURE_2D, glTexture.id)
-                    program.getUniform("ObjectTextures[0]").setInt(samplerIndex)
+                    if(glTexture != null) {
+                        gl.glActiveTexture(GL.GL_TEXTURE0 + samplerIndex)
+                        gl.glBindTexture(GL.GL_TEXTURE_2D, glTexture.id)
+                        program.getUniform("ObjectTextures[" + (samplerIndex-5) + "]").setInt(samplerIndex)
+                    }
+                    samplerIndex++
                 }
 
                 if(s.textures.size > 0){
-                    System.err.println("Setting mat type for $n.name")
                     program.getUniform("materialType").setInt(1)
                 }
             }
@@ -170,11 +203,15 @@ class DeferredLightingRenderer {
                 n.preDraw()
             }
 
+            if(n.doubleSided) {
+               gl.glDisable(GL.GL_CULL_FACE)
+            }
             drawNode(n)
         }
 
         geometryBuffer.bindTexturesToUnitsWithOffset(gl, 0);
-        geometryBuffer.revertToDefaultFramebuffer(gl);
+//        geometryBuffer.revertToDefaultFramebuffer(gl);
+        hdrBuffer.checkAndSetDrawBuffers(gl);
 
         gl.glDisable(GL.GL_CULL_FACE);
         gl.glDisable(GL.GL_BLEND);
@@ -191,6 +228,8 @@ class DeferredLightingRenderer {
             lightingPassProgram.getUniform("lights[$i].Position").setFloatVector(lights[i].position)
             lightingPassProgram.getUniform("lights[$i].Color").setFloatVector((lights[i] as PointLight).emissionColor)
             lightingPassProgram.getUniform("lights[$i].Intensity").setFloat((lights[i] as PointLight).intensity)
+            lightingPassProgram.getUniform("lights[$i].Linear").setFloat((lights[i] as PointLight).linear)
+            lightingPassProgram.getUniform("lights[$i].Quadratic").setFloat((lights[i] as PointLight).quadratic)
         }
 
         lightingPassProgram.getUniform("gPosition").setInt(0)
@@ -204,6 +243,13 @@ class DeferredLightingRenderer {
         lightingPassProgram.getUniform("doSSAO").setInt(doSSAO);
 
         renderFullscreenQuad(lightingPassProgram)
+
+        hdrBuffer.bindTexturesToUnitsWithOffset(gl, 0)
+        hdrBuffer.revertToDefaultFramebuffer(gl)
+
+        hdrPassProgram.getUniform("Gamma").setFloat(this.gamma)
+        hdrPassProgram.getUniform("Exposure").setFloat(this.exposure)
+        renderFullscreenQuad(hdrPassProgram)
     }
 
     fun renderFullscreenQuad(quadGenerator: GLProgram) {
@@ -265,8 +311,13 @@ class DeferredLightingRenderer {
         }
 
         node.material?.textures?.forEach {
-            s.textures.put(it, GLTexture.loadFromFile(gl, it, true, 1))
-            System.out.println("Added texture $it")
+            if(!textures.containsKey(it)) {
+                val texture = GLTexture.loadFromFile(gl, it, true, 1)
+                s.textures.put(it, texture)
+                textures.put(it, texture)
+            } else {
+                s.textures.put(it, textures[it]!!)
+            }
         }
 
         s.initialized = true

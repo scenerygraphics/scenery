@@ -15,6 +15,7 @@ open class Node(open var name: String) : Renderable {
     override var initialized: Boolean = false
     override var dirty: Boolean = true
     override var visible: Boolean = true
+    var doubleSided: Boolean = true
 
     override fun init(): Boolean {
         return true

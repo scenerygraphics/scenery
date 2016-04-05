@@ -10,10 +10,12 @@ uniform sampler2D gDepth;
 struct Light {
     vec3 Position;
     vec3 Color;
+    float Linear;
+    float Quadratic;
     float Intensity;
 };
 
-const int MAX_NUM_LIGHTS = 128;
+const int MAX_NUM_LIGHTS = 64;
 uniform int numLights;
 uniform Light lights[MAX_NUM_LIGHTS];
 uniform vec3 viewPos;
@@ -92,7 +94,13 @@ void main()
             // Diffuse
             vec3 lightDir = normalize(lights[i].Position - FragPos);
             vec3 diffuse = max(dot(Normal, lightDir), 0.0) * lights[i].Intensity * Albedo.rgb * lights[i].Color;
-            lighting += diffuse;
+            float distance = length(lights[i].Position - FragPos);
+            vec3 specular = lights[i].Color * Specular;
+
+            float attenuation = 1.0 / (1.0 + lights[i].Linear * distance + lights[i].Quadratic * distance * distance);
+            diffuse *= attenuation;
+            specular *= attenuation;
+            lighting += diffuse + specular;
         }
 
         FragColor = vec4(lighting, 1.0);
