@@ -61,7 +61,9 @@ class DeferredExample {
                         it.emissionColor = GLVector(rangeRandomizer(0.0f, 1.0f),
                                 rangeRandomizer(0.0f, 1.0f),
                                 rangeRandomizer(0.0f, 1.0f))
-                        it.intensity = rangeRandomizer(0.0001f, 0.001f)
+                        it.intensity = rangeRandomizer(0.01f, 1000f)
+                        it.linear = 0.1f;
+                        it.quadratic = 0.01f;
 
                         scene.addChild(it)
                     }
@@ -69,7 +71,7 @@ class DeferredExample {
                     var companionBox = Box(GLVector(5.0f, 5.0f, 5.0f))
                     companionBox.position = GLVector(1.0f, 1.0f, 1.0f)
                     companionBox.name = "Le Box de la Compagnion"
-                    val companionBoxMaterial = PhongMaterial()
+                    val companionBoxMaterial = Material()
                     companionBoxMaterial.ambient = GLVector(1.0f, 0.5f, 0.0f)
                     companionBoxMaterial.diffuse = GLVector(1.0f, 0.0f, 0.0f)
                     companionBoxMaterial.specular = GLVector(1.0f, 0.0f, 0.0f)
@@ -84,20 +86,23 @@ class DeferredExample {
 
                     val hullbox = Box(GLVector(100.0f, 100.0f, 100.0f))
                     hullbox.position = GLVector(0.0f, 0.0f, 0.0f)
-                    val hullboxM = PhongMaterial()
+                    val hullboxM = Material()
                     hullboxM.ambient = GLVector(0.6f, 0.6f, 0.6f)
                     hullboxM.diffuse = GLVector(0.4f, 0.4f, 0.4f)
                     hullboxM.specular = GLVector(0.0f, 0.0f, 0.0f)
                     hullbox.material = hullboxM
+                    hullbox.doubleSided = true
+
+//                    scene.addChild(hullbox)
 
                     val mesh = Mesh()
-                    val meshM = PhongMaterial()
+                    val meshM = Material()
                     meshM.ambient = GLVector(0.5f, 0.5f, 0.5f)
                     meshM.diffuse = GLVector(0.5f, 0.5f, 0.5f)
                     meshM.specular = GLVector(0.0f, 0.0f, 0.0f)
 
                     mesh.readFromOBJ("/Users/ulrik/Code/ClearVolume/scenery/models/sponza.obj")
-                    mesh.material = meshM
+                    //mesh.material = meshM
                     mesh.position = GLVector(155.5f, 150.5f, 55.0f)
                     mesh.scale = GLVector(0.1f, 0.1f, 0.1f)
                     mesh.updateWorld(true, true)
@@ -135,7 +140,7 @@ class DeferredExample {
                             lights.mapIndexed {
                                 i, light ->
 //                                light.position.set(i % 3, step*10 * ticks)
-                                val phi = Math.PI * 2.0f * ticks/5000.0f
+                                val phi = Math.PI * 2.0f * ticks/500.0f
 
                                 light.position = GLVector(
                                         i*10*Math.sin(phi).toFloat()+Math.exp(i.toDouble()).toFloat(),

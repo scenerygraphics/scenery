@@ -29,7 +29,7 @@ class CubeExample {
 
                 var box = Box(GLVector(1.0f, 1.0f, 1.0f))
 
-                var boxmaterial = PhongMaterial()
+                var boxmaterial = Material()
                 boxmaterial.ambient = GLVector(1.0f, 0.0f, 0.0f)
                 boxmaterial.diffuse = GLVector(0.0f, 1.0f, 0.0f)
                 boxmaterial.specular = GLVector(1.0f, 1.0f, 1.0f)
