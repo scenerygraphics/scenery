@@ -20,7 +20,65 @@ interface HasGeometry {
 
     }
 
-    fun readFromOBJ(filename: String) {
+    fun readFromMTL(filename: String): HashMap<String, Material> {
+        var materials = HashMap<String, Material>()
+
+        var f = File(filename)
+        if(!f.exists()) {
+            System.out.println("Could not read MTL from ${filename}, file does not exist.")
+
+            vertices = FloatArray(0)
+            normals = FloatArray(0)
+            texcoords = FloatArray(0)
+            indices = IntArray(0)
+            return materials
+        }
+
+        val inputStream = FileInputStream(filename)
+        val lines = BufferedReader(InputStreamReader(inputStream)).readLines()
+        inputStream.close()
+
+        var currentMaterial: Material? = Material()
+
+        System.out.println("Reading from MTL file $filename")
+        lines.forEach {
+            line ->
+            val tokens = line.trim().trimEnd().split(" ").filter { it.length > 0 }
+            if (tokens.size > 0) {
+                when (tokens[0]) {
+                    "newmtl" -> {
+                        currentMaterial = Material()
+                        currentMaterial?.name = tokens[1]
+
+                        materials.put(tokens[1], currentMaterial!!)
+                    }
+                    "Ka" -> currentMaterial?.ambient = GLVector(tokens[1].toFloat(), tokens[2].toFloat(), tokens[3].toFloat())
+                    "Kd" -> currentMaterial?.ambient = GLVector(tokens[1].toFloat(), tokens[2].toFloat(), tokens[3].toFloat())
+                    "Ks" -> currentMaterial?.ambient = GLVector(tokens[1].toFloat(), tokens[2].toFloat(), tokens[3].toFloat())
+                    "d" -> currentMaterial?.opacity = tokens[1].toFloat()
+                    "Tr" -> currentMaterial?.opacity = 1.0f - tokens[1].toFloat()
+                    "illum" -> {}
+                    "map_Ka" -> {
+                        val filename = filename.substringBeforeLast(File.separator) + File.separator + tokens[1].replace('\\', '/')
+                        currentMaterial!!.textures.add(filename)
+                    }
+                    "map_Ks" -> {
+                        val filename = filename.substringBeforeLast(File.separator) + File.separator + tokens[1].replace('\\', '/')
+                        currentMaterial!!.textures.add(filename)
+                    }
+                    "map_Kd" -> {}
+                    "map_d" -> {}
+                    "map_bump" -> {}
+                    "bump" -> {}
+                    "Tf" -> {}
+                }
+            }
+        }
+
+        return materials
+    }
+
+    fun readFromOBJ(filename: String, useMTL: Boolean = true) {
         var name: String = ""
         var vbuffer = ArrayList<Float>()
         var nbuffer = ArrayList<Float>()
@@ -33,6 +91,8 @@ interface HasGeometry {
         var vertexCount = 0
         var normalCount = 0
         var uvCount = 0
+
+        var materials = HashMap<String, Material>()
 
         var f = File(filename)
         if(!f.exists()) {
@@ -65,6 +125,14 @@ interface HasGeometry {
                     "#" -> {
                     }
                     "mtllib" -> {
+                        if(useMTL) {
+                            materials = readFromMTL(filename.substringBeforeLast(File.separator) + File.separator + tokens[1])
+                        }
+                    }
+                    "usemtl" -> {
+                        if(targetObject is Node && useMTL) {
+                            (targetObject as Node).material = materials[tokens[1]]
+                        }
                     }
                     "o" -> {
                     }
@@ -160,14 +228,13 @@ interface HasGeometry {
                         if(this is Mesh) {
                             var child = Mesh()
                             child.name = tokens[1]
-                            child.material = PhongMaterial()
+                            if(!useMTL) {
+                                child.material = Material()
+                            }
 
                             this.addChild(child)
                             targetObject = child
                         }
-                    }
-                    "usemtl" -> {
-                        // TODO: Implement materials
                     }
                     else -> System.err.println("Unknown element: ${tokens.joinToString(" ")}")
                 }
