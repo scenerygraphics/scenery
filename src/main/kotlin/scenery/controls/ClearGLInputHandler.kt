@@ -80,6 +80,8 @@ class ClearGLInputHandler(scene: Scene, renderer: Any, window: ClearGLWindow) {
 
         behaviourMap.put("toggle_debug", ToggleCommand("toggle_debug", renderer, "toggleDebug"))
         behaviourMap.put("toggle_ssao", ToggleCommand("toggle_ssao", renderer, "toggleSSAO"))
+        behaviourMap.put("toggle_hdr", ToggleCommand("toggle_hdr", renderer, "toggleHDR"))
+
 
         behaviourMap.put("increase_exposure", ToggleCommand("increase_exposure", renderer, "increaseExposure"))
         behaviourMap.put("decrease_exposure", ToggleCommand("decrease_exposure", renderer, "decreaseExposure"))
@@ -100,6 +102,7 @@ class ClearGLInputHandler(scene: Scene, renderer: Any, window: ClearGLWindow) {
 
         adder.put("toggle_debug", "X")
         adder.put("toggle_ssao", "O")
+        adder.put("toggle_hdr", "H")
 
         adder.put("increase_exposure", "K")
         adder.put("decrease_exposure", "L")

@@ -29,8 +29,8 @@ class DeferredLightingRenderer {
     protected var textures = HashMap<String, GLTexture>()
 
     protected var debugBuffers = 0;
-    protected var doSSAO = 0;
-    protected var doHDR = 0;
+    protected var doSSAO = 1;
+    protected var doHDR = 1;
     protected var exposure = 0.02f;
     protected var gamma = 2.2f;
 
@@ -87,6 +87,16 @@ class DeferredLightingRenderer {
         } else {
             System.out.println("SSAO is now off")
             doSSAO = 0;
+        }
+    }
+
+    fun toggleHDR() {
+        if(doHDR == 0) {
+            System.out.println("HDR is now on")
+            doHDR = 1;
+        } else {
+            System.out.println("HDR is now on")
+            doHDR = 0
         }
     }
 
@@ -240,16 +250,21 @@ class DeferredLightingRenderer {
         lightingPassProgram.getUniform("debugDeferredBuffers").setInt(debugBuffers)
         lightingPassProgram.getUniform("ssao_filterRadius").setFloatVector2(0.001f, 0.001f)
         lightingPassProgram.getUniform("ssao_distanceThreshold").setFloat(0.5f)
-        lightingPassProgram.getUniform("doSSAO").setInt(doSSAO);
+        lightingPassProgram.getUniform("doSSAO").setInt(doSSAO)
 
-        renderFullscreenQuad(lightingPassProgram)
+        if(doHDR == 0) {
+            geometryBuffer.revertToDefaultFramebuffer(gl)
+            renderFullscreenQuad(lightingPassProgram)
+        } else {
+            renderFullscreenQuad(lightingPassProgram)
 
-        hdrBuffer.bindTexturesToUnitsWithOffset(gl, 0)
-        hdrBuffer.revertToDefaultFramebuffer(gl)
+            hdrBuffer.bindTexturesToUnitsWithOffset(gl, 0)
+            hdrBuffer.revertToDefaultFramebuffer(gl)
 
-        hdrPassProgram.getUniform("Gamma").setFloat(this.gamma)
-        hdrPassProgram.getUniform("Exposure").setFloat(this.exposure)
-        renderFullscreenQuad(hdrPassProgram)
+            hdrPassProgram.getUniform("Gamma").setFloat(this.gamma)
+            hdrPassProgram.getUniform("Exposure").setFloat(this.exposure)
+            renderFullscreenQuad(hdrPassProgram)
+        }
     }
 
     fun renderFullscreenQuad(quadGenerator: GLProgram) {
