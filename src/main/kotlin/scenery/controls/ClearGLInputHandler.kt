@@ -1,6 +1,7 @@
 package scenery.controls
 
 import cleargl.ClearGLWindow
+import org.scijava.ui.behaviour.Behaviour
 import org.scijava.ui.behaviour.BehaviourMap
 import org.scijava.ui.behaviour.InputTriggerMap
 import org.scijava.ui.behaviour.io.InputTriggerConfig
@@ -29,6 +30,8 @@ class ClearGLInputHandler(scene: Scene, renderer: Any, window: ClearGLWindow) {
     protected val renderer: Any
     protected val window: ClearGLWindow
 
+    protected var config: InputTriggerConfig = InputTriggerConfig()
+
     init {
         // create Mouse & Keyboard Handler
         handler = JOGLMouseAndKeyHandler()
@@ -42,6 +45,14 @@ class ClearGLInputHandler(scene: Scene, renderer: Any, window: ClearGLWindow) {
         this.scene = scene
         this.renderer = renderer
         this.window = window
+    }
+
+    fun addBehaviour(behaviourName: String, behaviour: Behaviour) {
+        behaviourMap.put(behaviourName, behaviour)
+    }
+
+    fun addKeyBinding(behaviourName: String, keys: String) {
+        config.inputTriggerAdder(inputMap, "all").put(behaviourName, keys)
     }
 
     fun useDefaultBindings(bindingConfigFile: String) {
@@ -64,7 +75,7 @@ class ClearGLInputHandler(scene: Scene, renderer: Any, window: ClearGLWindow) {
                     "")
         }
 
-        val config = InputTriggerConfig(YamlConfigIO.read(reader))
+        config = InputTriggerConfig(YamlConfigIO.read(reader))
 
         /*
      * Create behaviours and input mappings.
