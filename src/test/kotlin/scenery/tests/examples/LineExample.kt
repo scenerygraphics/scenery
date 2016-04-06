@@ -26,7 +26,7 @@ class LineExample {
                 super.init(pDrawable)
                 deferredRenderer = DeferredLightingRenderer(pDrawable.gl.gL4, mClearGLWindow!!.width, mClearGLWindow!!.height)
 
-                var linematerial = PhongMaterial()
+                var linematerial = Material()
                 linematerial.ambient = GLVector(1.0f, 0.0f, 0.0f)
                 linematerial.diffuse = GLVector(0.0f, 1.0f, 0.0f)
                 linematerial.specular = GLVector(1.0f, 1.0f, 1.0f)
