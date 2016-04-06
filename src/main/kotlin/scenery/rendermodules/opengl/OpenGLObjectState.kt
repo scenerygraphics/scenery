@@ -13,7 +13,7 @@ import java.util.*
 class OpenGLObjectState : NodeMetadata {
     override val consumers: MutableList<String> = ArrayList<String>()
 
-    var program: GLProgram? = null
+    public var program: GLProgram? = null
     val additionalBufferIds = Hashtable<String, Int>()
     val textures = HashMap<String, GLTexture>()
 

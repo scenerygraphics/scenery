@@ -160,10 +160,6 @@ class DeferredLightingRenderer {
 
         for (n in renderOrderList) {
             val s = getOpenGLObjectStateFromNode(n)
-            /*n.model = GLMatrix.getIdentity()
-            n.model.translate(n.position.x(), n.position.y(), n.position.z())
-            n.model.scale(n.scale.x(), n.scale.y(), n.scale.z())
-            */
             n.updateWorld(true, false)
 
             mv = cam.view!!.clone().mult(cam.rotation)
@@ -304,7 +300,21 @@ class DeferredLightingRenderer {
 
                 s.program = GLProgram.buildProgram(gl, DeferredLightingRenderer::class.java,
                         shaders.toTypedArray())
-            } else {
+            }
+            else if(node.metadata.filter { it is OpenGLShaderPreference }.isNotEmpty()) {
+                val prefs = node.metadata.first { it is OpenGLShaderPreference } as OpenGLShaderPreference
+
+                if(prefs.parameters.size > 0) {
+                    s.program = GLProgram.buildProgram(gl, node.javaClass,
+                            prefs.shaders.toTypedArray(), prefs.parameters)
+                } else {
+                    s.program = GLProgram.buildProgram(gl, node.javaClass,
+                            prefs.shaders.toTypedArray())
+
+                }
+            }
+            else
+            {
                 s.program = GLProgram.buildProgram(gl, DeferredLightingRenderer::class.java,
                         arrayOf("shaders/DefaultDeferred.vert", "shaders/DefaultDeferred.frag"))
             }
