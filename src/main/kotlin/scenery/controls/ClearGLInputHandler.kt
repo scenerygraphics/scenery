@@ -65,7 +65,7 @@ class ClearGLInputHandler(scene: Scene, renderer: Any, window: ClearGLWindow) {
             System.err.println("Falling back to default keybindings...")
             reader = StringReader("---\n" +
                     "- !mapping" + "\n" +
-                    "  action: drag1" + "\n" +
+                    "  action: mouse_control" + "\n" +
                     "  contexts: [all]" + "\n" +
                     "  triggers: [button1, G]" + "\n" +
                     "- !mapping" + "\n" +
@@ -80,7 +80,7 @@ class ClearGLInputHandler(scene: Scene, renderer: Any, window: ClearGLWindow) {
         /*
      * Create behaviours and input mappings.
      */
-        behaviourMap.put("drag1", FPSCameraControl("drag1", scene.findObserver(), window.width, window.height))
+        behaviourMap.put("mouse_control", FPSCameraControl("mouse_control", scene.findObserver(), window.width, window.height))
 
         behaviourMap.put("move_forward", MovementCommand("move_forward", "forward", scene.findObserver()))
         behaviourMap.put("move_back", MovementCommand("move_back", "back", scene.findObserver()))
@@ -100,10 +100,7 @@ class ClearGLInputHandler(scene: Scene, renderer: Any, window: ClearGLWindow) {
         behaviourMap.put("decrease_gamma", ToggleCommand("decrease_gamma", renderer, "decreaseGamma"))
 
         val adder = config.inputTriggerAdder(inputMap, "all")
-        adder.put("drag1") // put input trigger as defined in config
-        adder.put("scroll1", "scroll")
-        adder.put("click1", "button1", "B")
-        adder.put("click1", "button3", "X")
+        adder.put("mouse_control") // put input trigger as defined in config
         adder.put("move_forward", "W")
         adder.put("move_left", "A")
         adder.put("move_back", "S")
@@ -111,7 +108,7 @@ class ClearGLInputHandler(scene: Scene, renderer: Any, window: ClearGLWindow) {
         adder.put("move_up", "SPACE")
         adder.put("move_down", "shift SPACE")
 
-        adder.put("toggle_debug", "X")
+        adder.put("toggle_debug", "Q")
         adder.put("toggle_ssao", "O")
         adder.put("toggle_hdr", "H")
 
