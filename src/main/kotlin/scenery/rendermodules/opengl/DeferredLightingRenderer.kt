@@ -215,15 +215,17 @@ class DeferredLightingRenderer {
             drawNode(n)
         }
 
-        geometryBuffer.bindTexturesToUnitsWithOffset(gl, 0);
+        geometryBuffer.bindTexturesToUnitsWithOffset(gl, 0)
 //        geometryBuffer.revertToDefaultFramebuffer(gl);
-        hdrBuffer.checkAndSetDrawBuffers(gl);
+        hdrBuffer.checkAndSetDrawBuffers(gl)
 
-        gl.glDisable(GL.GL_CULL_FACE);
-        gl.glDisable(GL.GL_BLEND);
-        gl.glDisable(GL.GL_DEPTH_TEST);
+        gl.glDisable(GL.GL_CULL_FACE)
+        gl.glDisable(GL.GL_BLEND)
+        gl.glDisable(GL.GL_DEPTH_TEST)
+        gl.glPointSize(1.5f)
+        gl.glEnable(GL4.GL_PROGRAM_POINT_SIZE)
 
-        gl.glClear(GL.GL_COLOR_BUFFER_BIT or GL.GL_DEPTH_BUFFER_BIT);
+        gl.glClear(GL.GL_COLOR_BUFFER_BIT or GL.GL_DEPTH_BUFFER_BIT)
 
         lightingPassProgram.bind()
 
