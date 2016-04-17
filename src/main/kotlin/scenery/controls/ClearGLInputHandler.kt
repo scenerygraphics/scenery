@@ -89,6 +89,13 @@ class ClearGLInputHandler(scene: Scene, renderer: Any, window: ClearGLWindow) {
         behaviourMap.put("move_up", MovementCommand("move_up", "up", scene.findObserver()))
         behaviourMap.put("move_down", MovementCommand("move_down", "down", scene.findObserver()))
 
+        behaviourMap.put("move_forward_fast", MovementCommand("move_forward", "forward", scene.findObserver(), 1.0f))
+        behaviourMap.put("move_back_fast", MovementCommand("move_back", "back", scene.findObserver(), 1.0f))
+        behaviourMap.put("move_left_fast", MovementCommand("move_left", "left", scene.findObserver(), 1.0f))
+        behaviourMap.put("move_right_fast", MovementCommand("move_right", "right", scene.findObserver(), 1.0f))
+        behaviourMap.put("move_up_fast", MovementCommand("move_up", "up", scene.findObserver(), 1.0f))
+        behaviourMap.put("move_down_fast", MovementCommand("move_down", "down", scene.findObserver(), 1.0f))
+
         behaviourMap.put("toggle_debug", ToggleCommand("toggle_debug", renderer, "toggleDebug"))
         behaviourMap.put("toggle_ssao", ToggleCommand("toggle_ssao", renderer, "toggleSSAO"))
         behaviourMap.put("toggle_hdr", ToggleCommand("toggle_hdr", renderer, "toggleHDR"))
@@ -101,10 +108,17 @@ class ClearGLInputHandler(scene: Scene, renderer: Any, window: ClearGLWindow) {
 
         val adder = config.inputTriggerAdder(inputMap, "all")
         adder.put("mouse_control") // put input trigger as defined in config
+
         adder.put("move_forward", "W")
         adder.put("move_left", "A")
         adder.put("move_back", "S")
         adder.put("move_right", "D")
+
+        adder.put("move_forward_fast", "shift W")
+        adder.put("move_left_fast", "shift A")
+        adder.put("move_back_fast", "shift S")
+        adder.put("move_right_fast", "shift D")
+
         adder.put("move_up", "SPACE")
         adder.put("move_down", "shift SPACE")
 

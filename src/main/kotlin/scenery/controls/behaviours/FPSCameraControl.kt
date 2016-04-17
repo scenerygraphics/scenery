@@ -38,8 +38,8 @@ class FPSCameraControl(private val name: String, private val node: Camera, priva
         lastX = x
         lastY = y
 
-        xoffset *= 0.05f;
-        yoffset *= 0.05f;
+        xoffset *= 0.1f;
+        yoffset *= 0.1f;
 
         yaw += xoffset;
         pitch += yoffset;
