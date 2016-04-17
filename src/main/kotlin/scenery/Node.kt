@@ -9,13 +9,14 @@ import java.util.*
 
 open class Node(open var name: String) : Renderable {
 
-    public var metadata: ArrayList<NodeMetadata> = ArrayList()
+    var metadata: HashMap<String, NodeMetadata> = HashMap()
 
     override var material: Material? = null
     override var initialized: Boolean = false
     override var dirty: Boolean = true
     override var visible: Boolean = true
-    var doubleSided: Boolean = true
+    var doubleSided: Boolean = false
+    var instanceOf: Node? = null
 
     override fun init(): Boolean {
         return true
@@ -130,6 +131,7 @@ open class Node(open var name: String) : Renderable {
 
     fun updateWorld(recursive: Boolean, force: Boolean = false) {
         if (needsUpdate or force) {
+//            System.err.println("Updating $name (p: $parent)")
             this.composeModel()
             needsUpdate = false
             needsUpdateWorld = true
@@ -138,9 +140,11 @@ open class Node(open var name: String) : Renderable {
         if(needsUpdateWorld or force) {
             if (this.parent == null || this.parent is Scene) {
                 this.world = this.model.clone()
+      //          this.world.translate(this.position.x(), this.position.y(), this.position.z())
             } else {
                 val m = parent!!.world.clone()
                 m.mult(this.model)
+                //m.translate(this.position.x(), this.position.y(), this.position.z())
 
                 this.world = m
             }
@@ -149,19 +153,20 @@ open class Node(open var name: String) : Renderable {
         }
 
         if (recursive) {
-            this.children.forEach { it.updateWorld(true) }
+            this.children.forEach { it.updateWorld(true, true) }
             // also update linked nodes -- they might need updated
             // model/view/proj matrices as well
-            this.linkedNodes.forEach { it.updateWorld(true) }
+            this.linkedNodes.forEach { it.updateWorld(true, true) }
         }
     }
 
     fun composeModel() {
         val w = GLMatrix.getIdentity()
+     //   w.translate(-this.position.x(), -this.position.y(), -this.position.z())
         w.mult(this.rotation)
+    //    w.translate(this.position.x(), this.position.y(), this.position.z())
         w.scale(this.scale.x(), this.scale.y(), this.scale.z())
-        w.translate(this.position!!.x(), this.position!!.y(), this.position!!.z())
-
+        w.translate(this.position.x(), this.position.y(), this.position.z())
         this.model = w
     }
 

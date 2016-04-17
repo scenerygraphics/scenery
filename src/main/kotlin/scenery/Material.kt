@@ -13,7 +13,7 @@ open class Material {
     var ambient: GLVector = GLVector(0.5f, 0.5f, 0.5f)
 
     var opacity = 1.0f
-    var textures: ArrayList<String> = ArrayList()
+    var textures: HashMap<String, String> = HashMap()
 
     companion object Factory {
        fun DefaultMaterial() {

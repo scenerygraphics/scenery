@@ -33,7 +33,7 @@ class CubeExample {
                 boxmaterial.ambient = GLVector(1.0f, 0.0f, 0.0f)
                 boxmaterial.diffuse = GLVector(0.0f, 1.0f, 0.0f)
                 boxmaterial.specular = GLVector(1.0f, 1.0f, 1.0f)
-                box.position = GLVector(0.0f, 0.0f, 1.1f)
+                box.position = GLVector(0.0f, 0.0f, 0.0f)
                 box.material = boxmaterial
 
                 scene.addChild(box)
@@ -77,7 +77,7 @@ class CubeExample {
 
                 frameNum++
                 deferredRenderer?.render(scene)
-                clearGLWindow.windowTitle = "scenery: CubeExample - %.1f fps".format(pDrawable.animator?.lastFPS)
+                clearGLWindow.windowTitle = "scenery: %s - %.1f fps".format(this.javaClass.enclosingClass.simpleName.substringAfterLast("."), pDrawable.animator?.lastFPS)
             }
 
             override fun setClearGLWindow(pClearGLWindow: ClearGLWindow) {
@@ -90,7 +90,7 @@ class CubeExample {
 
         }
 
-        val lClearGLWindow = ClearGLWindow("scenery: CubeExample",
+        val lClearGLWindow = ClearGLWindow("",
                 1024,
                 1024,
                 lClearGLWindowEventListener)

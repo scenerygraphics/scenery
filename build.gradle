@@ -1,5 +1,6 @@
 buildscript {
 	ext.kotlin_version = '1.0.1'
+    ext.slf4j_version = "1.7.20"
 	repositories {
     mavenCentral()
   }
@@ -84,9 +85,10 @@ dependencies
 {
     compile 'org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version'
     compile "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
-
-	compile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.1'
     compile ('org.jogamp.jogl:jogl-all:2.3.1'){transitive = true}
+
+    compile "org.slf4j:slf4j-api:$slf4j_version"
+    compile "org.slf4j:slf4j-simple:$slf4j_version"
 
     compile 'org.scijava:ui-behaviour:1.0.1'
 

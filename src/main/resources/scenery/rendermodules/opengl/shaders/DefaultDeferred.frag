@@ -31,23 +31,36 @@ const int MAX_TEXTURES = 8;
 const int MATERIAL_TYPE_STATIC = 0;
 const int MATERIAL_TYPE_TEXTURED = 1;
 const int MATERIAL_TYPE_MAT = 2;
+const int MATERIAL_TYPE_TEXTURED_NORMAL = 3;
 uniform int materialType = MATERIAL_TYPE_MAT;
+
+/*
+    ObjectTextures[0] - ambient
+    ObjectTextures[1] - diffuse
+    ObjectTextures[2] - specular
+    ObjectTextures[3] - normal
+    ObjectTextures[4] - displacement
+*/
 uniform sampler2D ObjectTextures[MAX_TEXTURES];
 
 void main() {
     // Store the fragment position vector in the first gbuffer texture
     gPosition = VertexIn.FragPosition;
     // Also store the per-fragment normals into the gbuffer
-    gNormal = normalize(VertexIn.Normal);
+    if(materialType == MATERIAL_TYPE_TEXTURED_NORMAL) {
+        gNormal = normalize(texture(ObjectTextures[3], VertexIn.TexCoord).rgb*2.0 - 1.0);
+    } else {
+        gNormal = normalize(VertexIn.Normal);
+    }
     // And the diffuse per-fragment color
     if(materialType == MATERIAL_TYPE_MAT) {
-        gAlbedoSpec.rgb = Material.Ka;
+        gAlbedoSpec.rgb = Material.Kd;
+        gAlbedoSpec.a = Material.Ka.r*Material.Shinyness;
     } else if(materialType == MATERIAL_TYPE_STATIC) {
         gAlbedoSpec.rgb = VertexIn.Color.rgb;
         gAlbedoSpec.a = Material.Ks.r * Material.Shinyness;
     } else {
-        gAlbedoSpec.rgb = texture(ObjectTextures[0], VertexIn.TexCoord).rgb;
-        gAlbedoSpec.a = texture(ObjectTextures[1], VertexIn.TexCoord).r;
+        gAlbedoSpec.rgb = texture(ObjectTextures[1], VertexIn.TexCoord).rgb;
+        gAlbedoSpec.a = texture(ObjectTextures[2], VertexIn.TexCoord).r;
     }
-    // Store specular intensity in gAlbedoSpec's alpha component
 }

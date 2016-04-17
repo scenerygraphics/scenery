@@ -32,10 +32,10 @@ class TexturedCubeExample {
                 boxmaterial.ambient = GLVector(1.0f, 0.0f, 0.0f)
                 boxmaterial.diffuse = GLVector(0.0f, 1.0f, 0.0f)
                 boxmaterial.specular = GLVector(1.0f, 1.0f, 1.0f)
-                boxmaterial.textures.add(this.javaClass.getResource("textures/helix.png").file)
+                boxmaterial.textures.put("diffuse", this.javaClass.getResource("textures/helix.png").file)
                 box.material = boxmaterial
 
-                box.position = GLVector(0.0f, 0.0f, 1.1f)
+                box.position = GLVector(0.0f, 0.0f, 0.0f)
                 scene.addChild(box)
 
                 var lights = (0..2).map {
@@ -77,7 +77,7 @@ class TexturedCubeExample {
 
                 frameNum++
                 deferredRenderer?.render(scene)
-                clearGLWindow.windowTitle = "scenery: CubeExample - %.1f fps".format(pDrawable.animator?.lastFPS)
+                clearGLWindow.windowTitle = "scenery: %s - %.1f fps".format(this.javaClass.enclosingClass.simpleName.substringAfterLast("."), pDrawable.animator?.lastFPS)
             }
 
             override fun setClearGLWindow(pClearGLWindow: ClearGLWindow) {
@@ -90,7 +90,7 @@ class TexturedCubeExample {
 
         }
 
-        val lClearGLWindow = ClearGLWindow("scenery: CubeExample",
+        val lClearGLWindow = ClearGLWindow("",
                 1024,
                 1024,
                 lClearGLWindowEventListener)

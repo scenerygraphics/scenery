@@ -61,15 +61,24 @@ interface HasGeometry {
                     "illum" -> {}
                     "map_Ka" -> {
                         val filename = filename.substringBeforeLast(File.separator) + File.separator + tokens[1].replace('\\', '/')
-                        currentMaterial!!.textures.add(filename)
+                        currentMaterial!!.textures.put("ambient", filename)
                     }
                     "map_Ks" -> {
                         val filename = filename.substringBeforeLast(File.separator) + File.separator + tokens[1].replace('\\', '/')
-                        currentMaterial!!.textures.add(filename)
+                        currentMaterial!!.textures.put("specular", filename)
                     }
-                    "map_Kd" -> {}
-                    "map_d" -> {}
-                    "map_bump" -> {}
+                    "map_Kd" -> {
+                        val filename = filename.substringBeforeLast(File.separator) + File.separator + tokens[1].replace('\\', '/')
+                        currentMaterial!!.textures.put("diffuse", filename)
+                    }
+                    "map_d" -> {
+                        val filename = filename.substringBeforeLast(File.separator) + File.separator + tokens[1].replace('\\', '/')
+                        currentMaterial!!.textures.put("displacement", filename)
+                    }
+                    "map_bump" -> {
+                        val filename = filename.substringBeforeLast(File.separator) + File.separator + tokens[1].replace('\\', '/')
+                        currentMaterial!!.textures.put("normal", filename)
+                    }
                     "bump" -> {}
                     "Tf" -> {}
                 }
