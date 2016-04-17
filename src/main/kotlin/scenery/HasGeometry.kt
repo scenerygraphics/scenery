@@ -46,6 +46,7 @@ interface HasGeometry {
             val tokens = line.trim().trimEnd().split(" ").filter { it.length > 0 }
             if (tokens.size > 0) {
                 when (tokens[0]) {
+                    "#" -> {}
                     "newmtl" -> {
                         currentMaterial = Material()
                         currentMaterial?.name = tokens[1]
@@ -236,12 +237,41 @@ interface HasGeometry {
                             targetObject = child
                         }
                     }
-                    else -> System.err.println("Unknown element: ${tokens.joinToString(" ")}")
+                    else -> {
+                        if(!tokens[0].startsWith("#")) {
+                            System.err.println("Unknown element: ${tokens.joinToString(" ")}")
+                        }
+                    }
                 }
             }
         }
 
         val end = System.nanoTime()
+
+        // recalculate normals if model did not supply them
+        if(nbuffer.size == 0) {
+            System.err.println("Model does not supply surface normals, recalculating.")
+            var i = 0
+            while(i < vbuffer.size) {
+                val v1 = GLVector(vbuffer[i], vbuffer[i + 1], vbuffer[i + 2])
+                i += 3
+
+                val v2 = GLVector(vbuffer[i], vbuffer[i+1], vbuffer[i+2])
+                i += 3
+
+                val v3 = GLVector(vbuffer[i], vbuffer[i+1], vbuffer[i+2])
+                i += 3
+
+                val a = v2 - v1
+                val b = v3 - v1
+
+                val n = a.cross(b).normalized
+
+                nbuffer.add(n.x())
+                nbuffer.add(n.y())
+                nbuffer.add(n.z())
+            }
+        }
 
         targetObject.vertices = vbuffer.toFloatArray()
         targetObject.normals = nbuffer.toFloatArray()
@@ -251,7 +281,7 @@ interface HasGeometry {
         normalCount += targetObject.normals.size
         uvCount += targetObject.texcoords.size
 
-        System.out.println("Read ${vertexCount / vertexSize}/${normalCount / vertexSize}/${uvCount / texcoordSize} v/t/uv of model ${name} in ${(end - start) / 1e6} ms")
+        System.out.println("Read ${vertexCount / vertexSize}/${normalCount / vertexSize}/${uvCount / texcoordSize} v/n/uv of model ${name} in ${(end - start) / 1e6} ms")
     }
 
     fun readFromSTL(filename: String) {
