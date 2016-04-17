@@ -13,7 +13,7 @@ import kotlin.concurrent.thread
 /**
  * Created by ulrik on 20/01/16.
  */
-class DeferredExample {
+class SponzaExample {
 
 
     private val scene: Scene = Scene()
@@ -198,7 +198,7 @@ class DeferredExample {
 
                 frameNum++
                 deferredRenderer?.render(scene)
-                clearGLWindow.windowTitle =  "%.1f fps".format(pDrawable.animator?.lastFPS)
+                clearGLWindow.windowTitle = "scenery: %s - %.1f fps".format(this.javaClass.enclosingClass.simpleName.substringAfterLast("."), pDrawable.animator?.lastFPS)
             }
 
             override fun setClearGLWindow(pClearGLWindow: ClearGLWindow) {
@@ -211,7 +211,7 @@ class DeferredExample {
 
         }
 
-        val lClearGLWindow = ClearGLWindow("scenery: DeferredExample",
+        val lClearGLWindow = ClearGLWindow("",
                 1280,
                 720,
                 lClearGLWindowEventListener)
