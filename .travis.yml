@@ -18,8 +18,8 @@ before_install:
 
 install:
   - cd ..
-  - git clone -b scenegraph git://github.com/ClearVolume/ClearGL.git cleargl
-  - echo "include 'cleargl'" >> settings.gradle
+  - git clone -b scenegraph git://github.com/ClearVolume/ClearGL.git ClearGL
+  - echo "include 'ClearGL'" >> settings.gradle
   - echo "include 'scenery'" >> settings.gradle
   - cd scenery
 
