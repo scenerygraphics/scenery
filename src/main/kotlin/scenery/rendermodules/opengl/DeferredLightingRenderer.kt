@@ -21,7 +21,7 @@ import java.util.*
  */
 
 class DeferredLightingRenderer {
-    protected var logger: Logger = LoggerFactory.getLogger(this.javaClass)
+    protected var logger: Logger = LoggerFactory.getLogger("DeferredLightingRenderer")
     protected var gl: GL4
     protected var width: Int
     protected var height: Int
@@ -86,20 +86,20 @@ class DeferredLightingRenderer {
 
     fun toggleSSAO() {
         if(doSSAO == 0) {
-            logger.trace("SSAO is now on")
+            logger.info("SSAO is now on")
             doSSAO = 1;
         } else {
-            logger.trace("SSAO is now off")
+            logger.info("SSAO is now off")
             doSSAO = 0;
         }
     }
 
     fun toggleHDR() {
         if(doHDR == 0) {
-            logger.trace("HDR is now on")
+            logger.info("HDR is now on")
             doHDR = 1;
         } else {
-            logger.trace("HDR is now on")
+            logger.info("HDR is now on")
             doHDR = 0
         }
     }
@@ -171,7 +171,7 @@ class DeferredLightingRenderer {
 
         gl.glDepthFunc(GL.GL_LEQUAL)
 
-        scene.discover(scene, { n -> n is Renderable && n is HasGeometry }).forEach {
+        scene.discover(scene, { n -> n is Renderable && n is HasGeometry && n.visible }).forEach {
             renderOrderList.add(it)
         }
 
@@ -384,6 +384,8 @@ class DeferredLightingRenderer {
 
         val lights = scene.discover(scene, {it is PointLight})
         lightingPassProgram.getUniform("numLights").setInt(lights.size)
+        lightingPassProgram.getUniform("ProjectionMatrix").setFloatMatrix(cam.projection!!.clone(), false)
+        lightingPassProgram.getUniform("InverseProjectionMatrix").setFloatMatrix(cam.projection!!.clone().invert(), false)
 
         for(i in 0..lights.size-1) {
             lightingPassProgram.getUniform("lights[$i].Position").setFloatVector(lights[i].position)
@@ -399,8 +401,8 @@ class DeferredLightingRenderer {
         lightingPassProgram.getUniform("gDepth").setInt(3)
 
         lightingPassProgram.getUniform("debugDeferredBuffers").setInt(debugBuffers)
-        lightingPassProgram.getUniform("ssao_filterRadius").setFloatVector2(0.001f, 0.001f)
-        lightingPassProgram.getUniform("ssao_distanceThreshold").setFloat(0.5f)
+        lightingPassProgram.getUniform("ssao_filterRadius").setFloatVector2(10.0f/width, 10.0f/height)
+        lightingPassProgram.getUniform("ssao_distanceThreshold").setFloat(5.0f)
         lightingPassProgram.getUniform("doSSAO").setInt(doSSAO)
 
         if(doHDR == 0) {

@@ -19,6 +19,8 @@ const int MAX_NUM_LIGHTS = 64;
 uniform int numLights;
 uniform Light lights[MAX_NUM_LIGHTS];
 uniform vec3 viewPos;
+uniform mat4 ProjectionMatrix;
+uniform mat4 InverseProjectionMatrix;
 
 uniform int debugDeferredBuffers = 0;
 
@@ -45,6 +47,11 @@ const vec2 poisson16[] = vec2[](    // These are the Poisson Disk Samples
                                 vec2(  0.14383161,  -0.14100790 )
                                );
 
+vec3 calculatePosition(vec2 texCoord, float depth) {
+    vec4 pos = InverseProjectionMatrix * vec4(texCoord.x * 2 - 1, texCoord.y * 2 - 1, depth * 2 - 1, 1);
+    return pos.xyz;
+}
+
 void main()
 {
     // Retrieve data from G-buffer
@@ -67,7 +74,8 @@ void main()
                // sample at an offset specified by the current Poisson-Disk sample and scale it by a radius (has to be in Texture-Space)
                vec2 sampleTexCoord = textureCoord + (poisson16[i] * (ssao_filterRadius));
                float sampleDepth = texture(gDepth, sampleTexCoord).r;
-               vec3 samplePos = texture(gPosition, sampleTexCoord).rgb;//calculatePosition(sampleTexCoord, sampleDepth * 2 - 1);
+               vec3 samplePos = texture(gPosition, sampleTexCoord).rgb;//calculatePosition(sampleTexCoord, sampleDepth);
+
                vec3 sampleDir = normalize(samplePos - FragPos);
 
                // angle between SURFACE-NORMAL and SAMPLE-DIRECTION (vector from SURFACE-POSITION to SAMPLE-POSITION)
@@ -83,7 +91,7 @@ void main()
                ambientOcclusion += (a * b);
              }
 
-             lighting = Albedo.rgb * 1.0 - (ambientOcclusion/sample_count);
+             lighting = Albedo.rgb * (1.0 - (ambientOcclusion/sample_count));
         } else {
             lighting = Albedo.rgb * 1.0;
         }
