@@ -101,7 +101,7 @@ class SponzaExample {
                     meshM.diffuse = GLVector(0.5f, 0.5f, 0.5f)
                     meshM.specular = GLVector(0.0f, 0.0f, 0.0f)
 
-                    mesh.readFromOBJ("/Users/ulrik/Code/ClearVolume/scenery/models/sponza.obj")
+                    mesh.readFromOBJ(System.getenv("SCENERY_DEMO_FILES") + "/sponza.obj")
                     //mesh.material = meshM
                     mesh.position = GLVector(155.5f, 150.5f, 55.0f)
                     mesh.scale = GLVector(0.1f, 0.1f, 0.1f)
