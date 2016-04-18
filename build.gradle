@@ -41,6 +41,12 @@ sourceSets
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
+[
+        compileJava,
+        compileTestJava,
+	javadoc
+]*.options*.encoding = 'UTF-8'
+
 test
 {
 	testLogging.showStandardStreams = true
@@ -95,7 +101,7 @@ dependencies
     // usage: gradle .... -Plocal=true
 	if (project.hasProperty('local')) {
 		println 'Using local clearX sources'
-		compile project(':cleargl')
+		compile project(':ClearGL')
 	}
 	else {
 		println 'Using clearX from Maven repository'/**/
