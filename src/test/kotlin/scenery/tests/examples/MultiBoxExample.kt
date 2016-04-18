@@ -84,8 +84,8 @@ class MultiBoxExample {
                     hullboxM.ambient = GLVector(0.6f, 0.6f, 0.6f)
                     hullboxM.diffuse = GLVector(0.4f, 0.4f, 0.4f)
                     hullboxM.specular = GLVector(0.0f, 0.0f, 0.0f)
+                    hullboxM.doubleSided = true
                     hullbox.material = hullboxM
-                    hullbox.doubleSided = true
 
                     scene.addChild(hullbox)
 

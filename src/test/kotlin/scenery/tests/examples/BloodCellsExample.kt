@@ -66,14 +66,14 @@ class BloodCellsExample {
                         scene.addChild(it)
                     }
 
-                    val hullbox = Box(GLVector(500.0f, 500.0f, 500.0f))
+                    val hullbox = Box(GLVector(900.0f, 900.0f, 900.0f))
                     hullbox.position = GLVector(0.0f, 0.0f, 0.0f)
                     val hullboxM = Material()
                     hullboxM.ambient = GLVector(1.0f, 1.0f, 1.0f)
                     hullboxM.diffuse = GLVector(1.0f, 1.0f, 1.0f)
                     hullboxM.specular = GLVector(1.0f, 1.0f, 1.0f)
+                    hullboxM.doubleSided = true
                     hullbox.material = hullboxM
-                    hullbox.doubleSided = true
 
                     scene.addChild(hullbox)
 
@@ -81,12 +81,12 @@ class BloodCellsExample {
                     e_material.ambient = GLVector(0.1f, 0.0f, 0.0f)
                     e_material.diffuse = GLVector(0.4f, 0.0f, 0.02f)
                     e_material.specular = GLVector(0.05f, 0f, 0f)
+                    e_material.doubleSided = false
 
                     val erythrocyte = Mesh()
-                    erythrocyte.readFromOBJ(System.getenv("SCENERY_DEMO_FILES") + "erythrocyte_simplified.obj")
+                    erythrocyte.readFromOBJ(System.getenv("SCENERY_DEMO_FILES") + "/erythrocyte_simplified.obj")
                     erythrocyte.material = e_material
                     erythrocyte.name = "Erythrocyte_Master"
-                    erythrocyte.doubleSided = false
                     scene.addChild(erythrocyte)
 
                     erythrocyte.metadata.put(
@@ -100,12 +100,12 @@ class BloodCellsExample {
                     l_material.ambient = GLVector(0.1f, 0.0f, 0.0f)
                     l_material.diffuse = GLVector(0.8f, 0.7f, 0.7f)
                     l_material.specular = GLVector(0.05f, 0f, 0f)
+                    l_material.doubleSided = false
 
                     val leucocyte = Mesh()
                     leucocyte.readFromOBJ(System.getenv("SCENERY_DEMO_FILES") + "/leukocyte_simplified.obj")
                     leucocyte.material = l_material
                     leucocyte.name = "leucocyte_Master"
-                    leucocyte.doubleSided = false
                     scene.addChild(leucocyte)
 
                     leucocyte.metadata.put(

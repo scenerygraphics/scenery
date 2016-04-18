@@ -220,6 +220,10 @@ class DeferredLightingRenderer {
                     program.getUniform("Material.Ka").setFloatVector(n.material!!.ambient);
                     program.getUniform("Material.Kd").setFloatVector(n.material!!.diffuse);
                     program.getUniform("Material.Ks").setFloatVector(n.material!!.specular);
+
+                    if(n.material!!.doubleSided) {
+                        gl.glDisable(GL.GL_CULL_FACE)
+                    }
                 } else {
                     program.getUniform("Material.Ka").setFloatVector3(n.position.toFloatBuffer());
                     program.getUniform("Material.Kd").setFloatVector3(n.position.toFloatBuffer());
@@ -248,12 +252,6 @@ class DeferredLightingRenderer {
 
             if(n is HasGeometry) {
                 n.preDraw()
-            }
-
-            if (n.doubleSided) {
-                gl.glDisable(GL.GL_CULL_FACE)
-            } else {
-                gl.glEnable(GL.GL_CULL_FACE)
             }
 
             drawNode(n)
@@ -310,6 +308,10 @@ class DeferredLightingRenderer {
                     program.getUniform("Material.Ka").setFloatVector(n.material!!.ambient);
                     program.getUniform("Material.Kd").setFloatVector(n.material!!.diffuse);
                     program.getUniform("Material.Ks").setFloatVector(n.material!!.specular);
+
+                    if(n.material!!.doubleSided) {
+                        gl.glDisable(GL.GL_CULL_FACE)
+                    }
                 } else {
                     program.getUniform("Material.Ka").setFloatVector3(n.position.toFloatBuffer());
                     program.getUniform("Material.Kd").setFloatVector3(n.position.toFloatBuffer());
@@ -338,12 +340,6 @@ class DeferredLightingRenderer {
 
             if (n is HasGeometry) {
                 n.preDraw()
-            }
-
-            if (n.doubleSided) {
-                gl.glDisable(GL.GL_CULL_FACE)
-            } else {
-                gl.glEnable(GL.GL_CULL_FACE)
             }
 
             // bind instance buffers

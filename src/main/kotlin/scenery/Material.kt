@@ -14,6 +14,7 @@ open class Material {
 
     var opacity = 1.0f
     var textures: HashMap<String, String> = HashMap()
+    var doubleSided: Boolean = false
 
     companion object Factory {
        fun DefaultMaterial() {
