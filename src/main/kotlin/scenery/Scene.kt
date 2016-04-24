@@ -47,4 +47,10 @@ open class Scene : Node("RootNode") {
 
         dfs(s.children[0])
     }
+
+    fun findByName(name: String) : Node {
+        var matches = discover(this, { n -> n.name == name})
+
+        return matches.first()
+    }
 }
