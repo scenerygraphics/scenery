@@ -324,7 +324,7 @@ interface HasGeometry {
                     "solid" -> name = tokens.drop(1).joinToString(" ")
                     "vertex" -> tokens.drop(1).forEach { vbuffer.add(it.toFloat()) }
                     "facet" -> tokens.drop(2).forEach { nbuffer.add(it.toFloat()) }
-                    "outer" -> {}
+                    "outer" -> { (1..2).forEach { ((nbuffer.size - 3)..(nbuffer.size-1)).forEach { nbuffer.add(nbuffer[it]) }}}
                     "end" -> {}
                     "endloop" -> {}
                     "endfacet" -> {}
@@ -365,18 +365,19 @@ interface HasGeometry {
 
             for (i in 1..size) {
                 // surface normal
-//                                nbuffer.add(readFloatFromInputStream(b))
-//                                nbuffer.add(readFloatFromInputStream(b))
-//                                nbuffer.add(readFloatFromInputStream(b))
-                readFloatFromInputStream(b)
-                readFloatFromInputStream(b)
-                readFloatFromInputStream(b)
+                val n1 = readFloatFromInputStream(b)
+                val n2 = readFloatFromInputStream(b)
+                val n3 = readFloatFromInputStream(b)
 
                 // vertices
                 for (vertex in 1..3) {
                     vbuffer.add(readFloatFromInputStream(b))
                     vbuffer.add(readFloatFromInputStream(b))
                     vbuffer.add(readFloatFromInputStream(b))
+
+                    nbuffer.add(n1)
+                    nbuffer.add(n2)
+                    nbuffer.add(n3)
                 }
 
                 b.read(buffer, 0, 2)
@@ -391,25 +392,33 @@ interface HasGeometry {
             readFromBinary
         }.invoke()
 
-        var i = 0
-        while(i < vbuffer.size) {
-            val v1 = GLVector(vbuffer[i], vbuffer[i + 1], vbuffer[i + 2])
-            i += 3
+        // normals are incomplete or missing, recalculate
+        if(nbuffer.size != vbuffer.size) {
+            System.err.println("Model does not supply surface normals, recalculating.")
+            nbuffer.clear()
 
-            val v2 = GLVector(vbuffer[i], vbuffer[i+1], vbuffer[i+2])
-            i += 3
+            var i = 0
+            while (i < vbuffer.size) {
+                val v1 = GLVector(vbuffer[i], vbuffer[i + 1], vbuffer[i + 2])
+                i += 3
 
-            val v3 = GLVector(vbuffer[i], vbuffer[i+1], vbuffer[i+2])
-            i += 3
+                val v2 = GLVector(vbuffer[i], vbuffer[i + 1], vbuffer[i + 2])
+                i += 3
 
-            val a = v2 - v1
-            val b = v3 - v1
+                val v3 = GLVector(vbuffer[i], vbuffer[i + 1], vbuffer[i + 2])
+                i += 3
 
-            val n = a.cross(b).normalized
+                val a = v2 - v1
+                val b = v3 - v1
 
-            nbuffer.add(n.x())
-            nbuffer.add(n.y())
-            nbuffer.add(n.z())
+                val n = a.cross(b).normalized
+
+                (1..3).forEach {
+                    nbuffer.add(n.x())
+                    nbuffer.add(n.y())
+                    nbuffer.add(n.z())
+                }
+            }
         }
 
 
