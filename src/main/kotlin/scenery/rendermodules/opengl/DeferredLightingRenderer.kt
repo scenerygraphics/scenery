@@ -272,6 +272,19 @@ class DeferredLightingRenderer {
 
             if(n is HasGeometry) {
                 n.preDraw()
+
+                if(n.dirty) {
+                    updateVertices(n)
+                    updateNormals(n)
+
+                    if (n.texcoords.size > 0) {
+                        updateTextureCoords(n)
+                    }
+
+                    if (n.indices.size > 0) {
+                        updateIndices(n)
+                    }
+                }
             }
 
             drawNode(n)
@@ -366,6 +379,19 @@ class DeferredLightingRenderer {
 
             if (n is HasGeometry) {
                 n.preDraw()
+
+                if(n.dirty) {
+                    updateVertices(n)
+                    updateNormals(n)
+
+                    if (n.texcoords.size > 0) {
+                        updateTextureCoords(n)
+                    }
+
+                    if (n.indices.size > 0) {
+                        updateIndices(n)
+                    }
+                }
             }
 
             // bind instance buffers
@@ -622,64 +648,23 @@ class DeferredLightingRenderer {
         gl.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
     }
 
-    /*fun setArbitraryAndCreateBuffer(name: String,
-                                    pBuffer: FloatBuffer,
-                                    pBufferGeometrySize: Int) {
-        // create additional buffers
-        if (!additionalBufferIds.containsKey(name)) {
-            gl.glGenBuffers(1,
-                    mVertexBuffers,
-                    mVertexBuffers.size - 1)
-            additionalBufferIds.put(name,
-                    mVertexBuffers[mVertexBuffers.size - 1])
-        }
+    fun updateVertices(node: Node) {
+        val s = getOpenGLObjectStateFromNode(node)
+        val pVertexBuffer: FloatBuffer = FloatBuffer.wrap((node as HasGeometry).vertices)
 
-        mStoredPrimitiveCount = pBuffer.remaining() / geometryObject.vertexSize
+        s.mStoredPrimitiveCount = pVertexBuffer.remaining() / node.vertexSize
 
-        gl.gL3.glBindVertexArray(mVertexArrayObject[0])
-        gl.glBindBuffer(GL.GL_ARRAY_BUFFER,
-                mVertexBuffers[mVertexBuffers.size - 1])
-
-        gl.gL3.glEnableVertexAttribArray(0)
-        gl.glBufferData(GL.GL_ARRAY_BUFFER,
-                (pBuffer.limit() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
-                pBuffer,
-                if (isDynamic)
-                    GL.GL_DYNAMIC_DRAW
-                else
-                    GL.GL_STATIC_DRAW)
-
-        gl.gL3.glVertexAttribPointer(mVertexBuffers.size - 1,
-                pBufferGeometrySize,
-                GL.GL_FLOAT,
-                false,
-                0,
-                0)
-
-        gl.gL3.glBindVertexArray(0)
-        gl.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-    }*/
-
-    /*fun updateVertices(pVertexBuffer: FloatBuffer) {
-        mStoredPrimitiveCount = pVertexBuffer.remaining() / geometryObject.vertexSize
-
-        if (!isDynamic)
-            throw UnsupportedOperationException("Cannot update non dynamic buffers!")
-
-        gl.gL3.glBindVertexArray(mVertexArrayObject[0])
-        gl.glBindBuffer(GL.GL_ARRAY_BUFFER, mVertexBuffers[0])
+        gl.gL3.glBindVertexArray(s.mVertexArrayObject[0])
+        gl.glBindBuffer(GL.GL_ARRAY_BUFFER, s.mVertexBuffers[0])
 
         gl.gL3.glEnableVertexAttribArray(0)
         gl.glBufferData(GL.GL_ARRAY_BUFFER,
                 (pVertexBuffer.limit() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
                 pVertexBuffer,
-                if (isDynamic)
-                    GL.GL_DYNAMIC_DRAW
-                else
-                    GL.GL_STATIC_DRAW)
+                GL.GL_DYNAMIC_DRAW)
 
         gl.gL3.glVertexAttribPointer(0,
-                geometryObject.vertexSize,
+                node.vertexSize,
                 GL.GL_FLOAT,
                 false,
                 0,
@@ -687,7 +672,7 @@ class DeferredLightingRenderer {
 
         gl.gL3.glBindVertexArray(0)
         gl.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-    }*/
+    }
 
     fun setNormalsAndCreateBufferForNode(node: Node) {
         val s = getOpenGLObjectStateFromNode(node);
@@ -696,14 +681,41 @@ class DeferredLightingRenderer {
         gl.gL3.glBindVertexArray(s.mVertexArrayObject[0])
         gl.glBindBuffer(GL.GL_ARRAY_BUFFER, s.mVertexBuffers[1])
 
+        if(pNormalBuffer.limit() > 0) {
+            gl.gL3.glEnableVertexAttribArray(1)
+            logger.trace("Submitted normals for ${node.name}, ${pNormalBuffer.limit()}")
+            gl.glBufferData(GL.GL_ARRAY_BUFFER,
+                    (pNormalBuffer.limit() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
+                    pNormalBuffer,
+                    if (s.isDynamic)
+                        GL.GL_DYNAMIC_DRAW
+                    else
+                        GL.GL_STATIC_DRAW)
+
+            gl.gL3.glVertexAttribPointer(1,
+                    node.vertexSize,
+                    GL.GL_FLOAT,
+                    false,
+                    0,
+                    0)
+
+        }
+        gl.gL3.glBindVertexArray(0)
+        gl.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+    }
+
+    fun updateNormals(node: Node) {
+        val s = getOpenGLObjectStateFromNode(node);
+        val pNormalBuffer: FloatBuffer = FloatBuffer.wrap((node as HasGeometry).normals)
+
+        gl.gL3.glBindVertexArray(s.mVertexArrayObject[0])
+        gl.glBindBuffer(GL.GL_ARRAY_BUFFER, s.mVertexBuffers[1])
+
         gl.gL3.glEnableVertexAttribArray(1)
-        gl.glBufferData(GL.GL_ARRAY_BUFFER,
+        gl.glBufferSubData(GL.GL_ARRAY_BUFFER,
+                0,
                 (pNormalBuffer.limit() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
-                pNormalBuffer,
-                if (s.isDynamic)
-                    GL.GL_DYNAMIC_DRAW
-                else
-                    GL.GL_STATIC_DRAW)
+                pNormalBuffer)
 
         gl.gL3.glVertexAttribPointer(1,
                 node.vertexSize,
@@ -715,30 +727,6 @@ class DeferredLightingRenderer {
         gl.gL3.glBindVertexArray(0)
         gl.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
     }
-
-    /*fun updateNormals(pNormalBuffer: FloatBuffer) {
-        if (!isDynamic)
-            throw UnsupportedOperationException("Cannot update non dynamic buffers!")
-
-        gl.gL3.glBindVertexArray(mVertexArrayObject[0])
-        gl.glBindBuffer(GL.GL_ARRAY_BUFFER, mVertexBuffers[1])
-
-        gl.gL3.glEnableVertexAttribArray(1)
-        gl.glBufferSubData(GL.GL_ARRAY_BUFFER,
-                0,
-                (pNormalBuffer.limit() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
-                pNormalBuffer)
-
-        gl.gL3.glVertexAttribPointer(1,
-                geometryObject.vertexSize,
-                GL.GL_FLOAT,
-                false,
-                0,
-                0)
-
-        gl.gL3.glBindVertexArray(0)
-        gl.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-    }*/
 
     fun setTextureCoordsAndCreateBufferForNode(node: Node) {
         val s = getOpenGLObjectStateFromNode(node);
@@ -767,41 +755,30 @@ class DeferredLightingRenderer {
         gl.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
     }
 
-    /*fun updateTextureCoords(pTextureCoordsBuffer: FloatBuffer) {
-        if (!isDynamic)
-            throw UnsupportedOperationException("Cannot update non dynamic buffers!")
+    fun updateTextureCoords(node: Node) {
+        val s = getOpenGLObjectStateFromNode(node);
+        val pTextureCoordsBuffer: FloatBuffer = FloatBuffer.wrap((node as HasGeometry).texcoords)
 
-        gl.gL3.glBindVertexArray(mVertexArrayObject[0])
-        GLError.printGLErrors(gl, "1")
-
+        gl.gL3.glBindVertexArray(s.mVertexArrayObject[0])
         gl.gL3.glBindBuffer(GL.GL_ARRAY_BUFFER,
-                mVertexBuffers[2])
-        GLError.printGLErrors(gl, "2")
+                s.mVertexBuffers[2])
 
         gl.gL3.glEnableVertexAttribArray(2)
-        GLError.printGLErrors(gl, "3")
-
         gl.glBufferSubData(GL.GL_ARRAY_BUFFER,
                 0,
                 (pTextureCoordsBuffer.limit() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
                 pTextureCoordsBuffer)
-        GLError.printGLErrors(gl, "4")
 
         gl.gL3.glVertexAttribPointer(2,
-                geometryObject.texcoordSize,
+                node.texcoordSize,
                 GL.GL_FLOAT,
                 false,
                 0,
                 0)
-        GLError.printGLErrors(gl, "5")
 
         gl.gL3.glBindVertexArray(0)
-        GLError.printGLErrors(gl, "6")
-
         gl.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-        GLError.printGLErrors(gl, "7")
-
-    }*/
+    }
 
     fun setIndicesAndCreateBufferForNode(node: Node) {
         val s = getOpenGLObjectStateFromNode(node);
@@ -824,14 +801,14 @@ class DeferredLightingRenderer {
         gl.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, 0)
     }
 
-    /*fun updateIndices(pIndexBuffer: IntBuffer) {
-        if (!isDynamic)
-            throw UnsupportedOperationException("Cannot update non dynamic buffers!")
+    fun updateIndices(node: Node) {
+        val s = getOpenGLObjectStateFromNode(node);
+        val pIndexBuffer: IntBuffer = IntBuffer.wrap((node as HasGeometry).indices)
 
-        mStoredIndexCount = pIndexBuffer.remaining()
+        s.mStoredIndexCount = pIndexBuffer.remaining()
 
-        gl.gL3.glBindVertexArray(mVertexArrayObject[0])
-        gl.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, mIndexBuffer[0])
+        gl.gL3.glBindVertexArray(s.mVertexArrayObject[0])
+        gl.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, s.mIndexBuffer[0])
 
         gl.glBufferSubData(GL.GL_ELEMENT_ARRAY_BUFFER,
                 0,
@@ -840,7 +817,7 @@ class DeferredLightingRenderer {
 
         gl.gL3.glBindVertexArray(0)
         gl.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, 0)
-    }*/
+    }
 
     fun drawNode(node: Node, offset: Int = 0) {
         val s = getOpenGLObjectStateFromNode(node);
