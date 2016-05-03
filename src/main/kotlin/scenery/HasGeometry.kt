@@ -104,6 +104,30 @@ interface HasGeometry {
 
         var materials = HashMap<String, Material>()
 
+        fun calculateNormals(vertexBuffer: ArrayList<Float>, normalBuffer: ArrayList<Float>) {
+            System.err.println("Recalculating normals for $name")
+            var i = 0
+            while (i < vbuffer.size) {
+                val v1 = GLVector(vertexBuffer[i], vertexBuffer[i + 1], vertexBuffer[i + 2])
+                i += 3
+
+                val v2 = GLVector(vertexBuffer[i], vertexBuffer[i + 1], vertexBuffer[i + 2])
+                i += 3
+
+                val v3 = GLVector(vertexBuffer[i], vertexBuffer[i + 1], vertexBuffer[i + 2])
+                i += 3
+
+                val a = v2 - v1
+                val b = v3 - v1
+
+                val n = a.cross(b).normalized
+
+                normalBuffer.add(n.x())
+                normalBuffer.add(n.y())
+                normalBuffer.add(n.z())
+            }
+        }
+
         var f = File(filename)
         if(!f.exists()) {
             System.out.println("Could not read from ${filename}, file does not exist.")
@@ -222,6 +246,10 @@ interface HasGeometry {
                         // TODO: Implement smooth shading across faces
                     }
                     "g" -> {
+                        if(nbuffer.size == 0) {
+                            calculateNormals(vbuffer, nbuffer)
+                        }
+
                         targetObject.vertices = (vbuffer.clone() as ArrayList<Float>).toFloatArray()
                         targetObject.normals = (nbuffer.clone() as ArrayList<Float>).toFloatArray()
                         targetObject.texcoords = (tbuffer.clone() as ArrayList<Float>).toFloatArray()
@@ -258,28 +286,8 @@ interface HasGeometry {
         val end = System.nanoTime()
 
         // recalculate normals if model did not supply them
-        if(nbuffer.size == 0) {
-            System.err.println("Model does not supply surface normals, recalculating.")
-            var i = 0
-            while(i < vbuffer.size) {
-                val v1 = GLVector(vbuffer[i], vbuffer[i + 1], vbuffer[i + 2])
-                i += 3
-
-                val v2 = GLVector(vbuffer[i], vbuffer[i+1], vbuffer[i+2])
-                i += 3
-
-                val v3 = GLVector(vbuffer[i], vbuffer[i+1], vbuffer[i+2])
-                i += 3
-
-                val a = v2 - v1
-                val b = v3 - v1
-
-                val n = a.cross(b).normalized
-
-                nbuffer.add(n.x())
-                nbuffer.add(n.y())
-                nbuffer.add(n.z())
-            }
+        if (nbuffer.size == 0) {
+            calculateNormals(vbuffer, nbuffer)
         }
 
         targetObject.vertices = vbuffer.toFloatArray()
@@ -427,5 +435,42 @@ interface HasGeometry {
 
         vertices = vbuffer.toFloatArray()
         normals = nbuffer.toFloatArray()
+    }
+
+    fun recalculateNormals() {
+        System.err.println("Recalculating normals")
+        var i = 0
+        val normalBuffer = ArrayList<Float>()
+        normalBuffer.ensureCapacity(vertices.size)
+        
+        while (i < vertices.size) {
+            val v1 = GLVector(vertices[i], vertices[i + 1], vertices[i + 2])
+            i += 3
+
+            val v2 = GLVector(vertices[i], vertices[i + 1], vertices[i + 2])
+            i += 3
+
+            val v3 = GLVector(vertices[i], vertices[i + 1], vertices[i + 2])
+            i += 3
+
+            val a = v2 - v1
+            val b = v3 - v1
+
+            val n = a.cross(b).normalized
+
+            normalBuffer.add(n.x())
+            normalBuffer.add(n.y())
+            normalBuffer.add(n.z())
+
+            normalBuffer.add(n.x())
+            normalBuffer.add(n.y())
+            normalBuffer.add(n.z())
+
+            normalBuffer.add(n.x())
+            normalBuffer.add(n.y())
+            normalBuffer.add(n.z())
+        }
+
+        normals = normalBuffer.toFloatArray()
     }
 }

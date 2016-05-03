@@ -1,9 +1,6 @@
 package scenery.rendermodules.opengl
 
-import cleargl.GLFramebuffer
-import cleargl.GLMatrix
-import cleargl.GLProgram
-import cleargl.GLTexture
+import cleargl.*
 import com.jogamp.common.nio.Buffers
 import com.jogamp.opengl.GL
 import com.jogamp.opengl.GL4
@@ -35,26 +32,40 @@ class DeferredLightingRenderer {
     protected var debugBuffers = 0;
     protected var doSSAO = 1;
     protected var doHDR = 1;
-    protected var exposure = 0.02f;
-    protected var gamma = 2.2f;
+    
+    var exposure = 0.02f;
+    var gamma = 2.2f;
+    var ssao_filterRadius = GLVector(0.0f, 0.0f);
+    var ssao_distanceThreshold = 5.0f;
+
+    var vrEnabled = true
+    var eyes = (0..0)
 
     constructor(gl: GL4, width: Int, height: Int) {
         this.gl = gl
         this.width = width
         this.height = height
 
+        ssao_filterRadius = GLVector(10.0f/width, 10.0f/height)
+
+        if(vrEnabled) {
+            eyes = (0..1)
+        }
+
         // create 32bit position buffer, 16bit normal buffer, 8bit diffuse buffer and 24bit depth buffer
-        geometryBuffer = GLFramebuffer(this.gl, width, height)
+        geometryBuffer = GLFramebuffer(this.gl, this.width, this.height)
         geometryBuffer.addFloatRGBBuffer(this.gl, 32)
         geometryBuffer.addFloatRGBBuffer(this.gl, 16)
         geometryBuffer.addUnsignedByteRGBABuffer(this.gl, 8)
         geometryBuffer.addDepthBuffer(this.gl, 24, 1)
+//        geometryBuffer.addFloatRGBBuffer(this.gl, 16)
 
         geometryBuffer.checkAndSetDrawBuffers(this.gl)
         logger.info(geometryBuffer.toString())
 
         // create HDR buffer
-        hdrBuffer = GLFramebuffer(this.gl, width, height)
+        hdrBuffer = GLFramebuffer(this.gl, this.width, this.height)
+        hdrBuffer.addFloatRGBBuffer(this.gl, 32)
         hdrBuffer.addFloatRGBBuffer(this.gl, 32)
 
         lightingPassProgram = GLProgram.buildProgram(gl, DeferredLightingRenderer::class.java,
@@ -62,6 +73,8 @@ class DeferredLightingRenderer {
 
         hdrPassProgram = GLProgram.buildProgram(gl, DeferredLightingRenderer::class.java,
                 arrayOf("shaders/Dummy.vert", "shaders/FullscreenQuadGenerator.geom", "shaders/HDR.frag"))
+
+        gl.glViewport(0, 0, this.width, this.height)
     }
 
     protected fun GeometryType.toOpenGLType(): Int {
@@ -171,6 +184,8 @@ class DeferredLightingRenderer {
 
         gl.glDepthFunc(GL.GL_LEQUAL)
 
+        gl.glEnable(GL.GL_SCISSOR_TEST)
+
         scene.discover(scene, { n -> n is Renderable && n is HasGeometry && n.visible }).forEach {
             renderOrderList.add(it)
         }
@@ -193,6 +208,11 @@ class DeferredLightingRenderer {
         instanceGroups.get(null)?.forEach nonInstancedDrawing@ { n ->
             if(n in instanceGroups.keys) {
                 return@nonInstancedDrawing
+            }
+
+            if(!n.metadata.containsKey("DeferredLightingRenderer")) {
+                n.metadata.put("DeferredLightingRenderer", OpenGLObjectState())
+                initializeNode(n)
             }
 
             val s = getOpenGLObjectStateFromNode(n)
@@ -259,6 +279,12 @@ class DeferredLightingRenderer {
 
         instanceGroups.keys.filterNotNull().forEach instancedDrawing@ { n ->
             var start = System.nanoTime()
+
+            if(!n.metadata.containsKey("DeferredLightingRenderer")) {
+                n.metadata.put("DeferredLightingRenderer", OpenGLObjectState())
+                initializeNode(n)
+            }
+
             val s = getOpenGLObjectStateFromNode(n)
             val instances = instanceGroups.get(n)!!
 
@@ -397,8 +423,8 @@ class DeferredLightingRenderer {
         lightingPassProgram.getUniform("gDepth").setInt(3)
 
         lightingPassProgram.getUniform("debugDeferredBuffers").setInt(debugBuffers)
-        lightingPassProgram.getUniform("ssao_filterRadius").setFloatVector2(10.0f/width, 10.0f/height)
-        lightingPassProgram.getUniform("ssao_distanceThreshold").setFloat(5.0f)
+        lightingPassProgram.getUniform("ssao_filterRadius").setFloatVector(ssao_filterRadius)
+        lightingPassProgram.getUniform("ssao_distanceThreshold").setFloat(ssao_distanceThreshold)
         lightingPassProgram.getUniform("doSSAO").setInt(doSSAO)
 
         if(doHDR == 0) {
@@ -520,6 +546,7 @@ class DeferredLightingRenderer {
         node.material?.textures?.forEach {
             type, texture ->
             if(!textures.containsKey(texture)) {
+                logger.trace("Loading texture $texture for ${node.name}")
                 val glTexture = GLTexture.loadFromFile(gl, texture, true, 1)
                 s.textures.put(type, glTexture)
                 textures.put(texture, glTexture)
