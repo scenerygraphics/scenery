@@ -438,7 +438,6 @@ interface HasGeometry {
     }
 
     fun recalculateNormals() {
-        System.err.println("Recalculating normals")
         var i = 0
         val normalBuffer = ArrayList<Float>()
         normalBuffer.ensureCapacity(vertices.size)
