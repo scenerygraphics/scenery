@@ -115,16 +115,14 @@ dependencies
 
 repositories
 {
+    mavenLocal()
 	mavenCentral()
 	maven
 	{ url "http://oss.sonatype.org/content/groups/public" }
     maven
     { url "http://maven.imagej.net/content/groups/public" }
-	maven
-	{ url  "http://dl.bintray.com/rtlib/CoreMem" }
-	maven
-	{ url  "http://dl.bintray.com/clearvolume/ClearVolume"  }
-    
+    maven
+    { url "http://dl.bintray.com/clearcontrol/ClearControl" }
     mavenLocal()
 }
 
