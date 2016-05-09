@@ -167,7 +167,7 @@ class DeferredLightingRenderer {
 
     protected fun setMaterialUniformsForNode(n: Node, gl: GL4, s: OpenGLObjectState, program: GLProgram) {
         program.use(gl)
-        program.getUniform("Material.Shinyness").setFloat(0.001f);
+        program.getUniform("Material.Shininess").setFloat(0.001f);
 
         if (n.material != null) {
             program.getUniform("Material.Ka").setFloatVector(n.material!!.ambient);
