@@ -241,8 +241,6 @@ class DeferredLightingRenderer {
 
         gl.glDepthFunc(GL.GL_LEQUAL)
 
-        gl.glEnable(GL.GL_SCISSOR_TEST)
-
         scene.discover(scene, { n -> n is Renderable && n is HasGeometry && n.visible }).forEach {
             renderOrderList.add(it)
         }
@@ -536,6 +534,17 @@ class DeferredLightingRenderer {
 
         s.initialized = true
         return true
+    }
+
+    fun reshape(newWidth: Int, newHeight: Int) {
+        this.width = newWidth
+        this.height = newHeight
+
+        geometryBuffer.resize(gl, newWidth, newHeight)
+        hdrBuffer.resize(gl, newWidth, newHeight)
+
+        gl.glClear(GL.GL_DEPTH_BUFFER_BIT or GL.GL_COLOR_BUFFER_BIT)
+        gl.glViewport(0, 0, this.width, this.height)
     }
 
     private fun createInstanceBuffer(node: Node) {
