@@ -54,8 +54,8 @@ interface HasGeometry {
                         materials.put(tokens[1], currentMaterial!!)
                     }
                     "Ka" -> currentMaterial?.ambient = GLVector(tokens[1].toFloat(), tokens[2].toFloat(), tokens[3].toFloat())
-                    "Kd" -> currentMaterial?.ambient = GLVector(tokens[1].toFloat(), tokens[2].toFloat(), tokens[3].toFloat())
-                    "Ks" -> currentMaterial?.ambient = GLVector(tokens[1].toFloat(), tokens[2].toFloat(), tokens[3].toFloat())
+                    "Kd" -> currentMaterial?.diffuse = GLVector(tokens[1].toFloat(), tokens[2].toFloat(), tokens[3].toFloat())
+                    "Ks" -> currentMaterial?.specular = GLVector(tokens[1].toFloat(), tokens[2].toFloat(), tokens[3].toFloat())
                     "d" -> currentMaterial?.opacity = tokens[1].toFloat()
                     "Tr" -> currentMaterial?.opacity = 1.0f - tokens[1].toFloat()
                     "illum" -> {}
@@ -105,7 +105,6 @@ interface HasGeometry {
         var materials = HashMap<String, Material>()
 
         fun calculateNormals(vertexBuffer: ArrayList<Float>, normalBuffer: ArrayList<Float>) {
-            System.err.println("Recalculating normals for $name")
             var i = 0
             while (i < vbuffer.size) {
                 val v1 = GLVector(vertexBuffer[i], vertexBuffer[i + 1], vertexBuffer[i + 2])
