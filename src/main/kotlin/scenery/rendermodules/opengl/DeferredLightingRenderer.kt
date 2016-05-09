@@ -32,7 +32,7 @@ class DeferredLightingRenderer {
     protected var debugBuffers = 0;
     protected var doSSAO = 1;
     protected var doHDR = 1;
-    
+
     var exposure = 0.02f;
     var gamma = 2.2f;
     var ssao_filterRadius = GLVector(0.0f, 0.0f);
@@ -165,6 +165,63 @@ class DeferredLightingRenderer {
         }
     }
 
+    protected fun setMaterialUniformsForNode(n: Node, gl: GL4, s: OpenGLObjectState, program: GLProgram) {
+        program.use(gl)
+        program.getUniform("Material.Shinyness").setFloat(0.001f);
+
+        if (n.material != null) {
+            program.getUniform("Material.Ka").setFloatVector(n.material!!.ambient);
+            program.getUniform("Material.Kd").setFloatVector(n.material!!.diffuse);
+            program.getUniform("Material.Ks").setFloatVector(n.material!!.specular);
+
+            if(n.material!!.doubleSided) {
+                gl.glDisable(GL.GL_CULL_FACE)
+            }
+        } else {
+            program.getUniform("Material.Ka").setFloatVector3(n.position.toFloatBuffer());
+            program.getUniform("Material.Kd").setFloatVector3(n.position.toFloatBuffer());
+            program.getUniform("Material.Ks").setFloatVector3(n.position.toFloatBuffer());
+        }
+
+        var samplerIndex = 5;
+        s.textures.forEach { type, glTexture ->
+            samplerIndex = textureTypeToUnit(type)
+            if(glTexture != null) {
+                gl.glActiveTexture(GL.GL_TEXTURE0 + samplerIndex)
+                gl.glBindTexture(GL.GL_TEXTURE_2D, glTexture.id)
+                program.getUniform("ObjectTextures[" + (samplerIndex-geometryBuffer.boundBufferNum) + "]").setInt(samplerIndex)
+            }
+            samplerIndex++
+        }
+
+        if(s.textures.size > 0){
+            program.getUniform("materialType").setInt(1)
+        }
+
+        if(s.textures.containsKey("normal")) {
+            program.getUniform("materialType").setInt(3)
+        }
+    }
+
+    protected fun preDrawAndUpdateGeometryForNode(n: Node) {
+        if(n is HasGeometry) {
+            n.preDraw()
+
+            if(n.dirty) {
+                updateVertices(n)
+                updateNormals(n)
+
+                if (n.texcoords.size > 0) {
+                    updateTextureCoords(n)
+                }
+
+                if (n.indices.size > 0) {
+                    updateIndices(n)
+                }
+            }
+        }
+    }
+
     fun render(scene: Scene) {
         geometryBuffer.checkAndSetDrawBuffers(gl)
 
@@ -225,68 +282,17 @@ class DeferredLightingRenderer {
             mvp = proj.clone()
             mvp.mult(mv)
 
-            val program: GLProgram? = s.program
-
-            program?.let {
+            s.program?.let { program ->
                 program.use(gl)
                 program.getUniform("ModelMatrix")!!.setFloatMatrix(n.model, false);
                 program.getUniform("ModelViewMatrix")!!.setFloatMatrix(mv, false)
                 program.getUniform("ProjectionMatrix")!!.setFloatMatrix(cam.projection, false)
                 program.getUniform("MVP")!!.setFloatMatrix(mvp, false)
 
-                program.getUniform("Material.Shinyness").setFloat(0.001f);
-
-                if (n.material != null) {
-                    program.getUniform("Material.Ka").setFloatVector(n.material!!.ambient);
-                    program.getUniform("Material.Kd").setFloatVector(n.material!!.diffuse);
-                    program.getUniform("Material.Ks").setFloatVector(n.material!!.specular);
-
-                    if(n.material!!.doubleSided) {
-                        gl.glDisable(GL.GL_CULL_FACE)
-                    }
-                } else {
-                    program.getUniform("Material.Ka").setFloatVector3(n.position.toFloatBuffer());
-                    program.getUniform("Material.Kd").setFloatVector3(n.position.toFloatBuffer());
-                    program.getUniform("Material.Ks").setFloatVector3(n.position.toFloatBuffer());
-                }
-
-                var samplerIndex = 5;
-                s.textures.forEach { type, glTexture ->
-                    samplerIndex = textureTypeToUnit(type)
-                    if(glTexture != null) {
-                        gl.glActiveTexture(GL.GL_TEXTURE0 + samplerIndex)
-                        gl.glBindTexture(GL.GL_TEXTURE_2D, glTexture.id)
-                        program.getUniform("ObjectTextures[" + (samplerIndex-geometryBuffer.boundBufferNum) + "]").setInt(samplerIndex)
-                    }
-                    samplerIndex++
-                }
-
-                if(s.textures.size > 0){
-                    program.getUniform("materialType").setInt(1)
-                }
-
-                if(s.textures.containsKey("normal")) {
-                    program.getUniform("materialType").setInt(3)
-                }
+                setMaterialUniformsForNode(n, gl, s, program)
             }
 
-            if(n is HasGeometry) {
-                n.preDraw()
-
-                if(n.dirty) {
-                    updateVertices(n)
-                    updateNormals(n)
-
-                    if (n.texcoords.size > 0) {
-                        updateTextureCoords(n)
-                    }
-
-                    if (n.indices.size > 0) {
-                        updateIndices(n)
-                    }
-                }
-            }
-
+            preDrawAndUpdateGeometryForNode(n)
             drawNode(n)
         }
 
@@ -334,65 +340,7 @@ class DeferredLightingRenderer {
                 modelviewprojs.addAll(mvp.floatArray.asSequence())
             }
 
-            val program: GLProgram? = s.program
-
             logger.trace("${n.name} instancing: Collected ${modelviewprojs.size/matrixSize} MVPs in ${(System.nanoTime()-start)/10e6}ms")
-
-            program?.let {
-                program.use(gl)
-
-                program.getUniform("Material.Shinyness").setFloat(0.001f);
-
-                if (n.material != null) {
-                    program.getUniform("Material.Ka").setFloatVector(n.material!!.ambient);
-                    program.getUniform("Material.Kd").setFloatVector(n.material!!.diffuse);
-                    program.getUniform("Material.Ks").setFloatVector(n.material!!.specular);
-
-                    if(n.material!!.doubleSided) {
-                        gl.glDisable(GL.GL_CULL_FACE)
-                    }
-                } else {
-                    program.getUniform("Material.Ka").setFloatVector3(n.position.toFloatBuffer());
-                    program.getUniform("Material.Kd").setFloatVector3(n.position.toFloatBuffer());
-                    program.getUniform("Material.Ks").setFloatVector3(n.position.toFloatBuffer());
-                }
-
-                var samplerIndex = 5;
-                s.textures.forEach { type, glTexture ->
-                    samplerIndex = textureTypeToUnit(type)
-                    if (glTexture != null) {
-                        gl.glActiveTexture(GL.GL_TEXTURE0 + samplerIndex)
-                        gl.glBindTexture(GL.GL_TEXTURE_2D, glTexture.id)
-                        program.getUniform("ObjectTextures[" + (samplerIndex - geometryBuffer.boundBufferNum) + "]").setInt(samplerIndex)
-                    }
-                    samplerIndex++
-                }
-
-                if (s.textures.size > 0) {
-                    program.getUniform("materialType").setInt(1)
-                }
-
-                if (s.textures.containsKey("normal")) {
-                    program.getUniform("materialType").setInt(3)
-                }
-            }
-
-            if (n is HasGeometry) {
-                n.preDraw()
-
-                if(n.dirty) {
-                    updateVertices(n)
-                    updateNormals(n)
-
-                    if (n.texcoords.size > 0) {
-                        updateTextureCoords(n)
-                    }
-
-                    if (n.indices.size > 0) {
-                        updateIndices(n)
-                    }
-                }
-            }
 
             // bind instance buffers
             start = System.nanoTime()
@@ -414,6 +362,11 @@ class DeferredLightingRenderer {
 
             logger.trace("${n.name} instancing: Updated matrix buffers in ${(System.nanoTime()-start)/10e6}ms")
 
+            s.program?.let {
+                setMaterialUniformsForNode(n, gl, s, it)
+            }
+
+            preDrawAndUpdateGeometryForNode(n)
             drawNodeInstanced(n, instances.size)
         }
 
