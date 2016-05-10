@@ -1,9 +1,13 @@
 package scenery
 
 import cleargl.GLVector
-import java.io.*
+import java.io.BufferedInputStream
+import java.io.File
+import java.io.FileInputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.nio.file.FileSystems
+import java.nio.file.Files
 import java.util.*
 
 interface HasGeometry {
@@ -34,10 +38,7 @@ interface HasGeometry {
             return materials
         }
 
-        val inputStream = FileInputStream(filename)
-        val lines = BufferedReader(InputStreamReader(inputStream)).readLines()
-        inputStream.close()
-
+        val lines = Files.lines(FileSystems.getDefault().getPath(filename))
         var currentMaterial: Material? = Material()
 
         System.out.println("Reading from MTL file $filename")
@@ -139,10 +140,8 @@ interface HasGeometry {
         }
 
         val start = System.nanoTime()
-        val inputStream = FileInputStream(filename)
-        val lines = BufferedReader(InputStreamReader(inputStream)).readLines()
+        val lines = Files.lines(FileSystems.getDefault().getPath(filename))
 
-        inputStream.close()
         var count = 0
 
         var targetObject = this
@@ -317,10 +316,7 @@ interface HasGeometry {
         }
 
         val start = System.nanoTime()
-        val inputStream = FileInputStream(filename)
-        val lines = BufferedReader(InputStreamReader(inputStream)).readLines()
-
-        inputStream.close()
+        val lines = Files.lines(FileSystems.getDefault().getPath(filename))
 
         val readFromAscii = {
             System.out.println("Reading from ASCII STL file $filename")
@@ -394,7 +390,10 @@ interface HasGeometry {
             fis.close()
         }
 
-        if(lines[0].startsWith("solid ")) {
+        var arr: CharArray = CharArray(6)
+        f.reader().read(arr, 0, 6)
+
+        if (arr.joinToString("").startsWith("solid ")) {
             readFromAscii
         } else {
             readFromBinary
