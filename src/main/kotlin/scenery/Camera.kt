@@ -24,7 +24,7 @@ open class Camera : Node("Camera") {
 
     fun getWorldOrientation(): GLVector {
         if(targeted) {
-            return (target - position!!).getNormalized()
+            return (target - position).normalized
         }
         else {
             val v: GLVector = GLVector(forward.x(), forward.y(), forward.z(), 0.0f)

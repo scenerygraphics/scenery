@@ -4,7 +4,7 @@ import java.util.*
 
 open class Scene : Node("RootNode") {
 
-    public var activeObserver: Camera? = null
+    var activeObserver: Camera? = null
 
     fun addNode(n: Node, parent: Node) {
         if (n.name == "RootNode") {
@@ -48,7 +48,7 @@ open class Scene : Node("RootNode") {
         dfs(s.children[0])
     }
 
-    fun findByName(name: String) : Node {
+    fun find(name: String): Node {
         var matches = discover(this, { n -> n.name == name})
 
         return matches.first()

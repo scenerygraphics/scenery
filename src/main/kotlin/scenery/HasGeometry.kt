@@ -25,7 +25,7 @@ interface HasGeometry {
 
         var f = File(filename)
         if(!f.exists()) {
-            System.out.println("Could not read MTL from ${filename}, file does not exist.")
+            System.out.println("Could not read MTL from $filename, file does not exist.")
 
             vertices = FloatArray(0)
             normals = FloatArray(0)
@@ -60,24 +60,24 @@ interface HasGeometry {
                     "Tr" -> currentMaterial?.opacity = 1.0f - tokens[1].toFloat()
                     "illum" -> {}
                     "map_Ka" -> {
-                        val filename = filename.substringBeforeLast(File.separator) + File.separator + tokens[1].replace('\\', '/')
-                        currentMaterial!!.textures.put("ambient", filename)
+                        val mapfile = filename.substringBeforeLast(File.separator) + File.separator + tokens[1].replace('\\', '/')
+                        currentMaterial!!.textures.put("ambient", mapfile)
                     }
                     "map_Ks" -> {
-                        val filename = filename.substringBeforeLast(File.separator) + File.separator + tokens[1].replace('\\', '/')
-                        currentMaterial!!.textures.put("specular", filename)
+                        val mapfile = filename.substringBeforeLast(File.separator) + File.separator + tokens[1].replace('\\', '/')
+                        currentMaterial!!.textures.put("specular", mapfile)
                     }
                     "map_Kd" -> {
-                        val filename = filename.substringBeforeLast(File.separator) + File.separator + tokens[1].replace('\\', '/')
-                        currentMaterial!!.textures.put("diffuse", filename)
+                        val mapfile = filename.substringBeforeLast(File.separator) + File.separator + tokens[1].replace('\\', '/')
+                        currentMaterial!!.textures.put("diffuse", mapfile)
                     }
                     "map_d" -> {
-                        val filename = filename.substringBeforeLast(File.separator) + File.separator + tokens[1].replace('\\', '/')
-                        currentMaterial!!.textures.put("displacement", filename)
+                        val mapfile = filename.substringBeforeLast(File.separator) + File.separator + tokens[1].replace('\\', '/')
+                        currentMaterial!!.textures.put("displacement", mapfile)
                     }
                     "map_bump" -> {
-                        val filename = filename.substringBeforeLast(File.separator) + File.separator + tokens[1].replace('\\', '/')
-                        currentMaterial!!.textures.put("normal", filename)
+                        val mapfile = filename.substringBeforeLast(File.separator) + File.separator + tokens[1].replace('\\', '/')
+                        currentMaterial!!.textures.put("normal", mapfile)
                     }
                     "bump" -> {}
                     "Tf" -> {}
@@ -129,7 +129,7 @@ interface HasGeometry {
 
         var f = File(filename)
         if(!f.exists()) {
-            System.out.println("Could not read from ${filename}, file does not exist.")
+            System.out.println("Could not read from $filename, file does not exist.")
 
             vertices = FloatArray(0)
             normals = FloatArray(0)
@@ -297,7 +297,7 @@ interface HasGeometry {
         normalCount += targetObject.normals.size
         uvCount += targetObject.texcoords.size
 
-        System.out.println("Read ${vertexCount / vertexSize}/${normalCount / vertexSize}/${uvCount / texcoordSize} v/n/uv of model ${name} in ${(end - start) / 1e6} ms")
+        System.out.println("Read ${vertexCount / vertexSize}/${normalCount / vertexSize}/${uvCount / texcoordSize} v/n/uv of model $name in ${(end - start) / 1e6} ms")
     }
 
     fun readFromSTL(filename: String) {
@@ -307,7 +307,7 @@ interface HasGeometry {
 
         var f = File(filename)
         if(!f.exists()) {
-            System.out.println("Could not read from ${filename}, file does not exist.")
+            System.out.println("Could not read from $filename, file does not exist.")
 
             vertices = FloatArray(0)
             normals = FloatArray(0)
@@ -342,15 +342,16 @@ interface HasGeometry {
 
         val readFromBinary = {
             System.out.println("Reading from binary STL file $filename")
-            val f = FileInputStream(filename)
-            val b = BufferedInputStream(f)
+
+            val fis = FileInputStream(filename)
+            val bis = BufferedInputStream(fis)
             var headerB: ByteArray = ByteArray(80)
             var sizeB: ByteArray = ByteArray(4)
             var buffer: ByteArray = ByteArray(12)
             var size: Int
 
-            b.read(headerB, 0, 80)
-            b.read(sizeB, 0, 4)
+            bis.read(headerB, 0, 80)
+            bis.read(sizeB, 0, 4)
 
             size = ((sizeB[0].toInt() and 0xFF)
                     or ((sizeB[1].toInt() and 0xFF) shl 8)
@@ -368,29 +369,29 @@ interface HasGeometry {
                 return bBuf.float
             }
 
-            val name = String(headerB.copyOfRange(0, headerB.indexOfFirst { it == 0.toByte()  }))
+            val objectName = String(headerB.copyOfRange(0, headerB.indexOfFirst { it == 0.toByte() }))
 
             for (i in 1..size) {
                 // surface normal
-                val n1 = readFloatFromInputStream(b)
-                val n2 = readFloatFromInputStream(b)
-                val n3 = readFloatFromInputStream(b)
+                val n1 = readFloatFromInputStream(bis)
+                val n2 = readFloatFromInputStream(bis)
+                val n3 = readFloatFromInputStream(bis)
 
                 // vertices
                 for (vertex in 1..3) {
-                    vbuffer.add(readFloatFromInputStream(b))
-                    vbuffer.add(readFloatFromInputStream(b))
-                    vbuffer.add(readFloatFromInputStream(b))
+                    vbuffer.add(readFloatFromInputStream(bis))
+                    vbuffer.add(readFloatFromInputStream(bis))
+                    vbuffer.add(readFloatFromInputStream(bis))
 
                     nbuffer.add(n1)
                     nbuffer.add(n2)
                     nbuffer.add(n3)
                 }
 
-                b.read(buffer, 0, 2)
+                bis.read(buffer, 0, 2)
             }
 
-            f.close()
+            fis.close()
         }
 
         if(lines[0].startsWith("solid ")) {

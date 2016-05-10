@@ -138,7 +138,7 @@ class DeferredLightingRenderer {
     }
 
     fun getOpenGLObjectStateFromNode(node: Node): OpenGLObjectState {
-        return node.metadata.get("DeferredLightingRenderer") as OpenGLObjectState
+        return node.metadata["DeferredLightingRenderer"] as OpenGLObjectState
     }
 
     fun initializeScene(scene: Scene) {
@@ -183,15 +183,14 @@ class DeferredLightingRenderer {
             program.getUniform("Material.Ks").setFloatVector3(n.position.toFloatBuffer());
         }
 
-        var samplerIndex = 5;
         s.textures.forEach { type, glTexture ->
-            samplerIndex = textureTypeToUnit(type)
+            val samplerIndex = textureTypeToUnit(type)
+
             if(glTexture != null) {
                 gl.glActiveTexture(GL.GL_TEXTURE0 + samplerIndex)
                 gl.glBindTexture(GL.GL_TEXTURE_2D, glTexture.id)
                 program.getUniform("ObjectTextures[" + (samplerIndex-geometryBuffer.boundBufferNum) + "]").setInt(samplerIndex)
             }
-            samplerIndex++
         }
 
         if(s.textures.size > 0){
@@ -227,7 +226,6 @@ class DeferredLightingRenderer {
 
         val renderOrderList = ArrayList<Node>()
         val cam: Camera = scene.findObserver()
-        var view: GLMatrix
         var mv: GLMatrix
         var mvp: GLMatrix
         var proj: GLMatrix
@@ -252,6 +250,8 @@ class DeferredLightingRenderer {
 //        }
 
         cam.view?.setCamera(cam.position, cam.position + cam.forward, cam.up)
+        cam.projection = GLMatrix().setPerspectiveProjectionMatrix(70.0f / 180.0f * Math.PI.toFloat(),
+                (1.0f * width) / (1.0f * height), 0.1f, 1000f)
 
         val instanceGroups = renderOrderList.groupBy { it.instanceOf }
 
@@ -260,7 +260,7 @@ class DeferredLightingRenderer {
 //            "  <${key?.name}> " + instanceGroups.get(key)!!.map { it.name }.joinToString(", ") + "\n"
 //        }.joinToString("")}")
 
-        instanceGroups.get(null)?.forEach nonInstancedDrawing@ { n ->
+        instanceGroups[null]?.forEach nonInstancedDrawing@ { n ->
             if(n in instanceGroups.keys) {
                 return@nonInstancedDrawing
             }
@@ -290,6 +290,11 @@ class DeferredLightingRenderer {
                 setMaterialUniformsForNode(n, gl, s, program)
             }
 
+            if (n is Skybox) {
+                gl.glCullFace(GL.GL_FRONT)
+                gl.glDepthFunc(GL.GL_LEQUAL)
+            }
+
             preDrawAndUpdateGeometryForNode(n)
             drawNode(n)
         }
@@ -303,7 +308,7 @@ class DeferredLightingRenderer {
             }
 
             val s = getOpenGLObjectStateFromNode(n)
-            val instances = instanceGroups.get(n)!!
+            val instances = instanceGroups[n]!!
 
             logger.trace("${n.name} has additional instance buffers: ${s.additionalBufferIds.keys}")
             logger.trace("${n.name} instancing: Instancing group size is ${instances.size}")
@@ -434,13 +439,13 @@ class DeferredLightingRenderer {
     }
 
     fun initializeNode(node: Node): Boolean {
-        var s: OpenGLObjectState = node.metadata.get("DeferredLightingRenderer") as OpenGLObjectState
+        var s: OpenGLObjectState
 
         if(node.instanceOf == null) {
-            s = node.metadata.get("DeferredLightingRenderer") as OpenGLObjectState
+            s = node.metadata["DeferredLightingRenderer"] as OpenGLObjectState
         } else {
-            s = node.instanceOf!!.metadata.get("DeferredLightingRenderer") as OpenGLObjectState
-            node.metadata.set("DeferredLightingRenderer", s)
+            s = node.instanceOf!!.metadata["DeferredLightingRenderer"] as OpenGLObjectState
+            node.metadata["DeferredLightingRenderer"] = s
 
             if(!s.initialized) {
                 logger.trace("Instance not yet initialized, doing now...")
@@ -482,7 +487,7 @@ class DeferredLightingRenderer {
             }
             else if(node.metadata.filter { it.value is OpenGLShaderPreference }.isNotEmpty()) {
 //                val prefs = node.metadata.first { it is OpenGLShaderPreference } as OpenGLShaderPreference
-                val prefs = node.metadata.get("ShaderPreference") as OpenGLShaderPreference
+                val prefs = node.metadata["ShaderPreference"] as OpenGLShaderPreference
 
                 if(prefs.parameters.size > 0) {
                     s.program = GLProgram.buildProgram(gl, node.javaClass,

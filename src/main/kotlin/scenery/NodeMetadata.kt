@@ -6,5 +6,5 @@ package scenery
  * @author Ulrik Günther <hello@ulrik.is>
  */
 interface NodeMetadata {
-    public val consumers: List<String>
+    val consumers: List<String>
 }

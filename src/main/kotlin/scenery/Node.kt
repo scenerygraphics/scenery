@@ -79,16 +79,16 @@ open class Node(open var name: String) : Renderable {
             field = q
         }
 
-    public var children: ArrayList<Node>
-    public var linkedNodes: ArrayList<Node>
-    public var parent: Node? = null
+    var children: ArrayList<Node>
+    var linkedNodes: ArrayList<Node>
+    var parent: Node? = null
 
     // metadata
     var createdAt: Long = 0
     var modifiedAt: Long = 0
 
-    public var needsUpdate = true
-    public var needsUpdateWorld = true
+    var needsUpdate = true
+    var needsUpdateWorld = true
 
     init {
         this.createdAt = (Timestamp(Date().time).time).toLong()

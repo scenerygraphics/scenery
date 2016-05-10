@@ -3,9 +3,11 @@ package scenery
 import cleargl.GLVector
 
 /**
- * Created by ulrik on 14/12/15.
+ * <Description>
+ *
+ * @author Ulrik Günther <hello@ulrik.is>
  */
-class Box(sizes: GLVector) : Node("box"), HasGeometry {
+open class Box(sizes: GLVector) : Node("box"), HasGeometry {
     override var vertices: FloatArray = floatArrayOf()
     override var normals: FloatArray = floatArrayOf()
     override var texcoords: FloatArray = floatArrayOf()
