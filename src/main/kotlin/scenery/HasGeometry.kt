@@ -61,23 +61,23 @@ interface HasGeometry {
                     "Tr" -> currentMaterial?.opacity = 1.0f - tokens[1].toFloat()
                     "illum" -> {}
                     "map_Ka" -> {
-                        val mapfile = filename.substringBeforeLast(File.separator) + File.separator + tokens[1].replace('\\', '/')
+                        val mapfile = filename.substringBeforeLast("/") + "/" + tokens[1].replace('\\', '/')
                         currentMaterial!!.textures.put("ambient", mapfile)
                     }
                     "map_Ks" -> {
-                        val mapfile = filename.substringBeforeLast(File.separator) + File.separator + tokens[1].replace('\\', '/')
+                        val mapfile = filename.substringBeforeLast("/") + "/" + tokens[1].replace('\\', '/')
                         currentMaterial!!.textures.put("specular", mapfile)
                     }
                     "map_Kd" -> {
-                        val mapfile = filename.substringBeforeLast(File.separator) + File.separator + tokens[1].replace('\\', '/')
+                        val mapfile = filename.substringBeforeLast("/") + "/" + tokens[1].replace('\\', '/')
                         currentMaterial!!.textures.put("diffuse", mapfile)
                     }
                     "map_d" -> {
-                        val mapfile = filename.substringBeforeLast(File.separator) + File.separator + tokens[1].replace('\\', '/')
+                        val mapfile = filename.substringBeforeLast("/") + "/" + tokens[1].replace('\\', '/')
                         currentMaterial!!.textures.put("displacement", mapfile)
                     }
                     "map_bump" -> {
-                        val mapfile = filename.substringBeforeLast(File.separator) + File.separator + tokens[1].replace('\\', '/')
+                        val mapfile = filename.substringBeforeLast("/") + "/" + tokens[1].replace('\\', '/')
                         currentMaterial!!.textures.put("normal", mapfile)
                     }
                     "bump" -> {}
@@ -158,7 +158,7 @@ interface HasGeometry {
                     }
                     "mtllib" -> {
                         if(useMTL) {
-                            materials = readFromMTL(filename.substringBeforeLast(File.separator) + File.separator + tokens[1])
+                            materials = readFromMTL(filename.substringBeforeLast("/") + "/" + tokens[1])
                         }
                     }
                     "usemtl" -> {
