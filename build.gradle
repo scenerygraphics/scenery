@@ -97,6 +97,10 @@ dependencies
     compile "org.slf4j:slf4j-simple:$slf4j_version"
 
     compile 'org.scijava:ui-behaviour:1.0.1'
+	compile 'org.scijava:scijava-common:2.56.0'
+	compile 'org.scijava:scijava-ui-swing:0.8.1-SNAPSHOT'
+	compile 'org.scijava:scripting-javascript:0.4.4-SNAPSHOT'
+	compile 'org.scijava:scripting-jython:0.3.1-SNAPSHOT'
 
     // usage: gradle .... -Plocal=true
 	if (project.hasProperty('local')) {

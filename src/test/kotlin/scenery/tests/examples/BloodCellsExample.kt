@@ -205,7 +205,7 @@ class BloodCellsExample {
                         obj.rotation.rotateByAngleY(-1.0f * magnitude)
                     }
 
-                    thread {
+                    val t = thread {
                         var reverse = false
                         val step = 0.02f
 
@@ -274,6 +274,7 @@ class BloodCellsExample {
                                  pHeight: Int) {
                 var pHeight = pHeight
                 super.reshape(pDrawable, pX, pY, pWidth, pHeight)
+                deferredRenderer?.reshape(pWidth, pHeight)
 
                 if (pHeight == 0)
                     pHeight = 1
@@ -299,8 +300,8 @@ class BloodCellsExample {
         }
 
         val lClearGLWindow = ClearGLWindow("",
-                1920,
-                1080,
+                1280,
+                720,
                 lClearGLWindowEventListener)
 
         lClearGLWindow.isVisible = true

@@ -4,10 +4,17 @@ import cleargl.*
 import com.jogamp.opengl.GLAutoDrawable
 import com.jogamp.opengl.GLException
 import org.junit.Test
+import org.scijava.Context
+import org.scijava.`object`.ObjectService
+import org.scijava.app.SciJavaApp
+import org.scijava.plugin.Plugin
+import org.scijava.ui.swing.script.AutoImporter
+import org.scijava.ui.swing.script.InterpreterWindow
 import scenery.*
 import scenery.controls.ClearGLInputHandler
 import scenery.rendermodules.opengl.DeferredLightingRenderer
 import java.io.IOException
+import java.util.*
 import kotlin.concurrent.thread
 
 /**
@@ -17,6 +24,7 @@ class BoxedProteinExample {
 
 
     private val scene: Scene = Scene()
+    private var interpreter: InterpreterWindow? = null
     private var frameNum = 0
     private var deferredRenderer: DeferredLightingRenderer? = null
 
@@ -36,11 +44,11 @@ class BoxedProteinExample {
 
                     fun rangeRandomizer(min: Float, max: Float): Float = min + (Math.random().toFloat() * ((max - min) + 1.0f))
 
-                    var boxes = (0..10).map {
+                    var boxes = (0..2).map {
                         Box(GLVector(0.5f, 0.5f, 0.5f))
                     }
 
-                    var lights = (0..10).map {
+                    var lights = (0..2).map {
                         PointLight()
                     }
 
@@ -58,8 +66,8 @@ class BoxedProteinExample {
                                 rangeRandomizer(0.0f, 1.0f),
                                 rangeRandomizer(0.0f, 1.0f))
                         it.parent?.material?.diffuse = it.emissionColor
-                        it.intensity = rangeRandomizer(0.01f, 1000f)
-                        it.linear = 0.1f;
+                        it.intensity = rangeRandomizer(0.01f, 500f)
+                        it.linear = 0.01f;
                         it.quadratic = 0.01f;
 
                         scene.addChild(it)
@@ -78,7 +86,7 @@ class BoxedProteinExample {
 
                     val mesh = Mesh()
                     val meshM = Material()
-                    meshM.ambient = GLVector(0.0f, 0.0f, 0.0f)
+                    meshM.ambient = GLVector(0.8f, 0.8f, 0.8f)
                     meshM.diffuse = GLVector(0.5f, 0.5f, 0.5f)
                     meshM.specular = GLVector(0.1f, 0f, 0f)
 
@@ -118,9 +126,9 @@ class BoxedProteinExample {
                                 val phi = Math.PI * 2.0f * ticks/500.0f
 
                                 box.position = GLVector(
-                                        Math.exp(i.toDouble()).toFloat()*10*Math.sin(phi).toFloat()+Math.exp(i.toDouble()).toFloat(),
+                                        Math.exp(i.toDouble()).toFloat() * 20 * Math.sin(phi).toFloat() + Math.exp(i.toDouble()).toFloat(),
                                         step*ticks,
-                                        Math.exp(i.toDouble()).toFloat()*10*Math.cos(phi).toFloat()+Math.exp(i.toDouble()).toFloat())
+                                        Math.exp(i.toDouble()).toFloat() * 20 * Math.cos(phi).toFloat() + Math.exp(i.toDouble()).toFloat())
 
                                 box.children[0].position = box.position
 
@@ -146,6 +154,13 @@ class BoxedProteinExample {
                         }
                     }
 
+                    val context: Context = Context()
+                    context.getService(ObjectService::class.java).addObject(scene)
+                    context.getService(ObjectService::class.java).addObject(deferredRenderer)
+
+                    interpreter = InterpreterWindow(context)
+                    interpreter?.isVisible = true
+
                     deferredRenderer?.initializeScene(scene)
                 } catch (e: GLException) {
                     e.printStackTrace()
@@ -161,10 +176,12 @@ class BoxedProteinExample {
                                  pWidth: Int,
                                  pHeight: Int) {
                 var pHeight = pHeight
-                super.reshape(pDrawable, pX, pY, pWidth, pHeight)
 
                 if (pHeight == 0)
                     pHeight = 1
+
+                super.reshape(pDrawable, pX, pY, pWidth, pHeight)
+                deferredRenderer?.reshape(pWidth, pHeight)
                 val ratio = 1.0f * pWidth / pHeight
             }
 
@@ -207,4 +224,20 @@ class BoxedProteinExample {
     @Test fun ScenegraphSimpleDemo() {
 
     }
+
+    @Plugin(type = AutoImporter::class)
+    companion object ScenePlugin : AutoImporter {
+        override fun getDefaultImports(): MutableMap<String, MutableList<String>>? {
+            val name = SciJavaApp::class.simpleName!!
+            val dot = name.lastIndexOf('.');
+            val base = name.substring(dot + 1);
+            System.out.println("Imported " + base + "; Try:\n\n\tprint(" + base + ".NAME);");
+
+            val map: MutableMap<String, MutableList<String>> = HashMap<String, MutableList<String>>();
+            map.put(name.substring(0, dot), Arrays.asList(base));
+            return map;
+        }
+
+    }
 }
+
