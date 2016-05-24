@@ -20,18 +20,7 @@ import java.util.*
 /*
         the first texture units are reserved for the geometry buffer
      */
-fun GLFramebuffer.textureTypeToUnit(type: String): Int {
-    return this.boundBufferNum + when (type) {
-        "ambient" -> 0
-        "diffuse" -> 1
-        "specular" -> 2
-        "normal" -> 3
-        "displacement" -> 4
-        else -> {
-            System.err.println("Unknown texture type $type"); 10
-        }
-    }
-}
+
 
 class DeferredLightingRenderer {
     protected var logger: Logger = LoggerFactory.getLogger("DeferredLightingRenderer")
@@ -61,16 +50,27 @@ class DeferredLightingRenderer {
 
     var vrEnabled = true
     var eyes = (0..0)
+    var eyeShift = floatArrayOf(0.0f, 0.0f)
 
     constructor(gl: GL4, width: Int, height: Int) {
         this.gl = gl
         this.width = width
         this.height = height
 
+        gl.swapInterval = 0
+
+        logger.info("DeferredLightingRenderer: $width x $height on ${gl.glGetString(GL.GL_RENDERER)}, ${gl.glGetString(GL.GL_VERSION)}")
+
+        val numExtensionsBuffer = IntBuffer.allocate(1)
+        gl.glGetIntegerv(GL4.GL_NUM_EXTENSIONS, numExtensionsBuffer)
+        val extensions = (0..numExtensionsBuffer[0]-1).map { gl.glGetStringi(GL4.GL_EXTENSIONS, it) }
+        logger.info("Supported extensions:\n${extensions.joinToString("\n\t")}")
+
         ssao_filterRadius = GLVector(10.0f/width, 10.0f/height)
 
         if(vrEnabled) {
             eyes = (0..1)
+            eyeShift = floatArrayOf(-5.5f, 5.5f)
         }
 
         geometryBuffer = ArrayList<GLFramebuffer>()
@@ -120,6 +120,19 @@ class DeferredLightingRenderer {
 
         gl.glViewport(0, 0, this.width, this.height)
         gl.glClearColor(0.0f, 0.0f, 0.0f, 0.0f)
+    }
+
+    fun GLFramebuffer.textureTypeToUnit(type: String): Int {
+        return this.boundBufferNum + when (type) {
+            "ambient" -> 0
+            "diffuse" -> 1
+            "specular" -> 2
+            "normal" -> 3
+            "displacement" -> 4
+            else -> {
+                System.err.println("Unknown texture type $type"); 10
+            }
+        }
     }
 
     protected fun GeometryType.toOpenGLType(): Int {
@@ -256,6 +269,8 @@ class DeferredLightingRenderer {
                 if (n.indices.size > 0) {
                     updateIndices(n)
                 }
+
+                n.dirty = false
             }
         }
     }
@@ -323,12 +338,11 @@ class DeferredLightingRenderer {
 
             eyes.forEachIndexed { i, eye ->
                 mv = cam.view!!.clone()
-                mv.translate(0.5f * Math.pow(-1.0, 1.0 * i).toFloat(), 0.0f, 0.0f)
+                mv.translate(eyeShift[i], 0.0f, 0.0f)
                 mv.mult(cam.rotation)
                 mv.mult(n.world)
 
-                proj = cam.projection!!.clone()
-                mvp = proj.clone()
+                mvp = cam.projection!!.clone()
                 mvp.mult(mv)
 
                 s.program?.let { program ->
@@ -366,64 +380,73 @@ class DeferredLightingRenderer {
             val modelviews = ArrayList<Float>()
             val modelviewprojs = ArrayList<Float>()
 
-            models.ensureCapacity(matrixSize * instances.size)
-            modelviews.ensureCapacity(matrixSize * instances.size)
-            modelviewprojs.ensureCapacity(matrixSize * instances.size)
-
             mv = GLMatrix.getIdentity()
             proj = GLMatrix.getIdentity()
             mvp = GLMatrix.getIdentity()
             var mo = GLMatrix.getIdentity()
 
-            instances.forEachIndexed { i, node ->
-                node.updateWorld(true, false)
+            instances.forEach { node -> node.updateWorld(true, false) }
 
-                mo = node.model.clone()
-                mv = cam.view!!.clone().mult(cam.rotation)
-                mv.mult(node.world)
+            eyes.forEach {
+                eye ->
 
-                proj = cam.projection!!.clone()
-                mvp = proj.clone()
-                mvp.mult(mv)
+                models.clear()
+                modelviews.clear()
+                modelviewprojs.clear()
 
-                models.addAll(mo.floatArray.asSequence())
-                modelviews.addAll(mv.floatArray.asSequence())
-                modelviewprojs.addAll(mvp.floatArray.asSequence())
-            }
+                models.ensureCapacity(matrixSize * instances.size)
+                modelviews.ensureCapacity(matrixSize * instances.size)
+                modelviewprojs.ensureCapacity(matrixSize * instances.size)
 
-            logger.trace("${n.name} instancing: Collected ${modelviewprojs.size/matrixSize} MVPs in ${(System.nanoTime()-start)/10e6}ms")
+                instances.forEachIndexed { i, node ->
+                    mo = node.model.clone()
+                    mv = cam.view!!.clone()
+                    mv.translate(eyeShift[eye], 0.0f, 0.0f)
+                    mv.mult(cam.rotation)
+                    mv.mult(node.world)
 
-            // bind instance buffers
-            start = System.nanoTime()
-            val matrixSizeBytes: Long = 1L*Buffers.SIZEOF_FLOAT * matrixSize * instances.size
+                    mvp = cam.projection!!.clone()
+                    mvp.mult(mv)
 
-            gl.gL4.glBindVertexArray(s.mVertexArrayObject[0])
+                    models.addAll(mo.floatArray.asSequence())
+                    modelviews.addAll(mv.floatArray.asSequence())
+                    modelviewprojs.addAll(mvp.floatArray.asSequence())
+                }
 
-            gl.gL4.glBindBuffer(GL.GL_ARRAY_BUFFER, s.additionalBufferIds["Model"]!!);
-            gl.gL4.glBufferData(GL.GL_ARRAY_BUFFER, matrixSizeBytes,
-                    FloatBuffer.wrap(models.toFloatArray()), GL.GL_DYNAMIC_DRAW);
 
-            gl.gL4.glBindBuffer(GL.GL_ARRAY_BUFFER, s.additionalBufferIds["ModelView"]!!);
-            gl.gL4.glBufferData(GL.GL_ARRAY_BUFFER, matrixSizeBytes,
-                    FloatBuffer.wrap(modelviews.toFloatArray()), GL.GL_DYNAMIC_DRAW);
+                logger.trace("${n.name} instancing: Collected ${modelviewprojs.size / matrixSize} MVPs in ${(System.nanoTime() - start) / 10e6}ms")
 
-            gl.gL4.glBindBuffer(GL.GL_ARRAY_BUFFER, s.additionalBufferIds["MVP"]!!);
-            gl.gL4.glBufferData(GL.GL_ARRAY_BUFFER, matrixSizeBytes,
-                    FloatBuffer.wrap(modelviewprojs.toFloatArray()), GL.GL_DYNAMIC_DRAW);
+                // bind instance buffers
+                start = System.nanoTime()
+                val matrixSizeBytes: Long = 1L * Buffers.SIZEOF_FLOAT * matrixSize * instances.size
 
-            logger.trace("${n.name} instancing: Updated matrix buffers in ${(System.nanoTime()-start)/10e6}ms")
+                gl.gL4.glBindVertexArray(s.mVertexArrayObject[0])
 
-            s.program?.let {
-                setMaterialUniformsForNode(n, gl, s, it)
-            }
+                gl.gL4.glBindBuffer(GL.GL_ARRAY_BUFFER, s.additionalBufferIds["Model"]!!);
+                gl.gL4.glBufferData(GL.GL_ARRAY_BUFFER, matrixSizeBytes,
+                        FloatBuffer.wrap(models.toFloatArray()), GL.GL_DYNAMIC_DRAW);
 
-            preDrawAndUpdateGeometryForNode(n)
+                gl.gL4.glBindBuffer(GL.GL_ARRAY_BUFFER, s.additionalBufferIds["ModelView"]!!);
+                gl.gL4.glBufferData(GL.GL_ARRAY_BUFFER, matrixSizeBytes,
+                        FloatBuffer.wrap(modelviews.toFloatArray()), GL.GL_DYNAMIC_DRAW);
 
-            eyes.forEachIndexed { i, eye ->
-                geometryBuffer[i].setDrawBuffers(gl)
-                drawNodeInstanced(n, instances.size)
+                gl.gL4.glBindBuffer(GL.GL_ARRAY_BUFFER, s.additionalBufferIds["MVP"]!!);
+                gl.gL4.glBufferData(GL.GL_ARRAY_BUFFER, matrixSizeBytes,
+                        FloatBuffer.wrap(modelviewprojs.toFloatArray()), GL.GL_DYNAMIC_DRAW);
+
+                logger.trace("${n.name} instancing: Updated matrix buffers in ${(System.nanoTime() - start) / 10e6}ms")
+
+                s.program?.let {
+                    setMaterialUniformsForNode(n, gl, s, it)
+                }
+
+                preDrawAndUpdateGeometryForNode(n)
+
+                geometryBuffer[eye].setDrawBuffers(gl)
+                drawNodeInstanced(n, count = instances.size)
             }
         }
+
         val lights = scene.discover(scene, { it is PointLight })
 
         eyes.forEachIndexed { i, eye ->
@@ -462,12 +485,9 @@ class DeferredLightingRenderer {
             gl.glPointSize(1.5f)
             gl.glEnable(GL4.GL_PROGRAM_POINT_SIZE)
 
-            gl.glClear(GL.GL_COLOR_BUFFER_BIT or GL.GL_DEPTH_BUFFER_BIT)
-
             if (doHDR == 0) {
                 combinationBuffer[i].setDrawBuffers(gl)
                 gl.glViewport(0, 0, combinationBuffer[i].width, combinationBuffer[i].height)
-                gl.glClear(GL.GL_COLOR_BUFFER_BIT or GL.GL_DEPTH_BUFFER_BIT)
 
                 renderFullscreenQuad(lightingPassProgram)
             } else {
@@ -478,7 +498,6 @@ class DeferredLightingRenderer {
                 combinationBuffer[i].setDrawBuffers(gl)
 
                 gl.glViewport(0, 0, combinationBuffer[i].width, combinationBuffer[i].height)
-                gl.glClear(GL.GL_COLOR_BUFFER_BIT or GL.GL_DEPTH_BUFFER_BIT)
 
                 hdrPassProgram.getUniform("Gamma").setFloat(this.gamma)
                 hdrPassProgram.getUniform("Exposure").setFloat(this.exposure)
@@ -921,6 +940,7 @@ class DeferredLightingRenderer {
             gl.gL4.glDrawArraysInstanced(
                     (node as HasGeometry).geometryType.toOpenGLType(),
                     0, s.mStoredPrimitiveCount, count);
+
         }
 
         gl.gL4.glUseProgram(0)

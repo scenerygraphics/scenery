@@ -67,7 +67,7 @@ class BloodCellsExample {
                     }
 
                     val hullbox = Box(GLVector(900.0f, 900.0f, 900.0f))
-                    hullbox.position = GLVector(0.0f, 0.0f, 0.0f)
+                    hullbox.position = GLVector(0.1f, 0.1f, 0.1f)
                     val hullboxM = Material()
                     hullboxM.ambient = GLVector(1.0f, 1.0f, 1.0f)
                     hullboxM.diffuse = GLVector(1.0f, 1.0f, 1.0f)
@@ -182,7 +182,7 @@ class BloodCellsExample {
 
                     cam.projection = GLMatrix().setPerspectiveProjectionMatrix(
                             50.0f / 180.0f * Math.PI.toFloat(),
-                            pDrawable.surfaceWidth.toFloat() / pDrawable.surfaceHeight.toFloat(), 0.1f, 10000.0f).invert()
+                            pDrawable.surfaceWidth.toFloat() / pDrawable.surfaceHeight.toFloat(), 0.1f, 100000.0f).transpose()
                     cam.active = true
 
                     scene.addChild(cam)
@@ -286,6 +286,19 @@ class BloodCellsExample {
 
                 frameNum++
                 deferredRenderer?.render(scene)
+
+                if(deferredRenderer?.wantsFullscreen!! == true && deferredRenderer?.isFullscreen!! == false) {
+                    mClearGLWindow!!.setFullscreen(true)
+                    deferredRenderer?.wantsFullscreen = true
+                    deferredRenderer?.isFullscreen = true
+                }
+
+                if(deferredRenderer?.wantsFullscreen!! == false && deferredRenderer?.isFullscreen!! == true) {
+                    mClearGLWindow!!.setFullscreen(false)
+                    deferredRenderer?.wantsFullscreen = false
+                    deferredRenderer?.isFullscreen = false
+                }
+
                 clearGLWindow.windowTitle = "scenery: %s - %.1f fps".format(this.javaClass.enclosingClass.simpleName.substringAfterLast("."), pDrawable.animator?.lastFPS)
             }
 
@@ -300,8 +313,8 @@ class BloodCellsExample {
         }
 
         val lClearGLWindow = ClearGLWindow("",
-                1280,
-                720,
+                1920,
+                1200,
                 lClearGLWindowEventListener)
 
         lClearGLWindow.isVisible = true
@@ -313,8 +326,9 @@ class BloodCellsExample {
         lClearGLWindow.start()
 
         while (lClearGLWindow.isVisible) {
-            Thread.sleep(10)
         }
+
+        lClearGLWindow.stop()
     }
 
     @Test fun ScenegraphSimpleDemo() {
