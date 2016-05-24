@@ -51,6 +51,9 @@ class DeferredLightingRenderer {
     protected var doSSAO = 1;
     protected var doHDR = 1;
 
+    var isFullscreen: Boolean = false
+    var wantsFullscreen: Boolean = false
+
     var exposure = 0.02f;
     var gamma = 2.2f;
     var ssao_filterRadius = GLVector(0.0f, 0.0f);
@@ -176,6 +179,14 @@ class DeferredLightingRenderer {
     fun decreaseGamma() {
         if(gamma - 0.05f > 0.0f) {
             gamma -= 0.05f
+        }
+    }
+
+    fun toggleFullscreen() {
+        if(!wantsFullscreen) {
+            wantsFullscreen = true
+        } else {
+            wantsFullscreen = false
         }
     }
 
