@@ -48,7 +48,7 @@ class DeferredLightingRenderer {
     var ssao_filterRadius = GLVector(0.0f, 0.0f);
     var ssao_distanceThreshold = 5.0f;
 
-    var vrEnabled = true
+    var vrEnabled = false
     var eyes = (0..0)
     var eyeShift = floatArrayOf(0.0f, 0.0f)
 
@@ -294,8 +294,8 @@ class DeferredLightingRenderer {
 //        }
 
         cam.view?.setCamera(cam.position, cam.position + cam.forward, cam.up)
-        cam.projection = GLMatrix().setPerspectiveProjectionMatrix(70.0f / 180.0f * Math.PI.toFloat(),
-                (1.0f * width) / (1.0f * height), 0.1f, 1000f)
+//        cam.projection = GLMatrix().setPerspectiveProjectionMatrix(70.0f / 180.0f * Math.PI.toFloat(),
+//                (1.0f * width) / (1.0f * height), 0.1f, 100000f)
 
         val instanceGroups = renderOrderList.groupBy { it.instanceOf }
 
