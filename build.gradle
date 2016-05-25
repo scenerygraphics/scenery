@@ -102,6 +102,8 @@ dependencies
 	compile 'org.scijava:scripting-javascript:0.4.4-SNAPSHOT'
 	compile 'org.scijava:scripting-jython:0.3.1-SNAPSHOT'
 
+    compile 'scenery:openvr:0.1'
+
     // usage: gradle .... -Plocal=true
 	if (project.hasProperty('local')) {
 		println 'Using local clearX sources'
