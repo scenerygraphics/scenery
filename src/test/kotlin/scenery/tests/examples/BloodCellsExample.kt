@@ -6,6 +6,7 @@ import com.jogamp.opengl.GLException
 import org.junit.Test
 import scenery.*
 import scenery.controls.ClearGLInputHandler
+import scenery.controls.OpenVRInput
 import scenery.rendermodules.opengl.DeferredLightingRenderer
 import scenery.rendermodules.opengl.OpenGLShaderPreference
 import java.io.IOException
@@ -21,6 +22,7 @@ class BloodCellsExample {
     private val scene: Scene = Scene()
     private var frameNum = 0
     private var deferredRenderer: DeferredLightingRenderer? = null
+    private var hmd: OpenVRInput? = null
 
     @Test fun demo() {
         val lClearGLWindowEventListener = object : ClearGLDefaultEventListener() {
@@ -299,6 +301,8 @@ class BloodCellsExample {
                     deferredRenderer?.isFullscreen = false
                 }
 
+                hmd?.updatePose()
+
                 clearGLWindow.windowTitle = "scenery: %s - %.1f fps".format(this.javaClass.enclosingClass.simpleName.substringAfterLast("."), pDrawable.animator?.lastFPS)
             }
 
@@ -319,6 +323,9 @@ class BloodCellsExample {
 
         lClearGLWindow.isVisible = true
         lClearGLWindow.setFPS(60)
+
+        hmd = OpenVRInput(seated = true)
+        //hmd?.initCompositor()
 
         val inputHandler = ClearGLInputHandler(scene, deferredRenderer as Any, lClearGLWindow)
         inputHandler.useDefaultBindings(System.getProperty("user.home") + "/.sceneryExamples.bindings")
