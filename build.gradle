@@ -103,6 +103,7 @@ dependencies
 	compile 'org.scijava:scripting-jython:0.3.1-SNAPSHOT'
 
     compile 'scenery:openvr:0.1'
+    compile 'com.nativelibs4java:jnaerator-runtime:0.9.10-SNAPSHOT'
 
     // usage: gradle .... -Plocal=true
 	if (project.hasProperty('local')) {
@@ -129,7 +130,8 @@ repositories
     { url "http://maven.imagej.net/content/groups/public" }
     maven
     { url "http://dl.bintray.com/clearcontrol/ClearControl" }
-    mavenLocal()
+    maven
+    { url "http://nativelibs4java.sourceforge.net/maven" }
 }
 
 task sourcesJar(type: Jar, dependsOn:classes) {
