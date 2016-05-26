@@ -2,10 +2,8 @@ package scenery.controls
 
 import cleargl.GLMatrix
 import cleargl.GLVector
-import com.jogamp.opengl.math.Quaternion
 import com.sun.jna.Structure
 import jopenvr.*
-import jopenvr.JOpenVRLibrary as jvr
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.nio.FloatBuffer
@@ -13,6 +11,7 @@ import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.util.*
 import java.util.concurrent.TimeUnit
+import jopenvr.JOpenVRLibrary as jvr
 
 /**
  * Created by ulrik on 25/05/2016.
@@ -24,8 +23,8 @@ class OpenVRInput(val seated: Boolean = true) {
     protected var compositorFuncs: VR_IVRCompositor_FnTable? = null
     protected var initialized = false
 
-    protected val hmdTrackedDevicePoseReference: TrackedDevicePose_t?
-    protected val hmdTrackedDevicePoses: Array<Structure>?
+    protected var hmdTrackedDevicePoseReference: TrackedDevicePose_t? = null
+    protected var hmdTrackedDevicePoses: Array<Structure>? = null
 
     protected val error = IntBuffer.allocate(1)
     protected var hmdPose = GLMatrix.getIdentity()
@@ -44,43 +43,53 @@ class OpenVRInput(val seated: Boolean = true) {
     private var frames = 0
 
     init {
-        jvr.VR_InitInternal(error, jvr.EVRApplicationType.EVRApplicationType_VRApplication_Scene)
+        error.put(0, -1)
 
-        if(error[0] == 0) {
-            vrFuncs = VR_IVRSystem_FnTable(jvr.VR_GetGenericInterface(jvr.IVRSystem_Version, error))
-        }
+        try {
+            jvr.VR_InitInternal(error, jvr.EVRApplicationType.EVRApplicationType_VRApplication_Scene)
 
-        if(vrFuncs == null || error[0] != 0){
-            logger.error("OpenVR: Initialization error - ${jvr.VR_GetVRInitErrorAsEnglishDescription(error[0])}")
-            vrFuncs = null
-            hmdTrackedDevicePoseReference = null
-            hmdTrackedDevicePoses = null
-        } else {
-            logger.info("OpenVR: Initialized.")
 
-            vrFuncs?.setAutoSynch(false)
-            vrFuncs?.read()
-
-            hmdDisplayFreq.put(jvr.ETrackedDeviceProperty.ETrackedDeviceProperty_Prop_DisplayFrequency_Float)
-
-            hmdTrackedDevicePoseReference = TrackedDevicePose_t.ByReference()
-            hmdTrackedDevicePoses = hmdTrackedDevicePoseReference.toArray(jvr.k_unMaxTrackedDeviceCount)
-
-            val poseMatrices = ArrayList<GLMatrix>()
-
-            val timePerFrame = 1.0f/hmdDisplayFreq[0]
-
-            hmdTrackedDevicePoseReference.autoRead = false
-            hmdTrackedDevicePoseReference.autoWrite = false
-            hmdTrackedDevicePoseReference.setAutoSynch(false)
-
-            hmdTrackedDevicePoses.forEach {
-                it.setAutoSynch(false)
-                it.autoRead = false
-                it.autoWrite = false
+            if (error[0] == 0) {
+                vrFuncs = VR_IVRSystem_FnTable(jvr.VR_GetGenericInterface(jvr.IVRSystem_Version, error))
             }
 
-            initialized = true
+            if (vrFuncs == null || error[0] != 0) {
+                logger.error("Initialization error - ${jvr.VR_GetVRInitErrorAsEnglishDescription(error[0])}")
+                vrFuncs = null
+                hmdTrackedDevicePoseReference = null
+                hmdTrackedDevicePoses = null
+            } else {
+                logger.info("OpenVR: Initialized.")
+
+                vrFuncs?.setAutoSynch(false)
+                vrFuncs?.read()
+
+                hmdDisplayFreq.put(jvr.ETrackedDeviceProperty.ETrackedDeviceProperty_Prop_DisplayFrequency_Float)
+
+                hmdTrackedDevicePoseReference = TrackedDevicePose_t.ByReference()
+                hmdTrackedDevicePoses = hmdTrackedDevicePoseReference?.toArray(jvr.k_unMaxTrackedDeviceCount)
+
+                val poseMatrices = ArrayList<GLMatrix>()
+
+                val timePerFrame = 1.0f / hmdDisplayFreq[0]
+
+                hmdTrackedDevicePoseReference?.autoRead = false
+                hmdTrackedDevicePoseReference?.autoWrite = false
+                hmdTrackedDevicePoseReference?.setAutoSynch(false)
+
+                hmdTrackedDevicePoses?.forEach {
+                    it.setAutoSynch(false)
+                    it.autoRead = false
+                    it.autoWrite = false
+                }
+
+                initialized = true
+            }
+
+        } catch(e: UnsatisfiedLinkError) {
+            logger.error("Support library not found, skipping initialization.")
+            logger.debug(e.message + "\n" + e.stackTrace.joinToString("\n"))
+            initialized = false
         }
     }
 
