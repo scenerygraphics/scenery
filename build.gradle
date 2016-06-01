@@ -100,10 +100,10 @@ dependencies
 	compile 'org.scijava:scijava-common:2.56.0'
 	compile 'org.scijava:scijava-ui-swing:0.8.1-SNAPSHOT'
 	compile 'org.scijava:scripting-javascript:0.4.4-SNAPSHOT'
-	compile 'org.scijava:scripting-jython:0.3.1-SNAPSHOT'
 
     compile 'scenery:openvr:0.1'
     compile 'com.nativelibs4java:jnaerator-runtime:0.9.10-SNAPSHOT'
+    compile 'net.java.dev.jna:jna:4.2.2'
 
     // usage: gradle .... -Plocal=true
 	if (project.hasProperty('local')) {
