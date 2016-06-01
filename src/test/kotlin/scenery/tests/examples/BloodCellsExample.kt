@@ -184,7 +184,7 @@ class BloodCellsExample {
 
                     cam.projection = GLMatrix().setPerspectiveProjectionMatrix(
                             50.0f / 180.0f * Math.PI.toFloat(),
-                            pDrawable.surfaceWidth.toFloat() / pDrawable.surfaceHeight.toFloat(), 0.1f, 100000.0f).transpose()
+                            pDrawable.surfaceWidth.toFloat() / pDrawable.surfaceHeight.toFloat(), 0.1f, 10000.0f)
                     cam.active = true
 
                     scene.addChild(cam)
@@ -289,16 +289,16 @@ class BloodCellsExample {
                 frameNum++
                 deferredRenderer?.render(scene)
 
-                if(deferredRenderer?.wantsFullscreen!! == true && deferredRenderer?.isFullscreen!! == false) {
+                if(deferredRenderer?.settings?.get<Boolean>("wantsFullscreen") == true && deferredRenderer?.settings?.get<Boolean>("isFullscreen") == false) {
                     mClearGLWindow!!.setFullscreen(true)
-                    deferredRenderer?.wantsFullscreen = true
-                    deferredRenderer?.isFullscreen = true
+                    deferredRenderer?.settings?.set("wantsFullscreen", true)
+                    deferredRenderer?.settings?.set("isFullscreen", true)
                 }
 
-                if(deferredRenderer?.wantsFullscreen!! == false && deferredRenderer?.isFullscreen!! == true) {
+                if(deferredRenderer?.settings?.get<Boolean>("wantsFullscreen") == false && deferredRenderer?.settings?.get<Boolean>("isFullscreen") == true) {
                     mClearGLWindow!!.setFullscreen(false)
-                    deferredRenderer?.wantsFullscreen = false
-                    deferredRenderer?.isFullscreen = false
+                    deferredRenderer?.settings?.set("wantsFullscreen", false)
+                    deferredRenderer?.settings?.set("isFullscreen", false)
                 }
 
                 hmd?.updatePose()

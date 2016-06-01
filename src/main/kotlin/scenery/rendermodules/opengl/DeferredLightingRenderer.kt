@@ -34,28 +34,26 @@ class DeferredLightingRenderer {
     protected var hdrPassProgram: GLProgram
     protected var combinerProgram: GLProgram
 
+    var settings: Settings = Settings()
+
     protected var textures = HashMap<String, GLTexture>()
 
-    protected var debugBuffers = 0;
-    protected var doSSAO = 1;
-    protected var doHDR = 1;
-
-    var isFullscreen: Boolean = false
-    var wantsFullscreen: Boolean = false
-
-    var exposure = 0.02f;
-    var gamma = 2.2f;
-    var ssao_filterRadius = GLVector(0.0f, 0.0f);
-    var ssao_distanceThreshold = 5.0f;
-
-    var vrEnabled = false
     var eyes = (0..0)
-    var eyeShift = floatArrayOf(0.0f, 0.0f)
+
+    fun Boolean.toInt(): Int {
+        if(this) {
+            return 1
+        } else {
+            return 0
+        }
+    }
 
     constructor(gl: GL4, width: Int, height: Int) {
         this.gl = gl
         this.width = width
         this.height = height
+
+        this.settings = this.getDefaultRendererSettings()
 
         gl.swapInterval = 0
 
@@ -66,11 +64,11 @@ class DeferredLightingRenderer {
         val extensions = (0..numExtensionsBuffer[0]-1).map { gl.glGetStringi(GL4.GL_EXTENSIONS, it) }
         logger.info("Supported extensions:\n${extensions.joinToString("\n\t")}")
 
-        ssao_filterRadius = GLVector(10.0f/width, 10.0f/height)
+        settings.set("ssao.FilterRadius", GLVector(10.0f/width, 10.0f/height))
 
-        if(vrEnabled) {
+        if(settings.get("vr.Active")) {
             eyes = (0..1)
-            eyeShift = floatArrayOf(-5.5f, 5.5f)
+            settings.set("vr.EyeShift", floatArrayOf(-0.5f, 0.5f))
         }
 
         geometryBuffer = ArrayList<GLFramebuffer>()
@@ -79,8 +77,9 @@ class DeferredLightingRenderer {
 
         eyes.forEach {
             // create 32bit position buffer, 16bit normal buffer, 8bit diffuse buffer and 24bit depth buffer
-            val actualWidth = if (vrEnabled) this.width / 2 else this.width
-            val actualHeight = if (vrEnabled) this.height else this.height
+            val vrWidthDivisor = if(settings.get("vr.DoAnaglyph")) 1 else 2
+            val actualWidth = if (settings.get("vr.Active")) this.width / vrWidthDivisor else this.width
+            val actualHeight = if (settings.get("vr.Active")) this.height else this.height
 
             val gb = GLFramebuffer(this.gl, actualWidth, actualHeight)
             gb.addFloatRGBBuffer(this.gl, 32)
@@ -122,6 +121,30 @@ class DeferredLightingRenderer {
         gl.glClearColor(0.0f, 0.0f, 0.0f, 0.0f)
     }
 
+    protected fun getDefaultRendererSettings(): Settings {
+        val ds = Settings()
+
+        ds.set("wantsFullscreen", false)
+        ds.set("isFullscreen", false)
+
+        ds.set("ssao.Active", true)
+        ds.set("ssao.FilterRadius", GLVector(0.0f, 0.0f))
+        ds.set("ssao.DistanceThreshold", 5.0f)
+        ds.set("ssao.Algorithm", 1)
+
+        ds.set("vr.Active", false)
+        ds.set("vr.DoAnaglyph", false)
+        ds.set("vr.EyeShift", floatArrayOf(-0.5f, 0.5f))
+
+        ds.set("hdr.Active", true)
+        ds.set("hdr.Exposure", 1.0f)
+        ds.set("hdr.Gamma", 2.2f)
+
+        ds.set("debug.DebugDeferredBuffers", false)
+
+        return ds
+    }
+
     fun GLFramebuffer.textureTypeToUnit(type: String): Int {
         return this.boundBufferNum + when (type) {
             "ambient" -> 0
@@ -148,58 +171,54 @@ class DeferredLightingRenderer {
 
 
     fun toggleDebug() {
-        if(debugBuffers == 0) {
-            debugBuffers = 1;
+        if(settings.get<Boolean>("debug.DebugDeferredBuffers") == false) {
+            settings.set("debug.DebugDeferredBuffers", true);
         } else {
-            debugBuffers = 0;
+            settings.set("debug.DebugDeferredBuffers", false);
         }
     }
 
     fun toggleSSAO() {
-        if(doSSAO == 0) {
-            logger.info("SSAO is now on")
-            doSSAO = 1;
+        if(settings.get<Boolean>("ssao.Active") == false) {
+            settings.set("ssao.Active", true);
         } else {
-            logger.info("SSAO is now off")
-            doSSAO = 0;
+            settings.set("ssao.Active", false);
         }
     }
 
     fun toggleHDR() {
-        if(doHDR == 0) {
-            logger.info("HDR is now on")
-            doHDR = 1;
+        if(settings.get<Boolean>("hdr.Active") == false) {
+            settings.set("hdr.Active", true);
         } else {
-            logger.info("HDR is now on")
-            doHDR = 0
+            settings.set("hdr.Active", false);
         }
     }
 
     fun increaseExposure() {
-        exposure += 0.05f
+        val exp: Float = settings.get<Float>("hdr.Exposure")
+        settings.set("hdr.Exposure", exp + 0.05f)
     }
 
     fun decreaseExposure() {
-        if(exposure - 0.05f > 0.0f) {
-            exposure -= 0.05f
-        }
+        val exp: Float = settings.get<Float>("hdr.Exposure")
+        settings.set("hdr.Exposure", exp - 0.05f)
     }
 
     fun increaseGamma() {
-        gamma += 0.05f
+        val gamma: Float = settings.get<Float>("hdr.Gamma")
+        settings.set("hdr.Gamma", gamma + 0.05f)
     }
 
     fun decreaseGamma() {
-        if(gamma - 0.05f > 0.0f) {
-            gamma -= 0.05f
-        }
+        val gamma: Float = settings.get<Float>("hdr.Gamma")
+        if(gamma - 0.05f >= 0) settings.set("hdr.Gamma", gamma - 0.05f)
     }
 
     fun toggleFullscreen() {
-        if(!wantsFullscreen) {
-            wantsFullscreen = true
+        if(!settings.get<Boolean>("wantsFullscreen")) {
+            settings.set("wantsFullscreen", true)
         } else {
-            wantsFullscreen = false
+            settings.set("wantsFullscreen", false)
         }
     }
 
@@ -338,7 +357,7 @@ class DeferredLightingRenderer {
 
             eyes.forEachIndexed { i, eye ->
                 mv = cam.view!!.clone()
-                mv.translate(eyeShift[i], 0.0f, 0.0f)
+                mv.translate(settings.get<FloatArray>("vr.EyeShift").get(i), 0.0f, 0.0f)
                 mv.mult(cam.rotation)
                 mv.mult(n.world)
 
@@ -401,7 +420,7 @@ class DeferredLightingRenderer {
                 instances.forEachIndexed { i, node ->
                     mo = node.model.clone()
                     mv = cam.view!!.clone()
-                    mv.translate(eyeShift[eye], 0.0f, 0.0f)
+                    mv.translate(settings.get<FloatArray>("vr.EyeShift").get(eye), 0.0f, 0.0f)
                     mv.mult(cam.rotation)
                     mv.mult(node.world)
 
@@ -469,13 +488,14 @@ class DeferredLightingRenderer {
             lightingPassProgram.getUniform("gAlbedoSpec").setInt(2)
             lightingPassProgram.getUniform("gDepth").setInt(3)
 
-            lightingPassProgram.getUniform("debugDeferredBuffers").setInt(debugBuffers)
-            lightingPassProgram.getUniform("ssao_filterRadius").setFloatVector(ssao_filterRadius)
-            lightingPassProgram.getUniform("ssao_distanceThreshold").setFloat(ssao_distanceThreshold)
-            lightingPassProgram.getUniform("doSSAO").setInt(doSSAO)
+            lightingPassProgram.getUniform("debugDeferredBuffers").setInt(settings.get<Boolean>("debug.DebugDeferredBuffers").toInt())
+            lightingPassProgram.getUniform("ssao_filterRadius").setFloatVector(settings.get<GLVector>("ssao.FilterRadius"))
+            lightingPassProgram.getUniform("ssao_distanceThreshold").setFloat(settings.get<Float>("ssao.DistanceThreshold"))
+            lightingPassProgram.getUniform("doSSAO").setInt(settings.get<Boolean>("ssao.Active").toInt())
 
             geometryBuffer[i].bindTexturesToUnitsWithOffset(gl, 0)
             hdrBuffer[i].setDrawBuffers(gl)
+
 
             gl.glViewport(0, 0, hdrBuffer[i].width, hdrBuffer[i].height)
 
@@ -485,35 +505,62 @@ class DeferredLightingRenderer {
             gl.glPointSize(1.5f)
             gl.glEnable(GL4.GL_PROGRAM_POINT_SIZE)
 
-            if (doHDR == 0) {
+            if (!settings.get<Boolean>("hdr.Active")) {
+                if(settings.get<Boolean>("vr.DoAnaglyph")) {
+                    if(i == 0) {
+                        gl.glColorMask(true, false, false, false)
+                    } else {
+                        gl.glColorMask(false, true, true, false)
+                    }
+                }
                 combinationBuffer[i].setDrawBuffers(gl)
+                gl.glClear(GL4.GL_COLOR_BUFFER_BIT)
                 gl.glViewport(0, 0, combinationBuffer[i].width, combinationBuffer[i].height)
 
                 renderFullscreenQuad(lightingPassProgram)
             } else {
+                gl.glClear(GL4.GL_COLOR_BUFFER_BIT or GL4.GL_DEPTH_BUFFER_BIT)
                 // render to the active, eye-dependent HDR buffer
                 renderFullscreenQuad(lightingPassProgram)
 
                 hdrBuffer[i].bindTexturesToUnitsWithOffset(gl, 0)
                 combinationBuffer[i].setDrawBuffers(gl)
-
                 gl.glViewport(0, 0, combinationBuffer[i].width, combinationBuffer[i].height)
+                gl.glClear(GL4.GL_COLOR_BUFFER_BIT or GL4.GL_DEPTH_BUFFER_BIT)
 
-                hdrPassProgram.getUniform("Gamma").setFloat(this.gamma)
-                hdrPassProgram.getUniform("Exposure").setFloat(this.exposure)
+                if(settings.get<Boolean>("vr.DoAnaglyph")) {
+                    if(i == 0) {
+                        gl.glColorMask(true, false, false, false)
+                    } else {
+                        gl.glColorMask(false, true, true, false)
+                    }
+                }
+
+                hdrPassProgram.getUniform("Gamma").setFloat(settings.get<Float>("hdr.Gamma"))
+                hdrPassProgram.getUniform("Exposure").setFloat(settings.get<Float>("hdr.Exposure"))
                 renderFullscreenQuad(hdrPassProgram)
             }
         }
 
         combinationBuffer.first().revertToDefaultFramebuffer(gl)
+        if(settings.get<Boolean>("vr.DoAnaglyph")) {
+            gl.glColorMask(true, true, true, true)
+        }
+        gl.glClear(GL4.GL_COLOR_BUFFER_BIT or GL4.GL_DEPTH_BUFFER_BIT)
         gl.glDisable(GL4.GL_SCISSOR_TEST)
         gl.glViewport(0, 0, width, height)
         gl.glScissor(0, 0, width, height)
 
-        if (vrEnabled) {
+        if (settings.get<Boolean>("vr.Active")) {
+            if(settings.get<Boolean>("vr.DoAnaglyph")) {
+                combinerProgram.getUniform("vrActive").setInt(0)
+                combinerProgram.getUniform("anaglyphActive").setInt(1)
+            } else {
+                combinerProgram.getUniform("vrActive").setInt(1)
+                combinerProgram.getUniform("anaglyphActive").setInt(0)
+            }
             combinationBuffer[0].bindTexturesToUnitsWithOffset(gl, 0)
             combinationBuffer[1].bindTexturesToUnitsWithOffset(gl, 1)
-            combinerProgram.getUniform("vrActive").setInt(1)
             combinerProgram.getUniform("leftEye").setInt(0)
             combinerProgram.getUniform("rightEye").setInt(1)
             renderFullscreenQuad(combinerProgram)
@@ -631,7 +678,20 @@ class DeferredLightingRenderer {
             type, texture ->
             if(!textures.containsKey(texture)) {
                 logger.trace("Loading texture $texture for ${node.name}")
-                val glTexture = GLTexture.loadFromFile(gl, texture, true, 1)
+                var glTexture = if(texture.startsWith("fromBuffer:")) {
+                    val gt = node.material!!.transferTextures!!.get(texture.substringAfter("fromBuffer:"))
+
+                    val t = GLTexture(gl, gt!!.type, 4,
+                            gt!!.dimensions.x().toInt(),
+                            gt!!.dimensions.y().toInt(),
+                            1,
+                            false,
+                            3)
+                    t.copyFrom(gt!!.contents)
+                    t
+                } else {
+                    GLTexture.loadFromFile(gl, texture, true, 1)
+                }
                 s.textures.put(type, glTexture)
                 textures.put(texture, glTexture)
             } else {
@@ -647,7 +707,7 @@ class DeferredLightingRenderer {
         this.width = newWidth
         this.height = newHeight
 
-        if (vrEnabled) {
+        if (settings.get<Boolean>("vr.Active")) {
             geometryBuffer.forEach {
                 it.resize(gl, newWidth / 2, newHeight / 2)
             }
