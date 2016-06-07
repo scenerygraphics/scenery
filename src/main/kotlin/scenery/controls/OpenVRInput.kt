@@ -54,7 +54,7 @@ class OpenVRInput(val seated: Boolean = true) {
             }
 
             if (vrFuncs == null || error[0] != 0) {
-                logger.error("Initialization error - ${jvr.VR_GetVRInitErrorAsEnglishDescription(error[0])}")
+                logger.error("Initialization error - ${jvr.VR_GetVRInitErrorAsEnglishDescription(error[0]).getString(0)}")
                 vrFuncs = null
                 hmdTrackedDevicePoseReference = null
                 hmdTrackedDevicePoses = null

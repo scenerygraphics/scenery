@@ -101,14 +101,16 @@ dependencies
 	compile 'org.scijava:scijava-ui-swing:0.8.1-SNAPSHOT'
 	compile 'org.scijava:scripting-javascript:0.4.4-SNAPSHOT'
 
-    compile 'scenery:openvr:0.1'
+    // for the moment, use the bundled OpenVR distribution
+    //compile 'scenery:openvr:0.1'
+    compile files('jars/openvr-0.1.jar')
     compile 'com.nativelibs4java:jnaerator-runtime:0.9.10-SNAPSHOT'
     compile 'net.java.dev.jna:jna:4.2.2'
 
 
     // JInput for controls
     compile group: 'net.java.jinput', name: 'jinput', version: '2.0.6'
-    compile group: 'net.java.jinput', name: 'jinput-platform', version: '2.0.6', ext: 'pom'
+    compile group: 'net.java.jinput', name: 'jinput-platform', version: '2.0.6'
 
     // usage: gradle .... -Plocal=true
 	if (project.hasProperty('local')) {
@@ -127,7 +129,6 @@ dependencies
 
 repositories
 {
-    mavenLocal()
 	mavenCentral()
 	maven
 	{ url "http://oss.sonatype.org/content/groups/public" }
@@ -137,6 +138,8 @@ repositories
     { url "http://dl.bintray.com/clearcontrol/ClearControl" }
     maven
     { url "http://nativelibs4java.sourceforge.net/maven" }
+
+    mavenLocal()
 }
 
 task sourcesJar(type: Jar, dependsOn:classes) {
