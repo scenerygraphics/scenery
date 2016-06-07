@@ -1,8 +1,5 @@
 language: java
 
-jdk:
-  - oraclejdk8
-
 os:
   - linux
   - osx
@@ -15,6 +12,7 @@ before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update        ; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install gradle; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then /usr/libexec/java_home -V; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then jdk_switcher use oraclejdk8; fi
 
 install:
   - cd ..
