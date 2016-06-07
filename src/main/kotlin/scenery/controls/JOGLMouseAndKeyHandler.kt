@@ -3,16 +3,31 @@ package scenery.controls
 import com.jogamp.newt.event.*
 import gnu.trove.map.hash.TIntLongHashMap
 import gnu.trove.set.hash.TIntHashSet
+import net.java.games.input.*
 import org.scijava.ui.behaviour.*
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
+import scenery.controls.behaviours.GamepadBehaviour
 import java.awt.Toolkit
+import java.io.File
+import java.nio.file.Files
 import java.util.*
+import kotlin.concurrent.thread
 
 /**
  * <Description>
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class JOGLMouseAndKeyHandler : MouseListener, KeyListener, WindowListener, WindowAdapter() {
+class JOGLMouseAndKeyHandler : MouseListener, KeyListener, WindowListener, WindowAdapter(), ControllerListener {
+    protected var logger: Logger = LoggerFactory.getLogger("JOGLMouseAndKeyHandler")
+
+    private var controller: Controller? = null
+
+    private var controllerThread: Thread? = null
+
+    private val CONTROLLER_HEARTBEAT = 10L
+
     private val DOUBLE_CLICK_INTERVAL = getDoubleClickInterval()
 
     private val OSX_META_LEFT_CLICK = InputEvent.BUTTON1_MASK or InputEvent.BUTTON3_MASK or InputEvent.META_MASK
@@ -38,6 +53,88 @@ class JOGLMouseAndKeyHandler : MouseListener, KeyListener, WindowListener, Windo
     private var inputMapExpectedModCount: Int = 0
 
     private var behaviourMapExpectedModCount: Int = 0
+
+    private var gamepadState: Event? = null
+
+    private fun getNativeJars(searchName: String): List<String> {
+        val classpath = System.getProperty("java.class.path")
+
+        return classpath.split(File.pathSeparator).filter { it.contains(searchName) }
+    }
+
+    private fun extractLibrariesFromJar(paths: List<String>, replace: Boolean = false) {
+        val lp = System.getProperty("java.library.path")
+        val tmpDir = Files.createTempDirectory("scenery-natives-tmp").toFile()
+
+        paths.forEach {
+            val jar = java.util.jar.JarFile(it);
+            val enumEntries = jar.entries();
+
+            while (enumEntries.hasMoreElements()) {
+                val file = enumEntries.nextElement()
+                val f = java.io.File(tmpDir.absolutePath + java.io.File.separator + file.getName());
+
+                if (file.isDirectory()) { // if its a directory, create it
+                    f.mkdir();
+                    continue;
+                }
+
+                val ins = jar.getInputStream(file); // get the input stream
+                val fos = java.io.FileOutputStream(f);
+                while (ins.available() > 0) {  // write contents of 'is' to 'fos'
+                    fos.write(ins.read())
+                }
+
+                fos.close();
+                ins.close();
+            }
+        }
+
+        if(replace) {
+            System.setProperty("java.library.path", paths.joinToString(File.pathSeparator))
+        } else {
+            val newPath = "${lp}${File.pathSeparator}${tmpDir.absolutePath}"
+            logger.debug("New java.library.path is $newPath")
+            System.setProperty("java.library.path", newPath)
+        }
+
+        val fieldSysPath = ClassLoader::class.java.getDeclaredField( "sys_paths" );
+        fieldSysPath.setAccessible( true );
+        fieldSysPath.set( null, null );
+
+        logger.debug("java.library.path is now ${System.getProperty("java.library.path")}")
+    }
+
+    init {
+
+        logger.debug("Native JARs for JInput: ${getNativeJars("jinput-platform").joinToString(", ")}")
+        extractLibrariesFromJar(getNativeJars("jinput-platform"))
+
+        ControllerEnvironment.getDefaultEnvironment().controllers.forEach {
+            if(it.type == Controller.Type.STICK || it.type == Controller.Type.GAMEPAD) {
+                this.controller = it
+                logger.info("Added gamepad controller: $it")
+            }
+        }
+
+        controllerThread = thread {
+            while(true) {
+                controller?.let {
+                    controller!!.poll()
+
+                    val event_queue = controller!!.eventQueue
+                    val event = Event()
+
+                    while (event_queue.getNextEvent(event)) {
+                        gamepadState = event
+                        controllerEvent(event)
+                    }
+                }
+
+                Thread.sleep(this.CONTROLLER_HEARTBEAT)
+            }
+        }
+    }
 
     fun setInputMap(inputMap: InputTriggerMap) {
         this.inputMap = inputMap
@@ -71,6 +168,8 @@ class JOGLMouseAndKeyHandler : MouseListener, KeyListener, WindowListener, Windo
 
     private val scrolls = ArrayList<BehaviourEntry<ScrollBehaviour>>()
 
+    private val gamepads = ArrayList<BehaviourEntry<GamepadBehaviour>>()
+
     /**
      * Make sure that the internal behaviour lists are up to date. For this, we
      * keep track the modification count of [.inputMap] and
@@ -80,6 +179,7 @@ class JOGLMouseAndKeyHandler : MouseListener, KeyListener, WindowListener, Windo
     @Synchronized private fun update() {
         val imc = inputMap!!.modCount()
         val bmc = behaviourMap!!.modCount()
+
         if (imc != inputMapExpectedModCount || bmc != behaviourMapExpectedModCount) {
             inputMapExpectedModCount = imc
             behaviourMapExpectedModCount = bmc
@@ -121,10 +221,12 @@ class JOGLMouseAndKeyHandler : MouseListener, KeyListener, WindowListener, Windo
                 } else if (behaviour is ScrollBehaviour) {
                     val scrollEntry = BehaviourEntry<ScrollBehaviour>(buttons, behaviour)
                     scrolls.add(scrollEntry)
+                } else if (behaviour is GamepadBehaviour) {
+                    val gamepadEntry = BehaviourEntry<GamepadBehaviour>(buttons, behaviour)
+                    gamepads.add(gamepadEntry)
                 }
             }
         }
-
     }
 
 
@@ -438,5 +540,30 @@ class JOGLMouseAndKeyHandler : MouseListener, KeyListener, WindowListener, Windo
         shiftPressed = false
         metaPressed = false
         winPressed = false
+    }
+
+    override fun controllerAdded(event: ControllerEvent?) {
+        if(controller == null && event != null && event.controller.type == Controller.Type.GAMEPAD) {
+            logger.info("Adding controller ${event.controller}")
+            this.controller = event.controller
+        }
+    }
+
+    override fun controllerRemoved(event: ControllerEvent?) {
+        if(event != null && controller != null) {
+            logger.info("Controller removed: ${event.controller}")
+
+            controller = null
+        }
+    }
+
+    fun controllerEvent(event: Event) {
+        logger.debug("CE: ${event.component.identifier}=${event.value}")
+
+        for(gamepad in gamepads) {
+            if(gamepad.behaviour.axis.contains(event.component.identifier)) {
+                gamepad.behaviour.axisEvent(event.component.identifier, event.value)
+            }
+        }
     }
 }

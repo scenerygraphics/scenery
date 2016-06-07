@@ -111,6 +111,7 @@ dependencies
     // JInput for controls
     compile group: 'net.java.jinput', name: 'jinput', version: '2.0.6'
     compile group: 'net.java.jinput', name: 'jinput-platform', version: '2.0.6'
+    compile group: 'net.java.jutils', name: 'jutils', version: '1.0.0'
 
     // usage: gradle .... -Plocal=true
 	if (project.hasProperty('local')) {
