@@ -105,6 +105,11 @@ dependencies
     compile 'com.nativelibs4java:jnaerator-runtime:0.9.10-SNAPSHOT'
     compile 'net.java.dev.jna:jna:4.2.2'
 
+
+    // JInput for controls
+    compile group: 'net.java.jinput', name: 'jinput', version: '2.0.6'
+    compile group: 'net.java.jinput', name: 'jinput-platform', version: '2.0.6', ext: 'pom'
+
     // usage: gradle .... -Plocal=true
 	if (project.hasProperty('local')) {
 		println 'Using local clearX sources'

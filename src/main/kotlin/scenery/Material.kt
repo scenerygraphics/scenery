@@ -13,8 +13,12 @@ open class Material {
     var ambient: GLVector = GLVector(0.5f, 0.5f, 0.5f)
 
     var opacity = 1.0f
+    var transparent: Boolean = false
     var textures: HashMap<String, String> = HashMap()
+    var transferTextures: HashMap<String, GenericTexture> = HashMap()
     var doubleSided: Boolean = false
+
+    var needsTextureReload: Boolean = false
 
     companion object Factory {
        fun DefaultMaterial() {

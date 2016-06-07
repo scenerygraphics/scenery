@@ -22,7 +22,7 @@ import java.util.*
      */
 
 
-class DeferredLightingRenderer {
+open class DeferredLightingRenderer {
     protected var logger: Logger = LoggerFactory.getLogger("DeferredLightingRenderer")
     protected var gl: GL4
     protected var width: Int
@@ -64,7 +64,7 @@ class DeferredLightingRenderer {
         val extensions = (0..numExtensionsBuffer[0]-1).map { gl.glGetStringi(GL4.GL_EXTENSIONS, it) }
         logger.info("Supported extensions:\n${extensions.joinToString("\n\t")}")
 
-        settings.set("ssao.FilterRadius", GLVector(10.0f/width, 10.0f/height))
+        settings.set("ssao.FilterRadius", GLVector(5.0f/width, 5.0f/height))
 
         if(settings.get("vr.Active")) {
             eyes = (0..1)
@@ -129,7 +129,7 @@ class DeferredLightingRenderer {
 
         ds.set("ssao.Active", true)
         ds.set("ssao.FilterRadius", GLVector(0.0f, 0.0f))
-        ds.set("ssao.DistanceThreshold", 5.0f)
+        ds.set("ssao.DistanceThreshold", 50.0f)
         ds.set("ssao.Algorithm", 1)
 
         ds.set("vr.Active", false)
@@ -153,7 +153,7 @@ class DeferredLightingRenderer {
             "normal" -> 3
             "displacement" -> 4
             else -> {
-                System.err.println("Unknown texture type $type"); 10
+                logger.warn("Unknown texture type $type"); 10
             }
         }
     }
@@ -247,6 +247,13 @@ class DeferredLightingRenderer {
 
             if(n.material!!.doubleSided) {
                 gl.glDisable(GL.GL_CULL_FACE)
+            }
+
+            if(n.material!!.transparent) {
+                gl.glEnable(GL.GL_BLEND)
+                gl.glBlendFunc(GL.GL_SRC_COLOR, GL.GL_ONE_MINUS_SRC_ALPHA)
+            } else {
+                gl.glDisable(GL.GL_BLEND);
             }
         } else {
             program.getUniform("Material.Ka").setFloatVector3(n.position.toFloatBuffer());
@@ -350,6 +357,12 @@ class DeferredLightingRenderer {
             val s = getOpenGLObjectStateFromNode(n)
             n.updateWorld(true, false)
 
+            if(n.material != null) {
+                if(n.material?.needsTextureReload!!) {
+                    loadTexturesForNode(n, s)
+                }
+            }
+
             if (n is Skybox) {
                 gl.glCullFace(GL.GL_FRONT)
                 gl.glDepthFunc(GL.GL_LEQUAL)
@@ -370,6 +383,7 @@ class DeferredLightingRenderer {
                     program.getUniform("ModelViewMatrix")!!.setFloatMatrix(mv, false)
                     program.getUniform("ProjectionMatrix")!!.setFloatMatrix(cam.projection, false)
                     program.getUniform("MVP")!!.setFloatMatrix(mvp, false)
+                    program.getUniform("isBillboard")!!.setInt(n.isBillboard.toInt())
 
                     setMaterialUniformsForNode(n, gl, s, program)
                 }
@@ -590,18 +604,18 @@ class DeferredLightingRenderer {
     fun initializeNode(node: Node): Boolean {
         var s: OpenGLObjectState
 
-        if(node.instanceOf == null) {
+        if (node.instanceOf == null) {
             s = node.metadata["DeferredLightingRenderer"] as OpenGLObjectState
         } else {
             s = node.instanceOf!!.metadata["DeferredLightingRenderer"] as OpenGLObjectState
             node.metadata["DeferredLightingRenderer"] = s
 
-            if(!s.initialized) {
+            if (!s.initialized) {
                 logger.trace("Instance not yet initialized, doing now...")
                 initializeNode(node.instanceOf!!)
             }
 
-            if(!s.additionalBufferIds.containsKey("Model") || !s.additionalBufferIds.containsKey("ModelView") || !s.additionalBufferIds.containsKey("MVP")) {
+            if (!s.additionalBufferIds.containsKey("Model") || !s.additionalBufferIds.containsKey("ModelView") || !s.additionalBufferIds.containsKey("MVP")) {
                 logger.trace("${node.name} triggered instance buffer creation")
                 createInstanceBuffer(node.instanceOf!!)
                 logger.trace("---")
@@ -609,7 +623,7 @@ class DeferredLightingRenderer {
             return true
         }
 
-        if(s.initialized) {
+        if (s.initialized) {
             return true
         }
 
@@ -621,7 +635,7 @@ class DeferredLightingRenderer {
         gl.glGenBuffers(1, s.mIndexBuffer, 0)
 
         if (node.material == null || node.material !is OpenGLMaterial || (node.material as OpenGLMaterial).program == null) {
-            if(node.useClassDerivedShader) {
+            if (node.useClassDerivedShader) {
                 val javaClass = node.javaClass.simpleName
                 val className = javaClass.substring(javaClass.indexOf(".") + 1)
 
@@ -633,12 +647,11 @@ class DeferredLightingRenderer {
 
                 s.program = GLProgram.buildProgram(gl, DeferredLightingRenderer::class.java,
                         shaders.toTypedArray())
-            }
-            else if(node.metadata.filter { it.value is OpenGLShaderPreference }.isNotEmpty()) {
+            } else if (node.metadata.filter { it.value is OpenGLShaderPreference }.isNotEmpty()) {
 //                val prefs = node.metadata.first { it is OpenGLShaderPreference } as OpenGLShaderPreference
                 val prefs = node.metadata["ShaderPreference"] as OpenGLShaderPreference
 
-                if(prefs.parameters.size > 0) {
+                if (prefs.parameters.size > 0) {
                     s.program = GLProgram.buildProgram(gl, node.javaClass,
                             prefs.shaders.toTypedArray(), prefs.parameters)
                 } else {
@@ -651,9 +664,7 @@ class DeferredLightingRenderer {
                     }
 
                 }
-            }
-            else
-            {
+            } else {
                 s.program = GLProgram.buildProgram(gl, DeferredLightingRenderer::class.java,
                         arrayOf("shaders/DefaultDeferred.vert", "shaders/DefaultDeferred.frag"))
             }
@@ -661,7 +672,7 @@ class DeferredLightingRenderer {
             s.program = (node.material as OpenGLMaterial).program
         }
 
-        if(node is HasGeometry) {
+        if (node is HasGeometry) {
             setVerticesAndCreateBufferForNode(node)
             setNormalsAndCreateBufferForNode(node)
 
@@ -674,9 +685,15 @@ class DeferredLightingRenderer {
             }
         }
 
+        loadTexturesForNode(node, s);
+        s.initialized = true
+        return true
+    }
+
+    protected fun loadTexturesForNode(node: Node, s: OpenGLObjectState): Boolean {
         node.material?.textures?.forEach {
             type, texture ->
-            if(!textures.containsKey(texture)) {
+            if(!textures.containsKey(texture) || node.material?.needsTextureReload!!) {
                 logger.trace("Loading texture $texture for ${node.name}")
                 var glTexture = if(texture.startsWith("fromBuffer:")) {
                     val gt = node.material!!.transferTextures!!.get(texture.substringAfter("fromBuffer:"))
@@ -685,9 +702,12 @@ class DeferredLightingRenderer {
                             gt!!.dimensions.x().toInt(),
                             gt!!.dimensions.y().toInt(),
                             1,
-                            false,
-                            3)
+                            true,
+                            1)
+                    t.setClamp(!gt.repeatS, !gt.repeatT);
                     t.copyFrom(gt!!.contents)
+                    t.updateMipMaps()
+
                     t
                 } else {
                     GLTexture.loadFromFile(gl, texture, true, 1)

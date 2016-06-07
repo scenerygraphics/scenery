@@ -18,6 +18,9 @@ open class Settings {
     }
 
     fun <T> getProperty(name: String, type: Class<T>): T{
+        if(!settingsStore.containsKey(name)) {
+            System.err.println("WARNING: Settings don't contain '$name'")
+        }
         return settingsStore.get(name) as T
     }
 

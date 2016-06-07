@@ -53,4 +53,8 @@ open class Scene : Node("RootNode") {
 
         return matches.first()
     }
+
+    fun findByClassname(className: String): ArrayList<Node> {
+        return this.discover(this, { n -> n.javaClass.simpleName.contains(className) })
+    }
 }
