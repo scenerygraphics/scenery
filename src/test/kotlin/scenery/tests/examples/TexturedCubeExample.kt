@@ -3,13 +3,10 @@ package scenery.tests.examples
 import cleargl.*
 import com.jogamp.opengl.GLAutoDrawable
 import org.junit.Test
-import org.scijava.Context
-import org.scijava.`object`.ObjectService
-import org.scijava.ui.swing.script.InterpreterWindow
 import scenery.*
 import scenery.controls.ClearGLInputHandler
 import scenery.rendermodules.opengl.DeferredLightingRenderer
-import java.util.*
+import scenery.repl.REPL
 import kotlin.concurrent.thread
 
 /**
@@ -19,9 +16,9 @@ import kotlin.concurrent.thread
  */
 class TexturedCubeExample {
     private val scene: Scene = Scene()
+    private val repl: REPL = REPL()
     private var frameNum = 0
     private var deferredRenderer: DeferredLightingRenderer? = null
-    private var interpreter: InterpreterWindow? = null
 
     @Test fun demo() {
         val lClearGLWindowEventListener = object : ClearGLDefaultEventListener() {
@@ -61,7 +58,6 @@ class TexturedCubeExample {
                         .setPerspectiveProjectionMatrix(
                                 70.0f / 180.0f * Math.PI.toFloat(),
                                 1024f / 1024f, 0.1f, 1000.0f)
-                        .invert()
                 cam.active = true
 
                 scene.addChild(cam)
@@ -75,18 +71,11 @@ class TexturedCubeExample {
                     }
                 }
 
-                val context: Context = Context()
-                context.getService(ObjectService::class.java).addObject(scene)
-                context.getService(ObjectService::class.java).addObject(deferredRenderer)
-
-                interpreter = InterpreterWindow(context)
-                interpreter?.isVisible = true
-
-
                 deferredRenderer?.initializeScene(scene)
 
-                val startup = Scanner(DeferredLightingRenderer::class.java.getResourceAsStream("startup.js"), "UTF-8").useDelimiter("\\A").next()
-                interpreter?.repl?.interpreter?.eval(startup)
+                repl.addAccessibleObject(scene)
+                repl.addAccessibleObject(deferredRenderer!!)
+                repl.showConsoleWindow()
             }
 
             override fun display(pDrawable: GLAutoDrawable) {
