@@ -5,14 +5,21 @@ os:
   - osx
 
 matrix:
+  include:
+    - os: linux
+      jdk: oraclejdk8
+      sudo: false
+    - os: osx
+      osx_image: xcode7.3
+
   allow_failures:
     - os: osx
+      osx_image: xcode7.3
 
 before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update        ; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install gradle; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then /usr/libexec/java_home -V; fi
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then jdk_switcher use oraclejdk8; fi
 
 install:
   - cd ..
