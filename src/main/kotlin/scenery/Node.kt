@@ -26,34 +26,34 @@ open class Node(open var name: String) : Renderable {
 
     override var world: GLMatrix = GLMatrix.getIdentity()
         set(m) {
-            this.iworld = m.invert()
+            this.iworld = m.getInverse()
             field = m
         }
     override var iworld: GLMatrix = GLMatrix.getIdentity()
     override var model: GLMatrix = GLMatrix.getIdentity()
         set(m) {
-            this.imodel = m.invert()
+            this.imodel = m.getInverse()
             field = m
         }
     override var imodel: GLMatrix = GLMatrix.getIdentity()
 
     override var view: GLMatrix? = null
         set(m) {
-            this.iview = m?.invert()
+            this.iview = m?.getInverse()
             field = m
         }
     override var iview: GLMatrix? = null
 
     override var projection: GLMatrix? = null
         set(m) {
-            this.iprojection = m?.invert()
+            this.iprojection = m?.getInverse()
             field = m
         }
     override var iprojection: GLMatrix? = null
 
     override var modelView: GLMatrix? = null
         set(m) {
-            this.imodelView = m?.invert()
+            this.imodelView = m?.getInverse()
             field = m
         }
     override var imodelView: GLMatrix? = null
@@ -82,6 +82,8 @@ open class Node(open var name: String) : Renderable {
     var children: ArrayList<Node>
     var linkedNodes: ArrayList<Node>
     var parent: Node? = null
+
+    override var isBillboard: Boolean = false
 
     // metadata
     var createdAt: Long = 0

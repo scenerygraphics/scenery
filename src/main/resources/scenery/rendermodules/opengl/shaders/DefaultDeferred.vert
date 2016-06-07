@@ -22,15 +22,33 @@ uniform mat4 ProjectionMatrix;
 uniform mat4 MVP;
 uniform vec3 CamPosition;
 
+uniform int isBillboard = 0;
+
 void main()
 {
+    mat4 mv = ModelViewMatrix;
+    if(isBillboard > 0) {
+        mv[0][0] = 1.0f;
+        mv[0][1] = .0f;
+        mv[0][2] = .0f;
+
+        mv[1][0] = .0f;
+        mv[1][1] = 1.0f;
+        mv[1][2] = .0f;
+
+        mv[2][0] = .0f;
+        mv[2][1] = .0f;
+        mv[2][2] = 1.0f;
+    }
     VertexOut.Normal = transpose(inverse(mat3(ModelMatrix)))*vertexNormal;
-    VertexOut.Position = vec3( ModelViewMatrix * vec4(vertexPosition, 1.0));
+    VertexOut.Position = vec3( mv * vec4(vertexPosition, 1.0));
     VertexOut.TexCoord = vertexTexCoord;
     VertexOut.FragPosition = vec3(ModelMatrix * vec4(vertexPosition, 1.0));
     VertexOut.Color = vec4(0.0f, 0.0f, 0.0f, 0.0f);
 
-    gl_Position = MVP * vec4(vertexPosition, 1.0);
+    mat4 nMVP = ProjectionMatrix*mv;
+
+    gl_Position = nMVP * vec4(vertexPosition, 1.0);
 }
 
 

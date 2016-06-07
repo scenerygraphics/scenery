@@ -26,6 +26,7 @@ interface Renderable {
     var initialized: Boolean
     var dirty: Boolean
     var visible: Boolean
+    var isBillboard: Boolean
 
     var material: Material?
 

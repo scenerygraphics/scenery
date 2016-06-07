@@ -17,56 +17,96 @@ import java.util.*
  * @author Ulrik Günther <hello@ulrik.is>
  */
 
-class DeferredLightingRenderer {
+/*
+        the first texture units are reserved for the geometry buffer
+     */
+
+
+open class DeferredLightingRenderer {
     protected var logger: Logger = LoggerFactory.getLogger("DeferredLightingRenderer")
     protected var gl: GL4
     protected var width: Int
     protected var height: Int
-    protected var geometryBuffer: GLFramebuffer
-    protected var hdrBuffer: GLFramebuffer
+    protected var geometryBuffer: ArrayList<GLFramebuffer>
+    protected var hdrBuffer: ArrayList<GLFramebuffer>
+    protected var combinationBuffer: ArrayList<GLFramebuffer>
     protected var lightingPassProgram: GLProgram
     protected var hdrPassProgram: GLProgram
+    protected var combinerProgram: GLProgram
+
+    var settings: Settings = Settings()
 
     protected var textures = HashMap<String, GLTexture>()
 
-    protected var debugBuffers = 0;
-    protected var doSSAO = 1;
-    protected var doHDR = 1;
-
-    var exposure = 0.02f;
-    var gamma = 2.2f;
-    var ssao_filterRadius = GLVector(0.0f, 0.0f);
-    var ssao_distanceThreshold = 5.0f;
-
-    var vrEnabled = true
     var eyes = (0..0)
+
+    fun Boolean.toInt(): Int {
+        if(this) {
+            return 1
+        } else {
+            return 0
+        }
+    }
 
     constructor(gl: GL4, width: Int, height: Int) {
         this.gl = gl
         this.width = width
         this.height = height
 
-        ssao_filterRadius = GLVector(10.0f/width, 10.0f/height)
+        this.settings = this.getDefaultRendererSettings()
 
-        if(vrEnabled) {
+        gl.swapInterval = 0
+
+        logger.info("DeferredLightingRenderer: $width x $height on ${gl.glGetString(GL.GL_RENDERER)}, ${gl.glGetString(GL.GL_VERSION)}")
+
+        val numExtensionsBuffer = IntBuffer.allocate(1)
+        gl.glGetIntegerv(GL4.GL_NUM_EXTENSIONS, numExtensionsBuffer)
+        val extensions = (0..numExtensionsBuffer[0]-1).map { gl.glGetStringi(GL4.GL_EXTENSIONS, it) }
+        logger.info("Supported extensions:\n${extensions.joinToString("\n\t")}")
+
+        settings.set("ssao.FilterRadius", GLVector(5.0f/width, 5.0f/height))
+
+        if(settings.get("vr.Active")) {
             eyes = (0..1)
+            settings.set("vr.EyeShift", floatArrayOf(-0.5f, 0.5f))
         }
 
-        // create 32bit position buffer, 16bit normal buffer, 8bit diffuse buffer and 24bit depth buffer
-        geometryBuffer = GLFramebuffer(this.gl, this.width, this.height)
-        geometryBuffer.addFloatRGBBuffer(this.gl, 32)
-        geometryBuffer.addFloatRGBBuffer(this.gl, 16)
-        geometryBuffer.addUnsignedByteRGBABuffer(this.gl, 8)
-        geometryBuffer.addDepthBuffer(this.gl, 24, 1)
-//        geometryBuffer.addFloatRGBBuffer(this.gl, 16)
+        geometryBuffer = ArrayList<GLFramebuffer>()
+        hdrBuffer = ArrayList<GLFramebuffer>()
+        combinationBuffer = ArrayList<GLFramebuffer>()
 
-        geometryBuffer.checkAndSetDrawBuffers(this.gl)
-        logger.info(geometryBuffer.toString())
+        eyes.forEach {
+            // create 32bit position buffer, 16bit normal buffer, 8bit diffuse buffer and 24bit depth buffer
+            val vrWidthDivisor = if(settings.get("vr.DoAnaglyph")) 1 else 2
+            val actualWidth = if (settings.get("vr.Active")) this.width / vrWidthDivisor else this.width
+            val actualHeight = if (settings.get("vr.Active")) this.height else this.height
 
-        // create HDR buffer
-        hdrBuffer = GLFramebuffer(this.gl, this.width, this.height)
-        hdrBuffer.addFloatRGBBuffer(this.gl, 32)
-        hdrBuffer.addFloatRGBBuffer(this.gl, 32)
+            val gb = GLFramebuffer(this.gl, actualWidth, actualHeight)
+            gb.addFloatRGBBuffer(this.gl, 32)
+            gb.addFloatRGBBuffer(this.gl, 16)
+            gb.addUnsignedByteRGBABuffer(this.gl, 8)
+            gb.addDepthBuffer(this.gl, 24, 1)
+            gb.checkDrawBuffers(this.gl)
+
+            geometryBuffer.add(gb)
+
+
+            // HDR buffers
+            val hdrB = GLFramebuffer(this.gl, actualWidth, actualHeight)
+            hdrB.addFloatRGBBuffer(this.gl, 32)
+            hdrB.addFloatRGBBuffer(this.gl, 32)
+            hdrB.checkDrawBuffers(this.gl)
+
+            hdrBuffer.add(hdrB)
+
+            val cb = GLFramebuffer(this.gl, actualWidth, actualHeight)
+            cb.addUnsignedByteRGBABuffer(this.gl, 8)
+            cb.checkDrawBuffers(this.gl)
+
+            combinationBuffer.add(cb)
+        }
+
+        logger.info(geometryBuffer.map { it.toString() }.joinToString("\n"))
 
         lightingPassProgram = GLProgram.buildProgram(gl, DeferredLightingRenderer::class.java,
                 arrayOf("shaders/Dummy.vert", "shaders/FullscreenQuadGenerator.geom", "shaders/DeferredLighting.frag"))
@@ -74,7 +114,48 @@ class DeferredLightingRenderer {
         hdrPassProgram = GLProgram.buildProgram(gl, DeferredLightingRenderer::class.java,
                 arrayOf("shaders/Dummy.vert", "shaders/FullscreenQuadGenerator.geom", "shaders/HDR.frag"))
 
+        combinerProgram = GLProgram.buildProgram(gl, DeferredLightingRenderer::class.java,
+                arrayOf("shaders/Dummy.vert", "shaders/FullscreenQuadGenerator.geom", "shaders/Combiner.frag"))
+
         gl.glViewport(0, 0, this.width, this.height)
+        gl.glClearColor(0.0f, 0.0f, 0.0f, 0.0f)
+    }
+
+    protected fun getDefaultRendererSettings(): Settings {
+        val ds = Settings()
+
+        ds.set("wantsFullscreen", false)
+        ds.set("isFullscreen", false)
+
+        ds.set("ssao.Active", true)
+        ds.set("ssao.FilterRadius", GLVector(0.0f, 0.0f))
+        ds.set("ssao.DistanceThreshold", 50.0f)
+        ds.set("ssao.Algorithm", 1)
+
+        ds.set("vr.Active", false)
+        ds.set("vr.DoAnaglyph", false)
+        ds.set("vr.EyeShift", floatArrayOf(-0.5f, 0.5f))
+
+        ds.set("hdr.Active", true)
+        ds.set("hdr.Exposure", 1.0f)
+        ds.set("hdr.Gamma", 2.2f)
+
+        ds.set("debug.DebugDeferredBuffers", false)
+
+        return ds
+    }
+
+    fun GLFramebuffer.textureTypeToUnit(type: String): Int {
+        return this.boundBufferNum + when (type) {
+            "ambient" -> 0
+            "diffuse" -> 1
+            "specular" -> 2
+            "normal" -> 3
+            "displacement" -> 4
+            else -> {
+                logger.warn("Unknown texture type $type"); 10
+            }
+        }
     }
 
     protected fun GeometryType.toOpenGLType(): Int {
@@ -90,50 +171,54 @@ class DeferredLightingRenderer {
 
 
     fun toggleDebug() {
-        if(debugBuffers == 0) {
-            debugBuffers = 1;
+        if(settings.get<Boolean>("debug.DebugDeferredBuffers") == false) {
+            settings.set("debug.DebugDeferredBuffers", true);
         } else {
-            debugBuffers = 0;
+            settings.set("debug.DebugDeferredBuffers", false);
         }
     }
 
     fun toggleSSAO() {
-        if(doSSAO == 0) {
-            logger.info("SSAO is now on")
-            doSSAO = 1;
+        if(settings.get<Boolean>("ssao.Active") == false) {
+            settings.set("ssao.Active", true);
         } else {
-            logger.info("SSAO is now off")
-            doSSAO = 0;
+            settings.set("ssao.Active", false);
         }
     }
 
     fun toggleHDR() {
-        if(doHDR == 0) {
-            logger.info("HDR is now on")
-            doHDR = 1;
+        if(settings.get<Boolean>("hdr.Active") == false) {
+            settings.set("hdr.Active", true);
         } else {
-            logger.info("HDR is now on")
-            doHDR = 0
+            settings.set("hdr.Active", false);
         }
     }
 
     fun increaseExposure() {
-        exposure += 0.05f
+        val exp: Float = settings.get<Float>("hdr.Exposure")
+        settings.set("hdr.Exposure", exp + 0.05f)
     }
 
     fun decreaseExposure() {
-        if(exposure - 0.05f > 0.0f) {
-            exposure -= 0.05f
-        }
+        val exp: Float = settings.get<Float>("hdr.Exposure")
+        settings.set("hdr.Exposure", exp - 0.05f)
     }
 
     fun increaseGamma() {
-        gamma += 0.05f
+        val gamma: Float = settings.get<Float>("hdr.Gamma")
+        settings.set("hdr.Gamma", gamma + 0.05f)
     }
 
     fun decreaseGamma() {
-        if(gamma - 0.05f > 0.0f) {
-            gamma -= 0.05f
+        val gamma: Float = settings.get<Float>("hdr.Gamma")
+        if(gamma - 0.05f >= 0) settings.set("hdr.Gamma", gamma - 0.05f)
+    }
+
+    fun toggleFullscreen() {
+        if(!settings.get<Boolean>("wantsFullscreen")) {
+            settings.set("wantsFullscreen", true)
+        } else {
+            settings.set("wantsFullscreen", false)
         }
     }
 
@@ -151,20 +236,6 @@ class DeferredLightingRenderer {
         logger.info("Initialized ${textures.size} textures")
     }
 
-    /*
-        the first texture units are reserved for the geometry buffer
-     */
-    protected fun textureTypeToUnit(type: String): Int {
-        return geometryBuffer.boundBufferNum + when(type) {
-            "ambient"       -> 0
-            "diffuse"       -> 1
-            "specular"      -> 2
-            "normal"        -> 3
-            "displacement"  -> 4
-            else -> { logger.warn("Unknown texture type $type"); 10 }
-        }
-    }
-
     protected fun setMaterialUniformsForNode(n: Node, gl: GL4, s: OpenGLObjectState, program: GLProgram) {
         program.use(gl)
         program.getUniform("Material.Shininess").setFloat(0.001f);
@@ -177,6 +248,13 @@ class DeferredLightingRenderer {
             if(n.material!!.doubleSided) {
                 gl.glDisable(GL.GL_CULL_FACE)
             }
+
+            if(n.material!!.transparent) {
+                gl.glEnable(GL.GL_BLEND)
+                gl.glBlendFunc(GL.GL_SRC_COLOR, GL.GL_ONE_MINUS_SRC_ALPHA)
+            } else {
+                gl.glDisable(GL.GL_BLEND);
+            }
         } else {
             program.getUniform("Material.Ka").setFloatVector3(n.position.toFloatBuffer());
             program.getUniform("Material.Kd").setFloatVector3(n.position.toFloatBuffer());
@@ -184,12 +262,12 @@ class DeferredLightingRenderer {
         }
 
         s.textures.forEach { type, glTexture ->
-            val samplerIndex = textureTypeToUnit(type)
+            val samplerIndex = geometryBuffer.first().textureTypeToUnit(type)
 
             if(glTexture != null) {
                 gl.glActiveTexture(GL.GL_TEXTURE0 + samplerIndex)
                 gl.glBindTexture(GL.GL_TEXTURE_2D, glTexture.id)
-                program.getUniform("ObjectTextures[" + (samplerIndex-geometryBuffer.boundBufferNum) + "]").setInt(samplerIndex)
+                program.getUniform("ObjectTextures[" + (samplerIndex - geometryBuffer.first().boundBufferNum) + "]").setInt(samplerIndex)
             }
         }
 
@@ -217,27 +295,19 @@ class DeferredLightingRenderer {
                 if (n.indices.size > 0) {
                     updateIndices(n)
                 }
+
+                n.dirty = false
             }
         }
     }
 
     fun render(scene: Scene) {
-        geometryBuffer.checkAndSetDrawBuffers(gl)
 
         val renderOrderList = ArrayList<Node>()
         val cam: Camera = scene.findObserver()
         var mv: GLMatrix
         var mvp: GLMatrix
         var proj: GLMatrix
-
-        gl.glEnable(GL.GL_DEPTH_TEST)
-        gl.glClear(GL.GL_COLOR_BUFFER_BIT or GL.GL_DEPTH_BUFFER_BIT)
-
-        gl.glEnable(GL.GL_CULL_FACE)
-        gl.glFrontFace(GL.GL_CCW)
-        gl.glCullFace(GL.GL_BACK)
-
-        gl.glDepthFunc(GL.GL_LEQUAL)
 
         scene.discover(scene, { n -> n is Renderable && n is HasGeometry && n.visible }).forEach {
             renderOrderList.add(it)
@@ -250,8 +320,8 @@ class DeferredLightingRenderer {
 //        }
 
         cam.view?.setCamera(cam.position, cam.position + cam.forward, cam.up)
-        cam.projection = GLMatrix().setPerspectiveProjectionMatrix(70.0f / 180.0f * Math.PI.toFloat(),
-                (1.0f * width) / (1.0f * height), 0.1f, 1000f)
+//        cam.projection = GLMatrix().setPerspectiveProjectionMatrix(70.0f / 180.0f * Math.PI.toFloat(),
+//                (1.0f * width) / (1.0f * height), 0.1f, 100000f)
 
         val instanceGroups = renderOrderList.groupBy { it.instanceOf }
 
@@ -259,6 +329,20 @@ class DeferredLightingRenderer {
 //            key ->
 //            "  <${key?.name}> " + instanceGroups.get(key)!!.map { it.name }.joinToString(", ") + "\n"
 //        }.joinToString("")}")
+
+        gl.glDisable(GL.GL_SCISSOR_TEST)
+        gl.glEnable(GL.GL_DEPTH_TEST)
+        gl.glViewport(0, 0, geometryBuffer.first().width, geometryBuffer.first().height)
+
+        eyes.forEachIndexed { i, eye ->
+            geometryBuffer[i].setDrawBuffers(gl)
+            gl.glClear(GL.GL_COLOR_BUFFER_BIT or GL.GL_DEPTH_BUFFER_BIT)
+        }
+
+        gl.glEnable(GL.GL_CULL_FACE)
+        gl.glFrontFace(GL.GL_CCW)
+        gl.glCullFace(GL.GL_BACK)
+        gl.glDepthFunc(GL.GL_LEQUAL)
 
         instanceGroups[null]?.forEach nonInstancedDrawing@ { n ->
             if(n in instanceGroups.keys) {
@@ -273,21 +357,10 @@ class DeferredLightingRenderer {
             val s = getOpenGLObjectStateFromNode(n)
             n.updateWorld(true, false)
 
-            mv = cam.view!!.clone().mult(cam.rotation)
-            mv.mult(n.world)
-
-            proj = cam.projection!!.clone()
-            mvp = proj.clone()
-            mvp.mult(mv)
-
-            s.program?.let { program ->
-                program.use(gl)
-                program.getUniform("ModelMatrix")!!.setFloatMatrix(n.model, false);
-                program.getUniform("ModelViewMatrix")!!.setFloatMatrix(mv, false)
-                program.getUniform("ProjectionMatrix")!!.setFloatMatrix(cam.projection, false)
-                program.getUniform("MVP")!!.setFloatMatrix(mvp, false)
-
-                setMaterialUniformsForNode(n, gl, s, program)
+            if(n.material != null) {
+                if(n.material?.needsTextureReload!!) {
+                    loadTexturesForNode(n, s)
+                }
             }
 
             if (n is Skybox) {
@@ -295,8 +368,30 @@ class DeferredLightingRenderer {
                 gl.glDepthFunc(GL.GL_LEQUAL)
             }
 
-            preDrawAndUpdateGeometryForNode(n)
-            drawNode(n)
+            eyes.forEachIndexed { i, eye ->
+                mv = cam.view!!.clone()
+                mv.translate(settings.get<FloatArray>("vr.EyeShift").get(i), 0.0f, 0.0f)
+                mv.mult(cam.rotation)
+                mv.mult(n.world)
+
+                mvp = cam.projection!!.clone()
+                mvp.mult(mv)
+
+                s.program?.let { program ->
+                    program.use(gl)
+                    program.getUniform("ModelMatrix")!!.setFloatMatrix(n.model, false);
+                    program.getUniform("ModelViewMatrix")!!.setFloatMatrix(mv, false)
+                    program.getUniform("ProjectionMatrix")!!.setFloatMatrix(cam.projection, false)
+                    program.getUniform("MVP")!!.setFloatMatrix(mvp, false)
+                    program.getUniform("isBillboard")!!.setInt(n.isBillboard.toInt())
+
+                    setMaterialUniformsForNode(n, gl, s, program)
+                }
+
+                preDrawAndUpdateGeometryForNode(n)
+                geometryBuffer[i].setDrawBuffers(gl)
+                drawNode(n)
+            }
         }
 
         instanceGroups.keys.filterNotNull().forEach instancedDrawing@ { n ->
@@ -318,109 +413,177 @@ class DeferredLightingRenderer {
             val modelviews = ArrayList<Float>()
             val modelviewprojs = ArrayList<Float>()
 
-            models.ensureCapacity(matrixSize * instances.size)
-            modelviews.ensureCapacity(matrixSize * instances.size)
-            modelviewprojs.ensureCapacity(matrixSize * instances.size)
-
             mv = GLMatrix.getIdentity()
             proj = GLMatrix.getIdentity()
             mvp = GLMatrix.getIdentity()
             var mo = GLMatrix.getIdentity()
 
-            instances.forEachIndexed { i, node ->
-                node.updateWorld(true, false)
+            instances.forEach { node -> node.updateWorld(true, false) }
 
-                mo = node.model.clone()
-                mv = cam.view!!.clone().mult(cam.rotation)
-                mv.mult(node.world)
+            eyes.forEach {
+                eye ->
 
-                proj = cam.projection!!.clone()
-                mvp = proj.clone()
-                mvp.mult(mv)
+                models.clear()
+                modelviews.clear()
+                modelviewprojs.clear()
 
-                models.addAll(mo.floatArray.asSequence())
-                modelviews.addAll(mv.floatArray.asSequence())
-                modelviewprojs.addAll(mvp.floatArray.asSequence())
+                models.ensureCapacity(matrixSize * instances.size)
+                modelviews.ensureCapacity(matrixSize * instances.size)
+                modelviewprojs.ensureCapacity(matrixSize * instances.size)
+
+                instances.forEachIndexed { i, node ->
+                    mo = node.model.clone()
+                    mv = cam.view!!.clone()
+                    mv.translate(settings.get<FloatArray>("vr.EyeShift").get(eye), 0.0f, 0.0f)
+                    mv.mult(cam.rotation)
+                    mv.mult(node.world)
+
+                    mvp = cam.projection!!.clone()
+                    mvp.mult(mv)
+
+                    models.addAll(mo.floatArray.asSequence())
+                    modelviews.addAll(mv.floatArray.asSequence())
+                    modelviewprojs.addAll(mvp.floatArray.asSequence())
+                }
+
+
+                logger.trace("${n.name} instancing: Collected ${modelviewprojs.size / matrixSize} MVPs in ${(System.nanoTime() - start) / 10e6}ms")
+
+                // bind instance buffers
+                start = System.nanoTime()
+                val matrixSizeBytes: Long = 1L * Buffers.SIZEOF_FLOAT * matrixSize * instances.size
+
+                gl.gL4.glBindVertexArray(s.mVertexArrayObject[0])
+
+                gl.gL4.glBindBuffer(GL.GL_ARRAY_BUFFER, s.additionalBufferIds["Model"]!!);
+                gl.gL4.glBufferData(GL.GL_ARRAY_BUFFER, matrixSizeBytes,
+                        FloatBuffer.wrap(models.toFloatArray()), GL.GL_DYNAMIC_DRAW);
+
+                gl.gL4.glBindBuffer(GL.GL_ARRAY_BUFFER, s.additionalBufferIds["ModelView"]!!);
+                gl.gL4.glBufferData(GL.GL_ARRAY_BUFFER, matrixSizeBytes,
+                        FloatBuffer.wrap(modelviews.toFloatArray()), GL.GL_DYNAMIC_DRAW);
+
+                gl.gL4.glBindBuffer(GL.GL_ARRAY_BUFFER, s.additionalBufferIds["MVP"]!!);
+                gl.gL4.glBufferData(GL.GL_ARRAY_BUFFER, matrixSizeBytes,
+                        FloatBuffer.wrap(modelviewprojs.toFloatArray()), GL.GL_DYNAMIC_DRAW);
+
+                logger.trace("${n.name} instancing: Updated matrix buffers in ${(System.nanoTime() - start) / 10e6}ms")
+
+                s.program?.let {
+                    setMaterialUniformsForNode(n, gl, s, it)
+                }
+
+                preDrawAndUpdateGeometryForNode(n)
+
+                geometryBuffer[eye].setDrawBuffers(gl)
+                drawNodeInstanced(n, count = instances.size)
             }
-
-            logger.trace("${n.name} instancing: Collected ${modelviewprojs.size/matrixSize} MVPs in ${(System.nanoTime()-start)/10e6}ms")
-
-            // bind instance buffers
-            start = System.nanoTime()
-            val matrixSizeBytes: Long = 1L*Buffers.SIZEOF_FLOAT * matrixSize * instances.size
-
-            gl.gL4.glBindVertexArray(s.mVertexArrayObject[0])
-
-            gl.gL4.glBindBuffer(GL.GL_ARRAY_BUFFER, s.additionalBufferIds["Model"]!!);
-            gl.gL4.glBufferData(GL.GL_ARRAY_BUFFER, matrixSizeBytes,
-                    FloatBuffer.wrap(models.toFloatArray()), GL.GL_DYNAMIC_DRAW);
-
-            gl.gL4.glBindBuffer(GL.GL_ARRAY_BUFFER, s.additionalBufferIds["ModelView"]!!);
-            gl.gL4.glBufferData(GL.GL_ARRAY_BUFFER, matrixSizeBytes,
-                    FloatBuffer.wrap(modelviews.toFloatArray()), GL.GL_DYNAMIC_DRAW);
-
-            gl.gL4.glBindBuffer(GL.GL_ARRAY_BUFFER, s.additionalBufferIds["MVP"]!!);
-            gl.gL4.glBufferData(GL.GL_ARRAY_BUFFER, matrixSizeBytes,
-                    FloatBuffer.wrap(modelviewprojs.toFloatArray()), GL.GL_DYNAMIC_DRAW);
-
-            logger.trace("${n.name} instancing: Updated matrix buffers in ${(System.nanoTime()-start)/10e6}ms")
-
-            s.program?.let {
-                setMaterialUniformsForNode(n, gl, s, it)
-            }
-
-            preDrawAndUpdateGeometryForNode(n)
-            drawNodeInstanced(n, instances.size)
         }
 
-        geometryBuffer.bindTexturesToUnitsWithOffset(gl, 0)
-        hdrBuffer.checkAndSetDrawBuffers(gl)
+        val lights = scene.discover(scene, { it is PointLight })
 
-        gl.glDisable(GL.GL_CULL_FACE)
-        gl.glDisable(GL.GL_BLEND)
-        gl.glDisable(GL.GL_DEPTH_TEST)
-        gl.glPointSize(1.5f)
-        gl.glEnable(GL4.GL_PROGRAM_POINT_SIZE)
+        eyes.forEachIndexed { i, eye ->
+            lightingPassProgram.bind()
 
-        gl.glClear(GL.GL_COLOR_BUFFER_BIT or GL.GL_DEPTH_BUFFER_BIT)
+            lightingPassProgram.getUniform("numLights").setInt(lights.size)
+            lightingPassProgram.getUniform("ProjectionMatrix").setFloatMatrix(cam.projection!!.clone(), false)
+            lightingPassProgram.getUniform("InverseProjectionMatrix").setFloatMatrix(cam.projection!!.clone().invert(), false)
 
-        lightingPassProgram.bind()
+            for (i in 0..lights.size - 1) {
+                lightingPassProgram.getUniform("lights[$i].Position").setFloatVector(lights[i].position)
+                lightingPassProgram.getUniform("lights[$i].Color").setFloatVector((lights[i] as PointLight).emissionColor)
+                lightingPassProgram.getUniform("lights[$i].Intensity").setFloat((lights[i] as PointLight).intensity)
+                lightingPassProgram.getUniform("lights[$i].Linear").setFloat((lights[i] as PointLight).linear)
+                lightingPassProgram.getUniform("lights[$i].Quadratic").setFloat((lights[i] as PointLight).quadratic)
+            }
 
-        val lights = scene.discover(scene, {it is PointLight})
-        lightingPassProgram.getUniform("numLights").setInt(lights.size)
-        lightingPassProgram.getUniform("ProjectionMatrix").setFloatMatrix(cam.projection!!.clone(), false)
-        lightingPassProgram.getUniform("InverseProjectionMatrix").setFloatMatrix(cam.projection!!.clone().invert(), false)
+            lightingPassProgram.getUniform("gPosition").setInt(0)
+            lightingPassProgram.getUniform("gNormal").setInt(1)
+            lightingPassProgram.getUniform("gAlbedoSpec").setInt(2)
+            lightingPassProgram.getUniform("gDepth").setInt(3)
 
-        for(i in 0..lights.size-1) {
-            lightingPassProgram.getUniform("lights[$i].Position").setFloatVector(lights[i].position)
-            lightingPassProgram.getUniform("lights[$i].Color").setFloatVector((lights[i] as PointLight).emissionColor)
-            lightingPassProgram.getUniform("lights[$i].Intensity").setFloat((lights[i] as PointLight).intensity)
-            lightingPassProgram.getUniform("lights[$i].Linear").setFloat((lights[i] as PointLight).linear)
-            lightingPassProgram.getUniform("lights[$i].Quadratic").setFloat((lights[i] as PointLight).quadratic)
+            lightingPassProgram.getUniform("debugDeferredBuffers").setInt(settings.get<Boolean>("debug.DebugDeferredBuffers").toInt())
+            lightingPassProgram.getUniform("ssao_filterRadius").setFloatVector(settings.get<GLVector>("ssao.FilterRadius"))
+            lightingPassProgram.getUniform("ssao_distanceThreshold").setFloat(settings.get<Float>("ssao.DistanceThreshold"))
+            lightingPassProgram.getUniform("doSSAO").setInt(settings.get<Boolean>("ssao.Active").toInt())
+
+            geometryBuffer[i].bindTexturesToUnitsWithOffset(gl, 0)
+            hdrBuffer[i].setDrawBuffers(gl)
+
+
+            gl.glViewport(0, 0, hdrBuffer[i].width, hdrBuffer[i].height)
+
+            gl.glDisable(GL.GL_CULL_FACE)
+            gl.glDisable(GL.GL_BLEND)
+            gl.glDisable(GL.GL_DEPTH_TEST)
+            gl.glPointSize(1.5f)
+            gl.glEnable(GL4.GL_PROGRAM_POINT_SIZE)
+
+            if (!settings.get<Boolean>("hdr.Active")) {
+                if(settings.get<Boolean>("vr.DoAnaglyph")) {
+                    if(i == 0) {
+                        gl.glColorMask(true, false, false, false)
+                    } else {
+                        gl.glColorMask(false, true, true, false)
+                    }
+                }
+                combinationBuffer[i].setDrawBuffers(gl)
+                gl.glClear(GL4.GL_COLOR_BUFFER_BIT)
+                gl.glViewport(0, 0, combinationBuffer[i].width, combinationBuffer[i].height)
+
+                renderFullscreenQuad(lightingPassProgram)
+            } else {
+                gl.glClear(GL4.GL_COLOR_BUFFER_BIT or GL4.GL_DEPTH_BUFFER_BIT)
+                // render to the active, eye-dependent HDR buffer
+                renderFullscreenQuad(lightingPassProgram)
+
+                hdrBuffer[i].bindTexturesToUnitsWithOffset(gl, 0)
+                combinationBuffer[i].setDrawBuffers(gl)
+                gl.glViewport(0, 0, combinationBuffer[i].width, combinationBuffer[i].height)
+                gl.glClear(GL4.GL_COLOR_BUFFER_BIT or GL4.GL_DEPTH_BUFFER_BIT)
+
+                if(settings.get<Boolean>("vr.DoAnaglyph")) {
+                    if(i == 0) {
+                        gl.glColorMask(true, false, false, false)
+                    } else {
+                        gl.glColorMask(false, true, true, false)
+                    }
+                }
+
+                hdrPassProgram.getUniform("Gamma").setFloat(settings.get<Float>("hdr.Gamma"))
+                hdrPassProgram.getUniform("Exposure").setFloat(settings.get<Float>("hdr.Exposure"))
+                renderFullscreenQuad(hdrPassProgram)
+            }
         }
 
-        lightingPassProgram.getUniform("gPosition").setInt(0)
-        lightingPassProgram.getUniform("gNormal").setInt(1)
-        lightingPassProgram.getUniform("gAlbedoSpec").setInt(2)
-        lightingPassProgram.getUniform("gDepth").setInt(3)
+        combinationBuffer.first().revertToDefaultFramebuffer(gl)
+        if(settings.get<Boolean>("vr.DoAnaglyph")) {
+            gl.glColorMask(true, true, true, true)
+        }
+        gl.glClear(GL4.GL_COLOR_BUFFER_BIT or GL4.GL_DEPTH_BUFFER_BIT)
+        gl.glDisable(GL4.GL_SCISSOR_TEST)
+        gl.glViewport(0, 0, width, height)
+        gl.glScissor(0, 0, width, height)
 
-        lightingPassProgram.getUniform("debugDeferredBuffers").setInt(debugBuffers)
-        lightingPassProgram.getUniform("ssao_filterRadius").setFloatVector(ssao_filterRadius)
-        lightingPassProgram.getUniform("ssao_distanceThreshold").setFloat(ssao_distanceThreshold)
-        lightingPassProgram.getUniform("doSSAO").setInt(doSSAO)
-
-        if(doHDR == 0) {
-            geometryBuffer.revertToDefaultFramebuffer(gl)
-            renderFullscreenQuad(lightingPassProgram)
+        if (settings.get<Boolean>("vr.Active")) {
+            if(settings.get<Boolean>("vr.DoAnaglyph")) {
+                combinerProgram.getUniform("vrActive").setInt(0)
+                combinerProgram.getUniform("anaglyphActive").setInt(1)
+            } else {
+                combinerProgram.getUniform("vrActive").setInt(1)
+                combinerProgram.getUniform("anaglyphActive").setInt(0)
+            }
+            combinationBuffer[0].bindTexturesToUnitsWithOffset(gl, 0)
+            combinationBuffer[1].bindTexturesToUnitsWithOffset(gl, 1)
+            combinerProgram.getUniform("leftEye").setInt(0)
+            combinerProgram.getUniform("rightEye").setInt(1)
+            renderFullscreenQuad(combinerProgram)
         } else {
-            renderFullscreenQuad(lightingPassProgram)
-
-            hdrBuffer.bindTexturesToUnitsWithOffset(gl, 0)
-            hdrBuffer.revertToDefaultFramebuffer(gl)
-
-            hdrPassProgram.getUniform("Gamma").setFloat(this.gamma)
-            hdrPassProgram.getUniform("Exposure").setFloat(this.exposure)
-            renderFullscreenQuad(hdrPassProgram)
+            combinationBuffer.first().bindTexturesToUnitsWithOffset(gl, 0)
+            combinerProgram.getUniform("leftEye").setInt(0)
+            combinerProgram.getUniform("rightEye").setInt(0)
+            combinerProgram.getUniform("vrActive").setInt(0)
+            renderFullscreenQuad(combinerProgram)
         }
     }
 
@@ -441,18 +604,18 @@ class DeferredLightingRenderer {
     fun initializeNode(node: Node): Boolean {
         var s: OpenGLObjectState
 
-        if(node.instanceOf == null) {
+        if (node.instanceOf == null) {
             s = node.metadata["DeferredLightingRenderer"] as OpenGLObjectState
         } else {
             s = node.instanceOf!!.metadata["DeferredLightingRenderer"] as OpenGLObjectState
             node.metadata["DeferredLightingRenderer"] = s
 
-            if(!s.initialized) {
+            if (!s.initialized) {
                 logger.trace("Instance not yet initialized, doing now...")
                 initializeNode(node.instanceOf!!)
             }
 
-            if(!s.additionalBufferIds.containsKey("Model") || !s.additionalBufferIds.containsKey("ModelView") || !s.additionalBufferIds.containsKey("MVP")) {
+            if (!s.additionalBufferIds.containsKey("Model") || !s.additionalBufferIds.containsKey("ModelView") || !s.additionalBufferIds.containsKey("MVP")) {
                 logger.trace("${node.name} triggered instance buffer creation")
                 createInstanceBuffer(node.instanceOf!!)
                 logger.trace("---")
@@ -460,7 +623,7 @@ class DeferredLightingRenderer {
             return true
         }
 
-        if(s.initialized) {
+        if (s.initialized) {
             return true
         }
 
@@ -472,7 +635,7 @@ class DeferredLightingRenderer {
         gl.glGenBuffers(1, s.mIndexBuffer, 0)
 
         if (node.material == null || node.material !is OpenGLMaterial || (node.material as OpenGLMaterial).program == null) {
-            if(node.useClassDerivedShader) {
+            if (node.useClassDerivedShader) {
                 val javaClass = node.javaClass.simpleName
                 val className = javaClass.substring(javaClass.indexOf(".") + 1)
 
@@ -484,12 +647,11 @@ class DeferredLightingRenderer {
 
                 s.program = GLProgram.buildProgram(gl, DeferredLightingRenderer::class.java,
                         shaders.toTypedArray())
-            }
-            else if(node.metadata.filter { it.value is OpenGLShaderPreference }.isNotEmpty()) {
+            } else if (node.metadata.filter { it.value is OpenGLShaderPreference }.isNotEmpty()) {
 //                val prefs = node.metadata.first { it is OpenGLShaderPreference } as OpenGLShaderPreference
                 val prefs = node.metadata["ShaderPreference"] as OpenGLShaderPreference
 
-                if(prefs.parameters.size > 0) {
+                if (prefs.parameters.size > 0) {
                     s.program = GLProgram.buildProgram(gl, node.javaClass,
                             prefs.shaders.toTypedArray(), prefs.parameters)
                 } else {
@@ -502,9 +664,7 @@ class DeferredLightingRenderer {
                     }
 
                 }
-            }
-            else
-            {
+            } else {
                 s.program = GLProgram.buildProgram(gl, DeferredLightingRenderer::class.java,
                         arrayOf("shaders/DefaultDeferred.vert", "shaders/DefaultDeferred.frag"))
             }
@@ -512,7 +672,7 @@ class DeferredLightingRenderer {
             s.program = (node.material as OpenGLMaterial).program
         }
 
-        if(node is HasGeometry) {
+        if (node is HasGeometry) {
             setVerticesAndCreateBufferForNode(node)
             setNormalsAndCreateBufferForNode(node)
 
@@ -525,11 +685,33 @@ class DeferredLightingRenderer {
             }
         }
 
+        loadTexturesForNode(node, s);
+        s.initialized = true
+        return true
+    }
+
+    protected fun loadTexturesForNode(node: Node, s: OpenGLObjectState): Boolean {
         node.material?.textures?.forEach {
             type, texture ->
-            if(!textures.containsKey(texture)) {
+            if(!textures.containsKey(texture) || node.material?.needsTextureReload!!) {
                 logger.trace("Loading texture $texture for ${node.name}")
-                val glTexture = GLTexture.loadFromFile(gl, texture, true, 1)
+                var glTexture = if(texture.startsWith("fromBuffer:")) {
+                    val gt = node.material!!.transferTextures!!.get(texture.substringAfter("fromBuffer:"))
+
+                    val t = GLTexture(gl, gt!!.type, 4,
+                            gt!!.dimensions.x().toInt(),
+                            gt!!.dimensions.y().toInt(),
+                            1,
+                            true,
+                            1)
+                    t.setClamp(!gt.repeatS, !gt.repeatT);
+                    t.copyFrom(gt!!.contents)
+                    t.updateMipMaps()
+
+                    t
+                } else {
+                    GLTexture.loadFromFile(gl, texture, true, 1)
+                }
                 s.textures.put(type, glTexture)
                 textures.put(texture, glTexture)
             } else {
@@ -545,8 +727,18 @@ class DeferredLightingRenderer {
         this.width = newWidth
         this.height = newHeight
 
-        geometryBuffer.resize(gl, newWidth, newHeight)
-        hdrBuffer.resize(gl, newWidth, newHeight)
+        if (settings.get<Boolean>("vr.Active")) {
+            geometryBuffer.forEach {
+                it.resize(gl, newWidth / 2, newHeight / 2)
+            }
+
+            hdrBuffer.forEach {
+                it.resize(gl, newWidth / 2, newHeight / 2)
+            }
+        } else {
+            geometryBuffer.first().resize(gl, newWidth, newHeight)
+            hdrBuffer.first().resize(gl, newWidth, newHeight)
+        }
 
         gl.glClear(GL.GL_DEPTH_BUFFER_BIT or GL.GL_COLOR_BUFFER_BIT)
         gl.glViewport(0, 0, this.width, this.height)
@@ -828,6 +1020,7 @@ class DeferredLightingRenderer {
             gl.gL4.glDrawArraysInstanced(
                     (node as HasGeometry).geometryType.toOpenGLType(),
                     0, s.mStoredPrimitiveCount, count);
+
         }
 
         gl.gL4.glUseProgram(0)

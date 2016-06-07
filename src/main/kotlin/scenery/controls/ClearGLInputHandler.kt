@@ -97,6 +97,7 @@ class ClearGLInputHandler(scene: Scene, renderer: Any, window: ClearGLWindow) {
         behaviourMap.put("move_down_fast", MovementCommand("move_down", "down", scene.findObserver(), 1.0f))
 
         behaviourMap.put("toggle_debug", ToggleCommand("toggle_debug", renderer, "toggleDebug"))
+        behaviourMap.put("toggle_fullscreen", ToggleCommand("toggle_fullscreen", renderer, "toggleFullscreen"))
         behaviourMap.put("toggle_ssao", ToggleCommand("toggle_ssao", renderer, "toggleSSAO"))
         behaviourMap.put("toggle_hdr", ToggleCommand("toggle_hdr", renderer, "toggleHDR"))
 
@@ -123,6 +124,7 @@ class ClearGLInputHandler(scene: Scene, renderer: Any, window: ClearGLWindow) {
         adder.put("move_down", "shift SPACE")
 
         adder.put("toggle_debug", "Q")
+        adder.put("toggle_fullscreen", "F")
         adder.put("toggle_ssao", "O")
         adder.put("toggle_hdr", "H")
 

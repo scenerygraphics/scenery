@@ -4,10 +4,14 @@ import cleargl.*
 import com.jogamp.opengl.GLAutoDrawable
 import com.jogamp.opengl.GLException
 import org.junit.Test
+import org.scijava.Context
+import org.scijava.`object`.ObjectService
+import org.scijava.ui.swing.script.InterpreterWindow
 import scenery.*
 import scenery.controls.ClearGLInputHandler
 import scenery.rendermodules.opengl.DeferredLightingRenderer
 import java.io.IOException
+import java.util.*
 import kotlin.concurrent.thread
 
 /**
@@ -19,6 +23,7 @@ class SponzaExample {
     private val scene: Scene = Scene()
     private var frameNum = 0
     private var deferredRenderer: DeferredLightingRenderer? = null
+    private var interpreter: InterpreterWindow? = null
 
     @Test fun demo() {
         val lClearGLWindowEventListener = object : ClearGLDefaultEventListener() {
@@ -171,7 +176,18 @@ class SponzaExample {
                         }
                     }
 
+                    val context: Context = Context()
+                    context.getService(ObjectService::class.java).addObject(scene)
+                    context.getService(ObjectService::class.java).addObject(deferredRenderer)
+
+                    interpreter = InterpreterWindow(context)
+                    interpreter?.isVisible = true
+
+
                     deferredRenderer?.initializeScene(scene)
+
+                    val startup = Scanner(DeferredLightingRenderer::class.java.getResourceAsStream("startup.js"), "UTF-8").useDelimiter("\\A").next()
+                    interpreter?.repl?.interpreter?.eval(startup)
                 } catch (e: GLException) {
                     e.printStackTrace()
                 } catch (e: IOException) {
@@ -186,11 +202,12 @@ class SponzaExample {
                                  pWidth: Int,
                                  pHeight: Int) {
                 var pHeight = pHeight
-                super.reshape(pDrawable, pX, pY, pWidth, pHeight)
-
                 if (pHeight == 0)
                     pHeight = 1
                 val ratio = 1.0f * pWidth / pHeight
+
+                super.reshape(pDrawable, pX, pY, pWidth, pHeight)
+                deferredRenderer?.reshape(pWidth, pHeight)
             }
 
             override fun display(pDrawable: GLAutoDrawable) {

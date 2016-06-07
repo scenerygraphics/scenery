@@ -6,6 +6,7 @@ import com.jogamp.opengl.GLException
 import org.junit.Test
 import scenery.*
 import scenery.controls.ClearGLInputHandler
+import scenery.controls.OpenVRInput
 import scenery.rendermodules.opengl.DeferredLightingRenderer
 import scenery.rendermodules.opengl.OpenGLShaderPreference
 import java.io.IOException
@@ -21,6 +22,7 @@ class BloodCellsExample {
     private val scene: Scene = Scene()
     private var frameNum = 0
     private var deferredRenderer: DeferredLightingRenderer? = null
+    private var hmd: OpenVRInput? = null
 
     @Test fun demo() {
         val lClearGLWindowEventListener = object : ClearGLDefaultEventListener() {
@@ -67,7 +69,7 @@ class BloodCellsExample {
                     }
 
                     val hullbox = Box(GLVector(900.0f, 900.0f, 900.0f))
-                    hullbox.position = GLVector(0.0f, 0.0f, 0.0f)
+                    hullbox.position = GLVector(0.1f, 0.1f, 0.1f)
                     val hullboxM = Material()
                     hullboxM.ambient = GLVector(1.0f, 1.0f, 1.0f)
                     hullboxM.diffuse = GLVector(1.0f, 1.0f, 1.0f)
@@ -182,7 +184,7 @@ class BloodCellsExample {
 
                     cam.projection = GLMatrix().setPerspectiveProjectionMatrix(
                             50.0f / 180.0f * Math.PI.toFloat(),
-                            pDrawable.surfaceWidth.toFloat() / pDrawable.surfaceHeight.toFloat(), 0.1f, 10000.0f).invert()
+                            pDrawable.surfaceWidth.toFloat() / pDrawable.surfaceHeight.toFloat(), 0.1f, 10000.0f)
                     cam.active = true
 
                     scene.addChild(cam)
@@ -205,7 +207,7 @@ class BloodCellsExample {
                         obj.rotation.rotateByAngleY(-1.0f * magnitude)
                     }
 
-                    thread {
+                    val t = thread {
                         var reverse = false
                         val step = 0.02f
 
@@ -274,6 +276,7 @@ class BloodCellsExample {
                                  pHeight: Int) {
                 var pHeight = pHeight
                 super.reshape(pDrawable, pX, pY, pWidth, pHeight)
+                deferredRenderer?.reshape(pWidth, pHeight)
 
                 if (pHeight == 0)
                     pHeight = 1
@@ -285,6 +288,21 @@ class BloodCellsExample {
 
                 frameNum++
                 deferredRenderer?.render(scene)
+
+                if(deferredRenderer?.settings?.get<Boolean>("wantsFullscreen") == true && deferredRenderer?.settings?.get<Boolean>("isFullscreen") == false) {
+                    mClearGLWindow!!.setFullscreen(true)
+                    deferredRenderer?.settings?.set("wantsFullscreen", true)
+                    deferredRenderer?.settings?.set("isFullscreen", true)
+                }
+
+                if(deferredRenderer?.settings?.get<Boolean>("wantsFullscreen") == false && deferredRenderer?.settings?.get<Boolean>("isFullscreen") == true) {
+                    mClearGLWindow!!.setFullscreen(false)
+                    deferredRenderer?.settings?.set("wantsFullscreen", false)
+                    deferredRenderer?.settings?.set("isFullscreen", false)
+                }
+
+                hmd?.updatePose()
+
                 clearGLWindow.windowTitle = "scenery: %s - %.1f fps".format(this.javaClass.enclosingClass.simpleName.substringAfterLast("."), pDrawable.animator?.lastFPS)
             }
 
@@ -300,11 +318,14 @@ class BloodCellsExample {
 
         val lClearGLWindow = ClearGLWindow("",
                 1920,
-                1080,
+                1200,
                 lClearGLWindowEventListener)
 
         lClearGLWindow.isVisible = true
         lClearGLWindow.setFPS(60)
+
+        hmd = OpenVRInput(seated = true)
+        //hmd?.initCompositor()
 
         val inputHandler = ClearGLInputHandler(scene, deferredRenderer as Any, lClearGLWindow)
         inputHandler.useDefaultBindings(System.getProperty("user.home") + "/.sceneryExamples.bindings")
@@ -312,8 +333,9 @@ class BloodCellsExample {
         lClearGLWindow.start()
 
         while (lClearGLWindow.isVisible) {
-            Thread.sleep(10)
         }
+
+        lClearGLWindow.stop()
     }
 
     @Test fun ScenegraphSimpleDemo() {

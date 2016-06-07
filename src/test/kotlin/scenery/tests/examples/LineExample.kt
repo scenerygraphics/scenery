@@ -86,7 +86,7 @@ class LineExample {
 
         }
 
-        val lClearGLWindow = ClearGLWindow("scenery: CubeExample",
+        val lClearGLWindow = ClearGLWindow("",
                 1024,
                 1024,
                 lClearGLWindowEventListener)

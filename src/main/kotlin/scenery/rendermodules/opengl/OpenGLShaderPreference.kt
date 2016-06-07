@@ -9,6 +9,6 @@ import java.util.*
  * @author Ulrik Günther <hello@ulrik.is>
  */
 data class OpenGLShaderPreference(
-        var shaders: ArrayList<String>,
+        var shaders: List<String>,
         var parameters: HashMap<String, String>,
         override val consumers: List<String>) : NodeMetadata
