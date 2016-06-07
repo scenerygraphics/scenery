@@ -38,7 +38,7 @@ class SponzaExample {
 
                     fun rangeRandomizer(min: Float, max: Float): Float = min + (Math.random().toFloat() * ((max - min) + 1.0f))
 
-                    var boxes = (1..20 step 1).map {
+                    var boxes = (1..20).map {
                         Box(GLVector(rangeRandomizer(0.5f, 4.0f),
                                 rangeRandomizer(0.5f, 4.0f),
                                 rangeRandomizer(0.5f, 4.0f)))
@@ -119,7 +119,7 @@ class SponzaExample {
 
                     cam.projection = GLMatrix().setPerspectiveProjectionMatrix(
                             70.0f / 180.0f * Math.PI.toFloat(),
-                            pDrawable.surfaceWidth.toFloat() / pDrawable.surfaceHeight.toFloat(), 0.1f, 1000.0f).invert()
+                            pDrawable.surfaceWidth.toFloat() / pDrawable.surfaceHeight.toFloat(), 0.1f, 1000.0f)
                     cam.active = true
 
                     scene.addChild(cam)
