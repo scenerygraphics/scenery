@@ -68,7 +68,7 @@ open class DeferredLightingRenderer {
 
         if(settings.get("vr.Active")) {
             eyes = (0..1)
-            settings.set("vr.IPD", 0.5f)
+            settings.set("vr.IPD", -0.5f)
         }
 
         geometryBuffer = ArrayList<GLFramebuffer>()
@@ -369,9 +369,8 @@ open class DeferredLightingRenderer {
             }
 
             eyes.forEachIndexed { i, eye ->
-                System.err.println("Setting IPD to ${settings.get<Float>("vr.IPD") * -1.0f * Math.pow(-1.0, i.toDouble()).toFloat()} for eye $i")
-                mv = cam.view!!.clone()
-                mv.translate(0.0f, settings.get<Float>("vr.IPD") * -1.0f * Math.pow(-1.0, i.toDouble()).toFloat(), 0.0f)
+                mv = GLMatrix.getTranslation(settings.get<Float>("vr.IPD") * -1.0f * Math.pow(-1.0, 1.0*i).toFloat(), 0.0f, 0.0f).transpose()
+                mv.mult(cam.view!!)
                 mv.mult(cam.rotation)
                 mv.mult(n.world)
 
@@ -431,12 +430,11 @@ open class DeferredLightingRenderer {
                 models.ensureCapacity(matrixSize * instances.size)
                 modelviews.ensureCapacity(matrixSize * instances.size)
                 modelviewprojs.ensureCapacity(matrixSize * instances.size)
-                System.err.println("Setting IPD to ${settings.get<Float>("vr.IPD") * -1.0f * Math.pow(-1.0, eye.toDouble()).toFloat()} for eye $eye")
 
                 instances.forEachIndexed { i, node ->
                     mo = node.model.clone()
-                    mv = cam.view!!.clone()
-                    mv.translate(0.0f, settings.get<Float>("vr.IPD") * -1.0f * Math.pow(-1.0, i.toDouble()).toFloat(), 0.0f)
+                    mv = GLMatrix.getTranslation(settings.get<Float>("vr.IPD") * -1.0f * Math.pow(-1.0, 1.0*eye).toFloat(), 0.0f, 0.0f).transpose()
+                    mv.mult(cam.view!!)
                     mv.mult(cam.rotation)
                     mv.mult(node.world)
 
@@ -576,9 +574,9 @@ open class DeferredLightingRenderer {
                 combinerProgram.getUniform("anaglyphActive").setInt(0)
             }
             combinationBuffer[0].bindTexturesToUnitsWithOffset(gl, 0)
-            combinationBuffer[1].bindTexturesToUnitsWithOffset(gl, 1)
+            combinationBuffer[1].bindTexturesToUnitsWithOffset(gl, 4)
             combinerProgram.getUniform("leftEye").setInt(0)
-            combinerProgram.getUniform("rightEye").setInt(1)
+            combinerProgram.getUniform("rightEye").setInt(4)
             renderFullscreenQuad(combinerProgram)
         } else {
             combinationBuffer.first().bindTexturesToUnitsWithOffset(gl, 0)
