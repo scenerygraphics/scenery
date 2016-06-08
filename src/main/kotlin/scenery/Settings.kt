@@ -25,6 +25,13 @@ open class Settings {
     }
 
     fun set(name: String, contents: Any) {
-        settingsStore.put(name, contents)
+        // protect against type change
+        if(settingsStore.containsKey(name)) {
+            System.err.println("Will try to cast ${contents.javaClass} to ${settingsStore.get(name)!!.javaClass}")
+            val type: Class<*> = settingsStore.get(name)!!.javaClass
+            settingsStore[name] = contents
+        } else {
+            settingsStore.put(name, contents)
+        }
     }
 }
