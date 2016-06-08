@@ -26,7 +26,11 @@ class JOGLMouseAndKeyHandler : MouseListener, KeyListener, WindowListener, Windo
 
     private var controllerThread: Thread? = null
 
-    private val CONTROLLER_HEARTBEAT = 10L
+    private var controllerAxisDown: HashMap<Component.Identifier, Int> = HashMap()
+
+    private val CONTROLLER_HEARTBEAT = 5L
+
+    private val CONTROLLER_DOWN_THRESHOLD = 0.95f
 
     private val DOUBLE_CLICK_INTERVAL = getDoubleClickInterval()
 
@@ -558,11 +562,19 @@ class JOGLMouseAndKeyHandler : MouseListener, KeyListener, WindowListener, Windo
     }
 
     fun controllerEvent(event: Event) {
-        logger.debug("CE: ${event.component.identifier}=${event.value}")
-
         for(gamepad in gamepads) {
+            if(event.component.isAnalog && Math.abs(event.value) > CONTROLLER_DOWN_THRESHOLD) {
+                controllerAxisDown.put(event.component.identifier, Math.signum(event.value).toInt())
+            } else {
+                controllerAxisDown.put(event.component.identifier, 0)
+            }
+
             if(gamepad.behaviour.axis.contains(event.component.identifier)) {
-                gamepad.behaviour.axisEvent(event.component.identifier, event.value)
+                gamepad.behaviour.axisEvent(event.component.identifier, event.component.pollData)
+            }
+
+            controllerAxisDown.filter { it.value != 0 }.forEach {
+                gamepad.behaviour.axisEvent(it.key, it.value.toFloat())
             }
         }
     }
