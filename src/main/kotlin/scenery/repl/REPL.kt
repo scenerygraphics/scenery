@@ -25,9 +25,6 @@ class REPL(val accessibleObjects: List<Any> = listOf(),
 
         startupScriptCode = Scanner(startupScriptClass.getResourceAsStream(startupScript), "UTF-8").useDelimiter("\\A").next()
         accessibleObjects.forEach { context.getService(ObjectService::class.java).addObject(it) }
-
-        // waiting for scijava/scijava-ui-swing#22
-        // interpreterWindow.repl.interpreter.eval(startupScriptCode)
     }
 
     fun addAccessibleObject(obj: Any) {
@@ -40,5 +37,10 @@ class REPL(val accessibleObjects: List<Any> = listOf(),
 
     fun hideConsoleWindow() {
         interpreterWindow.isVisible = false
+    }
+
+    fun start() {
+        // waiting for scijava/scijava-ui-swing#22
+        interpreterWindow.repl.interpreter.eval(startupScriptCode)
     }
 }
