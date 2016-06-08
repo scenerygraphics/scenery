@@ -14,8 +14,8 @@ class GamepadCameraControl(private val name: String,
                            override val axis: List<Component.Identifier.Axis>,
                            private val node: Camera, private val w: Int, private val h: Int) : GamepadBehaviour {
     private var last = Quaternion(0.0f, 0.0f, 0.0f, 1.0f)
-    private var lastX = w / 2;
-    private var lastY = h / 2;
+    private var lastX: Float = 0.0f
+    private var lastY: Float = 0.0f
     private var firstEntered = true;
 
     private var pitch: Float = 0.0f;
@@ -29,19 +29,21 @@ class GamepadCameraControl(private val name: String,
     }
 
     override fun axisEvent(axis: Component.Identifier, value: Float) {
-        if(value < threshold) {
+        if(Math.abs(value) < threshold) {
             return
         }
-        var x: Int
-        var y: Int
+
+        var x: Float
+        var y: Float
 
         if(axis == this.axis.first()) {
-            x = ((w*(value*speedMultiplier - 1.0f))/2).toInt()
-            y = h/2
+            x = value
+            y = lastY
         } else {
-            x = w/2
-            y = ((h*(value*speedMultiplier - 1.0f))/2).toInt()
+            x = lastX
+            y = value
         }
+
         if (firstEntered) {
             lastX = x
             lastY = y
@@ -54,11 +56,13 @@ class GamepadCameraControl(private val name: String,
         lastX = x
         lastY = y
 
-        xoffset *= 0.1f;
-        yoffset *= 0.1f;
+        xoffset *= 45f;
+        yoffset *= 45f;
 
         yaw += xoffset;
         pitch += yoffset;
+
+//        System.err.println("Yaw=$yaw, Pitch=$pitch, x=$x, y=$y")
 
         if (pitch > 89.0f) {
             pitch = 89.0f;
