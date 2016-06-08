@@ -77,6 +77,8 @@ class OpenVRExample {
 
                 repl.addAccessibleObject(scene)
                 repl.addAccessibleObject(deferredRenderer!!)
+                repl.start()
+
                 repl.showConsoleWindow()
             }
 
@@ -86,6 +88,18 @@ class OpenVRExample {
                 frameNum++
                 deferredRenderer?.render(scene)
                 clearGLWindow.windowTitle = "scenery: %s - %.1f fps".format(this.javaClass.enclosingClass.simpleName.substringAfterLast("."), pDrawable.animator?.lastFPS)
+
+                if(deferredRenderer?.settings?.get<Boolean>("wantsFullscreen") == true && deferredRenderer?.settings?.get<Boolean>("isFullscreen") == false) {
+                    mClearGLWindow!!.setFullscreen(true)
+                    deferredRenderer?.settings?.set("wantsFullscreen", true)
+                    deferredRenderer?.settings?.set("isFullscreen", true)
+                }
+
+                if(deferredRenderer?.settings?.get<Boolean>("wantsFullscreen") == false && deferredRenderer?.settings?.get<Boolean>("isFullscreen") == true) {
+                    mClearGLWindow!!.setFullscreen(false)
+                    deferredRenderer?.settings?.set("wantsFullscreen", false)
+                    deferredRenderer?.settings?.set("isFullscreen", false)
+                }
             }
 
             override fun setClearGLWindow(pClearGLWindow: ClearGLWindow) {

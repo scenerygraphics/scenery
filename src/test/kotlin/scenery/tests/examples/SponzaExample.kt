@@ -6,6 +6,7 @@ import com.jogamp.opengl.GLException
 import org.junit.Test
 import scenery.*
 import scenery.controls.ClearGLInputHandler
+import scenery.controls.OpenVRInput
 import scenery.rendermodules.opengl.DeferredLightingRenderer
 import scenery.repl.REPL
 import java.io.IOException
@@ -21,6 +22,7 @@ class SponzaExample {
     private val repl: REPL = REPL()
     private var frameNum = 0
     private var deferredRenderer: DeferredLightingRenderer? = null
+    private var ovr: OpenVRInput? = null
 
     @Test fun demo() {
         val lClearGLWindowEventListener = object : ClearGLDefaultEventListener() {
@@ -177,6 +179,8 @@ class SponzaExample {
 
                     repl.addAccessibleObject(scene)
                     repl.addAccessibleObject(deferredRenderer!!)
+                    repl.start()
+
                     repl.showConsoleWindow()
 
                 } catch (e: GLException) {
@@ -207,6 +211,18 @@ class SponzaExample {
                 frameNum++
                 deferredRenderer?.render(scene)
                 clearGLWindow.windowTitle = "scenery: %s - %.1f fps".format(this.javaClass.enclosingClass.simpleName.substringAfterLast("."), pDrawable.animator?.lastFPS)
+
+                if(deferredRenderer?.settings?.get<Boolean>("wantsFullscreen") == true && deferredRenderer?.settings?.get<Boolean>("isFullscreen") == false) {
+                    mClearGLWindow!!.setFullscreen(true)
+                    deferredRenderer?.settings?.set("wantsFullscreen", true)
+                    deferredRenderer?.settings?.set("isFullscreen", true)
+                }
+
+                if(deferredRenderer?.settings?.get<Boolean>("wantsFullscreen") == false && deferredRenderer?.settings?.get<Boolean>("isFullscreen") == true) {
+                    mClearGLWindow!!.setFullscreen(false)
+                    deferredRenderer?.settings?.set("wantsFullscreen", false)
+                    deferredRenderer?.settings?.set("isFullscreen", false)
+                }
             }
 
             override fun setClearGLWindow(pClearGLWindow: ClearGLWindow) {
@@ -226,6 +242,8 @@ class SponzaExample {
 
         lClearGLWindow.isVisible = true
         lClearGLWindow.setFPS(60)
+
+        ovr = OpenVRInput()
 
         val inputHandler = ClearGLInputHandler(scene, deferredRenderer as Any, lClearGLWindow)
         inputHandler.useDefaultBindings(System.getProperty("user.home") + "/.sceneryExamples.bindings")
