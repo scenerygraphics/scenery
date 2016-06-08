@@ -68,7 +68,7 @@ open class DeferredLightingRenderer {
 
         if(settings.get("vr.Active")) {
             eyes = (0..1)
-            settings.set("vr.EyeShift", floatArrayOf(-0.5f, 0.5f))
+            settings.set("vr.IPD", 0.5f)
         }
 
         geometryBuffer = ArrayList<GLFramebuffer>()
@@ -132,9 +132,9 @@ open class DeferredLightingRenderer {
         ds.set("ssao.DistanceThreshold", 50.0f)
         ds.set("ssao.Algorithm", 1)
 
-        ds.set("vr.Active", false)
+        ds.set("vr.Active", true)
         ds.set("vr.DoAnaglyph", false)
-        ds.set("vr.EyeShift", floatArrayOf(-0.5f, 0.5f))
+        ds.set("vr.IPD", 0.0f)
 
         ds.set("hdr.Active", true)
         ds.set("hdr.Exposure", 1.0f)
@@ -369,8 +369,9 @@ open class DeferredLightingRenderer {
             }
 
             eyes.forEachIndexed { i, eye ->
+                System.err.println("Setting IPD to ${settings.get<Float>("vr.IPD") * -1.0f * Math.pow(-1.0, i.toDouble()).toFloat()} for eye $i")
                 mv = cam.view!!.clone()
-                mv.translate(settings.get<FloatArray>("vr.EyeShift").get(i), 0.0f, 0.0f)
+                mv.translate(0.0f, settings.get<Float>("vr.IPD") * -1.0f * Math.pow(-1.0, i.toDouble()).toFloat(), 0.0f)
                 mv.mult(cam.rotation)
                 mv.mult(n.world)
 
@@ -430,11 +431,12 @@ open class DeferredLightingRenderer {
                 models.ensureCapacity(matrixSize * instances.size)
                 modelviews.ensureCapacity(matrixSize * instances.size)
                 modelviewprojs.ensureCapacity(matrixSize * instances.size)
+                System.err.println("Setting IPD to ${settings.get<Float>("vr.IPD") * -1.0f * Math.pow(-1.0, eye.toDouble()).toFloat()} for eye $eye")
 
                 instances.forEachIndexed { i, node ->
                     mo = node.model.clone()
                     mv = cam.view!!.clone()
-                    mv.translate(settings.get<FloatArray>("vr.EyeShift").get(eye), 0.0f, 0.0f)
+                    mv.translate(0.0f, settings.get<Float>("vr.IPD") * -1.0f * Math.pow(-1.0, i.toDouble()).toFloat(), 0.0f)
                     mv.mult(cam.rotation)
                     mv.mult(node.world)
 
