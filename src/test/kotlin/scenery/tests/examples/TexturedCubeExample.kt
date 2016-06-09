@@ -19,6 +19,7 @@ class TexturedCubeExample {
     private val repl: REPL = REPL()
     private var frameNum = 0
     private var deferredRenderer: DeferredLightingRenderer? = null
+    private var hub: Hub = Hub()
 
     @Test fun demo() {
         val lClearGLWindowEventListener = object : ClearGLDefaultEventListener() {
@@ -28,6 +29,7 @@ class TexturedCubeExample {
             override fun init(pDrawable: GLAutoDrawable) {
                 super.init(pDrawable)
                 deferredRenderer = DeferredLightingRenderer(pDrawable.gl.gL4, mClearGLWindow!!.width, mClearGLWindow!!.height)
+                hub.add(SceneryElement.RENDERER, deferredRenderer!!)
 
                 var box = Box(GLVector(1.0f, 1.0f, 1.0f))
                 var boxmaterial = Material()

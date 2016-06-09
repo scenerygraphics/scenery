@@ -27,6 +27,7 @@ class BoxedProteinExample {
     private var interpreter: InterpreterWindow? = null
     private var frameNum = 0
     private var deferredRenderer: DeferredLightingRenderer? = null
+    private var hub: Hub = Hub()
 
     @Test fun demo() {
         val lClearGLWindowEventListener = object : ClearGLDefaultEventListener() {
@@ -39,6 +40,7 @@ class BoxedProteinExample {
                     deferredRenderer = DeferredLightingRenderer(pDrawable.gl.gL4,
                             mClearGLWindow!!.width,
                             mClearGLWindow!!.height)
+                    hub.add(SceneryElement.RENDERER, deferredRenderer!!)
 
                     val cam: Camera = DetachedHeadCamera()
 

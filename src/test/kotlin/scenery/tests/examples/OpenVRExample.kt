@@ -140,6 +140,8 @@ class OpenVRExample {
         lClearGLWindow.isVisible = true
         lClearGLWindow.setFPS(60)
 
+        System.out.println(System.getProperty("java.class.path"))
+
         val inputHandler = ClearGLInputHandler(scene, deferredRenderer as Any, lClearGLWindow)
         inputHandler.useDefaultBindings(System.getProperty("user.home") + "/.sceneryExamples.bindings")
 
