@@ -24,7 +24,8 @@ class BloodCellsExample {
     private val repl: REPL = REPL()
     private var frameNum = 0
     private var deferredRenderer: DeferredLightingRenderer? = null
-    private var hmd: OpenVRInput? = null
+    private var ovr: OpenVRInput? = null
+    private var hub: Hub = Hub()
 
     @Test fun demo() {
         val lClearGLWindowEventListener = object : ClearGLDefaultEventListener() {
@@ -34,9 +35,13 @@ class BloodCellsExample {
             override fun init(pDrawable: GLAutoDrawable) {
                 super.init(pDrawable)
                 try {
+                    ovr = OpenVRInput(seated = false, useCompositor = true)
+                    hub.add(SceneryElement.HMDINPUT, ovr!!)
+
                     deferredRenderer = DeferredLightingRenderer(pDrawable.gl.gL4,
                             mClearGLWindow!!.width,
                             mClearGLWindow!!.height)
+                    hub.add(SceneryElement.RENDERER, deferredRenderer!!)
 
                     val cam: Camera = DetachedHeadCamera()
 
@@ -293,6 +298,7 @@ class BloodCellsExample {
 
             override fun display(pDrawable: GLAutoDrawable) {
                 super.display(pDrawable)
+                ovr?.updatePose()
 
                 frameNum++
                 deferredRenderer?.render(scene)
@@ -309,8 +315,6 @@ class BloodCellsExample {
                     deferredRenderer?.settings?.set("isFullscreen", false)
                 }
 
-                hmd?.updatePose()
-
                 clearGLWindow.windowTitle = "scenery: %s - %.1f fps".format(this.javaClass.enclosingClass.simpleName.substringAfterLast("."), pDrawable.animator?.lastFPS)
             }
 
@@ -325,15 +329,12 @@ class BloodCellsExample {
         }
 
         val lClearGLWindow = ClearGLWindow("",
-                1920,
-                1200,
+                3024,
+                1680,
                 lClearGLWindowEventListener)
 
         lClearGLWindow.isVisible = true
         lClearGLWindow.setFPS(60)
-
-        hmd = OpenVRInput(seated = true)
-        //hmd?.initCompositor()
 
         val inputHandler = ClearGLInputHandler(scene, deferredRenderer as Any, lClearGLWindow)
         inputHandler.useDefaultBindings(System.getProperty("user.home") + "/.sceneryExamples.bindings")

@@ -22,6 +22,8 @@ class OpenVRExample {
     private var deferredRenderer: DeferredLightingRenderer? = null
     private var ovr: OpenVRInput? = null
 
+    private val hub: Hub = Hub()
+
     @Test fun demo() {
         val lClearGLWindowEventListener = object : ClearGLDefaultEventListener() {
 
@@ -29,7 +31,11 @@ class OpenVRExample {
 
             override fun init(pDrawable: GLAutoDrawable) {
                 super.init(pDrawable)
+                ovr = OpenVRInput(useCompositor = true)
+                hub.add(SceneryElement.HMDINPUT, ovr!!)
+
                 deferredRenderer = DeferredLightingRenderer(pDrawable.gl.gL4, mClearGLWindow!!.width, mClearGLWindow!!.height)
+                hub.add(SceneryElement.RENDERER, deferredRenderer!!)
 
                 var box = Box(GLVector(1.0f, 1.0f, 1.0f))
                 var boxmaterial = Material()
@@ -84,6 +90,7 @@ class OpenVRExample {
 
             override fun display(pDrawable: GLAutoDrawable) {
                 super.display(pDrawable)
+                ovr?.updatePose()
 
                 frameNum++
                 deferredRenderer?.render(scene)
@@ -127,13 +134,11 @@ class OpenVRExample {
         }
 
         val lClearGLWindow = ClearGLWindow("",
-                1024,
-                1024,
+                3024,
+                1680,
                 lClearGLWindowEventListener)
         lClearGLWindow.isVisible = true
         lClearGLWindow.setFPS(60)
-
-        ovr = OpenVRInput()
 
         val inputHandler = ClearGLInputHandler(scene, deferredRenderer as Any, lClearGLWindow)
         inputHandler.useDefaultBindings(System.getProperty("user.home") + "/.sceneryExamples.bindings")

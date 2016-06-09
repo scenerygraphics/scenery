@@ -7,6 +7,8 @@ import com.jogamp.opengl.GL4
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import scenery.*
+import scenery.controls.HMDInput
+import scenery.rendermodules.Renderer
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.util.*
@@ -22,7 +24,7 @@ import java.util.*
      */
 
 
-open class DeferredLightingRenderer {
+open class DeferredLightingRenderer : Renderer, Hubable {
     protected var logger: Logger = LoggerFactory.getLogger("DeferredLightingRenderer")
     protected var gl: GL4
     protected var width: Int
@@ -35,6 +37,7 @@ open class DeferredLightingRenderer {
     protected var combinerProgram: GLProgram
 
     var settings: Settings = Settings()
+    override var hub: Hub? = null
 
     protected var textures = HashMap<String, GLTexture>()
 
@@ -135,6 +138,7 @@ open class DeferredLightingRenderer {
         ds.set("vr.Active", true)
         ds.set("vr.DoAnaglyph", false)
         ds.set("vr.IPD", 0.0f)
+        ds.set("vr.EyeDivisor", 1)
 
         ds.set("hdr.Active", true)
         ds.set("hdr.Exposure", 1.0f)
@@ -226,7 +230,7 @@ open class DeferredLightingRenderer {
         return node.metadata["DeferredLightingRenderer"] as OpenGLObjectState
     }
 
-    fun initializeScene(scene: Scene) {
+    override fun initializeScene(scene: Scene) {
         scene.discover(scene, { it is HasGeometry })
                 .forEach { it ->
             it.metadata.put("DeferredLightingRenderer", OpenGLObjectState())
@@ -301,13 +305,20 @@ open class DeferredLightingRenderer {
         }
     }
 
-    fun render(scene: Scene) {
+
+    override fun render(scene: Scene) {
 
         val renderOrderList = ArrayList<Node>()
         val cam: Camera = scene.findObserver()
         var mv: GLMatrix
         var mvp: GLMatrix
         var proj: GLMatrix
+
+        val hmd: HMDInput? = if(hub!!.has(SceneryElement.HMDINPUT)) {
+            hub!!.get(SceneryElement.HMDINPUT) as HMDInput
+        } else {
+            null
+        }
 
         scene.discover(scene, { n -> n is Renderable && n is HasGeometry && n.visible }).forEach {
             renderOrderList.add(it)
@@ -369,19 +380,36 @@ open class DeferredLightingRenderer {
             }
 
             eyes.forEachIndexed { i, eye ->
-                mv = GLMatrix.getTranslation(settings.get<Float>("vr.IPD") * -1.0f * Math.pow(-1.0, 1.0*i).toFloat(), 0.0f, 0.0f).transpose()
+                var projection: GLMatrix = if(hmd == null) {
+                    GLMatrix().setPerspectiveProjectionMatrix(70.0f / 180.0f * Math.PI.toFloat(),
+                        (1.0f * geometryBuffer[i].width) / (1.0f * geometryBuffer[i].height), 0.1f, 100000f)
+                } else {
+                    hmd?.getEyeProjection(i)
+                }
+
+                mv = if(hmd == null ) {
+                    GLMatrix.getTranslation(settings.get<Float>("vr.IPD") * -1.0f * Math.pow(-1.0, 1.0*i).toFloat(), 0.0f, 0.0f).transpose()
+                } else {
+                    hmd?.getHeadToEyeTransform(i).clone()
+                }
+                val pose = if(hmd == null) {
+                    GLMatrix.getIdentity()
+                } else {
+                    hmd.getPose()
+                }
+                mv.mult(pose)
                 mv.mult(cam.view!!)
                 mv.mult(cam.rotation)
                 mv.mult(n.world)
 
-                mvp = cam.projection!!.clone()
+                mvp = projection.clone()
                 mvp.mult(mv)
 
                 s.program?.let { program ->
                     program.use(gl)
                     program.getUniform("ModelMatrix")!!.setFloatMatrix(n.model, false);
                     program.getUniform("ModelViewMatrix")!!.setFloatMatrix(mv, false)
-                    program.getUniform("ProjectionMatrix")!!.setFloatMatrix(cam.projection, false)
+                    program.getUniform("ProjectionMatrix")!!.setFloatMatrix(projection, false)
                     program.getUniform("MVP")!!.setFloatMatrix(mvp, false)
                     program.getUniform("isBillboard")!!.setInt(n.isBillboard.toInt())
 
@@ -432,13 +460,32 @@ open class DeferredLightingRenderer {
                 modelviewprojs.ensureCapacity(matrixSize * instances.size)
 
                 instances.forEachIndexed { i, node ->
-                    mo = node.model.clone()
-                    mv = GLMatrix.getTranslation(settings.get<Float>("vr.IPD") * -1.0f * Math.pow(-1.0, 1.0*eye).toFloat(), 0.0f, 0.0f).transpose()
+                    val projection = if(hmd != null) {
+                        GLMatrix().setPerspectiveProjectionMatrix(70.0f / 180.0f * Math.PI.toFloat(),
+                                (1.0f * geometryBuffer[eye].width) / (1.0f * geometryBuffer[eye].height), 0.1f, 100000f)
+                    } else {
+                        hmd?.getEyeProjection(eye)!!
+                    }
+
+                    mo = node.world.clone()
+
+                    mv = if(hmd == null) {
+                        GLMatrix.getTranslation(settings.get<Float>("vr.IPD") * -1.0f * Math.pow(-1.0, 1.0*eye).toFloat(), 0.0f, 0.0f).transpose()
+                    } else {
+                        hmd.getHeadToEyeTransform(eye).clone()
+                    }
+
+                    val pose = if(hmd == null) {
+                        GLMatrix.getIdentity()
+                    } else {
+                        hmd.getPose()
+                    }
+                    mv.mult(pose)
                     mv.mult(cam.view!!)
                     mv.mult(cam.rotation)
                     mv.mult(node.world)
 
-                    mvp = cam.projection!!.clone()
+                    mvp = projection.clone()
                     mvp.mult(mv)
 
                     models.addAll(mo.floatArray.asSequence())
@@ -578,6 +625,11 @@ open class DeferredLightingRenderer {
             combinerProgram.getUniform("leftEye").setInt(0)
             combinerProgram.getUniform("rightEye").setInt(4)
             renderFullscreenQuad(combinerProgram)
+
+            if(hmd != null && hmd.hasCompositor()) {
+                logger.trace("Submitting to compositor...")
+                hmd?.submitToCompositor(combinationBuffer[0].getTextureIds(gl)[0], combinationBuffer[1].getTextureIds(gl)[0])
+            }
         } else {
             combinationBuffer.first().bindTexturesToUnitsWithOffset(gl, 0)
             combinerProgram.getUniform("leftEye").setInt(0)
@@ -728,12 +780,13 @@ open class DeferredLightingRenderer {
         this.height = newHeight
 
         if (settings.get<Boolean>("vr.Active")) {
+            val eyeDivisor = settings.get<Int>("vr.EyeDivisor")
             geometryBuffer.forEach {
-                it.resize(gl, newWidth / 2, newHeight / 2)
+                it.resize(gl, newWidth / eyeDivisor, newHeight)
             }
 
             hdrBuffer.forEach {
-                it.resize(gl, newWidth / 2, newHeight / 2)
+                it.resize(gl, newWidth / eyeDivisor, newHeight)
             }
         } else {
             geometryBuffer.first().resize(gl, newWidth, newHeight)

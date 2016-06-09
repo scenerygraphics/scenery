@@ -17,9 +17,9 @@ out VertexData {
 
 uniform mat4 ModelViewMatrix;
 uniform mat4 ModelMatrix;
-uniform mat3 NormalMatrix;
 uniform mat4 ProjectionMatrix;
 uniform mat4 MVP;
+
 uniform vec3 CamPosition;
 
 uniform int isBillboard = 0;

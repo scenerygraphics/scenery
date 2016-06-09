@@ -23,6 +23,7 @@ class SponzaExample {
     private var frameNum = 0
     private var deferredRenderer: DeferredLightingRenderer? = null
     private var ovr: OpenVRInput? = null
+    private var hub: Hub = Hub()
 
     @Test fun demo() {
         val lClearGLWindowEventListener = object : ClearGLDefaultEventListener() {
@@ -32,9 +33,13 @@ class SponzaExample {
             override fun init(pDrawable: GLAutoDrawable) {
                 super.init(pDrawable)
                 try {
+                    ovr = OpenVRInput(useCompositor = true)
+                    hub.add(SceneryElement.HMDINPUT, ovr!!)
+
                     deferredRenderer = DeferredLightingRenderer(pDrawable.gl.gL4,
                             mClearGLWindow!!.width,
                             mClearGLWindow!!.height)
+                    hub.add(SceneryElement.RENDERER, deferredRenderer!!)
 
                     val cam: Camera = DetachedHeadCamera()
 
@@ -207,6 +212,7 @@ class SponzaExample {
 
             override fun display(pDrawable: GLAutoDrawable) {
                 super.display(pDrawable)
+                ovr?.updatePose()
 
                 frameNum++
                 deferredRenderer?.render(scene)
@@ -236,14 +242,12 @@ class SponzaExample {
         }
 
         val lClearGLWindow = ClearGLWindow("",
-                1280,
-                720,
+                3024,
+                1680,
                 lClearGLWindowEventListener)
 
         lClearGLWindow.isVisible = true
         lClearGLWindow.setFPS(60)
-
-        ovr = OpenVRInput()
 
         val inputHandler = ClearGLInputHandler(scene, deferredRenderer as Any, lClearGLWindow)
         inputHandler.useDefaultBindings(System.getProperty("user.home") + "/.sceneryExamples.bindings")

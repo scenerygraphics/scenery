@@ -6,6 +6,8 @@ import com.sun.jna.Structure
 import jopenvr.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import scenery.Hub
+import scenery.Hubable
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.nio.LongBuffer
@@ -16,8 +18,9 @@ import jopenvr.JOpenVRLibrary as jvr
 /**
  * Created by ulrik on 25/05/2016.
  */
-class OpenVRInput(val seated: Boolean = true) {
+open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = false) : HMDInput, Hubable {
     protected var logger: Logger = LoggerFactory.getLogger("OpenVRInput")
+    override var hub: Hub? = null
 
     protected var vrFuncs: VR_IVRSystem_FnTable? = null
     protected var compositorFuncs: VR_IVRCompositor_FnTable? = null
@@ -28,6 +31,8 @@ class OpenVRInput(val seated: Boolean = true) {
 
     protected val error = IntBuffer.allocate(1)
     protected var hmdPose = GLMatrix.getIdentity()
+    protected var eyeProjectionCache: ArrayList<GLMatrix?> = ArrayList()
+    protected var eyeTransformCache: ArrayList<GLMatrix?> = ArrayList()
 
     val lastVsync = FloatBuffer.allocate(1)
     val frameCount = LongBuffer.allocate(1)
@@ -83,6 +88,17 @@ class OpenVRInput(val seated: Boolean = true) {
                     it.autoWrite = false
                 }
 
+                if(useCompositor) {
+                    initCompositor()
+                }
+
+                logger.info("Recommended render target size is ${getRenderTargetSize()}")
+                eyeProjectionCache.add(null)
+                eyeProjectionCache.add(null)
+
+                eyeTransformCache.add(null)
+                eyeTransformCache.add(null)
+
                 initialized = true
             }
 
@@ -118,7 +134,7 @@ class OpenVRInput(val seated: Boolean = true) {
         jvr.VR_ShutdownInternal()
     }
 
-    fun getRenderTargetSize(): GLVector {
+    override fun getRenderTargetSize(): GLVector {
         val x = IntBuffer.allocate(1)
         val y = IntBuffer.allocate(1)
 
@@ -139,7 +155,31 @@ class OpenVRInput(val seated: Boolean = true) {
         return fov
     }
 
-    fun getIPD(): Float {
+    override fun getEyeProjection(eye: Int): GLMatrix {
+        if(eyeProjectionCache[eye] == null) {
+            val proj = vrFuncs!!.GetProjectionMatrix!!.apply(eye, 0.1f, 10000f, jvr.EGraphicsAPIConvention.EGraphicsAPIConvention_API_OpenGL)
+            proj.read()
+
+            eyeProjectionCache[eye] = proj.toGLMatrix().transpose()
+            logger.info("Eye projection #$eye" + eyeProjectionCache[eye].toString())
+        }
+
+        return eyeProjectionCache[eye]!!
+    }
+
+    override fun getHeadToEyeTransform(eye: Int): GLMatrix {
+        if(eyeTransformCache[eye] == null) {
+            val transform = vrFuncs!!.GetEyeToHeadTransform!!.apply(eye)
+            transform.read()
+            eyeTransformCache[eye] = transform.toGLMatrix()
+
+            logger.info("Head-to-eye #$eye: " + eyeTransformCache[eye].toString())
+        }
+
+        return eyeTransformCache[eye]!!
+    }
+
+    override fun getIPD(): Float {
         if(vrFuncs == null) {
             return 0.065f
         } else {
@@ -147,11 +187,11 @@ class OpenVRInput(val seated: Boolean = true) {
         }
     }
 
-    fun getOrientation(): GLMatrix {
+    override fun getOrientation(): GLMatrix {
         return GLMatrix.getIdentity()
     }
 
-    fun getPosition(): GLVector {
+    override fun getPosition(): GLVector {
         return GLVector.getNullVector(3)
     }
 
@@ -204,12 +244,61 @@ class OpenVRInput(val seated: Boolean = true) {
         }
 
         for(device in (0..jvr.k_unMaxTrackedDeviceCount-1)) {
-            hmdTrackedDevicePoses!!.get(device).readField("bPoseIsValid")
-            val pose =  (hmdTrackedDevicePoses!!.get(device).readField("mDeviceToAbsoluteTracking") as HmdMatrix34_t)
-            hmdPose = pose.toGLMatrix()
+            val isValid = hmdTrackedDevicePoses!!.get(device).readField("bPoseIsValid")
+            var type: String = ""
 
-            //logger.info(hmdPose.toString())
+            if(isValid != 0) {
+                val device: Int = vrFuncs!!.GetTrackedDeviceClass!!.apply(device)
+                type = when(device) {
+                    jopenvr.JOpenVRLibrary.ETrackedDeviceClass.ETrackedDeviceClass_TrackedDeviceClass_Controller -> "Controller"
+                    jopenvr.JOpenVRLibrary.ETrackedDeviceClass.ETrackedDeviceClass_TrackedDeviceClass_HMD -> "HMD"
+                    jopenvr.JOpenVRLibrary.ETrackedDeviceClass.ETrackedDeviceClass_TrackedDeviceClass_Other -> "Other"
+                    jopenvr.JOpenVRLibrary.ETrackedDeviceClass.ETrackedDeviceClass_TrackedDeviceClass_TrackingReference -> "TrackingReference"
+                    jopenvr.JOpenVRLibrary.ETrackedDeviceClass.ETrackedDeviceClass_TrackedDeviceClass_Invalid -> "Invalid"
+                    else -> "Unknown"
+                }
+
+            }
         }
+
+        val isValid = hmdTrackedDevicePoses!!.get(jvr.k_unTrackedDeviceIndex_Hmd).readField("bPoseIsValid")
+        if(isValid != 0) {
+            val pose = (hmdTrackedDevicePoses!!.get(jvr.k_unTrackedDeviceIndex_Hmd).readField("mDeviceToAbsoluteTracking") as HmdMatrix34_t)
+            hmdPose = pose.toGLMatrix().invert()
+
+            logger.trace("HMD: ${hmdPose.toString()}")
+        }
+    }
+
+    override fun hasCompositor(): Boolean {
+        if(compositorFuncs != null) {
+            return true
+        }
+
+        return false
+    }
+
+    override fun submitToCompositor(leftId: Int, rightId: Int) {
+        val leftTexture = Texture_t()
+        val rightTexture = Texture_t()
+
+        leftTexture.eColorSpace = jvr.EColorSpace.EColorSpace_ColorSpace_Gamma
+        rightTexture.eColorSpace = jvr.EColorSpace.EColorSpace_ColorSpace_Gamma
+
+        leftTexture.eType = jopenvr.JOpenVRLibrary.EGraphicsAPIConvention.EGraphicsAPIConvention_API_OpenGL
+        rightTexture.eType = jopenvr.JOpenVRLibrary.EGraphicsAPIConvention.EGraphicsAPIConvention_API_OpenGL
+
+        leftTexture.handle = leftId
+        rightTexture.handle = rightId
+
+        val bounds = VRTextureBounds_t()
+        bounds.uMin = 0.0f
+        bounds.uMax = 1.0f
+        bounds.vMin = 0.0f
+        bounds.vMax = 1.0f
+
+        compositorFuncs!!.Submit.apply(0, leftTexture, bounds, 0)
+        compositorFuncs!!.Submit.apply(1, rightTexture, bounds, 0)
     }
 
     fun getExperience(): Int {
@@ -220,15 +309,23 @@ class OpenVRInput(val seated: Boolean = true) {
         }
     }
 
-    fun HmdMatrix34_t.toGLMatrix(): GLMatrix {
-        val f = FloatBuffer.allocate(16)
-        f.put(this.m)
-        f.put(0.0f)
-        f.put(0.0f)
-        f.put(0.0f)
-        f.put(1.0f)
+    override fun getPose(): GLMatrix {
+        return this.hmdPose
+    }
 
-        val m = GLMatrix(f.array())
+    fun HmdMatrix34_t.toGLMatrix(): GLMatrix {
+        val m = GLMatrix(floatArrayOf(
+                m[0], m[4], m[8], 0.0f,
+                m[1], m[5], m[9], 0.0f,
+                m[2], m[6], m[10], 0.0f,
+                m[3], m[7], m[11], 1.0f
+        ))
+//        val m = GLMatrix(floatArrayOf(
+//                m[0], m[1], m[2], m[3],
+//                m[4], m[5], m[6], m[7],
+//                m[8], m[9], m[10], m[11],
+//                0.0f, 0.0f, 0.0f, 1.0f
+//        ))
         return m
     }
 
