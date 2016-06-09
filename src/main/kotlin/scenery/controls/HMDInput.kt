@@ -19,4 +19,5 @@ interface HMDInput {
     fun submitToCompositor(leftId: Int, rightId: Int)
 
     fun getRenderTargetSize(): GLVector
+    fun initializedAndWorking(): Boolean
 }

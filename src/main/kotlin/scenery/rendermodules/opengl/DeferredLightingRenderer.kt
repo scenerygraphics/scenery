@@ -135,7 +135,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         ds.set("ssao.DistanceThreshold", 50.0f)
         ds.set("ssao.Algorithm", 1)
 
-        ds.set("vr.Active", true)
+        ds.set("vr.Active", false)
         ds.set("vr.DoAnaglyph", false)
         ds.set("vr.IPD", 0.0f)
         ds.set("vr.EyeDivisor", 1)
@@ -314,7 +314,8 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         var mvp: GLMatrix
         var proj: GLMatrix
 
-        val hmd: HMDInput? = if(hub!!.has(SceneryElement.HMDINPUT)) {
+        val hmd: HMDInput? = if(hub!!.has(SceneryElement.HMDINPUT)
+                && (hub!!.get(SceneryElement.HMDINPUT) as HMDInput).initializedAndWorking()) {
             hub!!.get(SceneryElement.HMDINPUT) as HMDInput
         } else {
             null
@@ -460,11 +461,11 @@ open class DeferredLightingRenderer : Renderer, Hubable {
                 modelviewprojs.ensureCapacity(matrixSize * instances.size)
 
                 instances.forEachIndexed { i, node ->
-                    val projection = if(hmd != null) {
+                    val projection = if(hmd == null) {
                         GLMatrix().setPerspectiveProjectionMatrix(70.0f / 180.0f * Math.PI.toFloat(),
                                 (1.0f * geometryBuffer[eye].width) / (1.0f * geometryBuffer[eye].height), 0.1f, 100000f)
                     } else {
-                        hmd?.getEyeProjection(eye)!!
+                        hmd.getEyeProjection(eye)
                     }
 
                     mo = node.world.clone()

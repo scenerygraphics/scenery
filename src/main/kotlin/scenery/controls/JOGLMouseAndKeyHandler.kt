@@ -12,6 +12,7 @@ import java.awt.Toolkit
 import java.io.File
 import java.nio.file.Files
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.concurrent.thread
 
 /**
@@ -26,7 +27,7 @@ class JOGLMouseAndKeyHandler : MouseListener, KeyListener, WindowListener, Windo
 
     private var controllerThread: Thread? = null
 
-    private var controllerAxisDown: HashMap<Component.Identifier, Int> = HashMap()
+    private var controllerAxisDown: ConcurrentHashMap<Component.Identifier, Float> = ConcurrentHashMap()
 
     private val CONTROLLER_HEARTBEAT = 5L
 
@@ -122,16 +123,26 @@ class JOGLMouseAndKeyHandler : MouseListener, KeyListener, WindowListener, Windo
         }
 
         controllerThread = thread {
+            var event_queue: EventQueue
+            var event: Event = Event()
+
             while(true) {
                 controller?.let {
                     controller!!.poll()
 
-                    val event_queue = controller!!.eventQueue
-                    val event = Event()
+                    event_queue = controller!!.eventQueue
 
                     while (event_queue.getNextEvent(event)) {
-                        gamepadState = event
                         controllerEvent(event)
+                    }
+                }
+
+                for(gamepad in gamepads) {
+                    for(it in controllerAxisDown) {
+                        if (Math.abs(it.value) > 0.02f && gamepad.behaviour.axis.contains(it.key)) {
+                            logger.trace("Triggering ${it.key} because axis is down (${it.value})")
+                            gamepad.behaviour.axisEvent(it.key, it.value.toFloat())
+                        }
                     }
                 }
 
@@ -563,18 +574,15 @@ class JOGLMouseAndKeyHandler : MouseListener, KeyListener, WindowListener, Windo
 
     fun controllerEvent(event: Event) {
         for(gamepad in gamepads) {
-            if(event.component.isAnalog && Math.abs(event.value) > CONTROLLER_DOWN_THRESHOLD) {
-                controllerAxisDown.put(event.component.identifier, Math.signum(event.value).toInt())
+            if(event.component.isAnalog && Math.abs(event.component.pollData) < CONTROLLER_DOWN_THRESHOLD) {
+                logger.trace("${event.component.identifier} over threshold, removing")
+                controllerAxisDown.put(event.component.identifier, 0.0f)
             } else {
-                controllerAxisDown.put(event.component.identifier, 0)
+                controllerAxisDown.put(event.component.identifier, event.component.pollData)
             }
 
             if(gamepad.behaviour.axis.contains(event.component.identifier)) {
                 gamepad.behaviour.axisEvent(event.component.identifier, event.component.pollData)
-            }
-
-            controllerAxisDown.filter { it.value != 0 }.forEach {
-                gamepad.behaviour.axisEvent(it.key, it.value.toFloat())
             }
         }
     }

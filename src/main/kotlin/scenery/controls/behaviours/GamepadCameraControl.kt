@@ -28,6 +28,7 @@ class GamepadCameraControl(private val name: String,
 
     }
 
+    @Synchronized
     override fun axisEvent(axis: Component.Identifier, value: Float) {
         if(Math.abs(value) < threshold) {
             return
@@ -56,8 +57,8 @@ class GamepadCameraControl(private val name: String,
         lastX = x
         lastY = y
 
-        xoffset *= 45f;
-        yoffset *= 45f;
+        xoffset *= 60f;
+        yoffset *= 60f;
 
         yaw += xoffset;
         pitch += yoffset;

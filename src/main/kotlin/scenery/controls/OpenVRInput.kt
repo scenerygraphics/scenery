@@ -63,6 +63,8 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
                 vrFuncs = null
                 hmdTrackedDevicePoseReference = null
                 hmdTrackedDevicePoses = null
+
+                initialized = false
             } else {
                 logger.info("OpenVR: Initialized.")
 
@@ -132,6 +134,10 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
 
     fun close() {
         jvr.VR_ShutdownInternal()
+    }
+
+    override fun initializedAndWorking(): Boolean {
+        return initialized
     }
 
     override fun getRenderTargetSize(): GLVector {
