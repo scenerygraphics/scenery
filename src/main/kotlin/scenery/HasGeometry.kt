@@ -365,8 +365,6 @@ interface HasGeometry {
                 return bBuf.float
             }
 
-            val objectName = String(headerB.copyOfRange(0, headerB.indexOfFirst { it == 0.toByte() }))
-
             for (i in 1..size) {
                 // surface normal
                 val n1 = readFloatFromInputStream(bis)
