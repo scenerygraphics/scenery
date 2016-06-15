@@ -89,9 +89,8 @@ task performanceTest(type: Test) {
 
 dependencies
 {
-    compile 'org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version'
+    compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
     compile "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
-    compile ('org.jogamp.jogl:jogl-all:2.3.1'){transitive = true}
 
     compile "org.slf4j:slf4j-api:$slf4j_version"
     compile "org.slf4j:slf4j-simple:$slf4j_version"
@@ -110,7 +109,7 @@ dependencies
 
     // JInput for controls
     compile group: 'net.java.jinput', name: 'jinput', version: '2.0.6'
-    compile group: 'net.java.jinput', name: 'jinput-platform', version: '2.0.6'
+    compile group: 'net.java.jinput', name: 'jinput-platform', version: '2.0.6', ext: 'pom'
     compile group: 'net.java.jutils', name: 'jutils', version: '1.0.0'
 
     // usage: gradle .... -Plocal=true
@@ -139,8 +138,6 @@ repositories
     { url "http://dl.bintray.com/clearcontrol/ClearControl" }
     maven
     { url "http://nativelibs4java.sourceforge.net/maven" }
-
-    mavenLocal()
 }
 
 task sourcesJar(type: Jar, dependsOn:classes) {
@@ -176,6 +173,7 @@ def getVersionName = { ->
 }
 
 group = 'net.clearvolume'
+archivesBaseName = "scenery"
 
 if(project.hasProperty('releasebuild')) {
     version = getVersionName()
