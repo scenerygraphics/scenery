@@ -71,7 +71,7 @@ class JOGLMouseAndKeyHandler : MouseListener, KeyListener, WindowListener, Windo
         val lp = System.getProperty("java.library.path")
         val tmpDir = Files.createTempDirectory("scenery-natives-tmp").toFile()
 
-        paths.forEach {
+        paths.filter { it.toLowerCase().endsWith("jar") }.forEach {
             val jar = java.util.jar.JarFile(it);
             val enumEntries = jar.entries();
 
