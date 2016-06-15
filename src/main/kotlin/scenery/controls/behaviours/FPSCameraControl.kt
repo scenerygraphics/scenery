@@ -23,15 +23,19 @@ class FPSCameraControl(private val name: String, private val node: Camera, priva
 
     }
 
-    override fun init(x: Int, y: Int) = Unit
-    override fun end(x: Int, y: Int) = Unit
-
-    override fun drag(x: Int, y: Int) {
+    override fun init(x: Int, y: Int) {
         if (firstEntered) {
             lastX = x;
             lastY = y;
             firstEntered = false;
         }
+    }
+
+    override fun end(x: Int, y: Int) {
+        firstEntered = true;
+    }
+
+    override fun drag(x: Int, y: Int) {
         var xoffset: Float = (x - lastX).toFloat();
         var yoffset: Float = (lastY - y).toFloat();
 
