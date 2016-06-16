@@ -1,7 +1,6 @@
 package scenery.controls.behaviours
 
 import cleargl.GLVector
-import com.jogamp.opengl.math.Quaternion
 import org.scijava.ui.behaviour.DragBehaviour
 import scenery.Camera
 
@@ -10,8 +9,7 @@ import scenery.Camera
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class FPSCameraControl(private val name: String, private val node: Camera, private val w: Int, private val h: Int) : DragBehaviour {
-    private var last = Quaternion(0.0f, 0.0f, 0.0f, 1.0f)
+open class FPSCameraControl(private val name: String, private val node: Camera, private val w: Int, private val h: Int) : DragBehaviour {
     private var lastX = w / 2;
     private var lastY = h / 2;
     private var firstEntered = true;
@@ -20,7 +18,33 @@ class FPSCameraControl(private val name: String, private val node: Camera, priva
     private var yaw: Float = 0.0f;
 
     init {
+        val yp = node.forward.toYawPitch()
+        this.yaw = yp.first
+        this.pitch = yp.second
+    }
 
+    protected fun GLVector.toYawPitch(): Pair<Float, Float> {
+        val dx = this.x()
+        val dy = this.y()
+        val dz = this.z()
+        var yaw = 0.0f
+        var pitch = 0.0f
+
+        if (Math.abs(dx) < 0.000001f) {
+            if (dx < 0.0f) {
+                yaw = 1.5f * Math.PI.toFloat()
+            } else {
+                yaw = 0.5f * Math.PI.toFloat()
+            }
+
+            yaw -= Math.atan((1.0 * dz) / (1.0 * dx)).toFloat()
+        } else if (dz < 0) {
+            yaw = Math.PI.toFloat();
+        }
+
+        pitch = Math.atan(Math.sqrt(1.0*dx*dx + 1.0*dy*dy)/dz).toFloat()
+
+        return Pair((-yaw * 180.0f / Math.PI.toFloat() - 90.0f), pitch)
     }
 
     override fun init(x: Int, y: Int) {
