@@ -12,6 +12,8 @@ import scenery.rendermodules.Renderer
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
+import kotlin.concurrent.thread
 
 /**
  * <Description>
@@ -35,6 +37,8 @@ open class DeferredLightingRenderer : Renderer, Hubable {
     protected var lightingPassProgram: GLProgram
     protected var hdrPassProgram: GLProgram
     protected var combinerProgram: GLProgram
+
+    protected var nodeStore = ConcurrentHashMap<String, Node>()
 
     var settings: Settings = Settings()
     override var hub: Hub? = null
@@ -112,13 +116,13 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         logger.info(geometryBuffer.map { it.toString() }.joinToString("\n"))
 
         lightingPassProgram = GLProgram.buildProgram(gl, DeferredLightingRenderer::class.java,
-                arrayOf("shaders/Dummy.vert", "shaders/FullscreenQuadGenerator.geom", "shaders/DeferredLighting.frag"))
+                arrayOf("shaders/FullscreenQuad.vert", "shaders/DeferredLighting.frag"))
 
         hdrPassProgram = GLProgram.buildProgram(gl, DeferredLightingRenderer::class.java,
-                arrayOf("shaders/Dummy.vert", "shaders/FullscreenQuadGenerator.geom", "shaders/HDR.frag"))
+                arrayOf("shaders/FullscreenQuad.vert", "shaders/HDR.frag"))
 
         combinerProgram = GLProgram.buildProgram(gl, DeferredLightingRenderer::class.java,
-                arrayOf("shaders/Dummy.vert", "shaders/FullscreenQuadGenerator.geom", "shaders/Combiner.frag"))
+                arrayOf("shaders/FullscreenQuad.vert",  "shaders/Combiner.frag"))
 
         gl.glViewport(0, 0, this.width, this.height)
         gl.glClearColor(0.0f, 0.0f, 0.0f, 0.0f)
@@ -640,8 +644,8 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         }
     }
 
-    fun renderFullscreenQuad(quadGenerator: GLProgram) {
-       val quadId: IntBuffer = IntBuffer.allocate(1)
+    fun renderFullscreenQuadOld(quadGenerator: GLProgram) {
+        val quadId: IntBuffer = IntBuffer.allocate(1)
 
         quadGenerator.gl.gL4.glGenVertexArrays(1, quadId)
         quadGenerator.gl.gL4.glBindVertexArray(quadId.get(0))
@@ -652,6 +656,31 @@ open class DeferredLightingRenderer : Renderer, Hubable {
 
         quadGenerator.gl.gL4.glBindVertexArray(0)
         quadGenerator.gl.gL4.glDeleteVertexArrays(1, quadId)
+    }
+
+    fun renderFullscreenQuad(quadGenerator: GLProgram) {
+        var quad: Node
+        val quadName = "fullscreenQuad-${quadGenerator.id}"
+
+        if(!nodeStore.containsKey(quadName)) {
+            quad = Plane(GLVector(1.0f, 1.0f, 0.0f))
+            val material = OpenGLMaterial()
+
+            material.program = quadGenerator
+
+            quad.material = material
+            quad.metadata.put("DeferredLightingRenderer", OpenGLObjectState())
+            initializeNode(quad)
+
+            nodeStore.put(quadName, quad)
+        } else {
+            logger.info("reusing quad for ${quadGenerator.id}")
+            quad = nodeStore[quadName]!!
+        }
+
+        (quad.material as OpenGLMaterial).program = quadGenerator
+
+        drawNode(quad)
     }
 
     fun initializeNode(node: Node): Boolean {
@@ -741,6 +770,25 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         loadTexturesForNode(node, s);
         s.initialized = true
         return true
+    }
+
+    fun <K, V> HashMap<K, V>.forEachParallel(maxThreads: Int = 5, action: ((K, V) -> Unit)) {
+        val iterator = this.asSequence().iterator()
+        var threadCount = 0
+
+        while(iterator.hasNext()) {
+            val current = iterator.next()
+
+            thread {
+                threadCount++
+                while(threadCount > maxThreads) {
+                    Thread.sleep(50)
+                }
+
+                action.invoke(current.key, current.value)
+                threadCount--
+            }
+        }
     }
 
     protected fun loadTexturesForNode(node: Node, s: OpenGLObjectState): Boolean {

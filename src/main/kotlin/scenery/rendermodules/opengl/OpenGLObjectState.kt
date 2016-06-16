@@ -4,6 +4,7 @@ import cleargl.GLProgram
 import cleargl.GLTexture
 import scenery.NodeMetadata
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * <Description>
@@ -15,7 +16,7 @@ class OpenGLObjectState : NodeMetadata {
 
     public var program: GLProgram? = null
     val additionalBufferIds = Hashtable<String, Int>()
-    val textures = HashMap<String, GLTexture>()
+    val textures = ConcurrentHashMap<String, GLTexture>()
 
     val mVertexArrayObject = IntArray(1)
     val mVertexBuffers = IntArray(3)
