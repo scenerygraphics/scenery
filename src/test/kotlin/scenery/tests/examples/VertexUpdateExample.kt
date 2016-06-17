@@ -19,6 +19,7 @@ class VertexUpdateExample {
     private val scene: Scene = Scene()
     private var frameNum = 0
     private var deferredRenderer: DeferredLightingRenderer? = null
+    private var hub: Hub = Hub()
 
     @Test fun demo() {
         val lClearGLWindowEventListener = object : ClearGLDefaultEventListener() {
@@ -28,6 +29,7 @@ class VertexUpdateExample {
             override fun init(pDrawable: GLAutoDrawable) {
                 super.init(pDrawable)
                 deferredRenderer = DeferredLightingRenderer(pDrawable.gl.gL4, mClearGLWindow!!.width, mClearGLWindow!!.height)
+                hub.add(SceneryElement.RENDERER, deferredRenderer!!)
 
                 var sphere = Sphere(2.0f, 50)
 
