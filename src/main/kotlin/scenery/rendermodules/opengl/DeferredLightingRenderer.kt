@@ -674,7 +674,6 @@ open class DeferredLightingRenderer : Renderer, Hubable {
 
             nodeStore.put(quadName, quad)
         } else {
-            logger.info("reusing quad for ${quadGenerator.id}")
             quad = nodeStore[quadName]!!
         }
 
