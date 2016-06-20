@@ -680,6 +680,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         (quad.material as OpenGLMaterial).program = quadGenerator
 
         drawNode(quad)
+        quadGenerator.gl.gL4.glBindTexture(GL.GL_TEXTURE_2D, 0)
     }
 
     fun initializeNode(node: Node): Boolean {
