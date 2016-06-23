@@ -6,5 +6,6 @@ package scenery
 enum class SceneryElement {
     RENDERER,
     HMDINPUT,
-    WINDOW
+    WINDOW,
+    OPENCLCONTEXT
 }

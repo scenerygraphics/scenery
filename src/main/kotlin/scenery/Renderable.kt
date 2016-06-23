@@ -3,6 +3,7 @@ package scenery
 import cleargl.GLMatrix
 import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
+import java.util.concurrent.locks.ReentrantLock
 
 interface Renderable {
     var model: GLMatrix
@@ -29,6 +30,8 @@ interface Renderable {
     var isBillboard: Boolean
 
     var material: Material?
+
+    var lock: ReentrantLock
 
     fun init(): Boolean
 }

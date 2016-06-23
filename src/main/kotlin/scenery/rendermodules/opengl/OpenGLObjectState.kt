@@ -16,7 +16,7 @@ class OpenGLObjectState : NodeMetadata {
 
     public var program: GLProgram? = null
     val additionalBufferIds = Hashtable<String, Int>()
-    val textures = ConcurrentHashMap<String, GLTexture>()
+    var textures = ConcurrentHashMap<String, GLTexture>()
 
     val mVertexArrayObject = IntArray(1)
     val mVertexBuffers = IntArray(3)

@@ -375,7 +375,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
 
             if(n.material != null) {
                 if(n.material?.needsTextureReload!!) {
-                    loadTexturesForNode(n, s)
+                    n.material?.needsTextureReload = !loadTexturesForNode(n, s)
                 }
             }
 
@@ -792,36 +792,44 @@ open class DeferredLightingRenderer : Renderer, Hubable {
     }
 
     protected fun loadTexturesForNode(node: Node, s: OpenGLObjectState): Boolean {
-        node.material?.textures?.forEach {
-            type, texture ->
-            if(!textures.containsKey(texture) || node.material?.needsTextureReload!!) {
-                logger.trace("Loading texture $texture for ${node.name}")
-                var glTexture = if(texture.startsWith("fromBuffer:")) {
-                    val gt = node.material!!.transferTextures!!.get(texture.substringAfter("fromBuffer:"))
+        if(node.lock.tryLock()) {
+            node.material?.textures?.forEach {
+                type, texture ->
+                if (!textures.containsKey(texture) || node.material?.needsTextureReload!!) {
+                    logger.trace("Loading texture $texture for ${node.name}")
+                    var glTexture = if (texture.startsWith("fromBuffer:")) {
+                        val gt = node.material!!.transferTextures!!.get(texture.substringAfter("fromBuffer:"))
 
-                    val t = GLTexture(gl, gt!!.type, 4,
-                            gt!!.dimensions.x().toInt(),
-                            gt!!.dimensions.y().toInt(),
-                            1,
-                            true,
-                            1)
-                    t.setClamp(!gt.repeatS, !gt.repeatT);
-                    t.copyFrom(gt!!.contents)
-                    t.updateMipMaps()
+                        val t = GLTexture(gl, gt!!.type, gt!!.channels,
+                                gt!!.dimensions.x().toInt(),
+                                gt!!.dimensions.y().toInt(),
+                                1,
+                                true,
+                                1)
 
-                    t
+                        t.setClamp(!gt.repeatS, !gt.repeatT);
+                        t.copyFrom(gt!!.contents)
+//                        t.updateMipMaps()
+
+                        t.dumpToFile(gt!!.contents)
+                        t
+                    } else {
+                        GLTexture.loadFromFile(gl, texture, true, 1)
+                    }
+
+                    s.textures.put(type, glTexture)
+                    textures.put(texture, glTexture)
                 } else {
-                    GLTexture.loadFromFile(gl, texture, true, 1)
+                    s.textures.put(type, textures[texture]!!)
                 }
-                s.textures.put(type, glTexture)
-                textures.put(texture, glTexture)
-            } else {
-                s.textures.put(type, textures[texture]!!)
             }
-        }
 
-        s.initialized = true
-        return true
+            s.initialized = true
+            node.lock.unlock()
+            return true
+        } else {
+            return false
+        }
     }
 
     fun reshape(newWidth: Int, newHeight: Int) {

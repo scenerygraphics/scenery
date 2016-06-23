@@ -6,6 +6,7 @@ import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
 import java.sql.Timestamp
 import java.util.*
+import java.util.concurrent.locks.ReentrantLock
 
 open class Node(open var name: String) : Renderable {
 
@@ -16,6 +17,7 @@ open class Node(open var name: String) : Renderable {
     override var dirty: Boolean = true
     override var visible: Boolean = true
     var instanceOf: Node? = null
+    override var lock: ReentrantLock = ReentrantLock()
 
     override fun init(): Boolean {
         return true
