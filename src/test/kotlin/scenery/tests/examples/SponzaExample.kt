@@ -1,265 +1,190 @@
 package scenery.tests.examples
 
-import cleargl.*
+import cleargl.GLMatrix
+import cleargl.GLVector
 import com.jogamp.opengl.GLAutoDrawable
 import com.jogamp.opengl.GLException
 import org.junit.Test
 import scenery.*
-import scenery.controls.ClearGLInputHandler
 import scenery.controls.OpenVRInput
 import scenery.rendermodules.opengl.DeferredLightingRenderer
-import scenery.repl.REPL
 import java.io.IOException
 import kotlin.concurrent.thread
 
 /**
  * Created by ulrik on 20/01/16.
  */
-class SponzaExample {
-
-
-    private val scene: Scene = Scene()
-    private val repl: REPL = REPL()
-    private var frameNum = 0
-    private var deferredRenderer: DeferredLightingRenderer? = null
+class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 1920, windowHeight = 1080) {
     private var ovr: OpenVRInput? = null
-    private var hub: Hub = Hub()
 
-    @Test fun demo() {
-        val lClearGLWindowEventListener = object : ClearGLDefaultEventListener() {
+    override fun init(pDrawable: GLAutoDrawable) {
+        super.init(pDrawable)
+        try {
+            ovr = OpenVRInput(useCompositor = true)
+            hub.add(SceneryElement.HMDINPUT, ovr!!)
 
-            private var mClearGLWindow: ClearGLDisplayable? = null
+            deferredRenderer = DeferredLightingRenderer(pDrawable.gl.gL4,
+                    glWindow!!.width,
+                    glWindow!!.height)
+            hub.add(SceneryElement.RENDERER, deferredRenderer!!)
 
-            override fun init(pDrawable: GLAutoDrawable) {
-                super.init(pDrawable)
-                try {
-                    ovr = OpenVRInput(useCompositor = true)
-                    hub.add(SceneryElement.HMDINPUT, ovr!!)
+            val cam: Camera = DetachedHeadCamera()
 
-                    deferredRenderer = DeferredLightingRenderer(pDrawable.gl.gL4,
-                            mClearGLWindow!!.width,
-                            mClearGLWindow!!.height)
-                    hub.add(SceneryElement.RENDERER, deferredRenderer!!)
+            fun rangeRandomizer(min: Float, max: Float): Float = min + (Math.random().toFloat() * ((max - min) + 1.0f))
 
-                    val cam: Camera = DetachedHeadCamera()
+            var boxes = (1..20).map {
+                Box(GLVector(rangeRandomizer(0.5f, 4.0f),
+                        rangeRandomizer(0.5f, 4.0f),
+                        rangeRandomizer(0.5f, 4.0f)))
+            }
 
-                    fun rangeRandomizer(min: Float, max: Float): Float = min + (Math.random().toFloat() * ((max - min) + 1.0f))
+            boxes.map { i ->
+                i.position =
+                        GLVector(rangeRandomizer(-10.0f, 10.0f),
+                                rangeRandomizer(-10.0f, 10.0f),
+                                rangeRandomizer(-10.0f, 10.0f))
+                scene.addChild(i)
+            }
 
-                    var boxes = (1..20).map {
-                        Box(GLVector(rangeRandomizer(0.5f, 4.0f),
-                                rangeRandomizer(0.5f, 4.0f),
-                                rangeRandomizer(0.5f, 4.0f)))
-                    }
+            var lights = (0..16).map {
+                PointLight()
+            }
 
-                    boxes.map { i ->
-                        i.position =
-                                GLVector(rangeRandomizer(-10.0f, 10.0f),
-                                        rangeRandomizer(-10.0f, 10.0f),
-                                        rangeRandomizer(-10.0f, 10.0f))
-                        scene.addChild(i)
-                    }
+            lights.map {
+                it.position = GLVector(rangeRandomizer(-600.0f, 600.0f),
+                        rangeRandomizer(-600.0f, 600.0f),
+                        rangeRandomizer(-600.0f, 600.0f))
+                it.emissionColor = GLVector(rangeRandomizer(0.0f, 1.0f),
+                        rangeRandomizer(0.0f, 1.0f),
+                        rangeRandomizer(0.0f, 1.0f))
+                it.intensity = rangeRandomizer(0.01f, 1000f)
+                it.linear = 0.1f;
+                it.quadratic = 0.01f;
 
-                    var lights = (0..16).map {
-                        PointLight()
-                    }
+                scene.addChild(it)
+            }
 
-                    lights.map {
-                        it.position = GLVector(rangeRandomizer(-600.0f, 600.0f),
-                                rangeRandomizer(-600.0f, 600.0f),
-                                rangeRandomizer(-600.0f, 600.0f))
-                        it.emissionColor = GLVector(rangeRandomizer(0.0f, 1.0f),
-                                rangeRandomizer(0.0f, 1.0f),
-                                rangeRandomizer(0.0f, 1.0f))
-                        it.intensity = rangeRandomizer(0.01f, 1000f)
-                        it.linear = 0.1f;
-                        it.quadratic = 0.01f;
+            var companionBox = Box(GLVector(5.0f, 5.0f, 5.0f))
+            companionBox.position = GLVector(1.0f, 1.0f, 1.0f)
+            companionBox.name = "Le Box de la Compagnion"
+            val companionBoxMaterial = Material()
+            companionBoxMaterial.ambient = GLVector(1.0f, 0.5f, 0.0f)
+            companionBoxMaterial.diffuse = GLVector(1.0f, 0.0f, 0.0f)
+            companionBoxMaterial.specular = GLVector(1.0f, 0.0f, 0.0f)
 
-                        scene.addChild(it)
-                    }
+            companionBox.material = companionBoxMaterial
 
-                    var companionBox = Box(GLVector(5.0f, 5.0f, 5.0f))
-                    companionBox.position = GLVector(1.0f, 1.0f, 1.0f)
-                    companionBox.name = "Le Box de la Compagnion"
-                    val companionBoxMaterial = Material()
-                    companionBoxMaterial.ambient = GLVector(1.0f, 0.5f, 0.0f)
-                    companionBoxMaterial.diffuse = GLVector(1.0f, 0.0f, 0.0f)
-                    companionBoxMaterial.specular = GLVector(1.0f, 0.0f, 0.0f)
+            boxes.first().addChild(companionBox)
 
-                    companionBox.material = companionBoxMaterial
+            val sphere = Sphere(0.5f, 20)
+            sphere.position = GLVector(0.5f, -1.2f, 0.5f)
+            sphere.scale = GLVector(5.0f, 5.0f, 5.0f)
 
-                    boxes.first().addChild(companionBox)
-
-                    val sphere = Sphere(0.5f, 20)
-                    sphere.position = GLVector(0.5f, -1.2f, 0.5f)
-                    sphere.scale = GLVector(5.0f, 5.0f, 5.0f)
-
-                    val hullbox = Box(GLVector(100.0f, 100.0f, 100.0f))
-                    hullbox.position = GLVector(0.0f, 0.0f, 0.0f)
-                    val hullboxM = Material()
-                    hullboxM.ambient = GLVector(0.6f, 0.6f, 0.6f)
-                    hullboxM.diffuse = GLVector(0.4f, 0.4f, 0.4f)
-                    hullboxM.specular = GLVector(0.0f, 0.0f, 0.0f)
-                    hullboxM.doubleSided = true
-                    hullbox.material = hullboxM
+            val hullbox = Box(GLVector(100.0f, 100.0f, 100.0f))
+            hullbox.position = GLVector(0.0f, 0.0f, 0.0f)
+            val hullboxM = Material()
+            hullboxM.ambient = GLVector(0.6f, 0.6f, 0.6f)
+            hullboxM.diffuse = GLVector(0.4f, 0.4f, 0.4f)
+            hullboxM.specular = GLVector(0.0f, 0.0f, 0.0f)
+            hullboxM.doubleSided = true
+            hullbox.material = hullboxM
 
 //                    scene.addChild(hullbox)
 
-                    val mesh = Mesh()
-                    val meshM = Material()
-                    meshM.ambient = GLVector(0.5f, 0.5f, 0.5f)
-                    meshM.diffuse = GLVector(0.5f, 0.5f, 0.5f)
-                    meshM.specular = GLVector(0.0f, 0.0f, 0.0f)
+            val mesh = Mesh()
+            val meshM = Material()
+            meshM.ambient = GLVector(0.5f, 0.5f, 0.5f)
+            meshM.diffuse = GLVector(0.5f, 0.5f, 0.5f)
+            meshM.specular = GLVector(0.0f, 0.0f, 0.0f)
 
-                    mesh.readFromOBJ(System.getenv("SCENERY_DEMO_FILES") + "/sponza.obj")
-                    //mesh.material = meshM
-                    mesh.position = GLVector(155.5f, 150.5f, 55.0f)
-                    mesh.scale = GLVector(0.1f, 0.1f, 0.1f)
-                    mesh.updateWorld(true, true)
-                    mesh.name = "Sponza_Mesh"
+            mesh.readFromOBJ(System.getenv("SCENERY_DEMO_FILES") + "/sponza.obj")
+            //mesh.material = meshM
+            mesh.position = GLVector(155.5f, 150.5f, 55.0f)
+            mesh.scale = GLVector(0.1f, 0.1f, 0.1f)
+            mesh.updateWorld(true, true)
+            mesh.name = "Sponza_Mesh"
 
-                    scene.addChild(mesh)
+            scene.addChild(mesh)
 
-                    boxes.first().addChild(sphere)
+            boxes.first().addChild(sphere)
 
-                    cam.position = GLVector(0.0f, 0.0f, 0.0f)
-                    cam.view = GLMatrix().setCamera(cam.position, cam.position + cam.forward, cam.up)
+            cam.position = GLVector(0.0f, 0.0f, 0.0f)
+            cam.view = GLMatrix().setCamera(cam.position, cam.position + cam.forward, cam.up)
 
-                    cam.projection = GLMatrix().setPerspectiveProjectionMatrix(
-                            70.0f / 180.0f * Math.PI.toFloat(),
-                            pDrawable.surfaceWidth.toFloat() / pDrawable.surfaceHeight.toFloat(), 0.1f, 1000.0f)
-                    cam.active = true
+            cam.projection = GLMatrix().setPerspectiveProjectionMatrix(
+                    70.0f / 180.0f * Math.PI.toFloat(),
+                    pDrawable.surfaceWidth.toFloat() / pDrawable.surfaceHeight.toFloat(), 0.1f, 1000.0f)
+            cam.active = true
 
-                    scene.addChild(cam)
+            scene.addChild(cam)
 
-                    var ticks: Int = 0
+            var ticks: Int = 0
 
-                    System.out.println(scene.children)
+            System.out.println(scene.children)
 
-                    thread {
-                        var reverse = false
-                        val step = 0.02f
+            thread {
+                var reverse = false
+                val step = 0.02f
 
-                        while (true) {
-                            boxes.mapIndexed {
-                                i, box ->
-                                box.position.set(i % 3, step * ticks)
-                                box.needsUpdate = true
-                            }
-
-                            lights.mapIndexed {
-                                i, light ->
-//                                light.position.set(i % 3, step*10 * ticks)
-                                val phi = Math.PI * 2.0f * ticks/500.0f
-
-                                light.position = GLVector(
-                                        i*10*Math.sin(phi).toFloat()+Math.exp(i.toDouble()).toFloat(),
-                                        step*ticks,
-                                        i*10*Math.cos(phi).toFloat()+Math.exp(i.toDouble()).toFloat())
-
-                            }
-
-                            if (ticks >= 5000 && reverse == false) {
-                                reverse = true
-                            }
-                            if (ticks <= 0 && reverse == true) {
-                                reverse = false
-                            }
-
-                            if (reverse) {
-                                ticks--
-                            } else {
-                                ticks++
-                            }
-
-                            Thread.sleep(10)
-
-                            boxes.first().rotation.rotateByEuler(0.01f, 0.0f, 0.0f)
-                            boxes.first().needsUpdate = true
-                            companionBox.needsUpdate = true
-                            sphere.needsUpdate = true
-                        }
+                while (true) {
+                    boxes.mapIndexed {
+                        i, box ->
+                        box.position.set(i % 3, step * ticks)
+                        box.needsUpdate = true
                     }
 
-                    deferredRenderer?.initializeScene(scene)
+                    lights.mapIndexed {
+                        i, light ->
+//                                light.position.set(i % 3, step*10 * ticks)
+                        val phi = Math.PI * 2.0f * ticks / 500.0f
 
-                    repl.addAccessibleObject(scene)
-                    repl.addAccessibleObject(deferredRenderer!!)
-                    repl.start()
+                        light.position = GLVector(
+                                i * 10 * Math.sin(phi).toFloat() + Math.exp(i.toDouble()).toFloat(),
+                                step * ticks,
+                                i * 10 * Math.cos(phi).toFloat() + Math.exp(i.toDouble()).toFloat())
 
-                    repl.showConsoleWindow()
+                    }
 
-                } catch (e: GLException) {
-                    e.printStackTrace()
-                } catch (e: IOException) {
-                    e.printStackTrace()
-                }
+                    if (ticks >= 5000 && reverse == false) {
+                        reverse = true
+                    }
+                    if (ticks <= 0 && reverse == true) {
+                        reverse = false
+                    }
 
-            }
+                    if (reverse) {
+                        ticks--
+                    } else {
+                        ticks++
+                    }
 
-            override fun reshape(pDrawable: GLAutoDrawable,
-                                 pX: Int,
-                                 pY: Int,
-                                 pWidth: Int,
-                                 pHeight: Int) {
-                var pHeight = pHeight
-                if (pHeight == 0)
-                    pHeight = 1
-                val ratio = 1.0f * pWidth / pHeight
+                    Thread.sleep(10)
 
-                super.reshape(pDrawable, pX, pY, pWidth, pHeight)
-                deferredRenderer?.reshape(pWidth, pHeight)
-            }
-
-            override fun display(pDrawable: GLAutoDrawable) {
-                super.display(pDrawable)
-                ovr?.updatePose()
-
-                frameNum++
-                deferredRenderer?.render(scene)
-                clearGLWindow.windowTitle = "scenery: %s - %.1f fps".format(this.javaClass.enclosingClass.simpleName.substringAfterLast("."), pDrawable.animator?.lastFPS)
-
-                if(deferredRenderer?.settings?.get<Boolean>("wantsFullscreen") == true && deferredRenderer?.settings?.get<Boolean>("isFullscreen") == false) {
-                    mClearGLWindow!!.setFullscreen(true)
-                    deferredRenderer?.settings?.set("wantsFullscreen", true)
-                    deferredRenderer?.settings?.set("isFullscreen", true)
-                }
-
-                if(deferredRenderer?.settings?.get<Boolean>("wantsFullscreen") == false && deferredRenderer?.settings?.get<Boolean>("isFullscreen") == true) {
-                    mClearGLWindow!!.setFullscreen(false)
-                    deferredRenderer?.settings?.set("wantsFullscreen", false)
-                    deferredRenderer?.settings?.set("isFullscreen", false)
+                    boxes.first().rotation.rotateByEuler(0.01f, 0.0f, 0.0f)
+                    boxes.first().needsUpdate = true
+                    companionBox.needsUpdate = true
+                    sphere.needsUpdate = true
                 }
             }
 
-            override fun setClearGLWindow(pClearGLWindow: ClearGLWindow) {
-                mClearGLWindow = pClearGLWindow
-            }
+            deferredRenderer?.initializeScene(scene)
 
-            override fun getClearGLWindow(): ClearGLDisplayable {
-                return mClearGLWindow!!
-            }
+            repl.addAccessibleObject(scene)
+            repl.addAccessibleObject(deferredRenderer!!)
+            repl.start()
 
+            repl.showConsoleWindow()
+
+        } catch (e: GLException) {
+            e.printStackTrace()
+        } catch (e: IOException) {
+            e.printStackTrace()
         }
 
-        val lClearGLWindow = ClearGLWindow("",
-                3024,
-                1680,
-                lClearGLWindowEventListener)
-
-        lClearGLWindow.isVisible = true
-        lClearGLWindow.setFPS(60)
-
-        val inputHandler = ClearGLInputHandler(scene, deferredRenderer as Any, lClearGLWindow)
-        inputHandler.useDefaultBindings(System.getProperty("user.home") + "/.sceneryExamples.bindings")
-
-        lClearGLWindow.start()
-
-        while (lClearGLWindow.isVisible) {
-            Thread.sleep(10)
-        }
     }
 
-    @Test fun ScenegraphSimpleDemo() {
 
+    @Test override fun main() {
+        super.main()
     }
 }

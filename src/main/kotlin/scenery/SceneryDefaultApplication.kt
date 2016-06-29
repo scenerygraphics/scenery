@@ -15,7 +15,9 @@ import scenery.repl.REPL
  * @author Ulrik Günther <hello@ulrik.is>
  */
 
-open class SceneryDefaultApplication(var applicationName: String) {
+open class SceneryDefaultApplication(var applicationName: String,
+                                     var windowWidth: Int = 1024,
+                                     var windowHeight: Int = 1024) {
     protected val scene: Scene = Scene()
     protected val repl: REPL = REPL()
     protected var frameNum = 0
@@ -80,8 +82,8 @@ open class SceneryDefaultApplication(var applicationName: String) {
         }
 
         val glWindow = ClearGLWindow("",
-                1024,
-                1024,
+                windowWidth,
+                windowHeight,
                 lClearGLWindowEventListener)
         glWindow.isVisible = true
         glWindow.setFPS(60)

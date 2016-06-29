@@ -143,7 +143,6 @@ repositories
     { url "http://nativelibs4java.sourceforge.net/maven" }
 }
 
-
 if (JavaVersion.current().isJava8Compatible()) {
 	allprojects {
 		tasks.withType(Javadoc) {
@@ -189,7 +188,6 @@ task javadocJar(type: Jar, dependsOn:javadoc) {
 	classifier = 'javadoc'
 	from javadoc.destinationDir
 }
-
 
 artifacts
 {

@@ -1,15 +1,14 @@
 package scenery.tests.examples
 
-import cleargl.*
+import cleargl.GLMatrix
+import cleargl.GLVector
 import com.jogamp.opengl.GLAutoDrawable
 import com.jogamp.opengl.GLException
 import org.junit.Test
 import scenery.*
-import scenery.controls.ClearGLInputHandler
 import scenery.controls.OpenVRInput
 import scenery.rendermodules.opengl.DeferredLightingRenderer
 import scenery.rendermodules.opengl.OpenGLShaderPreference
-import scenery.repl.REPL
 import java.io.IOException
 import java.util.*
 import kotlin.concurrent.thread
@@ -17,117 +16,104 @@ import kotlin.concurrent.thread
 /**
  * Created by ulrik on 20/01/16.
  */
-class BloodCellsExample {
-
-
-    private val scene: Scene = Scene()
-    private val repl: REPL = REPL()
-    private var frameNum = 0
-    private var deferredRenderer: DeferredLightingRenderer? = null
+class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowWidth = 1920, windowHeight = 1080) {
     private var ovr: OpenVRInput? = null
-    private var hub: Hub = Hub()
 
-    @Test fun demo() {
-        val lClearGLWindowEventListener = object : ClearGLDefaultEventListener() {
+    override fun init(pDrawable: GLAutoDrawable) {
+        try {
+            ovr = OpenVRInput(seated = false, useCompositor = true)
+            hub.add(SceneryElement.HMDINPUT, ovr!!)
 
-            private var mClearGLWindow: ClearGLDisplayable? = null
+            deferredRenderer = DeferredLightingRenderer(pDrawable.gl.gL4,
+                    glWindow!!.width,
+                    glWindow!!.height)
+            hub.add(SceneryElement.RENDERER, deferredRenderer!!)
 
-            override fun init(pDrawable: GLAutoDrawable) {
-                super.init(pDrawable)
-                try {
-                    ovr = OpenVRInput(seated = false, useCompositor = true)
-                    hub.add(SceneryElement.HMDINPUT, ovr!!)
+            val cam: Camera = DetachedHeadCamera()
 
-                    deferredRenderer = DeferredLightingRenderer(pDrawable.gl.gL4,
-                            mClearGLWindow!!.width,
-                            mClearGLWindow!!.height)
-                    hub.add(SceneryElement.RENDERER, deferredRenderer!!)
+            fun rangeRandomizer(min: Float, max: Float): Float = min + (Math.random().toFloat() * ((max - min) + 1.0f))
 
-                    val cam: Camera = DetachedHeadCamera()
+            var boxes = (0..10).map {
+                Box(GLVector(0.5f, 0.5f, 0.5f))
+            }
 
-                    fun rangeRandomizer(min: Float, max: Float): Float = min + (Math.random().toFloat() * ((max - min) + 1.0f))
+            var lights = (0..10).map {
+                PointLight()
+            }
 
-                    var boxes = (0..10).map {
-                        Box(GLVector(0.5f, 0.5f, 0.5f))
-                    }
+            boxes.mapIndexed { i, box ->
+                box.material = Material()
+                box.addChild(lights[i])
+                box.visible = false
+                scene.addChild(box)
+            }
 
-                    var lights = (0..10).map {
-                        PointLight()
-                    }
+            lights.map {
+                it.position = GLVector(rangeRandomizer(-600.0f, 600.0f),
+                        rangeRandomizer(-600.0f, 600.0f),
+                        rangeRandomizer(-600.0f, 600.0f))
+                it.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
+                it.parent?.material?.diffuse = it.emissionColor
+                it.intensity = 100.0f
+                it.linear = 1f;
+                it.quadratic = 0.1f;
 
-                    boxes.mapIndexed { i, box ->
-                        box.material = Material()
-                        box.addChild(lights[i])
-                        box.visible = false
-                        scene.addChild(box)
-                    }
+                scene.addChild(it)
+            }
 
-                    lights.map {
-                        it.position = GLVector(rangeRandomizer(-600.0f, 600.0f),
-                                rangeRandomizer(-600.0f, 600.0f),
-                                rangeRandomizer(-600.0f, 600.0f))
-                        it.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
-                        it.parent?.material?.diffuse = it.emissionColor
-                        it.intensity = 100.0f
-                        it.linear = 1f;
-                        it.quadratic = 0.1f;
+            val hullbox = Box(GLVector(900.0f, 900.0f, 900.0f))
+            hullbox.position = GLVector(0.1f, 0.1f, 0.1f)
+            val hullboxM = Material()
+            hullboxM.ambient = GLVector(1.0f, 1.0f, 1.0f)
+            hullboxM.diffuse = GLVector(1.0f, 1.0f, 1.0f)
+            hullboxM.specular = GLVector(1.0f, 1.0f, 1.0f)
+            hullboxM.doubleSided = true
+            hullbox.material = hullboxM
 
-                        scene.addChild(it)
-                    }
+            scene.addChild(hullbox)
 
-                    val hullbox = Box(GLVector(900.0f, 900.0f, 900.0f))
-                    hullbox.position = GLVector(0.1f, 0.1f, 0.1f)
-                    val hullboxM = Material()
-                    hullboxM.ambient = GLVector(1.0f, 1.0f, 1.0f)
-                    hullboxM.diffuse = GLVector(1.0f, 1.0f, 1.0f)
-                    hullboxM.specular = GLVector(1.0f, 1.0f, 1.0f)
-                    hullboxM.doubleSided = true
-                    hullbox.material = hullboxM
+            val e_material = Material()
+            e_material.ambient = GLVector(0.1f, 0.0f, 0.0f)
+            e_material.diffuse = GLVector(0.4f, 0.0f, 0.02f)
+            e_material.specular = GLVector(0.05f, 0f, 0f)
+            e_material.doubleSided = false
 
-                    scene.addChild(hullbox)
+            val erythrocyte = Mesh()
+            erythrocyte.readFromOBJ(System.getenv("SCENERY_DEMO_FILES") + "/erythrocyte_simplified.obj")
+            erythrocyte.material = e_material
+            erythrocyte.name = "Erythrocyte_Master"
+            scene.addChild(erythrocyte)
 
-                    val e_material = Material()
-                    e_material.ambient = GLVector(0.1f, 0.0f, 0.0f)
-                    e_material.diffuse = GLVector(0.4f, 0.0f, 0.02f)
-                    e_material.specular = GLVector(0.05f, 0f, 0f)
-                    e_material.doubleSided = false
+            erythrocyte.metadata.put(
+                    "ShaderPreference",
+                    OpenGLShaderPreference(
+                            arrayListOf("DefaultDeferredInstanced.vert", "DefaultDeferred.frag"),
+                            HashMap(),
+                            arrayListOf("DeferredShadingRenderer")))
 
-                    val erythrocyte = Mesh()
-                    erythrocyte.readFromOBJ(System.getenv("SCENERY_DEMO_FILES") + "/erythrocyte_simplified.obj")
-                    erythrocyte.material = e_material
-                    erythrocyte.name = "Erythrocyte_Master"
-                    scene.addChild(erythrocyte)
+            val l_material = Material()
+            l_material.ambient = GLVector(0.1f, 0.0f, 0.0f)
+            l_material.diffuse = GLVector(0.8f, 0.7f, 0.7f)
+            l_material.specular = GLVector(0.05f, 0f, 0f)
+            l_material.doubleSided = false
 
-                    erythrocyte.metadata.put(
-                            "ShaderPreference",
-                            OpenGLShaderPreference(
-                                    arrayListOf("DefaultDeferredInstanced.vert", "DefaultDeferred.frag"),
-                                    HashMap(),
-                                    arrayListOf("DeferredShadingRenderer")))
+            val leucocyte = Mesh()
+            leucocyte.readFromOBJ(System.getenv("SCENERY_DEMO_FILES") + "/leukocyte_simplified.obj")
+            leucocyte.material = l_material
+            leucocyte.name = "leucocyte_Master"
+            scene.addChild(leucocyte)
 
-                    val l_material = Material()
-                    l_material.ambient = GLVector(0.1f, 0.0f, 0.0f)
-                    l_material.diffuse = GLVector(0.8f, 0.7f, 0.7f)
-                    l_material.specular = GLVector(0.05f, 0f, 0f)
-                    l_material.doubleSided = false
+            leucocyte.metadata.put(
+                    "ShaderPreference",
+                    OpenGLShaderPreference(
+                            arrayListOf("DefaultDeferredInstanced.vert", "DefaultDeferred.frag"),
+                            HashMap(),
+                            arrayListOf("DeferredShadingRenderer")))
 
-                    val leucocyte = Mesh()
-                    leucocyte.readFromOBJ(System.getenv("SCENERY_DEMO_FILES") + "/leukocyte_simplified.obj")
-                    leucocyte.material = l_material
-                    leucocyte.name = "leucocyte_Master"
-                    scene.addChild(leucocyte)
+            val posRange = 550.0f
+            val container = Node("Cell container")
 
-                    leucocyte.metadata.put(
-                            "ShaderPreference",
-                            OpenGLShaderPreference(
-                                    arrayListOf("DefaultDeferredInstanced.vert", "DefaultDeferred.frag"),
-                                    HashMap(),
-                                    arrayListOf("DeferredShadingRenderer")))
-
-                    val posRange = 550.0f
-                    val container = Node("Cell container")
-
-                    val leucocytes = (0..200)
+            val leucocytes = (0..200)
                     .map {
                         val v = Mesh()
                         v.name = "leucocyte_$it"
@@ -148,206 +134,141 @@ class BloodCellsExample {
                         )
 
                         p.position = GLVector(rangeRandomizer(-posRange, posRange),
-                                rangeRandomizer(-posRange, posRange),rangeRandomizer(-posRange, posRange))
+                                rangeRandomizer(-posRange, posRange), rangeRandomizer(-posRange, posRange))
                         p.addChild(it)
 
                         container.addChild(p)
                         it
                     }
 
-                    val bloodCells = (0..2000)
-                        .map {
-                            val v = Mesh()
-                            v.name = "erythrocyte_$it"
-                            v.instanceOf = erythrocyte
+            val bloodCells = (0..2000)
+                    .map {
+                        val v = Mesh()
+                        v.name = "erythrocyte_$it"
+                        v.instanceOf = erythrocyte
 
-                            v
-                        }
-                        .map {
-                            val p = Node("parent of it")
-                            val scale = rangeRandomizer(5f, 12f)
+                        v
+                    }
+                    .map {
+                        val p = Node("parent of it")
+                        val scale = rangeRandomizer(5f, 12f)
 
-                            it.material = e_material
-                            it.scale = GLVector(scale, scale, scale)
-                            it.children.forEach { ch -> ch.material = e_material }
-                            it.rotation.setFromEuler(
-                                    rangeRandomizer(0.01f, 0.9f),
-                                    rangeRandomizer(0.01f, 0.9f),
-                                    rangeRandomizer(0.01f, 0.9f)
-                            )
+                        it.material = e_material
+                        it.scale = GLVector(scale, scale, scale)
+                        it.children.forEach { ch -> ch.material = e_material }
+                        it.rotation.setFromEuler(
+                                rangeRandomizer(0.01f, 0.9f),
+                                rangeRandomizer(0.01f, 0.9f),
+                                rangeRandomizer(0.01f, 0.9f)
+                        )
 
-                            p.position = GLVector(rangeRandomizer(-posRange, posRange),
-                                    rangeRandomizer(-posRange, posRange),rangeRandomizer(-posRange, posRange))
-                            p.addChild(it)
+                        p.position = GLVector(rangeRandomizer(-posRange, posRange),
+                                rangeRandomizer(-posRange, posRange), rangeRandomizer(-posRange, posRange))
+                        p.addChild(it)
 
-                            container.addChild(p)
-                            it
-                        }
-
-                    scene.addChild(container)
-
-                    cam.position = GLVector(0.0f, 0.0f, 0.0f)
-                    cam.view = GLMatrix().setCamera(cam.position, cam.position + cam.forward, cam.up)
-
-                    cam.projection = GLMatrix().setPerspectiveProjectionMatrix(
-                            50.0f / 180.0f * Math.PI.toFloat(),
-                            pDrawable.surfaceWidth.toFloat() / pDrawable.surfaceHeight.toFloat(), 0.1f, 10000.0f)
-                    cam.active = true
-
-                    scene.addChild(cam)
-
-                    var ticks: Int = 0
-
-                    System.out.println(scene.children)
-
-                    fun hover(obj: Node, magnitude: Float, phi: Float) {
-                        obj.position = obj.position + GLVector(0.0f, magnitude*Math.cos(phi.toDouble()*4).toFloat(), 0.0f)
+                        container.addChild(p)
+                        it
                     }
 
-                    fun hoverAndTumble(obj: Node, magnitude: Float, phi: Float, index: Int) {
-                        obj.parent.let {
-                            obj.parent!!.position = obj.parent!!.position + GLVector(0.0f, magnitude * Math.cos(phi.toDouble() * 4).toFloat(), 0.0f)
-                        }
+            scene.addChild(container)
 
-                        val axis = GLVector(Math.sin(0.01*index).toFloat(), -Math.cos(0.01*index).toFloat(), index*0.01f).normalized
-                        obj.rotation.rotateByAngleNormalAxis(magnitude, axis.x(), axis.y(), axis.z())
-                        obj.rotation.rotateByAngleY(-1.0f * magnitude)
+            cam.position = GLVector(0.0f, 0.0f, 0.0f)
+            cam.view = GLMatrix().setCamera(cam.position, cam.position + cam.forward, cam.up)
+
+            cam.projection = GLMatrix().setPerspectiveProjectionMatrix(
+                    50.0f / 180.0f * Math.PI.toFloat(),
+                    pDrawable.surfaceWidth.toFloat() / pDrawable.surfaceHeight.toFloat(), 0.1f, 10000.0f)
+            cam.active = true
+
+            scene.addChild(cam)
+
+            var ticks: Int = 0
+
+            System.out.println(scene.children)
+
+            fun hover(obj: Node, magnitude: Float, phi: Float) {
+                obj.position = obj.position + GLVector(0.0f, magnitude * Math.cos(phi.toDouble() * 4).toFloat(), 0.0f)
+            }
+
+            fun hoverAndTumble(obj: Node, magnitude: Float, phi: Float, index: Int) {
+                obj.parent.let {
+                    obj.parent!!.position = obj.parent!!.position + GLVector(0.0f, magnitude * Math.cos(phi.toDouble() * 4).toFloat(), 0.0f)
+                }
+
+                val axis = GLVector(Math.sin(0.01 * index).toFloat(), -Math.cos(0.01 * index).toFloat(), index * 0.01f).normalized
+                obj.rotation.rotateByAngleNormalAxis(magnitude, axis.x(), axis.y(), axis.z())
+                obj.rotation.rotateByAngleY(-1.0f * magnitude)
+            }
+
+            val t = thread {
+                var reverse = false
+                val step = 0.02f
+
+                while (true) {
+                    val phi = Math.PI * 2.0f * ticks / 2000.0f
+
+                    boxes.mapIndexed {
+                        i, box ->
+                        //                                light.position.set(i % 3, step*10 * ticks)
+
+                        box.position = GLVector(
+                                Math.exp(i.toDouble()).toFloat() * 10 * Math.sin(phi).toFloat() + Math.exp(i.toDouble()).toFloat(),
+                                step * ticks,
+                                Math.exp(i.toDouble()).toFloat() * 10 * Math.cos(phi).toFloat() + Math.exp(i.toDouble()).toFloat())
+
+                        box.children[0].position = box.position
+
                     }
 
-                    val t = thread {
-                        var reverse = false
-                        val step = 0.02f
-
-                        while (true) {
-                            val phi = Math.PI * 2.0f * ticks/2000.0f
-
-                            boxes.mapIndexed {
-                                i, box ->
-                                //                                light.position.set(i % 3, step*10 * ticks)
-
-                                box.position = GLVector(
-                                        Math.exp(i.toDouble()).toFloat()*10*Math.sin(phi).toFloat()+Math.exp(i.toDouble()).toFloat(),
-                                        step*ticks,
-                                        Math.exp(i.toDouble()).toFloat()*10*Math.cos(phi).toFloat()+Math.exp(i.toDouble()).toFloat())
-
-                                box.children[0].position = box.position
-
-                            }
-
-                            bloodCells.forEachIndexed { i, bloodCell ->
-                                hoverAndTumble(bloodCell, 0.003f, phi.toFloat(), i)
-                                bloodCell.parent?.updateWorld(true)
-                            }
-
-                            leucocytes.forEachIndexed { i, leukocyte ->
-                                hoverAndTumble(leukocyte, 0.001f, phi.toFloat()/100.0f, i)
-                            }
-
-                            container.position = container.position - GLVector(0.1f, 0.1f, 0.1f)
-                            container.updateWorld(true)
-
-
-                            if (ticks >= 5000 && reverse == false) {
-                                reverse = true
-                            }
-                            if (ticks <= 0 && reverse == true) {
-                                reverse = false
-                            }
-
-                            if (reverse) {
-                                ticks--
-                            } else {
-                                ticks++
-                            }
-
-                            //                            mesh.children[0].rotation.rotateByAngleX(0.001f)
-                            //                            mesh.children[0].updateWorld(true, true)
-
-                            Thread.sleep(10)
-                        }
+                    bloodCells.forEachIndexed { i, bloodCell ->
+                        hoverAndTumble(bloodCell, 0.003f, phi.toFloat(), i)
+                        bloodCell.parent?.updateWorld(true)
                     }
 
-                    deferredRenderer?.initializeScene(scene)
+                    leucocytes.forEachIndexed { i, leukocyte ->
+                        hoverAndTumble(leukocyte, 0.001f, phi.toFloat() / 100.0f, i)
+                    }
 
-                    repl.addAccessibleObject(scene)
-                    repl.addAccessibleObject(deferredRenderer!!)
+                    container.position = container.position - GLVector(0.1f, 0.1f, 0.1f)
+                    container.updateWorld(true)
 
-                    repl.start();
-                    repl.showConsoleWindow()
-                } catch (e: GLException) {
-                    e.printStackTrace()
-                } catch (e: IOException) {
-                    e.printStackTrace()
+
+                    if (ticks >= 5000 && reverse == false) {
+                        reverse = true
+                    }
+                    if (ticks <= 0 && reverse == true) {
+                        reverse = false
+                    }
+
+                    if (reverse) {
+                        ticks--
+                    } else {
+                        ticks++
+                    }
+
+                    //                            mesh.children[0].rotation.rotateByAngleX(0.001f)
+                    //                            mesh.children[0].updateWorld(true, true)
+
+                    Thread.sleep(10)
                 }
-
             }
 
-            override fun reshape(pDrawable: GLAutoDrawable,
-                                 pX: Int,
-                                 pY: Int,
-                                 pWidth: Int,
-                                 pHeight: Int) {
-                var pHeight = pHeight
-                super.reshape(pDrawable, pX, pY, pWidth, pHeight)
-                deferredRenderer?.reshape(pWidth, pHeight)
+            deferredRenderer?.initializeScene(scene)
 
-                if (pHeight == 0)
-                    pHeight = 1
-                val ratio = 1.0f * pWidth / pHeight
-            }
+            repl.addAccessibleObject(scene)
+            repl.addAccessibleObject(deferredRenderer!!)
 
-            override fun display(pDrawable: GLAutoDrawable) {
-                super.display(pDrawable)
-                ovr?.updatePose()
-
-                frameNum++
-                deferredRenderer?.render(scene)
-
-                if(deferredRenderer?.settings?.get<Boolean>("wantsFullscreen") == true && deferredRenderer?.settings?.get<Boolean>("isFullscreen") == false) {
-                    mClearGLWindow!!.setFullscreen(true)
-                    deferredRenderer?.settings?.set("wantsFullscreen", true)
-                    deferredRenderer?.settings?.set("isFullscreen", true)
-                }
-
-                if(deferredRenderer?.settings?.get<Boolean>("wantsFullscreen") == false && deferredRenderer?.settings?.get<Boolean>("isFullscreen") == true) {
-                    mClearGLWindow!!.setFullscreen(false)
-                    deferredRenderer?.settings?.set("wantsFullscreen", false)
-                    deferredRenderer?.settings?.set("isFullscreen", false)
-                }
-
-                clearGLWindow.windowTitle = "scenery: %s - %.1f fps".format(this.javaClass.enclosingClass.simpleName.substringAfterLast("."), pDrawable.animator?.lastFPS)
-            }
-
-            override fun setClearGLWindow(pClearGLWindow: ClearGLWindow) {
-                mClearGLWindow = pClearGLWindow
-            }
-
-            override fun getClearGLWindow(): ClearGLDisplayable {
-                return mClearGLWindow!!
-            }
-
+            repl.start();
+            repl.showConsoleWindow()
+        } catch (e: GLException) {
+            e.printStackTrace()
+        } catch (e: IOException) {
+            e.printStackTrace()
         }
 
-        val lClearGLWindow = ClearGLWindow("",
-                3024,
-                1680,
-                lClearGLWindowEventListener)
-
-        lClearGLWindow.isVisible = true
-        lClearGLWindow.setFPS(60)
-
-        val inputHandler = ClearGLInputHandler(scene, deferredRenderer as Any, lClearGLWindow)
-        inputHandler.useDefaultBindings(System.getProperty("user.home") + "/.sceneryExamples.bindings")
-
-        lClearGLWindow.start()
-
-        while (lClearGLWindow.isVisible) {
-        }
-
-        lClearGLWindow.stop()
     }
 
-    @Test fun ScenegraphSimpleDemo() {
-
+    @Test override fun main() {
+        super.main()
     }
 }
