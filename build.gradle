@@ -143,15 +143,6 @@ repositories
     { url "http://nativelibs4java.sourceforge.net/maven" }
 }
 
-task sourcesJar(type: Jar, dependsOn:classes) {
-	classifier = 'sources'
-	from sourceSets.main.allSource
-}
-
-task javadocJar(type: Jar, dependsOn:javadoc) {
-	classifier = 'javadoc'
-	from javadoc.destinationDir
-}
 
 if (JavaVersion.current().isJava8Compatible()) {
 	allprojects {
@@ -184,10 +175,27 @@ if(project.hasProperty('releasebuild')) {
     version = "1.0-SNAPSHOT"
 }
 
+task testsJar(type: Jar, dependsOn:classes) {
+    classifier = 'tests'
+    from sourceSets.test.output
+}
+
+task sourcesJar(type: Jar, dependsOn:classes) {
+	classifier = 'sources'
+	from sourceSets.main.allSource
+}
+
+task javadocJar(type: Jar, dependsOn:javadoc) {
+	classifier = 'javadoc'
+	from javadoc.destinationDir
+}
+
+
 artifacts
 {
 	archives sourcesJar
 	archives javadocJar
+    archives testsJar
 }
 
 publishing {
