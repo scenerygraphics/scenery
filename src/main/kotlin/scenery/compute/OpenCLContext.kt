@@ -19,7 +19,7 @@ import java.util.concurrent.ConcurrentHashMap
  * @author Ulrik Günther <hello@ulrik.is>
  */
 
-class OpenCLContext(override var hub: Hub?, val devicePreference: String = "") : Hubable {
+class OpenCLContext(override var hub: Hub?, val devicePreference: String = "0,0") : Hubable {
     var device: cl_device_id
     var kernels = ConcurrentHashMap<String, cl_kernel>()
     var context: cl_context
@@ -28,9 +28,11 @@ class OpenCLContext(override var hub: Hub?, val devicePreference: String = "") :
     init {
         hub?.add(SceneryElement.OPENCLCONTEXT, this)
 
-        val platformIndex = 0
+        val platformPref = devicePreference.substringBefore(",").toInt()
+        val devicePref = devicePreference.substringAfter(",").toInt()
+
         val deviceType = CL_DEVICE_TYPE_GPU.toLong()
-        val deviceIndex = 0
+        val deviceIndex = devicePref
         // Enable exceptions and subsequently omit error checks in this sample
         CL.setExceptionsEnabled(true);
 
@@ -43,7 +45,7 @@ class OpenCLContext(override var hub: Hub?, val devicePreference: String = "") :
         val platforms: Array<cl_platform_id> = Array(numPlatforms, { i -> cl_platform_id() })
         clGetPlatformIDs(platforms.size, platforms, null);
 
-        val platform = platforms[0];
+        val platform = platforms[platformPref];
 
         // Initialize the context properties
         val contextProperties = cl_context_properties();

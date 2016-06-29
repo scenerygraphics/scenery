@@ -9,14 +9,16 @@ import org.junit.Test
 import scenery.*
 import scenery.compute.OpenCLContext
 import scenery.rendermodules.opengl.DeferredLightingRenderer
+import scenery.rendermodules.opengl.OpenGLShaderPreference
 import java.awt.Font
 import java.awt.Graphics2D
+import java.awt.geom.AffineTransform
 import java.awt.image.BufferedImage
 import java.awt.image.DataBufferByte
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.concurrent.thread
 
 /**
  * <Description>
@@ -25,7 +27,10 @@ import kotlin.concurrent.thread
  */
 class FontRenderingExample: SceneryDefaultApplication("FontRenderingExample") {
 
-    fun genCharImage(c: Char, font: Font, size: Int): ByteBuffer {
+    val size = 64
+    val fontsize = 48
+
+    fun genCharImage(c: Char, font: Font, size: Int): Pair<Float, ByteBuffer> {
         /* Creating temporary image to extract character size */
         var image = BufferedImage(1, 1, BufferedImage.TYPE_BYTE_GRAY)
         var g: Graphics2D = image.createGraphics();
@@ -35,6 +40,7 @@ class FontRenderingExample: SceneryDefaultApplication("FontRenderingExample") {
 
         /* Get char charWidth and charHeight */
         val charWidth = metrics.charWidth(c);
+        System.err.println("With of $c is ${charWidth.toFloat()/size.toFloat()}")
         val charHeight = metrics.getHeight();
 
         /* Create image for holding the char */
@@ -45,36 +51,50 @@ class FontRenderingExample: SceneryDefaultApplication("FontRenderingExample") {
         g.drawString(c.toString(), size/2 - metrics.charWidth(c)/2, size/2 + metrics.maxAscent/2)
         g.dispose();
 
-        val data = (image.getRaster().getDataBuffer() as DataBufferByte).data
+        val flipped = BufferedImage(size, size, BufferedImage.TYPE_BYTE_GRAY)
+        val gf = flipped.createGraphics()
+        val at = AffineTransform()
+        at.concatenate(AffineTransform.getScaleInstance(1.0, -1.0))
+        at.concatenate(AffineTransform.getTranslateInstance(0.0, -size*1.0))
+        gf.transform(at)
+        gf.drawImage(image, 0, 0, null)
+        gf.dispose()
+
+        val data = (flipped.getRaster().getDataBuffer() as DataBufferByte).data
 
         var imageBuffer: ByteBuffer = ByteBuffer.allocateDirect(data.size)
         imageBuffer.order(ByteOrder.nativeOrder())
         imageBuffer.put(data, 0, data.size)
         imageBuffer.rewind()
 
-        return imageBuffer
+        return Pair(charWidth.toFloat()/size.toFloat(), imageBuffer)
     }
 
     override fun init(pDrawable: GLAutoDrawable) {
         deferredRenderer = DeferredLightingRenderer(pDrawable.gl.gL4, glWindow!!.width, glWindow!!.height)
         hub.add(SceneryElement.RENDERER, deferredRenderer!!)
 
-        var boxmaterial = Material()
-        with(boxmaterial) {
-            ambient = GLVector(1.0f, 0.0f, 0.0f)
-            diffuse = GLVector(0.0f, 1.0f, 0.0f)
-            specular = GLVector(1.0f, 1.0f, 1.0f)
+        val string = "hello, scenery"
+        var planes = (0..string.length-1).map {
+            val b = Plane(GLVector(2.0f, 2.0f, 0.1f))
+            b.material = Material()
+            b.isBillboard = true
+            b
         }
 
-        var box = Box(GLVector(1.0f, 1.0f, 1.0f))
+        planes.forEachIndexed { i, plane ->
+            plane.name = "UI_plane$i"
+            plane.metadata.put(
+                    "ShaderPreference",
+                    OpenGLShaderPreference(
+                            arrayListOf("DefaultDeferred.vert", "SDFFont.frag"),
+                            HashMap<String, String>(),
+                            arrayListOf("DeferredShadingRenderer")))
 
-        with(box) {
-            box.material = boxmaterial
-            box.position = GLVector(0.0f, 0.0f, 0.0f)
-            scene.addChild(this)
+            scene.addChild(plane)
         }
 
-        var lights = (0..2).map {
+        var lights = (0..5).map {
             PointLight()
         }
 
@@ -84,6 +104,17 @@ class FontRenderingExample: SceneryDefaultApplication("FontRenderingExample") {
             light.intensity = 0.2f*(i+1);
             scene.addChild(light)
         }
+
+        val hullbox = Box(GLVector(900.0f, 900.0f, 900.0f))
+        hullbox.position = GLVector(0.1f, 0.1f, 0.1f)
+        val hullboxM = Material()
+        hullboxM.ambient = GLVector(1.0f, 1.0f, 1.0f)
+        hullboxM.diffuse = GLVector(1.0f, 1.0f, 1.0f)
+        hullboxM.specular = GLVector(1.0f, 1.0f, 1.0f)
+        hullboxM.doubleSided = true
+        hullbox.material = hullboxM
+
+        scene.addChild(hullbox)
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
@@ -99,18 +130,18 @@ class FontRenderingExample: SceneryDefaultApplication("FontRenderingExample") {
         }
 
 
-        val ocl = OpenCLContext(hub)
-        val size = 64
+        val ocl = OpenCLContext(hub, devicePreference = "0,0")
         var input: cl_mem
         var output: cl_mem
 
-        val map = ConcurrentHashMap<Char, ByteBuffer>()
+        val map = ConcurrentHashMap<Char, Pair<Float, ByteBuffer>>()
 
         val start = System.nanoTime()
 
         val evts = (32..127).map {
-            input = ocl.wrapInput(genCharImage(it.toChar(), Font("Source Code Pro", 0, 44), size))
-            val outputBuffer = ByteBuffer.allocate(size*size)
+            val character =  genCharImage(it.toChar(), Font("Helvetica Neue", 0, fontsize), size)
+            input = ocl.wrapInput(character.second)
+            val outputBuffer = ByteBuffer.allocate(4*size*size)
             output = ocl.wrapOutput(outputBuffer)
 
             ocl.loadKernel(OpenCLContext::class.java.getResource("DistanceTransform.cl"), "SignedDistanceTransformByte")
@@ -123,17 +154,24 @@ class FontRenderingExample: SceneryDefaultApplication("FontRenderingExample") {
                             size)
 
             ocl.readBuffer(output, outputBuffer)
-            map.put(it.toChar(), outputBuffer.duplicate())
+            map.put(it.toChar(), Pair(character.first, outputBuffer.duplicate()))
         }
 
         val end = System.nanoTime()
         System.err.println("\nDT took ${(end-start)/10e6} ms")
 
-        boxmaterial.textures.put("diffuse", "fromBuffer:DT");
-        boxmaterial.transferTextures.put("DT",
-                GenericTexture("DT", GLVector(64.0f, 64.0f, 0.0f), 1, NativeTypeEnum.UnsignedByte,
-                map.get("\""[0])!!))
-        boxmaterial.needsTextureReload = true
+        var pos = 0.0f
+        planes.forEachIndexed { i, plane ->
+            val char = map.get(string[i])!!
+            System.err.println("Shift for $i is ${char.first}")
+            pos = pos - char.first
+            plane.position = GLVector(pos + 1.0f, 0.0f, 0.0f)
+            plane.material?.textures?.put("diffuse", "fromBuffer:DT")
+            plane.material?.transferTextures?.put("DT",
+                    GenericTexture("DT", GLVector(size.toFloat(), size.toFloat(), 0.0f), 1, NativeTypeEnum.Float,
+                            char.second))
+            plane.material?.needsTextureReload = true
+        }
 
         deferredRenderer?.initializeScene(scene)
 
@@ -141,42 +179,42 @@ class FontRenderingExample: SceneryDefaultApplication("FontRenderingExample") {
         repl.addAccessibleObject(deferredRenderer!!)
         repl.showConsoleWindow()
 
-        thread {
-            while (true) {
-                box.rotation.rotateByAngleY(0.01f)
-                box.needsUpdate = true
-
-                Thread.sleep(20)
-            }
-        }
-
-        thread {
-            Thread.sleep(2500)
-            val range = (32..127).toList()
-            var index = 0
-
-            while (true) {
-                val char: String = String.format("%c", range[index % range.count()])
-                System.err.println(char)
-
-                this.glWindow?.windowTitle = "Char: $char"
-
-                if (box.lock.tryLock()) {
-                    boxmaterial.textures.put("diffuse", "fromBuffer:DT");
-                    boxmaterial.transferTextures.put("DT",
-                            GenericTexture("DT", GLVector(64.0f, 64.0f, 0.0f), 1, NativeTypeEnum.UnsignedByte,
-                                    map[char[0]]!!))
-                    boxmaterial.needsTextureReload = true
-
-                    index++
-
-                    box.lock.unlock()
-                    Thread.sleep(750)
-                } else {
-                    Thread.sleep(500)
-                }
-            }
-        }
+//        thread {
+//            while (true) {
+//                box.rotation.rotateByAngleY(0.01f)
+//                box.needsUpdate = true
+//
+//                Thread.sleep(20)
+//            }
+//        }
+//
+//        thread {
+//            Thread.sleep(2500)
+//            val range = (32..127).toList()
+//            var index = 0
+//
+//            while (true) {
+//                val char: String = String.format("%c", range[index % range.count()])
+//                System.err.println(char)
+//
+//                this.glWindow?.windowTitle = "Char: $char"
+//
+//                if (box.lock.tryLock()) {
+//                    boxmaterial.textures.put("diffuse", "fromBuffer:DT");
+//                    boxmaterial.transferTextures.put("DT",
+//                            GenericTexture("DT", GLVector(64.0f, 64.0f, 0.0f), 1, NativeTypeEnum.UnsignedByte,
+//                                    map[char[0]]!!))
+//                    boxmaterial.needsTextureReload = true
+//
+//                    index++
+//
+//                    box.lock.unlock()
+//                    Thread.sleep(750)
+//                } else {
+//                    Thread.sleep(500)
+//                }
+//            }
+//        }
     }
 
     @Test override fun main() {
