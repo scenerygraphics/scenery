@@ -23,7 +23,7 @@ class TexturedCubeExample : SceneryDefaultApplication("TexturedCubeExample") {
             ambient = GLVector(1.0f, 0.0f, 0.0f)
             diffuse = GLVector(0.0f, 1.0f, 0.0f)
             specular = GLVector(1.0f, 1.0f, 1.0f)
-            textures.put("diffuse", this.javaClass.getResource("textures/helix.png").file)
+            textures.put("diffuse", TexturedCubeExample::class.java.getResource("textures/helix.png").file)
         }
 
         var box = Box(GLVector(1.0f, 1.0f, 1.0f))
