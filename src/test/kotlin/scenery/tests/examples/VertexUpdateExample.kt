@@ -1,10 +1,10 @@
 package scenery.tests.examples
 
-import cleargl.*
+import cleargl.GLMatrix
+import cleargl.GLVector
 import com.jogamp.opengl.GLAutoDrawable
 import org.junit.Test
 import scenery.*
-import scenery.controls.ClearGLInputHandler
 import scenery.rendermodules.opengl.DeferredLightingRenderer
 import java.util.*
 import kotlin.concurrent.thread
@@ -15,151 +15,118 @@ import kotlin.concurrent.thread
  * @author Ulrik Günther <hello@ulrik.is>
  */
 
-class VertexUpdateExample {
-    private val scene: Scene = Scene()
-    private var frameNum = 0
-    private var deferredRenderer: DeferredLightingRenderer? = null
-    private var hub: Hub = Hub()
+class VertexUpdateExample : SceneryDefaultApplication("VertexUpdateExample") {
 
-    @Test fun demo() {
-        val lClearGLWindowEventListener = object : ClearGLDefaultEventListener() {
+    override fun init(pDrawable: GLAutoDrawable) {
+        super.init(pDrawable)
+        deferredRenderer = DeferredLightingRenderer(pDrawable.gl.gL4,
+                glWindow!!.width, glWindow!!.height)
+        hub.add(SceneryElement.RENDERER, deferredRenderer!!)
 
-            private var mClearGLWindow: ClearGLDisplayable? = null
+        var sphere = Sphere(2.0f, 50)
 
-            override fun init(pDrawable: GLAutoDrawable) {
-                super.init(pDrawable)
-                deferredRenderer = DeferredLightingRenderer(pDrawable.gl.gL4, mClearGLWindow!!.width, mClearGLWindow!!.height)
-                hub.add(SceneryElement.RENDERER, deferredRenderer!!)
+        var material = Material()
+        material.ambient = GLVector(1.0f, 1.0f, 1.0f)
+        material.diffuse = GLVector(1.0f, 1.0f, 1.0f)
+        material.specular = GLVector(1.0f, 1.0f, 1.0f)
+        material.doubleSided = true
 
-                var sphere = Sphere(2.0f, 50)
+        sphere.position = GLVector(0.0f, 0.0f, 0.0f)
+        sphere.material = material
 
-                var material = Material()
-                material.ambient = GLVector(1.0f, 1.0f, 1.0f)
-                material.diffuse = GLVector(1.0f, 1.0f, 1.0f)
-                material.specular = GLVector(1.0f, 1.0f, 1.0f)
-                material.doubleSided = true
+        scene.addChild(sphere)
 
-                sphere.position = GLVector(0.0f, 0.0f, 0.0f)
-                sphere.material = material
+        var lights = (0..2).map {
+            PointLight()
+        }
 
-                scene.addChild(sphere)
+        lights.mapIndexed { i, light ->
+            light.position = GLVector(2.0f * i, 2.0f * i, 2.0f * i)
+            light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
+            light.intensity = 100f * (i + 1);
+            scene.addChild(light)
+        }
 
-                var lights = (0..2).map {
-                    PointLight()
-                }
+        val cam: Camera = DetachedHeadCamera()
+        cam.position = GLVector(0.0f, 0.0f, -5.0f)
+        cam.view = GLMatrix().setCamera(cam.position, cam.position + cam.forward, cam.up)
+        cam.projection = GLMatrix()
+                .setPerspectiveProjectionMatrix(
+                        70.0f / 180.0f * Math.PI.toFloat(),
+                        pDrawable.surfaceWidth.toFloat() / pDrawable.surfaceHeight.toFloat(), 0.1f, 1000.0f)
+                .invert()
+        cam.active = true
 
-                lights.mapIndexed { i, light ->
-                    light.position = GLVector(2.0f * i, 2.0f * i, 2.0f * i)
-                    light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
-                    light.intensity = 100f * (i + 1);
-                    scene.addChild(light)
-                }
+        scene.addChild(cam)
 
-                val cam: Camera = DetachedHeadCamera()
-                cam.position = GLVector(0.0f, 0.0f, -5.0f)
-                cam.view = GLMatrix().setCamera(cam.position, cam.position + cam.forward, cam.up)
-                cam.projection = GLMatrix()
-                        .setPerspectiveProjectionMatrix(
-                                70.0f / 180.0f * Math.PI.toFloat(),
-                                pDrawable.surfaceWidth.toFloat() / pDrawable.surfaceHeight.toFloat(), 0.1f, 1000.0f)
-                        .invert()
-                cam.active = true
+        var ticks = 0
+        thread {
+            while (true) {
+                sphere.rotation.rotateByAngleY(0.01f)
+                sphere.needsUpdate = true
+                ticks++
 
-                scene.addChild(cam)
+                val vbuffer = ArrayList<Float>()
+                val nbuffer = ArrayList<Float>()
 
-                var ticks = 0
-                thread {
-                    while (true) {
-                        sphere.rotation.rotateByAngleY(0.01f)
-                        sphere.needsUpdate = true
-                        ticks++
+                val segments = 50
+                val radius = 2.0f
+                for (i in 0..segments) {
+                    val lat0: Float = Math.PI.toFloat() * (-0.5f + (i.toFloat() - 1.0f) / segments.toFloat());
+                    val lat1: Float = Math.PI.toFloat() * (-0.5f + i.toFloat() / segments.toFloat());
 
-                        val vbuffer = ArrayList<Float>()
-                        val nbuffer = ArrayList<Float>()
+                    val z0 = Math.sin(lat0.toDouble()).toFloat()
+                    val z1 = Math.sin(lat1.toDouble()).toFloat()
 
-                        val segments = 50
-                        val radius = 2.0f
-                        for(i in 0..segments) {
-                            val lat0: Float = Math.PI.toFloat() * (-0.5f + (i.toFloat() - 1.0f) / segments.toFloat());
-                            val lat1: Float = Math.PI.toFloat() * (-0.5f + i.toFloat() / segments.toFloat());
+                    val zr0 = Math.cos(lat0.toDouble()).toFloat()
+                    val zr1 = Math.cos(lat1.toDouble()).toFloat()
 
-                            val z0 = Math.sin(lat0.toDouble()).toFloat()
-                            val z1 = Math.sin(lat1.toDouble()).toFloat()
+                    for (j: Int in 1..segments) {
+                        val lng = 2 * Math.PI.toFloat() * (j - 1) / segments
+                        val x = Math.cos(lng.toDouble()).toFloat()
+                        val y = Math.sin(lng.toDouble()).toFloat()
+                        var r = radius
 
-                            val zr0 = Math.cos(lat0.toDouble()).toFloat()
-                            val zr1 = Math.cos(lat1.toDouble()).toFloat()
-
-                            for (j: Int in 1..segments) {
-                                val lng = 2 * Math.PI.toFloat() * (j - 1) / segments
-                                val x = Math.cos(lng.toDouble()).toFloat()
-                                val y = Math.sin(lng.toDouble()).toFloat()
-                                var r = radius
-
-                                if(j % 10 == 0) {
-                                    r = radius + Math.sin(ticks/100.0).toFloat()
-                                }
-                                vbuffer.add(x * zr0 * r)
-                                vbuffer.add(y * zr0 * r)
-                                vbuffer.add(z0 * r)
-
-                                vbuffer.add(x * zr1 * r)
-                                vbuffer.add(y * zr1 * r)
-                                vbuffer.add(z1 * r)
-
-                                nbuffer.add(x)
-                                nbuffer.add(y)
-                                nbuffer.add(z0)
-
-                                nbuffer.add(x)
-                                nbuffer.add(y)
-                                nbuffer.add(z1)
-                            }
+                        if (j % 10 == 0) {
+                            r = radius + Math.sin(ticks / 100.0).toFloat()
                         }
+                        vbuffer.add(x * zr0 * r)
+                        vbuffer.add(y * zr0 * r)
+                        vbuffer.add(z0 * r)
 
-                        sphere.vertices = vbuffer.toFloatArray()
-                        sphere.normals = nbuffer.toFloatArray()
-                        sphere.recalculateNormals()
+                        vbuffer.add(x * zr1 * r)
+                        vbuffer.add(y * zr1 * r)
+                        vbuffer.add(z1 * r)
 
-                        sphere.dirty = true
+                        nbuffer.add(x)
+                        nbuffer.add(y)
+                        nbuffer.add(z0)
 
-                        Thread.sleep(20)
+                        nbuffer.add(x)
+                        nbuffer.add(y)
+                        nbuffer.add(z1)
                     }
                 }
-                deferredRenderer?.initializeScene(scene)
+
+                sphere.vertices = vbuffer.toFloatArray()
+                sphere.normals = nbuffer.toFloatArray()
+                sphere.recalculateNormals()
+
+                sphere.dirty = true
+
+                Thread.sleep(20)
             }
-
-            override fun display(pDrawable: GLAutoDrawable) {
-                super.display(pDrawable)
-
-                frameNum++
-                deferredRenderer?.render(scene)
-                clearGLWindow.windowTitle = "scenery: %s - %.1f fps".format(this.javaClass.enclosingClass.simpleName.substringAfterLast("."), pDrawable.animator?.lastFPS)
-            }
-
-            override fun setClearGLWindow(pClearGLWindow: ClearGLWindow) {
-                mClearGLWindow = pClearGLWindow
-            }
-
-            override fun getClearGLWindow(): ClearGLDisplayable {
-                return mClearGLWindow!!
-            }
-
         }
+        deferredRenderer?.initializeScene(scene)
 
-        val lClearGLWindow = ClearGLWindow("",
-                1024,
-                1024,
-                lClearGLWindowEventListener)
-        lClearGLWindow.isVisible = true
-        lClearGLWindow.setFPS(60)
+        repl.addAccessibleObject(scene)
+        repl.addAccessibleObject(deferredRenderer!!)
+        repl.start()
 
-        val inputHandler = ClearGLInputHandler(scene, deferredRenderer as Any, lClearGLWindow)
-        inputHandler.useDefaultBindings(System.getProperty("user.home") + "/.sceneryExamples.bindings")
+        repl.showConsoleWindow()
+    }
 
-        lClearGLWindow.start()
-
-        while (lClearGLWindow.isVisible) {
-            Thread.sleep(10)
-        }
+    @Test override fun main() {
+        super.main()
     }
 }
