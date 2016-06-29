@@ -126,6 +126,8 @@ open class DeferredLightingRenderer : Renderer, Hubable {
 
         gl.glViewport(0, 0, this.width, this.height)
         gl.glClearColor(0.0f, 0.0f, 0.0f, 0.0f)
+
+        gl.glEnable(GL4.GL_TEXTURE_GATHER)
     }
 
     protected fun getDefaultRendererSettings(): Settings {
@@ -347,6 +349,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
 //        }.joinToString("")}")
 
         gl.glDisable(GL.GL_SCISSOR_TEST)
+        gl.glDisable(GL4.GL_BLEND)
         gl.glEnable(GL.GL_DEPTH_TEST)
         gl.glViewport(0, 0, geometryBuffer.first().width, geometryBuffer.first().height)
 
@@ -382,6 +385,11 @@ open class DeferredLightingRenderer : Renderer, Hubable {
             if (n is Skybox) {
                 gl.glCullFace(GL.GL_FRONT)
                 gl.glDepthFunc(GL.GL_LEQUAL)
+            }
+
+            if( n.name.startsWith("UI_")) {
+//                gl.glEnable(GL4.GL_BLEND)
+//                gl.glBlendFunc(GL4.GL_SRC_ALPHA, GL4.GL_ONE_MINUS_SRC_ALPHA);
             }
 
             eyes.forEachIndexed { i, eye ->
