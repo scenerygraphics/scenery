@@ -4,10 +4,12 @@ import cleargl.*
 import com.jogamp.common.nio.Buffers
 import com.jogamp.opengl.GL
 import com.jogamp.opengl.GL4
+import coremem.types.NativeTypeEnum
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import scenery.*
 import scenery.controls.HMDInput
+import scenery.fonts.SDFFontAtlas
 import scenery.rendermodules.Renderer
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
@@ -39,6 +41,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
     protected var combinerProgram: GLProgram
 
     protected var nodeStore = ConcurrentHashMap<String, Node>()
+    protected var fontAtlas = HashMap<String, SDFFontAtlas>()
 
     var settings: Settings = Settings()
     override var hub: Hub? = null
@@ -290,11 +293,45 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         }
     }
 
+    protected fun updateFontBoard(board: FontBoard) {
+        val atlas = fontAtlas.getOrPut(board.fontName, { SDFFontAtlas(this.hub!!, board.fontName) })
+        val m = atlas.createMeshForString(board.text)
+
+        board.vertices = m.vertices
+        board.normals = m.normals
+        board.indices = m.indices
+        board.texcoords = m.texcoords
+
+        board.metadata.remove("DeferredLightingRenderer")
+        board.metadata.put("DeferredLightingRenderer", OpenGLObjectState())
+        initializeNode(board)
+
+        val s = getOpenGLObjectStateFromNode(board)
+        val texture = textures.getOrPut("sdf-${board.fontName}", {
+            val t = GLTexture(gl, NativeTypeEnum.Float, 1,
+                    atlas.atlasWidth,
+                    atlas.atlasHeight,
+                    1,
+                    true,
+                    1)
+
+            t.setClamp(false, false);
+            t.copyFrom(atlas.getAtlas(),
+                    0,
+                    true)
+            t
+        })
+        s.textures.put("diffuse", texture)
+    }
+
     protected fun preDrawAndUpdateGeometryForNode(n: Node) {
         if(n is HasGeometry) {
             n.preDraw()
 
             if(n.dirty) {
+                if(n is FontBoard) {
+                    updateFontBoard(n)
+                }
                 updateVertices(n)
                 updateNormals(n)
 
@@ -307,6 +344,37 @@ open class DeferredLightingRenderer : Renderer, Hubable {
                 }
 
                 n.dirty = false
+            }
+        }
+    }
+
+    protected fun setShaderPropertiesForNode(n: Node, gl: GL4, s: OpenGLObjectState, program: GLProgram) {
+        n.javaClass.declaredFields.filter {
+            it.isAnnotationPresent(ShaderProperty::class.java)
+        }.forEach {
+            // FIXME: this is probably quite dirty?
+            it.isAccessible = true
+            val field = it.get(n)
+            when (it.type) {
+                GLVector::class.java -> {
+                    program.getUniform(it.name).setFloatVector(field as GLVector)
+                }
+
+                Int::class.java -> {
+                    program.getUniform(it.name).setInt(field as Int)
+                }
+
+                Float::class.java -> {
+                    program.getUniform(it.name).setFloat(field as Float)
+                }
+
+                GLMatrix::class.java -> {
+                    program.getUniform(it.name).setFloatMatrix((field as GLMatrix).floatArray, false)
+                }
+
+                else -> {
+                    logger.warn("Could not derive shader data type for @ShaderProperty ${n.javaClass.canonicalName}.${it.name} of type ${it.type}!")
+                }
             }
         }
     }
@@ -387,11 +455,6 @@ open class DeferredLightingRenderer : Renderer, Hubable {
                 gl.glDepthFunc(GL.GL_LEQUAL)
             }
 
-            if( n.name.startsWith("UI_")) {
-//                gl.glEnable(GL4.GL_BLEND)
-//                gl.glBlendFunc(GL4.GL_SRC_ALPHA, GL4.GL_ONE_MINUS_SRC_ALPHA);
-            }
-
             eyes.forEachIndexed { i, eye ->
                 var projection: GLMatrix = if(hmd == null) {
                     GLMatrix().setPerspectiveProjectionMatrix(70.0f / 180.0f * Math.PI.toFloat(),
@@ -427,6 +490,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
                     program.getUniform("isBillboard")!!.setInt(n.isBillboard.toInt())
 
                     setMaterialUniformsForNode(n, gl, s, program)
+                    setShaderPropertiesForNode(n, gl, s, program)
                 }
 
                 preDrawAndUpdateGeometryForNode(n)
@@ -750,7 +814,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
                                 prefs.shaders.toTypedArray())
                     } catch(e: NullPointerException) {
                         s.program = GLProgram.buildProgram(gl, this.javaClass,
-                                prefs.shaders.map { "shaders/" + it }.toTypedArray())
+                                prefs.shaders.map { System.err.println(it); "shaders/" + it }.toTypedArray())
                     }
 
                 }
@@ -817,9 +881,6 @@ open class DeferredLightingRenderer : Renderer, Hubable {
 
                         t.setClamp(!gt.repeatS, !gt.repeatT);
                         t.copyFrom(gt!!.contents)
-//                        t.updateMipMaps()
-
-                        t.dumpToFile(gt!!.contents)
                         t
                     } else {
                         GLTexture.loadFromFile(gl, texture, true, 1)
@@ -960,7 +1021,6 @@ open class DeferredLightingRenderer : Renderer, Hubable {
 
         if(pNormalBuffer.limit() > 0) {
             gl.gL3.glEnableVertexAttribArray(1)
-            logger.trace("Submitted normals for ${node.name}, ${pNormalBuffer.limit()}")
             gl.glBufferData(GL.GL_ARRAY_BUFFER,
                     (pNormalBuffer.limit() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
                     pNormalBuffer,

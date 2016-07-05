@@ -22,7 +22,7 @@ class OpenGLObjectState : NodeMetadata {
     val mVertexBuffers = IntArray(3)
     val mIndexBuffer = IntArray(1)
 
-    var isDynamic = false
+    var isDynamic = true
     var initialized: Boolean = false
 
     var mStoredIndexCount = 0

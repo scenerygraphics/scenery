@@ -91,34 +91,35 @@ __kernel void SignedDistanceTransformByte(
 
   float minVal = FLT_MAX;
   float sign = 0.0f;
-  float max_dist = 64.0f;
+  float max_dist = 50.0f;
 
   for(int y = 0; y < iDy; y++)
   {
     for(int x = 0; x < iDx; x++)
     {
+    int idX = iGID % iDy;
+            int idY = iGID / iDy;
+            float dist = (float)((idX-x)*(idX-x) + (idY-y)*(idY-y));
+
+
+//      if(dist > max_dist) {
+//        continue;
+//      }
+
       if(vIn[y*iDy + x] >= 254.0f)
       {
         sign = -1.0f;
 
-        int idX = iGID % iDy;
-        int idY = iGID / iDy;
-        float dist = sign*sqrt( (float)((idX-x)*(idX-x) + (idY-y)*(idY-y)) );
-
-        if(fabs(dist) < fabs(minVal)  && vIn[iGID] < 254.0f && dist < max_dist)
+        if(fabs(dist) < fabs(minVal)  && vIn[iGID] < 254.0f)
         {
-          minVal = dist;
+          minVal = sign*dist;
         }
       } else {
         sign = 1.0f;
 
-        int idX = iGID % iDy;
-        int idY = iGID / iDy;
-        float dist = sign*sqrt( (float)((idX-x)*(idX-x) + (idY-y)*(idY-y)) );
-
-        if(fabs(dist) < fabs(minVal) && vIn[iGID] >= 254.0f && dist < max_dist)
+        if(fabs(dist) < fabs(minVal) && vIn[iGID] >= 254.0f)
         {
-          minVal = dist;
+          minVal = sign*dist;
         }
       }
     }
@@ -131,9 +132,9 @@ __kernel void SignedDistanceTransformByte(
     printf("%d %f %d\n", val, minVal, vOut[iGID]);
 #endif
 
-  if(minVal > FLT_MAX - 100000.0f) {
-    vOut[iGID] = 0.0f;
+  if(minVal > 1000.0f) {
+    vOut[iGID] = 1000.0f;
   } else {
-    vOut[iGID] = minVal;
+    vOut[iGID] = minVal + 0.5f;
   }
 }
