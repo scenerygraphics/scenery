@@ -44,6 +44,8 @@ uniform int materialType = MATERIAL_TYPE_MAT;
 */
 uniform sampler2D ObjectTextures[MAX_TEXTURES];
 uniform vec3 fontColor;
+uniform vec3 backgroundColor;
+uniform int transparent = 1;
 
 float aastep (float threshold , float value) {
   float afwidth = 0.7 * length ( vec2(dFdx(value), dFdy(value)));
@@ -58,7 +60,6 @@ void main() {
     gNormal = VertexIn.Normal;
     bool debug = false;
     vec3 rgb = vec3(0.0f, 0.0f, 0.0f);
-    vec3 bgColor = vec3(1.0f, 1.0f, 1.0f);
     float pattern = 0.0f;
     float texw = 1024.0f;
     float texh = texw;
@@ -83,7 +84,12 @@ void main() {
 
     if(!debug) {
         if(D00 > 900.0f) {
-            discard;
+            if(transparent > 0) {
+                discard;
+            } else {
+                gAlbedoSpec.rgb = backgroundColor;
+                return;
+            }
         }
 
         vec2 D00_10 = vec2 ( D00 , D10 );
@@ -97,9 +103,9 @@ void main() {
         float pattern = aastep(0.5, D);
         rgb = vec3(pattern);
         rgb = mix(rgb, fontColor, pattern);
-        rgb = mix(bgColor, rgb, pattern);
+        rgb = mix(backgroundColor, rgb, pattern);
 
-        if(pattern <= 0.01) {
+        if(pattern <= 0.01 && transparent > 0) {
             discard;
         }
     }

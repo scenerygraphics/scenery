@@ -137,12 +137,13 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
                 (minGlyphIndex..maxGlyphIndex).forEach { glyph ->
                     val char = charset.toList().get(glyph).toChar()
                     val charBuffer = map.get(charset.toList().get(glyph).toChar())!!
+                    val glyphWidth = fontMap.get(char)!!.first
 
                     val glyphIndexOnLine = glyph-minGlyphIndex
                     glyphTexcoords.putIfAbsent(char, GLVector(
-                            (glyphIndexOnLine*charSize*1.0f)/texWidth,
+                            (glyphIndexOnLine*charSize*1.0f+12.0f)/texWidth,
                             (line*charSize*1.0f)/texHeight,
-                            (glyphIndexOnLine*charSize*1.0f)/texWidth+(charSize*1.0f)/(1.0f*texWidth),
+                            (glyphIndexOnLine*charSize*1.0f+12.0f)/texWidth+(glyphWidth*charSize*1.0f)/(1.0f*texWidth),
                             (line*charSize*1.0f+charSize*1.0f)/texHeight))
                     fb.put(readLineFromBuffer(charSize, it, charBuffer.second))
                 }
@@ -188,10 +189,12 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
         var basei = 0
 
         text.toCharArray().forEachIndexed { index, char ->
+            val glyphWidth = fontMap.get(char)!!.first
+
             vertices.addAll(listOf(
                     basex + 0.0f, 0.0f, 0.0f,
-                    basex + 1.0f, 0.0f, 0.0f,
-                    basex + 1.0f, 1.0f, 0.0f,
+                    basex + glyphWidth, 0.0f, 0.0f,
+                    basex + glyphWidth, 1.0f, 0.0f,
                     basex + 0.0f, 1.0f, 0.0f
             ))
 
@@ -217,7 +220,7 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
             ))
 
             // add font width as new base size
-            basex += fontMap.get(char)!!.first
+            basex += glyphWidth
             basei += 4
         }
 

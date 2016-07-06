@@ -25,6 +25,12 @@ class FontBoard(font: String = "Source Code Pro", override var isBillboard: Bool
     @ShaderProperty
     var fontColor: GLVector = GLVector(0.5f, 0.5f, 0.5f)
 
+    @ShaderProperty
+    var backgroundColor: GLVector = GLVector(1.0f, 1.0f, 1.0f)
+
+    @ShaderProperty
+    var transparent: Int = 1
+
     init {
         name = "FontBoard"
         fontName = font
