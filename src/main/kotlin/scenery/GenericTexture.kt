@@ -12,7 +12,8 @@ import java.nio.ByteBuffer
 data class GenericTexture(
         var name: String,
         var dimensions: GLVector,
-        var type: NativeTypeEnum,
+        var channels: Int = 4,
+        var type: NativeTypeEnum = NativeTypeEnum.Byte,
         var contents: ByteBuffer,
         var repeatS: Boolean = true,
         var repeatT: Boolean = true

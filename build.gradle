@@ -112,6 +112,9 @@ dependencies
     compile group: 'net.java.jinput', name: 'jinput-platform', version: '2.0.6', ext: 'pom'
     compile group: 'net.java.jutils', name: 'jutils', version: '1.0.0'
 
+    // OpenCL support via JOCL
+    compile group: 'org.jocl', name: 'jocl', version: '2.0.0'
+
     // usage: gradle .... -Plocal=true
 	if (project.hasProperty('local')) {
 		println 'Using local clearX sources'

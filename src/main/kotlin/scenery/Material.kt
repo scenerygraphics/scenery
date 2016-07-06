@@ -1,7 +1,7 @@
 package scenery
 
 import cleargl.GLVector
-import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Created by ulrik on 29/01/16.
@@ -14,8 +14,8 @@ open class Material {
 
     var opacity = 1.0f
     var transparent: Boolean = false
-    var textures: HashMap<String, String> = HashMap()
-    var transferTextures: HashMap<String, GenericTexture> = HashMap()
+    @Volatile var textures: ConcurrentHashMap<String, String> = ConcurrentHashMap()
+    @Volatile var transferTextures: ConcurrentHashMap<String, GenericTexture> = ConcurrentHashMap()
     var doubleSided: Boolean = false
 
     var needsTextureReload: Boolean = false

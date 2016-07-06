@@ -54,7 +54,7 @@ open class SceneryDefaultApplication(var applicationName: String,
                     deferredRenderer?.settings?.set("isFullscreen", false)
                 }
 
-                clearGLWindow.windowTitle = "scenery: %s - %.1f fps".format(this.javaClass.enclosingClass.simpleName.substringAfterLast("."), pDrawable.animator?.lastFPS)
+                clearGLWindow.windowTitle = "scenery: %s - %.1f fps".format(applicationName, pDrawable.animator?.lastFPS)
             }
 
             override fun setClearGLWindow(pClearGLWindow: ClearGLWindow) {

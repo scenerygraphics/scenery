@@ -4,10 +4,12 @@ import cleargl.*
 import com.jogamp.common.nio.Buffers
 import com.jogamp.opengl.GL
 import com.jogamp.opengl.GL4
+import coremem.types.NativeTypeEnum
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import scenery.*
 import scenery.controls.HMDInput
+import scenery.fonts.SDFFontAtlas
 import scenery.rendermodules.Renderer
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
@@ -39,6 +41,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
     protected var combinerProgram: GLProgram
 
     protected var nodeStore = ConcurrentHashMap<String, Node>()
+    protected var fontAtlas = HashMap<String, SDFFontAtlas>()
 
     var settings: Settings = Settings()
     override var hub: Hub? = null
@@ -126,6 +129,8 @@ open class DeferredLightingRenderer : Renderer, Hubable {
 
         gl.glViewport(0, 0, this.width, this.height)
         gl.glClearColor(0.0f, 0.0f, 0.0f, 0.0f)
+
+        gl.glEnable(GL4.GL_TEXTURE_GATHER)
     }
 
     protected fun getDefaultRendererSettings(): Settings {
@@ -288,11 +293,45 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         }
     }
 
+    protected fun updateFontBoard(board: FontBoard) {
+        val atlas = fontAtlas.getOrPut(board.fontName, { SDFFontAtlas(this.hub!!, board.fontName) })
+        val m = atlas.createMeshForString(board.text)
+
+        board.vertices = m.vertices
+        board.normals = m.normals
+        board.indices = m.indices
+        board.texcoords = m.texcoords
+
+        board.metadata.remove("DeferredLightingRenderer")
+        board.metadata.put("DeferredLightingRenderer", OpenGLObjectState())
+        initializeNode(board)
+
+        val s = getOpenGLObjectStateFromNode(board)
+        val texture = textures.getOrPut("sdf-${board.fontName}", {
+            val t = GLTexture(gl, NativeTypeEnum.Float, 1,
+                    atlas.atlasWidth,
+                    atlas.atlasHeight,
+                    1,
+                    true,
+                    1)
+
+            t.setClamp(false, false);
+            t.copyFrom(atlas.getAtlas(),
+                    0,
+                    true)
+            t
+        })
+        s.textures.put("diffuse", texture)
+    }
+
     protected fun preDrawAndUpdateGeometryForNode(n: Node) {
         if(n is HasGeometry) {
             n.preDraw()
 
             if(n.dirty) {
+                if(n is FontBoard) {
+                    updateFontBoard(n)
+                }
                 updateVertices(n)
                 updateNormals(n)
 
@@ -305,6 +344,37 @@ open class DeferredLightingRenderer : Renderer, Hubable {
                 }
 
                 n.dirty = false
+            }
+        }
+    }
+
+    protected fun setShaderPropertiesForNode(n: Node, gl: GL4, s: OpenGLObjectState, program: GLProgram) {
+        n.javaClass.declaredFields.filter {
+            it.isAnnotationPresent(ShaderProperty::class.java)
+        }.forEach {
+            // FIXME: this is probably quite dirty?
+            it.isAccessible = true
+            val field = it.get(n)
+            when (it.type) {
+                GLVector::class.java -> {
+                    program.getUniform(it.name).setFloatVector(field as GLVector)
+                }
+
+                Int::class.java -> {
+                    program.getUniform(it.name).setInt(field as Int)
+                }
+
+                Float::class.java -> {
+                    program.getUniform(it.name).setFloat(field as Float)
+                }
+
+                GLMatrix::class.java -> {
+                    program.getUniform(it.name).setFloatMatrix((field as GLMatrix).floatArray, false)
+                }
+
+                else -> {
+                    logger.warn("Could not derive shader data type for @ShaderProperty ${n.javaClass.canonicalName}.${it.name} of type ${it.type}!")
+                }
             }
         }
     }
@@ -347,6 +417,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
 //        }.joinToString("")}")
 
         gl.glDisable(GL.GL_SCISSOR_TEST)
+        gl.glDisable(GL4.GL_BLEND)
         gl.glEnable(GL.GL_DEPTH_TEST)
         gl.glViewport(0, 0, geometryBuffer.first().width, geometryBuffer.first().height)
 
@@ -375,7 +446,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
 
             if(n.material != null) {
                 if(n.material?.needsTextureReload!!) {
-                    loadTexturesForNode(n, s)
+                    n.material?.needsTextureReload = !loadTexturesForNode(n, s)
                 }
             }
 
@@ -419,6 +490,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
                     program.getUniform("isBillboard")!!.setInt(n.isBillboard.toInt())
 
                     setMaterialUniformsForNode(n, gl, s, program)
+                    setShaderPropertiesForNode(n, gl, s, program)
                 }
 
                 preDrawAndUpdateGeometryForNode(n)
@@ -742,7 +814,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
                                 prefs.shaders.toTypedArray())
                     } catch(e: NullPointerException) {
                         s.program = GLProgram.buildProgram(gl, this.javaClass,
-                                prefs.shaders.map { "shaders/" + it }.toTypedArray())
+                                prefs.shaders.map { System.err.println(it); "shaders/" + it }.toTypedArray())
                     }
 
                 }
@@ -792,36 +864,41 @@ open class DeferredLightingRenderer : Renderer, Hubable {
     }
 
     protected fun loadTexturesForNode(node: Node, s: OpenGLObjectState): Boolean {
-        node.material?.textures?.forEach {
-            type, texture ->
-            if(!textures.containsKey(texture) || node.material?.needsTextureReload!!) {
-                logger.trace("Loading texture $texture for ${node.name}")
-                var glTexture = if(texture.startsWith("fromBuffer:")) {
-                    val gt = node.material!!.transferTextures!!.get(texture.substringAfter("fromBuffer:"))
+        if(node.lock.tryLock()) {
+            node.material?.textures?.forEach {
+                type, texture ->
+                if (!textures.containsKey(texture) || node.material?.needsTextureReload!!) {
+                    logger.trace("Loading texture $texture for ${node.name}")
+                    var glTexture = if (texture.startsWith("fromBuffer:")) {
+                        val gt = node.material!!.transferTextures!!.get(texture.substringAfter("fromBuffer:"))
 
-                    val t = GLTexture(gl, gt!!.type, 4,
-                            gt!!.dimensions.x().toInt(),
-                            gt!!.dimensions.y().toInt(),
-                            1,
-                            true,
-                            1)
-                    t.setClamp(!gt.repeatS, !gt.repeatT);
-                    t.copyFrom(gt!!.contents)
-                    t.updateMipMaps()
+                        val t = GLTexture(gl, gt!!.type, gt!!.channels,
+                                gt!!.dimensions.x().toInt(),
+                                gt!!.dimensions.y().toInt(),
+                                1,
+                                true,
+                                1)
 
-                    t
+                        t.setClamp(!gt.repeatS, !gt.repeatT);
+                        t.copyFrom(gt!!.contents)
+                        t
+                    } else {
+                        GLTexture.loadFromFile(gl, texture, true, 1)
+                    }
+
+                    s.textures.put(type, glTexture)
+                    textures.put(texture, glTexture)
                 } else {
-                    GLTexture.loadFromFile(gl, texture, true, 1)
+                    s.textures.put(type, textures[texture]!!)
                 }
-                s.textures.put(type, glTexture)
-                textures.put(texture, glTexture)
-            } else {
-                s.textures.put(type, textures[texture]!!)
             }
-        }
 
-        s.initialized = true
-        return true
+            s.initialized = true
+            node.lock.unlock()
+            return true
+        } else {
+            return false
+        }
     }
 
     fun reshape(newWidth: Int, newHeight: Int) {
@@ -944,7 +1021,6 @@ open class DeferredLightingRenderer : Renderer, Hubable {
 
         if(pNormalBuffer.limit() > 0) {
             gl.gL3.glEnableVertexAttribArray(1)
-            logger.trace("Submitted normals for ${node.name}, ${pNormalBuffer.limit()}")
             gl.glBufferData(GL.GL_ARRAY_BUFFER,
                     (pNormalBuffer.limit() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
                     pNormalBuffer,

@@ -2,6 +2,7 @@ package scenery.repl
 
 import org.scijava.Context
 import org.scijava.`object`.ObjectService
+import org.scijava.service.SciJavaService
 import org.scijava.ui.swing.script.InterpreterWindow
 import java.util.*
 
@@ -19,7 +20,7 @@ class REPL(val accessibleObjects: List<Any> = listOf(),
     protected var startupScriptCode: String
 
     init {
-        context = Context()
+        context = Context(SciJavaService::class.java)
         interpreterWindow = InterpreterWindow(context)
         interpreterWindow.isVisible = false
 
@@ -43,4 +44,8 @@ class REPL(val accessibleObjects: List<Any> = listOf(),
         // waiting for scijava/scijava-ui-swing#22
         interpreterWindow.repl.interpreter.eval(startupScriptCode)
     }
+
+     fun eval(code: String) {
+         interpreterWindow.repl.interpreter.eval(code)
+     }
 }
