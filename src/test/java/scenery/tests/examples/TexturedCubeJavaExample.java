@@ -1,19 +1,11 @@
 package scenery.tests.examples;
 
-import org.junit.Test;
-import cleargl.*;
-
+import cleargl.GLMatrix;
+import cleargl.GLVector;
 import com.jogamp.opengl.GLAutoDrawable;
 import org.junit.Test;
 import scenery.*;
-import scenery.controls.ClearGLInputHandler;
 import scenery.rendermodules.opengl.DeferredLightingRenderer;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
 
 /**
  * Created by kharrington on 7/6/16.
