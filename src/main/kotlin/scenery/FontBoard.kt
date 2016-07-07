@@ -16,7 +16,7 @@ class FontBoard(font: String = "Source Code Pro", override var isBillboard: Bool
             field = value
         }
 
-    var fontName: String = "Source Code Pro"
+    var fontFamily: String = "Source Code Pro"
         set(value) {
             dirty = true
             field = value
@@ -33,7 +33,7 @@ class FontBoard(font: String = "Source Code Pro", override var isBillboard: Bool
 
     init {
         name = "FontBoard"
-        fontName = font
+        fontFamily = font
         metadata.put(
                 "ShaderPreference",
                 OpenGLShaderPreference(
@@ -43,6 +43,6 @@ class FontBoard(font: String = "Source Code Pro", override var isBillboard: Bool
     }
 
     override fun toString(): String {
-        return "FontBoard ($fontName): $text"
+        return "FontBoard ($fontFamily): $text"
     }
 }

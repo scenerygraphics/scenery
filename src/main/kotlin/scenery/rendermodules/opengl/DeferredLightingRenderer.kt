@@ -294,7 +294,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
     }
 
     protected fun updateFontBoard(board: FontBoard) {
-        val atlas = fontAtlas.getOrPut(board.fontName, { SDFFontAtlas(this.hub!!, board.fontName) })
+        val atlas = fontAtlas.getOrPut(board.fontFamily, { SDFFontAtlas(this.hub!!, board.fontFamily) })
         val m = atlas.createMeshForString(board.text)
 
         board.vertices = m.vertices
@@ -307,7 +307,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         initializeNode(board)
 
         val s = getOpenGLObjectStateFromNode(board)
-        val texture = textures.getOrPut("sdf-${board.fontName}", {
+        val texture = textures.getOrPut("sdf-${board.fontFamily}", {
             val t = GLTexture(gl, NativeTypeEnum.Float, 1,
                     atlas.atlasWidth,
                     atlas.atlasHeight,
