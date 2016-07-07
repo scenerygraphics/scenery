@@ -243,7 +243,7 @@ interface HasGeometry {
                     "s" -> {
                         // TODO: Implement smooth shading across faces
                     }
-                    "g" -> {
+                    "g" -> @Suppress("UNCHECKED_CAST") {
                         if(nbuffer.size == 0) {
                             calculateNormals(vbuffer, nbuffer)
                         }

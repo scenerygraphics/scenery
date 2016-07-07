@@ -10,6 +10,8 @@ open class Scene : Node("RootNode") {
         if (n.name == "RootNode") {
             throw IllegalStateException("Only one RootNode may exist per scenegraph. Please choose a different name.")
         }
+
+        discover(this, { node -> node == parent }).first().addChild(n)
     }
 
     fun findObserver() : Camera {

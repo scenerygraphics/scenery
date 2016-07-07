@@ -39,7 +39,7 @@ open class Camera : Node("Camera") {
         else {
             val v: GLVector = GLVector(forward.x(), forward.y(), forward.z(), 0.0f)
             //FIXME: val o: GLVector= GLMatrix.fromQuaternion(rotation).mult(v)
-            return GLVector(1.0f, 0.0f, 0.0f)
+            return v
         }
     }
 }

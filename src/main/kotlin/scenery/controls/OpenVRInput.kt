@@ -31,6 +31,7 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
 
     protected val error = IntBuffer.allocate(1)
     protected var hmdPose = GLMatrix.getIdentity()
+    protected var trackedPoses = HashMap<String, GLMatrix>()
     protected var eyeProjectionCache: ArrayList<GLMatrix?> = ArrayList()
     protected var eyeTransformCache: ArrayList<GLMatrix?> = ArrayList()
 
@@ -41,7 +42,7 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
     var latencyWaitTime = 0L
     var vsyncToPhotons = 0.0f
 
-    protected var frameCountRun = 0.0f
+    protected var frameCountRun = 0
     protected var timePerFrame = 0.0f
 
     var debugLatency = false
@@ -76,9 +77,7 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
                 hmdTrackedDevicePoseReference = TrackedDevicePose_t.ByReference()
                 hmdTrackedDevicePoses = hmdTrackedDevicePoseReference?.toArray(jvr.k_unMaxTrackedDeviceCount)
 
-                val poseMatrices = ArrayList<GLMatrix>()
-
-                val timePerFrame = 1.0f / hmdDisplayFreq[0]
+                timePerFrame = 1.0f / hmdDisplayFreq[0]
 
                 hmdTrackedDevicePoseReference?.autoRead = false
                 hmdTrackedDevicePoseReference?.autoWrite = false
@@ -233,7 +232,7 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
                     logger.info("FRAMEDROP!")
                 }
 
-                val frameCountRun = 0
+                frameCountRun = 0
                 if(latencyWaitTime > 0) {
                     latencyWaitTime -= TimeUnit.MILLISECONDS.toNanos(1)
                 }
@@ -251,11 +250,10 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
 
         for(device in (0..jvr.k_unMaxTrackedDeviceCount-1)) {
             val isValid = hmdTrackedDevicePoses!!.get(device).readField("bPoseIsValid")
-            var type: String = ""
 
             if(isValid != 0) {
-                val device: Int = vrFuncs!!.GetTrackedDeviceClass!!.apply(device)
-                type = when(device) {
+                val trackedDevice: Int = vrFuncs!!.GetTrackedDeviceClass!!.apply(device)
+                val type = when(trackedDevice) {
                     jopenvr.JOpenVRLibrary.ETrackedDeviceClass.ETrackedDeviceClass_TrackedDeviceClass_Controller -> "Controller"
                     jopenvr.JOpenVRLibrary.ETrackedDeviceClass.ETrackedDeviceClass_TrackedDeviceClass_HMD -> "HMD"
                     jopenvr.JOpenVRLibrary.ETrackedDeviceClass.ETrackedDeviceClass_TrackedDeviceClass_Other -> "Other"
@@ -264,15 +262,9 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
                     else -> "Unknown"
                 }
 
+                val pose = (hmdTrackedDevicePoses!!.get(jvr.k_unTrackedDeviceIndex_Hmd).readField("mDeviceToAbsoluteTracking") as HmdMatrix34_t)
+                trackedPoses[type] = pose.toGLMatrix().invert()
             }
-        }
-
-        val isValid = hmdTrackedDevicePoses!!.get(jvr.k_unTrackedDeviceIndex_Hmd).readField("bPoseIsValid")
-        if(isValid != 0) {
-            val pose = (hmdTrackedDevicePoses!!.get(jvr.k_unTrackedDeviceIndex_Hmd).readField("mDeviceToAbsoluteTracking") as HmdMatrix34_t)
-            hmdPose = pose.toGLMatrix().invert()
-
-            logger.trace("HMD: ${hmdPose.toString()}")
         }
     }
 
@@ -316,7 +308,11 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
     }
 
     override fun getPose(): GLMatrix {
-        return this.hmdPose
+        return this.trackedPoses.getOrDefault("HMD", GLMatrix.getIdentity())
+    }
+
+    fun getPose(type: String): GLMatrix {
+        return this.trackedPoses.getOrDefault(type, GLMatrix.getIdentity())
     }
 
     fun HmdMatrix34_t.toGLMatrix(): GLMatrix {

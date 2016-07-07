@@ -40,7 +40,6 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
         fontSize = distanceFieldSize*0.85f
 
         charset.map {
-            var start = System.nanoTime()
             val character =  genCharImage(it.toChar(), Font(fontName, 0, fontSize.toInt()), distanceFieldSize)
 
             input = ocl.wrapInput(character.second)
@@ -50,7 +49,6 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
             ocl.loadKernel(OpenCLContext::class.java.getResource("DistanceTransform.cl"), "SignedDistanceTransformByte")
                     .runKernel("SignedDistanceTransformByte",
                             distanceFieldSize*distanceFieldSize,
-                            false,
                             input,
                             output,
                             distanceFieldSize,
@@ -63,7 +61,6 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
         }
 
         fontAtlasBacking = toFontAtlas(fontMap, distanceFieldSize)
-//        dumpToFile(fontAtlasBacking)
     }
 
     fun dumpToFile(buf: ByteBuffer) {
@@ -83,26 +80,25 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
     protected fun genCharImage(c: Char, font: Font, size: Int): Pair<Float, ByteBuffer> {
         /* Creating temporary image to extract character size */
         var image = BufferedImage(1, 1, BufferedImage.TYPE_BYTE_GRAY)
-        var g: Graphics2D = image.createGraphics();
-        g.setFont(font);
-        val metrics = g.getFontMetrics();
-        g.dispose();
+        var g: Graphics2D = image.createGraphics()
+        g.font = font
+        val metrics = g.fontMetrics
+        g.dispose()
 
         /* Get char charWidth and charHeight */
-        val charWidth = metrics.charWidth(c);
-        val charHeight = metrics.getHeight();
+        val charWidth = metrics.charWidth(c)
 
         /* Create image for holding the char */
         image = BufferedImage(size, size, BufferedImage.TYPE_BYTE_GRAY)
         g = image.createGraphics()
-        g.setFont(font);
-        g.setPaint(java.awt.Color.WHITE);
+        g.font = font
+        g.paint = java.awt.Color.WHITE
         g.drawString(c.toString(), 10, size/2 + metrics.maxAscent/2 - 10)
-        g.dispose();
+        g.dispose()
 
-        val data = (image.getRaster().getDataBuffer() as DataBufferByte).data
+        val data = (image.raster.dataBuffer as DataBufferByte).data
 
-        var imageBuffer: ByteBuffer = ByteBuffer.allocateDirect(data.size)
+        val imageBuffer: ByteBuffer = ByteBuffer.allocateDirect(data.size)
         imageBuffer.order(ByteOrder.nativeOrder())
         imageBuffer.put(data, 0, data.size)
         imageBuffer.rewind()
@@ -118,7 +114,7 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
         while (texWidth < charSize*Math.sqrt(mapSize.toDouble())) {
             texWidth *= 2
         }
-        var texHeight = texWidth
+        val texHeight = texWidth
 
         val buffer = ByteBuffer.allocate(4*texWidth*texWidth)
         val fb = buffer.asFloatBuffer()
@@ -135,9 +131,9 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
 
             (0..charSize-1).forEach {
                 (minGlyphIndex..maxGlyphIndex).forEach { glyph ->
-                    val char = charset.toList().get(glyph).toChar()
-                    val charBuffer = map.get(charset.toList().get(glyph).toChar())!!
-                    val glyphWidth = fontMap.get(char)!!.first
+                    val char = charset.toList()[glyph].toChar()
+                    val charBuffer = map[charset.toList()[glyph].toChar()]!!
+                    val glyphWidth = fontMap[char]!!.first
 
                     val glyphIndexOnLine = glyph-minGlyphIndex
                     glyphTexcoords.putIfAbsent(char, GLVector(
@@ -176,6 +172,7 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
         return glyphTexcoords.getOrDefault(glyph, GLVector(0.0f, 0.0f, 1.0f, 1.0f))
     }
 
+    @Suppress("UNCHECKED_CAST")
     fun createMeshForString(text: String): Mesh {
         val m = Mesh()
         m.geometryType = GeometryType.TRIANGLES
@@ -189,7 +186,7 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
         var basei = 0
 
         text.toCharArray().forEachIndexed { index, char ->
-            val glyphWidth = fontMap.get(char)!!.first
+            val glyphWidth = fontMap[char]!!.first
 
             vertices.addAll(listOf(
                     basex + 0.0f, 0.0f, 0.0f,

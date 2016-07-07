@@ -71,6 +71,7 @@ class TexturedCubeExample : SceneryDefaultApplication("TexturedCubeExample") {
 
         repl.addAccessibleObject(scene)
         repl.addAccessibleObject(deferredRenderer!!)
+        repl.start()
         repl.showConsoleWindow()
     }
 

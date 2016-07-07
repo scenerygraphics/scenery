@@ -79,12 +79,6 @@ class MultiBoxExample : SceneryDefaultApplication("MultiBoxExample") {
 
             scene.addChild(hullbox)
 
-            val mesh = Mesh()
-            val meshM = Material()
-            meshM.ambient = GLVector(0.5f, 0.5f, 0.5f)
-            meshM.diffuse = GLVector(0.5f, 0.5f, 0.5f)
-            meshM.specular = GLVector(0.1f, 0.1f, 0.1f)
-
             cam.position = GLVector(0.0f, 0.0f, 0.0f)
             cam.view = GLMatrix().setCamera(cam.position, cam.position + cam.forward, cam.up)
 

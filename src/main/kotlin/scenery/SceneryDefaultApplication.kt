@@ -70,13 +70,19 @@ open class SceneryDefaultApplication(var applicationName: String,
                                  pY: Int,
                                  pWidth: Int,
                                  pHeight: Int) {
-                var pHeight = pHeight
+                var height = pHeight
 
-                if (pHeight == 0)
-                    pHeight = 1
+                if (height == 0)
+                    height = 1
 
-                super.reshape(pDrawable, pX, pY, pWidth, pHeight)
-                deferredRenderer?.reshape(pWidth, pHeight)
+                super.reshape(pDrawable, pX, pY, pWidth, height)
+                deferredRenderer?.reshape(pWidth, height)
+            }
+
+            override fun dispose(pDrawable: GLAutoDrawable) {
+                System.err.println("Stopping with dispose")
+                pDrawable.animator.stop()
+                pDrawable.destroy()
             }
 
         }
@@ -96,5 +102,7 @@ open class SceneryDefaultApplication(var applicationName: String,
         while (glWindow.isVisible) {
             Thread.sleep(10)
         }
+
+        glWindow.stop()
     }
 }

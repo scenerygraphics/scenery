@@ -23,3 +23,6 @@ Thumbs.db
 .DS_Store
 hs_err_pid*
 log.txt
+
+# demo models
+models/

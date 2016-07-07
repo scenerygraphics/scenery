@@ -21,8 +21,6 @@ open class Material {
     var needsTextureReload: Boolean = false
 
     companion object Factory {
-       fun DefaultMaterial() {
-          val m = Material()
-       }
+       fun DefaultMaterial(): Material = Material()
     }
 }

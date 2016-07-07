@@ -8,7 +8,7 @@ import cleargl.GLVector
  */
 
 interface HMDInput {
-    fun getEyeProjection(index: Int): GLMatrix
+    fun getEyeProjection(eye: Int): GLMatrix
     fun getIPD(): Float
     fun getOrientation(): GLMatrix
     fun getPosition(): GLVector

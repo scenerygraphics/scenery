@@ -200,7 +200,7 @@ class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowW
                 obj.rotation.rotateByAngleY(-1.0f * magnitude)
             }
 
-            val t = thread {
+            thread {
                 var reverse = false
                 val step = 0.02f
 

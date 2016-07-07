@@ -72,7 +72,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         val numExtensionsBuffer = IntBuffer.allocate(1)
         gl.glGetIntegerv(GL4.GL_NUM_EXTENSIONS, numExtensionsBuffer)
         val extensions = (0..numExtensionsBuffer[0]-1).map { gl.glGetStringi(GL4.GL_EXTENSIONS, it) }
-        logger.info("Supported extensions:\n${extensions.joinToString("\n\t")}")
+        logger.info("Supported OpenGL extensions:\n${extensions.joinToString(", ")}")
 
         settings.set("ssao.FilterRadius", GLVector(5.0f/width, 5.0f/height))
 
@@ -348,7 +348,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         }
     }
 
-    protected fun setShaderPropertiesForNode(n: Node, gl: GL4, s: OpenGLObjectState, program: GLProgram) {
+    protected fun setShaderPropertiesForNode(n: Node, program: GLProgram) {
         n.javaClass.declaredFields.filter {
             it.isAnnotationPresent(ShaderProperty::class.java)
         }.forEach {
@@ -386,7 +386,6 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         val cam: Camera = scene.findObserver()
         var mv: GLMatrix
         var mvp: GLMatrix
-        var proj: GLMatrix
 
         val hmd: HMDInput? = if(hub!!.has(SceneryElement.HMDINPUT)
                 && (hub!!.get(SceneryElement.HMDINPUT) as HMDInput).initializedAndWorking()) {
@@ -460,13 +459,13 @@ open class DeferredLightingRenderer : Renderer, Hubable {
                     GLMatrix().setPerspectiveProjectionMatrix(70.0f / 180.0f * Math.PI.toFloat(),
                         (1.0f * geometryBuffer[i].width) / (1.0f * geometryBuffer[i].height), 0.1f, 100000f)
                 } else {
-                    hmd?.getEyeProjection(i)
+                    hmd.getEyeProjection(i)
                 }
 
                 mv = if(hmd == null ) {
                     GLMatrix.getTranslation(settings.get<Float>("vr.IPD") * -1.0f * Math.pow(-1.0, 1.0*i).toFloat(), 0.0f, 0.0f).transpose()
                 } else {
-                    hmd?.getHeadToEyeTransform(i).clone()
+                    hmd.getHeadToEyeTransform(i).clone()
                 }
                 val pose = if(hmd == null) {
                     GLMatrix.getIdentity()
@@ -490,7 +489,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
                     program.getUniform("isBillboard")!!.setInt(n.isBillboard.toInt())
 
                     setMaterialUniformsForNode(n, gl, s, program)
-                    setShaderPropertiesForNode(n, gl, s, program)
+                    setShaderPropertiesForNode(n, program)
                 }
 
                 preDrawAndUpdateGeometryForNode(n)
@@ -519,9 +518,8 @@ open class DeferredLightingRenderer : Renderer, Hubable {
             val modelviewprojs = ArrayList<Float>()
 
             mv = GLMatrix.getIdentity()
-            proj = GLMatrix.getIdentity()
             mvp = GLMatrix.getIdentity()
-            var mo = GLMatrix.getIdentity()
+            var mo: GLMatrix
 
             instances.forEach { node -> node.updateWorld(true, false) }
 
@@ -613,12 +611,12 @@ open class DeferredLightingRenderer : Renderer, Hubable {
             lightingPassProgram.getUniform("ProjectionMatrix").setFloatMatrix(cam.projection!!.clone(), false)
             lightingPassProgram.getUniform("InverseProjectionMatrix").setFloatMatrix(cam.projection!!.clone().invert(), false)
 
-            for (i in 0..lights.size - 1) {
-                lightingPassProgram.getUniform("lights[$i].Position").setFloatVector(lights[i].position)
-                lightingPassProgram.getUniform("lights[$i].Color").setFloatVector((lights[i] as PointLight).emissionColor)
-                lightingPassProgram.getUniform("lights[$i].Intensity").setFloat((lights[i] as PointLight).intensity)
-                lightingPassProgram.getUniform("lights[$i].Linear").setFloat((lights[i] as PointLight).linear)
-                lightingPassProgram.getUniform("lights[$i].Quadratic").setFloat((lights[i] as PointLight).quadratic)
+            for (light in 0..lights.size - 1) {
+                lightingPassProgram.getUniform("lights[$light].Position").setFloatVector(lights[light].position)
+                lightingPassProgram.getUniform("lights[$light].Color").setFloatVector((lights[light] as PointLight).emissionColor)
+                lightingPassProgram.getUniform("lights[$light].Intensity").setFloat((lights[light] as PointLight).intensity)
+                lightingPassProgram.getUniform("lights[$light].Linear").setFloat((lights[light] as PointLight).linear)
+                lightingPassProgram.getUniform("lights[$light].Quadratic").setFloat((lights[light] as PointLight).quadratic)
             }
 
             lightingPassProgram.getUniform("gPosition").setInt(0)
@@ -705,7 +703,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
 
             if(hmd != null && hmd.hasCompositor()) {
                 logger.trace("Submitting to compositor...")
-                hmd?.submitToCompositor(combinationBuffer[0].getTextureIds(gl)[0], combinationBuffer[1].getTextureIds(gl)[0])
+                hmd.submitToCompositor(combinationBuffer[0].getTextureIds(gl)[0], combinationBuffer[1].getTextureIds(gl)[0])
             }
         } else {
             combinationBuffer.first().bindTexturesToUnitsWithOffset(gl, 0)
@@ -870,17 +868,17 @@ open class DeferredLightingRenderer : Renderer, Hubable {
                 if (!textures.containsKey(texture) || node.material?.needsTextureReload!!) {
                     logger.trace("Loading texture $texture for ${node.name}")
                     var glTexture = if (texture.startsWith("fromBuffer:")) {
-                        val gt = node.material!!.transferTextures!!.get(texture.substringAfter("fromBuffer:"))
+                        val gt = node.material!!.transferTextures.get(texture.substringAfter("fromBuffer:"))
 
-                        val t = GLTexture(gl, gt!!.type, gt!!.channels,
-                                gt!!.dimensions.x().toInt(),
-                                gt!!.dimensions.y().toInt(),
+                        val t = GLTexture(gl, gt!!.type, gt.channels,
+                                gt.dimensions.x().toInt(),
+                                gt.dimensions.y().toInt(),
                                 1,
                                 true,
                                 1)
 
                         t.setClamp(!gt.repeatS, !gt.repeatT);
-                        t.copyFrom(gt!!.contents)
+                        t.copyFrom(gt.contents)
                         t
                     } else {
                         GLTexture.loadFromFile(gl, texture, true, 1)

@@ -336,7 +336,7 @@ class JOGLMouseAndKeyHandler : MouseListener, KeyListener, WindowListener, Windo
 		 * ...but only if its not a MouseWheelEvent because OS X sets button
 		 * modifiers if ALT or META modifiers are pressed.
 		 */
-        if (e is MouseEvent && ((e as MouseEvent).rotation[0] < 0.001f || (e as MouseEvent).rotation[1] < 0.001f)) {
+        if (e is MouseEvent && (e.rotation[0] < 0.001f || e.rotation[1] < 0.001f)) {
             if (modifiers and InputEvent.BUTTON1_MASK != 0) {
                 mask = mask or (1 shl 10)
             }
@@ -356,7 +356,7 @@ class JOGLMouseAndKeyHandler : MouseListener, KeyListener, WindowListener, Windo
             mask = mask or InputTrigger.DOUBLE_CLICK_MASK
         } // mouse
 
-        if (e is MouseEvent && (e as MouseEvent).eventType == MouseEvent.EVENT_MOUSE_WHEEL_MOVED) {
+        if (e is MouseEvent && e.eventType == MouseEvent.EVENT_MOUSE_WHEEL_MOVED) {
             mask = mask or InputTrigger.SCROLL_MASK
             mask = mask and (1 shl 10).inv()
         }

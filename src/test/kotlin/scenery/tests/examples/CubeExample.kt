@@ -30,7 +30,7 @@ class CubeExample : SceneryDefaultApplication("CubeExample") {
 
         scene.addChild(box)
 
-        var lights = (0..2).map {
+        var lights = (0..0).map {
             PointLight()
         }
 
@@ -62,6 +62,11 @@ class CubeExample : SceneryDefaultApplication("CubeExample") {
             }
         }
         deferredRenderer?.initializeScene(scene)
+
+        repl.addAccessibleObject(scene)
+        repl.addAccessibleObject(deferredRenderer!!)
+        repl.start()
+        repl.showConsoleWindow()
     }
 
 

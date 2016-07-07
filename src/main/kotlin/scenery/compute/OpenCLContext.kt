@@ -111,7 +111,6 @@ class OpenCLContext(override var hub: Hub?, val devicePreference: String = "0,0"
         return when(obj.javaClass) {
             Float::class.java   -> Sizeof.cl_float
             Int::class.java     -> Sizeof.cl_int
-            Integer::class.java -> Sizeof.cl_int
             Byte::class.java    -> Sizeof.cl_uchar
             cl_mem::class.java  -> Sizeof.cl_mem
 
@@ -166,7 +165,7 @@ class OpenCLContext(override var hub: Hub?, val devicePreference: String = "0,0"
         }
     }
 
-    fun runKernel(name: String, wavefronts: Int, blocking: Boolean = false, vararg arguments: Any) {
+    fun runKernel(name: String, wavefronts: Int, vararg arguments: Any) {
         val k: cl_kernel = kernels[name]!!
         k.setArgs(*arguments)
 

@@ -27,8 +27,8 @@ open class FPSCameraControl(private val name: String, private val node: Camera, 
         val dx = this.x()
         val dy = this.y()
         val dz = this.z()
-        var yaw = 0.0f
-        var pitch = 0.0f
+        var yaw: Float = 0.0f
+        var pitch: Float
 
         if (Math.abs(dx) < 0.000001f) {
             if (dx < 0.0f) {
