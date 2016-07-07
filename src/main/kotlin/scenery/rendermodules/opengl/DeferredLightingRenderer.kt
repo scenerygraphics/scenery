@@ -18,38 +18,76 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlin.concurrent.thread
 
 /**
- * <Description>
+ * Deferred Lighting Renderer for scenery
+ *
+ * This is the main class of scenery's Deferred Lighting Renderer. Currently,
+ * a rendering strategy using a 32bit position, 16bit normal, 32bit RGBA diffuse/albedo,
+ * and 24bit depth buffer is employed. The renderer supports HDR rendering and does that
+ * by default. By deactivating the `hdr.Active` [Settings], HDR can be programmatically
+ * deactivated. The renderer also supports drawing to HMDs via OpenVR. If this is intended,
+ * make sure the `vr.Active` [Settings] is set to `true`, and that the `Hub` has a HMD
+ * instance attached.
+ *
+ * @property[gl] A [GL4] handed over by [ClearGLDefaultEventListener]
+ * @property[width] Initial window width, will be used for framebuffer construction
+ * @property[height] Initial window height, will be used for framebuffer construction
+ *
+ * @constructor Initializes the [DeferredLightingRenderer] with the given window dimensions and GL context
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
 
-/*
-        the first texture units are reserved for the geometry buffer
-     */
-
-
 open class DeferredLightingRenderer : Renderer, Hubable {
+    /** slf4j logger */
     protected var logger: Logger = LoggerFactory.getLogger("DeferredLightingRenderer")
+    /** [GL4] instance handed over, coming from [ClearGLDefaultEventListener]*/
     protected var gl: GL4
+    /** window width */
     protected var width: Int
+    /** window height */
     protected var height: Int
+
+    /** [GLFramebuffer] Geometry buffer for rendering */
     protected var geometryBuffer: ArrayList<GLFramebuffer>
+
+    /** [GLFramebuffer] used for HDR rendering */
     protected var hdrBuffer: ArrayList<GLFramebuffer>
+
+    /** 3rd [GLFramebuffer] to use for combining eventual stereo render targets */
     protected var combinationBuffer: ArrayList<GLFramebuffer>
+
+    /** [GLProgram] for the deferred shading pass */
     protected var lightingPassProgram: GLProgram
+
+    /** [GLProgram] used for the Exposure/Gamma HDR pass */
     protected var hdrPassProgram: GLProgram
+
+    /** [GLProgram] used for combining stereo render targets */
     protected var combinerProgram: GLProgram
 
+    /** Cache of [Node]s, needed e.g. for fullscreen quad rendering */
     protected var nodeStore = ConcurrentHashMap<String, Node>()
+
+    /** Cache for [SDFFontAtlas]es used for font rendering */
     protected var fontAtlas = HashMap<String, SDFFontAtlas>()
 
+    /** [Settings] for the renderer */
     var settings: Settings = Settings()
+
+    /** The hub used for communication between the components */
     override var hub: Hub? = null
 
+    /** Texture cache */
     protected var textures = HashMap<String, GLTexture>()
 
+    /** Eyes of the stereo render targets */
     var eyes = (0..0)
 
+    /**
+     * Extension function of Boolean to use Booleans in GLSL
+     *
+     * This function converts a Boolean to Int 0, if false, and to 1, if true
+     */
     fun Boolean.toInt(): Int {
         if(this) {
             return 1
@@ -76,14 +114,15 @@ open class DeferredLightingRenderer : Renderer, Hubable {
 
         settings.set("ssao.FilterRadius", GLVector(5.0f/width, 5.0f/height))
 
+        geometryBuffer = ArrayList<GLFramebuffer>()
+        hdrBuffer = ArrayList<GLFramebuffer>()
+        combinationBuffer = ArrayList<GLFramebuffer>()
+
+        // if vr.Active is set to true, we use two eyes for stereo render targets.
         if(settings.get("vr.Active")) {
             eyes = (0..1)
             settings.set("vr.IPD", -0.5f)
         }
-
-        geometryBuffer = ArrayList<GLFramebuffer>()
-        hdrBuffer = ArrayList<GLFramebuffer>()
-        combinationBuffer = ArrayList<GLFramebuffer>()
 
         eyes.forEach {
             // create 32bit position buffer, 16bit normal buffer, 8bit diffuse buffer and 24bit depth buffer
@@ -133,6 +172,14 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         gl.glEnable(GL4.GL_TEXTURE_GATHER)
     }
 
+    /**
+     * Returns the default [Settings] for [DeferredLightingRenderer]
+     *
+     * Providing some sane defaults that may of course be overridden after
+     * construction of the renderer.
+     *
+     * @return Default [Settings] values
+     */
     protected fun getDefaultRendererSettings(): Settings {
         val ds = Settings()
 
@@ -158,6 +205,13 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         return ds
     }
 
+    /**
+     * Based on the [GLFramebuffer], devises a texture unit that can be used
+     * for object textures.
+     *
+     * @param[type] texture type
+     * @return Int of the texture unit to be used
+     */
     fun GLFramebuffer.textureTypeToUnit(type: String): Int {
         return this.boundBufferNum + when (type) {
             "ambient" -> 0
@@ -171,6 +225,11 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         }
     }
 
+    /**
+     * Converts a [GeometryType] to an OpenGL geometry type
+     *
+     * @return Int of the OpenGL geometry type.
+     */
     protected fun GeometryType.toOpenGLType(): Int {
         return when(this) {
             GeometryType.TRIANGLE_STRIP -> GL.GL_TRIANGLE_STRIP
@@ -183,50 +242,82 @@ open class DeferredLightingRenderer : Renderer, Hubable {
     }
 
 
+    /**
+     * Toggles deferred shading buffer debug view. Used for e.g.
+     * [scenery.controls.behaviours.ToggleCommand].
+     */
     fun toggleDebug() {
         if(settings.get<Boolean>("debug.DebugDeferredBuffers") == false) {
-            settings.set("debug.DebugDeferredBuffers", true);
+            settings.set("debug.DebugDeferredBuffers", true)
         } else {
-            settings.set("debug.DebugDeferredBuffers", false);
+            settings.set("debug.DebugDeferredBuffers", false)
         }
     }
 
+    /**
+     * Toggles Screen-space ambient occlusion. Used for e.g.
+     * [scenery.controls.behaviours.ToggleCommand].
+     */
     fun toggleSSAO() {
         if(settings.get<Boolean>("ssao.Active") == false) {
-            settings.set("ssao.Active", true);
+            settings.set("ssao.Active", true)
         } else {
-            settings.set("ssao.Active", false);
+            settings.set("ssao.Active", false)
         }
     }
 
+    /**
+     * Toggles HDR rendering. Used for e.g.
+     * [scenery.controls.behaviours.ToggleCommand].
+     */
     fun toggleHDR() {
         if(settings.get<Boolean>("hdr.Active") == false) {
-            settings.set("hdr.Active", true);
+            settings.set("hdr.Active", true)
         } else {
-            settings.set("hdr.Active", false);
+            settings.set("hdr.Active", false)
         }
     }
 
+    /**
+     * Increases the HDR exposure value. Used for e.g.
+     * [scenery.controls.behaviours.ToggleCommand].
+     */
     fun increaseExposure() {
         val exp: Float = settings.get<Float>("hdr.Exposure")
         settings.set("hdr.Exposure", exp + 0.05f)
     }
 
+    /**
+     * Decreases the HDR exposure value.Used for e.g.
+     * [scenery.controls.behaviours.ToggleCommand].
+     */
     fun decreaseExposure() {
         val exp: Float = settings.get<Float>("hdr.Exposure")
         settings.set("hdr.Exposure", exp - 0.05f)
     }
 
+    /**
+     * Increases the HDR gamma value. Used for e.g.
+     * [scenery.controls.behaviours.ToggleCommand].
+     */
     fun increaseGamma() {
         val gamma: Float = settings.get<Float>("hdr.Gamma")
         settings.set("hdr.Gamma", gamma + 0.05f)
     }
 
+    /**
+     * Decreases the HDR gamma value. Used for e.g.
+     * [scenery.controls.behaviours.ToggleCommand].
+     */
     fun decreaseGamma() {
         val gamma: Float = settings.get<Float>("hdr.Gamma")
         if(gamma - 0.05f >= 0) settings.set("hdr.Gamma", gamma - 0.05f)
     }
 
+    /**
+     * Toggles fullscreen. Used for e.g.
+     * [scenery.controls.behaviours.ToggleCommand].
+     */
     fun toggleFullscreen() {
         if(!settings.get<Boolean>("wantsFullscreen")) {
             settings.set("wantsFullscreen", true)
@@ -235,10 +326,23 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         }
     }
 
+    /**
+     * Convenience function that extracts the [OpenGLObjectState] from a [Node]'s
+     * metadata.
+     *
+     * @param[node] The node of interest
+     * @return The [OpenGLObjectState] of the [Node]
+     */
     fun getOpenGLObjectStateFromNode(node: Node): OpenGLObjectState {
         return node.metadata["DeferredLightingRenderer"] as OpenGLObjectState
     }
 
+    /**
+     * Initializes the [Scene] with the [DeferredLightingRenderer], to be called
+     * before [render].
+     *
+     * @param[scene] The [Scene] one intends to render.
+     */
     override fun initializeScene(scene: Scene) {
         scene.discover(scene, { it is HasGeometry })
                 .forEach { it ->
@@ -249,14 +353,26 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         logger.info("Initialized ${textures.size} textures")
     }
 
+    /**
+     * Sets the [Material] GLSL uniforms for a given [Node].
+     *
+     * If a Node does not have a Material set, the position of the Node will be used
+     * for all ambient, diffuse, and specular color. If textures are attached to the Material,
+     * the corresponding uniforms are set such that the GLProgram can sample from them.
+     *
+     * @param[n] The [Node] to set the uniforms for.
+     * @param[gl] A [GL4] context.
+     * @param[s] The [OpenGLObjectState] of the [Node].
+     * @param[program] The [GLProgram] GLSL shader to render the [Node] with.
+     */
     protected fun setMaterialUniformsForNode(n: Node, gl: GL4, s: OpenGLObjectState, program: GLProgram) {
         program.use(gl)
-        program.getUniform("Material.Shininess").setFloat(0.001f);
+        program.getUniform("Material.Shininess").setFloat(0.001f)
 
         if (n.material != null) {
-            program.getUniform("Material.Ka").setFloatVector(n.material!!.ambient);
-            program.getUniform("Material.Kd").setFloatVector(n.material!!.diffuse);
-            program.getUniform("Material.Ks").setFloatVector(n.material!!.specular);
+            program.getUniform("Material.Ka").setFloatVector(n.material!!.ambient)
+            program.getUniform("Material.Kd").setFloatVector(n.material!!.diffuse)
+            program.getUniform("Material.Ks").setFloatVector(n.material!!.specular)
 
             if(n.material!!.doubleSided) {
                 gl.glDisable(GL.GL_CULL_FACE)
@@ -266,12 +382,12 @@ open class DeferredLightingRenderer : Renderer, Hubable {
                 gl.glEnable(GL.GL_BLEND)
                 gl.glBlendFunc(GL.GL_SRC_COLOR, GL.GL_ONE_MINUS_SRC_ALPHA)
             } else {
-                gl.glDisable(GL.GL_BLEND);
+                gl.glDisable(GL.GL_BLEND)
             }
         } else {
-            program.getUniform("Material.Ka").setFloatVector3(n.position.toFloatBuffer());
-            program.getUniform("Material.Kd").setFloatVector3(n.position.toFloatBuffer());
-            program.getUniform("Material.Ks").setFloatVector3(n.position.toFloatBuffer());
+            program.getUniform("Material.Ka").setFloatVector3(n.position.toFloatBuffer())
+            program.getUniform("Material.Kd").setFloatVector3(n.position.toFloatBuffer())
+            program.getUniform("Material.Ks").setFloatVector3(n.position.toFloatBuffer())
         }
 
         s.textures.forEach { type, glTexture ->
@@ -293,6 +409,14 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         }
     }
 
+    /**
+     * Updates a [FontBoard], in case it's fontFamily or contents have changed.
+     *
+     * If a SDFFontAtlas has already been created for the given fontFamily, this will be used, and
+     * cached as well. Else, a new one will be created.
+     *
+     * @param[board] The [FontBoard] instance.
+     */
     protected fun updateFontBoard(board: FontBoard) {
         val atlas = fontAtlas.getOrPut(board.fontFamily, { SDFFontAtlas(this.hub!!, board.fontFamily) })
         val m = atlas.createMeshForString(board.text)
@@ -315,7 +439,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
                     true,
                     1)
 
-            t.setClamp(false, false);
+            t.setClamp(false, false)
             t.copyFrom(atlas.getAtlas(),
                     0,
                     true)
@@ -324,10 +448,13 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         s.textures.put("diffuse", texture)
     }
 
+    /**
+     * Update a [Node]'s geometry, if needed and run it's preDraw() routine.
+     *
+     * @param[n] The Node to update and preDraw()
+     */
     protected fun preDrawAndUpdateGeometryForNode(n: Node) {
         if(n is HasGeometry) {
-            n.preDraw()
-
             if(n.dirty) {
                 if(n is FontBoard) {
                     updateFontBoard(n)
@@ -345,9 +472,23 @@ open class DeferredLightingRenderer : Renderer, Hubable {
 
                 n.dirty = false
             }
+
+            n.preDraw()
         }
     }
 
+    /**
+     * Set a [GLProgram]'s uniforms according to a [Node]'s [ShaderProperty]s.
+     *
+     * This functions uses reflection to query for a Node's declared fields and checks
+     * whether they are marked up with the [ShaderProperty] annotation. If this is the case,
+     * the [GLProgram]'s uniform with the same name as the field is set to its value.
+     *
+     * Currently limited to GLVector, GLMatrix, Int and Float properties.
+     *
+     * @param[n] The Node to search for [ShaderProperty]s
+     * @param[program] The [GLProgram] used to render the Node
+     */
     protected fun setShaderPropertiesForNode(n: Node, program: GLProgram) {
         n.javaClass.declaredFields.filter {
             it.isAnnotationPresent(ShaderProperty::class.java)
@@ -379,7 +520,31 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         }
     }
 
-
+    /**
+     * Renders the [Scene].
+     *
+     * The general rendering workflow works like this:
+     *
+     * 1) All visible elements of the Scene are gathered into the renderOrderList, based on their position
+     * 2) Nodes that are an instance of another Node, as indicated by their instanceOf property, are gathered
+     *    into the instanceGroups map.
+     * 3) The eye-dependent geometry buffers are cleared, both color and depth buffers.
+     * 4) First for the non-instanced Nodes, then for the instanced Nodes the following steps are executed
+     *    for each eye:
+     *
+     *      i) The world state of the given Node is updated
+     *     ii) Model, view, and model-view-projection matrices are calculated for each. If a HMD is present,
+     *         the transformation coming from that is taken into account.
+     *    iii) The Node's geometry is updated, if necessary.
+     *     iv) The eye's geometry buffer is activated and the Node drawn into it.
+     *
+     * 5) The deferred shading pass is executed, together with eventual post-processing steps, such as SSAO.
+     * 6) If HDR is active, Exposure/Gamma tone mapping is performed. Else, this part is skipped.
+     * 7) The resulting image is drawn to the screen, or -- if a HMD is present -- submitted to the OpenVR
+     *    compositor.
+     *
+     * @param[scene] [Scene] to render. Must have been given to [initializeScene] before or bad things will happen.
+     */
     override fun render(scene: Scene) {
 
         val renderOrderList = ArrayList<Node>()
@@ -455,7 +620,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
             }
 
             eyes.forEachIndexed { i, eye ->
-                var projection: GLMatrix = if(hmd == null) {
+                val projection: GLMatrix = if(hmd == null) {
                     GLMatrix().setPerspectiveProjectionMatrix(70.0f / 180.0f * Math.PI.toFloat(),
                         (1.0f * geometryBuffer[i].width) / (1.0f * geometryBuffer[i].height), 0.1f, 100000f)
                 } else {
@@ -482,7 +647,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
 
                 s.program?.let { program ->
                     program.use(gl)
-                    program.getUniform("ModelMatrix")!!.setFloatMatrix(n.model, false);
+                    program.getUniform("ModelMatrix")!!.setFloatMatrix(n.model, false)
                     program.getUniform("ModelViewMatrix")!!.setFloatMatrix(mv, false)
                     program.getUniform("ProjectionMatrix")!!.setFloatMatrix(projection, false)
                     program.getUniform("MVP")!!.setFloatMatrix(mvp, false)
@@ -577,17 +742,17 @@ open class DeferredLightingRenderer : Renderer, Hubable {
 
                 gl.gL4.glBindVertexArray(s.mVertexArrayObject[0])
 
-                gl.gL4.glBindBuffer(GL.GL_ARRAY_BUFFER, s.additionalBufferIds["Model"]!!);
+                gl.gL4.glBindBuffer(GL.GL_ARRAY_BUFFER, s.additionalBufferIds["Model"]!!)
                 gl.gL4.glBufferData(GL.GL_ARRAY_BUFFER, matrixSizeBytes,
-                        FloatBuffer.wrap(models.toFloatArray()), GL.GL_DYNAMIC_DRAW);
+                        FloatBuffer.wrap(models.toFloatArray()), GL.GL_DYNAMIC_DRAW)
 
-                gl.gL4.glBindBuffer(GL.GL_ARRAY_BUFFER, s.additionalBufferIds["ModelView"]!!);
+                gl.gL4.glBindBuffer(GL.GL_ARRAY_BUFFER, s.additionalBufferIds["ModelView"]!!)
                 gl.gL4.glBufferData(GL.GL_ARRAY_BUFFER, matrixSizeBytes,
-                        FloatBuffer.wrap(modelviews.toFloatArray()), GL.GL_DYNAMIC_DRAW);
+                        FloatBuffer.wrap(modelviews.toFloatArray()), GL.GL_DYNAMIC_DRAW)
 
-                gl.gL4.glBindBuffer(GL.GL_ARRAY_BUFFER, s.additionalBufferIds["MVP"]!!);
+                gl.gL4.glBindBuffer(GL.GL_ARRAY_BUFFER, s.additionalBufferIds["MVP"]!!)
                 gl.gL4.glBufferData(GL.GL_ARRAY_BUFFER, matrixSizeBytes,
-                        FloatBuffer.wrap(modelviewprojs.toFloatArray()), GL.GL_DYNAMIC_DRAW);
+                        FloatBuffer.wrap(modelviewprojs.toFloatArray()), GL.GL_DYNAMIC_DRAW)
 
                 logger.trace("${n.name} instancing: Updated matrix buffers in ${(System.nanoTime() - start) / 10e6}ms")
 
@@ -714,6 +879,16 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         }
     }
 
+    /**
+     * Renders a fullscreen quad, depending on a program [GLProgram], which generates
+     * a screen-filling quad from a single point.
+     *
+     * Deprecated because of steady resubmission and recreation of VAOs and VBOs, use
+     * [renderFullscreenQuad].
+     *
+     * @param[quadGenerator] The quad-generating [GLProgram]
+     */
+    @Deprecated("Use renderFullscreenQuad, it has better performance")
     fun renderFullscreenQuadOld(quadGenerator: GLProgram) {
         val quadId: IntBuffer = IntBuffer.allocate(1)
 
@@ -728,15 +903,22 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         quadGenerator.gl.gL4.glDeleteVertexArrays(1, quadId)
     }
 
-    fun renderFullscreenQuad(quadGenerator: GLProgram) {
-        var quad: Node
-        val quadName = "fullscreenQuad-${quadGenerator.id}"
+    /**
+     * Renders a fullscreen quad, using from an on-the-fly generated
+     * Node that is saved in [nodeStore], with the [GLProgram]'s ID.
+     * This function is a few FPS faster than [renderFullscreenQuadOld].
+     *
+     * @param[program] The [GLProgram] to draw into the fullscreen quad.
+     */
+    fun renderFullscreenQuad(program: GLProgram) {
+        val quad: Node
+        val quadName = "fullscreenQuad-${program.id}"
 
         if(!nodeStore.containsKey(quadName)) {
             quad = Plane(GLVector(1.0f, 1.0f, 0.0f))
             val material = OpenGLMaterial()
 
-            material.program = quadGenerator
+            material.program = program
 
             quad.material = material
             quad.metadata.put("DeferredLightingRenderer", OpenGLObjectState())
@@ -747,14 +929,30 @@ open class DeferredLightingRenderer : Renderer, Hubable {
             quad = nodeStore[quadName]!!
         }
 
-        (quad.material as OpenGLMaterial).program = quadGenerator
+        (quad.material as OpenGLMaterial).program = program
 
         drawNode(quad)
-        quadGenerator.gl.gL4.glBindTexture(GL.GL_TEXTURE_2D, 0)
+        program.gl.gL4.glBindTexture(GL.GL_TEXTURE_2D, 0)
     }
 
+    /**
+     * Initializes a given [Node].
+     *
+     * This function initializes a Node, equipping its metadata with an [OpenGLObjectState],
+     * generating VAOs and VBOs. If the Node has a [Material] assigned, a [GLProgram] fitting
+     * this Material will be used. Else, a default GLProgram will be used.
+     *
+     * For the assigned Material case, the GLProgram is derived either from the class name of the
+     * Node (if useClassDerivedShader is set), or from a set [OpenGLShaderPreference] which may define
+     * the whole shader pipeline for the Node.
+     *
+     * If the [Node] implements [HasGeometry], it's geometry is also initialized by this function.
+     *
+     * @param[node]: The [Node] to initialise.
+     * @return True if the initialisation went alright, False if it failed.
+     */
     fun initializeNode(node: Node): Boolean {
-        var s: OpenGLObjectState
+        val s: OpenGLObjectState
 
         if (node.instanceOf == null) {
             s = node.metadata["DeferredLightingRenderer"] as OpenGLObjectState
@@ -837,11 +1035,17 @@ open class DeferredLightingRenderer : Renderer, Hubable {
             }
         }
 
-        loadTexturesForNode(node, s);
+        loadTexturesForNode(node, s)
         s.initialized = true
         return true
     }
 
+    /**
+     * Parallel forEach implementation for HashMaps.
+     *
+     * @param[maxThreads] Maximum number of parallel threads
+     * @param[action] Lambda containing the action to be executed for each key, value pair.
+     */
     fun <K, V> HashMap<K, V>.forEachParallel(maxThreads: Int = 5, action: ((K, V) -> Unit)) {
         val iterator = this.asSequence().iterator()
         var threadCount = 0
@@ -861,14 +1065,21 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         }
     }
 
+    /**
+     * Loads textures for a [Node]. The textures either come from a [Material.transferTextures] buffer,
+     * or from a file. This is indicated by stating fromBuffer:bufferName in the textures hash map.
+     *
+     * @param[node] The [Node] to load textures for.
+     * @param[s] The [Node]'s [OpenGLObjectState]
+     */
     protected fun loadTexturesForNode(node: Node, s: OpenGLObjectState): Boolean {
         if(node.lock.tryLock()) {
             node.material?.textures?.forEach {
                 type, texture ->
                 if (!textures.containsKey(texture) || node.material?.needsTextureReload!!) {
                     logger.trace("Loading texture $texture for ${node.name}")
-                    var glTexture = if (texture.startsWith("fromBuffer:")) {
-                        val gt = node.material!!.transferTextures.get(texture.substringAfter("fromBuffer:"))
+                    val glTexture = if (texture.startsWith("fromBuffer:")) {
+                        val gt = node.material!!.transferTextures[texture.substringAfter("fromBuffer:")]
 
                         val t = GLTexture(gl, gt!!.type, gt.channels,
                                 gt.dimensions.x().toInt(),
@@ -877,7 +1088,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
                                 true,
                                 1)
 
-                        t.setClamp(!gt.repeatS, !gt.repeatT);
+                        t.setClamp(!gt.repeatS, !gt.repeatT)
                         t.copyFrom(gt.contents)
                         t
                     } else {
@@ -899,6 +1110,18 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         }
     }
 
+    /**
+     * Reshape the renderer's viewports
+     *
+     * This routine is called when a change in window size is detected, e.g. when resizing
+     * it manually or toggling fullscreen. This function updates the sizes of all used
+     * geometry buffers and will also create new buffers in case vr.Active is changed.
+     *
+     * This function also clears color and depth buffer bits.
+     *
+     * @param[newWidth] The resized window's width
+     * @param[newHeight] The resized window's height
+     */
     fun reshape(newWidth: Int, newHeight: Int) {
         this.width = newWidth
         this.height = newHeight
@@ -921,6 +1144,11 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         gl.glViewport(0, 0, this.width, this.height)
     }
 
+    /**
+     * Creates an instance buffer for a [Node]'s model, view and mvp matrices.
+     *
+     * @param[node] The [Node] to create the instance buffer for.
+     */
     private fun createInstanceBuffer(node: Node) {
         val s = getOpenGLObjectStateFromNode(node)
 
@@ -955,8 +1183,13 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         gl.gL4.glBindVertexArray(0)
     }
 
+    /**
+     * Creates VAOs and VBO for a given [Node]'s vertices.
+     *
+     * @param[node] The [Node] to create the VAO/VBO for.
+     */
     fun setVerticesAndCreateBufferForNode(node: Node) {
-        val s = getOpenGLObjectStateFromNode(node);
+        val s = getOpenGLObjectStateFromNode(node)
         val pVertexBuffer: FloatBuffer = FloatBuffer.wrap((node as HasGeometry).vertices)
 
         s.mStoredPrimitiveCount = pVertexBuffer.remaining() / node.vertexSize
@@ -984,6 +1217,11 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         gl.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
     }
 
+    /**
+     * Updates a [Node]'s vertices.
+     *
+     * @param[node] The [Node] to update the vertices for.
+     */
     fun updateVertices(node: Node) {
         val s = getOpenGLObjectStateFromNode(node)
         val pVertexBuffer: FloatBuffer = FloatBuffer.wrap((node as HasGeometry).vertices)
@@ -1010,8 +1248,13 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         gl.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
     }
 
+    /**
+     * Creates VAOs and VBO for a given [Node]'s normals.
+     *
+     * @param[node] The [Node] to create the normals VBO for.
+     */
     fun setNormalsAndCreateBufferForNode(node: Node) {
-        val s = getOpenGLObjectStateFromNode(node);
+        val s = getOpenGLObjectStateFromNode(node)
         val pNormalBuffer: FloatBuffer = FloatBuffer.wrap((node as HasGeometry).normals)
 
         gl.gL3.glBindVertexArray(s.mVertexArrayObject[0])
@@ -1039,8 +1282,13 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         gl.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
     }
 
+    /**
+     * Updates a given [Node]'s normals.
+     *
+     * @param[node] The [Node] whose normals need updating.
+     */
     fun updateNormals(node: Node) {
-        val s = getOpenGLObjectStateFromNode(node);
+        val s = getOpenGLObjectStateFromNode(node)
         val pNormalBuffer: FloatBuffer = FloatBuffer.wrap((node as HasGeometry).normals)
 
         gl.gL3.glBindVertexArray(s.mVertexArrayObject[0])
@@ -1063,8 +1311,13 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         gl.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
     }
 
+    /**
+     * Creates VAOs and VBO for a given [Node]'s texcoords.
+     *
+     * @param[node] The [Node] to create the texcoord VBO for.
+     */
     fun setTextureCoordsAndCreateBufferForNode(node: Node) {
-        val s = getOpenGLObjectStateFromNode(node);
+        val s = getOpenGLObjectStateFromNode(node)
         val pTextureCoordsBuffer: FloatBuffer = FloatBuffer.wrap((node as HasGeometry).texcoords)
 
         gl.gL3.glBindVertexArray(s.mVertexArrayObject[0])
@@ -1090,8 +1343,13 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         gl.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
     }
 
+    /**
+     * Updates a given [Node]'s texcoords.
+     *
+     * @param[node] The [Node] whose texcoords need updating.
+     */
     fun updateTextureCoords(node: Node) {
-        val s = getOpenGLObjectStateFromNode(node);
+        val s = getOpenGLObjectStateFromNode(node)
         val pTextureCoordsBuffer: FloatBuffer = FloatBuffer.wrap((node as HasGeometry).texcoords)
 
         gl.gL3.glBindVertexArray(s.mVertexArrayObject[0])
@@ -1115,8 +1373,13 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         gl.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
     }
 
+    /**
+     * Creates a index buffer for a given [Node]'s indices.
+     *
+     * @param[node] The [Node] to create the index buffer for.
+     */
     fun setIndicesAndCreateBufferForNode(node: Node) {
-        val s = getOpenGLObjectStateFromNode(node);
+        val s = getOpenGLObjectStateFromNode(node)
         val pIndexBuffer: IntBuffer = IntBuffer.wrap((node as HasGeometry).indices)
 
         s.mStoredIndexCount = pIndexBuffer.remaining()
@@ -1136,8 +1399,13 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         gl.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, 0)
     }
 
+    /**
+     * Updates a given [Node]'s indices.
+     *
+     * @param[node] The [Node] whose indices need updating.
+     */
     fun updateIndices(node: Node) {
-        val s = getOpenGLObjectStateFromNode(node);
+        val s = getOpenGLObjectStateFromNode(node)
         val pIndexBuffer: IntBuffer = IntBuffer.wrap((node as HasGeometry).indices)
 
         s.mStoredIndexCount = pIndexBuffer.remaining()
@@ -1154,8 +1422,14 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         gl.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, 0)
     }
 
+    /**
+     * Draws a given [Node], either in element or in index draw mode.
+     *
+     * @param[node] The node to be drawn.
+     * @param[offset] offset in the array or index buffer.
+     */
     fun drawNode(node: Node, offset: Int = 0) {
-        val s = getOpenGLObjectStateFromNode(node);
+        val s = getOpenGLObjectStateFromNode(node)
 
         s.program?.use(gl)
 
@@ -1178,8 +1452,15 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         gl.gL4.glBindVertexArray(0)
     }
 
+    /**
+     * Draws a given instanced [Node] either in element or in index draw mode.
+     *
+     * @param[node] The node to be drawn.
+     * @param[count] The number of instances to be drawn.
+     * @param[offset] offset in the array or index buffer.
+     */
     fun drawNodeInstanced(node: Node, count: Int, offset: Long = 0) {
-        val s = getOpenGLObjectStateFromNode(node);
+        val s = getOpenGLObjectStateFromNode(node)
 
         s.program?.use(gl)
 
@@ -1195,7 +1476,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         } else {
             gl.gL4.glDrawArraysInstanced(
                     (node as HasGeometry).geometryType.toOpenGLType(),
-                    0, s.mStoredPrimitiveCount, count);
+                    0, s.mStoredPrimitiveCount, count)
 
         }
 
