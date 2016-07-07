@@ -1,5 +1,5 @@
 buildscript {
-	ext.kotlin_version = '1.0.2'
+	ext.kotlin_version = '1.0.3'
     ext.slf4j_version = "1.7.20"
 	repositories {
     mavenCentral()
@@ -96,8 +96,8 @@ dependencies
     compile "org.slf4j:slf4j-simple:$slf4j_version"
 
     compile 'org.scijava:ui-behaviour:1.0.1'
-	compile 'org.scijava:scijava-common:2.56.0'
-	compile 'org.scijava:scijava-ui-swing:0.8.1-SNAPSHOT'
+	compile 'org.scijava:scijava-common:2.57.0-SNAPSHOT'
+	compile 'org.scijava:script-editor:0.1.1-SNAPSHOT'
 	compile 'org.scijava:scripting-javascript:0.4.4-SNAPSHOT'
 
     // for the moment, use the bundled OpenVR distribution
