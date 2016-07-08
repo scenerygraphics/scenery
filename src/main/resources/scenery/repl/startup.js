@@ -14,6 +14,7 @@ var objectLocator = function(match) {
         }
     }
 
+    print("ObjectLocator: Could not find " + match);
     return null;
 }
 

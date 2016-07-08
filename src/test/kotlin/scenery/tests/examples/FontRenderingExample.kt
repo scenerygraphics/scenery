@@ -63,7 +63,7 @@ class FontRenderingExample: SceneryDefaultApplication("FontRenderingExample") {
         repl = REPL(scene, deferredRenderer!!)
         repl?.start()
         repl?.showConsoleWindow()
-        repl?.eval("var fontBoard = objectLocator(\"FontBoard\");")
+        repl?.eval("var fontBoard = scene.find(\"FontBoard\");")
         repl?.eval("print(\"Font Example - try e.g. fontBoard.fontColor = new GLVector(1.0, 0.0, 0.0);\");")
     }
 
