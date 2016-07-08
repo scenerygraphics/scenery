@@ -3,9 +3,10 @@ package scenery
 import cleargl.GLVector
 
 /**
- * <Description>
+ * Constructs a plane with the dimensions given in [sizes].
  *
  * @author Ulrik Günther <hello@ulrik.is>
+ * @param[sizes] The dimensions of the plane.
  */
 open class Plane(sizes: GLVector) : Mesh(), HasGeometry {
     override var vertices: FloatArray = floatArrayOf()

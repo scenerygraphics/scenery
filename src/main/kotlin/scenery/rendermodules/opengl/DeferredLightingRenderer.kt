@@ -89,7 +89,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
      * This function converts a Boolean to Int 0, if false, and to 1, if true
      */
     fun Boolean.toInt(): Int {
-        if(this) {
+        if (this) {
             return 1
         } else {
             return 0
@@ -109,24 +109,24 @@ open class DeferredLightingRenderer : Renderer, Hubable {
 
         val numExtensionsBuffer = IntBuffer.allocate(1)
         gl.glGetIntegerv(GL4.GL_NUM_EXTENSIONS, numExtensionsBuffer)
-        val extensions = (0..numExtensionsBuffer[0]-1).map { gl.glGetStringi(GL4.GL_EXTENSIONS, it) }
+        val extensions = (0..numExtensionsBuffer[0] - 1).map { gl.glGetStringi(GL4.GL_EXTENSIONS, it) }
         logger.info("Supported OpenGL extensions:\n${extensions.joinToString(", ")}")
 
-        settings.set("ssao.FilterRadius", GLVector(5.0f/width, 5.0f/height))
+        settings.set("ssao.FilterRadius", GLVector(5.0f / width, 5.0f / height))
 
         geometryBuffer = ArrayList<GLFramebuffer>()
         hdrBuffer = ArrayList<GLFramebuffer>()
         combinationBuffer = ArrayList<GLFramebuffer>()
 
         // if vr.Active is set to true, we use two eyes for stereo render targets.
-        if(settings.get("vr.Active")) {
+        if (settings.get("vr.Active")) {
             eyes = (0..1)
             settings.set("vr.IPD", -0.5f)
         }
 
         eyes.forEach {
             // create 32bit position buffer, 16bit normal buffer, 8bit diffuse buffer and 24bit depth buffer
-            val vrWidthDivisor = if(settings.get("vr.DoAnaglyph")) 1 else 2
+            val vrWidthDivisor = if (settings.get("vr.DoAnaglyph")) 1 else 2
             val actualWidth = if (settings.get("vr.Active")) this.width / vrWidthDivisor else this.width
             val actualHeight = if (settings.get("vr.Active")) this.height else this.height
 
@@ -158,13 +158,13 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         logger.info(geometryBuffer.map { it.toString() }.joinToString("\n"))
 
         lightingPassProgram = GLProgram.buildProgram(gl, DeferredLightingRenderer::class.java,
-                arrayOf("shaders/FullscreenQuad.vert", "shaders/DeferredLighting.frag"))
+            arrayOf("shaders/FullscreenQuad.vert", "shaders/DeferredLighting.frag"))
 
         hdrPassProgram = GLProgram.buildProgram(gl, DeferredLightingRenderer::class.java,
-                arrayOf("shaders/FullscreenQuad.vert", "shaders/HDR.frag"))
+            arrayOf("shaders/FullscreenQuad.vert", "shaders/HDR.frag"))
 
         combinerProgram = GLProgram.buildProgram(gl, DeferredLightingRenderer::class.java,
-                arrayOf("shaders/FullscreenQuad.vert",  "shaders/Combiner.frag"))
+            arrayOf("shaders/FullscreenQuad.vert", "shaders/Combiner.frag"))
 
         gl.glViewport(0, 0, this.width, this.height)
         gl.glClearColor(0.0f, 0.0f, 0.0f, 0.0f)
@@ -231,7 +231,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
      * @return Int of the OpenGL geometry type.
      */
     protected fun GeometryType.toOpenGLType(): Int {
-        return when(this) {
+        return when (this) {
             GeometryType.TRIANGLE_STRIP -> GL.GL_TRIANGLE_STRIP
             GeometryType.POLYGON -> GL.GL_TRIANGLES
             GeometryType.TRIANGLES -> GL.GL_TRIANGLES
@@ -247,7 +247,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
      * [scenery.controls.behaviours.ToggleCommand].
      */
     fun toggleDebug() {
-        if(settings.get<Boolean>("debug.DebugDeferredBuffers") == false) {
+        if (settings.get<Boolean>("debug.DebugDeferredBuffers") == false) {
             settings.set("debug.DebugDeferredBuffers", true)
         } else {
             settings.set("debug.DebugDeferredBuffers", false)
@@ -259,7 +259,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
      * [scenery.controls.behaviours.ToggleCommand].
      */
     fun toggleSSAO() {
-        if(settings.get<Boolean>("ssao.Active") == false) {
+        if (settings.get<Boolean>("ssao.Active") == false) {
             settings.set("ssao.Active", true)
         } else {
             settings.set("ssao.Active", false)
@@ -271,7 +271,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
      * [scenery.controls.behaviours.ToggleCommand].
      */
     fun toggleHDR() {
-        if(settings.get<Boolean>("hdr.Active") == false) {
+        if (settings.get<Boolean>("hdr.Active") == false) {
             settings.set("hdr.Active", true)
         } else {
             settings.set("hdr.Active", false)
@@ -311,7 +311,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
      */
     fun decreaseGamma() {
         val gamma: Float = settings.get<Float>("hdr.Gamma")
-        if(gamma - 0.05f >= 0) settings.set("hdr.Gamma", gamma - 0.05f)
+        if (gamma - 0.05f >= 0) settings.set("hdr.Gamma", gamma - 0.05f)
     }
 
     /**
@@ -319,7 +319,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
      * [scenery.controls.behaviours.ToggleCommand].
      */
     fun toggleFullscreen() {
-        if(!settings.get<Boolean>("wantsFullscreen")) {
+        if (!settings.get<Boolean>("wantsFullscreen")) {
             settings.set("wantsFullscreen", true)
         } else {
             settings.set("wantsFullscreen", false)
@@ -345,10 +345,10 @@ open class DeferredLightingRenderer : Renderer, Hubable {
      */
     override fun initializeScene(scene: Scene) {
         scene.discover(scene, { it is HasGeometry })
-                .forEach { it ->
-            it.metadata.put("DeferredLightingRenderer", OpenGLObjectState())
-            initializeNode(it)
-        }
+            .forEach { it ->
+                it.metadata.put("DeferredLightingRenderer", OpenGLObjectState())
+                initializeNode(it)
+            }
 
         logger.info("Initialized ${textures.size} textures")
     }
@@ -374,11 +374,11 @@ open class DeferredLightingRenderer : Renderer, Hubable {
             program.getUniform("Material.Kd").setFloatVector(n.material!!.diffuse)
             program.getUniform("Material.Ks").setFloatVector(n.material!!.specular)
 
-            if(n.material!!.doubleSided) {
+            if (n.material!!.doubleSided) {
                 gl.glDisable(GL.GL_CULL_FACE)
             }
 
-            if(n.material!!.transparent) {
+            if (n.material!!.transparent) {
                 gl.glEnable(GL.GL_BLEND)
                 gl.glBlendFunc(GL.GL_SRC_COLOR, GL.GL_ONE_MINUS_SRC_ALPHA)
             } else {
@@ -393,18 +393,18 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         s.textures.forEach { type, glTexture ->
             val samplerIndex = geometryBuffer.first().textureTypeToUnit(type)
 
-            if(glTexture != null) {
+            if (glTexture != null) {
                 gl.glActiveTexture(GL.GL_TEXTURE0 + samplerIndex)
                 gl.glBindTexture(GL.GL_TEXTURE_2D, glTexture.id)
                 program.getUniform("ObjectTextures[" + (samplerIndex - geometryBuffer.first().boundBufferNum) + "]").setInt(samplerIndex)
             }
         }
 
-        if(s.textures.size > 0){
+        if (s.textures.size > 0) {
             program.getUniform("materialType").setInt(1)
         }
 
-        if(s.textures.containsKey("normal")) {
+        if (s.textures.containsKey("normal")) {
             program.getUniform("materialType").setInt(3)
         }
     }
@@ -433,16 +433,16 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         val s = getOpenGLObjectStateFromNode(board)
         val texture = textures.getOrPut("sdf-${board.fontFamily}", {
             val t = GLTexture(gl, NativeTypeEnum.Float, 1,
-                    atlas.atlasWidth,
-                    atlas.atlasHeight,
-                    1,
-                    true,
-                    1)
+                atlas.atlasWidth,
+                atlas.atlasHeight,
+                1,
+                true,
+                1)
 
             t.setClamp(false, false)
             t.copyFrom(atlas.getAtlas(),
-                    0,
-                    true)
+                0,
+                true)
             t
         })
         s.textures.put("diffuse", texture)
@@ -454,9 +454,9 @@ open class DeferredLightingRenderer : Renderer, Hubable {
      * @param[n] The Node to update and preDraw()
      */
     protected fun preDrawAndUpdateGeometryForNode(n: Node) {
-        if(n is HasGeometry) {
-            if(n.dirty) {
-                if(n is FontBoard) {
+        if (n is HasGeometry) {
+            if (n.dirty) {
+                if (n is FontBoard) {
                     updateFontBoard(n)
                 }
                 updateVertices(n)
@@ -552,8 +552,8 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         var mv: GLMatrix
         var mvp: GLMatrix
 
-        val hmd: HMDInput? = if(hub!!.has(SceneryElement.HMDINPUT)
-                && (hub!!.get(SceneryElement.HMDINPUT) as HMDInput).initializedAndWorking()) {
+        val hmd: HMDInput? = if (hub!!.has(SceneryElement.HMDINPUT)
+            && (hub!!.get(SceneryElement.HMDINPUT) as HMDInput).initializedAndWorking()) {
             hub!!.get(SceneryElement.HMDINPUT) as HMDInput
         } else {
             null
@@ -596,11 +596,11 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         gl.glDepthFunc(GL.GL_LEQUAL)
 
         instanceGroups[null]?.forEach nonInstancedDrawing@ { n ->
-            if(n in instanceGroups.keys) {
+            if (n in instanceGroups.keys) {
                 return@nonInstancedDrawing
             }
 
-            if(!n.metadata.containsKey("DeferredLightingRenderer")) {
+            if (!n.metadata.containsKey("DeferredLightingRenderer")) {
                 n.metadata.put("DeferredLightingRenderer", OpenGLObjectState())
                 initializeNode(n)
             }
@@ -608,8 +608,8 @@ open class DeferredLightingRenderer : Renderer, Hubable {
             val s = getOpenGLObjectStateFromNode(n)
             n.updateWorld(true, false)
 
-            if(n.material != null) {
-                if(n.material?.needsTextureReload!!) {
+            if (n.material != null) {
+                if (n.material?.needsTextureReload!!) {
                     n.material?.needsTextureReload = !loadTexturesForNode(n, s)
                 }
             }
@@ -620,19 +620,19 @@ open class DeferredLightingRenderer : Renderer, Hubable {
             }
 
             eyes.forEachIndexed { i, eye ->
-                val projection: GLMatrix = if(hmd == null) {
+                val projection: GLMatrix = if (hmd == null) {
                     GLMatrix().setPerspectiveProjectionMatrix(70.0f / 180.0f * Math.PI.toFloat(),
                         (1.0f * geometryBuffer[i].width) / (1.0f * geometryBuffer[i].height), 0.1f, 100000f)
                 } else {
                     hmd.getEyeProjection(i)
                 }
 
-                mv = if(hmd == null ) {
-                    GLMatrix.getTranslation(settings.get<Float>("vr.IPD") * -1.0f * Math.pow(-1.0, 1.0*i).toFloat(), 0.0f, 0.0f).transpose()
+                mv = if (hmd == null) {
+                    GLMatrix.getTranslation(settings.get<Float>("vr.IPD") * -1.0f * Math.pow(-1.0, 1.0 * i).toFloat(), 0.0f, 0.0f).transpose()
                 } else {
                     hmd.getHeadToEyeTransform(i).clone()
                 }
-                val pose = if(hmd == null) {
+                val pose = if (hmd == null) {
                     GLMatrix.getIdentity()
                 } else {
                     hmd.getPose()
@@ -666,7 +666,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         instanceGroups.keys.filterNotNull().forEach instancedDrawing@ { n ->
             var start = System.nanoTime()
 
-            if(!n.metadata.containsKey("DeferredLightingRenderer")) {
+            if (!n.metadata.containsKey("DeferredLightingRenderer")) {
                 n.metadata.put("DeferredLightingRenderer", OpenGLObjectState())
                 initializeNode(n)
             }
@@ -677,7 +677,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
             logger.trace("${n.name} has additional instance buffers: ${s.additionalBufferIds.keys}")
             logger.trace("${n.name} instancing: Instancing group size is ${instances.size}")
 
-            val matrixSize = 4*4
+            val matrixSize = 4 * 4
             val models = ArrayList<Float>()
             val modelviews = ArrayList<Float>()
             val modelviewprojs = ArrayList<Float>()
@@ -700,22 +700,22 @@ open class DeferredLightingRenderer : Renderer, Hubable {
                 modelviewprojs.ensureCapacity(matrixSize * instances.size)
 
                 instances.forEachIndexed { i, node ->
-                    val projection = if(hmd == null) {
+                    val projection = if (hmd == null) {
                         GLMatrix().setPerspectiveProjectionMatrix(70.0f / 180.0f * Math.PI.toFloat(),
-                                (1.0f * geometryBuffer[eye].width) / (1.0f * geometryBuffer[eye].height), 0.1f, 100000f)
+                            (1.0f * geometryBuffer[eye].width) / (1.0f * geometryBuffer[eye].height), 0.1f, 100000f)
                     } else {
                         hmd.getEyeProjection(eye)
                     }
 
                     mo = node.world.clone()
 
-                    mv = if(hmd == null) {
-                        GLMatrix.getTranslation(settings.get<Float>("vr.IPD") * -1.0f * Math.pow(-1.0, 1.0*eye).toFloat(), 0.0f, 0.0f).transpose()
+                    mv = if (hmd == null) {
+                        GLMatrix.getTranslation(settings.get<Float>("vr.IPD") * -1.0f * Math.pow(-1.0, 1.0 * eye).toFloat(), 0.0f, 0.0f).transpose()
                     } else {
                         hmd.getHeadToEyeTransform(eye).clone()
                     }
 
-                    val pose = if(hmd == null) {
+                    val pose = if (hmd == null) {
                         GLMatrix.getIdentity()
                     } else {
                         hmd.getPose()
@@ -744,15 +744,15 @@ open class DeferredLightingRenderer : Renderer, Hubable {
 
                 gl.gL4.glBindBuffer(GL.GL_ARRAY_BUFFER, s.additionalBufferIds["Model"]!!)
                 gl.gL4.glBufferData(GL.GL_ARRAY_BUFFER, matrixSizeBytes,
-                        FloatBuffer.wrap(models.toFloatArray()), GL.GL_DYNAMIC_DRAW)
+                    FloatBuffer.wrap(models.toFloatArray()), GL.GL_DYNAMIC_DRAW)
 
                 gl.gL4.glBindBuffer(GL.GL_ARRAY_BUFFER, s.additionalBufferIds["ModelView"]!!)
                 gl.gL4.glBufferData(GL.GL_ARRAY_BUFFER, matrixSizeBytes,
-                        FloatBuffer.wrap(modelviews.toFloatArray()), GL.GL_DYNAMIC_DRAW)
+                    FloatBuffer.wrap(modelviews.toFloatArray()), GL.GL_DYNAMIC_DRAW)
 
                 gl.gL4.glBindBuffer(GL.GL_ARRAY_BUFFER, s.additionalBufferIds["MVP"]!!)
                 gl.gL4.glBufferData(GL.GL_ARRAY_BUFFER, matrixSizeBytes,
-                        FloatBuffer.wrap(modelviewprojs.toFloatArray()), GL.GL_DYNAMIC_DRAW)
+                    FloatBuffer.wrap(modelviewprojs.toFloatArray()), GL.GL_DYNAMIC_DRAW)
 
                 logger.trace("${n.name} instancing: Updated matrix buffers in ${(System.nanoTime() - start) / 10e6}ms")
 
@@ -807,8 +807,8 @@ open class DeferredLightingRenderer : Renderer, Hubable {
             gl.glEnable(GL4.GL_PROGRAM_POINT_SIZE)
 
             if (!settings.get<Boolean>("hdr.Active")) {
-                if(settings.get<Boolean>("vr.DoAnaglyph")) {
-                    if(i == 0) {
+                if (settings.get<Boolean>("vr.DoAnaglyph")) {
+                    if (i == 0) {
                         gl.glColorMask(true, false, false, false)
                     } else {
                         gl.glColorMask(false, true, true, false)
@@ -829,8 +829,8 @@ open class DeferredLightingRenderer : Renderer, Hubable {
                 gl.glViewport(0, 0, combinationBuffer[i].width, combinationBuffer[i].height)
                 gl.glClear(GL4.GL_COLOR_BUFFER_BIT or GL4.GL_DEPTH_BUFFER_BIT)
 
-                if(settings.get<Boolean>("vr.DoAnaglyph")) {
-                    if(i == 0) {
+                if (settings.get<Boolean>("vr.DoAnaglyph")) {
+                    if (i == 0) {
                         gl.glColorMask(true, false, false, false)
                     } else {
                         gl.glColorMask(false, true, true, false)
@@ -844,7 +844,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         }
 
         combinationBuffer.first().revertToDefaultFramebuffer(gl)
-        if(settings.get<Boolean>("vr.DoAnaglyph")) {
+        if (settings.get<Boolean>("vr.DoAnaglyph")) {
             gl.glColorMask(true, true, true, true)
         }
         gl.glClear(GL4.GL_COLOR_BUFFER_BIT or GL4.GL_DEPTH_BUFFER_BIT)
@@ -853,7 +853,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         gl.glScissor(0, 0, width, height)
 
         if (settings.get<Boolean>("vr.Active")) {
-            if(settings.get<Boolean>("vr.DoAnaglyph")) {
+            if (settings.get<Boolean>("vr.DoAnaglyph")) {
                 combinerProgram.getUniform("vrActive").setInt(0)
                 combinerProgram.getUniform("anaglyphActive").setInt(1)
             } else {
@@ -866,7 +866,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
             combinerProgram.getUniform("rightEye").setInt(4)
             renderFullscreenQuad(combinerProgram)
 
-            if(hmd != null && hmd.hasCompositor()) {
+            if (hmd != null && hmd.hasCompositor()) {
                 logger.trace("Submitting to compositor...")
                 hmd.submitToCompositor(combinationBuffer[0].getTextureIds(gl)[0], combinationBuffer[1].getTextureIds(gl)[0])
             }
@@ -914,7 +914,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         val quad: Node
         val quadName = "fullscreenQuad-${program.id}"
 
-        if(!nodeStore.containsKey(quadName)) {
+        if (!nodeStore.containsKey(quadName)) {
             quad = Plane(GLVector(1.0f, 1.0f, 0.0f))
             val material = OpenGLMaterial()
 
@@ -990,33 +990,33 @@ open class DeferredLightingRenderer : Renderer, Hubable {
                 val className = javaClass.substring(javaClass.indexOf(".") + 1)
 
                 val shaders = arrayOf(".vert", ".geom", ".tese", ".tesc", ".frag", ".comp")
-                        .map { "shaders/$className$it" }
-                        .filter {
-                            DeferredLightingRenderer::class.java.getResource(it) != null
-                        }
+                    .map { "shaders/$className$it" }
+                    .filter {
+                        DeferredLightingRenderer::class.java.getResource(it) != null
+                    }
 
                 s.program = GLProgram.buildProgram(gl, DeferredLightingRenderer::class.java,
-                        shaders.toTypedArray())
+                    shaders.toTypedArray())
             } else if (node.metadata.filter { it.value is OpenGLShaderPreference }.isNotEmpty()) {
 //                val prefs = node.metadata.first { it is OpenGLShaderPreference } as OpenGLShaderPreference
                 val prefs = node.metadata["ShaderPreference"] as OpenGLShaderPreference
 
                 if (prefs.parameters.size > 0) {
                     s.program = GLProgram.buildProgram(gl, node.javaClass,
-                            prefs.shaders.toTypedArray(), prefs.parameters)
+                        prefs.shaders.toTypedArray(), prefs.parameters)
                 } else {
                     try {
                         s.program = GLProgram.buildProgram(gl, node.javaClass,
-                                prefs.shaders.toTypedArray())
+                            prefs.shaders.toTypedArray())
                     } catch(e: NullPointerException) {
                         s.program = GLProgram.buildProgram(gl, this.javaClass,
-                                prefs.shaders.map { System.err.println(it); "shaders/" + it }.toTypedArray())
+                            prefs.shaders.map { System.err.println(it); "shaders/" + it }.toTypedArray())
                     }
 
                 }
             } else {
                 s.program = GLProgram.buildProgram(gl, DeferredLightingRenderer::class.java,
-                        arrayOf("shaders/DefaultDeferred.vert", "shaders/DefaultDeferred.frag"))
+                    arrayOf("shaders/DefaultDeferred.vert", "shaders/DefaultDeferred.frag"))
             }
         } else {
             s.program = (node.material as OpenGLMaterial).program
@@ -1050,12 +1050,12 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         val iterator = this.asSequence().iterator()
         var threadCount = 0
 
-        while(iterator.hasNext()) {
+        while (iterator.hasNext()) {
             val current = iterator.next()
 
             thread {
                 threadCount++
-                while(threadCount > maxThreads) {
+                while (threadCount > maxThreads) {
                     Thread.sleep(50)
                 }
 
@@ -1073,7 +1073,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
      * @param[s] The [Node]'s [OpenGLObjectState]
      */
     protected fun loadTexturesForNode(node: Node, s: OpenGLObjectState): Boolean {
-        if(node.lock.tryLock()) {
+        if (node.lock.tryLock()) {
             node.material?.textures?.forEach {
                 type, texture ->
                 if (!textures.containsKey(texture) || node.material?.needsTextureReload!!) {
@@ -1082,11 +1082,11 @@ open class DeferredLightingRenderer : Renderer, Hubable {
                         val gt = node.material!!.transferTextures[texture.substringAfter("fromBuffer:")]
 
                         val t = GLTexture(gl, gt!!.type, gt.channels,
-                                gt.dimensions.x().toInt(),
-                                gt.dimensions.y().toInt(),
-                                1,
-                                true,
-                                1)
+                            gt.dimensions.x().toInt(),
+                            gt.dimensions.y().toInt(),
+                            1,
+                            true,
+                            1)
 
                         t.setClamp(!gt.repeatS, !gt.repeatT)
                         t.copyFrom(gt.contents)
@@ -1152,7 +1152,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
     private fun createInstanceBuffer(node: Node) {
         val s = getOpenGLObjectStateFromNode(node)
 
-        val matrixSize = 4*4
+        val matrixSize = 4 * 4
         val vectorSize = 4
         val locationBase = 3
         val matrices = arrayOf("Model", "ModelView", "MVP")
@@ -1167,14 +1167,14 @@ open class DeferredLightingRenderer : Renderer, Hubable {
             gl.gL4.glBindBuffer(GL.GL_ARRAY_BUFFER, bufferId)
 
             for (offset in 0..3) {
-                val l = locationBase + locationOffset*vectorSize + offset
+                val l = locationBase + locationOffset * vectorSize + offset
 
                 val pointerOffsetBytes: Long = 1L * Buffers.SIZEOF_FLOAT * offset * vectorSize
                 val matrixSizeBytes = matrixSize * Buffers.SIZEOF_FLOAT
 
                 gl.gL4.glEnableVertexAttribArray(l)
                 gl.gL4.glVertexAttribPointer(l, vectorSize, GL.GL_FLOAT, false,
-                        matrixSizeBytes, pointerOffsetBytes)
+                    matrixSizeBytes, pointerOffsetBytes)
                 gl.gL4.glVertexAttribDivisor(l, 1)
             }
         }
@@ -1199,19 +1199,19 @@ open class DeferredLightingRenderer : Renderer, Hubable {
 
         gl.gL3.glEnableVertexAttribArray(0)
         gl.glBufferData(GL.GL_ARRAY_BUFFER,
-                (pVertexBuffer.limit() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
-                pVertexBuffer,
-                if (s.isDynamic)
-                    GL.GL_DYNAMIC_DRAW
-                else
-                    GL.GL_STATIC_DRAW)
+            (pVertexBuffer.limit() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
+            pVertexBuffer,
+            if (s.isDynamic)
+                GL.GL_DYNAMIC_DRAW
+            else
+                GL.GL_STATIC_DRAW)
 
         gl.gL3.glVertexAttribPointer(0,
-                node.vertexSize,
-                GL.GL_FLOAT,
-                false,
-                0,
-                0)
+            node.vertexSize,
+            GL.GL_FLOAT,
+            false,
+            0,
+            0)
 
         gl.gL3.glBindVertexArray(0)
         gl.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
@@ -1233,16 +1233,16 @@ open class DeferredLightingRenderer : Renderer, Hubable {
 
         gl.gL3.glEnableVertexAttribArray(0)
         gl.glBufferData(GL.GL_ARRAY_BUFFER,
-                (pVertexBuffer.limit() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
-                pVertexBuffer,
-                GL.GL_DYNAMIC_DRAW)
+            (pVertexBuffer.limit() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
+            pVertexBuffer,
+            GL.GL_DYNAMIC_DRAW)
 
         gl.gL3.glVertexAttribPointer(0,
-                node.vertexSize,
-                GL.GL_FLOAT,
-                false,
-                0,
-                0)
+            node.vertexSize,
+            GL.GL_FLOAT,
+            false,
+            0,
+            0)
 
         gl.gL3.glBindVertexArray(0)
         gl.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
@@ -1260,22 +1260,22 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         gl.gL3.glBindVertexArray(s.mVertexArrayObject[0])
         gl.glBindBuffer(GL.GL_ARRAY_BUFFER, s.mVertexBuffers[1])
 
-        if(pNormalBuffer.limit() > 0) {
+        if (pNormalBuffer.limit() > 0) {
             gl.gL3.glEnableVertexAttribArray(1)
             gl.glBufferData(GL.GL_ARRAY_BUFFER,
-                    (pNormalBuffer.limit() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
-                    pNormalBuffer,
-                    if (s.isDynamic)
-                        GL.GL_DYNAMIC_DRAW
-                    else
-                        GL.GL_STATIC_DRAW)
+                (pNormalBuffer.limit() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
+                pNormalBuffer,
+                if (s.isDynamic)
+                    GL.GL_DYNAMIC_DRAW
+                else
+                    GL.GL_STATIC_DRAW)
 
             gl.gL3.glVertexAttribPointer(1,
-                    node.vertexSize,
-                    GL.GL_FLOAT,
-                    false,
-                    0,
-                    0)
+                node.vertexSize,
+                GL.GL_FLOAT,
+                false,
+                0,
+                0)
 
         }
         gl.gL3.glBindVertexArray(0)
@@ -1296,16 +1296,16 @@ open class DeferredLightingRenderer : Renderer, Hubable {
 
         gl.gL3.glEnableVertexAttribArray(1)
         gl.glBufferSubData(GL.GL_ARRAY_BUFFER,
-                0,
-                (pNormalBuffer.limit() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
-                pNormalBuffer)
+            0,
+            (pNormalBuffer.limit() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
+            pNormalBuffer)
 
         gl.gL3.glVertexAttribPointer(1,
-                node.vertexSize,
-                GL.GL_FLOAT,
-                false,
-                0,
-                0)
+            node.vertexSize,
+            GL.GL_FLOAT,
+            false,
+            0,
+            0)
 
         gl.gL3.glBindVertexArray(0)
         gl.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
@@ -1325,19 +1325,19 @@ open class DeferredLightingRenderer : Renderer, Hubable {
 
         gl.gL3.glEnableVertexAttribArray(2)
         gl.glBufferData(GL.GL_ARRAY_BUFFER,
-                (pTextureCoordsBuffer.limit() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
-                pTextureCoordsBuffer,
-                if (s.isDynamic)
-                    GL.GL_DYNAMIC_DRAW
-                else
-                    GL.GL_STATIC_DRAW)
+            (pTextureCoordsBuffer.limit() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
+            pTextureCoordsBuffer,
+            if (s.isDynamic)
+                GL.GL_DYNAMIC_DRAW
+            else
+                GL.GL_STATIC_DRAW)
 
         gl.gL3.glVertexAttribPointer(2,
-                node.texcoordSize,
-                GL.GL_FLOAT,
-                false,
-                0,
-                0)
+            node.texcoordSize,
+            GL.GL_FLOAT,
+            false,
+            0,
+            0)
 
         gl.gL3.glBindVertexArray(0)
         gl.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
@@ -1354,20 +1354,20 @@ open class DeferredLightingRenderer : Renderer, Hubable {
 
         gl.gL3.glBindVertexArray(s.mVertexArrayObject[0])
         gl.gL3.glBindBuffer(GL.GL_ARRAY_BUFFER,
-                s.mVertexBuffers[2])
+            s.mVertexBuffers[2])
 
         gl.gL3.glEnableVertexAttribArray(2)
         gl.glBufferSubData(GL.GL_ARRAY_BUFFER,
-                0,
-                (pTextureCoordsBuffer.limit() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
-                pTextureCoordsBuffer)
+            0,
+            (pTextureCoordsBuffer.limit() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
+            pTextureCoordsBuffer)
 
         gl.gL3.glVertexAttribPointer(2,
-                node.texcoordSize,
-                GL.GL_FLOAT,
-                false,
-                0,
-                0)
+            node.texcoordSize,
+            GL.GL_FLOAT,
+            false,
+            0,
+            0)
 
         gl.gL3.glBindVertexArray(0)
         gl.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
@@ -1388,12 +1388,12 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         gl.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, s.mIndexBuffer[0])
 
         gl.glBufferData(GL.GL_ELEMENT_ARRAY_BUFFER,
-                (pIndexBuffer.limit() * (Integer.SIZE / java.lang.Byte.SIZE)).toLong(),
-                pIndexBuffer,
-                if (s.isDynamic)
-                    GL.GL_DYNAMIC_DRAW
-                else
-                    GL.GL_STATIC_DRAW)
+            (pIndexBuffer.limit() * (Integer.SIZE / java.lang.Byte.SIZE)).toLong(),
+            pIndexBuffer,
+            if (s.isDynamic)
+                GL.GL_DYNAMIC_DRAW
+            else
+                GL.GL_STATIC_DRAW)
 
         gl.gL3.glBindVertexArray(0)
         gl.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, 0)
@@ -1414,9 +1414,9 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         gl.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, s.mIndexBuffer[0])
 
         gl.glBufferSubData(GL.GL_ELEMENT_ARRAY_BUFFER,
-                0,
-                (pIndexBuffer.limit() * (Integer.SIZE / java.lang.Byte.SIZE)).toLong(),
-                pIndexBuffer)
+            0,
+            (pIndexBuffer.limit() * (Integer.SIZE / java.lang.Byte.SIZE)).toLong(),
+            pIndexBuffer)
 
         gl.gL3.glBindVertexArray(0)
         gl.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, 0)
@@ -1437,11 +1437,11 @@ open class DeferredLightingRenderer : Renderer, Hubable {
 
         if (s.mStoredIndexCount > 0) {
             gl.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER,
-                    s.mIndexBuffer[0])
+                s.mIndexBuffer[0])
             gl.glDrawElements((node as HasGeometry).geometryType.toOpenGLType(),
-                    s.mStoredIndexCount,
-                    GL.GL_UNSIGNED_INT,
-                    offset.toLong())
+                s.mStoredIndexCount,
+                GL.GL_UNSIGNED_INT,
+                offset.toLong())
 
             gl.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, 0)
         } else {
@@ -1466,17 +1466,17 @@ open class DeferredLightingRenderer : Renderer, Hubable {
 
         gl.gL4.glBindVertexArray(s.mVertexArrayObject[0])
 
-        if(s.mStoredIndexCount > 0) {
+        if (s.mStoredIndexCount > 0) {
             gl.gL4.glDrawElementsInstanced(
-                    (node as HasGeometry).geometryType.toOpenGLType(),
-                    s.mStoredIndexCount,
-                    GL.GL_UNSIGNED_INT,
-                    offset,
-                    count)
+                (node as HasGeometry).geometryType.toOpenGLType(),
+                s.mStoredIndexCount,
+                GL.GL_UNSIGNED_INT,
+                offset,
+                count)
         } else {
             gl.gL4.glDrawArraysInstanced(
-                    (node as HasGeometry).geometryType.toOpenGLType(),
-                    0, s.mStoredPrimitiveCount, count)
+                (node as HasGeometry).geometryType.toOpenGLType(),
+                0, s.mStoredPrimitiveCount, count)
 
         }
 
