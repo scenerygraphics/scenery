@@ -1,11 +1,13 @@
 buildscript {
 	ext.kotlin_version = '1.0.3'
-    ext.slf4j_version = "1.7.20"
+    ext.dokka_version = '0.9.8'
+    ext.slf4j_version = '1.7.20'
 	repositories {
     mavenCentral()
   }
   dependencies {
 	classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    classpath "org.jetbrains.dokka:dokka-gradle-plugin:${dokka_version}"
   }
 }
 
@@ -18,6 +20,7 @@ apply plugin: 'eclipse'
 apply plugin: 'maven'
 apply plugin: 'maven-publish'
 apply plugin: 'idea'
+apply plugin: 'org.jetbrains.dokka'
 
 sourceSets
 {
@@ -141,6 +144,31 @@ repositories
     { url "http://dl.bintray.com/clearcontrol/ClearControl" }
     maven
     { url "http://nativelibs4java.sourceforge.net/maven" }
+}
+
+dokka {
+    moduleName = 'scenery'
+    outputFormat = 'javadoc'
+    outputDirectory = "$buildDir/javadoc"
+    processConfigurations = ['compile']
+    includes = ['README.md']
+    samples = [
+        'src/test/kotlin/scenery/tests/examples/BloodCellsExample.kt',
+        'src/test/kotlin/scenery/tests/examples/CubeExample.kt',
+        'src/test/kotlin/scenery/tests/examples/TexturedCubeExample.kt',
+        'src/test/kotlin/scenery/tests/examples/LineExample.kt',
+        'src/test/kotlin/scenery/tests/examples/MultiBoxExample.kt',
+        'src/test/kotlin/scenery/tests/examples/MultiBoxInstancedExample.kt',
+        'src/test/kotlin/scenery/tests/examples/VertexUpdateExample.kt',
+        'src/test/kotlin/scenery/tests/examples/OpenVRExample.kt',
+        'src/test/kotlin/scenery/tests/examples/FontRenderingExample.kt'
+    ]
+    linkMapping {
+        dir = "src/main/kotlin"
+        url = "https://github.com/clearvolume/scenery/blob/master/src/main/kotlin"
+        suffix = "#L"
+    }
+    sourceDirs = files('src/main/kotlin')
 }
 
 if (JavaVersion.current().isJava8Compatible()) {

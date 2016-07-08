@@ -5,16 +5,26 @@ import org.scijava.ui.behaviour.DragBehaviour
 import scenery.Camera
 
 /**
- * <Description>
+ * FPS-style camera control
  *
  * @author Ulrik Günther <hello@ulrik.is>
+ * @property[name] The name of the behaviour
+ * @property[node] The node this behaviour controls
+ * @property[w] Window width
+ * @property[h] Window height
+ * @constructor Creates a new FPSCameraControl behaviour
  */
 open class FPSCameraControl(private val name: String, private val node: Camera, private val w: Int, private val h: Int) : DragBehaviour {
+    /** default mouse x position in window */
     private var lastX = w / 2;
+    /** default mouse y position in window */
     private var lastY = h / 2;
+    /** whether this is the first entering event */
     private var firstEntered = true;
 
+    /** pitch angle created from x/y position */
     private var pitch: Float = 0.0f;
+    /** yaw angle created from x/y position */
     private var yaw: Float = 0.0f;
 
     init {
@@ -23,6 +33,12 @@ open class FPSCameraControl(private val name: String, private val node: Camera, 
         this.pitch = yp.second
     }
 
+    /**
+     * This extension function creates yaw/pitch angles from
+     * a given GLVector.
+     *
+     * @return A Pair consisting of the yaw and pitch angles
+     */
     protected fun GLVector.toYawPitch(): Pair<Float, Float> {
         val dx = this.x()
         val dy = this.y()
@@ -47,6 +63,13 @@ open class FPSCameraControl(private val name: String, private val node: Camera, 
         return Pair((-yaw * 180.0f / Math.PI.toFloat() - 90.0f), pitch)
     }
 
+    /**
+     * This function is called upon mouse down and initialises the camera control
+     * with the current window size.
+     *
+     * @param[x] x position in window
+     * @param[y] y position in window
+     */
     override fun init(x: Int, y: Int) {
         if (firstEntered) {
             lastX = x;
@@ -55,10 +78,23 @@ open class FPSCameraControl(private val name: String, private val node: Camera, 
         }
     }
 
+    /**
+     * This function is called upon mouse down ends.
+     *
+     * @param[x] x position in window
+     * @param[y] y position in window
+     */
     override fun end(x: Int, y: Int) {
         firstEntered = true;
     }
 
+    /**
+     * This function is called during mouse down and updates the yaw and pitch states,
+     * and resets the cam's forward and up vectors according to these angles.
+     *
+     * @param[x] x position in window
+     * @param[y] y position in window
+     */
     override fun drag(x: Int, y: Int) {
         var xoffset: Float = (x - lastX).toFloat();
         var yoffset: Float = (lastY - y).toFloat();

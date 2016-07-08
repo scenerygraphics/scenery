@@ -10,25 +10,48 @@ import java.nio.file.FileSystems
 import java.nio.file.Files
 import java.util.*
 
+/**
+ * Interface for any [Node] that stores geometry in the form of vertices,
+ * normals, texcoords, or indices.
+ *
+ * @author Ulrik Günther <hello@ulrik.is>
+ */
 interface HasGeometry {
+    /** How many elements does a vertex store? */
     val vertexSize: Int
+    /** How many elements does a texcoord store? */
     val texcoordSize: Int
+    /** The [GeometryType] of the [Node] */
     val geometryType: GeometryType
 
+    /** Array of the vertices */
     var vertices: FloatArray
+    /** Array of the normals */
     var normals: FloatArray
+    /** Array of the texcoords */
     var texcoords: FloatArray
+    /** Array of the indices */
     var indices: IntArray
 
+    /**
+     * PreDraw function, to be called before the actual rendering, useful for
+     * per-timestep preparation.
+     */
     fun preDraw() {
 
     }
 
+    /**
+     * Reads an OBJ file's material properties from the corresponding MTL file
+     *
+     * @param[filename] The filename of the MTL file, stored in the OBJ usually
+     * @return A HashMap storing material name and [Material].
+     */
     fun readFromMTL(filename: String): HashMap<String, Material> {
         var materials = HashMap<String, Material>()
 
         var f = File(filename)
-        if(!f.exists()) {
+        if (!f.exists()) {
             System.out.println("Could not read MTL from $filename, file does not exist.")
 
             vertices = FloatArray(0)
@@ -42,12 +65,16 @@ interface HasGeometry {
         var currentMaterial: Material? = Material()
 
         System.out.println("Reading from MTL file $filename")
+        // The MTL file is read line-by-line and tokenized, based on spaces.
+        // The first non-whitespace token encountered will be evaluated as command to
+        // set up the properties of the [Material], which include e.g. textures and colors.
         lines.forEach {
             line ->
             val tokens = line.trim().trimEnd().split(" ").filter { it.length > 0 }
             if (tokens.size > 0) {
                 when (tokens[0]) {
-                    "#" -> {}
+                    "#" -> {
+                    }
                     "newmtl" -> {
                         currentMaterial = Material()
                         currentMaterial?.name = tokens[1]
@@ -59,7 +86,8 @@ interface HasGeometry {
                     "Ks" -> currentMaterial?.specular = GLVector(tokens[1].toFloat(), tokens[2].toFloat(), tokens[3].toFloat())
                     "d" -> currentMaterial?.opacity = tokens[1].toFloat()
                     "Tr" -> currentMaterial?.opacity = 1.0f - tokens[1].toFloat()
-                    "illum" -> {}
+                    "illum" -> {
+                    }
                     "map_Ka" -> {
                         val mapfile = filename.substringBeforeLast("/") + "/" + tokens[1].replace('\\', '/')
                         currentMaterial!!.textures.put("ambient", mapfile)
@@ -80,8 +108,10 @@ interface HasGeometry {
                         val mapfile = filename.substringBeforeLast("/") + "/" + tokens[1].replace('\\', '/')
                         currentMaterial!!.textures.put("normal", mapfile)
                     }
-                    "bump" -> {}
-                    "Tf" -> {}
+                    "bump" -> {
+                    }
+                    "Tf" -> {
+                    }
                 }
             }
         }
@@ -89,6 +119,12 @@ interface HasGeometry {
         return materials
     }
 
+    /**
+     * Read the [Node]'s geometry from an OBJ file, possible including materials
+     *
+     * @param[filename] The filename to read from.
+     * @param[useMTL] Whether a accompanying MTL file shall be used, defaults to true.
+     */
     fun readFromOBJ(filename: String, useMTL: Boolean = true) {
         var name: String = ""
         var vbuffer = ArrayList<Float>()
@@ -105,6 +141,12 @@ interface HasGeometry {
 
         var materials = HashMap<String, Material>()
 
+        /**
+         * Recalculates normals, assuming CCW winding order.
+         *
+         * @param[vertexBuffer] The vertex list to use
+         * @param[normalBuffer] The buffer to store the normals in
+         */
         fun calculateNormals(vertexBuffer: ArrayList<Float>, normalBuffer: ArrayList<Float>) {
             var i = 0
             while (i < vbuffer.size) {
@@ -129,7 +171,7 @@ interface HasGeometry {
         }
 
         var f = File(filename)
-        if(!f.exists()) {
+        if (!f.exists()) {
             System.out.println("Could not read from $filename, file does not exist.")
 
             vertices = FloatArray(0)
@@ -147,22 +189,25 @@ interface HasGeometry {
         var targetObject = this
 
         System.out.println("Reading from OBJ file $filename")
+        // OBJ files are read line-by-line, then tokenized after removing trailing
+        // and leading whitespace. The first non-whitespace string encountered is
+        // evaluated as command, according to the OBJ spec.
         lines.forEach {
             line ->
             val tokens = line.trim().trimEnd().split(" ").filter { it.length > 0 }
-            if(tokens.size > 0) {
+            if (tokens.size > 0) {
                 when (tokens[0]) {
                     "" -> {
                     }
                     "#" -> {
                     }
                     "mtllib" -> {
-                        if(useMTL) {
+                        if (useMTL) {
                             materials = readFromMTL(filename.substringBeforeLast("/") + "/" + tokens[1])
                         }
                     }
                     "usemtl" -> {
-                        if(targetObject is Node && useMTL) {
+                        if (targetObject is Node && useMTL) {
                             (targetObject as Node).material = materials[tokens[1]]
                         }
                     }
@@ -192,18 +237,17 @@ interface HasGeometry {
                         val elements = tokens.drop(1).map { it.split("/") }
 
                         val vertices = elements.map { it[0].toInt() }
-                        val uvs = elements.filter { it.size > 1 && it.getOrElse(1, {""}).length > 0 }.map { it[1].toInt() }
-                        val normals = elements.filter { it.size > 2 && it.getOrElse(2, {""}).length > 0 }.map { it[2].toInt() }
+                        val uvs = elements.filter { it.size > 1 && it.getOrElse(1, { "" }).length > 0 }.map { it[1].toInt() }
+                        val normals = elements.filter { it.size > 2 && it.getOrElse(2, { "" }).length > 0 }.map { it[2].toInt() }
 
                         var range = ArrayList<Int>()
-                        if(vertices.size == 3) {
+                        if (vertices.size == 3) {
                             range.addAll(listOf(0, 1, 2))
-                        } else if(vertices.size == 4) {
+                        } else if (vertices.size == 4) {
                             range.addAll(listOf(0, 1, 2, 0, 2, 3))
-                        }
-                        else {
+                        } else {
                             System.err.println("Polygonal triangulation is not yet supported")
-                            range.addAll((0..vertices.size-1).toList())
+                            range.addAll((0..vertices.size - 1).toList())
                             // TODO: Implement polygons!
                         }
 
@@ -223,18 +267,18 @@ interface HasGeometry {
                             return 0.0f
                         }
 
-                        for(i in range) {
+                        for (i in range) {
                             vbuffer.add(tmpV.getOrElse(toBufferIndex(tmpV, vertices[i], 3, 0), ::defaultHandler))
                             vbuffer.add(tmpV.getOrElse(toBufferIndex(tmpV, vertices[i], 3, 1), ::defaultHandler))
                             vbuffer.add(tmpV.getOrElse(toBufferIndex(tmpV, vertices[i], 3, 2), ::defaultHandler))
 
-                            if(normals.size == vertices.size) {
+                            if (normals.size == vertices.size) {
                                 nbuffer.add(tmpN.getOrElse(toBufferIndex(tmpN, normals[i], 3, 0), ::defaultHandler))
                                 nbuffer.add(tmpN.getOrElse(toBufferIndex(tmpN, normals[i], 3, 1), ::defaultHandler))
                                 nbuffer.add(tmpN.getOrElse(toBufferIndex(tmpN, normals[i], 3, 2), ::defaultHandler))
                             }
 
-                            if(uvs.size == vertices.size) {
+                            if (uvs.size == vertices.size) {
                                 tbuffer.add(tmpUV.getOrElse(toBufferIndex(tmpUV, uvs[i], 2, 0), ::defaultHandler))
                                 tbuffer.add(tmpUV.getOrElse(toBufferIndex(tmpUV, uvs[i], 2, 1), ::defaultHandler))
                             }
@@ -244,7 +288,7 @@ interface HasGeometry {
                         // TODO: Implement smooth shading across faces
                     }
                     "g" -> @Suppress("UNCHECKED_CAST") {
-                        if(nbuffer.size == 0) {
+                        if (nbuffer.size == 0) {
                             calculateNormals(vbuffer, nbuffer)
                         }
 
@@ -261,10 +305,10 @@ interface HasGeometry {
                         tbuffer.clear()
 
                         // add new child mesh
-                        if(this is Mesh) {
+                        if (this is Mesh) {
                             var child = Mesh()
                             child.name = tokens[1]
-                            if(!useMTL) {
+                            if (!useMTL) {
                                 child.material = Material()
                             }
 
@@ -273,7 +317,7 @@ interface HasGeometry {
                         }
                     }
                     else -> {
-                        if(!tokens[0].startsWith("#")) {
+                        if (!tokens[0].startsWith("#")) {
                             System.err.println("Unknown element: ${tokens.joinToString(" ")}")
                         }
                     }
@@ -299,13 +343,18 @@ interface HasGeometry {
         System.out.println("Read ${vertexCount / vertexSize}/${normalCount / vertexSize}/${uvCount / texcoordSize} v/n/uv of model $name in ${(end - start) / 1e6} ms")
     }
 
+    /**
+     * Read the [Node]'s geometry from an STL file
+     *
+     * @param[filename] The filename to read from.
+     */
     fun readFromSTL(filename: String) {
         var name: String = ""
         var vbuffer = ArrayList<Float>()
         var nbuffer = ArrayList<Float>()
 
         var f = File(filename)
-        if(!f.exists()) {
+        if (!f.exists()) {
             System.out.println("Could not read from $filename, file does not exist.")
 
             vertices = FloatArray(0)
@@ -318,24 +367,33 @@ interface HasGeometry {
         val start = System.nanoTime()
         val lines = Files.lines(FileSystems.getDefault().getPath(filename))
 
+        // This lambda is used in case the STL file is stored in ASCII format
         val readFromAscii = {
             System.out.println("Reading from ASCII STL file $filename")
             lines.forEach {
                 line ->
                 val tokens = line.trim().trimEnd().split(" ")
-                when(tokens[0]) {
+                when (tokens[0]) {
                     "solid" -> name = tokens.drop(1).joinToString(" ")
                     "vertex" -> tokens.drop(1).forEach { vbuffer.add(it.toFloat()) }
                     "facet" -> tokens.drop(2).forEach { nbuffer.add(it.toFloat()) }
-                    "outer" -> { (1..2).forEach { ((nbuffer.size - 3)..(nbuffer.size-1)).forEach { nbuffer.add(nbuffer[it]) }}}
-                    "end" -> {}
-                    "endloop" -> {}
-                    "endfacet" -> {}
-                    "endsolid" -> {}
+                    "outer" -> {
+                        (1..2).forEach { ((nbuffer.size - 3)..(nbuffer.size - 1)).forEach { nbuffer.add(nbuffer[it]) } }
+                    }
+                    "end" -> {
+                    }
+                    "endloop" -> {
+                    }
+                    "endfacet" -> {
+                    }
+                    "endsolid" -> {
+                    }
                     else -> System.err.println("Unknown element: ${tokens.joinToString(" ")}")
                 }
-            }}
+            }
+        }
 
+        // This lambda is used in case the STL file is stored binary
         val readFromBinary = {
             System.out.println("Reading from binary STL file $filename")
 
@@ -350,9 +408,9 @@ interface HasGeometry {
             bis.read(sizeB, 0, 4)
 
             size = ((sizeB[0].toInt() and 0xFF)
-                    or ((sizeB[1].toInt() and 0xFF) shl 8)
-                    or ((sizeB[2].toInt() and 0xFF) shl 16)
-                    or ((sizeB[3].toInt() and 0xFF) shl 24))
+                or ((sizeB[1].toInt() and 0xFF) shl 8)
+                or ((sizeB[2].toInt() and 0xFF) shl 16)
+                or ((sizeB[3].toInt() and 0xFF) shl 24))
 
             fun readFloatFromInputStream(fis: BufferedInputStream): Float {
                 var floatBuf = ByteArray(4)
@@ -391,6 +449,8 @@ interface HasGeometry {
         var arr: CharArray = CharArray(6)
         f.reader().read(arr, 0, 6)
 
+        // If the STL file starts with the string "solid", is must be a ASCII STL file,
+        // otherwise it's assumed to be binary.
         if (arr.joinToString("").startsWith("solid ")) {
             readFromAscii
         } else {
@@ -398,7 +458,7 @@ interface HasGeometry {
         }.invoke()
 
         // normals are incomplete or missing, recalculate
-        if(nbuffer.size != vbuffer.size) {
+        if (nbuffer.size != vbuffer.size) {
             System.err.println("Model does not supply surface normals, recalculating.")
             nbuffer.clear()
 
@@ -428,17 +488,22 @@ interface HasGeometry {
 
 
         val end = System.nanoTime()
-        System.out.println("Read ${vbuffer.size} vertices/${nbuffer.size} normals of model ${name} in ${(end-start)/1e6} ms")
+        System.out.println("Read ${vbuffer.size} vertices/${nbuffer.size} normals of model ${name} in ${(end - start) / 1e6} ms")
 
         vertices = vbuffer.toFloatArray()
         normals = nbuffer.toFloatArray()
     }
 
+
+    /**
+     * Recalculates normals, assuming CCW winding order and taking
+     * STL's facet storage format into account.
+     */
     fun recalculateNormals() {
         var i = 0
         val normalBuffer = ArrayList<Float>()
         normalBuffer.ensureCapacity(vertices.size)
-        
+
         while (i < vertices.size) {
             val v1 = GLVector(vertices[i], vertices[i + 1], vertices[i + 2])
             i += 3

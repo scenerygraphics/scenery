@@ -15,20 +15,30 @@ import java.io.Reader
 import java.io.StringReader
 
 /**
- * <Description>
+ * Input orchestrator for ClearGL windows
  *
  * @author Ulrik Günther <hello@ulrik.is>
+ * @property[scene] The currently displayed scene
+ * @property[renderer] The active renderer
+ * @property[window] The window the renderer is displaying to
+ * @constructor Creates a default behaviour list and input map, also reads the configuration from a file.
  */
-
 class ClearGLInputHandler(scene: Scene, renderer: Any, window: ClearGLWindow) {
+    /** ui-behaviour input trigger map, stores what actions (key presses, etc) trigger which actions. */
     protected val inputMap = InputTriggerMap()
+    /** ui-behaviour behaviour map, stores the available behaviours */
     protected val behaviourMap = BehaviourMap()
+    /** JOGL-flavoured ui-behaviour MouseAndKeyHandler */
     protected val handler: JOGLMouseAndKeyHandler
 
+    /** Scene the input handler refers to */
     protected val scene: Scene
+    /** Renderer the input handler uses */
     protected val renderer: Any
+    /** window the input handler receives input events from */
     protected val window: ClearGLWindow
 
+    /** configuration of the input triggers */
     protected var config: InputTriggerConfig = InputTriggerConfig()
 
     init {
@@ -46,14 +56,32 @@ class ClearGLInputHandler(scene: Scene, renderer: Any, window: ClearGLWindow) {
         this.window = window
     }
 
+    /**
+     * Adds a behaviour to the map of behaviours, making them available for key bindings
+     *
+     * @param[behaviourName] The name of the behaviour
+     * @param[behaviour] The behaviour to add
+     */
     fun addBehaviour(behaviourName: String, behaviour: Behaviour) {
         behaviourMap.put(behaviourName, behaviour)
     }
 
+    /**
+     * Adds a key binding for a given behaviour
+     *
+     * @param[behaviourName] The behaviour to add a key binding for
+     * @param[keys] Which keys should trigger this behaviour?
+     */
     fun addKeyBinding(behaviourName: String, keys: String) {
         config.inputTriggerAdder(inputMap, "all").put(behaviourName, keys)
     }
 
+    /**
+     * Reads a default list of key bindings from a file, and sets sane
+     * defaults for those not set by the config
+     *
+     * @param[bindingConfigFile] The filename to read the configuration from.
+     */
     fun useDefaultBindings(bindingConfigFile: String) {
         // Load YAML config
         var reader: Reader
@@ -63,23 +91,23 @@ class ClearGLInputHandler(scene: Scene, renderer: Any, window: ClearGLWindow) {
         } catch (e: FileNotFoundException) {
             System.err.println("Falling back to default keybindings...")
             reader = StringReader("---\n" +
-                    "- !mapping" + "\n" +
-                    "  action: mouse_control" + "\n" +
-                    "  contexts: [all]" + "\n" +
-                    "  triggers: [button1, G]" + "\n" +
-                    "- !mapping" + "\n" +
-                    "  action: gamepad_movement_control" + "\n" +
-                    "  contexts: [all]" + "\n" +
-                    "  triggers: [button1]" + "\n" +
-                    "- !mapping" + "\n" +
-                    "  action: gamepad_camera_control" + "\n" +
-                    "  contexts: [all]" + "\n" +
-                    "  triggers: [P]" + "\n" +
-                    "- !mapping" + "\n" +
-                    "  action: scroll1" + "\n" +
-                    "  contexts: [all]" + "\n" +
-                    "  triggers: [scroll]" + "\n" +
-                    "")
+                "- !mapping" + "\n" +
+                "  action: mouse_control" + "\n" +
+                "  contexts: [all]" + "\n" +
+                "  triggers: [button1, G]" + "\n" +
+                "- !mapping" + "\n" +
+                "  action: gamepad_movement_control" + "\n" +
+                "  contexts: [all]" + "\n" +
+                "  triggers: [button1]" + "\n" +
+                "- !mapping" + "\n" +
+                "  action: gamepad_camera_control" + "\n" +
+                "  contexts: [all]" + "\n" +
+                "  triggers: [P]" + "\n" +
+                "- !mapping" + "\n" +
+                "  action: scroll1" + "\n" +
+                "  contexts: [all]" + "\n" +
+                "  triggers: [scroll]" + "\n" +
+                "")
         }
 
         config = InputTriggerConfig(YamlConfigIO.read(reader))

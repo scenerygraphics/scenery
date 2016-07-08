@@ -21,26 +21,41 @@ import kotlin.concurrent.thread
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class JOGLMouseAndKeyHandler : MouseListener, KeyListener, WindowListener, WindowAdapter(), ControllerListener {
+    /** slf4j logger for this class */
     protected var logger: Logger = LoggerFactory.getLogger("JOGLMouseAndKeyHandler")
 
+    /** handle to the active controller */
     private var controller: Controller? = null
 
+    /** handle to the active controller's polling thread */
     private var controllerThread: Thread? = null
 
+    /** hash map of the controller's components that are currently above [CONTROLLER_DOWN_THRESHOLD] */
     private var controllerAxisDown: ConcurrentHashMap<Component.Identifier, Float> = ConcurrentHashMap()
 
+    /** polling interval for the controller */
     private val CONTROLLER_HEARTBEAT = 5L
 
+    /** threshold over which an axis is considered down */
     private val CONTROLLER_DOWN_THRESHOLD = 0.95f
 
+    /** the windowing system's set double click interval */
     private val DOUBLE_CLICK_INTERVAL = getDoubleClickInterval()
 
+    /** OSX idiosyncrasy: Mask for left meta click */
     private val OSX_META_LEFT_CLICK = InputEvent.BUTTON1_MASK or InputEvent.BUTTON3_MASK or InputEvent.META_MASK
 
+    /** OSX idiosyncrasy: Mask for left alt click */
     private val OSX_ALT_LEFT_CLICK = InputEvent.BUTTON1_MASK or InputEvent.BUTTON2_MASK or InputEvent.ALT_MASK
 
+    /** OSX idiosyncrasy: Mask for right alt click */
     private val OSX_ALT_RIGHT_CLICK = InputEvent.BUTTON3_MASK or InputEvent.BUTTON2_MASK or InputEvent.ALT_MASK or InputEvent.META_MASK
 
+    /**
+     * Queries the windowing system for the current double click interval
+     *
+     * @return The double click interval in ms
+     */
     private fun getDoubleClickInterval(): Int {
         val prop = Toolkit.getDefaultToolkit().getDesktopProperty("awt.multiClickInterval")
 
@@ -51,47 +66,63 @@ class JOGLMouseAndKeyHandler : MouseListener, KeyListener, WindowListener, Windo
         }
     }
 
+    /** ui-behaviour input trigger map */
     private var inputMap: InputTriggerMap? = null
 
+    /** ui-behaviour behaviour map */
     private var behaviourMap: BehaviourMap? = null
 
+    /** expected modifier count */
     private var inputMapExpectedModCount: Int = 0
 
+    /** behaviour expected modifier count */
     private var behaviourMapExpectedModCount: Int = 0
 
-    private var gamepadState: Event? = null
-
+    /**
+     * Utility function to search the current class path for JARs with natie libraries
+     *
+     * @param[searchName] The string to match the JAR's name against
+     * @return A list of JARs matching [searchName]
+     */
     private fun getNativeJars(searchName: String): List<String> {
         val classpath = System.getProperty("java.class.path")
 
         return classpath.split(File.pathSeparator).filter { it.contains(searchName) }
     }
 
+    /**
+     * Utility function to extract native libraries from a given JAR, store them in a
+     * temporary directory and modify the JRE's library path such that it can find
+     * these libraries.
+     *
+     * @param[paths] A list of JAR paths to extract natives from.
+     * @param[replace] Whether or not the java.library.path should be replaced.
+     */
     private fun extractLibrariesFromJar(paths: List<String>, replace: Boolean = false) {
         val lp = System.getProperty("java.library.path")
         val tmpDir = Files.createTempDirectory("scenery-natives-tmp").toFile()
 
         paths.filter { it.toLowerCase().endsWith("jar") }.forEach {
-            val jar = java.util.jar.JarFile(it);
-            val enumEntries = jar.entries();
+            val jar = java.util.jar.JarFile(it)
+            val enumEntries = jar.entries()
 
             while (enumEntries.hasMoreElements()) {
                 val file = enumEntries.nextElement()
-                val f = java.io.File(tmpDir.absolutePath + java.io.File.separator + file.getName());
+                val f = java.io.File(tmpDir.absolutePath + java.io.File.separator + file.getName())
 
                 if (file.isDirectory()) { // if its a directory, create it
-                    f.mkdir();
-                    continue;
+                    f.mkdir()
+                    continue
                 }
 
-                val ins = jar.getInputStream(file); // get the input stream
-                val fos = java.io.FileOutputStream(f);
+                val ins = jar.getInputStream(file) // get the input stream
+                val fos = java.io.FileOutputStream(f)
                 while (ins.available() > 0) {  // write contents of 'is' to 'fos'
                     fos.write(ins.read())
                 }
 
-                fos.close();
-                ins.close();
+                fos.close()
+                ins.close()
             }
         }
 
@@ -103,9 +134,9 @@ class JOGLMouseAndKeyHandler : MouseListener, KeyListener, WindowListener, Windo
             System.setProperty("java.library.path", newPath)
         }
 
-        val fieldSysPath = ClassLoader::class.java.getDeclaredField( "sys_paths" );
-        fieldSysPath.setAccessible( true );
-        fieldSysPath.set( null, null );
+        val fieldSysPath = ClassLoader::class.java.getDeclaredField( "sys_paths" )
+        fieldSysPath.setAccessible( true )
+        fieldSysPath.set( null, null )
 
         logger.debug("java.library.path is now ${System.getProperty("java.library.path")}")
     }
@@ -124,7 +155,7 @@ class JOGLMouseAndKeyHandler : MouseListener, KeyListener, WindowListener, Windo
 
         controllerThread = thread {
             var event_queue: EventQueue
-            var event: Event = Event()
+            val event: Event = Event()
 
             while(true) {
                 controller?.let {
@@ -151,24 +182,36 @@ class JOGLMouseAndKeyHandler : MouseListener, KeyListener, WindowListener, Windo
         }
     }
 
+    /**
+     * Sets the input trigger map to the given map
+     *
+     * @param[inputMap] The input map to set
+     */
     fun setInputMap(inputMap: InputTriggerMap) {
         this.inputMap = inputMap
         inputMapExpectedModCount = inputMap.modCount() - 1
     }
 
+    /**
+     * Sets the behaviour trigger map to the given map
+     *
+     * @param[behaviourMap] The behaviour map to set
+     */
     fun setBehaviourMap(behaviourMap: BehaviourMap) {
         this.behaviourMap = behaviourMap
         behaviourMapExpectedModCount = behaviourMap.modCount() - 1
     }
 
-    /*
+    /**
 	 * Managing internal behaviour lists.
 	 *
 	 * The internal lists only contain entries for Behaviours that can be
 	 * actually triggered with the current InputMap, grouped by Behaviour type,
 	 * such that hopefully lookup from the event handlers is fast,
+     *
+     * @property[buttons] Buttons triggering the input
+     * @property[behaviour] Behaviour triggered by these buttons
 	 */
-
     internal class BehaviourEntry<T : Behaviour>(
             val buttons: InputTrigger,
             val behaviour: T)
@@ -245,12 +288,6 @@ class JOGLMouseAndKeyHandler : MouseListener, KeyListener, WindowListener, Windo
     }
 
 
-
-    /*
-	 * Event handling. Forwards to registered behaviours.
-	 */
-
-
     /**
      * Which keys are currently pressed. This does not include modifier keys
      * Control, Shift, Alt, AltGr, Meta.
@@ -302,6 +339,11 @@ class JOGLMouseAndKeyHandler : MouseListener, KeyListener, WindowListener, Windo
      */
     private val activeKeyDrags = ArrayList<BehaviourEntry<DragBehaviour>>()
 
+    /**
+     * Returns the key mask of a given input event
+     *
+     * @param[e] The input event to evaluate.
+     */
     private fun getMask(e: InputEvent): Int {
         val modifiers = e.modifiers
         var mask = 0
@@ -363,6 +405,12 @@ class JOGLMouseAndKeyHandler : MouseListener, KeyListener, WindowListener, Windo
 
         return mask
     }
+
+    /**
+     * Called when the mouse is moved, evaluates active drag behaviours, updates state
+     *
+     * @param[e] The incoming MouseEvent
+     */
     override fun mouseMoved(e: MouseEvent) {
         update()
 
@@ -373,10 +421,20 @@ class JOGLMouseAndKeyHandler : MouseListener, KeyListener, WindowListener, Windo
             drag.behaviour.drag(mouseX, mouseY)
     }
 
+    /**
+     * Called when the mouse enters, updates state
+     *
+     * @param[e] The incoming MouseEvent
+     */
     override fun mouseEntered(e: MouseEvent) {
         update()
     }
 
+    /**
+     * Called when the mouse is clicked, updates state
+     *
+     * @param[e] The incoming MouseEvent
+     */
     override fun mouseClicked(e: MouseEvent) {
         update()
 
@@ -392,6 +450,11 @@ class JOGLMouseAndKeyHandler : MouseListener, KeyListener, WindowListener, Windo
         }
     }
 
+    /**
+     * Called when the mouse wheel is moved
+     *
+     * @param[e] The incoming mouse event
+     */
     override fun mouseWheelMoved(e: MouseEvent) {
         update()
 
@@ -421,6 +484,11 @@ class JOGLMouseAndKeyHandler : MouseListener, KeyListener, WindowListener, Windo
         }
     }
 
+    /**
+     * Called when the mouse is release
+     *
+     * @param[e] The incoming mouse event
+     */
     override fun mouseReleased(e: MouseEvent) {
         update()
 
@@ -432,6 +500,11 @@ class JOGLMouseAndKeyHandler : MouseListener, KeyListener, WindowListener, Windo
         activeButtonDrags.clear()
     }
 
+    /**
+     * Called when the mouse is dragged, evaluates current drag behaviours
+     *
+     * @param[e] The incoming mouse event
+     */
     override fun mouseDragged(e: MouseEvent) {
         update()
 
@@ -443,10 +516,20 @@ class JOGLMouseAndKeyHandler : MouseListener, KeyListener, WindowListener, Windo
         }
     }
 
+    /**
+     * Called when the mouse is exiting, updates state
+     *
+     * @param[e] The incoming mouse event
+     */
     override fun mouseExited(e: MouseEvent) {
         update()
     }
 
+    /**
+     * Called when the mouse is pressed, updates state and masks, evaluates drags
+     *
+     * @param[e] The incoming mouse event
+     */
     override fun mousePressed(e: MouseEvent) {
         update()
 
@@ -462,6 +545,11 @@ class JOGLMouseAndKeyHandler : MouseListener, KeyListener, WindowListener, Windo
         }
     }
 
+    /**
+     * Called when a key is pressed
+     *
+     * @param[e] The incoming keyboard event
+     */
     override fun keyPressed(e: KeyEvent) {
         update()
 
@@ -508,6 +596,11 @@ class JOGLMouseAndKeyHandler : MouseListener, KeyListener, WindowListener, Windo
         }
     }
 
+    /**
+     * Called when a key is released
+     *
+     * @param[e] The incoming keyboard event
+     */
     override fun keyReleased(e: KeyEvent) {
         update()
 
@@ -528,15 +621,35 @@ class JOGLMouseAndKeyHandler : MouseListener, KeyListener, WindowListener, Windo
         }
     }
 
+    /**
+     * Called when a window repaint event is registered
+     *
+     * @param[e] The incoming window update event
+     */
     override fun windowRepaint(e: WindowUpdateEvent?) {
     }
 
+    /**
+     * Called when a window destroy event is registered
+     *
+     * @param[e] The incoming window event
+     */
     override fun windowDestroyed(e: WindowEvent?) {
     }
 
+    /**
+     * Called when a window destruction notification event is registered
+     *
+     * @param[e] The incoming window update event
+     */
     override fun windowDestroyNotify(e: WindowEvent?) {
     }
 
+    /**
+     * Called when the window lost focus. Clears pressed keys
+     *
+     * @param[e] The incoming window update event
+     */
     override fun windowLostFocus(e: WindowEvent?) {
         pressedKeys.clear()
         shiftPressed = false
@@ -544,12 +657,27 @@ class JOGLMouseAndKeyHandler : MouseListener, KeyListener, WindowListener, Windo
         winPressed = false
     }
 
+    /**
+     * Called when a window move event is registered
+     *
+     * @param[e] The incoming window update event
+     */
     override fun windowMoved(e: WindowEvent?) {
     }
 
+    /**
+     * Called when a window resize event is registered
+     *
+     * @param[e] The incoming window update event
+     */
     override fun windowResized(e: WindowEvent?) {
     }
 
+    /**
+     * Called when a window regains focus, clears pressed keys
+     *
+     * @param[e] The incoming window update event
+     */
     override fun windowGainedFocus(e: WindowEvent?) {
         pressedKeys.clear()
         shiftPressed = false
@@ -557,6 +685,11 @@ class JOGLMouseAndKeyHandler : MouseListener, KeyListener, WindowListener, Windo
         winPressed = false
     }
 
+    /**
+     * Called when a new controller is added
+     *
+     * @param[e] The incoming controller event
+     */
     override fun controllerAdded(event: ControllerEvent?) {
         if(controller == null && event != null && event.controller.type == Controller.Type.GAMEPAD) {
             logger.info("Adding controller ${event.controller}")
@@ -564,6 +697,11 @@ class JOGLMouseAndKeyHandler : MouseListener, KeyListener, WindowListener, Windo
         }
     }
 
+    /**
+     * Called when a controller is removed
+     *
+     * @param[e] The incoming controller event
+     */
     override fun controllerRemoved(event: ControllerEvent?) {
         if(event != null && controller != null) {
             logger.info("Controller removed: ${event.controller}")
@@ -572,6 +710,12 @@ class JOGLMouseAndKeyHandler : MouseListener, KeyListener, WindowListener, Windo
         }
     }
 
+    /**
+     * Called when a controller event is fired. This will update the currently down
+     * buttons/axis on the controller.
+     *
+     * @param[e] The incoming controller event
+     */
     fun controllerEvent(event: Event) {
         for(gamepad in gamepads) {
             if(event.component.isAnalog && Math.abs(event.component.pollData) < CONTROLLER_DOWN_THRESHOLD) {

@@ -1,4 +1,3 @@
-@file:JvmName("Node")
 package scenery
 
 import cleargl.GLMatrix
@@ -8,59 +7,95 @@ import java.sql.Timestamp
 import java.util.*
 import java.util.concurrent.locks.ReentrantLock
 
+/**
+ * Class describing a [Node] of a [Scene], inherits from [Renderable]
+ *
+ * @author Ulrik Günther <hello@ulrik.is>
+ * @constructor Creates a node with default settings, e.g. identity matrices
+ *  for model, view, projection, etc.
+ * @property[name] The name of the [Node]
+ */
 open class Node(open var name: String) : Renderable {
 
+    /** Hash map used for storing metadata for the Node. [DeferredLightingRenderer] uses
+     * it to e.g. store [OpenGLObjectState]. */
     var metadata: HashMap<String, NodeMetadata> = HashMap()
 
+    /** Material of the Node */
     override var material: Material? = null
+    /** Initialisation flag. */
     override var initialized: Boolean = false
+    /** Whether the Node is dirty and needs updating. */
     override var dirty: Boolean = true
+    /** Flag to set whether the Node is visible or not. */
     override var visible: Boolean = true
+    /** Is this Node an instance of another Node? */
     var instanceOf: Node? = null
+    /** The Node's lock. */
     override var lock: ReentrantLock = ReentrantLock()
 
+    /**
+     * Initialisation function for the Node.
+     *
+     * @return True of false whether initialisation was successful.
+     */
     override fun init(): Boolean {
         return true
     }
 
+    /** Name of the Node's type */
     open var nodeType = "Node"
+    /** Should the Node's class name be used to derive a GLSL shader file name for a [GLProgram]? */
     open var useClassDerivedShader = false
 
+    /** World transform matrix. Will create inverse [iworld] upon modification. */
     override var world: GLMatrix = GLMatrix.getIdentity()
         set(m) {
             this.iworld = m.getInverse()
             field = m
         }
+    /** Inverse [world] transform matrix. */
     override var iworld: GLMatrix = GLMatrix.getIdentity()
+    /** Model transform matrix. Will create inverse [imodel] upon modification. */
     override var model: GLMatrix = GLMatrix.getIdentity()
         set(m) {
             this.imodel = m.getInverse()
             field = m
         }
+    /** Inverse [world] transform matrix. */
     override var imodel: GLMatrix = GLMatrix.getIdentity()
 
+    /** View matrix. Will create inverse [iview] upon modification. */
     override var view: GLMatrix? = null
         set(m) {
             this.iview = m?.getInverse()
             field = m
         }
+    /** Inverse [view] matrix. */
     override var iview: GLMatrix? = null
 
+    /** Projection matrix. Will create inverse [iprojection] upon modification. */
     override var projection: GLMatrix? = null
         set(m) {
             this.iprojection = m?.getInverse()
             field = m
         }
+    /** Inverse [projection] transform matrix. */
     override var iprojection: GLMatrix? = null
 
+    /** ModelView matrix. Will create inverse [imodelview] upon modification. */
     override var modelView: GLMatrix? = null
         set(m) {
             this.imodelView = m?.getInverse()
             field = m
         }
+    /** Inverse [modelView] transform matrix. */
     override var imodelView: GLMatrix? = null
+
+    /** ModelViewProjection matrix. */
     override var mvp: GLMatrix? = null
 
+    /** World position of the Node. Setting will trigger [world] update. */
     override var position: GLVector = GLVector(0.0f, 0.0f, 0.0f)
         set(v) {
             this.needsUpdate = true
@@ -68,12 +103,15 @@ open class Node(open var name: String) : Renderable {
             field = v
         }
 
+    /** x/y/z scale of the Node. Setting will trigger [world] update. */
     override var scale: GLVector = GLVector(1.0f, 1.0f, 1.0f)
         set(v) {
             this.needsUpdate = true
             this.needsUpdateWorld = true
             field = v
         }
+
+    /** Rotation of the Node. Setting will trigger [world] update. */
     override var rotation: Quaternion = Quaternion(0.0f, 0.0f, 0.0f, 1.0f);
         set(q) {
             this.needsUpdate = true
@@ -81,17 +119,24 @@ open class Node(open var name: String) : Renderable {
             field = q
         }
 
+    /** Children of the Node. */
     var children: ArrayList<Node>
+    /** Other nodes that have linked transforms. */
     var linkedNodes: ArrayList<Node>
+    /** Parent node of this node. */
     var parent: Node? = null
 
+    /** Flag to store whether the node is a billboard and will always face the camera. */
     override var isBillboard: Boolean = false
 
-    // metadata
+    /** Creation timestamp of the node. */
     var createdAt: Long = 0
+    /** Modification timestamp of the node. */
     var modifiedAt: Long = 0
 
+    /** Stores whether the [model] matrix needs an update. */
     var needsUpdate = true
+    /** Stores whether the [world] matrix needs an update. */
     var needsUpdateWorld = true
 
     init {
@@ -100,22 +145,38 @@ open class Node(open var name: String) : Renderable {
         this.imodel = GLMatrix.getIdentity()
 
         this.modelView = GLMatrix.getIdentity()
-        this.imodelView  = GLMatrix.getIdentity()
+        this.imodelView = GLMatrix.getIdentity()
 
         this.children = ArrayList<Node>()
         this.linkedNodes = ArrayList<Node>()
         // null should be the signal to use the default shader
     }
 
+    /**
+     * Attaches a child node to this node.
+     *
+     * @param[child] The child to attach to this node.
+     */
     fun addChild(child: Node) {
         child.parent = this
         this.children.add(child)
     }
 
+    /**
+     * Removes a given node from the set of children of this node.
+     *
+     * @param[child] The child node to remove.
+     */
     fun removeChild(child: Node): Boolean {
         return this.children.remove(child)
     }
 
+    /**
+     * Removes a given node from the set of children of this node.
+     * If possible, use [removeChild] instead.
+     *
+     * @param[name] The name of the child node to remove.
+     */
     fun removeChild(name: String): Boolean {
         for (c in this.children) {
             if (c.name.compareTo(name) == 0) {
@@ -128,10 +189,24 @@ open class Node(open var name: String) : Renderable {
         return false
     }
 
+    /**
+     * Routine to call if the node has special requirements for drawing.
+     */
     open fun draw() {
 
     }
 
+    /**
+     * Update the the [world] matrix of the [Node].
+     *
+     * This method will update the [model] and [world] matrices of the node,
+     * if [needsUpdate] is true, or [force] is true. If [recursive] is true,
+     * this method will also recurse into the [children] and [linkedNodes] of
+     * the node and update these as well.
+     *
+     * @param[recursive] Whether the [children] should be recursed into.
+     * @param[force] Force update irrespective of [needsUpdate] state.
+     */
     fun updateWorld(recursive: Boolean, force: Boolean = false) {
         if (needsUpdate or force) {
 //            System.err.println("Updating $name (p: $parent)")
@@ -140,10 +215,10 @@ open class Node(open var name: String) : Renderable {
             needsUpdateWorld = true
         }
 
-        if(needsUpdateWorld or force) {
+        if (needsUpdateWorld or force) {
             if (this.parent == null || this.parent is Scene) {
                 this.world = this.model.clone()
-      //          this.world.translate(this.position.x(), this.position.y(), this.position.z())
+                //          this.world.translate(this.position.x(), this.position.y(), this.position.z())
             } else {
                 val m = parent!!.world.clone()
                 m.mult(this.model)
@@ -163,21 +238,32 @@ open class Node(open var name: String) : Renderable {
         }
     }
 
+    /**
+     * This method composes the [model] matrices of the node from its
+     * [position], [scale] and [rotation].
+     */
     fun composeModel() {
         val w = GLMatrix.getIdentity()
-     //   w.translate(-this.position.x(), -this.position.y(), -this.position.z())
+        //   w.translate(-this.position.x(), -this.position.y(), -this.position.z())
         w.mult(this.rotation)
-    //    w.translate(this.position.x(), this.position.y(), this.position.z())
+        //    w.translate(this.position.x(), this.position.y(), this.position.z())
         w.scale(this.scale.x(), this.scale.y(), this.scale.z())
         w.translate(this.position.x(), this.position.y(), this.position.z())
         this.model = w
     }
 
+    /**
+     * This method composes the Node's [modelView] matrix.
+     */
     fun composeModelView() {
         modelView = model.clone()
         modelView!!.mult(this.view)
     }
 
+    /**
+     * This method composes the Node's [mvp] matrix. It runs
+     * [composeModel] and [composeModelView] first.
+     */
     fun composeMVP() {
         composeModel()
         composeModelView()

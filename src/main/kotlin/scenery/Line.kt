@@ -4,7 +4,7 @@ import cleargl.GLVector
 import java.util.*
 
 /**
- * <Description>
+ * Class for creating 3D lines
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
