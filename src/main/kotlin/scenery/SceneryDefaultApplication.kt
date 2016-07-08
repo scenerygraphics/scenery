@@ -114,8 +114,7 @@ open class SceneryDefaultApplication(var applicationName: String,
 
             override fun dispose(pDrawable: GLAutoDrawable) {
                 System.err.println("Stopping with dispose")
-                pDrawable.animator.stop()
-                pDrawable.destroy()
+                pDrawable.animator?.stop()
             }
 
         }
