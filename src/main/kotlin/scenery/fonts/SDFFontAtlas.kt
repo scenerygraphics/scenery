@@ -17,19 +17,30 @@ import java.nio.ByteOrder
 import java.util.*
 
 /**
- * <Description>
+ * Creates renderer-agnostic signed-distance fields (SDF) of fonts
  *
  * @author Ulrik Günther <hello@ulrik.is>
+ * @param[hub] The [Hub] to use
+ * @param[fontName] The font name to create a SDF for
+ * @param[distanceFieldSize] The size of the SDF in pixels
+ * @constructor Generates a SDF of the given font
  */
 open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSize: Int = 64) {
+    /** default charset for the SDF font atlas, default is ASCII charset */
     var charset = (32..127)
+    /** Hash map of the char linked to it's width and a byte buffer with the SDF of the char */
     var fontMap = LinkedHashMap<Char, Pair<Float, ByteBuffer>>()
+    /** Font size for the SDF */
     var fontSize: Float = 0f
+    /** Texcoord storage for each glyph */
     var glyphTexcoords = HashMap<Char, GLVector>()
 
+    /** Font atlas width */
     var atlasWidth = 0
+    /** Font atlas height */
     var atlasHeight = 0
 
+    /** Backing store for the font atlas, will finally have a size of 4*atlasWidth*atlasHeight. */
     var fontAtlasBacking: ByteBuffer = ByteBuffer.allocate(1)
 
     init {
@@ -63,6 +74,11 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
         fontAtlasBacking = toFontAtlas(fontMap, distanceFieldSize)
     }
 
+    /**
+     * Dumps a given byte buffer to a file. Useful for debugging the SDF
+     *
+     * @param[buf] The ByteBuffer to dump.
+     */
     fun dumpToFile(buf: ByteBuffer) {
         try {
             val file = File(System.getProperty("user.home") + "/SDFFontAtlas-${System.currentTimeMillis()}-$fontName.raw")
@@ -77,6 +93,14 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
 
     }
 
+    /**
+     * Generates an image of a given char with the Java font engine
+     *
+     * @param[c] The char to generate the image for
+     * @param[font] The Java Font object of the font to use
+     * @param[size] Size of the image
+     * @returns A pair of char width and the image byte buffer
+     */
     protected fun genCharImage(c: Char, font: Font, size: Int): Pair<Float, ByteBuffer> {
         /* Creating temporary image to extract character size */
         var image = BufferedImage(1, 1, BufferedImage.TYPE_BYTE_GRAY)
@@ -106,6 +130,14 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
         return Pair(charWidth.toFloat()/size.toFloat(), imageBuffer)
     }
 
+    /**
+     * Converts a map of chars and SDFs to a square texture that can be used
+     * by a renderer.
+     *
+     * @param[map] map of a char to a pair of glyph width and the SDF byte buffer
+     * @param[charSize] Pixel size of each glyph
+     * @return A byte buffer containing the full font atlas texture
+     */
     protected fun toFontAtlas(map: AbstractMap<Char, Pair<Float, ByteBuffer>>, charSize: Int): ByteBuffer {
         var texWidth = 1
         val mapSize = map.size
@@ -154,6 +186,14 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
         return buffer
     }
 
+    /**
+     * Reads a single line from a given buffer and returns the line as float array
+     *
+     * @param[lineSize] The pixel size of one line
+     * @param[line] The number of the line to read
+     * @param[buf] The ByteBuffer to read the line from
+     * @return FloatArray of the line pixels
+     */
     protected fun readLineFromBuffer(lineSize: Int, line: Int, buf: ByteBuffer): FloatArray {
         val array = FloatArray(lineSize)
         val fb = buf.asFloatBuffer()
@@ -164,14 +204,29 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
         return array
     }
 
+    /**
+     * Exposes the font atlas texture to the outside world
+     */
     fun getAtlas(): ByteBuffer {
         return fontAtlasBacking
     }
 
+    /**
+     * Returns the texcoords for a given glyph
+     *
+     * @param[glyph] The char to get the texcoords for.
+     * @return The char's texcoords.
+     */
     fun getTexcoordsForGlyph(glyph: Char): GLVector {
         return glyphTexcoords.getOrDefault(glyph, GLVector(0.0f, 0.0f, 1.0f, 1.0f))
     }
 
+    /**
+     * Creates a mesh for a given string, correctly aligning the glyphs on the mesh.
+     *
+     * @param[text] The text to create a mesh for
+     * @return A [Mesh] with the glyphs on it (via texcoords).
+     */
     @Suppress("UNCHECKED_CAST")
     fun createMeshForString(text: String): Mesh {
         val m = Mesh()
