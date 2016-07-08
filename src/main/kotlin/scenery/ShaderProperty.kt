@@ -1,11 +1,12 @@
 package scenery
 
 /**
- * <Description>
+ * ShaderProperty is an annotation that can be used for [Node] properties. Properties
+ * marked as such will be submitted to the GLSL shader by the renderer.
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
 @Target(AnnotationTarget.FIELD)
 @Retention(AnnotationRetention.RUNTIME)
 @MustBeDocumented
-public annotation class ShaderProperty
+annotation class ShaderProperty
