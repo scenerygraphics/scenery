@@ -29,7 +29,7 @@ open class SceneryDefaultApplication(var applicationName: String,
     /** The scene used by the renderer in the application */
     protected val scene: Scene = Scene()
     /** REPL for the application, can be initialised in the [init] function */
-    protected val repl: REPL = REPL()
+    protected var repl: REPL? = null
     /** Frame number for counting FPS */
     protected var frameNum = 0
     /** The Deferred Lighting Renderer for the application, see [DeferredLightingRenderer] */

@@ -6,6 +6,7 @@ import com.jogamp.opengl.GLAutoDrawable
 import org.junit.Test
 import scenery.*
 import scenery.rendermodules.opengl.DeferredLightingRenderer
+import scenery.repl.REPL
 import java.util.*
 import kotlin.concurrent.thread
 
@@ -119,11 +120,9 @@ class VertexUpdateExample : SceneryDefaultApplication("VertexUpdateExample") {
         }
         deferredRenderer?.initializeScene(scene)
 
-        repl.addAccessibleObject(scene)
-        repl.addAccessibleObject(deferredRenderer!!)
-        repl.start()
-
-        repl.showConsoleWindow()
+        repl = REPL(scene, deferredRenderer!!)
+        repl?.start()
+        repl?.showConsoleWindow()
     }
 
     @Test override fun main() {

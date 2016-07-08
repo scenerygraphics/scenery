@@ -9,6 +9,7 @@ import scenery.*
 import scenery.controls.OpenVRInput
 import scenery.rendermodules.opengl.DeferredLightingRenderer
 import scenery.rendermodules.opengl.OpenGLShaderPreference
+import scenery.repl.REPL
 import java.io.IOException
 import java.util.*
 import kotlin.concurrent.thread
@@ -255,11 +256,9 @@ class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowW
 
             deferredRenderer?.initializeScene(scene)
 
-            repl.addAccessibleObject(scene)
-            repl.addAccessibleObject(deferredRenderer!!)
-
-            repl.start();
-            repl.showConsoleWindow()
+            repl = REPL(scene, deferredRenderer!!)
+            repl?.start()
+            repl?.showConsoleWindow()
         } catch (e: GLException) {
             e.printStackTrace()
         } catch (e: IOException) {

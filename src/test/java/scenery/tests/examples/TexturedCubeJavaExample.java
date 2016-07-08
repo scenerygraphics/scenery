@@ -6,6 +6,7 @@ import com.jogamp.opengl.GLAutoDrawable;
 import org.junit.Test;
 import scenery.*;
 import scenery.rendermodules.opengl.DeferredLightingRenderer;
+import scenery.repl.REPL;
 
 /**
  * Created by kharrington on 7/6/16.
@@ -75,8 +76,8 @@ public class TexturedCubeJavaExample {
 
             getDeferredRenderer().initializeScene(getScene());
 
-            getRepl().addAccessibleObject(getScene());
-            getRepl().addAccessibleObject(getDeferredRenderer());
+            setRepl(new REPL(getScene(), getDeferredRenderer()));
+            getRepl().start();
             getRepl().showConsoleWindow();
 
         }
