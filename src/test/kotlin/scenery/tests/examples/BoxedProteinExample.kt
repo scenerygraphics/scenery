@@ -7,6 +7,7 @@ import com.jogamp.opengl.GLException
 import org.junit.Test
 import scenery.*
 import scenery.rendermodules.opengl.DeferredLightingRenderer
+import scenery.repl.REPL
 import java.io.IOException
 import kotlin.concurrent.thread
 
@@ -136,13 +137,11 @@ class BoxedProteinExample : SceneryDefaultApplication("BoxedProteinExample") {
                 }
             }
 
-            repl.addAccessibleObject(scene)
-            repl.addAccessibleObject(deferredRenderer!!)
-
-            repl.start();
-            repl.showConsoleWindow()
-
             deferredRenderer?.initializeScene(scene)
+
+            repl = REPL(scene, deferredRenderer!!)
+            repl?.start()
+            repl?.showConsoleWindow()
         } catch (e: GLException) {
             e.printStackTrace()
         } catch (e: IOException) {

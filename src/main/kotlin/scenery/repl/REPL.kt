@@ -10,13 +10,13 @@ import java.util.*
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class REPL(val accessibleObjects: List<Any> = listOf(),
-           val startupScript: String = "startup.js",
-           val startupScriptClass: Class<*> = REPL::class.java) {
+class REPL(vararg accessibleObjects: Any) {
 
     protected var context: Context
     protected var interpreterWindow: InterpreterWindow
-    protected var startupScriptCode: String
+    protected var startupScriptCode: String = ""
+    protected var startupScript = "startup.js"
+    protected var startupScriptClass: Class<*> = REPL::class.java
 
     init {
         context = Context()
@@ -25,6 +25,13 @@ class REPL(val accessibleObjects: List<Any> = listOf(),
 
         startupScriptCode = Scanner(startupScriptClass.getResourceAsStream(startupScript), "UTF-8").useDelimiter("\\A").next()
         accessibleObjects.forEach { context.getService(ObjectService::class.java).addObject(it) }
+    }
+
+    fun setStartupScript(scriptFileName: String, baseClass: Class<*>) {
+        startupScriptClass = baseClass
+        startupScript = scriptFileName
+
+        startupScriptCode = Scanner(startupScriptClass.getResourceAsStream(startupScript), "UTF-8").useDelimiter("\\A").next()
     }
 
     fun addAccessibleObject(obj: Any) {

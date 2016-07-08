@@ -19,7 +19,7 @@ open class SceneryDefaultApplication(var applicationName: String,
                                      var windowWidth: Int = 1024,
                                      var windowHeight: Int = 1024) {
     protected val scene: Scene = Scene()
-    protected val repl: REPL = REPL()
+    protected var repl: REPL? = null
     protected var frameNum = 0
     protected var deferredRenderer: DeferredLightingRenderer? = null
     protected var hub: Hub = Hub()

@@ -8,6 +8,7 @@ import org.junit.Test
 import scenery.*
 import scenery.controls.OpenVRInput
 import scenery.rendermodules.opengl.DeferredLightingRenderer
+import scenery.repl.REPL
 import java.io.IOException
 import kotlin.concurrent.thread
 
@@ -169,11 +170,9 @@ class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 1
 
             deferredRenderer?.initializeScene(scene)
 
-            repl.addAccessibleObject(scene)
-            repl.addAccessibleObject(deferredRenderer!!)
-            repl.start()
-
-            repl.showConsoleWindow()
+            repl = REPL(scene, deferredRenderer!!)
+            repl?.start()
+            repl?.showConsoleWindow()
 
         } catch (e: GLException) {
             e.printStackTrace()

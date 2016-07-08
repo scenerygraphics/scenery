@@ -6,6 +6,7 @@ import com.jogamp.opengl.GLAutoDrawable
 import org.junit.Test
 import scenery.*
 import scenery.rendermodules.opengl.DeferredLightingRenderer
+import scenery.repl.REPL
 
 /**
  * <Description>
@@ -59,14 +60,11 @@ class FontRenderingExample: SceneryDefaultApplication("FontRenderingExample") {
 
         deferredRenderer?.initializeScene(scene)
 
-        repl.addAccessibleObject(scene)
-        repl.addAccessibleObject(deferredRenderer!!)
-        repl.addAccessibleObject(board)
-        repl.start()
-        repl.eval("var fontBoard = objectLocator(\"FontBoard\");")
-        repl.eval("print(\"Font Example - try e.g. fontBoard.fontColor = new GLVector(1.0, 0.0, 0.0);\");")
-
-        repl.showConsoleWindow()
+        repl = REPL(scene, deferredRenderer!!)
+        repl?.start()
+        repl?.showConsoleWindow()
+        repl?.eval("var fontBoard = objectLocator(\"FontBoard\");")
+        repl?.eval("print(\"Font Example - try e.g. fontBoard.fontColor = new GLVector(1.0, 0.0, 0.0);\");")
     }
 
     @Test override fun main() {
