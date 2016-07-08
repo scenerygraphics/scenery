@@ -8,10 +8,10 @@ import scenery.Camera
  * FPS-style camera control
  *
  * @author Ulrik Günther <hello@ulrik.is>
- * @param[name] The name of the behaviour
- * @param[node] The node this behaviour controls
- * @param[w] Window width
- * @param[h] Window height
+ * @property[name] The name of the behaviour
+ * @property[node] The node this behaviour controls
+ * @property[w] Window width
+ * @property[h] Window height
  * @constructor Creates a new FPSCameraControl behaviour
  */
 open class FPSCameraControl(private val name: String, private val node: Camera, private val w: Int, private val h: Int) : DragBehaviour {

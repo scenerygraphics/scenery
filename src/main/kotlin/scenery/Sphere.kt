@@ -10,7 +10,9 @@ import java.util.*
  * @param[segments] Number of segments in latitude and longitude.
  */
 class Sphere(radius: Float, segments: Int) : Node("sphere"), HasGeometry {
+    /** Radius of the sphere. */
     var radius: Float
+    /** Segment count in latitude and longitude. */
     var segments: Int
 
     override val vertexSize = 3;

@@ -96,6 +96,14 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         }
     }
 
+    /**
+     * Constructor for DeferredLightingRenderer, initialises geometry buffers
+     * according to eye configuration. Also initialises different rendering passes.
+     *
+     * @param[gl] GL4 context handle
+     * @param[width] window width
+     * @param[height] window height
+     */
     constructor(gl: GL4, width: Int, height: Int) {
         this.gl = gl
         this.width = width

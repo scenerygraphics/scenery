@@ -20,9 +20,9 @@ import java.util.*
  * Creates renderer-agnostic signed-distance fields (SDF) of fonts
  *
  * @author Ulrik Günther <hello@ulrik.is>
- * @param[hub] The [Hub] to use
- * @param[fontName] The font name to create a SDF for
- * @param[distanceFieldSize] The size of the SDF in pixels
+ * @property[hub] The [Hub] to use
+ * @property[fontName] The font name to create a SDF for
+ * @property[distanceFieldSize] The size of the SDF in pixels
  * @constructor Generates a SDF of the given font
  */
 open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSize: Int = 64) {

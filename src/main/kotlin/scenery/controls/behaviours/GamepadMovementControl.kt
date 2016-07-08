@@ -9,7 +9,7 @@ import scenery.Camera
  * @author Ulrik Günther <hello@ulrik.is>
  * @property[name] Name of the behaviour
  * @property[axis] List of axis that are assigned to this behaviour
- * @property[node] The camera to control
+ * @property[cam] The camera to control
  */
 class GamepadMovementControl(private val name: String,
                              override val axis: List<Component.Identifier>,

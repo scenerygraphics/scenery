@@ -8,5 +8,6 @@ package scenery
  * @author Ulrik Günther <hello@ulrik.is>
  */
 interface NodeMetadata {
+    /** List of the names of consumers of this metadata. */
     val consumers: List<String>
 }

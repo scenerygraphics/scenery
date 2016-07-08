@@ -37,8 +37,13 @@ open class Material {
     /** Flag to check whether the [transferTextures] need reloading */
     var needsTextureReload: Boolean = false
 
-    /** Factory for a default Material */
+    /** Companion object for Material, emulating static methods */
     companion object Factory {
+        /**
+         * Factory method returning the default material
+         *
+         * @return Material with default properties
+         */
         fun DefaultMaterial(): Material = Material()
     }
 }

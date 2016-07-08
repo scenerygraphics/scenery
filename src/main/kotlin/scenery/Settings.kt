@@ -9,7 +9,8 @@ import java.util.concurrent.ConcurrentHashMap
  * @author Ulrik Günther <hello@ulrik.is>
  */
 open class Settings {
-    var settingsStore = ConcurrentHashMap<String, Any>()
+    /** Hash map storing all the settings */
+    protected var settingsStore = ConcurrentHashMap<String, Any>()
 
     /**
      * Query the settings store for a setting [name] and type T

@@ -208,6 +208,9 @@ class JOGLMouseAndKeyHandler : MouseListener, KeyListener, WindowListener, Windo
 	 * The internal lists only contain entries for Behaviours that can be
 	 * actually triggered with the current InputMap, grouped by Behaviour type,
 	 * such that hopefully lookup from the event handlers is fast,
+     *
+     * @property[buttons] Buttons triggering the input
+     * @property[behaviour] Behaviour triggered by these buttons
 	 */
     internal class BehaviourEntry<T : Behaviour>(
             val buttons: InputTrigger,

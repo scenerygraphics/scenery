@@ -41,6 +41,10 @@ class OpenGLObjectState : NodeMetadata {
     /** Number of stored vertex/normal/texcoord primitives. */
     var mStoredPrimitiveCount = 0
 
+    /**
+     * Default constructor, adding the [DeferredLightingRenderer]
+     * to the list of consumers.
+     */
     constructor() {
         consumers.add("DeferredLightingRenderer")
     }
