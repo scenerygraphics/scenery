@@ -16,36 +16,60 @@ import java.util.concurrent.TimeUnit
 import jopenvr.JOpenVRLibrary as jvr
 
 /**
- * Created by ulrik on 25/05/2016.
+ * HMDInput implementation of OpenVR
+ *
+ * @author Ulrik Günther <hello@ulrik.is>
+ * @property[seated] Whether the user is assumed to be sitting or not.
+ * @property[useCompositor] Whether or not the compositor should be used.
+ * @constructor Creates a new OpenVR HMD instance, using the compositor if requested
  */
 open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = false) : HMDInput, Hubable {
+    /** slf4j logger instance */
     protected var logger: Logger = LoggerFactory.getLogger("OpenVRInput")
+    /** The Hub to use for communication */
     override var hub: Hub? = null
 
+    /** VR function table of the OpenVR library */
     protected var vrFuncs: VR_IVRSystem_FnTable? = null
+    /** Compositor function table of the OpenVR library */
     protected var compositorFuncs: VR_IVRCompositor_FnTable? = null
+    /** Has the HMD already been initialised? */
     protected var initialized = false
 
+    /** HMD reference pose */
     protected var hmdTrackedDevicePoseReference: TrackedDevicePose_t? = null
+    /** OpenVR poses structure for all tracked device */
     protected var hmdTrackedDevicePoses: Array<Structure>? = null
 
+    /** error code storage */
     protected val error = IntBuffer.allocate(1)
-    protected var hmdPose = GLMatrix.getIdentity()
+    /** Storage for the poses of all tracked devices. */
     protected var trackedPoses = HashMap<String, GLMatrix>()
+    /** Cache for per-eye projection matrices */
     protected var eyeProjectionCache: ArrayList<GLMatrix?> = ArrayList()
+    /** Cache for head-to-eye transform matrices */
     protected var eyeTransformCache: ArrayList<GLMatrix?> = ArrayList()
 
+    /** When did the last vsync occur? */
     val lastVsync = FloatBuffer.allocate(1)
+    /** Current frame count on the HMD */
     val frameCount = LongBuffer.allocate(1)
+    /** Display frequency of the HMD */
     val hmdDisplayFreq = IntBuffer.allocate(1)
 
+    /** Latency wait time */
     var latencyWaitTime = 0L
+    /** Whether or not to vsync to the beacons */
     var vsyncToPhotons = 0.0f
 
+    /** Per-run frame count */
     protected var frameCountRun = 0
+    /** Per-frame rendering time */
     protected var timePerFrame = 0.0f
 
+    /** (De)activate latency debugging */
     var debugLatency = false
+    /** Frame count per-vsync */
     private var frames = 0
 
     init {
@@ -89,7 +113,7 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
                     it.autoWrite = false
                 }
 
-                if(useCompositor) {
+                if (useCompositor) {
                     initCompositor()
                 }
 
@@ -110,17 +134,20 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
         }
     }
 
+    /**
+     * Initialises the OpenVR compositor
+     */
     fun initCompositor() {
-        if(vrFuncs != null) {
+        if (vrFuncs != null) {
             compositorFuncs = VR_IVRCompositor_FnTable(jvr.VR_GetGenericInterface(jvr.IVRCompositor_Version, error))
 
-            if(compositorFuncs != null) {
+            if (compositorFuncs != null) {
                 logger.info("Compositor initialized")
 
                 compositorFuncs?.setAutoSynch(false)
                 compositorFuncs?.read()
 
-                if(seated) {
+                if (seated) {
                     compositorFuncs?.SetTrackingSpace?.apply(jvr.ETrackingUniverseOrigin.ETrackingUniverseOrigin_TrackingUniverseSeated)
                 } else {
                     compositorFuncs?.SetTrackingSpace?.apply(jvr.ETrackingUniverseOrigin.ETrackingUniverseOrigin_TrackingUniverseStanding)
@@ -131,14 +158,27 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
         }
     }
 
+    /**
+     * Runs the OpenVR shutdown hooks
+     */
     fun close() {
         jvr.VR_ShutdownInternal()
     }
 
+    /**
+     * Check whether the HMD is initialized and working
+     *
+     * @return True if HMD is initialiased correctly and working properly
+     */
     override fun initializedAndWorking(): Boolean {
         return initialized
     }
 
+    /**
+     * Returns the optimal render target size for the HMD as 2D vector
+     *
+     * @return Render target size as 2D vector
+     */
     override fun getRenderTargetSize(): GLVector {
         val x = IntBuffer.allocate(1)
         val y = IntBuffer.allocate(1)
@@ -148,20 +188,31 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
         return GLVector(x[0].toFloat(), y[0].toFloat())
     }
 
+    /**
+     * Returns the field of view in degrees
+     *
+     * @return FOV in degrees
+     */
     fun getFOV(direction: Int): Float {
         val fov = vrFuncs!!.GetFloatTrackedDeviceProperty!!.apply(jvr.k_unTrackedDeviceIndex_Hmd, direction, error)
 
-        if(fov == 0f) {
+        if (fov == 0f) {
             return 55.0f
-        } else if(fov <= 10.0f) {
+        } else if (fov <= 10.0f) {
             return fov * 57.2957795f
         }
 
         return fov
     }
 
+    /**
+     * Returns the per-eye projection matrix
+     *
+     * @param[eye] The index of the eye
+     * @return GLMatrix containing the per-eye projection matrix
+     */
     override fun getEyeProjection(eye: Int): GLMatrix {
-        if(eyeProjectionCache[eye] == null) {
+        if (eyeProjectionCache[eye] == null) {
             val proj = vrFuncs!!.GetProjectionMatrix!!.apply(eye, 0.1f, 10000f, jvr.EGraphicsAPIConvention.EGraphicsAPIConvention_API_OpenGL)
             proj.read()
 
@@ -172,8 +223,14 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
         return eyeProjectionCache[eye]!!
     }
 
+    /**
+     * Returns the per-eye transform that moves from head to eye
+     *
+     * @param[eye] The eye index
+     * @return GLMatrix containing the transform
+     */
     override fun getHeadToEyeTransform(eye: Int): GLMatrix {
-        if(eyeTransformCache[eye] == null) {
+        if (eyeTransformCache[eye] == null) {
             val transform = vrFuncs!!.GetEyeToHeadTransform!!.apply(eye)
             transform.read()
             eyeTransformCache[eye] = transform.toGLMatrix()
@@ -184,31 +241,49 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
         return eyeTransformCache[eye]!!
     }
 
+    /**
+     * Returns the inter-pupillary distance (IPD)
+     *
+     * @return IPD as Float
+     */
     override fun getIPD(): Float {
-        if(vrFuncs == null) {
+        if (vrFuncs == null) {
             return 0.065f
         } else {
             return vrFuncs!!.GetFloatTrackedDeviceProperty!!.apply(jvr.k_unTrackedDeviceIndex_Hmd, jvr.ETrackedDeviceProperty.ETrackedDeviceProperty_Prop_UserIpdMeters_Float, error)
         }
     }
 
+    /**
+     * Returns the orientation of the HMD
+     *
+     * @returns GLMatrix with orientation
+     */
     override fun getOrientation(): GLMatrix {
         return GLMatrix.getIdentity()
     }
 
+    /**
+     * Returns the absolute position as GLVector
+     *
+     * @return HMD position as GLVector
+     */
     override fun getPosition(): GLVector {
         return GLVector.getNullVector(3)
     }
 
+    /**
+     * Queries the OpenVR runtime for updated poses and stores them
+     */
     fun updatePose() {
-        if(vrFuncs == null) {
+        if (vrFuncs == null) {
             return
         }
 
-        if(compositorFuncs != null) {
+        if (compositorFuncs != null) {
             compositorFuncs?.WaitGetPoses?.apply(hmdTrackedDevicePoseReference, jvr.k_unMaxTrackedDeviceCount, null, 0)
         } else {
-            if(latencyWaitTime > 0) {
+            if (latencyWaitTime > 0) {
                 Thread.sleep(0, latencyWaitTime.toInt())
             }
 
@@ -216,8 +291,8 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
 
             val secondsUntilPhotons = timePerFrame - lastVsync[0] + vsyncToPhotons
 
-            if(debugLatency) {
-                if(frames == 10) {
+            if (debugLatency) {
+                if (frames == 10) {
                     logger.info("Wait:  $latencyWaitTime ns")
                     logger.info("Ahead: $secondsUntilPhotons ns")
                 }
@@ -226,34 +301,34 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
             }
 
             val countNow = frameCount[0]
-            if(countNow - frameCount[0] > 1) {
+            if (countNow - frameCount[0] > 1) {
                 // skipping!
-                if(debugLatency) {
+                if (debugLatency) {
                     logger.info("FRAMEDROP!")
                 }
 
                 frameCountRun = 0
-                if(latencyWaitTime > 0) {
+                if (latencyWaitTime > 0) {
                     latencyWaitTime -= TimeUnit.MILLISECONDS.toNanos(1)
                 }
-            } else if(latencyWaitTime < timePerFrame * 1000000000.0f) {
+            } else if (latencyWaitTime < timePerFrame * 1000000000.0f) {
                 frameCountRun++
-                latencyWaitTime += Math.round(Math.pow(frameCountRun/10.0, 2.0))
+                latencyWaitTime += Math.round(Math.pow(frameCountRun / 10.0, 2.0))
             }
 
             frameCount.put(0, countNow)
 
             vrFuncs!!.GetDeviceToAbsoluteTrackingPose!!.apply(
-                    getExperience(), secondsUntilPhotons, hmdTrackedDevicePoseReference, jvr.k_unMaxTrackedDeviceCount
+                getExperience(), secondsUntilPhotons, hmdTrackedDevicePoseReference, jvr.k_unMaxTrackedDeviceCount
             )
         }
 
-        for(device in (0..jvr.k_unMaxTrackedDeviceCount-1)) {
+        for (device in (0..jvr.k_unMaxTrackedDeviceCount - 1)) {
             val isValid = hmdTrackedDevicePoses!!.get(device).readField("bPoseIsValid")
 
-            if(isValid != 0) {
+            if (isValid != 0) {
                 val trackedDevice: Int = vrFuncs!!.GetTrackedDeviceClass!!.apply(device)
-                val type = when(trackedDevice) {
+                val type = when (trackedDevice) {
                     jopenvr.JOpenVRLibrary.ETrackedDeviceClass.ETrackedDeviceClass_TrackedDeviceClass_Controller -> "Controller"
                     jopenvr.JOpenVRLibrary.ETrackedDeviceClass.ETrackedDeviceClass_TrackedDeviceClass_HMD -> "HMD"
                     jopenvr.JOpenVRLibrary.ETrackedDeviceClass.ETrackedDeviceClass_TrackedDeviceClass_Other -> "Other"
@@ -268,14 +343,26 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
         }
     }
 
+    /**
+     * Query the HMD whether a compositor is used or the renderer should take
+     * care of displaying on the HMD on its own.
+     *
+     * @return True if the HMD has a compositor
+     */
     override fun hasCompositor(): Boolean {
-        if(compositorFuncs != null) {
+        if (compositorFuncs != null) {
             return true
         }
 
         return false
     }
 
+    /**
+     * Submit texture IDs to the compositor
+     *
+     * @param[leftId] Texture ID of the left eye texture
+     * @param[rightId] Texture ID of the right eye texture
+     */
     override fun submitToCompositor(leftId: Int, rightId: Int) {
         val leftTexture = Texture_t()
         val rightTexture = Texture_t()
@@ -299,28 +386,47 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
         compositorFuncs!!.Submit.apply(1, rightTexture, bounds, 0)
     }
 
+    /**
+     * Queries the OpenVR runtime whether the user is using a sitting or standing configuration
+     */
     fun getExperience(): Int {
-        if(seated) {
+        if (seated) {
             return jvr.ETrackingUniverseOrigin.ETrackingUniverseOrigin_TrackingUniverseSeated
         } else {
             return jvr.ETrackingUniverseOrigin.ETrackingUniverseOrigin_TrackingUniverseStanding
         }
     }
 
+    /**
+     * Returns the HMD pose
+     *
+     * @return HMD pose as GLMatrix
+     */
     override fun getPose(): GLMatrix {
         return this.trackedPoses.getOrDefault("HMD", GLMatrix.getIdentity())
     }
 
+    /**
+     * Returns the HMD pose
+     *
+     * @param[type] Type of the tracked device to get the pose for
+     * @return HMD pose as GLMatrix
+     */
     fun getPose(type: String): GLMatrix {
         return this.trackedPoses.getOrDefault(type, GLMatrix.getIdentity())
     }
 
+    /**
+     * Extension function to convert from HmdMatric34_t to GLMatrix
+     *
+     * @return 4x4 GLMatrix created from the original matrix
+     */
     fun HmdMatrix34_t.toGLMatrix(): GLMatrix {
         val m = GLMatrix(floatArrayOf(
-                m[0], m[4], m[8], 0.0f,
-                m[1], m[5], m[9], 0.0f,
-                m[2], m[6], m[10], 0.0f,
-                m[3], m[7], m[11], 1.0f
+            m[0], m[4], m[8], 0.0f,
+            m[1], m[5], m[9], 0.0f,
+            m[2], m[6], m[10], 0.0f,
+            m[3], m[7], m[11], 1.0f
         ))
 //        val m = GLMatrix(floatArrayOf(
 //                m[0], m[1], m[2], m[3],
@@ -331,6 +437,11 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
         return m
     }
 
+    /**
+     * Extension function to convert a HmdMatrix44_t to a GLMatrix
+     *
+     * @return 4x4 GLMatrix created from the original matrix
+     */
     fun HmdMatrix44_t.toGLMatrix(): GLMatrix {
         val m = GLMatrix(this.m)
         return m
