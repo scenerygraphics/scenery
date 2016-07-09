@@ -46,13 +46,29 @@ open class Settings {
      * @param[name] Name of the setting.
      * @param[contents] Contents of the setting, can be anything.
      */
-    fun set(name: String, contents: Any) {
+    fun set(name: String, contents: Any): Any {
         // protect against type change
         if(settingsStore.containsKey(name)) {
             val type: Class<*> = settingsStore.get(name)!!.javaClass
-            settingsStore[name] = contents
+            if(type == contents.javaClass) {
+                settingsStore[name] = contents
+            } else {
+                if(settingsStore[name] is Float && contents is Double) {
+                    settingsStore[name] = contents.toFloat()
+                } else if(settingsStore[name] is Int && contents is Float) {
+                    settingsStore[name] = contents.toInt()
+                } else if(settingsStore[name] is Int && contents is Double) {
+                    settingsStore[name] = contents.toInt()
+                }
+                else {
+                    System.err.println("Cannot cast $contents from ${contents.javaClass} to $type, $name will stay ${settingsStore[name]}")
+                }
+            }
+
+            return settingsStore[name]!!
         } else {
             settingsStore.put(name, contents)
+            return settingsStore[name]!!
         }
     }
 }
