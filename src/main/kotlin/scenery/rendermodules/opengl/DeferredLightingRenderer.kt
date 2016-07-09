@@ -11,6 +11,7 @@ import scenery.*
 import scenery.controls.HMDInput
 import scenery.fonts.SDFFontAtlas
 import scenery.rendermodules.Renderer
+import java.lang.reflect.Field
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.util.*
@@ -79,6 +80,9 @@ open class DeferredLightingRenderer : Renderer, Hubable {
 
     /** Texture cache */
     protected var textures = HashMap<String, GLTexture>()
+
+    /** Shader Property cache */
+    protected var shaderPropertyCache = HashMap<Class<*>, List<Field>>()
 
     /** Eyes of the stereo render targets */
     var eyes = (0..0)
@@ -229,6 +233,20 @@ open class DeferredLightingRenderer : Renderer, Hubable {
             "displacement" -> 4
             else -> {
                 logger.warn("Unknown texture type $type"); 10
+            }
+        }
+    }
+
+    protected fun textureTypeToArrayName(type: String): String {
+        return when(type) {
+            "ambient" -> "ObjectTextures[0]"
+            "diffuse" -> "ObjectTextures[1]"
+            "specular" -> "ObjectTextures[2]"
+            "normal" -> "ObjectTextures[3]"
+            "displacement" -> "ObjectTextures[4]"
+            else -> {
+                logger.warn("Unknown texture type $type");
+                "ObjectTextures[0]"
             }
         }
     }
@@ -404,7 +422,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
             if (glTexture != null) {
                 gl.glActiveTexture(GL.GL_TEXTURE0 + samplerIndex)
                 gl.glBindTexture(GL.GL_TEXTURE_2D, glTexture.id)
-                program.getUniform("ObjectTextures[" + (samplerIndex - geometryBuffer.first().boundBufferNum) + "]").setInt(samplerIndex)
+                program.getUniform(textureTypeToArrayName(type)).setInt(samplerIndex)
             }
         }
 
@@ -498,34 +516,33 @@ open class DeferredLightingRenderer : Renderer, Hubable {
      * @param[program] The [GLProgram] used to render the Node
      */
     protected fun setShaderPropertiesForNode(n: Node, program: GLProgram) {
-        n.javaClass.declaredFields.filter {
-            it.isAnnotationPresent(ShaderProperty::class.java)
-        }.forEach {
-            // FIXME: this is probably quite dirty?
-            it.isAccessible = true
-            val field = it.get(n)
-            when (it.type) {
-                GLVector::class.java -> {
-                    program.getUniform(it.name).setFloatVector(field as GLVector)
-                }
+        shaderPropertyCache
+            .getOrPut(n.javaClass, { n.javaClass.declaredFields.filter { it.isAnnotationPresent(ShaderProperty::class.java) } })
+            .forEach {
+                it.isAccessible = true
+                val field = it.get(n)
+                when (it.type) {
+                    GLVector::class.java -> {
+                        program.getUniform(it.name).setFloatVector(field as GLVector)
+                    }
 
-                Int::class.java -> {
-                    program.getUniform(it.name).setInt(field as Int)
-                }
+                    Int::class.java -> {
+                        program.getUniform(it.name).setInt(field as Int)
+                    }
 
-                Float::class.java -> {
-                    program.getUniform(it.name).setFloat(field as Float)
-                }
+                    Float::class.java -> {
+                        program.getUniform(it.name).setFloat(field as Float)
+                    }
 
-                GLMatrix::class.java -> {
-                    program.getUniform(it.name).setFloatMatrix((field as GLMatrix).floatArray, false)
-                }
+                    GLMatrix::class.java -> {
+                        program.getUniform(it.name).setFloatMatrix((field as GLMatrix).floatArray, false)
+                    }
 
-                else -> {
-                    logger.warn("Could not derive shader data type for @ShaderProperty ${n.javaClass.canonicalName}.${it.name} of type ${it.type}!")
+                    else -> {
+                        logger.warn("Could not derive shader data type for @ShaderProperty ${n.javaClass.canonicalName}.${it.name} of type ${it.type}!")
+                    }
                 }
             }
-        }
     }
 
     /**
