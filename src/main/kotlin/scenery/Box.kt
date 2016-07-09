@@ -19,41 +19,44 @@ open class Box(sizes: GLVector) : Node("box"), HasGeometry {
     override val geometryType = GeometryType.TRIANGLES;
 
     init {
-        this.scale = sizes
         val side = 2.0f
         val side2 = side / 2.0f
 
         vertices = floatArrayOf(
             // Front
-            -side2, -side2, side2,
-            side2, -side2, side2,
-            side2, side2, side2,
-            -side2, side2, side2,
+            -sizes.x() * side2, -side2*sizes.y(), side2*sizes.z(),
+            sizes.x() * side2, -side2*sizes.y(), side2*sizes.z(),
+            sizes.x() * side2, side2*sizes.y(), side2*sizes.z(),
+            -sizes.x() * side2, side2*sizes.y(), side2*sizes.z(),
+
             // Right
-            side2, -side2, side2,
-            side2, -side2, -side2,
-            side2, side2, -side2,
-            side2, side2, side2,
+            sizes.x() * side2, -side2*sizes.y(), side2*sizes.z(),
+            sizes.x() * side2, -side2*sizes.y(), -side2*sizes.z(),
+            sizes.x() * side2, side2*sizes.y(), -side2*sizes.z(),
+            sizes.x() * side2, side2*sizes.y(), side2*sizes.z(),
+
             // Back
-            -side2, -side2, -side2,
-            -side2, side2, -side2,
-            side2, side2, -side2,
-            side2, -side2, -side2,
+            -sizes.x() * side2, -side2*sizes.y(), -side2*sizes.z(),
+            -sizes.x() * side2, side2*sizes.y(), -side2*sizes.z(),
+            sizes.x() * side2, side2*sizes.y(), -side2*sizes.z(),
+            sizes.x() * side2, -side2*sizes.y(), -side2*sizes.z(),
+
             // Left
-            -side2, -side2, side2,
-            -side2, side2, side2,
-            -side2, side2, -side2,
-            -side2, -side2, -side2,
+            -sizes.x() * side2, -side2*sizes.y(), side2*sizes.z(),
+            -sizes.x() * side2, side2*sizes.y(), side2*sizes.z(),
+            -sizes.x() * side2, side2*sizes.y(), -side2*sizes.z(),
+            -sizes.x() * side2, -side2*sizes.y(), -side2*sizes.z(),
+
             // Bottom
-            -side2, -side2, side2,
-            -side2, -side2, -side2,
-            side2, -side2, -side2,
-            side2, -side2, side2,
+            -sizes.x() * side2, -side2*sizes.y(), side2*sizes.z(),
+            -sizes.x() * side2, -side2*sizes.y(), -side2*sizes.z(),
+            sizes.x() * side2, -side2*sizes.y(), -side2*sizes.z(),
+            sizes.x() * side2, -side2*sizes.y(), side2*sizes.z(),
             // Top
-            -side2, side2, side2,
-            side2, side2, side2,
-            side2, side2, -side2,
-            -side2, side2, -side2
+            -sizes.x() * side2, side2*sizes.y(), side2*sizes.z(),
+            sizes.x() * side2, side2*sizes.y(), side2*sizes.z(),
+            sizes.x() * side2, side2*sizes.y(), -side2*sizes.z(),
+            -sizes.x() * side2, side2*sizes.y(), -side2*sizes.z()
         )
 
         normals = floatArrayOf(
