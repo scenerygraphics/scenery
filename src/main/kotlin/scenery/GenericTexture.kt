@@ -1,7 +1,7 @@
 package scenery
 
+import cleargl.GLTypeEnum
 import cleargl.GLVector
-import coremem.types.NativeTypeEnum
 import java.nio.ByteBuffer
 
 /**
@@ -17,7 +17,7 @@ data class GenericTexture(
     /** The texture's number of channels */
     var channels: Int = 4,
     /** [NativeTypeEnum] declaring the data type stored in [contents] */
-    var type: NativeTypeEnum = NativeTypeEnum.Byte,
+    var type: GLTypeEnum = GLTypeEnum.Byte,
     /** Byte contents of the texture */
     var contents: ByteBuffer,
     /** Shall the texture be repeated on the U/S coordinate? */
