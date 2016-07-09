@@ -7,6 +7,8 @@ import org.scijava.ui.behaviour.BehaviourMap
 import org.scijava.ui.behaviour.InputTriggerMap
 import org.scijava.ui.behaviour.io.InputTriggerConfig
 import org.scijava.ui.behaviour.io.yaml.YamlConfigIO
+import scenery.Hub
+import scenery.Hubable
 import scenery.Scene
 import scenery.controls.behaviours.*
 import java.io.FileNotFoundException
@@ -21,9 +23,10 @@ import java.io.StringReader
  * @property[scene] The currently displayed scene
  * @property[renderer] The active renderer
  * @property[window] The window the renderer is displaying to
+ * @property[hub] [Hub] for handoing communication
  * @constructor Creates a default behaviour list and input map, also reads the configuration from a file.
  */
-class ClearGLInputHandler(scene: Scene, renderer: Any, window: ClearGLWindow) {
+class ClearGLInputHandler(scene: Scene, renderer: Any, window: ClearGLWindow, override var hub: Hub?) : Hubable {
     /** ui-behaviour input trigger map, stores what actions (key presses, etc) trigger which actions. */
     protected val inputMap = InputTriggerMap()
     /** ui-behaviour behaviour map, stores the available behaviours */

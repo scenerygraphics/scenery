@@ -23,6 +23,7 @@ class MultiBoxInstancedExample : SceneryDefaultApplication("MultiBoxInstancedExa
             deferredRenderer = DeferredLightingRenderer(pDrawable.gl.gL4,
                     glWindow!!.width,
                     glWindow!!.height)
+            hub.add(SceneryElement.RENDERER, deferredRenderer!!)
 
             val cam: Camera = DetachedHeadCamera()
 

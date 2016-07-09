@@ -35,11 +35,13 @@ open class SceneryDefaultApplication(var applicationName: String,
     /** The Deferred Lighting Renderer for the application, see [DeferredLightingRenderer] */
     protected var deferredRenderer: DeferredLightingRenderer? = null
     /** The Hub used by the application, see [Hub] */
-    protected var hub: Hub = Hub()
+    var hub: Hub = Hub()
     /** ClearGL window used by the application, needs to be passed as a parameter to
      * the constructor of [DeferredLightingRenderer].
      */
     protected var glWindow: ClearGLDisplayable? = null
+    /** ui-behaviour input handler */
+    protected var inputHandler: ClearGLInputHandler? = null
 
     /**
      * the init function of [SceneryDefaultApplication], override this in your subclass,
@@ -126,8 +128,8 @@ open class SceneryDefaultApplication(var applicationName: String,
         glWindow.isVisible = true
         glWindow.setFPS(60)
 
-        val inputHandler = ClearGLInputHandler(scene, deferredRenderer as Any, glWindow)
-        inputHandler.useDefaultBindings(System.getProperty("user.home") + "/.$applicationName.bindings")
+        inputHandler = ClearGLInputHandler(scene, deferredRenderer as Any, glWindow, hub)
+        inputHandler?.useDefaultBindings(System.getProperty("user.home") + "/.$applicationName.bindings")
 
         glWindow.start()
 
