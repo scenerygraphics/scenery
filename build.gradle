@@ -125,7 +125,7 @@ dependencies
 	}
 	else {
 		println 'Using clearX from Maven repository'/**/
-		compile group: "net.clearvolume", name: "cleargl", version: "(,1.1.0]", changing: true, transitive: true
+		compile group: "net.clearvolume", name: "cleargl", version: "2.0.0-SNAPSHOT", changing: true, transitive: true
 	}
 
 

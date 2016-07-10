@@ -4,7 +4,6 @@ import cleargl.*
 import com.jogamp.common.nio.Buffers
 import com.jogamp.opengl.GL
 import com.jogamp.opengl.GL4
-import coremem.types.NativeTypeEnum
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import scenery.*
@@ -458,7 +457,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
 
         val s = getOpenGLObjectStateFromNode(board)
         val texture = textures.getOrPut("sdf-${board.fontFamily}", {
-            val t = GLTexture(gl, NativeTypeEnum.Float, 1,
+            val t = GLTexture(gl, GLTypeEnum.Float, 1,
                 atlas.atlasWidth,
                 atlas.atlasHeight,
                 1,

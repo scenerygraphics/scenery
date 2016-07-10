@@ -17,9 +17,9 @@ scenery is a scenegraphing and rendering library. It allows you to quickly creat
 
 - Create a base directory named e.g. `my_scenery_base`. Into this directory, clone the Git repository of scenery.
 
-- Into the same directory, clone the `scenegraph` branch of ClearGL’s Git repository: 
+- Into the same directory, clone the 2.0 version of ClearGL’s Git repository: 
 ```shell
-git clone -b scenegraph https://github.com/ClearVolume/ClearGL.git
+git clone https://github.com/ClearVolume/ClearGL.git
 ```
 
 - In the `my_scenery_base` directory, create a file named `settings.gradle`, with this content:
@@ -49,7 +49,7 @@ Add these dependencies to your project's `pom.xml`:
   <dependency>
     <groupId>net.clearvolume</groupId>
     <artifactId>cleargl</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>2.0.0-SNAPSHOT</version>
   </dependency>
 </dependencies>
 ```
@@ -61,5 +61,5 @@ Make sure you have followed the instructions in _Building_, such that both the s
 Add these dependencies to your project's `build.gradle`:
 ```groovy
 compile group: 'net.clearvolume', name: 'scenery', version: '1.0-SNAPSHOT'
-compile group: 'net.clearvolume', name: 'cleargl', version: '1.0-SNAPSHOT'
+compile group: 'net.clearvolume', name: 'cleargl', version: '2.0.0-SNAPSHOT'
 ```
