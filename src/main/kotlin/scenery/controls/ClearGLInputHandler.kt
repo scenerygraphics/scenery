@@ -63,10 +63,19 @@ class ClearGLInputHandler(scene: Scene, renderer: Any, window: ClearGLWindow, ov
      * Adds a behaviour to the map of behaviours, making them available for key bindings
      *
      * @param[behaviourName] The name of the behaviour
-     * @param[behaviour] The behaviour to add
+     * @param[behaviour] The behaviour to add.
      */
     fun addBehaviour(behaviourName: String, behaviour: Behaviour) {
         behaviourMap.put(behaviourName, behaviour)
+    }
+
+    /**
+     * Removes a behaviour from the map of behaviours.
+     *
+     * @param[behaviourName] The name of the behaviour to remove.
+     */
+    fun removeBehaviour(behaviourName: String) {
+        behaviourMap.put(behaviourName, null)
     }
 
     /**
