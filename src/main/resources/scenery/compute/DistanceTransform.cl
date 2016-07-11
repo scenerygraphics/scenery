@@ -80,7 +80,8 @@ __kernel void SignedDistanceTransformByte(
   __global const unsigned char* vIn,
   __global float*       vOut,
   int iDx,
-  int iDy)
+  int iDy,
+  int max_dist)
 {
   int iGID = get_global_id(0);
 
@@ -88,52 +89,35 @@ __kernel void SignedDistanceTransformByte(
   {
     return;
   }
+  int idX = iGID % iDy;
+  int idY = iGID / iDy;
+  float2 pos = (float2)(idX, idY);
 
-  float minVal = FLT_MAX;
-  float sign = 0.0f;
-  float max_dist = 50.0f;
+  int minX = clamp( idX - max_dist, 0, iDx );
+  int maxX = clamp( idX + max_dist, 0, iDx );
+  int minY = clamp( idY - max_dist, 0, iDy );
+  int maxY = clamp( idY + max_dist, 0, iDy );
 
-  for(int y = 0; y < iDy; y++)
+  float minVal = max(iDx, iDy);
+  for(int y = minY; y < maxY; y++)
   {
-    for(int x = 0; x < iDx; x++)
-    {
-    int idX = iGID % iDy;
-            int idY = iGID / iDy;
-            float dist = (float)((idX-x)*(idX-x) + (idY-y)*(idY-y));
-
-
-//      if(dist > max_dist) {
-//        continue;
-//      }
-
-      if(vIn[y*iDy + x] >= 254.0f)
-      {
-        sign = -1.0f;
-
-        if(fabs(dist) < fabs(minVal)  && vIn[iGID] < 254.0f)
-        {
-          minVal = sign*dist;
-        }
-      } else {
-        sign = 1.0f;
-
-        if(fabs(dist) < fabs(minVal) && vIn[iGID] >= 254.0f)
-        {
-          minVal = sign*dist;
-        }
-      }
-    }
+	for(int x = minX; x < maxX; x++)
+	{
+	  float dist = fast_length( pos - (float2)(x, y) );
+	  if(dist < minVal && fabs((float)(vIn[y*iDy + x] - vIn[iGID])) > 0)
+	  {
+		  minVal = dist;
+	  }
+	}
   }
+  if (vIn[iGID] < 254.0f)
+	minVal = -minVal;
 
 //  unsigned char val = (unsigned char)floor((minVal+192.0f));
 //  val = clamp((int)val, (int)0, (int)255);
 
-#ifdef DEBUG
-    printf("%d %f %d\n", val, minVal, vOut[iGID]);
-#endif
-
-  if(minVal > 1000.0f) {
-    vOut[iGID] = 1000.0f;
+  if(minVal > max_dist) {
+    vOut[iGID] = max_dist;
   } else {
     vOut[iGID] = minVal + 0.5f;
   }

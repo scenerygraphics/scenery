@@ -25,7 +25,7 @@ import java.util.*
  * @property[distanceFieldSize] The size of the SDF in pixels
  * @constructor Generates a SDF of the given font
  */
-open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSize: Int = 64) {
+open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSize: Int = 64, val maxDistance: Int = 10) {
     /** default charset for the SDF font atlas, default is ASCII charset */
     var charset = (32..127)
     /** Hash map of the char linked to it's width and a byte buffer with the SDF of the char */
@@ -63,7 +63,8 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
                             input,
                             output,
                             distanceFieldSize,
-                            distanceFieldSize)
+                            distanceFieldSize,
+                            maxDistance)
 
             ocl.readBuffer(output, outputBuffer)
             val buf = outputBuffer.duplicate()
