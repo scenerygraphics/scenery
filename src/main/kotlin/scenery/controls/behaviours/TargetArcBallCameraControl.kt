@@ -1,5 +1,6 @@
 package scenery.controls.behaviours
 
+import cleargl.GLMatrix
 import cleargl.GLVector
 import org.scijava.ui.behaviour.DragBehaviour
 import org.scijava.ui.behaviour.ScrollBehaviour
@@ -142,7 +143,9 @@ open class TargetArcBallCameraControl(private val name: String, private val node
             Math.sin(Math.toRadians(yaw.toDouble())).toFloat() * Math.cos(Math.toRadians(pitch.toDouble())).toFloat())
 
         node.forward = forward.normalized
-        node.position = forward * distance * (-1.0f)
+        val translation = GLMatrix.getTranslation(target)
+        val orientation = forward * distance * (-1.0f)
+        node.position = translation.mult(GLVector(orientation.x(), orientation.y(), orientation.z(), 0.0f)).xyz()
     }
 
     /**
