@@ -211,6 +211,8 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         ds.set("hdr.Exposure", 1.0f)
         ds.set("hdr.Gamma", 2.2f)
 
+        ds.set("sdf.MaxDistance", 10)
+
         ds.set("debug.DebugDeferredBuffers", false)
 
         return ds
@@ -443,7 +445,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
      * @param[board] The [FontBoard] instance.
      */
     protected fun updateFontBoard(board: FontBoard) {
-        val atlas = fontAtlas.getOrPut(board.fontFamily, { SDFFontAtlas(this.hub!!, board.fontFamily) })
+        val atlas = fontAtlas.getOrPut(board.fontFamily, { SDFFontAtlas(this.hub!!, board.fontFamily, maxDistance = settings.get<Int>("sdf.MaxDistance")) })
         val m = atlas.createMeshForString(board.text)
 
         board.vertices = m.vertices
@@ -1022,7 +1024,6 @@ open class DeferredLightingRenderer : Renderer, Hubable {
                 s.program = GLProgram.buildProgram(gl, DeferredLightingRenderer::class.java,
                     shaders.toTypedArray())
             } else if (node.metadata.filter { it.value is OpenGLShaderPreference }.isNotEmpty()) {
-//                val prefs = node.metadata.first { it is OpenGLShaderPreference } as OpenGLShaderPreference
                 val prefs = node.metadata["ShaderPreference"] as OpenGLShaderPreference
 
                 if (prefs.parameters.size > 0) {

@@ -102,6 +102,7 @@ class OpenCLContext(override var hub: Hub?, val devicePreference: String = "0,0"
         return when(obj.javaClass) {
             Float::class.java   -> Sizeof.cl_float
             Int::class.java     -> Sizeof.cl_int
+            Integer::class.java -> Sizeof.cl_int
             Byte::class.java    -> Sizeof.cl_uchar
             cl_mem::class.java  -> Sizeof.cl_mem
 
@@ -111,15 +112,19 @@ class OpenCLContext(override var hub: Hub?, val devicePreference: String = "0,0"
             IntBuffer::class.java   -> Sizeof.cl_int
 
             else                -> {
-                System.err.println("Unrecognized class ${obj.javaClass}, returning 1 byte as size")
-                1
+                // these classes are package-local and can therefore not be matched for here directly
+                if(obj.javaClass.canonicalName.contains("DirectByteBuffer") || obj.javaClass.canonicalName.contains("HeapByteBuffer")) {
+                    1
+                } else {
+                    System.err.println("Unrecognized class ${obj.javaClass.canonicalName}, returning 1 byte as size")
+                    1
+                }
             }
         }.toLong()
     }
 
     protected fun cl_kernel.setArgs(vararg arguments: Any) {
         arguments.forEachIndexed { i, arg ->
-            System.err.println("$i -> $arg")
             if(arg is NativePointerObject) {
                 clSetKernelArg(this,
                         i,

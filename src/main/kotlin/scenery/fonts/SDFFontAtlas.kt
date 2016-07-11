@@ -154,13 +154,9 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
         val glyphsPerLine: Int = texWidth/charSize
         val lines: Int = mapSize/glyphsPerLine
 
-        System.err.println("Figured texture size for $mapSize should be $texWidth^2, $glyphsPerLine/line, $lines lines")
-
         (0..lines).forEach { line ->
             val minGlyphIndex = 0 + glyphsPerLine*line
             val maxGlyphIndex = if(glyphsPerLine*(line+1) - 1 >= mapSize) mapSize - 1 else glyphsPerLine*(line+1) - 1
-
-            System.err.println("$line: $minGlyphIndex -> $maxGlyphIndex")
 
             (0..charSize-1).forEach {
                 (minGlyphIndex..maxGlyphIndex).forEach { glyph ->
