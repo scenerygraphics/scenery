@@ -1,6 +1,6 @@
 package scenery.controls
 
-import cleargl.ClearGLWindow
+import cleargl.ClearGLDisplayable
 import net.java.games.input.Component
 import org.scijava.ui.behaviour.Behaviour
 import org.scijava.ui.behaviour.BehaviourMap
@@ -10,6 +10,7 @@ import org.scijava.ui.behaviour.io.yaml.YamlConfigIO
 import scenery.Hub
 import scenery.Hubable
 import scenery.Scene
+import scenery.SceneryElement
 import scenery.controls.behaviours.*
 import java.io.FileNotFoundException
 import java.io.FileReader
@@ -26,7 +27,7 @@ import java.io.StringReader
  * @property[hub] [Hub] for handoing communication
  * @constructor Creates a default behaviour list and input map, also reads the configuration from a file.
  */
-class ClearGLInputHandler(scene: Scene, renderer: Any, window: ClearGLWindow, override var hub: Hub?) : Hubable {
+class ClearGLInputHandler(scene: Scene, renderer: Any, window: ClearGLDisplayable, override var hub: Hub?) : Hubable {
     /** ui-behaviour input trigger map, stores what actions (key presses, etc) trigger which actions. */
     protected val inputMap = InputTriggerMap()
     /** ui-behaviour behaviour map, stores the available behaviours */
@@ -39,7 +40,7 @@ class ClearGLInputHandler(scene: Scene, renderer: Any, window: ClearGLWindow, ov
     /** Renderer the input handler uses */
     protected val renderer: Any
     /** window the input handler receives input events from */
-    protected val window: ClearGLWindow
+    protected val window: ClearGLDisplayable
 
     /** configuration of the input triggers */
     protected var config: InputTriggerConfig = InputTriggerConfig()
@@ -57,6 +58,8 @@ class ClearGLInputHandler(scene: Scene, renderer: Any, window: ClearGLWindow, ov
         this.scene = scene
         this.renderer = renderer
         this.window = window
+        this.hub = hub
+        hub?.add(SceneryElement.INPUT, this)
     }
 
     /**

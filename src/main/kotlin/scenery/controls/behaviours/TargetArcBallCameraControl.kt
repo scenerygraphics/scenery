@@ -2,19 +2,27 @@ package scenery.controls.behaviours
 
 import cleargl.GLVector
 import org.scijava.ui.behaviour.DragBehaviour
+import org.scijava.ui.behaviour.ScrollBehaviour
 import scenery.Camera
 
 /**
- * FPS-style camera control
+ * Targeted ArcBall control
+ *
+ * This Behaviour provides ArcBall control for scenery, with a customizable target. If you
+ * activate this behaviour, it'll use the current camera distance to the target as initial distance.
+ *
+ * The Targeted ArcBall also provides [minimumDistance] and [maximumDistance] to clamp the distance
+ * to the target to this range.
  *
  * @author Ulrik Günther <hello@ulrik.is>
  * @property[name] The name of the behaviour
  * @property[node] The node this behaviour controls
  * @property[w] Window width
  * @property[h] Window height
- * @constructor Creates a new FPSCameraControl behaviour
+ * @property[target] Vector with the look-at target of the arcball
+ * @constructor Creates a new TargetArcBallCameraControl behaviour
  */
-open class FPSCameraControl(private val name: String, private val node: Camera, private val w: Int, private val h: Int) : DragBehaviour {
+open class TargetArcBallCameraControl(private val name: String, private val node: Camera, private val w: Int, private val h: Int, var target: GLVector) : DragBehaviour, ScrollBehaviour {
     /** default mouse x position in window */
     private var lastX = w / 2
     /** default mouse y position in window */
@@ -26,13 +34,24 @@ open class FPSCameraControl(private val name: String, private val node: Camera, 
     private var pitch: Float = 0.0f
     /** yaw angle created from x/y position */
     private var yaw: Float = 0.0f
+    /** distance to target */
+    private var distance: Float = 5.0f
+    /** multiplier for zooming in and out */
+    var scrollSpeedMultiplier = 0.05f
+    /** minimum distance value to target */
+    var minimumDistance = 0.0f
+    /** maximum distance value to target */
+    var maximumDistance = 20.0f
 
     init {
         val yp = node.forward.toYawPitch()
         this.yaw = yp.first
         this.pitch = yp.second
 
-        node.targeted = false
+        node.targeted = true
+        node.target = target
+
+        distance = (node.position - target).magnitude()
     }
 
     /**
@@ -60,7 +79,7 @@ open class FPSCameraControl(private val name: String, private val node: Camera, 
             yaw = Math.PI.toFloat()
         }
 
-        pitch = Math.atan(Math.sqrt(1.0*dx*dx + 1.0*dy*dy)/dz).toFloat()
+        pitch = Math.atan(Math.sqrt(1.0 * dx * dx + 1.0 * dy * dy) / dz).toFloat()
 
         return Pair((-yaw * 180.0f / Math.PI.toFloat() - 90.0f), pitch)
     }
@@ -118,12 +137,35 @@ open class FPSCameraControl(private val name: String, private val node: Camera, 
         }
 
         val forward = GLVector(
-                Math.cos(Math.toRadians(yaw.toDouble())).toFloat() * Math.cos(Math.toRadians(pitch.toDouble())).toFloat(),
-                Math.sin(Math.toRadians(pitch.toDouble())).toFloat(),
-                Math.sin(Math.toRadians(yaw.toDouble())).toFloat() * Math.cos(Math.toRadians(pitch.toDouble())).toFloat())
+            Math.cos(Math.toRadians(yaw.toDouble())).toFloat() * Math.cos(Math.toRadians(pitch.toDouble())).toFloat(),
+            Math.sin(Math.toRadians(pitch.toDouble())).toFloat(),
+            Math.sin(Math.toRadians(yaw.toDouble())).toFloat() * Math.cos(Math.toRadians(pitch.toDouble())).toFloat())
 
         node.forward = forward.normalized
+        node.position = forward * distance * (-1.0f)
     }
 
+    /**
+     * The scroll function is called when a scroll event is detected and will change
+     * the [distance] according to the scroll direction and bound by the [minimumDistance] and
+     * [maximumDistance] values.
+     *
+     * @param[wheelRotation] Absolute rotation value of the mouse wheel
+     * @param[isHorizontal] Whether the scroll event is horizontal. We use only vertical events.
+     * @param [x] unused
+     * @param[y] unused
+     */
+    override fun scroll(wheelRotation: Double, isHorizontal: Boolean, x: Int, y: Int) {
+        if (isHorizontal) {
+            return
+        }
+
+        distance += wheelRotation.toFloat() * scrollSpeedMultiplier
+
+        if (distance > maximumDistance) distance = maximumDistance
+        if (distance < minimumDistance) distance = minimumDistance
+
+        node.position = node.forward * distance * (-1.0f)
+    }
 
 }

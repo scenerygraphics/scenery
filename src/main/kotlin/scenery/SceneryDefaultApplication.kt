@@ -53,6 +53,10 @@ open class SceneryDefaultApplication(var applicationName: String,
 
     }
 
+    open fun inputSetup() {
+
+    }
+
     /**
      * Main routine for [SceneryDefaultApplication]
      *
@@ -69,6 +73,11 @@ open class SceneryDefaultApplication(var applicationName: String,
 
             override fun init(pDrawable: GLAutoDrawable) {
                 this@SceneryDefaultApplication.init(pDrawable)
+
+                inputHandler = ClearGLInputHandler(scene, deferredRenderer as Any, glWindow!!, hub)
+                inputHandler?.useDefaultBindings(System.getProperty("user.home") + "/.$applicationName.bindings")
+
+                this@SceneryDefaultApplication.inputSetup()
             }
 
             override fun display(pDrawable: GLAutoDrawable) {
@@ -127,9 +136,6 @@ open class SceneryDefaultApplication(var applicationName: String,
                 lClearGLWindowEventListener)
         glWindow.isVisible = true
         glWindow.setFPS(60)
-
-        inputHandler = ClearGLInputHandler(scene, deferredRenderer as Any, glWindow, hub)
-        inputHandler?.useDefaultBindings(System.getProperty("user.home") + "/.$applicationName.bindings")
 
         glWindow.start()
 

@@ -270,16 +270,22 @@ class JOGLMouseAndKeyHandler : MouseListener, KeyListener, WindowListener, Windo
                         keyDrags.add(dragEntry)
                     else
                         buttonDrags.add(dragEntry)
-                } else if (behaviour is ClickBehaviour) {
+                }
+
+                if (behaviour is ClickBehaviour) {
                     val clickEntry = BehaviourEntry<ClickBehaviour>(buttons, behaviour)
                     if (buttons.isKeyTriggered())
                         keyClicks.add(clickEntry)
                     else
                         buttonClicks.add(clickEntry)
-                } else if (behaviour is ScrollBehaviour) {
+                }
+
+                if (behaviour is ScrollBehaviour) {
                     val scrollEntry = BehaviourEntry<ScrollBehaviour>(buttons, behaviour)
                     scrolls.add(scrollEntry)
-                } else if (behaviour is GamepadBehaviour) {
+                }
+
+                if (behaviour is GamepadBehaviour) {
                     val gamepadEntry = BehaviourEntry<GamepadBehaviour>(buttons, behaviour)
                     gamepads.add(gamepadEntry)
                 }
@@ -688,7 +694,7 @@ class JOGLMouseAndKeyHandler : MouseListener, KeyListener, WindowListener, Windo
     /**
      * Called when a new controller is added
      *
-     * @param[e] The incoming controller event
+     * @param[event] The incoming controller event
      */
     override fun controllerAdded(event: ControllerEvent?) {
         if(controller == null && event != null && event.controller.type == Controller.Type.GAMEPAD) {
@@ -700,7 +706,7 @@ class JOGLMouseAndKeyHandler : MouseListener, KeyListener, WindowListener, Windo
     /**
      * Called when a controller is removed
      *
-     * @param[e] The incoming controller event
+     * @param[event] The incoming controller event
      */
     override fun controllerRemoved(event: ControllerEvent?) {
         if(event != null && controller != null) {
@@ -714,7 +720,7 @@ class JOGLMouseAndKeyHandler : MouseListener, KeyListener, WindowListener, Windo
      * Called when a controller event is fired. This will update the currently down
      * buttons/axis on the controller.
      *
-     * @param[e] The incoming controller event
+     * @param[event] The incoming controller event
      */
     fun controllerEvent(event: Event) {
         for(gamepad in gamepads) {

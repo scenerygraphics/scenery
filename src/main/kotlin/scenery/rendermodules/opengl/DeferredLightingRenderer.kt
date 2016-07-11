@@ -595,7 +595,11 @@ open class DeferredLightingRenderer : Renderer, Hubable {
 //            (a.position.z() - b.position.z()).toInt()
 //        }
 
-        cam.view?.setCamera(cam.position, cam.position + cam.forward, cam.up)
+        if (cam.targeted) {
+            cam.view?.setCamera(cam.position, cam.target, cam.up)
+        } else {
+            cam.view?.setCamera(cam.position, cam.position + cam.forward, cam.up)
+        }
 //        cam.projection = GLMatrix().setPerspectiveProjectionMatrix(70.0f / 180.0f * Math.PI.toFloat(),
 //                (1.0f * width) / (1.0f * height), 0.1f, 100000f)
 
