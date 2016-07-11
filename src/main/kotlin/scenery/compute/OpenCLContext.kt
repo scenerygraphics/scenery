@@ -36,32 +36,23 @@ class OpenCLContext(override var hub: Hub?, val devicePreference: String = "0,0"
         // Enable exceptions and subsequently omit error checks in this sample
         CL.setExceptionsEnabled(true);
 
-        // Obtain the number of platforms
-        val numPlatformsArray = IntArray(1)
-        clGetPlatformIDs(0, null, numPlatformsArray);
-        val numPlatforms = numPlatformsArray[0];
-
         // Obtain a platform ID
-        val platforms: Array<cl_platform_id> = Array(numPlatforms, { i -> cl_platform_id() })
-        clGetPlatformIDs(platforms.size, platforms, null);
-
+        val platforms = query<cl_platform_id> { l, a, n ->
+            clGetPlatformIDs(l, a, n)
+        }
         val platform = platforms[platformPref];
 
         // Initialize the context properties
         val contextProperties = cl_context_properties();
         contextProperties.addProperty(CL_CONTEXT_PLATFORM.toLong(), platform);
 
-        // Obtain the number of devices for the platform
-        val numDevicesArray = IntArray(1);
-        clGetDeviceIDs(platform, deviceType, 0, null, numDevicesArray);
-        val numDevices = numDevicesArray[0];
-
         // Obtain a device ID
-        val devices = Array<cl_device_id>(numDevices, {i -> cl_device_id() })
-        clGetDeviceIDs(platform, deviceType, numDevices, devices, null);
+        val devices = query<cl_device_id>({ l, a, n ->
+            clGetDeviceIDs(platform, deviceType, l, a, n)
+        }, { cl_device_id() })
         device = devices[deviceIndex];
 
-        System.err.println("${getString(device, CL_DEVICE_NAME)} running ${getString(device, CL_DEVICE_VERSION)}")
+		System.err.println("${getString(device, CL_DEVICE_NAME)} running ${getString(device, CL_DEVICE_VERSION)}")
 
         // Create a context for the selected device
         context = clCreateContext(
@@ -175,7 +166,7 @@ class OpenCLContext(override var hub: Hub?, val devicePreference: String = "0,0"
 
         // Execute the kernel
         clEnqueueNDRangeKernel(this.queue, k, 1, null,
-                global_work_size, local_work_size, 0, null, null);
+                global_work_size, null, 0, null, null);
 
     }
 
@@ -201,5 +192,51 @@ class OpenCLContext(override var hub: Hub?, val devicePreference: String = "0,0"
     fun readBuffer(memory: cl_mem, target: Buffer) {
         val p = Pointer.to(target)
         clEnqueueReadBuffer(queue, memory, CL_TRUE, 0, target.remaining() * getSizeof(target), p, 0, null, null);
+    }
+
+
+    companion object OpenCLUtils {
+        /**
+         * Convenience wrapper for OpenCL functions that query arrays and are usually
+         * called twice, once for finding the number of elements required for the array
+         * and a second time for filling the array with values. For example:
+         * ```
+         *   val numDevicesArray = IntArray(1);
+         *   clGetDeviceIDs(platform, deviceType, 0, null, numDevicesArray);
+         *   val numDevices = numDevicesArray[0];
+         *   val devices = Array<cl_device_id>(numDevices, {i -> cl_device_id() })
+         *   clGetDeviceIDs(platform, deviceType, numDevices, devices, null);
+         * ```
+         *
+         * This can be replaced by
+         * ```
+         *   val devices = query<cl_device_id>(
+         *   { l, a, n -> clGetDeviceIDs(platform, deviceType, l, a, n) },
+         *   { cl_device_id() })
+         * ```
+         * @param fn
+         *      wraps the cl function to be called (twice),
+         *      taking the parameters num_array_entries, array, num_available_entries.
+         * @param init
+         *      T initializer for creating an Array<T>
+         */
+        inline fun <reified T> query(fn: (Int, Array<T>?, IntArray?) -> Unit, noinline init: (Int) -> T): Array<T> {
+            val num = IntArray(1);
+            fn(0, null, num)
+            val things = Array<T>(num[0], init)
+            fn(num[0], things, null)
+            return things
+        }
+
+        /**
+         * Variant of [query] without array initializer. It creates arrays with nullable entries, and returns Array<T?> instead of Array<T>.
+         */
+        inline fun <reified T> query(fn: (Int, Array<T?>?, IntArray?) -> Unit): Array<T?> {
+            val num = IntArray(1);
+            fn(0, null, num)
+            val things = arrayOfNulls<T>(num[0])
+            fn(num[0], things, null)
+            return things
+        }
     }
 }
