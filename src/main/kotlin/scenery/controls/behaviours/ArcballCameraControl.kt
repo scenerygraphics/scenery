@@ -1,6 +1,5 @@
 package scenery.controls.behaviours
 
-import cleargl.GLMatrix
 import cleargl.GLVector
 import org.scijava.ui.behaviour.DragBehaviour
 import org.scijava.ui.behaviour.ScrollBehaviour
@@ -21,9 +20,9 @@ import scenery.Camera
  * @property[w] Window width
  * @property[h] Window height
  * @property[target] Vector with the look-at target of the arcball
- * @constructor Creates a new TargetArcBallCameraControl behaviour
+ * @constructor Creates a new ArcballCameraControl behaviour
  */
-open class TargetArcBallCameraControl(private val name: String, private val node: Camera, private val w: Int, private val h: Int, var target: GLVector) : DragBehaviour, ScrollBehaviour {
+open class ArcballCameraControl(private val name: String, private val node: Camera, private val w: Int, private val h: Int, target: GLVector = GLVector(0.0f, 0.0f, 0.0f)) : DragBehaviour, ScrollBehaviour {
     /** default mouse x position in window */
     private var lastX = w / 2
     /** default mouse y position in window */
@@ -40,19 +39,26 @@ open class TargetArcBallCameraControl(private val name: String, private val node
     /** multiplier for zooming in and out */
     var scrollSpeedMultiplier = 0.05f
     /** minimum distance value to target */
-    var minimumDistance = 0.0f
+    var minimumDistance = 0.0001f
     /** maximum distance value to target */
-    var maximumDistance = 20.0f
+    var maximumDistance = Float.MAX_VALUE
+    /** target of the camera */
+    var target: GLVector = GLVector(0.0f, 0.0f, 0.0f)
+        set(value) {
+            field = value
+
+            node.target = value
+            distance = (value- node.position).magnitude()
+        }
 
     init {
-        val yp = node.forward.toYawPitch()
+        val yp = (node.forward-node.position).toYawPitch()
         this.yaw = yp.first
         this.pitch = yp.second
+        this.target = target
 
-        node.targeted = true
         node.target = target
-
-        distance = (node.position - target).magnitude()
+        node.targeted = true
     }
 
     /**
@@ -98,6 +104,9 @@ open class TargetArcBallCameraControl(private val name: String, private val node
             lastY = y
             firstEntered = false
         }
+
+        System.err.println("TargetArcball: Mouse down, target set to ${this.target}")
+        node.target = target
     }
 
     /**
@@ -140,12 +149,12 @@ open class TargetArcBallCameraControl(private val name: String, private val node
         val forward = GLVector(
             Math.cos(Math.toRadians(yaw.toDouble())).toFloat() * Math.cos(Math.toRadians(pitch.toDouble())).toFloat(),
             Math.sin(Math.toRadians(pitch.toDouble())).toFloat(),
-            Math.sin(Math.toRadians(yaw.toDouble())).toFloat() * Math.cos(Math.toRadians(pitch.toDouble())).toFloat())
+            Math.sin(Math.toRadians(yaw.toDouble())).toFloat() * Math.cos(Math.toRadians(pitch.toDouble())).toFloat()
+        ).normalized
 
-        node.forward = forward.normalized
-        val translation = GLMatrix.getTranslation(target)
-        val orientation = forward * distance * (-1.0f)
-        node.position = translation.mult(GLVector(orientation.x(), orientation.y(), orientation.z(), 0.0f)).xyz()
+        val position = forward * distance * (-1.0f)
+        node.position = target + position
+        node.forward = forward
     }
 
     /**
@@ -165,10 +174,10 @@ open class TargetArcBallCameraControl(private val name: String, private val node
 
         distance += wheelRotation.toFloat() * scrollSpeedMultiplier
 
-        if (distance > maximumDistance) distance = maximumDistance
-        if (distance < minimumDistance) distance = minimumDistance
+        if (distance >= maximumDistance) distance = maximumDistance
+        if (distance <= minimumDistance) distance = minimumDistance
 
-        node.position = node.forward * distance * (-1.0f)
+        node.position = target + node.forward * distance * (-1.0f)
     }
 
 }

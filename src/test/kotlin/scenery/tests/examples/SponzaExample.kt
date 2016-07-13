@@ -5,8 +5,12 @@ import cleargl.GLVector
 import com.jogamp.opengl.GLAutoDrawable
 import com.jogamp.opengl.GLException
 import org.junit.Test
+import org.scijava.ui.behaviour.ClickBehaviour
 import scenery.*
+import scenery.controls.ClearGLInputHandler
 import scenery.controls.OpenVRInput
+import scenery.controls.behaviours.FPSCameraControl
+import scenery.controls.behaviours.ArcballCameraControl
 import scenery.rendermodules.opengl.DeferredLightingRenderer
 import scenery.repl.REPL
 import java.io.IOException
@@ -15,7 +19,7 @@ import kotlin.concurrent.thread
 /**
  * Created by ulrik on 20/01/16.
  */
-class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 1920, windowHeight = 1080) {
+class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 1280, windowHeight = 720) {
     private var ovr: OpenVRInput? = null
 
     override fun init(pDrawable: GLAutoDrawable) {
@@ -159,7 +163,7 @@ class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 1
                         ticks++
                     }
 
-                    Thread.sleep(10)
+                    Thread.sleep(50)
 
                     boxes.first().rotation.rotateByEuler(0.01f, 0.0f, 0.0f)
                     boxes.first().needsUpdate = true
@@ -180,6 +184,39 @@ class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 1
             e.printStackTrace()
         }
 
+    }
+
+    override fun inputSetup() {
+        val target = GLVector(1.5f, 5.5f, 55.5f)
+        val inputHandler = (hub.get(SceneryElement.INPUT) as ClearGLInputHandler)
+        val targetArcball = ArcballCameraControl("mouse_control", scene.findObserver(), glWindow!!.width, glWindow!!.height, target)
+        val fpsControl = FPSCameraControl("mouse_control", scene.findObserver(), glWindow!!.width, glWindow!!.height)
+
+        val toggleControlMode = object : ClickBehaviour {
+            var currentMode = "fps"
+
+            override fun click(x: Int, y: Int) {
+                if (currentMode.startsWith("fps")) {
+                    targetArcball.target = scene.findObserver().position + scene.findObserver().forward
+
+                    inputHandler.addBehaviour("mouse_control", targetArcball)
+                    inputHandler.addBehaviour("scroll_arcball", targetArcball)
+                    inputHandler.addKeyBinding("scroll_arcball", "scroll")
+
+                    currentMode = "arcball"
+                } else {
+                    inputHandler.addBehaviour("mouse_control", fpsControl)
+                    inputHandler.removeBehaviour("scroll_arcball")
+
+                    currentMode = "fps"
+                }
+
+                System.out.println("Switched to $currentMode control")
+            }
+        }
+
+        inputHandler.addBehaviour("toggle_control_mode", toggleControlMode)
+        inputHandler.addKeyBinding("toggle_control_mode", "C")
     }
 
 
