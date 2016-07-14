@@ -1,6 +1,5 @@
 package scenery.controls.behaviours
 
-import cleargl.GLMatrix
 import cleargl.GLVector
 import org.scijava.ui.behaviour.DragBehaviour
 import org.scijava.ui.behaviour.ScrollBehaviour
@@ -21,9 +20,9 @@ import scenery.Camera
  * @property[w] Window width
  * @property[h] Window height
  * @property[target] Vector with the look-at target of the arcball
- * @constructor Creates a new TargetArcBallCameraControl behaviour
+ * @constructor Creates a new ArcballCameraControl behaviour
  */
-open class TargetArcBallCameraControl(private val name: String, private val node: Camera, private val w: Int, private val h: Int, var target: GLVector) : DragBehaviour, ScrollBehaviour {
+open class ArcballCameraControl(private val name: String, private val node: Camera, private val w: Int, private val h: Int, target: GLVector = GLVector(0.0f, 0.0f, 0.0f)) : DragBehaviour, ScrollBehaviour {
     /** default mouse x position in window */
     private var lastX = w / 2
     /** default mouse y position in window */
@@ -40,19 +39,30 @@ open class TargetArcBallCameraControl(private val name: String, private val node
     /** multiplier for zooming in and out */
     var scrollSpeedMultiplier = 0.05f
     /** minimum distance value to target */
-    var minimumDistance = 0.0f
+    var minimumDistance = 0.0001f
     /** maximum distance value to target */
-    var maximumDistance = 20.0f
+    var maximumDistance = Float.MAX_VALUE
+    /** target of the camera */
+    var target: GLVector = GLVector(0.0f, 0.0f, 0.0f)
+        set(value) {
+            field = value
+
+            node.target = value
+            distance = (value - node.position).magnitude()
+
+            val yp = (value - node.position).toYawPitch()
+            this.yaw = yp.first
+            this.pitch = yp.second
+        }
 
     init {
-        val yp = node.forward.toYawPitch()
+        val yp = (node.forward-node.position).toYawPitch()
         this.yaw = yp.first
         this.pitch = yp.second
+        this.target = target
 
-        node.targeted = true
         node.target = target
-
-        distance = (node.position - target).magnitude()
+        node.targeted = true
     }
 
     /**
@@ -62,27 +72,14 @@ open class TargetArcBallCameraControl(private val name: String, private val node
      * @return A Pair consisting of the yaw and pitch angles
      */
     protected fun GLVector.toYawPitch(): Pair<Float, Float> {
-        val dx = this.x()
-        val dy = this.y()
-        val dz = this.z()
-        var yaw: Float = 0.0f
-        var pitch: Float
+        val dx = this.normalized.x()
+        val dy = this.normalized.y()
+        val dz = this.normalized.z()
 
-        if (Math.abs(dx) < 0.000001f) {
-            if (dx < 0.0f) {
-                yaw = 1.5f * Math.PI.toFloat()
-            } else {
-                yaw = 0.5f * Math.PI.toFloat()
-            }
+        val yaw = Math.atan(1.0*dx/(-1.0*dy)).toFloat()
+        val pitch = Math.atan(Math.sqrt(1.0*dx*dx+dy*dy)/dz).toFloat()
 
-            yaw -= Math.atan((1.0 * dz) / (1.0 * dx)).toFloat()
-        } else if (dz < 0) {
-            yaw = Math.PI.toFloat()
-        }
-
-        pitch = Math.atan(Math.sqrt(1.0 * dx * dx + 1.0 * dy * dy) / dz).toFloat()
-
-        return Pair((-yaw * 180.0f / Math.PI.toFloat() - 90.0f), pitch)
+        return Pair(yaw, pitch)
     }
 
     /**
@@ -98,6 +95,8 @@ open class TargetArcBallCameraControl(private val name: String, private val node
             lastY = y
             firstEntered = false
         }
+
+        node.target = target
     }
 
     /**
@@ -124,28 +123,28 @@ open class TargetArcBallCameraControl(private val name: String, private val node
         lastX = x
         lastY = y
 
-        xoffset *= 0.1f
-        yoffset *= 0.1f
+        xoffset *= 0.01f
+        yoffset *= 0.01f
 
         yaw += xoffset
         pitch += yoffset
 
-        if (pitch > 89.0f) {
-            pitch = 89.0f
+        if (pitch >= Math.PI.toFloat()/2.0f) {
+            pitch = Math.PI.toFloat()/2.0f-0.01f
         }
-        if (pitch < -89.0f) {
-            pitch = -89.0f
+        if (pitch <= -Math.PI.toFloat()/2.0f) {
+            pitch = -Math.PI.toFloat()/2.0f+0.01f
         }
 
         val forward = GLVector(
-            Math.cos(Math.toRadians(yaw.toDouble())).toFloat() * Math.cos(Math.toRadians(pitch.toDouble())).toFloat(),
-            Math.sin(Math.toRadians(pitch.toDouble())).toFloat(),
-            Math.sin(Math.toRadians(yaw.toDouble())).toFloat() * Math.cos(Math.toRadians(pitch.toDouble())).toFloat())
+            Math.cos((yaw.toDouble())).toFloat() * Math.cos((pitch.toDouble())).toFloat(),
+            Math.sin((pitch.toDouble())).toFloat(),
+            Math.sin((yaw.toDouble())).toFloat() * Math.cos((pitch.toDouble())).toFloat()
+        ).normalized
 
-        node.forward = forward.normalized
-        val translation = GLMatrix.getTranslation(target)
-        val orientation = forward * distance * (-1.0f)
-        node.position = translation.mult(GLVector(orientation.x(), orientation.y(), orientation.z(), 0.0f)).xyz()
+        val position = forward * distance * (-1.0f)
+        node.position = target + position
+        node.forward = forward
     }
 
     /**
@@ -165,10 +164,10 @@ open class TargetArcBallCameraControl(private val name: String, private val node
 
         distance += wheelRotation.toFloat() * scrollSpeedMultiplier
 
-        if (distance > maximumDistance) distance = maximumDistance
-        if (distance < minimumDistance) distance = minimumDistance
+        if (distance >= maximumDistance) distance = maximumDistance
+        if (distance <= minimumDistance) distance = minimumDistance
 
-        node.position = node.forward * distance * (-1.0f)
+        node.position = target + node.forward * distance * (-1.0f)
     }
 
 }
