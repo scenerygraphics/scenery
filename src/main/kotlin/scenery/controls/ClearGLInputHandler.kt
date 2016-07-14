@@ -78,7 +78,7 @@ class ClearGLInputHandler(scene: Scene, renderer: Any, window: ClearGLDisplayabl
      * @param[behaviourName] The name of the behaviour to remove.
      */
     fun removeBehaviour(behaviourName: String) {
-        behaviourMap.put(behaviourName, null)
+        behaviourMap.remove(behaviourName)
     }
 
     /**
@@ -89,6 +89,15 @@ class ClearGLInputHandler(scene: Scene, renderer: Any, window: ClearGLDisplayabl
      */
     fun addKeyBinding(behaviourName: String, keys: String) {
         config.inputTriggerAdder(inputMap, "all").put(behaviourName, keys)
+    }
+
+    /**
+     * Removes a key binding for a given behaviour
+     *
+     * @param[behaviourName] The behaviour to remove the key binding for.
+     */
+    fun removeKeyBinding(behaviourName: String) {
+        config.inputTriggerAdder(inputMap, "all").put(behaviourName)
     }
 
     /**

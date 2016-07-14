@@ -48,7 +48,11 @@ open class ArcballCameraControl(private val name: String, private val node: Came
             field = value
 
             node.target = value
-            distance = (value- node.position).magnitude()
+            distance = (value - node.position).magnitude()
+
+            val yp = (value - node.position).toYawPitch()
+            this.yaw = yp.first
+            this.pitch = yp.second
         }
 
     init {
@@ -68,27 +72,14 @@ open class ArcballCameraControl(private val name: String, private val node: Came
      * @return A Pair consisting of the yaw and pitch angles
      */
     protected fun GLVector.toYawPitch(): Pair<Float, Float> {
-        val dx = this.x()
-        val dy = this.y()
-        val dz = this.z()
-        var yaw: Float = 0.0f
-        var pitch: Float
+        val dx = this.normalized.x()
+        val dy = this.normalized.y()
+        val dz = this.normalized.z()
 
-        if (Math.abs(dx) < 0.000001f) {
-            if (dx < 0.0f) {
-                yaw = 1.5f * Math.PI.toFloat()
-            } else {
-                yaw = 0.5f * Math.PI.toFloat()
-            }
+        val yaw = Math.atan(1.0*dx/(-1.0*dy)).toFloat()
+        val pitch = Math.atan(Math.sqrt(1.0*dx*dx+dy*dy)/dz).toFloat()
 
-            yaw -= Math.atan((1.0 * dz) / (1.0 * dx)).toFloat()
-        } else if (dz < 0) {
-            yaw = Math.PI.toFloat()
-        }
-
-        pitch = Math.atan(Math.sqrt(1.0 * dx * dx + 1.0 * dy * dy) / dz).toFloat()
-
-        return Pair((-yaw * 180.0f / Math.PI.toFloat() - 90.0f), pitch)
+        return Pair(yaw, pitch)
     }
 
     /**
@@ -105,7 +96,6 @@ open class ArcballCameraControl(private val name: String, private val node: Came
             firstEntered = false
         }
 
-        System.err.println("TargetArcball: Mouse down, target set to ${this.target}")
         node.target = target
     }
 
@@ -133,23 +123,23 @@ open class ArcballCameraControl(private val name: String, private val node: Came
         lastX = x
         lastY = y
 
-        xoffset *= 0.1f
-        yoffset *= 0.1f
+        xoffset *= 0.01f
+        yoffset *= 0.01f
 
         yaw += xoffset
         pitch += yoffset
 
-        if (pitch > 89.0f) {
-            pitch = 89.0f
+        if (pitch >= Math.PI.toFloat()/2.0f) {
+            pitch = Math.PI.toFloat()/2.0f-0.01f
         }
-        if (pitch < -89.0f) {
-            pitch = -89.0f
+        if (pitch <= -Math.PI.toFloat()/2.0f) {
+            pitch = -Math.PI.toFloat()/2.0f+0.01f
         }
 
         val forward = GLVector(
-            Math.cos(Math.toRadians(yaw.toDouble())).toFloat() * Math.cos(Math.toRadians(pitch.toDouble())).toFloat(),
-            Math.sin(Math.toRadians(pitch.toDouble())).toFloat(),
-            Math.sin(Math.toRadians(yaw.toDouble())).toFloat() * Math.cos(Math.toRadians(pitch.toDouble())).toFloat()
+            Math.cos((yaw.toDouble())).toFloat() * Math.cos((pitch.toDouble())).toFloat(),
+            Math.sin((pitch.toDouble())).toFloat(),
+            Math.sin((yaw.toDouble())).toFloat() * Math.cos((pitch.toDouble())).toFloat()
         ).normalized
 
         val position = forward * distance * (-1.0f)
