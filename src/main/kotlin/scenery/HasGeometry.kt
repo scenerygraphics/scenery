@@ -135,6 +135,8 @@ interface HasGeometry {
         var tmpN = ArrayList<Float>()
         var tmpUV = ArrayList<Float>()
 
+        var boundingBox = floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
+
         var vertexCount = 0
         var normalCount = 0
         var uvCount = 0
@@ -214,7 +216,22 @@ interface HasGeometry {
                     "o" -> {
                     }
                 // vertices are specified as v x y z
-                    "v" -> tokens.drop(1).forEach { tmpV.add(it.toFloat()) }
+                    "v" -> tokens.drop(1).forEachIndexed { i, it ->
+                        if(tmpV.size == 0) {
+                            boundingBox = floatArrayOf(tokens[1].toFloat(), tokens[1].toFloat(), tokens[2].toFloat(), tokens[2].toFloat(), tokens[3].toFloat(), tokens[3].toFloat())
+                        }
+
+                        val f = it.toFloat()
+                        if( i == 0 && f < boundingBox[0]) boundingBox[0] = f
+                        if( i == 1 && f < boundingBox[2]) boundingBox[2] = f
+                        if( i == 2 && f < boundingBox[4]) boundingBox[4] = f
+
+                        if( i == 0 && f > boundingBox[1]) boundingBox[1] = f
+                        if( i == 1 && f > boundingBox[3]) boundingBox[3] = f
+                        if( i == 2 && f > boundingBox[5]) boundingBox[5] = f
+
+                        tmpV.add(f)
+                    }
 
                 // normal coords are specified as vn x y z
                     "vn" -> tokens.drop(1).forEach { tmpN.add(it.toFloat()) }
@@ -304,6 +321,10 @@ interface HasGeometry {
                         nbuffer.clear()
                         tbuffer.clear()
 
+                        if (this is Node) {
+
+                        }
+
                         // add new child mesh
                         if (this is Mesh) {
                             var child = Mesh()
@@ -312,9 +333,14 @@ interface HasGeometry {
                                 child.material = Material()
                             }
 
+                            System.err.println("BB of ${tokens[1]} is ${boundingBox.joinToString(", ")}")
+                            this.boundingBoxCoords = boundingBox.clone()
+                            boundingBox = floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
+
                             this.addChild(child)
                             targetObject = child
                         }
+
                     }
                     else -> {
                         if (!tokens[0].startsWith("#")) {
@@ -339,6 +365,11 @@ interface HasGeometry {
         vertexCount += targetObject.vertices.size
         normalCount += targetObject.normals.size
         uvCount += targetObject.texcoords.size
+
+        if(targetObject is Mesh) {
+            System.err.println("BB of ${name} is ${boundingBox.joinToString(", ")}")
+            (targetObject as Mesh).boundingBoxCoords = boundingBox.clone()
+        }
 
         System.out.println("Read ${vertexCount / vertexSize}/${normalCount / vertexSize}/${uvCount / texcoordSize} v/n/uv of model $name in ${(end - start) / 1e6} ms")
     }

@@ -8,18 +8,18 @@ import cleargl.GLVector
  * @author Ulrik Günther <hello@ulrik.is>
  * @property[sizes] The x/y/z sizes of the box
  */
-open class Box(sizes: GLVector) : Node("box"), HasGeometry {
+open class Box(sizes: GLVector) : Mesh("box"), HasGeometry {
     override var vertices: FloatArray = floatArrayOf()
     override var normals: FloatArray = floatArrayOf()
     override var texcoords: FloatArray = floatArrayOf()
     override var indices: IntArray = intArrayOf()
 
-    override val vertexSize = 3;
-    override val texcoordSize = 2;
-    override val geometryType = GeometryType.TRIANGLES;
+    override var vertexSize = 3;
+    override var texcoordSize = 2;
+    override var geometryType = GeometryType.TRIANGLES;
 
     init {
-        val side = 2.0f
+        val side = 1.0f
         val side2 = side / 2.0f
 
         vertices = floatArrayOf(

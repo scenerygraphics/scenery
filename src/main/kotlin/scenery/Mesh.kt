@@ -6,7 +6,7 @@ package scenery
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-open class Mesh() : Node("Mesh"), HasGeometry {
+open class Mesh(override var name: String = "Mesh") : Node(name), HasGeometry {
     /** Vertex storage array. Also see [HasGeometry] */
     override var vertices: FloatArray = floatArrayOf()
     /** Normal storage array. Also see [HasGeometry] */
