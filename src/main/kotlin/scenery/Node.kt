@@ -34,6 +34,11 @@ open class Node(open var name: String) : Renderable {
     /** The Node's lock. */
     override var lock: ReentrantLock = ReentrantLock()
 
+    /** bounding box **/
+    var boundingBox: Box? = null
+    /** bounding box coordinates **/
+    var boundingBoxCoords: FloatArray? = null
+
     /**
      * Initialisation function for the Node.
      *
@@ -270,5 +275,64 @@ open class Node(open var name: String) : Renderable {
 
         mvp = modelView!!.clone()
         mvp!!.mult(projection)
+    }
+
+
+    fun generateBoundingBox() {
+
+        if (this is Mesh) {
+            if (vertices.size == 0) {
+                System.err.println("Zero vertices currently, returning null bounding box")
+                boundingBoxCoords = null
+            } else {
+
+                val x = vertices.filterIndexed { i, fl -> (i + 3).mod(3) == 0 }
+                val y = vertices.filterIndexed { i, fl -> (i + 2).mod(3) == 0 }
+                val z = vertices.filterIndexed { i, fl -> (i + 1).mod(3) == 0 }
+
+                val xmin: Float = x.min()!!.toFloat()
+                val xmax: Float = x.max()!!.toFloat()
+
+                val ymin: Float = y.min()!!.toFloat()
+                val ymax: Float = y.max()!!.toFloat()
+
+                val zmin: Float = z.min()!!.toFloat()
+                val zmax: Float = z.max()!!.toFloat()
+
+                boundingBoxCoords = floatArrayOf(xmin, xmax, ymin, ymax, zmin, zmax)
+                System.err.println("Created bouding box with ${boundingBoxCoords!!.joinToString(", ")}")
+            }
+        } else {
+            System.err.println("Assuming 3rd party BB generation")
+            // assume bounding box was created somehow
+        }
+    }
+
+    companion object NodeHelpers {
+        /**
+         * Depth-first search for elements in a Scene.
+         *
+         * @param[s] The Scene to search in
+         * @param[func] A lambda taking a [Node] and returning a Boolean for matching.
+         * @return A list of [Node]s that match [func].
+         */
+        fun discover(origin: Node, func: (Node) -> Boolean): ArrayList<Node> {
+            val visited = HashSet<Node>()
+            val matched = ArrayList<Node>()
+
+            fun discover(current: Node, f: (Node) -> Boolean) {
+                if (!visited.add(current)) return
+                for (v in current.children) {
+                    if (f(v)) {
+                        matched.add(v)
+                    }
+                    discover(v, f)
+                }
+            }
+
+            discover(origin, func)
+
+            return matched
+        }
     }
 }

@@ -21,12 +21,47 @@ class BoundingBox : Mesh() {
     @ShaderProperty
     var lineWidth: Float = 0.01f
 
+    /* script:
+
+    bb = new BoundingBox();
+    bb.node = scene.find("StanfordDragon");
+    scene.addChild(bb);
+
+     */
     var node: Node? = null
     set(value) {
         field = value
 
         if(value != null) {
-            val bb = value.boundingBoxCoords.clone()
+            // find largest child node
+            val nodeWorldBoundingBox = {n: Node, bbcoords: FloatArray ->
+                System.err.println(bbcoords.joinToString(", "))
+                val min = GLVector(bbcoords[0], bbcoords[2], bbcoords[4], 1.0f)
+                val max = GLVector(bbcoords[1], bbcoords[3], bbcoords[5], 1.0f)
+
+                val minworld = n.world.mult(min)
+                val maxworld = n.world.mult(max)
+
+                floatArrayOf(minworld.x(), maxworld.x(), minworld.y(), maxworld.y(), minworld.z(), maxworld.z())
+            }
+
+            val boundingBoxes = NodeHelpers.discover(value, { true })
+                .filter { it.boundingBoxCoords != null }
+                .map { nodeWorldBoundingBox(it, it.boundingBoxCoords!!) }.toMutableList()
+
+            if(value.boundingBoxCoords != null) {
+                boundingBoxes.add(nodeWorldBoundingBox(value, value.boundingBoxCoords!!))
+            }
+
+            System.err.println("Node children:" + boundingBoxes.joinToString(", "))
+
+            val bb = floatArrayOf(
+                boundingBoxes.minBy { it[0] }!![0],
+                boundingBoxes.maxBy { it[1] }!![1],
+                boundingBoxes.minBy { it[2] }!![2],
+                boundingBoxes.maxBy { it[3] }!![3],
+                boundingBoxes.minBy { it[4] }!![4],
+                boundingBoxes.maxBy { it[5] }!![5])
 
             System.err.println("BB of ${value.name} is ${bb.joinToString(", ")}")
 
@@ -40,8 +75,8 @@ class BoundingBox : Mesh() {
             this.indices = b.indices
 
             this.boundingCoords = bb
-            this.position = value.position - center
-            this.scale = value.scale
+            this.position = GLVector(bb[0], bb[2], bb[4]) + center
+//            this.scale = value.scale
 
             this.children[0].position = GLVector(bb[0], bb[2], bb[4])
 
@@ -49,9 +84,6 @@ class BoundingBox : Mesh() {
             this.children[2].position = GLVector(bb[0], bb[3], bb[4])
             this.children[3].position = GLVector(bb[0], bb[2], bb[5])
 
-            this.children.forEach {
-                it.scale = this.scale
-            }
             this.dirty = true
 
             name = "Bounding Box of ${value.name}"

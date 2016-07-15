@@ -60,11 +60,12 @@ void main() {
     gPosition = VertexIn.FragPosition;
     gNormal = VertexIn.Normal;
 
+//   bvec2 toDiscard = greaterThan(fract(VertexIn.TexCoord*numLines), vec2(lineWidth, lineWidth));
    bvec2 toDiscard = greaterThan(fract(VertexIn.TexCoord*numLines), vec2(lineWidth, lineWidth));
 
    if(all(toDiscard)) {
        discard;
    } else {
-      gAlbedoSpec.rgb = gridColor;
+      gAlbedoSpec.rgb = vec3(gridColor);//mix(vec3(0.0), gridColor, aastep(1.0, abs(fract(VertexIn.TexCoord*numLines))));
    }
 }
