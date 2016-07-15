@@ -1039,7 +1039,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
                             prefs.shaders.toTypedArray())
                     } catch(e: NullPointerException) {
                         s.program = GLProgram.buildProgram(gl, this.javaClass,
-                            prefs.shaders.map { System.err.println(it); "shaders/" + it }.toTypedArray())
+                            prefs.shaders.map { "shaders/" + it }.toTypedArray())
                     }
 
                 }
