@@ -3,7 +3,6 @@
 layout (location = 0) out vec3 gPosition;
 layout (location = 1) out vec3 gNormal;
 layout (location = 2) out vec4 gAlbedoSpec;
-//layout (location = 3) out vec3 gTangent;
 
 in VertexData {
     vec3 Position;
@@ -35,37 +34,39 @@ const int MATERIAL_TYPE_MAT = 2;
 const int MATERIAL_TYPE_TEXTURED_NORMAL = 3;
 uniform int materialType = MATERIAL_TYPE_MAT;
 
-/*
-    ObjectTextures[0] - ambient
-    ObjectTextures[1] - diffuse
-    ObjectTextures[2] - specular
-    ObjectTextures[3] - normal
-    ObjectTextures[4] - displacement
-*/
 uniform sampler2D ObjectTextures[MAX_TEXTURES];
 uniform vec3 gridColor;
 uniform int numLines;
 uniform float lineWidth;
-
-
-float aastep (float threshold , float value) {
-  float afwidth = 0.7 * length ( vec2(dFdx(value), dFdy(value)));
-  // GLSL 's fwidth(value) is abs(dFdx(value)) + abs(dFdy(value))
-  return smoothstep (threshold-afwidth, threshold+afwidth, value );
-}
-
+uniform int ticksOnly;
 
 void main() {
-    // Store the fragment position vector in the first gbuffer texture
     gPosition = VertexIn.FragPosition;
     gNormal = VertexIn.Normal;
 
-//   bvec2 toDiscard = greaterThan(fract(VertexIn.TexCoord*numLines), vec2(lineWidth, lineWidth));
-   bvec2 toDiscard = greaterThan(fract(VertexIn.TexCoord*numLines), vec2(lineWidth, lineWidth));
+    // draw screen-spaced antialiased grid lines, inspired by
+    // http://madebyevan.com/shaders/grid - here we scale the incoming
+    // coords by the numLines factor. For correct AA, the fwidth argument
+    // also has to be scaled by that factor.
+    vec2 coord = VertexIn.TexCoord;
+    vec2 grid = abs(fract(coord*numLines - 0.5) - 0.5) / fwidth(coord*numLines);
+    // line width is determined by the minimum gradient, for thicker lines, we
+    // divide by lineWidth, lowering the gradient slope.
+    float line = min(grid.x, grid.y)/lineWidth;
 
-   if(all(toDiscard)) {
-       discard;
-   } else {
-      gAlbedoSpec.rgb = vec3(gridColor);//mix(vec3(0.0), gridColor, aastep(1.0, abs(fract(VertexIn.TexCoord*numLines))));
-   }
+    // if only ticks should be display, this'll discard the interior
+    // of the bounding box quad completely, apart from the ticks.
+    if(ticksOnly > 0) {
+      if(coord.x > 0.02 && coord.x < 0.98 && coord.y > 0.02 && coord.y < 0.98) {
+        discard;
+      }
+    }
+
+    if(line > 0.999) {
+      discard;
+    }
+
+    // lines should be rendered only with diffuse color, without specularity
+    gAlbedoSpec.rgb = gridColor;
+    gAlbedoSpec.a = 0.0;
 }

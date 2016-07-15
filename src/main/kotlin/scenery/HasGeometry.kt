@@ -330,13 +330,13 @@ interface HasGeometry {
                         if (this is Mesh) {
                             var child = Mesh()
                             child.name = tokens[1]
+                            name = tokens[1]
                             if (!useMTL) {
                                 child.material = Material()
                             }
 
                             boundingBox?.let {
-                                System.err.println("HasGeometry: BB of ${tokens[1]} is ${it.joinToString(", ")}")
-                                this.boundingBoxCoords = it.clone()
+                                (targetObject as Mesh).boundingBoxCoords = it.clone()
                             }
                             boundingBox = null
 
@@ -371,7 +371,6 @@ interface HasGeometry {
 
         if(targetObject is Mesh) {
             if(boundingBox != null) {
-                System.err.println("HasGeometry/f: BB of ${name} is ${boundingBox!!.joinToString(", ")}")
                 (targetObject as Mesh).boundingBoxCoords = boundingBox!!.clone()
             } else {
                 (targetObject as Mesh).boundingBoxCoords = null
@@ -390,6 +389,8 @@ interface HasGeometry {
         var name: String = ""
         var vbuffer = ArrayList<Float>()
         var nbuffer = ArrayList<Float>()
+
+        var boundingBox: FloatArray? = null
 
         var f = File(filename)
         if (!f.exists()) {
@@ -413,7 +414,27 @@ interface HasGeometry {
                 val tokens = line.trim().trimEnd().split(" ")
                 when (tokens[0]) {
                     "solid" -> name = tokens.drop(1).joinToString(" ")
-                    "vertex" -> tokens.drop(1).forEach { vbuffer.add(it.toFloat()) }
+                    "vertex" -> with(tokens.drop(1)) {
+                        val x = get(0).toFloat()
+                        val y = get(1).toFloat()
+                        val z = get(2).toFloat()
+
+                        if(vbuffer.size == 0 || boundingBox == null) {
+                            boundingBox = floatArrayOf(x, x, y, y, z, z)
+                        }
+
+                        if (x < boundingBox!![0]) boundingBox!![0] = x
+                        if (y < boundingBox!![2]) boundingBox!![2] = y
+                        if (z < boundingBox!![4]) boundingBox!![4] = z
+
+                        if (x > boundingBox!![1]) boundingBox!![1] = x
+                        if (y > boundingBox!![3]) boundingBox!![3] = y
+                        if (z > boundingBox!![5]) boundingBox!![5] = z
+
+                        vbuffer.add(x)
+                        vbuffer.add(y)
+                        vbuffer.add(z)
+                    }
                     "facet" -> tokens.drop(2).forEach { nbuffer.add(it.toFloat()) }
                     "outer" -> {
                         (1..2).forEach { ((nbuffer.size - 3)..(nbuffer.size - 1)).forEach { nbuffer.add(nbuffer[it]) } }
@@ -469,9 +490,25 @@ interface HasGeometry {
 
                 // vertices
                 for (vertex in 1..3) {
-                    vbuffer.add(readFloatFromInputStream(bis))
-                    vbuffer.add(readFloatFromInputStream(bis))
-                    vbuffer.add(readFloatFromInputStream(bis))
+                    val x = readFloatFromInputStream(bis)
+                    val y = readFloatFromInputStream(bis)
+                    val z = readFloatFromInputStream(bis)
+
+                    if(vbuffer.size == 0 || boundingBox == null) {
+                        boundingBox = floatArrayOf(x, x, y, y, z, z)
+                    }
+
+                    if (x < boundingBox!![0]) boundingBox!![0] = x
+                    if (y < boundingBox!![2]) boundingBox!![2] = y
+                    if (z < boundingBox!![4]) boundingBox!![4] = z
+
+                    if (x > boundingBox!![1]) boundingBox!![1] = x
+                    if (y > boundingBox!![3]) boundingBox!![3] = y
+                    if (z > boundingBox!![5]) boundingBox!![5] = z
+
+                    vbuffer.add(x)
+                    vbuffer.add(y)
+                    vbuffer.add(z)
 
                     nbuffer.add(n1)
                     nbuffer.add(n2)
@@ -530,6 +567,11 @@ interface HasGeometry {
 
         vertices = vbuffer.toFloatArray()
         normals = nbuffer.toFloatArray()
+
+        if(this is Mesh && boundingBox != null) {
+            System.err.println("BB of $name is ${boundingBox?.joinToString(",")}")
+            this.boundingBoxCoords = boundingBox
+        }
     }
 
 
