@@ -8,7 +8,7 @@ import cleargl.GLVector
  * @author Ulrik Günther <hello@ulrik.is>
  * @property[sizes] The x/y/z sizes of the box
  */
-open class Box(sizes: GLVector) : Mesh("box"), HasGeometry {
+open class Box(val sizes: GLVector) : Mesh("box"), HasGeometry {
     override var vertices: FloatArray = floatArrayOf()
     override var normals: FloatArray = floatArrayOf()
     override var texcoords: FloatArray = floatArrayOf()
@@ -21,6 +21,10 @@ open class Box(sizes: GLVector) : Mesh("box"), HasGeometry {
     init {
         val side = 1.0f
         val side2 = side / 2.0f
+
+        boundingBoxCoords = floatArrayOf(-side2*sizes.x(), side2*sizes.x(),
+            -side2*sizes.y(), side2*sizes.y(),
+            -side2*sizes.z(), side2*sizes.z())
 
         vertices = floatArrayOf(
             // Front
