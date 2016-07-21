@@ -1,6 +1,7 @@
 package scenery.controls.behaviours
 
 import cleargl.GLVector
+import com.jogamp.opengl.math.Quaternion
 import org.scijava.ui.behaviour.DragBehaviour
 import org.scijava.ui.behaviour.ScrollBehaviour
 import scenery.Camera
@@ -22,18 +23,7 @@ import scenery.Camera
  * @property[target] Vector with the look-at target of the arcball
  * @constructor Creates a new ArcballCameraControl behaviour
  */
-open class ArcballCameraControl(private val name: String, private val node: Camera, private val w: Int, private val h: Int, target: GLVector = GLVector(0.0f, 0.0f, 0.0f)) : DragBehaviour, ScrollBehaviour {
-    /** default mouse x position in window */
-    private var lastX = w / 2
-    /** default mouse y position in window */
-    private var lastY = h / 2
-    /** whether this is the first entering event */
-    private var firstEntered = true
-
-    /** pitch angle created from x/y position */
-    private var pitch: Float = 0.0f
-    /** yaw angle created from x/y position */
-    private var yaw: Float = 0.0f
+open class ArcballCameraControl(private val name: String, private val node: Camera, private var w: Int, private var h: Int, target: GLVector = GLVector(0.0f, 0.0f, 0.0f)) : DragBehaviour, ScrollBehaviour {
     /** distance to target */
     private var distance: Float = 5.0f
     /** multiplier for zooming in and out */
@@ -42,6 +32,12 @@ open class ArcballCameraControl(private val name: String, private val node: Came
     var minimumDistance = 0.0001f
     /** maximum distance value to target */
     var maximumDistance = Float.MAX_VALUE
+    /** state for start vector */
+    var start: GLVector = GLVector(0.0f, 0.0f, 0.0f)
+    /** state for end vector */
+    var end: GLVector = GLVector(0.0f, 0.0f, 0.0f)
+    /** mouse bounds */
+    var bounds: FloatArray = floatArrayOf(0.0f, 0.0f)
     /** target of the camera */
     var target: GLVector = GLVector(0.0f, 0.0f, 0.0f)
         set(value) {
@@ -51,15 +47,12 @@ open class ArcballCameraControl(private val name: String, private val node: Came
             distance = (value - node.position).magnitude()
 
             val yp = (value - node.position).toYawPitch()
-            this.yaw = yp.first
-            this.pitch = yp.second
         }
 
     init {
         val yp = (node.forward-node.position).toYawPitch()
-        this.yaw = yp.first
-        this.pitch = yp.second
         this.target = target
+        this.bounds = floatArrayOf(1.0f/((w-1.0f)*0.5f), 1.0f/((h-1.0f)*0.5f))
 
         node.target = target
         node.targeted = true
@@ -90,13 +83,10 @@ open class ArcballCameraControl(private val name: String, private val node: Came
      * @param[y] y position in window
      */
     override fun init(x: Int, y: Int) {
-        if (firstEntered) {
-            lastX = x
-            lastY = y
-            firstEntered = false
-        }
-
         node.target = target
+        node.targeted = true
+
+        this.start = mapToSphere(x.toFloat(), y.toFloat())
     }
 
     /**
@@ -106,7 +96,6 @@ open class ArcballCameraControl(private val name: String, private val node: Came
      * @param[y] y position in window
      */
     override fun end(x: Int, y: Int) {
-        firstEntered = true
     }
 
     /**
@@ -117,34 +106,32 @@ open class ArcballCameraControl(private val name: String, private val node: Came
      * @param[y] y position in window
      */
     override fun drag(x: Int, y: Int) {
-        var xoffset: Float = (x - lastX).toFloat()
-        var yoffset: Float = (lastY - y).toFloat()
+        end = mapToSphere(x.toFloat(), y.toFloat())
 
-        lastX = x
-        lastY = y
+        val perpendicular = end.cross(start)
 
-        xoffset *= 0.01f
-        yoffset *= 0.01f
-
-        yaw += xoffset
-        pitch += yoffset
-
-        if (pitch >= Math.PI.toFloat()/2.0f) {
-            pitch = Math.PI.toFloat()/2.0f-0.01f
-        }
-        if (pitch <= -Math.PI.toFloat()/2.0f) {
-            pitch = -Math.PI.toFloat()/2.0f+0.01f
+        val rot = if(perpendicular.magnitude() > 10e-5f) {
+            Quaternion(perpendicular.x(), perpendicular.y(), perpendicular.z(), start*end)
+        } else {
+            Quaternion().setIdentity()
         }
 
-        val forward = GLVector(
-            Math.cos((yaw.toDouble())).toFloat() * Math.cos((pitch.toDouble())).toFloat(),
-            Math.sin((pitch.toDouble())).toFloat(),
-            Math.sin((yaw.toDouble())).toFloat() * Math.cos((pitch.toDouble())).toFloat()
-        ).normalized
+        rot.mult(node.rotation)
+        node.rotation = rot
 
-        val position = forward * distance * (-1.0f)
-        node.position = target + position
-        node.forward = forward
+        start = end
+    }
+
+    protected fun mapToSphere(x: Float, y: Float): GLVector {
+        // scale to bounds
+        val scaledPoint = GLVector(x * bounds[0] - 1.0f, 1.0f - y * bounds[1], 0.0f)
+        val length2 = scaledPoint.length2()
+
+        return if (length2 > 1.0f) {
+            GLVector(scaledPoint.x(), scaledPoint.y(), 0.0f)*(1.0f/Math.sqrt(1.0*length2).toFloat())
+        } else {
+            GLVector(scaledPoint.x(), scaledPoint.y(), Math.sqrt(1.0 - length2).toFloat())
+        }.normalized
     }
 
     /**

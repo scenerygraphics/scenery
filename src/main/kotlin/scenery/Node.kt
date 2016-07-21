@@ -5,6 +5,7 @@ import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
 import java.sql.Timestamp
 import java.util.*
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.locks.ReentrantLock
 
 /**
@@ -125,9 +126,9 @@ open class Node(open var name: String) : Renderable {
         }
 
     /** Children of the Node. */
-    var children: ArrayList<Node>
+    var children: CopyOnWriteArrayList<Node>
     /** Other nodes that have linked transforms. */
-    var linkedNodes: ArrayList<Node>
+    var linkedNodes: CopyOnWriteArrayList<Node>
     /** Parent node of this node. */
     var parent: Node? = null
 
@@ -152,8 +153,8 @@ open class Node(open var name: String) : Renderable {
         this.modelView = GLMatrix.getIdentity()
         this.imodelView = GLMatrix.getIdentity()
 
-        this.children = ArrayList<Node>()
-        this.linkedNodes = ArrayList<Node>()
+        this.children = CopyOnWriteArrayList<Node>()
+        this.linkedNodes = CopyOnWriteArrayList<Node>()
         // null should be the signal to use the default shader
     }
 
@@ -214,8 +215,8 @@ open class Node(open var name: String) : Renderable {
      */
     fun updateWorld(recursive: Boolean, force: Boolean = false) {
         if (needsUpdate or force) {
-//            System.err.println("Updating $name (p: $parent)")
             this.composeModel()
+
             needsUpdate = false
             needsUpdateWorld = true
         }
@@ -262,7 +263,7 @@ open class Node(open var name: String) : Renderable {
      */
     fun composeModelView() {
         modelView = model.clone()
-        modelView!!.mult(this.view)
+        modelView!!.mult(this.view ?: GLMatrix.getIdentity())
     }
 
     /**

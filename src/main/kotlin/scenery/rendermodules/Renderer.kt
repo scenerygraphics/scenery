@@ -21,4 +21,7 @@ interface Renderer {
      * @param[scene] The scene to render.
      */
     fun render(scene: Scene)
+
+    var width: Int
+    var height: Int
 }

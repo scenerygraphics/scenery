@@ -43,9 +43,9 @@ open class DeferredLightingRenderer : Renderer, Hubable {
     /** [GL4] instance handed over, coming from [ClearGLDefaultEventListener]*/
     protected var gl: GL4
     /** window width */
-    protected var width: Int
+    override var width: Int
     /** window height */
-    protected var height: Int
+    override var height: Int
 
     /** [GLFramebuffer] Geometry buffer for rendering */
     protected var geometryBuffer: ArrayList<GLFramebuffer>
@@ -595,13 +595,11 @@ open class DeferredLightingRenderer : Renderer, Hubable {
 //            (a.position.z() - b.position.z()).toInt()
 //        }
 
-        if (cam.targeted) {
-            cam.view?.setCamera(cam.position, cam.target, cam.up)
-        } else {
-            cam.view?.setCamera(cam.position, cam.position + cam.forward, cam.up)
-        }
+
 //        cam.projection = GLMatrix().setPerspectiveProjectionMatrix(70.0f / 180.0f * Math.PI.toFloat(),
 //                (1.0f * width) / (1.0f * height), 0.1f, 100000f)
+
+        cam.view = cam.getTransformation()
 
         val instanceGroups = renderOrderList.groupBy { it.instanceOf }
 
@@ -669,7 +667,6 @@ open class DeferredLightingRenderer : Renderer, Hubable {
                 }
                 mv.mult(pose)
                 mv.mult(cam.view!!)
-                mv.mult(cam.rotation)
                 mv.mult(n.world)
 
                 mvp = projection.clone()
@@ -752,7 +749,6 @@ open class DeferredLightingRenderer : Renderer, Hubable {
                     }
                     mv.mult(pose)
                     mv.mult(cam.view!!)
-                    mv.mult(cam.rotation)
                     mv.mult(node.world)
 
                     mvp = projection.clone()
