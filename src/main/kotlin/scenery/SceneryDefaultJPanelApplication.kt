@@ -6,7 +6,6 @@ import cleargl.ClearGLWindow
 import com.jogamp.newt.awt.NewtCanvasAWT
 import com.jogamp.newt.event.WindowEvent
 import com.jogamp.opengl.GLAutoDrawable
-import org.junit.Test
 import scenery.controls.ClearGLInputHandler
 import scenery.rendermodules.opengl.DeferredLightingRenderer
 import scenery.repl.REPL
@@ -75,7 +74,7 @@ open class SceneryDefaultJPanelApplication(var applicationName: String,
      * based on the [applicationName], from the file `~/.[applicationName].bindings
      *
      */
-    @Test open fun main() {
+    open fun main() {
         val lClearGLWindowEventListener = object : ClearGLDefaultEventListener() {
 
             override fun init(pDrawable: GLAutoDrawable) {
