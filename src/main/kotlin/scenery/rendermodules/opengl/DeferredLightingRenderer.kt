@@ -649,8 +649,8 @@ open class DeferredLightingRenderer : Renderer, Hubable {
 
             eyes.forEachIndexed { i, eye ->
                 val projection: GLMatrix = if (hmd == null) {
-                    GLMatrix().setPerspectiveProjectionMatrix(70.0f / 180.0f * Math.PI.toFloat(),
-                        (1.0f * geometryBuffer[i].width) / (1.0f * geometryBuffer[i].height), 0.1f, 100000f)
+                    GLMatrix().setPerspectiveProjectionMatrix(cam.fov / 180.0f * Math.PI.toFloat(),
+                        (1.0f * geometryBuffer[i].width) / (1.0f * geometryBuffer[i].height), cam.nearPlaneDistance, cam.farPlaneDistance)
                 } else {
                     hmd.getEyeProjection(i)
                 }
