@@ -631,9 +631,9 @@ interface HasGeometry {
      */
     fun recalculateNormals() {
         var i = 0
-        val normalBuffer = ByteBuffer.allocateDirect(vertices.capacity() * 4).asFloatBuffer()
+        val normals = ArrayList<Float>()
 
-        while (i < vertices.capacity()) {
+        while (i < vertices.limit()) {
             val v1 = GLVector(vertices[i], vertices[i + 1], vertices[i + 2])
             i += 3
 
@@ -648,19 +648,19 @@ interface HasGeometry {
 
             val n = a.cross(b).normalized
 
-            normalBuffer.put(n.x())
-            normalBuffer.put(n.y())
-            normalBuffer.put(n.z())
+            normals.add(n.x())
+            normals.add(n.y())
+            normals.add(n.z())
 
-            normalBuffer.put(n.x())
-            normalBuffer.put(n.y())
-            normalBuffer.put(n.z())
+            normals.add(n.x())
+            normals.add(n.y())
+            normals.add(n.z())
 
-            normalBuffer.put(n.x())
-            normalBuffer.put(n.y())
-            normalBuffer.put(n.z())
+            normals.add(n.x())
+            normals.add(n.y())
+            normals.add(n.z())
         }
 
-        normals = normalBuffer.duplicate()
+        this.normals = BufferUtils.allocateFloatAndPut(normals.toFloatArray())
     }
 }
