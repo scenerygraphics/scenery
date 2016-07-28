@@ -6,6 +6,8 @@ import java.io.File
 import java.io.FileInputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.nio.FloatBuffer
+import java.nio.IntBuffer
 import java.nio.file.FileSystems
 import java.nio.file.Files
 import java.util.*
@@ -25,13 +27,13 @@ interface HasGeometry {
     val geometryType: GeometryType
 
     /** Array of the vertices */
-    var vertices: FloatArray
+    var vertices: FloatBuffer
     /** Array of the normals */
-    var normals: FloatArray
+    var normals: FloatBuffer
     /** Array of the texcoords */
-    var texcoords: FloatArray
+    var texcoords: FloatBuffer
     /** Array of the indices */
-    var indices: IntArray
+    var indices: IntBuffer
 
     /**
      * PreDraw function, to be called before the actual rendering, useful for
@@ -54,10 +56,10 @@ interface HasGeometry {
         if (!f.exists()) {
             System.out.println("Could not read MTL from $filename, file does not exist.")
 
-            vertices = FloatArray(0)
-            normals = FloatArray(0)
-            texcoords = FloatArray(0)
-            indices = IntArray(0)
+            vertices = ByteBuffer.allocateDirect(0).asFloatBuffer()
+            normals = ByteBuffer.allocateDirect(0).asFloatBuffer()
+            texcoords = ByteBuffer.allocateDirect(0).asFloatBuffer()
+            indices = ByteBuffer.allocateDirect(0).asIntBuffer()
             return materials
         }
 
@@ -127,9 +129,9 @@ interface HasGeometry {
      */
     fun readFromOBJ(filename: String, useMTL: Boolean = true) {
         var name: String = ""
-        var vbuffer = ArrayList<Float>()
-        var nbuffer = ArrayList<Float>()
-        var tbuffer = ArrayList<Float>()
+        var vbuffer: FloatBuffer = FloatBuffer.allocate(1)
+        var nbuffer: FloatBuffer = FloatBuffer.allocate(1)
+        var tbuffer: FloatBuffer = FloatBuffer.allocate(1)
 
         var tmpV = ArrayList<Float>()
         var tmpN = ArrayList<Float>()
@@ -149,9 +151,9 @@ interface HasGeometry {
          * @param[vertexBuffer] The vertex list to use
          * @param[normalBuffer] The buffer to store the normals in
          */
-        fun calculateNormals(vertexBuffer: ArrayList<Float>, normalBuffer: ArrayList<Float>) {
+        fun calculateNormals(vertexBuffer: FloatBuffer, normalBuffer: FloatBuffer) {
             var i = 0
-            while (i < vbuffer.size) {
+            while (i < vbuffer.limit() - 1) {
                 val v1 = GLVector(vertexBuffer[i], vertexBuffer[i + 1], vertexBuffer[i + 2])
                 i += 3
 
@@ -166,9 +168,9 @@ interface HasGeometry {
 
                 val n = a.cross(b).normalized
 
-                normalBuffer.add(n.x())
-                normalBuffer.add(n.y())
-                normalBuffer.add(n.z())
+                normalBuffer.put(n.x())
+                normalBuffer.put(n.y())
+                normalBuffer.put(n.z())
             }
         }
 
@@ -176,24 +178,65 @@ interface HasGeometry {
         if (!f.exists()) {
             System.out.println("Could not read from $filename, file does not exist.")
 
-            vertices = FloatArray(0)
-            normals = FloatArray(0)
-            texcoords = FloatArray(0)
-            indices = IntArray(0)
             return
         }
 
         val start = System.nanoTime()
-        val lines = Files.lines(FileSystems.getDefault().getPath(filename))
+        var lines = Files.lines(FileSystems.getDefault().getPath(filename))
 
         var count = 0
 
         var targetObject = this
 
+        val triangleIndices = intArrayOf(0, 1, 2)
+        val quadIndices = intArrayOf(0, 1, 2, 0, 2, 3)
+
         System.out.println("Reading from OBJ file $filename")
         // OBJ files are read line-by-line, then tokenized after removing trailing
         // and leading whitespace. The first non-whitespace string encountered is
         // evaluated as command, according to the OBJ spec.
+        var currentName = name
+        var vertexCountMap = HashMap<String, Int>()
+        lines.forEach {
+            line ->
+            val tokens = line.trim().trimEnd().split(" ").filter { it.length > 0 }
+            if (tokens.size > 0) {
+                when (tokens[0]) {
+                    "" -> {
+                    }
+                    "#" -> {
+                    }
+                    "f" -> {
+                        vertexCount += when (tokens.count() - 1) {
+                            3 -> 3
+                            4 -> 6
+                            else -> 0
+                        }
+                    }
+                    "g" -> {
+                        vertexCountMap.put(currentName, vertexCount)
+                        vertexCount = 0
+                        currentName = tokens[1]
+                    }
+                }
+            }
+        }
+
+        vertexCountMap.put(currentName, vertexCount)
+        vertexCount = 0
+
+
+        val vertexBuffers = HashMap<String, Triple<FloatBuffer, FloatBuffer, FloatBuffer>>()
+        vertexCountMap.forEach { objectName, vertexCount ->
+            vertexBuffers.put(objectName, Triple(
+                ByteBuffer.allocateDirect(vertexCount * vertexSize * 4).order(ByteOrder.nativeOrder()).asFloatBuffer(),
+                ByteBuffer.allocateDirect(vertexCount * vertexSize * 4).order(ByteOrder.nativeOrder()).asFloatBuffer(),
+                ByteBuffer.allocateDirect(vertexCount * vertexSize * 4).order(ByteOrder.nativeOrder()).asFloatBuffer()
+            ))
+        }
+
+        lines = Files.lines(FileSystems.getDefault().getPath(filename))
+
         lines.forEach {
             line ->
             val tokens = line.trim().trimEnd().split(" ").filter { it.length > 0 }
@@ -242,14 +285,13 @@ interface HasGeometry {
                         val uvs = elements.filter { it.size > 1 && it.getOrElse(1, { "" }).length > 0 }.map { it[1].toInt() }
                         val normals = elements.filter { it.size > 2 && it.getOrElse(2, { "" }).length > 0 }.map { it[2].toInt() }
 
-                        var range = ArrayList<Int>()
-                        if (vertices.size == 3) {
-                            range.addAll(listOf(0, 1, 2))
+                        val range = if (vertices.size == 3) {
+                            triangleIndices
                         } else if (vertices.size == 4) {
-                            range.addAll(listOf(0, 1, 2, 0, 2, 3))
+                            quadIndices
                         } else {
                             System.err.println("Polygonal triangulation is not yet supported")
-                            range.addAll((0..vertices.size - 1).toList())
+                            quadIndices
                             // TODO: Implement polygons!
                         }
 
@@ -274,7 +316,7 @@ interface HasGeometry {
                             val y = tmpV.getOrElse(toBufferIndex(tmpV, vertices[i], 3, 1), ::defaultHandler)
                             val z = tmpV.getOrElse(toBufferIndex(tmpV, vertices[i], 3, 2), ::defaultHandler)
 
-                            if(vbuffer.size == 0 || boundingBox == null) {
+                            if (vbuffer.position() == 0 || boundingBox == null) {
                                 boundingBox = floatArrayOf(x, x, y, y, z, z)
                             }
 
@@ -286,19 +328,19 @@ interface HasGeometry {
                             if (y > boundingBox!![3]) boundingBox!![3] = y
                             if (z > boundingBox!![5]) boundingBox!![5] = z
 
-                            vbuffer.add(x)
-                            vbuffer.add(y)
-                            vbuffer.add(z)
+                            vertexBuffers[name]!!.first.put(x)
+                            vertexBuffers[name]!!.first.put(y)
+                            vertexBuffers[name]!!.first.put(z)
 
                             if (normals.size == vertices.size) {
-                                nbuffer.add(tmpN.getOrElse(toBufferIndex(tmpN, normals[i], 3, 0), ::defaultHandler))
-                                nbuffer.add(tmpN.getOrElse(toBufferIndex(tmpN, normals[i], 3, 1), ::defaultHandler))
-                                nbuffer.add(tmpN.getOrElse(toBufferIndex(tmpN, normals[i], 3, 2), ::defaultHandler))
+                                vertexBuffers[name]!!.second.put(tmpN.getOrElse(toBufferIndex(tmpN, normals[i], 3, 0), ::defaultHandler))
+                                vertexBuffers[name]!!.second.put(tmpN.getOrElse(toBufferIndex(tmpN, normals[i], 3, 1), ::defaultHandler))
+                                vertexBuffers[name]!!.second.put(tmpN.getOrElse(toBufferIndex(tmpN, normals[i], 3, 2), ::defaultHandler))
                             }
 
                             if (uvs.size == vertices.size) {
-                                tbuffer.add(tmpUV.getOrElse(toBufferIndex(tmpUV, uvs[i], 2, 0), ::defaultHandler))
-                                tbuffer.add(tmpUV.getOrElse(toBufferIndex(tmpUV, uvs[i], 2, 1), ::defaultHandler))
+                                vertexBuffers[name]!!.third.put(tmpUV.getOrElse(toBufferIndex(tmpUV, uvs[i], 2, 0), ::defaultHandler))
+                                vertexBuffers[name]!!.third.put(tmpUV.getOrElse(toBufferIndex(tmpUV, uvs[i], 2, 1), ::defaultHandler))
                             }
                         }
                     }
@@ -306,21 +348,21 @@ interface HasGeometry {
                         // TODO: Implement smooth shading across faces
                     }
                     "g" -> @Suppress("UNCHECKED_CAST") {
-                        if (nbuffer.size == 0) {
+                        if (nbuffer.position() == 0) {
                             calculateNormals(vbuffer, nbuffer)
                         }
 
-                        targetObject.vertices = (vbuffer.clone() as ArrayList<Float>).toFloatArray()
-                        targetObject.normals = (nbuffer.clone() as ArrayList<Float>).toFloatArray()
-                        targetObject.texcoords = (tbuffer.clone() as ArrayList<Float>).toFloatArray()
+                        targetObject.vertices = vertexBuffers[name]!!.first
+                        targetObject.normals = vertexBuffers[name]!!.second
+                        targetObject.texcoords = vertexBuffers[name]!!.third
 
-                        vertexCount += targetObject.vertices.size
-                        normalCount += targetObject.normals.size
-                        uvCount += targetObject.texcoords.size
+                        targetObject.vertices.flip()
+                        targetObject.normals.flip()
+                        targetObject.texcoords.flip()
 
-                        vbuffer.clear()
-                        nbuffer.clear()
-                        tbuffer.clear()
+                        vertexCount += targetObject.vertices.limit()
+                        normalCount += targetObject.normals.limit()
+                        uvCount += targetObject.texcoords.limit()
 
                         if (this is Node) {
 
@@ -357,20 +399,24 @@ interface HasGeometry {
         val end = System.nanoTime()
 
         // recalculate normals if model did not supply them
-        if (nbuffer.size == 0) {
+        if (nbuffer.position() == 0) {
             calculateNormals(vbuffer, nbuffer)
         }
 
-        targetObject.vertices = vbuffer.toFloatArray()
-        targetObject.normals = nbuffer.toFloatArray()
-        targetObject.texcoords = tbuffer.toFloatArray()
+        targetObject.vertices = vertexBuffers[name]!!.first
+        targetObject.normals = vertexBuffers[name]!!.second
+        targetObject.texcoords = vertexBuffers[name]!!.third
 
-        vertexCount += targetObject.vertices.size
-        normalCount += targetObject.normals.size
-        uvCount += targetObject.texcoords.size
+        targetObject.vertices.flip()
+        targetObject.normals.flip()
+        targetObject.texcoords.flip()
 
-        if(targetObject is Mesh) {
-            if(boundingBox != null) {
+        vertexCount += targetObject.vertices.limit()
+        normalCount += targetObject.normals.limit()
+        uvCount += targetObject.texcoords.limit()
+
+        if (targetObject is Mesh) {
+            if (boundingBox != null) {
                 (targetObject as Mesh).boundingBoxCoords = boundingBox!!.clone()
             } else {
                 (targetObject as Mesh).boundingBoxCoords = null
@@ -396,10 +442,6 @@ interface HasGeometry {
         if (!f.exists()) {
             System.out.println("Could not read from $filename, file does not exist.")
 
-            vertices = FloatArray(0)
-            normals = FloatArray(0)
-            texcoords = FloatArray(0)
-            indices = IntArray(0)
             return
         }
 
@@ -419,7 +461,7 @@ interface HasGeometry {
                         val y = get(1).toFloat()
                         val z = get(2).toFloat()
 
-                        if(vbuffer.size == 0 || boundingBox == null) {
+                        if (vbuffer.size == 0 || boundingBox == null) {
                             boundingBox = floatArrayOf(x, x, y, y, z, z)
                         }
 
@@ -494,7 +536,7 @@ interface HasGeometry {
                     val y = readFloatFromInputStream(bis)
                     val z = readFloatFromInputStream(bis)
 
-                    if(vbuffer.size == 0 || boundingBox == null) {
+                    if (vbuffer.size == 0 || boundingBox == null) {
                         boundingBox = floatArrayOf(x, x, y, y, z, z)
                     }
 
@@ -565,10 +607,18 @@ interface HasGeometry {
         val end = System.nanoTime()
         System.out.println("Read ${vbuffer.size} vertices/${nbuffer.size} normals of model ${name} in ${(end - start) / 1e6} ms")
 
-        vertices = vbuffer.toFloatArray()
-        normals = nbuffer.toFloatArray()
+        vertices = ByteBuffer.allocateDirect(vbuffer.size * 4).asFloatBuffer()
+        normals = ByteBuffer.allocateDirect(nbuffer.size * 4).asFloatBuffer()
+        texcoords = ByteBuffer.allocateDirect(0).asFloatBuffer()
+        indices = ByteBuffer.allocateDirect(0).asIntBuffer()
 
-        if(this is Mesh && boundingBox != null) {
+        vertices.put(vbuffer.toFloatArray())
+        normals.put(nbuffer.toFloatArray())
+
+        vertices.flip()
+        normals.flip()
+
+        if (this is Mesh && boundingBox != null) {
             System.err.println("BB of $name is ${boundingBox?.joinToString(",")}")
             this.boundingBoxCoords = boundingBox
         }
@@ -581,10 +631,9 @@ interface HasGeometry {
      */
     fun recalculateNormals() {
         var i = 0
-        val normalBuffer = ArrayList<Float>()
-        normalBuffer.ensureCapacity(vertices.size)
+        val normalBuffer = ByteBuffer.allocateDirect(vertices.capacity() * 4).asFloatBuffer()
 
-        while (i < vertices.size) {
+        while (i < vertices.capacity()) {
             val v1 = GLVector(vertices[i], vertices[i + 1], vertices[i + 2])
             i += 3
 
@@ -599,19 +648,19 @@ interface HasGeometry {
 
             val n = a.cross(b).normalized
 
-            normalBuffer.add(n.x())
-            normalBuffer.add(n.y())
-            normalBuffer.add(n.z())
+            normalBuffer.put(n.x())
+            normalBuffer.put(n.y())
+            normalBuffer.put(n.z())
 
-            normalBuffer.add(n.x())
-            normalBuffer.add(n.y())
-            normalBuffer.add(n.z())
+            normalBuffer.put(n.x())
+            normalBuffer.put(n.y())
+            normalBuffer.put(n.z())
 
-            normalBuffer.add(n.x())
-            normalBuffer.add(n.y())
-            normalBuffer.add(n.z())
+            normalBuffer.put(n.x())
+            normalBuffer.put(n.y())
+            normalBuffer.put(n.z())
         }
 
-        normals = normalBuffer.toFloatArray()
+        normals = normalBuffer.duplicate()
     }
 }

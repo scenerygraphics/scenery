@@ -1,5 +1,8 @@
 package scenery
 
+import BufferUtils
+import java.nio.FloatBuffer
+import java.nio.IntBuffer
 import java.util.*
 
 /**
@@ -19,10 +22,10 @@ class Sphere(radius: Float, segments: Int) : Node("sphere"), HasGeometry {
     override val texcoordSize = 2;
     override val geometryType = GeometryType.TRIANGLE_STRIP;
 
-    override var vertices: FloatArray = floatArrayOf()
-    override var normals: FloatArray = floatArrayOf()
-    override var texcoords: FloatArray = floatArrayOf()
-    override var indices: IntArray = intArrayOf()
+    override var vertices: FloatBuffer = BufferUtils.allocateFloat(0)
+    override var normals: FloatBuffer = BufferUtils.allocateFloat(0)
+    override var texcoords: FloatBuffer = BufferUtils.allocateFloat(0)
+    override var indices: IntBuffer = BufferUtils.allocateInt(0)
 
     init {
         this.radius = radius
@@ -64,8 +67,8 @@ class Sphere(radius: Float, segments: Int) : Node("sphere"), HasGeometry {
             }
         }
 
-        vertices = vbuffer.toFloatArray()
-        normals = nbuffer.toFloatArray()
+        vertices = BufferUtils.allocateFloatAndPut(vbuffer.toFloatArray())
+        normals = BufferUtils.allocateFloatAndPut(nbuffer.toFloatArray())
     }
 
 }

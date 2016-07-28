@@ -1,6 +1,9 @@
 package scenery
 
+import BufferUtils
 import cleargl.GLVector
+import java.nio.FloatBuffer
+import java.nio.IntBuffer
 import java.util.*
 import kotlin.reflect.KProperty
 
@@ -14,11 +17,11 @@ class Line : Node("Line"), HasGeometry {
     override val vertexSize: Int = 3
     override val texcoordSize: Int = 0
     override val geometryType: GeometryType = GeometryType.LINE
-    override var vertices: FloatArray by this
-    override var normals: FloatArray by this
+    override var vertices: FloatBuffer by this
+    override var normals: FloatBuffer by this
 
-    override var texcoords: FloatArray = floatArrayOf()
-    override var indices: IntArray = intArrayOf()
+    override var texcoords: FloatBuffer = FloatBuffer.wrap(floatArrayOf())
+    override var indices: IntBuffer = IntBuffer.wrap(intArrayOf())
 
     override var useClassDerivedShader = true
 
@@ -51,14 +54,14 @@ class Line : Node("Line"), HasGeometry {
         linePoints.clear()
     }
 
-    operator fun setValue(line: Line, property: KProperty<*>, floats: FloatArray) {
+    operator fun setValue(line: Line, property: KProperty<*>, floats: FloatBuffer) {
     }
 
-    operator fun getValue(line: Line, property: KProperty<*>): FloatArray {
+    operator fun getValue(line: Line, property: KProperty<*>): FloatBuffer {
         return when(property.name) {
-            "vertices" -> line.linePoints.toFloatArray()
-            "normals" -> line.linePoints.toFloatArray()
-            else -> floatArrayOf()
+            "vertices" -> BufferUtils.allocateFloatAndPut(line.linePoints.toFloatArray())
+            "normals" -> BufferUtils.allocateFloatAndPut(line.linePoints.toFloatArray())
+            else -> FloatBuffer.wrap(floatArrayOf())
         }
     }
 }

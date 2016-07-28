@@ -489,11 +489,11 @@ open class DeferredLightingRenderer : Renderer, Hubable {
                 updateVertices(n)
                 updateNormals(n)
 
-                if (n.texcoords.size > 0) {
+                if (n.texcoords.limit() > 0) {
                     updateTextureCoords(n)
                 }
 
-                if (n.indices.size > 0) {
+                if (n.indices.limit() > 0) {
                     updateIndices(n)
                 }
 
@@ -1051,11 +1051,11 @@ open class DeferredLightingRenderer : Renderer, Hubable {
             setVerticesAndCreateBufferForNode(node)
             setNormalsAndCreateBufferForNode(node)
 
-            if (node.texcoords.size > 0) {
+            if (node.texcoords.limit() > 0) {
                 setTextureCoordsAndCreateBufferForNode(node)
             }
 
-            if (node.indices.size > 0) {
+            if (node.indices.limit() > 0) {
                 setIndicesAndCreateBufferForNode(node)
             }
         }
@@ -1215,7 +1215,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
      */
     fun setVerticesAndCreateBufferForNode(node: Node) {
         val s = getOpenGLObjectStateFromNode(node)
-        val pVertexBuffer: FloatBuffer = FloatBuffer.wrap((node as HasGeometry).vertices)
+        val pVertexBuffer: FloatBuffer = (node as HasGeometry).vertices
 
         s.mStoredPrimitiveCount = pVertexBuffer.remaining() / node.vertexSize
 
@@ -1249,7 +1249,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
      */
     fun updateVertices(node: Node) {
         val s = getOpenGLObjectStateFromNode(node)
-        val pVertexBuffer: FloatBuffer = FloatBuffer.wrap((node as HasGeometry).vertices)
+        val pVertexBuffer: FloatBuffer = (node as HasGeometry).vertices
 
         s.mStoredPrimitiveCount = pVertexBuffer.remaining() / node.vertexSize
 
@@ -1280,7 +1280,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
      */
     fun setNormalsAndCreateBufferForNode(node: Node) {
         val s = getOpenGLObjectStateFromNode(node)
-        val pNormalBuffer: FloatBuffer = FloatBuffer.wrap((node as HasGeometry).normals)
+        val pNormalBuffer: FloatBuffer = (node as HasGeometry).normals
 
         gl.gL3.glBindVertexArray(s.mVertexArrayObject[0])
         gl.glBindBuffer(GL.GL_ARRAY_BUFFER, s.mVertexBuffers[1])
@@ -1314,7 +1314,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
      */
     fun updateNormals(node: Node) {
         val s = getOpenGLObjectStateFromNode(node)
-        val pNormalBuffer: FloatBuffer = FloatBuffer.wrap((node as HasGeometry).normals)
+        val pNormalBuffer: FloatBuffer = (node as HasGeometry).normals
 
         gl.gL3.glBindVertexArray(s.mVertexArrayObject[0])
         gl.glBindBuffer(GL.GL_ARRAY_BUFFER, s.mVertexBuffers[1])
@@ -1343,7 +1343,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
      */
     fun setTextureCoordsAndCreateBufferForNode(node: Node) {
         val s = getOpenGLObjectStateFromNode(node)
-        val pTextureCoordsBuffer: FloatBuffer = FloatBuffer.wrap((node as HasGeometry).texcoords)
+        val pTextureCoordsBuffer: FloatBuffer = (node as HasGeometry).texcoords
 
         gl.gL3.glBindVertexArray(s.mVertexArrayObject[0])
         gl.glBindBuffer(GL.GL_ARRAY_BUFFER, s.mVertexBuffers[2])
@@ -1375,7 +1375,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
      */
     fun updateTextureCoords(node: Node) {
         val s = getOpenGLObjectStateFromNode(node)
-        val pTextureCoordsBuffer: FloatBuffer = FloatBuffer.wrap((node as HasGeometry).texcoords)
+        val pTextureCoordsBuffer: FloatBuffer = (node as HasGeometry).texcoords
 
         gl.gL3.glBindVertexArray(s.mVertexArrayObject[0])
         gl.gL3.glBindBuffer(GL.GL_ARRAY_BUFFER,
@@ -1405,7 +1405,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
      */
     fun setIndicesAndCreateBufferForNode(node: Node) {
         val s = getOpenGLObjectStateFromNode(node)
-        val pIndexBuffer: IntBuffer = IntBuffer.wrap((node as HasGeometry).indices)
+        val pIndexBuffer: IntBuffer = (node as HasGeometry).indices
 
         s.mStoredIndexCount = pIndexBuffer.remaining()
 
@@ -1431,7 +1431,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
      */
     fun updateIndices(node: Node) {
         val s = getOpenGLObjectStateFromNode(node)
-        val pIndexBuffer: IntBuffer = IntBuffer.wrap((node as HasGeometry).indices)
+        val pIndexBuffer: IntBuffer = (node as HasGeometry).indices
 
         s.mStoredIndexCount = pIndexBuffer.remaining()
 

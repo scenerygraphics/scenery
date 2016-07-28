@@ -1,6 +1,9 @@
 package scenery
 
+import BufferUtils
 import cleargl.GLVector
+import java.nio.FloatBuffer
+import java.nio.IntBuffer
 
 /**
  * Constructs a Box [Node] with the dimensions given in [sizes]
@@ -9,10 +12,10 @@ import cleargl.GLVector
  * @property[sizes] The x/y/z sizes of the box
  */
 open class Box(val sizes: GLVector) : Mesh("box"), HasGeometry {
-    override var vertices: FloatArray = floatArrayOf()
-    override var normals: FloatArray = floatArrayOf()
-    override var texcoords: FloatArray = floatArrayOf()
-    override var indices: IntArray = intArrayOf()
+    override var vertices: FloatBuffer = BufferUtils.allocateFloat(0)
+    override var normals: FloatBuffer= BufferUtils.allocateFloat(0)
+    override var texcoords: FloatBuffer = BufferUtils.allocateFloat(0)
+    override var indices: IntBuffer = BufferUtils.allocateInt(0)
 
     override var vertexSize = 3;
     override var texcoordSize = 2;
@@ -26,7 +29,7 @@ open class Box(val sizes: GLVector) : Mesh("box"), HasGeometry {
             -side2*sizes.y(), side2*sizes.y(),
             -side2*sizes.z(), side2*sizes.z())
 
-        vertices = floatArrayOf(
+        vertices = BufferUtils.allocateFloatAndPut(floatArrayOf(
             // Front
             -sizes.x() * side2, -side2*sizes.y(), side2*sizes.z(),
             sizes.x() * side2, -side2*sizes.y(), side2*sizes.z(),
@@ -61,9 +64,9 @@ open class Box(val sizes: GLVector) : Mesh("box"), HasGeometry {
             sizes.x() * side2, side2*sizes.y(), side2*sizes.z(),
             sizes.x() * side2, side2*sizes.y(), -side2*sizes.z(),
             -sizes.x() * side2, side2*sizes.y(), -side2*sizes.z()
-        )
+        ))
 
-        normals = floatArrayOf(
+        normals = BufferUtils.allocateFloatAndPut(floatArrayOf(
             // Front
             0.0f, 0.0f, 1.0f,
             0.0f, 0.0f, 1.0f,
@@ -94,18 +97,18 @@ open class Box(val sizes: GLVector) : Mesh("box"), HasGeometry {
             0.0f, 1.0f, 0.0f,
             0.0f, 1.0f, 0.0f,
             0.0f, 1.0f, 0.0f
-        )
+        ))
 
-        indices = intArrayOf(
+        indices = BufferUtils.allocateIntAndPut(intArrayOf(
             0, 1, 2, 0, 2, 3,
             4, 5, 6, 4, 6, 7,
             8, 9, 10, 8, 10, 11,
             12, 13, 14, 12, 14, 15,
             16, 17, 18, 16, 18, 19,
             20, 21, 22, 20, 22, 23
-        )
+        ))
 
-        texcoords = floatArrayOf(
+        texcoords = BufferUtils.allocateFloatAndPut(floatArrayOf(
             0.0f, 0.0f,
             1.0f, 0.0f,
             1.0f, 1.0f,
@@ -130,6 +133,6 @@ open class Box(val sizes: GLVector) : Mesh("box"), HasGeometry {
             1.0f, 0.0f,
             1.0f, 1.0f,
             0.0f, 1.0f
-        )
+        ))
     }
 }
