@@ -20,7 +20,7 @@ class Line : Node("Line"), HasGeometry {
     /** Size of one texcoord (e.g. 2 in 3D) */
     override val texcoordSize: Int = 0
     /** Geometry type -- Default for Line is [GeometryType.LINE] */
-    override val geometryType: GeometryType = GeometryType.LINE
+    override val geometryType: GeometryType = GeometryType.LINE_STRIP_ADJACENCY
     /** Vertex buffer */
     override var vertices: FloatBuffer by this
     /** Normal buffer */
@@ -35,7 +35,7 @@ class Line : Node("Line"), HasGeometry {
 
     /** Shader property for the line's edge width. Consumed by the renderer. */
     @ShaderProperty
-    var edgeWidth = 0.004f
+    var edgeWidth = 0.04f
 
     /** (Private) shader property to keep track of the current number of vertices. Consumed by the renderer. */
     @ShaderProperty
@@ -125,8 +125,40 @@ class Line : Node("Line"), HasGeometry {
      */
     operator fun getValue(line: Line, property: KProperty<*>): FloatBuffer {
         return when(property.name) {
-            "vertices" -> BufferUtils.allocateFloatAndPut(line.linePoints.toFloatArray())
-            "normals" -> BufferUtils.allocateFloatAndPut(line.linePoints.toFloatArray())
+            "vertices" -> {
+                val buf: FloatBuffer = BufferUtils.allocateFloat(line.linePoints.size+6)
+                buf.put(line.linePoints[0])
+                buf.put(line.linePoints[1])
+                buf.put(line.linePoints[2])
+
+                buf.put(line.linePoints.toFloatArray())
+
+                buf.put((line.linePoints[line.linePoints.size-3]))
+                buf.put((line.linePoints[line.linePoints.size-2]))
+                buf.put((line.linePoints[line.linePoints.size-1]))
+
+                buf.flip()
+
+                return buf
+
+            }
+            "normals" -> {
+                val buf: FloatBuffer = BufferUtils.allocateFloat(line.linePoints.size+6)
+                buf.put(line.linePoints[0])
+                buf.put(line.linePoints[1])
+                buf.put(line.linePoints[2])
+
+                buf.put(line.linePoints.toFloatArray())
+
+                buf.put((line.linePoints[line.linePoints.size-3]))
+                buf.put((line.linePoints[line.linePoints.size-2]))
+                buf.put((line.linePoints[line.linePoints.size-1]))
+
+                buf.flip()
+
+                return buf
+
+            }
             else -> FloatBuffer.wrap(floatArrayOf())
         }
     }
