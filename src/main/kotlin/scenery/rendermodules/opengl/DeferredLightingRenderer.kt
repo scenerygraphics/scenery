@@ -519,28 +519,29 @@ open class DeferredLightingRenderer : Renderer, Hubable {
     protected fun setShaderPropertiesForNode(n: Node, program: GLProgram) {
         shaderPropertyCache
             .getOrPut(n.javaClass, { n.javaClass.declaredFields.filter { it.isAnnotationPresent(ShaderProperty::class.java) } })
-            .forEach {
-                it.isAccessible = true
-                val field = it.get(n)
-                when (it.type) {
+            .forEach { property ->
+                property.isAccessible = true
+                val field = property.get(n)
+
+                when (property.type) {
                     GLVector::class.java -> {
-                        program.getUniform(it.name).setFloatVector(field as GLVector)
+                        program.getUniform(property.name).setFloatVector(field as GLVector)
                     }
 
                     Int::class.java -> {
-                        program.getUniform(it.name).setInt(field as Int)
+                        program.getUniform(property.name).setInt(field as Int)
                     }
 
                     Float::class.java -> {
-                        program.getUniform(it.name).setFloat(field as Float)
+                        program.getUniform(property.name).setFloat(field as Float)
                     }
 
                     GLMatrix::class.java -> {
-                        program.getUniform(it.name).setFloatMatrix((field as GLMatrix).floatArray, false)
+                        program.getUniform(property.name).setFloatMatrix((field as GLMatrix).floatArray, false)
                     }
 
                     else -> {
-                        logger.warn("Could not derive shader data type for @ShaderProperty ${n.javaClass.canonicalName}.${it.name} of type ${it.type}!")
+                        logger.warn("Could not derive shader data type for @ShaderProperty ${n.javaClass.canonicalName}.${property.name} of type ${property.type}!")
                     }
                 }
             }

@@ -1,5 +1,6 @@
 package scenery
 
+import BufferUtils
 import cleargl.GLVector
 import java.io.BufferedInputStream
 import java.io.File
@@ -316,7 +317,7 @@ interface HasGeometry {
                             val y = tmpV.getOrElse(toBufferIndex(tmpV, vertices[i], 3, 1), ::defaultHandler)
                             val z = tmpV.getOrElse(toBufferIndex(tmpV, vertices[i], 3, 2), ::defaultHandler)
 
-                            if (vbuffer.position() == 0 || boundingBox == null) {
+                            if (vertexBuffers[name]!!.first.position() == 0 || boundingBox == null) {
                                 boundingBox = floatArrayOf(x, x, y, y, z, z)
                             }
 

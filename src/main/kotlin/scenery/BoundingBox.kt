@@ -1,6 +1,8 @@
 package scenery
 
 import cleargl.GLVector
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import scenery.rendermodules.opengl.OpenGLShaderPreference
 import java.util.*
 
@@ -18,7 +20,9 @@ import java.util.*
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class BoundingBox : Mesh() {
+open class BoundingBox : Mesh() {
+    protected var logger: Logger = LoggerFactory.getLogger("BoundingBox")
+
     var boundingCoords = floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
     var labels = HashMap<String, FontBoard>()
 
@@ -35,45 +39,33 @@ class BoundingBox : Mesh() {
     var ticksOnly: Int = 0
 
     var node: Node? = null
-    set(value) {
-        field = value
+        set(value) {
+            field = value
 
-        if(value != null) {
-            // find largest child node
-            val nodeWorldBoundingBox = {n: Node, bbcoords: FloatArray ->
-                val min = GLVector(bbcoords[0], bbcoords[2], bbcoords[4], 1.0f)
-                val max = GLVector(bbcoords[1], bbcoords[3], bbcoords[5], 1.0f)
+            value?.let {
+                updateFromNode()
+                value.addChild(this)
 
-                val minworld = n.world.mult(min)
-                val maxworld = n.world.mult(max)
-
-                floatArrayOf(minworld.x(), maxworld.x(), minworld.y(), maxworld.y(), minworld.z(), maxworld.z())
+                value.updateWorld(true)
             }
+        }
 
-            val boundingBoxes = NodeHelpers.discover(value, { true })
-                .filter { it.boundingBoxCoords != null }
-                .map { nodeWorldBoundingBox(it, it.boundingBoxCoords!!) }.toMutableList()
-
-            if(value.boundingBoxCoords != null) {
-                boundingBoxes.add(nodeWorldBoundingBox(value, value.boundingBoxCoords!!))
-            }
-
-            if(boundingBoxes.size < 1) {
-                System.err.println("Could not find valid bounding boxes for ${value.name} or its children.")
+    fun updateFromNode() {
+        node?.let {
+            var bb: FloatArray = if (node!!.boundingBoxCoords != null) {
+                node!!.boundingBoxCoords!!
+            } else {
                 return
             }
 
-            val bb = floatArrayOf(
-                boundingBoxes.minBy { it[0] }!![0],
-                boundingBoxes.maxBy { it[1] }!![1],
-                boundingBoxes.minBy { it[2] }!![2],
-                boundingBoxes.maxBy { it[3] }!![3],
-                boundingBoxes.minBy { it[4] }!![4],
-                boundingBoxes.maxBy { it[5] }!![5])
+            val min = GLVector(bb[0], bb[2], bb[4], 0.0f)
+            val max = GLVector(bb[1], bb[3], bb[5], 0.0f)
 
-            val b = Box(GLVector(bb[1]-bb[0], bb[3]-bb[2], bb[5]-bb[4]))
+            val b = Box(max - min)
 
-            val center = GLVector((bb[1]-bb[0])/2.0f, (bb[3]-bb[2])/2.0f, (bb[5]-bb[4])/2.0f)
+            logger.debug("Bounding box of $node is ${bb.joinToString(", ")}")
+
+            val center = (max - min)*0.5f
 
             this.vertices = b.vertices
             this.normals = b.normals
@@ -81,17 +73,21 @@ class BoundingBox : Mesh() {
             this.indices = b.indices
 
             this.boundingCoords = bb
+            this.boundingBoxCoords = b.boundingBoxCoords
             this.position = GLVector(bb[0], bb[2], bb[4]) + center
 
+            bb = this.boundingBoxCoords!!
             labels["origin"]?.position = GLVector(bb[0], bb[2], bb[4])
 
             labels["x"]?.position = GLVector(bb[1], bb[2], bb[4])
             labels["y"]?.position = GLVector(bb[0], bb[3], bb[4])
             labels["z"]?.position = GLVector(bb[0], bb[2], bb[5])
 
-            this.dirty = true
+            node!!.addChild(this)
+            this.needsUpdate = true
+            this.needsUpdateWorld = true
 
-            name = "Bounding Box of ${value.name}"
+            name = "Bounding Box of ${node!!.name}"
         }
     }
 
@@ -117,12 +113,15 @@ class BoundingBox : Mesh() {
             fontBoard.backgroundColor = GLVector(0.2f, 0.2f, 0.2f)
             fontBoard.transparent = 0
 
-            this.children.add(fontBoard)
+            this.addChild(fontBoard)
         }
     }
 
     /** Stringify the bounding box */
     override fun toString(): String {
         return "Bounding Box of ${node?.name}, coords: ${boundingCoords.joinToString(", ")}"
+    }
+
+    override fun preDraw() {
     }
 }
