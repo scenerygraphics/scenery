@@ -12,6 +12,7 @@ import scenery.Hubable
 import scenery.Scene
 import scenery.SceneryElement
 import scenery.controls.behaviours.*
+import scenery.rendermodules.Renderer
 import java.io.FileNotFoundException
 import java.io.FileReader
 import java.io.Reader
@@ -143,6 +144,8 @@ class ClearGLInputHandler(scene: Scene, renderer: Any, window: ClearGLDisplayabl
         behaviourMap.put("gamepad_camera_control", GamepadCameraControl("gamepad_camera_control", listOf(Component.Identifier.Axis.Z, Component.Identifier.Axis.RZ), scene.findObserver(), window.width, window.height))
         behaviourMap.put("gamepad_movement_control", GamepadMovementControl("gamepad_movement_control", listOf(Component.Identifier.Axis.X, Component.Identifier.Axis.Y), scene.findObserver()))
 
+        behaviourMap.put("select_command", SelectCommand("select_command", renderer as Renderer, scene, scene.findObserver()))
+
         behaviourMap.put("move_forward", MovementCommand("move_forward", "forward", scene.findObserver()))
         behaviourMap.put("move_back", MovementCommand("move_back", "back", scene.findObserver()))
         behaviourMap.put("move_left", MovementCommand("move_left", "left", scene.findObserver()))
@@ -172,6 +175,8 @@ class ClearGLInputHandler(scene: Scene, renderer: Any, window: ClearGLDisplayabl
         adder.put("mouse_control") // put input trigger as defined in config
         adder.put("gamepad_movement_control")
         adder.put("gamepad_camera_control")
+
+        adder.put("select_command", "double-click button1")
 
         adder.put("move_forward", "W")
         adder.put("move_left", "A")

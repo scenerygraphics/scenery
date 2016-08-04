@@ -24,6 +24,14 @@ open class Camera : Node("Camera") {
     var forward: GLVector = GLVector(0.0f, 0.0f, 1.0f)
     /** Up vector of the camera, used if not targeted */
     var up: GLVector = GLVector(0.0f, 1.0f, 0.0f)
+    /** Right vector of the camera */
+    var right: GLVector = GLVector(1.0f, 0.0f, 0.0f)
+    /** FOV of the camera **/
+    var fov: Float = 70.0f
+    /** Z buffer near plane */
+    var nearPlaneDistance = 0.05f
+    /** Z buffer far plane location */
+    var farPlaneDistance = 1000.0f
 
     /** View matrix of the camera. Setting the view matrix will re-set the forward
      *  vector of the camera according to the given matrix.
@@ -31,36 +39,53 @@ open class Camera : Node("Camera") {
     override var view: GLMatrix? = null
         set(m) {
             m?.let {
-                this.forward = GLVector(m.get(0, 2), m.get(1, 2), m.get(2, 2)) * -1.0f
-            }
+                this.forward = GLVector(m.get(0, 2), m.get(1, 2), m.get(2, 2)).normalize() * -1.0f
+                this.right = GLVector(m.get(0, 0), m.get(1, 0), m.get(2, 0)).normalize()
+                this.up = GLVector(m.get(0, 1), m.get(1, 1), m.get(2, 1)).normalize()
 
+                if(!targeted) {
+                    this.target = this.position + this.forward
+                }
+            }
             field = m
         }
 
     /** Rotation of the camera. The rotation is applied after the view matrix */
     override var rotation: Quaternion = Quaternion(0.0f, 0.0f, 0.0f, 1.0f)
-        set(q) {
-            field = q
-        }
 
     init {
         this.nodeType = "Camera"
     }
 
-    /**
-     * Returns the world orientation of the camera
+    /** Create a perspective projection camera
      *
-     * FIXME: Currently broken/unused
      *
-     * @return Orientation of the camera in world space
      */
-    fun getWorldOrientation(): GLVector {
-        if (targeted) {
-            return (target - position).normalized
-        } else {
-            val v: GLVector = GLVector(forward.x(), forward.y(), forward.z(), 0.0f)
-            //FIXME: val o: GLVector= GLMatrix.fromQuaternion(rotation).mult(v)
-            return v
-        }
+    fun perspectiveCamera(fov: Float, width: Float, height: Float, nearPlaneLocation: Float = 0.001f, farPlaneLocation: Float = 1000.0f) {
+        this.nearPlaneDistance = nearPlaneLocation
+        this.farPlaneDistance = farPlaneLocation
+        this.fov = fov
+
+        this.projection = GLMatrix().setPerspectiveProjectionMatrix(
+            this.fov / 180.0f * Math.PI.toFloat(),
+            width / height,
+            this.nearPlaneDistance,
+            this.farPlaneDistance
+        )
+    }
+
+    fun getTransformation(): GLMatrix {
+        val tr = GLMatrix.getTranslation(this.position * (-1.0f)).transpose()
+        val r = GLMatrix.fromQuaternion(this.rotation)
+
+        return r * tr
+    }
+
+    infix operator fun  GLMatrix.times(rhs: GLMatrix): GLMatrix {
+        val m = this.clone()
+        m.mult(rhs)
+
+        return m
     }
 }
+

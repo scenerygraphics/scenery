@@ -21,5 +21,5 @@ void main()
     // And the diffuse per-fragment color
     gAlbedoSpec.rgb = VertexIn.Color.rgb;
     // Store specular intensity in gAlbedoSpec's alpha component
-    gAlbedoSpec.a = 0.5f;
+    gAlbedoSpec.a = 0.2f;
 }

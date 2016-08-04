@@ -1,5 +1,6 @@
 package scenery.fonts
 
+import BufferUtils
 import cleargl.GLVector
 import org.jocl.cl_mem
 import scenery.GeometryType
@@ -273,10 +274,10 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
             basei += 4
         }
 
-        m.vertices = (vertices.clone() as ArrayList<Float>).toFloatArray()
-        m.normals = (normals.clone() as ArrayList<Float>).toFloatArray()
-        m.texcoords = (texcoords.clone() as ArrayList<Float>).toFloatArray()
-        m.indices = (indices.clone() as ArrayList<Int>).toIntArray()
+        m.vertices = BufferUtils.allocateFloatAndPut(vertices.toFloatArray())
+        m.normals = BufferUtils.allocateFloatAndPut(normals.toFloatArray())
+        m.texcoords = BufferUtils.allocateFloatAndPut(texcoords.toFloatArray())
+        m.indices = BufferUtils.allocateIntAndPut(indices.toIntArray())
 
         return m
     }

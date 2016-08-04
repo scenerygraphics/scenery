@@ -3,7 +3,7 @@
 layout(lines) in;
 layout(triangle_strip, max_vertices=4) out;
 
-uniform float EdgeWidth = 0.004;
+uniform float edgeWidth = 0.004;
 
 in VertexData {
     vec3 Position;
@@ -23,7 +23,7 @@ out VertexData {
 
 void emitCenteredEdgeQuad(vec3 p1, vec3 p2) {
     vec2 v = normalize(p1.xy - p2.xy);
-    vec2 n = vec2(-v.y, v.x) * EdgeWidth;
+    vec2 n = vec2(-v.y, v.x) * edgeWidth;
 
     gl_Position = vec4( p1.xy + 0.5*n, p1.z, 1.0);
     VertexOut.Position = gl_Position.xyz;

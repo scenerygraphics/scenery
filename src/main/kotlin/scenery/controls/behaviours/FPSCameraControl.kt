@@ -1,6 +1,7 @@
 package scenery.controls.behaviours
 
 import cleargl.GLVector
+import com.jogamp.opengl.math.Quaternion
 import org.scijava.ui.behaviour.DragBehaviour
 import scenery.Camera
 
@@ -73,6 +74,7 @@ open class FPSCameraControl(private val name: String, private val node: Camera, 
      * @param[y] y position in window
      */
     override fun init(x: Int, y: Int) {
+        node.targeted = false
         if (firstEntered) {
             lastX = x
             lastY = y
@@ -105,24 +107,15 @@ open class FPSCameraControl(private val name: String, private val node: Camera, 
         lastY = y
 
         xoffset *= 0.1f
-        yoffset *= 0.1f
+        yoffset *= -0.1f
 
-        yaw += xoffset
-        pitch += yoffset
+        yaw = xoffset
+        pitch = yoffset
 
-        if (pitch > 89.0f) {
-            pitch = 89.0f
-        }
-        if (pitch < -89.0f) {
-            pitch = -89.0f
-        }
+        val rot = Quaternion().setFromEuler(pitch/180.0f*Math.PI.toFloat(), yaw/180.0f*Math.PI.toFloat(), 0.0f)
 
-        val forward = GLVector(
-                Math.cos(Math.toRadians(yaw.toDouble())).toFloat() * Math.cos(Math.toRadians(pitch.toDouble())).toFloat(),
-                Math.sin(Math.toRadians(pitch.toDouble())).toFloat(),
-                Math.sin(Math.toRadians(yaw.toDouble())).toFloat() * Math.cos(Math.toRadians(pitch.toDouble())).toFloat())
-
-        node.forward = forward.normalized
+        rot.mult(node.rotation)
+        node.rotation = rot
     }
 
 

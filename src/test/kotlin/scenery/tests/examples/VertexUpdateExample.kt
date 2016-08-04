@@ -7,6 +7,7 @@ import org.junit.Test
 import scenery.*
 import scenery.rendermodules.opengl.DeferredLightingRenderer
 import scenery.repl.REPL
+import java.nio.FloatBuffer
 import java.util.*
 import kotlin.concurrent.thread
 
@@ -109,8 +110,8 @@ class VertexUpdateExample : SceneryDefaultApplication("VertexUpdateExample") {
                     }
                 }
 
-                sphere.vertices = vbuffer.toFloatArray()
-                sphere.normals = nbuffer.toFloatArray()
+                sphere.vertices = FloatBuffer.wrap(vbuffer.toFloatArray())
+                sphere.normals = FloatBuffer.wrap(nbuffer.toFloatArray())
                 sphere.recalculateNormals()
 
                 sphere.dirty = true

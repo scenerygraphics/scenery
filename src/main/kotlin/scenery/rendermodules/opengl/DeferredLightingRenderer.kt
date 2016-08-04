@@ -43,9 +43,9 @@ open class DeferredLightingRenderer : Renderer, Hubable {
     /** [GL4] instance handed over, coming from [ClearGLDefaultEventListener]*/
     protected var gl: GL4
     /** window width */
-    protected var width: Int
+    override var width: Int
     /** window height */
-    protected var height: Int
+    override var height: Int
 
     /** [GLFramebuffer] Geometry buffer for rendering */
     protected var geometryBuffer: ArrayList<GLFramebuffer>
@@ -489,11 +489,11 @@ open class DeferredLightingRenderer : Renderer, Hubable {
                 updateVertices(n)
                 updateNormals(n)
 
-                if (n.texcoords.size > 0) {
+                if (n.texcoords.limit() > 0) {
                     updateTextureCoords(n)
                 }
 
-                if (n.indices.size > 0) {
+                if (n.indices.limit() > 0) {
                     updateIndices(n)
                 }
 
@@ -519,28 +519,29 @@ open class DeferredLightingRenderer : Renderer, Hubable {
     protected fun setShaderPropertiesForNode(n: Node, program: GLProgram) {
         shaderPropertyCache
             .getOrPut(n.javaClass, { n.javaClass.declaredFields.filter { it.isAnnotationPresent(ShaderProperty::class.java) } })
-            .forEach {
-                it.isAccessible = true
-                val field = it.get(n)
-                when (it.type) {
+            .forEach { property ->
+                property.isAccessible = true
+                val field = property.get(n)
+
+                when (property.type) {
                     GLVector::class.java -> {
-                        program.getUniform(it.name).setFloatVector(field as GLVector)
+                        program.getUniform(property.name).setFloatVector(field as GLVector)
                     }
 
                     Int::class.java -> {
-                        program.getUniform(it.name).setInt(field as Int)
+                        program.getUniform(property.name).setInt(field as Int)
                     }
 
                     Float::class.java -> {
-                        program.getUniform(it.name).setFloat(field as Float)
+                        program.getUniform(property.name).setFloat(field as Float)
                     }
 
                     GLMatrix::class.java -> {
-                        program.getUniform(it.name).setFloatMatrix((field as GLMatrix).floatArray, false)
+                        program.getUniform(property.name).setFloatMatrix((field as GLMatrix).floatArray, false)
                     }
 
                     else -> {
-                        logger.warn("Could not derive shader data type for @ShaderProperty ${n.javaClass.canonicalName}.${it.name} of type ${it.type}!")
+                        logger.warn("Could not derive shader data type for @ShaderProperty ${n.javaClass.canonicalName}.${property.name} of type ${property.type}!")
                     }
                 }
             }
@@ -595,13 +596,11 @@ open class DeferredLightingRenderer : Renderer, Hubable {
 //            (a.position.z() - b.position.z()).toInt()
 //        }
 
-        if (cam.targeted) {
-            cam.view?.setCamera(cam.position, cam.target, cam.up)
-        } else {
-            cam.view?.setCamera(cam.position, cam.position + cam.forward, cam.up)
-        }
+
 //        cam.projection = GLMatrix().setPerspectiveProjectionMatrix(70.0f / 180.0f * Math.PI.toFloat(),
 //                (1.0f * width) / (1.0f * height), 0.1f, 100000f)
+
+        cam.view = cam.getTransformation()
 
         val instanceGroups = renderOrderList.groupBy { it.instanceOf }
 
@@ -651,8 +650,8 @@ open class DeferredLightingRenderer : Renderer, Hubable {
 
             eyes.forEachIndexed { i, eye ->
                 val projection: GLMatrix = if (hmd == null) {
-                    GLMatrix().setPerspectiveProjectionMatrix(70.0f / 180.0f * Math.PI.toFloat(),
-                        (1.0f * geometryBuffer[i].width) / (1.0f * geometryBuffer[i].height), 0.1f, 100000f)
+                    GLMatrix().setPerspectiveProjectionMatrix(cam.fov / 180.0f * Math.PI.toFloat(),
+                        (1.0f * geometryBuffer[i].width) / (1.0f * geometryBuffer[i].height), cam.nearPlaneDistance, cam.farPlaneDistance)
                 } else {
                     hmd.getEyeProjection(i)
                 }
@@ -669,7 +668,6 @@ open class DeferredLightingRenderer : Renderer, Hubable {
                 }
                 mv.mult(pose)
                 mv.mult(cam.view!!)
-                mv.mult(cam.rotation)
                 mv.mult(n.world)
 
                 mvp = projection.clone()
@@ -752,7 +750,6 @@ open class DeferredLightingRenderer : Renderer, Hubable {
                     }
                     mv.mult(pose)
                     mv.mult(cam.view!!)
-                    mv.mult(cam.rotation)
                     mv.mult(node.world)
 
                     mvp = projection.clone()
@@ -1039,7 +1036,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
                             prefs.shaders.toTypedArray())
                     } catch(e: NullPointerException) {
                         s.program = GLProgram.buildProgram(gl, this.javaClass,
-                            prefs.shaders.map { System.err.println(it); "shaders/" + it }.toTypedArray())
+                            prefs.shaders.map { "shaders/" + it }.toTypedArray())
                     }
 
                 }
@@ -1055,11 +1052,11 @@ open class DeferredLightingRenderer : Renderer, Hubable {
             setVerticesAndCreateBufferForNode(node)
             setNormalsAndCreateBufferForNode(node)
 
-            if (node.texcoords.size > 0) {
+            if (node.texcoords.limit() > 0) {
                 setTextureCoordsAndCreateBufferForNode(node)
             }
 
-            if (node.indices.size > 0) {
+            if (node.indices.limit() > 0) {
                 setIndicesAndCreateBufferForNode(node)
             }
         }
@@ -1219,7 +1216,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
      */
     fun setVerticesAndCreateBufferForNode(node: Node) {
         val s = getOpenGLObjectStateFromNode(node)
-        val pVertexBuffer: FloatBuffer = FloatBuffer.wrap((node as HasGeometry).vertices)
+        val pVertexBuffer: FloatBuffer = (node as HasGeometry).vertices
 
         s.mStoredPrimitiveCount = pVertexBuffer.remaining() / node.vertexSize
 
@@ -1253,7 +1250,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
      */
     fun updateVertices(node: Node) {
         val s = getOpenGLObjectStateFromNode(node)
-        val pVertexBuffer: FloatBuffer = FloatBuffer.wrap((node as HasGeometry).vertices)
+        val pVertexBuffer: FloatBuffer = (node as HasGeometry).vertices
 
         s.mStoredPrimitiveCount = pVertexBuffer.remaining() / node.vertexSize
 
@@ -1284,7 +1281,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
      */
     fun setNormalsAndCreateBufferForNode(node: Node) {
         val s = getOpenGLObjectStateFromNode(node)
-        val pNormalBuffer: FloatBuffer = FloatBuffer.wrap((node as HasGeometry).normals)
+        val pNormalBuffer: FloatBuffer = (node as HasGeometry).normals
 
         gl.gL3.glBindVertexArray(s.mVertexArrayObject[0])
         gl.glBindBuffer(GL.GL_ARRAY_BUFFER, s.mVertexBuffers[1])
@@ -1318,7 +1315,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
      */
     fun updateNormals(node: Node) {
         val s = getOpenGLObjectStateFromNode(node)
-        val pNormalBuffer: FloatBuffer = FloatBuffer.wrap((node as HasGeometry).normals)
+        val pNormalBuffer: FloatBuffer = (node as HasGeometry).normals
 
         gl.gL3.glBindVertexArray(s.mVertexArrayObject[0])
         gl.glBindBuffer(GL.GL_ARRAY_BUFFER, s.mVertexBuffers[1])
@@ -1347,7 +1344,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
      */
     fun setTextureCoordsAndCreateBufferForNode(node: Node) {
         val s = getOpenGLObjectStateFromNode(node)
-        val pTextureCoordsBuffer: FloatBuffer = FloatBuffer.wrap((node as HasGeometry).texcoords)
+        val pTextureCoordsBuffer: FloatBuffer = (node as HasGeometry).texcoords
 
         gl.gL3.glBindVertexArray(s.mVertexArrayObject[0])
         gl.glBindBuffer(GL.GL_ARRAY_BUFFER, s.mVertexBuffers[2])
@@ -1379,7 +1376,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
      */
     fun updateTextureCoords(node: Node) {
         val s = getOpenGLObjectStateFromNode(node)
-        val pTextureCoordsBuffer: FloatBuffer = FloatBuffer.wrap((node as HasGeometry).texcoords)
+        val pTextureCoordsBuffer: FloatBuffer = (node as HasGeometry).texcoords
 
         gl.gL3.glBindVertexArray(s.mVertexArrayObject[0])
         gl.gL3.glBindBuffer(GL.GL_ARRAY_BUFFER,
@@ -1409,7 +1406,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
      */
     fun setIndicesAndCreateBufferForNode(node: Node) {
         val s = getOpenGLObjectStateFromNode(node)
-        val pIndexBuffer: IntBuffer = IntBuffer.wrap((node as HasGeometry).indices)
+        val pIndexBuffer: IntBuffer = (node as HasGeometry).indices
 
         s.mStoredIndexCount = pIndexBuffer.remaining()
 
@@ -1435,7 +1432,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
      */
     fun updateIndices(node: Node) {
         val s = getOpenGLObjectStateFromNode(node)
-        val pIndexBuffer: IntBuffer = IntBuffer.wrap((node as HasGeometry).indices)
+        val pIndexBuffer: IntBuffer = (node as HasGeometry).indices
 
         s.mStoredIndexCount = pIndexBuffer.remaining()
 

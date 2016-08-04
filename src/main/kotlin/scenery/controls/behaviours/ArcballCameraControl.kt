@@ -1,6 +1,8 @@
 package scenery.controls.behaviours
 
+import cleargl.GLMatrix
 import cleargl.GLVector
+import com.jogamp.opengl.math.Quaternion
 import org.scijava.ui.behaviour.DragBehaviour
 import org.scijava.ui.behaviour.ScrollBehaviour
 import scenery.Camera
@@ -38,6 +40,8 @@ open class ArcballCameraControl(private val name: String, private val node: Came
     private var distance: Float = 5.0f
     /** multiplier for zooming in and out */
     var scrollSpeedMultiplier = 0.05f
+    /** multiplier for mouse movement */
+    var mouseSpeedMultiplier = 0.1f
     /** minimum distance value to target */
     var minimumDistance = 0.0001f
     /** maximum distance value to target */
@@ -49,37 +53,13 @@ open class ArcballCameraControl(private val name: String, private val node: Came
 
             node.target = value
             distance = (value - node.position).magnitude()
-
-            val yp = (value - node.position).toYawPitch()
-            this.yaw = yp.first
-            this.pitch = yp.second
         }
 
     init {
-        val yp = (node.forward-node.position).toYawPitch()
-        this.yaw = yp.first
-        this.pitch = yp.second
         this.target = target
 
         node.target = target
         node.targeted = true
-    }
-
-    /**
-     * This extension function creates yaw/pitch angles from
-     * a given GLVector.
-     *
-     * @return A Pair consisting of the yaw and pitch angles
-     */
-    protected fun GLVector.toYawPitch(): Pair<Float, Float> {
-        val dx = this.normalized.x()
-        val dy = this.normalized.y()
-        val dz = this.normalized.z()
-
-        val yaw = Math.atan(1.0*dx/(-1.0*dy)).toFloat()
-        val pitch = Math.atan(Math.sqrt(1.0*dx*dx+dy*dy)/dz).toFloat()
-
-        return Pair(yaw, pitch)
     }
 
     /**
@@ -96,6 +76,7 @@ open class ArcballCameraControl(private val name: String, private val node: Came
             firstEntered = false
         }
 
+        node.targeted = true
         node.target = target
     }
 
@@ -123,28 +104,21 @@ open class ArcballCameraControl(private val name: String, private val node: Came
         lastX = x
         lastY = y
 
-        xoffset *= 0.01f
-        yoffset *= 0.01f
+        xoffset *= mouseSpeedMultiplier
+        yoffset *= -mouseSpeedMultiplier
 
-        yaw += xoffset
-        pitch += yoffset
+        yaw = xoffset/180.0f*Math.PI.toFloat()
+        pitch = yoffset/180.0f*Math.PI.toFloat()
 
-        if (pitch >= Math.PI.toFloat()/2.0f) {
-            pitch = Math.PI.toFloat()/2.0f-0.01f
-        }
-        if (pitch <= -Math.PI.toFloat()/2.0f) {
-            pitch = -Math.PI.toFloat()/2.0f+0.01f
-        }
+        // first calculate the total rotation quaternion to be applied to the camera
+        val rot = Quaternion().setFromEuler(pitch, yaw, 0.0f)
+        rot.mult(node.rotation).normalize()
+        node.rotation = rot
 
-        val forward = GLVector(
-            Math.cos((yaw.toDouble())).toFloat() * Math.cos((pitch.toDouble())).toFloat(),
-            Math.sin((pitch.toDouble())).toFloat(),
-            Math.sin((yaw.toDouble())).toFloat() * Math.cos((pitch.toDouble())).toFloat()
-        ).normalized
-
-        val position = forward * distance * (-1.0f)
-        node.position = target + position
-        node.forward = forward
+        // then use it to generate a new forward vector for correct positioning
+        val m = GLMatrix.fromQuaternion(node.rotation)
+        node.forward = GLVector(m.get(0, 2), m.get(1, 2), m.get(2, 2)).normalize() * -1.0f
+        node.position = target + node.forward * distance * (-1.0f)
     }
 
     /**

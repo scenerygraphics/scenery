@@ -5,6 +5,7 @@ import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
 import java.sql.Timestamp
 import java.util.*
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.locks.ReentrantLock
 
 /**
@@ -33,6 +34,11 @@ open class Node(open var name: String) : Renderable {
     var instanceOf: Node? = null
     /** The Node's lock. */
     override var lock: ReentrantLock = ReentrantLock()
+
+    /** bounding box **/
+    var boundingBox: Box? = null
+    /** bounding box coordinates **/
+    var boundingBoxCoords: FloatArray? = null
 
     /**
      * Initialisation function for the Node.
@@ -120,9 +126,9 @@ open class Node(open var name: String) : Renderable {
         }
 
     /** Children of the Node. */
-    var children: ArrayList<Node>
+    var children: CopyOnWriteArrayList<Node>
     /** Other nodes that have linked transforms. */
-    var linkedNodes: ArrayList<Node>
+    var linkedNodes: CopyOnWriteArrayList<Node>
     /** Parent node of this node. */
     var parent: Node? = null
 
@@ -147,8 +153,8 @@ open class Node(open var name: String) : Renderable {
         this.modelView = GLMatrix.getIdentity()
         this.imodelView = GLMatrix.getIdentity()
 
-        this.children = ArrayList<Node>()
-        this.linkedNodes = ArrayList<Node>()
+        this.children = CopyOnWriteArrayList<Node>()
+        this.linkedNodes = CopyOnWriteArrayList<Node>()
         // null should be the signal to use the default shader
     }
 
@@ -209,8 +215,8 @@ open class Node(open var name: String) : Renderable {
      */
     fun updateWorld(recursive: Boolean, force: Boolean = false) {
         if (needsUpdate or force) {
-//            System.err.println("Updating $name (p: $parent)")
             this.composeModel()
+
             needsUpdate = false
             needsUpdateWorld = true
         }
@@ -257,7 +263,7 @@ open class Node(open var name: String) : Renderable {
      */
     fun composeModelView() {
         modelView = model.clone()
-        modelView!!.mult(this.view)
+        modelView!!.mult(this.view ?: GLMatrix.getIdentity())
     }
 
     /**
@@ -270,5 +276,65 @@ open class Node(open var name: String) : Renderable {
 
         mvp = modelView!!.clone()
         mvp!!.mult(projection)
+    }
+
+
+    fun generateBoundingBox() {
+
+        if (this is Mesh) {
+            if (vertices.capacity() == 0) {
+                System.err.println("Zero vertices currently, returning null bounding box")
+                boundingBoxCoords = null
+            } else {
+
+                /*val x = vertices.filterIndexed { i, fl -> (i + 3).mod(3) == 0 }
+                val y = vertices.filterIndexed { i, fl -> (i + 2).mod(3) == 0 }
+                val z = vertices.filterIndexed { i, fl -> (i + 1).mod(3) == 0 }
+
+                val xmin: Float = x.min()!!.toFloat()
+                val xmax: Float = x.max()!!.toFloat()
+
+                val ymin: Float = y.min()!!.toFloat()
+                val ymax: Float = y.max()!!.toFloat()
+
+                val zmin: Float = z.min()!!.toFloat()
+                val zmax: Float = z.max()!!.toFloat()
+
+                boundingBoxCoords = floatArrayOf(xmin, xmax, ymin, ymax, zmin, zmax)
+                */
+                System.err.println("Created bouding box with ${boundingBoxCoords!!.joinToString(", ")}")
+            }
+        } else {
+            System.err.println("Assuming 3rd party BB generation")
+            // assume bounding box was created somehow
+        }
+    }
+
+    companion object NodeHelpers {
+        /**
+         * Depth-first search for elements in a Scene.
+         *
+         * @param[s] The Scene to search in
+         * @param[func] A lambda taking a [Node] and returning a Boolean for matching.
+         * @return A list of [Node]s that match [func].
+         */
+        fun discover(origin: Node, func: (Node) -> Boolean): ArrayList<Node> {
+            val visited = HashSet<Node>()
+            val matched = ArrayList<Node>()
+
+            fun discover(current: Node, f: (Node) -> Boolean) {
+                if (!visited.add(current)) return
+                for (v in current.children) {
+                    if (f(v)) {
+                        matched.add(v)
+                    }
+                    discover(v, f)
+                }
+            }
+
+            discover(origin, func)
+
+            return matched
+        }
     }
 }
