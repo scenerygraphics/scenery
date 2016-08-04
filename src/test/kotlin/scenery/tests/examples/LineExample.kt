@@ -3,7 +3,11 @@ package scenery.tests.examples
 import cleargl.GLVector
 import com.jogamp.opengl.GLAutoDrawable
 import org.junit.Test
+import org.scijava.ui.behaviour.ClickBehaviour
 import scenery.*
+import scenery.controls.ClearGLInputHandler
+import scenery.controls.behaviours.ArcballCameraControl
+import scenery.controls.behaviours.FPSCameraControl
 import scenery.rendermodules.opengl.DeferredLightingRenderer
 import kotlin.concurrent.thread
 
@@ -17,6 +21,8 @@ import kotlin.concurrent.thread
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class LineExample : SceneryDefaultApplication("LineExample") {
+    protected var lineAnimating = true
+
     override fun init(pDrawable: GLAutoDrawable) {
         super.init(pDrawable)
         deferredRenderer = DeferredLightingRenderer(pDrawable.gl.gL4, glWindow!!.width, glWindow!!.height)
@@ -69,9 +75,11 @@ class LineExample : SceneryDefaultApplication("LineExample") {
         thread {
             var t = 0
             while(true) {
-                line.addPoint(GLVector(10.0f * Math.random().toFloat()-5.0f, 10.0f * Math.random().toFloat()-5.0f, 10.0f * Math.random().toFloat()-5.0f))
+                if(lineAnimating) {
+                    line.addPoint(GLVector(10.0f * Math.random().toFloat() - 5.0f, 10.0f * Math.random().toFloat() - 5.0f, 10.0f * Math.random().toFloat() - 5.0f))
+                    line.edgeWidth = 0.03f * Math.sin(t * Math.PI / 50).toFloat() + 0.004f
+                }
 
-                line.edgeWidth = 0.03f*Math.sin(t*Math.PI/50).toFloat() + 0.004f
                 Thread.sleep(100)
 
                 lights.forEachIndexed { i, pointLight ->
@@ -81,6 +89,48 @@ class LineExample : SceneryDefaultApplication("LineExample") {
                 t++
             }
         }
+    }
+
+    override fun inputSetup() {
+        val target = GLVector(0.0f, 0.0f, 0.0f)
+        val inputHandler = (hub.get(SceneryElement.INPUT) as ClearGLInputHandler)
+        val targetArcball = ArcballCameraControl("mouse_control", scene.findObserver(), glWindow!!.width, glWindow!!.height, target)
+        val fpsControl = FPSCameraControl("mouse_control", scene.findObserver(), glWindow!!.width, glWindow!!.height)
+
+        val toggleControlMode = object : ClickBehaviour {
+            var currentMode = "fps"
+
+            override fun click(x: Int, y: Int) {
+                if (currentMode.startsWith("fps")) {
+                    targetArcball.target = target
+
+                    inputHandler.addBehaviour("mouse_control", targetArcball)
+                    inputHandler.addBehaviour("scroll_arcball", targetArcball)
+                    inputHandler.addKeyBinding("scroll_arcball", "scroll")
+
+                    currentMode = "arcball"
+                } else {
+                    inputHandler.addBehaviour("mouse_control", fpsControl)
+                    inputHandler.removeBehaviour("scroll_arcball")
+
+                    currentMode = "fps"
+                }
+
+                System.out.println("Switched to $currentMode control")
+            }
+        }
+
+        val toggleLineAnimation = object : ClickBehaviour {
+            override fun click(x: Int, y: Int) {
+                lineAnimating = !lineAnimating
+            }
+        }
+
+        inputHandler.addBehaviour("toggle_control_mode", toggleControlMode)
+        inputHandler.addKeyBinding("toggle_control_mode", "C")
+
+        inputHandler.addBehaviour("toggle_line_animating", toggleLineAnimation)
+        inputHandler.addKeyBinding("toggle_line_animating", "L")
     }
 
     @Test override fun main() {
