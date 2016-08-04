@@ -31,7 +31,7 @@ void emitCenteredEdgeQuad(vec3 p1, vec3 p2) {
 
     gl_Position = vec4( p1.xy + 0.5*n, p1.z, 1.0);
     VertexOut.Position = gl_Position.xyz;
-    VertexOut.Normal = vec3(n, 1.0);
+    VertexOut.Normal = normalize(vec3(n, 1.0));
     VertexOut.TexCoord = vec2(0.0, 0.0);
     VertexOut.FragPosition = VertexIn[0].FragPosition;
     VertexOut.Color = VertexIn[0].Color;
@@ -39,7 +39,7 @@ void emitCenteredEdgeQuad(vec3 p1, vec3 p2) {
 
     gl_Position = vec4( p1.xy - 0.5*n, p1.z, 1.0);
     VertexOut.Position = gl_Position.xyz;
-    VertexOut.Normal = vec3(n, 1.0);
+    VertexOut.Normal = normalize(vec3(n, 1.0));
     VertexOut.TexCoord = vec2(0.0, 0.0);
     VertexOut.FragPosition = VertexIn[1].FragPosition;
     VertexOut.Color = VertexIn[0].Color;
@@ -47,7 +47,7 @@ void emitCenteredEdgeQuad(vec3 p1, vec3 p2) {
 
     gl_Position = vec4( p2.xy + 0.5*n, p2.z, 1.0);
     VertexOut.Position = gl_Position.xyz;
-    VertexOut.Normal = vec3(n, 1.0);
+    VertexOut.Normal = normalize(vec3(n, 1.0));
     VertexOut.TexCoord = vec2(0.0, 0.0);
     VertexOut.FragPosition = VertexIn[0].FragPosition;
     VertexOut.Color = VertexIn[0].Color;
@@ -55,7 +55,7 @@ void emitCenteredEdgeQuad(vec3 p1, vec3 p2) {
 
     gl_Position = vec4( p2.xy - 0.5*n, p2.z, 1.0);
     VertexOut.Position = gl_Position.xyz;
-    VertexOut.Normal = vec3(n, 1.0);
+    VertexOut.Normal = normalize(vec3(n, 1.0));
     VertexOut.TexCoord = vec2(0.0, 0.0);
     VertexOut.FragPosition = VertexIn[1].FragPosition;
     VertexOut.Color = VertexIn[0].Color;
