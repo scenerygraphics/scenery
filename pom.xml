@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.scijava</groupId>
+        <artifactId>pom-scijava</artifactId>
+        <version>10.6.0</version>
+    </parent>
+
+    <groupId>net.clearvolume</groupId>
+    <artifactId>scenery</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+
+    <name>scenery</name>
+    <description>flexible scenegraphing and rendering for scientific visualisation</description>
+
+    <properties>
+        <scijava.jvm.version>1.8</scijava.jvm.version>
+        <enforcer.skip>true</enforcer.skip>
+        <kotlin.version>1.0.3</kotlin.version>
+        <slf4j.version>1.7.20</slf4j.version>
+        <dokka.version>0.9.9</dokka.version>
+    </properties>
+
+    <scm>
+        <connection>scm:git:git://github.com/ClearVolume/scenery</connection>
+        <developerConnection>scm:git:git@github.com:ClearVolume/scenery</developerConnection>
+        <tag>HEAD</tag>
+        <url>https://github.com/ClearVolume/scenery</url>
+    </scm>
+    <issueManagement>
+        <system>GitHub</system>
+        <url>https://github.com/ClearVolume/scenery/issues</url>
+    </issueManagement>
+    <ciManagement>
+        <system>Travis</system>
+        <url>http://travis-ci.org/ClearVolume/scenery/</url>
+    </ciManagement>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.jetbrains.kotlin</groupId>
+            <artifactId>kotlin-stdlib</artifactId>
+            <version>${kotlin.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.jogamp.gluegen</groupId>
+            <artifactId>gluegen-rt-main</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.jogamp.jogl</groupId>
+            <artifactId>jogl-all-main</artifactId>
+        </dependency>
+
+        <!-- Test dependencies -->
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.12</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>${slf4j.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>${slf4j.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>net.clearvolume</groupId>
+            <artifactId>cleargl</artifactId>
+            <version>2.0.0-SNAPSHOT</version>
+        </dependency>
+
+        <dependency>
+            <groupId>net.java.jinput</groupId>
+            <artifactId>jinput</artifactId>
+            <version>2.0.6</version>
+        </dependency>
+
+        <dependency>
+            <groupId>net.java.jinput</groupId>
+            <artifactId>jinput-platform</artifactId>
+            <version>2.0.6</version>
+            <type>pom</type>
+        </dependency>
+
+        <dependency>
+            <groupId>net.java.jutils</groupId>
+            <artifactId>jutils</artifactId>
+            <version>1.0.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.scijava</groupId>
+            <artifactId>scijava-common</artifactId>
+            <version>2.57.0-SNAPSHOT</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.scijava</groupId>
+            <artifactId>script-editor</artifactId>
+            <version>0.1.1-SNAPSHOT</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.scijava</groupId>
+            <artifactId>ui-behaviour</artifactId>
+            <version>1.0.1</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.scijava</groupId>
+            <artifactId>scripting-javascript</artifactId>
+            <version>0.4.4-SNAPSHOT</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.nativelibs4java</groupId>
+            <artifactId>jnaerator-runtime</artifactId>
+            <version>0.12</version>
+        </dependency>
+
+        <dependency>
+            <groupId>net.java.dev.jna</groupId>
+            <artifactId>jna</artifactId>
+            <version>4.1.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.jocl</groupId>
+            <artifactId>jocl</artifactId>
+            <version>2.0.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>scenery</groupId>
+            <artifactId>openvr</artifactId>
+            <version>0.1</version>
+        </dependency>
+
+    </dependencies>
+
+    <repositories>
+        <repository>
+            <id>imagej.public</id>
+            <url>http://maven.imagej.net/content/groups/public</url>
+        </repository>
+    </repositories>
+
+    <pluginRepositories>
+        <pluginRepository>
+            <id>jcenter</id>
+            <name>JCenter</name>
+            <url>https://jcenter.bintray.com/</url>
+        </pluginRepository>
+    </pluginRepositories>
+
+    <build>
+        <sourceDirectory>${project.basedir}/src/main/kotlin</sourceDirectory>
+        <testSourceDirectory>${project.basedir}/src/test/kotlin/</testSourceDirectory>
+
+        <plugins>
+            <plugin>
+                <artifactId>kotlin-maven-plugin</artifactId>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <version>${kotlin.version}</version>
+
+                <executions>
+                    <execution>
+                        <id>compile</id>
+                        <phase>process-sources</phase>
+                        <goals> <goal>compile</goal> </goals>
+                    </execution>
+
+                    <execution>
+                        <id>test-compile</id>
+                        <phase>process-test-sources</phase>
+                        <goals> <goal>test-compile</goal> </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-install-plugin</artifactId>
+                <version>2.5.2</version>
+                <executions>
+                    <execution>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>install-file</goal>
+                        </goals>
+                        <configuration>
+                            <file>jars/openvr-0.1.jar</file>
+                            <groupId>scenery</groupId>
+                            <artifactId>openvr</artifactId>
+                            <version>0.1</version>
+                            <packaging>jar</packaging>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.jetbrains.dokka</groupId>
+                <artifactId>dokka-maven-plugin</artifactId>
+                <version>${dokka.version}</version>
+                <executions>
+                    <execution>
+                        <phase>pre-site</phase>
+                        <goals>
+                            <goal>dokka</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <sourceLinks>
+                        <link>
+                            <dir>${project.basedir}/src/main/kotlin</dir>
+                            <url>http://github.com/ClearVolume/scenery</url>
+                        </link>
+                    </sourceLinks>
+                </configuration>
+            </plugin>
+
+            <!--            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>2.19</version>
+                <configuration>
+                    <argLine>-Xmx4g</argLine>
+                </configuration>
+            </plugin>
+            -->
+        </plugins>
+    </build>
+</project>
