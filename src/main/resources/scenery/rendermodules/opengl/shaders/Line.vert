@@ -20,9 +20,9 @@ uniform mat4 MVP;
 uniform vec3 CamPosition;
 
 uniform int vertexCount;
-uniform vec4 startColor = vec4(1.0, 1.0, 1.0, 1.0);
-uniform vec4 endColor = vec4(1.0, 1.0, 1.0, 1.0);
-uniform vec4 lineColor = vec4(1.0, 1.0, 1.0, 1.0);
+uniform vec3 startColor;
+uniform vec3 endColor;
+uniform vec3 lineColor;
 uniform int capLength;
 
 void main()
@@ -34,14 +34,13 @@ void main()
 
    gl_Position = MVP * vec4(vertexPosition, 1.0);
 
+   VertexOut.Color = vec4(lineColor, 1.0);
+
    if(gl_VertexID < capLength) {
-        VertexOut.Color = startColor;
-        return;
-   } if(gl_VertexID > vertexCount-capLength) {
-        VertexOut.Color = endColor;
-        return;
-   } else {
-        VertexOut.Color = lineColor;
-        return;
+        VertexOut.Color = vec4(startColor, 1.0);
+   }
+
+   if(gl_VertexID > vertexCount-capLength) {
+        VertexOut.Color = vec4(endColor, 1.0);
    }
 }

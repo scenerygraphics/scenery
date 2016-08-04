@@ -20,5 +20,9 @@ enum class GeometryType {
     /** Draw vertices as simple points. */
     POINTS,
     /** Draw vertices as lines, where every two vertices constitute a line segment. */
-    LINE
+    LINE,
+    /** Draw vertices as lines, with adjacency information. */
+    LINES_ADJACENCY,
+    /** Draw vertices as line strips, with adjacency information. */
+    LINE_STRIP_ADJACENCY
 }

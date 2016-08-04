@@ -265,6 +265,8 @@ open class DeferredLightingRenderer : Renderer, Hubable {
             GeometryType.TRIANGLE_FAN -> GL.GL_TRIANGLE_FAN
             GeometryType.POINTS -> GL.GL_POINTS
             GeometryType.LINE -> GL.GL_LINE_STRIP
+            GeometryType.LINES_ADJACENCY -> GL4.GL_LINES_ADJACENCY
+            GeometryType.LINE_STRIP_ADJACENCY -> GL4.GL_LINE_STRIP_ADJACENCY
         }
     }
 
