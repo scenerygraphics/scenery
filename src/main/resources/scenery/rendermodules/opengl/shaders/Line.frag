@@ -12,6 +12,12 @@ in VertexData {
     vec4 Color;
 } VertexIn;
 
+uniform int vertexCount;
+uniform vec3 startColor;
+uniform vec3 endColor;
+uniform vec3 lineColor;
+uniform int capLength;
+
 void main()
 {
     // Store the fragment position vector in the first gbuffer texture

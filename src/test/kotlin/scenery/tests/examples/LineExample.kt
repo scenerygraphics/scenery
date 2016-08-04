@@ -8,7 +8,11 @@ import scenery.rendermodules.opengl.DeferredLightingRenderer
 import kotlin.concurrent.thread
 
 /**
- * <Description>
+ * Simple example to demonstrate the drawing of 3D lines.
+ *
+ * This example will draw a nicely illuminated bundle of lines using
+ * the [Line] class. The line's width will oscillate while 3 lights
+ * circle around the scene.
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
@@ -46,7 +50,7 @@ class LineExample : SceneryDefaultApplication("LineExample") {
 
         var lights = (0..2).map {
             val l = PointLight()
-            l.intensity = 2500.0f
+            l.intensity = 200.0f
             l.emissionColor = colors[it]
 
             scene.addChild(l)
