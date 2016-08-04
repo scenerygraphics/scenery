@@ -1,4 +1,4 @@
-version: '1.0-SNAPSHOT-{build}'
+version: '1.0.0-SNAPSHOT-{build}'
 skip_tags: true
 clone_depth: 10
 environment:
@@ -18,8 +18,9 @@ install:
   - cmd: mvn --version
   - cmd: java -version
 build_script:
+  - mvn initialize
   - mvn clean package -B -Dmaven.test.skip=true
 test_script:
-  - mvn verify -B
+  - mvn verify
 cache:
   - C:\maven
