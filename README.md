@@ -43,7 +43,7 @@ Add these dependencies to your project's `pom.xml`:
   <dependency>
     <groupId>net.clearvolume</groupId>
     <artifactId>scenery</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.0.0-SNAPSHOT</version>
   </dependency>
 
   <dependency>
@@ -60,6 +60,6 @@ Make sure you have followed the instructions in _Building_, such that both the s
 
 Add these dependencies to your project's `build.gradle`:
 ```groovy
-compile group: 'net.clearvolume', name: 'scenery', version: '1.0-SNAPSHOT'
+compile group: 'net.clearvolume', name: 'scenery', version: '1.0.0-SNAPSHOT'
 compile group: 'net.clearvolume', name: 'cleargl', version: '2.0.0-SNAPSHOT'
 ```
