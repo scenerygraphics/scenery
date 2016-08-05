@@ -17,6 +17,9 @@ install:
   - cmd: SET JAVA_OPTS=-XX:MaxPermSize=1g -Xmx2g
   - cmd: mvn --version
   - cmd: java -version
+  - cmd: git clone https://github.com/clearvolume/cleargl.git C:\cleargl
+  - cmd: cd C:\cleargl
+  - cmd: mvn install
 build_script:
   - mvn initialize
   - mvn clean package -B -Dmaven.test.skip=true
