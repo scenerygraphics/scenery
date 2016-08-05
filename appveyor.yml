@@ -11,15 +11,15 @@ install:
         (new-object System.Net.WebClient).DownloadFile('https://repo1.maven.org/maven2/org/apache/maven/apache-maven/3.3.9/apache-maven-3.3.9-bin.zip', 'C:\maven-bin.zip')
         [System.IO.Compression.ZipFile]::ExtractToDirectory("C:\maven-bin.zip", "C:\maven")
       }
-  # Prepend Java entry, remove Ruby entry (C:\Ruby193\bin;) from PATH
   - cmd: SET PATH=C:\maven\apache-maven-3.3.9\bin;%JAVA_HOME%\bin;%PATH%
   - cmd: SET MAVEN_OPTS=-XX:MaxPermSize=1g -Xmx2g
   - cmd: SET JAVA_OPTS=-XX:MaxPermSize=1g -Xmx2g
   - cmd: mvn --version
   - cmd: java -version
-  - cmd: git clone https://github.com/clearvolume/cleargl.git C:\cleargl
-  - cmd: cd C:\cleargl
+  - cmd: git clone https://github.com/clearvolume/cleargl.git C:\projects\cleargl
+  - cmd: cd C:\projects\cleargl
   - cmd: mvn install
+  - cmd: cd C:\projects\scenery
 build_script:
   - mvn initialize
   - mvn clean package -B -Dmaven.test.skip=true
