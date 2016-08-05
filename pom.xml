@@ -21,6 +21,7 @@
         <kotlin.version>1.0.3</kotlin.version>
         <slf4j.version>1.7.20</slf4j.version>
         <dokka.version>0.9.9</dokka.version>
+        <lwjgl.version>3.0.1-SNAPSHOT</lwjgl.version>
     </properties>
 
     <scm>
@@ -144,6 +145,33 @@
             <groupId>scenery</groupId>
             <artifactId>openvr</artifactId>
             <version>0.1</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.lwjgl</groupId>
+            <artifactId>lwjgl</artifactId>
+            <version>${lwjgl.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.lwjgl</groupId>
+            <artifactId>lwjgl-platform</artifactId>
+            <version>${lwjgl.version}</version>
+            <classifier>natives-windows</classifier>
+        </dependency>
+
+        <dependency>
+            <groupId>org.lwjgl</groupId>
+            <artifactId>lwjgl-platform</artifactId>
+            <version>${lwjgl.version}</version>
+            <classifier>natives-linux</classifier>
+        </dependency>
+
+        <dependency>
+            <groupId>org.lwjgl</groupId>
+            <artifactId>lwjgl-platform</artifactId>
+            <version>${lwjgl.version}</version>
+            <classifier>natives-osx</classifier>
         </dependency>
 
     </dependencies>
