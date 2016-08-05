@@ -119,4 +119,5 @@ void main() {
     }
 
     gAlbedoSpec.rgb = rgb;
+    gAlbedoSpec.a = 0.0;
 }

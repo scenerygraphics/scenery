@@ -5,7 +5,7 @@ import cleargl.GLVector
 import com.jogamp.opengl.GLAutoDrawable
 import org.junit.Test
 import scenery.*
-import scenery.rendermodules.opengl.DeferredLightingRenderer
+import scenery.backends.opengl.DeferredLightingRenderer
 import scenery.repl.REPL
 import kotlin.concurrent.thread
 
@@ -17,8 +17,8 @@ import kotlin.concurrent.thread
 class CubeExample : SceneryDefaultApplication("CubeExample") {
     override fun init(pDrawable: GLAutoDrawable) {
         super.init(pDrawable)
-        deferredRenderer = DeferredLightingRenderer(pDrawable.gl.gL4, glWindow!!.width, glWindow!!.height)
-        hub.add(SceneryElement.RENDERER, deferredRenderer!!)
+        renderer = DeferredLightingRenderer(pDrawable.gl.gL4, glWindow!!.width, glWindow!!.height)
+        hub.add(SceneryElement.RENDERER, renderer!!)
 
         var box = Box(GLVector(1.0f, 1.0f, 1.0f))
 
@@ -62,9 +62,9 @@ class CubeExample : SceneryDefaultApplication("CubeExample") {
                 Thread.sleep(20)
             }
         }
-        deferredRenderer?.initializeScene(scene)
+        renderer?.initializeScene(scene)
 
-        repl = REPL(scene, deferredRenderer!!)
+        repl = REPL(scene, renderer!!)
         repl?.start()
         repl?.showConsoleWindow()
     }

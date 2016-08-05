@@ -6,7 +6,7 @@ import com.jogamp.opengl.GLAutoDrawable
 import org.junit.Test
 import scenery.*
 import scenery.controls.OpenVRInput
-import scenery.rendermodules.opengl.DeferredLightingRenderer
+import scenery.backends.opengl.DeferredLightingRenderer
 import scenery.repl.REPL
 import kotlin.concurrent.thread
 
@@ -22,8 +22,8 @@ class OpenVRExample : SceneryDefaultApplication("OpenVRExample") {
         ovr = OpenVRInput(useCompositor = true)
         hub.add(SceneryElement.HMDINPUT, ovr!!)
 
-        deferredRenderer = DeferredLightingRenderer(pDrawable.gl.gL4, glWindow!!.width, glWindow!!.height)
-        hub.add(SceneryElement.RENDERER, deferredRenderer!!)
+        renderer = DeferredLightingRenderer(pDrawable.gl.gL4, glWindow!!.width, glWindow!!.height)
+        hub.add(SceneryElement.RENDERER, renderer!!)
 
         var box = Box(GLVector(1.0f, 1.0f, 1.0f))
         var boxmaterial = Material()
@@ -67,9 +67,9 @@ class OpenVRExample : SceneryDefaultApplication("OpenVRExample") {
             }
         }
 
-        deferredRenderer?.initializeScene(scene)
+        renderer?.initializeScene(scene)
 
-        repl = REPL(scene, deferredRenderer!!)
+        repl = REPL(scene, renderer!!)
         repl?.start()
         repl?.showConsoleWindow()
     }

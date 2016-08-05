@@ -7,8 +7,8 @@ import com.jogamp.opengl.GLException
 import org.junit.Test
 import scenery.*
 import scenery.controls.OpenVRInput
-import scenery.rendermodules.opengl.DeferredLightingRenderer
-import scenery.rendermodules.opengl.OpenGLShaderPreference
+import scenery.backends.opengl.DeferredLightingRenderer
+import scenery.backends.opengl.OpenGLShaderPreference
 import scenery.repl.REPL
 import java.io.IOException
 import java.util.*
@@ -17,7 +17,7 @@ import kotlin.concurrent.thread
 /**
  * Created by ulrik on 20/01/16.
  */
-class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowWidth = 1920, windowHeight = 1080) {
+class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowWidth = 1280, windowHeight = 720) {
     private var ovr: OpenVRInput? = null
 
     override fun init(pDrawable: GLAutoDrawable) {
@@ -25,10 +25,10 @@ class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowW
             ovr = OpenVRInput(seated = false, useCompositor = true)
             hub.add(SceneryElement.HMDINPUT, ovr!!)
 
-            deferredRenderer = DeferredLightingRenderer(pDrawable.gl.gL4,
+            renderer = DeferredLightingRenderer(pDrawable.gl.gL4,
                     glWindow!!.width,
                     glWindow!!.height)
-            hub.add(SceneryElement.RENDERER, deferredRenderer!!)
+            hub.add(SceneryElement.RENDERER, renderer!!)
 
             val cam: Camera = DetachedHeadCamera()
 
@@ -250,13 +250,13 @@ class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowW
                     //                            mesh.children[0].rotation.rotateByAngleX(0.001f)
                     //                            mesh.children[0].updateWorld(true, true)
 
-                    Thread.sleep(10)
+                    Thread.sleep(50)
                 }
             }
 
-            deferredRenderer?.initializeScene(scene)
+            renderer?.initializeScene(scene)
 
-            repl = REPL(scene, deferredRenderer!!)
+            repl = REPL(scene, renderer!!)
             repl?.start()
             repl?.showConsoleWindow()
         } catch (e: GLException) {

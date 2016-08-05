@@ -5,7 +5,7 @@ import cleargl.GLVector
 import com.jogamp.opengl.GLAutoDrawable
 import org.junit.Test
 import scenery.*
-import scenery.rendermodules.opengl.DeferredLightingRenderer
+import scenery.backends.opengl.DeferredLightingRenderer
 import scenery.repl.REPL
 import java.nio.FloatBuffer
 import java.util.*
@@ -21,9 +21,9 @@ class VertexUpdateExample : SceneryDefaultApplication("VertexUpdateExample") {
 
     override fun init(pDrawable: GLAutoDrawable) {
         super.init(pDrawable)
-        deferredRenderer = DeferredLightingRenderer(pDrawable.gl.gL4,
+        renderer = DeferredLightingRenderer(pDrawable.gl.gL4,
                 glWindow!!.width, glWindow!!.height)
-        hub.add(SceneryElement.RENDERER, deferredRenderer!!)
+        hub.add(SceneryElement.RENDERER, renderer!!)
 
         var sphere = Sphere(2.0f, 50)
 
@@ -119,9 +119,9 @@ class VertexUpdateExample : SceneryDefaultApplication("VertexUpdateExample") {
                 Thread.sleep(20)
             }
         }
-        deferredRenderer?.initializeScene(scene)
+        renderer?.initializeScene(scene)
 
-        repl = REPL(scene, deferredRenderer!!)
+        repl = REPL(scene, renderer!!)
         repl?.start()
         repl?.showConsoleWindow()
     }

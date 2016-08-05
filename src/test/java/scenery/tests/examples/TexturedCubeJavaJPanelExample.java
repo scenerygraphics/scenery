@@ -5,7 +5,7 @@ package scenery.tests.examples;
     import com.jogamp.opengl.GLAutoDrawable;
     import org.junit.Test;
     import scenery.*;
-    import scenery.rendermodules.opengl.DeferredLightingRenderer;
+    import scenery.backends.opengl.DeferredLightingRenderer;
     import scenery.repl.REPL;
 
 /**

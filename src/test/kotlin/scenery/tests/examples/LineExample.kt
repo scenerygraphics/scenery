@@ -5,10 +5,10 @@ import com.jogamp.opengl.GLAutoDrawable
 import org.junit.Test
 import org.scijava.ui.behaviour.ClickBehaviour
 import scenery.*
+import scenery.backends.opengl.DeferredLightingRenderer
 import scenery.controls.ClearGLInputHandler
 import scenery.controls.behaviours.ArcballCameraControl
 import scenery.controls.behaviours.FPSCameraControl
-import scenery.rendermodules.opengl.DeferredLightingRenderer
 import kotlin.concurrent.thread
 
 /**
@@ -25,8 +25,8 @@ class LineExample : SceneryDefaultApplication("LineExample") {
 
     override fun init(pDrawable: GLAutoDrawable) {
         super.init(pDrawable)
-        deferredRenderer = DeferredLightingRenderer(pDrawable.gl.gL4, glWindow!!.width, glWindow!!.height)
-        hub.add(SceneryElement.RENDERER, deferredRenderer!!)
+        renderer = DeferredLightingRenderer(pDrawable.gl.gL4, glWindow!!.width, glWindow!!.height)
+        hub.add(SceneryElement.RENDERER, renderer!!)
 
         var hull = Box(GLVector(50.0f, 50.0f, 50.0f))
         var hullmaterial = Material()
@@ -70,7 +70,7 @@ class LineExample : SceneryDefaultApplication("LineExample") {
 
         scene.addChild(cam)
 
-        deferredRenderer?.initializeScene(scene)
+        renderer?.initializeScene(scene)
 
         thread {
             var t = 0

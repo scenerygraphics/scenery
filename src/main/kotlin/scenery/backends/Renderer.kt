@@ -1,13 +1,15 @@
-package scenery.rendermodules
+package scenery.backends
 
+import scenery.Hubable
 import scenery.Scene
+import scenery.Settings
 
 /**
 * Renderer interface. Defines the minimal set of functions a renderer has to implement.
 *
 * @author Ulrik Günther <hello@ulrik.is>
 */
-interface Renderer {
+interface Renderer : Hubable {
     /**
      * This function should initialize the scene contents.
      *
@@ -24,4 +26,8 @@ interface Renderer {
 
     var width: Int
     var height: Int
+
+    var settings: Settings
+
+    fun reshape(width: Int, height: Int)
 }

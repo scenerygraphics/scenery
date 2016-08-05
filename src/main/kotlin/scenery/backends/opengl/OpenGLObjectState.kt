@@ -1,4 +1,4 @@
-package scenery.rendermodules.opengl
+package scenery.backends.opengl
 
 import cleargl.GLProgram
 import cleargl.GLTexture

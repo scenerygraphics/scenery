@@ -1,7 +1,7 @@
 package scenery
 
 import cleargl.GLVector
-import scenery.rendermodules.opengl.OpenGLShaderPreference
+import scenery.backends.opengl.OpenGLShaderPreference
 import java.util.*
 
 /**

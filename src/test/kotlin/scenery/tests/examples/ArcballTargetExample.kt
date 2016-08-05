@@ -9,7 +9,7 @@ import scenery.*
 import scenery.controls.ClearGLInputHandler
 import scenery.controls.behaviours.ArcballCameraControl
 import scenery.controls.behaviours.FPSCameraControl
-import scenery.rendermodules.opengl.DeferredLightingRenderer
+import scenery.backends.opengl.DeferredLightingRenderer
 import scenery.repl.REPL
 import kotlin.concurrent.thread
 
@@ -21,8 +21,8 @@ import kotlin.concurrent.thread
  */
 class ArcballTargetExample : SceneryDefaultApplication("ArcballTargetExample") {
     override fun init(pDrawable: GLAutoDrawable) {
-        deferredRenderer = DeferredLightingRenderer(pDrawable.gl.gL4, glWindow!!.width, glWindow!!.height)
-        hub.add(SceneryElement.RENDERER, deferredRenderer!!)
+        renderer = DeferredLightingRenderer(pDrawable.gl.gL4, glWindow!!.width, glWindow!!.height)
+        hub.add(SceneryElement.RENDERER, renderer!!)
 
         val boxmaterial = Material()
         with(boxmaterial) {
@@ -73,9 +73,9 @@ class ArcballTargetExample : SceneryDefaultApplication("ArcballTargetExample") {
             }
         }
 
-        deferredRenderer?.initializeScene(scene)
+        renderer?.initializeScene(scene)
 
-        repl = REPL(scene, deferredRenderer!!)
+        repl = REPL(scene, renderer!!)
         repl?.start()
         repl?.showConsoleWindow()
     }

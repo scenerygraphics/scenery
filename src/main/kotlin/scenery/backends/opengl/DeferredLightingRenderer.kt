@@ -1,4 +1,4 @@
-package scenery.rendermodules.opengl
+package scenery.backends.opengl
 
 import cleargl.*
 import com.jogamp.common.nio.Buffers
@@ -9,7 +9,7 @@ import org.slf4j.LoggerFactory
 import scenery.*
 import scenery.controls.HMDInput
 import scenery.fonts.SDFFontAtlas
-import scenery.rendermodules.Renderer
+import scenery.backends.Renderer
 import java.lang.reflect.Field
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
@@ -72,7 +72,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
     protected var fontAtlas = HashMap<String, SDFFontAtlas>()
 
     /** [Settings] for the renderer */
-    var settings: Settings = Settings()
+    override var settings: Settings = Settings()
 
     /** The hub used for communication between the components */
     override var hub: Hub? = null
@@ -1150,7 +1150,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
      * @param[newWidth] The resized window's width
      * @param[newHeight] The resized window's height
      */
-    fun reshape(newWidth: Int, newHeight: Int) {
+    override fun reshape(newWidth: Int, newHeight: Int) {
         this.width = newWidth
         this.height = newHeight
 

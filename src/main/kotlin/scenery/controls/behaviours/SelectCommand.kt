@@ -6,7 +6,7 @@ import scenery.Camera
 import scenery.Node
 import scenery.Scene
 import scenery.Sphere
-import scenery.rendermodules.Renderer
+import scenery.backends.Renderer
 
 /**
  * <Description>

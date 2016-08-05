@@ -20,6 +20,7 @@ uniform int numLights;
 uniform Light lights[MAX_NUM_LIGHTS];
 uniform vec3 viewPos;
 uniform mat4 ProjectionMatrix;
+uniform mat4 ModelViewMatrix;
 uniform mat4 InverseProjectionMatrix;
 
 uniform int debugDeferredBuffers = 0;
@@ -110,6 +111,34 @@ void main()
             specular *= attenuation;
             lighting += diffuse + specular;
         }
+
+        /*vec3 directionalOcclusion = vec3(0.0f);
+
+        if(doSSAO > 0) {
+        int sample_count = 16;
+        for (int i = 0; i < sample_count;  ++i) {
+           // sample at an offset specified by the current Poisson-Disk sample and scale it by a radius (has to be in Texture-Space)
+           vec2 sampleTexCoord = textureCoord + (poisson16[i] * (ssao_filterRadius));
+           vec3 samplePos = texture(gPosition, sampleTexCoord).rgb;//calculatePosition(sampleTexCoord, sampleDepth);
+           vec3 sampleColor = texture(gAlbedoSpec, sampleTexCoord).rgb;
+
+           vec3 sampleDir = normalize(samplePos - FragPos);
+
+           // angle between SURFACE-NORMAL and SAMPLE-DIRECTION (vector from SURFACE-POSITION to SAMPLE-POSITION)
+           float NdotS = max(dot(Normal, sampleDir), 0);
+           // distance between SURFACE-POSITION and SAMPLE-POSITION
+           float VPdistSP = distance(FragPos, samplePos);
+
+           // a = distance function
+           float a = 1.0 - smoothstep(ssao_distanceThreshold, ssao_distanceThreshold * 2, VPdistSP);
+           // b = dot-Product
+           vec3 b = NdotS*sampleColor;
+
+           directionalOcclusion += (a * b);
+        }
+        }
+
+        lighting += directionalOcclusion;*/
 
         FragColor = vec4(lighting, 1.0);
     } else {

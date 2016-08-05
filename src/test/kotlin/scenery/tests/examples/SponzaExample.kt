@@ -1,6 +1,5 @@
 package scenery.tests.examples
 
-import cleargl.GLMatrix
 import cleargl.GLVector
 import com.jogamp.opengl.GLAutoDrawable
 import com.jogamp.opengl.GLException
@@ -9,9 +8,9 @@ import org.scijava.ui.behaviour.ClickBehaviour
 import scenery.*
 import scenery.controls.ClearGLInputHandler
 import scenery.controls.OpenVRInput
-import scenery.controls.behaviours.FPSCameraControl
 import scenery.controls.behaviours.ArcballCameraControl
-import scenery.rendermodules.opengl.DeferredLightingRenderer
+import scenery.controls.behaviours.FPSCameraControl
+import scenery.backends.opengl.DeferredLightingRenderer
 import scenery.repl.REPL
 import java.io.IOException
 import kotlin.concurrent.thread
@@ -28,10 +27,10 @@ class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 1
             ovr = OpenVRInput(useCompositor = true)
             hub.add(SceneryElement.HMDINPUT, ovr!!)
 
-            deferredRenderer = DeferredLightingRenderer(pDrawable.gl.gL4,
+            renderer = DeferredLightingRenderer(pDrawable.gl.gL4,
                     glWindow!!.width,
                     glWindow!!.height)
-            hub.add(SceneryElement.RENDERER, deferredRenderer!!)
+            hub.add(SceneryElement.RENDERER, renderer!!)
 
             val cam: Camera = DetachedHeadCamera()
 
@@ -102,10 +101,12 @@ class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 1
             meshM.diffuse = GLVector(0.5f, 0.5f, 0.5f)
             meshM.specular = GLVector(0.0f, 0.0f, 0.0f)
 
-            mesh.readFromOBJ(System.getenv("SCENERY_DEMO_FILES") + "/sponza.obj")
+            mesh.readFromOBJ(System.getenv("SCENERY_DEMO_FILES") + "/sponza.obj", useMTL = false)
             //mesh.material = meshM
-            mesh.position = GLVector(155.5f, 150.5f, 55.0f)
-            mesh.scale = GLVector(0.1f, 0.1f, 0.1f)
+//            mesh.position = GLVector(155.5f, 150.5f, 55.0f)
+            mesh.position = GLVector(0.0f, 5.0f, 0.0f)
+            mesh.scale = GLVector(0.05f, 0.05f, 0.05f)
+            mesh.rotation.rotateByEuler(0.05f, -0.2f, 1.11f)
             mesh.updateWorld(true, true)
             mesh.name = "Sponza_Mesh"
 
@@ -114,14 +115,19 @@ class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 1
             boxes.first().addChild(sphere)
 
             cam.position = GLVector(0.0f, 0.0f, 0.0f)
-            cam.view = GLMatrix().setCamera(cam.position, cam.position + cam.forward, cam.up)
-
-            cam.projection = GLMatrix().setPerspectiveProjectionMatrix(
-                    70.0f / 180.0f * Math.PI.toFloat(),
-                    pDrawable.surfaceWidth.toFloat() / pDrawable.surfaceHeight.toFloat(), 0.1f, 1000.0f)
+            cam.perspectiveCamera(50.0f, 1.0f*glWindow!!.width, 1.0f*glWindow!!.height)
             cam.active = true
 
             scene.addChild(cam)
+
+            mesh.children.forEach {
+                val bb = BoundingBox()
+                bb.node = it
+                bb.lineWidth = 0.7f
+                it.boundingBoxCoords?.let { coords ->
+                    bb.gridColor = GLVector(coords[0], coords[2], coords[4])*0.1f
+                }
+            }
 
             var ticks: Int = 0
 
@@ -172,9 +178,9 @@ class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 1
                 }
             }
 
-            deferredRenderer?.initializeScene(scene)
+            renderer?.initializeScene(scene)
 
-            repl = REPL(scene, deferredRenderer!!)
+            repl = REPL(scene, renderer!!)
             repl?.start()
             repl?.showConsoleWindow()
 

@@ -4,8 +4,9 @@ import cleargl.ClearGLDefaultEventListener
 import cleargl.ClearGLDisplayable
 import cleargl.ClearGLWindow
 import com.jogamp.opengl.GLAutoDrawable
+import scenery.backends.Renderer
+import scenery.backends.opengl.DeferredLightingRenderer
 import scenery.controls.ClearGLInputHandler
-import scenery.rendermodules.opengl.DeferredLightingRenderer
 import scenery.repl.REPL
 
 /**
@@ -32,7 +33,7 @@ open class SceneryDefaultApplication(var applicationName: String,
     /** Frame number for counting FPS */
     protected var frameNum = 0
     /** The Deferred Lighting Renderer for the application, see [DeferredLightingRenderer] */
-    protected var deferredRenderer: DeferredLightingRenderer? = null
+    protected var renderer: Renderer? = null
     /** The Hub used by the application, see [Hub] */
     var hub: Hub = Hub()
     /** ClearGL window used by the application, needs to be passed as a parameter to
@@ -73,7 +74,7 @@ open class SceneryDefaultApplication(var applicationName: String,
             override fun init(pDrawable: GLAutoDrawable) {
                 this@SceneryDefaultApplication.init(pDrawable)
 
-                inputHandler = ClearGLInputHandler(scene, deferredRenderer as Any, glWindow!!, hub)
+                inputHandler = ClearGLInputHandler(scene, renderer as Any, glWindow!!, hub)
                 inputHandler?.useDefaultBindings(System.getProperty("user.home") + "/.$applicationName.bindings")
 
                 this@SceneryDefaultApplication.inputSetup()
@@ -83,18 +84,18 @@ open class SceneryDefaultApplication(var applicationName: String,
                 super.display(pDrawable)
 
                 frameNum++
-                deferredRenderer?.render(scene)
+                renderer?.render(scene)
 
-                if(deferredRenderer?.settings?.get<Boolean>("wantsFullscreen") == true && deferredRenderer?.settings?.get<Boolean>("isFullscreen") == false) {
+                if(renderer?.settings?.get<Boolean>("wantsFullscreen") == true && renderer?.settings?.get<Boolean>("isFullscreen") == false) {
                     glWindow!!.setFullscreen(true)
-                    deferredRenderer?.settings?.set("wantsFullscreen", true)
-                    deferredRenderer?.settings?.set("isFullscreen", true)
+                    renderer?.settings?.set("wantsFullscreen", true)
+                    renderer?.settings?.set("isFullscreen", true)
                 }
 
-                if(deferredRenderer?.settings?.get<Boolean>("wantsFullscreen") == false && deferredRenderer?.settings?.get<Boolean>("isFullscreen") == true) {
+                if(renderer?.settings?.get<Boolean>("wantsFullscreen") == false && renderer?.settings?.get<Boolean>("isFullscreen") == true) {
                     glWindow!!.setFullscreen(false)
-                    deferredRenderer?.settings?.set("wantsFullscreen", false)
-                    deferredRenderer?.settings?.set("isFullscreen", false)
+                    renderer?.settings?.set("wantsFullscreen", false)
+                    renderer?.settings?.set("isFullscreen", false)
                 }
 
                 clearGLWindow.windowTitle = "scenery: %s - %.1f fps".format(applicationName, pDrawable.animator?.lastFPS)
@@ -119,7 +120,7 @@ open class SceneryDefaultApplication(var applicationName: String,
                     height = 1
 
                 super.reshape(pDrawable, pX, pY, pWidth, height)
-                deferredRenderer?.reshape(pWidth, height)
+                renderer?.reshape(pWidth, height)
             }
 
             override fun dispose(pDrawable: GLAutoDrawable) {

@@ -12,7 +12,7 @@ import scenery.Hubable
 import scenery.Scene
 import scenery.SceneryElement
 import scenery.controls.behaviours.*
-import scenery.rendermodules.Renderer
+import scenery.backends.Renderer
 import java.io.FileNotFoundException
 import java.io.FileReader
 import java.io.Reader

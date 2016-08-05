@@ -5,7 +5,7 @@ import cleargl.GLVector
 import com.jogamp.opengl.GLAutoDrawable
 import org.junit.Test
 import scenery.*
-import scenery.rendermodules.opengl.DeferredLightingRenderer
+import scenery.backends.opengl.DeferredLightingRenderer
 import scenery.repl.REPL
 
 /**
@@ -15,8 +15,8 @@ import scenery.repl.REPL
  */
 class FontRenderingExample: SceneryDefaultApplication("FontRenderingExample") {
     override fun init(pDrawable: GLAutoDrawable) {
-        deferredRenderer = DeferredLightingRenderer(pDrawable.gl.gL4, glWindow!!.width, glWindow!!.height)
-        hub.add(SceneryElement.RENDERER, deferredRenderer!!)
+        renderer = DeferredLightingRenderer(pDrawable.gl.gL4, glWindow!!.width, glWindow!!.height)
+        hub.add(SceneryElement.RENDERER, renderer!!)
 
         var lights = (0..5).map {
             PointLight()
@@ -58,9 +58,9 @@ class FontRenderingExample: SceneryDefaultApplication("FontRenderingExample") {
 
         scene.addChild(board)
 
-        deferredRenderer?.initializeScene(scene)
+        renderer?.initializeScene(scene)
 
-        repl = REPL(scene, deferredRenderer!!)
+        repl = REPL(scene, renderer!!)
         repl?.start()
         repl?.showConsoleWindow()
         repl?.eval("var fontBoard = scene.find(\"FontBoard\");")

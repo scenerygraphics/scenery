@@ -6,7 +6,7 @@ import com.jogamp.opengl.GLAutoDrawable
 import com.jogamp.opengl.GLException
 import org.junit.Test
 import scenery.*
-import scenery.rendermodules.opengl.DeferredLightingRenderer
+import scenery.backends.opengl.DeferredLightingRenderer
 import scenery.repl.REPL
 import java.io.IOException
 import kotlin.concurrent.thread
@@ -18,10 +18,10 @@ class BoxedProteinExample : SceneryDefaultApplication("BoxedProteinExample") {
     override fun init(pDrawable: GLAutoDrawable) {
         super.init(pDrawable)
         try {
-            deferredRenderer = DeferredLightingRenderer(pDrawable.gl.gL4,
+            renderer = DeferredLightingRenderer(pDrawable.gl.gL4,
                     glWindow!!.width,
                     glWindow!!.height)
-            hub.add(SceneryElement.RENDERER, deferredRenderer!!)
+            hub.add(SceneryElement.RENDERER, renderer!!)
 
             val cam: Camera = DetachedHeadCamera()
 
@@ -74,7 +74,6 @@ class BoxedProteinExample : SceneryDefaultApplication("BoxedProteinExample") {
             meshM.specular = GLVector(0.1f, 0f, 0f)
 
             mesh.readFromOBJ(System.getenv("SCENERY_DEMO_FILES") + "/ORC6.obj")
-//                    mesh.position = GLVector(155.5f, 150.5f, 55.0f)
             mesh.position = GLVector(0.1f, 0.1f, 0.1f)
             mesh.material = meshM
             mesh.scale = GLVector(1.0f, 1.0f, 1.0f)
@@ -137,9 +136,9 @@ class BoxedProteinExample : SceneryDefaultApplication("BoxedProteinExample") {
                 }
             }
 
-            deferredRenderer?.initializeScene(scene)
+            renderer?.initializeScene(scene)
 
-            repl = REPL(scene, deferredRenderer!!)
+            repl = REPL(scene, renderer!!)
             repl?.start()
             repl?.showConsoleWindow()
         } catch (e: GLException) {

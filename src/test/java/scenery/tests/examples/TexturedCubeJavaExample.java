@@ -1,11 +1,10 @@
 package scenery.tests.examples;
 
-import cleargl.GLMatrix;
 import cleargl.GLVector;
 import com.jogamp.opengl.GLAutoDrawable;
 import org.junit.Test;
 import scenery.*;
-import scenery.rendermodules.opengl.DeferredLightingRenderer;
+import scenery.backends.opengl.DeferredLightingRenderer;
 import scenery.repl.REPL;
 
 /**
@@ -51,9 +50,8 @@ public class TexturedCubeJavaExample {
             }
 
             Camera cam = new DetachedHeadCamera();
-            cam.setPosition( new GLVector(0.0f, 0.0f, -5.0f) );
-            cam.setView( new GLMatrix().setCamera(cam.getPosition(), cam.getPosition().plus(cam.getForward()), cam.getUp()) );
-            cam.setProjection( new GLMatrix().setPerspectiveProjectionMatrix( (float) (70.0f / 180.0f * java.lang.Math.PI), 1024f / 1024f, 0.1f, 1000.0f) );
+            cam.setPosition( new GLVector(0.0f, 0.0f, 5.0f) );
+            cam.perspectiveCamera(50.0f, 1.0f*getGlWindow().getWidth(), 1.0f*getGlWindow().getWidth(), 0.1f, 1000.0f);
             cam.setActive( true );
             getScene().addChild(cam);
 

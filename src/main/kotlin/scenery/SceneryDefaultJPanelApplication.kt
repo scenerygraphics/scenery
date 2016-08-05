@@ -7,7 +7,7 @@ import com.jogamp.newt.awt.NewtCanvasAWT
 import com.jogamp.newt.event.WindowEvent
 import com.jogamp.opengl.GLAutoDrawable
 import scenery.controls.ClearGLInputHandler
-import scenery.rendermodules.opengl.DeferredLightingRenderer
+import scenery.backends.opengl.DeferredLightingRenderer
 import scenery.repl.REPL
 import java.awt.BorderLayout
 import java.awt.event.WindowAdapter

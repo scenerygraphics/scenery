@@ -6,8 +6,8 @@ import com.jogamp.opengl.GLAutoDrawable
 import com.jogamp.opengl.GLException
 import org.junit.Test
 import scenery.*
-import scenery.rendermodules.opengl.DeferredLightingRenderer
-import scenery.rendermodules.opengl.OpenGLShaderPreference
+import scenery.backends.opengl.DeferredLightingRenderer
+import scenery.backends.opengl.OpenGLShaderPreference
 import scenery.repl.REPL
 import java.io.IOException
 import java.util.*
@@ -20,10 +20,10 @@ class MultiBoxInstancedExample : SceneryDefaultApplication("MultiBoxInstancedExa
     override fun init(pDrawable: GLAutoDrawable) {
         super.init(pDrawable)
         try {
-            deferredRenderer = DeferredLightingRenderer(pDrawable.gl.gL4,
+            renderer = DeferredLightingRenderer(pDrawable.gl.gL4,
                     glWindow!!.width,
                     glWindow!!.height)
-            hub.add(SceneryElement.RENDERER, deferredRenderer!!)
+            hub.add(SceneryElement.RENDERER, renderer!!)
 
             val cam: Camera = DetachedHeadCamera()
 
@@ -132,9 +132,9 @@ class MultiBoxInstancedExample : SceneryDefaultApplication("MultiBoxInstancedExa
                 }
             }
 
-            deferredRenderer?.initializeScene(scene)
+            renderer?.initializeScene(scene)
 
-            repl = REPL(scene, deferredRenderer!!)
+            repl = REPL(scene, renderer!!)
             repl?.start()
             repl?.showConsoleWindow()
         } catch (e: GLException) {

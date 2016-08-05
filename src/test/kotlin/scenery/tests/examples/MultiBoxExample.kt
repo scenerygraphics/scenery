@@ -6,7 +6,7 @@ import com.jogamp.opengl.GLAutoDrawable
 import com.jogamp.opengl.GLException
 import org.junit.Test
 import scenery.*
-import scenery.rendermodules.opengl.DeferredLightingRenderer
+import scenery.backends.opengl.DeferredLightingRenderer
 import java.io.IOException
 import kotlin.concurrent.thread
 
@@ -17,10 +17,10 @@ class MultiBoxExample : SceneryDefaultApplication("MultiBoxExample") {
     override fun init(pDrawable: GLAutoDrawable) {
         super.init(pDrawable)
         try {
-            deferredRenderer = DeferredLightingRenderer(pDrawable.gl.gL4,
+            renderer = DeferredLightingRenderer(pDrawable.gl.gL4,
                     glWindow!!.width,
                     glWindow!!.height)
-            hub.add(SceneryElement.RENDERER, deferredRenderer!!)
+            hub.add(SceneryElement.RENDERER, renderer!!)
 
             val cam: Camera = DetachedHeadCamera()
 
@@ -115,7 +115,7 @@ class MultiBoxExample : SceneryDefaultApplication("MultiBoxExample") {
                 }
             }
 
-            deferredRenderer?.initializeScene(scene)
+            renderer?.initializeScene(scene)
         } catch (e: GLException) {
             e.printStackTrace()
         } catch (e: IOException) {
