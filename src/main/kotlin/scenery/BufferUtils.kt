@@ -34,5 +34,12 @@ class BufferUtils {
 
             return b
         }
+
+        fun allocateByteAndPut(array: ByteArray): ByteBuffer {
+            val b = ByteBuffer.allocateDirect(array.size).order(ByteOrder.nativeOrder())
+            b.put(array).flip()
+
+            return b
+        }
     }
 }
