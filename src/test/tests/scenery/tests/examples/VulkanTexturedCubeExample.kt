@@ -16,7 +16,6 @@ import kotlin.concurrent.thread
  */
 class VulkanTexturedCubeExample : SceneryDefaultApplication("VulkanTexturedCubeExample") {
     override fun init(pDrawable: GLAutoDrawable) {
-        renderer = VulkanRenderer(pDrawable.gl.gL4, glWindow!!.width, glWindow!!.height)
         hub.add(SceneryElement.RENDERER, renderer!!)
 
         var boxmaterial = Material()
@@ -74,6 +73,7 @@ class VulkanTexturedCubeExample : SceneryDefaultApplication("VulkanTexturedCubeE
     }
 
     @Test override fun main() {
+        renderer = VulkanRenderer(1024, 1024)
         super.main()
     }
 }
