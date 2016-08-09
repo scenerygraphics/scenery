@@ -23,6 +23,7 @@ import java.io.File
 import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.IntBuffer
+import java.nio.LongBuffer
 import java.nio.file.Files
 import java.util.*
 
@@ -58,13 +59,61 @@ class VulkanRenderer : Renderer {
      */
     private val UINT64_MAX: Long = -1L
 
-    private class DeviceAndGraphicsQueueFamily {
+    var instance: VkInstance
+    var debugCallback = object : VkDebugReportCallbackEXT() {
+        override operator fun invoke(flags: Int, objectType: Int, `object`: Long, location: Long, messageCode: Int, pLayerPrefix: Long, pMessage: Long, pUserData: Long): Int {
+            System.err.println("ERROR OCCURED: " + VkDebugReportCallbackEXT.getString(pMessage))
+            return 0
+        }
+    }
+    var debugCallbackHandle: Long
+    var physicalDevice: VkPhysicalDevice
+    var deviceAndGraphicsQueueFamily: DeviceAndGraphicsQueueFamily
+    var device: VkDevice
+    var queueFamilyIndex: Int
+    var memoryProperties: VkPhysicalDeviceMemoryProperties
+
+    var surface: Long = 0
+
+    var semaphoreCreateInfo: VkSemaphoreCreateInfo
+    var submitInfo: VkSubmitInfo
+
+    // Info struct to present the current swapchain image to the display
+    var presentInfo: VkPresentInfoKHR
+
+    // Create static Vulkan resources
+    var colorFormatAndSpace: ColorFormatAndSpace
+    var commandPool: Long
+    var setupCommandBuffer: VkCommandBuffer
+    var postPresentCommandBuffer: VkCommandBuffer
+    var queue: VkQueue
+    var renderPass: Long
+    var renderCommandPool: Long
+    var vertices: Vertices
+    var uboDescriptor: UboDescriptor
+    var descriptorPool: Long
+    var descriptorSetLayout: Long
+    var descriptorSet: Long
+    var pipeline: Pipeline
+
+    var pSwapchains: LongBuffer
+    var pImageAcquiredSemaphore: LongBuffer
+    var pRenderCompleteSemaphore: LongBuffer
+    var pCommandBuffers: PointerBuffer
+    var pImageIndex: IntBuffer
+
+    var lastTime = System.nanoTime()
+    var time = 0.0f
+
+    val swapchainRecreator: SwapchainRecreator
+
+    class DeviceAndGraphicsQueueFamily {
         internal var device: VkDevice? = null
         internal var queueFamilyIndex: Int = 0
         internal var memoryProperties: VkPhysicalDeviceMemoryProperties? = null
     }
 
-    private class ColorFormatAndSpace {
+    class ColorFormatAndSpace {
         internal var colorFormat: Int = 0
         internal var colorSpace: Int = 0
     }
@@ -75,12 +124,12 @@ class VulkanRenderer : Renderer {
         internal var imageViews: LongArray? = null
     }
 
-    private class Vertices {
+    class Vertices {
         internal var verticesBuf: Long = 0
         internal var createInfo: VkPipelineVertexInputStateCreateInfo? = null
     }
 
-    private class UboDescriptor {
+    class UboDescriptor {
         internal var memory: Long = 0
         internal var allocationSize: Long = 0
         internal var buffer: Long = 0
@@ -88,9 +137,54 @@ class VulkanRenderer : Renderer {
         internal var range: Long = 0
     }
 
-    private class Pipeline {
+    class Pipeline {
         internal var pipeline: Long = 0
         internal var layout: Long = 0
+    }
+
+    inner class SwapchainRecreator {
+        var mustRecreate = true
+        fun recreate() {
+            // Begin the setup command buffer (the one we will use for swapchain/framebuffer creation)
+            val cmdBufInfo = VkCommandBufferBeginInfo.calloc()
+                .sType(VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO)
+                .pNext(NULL)
+
+            var err = vkBeginCommandBuffer(setupCommandBuffer, cmdBufInfo)
+            cmdBufInfo.free()
+
+            if (err != VK_SUCCESS) {
+                throw AssertionError("Failed to begin setup command buffer: " + VulkanUtils.translateVulkanResult(err))
+            }
+
+            val oldChain = swapchain?.swapchainHandle ?: VK_NULL_HANDLE
+
+            // Create the swapchain (this will also add a memory barrier to initialize the framebuffer images)
+            swapchain = createSwapChain(device, physicalDevice, surface, oldChain, setupCommandBuffer,
+                width, height, colorFormatAndSpace.colorFormat, colorFormatAndSpace.colorSpace)
+            err = vkEndCommandBuffer(setupCommandBuffer)
+
+            if (err != VK_SUCCESS) {
+                throw AssertionError("Failed to end setup command buffer: " + VulkanUtils.translateVulkanResult(err))
+            }
+
+            submitCommandBuffer(queue, setupCommandBuffer)
+            vkQueueWaitIdle(queue)
+
+            if (framebuffers != null) {
+                for (i in framebuffers!!.indices)
+                    vkDestroyFramebuffer(device, framebuffers!![i], null)
+            }
+            framebuffers = createFramebuffers(device, swapchain!!, renderPass, width, height)
+            // Create render command buffers
+            if (renderCommandBuffers != null) {
+                vkResetCommandPool(device, renderCommandPool, VK_FLAGS_NONE)
+            }
+            renderCommandBuffers = createRenderCommandBuffers(device, renderCommandPool, framebuffers!!, renderPass, width, height, pipeline, descriptorSet,
+                vertices.verticesBuf)
+
+            mustRecreate = false
+        }
     }
 
     init {
@@ -109,25 +203,19 @@ class VulkanRenderer : Renderer {
         val requiredExtensions = glfwGetRequiredInstanceExtensions() ?: throw AssertionError("Failed to find list of required Vulkan extensions")
 
         // Create the Vulkan instance
-        val instance = createInstance(requiredExtensions)
-        val debugCallback = object : VkDebugReportCallbackEXT() {
-            override operator fun invoke(flags: Int, objectType: Int, `object`: Long, location: Long, messageCode: Int, pLayerPrefix: Long, pMessage: Long, pUserData: Long): Int {
-                System.err.println("ERROR OCCURED: " + VkDebugReportCallbackEXT.getString(pMessage))
-                return 0
-            }
-        }
-        val debugCallbackHandle = setupDebugging(instance, VK_DEBUG_REPORT_ERROR_BIT_EXT or VK_DEBUG_REPORT_WARNING_BIT_EXT, debugCallback)
-        val physicalDevice = getFirstPhysicalDevice(instance)
-        val deviceAndGraphicsQueueFamily = createDeviceAndGetGraphicsQueueFamily(physicalDevice)
-        val device: VkDevice = deviceAndGraphicsQueueFamily.device!!
-        val queueFamilyIndex = deviceAndGraphicsQueueFamily.queueFamilyIndex
-        val memoryProperties = deviceAndGraphicsQueueFamily.memoryProperties!!
+        instance = createInstance(requiredExtensions)
+        debugCallbackHandle = setupDebugging(instance, VK_DEBUG_REPORT_ERROR_BIT_EXT or VK_DEBUG_REPORT_WARNING_BIT_EXT, debugCallback)
+        physicalDevice = getFirstPhysicalDevice(instance)
+        deviceAndGraphicsQueueFamily = createDeviceAndGetGraphicsQueueFamily(physicalDevice)
+        device = deviceAndGraphicsQueueFamily.device!!
+        queueFamilyIndex = deviceAndGraphicsQueueFamily.queueFamilyIndex
+        memoryProperties = deviceAndGraphicsQueueFamily.memoryProperties!!
 
         // Create GLFW window
         glfwDefaultWindowHints()
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API)
         glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE)
-        val window = glfwCreateWindow(800, 600, "GLFW Vulkan Demo", NULL, NULL)
+        val window = glfwCreateWindow(windowWidth, windowHeight, "GLFW Vulkan Demo", NULL, NULL)
         val keyCallback: GLFWKeyCallback = object : GLFWKeyCallback() {
             override operator fun invoke(window: Long, key: Int, scancode: Int, action: Int, mods: Int) {
                 if (action != GLFW_RELEASE)
@@ -147,67 +235,22 @@ class VulkanRenderer : Renderer {
         }
 
         // Create static Vulkan resources
-        val colorFormatAndSpace = getColorFormatAndSpace(physicalDevice, surface)
-        val commandPool = createCommandPool(device, queueFamilyIndex)
-        val setupCommandBuffer = createCommandBuffer(device, commandPool)
-        val postPresentCommandBuffer = createCommandBuffer(device, commandPool)
-        val queue = createDeviceQueue(device, queueFamilyIndex)
-        val renderPass = createRenderPass(device, colorFormatAndSpace.colorFormat)
-        val renderCommandPool = createCommandPool(device, queueFamilyIndex)
-        val vertices = createVertices(memoryProperties, device)
-        val uboDescriptor = createUniformBuffer(memoryProperties, device)
-        val descriptorPool = createDescriptorPool(device)
-        val descriptorSetLayout = createDescriptorSetLayout(device)
-        val descriptorSet = createDescriptorSet(device, descriptorPool, descriptorSetLayout, uboDescriptor)
-        val pipeline = createPipeline(device, renderPass, vertices.createInfo!!, descriptorSetLayout)
+        colorFormatAndSpace = getColorFormatAndSpace(physicalDevice, surface)
+        commandPool = createCommandPool(device, queueFamilyIndex)
+        setupCommandBuffer = createCommandBuffer(device, commandPool)
+        postPresentCommandBuffer = createCommandBuffer(device, commandPool)
+        queue = createDeviceQueue(device, queueFamilyIndex)
+        renderPass = createRenderPass(device, colorFormatAndSpace.colorFormat)
+        renderCommandPool = createCommandPool(device, queueFamilyIndex)
+        vertices = createVertices(memoryProperties, device)
+        uboDescriptor = createUniformBuffer(memoryProperties, device)
+        descriptorPool = createDescriptorPool(device)
+        descriptorSetLayout = createDescriptorSetLayout(device)
+        descriptorSet = createDescriptorSet(device, descriptorPool, descriptorSetLayout, uboDescriptor)
+        pipeline = createPipeline(device, renderPass, vertices.createInfo!!, descriptorSetLayout)
 
-        class SwapchainRecreator {
-            var mustRecreate = true
-            fun recreate() {
-                // Begin the setup command buffer (the one we will use for swapchain/framebuffer creation)
-                val cmdBufInfo = VkCommandBufferBeginInfo.calloc()
-                    .sType(VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO)
-                    .pNext(NULL)
 
-                var err = vkBeginCommandBuffer(setupCommandBuffer, cmdBufInfo)
-                cmdBufInfo.free()
-
-                if (err != VK_SUCCESS) {
-                    throw AssertionError("Failed to begin setup command buffer: " + VulkanUtils.translateVulkanResult(err))
-                }
-
-                val oldChain = swapchain?.swapchainHandle ?: VK_NULL_HANDLE
-
-                // Create the swapchain (this will also add a memory barrier to initialize the framebuffer images)
-                swapchain = createSwapChain(device, physicalDevice, surface, oldChain, setupCommandBuffer,
-                    width, height, colorFormatAndSpace.colorFormat, colorFormatAndSpace.colorSpace)
-                err = vkEndCommandBuffer(setupCommandBuffer)
-
-                if (err != VK_SUCCESS) {
-                    throw AssertionError("Failed to end setup command buffer: " + VulkanUtils.translateVulkanResult(err))
-                }
-
-                submitCommandBuffer(queue, setupCommandBuffer)
-                vkQueueWaitIdle(queue)
-
-                if (framebuffers != null) {
-                    for (i in framebuffers!!.indices)
-                        vkDestroyFramebuffer(device, framebuffers!![i], null)
-                }
-                framebuffers = createFramebuffers(device, swapchain!!, renderPass, width, height)
-                // Create render command buffers
-                if (renderCommandBuffers != null) {
-                    vkResetCommandPool(device, renderCommandPool, VK_FLAGS_NONE)
-                }
-                renderCommandBuffers = createRenderCommandBuffers(device, renderCommandPool, framebuffers!!, renderPass, width, height, pipeline, descriptorSet,
-                    vertices.verticesBuf)
-
-                mustRecreate = false
-            }
-        }
-
-        val swapchainRecreator = SwapchainRecreator()
-
+        swapchainRecreator = SwapchainRecreator()
         // Handle canvas resize
         val windowSizeCallback = object : GLFWWindowSizeCallback() {
             override operator fun invoke(window: Long, w: Int, h: Int) {
@@ -224,15 +267,14 @@ class VulkanRenderer : Renderer {
 
         // Pre-allocate everything needed in the render loop
 
-        val pImageIndex = memAllocInt(1)
-        var currentBuffer = 0
-        val pCommandBuffers = memAllocPointer(1)
-        val pSwapchains = memAllocLong(1)
-        val pImageAcquiredSemaphore = memAllocLong(1)
-        val pRenderCompleteSemaphore = memAllocLong(1)
+        pImageIndex = memAllocInt(1)
+        pCommandBuffers = memAllocPointer(1)
+        pSwapchains = memAllocLong(1)
+        pImageAcquiredSemaphore = memAllocLong(1)
+        pRenderCompleteSemaphore = memAllocLong(1)
 
         // Info struct to create a semaphore
-        val semaphoreCreateInfo = VkSemaphoreCreateInfo.calloc()
+        semaphoreCreateInfo = VkSemaphoreCreateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO)
             .pNext(NULL)
             .flags(0)
@@ -240,7 +282,7 @@ class VulkanRenderer : Renderer {
         // Info struct to submit a command buffer which will wait on the semaphore
         val pWaitDstStageMask = memAllocInt(1)
         pWaitDstStageMask.put(0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
-        val submitInfo = VkSubmitInfo.calloc()
+        submitInfo = VkSubmitInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
             .pNext(NULL)
             .waitSemaphoreCount(pImageAcquiredSemaphore.remaining())
@@ -250,7 +292,7 @@ class VulkanRenderer : Renderer {
             .pSignalSemaphores(pRenderCompleteSemaphore)
 
         // Info struct to present the current swapchain image to the display
-        val presentInfo = VkPresentInfoKHR.calloc()
+        presentInfo = VkPresentInfoKHR.calloc()
             .sType(VK_STRUCTURE_TYPE_PRESENT_INFO_KHR)
             .pNext(NULL)
             .pWaitSemaphores(pRenderCompleteSemaphore)
@@ -259,84 +301,9 @@ class VulkanRenderer : Renderer {
             .pImageIndices(pImageIndex)
             .pResults(null)
 
-        // The render loop
-        var lastTime = System.nanoTime()
-        var time = 0.0f
-        while (!glfwWindowShouldClose(window)) {
-            // Handle window messages. Resize events happen exactly here.
-            // So it is safe to use the new swapchain images and framebuffers afterwards.
-            glfwPollEvents()
-            if (swapchainRecreator.mustRecreate)
-                swapchainRecreator.recreate()
+        lastTime = System.nanoTime()
+        time = 0.0f
 
-            // Create a semaphore to wait for the swapchain to acquire the next image
-            err = vkCreateSemaphore(device, semaphoreCreateInfo, null, pImageAcquiredSemaphore)
-            if (err != VK_SUCCESS) {
-                throw AssertionError("Failed to create image acquired semaphore: " + VulkanUtils.translateVulkanResult(err))
-            }
-
-            // Create a semaphore to wait for the render to complete, before presenting
-            err = vkCreateSemaphore(device, semaphoreCreateInfo, null, pRenderCompleteSemaphore)
-            if (err != VK_SUCCESS) {
-                throw AssertionError("Failed to create render complete semaphore: " + VulkanUtils.translateVulkanResult(err))
-            }
-
-            // Get next image from the swap chain (back/front buffer).
-            // This will setup the imageAquiredSemaphore to be signalled when the operation is complete
-            err = vkAcquireNextImageKHR(device, swapchain!!.swapchainHandle, UINT64_MAX, pImageAcquiredSemaphore.get(0), VK_NULL_HANDLE, pImageIndex)
-            currentBuffer = pImageIndex.get(0)
-            if (err != VK_SUCCESS) {
-                throw AssertionError("Failed to acquire next swapchain image: " + VulkanUtils.translateVulkanResult(err))
-            }
-
-            // Select the command buffer for the current framebuffer image/attachment
-            pCommandBuffers.put(0, renderCommandBuffers!![currentBuffer])
-
-            // Update UBO
-            val thisTime = System.nanoTime()
-            time += (thisTime - lastTime) / 1E9f
-            lastTime = thisTime
-            updateUbo(device, uboDescriptor, time)
-
-            // Submit to the graphics queue
-            err = vkQueueSubmit(queue, submitInfo, VK_NULL_HANDLE)
-            if (err != VK_SUCCESS) {
-                throw AssertionError("Failed to submit render queue: " + VulkanUtils.translateVulkanResult(err))
-            }
-
-            // Present the current buffer to the swap chain
-            // This will display the image
-            pSwapchains.put(0, swapchain!!.swapchainHandle)
-            err = vkQueuePresentKHR(queue, presentInfo)
-            if (err != VK_SUCCESS) {
-                throw AssertionError("Failed to present the swapchain image: " + VulkanUtils.translateVulkanResult(err))
-            }
-            // Create and submit post present barrier
-            vkQueueWaitIdle(queue)
-
-            // Destroy this semaphore (we will create a new one in the next frame)
-            vkDestroySemaphore(device, pImageAcquiredSemaphore.get(0), null)
-            vkDestroySemaphore(device, pRenderCompleteSemaphore.get(0), null)
-            submitPostPresentBarrier(swapchain!!.images!![currentBuffer], postPresentCommandBuffer, queue)
-        }
-        presentInfo.free()
-        memFree(pWaitDstStageMask)
-        submitInfo.free()
-        memFree(pImageAcquiredSemaphore)
-        memFree(pRenderCompleteSemaphore)
-        semaphoreCreateInfo.free()
-        memFree(pSwapchains)
-        memFree(pCommandBuffers)
-
-        vkDestroyDebugReportCallbackEXT(instance, debugCallbackHandle, null)
-
-        windowSizeCallback.free()
-        keyCallback.free()
-        glfwDestroyWindow(window)
-        glfwTerminate()
-
-        // We don't bother disposing of all Vulkan resources.
-        // Let the OS process manager take care of it.
     }
 
     /**
@@ -354,8 +321,66 @@ class VulkanRenderer : Renderer {
      * @param[scene] The scene to render.
      */
     override fun render(scene: Scene) {
-        throw UnsupportedOperationException("not implemented") //To change body of created functions use File | Settings | File Templates.
+        var err = 0
+        var currentBuffer = 0
+
+        // Handle window messages. Resize events happen exactly here.
+        // So it is safe to use the new swapchain images and framebuffers afterwards.
+        glfwPollEvents()
+        if (swapchainRecreator.mustRecreate)
+            swapchainRecreator.recreate()
+
+        // Create a semaphore to wait for the swapchain to acquire the next image
+        err = vkCreateSemaphore(device, semaphoreCreateInfo, null, pImageAcquiredSemaphore)
+        if (err != VK_SUCCESS) {
+            throw AssertionError("Failed to create image acquired semaphore: " + VulkanUtils.translateVulkanResult(err))
+        }
+
+        // Create a semaphore to wait for the render to complete, before presenting
+        err = vkCreateSemaphore(device, semaphoreCreateInfo, null, pRenderCompleteSemaphore)
+        if (err != VK_SUCCESS) {
+            throw AssertionError("Failed to create render complete semaphore: " + VulkanUtils.translateVulkanResult(err))
+        }
+
+        // Get next image from the swap chain (back/front buffer).
+        // This will setup the imageAquiredSemaphore to be signalled when the operation is complete
+        err = vkAcquireNextImageKHR(device, swapchain!!.swapchainHandle, UINT64_MAX, pImageAcquiredSemaphore.get(0), VK_NULL_HANDLE, pImageIndex)
+        currentBuffer = pImageIndex.get(0)
+        if (err != VK_SUCCESS) {
+            throw AssertionError("Failed to acquire next swapchain image: " + VulkanUtils.translateVulkanResult(err))
+        }
+
+        // Select the command buffer for the current framebuffer image/attachment
+        pCommandBuffers.put(0, renderCommandBuffers!![currentBuffer])
+
+        // Update UBO
+        val thisTime = System.nanoTime()
+        time += (thisTime - lastTime) / 1E9f
+        lastTime = thisTime
+        updateUbo(device, uboDescriptor, time)
+
+        // Submit to the graphics queue
+        err = vkQueueSubmit(queue, submitInfo, VK_NULL_HANDLE)
+        if (err != VK_SUCCESS) {
+            throw AssertionError("Failed to submit render queue: " + VulkanUtils.translateVulkanResult(err))
+        }
+
+        // Present the current buffer to the swap chain
+        // This will display the image
+        pSwapchains.put(0, swapchain!!.swapchainHandle)
+        err = vkQueuePresentKHR(queue, presentInfo)
+        if (err != VK_SUCCESS) {
+            throw AssertionError("Failed to present the swapchain image: " + VulkanUtils.translateVulkanResult(err))
+        }
+        // Create and submit post present barrier
+        vkQueueWaitIdle(queue)
+
+        // Destroy this semaphore (we will create a new one in the next frame)
+        vkDestroySemaphore(device, pImageAcquiredSemaphore.get(0), null)
+        vkDestroySemaphore(device, pRenderCompleteSemaphore.get(0), null)
+        submitPostPresentBarrier(swapchain!!.images!![currentBuffer], postPresentCommandBuffer, queue)
     }
+
 
     /**
      * Renders a simple rotating colored quad on a cornflower blue background on a GLFW window with Vulkan.
