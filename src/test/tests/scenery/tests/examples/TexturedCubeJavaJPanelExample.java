@@ -25,8 +25,8 @@ public class TexturedCubeJavaJPanelExample {
 
         public void init(GLAutoDrawable pDrawable) {
 
-            setDeferredRenderer( new DeferredLightingRenderer( pDrawable.getGL().getGL4(), getGlWindow().getWidth(), getGlWindow().getHeight() ) );
-            getHub().add(SceneryElement.RENDERER, getDeferredRenderer());
+            setRenderer( new DeferredLightingRenderer( pDrawable.getGL().getGL4(), getGlWindow().getWidth(), getGlWindow().getHeight() ) );
+            getHub().add(SceneryElement.RENDERER, getRenderer());
 
             Material boxmaterial = new Material();
             boxmaterial.setAmbient( new GLVector(1.0f, 0.0f, 0.0f) );
@@ -74,9 +74,9 @@ public class TexturedCubeJavaJPanelExample {
             };
             rotator.start();
 
-            getDeferredRenderer().initializeScene(getScene());
+            getRenderer().initializeScene(getScene());
 
-            setRepl(new REPL(getScene(), getDeferredRenderer()));
+            setRepl(new REPL(getScene(), getRenderer()));
             getRepl().start();
             getRepl().showConsoleWindow();
 

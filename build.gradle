@@ -2,6 +2,7 @@ buildscript {
 	ext.kotlin_version = '1.0.3'
     ext.dokka_version = '0.9.8'
     ext.slf4j_version = '1.7.20'
+    ext.lwjgl_version = '3.0.1-SNAPSHOT'
 	repositories {
     mavenCentral()
   }
@@ -29,15 +30,16 @@ sourceSets
         kotlin
         { srcDirs = ['src/main/kotlin'] }
 		resources
-		{  srcDirs = ['src/main/resources']
-        }
+		{ srcDirs = ['src/main/resources'] }
 	}
 	test
 	{
         kotlin
-        { srcDirs = ['src/test/kotlin'] }
+        { srcDirs = ['src/test/tests'] }
+        java
+        { srcDirs = ['src/test/tests'] }
 		resources
-		{  srcDirs = ['src/test/resources'] }
+		{ srcDirs = ['src/test/resources'] }
 	}
 }
 
@@ -117,6 +119,12 @@ dependencies
 
     // OpenCL support via JOCL
     compile group: 'org.jocl', name: 'jocl', version: '2.0.0'
+
+    // LWJGL for Vulkan support
+    compile "org.lwjgl:lwjgl:$lwjgl_version"
+    compile "org.lwjgl:lwjgl-platform:$lwjgl_version:natives-windows"
+    compile "org.lwjgl:lwjgl-platform:$lwjgl_version:natives-linux"
+    compile "org.lwjgl:lwjgl-platform:$lwjgl_version:natives-osx"
 
     // usage: gradle .... -Plocal=true
 	if (project.hasProperty('local')) {
