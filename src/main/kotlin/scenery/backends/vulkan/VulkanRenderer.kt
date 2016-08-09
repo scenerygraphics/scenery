@@ -1482,7 +1482,7 @@ class VulkanRenderer : Renderer {
     }
 
     private fun updateUbo(device: VkDevice, ubo: UboDescriptor, angle: Float) {
-        val m = GLMatrix().scale(1.0f, -1.0f, 1.0f).rotEuler(0.0, 0.0, angle * 1.0);
+        val m = GLMatrix.getIdentity().rotEuler(0.0, 0.0, angle * 1.0)
         val pData = memAllocPointer(1)
         val err = vkMapMemory(device, ubo.memory, 0, ubo.allocationSize, 0, pData)
         val data = pData.get(0)
