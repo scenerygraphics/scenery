@@ -62,7 +62,7 @@ class VulkanRenderer : Renderer {
 
     var instance: VkInstance
     var debugCallback = object : VkDebugReportCallbackEXT() {
-        override operator fun invoke(flags: Int, objectType: Int, `object`: Long, location: Long, messageCode: Int, pLayerPrefix: Long, pMessage: Long, pUserData: Long): Int {
+        override operator fun invoke(flags: Int, objectType: Int, obj: Long, location: Long, messageCode: Int, pLayerPrefix: Long, pMessage: Long, pUserData: Long): Int {
             System.err.println("ERROR OCCURED: " + VkDebugReportCallbackEXT.getString(pMessage))
             return 0
         }
@@ -165,7 +165,6 @@ class VulkanRenderer : Renderer {
             // Create the swapchain (this will also add a memory barrier to initialize the framebuffer images)
             swapchain = createSwapChain(device, physicalDevice, surface, oldChain, setupCommandBuffer,
                 width, height, colorFormatAndSpace.colorFormat, colorFormatAndSpace.colorSpace)
-            System.err.println("Command buffer ended")
             err = vkEndCommandBuffer(setupCommandBuffer)
 
 
@@ -185,6 +184,7 @@ class VulkanRenderer : Renderer {
             if (renderCommandBuffers != null) {
                 vkResetCommandPool(device, renderCommandPool, VK_FLAGS_NONE)
             }
+
             renderCommandBuffers = createRenderCommandBuffers(device, renderCommandPool, framebuffers!!, renderPass, width, height, pipeline, descriptorSet,
                 vertices.verticesBuf)
 
@@ -209,7 +209,7 @@ class VulkanRenderer : Renderer {
         // Create the Vulkan instance
         instance = createInstance(requiredExtensions)
         debugCallbackHandle = setupDebugging(instance, VK_DEBUG_REPORT_ERROR_BIT_EXT or VK_DEBUG_REPORT_WARNING_BIT_EXT, debugCallback)
-        physicalDevice = getFirstPhysicalDevice(instance)
+        physicalDevice = getPhysicalDevice(instance)
         deviceAndGraphicsQueueFamily = createDeviceAndGetGraphicsQueueFamily(physicalDevice)
         device = deviceAndGraphicsQueueFamily.device!!
         queueFamilyIndex = deviceAndGraphicsQueueFamily.queueFamilyIndex!!
@@ -411,7 +411,7 @@ class VulkanRenderer : Renderer {
         val appInfo = VkApplicationInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_APPLICATION_INFO)
             .pApplicationName(memUTF8("GLFW Vulkan Demo"))
-            .pEngineName(memUTF8(""))
+            .pEngineName(memUTF8("scenery"))
             .apiVersion(VK_MAKE_VERSION(1, 0, 2))
 
         val ppEnabledExtensionNames = memAllocPointer(requiredExtensions.remaining() + 1)
@@ -470,18 +470,42 @@ class VulkanRenderer : Renderer {
         return callbackHandle
     }
 
-    private fun getFirstPhysicalDevice(instance: VkInstance): VkPhysicalDevice {
+    private fun vkDeviceTypeToString(deviceType: Int): String {
+        return when(deviceType) {
+            0 -> "other"
+            1 -> "Integrated GPU"
+            2 -> "Discrete GPU"
+            3 -> "Virtual GPU"
+            4 -> "CPU"
+            else -> "Unknown device type"
+        }
+    }
+
+    private fun getPhysicalDevice(instance: VkInstance): VkPhysicalDevice {
         val pPhysicalDeviceCount = memAllocInt(1)
         var err = vkEnumeratePhysicalDevices(instance, pPhysicalDeviceCount, null)
 
         if (err != VK_SUCCESS) {
             throw AssertionError("Failed to get number of physical devices: " + VulkanUtils.translateVulkanResult(err))
         }
-        
+
+        if(pPhysicalDeviceCount.get(0) < 1) {
+            throw AssertionError("No Vulkan-compatible devices found!")
+        }
+
         System.err.println("Got ${pPhysicalDeviceCount.get(0)} physical devices")
         val pPhysicalDevices = memAllocPointer(pPhysicalDeviceCount.get(0))
         err = vkEnumeratePhysicalDevices(instance, pPhysicalDeviceCount, pPhysicalDevices)
-        val physicalDevice = pPhysicalDevices.get(0)
+
+        for(i in 1..pPhysicalDeviceCount.get(0)) {
+            val device = VkPhysicalDevice(pPhysicalDevices.get(i), instance)
+            val properties: VkPhysicalDeviceProperties = VkPhysicalDeviceProperties(ByteBuffer.allocateDirect(824))
+
+            vkGetPhysicalDeviceProperties(device, properties)
+            System.err.println("Device #$i: ${properties.deviceNameString()} ${vkDeviceTypeToString(properties.deviceType())} ${properties.vendorID()}/${properties.driverVersion()}")
+        }
+
+        val physicalDevice = pPhysicalDevices.get(System.getProperty("scenery.VulkanBackend.Device", "0").toInt())
 
         memFree(pPhysicalDeviceCount)
         memFree(pPhysicalDevices)
