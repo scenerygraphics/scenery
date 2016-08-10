@@ -1513,4 +1513,8 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         gl.gL4.glUseProgram(0)
         gl.gL4.glBindVertexArray(0)
     }
+
+    override fun close() {
+
+    }
 }

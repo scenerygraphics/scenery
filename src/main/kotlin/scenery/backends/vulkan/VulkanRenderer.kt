@@ -1600,4 +1600,8 @@ class VulkanRenderer : Renderer {
         // Submit the command buffer
         submitCommandBuffer(queue, commandBuffer)
     }
+
+    override fun close() {
+        vkDestroyInstance(instance, null)
+    }
 }

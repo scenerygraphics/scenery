@@ -32,4 +32,6 @@ interface Renderer : Hubable {
     var settings: Settings
 
     fun reshape(width: Int, height: Int)
+
+    fun close()
 }
