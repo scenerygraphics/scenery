@@ -46,6 +46,8 @@ open class DeferredLightingRenderer : Renderer, Hubable {
     override var width: Int
     /** window height */
     override var height: Int
+    /** should the window close on next looping? */
+    override var shouldClose = false
 
     /** [GLFramebuffer] Geometry buffer for rendering */
     protected var geometryBuffer: ArrayList<GLFramebuffer>

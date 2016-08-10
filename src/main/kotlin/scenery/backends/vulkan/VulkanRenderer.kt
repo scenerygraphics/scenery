@@ -35,6 +35,7 @@ import java.util.*
 class VulkanRenderer : Renderer {
     override var hub: Hub? = null
     override var settings: Settings = Settings()
+    override var shouldClose = false
 
     override fun reshape(width: Int, height: Int) {
     }
@@ -73,7 +74,7 @@ class VulkanRenderer : Renderer {
     var queueFamilyIndex: Int
     var memoryProperties: VkPhysicalDeviceMemoryProperties
 
-    var surface: Long = 0
+    var surface: Long
 
     var semaphoreCreateInfo: VkSemaphoreCreateInfo
     var submitInfo: VkSubmitInfo
@@ -101,6 +102,8 @@ class VulkanRenderer : Renderer {
     var pRenderCompleteSemaphore: LongBuffer
     var pCommandBuffers: PointerBuffer
     var pImageIndex: IntBuffer
+
+    var window: Long
 
     var lastTime = System.nanoTime()
     var time = 0.0f
@@ -162,7 +165,9 @@ class VulkanRenderer : Renderer {
             // Create the swapchain (this will also add a memory barrier to initialize the framebuffer images)
             swapchain = createSwapChain(device, physicalDevice, surface, oldChain, setupCommandBuffer,
                 width, height, colorFormatAndSpace.colorFormat, colorFormatAndSpace.colorSpace)
+            System.err.println("Command buffer ended")
             err = vkEndCommandBuffer(setupCommandBuffer)
+
 
             if (err != VK_SUCCESS) {
                 throw AssertionError("Failed to end setup command buffer: " + VulkanUtils.translateVulkanResult(err))
@@ -187,11 +192,10 @@ class VulkanRenderer : Renderer {
         }
     }
 
-    init {
-
-    }
-
     constructor(windowWidth: Int, windowHeight: Int) {
+        this.width = windowWidth
+        this.height = windowHeight
+
         if (!glfwInit()) {
             throw RuntimeException("Failed to initialize GLFW")
         }
@@ -208,14 +212,14 @@ class VulkanRenderer : Renderer {
         physicalDevice = getFirstPhysicalDevice(instance)
         deviceAndGraphicsQueueFamily = createDeviceAndGetGraphicsQueueFamily(physicalDevice)
         device = deviceAndGraphicsQueueFamily.device!!
-        queueFamilyIndex = deviceAndGraphicsQueueFamily.queueFamilyIndex
+        queueFamilyIndex = deviceAndGraphicsQueueFamily.queueFamilyIndex!!
         memoryProperties = deviceAndGraphicsQueueFamily.memoryProperties!!
 
         // Create GLFW window
         glfwDefaultWindowHints()
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API)
         glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE)
-        val window = glfwCreateWindow(windowWidth, windowHeight, "GLFW Vulkan Demo", NULL, NULL)
+        window = glfwCreateWindow(windowWidth, windowHeight, "GLFW Vulkan Demo", NULL, NULL)
         val keyCallback: GLFWKeyCallback = object : GLFWKeyCallback() {
             override operator fun invoke(window: Long, key: Int, scancode: Int, action: Int, mods: Int) {
                 if (action != GLFW_RELEASE)
@@ -225,10 +229,10 @@ class VulkanRenderer : Renderer {
             }
         }
 
-        glfwSetKeyCallback(window, keyCallback!!)
+        glfwSetKeyCallback(window, keyCallback)
         val pSurface = memAllocLong(1)
         var err = glfwCreateWindowSurface(instance, window, null, pSurface)
-        val surface = pSurface.get(0)
+        surface = pSurface.get(0)
 
         if (err != VK_SUCCESS) {
             throw AssertionError("Failed to create surface: " + VulkanUtils.translateVulkanResult(err))
@@ -249,8 +253,8 @@ class VulkanRenderer : Renderer {
         descriptorSet = createDescriptorSet(device, descriptorPool, descriptorSetLayout, uboDescriptor)
         pipeline = createPipeline(device, renderPass, vertices.createInfo!!, descriptorSetLayout)
 
-
         swapchainRecreator = SwapchainRecreator()
+
         // Handle canvas resize
         val windowSizeCallback = object : GLFWWindowSizeCallback() {
             override operator fun invoke(window: Long, w: Int, h: Int) {
@@ -303,7 +307,6 @@ class VulkanRenderer : Renderer {
 
         lastTime = System.nanoTime()
         time = 0.0f
-
     }
 
     /**
@@ -321,14 +324,20 @@ class VulkanRenderer : Renderer {
      * @param[scene] The scene to render.
      */
     override fun render(scene: Scene) {
+        if(glfwWindowShouldClose(window)) {
+            this.shouldClose = true
+            return
+        }
+
         var err = 0
         var currentBuffer = 0
 
         // Handle window messages. Resize events happen exactly here.
         // So it is safe to use the new swapchain images and framebuffers afterwards.
         glfwPollEvents()
-        if (swapchainRecreator.mustRecreate)
+        if (swapchainRecreator.mustRecreate) {
             swapchainRecreator.recreate()
+        }
 
         // Create a semaphore to wait for the swapchain to acquire the next image
         err = vkCreateSemaphore(device, semaphoreCreateInfo, null, pImageAcquiredSemaphore)

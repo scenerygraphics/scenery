@@ -27,6 +27,8 @@ interface Renderer : Hubable {
     var width: Int
     var height: Int
 
+    var shouldClose: Boolean
+
     var settings: Settings
 
     fun reshape(width: Int, height: Int)
