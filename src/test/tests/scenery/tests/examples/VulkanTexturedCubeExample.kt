@@ -15,7 +15,7 @@ import kotlin.concurrent.thread
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class VulkanTexturedCubeExample : SceneryDefaultApplication("VulkanTexturedCubeExample") {
-    override fun init(pDrawable: GLAutoDrawable) {
+    fun init() {
         hub.add(SceneryElement.RENDERER, renderer!!)
 
         var boxmaterial = Material()
@@ -47,7 +47,7 @@ class VulkanTexturedCubeExample : SceneryDefaultApplication("VulkanTexturedCubeE
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
             position = GLVector(0.0f, 0.0f, 5.0f)
-            perspectiveCamera(50.0f, 1.0f*glWindow!!.width, 1.0f*glWindow!!.height)
+            perspectiveCamera(50.0f, 1.0f*1024, 1.0f*1024)
             active = true
 
             scene.addChild(this)
@@ -67,13 +67,15 @@ class VulkanTexturedCubeExample : SceneryDefaultApplication("VulkanTexturedCubeE
 
         renderer?.initializeScene(scene)
 
-        repl = REPL(scene, renderer!!)
-        repl?.start()
-        repl?.showConsoleWindow()
+//        repl = REPL(scene, renderer!!)
+//        repl?.start()
+//        repl?.showConsoleWindow()
     }
 
     @Test override fun main() {
         renderer = VulkanRenderer(1024, 1024)
+        this.init()
+//        renderer?.initializeScene(scene)
 
         System.err.println("Renderer initialized!")
         while(renderer?.shouldClose == false) {

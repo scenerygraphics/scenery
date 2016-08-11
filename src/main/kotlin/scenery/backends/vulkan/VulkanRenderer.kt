@@ -1,13 +1,11 @@
 package scenery.backends.vulkan
 
 import cleargl.GLMatrix
-import com.jogamp.opengl.GL4
 import org.lwjgl.PointerBuffer
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.glfw.GLFWKeyCallback
 import org.lwjgl.glfw.GLFWVulkan.*
 import org.lwjgl.glfw.GLFWWindowSizeCallback
-import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.EXTDebugReport.*
@@ -15,16 +13,14 @@ import org.lwjgl.vulkan.KHRSurface.*
 import org.lwjgl.vulkan.KHRSwapchain.*
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VKUtil.VK_MAKE_VERSION
-import scenery.Hub
-import scenery.Scene
-import scenery.Settings
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
+import scenery.*
 import scenery.backends.Renderer
-import java.io.File
 import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.IntBuffer
 import java.nio.LongBuffer
-import java.nio.file.Files
 import java.util.*
 
 /**
@@ -35,6 +31,7 @@ import java.util.*
 class VulkanRenderer : Renderer {
     override var hub: Hub? = null
     override var settings: Settings = Settings()
+    protected var logger: Logger = LoggerFactory.getLogger("VulkanRenderer")
     override var shouldClose = false
 
     override fun reshape(width: Int, height: Int) {
@@ -143,6 +140,20 @@ class VulkanRenderer : Renderer {
     class Pipeline {
         internal var pipeline: Long = 0
         internal var layout: Long = 0
+    }
+
+    class VulkanObjectState : NodeMetadata {
+        override val consumers: MutableList<String> = ArrayList()
+
+        var initialized = false
+        var inputState = VkPipelineVertexInputStateCreateInfo.calloc()
+        var bindingDescriptions = VkVertexInputBindingDescription.calloc(1)
+        var attributeDescriptions = VkVertexInputAttributeDescription.calloc(3)
+
+        constructor() {
+            consumers.add("VulkanRenderer")
+        }
+
     }
 
     inner class SwapchainRecreator {
@@ -315,7 +326,56 @@ class VulkanRenderer : Renderer {
      * @param[scene] The scene to initialize.
      */
     override fun initializeScene(scene: Scene) {
-        throw UnsupportedOperationException("not implemented") //To change body of created functions use File | Settings | File Templates.
+        scene.discover(scene, { it is HasGeometry })
+            .forEach { node ->
+                node.metadata.put("VulkanRenderer", VulkanObjectState())
+                initializeNode(node)
+            }
+    }
+
+    /**
+     *
+     */
+    fun initializeNode(node: Node): Boolean {
+        val s: VulkanObjectState
+
+        logger.info("Initializing ${node.name}")
+        s = node.metadata["VulkanRenderer"] as VulkanObjectState
+
+        if(s.initialized) return true
+
+        // setup vertex binding descriptions
+        s.bindingDescriptions.binding(0)
+            .stride((3 + 3 + 3) * 4)
+            .inputRate(VK_VERTEX_INPUT_RATE_VERTEX)
+
+        // setup vertex attribute descriptions
+        s.attributeDescriptions.get(0)
+            .binding(0)
+            .location(0)
+            .format(VK_FORMAT_R32G32B32_SFLOAT)
+            .offset(0)
+
+        s.attributeDescriptions.get(1)
+            .binding(0)
+            .location(1)
+            .format(VK_FORMAT_R32G32B32_SFLOAT)
+            .offset(3 * 4)
+
+        s.attributeDescriptions.get(2)
+            .binding(0)
+            .location(2)
+            .format(VK_FORMAT_R32G32_SFLOAT)
+            .offset(3 * 4 + 3 * 4)
+
+        s.inputState.sType(VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO)
+            .pNext(NULL)
+            .pVertexBindingDescriptions(s.bindingDescriptions)
+            .pVertexAttributeDescriptions(s.attributeDescriptions)
+
+        logger.info("Created attr descs and binding descs")
+
+        return true
     }
 
     /**
