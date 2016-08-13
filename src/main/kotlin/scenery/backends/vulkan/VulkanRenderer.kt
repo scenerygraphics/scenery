@@ -379,6 +379,20 @@ class VulkanRenderer : Renderer {
     }
 
     /**
+     *
+     */
+    protected fun prepareGeometryBuffer() {
+
+    }
+
+    /**
+     *
+     */
+    protected fun prepareHDRBuffer() {
+
+    }
+
+    /**
      * This function renders the scene
      *
      * @param[scene] The scene to render.
