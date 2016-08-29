@@ -203,6 +203,9 @@ class VulkanRenderer : Renderer {
         }
     }
 
+    private var geometryBuffer: VulkanFramebuffer
+    private var hdrBuffer: VulkanFramebuffer
+
     constructor(windowWidth: Int, windowHeight: Int) {
         this.width = windowWidth
         this.height = windowHeight
@@ -318,6 +321,9 @@ class VulkanRenderer : Renderer {
 
         lastTime = System.nanoTime()
         time = 0.0f
+
+        this.geometryBuffer = prepareGeometryBuffer(this.device, this.physicalDevice, width, height)
+        this.hdrBuffer = prepareHDRBuffer(this.device, this.physicalDevice, width, height)
     }
 
     /**
@@ -381,15 +387,34 @@ class VulkanRenderer : Renderer {
     /**
      *
      */
-    protected fun prepareGeometryBuffer() {
+    protected fun prepareGeometryBuffer(device: VkDevice, physicalDevice: VkPhysicalDevice, width: Int, height: Int): VulkanFramebuffer {
+        with(createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, autostart = true)) {
+            val gb = VulkanFramebuffer(device, physicalDevice, width, height, this)
 
+            gb.addFloatRGBABuffer(32)
+            gb.addFloatRGBABuffer(16)
+            gb.addUnsignedByteRGBABuffer(32)
+            gb.addDepthBuffer(32)
+
+            flushCommandBuffer(this, this@VulkanRenderer.queue, true)
+
+            return gb
+        }
     }
 
     /**
      *
      */
-    protected fun prepareHDRBuffer() {
+    protected fun prepareHDRBuffer(device: VkDevice, physicalDevice: VkPhysicalDevice, width: Int, height: Int): VulkanFramebuffer {
+        with(createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, autostart = true)) {
+            val gb = VulkanFramebuffer(device, physicalDevice, width, height, this)
 
+            gb.addFloatRGBABuffer(32)
+
+            flushCommandBuffer(this, this@VulkanRenderer.queue, true)
+
+            return gb
+        }
     }
 
     /**
@@ -767,11 +792,11 @@ class VulkanRenderer : Renderer {
         return VkQueue(queue, device)
     }
 
-    private fun createCommandBuffer(device: VkDevice, commandPool: Long): VkCommandBuffer {
+    private fun createCommandBuffer(device: VkDevice, commandPool: Long, level: Int = VK_COMMAND_BUFFER_LEVEL_PRIMARY): VkCommandBuffer {
         val cmdBufAllocateInfo = VkCommandBufferAllocateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO)
             .commandPool(commandPool)
-            .level(VK_COMMAND_BUFFER_LEVEL_PRIMARY)
+            .level(level)
             .commandBufferCount(1)
 
         val pCommandBuffer = memAllocPointer(1)
@@ -783,6 +808,45 @@ class VulkanRenderer : Renderer {
             throw AssertionError("Failed to allocate command buffer: " + VulkanUtils.translateVulkanResult(err))
         }
         return VkCommandBuffer(commandBuffer, device)
+    }
+
+    private fun createCommandBuffer(level: Int = VK_COMMAND_BUFFER_LEVEL_PRIMARY, autostart: Boolean = false): VkCommandBuffer {
+        val cmdBuf = createCommandBuffer(this.device, this.commandPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY)
+
+        if(autostart) {
+            val cmdBufInfo = VkCommandBufferBeginInfo.calloc()
+                .sType(VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO)
+                .pNext(NULL)
+
+            vkBeginCommandBuffer(cmdBuf, cmdBufInfo)
+        }
+
+        return cmdBuf
+    }
+
+    private fun flushCommandBuffer(commandBuffer: VkCommandBuffer, queue: VkQueue, dealloc: Boolean = false) {
+        if (commandBuffer.address() === NULL) {
+            return
+        }
+
+        if(vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
+            throw AssertionError("Failed to end command buffer $commandBuffer")
+        }
+
+        with(memAllocPointer(1).put(commandBuffer).flip()) {
+            val submitInfo = VkSubmitInfo.calloc(1)
+                .sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
+                .pCommandBuffers(this)
+
+            vkQueueSubmit(queue, submitInfo, VK_NULL_HANDLE)
+            vkQueueWaitIdle(queue)
+
+            memFree(this)
+        }
+
+        if(dealloc) {
+            vkFreeCommandBuffers(this.device, commandPool, commandBuffer)
+        }
     }
 
     private fun imageBarrier(cmdbuffer: VkCommandBuffer, image: Long, aspectMask: Int, oldImageLayout: Int, srcAccess: Int, newImageLayout: Int, dstAccess: Int) {

@@ -75,6 +75,13 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
             .samples(VK_SAMPLE_COUNT_1_BIT)
             .tiling(VK_IMAGE_TILING_OPTIMAL)
             .usage(usage or VK_IMAGE_USAGE_SAMPLED_BIT)
+            .sType(VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO)
+            .pNext(NULL)
+
+        var images = memAllocLong(1)
+        vkCreateImage(device, image, null, images)
+        a.image = images.get(0)
+        memFree(images)
 
         var requirements = VkMemoryRequirements.calloc()
         vkGetImageMemoryRequirements(device, a.image, requirements)
@@ -82,6 +89,8 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
         var allocation = VkMemoryAllocateInfo.calloc()
             .allocationSize(requirements.size())
             .memoryTypeIndex(physicalDevice.getMemoryType(requirements.memoryTypeBits(), VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT).second)
+            .sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO)
+            .pNext(NULL)
 
         vkAllocateMemory(device, allocation, null, a.memory)
         vkBindImageMemory(device, a.image, a.memory.get(0), 0)
@@ -106,20 +115,60 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
             .format(format)
             .subresourceRange(subresourceRange)
             .image(a.image)
+            .sType(VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO)
+            .pNext(NULL)
 
         vkCreateImageView(device, iv, null, a.imageView)
     }
 
     fun addFloatBuffer(channelDepth: Int) {
+        val format: Int = when(channelDepth) {
+            16 -> VK_FORMAT_R16_SFLOAT
+            32 -> VK_FORMAT_R32_SFLOAT
+            else -> { System.err.println("Unsupported channel depth $channelDepth, using 16 bit."); VK_FORMAT_R16_SFLOAT }
+        }
+
+        addAttachment(format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
     }
 
     fun addFloatRGBBuffer(channelDepth: Int) {
+        val format: Int = when(channelDepth) {
+            16 -> VK_FORMAT_R16G16B16_SFLOAT
+            32 -> VK_FORMAT_R32G32B32_SFLOAT
+            else -> { System.err.println("Unsupported channel depth $channelDepth, using 16 bit."); VK_FORMAT_R16G16B16A16_SFLOAT }
+        }
+
+        addAttachment(format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
+    }
+
+    fun addFloatRGBABuffer(channelDepth: Int) {
+        val format: Int = when(channelDepth) {
+            16 -> VK_FORMAT_R16G16B16A16_SFLOAT
+            32 -> VK_FORMAT_R32G32B32A32_SFLOAT
+            else -> { System.err.println("Unsupported channel depth $channelDepth, using 16 bit."); VK_FORMAT_R16G16B16A16_SFLOAT }
+        }
+
+        addAttachment(format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
     }
 
     fun addUnsignedByteRGBABuffer(channelDepth: Int) {
+        val format: Int = when(channelDepth) {
+            16 -> VK_FORMAT_R16G16B16A16_UINT
+            32 -> VK_FORMAT_R32G32B32A32_UINT
+            else -> { System.err.println("Unsupported channel depth $channelDepth, using 16 bit."); VK_FORMAT_R16G16B16A16_UINT }
+        }
+
+        addAttachment(format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
     }
 
     @JvmOverloads fun addDepthBuffer(depth: Int, scale: Int = 1) {
+        val format: Int = when(depth) {
+            24 -> VK_FORMAT_D16_UNORM
+            32 -> VK_FORMAT_D32_SFLOAT
+            else -> { System.err.println("Unsupported channel depth $depth, using 32 bit."); VK_FORMAT_D32_SFLOAT }
+        }
+
+        addAttachment(VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
     }
 
     fun checkDrawBuffers(): Boolean {
