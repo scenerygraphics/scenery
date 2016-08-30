@@ -599,7 +599,7 @@ class VulkanRenderer : Renderer {
 
         for(i in 1..pPhysicalDeviceCount.get(0)) {
             val device = VkPhysicalDevice(pPhysicalDevices.get(i), instance)
-            val properties: VkPhysicalDeviceProperties = VkPhysicalDeviceProperties(ByteBuffer.allocateDirect(824))
+            val properties: VkPhysicalDeviceProperties = VkPhysicalDeviceProperties.calloc()
 
             vkGetPhysicalDeviceProperties(device, properties)
             System.err.println("Device #$i: ${properties.deviceNameString()} ${vkDeviceTypeToString(properties.deviceType())} ${properties.vendorID()}/${properties.driverVersion()}")
