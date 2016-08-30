@@ -122,6 +122,8 @@ dependencies
 
     // LWJGL for Vulkan support
     compile "org.lwjgl:lwjgl:$lwjgl_version"
+    compile "org.lwjgl:lwjgl-vulkan:$lwjgl_version"
+    compile "org.lwjgl:lwjgl-glfw:$lwjgl_version"
     compile "org.lwjgl:lwjgl-platform:$lwjgl_version:natives-windows"
     compile "org.lwjgl:lwjgl-platform:$lwjgl_version:natives-linux"
     compile "org.lwjgl:lwjgl-platform:$lwjgl_version:natives-osx"
@@ -144,6 +146,8 @@ dependencies
 repositories
 {
 	mavenCentral()
+    maven
+    { url "https://oss.sonatype.org/content/repositories/snapshots" }
 	maven
 	{ url "http://oss.sonatype.org/content/groups/public" }
     maven

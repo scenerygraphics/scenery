@@ -199,9 +199,27 @@
             <classifier>natives-osx</classifier>
         </dependency>
 
+        <dependency>
+            <groupId>org.lwjgl</groupId>
+            <artifactId>lwjgl-vulkan</artifactId>
+            <version>${lwjgl.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.lwjgl</groupId>
+            <artifactId>lwjgl-glfw</artifactId>
+            <version>${lwjgl.version}</version>
+        </dependency>
+
+
+
     </dependencies>
 
     <repositories>
+        <repository>
+            <id>Sonatype Snapshots</id>
+            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+        </repository>
         <repository>
             <id>imagej.public</id>
             <url>http://maven.imagej.net/content/groups/public</url>

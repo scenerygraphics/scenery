@@ -1,5 +1,6 @@
 package scenery.backends.vulkan
 
+import BufferUtils
 import cleargl.GLMatrix
 import org.lwjgl.PointerBuffer
 import org.lwjgl.glfw.GLFW.*
@@ -953,7 +954,7 @@ class VulkanRenderer : Renderer {
             .pQueueFamilyIndices(null)
             .presentMode(swapchainPresentMode)
             .oldSwapchain(oldSwapChain)
-            .clipped(1)
+            .clipped(true)
             .compositeAlpha(VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR)
 
         swapchainCI.imageExtent().width(width).height(height)
@@ -1444,14 +1445,14 @@ class VulkanRenderer : Renderer {
             .polygonMode(VK_POLYGON_MODE_FILL)
             .cullMode(VK_CULL_MODE_NONE)
             .frontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
-            .depthClampEnable(0)
-            .rasterizerDiscardEnable(0)
-            .depthBiasEnable(0)
+            .depthClampEnable(false)
+            .rasterizerDiscardEnable(false)
+            .depthBiasEnable(false)
 
         // Color blend state
         // Describes blend modes and color masks
         val colorWriteMask = VkPipelineColorBlendAttachmentState.calloc(1)
-            .blendEnable(0)
+            .blendEnable(false)
             .colorWriteMask(0xF) // <- RGBA
 
         val colorBlendState = VkPipelineColorBlendStateCreateInfo.calloc()
@@ -1479,11 +1480,11 @@ class VulkanRenderer : Renderer {
         // Describes depth and stenctil test and compare ops
         val depthStencilState = VkPipelineDepthStencilStateCreateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO)// No depth test/write and no stencil used
-            .depthTestEnable(0)
-            .depthWriteEnable(0)
+            .depthTestEnable(false)
+            .depthWriteEnable(false)
             .depthCompareOp(VK_COMPARE_OP_ALWAYS)
-            .depthBoundsTestEnable(0)
-            .stencilTestEnable(0)
+            .depthBoundsTestEnable(false)
+            .stencilTestEnable(false)
 
         depthStencilState.back()
             .failOp(VK_STENCIL_OP_KEEP)
