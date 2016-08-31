@@ -392,10 +392,10 @@ class VulkanRenderer : Renderer {
         with(createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, autostart = true)) {
             val gb = VulkanFramebuffer(device, physicalDevice, width, height, this)
 
-            gb.addFloatRGBABuffer(32)
-            gb.addFloatRGBABuffer(16)
-            gb.addUnsignedByteRGBABuffer(32)
-            gb.addDepthBuffer(32)
+            gb.addFloatRGBABuffer("position", 32)
+            gb.addFloatRGBABuffer("normal", 16)
+            gb.addUnsignedByteRGBABuffer("albedo+diffuse", 32)
+            gb.addDepthBuffer("depth", 32)
 
             flushCommandBuffer(this, this@VulkanRenderer.queue, true)
 
@@ -410,7 +410,7 @@ class VulkanRenderer : Renderer {
         with(createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, autostart = true)) {
             val gb = VulkanFramebuffer(device, physicalDevice, width, height, this)
 
-            gb.addFloatRGBABuffer(32)
+            gb.addFloatRGBABuffer("hdr", 32)
 
             flushCommandBuffer(this, this@VulkanRenderer.queue, true)
 
