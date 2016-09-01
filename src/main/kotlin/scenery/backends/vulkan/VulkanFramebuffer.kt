@@ -8,6 +8,7 @@ import java.util.ArrayList
 import scenery.backends.vulkan.*
 import java.nio.LongBuffer
 import org.lwjgl.system.MemoryUtil.*
+import org.lwjgl.system.NativeResource
 import org.lwjgl.system.Struct
 
 /**
@@ -272,7 +273,7 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
         return ivBuffer
     }
 
-    fun createSubpass() {
+    fun createPassAndFramebuffer() {
         val colorDescs = VkAttachmentReference.calloc(attachments.filter { it.value.type == VulkanFramebufferType.COLOR_ATTACHMENT }.size)
 
         attachments.filter { it.value.type == VulkanFramebufferType.COLOR_ATTACHMENT }.values.forEachIndexed { i, att ->
@@ -329,6 +330,8 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
         vkCreateFramebuffer(device, fbinfo, null, framebuffer)
 
         val sampler = VkSamplerCreateInfo.calloc()
+            .sType(VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO)
+            .pNext(NULL)
             .magFilter(VK_FILTER_LINEAR)
             .minFilter(VK_FILTER_LINEAR)
             .mipmapMode(VK_SAMPLER_MIPMAP_MODE_LINEAR)
@@ -342,6 +345,14 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
             .borderColor(VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE)
 
         vkCreateSampler(device, sampler, null, this.framebufferSampler)
+    }
+
+    fun Struct.default(): Struct {
+        if(this is VkSamplerCreateInfo) {
+            this.sType(VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO).pNext(NULL)
+        }
+
+        return this
     }
 
     override fun toString(): String {

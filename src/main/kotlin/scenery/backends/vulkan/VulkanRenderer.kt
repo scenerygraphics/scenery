@@ -325,6 +325,9 @@ class VulkanRenderer : Renderer {
 
         this.geometryBuffer = prepareGeometryBuffer(this.device, this.physicalDevice, width, height)
         this.hdrBuffer = prepareHDRBuffer(this.device, this.physicalDevice, width, height)
+
+        this.geometryBuffer.createPassAndFramebuffer()
+        this.hdrBuffer.createPassAndFramebuffer()
     }
 
     /**
