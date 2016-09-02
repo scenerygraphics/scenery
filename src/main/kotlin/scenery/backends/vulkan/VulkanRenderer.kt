@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory
 import scenery.*
 import scenery.backends.Renderer
 import java.io.IOException
+import java.nio.Buffer
 import java.nio.ByteBuffer
 import java.nio.IntBuffer
 import java.nio.LongBuffer
@@ -336,11 +337,40 @@ class VulkanRenderer : Renderer {
      * @param[scene] The scene to initialize.
      */
     override fun initializeScene(scene: Scene) {
+
         scene.discover(scene, { it is HasGeometry })
             .forEach { node ->
                 node.metadata.put("VulkanRenderer", VulkanObjectState())
                 initializeNode(node)
             }
+    }
+
+    fun createBuffer(buffer: LongBuffer, memory: LongBuffer, data: ByteBuffer?, usage: Int, memoryProperties: Int, bufferSize: Long) {
+        val reqs = VkMemoryRequirements.calloc()
+        val allocInfo = VkMemoryAllocateInfo.calloc()
+            .sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO)
+            .pNext(NULL)
+
+        val bufferInfo = VkBufferCreateInfo.calloc()
+            .sType(VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO)
+            .pNext(NULL)
+            .usage(usage)
+            .size(bufferSize)
+
+        vkCreateBuffer(device, bufferInfo, null, buffer)
+        vkGetBufferMemoryRequirements(device, buffer.get(0), reqs)
+
+        allocInfo.allocationSize(reqs.size())
+            .memoryTypeIndex(getMemoryType(reqs.memoryTypeBits(), memoryProperties))
+
+        vkAllocateMemory(this.device, allocInfo, null, memory)
+        if(data != null) {
+            val dest = memAllocPointer(1)
+            vkMapMemory(this.device, memory.get(0), 0, allocInfo.allocationSize(), 0, dest)
+            memCopy(memAddress(data), memory.get(0), data.remaining())
+            vkUnmapMemory(this.device, memory.get(0))
+        }
+        vkBindBufferMemory(this.device, buffer.get(0), memory.get(0), 0)
     }
 
     /**
@@ -392,6 +422,11 @@ class VulkanRenderer : Renderer {
      *
      */
     protected fun prepareGeometryBuffer(device: VkDevice, physicalDevice: VkPhysicalDevice, width: Int, height: Int): VulkanFramebuffer {
+        // create uniform buffers
+        val ubo = createBuffer(uboBuffer, uboMemory, null, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT or VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, uboSize)
+
+        // create framebuffer
         with(createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, autostart = true)) {
             val gb = VulkanFramebuffer(device, physicalDevice, width, height, this)
 
@@ -1174,6 +1209,13 @@ class VulkanRenderer : Renderer {
             bits = bits shr 1
         }
         return false
+    }
+
+    private fun getMemoryType(typeBits: Int, properties: Int): Int {
+        val buf = memAllocInt(1)
+        getMemoryType(this.memoryProperties, typeBits, properties, buf)
+
+        return buf.get(0)
     }
 
 

@@ -319,8 +319,7 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
         vkCreateRenderPass(device, renderPassInfo, null, renderPass)
 
         val fbinfo = VkFramebufferCreateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO)
-            .pNext(NULL)
+            .default()
             .renderPass(renderPass.get(0))
             .pAttachments(getAttachmentImageViews())
             .width(width)
@@ -330,8 +329,7 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
         vkCreateFramebuffer(device, fbinfo, null, framebuffer)
 
         val sampler = VkSamplerCreateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO)
-            .pNext(NULL)
+            .default()
             .magFilter(VK_FILTER_LINEAR)
             .minFilter(VK_FILTER_LINEAR)
             .mipmapMode(VK_SAMPLER_MIPMAP_MODE_LINEAR)
@@ -347,9 +345,11 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
         vkCreateSampler(device, sampler, null, this.framebufferSampler)
     }
 
-    fun Struct.default(): Struct {
+    inline fun <T: Struct> T.default(): T {
         if(this is VkSamplerCreateInfo) {
             this.sType(VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO).pNext(NULL)
+        } else if(this is VkFramebufferCreateInfo) {
+            this.sType(VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO).pNext(NULL)
         }
 
         return this
