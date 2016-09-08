@@ -36,5 +36,5 @@ cache:
     - $HOME/.gradle/caches/
     - $HOME/.gradle/wrapper/
     
-after-success:
+after_success:
     - gradle uploadArchives -Plocal=true
