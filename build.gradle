@@ -237,7 +237,7 @@ uploadArchives {
     repositories {
         mavenDeployer {
             repository(url: "http://maven.imagej.net/content/repositories/releases") {
-                authentication(userName: "$System.env.CI_DEPLOY_USERNAME", password: "System.env.CI_DEPLOY_PASSWORD")
+                authentication(userName: "$System.env.CI_DEPLOY_USERNAME", password: "$System.env.CI_DEPLOY_PASSWORD")
             }
             snapshotRepository(url: "http://maven.imagej.net/content/repositories/snapshots") {
                 authentication(userName: "$System.env.CI_DEPLOY_USERNAME", password: "$System.env.CI_DEPLOY_PASSWORD")
