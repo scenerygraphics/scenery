@@ -1,6 +1,5 @@
 package scenery.fonts
 
-import BufferUtils
 import cleargl.GLVector
 import org.jocl.cl_mem
 import scenery.GeometryType
