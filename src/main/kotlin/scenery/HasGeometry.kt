@@ -1,6 +1,5 @@
 package scenery
 
-import BufferUtils
 import cleargl.GLVector
 import java.io.BufferedInputStream
 import java.io.File

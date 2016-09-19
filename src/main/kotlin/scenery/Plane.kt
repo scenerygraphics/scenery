@@ -1,6 +1,5 @@
 package scenery
 
-import BufferUtils
 import cleargl.GLVector
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
