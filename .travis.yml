@@ -38,4 +38,4 @@ cache:
     - $HOME/.gradle/wrapper/
     
 after_success:
-    - gradle uploadArchives -Plocal=true
+    - test $TRAVIS_PULL_REQUEST == "false" && test $TRAVIS_BRANCH == "master" && gradle uploadArchives -Plocal=true
