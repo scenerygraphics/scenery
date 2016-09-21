@@ -1,6 +1,5 @@
 package scenery.backends.vulkan
 
-import BufferUtils
 import cleargl.GLMatrix
 import org.lwjgl.PointerBuffer
 import org.lwjgl.glfw.GLFW.*
@@ -19,11 +18,9 @@ import org.slf4j.LoggerFactory
 import scenery.*
 import scenery.backends.Renderer
 import java.io.IOException
-import java.nio.Buffer
-import java.nio.ByteBuffer
-import java.nio.IntBuffer
-import java.nio.LongBuffer
+import java.nio.*
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * <Description>
@@ -62,7 +59,7 @@ class VulkanRenderer : Renderer {
     var instance: VkInstance
     var debugCallback = object : VkDebugReportCallbackEXT() {
         override operator fun invoke(flags: Int, objectType: Int, obj: Long, location: Long, messageCode: Int, pLayerPrefix: Long, pMessage: Long, pUserData: Long): Int {
-            System.err.println("ERROR OCCURED: " + VkDebugReportCallbackEXT.getString(pMessage))
+            logger.error("ERROR OCCURED: " + VkDebugReportCallbackEXT.getString(pMessage))
             return 0
         }
     }
@@ -152,10 +149,30 @@ class VulkanRenderer : Renderer {
         var bindingDescriptions = VkVertexInputBindingDescription.calloc(1)
         var attributeDescriptions = VkVertexInputAttributeDescription.calloc(3)
 
+        var vertexBuffers = ConcurrentHashMap<String, Long>()
+        var createInfo: VkPipelineVertexInputStateCreateInfo? = null
+
         constructor() {
             consumers.add("VulkanRenderer")
         }
 
+    }
+
+    class UBO {
+        var members = ConcurrentHashMap<String, Any>()
+        var descriptor = UboDescriptor()
+
+        fun getSize() =
+            members.map {
+                when(it.value.javaClass) {
+                    GLMatrix::class.java -> (it.value as GLMatrix).floatArray.size * 4
+                    Float::class.java -> 4
+                    Int::class.java -> 4
+                    Short::class.java -> 2
+                    Boolean::class.java -> 4
+                    else -> 0
+                }
+            }.sum()*1L
     }
 
     inner class SwapchainRecreator {
@@ -235,7 +252,7 @@ class VulkanRenderer : Renderer {
         glfwDefaultWindowHints()
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API)
         glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE)
-        window = glfwCreateWindow(windowWidth, windowHeight, "GLFW Vulkan Demo", NULL, NULL)
+        window = glfwCreateWindow(windowWidth, windowHeight, "scenery", NULL, NULL)
         val keyCallback: GLFWKeyCallback = object : GLFWKeyCallback() {
             override operator fun invoke(window: Long, key: Int, scancode: Int, action: Int, mods: Int) {
                 if (action != GLFW_RELEASE)
@@ -377,7 +394,7 @@ class VulkanRenderer : Renderer {
      *
      */
     fun initializeNode(node: Node): Boolean {
-        val s: VulkanObjectState
+        var s: VulkanObjectState
 
         logger.info("Initializing ${node.name}")
         s = node.metadata["VulkanRenderer"] as VulkanObjectState
@@ -415,6 +432,12 @@ class VulkanRenderer : Renderer {
 
         logger.info("Created attr descs and binding descs")
 
+        if((node as HasGeometry).vertices.remaining() > 0) {
+            logger.info("Submitting ${node.vertices.remaining()} vertices")
+            s = createVertexBuffer("vertices", (node as HasGeometry).vertices, s,
+                memoryProperties, device)
+        }
+
         return true
     }
 
@@ -423,8 +446,9 @@ class VulkanRenderer : Renderer {
      */
     protected fun prepareGeometryBuffer(device: VkDevice, physicalDevice: VkPhysicalDevice, width: Int, height: Int): VulkanFramebuffer {
         // create uniform buffers
-        val ubo = createBuffer(uboBuffer, uboMemory, null, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT or VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, uboSize)
+        val defaultDeferredMatrices = UBO()
+        defaultDeferredMatrices.members.put("ModelView", GLMatrix.getIdentity())
+        createUniformBuffer(defaultDeferredMatrices, memoryProperties, device)
 
         // create framebuffer
         with(createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, autostart = true)) {
@@ -631,16 +655,16 @@ class VulkanRenderer : Renderer {
             throw AssertionError("No Vulkan-compatible devices found!")
         }
 
-        System.err.println("Got ${pPhysicalDeviceCount.get(0)} physical devices")
         val pPhysicalDevices = memAllocPointer(pPhysicalDeviceCount.get(0))
         err = vkEnumeratePhysicalDevices(instance, pPhysicalDeviceCount, pPhysicalDevices)
 
-        for(i in 1..pPhysicalDeviceCount.get(0)) {
+        logger.info("Physical devices: ")
+        for(i in 0..pPhysicalDeviceCount.get(0)-1) {
             val device = VkPhysicalDevice(pPhysicalDevices.get(i), instance)
             val properties: VkPhysicalDeviceProperties = VkPhysicalDeviceProperties.calloc()
 
             vkGetPhysicalDeviceProperties(device, properties)
-            System.err.println("Device #$i: ${properties.deviceNameString()} ${vkDeviceTypeToString(properties.deviceType())} ${properties.vendorID()}/${properties.driverVersion()}")
+            logger.info(" - id $i: ${properties.vendorID()} ${properties.deviceNameString()} (${vkDeviceTypeToString(properties.deviceType())}, driver version ${driverVersionToString(properties.driverVersion())}, Vulkan API ${driverVersionToString(properties.apiVersion())}")
         }
 
         val physicalDevice = pPhysicalDevices.get(System.getProperty("scenery.VulkanBackend.Device", "0").toInt())
@@ -652,6 +676,16 @@ class VulkanRenderer : Renderer {
         }
         return VkPhysicalDevice(physicalDevice, instance)
     }
+
+    private fun decodeDriverVersion(version: Int) =
+        Triple<Int, Int, Int>(
+            version and 0xFFC00000.toInt() shr 22,
+            version and 0x003FF000 shr 12,
+            version and 0x00000FFF
+        )
+
+    private fun driverVersionToString(version: Int) =
+        decodeDriverVersion(version).toList().joinToString(".")
 
 
     private fun createDeviceAndGetGraphicsQueueFamily(physicalDevice: VkPhysicalDevice): DeviceAndGraphicsQueueFamily {
@@ -1318,11 +1352,88 @@ class VulkanRenderer : Renderer {
         return ret
     }
 
-    private fun createDescriptorPool(device: VkDevice): Long {
+    private fun createVertexBuffer(name: String, vertices: FloatBuffer, state: VulkanObjectState, deviceMemoryProperties: VkPhysicalDeviceMemoryProperties, device: VkDevice): VulkanObjectState {
+        val vertexBuffer = (vertices as sun.nio.ch.DirectBuffer).attachment() as ByteBuffer
+
+        val memAlloc = VkMemoryAllocateInfo.calloc()
+            .sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO)
+            .pNext(NULL)
+            .allocationSize(0)
+            .memoryTypeIndex(0)
+
+        val memReqs = VkMemoryRequirements.calloc()
+
+        var err: Int
+
+        // Generate vertex buffer
+        //  Setup
+        val bufInfo = VkBufferCreateInfo.calloc()
+            .sType(VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO)
+            .pNext(NULL)
+            .size(vertexBuffer.remaining().toLong())
+            .usage(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT).flags(0)
+
+        val pBuffer = memAllocLong(1)
+        err = vkCreateBuffer(device, bufInfo, null, pBuffer)
+        val verticesBuf = pBuffer.get(0)
+        memFree(pBuffer)
+        bufInfo.free()
+        if (err != VK_SUCCESS) {
+            throw AssertionError("Failed to create vertex buffer: " + VulkanUtils.translateVulkanResult(err))
+        }
+
+        vkGetBufferMemoryRequirements(device, verticesBuf, memReqs)
+        memAlloc.allocationSize(memReqs.size())
+
+        val memoryTypeIndex = memAllocInt(1)
+        getMemoryType(deviceMemoryProperties, memReqs.memoryTypeBits(), VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, memoryTypeIndex)
+        memAlloc.memoryTypeIndex(memoryTypeIndex.get(0))
+        memFree(memoryTypeIndex)
+        memReqs.free()
+
+        val pMemory = memAllocLong(1)
+        err = vkAllocateMemory(device, memAlloc, null, pMemory)
+        val verticesMem = pMemory.get(0)
+        memFree(pMemory)
+        if (err != VK_SUCCESS) {
+            throw AssertionError("Failed to allocate vertex memory: " + VulkanUtils.translateVulkanResult(err))
+        }
+
+        val pData = memAllocPointer(1)
+        err = vkMapMemory(device, verticesMem, 0, memAlloc.allocationSize(), 0, pData)
+        memAlloc.free()
+        val data = pData.get(0)
+        memFree(pData)
+        if (err != VK_SUCCESS) {
+            throw AssertionError("Failed to map vertex memory: " + VulkanUtils.translateVulkanResult(err))
+        }
+
+        memCopy(memAddress(vertexBuffer), data, vertexBuffer.remaining())
+
+        vkUnmapMemory(device, verticesMem)
+        err = vkBindBufferMemory(device, verticesBuf, verticesMem, 0)
+        if (err != VK_SUCCESS) {
+            throw AssertionError("Failed to bind memory to vertex buffer: " + VulkanUtils.translateVulkanResult(err))
+        }
+
+        // Assign to vertex buffer
+        val vi = VkPipelineVertexInputStateCreateInfo.calloc()
+        vi.sType(VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO)
+        vi.pNext(NULL)
+        vi.pVertexBindingDescriptions(state.bindingDescriptions)
+        vi.pVertexAttributeDescriptions(state.attributeDescriptions)
+
+        state.vertexBuffers.put(name, verticesBuf)
+        state.createInfo = vi
+
+        return state
+    }
+
+    private fun createDescriptorPool(device: VkDevice, type: Int = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, size: Int = 1): Long {
         // We need to tell the API the number of max. requested descriptors per type
-        val typeCounts = VkDescriptorPoolSize.calloc(1).type(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)// This example only uses one descriptor type (uniform buffer) and only
+        val typeCounts = VkDescriptorPoolSize.calloc(1).type(type)// This example only uses one descriptor type (uniform buffer) and only
             // requests one descriptor of this type
-            .descriptorCount(1)
+            .descriptorCount(size)
         // For additional types you need to add new entries in the type count list
         // E.g. for two combined image samplers :
         // typeCounts[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -1351,9 +1462,15 @@ class VulkanRenderer : Renderer {
     }
 
     private fun createUniformBuffer(deviceMemoryProperties: VkPhysicalDeviceMemoryProperties, device: VkDevice): UboDescriptor {
+        val ubo = UBO()
+        ubo.members.put("Matrix", GLMatrix.getIdentity())
+        return createUniformBuffer(ubo, deviceMemoryProperties, device)
+    }
+
+    private fun createUniformBuffer(ubo: UBO, deviceMemoryProperties: VkPhysicalDeviceMemoryProperties, device: VkDevice): UboDescriptor {
         var err: Int
         // Create a new buffer
-        val bufferInfo = VkBufferCreateInfo.calloc().sType(VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO).size(16 * 4).usage(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT)
+        val bufferInfo = VkBufferCreateInfo.calloc().sType(VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO).size(ubo.getSize()).usage(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT)
         val pUniformDataVSBuffer = memAllocLong(1)
         err = vkCreateBuffer(device, bufferInfo, null, pUniformDataVSBuffer)
         val uniformDataVSBuffer = pUniformDataVSBuffer.get(0)
@@ -1396,14 +1513,14 @@ class VulkanRenderer : Renderer {
             throw AssertionError("Failed to bind UBO memory: " + VulkanUtils.translateVulkanResult(err))
         }
 
-        val ret = UboDescriptor()
-        ret.memory = uniformDataVSMemory
-        ret.allocationSize = memSize
-        ret.buffer = uniformDataVSBuffer
-        ret.offset = 0L
-        ret.range = (16 * 4).toLong()
+        ubo.descriptor = UboDescriptor()
+        ubo.descriptor.memory = uniformDataVSMemory
+        ubo.descriptor.allocationSize = memSize
+        ubo.descriptor.buffer = uniformDataVSBuffer
+        ubo.descriptor.offset = 0L
+        ubo.descriptor.range = ubo.getSize()
 
-        return ret
+        return ubo.descriptor
     }
 
     private fun createDescriptorSet(device: VkDevice, descriptorPool: Long, descriptorSetLayout: Long, uniformDataVSDescriptor: UboDescriptor): Long {
@@ -1729,11 +1846,14 @@ class VulkanRenderer : Renderer {
         val err = vkMapMemory(device, ubo.memory, 0, ubo.allocationSize, 0, pData)
         val data = pData.get(0)
         memFree(pData)
+
         if (err != VK_SUCCESS) {
             throw AssertionError("Failed to map UBO memory: " + VulkanUtils.translateVulkanResult(err))
         }
+
         val matrixBuffer = memByteBuffer(data, 16 * 4)
         m.push(matrixBuffer)
+
         vkUnmapMemory(device, ubo.memory)
     }
 
