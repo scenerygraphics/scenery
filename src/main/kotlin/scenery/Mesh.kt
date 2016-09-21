@@ -1,6 +1,5 @@
 package scenery
 
-import BufferUtils
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 

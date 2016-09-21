@@ -1,12 +1,12 @@
 package scenery.fonts
 
-import BufferUtils
 import cleargl.GLVector
 import org.jocl.cl_mem
 import scenery.GeometryType
 import scenery.Hub
 import scenery.Mesh
 import scenery.compute.OpenCLContext
+import scenery.BufferUtils
 import java.awt.Font
 import java.awt.Graphics2D
 import java.awt.image.BufferedImage
