@@ -105,12 +105,9 @@ dependencies
 	compile 'org.scijava:script-editor:0.1.1-SNAPSHOT'
 	compile 'org.scijava:scripting-javascript:0.4.4-SNAPSHOT'
 
-    // for the moment, use the bundled OpenVR distribution
-    //compile 'scenery:openvr:0.1'
-    compile files('jars/openvr-0.1.jar')
+    compile 'net.clearvolume:scenery-openvr:0.1.0.2'
     compile 'com.nativelibs4java:jnaerator-runtime:0.12'
     compile 'net.java.dev.jna:jna:4.1.0'
-
 
     // JInput for controls
     compile group: 'net.java.jinput', name: 'jinput', version: '2.0.6'
