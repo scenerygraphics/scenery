@@ -21,6 +21,9 @@ import java.io.IOException
 import java.nio.*
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 /**
  * <Description>
@@ -348,6 +351,28 @@ class VulkanRenderer : Renderer {
         this.hdrBuffer.createPassAndFramebuffer()
     }
 
+
+    // source: http://stackoverflow.com/questions/34697828/parallel-operations-on-kotlin-collections
+    // Thanks to Holger :-)
+    fun <T, R> Iterable<T>.parallelMap(
+        numThreads: Int = Runtime.getRuntime().availableProcessors(),
+        exec: ExecutorService = Executors.newFixedThreadPool(numThreads),
+        transform: (T) -> R): List<R> {
+
+        // default size is just an inlined version of kotlin.collections.collectionSizeOrDefault
+        val defaultSize = if (this is Collection<*>) this.size else 10
+        val destination = Collections.synchronizedList(ArrayList<R>(defaultSize))
+
+        for (item in this) {
+            exec.submit { destination.add(transform(item)) }
+        }
+
+        exec.shutdown()
+        exec.awaitTermination(1, TimeUnit.DAYS)
+
+        return ArrayList<R>(destination)
+    }
+
     /**
      * This function should initialize the scene contents.
      *
@@ -356,7 +381,7 @@ class VulkanRenderer : Renderer {
     override fun initializeScene(scene: Scene) {
 
         scene.discover(scene, { it is HasGeometry })
-            .forEach { node ->
+            .parallelMap { node ->
                 node.metadata.put("VulkanRenderer", VulkanObjectState())
                 initializeNode(node)
             }
@@ -396,46 +421,56 @@ class VulkanRenderer : Renderer {
     fun initializeNode(node: Node): Boolean {
         var s: VulkanObjectState
 
-        logger.info("Initializing ${node.name}")
         s = node.metadata["VulkanRenderer"] as VulkanObjectState
 
         if(s.initialized) return true
 
+        val stride = if((node as HasGeometry).texcoords.remaining() > 0) {
+            s.attributeDescriptions = VkVertexInputAttributeDescription.calloc(3)
+            3 + 3
+        } else {
+            s.attributeDescriptions = VkVertexInputAttributeDescription.calloc(3)
+            3 + 3 + 2
+        }
+
         // setup vertex binding descriptions
         s.bindingDescriptions.binding(0)
-            .stride((3 + 3 + 3) * 4)
+            .stride(stride * 4)
             .inputRate(VK_VERTEX_INPUT_RATE_VERTEX)
 
         // setup vertex attribute descriptions
+        // position
         s.attributeDescriptions.get(0)
             .binding(0)
             .location(0)
             .format(VK_FORMAT_R32G32B32_SFLOAT)
             .offset(0)
 
+        // normal
         s.attributeDescriptions.get(1)
             .binding(0)
             .location(1)
             .format(VK_FORMAT_R32G32B32_SFLOAT)
             .offset(3 * 4)
 
-        s.attributeDescriptions.get(2)
-            .binding(0)
-            .location(2)
-            .format(VK_FORMAT_R32G32_SFLOAT)
-            .offset(3 * 4 + 3 * 4)
+        // texture coordinates, if applicable
+        if(stride > 6) {
+            s.attributeDescriptions.get(2)
+                .binding(0)
+                .location(2)
+                .format(VK_FORMAT_R32G32_SFLOAT)
+                .offset(3 * 4 + 3 * 4)
+        }
 
         s.inputState.sType(VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO)
             .pNext(NULL)
             .pVertexBindingDescriptions(s.bindingDescriptions)
             .pVertexAttributeDescriptions(s.attributeDescriptions)
 
-        logger.info("Created attr descs and binding descs")
+        logger.info("Initializing ${node.name} (${node.vertices.remaining()/node.vertexSize} vertices/${node.indices.remaining()} indices)")
 
-        if((node as HasGeometry).vertices.remaining() > 0) {
-            logger.info("Submitting ${node.vertices.remaining()} vertices")
-            s = createVertexBuffer("vertices", (node as HasGeometry).vertices, s,
-                memoryProperties, device)
+        if(node.vertices.remaining() > 0) {
+            s = createVertexBuffers(node, s, memoryProperties, device)
         }
 
         return true
@@ -572,7 +607,7 @@ class VulkanRenderer : Renderer {
     private fun createInstance(requiredExtensions: PointerBuffer): VkInstance {
         val appInfo = VkApplicationInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_APPLICATION_INFO)
-            .pApplicationName(memUTF8("GLFW Vulkan Demo"))
+            .pApplicationName(memUTF8("scenery"))
             .pEngineName(memUTF8("scenery"))
             .apiVersion(VK_MAKE_VERSION(1, 0, 2))
 
@@ -1352,8 +1387,39 @@ class VulkanRenderer : Renderer {
         return ret
     }
 
-    private fun createVertexBuffer(name: String, vertices: FloatBuffer, state: VulkanObjectState, deviceMemoryProperties: VkPhysicalDeviceMemoryProperties, device: VkDevice): VulkanObjectState {
-        val vertexBuffer = (vertices as sun.nio.ch.DirectBuffer).attachment() as ByteBuffer
+    private fun createVertexBuffers(node: Node, state: VulkanObjectState, deviceMemoryProperties: VkPhysicalDeviceMemoryProperties, device: VkDevice): VulkanObjectState {
+        val n = node as HasGeometry
+
+        val stridedBuffer = memAlloc((n.vertices.remaining() + n.normals.remaining() + n.texcoords.remaining()) * 4 + n.indices.remaining() * 2)
+
+        val fb = stridedBuffer.asFloatBuffer()
+        val ib = stridedBuffer.asIntBuffer()
+
+        for(index in 0..n.vertices.remaining() - 1 step 3) {
+            fb.put(n.vertices.get())
+            fb.put(n.vertices.get())
+            fb.put(n.vertices.get())
+
+            fb.put(n.normals.get())
+            fb.put(n.normals.get())
+            fb.put(n.normals.get())
+
+            if(n.texcoords.remaining() > 0) {
+                fb.put(n.texcoords.get())
+                fb.put(n.texcoords.get())
+            }
+        }
+
+        if(n.indices.remaining() > 0) {
+            for(index in 0..n.indices.remaining() - 1) {
+                ib.put(n.indices.get())
+            }
+        }
+
+        n.vertices.flip()
+        n.normals.flip()
+        n.texcoords.flip()
+        n.indices.flip()
 
         val memAlloc = VkMemoryAllocateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO)
@@ -1366,18 +1432,19 @@ class VulkanRenderer : Renderer {
         var err: Int
 
         // Generate vertex buffer
-        //  Setup
         val bufInfo = VkBufferCreateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO)
             .pNext(NULL)
-            .size(vertexBuffer.remaining().toLong())
-            .usage(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT).flags(0)
+            .size(stridedBuffer.remaining().toLong())
+            .usage(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or VK_BUFFER_USAGE_INDEX_BUFFER_BIT).flags(0)
 
         val pBuffer = memAllocLong(1)
         err = vkCreateBuffer(device, bufInfo, null, pBuffer)
+
         val verticesBuf = pBuffer.get(0)
         memFree(pBuffer)
         bufInfo.free()
+
         if (err != VK_SUCCESS) {
             throw AssertionError("Failed to create vertex buffer: " + VulkanUtils.translateVulkanResult(err))
         }
@@ -1408,9 +1475,10 @@ class VulkanRenderer : Renderer {
             throw AssertionError("Failed to map vertex memory: " + VulkanUtils.translateVulkanResult(err))
         }
 
-        memCopy(memAddress(vertexBuffer), data, vertexBuffer.remaining())
-
+        memCopy(memAddress(stridedBuffer), data, stridedBuffer.remaining())
+        memFree(stridedBuffer)
         vkUnmapMemory(device, verticesMem)
+
         err = vkBindBufferMemory(device, verticesBuf, verticesMem, 0)
         if (err != VK_SUCCESS) {
             throw AssertionError("Failed to bind memory to vertex buffer: " + VulkanUtils.translateVulkanResult(err))
@@ -1423,7 +1491,7 @@ class VulkanRenderer : Renderer {
         vi.pVertexBindingDescriptions(state.bindingDescriptions)
         vi.pVertexAttributeDescriptions(state.attributeDescriptions)
 
-        state.vertexBuffers.put(name, verticesBuf)
+        state.vertexBuffers.put("vertexIndexBuffer", verticesBuf)
         state.createInfo = vi
 
         return state
