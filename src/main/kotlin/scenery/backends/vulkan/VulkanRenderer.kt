@@ -277,8 +277,8 @@ class VulkanRenderer : Renderer {
         // Create static Vulkan resources
         colorFormatAndSpace = getColorFormatAndSpace(physicalDevice, surface)
         commandPool = createCommandPool(device, queueFamilyIndex)
-        setupCommandBuffer = createCommandBuffer(device, commandPool)
-        postPresentCommandBuffer = createCommandBuffer(device, commandPool)
+        setupCommandBuffer = newCommandBuffer(device, commandPool)
+        postPresentCommandBuffer = newCommandBuffer(device, commandPool)
         queue = createDeviceQueue(device, queueFamilyIndex)
         renderPass = createRenderPass(device, colorFormatAndSpace.colorFormat)
         renderCommandPool = createCommandPool(device, queueFamilyIndex)
@@ -387,32 +387,52 @@ class VulkanRenderer : Renderer {
             }
     }
 
-    fun createBuffer(buffer: LongBuffer, memory: LongBuffer, data: ByteBuffer?, usage: Int, memoryProperties: Int, bufferSize: Long) {
-        val reqs = VkMemoryRequirements.calloc()
-        val allocInfo = VkMemoryAllocateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO)
-            .pNext(NULL)
+    fun createBuffer(usage: Int, memoryProperties: Int, data: ByteBuffer?, allocationSize: Long = 0): Pair<Long, Long> {
+        val buffer = memAllocLong(1)
+        val memory = memAllocLong(1)
+        val memTypeIndex = memAllocInt(1)
 
+        val reqs = VkMemoryRequirements.calloc()
         val bufferInfo = VkBufferCreateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO)
             .pNext(NULL)
             .usage(usage)
-            .size(bufferSize)
+            .size(allocationSize)
 
         vkCreateBuffer(device, bufferInfo, null, buffer)
         vkGetBufferMemoryRequirements(device, buffer.get(0), reqs)
 
+        val allocInfo = VkMemoryAllocateInfo.calloc()
+            .sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO)
+            .pNext(NULL)
+
+        getMemoryType(this.memoryProperties,
+            reqs.memoryTypeBits(),
+            memoryProperties,
+            memTypeIndex)
+
         allocInfo.allocationSize(reqs.size())
-            .memoryTypeIndex(getMemoryType(reqs.memoryTypeBits(), memoryProperties))
+            .memoryTypeIndex(memTypeIndex.get(0))
 
         vkAllocateMemory(this.device, allocInfo, null, memory)
-        if(data != null) {
+
+        data?.let {
             val dest = memAllocPointer(1)
+
             vkMapMemory(this.device, memory.get(0), 0, allocInfo.allocationSize(), 0, dest)
-            memCopy(memAddress(data), memory.get(0), data.remaining())
+            memCopy(memAddress(data), dest.get(0), data.remaining())
             vkUnmapMemory(this.device, memory.get(0))
+
+            memFree(dest)
         }
+
         vkBindBufferMemory(this.device, buffer.get(0), memory.get(0), 0)
+
+        reqs.free()
+        allocInfo.free()
+        memFree(memTypeIndex)
+
+        return Pair(buffer.get(0), memory.get(0))
     }
 
     /**
@@ -486,7 +506,7 @@ class VulkanRenderer : Renderer {
         createUniformBuffer(defaultDeferredMatrices, memoryProperties, device)
 
         // create framebuffer
-        with(createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, autostart = true)) {
+        with(newCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, autostart = true)) {
             val gb = VulkanFramebuffer(device, physicalDevice, width, height, this)
 
             gb.addFloatRGBABuffer("position", 32)
@@ -504,7 +524,7 @@ class VulkanRenderer : Renderer {
      *
      */
     protected fun prepareHDRBuffer(device: VkDevice, physicalDevice: VkPhysicalDevice, width: Int, height: Int): VulkanFramebuffer {
-        with(createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, autostart = true)) {
+        with(newCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, autostart = true)) {
             val gb = VulkanFramebuffer(device, physicalDevice, width, height, this)
 
             gb.addFloatRGBABuffer("hdr", 32)
@@ -900,7 +920,7 @@ class VulkanRenderer : Renderer {
         return VkQueue(queue, device)
     }
 
-    private fun createCommandBuffer(device: VkDevice, commandPool: Long, level: Int = VK_COMMAND_BUFFER_LEVEL_PRIMARY): VkCommandBuffer {
+    private fun newCommandBuffer(device: VkDevice, commandPool: Long, level: Int = VK_COMMAND_BUFFER_LEVEL_PRIMARY): VkCommandBuffer {
         val cmdBufAllocateInfo = VkCommandBufferAllocateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO)
             .commandPool(commandPool)
@@ -918,8 +938,8 @@ class VulkanRenderer : Renderer {
         return VkCommandBuffer(commandBuffer, device)
     }
 
-    private fun createCommandBuffer(level: Int = VK_COMMAND_BUFFER_LEVEL_PRIMARY, autostart: Boolean = false): VkCommandBuffer {
-        val cmdBuf = createCommandBuffer(this.device, this.commandPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY)
+    private fun newCommandBuffer(level: Int = VK_COMMAND_BUFFER_LEVEL_PRIMARY, autostart: Boolean = false): VkCommandBuffer {
+        val cmdBuf = newCommandBuffer(this.device, this.commandPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY)
 
         if(autostart) {
             val cmdBufInfo = VkCommandBufferBeginInfo.calloc()
@@ -1421,67 +1441,28 @@ class VulkanRenderer : Renderer {
         n.texcoords.flip()
         n.indices.flip()
 
-        val memAlloc = VkMemoryAllocateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO)
-            .pNext(NULL)
-            .allocationSize(0)
-            .memoryTypeIndex(0)
+        val (verticesBufStaging, verticesMemStaging) = createBuffer(
+            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+            stridedBuffer,
+            stridedBuffer.remaining().toLong())
 
-        val memReqs = VkMemoryRequirements.calloc()
+        val (verticesBuf, verticesMem) = createBuffer(
+            VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or VK_BUFFER_USAGE_INDEX_BUFFER_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+            null,
+            stridedBuffer.remaining().toLong())
 
-        var err: Int
+        with(newCommandBuffer(autostart = true)) {
+            val copyRegion = VkBufferCopy.calloc(1)
+                .size(stridedBuffer.remaining().toLong())
 
-        // Generate vertex buffer
-        val bufInfo = VkBufferCreateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO)
-            .pNext(NULL)
-            .size(stridedBuffer.remaining().toLong())
-            .usage(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or VK_BUFFER_USAGE_INDEX_BUFFER_BIT).flags(0)
+            vkCmdCopyBuffer(this,
+                verticesBufStaging,
+                verticesBuf,
+                copyRegion)
 
-        val pBuffer = memAllocLong(1)
-        err = vkCreateBuffer(device, bufInfo, null, pBuffer)
-
-        val verticesBuf = pBuffer.get(0)
-        memFree(pBuffer)
-        bufInfo.free()
-
-        if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to create vertex buffer: " + VulkanUtils.translateVulkanResult(err))
-        }
-
-        vkGetBufferMemoryRequirements(device, verticesBuf, memReqs)
-        memAlloc.allocationSize(memReqs.size())
-
-        val memoryTypeIndex = memAllocInt(1)
-        getMemoryType(deviceMemoryProperties, memReqs.memoryTypeBits(), VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, memoryTypeIndex)
-        memAlloc.memoryTypeIndex(memoryTypeIndex.get(0))
-        memFree(memoryTypeIndex)
-        memReqs.free()
-
-        val pMemory = memAllocLong(1)
-        err = vkAllocateMemory(device, memAlloc, null, pMemory)
-        val verticesMem = pMemory.get(0)
-        memFree(pMemory)
-        if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to allocate vertex memory: " + VulkanUtils.translateVulkanResult(err))
-        }
-
-        val pData = memAllocPointer(1)
-        err = vkMapMemory(device, verticesMem, 0, memAlloc.allocationSize(), 0, pData)
-        memAlloc.free()
-        val data = pData.get(0)
-        memFree(pData)
-        if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to map vertex memory: " + VulkanUtils.translateVulkanResult(err))
-        }
-
-        memCopy(memAddress(stridedBuffer), data, stridedBuffer.remaining())
-        memFree(stridedBuffer)
-        vkUnmapMemory(device, verticesMem)
-
-        err = vkBindBufferMemory(device, verticesBuf, verticesMem, 0)
-        if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to bind memory to vertex buffer: " + VulkanUtils.translateVulkanResult(err))
+            flushCommandBuffer(this, queue)
         }
 
         // Assign to vertex buffer
@@ -1494,13 +1475,18 @@ class VulkanRenderer : Renderer {
         state.vertexBuffers.put("vertexIndexBuffer", verticesBuf)
         state.createInfo = vi
 
+
+        vkDestroyBuffer(device, verticesBufStaging, null)
+        vkFreeMemory(device, verticesMemStaging, null)
+
         return state
     }
 
     private fun createDescriptorPool(device: VkDevice, type: Int = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, size: Int = 1): Long {
         // We need to tell the API the number of max. requested descriptors per type
-        val typeCounts = VkDescriptorPoolSize.calloc(1).type(type)// This example only uses one descriptor type (uniform buffer) and only
-            // requests one descriptor of this type
+        val typeCounts = VkDescriptorPoolSize.calloc(1).type(type)
+        // This example only uses one descriptor type (uniform buffer) and only
+        // requests one descriptor of this type
             .descriptorCount(size)
         // For additional types you need to add new entries in the type count list
         // E.g. for two combined image samplers :
