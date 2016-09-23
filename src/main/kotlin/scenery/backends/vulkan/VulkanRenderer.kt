@@ -381,7 +381,7 @@ class VulkanRenderer : Renderer {
     override fun initializeScene(scene: Scene) {
 
         scene.discover(scene, { it is HasGeometry })
-            .parallelMap { node ->
+            .parallelMap(numThreads = System.getProperty("scenery.MaxInitThreads", "4").toInt()) { node ->
                 node.metadata.put("VulkanRenderer", VulkanObjectState())
                 initializeNode(node)
             }
