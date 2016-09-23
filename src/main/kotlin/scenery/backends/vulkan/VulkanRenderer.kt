@@ -643,6 +643,7 @@ class VulkanRenderer : Renderer {
             i++
         }
         ppEnabledLayerNames.flip()
+
         val pCreateInfo = VkInstanceCreateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO)
             .pNext(NULL)
@@ -698,6 +699,14 @@ class VulkanRenderer : Renderer {
         }
     }
 
+    private fun vkVendorToString(vendor: Int): String =
+        when(vendor) {
+            0x1002 -> "AMD"
+            0x10DE -> "Nvidia"
+            0x8086 -> "Intel"
+            else -> "(Unknown vendor)"
+        }
+
     private fun getPhysicalDevice(instance: VkInstance): VkPhysicalDevice {
         val pPhysicalDeviceCount = memAllocInt(1)
         var err = vkEnumeratePhysicalDevices(instance, pPhysicalDeviceCount, null)
@@ -719,7 +728,7 @@ class VulkanRenderer : Renderer {
             val properties: VkPhysicalDeviceProperties = VkPhysicalDeviceProperties.calloc()
 
             vkGetPhysicalDeviceProperties(device, properties)
-            logger.info(" - id $i: ${properties.vendorID()} ${properties.deviceNameString()} (${vkDeviceTypeToString(properties.deviceType())}, driver version ${driverVersionToString(properties.driverVersion())}, Vulkan API ${driverVersionToString(properties.apiVersion())}")
+            logger.info("  $i: ${vkVendorToString(properties.vendorID())} ${properties.deviceNameString()} (${vkDeviceTypeToString(properties.deviceType())}, driver version ${driverVersionToString(properties.driverVersion())}, Vulkan API ${driverVersionToString(properties.apiVersion())}")
         }
 
         val physicalDevice = pPhysicalDevices.get(System.getProperty("scenery.VulkanBackend.Device", "0").toInt())
@@ -733,7 +742,7 @@ class VulkanRenderer : Renderer {
     }
 
     private fun decodeDriverVersion(version: Int) =
-        Triple<Int, Int, Int>(
+        Triple(
             version and 0xFFC00000.toInt() shr 22,
             version and 0x003FF000 shr 12,
             version and 0x00000FFF
