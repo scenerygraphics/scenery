@@ -67,17 +67,15 @@ class VulkanTexturedCubeExample : SceneryDefaultApplication("VulkanTexturedCubeE
 
         renderer?.initializeScene(scene)
 
-//        repl = REPL(scene, renderer!!)
-//        repl?.start()
-//        repl?.showConsoleWindow()
+        repl = REPL(scene, renderer!!)
+        repl?.start()
+        repl?.showConsoleWindow()
     }
 
     @Test override fun main() {
         renderer = VulkanRenderer(1024, 1024)
         this.init()
-//        renderer?.initializeScene(scene)
 
-        System.err.println("Renderer initialized!")
         while(renderer?.shouldClose == false) {
             renderer?.render(scene)
         }
