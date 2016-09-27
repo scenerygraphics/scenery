@@ -96,6 +96,8 @@ class VulkanRenderer : Renderer {
     var descriptorSet: Long
     var pipeline: Pipeline
 
+    var renderPipelines = ConcurrentHashMap<String, Pipeline>()
+
     var pSwapchains: LongBuffer
     var pImageAcquiredSemaphore: LongBuffer
     var pRenderCompleteSemaphore: LongBuffer
@@ -142,23 +144,6 @@ class VulkanRenderer : Renderer {
     class Pipeline {
         internal var pipeline: Long = 0
         internal var layout: Long = 0
-    }
-
-    class VulkanObjectState : NodeMetadata {
-        override val consumers: MutableList<String> = ArrayList()
-
-        var initialized = false
-        var inputState = VkPipelineVertexInputStateCreateInfo.calloc()
-        var bindingDescriptions = VkVertexInputBindingDescription.calloc(1)
-        var attributeDescriptions = VkVertexInputAttributeDescription.calloc(3)
-
-        var vertexBuffers = ConcurrentHashMap<String, Long>()
-        var createInfo: VkPipelineVertexInputStateCreateInfo? = null
-
-        constructor() {
-            consumers.add("VulkanRenderer")
-        }
-
     }
 
     class UBO {
@@ -1263,38 +1248,6 @@ class VulkanRenderer : Renderer {
         }
     }
 
-    @Throws(IOException::class)
-    private fun loadShaderCompiled(classPath: String, device: VkDevice): Long {
-        val bytes = this.javaClass.getResource(classPath).readBytes()
-        val shaderCode = BufferUtils.allocateByteAndPut(this.javaClass.getResource(classPath).readBytes())
-        val err: Int
-        val moduleCreateInfo = VkShaderModuleCreateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO)
-            .pNext(NULL)
-            .pCode(shaderCode)
-            .flags(VK_FLAGS_NONE)
-
-        val pShaderModule = memAllocLong(1)
-        err = vkCreateShaderModule(device, moduleCreateInfo, null, pShaderModule)
-        val shaderModule = pShaderModule.get(0)
-        memFree(pShaderModule)
-        if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to create shader module: " + VulkanUtils.translateVulkanResult(err))
-        }
-        return shaderModule
-    }
-
-    @Throws(IOException::class)
-    private fun loadShaderCompiled(device: VkDevice, classPath: String, stage: Int): VkPipelineShaderStageCreateInfo {
-        val shaderStage = VkPipelineShaderStageCreateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO)
-            .stage(stage)
-            .module(loadShaderCompiled(classPath, device))
-            .pName(memUTF8("main"))
-
-        return shaderStage
-    }
-
     private fun getMemoryType(deviceMemoryProperties: VkPhysicalDeviceMemoryProperties, typeBits: Int, properties: Int, typeIndex: IntBuffer): Boolean {
         var bits = typeBits
         for (i in 0..31) {
@@ -1727,8 +1680,8 @@ class VulkanRenderer : Renderer {
 
         // Load shaders
         val shaderStages = VkPipelineShaderStageCreateInfo.calloc(2)
-        shaderStages.get(0).set(loadShaderCompiled(device, "shaders/coloredRotatingTriangle.vert.spv", VK_SHADER_STAGE_VERTEX_BIT))
-        shaderStages.get(1).set(loadShaderCompiled(device, "shaders/coloredRotatingTriangle.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT))
+        shaderStages.get(0).set(VulkanShaderModule(device, "main", "shaders/coloredRotatingTriangle.vert.spv").shader)
+        shaderStages.get(1).set(VulkanShaderModule(device, "main", "shaders/coloredRotatingTriangle.frag.spv").shader)
 
         // Create the pipeline layout that is used to generate the rendering pipelines that
         // are based on this descriptor set layout
