@@ -172,12 +172,6 @@
         </dependency>
 
         <dependency>
-            <groupId>scenery</groupId>
-            <artifactId>openvr</artifactId>
-            <version>0.1</version>
-        </dependency>
-
-        <dependency>
             <groupId>org.lwjgl</groupId>
             <artifactId>lwjgl</artifactId>
             <version>${lwjgl.version}</version>
