@@ -272,7 +272,13 @@ class VulkanRenderer : Renderer {
         descriptorPool = createDescriptorPool(device)
         descriptorSetLayout = createDescriptorSetLayout(device)
         descriptorSet = createDescriptorSet(device, descriptorPool, descriptorSetLayout, uboDescriptor)
-        pipeline = createPipeline(device, renderPass, vertices.createInfo!!, descriptorSetLayout)
+
+        val p = VulkanPipeline(device)
+        p.addShaderStages(
+            VulkanShaderModule(device, entryPoint = "main", shaderCodePath = "shaders/coloredRotatingTriangle.vert"),
+            VulkanShaderModule(device, entryPoint = "main", shaderCodePath = "shaders/coloredRotatingTriangle.frag"))
+
+        pipeline = p.createPipeline(descriptorSetLayout, renderPass, vertices.createInfo!!)
 
         swapchainRecreator = SwapchainRecreator()
 
@@ -1606,141 +1612,6 @@ class VulkanRenderer : Renderer {
             throw AssertionError("Failed to create descriptor set layout: " + VulkanUtils.translateVulkanResult(err))
         }
         return descriptorSetLayout
-    }
-
-    @Throws(IOException::class)
-    private fun createPipeline(device: VkDevice, renderPass: Long, vi: VkPipelineVertexInputStateCreateInfo, descriptorSetLayout: Long): Pipeline {
-        var err: Int
-        // Vertex input state
-        // Describes the topoloy used with this pipeline
-        val inputAssemblyState = VkPipelineInputAssemblyStateCreateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO)
-            .topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST)
-
-        // Rasterization state
-        val rasterizationState = VkPipelineRasterizationStateCreateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO)
-            .polygonMode(VK_POLYGON_MODE_FILL)
-            .cullMode(VK_CULL_MODE_NONE)
-            .frontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
-            .depthClampEnable(false)
-            .rasterizerDiscardEnable(false)
-            .depthBiasEnable(false)
-
-        // Color blend state
-        // Describes blend modes and color masks
-        val colorWriteMask = VkPipelineColorBlendAttachmentState.calloc(1)
-            .blendEnable(false)
-            .colorWriteMask(0xF) // <- RGBA
-
-        val colorBlendState = VkPipelineColorBlendStateCreateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO)
-            .pAttachments(colorWriteMask)
-
-        // Viewport state
-        val viewportState = VkPipelineViewportStateCreateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO)
-            .viewportCount(1) // <- one viewport
-            .scissorCount(1) // <- one scissor rectangle
-
-        // Enable dynamic states
-        // Describes the dynamic states to be used with this pipeline
-        // Dynamic states can be set even after the pipeline has been created
-        // So there is no need to create new pipelines just for changing
-        // a viewport's dimensions or a scissor box
-        val pDynamicStates = memAllocInt(2)
-        pDynamicStates.put(VK_DYNAMIC_STATE_VIEWPORT).put(VK_DYNAMIC_STATE_SCISSOR).flip()
-        val dynamicState = VkPipelineDynamicStateCreateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO)// The dynamic state properties themselves are stored in the command buffer
-            .pDynamicStates(pDynamicStates)
-
-        // Depth and stencil state
-        // Describes depth and stenctil test and compare ops
-        val depthStencilState = VkPipelineDepthStencilStateCreateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO)// No depth test/write and no stencil used
-            .depthTestEnable(false)
-            .depthWriteEnable(false)
-            .depthCompareOp(VK_COMPARE_OP_ALWAYS)
-            .depthBoundsTestEnable(false)
-            .stencilTestEnable(false)
-
-        depthStencilState.back()
-            .failOp(VK_STENCIL_OP_KEEP)
-            .passOp(VK_STENCIL_OP_KEEP)
-            .compareOp(VK_COMPARE_OP_ALWAYS)
-
-        depthStencilState.front(depthStencilState.back())
-
-        // Multi sampling state
-        // No multi sampling used in this example
-        val multisampleState = VkPipelineMultisampleStateCreateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO)
-            .pSampleMask(null)
-            .rasterizationSamples(VK_SAMPLE_COUNT_1_BIT)
-
-        // Load shaders
-        val shaderStages = VkPipelineShaderStageCreateInfo.calloc(2)
-        shaderStages.get(0).set(VulkanShaderModule(device, "main", "shaders/coloredRotatingTriangle.vert.spv").shader)
-        shaderStages.get(1).set(VulkanShaderModule(device, "main", "shaders/coloredRotatingTriangle.frag.spv").shader)
-
-        // Create the pipeline layout that is used to generate the rendering pipelines that
-        // are based on this descriptor set layout
-        val pDescriptorSetLayout = memAllocLong(1).put(0, descriptorSetLayout)
-        val pPipelineLayoutCreateInfo = VkPipelineLayoutCreateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO)
-            .pNext(NULL)
-            .pSetLayouts(pDescriptorSetLayout)
-
-        val pPipelineLayout = memAllocLong(1)
-        err = vkCreatePipelineLayout(device, pPipelineLayoutCreateInfo, null, pPipelineLayout)
-        val layout = pPipelineLayout.get(0)
-        memFree(pPipelineLayout)
-        pPipelineLayoutCreateInfo.free()
-        memFree(pDescriptorSetLayout)
-
-        if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to create pipeline layout: " + VulkanUtils.translateVulkanResult(err))
-        }
-
-        // Assign states
-        val pipelineCreateInfo = VkGraphicsPipelineCreateInfo.calloc(1)
-            .sType(VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO)
-            .layout(layout) // <- the layout used for this pipeline (NEEDS TO BE SET! even though it is basically empty)
-            .renderPass(renderPass) // <- renderpass this pipeline is attached to
-            .pVertexInputState(vi)
-            .pInputAssemblyState(inputAssemblyState)
-            .pRasterizationState(rasterizationState)
-            .pColorBlendState(colorBlendState)
-            .pMultisampleState(multisampleState)
-            .pViewportState(viewportState)
-            .pDepthStencilState(depthStencilState)
-            .pStages(shaderStages)
-            .pDynamicState(dynamicState)
-
-        // Create rendering pipeline
-        val pPipelines = memAllocLong(1)
-        err = vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, pipelineCreateInfo, null, pPipelines)
-        val pipeline = pPipelines.get(0)
-
-        shaderStages.free()
-        multisampleState.free()
-        depthStencilState.free()
-        dynamicState.free()
-        memFree(pDynamicStates)
-        viewportState.free()
-        colorBlendState.free()
-        colorWriteMask.free()
-        rasterizationState.free()
-        inputAssemblyState.free()
-
-        if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to create pipeline: " + VulkanUtils.translateVulkanResult(err))
-        }
-
-        val ret = Pipeline()
-        ret.layout = layout
-        ret.pipeline = pipeline
-        return ret
     }
 
     private fun createRenderCommandBuffers(device: VkDevice, commandPool: Long, framebuffers: LongArray, renderPass: Long, width: Int, height: Int,
