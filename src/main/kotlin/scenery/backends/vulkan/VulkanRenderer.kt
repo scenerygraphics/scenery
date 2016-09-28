@@ -175,7 +175,7 @@ class VulkanRenderer : Renderer {
             cmdBufInfo.free()
 
             if (err != VK_SUCCESS) {
-                throw AssertionError("Failed to begin setup command buffer: " + VulkanUtils.translateVulkanResult(err))
+                throw AssertionError("Failed to begin setup command buffer: " + VU.translate(err))
             }
 
             val oldChain = swapchain?.swapchainHandle ?: VK_NULL_HANDLE
@@ -187,7 +187,7 @@ class VulkanRenderer : Renderer {
 
 
             if (err != VK_SUCCESS) {
-                throw AssertionError("Failed to end setup command buffer: " + VulkanUtils.translateVulkanResult(err))
+                throw AssertionError("Failed to end setup command buffer: " + VU.translate(err))
             }
 
             submitCommandBuffer(queue, setupCommandBuffer)
@@ -256,7 +256,7 @@ class VulkanRenderer : Renderer {
         surface = pSurface.get(0)
 
         if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to create surface: " + VulkanUtils.translateVulkanResult(err))
+            throw AssertionError("Failed to create surface: " + VU.translate(err))
         }
 
         // Create static Vulkan resources
@@ -550,13 +550,13 @@ class VulkanRenderer : Renderer {
         // Create a semaphore to wait for the swapchain to acquire the next image
         err = vkCreateSemaphore(device, semaphoreCreateInfo, null, pImageAcquiredSemaphore)
         if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to create image acquired semaphore: " + VulkanUtils.translateVulkanResult(err))
+            throw AssertionError("Failed to create image acquired semaphore: " + VU.translate(err))
         }
 
         // Create a semaphore to wait for the render to complete, before presenting
         err = vkCreateSemaphore(device, semaphoreCreateInfo, null, pRenderCompleteSemaphore)
         if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to create render complete semaphore: " + VulkanUtils.translateVulkanResult(err))
+            throw AssertionError("Failed to create render complete semaphore: " + VU.translate(err))
         }
 
         // Get next image from the swap chain (back/front buffer).
@@ -564,7 +564,7 @@ class VulkanRenderer : Renderer {
         err = vkAcquireNextImageKHR(device, swapchain!!.swapchainHandle, UINT64_MAX, pImageAcquiredSemaphore.get(0), VK_NULL_HANDLE, pImageIndex)
         currentBuffer = pImageIndex.get(0)
         if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to acquire next swapchain image: " + VulkanUtils.translateVulkanResult(err))
+            throw AssertionError("Failed to acquire next swapchain image: " + VU.translate(err))
         }
 
         // Select the command buffer for the current framebuffer image/attachment
@@ -579,7 +579,7 @@ class VulkanRenderer : Renderer {
         // Submit to the graphics queue
         err = vkQueueSubmit(queue, submitInfo, VK_NULL_HANDLE)
         if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to submit render queue: " + VulkanUtils.translateVulkanResult(err))
+            throw AssertionError("Failed to submit render queue: " + VU.translate(err))
         }
 
         // Present the current buffer to the swap chain
@@ -587,7 +587,7 @@ class VulkanRenderer : Renderer {
         pSwapchains.put(0, swapchain!!.swapchainHandle)
         err = vkQueuePresentKHR(queue, presentInfo)
         if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to present the swapchain image: " + VulkanUtils.translateVulkanResult(err))
+            throw AssertionError("Failed to present the swapchain image: " + VU.translate(err))
         }
         // Create and submit post present barrier
         vkQueueWaitIdle(queue)
@@ -647,7 +647,7 @@ class VulkanRenderer : Renderer {
         val instance = pInstance.get(0)
         memFree(pInstance)
         if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to create VkInstance: " + VulkanUtils.VulkanUtils.translateVulkanResult(err))
+            throw AssertionError("Failed to create VkInstance: " + VU.translate(err))
         }
         val ret = VkInstance(instance, pCreateInfo)
         pCreateInfo.free()
@@ -674,7 +674,7 @@ class VulkanRenderer : Renderer {
         memFree(pCallback)
         dbgCreateInfo.free()
         if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to create VkInstance: " + VulkanUtils.translateVulkanResult(err))
+            throw AssertionError("Failed to create VkInstance: " + VU.translate(err))
         }
         return callbackHandle
     }
@@ -703,7 +703,7 @@ class VulkanRenderer : Renderer {
         var err = vkEnumeratePhysicalDevices(instance, pPhysicalDeviceCount, null)
 
         if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to get number of physical devices: " + VulkanUtils.translateVulkanResult(err))
+            throw AssertionError("Failed to get number of physical devices: " + VU.translate(err))
         }
 
         if(pPhysicalDeviceCount.get(0) < 1) {
@@ -727,7 +727,7 @@ class VulkanRenderer : Renderer {
         memFree(pPhysicalDeviceCount)
         memFree(pPhysicalDevices)
         if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to get physical devices: " + VulkanUtils.translateVulkanResult(err))
+            throw AssertionError("Failed to get physical devices: " + VU.translate(err))
         }
         return VkPhysicalDevice(physicalDevice, instance)
     }
@@ -789,7 +789,7 @@ class VulkanRenderer : Renderer {
         val device = pDevice.get(0)
         memFree(pDevice)
         if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to create device: " + VulkanUtils.translateVulkanResult(err))
+            throw AssertionError("Failed to create device: " + VU.translate(err))
         }
 
         val memoryProperties = VkPhysicalDeviceMemoryProperties.calloc()
@@ -823,7 +823,7 @@ class VulkanRenderer : Renderer {
             supportsPresent.position(i)
             val err = vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, surface, supportsPresent)
             if (err != VK_SUCCESS) {
-                throw AssertionError("Failed to physical device surface support: " + VulkanUtils.translateVulkanResult(err))
+                throw AssertionError("Failed to physical device surface support: " + VU.translate(err))
             }
         }
 
@@ -870,14 +870,14 @@ class VulkanRenderer : Renderer {
         var err = vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, pFormatCount, null)
         val formatCount = pFormatCount.get(0)
         if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to query number of physical device surface formats: " + VulkanUtils.translateVulkanResult(err))
+            throw AssertionError("Failed to query number of physical device surface formats: " + VU.translate(err))
         }
 
         val surfFormats = VkSurfaceFormatKHR.calloc(formatCount)
         err = vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, pFormatCount, surfFormats)
         memFree(pFormatCount)
         if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to query physical device surface formats: " + VulkanUtils.translateVulkanResult(err))
+            throw AssertionError("Failed to query physical device surface formats: " + VU.translate(err))
         }
 
         val colorFormat: Int
@@ -907,7 +907,7 @@ class VulkanRenderer : Renderer {
         cmdPoolInfo.free()
         memFree(pCmdPool)
         if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to create command pool: " + VulkanUtils.translateVulkanResult(err))
+            throw AssertionError("Failed to create command pool: " + VU.translate(err))
         }
         return commandPool
     }
@@ -933,7 +933,7 @@ class VulkanRenderer : Renderer {
         val commandBuffer = pCommandBuffer.get(0)
         memFree(pCommandBuffer)
         if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to allocate command buffer: " + VulkanUtils.translateVulkanResult(err))
+            throw AssertionError("Failed to allocate command buffer: " + VU.translate(err))
         }
         return VkCommandBuffer(commandBuffer, device)
     }
@@ -1012,21 +1012,21 @@ class VulkanRenderer : Renderer {
         val surfCaps = VkSurfaceCapabilitiesKHR.calloc()
         err = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, surfCaps)
         if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to get physical device surface capabilities: " + VulkanUtils.translateVulkanResult(err))
+            throw AssertionError("Failed to get physical device surface capabilities: " + VU.translate(err))
         }
 
         val pPresentModeCount = memAllocInt(1)
         err = vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, pPresentModeCount, null)
         val presentModeCount = pPresentModeCount.get(0)
         if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to get number of physical device surface presentation modes: " + VulkanUtils.translateVulkanResult(err))
+            throw AssertionError("Failed to get number of physical device surface presentation modes: " + VU.translate(err))
         }
 
         val pPresentModes = memAllocInt(presentModeCount)
         err = vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, pPresentModeCount, pPresentModes)
         memFree(pPresentModeCount)
         if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to get physical device surface presentation modes: " + VulkanUtils.translateVulkanResult(err))
+            throw AssertionError("Failed to get physical device surface presentation modes: " + VU.translate(err))
         }
 
         // Try to use mailbox mode. Low latency and non-tearing
@@ -1091,7 +1091,7 @@ class VulkanRenderer : Renderer {
         val swapChain = pSwapChain.get(0)
         memFree(pSwapChain)
         if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to create swap chain: " + VulkanUtils.translateVulkanResult(err))
+            throw AssertionError("Failed to create swap chain: " + VU.translate(err))
         }
 
         // If we just re-created an existing swapchain, we should destroy the old swapchain at this point.
@@ -1104,13 +1104,13 @@ class VulkanRenderer : Renderer {
         err = vkGetSwapchainImagesKHR(device, swapChain, pImageCount, null)
         val imageCount = pImageCount.get(0)
         if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to get number of swapchain images: " + VulkanUtils.translateVulkanResult(err))
+            throw AssertionError("Failed to get number of swapchain images: " + VU.translate(err))
         }
 
         val pSwapchainImages = memAllocLong(imageCount)
         err = vkGetSwapchainImagesKHR(device, swapChain, pImageCount, pSwapchainImages)
         if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to get swapchain images: " + VulkanUtils.translateVulkanResult(err))
+            throw AssertionError("Failed to get swapchain images: " + VU.translate(err))
         }
         memFree(pImageCount)
 
@@ -1147,7 +1147,7 @@ class VulkanRenderer : Renderer {
             err = vkCreateImageView(device, colorAttachmentView, null, pBufferView)
             imageViews[i] = pBufferView.get(0)
             if (err != VK_SUCCESS) {
-                throw AssertionError("Failed to create image view: " + VulkanUtils.translateVulkanResult(err))
+                throw AssertionError("Failed to create image view: " + VU.translate(err))
             }
         }
         colorAttachmentView.free()
@@ -1202,7 +1202,7 @@ class VulkanRenderer : Renderer {
         subpass.free()
         attachments.free()
         if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to create clear render pass: " + VulkanUtils.translateVulkanResult(err))
+            throw AssertionError("Failed to create clear render pass: " + VU.translate(err))
         }
         return renderPass
     }
@@ -1229,7 +1229,7 @@ class VulkanRenderer : Renderer {
             val framebuffer = pFramebuffer.get(0)
 
             if (err != VK_SUCCESS) {
-                throw AssertionError("Failed to create framebuffer: " + VulkanUtils.translateVulkanResult(err))
+                throw AssertionError("Failed to create framebuffer: " + VU.translate(err))
             }
             framebuffers[i] = framebuffer
         }
@@ -1250,7 +1250,7 @@ class VulkanRenderer : Renderer {
         submitInfo.free()
 
         if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to submit command buffer: " + VulkanUtils.translateVulkanResult(err))
+            throw AssertionError("Failed to submit command buffer: " + VU.translate(err))
         }
     }
 
@@ -1310,7 +1310,7 @@ class VulkanRenderer : Renderer {
         memFree(pBuffer)
         bufInfo.free()
         if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to create vertex buffer: " + VulkanUtils.translateVulkanResult(err))
+            throw AssertionError("Failed to create vertex buffer: " + VU.translate(err))
         }
 
         vkGetBufferMemoryRequirements(device, verticesBuf, memReqs)
@@ -1326,7 +1326,7 @@ class VulkanRenderer : Renderer {
         val verticesMem = pMemory.get(0)
         memFree(pMemory)
         if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to allocate vertex memory: " + VulkanUtils.translateVulkanResult(err))
+            throw AssertionError("Failed to allocate vertex memory: " + VU.translate(err))
         }
 
         val pData = memAllocPointer(1)
@@ -1335,7 +1335,7 @@ class VulkanRenderer : Renderer {
         val data = pData.get(0)
         memFree(pData)
         if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to map vertex memory: " + VulkanUtils.translateVulkanResult(err))
+            throw AssertionError("Failed to map vertex memory: " + VU.translate(err))
         }
 
         memCopy(memAddress(vertexBuffer), data, vertexBuffer.remaining())
@@ -1343,7 +1343,7 @@ class VulkanRenderer : Renderer {
         vkUnmapMemory(device, verticesMem)
         err = vkBindBufferMemory(device, verticesBuf, verticesMem, 0)
         if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to bind memory to vertex buffer: " + VulkanUtils.translateVulkanResult(err))
+            throw AssertionError("Failed to bind memory to vertex buffer: " + VU.translate(err))
         }
 
         // Binding description
@@ -1478,7 +1478,7 @@ class VulkanRenderer : Renderer {
         descriptorPoolInfo.free()
         typeCounts.free()
         if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to create descriptor pool: " + VulkanUtils.translateVulkanResult(err))
+            throw AssertionError("Failed to create descriptor pool: " + VU.translate(err))
         }
         return descriptorPool
     }
@@ -1499,7 +1499,7 @@ class VulkanRenderer : Renderer {
         memFree(pUniformDataVSBuffer)
         bufferInfo.free()
         if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to create UBO buffer: " + VulkanUtils.translateVulkanResult(err))
+            throw AssertionError("Failed to create UBO buffer: " + VU.translate(err))
         }
 
         // Get memory requirements including size, alignment and memory type
@@ -1527,12 +1527,12 @@ class VulkanRenderer : Renderer {
         memFree(pUniformDataVSMemory)
         allocInfo.free()
         if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to allocate UBO memory: " + VulkanUtils.translateVulkanResult(err))
+            throw AssertionError("Failed to allocate UBO memory: " + VU.translate(err))
         }
         // Bind memory to buffer
         err = vkBindBufferMemory(device, uniformDataVSBuffer, uniformDataVSMemory, 0)
         if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to bind UBO memory: " + VulkanUtils.translateVulkanResult(err))
+            throw AssertionError("Failed to bind UBO memory: " + VU.translate(err))
         }
 
         ubo.descriptor = UboDescriptor()
@@ -1560,7 +1560,7 @@ class VulkanRenderer : Renderer {
         allocInfo.free()
         memFree(pDescriptorSetLayout)
         if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to create descriptor set: " + VulkanUtils.translateVulkanResult(err))
+            throw AssertionError("Failed to create descriptor set: " + VU.translate(err))
         }
 
         // Update descriptor sets determining the shader binding points
@@ -1609,7 +1609,7 @@ class VulkanRenderer : Renderer {
         descriptorLayout.free()
         layoutBinding.free()
         if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to create descriptor set layout: " + VulkanUtils.translateVulkanResult(err))
+            throw AssertionError("Failed to create descriptor set layout: " + VU.translate(err))
         }
         return descriptorSetLayout
     }
@@ -1626,7 +1626,7 @@ class VulkanRenderer : Renderer {
         val pCommandBuffer = memAllocPointer(framebuffers.size)
         var err = vkAllocateCommandBuffers(device, cmdBufAllocateInfo, pCommandBuffer)
         if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to allocate render command buffer: " + VulkanUtils.translateVulkanResult(err))
+            throw AssertionError("Failed to allocate render command buffer: " + VU.translate(err))
         }
 
         val renderCommandBuffers = framebuffers.indices.map { VkCommandBuffer(pCommandBuffer.get(it), device) }.toTypedArray()
@@ -1659,7 +1659,7 @@ class VulkanRenderer : Renderer {
 
             err = vkBeginCommandBuffer(renderCommandBuffers[i], cmdBufInfo)
             if (err != VK_SUCCESS) {
-                throw AssertionError("Failed to begin render command buffer: " + VulkanUtils.translateVulkanResult(err))
+                throw AssertionError("Failed to begin render command buffer: " + VU.translate(err))
             }
 
             vkCmdBeginRenderPass(renderCommandBuffers[i], renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE)
@@ -1718,7 +1718,7 @@ class VulkanRenderer : Renderer {
 
             err = vkEndCommandBuffer(renderCommandBuffers[i])
             if (err != VK_SUCCESS) {
-                throw AssertionError("Failed to begin render command buffer: " + VulkanUtils.translateVulkanResult(err))
+                throw AssertionError("Failed to begin render command buffer: " + VU.translate(err))
             }
         }
         renderPassBeginInfo.free()
@@ -1735,7 +1735,7 @@ class VulkanRenderer : Renderer {
         memFree(pData)
 
         if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to map UBO memory: " + VulkanUtils.translateVulkanResult(err))
+            throw AssertionError("Failed to map UBO memory: " + VU.translate(err))
         }
 
         val matrixBuffer = memByteBuffer(data, 16 * 4)
@@ -1793,7 +1793,7 @@ class VulkanRenderer : Renderer {
         var err = vkBeginCommandBuffer(commandBuffer, cmdBufInfo)
         cmdBufInfo.free()
         if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to begin command buffer: " + VulkanUtils.translateVulkanResult(err))
+            throw AssertionError("Failed to begin command buffer: " + VU.translate(err))
         }
 
         val postPresentBarrier = createPostPresentBarrier(image)
@@ -1809,7 +1809,7 @@ class VulkanRenderer : Renderer {
 
         err = vkEndCommandBuffer(commandBuffer)
         if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to wait for idle queue: " + VulkanUtils.translateVulkanResult(err))
+            throw AssertionError("Failed to wait for idle queue: " + VU.translate(err))
         }
 
         // Submit the command buffer

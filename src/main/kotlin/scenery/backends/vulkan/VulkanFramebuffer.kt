@@ -102,7 +102,7 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
         vkAllocateMemory(device, allocation, null, a.memory)
         vkBindImageMemory(device, a.image, a.memory.get(0), 0)
 
-        VulkanUtils.setImageLayout(
+        VU.setImageLayout(
             commandBuffer,
             a.image,
             aspectMask,

@@ -84,15 +84,14 @@ class VulkanPipeline(val device: VkDevice) {
             .pNext(NULL)
             .pSetLayouts(pDescriptorSetLayout)
 
-        val pPipelineLayout = memAllocLong(1)
-        err = vkCreatePipelineLayout(device, pPipelineLayoutCreateInfo, null, pPipelineLayout)
-        val layout = pPipelineLayout.get(0)
-        memFree(pPipelineLayout)
+        val layout = VU.run(memAllocLong(1), "vkCreatePipelineLayout",
+            { vkCreatePipelineLayout(device, pPipelineLayoutCreateInfo, null, this) })
+
         pPipelineLayoutCreateInfo.free()
         memFree(pDescriptorSetLayout)
 
         if (err != VK_SUCCESS) {
-            logger.error("Failed to create pipeline layout: " + VulkanUtils.translateVulkanResult(err))
+            logger.error("Failed to create pipeline layout: " + VU.translate(err))
         }
 
         // Assign states
@@ -111,16 +110,12 @@ class VulkanPipeline(val device: VkDevice) {
             .pDynamicState(dynamicState)
 
         // Create rendering pipeline
-        val pPipelines = memAllocLong(1)
-        err = vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, pipelineCreateInfo, null, pPipelines)
-
-        if(err != VK_SUCCESS) {
-            logger.error("Failed to create pipeline: ${VulkanUtils.translateVulkanResult(err)}")
-        }
+        val p = VU.run(memAllocLong(1), "vkCreateGraphicsPipelines")
+            { vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, pipelineCreateInfo, null, this) }
 
         this.pipeline = VulkanRenderer.Pipeline()
         this.pipeline.layout = layout
-        this.pipeline.pipeline = pPipelines.get(0)
+        this.pipeline.pipeline = p
 
         return this.pipeline
     }

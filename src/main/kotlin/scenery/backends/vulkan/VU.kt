@@ -1,5 +1,7 @@
 package scenery.backends.vulkan
 
+import org.lwjgl.PointerBuffer
+import org.lwjgl.system.MemoryUtil
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.EXTDebugReport.VK_ERROR_VALIDATION_FAILED_EXT
 import org.lwjgl.vulkan.KHRDisplaySwapchain.VK_ERROR_INCOMPATIBLE_DISPLAY_KHR
@@ -8,10 +10,38 @@ import org.lwjgl.vulkan.KHRSurface.VK_ERROR_SURFACE_LOST_KHR
 import org.lwjgl.vulkan.KHRSwapchain.VK_ERROR_OUT_OF_DATE_KHR
 import org.lwjgl.vulkan.KHRSwapchain.VK_SUBOPTIMAL_KHR
 import org.lwjgl.vulkan.VK10.*
+import org.slf4j.LoggerFactory
+import java.nio.LongBuffer
 
-class VulkanUtils {
+class VU {
 
-    companion object VulkanUtils {
+    companion object VU {
+
+        inline fun <T: LongBuffer> run(receiver: T, name: String, function: T.() -> Int): Long {
+            var result = function.invoke(receiver)
+
+            if(result != VK_SUCCESS) {
+                LoggerFactory.getLogger("VulkanRenderer").error("Call to $name failed.")
+            }
+
+            val ret = receiver.get(0)
+            MemoryUtil.memFree(receiver)
+
+            return ret
+        }
+
+        inline fun <T: PointerBuffer> run(receiver: T, name: String, function: T.() -> Int): Long {
+            var result = function.invoke(receiver)
+
+            if(result != VK_SUCCESS) {
+                LoggerFactory.getLogger("VulkanRenderer").error("Call to $name failed.")
+            }
+
+            val ret = receiver.get(0)
+            MemoryUtil.memFree(receiver)
+
+            return ret
+        }
 
         /**
          * Translates a Vulkan `VkResult` value to a String describing the result.
@@ -22,7 +52,7 @@ class VulkanUtils {
          * *
          * @return the result description
          */
-        fun translateVulkanResult(result: Int): String {
+        fun translate(result: Int): String {
             when (result) {
             // Success codes
                 VK_SUCCESS -> return "Command successfully completed."
