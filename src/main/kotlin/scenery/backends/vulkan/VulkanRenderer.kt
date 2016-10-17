@@ -679,24 +679,7 @@ class VulkanRenderer : Renderer {
         return callbackHandle
     }
 
-    private fun vkDeviceTypeToString(deviceType: Int): String {
-        return when(deviceType) {
-            0 -> "other"
-            1 -> "Integrated GPU"
-            2 -> "Discrete GPU"
-            3 -> "Virtual GPU"
-            4 -> "CPU"
-            else -> "Unknown device type"
-        }
-    }
 
-    private fun vkVendorToString(vendor: Int): String =
-        when(vendor) {
-            0x1002 -> "AMD"
-            0x10DE -> "Nvidia"
-            0x8086 -> "Intel"
-            else -> "(Unknown vendor)"
-        }
 
     private fun getPhysicalDevice(instance: VkInstance): VkPhysicalDevice {
         val pPhysicalDeviceCount = memAllocInt(1)
@@ -719,7 +702,7 @@ class VulkanRenderer : Renderer {
             val properties: VkPhysicalDeviceProperties = VkPhysicalDeviceProperties.calloc()
 
             vkGetPhysicalDeviceProperties(device, properties)
-            logger.info("  $i: ${vkVendorToString(properties.vendorID())} ${properties.deviceNameString()} (${vkDeviceTypeToString(properties.deviceType())}, driver version ${driverVersionToString(properties.driverVersion())}, Vulkan API ${driverVersionToString(properties.apiVersion())}")
+            logger.info("  $i: ${VU.vendorToString(properties.vendorID())} ${properties.deviceNameString()} (${VU.deviceTypeToString(properties.deviceType())}, driver version ${VU.driverVersionToString(properties.driverVersion())}, Vulkan API ${VU.driverVersionToString(properties.apiVersion())}")
         }
 
         val physicalDevice = pPhysicalDevices.get(System.getProperty("scenery.VulkanBackend.Device", "0").toInt())
@@ -731,17 +714,6 @@ class VulkanRenderer : Renderer {
         }
         return VkPhysicalDevice(physicalDevice, instance)
     }
-
-    private fun decodeDriverVersion(version: Int) =
-        Triple(
-            version and 0xFFC00000.toInt() shr 22,
-            version and 0x003FF000 shr 12,
-            version and 0x00000FFF
-        )
-
-    private fun driverVersionToString(version: Int) =
-        decodeDriverVersion(version).toList().joinToString(".")
-
 
     private fun createDeviceAndGetGraphicsQueueFamily(physicalDevice: VkPhysicalDevice): DeviceAndGraphicsQueueFamily {
         val pQueueFamilyPropertyCount = memAllocInt(1)
@@ -961,15 +933,13 @@ class VulkanRenderer : Renderer {
             throw AssertionError("Failed to end command buffer $commandBuffer")
         }
 
-        with(memAllocPointer(1).put(commandBuffer).flip()) {
+        VU.run(memAllocPointer(1).put(commandBuffer).flip(), "flushCommandBuffer") {
             val submitInfo = VkSubmitInfo.calloc(1)
                 .sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
                 .pCommandBuffers(this)
 
             vkQueueSubmit(queue, submitInfo, VK_NULL_HANDLE)
             vkQueueWaitIdle(queue)
-
-            memFree(this)
         }
 
         if(dealloc) {
@@ -1267,14 +1237,6 @@ class VulkanRenderer : Renderer {
         }
         return false
     }
-
-    private fun getMemoryType(typeBits: Int, properties: Int): Int {
-        val buf = memAllocInt(1)
-        getMemoryType(this.memoryProperties, typeBits, properties, buf)
-
-        return buf.get(0)
-    }
-
 
     private fun createVertices(deviceMemoryProperties: VkPhysicalDeviceMemoryProperties, device: VkDevice): Vertices {
         val vertexBuffer = memAlloc(6 * (2 + 3) * 4)

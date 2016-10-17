@@ -43,6 +43,35 @@ class VU {
             return ret
         }
 
+        fun deviceTypeToString(deviceType: Int): String {
+            return when(deviceType) {
+                0 -> "other"
+                1 -> "Integrated GPU"
+                2 -> "Discrete GPU"
+                3 -> "Virtual GPU"
+                4 -> "CPU"
+                else -> "Unknown device type"
+            }
+        }
+
+        fun vendorToString(vendor: Int): String =
+            when(vendor) {
+                0x1002 -> "AMD"
+                0x10DE -> "Nvidia"
+                0x8086 -> "Intel"
+                else -> "(Unknown vendor)"
+            }
+
+        fun decodeDriverVersion(version: Int) =
+            Triple(
+                version and 0xFFC00000.toInt() shr 22,
+                version and 0x003FF000 shr 12,
+                version and 0x00000FFF
+            )
+
+        fun driverVersionToString(version: Int) =
+            decodeDriverVersion(version).toList().joinToString(".")
+
         /**
          * Translates a Vulkan `VkResult` value to a String describing the result.
 
