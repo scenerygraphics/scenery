@@ -1,6 +1,7 @@
 package scenery.backends.vulkan
 
 import cleargl.GLMatrix
+import cleargl.GLVector
 import org.lwjgl.PointerBuffer
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.glfw.GLFWKeyCallback
@@ -154,6 +155,7 @@ class VulkanRenderer : Renderer {
             members.map {
                 when(it.value.javaClass) {
                     GLMatrix::class.java -> (it.value as GLMatrix).floatArray.size * 4
+                    GLVector::class.java -> (it.value as GLVector).toFloatArray().size * 4
                     Float::class.java -> 4
                     Int::class.java -> 4
                     Short::class.java -> 2
@@ -268,7 +270,7 @@ class VulkanRenderer : Renderer {
         renderPass = createRenderPass(device, colorFormatAndSpace.colorFormat)
         renderCommandPool = createCommandPool(device, queueFamilyIndex)
         vertices = createVertices(memoryProperties, device)
-        uboDescriptor = createUniformBuffer(memoryProperties, device)
+        uboDescriptor = createTriangleUniformBuffer(memoryProperties, device)
         descriptorPool = createDescriptorPool(device)
         descriptorSetLayout = createDescriptorSetLayout(device)
         descriptorSet = createDescriptorSet(device, descriptorPool, descriptorSetLayout, uboDescriptor)
@@ -1445,24 +1447,26 @@ class VulkanRenderer : Renderer {
         return descriptorPool
     }
 
-    private fun createUniformBuffer(deviceMemoryProperties: VkPhysicalDeviceMemoryProperties, device: VkDevice): UboDescriptor {
+    private fun createTriangleUniformBuffer(deviceMemoryProperties: VkPhysicalDeviceMemoryProperties, device: VkDevice): UboDescriptor {
         val ubo = UBO()
         ubo.members.put("Matrix", GLMatrix.getIdentity())
+
         return createUniformBuffer(ubo, deviceMemoryProperties, device)
     }
 
     private fun createUniformBuffer(ubo: UBO, deviceMemoryProperties: VkPhysicalDeviceMemoryProperties, device: VkDevice): UboDescriptor {
         var err: Int
         // Create a new buffer
-        val bufferInfo = VkBufferCreateInfo.calloc().sType(VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO).size(ubo.getSize()).usage(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT)
-        val pUniformDataVSBuffer = memAllocLong(1)
-        err = vkCreateBuffer(device, bufferInfo, null, pUniformDataVSBuffer)
-        val uniformDataVSBuffer = pUniformDataVSBuffer.get(0)
-        memFree(pUniformDataVSBuffer)
-        bufferInfo.free()
-        if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to create UBO buffer: " + VU.translate(err))
+        val bufferInfo = VkBufferCreateInfo.calloc()
+            .sType(VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO)
+            .size(ubo.getSize())
+            .usage(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT)
+
+        val uniformDataVSBuffer = VU.run(memAllocLong(1), "Create UBO Buffer") {
+            vkCreateBuffer(device, bufferInfo, null, this)
         }
+
+        bufferInfo.free()
 
         // Get memory requirements including size, alignment and memory type
         val memReqs = VkMemoryRequirements.calloc()
@@ -1515,15 +1519,12 @@ class VulkanRenderer : Renderer {
             .descriptorPool(descriptorPool)
             .pSetLayouts(pDescriptorSetLayout)
 
-        val pDescriptorSet = memAllocLong(1)
-        val err = vkAllocateDescriptorSets(device, allocInfo, pDescriptorSet)
-        val descriptorSet = pDescriptorSet.get(0)
-        memFree(pDescriptorSet)
+        val descriptorSet = VU.run(memAllocLong(1), "createDescriptorSet") {
+            vkAllocateDescriptorSets(device, allocInfo, this)
+        }
+
         allocInfo.free()
         memFree(pDescriptorSetLayout)
-        if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to create descriptor set: " + VU.translate(err))
-        }
 
         // Update descriptor sets determining the shader binding points
         // For every binding point used in a shader there needs to be one
