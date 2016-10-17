@@ -516,13 +516,13 @@ class VulkanRenderer : Renderer {
      */
     protected fun prepareHDRBuffer(device: VkDevice, physicalDevice: VkPhysicalDevice, width: Int, height: Int): VulkanFramebuffer {
         with(newCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, autostart = true)) {
-            val gb = VulkanFramebuffer(device, physicalDevice, width, height, this)
+            val hdr = VulkanFramebuffer(device, physicalDevice, width, height, this)
 
-            gb.addFloatRGBABuffer("hdr", 32)
+            hdr.addFloatRGBABuffer("hdr", 32)
 
             flushCommandBuffer(this, this@VulkanRenderer.queue, true)
 
-            return gb
+            return hdr
         }
     }
 
@@ -911,7 +911,7 @@ class VulkanRenderer : Renderer {
     }
 
     private fun newCommandBuffer(level: Int = VK_COMMAND_BUFFER_LEVEL_PRIMARY, autostart: Boolean = false): VkCommandBuffer {
-        val cmdBuf = newCommandBuffer(this.device, this.commandPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY)
+        val cmdBuf = newCommandBuffer(this.device, this.commandPool, level)
 
         if(autostart) {
             val cmdBufInfo = VkCommandBufferBeginInfo.calloc()
