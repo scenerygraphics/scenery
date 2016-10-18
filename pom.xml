@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
@@ -61,6 +62,39 @@
                     </plugin>
                 </plugins>
             </build>
+        </profile>
+        <profile>
+            <id>lwjgl-natives-linux></id>
+            <activation>
+                <os>
+                    <family>unix</family>
+                </os>
+            </activation>
+            <properties>
+                <lwjgl.natives>natives-linux</lwjgl.natives>
+            </properties>
+        </profile>
+        <profile>
+            <id>lwjgl-natives-macos></id>
+            <activation>
+                <os>
+                    <family>mac</family>
+                </os>
+            </activation>
+            <properties>
+                <lwjgl.natives>natives-macos</lwjgl.natives>
+            </properties>
+        </profile>
+        <profile>
+            <id>lwjgl-natives-windows></id>
+            <activation>
+                <os>
+                    <family>windows</family>
+                </os>
+            </activation>
+            <properties>
+                <lwjgl.natives>natives-windows</lwjgl.natives>
+            </properties>
         </profile>
     </profiles>
 
@@ -171,60 +205,42 @@
             <version>2.0.0</version>
         </dependency>
 
+        <!-- LWJGL dependencies START -->
         <dependency>
             <groupId>org.lwjgl</groupId>
             <artifactId>lwjgl</artifactId>
             <version>${lwjgl.version}</version>
         </dependency>
-
         <dependency>
             <groupId>org.lwjgl</groupId>
-            <artifactId>lwjgl-platform</artifactId>
+            <artifactId>lwjgl-glfw</artifactId>
             <version>${lwjgl.version}</version>
-            <classifier>natives-windows</classifier>
         </dependency>
-
-        <dependency>
-            <groupId>org.lwjgl</groupId>
-            <artifactId>lwjgl-platform</artifactId>
-            <version>${lwjgl.version}</version>
-            <classifier>natives-linux</classifier>
-        </dependency>
-
-        <dependency>
-            <groupId>org.lwjgl</groupId>
-            <artifactId>lwjgl-platform</artifactId>
-            <version>${lwjgl.version}</version>
-            <classifier>natives-osx</classifier>
-        </dependency>
-
         <dependency>
             <groupId>org.lwjgl</groupId>
             <artifactId>lwjgl-jemalloc</artifactId>
             <version>${lwjgl.version}</version>
         </dependency>
-
         <dependency>
             <groupId>org.lwjgl</groupId>
-            <artifactId>lwjgl-jemalloc</artifactId>
+            <artifactId>lwjgl-openal</artifactId>
             <version>${lwjgl.version}</version>
-            <classifier>natives-windows</classifier>
         </dependency>
-
         <dependency>
             <groupId>org.lwjgl</groupId>
-            <artifactId>lwjgl-jemalloc</artifactId>
+            <artifactId>lwjgl-opencl</artifactId>
             <version>${lwjgl.version}</version>
-            <classifier>natives-linux</classifier>
         </dependency>
-
         <dependency>
             <groupId>org.lwjgl</groupId>
-            <artifactId>lwjgl-jemalloc</artifactId>
+            <artifactId>lwjgl-opengl</artifactId>
             <version>${lwjgl.version}</version>
-            <classifier>natives-macos</classifier>
         </dependency>
-
+        <dependency>
+            <groupId>org.lwjgl</groupId>
+            <artifactId>lwjgl-sse</artifactId>
+            <version>${lwjgl.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.lwjgl</groupId>
             <artifactId>lwjgl-vulkan</artifactId>
@@ -233,11 +249,40 @@
 
         <dependency>
             <groupId>org.lwjgl</groupId>
+            <artifactId>lwjgl</artifactId>
+            <version>${lwjgl.version}</version>
+            <classifier>${lwjgl.natives}</classifier>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.lwjgl</groupId>
             <artifactId>lwjgl-glfw</artifactId>
             <version>${lwjgl.version}</version>
+            <classifier>${lwjgl.natives}</classifier>
+            <scope>runtime</scope>
         </dependency>
-
-
+        <dependency>
+            <groupId>org.lwjgl</groupId>
+            <artifactId>lwjgl-jemalloc</artifactId>
+            <version>${lwjgl.version}</version>
+            <classifier>${lwjgl.natives}</classifier>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.lwjgl</groupId>
+            <artifactId>lwjgl-openal</artifactId>
+            <version>${lwjgl.version}</version>
+            <classifier>${lwjgl.natives}</classifier>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.lwjgl</groupId>
+            <artifactId>lwjgl-sse</artifactId>
+            <version>${lwjgl.version}</version>
+            <classifier>${lwjgl.natives}</classifier>
+            <scope>runtime</scope>
+        </dependency>
+        <!-- LWJGL dependencies END -->
 
     </dependencies>
 
@@ -274,13 +319,17 @@
                     <execution>
                         <id>compile</id>
                         <phase>process-sources</phase>
-                        <goals> <goal>compile</goal> </goals>
+                        <goals>
+                            <goal>compile</goal>
+                        </goals>
                     </execution>
 
                     <execution>
                         <id>test-compile</id>
                         <phase>process-test-sources</phase>
-                        <goals> <goal>test-compile</goal> </goals>
+                        <goals>
+                            <goal>test-compile</goal>
+                        </goals>
                     </execution>
                 </executions>
             </plugin>

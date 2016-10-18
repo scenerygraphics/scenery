@@ -13,12 +13,10 @@ import org.lwjgl.vulkan.EXTDebugReport.*
 import org.lwjgl.vulkan.KHRSurface.*
 import org.lwjgl.vulkan.KHRSwapchain.*
 import org.lwjgl.vulkan.VK10.*
-import org.lwjgl.vulkan.VKUtil.VK_MAKE_VERSION
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import scenery.*
 import scenery.backends.Renderer
-import java.io.IOException
 import java.nio.*
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
