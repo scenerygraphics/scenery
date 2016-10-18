@@ -30,6 +30,22 @@ class VU {
             return ret
         }
 
+        inline fun <T: LongBuffer> run(receiver: T, name: String, function: T.() -> Int, cleanup: T.() -> Any): Long {
+            var result = function.invoke(receiver)
+
+            if(result != VK_SUCCESS) {
+                LoggerFactory.getLogger("VulkanRenderer").error("Call to $name failed.")
+                cleanup.invoke(receiver)
+            }
+
+            val ret = receiver.get(0)
+            MemoryUtil.memFree(receiver)
+
+            cleanup.invoke(receiver)
+
+            return ret
+        }
+
         inline fun <T: PointerBuffer> run(receiver: T, name: String, function: T.() -> Int): Long {
             var result = function.invoke(receiver)
 

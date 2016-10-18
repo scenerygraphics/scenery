@@ -53,6 +53,10 @@ class VulkanRenderer : Renderer {
      */
     private val VK_FLAGS_NONE: Int = 0
 
+    private var MAX_TEXTURES = 2048
+    private var MAX_UBOS = 16
+    private var MAX_INPUT_ATTACHMENTS = 2
+
     /**
      * This is just -1L, but it is nicer as a symbolic constant.
      */
@@ -251,25 +255,26 @@ class VulkanRenderer : Renderer {
         }
 
         glfwSetKeyCallback(window, keyCallback)
-        val pSurface = memAllocLong(1)
-        var err = glfwCreateWindowSurface(instance, window, null, pSurface)
-        surface = pSurface.get(0)
 
-        if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to create surface: " + VU.translate(err))
+        surface = VU.run(memAllocLong(1), "glfwCreateWindowSurface") {
+            glfwCreateWindowSurface(instance, window, null, this)
         }
 
         // Create static Vulkan resources
         colorFormatAndSpace = getColorFormatAndSpace(physicalDevice, surface)
         commandPool = createCommandPool(device, queueFamilyIndex)
+
         setupCommandBuffer = newCommandBuffer(device, commandPool)
         postPresentCommandBuffer = newCommandBuffer(device, commandPool)
         queue = createDeviceQueue(device, queueFamilyIndex)
+
         renderPass = createRenderPass(device, colorFormatAndSpace.colorFormat)
         renderCommandPool = createCommandPool(device, queueFamilyIndex)
+
         vertices = createVertices(memoryProperties, device)
         uboDescriptor = createTriangleUniformBuffer(memoryProperties, device)
         descriptorPool = createDescriptorPool(device)
+
         descriptorSetLayout = createDescriptorSetLayout(device)
         descriptorSet = createDescriptorSet(device, descriptorPool, descriptorSetLayout, uboDescriptor)
 
@@ -1412,16 +1417,20 @@ class VulkanRenderer : Renderer {
         return state
     }
 
-    private fun createDescriptorPool(device: VkDevice, type: Int = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, size: Int = 1): Long {
+    private fun createDescriptorPool(device: VkDevice): Long {
         // We need to tell the API the number of max. requested descriptors per type
-        val typeCounts = VkDescriptorPoolSize.calloc(1).type(type)
-        // This example only uses one descriptor type (uniform buffer) and only
-        // requests one descriptor of this type
-            .descriptorCount(size)
-        // For additional types you need to add new entries in the type count list
-        // E.g. for two combined image samplers :
-        // typeCounts[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        // typeCounts[1].descriptorCount = 2;
+        val typeCounts = VkDescriptorPoolSize.calloc(3)
+        typeCounts[0]
+            .type(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+            .descriptorCount(this.MAX_TEXTURES)
+
+        typeCounts[1]
+            .type(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC)
+            .descriptorCount(this.MAX_UBOS)
+
+        typeCounts[2]
+            .type(VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT)
+            .descriptorCount(this.MAX_INPUT_ATTACHMENTS)
 
         // Create the global descriptor pool
         // All descriptors used in this example are allocated from this pool
@@ -1429,19 +1438,15 @@ class VulkanRenderer : Renderer {
             .sType(VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO)
             .pNext(NULL)
             .pPoolSizes(typeCounts)
-            .maxSets(1)// Set the max. number of sets that can be requested
+            .maxSets(this.MAX_TEXTURES + this.MAX_UBOS + this.MAX_INPUT_ATTACHMENTS)// Set the max. number of sets that can be requested
 
-        // Requesting descriptors beyond maxSets will result in an error
+        val descriptorPool = VU.run(memAllocLong(1), "vkCreateDescriptorPool") {
+            vkCreateDescriptorPool(device, descriptorPoolInfo, null, this)
+        }
 
-        val pDescriptorPool = memAllocLong(1)
-        val err = vkCreateDescriptorPool(device, descriptorPoolInfo, null, pDescriptorPool)
-        val descriptorPool = pDescriptorPool.get(0)
-        memFree(pDescriptorPool)
         descriptorPoolInfo.free()
         typeCounts.free()
-        if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to create descriptor pool: " + VU.translate(err))
-        }
+
         return descriptorPool
     }
 
@@ -1548,7 +1553,6 @@ class VulkanRenderer : Renderer {
     }
 
     private fun createDescriptorSetLayout(device: VkDevice): Long {
-        val err: Int
         // One binding for a UBO used in a vertex shader
         val layoutBinding = VkDescriptorSetLayoutBinding.calloc(1)
             .binding(0) // <- Binding 0 : Uniform buffer (Vertex shader)
@@ -1563,15 +1567,11 @@ class VulkanRenderer : Renderer {
             .pNext(NULL)
             .pBindings(layoutBinding)
 
-        val pDescriptorSetLayout = memAllocLong(1)
-        err = vkCreateDescriptorSetLayout(device, descriptorLayout, null, pDescriptorSetLayout)
-        val descriptorSetLayout = pDescriptorSetLayout.get(0)
-        memFree(pDescriptorSetLayout)
-        descriptorLayout.free()
-        layoutBinding.free()
-        if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to create descriptor set layout: " + VU.translate(err))
-        }
+        val descriptorSetLayout = VU.run(memAllocLong(1), "vkCreateDescriptorSetLayout",
+            function = { vkCreateDescriptorSetLayout(device, descriptorLayout, null, this) },
+            cleanup = { descriptorLayout.free(); layoutBinding.free() }
+        )
+
         return descriptorSetLayout
     }
 
