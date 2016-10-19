@@ -16,6 +16,7 @@ import org.lwjgl.vulkan.VK10.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import scenery.*
+import scenery.backends.RenderConfigReader
 import scenery.backends.Renderer
 import java.nio.*
 import java.util.*
@@ -40,6 +41,8 @@ class VulkanRenderer : Renderer {
 
     private var swapchain: Swapchain? = null
     private var framebuffers: LongArray? = null
+
+    private var rendertargets = HashMap<String, VulkanFramebuffer>()
     override var width: Int = 0
     override var height: Int = 0
     private var renderCommandBuffers: Array<VkCommandBuffer>? = null
@@ -214,12 +217,16 @@ class VulkanRenderer : Renderer {
         }
     }
 
-    private var geometryBuffer: VulkanFramebuffer
-    private var hdrBuffer: VulkanFramebuffer
+    private var renderConfig: RenderConfigReader.RenderConfig
 
-    constructor(windowWidth: Int, windowHeight: Int) {
+    constructor(windowWidth: Int, windowHeight: Int, renderConfigFile: String = "DeferredLighting.yml") {
         this.width = windowWidth
         this.height = windowHeight
+
+        logger.debug("Loading rendering config from $renderConfigFile")
+        this.renderConfig = RenderConfigReader().loadFromFile(renderConfigFile)
+
+        logger.info("Loaded ${renderConfig.name} (${renderConfig.description ?: "no description"})")
 
         if (!glfwInit()) {
             throw RuntimeException("Failed to initialize GLFW")
@@ -340,11 +347,7 @@ class VulkanRenderer : Renderer {
         lastTime = System.nanoTime()
         time = 0.0f
 
-        this.geometryBuffer = prepareGeometryBuffer(this.device, this.physicalDevice, width, height)
-        this.hdrBuffer = prepareHDRBuffer(this.device, this.physicalDevice, width, height)
-
-        this.geometryBuffer.createPassAndFramebuffer()
-        this.hdrBuffer.createPassAndFramebuffer()
+        this.rendertargets = prepareFramebuffers(this.device, this.physicalDevice, width, height)
     }
 
 
@@ -495,7 +498,7 @@ class VulkanRenderer : Renderer {
     /**
      *
      */
-    protected fun prepareGeometryBuffer(device: VkDevice, physicalDevice: VkPhysicalDevice, width: Int, height: Int): VulkanFramebuffer {
+    protected fun prepareFramebuffers(device: VkDevice, physicalDevice: VkPhysicalDevice, width: Int, height: Int): HashMap<String, VulkanFramebuffer> {
         // create uniform buffers
         val defaultDeferredMatrices = UBO()
         defaultDeferredMatrices.members.put("ModelView", GLMatrix.getIdentity())
@@ -503,31 +506,35 @@ class VulkanRenderer : Renderer {
 
         // create framebuffer
         with(newCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, autostart = true)) {
-            val gb = VulkanFramebuffer(device, physicalDevice, width, height, this)
+            val fbs = HashMap<String, VulkanFramebuffer>()
 
-            gb.addFloatRGBABuffer("position", 32)
-            gb.addFloatRGBABuffer("normal", 16)
-            gb.addUnsignedByteRGBABuffer("albedo+diffuse", 32)
-            gb.addDepthBuffer("depth", 32)
+            renderConfig.rendertargets.forEach { rt ->
+                logger.info("Creating render target ${rt.key}")
+
+                val target = VulkanFramebuffer(device, physicalDevice, width, height, this)
+
+                rt.value.forEach { att ->
+                   when(att.value.format) {
+                       RenderConfigReader.TargetFormat.RGBA_Float32 -> target.addFloatRGBABuffer(att.key, 32)
+                       RenderConfigReader.TargetFormat.RGBA_Float16 -> target.addFloatRGBABuffer(att.key, 16)
+
+                       RenderConfigReader.TargetFormat.RGBA_UInt32 -> target.addUnsignedByteRGBABuffer(att.key, 32)
+                       RenderConfigReader.TargetFormat.RGBA_UInt16 -> target.addUnsignedByteRGBABuffer(att.key, 16)
+                       RenderConfigReader.TargetFormat.RGBA_UInt8 -> target.addUnsignedByteRGBABuffer(att.key, 8)
+
+                       RenderConfigReader.TargetFormat.Depth32 -> target.addDepthBuffer(att.key, 32)
+                       RenderConfigReader.TargetFormat.Depth24 -> target.addDepthBuffer(att.key, 24)
+                   }
+                }
+
+                target.createPassAndFramebuffer()
+
+                fbs.put(rt.key, target)
+            }
 
             flushCommandBuffer(this, this@VulkanRenderer.queue, true)
 
-            return gb
-        }
-    }
-
-    /**
-     *
-     */
-    protected fun prepareHDRBuffer(device: VkDevice, physicalDevice: VkPhysicalDevice, width: Int, height: Int): VulkanFramebuffer {
-        with(newCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, autostart = true)) {
-            val hdr = VulkanFramebuffer(device, physicalDevice, width, height, this)
-
-            hdr.addFloatRGBABuffer("hdr", 32)
-
-            flushCommandBuffer(this, this@VulkanRenderer.queue, true)
-
-            return hdr
+            return fbs
         }
     }
 

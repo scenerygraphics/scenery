@@ -1,0 +1,44 @@
+name: Deferred Lighting Renderer
+description: OpenGL/Vulkan shader pipeline implementing deferred rendering
+
+rendertargets:
+  GeometryBuffer:
+    Position:
+      size: 1.0, 1.0
+      format: RGBA_Float32
+    Normal:
+      size: 1.0, 1.0
+      format: RGBA_Float32
+    DiffuseAlbedo:
+      size: 1.0, 1.0
+      format: RGBA_UInt32
+    ZBuffer:
+      size: 1.0, 1.0
+      format: Depth24
+  HDR:
+    HDRBuffer:
+      size: 1.0, 1.0
+      format: RGBA_Float32
+
+renderpasses:
+  Scene:
+    type: geometry
+    shaders:
+      - "DefaultDeferred.vert"
+      - "DefaultDeferred.frag"
+    outputs:
+      - GeometryBuffer
+  DeferredLighting:
+    type: quad
+    shaders:
+      - "DeferredLighting.frag"
+    inputs:
+      - "geometry_pass"
+    outputs:
+      - HDRBuffer
+  PostprocessHDR:
+    type: quad
+    shaders:
+      - "HDR.frag"
+    outputs:
+      - Viewport
