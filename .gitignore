@@ -1,6 +1,7 @@
 # Binary files
 bin/
 build/
+target/
 
 # Eclipse projects & settings
 .project
