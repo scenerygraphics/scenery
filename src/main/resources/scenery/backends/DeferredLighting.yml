@@ -26,19 +26,18 @@ renderpasses:
     shaders:
       - "DefaultDeferred.vert"
       - "DefaultDeferred.frag"
-    outputs:
-      - GeometryBuffer
+    output: GeometryBuffer
   DeferredLighting:
     type: quad
     shaders:
       - "DeferredLighting.frag"
     inputs:
-      - "geometry_pass"
-    outputs:
-      - HDRBuffer
+      - GeometryBuffer
+    output: HDR
   PostprocessHDR:
     type: quad
     shaders:
       - "HDR.frag"
-    outputs:
-      - Viewport
+    inputs:
+      - HDR
+    output: Viewport

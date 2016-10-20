@@ -10,17 +10,24 @@ import java.nio.LongBuffer
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.system.NativeResource
 import org.lwjgl.system.Struct
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 
 /**
  *
 
  * @author Ulrik Günther @ulrik.is>
  */
-class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDevice: VkPhysicalDevice, width: Int, height: Int, commandBuffer: VkCommandBuffer) {
-    protected var framebuffer  = memAllocLong(1)
-    protected var renderPass = memAllocLong(1)
+class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDevice: VkPhysicalDevice, protected var commandPool: Long, width: Int, height: Int, commandBuffer: VkCommandBuffer) {
+    protected var logger: Logger = LoggerFactory.getLogger("VulkanRenderer")
+
+    var framebuffer  = memAllocLong(1)
+    var renderPass = memAllocLong(1)
     protected var framebufferSampler = memAllocLong(1)
     protected var commandBuffer: VkCommandBuffer
+
+    var renderCommandBuffer: VkCommandBuffer? = null
+    var semaphore: Long = -1L
 
     var width: Int = 0
         protected set
@@ -30,9 +37,9 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
 
     protected var initialized: Boolean = false
 
-    protected enum class VulkanFramebufferType { COLOR_ATTACHMENT, DEPTH_ATTACHMENT }
+    enum class VulkanFramebufferType { COLOR_ATTACHMENT, DEPTH_ATTACHMENT }
 
-    protected class VulkanFramebufferAttachment {
+    class VulkanFramebufferAttachment {
         var image: Long = 0
         var memory: LongBuffer = memAllocLong(1)
         var imageView: LongBuffer = memAllocLong(1)
@@ -42,7 +49,7 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
         var desc: VkAttachmentDescription = VkAttachmentDescription.calloc()
     }
 
-    protected var attachments = LinkedHashMap<String, VulkanFramebufferAttachment>()
+    var attachments = LinkedHashMap<String, VulkanFramebufferAttachment>()
 
     init {
         this.width = width
@@ -273,7 +280,7 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
         return ivBuffer
     }
 
-    fun createPassAndFramebuffer() {
+    fun createRenderpassAndFramebuffer() {
         val colorDescs = VkAttachmentReference.calloc(attachments.filter { it.value.type == VulkanFramebufferType.COLOR_ATTACHMENT }.size)
 
         attachments.filter { it.value.type == VulkanFramebufferType.COLOR_ATTACHMENT }.values.forEachIndexed { i, att ->
@@ -281,6 +288,7 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
                 .attachment(i)
                 .layout(VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
         }
+
         val depthDescs = if(attachments.filter { it.value.type == VulkanFramebufferType.DEPTH_ATTACHMENT}.size > 0) {
             VkAttachmentReference.calloc()
                 .attachment(colorDescs.limit())
@@ -414,5 +422,9 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
             props.optimalTilingFeatures() and VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT > 0
         }
     }
+
+    fun colorAttachmentCount() = attachments.count { it.value.type == VulkanFramebufferType.COLOR_ATTACHMENT }
+
+    fun depthAttachmentCount() = attachments.count { it.value.type == VulkanFramebufferType.DEPTH_ATTACHMENT }
 }
 

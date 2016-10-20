@@ -27,7 +27,7 @@ class RenderConfigReader {
 
     data class AttachmentConfig(@JsonDeserialize(using = FloatPairDeserializer::class) var size: Pair<Float, Float>, var format: TargetFormat)
 
-    data class RenderpassConfig(var type: RenderpassType, var shaders: Set<String>, var inputs: Set<String>?, var outputs: Set<String>?)
+    data class RenderpassConfig(var type: RenderpassType, var shaders: Set<String>, var inputs: Set<String>?, var output: String)
 
     enum class RenderpassType { geometry, quad }
 

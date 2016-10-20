@@ -15,7 +15,7 @@ out VertexData {
 	vec4 Color;
 } VertexOut;
 
-layout(binding = 0) uniform UBO {
+layout(binding = 0) uniform Matrices {
 	mat4 ModelViewMatrix;
 	mat4 ModelMatrix;
 	mat4 ProjectionMatrix;

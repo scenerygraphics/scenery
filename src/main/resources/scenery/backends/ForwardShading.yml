@@ -1,0 +1,12 @@
+name: Forward Shading Renderer
+description: OpenGL/Vulkan shader pipeline implementing straight forward shading
+
+rendertargets:
+
+renderpasses:
+  Scene:
+    type: geometry
+    shaders:
+      - "DefaultDeferred.vert"
+      - "DefaultDeferred.frag"
+    output: Viewport

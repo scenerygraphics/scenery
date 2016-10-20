@@ -42,7 +42,8 @@ class VulkanRenderer : Renderer {
     private var swapchain: Swapchain? = null
     private var framebuffers: LongArray? = null
 
-    private var rendertargets = HashMap<String, VulkanFramebuffer>()
+    private var rendertargets = ConcurrentHashMap<String, VulkanFramebuffer>()
+    private var renderPasses = ConcurrentHashMap<String, Long>()
     override var width: Int = 0
     override var height: Int = 0
     private var renderCommandBuffers: Array<VkCommandBuffer>? = null
@@ -82,10 +83,6 @@ class VulkanRenderer : Renderer {
     var surface: Long
 
     var semaphoreCreateInfo: VkSemaphoreCreateInfo
-    var submitInfo: VkSubmitInfo
-
-    // Info struct to present the current swapchain image to the display
-    var presentInfo: VkPresentInfoKHR
 
     // Create static Vulkan resources
     var colorFormatAndSpace: ColorFormatAndSpace
@@ -96,18 +93,13 @@ class VulkanRenderer : Renderer {
     var renderPass: Long
     var renderCommandPool: Long
     var vertices: Vertices
-    var uboDescriptor: UboDescriptor
     var descriptorPool: Long
-    var descriptorSetLayout: Long
-    var descriptorSet: Long
-    var pipeline: Pipeline
 
-    var renderPipelines = ConcurrentHashMap<String, Pipeline>()
+    var renderPipelines = ConcurrentHashMap<String, VulkanPipeline>()
 
     var pSwapchains: LongBuffer
     var pImageAcquiredSemaphore: LongBuffer
     var pRenderCompleteSemaphore: LongBuffer
-    var pCommandBuffers: PointerBuffer
     var pImageIndex: IntBuffer
 
     var window: Long
@@ -204,14 +196,14 @@ class VulkanRenderer : Renderer {
                 for (i in framebuffers!!.indices)
                     vkDestroyFramebuffer(device, framebuffers!![i], null)
             }
+
             framebuffers = createFramebuffers(device, swapchain!!, renderPass, width, height)
+            rendertargets = prepareFramebuffers(device, physicalDevice, width, height)
+
             // Create render command buffers
             if (renderCommandBuffers != null) {
                 vkResetCommandPool(device, renderCommandPool, VK_FLAGS_NONE)
             }
-
-            renderCommandBuffers = createRenderCommandBuffers(device, renderCommandPool, framebuffers!!, renderPass, width, height, pipeline, descriptorSet,
-                vertices.verticesBuf)
 
             mustRecreate = false
         }
@@ -271,26 +263,29 @@ class VulkanRenderer : Renderer {
         colorFormatAndSpace = getColorFormatAndSpace(physicalDevice, surface)
         commandPool = createCommandPool(device, queueFamilyIndex)
 
-        setupCommandBuffer = newCommandBuffer(device, commandPool)
-        postPresentCommandBuffer = newCommandBuffer(device, commandPool)
-        queue = createDeviceQueue(device, queueFamilyIndex)
+        setupCommandBuffer = VU.newCommandBuffer(device, commandPool)
+        postPresentCommandBuffer = VU.newCommandBuffer(device, commandPool)
+        queue = VU.createDeviceQueue(device, queueFamilyIndex)
 
         renderPass = createRenderPass(device, colorFormatAndSpace.colorFormat)
         renderCommandPool = createCommandPool(device, queueFamilyIndex)
 
-        vertices = createVertices(memoryProperties, device)
-        uboDescriptor = createTriangleUniformBuffer(memoryProperties, device)
         descriptorPool = createDescriptorPool(device)
 
-        descriptorSetLayout = createDescriptorSetLayout(device)
-        descriptorSet = createDescriptorSet(device, descriptorPool, descriptorSetLayout, uboDescriptor)
+        vertices = createVertices(memoryProperties, device)
 
-        val p = VulkanPipeline(device)
+        val p = VulkanPipeline(device, descriptorPool)
+        p.UBOs.add(createTriangleUniformBuffer(memoryProperties, device))
+
         p.addShaderStages(
             VulkanShaderModule(device, entryPoint = "main", shaderCodePath = "shaders/coloredRotatingTriangle.vert"),
             VulkanShaderModule(device, entryPoint = "main", shaderCodePath = "shaders/coloredRotatingTriangle.frag"))
 
-        pipeline = p.createPipeline(descriptorSetLayout, renderPass, vertices.createInfo!!)
+        p.createPipeline(renderPass, vertices.createInfo!!)
+
+        renderPipelines.put("default", p)
+
+//        this.renderPasses = prepareRenderpasses(this.device)
 
         swapchainRecreator = SwapchainRecreator()
 
@@ -311,7 +306,6 @@ class VulkanRenderer : Renderer {
         // Pre-allocate everything needed in the render loop
 
         pImageIndex = memAllocInt(1)
-        pCommandBuffers = memAllocPointer(1)
         pSwapchains = memAllocLong(1)
         pImageAcquiredSemaphore = memAllocLong(1)
         pRenderCompleteSemaphore = memAllocLong(1)
@@ -322,32 +316,10 @@ class VulkanRenderer : Renderer {
             .pNext(NULL)
             .flags(0)
 
-        // Info struct to submit a command buffer which will wait on the semaphore
-        val pWaitDstStageMask = memAllocInt(1)
-        pWaitDstStageMask.put(0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
-        submitInfo = VkSubmitInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
-            .pNext(NULL)
-            .waitSemaphoreCount(pImageAcquiredSemaphore.remaining())
-            .pWaitSemaphores(pImageAcquiredSemaphore)
-            .pWaitDstStageMask(pWaitDstStageMask)
-            .pCommandBuffers(pCommandBuffers)
-            .pSignalSemaphores(pRenderCompleteSemaphore)
 
-        // Info struct to present the current swapchain image to the display
-        presentInfo = VkPresentInfoKHR.calloc()
-            .sType(VK_STRUCTURE_TYPE_PRESENT_INFO_KHR)
-            .pNext(NULL)
-            .pWaitSemaphores(pRenderCompleteSemaphore)
-            .swapchainCount(pSwapchains.remaining())
-            .pSwapchains(pSwapchains)
-            .pImageIndices(pImageIndex)
-            .pResults(null)
 
         lastTime = System.nanoTime()
         time = 0.0f
-
-        this.rendertargets = prepareFramebuffers(this.device, this.physicalDevice, width, height)
     }
 
 
@@ -495,23 +467,103 @@ class VulkanRenderer : Renderer {
         return true
     }
 
+
+    protected fun prepareDefaultRenderPipelines(device: VkDevice): ConcurrentHashMap<String, Pipeline> {
+        renderConfig.renderpasses.forEach {
+            val p = VulkanPipeline(device, descriptorPool)
+            p.UBOs.add(createTriangleUniformBuffer(memoryProperties, device))
+
+            p.addShaderStages(
+                VulkanShaderModule(device, entryPoint = "main", shaderCodePath = "shaders/coloredRotatingTriangle.vert"),
+                VulkanShaderModule(device, entryPoint = "main", shaderCodePath = "shaders/coloredRotatingTriangle.frag"))
+
+            p.createPipeline(renderPass, vertices.createInfo!!)
+        }
+        return ConcurrentHashMap<String, Pipeline>()
+    }
+
+    /*protected fun prepareRenderpasses(device: VkDevice): ConcurrentHashMap<String, Long> {
+
+        val passes = ConcurrentHashMap<String, Long>()
+
+        renderConfig.renderpasses.forEach { rp ->
+            logger.info("Creating render pass for ${rp.key}")
+
+            val target: String = rp.value.output
+            val forPresentation = rp.value.output == "Viewport"
+
+            val colorAttachments = rendertargets[target]!!.colorAttachmentCount()
+            val depthAttachments = rendertargets[target]!!.depthAttachmentCount()
+
+            val attachments = VkAttachmentDescription.calloc(colorAttachments)
+                .format(colorFormatAndSpace.colorFormat)
+                .samples(VK_SAMPLE_COUNT_1_BIT)
+                .loadOp(VK_ATTACHMENT_LOAD_OP_CLEAR)
+                .storeOp(VK_ATTACHMENT_STORE_OP_STORE)
+                .stencilLoadOp(VK_ATTACHMENT_LOAD_OP_DONT_CARE)
+                .stencilStoreOp(VK_ATTACHMENT_STORE_OP_DONT_CARE)
+                .initialLayout(VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
+                .finalLayout(if(forPresentation) VK_IMAGE_LAYOUT_PRESENT_SRC_KHR else VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
+
+            val colorReference = VkAttachmentReference.calloc(colorAttachments)
+                .attachment(0)
+                .layout(VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
+
+            (0..colorAttachments-1).forEach {
+                colorReference[it].attachment(it).layout(VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
+            }
+
+            val depthReference = if(depthAttachments > 0) {
+                VkAttachmentReference.calloc(1).attachment(0).layout(VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+            } else {
+                null
+            }
+
+            val subpass = VkSubpassDescription.calloc(1)
+                .pipelineBindPoint(VK_PIPELINE_BIND_POINT_GRAPHICS)
+                .flags(VK_FLAGS_NONE)
+                .pInputAttachments(null)
+                .colorAttachmentCount(colorReference.remaining())
+                .pColorAttachments(colorReference) // <- only color attachment
+                .pResolveAttachments(null)
+                .pDepthStencilAttachment(depthReference?.get(0) ?: null)
+                .pPreserveAttachments(null)
+
+            val renderPassInfo = VkRenderPassCreateInfo.calloc()
+                .sType(VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO)
+                .pNext(NULL)
+                .pAttachments(attachments)
+                .pSubpasses(subpass)
+                .pDependencies(null)
+
+            passes.put(rp.key, VU.run(memAllocLong(1), "vkCreateRenderPass, ${rp.key}",
+                { vkCreateRenderPass(device, renderPassInfo, null, this) },
+                {
+                    renderPassInfo.free()
+                    colorReference.free()
+                    subpass.free()
+                    attachments.free()
+                })
+            )
+        }
+
+        return passes
+    }
+
+    */
+
     /**
      *
      */
-    protected fun prepareFramebuffers(device: VkDevice, physicalDevice: VkPhysicalDevice, width: Int, height: Int): HashMap<String, VulkanFramebuffer> {
-        // create uniform buffers
-        val defaultDeferredMatrices = UBO()
-        defaultDeferredMatrices.members.put("ModelView", GLMatrix.getIdentity())
-        createUniformBuffer(defaultDeferredMatrices, memoryProperties, device)
-
+    protected fun prepareFramebuffers(device: VkDevice, physicalDevice: VkPhysicalDevice, width: Int, height: Int): ConcurrentHashMap<String, VulkanFramebuffer> {
         // create framebuffer
-        with(newCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, autostart = true)) {
-            val fbs = HashMap<String, VulkanFramebuffer>()
+        with(VU.newCommandBuffer(device, commandPool, autostart = true)) {
+            val fbs = ConcurrentHashMap<String, VulkanFramebuffer>()
 
             renderConfig.rendertargets.forEach { rt ->
                 logger.info("Creating render target ${rt.key}")
 
-                val target = VulkanFramebuffer(device, physicalDevice, width, height, this)
+                val target = VulkanFramebuffer(device, physicalDevice, commandPool, width, height, this)
 
                 rt.value.forEach { att ->
                    when(att.value.format) {
@@ -527,12 +579,21 @@ class VulkanRenderer : Renderer {
                    }
                 }
 
-                target.createPassAndFramebuffer()
+                target.createRenderpassAndFramebuffer()
 
                 fbs.put(rt.key, target)
             }
 
-            flushCommandBuffer(this, this@VulkanRenderer.queue, true)
+            this.endCommandBuffer(device, commandPool, this@VulkanRenderer.queue, true)
+
+            // let's also create the default framebuffers
+            swapchain!!.images!!.forEachIndexed { i, image ->
+                val fb = VulkanFramebuffer(device, physicalDevice, commandPool, width, height, this)
+
+                fb.createRenderpassAndFramebuffer()
+
+                fbs.put("Viewport-$i", fb)
+            }
 
             return fbs
         }
@@ -550,13 +611,34 @@ class VulkanRenderer : Renderer {
         }
 
         var err = 0
-        var currentBuffer = 0
+        var currentBuffer = Pair("Viewport-Back", 0)
 
         // Handle window messages. Resize events happen exactly here.
         // So it is safe to use the new swapchain images and framebuffers afterwards.
         glfwPollEvents()
+
         if (swapchainRecreator.mustRecreate) {
             swapchainRecreator.recreate()
+        }
+
+        this.rendertargets.forEach { rt ->
+            val name = if(rt.key.startsWith("Viewport")) {
+                "Viewport"
+            } else {
+                rt.key
+            }
+
+            val pass = renderConfig.renderpasses.filter { it.value.output == name }.values.first()
+
+            rt.value.renderCommandBuffer =
+                if (pass.output == "Viewport") {
+                    createPresentCommandBuffer(device, commandPool, rt.key)
+                } else {
+                    when (pass.type) {
+                        RenderConfigReader.RenderpassType.geometry -> createSceneRenderCommandBuffer(device, commandPool, rt.key)
+                        RenderConfigReader.RenderpassType.quad -> createPostprocessRenderCommandBuffer(device, commandPool, rt.key)
+                    }
+                }
         }
 
         // Create a semaphore to wait for the swapchain to acquire the next image
@@ -574,19 +656,48 @@ class VulkanRenderer : Renderer {
         // Get next image from the swap chain (back/front buffer).
         // This will setup the imageAquiredSemaphore to be signalled when the operation is complete
         err = vkAcquireNextImageKHR(device, swapchain!!.swapchainHandle, UINT64_MAX, pImageAcquiredSemaphore.get(0), VK_NULL_HANDLE, pImageIndex)
-        currentBuffer = pImageIndex.get(0)
+
+        currentBuffer = "Viewport-${pImageIndex.get(0)}".to(pImageIndex.get(0))
+
         if (err != VK_SUCCESS) {
             throw AssertionError("Failed to acquire next swapchain image: " + VU.translate(err))
         }
 
+        // Info struct to submit a command buffer which will wait on the semaphore
+        val pWaitDstStageMask = memAllocInt(1)
+        pWaitDstStageMask.put(0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
+
         // Select the command buffer for the current framebuffer image/attachment
-        pCommandBuffers.put(0, renderCommandBuffers!![currentBuffer])
+        val pCommandBuffers = memAllocPointer(1)
+
+        pCommandBuffers.put(0, rendertargets[currentBuffer.first]!!.renderCommandBuffer)
+
+        val submitInfo = VkSubmitInfo.calloc()
+            .sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
+            .pNext(NULL)
+            .waitSemaphoreCount(pImageAcquiredSemaphore.remaining())
+            .pWaitSemaphores(pImageAcquiredSemaphore)
+            .pWaitDstStageMask(pWaitDstStageMask)
+            .pCommandBuffers(pCommandBuffers)
+            .pSignalSemaphores(pRenderCompleteSemaphore)
+
+        // Info struct to present the current swapchain image to the display
+        val presentInfo = VkPresentInfoKHR.calloc()
+            .sType(VK_STRUCTURE_TYPE_PRESENT_INFO_KHR)
+            .pNext(NULL)
+            .pWaitSemaphores(pRenderCompleteSemaphore)
+            .swapchainCount(pSwapchains.remaining())
+            .pSwapchains(pSwapchains)
+            .pImageIndices(pImageIndex)
+            .pResults(null)
+
+
 
         // Update UBO
         val thisTime = System.nanoTime()
         time += (thisTime - lastTime) / 1E9f
         lastTime = thisTime
-        updateUbo(device, uboDescriptor, time)
+//        updateUbo(device, uboDescriptor, time)
 
         // Submit to the graphics queue
         err = vkQueueSubmit(queue, submitInfo, VK_NULL_HANDLE)
@@ -607,26 +718,9 @@ class VulkanRenderer : Renderer {
         // Destroy this semaphore (we will create a new one in the next frame)
         vkDestroySemaphore(device, pImageAcquiredSemaphore.get(0), null)
         vkDestroySemaphore(device, pRenderCompleteSemaphore.get(0), null)
-        submitPostPresentBarrier(swapchain!!.images!![currentBuffer], postPresentCommandBuffer, queue)
+        submitPostPresentBarrier(swapchain!!.images!![currentBuffer.second], postPresentCommandBuffer, queue)
     }
 
-
-    /**
-     * Renders a simple rotating colored quad on a cornflower blue background on a GLFW window with Vulkan.
-     *
-     *
-     * This is like the [ColoredTriangleDemo], but adds an additional rotation.
-     * Do a diff between those two classes to see what's new.
-
-     * @author Kai Burjack
-     */
-
-
-    /**
-     * Create a Vulkan instance using LWJGL 3.
-
-     * @return the VkInstance handle
-     */
     private fun createInstance(requiredExtensions: PointerBuffer): VkInstance {
         val appInfo = VkApplicationInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_APPLICATION_INFO)
@@ -896,68 +990,7 @@ class VulkanRenderer : Renderer {
         return commandPool
     }
 
-    private fun createDeviceQueue(device: VkDevice, queueFamilyIndex: Int): VkQueue {
-        val pQueue = memAllocPointer(1)
-        vkGetDeviceQueue(device, queueFamilyIndex, 0, pQueue)
-        val queue = pQueue.get(0)
-        memFree(pQueue)
-        return VkQueue(queue, device)
-    }
 
-    private fun newCommandBuffer(device: VkDevice, commandPool: Long, level: Int = VK_COMMAND_BUFFER_LEVEL_PRIMARY): VkCommandBuffer {
-        val cmdBufAllocateInfo = VkCommandBufferAllocateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO)
-            .commandPool(commandPool)
-            .level(level)
-            .commandBufferCount(1)
-
-        val pCommandBuffer = memAllocPointer(1)
-        val err = vkAllocateCommandBuffers(device, cmdBufAllocateInfo, pCommandBuffer)
-        cmdBufAllocateInfo.free()
-        val commandBuffer = pCommandBuffer.get(0)
-        memFree(pCommandBuffer)
-        if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to allocate command buffer: " + VU.translate(err))
-        }
-        return VkCommandBuffer(commandBuffer, device)
-    }
-
-    private fun newCommandBuffer(level: Int = VK_COMMAND_BUFFER_LEVEL_PRIMARY, autostart: Boolean = false): VkCommandBuffer {
-        val cmdBuf = newCommandBuffer(this.device, this.commandPool, level)
-
-        if(autostart) {
-            val cmdBufInfo = VkCommandBufferBeginInfo.calloc()
-                .sType(VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO)
-                .pNext(NULL)
-
-            vkBeginCommandBuffer(cmdBuf, cmdBufInfo)
-        }
-
-        return cmdBuf
-    }
-
-    private fun flushCommandBuffer(commandBuffer: VkCommandBuffer, queue: VkQueue, dealloc: Boolean = false) {
-        if (commandBuffer.address() === NULL) {
-            return
-        }
-
-        if(vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
-            throw AssertionError("Failed to end command buffer $commandBuffer")
-        }
-
-        VU.run(memAllocPointer(1).put(commandBuffer).flip(), "flushCommandBuffer") {
-            val submitInfo = VkSubmitInfo.calloc(1)
-                .sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
-                .pCommandBuffers(this)
-
-            vkQueueSubmit(queue, submitInfo, VK_NULL_HANDLE)
-            vkQueueWaitIdle(queue)
-        }
-
-        if(dealloc) {
-            vkFreeCommandBuffers(this.device, commandPool, commandBuffer)
-        }
-    }
 
     private fun imageBarrier(cmdbuffer: VkCommandBuffer, image: Long, aspectMask: Int, oldImageLayout: Int, srcAccess: Int, newImageLayout: Int, dstAccess: Int) {
         // Create an image barrier object
@@ -1183,6 +1216,7 @@ class VulkanRenderer : Renderer {
         colorReference.free()
         subpass.free()
         attachments.free()
+
         if (err != VK_SUCCESS) {
             throw AssertionError("Failed to create clear render pass: " + VU.translate(err))
         }
@@ -1395,7 +1429,7 @@ class VulkanRenderer : Renderer {
             null,
             stridedBuffer.remaining().toLong())
 
-        with(newCommandBuffer(autostart = true)) {
+        with(VU.newCommandBuffer(device, commandPool, autostart = true)) {
             val copyRegion = VkBufferCopy.calloc(1)
                 .size(stridedBuffer.remaining().toLong())
 
@@ -1404,7 +1438,7 @@ class VulkanRenderer : Renderer {
                 verticesBuf,
                 copyRegion)
 
-            flushCommandBuffer(this, queue)
+            this.endCommandBuffer(device, commandPool, queue)
         }
 
         // Assign to vertex buffer
@@ -1521,178 +1555,113 @@ class VulkanRenderer : Renderer {
         return ubo.descriptor
     }
 
-    private fun createDescriptorSet(device: VkDevice, descriptorPool: Long, descriptorSetLayout: Long, uniformDataVSDescriptor: UboDescriptor): Long {
-        val pDescriptorSetLayout = memAllocLong(1)
-        pDescriptorSetLayout.put(0, descriptorSetLayout)
-        val allocInfo = VkDescriptorSetAllocateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO)
-            .descriptorPool(descriptorPool)
-            .pSetLayouts(pDescriptorSetLayout)
 
-        val descriptorSet = VU.run(memAllocLong(1), "createDescriptorSet") {
-            vkAllocateDescriptorSets(device, allocInfo, this)
+    private fun createSceneRenderCommandBuffer(device: VkDevice, commandPool: Long, targetName: String): VkCommandBuffer {
+        val target = this.rendertargets[targetName]!!
+
+        // clear the target fully
+        val semaphoreCreateInfo =  VkSemaphoreCreateInfo.calloc()
+            .sType(VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO)
+            .pNext(NULL)
+            .flags(0)
+
+        target.semaphore = VU.run(memAllocLong(1), "vkCreateSemaphore") {
+            vkCreateSemaphore(device, semaphoreCreateInfo, null, this)
         }
 
-        allocInfo.free()
-        memFree(pDescriptorSetLayout)
+        val clearValues = VkClearValue.calloc(target.colorAttachmentCount() + target.depthAttachmentCount())
 
-        // Update descriptor sets determining the shader binding points
-        // For every binding point used in a shader there needs to be one
-        // descriptor set matching that binding point
-        val descriptor = VkDescriptorBufferInfo.calloc(1)
-            .buffer(uniformDataVSDescriptor.buffer)
-            .range(uniformDataVSDescriptor.range)
-            .offset(uniformDataVSDescriptor.offset)
-
-        // Binding 0 : Uniform buffer
-        val writeDescriptorSet = VkWriteDescriptorSet.calloc(1)
-            .sType(VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET)
-            .dstSet(descriptorSet)
-            .descriptorType(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
-            .pBufferInfo(descriptor)
-            .dstBinding(0) // <- Binds this uniform buffer to binding point 0
-
-        vkUpdateDescriptorSets(device, writeDescriptorSet, null)
-        writeDescriptorSet.free()
-        descriptor.free()
-
-        return descriptorSet
-    }
-
-    private fun createDescriptorSetLayout(device: VkDevice): Long {
-        // One binding for a UBO used in a vertex shader
-        val layoutBinding = VkDescriptorSetLayoutBinding.calloc(1)
-            .binding(0) // <- Binding 0 : Uniform buffer (Vertex shader)
-            .descriptorType(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
-            .descriptorCount(1)
-            .stageFlags(VK_SHADER_STAGE_VERTEX_BIT)
-            .pImmutableSamplers(null)
-
-        // Build a create-info struct to create the descriptor set layout
-        val descriptorLayout = VkDescriptorSetLayoutCreateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO)
-            .pNext(NULL)
-            .pBindings(layoutBinding)
-
-        val descriptorSetLayout = VU.run(memAllocLong(1), "vkCreateDescriptorSetLayout",
-            function = { vkCreateDescriptorSetLayout(device, descriptorLayout, null, this) },
-            cleanup = { descriptorLayout.free(); layoutBinding.free() }
-        )
-
-        return descriptorSetLayout
-    }
-
-    private fun createRenderCommandBuffers(device: VkDevice, commandPool: Long, framebuffers: LongArray, renderPass: Long, width: Int, height: Int,
-                                           pipeline: Pipeline, descriptorSet: Long, verticesBuf: Long): Array<VkCommandBuffer> {
-        // Create the render command buffers (one command buffer per framebuffer image)
-        val cmdBufAllocateInfo = VkCommandBufferAllocateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO)
-            .commandPool(commandPool)
-            .level(VK_COMMAND_BUFFER_LEVEL_PRIMARY)
-            .commandBufferCount(framebuffers.size)
-
-        val pCommandBuffer = memAllocPointer(framebuffers.size)
-        var err = vkAllocateCommandBuffers(device, cmdBufAllocateInfo, pCommandBuffer)
-        if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to allocate render command buffer: " + VU.translate(err))
+        target.attachments.values.forEachIndexed { i, att ->
+            clearValues.put(i, when(att.type) {
+                VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> {
+                    VkClearValue.calloc().color(VkClearColorValue.calloc().float32(BufferUtils.allocateFloatAndPut(floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f))))
+                }
+                VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> {
+                    VkClearValue.calloc().depthStencil(VkClearDepthStencilValue.calloc().depth(1.0f))
+                }
+            })
         }
 
-        val renderCommandBuffers = framebuffers.indices.map { VkCommandBuffer(pCommandBuffer.get(it), device) }.toTypedArray()
-        memFree(pCommandBuffer)
-        cmdBufAllocateInfo.free()
+        val renderArea = VkRect2D.calloc()
+        renderArea.extent(VkExtent2D.calloc().set(width, height)).offset(VkOffset2D.calloc().set(0, 0))
 
-        // Create the command buffer begin structure
-        val cmdBufInfo = VkCommandBufferBeginInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO)
-            .pNext(NULL)
-
-        // Specify clear color (cornflower blue)
-        val clearValues = VkClearValue.calloc(1)
-        clearValues.color().float32(0, 100 / 255.0f).float32(1, 149 / 255.0f).float32(2, 237 / 255.0f).float32(3, 1.0f)
-
-        // Specify everything to begin a render pass
-        val renderPassBeginInfo = VkRenderPassBeginInfo.calloc()
+        val renderPassBegin = VkRenderPassBeginInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO)
             .pNext(NULL)
-            .renderPass(renderPass)
+            .renderPass(target.renderPass.get(0))
+            .framebuffer(target.framebuffer.get(0))
+            .renderArea(renderArea)
             .pClearValues(clearValues)
 
-        val renderArea = renderPassBeginInfo.renderArea()
-        renderArea.offset().set(0, 0)
-        renderArea.extent().set(width, height)
+        return with(VU.newCommandBuffer(device, commandPool, autostart = false)) {
 
-        for (i in renderCommandBuffers.indices) {
-            // Set target frame buffer
-            renderPassBeginInfo.framebuffer(framebuffers[i])
+            vkCmdBeginRenderPass(this, renderPassBegin, VK_SUBPASS_CONTENTS_INLINE)
 
-            err = vkBeginCommandBuffer(renderCommandBuffers[i], cmdBufInfo)
-            if (err != VK_SUCCESS) {
-                throw AssertionError("Failed to begin render command buffer: " + VU.translate(err))
-            }
 
-            vkCmdBeginRenderPass(renderCommandBuffers[i], renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE)
 
-            // Update dynamic viewport state
-            val viewport = VkViewport.calloc(1)
-                .height(height.toFloat())
-                .width(width.toFloat())
-                .minDepth(0.0f)
-                .maxDepth(1.0f)
+            vkCmdEndRenderPass(this)
 
-            vkCmdSetViewport(renderCommandBuffers[i], 0, viewport)
-            viewport.free()
-
-            // Update dynamic scissor state
-            val scissor = VkRect2D.calloc(1)
-            scissor.extent().set(width, height)
-            scissor.offset().set(0, 0)
-            vkCmdSetScissor(renderCommandBuffers[i], 0, scissor)
-            scissor.free()
-
-            // Bind descriptor sets describing shader binding points
-            val descriptorSets = memAllocLong(1).put(0, descriptorSet)
-            vkCmdBindDescriptorSets(renderCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout, 0, descriptorSets, null)
-            memFree(descriptorSets)
-
-            // Bind the rendering pipeline (including the shaders)
-            vkCmdBindPipeline(renderCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline)
-
-            // Bind triangle vertices
-            val offsets = memAllocLong(1)
-            offsets.put(0, 0L)
-            val pBuffers = memAllocLong(1)
-            pBuffers.put(0, verticesBuf)
-            vkCmdBindVertexBuffers(renderCommandBuffers[i], 0, pBuffers, offsets)
-            memFree(pBuffers)
-            memFree(offsets)
-
-            // Draw triangle
-            vkCmdDraw(renderCommandBuffers[i], 6, 1, 0, 0)
-
-            vkCmdEndRenderPass(renderCommandBuffers[i])
-
-            // Add a present memory barrier to the end of the command buffer
-            // This will transform the frame buffer color attachment to a
-            // new layout for presenting it to the windowing system integration
-            val prePresentBarrier = createPrePresentBarrier(swapchain!!.images!![i])
-            vkCmdPipelineBarrier(renderCommandBuffers[i],
-                VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-                VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-                VK_FLAGS_NONE,
-                null, // No memory barriers
-                null, // No buffer memory barriers
-                prePresentBarrier) // One image memory barrier
-            prePresentBarrier.free()
-
-            err = vkEndCommandBuffer(renderCommandBuffers[i])
-            if (err != VK_SUCCESS) {
-                throw AssertionError("Failed to begin render command buffer: " + VU.translate(err))
-            }
+            this
         }
-        renderPassBeginInfo.free()
-        clearValues.free()
-        cmdBufInfo.free()
-        return renderCommandBuffers
+
+    }
+
+
+    private fun createPresentCommandBuffer(device: VkDevice, commandPool: Long, targetName: String): VkCommandBuffer {
+        val target = rendertargets[targetName]!!
+
+        val clearValues = VkClearValue.calloc(target.colorAttachmentCount() + target.depthAttachmentCount())
+
+        target.attachments.values.forEachIndexed { i, att ->
+            clearValues.put(i, when (att.type) {
+                VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> {
+                    VkClearValue.calloc().color(VkClearColorValue.calloc().float32(BufferUtils.allocateFloatAndPut(floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f))))
+                }
+                VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> {
+                    VkClearValue.calloc().depthStencil(VkClearDepthStencilValue.calloc().depth(1.0f))
+                }
+            })
+        }
+
+        val renderArea = VkRect2D.calloc()
+        renderArea.extent(VkExtent2D.calloc().set(width, height)).offset(VkOffset2D.calloc().set(0, 0))
+
+        val renderPassBegin = VkRenderPassBeginInfo.calloc()
+            .sType(VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO)
+            .pNext(NULL)
+            .renderPass(target.renderPass.get(0))
+            .framebuffer(target.framebuffer.get(0))
+            .renderArea(renderArea)
+            .pClearValues(clearValues)
+
+        return with(VU.newCommandBuffer(device, commandPool, autostart = false)) {
+
+            vkCmdBeginRenderPass(this, renderPassBegin, VK_SUBPASS_CONTENTS_INLINE)
+
+            val viewport = VkViewport.calloc(1)
+            viewport[0].set(0.0f, 0.0f, width.toFloat(), height.toFloat(), 0.0f, 1.0f)
+            val scissor = VkRect2D.calloc(1).extent(VkExtent2D.calloc().set(width, height))
+
+            vkCmdSetViewport(this, 0, viewport)
+            vkCmdSetScissor(this, 0, scissor)
+
+//            vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 0, descriptorSets, null)
+//            vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_GRAPHICS, layout)
+//
+//            vkCmdBindVertexBuffers(this, vertexBindId, buffers, null)
+//            vkCmdBindIndexBuffer(this, indexBuffer, offset, VK_INDEX_TYPE_UINT32)
+//            vkCmdDrawIndexed(this, indexCount, instanceCount, 0, 0, 1)
+
+            vkCmdEndRenderPass(this)
+
+            this.endCommandBuffer(device, commandPool, null, flush = false, dealloc = false)
+
+            this
+        }
+    }
+
+    private fun createPostprocessRenderCommandBuffer(device: VkDevice, commandPool: Long, targetName: String): VkCommandBuffer {
+        return VU.newCommandBuffer(device, commandPool)
     }
 
     private fun updateUbo(device: VkDevice, ubo: UboDescriptor, angle: Float) {

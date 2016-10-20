@@ -2,6 +2,7 @@ package scenery.backends.vulkan
 
 import org.lwjgl.PointerBuffer
 import org.lwjgl.system.MemoryUtil
+import org.lwjgl.system.MemoryUtil.NULL
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.EXTDebugReport.VK_ERROR_VALIDATION_FAILED_EXT
 import org.lwjgl.vulkan.KHRDisplaySwapchain.VK_ERROR_INCOMPATIBLE_DISPLAY_KHR
@@ -12,6 +13,31 @@ import org.lwjgl.vulkan.KHRSwapchain.VK_SUBOPTIMAL_KHR
 import org.lwjgl.vulkan.VK10.*
 import org.slf4j.LoggerFactory
 import java.nio.LongBuffer
+
+fun VkCommandBuffer.endCommandBuffer(device: VkDevice, commandPool: Long, queue: VkQueue?, flush: Boolean = true, dealloc: Boolean = false) {
+    if (this.address() === MemoryUtil.NULL) {
+        return
+    }
+
+    if(vkEndCommandBuffer(this) != VK_SUCCESS) {
+        throw AssertionError("Failed to end command buffer $this")
+    }
+
+    if(flush && queue != null) {
+        scenery.backends.vulkan.VU.run(MemoryUtil.memAllocPointer(1).put(this).flip(), "endCommandBuffer") {
+            val submitInfo = VkSubmitInfo.calloc(1)
+                .sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
+                .pCommandBuffers(this)
+
+            vkQueueSubmit(queue, submitInfo, VK_NULL_HANDLE)
+            vkQueueWaitIdle(queue)
+        }
+    }
+
+    if(dealloc) {
+        vkFreeCommandBuffers(device, commandPool, this)
+    }
+}
 
 class VU {
 
@@ -192,6 +218,48 @@ class VU {
 
             setImageLayout(commandBuffer, image, aspectMask, oldImageLayout, newImageLayout, range)
         }
+
+        fun createDeviceQueue(device: VkDevice, queueFamilyIndex: Int): VkQueue {
+            val pQueue = MemoryUtil.memAllocPointer(1)
+            vkGetDeviceQueue(device, queueFamilyIndex, 0, pQueue)
+            val queue = pQueue.get(0)
+            MemoryUtil.memFree(pQueue)
+            return VkQueue(queue, device)
+        }
+
+        fun newCommandBuffer(device: VkDevice, commandPool: Long, level: Int = VK_COMMAND_BUFFER_LEVEL_PRIMARY): VkCommandBuffer {
+            val cmdBufAllocateInfo = VkCommandBufferAllocateInfo.calloc()
+                .sType(VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO)
+                .commandPool(commandPool)
+                .level(level)
+                .commandBufferCount(1)
+
+            val pCommandBuffer = MemoryUtil.memAllocPointer(1)
+            val err = vkAllocateCommandBuffers(device, cmdBufAllocateInfo, pCommandBuffer)
+            cmdBufAllocateInfo.free()
+            val commandBuffer = pCommandBuffer.get(0)
+            MemoryUtil.memFree(pCommandBuffer)
+            if (err != VK_SUCCESS) {
+                throw AssertionError("Failed to allocate command buffer: " + scenery.backends.vulkan.VU.translate(err))
+            }
+            return VkCommandBuffer(commandBuffer, device)
+        }
+
+        fun newCommandBuffer(device: VkDevice, commandPool: Long, level: Int = VK_COMMAND_BUFFER_LEVEL_PRIMARY, autostart: Boolean = false): VkCommandBuffer {
+            val cmdBuf = newCommandBuffer(device, commandPool, level)
+
+            if(autostart) {
+                val cmdBufInfo = VkCommandBufferBeginInfo.calloc()
+                    .sType(VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO)
+                    .pNext(MemoryUtil.NULL)
+
+                vkBeginCommandBuffer(cmdBuf, cmdBufInfo)
+            }
+
+            return cmdBuf
+        }
+
+
     }
 
 
