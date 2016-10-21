@@ -38,8 +38,8 @@ renderpasses:
   PostprocessHDR:
     type: quad
     shaders:
-      - "coloredRotatingTriangle.vert.spv"
-      - "coloredRotatingTriangle.frag.spv"
+      - "Dummy.vert.spv"
+      - "HDR.frag.spv"
     inputs:
       - HDR
     output: Viewport
