@@ -426,5 +426,9 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
     fun colorAttachmentCount() = attachments.count { it.value.type == VulkanFramebufferType.COLOR_ATTACHMENT }
 
     fun depthAttachmentCount() = attachments.count { it.value.type == VulkanFramebufferType.DEPTH_ATTACHMENT }
+
+    fun destroy() {
+        vkDestroyFramebuffer(device, this.framebuffer.get(0), null)
+    }
 }
 

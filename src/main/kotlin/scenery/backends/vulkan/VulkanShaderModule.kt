@@ -20,7 +20,7 @@ class VulkanShaderModule(device: VkDevice, entryPoint: String, shaderCodePath: S
     var device: VkDevice
 
     init {
-        logger.debug("Creating VulkanShaderModule $entryPoint, $shaderCodePath")
+        logger.info("Creating VulkanShaderModule $entryPoint, $shaderCodePath")
 
         this.device = device
         val code = BufferUtils.allocateByteAndPut(this.javaClass.getResource(shaderCodePath).readBytes())
@@ -40,6 +40,7 @@ class VulkanShaderModule(device: VkDevice, entryPoint: String, shaderCodePath: S
             .stage(getStageFromFilename(shaderCodePath))
             .module(this.shaderModule)
             .pName(memUTF8(entryPoint))
+            .pNext(NULL)
     }
 
     protected fun getStageFromFilename(shaderCodePath: String): Int {

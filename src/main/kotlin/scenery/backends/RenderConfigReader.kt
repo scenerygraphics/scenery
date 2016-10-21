@@ -23,7 +23,7 @@ class RenderConfigReader {
         }
     }
 
-    data class RenderConfig(var name: String, var description: String?, var rendertargets: Map<String, Map<String, AttachmentConfig>>, var renderpasses: Map<String, RenderpassConfig>)
+    data class RenderConfig(var name: String, var description: String?, var rendertargets: Map<String, Map<String, AttachmentConfig>>?, var renderpasses: Map<String, RenderpassConfig>)
 
     data class AttachmentConfig(@JsonDeserialize(using = FloatPairDeserializer::class) var size: Pair<Float, Float>, var format: TargetFormat)
 
