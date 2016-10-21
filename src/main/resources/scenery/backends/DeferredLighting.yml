@@ -24,20 +24,22 @@ renderpasses:
   Scene:
     type: geometry
     shaders:
-      - "DefaultDeferred.vert"
-      - "DefaultDeferred.frag"
+      - "DefaultDeferred.vert.spv"
+      - "DefaultDeferred.frag.spv"
     output: GeometryBuffer
   DeferredLighting:
     type: quad
     shaders:
-      - "DeferredLighting.frag"
+      - "Dummy.vert.spv"
+      - "DeferredLighting.frag.spv"
     inputs:
       - GeometryBuffer
     output: HDR
   PostprocessHDR:
     type: quad
     shaders:
-      - "HDR.frag"
+      - "coloredRotatingTriangle.vert.spv"
+      - "coloredRotatingTriangle.frag.spv"
     inputs:
       - HDR
     output: Viewport

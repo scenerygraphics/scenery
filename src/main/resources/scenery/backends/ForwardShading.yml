@@ -7,6 +7,6 @@ renderpasses:
   Scene:
     type: geometry
     shaders:
-      - "DefaultDeferred.vert"
-      - "DefaultDeferred.frag"
+      - "Default.vert.spv"
+      - "Default.frag.spv"
     output: Viewport
