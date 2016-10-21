@@ -119,15 +119,34 @@ dependencies
 
     // LWJGL for Vulkan support
     compile "org.lwjgl:lwjgl:$lwjgl_version"
-    compile "org.lwjgl:lwjgl-vulkan:$lwjgl_version"
+    compile "org.lwjgl:lwjgl:$lwjgl_version:natives-windows"
+    compile "org.lwjgl:lwjgl:$lwjgl_version:natives-linux"
+    compile "org.lwjgl:lwjgl:$lwjgl_version:natives-macos"
     compile "org.lwjgl:lwjgl-glfw:$lwjgl_version"
+    compile "org.lwjgl:lwjgl-glfw:$lwjgl_version:natives-windows"
+    compile "org.lwjgl:lwjgl-glfw:$lwjgl_version:natives-linux"
+    compile "org.lwjgl:lwjgl-glfw:$lwjgl_version:natives-macos"
     compile "org.lwjgl:lwjgl-jemalloc:$lwjgl_version"
     compile "org.lwjgl:lwjgl-jemalloc:$lwjgl_version:natives-windows"
     compile "org.lwjgl:lwjgl-jemalloc:$lwjgl_version:natives-linux"
     compile "org.lwjgl:lwjgl-jemalloc:$lwjgl_version:natives-macos"
-    compile "org.lwjgl:lwjgl-platform:$lwjgl_version:natives-windows"
-    compile "org.lwjgl:lwjgl-platform:$lwjgl_version:natives-linux"
-    compile "org.lwjgl:lwjgl-platform:$lwjgl_version:natives-osx"
+    compile "org.lwjgl:lwjgl-openal:$lwjgl_version"
+    compile "org.lwjgl:lwjgl-openal:$lwjgl_version:natives-windows"
+    compile "org.lwjgl:lwjgl-openal:$lwjgl_version:natives-linux"
+    compile "org.lwjgl:lwjgl-openal:$lwjgl_version:natives-macos"
+    compile "org.lwjgl:lwjgl-opencl:$lwjgl_version"
+    compile "org.lwjgl:lwjgl-opengl:$lwjgl_version"
+    compile "org.lwjgl:lwjgl-sse:$lwjgl_version"
+    compile "org.lwjgl:lwjgl-sse:$lwjgl_version:natives-windows"
+    compile "org.lwjgl:lwjgl-sse:$lwjgl_version:natives-linux"
+    compile "org.lwjgl:lwjgl-sse:$lwjgl_version:natives-macos"
+    compile "org.lwjgl:lwjgl-vulkan:$lwjgl_version"
+
+    // fasterxml
+    compile "com.fasterxml.jackson.core:jackson-databind:2.8.4"
+    compile "com.fasterxml.jackson.module:jackson-module-kotlin:2.8.4"
+    compile "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.8.4"
+    compile "org.yaml:snakeyaml:1.15"
 
     // usage: gradle .... -Plocal=true
 	if (project.hasProperty('local')) {
