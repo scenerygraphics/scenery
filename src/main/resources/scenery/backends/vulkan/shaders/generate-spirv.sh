@@ -13,7 +13,7 @@ done
 
 files=`eval "$LS_CMD"`
 for i in $files; do
-	echo "# $i GLSL -> SPIR-V"
+	echo -n "# $i GLSL -> SPIR-V"
 	glslangValidator -V $i -o $i.spv | $POST_CMD
-	echo "# done"
+	echo -e "\e[92m ✓ \e[39m"
 done;
