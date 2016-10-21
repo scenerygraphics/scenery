@@ -2,6 +2,8 @@ package scenery.compute
 
 import org.jocl.*
 import org.jocl.CL.*
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import scenery.Hub
 import scenery.Hubable
 import scenery.SceneryElement
@@ -20,6 +22,8 @@ import java.util.concurrent.ConcurrentHashMap
  */
 
 class OpenCLContext(override var hub: Hub?, val devicePreference: String = "0,0") : Hubable {
+    protected var logger: Logger = LoggerFactory.getLogger("OpenCLContext")
+
     var device: cl_device_id
     var kernels = ConcurrentHashMap<String, cl_kernel>()
     var context: cl_context
@@ -52,7 +56,7 @@ class OpenCLContext(override var hub: Hub?, val devicePreference: String = "0,0"
         }, { cl_device_id() })
         device = devices[deviceIndex];
 
-		System.err.println("${getString(device, CL_DEVICE_NAME)} running ${getString(device, CL_DEVICE_VERSION)}")
+		logger.info("Selected device: ${getString(device, CL_DEVICE_NAME)} running ${getString(device, CL_DEVICE_VERSION)}")
 
         // Create a context for the selected device
         context = clCreateContext(
@@ -116,7 +120,7 @@ class OpenCLContext(override var hub: Hub?, val devicePreference: String = "0,0"
                 if(obj.javaClass.canonicalName.contains("DirectByteBuffer") || obj.javaClass.canonicalName.contains("HeapByteBuffer")) {
                     1
                 } else {
-                    System.err.println("Unrecognized class ${obj.javaClass.canonicalName}, returning 1 byte as size")
+                    logger.error("Unrecognized class ${obj.javaClass.canonicalName}, returning 1 byte as size")
                     1
                 }
             }
