@@ -7,7 +7,7 @@ in VertexData {
     vec3 FragPosition;
 } VertexIn;
 
-layout( location = 0) out vec4 FragColor;
+layout( location = 0 ) out vec4 FragColor;
 
 vec3 LightIntensity = vec3(0.8);
 float Absorption = 0.5;
@@ -38,8 +38,11 @@ struct MaterialInfo {
 };
 
 layout(binding = 1) uniform MaterialProperties {
-    LightInfo Light;
     MaterialInfo Material;
+};
+
+layout(binding = 2) uniform LightProperties {
+    LightInfo Light;
 };
 
 vec4 BlinnPhong(vec3 FragPos, vec3 viewPos, vec3 Normal) {

@@ -14,6 +14,12 @@ import org.lwjgl.vulkan.VK10.*
 import org.slf4j.LoggerFactory
 import java.nio.LongBuffer
 
+fun VkCommandBuffer.endCommandBuffer() {
+    if(vkEndCommandBuffer(this) != VK_SUCCESS) {
+        throw AssertionError("Failed to end command buffer $this")
+    }
+}
+
 fun VkCommandBuffer.endCommandBuffer(device: VkDevice, commandPool: Long, queue: VkQueue?, flush: Boolean = true, dealloc: Boolean = false) {
     if (this.address() === MemoryUtil.NULL) {
         return
@@ -251,6 +257,7 @@ class VU {
             if(autostart) {
                 val cmdBufInfo = VkCommandBufferBeginInfo.calloc()
                     .sType(VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO)
+                    .flags(VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT)
                     .pNext(MemoryUtil.NULL)
 
                 vkBeginCommandBuffer(cmdBuf, cmdBufInfo)

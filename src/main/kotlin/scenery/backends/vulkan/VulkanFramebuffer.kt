@@ -44,8 +44,8 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
         var memory: LongBuffer = memAllocLong(1)
         var imageView: LongBuffer = memAllocLong(1)
         var format: Int = 0
-        var type: VulkanFramebufferType = VulkanFramebufferType.COLOR_ATTACHMENT
 
+        var type: VulkanFramebufferType = VulkanFramebufferType.COLOR_ATTACHMENT
         var desc: VkAttachmentDescription = VkAttachmentDescription.calloc()
     }
 
@@ -244,6 +244,28 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
         return this
     }
 
+    fun addSwapchainAttachment(name: String, swapchain: VulkanRenderer.Swapchain, index: Int): VulkanFramebuffer {
+        val att = VulkanFramebufferAttachment()
+
+        att.image = swapchain.images!!.get(index)
+        att.imageView.put(swapchain.imageViews!!.get(index))
+        att.type = VulkanFramebufferType.COLOR_ATTACHMENT
+
+        att.desc
+            .samples(VK_SAMPLE_COUNT_1_BIT)
+            .loadOp(VK_ATTACHMENT_LOAD_OP_CLEAR)
+            .storeOp(VK_ATTACHMENT_STORE_OP_STORE)
+            .stencilLoadOp(VK_ATTACHMENT_LOAD_OP_DONT_CARE)
+            .stencilStoreOp(VK_ATTACHMENT_STORE_OP_DONT_CARE)
+            .initialLayout(VK_IMAGE_LAYOUT_UNDEFINED)
+            .finalLayout(KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
+            .format(VK_FORMAT_B8G8R8A8_UNORM)
+
+        attachments.put(name, att)
+
+        return this
+    }
+
     fun checkDrawBuffers(): Boolean {
         return true
     }
@@ -283,7 +305,7 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
     fun createRenderpassAndFramebuffer() {
         val colorDescs = VkAttachmentReference.calloc(attachments.filter { it.value.type == VulkanFramebufferType.COLOR_ATTACHMENT }.size)
 
-        attachments.filter { it.value.type == VulkanFramebufferType.COLOR_ATTACHMENT }.values.forEachIndexed { i, att ->
+        attachments.values.filter { it.type == VulkanFramebufferType.COLOR_ATTACHMENT }.forEachIndexed { i, att ->
             colorDescs[i]
                 .attachment(i)
                 .layout(VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
@@ -297,12 +319,28 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
             null
         }
 
+
+        logger.info("Subpass for has ${colorDescs.remaining()} color attachments")
+
         val subpass = VkSubpassDescription.calloc(1)
             .pColorAttachments(colorDescs)
+            .colorAttachmentCount(colorDescs.remaining())
             .pDepthStencilAttachment(depthDescs)
+            .pipelineBindPoint(VK_PIPELINE_BIND_POINT_GRAPHICS)
+            .pInputAttachments(null)
+            .pPreserveAttachments(null)
+            .pResolveAttachments(null)
+            .flags(0)
 
         val dependencyChain = VkSubpassDependency.calloc(2)
-        dependencyChain[0].srcSubpass(VK_SUBPASS_EXTERNAL)
+            /*.srcSubpass(VK_SUBPASS_EXTERNAL)
+            .srcStageMask(VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT)
+            .srcAccessMask(VK_ACCESS_MEMORY_READ_BIT)
+            .dstStageMask(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
+            .dstAccessMask(VK_ACCESS_COLOR_ATTACHMENT_READ_BIT or VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)*/
+
+        dependencyChain[0]
+            .srcSubpass(VK_SUBPASS_EXTERNAL)
             .dstSubpass(0)
             .srcStageMask(VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT)
             .dstStageMask(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
@@ -310,7 +348,8 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
             .dstAccessMask(VK_ACCESS_COLOR_ATTACHMENT_READ_BIT or VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
             .dependencyFlags(VK_DEPENDENCY_BY_REGION_BIT)
 
-        dependencyChain[1].srcSubpass(0)
+        dependencyChain[1]
+            .srcSubpass(0)
             .dstSubpass(VK_SUBPASS_EXTERNAL)
             .srcStageMask(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
             .dstStageMask(VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT)
@@ -323,8 +362,12 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
             .pAttachments(getAttachmentDescBuffer())
             .pSubpasses(subpass)
             .pDependencies(dependencyChain)
+            .pNext(NULL)
 
-        vkCreateRenderPass(device, renderPassInfo, null, renderPass)
+        renderPass.put(0, VU.run(memAllocLong(1), "create renderpass")
+            { vkCreateRenderPass(device, renderPassInfo, null, this) })
+
+        logger.info("Created renderpass ${renderPass.get(0)}")
 
         val fbinfo = VkFramebufferCreateInfo.calloc()
             .default()
@@ -334,7 +377,8 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
             .height(height)
             .layers(1)
 
-        vkCreateFramebuffer(device, fbinfo, null, framebuffer)
+        framebuffer.put(0, VU.run(memAllocLong(1), "create framebuffer")
+            { vkCreateFramebuffer(device, fbinfo, null, this) })
 
         val sampler = VkSamplerCreateInfo.calloc()
             .default()
