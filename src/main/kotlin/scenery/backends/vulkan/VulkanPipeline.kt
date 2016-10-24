@@ -11,7 +11,7 @@ import java.util.*
 /**
  * Created by ulrik on 9/28/2016.
  */
-class VulkanPipeline(val device: VkDevice, val descriptorPool: Long, val pipelineCache: Long? = null) {
+class VulkanPipeline(val device: VkDevice, val descriptorPool: Long, val pipelineCache: Long? = null, val buffers: HashMap<String, VulkanRenderer.VulkanBuffer>) {
     protected var logger: Logger = LoggerFactory.getLogger("VulkanRenderer")
 
     var pipeline = VulkanRenderer.Pipeline()
@@ -98,12 +98,13 @@ class VulkanPipeline(val device: VkDevice, val descriptorPool: Long, val pipelin
     }
 
     fun createDescriptorSetLayout(device: VkDevice, descriptorNum: Int = 1, descriptorCount: Int = 1): Long {
+        logger.info("Creating DSL for $descriptorNum descriptors")
         // One binding for a UBO used in a vertex shader
-        val layoutBinding = VkDescriptorSetLayoutBinding.calloc(descriptorNum+1)
-        (0..descriptorNum).forEach { i ->
+        val layoutBinding = VkDescriptorSetLayoutBinding.calloc(descriptorNum)
+        (0..descriptorNum-1).forEach { i ->
             layoutBinding[i]
                 .binding(i) // <- Binding 0 : Uniform buffer (Vertex shader)
-                .descriptorType(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+                .descriptorType(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC)
                 .descriptorCount(descriptorCount)
                 .stageFlags(VK_SHADER_STAGE_ALL)
                 .pImmutableSamplers(null)
@@ -133,7 +134,7 @@ class VulkanPipeline(val device: VkDevice, val descriptorPool: Long, val pipelin
 
     fun createDescriptorSet(device: VkDevice, descriptorPool: Long, descriptorSetLayout: Long,
                             descriptor: VulkanRenderer.UBODescriptor, binding: Int = 0,
-                            type: Int = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER): Long {
+                            type: Int = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC): Long {
         val pDescriptorSetLayout = memAllocLong(1)
         pDescriptorSetLayout.put(0, descriptorSetLayout)
 
@@ -151,14 +152,15 @@ class VulkanPipeline(val device: VkDevice, val descriptorPool: Long, val pipelin
         // For every binding point used in a shader there needs to be one
         // descriptor set matching that binding point
         val d = VkDescriptorBufferInfo.calloc(1)
-            .buffer(descriptor.buffer)
-            .range(descriptor.range)
-            .offset(descriptor.offset)
+            .buffer(buffers["UBOBuffer"]!!.buffer)
+            .range(2048)
+            .offset(0L)
 
         // Binding 0 : Uniform buffer
         val writeDescriptorSet = VkWriteDescriptorSet.calloc(1)
             .sType(VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET)
             .pNext(NULL)
+            .descriptorType(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC)
             .dstSet(descriptorSet)
             .descriptorType(type)
             .pBufferInfo(d)
@@ -183,9 +185,10 @@ class VulkanPipeline(val device: VkDevice, val descriptorPool: Long, val pipelin
         this.UBOs.forEachIndexed { i, ubo ->
             logger.info("UBO of ${ubo.name} has ${ubo.members.count()} members, binding to $i")
 
-            this.descriptorSets.put("default",
+            logger.info("Adding descriptor set for ${ubo.name}, binding=$i")
+            this.descriptorSets.put(ubo.name,
                 createDescriptorSet(device, descriptorPool,
-                    descriptorSetLayout, ubo.descriptor, binding = i))
+                    descriptorSetLayout, ubo.descriptor!!, binding = i))
 
             pDescriptorSetLayout.put(i, descriptorSetLayout)
         }
