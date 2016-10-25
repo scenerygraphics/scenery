@@ -19,7 +19,7 @@ layout(binding = 0) uniform Matrices {
 	mat4 MVP;
 	vec3 CamPosition;
 	int isBillboard;
-};
+} ubo;
 
 float PI = 3.14159265358979323846264;
 
@@ -79,5 +79,5 @@ vec4 BlinnPhong(vec3 FragPos, vec3 viewPos, vec3 Normal) {
 }
 
 void main() {
-    FragColor = BlinnPhong(VertexIn.FragPosition, CamPosition, VertexIn.Normal);
+    FragColor = BlinnPhong(VertexIn.FragPosition, ubo.CamPosition, VertexIn.Normal);
 }

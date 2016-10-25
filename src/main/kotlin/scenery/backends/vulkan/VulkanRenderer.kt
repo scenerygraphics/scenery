@@ -69,26 +69,26 @@ class VulkanRenderer : Renderer {
     var instance: VkInstance
     var debugCallback = object : VkDebugReportCallbackEXT() {
         override operator fun invoke(flags: Int, objectType: Int, obj: Long, location: Long, messageCode: Int, pLayerPrefix: Long, pMessage: Long, pUserData: Long): Int {
-            var type = if(flags and VK_DEBUG_REPORT_ERROR_BIT_EXT == 0) {
+            var type = if (flags and VK_DEBUG_REPORT_ERROR_BIT_EXT == 0) {
                 "error"
-            } else if(flags and VK_DEBUG_REPORT_WARNING_BIT_EXT == 0) {
+            } else if (flags and VK_DEBUG_REPORT_WARNING_BIT_EXT == 0) {
                 "warning"
-            } else if(flags and VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT == 0) {
+            } else if (flags and VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT == 0) {
                 "performance warning"
-            } else if(flags and VK_DEBUG_REPORT_INFORMATION_BIT_EXT == 0) {
+            } else if (flags and VK_DEBUG_REPORT_INFORMATION_BIT_EXT == 0) {
                 "information"
             } else {
                 "(unknown message type)"
             }
 
-            if(flags and VK_DEBUG_REPORT_DEBUG_BIT_EXT == 1) {
+            if (flags and VK_DEBUG_REPORT_DEBUG_BIT_EXT == 1) {
                 type + " (debug)"
             }
 
             logger.info("Validation $type: " + VkDebugReportCallbackEXT.getString(pMessage))
 
             // returning VK_TRUE would lead to the abortion of the causing Vulkan call
-            return if(System.getProperty("scenery.VulkanRenderer.StrictValidation", "false").toBoolean()) {
+            return if (System.getProperty("scenery.VulkanRenderer.StrictValidation", "false").toBoolean()) {
                 VK_TRUE
             } else {
                 VK_FALSE
@@ -150,9 +150,9 @@ class VulkanRenderer : Renderer {
     var semaphores = ConcurrentHashMap<StandardSemaphores, Long>()
 
     data class VertexDescription(
-       var state: VkPipelineVertexInputStateCreateInfo,
-       var attributeDescription: VkVertexInputAttributeDescription.Buffer,
-       var bindingDescription: VkVertexInputBindingDescription.Buffer
+        var state: VkPipelineVertexInputStateCreateInfo,
+        var attributeDescription: VkVertexInputAttributeDescription.Buffer,
+        var bindingDescription: VkVertexInputBindingDescription.Buffer
     )
 
     data class CommandPools(
@@ -161,13 +161,49 @@ class VulkanRenderer : Renderer {
         var Compute: Long = -1L
     )
 
-    class VulkanBuffer(var memory: Long = -1L, var buffer: Long = -1L) {
+    class VulkanBuffer(val device: VkDevice, var memory: Long = -1L, var buffer: Long = -1L, var data: Long = -1L) {
         private var currentPosition = 0L
-        protected val maxSize = 512*2048
+        private var currentPointer: PointerBuffer? = null
+        var maxSize: Long = 512 * 2048L
+        var alignment: Long = 256
 
         fun getPointerBuffer(size: Int): ByteBuffer {
-            currentPosition += size*1L
-            return memByteBuffer(memory + currentPosition, size)
+            if (currentPointer == null) {
+                this.map()
+            }
+
+            val buffer = memByteBuffer(currentPointer!!.get(0) + currentPosition, size)
+            currentPosition += size * 1L
+
+            return buffer
+        }
+
+        fun getCurrentOffset(): Int {
+            if (currentPosition % alignment != 0L) {
+                val oldPos = currentPosition
+                currentPosition += alignment - (currentPosition % alignment)
+            }
+            return currentPosition.toInt()
+        }
+
+        fun reset() {
+            currentPosition = 0L
+        }
+
+        fun copy(data: ByteBuffer) {
+            val dest = memAllocPointer(1)
+            vkMapMemory(device, memory, 0, maxSize * 1L, 0, dest)
+            memCopy(memAddress(data), dest.get(0), data.remaining())
+            vkUnmapMemory(device, memory)
+            memFree(dest)
+        }
+
+        fun map(): PointerBuffer {
+            val dest = memAllocPointer(1)
+            vkMapMemory(device, memory, 0, maxSize * 1L, 0, dest)
+
+            currentPointer = dest
+            return dest
         }
     }
 
@@ -210,19 +246,25 @@ class VulkanRenderer : Renderer {
         var name = ""
         var members = LinkedHashMap<String, Any>()
         var descriptor: UBODescriptor? = null
+        var offsets: IntBuffer? = null
 
-        fun getSize() =
-            members.map {
-                when(it.value.javaClass) {
+        fun getSize(): Int {
+            val sizes = members.map {
+                when (it.value.javaClass) {
                     GLMatrix::class.java -> (it.value as GLMatrix).floatArray.size * 4
                     GLVector::class.java -> (it.value as GLVector).toFloatArray().size * 4
                     Float::class.java -> 4
+                    Double::class.java -> 8
                     Int::class.java -> 4
+                    Integer::class.java -> 4
                     Short::class.java -> 2
                     Boolean::class.java -> 4
                     else -> 0
                 }
-            }.sum()
+            }
+
+            return sizes.sum()
+        }
     }
 
     inner class SwapchainRecreator {
@@ -247,6 +289,15 @@ class VulkanRenderer : Renderer {
                 this
             }
 
+            val pipelineCacheInfo = VkPipelineCacheCreateInfo.calloc()
+                .sType(VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO)
+                .pNext(NULL)
+                .flags(VK_FLAGS_NONE)
+
+            pipelineCache = VU.run(memAllocLong(1), "create pipeline cache") {
+                vkCreatePipelineCache(device, pipelineCacheInfo, null, this)
+            }
+
             // destroy and recreate all framebuffers
             rendertargets.values.forEach { rt -> rt.destroy() }
             rendertargets.clear()
@@ -256,15 +307,6 @@ class VulkanRenderer : Renderer {
             renderPipelines = prepareDefaultPipelines(device)
 
             semaphores = prepareStandardSemaphores(device)
-
-            val pipelineCacheInfo = VkPipelineCacheCreateInfo.calloc()
-                .sType(VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO)
-                .pNext(NULL)
-                .flags(VK_FLAGS_NONE)
-
-            pipelineCache = VU.run(memAllocLong(1), "create pipeline cache") {
-                vkCreatePipelineCache(device, pipelineCacheInfo, null, this)
-            }
 
             // Create render command buffers
             if (renderCommandBuffers != null) {
@@ -317,10 +359,37 @@ class VulkanRenderer : Renderer {
         window = glfwCreateWindow(windowWidth, windowHeight, "scenery", NULL, NULL)
         val keyCallback: GLFWKeyCallback = object : GLFWKeyCallback() {
             override operator fun invoke(window: Long, key: Int, scancode: Int, action: Int, mods: Int) {
-                if (action != GLFW_RELEASE)
+                val cam = scene.findObserver()
+                var direction = ""
+                val speed = 0.1f
+
+                glfwSetWindowTitle(window, "scenery - $frames")
+
+                if (action != GLFW_RELEASE) {
                     return
-                if (key == GLFW_KEY_ESCAPE)
+                }
+                if (key == GLFW_KEY_ESCAPE) {
                     glfwSetWindowShouldClose(window, true)
+                } else if(key == GLFW_KEY_W) {
+                    direction = "forward"
+                } else if(key == GLFW_KEY_S) {
+                    direction = "back"
+                } else if(key == GLFW_KEY_A) {
+                    direction = "left"
+                } else if(key == GLFW_KEY_D) {
+                    direction = "right"
+                }
+
+                logger.info("Moving $cam $direction")
+                when (direction) {
+                    "forward" -> cam.position = cam.position + cam.forward * speed
+                    "back" -> cam.position = cam.position - cam.forward * speed
+                    "left" -> cam.position = cam.position - cam.forward.cross(cam.up).normalized * speed
+                    "right" -> cam.position = cam.position + cam.forward.cross(cam.up).normalized * speed
+                    "up" -> cam.position = cam.position + cam.up * speed
+                    "down" -> cam.position = cam.position + cam.up * -1.0f * speed
+                }
+
             }
         }
 
@@ -454,7 +523,7 @@ class VulkanRenderer : Renderer {
                 logger.info("Initializing object '${node.name}'")
                 node.metadata.put("VulkanRenderer", VulkanObjectState())
 
-                if(node is FontBoard) {
+                if (node is FontBoard) {
                     updateFontBoard(node)
                 }
 
@@ -477,7 +546,7 @@ class VulkanRenderer : Renderer {
         board.metadata.put("VulkanRenderer", VulkanObjectState())
     }
 
-    fun createBuffer(usage: Int, memoryProperties: Int, data: ByteBuffer?, wantAligned: Boolean = false, allocationSize: Long = 0): Pair<Long, Long> {
+    fun createBuffer(usage: Int, memoryProperties: Int, wantAligned: Boolean = false, allocationSize: Long = 0): VulkanBuffer {
         val buffer = memAllocLong(1)
         val memory = memAllocLong(1)
         val memTypeIndex = memAllocInt(1)
@@ -501,8 +570,8 @@ class VulkanRenderer : Renderer {
             memoryProperties,
             memTypeIndex)
 
-        val size = if(wantAligned) {
-            if(reqs.size() % reqs.alignment() == 0L) {
+        val size = if (wantAligned) {
+            if (reqs.size() % reqs.alignment() == 0L) {
                 reqs.size()
             } else {
                 reqs.size() + reqs.alignment() - (reqs.size() % reqs.alignment())
@@ -515,24 +584,17 @@ class VulkanRenderer : Renderer {
             .memoryTypeIndex(memTypeIndex.get(0))
 
         vkAllocateMemory(this.device, allocInfo, null, memory)
-
-        data?.let {
-            val dest = memAllocPointer(1)
-
-            vkMapMemory(this.device, memory.get(0), 0, allocInfo.allocationSize(), 0, dest)
-            memCopy(memAddress(data), dest.get(0), data.remaining())
-            vkUnmapMemory(this.device, memory.get(0))
-
-            memFree(dest)
-        }
-
         vkBindBufferMemory(this.device, buffer.get(0), memory.get(0), 0)
+
+        val vb = VulkanBuffer(device, memory = memory.get(0), buffer = buffer.get(0))
+        vb.maxSize = size
+        vb.alignment = reqs.alignment()
 
         reqs.free()
         allocInfo.free()
         memFree(memTypeIndex)
 
-        return Pair(buffer.get(0), memory.get(0))
+        return vb
     }
 
     /**
@@ -543,9 +605,9 @@ class VulkanRenderer : Renderer {
 
         s = node.metadata["VulkanRenderer"] as VulkanObjectState
 
-        if(s.initialized) return true
+        if (s.initialized) return true
 
-        val stride = if((node as HasGeometry).texcoords.remaining() > 0) {
+        val stride = if ((node as HasGeometry).texcoords.remaining() > 0) {
             s.attributeDescriptions = VkVertexInputAttributeDescription.calloc(2)
             3 + 3
         } else {
@@ -574,7 +636,7 @@ class VulkanRenderer : Renderer {
             .offset(3 * 4)
 
         // texture coordinates, if applicable
-        if(stride > 6) {
+        if (stride > 6) {
             s.attributeDescriptions.get(2)
                 .binding(0)
                 .location(2)
@@ -587,20 +649,20 @@ class VulkanRenderer : Renderer {
             .pVertexBindingDescriptions(s.bindingDescriptions)
             .pVertexAttributeDescriptions(s.attributeDescriptions)
 
-        logger.info("Initializing ${node.name} (${node.vertices.remaining()/node.vertexSize} vertices/${node.indices.remaining()} indices)")
+        logger.info("Initializing ${node.name} (${node.vertices.remaining() / node.vertexSize} vertices/${node.indices.remaining()} indices)")
 
-        if(node.vertices.remaining() > 0) {
+        if (node.vertices.remaining() > 0) {
             s = createVertexBuffers(node, s, memoryProperties, device)
         }
 
         s.UBO = UBO()
         s.UBO?.let {
-            it.members.put("ModelViewMatrix", Node::modelView)
-            it.members.put("ModelMatrix", Node::model)
+            it.members.put("ModelViewMatrix", GLMatrix.getIdentity())
+            it.members.put("ModelMatrix", GLMatrix.getIdentity())
             it.members.put("ProjectionMatrix", GLMatrix.getIdentity())
             it.members.put("MVP", GLMatrix.getIdentity())
             it.members.put("CamPosition", GLVector(0.0f, 0.0f, 0.0f))
-            it.members.put("isBillboard", Node::isBillboard)
+            it.members.put("isBillboard", 0)
 
             sceneUBOs.put(node, it)
         }
@@ -618,7 +680,7 @@ class VulkanRenderer : Renderer {
             var attributeDesc: VkVertexInputAttributeDescription.Buffer
             var stride = 0
 
-            when(kind) {
+            when (kind) {
                 VertexDataKinds.coords_normals -> {
                     stride = 3 + 3
                     attributeDesc = VkVertexInputAttributeDescription.calloc(2)
@@ -686,7 +748,7 @@ class VulkanRenderer : Renderer {
 
         rendertargets.forEach { target ->
             val p = VulkanPipeline(device, descriptorPool, pipelineCache, buffers)
-            val name = if(target.key.startsWith("Viewport")) {
+            val name = if (target.key.startsWith("Viewport")) {
                 "Viewport"
             } else {
                 target.key
@@ -698,7 +760,7 @@ class VulkanRenderer : Renderer {
             p.UBOs.add(standardUBOs["BlinnPhongMaterial"]!!)
             p.UBOs.add(standardUBOs["BlinnPhongLighting"]!!)
 
-            p.addShaderStages(pass.shaders.map { VulkanShaderModule(device, "main", "shaders/" + it)})
+            p.addShaderStages(pass.shaders.map { VulkanShaderModule(device, "main", "shaders/" + it) })
             p.createPipeline(target.value.renderPass.get(0),
                 vertexDescriptors.get(VertexDataKinds.coords_normals_texcoords)!!.state)
 
@@ -778,7 +840,7 @@ class VulkanRenderer : Renderer {
      * @param[scene] The scene to render.
      */
     override fun render(scene: Scene) {
-        if(glfwWindowShouldClose(window)) {
+        if (glfwWindowShouldClose(window)) {
             this.shouldClose = true
             return
         }
@@ -794,14 +856,14 @@ class VulkanRenderer : Renderer {
             swapchainRecreator.recreate()
         }
 
-        if(!scene.initialized) {
+        if (!scene.initialized) {
             return
         }
 
         updateDefaultUBOs(device)
 
         this.rendertargets.forEach { rt ->
-            val name = if(rt.key.startsWith("Viewport")) {
+            val name = if (rt.key.startsWith("Viewport")) {
                 "Viewport"
             } else {
                 rt.key
@@ -828,7 +890,7 @@ class VulkanRenderer : Renderer {
 
         currentBuffer = "Viewport-${pImageIndex.get(0)}".to(pImageIndex.get(0))
 
-        if(err == VK_ERROR_OUT_OF_DATE_KHR || err == VK_SUBOPTIMAL_KHR) {
+        if (err == VK_ERROR_OUT_OF_DATE_KHR || err == VK_SUBOPTIMAL_KHR) {
             swapchainRecreator.mustRecreate = true
         } else if (err != VK_SUCCESS) {
             throw AssertionError("Failed to acquire next swapchain image: " + VU.translate(err))
@@ -889,9 +951,6 @@ class VulkanRenderer : Renderer {
 
 
         frames++
-
-        Thread.sleep(1500)
-
         //submitPostPresentBarrier(swapchain!!.images!![currentBuffer.second], postPresentCommandBuffer, queue)
     }
 
@@ -960,7 +1019,6 @@ class VulkanRenderer : Renderer {
     }
 
 
-
     private fun getPhysicalDevice(instance: VkInstance): VkPhysicalDevice {
         val pPhysicalDeviceCount = memAllocInt(1)
         var err = vkEnumeratePhysicalDevices(instance, pPhysicalDeviceCount, null)
@@ -969,7 +1027,7 @@ class VulkanRenderer : Renderer {
             throw AssertionError("Failed to get number of physical devices: " + VU.translate(err))
         }
 
-        if(pPhysicalDeviceCount.get(0) < 1) {
+        if (pPhysicalDeviceCount.get(0) < 1) {
             throw AssertionError("No Vulkan-compatible devices found!")
         }
 
@@ -977,7 +1035,7 @@ class VulkanRenderer : Renderer {
         err = vkEnumeratePhysicalDevices(instance, pPhysicalDeviceCount, pPhysicalDevices)
 
         logger.info("Physical devices: ")
-        for(i in 0..pPhysicalDeviceCount.get(0)-1) {
+        for (i in 0..pPhysicalDeviceCount.get(0) - 1) {
             val device = VkPhysicalDevice(pPhysicalDevices.get(i), instance)
             val properties: VkPhysicalDeviceProperties = VkPhysicalDeviceProperties.calloc()
 
@@ -1337,14 +1395,17 @@ class VulkanRenderer : Renderer {
     private fun createVertexBuffers(node: Node, state: VulkanObjectState, deviceMemoryProperties: VkPhysicalDeviceMemoryProperties, device: VkDevice): VulkanObjectState {
         val n = node as HasGeometry
 
-        val stridedBuffer = memAlloc((n.vertices.remaining() + n.normals.remaining() + n.texcoords.remaining()) * 4 + n.indices.remaining() * 2)
+        val vertexAllocation = 4*(n.vertices.remaining() + n.normals.remaining() + n.texcoords.remaining())
+        val indexAllocation = 4*n.indices.remaining()
+
+        val stridedBuffer = memAlloc(vertexAllocation + indexAllocation)
 
         val fb = stridedBuffer.asFloatBuffer()
         val ib = stridedBuffer.asIntBuffer()
 
         state.vertexCount = n.vertices.remaining()
 
-        for(index in 0..n.vertices.remaining() - 1 step 3) {
+        for (index in 0..n.vertices.remaining() - 1 step 3) {
             fb.put(n.vertices.get())
             fb.put(n.vertices.get())
             fb.put(n.vertices.get())
@@ -1353,36 +1414,40 @@ class VulkanRenderer : Renderer {
             fb.put(n.normals.get())
             fb.put(n.normals.get())
 
-            if(n.texcoords.remaining() > 0) {
+            if (n.texcoords.remaining() > 0) {
                 fb.put(n.texcoords.get())
                 fb.put(n.texcoords.get())
             }
         }
 
-        if(n.indices.remaining() > 0) {
+        logger.info("Adding ${n.indices.remaining()*4} bytes to strided buffer")
+        if (n.indices.remaining() > 0) {
             state.isIndexed = true
+            ib.position(vertexAllocation/4)
 
-            for(index in 0..n.indices.remaining() - 1) {
+            for (index in 0..n.indices.remaining() - 1) {
                 ib.put(n.indices.get())
             }
         }
+
+        logger.info("Strided buffer is now at ${stridedBuffer.remaining()} bytes")
 
         n.vertices.flip()
         n.normals.flip()
         n.texcoords.flip()
         n.indices.flip()
 
-        val (verticesBufStaging, verticesMemStaging) = createBuffer(
+        val stagingBuffer = createBuffer(
             VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-            stridedBuffer,
             wantAligned = false,
             allocationSize = stridedBuffer.remaining().toLong())
 
-        val (verticesBuf, verticesMem) = createBuffer(
+        stagingBuffer.copy(stridedBuffer)
+
+        val vertexBuffer = createBuffer(
             VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or VK_BUFFER_USAGE_INDEX_BUFFER_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT,
             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-            null,
             wantAligned = false,
             allocationSize = stridedBuffer.remaining().toLong())
 
@@ -1391,11 +1456,11 @@ class VulkanRenderer : Renderer {
                 .size(stridedBuffer.remaining().toLong())
 
             vkCmdCopyBuffer(this,
-                verticesBufStaging,
-                verticesBuf,
+                stagingBuffer.buffer,
+                vertexBuffer.buffer,
                 copyRegion)
 
-            this.endCommandBuffer(device, commandPools.Standard, queue)
+            this.endCommandBuffer(device, commandPools.Standard, queue, flush = true, dealloc = true)
         }
 
         // Assign to vertex buffer
@@ -1405,12 +1470,13 @@ class VulkanRenderer : Renderer {
         vi.pVertexBindingDescriptions(state.bindingDescriptions)
         vi.pVertexAttributeDescriptions(state.attributeDescriptions)
 
-        state.vertexBuffers.put("vertex+index", verticesBuf)
-        state.indexOffset = stridedBuffer.capacity() - n.indices.remaining() * 2
+        state.vertexBuffers.put("vertex+index", vertexBuffer)
+        state.indexOffset = vertexAllocation
+        state.indexCount = n.indices.remaining()
         state.createInfo = vi
 
-        vkDestroyBuffer(device, verticesBufStaging, null)
-        vkFreeMemory(device, verticesMemStaging, null)
+        vkDestroyBuffer(device, stagingBuffer.buffer, null)
+        vkFreeMemory(device, stagingBuffer.memory, null)
 
         return state
     }
@@ -1448,14 +1514,10 @@ class VulkanRenderer : Renderer {
     private fun prepareDefaultBuffers(device: VkDevice): HashMap<String, VulkanBuffer> {
         val map = HashMap<String, VulkanBuffer>()
 
-
-        val (buffer, memory) = createBuffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
-            null,
+        map.put("UBOBuffer", createBuffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
             wantAligned = true,
-            allocationSize = 512 * 1024)
-
-        map.put("UBOBuffer", VulkanBuffer(memory, buffer))
+            allocationSize = 512 * 1024))
 
         return map
     }
@@ -1505,7 +1567,7 @@ class VulkanRenderer : Renderer {
         // Create a new buffer
         val bufferInfo = VkBufferCreateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO)
-            .size(ubo.getSize()*1L)
+            .size(ubo.getSize() * 1L)
             .usage(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT)
 
         val uniformDataVSBuffer = VU.run(memAllocLong(1), "Create UBO Buffer") {
@@ -1552,7 +1614,7 @@ class VulkanRenderer : Renderer {
         ubo.descriptor!!.allocationSize = memSize
         ubo.descriptor!!.buffer = uniformDataVSBuffer
         ubo.descriptor!!.offset = 0L
-        ubo.descriptor!!.range = ubo.getSize()*1L
+        ubo.descriptor!!.range = ubo.getSize() * 1L
 
         return ubo.descriptor!!
     }
@@ -1565,7 +1627,7 @@ class VulkanRenderer : Renderer {
             vkCreateSemaphore(device, semaphoreCreateInfo, null, this)
         }
 
-        logger.info("Creating scene command buffer for $targetName/$target (${target.attachments.count()} attachments, pipeline=${renderPipelines[targetName]!!.pipeline.pipeline})")
+        logger.debug("Creating scene command buffer for $targetName/$target (${target.attachments.count()} attachments, pipeline=${renderPipelines[targetName]!!.pipeline.pipeline})")
 
         val clearValues = VkClearValue.calloc(target.colorAttachmentCount() + target.depthAttachmentCount())
 
@@ -1575,11 +1637,10 @@ class VulkanRenderer : Renderer {
             0
         }
 
-        val clearColor = BufferUtils.allocateFloatAndPut(floatArrayOf(1.0f, 0.0f, 0.0f, 1.0f))
-        clearColor.put(index, 1.0f)
+        val clearColor = BufferUtils.allocateFloatAndPut(floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f))
 
         target.attachments.values.forEachIndexed { i, att ->
-            clearValues.put(i, when(att.type) {
+            clearValues.put(i, when (att.type) {
                 VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> {
                     VkClearValue.calloc().color(VkClearColorValue.calloc().float32(clearColor))
                 }
@@ -1627,7 +1688,7 @@ class VulkanRenderer : Renderer {
                 }
 
                 val vb = memAllocLong(1)
-                vb.put(0, s.vertexBuffers["vertex+index"]!!)
+                vb.put(0, s.vertexBuffers["vertex+index"]!!.buffer)
 
                 val ds = memAllocLong(1)
                 ds.put(0, renderPipelines[targetName]!!.descriptorSets["default"]!!)
@@ -1637,11 +1698,11 @@ class VulkanRenderer : Renderer {
 
                 vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_GRAPHICS, renderPipelines[targetName]!!.pipeline.pipeline)
                 vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                    renderPipelines[targetName]!!.pipeline.layout, 0, ds, null)
+                    renderPipelines[targetName]!!.pipeline.layout, 0, ds, sceneUBOs[n]!!.offsets)
                 vkCmdBindVertexBuffers(this, 0, vb, offsets)
 
-                if(s.isIndexed) {
-                    vkCmdBindIndexBuffer(this, vb.get(0), 0, VK_INDEX_TYPE_UINT32);
+                if (s.isIndexed) {
+                    vkCmdBindIndexBuffer(this, vb.get(0), s.indexOffset*1L, VK_INDEX_TYPE_UINT32)
                     vkCmdDrawIndexed(this, s.indexCount, 1, 0, 0, 0)
                 } else {
                     vkCmdDraw(this, s.vertexCount, 1, 0, 1)
@@ -1727,11 +1788,19 @@ class VulkanRenderer : Renderer {
 
     private fun updateDefaultUBOs(device: VkDevice) {
         val cam = scene.findObserver()
+        cam.view = cam.getTransformation()
+
+        buffers["UBOBuffer"]!!.reset()
 
         sceneUBOs.forEach { node, ubo ->
-            logger.info("Updating UBO for ${node.name} of size ${ubo.getSize()}, members ${ubo.members.keys.joinToString(", ")}")
+            logger.debug("Updating UBO for ${node.name} of size ${ubo.getSize()}, members ${ubo.members.keys.joinToString(", ")}")
 
-            val memoryTarget = buffers["UBOBuffer"]!!.getPointerBuffer(ubo.getSize())
+            ubo.offsets = memAllocInt(3)
+
+            ubo.offsets!!.put(0, buffers["UBOBuffer"]!!.getCurrentOffset())
+            var memoryTarget = buffers["UBOBuffer"]!!.getPointerBuffer(ubo.getSize())
+            logger.debug("Current buffer offset is ${buffers["UBOBuffer"]!!.getCurrentOffset()}")
+
             // layout:
             // ModelView Matrix
             // ModelMatrix
@@ -1739,20 +1808,49 @@ class VulkanRenderer : Renderer {
             // MVP
             // CamPosition
             // isBillboard
-            node.modelView!!.put(memoryTarget)
-            node.model.put(memoryTarget)
-            cam.projection!!.put(memoryTarget)
 
-            val mv = cam.projection!!.clone()
-            mv.mult(node.modelView!!)
+            val projection = GLMatrix().setPerspectiveProjectionMatrix(cam.fov / 180.0f * Math.PI.toFloat(),
+                (1.0f * width) / (1.0f * height), cam.nearPlaneDistance, cam.farPlaneDistance)
+
+            val mv = projection.clone()
+            mv.mult(cam.view!!)
+            mv.mult(node.world)
+
+            val mvp = mv.clone()
+            mvp.mult(projection)
+
             mv.put(memoryTarget)
-
+            node.model.put(memoryTarget)
+            projection.put(memoryTarget)
+            mvp.put(memoryTarget)
             cam.position.put(memoryTarget)
+            memoryTarget.asIntBuffer().put(if (node.isBillboard) {
+                1
+            } else {
+                0
+            })
 
-            logger.info("buffer position=${memoryTarget.position()}")
-//            memoryTarget.asIntBuffer().put(if(node.isBillboard) {1} else {0})
+            ubo.offsets!!.put(1, buffers["UBOBuffer"]!!.getCurrentOffset())
+            memoryTarget = buffers["UBOBuffer"]!!.getPointerBuffer(4 * 3 * 4)
 
-            logger.info("UBO buffer now at ${memoryTarget.position()} of ${ubo.descriptor!!.range}")
+            logger.debug("UBO buffer now at ${memoryTarget.position()}")
+
+            // Light Info
+            GLVector(5.0f, 5.0f, 5.0f).put(memoryTarget)
+            GLVector(1.0f, .0f, .0f).put(memoryTarget)
+            GLVector(1.0f, .0f, .0f).put(memoryTarget)
+            GLVector(1.0f, .0f, .0f).put(memoryTarget)
+
+            ubo.offsets!!.put(2, buffers["UBOBuffer"]!!.getCurrentOffset())
+            memoryTarget = buffers["UBOBuffer"]!!.getPointerBuffer(3 * 3 * 4 + 4)
+
+            // MaterialInfo
+            GLVector(1.0f, .0f, .0f).put(memoryTarget)
+            GLVector(.0f, 1.0f, .0f).put(memoryTarget)
+            GLVector(.0f, .0f, 1.0f).put(memoryTarget)
+            memoryTarget.asFloatBuffer().put(1.0f)
+
+            logger.debug("UBO buffer now at ${memoryTarget.position()}")
         }
     }
 

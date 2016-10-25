@@ -18,14 +18,14 @@ layout(binding = 0) uniform Matrices {
 	mat4 MVP;
 	vec3 CamPosition;
 	int isBillboard;
-};
+} ubo;
 
 void main()
 {
-    VertexOut.Normal = mat3(transpose(inverse(ModelMatrix)))*vertexNormal;
-    VertexOut.Position = vec3( ModelViewMatrix * vec4(vertexPosition, 1.0));
+    VertexOut.Normal = mat3(transpose(inverse(ubo.ModelMatrix)))*vertexNormal;
+    VertexOut.Position = vec3( ubo.ModelViewMatrix * vec4(vertexPosition, 1.0));
     VertexOut.TexCoord = vertexTexCoord;
-    VertexOut.FragPosition = vec3(ModelMatrix * vec4(vertexPosition, 1.0));
+    VertexOut.FragPosition = vec3(ubo.ModelMatrix * vec4(vertexPosition, 1.0));
 
-    gl_Position = MVP * vec4(vertexPosition, 1.0);
+    gl_Position = ubo.MVP * vec4(vertexPosition, 1.0);
 }
