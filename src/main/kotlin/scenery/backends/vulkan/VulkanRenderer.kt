@@ -1805,7 +1805,8 @@ class VulkanRenderer : Renderer {
         buffers["UBOBuffer"]!!.reset()
 
         sceneUBOs.forEach { node, ubo ->
-            logger.debug("Updating UBO for ${node.name} of size ${ubo.getSize()}, members ${ubo.members.keys.joinToString(", ")}")
+            logger.trace("Updating UBO for ${node.name} of size ${ubo.getSize()}, members ${ubo.members.keys.joinToString(", ")}")
+            node.updateWorld(true, false)
 
             ubo.offsets = memAllocInt(3)
 
@@ -1823,13 +1824,13 @@ class VulkanRenderer : Renderer {
 
             val projection = GLMatrix().setPerspectiveProjectionMatrix(cam.fov / 180.0f * Math.PI.toFloat(),
                 (1.0f * window.width) / (1.0f * window.height), cam.nearPlaneDistance, cam.farPlaneDistance)
+            projection.set(1, 1, -1.0f*projection.get(1,1))
 
-            val mv = projection.clone()
-            mv.mult(cam.view!!)
+            val mv = cam.view!!.clone()
             mv.mult(node.world)
 
-            val mvp = mv.clone()
-            mvp.mult(projection)
+            val mvp = projection.clone()
+            mvp.mult(mv)
 
             mv.put(memoryTarget)
             node.model.put(memoryTarget)
