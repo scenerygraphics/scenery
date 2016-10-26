@@ -2,10 +2,9 @@ package scenery.tests.examples
 
 import cleargl.GLMatrix
 import cleargl.GLVector
-import com.jogamp.opengl.GLAutoDrawable
 import org.junit.Test
 import scenery.*
-import scenery.backends.opengl.DeferredLightingRenderer
+import scenery.backends.Renderer
 import scenery.repl.REPL
 import kotlin.concurrent.thread
 
@@ -15,9 +14,8 @@ import kotlin.concurrent.thread
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class CubeExample : SceneryDefaultApplication("CubeExample") {
-    override fun init(pDrawable: GLAutoDrawable) {
-        super.init(pDrawable)
-        renderer = DeferredLightingRenderer(pDrawable.gl.gL4, glWindow!!.width, glWindow!!.height)
+    override fun init() {
+        renderer = Renderer.createRenderer(applicationName, scene, windowWidth, windowHeight)
         hub.add(SceneryElement.RENDERER, renderer!!)
 
         var box = Box(GLVector(1.0f, 1.0f, 1.0f))
@@ -48,7 +46,7 @@ class CubeExample : SceneryDefaultApplication("CubeExample") {
         cam.projection = GLMatrix()
                 .setPerspectiveProjectionMatrix(
                         70.0f / 180.0f * Math.PI.toFloat(),
-                        pDrawable.surfaceWidth.toFloat() / pDrawable.surfaceHeight.toFloat(), 0.1f, 1000.0f)
+                        windowWidth.toFloat()/windowHeight.toFloat(), 0.1f, 1000.0f)
                 .invert()
         cam.active = true
 

@@ -4,6 +4,7 @@ import cleargl.GLVector
 import com.jogamp.opengl.GLAutoDrawable
 import org.junit.Test
 import scenery.*
+import scenery.backends.Renderer
 import scenery.backends.opengl.DeferredLightingRenderer
 import scenery.repl.REPL
 import kotlin.concurrent.thread
@@ -14,8 +15,8 @@ import kotlin.concurrent.thread
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class TexturedCubeExample : SceneryDefaultApplication("TexturedCubeExample") {
-    override fun init(pDrawable: GLAutoDrawable) {
-        renderer = DeferredLightingRenderer(pDrawable.gl.gL4, glWindow!!.width, glWindow!!.height)
+    override fun init() {
+        renderer = Renderer.createRenderer(applicationName, scene, 512, 512)
         hub.add(SceneryElement.RENDERER, renderer!!)
 
         var boxmaterial = Material()
@@ -47,7 +48,7 @@ class TexturedCubeExample : SceneryDefaultApplication("TexturedCubeExample") {
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
             position = GLVector(0.0f, 0.0f, 5.0f)
-            perspectiveCamera(50.0f, 1.0f*glWindow!!.width, 1.0f*glWindow!!.height)
+            perspectiveCamera(50.0f, 512.0f, 512.0f)
             active = true
 
             scene.addChild(this)
@@ -64,8 +65,6 @@ class TexturedCubeExample : SceneryDefaultApplication("TexturedCubeExample") {
                 Thread.sleep(20)
             }
         }
-
-        renderer?.initializeScene(scene)
 
         repl = REPL(scene, renderer!!)
         repl?.start()

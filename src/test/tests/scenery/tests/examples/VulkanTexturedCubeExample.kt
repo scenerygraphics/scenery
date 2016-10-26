@@ -4,6 +4,7 @@ import cleargl.GLVector
 import com.jogamp.opengl.GLAutoDrawable
 import org.junit.Test
 import scenery.*
+import scenery.backends.Renderer
 import scenery.backends.opengl.DeferredLightingRenderer
 import scenery.backends.vulkan.VulkanRenderer
 import scenery.repl.REPL
@@ -15,7 +16,8 @@ import kotlin.concurrent.thread
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class VulkanTexturedCubeExample : SceneryDefaultApplication("VulkanTexturedCubeExample") {
-    fun init() {
+    override fun init() {
+        renderer = Renderer.createRenderer(applicationName, scene, 1024, 1024)
         hub.add(SceneryElement.RENDERER, renderer!!)
 
         var boxmaterial = Material()
@@ -65,19 +67,12 @@ class VulkanTexturedCubeExample : SceneryDefaultApplication("VulkanTexturedCubeE
             }
         }
 
-        renderer?.initializeScene(scene)
-
         repl = REPL(scene, renderer!!)
         repl?.start()
         repl?.showConsoleWindow()
     }
 
     @Test override fun main() {
-        renderer = VulkanRenderer(1024, 1024)
-        this.init()
-
-        while(renderer?.shouldClose == false) {
-            renderer?.render(scene)
-        }
+        super.main()
     }
 }

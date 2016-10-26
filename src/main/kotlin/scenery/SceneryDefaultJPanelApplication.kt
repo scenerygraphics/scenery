@@ -8,7 +8,7 @@ import com.jogamp.newt.event.WindowEvent
 import com.jogamp.opengl.GLAutoDrawable
 import scenery.backends.Renderer
 import scenery.backends.opengl.DeferredLightingRenderer
-import scenery.controls.ClearGLInputHandler
+import scenery.controls.InputHandler
 import scenery.repl.REPL
 import java.awt.BorderLayout
 import java.awt.event.WindowAdapter
@@ -46,7 +46,7 @@ open class SceneryDefaultJPanelApplication(var applicationName: String,
      */
     protected var glWindow: ClearGLDisplayable? = null
     /** ui-behaviour input handler */
-    protected var inputHandler: ClearGLInputHandler? = null
+    protected var inputHandler: InputHandler? = null
     /** Canvas used by the application */
     protected var glCanvas: NewtCanvasAWT? = null
 
@@ -56,7 +56,7 @@ open class SceneryDefaultJPanelApplication(var applicationName: String,
      *
      * @param[pDrawable] a [org.jogamp.jogl.GLAutoDrawable] handed over by [ClearGLDefaultEventListener]
      */
-    open fun init(pDrawable: GLAutoDrawable) {
+    open fun init() {
 
     }
 
@@ -71,99 +71,25 @@ open class SceneryDefaultJPanelApplication(var applicationName: String,
      * with the [init] function. Override this in your subclass and be sure to call `super.main()`.
      *
      * The [ClearGLDefaultEventListener] will take care of usually used window functionality, like
-     * resizing, closing, setting the OpenGL context, etc. It'll also read a keymap for the [ClearGLInputHandler],
+     * resizing, closing, setting the OpenGL context, etc. It'll also read a keymap for the [InputHandler],
      * based on the [applicationName], from the file `~/.[applicationName].bindings
      *
      */
     open fun main() {
-        val lClearGLWindowEventListener = object : ClearGLDefaultEventListener() {
+        // initialize renderer, etc first in init, then setup key bindings
+        init()
 
-            override fun init(pDrawable: GLAutoDrawable) {
-                this@SceneryDefaultJPanelApplication.init(pDrawable)
+        inputHandler = InputHandler(scene, renderer!!, hub)
+        inputHandler?.useDefaultBindings(System.getProperty("user.home") + "/.$applicationName.bindings")
 
-                inputHandler = ClearGLInputHandler(scene, renderer as Any, glWindow!!, hub)
-                inputHandler?.useDefaultBindings(System.getProperty("user.home") + "/.$applicationName.bindings")
+        // setup additional key bindings, if requested by the user
+        inputSetup()
 
-                this@SceneryDefaultJPanelApplication.inputSetup()
-            }
 
-            override fun display(pDrawable: GLAutoDrawable) {
-                super.display(pDrawable)
+        // TODO: Add drawable back here!
 
-                frameNum++
-                renderer?.render(scene)
-
-                if(renderer?.settings?.get<Boolean>("wantsFullscreen") == true && renderer?.settings?.get<Boolean>("isFullscreen") == false) {
-                    glWindow!!.setFullscreen(true)
-                    renderer?.settings?.set("wantsFullscreen", true)
-                    renderer?.settings?.set("isFullscreen", true)
-                }
-
-                if(renderer?.settings?.get<Boolean>("wantsFullscreen") == false && renderer?.settings?.get<Boolean>("isFullscreen") == true) {
-                    glWindow!!.setFullscreen(false)
-                    renderer?.settings?.set("wantsFullscreen", false)
-                    renderer?.settings?.set("isFullscreen", false)
-                }
-
-                clearGLWindow.windowTitle = "scenery: %s - %.1f fps".format(applicationName, pDrawable.animator?.lastFPS)
-            }
-
-            override fun setClearGLWindow(pClearGLWindow: ClearGLWindow) {
-                glWindow = pClearGLWindow
-            }
-
-            override fun getClearGLWindow(): ClearGLDisplayable {
-                return glWindow!!
-            }
-
-            override fun reshape(pDrawable: GLAutoDrawable,
-                                 pX: Int,
-                                 pY: Int,
-                                 pWidth: Int,
-                                 pHeight: Int) {
-                var height = pHeight
-
-                if (height == 0)
-                    height = 1
-
-                super.reshape(pDrawable, pX, pY, pWidth, height)
-                renderer?.reshape(pWidth, height)
-            }
-
-            override fun dispose(pDrawable: GLAutoDrawable) {
-                System.err.println("Stopping with dispose")
-                pDrawable.animator?.stop()
-            }
-
+        while(true) {
+            renderer!!.render()
         }
-
-        val glWindow = ClearGLWindow("",
-            windowWidth,
-            windowHeight,
-            lClearGLWindowEventListener)
-        glWindow.isVisible = true
-
-        glWindow.start()
-
-        var thiscanvas = glWindow.newtCanvasAWT
-        glCanvas = thiscanvas
-
-        val jframe = JFrame(applicationName)
-        jframe.addWindowListener(object : WindowAdapter() {
-            fun windowClosing(windowevent: WindowEvent) {
-                jframe.dispose()
-                System.exit(0)
-            }
-        })
-
-        jframe.getContentPane().add(thiscanvas, BorderLayout.CENTER)
-        jframe.setSize(640, 480)
-        jframe.setVisible(true)
-
-        while (glWindow.isVisible || jframe.isVisible) {
-            Thread.sleep(10)
-        }
-
-        glWindow.stop()
     }
 }

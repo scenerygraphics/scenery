@@ -28,7 +28,7 @@ class VulkanPipeline(val device: VkDevice, val descriptorPool: Long, val pipelin
         .sType(VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO)
         .pNext(NULL)
         .polygonMode(VK_POLYGON_MODE_FILL)
-        .cullMode(VK_CULL_MODE_NONE)
+        .cullMode(VK_CULL_MODE_BACK_BIT)
         .frontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
         .depthClampEnable(false)
         .rasterizerDiscardEnable(false)
@@ -62,8 +62,8 @@ class VulkanPipeline(val device: VkDevice, val descriptorPool: Long, val pipelin
     var depthStencilState = VkPipelineDepthStencilStateCreateInfo.calloc()
         .sType(VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO)// No depth test/write and no stencil used
         .pNext(NULL)
-        .depthTestEnable(false)
-        .depthWriteEnable(false)
+        .depthTestEnable(true)
+        .depthWriteEnable(true)
         .depthCompareOp(VK_COMPARE_OP_LESS_OR_EQUAL)
         .depthBoundsTestEnable(false)
         .stencilTestEnable(false)
@@ -109,14 +109,6 @@ class VulkanPipeline(val device: VkDevice, val descriptorPool: Long, val pipelin
                 .stageFlags(VK_SHADER_STAGE_ALL)
                 .pImmutableSamplers(null)
         }
-
-        /*layoutBinding[descriptorNum]
-            .binding(descriptorNum)
-            .descriptorType(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
-            .descriptorCount(1)
-            .stageFlags(VK_SHADER_STAGE_FRAGMENT_BIT)
-            .pImmutableSamplers(null)
-            */
 
         // Build a create-info struct to create the descriptor set layout
         val descriptorLayout = VkDescriptorSetLayoutCreateInfo.calloc()

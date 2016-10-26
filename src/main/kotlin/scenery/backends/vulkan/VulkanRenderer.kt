@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory
 import scenery.*
 import scenery.backends.RenderConfigReader
 import scenery.backends.Renderer
+import scenery.backends.SceneryWindow
 import scenery.fonts.SDFFontAtlas
 import java.nio.*
 import java.util.*
@@ -33,9 +34,11 @@ import java.util.concurrent.TimeUnit
  */
 class VulkanRenderer : Renderer {
     override var hub: Hub? = null
+    var applicationName = ""
     override var settings: Settings = Settings()
     protected var logger: Logger = LoggerFactory.getLogger("VulkanRenderer")
     override var shouldClose = false
+    override var managesRenderLoop = false
 
     var scene: Scene = Scene()
     var sceneInitialized = false
@@ -44,7 +47,7 @@ class VulkanRenderer : Renderer {
     }
 
     private var swapchain: Swapchain? = null
-    private var frames = 0L
+    private var frames = 0
 
     private var rendertargets = ConcurrentHashMap<String, VulkanFramebuffer>()
     private var renderPasses = ConcurrentHashMap<String, Long>()
@@ -52,8 +55,6 @@ class VulkanRenderer : Renderer {
     /** Cache for [SDFFontAtlas]es used for font rendering */
     protected var fontAtlas = HashMap<String, SDFFontAtlas>()
 
-    override var width: Int = 0
-    override var height: Int = 0
     private var renderCommandBuffers: Array<VkCommandBuffer>? = null
 
     private val validation = java.lang.Boolean.parseBoolean(System.getProperty("scenery.VulkanRenderer.EnableValidation", "false"))
@@ -121,8 +122,8 @@ class VulkanRenderer : Renderer {
     var pRenderCompleteSemaphore: LongBuffer
     var pImageIndex: IntBuffer
 
-    var window: Long
 
+    override var window = SceneryWindow()
     var lastTime = System.nanoTime()
     var time = 0.0f
 
@@ -135,6 +136,9 @@ class VulkanRenderer : Renderer {
     var sceneUBOs = ConcurrentHashMap<Node, UBO>()
 
     var buffers = HashMap<String, VulkanBuffer>()
+
+    var fps = 0
+    private var heartbeatTimer = Timer()
 
     enum class VertexDataKinds {
         coords_normals_texcoords,
@@ -280,7 +284,7 @@ class VulkanRenderer : Renderer {
                 swapchain = createSwapChain(
                     device, physicalDevice,
                     surface, oldChain, setupCommandBuffer,
-                    width, height,
+                    window.width, window.height,
                     colorFormatAndSpace.colorFormat,
                     colorFormatAndSpace.colorSpace)
 
@@ -303,7 +307,7 @@ class VulkanRenderer : Renderer {
             rendertargets.clear()
 
             standardUBOs = prepareDefaultUniformBuffers(device)
-            rendertargets = prepareFramebuffers(device, physicalDevice, width, height)
+            rendertargets = prepareFramebuffers(device, physicalDevice, window.width, window.height)
             renderPipelines = prepareDefaultPipelines(device)
 
             semaphores = prepareStandardSemaphores(device)
@@ -319,9 +323,9 @@ class VulkanRenderer : Renderer {
 
     private var renderConfig: RenderConfigReader.RenderConfig
 
-    constructor(windowWidth: Int, windowHeight: Int, renderConfigFile: String = "ForwardShading.yml") {
-        this.width = windowWidth
-        this.height = windowHeight
+    constructor(applicationName: String, scene: Scene, windowWidth: Int, windowHeight: Int, renderConfigFile: String = "ForwardShading.yml") {
+        window.width = windowWidth
+        window.height = windowHeight
 
         this.settings = getDefaultRendererSettings()
 
@@ -356,18 +360,13 @@ class VulkanRenderer : Renderer {
         glfwDefaultWindowHints()
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API)
         glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE)
-        window = glfwCreateWindow(windowWidth, windowHeight, "scenery", NULL, NULL)
-        val keyCallback: GLFWKeyCallback = object : GLFWKeyCallback() {
+        window.glfwWindow = glfwCreateWindow(windowWidth, windowHeight, "scenery", NULL, NULL)
+        /*val keyCallback: GLFWKeyCallback = object : GLFWKeyCallback() {
             override operator fun invoke(window: Long, key: Int, scancode: Int, action: Int, mods: Int) {
                 val cam = scene.findObserver()
                 var direction = ""
-                val speed = 0.1f
+                val speed = 0.5f
 
-                glfwSetWindowTitle(window, "scenery - $frames")
-
-                if (action != GLFW_RELEASE) {
-                    return
-                }
                 if (key == GLFW_KEY_ESCAPE) {
                     glfwSetWindowShouldClose(window, true)
                 } else if(key == GLFW_KEY_W) {
@@ -380,7 +379,6 @@ class VulkanRenderer : Renderer {
                     direction = "right"
                 }
 
-                logger.info("Moving $cam $direction")
                 when (direction) {
                     "forward" -> cam.position = cam.position + cam.forward * speed
                     "back" -> cam.position = cam.position - cam.forward * speed
@@ -393,10 +391,11 @@ class VulkanRenderer : Renderer {
             }
         }
 
-        glfwSetKeyCallback(window, keyCallback)
+        glfwSetKeyCallback(window.glfwWindow!!, keyCallback)
+        */
 
         surface = VU.run(memAllocLong(1), "glfwCreateWindowSurface") {
-            glfwCreateWindowSurface(instance, window, null, this)
+            glfwCreateWindowSurface(instance, window.glfwWindow!!, null, this)
         }
 
         // Create static Vulkan resources
@@ -421,19 +420,26 @@ class VulkanRenderer : Renderer {
 
         buffers = prepareDefaultBuffers(device)
 
+        heartbeatTimer.scheduleAtFixedRate(object: TimerTask() {
+            override fun run() {
+                fps = frames.toInt()
+                frames = 0
+            }
+        }, 0, 1000)
+
         // Handle canvas resize
         val windowSizeCallback = object : GLFWWindowSizeCallback() {
-            override operator fun invoke(window: Long, w: Int, h: Int) {
-                if (width <= 0 || height <= 0)
+            override operator fun invoke(glfwWindow: Long, w: Int, h: Int) {
+                if (window.width <= 0 || window.height <= 0)
                     return
 
-                width = w
-                height = h
+                window.width = w
+                window.height = h
                 swapchainRecreator.mustRecreate = true
             }
         }
-        glfwSetWindowSizeCallback(window, windowSizeCallback)
-        glfwShowWindow(window)
+        glfwSetWindowSizeCallback(window.glfwWindow!!, windowSizeCallback)
+        glfwShowWindow(window.glfwWindow!!)
 
         // Pre-allocate everything needed in the render loop
 
@@ -839,8 +845,15 @@ class VulkanRenderer : Renderer {
      *
      * @param[scene] The scene to render.
      */
-    override fun render(scene: Scene) {
-        if (glfwWindowShouldClose(window)) {
+    override fun render() {
+        if(scene.children.count() == 0 || scene.initialized == false) {
+            initializeScene(scene)
+
+            Thread.sleep(200)
+            return
+        }
+
+        if (glfwWindowShouldClose(window.glfwWindow!!)) {
             this.shouldClose = true
             return
         }
@@ -949,9 +962,8 @@ class VulkanRenderer : Renderer {
         time += (thisTime - lastTime) / 1E9f
         lastTime = thisTime
 
-
         frames++
-        //submitPostPresentBarrier(swapchain!!.images!![currentBuffer.second], postPresentCommandBuffer, queue)
+        glfwSetWindowTitle(window.glfwWindow!!, "$applicationName [${this.javaClass.simpleName}] - $fps fps")
     }
 
     private fun createInstance(requiredExtensions: PointerBuffer): VkInstance {
@@ -1269,11 +1281,11 @@ class VulkanRenderer : Renderer {
         val currentWidth = currentExtent.width()
         val currentHeight = currentExtent.height()
         if (currentWidth != -1 && currentHeight != -1) {
-            width = currentWidth
-            height = currentHeight
+            window.width = currentWidth
+            window.height = currentHeight
         } else {
-            width = newWidth
-            height = newHeight
+            window.width = newWidth
+            window.height = newHeight
         }
 
         val preTransform: Int
@@ -1301,7 +1313,7 @@ class VulkanRenderer : Renderer {
             .clipped(true)
             .compositeAlpha(VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR)
 
-        swapchainCI.imageExtent().width(width).height(height)
+        swapchainCI.imageExtent().width(window.width).height(window.height)
         val pSwapChain = memAllocLong(1)
         err = vkCreateSwapchainKHR(device, swapchainCI, null, pSwapChain)
         swapchainCI.free()
@@ -1403,7 +1415,7 @@ class VulkanRenderer : Renderer {
         val fb = stridedBuffer.asFloatBuffer()
         val ib = stridedBuffer.asIntBuffer()
 
-        state.vertexCount = n.vertices.remaining()
+        state.vertexCount = n.vertices.remaining()/n.vertexSize
 
         for (index in 0..n.vertices.remaining() - 1 step 3) {
             fb.put(n.vertices.get())
@@ -1651,7 +1663,7 @@ class VulkanRenderer : Renderer {
         }
 
         val renderArea = VkRect2D.calloc()
-        renderArea.extent(VkExtent2D.calloc().set(width, height)).offset(VkOffset2D.calloc().set(0, 0))
+        renderArea.extent(VkExtent2D.calloc().set(window.width, window.height)).offset(VkOffset2D.calloc().set(0, 0))
 
         val renderPassBegin = VkRenderPassBeginInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO)
@@ -1674,8 +1686,8 @@ class VulkanRenderer : Renderer {
             vkCmdBeginRenderPass(this, renderPassBegin, VK_SUBPASS_CONTENTS_INLINE)
 
             val viewport = VkViewport.calloc(1)
-            viewport[0].set(0.0f, 0.0f, width.toFloat(), height.toFloat(), 0.0f, 1.0f)
-            val scissor = VkRect2D.calloc(1).extent(VkExtent2D.calloc().set(width, height))
+            viewport[0].set(0.0f, 0.0f, window.width.toFloat(), window.height.toFloat(), 0.0f, 1.0f)
+            val scissor = VkRect2D.calloc(1).extent(VkExtent2D.calloc().set(window.width, window.height))
 
             vkCmdSetViewport(this, 0, viewport)
             vkCmdSetScissor(this, 0, scissor)
@@ -1705,7 +1717,7 @@ class VulkanRenderer : Renderer {
                     vkCmdBindIndexBuffer(this, vb.get(0), s.indexOffset*1L, VK_INDEX_TYPE_UINT32)
                     vkCmdDrawIndexed(this, s.indexCount, 1, 0, 0, 0)
                 } else {
-                    vkCmdDraw(this, s.vertexCount, 1, 0, 1)
+                    vkCmdDraw(this, s.vertexCount, 1, 0, 0)
                 }
             }
 
@@ -1735,7 +1747,7 @@ class VulkanRenderer : Renderer {
         }
 
         val renderArea = VkRect2D.calloc()
-        renderArea.extent(VkExtent2D.calloc().set(width, height)).offset(VkOffset2D.calloc().set(0, 0))
+        renderArea.extent(VkExtent2D.calloc().set(window.width, window.height)).offset(VkOffset2D.calloc().set(0, 0))
 
         val renderPassBegin = VkRenderPassBeginInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO)
@@ -1750,8 +1762,8 @@ class VulkanRenderer : Renderer {
             vkCmdBeginRenderPass(this, renderPassBegin, VK_SUBPASS_CONTENTS_INLINE)
 
             val viewport = VkViewport.calloc(1)
-            viewport[0].set(0.0f, 0.0f, width.toFloat(), height.toFloat(), 0.0f, 1.0f)
-            val scissor = VkRect2D.calloc(1).extent(VkExtent2D.calloc().set(width, height))
+            viewport[0].set(0.0f, 0.0f, window.width.toFloat(), window.height.toFloat(), 0.0f, 1.0f)
+            val scissor = VkRect2D.calloc(1).extent(VkExtent2D.calloc().set(window.width, window.height))
 
             vkCmdSetViewport(this, 0, viewport)
             vkCmdSetScissor(this, 0, scissor)
@@ -1810,7 +1822,7 @@ class VulkanRenderer : Renderer {
             // isBillboard
 
             val projection = GLMatrix().setPerspectiveProjectionMatrix(cam.fov / 180.0f * Math.PI.toFloat(),
-                (1.0f * width) / (1.0f * height), cam.nearPlaneDistance, cam.farPlaneDistance)
+                (1.0f * window.width) / (1.0f * window.height), cam.nearPlaneDistance, cam.farPlaneDistance)
 
             val mv = projection.clone()
             mv.mult(cam.view!!)

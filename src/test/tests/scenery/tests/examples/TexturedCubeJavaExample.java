@@ -1,10 +1,9 @@
 package scenery.tests.examples;
 
 import cleargl.GLVector;
-import com.jogamp.opengl.GLAutoDrawable;
 import org.junit.Test;
 import scenery.*;
-import scenery.backends.opengl.DeferredLightingRenderer;
+import scenery.backends.Renderer;
 import scenery.repl.REPL;
 
 /**
@@ -22,9 +21,9 @@ public class TexturedCubeJavaExample {
             super(applicationName, windowWidth, windowHeight);
         }
 
-        public void init(GLAutoDrawable pDrawable) {
+        public void init() {
 
-            setRenderer( new DeferredLightingRenderer( pDrawable.getGL().getGL4(), getGlWindow().getWidth(), getGlWindow().getHeight() ) );
+            setRenderer( Renderer.Companion.createRenderer( getApplicationName(), getScene(), 512, 512));
             getHub().add(SceneryElement.RENDERER, getRenderer());
 
             Material boxmaterial = new Material();
@@ -51,10 +50,9 @@ public class TexturedCubeJavaExample {
 
             Camera cam = new DetachedHeadCamera();
             cam.setPosition( new GLVector(0.0f, 0.0f, 5.0f) );
-            cam.perspectiveCamera(50.0f, 1.0f*getGlWindow().getWidth(), 1.0f*getGlWindow().getWidth(), 0.1f, 1000.0f);
+            cam.perspectiveCamera(50.0f, getRenderer().getWindow().getWidth(), getRenderer().getWindow().getHeight(), 0.1f, 1000.0f);
             cam.setActive( true );
             getScene().addChild(cam);
-
 
             Thread rotator = new Thread(){
                 public void run() {
@@ -71,8 +69,6 @@ public class TexturedCubeJavaExample {
                 }
             };
             rotator.start();
-
-            getRenderer().initializeScene(getScene());
 
             setRepl(new REPL(getScene(), getRenderer()));
             getRepl().start();

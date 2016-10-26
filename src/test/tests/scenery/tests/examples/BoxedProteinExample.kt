@@ -6,6 +6,7 @@ import com.jogamp.opengl.GLAutoDrawable
 import com.jogamp.opengl.GLException
 import org.junit.Test
 import scenery.*
+import scenery.backends.Renderer
 import scenery.backends.opengl.DeferredLightingRenderer
 import scenery.repl.REPL
 import java.io.IOException
@@ -14,13 +15,10 @@ import kotlin.concurrent.thread
 /**
  * Created by ulrik on 20/01/16.
  */
-class BoxedProteinExample : SceneryDefaultApplication("BoxedProteinExample") {
-    override fun init(pDrawable: GLAutoDrawable) {
-        super.init(pDrawable)
+class BoxedProteinExample : SceneryDefaultApplication("BoxedProteinExample", windowWidth = 1280, windowHeight = 720) {
+    override fun init() {
         try {
-            renderer = DeferredLightingRenderer(pDrawable.gl.gL4,
-                    glWindow!!.width,
-                    glWindow!!.height)
+            renderer = Renderer.createRenderer(applicationName, scene, windowWidth, windowHeight)
             hub.add(SceneryElement.RENDERER, renderer!!)
 
             val cam: Camera = DetachedHeadCamera()
@@ -88,7 +86,7 @@ class BoxedProteinExample : SceneryDefaultApplication("BoxedProteinExample") {
 
             cam.projection = GLMatrix().setPerspectiveProjectionMatrix(
                     50.0f / 180.0f * Math.PI.toFloat(),
-                    pDrawable.surfaceWidth.toFloat() / pDrawable.surfaceHeight.toFloat(), 0.1f, 1000.0f).invert()
+                    windowWidth.toFloat()/windowHeight.toFloat(), 0.1f, 1000.0f).invert()
             cam.active = true
 
             scene.addChild(cam)
@@ -135,8 +133,6 @@ class BoxedProteinExample : SceneryDefaultApplication("BoxedProteinExample") {
                     Thread.sleep(10)
                 }
             }
-
-            renderer?.initializeScene(scene)
 
             repl = REPL(scene, renderer!!)
             repl?.start()

@@ -2,12 +2,10 @@ package scenery.tests.examples
 
 import cleargl.GLMatrix
 import cleargl.GLVector
-import com.jogamp.opengl.GLAutoDrawable
-import com.jogamp.opengl.GLException
 import org.junit.Test
 import scenery.*
+import scenery.backends.Renderer
 import scenery.controls.OpenVRInput
-import scenery.backends.opengl.DeferredLightingRenderer
 import scenery.backends.opengl.OpenGLShaderPreference
 import scenery.repl.REPL
 import java.io.IOException
@@ -20,14 +18,12 @@ import kotlin.concurrent.thread
 class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowWidth = 1280, windowHeight = 720) {
     private var ovr: OpenVRInput? = null
 
-    override fun init(pDrawable: GLAutoDrawable) {
+    override fun init() {
         try {
             ovr = OpenVRInput(seated = false, useCompositor = true)
             hub.add(SceneryElement.HMDINPUT, ovr!!)
 
-            renderer = DeferredLightingRenderer(pDrawable.gl.gL4,
-                    glWindow!!.width,
-                    glWindow!!.height)
+            renderer = Renderer.createRenderer(applicationName, scene, windowWidth, windowHeight)
             hub.add(SceneryElement.RENDERER, renderer!!)
 
             val cam: Camera = DetachedHeadCamera()
@@ -178,7 +174,7 @@ class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowW
 
             cam.projection = GLMatrix().setPerspectiveProjectionMatrix(
                     50.0f / 180.0f * Math.PI.toFloat(),
-                    pDrawable.surfaceWidth.toFloat() / pDrawable.surfaceHeight.toFloat(), 0.1f, 10000.0f)
+                    windowWidth.toFloat() / windowHeight.toFloat(), 0.1f, 10000.0f)
             cam.active = true
 
             scene.addChild(cam)
@@ -254,12 +250,10 @@ class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowW
                 }
             }
 
-            renderer?.initializeScene(scene)
-
             repl = REPL(scene, renderer!!)
             repl?.start()
             repl?.showConsoleWindow()
-        } catch (e: GLException) {
+        } catch (e: Exception) {
             e.printStackTrace()
         } catch (e: IOException) {
             e.printStackTrace()

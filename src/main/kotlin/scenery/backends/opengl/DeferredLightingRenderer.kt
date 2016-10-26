@@ -4,12 +4,14 @@ import cleargl.*
 import com.jogamp.common.nio.Buffers
 import com.jogamp.opengl.GL
 import com.jogamp.opengl.GL4
+import com.jogamp.opengl.GLAutoDrawable
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import scenery.*
 import scenery.controls.HMDInput
 import scenery.fonts.SDFFontAtlas
 import scenery.backends.Renderer
+import scenery.backends.SceneryWindow
 import java.lang.reflect.Field
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
@@ -37,35 +39,38 @@ import kotlin.concurrent.thread
  * @author Ulrik Günther <hello@ulrik.is>
  */
 
-open class DeferredLightingRenderer : Renderer, Hubable {
+open class DeferredLightingRenderer : Renderer, Hubable, ClearGLDefaultEventListener {
     /** slf4j logger */
     protected var logger: Logger = LoggerFactory.getLogger("DeferredLightingRenderer")
     /** [GL4] instance handed over, coming from [ClearGLDefaultEventListener]*/
     protected var gl: GL4
-    /** window width */
-    override var width: Int
-    /** window height */
-    override var height: Int
     /** should the window close on next looping? */
     override var shouldClose = false
+    /** the scenery window */
+    override var window = SceneryWindow()
+    /** Whether the renderer manages its own event loop, which is the case for this one. */
+    override var managesRenderLoop = true
+
+    /** The currently active scene */
+    var scene: Scene = Scene()
 
     /** [GLFramebuffer] Geometry buffer for rendering */
-    protected var geometryBuffer: ArrayList<GLFramebuffer>
+    protected var geometryBuffer = ArrayList<GLFramebuffer>()
 
     /** [GLFramebuffer] used for HDR rendering */
-    protected var hdrBuffer: ArrayList<GLFramebuffer>
+    protected var hdrBuffer = ArrayList<GLFramebuffer>()
 
     /** 3rd [GLFramebuffer] to use for combining eventual stereo render targets */
-    protected var combinationBuffer: ArrayList<GLFramebuffer>
+    protected var combinationBuffer = ArrayList<GLFramebuffer>()
 
     /** [GLProgram] for the deferred shading pass */
-    protected var lightingPassProgram: GLProgram
+    protected var lightingPassProgram: GLProgram? = null
 
     /** [GLProgram] used for the Exposure/Gamma HDR pass */
-    protected var hdrPassProgram: GLProgram
+    protected var hdrPassProgram: GLProgram? = null
 
     /** [GLProgram] used for combining stereo render targets */
-    protected var combinerProgram: GLProgram
+    protected var combinerProgram: GLProgram? = null
 
     /** Cache of [Node]s, needed e.g. for fullscreen quad rendering */
     protected var nodeStore = ConcurrentHashMap<String, Node>()
@@ -88,6 +93,8 @@ open class DeferredLightingRenderer : Renderer, Hubable {
     /** Eyes of the stereo render targets */
     var eyes = (0..0)
 
+    var initialized = false
+
     /**
      * Extension function of Boolean to use Booleans in GLSL
      *
@@ -101,6 +108,8 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         }
     }
 
+    var applicationName = ""
+
     /**
      * Constructor for DeferredLightingRenderer, initialises geometry buffers
      * according to eye configuration. Also initialises different rendering passes.
@@ -109,12 +118,31 @@ open class DeferredLightingRenderer : Renderer, Hubable {
      * @param[width] window width
      * @param[height] window height
      */
-    constructor(gl: GL4, width: Int, height: Int) {
-        this.gl = gl
-        this.width = width
-        this.height = height
+    constructor(applicationName: String, scene: Scene, width: Int, height: Int) {
 
         this.settings = this.getDefaultRendererSettings()
+        this.window.width = width
+        this.window.height = height
+
+        window.clearglWindow = ClearGLWindow("",
+            width,
+            height,
+            this)
+
+        window.clearglWindow!!.isVisible = true
+        window.clearglWindow!!.setFPS(60)
+
+        window.clearglWindow!!.start()
+
+        this.gl = window.clearglWindow!!.gl.gL4
+        this.scene = scene
+    }
+
+    override fun init(pDrawable: GLAutoDrawable) {
+        this.gl = window.clearglWindow!!.gl.gL4
+
+        val width = this.window.width
+        val height = this.window.height
 
         gl.swapInterval = 0
 
@@ -140,8 +168,8 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         eyes.forEach {
             // create 32bit position buffer, 16bit normal buffer, 8bit diffuse buffer and 24bit depth buffer
             val vrWidthDivisor = if (settings.get("vr.DoAnaglyph")) 1 else 2
-            val actualWidth = if (settings.get("vr.Active")) this.width / vrWidthDivisor else this.width
-            val actualHeight = if (settings.get("vr.Active")) this.height else this.height
+            val actualWidth = if (settings.get("vr.Active")) this.window.width / vrWidthDivisor else this.window.width
+            val actualHeight = if (settings.get("vr.Active")) this.window.height else this.window.height
 
             val gb = GLFramebuffer(this.gl, actualWidth, actualHeight)
             gb.addFloatRGBBuffer(this.gl, 32)
@@ -179,10 +207,50 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         combinerProgram = GLProgram.buildProgram(gl, DeferredLightingRenderer::class.java,
             arrayOf("shaders/FullscreenQuad.vert", "shaders/Combiner.frag"))
 
-        gl.glViewport(0, 0, this.width, this.height)
+        gl.glViewport(0, 0, this.window.width, this.window.height)
         gl.glClearColor(0.0f, 0.0f, 0.0f, 0.0f)
 
         gl.glEnable(GL4.GL_TEXTURE_GATHER)
+
+        initialized = true
+
+        initializeScene(this.scene)
+    }
+
+    override fun display(pDrawable: GLAutoDrawable) {
+        super.display(pDrawable)
+
+        clearGLWindow.windowTitle = "scenery: %s - %.1f fps".format(applicationName, pDrawable.animator?.lastFPS)
+
+        this@DeferredLightingRenderer.render()
+    }
+
+    override fun setClearGLWindow(pClearGLWindow: ClearGLWindow) {
+        window.clearglWindow = pClearGLWindow
+    }
+
+    override fun getClearGLWindow(): ClearGLDisplayable {
+        return window.clearglWindow!!
+    }
+
+    override fun reshape(pDrawable: GLAutoDrawable,
+                         pX: Int,
+                         pY: Int,
+                         pWidth: Int,
+                         pHeight: Int) {
+        var height = pHeight
+
+        if (height == 0)
+            height = 1
+
+        this@DeferredLightingRenderer.reshape(pWidth, height)
+    }
+
+    override fun dispose(pDrawable: GLAutoDrawable) {
+        System.err.println("Stopping with dispose")
+        pDrawable.animator?.stop()
+
+        this.shouldClose = true
     }
 
     /**
@@ -381,6 +449,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
                 initializeNode(it)
             }
 
+        scene.initialized = true
         logger.info("Initialized ${textures.size} textures")
     }
 
@@ -576,7 +645,15 @@ open class DeferredLightingRenderer : Renderer, Hubable {
      *
      * @param[scene] [Scene] to render. Must have been given to [initializeScene] before or bad things will happen.
      */
-    override fun render(scene: Scene) {
+    override fun render() {
+        if(scene.children.count() == 0 ||
+            lightingPassProgram == null ||
+            hdrPassProgram == null ||
+            combinerProgram == null
+        ) {
+            Thread.sleep(200)
+            return
+        }
 
         val renderOrderList = ArrayList<Node>()
         val cam: Camera = scene.findObserver()
@@ -801,29 +878,29 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         val lights = scene.discover(scene, { it is PointLight })
 
         eyes.forEachIndexed { i, eye ->
-            lightingPassProgram.bind()
+            lightingPassProgram!!.bind()
 
-            lightingPassProgram.getUniform("numLights").setInt(lights.size)
-            lightingPassProgram.getUniform("ProjectionMatrix").setFloatMatrix(cam.projection!!.clone(), false)
-            lightingPassProgram.getUniform("InverseProjectionMatrix").setFloatMatrix(cam.projection!!.clone().invert(), false)
+            lightingPassProgram!!.getUniform("numLights").setInt(lights.size)
+            lightingPassProgram!!.getUniform("ProjectionMatrix").setFloatMatrix(cam.projection!!.clone(), false)
+            lightingPassProgram!!.getUniform("InverseProjectionMatrix").setFloatMatrix(cam.projection!!.clone().invert(), false)
 
             for (light in 0..lights.size - 1) {
-                lightingPassProgram.getUniform("lights[$light].Position").setFloatVector(lights[light].position)
-                lightingPassProgram.getUniform("lights[$light].Color").setFloatVector((lights[light] as PointLight).emissionColor)
-                lightingPassProgram.getUniform("lights[$light].Intensity").setFloat((lights[light] as PointLight).intensity)
-                lightingPassProgram.getUniform("lights[$light].Linear").setFloat((lights[light] as PointLight).linear)
-                lightingPassProgram.getUniform("lights[$light].Quadratic").setFloat((lights[light] as PointLight).quadratic)
+                lightingPassProgram!!.getUniform("lights[$light].Position").setFloatVector(lights[light].position)
+                lightingPassProgram!!.getUniform("lights[$light].Color").setFloatVector((lights[light] as PointLight).emissionColor)
+                lightingPassProgram!!.getUniform("lights[$light].Intensity").setFloat((lights[light] as PointLight).intensity)
+                lightingPassProgram!!.getUniform("lights[$light].Linear").setFloat((lights[light] as PointLight).linear)
+                lightingPassProgram!!.getUniform("lights[$light].Quadratic").setFloat((lights[light] as PointLight).quadratic)
             }
 
-            lightingPassProgram.getUniform("gPosition").setInt(0)
-            lightingPassProgram.getUniform("gNormal").setInt(1)
-            lightingPassProgram.getUniform("gAlbedoSpec").setInt(2)
-            lightingPassProgram.getUniform("gDepth").setInt(3)
+            lightingPassProgram!!.getUniform("gPosition").setInt(0)
+            lightingPassProgram!!.getUniform("gNormal").setInt(1)
+            lightingPassProgram!!.getUniform("gAlbedoSpec").setInt(2)
+            lightingPassProgram!!.getUniform("gDepth").setInt(3)
 
-            lightingPassProgram.getUniform("debugDeferredBuffers").setInt(settings.get<Boolean>("debug.DebugDeferredBuffers").toInt())
-            lightingPassProgram.getUniform("ssao_filterRadius").setFloatVector(settings.get<GLVector>("ssao.FilterRadius"))
-            lightingPassProgram.getUniform("ssao_distanceThreshold").setFloat(settings.get<Float>("ssao.DistanceThreshold"))
-            lightingPassProgram.getUniform("doSSAO").setInt(settings.get<Boolean>("ssao.Active").toInt())
+            lightingPassProgram!!.getUniform("debugDeferredBuffers").setInt(settings.get<Boolean>("debug.DebugDeferredBuffers").toInt())
+            lightingPassProgram!!.getUniform("ssao_filterRadius").setFloatVector(settings.get<GLVector>("ssao.FilterRadius"))
+            lightingPassProgram!!.getUniform("ssao_distanceThreshold").setFloat(settings.get<Float>("ssao.DistanceThreshold"))
+            lightingPassProgram!!.getUniform("doSSAO").setInt(settings.get<Boolean>("ssao.Active").toInt())
 
             geometryBuffer[i].bindTexturesToUnitsWithOffset(gl, 0)
             hdrBuffer[i].setDrawBuffers(gl)
@@ -849,11 +926,11 @@ open class DeferredLightingRenderer : Renderer, Hubable {
                 gl.glClear(GL4.GL_COLOR_BUFFER_BIT)
                 gl.glViewport(0, 0, combinationBuffer[i].width, combinationBuffer[i].height)
 
-                renderFullscreenQuad(lightingPassProgram)
+                renderFullscreenQuad(lightingPassProgram!!)
             } else {
                 gl.glClear(GL4.GL_COLOR_BUFFER_BIT or GL4.GL_DEPTH_BUFFER_BIT)
                 // render to the active, eye-dependent HDR buffer
-                renderFullscreenQuad(lightingPassProgram)
+                renderFullscreenQuad(lightingPassProgram!!)
 
                 hdrBuffer[i].bindTexturesToUnitsWithOffset(gl, 0)
                 combinationBuffer[i].setDrawBuffers(gl)
@@ -868,9 +945,9 @@ open class DeferredLightingRenderer : Renderer, Hubable {
                     }
                 }
 
-                hdrPassProgram.getUniform("Gamma").setFloat(settings.get<Float>("hdr.Gamma"))
-                hdrPassProgram.getUniform("Exposure").setFloat(settings.get<Float>("hdr.Exposure"))
-                renderFullscreenQuad(hdrPassProgram)
+                hdrPassProgram!!.getUniform("Gamma").setFloat(settings.get<Float>("hdr.Gamma"))
+                hdrPassProgram!!.getUniform("Exposure").setFloat(settings.get<Float>("hdr.Exposure"))
+                renderFullscreenQuad(hdrPassProgram!!)
             }
         }
 
@@ -880,22 +957,22 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         }
         gl.glClear(GL4.GL_COLOR_BUFFER_BIT or GL4.GL_DEPTH_BUFFER_BIT)
         gl.glDisable(GL4.GL_SCISSOR_TEST)
-        gl.glViewport(0, 0, width, height)
-        gl.glScissor(0, 0, width, height)
+        gl.glViewport(0, 0, window.width, window.height)
+        gl.glScissor(0, 0, window.width, window.height)
 
         if (settings.get<Boolean>("vr.Active")) {
             if (settings.get<Boolean>("vr.DoAnaglyph")) {
-                combinerProgram.getUniform("vrActive").setInt(0)
-                combinerProgram.getUniform("anaglyphActive").setInt(1)
+                combinerProgram!!.getUniform("vrActive").setInt(0)
+                combinerProgram!!.getUniform("anaglyphActive").setInt(1)
             } else {
-                combinerProgram.getUniform("vrActive").setInt(1)
-                combinerProgram.getUniform("anaglyphActive").setInt(0)
+                combinerProgram!!.getUniform("vrActive").setInt(1)
+                combinerProgram!!.getUniform("anaglyphActive").setInt(0)
             }
             combinationBuffer[0].bindTexturesToUnitsWithOffset(gl, 0)
             combinationBuffer[1].bindTexturesToUnitsWithOffset(gl, 4)
-            combinerProgram.getUniform("leftEye").setInt(0)
-            combinerProgram.getUniform("rightEye").setInt(4)
-            renderFullscreenQuad(combinerProgram)
+            combinerProgram!!.getUniform("leftEye").setInt(0)
+            combinerProgram!!.getUniform("rightEye").setInt(4)
+            renderFullscreenQuad(combinerProgram!!)
 
             if (hmd != null && hmd.hasCompositor()) {
                 logger.trace("Submitting to compositor...")
@@ -903,10 +980,10 @@ open class DeferredLightingRenderer : Renderer, Hubable {
             }
         } else {
             combinationBuffer.first().bindTexturesToUnitsWithOffset(gl, 0)
-            combinerProgram.getUniform("leftEye").setInt(0)
-            combinerProgram.getUniform("rightEye").setInt(0)
-            combinerProgram.getUniform("vrActive").setInt(0)
-            renderFullscreenQuad(combinerProgram)
+            combinerProgram!!.getUniform("leftEye").setInt(0)
+            combinerProgram!!.getUniform("rightEye").setInt(0)
+            combinerProgram!!.getUniform("vrActive").setInt(0)
+            renderFullscreenQuad(combinerProgram!!)
         }
     }
 
@@ -1153,8 +1230,11 @@ open class DeferredLightingRenderer : Renderer, Hubable {
      * @param[newHeight] The resized window's height
      */
     override fun reshape(newWidth: Int, newHeight: Int) {
-        this.width = newWidth
-        this.height = newHeight
+        if(!initialized) {
+            return
+        }
+        window.width = newWidth
+        window.height = newHeight
 
         if (settings.get<Boolean>("vr.Active")) {
             val eyeDivisor = settings.get<Int>("vr.EyeDivisor")
@@ -1171,7 +1251,7 @@ open class DeferredLightingRenderer : Renderer, Hubable {
         }
 
         gl.glClear(GL.GL_DEPTH_BUFFER_BIT or GL.GL_COLOR_BUFFER_BIT)
-        gl.glViewport(0, 0, this.width, this.height)
+        gl.glViewport(0, 0, window.width, window.height)
     }
 
     /**

@@ -5,8 +5,9 @@ import cleargl.ClearGLDisplayable
 import cleargl.ClearGLWindow
 import com.jogamp.opengl.GLAutoDrawable
 import scenery.backends.Renderer
+import scenery.backends.SceneryWindow
 import scenery.backends.opengl.DeferredLightingRenderer
-import scenery.controls.ClearGLInputHandler
+import scenery.controls.InputHandler
 import scenery.repl.REPL
 
 /**
@@ -36,12 +37,8 @@ open class SceneryDefaultApplication(var applicationName: String,
     protected var renderer: Renderer? = null
     /** The Hub used by the application, see [Hub] */
     var hub: Hub = Hub()
-    /** ClearGL window used by the application, needs to be passed as a parameter to
-     * the constructor of [DeferredLightingRenderer].
-     */
-    protected var glWindow: ClearGLDisplayable? = null
     /** ui-behaviour input handler */
-    protected var inputHandler: ClearGLInputHandler? = null
+    protected var inputHandler: InputHandler? = null
 
     /**
      * the init function of [SceneryDefaultApplication], override this in your subclass,
@@ -49,7 +46,7 @@ open class SceneryDefaultApplication(var applicationName: String,
      *
      * @param[pDrawable] a [org.jogamp.jogl.GLAutoDrawable] handed over by [ClearGLDefaultEventListener]
      */
-    open fun init(pDrawable: GLAutoDrawable) {
+    open fun init() {
 
     }
 
@@ -64,85 +61,30 @@ open class SceneryDefaultApplication(var applicationName: String,
      * with the [init] function. Override this in your subclass and be sure to call `super.main()`.
      *
      * The [ClearGLDefaultEventListener] will take care of usually used window functionality, like
-     * resizing, closing, setting the OpenGL context, etc. It'll also read a keymap for the [ClearGLInputHandler],
+     * resizing, closing, setting the OpenGL context, etc. It'll also read a keymap for the [InputHandler],
      * based on the [applicationName], from the file `~/.[applicationName].bindings
      *
      */
     open fun main() {
-        val lClearGLWindowEventListener = object : ClearGLDefaultEventListener() {
+        // initialize renderer, etc first in init, then setup key bindings
+        init()
 
-            override fun init(pDrawable: GLAutoDrawable) {
-                this@SceneryDefaultApplication.init(pDrawable)
+        inputHandler = InputHandler(scene, renderer!!, hub)
+        inputHandler?.useDefaultBindings(System.getProperty("user.home") + "/.$applicationName.bindings")
 
-                inputHandler = ClearGLInputHandler(scene, renderer as Any, glWindow!!, hub)
-                inputHandler?.useDefaultBindings(System.getProperty("user.home") + "/.$applicationName.bindings")
-
-                this@SceneryDefaultApplication.inputSetup()
-            }
-
-            override fun display(pDrawable: GLAutoDrawable) {
-                super.display(pDrawable)
-
-                frameNum++
-                renderer?.render(scene)
-
-                if(renderer?.settings?.get<Boolean>("wantsFullscreen") == true && renderer?.settings?.get<Boolean>("isFullscreen") == false) {
-                    glWindow!!.setFullscreen(true)
-                    renderer?.settings?.set("wantsFullscreen", true)
-                    renderer?.settings?.set("isFullscreen", true)
-                }
-
-                if(renderer?.settings?.get<Boolean>("wantsFullscreen") == false && renderer?.settings?.get<Boolean>("isFullscreen") == true) {
-                    glWindow!!.setFullscreen(false)
-                    renderer?.settings?.set("wantsFullscreen", false)
-                    renderer?.settings?.set("isFullscreen", false)
-                }
-
-                clearGLWindow.windowTitle = "scenery: %s - %.1f fps".format(applicationName, pDrawable.animator?.lastFPS)
-            }
-
-            override fun setClearGLWindow(pClearGLWindow: ClearGLWindow) {
-                glWindow = pClearGLWindow
-            }
-
-            override fun getClearGLWindow(): ClearGLDisplayable {
-                return glWindow!!
-            }
-
-            override fun reshape(pDrawable: GLAutoDrawable,
-                                 pX: Int,
-                                 pY: Int,
-                                 pWidth: Int,
-                                 pHeight: Int) {
-                var height = pHeight
-
-                if (height == 0)
-                    height = 1
-
-                super.reshape(pDrawable, pX, pY, pWidth, height)
-                renderer?.reshape(pWidth, height)
-            }
-
-            override fun dispose(pDrawable: GLAutoDrawable) {
-                System.err.println("Stopping with dispose")
-                pDrawable.animator?.stop()
-            }
-
+        if(!renderer!!.managesRenderLoop) {
+            renderer!!.initializeScene(scene)
         }
 
-        val glWindow = ClearGLWindow("",
-                windowWidth,
-                windowHeight,
-                lClearGLWindowEventListener)
-        glWindow.isVisible = true
-        glWindow.setFPS(60)
+        // setup additional key bindings, if requested by the user
+        inputSetup()
 
-        glWindow.start()
-
-        while (glWindow.isVisible) {
-            Thread.sleep(10)
+        while(renderer!!.shouldClose == false) {
+            if(renderer!!.managesRenderLoop) {
+                Thread.sleep(10)
+            } else {
+                renderer!!.render()
+            }
         }
-
-        glWindow.stop()
     }
 }

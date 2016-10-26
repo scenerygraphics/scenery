@@ -2,10 +2,9 @@ package scenery.tests.examples
 
 import cleargl.GLMatrix
 import cleargl.GLVector
-import com.jogamp.opengl.GLAutoDrawable
 import org.junit.Test
 import scenery.*
-import scenery.backends.opengl.DeferredLightingRenderer
+import scenery.backends.Renderer
 import scenery.repl.REPL
 import java.nio.FloatBuffer
 import java.util.*
@@ -19,10 +18,9 @@ import kotlin.concurrent.thread
 
 class VertexUpdateExample : SceneryDefaultApplication("VertexUpdateExample") {
 
-    override fun init(pDrawable: GLAutoDrawable) {
-        super.init(pDrawable)
-        renderer = DeferredLightingRenderer(pDrawable.gl.gL4,
-                glWindow!!.width, glWindow!!.height)
+    override fun init() {
+        renderer = Renderer.createRenderer(applicationName,
+               scene, 512, 512)
         hub.add(SceneryElement.RENDERER, renderer!!)
 
         var sphere = Sphere(2.0f, 50)
@@ -55,7 +53,7 @@ class VertexUpdateExample : SceneryDefaultApplication("VertexUpdateExample") {
         cam.projection = GLMatrix()
                 .setPerspectiveProjectionMatrix(
                         70.0f / 180.0f * Math.PI.toFloat(),
-                        pDrawable.surfaceWidth.toFloat() / pDrawable.surfaceHeight.toFloat(), 0.1f, 1000.0f)
+                        renderer!!.window.width.toFloat() / renderer!!.window.height.toFloat(), 0.1f, 1000.0f)
                 .invert()
         cam.active = true
 
@@ -119,7 +117,6 @@ class VertexUpdateExample : SceneryDefaultApplication("VertexUpdateExample") {
                 Thread.sleep(20)
             }
         }
-        renderer?.initializeScene(scene)
 
         repl = REPL(scene, renderer!!)
         repl?.start()

@@ -5,6 +5,7 @@ import cleargl.GLVector
 import com.jogamp.opengl.GLAutoDrawable
 import org.junit.Test
 import scenery.*
+import scenery.backends.Renderer
 import scenery.backends.opengl.DeferredLightingRenderer
 import scenery.repl.REPL
 
@@ -14,8 +15,8 @@ import scenery.repl.REPL
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class FontRenderingExample: SceneryDefaultApplication("FontRenderingExample") {
-    override fun init(pDrawable: GLAutoDrawable) {
-        renderer = DeferredLightingRenderer(pDrawable.gl.gL4, glWindow!!.width, glWindow!!.height)
+    override fun init() {
+        renderer = Renderer.createRenderer(applicationName, scene, windowWidth, windowHeight)
         hub.add(SceneryElement.RENDERER, renderer!!)
 
         var lights = (0..5).map {
@@ -57,8 +58,6 @@ class FontRenderingExample: SceneryDefaultApplication("FontRenderingExample") {
         board.text = "hello, world!"
 
         scene.addChild(board)
-
-        renderer?.initializeScene(scene)
 
         repl = REPL(scene, renderer!!)
         repl?.start()

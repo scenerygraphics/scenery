@@ -1,6 +1,5 @@
 package scenery.controls
 
-import cleargl.ClearGLDisplayable
 import net.java.games.input.Component
 import org.scijava.ui.behaviour.Behaviour
 import org.scijava.ui.behaviour.BehaviourMap
@@ -13,10 +12,14 @@ import scenery.Scene
 import scenery.SceneryElement
 import scenery.controls.behaviours.*
 import scenery.backends.Renderer
+import scenery.backends.SceneryWindow
 import java.io.FileNotFoundException
 import java.io.FileReader
 import java.io.Reader
 import java.io.StringReader
+import org.lwjgl.glfw.GLFW.*
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 
 /**
  * Input orchestrator for ClearGL windows
@@ -28,37 +31,56 @@ import java.io.StringReader
  * @property[hub] [Hub] for handoing communication
  * @constructor Creates a default behaviour list and input map, also reads the configuration from a file.
  */
-class ClearGLInputHandler(scene: Scene, renderer: Any, window: ClearGLDisplayable, override var hub: Hub?) : Hubable {
+class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : Hubable {
+    /** logger for the InputHandler **/
+    protected var logger: Logger = LoggerFactory.getLogger("InputHandler")
     /** ui-behaviour input trigger map, stores what actions (key presses, etc) trigger which actions. */
     protected val inputMap = InputTriggerMap()
     /** ui-behaviour behaviour map, stores the available behaviours */
     protected val behaviourMap = BehaviourMap()
     /** JOGL-flavoured ui-behaviour MouseAndKeyHandler */
-    protected val handler: JOGLMouseAndKeyHandler
+    protected val handler: MouseAndKeyHandler?
 
     /** Scene the input handler refers to */
     protected val scene: Scene
     /** Renderer the input handler uses */
-    protected val renderer: Any
+    protected val renderer: Renderer
     /** window the input handler receives input events from */
-    protected val window: ClearGLDisplayable
+    protected val window: SceneryWindow
 
     /** configuration of the input triggers */
     protected var config: InputTriggerConfig = InputTriggerConfig()
 
     init {
-        // create Mouse & Keyboard Handler
-        handler = JOGLMouseAndKeyHandler()
-        handler.setInputMap(inputMap)
-        handler.setBehaviourMap(behaviourMap)
+        window = renderer.window
 
-        window.addKeyListener(handler)
-        window.addMouseListener(handler)
-        window.addWindowListener(handler)
+        if(window.clearglWindow != null) {
+            // create Mouse & Keyboard Handler
+            handler = JOGLMouseAndKeyHandler()
+            handler.setInputMap(inputMap)
+            handler.setBehaviourMap(behaviourMap)
+
+            with(window.clearglWindow!!) {
+                addKeyListener(handler)
+                addMouseListener(handler)
+                addWindowListener(handler)
+            }
+        } else if(window.glfwWindow != null) {
+            handler = GLFWMouseAndKeyHandler()
+
+            handler.setInputMap(inputMap)
+            handler.setBehaviourMap(behaviourMap)
+
+            glfwSetCursorPosCallback(window.glfwWindow!!, handler.cursorCallback)
+            glfwSetKeyCallback(window.glfwWindow!!, handler.keyCallback)
+            glfwSetScrollCallback(window.glfwWindow!!, handler.scrollCallback)
+        } else {
+            logger.error("No suitable window was found")
+            handler = null
+        }
 
         this.scene = scene
         this.renderer = renderer
-        this.window = window
         this.hub = hub
         hub?.add(SceneryElement.INPUT, this)
     }

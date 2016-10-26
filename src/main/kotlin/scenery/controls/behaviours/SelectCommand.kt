@@ -20,8 +20,8 @@ open class SelectCommand(private val name: String, private val renderer: Rendere
         var h = view.cross(cam.up).normalize()
         var v = h.cross(view)
 
-        val width = renderer.width.toFloat()
-        val height = renderer.height.toFloat()
+        val width = renderer.window.width.toFloat()
+        val height = renderer.window.height.toFloat()
 
         val fov = cam.fov * Math.PI/180.0f//fov in rad
         val lengthV = Math.tan(fov/2.0).toFloat()*cam.nearPlaneDistance

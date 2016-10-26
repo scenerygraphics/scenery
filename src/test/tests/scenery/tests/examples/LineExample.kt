@@ -1,12 +1,11 @@
 package scenery.tests.examples
 
 import cleargl.GLVector
-import com.jogamp.opengl.GLAutoDrawable
 import org.junit.Test
 import org.scijava.ui.behaviour.ClickBehaviour
 import scenery.*
-import scenery.backends.opengl.DeferredLightingRenderer
-import scenery.controls.ClearGLInputHandler
+import scenery.backends.Renderer
+import scenery.controls.InputHandler
 import scenery.controls.behaviours.ArcballCameraControl
 import scenery.controls.behaviours.FPSCameraControl
 import kotlin.concurrent.thread
@@ -23,9 +22,8 @@ import kotlin.concurrent.thread
 class LineExample : SceneryDefaultApplication("LineExample") {
     protected var lineAnimating = true
 
-    override fun init(pDrawable: GLAutoDrawable) {
-        super.init(pDrawable)
-        renderer = DeferredLightingRenderer(pDrawable.gl.gL4, glWindow!!.width, glWindow!!.height)
+    override fun init() {
+        renderer = Renderer.createRenderer(applicationName, scene, windowWidth, windowHeight)
         hub.add(SceneryElement.RENDERER, renderer!!)
 
         var hull = Box(GLVector(50.0f, 50.0f, 50.0f))
@@ -65,12 +63,10 @@ class LineExample : SceneryDefaultApplication("LineExample") {
 
         val cam: Camera = DetachedHeadCamera()
         cam.position = GLVector(0.0f, 0.0f, 15.0f)
-        cam.perspectiveCamera(50.0f, 1.0f*glWindow!!.width, 1.0f*glWindow!!.height)
+        cam.perspectiveCamera(50.0f, windowWidth.toFloat(), windowHeight.toFloat())
         cam.active = true
 
         scene.addChild(cam)
-
-        renderer?.initializeScene(scene)
 
         thread {
             var t = 0
@@ -93,9 +89,9 @@ class LineExample : SceneryDefaultApplication("LineExample") {
 
     override fun inputSetup() {
         val target = GLVector(0.0f, 0.0f, 0.0f)
-        val inputHandler = (hub.get(SceneryElement.INPUT) as ClearGLInputHandler)
-        val targetArcball = ArcballCameraControl("mouse_control", scene.findObserver(), glWindow!!.width, glWindow!!.height, target)
-        val fpsControl = FPSCameraControl("mouse_control", scene.findObserver(), glWindow!!.width, glWindow!!.height)
+        val inputHandler = (hub.get(SceneryElement.INPUT) as InputHandler)
+        val targetArcball = ArcballCameraControl("mouse_control", scene.findObserver(), renderer!!.window.width, renderer!!.window.height, target)
+        val fpsControl = FPSCameraControl("mouse_control", scene.findObserver(), renderer!!.window.width, renderer!!.window.height)
 
         val toggleControlMode = object : ClickBehaviour {
             var currentMode = "fps"

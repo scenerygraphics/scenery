@@ -4,6 +4,7 @@ import com.jogamp.newt.event.*
 import gnu.trove.map.hash.TIntLongHashMap
 import gnu.trove.set.hash.TIntHashSet
 import net.java.games.input.*
+import org.lwjgl.glfw.*
 import org.scijava.ui.behaviour.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -14,13 +15,44 @@ import java.nio.file.Files
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.concurrent.thread
+import org.lwjgl.glfw.GLFW.*
+import org.lwjgl.glfw.GLFWKeyCallback
 
 /**
- * <Description>
- *
- * @author Ulrik Günther <hello@ulrik.is>
+ * Created by ulrik on 10/26/2016.
  */
-class JOGLMouseAndKeyHandler : MouseAndKeyHandler, MouseListener, KeyListener, WindowListener, WindowAdapter(), ControllerListener {
+open class GLFWMouseAndKeyHandler : MouseAndKeyHandler {
+
+    protected var mouseX = 0
+    protected var mouseY = 0
+
+    var cursorCallback = object : GLFWCursorPosCallback() {
+        override fun invoke(window: Long, xpos: Double, ypos: Double) {
+            mouseMoved(xpos.toInt(), ypos.toInt())
+        }
+    }
+
+    var keyCallback = object : GLFWKeyCallback() {
+        override fun invoke(window: Long, key: Int, scancode: Int, action: Int, mods: Int) {
+            if(key == GLFW_MOUSE_BUTTON_1
+                || key == GLFW_MOUSE_BUTTON_2
+                || key == GLFW_MOUSE_BUTTON_3) {
+                mouseClicked(key, mods)
+            } else {
+                logger.info("Key pressed: $key")
+                keyPressed(key, scancode, mods)
+            }
+        }
+
+    }
+
+    var scrollCallback = object : GLFWScrollCallback() {
+        override fun invoke(window: Long, xoffset: Double, yoffset: Double) {
+
+        }
+
+    }
+
     /** slf4j logger for this class */
     protected var logger: Logger = LoggerFactory.getLogger("InputHandler")
 
@@ -59,7 +91,7 @@ class JOGLMouseAndKeyHandler : MouseAndKeyHandler, MouseListener, KeyListener, W
     private fun getDoubleClickInterval(): Int {
         val prop = Toolkit.getDefaultToolkit().getDesktopProperty("awt.multiClickInterval")
 
-        if (prop == null){
+        if (prop == null) {
             return 200
         } else {
             return prop as Int
@@ -126,7 +158,7 @@ class JOGLMouseAndKeyHandler : MouseAndKeyHandler, MouseListener, KeyListener, W
             }
         }
 
-        if(replace) {
+        if (replace) {
             System.setProperty("java.library.path", paths.joinToString(File.pathSeparator))
         } else {
             val newPath = "${lp}${File.pathSeparator}${tmpDir.absolutePath}"
@@ -134,9 +166,9 @@ class JOGLMouseAndKeyHandler : MouseAndKeyHandler, MouseListener, KeyListener, W
             System.setProperty("java.library.path", newPath)
         }
 
-        val fieldSysPath = ClassLoader::class.java.getDeclaredField( "sys_paths" )
-        fieldSysPath.setAccessible( true )
-        fieldSysPath.set( null, null )
+        val fieldSysPath = ClassLoader::class.java.getDeclaredField("sys_paths")
+        fieldSysPath.setAccessible(true)
+        fieldSysPath.set(null, null)
 
         logger.debug("java.library.path is now ${System.getProperty("java.library.path")}")
     }
@@ -147,7 +179,7 @@ class JOGLMouseAndKeyHandler : MouseAndKeyHandler, MouseListener, KeyListener, W
         extractLibrariesFromJar(getNativeJars("jinput-platform"))
 
         ControllerEnvironment.getDefaultEnvironment().controllers.forEach {
-            if(it.type == Controller.Type.STICK || it.type == Controller.Type.GAMEPAD) {
+            if (it.type == Controller.Type.STICK || it.type == Controller.Type.GAMEPAD) {
                 this.controller = it
                 logger.info("Added gamepad controller: $it")
             }
@@ -157,7 +189,7 @@ class JOGLMouseAndKeyHandler : MouseAndKeyHandler, MouseListener, KeyListener, W
             var event_queue: EventQueue
             val event: Event = Event()
 
-            while(true) {
+            while (true) {
                 controller?.let {
                     controller!!.poll()
 
@@ -168,8 +200,8 @@ class JOGLMouseAndKeyHandler : MouseAndKeyHandler, MouseListener, KeyListener, W
                     }
                 }
 
-                for(gamepad in gamepads) {
-                    for(it in controllerAxisDown) {
+                for (gamepad in gamepads) {
+                    for (it in controllerAxisDown) {
                         if (Math.abs(it.value) > 0.02f && gamepad.behaviour.axis.contains(it.key)) {
                             logger.trace("Triggering ${it.key} because axis is down (${it.value})")
                             gamepad.behaviour.axisEvent(it.key, it.value.toFloat())
@@ -203,18 +235,18 @@ class JOGLMouseAndKeyHandler : MouseAndKeyHandler, MouseListener, KeyListener, W
     }
 
     /**
-	 * Managing internal behaviour lists.
-	 *
-	 * The internal lists only contain entries for Behaviours that can be
-	 * actually triggered with the current InputMap, grouped by Behaviour type,
-	 * such that hopefully lookup from the event handlers is fast,
+     * Managing internal behaviour lists.
+     *
+     * The internal lists only contain entries for Behaviours that can be
+     * actually triggered with the current InputMap, grouped by Behaviour type,
+     * such that hopefully lookup from the event handlers is fast,
      *
      * @property[buttons] Buttons triggering the input
      * @property[behaviour] Behaviour triggered by these buttons
-	 */
+     */
     internal class BehaviourEntry<T : Behaviour>(
-            val buttons: InputTrigger,
-            val behaviour: T)
+        val buttons: InputTrigger,
+        val behaviour: T)
 
     private val buttonDrags = ArrayList<BehaviourEntry<DragBehaviour>>()
 
@@ -326,16 +358,6 @@ class JOGLMouseAndKeyHandler : MouseAndKeyHandler, MouseListener, KeyListener, W
     private var winPressed = false
 
     /**
-     * The current mouse coordinates, updated through [.mouseMoved].
-     */
-    private var mouseX: Int = 0
-
-    /**
-     * The current mouse coordinates, updated through [.mouseMoved].
-     */
-    private var mouseY: Int = 0
-
-    /**
      * Active [DragBehaviour]s initiated by mouse button press.
      */
     private val activeButtonDrags = ArrayList<BehaviourEntry<DragBehaviour>>()
@@ -350,8 +372,7 @@ class JOGLMouseAndKeyHandler : MouseAndKeyHandler, MouseListener, KeyListener, W
      *
      * @param[e] The input event to evaluate.
      */
-    private fun getMask(e: InputEvent): Int {
-        val modifiers = e.modifiers
+    private fun getMask(modifiers: Int): Int {
         var mask = 0
 
         /*
@@ -384,8 +405,9 @@ class JOGLMouseAndKeyHandler : MouseAndKeyHandler, MouseListener, KeyListener, W
 		 * ...but only if its not a MouseWheelEvent because OS X sets button
 		 * modifiers if ALT or META modifiers are pressed.
 		 */
+        /*
         if (e is MouseEvent && (e.rotation[0] < 0.001f || e.rotation[1] < 0.001f)) {
-            if (modifiers and InputEvent.BUTTON1_MASK != 0) {
+            if (modifiers and != 0) {
                 mask = mask or (1 shl 10)
             }
             if (modifiers and InputEvent.BUTTON2_MASK != 0) {
@@ -394,12 +416,13 @@ class JOGLMouseAndKeyHandler : MouseAndKeyHandler, MouseListener, KeyListener, W
             if (modifiers and InputEvent.BUTTON3_MASK != 0) {
                 mask = mask or (1 shl 12)
             }
-        }
+        }*/
 
         /*
 		 * Deal with mous double-clicks.
 		 */
 
+        /*
         if (e is MouseEvent && e.clickCount > 1) {
             mask = mask or InputTrigger.DOUBLE_CLICK_MASK
         } // mouse
@@ -408,6 +431,7 @@ class JOGLMouseAndKeyHandler : MouseAndKeyHandler, MouseListener, KeyListener, W
             mask = mask or InputTrigger.SCROLL_MASK
             mask = mask and (1 shl 10).inv()
         }
+        */
 
         return mask
     }
@@ -417,11 +441,11 @@ class JOGLMouseAndKeyHandler : MouseAndKeyHandler, MouseListener, KeyListener, W
      *
      * @param[e] The incoming MouseEvent
      */
-    override fun mouseMoved(e: MouseEvent) {
+    fun mouseMoved(x: Int, y: Int) {
         update()
 
-        mouseX = e.getX()
-        mouseY = e.getY()
+        mouseX = x
+        mouseY = y
 
         for (drag in activeKeyDrags)
             drag.behaviour.drag(mouseX, mouseY)
@@ -432,7 +456,7 @@ class JOGLMouseAndKeyHandler : MouseAndKeyHandler, MouseListener, KeyListener, W
      *
      * @param[e] The incoming MouseEvent
      */
-    override fun mouseEntered(e: MouseEvent) {
+    fun mouseEntered(e: MouseEvent) {
         update()
     }
 
@@ -441,12 +465,12 @@ class JOGLMouseAndKeyHandler : MouseAndKeyHandler, MouseListener, KeyListener, W
      *
      * @param[e] The incoming MouseEvent
      */
-    override fun mouseClicked(e: MouseEvent) {
+    fun mouseClicked(button: Int, modifiers: Int) {
         update()
 
-        val mask = getMask(e)
-        val x = e.x
-        val y = e.y
+        val mask = getMask(modifiers)
+        val x = mouseX
+        val y = mouseY
 
         val clickMask = mask and InputTrigger.DOUBLE_CLICK_MASK.inv()
         for (click in buttonClicks) {
@@ -461,13 +485,13 @@ class JOGLMouseAndKeyHandler : MouseAndKeyHandler, MouseListener, KeyListener, W
      *
      * @param[e] The incoming mouse event
      */
-    override fun mouseWheelMoved(e: MouseEvent) {
+    fun mouseWheelMoved(rotation: Float, modifiers: Int) {
         update()
 
-        val mask = getMask(e)
-        val x = e.x
-        val y = e.y
-        val wheelRotation = e.rotation
+        val mask = getMask(modifiers)
+        val x = mouseX
+        val y = mouseY
+        val wheelRotation = rotation
 
         /*
 		 * AWT uses the SHIFT_DOWN_MASK to indicate horizontal scrolling. We
@@ -476,15 +500,15 @@ class JOGLMouseAndKeyHandler : MouseAndKeyHandler, MouseListener, KeyListener, W
 		 * the SHIFT key is not pressed. With SHIFT pressed, everything is
 		 * treated as vertical scrolling.
 		 */
-        val exShiftMask = e.getModifiers() and InputEvent.SHIFT_MASK != 0
-        val isHorizontal = !shiftPressed && exShiftMask && wheelRotation[1] == 0.0f
+        val exShiftMask = modifiers and InputEvent.SHIFT_MASK != 0
+        val isHorizontal = !shiftPressed && exShiftMask
 
         for (scroll in scrolls) {
             if (scroll.buttons.matches(mask, pressedKeys)) {
-                if(isHorizontal) {
-                    scroll.behaviour.scroll(wheelRotation[0].toDouble(), isHorizontal, x, y)
+                if (isHorizontal) {
+                    scroll.behaviour.scroll(rotation.toDouble(), isHorizontal, x, y)
                 } else {
-                    scroll.behaviour.scroll(wheelRotation[1].toDouble(), isHorizontal, x, y)
+                    scroll.behaviour.scroll(rotation.toDouble(), isHorizontal, x, y)
                 }
             }
         }
@@ -495,7 +519,7 @@ class JOGLMouseAndKeyHandler : MouseAndKeyHandler, MouseListener, KeyListener, W
      *
      * @param[e] The incoming mouse event
      */
-    override fun mouseReleased(e: MouseEvent) {
+    fun mouseReleased(e: MouseEvent) {
         update()
 
         val x = e.x
@@ -511,7 +535,7 @@ class JOGLMouseAndKeyHandler : MouseAndKeyHandler, MouseListener, KeyListener, W
      *
      * @param[e] The incoming mouse event
      */
-    override fun mouseDragged(e: MouseEvent) {
+    fun mouseDragged(e: MouseEvent) {
         update()
 
         val x = e.x
@@ -527,7 +551,7 @@ class JOGLMouseAndKeyHandler : MouseAndKeyHandler, MouseListener, KeyListener, W
      *
      * @param[e] The incoming mouse event
      */
-    override fun mouseExited(e: MouseEvent) {
+    fun mouseExited(e: MouseEvent) {
         update()
     }
 
@@ -536,12 +560,12 @@ class JOGLMouseAndKeyHandler : MouseAndKeyHandler, MouseListener, KeyListener, W
      *
      * @param[e] The incoming mouse event
      */
-    override fun mousePressed(e: MouseEvent) {
+    fun mousePressed(buttons: Int, modifiers: Int) {
         update()
 
-        val mask = getMask(e)
-        val x = e.x
-        val y = e.y
+        val mask = getMask(modifiers)
+        val x = mouseX
+        val y = mouseY
 
         for (drag in buttonDrags) {
             if (drag.buttons.matches(mask, pressedKeys)) {
@@ -556,34 +580,40 @@ class JOGLMouseAndKeyHandler : MouseAndKeyHandler, MouseListener, KeyListener, W
      *
      * @param[e] The incoming keyboard event
      */
-    override fun keyPressed(e: KeyEvent) {
+    fun keyPressed(keyCode: Int, scancode: Int, modifiers: Int) {
         update()
 
-        if (e.keyCode == KeyEvent.VK_SHIFT) {
+        if (modifiers and GLFW_MOD_SHIFT == 1) {
+            logger.info("Shift down")
             shiftPressed = true
-        } else if (e.keyCode == KeyEvent.VK_META) {
+        } else if (modifiers and GLFW_MOD_ALT == 1) {
+            logger.info("Alt down")
             metaPressed = true
-        } else if (e.keyCode == KeyEvent.VK_WINDOWS) {
+        } else if (modifiers and GLFW_MOD_SUPER == 1) {
+            logger.info("Super down")
             winPressed = true
-        }
-        else if (e.keyCode != KeyEvent.VK_ALT &&
-                e.keyCode != KeyEvent.VK_CONTROL &&
-                e.keyCode != KeyEvent.VK_ALT_GRAPH) {
-            val inserted = pressedKeys.add(e.keyCode.toInt())
+        } else if (keyCode != GLFW_KEY_RIGHT_ALT &&
+            keyCode != GLFW_KEY_LEFT_ALT &&
+            keyCode != GLFW_KEY_LEFT_CONTROL &&
+            keyCode != GLFW_KEY_RIGHT_CONTROL) {
+            logger.info("Something else down")
+            val inserted = pressedKeys.add(keyCode)
 
             /*
 			 * Create mask and deal with double-click on keys.
 			 */
 
-            val mask = getMask(e)
+            val mask = getMask(modifiers)
             var doubleClick = false
+            val now = System.nanoTime()
+
             if (inserted) {
                 // double-click on keys.
-                val lastPressTime = keyPressTimes.get(e.keyCode.toInt())
-                if (lastPressTime.toInt() != -1 && e.`when` - lastPressTime < DOUBLE_CLICK_INTERVAL)
+                val lastPressTime = keyPressTimes.get(keyCode)
+                if (lastPressTime.toInt() != -1 && now - lastPressTime < DOUBLE_CLICK_INTERVAL)
                     doubleClick = true
 
-                keyPressTimes.put(e.keyCode.toInt(), e.`when`)
+                keyPressTimes.put(keyCode, now)
             }
             val doubleClickMask = mask or InputTrigger.DOUBLE_CLICK_MASK
 
@@ -594,6 +624,8 @@ class JOGLMouseAndKeyHandler : MouseAndKeyHandler, MouseListener, KeyListener, W
                 }
             }
 
+            logger.info("Key down: $keyCode")
+            logger.info(keyClicks.count().toString())
             for (click in keyClicks) {
                 if (click.buttons.matches(mask, pressedKeys) || doubleClick && click.buttons.matches(doubleClickMask, pressedKeys)) {
                     click.behaviour.click(mouseX, mouseY)
@@ -607,7 +639,7 @@ class JOGLMouseAndKeyHandler : MouseAndKeyHandler, MouseListener, KeyListener, W
      *
      * @param[e] The incoming keyboard event
      */
-    override fun keyReleased(e: KeyEvent) {
+    fun keyReleased(e: KeyEvent) {
         update()
 
         if (e.keyCode == KeyEvent.VK_SHIFT) {
@@ -617,8 +649,8 @@ class JOGLMouseAndKeyHandler : MouseAndKeyHandler, MouseListener, KeyListener, W
         } else if (e.keyCode == KeyEvent.VK_WINDOWS) {
             winPressed = false
         } else if (e.keyCode != KeyEvent.VK_ALT &&
-                e.keyCode != KeyEvent.VK_CONTROL &&
-                e.keyCode != KeyEvent.VK_ALT_GRAPH) {
+            e.keyCode != KeyEvent.VK_CONTROL &&
+            e.keyCode != KeyEvent.VK_ALT_GRAPH) {
             pressedKeys.remove(e.keyCode.toInt())
 
             for (drag in activeKeyDrags)
@@ -627,69 +659,7 @@ class JOGLMouseAndKeyHandler : MouseAndKeyHandler, MouseListener, KeyListener, W
         }
     }
 
-    /**
-     * Called when a window repaint event is registered
-     *
-     * @param[e] The incoming window update event
-     */
-    override fun windowRepaint(e: WindowUpdateEvent?) {
-    }
 
-    /**
-     * Called when a window destroy event is registered
-     *
-     * @param[e] The incoming window event
-     */
-    override fun windowDestroyed(e: WindowEvent?) {
-    }
-
-    /**
-     * Called when a window destruction notification event is registered
-     *
-     * @param[e] The incoming window update event
-     */
-    override fun windowDestroyNotify(e: WindowEvent?) {
-    }
-
-    /**
-     * Called when the window lost focus. Clears pressed keys
-     *
-     * @param[e] The incoming window update event
-     */
-    override fun windowLostFocus(e: WindowEvent?) {
-        pressedKeys.clear()
-        shiftPressed = false
-        metaPressed = false
-        winPressed = false
-    }
-
-    /**
-     * Called when a window move event is registered
-     *
-     * @param[e] The incoming window update event
-     */
-    override fun windowMoved(e: WindowEvent?) {
-    }
-
-    /**
-     * Called when a window resize event is registered
-     *
-     * @param[e] The incoming window update event
-     */
-    override fun windowResized(e: WindowEvent?) {
-    }
-
-    /**
-     * Called when a window regains focus, clears pressed keys
-     *
-     * @param[e] The incoming window update event
-     */
-    override fun windowGainedFocus(e: WindowEvent?) {
-        pressedKeys.clear()
-        shiftPressed = false
-        metaPressed = false
-        winPressed = false
-    }
 
     /**
      * Called when a new controller is added
@@ -697,7 +667,7 @@ class JOGLMouseAndKeyHandler : MouseAndKeyHandler, MouseListener, KeyListener, W
      * @param[event] The incoming controller event
      */
     override fun controllerAdded(event: ControllerEvent?) {
-        if(controller == null && event != null && event.controller.type == Controller.Type.GAMEPAD) {
+        if (controller == null && event != null && event.controller.type == Controller.Type.GAMEPAD) {
             logger.info("Adding controller ${event.controller}")
             this.controller = event.controller
         }
@@ -709,7 +679,7 @@ class JOGLMouseAndKeyHandler : MouseAndKeyHandler, MouseListener, KeyListener, W
      * @param[event] The incoming controller event
      */
     override fun controllerRemoved(event: ControllerEvent?) {
-        if(event != null && controller != null) {
+        if (event != null && controller != null) {
             logger.info("Controller removed: ${event.controller}")
 
             controller = null
@@ -723,15 +693,15 @@ class JOGLMouseAndKeyHandler : MouseAndKeyHandler, MouseListener, KeyListener, W
      * @param[event] The incoming controller event
      */
     fun controllerEvent(event: Event) {
-        for(gamepad in gamepads) {
-            if(event.component.isAnalog && Math.abs(event.component.pollData) < CONTROLLER_DOWN_THRESHOLD) {
+        for (gamepad in gamepads) {
+            if (event.component.isAnalog && Math.abs(event.component.pollData) < CONTROLLER_DOWN_THRESHOLD) {
                 logger.trace("${event.component.identifier} over threshold, removing")
                 controllerAxisDown.put(event.component.identifier, 0.0f)
             } else {
                 controllerAxisDown.put(event.component.identifier, event.component.pollData)
             }
 
-            if(gamepad.behaviour.axis.contains(event.component.identifier)) {
+            if (gamepad.behaviour.axis.contains(event.component.identifier)) {
                 gamepad.behaviour.axisEvent(event.component.identifier, event.component.pollData)
             }
         }

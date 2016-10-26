@@ -2,14 +2,13 @@ package scenery.tests.examples
 
 import cleargl.GLMatrix
 import cleargl.GLVector
-import com.jogamp.opengl.GLAutoDrawable
 import org.junit.Test
 import org.scijava.ui.behaviour.ClickBehaviour
 import scenery.*
-import scenery.controls.ClearGLInputHandler
+import scenery.backends.Renderer
+import scenery.controls.InputHandler
 import scenery.controls.behaviours.ArcballCameraControl
 import scenery.controls.behaviours.FPSCameraControl
-import scenery.backends.opengl.DeferredLightingRenderer
 import scenery.repl.REPL
 import kotlin.concurrent.thread
 
@@ -20,10 +19,7 @@ import kotlin.concurrent.thread
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class ArcballTargetExample : SceneryDefaultApplication("ArcballTargetExample") {
-    override fun init(pDrawable: GLAutoDrawable) {
-        renderer = DeferredLightingRenderer(pDrawable.gl.gL4, glWindow!!.width, glWindow!!.height)
-        hub.add(SceneryElement.RENDERER, renderer!!)
-
+    override fun init() {
         val boxmaterial = Material()
         with(boxmaterial) {
             ambient = GLVector(1.0f, 0.0f, 0.0f)
@@ -73,7 +69,9 @@ class ArcballTargetExample : SceneryDefaultApplication("ArcballTargetExample") {
             }
         }
 
-        renderer?.initializeScene(scene)
+        renderer = Renderer.createRenderer(applicationName, scene, 1024, 1024)
+        hub.add(SceneryElement.RENDERER, renderer!!)
+
 
         repl = REPL(scene, renderer!!)
         repl?.start()
@@ -82,9 +80,9 @@ class ArcballTargetExample : SceneryDefaultApplication("ArcballTargetExample") {
 
     override fun inputSetup() {
         val target = GLVector(1.5f, 5.5f, -5.5f)
-        val inputHandler = (hub.get(SceneryElement.INPUT) as ClearGLInputHandler)
-        val targetArcball = ArcballCameraControl("mouse_control", scene.findObserver(), glWindow!!.width, glWindow!!.height)
-        val fpsControl = FPSCameraControl("mouse_control", scene.findObserver(), glWindow!!.width, glWindow!!.height)
+        val inputHandler = (hub.get(SceneryElement.INPUT) as InputHandler)
+        val targetArcball = ArcballCameraControl("mouse_control", scene.findObserver(), renderer!!.window.width, renderer!!.window.height)
+        val fpsControl = FPSCameraControl("mouse_control", scene.findObserver(), renderer!!.window.width, renderer!!.window.height)
 
         val toggleControlMode = object : ClickBehaviour {
             var currentMode = "fps"

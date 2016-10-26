@@ -2,11 +2,10 @@ package scenery.tests.examples
 
 import cleargl.GLMatrix
 import cleargl.GLVector
-import com.jogamp.opengl.GLAutoDrawable
 import org.junit.Test
 import scenery.*
+import scenery.backends.Renderer
 import scenery.controls.OpenVRInput
-import scenery.backends.opengl.DeferredLightingRenderer
 import scenery.repl.REPL
 import kotlin.concurrent.thread
 
@@ -17,12 +16,11 @@ import kotlin.concurrent.thread
  */
 class OpenVRExample : SceneryDefaultApplication("OpenVRExample") {
     private var ovr: OpenVRInput? = null
-    override fun init(pDrawable: GLAutoDrawable) {
-        super.init(pDrawable)
+    override fun init() {
         ovr = OpenVRInput(useCompositor = true)
         hub.add(SceneryElement.HMDINPUT, ovr!!)
 
-        renderer = DeferredLightingRenderer(pDrawable.gl.gL4, glWindow!!.width, glWindow!!.height)
+        renderer = Renderer.createRenderer(applicationName, scene, 1280, 720)
         hub.add(SceneryElement.RENDERER, renderer!!)
 
         var box = Box(GLVector(1.0f, 1.0f, 1.0f))
@@ -66,8 +64,6 @@ class OpenVRExample : SceneryDefaultApplication("OpenVRExample") {
                 Thread.sleep(20)
             }
         }
-
-        renderer?.initializeScene(scene)
 
         repl = REPL(scene, renderer!!)
         repl?.start()

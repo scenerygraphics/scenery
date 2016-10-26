@@ -2,11 +2,9 @@ package scenery.tests.examples
 
 import cleargl.GLMatrix
 import cleargl.GLVector
-import com.jogamp.opengl.GLAutoDrawable
-import com.jogamp.opengl.GLException
 import org.junit.Test
 import scenery.*
-import scenery.backends.opengl.DeferredLightingRenderer
+import scenery.backends.Renderer
 import java.io.IOException
 import kotlin.concurrent.thread
 
@@ -14,12 +12,9 @@ import kotlin.concurrent.thread
  * Created by ulrik on 20/01/16.
  */
 class MultiBoxExample : SceneryDefaultApplication("MultiBoxExample") {
-    override fun init(pDrawable: GLAutoDrawable) {
-        super.init(pDrawable)
+    override fun init() {
         try {
-            renderer = DeferredLightingRenderer(pDrawable.gl.gL4,
-                    glWindow!!.width,
-                    glWindow!!.height)
+            renderer = Renderer.createRenderer(applicationName, scene, windowWidth, windowHeight)
             hub.add(SceneryElement.RENDERER, renderer!!)
 
             val cam: Camera = DetachedHeadCamera()
@@ -84,7 +79,7 @@ class MultiBoxExample : SceneryDefaultApplication("MultiBoxExample") {
 
             cam.projection = GLMatrix().setPerspectiveProjectionMatrix(
                     70.0f / 180.0f * Math.PI.toFloat(),
-                    pDrawable.surfaceWidth.toFloat() / pDrawable.surfaceHeight.toFloat(), 0.1f, 1000.0f).invert()
+                    windowWidth.toFloat()/windowHeight.toFloat(), 0.1f, 1000.0f).invert()
             cam.active = true
 
             scene.addChild(cam)
@@ -115,8 +110,7 @@ class MultiBoxExample : SceneryDefaultApplication("MultiBoxExample") {
                 }
             }
 
-            renderer?.initializeScene(scene)
-        } catch (e: GLException) {
+        } catch (e: Exception) {
             e.printStackTrace()
         } catch (e: IOException) {
             e.printStackTrace()

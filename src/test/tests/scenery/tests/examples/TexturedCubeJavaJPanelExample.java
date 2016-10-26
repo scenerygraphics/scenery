@@ -5,7 +5,7 @@ package scenery.tests.examples;
     import com.jogamp.opengl.GLAutoDrawable;
     import org.junit.Test;
     import scenery.*;
-    import scenery.backends.opengl.DeferredLightingRenderer;
+    import scenery.backends.Renderer;
     import scenery.repl.REPL;
 
 /**
@@ -25,7 +25,7 @@ public class TexturedCubeJavaJPanelExample {
 
         public void init(GLAutoDrawable pDrawable) {
 
-            setRenderer( new DeferredLightingRenderer( pDrawable.getGL().getGL4(), getGlWindow().getWidth(), getGlWindow().getHeight() ) );
+            setRenderer( Renderer.Companion.createRenderer(getApplicationName(), getScene(), 512, 512));
             getHub().add(SceneryElement.RENDERER, getRenderer());
 
             Material boxmaterial = new Material();
@@ -73,8 +73,6 @@ public class TexturedCubeJavaJPanelExample {
                 }
             };
             rotator.start();
-
-            getRenderer().initializeScene(getScene());
 
             setRepl(new REPL(getScene(), getRenderer()));
             getRepl().start();
