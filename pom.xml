@@ -19,8 +19,8 @@
     <properties>
         <scijava.jvm.version>1.8</scijava.jvm.version>
         <enforcer.skip>true</enforcer.skip>
-        <kotlin.version>1.0.3</kotlin.version>
-        <slf4j.version>1.7.20</slf4j.version>
+        <kotlin.version>1.0.4</kotlin.version>
+        <slf4j.version>1.7.21</slf4j.version>
         <dokka.version>0.9.9</dokka.version>
         <lwjgl.version>3.0.1-SNAPSHOT</lwjgl.version>
     </properties>
