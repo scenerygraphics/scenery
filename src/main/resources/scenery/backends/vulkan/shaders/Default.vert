@@ -22,10 +22,31 @@ layout(binding = 0) uniform Matrices {
 
 void main()
 {
-    VertexOut.Normal = mat3(transpose(inverse(ubo.ModelMatrix)))*vertexNormal;
-    VertexOut.Position = vec3( ubo.ModelViewMatrix * vec4(vertexPosition, 1.0));
-    VertexOut.TexCoord = vertexTexCoord;
-    VertexOut.FragPosition = vec3(ubo.ModelMatrix * vec4(vertexPosition, 1.0));
+    mat4 mv = ubo.ModelViewMatrix;
+    mat4 nMVP;
 
-    gl_Position = ubo.MVP * vec4(vertexPosition, 1.0);
+	if(ubo.isBillboard > 0) {
+		mv[0][0] = 1.0f;
+		mv[0][1] = .0f;
+		mv[0][2] = .0f;
+
+		mv[1][0] = .0f;
+		mv[1][1] = 1.0f;
+		mv[1][2] = .0f;
+
+		mv[2][0] = .0f;
+		mv[2][1] = .0f;
+		mv[2][2] = 1.0f;
+
+		nMVP = ubo.ProjectionMatrix*mv;
+	} else {
+	    nMVP = ubo.MVP;
+	}
+
+    VertexOut.Normal = mat3(transpose(inverse(ubo.ModelMatrix)))*vertexNormal;
+    VertexOut.Position = vec3( mv * vec4(vertexPosition, 1.0));
+    VertexOut.TexCoord = vertexTexCoord;
+    VertexOut.FragPosition = vec3(mv * vec4(vertexPosition, 1.0));
+
+    gl_Position = nMVP * vec4(vertexPosition, 1.0);
 }
