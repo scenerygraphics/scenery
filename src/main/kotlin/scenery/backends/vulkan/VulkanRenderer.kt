@@ -4,7 +4,6 @@ import cleargl.GLMatrix
 import cleargl.GLVector
 import org.lwjgl.PointerBuffer
 import org.lwjgl.glfw.GLFW.*
-import org.lwjgl.glfw.GLFWKeyCallback
 import org.lwjgl.glfw.GLFWVulkan.*
 import org.lwjgl.glfw.GLFWWindowSizeCallback
 import org.lwjgl.system.MemoryUtil.*
@@ -32,115 +31,16 @@ import java.util.concurrent.TimeUnit
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class VulkanRenderer : Renderer {
-    override var hub: Hub? = null
-    var applicationName = ""
-    override var settings: Settings = Settings()
-    protected var logger: Logger = LoggerFactory.getLogger("VulkanRenderer")
-    override var shouldClose = false
-    override var managesRenderLoop = false
+open class VulkanRenderer : Renderer {
 
-    var currentBufferNum = 0
+    // helper classes
 
-    var scene: Scene = Scene()
-    var sceneInitialized = false
-
-    override fun reshape(width: Int, height: Int) {
-    }
-
-    private var swapchain: Swapchain? = null
-    private var frames = 0
-
-    private var rendertargets = ConcurrentHashMap<String, VulkanFramebuffer>()
-    private var renderPasses = ConcurrentHashMap<String, Long>()
-    private var commandPools = CommandPools()
-    /** Cache for [SDFFontAtlas]es used for font rendering */
-    protected var fontAtlas = HashMap<String, SDFFontAtlas>()
-
-    private var renderCommandBuffers: Array<VkCommandBuffer>? = null
-
-    private val validation = java.lang.Boolean.parseBoolean(System.getProperty("scenery.VulkanRenderer.EnableValidation", "false"))
-
-    private val layers = arrayOf<ByteBuffer>(memUTF8("VK_LAYER_LUNARG_standard_validation"))
-
-    private val VK_FLAGS_NONE: Int = 0
-    private var MAX_TEXTURES = 2048
-    private var MAX_UBOS = 128
-    private var MAX_INPUT_ATTACHMENTS = 2
-    private val UINT64_MAX: Long = -1L
-
-    var instance: VkInstance
-    var debugCallback = object : VkDebugReportCallbackEXT() {
-        override operator fun invoke(flags: Int, objectType: Int, obj: Long, location: Long, messageCode: Int, pLayerPrefix: Long, pMessage: Long, pUserData: Long): Int {
-            var type = if (flags and VK_DEBUG_REPORT_ERROR_BIT_EXT == 0) {
-                "error"
-            } else if (flags and VK_DEBUG_REPORT_WARNING_BIT_EXT == 0) {
-                "warning"
-            } else if (flags and VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT == 0) {
-                "performance warning"
-            } else if (flags and VK_DEBUG_REPORT_INFORMATION_BIT_EXT == 0) {
-                "information"
-            } else {
-                "(unknown message type)"
-            }
-
-            if (flags and VK_DEBUG_REPORT_DEBUG_BIT_EXT == 1) {
-                type + " (debug)"
-            }
-
-            logger.info("Validation $type: " + VkDebugReportCallbackEXT.getString(pMessage))
-
-            // returning VK_TRUE would lead to the abortion of the causing Vulkan call
-            return if (System.getProperty("scenery.VulkanRenderer.StrictValidation", "false").toBoolean()) {
-                VK_TRUE
-            } else {
-                VK_FALSE
-            }
-        }
-    }
-    var debugCallbackHandle: Long
-    var physicalDevice: VkPhysicalDevice
-    var deviceAndGraphicsQueueFamily: DeviceAndGraphicsQueueFamily
-    var device: VkDevice
-    var queueFamilyIndex: Int
-    var memoryProperties: VkPhysicalDeviceMemoryProperties
-
-    var surface: Long
-
-    var semaphoreCreateInfo: VkSemaphoreCreateInfo
-
-    // Create static Vulkan resources
-    var colorFormatAndSpace: ColorFormatAndSpace
-    var setupCommandBuffer: VkCommandBuffer
-    var postPresentCommandBuffer: VkCommandBuffer
-    var queue: VkQueue
-    var descriptorPool: Long
-
-    var renderPipelines = ConcurrentHashMap<String, VulkanPipeline>()
-    var standardUBOs = ConcurrentHashMap<String, UBO>()
-
-    var pSwapchains: LongBuffer
-    var pImageAcquiredSemaphore: LongBuffer
-    var pRenderCompleteSemaphore: LongBuffer
-    var pImageIndex: IntBuffer
-
-
-    override var window = SceneryWindow()
-    var lastTime = System.nanoTime()
-    var time = 0.0f
-
-    val swapchainRecreator: SwapchainRecreator
-
-    var pipelineCache: Long = -1L
-
-    var vertexDescriptors = ConcurrentHashMap<VertexDataKinds, VertexDescription>()
-
-    var sceneUBOs = ConcurrentHashMap<Node, UBO>()
-
-    var buffers = HashMap<String, VulkanBuffer>()
-
-    var fps = 0
-    private var heartbeatTimer = Timer()
+    data class PresentHelpers(
+        var signalSemaphore: LongBuffer = memAllocLong(1),
+        var waitSemaphore: LongBuffer = memAllocLong(1),
+        var commandBuffers: PointerBuffer = memAllocPointer(1),
+        var waitStages: IntBuffer = memAllocInt(1)
+    )
 
     enum class VertexDataKinds {
         coords_normals_texcoords,
@@ -153,7 +53,6 @@ class VulkanRenderer : Renderer {
         image_available
     }
 
-    var semaphores = ConcurrentHashMap<StandardSemaphores, Array<Long>>()
 
     data class VertexDescription(
         var state: VkPipelineVertexInputStateCreateInfo,
@@ -166,52 +65,6 @@ class VulkanRenderer : Renderer {
         var Render: Long = -1L,
         var Compute: Long = -1L
     )
-
-    class VulkanBuffer(val device: VkDevice, var memory: Long = -1L, var buffer: Long = -1L, var data: Long = -1L) {
-        private var currentPosition = 0L
-        private var currentPointer: PointerBuffer? = null
-        var maxSize: Long = 512 * 2048L
-        var alignment: Long = 256
-
-        fun getPointerBuffer(size: Int): ByteBuffer {
-            if (currentPointer == null) {
-                this.map()
-            }
-
-            val buffer = memByteBuffer(currentPointer!!.get(0) + currentPosition, size)
-            currentPosition += size * 1L
-
-            return buffer
-        }
-
-        fun getCurrentOffset(): Int {
-            if (currentPosition % alignment != 0L) {
-                val oldPos = currentPosition
-                currentPosition += alignment - (currentPosition % alignment)
-            }
-            return currentPosition.toInt()
-        }
-
-        fun reset() {
-            currentPosition = 0L
-        }
-
-        fun copy(data: ByteBuffer) {
-            val dest = memAllocPointer(1)
-            vkMapMemory(device, memory, 0, maxSize * 1L, 0, dest)
-            memCopy(memAddress(data), dest.get(0), data.remaining())
-            vkUnmapMemory(device, memory)
-            memFree(dest)
-        }
-
-        fun map(): PointerBuffer {
-            val dest = memAllocPointer(1)
-            vkMapMemory(device, memory, 0, maxSize * 1L, 0, dest)
-
-            currentPointer = dest
-            return dest
-        }
-    }
 
     class DeviceAndGraphicsQueueFamily {
         internal var device: VkDevice? = null
@@ -228,11 +81,6 @@ class VulkanRenderer : Renderer {
         internal var handle: Long = 0
         internal var images: LongArray? = null
         internal var imageViews: LongArray? = null
-    }
-
-    class Vertices {
-        internal var verticesBuf: Long = 0
-        internal var createInfo: VkPipelineVertexInputStateCreateInfo? = null
     }
 
     class UBODescriptor {
@@ -300,9 +148,9 @@ class VulkanRenderer : Renderer {
                 .pNext(NULL)
                 .flags(VK_FLAGS_NONE)
 
-            pipelineCache = VU.run(memAllocLong(1), "create pipeline cache") {
-                vkCreatePipelineCache(device, pipelineCacheInfo, null, this)
-            }
+            pipelineCache = VU.run(memAllocLong(1), "create pipeline cache",
+                { vkCreatePipelineCache(device, pipelineCacheInfo, null, this) },
+                { pipelineCacheInfo.free() })
 
             // destroy and recreate all framebuffers
             rendertargets.values.forEach { rt -> rt.destroy() }
@@ -322,6 +170,110 @@ class VulkanRenderer : Renderer {
             mustRecreate = false
         }
     }
+
+    var debugCallback = object : VkDebugReportCallbackEXT() {
+        override operator fun invoke(flags: Int, objectType: Int, obj: Long, location: Long, messageCode: Int, pLayerPrefix: Long, pMessage: Long, pUserData: Long): Int {
+            var type = if (flags and VK_DEBUG_REPORT_ERROR_BIT_EXT == 0) {
+                "error"
+            } else if (flags and VK_DEBUG_REPORT_WARNING_BIT_EXT == 0) {
+                "warning"
+            } else if (flags and VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT == 0) {
+                "performance warning"
+            } else if (flags and VK_DEBUG_REPORT_INFORMATION_BIT_EXT == 0) {
+                "information"
+            } else {
+                "(unknown message type)"
+            }
+
+            if (flags and VK_DEBUG_REPORT_DEBUG_BIT_EXT == 1) {
+                type + " (debug)"
+            }
+
+            logger.info("Validation $type: " + VkDebugReportCallbackEXT.getString(pMessage))
+
+            // returning VK_TRUE would lead to the abortion of the offending Vulkan call
+            return if (System.getProperty("scenery.VulkanRenderer.StrictValidation", "false").toBoolean()) {
+                VK_TRUE
+            } else {
+                VK_FALSE
+            }
+        }
+    }
+
+    // helper classes end
+
+
+    // helper vars
+    private val VK_FLAGS_NONE: Int = 0
+    private var MAX_TEXTURES = 2048
+    private var MAX_UBOS = 128
+    private var MAX_INPUT_ATTACHMENTS = 2
+    private val UINT64_MAX: Long = -1L
+    // end helper vars
+
+    override var hub: Hub? = null
+    protected var applicationName = ""
+    override var settings: Settings = Settings()
+    protected var logger: Logger = LoggerFactory.getLogger("VulkanRenderer")
+    override var shouldClose = false
+    override var managesRenderLoop = false
+
+    var currentBufferNum = 0
+
+    var scene: Scene = Scene()
+
+    protected var rendertargets = ConcurrentHashMap<String, VulkanFramebuffer>()
+    protected var commandPools = CommandPools()
+    /** Cache for [SDFFontAtlas]es used for font rendering */
+    protected var fontAtlas = HashMap<String, SDFFontAtlas>()
+
+    protected var renderCommandBuffers: Array<VkCommandBuffer>? = null
+
+    protected val validation = java.lang.Boolean.parseBoolean(System.getProperty("scenery.VulkanRenderer.EnableValidation", "false"))
+    protected val layers = arrayOf<ByteBuffer>(memUTF8("VK_LAYER_LUNARG_standard_validation"))
+
+    protected var instance: VkInstance
+
+    protected var debugCallbackHandle: Long
+    protected var physicalDevice: VkPhysicalDevice
+    protected var deviceAndGraphicsQueueFamily: DeviceAndGraphicsQueueFamily
+    protected var device: VkDevice
+    protected var queueFamilyIndex: Int
+    protected var memoryProperties: VkPhysicalDeviceMemoryProperties
+
+    protected var surface: Long
+
+    protected var semaphoreCreateInfo: VkSemaphoreCreateInfo
+
+    // Create static Vulkan resources
+    protected var colorFormatAndSpace: ColorFormatAndSpace
+    protected var setupCommandBuffer: VkCommandBuffer
+    protected var postPresentCommandBuffer: VkCommandBuffer
+    protected var queue: VkQueue
+    protected var descriptorPool: Long
+
+    protected var renderPipelines = ConcurrentHashMap<String, VulkanPipeline>()
+    protected var standardUBOs = ConcurrentHashMap<String, UBO>()
+
+    protected var swapchain: Swapchain? = null
+    protected var pSwapchains: LongBuffer
+    protected var swapchainImage: IntBuffer = memAllocInt(1)
+    protected var ph = PresentHelpers()
+
+    override var window = SceneryWindow()
+
+    protected val swapchainRecreator: SwapchainRecreator
+    protected var pipelineCache: Long = -1L
+    protected var vertexDescriptors = ConcurrentHashMap<VertexDataKinds, VertexDescription>()
+    protected var sceneUBOs = ConcurrentHashMap<Node, UBO>()
+    protected var semaphores = ConcurrentHashMap<StandardSemaphores, Array<Long>>()
+    protected var buffers = HashMap<String, VulkanBuffer>()
+
+    protected var lastTime = System.nanoTime()
+    protected var time = 0.0f
+    protected var fps = 0
+    protected var frames = 0
+    protected var heartbeatTimer = Timer()
 
     private var renderConfig: RenderConfigReader.RenderConfig
 
@@ -363,38 +315,6 @@ class VulkanRenderer : Renderer {
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API)
         glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE)
         window.glfwWindow = glfwCreateWindow(windowWidth, windowHeight, "scenery", NULL, NULL)
-        /*val keyCallback: GLFWKeyCallback = object : GLFWKeyCallback() {
-            override operator fun invoke(window: Long, key: Int, scancode: Int, action: Int, mods: Int) {
-                val cam = scene.findObserver()
-                var direction = ""
-                val speed = 0.5f
-
-                if (key == GLFW_KEY_ESCAPE) {
-                    glfwSetWindowShouldClose(window, true)
-                } else if(key == GLFW_KEY_W) {
-                    direction = "forward"
-                } else if(key == GLFW_KEY_S) {
-                    direction = "back"
-                } else if(key == GLFW_KEY_A) {
-                    direction = "left"
-                } else if(key == GLFW_KEY_D) {
-                    direction = "right"
-                }
-
-                when (direction) {
-                    "forward" -> cam.position = cam.position + cam.forward * speed
-                    "back" -> cam.position = cam.position - cam.forward * speed
-                    "left" -> cam.position = cam.position - cam.forward.cross(cam.up).normalized * speed
-                    "right" -> cam.position = cam.position + cam.forward.cross(cam.up).normalized * speed
-                    "up" -> cam.position = cam.position + cam.up * speed
-                    "down" -> cam.position = cam.position + cam.up * -1.0f * speed
-                }
-
-            }
-        }
-
-        glfwSetKeyCallback(window.glfwWindow!!, keyCallback)
-        */
 
         surface = VU.run(memAllocLong(1), "glfwCreateWindowSurface") {
             glfwCreateWindowSurface(instance, window.glfwWindow!!, null, this)
@@ -440,15 +360,13 @@ class VulkanRenderer : Renderer {
                 swapchainRecreator.mustRecreate = true
             }
         }
+
         glfwSetWindowSizeCallback(window.glfwWindow!!, windowSizeCallback)
         glfwShowWindow(window.glfwWindow!!)
 
         // Pre-allocate everything needed in the render loop
 
-        pImageIndex = memAllocInt(1)
         pSwapchains = memAllocLong(1)
-        pImageAcquiredSemaphore = memAllocLong(1)
-        pRenderCompleteSemaphore = memAllocLong(1)
 
         // Info struct to create a semaphore
         semaphoreCreateInfo = VkSemaphoreCreateInfo.calloc()
@@ -568,6 +486,8 @@ class VulkanRenderer : Renderer {
 
         vkCreateBuffer(device, bufferInfo, null, buffer)
         vkGetBufferMemoryRequirements(device, buffer.get(0), reqs)
+
+        bufferInfo.free()
 
         val allocInfo = VkMemoryAllocateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO)
@@ -861,18 +781,10 @@ class VulkanRenderer : Renderer {
             return
         }
 
-        var err = 0
-
-        // Handle window messages. Resize events happen exactly here.
-        // So it is safe to use the new swapchain images and framebuffers afterwards.
         glfwPollEvents()
 
         if (swapchainRecreator.mustRecreate) {
             swapchainRecreator.recreate()
-        }
-
-        if (!scene.initialized) {
-            return
         }
 
         val currentBuffer = "Viewport-$currentBufferNum".to(currentBufferNum)
@@ -911,10 +823,9 @@ class VulkanRenderer : Renderer {
 
         // Get next image from the swap chain (back/front buffer).
         // This will setup the imageAquiredSemaphore to be signalled when the operation is complete
-        err = vkAcquireNextImageKHR(device, swapchain!!.handle, UINT64_MAX,
+        var err = vkAcquireNextImageKHR(device, swapchain!!.handle, UINT64_MAX,
             semaphores[StandardSemaphores.image_available]!!.get(currentBufferNum),
-            VK_NULL_HANDLE, pImageIndex)
-
+            VK_NULL_HANDLE, swapchainImage)
 
         if (err == VK_ERROR_OUT_OF_DATE_KHR || err == VK_SUBOPTIMAL_KHR) {
             swapchainRecreator.mustRecreate = true
@@ -922,26 +833,19 @@ class VulkanRenderer : Renderer {
             throw AssertionError("Failed to acquire next swapchain image: " + VU.translate(err))
         }
 
-        val pCommandBuffers = memAllocPointer(1)
-        pCommandBuffers.put(0, currentTarget.renderCommandBuffer!!.commandBuffer)
-
-        val waitStages = memAllocInt(1)
-        waitStages.put(0, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT)
-
-        val signals = memAllocLong(1)
-        signals.put(0, semaphores[StandardSemaphores.render_complete]!!.get(currentBufferNum)).flip()
-
-        val wait = memAllocLong(1)
-        wait.put(0, semaphores[StandardSemaphores.image_available]!!.get(currentBufferNum)).flip()
+        ph.commandBuffers.put(0, currentTarget.renderCommandBuffer!!.commandBuffer)
+        ph.waitStages.put(0, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT)
+        ph.signalSemaphore.put(0, semaphores[StandardSemaphores.render_complete]!!.get(currentBufferNum))
+        ph.waitSemaphore.put(0, semaphores[StandardSemaphores.image_available]!!.get(currentBufferNum))
 
         val submitInfo = VkSubmitInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
             .pNext(NULL)
             .waitSemaphoreCount(1)
-            .pWaitSemaphores(wait)
-            .pWaitDstStageMask(waitStages)
-            .pCommandBuffers(pCommandBuffers)
-            .pSignalSemaphores(signals)
+            .pWaitSemaphores(ph.waitSemaphore)
+            .pWaitDstStageMask(ph.waitStages)
+            .pCommandBuffers(ph.commandBuffers)
+            .pSignalSemaphores(ph.signalSemaphore)
 
         // Submit to the graphics queue
         err = vkQueueSubmit(queue, submitInfo, currentTarget.renderCommandBuffer!!.fence.get(0))
@@ -959,10 +863,10 @@ class VulkanRenderer : Renderer {
         val presentInfo = VkPresentInfoKHR.calloc()
             .sType(VK_STRUCTURE_TYPE_PRESENT_INFO_KHR)
             .pNext(NULL)
-            .pWaitSemaphores(signals)
+            .pWaitSemaphores(ph.signalSemaphore)
             .swapchainCount(pSwapchains.remaining())
             .pSwapchains(pSwapchains)
-            .pImageIndices(pImageIndex)
+            .pImageIndices(swapchainImage)
             .pResults(null)
 
         err = vkQueuePresentKHR(queue, presentInfo)
@@ -979,6 +883,9 @@ class VulkanRenderer : Renderer {
 
         currentBufferNum = (currentBufferNum + 1) % swapchain!!.images!!.size
         glfwSetWindowTitle(window.glfwWindow!!, "$applicationName [${this.javaClass.simpleName}] - $fps fps")
+
+        presentInfo.free()
+        submitInfo.free()
     }
 
     private fun createInstance(requiredExtensions: PointerBuffer): VkInstance {
@@ -1504,6 +1411,8 @@ class VulkanRenderer : Renderer {
 
         vkDestroyBuffer(device, stagingBuffer.buffer, null)
         vkFreeMemory(device, stagingBuffer.memory, null)
+
+        vi.free()
 
         return state
     }

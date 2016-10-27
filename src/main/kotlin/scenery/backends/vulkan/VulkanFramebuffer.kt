@@ -1,14 +1,10 @@
 package scenery.backends.vulkan
 
 import org.lwjgl.vulkan.*
-import java.nio.IntBuffer
 import java.util.*
 import org.lwjgl.vulkan.VK10.*
-import java.util.ArrayList
-import scenery.backends.vulkan.*
 import java.nio.LongBuffer
 import org.lwjgl.system.MemoryUtil.*
-import org.lwjgl.system.NativeResource
 import org.lwjgl.system.Struct
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -98,6 +94,7 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
         vkCreateImage(device, image, null, images)
         a.image = images.get(0)
         memFree(images)
+        image.free()
 
         var requirements = VkMemoryRequirements.calloc()
         vkGetImageMemoryRequirements(device, a.image, requirements)
@@ -135,6 +132,7 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
             .pNext(NULL)
 
         vkCreateImageView(device, iv, null, a.imageView)
+        iv.free()
 
         return a
     }
@@ -269,26 +267,6 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
         return this
     }
 
-    fun checkDrawBuffers(): Boolean {
-        return true
-    }
-
-    fun setDrawBuffers() {
-    }
-
-    fun bindTexturesToUnitsWithOffset(offset: Int) {
-    }
-
-    fun getTextureIds(): List<Int> {
-        return listOf(0)
-    }
-
-    fun revertToDefaultFramebuffer() {
-    }
-
-    fun resize(newWidth: Int, newHeight: Int) {
-    }
-
     protected fun getAttachmentDescBuffer(): VkAttachmentDescription.Buffer {
         val descriptionBuffer = VkAttachmentDescription.calloc(attachments.size)
         attachments.values.forEach{ descriptionBuffer.put(it.desc) }
@@ -336,11 +314,6 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
             .flags(0)
 
         val dependencyChain = VkSubpassDependency.calloc(2)
-            /*.srcSubpass(VK_SUBPASS_EXTERNAL)
-            .srcStageMask(VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT)
-            .srcAccessMask(VK_ACCESS_MEMORY_READ_BIT)
-            .dstStageMask(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
-            .dstAccessMask(VK_ACCESS_COLOR_ATTACHMENT_READ_BIT or VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)*/
 
         dependencyChain[0]
             .srcSubpass(VK_SUBPASS_EXTERNAL)
@@ -380,8 +353,9 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
             .height(height)
             .layers(1)
 
-        framebuffer.put(0, VU.run(memAllocLong(1), "create framebuffer")
-            { vkCreateFramebuffer(device, fbinfo, null, this) })
+        framebuffer.put(0, VU.run(memAllocLong(1), "create framebuffer",
+            { vkCreateFramebuffer(device, fbinfo, null, this) },
+            { fbinfo.free() }))
 
         val sampler = VkSamplerCreateInfo.calloc()
             .default()
@@ -398,6 +372,8 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
             .borderColor(VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE)
 
         vkCreateSampler(device, sampler, null, this.framebufferSampler)
+
+        sampler.free()
     }
 
     inline fun <T: Struct> T.default(): T {
@@ -423,10 +399,6 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
             }
         }
 
-    val boundBufferNum: Int = 0
-
-    private val currentFramebufferColorAttachment: Int = 0
-
     fun VkPhysicalDevice.getMemoryType(typeBits: Int, memoryFlags: Int): Pair<Boolean, Int> {
         var found = false
         var bits = typeBits
@@ -446,10 +418,6 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
 
         System.err.println("Memory type $memoryFlags not found for device")
         return false.to(0)
-    }
-
-    fun Struct.allocWith(): Struct? {
-        return null
     }
 
     private fun getSupportedDepthFormats(): List<Int> {

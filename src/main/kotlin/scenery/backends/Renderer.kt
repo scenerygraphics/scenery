@@ -32,8 +32,6 @@ interface Renderer : Hubable {
 
     var window: SceneryWindow
 
-    fun reshape(width: Int, height: Int)
-
     fun close()
 
     val managesRenderLoop: Boolean

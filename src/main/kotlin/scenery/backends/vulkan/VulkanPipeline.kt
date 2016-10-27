@@ -11,7 +11,7 @@ import java.util.*
 /**
  * Created by ulrik on 9/28/2016.
  */
-class VulkanPipeline(val device: VkDevice, val descriptorPool: Long, val pipelineCache: Long? = null, val buffers: HashMap<String, VulkanRenderer.VulkanBuffer>) {
+class VulkanPipeline(val device: VkDevice, val descriptorPool: Long, val pipelineCache: Long? = null, val buffers: HashMap<String, VulkanBuffer>) {
     protected var logger: Logger = LoggerFactory.getLogger("VulkanRenderer")
 
     var pipeline = VulkanRenderer.Pipeline()
@@ -36,7 +36,7 @@ class VulkanPipeline(val device: VkDevice, val descriptorPool: Long, val pipelin
 
     val colorWriteMask = VkPipelineColorBlendAttachmentState.calloc(1)
         .blendEnable(false)
-        .colorWriteMask(0xF) // <- RGBA
+        .colorWriteMask(0xF) // this means RGBA writes
 
     val colorBlendState = VkPipelineColorBlendStateCreateInfo.calloc()
         .sType(VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO)
@@ -46,8 +46,8 @@ class VulkanPipeline(val device: VkDevice, val descriptorPool: Long, val pipelin
     val viewportState = VkPipelineViewportStateCreateInfo.calloc()
         .sType(VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO)
         .pNext(NULL)
-        .viewportCount(1) // <- one viewport
-        .scissorCount(1) // <- one scissor rectangle
+        .viewportCount(1)
+        .scissorCount(1)
 
     val pDynamicStates: IntBuffer = memAllocInt(2).apply {
         put(0, VK_DYNAMIC_STATE_VIEWPORT)
@@ -55,12 +55,12 @@ class VulkanPipeline(val device: VkDevice, val descriptorPool: Long, val pipelin
     }
 
     val dynamicState: VkPipelineDynamicStateCreateInfo = VkPipelineDynamicStateCreateInfo.calloc()
-        .sType(VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO)// The dynamic state properties themselves are stored in the command buffer
+        .sType(VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO)
         .pNext(NULL)
         .pDynamicStates(pDynamicStates)
 
     var depthStencilState = VkPipelineDepthStencilStateCreateInfo.calloc()
-        .sType(VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO)// No depth test/write and no stencil used
+        .sType(VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO)
         .pNext(NULL)
         .depthTestEnable(true)
         .depthWriteEnable(true)
@@ -160,7 +160,7 @@ class VulkanPipeline(val device: VkDevice, val descriptorPool: Long, val pipelin
                 .dstSet(descriptorSet)
                 .descriptorType(type)
                 .pBufferInfo(d)
-                .dstBinding(i) // <- Binds this uniform buffer to binding point 0
+                .dstBinding(i)
         }
 
         vkUpdateDescriptorSets(device, writeDescriptorSet, null)
@@ -171,9 +171,6 @@ class VulkanPipeline(val device: VkDevice, val descriptorPool: Long, val pipelin
     }
 
     fun createPipeline(renderPass: Long, vi: VkPipelineVertexInputStateCreateInfo): VulkanRenderer.Pipeline {
-        var err = 0
-
-
         val pDescriptorSetLayout = memAllocLong(1)
         val descriptorSetLayout = createDescriptorSetLayout(device,
             descriptorNum = this.UBOs.count(),
@@ -191,21 +188,14 @@ class VulkanPipeline(val device: VkDevice, val descriptorPool: Long, val pipelin
             .pSetLayouts(pDescriptorSetLayout)
 
         val layout = VU.run(memAllocLong(1), "vkCreatePipelineLayout",
-            { vkCreatePipelineLayout(device, pPipelineLayoutCreateInfo, null, this) })
+            { vkCreatePipelineLayout(device, pPipelineLayoutCreateInfo, null, this) },
+            { pPipelineLayoutCreateInfo.free(); memFree(pDescriptorSetLayout); })
 
-        pPipelineLayoutCreateInfo.free()
-        memFree(pDescriptorSetLayout)
-
-        if (err != VK_SUCCESS) {
-            logger.error("Failed to create pipeline layout: " + VU.translate(err))
-        }
-
-        // Assign states
         val pipelineCreateInfo = VkGraphicsPipelineCreateInfo.calloc(1)
             .sType(VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO)
             .pNext(NULL)
-            .layout(layout) // <- the layout used for this pipeline (NEEDS TO BE SET! even though it is basically empty)
-            .renderPass(renderPass) // <- renderpass this pipeline is attached to
+            .layout(layout)
+            .renderPass(renderPass)
             .pVertexInputState(vi)
             .pInputAssemblyState(inputAssemblyState)
             .pRasterizationState(rasterizationState)
@@ -218,9 +208,10 @@ class VulkanPipeline(val device: VkDevice, val descriptorPool: Long, val pipelin
             .subpass(0)
 
         logger.info("Creating pipeline for $renderPass with $layout")
-        // Create rendering pipeline
-        val p = VU.run(memAllocLong(1), "vkCreateGraphicsPipelines")
-        { vkCreateGraphicsPipelines(device, pipelineCache ?: VK_NULL_HANDLE, pipelineCreateInfo, null, this) }
+
+        val p = VU.run(memAllocLong(1), "vkCreateGraphicsPipelines",
+            { vkCreateGraphicsPipelines(device, pipelineCache ?: VK_NULL_HANDLE, pipelineCreateInfo, null, this) },
+            { pipelineCreateInfo.free() })
 
         this.pipeline = VulkanRenderer.Pipeline()
         this.pipeline.layout = layout

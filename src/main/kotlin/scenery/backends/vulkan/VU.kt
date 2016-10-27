@@ -93,6 +93,24 @@ class VU {
             return ret
         }
 
+        inline fun <T: PointerBuffer> run(receiver: T, name: String, function: T.() -> Int, cleanup: T.() -> Any, free: Boolean = true): Long {
+            var result = function.invoke(receiver)
+
+            if(result != VK_SUCCESS) {
+                LoggerFactory.getLogger("VulkanRenderer").error("Call to $name failed.")
+                cleanup.invoke(receiver)
+            }
+
+            val ret = receiver.get(0)
+            if(free) {
+                MemoryUtil.memFree(receiver)
+            }
+
+            cleanup.invoke(receiver)
+
+            return ret
+        }
+
         fun deviceTypeToString(deviceType: Int): String {
             return when(deviceType) {
                 0 -> "other"
@@ -244,14 +262,10 @@ class VU {
                 .level(level)
                 .commandBufferCount(1)
 
-            val pCommandBuffer = MemoryUtil.memAllocPointer(1)
-            val err = vkAllocateCommandBuffers(device, cmdBufAllocateInfo, pCommandBuffer)
-            cmdBufAllocateInfo.free()
-            val commandBuffer = pCommandBuffer.get(0)
-            MemoryUtil.memFree(pCommandBuffer)
-            if (err != VK_SUCCESS) {
-                throw AssertionError("Failed to allocate command buffer: " + scenery.backends.vulkan.VU.translate(err))
-            }
+            val commandBuffer = VU.run(MemoryUtil.memAllocPointer(1),"Creating command buffer",
+                { vkAllocateCommandBuffers(device, cmdBufAllocateInfo, this) },
+                { cmdBufAllocateInfo.free() })
+
             return VkCommandBuffer(commandBuffer, device)
         }
 

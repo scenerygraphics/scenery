@@ -1229,7 +1229,7 @@ open class DeferredLightingRenderer : Renderer, Hubable, ClearGLDefaultEventList
      * @param[newWidth] The resized window's width
      * @param[newHeight] The resized window's height
      */
-    override fun reshape(newWidth: Int, newHeight: Int) {
+    fun reshape(newWidth: Int, newHeight: Int) {
         if(!initialized) {
             return
         }
