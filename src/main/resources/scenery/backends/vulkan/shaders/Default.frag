@@ -79,5 +79,5 @@ vec4 BlinnPhong(vec3 FragPos, vec3 viewPos, vec3 Normal) {
 }
 
 void main() {
-    FragColor = BlinnPhong(VertexIn.FragPosition, ubo.CamPosition, VertexIn.Normal);
+    FragColor = BlinnPhong(VertexIn.Position, ubo.CamPosition, VertexIn.Normal);
 }
