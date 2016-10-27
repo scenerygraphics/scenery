@@ -26,7 +26,7 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
     protected var framebufferSampler = memAllocLong(1)
     protected var commandBuffer: VkCommandBuffer
 
-    var renderCommandBuffer: VkCommandBuffer? = null
+    var renderCommandBuffer: VulkanCommandBuffer? = null
     var semaphore: Long = -1L
 
     var width: Int = 0
@@ -65,12 +65,14 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
 
         a.format = format
 
-        if (usage and VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT == 1) {
+        if (usage == VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) {
+            logger.info("Setting aspect mask for color")
             aspectMask = VK_IMAGE_ASPECT_COLOR_BIT
             imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
         }
 
-        if (usage and VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT == 1) {
+        if (usage == VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) {
+            logger.info("Setting aspect mask for depth")
             aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT or VK_IMAGE_ASPECT_STENCIL_BIT
             imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
         }
@@ -235,7 +237,8 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
             .stencilLoadOp(VK_ATTACHMENT_LOAD_OP_DONT_CARE)
             .stencilStoreOp(VK_ATTACHMENT_STORE_OP_DONT_CARE)
             .initialLayout(VK_IMAGE_LAYOUT_UNDEFINED)
-            .finalLayout(VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL)
+            .finalLayout(VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+            .format(getSupportedDepthFormats().first())
 
         att.type = VulkanFramebufferType.DEPTH_ATTACHMENT
 
@@ -314,7 +317,7 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
         val depthDescs = if(attachments.filter { it.value.type == VulkanFramebufferType.DEPTH_ATTACHMENT}.size > 0) {
             VkAttachmentReference.calloc()
                 .attachment(colorDescs.limit())
-                .layout(VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL)
+                .layout(VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
         } else {
             null
         }

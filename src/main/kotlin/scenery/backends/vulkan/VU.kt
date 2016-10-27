@@ -62,7 +62,7 @@ class VU {
             return ret
         }
 
-        inline fun <T: LongBuffer> run(receiver: T, name: String, function: T.() -> Int, cleanup: T.() -> Any): Long {
+        inline fun <T: LongBuffer> run(receiver: T, name: String, function: T.() -> Int, cleanup: T.() -> Any, free: Boolean = true): Long {
             var result = function.invoke(receiver)
 
             if(result != VK_SUCCESS) {
@@ -71,7 +71,9 @@ class VU {
             }
 
             val ret = receiver.get(0)
-            MemoryUtil.memFree(receiver)
+            if(free) {
+                MemoryUtil.memFree(receiver)
+            }
 
             cleanup.invoke(receiver)
 
@@ -164,6 +166,8 @@ class VU {
 
         fun setImageLayout(commandBuffer: VkCommandBuffer, image: Long, aspectMask: Int, oldImageLayout: Int, newImageLayout: Int, range: VkImageSubresourceRange) {
             val imageMemoryBarrier = VkImageMemoryBarrier.calloc(1)
+                .sType(VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER)
+                .pNext(NULL)
                 .oldLayout(oldImageLayout)
                 .newLayout(newImageLayout)
                 .image(image)

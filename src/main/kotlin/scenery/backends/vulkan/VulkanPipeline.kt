@@ -64,8 +64,10 @@ class VulkanPipeline(val device: VkDevice, val descriptorPool: Long, val pipelin
         .pNext(NULL)
         .depthTestEnable(true)
         .depthWriteEnable(true)
-        .depthCompareOp(VK_COMPARE_OP_LESS_OR_EQUAL)
+        .depthCompareOp(VK_COMPARE_OP_LESS)
         .depthBoundsTestEnable(false)
+        .minDepthBounds(0.0f)
+        .maxDepthBounds(1.0f)
         .stencilTestEnable(false)
 
     var depthStencilStateBack = depthStencilState.back()

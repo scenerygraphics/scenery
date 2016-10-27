@@ -40,6 +40,8 @@ class VulkanRenderer : Renderer {
     override var shouldClose = false
     override var managesRenderLoop = false
 
+    var currentBufferNum = 0
+
     var scene: Scene = Scene()
     var sceneInitialized = false
 
@@ -151,7 +153,7 @@ class VulkanRenderer : Renderer {
         image_available
     }
 
-    var semaphores = ConcurrentHashMap<StandardSemaphores, Long>()
+    var semaphores = ConcurrentHashMap<StandardSemaphores, Array<Long>>()
 
     data class VertexDescription(
         var state: VkPipelineVertexInputStateCreateInfo,
@@ -420,7 +422,7 @@ class VulkanRenderer : Renderer {
 
         buffers = prepareDefaultBuffers(device)
 
-        heartbeatTimer.scheduleAtFixedRate(object: TimerTask() {
+        heartbeatTimer.scheduleAtFixedRate(object : TimerTask() {
             override fun run() {
                 fps = frames.toInt()
                 frames = 0
@@ -655,7 +657,7 @@ class VulkanRenderer : Renderer {
             .pVertexBindingDescriptions(s.bindingDescriptions)
             .pVertexAttributeDescriptions(s.attributeDescriptions)
 
-        logger.info("Initializing ${node.name} (${node.vertices.remaining() / node.vertexSize} vertices/${node.indices.remaining()} indices)")
+        logger.debug("Initializing ${node.name} (${node.vertices.remaining() / node.vertexSize} vertices/${node.indices.remaining()} indices)")
 
         if (node.vertices.remaining() > 0) {
             s = createVertexBuffers(node, s, memoryProperties, device)
@@ -777,15 +779,15 @@ class VulkanRenderer : Renderer {
         return map
     }
 
-    protected fun prepareStandardSemaphores(device: VkDevice): ConcurrentHashMap<StandardSemaphores, Long> {
-        val map = ConcurrentHashMap<StandardSemaphores, Long>()
+    protected fun prepareStandardSemaphores(device: VkDevice): ConcurrentHashMap<StandardSemaphores, Array<Long>> {
+        val map = ConcurrentHashMap<StandardSemaphores, Array<Long>>()
 
         StandardSemaphores.values().forEach {
-            val semaphore = VU.run(memAllocLong(1), "Semaphore for $it") {
-                vkCreateSemaphore(device, semaphoreCreateInfo, null, this)
-            }
-
-            map.put(it, semaphore)
+            map.put(it, swapchain!!.images!!.map {
+                VU.run(memAllocLong(1), "Semaphore for $it") {
+                    vkCreateSemaphore(device, semaphoreCreateInfo, null, this)
+                }
+            }.toTypedArray())
         }
 
         return map
@@ -829,6 +831,7 @@ class VulkanRenderer : Renderer {
             swapchain!!.images!!.forEachIndexed { i, image ->
                 val fb = VulkanFramebuffer(device, physicalDevice, commandPools.Standard, width, height, this)
                 fb.addSwapchainAttachment("swapchain-$i", swapchain!!, i)
+                fb.addDepthBuffer("swapchain-$i-depth", 32)
                 fb.createRenderpassAndFramebuffer()
 
                 fbs.put("Viewport-$i", fb)
@@ -846,7 +849,7 @@ class VulkanRenderer : Renderer {
      * @param[scene] The scene to render.
      */
     override fun render() {
-        if(scene.children.count() == 0 || scene.initialized == false) {
+        if (scene.children.count() == 0 || scene.initialized == false) {
             initializeScene(scene)
 
             Thread.sleep(200)
@@ -859,7 +862,6 @@ class VulkanRenderer : Renderer {
         }
 
         var err = 0
-        var currentBuffer = Pair("Viewport-Back", 0)
 
         // Handle window messages. Resize events happen exactly here.
         // So it is safe to use the new swapchain images and framebuffers afterwards.
@@ -873,35 +875,46 @@ class VulkanRenderer : Renderer {
             return
         }
 
+        val currentBuffer = "Viewport-$currentBufferNum".to(currentBufferNum)
+
         updateDefaultUBOs(device)
 
-        this.rendertargets.forEach { rt ->
-            val name = if (rt.key.startsWith("Viewport")) {
-                "Viewport"
-            } else {
-                rt.key
-            }
-
-            val pass = renderConfig.renderpasses.filter { it.value.output == name }.values.first()
-
-            rt.value.renderCommandBuffer =
-                if (pass.output == "Viewport" && renderConfig.rendertargets != null) {
-                    createPresentCommandBuffer(device, rt.key)
+        if(frames == 0) {
+            this.rendertargets.forEach { rt ->
+                val name = if (rt.key.startsWith("Viewport")) {
+                    "Viewport"
                 } else {
-                    when (pass.type) {
-                        RenderConfigReader.RenderpassType.geometry -> createSceneRenderCommandBuffer(device, rt.key)
-                        RenderConfigReader.RenderpassType.quad -> createPostprocessRenderCommandBuffer(device, rt.key)
-                    }
+                    rt.key
                 }
+
+                val pass = renderConfig.renderpasses.filter { it.value.output == name }.values.first()
+
+                rt.value.renderCommandBuffer =
+                    if (pass.output == "Viewport" && renderConfig.rendertargets != null) {
+                        createPresentCommandBuffer(device, rt.key)
+                    } else {
+                        when (pass.type) {
+                            RenderConfigReader.RenderpassType.geometry -> createSceneRenderCommandBuffer(device, rt.key)
+                            RenderConfigReader.RenderpassType.quad -> createPostprocessRenderCommandBuffer(device, rt.key)
+                        }
+                    }
+            }
         }
 
+        val currentTarget = rendertargets[currentBuffer.first]!!
+
+        if(currentTarget.renderCommandBuffer!!.submitted == true) {
+            currentTarget.renderCommandBuffer!!.waitForFence()
+        }
+
+        currentTarget.renderCommandBuffer!!.resetFence()
 
         // Get next image from the swap chain (back/front buffer).
         // This will setup the imageAquiredSemaphore to be signalled when the operation is complete
         err = vkAcquireNextImageKHR(device, swapchain!!.handle, UINT64_MAX,
-            semaphores[StandardSemaphores.image_available]!!, VK_NULL_HANDLE, pImageIndex)
+            semaphores[StandardSemaphores.image_available]!!.get(currentBufferNum),
+            VK_NULL_HANDLE, pImageIndex)
 
-        currentBuffer = "Viewport-${pImageIndex.get(0)}".to(pImageIndex.get(0))
 
         if (err == VK_ERROR_OUT_OF_DATE_KHR || err == VK_SUBOPTIMAL_KHR) {
             swapchainRecreator.mustRecreate = true
@@ -910,16 +923,16 @@ class VulkanRenderer : Renderer {
         }
 
         val pCommandBuffers = memAllocPointer(1)
-        pCommandBuffers.put(0, rendertargets[currentBuffer.first]!!.renderCommandBuffer)
+        pCommandBuffers.put(0, currentTarget.renderCommandBuffer!!.commandBuffer)
 
         val waitStages = memAllocInt(1)
-        waitStages.put(0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
+        waitStages.put(0, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT)
 
         val signals = memAllocLong(1)
-        signals.put(0, semaphores[StandardSemaphores.render_complete]!!).flip()
+        signals.put(0, semaphores[StandardSemaphores.render_complete]!!.get(currentBufferNum)).flip()
 
         val wait = memAllocLong(1)
-        wait.put(0, semaphores[StandardSemaphores.image_available]!!).flip()
+        wait.put(0, semaphores[StandardSemaphores.image_available]!!.get(currentBufferNum)).flip()
 
         val submitInfo = VkSubmitInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
@@ -931,10 +944,12 @@ class VulkanRenderer : Renderer {
             .pSignalSemaphores(signals)
 
         // Submit to the graphics queue
-        err = vkQueueSubmit(queue, submitInfo, VK_NULL_HANDLE)
+        err = vkQueueSubmit(queue, submitInfo, currentTarget.renderCommandBuffer!!.fence.get(0))
         if (err != VK_SUCCESS) {
             throw AssertionError("Frame $frames: Failed to submit render queue: " + VU.translate(err))
         }
+
+        currentTarget.renderCommandBuffer!!.submitted = true
 
         // Present the current buffer to the swap chain
         // This will display the image
@@ -954,8 +969,6 @@ class VulkanRenderer : Renderer {
         if (err != VK_SUCCESS) {
             throw AssertionError("Failed to present the swapchain image: " + VU.translate(err))
         }
-        // Create and submit post present barrier
-        vkQueueWaitIdle(queue)
 
         // Update UBO
         val thisTime = System.nanoTime()
@@ -963,6 +976,8 @@ class VulkanRenderer : Renderer {
         lastTime = thisTime
 
         frames++
+
+        currentBufferNum = (currentBufferNum + 1) % swapchain!!.images!!.size
         glfwSetWindowTitle(window.glfwWindow!!, "$applicationName [${this.javaClass.simpleName}] - $fps fps")
     }
 
@@ -1407,15 +1422,15 @@ class VulkanRenderer : Renderer {
     private fun createVertexBuffers(node: Node, state: VulkanObjectState, deviceMemoryProperties: VkPhysicalDeviceMemoryProperties, device: VkDevice): VulkanObjectState {
         val n = node as HasGeometry
 
-        val vertexAllocation = 4*(n.vertices.remaining() + n.normals.remaining() + n.texcoords.remaining())
-        val indexAllocation = 4*n.indices.remaining()
+        val vertexAllocation = 4 * (n.vertices.remaining() + n.normals.remaining() + n.texcoords.remaining())
+        val indexAllocation = 4 * n.indices.remaining()
 
         val stridedBuffer = memAlloc(vertexAllocation + indexAllocation)
 
         val fb = stridedBuffer.asFloatBuffer()
         val ib = stridedBuffer.asIntBuffer()
 
-        state.vertexCount = n.vertices.remaining()/n.vertexSize
+        state.vertexCount = n.vertices.remaining() / n.vertexSize
 
         for (index in 0..n.vertices.remaining() - 1 step 3) {
             fb.put(n.vertices.get())
@@ -1432,17 +1447,17 @@ class VulkanRenderer : Renderer {
             }
         }
 
-        logger.info("Adding ${n.indices.remaining()*4} bytes to strided buffer")
+        logger.trace("Adding ${n.indices.remaining() * 4} bytes to strided buffer")
         if (n.indices.remaining() > 0) {
             state.isIndexed = true
-            ib.position(vertexAllocation/4)
+            ib.position(vertexAllocation / 4)
 
             for (index in 0..n.indices.remaining() - 1) {
                 ib.put(n.indices.get())
             }
         }
 
-        logger.info("Strided buffer is now at ${stridedBuffer.remaining()} bytes")
+        logger.trace("Strided buffer is now at ${stridedBuffer.remaining()} bytes")
 
         n.vertices.flip()
         n.normals.flip()
@@ -1632,7 +1647,7 @@ class VulkanRenderer : Renderer {
     }
 
 
-    private fun createSceneRenderCommandBuffer(device: VkDevice, targetName: String): VkCommandBuffer {
+    private fun createSceneRenderCommandBuffer(device: VkDevice, targetName: String): VulkanCommandBuffer {
         val target = this.rendertargets[targetName]!!
 
         target.semaphore = VU.run(memAllocLong(1), "vkCreateSemaphore") {
@@ -1657,7 +1672,7 @@ class VulkanRenderer : Renderer {
                     VkClearValue.calloc().color(VkClearColorValue.calloc().float32(clearColor))
                 }
                 VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> {
-                    VkClearValue.calloc().depthStencil(VkClearDepthStencilValue.calloc().depth(1.0f))
+                    VkClearValue.calloc().depthStencil(VkClearDepthStencilValue.calloc().depth(1.0f).stencil(0))
                 }
             })
         }
@@ -1714,7 +1729,7 @@ class VulkanRenderer : Renderer {
                 vkCmdBindVertexBuffers(this, 0, vb, offsets)
 
                 if (s.isIndexed) {
-                    vkCmdBindIndexBuffer(this, vb.get(0), s.indexOffset*1L, VK_INDEX_TYPE_UINT32)
+                    vkCmdBindIndexBuffer(this, vb.get(0), s.indexOffset * 1L, VK_INDEX_TYPE_UINT32)
                     vkCmdDrawIndexed(this, s.indexCount, 1, 0, 0, 0)
                 } else {
                     vkCmdDraw(this, s.vertexCount, 1, 0, 0)
@@ -1722,15 +1737,15 @@ class VulkanRenderer : Renderer {
             }
 
             vkCmdEndRenderPass(this)
-
             this.endCommandBuffer()
-            this
+
+            VulkanCommandBuffer(device, this)
         }
 
     }
 
 
-    private fun createPresentCommandBuffer(device: VkDevice, targetName: String): VkCommandBuffer {
+    private fun createPresentCommandBuffer(device: VkDevice, targetName: String): VulkanCommandBuffer {
         val target = rendertargets[targetName]!!
 
         val clearValues = VkClearValue.calloc(target.colorAttachmentCount() + target.depthAttachmentCount())
@@ -1787,15 +1802,14 @@ class VulkanRenderer : Renderer {
             */
 
             vkCmdEndRenderPass(this)
-
             this.endCommandBuffer()
 
-            this
+            VulkanCommandBuffer(device, this)
         }
     }
 
-    private fun createPostprocessRenderCommandBuffer(device: VkDevice, targetName: String): VkCommandBuffer {
-        return VU.newCommandBuffer(device, commandPools.Render)
+    private fun createPostprocessRenderCommandBuffer(device: VkDevice, targetName: String): VulkanCommandBuffer {
+        return VulkanCommandBuffer(device, VU.newCommandBuffer(device, commandPools.Render))
     }
 
     private fun updateDefaultUBOs(device: VkDevice) {
@@ -1824,7 +1838,7 @@ class VulkanRenderer : Renderer {
 
             val projection = GLMatrix().setPerspectiveProjectionMatrix(cam.fov / 180.0f * Math.PI.toFloat(),
                 (1.0f * window.width) / (1.0f * window.height), cam.nearPlaneDistance, cam.farPlaneDistance)
-            projection.set(1, 1, -1.0f*projection.get(1,1))
+            projection.set(1, 1, -1.0f * projection.get(1, 1))
 
             val mv = cam.view!!.clone()
             mv.mult(node.world)
