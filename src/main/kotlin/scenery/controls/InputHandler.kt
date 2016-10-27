@@ -74,6 +74,7 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
             glfwSetCursorPosCallback(window.glfwWindow!!, handler.cursorCallback)
             glfwSetKeyCallback(window.glfwWindow!!, handler.keyCallback)
             glfwSetScrollCallback(window.glfwWindow!!, handler.scrollCallback)
+            glfwSetMouseButtonCallback(window.glfwWindow!!, handler.mouseCallback)
         } else {
             logger.error("No suitable window was found")
             handler = null

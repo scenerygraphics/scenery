@@ -23,32 +23,81 @@ import org.lwjgl.glfw.GLFWKeyCallback
  */
 open class GLFWMouseAndKeyHandler : MouseAndKeyHandler {
 
-    protected var mouseX = 0
-    protected var mouseY = 0
-
     var cursorCallback = object : GLFWCursorPosCallback() {
         override fun invoke(window: Long, xpos: Double, ypos: Double) {
-            mouseMoved(xpos.toInt(), ypos.toInt())
+            mouseMoved(MouseEvent(MouseEvent.EVENT_MOUSE_MOVED,
+                this,
+                System.nanoTime(),
+                0,
+                xpos.toInt(),
+                ypos.toInt(),
+                0, 0,
+                floatArrayOf(0.0f, 0.0f, 0.0f), 1.0f))
         }
     }
 
     var keyCallback = object : GLFWKeyCallback() {
         override fun invoke(window: Long, key: Int, scancode: Int, action: Int, mods: Int) {
-            if(key == GLFW_MOUSE_BUTTON_1
-                || key == GLFW_MOUSE_BUTTON_2
-                || key == GLFW_MOUSE_BUTTON_3) {
-                mouseClicked(key, mods)
-            } else {
-                logger.info("Key pressed: $key")
-                keyPressed(key, scancode, mods)
+            val type = when(action) {
+                GLFW_PRESS -> KeyEvent.EVENT_KEY_PRESSED
+                GLFW_RELEASE -> KeyEvent.EVENT_KEY_RELEASED
+                GLFW_REPEAT -> KeyEvent.EVENT_KEY_PRESSED
+                else -> KeyEvent.EVENT_KEY_PRESSED
+            }
+
+            val event = KeyEvent.create(
+                type,
+                this,
+                System.nanoTime(),
+                mods,
+                key.toShort(),
+                scancode.toShort(),
+                ' '
+            )
+
+            when (action) {
+                GLFW_PRESS -> keyPressed(event)
+                GLFW_REPEAT -> keyPressed(event)
+                GLFW_RELEASE -> keyReleased(event)
             }
         }
 
     }
 
+    var mouseCallback = object : GLFWMouseButtonCallback() {
+        override fun invoke(window: Long, key: Int, action: Int, mods: Int) {
+            val type = when(action) {
+                GLFW_PRESS -> MouseEvent.EVENT_MOUSE_PRESSED
+                GLFW_RELEASE -> MouseEvent.EVENT_MOUSE_RELEASED
+                else -> MouseEvent.EVENT_MOUSE_CLICKED
+            }
+            val event = MouseEvent(type,
+                this,
+                System.nanoTime(),
+                0,
+                mouseX,
+                mouseY,
+                1, 0,
+                floatArrayOf(0.0f, 0.0f, 0.0f), 1.0f)
+
+
+                when (action) {
+                    GLFW_PRESS -> { mousePressed(event);  }
+                    GLFW_RELEASE -> { mouseReleased(event); }
+                }
+        }
+    }
+
     var scrollCallback = object : GLFWScrollCallback() {
         override fun invoke(window: Long, xoffset: Double, yoffset: Double) {
-
+            mouseWheelMoved(MouseEvent(MouseEvent.EVENT_MOUSE_WHEEL_MOVED,
+                this,
+                System.nanoTime(),
+                0,
+                0,
+                0,
+                0, 0,
+                floatArrayOf(xoffset.toFloat(), yoffset.toFloat(), 0.0f), 1.0f))
         }
 
     }
@@ -65,6 +114,9 @@ open class GLFWMouseAndKeyHandler : MouseAndKeyHandler {
     /** hash map of the controller's components that are currently above [CONTROLLER_DOWN_THRESHOLD] */
     private var controllerAxisDown: ConcurrentHashMap<Component.Identifier, Float> = ConcurrentHashMap()
 
+    /** hash map for mouse down events */
+    private var mouseButtonsDown: ConcurrentHashMap<Int, Float> = ConcurrentHashMap()
+
     /** polling interval for the controller */
     private val CONTROLLER_HEARTBEAT = 5L
 
@@ -73,15 +125,6 @@ open class GLFWMouseAndKeyHandler : MouseAndKeyHandler {
 
     /** the windowing system's set double click interval */
     private val DOUBLE_CLICK_INTERVAL = getDoubleClickInterval()
-
-    /** OSX idiosyncrasy: Mask for left meta click */
-    private val OSX_META_LEFT_CLICK = InputEvent.BUTTON1_MASK or InputEvent.BUTTON3_MASK or InputEvent.META_MASK
-
-    /** OSX idiosyncrasy: Mask for left alt click */
-    private val OSX_ALT_LEFT_CLICK = InputEvent.BUTTON1_MASK or InputEvent.BUTTON2_MASK or InputEvent.ALT_MASK
-
-    /** OSX idiosyncrasy: Mask for right alt click */
-    private val OSX_ALT_RIGHT_CLICK = InputEvent.BUTTON3_MASK or InputEvent.BUTTON2_MASK or InputEvent.ALT_MASK or InputEvent.META_MASK
 
     /**
      * Queries the windowing system for the current double click interval
@@ -358,6 +401,16 @@ open class GLFWMouseAndKeyHandler : MouseAndKeyHandler {
     private var winPressed = false
 
     /**
+     * The current mouse coordinates, updated through [.mouseMoved].
+     */
+    private var mouseX: Int = 0
+
+    /**
+     * The current mouse coordinates, updated through [.mouseMoved].
+     */
+    private var mouseY: Int = 0
+
+    /**
      * Active [DragBehaviour]s initiated by mouse button press.
      */
     private val activeButtonDrags = ArrayList<BehaviourEntry<DragBehaviour>>()
@@ -372,14 +425,15 @@ open class GLFWMouseAndKeyHandler : MouseAndKeyHandler {
      *
      * @param[e] The input event to evaluate.
      */
-    private fun getMask(modifiers: Int): Int {
-        var mask = 0
+    private fun getMask(e: InputEvent, initial: Int = 0): Int {
+        val modifiers = e.modifiers
+        var mask = initial
 
         /*
 		 * For scrolling AWT uses the SHIFT_DOWN_MASK to indicate horizontal scrolling.
 		 * We keep track of whether the SHIFT key was actually pressed for disambiguation.
 		 */
-        if (shiftPressed)
+        if (modifiers and GLFW_MOD_SHIFT == 1)
             mask = mask or (1 shl 6)
 
         /*
@@ -387,11 +441,11 @@ open class GLFWMouseAndKeyHandler : MouseAndKeyHandler {
 		 * track of whether the META key was actually pressed for
 		 * disambiguation.
 		 */
-        if (metaPressed) {
+        if (modifiers and GLFW_MOD_ALT == 1) {
             mask = mask or (1 shl 8)
         }
 
-        if (winPressed) {
+        if (modifiers and GLFW_MOD_SUPER == 1) {
             System.err.println("Windows key not supported")
         }
 
@@ -405,9 +459,8 @@ open class GLFWMouseAndKeyHandler : MouseAndKeyHandler {
 		 * ...but only if its not a MouseWheelEvent because OS X sets button
 		 * modifiers if ALT or META modifiers are pressed.
 		 */
-        /*
         if (e is MouseEvent && (e.rotation[0] < 0.001f || e.rotation[1] < 0.001f)) {
-            if (modifiers and != 0) {
+            if (modifiers and InputEvent.BUTTON1_MASK != 0) {
                 mask = mask or (1 shl 10)
             }
             if (modifiers and InputEvent.BUTTON2_MASK != 0) {
@@ -416,13 +469,12 @@ open class GLFWMouseAndKeyHandler : MouseAndKeyHandler {
             if (modifiers and InputEvent.BUTTON3_MASK != 0) {
                 mask = mask or (1 shl 12)
             }
-        }*/
+        }
 
         /*
 		 * Deal with mous double-clicks.
 		 */
 
-        /*
         if (e is MouseEvent && e.clickCount > 1) {
             mask = mask or InputTrigger.DOUBLE_CLICK_MASK
         } // mouse
@@ -431,7 +483,6 @@ open class GLFWMouseAndKeyHandler : MouseAndKeyHandler {
             mask = mask or InputTrigger.SCROLL_MASK
             mask = mask and (1 shl 10).inv()
         }
-        */
 
         return mask
     }
@@ -441,14 +492,19 @@ open class GLFWMouseAndKeyHandler : MouseAndKeyHandler {
      *
      * @param[e] The incoming MouseEvent
      */
-    fun mouseMoved(x: Int, y: Int) {
+    fun mouseMoved(e: MouseEvent) {
         update()
 
-        mouseX = x
-        mouseY = y
+        mouseX = e.getX()
+        mouseY = e.getY()
 
-        for (drag in activeKeyDrags)
+        for (drag in activeKeyDrags) {
             drag.behaviour.drag(mouseX, mouseY)
+        }
+
+        for (drag in activeButtonDrags) {
+            drag.behaviour.drag(mouseX, mouseY)
+        }
     }
 
     /**
@@ -465,12 +521,12 @@ open class GLFWMouseAndKeyHandler : MouseAndKeyHandler {
      *
      * @param[e] The incoming MouseEvent
      */
-    fun mouseClicked(button: Int, modifiers: Int) {
+    fun mouseClicked(e: MouseEvent) {
         update()
 
-        val mask = getMask(modifiers)
-        val x = mouseX
-        val y = mouseY
+        val mask = getMask(e)
+        val x = e.x
+        val y = e.y
 
         val clickMask = mask and InputTrigger.DOUBLE_CLICK_MASK.inv()
         for (click in buttonClicks) {
@@ -485,13 +541,13 @@ open class GLFWMouseAndKeyHandler : MouseAndKeyHandler {
      *
      * @param[e] The incoming mouse event
      */
-    fun mouseWheelMoved(rotation: Float, modifiers: Int) {
+    fun mouseWheelMoved(e: MouseEvent) {
         update()
 
-        val mask = getMask(modifiers)
-        val x = mouseX
-        val y = mouseY
-        val wheelRotation = rotation
+        val mask = getMask(e)
+        val x = e.x
+        val y = e.y
+        val wheelRotation = e.rotation
 
         /*
 		 * AWT uses the SHIFT_DOWN_MASK to indicate horizontal scrolling. We
@@ -500,15 +556,15 @@ open class GLFWMouseAndKeyHandler : MouseAndKeyHandler {
 		 * the SHIFT key is not pressed. With SHIFT pressed, everything is
 		 * treated as vertical scrolling.
 		 */
-        val exShiftMask = modifiers and InputEvent.SHIFT_MASK != 0
-        val isHorizontal = !shiftPressed && exShiftMask
+        val exShiftMask = e.getModifiers() and InputEvent.SHIFT_MASK != 0
+        val isHorizontal = !shiftPressed && exShiftMask && wheelRotation[1] == 0.0f
 
         for (scroll in scrolls) {
             if (scroll.buttons.matches(mask, pressedKeys)) {
-                if (isHorizontal) {
-                    scroll.behaviour.scroll(rotation.toDouble(), isHorizontal, x, y)
+                if(isHorizontal) {
+                    scroll.behaviour.scroll(wheelRotation[0].toDouble(), isHorizontal, x, y)
                 } else {
-                    scroll.behaviour.scroll(rotation.toDouble(), isHorizontal, x, y)
+                    scroll.behaviour.scroll(wheelRotation[1].toDouble(), isHorizontal, x, y)
                 }
             }
         }
@@ -560,15 +616,18 @@ open class GLFWMouseAndKeyHandler : MouseAndKeyHandler {
      *
      * @param[e] The incoming mouse event
      */
-    fun mousePressed(buttons: Int, modifiers: Int) {
+    fun mousePressed(e: MouseEvent) {
         update()
 
-        val mask = getMask(modifiers)
-        val x = mouseX
-        val y = mouseY
+        val mask = getMask(e, initial = 1024)
+        val x = e.x
+        val y = e.y
 
         for (drag in buttonDrags) {
+            logger.trace("$pressedKeys vs ${drag.buttons.pressedKeys}")
+            logger.trace("$mask vs ${drag.buttons.mask}")
             if (drag.buttons.matches(mask, pressedKeys)) {
+                logger.trace("yay! match!")
                 drag.behaviour.init(x, y)
                 activeButtonDrags.add(drag)
             }
@@ -580,40 +639,35 @@ open class GLFWMouseAndKeyHandler : MouseAndKeyHandler {
      *
      * @param[e] The incoming keyboard event
      */
-    fun keyPressed(keyCode: Int, scancode: Int, modifiers: Int) {
+    fun keyPressed(e: KeyEvent) {
         update()
 
-        if (modifiers and GLFW_MOD_SHIFT == 1) {
-            logger.info("Shift down")
+        logger.trace("Key pressed: ${e.keyCode}")
+        /*if (e.modifiers and GLFW_MOD_SHIFT == 1) {
             shiftPressed = true
-        } else if (modifiers and GLFW_MOD_ALT == 1) {
-            logger.info("Alt down")
+        } else if (e.modifiers and GLFW_MOD_ALT == 1) {
             metaPressed = true
-        } else if (modifiers and GLFW_MOD_SUPER == 1) {
-            logger.info("Super down")
+        } else if (e.modifiers and GLFW_MOD_CONTROL == 1) {
             winPressed = true
-        } else if (keyCode != GLFW_KEY_RIGHT_ALT &&
-            keyCode != GLFW_KEY_LEFT_ALT &&
-            keyCode != GLFW_KEY_LEFT_CONTROL &&
-            keyCode != GLFW_KEY_RIGHT_CONTROL) {
-            logger.info("Something else down")
-            val inserted = pressedKeys.add(keyCode)
+        }*/
+        if (e.keyCode.toInt() != GLFW_KEY_LEFT_ALT &&
+            e.keyCode.toInt() != GLFW_KEY_LEFT_CONTROL &&
+            e.keyCode.toInt() != GLFW_KEY_LEFT_SHIFT) {
+            val inserted = pressedKeys.add(e.keyCode.toInt())
 
             /*
 			 * Create mask and deal with double-click on keys.
 			 */
 
-            val mask = getMask(modifiers)
+            val mask = getMask(e)
             var doubleClick = false
-            val now = System.nanoTime()
-
             if (inserted) {
                 // double-click on keys.
-                val lastPressTime = keyPressTimes.get(keyCode)
-                if (lastPressTime.toInt() != -1 && now - lastPressTime < DOUBLE_CLICK_INTERVAL)
+                val lastPressTime = keyPressTimes.get(e.keyCode.toInt())
+                if (lastPressTime.toInt() != -1 && e.`when` - lastPressTime < DOUBLE_CLICK_INTERVAL)
                     doubleClick = true
 
-                keyPressTimes.put(keyCode, now)
+                keyPressTimes.put(e.keyCode.toInt(), e.`when`)
             }
             val doubleClickMask = mask or InputTrigger.DOUBLE_CLICK_MASK
 
@@ -624,9 +678,9 @@ open class GLFWMouseAndKeyHandler : MouseAndKeyHandler {
                 }
             }
 
-            logger.info("Key down: $keyCode")
-            logger.info(keyClicks.count().toString())
             for (click in keyClicks) {
+                logger.trace(click.buttons.mask.toString() + " vs " + mask.toString())
+                logger.trace(click.buttons.pressedKeys.toString() +  " vs " + pressedKeys.toString() )
                 if (click.buttons.matches(mask, pressedKeys) || doubleClick && click.buttons.matches(doubleClickMask, pressedKeys)) {
                     click.behaviour.click(mouseX, mouseY)
                 }
@@ -659,7 +713,29 @@ open class GLFWMouseAndKeyHandler : MouseAndKeyHandler {
         }
     }
 
+    /**
+     * Called when the window lost focus. Clears pressed keys
+     *
+     * @param[e] The incoming window update event
+     */
+    fun windowLostFocus(e: WindowEvent?) {
+        pressedKeys.clear()
+        shiftPressed = false
+        metaPressed = false
+        winPressed = false
+    }
 
+    /**
+     * Called when a window regains focus, clears pressed keys
+     *
+     * @param[e] The incoming window update event
+     */
+    fun windowGainedFocus(e: WindowEvent?) {
+        pressedKeys.clear()
+        shiftPressed = false
+        metaPressed = false
+        winPressed = false
+    }
 
     /**
      * Called when a new controller is added
@@ -667,7 +743,7 @@ open class GLFWMouseAndKeyHandler : MouseAndKeyHandler {
      * @param[event] The incoming controller event
      */
     override fun controllerAdded(event: ControllerEvent?) {
-        if (controller == null && event != null && event.controller.type == Controller.Type.GAMEPAD) {
+        if(controller == null && event != null && event.controller.type == Controller.Type.GAMEPAD) {
             logger.info("Adding controller ${event.controller}")
             this.controller = event.controller
         }
@@ -679,7 +755,7 @@ open class GLFWMouseAndKeyHandler : MouseAndKeyHandler {
      * @param[event] The incoming controller event
      */
     override fun controllerRemoved(event: ControllerEvent?) {
-        if (event != null && controller != null) {
+        if(event != null && controller != null) {
             logger.info("Controller removed: ${event.controller}")
 
             controller = null
@@ -693,15 +769,15 @@ open class GLFWMouseAndKeyHandler : MouseAndKeyHandler {
      * @param[event] The incoming controller event
      */
     fun controllerEvent(event: Event) {
-        for (gamepad in gamepads) {
-            if (event.component.isAnalog && Math.abs(event.component.pollData) < CONTROLLER_DOWN_THRESHOLD) {
+        for(gamepad in gamepads) {
+            if(event.component.isAnalog && Math.abs(event.component.pollData) < CONTROLLER_DOWN_THRESHOLD) {
                 logger.trace("${event.component.identifier} over threshold, removing")
                 controllerAxisDown.put(event.component.identifier, 0.0f)
             } else {
                 controllerAxisDown.put(event.component.identifier, event.component.pollData)
             }
 
-            if (gamepad.behaviour.axis.contains(event.component.identifier)) {
+            if(gamepad.behaviour.axis.contains(event.component.identifier)) {
                 gamepad.behaviour.axisEvent(event.component.identifier, event.component.pollData)
             }
         }
