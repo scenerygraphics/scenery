@@ -231,6 +231,7 @@ class VulkanPipeline(val device: VkDevice, val descriptorPool: Long, val pipelin
             pipelineCreateInfo
                 .pInputAssemblyState(inputAssemblyState)
                 .basePipelineHandle(vkp.pipeline)
+                .basePipelineIndex(-1)
                 .flags(VK_PIPELINE_CREATE_DERIVATIVE_BIT)
 
             val derivativeP = VU.run(memAllocLong(1), "vkCreateGraphicsPipelines(derivative)",
