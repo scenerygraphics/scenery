@@ -268,6 +268,7 @@ open class VulkanRenderer : Renderer {
     protected var sceneUBOs = ConcurrentHashMap<Node, UBO>()
     protected var semaphores = ConcurrentHashMap<StandardSemaphores, Array<Long>>()
     protected var buffers = HashMap<String, VulkanBuffer>()
+    protected var textureCache = ConcurrentHashMap<String, VulkanTexture>()
 
     protected var lastTime = System.nanoTime()
     protected var time = 0.0f
@@ -595,9 +596,39 @@ open class VulkanRenderer : Renderer {
             sceneUBOs.put(node, it)
         }
 
+        loadTexturesForNode(node, s)
+
         node.metadata["VulkanRenderer"] = s
 
         return true
+    }
+
+    protected fun loadTexturesForNode(node: Node, s: VulkanObjectState) {
+        if(node.lock.tryLock()) {
+            node.material?.textures?.forEach {
+                type, texture ->
+                if(!textureCache.containsKey(texture) || node.material?.needsTextureReload!!) {
+                    logger.info("Loading texture $texture for ${node.name}")
+
+                    val vkTexture = if(texture.startsWith("fromBuffer:")) {
+                        val gt = node.material!!.transferTextures[texture.substringAfter("fromBuffer:")]
+
+                        val t = VulkanTexture(device, physicalDevice,
+                            commandPools.Standard, queue, gt!!.dimensions.x().toInt(), gt!!.dimensions.y().toInt(), 1)
+
+                        t
+                    } else {
+                        VulkanTexture.loadFromFile(device, physicalDevice,
+                            commandPools.Standard, queue, texture, true, 1)
+                    }
+
+                    s.textures.put(type, vkTexture!!)
+                    textureCache.put(texture, vkTexture!!)
+                }
+            }
+
+            node.lock.unlock()
+        }
     }
 
     protected fun prepareStandardVertexDescriptors(device: VkDevice): ConcurrentHashMap<VertexDataKinds, VertexDescription> {
@@ -1342,7 +1373,7 @@ open class VulkanRenderer : Renderer {
         val ib = stridedBuffer.asIntBuffer()
 
         state.vertexCount = n.vertices.remaining() / n.vertexSize
-        logger.info("${node.name} has ${n.vertices.remaining()} floats remaining")
+        logger.trace("${node.name} has ${n.vertices.remaining()} floats remaining")
 
         for (index in 0..n.vertices.remaining() - 1 step 3) {
             fb.put(n.vertices.get())

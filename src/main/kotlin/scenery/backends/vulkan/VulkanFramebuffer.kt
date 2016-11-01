@@ -399,27 +399,6 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
             }
         }
 
-    fun VkPhysicalDevice.getMemoryType(typeBits: Int, memoryFlags: Int): Pair<Boolean, Int> {
-        var found = false
-        var bits = typeBits
-        val properties = VkPhysicalDeviceMemoryProperties.calloc()
-        vkGetPhysicalDeviceMemoryProperties(this, properties)
-
-        for (i in 0..properties.memoryTypeCount() - 1) {
-            if (bits and 1 == 1) {
-                if ((properties.memoryTypes(i).propertyFlags() and memoryFlags) == memoryFlags) {
-                    found = true
-                    return found.to(i)
-                }
-            }
-
-            bits = bits shr 1
-        }
-
-        System.err.println("Memory type $memoryFlags not found for device")
-        return false.to(0)
-    }
-
     private fun getSupportedDepthFormats(): List<Int> {
         // this iterates through the list of possible (though not all required formats)
         // and returns the first one that is possible to use as a depth buffer on the

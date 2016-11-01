@@ -21,7 +21,8 @@ layout(binding = 0) uniform Matrices {
 	int isBillboard;
 } ubo;
 
-float PI = 3.14159265358979323846264;
+const float PI = 3.14159265358979323846264;
+const int MAX_TEXTURES = 8;
 
 struct LightInfo {
     vec3 Position;
@@ -44,6 +45,8 @@ layout(binding = 1) uniform MaterialProperties {
 layout(binding = 2) uniform LightProperties {
     LightInfo Light;
 };
+
+layout(binding = 3) uniform sampler2D ObjectTextures[MAX_TEXTURES];
 
 vec4 BlinnPhong(vec3 FragPos, vec3 viewPos, vec3 Normal) {
       bool blinn = true;

@@ -29,6 +29,8 @@ class VulkanObjectState : NodeMetadata {
 
     var UBO: VulkanRenderer.UBO? = null
 
+    var textures = ConcurrentHashMap<String, VulkanTexture>()
+
     constructor() {
         consumers.add("VulkanRenderer")
     }
