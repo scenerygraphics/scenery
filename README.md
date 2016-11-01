@@ -6,7 +6,7 @@
 
 ## Synopsis
 
-scenery is a scenegraphing and rendering library. It allows you to quickly create high-quality 3D visualisations based on mesh data. Currently, scenery contains an OpenGL 4-based [Deferred Shading](https://en.wikipedia.org/wiki/Deferred_Shading) renderer that also supports [OpenVR](https://github.com/ValveSoftware/openvr). Both a software-based and a [Vulkan](https://www.khronos.org/vulkan)-based renderer are planned.
+scenery is a scenegraphing and rendering library. It allows you to quickly create high-quality 3D visualisations based on mesh data. Currently, scenery contains an OpenGL 4-based [Deferred Shading](https://en.wikipedia.org/wiki/Deferred_Shading) renderer that also supports [OpenVR](https://github.com/ValveSoftware/openvr) and an experimental [Vulkan](https://www.khronos.org/vulkan) renderer. Software rendering is planned for the future.
 
 ## Examples
 
