@@ -689,7 +689,7 @@ open class VulkanRenderer : Renderer {
             p.UBOs.add(standardUBOs["BlinnPhongLighting"]!!)
 
             p.addShaderStages(pass.shaders.map { VulkanShaderModule(device, "main", "shaders/" + it) })
-            p.createPipeline(target.value.renderPass.get(0),
+            p.createPipelines(target.value.renderPass.get(0),
                 vertexDescriptors.get(VertexDataKinds.coords_normals_texcoords)!!.state)
 
             logger.info("Prepared pipeline for ${target.key}")
@@ -785,6 +785,10 @@ open class VulkanRenderer : Renderer {
 
         if (swapchainRecreator.mustRecreate) {
             swapchainRecreator.recreate()
+        }
+
+        if(scene.initialized == false) {
+            return
         }
 
         val currentBuffer = "Viewport-$currentBufferNum".to(currentBufferNum)
@@ -1338,6 +1342,7 @@ open class VulkanRenderer : Renderer {
         val ib = stridedBuffer.asIntBuffer()
 
         state.vertexCount = n.vertices.remaining() / n.vertexSize
+        logger.info("${node.name} has ${n.vertices.remaining()} floats remaining")
 
         for (index in 0..n.vertices.remaining() - 1 step 3) {
             fb.put(n.vertices.get())
@@ -1407,7 +1412,6 @@ open class VulkanRenderer : Renderer {
         state.vertexBuffers.put("vertex+index", vertexBuffer)
         state.indexOffset = vertexAllocation
         state.indexCount = n.indices.remaining()
-        state.createInfo = vi
 
         vkDestroyBuffer(device, stagingBuffer.buffer, null)
         vkFreeMemory(device, stagingBuffer.memory, null)
@@ -1563,16 +1567,9 @@ open class VulkanRenderer : Renderer {
             vkCreateSemaphore(device, semaphoreCreateInfo, null, this)
         }
 
-        logger.debug("Creating scene command buffer for $targetName/$target (${target.attachments.count()} attachments, pipeline=${renderPipelines[targetName]!!.pipeline.pipeline})")
+        logger.debug("Creating scene command buffer for $targetName/$target (${target.attachments.count()} attachments, pipeline=${renderPipelines[targetName]!!.pipeline})")
 
         val clearValues = VkClearValue.calloc(target.colorAttachmentCount() + target.depthAttachmentCount())
-
-        val index = try {
-            targetName.substringAfter("-").toInt()
-        } catch(e: NumberFormatException) {
-            0
-        }
-
         val clearColor = BufferUtils.allocateFloatAndPut(floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f))
 
         target.attachments.values.forEachIndexed { i, att ->
@@ -1632,9 +1629,11 @@ open class VulkanRenderer : Renderer {
                 val offsets = memAllocLong(1)
                 offsets.put(0, 0)
 
-                vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_GRAPHICS, renderPipelines[targetName]!!.pipeline.pipeline)
+                val pipeline = renderPipelines[targetName]!!.pipeline[(n as HasGeometry).geometryType]!!
+
+                vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline)
                 vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                    renderPipelines[targetName]!!.pipeline.layout, 0, ds, sceneUBOs[n]!!.offsets)
+                    pipeline.layout, 0, ds, sceneUBOs[n]!!.offsets)
                 vkCmdBindVertexBuffers(this, 0, vb, offsets)
 
                 if (s.isIndexed) {

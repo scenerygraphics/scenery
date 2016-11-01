@@ -5,6 +5,7 @@ import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import scenery.GeometryType
 import java.nio.IntBuffer
 import java.util.*
 
@@ -14,7 +15,7 @@ import java.util.*
 class VulkanPipeline(val device: VkDevice, val descriptorPool: Long, val pipelineCache: Long? = null, val buffers: HashMap<String, VulkanBuffer>) {
     protected var logger: Logger = LoggerFactory.getLogger("VulkanRenderer")
 
-    var pipeline = VulkanRenderer.Pipeline()
+    var pipeline = HashMap<GeometryType, VulkanRenderer.Pipeline>()
 
     var UBOs = ArrayList<VulkanRenderer.UBO>()
     var descriptorSets = HashMap<String, Long>()
@@ -170,7 +171,7 @@ class VulkanPipeline(val device: VkDevice, val descriptorPool: Long, val pipelin
         return descriptorSet
     }
 
-    fun createPipeline(renderPass: Long, vi: VkPipelineVertexInputStateCreateInfo): VulkanRenderer.Pipeline {
+    fun createPipelines(renderPass: Long, vi: VkPipelineVertexInputStateCreateInfo) {
         val pDescriptorSetLayout = memAllocLong(1)
         val descriptorSetLayout = createDescriptorSetLayout(device,
             descriptorNum = this.UBOs.count(),
@@ -205,18 +206,56 @@ class VulkanPipeline(val device: VkDevice, val descriptorPool: Long, val pipelin
             .pDepthStencilState(depthStencilState)
             .pStages(shaderStages)
             .pDynamicState(dynamicState)
+            .flags(VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT)
             .subpass(0)
 
         logger.info("Creating pipeline for $renderPass with $layout")
 
         val p = VU.run(memAllocLong(1), "vkCreateGraphicsPipelines",
-            { vkCreateGraphicsPipelines(device, pipelineCache ?: VK_NULL_HANDLE, pipelineCreateInfo, null, this) },
-            { pipelineCreateInfo.free() })
+            { vkCreateGraphicsPipelines(device, pipelineCache ?: VK_NULL_HANDLE, pipelineCreateInfo, null, this) })
 
-        this.pipeline = VulkanRenderer.Pipeline()
-        this.pipeline.layout = layout
-        this.pipeline.pipeline = p
+        val vkp = VulkanRenderer.Pipeline()
+        vkp.layout = layout
+        vkp.pipeline = p
 
-        return this.pipeline
+        this.pipeline.put(GeometryType.TRIANGLES, vkp)
+
+        // create pipelines for other topologies as well
+        GeometryType.values().forEach { topology ->
+            if(topology == GeometryType.TRIANGLES) {
+                return@forEach
+            }
+
+            inputAssemblyState.topology(topology.asVulkanTopology()).pNext(NULL)
+
+            pipelineCreateInfo
+                .pInputAssemblyState(inputAssemblyState)
+                .basePipelineHandle(vkp.pipeline)
+                .flags(VK_PIPELINE_CREATE_DERIVATIVE_BIT)
+
+            val derivativeP = VU.run(memAllocLong(1), "vkCreateGraphicsPipelines(derivative)",
+                { vkCreateGraphicsPipelines(device, pipelineCache ?: VK_NULL_HANDLE, pipelineCreateInfo, null, this) })
+
+            val derivativePipeline = VulkanRenderer.Pipeline()
+            derivativePipeline.layout = layout
+            derivativePipeline.pipeline = derivativeP
+
+            this.pipeline.put(topology, derivativePipeline)
+        }
+
+        pipelineCreateInfo.free()
+    }
+
+    fun GeometryType.asVulkanTopology(): Int {
+        return when(this) {
+            GeometryType.TRIANGLE_FAN -> VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN
+            GeometryType.TRIANGLES -> VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
+            GeometryType.LINE -> VK_PRIMITIVE_TOPOLOGY_LINE_LIST
+            GeometryType.POINTS -> VK_PRIMITIVE_TOPOLOGY_POINT_LIST
+            GeometryType.LINES_ADJACENCY -> VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY
+            GeometryType.LINE_STRIP_ADJACENCY -> VK_PRIMITIVE_TOPOLOGY_LINE_STRIP_WITH_ADJACENCY
+            GeometryType.POLYGON -> VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
+            GeometryType.TRIANGLE_STRIP -> VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP
+        }
     }
 }

@@ -24,7 +24,6 @@ class VulkanObjectState : NodeMetadata {
     var attributeDescriptions = VkVertexInputAttributeDescription.calloc(3)
 
     var vertexBuffers = ConcurrentHashMap<String, VulkanBuffer>()
-    var createInfo: VkPipelineVertexInputStateCreateInfo? = null
 
     var pipeline = VulkanRenderer.Pipeline()
 
