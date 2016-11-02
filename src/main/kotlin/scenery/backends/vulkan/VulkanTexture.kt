@@ -171,8 +171,7 @@ class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDevice,
         image!!.view = createImageView(image!!, format)
     }
 
-    private fun createDescriptorSet(descriptorSetLayout: Long, descriptorPool: Long, targetBinding: Int = 0, arrayElement: Int = 0): Long {
-        logger.info("Creating texture descriptor set with 1 bindings, DSL=$descriptorSetLayout")
+    fun createDescriptorSet(descriptorSetLayout: Long, descriptorPool: Long, targetBinding: Int = 0, arrayElement: Int = 0): Long {
         val pDescriptorSetLayout = memAllocLong(1)
         pDescriptorSetLayout.put(0, descriptorSetLayout)
 
@@ -198,11 +197,13 @@ class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDevice,
             .dstBinding(targetBinding)
             .dstArrayElement(arrayElement)
             .pImageInfo(d as VkDescriptorImageInfo.Buffer)
+            .descriptorType(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
 
         vkUpdateDescriptorSets(device, writeDescriptorSet, null)
         writeDescriptorSet.free()
         (d as NativeResource).free()
 
+        logger.info("Creating texture descriptor $descriptorSet set with 1 bindings, DSL=$descriptorSetLayout")
         image!!.descriptorSet = descriptorSet
         return descriptorSet
     }

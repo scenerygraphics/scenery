@@ -73,7 +73,7 @@ open class SceneryDefaultApplication(var applicationName: String,
         inputHandler?.useDefaultBindings(System.getProperty("user.home") + "/.$applicationName.bindings")
 
         if(!renderer!!.managesRenderLoop) {
-            renderer!!.initializeScene(scene)
+//            renderer!!.setCurrentScene(scene)
         }
 
         // setup additional key bindings, if requested by the user
@@ -81,7 +81,7 @@ open class SceneryDefaultApplication(var applicationName: String,
 
         while(renderer!!.shouldClose == false) {
             if(renderer!!.managesRenderLoop) {
-                Thread.sleep(10)
+                Thread.sleep(2)
             } else {
                 renderer!!.render()
             }

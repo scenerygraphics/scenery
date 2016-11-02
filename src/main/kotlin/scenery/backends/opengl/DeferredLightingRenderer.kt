@@ -136,6 +136,7 @@ open class DeferredLightingRenderer : Renderer, Hubable, ClearGLDefaultEventList
 
         this.gl = window.clearglWindow!!.gl.gL4
         this.scene = scene
+        this.applicationName = applicationName
     }
 
     override fun init(pDrawable: GLAutoDrawable) {
@@ -214,7 +215,7 @@ open class DeferredLightingRenderer : Renderer, Hubable, ClearGLDefaultEventList
 
         initialized = true
 
-        initializeScene(this.scene)
+        initializeScene()
     }
 
     override fun display(pDrawable: GLAutoDrawable) {
@@ -442,7 +443,7 @@ open class DeferredLightingRenderer : Renderer, Hubable, ClearGLDefaultEventList
      *
      * @param[scene] The [Scene] one intends to render.
      */
-    override fun initializeScene(scene: Scene) {
+    override fun initializeScene() {
         scene.discover(scene, { it is HasGeometry })
             .forEach { it ->
                 it.metadata.put("DeferredLightingRenderer", OpenGLObjectState())

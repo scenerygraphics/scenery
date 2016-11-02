@@ -269,6 +269,7 @@ open class VulkanRenderer : Renderer {
     protected var semaphores = ConcurrentHashMap<StandardSemaphores, Array<Long>>()
     protected var buffers = HashMap<String, VulkanBuffer>()
     protected var textureCache = ConcurrentHashMap<String, VulkanTexture>()
+    protected var descriptorSetLayouts = ConcurrentHashMap<String, Long>()
 
     protected var lastTime = System.nanoTime()
     protected var time = 0.0f
@@ -281,6 +282,9 @@ open class VulkanRenderer : Renderer {
     constructor(applicationName: String, scene: Scene, windowWidth: Int, windowHeight: Int, renderConfigFile: String = "ForwardShading.yml") {
         window.width = windowWidth
         window.height = windowHeight
+
+        this.applicationName = applicationName
+        this.scene = scene
 
         this.settings = getDefaultRendererSettings()
 
@@ -436,18 +440,22 @@ open class VulkanRenderer : Renderer {
         return ArrayList<R>(destination)
     }
 
+    fun setCurrentScene(scene: Scene) {
+        this.scene = scene
+    }
+
     /**
      * This function should initialize the scene contents.
      *
      * @param[scene] The scene to initialize.
      */
-    override fun initializeScene(scene: Scene) {
+    override fun initializeScene() {
+        logger.info("Starting scene initialization")
 
-        this.scene = scene
-
-        scene.discover(scene, { it is HasGeometry })
-            .parallelMap(numThreads = System.getProperty("scenery.MaxInitThreads", "1").toInt()) { node ->
-                logger.info("Initializing object '${node.name}'")
+        this.scene.discover(this.scene, { it is HasGeometry })
+//            .parallelMap(numThreads = System.getProperty("scenery.MaxInitThreads", "1").toInt()) { node ->
+            .map { node ->
+                logger.debug("Initializing object '${node.name}'")
                 node.metadata.put("VulkanRenderer", VulkanObjectState())
 
                 if (node is FontBoard) {
@@ -536,49 +544,7 @@ open class VulkanRenderer : Renderer {
 
         if (s.initialized) return true
 
-        val stride = if ((node as HasGeometry).texcoords.remaining() > 0) {
-            s.attributeDescriptions = VkVertexInputAttributeDescription.calloc(2)
-            3 + 3
-        } else {
-            s.attributeDescriptions = VkVertexInputAttributeDescription.calloc(3)
-            3 + 3 + 2
-        }
-
-        // setup vertex binding descriptions
-        s.bindingDescriptions.binding(0)
-            .stride(stride * 4)
-            .inputRate(VK_VERTEX_INPUT_RATE_VERTEX)
-
-        // setup vertex attribute descriptions
-        // position
-        s.attributeDescriptions.get(0)
-            .binding(0)
-            .location(0)
-            .format(VK_FORMAT_R32G32B32_SFLOAT)
-            .offset(0)
-
-        // normal
-        s.attributeDescriptions.get(1)
-            .binding(0)
-            .location(1)
-            .format(VK_FORMAT_R32G32B32_SFLOAT)
-            .offset(3 * 4)
-
-        // texture coordinates, if applicable
-        if (stride > 6) {
-            s.attributeDescriptions.get(2)
-                .binding(0)
-                .location(2)
-                .format(VK_FORMAT_R32G32_SFLOAT)
-                .offset(3 * 4 + 3 * 4)
-        }
-
-        s.inputState.sType(VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO)
-            .pNext(NULL)
-            .pVertexBindingDescriptions(s.bindingDescriptions)
-            .pVertexAttributeDescriptions(s.attributeDescriptions)
-
-        logger.debug("Initializing ${node.name} (${node.vertices.remaining() / node.vertexSize} vertices/${node.indices.remaining()} indices)")
+        logger.debug("Initializing ${node.name} (${(node as HasGeometry).vertices.remaining() / node.vertexSize} vertices/${node.indices.remaining()} indices)")
 
         if (node.vertices.remaining() > 0) {
             s = createVertexBuffers(node, s, memoryProperties, device)
@@ -596,25 +562,38 @@ open class VulkanRenderer : Renderer {
             sceneUBOs.put(node, it)
         }
 
-        loadTexturesForNode(node, s)
+        s = loadTexturesForNode(node, s)
 
         node.metadata["VulkanRenderer"] = s
 
         return true
     }
 
-    protected fun loadTexturesForNode(node: Node, s: VulkanObjectState) {
+    protected fun loadTexturesForNode(node: Node, s: VulkanObjectState): VulkanObjectState {
         if(node.lock.tryLock()) {
             node.material?.textures?.forEach {
                 type, texture ->
+
+                val slot = when(type) {
+                    "ambient" ->        0
+                    "diffuse" ->        1
+                    "specular" ->       2
+                    "normal" ->         3
+                    "displacement" ->   4
+                    else ->             0
+                }
+
+                logger.info("${node.name} will have $type texture from $texture in slot $slot")
+
                 if(!textureCache.containsKey(texture) || node.material?.needsTextureReload!!) {
-                    logger.info("Loading texture $texture for ${node.name}")
+                    logger.trace("Loading texture $texture for ${node.name}")
 
                     val vkTexture = if(texture.startsWith("fromBuffer:")) {
                         val gt = node.material!!.transferTextures[texture.substringAfter("fromBuffer:")]
 
                         val t = VulkanTexture(device, physicalDevice,
                             commandPools.Standard, queue, gt!!.dimensions.x().toInt(), gt!!.dimensions.y().toInt(), 1)
+                        t.copyFrom(gt.contents)
 
                         t
                     } else {
@@ -624,16 +603,22 @@ open class VulkanRenderer : Renderer {
 
                     s.textures.put(type, vkTexture!!)
                     textureCache.put(texture, vkTexture!!)
+                } else {
+                    s.textures.put(type, textureCache[texture]!!)
                 }
             }
 
+            s.texturesToDescriptorSet(device, descriptorSetLayouts["ObjectTextures"]!!, descriptorPool,
+                targetBinding = 0)
+
             node.lock.unlock()
         }
+
+        return s
     }
 
     protected fun prepareStandardVertexDescriptors(device: VkDevice): ConcurrentHashMap<VertexDataKinds, VertexDescription> {
         val map = ConcurrentHashMap<VertexDataKinds, VertexDescription>()
-
 
         VertexDataKinds.values().forEach { kind ->
             var attributeDesc: VkVertexInputAttributeDescription.Buffer
@@ -650,6 +635,7 @@ open class VulkanRenderer : Renderer {
                         .format(VK_FORMAT_R32G32B32_SFLOAT)
                         .offset(3 * 4)
                 }
+
                 VertexDataKinds.coords_normals_texcoords -> {
                     stride = 3 + 3 + 2
                     attributeDesc = VkVertexInputAttributeDescription.calloc(3)
@@ -666,6 +652,7 @@ open class VulkanRenderer : Renderer {
                         .format(VK_FORMAT_R32G32_SFLOAT)
                         .offset(3 * 4 + 3 * 4)
                 }
+
                 VertexDataKinds.coords_texcoords -> {
                     stride = 3 + 2
                     attributeDesc = VkVertexInputAttributeDescription.calloc(2)
@@ -722,6 +709,10 @@ open class VulkanRenderer : Renderer {
             p.addShaderStages(pass.shaders.map { VulkanShaderModule(device, "main", "shaders/" + it) })
             p.createPipelines(target.value.renderPass.get(0),
                 vertexDescriptors.get(VertexDataKinds.coords_normals_texcoords)!!.state)
+
+            p.descriptorSetLayouts.forEach {
+                descriptorSetLayouts.put(it.key, it.value)
+            }
 
             logger.info("Prepared pipeline for ${target.key}")
             map.put(target.key, p)
@@ -800,13 +791,6 @@ open class VulkanRenderer : Renderer {
      * @param[scene] The scene to render.
      */
     override fun render() {
-        if (scene.children.count() == 0 || scene.initialized == false) {
-            initializeScene(scene)
-
-            Thread.sleep(200)
-            return
-        }
-
         if (glfwWindowShouldClose(window.glfwWindow!!)) {
             this.shouldClose = true
             return
@@ -818,7 +802,10 @@ open class VulkanRenderer : Renderer {
             swapchainRecreator.recreate()
         }
 
-        if(scene.initialized == false) {
+        if (scene.children.count() == 0 || scene.initialized == false) {
+            initializeScene()
+
+            Thread.sleep(200)
             return
         }
 
@@ -1364,16 +1351,17 @@ open class VulkanRenderer : Renderer {
     private fun createVertexBuffers(node: Node, state: VulkanObjectState, deviceMemoryProperties: VkPhysicalDeviceMemoryProperties, device: VkDevice): VulkanObjectState {
         val n = node as HasGeometry
 
-        val vertexAllocation = 4 * (n.vertices.remaining() + n.normals.remaining() + n.texcoords.remaining())
-        val indexAllocation = 4 * n.indices.remaining()
+        val vertexAllocationBytes = 4 * (n.vertices.remaining() + n.normals.remaining() + n.texcoords.remaining())
+        val indexAllocationBytes = 4 * n.indices.remaining()
+        val fullAllocationBytes = vertexAllocationBytes + indexAllocationBytes
 
-        val stridedBuffer = memAlloc(vertexAllocation + indexAllocation)
+        val stridedBuffer = memAlloc(fullAllocationBytes)
 
         val fb = stridedBuffer.asFloatBuffer()
         val ib = stridedBuffer.asIntBuffer()
 
         state.vertexCount = n.vertices.remaining() / n.vertexSize
-        logger.trace("${node.name} has ${n.vertices.remaining()} floats remaining")
+        logger.trace("${node.name} has ${n.vertices.remaining()} floats and ${n.texcoords.remaining()/n.texcoordSize} remaining")
 
         for (index in 0..n.vertices.remaining() - 1 step 3) {
             fb.put(n.vertices.get())
@@ -1393,7 +1381,7 @@ open class VulkanRenderer : Renderer {
         logger.trace("Adding ${n.indices.remaining() * 4} bytes to strided buffer")
         if (n.indices.remaining() > 0) {
             state.isIndexed = true
-            ib.position(vertexAllocation / 4)
+            ib.position(vertexAllocationBytes / 4)
 
             for (index in 0..n.indices.remaining() - 1) {
                 ib.put(n.indices.get())
@@ -1411,7 +1399,7 @@ open class VulkanRenderer : Renderer {
             VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
             wantAligned = false,
-            allocationSize = stridedBuffer.remaining().toLong())
+            allocationSize = fullAllocationBytes*1L)
 
         stagingBuffer.copy(stridedBuffer)
 
@@ -1419,11 +1407,11 @@ open class VulkanRenderer : Renderer {
             VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or VK_BUFFER_USAGE_INDEX_BUFFER_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT,
             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
             wantAligned = false,
-            allocationSize = stridedBuffer.remaining().toLong())
+            allocationSize = fullAllocationBytes*1L)
 
         with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
             val copyRegion = VkBufferCopy.calloc(1)
-                .size(stridedBuffer.remaining().toLong())
+                .size(fullAllocationBytes*1L)
 
             vkCmdCopyBuffer(this,
                 stagingBuffer.buffer,
@@ -1433,21 +1421,12 @@ open class VulkanRenderer : Renderer {
             this.endCommandBuffer(device, commandPools.Standard, queue, flush = true, dealloc = true)
         }
 
-        // Assign to vertex buffer
-        val vi = VkPipelineVertexInputStateCreateInfo.calloc()
-        vi.sType(VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO)
-        vi.pNext(NULL)
-        vi.pVertexBindingDescriptions(state.bindingDescriptions)
-        vi.pVertexAttributeDescriptions(state.attributeDescriptions)
-
         state.vertexBuffers.put("vertex+index", vertexBuffer)
-        state.indexOffset = vertexAllocation
+        state.indexOffset = vertexAllocationBytes
         state.indexCount = n.indices.remaining()
 
         vkDestroyBuffer(device, stagingBuffer.buffer, null)
         vkFreeMemory(device, stagingBuffer.memory, null)
-
-        vi.free()
 
         return state
     }
@@ -1644,29 +1623,41 @@ open class VulkanRenderer : Renderer {
             vkCmdSetViewport(this, 0, viewport)
             vkCmdSetScissor(this, 0, scissor)
 
-            instanceGroups[null]?.forEach nonInstancedDrawing@ { n ->
-                val s = n.metadata["VulkanRenderer"]!! as VulkanObjectState
+            instanceGroups[null]?.forEach nonInstancedDrawing@ { node ->
+                val s = node.metadata["VulkanRenderer"]!! as VulkanObjectState
 
-                if (n in instanceGroups.keys || s.vertexCount == 0) {
+                if (node in instanceGroups.keys || s.vertexCount == 0) {
                     return@nonInstancedDrawing
                 }
 
                 val vb = memAllocLong(1)
                 vb.put(0, s.vertexBuffers["vertex+index"]!!.buffer)
 
-                val ds = memAllocLong(1)
+                val ds = memAllocLong(1+if(s.textures.size > 0) { 1 } else { 0 })
                 ds.put(0, renderPipelines[targetName]!!.descriptorSets["default"]!!)
+
+                if(s.textures.size > 0) {
+                    ds.put(1, s.textureDescriptorSet)
+                }
+//                var dspos = 1
+//                logger.info("${n.name} has ${s.textures.count()} textures")
+//                s.textures.forEach { type, texture ->
+//                    logger.info("Adding ds for $type $texture of ${n.name}, ${texture.image!!.descriptorSet}")
+//                    ds.put(dspos, texture.image!!.descriptorSet)
+//                    dspos ++
+//                }
 
                 val offsets = memAllocLong(1)
                 offsets.put(0, 0)
 
-                val pipeline = renderPipelines[targetName]!!.pipeline[(n as HasGeometry).geometryType]!!
+                val pipeline = renderPipelines[targetName]!!.pipeline[(node as HasGeometry).geometryType]!!
 
                 vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline)
                 vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                    pipeline.layout, 0, ds, sceneUBOs[n]!!.offsets)
+                    pipeline.layout, 0, ds, sceneUBOs[node]!!.offsets)
                 vkCmdBindVertexBuffers(this, 0, vb, offsets)
 
+                logger.trace("now drawing ${node.name}, ${ds.capacity()} DS bound, ${s.textures.count()} textures")
                 if (s.isIndexed) {
                     vkCmdBindIndexBuffer(this, vb.get(0), s.indexOffset * 1L, VK_INDEX_TYPE_UINT32)
                     vkCmdDrawIndexed(this, s.indexCount, 1, 0, 0, 0)

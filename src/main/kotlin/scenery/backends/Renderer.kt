@@ -17,7 +17,9 @@ interface Renderer : Hubable {
      *
      * @param[scene] The scene to initialize.
      */
-    fun initializeScene(scene: Scene)
+    fun initializeScene()
+
+//    fun setCurrentScene(scene: Scene)
 
     /**
      * This function renders the scene

@@ -2,7 +2,6 @@ package scenery.backends.vulkan
 
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.system.NativeResource
-import org.lwjgl.system.Struct
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
 import org.slf4j.Logger
@@ -10,6 +9,7 @@ import org.slf4j.LoggerFactory
 import scenery.GeometryType
 import java.nio.IntBuffer
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Created by ulrik on 9/28/2016.
@@ -20,7 +20,8 @@ class VulkanPipeline(val device: VkDevice, val descriptorPool: Long, val pipelin
     var pipeline = HashMap<GeometryType, VulkanRenderer.Pipeline>()
 
     var UBOs = ArrayList<VulkanRenderer.UBO>()
-    var descriptorSets = HashMap<String, Long>()
+    var descriptorSets = ConcurrentHashMap<String, Long>()
+    var descriptorSetLayouts = ConcurrentHashMap<String, Long>()
 
     val inputAssemblyState = VkPipelineInputAssemblyStateCreateInfo.calloc()
         .sType(VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO)
@@ -191,7 +192,7 @@ class VulkanPipeline(val device: VkDevice, val descriptorPool: Long, val pipelin
         val dslObjectTextures = createDescriptorSetLayout(device,
             type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
             descriptorNum = 1,
-            descriptorCount = 5)
+            descriptorCount = 8)
 
         this.descriptorSets.put("default",
             createDescriptorSet(device, descriptorPool,
@@ -206,6 +207,9 @@ class VulkanPipeline(val device: VkDevice, val descriptorPool: Long, val pipelin
 
         pDescriptorSetLayout.put(0, descriptorSetLayout)
         pDescriptorSetLayout.put(1, dslObjectTextures)
+
+        descriptorSetLayouts.put("default", descriptorSetLayout)
+        descriptorSetLayouts.put("ObjectTextures", dslObjectTextures)
 
         val pPipelineLayoutCreateInfo = VkPipelineLayoutCreateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO)
