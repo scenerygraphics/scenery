@@ -54,9 +54,6 @@ class TexturedCubeExample : SceneryDefaultApplication("TexturedCubeExample") {
             scene.addChild(this)
         }
 
-        val bb = BoundingBox()
-        bb.node = box
-
         thread {
             while (true) {
                 box.rotation.rotateByAngleY(0.01f)

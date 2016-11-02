@@ -60,7 +60,6 @@ class CubeExample : SceneryDefaultApplication("CubeExample") {
                 Thread.sleep(20)
             }
         }
-        renderer?.initializeScene(scene)
 
         repl = REPL(scene, renderer!!)
         repl?.start()

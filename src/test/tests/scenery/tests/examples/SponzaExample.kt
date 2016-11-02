@@ -108,7 +108,7 @@ class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 1
             meshM.diffuse = GLVector(0.5f, 0.5f, 0.5f)
             meshM.specular = GLVector(0.0f, 0.0f, 0.0f)
 
-            mesh.readFromOBJ(System.getenv("SCENERY_DEMO_FILES") + "/sponza.obj", useMTL = false)
+            mesh.readFromOBJ(System.getenv("SCENERY_DEMO_FILES") + "/sponza.obj", useMTL = true)
             //mesh.material = meshM
 //            mesh.position = GLVector(155.5f, 150.5f, 55.0f)
             mesh.position = GLVector(0.0f, 5.0f, 0.0f)
