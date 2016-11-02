@@ -1,6 +1,6 @@
 #version 450 core
 
-in VertexData {
+layout(location = 0) in VertexData {
     vec3 Position;
     vec3 Normal;
     vec2 TexCoord;
@@ -46,13 +46,13 @@ layout(binding = 2) uniform LightProperties {
     LightInfo Light;
 };
 
-layout(binding = 3) uniform sampler2D ObjectTextures[MAX_TEXTURES];
+layout(set = 1, binding = 0) uniform sampler2D ObjectTextures[MAX_TEXTURES];
 
-vec4 BlinnPhong(vec3 FragPos, vec3 viewPos, vec3 Normal) {
+vec4 BlinnPhong(vec3 FragPos, vec3 viewPos, vec3 Normal, vec3 a, vec3 d, vec3 s) {
       bool blinn = true;
-      vec3 color = Material.Kd;
+      vec3 color = d;
       // Ambient
-      vec3 ambient = 0.05 * Material.Ka;
+      vec3 ambient = 0.05 * a;
 
       // Diffuse
       vec3 lightDir = normalize(Light.Position - FragPos);
@@ -63,7 +63,7 @@ vec4 BlinnPhong(vec3 FragPos, vec3 viewPos, vec3 Normal) {
       // Specular
       vec3 viewDir = normalize(viewPos - FragPos);
       vec3 reflectDir = reflect(-lightDir, Normal);
-      float spec = 0.0;
+      float spec = s.r;
 
       if(blinn)
       {
@@ -82,5 +82,12 @@ vec4 BlinnPhong(vec3 FragPos, vec3 viewPos, vec3 Normal) {
 }
 
 void main() {
-    FragColor = BlinnPhong(VertexIn.Position, ubo.CamPosition, VertexIn.Normal);
+    vec3 ambient = texture(ObjectTextures[0], VertexIn.TexCoord);
+    vec3 diffuse = texture(ObjectTextures[1], VertexIn.TexCoord);
+    vec3 specular = texture(ObjectTextures[2], VertexIn.TexCoord);
+
+    FragColor = BlinnPhong(VertexIn.FragPosition, ubo.CamPosition, VertexIn.Normal,
+        ambient, diffuse, specular);
+//    FragColor = texture(ObjectTextures[0], VertexIn.TexCoord);//
+//    FragColor = vec4(VertexIn.TexCoord, 0.0f, 1.0f);
 }
