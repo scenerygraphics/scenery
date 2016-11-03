@@ -192,7 +192,7 @@ class VulkanPipeline(val device: VkDevice, val descriptorPool: Long, val pipelin
         val dslObjectTextures = createDescriptorSetLayout(device,
             type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
             descriptorNum = 1,
-            descriptorCount = 8)
+            descriptorCount = 5)
 
         this.descriptorSets.put("default",
             createDescriptorSet(device, descriptorPool,

@@ -347,6 +347,8 @@ open class VulkanRenderer : Renderer {
 
         buffers = prepareDefaultBuffers(device)
 
+        prepareDefaultTextures(device)
+
         heartbeatTimer.scheduleAtFixedRate(object : TimerTask() {
             override fun run() {
                 fps = frames.toInt()
@@ -608,6 +610,10 @@ open class VulkanRenderer : Renderer {
                 }
             }
 
+            arrayOf("ambient", "diffuse", "specular", "normal", "displacement").forEach {
+                s.textures.putIfAbsent(it, textureCache["DefaultTexture"])
+            }
+
             s.texturesToDescriptorSet(device, descriptorSetLayouts["ObjectTextures"]!!, descriptorPool,
                 targetBinding = 0)
 
@@ -688,6 +694,12 @@ open class VulkanRenderer : Renderer {
         return map
     }
 
+    protected fun prepareDefaultTextures(device: VkDevice) {
+       val t = VulkanTexture.loadFromFile(device, physicalDevice, commandPools.Standard, queue,
+           Renderer.javaClass.getResource("DefaultTexture.png").path.toString(), true, 1)
+
+        textureCache.put("DefaultTexture", t!!)
+    }
 
     protected fun prepareDefaultPipelines(device: VkDevice): ConcurrentHashMap<String, VulkanPipeline> {
         val map = ConcurrentHashMap<String, VulkanPipeline>()

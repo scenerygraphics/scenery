@@ -1,4 +1,5 @@
 #version 450 core
+#extension GL_ARB_separate_shader_objects: enable
 
 layout(location = 0) in VertexData {
     vec3 Position;
@@ -22,7 +23,7 @@ layout(binding = 0) uniform Matrices {
 } ubo;
 
 const float PI = 3.14159265358979323846264;
-const int MAX_TEXTURES = 8;
+const int NUM_OBJECT_TEXTURES = 5;
 
 struct LightInfo {
     vec3 Position;
@@ -46,7 +47,7 @@ layout(binding = 2) uniform LightProperties {
     LightInfo Light;
 };
 
-layout(set = 1, binding = 0) uniform sampler2D ObjectTextures[MAX_TEXTURES];
+layout(set = 1, binding = 0) uniform sampler2D ObjectTextures[NUM_OBJECT_TEXTURES];
 
 vec4 BlinnPhong(vec3 FragPos, vec3 viewPos, vec3 Normal, vec3 a, vec3 d, vec3 s) {
       bool blinn = true;
@@ -82,9 +83,9 @@ vec4 BlinnPhong(vec3 FragPos, vec3 viewPos, vec3 Normal, vec3 a, vec3 d, vec3 s)
 }
 
 void main() {
-    vec3 ambient = texture(ObjectTextures[0], VertexIn.TexCoord);
-    vec3 diffuse = texture(ObjectTextures[1], VertexIn.TexCoord);
-    vec3 specular = texture(ObjectTextures[2], VertexIn.TexCoord);
+    vec3 ambient = texture(ObjectTextures[0], VertexIn.TexCoord).rgb;
+    vec3 diffuse = texture(ObjectTextures[1], VertexIn.TexCoord).rgb;
+    vec3 specular = texture(ObjectTextures[2], VertexIn.TexCoord).rgb;
 
     FragColor = BlinnPhong(VertexIn.FragPosition, ubo.CamPosition, VertexIn.Normal,
         ambient, diffuse, specular);
