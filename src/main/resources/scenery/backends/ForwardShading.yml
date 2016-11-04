@@ -1,4 +1,4 @@
-name: Forward Shading Renderer
+name: Forward Shading
 description: OpenGL/Vulkan shader pipeline implementing straight forward shading
 
 rendertargets:

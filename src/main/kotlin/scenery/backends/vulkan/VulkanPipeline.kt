@@ -19,9 +19,8 @@ class VulkanPipeline(val device: VkDevice, val descriptorPool: Long, val pipelin
 
     var pipeline = HashMap<GeometryType, VulkanRenderer.Pipeline>()
 
-    var UBOs = ArrayList<VulkanRenderer.UBO>()
+    var UBOs = ArrayList<UBO>()
     var descriptorSets = ConcurrentHashMap<String, Long>()
-    var descriptorSetLayouts = ConcurrentHashMap<String, Long>()
 
     val inputAssemblyState = VkPipelineInputAssemblyStateCreateInfo.calloc()
         .sType(VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO)
@@ -37,6 +36,7 @@ class VulkanPipeline(val device: VkDevice, val descriptorPool: Long, val pipelin
         .depthClampEnable(false)
         .rasterizerDiscardEnable(false)
         .depthBiasEnable(false)
+        .lineWidth(1.0f)
 
     val colorWriteMask = VkPipelineColorBlendAttachmentState.calloc(1)
         .blendEnable(false)
@@ -44,8 +44,8 @@ class VulkanPipeline(val device: VkDevice, val descriptorPool: Long, val pipelin
 
     val colorBlendState = VkPipelineColorBlendStateCreateInfo.calloc()
         .sType(VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO)
-        .pAttachments(colorWriteMask)
         .pNext(NULL)
+        .pAttachments(colorWriteMask)
 
     val viewportState = VkPipelineViewportStateCreateInfo.calloc()
         .sType(VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO)
@@ -103,122 +103,24 @@ class VulkanPipeline(val device: VkDevice, val descriptorPool: Long, val pipelin
         this.shaderStages = stages
     }
 
-    fun createDescriptorSetLayout(device: VkDevice, type: Int = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, descriptorNum: Int = 1, descriptorCount: Int = 1): Long {
-        logger.info("Creating DSL for $descriptorNum descriptors")
+    fun createPipelines(renderPass: Long, vi: VkPipelineVertexInputStateCreateInfo,
+                        descriptorSetLayouts: List<Long>, onlyForTopology: GeometryType? = null) {
+        val setLayouts = memAllocLong(descriptorSetLayouts.size)
+        logger.info("Allocated space for ${setLayouts.remaining()} DSLs")
 
-        val layoutBinding = VkDescriptorSetLayoutBinding.calloc(descriptorNum)
-        (0..descriptorNum - 1).forEach { i ->
-            layoutBinding[i]
-                .binding(i) // <- Binding 0 : Uniform buffer (Vertex shader)
-                .descriptorType(type)
-                .descriptorCount(descriptorCount)
-                .stageFlags(VK_SHADER_STAGE_ALL)
-                .pImmutableSamplers(null)
+        descriptorSetLayouts.forEachIndexed { i, layout ->
+            logger.info("Adding DSL $layout for renderpass $renderPass")
+            setLayouts.put(i, layout)
         }
-
-        // Build a create-info struct to create the descriptor set layout
-        val descriptorLayout = VkDescriptorSetLayoutCreateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO)
-            .pNext(NULL)
-            .pBindings(layoutBinding)
-
-        val descriptorSetLayout = VU.run(memAllocLong(1), "vkCreateDescriptorSetLayout",
-            function = { vkCreateDescriptorSetLayout(device, descriptorLayout, null, this) },
-            cleanup = { descriptorLayout.free(); layoutBinding.free() }
-        )
-
-        return descriptorSetLayout
-    }
-
-    fun createDescriptorSet(device: VkDevice, descriptorPool: Long, descriptorSetLayout: Long, bindingCount: Int,
-                            type: Int = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC): Long {
-        logger.info("Creating descriptor set with ${bindingCount} bindings, DSL=$descriptorSetLayout")
-        val pDescriptorSetLayout = memAllocLong(1)
-        pDescriptorSetLayout.put(0, descriptorSetLayout)
-
-        val allocInfo = VkDescriptorSetAllocateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO)
-            .pNext(NULL)
-            .descriptorPool(descriptorPool)
-            .pSetLayouts(pDescriptorSetLayout)
-
-        val descriptorSet = VU.run(memAllocLong(1), "createDescriptorSet",
-            { vkAllocateDescriptorSets(device, allocInfo, this) },
-            { allocInfo.free(); memFree(pDescriptorSetLayout) })
-
-        val d = if(type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC) {
-            VkDescriptorBufferInfo.calloc(1)
-                .buffer(buffers["UBOBuffer"]!!.buffer)
-                .range(2048)
-                .offset(0L)
-        } else {
-            VkDescriptorImageInfo.calloc(1)
-        }
-
-        val writeDescriptorSet = VkWriteDescriptorSet.calloc(bindingCount)
-
-        (0..bindingCount-1).forEach { i ->
-            writeDescriptorSet[i]
-                .sType(VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET)
-                .pNext(NULL)
-                .dstSet(descriptorSet)
-                .dstBinding(i)
-
-            if(type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC) {
-                writeDescriptorSet[i]
-                    .pBufferInfo(d as VkDescriptorBufferInfo.Buffer)
-                    .descriptorType(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC)
-            }
-            if(type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER) {
-                writeDescriptorSet[i]
-                    .pImageInfo(d as VkDescriptorImageInfo.Buffer)
-                    .descriptorType(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
-            }
-        }
-
-        vkUpdateDescriptorSets(device, writeDescriptorSet, null)
-        writeDescriptorSet.free()
-        (d as NativeResource).free()
-
-        return descriptorSet
-    }
-
-    fun createPipelines(renderPass: Long, vi: VkPipelineVertexInputStateCreateInfo) {
-        val pDescriptorSetLayout = memAllocLong(2)
-        val descriptorSetLayout = createDescriptorSetLayout(device,
-            descriptorNum = this.UBOs.count(),
-            descriptorCount = 1)
-
-        val dslObjectTextures = createDescriptorSetLayout(device,
-            type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-            descriptorNum = 1,
-            descriptorCount = 5)
-
-        this.descriptorSets.put("default",
-            createDescriptorSet(device, descriptorPool,
-                descriptorSetLayout, this.UBOs.count(),
-                type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC))
-
-        /*this.descriptorSets.put("ObjectTextures",
-            createDescriptorSet(device, descriptorPool,
-                dslObjectTextures, 1,
-                type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER))
-                */
-
-        pDescriptorSetLayout.put(0, descriptorSetLayout)
-        pDescriptorSetLayout.put(1, dslObjectTextures)
-
-        descriptorSetLayouts.put("default", descriptorSetLayout)
-        descriptorSetLayouts.put("ObjectTextures", dslObjectTextures)
 
         val pPipelineLayoutCreateInfo = VkPipelineLayoutCreateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO)
             .pNext(NULL)
-            .pSetLayouts(pDescriptorSetLayout)
+            .pSetLayouts(setLayouts)
 
         val layout = VU.run(memAllocLong(1), "vkCreatePipelineLayout",
             { vkCreatePipelineLayout(device, pPipelineLayoutCreateInfo, null, this) },
-            { pPipelineLayoutCreateInfo.free(); memFree(pDescriptorSetLayout); })
+            { pPipelineLayoutCreateInfo.free(); memFree(setLayouts); })
 
         val pipelineCreateInfo = VkGraphicsPipelineCreateInfo.calloc(1)
             .sType(VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO)
@@ -237,7 +139,11 @@ class VulkanPipeline(val device: VkDevice, val descriptorPool: Long, val pipelin
             .flags(VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT)
             .subpass(0)
 
-        logger.info("Creating pipeline for $renderPass with $layout")
+        if(onlyForTopology != null) {
+            inputAssemblyState.topology(onlyForTopology.asVulkanTopology())
+        }
+
+        logger.info("Creating pipeline for renderpass $renderPass with pipeline layout $layout")
 
         val p = VU.run(memAllocLong(1), "vkCreateGraphicsPipelines",
             { vkCreateGraphicsPipelines(device, pipelineCache ?: VK_NULL_HANDLE, pipelineCreateInfo, null, this) })
@@ -248,28 +154,31 @@ class VulkanPipeline(val device: VkDevice, val descriptorPool: Long, val pipelin
 
         this.pipeline.put(GeometryType.TRIANGLES, vkp)
 
-        // create pipelines for other topologies as well
-        GeometryType.values().forEach { topology ->
-            if(topology == GeometryType.TRIANGLES) {
-                return@forEach
+        if(onlyForTopology == null) {
+            logger.info("Creating derivative pipelines for renderpass $renderPass")
+            // create pipelines for other topologies as well
+            GeometryType.values().forEach { topology ->
+                if (topology == GeometryType.TRIANGLES) {
+                    return@forEach
+                }
+
+                inputAssemblyState.topology(topology.asVulkanTopology()).pNext(NULL)
+
+                pipelineCreateInfo
+                    .pInputAssemblyState(inputAssemblyState)
+                    .basePipelineHandle(vkp.pipeline)
+                    .basePipelineIndex(-1)
+                    .flags(VK_PIPELINE_CREATE_DERIVATIVE_BIT)
+
+                val derivativeP = VU.run(memAllocLong(1), "vkCreateGraphicsPipelines(derivative)",
+                    { vkCreateGraphicsPipelines(device, pipelineCache ?: VK_NULL_HANDLE, pipelineCreateInfo, null, this) })
+
+                val derivativePipeline = VulkanRenderer.Pipeline()
+                derivativePipeline.layout = layout
+                derivativePipeline.pipeline = derivativeP
+
+                this.pipeline.put(topology, derivativePipeline)
             }
-
-            inputAssemblyState.topology(topology.asVulkanTopology()).pNext(NULL)
-
-            pipelineCreateInfo
-                .pInputAssemblyState(inputAssemblyState)
-                .basePipelineHandle(vkp.pipeline)
-                .basePipelineIndex(-1)
-                .flags(VK_PIPELINE_CREATE_DERIVATIVE_BIT)
-
-            val derivativeP = VU.run(memAllocLong(1), "vkCreateGraphicsPipelines(derivative)",
-                { vkCreateGraphicsPipelines(device, pipelineCache ?: VK_NULL_HANDLE, pipelineCreateInfo, null, this) })
-
-            val derivativePipeline = VulkanRenderer.Pipeline()
-            derivativePipeline.layout = layout
-            derivativePipeline.pipeline = derivativeP
-
-            this.pipeline.put(topology, derivativePipeline)
         }
 
         pipelineCreateInfo.free()

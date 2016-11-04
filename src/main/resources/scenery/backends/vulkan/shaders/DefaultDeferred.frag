@@ -1,25 +1,19 @@
 #version 450 core
+#extension GL_ARB_separate_shader_objects: enable
 
-layout (location = 0) out vec3 gPosition;
-layout (location = 1) out vec3 gNormal;
-layout (location = 2) out vec4 gAlbedoSpec;
-//layout (location = 3) out vec3 gTangent;
-
-in VertexData {
+layout(location = 0) in VertexData {
     vec3 Position;
     vec3 Normal;
     vec2 TexCoord;
     vec3 FragPosition;
-    vec4 Color;
 } VertexIn;
 
-layout(binding = 0) uniform Matrices {
-	mat4 ModelViewMatrix;
-	mat4 MVP;
-	vec3 CameraPosition;
-};
+layout(location = 0) out vec3 gPosition;
+layout(location = 1) out vec3 gNormal;
+layout(location = 2) out vec4 gAlbedoSpec;
 
-float PI = 3.14159265358979323846264;
+const float PI = 3.14159265358979323846264;
+const int NUM_OBJECT_TEXTURES = 5;
 
 struct MaterialInfo {
     vec3 Ka;
@@ -28,11 +22,24 @@ struct MaterialInfo {
     float Shininess;
 };
 
-const int MAX_TEXTURES = 8;
 const int MATERIAL_TYPE_STATIC = 0;
 const int MATERIAL_TYPE_TEXTURED = 1;
 const int MATERIAL_TYPE_MAT = 2;
 const int MATERIAL_TYPE_TEXTURED_NORMAL = 3;
+
+layout(binding = 0) uniform Matrices {
+	mat4 ModelViewMatrix;
+	mat4 ModelMatrix;
+	mat4 ProjectionMatrix;
+	mat4 MVP;
+	vec3 CamPosition;
+	int isBillboard;
+} ubo;
+
+layout(binding = 1) uniform MaterialProperties {
+    MaterialInfo Material;
+    int materialType;
+};
 
 /*
     ObjectTextures[0] - ambient
@@ -42,12 +49,7 @@ const int MATERIAL_TYPE_TEXTURED_NORMAL = 3;
     ObjectTextures[4] - displacement
 */
 
-layout(binding = 1) uniform UBO {
-	MaterialInfo Material;
-	int materialType;
-};
-
-layout(binding = 2) uniform sampler2D ObjectTextures[MAX_TEXTURES];
+layout(set = 1, binding = 0) uniform sampler2D ObjectTextures[NUM_OBJECT_TEXTURES];
 
 void main() {
     // Store the fragment position vector in the first gbuffer texture
@@ -63,12 +65,10 @@ void main() {
         gAlbedoSpec.rgb = Material.Kd;
         gAlbedoSpec.a = Material.Ka.r*Material.Shininess;
     } else if(materialType == MATERIAL_TYPE_STATIC) {
-        gAlbedoSpec.rgb = VertexIn.Color.rgb;
+        gAlbedoSpec.rgb = Material.Kd;
         gAlbedoSpec.a = Material.Ks.r * Material.Shininess;
     } else {
         gAlbedoSpec.rgb = texture(ObjectTextures[1], VertexIn.TexCoord).rgb;
         gAlbedoSpec.a = texture(ObjectTextures[2], VertexIn.TexCoord).r;
     }
-
-//    gTangent = vec3(gAlbedoSpec.a, gNormal.x, gPosition.y);
 }

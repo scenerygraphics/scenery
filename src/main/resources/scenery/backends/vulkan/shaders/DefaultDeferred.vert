@@ -1,18 +1,15 @@
 #version 450 core
+#extension GL_ARB_separate_shader_objects: enable
 
 layout(location = 0) in vec3 vertexPosition;
 layout(location = 1) in vec3 vertexNormal;
 layout(location = 2) in vec2 vertexTexCoord;
-layout(location = 3) in vec4 instancedModel;
-layout(location = 7) in vec4 instancedModelView;
-layout(location = 11) in vec4 instancedMVP;
 
-out VertexData {
-	vec3 Position;
-	vec3 Normal;
-	vec2 TexCoord;
-	vec3 FragPosition;
-	vec4 Color;
+layout(location = 0) out VertexData {
+    vec3 Position;
+    vec3 Normal;
+    vec2 TexCoord;
+    vec3 FragPosition;
 } VertexOut;
 
 layout(binding = 0) uniform Matrices {
@@ -22,12 +19,14 @@ layout(binding = 0) uniform Matrices {
 	mat4 MVP;
 	vec3 CamPosition;
 	int isBillboard;
-};
+} ubo;
 
 void main()
 {
-	mat4 mv = ModelViewMatrix;
-	if(isBillboard > 0) {
+	mat4 mv = ubo.ModelViewMatrix;
+	mat4 nMVP;
+
+	if(ubo.isBillboard > 0) {
 		mv[0][0] = 1.0f;
 		mv[0][1] = .0f;
 		mv[0][2] = .0f;
@@ -39,14 +38,16 @@ void main()
 		mv[2][0] = .0f;
 		mv[2][1] = .0f;
 		mv[2][2] = 1.0f;
+
+		nMVP = ubo.ProjectionMatrix*mv;
+	} else {
+	    nMVP = ubo.MVP;
 	}
-	VertexOut.Normal = transpose(inverse(mat3(ModelMatrix)))*vertexNormal;
+
+	VertexOut.Normal = transpose(inverse(mat3(ubo.ModelMatrix)))*vertexNormal;
 	VertexOut.Position = vec3( mv * vec4(vertexPosition, 1.0));
 	VertexOut.TexCoord = vertexTexCoord;
-	VertexOut.FragPosition = vec3(ModelMatrix * vec4(vertexPosition, 1.0));
-	VertexOut.Color = vec4(0.0f, 0.0f, 0.0f, 0.0f);
-
-	mat4 nMVP = ProjectionMatrix*mv;
+	VertexOut.FragPosition = vec3(ubo.ModelMatrix * vec4(vertexPosition, 1.0));
 
 	gl_Position = nMVP * vec4(vertexPosition, 1.0);
 }

@@ -62,13 +62,11 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
         a.format = format
 
         if (usage == VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) {
-            logger.info("Setting aspect mask for color")
             aspectMask = VK_IMAGE_ASPECT_COLOR_BIT
             imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
         }
 
         if (usage == VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) {
-            logger.info("Setting aspect mask for depth")
             aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT or VK_IMAGE_ASPECT_STENCIL_BIT
             imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
         }
@@ -79,6 +77,8 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
             .depth(1)
 
         var image = VkImageCreateInfo.calloc()
+            .sType(VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO)
+            .pNext(NULL)
             .imageType(VK_IMAGE_TYPE_2D)
             .format(a.format)
             .extent(imageExtent)
@@ -87,8 +87,7 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
             .samples(VK_SAMPLE_COUNT_1_BIT)
             .tiling(VK_IMAGE_TILING_OPTIMAL)
             .usage(usage or VK_IMAGE_USAGE_SAMPLED_BIT)
-            .sType(VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO)
-            .pNext(NULL)
+
 
         var images = memAllocLong(1)
         vkCreateImage(device, image, null, images)
@@ -113,7 +112,7 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
             a.image,
             aspectMask,
             VK_IMAGE_LAYOUT_UNDEFINED,
-            if (usage and VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT == 1) VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL else imageLayout
+            if (usage == VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL else imageLayout
         )
 
         val subresourceRange = VkImageSubresourceRange.calloc()
@@ -152,6 +151,7 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
             .stencilStoreOp(VK_ATTACHMENT_STORE_OP_DONT_CARE)
             .initialLayout(VK_IMAGE_LAYOUT_UNDEFINED)
             .finalLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+            .format(format)
 
         attachments.put(name, att)
 
@@ -173,6 +173,7 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
             .stencilStoreOp(VK_ATTACHMENT_STORE_OP_DONT_CARE)
             .initialLayout(VK_IMAGE_LAYOUT_UNDEFINED)
             .finalLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+            .format(format)
 
         attachments.put(name, att)
 
@@ -194,6 +195,7 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
             .stencilStoreOp(VK_ATTACHMENT_STORE_OP_DONT_CARE)
             .initialLayout(VK_IMAGE_LAYOUT_UNDEFINED)
             .finalLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+            .format(format)
 
         attachments.put(name, att)
 
@@ -202,8 +204,8 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
 
     fun addUnsignedByteRGBABuffer(name: String, channelDepth: Int): VulkanFramebuffer {
         val format: Int = when(channelDepth) {
-            16 -> VK_FORMAT_R16G16B16A16_UINT
-            32 -> VK_FORMAT_R32G32B32A32_UINT
+            8 -> VK_FORMAT_R8G8B8A8_UNORM
+            16 -> VK_FORMAT_R16G16B16A16_UNORM
             else -> { System.err.println("Unsupported channel depth $channelDepth, using 16 bit."); VK_FORMAT_R16G16B16A16_UINT }
         }
 
@@ -215,6 +217,7 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
             .stencilStoreOp(VK_ATTACHMENT_STORE_OP_DONT_CARE)
             .initialLayout(VK_IMAGE_LAYOUT_UNDEFINED)
             .finalLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+            .format(format)
 
         attachments.put(name, att)
 
@@ -301,7 +304,7 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
         }
 
 
-        logger.info("Subpass for has ${colorDescs.remaining()} color attachments")
+        logger.trace("Subpass for has ${colorDescs.remaining()} color attachments")
 
         val subpass = VkSubpassDescription.calloc(1)
             .pColorAttachments(colorDescs)
@@ -343,7 +346,7 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
         renderPass.put(0, VU.run(memAllocLong(1), "create renderpass")
             { vkCreateRenderPass(device, renderPassInfo, null, this) })
 
-        logger.info("Created renderpass ${renderPass.get(0)}")
+        logger.trace("Created renderpass ${renderPass.get(0)}")
 
         val fbinfo = VkFramebufferCreateInfo.calloc()
             .default()

@@ -41,6 +41,7 @@ struct MaterialInfo {
 
 layout(binding = 1) uniform MaterialProperties {
     MaterialInfo Material;
+    int materialType;
 };
 
 layout(binding = 2) uniform LightProperties {

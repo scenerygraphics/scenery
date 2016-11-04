@@ -1,5 +1,5 @@
-name: Deferred Lighting Renderer
-description: OpenGL/Vulkan shader pipeline implementing deferred rendering
+name: Deferred Shading
+description: OpenGL/Vulkan shader pipeline implementing deferred shading
 
 rendertargets:
   GeometryBuffer:
@@ -11,7 +11,7 @@ rendertargets:
       format: RGBA_Float32
     DiffuseAlbedo:
       size: 1.0, 1.0
-      format: RGBA_UInt32
+      format: RGBA_UInt8
     ZBuffer:
       size: 1.0, 1.0
       format: Depth24
@@ -30,15 +30,20 @@ renderpasses:
   DeferredLighting:
     type: quad
     shaders:
-      - "Dummy.vert.spv"
+      - "FullscreenQuad.vert.spv"
       - "DeferredLighting.frag.spv"
     inputs:
       - GeometryBuffer
     output: HDR
+    parameters:
+      debugBuffers: 0
+      activateSSAO: 1
+      ssaoDistanceThreshold: 10.0
+      ssaoFilterRadius: 0.05, 0.05
   PostprocessHDR:
     type: quad
     shaders:
-      - "Dummy.vert.spv"
+      - "FullscreenQuad.vert.spv"
       - "HDR.frag.spv"
     inputs:
       - HDR

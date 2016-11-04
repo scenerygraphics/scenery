@@ -26,7 +26,7 @@ class VulkanObjectState : NodeMetadata {
 
     var pipeline = VulkanRenderer.Pipeline()
 
-    var UBO: VulkanRenderer.UBO? = null
+    var UBO: UBO? = null
 
     var textures = ConcurrentHashMap<String, VulkanTexture>()
 

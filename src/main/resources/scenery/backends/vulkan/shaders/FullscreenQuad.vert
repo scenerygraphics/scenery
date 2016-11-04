@@ -1,13 +1,9 @@
 #version 450
 
-layout(location = 0) in vec3 vertexPosition;
-layout(location = 1) in vec3 vertexNormal;
-layout(location = 2) in vec2 vertexTexCoord;
-
-out vec2 textureCoord;
+layout(location = 0) out vec2 textureCoord;
 
 void main()
 {
-    gl_Position = vec4(vertexPosition, 1.0);
-    textureCoord = vertexTexCoord;
+    textureCoord = vec2((gl_VertexIndex << 1) & 2, gl_VertexIndex & 2);
+    gl_Position = vec4(textureCoord * 2.0f + -1.0f, 0.0f, 0.0f);
 }
