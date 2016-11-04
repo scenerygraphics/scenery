@@ -925,6 +925,7 @@ open class VulkanRenderer : Renderer {
 
         if (swapchainRecreator.mustRecreate) {
             swapchainRecreator.recreate()
+            frames = 0
         }
 
         if (scene.children.count() == 0 || scene.initialized == false) {
