@@ -14,7 +14,7 @@ import java.util.concurrent.ConcurrentHashMap
 /**
  * Created by ulrik on 9/28/2016.
  */
-class VulkanPipeline(val device: VkDevice, val descriptorPool: Long, val pipelineCache: Long? = null, val buffers: HashMap<String, VulkanBuffer>) {
+class VulkanPipeline(val device: VkDevice, val pipelineCache: Long? = null) {
     protected var logger: Logger = LoggerFactory.getLogger("VulkanRenderer")
 
     var pipeline = HashMap<GeometryType, VulkanRenderer.Pipeline>()
@@ -182,6 +182,15 @@ class VulkanPipeline(val device: VkDevice, val descriptorPool: Long, val pipelin
         }
 
         pipelineCreateInfo.free()
+    }
+
+    fun getPipelineForGeometryType(type: GeometryType): VulkanRenderer.Pipeline {
+        if(this.pipeline.containsKey(type)) {
+            return this.pipeline.get(type)!!
+        } else {
+            logger.error("Pipeline $this does not contain a fitting pipeline for $type, return triangle pipeline")
+            return this.pipeline[GeometryType.TRIANGLES]!!
+        }
     }
 
     fun GeometryType.asVulkanTopology(): Int {

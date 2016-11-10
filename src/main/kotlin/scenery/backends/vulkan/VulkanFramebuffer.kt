@@ -19,7 +19,8 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
 
     var framebuffer  = memAllocLong(1)
     var renderPass = memAllocLong(1)
-    protected var framebufferSampler = memAllocLong(1)
+    var framebufferSampler = memAllocLong(1)
+    var outputDescriptorSet: Long = -1L
     protected var commandBuffer: VkCommandBuffer
 
     var renderCommandBuffer: VulkanCommandBuffer? = null
@@ -67,7 +68,7 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
         }
 
         if (usage == VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) {
-            aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT or VK_IMAGE_ASPECT_STENCIL_BIT
+            aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT
             imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
         }
 

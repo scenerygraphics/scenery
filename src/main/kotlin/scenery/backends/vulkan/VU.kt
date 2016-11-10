@@ -14,6 +14,8 @@ import org.lwjgl.vulkan.KHRSwapchain.VK_SUBOPTIMAL_KHR
 import org.lwjgl.vulkan.VK10.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import scenery.backends.RenderConfigReader
+import java.nio.IntBuffer
 import java.nio.LongBuffer
 
 fun VkCommandBuffer.endCommandBuffer() {
@@ -308,6 +310,20 @@ class VU {
             return cmdBuf
         }
 
+        fun getMemoryType(deviceMemoryProperties: VkPhysicalDeviceMemoryProperties, typeBits: Int, properties: Int, typeIndex: IntBuffer): Boolean {
+            var bits = typeBits
+            for (i in 0..31) {
+                if (bits and 1 == 1) {
+                    if (deviceMemoryProperties.memoryTypes(i).propertyFlags() and properties === properties) {
+                        typeIndex.put(0, i)
+                        return true
+                    }
+                }
+                bits = bits shr 1
+            }
+            return false
+        }
+
         fun createDescriptorSetLayout(device: VkDevice, type: Int = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, descriptorNum: Int = 1, descriptorCount: Int = 1): Long {
             val layoutBinding = VkDescriptorSetLayoutBinding.calloc(descriptorNum)
             (0..descriptorNum - 1).forEach { i ->
@@ -440,7 +456,51 @@ class VU {
             return descriptorSet
         }
 
+        fun  createRenderTargetDescriptorSet(device: VkDevice, descriptorPool: Long, descriptorSetLayout: Long,
+                                             rt: Map<String, RenderConfigReader.AttachmentConfig>,
+                                             target: VulkanFramebuffer): Long {
 
+            val pDescriptorSetLayout = MemoryUtil.memAllocLong(1)
+            pDescriptorSetLayout.put(0, descriptorSetLayout)
+
+            val allocInfo = VkDescriptorSetAllocateInfo.calloc()
+                .sType(VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO)
+                .pNext(NULL)
+                .descriptorPool(descriptorPool)
+                .pSetLayouts(pDescriptorSetLayout)
+
+            val descriptorSet = scenery.backends.vulkan.VU.run(MemoryUtil.memAllocLong(1), "createDescriptorSet",
+                { vkAllocateDescriptorSets(device, allocInfo, this) },
+                { allocInfo.free(); MemoryUtil.memFree(pDescriptorSetLayout) })
+
+            val writeDescriptorSet = VkWriteDescriptorSet.calloc(rt.size)
+            val d = VkDescriptorImageInfo.calloc(1)
+
+            rt.entries.forEachIndexed { i, entry ->
+                val attachment = target.attachments[entry.key]!!
+
+                d
+                    .imageView(attachment.imageView.get(0))
+                    .sampler(target.framebufferSampler.get(0))
+                    .imageLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+
+                writeDescriptorSet[i]
+                    .sType(VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET)
+                    .pNext(NULL)
+                    .dstSet(descriptorSet)
+                    .dstBinding(i)
+                    .dstArrayElement(0)
+                    .pImageInfo(d)
+                    .descriptorType(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+            }
+
+            vkUpdateDescriptorSets(device, writeDescriptorSet, null)
+            writeDescriptorSet.free()
+            (d as NativeResource).free()
+
+            logger.info("Creating framebuffer attachment descriptor $descriptorSet set with ${rt.size} bindings, DSL=$descriptorSetLayout")
+            return descriptorSet
+        }
     }
 
 

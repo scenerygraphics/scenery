@@ -15,6 +15,44 @@ import javax.management.monitor.StringMonitor
 /**
  * Created by ulrik on 10/19/2016.
  */
+
+fun RenderConfigReader.RenderConfig.getOutputOfPass(passname: String): String? {
+    return this.renderpasses.get(passname)?.output
+}
+
+fun RenderConfigReader.RenderConfig.getInputsOfTarget(targetName: String): Set<String> {
+    rendertargets?.let { rts ->
+        return rts.filter {
+            it.key == renderpasses.filter { it.value.output == targetName }.keys.first()
+        }.keys
+    }
+
+    return setOf()
+}
+
+fun RenderConfigReader.RenderConfig.createRenderpassFlow(): List<String> {
+    val passes = this.renderpasses
+    val dag = ArrayList<String>()
+
+    // find first
+    val start = passes.filter { it.value.output == "Viewport" }.entries.first()
+    var inputs: Set<String>? = start.value.inputs
+    dag.add(start.key)
+
+    while(inputs != null) {
+        val current = passes.filter { it.value.output == inputs!!.first() }.entries.first()
+        if(current.value.inputs == null) {
+            inputs = null
+        } else {
+            inputs = current.value.inputs!!
+        }
+
+        dag.add(current.key)
+    }
+
+    return dag.reversed()
+}
+
 class RenderConfigReader {
 
     class FloatPairDeserializer : JsonDeserializer<Pair<Float, Float>>() {
@@ -51,8 +89,7 @@ class RenderConfigReader {
         Depth24,
         Depth32,
         RGBA_UInt8,
-        RGBA_UInt16,
-        RGBA_UInt32
+        RGBA_UInt16
     }
 
     fun loadFromFile(path: String): RenderConfig {
@@ -66,26 +103,4 @@ class RenderConfigReader {
         }
     }
 
-    fun createRenderpassFlow(r: RenderConfig): List<String> {
-        val passes = r.renderpasses
-        val dag = ArrayList<String>()
-
-        // find first
-        val start = passes.filter { it.value.output == "Viewport" }.entries.first()
-        var inputs: Set<String>? = start.value.inputs
-        dag.add(start.key)
-
-        while(inputs != null) {
-           val current = passes.filter { it.value.output == inputs!!.first() }.entries.first()
-            if(current.value.inputs == null) {
-                inputs = null
-            } else {
-                inputs = current.value.inputs!!
-            }
-
-           dag.add(current.key)
-        }
-
-        return dag.reversed()
-    }
 }

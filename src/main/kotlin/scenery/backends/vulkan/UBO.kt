@@ -3,11 +3,12 @@ package scenery.backends.vulkan
 import cleargl.GLMatrix
 import cleargl.GLVector
 import org.lwjgl.PointerBuffer
-import org.lwjgl.vulkan.VkDevice
+import org.lwjgl.system.MemoryUtil
 import java.nio.ByteBuffer
 import java.nio.IntBuffer
 import java.util.*
 import org.lwjgl.system.MemoryUtil.*
+import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -34,12 +35,16 @@ open class UBO(val device: VkDevice) {
             when (it.value.javaClass) {
                 GLMatrix::class.java -> (it.value as GLMatrix).floatArray.size * 4
                 GLVector::class.java -> (it.value as GLVector).toFloatArray().size * 4
+                java.lang.Float::class.java -> 4
                 Float::class.java -> 4
                 Double::class.java -> 8
+                java.lang.Double::class.java -> 8
                 Int::class.java -> 4
                 Integer::class.java -> 4
+                java.lang.Integer::class -> 4
                 Short::class.java -> 2
                 Boolean::class.java -> 4
+                java.lang.Boolean::class.java -> 4
                 else -> 0
             }
         }
@@ -115,5 +120,62 @@ open class UBO(val device: VkDevice) {
 
         currentPointer = dest
         return dest
+    }
+
+    fun createUniformBuffer(deviceMemoryProperties: VkPhysicalDeviceMemoryProperties): UBO.UBODescriptor {
+        var err: Int
+        // Create a new buffer
+        val bufferInfo = VkBufferCreateInfo.calloc()
+            .sType(VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO)
+            .size(this.getSize() * 1L)
+            .usage(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT)
+
+        val uniformDataVSBuffer = scenery.backends.vulkan.VU.run(MemoryUtil.memAllocLong(1), "Create UBO Buffer") {
+            vkCreateBuffer(device, bufferInfo, null, this)
+        }
+
+        bufferInfo.free()
+
+        // Get memory requirements including size, alignment and memory type
+        val memReqs = VkMemoryRequirements.calloc()
+        vkGetBufferMemoryRequirements(device, uniformDataVSBuffer, memReqs)
+        val memSize = memReqs.size()
+        val memoryTypeBits = memReqs.memoryTypeBits()
+        memReqs.free()
+        // Gets the appropriate memory type for this type of buffer allocation
+        // Only memory types that are visible to the host
+        val pMemoryTypeIndex = MemoryUtil.memAllocInt(1)
+        VU.getMemoryType(deviceMemoryProperties, memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, pMemoryTypeIndex)
+        val memoryTypeIndex = pMemoryTypeIndex.get(0)
+        MemoryUtil.memFree(pMemoryTypeIndex)
+        // Allocate memory for the uniform buffer
+        val pUniformDataVSMemory = MemoryUtil.memAllocLong(1)
+        val allocInfo = VkMemoryAllocateInfo.calloc()
+            .sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO)
+            .pNext(NULL)
+            .allocationSize(memSize)
+            .memoryTypeIndex(memoryTypeIndex)
+
+        err = vkAllocateMemory(device, allocInfo, null, pUniformDataVSMemory)
+        val uniformDataVSMemory = pUniformDataVSMemory.get(0)
+        MemoryUtil.memFree(pUniformDataVSMemory)
+        allocInfo.free()
+        if (err != VK_SUCCESS) {
+            throw AssertionError("Failed to allocate UBO memory: " + scenery.backends.vulkan.VU.translate(err))
+        }
+        // Bind memory to buffer
+        err = vkBindBufferMemory(device, uniformDataVSBuffer, uniformDataVSMemory, 0)
+        if (err != VK_SUCCESS) {
+            throw AssertionError("Failed to bind UBO memory: " + scenery.backends.vulkan.VU.translate(err))
+        }
+
+        this.descriptor = UBO.UBODescriptor()
+        this.descriptor!!.memory = uniformDataVSMemory
+        this.descriptor!!.allocationSize = memSize
+        this.descriptor!!.buffer = uniformDataVSBuffer
+        this.descriptor!!.offset = 0L
+        this.descriptor!!.range = this.getSize() * 1L
+
+        return this.descriptor!!
     }
 }

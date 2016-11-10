@@ -1,12 +1,12 @@
 #version 450 core
 #extension GL_ARB_separate_shader_objects: enable
 
-layout(binding = 0) uniform HDRParameters {
+layout(set = 1, binding = 0) uniform sampler2D hdrBuffer;
+
+layout(set = 2, binding = 0) uniform HDRParameters {
 	float Gamma;
 	float Exposure;
 } hdrParams;
-
-layout(set = 1, binding = 0) uniform sampler2D hdrBuffer;
 
 layout(location = 0) out vec4 color;
 layout(location = 0) in vec2 textureCoord;
@@ -22,5 +22,6 @@ void main()
 
 	color = vec4(mapped, 1.0);
 	*/
-	color = vec4(textureCoord, 0.0f, 1.0f);
+	color = vec4(0.0f, 1.0f, 0.0f, 1.0f);
+//	color = vec4(textureCoord, 0.0f, 1.0f);
 }

@@ -48,3 +48,6 @@ renderpasses:
     inputs:
       - HDR
     output: Viewport
+    parameters:
+      Gamma: 1.0
+      Exposure: 1.0
