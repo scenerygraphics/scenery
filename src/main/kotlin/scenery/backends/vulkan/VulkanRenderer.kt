@@ -1019,7 +1019,7 @@ open class VulkanRenderer : Renderer {
     private fun createInstance(requiredExtensions: PointerBuffer): VkInstance {
         val appInfo = VkApplicationInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_APPLICATION_INFO)
-            .pApplicationName(memUTF8("scenery"))
+            .pApplicationName(memUTF8(applicationName))
             .pEngineName(memUTF8("scenery"))
             .apiVersion(VK_MAKE_VERSION(1, 0, 24))
 
