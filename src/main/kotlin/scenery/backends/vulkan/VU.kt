@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory
 import scenery.backends.RenderConfigReader
 import java.nio.IntBuffer
 import java.nio.LongBuffer
+import java.util.*
 
 fun VkCommandBuffer.endCommandBuffer() {
     if(vkEndCommandBuffer(this) != VK_SUCCESS) {
@@ -474,10 +475,12 @@ class VU {
                 { allocInfo.free(); MemoryUtil.memFree(pDescriptorSetLayout) })
 
             val writeDescriptorSet = VkWriteDescriptorSet.calloc(rt.size)
-            val d = VkDescriptorImageInfo.calloc(1)
+            val dlist = ArrayList<VkDescriptorImageInfo.Buffer>()
 
             rt.entries.forEachIndexed { i, entry ->
                 val attachment = target.attachments[entry.key]!!
+                val d = VkDescriptorImageInfo.calloc(1)
+                dlist.add(d)
 
                 d
                     .imageView(attachment.imageView.get(0))
@@ -496,7 +499,7 @@ class VU {
 
             vkUpdateDescriptorSets(device, writeDescriptorSet, null)
             writeDescriptorSet.free()
-            (d as NativeResource).free()
+            dlist.forEach { it.free() }
 
             logger.info("Creating framebuffer attachment descriptor $descriptorSet set with ${rt.size} bindings, DSL=$descriptorSetLayout")
             return descriptorSet
