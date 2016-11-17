@@ -308,7 +308,21 @@
             <artifactId>snakeyaml</artifactId>
             <version>1.15</version>
         </dependency>
+
         <!-- jackson dependencies end -->
+        <dependency>
+            <groupId>is.ulrik</groupId>
+            <artifactId>spirvcrossj</artifactId>
+            <version>0.1-SNAPSHOT</version>
+        </dependency>
+
+        <dependency>
+            <groupId>is.ulrik</groupId>
+            <artifactId>spirvcrossj</artifactId>
+            <version>0.1-SNAPSHOT</version>
+            <classifier>natives-windows</classifier>
+            <scope>runtime</scope>
+        </dependency>
 
     </dependencies>
 
