@@ -1,5 +1,6 @@
 package scenery.backends.vulkan
 
+import `is`.ulrik.spirvcrossj.*
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkDevice
@@ -8,6 +9,8 @@ import org.lwjgl.vulkan.VkShaderModuleCreateInfo
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import scenery.BufferUtils
+import java.nio.ByteBuffer
+import java.util.*
 
 /**
  * Created by ulrik on 9/27/2016.
@@ -18,12 +21,38 @@ class VulkanShaderModule(device: VkDevice, entryPoint: String, shaderCodePath: S
     var shader: VkPipelineShaderStageCreateInfo
     var shaderModule: Long
     var device: VkDevice
+    var uboSpecs = ArrayList<UBOSpec>()
+
+    data class UBOSpec(val name: String, val set: Long, val binding: Long)
 
     init {
+        Loader.loadNatives()
+
         logger.info("Creating VulkanShaderModule $entryPoint, $shaderCodePath")
 
         this.device = device
         val code = BufferUtils.allocateByteAndPut(this.javaClass.getResource(shaderCodePath).readBytes())
+        val compiler = CompilerGLSL(code.toSPIRVBytecode())
+
+        val uniformBuffers = compiler.getShaderResources().uniformBuffers
+
+        for(i in 0..uniformBuffers.size()-1) {
+            val res = uniformBuffers.get(i.toInt())
+            logger.info("${res.name}, set=${compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet)}, binding=${compiler.getDecoration(res.id, Decoration.DecorationBinding)}")
+
+            uboSpecs.add(UBOSpec(res.name,
+                set = compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet),
+                binding = compiler.getDecoration(res.id, Decoration.DecorationBinding)))
+        }
+
+        // inputs are summarized into one descriptor set
+        if(compiler.getShaderResources().sampledImages.size() > 0) {
+            val res = compiler.getShaderResources().sampledImages.get(0)
+            uboSpecs.add(UBOSpec("inputs",
+                set = compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet),
+                binding = 0))
+        }
+
         val moduleCreateInfo = VkShaderModuleCreateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO)
             .pNext(NULL)
@@ -41,6 +70,17 @@ class VulkanShaderModule(device: VkDevice, entryPoint: String, shaderCodePath: S
             .module(this.shaderModule)
             .pName(memUTF8(entryPoint))
             .pNext(NULL)
+    }
+
+    private fun ByteBuffer.toSPIRVBytecode(): IntVec {
+        val bytecode = IntVec()
+        val ib = this.asIntBuffer()
+
+        while(ib.hasRemaining()) {
+            bytecode.pushBack(1L*ib.get())
+        }
+
+        return bytecode
     }
 
     protected fun getStageFromFilename(shaderCodePath: String): Int {

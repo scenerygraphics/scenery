@@ -2,13 +2,7 @@
 #extension GL_ARB_separate_shader_objects: enable
 
 layout(location = 0) in vec2 textureCoord;
-
 layout(location = 0) out vec4 FragColor;
-
-layout(set = 1, binding = 0) uniform sampler2D gPosition;
-layout(set = 1, binding = 1) uniform sampler2D gNormal;
-layout(set = 1, binding = 2) uniform sampler2D gAlbedoSpec;
-layout(set = 1, binding = 3) uniform sampler2D gDepth;
 
 struct Light {
 	vec3 Position;
@@ -29,12 +23,17 @@ layout(binding = 0) uniform Matrices {
 	int isBillboard;
 } ubo;
 
-layout(binding = 1) uniform LightParameters {
+layout(set = 1, binding = 0) uniform sampler2D gPosition;
+layout(set = 1, binding = 1) uniform sampler2D gNormal;
+layout(set = 1, binding = 2) uniform sampler2D gAlbedoSpec;
+layout(set = 1, binding = 3) uniform sampler2D gDepth;
+
+layout(set = 2, binding = 0) uniform LightParameters {
+    int numLights;
 	Light lights[MAX_NUM_LIGHTS];
-	int numLights;
 };
 
-layout(set = 2, binding = 0) uniform ShaderParameters {
+layout(set = 3, binding = 0) uniform ShaderParameters {
 	int debugBuffers;
 	int activateSSAO;
 	float ssaoDistanceThreshold;
@@ -78,8 +77,8 @@ void main()
 
 	vec3 lighting;
 
-	if(debugBuffers == 0) {
-		if(activateSSAO > 0) {
+//	if(debugBuffers == 0) {
+		if(true) {
 			float ambientOcclusion = 0.0f;
 
 			int sample_count = 8;
@@ -124,36 +123,9 @@ void main()
 			lighting += diffuse + specular;
 		}
 
-		/*vec3 directionalOcclusion = vec3(0.0f);
-
-		  if(doSSAO > 0) {
-		  int sample_count = 16;
-		  for (int i = 0; i < sample_count;  ++i) {
-		// sample at an offset specified by the current Poisson-Disk sample and scale it by a radius (has to be in Texture-Space)
-		vec2 sampleTexCoord = textureCoord + (poisson16[i] * (ssao_filterRadius));
-		vec3 samplePos = texture(gPosition, sampleTexCoord).rgb;//calculatePosition(sampleTexCoord, sampleDepth);
-		vec3 sampleColor = texture(gAlbedoSpec, sampleTexCoord).rgb;
-
-		vec3 sampleDir = normalize(samplePos - FragPos);
-
-		// angle between SURFACE-NORMAL and SAMPLE-DIRECTION (vector from SURFACE-POSITION to SAMPLE-POSITION)
-		float NdotS = max(dot(Normal, sampleDir), 0);
-		// distance between SURFACE-POSITION and SAMPLE-POSITION
-		float VPdistSP = distance(FragPos, samplePos);
-
-		// a = distance function
-		float a = 1.0 - smoothstep(ssao_distanceThreshold, ssao_distanceThreshold * 2, VPdistSP);
-		// b = dot-Product
-		vec3 b = NdotS*sampleColor;
-
-		directionalOcclusion += (a * b);
-		}
-		}
-
-		lighting += directionalOcclusion;*/
 
 		FragColor = vec4(lighting, 1.0);
-	} else {
+/*	} else {
 		vec2 newTexCoord;
 		// color
 		if(textureCoord.x < 0.5 && textureCoord.y < 0.5 ) {
@@ -172,4 +144,5 @@ void main()
 			FragColor = vec4(FragPos, 1.0f);
 		}
 	}
+	*/
 }

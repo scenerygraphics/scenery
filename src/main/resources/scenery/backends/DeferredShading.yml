@@ -49,5 +49,5 @@ renderpasses:
       - HDR
     output: Viewport
     parameters:
-      Gamma: 1.0
-      Exposure: 1.0
+      Gamma: 2.2
+      Exposure: 15.0

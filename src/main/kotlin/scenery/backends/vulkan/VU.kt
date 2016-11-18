@@ -251,8 +251,8 @@ class VU {
                 }
             }
 
-            val srcStageFlags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT
-            val dstStageFlags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT
+            val srcStageFlags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+            val dstStageFlags = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
 
             vkCmdPipelineBarrier(commandBuffer,
                 srcStageFlags,

@@ -54,6 +54,7 @@ layout(set = 1, binding = 0) uniform sampler2D ObjectTextures[NUM_OBJECT_TEXTURE
 void main() {
     // Store the fragment position vector in the first gbuffer texture
     gPosition = VertexIn.FragPosition;
+
     // Also store the per-fragment normals into the gbuffer
     if(materialType == MATERIAL_TYPE_TEXTURED_NORMAL) {
         gNormal = normalize(texture(ObjectTextures[3], VertexIn.TexCoord).rgb*2.0 - 1.0);
@@ -61,14 +62,14 @@ void main() {
         gNormal = normalize(VertexIn.Normal);
     }
     // And the diffuse per-fragment color
-    if(materialType == MATERIAL_TYPE_MAT) {
-        gAlbedoSpec.rgb = Material.Kd;
-        gAlbedoSpec.a = Material.Ka.r*Material.Shininess;
-    } else if(materialType == MATERIAL_TYPE_STATIC) {
-        gAlbedoSpec.rgb = Material.Kd;
-        gAlbedoSpec.a = Material.Ks.r * Material.Shininess;
-    } else {
+//    if(materialType == MATERIAL_TYPE_MAT) {
+//        gAlbedoSpec.rgb = Material.Kd;
+//        gAlbedoSpec.a = Material.Ka.r*Material.Shininess;
+//    } else if(materialType == MATERIAL_TYPE_STATIC) {
+//        gAlbedoSpec.rgb = Material.Kd;
+//        gAlbedoSpec.a = Material.Ks.r * Material.Shininess;
+//    } else {
         gAlbedoSpec.rgb = texture(ObjectTextures[1], VertexIn.TexCoord).rgb;
         gAlbedoSpec.a = texture(ObjectTextures[2], VertexIn.TexCoord).r;
-    }
+//    }
 }

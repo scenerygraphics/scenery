@@ -85,6 +85,13 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
 
         descriptorSetLayouts.put("default", default)
 
+        val lightParameters = VU.createDescriptorSetLayout(
+            device,
+            listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1)),
+            VK_SHADER_STAGE_ALL_GRAPHICS)
+
+        descriptorSetLayouts.put("LightParameters", lightParameters)
+
         val dslObjectTextures = VU.createDescriptorSetLayout(
             device,
             listOf(Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 5)),
@@ -135,8 +142,8 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
                 ubo.members.put(entry.key, value)
             }
 
-            logger.info("Members are: ${ubo.members.values.joinToString(", ")}")
-            logger.info("Allocating UBO memory now, space needed: ${ubo.getSize()}")
+            logger.debug("Members are: ${ubo.members.values.joinToString(", ")}")
+            logger.debug("Allocating UBO memory now, space needed: ${ubo.getSize()}")
 
             ubo.createUniformBuffer(memoryProperties)
 
@@ -188,15 +195,27 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
             p.rasterizationState.cullMode(VK_CULL_MODE_FRONT_BIT)
             p.rasterizationState.frontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
 
-            reqDescriptorLayouts.add(descriptorSetLayouts.get("default")!!)
+            logger.info("DS are: ${p.descriptorSpecs.map { it.name }.joinToString(", ")}")
+            // add descriptor specs. at this time, they are expected to be already
+            // ordered (which happens at pipeline creation time).
+            p.descriptorSpecs.forEach { spec ->
+                val dslName = if(spec.name.startsWith("ShaderParameters")) {
+                    "ShaderParameters-$name"
+                } else if(spec.name.startsWith("inputs")) {
+                    "inputs-$name"
+                } else if(spec.name.startsWith("Matrices")) {
+                    "default"
+                } else {
+                    spec.name
+                }
 
-            descriptorSetLayouts.get("inputs-$name")?.let { dsl ->
-                logger.info("Adding DSL for $name to required pipeline DSLs")
-                reqDescriptorLayouts.add(dsl)
-            }
-            descriptorSetLayouts.get("ShaderParameters-${name}")?.let { dsl ->
-                logger.info("Adding DSL for ShaderParameters-${name} to required pipeline DSLs")
-                reqDescriptorLayouts.add(dsl)
+                val dsl = descriptorSetLayouts.get(dslName)
+                if(dsl != null) {
+                    logger.info("Adding DSL for $dslName to required pipeline DSLs")
+                    reqDescriptorLayouts.add(dsl)
+                } else {
+                    logger.error("DSL for $dslName not found!")
+                }
             }
 
             p.createPipelines(framebuffer.renderPass.get(0),

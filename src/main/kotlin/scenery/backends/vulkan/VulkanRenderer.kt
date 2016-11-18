@@ -55,8 +55,8 @@ open class VulkanRenderer : Renderer {
 
     data class VertexDescription(
         var state: VkPipelineVertexInputStateCreateInfo,
-        var attributeDescription: VkVertexInputAttributeDescription.Buffer,
-        var bindingDescription: VkVertexInputBindingDescription.Buffer
+        var attributeDescription: VkVertexInputAttributeDescription.Buffer?,
+        var bindingDescription: VkVertexInputBindingDescription.Buffer?
     )
 
     data class CommandPools(
@@ -263,7 +263,7 @@ open class VulkanRenderer : Renderer {
 
     private var renderConfig: RenderConfigReader.RenderConfig
 
-    constructor(applicationName: String, scene: Scene, windowWidth: Int, windowHeight: Int, renderConfigFile: String = "DeferredShading.yml") {
+    constructor(applicationName: String, scene: Scene, windowWidth: Int, windowHeight: Int, renderConfigFile: String = "ForwardShading.yml") {
         window.width = windowWidth
         window.height = windowHeight
 
@@ -274,14 +274,6 @@ open class VulkanRenderer : Renderer {
 
         logger.debug("Loading rendering config from $renderConfigFile")
         this.renderConfig = RenderConfigReader().loadFromFile(renderConfigFile)
-
-        renderConfig.renderpasses.forEach {
-            it.value.parameters?.let { params ->
-                params.forEach { p ->
-                    logger.info("${p.key}=${p.value} (${p.value.javaClass.simpleName})")
-                }
-            }
-        }
 
         logger.info("Loaded ${renderConfig.name} (${renderConfig.description ?: "no description"})")
 
@@ -581,7 +573,7 @@ open class VulkanRenderer : Renderer {
                     else -> 0
                 }
 
-                logger.info("${node.name} will have $type texture from $texture in slot $slot")
+                logger.debug("${node.name} will have $type texture from $texture in slot $slot")
 
                 if (!textureCache.containsKey(texture) || node.material?.needsTextureReload!!) {
                     logger.trace("Loading texture $texture for ${node.name}")
@@ -629,6 +621,13 @@ open class VulkanRenderer : Renderer {
 
         m.put("default", default)
 
+        val lightParameters = VU.createDescriptorSetLayout(
+            device,
+            listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1)),
+            VK_SHADER_STAGE_ALL_GRAPHICS)
+
+        m.put("LightParameters", lightParameters)
+
         val dslObjectTextures = VU.createDescriptorSetLayout(
             device,
             listOf(Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 5)),
@@ -661,19 +660,24 @@ open class VulkanRenderer : Renderer {
             VU.createDescriptorSetDynamic(device, descriptorPool,
                 descriptorSetLayouts["default"]!!, standardUBOs.count(),
                 buffers["UBOBuffer"]!!))
+
+        this.descriptorSets.put("LightParameters",
+            VU.createDescriptorSetDynamic(device, descriptorPool,
+                descriptorSetLayouts["LightParameters"]!!, 1,
+                buffers["LightParametersBuffer"]!!))
     }
 
     protected fun prepareStandardVertexDescriptors(): ConcurrentHashMap<VertexDataKinds, VertexDescription> {
         val map = ConcurrentHashMap<VertexDataKinds, VertexDescription>()
 
         VertexDataKinds.values().forEach { kind ->
-            var attributeDesc: VkVertexInputAttributeDescription.Buffer
+            var attributeDesc: VkVertexInputAttributeDescription.Buffer?
             var stride = 0
 
             when (kind) {
                 VertexDataKinds.coords_none -> {
                     stride = 0
-                    attributeDesc = VkVertexInputAttributeDescription.calloc(0)
+                    attributeDesc = null
                 }
 
                 VertexDataKinds.coords_normals -> {
@@ -716,7 +720,7 @@ open class VulkanRenderer : Renderer {
                 }
             }
 
-            if (attributeDesc.capacity() > 0) {
+            if (attributeDesc != null) {
                 attributeDesc.get(0)
                     .binding(0)
                     .location(0)
@@ -724,13 +728,13 @@ open class VulkanRenderer : Renderer {
                     .offset(0)
             }
 
-            val bindingDesc = if (attributeDesc.capacity() > 0) {
+            val bindingDesc = if (attributeDesc != null) {
                 VkVertexInputBindingDescription.calloc(1)
                     .binding(0)
                     .stride(stride * 4)
                     .inputRate(VK_VERTEX_INPUT_RATE_VERTEX)
             } else {
-                VkVertexInputBindingDescription.calloc(0)
+                null
             }
 
             val inputState = VkPipelineVertexInputStateCreateInfo.calloc()
@@ -1579,6 +1583,11 @@ open class VulkanRenderer : Renderer {
             wantAligned = true,
             allocationSize = 512 * 1024))
 
+        map.put("LightParametersBuffer", createBuffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            wantAligned = true,
+            allocationSize = 512 * 1024))
+
         return map
     }
 
@@ -1615,7 +1624,7 @@ open class VulkanRenderer : Renderer {
         materialUbo.members.put("Kd", GLVector(0.0f, 0.0f, 0.0f))
         materialUbo.members.put("Ks", GLVector(0.0f, 0.0f, 0.0f))
         materialUbo.members.put("Shininess", 1.0f)
-        materialUbo.members.put("materialType", 0)
+        materialUbo.members.put("materialType", 3)
 
         materialUbo.createUniformBuffer(memoryProperties)
         ubos.put("BlinnPhongMaterial", materialUbo)
@@ -1736,8 +1745,6 @@ open class VulkanRenderer : Renderer {
         (0..pass.swapchainSize-1).forEach {
             val target = pass.getOutput()
 
-            logger.info("Getting inputs for ${pass.name}")
-
             pass.semaphore = VU.run(memAllocLong(1), "vkCreateSemaphore") {
                 vkCreateSemaphore(device, semaphoreCreateInfo, null, this)
             }
@@ -1780,18 +1787,48 @@ open class VulkanRenderer : Renderer {
                 vkCmdSetViewport(this, 0, viewport)
                 vkCmdSetScissor(this, 0, scissor)
 
-                val pipeline = pass.pipelines["default"]!!.getPipelineForGeometryType(GeometryType.TRIANGLES)
+                val pipeline = pass.pipelines["default"]!!
+                val vulkanPipeline = pipeline.getPipelineForGeometryType(GeometryType.TRIANGLES)
 
-                val ds = memAllocLong(3)
+                val ds = memAllocLong(pipeline.descriptorSpecs.count())
                 logger.info("descriptor sets are ${pass.descriptorSets.keys.joinToString(", ")}")
-                ds.put(0, descriptorSets.get("default")!!)
-                ds.put(1, pass.descriptorSets.get("inputs-${pass.name}")!!)
-                ds.put(2, pass.descriptorSets.get("ShaderParameters-${pass.name}")!!)
+                logger.info("pipeline provides ${pipeline.descriptorSpecs.map { it.name }.joinToString(", ")}")
 
-                vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline)
-                vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout, 0, ds, sceneUBOs.values.first().offsets)
+                pipeline.descriptorSpecs.forEachIndexed { i, spec ->
+                    val dsName = if(spec.name.startsWith("ShaderParameters")) {
+                        "ShaderParameters-${pass.name}"
+                    } else if(spec.name.startsWith("inputs")) {
+                        "inputs-${pass.name}"
+                    } else if(spec.name.startsWith("Matrices")) {
+                        "default"
+                    } else {
+                        spec.name
+                    }
 
-                vkCmdDraw(this, 3, 1, 0, 0);
+                    val set = if(dsName == "default" || dsName == "LightParameters") {
+                        descriptorSets.get(dsName)
+                    } else {
+                        pass.descriptorSets.get(dsName)
+                    }
+
+                    if(set != null) {
+                        logger.info("Adding DS#$i for $dsName to required pipeline DSLs")
+                        ds.put(i, set)
+                    } else {
+                        logger.error("DS for $dsName not found!")
+                    }
+                }
+
+                val offsets = memAllocInt(sceneUBOs.values.first().offsets!!.capacity()+1)
+                offsets.put(sceneUBOs.values.first().offsets)
+                offsets.put(0)
+                offsets.flip()
+
+                vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkanPipeline.pipeline)
+                vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                    vulkanPipeline.layout, 0, ds, offsets)
+
+                vkCmdDraw(this, 3, 1, 0, 0)
 
                 vkCmdEndRenderPass(this)
                 this.endCommandBuffer()
@@ -1869,6 +1906,15 @@ open class VulkanRenderer : Renderer {
 
             logger.debug("UBO buffer now at ${memoryTarget.position()}")
         }
+
+        buffers["LightParametersBuffer"]!!.reset()
+
+        var memoryTarget = buffers["LightParametersBuffer"]!!.getPointerBuffer(4*3*3+4)
+        memoryTarget.asIntBuffer().put(1)
+        memoryTarget.position(4)
+        GLVector(5.0f, 5.0f, 5.0f).put(memoryTarget)
+        GLVector(1.0f, .0f, .0f).put(memoryTarget)
+        GLVector(1.5f, 1.5f, 2.0f).put(memoryTarget)
     }
 
     override fun close() {
