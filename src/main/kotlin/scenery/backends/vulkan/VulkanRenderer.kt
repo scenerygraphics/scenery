@@ -779,6 +779,12 @@ open class VulkanRenderer : Renderer {
                             RenderConfigReader.TargetFormat.RGBA_Float32 -> framebuffer.addFloatRGBABuffer(att.key, 32)
                             RenderConfigReader.TargetFormat.RGBA_Float16 -> framebuffer.addFloatRGBABuffer(att.key, 16)
 
+                            RenderConfigReader.TargetFormat.RGB_Float32 -> framebuffer.addFloatRGBBuffer(att.key, 32)
+                            RenderConfigReader.TargetFormat.RGB_Float16 -> framebuffer.addFloatRGBBuffer(att.key, 16)
+
+                            RenderConfigReader.TargetFormat.RG_Float32 -> framebuffer.addFloatRGBuffer(att.key, 32)
+                            RenderConfigReader.TargetFormat.RG_Float16 -> framebuffer.addFloatRGBuffer(att.key, 16)
+
                             RenderConfigReader.TargetFormat.RGBA_UInt16 -> framebuffer.addUnsignedByteRGBABuffer(att.key, 16)
                             RenderConfigReader.TargetFormat.RGBA_UInt8 -> framebuffer.addUnsignedByteRGBABuffer(att.key, 8)
 
@@ -1258,11 +1264,13 @@ open class VulkanRenderer : Renderer {
 
         val colorFormat: Int
         if (formatCount == 1 && surfFormats.get(0).format() === VK_FORMAT_UNDEFINED) {
-            colorFormat = VK_FORMAT_B8G8R8A8_UNORM
+//            colorFormat = VK_FORMAT_B8G8R8A8_UNORM
+            colorFormat = VK_FORMAT_B8G8R8A8_SRGB
         } else {
-            colorFormat = surfFormats.get(0).format()
+//            colorFormat = surfFormats.get(0).format()
+            colorFormat = VK_FORMAT_B8G8R8A8_SRGB
         }
-        val colorSpace = surfFormats.get(0).colorSpace()
+        val colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR//surfFormats.get(0).colorSpace()
         surfFormats.free()
 
         val ret = ColorFormatAndSpace()

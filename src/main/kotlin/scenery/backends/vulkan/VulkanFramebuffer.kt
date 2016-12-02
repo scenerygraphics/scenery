@@ -159,6 +159,28 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
         return this
     }
 
+    fun addFloatRGBuffer(name: String, channelDepth: Int): VulkanFramebuffer {
+        val format: Int = when(channelDepth) {
+            16 -> VK_FORMAT_R16G16_SFLOAT
+            32 -> VK_FORMAT_R32G32_SFLOAT
+            else -> { System.err.println("Unsupported channel depth $channelDepth, using 16 bit."); VK_FORMAT_R16G16_SFLOAT }
+        }
+
+        val att = createAttachment(format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
+        att.desc.samples(VK_SAMPLE_COUNT_1_BIT)
+            .loadOp(VK_ATTACHMENT_LOAD_OP_CLEAR)
+            .storeOp(VK_ATTACHMENT_STORE_OP_STORE)
+            .stencilLoadOp(VK_ATTACHMENT_LOAD_OP_DONT_CARE)
+            .stencilStoreOp(VK_ATTACHMENT_STORE_OP_DONT_CARE)
+            .initialLayout(VK_IMAGE_LAYOUT_UNDEFINED)
+            .finalLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+            .format(format)
+
+        attachments.put(name, att)
+
+        return this
+    }
+
     fun addFloatRGBBuffer(name: String, channelDepth: Int): VulkanFramebuffer {
         val format: Int = when(channelDepth) {
             16 -> VK_FORMAT_R16G16B16_SFLOAT
@@ -227,12 +249,15 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
 
     fun addDepthBuffer(name: String, depth: Int): VulkanFramebuffer {
         val format: Int = when(depth) {
-            24 -> VK_FORMAT_D16_UNORM
+            16 -> VK_FORMAT_D16_UNORM
+            24 -> VK_FORMAT_D24_UNORM_S8_UINT
             32 -> VK_FORMAT_D32_SFLOAT
             else -> { System.err.println("Unsupported channel depth $depth, using 32 bit."); VK_FORMAT_D32_SFLOAT }
         }
 
-        val att = createAttachment(getSupportedDepthFormats().first(), VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
+        val bestSupportedFormat = getBestDepthFormat(format).first()
+
+        val att = createAttachment(bestSupportedFormat, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
         att.desc.samples(VK_SAMPLE_COUNT_1_BIT)
             .loadOp(VK_ATTACHMENT_LOAD_OP_CLEAR)
             .storeOp(VK_ATTACHMENT_STORE_OP_STORE)
@@ -240,7 +265,7 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
             .stencilStoreOp(VK_ATTACHMENT_STORE_OP_DONT_CARE)
             .initialLayout(VK_IMAGE_LAYOUT_UNDEFINED)
             .finalLayout(VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
-            .format(getSupportedDepthFormats().first())
+            .format(bestSupportedFormat)
 
         att.type = VulkanFramebufferType.DEPTH_ATTACHMENT
 
@@ -264,7 +289,7 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
             .stencilStoreOp(VK_ATTACHMENT_STORE_OP_DONT_CARE)
             .initialLayout(VK_IMAGE_LAYOUT_UNDEFINED)
             .finalLayout(KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
-            .format(VK_FORMAT_B8G8R8A8_UNORM)
+            .format(VK_FORMAT_B8G8R8A8_SRGB)
 
         attachments.put(name, att)
 
@@ -403,13 +428,14 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
             }
         }
 
-    private fun getSupportedDepthFormats(): List<Int> {
+    private fun getBestDepthFormat(preferredFormat: Int): List<Int> {
         // this iterates through the list of possible (though not all required formats)
         // and returns the first one that is possible to use as a depth buffer on the
         // given physical device.
-        return intArrayOf(
-            VK_FORMAT_D32_SFLOAT_S8_UINT,
+        val format = intArrayOf(
+            preferredFormat,
             VK_FORMAT_D32_SFLOAT,
+            VK_FORMAT_D32_SFLOAT_S8_UINT,
             VK_FORMAT_D24_UNORM_S8_UINT,
             VK_FORMAT_D16_UNORM_S8_UINT,
             VK_FORMAT_D16_UNORM
@@ -419,6 +445,10 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
 
             props.optimalTilingFeatures() and VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT > 0
         }
+
+        logger.info("Using $format as depth format.")
+
+        return format;
     }
 
     fun colorAttachmentCount() = attachments.count { it.value.type == VulkanFramebufferType.COLOR_ATTACHMENT }

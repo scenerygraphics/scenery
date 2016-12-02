@@ -86,6 +86,10 @@ class RenderConfigReader {
     enum class TargetFormat {
         RGBA_Float32,
         RGBA_Float16,
+        RGB_Float32,
+        RGB_Float16,
+        RG_Float32,
+        RG_Float16,
         Depth24,
         Depth32,
         RGBA_UInt8,

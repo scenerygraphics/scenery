@@ -14,7 +14,7 @@ rendertargets:
       format: RGBA_UInt8
     ZBuffer:
       size: 1.0, 1.0
-      format: Depth24
+      format: Depth32
   HDR:
     HDRBuffer:
       size: 1.0, 1.0

@@ -18,6 +18,7 @@ open class UBO(val device: VkDevice) {
     var members = LinkedHashMap<String, Any>()
     var descriptor: UBODescriptor? = null
     var offsets: IntBuffer? = null
+    var logger = LoggerFactory.getLogger("VulkanRenderer")
 
     private var currentPointer: PointerBuffer? = null
     private var currentPosition = 0L
