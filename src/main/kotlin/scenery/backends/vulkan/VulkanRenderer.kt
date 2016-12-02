@@ -1106,16 +1106,18 @@ open class VulkanRenderer : Renderer {
         val pPhysicalDevices = memAllocPointer(pPhysicalDeviceCount.get(0))
         err = vkEnumeratePhysicalDevices(instance, pPhysicalDeviceCount, pPhysicalDevices)
 
+        val devicePreference = System.getProperty("scenery.VulkanRenderer.Device", "0").toInt()
+
         logger.info("Physical devices: ")
         for (i in 0..pPhysicalDeviceCount.get(0) - 1) {
             val device = VkPhysicalDevice(pPhysicalDevices.get(i), instance)
             val properties: VkPhysicalDeviceProperties = VkPhysicalDeviceProperties.calloc()
 
             vkGetPhysicalDeviceProperties(device, properties)
-            logger.info("  $i: ${VU.vendorToString(properties.vendorID())} ${properties.deviceNameString()} (${VU.deviceTypeToString(properties.deviceType())}, driver version ${VU.driverVersionToString(properties.driverVersion())}, Vulkan API ${VU.driverVersionToString(properties.apiVersion())})")
+            logger.info("  $i: ${VU.vendorToString(properties.vendorID())} ${properties.deviceNameString()} (${VU.deviceTypeToString(properties.deviceType())}, driver version ${VU.driverVersionToString(properties.driverVersion())}, Vulkan API ${VU.driverVersionToString(properties.apiVersion())}) ${if(devicePreference == i) {"(selected)"} else {""}}")
         }
 
-        val physicalDevice = pPhysicalDevices.get(System.getProperty("scenery.VulkanBackend.Device", "0").toInt())
+        val physicalDevice = pPhysicalDevices.get(devicePreference)
 
         memFree(pPhysicalDeviceCount)
         memFree(pPhysicalDevices)
@@ -1158,6 +1160,10 @@ open class VulkanRenderer : Renderer {
             i++
         }
         ppEnabledLayerNames.flip()
+
+        if(validation) {
+            logger.info("Enabled Vulkan API validations. Expect degraded performance.")
+        }
 
         val deviceCreateInfo = VkDeviceCreateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO)
