@@ -5,11 +5,11 @@ layout(location = 0) in vec2 textureCoord;
 layout(location = 0) out vec4 FragColor;
 
 struct Light {
-	vec3 Position;
-	vec3 Color;
 	float Linear;
 	float Quadratic;
 	float Intensity;
+	vec4 Position;
+  	vec4 Color;
 };
 
 const int MAX_NUM_LIGHTS = 64;
@@ -28,12 +28,12 @@ layout(set = 1, binding = 1) uniform sampler2D gNormal;
 layout(set = 1, binding = 2) uniform sampler2D gAlbedoSpec;
 layout(set = 1, binding = 3) uniform sampler2D gDepth;
 
-layout(set = 2, binding = 0) uniform LightParameters {
+layout(set = 2, binding = 0, std140) uniform LightParameters {
     int numLights;
 	Light lights[MAX_NUM_LIGHTS];
 };
 
-layout(set = 3, binding = 0) uniform ShaderParameters {
+layout(set = 3, binding = 0, std140) uniform ShaderParameters {
 	int debugBuffers;
 	int activateSSAO;
 	float ssaoDistanceThreshold;
@@ -77,8 +77,8 @@ void main()
 
 	vec3 lighting;
 
-//	if(debugBuffers == 0) {
-		if(true) {
+	if(debugBuffers == 0) {
+		if(activateSSAO != 0) {
 			float ambientOcclusion = 0.0f;
 
 			int sample_count = 8;
@@ -112,10 +112,10 @@ void main()
 		for(int i = 0; i < numLights; ++i)
 		{
 			// Diffuse
-			vec3 lightDir = normalize(lights[i].Position - FragPos);
-			vec3 diffuse = max(dot(Normal, lightDir), 0.0) * lights[i].Intensity * Albedo.rgb * lights[i].Color;
-			float distance = length(lights[i].Position - FragPos);
-			vec3 specular = lights[i].Color * Specular;
+			vec3 lightDir = normalize(lights[i].Position.rgb - FragPos);
+			vec3 diffuse = max(dot(Normal, lightDir), 0.0) * lights[i].Intensity * Albedo.rgb * lights[i].Color.rgb;
+			float distance = length(lights[i].Position.rgb - FragPos);
+			vec3 specular = lights[i].Color.rgb * Specular;
 
 			float attenuation = 1.0 / (1.0 + lights[i].Linear * distance + lights[i].Quadratic * distance * distance);
 			diffuse *= attenuation;
@@ -125,7 +125,7 @@ void main()
 
 
 		FragColor = vec4(lighting, 1.0);
-/*	} else {
+	} else {
 		vec2 newTexCoord;
 		// color
 		if(textureCoord.x < 0.5 && textureCoord.y < 0.5 ) {
@@ -144,5 +144,4 @@ void main()
 			FragColor = vec4(FragPos, 1.0f);
 		}
 	}
-	*/
 }
