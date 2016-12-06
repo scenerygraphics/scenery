@@ -346,6 +346,8 @@ class VU {
                 cleanup = { descriptorLayout.free(); layoutBinding.free() }
             )
 
+            logger.debug("Created DSL ${descriptorSetLayout} with $descriptorNum descriptors with $descriptorCount elements.")
+
             return descriptorSetLayout
         }
 
@@ -371,12 +373,14 @@ class VU {
                 cleanup = { descriptorLayout.free(); layoutBinding.free() }
             )
 
+            logger.debug("Created DSL ${descriptorSetLayout} with ${types.size} descriptors.")
+
             return descriptorSetLayout
         }
 
         fun createDescriptorSetDynamic(device: VkDevice, descriptorPool: Long, descriptorSetLayout: Long,
                                        bindingCount: Int, buffer: VulkanBuffer): Long {
-            logger.info("Creating descriptor set with ${bindingCount} bindings, DSL=$descriptorSetLayout")
+            logger.info("Creating dynamic descriptor set with ${bindingCount} bindings, DSL=$descriptorSetLayout")
 
             val pDescriptorSetLayout = MemoryUtil.memAllocLong(1)
             pDescriptorSetLayout.put(0, descriptorSetLayout)
@@ -387,7 +391,7 @@ class VU {
                 .descriptorPool(descriptorPool)
                 .pSetLayouts(pDescriptorSetLayout)
 
-            val descriptorSet = scenery.backends.vulkan.VU.run(MemoryUtil.memAllocLong(1), "createDescriptorSet",
+            val descriptorSet = VU.run(MemoryUtil.memAllocLong(1), "createDescriptorSet",
                 { vkAllocateDescriptorSets(device, allocInfo, this) },
                 { allocInfo.free(); MemoryUtil.memFree(pDescriptorSetLayout) })
 
@@ -404,7 +408,8 @@ class VU {
                     .pNext(NULL)
                     .dstSet(descriptorSet)
                     .dstBinding(i)
-                    .pBufferInfo(d as VkDescriptorBufferInfo.Buffer)
+                    .dstArrayElement(0)
+                    .pBufferInfo(d)
                     .descriptorType(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC)
             }
 
@@ -503,6 +508,59 @@ class VU {
 
             logger.info("Creating framebuffer attachment descriptor $descriptorSet set with ${rt.size} bindings, DSL=$descriptorSetLayout")
             return descriptorSet
+        }
+
+        fun createBuffer(device: VkDevice, deviceMemoryProperties: VkPhysicalDeviceMemoryProperties, usage: Int, memoryProperties: Int, wantAligned: Boolean = false, allocationSize: Long = 0): VulkanBuffer {
+            val buffer = MemoryUtil.memAllocLong(1)
+            val memory = MemoryUtil.memAllocLong(1)
+            val memTypeIndex = MemoryUtil.memAllocInt(1)
+
+            val reqs = VkMemoryRequirements.calloc()
+            val bufferInfo = VkBufferCreateInfo.calloc()
+                .sType(VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO)
+                .pNext(NULL)
+                .usage(usage)
+                .size(allocationSize)
+
+            vkCreateBuffer(device, bufferInfo, null, buffer)
+            vkGetBufferMemoryRequirements(device, buffer.get(0), reqs)
+
+            bufferInfo.free()
+
+            val allocInfo = VkMemoryAllocateInfo.calloc()
+                .sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO)
+                .pNext(NULL)
+
+            getMemoryType(deviceMemoryProperties,
+                reqs.memoryTypeBits(),
+                memoryProperties,
+                memTypeIndex)
+
+            val size = if (wantAligned) {
+                if (reqs.size() % reqs.alignment() == 0L) {
+                    reqs.size()
+                } else {
+                    reqs.size() + reqs.alignment() - (reqs.size() % reqs.alignment())
+                }
+            } else {
+                reqs.size()
+            }
+
+            allocInfo.allocationSize(size)
+                .memoryTypeIndex(memTypeIndex.get(0))
+
+            vkAllocateMemory(device, allocInfo, null, memory)
+            vkBindBufferMemory(device, buffer.get(0), memory.get(0), 0)
+
+            val vb = VulkanBuffer(device, memory = memory.get(0), buffer = buffer.get(0))
+            vb.maxSize = size
+            vb.alignment = reqs.alignment()
+
+            reqs.free()
+            allocInfo.free()
+            MemoryUtil.memFree(memTypeIndex)
+
+            return vb
         }
     }
 

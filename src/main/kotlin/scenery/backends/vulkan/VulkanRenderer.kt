@@ -263,7 +263,7 @@ open class VulkanRenderer : Renderer {
 
     private var renderConfig: RenderConfigReader.RenderConfig
 
-    constructor(applicationName: String, scene: Scene, windowWidth: Int, windowHeight: Int, renderConfigFile: String = "ForwardShading.yml") {
+    constructor(applicationName: String, scene: Scene, windowWidth: Int, windowHeight: Int, renderConfigFile: String = "DeferredShading.yml") {
         window.width = windowWidth
         window.height = windowHeight
 
@@ -471,59 +471,6 @@ open class VulkanRenderer : Renderer {
         board.metadata.put("VulkanRenderer", VulkanObjectState())
     }
 
-    fun createBuffer(usage: Int, memoryProperties: Int, wantAligned: Boolean = false, allocationSize: Long = 0): VulkanBuffer {
-        val buffer = memAllocLong(1)
-        val memory = memAllocLong(1)
-        val memTypeIndex = memAllocInt(1)
-
-        val reqs = VkMemoryRequirements.calloc()
-        val bufferInfo = VkBufferCreateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO)
-            .pNext(NULL)
-            .usage(usage)
-            .size(allocationSize)
-
-        vkCreateBuffer(device, bufferInfo, null, buffer)
-        vkGetBufferMemoryRequirements(device, buffer.get(0), reqs)
-
-        bufferInfo.free()
-
-        val allocInfo = VkMemoryAllocateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO)
-            .pNext(NULL)
-
-        getMemoryType(this.memoryProperties,
-            reqs.memoryTypeBits(),
-            memoryProperties,
-            memTypeIndex)
-
-        val size = if (wantAligned) {
-            if (reqs.size() % reqs.alignment() == 0L) {
-                reqs.size()
-            } else {
-                reqs.size() + reqs.alignment() - (reqs.size() % reqs.alignment())
-            }
-        } else {
-            reqs.size()
-        }
-
-        allocInfo.allocationSize(size)
-            .memoryTypeIndex(memTypeIndex.get(0))
-
-        vkAllocateMemory(this.device, allocInfo, null, memory)
-        vkBindBufferMemory(this.device, buffer.get(0), memory.get(0), 0)
-
-        val vb = VulkanBuffer(device, memory = memory.get(0), buffer = buffer.get(0))
-        vb.maxSize = size
-        vb.alignment = reqs.alignment()
-
-        reqs.free()
-        allocInfo.free()
-        memFree(memTypeIndex)
-
-        return vb
-    }
-
     /**
      *
      */
@@ -615,25 +562,23 @@ open class VulkanRenderer : Renderer {
     protected fun prepareDefaultDescriptorSetLayouts(device: VkDevice): ConcurrentHashMap<String, Long> {
         val m = ConcurrentHashMap<String, Long>()
 
-        val default = VU.createDescriptorSetLayout(device,
-            descriptorNum = 3,
-            descriptorCount = 1)
+        m.put("default", VU.createDescriptorSetLayout(
+            device,
+            listOf(
+                Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1),
+                Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1),
+                Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1)),
+            VK_SHADER_STAGE_ALL_GRAPHICS))
 
-        m.put("default", default)
-
-        val lightParameters = VU.createDescriptorSetLayout(
+        m.put("LightParameters", VU.createDescriptorSetLayout(
             device,
             listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1)),
-            VK_SHADER_STAGE_ALL_GRAPHICS)
+            VK_SHADER_STAGE_ALL_GRAPHICS))
 
-        m.put("LightParameters", lightParameters)
-
-        val dslObjectTextures = VU.createDescriptorSetLayout(
+        m.put("ObjectTextures", VU.createDescriptorSetLayout(
             device,
             listOf(Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 5)),
-            VK_SHADER_STAGE_ALL_GRAPHICS)
-
-        m.put("ObjectTextures", dslObjectTextures)
+            VK_SHADER_STAGE_ALL_GRAPHICS))
 
         renderConfig.renderpasses.forEach { rp ->
             rp.value.inputs?.let {
@@ -641,13 +586,12 @@ open class VulkanRenderer : Renderer {
                     val rt = rts.get(it.first())!!
 
                     // create descriptor set layout that matches the render target
-                    val dsl = VU.createDescriptorSetLayout(device,
+                    m.put("outputs-${it.first()}",
+                        VU.createDescriptorSetLayout(device,
                         descriptorNum = rt.count(),
                         descriptorCount = 1,
                         type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
-                    )
-
-                    m.put("outputs-${it.first()}", dsl)
+                    ))
                 }
             }
         }
@@ -1519,7 +1463,8 @@ open class VulkanRenderer : Renderer {
         n.texcoords.flip()
         n.indices.flip()
 
-        val stagingBuffer = createBuffer(
+        val stagingBuffer = VU.createBuffer(device,
+            this.memoryProperties,
             VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
             wantAligned = false,
@@ -1527,7 +1472,8 @@ open class VulkanRenderer : Renderer {
 
         stagingBuffer.copy(stridedBuffer)
 
-        val vertexBuffer = createBuffer(
+        val vertexBuffer = VU.createBuffer(device,
+            this.memoryProperties,
             VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or VK_BUFFER_USAGE_INDEX_BUFFER_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT,
             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
             wantAligned = false,
@@ -1592,12 +1538,14 @@ open class VulkanRenderer : Renderer {
     private fun prepareDefaultBuffers(device: VkDevice): HashMap<String, VulkanBuffer> {
         val map = HashMap<String, VulkanBuffer>()
 
-        map.put("UBOBuffer", createBuffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+        map.put("UBOBuffer", VU.createBuffer(device, this.memoryProperties,
+            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
             wantAligned = true,
             allocationSize = 512 * 1024))
 
-        map.put("LightParametersBuffer", createBuffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+        map.put("LightParametersBuffer", VU.createBuffer(device, this.memoryProperties,
+            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
             wantAligned = true,
             allocationSize = 512 * 1024))
@@ -1826,7 +1774,7 @@ open class VulkanRenderer : Renderer {
                     }
 
                     if(set != null) {
-                        logger.info("Adding DS#$i for $dsName to required pipeline DSLs")
+                        logger.info("Adding DS#$i for $dsName to required pipeline DSs")
                         ds.put(i, set)
                     } else {
                         logger.error("DS for $dsName not found!")
@@ -1839,8 +1787,13 @@ open class VulkanRenderer : Renderer {
                 offsets.flip()
 
                 vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkanPipeline.pipeline)
-                vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                    vulkanPipeline.layout, 0, ds, offsets)
+//                if(pass.name == "DeferredLighting") {
+                    vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                        vulkanPipeline.layout, 0, ds, offsets)
+//                } else {
+//                    vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_GRAPHICS,
+//                        vulkanPipeline.layout, 0, ds, null)
+//                }
 
                 vkCmdDraw(this, 3, 1, 0, 0)
 
@@ -1923,12 +1876,19 @@ open class VulkanRenderer : Renderer {
 
         buffers["LightParametersBuffer"]!!.reset()
 
-        var memoryTarget = buffers["LightParametersBuffer"]!!.getPointerBuffer(4*3*3+4)
-        memoryTarget.asIntBuffer().put(1)
-        memoryTarget.position(4)
-        GLVector(5.0f, 5.0f, 5.0f).put(memoryTarget)
-        GLVector(1.0f, .0f, .0f).put(memoryTarget)
-        GLVector(1.5f, 1.5f, 2.0f).put(memoryTarget)
+        val memoryTarget = buffers["LightParametersBuffer"]!!.getPointerBuffer(4*4*4)
+        memoryTarget.putInt(1)
+        memoryTarget.putInt(0)
+        memoryTarget.putInt(0)
+        memoryTarget.putInt(0)
+
+        memoryTarget.putFloat(1.5f)
+        memoryTarget.putFloat(1.25f)
+        memoryTarget.putFloat(100.0f)
+        memoryTarget.putFloat(0.0f)
+
+        GLVector(5.0f, 25.0f, 5.0f, 0.0f).put(memoryTarget)
+        GLVector(1.0f, .0f, .0f, 0.0f).put(memoryTarget)
     }
 
     override fun close() {
