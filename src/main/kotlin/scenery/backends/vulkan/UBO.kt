@@ -31,26 +31,68 @@ open class UBO(val device: VkDevice) {
         internal var range: Long = 0
     }
 
-    fun getSize(): Int {
-        val sizes = members.map {
-            when (it.value.javaClass) {
-                GLMatrix::class.java -> (it.value as GLMatrix).floatArray.size * 4
-                GLVector::class.java -> (it.value as GLVector).toFloatArray().size * 4
-                java.lang.Float::class.java -> 4
-                Float::class.java -> 4
-                Double::class.java -> 8
-                java.lang.Double::class.java -> 8
-                Int::class.java -> 4
-                Integer::class.java -> 4
-                java.lang.Integer::class -> 4
-                Short::class.java -> 2
-                Boolean::class.java -> 4
-                java.lang.Boolean::class.java -> 4
-                else -> 0
+    fun getSizeAndAlignment(element: Any): Pair<Int, Int> {
+        return when(element.javaClass) {
+            GLMatrix::class.java -> {
+                Pair((element as GLMatrix).floatArray.size * 4, 4 * 4)
+            }
+
+            GLVector::class.java -> {
+                val v = element as GLVector
+                val size = v.toFloatArray().size * 4
+                val alignment = when(size) {
+                    2 -> 2
+                    3 -> 4
+                    4 -> 4
+                    else -> 4
+                }
+
+                Pair(size, alignment*4)
+            }
+
+            java.lang.Float::class.java -> Pair(4, 4)
+            Float::class.java -> Pair(4, 4)
+
+            java.lang.Double::class.java -> Pair(8, 8)
+            Double::class.java -> Pair(8, 8)
+
+            java.lang.Integer::class.java -> Pair(4, 4)
+            Int::class.java -> Pair(4, 4)
+
+            Short::class.java -> Pair(2, 2)
+
+            java.lang.Boolean::class.java -> Pair(4, 4)
+            Boolean::class.java -> Pair(4, 4)
+
+            else -> {
+                logger.error("Unknown UBO member type: ${element.javaClass.simpleName}")
+                Pair(0, 0)
             }
         }
+    }
 
-        return sizes.sum()
+    fun getSize(): Int {
+        var totalSize = members.map {
+            getSizeAndAlignment(it.value)
+        }.fold(0) { current_position, element ->
+            // next element should start at the position
+            // required by it's alignment
+            val remainder = current_position % element.second
+
+            val new_position = if(remainder != 0) {
+                logger.trace("Realigning $name from $current_position to ${current_position + element.first + element.second - remainder}")
+                current_position + element.second - remainder + element.first
+            } else {
+                logger.trace("Aligning $name from $current_position to ${current_position + element.first}")
+                current_position + element.first
+            }
+
+            new_position
+        }
+
+        logger.trace("UBO size of $name is $totalSize")
+
+        return totalSize
     }
 
     fun getPointerBuffer(size: Int): ByteBuffer {
@@ -74,44 +116,74 @@ open class UBO(val device: VkDevice) {
 
     fun populate() {
         val data = memAlloc(getSize())
+        data.position(0)
 
         members.forEach {
+            var pos = data.position()
+            val (size, alignment) = getSizeAndAlignment(it.value)
+
+            if(pos % alignment != 0) {
+                pos = pos + alignment - (pos % alignment)
+                logger.trace("($name) Position unaligned, realigning to $pos/${getSize()}")
+                data.position(pos)
+            }
+
+            logger.trace("Inserting ${it.key} into $name at $pos (${it.value},${it.value.javaClass.simpleName})")
+
             when(it.value.javaClass) {
-                GLMatrix::class.java -> (it.value as GLMatrix).put(data)
-                GLVector::class.java -> (it.value as GLVector).put(data)
+
+                GLMatrix::class.java -> {
+                    (it.value as GLMatrix).push(data)
+                }
+                GLVector::class.java -> {
+                    (it.value as GLVector).push(data)
+                }
+
+                java.lang.Float::class.java -> {
+                    data.asFloatBuffer().put(0, it.value as Float)
+                }
                 Float::class.java -> {
-                    data.asFloatBuffer().put(it.value as Float)
-                    data.position(data.position() + 4)
+                    data.asFloatBuffer().put(0, it.value as Float)
+                }
+
+                java.lang.Double::class.java -> {
+                    data.asDoubleBuffer().put(0, it.value as Double)
                 }
                 Double::class.java -> {
-                    data.asDoubleBuffer().put(it.value as Double)
-                    data.position(data.position() + 8)
+                    data.asDoubleBuffer().put(0, it.value as Double)
+                }
+
+                java.lang.Integer::class.java -> {
+                    data.asIntBuffer().put(0, it.value as Int)
                 }
                 Integer::class.java -> {
-                    data.asIntBuffer().put(it.value as Int)
-                    data.position(data.position() + 4)
+                    data.asIntBuffer().put(0, it.value as Int)
                 }
                 Int::class.java -> {
-                    data.asIntBuffer().put(it.value as Int)
-                    data.position(data.position() + 4)
+                    data.asIntBuffer().put(0, it.value as Int)
+                }
+
+                java.lang.Short::class.java -> {
+                    data.asShortBuffer().put(0, it.value as Short)
                 }
                 Short::class.java -> {
-                    data.asShortBuffer().put(it.value as Short)
-                    data.position(data.position() + 2)
+                    data.asShortBuffer().put(0, it.value as Short)
+                }
+
+                java.lang.Boolean::class.java -> {
+                    data.asIntBuffer().put(0, it.value as Int)
                 }
                 Boolean::class.java -> {
-                    data.asIntBuffer().put(it.value as Int)
-                    data.position(data.position() + 4)
+                    data.asIntBuffer().put(0, it.value as Int)
                 }
             }
+
+            logger.trace("Moving buffer for $name to ${pos+size}/${data.capacity()}")
+            data.position(pos + size)
         }
 
-        val dest = memAllocPointer(1)
-        vkMapMemory(device, descriptor!!.memory, 0, descriptor!!.allocationSize* 1L, 0, dest)
-        memCopy(memAddress(data), dest.get(0), data.remaining())
-        vkUnmapMemory(device, descriptor!!.memory)
-
-        memFree(dest)
+        data.flip()
+        copy(data)
         memFree(data)
     }
 
@@ -124,56 +196,17 @@ open class UBO(val device: VkDevice) {
     }
 
     fun createUniformBuffer(deviceMemoryProperties: VkPhysicalDeviceMemoryProperties): UBO.UBODescriptor {
-        var err: Int
-        // Create a new buffer
-        val bufferInfo = VkBufferCreateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO)
-            .size(this.getSize() * 1L)
-            .usage(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT)
-
-        val uniformDataVSBuffer = scenery.backends.vulkan.VU.run(MemoryUtil.memAllocLong(1), "Create UBO Buffer") {
-            vkCreateBuffer(device, bufferInfo, null, this)
-        }
-
-        bufferInfo.free()
-
-        // Get memory requirements including size, alignment and memory type
-        val memReqs = VkMemoryRequirements.calloc()
-        vkGetBufferMemoryRequirements(device, uniformDataVSBuffer, memReqs)
-        val memSize = memReqs.size()
-        val memoryTypeBits = memReqs.memoryTypeBits()
-        memReqs.free()
-        // Gets the appropriate memory type for this type of buffer allocation
-        // Only memory types that are visible to the host
-        val pMemoryTypeIndex = MemoryUtil.memAllocInt(1)
-        VU.getMemoryType(deviceMemoryProperties, memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, pMemoryTypeIndex)
-        val memoryTypeIndex = pMemoryTypeIndex.get(0)
-        MemoryUtil.memFree(pMemoryTypeIndex)
-        // Allocate memory for the uniform buffer
-        val pUniformDataVSMemory = MemoryUtil.memAllocLong(1)
-        val allocInfo = VkMemoryAllocateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO)
-            .pNext(NULL)
-            .allocationSize(memSize)
-            .memoryTypeIndex(memoryTypeIndex)
-
-        err = vkAllocateMemory(device, allocInfo, null, pUniformDataVSMemory)
-        val uniformDataVSMemory = pUniformDataVSMemory.get(0)
-        MemoryUtil.memFree(pUniformDataVSMemory)
-        allocInfo.free()
-        if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to allocate UBO memory: " + scenery.backends.vulkan.VU.translate(err))
-        }
-        // Bind memory to buffer
-        err = vkBindBufferMemory(device, uniformDataVSBuffer, uniformDataVSMemory, 0)
-        if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to bind UBO memory: " + scenery.backends.vulkan.VU.translate(err))
-        }
+        val buffer = VU.createBuffer(device,
+            deviceMemoryProperties,
+            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+            wantAligned = true,
+            allocationSize = this.getSize()*1L)
 
         this.descriptor = UBO.UBODescriptor()
-        this.descriptor!!.memory = uniformDataVSMemory
-        this.descriptor!!.allocationSize = memSize
-        this.descriptor!!.buffer = uniformDataVSBuffer
+        this.descriptor!!.memory = buffer.memory
+        this.descriptor!!.allocationSize = buffer.maxSize
+        this.descriptor!!.buffer = buffer.buffer
         this.descriptor!!.offset = 0L
         this.descriptor!!.range = this.getSize() * 1L
 
