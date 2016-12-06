@@ -317,10 +317,10 @@
         </dependency>
 
         <dependency>
-            <groupId>is.ulrik</groupId>
+            <groupId>graphics.scenery</groupId>
             <artifactId>spirvcrossj</artifactId>
             <version>0.1-SNAPSHOT</version>
-            <classifier>natives-windows</classifier>
+            <classifier>${lwjgl.natives}</classifier>
             <scope>runtime</scope>
         </dependency>
         <dependency>
