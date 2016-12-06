@@ -39,11 +39,7 @@
         <system>Travis</system>
         <url>https://travis-ci.org/ClearVolume/scenery/</url>
     </ciManagement>
-    <ciManagement>
-        <system>Appveyor</system>
-        <url>https://ci.appveyor.com/project/skalarproduktraum/scenery</url>
-    </ciManagement>
-
+ 
     <profiles>
         <profile>
             <id>js</id>
@@ -315,7 +311,7 @@
 
         <!-- jackson dependencies end -->
         <dependency>
-            <groupId>is.ulrik</groupId>
+            <groupId>graphics.scenery</groupId>
             <artifactId>spirvcrossj</artifactId>
             <version>0.1-SNAPSHOT</version>
         </dependency>

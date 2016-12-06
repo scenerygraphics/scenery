@@ -148,7 +148,7 @@ dependencies
     compile "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.8.4"
     compile "org.yaml:snakeyaml:1.15"
 
-    compile "is.ulrik:spirvcrossj:0.1-SNAPSHOT"
+    compile "graphics.scenery:spirvcrossj:0.1-SNAPSHOT"
 
     // usage: gradle .... -Plocal=true
 	if (project.hasProperty('local')) {
