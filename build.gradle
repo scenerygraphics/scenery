@@ -1,8 +1,8 @@
 buildscript {
-	ext.kotlin_version = '1.0.4'
-    ext.dokka_version = '0.9.9'
+	ext.kotlin_version = '1.0.5-2'
+    ext.dokka_version = '0.9.10'
     ext.slf4j_version = '1.7.21'
-    ext.lwjgl_version = '3.0.1-SNAPSHOT'
+    ext.lwjgl_version = '3.1.1-SNAPSHOT'
 	repositories {
     mavenCentral()
   }
@@ -227,7 +227,7 @@ def getVersionName = { ->
 		return stdout.toString().trim()
 }
 
-group = 'net.clearvolume'
+group = 'graphics.scenery'
 archivesBaseName = "scenery"
 
 if(project.hasProperty('releasebuild')) {
