@@ -1,6 +1,6 @@
 package scenery.backends.vulkan
 
-import `is`.ulrik.spirvcrossj.*
+import graphics.scenery.spirvcrossj.*
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkDevice
