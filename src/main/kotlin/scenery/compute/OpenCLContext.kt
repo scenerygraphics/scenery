@@ -21,7 +21,7 @@ import java.util.concurrent.ConcurrentHashMap
  * @author Ulrik Günther <hello@ulrik.is>
  */
 
-class OpenCLContext(override var hub: Hub?, val devicePreference: String = "0,0") : Hubable {
+class OpenCLContext(override var hub: Hub?, val devicePreference: String = System.getProperty("scenery.OpenCLDevice", "0,0")) : Hubable {
     protected var logger: Logger = LoggerFactory.getLogger("OpenCLContext")
 
     var device: cl_device_id
@@ -35,7 +35,7 @@ class OpenCLContext(override var hub: Hub?, val devicePreference: String = "0,0"
         val platformPref = devicePreference.substringBefore(",").toInt()
         val devicePref = devicePreference.substringAfter(",").toInt()
 
-        val deviceType = CL_DEVICE_TYPE_GPU.toLong()
+        val deviceType = CL_DEVICE_TYPE_GPU
         val deviceIndex = devicePref
         // Enable exceptions and subsequently omit error checks in this sample
         CL.setExceptionsEnabled(true);
@@ -44,17 +44,17 @@ class OpenCLContext(override var hub: Hub?, val devicePreference: String = "0,0"
         val platforms = query<cl_platform_id> { l, a, n ->
             clGetPlatformIDs(l, a, n)
         }
-        val platform = platforms[platformPref];
+        val platform = platforms[platformPref]
 
         // Initialize the context properties
-        val contextProperties = cl_context_properties();
-        contextProperties.addProperty(CL_CONTEXT_PLATFORM.toLong(), platform);
+        val contextProperties = cl_context_properties()
+        contextProperties.addProperty(CL_CONTEXT_PLATFORM.toLong(), platform)
 
         // Obtain a device ID
-        val devices = query<cl_device_id>({ l, a, n ->
+        val devices = query({ l, a, n ->
             clGetDeviceIDs(platform, deviceType, l, a, n)
         }, { cl_device_id() })
-        device = devices[deviceIndex];
+        device = devices[deviceIndex]
 
 		logger.info("Selected device: ${getString(device, CL_DEVICE_NAME)} running ${getString(device, CL_DEVICE_VERSION)}")
 

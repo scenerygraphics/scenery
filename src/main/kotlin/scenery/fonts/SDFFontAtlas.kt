@@ -45,7 +45,7 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
     var fontAtlasBacking: ByteBuffer = ByteBuffer.allocate(1)
 
     init {
-        val ocl = OpenCLContext(hub, devicePreference = "0,0")
+        val ocl = OpenCLContext(hub)
         var input: cl_mem
         var output: cl_mem
 
