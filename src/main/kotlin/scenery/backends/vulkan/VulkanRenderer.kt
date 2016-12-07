@@ -958,7 +958,7 @@ open class VulkanRenderer : Renderer {
 
         updateTimings()
         glfwSetWindowTitle(window.glfwWindow!!,
-            "$applicationName [${this.javaClass.simpleName}, ${this.renderConfig.name}] - $fps fps")
+            "$applicationName [${this.javaClass.simpleName}, ${this.renderConfig.name}${if(validation) {" - VALIDATIONS ENABLED"} else {""}}] - $fps fps")
     }
 
     private fun updateTimings() {
