@@ -25,19 +25,19 @@ interface Renderable {
     var iworld: GLMatrix
 
     /** View matrix. May be null. */
-    var view: GLMatrix?
+    var view: GLMatrix
     /** Inverse of [view] matrix. May be null. */
-    var iview: GLMatrix?
+    var iview: GLMatrix
     /** Projection matrix. May be null. */
-    var projection: GLMatrix?
+    var projection: GLMatrix
     /** Inverse of [projection]. May be null. */
-    var iprojection: GLMatrix?
+    var iprojection: GLMatrix
     /** modelView matrix. May be null. */
-    var modelView: GLMatrix?
+    var modelView: GLMatrix
     /** Inverse of [modelView]. May be null. */
-    var imodelView: GLMatrix?
+    var imodelView: GLMatrix
     /** ModelViewProjection matrix. May be null. */
-    var mvp: GLMatrix?
+    var mvp: GLMatrix
 
     /** World position of the [Renderable] object. */
     var position: GLVector

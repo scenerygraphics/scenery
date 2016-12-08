@@ -13,6 +13,8 @@ class VulkanBuffer(val device: VkDevice, var memory: Long = -1L, var buffer: Lon
     var maxSize: Long = 512 * 2048L
     var alignment: Long = 256
 
+    var stagingBuffer = memAlloc(maxSize.toInt())
+
     fun getPointerBuffer(size: Int): ByteBuffer {
         if (currentPointer == null) {
             this.map()
@@ -26,13 +28,25 @@ class VulkanBuffer(val device: VkDevice, var memory: Long = -1L, var buffer: Lon
 
     fun getCurrentOffset(): Int {
         if (currentPosition % alignment != 0L) {
-            val oldPos = currentPosition
             currentPosition += alignment - (currentPosition % alignment)
+            stagingBuffer.position(currentPosition.toInt())
         }
         return currentPosition.toInt()
     }
 
+    fun advance(size: Int): Int {
+        val pos = stagingBuffer.position()
+        val rem = pos % alignment
+
+        if(rem != 0L) {
+            stagingBuffer.position(pos + alignment.toInt() - rem.toInt())
+        }
+
+        return stagingBuffer.position()
+    }
+
     fun reset() {
+        stagingBuffer.position(0)
         currentPosition = 0L
     }
 
@@ -50,5 +64,10 @@ class VulkanBuffer(val device: VkDevice, var memory: Long = -1L, var buffer: Lon
 
         currentPointer = dest
         return dest
+    }
+
+    fun copyFromStagingBuffer() {
+        stagingBuffer.flip()
+        copy(stagingBuffer)
     }
 }

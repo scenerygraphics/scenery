@@ -56,50 +56,30 @@ open class Node(open var name: String) : Renderable {
 
     /** World transform matrix. Will create inverse [iworld] upon modification. */
     override var world: GLMatrix = GLMatrix.getIdentity()
-        set(m) {
-            this.iworld = m.getInverse()
-            field = m
-        }
     /** Inverse [world] transform matrix. */
     override var iworld: GLMatrix = GLMatrix.getIdentity()
     /** Model transform matrix. Will create inverse [imodel] upon modification. */
     override var model: GLMatrix = GLMatrix.getIdentity()
-        set(m) {
-            this.imodel = m.getInverse()
-            field = m
-        }
     /** Inverse [world] transform matrix. */
     override var imodel: GLMatrix = GLMatrix.getIdentity()
 
     /** View matrix. Will create inverse [iview] upon modification. */
-    override var view: GLMatrix? = null
-        set(m) {
-            this.iview = m?.getInverse()
-            field = m
-        }
+    override var view: GLMatrix = GLMatrix.getIdentity()
     /** Inverse [view] matrix. */
-    override var iview: GLMatrix? = null
+    override var iview: GLMatrix = GLMatrix.getIdentity()
 
     /** Projection matrix. Will create inverse [iprojection] upon modification. */
-    override var projection: GLMatrix? = null
-        set(m) {
-            this.iprojection = m?.getInverse()
-            field = m
-        }
+    override var projection: GLMatrix = GLMatrix.getIdentity()
     /** Inverse [projection] transform matrix. */
-    override var iprojection: GLMatrix? = null
+    override var iprojection: GLMatrix = GLMatrix.getIdentity()
 
     /** ModelView matrix. Will create inverse [imodelview] upon modification. */
-    override var modelView: GLMatrix? = null
-        set(m) {
-            this.imodelView = m?.getInverse()
-            field = m
-        }
+    override var modelView: GLMatrix = GLMatrix.getIdentity()
     /** Inverse [modelView] transform matrix. */
-    override var imodelView: GLMatrix? = null
+    override var imodelView: GLMatrix = GLMatrix.getIdentity()
 
     /** ModelViewProjection matrix. */
-    override var mvp: GLMatrix? = null
+    override var mvp: GLMatrix = GLMatrix.getIdentity()
 
     /** World position of the Node. Setting will trigger [world] update. */
     override var position: GLVector = GLVector(0.0f, 0.0f, 0.0f)
@@ -223,14 +203,12 @@ open class Node(open var name: String) : Renderable {
 
         if (needsUpdateWorld or force) {
             if (this.parent == null || this.parent is Scene) {
-                this.world = this.model.clone()
+                world.copyFrom(model)
                 //          this.world.translate(this.position.x(), this.position.y(), this.position.z())
             } else {
-                val m = parent!!.world.clone()
-                m.mult(this.model)
+                world.copyFrom(parent!!.world)
+                world.mult(this.model)
                 //m.translate(this.position.x(), this.position.y(), this.position.z())
-
-                this.world = m
             }
 
             this.needsUpdateWorld = false
@@ -249,21 +227,20 @@ open class Node(open var name: String) : Renderable {
      * [position], [scale] and [rotation].
      */
     fun composeModel() {
-        val w = GLMatrix.getIdentity()
+        model.setIdentity()
         //   w.translate(-this.position.x(), -this.position.y(), -this.position.z())
-        w.mult(this.rotation)
+        model.mult(this.rotation)
         //    w.translate(this.position.x(), this.position.y(), this.position.z())
-        w.scale(this.scale.x(), this.scale.y(), this.scale.z())
-        w.translate(this.position.x(), this.position.y(), this.position.z())
-        this.model = w
+        model.scale(this.scale.x(), this.scale.y(), this.scale.z())
+        model.translate(this.position.x(), this.position.y(), this.position.z())
     }
 
     /**
      * This method composes the Node's [modelView] matrix.
      */
     fun composeModelView() {
-        modelView = model.clone()
-        modelView!!.mult(this.view ?: GLMatrix.getIdentity())
+        modelView.copyFrom(model)
+        modelView.mult(this.view)
     }
 
     /**
@@ -274,8 +251,8 @@ open class Node(open var name: String) : Renderable {
         composeModel()
         composeModelView()
 
-        mvp = modelView!!.clone()
-        mvp!!.mult(projection)
+        mvp.copyFrom(modelView)
+        mvp.mult(projection)
     }
 
 

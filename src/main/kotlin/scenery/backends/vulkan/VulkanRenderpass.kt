@@ -139,7 +139,7 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
                     entry.value
                 }
 
-                ubo.members.put(entry.key, value)
+                ubo.members.put(entry.key, { value })
             }
 
             logger.debug("Members are: ${ubo.members.values.joinToString(", ")}")

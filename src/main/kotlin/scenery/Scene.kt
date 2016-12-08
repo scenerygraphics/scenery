@@ -35,9 +35,14 @@ open class Scene : Node("RootNode") {
      * @return The [Camera] that is currently active.
      */
     fun findObserver(): Camera {
-        var observers = discover(this, { n -> n.nodeType == "Camera" && (n as Camera?)?.active == true })
+        if(activeObserver == null) {
+            var observers = discover(this, { n -> n.nodeType == "Camera" && (n as Camera?)?.active == true })
 
-        return observers.first() as Camera
+            activeObserver = observers.first() as Camera
+            return activeObserver!!
+        } else {
+            return activeObserver!!
+        }
     }
 
     /**

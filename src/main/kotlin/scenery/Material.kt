@@ -22,6 +22,8 @@ open class Material {
     var opacity = 1.0f
     /** Set whether this material should be transparent, transparency degree can be set via [opacity]. */
     var transparent: Boolean = false
+    /** Specular exponent */
+    var specularExponent: Float = 0.2f
 
     /** Hash map storing the type and origin of the material's textures. Key is the
      * type, e.g. ("diffuse", "normal", "displacement"...), value can be a file path or

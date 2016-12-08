@@ -36,7 +36,7 @@ open class Camera : Node("Camera") {
     /** View matrix of the camera. Setting the view matrix will re-set the forward
      *  vector of the camera according to the given matrix.
      */
-    override var view: GLMatrix? = null
+    override var view: GLMatrix = GLMatrix.getIdentity()
         set(m) {
             m?.let {
                 this.forward = GLVector(m.get(0, 2), m.get(1, 2), m.get(2, 2)).normalize() * -1.0f
