@@ -508,7 +508,7 @@ open class VulkanRenderer : Renderer {
 
         s = loadTexturesForNode(node, s)
 
-        node.material?.let {
+        if(node.material != null) {
             val materialUbo = UBO(device, backingBuffer = buffers["UBOBuffer"])
             val materialType = if (node.material!!.textures.containsKey("diffuse")) {
                 1
@@ -526,6 +526,21 @@ open class VulkanRenderer : Renderer {
                 members.put("Ks", { node.material!!.specular })
                 members.put("Shininess", { node.material!!.specularExponent })
                 members.put("materialType", { materialType })
+
+                createUniformBuffer(memoryProperties)
+                s.UBOs.put("BlinnPhongMaterial", this)
+            }
+        } else {
+            val materialUbo = UBO(device, backingBuffer = buffers["UBOBuffer"])
+            val m = Material.DefaultMaterial()
+
+            with(materialUbo) {
+                name = "BlinnPhongMaterial"
+                members.put("Ka", { m.ambient })
+                members.put("Kd", { m.diffuse })
+                members.put("Ks", { m.specular })
+                members.put("Shininess", { m.specularExponent })
+                members.put("materialType", { 0 })
 
                 createUniformBuffer(memoryProperties)
                 s.UBOs.put("BlinnPhongMaterial", this)
@@ -1625,7 +1640,7 @@ open class VulkanRenderer : Renderer {
         materialUbo.members.put("Kd", { GLVector(0.0f, 0.0f, 0.0f) })
         materialUbo.members.put("Ks", { GLVector(0.0f, 0.0f, 0.0f) })
         materialUbo.members.put("Shininess", { 1.0f })
-        materialUbo.members.put("materialType", { 3 })
+        materialUbo.members.put("materialType", { 0 })
 
         materialUbo.createUniformBuffer(memoryProperties)
         ubos.put("BlinnPhongMaterial", materialUbo)
@@ -1869,13 +1884,11 @@ open class VulkanRenderer : Renderer {
 
             ubo.populate(offset = bufferOffset.toLong())
 
-            node.material?.let {
-                val materialUbo = (node.metadata["VulkanRenderer"]!! as VulkanObjectState).UBOs["BlinnPhongMaterial"]!!
-                bufferOffset = buffers["UBOBuffer"]!!.advance(materialUbo.getSize())
-                ubo.offsets!!.put(1, bufferOffset)
+            val materialUbo = (node.metadata["VulkanRenderer"]!! as VulkanObjectState).UBOs["BlinnPhongMaterial"]!!
+            bufferOffset = buffers["UBOBuffer"]!!.advance(materialUbo.getSize())
+            ubo.offsets!!.put(1, bufferOffset)
 
-                materialUbo.populate(offset = bufferOffset.toLong())
-            }
+            materialUbo.populate(offset = bufferOffset.toLong())
         }
 
         buffers["UBOBuffer"]!!.copyFromStagingBuffer()
