@@ -78,7 +78,7 @@ void main()
 	vec3 lighting;
 
 	if(debugBuffers == 0) {
-		if(activateSSAO != 0) {
+		if(activateSSAO > 0) {
 			float ambientOcclusion = 0.0f;
 
 			int sample_count = 8;

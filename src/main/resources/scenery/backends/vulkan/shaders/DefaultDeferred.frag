@@ -62,14 +62,14 @@ void main() {
         gNormal = normalize(VertexIn.Normal);
     }
     // And the diffuse per-fragment color
-//    if(materialType == MATERIAL_TYPE_MAT) {
-//        gAlbedoSpec.rgb = Material.Kd;
-//        gAlbedoSpec.a = Material.Ka.r*Material.Shininess;
-//    } else if(materialType == MATERIAL_TYPE_STATIC) {
-//        gAlbedoSpec.rgb = Material.Kd;
-//        gAlbedoSpec.a = Material.Ks.r * Material.Shininess;
-//    } else {
+    if(materialType == MATERIAL_TYPE_MAT) {
+        gAlbedoSpec.rgb = Material.Kd;
+        gAlbedoSpec.a = Material.Ka.r*Material.Shininess;
+    } else if(materialType == MATERIAL_TYPE_STATIC) {
+        gAlbedoSpec.rgb = Material.Kd;
+        gAlbedoSpec.a = Material.Ks.r * Material.Shininess;
+    } else {
         gAlbedoSpec.rgb = texture(ObjectTextures[1], VertexIn.TexCoord).rgb;
         gAlbedoSpec.a = texture(ObjectTextures[2], VertexIn.TexCoord).r;
-//    }
+    }
 }

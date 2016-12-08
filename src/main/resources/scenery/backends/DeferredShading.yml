@@ -38,8 +38,8 @@ renderpasses:
     parameters:
       debugBuffers: 0
       activateSSAO: 1
-      ssaoDistanceThreshold: 0.999
-      ssaoFilterRadius: 0.05, 0.02
+      ssaoDistanceThreshold: 50.0
+      ssaoFilterRadius: 0.003, 0.003
   PostprocessHDR:
     type: quad
     shaders:
@@ -50,4 +50,4 @@ renderpasses:
     output: Viewport
     parameters:
       Gamma: 2.2
-      Exposure: 1.0
+      Exposure: 0.75
