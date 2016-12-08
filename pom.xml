@@ -15,6 +15,11 @@
 
     <name>scenery</name>
     <description>flexible scenegraphing and rendering for scientific visualisation</description>
+    <url>http://scenery.graphics</url>
+    <organization>
+        <name>scenery</name>
+        <url>http://scenery.graphics</url>
+    </organization>
 
     <properties>
         <scijava.jvm.version>1.8</scijava.jvm.version>
