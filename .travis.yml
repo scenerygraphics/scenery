@@ -21,21 +21,13 @@ before_install:
 install:
   - cd ..
   - git clone git://github.com/ClearVolume/ClearGL.git ClearGL
-  - echo "include 'ClearGL'" >> settings.gradle
-  - echo "include 'scenery'" >> settings.gradle
-  - cd scenery
+  - cd ClearGL
+  - mvn install
+  - cd ../scenery
 
 script: 
-  - gradle build -Plocal=true -x test
-  - gradle unitTest -Plocal=true
+  - mvn clean package
+  - mvn test
 
-before_cache:
-  - rm -f $HOME/.gradle/caches/modules-2/modules-2.lock
-
-cache:
-  directories:
-    - $HOME/.gradle/caches/
-    - $HOME/.gradle/wrapper/
-    
 after_success:
-    - test $TRAVIS_PULL_REQUEST == "false" && test $TRAVIS_BRANCH == "master" && gradle uploadArchives -Plocal=true
+    - test $TRAVIS_PULL_REQUEST == "false" && test $TRAVIS_BRANCH == "master" && mvn deploy --settings settings.xml
