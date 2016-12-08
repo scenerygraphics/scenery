@@ -170,13 +170,15 @@ dependencies
 
 repositories
 {
-	mavenCentral()
+    mavenCentral()
     maven
     { url "https://oss.sonatype.org/content/repositories/snapshots" }
-	maven
-	{ url "http://oss.sonatype.org/content/groups/public" }
+    maven
+    { url "http://oss.sonatype.org/content/groups/public" }
     maven
     { url "http://maven.imagej.net/content/groups/public" }
+    maven
+    { url "http://maven.imagej.net/content/repositories/snapshots" }
     maven
     { url "http://dl.bintray.com/clearcontrol/ClearControl" }
     maven
