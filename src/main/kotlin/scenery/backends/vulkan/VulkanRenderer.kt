@@ -186,8 +186,8 @@ open class VulkanRenderer : Renderer {
     // helper vars
     private val VK_FLAGS_NONE: Int = 0
     private var MAX_TEXTURES = 2048
-    private var MAX_UBOS = 128
-    private var MAX_INPUT_ATTACHMENTS = 2
+    private var MAX_UBOS = 2048
+    private var MAX_INPUT_ATTACHMENTS = 8
     private val UINT64_MAX: Long = -1L
     // end helper vars
 
@@ -576,9 +576,9 @@ open class VulkanRenderer : Renderer {
                 }
             }
 
-            arrayOf("ambient", "diffuse", "specular", "normal", "displacement").forEach {
+            /*arrayOf("ambient", "diffuse", "specular", "normal", "displacement").forEach {
                 s.textures.putIfAbsent(it, textureCache["DefaultTexture"])
-            }
+            }*/
 
             s.texturesToDescriptorSet(device, descriptorSetLayouts["ObjectTextures"]!!,
                 descriptorPool,

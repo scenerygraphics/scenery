@@ -93,7 +93,7 @@ class VU {
             var result = function.invoke(receiver)
 
             if(result != VK_SUCCESS) {
-                LoggerFactory.getLogger("VulkanRenderer").error("Call to $name failed.")
+                LoggerFactory.getLogger("VulkanRenderer").error("Call to $name failed: ${translate(result)}")
                 cleanup.invoke(receiver)
             }
 
@@ -511,7 +511,6 @@ class VU {
         }
 
         fun createBuffer(device: VkDevice, deviceMemoryProperties: VkPhysicalDeviceMemoryProperties, usage: Int, memoryProperties: Int, wantAligned: Boolean = false, allocationSize: Long = 0): VulkanBuffer {
-            val buffer = MemoryUtil.memAllocLong(1)
             val memory = MemoryUtil.memAllocLong(1)
             val memTypeIndex = MemoryUtil.memAllocInt(1)
 
@@ -522,8 +521,9 @@ class VU {
                 .usage(usage)
                 .size(allocationSize)
 
-            vkCreateBuffer(device, bufferInfo, null, buffer)
-            vkGetBufferMemoryRequirements(device, buffer.get(0), reqs)
+            val buffer = VU.run(MemoryUtil.memAllocLong(1), "Creating buffer",
+                { vkCreateBuffer(device, bufferInfo, null, this) })
+            vkGetBufferMemoryRequirements(device, buffer, reqs)
 
             bufferInfo.free()
 
@@ -550,9 +550,9 @@ class VU {
                 .memoryTypeIndex(memTypeIndex.get(0))
 
             vkAllocateMemory(device, allocInfo, null, memory)
-            vkBindBufferMemory(device, buffer.get(0), memory.get(0), 0)
+            vkBindBufferMemory(device, buffer, memory.get(0), 0)
 
-            val vb = VulkanBuffer(device, memory = memory.get(0), buffer = buffer.get(0))
+            val vb = VulkanBuffer(device, memory = memory.get(0), buffer = buffer)
             vb.maxSize = size
             vb.alignment = reqs.alignment()
 
