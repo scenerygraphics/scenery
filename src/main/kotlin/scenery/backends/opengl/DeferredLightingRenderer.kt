@@ -652,6 +652,7 @@ open class DeferredLightingRenderer : Renderer, Hubable, ClearGLDefaultEventList
             hdrPassProgram == null ||
             combinerProgram == null
         ) {
+            logger.info("Waiting for initialization")
             Thread.sleep(200)
             return
         }
@@ -749,7 +750,7 @@ open class DeferredLightingRenderer : Renderer, Hubable, ClearGLDefaultEventList
                     hmd.getPose()
                 }
                 mv.mult(pose)
-                mv.mult(cam.view!!)
+                mv.mult(cam.view)
                 mv.mult(n.world)
 
                 mvp = projection.clone()
@@ -796,7 +797,14 @@ open class DeferredLightingRenderer : Renderer, Hubable, ClearGLDefaultEventList
             mvp = GLMatrix.getIdentity()
             var mo: GLMatrix
 
-            instances.forEach { node -> node.updateWorld(true, false) }
+            instances.forEach { node ->
+                if (!node.metadata.containsKey("DeferredLightingRenderer")) {
+                    node.metadata.put("DeferredLightingRenderer", OpenGLObjectState())
+                    initializeNode(node)
+                }
+
+                node.updateWorld(true, false)
+            }
 
             eyes.forEach {
                 eye ->
@@ -831,7 +839,7 @@ open class DeferredLightingRenderer : Renderer, Hubable, ClearGLDefaultEventList
                         hmd.getPose()
                     }
                     mv.mult(pose)
-                    mv.mult(cam.view!!)
+                    mv.mult(cam.view)
                     mv.mult(node.world)
 
                     mvp = projection.clone()
@@ -882,8 +890,8 @@ open class DeferredLightingRenderer : Renderer, Hubable, ClearGLDefaultEventList
             lightingPassProgram!!.bind()
 
             lightingPassProgram!!.getUniform("numLights").setInt(lights.size)
-            lightingPassProgram!!.getUniform("ProjectionMatrix").setFloatMatrix(cam.projection!!.clone(), false)
-            lightingPassProgram!!.getUniform("InverseProjectionMatrix").setFloatMatrix(cam.projection!!.clone().invert(), false)
+            lightingPassProgram!!.getUniform("ProjectionMatrix").setFloatMatrix(cam.projection.clone(), false)
+            lightingPassProgram!!.getUniform("InverseProjectionMatrix").setFloatMatrix(cam.projection.clone().invert(), false)
 
             for (light in 0..lights.size - 1) {
                 lightingPassProgram!!.getUniform("lights[$light].Position").setFloatVector(lights[light].position)
