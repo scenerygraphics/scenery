@@ -13,6 +13,7 @@ import java.nio.Buffer
 import java.nio.ByteBuffer
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
+import java.nio.charset.StandardCharsets
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -81,11 +82,10 @@ class OpenCLContext(override var hub: Hub?, val devicePreference: String = Syste
         return String(buffer, 0, buffer.size-1);
     }
 
-
-    fun loadKernel(source: File, name: String): OpenCLContext {
+    fun loadKernel(source: String, name: String): OpenCLContext {
         if(!kernels.containsKey(name)) {
             // Create the program from the source code
-            val program = clCreateProgramWithSource(context, 1, arrayOf(source.readLines().joinToString("\n")), null, null);
+            val program = clCreateProgramWithSource(context, 1, arrayOf(source), null, null);
 
             // Build the program
             clBuildProgram(program, 0, null, null, null, null);
@@ -98,8 +98,13 @@ class OpenCLContext(override var hub: Hub?, val devicePreference: String = Syste
         return this
     }
 
+    fun loadKernel(source: File, name: String): OpenCLContext {
+        return loadKernel(source.readLines(charset = Charsets.UTF_8).joinToString("\n"), name)
+
+    }
+
     fun loadKernel(source: URL, name: String): OpenCLContext {
-        return loadKernel(File(source.file), name)
+        return loadKernel(String(source.readBytes(), StandardCharsets.UTF_8), name)
     }
 
     protected fun getSizeof(obj: Any): Long {
