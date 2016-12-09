@@ -22,14 +22,7 @@ scenery is a scenegraphing and rendering library. It allows you to quickly creat
 git clone https://github.com/ClearVolume/ClearGL.git
 ```
 
-- In the `my_scenery_base` directory, create a file named `settings.gradle`, with this content:
-
-```groovy
-include "ClearGL"
-include "scenery"
-```
- 
-- Run `gradle install -Plocal=true` from both the `my_scenery_base/scenery` directory and the `my_scenery_base/ClearGL` directory. This will install the JARs into your local Maven repository, both with version `1.0-SNAPSHOT`.
+- in both the `ClearGL` and the `scenery` directory, run `mvn clean install` to build and install both packages into your local Maven repository
 
 ## Using _scenery_
 
@@ -41,7 +34,7 @@ Add these dependencies to your project's `pom.xml`:
 ```xml
 <dependencies>
   <dependency>
-    <groupId>net.clearvolume</groupId>
+    <groupId>graphics.scenery</groupId>
     <artifactId>scenery</artifactId>
     <version>1.0.0-SNAPSHOT</version>
   </dependency>
