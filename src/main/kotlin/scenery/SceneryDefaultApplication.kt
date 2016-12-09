@@ -6,7 +6,7 @@ import cleargl.ClearGLWindow
 import com.jogamp.opengl.GLAutoDrawable
 import scenery.backends.Renderer
 import scenery.backends.SceneryWindow
-import scenery.backends.opengl.DeferredLightingRenderer
+import scenery.backends.opengl.OpenGLRenderer
 import scenery.controls.InputHandler
 import scenery.repl.REPL
 
@@ -33,7 +33,7 @@ open class SceneryDefaultApplication(var applicationName: String,
     protected var repl: REPL? = null
     /** Frame number for counting FPS */
     protected var frameNum = 0
-    /** The Deferred Lighting Renderer for the application, see [DeferredLightingRenderer] */
+    /** The Deferred Lighting Renderer for the application, see [OpenGLRenderer] */
     protected var renderer: Renderer? = null
     /** The Hub used by the application, see [Hub] */
     var hub: Hub = Hub()
@@ -42,7 +42,7 @@ open class SceneryDefaultApplication(var applicationName: String,
 
     /**
      * the init function of [SceneryDefaultApplication], override this in your subclass,
-     * e.g. for [Scene] constrution and [DeferredLightingRenderer] initialisation.
+     * e.g. for [Scene] constrution and [OpenGLRenderer] initialisation.
      *
      * @param[pDrawable] a [org.jogamp.jogl.GLAutoDrawable] handed over by [ClearGLDefaultEventListener]
      */

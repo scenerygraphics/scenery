@@ -7,7 +7,7 @@ import com.jogamp.newt.awt.NewtCanvasAWT
 import com.jogamp.newt.event.WindowEvent
 import com.jogamp.opengl.GLAutoDrawable
 import scenery.backends.Renderer
-import scenery.backends.opengl.DeferredLightingRenderer
+import scenery.backends.opengl.OpenGLRenderer
 import scenery.controls.InputHandler
 import scenery.repl.REPL
 import java.awt.BorderLayout
@@ -42,7 +42,7 @@ open class SceneryDefaultJPanelApplication(var applicationName: String,
     /** The Hub used by the application, see [Hub] */
     var hub: Hub = Hub()
     /** ClearGL window used by the application, needs to be passed as a parameter to
-     * the constructor of [DeferredLightingRenderer].
+     * the constructor of [OpenGLRenderer].
      */
     protected var glWindow: ClearGLDisplayable? = null
     /** ui-behaviour input handler */
@@ -52,7 +52,7 @@ open class SceneryDefaultJPanelApplication(var applicationName: String,
 
     /**
      * the init function of [SceneryDefaultApplication], override this in your subclass,
-     * e.g. for [Scene] constrution and [DeferredLightingRenderer] initialisation.
+     * e.g. for [Scene] constrution and [OpenGLRenderer] initialisation.
      *
      * @param[pDrawable] a [org.jogamp.jogl.GLAutoDrawable] handed over by [ClearGLDefaultEventListener]
      */

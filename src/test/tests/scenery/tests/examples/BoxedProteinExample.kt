@@ -2,12 +2,9 @@ package scenery.tests.examples
 
 import cleargl.GLMatrix
 import cleargl.GLVector
-import com.jogamp.opengl.GLAutoDrawable
-import com.jogamp.opengl.GLException
 import org.junit.Test
 import scenery.*
 import scenery.backends.Renderer
-import scenery.backends.opengl.DeferredLightingRenderer
 import scenery.repl.REPL
 import java.io.IOException
 import kotlin.concurrent.thread
@@ -137,8 +134,6 @@ class BoxedProteinExample : SceneryDefaultApplication("BoxedProteinExample", win
             repl = REPL(scene, renderer!!)
             repl?.start()
             repl?.showConsoleWindow()
-        } catch (e: GLException) {
-            e.printStackTrace()
         } catch (e: IOException) {
             e.printStackTrace()
         }

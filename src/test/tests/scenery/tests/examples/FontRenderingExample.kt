@@ -2,11 +2,9 @@ package scenery.tests.examples
 
 import cleargl.GLMatrix
 import cleargl.GLVector
-import com.jogamp.opengl.GLAutoDrawable
 import org.junit.Test
 import scenery.*
 import scenery.backends.Renderer
-import scenery.backends.opengl.DeferredLightingRenderer
 import scenery.repl.REPL
 
 /**

@@ -1,8 +1,6 @@
 package scenery.tests.examples
 
 import cleargl.GLVector
-import com.jogamp.opengl.GLAutoDrawable
-import com.jogamp.opengl.GLException
 import org.junit.Test
 import org.scijava.ui.behaviour.ClickBehaviour
 import scenery.*
@@ -11,7 +9,6 @@ import scenery.controls.InputHandler
 import scenery.controls.OpenVRInput
 import scenery.controls.behaviours.ArcballCameraControl
 import scenery.controls.behaviours.FPSCameraControl
-import scenery.backends.opengl.DeferredLightingRenderer
 import scenery.repl.REPL
 import java.io.IOException
 import kotlin.concurrent.thread
@@ -184,8 +181,6 @@ class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 1
             repl?.start()
             repl?.showConsoleWindow()
 
-        } catch (e: GLException) {
-            e.printStackTrace()
         } catch (e: IOException) {
             e.printStackTrace()
         }

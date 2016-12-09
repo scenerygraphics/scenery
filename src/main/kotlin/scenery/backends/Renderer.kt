@@ -3,7 +3,7 @@ package scenery.backends
 import scenery.Hubable
 import scenery.Scene
 import scenery.Settings
-import scenery.backends.opengl.DeferredLightingRenderer
+import scenery.backends.opengl.OpenGLRenderer
 import scenery.backends.vulkan.VulkanRenderer
 
 /**
@@ -40,12 +40,12 @@ interface Renderer : Hubable {
 
     companion object {
         fun createRenderer(applicationName: String, scene: Scene, windowWidth: Int, windowHeight: Int): Renderer {
-            val preference = System.getProperty("scenery.Renderer", "DeferredLightingRenderer")
+            val preference = System.getProperty("scenery.Renderer", "OpenGLRenderer")
 
             return if(preference == "VulkanRenderer") {
                 VulkanRenderer(applicationName, scene, windowWidth, windowHeight)
             } else {
-                DeferredLightingRenderer(applicationName, scene, windowWidth, windowHeight)
+                OpenGLRenderer(applicationName, scene, windowWidth, windowHeight)
             }
         }
     }

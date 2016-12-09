@@ -10,11 +10,11 @@ import java.util.concurrent.ConcurrentHashMap
  * OpenGLObjectState stores the OpenGL metadata that is needed for rendering a node
  *
  * @author Ulrik Günther <hello@ulrik.is>
- * @constructor Creates an empty OpenGLObjectState, with [DeferredLightingRenderer] as
+ * @constructor Creates an empty OpenGLObjectState, with [OpenGLRenderer] as
  *  default consumers.
  */
 class OpenGLObjectState : NodeMetadata {
-    /** List of consumers of this metadata, e.g. [DeferredLightingRenderer] */
+    /** List of consumers of this metadata, e.g. [OpenGLRenderer] */
     override val consumers: MutableList<String> = ArrayList<String>()
 
     /** GLSL program for the Node */
@@ -42,10 +42,10 @@ class OpenGLObjectState : NodeMetadata {
     var mStoredPrimitiveCount = 0
 
     /**
-     * Default constructor, adding the [DeferredLightingRenderer]
+     * Default constructor, adding the [OpenGLRenderer]
      * to the list of consumers.
      */
     constructor() {
-        consumers.add("DeferredLightingRenderer")
+        consumers.add("OpenGLRenderer")
     }
 }

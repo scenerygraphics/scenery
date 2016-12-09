@@ -34,14 +34,14 @@ import kotlin.concurrent.thread
  * @property[width] Initial window width, will be used for framebuffer construction
  * @property[height] Initial window height, will be used for framebuffer construction
  *
- * @constructor Initializes the [DeferredLightingRenderer] with the given window dimensions and GL context
+ * @constructor Initializes the [OpenGLRenderer] with the given window dimensions and GL context
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
 
-open class DeferredLightingRenderer : Renderer, Hubable, ClearGLDefaultEventListener {
+open class OpenGLRenderer : Renderer, Hubable, ClearGLDefaultEventListener {
     /** slf4j logger */
-    protected var logger: Logger = LoggerFactory.getLogger("DeferredLightingRenderer")
+    protected var logger: Logger = LoggerFactory.getLogger("OpenGLRenderer")
     /** [GL4] instance handed over, coming from [ClearGLDefaultEventListener]*/
     protected var gl: GL4
     /** should the window close on next looping? */
@@ -111,7 +111,7 @@ open class DeferredLightingRenderer : Renderer, Hubable, ClearGLDefaultEventList
     var applicationName = ""
 
     /**
-     * Constructor for DeferredLightingRenderer, initialises geometry buffers
+     * Constructor for OpenGLRenderer, initialises geometry buffers
      * according to eye configuration. Also initialises different rendering passes.
      *
      * @param[gl] GL4 context handle
@@ -147,7 +147,7 @@ open class DeferredLightingRenderer : Renderer, Hubable, ClearGLDefaultEventList
 
         gl.swapInterval = 0
 
-        logger.info("DeferredLightingRenderer: $width x $height on ${gl.glGetString(GL.GL_RENDERER)}, ${gl.glGetString(GL.GL_VERSION)}")
+        logger.info("OpenGLRenderer: $width x $height on ${gl.glGetString(GL.GL_RENDERER)}, ${gl.glGetString(GL.GL_VERSION)}")
 
         val numExtensionsBuffer = IntBuffer.allocate(1)
         gl.glGetIntegerv(GL4.GL_NUM_EXTENSIONS, numExtensionsBuffer)
@@ -199,13 +199,13 @@ open class DeferredLightingRenderer : Renderer, Hubable, ClearGLDefaultEventList
 
         logger.info(geometryBuffer.map { it.toString() }.joinToString("\n"))
 
-        lightingPassProgram = GLProgram.buildProgram(gl, DeferredLightingRenderer::class.java,
+        lightingPassProgram = GLProgram.buildProgram(gl, OpenGLRenderer::class.java,
             arrayOf("shaders/FullscreenQuad.vert", "shaders/DeferredLighting.frag"))
 
-        hdrPassProgram = GLProgram.buildProgram(gl, DeferredLightingRenderer::class.java,
+        hdrPassProgram = GLProgram.buildProgram(gl, OpenGLRenderer::class.java,
             arrayOf("shaders/FullscreenQuad.vert", "shaders/HDR.frag"))
 
-        combinerProgram = GLProgram.buildProgram(gl, DeferredLightingRenderer::class.java,
+        combinerProgram = GLProgram.buildProgram(gl, OpenGLRenderer::class.java,
             arrayOf("shaders/FullscreenQuad.vert", "shaders/Combiner.frag"))
 
         gl.glViewport(0, 0, this.window.width, this.window.height)
@@ -221,9 +221,9 @@ open class DeferredLightingRenderer : Renderer, Hubable, ClearGLDefaultEventList
     override fun display(pDrawable: GLAutoDrawable) {
         super.display(pDrawable)
 
-        clearGLWindow.windowTitle = "scenery: %s - %.1f fps".format(applicationName, pDrawable.animator?.lastFPS)
+        clearGLWindow.windowTitle = "$applicationName [${this.javaClass.simpleName}] - ${pDrawable.animator?.lastFPS} fps"
 
-        this@DeferredLightingRenderer.render()
+        this@OpenGLRenderer.render()
     }
 
     override fun setClearGLWindow(pClearGLWindow: ClearGLWindow) {
@@ -244,7 +244,7 @@ open class DeferredLightingRenderer : Renderer, Hubable, ClearGLDefaultEventList
         if (height == 0)
             height = 1
 
-        this@DeferredLightingRenderer.reshape(pWidth, height)
+        this@OpenGLRenderer.reshape(pWidth, height)
     }
 
     override fun dispose(pDrawable: GLAutoDrawable) {
@@ -255,7 +255,7 @@ open class DeferredLightingRenderer : Renderer, Hubable, ClearGLDefaultEventList
     }
 
     /**
-     * Returns the default [Settings] for [DeferredLightingRenderer]
+     * Returns the default [Settings] for [OpenGLRenderer]
      *
      * Providing some sane defaults that may of course be overridden after
      * construction of the renderer.
@@ -434,11 +434,11 @@ open class DeferredLightingRenderer : Renderer, Hubable, ClearGLDefaultEventList
      * @return The [OpenGLObjectState] of the [Node]
      */
     fun getOpenGLObjectStateFromNode(node: Node): OpenGLObjectState {
-        return node.metadata["DeferredLightingRenderer"] as OpenGLObjectState
+        return node.metadata["OpenGLRenderer"] as OpenGLObjectState
     }
 
     /**
-     * Initializes the [Scene] with the [DeferredLightingRenderer], to be called
+     * Initializes the [Scene] with the [OpenGLRenderer], to be called
      * before [render].
      *
      * @param[scene] The [Scene] one intends to render.
@@ -446,7 +446,7 @@ open class DeferredLightingRenderer : Renderer, Hubable, ClearGLDefaultEventList
     override fun initializeScene() {
         scene.discover(scene, { it is HasGeometry })
             .forEach { it ->
-                it.metadata.put("DeferredLightingRenderer", OpenGLObjectState())
+                it.metadata.put("OpenGLRenderer", OpenGLObjectState())
                 initializeNode(it)
             }
 
@@ -527,8 +527,8 @@ open class DeferredLightingRenderer : Renderer, Hubable, ClearGLDefaultEventList
         board.indices = m.indices
         board.texcoords = m.texcoords
 
-        board.metadata.remove("DeferredLightingRenderer")
-        board.metadata.put("DeferredLightingRenderer", OpenGLObjectState())
+        board.metadata.remove("OpenGLRenderer")
+        board.metadata.put("OpenGLRenderer", OpenGLObjectState())
         initializeNode(board)
 
         val s = getOpenGLObjectStateFromNode(board)
@@ -712,8 +712,8 @@ open class DeferredLightingRenderer : Renderer, Hubable, ClearGLDefaultEventList
                 return@nonInstancedDrawing
             }
 
-            if (!n.metadata.containsKey("DeferredLightingRenderer")) {
-                n.metadata.put("DeferredLightingRenderer", OpenGLObjectState())
+            if (!n.metadata.containsKey("OpenGLRenderer")) {
+                n.metadata.put("OpenGLRenderer", OpenGLObjectState())
                 initializeNode(n)
             }
 
@@ -777,8 +777,8 @@ open class DeferredLightingRenderer : Renderer, Hubable, ClearGLDefaultEventList
         instanceGroups.keys.filterNotNull().forEach instancedDrawing@ { n ->
             var start = System.nanoTime()
 
-            if (!n.metadata.containsKey("DeferredLightingRenderer")) {
-                n.metadata.put("DeferredLightingRenderer", OpenGLObjectState())
+            if (!n.metadata.containsKey("OpenGLRenderer")) {
+                n.metadata.put("OpenGLRenderer", OpenGLObjectState())
                 initializeNode(n)
             }
 
@@ -798,8 +798,8 @@ open class DeferredLightingRenderer : Renderer, Hubable, ClearGLDefaultEventList
             var mo: GLMatrix
 
             instances.forEach { node ->
-                if (!node.metadata.containsKey("DeferredLightingRenderer")) {
-                    node.metadata.put("DeferredLightingRenderer", OpenGLObjectState())
+                if (!node.metadata.containsKey("OpenGLRenderer")) {
+                    node.metadata.put("OpenGLRenderer", OpenGLObjectState())
                     initializeNode(node)
                 }
 
@@ -1038,7 +1038,7 @@ open class DeferredLightingRenderer : Renderer, Hubable, ClearGLDefaultEventList
             material.program = program
 
             quad.material = material
-            quad.metadata.put("DeferredLightingRenderer", OpenGLObjectState())
+            quad.metadata.put("OpenGLRenderer", OpenGLObjectState())
             initializeNode(quad)
 
             nodeStore.put(quadName, quad)
@@ -1072,10 +1072,10 @@ open class DeferredLightingRenderer : Renderer, Hubable, ClearGLDefaultEventList
         val s: OpenGLObjectState
 
         if (node.instanceOf == null) {
-            s = node.metadata["DeferredLightingRenderer"] as OpenGLObjectState
+            s = node.metadata["OpenGLRenderer"] as OpenGLObjectState
         } else {
-            s = node.instanceOf!!.metadata["DeferredLightingRenderer"] as OpenGLObjectState
-            node.metadata["DeferredLightingRenderer"] = s
+            s = node.instanceOf!!.metadata["OpenGLRenderer"] as OpenGLObjectState
+            node.metadata["OpenGLRenderer"] = s
 
             if (!s.initialized) {
                 logger.trace("Instance not yet initialized, doing now...")
@@ -1109,10 +1109,10 @@ open class DeferredLightingRenderer : Renderer, Hubable, ClearGLDefaultEventList
                 val shaders = arrayOf(".vert", ".geom", ".tese", ".tesc", ".frag", ".comp")
                     .map { "shaders/$className$it" }
                     .filter {
-                        DeferredLightingRenderer::class.java.getResource(it) != null
+                        OpenGLRenderer::class.java.getResource(it) != null
                     }
 
-                s.program = GLProgram.buildProgram(gl, DeferredLightingRenderer::class.java,
+                s.program = GLProgram.buildProgram(gl, OpenGLRenderer::class.java,
                     shaders.toTypedArray())
             } else if (node.metadata.filter { it.value is OpenGLShaderPreference }.isNotEmpty()) {
                 val prefs = node.metadata["ShaderPreference"] as OpenGLShaderPreference
@@ -1131,7 +1131,7 @@ open class DeferredLightingRenderer : Renderer, Hubable, ClearGLDefaultEventList
 
                 }
             } else {
-                s.program = GLProgram.buildProgram(gl, DeferredLightingRenderer::class.java,
+                s.program = GLProgram.buildProgram(gl, OpenGLRenderer::class.java,
                     arrayOf("shaders/DefaultDeferred.vert", "shaders/DefaultDeferred.frag"))
             }
         } else {
