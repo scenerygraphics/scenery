@@ -822,7 +822,7 @@ open class VulkanRenderer : Renderer {
 
             with(pass.value) {
                 initializeInputAttachmentDescriptorSetLayouts()
-                initializeShaderParameterDescriptorSetLayouts()
+                initializeShaderParameterDescriptorSetLayouts(settings)
 
                 initializeDefaultPipeline()
             }
@@ -959,6 +959,7 @@ open class VulkanRenderer : Renderer {
         flow.take(flow.size - 1).forEachIndexed { i, t ->
             logger.trace("Running pass $t")
             val target = renderpasses[t]!!
+            target.updateShaderParameters()
 
             if (target.commandBuffer!!.submitted) {
                 target.commandBuffer!!.waitForFence()
@@ -988,6 +989,7 @@ open class VulkanRenderer : Renderer {
         }
 
         val viewportPass = renderpasses.values.last()
+        viewportPass.updateShaderParameters()
 
         if (viewportPass.commandBuffer!!.submitted == true) {
             viewportPass.commandBuffer!!.waitForFence()

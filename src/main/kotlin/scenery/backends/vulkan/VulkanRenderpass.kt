@@ -7,6 +7,7 @@ import org.lwjgl.vulkan.VK10.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import scenery.GeometryType
+import scenery.Settings
 import scenery.backends.RenderConfigReader
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
@@ -120,7 +121,7 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
         }
     }
 
-    fun initializeShaderParameterDescriptorSetLayouts() {
+    fun initializeShaderParameterDescriptorSetLayouts(settings: Settings) {
         // renderpasses might have parameters set up in their YAML config. These get translated to
         // descriptor layouts, UBOs and descriptor sets
         passConfig.parameters?.let { params ->
@@ -139,7 +140,9 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
                     entry.value
                 }
 
-                ubo.members.put(entry.key, { value })
+                val settingsKey = "VulkanRenderer.$name.${entry.key}"
+                settings.set(settingsKey, value)
+                ubo.members.put(entry.key, { settings.get(settingsKey) })
             }
 
             logger.debug("Members are: ${ubo.members.values.joinToString(", ")}")
@@ -162,6 +165,14 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
 
             logger.info("Created DSL $dsl for $name, UBO has ${params.count()} members")
             descriptorSetLayouts.putIfAbsent("ShaderParameters-${name}", dsl)
+        }
+    }
+
+    fun updateShaderParameters() {
+        UBOs.forEach { uboName, ubo ->
+            if(uboName.startsWith("ShaderParameters-")) {
+                ubo.populate()
+            }
         }
     }
 
