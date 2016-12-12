@@ -65,7 +65,6 @@ class VulkanObjectState : NodeMetadata {
             val dd = VkDescriptorImageInfo.calloc(1)
                 dd.put(0, d[i])
 
-//            logger.info("Will put $type into ${toVulkanSlot(type)}, $texture")
             wd[i]
                 .sType(VK10.VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET)
                 .pNext(NULL)

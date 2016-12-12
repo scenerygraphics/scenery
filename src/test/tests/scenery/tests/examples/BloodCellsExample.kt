@@ -125,6 +125,9 @@ class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowW
                         val v = Mesh()
                         v.name = "leucocyte_$it"
                         v.instanceOf = leucocyte
+                        v.instancedProperties.put("ModelViewMatrix", { v.modelView })
+                        v.instancedProperties.put("ModelMatrix", { v.model })
+                        v.instancedProperties.put("MVP", { v.mvp })
                         v
                     }
                     .map {
@@ -153,6 +156,9 @@ class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowW
                         val v = Mesh()
                         v.name = "erythrocyte_$it"
                         v.instanceOf = erythrocyte
+                        v.instancedProperties.put("ModelViewMatrix", { v.modelView })
+                        v.instancedProperties.put("ModelMatrix", { v.model })
+                        v.instancedProperties.put("MVP", { v.mvp })
 
                         v
                     }

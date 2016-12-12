@@ -12,6 +12,7 @@ import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import scenery.Node
 
 open class UBO(val device: VkDevice, val backingBuffer: VulkanBuffer? = null) {
     var name = ""
@@ -212,6 +213,10 @@ open class UBO(val device: VkDevice, val backingBuffer: VulkanBuffer? = null) {
 
         currentPointer = dest
         return dest
+    }
+
+    fun fromInstance(node: Node) {
+        members.putAll(node.instancedProperties)
     }
 
     fun createUniformBuffer(deviceMemoryProperties: VkPhysicalDeviceMemoryProperties): UBO.UBODescriptor {

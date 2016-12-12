@@ -169,7 +169,7 @@ open class VulkanRenderer : Renderer {
                 type + " (debug)"
             }
 
-            logger.info("Validation $type: " + VkDebugReportCallbackEXT.getString(pMessage))
+            logger.info("!! Validation $type: " + VkDebugReportCallbackEXT.getString(pMessage))
 
             // returning VK_TRUE would lead to the abortion of the offending Vulkan call
             return if (System.getProperty("scenery.VulkanRenderer.StrictValidation", "false").toBoolean()) {
@@ -487,6 +487,24 @@ open class VulkanRenderer : Renderer {
 
         logger.debug("Initializing ${node.name} (${(node as HasGeometry).vertices.remaining() / node.vertexSize} vertices/${node.indices.remaining()} indices)")
 
+        if(node.instanceOf != null) {
+            val parentMetadata = node.instanceOf!!.metadata["VulkanRenderer"] as VulkanObjectState
+
+            if(!parentMetadata.initialized) {
+                logger.info("Instance parent ${node.instanceOf!!} is not initialized yet, initializing now...")
+                initializeNode(node.instanceOf!!)
+
+            }
+
+            if(!parentMetadata.vertexBuffers.containsKey("instance")) {
+                createInstanceBuffer(device, node.instanceOf!!, parentMetadata)
+            }
+
+//            node.instanceOf!!.metadata["VulkanRenderer"] = s
+
+            return true
+        }
+
         if (node.vertices.remaining() > 0) {
             s = createVertexBuffers(device, node, s)
         }
@@ -547,6 +565,7 @@ open class VulkanRenderer : Renderer {
             }
         }
 
+        s.initialized = true
         node.metadata["VulkanRenderer"] = s
 
         return true
@@ -1413,7 +1432,6 @@ open class VulkanRenderer : Renderer {
 
         val images = LongArray(imageCount)
         val imageViews = LongArray(imageCount)
-        val pBufferView = memAllocLong(1)
         val colorAttachmentView = VkImageViewCreateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO)
             .pNext(NULL)
@@ -1441,14 +1459,12 @@ open class VulkanRenderer : Renderer {
 //                VK_IMAGE_LAYOUT_UNDEFINED, 0,
 //                VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
             colorAttachmentView.image(images[i])
-            err = vkCreateImageView(device, colorAttachmentView, null, pBufferView)
-            imageViews[i] = pBufferView.get(0)
-            if (err != VK_SUCCESS) {
-                throw AssertionError("Failed to create image view: " + VU.translate(err))
-            }
+
+            imageViews[i] = VU.run(memAllocLong(1), "create image view",
+                { vkCreateImageView(device, colorAttachmentView, null, this) })
         }
+
         colorAttachmentView.free()
-        memFree(pBufferView)
         memFree(pSwapchainImages)
 
         val ret = Swapchain()
@@ -1456,20 +1472,6 @@ open class VulkanRenderer : Renderer {
         ret.imageViews = imageViews
         ret.handle = swapChain
         return ret
-    }
-
-    private fun getMemoryType(deviceMemoryProperties: VkPhysicalDeviceMemoryProperties, typeBits: Int, properties: Int, typeIndex: IntBuffer): Boolean {
-        var bits = typeBits
-        for (i in 0..31) {
-            if (bits and 1 == 1) {
-                if (deviceMemoryProperties.memoryTypes(i).propertyFlags() and properties === properties) {
-                    typeIndex.put(0, i)
-                    return true
-                }
-            }
-            bits = bits shr 1
-        }
-        return false
     }
 
     private fun createVertexBuffers(device: VkDevice, node: Node, state: VulkanObjectState): VulkanObjectState {
@@ -1550,6 +1552,74 @@ open class VulkanRenderer : Renderer {
         state.vertexBuffers.put("vertex+index", vertexBuffer)
         state.indexOffset = vertexAllocationBytes
         state.indexCount = n.indices.remaining()
+
+        vkDestroyBuffer(device, stagingBuffer.buffer, null)
+        vkFreeMemory(device, stagingBuffer.memory, null)
+
+        return state
+    }
+
+    private fun createInstanceBuffer(device: VkDevice, parentNode: Node, state: VulkanObjectState): VulkanObjectState {
+        val instances = ArrayList<Node>()
+
+        scene.discover(scene, { n -> n.instanceOf == parentNode }).forEach {
+            instances.add(it)
+        }
+
+        if(instances.size < 1) {
+            logger.info("$parentNode has no child instances attached, returning.")
+            return state
+        }
+
+        // first we create a fake UBO to gauge the size of the needed properties
+        val ubo = UBO(device)
+        ubo.fromInstance(instances.first())
+
+        val instanceBufferSize = ubo.getSize() * instances.size
+        val instanceStagingBuffer = memAlloc(instanceBufferSize)
+
+        logger.info("$parentNode has ${instances.size} child instances with ${ubo.getSize()} bytes each.")
+        logger.info("Creating staging buffer...")
+
+        val stagingBuffer = VU.createBuffer(device,
+            this.memoryProperties,
+            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+            wantAligned = false,
+            allocationSize = instanceBufferSize * 1L)
+
+        instances.forEach { instance ->
+            val instanceUbo = UBO(device, backingBuffer = stagingBuffer)
+            instanceUbo.createUniformBuffer(memoryProperties)
+
+            instanceUbo.populate()
+        }
+
+        stagingBuffer.copy(instanceStagingBuffer)
+
+        logger.info("Creating instance buffer...")
+        // the actual instance buffer is kept device-local for performance reasons
+        val instanceBuffer = VU.createBuffer(device,
+            this.memoryProperties,
+            VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+            wantAligned = false,
+            allocationSize = instanceBufferSize * 1L)
+
+        logger.info("Copying staging -> instance buffer")
+        with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
+            val copyRegion = VkBufferCopy.calloc(1)
+                .size(instanceBufferSize * 1L)
+
+            vkCmdCopyBuffer(this,
+                stagingBuffer.buffer,
+                instanceBuffer.buffer,
+                copyRegion)
+
+            this.endCommandBuffer(device, commandPools.Standard, queue, flush = true, dealloc = true)
+        }
+
+        state.vertexBuffers.put("instance", instanceBuffer)
 
         vkDestroyBuffer(device, stagingBuffer.buffer, null)
         vkFreeMemory(device, stagingBuffer.memory, null)
@@ -1751,6 +1821,59 @@ open class VulkanRenderer : Renderer {
                     }
                 }
 
+                // TODO: implement instanced rendering
+                instanceGroups.keys.filterNotNull().forEach instancedDrawing@ { node ->
+                    val s = node.metadata["VulkanRenderer"]!! as VulkanObjectState
+
+                    // this only lets non-instanced, parent nodes through
+                    if (node in instanceGroups.keys || s.vertexCount == 0) {
+                        return@instancedDrawing
+                    }
+
+                    val vb = memAllocLong(1)
+                    vb.put(0, s.vertexBuffers["vertex+index"]!!.buffer)
+
+                    val instanceBuffer = memAllocLong(1)
+                    instanceBuffer.put(0, s.vertexBuffers["instance"]!!.buffer)
+
+                    val ds = memAllocLong(1 + if (s.textures.size > 0) {
+                        1
+                    } else {
+                        0
+                    })
+                    ds.put(0, descriptorSets["default"]!!)
+
+                    if (s.textures.size > 0) {
+                        ds.put(1, s.textureDescriptorSet)
+                    }
+//                var dspos = 1
+//                logger.info("${n.name} has ${s.textures.count()} textures")
+//                s.textures.forEach { type, texture ->
+//                    logger.info("Adding ds for $type $texture of ${n.name}, ${texture.image!!.descriptorSet}")
+//                    ds.put(dspos, texture.image!!.descriptorSet)
+//                    dspos ++
+//                }
+
+                    val bufferOffsets = memAllocLong(1)
+                    bufferOffsets.put(0, 0)
+
+                    val pipeline = pass.pipelines["default"]!!.getPipelineForGeometryType((node as HasGeometry).geometryType)
+
+                    vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline)
+                    vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                        pipeline.layout, 0, ds, sceneUBOs[node]!!.offsets)
+                    vkCmdBindVertexBuffers(this, 0, vb, bufferOffsets)
+                    vkCmdBindVertexBuffers(this, 1, instanceBuffer, bufferOffsets)
+
+                    logger.trace("now drawing ${node.name}, ${ds.capacity()} DS bound, ${s.textures.count()} textures")
+                    if (s.isIndexed) {
+                        vkCmdBindIndexBuffer(this, vb.get(0), s.indexOffset * 1L, VK_INDEX_TYPE_UINT32)
+                        vkCmdDrawIndexed(this, s.indexCount, 1, 0, 0, 0)
+                    } else {
+                        vkCmdDraw(this, s.vertexCount, 1, 0, 0)
+                    }
+                }
+
                 vkCmdEndRenderPass(this)
                 this.endCommandBuffer()
 
@@ -1870,7 +1993,7 @@ open class VulkanRenderer : Renderer {
         sceneUBOs.forEach { node, ubo ->
             node.updateWorld(true, false)
 
-            ubo.offsets = memAllocInt(3)
+            ubo.offsets = memAllocInt(2)
 
             var bufferOffset = buffers["UBOBuffer"]!!.advance(ubo.getSize())
             ubo.offsets!!.put(0, bufferOffset)
@@ -1897,19 +2020,29 @@ open class VulkanRenderer : Renderer {
 
         buffers["LightParametersBuffer"]!!.reset()
 
-        val memoryTarget = buffers["LightParametersBuffer"]!!.getPointerBuffer(4 * 4 * 4)
-        memoryTarget.putInt(1)
-        memoryTarget.putInt(0)
-        memoryTarget.putInt(0)
-        memoryTarget.putInt(0)
+        val lights = scene.discover(scene, { n -> n is PointLight })
+        var bufferOffset = buffers["LightParametersBuffer"]!!.advance(0)
 
-        memoryTarget.putFloat(1.5f)
-        memoryTarget.putFloat(1.25f)
-        memoryTarget.putFloat(100.0f)
-        memoryTarget.putFloat(0.0f)
+        buffers["LightParametersBuffer"]!!.stagingBuffer.asIntBuffer().put(0, lights.size)
+        buffers["LightParametersBuffer"]!!.stagingBuffer.position(4)
 
-        GLVector(5.0f, 25.0f, 5.0f, 0.0f).put(memoryTarget)
-        GLVector(1.0f, .0f, .0f, 0.0f).put(memoryTarget)
+        lights.forEach { light->
+            val l = light as PointLight
+            val lightUbo = UBO(device, backingBuffer = buffers["LightParametersBuffer"]!!)
+
+            lightUbo.members.put("Linear", { l.linear})
+            lightUbo.members.put("Quadratic", { l.quadratic })
+            lightUbo.members.put("Intensity", { l.intensity })
+            lightUbo.members.put("Position", { l.position })
+            lightUbo.members.put("Color", { l.emissionColor })
+
+            lightUbo.createUniformBuffer(memoryProperties)
+
+            lightUbo.populate(offset = bufferOffset.toLong())
+            bufferOffset = buffers["LightParametersBuffer"]!!.advance(lightUbo.getSize())
+        }
+
+        buffers["LightParametersBuffer"]!!.copyFromStagingBuffer()
     }
 
     override fun close() {

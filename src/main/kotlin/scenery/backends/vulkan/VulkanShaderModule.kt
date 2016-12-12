@@ -53,6 +53,13 @@ class VulkanShaderModule(device: VkDevice, entryPoint: String, shaderCodePath: S
                 binding = 0))
         }
 
+        val inputs = compiler.getShaderResources().stageInputs
+        if(inputs.size() > 0) {
+            for (i in 0..inputs.size()-1) {
+                logger.info("$shaderCodePath: ${inputs.get(i.toInt()).name}")
+            }
+        }
+
         val moduleCreateInfo = VkShaderModuleCreateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO)
             .pNext(NULL)
