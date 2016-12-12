@@ -185,9 +185,9 @@ open class VulkanRenderer : Renderer {
 
     // helper vars
     private val VK_FLAGS_NONE: Int = 0
-    private var MAX_TEXTURES = 2048
+    private var MAX_TEXTURES = 2048*16
     private var MAX_UBOS = 2048
-    private var MAX_INPUT_ATTACHMENTS = 8
+    private var MAX_INPUT_ATTACHMENTS = 32
     private val UINT64_MAX: Long = -1L
     // end helper vars
 
