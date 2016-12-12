@@ -20,7 +20,7 @@ var objectLocator = function(match) {
 
 // define standard variables
 var scene = objectLocator("Scene");
-var renderer = objectLocator("DeferredLightingRenderer");
+var renderer = objectLocator("Renderer");
 
 // and say hello :-)
 print("\n\n");

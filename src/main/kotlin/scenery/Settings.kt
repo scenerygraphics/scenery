@@ -1,5 +1,6 @@
 package scenery
 
+import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -70,5 +71,12 @@ open class Settings {
             settingsStore.put(name, contents)
             return settingsStore[name]!!
         }
+    }
+
+    /**
+     * Lists all settings currently stored
+     */
+    fun list(): String {
+        return settingsStore.map { "${it.key}=${it.value} (${it.value.javaClass.simpleName})" }.sorted().joinToString("\n")
     }
 }
