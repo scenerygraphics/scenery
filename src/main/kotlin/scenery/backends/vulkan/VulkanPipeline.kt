@@ -15,7 +15,7 @@ import java.util.concurrent.ConcurrentHashMap
  * Created by ulrik on 9/28/2016.
  */
 class VulkanPipeline(val device: VkDevice, val pipelineCache: Long? = null) {
-    protected var logger: Logger = LoggerFactory.getLogger("VulkanRenderer")
+    protected var logger: Logger = LoggerFactory.getLogger("VulkanPipeline")
 
     var pipeline = HashMap<GeometryType, VulkanRenderer.Pipeline>()
 

@@ -111,7 +111,7 @@ class VU {
             var result = function.invoke(receiver)
 
             if(result != VK_SUCCESS) {
-                LoggerFactory.getLogger("VulkanRenderer").error("Call to $name failed.")
+                LoggerFactory.getLogger("VulkanRenderer").error("Call to $name failed: ${translate(result)}")
             }
 
             val ret = receiver.get(0)
@@ -124,7 +124,7 @@ class VU {
             var result = function.invoke(receiver)
 
             if(result != VK_SUCCESS) {
-                LoggerFactory.getLogger("VulkanRenderer").error("Call to $name failed.")
+                LoggerFactory.getLogger("VulkanRenderer").error("Call to $name failed: ${translate(result)}")
                 cleanup.invoke(receiver)
             }
 

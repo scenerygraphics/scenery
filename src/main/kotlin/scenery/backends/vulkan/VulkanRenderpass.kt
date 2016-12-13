@@ -22,7 +22,7 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
                        val memoryProperties: VkPhysicalDeviceMemoryProperties,
                        val vertexDescriptors: ConcurrentHashMap<VulkanRenderer.VertexDataKinds, VulkanRenderer.VertexDescription>) {
 
-    protected var logger: Logger = LoggerFactory.getLogger("VulkanRenderer")
+    protected var logger: Logger = LoggerFactory.getLogger("VulkanRenderpass")
 
     val inputs = ConcurrentHashMap<String, VulkanFramebuffer>()
     val output = ConcurrentHashMap<String, VulkanFramebuffer>()
