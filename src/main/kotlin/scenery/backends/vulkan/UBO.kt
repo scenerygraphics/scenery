@@ -20,6 +20,7 @@ open class UBO(val device: VkDevice, val backingBuffer: VulkanBuffer? = null) {
     var descriptor: UBODescriptor? = null
     var offsets: IntBuffer? = null
     var logger = LoggerFactory.getLogger("VulkanRenderer")
+    var requiredOffsetCount = 0
 
     private var currentPointer: PointerBuffer? = null
     private var currentPosition = 0L

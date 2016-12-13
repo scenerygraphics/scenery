@@ -133,7 +133,10 @@ void main()
 		}
 		// depth
 		if(textureCoord.x > 0.5 && textureCoord.y < 0.5) {
-			FragColor = vec4(vec3(pow(Depth, 256.0)), 1.0f);
+		    float near = 0.5f;
+		    float far = 1000.0f;
+		    vec3 linearizedDepth = vec3((2.0f * near) / (far + near - Depth * (far - near)));
+			FragColor = vec4(linearizedDepth, 1.0f);
 		}
 		// normal
 		if(textureCoord.x > 0.5 && textureCoord.y > 0.5) {

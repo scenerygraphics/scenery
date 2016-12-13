@@ -79,4 +79,8 @@ open class Settings {
     fun list(): String {
         return settingsStore.map { "${it.key}=${it.value} (${it.value.javaClass.simpleName})" }.sorted().joinToString("\n")
     }
+
+    fun getAllSettings(): List<String> {
+        return settingsStore.keys().toList()
+    }
 }

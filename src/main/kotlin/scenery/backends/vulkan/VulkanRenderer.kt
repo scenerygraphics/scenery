@@ -28,6 +28,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.text.SimpleDateFormat
 import javax.imageio.ImageIO
+import kotlin.concurrent.thread
 
 
 /**
@@ -408,8 +409,6 @@ open class VulkanRenderer : Renderer {
 
         ds.set("sdf.MaxDistance", 10)
 
-        ds.set("debug.DebugDeferredBuffers", false)
-
         return ds
     }
 
@@ -526,6 +525,7 @@ open class VulkanRenderer : Renderer {
             members.put("CamPosition", { scene.findObserver().position })
             members.put("isBillboard", { node.isBillboard.toInt() })
 
+            requiredOffsetCount = 2
             createUniformBuffer(memoryProperties)
             sceneUBOs.put(node, this)
             s.UBOs.put("Default", this)
@@ -552,6 +552,7 @@ open class VulkanRenderer : Renderer {
                 members.put("Shininess", { node.material!!.specularExponent })
                 members.put("materialType", { materialType })
 
+                requiredOffsetCount = 1
                 createUniformBuffer(memoryProperties)
                 s.UBOs.put("BlinnPhongMaterial", this)
             }
@@ -567,6 +568,7 @@ open class VulkanRenderer : Renderer {
                 members.put("Shininess", { m.specularExponent })
                 members.put("materialType", { 0 })
 
+                requiredOffsetCount = 1
                 createUniformBuffer(memoryProperties)
                 s.UBOs.put("BlinnPhongMaterial", this)
             }
@@ -977,34 +979,37 @@ open class VulkanRenderer : Renderer {
             val imageBuffer = memAlloc(imageByteSize.toInt())
             screenshotBuffer.copyTo(imageBuffer)
 
-            try {
-                val file = File(System.getProperty("user.home"), "Desktop" + File.separator + "$applicationName - ${SimpleDateFormat("yyyy-MM-dd HH.mm.ss").format(Date())}.png")
-                imageBuffer.rewind()
+            thread {
+                try {
+                    val file = File(System.getProperty("user.home"), "Desktop" + File.separator + "$applicationName - ${SimpleDateFormat("yyyy-MM-dd HH.mm.ss").format(Date())}.png")
+                    imageBuffer.rewind()
 
-                val imageArray = ByteArray(imageBuffer.remaining())
-                imageBuffer.get(imageArray)
-                val shifted = ByteArray(imageArray.size)
+                    val imageArray = ByteArray(imageBuffer.remaining())
+                    imageBuffer.get(imageArray)
+                    val shifted = ByteArray(imageArray.size)
 
-                // swizzle BGRA -> ABGR
-                for(i in 0..shifted.size-1 step 4) {
-                    shifted[i] = imageArray[i+3]
-                    shifted[i+1] = imageArray[i]
-                    shifted[i+2] = imageArray[i+1]
-                    shifted[i+3] = imageArray[i+2]
+                    // swizzle BGRA -> ABGR
+                    for (i in 0..shifted.size - 1 step 4) {
+                        shifted[i] = imageArray[i + 3]
+                        shifted[i + 1] = imageArray[i]
+                        shifted[i + 2] = imageArray[i + 1]
+                        shifted[i + 3] = imageArray[i + 2]
+                    }
+
+                    val image = BufferedImage(window.width, window.height, BufferedImage.TYPE_4BYTE_ABGR)
+                    val imgData = (image.raster.dataBuffer as DataBufferByte).data
+                    System.arraycopy(shifted, 0, imgData, 0, shifted.size)
+
+                    ImageIO.write(image, "png", file)
+                    logger.info("Screenshot saved to ${file.absolutePath}")
+                } catch (e: Exception) {
+                    System.err.println("Unable to take screenshot: ")
+                    e.printStackTrace()
+                } finally {
+                    memFree(imageBuffer)
                 }
-
-                val image = BufferedImage(window.width, window.height, BufferedImage.TYPE_4BYTE_ABGR)
-                val imgData = (image.raster.dataBuffer as DataBufferByte).data
-                System.arraycopy(shifted, 0, imgData, 0, shifted.size)
-
-                ImageIO.write(image, "png", file)
-                logger.info("Screenshot saved to ${file.absolutePath}")
-            } catch (e: Exception) {
-                System.err.println("Unable to take screenshot: ")
-                e.printStackTrace()
             }
 
-            memFree(imageBuffer)
             screenshotRequested = false
         }
 
@@ -2016,6 +2021,12 @@ open class VulkanRenderer : Renderer {
                 val vulkanPipeline = pipeline.getPipelineForGeometryType(GeometryType.TRIANGLES)
 
                 val ds = memAllocLong(pipeline.descriptorSpecs.count())
+
+                // allocate more offsets than needed, set limit lateron
+                val offsets = memAllocInt(16)
+                (0..15).forEach { offsets.put(it, 0) }
+
+                var requiredDynamicOffsets = 0
                 logger.info("descriptor sets are ${pass.descriptorSets.keys.joinToString(", ")}")
                 logger.info("pipeline provides ${pipeline.descriptorSpecs.map { it.name }.joinToString(", ")}")
 
@@ -2025,8 +2036,17 @@ open class VulkanRenderer : Renderer {
                     } else if (spec.name.startsWith("inputs")) {
                         "inputs-${pass.name}"
                     } else if (spec.name.startsWith("Matrices")) {
+                        offsets.put(sceneUBOs.values.first().offsets)
+                        requiredDynamicOffsets += 2
+
                         "default"
                     } else {
+                        if(spec.name.startsWith("LightParameters")) {
+                            logger.info("Adding LP offset")
+                            offsets.put(0)
+                            requiredDynamicOffsets++
+                        }
+
                         spec.name
                     }
 
@@ -2044,19 +2064,17 @@ open class VulkanRenderer : Renderer {
                     }
                 }
 
-                val offsets = memAllocInt(sceneUBOs.values.first().offsets!!.capacity() + 1)
-                offsets.put(sceneUBOs.values.first().offsets)
-                offsets.put(0)
-                offsets.flip()
+                // see if this stage requires dynamic buffers
+                offsets.limit(requiredDynamicOffsets)
+                offsets.position(0)
+
+                for(i in (0..offsets.limit()-1)) {
+                    logger.info("offset $i= ${offsets.get(i)}")
+                }
 
                 vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkanPipeline.pipeline)
-//                if(pass.name == "DeferredLighting") {
                 vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_GRAPHICS,
                     vulkanPipeline.layout, 0, ds, offsets)
-//                } else {
-//                    vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_GRAPHICS,
-//                        vulkanPipeline.layout, 0, ds, null)
-//                }
 
                 vkCmdDraw(this, 3, 1, 0, 0)
 
@@ -2077,7 +2095,8 @@ open class VulkanRenderer : Renderer {
         sceneUBOs.forEach { node, ubo ->
             node.updateWorld(true, false)
 
-            ubo.offsets = memAllocInt(2)
+            ubo.offsets = memAllocInt(3)
+            (0..2).forEach { ubo.offsets!!.put(it, 0) }
 
             var bufferOffset = buffers["UBOBuffer"]!!.advance(ubo.getSize())
             ubo.offsets!!.put(0, bufferOffset)
@@ -2131,6 +2150,31 @@ open class VulkanRenderer : Renderer {
 
     override fun screenshot() {
         screenshotRequested = true
+    }
+
+    fun Int.toggle(): Int {
+        if(this == 0) {
+            return 1
+        } else if(this == 1) {
+            return 0
+        }
+
+        logger.warn("Property is not togglable.")
+        return this
+    }
+
+    fun toggleDebug() {
+        settings.getAllSettings().forEach {
+            if(it.toLowerCase().contains("debug")) {
+                try {
+                    val property = settings.get<Int>(it).toggle()
+                    settings.set(it, property)
+
+                } catch(e: Exception) {
+                    logger.warn("$it is a property that is not togglable.")
+                }
+            }
+        }
     }
 
     override fun close() {
