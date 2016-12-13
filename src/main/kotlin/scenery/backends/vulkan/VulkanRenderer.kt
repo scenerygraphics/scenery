@@ -17,12 +17,18 @@ import org.slf4j.LoggerFactory
 import scenery.*
 import scenery.backends.*
 import scenery.fonts.SDFFontAtlas
+import java.awt.color.ColorSpace
+import java.awt.image.*
+import java.io.File
 import java.nio.*
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.text.SimpleDateFormat
+import javax.imageio.ImageIO
+
 
 /**
  * <Description>
@@ -197,6 +203,7 @@ open class VulkanRenderer : Renderer {
     protected var logger: Logger = LoggerFactory.getLogger("VulkanRenderer")
     override var shouldClose = false
     override var managesRenderLoop = false
+    var screenshotRequested = false
 
     var firstWaitSemaphore = memAllocLong(1)
 
@@ -933,6 +940,74 @@ open class VulkanRenderer : Renderer {
             throw AssertionError("Failed to present the swapchain image: " + VU.translate(err))
         }
 
+        if(screenshotRequested) {
+            // default image format is 32bit BGRA
+            val imageByteSize = window.width*window.height*4L
+            val screenshotBuffer = VU.createBuffer(device,
+                memoryProperties, VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+                wantAligned = true,
+                allocationSize = imageByteSize)
+
+            with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
+                val subresource = VkImageSubresourceLayers.calloc()
+                    .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
+                    .mipLevel(0)
+                    .baseArrayLayer(0)
+                    .layerCount(1)
+
+                val regions = VkBufferImageCopy.calloc(1)
+                    .bufferRowLength(0)
+                    .bufferImageHeight(0)
+                    .imageOffset(VkOffset3D.calloc().set(0, 0, 0))
+                    .imageExtent(VkExtent3D.calloc().set(window.width, window.height, 1))
+                    .imageSubresource(subresource)
+
+                vkCmdCopyImageToBuffer(this, swapchain!!.images!![pass.readPos],
+                    VK_IMAGE_LAYOUT_GENERAL,
+                    screenshotBuffer.buffer,
+                    regions)
+
+                this.endCommandBuffer(device, commandPools.Render, queue,
+                    flush = true, dealloc = true)
+            }
+
+            vkDeviceWaitIdle(device)
+
+            val imageBuffer = memAlloc(imageByteSize.toInt())
+            screenshotBuffer.copyTo(imageBuffer)
+
+            try {
+                val file = File(System.getProperty("user.home"), "Desktop" + File.separator + "$applicationName - ${SimpleDateFormat("yyyy-MM-dd HH.mm.ss").format(Date())}.png")
+                imageBuffer.rewind()
+
+                val imageArray = ByteArray(imageBuffer.remaining())
+                imageBuffer.get(imageArray)
+                val shifted = ByteArray(imageArray.size)
+
+                // swizzle BGRA -> ABGR
+                for(i in 0..shifted.size-1 step 4) {
+                    shifted[i] = imageArray[i+3]
+                    shifted[i+1] = imageArray[i]
+                    shifted[i+2] = imageArray[i+1]
+                    shifted[i+3] = imageArray[i+2]
+                }
+
+                val image = BufferedImage(window.width, window.height, BufferedImage.TYPE_4BYTE_ABGR)
+                val imgData = (image.raster.dataBuffer as DataBufferByte).data
+                System.arraycopy(shifted, 0, imgData, 0, shifted.size)
+
+                ImageIO.write(image, "png", file)
+                logger.info("Screenshot saved to ${file.absolutePath}")
+            } catch (e: Exception) {
+                System.err.println("Unable to take screenshot: ")
+                e.printStackTrace()
+            }
+
+            memFree(imageBuffer)
+            screenshotRequested = false
+        }
+
         pass.nextSwapchainImage()
 
         submitInfo.free()
@@ -1390,7 +1465,7 @@ open class VulkanRenderer : Renderer {
             .minImageCount(desiredNumberOfSwapchainImages)
             .imageFormat(colorFormat)
             .imageColorSpace(colorSpace)
-            .imageUsage(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
+            .imageUsage(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT or VK_IMAGE_USAGE_TRANSFER_SRC_BIT )
             .preTransform(preTransform)
             .imageArrayLayers(1)
             .imageSharingMode(VK_SHARING_MODE_EXCLUSIVE)
@@ -1452,16 +1527,25 @@ open class VulkanRenderer : Renderer {
             .baseArrayLayer(0)
             .layerCount(1)
 
-        for (i in 0..imageCount - 1) {
-            images[i] = pSwapchainImages.get(i)
-            // Bring the image from an UNDEFINED state to the VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT state
+        with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
+            for (i in 0..imageCount - 1) {
+                images[i] = pSwapchainImages.get(i)
+                // Bring the image from an UNDEFINED state to the VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT state
 //            imageBarrier(commandBuffer, images[i], VK_IMAGE_ASPECT_COLOR_BIT,
 //                VK_IMAGE_LAYOUT_UNDEFINED, 0,
 //                VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
-            colorAttachmentView.image(images[i])
+                VU.setImageLayout(this, images[i],
+                    aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                    oldImageLayout = VK_IMAGE_LAYOUT_GENERAL,
+                    newImageLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
+                colorAttachmentView.image(images[i])
 
-            imageViews[i] = VU.run(memAllocLong(1), "create image view",
-                { vkCreateImageView(device, colorAttachmentView, null, this) })
+                imageViews[i] = VU.run(memAllocLong(1), "create image view",
+                    { vkCreateImageView(device, colorAttachmentView, null, this) })
+            }
+
+            this.endCommandBuffer(device, commandPools.Standard, queue,
+                flush = true, dealloc = true)
         }
 
         colorAttachmentView.free()
@@ -1528,7 +1612,7 @@ open class VulkanRenderer : Renderer {
             wantAligned = false,
             allocationSize = fullAllocationBytes * 1L)
 
-        stagingBuffer.copy(stridedBuffer)
+        stagingBuffer.copyFrom(stridedBuffer)
 
         val vertexBuffer = VU.createBuffer(device,
             this.memoryProperties,
@@ -1595,7 +1679,7 @@ open class VulkanRenderer : Renderer {
             instanceUbo.populate()
         }
 
-        stagingBuffer.copy(instanceStagingBuffer)
+        stagingBuffer.copyFrom(instanceStagingBuffer)
 
         logger.info("Creating instance buffer...")
         // the actual instance buffer is kept device-local for performance reasons
@@ -2043,6 +2127,10 @@ open class VulkanRenderer : Renderer {
         }
 
         buffers["LightParametersBuffer"]!!.copyFromStagingBuffer()
+    }
+
+    override fun screenshot() {
+        screenshotRequested = true
     }
 
     override fun close() {

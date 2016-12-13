@@ -36,6 +36,8 @@ interface Renderer : Hubable {
 
     fun close()
 
+    fun screenshot()
+
     val managesRenderLoop: Boolean
 
     companion object {

@@ -5,6 +5,8 @@ import com.jogamp.common.nio.Buffers
 import com.jogamp.opengl.GL
 import com.jogamp.opengl.GL4
 import com.jogamp.opengl.GLAutoDrawable
+import com.jogamp.opengl.GLDrawable
+import com.jogamp.opengl.util.awt.AWTGLReadBufferUtil
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import scenery.*
@@ -12,11 +14,14 @@ import scenery.controls.HMDInput
 import scenery.fonts.SDFFontAtlas
 import scenery.backends.Renderer
 import scenery.backends.SceneryWindow
+import java.io.File
 import java.lang.reflect.Field
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
+import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
+import javax.imageio.ImageIO
 import kotlin.concurrent.thread
 
 /**
@@ -89,6 +94,12 @@ open class OpenGLRenderer : Renderer, Hubable, ClearGLDefaultEventListener {
 
     /** Shader Property cache */
     protected var shaderPropertyCache = HashMap<Class<*>, List<Field>>()
+
+    /** JOGL Drawable */
+    protected var joglDrawable: GLDrawable? = null
+
+    /** Flag set when a screenshot is requested */
+    protected var screenshotRequested = false
 
     /** Eyes of the stereo render targets */
     var eyes = (0..0)
@@ -223,6 +234,7 @@ open class OpenGLRenderer : Renderer, Hubable, ClearGLDefaultEventListener {
 
         clearGLWindow.windowTitle = "$applicationName [${this.javaClass.simpleName}] - ${pDrawable.animator?.lastFPS} fps"
 
+        this.joglDrawable = pDrawable
         this@OpenGLRenderer.render()
     }
 
@@ -994,6 +1006,22 @@ open class OpenGLRenderer : Renderer, Hubable, ClearGLDefaultEventListener {
             combinerProgram!!.getUniform("vrActive").setInt(0)
             renderFullscreenQuad(combinerProgram!!)
         }
+
+        if(screenshotRequested && joglDrawable != null) {
+            try {
+                val readBufferUtil = AWTGLReadBufferUtil(joglDrawable!!.glProfile, false)
+                val image = readBufferUtil.readPixelsToBufferedImage(gl, true)
+                val file = File(System.getProperty("user.home"), "Desktop" + File.separator + "$applicationName - ${SimpleDateFormat("yyyy-MM-dd HH.mm.ss").format(Date())}.png")
+
+                ImageIO.write(image, "png", file)
+                logger.info("Screenshot saved to ${file.absolutePath}")
+            } catch (e: Exception) {
+                System.err.println("Unable to take screenshot: ")
+                e.printStackTrace()
+            }
+
+            screenshotRequested = false
+        }
     }
 
     /**
@@ -1601,6 +1629,10 @@ open class OpenGLRenderer : Renderer, Hubable, ClearGLDefaultEventListener {
 
         gl.gL4.glUseProgram(0)
         gl.gL4.glBindVertexArray(0)
+    }
+
+    override fun screenshot() {
+        screenshotRequested = true
     }
 
     override fun close() {

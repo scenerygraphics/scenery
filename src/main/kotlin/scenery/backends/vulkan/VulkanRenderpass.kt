@@ -66,8 +66,10 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
     var isViewportRenderpass = false
     var swapchainSize = 1
         private set
-    private var currentPosition = 0
-    private var readPos = 0
+    var currentPosition = 0
+        private set
+    var readPos = 0
+        private set
 
     fun cmdPrepareDraw(forPipeline: String) {
 

@@ -187,6 +187,7 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
         behaviourMap.put("toggle_fullscreen", ToggleCommand("toggle_fullscreen", renderer, "toggleFullscreen"))
         behaviourMap.put("toggle_ssao", ToggleCommand("toggle_ssao", renderer, "toggleSSAO"))
         behaviourMap.put("toggle_hdr", ToggleCommand("toggle_hdr", renderer, "toggleHDR"))
+        behaviourMap.put("screenshot", ToggleCommand("screenshot", renderer, "screenshot"))
 
 
         behaviourMap.put("increase_exposure", ToggleCommand("increase_exposure", renderer, "increaseExposure"))
@@ -223,5 +224,7 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
         adder.put("decrease_exposure", "L")
         adder.put("increase_gamma", "shift K")
         adder.put("decrease_gamma", "shift L")
+
+        adder.put("screenshot", "P")
     }
 }
