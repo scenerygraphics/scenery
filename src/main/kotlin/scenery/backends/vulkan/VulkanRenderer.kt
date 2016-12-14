@@ -196,6 +196,7 @@ open class VulkanRenderer : Renderer {
     private var MAX_UBOS = 2048
     private var MAX_INPUT_ATTACHMENTS = 32
     private val UINT64_MAX: Long = -1L
+    private val WINDOW_RESIZE_TIMEOUT = 200*10e6
     // end helper vars
 
     override var hub: Hub? = null
@@ -265,6 +266,7 @@ open class VulkanRenderer : Renderer {
     protected var frames = 0
     protected var totalFrames = 0L
     protected var heartbeatTimer = Timer()
+    protected var lastResize = -1L
 
     private var renderConfig: RenderConfigReader.RenderConfig
 
@@ -352,12 +354,18 @@ open class VulkanRenderer : Renderer {
         // Handle canvas resize
         val windowSizeCallback = object : GLFWWindowSizeCallback() {
             override operator fun invoke(glfwWindow: Long, w: Int, h: Int) {
+                if(lastResize > 0L && lastResize + WINDOW_RESIZE_TIMEOUT < System.nanoTime()) {
+                    lastResize = System.nanoTime()
+                    return
+                }
+
                 if (window.width <= 0 || window.height <= 0)
                     return
 
                 window.width = w
                 window.height = h
                 swapchainRecreator.mustRecreate = true
+                lastResize = -1L
             }
         }
 
