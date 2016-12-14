@@ -184,16 +184,16 @@ open class OpenGLRenderer : Renderer, Hubable, ClearGLDefaultEventListener {
             val actualHeight = if (settings.get("vr.Active")) this.window.height else this.window.height
 
             var gb = GLFramebuffer(this.gl, actualWidth, actualHeight)
-            gb.addFloatRGBBuffer(this.gl, 32)
-            gb.addFloatRGBBuffer(this.gl, 16)
+            gb.addFloatRGBABuffer(this.gl, 32)
+            gb.addFloatRGBABuffer(this.gl, 16)
             gb.addUnsignedByteRGBABuffer(this.gl, 8)
             gb.addDepthBuffer(this.gl, 32, 1)
 
             // 32bit depth buffers might not be supported, fall back to 24bit
             if(!gb.checkDrawBuffers(this.gl)) {
                 gb = GLFramebuffer(this.gl, actualWidth, actualHeight)
-                gb.addFloatRGBBuffer(this.gl, 32)
-                gb.addFloatRGBBuffer(this.gl, 16)
+                gb.addFloatRGBABuffer(this.gl, 32)
+                gb.addFloatRGBABuffer(this.gl, 16)
                 gb.addUnsignedByteRGBABuffer(this.gl, 8)
                 gb.addDepthBuffer(this.gl, 24, 1)
             }
@@ -202,8 +202,8 @@ open class OpenGLRenderer : Renderer, Hubable, ClearGLDefaultEventListener {
 
             // HDR buffers
             val hdrB = GLFramebuffer(this.gl, actualWidth, actualHeight)
-            hdrB.addFloatRGBBuffer(this.gl, 32)
-            hdrB.addFloatRGBBuffer(this.gl, 32)
+            hdrB.addFloatRGBABuffer(this.gl, 32)
+            hdrB.addFloatRGBABuffer(this.gl, 32)
             hdrB.checkDrawBuffers(this.gl)
 
             hdrBuffer.add(hdrB)
