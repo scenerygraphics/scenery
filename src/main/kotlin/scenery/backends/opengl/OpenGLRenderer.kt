@@ -10,10 +10,10 @@ import com.jogamp.opengl.util.awt.AWTGLReadBufferUtil
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import scenery.*
-import scenery.controls.HMDInput
-import scenery.fonts.SDFFontAtlas
 import scenery.backends.Renderer
 import scenery.backends.SceneryWindow
+import scenery.controls.HMDInput
+import scenery.fonts.SDFFontAtlas
 import java.io.File
 import java.lang.reflect.Field
 import java.nio.FloatBuffer
@@ -1346,7 +1346,7 @@ open class OpenGLRenderer : Renderer, Hubable, ClearGLDefaultEventListener {
 
         gl.gL3.glEnableVertexAttribArray(0)
         gl.glBufferData(GL.GL_ARRAY_BUFFER,
-            (pVertexBuffer.limit() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
+            (pVertexBuffer.remaining() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
             pVertexBuffer,
             if (s.isDynamic)
                 GL.GL_DYNAMIC_DRAW
@@ -1380,7 +1380,7 @@ open class OpenGLRenderer : Renderer, Hubable, ClearGLDefaultEventListener {
 
         gl.gL3.glEnableVertexAttribArray(0)
         gl.glBufferData(GL.GL_ARRAY_BUFFER,
-            (pVertexBuffer.limit() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
+            (pVertexBuffer.remaining() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
             pVertexBuffer,
             GL.GL_DYNAMIC_DRAW)
 
@@ -1410,7 +1410,7 @@ open class OpenGLRenderer : Renderer, Hubable, ClearGLDefaultEventListener {
         if (pNormalBuffer.limit() > 0) {
             gl.gL3.glEnableVertexAttribArray(1)
             gl.glBufferData(GL.GL_ARRAY_BUFFER,
-                (pNormalBuffer.limit() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
+                (pNormalBuffer.remaining() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
                 pNormalBuffer,
                 if (s.isDynamic)
                     GL.GL_DYNAMIC_DRAW
@@ -1444,7 +1444,7 @@ open class OpenGLRenderer : Renderer, Hubable, ClearGLDefaultEventListener {
         gl.gL3.glEnableVertexAttribArray(1)
         gl.glBufferSubData(GL.GL_ARRAY_BUFFER,
             0,
-            (pNormalBuffer.limit() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
+            (pNormalBuffer.remaining() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
             pNormalBuffer)
 
         gl.gL3.glVertexAttribPointer(1,
@@ -1472,7 +1472,7 @@ open class OpenGLRenderer : Renderer, Hubable, ClearGLDefaultEventListener {
 
         gl.gL3.glEnableVertexAttribArray(2)
         gl.glBufferData(GL.GL_ARRAY_BUFFER,
-            (pTextureCoordsBuffer.limit() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
+            (pTextureCoordsBuffer.remaining() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
             pTextureCoordsBuffer,
             if (s.isDynamic)
                 GL.GL_DYNAMIC_DRAW
@@ -1506,7 +1506,7 @@ open class OpenGLRenderer : Renderer, Hubable, ClearGLDefaultEventListener {
         gl.gL3.glEnableVertexAttribArray(2)
         gl.glBufferSubData(GL.GL_ARRAY_BUFFER,
             0,
-            (pTextureCoordsBuffer.limit() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
+            (pTextureCoordsBuffer.remaining() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
             pTextureCoordsBuffer)
 
         gl.gL3.glVertexAttribPointer(2,
@@ -1535,7 +1535,7 @@ open class OpenGLRenderer : Renderer, Hubable, ClearGLDefaultEventListener {
         gl.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, s.mIndexBuffer[0])
 
         gl.glBufferData(GL.GL_ELEMENT_ARRAY_BUFFER,
-            (pIndexBuffer.limit() * (Integer.SIZE / java.lang.Byte.SIZE)).toLong(),
+            (pIndexBuffer.remaining() * (Integer.SIZE / java.lang.Byte.SIZE)).toLong(),
             pIndexBuffer,
             if (s.isDynamic)
                 GL.GL_DYNAMIC_DRAW
@@ -1562,7 +1562,7 @@ open class OpenGLRenderer : Renderer, Hubable, ClearGLDefaultEventListener {
 
         gl.glBufferSubData(GL.GL_ELEMENT_ARRAY_BUFFER,
             0,
-            (pIndexBuffer.limit() * (Integer.SIZE / java.lang.Byte.SIZE)).toLong(),
+            (pIndexBuffer.remaining() * (Integer.SIZE / java.lang.Byte.SIZE)).toLong(),
             pIndexBuffer)
 
         gl.gL3.glBindVertexArray(0)
