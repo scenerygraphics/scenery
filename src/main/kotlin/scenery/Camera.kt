@@ -61,7 +61,7 @@ open class Camera : Node("Camera") {
      *
      *
      */
-    fun perspectiveCamera(fov: Float, width: Float, height: Float, nearPlaneLocation: Float = 0.001f, farPlaneLocation: Float = 1000.0f) {
+    fun perspectiveCamera(fov: Float, width: Float, height: Float, nearPlaneLocation: Float = 0.1f, farPlaneLocation: Float = 1000.0f) {
         this.nearPlaneDistance = nearPlaneLocation
         this.farPlaneDistance = farPlaneLocation
         this.fov = fov
