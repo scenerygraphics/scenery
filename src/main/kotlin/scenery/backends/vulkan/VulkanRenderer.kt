@@ -100,15 +100,6 @@ open class VulkanRenderer : Renderer {
         internal var layout: Long = 0
     }
 
-    class GlobalResources {
-        var pipelineCache = -1L
-        var descriptorPool = -1L
-        var memoryProperties: VkPhysicalDeviceProperties? = null
-        var physicalDevice: VkPhysicalDevice? = null
-        var logicalDevice: VkDevice? = null
-        var queue = -1L
-    }
-
     inner class SwapchainRecreator {
         var mustRecreate = true
 
@@ -141,13 +132,6 @@ open class VulkanRenderer : Renderer {
                     { vkCreatePipelineCache(device, pipelineCacheInfo, null, this) },
                     { pipelineCacheInfo.free() })
 
-                // destroy and recreate all framebuffers
-//                rendertargets.values.forEach { rt -> rt.destroy() }
-//                rendertargets.clear()
-
-
-//                rendertargets = prepareFramebuffers(device, physicalDevice, window.width, window.height)
-//                renderPipelines = prepareDefaultPipelines(device)
                 renderpasses = prepareRenderpassesFromConfig(renderConfig, window.width, window.height)
                 semaphores = prepareStandardSemaphores(device)
 
@@ -1083,13 +1067,10 @@ open class VulkanRenderer : Renderer {
         updateDefaultUBOs(device)
 
         // TODO: better logic for command buffer recreation
-        // record command buffers for the renderpasses
-        if (totalFrames == 0L) {
-            renderpasses.forEach { s, vulkanRenderpass ->
-                when (vulkanRenderpass.passConfig.type) {
-                    RenderConfigReader.RenderpassType.geometry -> createSceneRenderCommandBuffer(device, vulkanRenderpass)
-                    RenderConfigReader.RenderpassType.quad -> createPostprocessRenderCommandBuffer(device, vulkanRenderpass)
-                }
+        renderpasses.forEach { s, vulkanRenderpass ->
+            when (vulkanRenderpass.passConfig.type) {
+                RenderConfigReader.RenderpassType.geometry -> createSceneRenderCommandBuffer(device, vulkanRenderpass)
+                RenderConfigReader.RenderpassType.quad -> createPostprocessRenderCommandBuffer(device, vulkanRenderpass)
             }
         }
 
@@ -1580,10 +1561,7 @@ open class VulkanRenderer : Renderer {
         with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
             for (i in 0..imageCount - 1) {
                 images[i] = pSwapchainImages.get(i)
-                // Bring the image from an UNDEFINED state to the VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT state
-//            imageBarrier(commandBuffer, images[i], VK_IMAGE_ASPECT_COLOR_BIT,
-//                VK_IMAGE_LAYOUT_UNDEFINED, 0,
-//                VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
+
                 VU.setImageLayout(this, images[i],
                     aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
                     oldImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
@@ -1712,8 +1690,8 @@ open class VulkanRenderer : Renderer {
         val instanceBufferSize = ubo.getSize() * instances.size
         val instanceStagingBuffer = memAlloc(instanceBufferSize)
 
-        logger.info("$parentNode has ${instances.size} child instances with ${ubo.getSize()} bytes each.")
-        logger.info("Creating staging buffer...")
+        logger.debug("$parentNode has ${instances.size} child instances with ${ubo.getSize()} bytes each.")
+        logger.debug("Creating staging buffer...")
 
         val stagingBuffer = VU.createBuffer(device,
             this.memoryProperties,
@@ -1731,7 +1709,6 @@ open class VulkanRenderer : Renderer {
 
         stagingBuffer.copyFrom(instanceStagingBuffer)
 
-        logger.info("Creating instance buffer...")
         // the actual instance buffer is kept device-local for performance reasons
         val instanceBuffer = VU.createBuffer(device,
             this.memoryProperties,
@@ -1740,7 +1717,6 @@ open class VulkanRenderer : Renderer {
             wantAligned = false,
             allocationSize = instanceBufferSize * 1L)
 
-        logger.info("Copying staging -> instance buffer")
         with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
             val copyRegion = VkBufferCopy.calloc(1)
                 .size(instanceBufferSize * 1L)
@@ -1863,7 +1839,7 @@ open class VulkanRenderer : Renderer {
                 vkCreateSemaphore(device, semaphoreCreateInfo, null, this)
             }
 
-            logger.info("Creating scene command buffer for ${pass.name}/$target (${target.attachments.count()} attachments)")
+            logger.debug("Creating scene command buffer for ${pass.name}/$target (${target.attachments.count()} attachments)")
 
             val clearValues = VkClearValue.calloc(target.colorAttachmentCount() + target.depthAttachmentCount())
             val clearColor = BufferUtils.allocateFloatAndPut(floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f))
@@ -1897,7 +1873,6 @@ open class VulkanRenderer : Renderer {
             }
 
             val instanceGroups = renderOrderList.groupBy(Node::instanceOf)
-            logger.info("instance groups:" + instanceGroups.keys.joinToString(","))
 
             pass.commandBuffer = with(VU.newCommandBuffer(device, commandPools.Render, autostart = true)) {
 
@@ -1955,7 +1930,6 @@ open class VulkanRenderer : Renderer {
                 instanceGroups.keys.filterNotNull().forEach instancedDrawing@ { node ->
                     val s = node.metadata["VulkanRenderer"]!! as VulkanObjectState
 
-                    logger.info("Starting instanced draw for ${node.name}, ${s.vertexCount} vertices")
                     // this only lets non-instanced, parent nodes through
                     if (s.vertexCount == 0) {
                         return@instancedDrawing
@@ -1991,7 +1965,6 @@ open class VulkanRenderer : Renderer {
                     vkCmdBindVertexBuffers(this, 0, vb, bufferOffsets)
                     vkCmdBindVertexBuffers(this, 1, instanceBuffer, bufferOffsets)
 
-                    logger.info("now drawing ${s.instanceCount} of ${node.name}, ${ds.capacity()} DS bound, ${s.textures.count()} textures")
                     if (s.isIndexed) {
                         vkCmdBindIndexBuffer(this, vb.get(0), s.indexOffset * 1L, VK_INDEX_TYPE_UINT32)
                         vkCmdDrawIndexed(this, s.indexCount, s.instanceCount, 0, 0, 0)
@@ -2016,7 +1989,7 @@ open class VulkanRenderer : Renderer {
                 vkCreateSemaphore(device, semaphoreCreateInfo, null, this)
             }
 
-            logger.info("Creating postprocessing command buffer for ${pass.name}/$target (${target.attachments.count()} attachments)")
+            logger.debug("Creating postprocessing command buffer for ${pass.name}/$target (${target.attachments.count()} attachments)")
 
             val clearValues = VkClearValue.calloc(target.colorAttachmentCount() + target.depthAttachmentCount())
             val clearColor = BufferUtils.allocateFloatAndPut(floatArrayOf(1.0f, 0.0f, 0.0f, 0.0f))
@@ -2064,8 +2037,8 @@ open class VulkanRenderer : Renderer {
                 (0..15).forEach { offsets.put(it, 0) }
 
                 var requiredDynamicOffsets = 0
-                logger.info("descriptor sets are ${pass.descriptorSets.keys.joinToString(", ")}")
-                logger.info("pipeline provides ${pipeline.descriptorSpecs.map { it.name }.joinToString(", ")}")
+                logger.debug("descriptor sets are ${pass.descriptorSets.keys.joinToString(", ")}")
+                logger.debug("pipeline provides ${pipeline.descriptorSpecs.map { it.name }.joinToString(", ")}")
 
                 pipeline.descriptorSpecs.forEachIndexed { i, spec ->
                     val dsName = if (spec.name.startsWith("ShaderParameters")) {
@@ -2079,7 +2052,6 @@ open class VulkanRenderer : Renderer {
                         "default"
                     } else {
                         if(spec.name.startsWith("LightParameters")) {
-                            logger.info("Adding LP offset")
                             offsets.put(0)
                             requiredDynamicOffsets++
                         }
@@ -2094,7 +2066,7 @@ open class VulkanRenderer : Renderer {
                     }
 
                     if (set != null) {
-                        logger.info("Adding DS#$i for $dsName to required pipeline DSs")
+                        logger.debug("Adding DS#$i for $dsName to required pipeline DSs")
                         ds.put(i, set)
                     } else {
                         logger.error("DS for $dsName not found!")
@@ -2104,10 +2076,6 @@ open class VulkanRenderer : Renderer {
                 // see if this stage requires dynamic buffers
                 offsets.limit(requiredDynamicOffsets)
                 offsets.position(0)
-
-                for(i in (0..offsets.limit()-1)) {
-                    logger.info("offset $i= ${offsets.get(i)}")
-                }
 
                 vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkanPipeline.pipeline)
                 vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_GRAPHICS,
