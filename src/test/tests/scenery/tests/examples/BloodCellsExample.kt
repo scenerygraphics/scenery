@@ -6,7 +6,7 @@ import org.junit.Test
 import scenery.*
 import scenery.backends.Renderer
 import scenery.controls.OpenVRInput
-import scenery.backends.opengl.OpenGLShaderPreference
+import scenery.backends.ShaderPreference
 import scenery.repl.REPL
 import java.io.IOException
 import java.util.*
@@ -93,7 +93,7 @@ class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowW
 
             erythrocyte.metadata.put(
                     "ShaderPreference",
-                    OpenGLShaderPreference(
+                    ShaderPreference(
                             arrayListOf("DefaultDeferredInstanced.vert", "DefaultDeferred.frag"),
                             HashMap(),
                             arrayListOf("DeferredShadingRenderer")))
@@ -112,7 +112,7 @@ class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowW
 
             leucocyte.metadata.put(
                     "ShaderPreference",
-                    OpenGLShaderPreference(
+                    ShaderPreference(
                             arrayListOf("DefaultDeferredInstanced.vert", "DefaultDeferred.frag"),
                             HashMap(),
                             arrayListOf("DeferredShadingRenderer")))

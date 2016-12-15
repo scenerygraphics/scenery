@@ -21,6 +21,7 @@ class VulkanObjectState : NodeMetadata {
     var indexOffset = 0
     var indexCount = 0
     var vertexCount = 0
+    var instanceCount = 1
 
     var vertexBuffers = ConcurrentHashMap<String, VulkanBuffer>()
 

@@ -1,7 +1,7 @@
 package scenery
 
 import cleargl.GLVector
-import scenery.backends.opengl.OpenGLShaderPreference
+import scenery.backends.ShaderPreference
 import java.util.*
 
 /**
@@ -12,7 +12,7 @@ import java.util.*
  * @property[font]  Name of the font to use for this font board
  * @property[isBillboard] Whether the board should be billboarded or not
  *
- * @constructor Returns a FontBoard instance, with [fontFamily] and a declared [OpenGLShaderPreference]
+ * @constructor Returns a FontBoard instance, with [fontFamily] and a declared [ShaderPreference]
  */
 class FontBoard(font: String = "Source Code Pro", override var isBillboard: Boolean = true) : Mesh() {
 
@@ -45,7 +45,7 @@ class FontBoard(font: String = "Source Code Pro", override var isBillboard: Bool
         fontFamily = font
         metadata.put(
             "ShaderPreference",
-            OpenGLShaderPreference(
+            ShaderPreference(
                 arrayListOf("DefaultDeferred.vert", "FontBoard.frag"),
                 HashMap<String, String>(),
                 arrayListOf("DeferredShadingRenderer")))

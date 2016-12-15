@@ -5,7 +5,7 @@ import cleargl.GLVector
 import org.junit.Test
 import scenery.*
 import scenery.backends.Renderer
-import scenery.backends.opengl.OpenGLShaderPreference
+import scenery.backends.ShaderPreference
 import scenery.repl.REPL
 import java.io.IOException
 import java.util.*
@@ -35,7 +35,7 @@ class MultiBoxInstancedExample : SceneryDefaultApplication("MultiBoxInstancedExa
             b.material!!.specular = GLVector(1.0f, 1.0f, 1.0f)
             b.metadata.put(
                     "ShaderPreference",
-                    OpenGLShaderPreference(
+                    ShaderPreference(
                             arrayListOf("DefaultDeferredInstanced.vert", "DefaultDeferred.frag"),
                             HashMap(),
                             arrayListOf("DeferredShadingRenderer")))

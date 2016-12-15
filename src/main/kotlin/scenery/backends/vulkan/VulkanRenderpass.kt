@@ -179,14 +179,16 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
     }
 
     fun initializeDefaultPipeline() {
-        val map = ConcurrentHashMap<String, VulkanPipeline>()
+        initializePipeline("default", passConfig.shaders.map { VulkanShaderModule(device, "main", "shaders/" + it) })
+    }
 
+    fun initializePipeline(pipelineName: String = "default", shaders: List<VulkanShaderModule>) {
         val p = VulkanPipeline(device, pipelineCache)
         val reqDescriptorLayouts = ArrayList<Long>()
 
         val framebuffer = output.values.first()
 
-        p.addShaderStages(passConfig.shaders.map { VulkanShaderModule(device, "main", "shaders/" + it) })
+        p.addShaderStages(shaders)
 
         logger.info("${descriptorSetLayouts.count()} DSLs are available: ${descriptorSetLayouts.keys.joinToString(", ")}")
 
@@ -246,7 +248,7 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
 
         logger.info("Prepared pipeline for ${name}")
 
-        pipelines.put("default", p)
+        pipelines.put(pipelineName, p)
     }
 
     fun setViewportPass(swapchainSize: Int) {

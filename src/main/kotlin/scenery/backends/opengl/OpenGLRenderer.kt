@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory
 import scenery.*
 import scenery.backends.Renderer
 import scenery.backends.SceneryWindow
+import scenery.backends.ShaderPreference
 import scenery.controls.HMDInput
 import scenery.fonts.SDFFontAtlas
 import java.io.File
@@ -1130,7 +1131,7 @@ open class OpenGLRenderer : Renderer, Hubable, ClearGLDefaultEventListener {
      * this Material will be used. Else, a default GLProgram will be used.
      *
      * For the assigned Material case, the GLProgram is derived either from the class name of the
-     * Node (if useClassDerivedShader is set), or from a set [OpenGLShaderPreference] which may define
+     * Node (if useClassDerivedShader is set), or from a set [ShaderPreference] which may define
      * the whole shader pipeline for the Node.
      *
      * If the [Node] implements [HasGeometry], it's geometry is also initialized by this function.
@@ -1184,8 +1185,8 @@ open class OpenGLRenderer : Renderer, Hubable, ClearGLDefaultEventListener {
 
                 s.program = GLProgram.buildProgram(gl, OpenGLRenderer::class.java,
                     shaders.toTypedArray())
-            } else if (node.metadata.filter { it.value is OpenGLShaderPreference }.isNotEmpty()) {
-                val prefs = node.metadata["ShaderPreference"] as OpenGLShaderPreference
+            } else if (node.metadata.filter { it.value is ShaderPreference }.isNotEmpty()) {
+                val prefs = node.metadata["ShaderPreference"] as ShaderPreference
 
                 if (prefs.parameters.size > 0) {
                     s.program = GLProgram.buildProgram(gl, node.javaClass,

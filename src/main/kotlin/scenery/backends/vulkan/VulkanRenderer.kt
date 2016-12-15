@@ -19,6 +19,7 @@ import scenery.backends.RenderConfigReader
 import scenery.backends.Renderer
 import scenery.backends.SceneryWindow
 import scenery.backends.createRenderpassFlow
+import scenery.backends.ShaderPreference
 import scenery.fonts.SDFFontAtlas
 import java.awt.image.BufferedImage
 import java.awt.image.DataBufferByte
@@ -605,6 +606,17 @@ open class VulkanRenderer : Renderer {
 
         s.initialized = true
         node.metadata["VulkanRenderer"] = s
+
+        val sp = node.metadata.values.find { it is ShaderPreference }
+        if(sp != null) {
+            renderpasses.filter { it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry }
+                .map { pass ->
+                    val shaders = (sp as ShaderPreference).shaders
+                    logger.info("initializing preferred pipeline for ${node.name} from $shaders")
+                    pass.value.initializePipeline("preferred",
+                        shaders.map { VulkanShaderModule(device, "main", "shaders/" + it + ".spv") })
+                }
+        }
 
         return true
     }
@@ -1741,6 +1753,7 @@ open class VulkanRenderer : Renderer {
         }
 
         state.vertexBuffers.put("instance", instanceBuffer)
+        state.instanceCount = instances.size
 
         vkDestroyBuffer(device, stagingBuffer.buffer, null)
         vkFreeMemory(device, stagingBuffer.memory, null)
@@ -1883,6 +1896,7 @@ open class VulkanRenderer : Renderer {
             }
 
             val instanceGroups = renderOrderList.groupBy(Node::instanceOf)
+            logger.info("instance groups:" + instanceGroups.keys.joinToString(","))
 
             pass.commandBuffer = with(VU.newCommandBuffer(device, commandPools.Render, autostart = true)) {
 
@@ -1919,7 +1933,8 @@ open class VulkanRenderer : Renderer {
                     val offsets = memAllocLong(1)
                     offsets.put(0, 0)
 
-                    val pipeline = pass.pipelines["default"]!!.getPipelineForGeometryType((node as HasGeometry).geometryType)
+                    val pipeline = pass.pipelines.getOrDefault("preferred", pass.pipelines["default"]!!)
+                        .getPipelineForGeometryType((node as HasGeometry).geometryType)
 
                     vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline)
                     vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -1939,8 +1954,9 @@ open class VulkanRenderer : Renderer {
                 instanceGroups.keys.filterNotNull().forEach instancedDrawing@ { node ->
                     val s = node.metadata["VulkanRenderer"]!! as VulkanObjectState
 
+                    logger.info("Starting instanced draw for ${node.name}, ${s.vertexCount} vertices")
                     // this only lets non-instanced, parent nodes through
-                    if (node in instanceGroups.keys || s.vertexCount == 0) {
+                    if (s.vertexCount == 0) {
                         return@instancedDrawing
                     }
 
@@ -1964,20 +1980,22 @@ open class VulkanRenderer : Renderer {
                     val bufferOffsets = memAllocLong(1)
                     bufferOffsets.put(0, 0)
 
-                    val pipeline = pass.pipelines["default"]!!.getPipelineForGeometryType((node as HasGeometry).geometryType)
+                    val pipeline = pass.pipelines.getOrDefault("preferred", pass.pipelines["default"]!!)
+                        .getPipelineForGeometryType((node as HasGeometry).geometryType)
 
                     vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline)
                     vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_GRAPHICS,
                         pipeline.layout, 0, ds, sceneUBOs[node]!!.offsets)
+
                     vkCmdBindVertexBuffers(this, 0, vb, bufferOffsets)
                     vkCmdBindVertexBuffers(this, 1, instanceBuffer, bufferOffsets)
 
-                    logger.trace("now drawing ${node.name}, ${ds.capacity()} DS bound, ${s.textures.count()} textures")
+                    logger.info("now drawing ${s.instanceCount} of ${node.name}, ${ds.capacity()} DS bound, ${s.textures.count()} textures")
                     if (s.isIndexed) {
                         vkCmdBindIndexBuffer(this, vb.get(0), s.indexOffset * 1L, VK_INDEX_TYPE_UINT32)
-                        vkCmdDrawIndexed(this, s.indexCount, 1, 0, 0, 0)
+                        vkCmdDrawIndexed(this, s.indexCount, s.instanceCount, 0, 0, 0)
                     } else {
-                        vkCmdDraw(this, s.vertexCount, 1, 0, 0)
+                        vkCmdDraw(this, s.vertexCount, s.instanceCount, 0, 0)
                     }
                 }
 

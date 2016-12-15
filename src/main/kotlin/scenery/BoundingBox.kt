@@ -3,7 +3,7 @@ package scenery
 import cleargl.GLVector
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import scenery.backends.opengl.OpenGLShaderPreference
+import scenery.backends.ShaderPreference
 import java.util.*
 
 /**
@@ -95,7 +95,7 @@ open class BoundingBox : Mesh() {
         name = "Bounding Box"
         metadata.put(
             "ShaderPreference",
-            OpenGLShaderPreference(
+            ShaderPreference(
                 arrayListOf("DefaultDeferred.vert", "BoundingBox.frag"),
                 HashMap<String, String>(),
                 arrayListOf("DeferredShadingRenderer")))

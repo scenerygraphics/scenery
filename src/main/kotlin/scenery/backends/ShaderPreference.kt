@@ -1,4 +1,4 @@
-package scenery.backends.opengl
+package scenery.backends
 
 import scenery.NodeMetadata
 import java.util.*
@@ -9,7 +9,7 @@ import java.util.*
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-data class OpenGLShaderPreference(
+data class ShaderPreference(
     /** List of shader files */
     var shaders: List<String>,
     /** Hash map of shader parameters to be processed by the precompiler. */
