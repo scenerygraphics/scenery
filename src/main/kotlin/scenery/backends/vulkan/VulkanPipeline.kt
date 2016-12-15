@@ -96,7 +96,7 @@ class VulkanPipeline(val device: VkDevice, val pipelineCache: Long? = null) {
             i, it ->
             stages.get(i).set(it.shader)
 
-            descriptorSpecs.addAll(it.uboSpecs)
+            descriptorSpecs.addAll(it.uboSpecs.values)
             descriptorSpecs.sortBy { spec -> spec.set }
         }
 

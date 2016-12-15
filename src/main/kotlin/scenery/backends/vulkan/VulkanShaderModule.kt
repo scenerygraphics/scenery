@@ -21,7 +21,7 @@ class VulkanShaderModule(device: VkDevice, entryPoint: String, shaderCodePath: S
     var shader: VkPipelineShaderStageCreateInfo
     var shaderModule: Long
     var device: VkDevice
-    var uboSpecs = ArrayList<UBOSpec>()
+    var uboSpecs = LinkedHashMap<String, UBOSpec>()
 
     data class UBOSpec(val name: String, val set: Long, val binding: Long)
 
@@ -40,17 +40,23 @@ class VulkanShaderModule(device: VkDevice, entryPoint: String, shaderCodePath: S
             val res = uniformBuffers.get(i.toInt())
             logger.info("${res.name}, set=${compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet)}, binding=${compiler.getDecoration(res.id, Decoration.DecorationBinding)}")
 
-            uboSpecs.add(UBOSpec(res.name,
+            val ubo = UBOSpec(res.name,
                 set = compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet),
-                binding = compiler.getDecoration(res.id, Decoration.DecorationBinding)))
+                binding = compiler.getDecoration(res.id, Decoration.DecorationBinding))
+
+            if(!uboSpecs.contains(res.name)) {
+                uboSpecs.put(res.name, ubo)
+            }
         }
 
         // inputs are summarized into one descriptor set
         if(compiler.getShaderResources().sampledImages.size() > 0) {
             val res = compiler.getShaderResources().sampledImages.get(0)
-            uboSpecs.add(UBOSpec("inputs",
-                set = compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet),
-                binding = 0))
+            if(res.name != "ObjectTextures") {
+                uboSpecs.put(res.name, UBOSpec("inputs",
+                    set = compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet),
+                    binding = 0))
+            }
         }
 
         val inputs = compiler.getShaderResources().stageInputs

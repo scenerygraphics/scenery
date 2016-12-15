@@ -22,10 +22,10 @@ struct MaterialInfo {
     float Shininess;
 };
 
-const int MATERIAL_TYPE_STATIC = 0;
-const int MATERIAL_TYPE_TEXTURED = 1;
-const int MATERIAL_TYPE_MAT = 2;
-const int MATERIAL_TYPE_TEXTURED_NORMAL = 3;
+const int MATERIAL_HAS_DIFFUSE =  0x0001;
+const int MATERIAL_HAS_AMBIENT =  0x0002;
+const int MATERIAL_HAS_SPECULAR = 0x0004;
+const int MATERIAL_HAS_NORMAL =   0x0008;
 
 layout(binding = 0) uniform Matrices {
 	mat4 ModelViewMatrix;
@@ -54,22 +54,23 @@ layout(set = 1, binding = 0) uniform sampler2D ObjectTextures[NUM_OBJECT_TEXTURE
 void main() {
     // Store the fragment position vector in the first gbuffer texture
     gPosition = VertexIn.FragPosition;
+    gAlbedoSpec.rgb = vec3(0.0f, 0.0f, 0.0f);
 
     // Also store the per-fragment normals into the gbuffer
-    if(materialType == MATERIAL_TYPE_TEXTURED_NORMAL) {
+    if((materialType & MATERIAL_HAS_AMBIENT) == 1) {
+        gAlbedoSpec.rgb += texture(ObjectTextures[0], VertexIn.TexCoord).rgb;
+    } else if((materialType & MATERIAL_HAS_DIFFUSE) == 1) {
+        gAlbedoSpec.rgb += texture(ObjectTextures[1], VertexIn.TexCoord).rgb;
+    } else if((materialType & MATERIAL_HAS_SPECULAR) == 1) {
+        gAlbedoSpec.a += texture(ObjectTextures[2], VertexIn.TexCoord).r;
+    } else {
+         gAlbedoSpec.rgb = Material.Kd;
+         gAlbedoSpec.a = Material.Ka.r*Material.Shininess;
+    }
+
+    if((materialType & MATERIAL_HAS_NORMAL) == 1) {
         gNormal = normalize(texture(ObjectTextures[3], VertexIn.TexCoord).rgb*2.0 - 1.0);
     } else {
         gNormal = normalize(VertexIn.Normal);
-    }
-    // And the diffuse per-fragment color
-    if(materialType == MATERIAL_TYPE_MAT) {
-        gAlbedoSpec.rgb = Material.Kd;
-        gAlbedoSpec.a = Material.Ka.r*Material.Shininess;
-    } else if(materialType == MATERIAL_TYPE_STATIC) {
-        gAlbedoSpec.rgb = Material.Kd;
-        gAlbedoSpec.a = Material.Ks.r * Material.Shininess;
-    } else {
-        gAlbedoSpec.rgb = texture(ObjectTextures[1], VertexIn.TexCoord).rgb;
-        gAlbedoSpec.a = texture(ObjectTextures[2], VertexIn.TexCoord).r;
     }
 }

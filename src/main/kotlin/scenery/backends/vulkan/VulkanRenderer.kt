@@ -202,6 +202,13 @@ open class VulkanRenderer : Renderer {
     private var MAX_INPUT_ATTACHMENTS = 32
     private val UINT64_MAX: Long = -1L
     private val WINDOW_RESIZE_TIMEOUT = 200*10e6
+
+
+    private val MATERIAL_HAS_DIFFUSE =  0x0001
+    private val MATERIAL_HAS_AMBIENT =  0x0002
+    private val MATERIAL_HAS_SPECULAR = 0x0004
+    private val MATERIAL_HAS_NORMAL =   0x0008
+
     // end helper vars
 
     override var hub: Hub? = null
@@ -548,13 +555,22 @@ open class VulkanRenderer : Renderer {
 
         if(node.material != null) {
             val materialUbo = UBO(device, backingBuffer = buffers["UBOBuffer"])
-            val materialType = if (node.material!!.textures.containsKey("diffuse")) {
-                1
-            } else if (node.material!!.textures.containsKey("normal")) {
-                logger.info("${node.name} has type texture+normalmap")
-                3
-            } else {
-                0
+            var materialType = 0
+
+            if(node.material!!.textures.containsKey("ambient") && !s.defaultTexturesFor.contains("ambient")) {
+                materialType = materialType or MATERIAL_HAS_AMBIENT
+            }
+
+            if(node.material!!.textures.containsKey("diffuse") && !s.defaultTexturesFor.contains("diffuse")) {
+                materialType = materialType or MATERIAL_HAS_DIFFUSE
+            }
+
+            if(node.material!!.textures.containsKey("specular") && !s.defaultTexturesFor.contains("specular")) {
+                materialType = materialType or MATERIAL_HAS_SPECULAR
+            }
+
+            if(node.material!!.textures.containsKey("normal") && !s.defaultTexturesFor.contains("normal")) {
+                materialType = materialType or MATERIAL_HAS_NORMAL
             }
 
             with(materialUbo) {
@@ -632,9 +648,12 @@ open class VulkanRenderer : Renderer {
                 }
             }
 
-            /*arrayOf("ambient", "diffuse", "specular", "normal", "displacement").forEach {
-                s.textures.putIfAbsent(it, textureCache["DefaultTexture"])
-            }*/
+            arrayOf("ambient", "diffuse", "specular", "normal", "displacement").forEach {
+                if(!s.textures.containsKey(it)) {
+                    s.textures.putIfAbsent(it, textureCache["DefaultTexture"])
+                    s.defaultTexturesFor.add(it)
+                }
+            }
 
             s.texturesToDescriptorSet(device, descriptorSetLayouts["ObjectTextures"]!!,
                 descriptorPool,
@@ -1554,7 +1573,7 @@ open class VulkanRenderer : Renderer {
 //                VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
                 VU.setImageLayout(this, images[i],
                     aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                    oldImageLayout = VK_IMAGE_LAYOUT_GENERAL,
+                    oldImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
                     newImageLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
                 colorAttachmentView.image(images[i])
 
@@ -1896,13 +1915,6 @@ open class VulkanRenderer : Renderer {
                     if (s.textures.size > 0) {
                         ds.put(1, s.textureDescriptorSet)
                     }
-//                var dspos = 1
-//                logger.info("${n.name} has ${s.textures.count()} textures")
-//                s.textures.forEach { type, texture ->
-//                    logger.info("Adding ds for $type $texture of ${n.name}, ${texture.image!!.descriptorSet}")
-//                    ds.put(dspos, texture.image!!.descriptorSet)
-//                    dspos ++
-//                }
 
                     val offsets = memAllocLong(1)
                     offsets.put(0, 0)
@@ -1948,13 +1960,6 @@ open class VulkanRenderer : Renderer {
                     if (s.textures.size > 0) {
                         ds.put(1, s.textureDescriptorSet)
                     }
-//                var dspos = 1
-//                logger.info("${n.name} has ${s.textures.count()} textures")
-//                s.textures.forEach { type, texture ->
-//                    logger.info("Adding ds for $type $texture of ${n.name}, ${texture.image!!.descriptorSet}")
-//                    ds.put(dspos, texture.image!!.descriptorSet)
-//                    dspos ++
-//                }
 
                     val bufferOffsets = memAllocLong(1)
                     bufferOffsets.put(0, 0)
@@ -2050,7 +2055,7 @@ open class VulkanRenderer : Renderer {
                         "inputs-${pass.name}"
                     } else if (spec.name.startsWith("Matrices")) {
                         offsets.put(sceneUBOs.values.first().offsets)
-                        requiredDynamicOffsets += 2
+                        requiredDynamicOffsets += 3
 
                         "default"
                     } else {

@@ -602,14 +602,17 @@ open class OpenGLRenderer : Renderer, Hubable, ClearGLDefaultEventListener {
                 if (n is FontBoard) {
                     updateFontBoard(n)
                 }
-                updateVertices(n)
-                updateNormals(n)
 
-                if (n.texcoords.limit() > 0) {
+                if(n.vertices.remaining() > 0 && n.normals.remaining() > 0) {
+                    updateVertices(n)
+                    updateNormals(n)
+                }
+
+                if (n.texcoords.remaining() > 0) {
                     updateTextureCoords(n)
                 }
 
-                if (n.indices.limit() > 0) {
+                if (n.indices.remaining() > 0) {
                     updateIndices(n)
                 }
 

@@ -30,6 +30,8 @@ class VulkanObjectState : NodeMetadata {
 
     var textures = ConcurrentHashMap<String, VulkanTexture>()
 
+    var defaultTexturesFor = HashSet<String>()
+
     var requiredDescriptorSets = ArrayList<String>()
 
     constructor() {
