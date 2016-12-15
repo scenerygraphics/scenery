@@ -15,18 +15,23 @@ import org.lwjgl.vulkan.VK10.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import scenery.*
-import scenery.backends.*
+import scenery.backends.RenderConfigReader
+import scenery.backends.Renderer
+import scenery.backends.SceneryWindow
+import scenery.backends.createRenderpassFlow
 import scenery.fonts.SDFFontAtlas
-import java.awt.color.ColorSpace
-import java.awt.image.*
+import java.awt.image.BufferedImage
+import java.awt.image.DataBufferByte
 import java.io.File
-import java.nio.*
+import java.nio.ByteBuffer
+import java.nio.IntBuffer
+import java.nio.LongBuffer
+import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
-import java.text.SimpleDateFormat
 import javax.imageio.ImageIO
 import kotlin.concurrent.thread
 
@@ -2187,5 +2192,9 @@ open class VulkanRenderer : Renderer {
 
     override fun close() {
         vkDestroyInstance(instance, null)
+    }
+
+    override fun reshape(newWidth: Int, newHeight: Int) {
+
     }
 }

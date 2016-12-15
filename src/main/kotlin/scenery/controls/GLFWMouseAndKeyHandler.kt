@@ -1,13 +1,21 @@
 package scenery.controls
 
-import com.jogamp.newt.event.*
+import com.jogamp.newt.event.InputEvent
+import com.jogamp.newt.event.KeyEvent
+import com.jogamp.newt.event.MouseEvent
+import com.jogamp.newt.event.WindowEvent
 import gnu.trove.map.hash.TIntLongHashMap
 import gnu.trove.set.hash.TIntHashSet
 import net.java.games.input.*
-import org.lwjgl.glfw.*
+import org.lwjgl.glfw.GLFW.*
+import org.lwjgl.glfw.GLFWCursorPosCallback
+import org.lwjgl.glfw.GLFWKeyCallback
+import org.lwjgl.glfw.GLFWMouseButtonCallback
+import org.lwjgl.glfw.GLFWScrollCallback
 import org.scijava.ui.behaviour.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import scenery.Hub
 import scenery.controls.behaviours.GamepadBehaviour
 import java.awt.Toolkit
 import java.io.File
@@ -15,13 +23,11 @@ import java.nio.file.Files
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.concurrent.thread
-import org.lwjgl.glfw.GLFW.*
-import org.lwjgl.glfw.GLFWKeyCallback
 
 /**
  * Created by ulrik on 10/26/2016.
  */
-open class GLFWMouseAndKeyHandler : MouseAndKeyHandler {
+open class GLFWMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandler {
 
     var cursorCallback = object : GLFWCursorPosCallback() {
         override fun invoke(window: Long, xpos: Double, ypos: Double) {

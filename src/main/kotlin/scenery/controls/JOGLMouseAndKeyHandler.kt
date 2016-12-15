@@ -7,6 +7,7 @@ import net.java.games.input.*
 import org.scijava.ui.behaviour.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import scenery.Hub
 import scenery.controls.behaviours.GamepadBehaviour
 import java.awt.Toolkit
 import java.io.File
@@ -20,7 +21,7 @@ import kotlin.concurrent.thread
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class JOGLMouseAndKeyHandler : MouseAndKeyHandler, MouseListener, KeyListener, WindowListener, WindowAdapter(), ControllerListener {
+class JOGLMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandler, MouseListener, KeyListener, WindowListener, WindowAdapter(), ControllerListener {
     /** slf4j logger for this class */
     protected var logger: Logger = LoggerFactory.getLogger("InputHandler")
 

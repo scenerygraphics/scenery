@@ -104,6 +104,16 @@ open class OpenGLRenderer : Renderer, Hubable, ClearGLDefaultEventListener {
     /** Eyes of the stereo render targets */
     var eyes = (0..0)
 
+
+    /** time since last resizing */
+    protected var lastResizeTimer = Timer()
+
+    /** Window resizing timeout */
+    protected var WINDOW_RESIZE_TIMEOUT = 200L
+
+    /** Flag to indicate whether framebuffers have to be recreated */
+    protected var mustRecreateFramebuffers = false
+
     var initialized = false
 
     /**
@@ -177,6 +187,39 @@ open class OpenGLRenderer : Renderer, Hubable, ClearGLDefaultEventListener {
             settings.set("vr.IPD", -0.5f)
         }
 
+        recreateFramebuffers()
+
+        logger.info(geometryBuffer.map { it.toString() }.joinToString("\n"))
+
+        lightingPassProgram = GLProgram.buildProgram(gl, OpenGLRenderer::class.java,
+            arrayOf("shaders/FullscreenQuad.vert", "shaders/DeferredLighting.frag"))
+
+        hdrPassProgram = GLProgram.buildProgram(gl, OpenGLRenderer::class.java,
+            arrayOf("shaders/FullscreenQuad.vert", "shaders/HDR.frag"))
+
+        combinerProgram = GLProgram.buildProgram(gl, OpenGLRenderer::class.java,
+            arrayOf("shaders/FullscreenQuad.vert", "shaders/Combiner.frag"))
+
+        gl.glViewport(0, 0, this.window.width, this.window.height)
+        gl.glClearColor(0.0f, 0.0f, 0.0f, 0.0f)
+
+        gl.glEnable(GL4.GL_TEXTURE_GATHER)
+
+        initialized = true
+
+        initializeScene()
+    }
+
+    fun recreateFramebuffers() {
+
+        geometryBuffer.map { it.destroy(this.gl) }
+        hdrBuffer.map { it.destroy(this.gl) }
+        combinationBuffer.map { it.destroy(this.gl) }
+
+        geometryBuffer.clear()
+        hdrBuffer.clear()
+        combinationBuffer.clear()
+
         eyes.forEach {
             // create 32bit position buffer, 16bit normal buffer, 8bit diffuse buffer and 24bit depth buffer
             val vrWidthDivisor = if (settings.get("vr.DoAnaglyph")) 1 else 2
@@ -190,7 +233,7 @@ open class OpenGLRenderer : Renderer, Hubable, ClearGLDefaultEventListener {
             gb.addDepthBuffer(this.gl, 32, 1)
 
             // 32bit depth buffers might not be supported, fall back to 24bit
-            if(!gb.checkDrawBuffers(this.gl)) {
+            if (!gb.checkDrawBuffers(this.gl)) {
                 gb = GLFramebuffer(this.gl, actualWidth, actualHeight)
                 gb.addFloatRGBABuffer(this.gl, 32)
                 gb.addFloatRGBABuffer(this.gl, 16)
@@ -214,26 +257,6 @@ open class OpenGLRenderer : Renderer, Hubable, ClearGLDefaultEventListener {
 
             combinationBuffer.add(cb)
         }
-
-        logger.info(geometryBuffer.map { it.toString() }.joinToString("\n"))
-
-        lightingPassProgram = GLProgram.buildProgram(gl, OpenGLRenderer::class.java,
-            arrayOf("shaders/FullscreenQuad.vert", "shaders/DeferredLighting.frag"))
-
-        hdrPassProgram = GLProgram.buildProgram(gl, OpenGLRenderer::class.java,
-            arrayOf("shaders/FullscreenQuad.vert", "shaders/HDR.frag"))
-
-        combinerProgram = GLProgram.buildProgram(gl, OpenGLRenderer::class.java,
-            arrayOf("shaders/FullscreenQuad.vert", "shaders/Combiner.frag"))
-
-        gl.glViewport(0, 0, this.window.width, this.window.height)
-        gl.glClearColor(0.0f, 0.0f, 0.0f, 0.0f)
-
-        gl.glEnable(GL4.GL_TEXTURE_GATHER)
-
-        initialized = true
-
-        initializeScene()
     }
 
     override fun display(pDrawable: GLAutoDrawable) {
@@ -329,7 +352,7 @@ open class OpenGLRenderer : Renderer, Hubable, ClearGLDefaultEventListener {
     }
 
     protected fun textureTypeToArrayName(type: String): String {
-        return when(type) {
+        return when (type) {
             "ambient" -> "ObjectTextures[0]"
             "diffuse" -> "ObjectTextures[1]"
             "specular" -> "ObjectTextures[2]"
@@ -666,7 +689,7 @@ open class OpenGLRenderer : Renderer, Hubable, ClearGLDefaultEventListener {
      * @param[scene] [Scene] to render. Must have been given to [initializeScene] before or bad things will happen.
      */
     override fun render() {
-        if(scene.children.count() == 0 ||
+        if (scene.children.count() == 0 ||
             lightingPassProgram == null ||
             hdrPassProgram == null ||
             combinerProgram == null
@@ -674,6 +697,15 @@ open class OpenGLRenderer : Renderer, Hubable, ClearGLDefaultEventListener {
             logger.info("Waiting for initialization")
             Thread.sleep(200)
             return
+        }
+
+        if(mustRecreateFramebuffers) {
+            recreateFramebuffers()
+
+            gl.glClear(GL.GL_DEPTH_BUFFER_BIT or GL.GL_COLOR_BUFFER_BIT)
+            gl.glViewport(0, 0, window.width, window.height)
+
+            mustRecreateFramebuffers = false
         }
 
         val renderOrderList = ArrayList<Node>()
@@ -1014,7 +1046,7 @@ open class OpenGLRenderer : Renderer, Hubable, ClearGLDefaultEventListener {
             renderFullscreenQuad(combinerProgram!!)
         }
 
-        if(screenshotRequested && joglDrawable != null) {
+        if (screenshotRequested && joglDrawable != null) {
             try {
                 val readBufferUtil = AWTGLReadBufferUtil(joglDrawable!!.glProfile, false)
                 val image = readBufferUtil.readPixelsToBufferedImage(gl, true)
@@ -1273,29 +1305,22 @@ open class OpenGLRenderer : Renderer, Hubable, ClearGLDefaultEventListener {
      * @param[newWidth] The resized window's width
      * @param[newHeight] The resized window's height
      */
-    fun reshape(newWidth: Int, newHeight: Int) {
-        if(!initialized) {
+    override fun reshape(newWidth: Int, newHeight: Int) {
+        if (!initialized) {
             return
         }
-        window.width = newWidth
-        window.height = newHeight
 
-        if (settings.get<Boolean>("vr.Active")) {
-            val eyeDivisor = settings.get<Int>("vr.EyeDivisor")
-            geometryBuffer.forEach {
-                it.resize(gl, newWidth / eyeDivisor, newHeight)
+        lastResizeTimer.cancel()
+
+        lastResizeTimer = Timer()
+        lastResizeTimer.schedule(object : TimerTask() {
+            override fun run() {
+                window.width = newWidth
+                window.height = newHeight
+
+                mustRecreateFramebuffers = true
             }
-
-            hdrBuffer.forEach {
-                it.resize(gl, newWidth / eyeDivisor, newHeight)
-            }
-        } else {
-            geometryBuffer.first().resize(gl, newWidth, newHeight)
-            hdrBuffer.first().resize(gl, newWidth, newHeight)
-        }
-
-        gl.glClear(GL.GL_DEPTH_BUFFER_BIT or GL.GL_COLOR_BUFFER_BIT)
-        gl.glViewport(0, 0, window.width, window.height)
+        }, WINDOW_RESIZE_TIMEOUT)
     }
 
     /**

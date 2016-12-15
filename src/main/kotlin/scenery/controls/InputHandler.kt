@@ -1,25 +1,25 @@
 package scenery.controls
 
 import net.java.games.input.Component
+import org.lwjgl.glfw.GLFW.*
 import org.scijava.ui.behaviour.Behaviour
 import org.scijava.ui.behaviour.BehaviourMap
 import org.scijava.ui.behaviour.InputTriggerMap
 import org.scijava.ui.behaviour.io.InputTriggerConfig
 import org.scijava.ui.behaviour.io.yaml.YamlConfigIO
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import scenery.Hub
 import scenery.Hubable
 import scenery.Scene
 import scenery.SceneryElement
-import scenery.controls.behaviours.*
 import scenery.backends.Renderer
 import scenery.backends.SceneryWindow
+import scenery.controls.behaviours.*
 import java.io.FileNotFoundException
 import java.io.FileReader
 import java.io.Reader
 import java.io.StringReader
-import org.lwjgl.glfw.GLFW.*
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 
 /**
  * Input orchestrator for ClearGL windows
@@ -56,7 +56,7 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
 
         if(window.clearglWindow != null) {
             // create Mouse & Keyboard Handler
-            handler = JOGLMouseAndKeyHandler()
+            handler = JOGLMouseAndKeyHandler(hub)
             handler.setInputMap(inputMap)
             handler.setBehaviourMap(behaviourMap)
 
@@ -66,7 +66,7 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
                 addWindowListener(handler)
             }
         } else if(window.glfwWindow != null) {
-            handler = GLFWMouseAndKeyHandler()
+            handler = GLFWMouseAndKeyHandler(hub)
 
             handler.setInputMap(inputMap)
             handler.setBehaviourMap(behaviourMap)

@@ -38,6 +38,8 @@ interface Renderer : Hubable {
 
     fun screenshot()
 
+    fun reshape(newWidth: Int, newHeight: Int)
+
     val managesRenderLoop: Boolean
 
     companion object {
