@@ -283,7 +283,8 @@ open class VulkanRenderer : Renderer {
 
     private var renderConfig: RenderConfigReader.RenderConfig
 
-    constructor(applicationName: String, scene: Scene, windowWidth: Int, windowHeight: Int, renderConfigFile: String = "DeferredShading.yml") {
+    constructor(applicationName: String, scene: Scene, windowWidth: Int, windowHeight: Int,
+                renderConfigFile: String = System.getProperty("scenery.Renderer.Config", "DeferredShading.yml")) {
         window.width = windowWidth
         window.height = windowHeight
 
