@@ -7,10 +7,10 @@ import scenery.backends.opengl.OpenGLRenderer
 import scenery.backends.vulkan.VulkanRenderer
 
 /**
-* Renderer interface. Defines the minimal set of functions a renderer has to implement.
-*
-* @author Ulrik Günther <hello@ulrik.is>
-*/
+ * Renderer interface. Defines the minimal set of functions a renderer has to implement.
+ *
+ * @author Ulrik Günther <hello@ulrik.is>
+ */
 interface Renderer : Hubable {
     /**
      * This function should initialize the scene contents.
@@ -18,8 +18,6 @@ interface Renderer : Hubable {
      * @param[scene] The scene to initialize.
      */
     fun initializeScene()
-
-//    fun setCurrentScene(scene: Scene)
 
     /**
      * This function renders the scene
@@ -42,11 +40,11 @@ interface Renderer : Hubable {
 
     val managesRenderLoop: Boolean
 
-    companion object {
+    companion object Factory {
         fun createRenderer(applicationName: String, scene: Scene, windowWidth: Int, windowHeight: Int): Renderer {
             val preference = System.getProperty("scenery.Renderer", "OpenGLRenderer")
 
-            return if(preference == "VulkanRenderer") {
+            return if (preference == "VulkanRenderer") {
                 VulkanRenderer(applicationName, scene, windowWidth, windowHeight)
             } else {
                 OpenGLRenderer(applicationName, scene, windowWidth, windowHeight)

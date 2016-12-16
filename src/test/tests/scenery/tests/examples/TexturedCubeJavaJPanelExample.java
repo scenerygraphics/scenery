@@ -25,7 +25,7 @@ public class TexturedCubeJavaJPanelExample {
 
         public void init(GLAutoDrawable pDrawable) {
 
-            setRenderer( Renderer.Companion.createRenderer(getApplicationName(), getScene(), 512, 512));
+            setRenderer( Renderer.Factory.createRenderer(getApplicationName(), getScene(), 512, 512));
             getHub().add(SceneryElement.RENDERER, getRenderer());
 
             Material boxmaterial = new Material();
