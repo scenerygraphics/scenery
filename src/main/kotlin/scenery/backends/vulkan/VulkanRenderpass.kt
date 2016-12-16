@@ -2,6 +2,8 @@ package scenery.backends.vulkan
 
 import cleargl.GLVector
 import org.lwjgl.system.MemoryUtil
+import org.lwjgl.system.MemoryUtil.memAllocInt
+import org.lwjgl.system.MemoryUtil.memAllocLong
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
 import org.slf4j.Logger
@@ -9,6 +11,8 @@ import org.slf4j.LoggerFactory
 import scenery.GeometryType
 import scenery.Settings
 import scenery.backends.RenderConfigReader
+import java.nio.IntBuffer
+import java.nio.LongBuffer
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
@@ -70,6 +74,15 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
         private set
     var readPos = 0
         private set
+
+    data class VulkanMetadata(var descriptorSets: LongBuffer = memAllocLong(2),
+                                    var offsets: LongBuffer = memAllocLong(1),
+                                    var scissor: VkRect2D.Buffer = VkRect2D.calloc(1),
+                                    var viewport: VkViewport.Buffer = VkViewport.calloc(1),
+                                    var vertexBuffers: LongBuffer = memAllocLong(1),
+                                    var instanceBuffers: LongBuffer = memAllocLong(1))
+
+    var vulkanMetadata = VulkanMetadata()
 
     fun cmdPrepareDraw(forPipeline: String) {
 

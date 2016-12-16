@@ -1878,12 +1878,11 @@ open class VulkanRenderer : Renderer {
 
                 vkCmdBeginRenderPass(this, renderPassBegin, VK_SUBPASS_CONTENTS_INLINE)
 
-                val viewport = VkViewport.calloc(1)
-                viewport[0].set(0.0f, 0.0f, window.width.toFloat(), window.height.toFloat(), 0.0f, 1.0f)
-                val scissor = VkRect2D.calloc(1).extent(VkExtent2D.calloc().set(window.width, window.height))
+                pass.vulkanMetadata.viewport[0].set(0.0f, 0.0f, window.width.toFloat(), window.height.toFloat(), 0.0f, 1.0f)
+                pass.vulkanMetadata.scissor[0].extent().set(window.width, window.height)
 
-                vkCmdSetViewport(this, 0, viewport)
-                vkCmdSetScissor(this, 0, scissor)
+                vkCmdSetViewport(this, 0, pass.vulkanMetadata.viewport)
+                vkCmdSetScissor(this, 0, pass.vulkanMetadata.scissor)
 
                 instanceGroups[null]?.forEach nonInstancedDrawing@ { node ->
                     val s = node.metadata["VulkanRenderer"]!! as VulkanObjectState
@@ -1892,34 +1891,25 @@ open class VulkanRenderer : Renderer {
                         return@nonInstancedDrawing
                     }
 
-                    val vb = memAllocLong(1)
-                    vb.put(0, s.vertexBuffers["vertex+index"]!!.buffer)
-
-                    val ds = memAllocLong(1 + if (s.textures.size > 0) {
-                        1
-                    } else {
-                        0
-                    })
-                    ds.put(0, descriptorSets["default"]!!)
+                    pass.vulkanMetadata.offsets.put(0, 0)
+                    pass.vulkanMetadata.vertexBuffers.put(0, s.vertexBuffers["vertex+index"]!!.buffer)
+                    pass.vulkanMetadata.descriptorSets.put(0, descriptorSets["default"]!!)
 
                     if (s.textures.size > 0) {
-                        ds.put(1, s.textureDescriptorSet)
+                        pass.vulkanMetadata.descriptorSets.put(1, s.textureDescriptorSet)
                     }
-
-                    val offsets = memAllocLong(1)
-                    offsets.put(0, 0)
 
                     val pipeline = pass.pipelines.getOrDefault("preferred", pass.pipelines["default"]!!)
                         .getPipelineForGeometryType((node as HasGeometry).geometryType)
 
                     vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline)
                     vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                        pipeline.layout, 0, ds, sceneUBOs[node]!!.offsets)
-                    vkCmdBindVertexBuffers(this, 0, vb, offsets)
+                        pipeline.layout, 0, pass.vulkanMetadata.descriptorSets, sceneUBOs[node]!!.offsets)
+                    vkCmdBindVertexBuffers(this, 0, pass.vulkanMetadata.vertexBuffers, pass.vulkanMetadata.offsets)
 
-                    logger.trace("now drawing ${node.name}, ${ds.capacity()} DS bound, ${s.textures.count()} textures")
+                    logger.trace("now drawing ${node.name}, ${pass.vulkanMetadata.descriptorSets.capacity()} DS bound, ${s.textures.count()} textures")
                     if (s.isIndexed) {
-                        vkCmdBindIndexBuffer(this, vb.get(0), s.indexOffset * 1L, VK_INDEX_TYPE_UINT32)
+                        vkCmdBindIndexBuffer(this, pass.vulkanMetadata.vertexBuffers.get(0), s.indexOffset * 1L, VK_INDEX_TYPE_UINT32)
                         vkCmdDrawIndexed(this, s.indexCount, 1, 0, 0, 0)
                     } else {
                         vkCmdDraw(this, s.vertexCount, 1, 0, 0)
@@ -1935,38 +1925,28 @@ open class VulkanRenderer : Renderer {
                         return@instancedDrawing
                     }
 
-                    val vb = memAllocLong(1)
-                    vb.put(0, s.vertexBuffers["vertex+index"]!!.buffer)
-
-                    val instanceBuffer = memAllocLong(1)
-                    instanceBuffer.put(0, s.vertexBuffers["instance"]!!.buffer)
-
-                    val ds = memAllocLong(1 + if (s.textures.size > 0) {
-                        1
-                    } else {
-                        0
-                    })
-                    ds.put(0, descriptorSets["default"]!!)
+                    pass.vulkanMetadata.offsets.put(0, 0)
+                    pass.vulkanMetadata.vertexBuffers.put(0, s.vertexBuffers["vertex+index"]!!.buffer)
+                    pass.vulkanMetadata.descriptorSets.put(0, descriptorSets["default"]!!)
 
                     if (s.textures.size > 0) {
-                        ds.put(1, s.textureDescriptorSet)
+                        pass.vulkanMetadata.descriptorSets.put(1, s.textureDescriptorSet)
                     }
 
-                    val bufferOffsets = memAllocLong(1)
-                    bufferOffsets.put(0, 0)
+                    pass.vulkanMetadata.instanceBuffers.put(0, s.vertexBuffers["instance"]!!.buffer)
 
                     val pipeline = pass.pipelines.getOrDefault("preferred", pass.pipelines["default"]!!)
                         .getPipelineForGeometryType((node as HasGeometry).geometryType)
 
                     vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline)
                     vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                        pipeline.layout, 0, ds, sceneUBOs[node]!!.offsets)
+                        pipeline.layout, 0, pass.vulkanMetadata.descriptorSets, sceneUBOs[node]!!.offsets)
 
-                    vkCmdBindVertexBuffers(this, 0, vb, bufferOffsets)
-                    vkCmdBindVertexBuffers(this, 1, instanceBuffer, bufferOffsets)
+                    vkCmdBindVertexBuffers(this, 0, pass.vulkanMetadata.vertexBuffers, pass.vulkanMetadata.offsets)
+                    vkCmdBindVertexBuffers(this, 1, pass.vulkanMetadata.instanceBuffers, pass.vulkanMetadata.offsets)
 
                     if (s.isIndexed) {
-                        vkCmdBindIndexBuffer(this, vb.get(0), s.indexOffset * 1L, VK_INDEX_TYPE_UINT32)
+                        vkCmdBindIndexBuffer(this, pass.vulkanMetadata.vertexBuffers.get(0), s.indexOffset * 1L, VK_INDEX_TYPE_UINT32)
                         vkCmdDrawIndexed(this, s.indexCount, s.instanceCount, 0, 0, 0)
                     } else {
                         vkCmdDraw(this, s.vertexCount, s.instanceCount, 0, 0)
