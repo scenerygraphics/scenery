@@ -19,7 +19,15 @@ class BoxedProteinExample : SceneryDefaultApplication("BoxedProteinExample", win
             hub.add(SceneryElement.RENDERER, renderer!!)
 
             val cam: Camera = DetachedHeadCamera()
+            cam.position = GLVector(0.0f, 0.0f, 0.0f)
+            cam.view = GLMatrix().setCamera(cam.position, cam.position + cam.forward, cam.up)
 
+            cam.projection = GLMatrix().setPerspectiveProjectionMatrix(
+                50.0f / 180.0f * Math.PI.toFloat(),
+                windowWidth.toFloat()/windowHeight.toFloat(), 0.1f, 1000.0f).invert()
+            cam.active = true
+
+            scene.addChild(cam)
             fun rangeRandomizer(min: Float, max: Float): Float = min + (Math.random().toFloat() * ((max - min) + 1.0f))
 
             var boxes = (0..2).map {
@@ -78,15 +86,7 @@ class BoxedProteinExample : SceneryDefaultApplication("BoxedProteinExample", win
 
             scene.addChild(mesh)
 
-            cam.position = GLVector(0.0f, 0.0f, 0.0f)
-            cam.view = GLMatrix().setCamera(cam.position, cam.position + cam.forward, cam.up)
 
-            cam.projection = GLMatrix().setPerspectiveProjectionMatrix(
-                    50.0f / 180.0f * Math.PI.toFloat(),
-                    windowWidth.toFloat()/windowHeight.toFloat(), 0.1f, 1000.0f).invert()
-            cam.active = true
-
-            scene.addChild(cam)
 
             var ticks: Int = 0
 

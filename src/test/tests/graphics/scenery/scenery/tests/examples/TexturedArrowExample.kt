@@ -45,9 +45,12 @@ class TexturedArrowExample : SceneryDefaultApplication("TexturedArrowExample") {
         }
 
         lights.mapIndexed { i, light ->
-            light.position = GLVector(2.0f * i, 2.0f * i, 2.0f * i)
-            light.emissionColor = GLVector(1.0f, 0.0f, 1.0f)
-            light.intensity = 0.2f*(i+1);
+            light.position = GLVector(-5.0f+2.0f * i, -5.0f+ 2.0f * i,-5.0f+ 2.0f * i)
+            light.emissionColor = GLVector(0.0f, 0.0f, 0.0f)
+            light.emissionColor.set(i, 1.0f)
+            light.intensity = 120.0f
+            light.quadratic = 0.2f
+            light.linear = 0.2f
             scene.addChild(light)
         }
 

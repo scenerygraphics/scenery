@@ -2083,7 +2083,7 @@ open class VulkanRenderer : Renderer {
             ubo.offsets = memAllocInt(3)
             (0..2).forEach { ubo.offsets!!.put(it, 0) }
 
-            var bufferOffset = buffers["UBOBuffer"]!!.advance(ubo.getSize())
+            var bufferOffset = buffers["UBOBuffer"]!!.advance()
             ubo.offsets!!.put(0, bufferOffset)
 
             node.projection.copyFrom(cam.projection)
@@ -2098,7 +2098,7 @@ open class VulkanRenderer : Renderer {
             ubo.populate(offset = bufferOffset.toLong())
 
             val materialUbo = (node.metadata["VulkanRenderer"]!! as VulkanObjectState).UBOs["BlinnPhongMaterial"]!!
-            bufferOffset = buffers["UBOBuffer"]!!.advance(materialUbo.getSize())
+            bufferOffset = buffers["UBOBuffer"]!!.advance()
             ubo.offsets!!.put(1, bufferOffset)
 
             materialUbo.populate(offset = bufferOffset.toLong())
@@ -2109,26 +2109,23 @@ open class VulkanRenderer : Renderer {
         buffers["LightParametersBuffer"]!!.reset()
 
         val lights = scene.discover(scene, { n -> n is PointLight })
-        var bufferOffset = buffers["LightParametersBuffer"]!!.advance(0)
+        var bufferOffset = buffers["LightParametersBuffer"]!!.advance()
 
-        buffers["LightParametersBuffer"]!!.stagingBuffer.asIntBuffer().put(0, lights.size)
-        buffers["LightParametersBuffer"]!!.stagingBuffer.position(4)
+        val lightUbo = UBO(device, backingBuffer = buffers["LightParametersBuffer"]!!)
+        lightUbo.members.put("numLights", { lights.size })
 
         lights.forEach { light->
             val l = light as PointLight
-            val lightUbo = UBO(device, backingBuffer = buffers["LightParametersBuffer"]!!)
 
             lightUbo.members.put("Linear", { l.linear})
             lightUbo.members.put("Quadratic", { l.quadratic })
             lightUbo.members.put("Intensity", { l.intensity })
             lightUbo.members.put("Position", { l.position })
             lightUbo.members.put("Color", { l.emissionColor })
-
-            lightUbo.createUniformBuffer(memoryProperties)
-
-            lightUbo.populate(offset = bufferOffset.toLong())
-            bufferOffset = buffers["LightParametersBuffer"]!!.advance(lightUbo.getSize())
         }
+
+        lightUbo.createUniformBuffer(memoryProperties)
+        lightUbo.populate(offset = bufferOffset.toLong())
 
         buffers["LightParametersBuffer"]!!.copyFromStagingBuffer()
     }

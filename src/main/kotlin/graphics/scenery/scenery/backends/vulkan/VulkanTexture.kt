@@ -242,6 +242,8 @@ class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDevice,
             .minLod(0.0f)
             .maxLod(1.0f)
             .borderColor(VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE)
+            .anisotropyEnable(true)
+            .compareOp(VK_COMPARE_OP_NEVER)
 
         return VU.run(memAllocLong(1), "creating sampler",
             { vkCreateSampler(device, samplerInfo, null, this) })

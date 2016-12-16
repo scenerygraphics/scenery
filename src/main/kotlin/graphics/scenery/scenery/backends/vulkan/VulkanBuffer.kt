@@ -34,12 +34,12 @@ class VulkanBuffer(val device: VkDevice, var memory: Long = -1L, var buffer: Lon
         return currentPosition.toInt()
     }
 
-    fun advance(size: Int): Int {
+    fun advance(align: Long = this.alignment): Int {
         val pos = stagingBuffer.position()
-        val rem = pos % alignment
+        val rem = pos % align
 
         if(rem != 0L) {
-            stagingBuffer.position(pos + alignment.toInt() - rem.toInt())
+            stagingBuffer.position(pos + align.toInt() - rem.toInt())
         }
 
         return stagingBuffer.position()

@@ -65,9 +65,9 @@ class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 1
                 it.emissionColor = GLVector(rangeRandomizer(0.0f, 1.0f),
                         rangeRandomizer(0.0f, 1.0f),
                         rangeRandomizer(0.0f, 1.0f))
-                it.intensity = rangeRandomizer(0.01f, 1000f)
-                it.linear = 0.1f;
-                it.quadratic = 0.01f;
+                it.intensity = rangeRandomizer(0.01f, 100f)
+                it.linear = 1.0f
+                it.quadratic = 0.00f
 
                 scene.addChild(it)
             }
@@ -134,7 +134,7 @@ class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 1
 
             thread {
                 var reverse = false
-                val step = 0.02f
+                val step = 0.1f
 
                 while (true) {
                     boxes.mapIndexed {
@@ -146,12 +146,12 @@ class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 1
                     lights.mapIndexed {
                         i, light ->
 //                                light.position.set(i % 3, step*10 * ticks)
-                        val phi = Math.PI * 2.0f * ticks / 500.0f
+                        val phi = Math.PI * 2.0f * ticks / 800.0f
 
                         light.position = GLVector(
-                                i * 10 * Math.sin(phi).toFloat() + Math.exp(i.toDouble()).toFloat(),
-                                step * ticks,
-                                i * 10 * Math.cos(phi).toFloat() + Math.exp(i.toDouble()).toFloat())
+                                -32.0f+8.0f*(i+1),
+                                15.0f,
+                            (i+1) * 10 * Math.cos(phi).toFloat())
 
                     }
 
