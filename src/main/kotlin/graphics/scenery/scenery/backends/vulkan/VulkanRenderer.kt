@@ -796,6 +796,43 @@ open class VulkanRenderer : Renderer {
         return map
     }
 
+    fun HashMap<String, () -> Any>.getFormatsAndRequiredAttributeSize() {
+        this.map {
+            val value = it.value.invoke()
+        }
+    }
+
+    protected fun vertexDescriptionFromInstancedNode(node: Node, template: VertexDescription) {
+        if(node.instancedProperties.size < 1) {
+            return
+        }
+
+        val attributeDescs = template.attributeDescription
+        val bindingDescs = template.bindingDescription
+
+        val newAttributeDesc = VkVertexInputAttributeDescription.calloc(attributeDescs!!.capacity() + node.instancedProperties.size)
+        var position = 0
+
+        (0..attributeDescs.capacity()-1).forEachIndexed { i, attr ->
+            newAttributeDesc[i].set(attributeDescs[i])
+            position = i
+        }
+
+        node.instancedProperties.forEach { s, contents ->
+            newAttributeDesc[position]
+                .binding(0)
+                .location(position)
+        }
+
+        val inputState = VkPipelineVertexInputStateCreateInfo.calloc()
+            .sType(VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO)
+            .pNext(NULL)
+            .pVertexAttributeDescriptions(attributeDescs)
+            .pVertexBindingDescriptions(bindingDescs)
+
+
+    }
+
     protected fun prepareDefaultTextures(device: VkDevice) {
         val t = VulkanTexture.loadFromFile(device, physicalDevice, commandPools.Standard, queue,
             Renderer::class.java.getResource("DefaultTexture.png").path.toString(), true, 1)
