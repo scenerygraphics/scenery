@@ -12,7 +12,7 @@ struct Light {
   	vec4 Color;
 };
 
-const int MAX_NUM_LIGHTS = 64;
+const int MAX_NUM_LIGHTS = 128;
 
 layout(binding = 0) uniform Matrices {
 	mat4 ModelViewMatrix;

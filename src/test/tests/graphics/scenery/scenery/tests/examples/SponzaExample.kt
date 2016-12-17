@@ -54,7 +54,7 @@ class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 1
                 scene.addChild(i)
             }
 
-            var lights = (0..16).map {
+            var lights = (0..127).map {
                 PointLight()
             }
 
@@ -65,9 +65,9 @@ class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 1
                 it.emissionColor = GLVector(rangeRandomizer(0.0f, 1.0f),
                         rangeRandomizer(0.0f, 1.0f),
                         rangeRandomizer(0.0f, 1.0f))
-                it.intensity = rangeRandomizer(0.01f, 100f)
+                it.intensity = rangeRandomizer(1.0f, 1000f)
                 it.linear = 1.0f
-                it.quadratic = 0.00f
+                it.quadratic = 0.0f
 
                 scene.addChild(it)
             }
@@ -145,13 +145,12 @@ class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 1
 
                     lights.mapIndexed {
                         i, light ->
-//                                light.position.set(i % 3, step*10 * ticks)
                         val phi = Math.PI * 2.0f * ticks / 800.0f
 
                         light.position = GLVector(
-                                -32.0f+8.0f*(i+1),
-                                15.0f,
-                            (i+1) * 10 * Math.cos(phi).toFloat())
+                                -128.0f+18.0f*(i+1),
+                                5.0f+i*5.0f,
+                            (i+1) * 50 * Math.cos(phi+(i*0.2f)).toFloat())
 
                     }
 

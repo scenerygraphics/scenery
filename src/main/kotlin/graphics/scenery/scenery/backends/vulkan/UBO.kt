@@ -50,7 +50,7 @@ open class UBO(val device: VkDevice, val backingBuffer: VulkanBuffer? = null) {
 
                 GLVector::class.java -> {
                     val v = element as GLVector
-                    val size = v.toFloatArray().size * 4
+                    val size = v.toFloatArray().size
                     val alignment = when (size) {
                         2 -> 2
                         3 -> 4
@@ -58,7 +58,7 @@ open class UBO(val device: VkDevice, val backingBuffer: VulkanBuffer? = null) {
                         else -> 4
                     }
 
-                    Pair(size, alignment * 4)
+                    Pair(size * 4, alignment * 4)
                 }
 
                 java.lang.Float::class.java -> Pair(4, 4)

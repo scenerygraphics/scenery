@@ -113,7 +113,8 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
             a.image,
             aspectMask,
             VK_IMAGE_LAYOUT_UNDEFINED,
-            if (usage == VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL else imageLayout
+            if (usage == VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+            else imageLayout
         )
 
         val subresourceRange = VkImageSubresourceRange.calloc()

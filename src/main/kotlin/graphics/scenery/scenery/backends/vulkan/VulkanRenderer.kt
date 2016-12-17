@@ -1822,7 +1822,7 @@ open class VulkanRenderer : Renderer {
             VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
             wantAligned = true,
-            allocationSize = 512 * 1024))
+            allocationSize = 512 * 1024 * 10))
 
         return map
     }
@@ -2150,19 +2150,23 @@ open class VulkanRenderer : Renderer {
 
         val lightUbo = UBO(device, backingBuffer = buffers["LightParametersBuffer"]!!)
         lightUbo.members.put("numLights", { lights.size })
+        lightUbo.members.put("filler1", { 0.0f })
+        lightUbo.members.put("filler2", { 0.0f })
+        lightUbo.members.put("filler3", { 0.0f })
 
-        lights.forEach { light->
+        lights.forEachIndexed { i, light ->
             val l = light as PointLight
 
-            lightUbo.members.put("Linear", { l.linear})
-            lightUbo.members.put("Quadratic", { l.quadratic })
-            lightUbo.members.put("Intensity", { l.intensity })
-            lightUbo.members.put("Position", { l.position })
-            lightUbo.members.put("Color", { l.emissionColor })
+            lightUbo.members.put("Linear-$i", { l.linear })
+            lightUbo.members.put("Quadratic-$i", { l.quadratic })
+            lightUbo.members.put("Intensity-$i", { l.intensity })
+            lightUbo.members.put("Position-$i", { l.position })
+            lightUbo.members.put("Color-$i", { l.emissionColor })
+            lightUbo.members.put("filler-$i", { 0.0f })
         }
 
         lightUbo.createUniformBuffer(memoryProperties)
-        lightUbo.populate(offset = bufferOffset.toLong())
+        lightUbo.populate()
 
         buffers["LightParametersBuffer"]!!.copyFromStagingBuffer()
     }
