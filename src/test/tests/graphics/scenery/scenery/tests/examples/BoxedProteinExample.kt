@@ -1,6 +1,5 @@
 package graphics.scenery.scenery.tests.examples
 
-import cleargl.GLMatrix
 import cleargl.GLVector
 import graphics.scenery.scenery.*
 import org.junit.Test
@@ -15,26 +14,24 @@ import kotlin.concurrent.thread
 class BoxedProteinExample : SceneryDefaultApplication("BoxedProteinExample", windowWidth = 1280, windowHeight = 720) {
     override fun init() {
         try {
+            val lightCount = 32
+
             renderer = Renderer.createRenderer(applicationName, scene, windowWidth, windowHeight)
             hub.add(SceneryElement.RENDERER, renderer!!)
 
             val cam: Camera = DetachedHeadCamera()
             cam.position = GLVector(0.0f, 0.0f, 0.0f)
-            cam.view = GLMatrix().setCamera(cam.position, cam.position + cam.forward, cam.up)
-
-            cam.projection = GLMatrix().setPerspectiveProjectionMatrix(
-                50.0f / 180.0f * Math.PI.toFloat(),
-                windowWidth.toFloat()/windowHeight.toFloat(), 0.1f, 1000.0f).invert()
+            cam.perspectiveCamera(50.0f, windowWidth.toFloat(), windowHeight.toFloat())
             cam.active = true
 
             scene.addChild(cam)
             fun rangeRandomizer(min: Float, max: Float): Float = min + (Math.random().toFloat() * ((max - min) + 1.0f))
 
-            var boxes = (0..2).map {
+            val boxes = (0..lightCount).map {
                 Box(GLVector(0.5f, 0.5f, 0.5f))
             }
 
-            var lights = (0..2).map {
+            val lights = (0..lightCount).map {
                 PointLight()
             }
 
@@ -46,86 +43,70 @@ class BoxedProteinExample : SceneryDefaultApplication("BoxedProteinExample", win
 
             lights.map {
                 it.position = GLVector(rangeRandomizer(-600.0f, 600.0f),
-                        rangeRandomizer(-600.0f, 600.0f),
-                        rangeRandomizer(-600.0f, 600.0f))
+                    rangeRandomizer(-600.0f, 600.0f),
+                    rangeRandomizer(-600.0f, 600.0f))
                 it.emissionColor = GLVector(rangeRandomizer(0.0f, 1.0f),
-                        rangeRandomizer(0.0f, 1.0f),
-                        rangeRandomizer(0.0f, 1.0f))
+                    rangeRandomizer(0.0f, 1.0f),
+                    rangeRandomizer(0.0f, 1.0f))
                 it.parent?.material?.diffuse = it.emissionColor
-                it.intensity = rangeRandomizer(0.01f, 500f)
-                it.linear = 0.01f;
-                it.quadratic = 0.01f;
+                it.intensity = rangeRandomizer(0.01f, 100f)
+                it.linear = 0.01f
+                it.quadratic = 0.0f
 
                 scene.addChild(it)
             }
 
-            val hullbox = Box(GLVector(100.0f, 100.0f, 100.0f))
+            val hullbox = Box(GLVector(300.0f, 300.0f, 300.0f))
             hullbox.position = GLVector(0.0f, 0.0f, 0.0f)
-            val hullboxM = Material()
-            hullboxM.ambient = GLVector(0.6f, 0.6f, 0.6f)
-            hullboxM.diffuse = GLVector(0.4f, 0.4f, 0.4f)
-            hullboxM.specular = GLVector(0.0f, 0.0f, 0.0f)
-            hullboxM.doubleSided = true
-            hullbox.material = hullboxM
+
+            val hullboxMaterial = Material()
+            hullboxMaterial.ambient = GLVector(0.6f, 0.6f, 0.6f)
+            hullboxMaterial.diffuse = GLVector(0.4f, 0.4f, 0.4f)
+            hullboxMaterial.specular = GLVector(0.0f, 0.0f, 0.0f)
+            hullboxMaterial.doubleSided = true
+            hullbox.material = hullboxMaterial
 
             scene.addChild(hullbox)
 
-            val mesh = Mesh()
-            val meshM = Material()
-            meshM.ambient = GLVector(0.8f, 0.8f, 0.8f)
-            meshM.diffuse = GLVector(0.5f, 0.5f, 0.5f)
-            meshM.specular = GLVector(0.1f, 0f, 0f)
+            val orcMaterial = Material()
+            orcMaterial.ambient = GLVector(0.8f, 0.8f, 0.8f)
+            orcMaterial.diffuse = GLVector(0.5f, 0.5f, 0.5f)
+            orcMaterial.specular = GLVector(0.1f, 0f, 0f)
 
-            mesh.readFromOBJ(System.getenv("SCENERY_DEMO_FILES") + "/ORC6.obj")
-            mesh.position = GLVector(0.1f, 0.1f, 0.1f)
-            mesh.material = meshM
-            mesh.scale = GLVector(1.0f, 1.0f, 1.0f)
-            mesh.updateWorld(true, true)
-            mesh.name = "ORC6"
-            mesh.children.forEach { it.material = meshM }
+            val orcMesh = Mesh()
+            orcMesh.readFromOBJ(System.getenv("SCENERY_DEMO_FILES") + "/ORC6.obj")
+            orcMesh.position = GLVector(0.0f, 50.0f, -50.0f)
+            orcMesh.material = orcMaterial
+            orcMesh.scale = GLVector(1.0f, 1.0f, 1.0f)
+            orcMesh.updateWorld(true, true)
+            orcMesh.name = "ORC6"
+            orcMesh.children.forEach { it.material = orcMaterial }
 
-            scene.addChild(mesh)
-
-
+            scene.addChild(orcMesh)
 
             var ticks: Int = 0
 
             System.out.println(scene.children)
 
             thread {
-                var reverse = false
                 val step = 0.02f
 
                 while (true) {
                     boxes.mapIndexed {
                         i, box ->
-                        //                                light.position.set(i % 3, step*10 * ticks)
                         val phi = Math.PI * 2.0f * ticks / 500.0f
 
                         box.position = GLVector(
-                                Math.exp(i.toDouble()).toFloat() * 20 * Math.sin(phi).toFloat() + Math.exp(i.toDouble()).toFloat(),
-                                step * ticks,
-                                Math.exp(i.toDouble()).toFloat() * 20 * Math.cos(phi).toFloat() + Math.exp(i.toDouble()).toFloat())
+                            Math.exp(i.toDouble()).toFloat() * 20 * Math.sin(phi).toFloat() + Math.exp(i.toDouble()).toFloat(),
+                            step * ticks,
+                            Math.exp(i.toDouble()).toFloat() * 20 * Math.cos(phi).toFloat() + Math.exp(i.toDouble()).toFloat())
 
                         box.children[0].position = box.position
 
                     }
 
-                    if (ticks >= 5000 && reverse == false) {
-                        reverse = true
-                    }
-                    if (ticks <= 0 && reverse == true) {
-                        reverse = false
-                    }
+                    ticks++
 
-                    if (reverse) {
-                        ticks--
-                    } else {
-                        ticks++
-                    }
-
-//                            mesh.children[0].rotation.rotateByAngleX(0.001f)
-//                            mesh.children[0].updateWorld(true, true)
 
                     Thread.sleep(10)
                 }
