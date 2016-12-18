@@ -6,29 +6,69 @@
     <parent>
         <groupId>org.scijava</groupId>
         <artifactId>pom-scijava</artifactId>
-        <version>10.6.0</version>
+        <version>12.0.0</version>
     </parent>
 
     <groupId>graphics.scenery</groupId>
     <artifactId>scenery</artifactId>
     <version>1.0.0-SNAPSHOT</version>
+    <inceptionYear>2016</inceptionYear>
+    <licenses>
+        <license>
+            <name>GNU Lesser General Public License v3+</name>
+            <url>http://www.gnu.org/licenses/lgpl.html</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
 
     <name>scenery</name>
     <description>flexible scenegraphing and rendering for scientific visualisation</description>
     <url>http://scenery.graphics</url>
+
     <organization>
         <name>scenery</name>
         <url>http://scenery.graphics</url>
     </organization>
 
-    <properties>
-        <scijava.jvm.version>1.8</scijava.jvm.version>
-        <enforcer.skip>true</enforcer.skip>
-        <kotlin.version>1.0.5-2</kotlin.version>
-        <slf4j.version>1.7.21</slf4j.version>
-        <dokka.version>0.9.10</dokka.version>
-        <lwjgl.version>3.1.1-SNAPSHOT</lwjgl.version>
-    </properties>
+    <developers>
+        <developer>
+            <id>skalarproduktraum</id>
+            <name>Ulrik Guenther</name>
+            <url>https://ulrik.is/writing</url>
+            <roles>
+                <role>founder</role>
+                <role>lead</role>
+                <role>developer</role>
+                <role>debugger</role>
+                <role>reviewer</role>
+                <role>support</role>
+                <role>maintainer</role>
+            </roles>
+        </developer>
+    </developers>
+
+    <contributors>
+        <contributor>
+            <name>Kyle Harrington</name>
+            <url>http://www.kyleharrington.com</url>
+            <properties><id>kephale</id></properties>
+        </contributor>
+        <contributor>
+            <name>Tobias Pietzsch</name>
+            <url>http://imagej.net/User:Pietzsch</url>
+            <properties><id>tpietzsch</id></properties>
+        </contributor>
+        <contributor>
+            <name>Loic Royer</name>
+            <properties><id>royerloic</id></properties>
+        </contributor>
+    </contributors>
+
+    <mailingLists>
+        <mailingList>
+            <name>none</name>
+        </mailingList>
+    </mailingLists>
 
     <scm>
         <connection>scm:git:git://github.com/ClearVolume/scenery</connection>
@@ -36,15 +76,28 @@
         <tag>HEAD</tag>
         <url>http://scenery.graphics</url>
     </scm>
+
     <issueManagement>
-        <system>GitHub</system>
+        <system>GitHub Issues</system>
         <url>https://github.com/ClearVolume/scenery/issues</url>
     </issueManagement>
+
     <ciManagement>
         <system>Travis</system>
         <url>https://travis-ci.org/ClearVolume/scenery/</url>
     </ciManagement>
- 
+
+    <properties>
+        <scijava.jvm.version>1.8</scijava.jvm.version>
+        <kotlin.version>1.0.5-2</kotlin.version>
+        <slf4j.version>1.7.21</slf4j.version>
+        <dokka.version>0.9.10</dokka.version>
+        <lwjgl.version>3.1.1-SNAPSHOT</lwjgl.version>
+        <license.licenseName>lgpl_v3</license.licenseName>
+
+        <enforcer.skip>true</enforcer.skip>
+    </properties>
+
     <profiles>
         <profile>
             <id>js</id>
@@ -171,7 +224,7 @@
         <dependency>
             <groupId>org.scijava</groupId>
             <artifactId>scijava-common</artifactId>
-            <version>2.57.0-SNAPSHOT</version>
+            <version>2.61.0</version>
         </dependency>
 
         <dependency>
@@ -183,7 +236,7 @@
         <dependency>
             <groupId>org.scijava</groupId>
             <artifactId>ui-behaviour</artifactId>
-            <version>1.0.1</version>
+            <version>1.2.0</version>
         </dependency>
 
         <dependency>
