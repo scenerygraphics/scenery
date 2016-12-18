@@ -195,8 +195,14 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
         initializePipeline("default", passConfig.shaders.map { VulkanShaderModule(device, "main", "shaders/" + it) })
     }
 
-    fun initializePipeline(pipelineName: String = "default", shaders: List<VulkanShaderModule>) {
+    fun initializePipeline(pipelineName: String = "default", shaders: List<VulkanShaderModule>,
+                           vertexInputType: VulkanRenderer.VertexDescription = vertexDescriptors.get(VulkanRenderer.VertexDataKinds.coords_normals_texcoords)!!,
+                           settings: (VulkanPipeline) -> Any = {}) {
         val p = VulkanPipeline(device, pipelineCache)
+        settings.invoke(p)
+
+        logger.info("culling: ${p.rasterizationState.cullMode()}")
+
         val reqDescriptorLayouts = ArrayList<Long>()
 
         val framebuffer = output.values.first()
@@ -255,11 +261,11 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
             reqDescriptorLayouts.add(descriptorSetLayouts.get("ObjectTextures")!!)
 
             p.createPipelines(framebuffer.renderPass.get(0),
-                vertexDescriptors.get(VulkanRenderer.VertexDataKinds.coords_normals_texcoords)!!.state,
+                vertexInputType.state,
                 descriptorSetLayouts = reqDescriptorLayouts)
         }
 
-        logger.info("Prepared pipeline for ${name}")
+        logger.info("Prepared pipeline $pipelineName for ${name}")
 
         pipelines.put(pipelineName, p)
     }

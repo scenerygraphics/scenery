@@ -592,13 +592,40 @@ open class VulkanRenderer : Renderer {
         s.initialized = true
         node.metadata["VulkanRenderer"] = s
 
+        node.material?.doubleSided?.let {
+            if(it) {
+                renderpasses.filter { it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry }
+                    .map { pass ->
+                        val shaders = pass.value.passConfig.shaders
+                        logger.info("initializing double-sided pipeline for ${node.name} from $shaders")
+                        pass.value.initializePipeline("preferred-${node.name}",
+                            shaders.map { VulkanShaderModule(device, "main", "shaders/" + it) },
+
+                            settings = { pipeline ->
+                                pipeline.rasterizationState.cullMode(VK_CULL_MODE_NONE)
+                            })
+                    }
+            }
+        }
+
+        if(node.texcoords.remaining() == 0) {
+            renderpasses.filter { it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry }
+                .map { pass ->
+                    val shaders = pass.value.passConfig.shaders
+                    logger.info("initializing custom vertex input pipeline for ${node.name} from $shaders")
+                    pass.value.initializePipeline("preferred-${node.name}",
+                        shaders.map { VulkanShaderModule(device, "main", "shaders/" + it) },
+                        vertexInputType = vertexDescriptors.get(VertexDataKinds.coords_normals)!!)
+                }
+        }
+
         val sp = node.metadata.values.find { it is ShaderPreference }
         if(sp != null) {
             renderpasses.filter { it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry }
                 .map { pass ->
                     val shaders = (sp as ShaderPreference).shaders
                     logger.info("initializing preferred pipeline for ${node.name} from $shaders")
-                    pass.value.initializePipeline("preferred",
+                    pass.value.initializePipeline("preferred-${node.name}",
                         shaders.map { VulkanShaderModule(device, "main", "shaders/" + it + ".spv") })
                 }
         }
@@ -1936,7 +1963,7 @@ open class VulkanRenderer : Renderer {
                         pass.vulkanMetadata.descriptorSets.put(1, s.textureDescriptorSet)
                     }
 
-                    val pipeline = pass.pipelines.getOrDefault("preferred", pass.pipelines["default"]!!)
+                    val pipeline = pass.pipelines.getOrDefault("preferred-${node.name}", pass.pipelines["default"]!!)
                         .getPipelineForGeometryType((node as HasGeometry).geometryType)
 
                     vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline)
