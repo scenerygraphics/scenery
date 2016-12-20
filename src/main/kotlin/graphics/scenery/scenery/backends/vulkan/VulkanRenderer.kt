@@ -150,23 +150,23 @@ open class VulkanRenderer : Renderer {
 
     var debugCallback = object : VkDebugReportCallbackEXT() {
         override operator fun invoke(flags: Int, objectType: Int, obj: Long, location: Long, messageCode: Int, pLayerPrefix: Long, pMessage: Long, pUserData: Long): Int {
-            var type = if (flags and VK_DEBUG_REPORT_ERROR_BIT_EXT == 0) {
-                "error"
-            } else if (flags and VK_DEBUG_REPORT_WARNING_BIT_EXT == 0) {
-                "warning"
-            } else if (flags and VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT == 0) {
-                "performance warning"
-            } else if (flags and VK_DEBUG_REPORT_INFORMATION_BIT_EXT == 0) {
-                "information"
+            var dbg = if (flags and VK_DEBUG_REPORT_DEBUG_BIT_EXT == 1) {
+                " (debug)"
             } else {
-                "(unknown message type)"
+                ""
             }
 
-            if (flags and VK_DEBUG_REPORT_DEBUG_BIT_EXT == 1) {
-                type + " (debug)"
+            if (flags and VK_DEBUG_REPORT_ERROR_BIT_EXT == 0) {
+                logger.error("!! Validation$dbg: " + getString(pMessage))
+            } else if (flags and VK_DEBUG_REPORT_WARNING_BIT_EXT == 0) {
+                logger.warn("!! Validation$dbg: " + getString(pMessage))
+            } else if (flags and VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT == 0) {
+                logger.error("!! Validation (performance)$dbg: " + getString(pMessage))
+            } else if (flags and VK_DEBUG_REPORT_INFORMATION_BIT_EXT == 0) {
+                logger.info("!! Validation$dbg: " + getString(pMessage))
+            } else {
+                logger.info("!! Validation (unknown message type)$dbg: " + getString(pMessage))
             }
-
-            logger.info("!! Validation $type: " + getString(pMessage))
 
             // returning VK_TRUE would lead to the abortion of the offending Vulkan call
             return if (System.getProperty("scenery.VulkanRenderer.StrictValidation", "false").toBoolean()) {
@@ -1351,7 +1351,7 @@ open class VulkanRenderer : Renderer {
         ppEnabledLayerNames.flip()
 
         if (validation) {
-            logger.info("Enabled Vulkan API validations. Expect degraded performance.")
+            logger.warn("Enabled Vulkan API validations. Expect degraded performance.")
         }
 
         val deviceCreateInfo = VkDeviceCreateInfo.calloc()
