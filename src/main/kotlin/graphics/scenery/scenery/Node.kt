@@ -33,7 +33,9 @@ open class Node(open var name: String) : Renderable {
     /** Is this Node an instance of another Node? */
     var instanceOf: Node? = null
     /** instanced properties */
-    var instancedProperties = HashMap<String, () -> Any>()
+    var instancedProperties = LinkedHashMap<String, () -> Any>()
+    /** flag to set whether this node is an instance master */
+    var instanceMaster: Boolean = false
     /** The Node's lock. */
     override var lock: ReentrantLock = ReentrantLock()
 

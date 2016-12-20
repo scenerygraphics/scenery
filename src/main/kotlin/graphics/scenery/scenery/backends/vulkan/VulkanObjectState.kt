@@ -35,6 +35,9 @@ class VulkanObjectState : NodeMetadata {
 
     var requiredDescriptorSets = ArrayList<String>()
 
+    var vertexInputType = VulkanRenderer.VertexDataKinds.coords_normals_texcoords
+    var vertexDescription: VulkanRenderer.VertexDescription? = null
+
     constructor() {
         consumers.add("VulkanRenderer")
     }

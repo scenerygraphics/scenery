@@ -22,10 +22,20 @@ class MultiBoxInstancedExample : SceneryDefaultApplication("MultiBoxInstancedExa
 
             val cam: Camera = DetachedHeadCamera()
 
+            cam.position = GLVector(0.0f, 0.0f, 0.0f)
+            cam.view = GLMatrix().setCamera(cam.position, cam.position + cam.forward, cam.up)
+
+            cam.projection = GLMatrix().setPerspectiveProjectionMatrix(
+                50.0f / 180.0f * Math.PI.toFloat(),
+                windowWidth.toFloat() / windowHeight.toFloat(), 0.1f, 10000.0f)
+            cam.active = true
+
+            scene.addChild(cam)
+
             fun rangeRandomizer(min: Float, max: Float): Float = min + (Math.random().toFloat() * ((max - min) + 1.0f))
 
-            val WIDTH = 25.0
-            val HEIGHT = 25.0
+            val WIDTH = 15.0
+            val HEIGHT = 15.0
 
             val m = Mesh()
             val b = Box(GLVector(0.2f, 0.2f, 0.2f))
@@ -33,6 +43,11 @@ class MultiBoxInstancedExample : SceneryDefaultApplication("MultiBoxInstancedExa
             b.material!!.diffuse = GLVector(1.0f, 1.0f, 1.0f)
             b.material!!.ambient = GLVector(1.0f, 1.0f, 1.0f)
             b.material!!.specular = GLVector(1.0f, 1.0f, 1.0f)
+            b.instanceMaster = true
+            b.name = "boxmaster"
+            b.instancedProperties.put("ModelViewMatrix", {b.modelView })
+            b.instancedProperties.put("ModelMatrix", {b.model })
+            b.instancedProperties.put("MVP", {b.mvp })
             b.metadata.put(
                     "ShaderPreference",
                     ShaderPreference(
@@ -48,6 +63,10 @@ class MultiBoxInstancedExample : SceneryDefaultApplication("MultiBoxInstancedExa
                 inst.name = "Box_$it"
                 inst.instanceOf = b
                 inst.material = b.material
+
+                inst.instancedProperties.put("ModelViewMatrix", { inst.modelView })
+                inst.instancedProperties.put("ModelMatrix", { inst.model })
+                inst.instancedProperties.put("MVP", { inst.mvp })
 
                 val k: Double = it % WIDTH;
                 val j: Double = (it / WIDTH) % HEIGHT;
@@ -90,16 +109,6 @@ class MultiBoxInstancedExample : SceneryDefaultApplication("MultiBoxInstancedExa
             hullbox.material = hullboxM
 
             scene.addChild(hullbox)
-
-            cam.position = GLVector(0.0f, 0.0f, 0.0f)
-            cam.view = GLMatrix().setCamera(cam.position, cam.position + cam.forward, cam.up)
-
-            cam.projection = GLMatrix().setPerspectiveProjectionMatrix(
-                    70.0f / 180.0f * Math.PI.toFloat(),
-                    windowWidth.toFloat()/windowHeight.toFloat(), 0.1f, 1000.0f).invert()
-            cam.active = true
-
-            scene.addChild(cam)
 
             var ticks: Int = 0
 

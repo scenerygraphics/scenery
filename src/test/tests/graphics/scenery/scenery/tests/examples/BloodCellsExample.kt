@@ -89,6 +89,10 @@ class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowW
             erythrocyte.readFromOBJ(System.getenv("SCENERY_DEMO_FILES") + "/erythrocyte_simplified.obj")
             erythrocyte.material = e_material
             erythrocyte.name = "Erythrocyte_Master"
+            erythrocyte.instanceMaster = true
+            erythrocyte.instancedProperties.put("ModelViewMatrix", { erythrocyte.modelView })
+            erythrocyte.instancedProperties.put("ModelMatrix", { erythrocyte.model })
+            erythrocyte.instancedProperties.put("MVP", { erythrocyte.mvp })
             scene.addChild(erythrocyte)
 
             erythrocyte.metadata.put(
@@ -108,6 +112,10 @@ class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowW
             leucocyte.readFromOBJ(System.getenv("SCENERY_DEMO_FILES") + "/leukocyte_simplified.obj")
             leucocyte.material = l_material
             leucocyte.name = "leucocyte_Master"
+            leucocyte.instanceMaster = true
+            leucocyte.instancedProperties.put("ModelViewMatrix", { leucocyte.modelView })
+            leucocyte.instancedProperties.put("ModelMatrix", { leucocyte.model })
+            leucocyte.instancedProperties.put("MVP", { leucocyte.mvp })
             scene.addChild(leucocyte)
 
             leucocyte.metadata.put(

@@ -499,20 +499,37 @@ open class VulkanRenderer : Renderer {
 
         logger.debug("Initializing ${node.name} (${(node as HasGeometry).vertices.remaining() / node.vertexSize} vertices/${node.indices.remaining()} indices)")
 
+        // determine vertex input type
+        if (node.vertices.remaining() > 0 && node.normals.remaining() > 0 && node.texcoords.remaining() > 0) {
+            s.vertexInputType = VertexDataKinds.coords_normals_texcoords
+        }
+
+        if (node.vertices.remaining() > 0 && node.normals.remaining() > 0 && node.texcoords.remaining() == 0) {
+            s.vertexInputType = VertexDataKinds.coords_normals
+        }
+
+        if (node.vertices.remaining() > 0 && node.normals.remaining() == 0 && node.texcoords.remaining() > 0) {
+            s.vertexInputType = VertexDataKinds.coords_texcoords
+        }
+
+        // create custom vertex description if necessary, else use one of the defaults
+        s.vertexDescription = if(node.instanceMaster) {
+            vertexDescriptionFromInstancedNode(node, vertexDescriptors[VertexDataKinds.coords_normals_texcoords]!!)
+        } else {
+            vertexDescriptors[s.vertexInputType]!!
+        }
+
         if(node.instanceOf != null) {
             val parentMetadata = node.instanceOf!!.metadata["VulkanRenderer"] as VulkanObjectState
 
             if(!parentMetadata.initialized) {
                 logger.info("Instance parent ${node.instanceOf!!} is not initialized yet, initializing now...")
                 initializeNode(node.instanceOf!!)
-
             }
 
             if(!parentMetadata.vertexBuffers.containsKey("instance")) {
                 createInstanceBuffer(device, node.instanceOf!!, parentMetadata)
             }
-
-//            node.instanceOf!!.metadata["VulkanRenderer"] = s
 
             return true
         }
@@ -598,24 +615,28 @@ open class VulkanRenderer : Renderer {
                     .map { pass ->
                         val shaders = pass.value.passConfig.shaders
                         logger.info("initializing double-sided pipeline for ${node.name} from $shaders")
+
                         pass.value.initializePipeline("preferred-${node.name}",
                             shaders.map { VulkanShaderModule(device, "main", "shaders/" + it) },
 
                             settings = { pipeline ->
                                 pipeline.rasterizationState.cullMode(VK_CULL_MODE_NONE)
-                            })
+                            },
+                            vertexInputType = s.vertexDescription!!)
+
                     }
             }
         }
 
-        if(node.texcoords.remaining() == 0) {
+        if(s.vertexInputType == VertexDataKinds.coords_normals) {
             renderpasses.filter { it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry }
                 .map { pass ->
                     val shaders = pass.value.passConfig.shaders
                     logger.info("initializing custom vertex input pipeline for ${node.name} from $shaders")
+
                     pass.value.initializePipeline("preferred-${node.name}",
                         shaders.map { VulkanShaderModule(device, "main", "shaders/" + it) },
-                        vertexInputType = vertexDescriptors.get(VertexDataKinds.coords_normals)!!)
+                        vertexInputType = s.vertexDescription!!)
                 }
         }
 
@@ -626,7 +647,9 @@ open class VulkanRenderer : Renderer {
                     val shaders = (sp as ShaderPreference).shaders
                     logger.info("initializing preferred pipeline for ${node.name} from $shaders")
                     pass.value.initializePipeline("preferred-${node.name}",
-                        shaders.map { VulkanShaderModule(device, "main", "shaders/" + it + ".spv") })
+                        shaders.map { VulkanShaderModule(device, "main", "shaders/" + it + ".spv") },
+
+                        vertexInputType = s.vertexDescription!!)
                 }
         }
 
@@ -823,41 +846,100 @@ open class VulkanRenderer : Renderer {
         return map
     }
 
-    fun HashMap<String, () -> Any>.getFormatsAndRequiredAttributeSize() {
-        this.map {
+    data class AttributeInfo(val format: Int, val elementByteSize: Int, val elementCount: Int)
+
+    fun HashMap<String, () -> Any>.getFormatsAndRequiredAttributeSize(): List<AttributeInfo> {
+        return this.map {
             val value = it.value.invoke()
+
+            when(value.javaClass) {
+                GLVector::class.java -> {
+                    val v = value as GLVector
+                    if(v.toFloatArray().size == 2) {
+                        AttributeInfo(VK_FORMAT_R32G32_SFLOAT, 4*2, 1)
+                    } else if(v.toFloatArray().size == 4) {
+                        AttributeInfo(VK_FORMAT_R32G32B32A32_SFLOAT, 4*4, 1)
+                    } else {
+                        logger.error("Unsupported vector length for instancing: ${v.toFloatArray().size}")
+                        AttributeInfo(-1, -1, -1)
+                    }
+                }
+
+                GLMatrix::class.java -> {
+                    val m = value as GLMatrix
+                    AttributeInfo(VK_FORMAT_R32G32B32A32_SFLOAT, 4*4, m.floatArray.size/4)
+                }
+
+                else -> {
+                    logger.error("Unsupported type for instancing: ${value.javaClass.simpleName}")
+                    AttributeInfo(-1, -1, -1)
+                }
+            }
         }
     }
 
-    protected fun vertexDescriptionFromInstancedNode(node: Node, template: VertexDescription) {
-        if(node.instancedProperties.size < 1) {
-            return
-        }
+    protected fun vertexDescriptionFromInstancedNode(node: Node, template: VertexDescription): VertexDescription {
+        logger.info("Creating instanced vertex description for ${node.name}")
 
         val attributeDescs = template.attributeDescription
         val bindingDescs = template.bindingDescription
 
-        val newAttributeDesc = VkVertexInputAttributeDescription.calloc(attributeDescs!!.capacity() + node.instancedProperties.size)
+        val formatsAndAttributeSizes = node.instancedProperties.getFormatsAndRequiredAttributeSize()
+        val newAttributesNeeded = formatsAndAttributeSizes.map { it.elementCount }.sum()
+
+        val newAttributeDesc = VkVertexInputAttributeDescription
+            .calloc(attributeDescs!!.capacity() + newAttributesNeeded)
+
         var position = 0
+        var offset = 0
 
         (0..attributeDescs.capacity()-1).forEachIndexed { i, attr ->
             newAttributeDesc[i].set(attributeDescs[i])
+            offset += newAttributeDesc[i].offset()
+            logger.info("location(${newAttributeDesc[i].location()})")
+            logger.info("    .offset(${newAttributeDesc[i].offset()})")
             position = i
         }
 
-        node.instancedProperties.forEach { s, contents ->
-            newAttributeDesc[position]
-                .binding(0)
-                .location(position)
+        position = 3
+        offset = 0
+
+        formatsAndAttributeSizes.zip(node.instancedProperties.toList().reversed()).forEach {
+            val attribInfo = it.first
+            val property = it.second
+
+            (0..attribInfo.elementCount-1).forEach {
+                newAttributeDesc[position]
+                    .binding(1)
+                    .location(position)
+                    .format(attribInfo.format)
+                    .offset(offset)
+
+                logger.info("location($position, ${it}/${attribInfo.elementCount}) for ${property.first}, type: ${property.second.invoke().javaClass.simpleName}")
+                logger.info("   .format(${attribInfo.format})")
+                logger.info("   .offset($offset)")
+
+                offset += attribInfo.elementByteSize
+                position++
+            }
         }
+
+        logger.info("stride(${offset}), ${bindingDescs!!.capacity()}")
+
+        val newBindingDesc = VkVertexInputBindingDescription.calloc(bindingDescs!!.capacity()+1)
+        newBindingDesc[0].set(bindingDescs[0])
+        newBindingDesc[1]
+            .binding(1)
+            .stride(offset)
+            .inputRate(VK_VERTEX_INPUT_RATE_INSTANCE)
 
         val inputState = VkPipelineVertexInputStateCreateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO)
             .pNext(NULL)
-            .pVertexAttributeDescriptions(attributeDescs)
-            .pVertexBindingDescriptions(bindingDescs)
+            .pVertexAttributeDescriptions(newAttributeDesc)
+            .pVertexBindingDescriptions(newBindingDesc)
 
-
+        return VertexDescription(inputState, newAttributeDesc, newBindingDesc)
     }
 
     protected fun prepareDefaultTextures(device: VkDevice) {
@@ -1129,6 +1211,7 @@ open class VulkanRenderer : Renderer {
         }
 
         updateDefaultUBOs(device)
+        updateInstanceBuffers()
 
         // TODO: better logic for command buffer recreation
         renderpasses.forEach { s, vulkanRenderpass ->
@@ -1653,6 +1736,10 @@ open class VulkanRenderer : Renderer {
     private fun createVertexBuffers(device: VkDevice, node: Node, state: VulkanObjectState): VulkanObjectState {
         val n = node as HasGeometry
 
+        if(n.texcoords.remaining() == 0) {
+            n.texcoords = ByteBuffer.allocateDirect(4*n.vertices.remaining()/n.vertexSize*n.texcoordSize).asFloatBuffer()
+        }
+
         val vertexAllocationBytes = 4 * (n.vertices.remaining() + n.normals.remaining() + n.texcoords.remaining())
         val indexAllocationBytes = 4 * n.indices.remaining()
         val fullAllocationBytes = vertexAllocationBytes + indexAllocationBytes
@@ -1737,6 +1824,7 @@ open class VulkanRenderer : Renderer {
 
     private fun createInstanceBuffer(device: VkDevice, parentNode: Node, state: VulkanObjectState): VulkanObjectState {
         val instances = ArrayList<Node>()
+        val cam = scene.findObserver()
 
         scene.discover(scene, { n -> n.instanceOf == parentNode }).forEach {
             instances.add(it)
@@ -1752,10 +1840,9 @@ open class VulkanRenderer : Renderer {
         ubo.fromInstance(instances.first())
 
         val instanceBufferSize = ubo.getSize() * instances.size
-        val instanceStagingBuffer = memAlloc(instanceBufferSize)
 
-        logger.debug("$parentNode has ${instances.size} child instances with ${ubo.getSize()} bytes each.")
-        logger.debug("Creating staging buffer...")
+        logger.info("$parentNode has ${instances.size} child instances with ${ubo.getSize()} bytes each.")
+        logger.info("Creating staging buffer...")
 
         val stagingBuffer = VU.createBuffer(device,
             this.memoryProperties,
@@ -1764,14 +1851,26 @@ open class VulkanRenderer : Renderer {
             wantAligned = false,
             allocationSize = instanceBufferSize * 1L)
 
-        instances.forEach { instance ->
-            val instanceUbo = UBO(device, backingBuffer = stagingBuffer)
-            instanceUbo.createUniformBuffer(memoryProperties)
+        instances.forEach { node ->
+            node.updateWorld(true, false)
 
+            node.projection.copyFrom(cam.projection)
+            node.projection.set(1, 1, -1.0f * cam.projection.get(1, 1))
+
+            node.modelView.copyFrom(cam.view)
+            node.modelView.mult(node.world)
+
+            node.mvp.copyFrom(node.projection)
+            node.mvp.mult(node.modelView)
+
+            val instanceUbo = UBO(device, backingBuffer = stagingBuffer)
+            instanceUbo.fromInstance(node)
+            instanceUbo.createUniformBuffer(memoryProperties)
             instanceUbo.populate()
         }
 
-        stagingBuffer.copyFrom(instanceStagingBuffer)
+        logger.info("Copying from staging buffer")
+        stagingBuffer.copyFromStagingBuffer()
 
         // the actual instance buffer is kept device-local for performance reasons
         val instanceBuffer = VU.createBuffer(device,
@@ -1794,6 +1893,92 @@ open class VulkanRenderer : Renderer {
         }
 
         state.vertexBuffers.put("instance", instanceBuffer)
+        state.instanceCount = instances.size
+
+        vkDestroyBuffer(device, stagingBuffer.buffer, null)
+        vkFreeMemory(device, stagingBuffer.memory, null)
+
+        logger.info("Instance buffer creation done")
+
+        return state
+    }
+
+    private fun updateInstanceBuffer(device: VkDevice, parentNode: Node, state: VulkanObjectState): VulkanObjectState {
+        val instances = ArrayList<Node>()
+        val cam = scene.findObserver()
+
+        scene.discover(scene, { n -> n.instanceOf == parentNode }).forEach {
+            instances.add(it)
+        }
+
+        if(instances.size < 1) {
+            logger.debug("$parentNode has no child instances attached, returning.")
+            return state
+        }
+
+        // first we create a fake UBO to gauge the size of the needed properties
+        val ubo = UBO(device)
+        ubo.fromInstance(instances.first())
+
+        val instanceBufferSize = ubo.getSize() * instances.size
+
+        logger.debug("$parentNode has ${instances.size} child instances with ${ubo.getSize()} bytes each.")
+        logger.debug("Updating staging buffer...")
+
+        val stagingBuffer = VU.createBuffer(device,
+            this.memoryProperties,
+            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+            wantAligned = true,
+            allocationSize = instanceBufferSize * 1L)
+
+        instances.forEach { node ->
+            node.updateWorld(true, false)
+
+            node.projection.copyFrom(cam.projection)
+            node.projection.set(1, 1, -1.0f * cam.projection.get(1, 1))
+
+            node.modelView.copyFrom(cam.view)
+            node.modelView.mult(node.world)
+
+            node.mvp.copyFrom(node.projection)
+            node.mvp.mult(node.modelView)
+
+            val instanceUbo = UBO(device, backingBuffer = stagingBuffer)
+            instanceUbo.fromInstance(node)
+            instanceUbo.createUniformBuffer(memoryProperties)
+            instanceUbo.populate()
+        }
+
+        stagingBuffer.copyFromStagingBuffer()
+
+        val instanceBuffer = if(state.vertexBuffers.containsKey("instance") && state.vertexBuffers["instance"]!!.maxSize >= instanceBufferSize) {
+            state.vertexBuffers["instance"]!!
+        } else {
+            logger.info("Instance buffer for ${parentNode.name} needs to be required, insufficient size ($instanceBufferSize vs ${state.vertexBuffers["instance"]!!.maxSize})")
+            val buffer = VU.createBuffer(device,
+                this.memoryProperties,
+                VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                wantAligned = true,
+                allocationSize = instanceBufferSize * 1L)
+
+            state.vertexBuffers.put("instance", buffer)
+            buffer
+        }
+
+        with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
+            val copyRegion = VkBufferCopy.calloc(1)
+                .size(instanceBufferSize * 1L)
+
+            vkCmdCopyBuffer(this,
+                stagingBuffer.buffer,
+                instanceBuffer.buffer,
+                copyRegion)
+
+            this.endCommandBuffer(device, commandPools.Standard, queue, flush = true, dealloc = true)
+        }
+
         state.instanceCount = instances.size
 
         vkDestroyBuffer(device, stagingBuffer.buffer, null)
@@ -1999,8 +2184,11 @@ open class VulkanRenderer : Renderer {
 
                     pass.vulkanMetadata.instanceBuffers.put(0, s.vertexBuffers["instance"]!!.buffer)
 
-                    val pipeline = pass.pipelines.getOrDefault("preferred", pass.pipelines["default"]!!)
-                        .getPipelineForGeometryType((node as HasGeometry).geometryType)
+                    val pipeline = pass.pipelines.getOrElse("preferred-${node.name}",
+                        {
+                            logger.warn("Preferred pipeline for instanced node ${node.name} not found. Using default.")
+                            pass.pipelines["default"]!!
+                        }).getPipelineForGeometryType((node as HasGeometry).geometryType)
 
                     vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline)
                     vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -2132,6 +2320,20 @@ open class VulkanRenderer : Renderer {
 
                 VulkanCommandBuffer(device, this)
             }
+        }
+    }
+
+    private fun updateInstanceBuffers() {
+        val renderOrderList = ArrayList<Node>()
+
+        scene.discover(scene, { n -> n is Renderable && n is HasGeometry && n.visible }).forEach {
+            renderOrderList.add(it)
+        }
+
+        val instanceGroups = renderOrderList.groupBy(Node::instanceOf)
+
+        instanceGroups.keys.filterNotNull().forEach { node ->
+            updateInstanceBuffer(device, node, node.metadata["VulkanRenderer"] as VulkanObjectState)
         }
     }
 

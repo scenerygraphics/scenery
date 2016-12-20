@@ -201,8 +201,6 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
         val p = VulkanPipeline(device, pipelineCache)
         settings.invoke(p)
 
-        logger.info("culling: ${p.rasterizationState.cullMode()}")
-
         val reqDescriptorLayouts = ArrayList<Long>()
 
         val framebuffer = output.values.first()
