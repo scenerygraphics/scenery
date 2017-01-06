@@ -89,10 +89,10 @@
 
     <properties>
         <scijava.jvm.version>1.8</scijava.jvm.version>
-        <kotlin.version>1.0.5-2</kotlin.version>
+        <kotlin.version>1.0.6</kotlin.version>
         <slf4j.version>1.7.21</slf4j.version>
         <dokka.version>0.9.10</dokka.version>
-        <lwjgl.version>3.1.1-SNAPSHOT</lwjgl.version>
+        <lwjgl.version>3.1.1</lwjgl.version>
         <license.licenseName>lgpl_v3</license.licenseName>
 
         <enforcer.skip>true</enforcer.skip>
@@ -240,9 +240,15 @@
         </dependency>
 
         <dependency>
+            <groupId>net.sf.trove4j</groupId>
+            <artifactId>trove4j</artifactId>
+            <version>3.0.3</version>
+        </dependency>
+
+        <dependency>
             <groupId>org.scijava</groupId>
             <artifactId>scripting-javascript</artifactId>
-            <version>0.4.4-SNAPSHOT</version>
+            <version>0.4.3</version>
         </dependency>
 
         <dependency>
@@ -381,6 +387,7 @@
             <classifier>${lwjgl.natives}</classifier>
             <scope>runtime</scope>
         </dependency>
+
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
             <artifactId>kotlin-test</artifactId>
@@ -389,21 +396,6 @@
         </dependency>
 
     </dependencies>
-
-    <repositories>
-        <repository>
-            <id>Sonatype Snapshots</id>
-            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-        </repository>
-        <repository>
-            <id>imagej.public</id>
-            <url>http://maven.imagej.net/content/groups/public</url>
-        </repository>
-        <repository>
-            <id>imagej.snapshots</id>
-            <url>http://maven.imagej.net/content/repositories/snapshots</url>
-        </repository>
-    </repositories>
 
     <pluginRepositories>
         <pluginRepository>
