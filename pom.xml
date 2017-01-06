@@ -230,7 +230,7 @@
         <dependency>
             <groupId>org.scijava</groupId>
             <artifactId>script-editor</artifactId>
-            <version>0.1.1-SNAPSHOT</version>
+            <version>0.1.1</version>
         </dependency>
 
         <dependency>
@@ -396,6 +396,17 @@
         </dependency>
 
     </dependencies>
+
+    <repositories>
+        <repository>
+            <id>imagej.public</id>
+            <url>http://maven.imagej.net/content/groups/public</url>
+        </repository>
+        <repository>
+            <id>imagej.snapshots</id>
+            <url>http://maven.imagej.net/content/repositories/snapshots</url>
+        </repository>
+    </repositories>
 
     <pluginRepositories>
         <pluginRepository>
