@@ -8,7 +8,6 @@ import com.jogamp.opengl.GLAutoDrawable
 import com.jogamp.opengl.GLDrawable
 import com.jogamp.opengl.util.awt.AWTGLReadBufferUtil
 import graphics.scenery.*
-import graphics.scenery.scenery.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import graphics.scenery.backends.Renderer

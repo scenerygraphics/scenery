@@ -3,7 +3,6 @@ package graphics.scenery.backends.vulkan
 import cleargl.GLMatrix
 import cleargl.GLVector
 import graphics.scenery.*
-import graphics.scenery.scenery.*
 import org.lwjgl.PointerBuffer
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.glfw.GLFWVulkan.*
@@ -26,7 +25,6 @@ import java.awt.image.BufferedImage
 import java.awt.image.DataBufferByte
 import java.io.File
 import java.nio.ByteBuffer
-import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.text.SimpleDateFormat

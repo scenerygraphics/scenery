@@ -16,7 +16,6 @@ import graphics.scenery.SceneryElement
 import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.controls.behaviours.*
-import graphics.scenery.scenery.controls.behaviours.*
 import java.io.FileNotFoundException
 import java.io.FileReader
 import java.io.Reader

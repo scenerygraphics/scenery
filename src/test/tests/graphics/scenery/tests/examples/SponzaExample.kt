@@ -2,7 +2,6 @@ package graphics.scenery.tests.examples
 
 import cleargl.GLVector
 import graphics.scenery.*
-import graphics.scenery.scenery.*
 import org.junit.Test
 import org.scijava.ui.behaviour.ClickBehaviour
 import graphics.scenery.backends.Renderer

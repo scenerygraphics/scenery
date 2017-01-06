@@ -3,7 +3,6 @@ package graphics.scenery.tests.examples
 import cleargl.GLMatrix
 import cleargl.GLVector
 import graphics.scenery.*
-import graphics.scenery.scenery.*
 import org.junit.Test
 import graphics.scenery.backends.Renderer
 import graphics.scenery.repl.REPL
