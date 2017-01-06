@@ -2,8 +2,7 @@ package graphics.scenery.scenery.backends.vulkan
 
 import org.lwjgl.PointerBuffer
 import org.lwjgl.system.MemoryUtil.*
-import org.lwjgl.vulkan.VK10.vkMapMemory
-import org.lwjgl.vulkan.VK10.vkUnmapMemory
+import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkDevice
 import java.nio.ByteBuffer
 
@@ -12,6 +11,7 @@ class VulkanBuffer(val device: VkDevice, var memory: Long = -1L, var buffer: Lon
     private var currentPointer: PointerBuffer? = null
     var maxSize: Long = 512 * 2048L
     var alignment: Long = 256
+    private var mapped = false
 
     var stagingBuffer = memAlloc(maxSize.toInt())
 
@@ -71,15 +71,26 @@ class VulkanBuffer(val device: VkDevice, var memory: Long = -1L, var buffer: Lon
         vkMapMemory(device, memory, 0, maxSize * 1L, 0, dest)
 
         currentPointer = dest
+        mapped = true
         return dest
     }
 
     fun unmap() {
+        mapped = false
         vkUnmapMemory(device, memory)
     }
 
     fun copyFromStagingBuffer() {
         stagingBuffer.flip()
         copyFrom(stagingBuffer)
+    }
+
+    fun close() {
+        if(mapped) {
+            vkUnmapMemory(device, memory)
+        }
+        memFree(stagingBuffer)
+        vkFreeMemory(device, memory, null)
+        vkDestroyBuffer(device, buffer, null)
     }
 }

@@ -302,15 +302,19 @@ class VU {
             val cmdBuf = newCommandBuffer(device, commandPool, level)
 
             if(autostart) {
-                val cmdBufInfo = VkCommandBufferBeginInfo.calloc()
-                    .sType(VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO)
-                    .flags(VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT)
-                    .pNext(NULL)
-
-                vkBeginCommandBuffer(cmdBuf, cmdBufInfo)
+               beginCommandBuffer(cmdBuf)
             }
 
             return cmdBuf
+        }
+
+        fun beginCommandBuffer(commandBuffer: VkCommandBuffer, flags: Int = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT) {
+            val cmdBufInfo = VkCommandBufferBeginInfo.calloc()
+                .sType(VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO)
+                .pNext(NULL)
+                .flags(flags)
+
+            vkBeginCommandBuffer(commandBuffer, cmdBufInfo)
         }
 
         fun getMemoryType(deviceMemoryProperties: VkPhysicalDeviceMemoryProperties, typeBits: Int, properties: Int, typeIndex: IntBuffer): Boolean {
