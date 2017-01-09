@@ -84,14 +84,6 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
 
     var vulkanMetadata = VulkanMetadata()
 
-    fun cmdPrepareDraw(forPipeline: String) {
-
-    }
-
-    fun queueCommandBuffers() {
-
-    }
-
     init {
         passConfig = config.renderpasses.get(name)!!
 

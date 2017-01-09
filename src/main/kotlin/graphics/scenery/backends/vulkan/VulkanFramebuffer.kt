@@ -14,23 +14,21 @@ import org.slf4j.LoggerFactory
 
  * @author Ulrik Günther @ulrik.is>
  */
-class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDevice: VkPhysicalDevice, protected var commandPool: Long, width: Int, height: Int, commandBuffer: VkCommandBuffer) {
+class VulkanFramebuffer(protected var device: VkDevice,
+                        protected var physicalDevice: VkPhysicalDevice,
+                        protected var commandPool: Long,
+                        var width: Int,
+                        var height: Int,
+                        var commandBuffer: VkCommandBuffer) {
     protected var logger: Logger = LoggerFactory.getLogger("VulkanRenderer")
 
     var framebuffer  = memAllocLong(1)
     var renderPass = memAllocLong(1)
     var framebufferSampler = memAllocLong(1)
     var outputDescriptorSet: Long = -1L
-    protected var commandBuffer: VkCommandBuffer
 
     var renderCommandBuffer: VulkanCommandBuffer? = null
     var semaphore: Long = -1L
-
-    var width: Int = 0
-        protected set
-
-    var height: Int = 0
-        protected set
 
     protected var initialized: Boolean = false
 
@@ -47,13 +45,6 @@ class VulkanFramebuffer(protected var device: VkDevice, protected var physicalDe
     }
 
     var attachments = LinkedHashMap<String, VulkanFramebufferAttachment>()
-
-    init {
-        this.width = width
-        this.height = height
-
-        this.commandBuffer = commandBuffer
-    }
 
     protected fun createAttachment(format: Int, usage: Int): VulkanFramebufferAttachment {
         val a = VulkanFramebufferAttachment()
