@@ -9,7 +9,7 @@ import java.nio.LongBuffer
  * Created by ulrik on 10/27/2016.
  */
 
-class VulkanCommandBuffer(val device: VkDevice, val commandBuffer: VkCommandBuffer, wantFence: Boolean = true) {
+class VulkanCommandBuffer(val device: VkDevice, var commandBuffer: VkCommandBuffer?, wantFence: Boolean = true) {
     var fence: LongBuffer = memAllocLong(1)
     var submitted = false
 

@@ -91,16 +91,14 @@ class VulkanPipeline(val device: VkDevice, val pipelineCache: Long? = null) {
     var shaderStages = VkPipelineShaderStageCreateInfo.calloc(2)
 
     fun addShaderStages(shaderModules: List<VulkanShaderModule>) {
-        val stages = VkPipelineShaderStageCreateInfo.calloc(shaderModules.size)
+        this.shaderStages = VkPipelineShaderStageCreateInfo.calloc(shaderModules.size)
         shaderModules.forEachIndexed {
             i, it ->
-            stages.get(i).set(it.shader)
+            this.shaderStages.get(i).set(it.shader)
 
             descriptorSpecs.addAll(it.uboSpecs.values)
             descriptorSpecs.sortBy { spec -> spec.set }
         }
-
-        this.shaderStages = stages
     }
 
     fun createPipelines(renderPass: Long, vi: VkPipelineVertexInputStateCreateInfo,

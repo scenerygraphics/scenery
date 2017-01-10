@@ -34,14 +34,16 @@ fun VkCommandBuffer.endCommandBuffer(device: VkDevice, commandPool: Long, queue:
     }
 
     if(flush && queue != null) {
-        VU.run(MemoryUtil.memAllocPointer(1).put(this).flip(), "endCommandBuffer") {
-            val submitInfo = VkSubmitInfo.calloc(1)
+        val submitInfo = VkSubmitInfo.calloc(1)
+
+        VU.run(MemoryUtil.memAllocPointer(1).put(this).flip(), "endCommandBuffer", {
+            submitInfo
                 .sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
                 .pCommandBuffers(this)
 
             vkQueueSubmit(queue, submitInfo, VK_NULL_HANDLE)
             vkQueueWaitIdle(queue)
-        }
+        }, { submitInfo.free() })
     }
 
     if(dealloc) {
@@ -59,6 +61,8 @@ fun VkPhysicalDevice.getMemoryType(typeBits: Int, memoryFlags: Int): Pair<Boolea
         if (bits and 1 == 1) {
             if ((properties.memoryTypes(i).propertyFlags() and memoryFlags) == memoryFlags) {
                 found = true
+
+                properties.free()
                 return found.to(i)
             }
         }
@@ -67,6 +71,9 @@ fun VkPhysicalDevice.getMemoryType(typeBits: Int, memoryFlags: Int): Pair<Boolea
     }
 
     System.err.println("Memory type $memoryFlags not found for device")
+
+    properties.free()
+
     return false.to(0)
 }
 
@@ -76,7 +83,7 @@ class VU {
         protected var logger: Logger = LoggerFactory.getLogger("VulkanRenderer")
 
         inline fun <T: LongBuffer> run(receiver: T, name: String, function: T.() -> Int): Long {
-            var result = function.invoke(receiver)
+            val result = function.invoke(receiver)
 
             if(result != VK_SUCCESS) {
                 LoggerFactory.getLogger("VulkanRenderer").error("Call to $name failed: ${translate(result)}")
@@ -89,7 +96,7 @@ class VU {
         }
 
         inline fun <T: LongBuffer> run(receiver: T, name: String, function: T.() -> Int, cleanup: T.() -> Any, free: Boolean = true): Long {
-            var result = function.invoke(receiver)
+            val result = function.invoke(receiver)
 
             if(result != VK_SUCCESS) {
                 LoggerFactory.getLogger("VulkanRenderer").error("Call to $name failed: ${translate(result)}")
@@ -106,21 +113,8 @@ class VU {
             return ret
         }
 
-        inline fun <T: PointerBuffer> run(receiver: T, name: String, function: T.() -> Int): Long {
-            var result = function.invoke(receiver)
-
-            if(result != VK_SUCCESS) {
-                LoggerFactory.getLogger("VulkanRenderer").error("Call to $name failed: ${translate(result)}")
-            }
-
-            val ret = receiver.get(0)
-            MemoryUtil.memFree(receiver)
-
-            return ret
-        }
-
         inline fun <T: PointerBuffer> run(receiver: T, name: String, function: T.() -> Int, cleanup: T.() -> Any, free: Boolean = true): Long {
-            var result = function.invoke(receiver)
+            val result = function.invoke(receiver)
 
             if(result != VK_SUCCESS) {
                 LoggerFactory.getLogger("VulkanRenderer").error("Call to $name failed: ${translate(result)}")
@@ -315,6 +309,8 @@ class VU {
                 .flags(flags)
 
             vkBeginCommandBuffer(commandBuffer, cmdBufInfo)
+
+            cmdBufInfo.free()
         }
 
         fun getMemoryType(deviceMemoryProperties: VkPhysicalDeviceMemoryProperties, typeBits: Int, properties: Int, typeIndex: IntBuffer): Boolean {
@@ -565,6 +561,7 @@ class VU {
             reqs.free()
             allocInfo.free()
             MemoryUtil.memFree(memTypeIndex)
+            MemoryUtil.memFree(memory)
 
             return vb
         }

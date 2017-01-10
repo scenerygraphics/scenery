@@ -22,9 +22,6 @@ open class UBO(val device: VkDevice, val backingBuffer: VulkanBuffer? = null) {
     var logger = LoggerFactory.getLogger("VulkanRenderer")
     var requiredOffsetCount = 0
 
-    private var currentPointer: PointerBuffer? = null
-    private var currentPosition = 0L
-
     private var sizeCached = 0
 
     companion object alignmentsCache {
@@ -114,17 +111,6 @@ open class UBO(val device: VkDevice, val backingBuffer: VulkanBuffer? = null) {
         return totalSize
     }
 
-    fun getPointerBuffer(size: Int): ByteBuffer {
-        if (currentPointer == null) {
-            this.map()
-        }
-
-        val buffer = memByteBuffer(currentPointer!!.get(0) + currentPosition, size)
-        currentPosition += size * 1L
-
-        return buffer
-    }
-
     fun copy(data: ByteBuffer, offset: Long = 0) {
         val dest = memAllocPointer(1)
         vkMapMemory(device, descriptor!!.memory, offset, descriptor!!.allocationSize* 1L, 0, dest)
@@ -206,14 +192,6 @@ open class UBO(val device: VkDevice, val backingBuffer: VulkanBuffer? = null) {
             copy(data, offset = offset)
             memFree(data)
         }
-    }
-
-    fun map(): PointerBuffer {
-        val dest = memAllocPointer(1)
-        vkMapMemory(device, descriptor!!.memory, 0, descriptor!!.allocationSize* 1L, 0, dest)
-
-        currentPointer = dest
-        return dest
     }
 
     fun fromInstance(node: Node) {

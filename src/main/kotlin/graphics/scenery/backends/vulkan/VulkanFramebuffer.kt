@@ -63,12 +63,12 @@ class VulkanFramebuffer(protected var device: VkDevice,
             imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
         }
 
-        var imageExtent = VkExtent3D.calloc()
+        val imageExtent = VkExtent3D.calloc()
             .width(width)
             .height(height)
             .depth(1)
 
-        var image = VkImageCreateInfo.calloc()
+        val image = VkImageCreateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO)
             .pNext(NULL)
             .imageType(VK_IMAGE_TYPE_2D)
@@ -81,16 +81,18 @@ class VulkanFramebuffer(protected var device: VkDevice,
             .usage(usage or VK_IMAGE_USAGE_SAMPLED_BIT)
 
 
-        var images = memAllocLong(1)
+        val images = memAllocLong(1)
         vkCreateImage(device, image, null, images)
         a.image = images.get(0)
+
         memFree(images)
         image.free()
+        imageExtent.free()
 
-        var requirements = VkMemoryRequirements.calloc()
+        val requirements = VkMemoryRequirements.calloc()
         vkGetImageMemoryRequirements(device, a.image, requirements)
 
-        var allocation = VkMemoryAllocateInfo.calloc()
+        val allocation = VkMemoryAllocateInfo.calloc()
             .allocationSize(requirements.size())
             .memoryTypeIndex(physicalDevice.getMemoryType(requirements.memoryTypeBits(), VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT).second)
             .sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO)
@@ -98,6 +100,9 @@ class VulkanFramebuffer(protected var device: VkDevice,
 
         vkAllocateMemory(device, allocation, null, a.memory)
         vkBindImageMemory(device, a.image, a.memory.get(0), 0)
+
+        requirements.free()
+        allocation.free()
 
         VU.setImageLayout(
             commandBuffer,
@@ -125,6 +130,7 @@ class VulkanFramebuffer(protected var device: VkDevice,
 
         vkCreateImageView(device, iv, null, a.imageView)
         iv.free()
+        subresourceRange.free()
 
         return a
     }
@@ -440,7 +446,7 @@ class VulkanFramebuffer(protected var device: VkDevice,
 
         logger.info("Using $format as depth format.")
 
-        return format;
+        return format
     }
 
     fun colorAttachmentCount() = attachments.count { it.value.type == VulkanFramebufferType.COLOR_ATTACHMENT }

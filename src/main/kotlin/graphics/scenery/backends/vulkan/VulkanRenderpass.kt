@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory
 import graphics.scenery.GeometryType
 import graphics.scenery.Settings
 import graphics.scenery.backends.RenderConfigReader
+import graphics.scenery.utils.RingBuffer
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.util.*
@@ -36,51 +37,44 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
     var descriptorSets = ConcurrentHashMap<String, Long>()
     var descriptorSetLayouts = LinkedHashMap<String, Long>()
 
-    var commandBuffer: VulkanCommandBuffer?
+    var commandBuffer: VulkanCommandBuffer
         get() {
-            if(isViewportRenderpass) {
-                logger.trace("Returning command buffer at $readPos")
-                return commandBufferBacking[readPos]
-            } else {
-                return commandBufferBacking[0]
-            }
+            return commandBufferBacking.get()
         }
 
         set(b) {
-           if(isViewportRenderpass) {
-               b?.let {
-                   logger.trace("Added command buffer for $currentPosition")
-                   commandBufferBacking.add(it)
-               }
-           } else {
-               b?.let {
-                   logger.trace("Added single commandBuffer")
-                   commandBufferBacking.add(it)
-               }
-           }
+            commandBufferBacking.put(b)
         }
 
-    private var commandBufferBacking = ArrayList<VulkanCommandBuffer>(1)
-    val secondaryCommandBuffers = ArrayList<Long>()
+    private var commandBufferBacking = RingBuffer<VulkanCommandBuffer>(size = 2,
+        default = { VulkanCommandBuffer(device, null, true) })
 
     var semaphore = -1L
 
     var passConfig: RenderConfigReader.RenderpassConfig
 
     var isViewportRenderpass = false
-    var swapchainSize = 1
-        private set
-    var currentPosition = 0
-        private set
-    var readPos = 0
-        private set
+    var commandBufferCount = 2
+        set(count) {
+            this.isViewportRenderpass = true
+            field = count
+
+            commandBufferBacking = RingBuffer<VulkanCommandBuffer>(size = count * 2,
+                default = { VulkanCommandBuffer(device, null, true) })
+        }
+
+    private var currentPosition = 0
 
     data class VulkanMetadata(var descriptorSets: LongBuffer = memAllocLong(2),
-                              var offsets: LongBuffer = memAllocLong(1),
+                              var vertexBufferOffsets: LongBuffer = memAllocLong(1),
                               var scissor: VkRect2D.Buffer = VkRect2D.calloc(1),
                               var viewport: VkViewport.Buffer = VkViewport.calloc(1),
                               var vertexBuffers: LongBuffer = memAllocLong(1),
-                              var instanceBuffers: LongBuffer = memAllocLong(1))
+                              var instanceBuffers: LongBuffer = memAllocLong(1),
+                              var clearValues: VkClearValue.Buffer = VkClearValue.calloc(0),
+                              var renderArea: VkRect2D = VkRect2D.calloc(),
+                              var renderPassBeginInfo: VkRenderPassBeginInfo = VkRenderPassBeginInfo.calloc(),
+                              var uboOffsets: IntBuffer = memAllocInt(16))
 
     var vulkanMetadata = VulkanMetadata()
 
@@ -208,12 +202,10 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
                 .colorWriteMask(0xF)
         }
 
-        val blendState = VkPipelineColorBlendStateCreateInfo.calloc()
+        p.colorBlendState
             .sType(VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO)
             .pNext(MemoryUtil.NULL)
             .pAttachments(blendMasks)
-
-        p.colorBlendState.set(blendState)
 
         if (passConfig.type == RenderConfigReader.RenderpassType.quad) {
             p.rasterizationState.cullMode(VK_CULL_MODE_FRONT_BIT)
@@ -260,17 +252,10 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
         pipelines.put(pipelineName, p)
     }
 
-    fun setViewportPass(swapchainSize: Int) {
-        this.isViewportRenderpass = true
-        this.swapchainSize = swapchainSize
-
-        commandBufferBacking.ensureCapacity(swapchainSize)
-    }
-
     fun getOutput(): VulkanFramebuffer {
         val fb = if(isViewportRenderpass) {
             val pos = currentPosition
-            currentPosition = (currentPosition + 1) % swapchainSize
+            currentPosition = (currentPosition + 1) % commandBufferCount
 
             output["Viewport-$pos"]!!
         } else {
@@ -284,7 +269,11 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
         if(!isViewportRenderpass) {
             logger.error("Renderpass $name is not a viewport renderpass!")
         } else {
-            readPos = (readPos + 1) % swapchainSize
+//            readPos = (readPos + 1) % commandBufferCount
         }
     }
+
+    fun getReadPosition() = commandBufferBacking.currentReadPosition % (commandBufferCount/2)
+
+    fun getWritePosition() = commandBufferBacking.currentWritePosition % (commandBufferCount/2)
 }

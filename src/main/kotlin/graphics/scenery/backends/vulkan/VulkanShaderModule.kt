@@ -38,7 +38,7 @@ class VulkanShaderModule(device: VkDevice, entryPoint: String, shaderCodePath: S
 
         for(i in 0..uniformBuffers.size()-1) {
             val res = uniformBuffers.get(i.toInt())
-            logger.info("${res.name}, set=${compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet)}, binding=${compiler.getDecoration(res.id, Decoration.DecorationBinding)}")
+            logger.debug("${res.name}, set=${compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet)}, binding=${compiler.getDecoration(res.id, Decoration.DecorationBinding)}")
 
             val ubo = UBOSpec(res.name,
                 set = compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet),
@@ -62,7 +62,7 @@ class VulkanShaderModule(device: VkDevice, entryPoint: String, shaderCodePath: S
         val inputs = compiler.getShaderResources().stageInputs
         if(inputs.size() > 0) {
             for (i in 0..inputs.size()-1) {
-                logger.info("$shaderCodePath: ${inputs.get(i.toInt()).name}")
+                logger.debug("$shaderCodePath: ${inputs.get(i.toInt()).name}")
             }
         }
 
