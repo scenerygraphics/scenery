@@ -86,5 +86,8 @@ open class SceneryDefaultApplication(var applicationName: String,
                 renderer!!.render()
             }
         }
+
+        inputHandler?.close()
+        renderer!!.close()
     }
 }

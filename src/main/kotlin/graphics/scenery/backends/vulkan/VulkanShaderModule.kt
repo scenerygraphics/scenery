@@ -75,6 +75,8 @@ class VulkanShaderModule(device: VkDevice, entryPoint: String, shaderCodePath: S
         val shaderModule = memAllocLong(1)
         vkCreateShaderModule(device, moduleCreateInfo, null, shaderModule)
         this.shaderModule = shaderModule.get(0)
+
+        moduleCreateInfo.free()
         memFree(shaderModule)
 
         this.shader = VkPipelineShaderStageCreateInfo.calloc()

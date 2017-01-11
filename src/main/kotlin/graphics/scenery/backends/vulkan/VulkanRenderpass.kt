@@ -2,8 +2,6 @@ package graphics.scenery.backends.vulkan
 
 import cleargl.GLVector
 import org.lwjgl.system.MemoryUtil
-import org.lwjgl.system.MemoryUtil.memAllocInt
-import org.lwjgl.system.MemoryUtil.memAllocLong
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
 import org.slf4j.Logger
@@ -12,6 +10,7 @@ import graphics.scenery.GeometryType
 import graphics.scenery.Settings
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.utils.RingBuffer
+import org.lwjgl.system.MemoryUtil.*
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.util.*
@@ -25,7 +24,7 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
                        val descriptorPool: Long,
                        val pipelineCache: Long,
                        val memoryProperties: VkPhysicalDeviceMemoryProperties,
-                       val vertexDescriptors: ConcurrentHashMap<VulkanRenderer.VertexDataKinds, VulkanRenderer.VertexDescription>) {
+                       val vertexDescriptors: ConcurrentHashMap<VulkanRenderer.VertexDataKinds, VulkanRenderer.VertexDescription>): AutoCloseable {
 
     protected var logger: Logger = LoggerFactory.getLogger("VulkanRenderpass")
 
@@ -56,6 +55,10 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
     var isViewportRenderpass = false
     var commandBufferCount = 2
         set(count) {
+            // clean up old backing
+            (1..commandBufferBacking.size).forEach { commandBufferBacking.get().close() }
+            commandBufferBacking.reset()
+
             this.isViewportRenderpass = true
             field = count
 
@@ -65,7 +68,7 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
 
     private var currentPosition = 0
 
-    data class VulkanMetadata(var descriptorSets: LongBuffer = memAllocLong(2),
+    class VulkanMetadata(var descriptorSets: LongBuffer = memAllocLong(2),
                               var vertexBufferOffsets: LongBuffer = memAllocLong(1),
                               var scissor: VkRect2D.Buffer = VkRect2D.calloc(1),
                               var viewport: VkViewport.Buffer = VkViewport.calloc(1),
@@ -74,7 +77,22 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
                               var clearValues: VkClearValue.Buffer = VkClearValue.calloc(0),
                               var renderArea: VkRect2D = VkRect2D.calloc(),
                               var renderPassBeginInfo: VkRenderPassBeginInfo = VkRenderPassBeginInfo.calloc(),
-                              var uboOffsets: IntBuffer = memAllocInt(16))
+                              var uboOffsets: IntBuffer = memAllocInt(16)): AutoCloseable {
+
+        override fun close() {
+            memFree(descriptorSets)
+            memFree(vertexBufferOffsets)
+            scissor.free()
+            viewport.free()
+            memFree(vertexBuffers)
+            memFree(instanceBuffers)
+            clearValues.free()
+            renderArea.free()
+            renderPassBeginInfo.free()
+            memFree(uboOffsets)
+        }
+
+    }
 
     var vulkanMetadata = VulkanMetadata()
 
@@ -276,4 +294,20 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
     fun getReadPosition() = commandBufferBacking.currentReadPosition % (commandBufferCount/2)
 
     fun getWritePosition() = commandBufferBacking.currentWritePosition % (commandBufferCount/2)
+
+    override fun close() {
+        output.forEach { it.value.close() }
+        pipelines.forEach { it.value.close() }
+        descriptorSetLayouts.forEach { vkDestroyDescriptorSetLayout(device, it.value, null) }
+        UBOs.forEach { it.value.close() }
+
+        vulkanMetadata.close()
+
+        (1..commandBufferBacking.size).forEach { commandBufferBacking.get().close() }
+        commandBufferBacking.reset()
+
+        if(semaphore != -1L) {
+            vkDestroySemaphore(device, semaphore, null)
+        }
+    }
 }

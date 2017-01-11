@@ -42,7 +42,7 @@ import kotlin.concurrent.thread
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-open class VulkanRenderer : Renderer {
+open class VulkanRenderer : Renderer, AutoCloseable {
 
     // helper classes
 
@@ -89,10 +89,15 @@ open class VulkanRenderer : Renderer {
         internal var colorSpace: Int = 0
     }
 
-    class Swapchain {
+    inner class Swapchain : AutoCloseable {
         internal var handle: Long = 0
         internal var images: LongArray? = null
         internal var imageViews: LongArray? = null
+
+        override fun close() {
+//            imageViews?.map { vkDestroyImageView(device, it, null) }
+//            images?.map { vkDestroyImage(device, it, null) }
+        }
     }
 
     class Pipeline {
@@ -132,7 +137,15 @@ open class VulkanRenderer : Renderer {
                     { vkCreatePipelineCache(device, pipelineCacheInfo, null, this) },
                     { pipelineCacheInfo.free() })
 
+                renderpasses.forEach { s, vulkanRenderpass ->
+                    vulkanRenderpass.close()
+                }
+
+                renderpasses.clear()
+
                 renderpasses = prepareRenderpassesFromConfig(renderConfig, window.width, window.height)
+
+                semaphores.forEach { it.value.forEach { semaphore -> vkDestroySemaphore(device, semaphore, null) } }
                 semaphores = prepareStandardSemaphores(device)
 
                 // Create render command buffers
@@ -168,12 +181,7 @@ open class VulkanRenderer : Renderer {
                 logger.info("!! Validation (unknown message type)$dbg: " + getString(pMessage))
             }
 
-            // returning VK_TRUE would lead to the abortion of the offending Vulkan call
-            return if (System.getProperty("scenery.VulkanRenderer.StrictValidation", "false").toBoolean()) {
-                VK_TRUE
-            } else {
-                VK_FALSE
-            }
+            return VK_FALSE
         }
     }
 
@@ -221,6 +229,7 @@ open class VulkanRenderer : Renderer {
     protected var instance: VkInstance
 
     protected var debugCallbackHandle: Long
+    protected var windowSizeCallback: GLFWWindowSizeCallback
     protected var physicalDevice: VkPhysicalDevice
     protected var deviceAndGraphicsQueueFamily: DeviceAndGraphicsQueueFamily
     protected var device: VkDevice
@@ -240,7 +249,7 @@ open class VulkanRenderer : Renderer {
     protected var standardUBOs = ConcurrentHashMap<String, UBO>()
 
     protected var swapchain: Swapchain? = null
-    protected var pSwapchains: LongBuffer
+    protected var pSwapchains: LongBuffer = memAllocLong(1)
     protected var swapchainImage: IntBuffer = memAllocInt(1)
     protected var ph = PresentHelpers()
 
@@ -355,7 +364,7 @@ open class VulkanRenderer : Renderer {
         }, 0, 1000)
 
         // Handle canvas resize
-        val windowSizeCallback = object : GLFWWindowSizeCallback() {
+        windowSizeCallback = object : GLFWWindowSizeCallback() {
             override operator fun invoke(glfwWindow: Long, w: Int, h: Int) {
                 if (lastResize > 0L && lastResize + WINDOW_RESIZE_TIMEOUT < System.nanoTime()) {
                     lastResize = System.nanoTime()
@@ -375,16 +384,11 @@ open class VulkanRenderer : Renderer {
         glfwSetWindowSizeCallback(window.glfwWindow!!, windowSizeCallback)
         glfwShowWindow(window.glfwWindow!!)
 
-        // Pre-allocate everything needed in the render loop
-
-        pSwapchains = memAllocLong(1)
-
         // Info struct to create a semaphore
         semaphoreCreateInfo = VkSemaphoreCreateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO)
             .pNext(NULL)
             .flags(0)
-
 
         lastTime = System.nanoTime()
         time = 0.0f
@@ -638,7 +642,7 @@ open class VulkanRenderer : Renderer {
             renderpasses.filter { it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry }
                 .map { pass ->
                     val shaders = pass.value.passConfig.shaders
-                    logger.info("initializing custom vertex input pipeline for ${node.name} from $shaders")
+                    logger.debug("initializing custom vertex input pipeline for ${node.name} from $shaders")
 
                     pass.value.initializePipeline("preferred-${node.name}",
                         shaders.map { VulkanShaderModule(device, "main", "shaders/" + it) },
@@ -660,6 +664,22 @@ open class VulkanRenderer : Renderer {
         }
 
         return true
+    }
+
+    fun destroyNode(node: Node) {
+        if(!node.metadata.containsKey("VulkanRenderer")) {
+            return
+        }
+
+        val s = node.metadata["VulkanRenderer"] as VulkanObjectState
+
+        s.UBOs.forEach { it.value.close() }
+
+        if(node is HasGeometry) {
+            s.vertexBuffers.forEach {
+                it.value.close()
+            }
+        }
     }
 
     protected fun loadTexturesForNode(node: Node, s: VulkanObjectState): VulkanObjectState {
@@ -885,7 +905,7 @@ open class VulkanRenderer : Renderer {
     }
 
     protected fun vertexDescriptionFromInstancedNode(node: Node, template: VertexDescription): VertexDescription {
-        logger.info("Creating instanced vertex description for ${node.name}")
+        logger.debug("Creating instanced vertex description for ${node.name}")
 
         val attributeDescs = template.attributeDescription
         val bindingDescs = template.bindingDescription
@@ -902,8 +922,8 @@ open class VulkanRenderer : Renderer {
         (0..attributeDescs.capacity() - 1).forEachIndexed { i, attr ->
             newAttributeDesc[i].set(attributeDescs[i])
             offset += newAttributeDesc[i].offset()
-            logger.info("location(${newAttributeDesc[i].location()})")
-            logger.info("    .offset(${newAttributeDesc[i].offset()})")
+            logger.debug("location(${newAttributeDesc[i].location()})")
+            logger.debug("    .offset(${newAttributeDesc[i].offset()})")
             position = i
         }
 
@@ -921,16 +941,16 @@ open class VulkanRenderer : Renderer {
                     .format(attribInfo.format)
                     .offset(offset)
 
-                logger.info("location($position, ${it}/${attribInfo.elementCount}) for ${property.first}, type: ${property.second.invoke().javaClass.simpleName}")
-                logger.info("   .format(${attribInfo.format})")
-                logger.info("   .offset($offset)")
+                logger.debug("location($position, ${it}/${attribInfo.elementCount}) for ${property.first}, type: ${property.second.invoke().javaClass.simpleName}")
+                logger.debug("   .format(${attribInfo.format})")
+                logger.debug("   .offset($offset)")
 
                 offset += attribInfo.elementByteSize
                 position++
             }
         }
 
-        logger.info("stride(${offset}), ${bindingDescs!!.capacity()}")
+        logger.debug("stride(${offset}), ${bindingDescs!!.capacity()}")
 
         val newBindingDesc = VkVertexInputBindingDescription.calloc(bindingDescs!!.capacity() + 1)
         newBindingDesc[0].set(bindingDescs[0])
@@ -1017,6 +1037,7 @@ open class VulkanRenderer : Renderer {
                     }
                 }
 
+                pass.vulkanMetadata.clearValues.free()
                 pass.vulkanMetadata.clearValues = VkClearValue.calloc(pass.output.values.first().attachments.count())
                 pass.output.values.first().attachments.values.forEachIndexed { i, att ->
                     when (att.type) {
@@ -1240,6 +1261,12 @@ open class VulkanRenderer : Renderer {
             return
         }
 
+        if(shouldClose) {
+            // stop all
+            vkDeviceWaitIdle(device)
+            return
+        }
+
         updateDefaultUBOs(device)
         updateInstanceBuffers()
 
@@ -1251,7 +1278,7 @@ open class VulkanRenderer : Renderer {
         firstWaitSemaphore.put(0, semaphores[StandardSemaphores.present_complete]!!.get(0))
 
         flow.take(flow.size - 1).forEachIndexed { i, t ->
-            logger.trace("Running pass {}", t)
+            logger.debug("Running pass {}", t)
             val target = renderpasses[t]!!
             val commandBuffer = target.commandBuffer
 
@@ -1407,9 +1434,10 @@ open class VulkanRenderer : Renderer {
         val devicePreference = System.getProperty("scenery.VulkanRenderer.Device", "0").toInt()
 
         logger.info("Physical devices: ")
+        val properties: VkPhysicalDeviceProperties = VkPhysicalDeviceProperties.calloc()
+
         for (i in 0..pPhysicalDeviceCount.get(0) - 1) {
             val device = VkPhysicalDevice(pPhysicalDevices.get(i), instance)
-            val properties: VkPhysicalDeviceProperties = VkPhysicalDeviceProperties.calloc()
 
             vkGetPhysicalDeviceProperties(device, properties)
             logger.info("  $i: ${VU.vendorToString(properties.vendorID())} ${properties.deviceNameString()} (${VU.deviceTypeToString(properties.deviceType())}, driver version ${VU.driverVersionToString(properties.driverVersion())}, Vulkan API ${VU.driverVersionToString(properties.apiVersion())}) ${if (devicePreference == i) {
@@ -1423,9 +1451,12 @@ open class VulkanRenderer : Renderer {
 
         memFree(pPhysicalDeviceCount)
         memFree(pPhysicalDevices)
+        properties.free()
+
         if (err != VK_SUCCESS) {
             throw AssertionError("Failed to get physical devices: " + VU.translate(err))
         }
+
         return VkPhysicalDevice(physicalDevice, instance)
     }
 
@@ -1436,6 +1467,7 @@ open class VulkanRenderer : Renderer {
         val queueProps = VkQueueFamilyProperties.calloc(queueCount)
         vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, pQueueFamilyPropertyCount, queueProps)
         memFree(pQueueFamilyPropertyCount)
+
         var graphicsQueueFamilyIndex: Int
         graphicsQueueFamilyIndex = 0
         while (graphicsQueueFamilyIndex < queueCount) {
@@ -1444,6 +1476,7 @@ open class VulkanRenderer : Renderer {
             graphicsQueueFamilyIndex++
         }
         queueProps.free()
+
         val pQueuePriorities = memAllocFloat(1).put(0.0f)
         pQueuePriorities.flip()
         val queueCreateInfo = VkDeviceQueueCreateInfo.calloc(1)
@@ -1478,6 +1511,7 @@ open class VulkanRenderer : Renderer {
         val err = vkCreateDevice(physicalDevice, deviceCreateInfo, null, pDevice)
         val device = pDevice.get(0)
         memFree(pDevice)
+
         if (err != VK_SUCCESS) {
             throw AssertionError("Failed to create device: " + VU.translate(err))
         }
@@ -1495,6 +1529,8 @@ open class VulkanRenderer : Renderer {
         memFree(VK_KHR_SWAPCHAIN_EXTENSION)
         memFree(extensions)
         memFree(pQueuePriorities)
+        queueCreateInfo.free()
+
         return ret
     }
 
@@ -1602,6 +1638,10 @@ open class VulkanRenderer : Renderer {
             throw AssertionError("Failed to create command pool: " + VU.translate(err))
         }
         return commandPool
+    }
+
+    private fun destroyCommandPool(device: VkDevice, commandPool: Long) {
+        vkDestroyCommandPool(device, commandPool, null)
     }
 
     private fun createSwapChain(device: VkDevice, physicalDevice: VkPhysicalDevice, surface: Long, oldSwapChain: Long, newWidth: Int,
@@ -1767,7 +1807,7 @@ open class VulkanRenderer : Renderer {
         val n = node as HasGeometry
 
         if (n.texcoords.remaining() == 0) {
-            n.texcoords = ByteBuffer.allocateDirect(4 * n.vertices.remaining() / n.vertexSize * n.texcoordSize).asFloatBuffer()
+            n.texcoords = memAlloc(4 * n.vertices.remaining() / n.vertexSize * n.texcoordSize).asFloatBuffer()
         }
 
         val vertexAllocationBytes = 4 * (n.vertices.remaining() + n.normals.remaining() + n.texcoords.remaining())
@@ -1839,6 +1879,7 @@ open class VulkanRenderer : Renderer {
                 vertexBuffer.buffer,
                 copyRegion)
 
+            copyRegion.free()
             this.endCommandBuffer(device, commandPools.Standard, queue, flush = true, dealloc = true)
         }
 
@@ -1846,8 +1887,8 @@ open class VulkanRenderer : Renderer {
         state.indexOffset = vertexAllocationBytes
         state.indexCount = n.indices.remaining()
 
-        vkDestroyBuffer(device, stagingBuffer.buffer, null)
-        vkFreeMemory(device, stagingBuffer.memory, null)
+        memFree(stridedBuffer)
+        stagingBuffer.close()
 
         return state
     }
@@ -1925,8 +1966,7 @@ open class VulkanRenderer : Renderer {
         state.vertexBuffers.put("instance", instanceBuffer)
         state.instanceCount = instances.size
 
-        vkDestroyBuffer(device, stagingBuffer.buffer, null)
-        vkFreeMemory(device, stagingBuffer.memory, null)
+        stagingBuffer.close()
 
         logger.info("Instance buffer creation done")
 
@@ -2260,6 +2300,7 @@ open class VulkanRenderer : Renderer {
             val vulkanPipeline = pipeline.getPipelineForGeometryType(GeometryType.TRIANGLES)
 
             if(pass.vulkanMetadata.descriptorSets.capacity() < pipeline.descriptorSpecs.count()) {
+                memFree(pass.vulkanMetadata.descriptorSets)
                 pass.vulkanMetadata.descriptorSets = memAllocLong(pipeline.descriptorSpecs.count())
             }
 
@@ -2430,7 +2471,80 @@ open class VulkanRenderer : Renderer {
     }
 
     override fun close() {
+        logger.info("Renderer teardown started.")
+
+        logger.debug("Closing nodes...")
+        textureCache.forEach { it.value.close() }
+        scene.discover(scene, { n -> n is Renderable }).forEach {
+            destroyNode(it)
+        }
+
+        logger.debug("Closing buffers...")
+        buffers.forEach { s, vulkanBuffer -> vulkanBuffer.close() }
+        standardUBOs.forEach { it.value.close() }
+
+        vertexDescriptors.forEach {
+            it.value.attributeDescription?.free()
+            it.value.bindingDescription?.free()
+            it.value.state.free()
+        }
+
+        logger.debug("Closing descriptor sets and pools...")
+        descriptorSetLayouts.forEach { vkDestroyDescriptorSetLayout(device, it.value, null) }
+        vkDestroyDescriptorPool(device, descriptorPool, null)
+
+        logger.debug("Closing command buffers...")
+        ph.commandBuffers.free()
+        memFree(ph.signalSemaphore)
+        memFree(ph.waitSemaphore)
+        memFree(ph.waitStages)
+
+        semaphores.forEach { it.value.forEach { semaphore -> vkDestroySemaphore(device, semaphore, null) } }
+
+        memFree(firstWaitSemaphore)
+        semaphoreCreateInfo.free()
+
+        logger.debug("Closing swapchain...")
+        memFree(pSwapchains)
+        memFree(swapchainImage)
+
+        swapchain?.let {
+            it.close()
+            vkDestroySwapchainKHR(device, it.handle, null)
+            vkDestroySurfaceKHR(instance, surface, null)
+        }
+
+        logger.debug("Closing renderpasses...")
+        renderpasses.forEach { s, vulkanRenderpass ->
+            vulkanRenderpass.close()
+        }
+
+        with(commandPools) {
+            destroyCommandPool(device, Render)
+            destroyCommandPool(device, Compute)
+            destroyCommandPool(device, Standard)
+        }
+
+        vkDestroyPipelineCache(device, pipelineCache, null)
+
+        if(validation) {
+            vkDestroyDebugReportCallbackEXT(instance, debugCallbackHandle, null)
+            debugCallback.free()
+        }
+        layers.forEach { memFree(it) }
+
+        logger.debug("Closing device...")
+        vkDeviceWaitIdle(device)
+        vkDestroyDevice(device, null)
+        logger.debug("Closing instance...")
         vkDestroyInstance(instance, null)
+
+        memoryProperties.free()
+
+        windowSizeCallback.close()
+        glfwDestroyWindow(window.glfwWindow!!)
+
+        logger.info("Renderer teardown complete.")
     }
 
     override fun reshape(newWidth: Int, newHeight: Int) {

@@ -14,7 +14,7 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import graphics.scenery.Node
 
-open class UBO(val device: VkDevice, val backingBuffer: VulkanBuffer? = null) {
+open class UBO(val device: VkDevice, val backingBuffer: VulkanBuffer? = null): AutoCloseable {
     var name = ""
     var members = LinkedHashMap<String, () -> Any>()
     var descriptor: UBODescriptor? = null
@@ -227,5 +227,14 @@ open class UBO(val device: VkDevice, val backingBuffer: VulkanBuffer? = null) {
 
     fun copyFromStagingBuffer() {
         backingBuffer?.copyFromStagingBuffer()
+    }
+
+    override fun close() {
+        if(backingBuffer == null) {
+            descriptor?.let {
+                vkDestroyBuffer(device, it.buffer, null)
+                vkFreeMemory(device, it.memory, null)
+            }
+        }
     }
 }

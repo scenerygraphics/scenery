@@ -43,5 +43,7 @@ open class RingBuffer<T: Any>(var size: Int, default: ((Int) -> T)? = null) {
     fun reset() {
         currentReadPosition = 0
         currentWritePosition = 0
+
+        backingStore.clear()
     }
 }

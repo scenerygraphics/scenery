@@ -29,7 +29,7 @@ import kotlin.concurrent.thread
 /**
  * Created by ulrik on 10/26/2016.
  */
-open class GLFWMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandler {
+open class GLFWMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandler, AutoCloseable {
 
     var cursorCallback = object : GLFWCursorPosCallback() {
         override fun invoke(window: Long, xpos: Double, ypos: Double) {
@@ -789,5 +789,12 @@ open class GLFWMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandler 
                 gamepad.behaviour.axisEvent(event.component.identifier, event.component.pollData)
             }
         }
+    }
+
+    override fun close() {
+        cursorCallback.close()
+        keyCallback.close()
+        mouseCallback.close()
+        scrollCallback.close()
     }
 }

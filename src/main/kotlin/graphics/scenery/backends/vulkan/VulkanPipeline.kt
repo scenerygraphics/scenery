@@ -14,13 +14,10 @@ import java.util.concurrent.ConcurrentHashMap
 /**
  * Created by ulrik on 9/28/2016.
  */
-class VulkanPipeline(val device: VkDevice, val pipelineCache: Long? = null) {
+class VulkanPipeline(val device: VkDevice, val pipelineCache: Long? = null): AutoCloseable {
     protected var logger: Logger = LoggerFactory.getLogger("VulkanPipeline")
 
     var pipeline = HashMap<GeometryType, VulkanRenderer.Pipeline>()
-
-    var UBOs = ArrayList<UBO>()
-    var descriptorSets = ConcurrentHashMap<String, Long>()
     var descriptorSpecs = ArrayList<VulkanShaderModule.UBOSpec>()
 
     val inputAssemblyState = VkPipelineInputAssemblyStateCreateInfo.calloc()
@@ -88,13 +85,15 @@ class VulkanPipeline(val device: VkDevice, val pipelineCache: Long? = null) {
         .pSampleMask(null)
         .rasterizationSamples(VK_SAMPLE_COUNT_1_BIT)
 
-    var shaderStages = VkPipelineShaderStageCreateInfo.calloc(2)
+    var shaderStages: VkPipelineShaderStageCreateInfo.Buffer = VkPipelineShaderStageCreateInfo.calloc(2)
 
     fun addShaderStages(shaderModules: List<VulkanShaderModule>) {
+        this.shaderStages.free()
         this.shaderStages = VkPipelineShaderStageCreateInfo.calloc(shaderModules.size)
+
         shaderModules.forEachIndexed {
             i, it ->
-            this.shaderStages.get(i).set(it.shader)
+            this.shaderStages.put(i, it.shader)
 
             descriptorSpecs.addAll(it.uboSpecs.values)
             descriptorSpecs.sortBy { spec -> spec.set }
@@ -139,7 +138,6 @@ class VulkanPipeline(val device: VkDevice, val pipelineCache: Long? = null) {
         if(onlyForTopology != null) {
             inputAssemblyState.topology(onlyForTopology.asVulkanTopology())
         }
-
 
         val p = VU.run(memAllocLong(1), "vkCreateGraphicsPipelines",
             { vkCreateGraphicsPipelines(device, pipelineCache ?: VK_NULL_HANDLE, pipelineCreateInfo, null, this) })
@@ -208,5 +206,34 @@ class VulkanPipeline(val device: VkDevice, val pipelineCache: Long? = null) {
 
     override fun toString(): String {
         return "VulkanPipeline (${pipeline.map { "${it.key.name} -> ${String.format("0x%X", it.value.pipeline)}"}.joinToString(", ")})"
+    }
+
+    override fun close() {
+        val removedLayouts = ArrayList<Long>()
+
+        pipeline.forEach { geometryType, pipeline ->
+            vkDestroyPipeline(device, pipeline.pipeline, null)
+
+            if(!removedLayouts.contains(pipeline.layout)) {
+                vkDestroyPipelineLayout(device, pipeline.layout, null)
+                removedLayouts.add(pipeline.layout)
+            }
+        }
+
+        (0..shaderStages.capacity()-1).forEach { i ->
+            vkDestroyShaderModule(device, shaderStages.get(i).module(), null)
+        }
+
+        inputAssemblyState.free()
+        rasterizationState.free()
+        depthStencilState.free()
+        colorBlendState.free()
+        colorWriteMask.free()
+        viewportState.free()
+        dynamicState.free()
+        memFree(pDynamicStates)
+        multisampleState.free()
+
+        shaderStages.free()
     }
 }

@@ -31,7 +31,7 @@ import java.io.StringReader
  * @property[hub] [Hub] for handoing communication
  * @constructor Creates a default behaviour list and input map, also reads the configuration from a file.
  */
-class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : Hubable {
+class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : Hubable, AutoCloseable {
     /** logger for the InputHandler **/
     protected var logger: Logger = LoggerFactory.getLogger("InputHandler")
     /** ui-behaviour input trigger map, stores what actions (key presses, etc) trigger which actions. */
@@ -226,5 +226,9 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
         adder.put("decrease_gamma", "shift L")
 
         adder.put("screenshot", "P")
+    }
+
+    override fun close() {
+
     }
 }

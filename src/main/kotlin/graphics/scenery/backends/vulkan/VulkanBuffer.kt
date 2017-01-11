@@ -6,7 +6,7 @@ import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkDevice
 import java.nio.ByteBuffer
 
-class VulkanBuffer(val device: VkDevice, var memory: Long = -1L, var buffer: Long = -1L, var data: Long = -1L) {
+class VulkanBuffer(val device: VkDevice, var memory: Long = -1L, var buffer: Long = -1L, var data: Long = -1L): AutoCloseable {
     private var currentPosition = 0L
     private var currentPointer: PointerBuffer? = null
     var maxSize: Long = 512 * 2048L
@@ -85,10 +85,11 @@ class VulkanBuffer(val device: VkDevice, var memory: Long = -1L, var buffer: Lon
         copyFrom(stagingBuffer)
     }
 
-    fun close() {
+    override fun close() {
         if(mapped) {
             vkUnmapMemory(device, memory)
         }
+
         memFree(stagingBuffer)
         vkFreeMemory(device, memory, null)
         vkDestroyBuffer(device, buffer, null)

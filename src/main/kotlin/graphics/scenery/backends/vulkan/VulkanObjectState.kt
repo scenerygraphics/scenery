@@ -58,7 +58,7 @@ class VulkanObjectState : NodeMetadata {
             { VK10.vkAllocateDescriptorSets(device, allocInfo, this) },
             { allocInfo.free(); memFree(pDescriptorSetLayout) })
 
-        val d = VkDescriptorImageInfo.calloc(textures.count())
+        val d = (1..textures.count()).map { VkDescriptorImageInfo.calloc(1) }.toTypedArray()
         val wd = VkWriteDescriptorSet.calloc(textures.count())
         var i = 0
 
@@ -68,16 +68,13 @@ class VulkanObjectState : NodeMetadata {
                 .sampler(texture.image!!.sampler)
                 .imageLayout(VK10.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
 
-            val dd = VkDescriptorImageInfo.calloc(1)
-                dd.put(0, d[i])
-
             wd[i]
                 .sType(VK10.VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET)
                 .pNext(NULL)
                 .dstSet(descriptorSet)
                 .dstBinding(targetBinding)
                 .dstArrayElement(toVulkanSlot(type))
-                .pImageInfo(dd)
+                .pImageInfo(d[i])
                 .descriptorType(VK10.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
 
             i++
@@ -85,7 +82,7 @@ class VulkanObjectState : NodeMetadata {
 
         VK10.vkUpdateDescriptorSets(device, wd, null)
         wd.free()
-        (d as NativeResource).free()
+        d.forEach { it.free() }
 
         logger.trace("Creating texture descriptor $descriptorSet set with 1 bindings, DSL=$descriptorSetLayout")
         this.textureDescriptorSet = descriptorSet

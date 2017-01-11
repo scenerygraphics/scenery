@@ -29,7 +29,7 @@ import org.slf4j.LoggerFactory
 class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDevice,
                     val commandPool: Long, val queue: VkQueue,
                     val width: Int, val height: Int, val depth: Int = 1,
-                    val format: Int = VK_FORMAT_R8G8B8_UNORM) {
+                    val format: Int = VK_FORMAT_R8G8B8_UNORM) : AutoCloseable {
     protected var logger: Logger = LoggerFactory.getLogger("VulkanRenderer")
 
     var image: VulkanImage? = null
@@ -51,7 +51,8 @@ class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDevice,
                     .srcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
                     .dstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
                     .image(this@VulkanImage.image)
-                    .subresourceRange(VkImageSubresourceRange.calloc().set(VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1))
+
+                barrier.subresourceRange().set(VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1)
 
                 if (oldLayout == VK_IMAGE_LAYOUT_PREINITIALIZED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
                     barrier.srcAccessMask(VK_ACCESS_HOST_WRITE_BIT)
@@ -70,6 +71,7 @@ class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDevice,
                     VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
                     0, null, null, barrier)
 
+                barrier.free()
                 this.endCommandBuffer(device, commandPool, queue, flush = true, dealloc = true)
             }
         }
@@ -85,14 +87,18 @@ class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDevice,
                 val region = VkImageCopy.calloc(1)
                     .srcSubresource(subresource)
                     .dstSubresource(subresource)
-                    .srcOffset(VkOffset3D.calloc().set(0, 0, 0))
-                    .dstOffset(VkOffset3D.calloc().set(0, 0, 0))
-                    .extent(VkExtent3D.calloc().set(width, height, depth))
+
+                region.srcOffset().set(0, 0, 0)
+                region.dstOffset().set(0, 0, 0)
+                region.extent().set(width, height, depth)
 
                 vkCmdCopyImage(this,
                     image.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                     this@VulkanImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                     region)
+
+                subresource.free()
+                region.free()
 
                 this.endCommandBuffer(device, commandPool, queue, flush = true, dealloc = true)
             }
@@ -141,7 +147,7 @@ class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDevice,
 
         val memory = VU.run(memAllocLong(1), "allocate image staging memory",
             { vkAllocateMemory(device, allocInfo, null, this) },
-            { imageInfo.free(); allocInfo.free(); reqs.free() })
+            { imageInfo.free(); allocInfo.free(); reqs.free(); extent.free() })
 
         vkBindImageMemory(device, image, memory, 0)
 
@@ -161,7 +167,7 @@ class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDevice,
             format, VK_IMAGE_USAGE_TRANSFER_DST_BIT or VK_IMAGE_USAGE_SAMPLED_BIT,
             VK_IMAGE_TILING_OPTIMAL, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
 
-        stagingImage!!.transitionLayout(VK_IMAGE_LAYOUT_PREINITIALIZED, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
+        stagingImage.transitionLayout(VK_IMAGE_LAYOUT_PREINITIALIZED, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
 
         image!!.transitionLayout(VK_IMAGE_LAYOUT_PREINITIALIZED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
         image!!.copyFrom(stagingImage)
@@ -200,8 +206,10 @@ class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDevice,
             .descriptorType(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
 
         vkUpdateDescriptorSets(device, writeDescriptorSet, null)
+
         writeDescriptorSet.free()
         (d as NativeResource).free()
+        memFree(pDescriptorSetLayout)
 
         logger.info("Creating texture descriptor $descriptorSet set with 1 bindings, DSL=$descriptorSetLayout")
         image!!.descriptorSet = descriptorSet
@@ -209,6 +217,8 @@ class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDevice,
     }
 
     private fun createImageView(image: VulkanImage, format: Int): Long {
+        val subresourceRange = VkImageSubresourceRange.calloc().set(VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1)
+
         val vi = VkImageViewCreateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO)
             .pNext(NULL)
@@ -219,10 +229,11 @@ class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDevice,
                 VK_IMAGE_VIEW_TYPE_2D
             })
             .format(format)
-            .subresourceRange(VkImageSubresourceRange.calloc().set(VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1))
+            .subresourceRange(subresourceRange)
 
         val view = VU.run(memAllocLong(1), "Creating image view",
-            { vkCreateImageView(device, vi, null, this) })
+            { vkCreateImageView(device, vi, null, this) },
+            { vi.free(); subresourceRange.free(); })
 
         return view
     }
@@ -246,7 +257,8 @@ class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDevice,
             .compareOp(VK_COMPARE_OP_NEVER)
 
         return VU.run(memAllocLong(1), "creating sampler",
-            { vkCreateSampler(device, samplerInfo, null, this) })
+            { vkCreateSampler(device, samplerInfo, null, this) },
+            { samplerInfo.free() })
     }
 
     companion object {
@@ -425,5 +437,17 @@ class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDevice,
             g.dispose()
             return newImage
         }
+    }
+
+    override fun close() {
+        image?.let {
+            if(it.view != -1L) vkDestroyImageView(device, it.view, null)
+            if(it.image != -1L) vkDestroyImage(device, it.image, null)
+            if(it.sampler != -1L) vkDestroySampler(device, it.sampler, null)
+            if(it.memory != -1L) vkFreeMemory(device, it.memory, null)
+        }
+
+        if(stagingImage.image != -1L) vkDestroyImage(device, stagingImage.image, null)
+        if(stagingImage.memory != -1L) vkFreeMemory(device, stagingImage.memory, null)
     }
 }

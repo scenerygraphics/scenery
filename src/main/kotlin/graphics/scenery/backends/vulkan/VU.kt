@@ -464,7 +464,7 @@ class VU {
             return descriptorSet
         }
 
-        fun  createRenderTargetDescriptorSet(device: VkDevice, descriptorPool: Long, descriptorSetLayout: Long,
+        fun createRenderTargetDescriptorSet(device: VkDevice, descriptorPool: Long, descriptorSetLayout: Long,
                                              rt: Map<String, RenderConfigReader.AttachmentConfig>,
                                              target: VulkanFramebuffer): Long {
 
