@@ -1,12 +1,12 @@
 [![scenery logo](./artwork/logo-light-small.png)](./artwork/logo-light.png)
 
-[![Build Status](https://travis-ci.org/ClearVolume/scenery.svg?branch=master)](https://travis-ci.org/ClearVolume/scenery)  [![Join the chat at https://gitter.im/ClearVolume/ClearVolume](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/ClearVolume/ClearVolume?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![Travis Build Status](https://travis-ci.org/ClearVolume/scenery.svg?branch=master)](https://travis-ci.org/ClearVolume/scenery) [![Appveyor Build status](https://ci.appveyor.com/api/projects/status/vysiatrptqas4cfy?svg=true)](https://ci.appveyor.com/project/skalarproduktraum/scenery)  [![Join the chat at https://gitter.im/ClearVolume/ClearVolume](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/ClearVolume/ClearVolume?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 # scenery  // flexible scenegraphing and rendering for scientific visualisation
 
 ## Synopsis
 
-scenery is a scenegraphing and rendering library. It allows you to quickly create high-quality 3D visualisations based on mesh data. Currently, scenery contains an OpenGL 4-based [Deferred Shading](https://en.wikipedia.org/wiki/Deferred_Shading) renderer that also supports [OpenVR](https://github.com/ValveSoftware/openvr). Both a software-based and a [Vulkan](https://www.khronos.org/vulkan)-based renderer are planned.
+scenery is a scenegraphing and rendering library. It allows you to quickly create high-quality 3D visualisations based on mesh data. Currently, scenery contains an OpenGL 4-based [Deferred Shading](https://en.wikipedia.org/wiki/Deferred_Shading) renderer that also supports [OpenVR](https://github.com/ValveSoftware/openvr) and an experimental [Vulkan](https://www.khronos.org/vulkan) renderer. Software rendering is planned for the future.
 
 ## Examples
 
@@ -22,14 +22,7 @@ scenery is a scenegraphing and rendering library. It allows you to quickly creat
 git clone https://github.com/ClearVolume/ClearGL.git
 ```
 
-- In the `my_scenery_base` directory, create a file named `settings.gradle`, with this content:
-
-```groovy
-include "ClearGL"
-include "scenery"
-```
- 
-- Run `gradle install -Plocal=true` from both the `my_scenery_base/scenery` directory and the `my_scenery_base/ClearGL` directory. This will install the JARs into your local Maven repository, both with version `1.0-SNAPSHOT`.
+- in both the `ClearGL` and the `scenery` directory, run `mvn clean install` to build and install both packages into your local Maven repository
 
 ## Using _scenery_
 
@@ -41,7 +34,7 @@ Add these dependencies to your project's `pom.xml`:
 ```xml
 <dependencies>
   <dependency>
-    <groupId>net.clearvolume</groupId>
+    <groupId>graphics.scenery</groupId>
     <artifactId>scenery</artifactId>
     <version>1.0.0-SNAPSHOT</version>
   </dependency>

@@ -1,42 +1,160 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
         <groupId>org.scijava</groupId>
         <artifactId>pom-scijava</artifactId>
-        <version>10.6.0</version>
+        <version>12.0.0</version>
     </parent>
 
-    <groupId>net.clearvolume</groupId>
+    <groupId>graphics.scenery</groupId>
     <artifactId>scenery</artifactId>
     <version>1.0.0-SNAPSHOT</version>
+    <inceptionYear>2016</inceptionYear>
+    <licenses>
+        <license>
+            <name>GNU Lesser General Public License v3+</name>
+            <url>http://www.gnu.org/licenses/lgpl.html</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
 
     <name>scenery</name>
     <description>flexible scenegraphing and rendering for scientific visualisation</description>
+    <url>http://scenery.graphics</url>
 
-    <properties>
-        <scijava.jvm.version>1.8</scijava.jvm.version>
-        <enforcer.skip>true</enforcer.skip>
-        <kotlin.version>1.0.3</kotlin.version>
-        <slf4j.version>1.7.20</slf4j.version>
-        <dokka.version>0.9.9</dokka.version>
-    </properties>
+    <organization>
+        <name>scenery</name>
+        <url>http://scenery.graphics</url>
+    </organization>
+
+    <developers>
+        <developer>
+            <id>skalarproduktraum</id>
+            <name>Ulrik Guenther</name>
+            <url>https://ulrik.is/writing</url>
+            <roles>
+                <role>founder</role>
+                <role>lead</role>
+                <role>developer</role>
+                <role>debugger</role>
+                <role>reviewer</role>
+                <role>support</role>
+                <role>maintainer</role>
+            </roles>
+        </developer>
+    </developers>
+
+    <contributors>
+        <contributor>
+            <name>Kyle Harrington</name>
+            <url>http://www.kyleharrington.com</url>
+            <properties><id>kephale</id></properties>
+        </contributor>
+        <contributor>
+            <name>Tobias Pietzsch</name>
+            <url>http://imagej.net/User:Pietzsch</url>
+            <properties><id>tpietzsch</id></properties>
+        </contributor>
+        <contributor>
+            <name>Loic Royer</name>
+            <properties><id>royerloic</id></properties>
+        </contributor>
+    </contributors>
+
+    <mailingLists>
+        <mailingList>
+            <name>none</name>
+        </mailingList>
+    </mailingLists>
 
     <scm>
         <connection>scm:git:git://github.com/ClearVolume/scenery</connection>
         <developerConnection>scm:git:git@github.com:ClearVolume/scenery</developerConnection>
         <tag>HEAD</tag>
-        <url>https://github.com/ClearVolume/scenery</url>
+        <url>http://scenery.graphics</url>
     </scm>
+
     <issueManagement>
-        <system>GitHub</system>
+        <system>GitHub Issues</system>
         <url>https://github.com/ClearVolume/scenery/issues</url>
     </issueManagement>
+
     <ciManagement>
         <system>Travis</system>
-        <url>http://travis-ci.org/ClearVolume/scenery/</url>
+        <url>https://travis-ci.org/ClearVolume/scenery/</url>
     </ciManagement>
+
+    <properties>
+        <scijava.jvm.version>1.8</scijava.jvm.version>
+        <kotlin.version>1.0.6</kotlin.version>
+        <slf4j.version>1.7.21</slf4j.version>
+        <dokka.version>0.9.10</dokka.version>
+        <lwjgl.version>3.1.1</lwjgl.version>
+        <license.licenseName>lgpl_v3</license.licenseName>
+
+        <enforcer.skip>true</enforcer.skip>
+    </properties>
+
+    <profiles>
+        <profile>
+            <id>js</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.jetbrains.kotlin</groupId>
+                        <artifactId>kotlin-maven-plugin</artifactId>
+                        <version>${kotlin.version}</version>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>js</goal>
+                                </goals>
+                                <configuration>
+                                    <outputFile>${project.build.outputDirectory}/${project.artifactId}.js</outputFile>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>lwjgl-natives-linux></id>
+            <activation>
+                <os>
+                    <family>unix</family>
+                </os>
+            </activation>
+            <properties>
+                <lwjgl.natives>natives-linux</lwjgl.natives>
+            </properties>
+        </profile>
+        <profile>
+            <id>lwjgl-natives-macos></id>
+            <activation>
+                <os>
+                    <family>mac</family>
+                </os>
+            </activation>
+            <properties>
+                <lwjgl.natives>natives-macos</lwjgl.natives>
+            </properties>
+        </profile>
+        <profile>
+            <id>lwjgl-natives-windows></id>
+            <activation>
+                <os>
+                    <family>windows</family>
+                </os>
+            </activation>
+            <properties>
+                <lwjgl.natives>natives-windows</lwjgl.natives>
+            </properties>
+        </profile>
+    </profiles>
 
     <dependencies>
         <dependency>
@@ -54,7 +172,6 @@
             <artifactId>jogl-all-main</artifactId>
         </dependency>
 
-        <!-- Test dependencies -->
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
@@ -80,6 +197,12 @@
         </dependency>
 
         <dependency>
+            <groupId>net.clearvolume</groupId>
+            <artifactId>scenery-openvr</artifactId>
+            <version>0.1.0.2</version>
+        </dependency>
+
+        <dependency>
             <groupId>net.java.jinput</groupId>
             <artifactId>jinput</artifactId>
             <version>2.0.6</version>
@@ -101,25 +224,31 @@
         <dependency>
             <groupId>org.scijava</groupId>
             <artifactId>scijava-common</artifactId>
-            <version>2.57.0-SNAPSHOT</version>
+            <version>2.61.0</version>
         </dependency>
 
         <dependency>
             <groupId>org.scijava</groupId>
             <artifactId>script-editor</artifactId>
-            <version>0.1.1-SNAPSHOT</version>
+            <version>0.1.1</version>
         </dependency>
 
         <dependency>
             <groupId>org.scijava</groupId>
             <artifactId>ui-behaviour</artifactId>
-            <version>1.0.1</version>
+            <version>1.2.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>net.sf.trove4j</groupId>
+            <artifactId>trove4j</artifactId>
+            <version>3.0.3</version>
         </dependency>
 
         <dependency>
             <groupId>org.scijava</groupId>
             <artifactId>scripting-javascript</artifactId>
-            <version>0.4.4-SNAPSHOT</version>
+            <version>0.4.3</version>
         </dependency>
 
         <dependency>
@@ -140,10 +269,130 @@
             <version>2.0.0</version>
         </dependency>
 
+        <!-- LWJGL dependencies START -->
         <dependency>
-            <groupId>scenery</groupId>
-            <artifactId>openvr</artifactId>
-            <version>0.1</version>
+            <groupId>org.lwjgl</groupId>
+            <artifactId>lwjgl</artifactId>
+            <version>${lwjgl.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.lwjgl</groupId>
+            <artifactId>lwjgl-glfw</artifactId>
+            <version>${lwjgl.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.lwjgl</groupId>
+            <artifactId>lwjgl-jemalloc</artifactId>
+            <version>${lwjgl.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.lwjgl</groupId>
+            <artifactId>lwjgl-openal</artifactId>
+            <version>${lwjgl.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.lwjgl</groupId>
+            <artifactId>lwjgl-opencl</artifactId>
+            <version>${lwjgl.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.lwjgl</groupId>
+            <artifactId>lwjgl-opengl</artifactId>
+            <version>${lwjgl.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.lwjgl</groupId>
+            <artifactId>lwjgl-sse</artifactId>
+            <version>${lwjgl.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.lwjgl</groupId>
+            <artifactId>lwjgl-vulkan</artifactId>
+            <version>${lwjgl.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.lwjgl</groupId>
+            <artifactId>lwjgl</artifactId>
+            <version>${lwjgl.version}</version>
+            <classifier>${lwjgl.natives}</classifier>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.lwjgl</groupId>
+            <artifactId>lwjgl-glfw</artifactId>
+            <version>${lwjgl.version}</version>
+            <classifier>${lwjgl.natives}</classifier>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.lwjgl</groupId>
+            <artifactId>lwjgl-jemalloc</artifactId>
+            <version>${lwjgl.version}</version>
+            <classifier>${lwjgl.natives}</classifier>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.lwjgl</groupId>
+            <artifactId>lwjgl-openal</artifactId>
+            <version>${lwjgl.version}</version>
+            <classifier>${lwjgl.natives}</classifier>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.lwjgl</groupId>
+            <artifactId>lwjgl-sse</artifactId>
+            <version>${lwjgl.version}</version>
+            <classifier>${lwjgl.natives}</classifier>
+            <scope>runtime</scope>
+        </dependency>
+        <!-- LWJGL dependencies END -->
+
+        <!-- jackson dependencies -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.8.4</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.fasterxml.jackson.module</groupId>
+            <artifactId>jackson-module-kotlin</artifactId>
+            <version>2.8.4</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-yaml</artifactId>
+            <version>2.8.4</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.yaml</groupId>
+            <artifactId>snakeyaml</artifactId>
+            <version>1.15</version>
+        </dependency>
+
+        <!-- jackson dependencies end -->
+        <dependency>
+            <groupId>graphics.scenery</groupId>
+            <artifactId>spirvcrossj</artifactId>
+            <version>0.1-SNAPSHOT</version>
+        </dependency>
+
+        <dependency>
+            <groupId>graphics.scenery</groupId>
+            <artifactId>spirvcrossj</artifactId>
+            <version>0.1-SNAPSHOT</version>
+            <classifier>${lwjgl.natives}</classifier>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.jetbrains.kotlin</groupId>
+            <artifactId>kotlin-test</artifactId>
+            <version>${kotlin.version}</version>
+            <scope>test</scope>
         </dependency>
 
     </dependencies>
@@ -164,8 +413,8 @@
     </pluginRepositories>
 
     <build>
-        <sourceDirectory>${project.basedir}/src/main/kotlin</sourceDirectory>
-        <testSourceDirectory>${project.basedir}/src/test/kotlin/</testSourceDirectory>
+        <sourceDirectory>src/main/kotlin</sourceDirectory>
+        <testSourceDirectory>src/test/tests</testSourceDirectory>
 
         <plugins>
             <plugin>
@@ -176,35 +425,18 @@
                 <executions>
                     <execution>
                         <id>compile</id>
-                        <phase>process-sources</phase>
-                        <goals> <goal>compile</goal> </goals>
+                        <phase>compile</phase>
+                        <goals>
+                            <goal>compile</goal>
+                        </goals>
                     </execution>
 
                     <execution>
                         <id>test-compile</id>
-                        <phase>process-test-sources</phase>
-                        <goals> <goal>test-compile</goal> </goals>
-                    </execution>
-                </executions>
-            </plugin>
-
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-install-plugin</artifactId>
-                <version>2.5.2</version>
-                <executions>
-                    <execution>
-                        <phase>initialize</phase>
+                        <phase>test-compile</phase>
                         <goals>
-                            <goal>install-file</goal>
+                            <goal>test-compile</goal>
                         </goals>
-                        <configuration>
-                            <file>jars/openvr-0.1.jar</file>
-                            <groupId>scenery</groupId>
-                            <artifactId>openvr</artifactId>
-                            <version>0.1</version>
-                            <packaging>jar</packaging>
-                        </configuration>
                     </execution>
                 </executions>
             </plugin>
@@ -230,16 +462,35 @@
                     </sourceLinks>
                 </configuration>
             </plugin>
-
-            <!--            <plugin>
+            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <version>2.19</version>
-                <configuration>
-                    <argLine>-Xmx4g</argLine>
-                </configuration>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>default-compile</id>
+                        <phase>none</phase>
+                    </execution>
+                    <execution>
+                        <id>default-testCompile</id>
+                        <phase>none</phase>
+                    </execution>
+                    <execution>
+                        <id>compile</id>
+                        <phase>compile</phase>
+                        <goals>
+                            <goal>compile</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>testCompile</id>
+                        <phase>test-compile</phase>
+                        <goals>
+                            <goal>testCompile</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
-            -->
+
         </plugins>
     </build>
 </project>

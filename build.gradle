@@ -1,7 +1,8 @@
 buildscript {
-	ext.kotlin_version = '1.0.3'
-    ext.dokka_version = '0.9.8'
-    ext.slf4j_version = '1.7.20'
+	ext.kotlin_version = '1.0.5-2'
+    ext.dokka_version = '0.9.10'
+    ext.slf4j_version = '1.7.21'
+    ext.lwjgl_version = '3.1.1-SNAPSHOT'
 	repositories {
     mavenCentral()
   }
@@ -29,15 +30,16 @@ sourceSets
         kotlin
         { srcDirs = ['src/main/kotlin'] }
 		resources
-		{  srcDirs = ['src/main/resources']
-        }
+		{ srcDirs = ['src/main/resources'] }
 	}
 	test
 	{
         kotlin
-        { srcDirs = ['src/test/kotlin'] }
+        { srcDirs = ['src/test/tests'] }
+        java
+        { srcDirs = ['src/test/tests'] }
 		resources
-		{  srcDirs = ['src/test/resources'] }
+		{ srcDirs = ['src/test/resources'] }
 	}
 }
 
@@ -103,12 +105,9 @@ dependencies
 	compile 'org.scijava:script-editor:0.1.1-SNAPSHOT'
 	compile 'org.scijava:scripting-javascript:0.4.4-SNAPSHOT'
 
-    // for the moment, use the bundled OpenVR distribution
-    //compile 'scenery:openvr:0.1'
-    compile files('jars/openvr-0.1.jar')
+    compile 'net.clearvolume:scenery-openvr:0.1.0.2'
     compile 'com.nativelibs4java:jnaerator-runtime:0.12'
     compile 'net.java.dev.jna:jna:4.1.0'
-
 
     // JInput for controls
     compile group: 'net.java.jinput', name: 'jinput', version: '2.0.6'
@@ -117,6 +116,42 @@ dependencies
 
     // OpenCL support via JOCL
     compile group: 'org.jocl', name: 'jocl', version: '2.0.0'
+
+    // LWJGL for Vulkan support
+    compile "org.lwjgl:lwjgl:$lwjgl_version"
+    compile "org.lwjgl:lwjgl:$lwjgl_version:natives-windows"
+    compile "org.lwjgl:lwjgl:$lwjgl_version:natives-linux"
+    compile "org.lwjgl:lwjgl:$lwjgl_version:natives-macos"
+    compile "org.lwjgl:lwjgl-glfw:$lwjgl_version"
+    compile "org.lwjgl:lwjgl-glfw:$lwjgl_version:natives-windows"
+    compile "org.lwjgl:lwjgl-glfw:$lwjgl_version:natives-linux"
+    compile "org.lwjgl:lwjgl-glfw:$lwjgl_version:natives-macos"
+    compile "org.lwjgl:lwjgl-jemalloc:$lwjgl_version"
+    compile "org.lwjgl:lwjgl-jemalloc:$lwjgl_version:natives-windows"
+    compile "org.lwjgl:lwjgl-jemalloc:$lwjgl_version:natives-linux"
+    compile "org.lwjgl:lwjgl-jemalloc:$lwjgl_version:natives-macos"
+    compile "org.lwjgl:lwjgl-openal:$lwjgl_version"
+    compile "org.lwjgl:lwjgl-openal:$lwjgl_version:natives-windows"
+    compile "org.lwjgl:lwjgl-openal:$lwjgl_version:natives-linux"
+    compile "org.lwjgl:lwjgl-openal:$lwjgl_version:natives-macos"
+    compile "org.lwjgl:lwjgl-opencl:$lwjgl_version"
+    compile "org.lwjgl:lwjgl-opengl:$lwjgl_version"
+    compile "org.lwjgl:lwjgl-sse:$lwjgl_version"
+    compile "org.lwjgl:lwjgl-sse:$lwjgl_version:natives-windows"
+    compile "org.lwjgl:lwjgl-sse:$lwjgl_version:natives-linux"
+    compile "org.lwjgl:lwjgl-sse:$lwjgl_version:natives-macos"
+    compile "org.lwjgl:lwjgl-vulkan:$lwjgl_version"
+
+    // fasterxml
+    compile "com.fasterxml.jackson.core:jackson-databind:2.8.4"
+    compile "com.fasterxml.jackson.module:jackson-module-kotlin:2.8.4"
+    compile "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.8.4"
+    compile "org.yaml:snakeyaml:1.15"
+
+    compile "graphics.scenery:spirvcrossj:0.1-SNAPSHOT"
+    compile "graphics.scenery:spirvcrossj:0.1-SNAPSHOT:natives-windows"
+    compile "graphics.scenery:spirvcrossj:0.1-SNAPSHOT:natives-linux"
+    compile "graphics.scenery:spirvcrossj:0.1-SNAPSHOT:natives-macos"
 
     // usage: gradle .... -Plocal=true
 	if (project.hasProperty('local')) {
@@ -135,11 +170,15 @@ dependencies
 
 repositories
 {
-	mavenCentral()
-	maven
-	{ url "http://oss.sonatype.org/content/groups/public" }
+    mavenCentral()
+    maven
+    { url "https://oss.sonatype.org/content/repositories/snapshots" }
+    maven
+    { url "http://oss.sonatype.org/content/groups/public" }
     maven
     { url "http://maven.imagej.net/content/groups/public" }
+    maven
+    { url "http://maven.imagej.net/content/repositories/snapshots" }
     maven
     { url "http://dl.bintray.com/clearcontrol/ClearControl" }
     maven
@@ -193,7 +232,7 @@ def getVersionName = { ->
 		return stdout.toString().trim()
 }
 
-group = 'net.clearvolume'
+group = 'graphics.scenery'
 archivesBaseName = "scenery"
 
 if(project.hasProperty('releasebuild')) {

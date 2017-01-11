@@ -1,6 +1,7 @@
 # Binary files
 bin/
 build/
+target/
 
 # Eclipse projects & settings
 .project
@@ -17,6 +18,12 @@ gradle.properties
 *.iws
 *.iml
 *.class
+
+# Vulkan Validation Layers
+VkLayer_*.json
+VkLayer_*.dll
+VkLayer_*.so
+VkLayer_*.dylib
 
 # log files and metadata
 Thumbs.db
