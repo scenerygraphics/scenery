@@ -458,7 +458,7 @@ open class VulkanRenderer : Renderer, AutoCloseable {
      * @param[scene] The scene to initialize.
      */
     override fun initializeScene() {
-        logger.info("Starting scene initialization")
+        logger.info("Scene initialization started.")
 
         this.scene.discover(this.scene, { it is HasGeometry })
 //            .parallelMap(numThreads = System.getProperty("scenery.MaxInitThreads", "1").toInt()) { node ->
@@ -474,6 +474,7 @@ open class VulkanRenderer : Renderer, AutoCloseable {
             }
 
         scene.initialized = true
+        logger.info("Scene initialization complete.")
     }
 
     protected fun updateFontBoard(board: FontBoard) {

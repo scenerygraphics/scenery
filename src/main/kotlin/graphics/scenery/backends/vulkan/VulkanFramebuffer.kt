@@ -473,7 +473,7 @@ class VulkanFramebuffer(protected var device: VkDevice,
             props.optimalTilingFeatures() and VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT > 0
         }
 
-        logger.info("Using $format as depth format.")
+        logger.debug("Using $format as depth format.")
 
         props.free()
         return format

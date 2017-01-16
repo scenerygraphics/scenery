@@ -28,7 +28,7 @@ class VulkanShaderModule(device: VkDevice, entryPoint: String, shaderCodePath: S
     init {
         Loader.loadNatives()
 
-        logger.info("Creating VulkanShaderModule $entryPoint, $shaderCodePath")
+        logger.debug("Creating VulkanShaderModule $entryPoint, $shaderCodePath")
 
         this.device = device
         val code = BufferUtils.allocateByteAndPut(this.javaClass.getResource(shaderCodePath).readBytes())

@@ -144,7 +144,7 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
         // renderpasses might have parameters set up in their YAML config. These get translated to
         // descriptor layouts, UBOs and descriptor sets
         passConfig.parameters?.let { params ->
-            logger.info("Creating UBO for $name")
+            logger.debug("Creating UBO for $name")
             // create UBO
             val ubo = UBO(device)
 
@@ -182,7 +182,7 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
             UBOs.put("ShaderParameters-$name", ubo)
             descriptorSets.put("ShaderParameters-$name", ds)
 
-            logger.info("Created DSL $dsl for $name, UBO has ${params.count()} members")
+            logger.debug("Created DSL $dsl for $name, UBO has ${params.count()} members")
             descriptorSetLayouts.putIfAbsent("ShaderParameters-${name}", dsl)
         }
     }
@@ -211,7 +211,7 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
 
         p.addShaderStages(shaders)
 
-        logger.info("${descriptorSetLayouts.count()} DSLs are available: ${descriptorSetLayouts.keys.joinToString(", ")}")
+        logger.debug("${descriptorSetLayouts.count()} DSLs are available: ${descriptorSetLayouts.keys.joinToString(", ")}")
 
         val blendMasks = VkPipelineColorBlendAttachmentState.calloc(framebuffer.colorAttachmentCount())
         (0..framebuffer.colorAttachmentCount() - 1).forEach {
@@ -229,7 +229,10 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
             p.rasterizationState.cullMode(VK_CULL_MODE_FRONT_BIT)
             p.rasterizationState.frontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
 
-            logger.info("DS are: ${p.descriptorSpecs.map { it.name }.joinToString(", ")}")
+            if(logger.isDebugEnabled) {
+                logger.debug("DS are: ${p.descriptorSpecs.map { it.name }.joinToString(", ")}")
+            }
+
             // add descriptor specs. at this time, they are expected to be already
             // ordered (which happens at pipeline creation time).
             p.descriptorSpecs.forEach { spec ->
@@ -245,10 +248,10 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
 
                 val dsl = descriptorSetLayouts.get(dslName)
                 if(dsl != null) {
-                    logger.info("Adding DSL for $dslName to required pipeline DSLs")
+                    logger.debug("Adding DSL for $dslName to required pipeline DSLs")
                     reqDescriptorLayouts.add(dsl)
                 } else {
-                    logger.error("DSL for $dslName not found!")
+                    logger.error("DSL for $dslName not found, but required by $this!")
                 }
             }
 
@@ -265,7 +268,7 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
                 descriptorSetLayouts = reqDescriptorLayouts)
         }
 
-        logger.info("Prepared pipeline $pipelineName for ${name}")
+        logger.debug("Prepared pipeline $pipelineName for ${name}")
 
         pipelines.put(pipelineName, p)
     }
