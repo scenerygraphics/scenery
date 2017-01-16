@@ -57,18 +57,18 @@ void main() {
     gAlbedoSpec.rgb = vec3(0.0f, 0.0f, 0.0f);
 
     // Also store the per-fragment normals into the gbuffer
-    if((materialType & MATERIAL_HAS_AMBIENT) == 1) {
-        gAlbedoSpec.rgb += texture(ObjectTextures[0], VertexIn.TexCoord).rgb;
-    } else if((materialType & MATERIAL_HAS_DIFFUSE) == 1) {
-        gAlbedoSpec.rgb += texture(ObjectTextures[1], VertexIn.TexCoord).rgb;
-    } else if((materialType & MATERIAL_HAS_SPECULAR) == 1) {
-        gAlbedoSpec.a += texture(ObjectTextures[2], VertexIn.TexCoord).r;
+    if((materialType & MATERIAL_HAS_AMBIENT) == MATERIAL_HAS_AMBIENT) {
+        gAlbedoSpec.rgb = texture(ObjectTextures[0], VertexIn.TexCoord).rgb;
+    } else if((materialType & MATERIAL_HAS_DIFFUSE) == MATERIAL_HAS_DIFFUSE) {
+        gAlbedoSpec.rgb = texture(ObjectTextures[1], VertexIn.TexCoord).rgb;
+    } else if((materialType & MATERIAL_HAS_SPECULAR) == MATERIAL_HAS_SPECULAR) {
+        gAlbedoSpec.a = texture(ObjectTextures[2], VertexIn.TexCoord).r;
     } else {
          gAlbedoSpec.rgb = Material.Kd;
          gAlbedoSpec.a = Material.Ka.r*Material.Shininess;
     }
 
-    if((materialType & MATERIAL_HAS_NORMAL) == 1) {
+    if((materialType & MATERIAL_HAS_NORMAL) == MATERIAL_HAS_NORMAL) {
         gNormal = normalize(texture(ObjectTextures[3], VertexIn.TexCoord).rgb*2.0 - 1.0);
     } else {
         gNormal = normalize(VertexIn.Normal);

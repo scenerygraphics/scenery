@@ -424,7 +424,7 @@ class VU {
 
         fun createDescriptorSet(device: VkDevice, descriptorPool: Long, descriptorSetLayout: Long, bindingCount: Int,
                                 ubo: UBO.UBODescriptor, type: Int = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER): Long {
-            logger.info("Creating descriptor set with ${bindingCount} bindings, DSL=$descriptorSetLayout")
+            logger.debug("Creating descriptor set with ${bindingCount} bindings, DSL=$descriptorSetLayout")
 
             val pDescriptorSetLayout = MemoryUtil.memAllocLong(1)
             pDescriptorSetLayout.put(0, descriptorSetLayout)
@@ -508,7 +508,7 @@ class VU {
             writeDescriptorSet.free()
             dlist.forEach { it.free() }
 
-            logger.info("Creating framebuffer attachment descriptor $descriptorSet set with ${rt.size} bindings, DSL=$descriptorSetLayout")
+            logger.debug("Creating framebuffer attachment descriptor $descriptorSet set with ${rt.size} bindings, DSL=$descriptorSetLayout")
             return descriptorSet
         }
 
