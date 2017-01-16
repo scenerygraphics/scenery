@@ -696,6 +696,12 @@ open class VulkanRenderer : Renderer, AutoCloseable {
                     else -> 0
                 }
 
+                val mipLevels = if(type == "ambient" || type == "diffuse") {
+                    3
+                } else {
+                    1
+                }
+
                 logger.debug("${node.name} will have $type texture from $texture in slot $slot")
 
                 if (!textureCache.containsKey(texture) || node.material?.needsTextureReload!!) {
@@ -704,14 +710,16 @@ open class VulkanRenderer : Renderer, AutoCloseable {
                     val vkTexture = if (texture.startsWith("fromBuffer:")) {
                         val gt = node.material!!.transferTextures[texture.substringAfter("fromBuffer:")]
 
-                        val t = VulkanTexture(device, physicalDevice,
-                            commandPools.Standard, queue, gt!!.dimensions.x().toInt(), gt.dimensions.y().toInt(), 1)
+                        val t = VulkanTexture(device, physicalDevice, memoryProperties,
+                            commandPools.Standard, queue,
+                            gt!!.dimensions.x().toInt(), gt.dimensions.y().toInt(), 1,
+                            mipLevels = mipLevels)
                         t.copyFrom(gt.contents)
 
                         t
                     } else {
-                        VulkanTexture.loadFromFile(device, physicalDevice,
-                            commandPools.Standard, queue, texture, true, 1)
+                        VulkanTexture.loadFromFile(device, physicalDevice, memoryProperties,
+                            commandPools.Standard, queue, texture, true, mipLevels)
                     }
 
                     s.textures.put(type, vkTexture!!)
@@ -969,7 +977,7 @@ open class VulkanRenderer : Renderer, AutoCloseable {
     }
 
     protected fun prepareDefaultTextures(device: VkDevice) {
-        val t = VulkanTexture.loadFromFile(device, physicalDevice, commandPools.Standard, queue,
+        val t = VulkanTexture.loadFromFile(device, physicalDevice, memoryProperties, commandPools.Standard, queue,
             Renderer::class.java.getResource("DefaultTexture.png").path.toString(), true, 1)
 
         textureCache.put("DefaultTexture", t!!)
