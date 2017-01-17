@@ -1185,7 +1185,7 @@ open class VulkanRenderer : Renderer, AutoCloseable {
                 wantAligned = true,
                 allocationSize = imageByteSize)
 
-            with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
+            with(VU.newCommandBuffer(device, commandPools.Render, autostart = true)) {
                 val subresource = VkImageSubresourceLayers.calloc()
                     .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
                     .mipLevel(0)
@@ -1199,10 +1199,22 @@ open class VulkanRenderer : Renderer, AutoCloseable {
                     .imageExtent(VkExtent3D.calloc().set(window.width, window.height, 1))
                     .imageSubresource(subresource)
 
-                vkCmdCopyImageToBuffer(this, swapchain!!.images!![pass.getReadPosition()],
+                val image = swapchain!!.images!![pass.getReadPosition()]
+
+                VulkanTexture.transitionLayout(image,
+                    VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                    commandBuffer = this)
+
+                vkCmdCopyImageToBuffer(this, image,
                     VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                     screenshotBuffer.buffer,
                     regions)
+
+                VulkanTexture.transitionLayout(image,
+                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                    VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                    commandBuffer = this)
 
                 this.endCommandBuffer(device, commandPools.Render, queue,
                     flush = true, dealloc = true)
