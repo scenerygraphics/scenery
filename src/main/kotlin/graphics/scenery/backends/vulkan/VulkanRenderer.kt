@@ -1933,8 +1933,8 @@ open class VulkanRenderer : Renderer, AutoCloseable {
 
         val instanceBufferSize = ubo.getSize() * instances.size
 
-        logger.info("$parentNode has ${instances.size} child instances with ${ubo.getSize()} bytes each.")
-        logger.info("Creating staging buffer...")
+        logger.debug("$parentNode has ${instances.size} child instances with ${ubo.getSize()} bytes each.")
+        logger.debug("Creating staging buffer...")
 
         val stagingBuffer = VU.createBuffer(device,
             this.memoryProperties,
@@ -1961,7 +1961,7 @@ open class VulkanRenderer : Renderer, AutoCloseable {
             instanceUbo.populate()
         }
 
-        logger.info("Copying from staging buffer")
+        logger.debug("Copying from staging buffer")
         stagingBuffer.copyFromStagingBuffer()
 
         // the actual instance buffer is kept device-local for performance reasons
@@ -1989,7 +1989,7 @@ open class VulkanRenderer : Renderer, AutoCloseable {
 
         stagingBuffer.close()
 
-        logger.info("Instance buffer creation done")
+        logger.debug("Instance buffer creation done")
 
         return state
     }
