@@ -73,11 +73,6 @@ public class TexturedCubeJavaJPanelExample {
                 }
             };
             rotator.start();
-
-            setRepl(new REPL(getScene(), getRenderer()));
-            getRepl().start();
-            getRepl().showConsoleWindow();
-
         }
 
 

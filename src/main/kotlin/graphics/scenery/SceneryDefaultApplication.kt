@@ -9,6 +9,8 @@ import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.backends.opengl.OpenGLRenderer
 import graphics.scenery.controls.InputHandler
 import graphics.scenery.repl.REPL
+import graphics.scenery.utils.Statistics
+import org.slf4j.LoggerFactory
 
 /**
  * A default application to use scenery with, keeping the needed boilerplate
@@ -25,7 +27,8 @@ import graphics.scenery.repl.REPL
 
 open class SceneryDefaultApplication(var applicationName: String,
                                      var windowWidth: Int = 1024,
-                                     var windowHeight: Int = 1024) {
+                                     var windowHeight: Int = 1024,
+                                     val wantREPL: Boolean = true) {
 
     /** The scene used by the renderer in the application */
     protected val scene: Scene = Scene()
@@ -39,6 +42,12 @@ open class SceneryDefaultApplication(var applicationName: String,
     var hub: Hub = Hub()
     /** ui-behaviour input handler */
     protected var inputHandler: InputHandler? = null
+
+    protected var stats: Statistics = Statistics(hub)
+
+    protected var logger = LoggerFactory.getLogger(applicationName)
+
+    var updateFunction: ()->Any = {}
 
     /**
      * the init function of [SceneryDefaultApplication], override this in your subclass,
@@ -66,25 +75,46 @@ open class SceneryDefaultApplication(var applicationName: String,
      *
      */
     open fun main() {
+        if(wantREPL) {
+            repl = REPL(scene, stats)
+        }
+
         // initialize renderer, etc first in init, then setup key bindings
         init()
+
+        repl?.addAccessibleObject(renderer!!)
+
+        repl?.start()
+        repl?.showConsoleWindow()
+
+        val statsRequested = java.lang.Boolean.parseBoolean(System.getProperty("scenery.PrintStatistics", "false"))
 
         inputHandler = InputHandler(scene, renderer!!, hub)
         inputHandler?.useDefaultBindings(System.getProperty("user.home") + "/.$applicationName.bindings")
 
-        if(!renderer!!.managesRenderLoop) {
-//            renderer!!.setCurrentScene(scene)
-        }
-
         // setup additional key bindings, if requested by the user
         inputSetup()
 
+        var ticks = 0L
+
         while(renderer!!.shouldClose == false) {
+            val start = System.nanoTime()
             if(renderer!!.managesRenderLoop) {
                 Thread.sleep(2)
             } else {
-                renderer!!.render()
+                stats.addTimed("render", { renderer!!.render() })
             }
+
+            stats.addTimed("sceneUpdate", updateFunction)
+
+            if(statsRequested && ticks % 100L == 0L) {
+                logger.info("\nStatistics:\n=============\n${stats}")
+            }
+
+            val duration = System.nanoTime() - start*1.0f
+            stats.add("loop", duration)
+
+            ticks++
         }
 
         inputHandler?.close()

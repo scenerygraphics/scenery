@@ -5,7 +5,7 @@ importPackage(Packages.cleargl);
 // for threading
 importClass(Packages.java.lang.Thread);
 
-var objectLocator = function(match) {
+var ObjectLocator = function(match) {
     var objectArray = object.getIndex().toArray();
 
     for(i = 0; i < objectArray.length; i++) {
@@ -19,8 +19,9 @@ var objectLocator = function(match) {
 }
 
 // define standard variables
-var scene = objectLocator("Scene");
-var renderer = objectLocator("Renderer");
+var scene = ObjectLocator("Scene");
+var renderer = ObjectLocator("Renderer");
+var stats = ObjectLocator("Statistics");
 
 // and say hello :-)
 print("\n\n");

@@ -382,7 +382,7 @@ class VU {
 
         fun createDescriptorSetDynamic(device: VkDevice, descriptorPool: Long, descriptorSetLayout: Long,
                                        bindingCount: Int, buffer: VulkanBuffer): Long {
-            logger.info("Creating dynamic descriptor set with ${bindingCount} bindings, DSL=$descriptorSetLayout")
+            logger.debug("Creating dynamic descriptor set with ${bindingCount} bindings, DSL=$descriptorSetLayout")
 
             val pDescriptorSetLayout = MemoryUtil.memAllocLong(1)
             pDescriptorSetLayout.put(0, descriptorSetLayout)

@@ -71,11 +71,6 @@ class ArcballTargetExample : SceneryDefaultApplication("ArcballTargetExample") {
 
         renderer = Renderer.createRenderer(applicationName, scene, 1024, 1024)
         hub.add(SceneryElement.RENDERER, renderer!!)
-
-
-        repl = REPL(scene, renderer!!)
-        repl?.start()
-        repl?.showConsoleWindow()
     }
 
     override fun inputSetup() {

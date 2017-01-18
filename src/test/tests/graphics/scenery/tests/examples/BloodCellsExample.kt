@@ -56,14 +56,14 @@ class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowW
             }
 
             lights.map {
-                it.position = GLVector(rangeRandomizer(-600.0f, 600.0f),
-                        rangeRandomizer(-600.0f, 600.0f),
-                        rangeRandomizer(-600.0f, 600.0f))
+                it.position = GLVector(rangeRandomizer(00.0f, 600.0f),
+                    rangeRandomizer(00.0f, 600.0f),
+                    rangeRandomizer(00.0f, 600.0f))
                 it.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
                 it.parent?.material?.diffuse = it.emissionColor
                 it.intensity = 100.0f
-                it.linear = 1f;
-                it.quadratic = 0.1f;
+                it.linear = 0.1f;
+                it.quadratic = 0.0f;
 
                 scene.addChild(it)
             }
@@ -77,7 +77,7 @@ class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowW
             hullboxM.doubleSided = true
             hullbox.material = hullboxM
 
-            scene.addChild(hullbox)
+            //scene.addChild(hullbox)
 
             val e_material = Material()
             e_material.ambient = GLVector(0.1f, 0.0f, 0.0f)
@@ -96,11 +96,11 @@ class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowW
             scene.addChild(erythrocyte)
 
             erythrocyte.metadata.put(
-                    "ShaderPreference",
-                    ShaderPreference(
-                            arrayListOf("DefaultDeferredInstanced.vert", "DefaultDeferred.frag"),
-                            HashMap(),
-                            arrayListOf("DeferredShadingRenderer")))
+                "ShaderPreference",
+                ShaderPreference(
+                    arrayListOf("DefaultDeferredInstanced.vert", "DefaultDeferred.frag"),
+                    HashMap(),
+                    arrayListOf("DeferredShadingRenderer")))
 
             val l_material = Material()
             l_material.ambient = GLVector(0.1f, 0.0f, 0.0f)
@@ -119,77 +119,77 @@ class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowW
             scene.addChild(leucocyte)
 
             leucocyte.metadata.put(
-                    "ShaderPreference",
-                    ShaderPreference(
-                            arrayListOf("DefaultDeferredInstanced.vert", "DefaultDeferred.frag"),
-                            HashMap(),
-                            arrayListOf("DeferredShadingRenderer")))
+                "ShaderPreference",
+                ShaderPreference(
+                    arrayListOf("DefaultDeferredInstanced.vert", "DefaultDeferred.frag"),
+                    HashMap(),
+                    arrayListOf("DeferredShadingRenderer")))
 
-            val posRange = 550.0f
+            val posRange = 1200.0f
             val container = Node("Cell container")
 
             val leucocytes = (0..200)
-                    .map {
-                        val v = Mesh()
-                        v.name = "leucocyte_$it"
-                        v.instanceOf = leucocyte
-                        v.instancedProperties.put("ModelViewMatrix", { v.modelView })
-                        v.instancedProperties.put("ModelMatrix", { v.model })
-                        v.instancedProperties.put("MVP", { v.mvp })
-                        v
-                    }
-                    .map {
-                        val p = Node("parent of it")
-                        val scale = rangeRandomizer(30.0f, 40.0f)
+                .map {
+                    val v = Mesh()
+                    v.name = "leucocyte_$it"
+                    v.instanceOf = leucocyte
+                    v.instancedProperties.put("ModelViewMatrix", { v.modelView })
+                    v.instancedProperties.put("ModelMatrix", { v.model })
+                    v.instancedProperties.put("MVP", { v.mvp })
+                    v
+                }
+                .map {
+                    val p = Node("parent of it")
+                    val scale = rangeRandomizer(30.0f, 40.0f)
 
-                        it.material = l_material
-                        it.scale = GLVector(scale, scale, scale)
-                        it.children.forEach { ch -> ch.material = l_material }
-                        it.rotation.setFromEuler(
-                                rangeRandomizer(0.01f, 0.9f),
-                                rangeRandomizer(0.01f, 0.9f),
-                                rangeRandomizer(0.01f, 0.9f)
-                        )
+                    it.material = l_material
+                    it.scale = GLVector(scale, scale, scale)
+                    it.children.forEach { ch -> ch.material = l_material }
+                    it.rotation.setFromEuler(
+                        rangeRandomizer(0.01f, 0.9f),
+                        rangeRandomizer(0.01f, 0.9f),
+                        rangeRandomizer(0.01f, 0.9f)
+                    )
 
-                        p.position = GLVector(rangeRandomizer(-posRange, posRange),
-                                rangeRandomizer(-posRange, posRange), rangeRandomizer(-posRange, posRange))
-                        p.addChild(it)
+                    p.position = GLVector(rangeRandomizer(0.0f, posRange),
+                        rangeRandomizer(0.0f, posRange), rangeRandomizer(0.0f, posRange))
+                    p.addChild(it)
 
-                        container.addChild(p)
-                        it
-                    }
+                    container.addChild(p)
+                    it
+                }
 
             val bloodCells = (0..2000)
-                    .map {
-                        val v = Mesh()
-                        v.name = "erythrocyte_$it"
-                        v.instanceOf = erythrocyte
-                        v.instancedProperties.put("ModelViewMatrix", { v.modelView })
-                        v.instancedProperties.put("ModelMatrix", { v.model })
-                        v.instancedProperties.put("MVP", { v.mvp })
+                .map {
+                    val v = Mesh()
+                    v.name = "erythrocyte_$it"
+                    v.instanceOf = erythrocyte
+                    v.instancedProperties.put("ModelViewMatrix", { v.modelView })
+                    v.instancedProperties.put("ModelMatrix", { v.model })
+                    v.instancedProperties.put("MVP", { v.mvp })
 
-                        v
-                    }
-                    .map {
-                        val p = Node("parent of it")
-                        val scale = rangeRandomizer(5f, 12f)
+                    v
+                }
+                .map {
+                    val p = Node("parent of it")
+                    val scale = rangeRandomizer(5f, 12f)
 
-                        it.material = e_material
-                        it.scale = GLVector(scale, scale, scale)
-                        it.children.forEach { ch -> ch.material = e_material }
-                        it.rotation.setFromEuler(
-                                rangeRandomizer(0.01f, 0.9f),
-                                rangeRandomizer(0.01f, 0.9f),
-                                rangeRandomizer(0.01f, 0.9f)
-                        )
+                    it.material = e_material
+                    it.scale = GLVector(scale, scale, scale)
+                    it.children.forEach { ch -> ch.material = e_material }
+                    it.rotation.setFromEuler(
+                        rangeRandomizer(0.01f, 0.9f),
+                        rangeRandomizer(0.01f, 0.9f),
+                        rangeRandomizer(0.01f, 0.9f)
+                    )
 
-                        p.position = GLVector(rangeRandomizer(-posRange, posRange),
-                                rangeRandomizer(-posRange, posRange), rangeRandomizer(-posRange, posRange))
-                        p.addChild(it)
+                    p.position = GLVector(rangeRandomizer(0.0f, posRange),
+                        rangeRandomizer(0.0f, posRange), rangeRandomizer(0.0f, posRange))
+                    p.addChild(it)
 
-                        container.addChild(p)
-                        it
-                    }
+                    container.addChild(p)
+                    it
+                }
 
             scene.addChild(container)
 
@@ -199,12 +199,14 @@ class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowW
             System.out.println(scene.children)
 
             fun hover(obj: Node, magnitude: Float, phi: Float) {
-                obj.position = obj.position + GLVector(0.0f, magnitude * Math.cos(phi.toDouble() * 4).toFloat(), 0.0f)
+                obj.position = (obj.position +
+                    GLVector(0.0f, magnitude * Math.cos(phi.toDouble() * 4).toFloat(), 0.0f))
+
             }
 
             fun hoverAndTumble(obj: Node, magnitude: Float, phi: Float, index: Int) {
                 obj.parent.let {
-                    obj.parent!!.position = obj.parent!!.position + GLVector(0.0f, magnitude * Math.cos(phi.toDouble() * 4).toFloat(), 0.0f)
+                    //                    obj.parent!!.position = obj.parent!!.position + GLVector(0.0f, magnitude * Math.cos(phi.toDouble() * 4).toFloat(), 0.0f)
                 }
 
                 val axis = GLVector(Math.sin(0.01 * index).toFloat(), -Math.cos(0.01 * index).toFloat(), index * 0.01f).normalized
@@ -212,62 +214,36 @@ class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowW
                 obj.rotation.rotateByAngleY(-1.0f * magnitude)
             }
 
-            thread {
-                var reverse = false
-                val step = 0.02f
+            updateFunction = {
+                val step = 0.05f
 
-                while (true) {
-                    val phi = Math.PI * 2.0f * ticks / 2000.0f
+                val phi = Math.PI * 2.0f * ticks / 2000.0f
 
-                    boxes.mapIndexed {
-                        i, box ->
-                        //                                light.position.set(i % 3, step*10 * ticks)
+                boxes.mapIndexed {
+                    i, box ->
+                    //                                light.position.set(i % 3, step*10 * ticks)
 
-                        box.position = GLVector(
-                                Math.exp(i.toDouble()).toFloat() * 10 * Math.sin(phi).toFloat() + Math.exp(i.toDouble()).toFloat(),
-                                step * ticks,
-                                Math.exp(i.toDouble()).toFloat() * 10 * Math.cos(phi).toFloat() + Math.exp(i.toDouble()).toFloat())
+                    box.position = GLVector(
+                        Math.exp(i.toDouble()).toFloat() * 10 * Math.sin(phi).toFloat() + Math.exp(i.toDouble()).toFloat(),
+                        step * ticks,
+                        Math.exp(i.toDouble()).toFloat() * 10 * Math.cos(phi).toFloat() + Math.exp(i.toDouble()).toFloat())
 
-                        box.children[0].position = box.position
+                    box.children[0].position = box.position
 
-                    }
-
-                    bloodCells.forEachIndexed { i, bloodCell ->
-                        hoverAndTumble(bloodCell, 0.003f, phi.toFloat(), i)
-                        bloodCell.parent?.updateWorld(true)
-                    }
-
-                    leucocytes.forEachIndexed { i, leukocyte ->
-                        hoverAndTumble(leukocyte, 0.001f, phi.toFloat() / 100.0f, i)
-                    }
-
-                    container.position = container.position - GLVector(0.1f, 0.1f, 0.1f)
-                    container.updateWorld(true)
-
-
-                    if (ticks >= 5000 && reverse == false) {
-                        reverse = true
-                    }
-                    if (ticks <= 0 && reverse == true) {
-                        reverse = false
-                    }
-
-                    if (reverse) {
-                        ticks--
-                    } else {
-                        ticks++
-                    }
-
-                    //                            mesh.children[0].rotation.rotateByAngleX(0.001f)
-                    //                            mesh.children[0].updateWorld(true, true)
-
-                    Thread.sleep(50)
                 }
-            }
 
-            repl = REPL(scene, renderer!!)
-            repl?.start()
-            repl?.showConsoleWindow()
+                bloodCells.forEachIndexed { i, bloodCell ->
+                    hoverAndTumble(bloodCell, 0.003f, phi.toFloat(), i)
+                }
+
+                leucocytes.forEachIndexed { i, leukocyte ->
+                    hoverAndTumble(leukocyte, 0.001f, phi.toFloat() / 100.0f, i)
+                }
+
+                container.position = container.position - GLVector(0.1f, 0.1f, 0.1f)
+
+                container.updateWorld(true)
+            }
         } catch (e: Exception) {
             e.printStackTrace()
         } catch (e: IOException) {

@@ -135,10 +135,6 @@ class MultiBoxInstancedExample : SceneryDefaultApplication("MultiBoxInstancedExa
                     Thread.sleep(10)
                 }
             }
-
-            repl = REPL(scene, renderer!!)
-            repl?.start()
-            repl?.showConsoleWindow()
         } catch (e: Exception) {
             e.printStackTrace()
         } catch (e: IOException) {

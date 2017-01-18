@@ -175,11 +175,6 @@ class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 1
                     sphere.needsUpdate = true
                 }
             }
-
-            repl = REPL(scene, renderer!!)
-            repl?.start()
-            repl?.showConsoleWindow()
-
         } catch (e: IOException) {
             e.printStackTrace()
         }

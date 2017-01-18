@@ -60,10 +60,6 @@ class TexturedCubeExample : SceneryDefaultApplication("TexturedCubeExample") {
                 Thread.sleep(20)
             }
         }
-
-        repl = REPL(scene, renderer!!)
-        repl?.start()
-        repl?.showConsoleWindow()
     }
 
     @Test override fun main() {
