@@ -21,6 +21,7 @@ import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import sun.nio.ch.DirectBuffer
 
 
 /**
@@ -36,7 +37,7 @@ class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDevice,
     var image: VulkanImage? = null
     private var stagingImage: VulkanImage
 
-    inner class VulkanImage(var image: Long = -1L, var memory: Long = -1L) {
+    inner class VulkanImage(var image: Long = -1L, var memory: Long = -1L, val maxSize: Long = -1L) {
 
         var sampler: Long = -1L
         var view: Long = -1L
@@ -140,11 +141,16 @@ class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDevice,
 
         vkBindImageMemory(device, image, memory, 0)
 
-        return VulkanImage(image, memory)
+        return VulkanImage(image, memory, reqs.size())
     }
 
 
     fun copyFrom(data: ByteBuffer) {
+        if(data.remaining() > stagingImage.maxSize) {
+            logger.warn("Allocated image size for $this (${stagingImage.maxSize}) less than copy source size ${data.remaining()}.")
+            return
+        }
+
         if (mipLevels == 1) {
             with(VU.newCommandBuffer(device, commandPool, autostart = true)) {
                 image = createImage(width, height, depth,
@@ -184,7 +190,6 @@ class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDevice,
                     format, VK_IMAGE_USAGE_TRANSFER_DST_BIT or VK_IMAGE_USAGE_SAMPLED_BIT or VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
                     VK_IMAGE_TILING_OPTIMAL, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                     mipLevels)
-
 
                 buffer.copyFrom(data)
 
@@ -388,21 +393,6 @@ class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDevice,
             tex.copyFrom(imageData)
 
             return tex
-        }
-
-        private fun BufferedImage.toVulkanFormat(): Int {
-            when (this.data.dataBuffer.dataType) {
-                DataBuffer.TYPE_BYTE -> {
-                }
-                DataBuffer.TYPE_DOUBLE -> {
-                }
-                DataBuffer.TYPE_INT -> {
-                }
-                DataBuffer.TYPE_SHORT -> {
-                }
-            }
-
-            return -1
         }
 
         private fun bufferedImageToRGBABuffer(bufferedImage: BufferedImage): ByteBuffer {

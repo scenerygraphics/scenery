@@ -10,6 +10,7 @@ import graphics.scenery.BufferUtils
 import java.awt.Color
 import java.awt.Font
 import java.awt.Graphics2D
+import java.awt.GraphicsEnvironment
 import java.awt.image.BufferedImage
 import java.awt.image.DataBufferByte
 import java.io.File
@@ -52,8 +53,10 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
 
         fontSize = distanceFieldSize*0.85f
 
+        val font = Font(fontName, Font.PLAIN, fontSize.toInt())
+
         charset.map {
-            val character =  genCharImage(it.toChar(), Font(fontName, 0, fontSize.toInt()), distanceFieldSize)
+            val character =  genCharImage(it.toChar(), font, distanceFieldSize)
 
             input = ocl.wrapInput(character.second)
             val outputBuffer = ByteBuffer.allocate(4*distanceFieldSize*distanceFieldSize)
@@ -151,7 +154,7 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
         }
         val texHeight = texWidth
 
-        val buffer = ByteBuffer.allocate(4*texWidth*texWidth)
+        val buffer = ByteBuffer.allocateDirect(4*texWidth*texWidth)
         val fb = buffer.asFloatBuffer()
         val glyphsPerLine: Int = texWidth/charSize
         val lines: Int = mapSize/glyphsPerLine

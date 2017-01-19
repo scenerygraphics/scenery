@@ -14,7 +14,7 @@ import java.util.*
  *
  * @constructor Returns a FontBoard instance, with [fontFamily] and a declared [ShaderPreference]
  */
-class FontBoard(font: String = "Source Code Pro", override var isBillboard: Boolean = true) : Mesh() {
+class FontBoard(font: String = "Segoe UI Light", override var isBillboard: Boolean = true) : Mesh() {
 
     /** The text displayed on this font board */
     var text: String = ""
@@ -26,7 +26,7 @@ class FontBoard(font: String = "Source Code Pro", override var isBillboard: Bool
     /** The font family of this font board. If reset, this will set the [dirty] flag,
      * such that the renderer can recreate the signed-distance fields used for displaying.
      */
-    var fontFamily: String = "Source Code Pro"
+    var fontFamily: String = "Segoe UI Semilight"
         set(value) {
             dirty = true
             field = value

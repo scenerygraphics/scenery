@@ -49,6 +49,8 @@ open class SceneryDefaultApplication(var applicationName: String,
 
     var updateFunction: ()->Any = {}
 
+    protected var running: Boolean = false
+
     /**
      * the init function of [SceneryDefaultApplication], override this in your subclass,
      * e.g. for [Scene] constrution and [OpenGLRenderer] initialisation.
@@ -96,6 +98,8 @@ open class SceneryDefaultApplication(var applicationName: String,
         inputSetup()
 
         var ticks = 0L
+
+        running = true
 
         while(renderer!!.shouldClose == false) {
             val start = System.nanoTime()

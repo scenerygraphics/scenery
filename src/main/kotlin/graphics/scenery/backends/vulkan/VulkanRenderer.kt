@@ -468,9 +468,9 @@ open class VulkanRenderer : Renderer, AutoCloseable {
 
                 if (node is FontBoard) {
                     updateFontBoard(node)
+                } else {
+                    initializeNode(node)
                 }
-
-                initializeNode(node)
             }
 
         scene.initialized = true
@@ -478,7 +478,8 @@ open class VulkanRenderer : Renderer, AutoCloseable {
     }
 
     protected fun updateFontBoard(board: FontBoard) {
-        val atlas = fontAtlas.getOrPut(board.fontFamily, { SDFFontAtlas(this.hub!!, board.fontFamily, maxDistance = settings.get<Int>("sdf.MaxDistance")) })
+        val atlas = fontAtlas.getOrPut(board.fontFamily,
+            { SDFFontAtlas(this.hub!!, board.fontFamily, maxDistance = settings.get<Int>("sdf.MaxDistance")) })
         val m = atlas.createMeshForString(board.text)
 
         board.vertices = m.vertices
@@ -486,8 +487,35 @@ open class VulkanRenderer : Renderer, AutoCloseable {
         board.indices = m.indices
         board.texcoords = m.texcoords
 
-        board.metadata.remove("VulkanRenderer")
-        board.metadata.put("VulkanRenderer", VulkanObjectState())
+        if(board.initialized == false) {
+            board.metadata.put("VulkanRenderer", VulkanObjectState())
+            initializeNode(board)
+        } else {
+            updateNodeGeometry(board)
+        }
+
+        val s = board.metadata.get("VulkanRenderer") as VulkanObjectState
+
+        val texture = textureCache.getOrPut("sdf-${board.fontFamily}", {
+            val t = VulkanTexture(device, physicalDevice, memoryProperties,
+                commandPools.Standard, queue,
+                atlas.atlasWidth, atlas.atlasHeight, 1,
+                format = VK_FORMAT_R32_SFLOAT,
+                mipLevels = 3)
+
+            t.copyFrom(atlas.getAtlas())
+            t
+        })
+
+        s.textures.put("ambient", texture)
+        s.textures.put("diffuse", texture)
+
+        s.texturesToDescriptorSet(device, descriptorSetLayouts["ObjectTextures"]!!,
+            descriptorPool,
+            targetBinding = 0)
+
+        board.dirty = false
+        board.initialized = true
     }
 
     fun Boolean.toInt(): Int {
@@ -495,6 +523,16 @@ open class VulkanRenderer : Renderer, AutoCloseable {
             1
         } else {
             0
+        }
+    }
+
+    fun updateNodeGeometry(node: Node) {
+        if(node is HasGeometry) {
+            val s = node.metadata["VulkanRenderer"]!! as VulkanObjectState
+            s.vertexBuffers.forEach {
+                it.value.close() }
+
+            createVertexBuffers(device, node, s)
         }
     }
 
@@ -2209,7 +2247,15 @@ open class VulkanRenderer : Renderer, AutoCloseable {
             vkCmdSetScissor(this, 0, pass.vulkanMetadata.scissor)
 
             instanceGroups[null]?.forEach nonInstancedDrawing@ { node ->
-                val s = node.metadata["VulkanRenderer"]!! as VulkanObjectState
+                if(node.dirty) {
+                    if(node is FontBoard) {
+                        updateFontBoard(node)
+                    }
+
+                    node.dirty = false
+                }
+
+                var s = node.metadata["VulkanRenderer"]!! as VulkanObjectState
 
                 if (node in instanceGroups.keys || s.vertexCount == 0) {
                     return@nonInstancedDrawing
@@ -2241,7 +2287,6 @@ open class VulkanRenderer : Renderer, AutoCloseable {
                 }
             }
 
-            // TODO: implement instanced rendering
             instanceGroups.keys.filterNotNull().forEach instancedDrawing@ { node ->
                 val s = node.metadata["VulkanRenderer"]!! as VulkanObjectState
 

@@ -6,6 +6,7 @@ import graphics.scenery.*
 import org.junit.Test
 import graphics.scenery.backends.Renderer
 import graphics.scenery.repl.REPL
+import kotlin.concurrent.thread
 
 /**
  * <Description>
@@ -22,9 +23,9 @@ class FontRenderingExample: SceneryDefaultApplication("FontRenderingExample") {
         }
 
         lights.mapIndexed { i, light ->
-            light.position = GLVector(2.0f * i, 2.0f * i, 2.0f * i)
-            light.emissionColor = GLVector(1.0f, 0.0f, 1.0f)
-            light.intensity = 0.2f * (i + 1);
+            light.position = GLVector(5.0f + i*2.0f, 5.0f, 5.0f)
+            light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
+            light.intensity = 100.0f
             scene.addChild(light)
         }
 
@@ -41,7 +42,7 @@ class FontRenderingExample: SceneryDefaultApplication("FontRenderingExample") {
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
-            position = GLVector(0.0f, 0.0f, -25.0f)
+            position = GLVector(5.0f, 0.0f, 15.0f)
             view = GLMatrix().setCamera(cam.position, cam.position + cam.forward, cam.up)
             projection = GLMatrix()
                     .setPerspectiveProjectionMatrix(
@@ -53,12 +54,23 @@ class FontRenderingExample: SceneryDefaultApplication("FontRenderingExample") {
         }
 
         val board = FontBoard()
-        board.text = "hello, world!"
+        board.text = ""
+        board.position = GLVector(0.0f, 0.0f, 0.0f)
 
         scene.addChild(board)
 
-        repl?.eval("var fontBoard = scene.find(\"FontBoard\");")
-        repl?.eval("print(\"Font Example - try e.g. fontBoard.fontColor = new GLVector(1.0, 0.0, 0.0);\");")
+        thread {
+            while(!running) { Thread.sleep(200) }
+
+            arrayOf(
+                "hello world!",
+                "this is scenery.",
+                "demonstrating sdf font rendering."
+            ).map {
+                Thread.sleep(5000)
+                board.text = it
+            }
+        }
     }
 
     @Test override fun main() {
