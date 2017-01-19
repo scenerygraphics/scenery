@@ -101,20 +101,20 @@ open class FPSCameraControl(private val name: String, private val node: Camera, 
      */
     override fun drag(x: Int, y: Int) {
         var xoffset: Float = (x - lastX).toFloat()
-        var yoffset: Float = (lastY - y).toFloat()
+        var yoffset: Float = (y - lastY).toFloat()
 
         lastX = x
         lastY = y
 
         xoffset *= 0.1f
-        yoffset *= -0.1f
+        yoffset *= 0.1f
 
         yaw = xoffset
         pitch = yoffset
 
         val rot = Quaternion().setFromEuler(pitch/180.0f*Math.PI.toFloat(), yaw/180.0f*Math.PI.toFloat(), 0.0f)
+        rot.mult(node.rotation).normalize()
 
-        rot.mult(node.rotation)
         node.rotation = rot
     }
 
