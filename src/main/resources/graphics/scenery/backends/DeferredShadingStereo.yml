@@ -1,0 +1,63 @@
+name: Deferred Shading, Stereo
+description: OpenGL/Vulkan shader pipeline implementing deferred shading, with stereo rendering
+
+rendertargets:
+  GeometryBuffer:
+    Position:
+      size: 1.0, 1.0
+      format: RGBA_Float32
+    Normal:
+      size: 1.0, 1.0
+      format: RGBA_Float32
+    DiffuseAlbedo:
+      size: 1.0, 1.0
+      format: RGBA_UInt8
+    ZBuffer:
+      size: 1.0, 1.0
+      format: Depth32
+  HDR:
+    HDRBuffer:
+      size: 1.0, 1.0
+      format: RGBA_Float32
+
+renderpasses:
+  leftEye:
+    type: geometry
+    shaders:
+      - "DefaultDeferred.vert.spv"
+      - "DefaultDeferred.frag.spv"
+    output: GeometryBuffer
+    viewportSize: 0.5, 1.0
+    viewportOffset: 0.0, 0.0
+  rightEye:
+    type: geometry
+    shaders:
+      - "DefaultDeferred.vert.spv"
+      - "DefaultDeferred.frag.spv"
+    output: GeometryBuffer
+    viewportSize: 0.5, 1.0
+    viewportOffset: 0.5, 0.0
+  DeferredLighting:
+    type: quad
+    shaders:
+      - "FullscreenQuad.vert.spv"
+      - "DeferredLighting.frag.spv"
+    inputs:
+      - GeometryBuffer
+    output: HDR
+    parameters:
+      debugBuffers: 0
+      activateSSAO: 1
+      ssaoDistanceThreshold: 50.0
+      ssaoFilterRadius: 0.003, 0.003
+  PostprocessHDR:
+    type: quad
+    shaders:
+      - "FullscreenQuad.vert.spv"
+      - "HDR.frag.spv"
+    inputs:
+      - HDR
+    output: Viewport
+    parameters:
+      Gamma: 2.2
+      Exposure: 0.75
