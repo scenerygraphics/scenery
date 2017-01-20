@@ -289,6 +289,7 @@ open class VulkanRenderer(applicationName: String,
             // the swapchain recreator is not yet initialized
             if(swapchainRecreator != null) {
                 swapchainRecreator.mustRecreate = true
+                logger.info("Loaded ${renderConfig.name} (${renderConfig.description ?: "no description"})")
             }
         }
 
@@ -2400,9 +2401,6 @@ open class VulkanRenderer(applicationName: String,
         with(commandBuffer.commandBuffer) {
 
             vkCmdBeginRenderPass(this, pass.vulkanMetadata.renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE)
-
-            pass.vulkanMetadata.viewport[0].set(0.0f, 0.0f, window.width.toFloat(), window.height.toFloat(), 0.0f, 1.0f)
-            pass.vulkanMetadata.scissor[0].extent().set(window.width, window.height)
 
             vkCmdSetViewport(this, 0, pass.vulkanMetadata.viewport)
             vkCmdSetScissor(this, 0, pass.vulkanMetadata.scissor)
