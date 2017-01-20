@@ -1060,7 +1060,6 @@ open class VulkanRenderer(applicationName: String,
                 config.rendertargets?.filter { it.key == passConfig.output }?.map { rt ->
                     logger.info("Creating render framebuffer ${rt.key} for pass ${passName}")
 
-                    logger.info(framebuffers.keys.joinToString(", "))
                     if(framebuffers.containsKey(rt.key)) {
                         logger.info("Reusing already created framebuffer")
                         pass.output.put(rt.key, framebuffers.get(rt.key)!!)

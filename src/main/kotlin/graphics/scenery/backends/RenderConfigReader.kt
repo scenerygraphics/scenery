@@ -52,8 +52,6 @@ fun RenderConfigReader.RenderConfig.createRenderpassFlow(): List<String> {
         }
     }
 
-    dag.forEach { System.err.println(it) }
-
     return dag.reversed()
 }
 
