@@ -42,10 +42,13 @@ import kotlin.concurrent.thread
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-open class VulkanRenderer : Renderer, AutoCloseable {
+open class VulkanRenderer(applicationName: String,
+                          scene: Scene,
+                          windowWidth: Int,
+                          windowHeight: Int,
+                          renderConfigFile: String = System.getProperty("scenery.Renderer.Config", "DeferredShading.yml")) : Renderer, AutoCloseable {
 
     // helper classes
-
     data class PresentHelpers(
         var signalSemaphore: LongBuffer = memAllocLong(1),
         var waitSemaphore: LongBuffer = memAllocLong(1),
@@ -274,9 +277,22 @@ open class VulkanRenderer : Renderer, AutoCloseable {
     protected var lastResize = -1L
 
     private var renderConfig: RenderConfigReader.RenderConfig
+    private var flow: List<String> = listOf()
 
-    constructor(applicationName: String, scene: Scene, windowWidth: Int, windowHeight: Int,
-                renderConfigFile: String = System.getProperty("scenery.Renderer.Config", "DeferredShading.yml")) {
+    var renderConfigFile = ""
+        set(config) {
+            field = config
+
+            this.renderConfig = RenderConfigReader().loadFromFile(renderConfigFile)
+
+            // check for null as this is used in the constructor as well where
+            // the swapchain recreator is not yet initialized
+            if(swapchainRecreator != null) {
+                swapchainRecreator.mustRecreate = true
+            }
+        }
+
+    init {
         window.width = windowWidth
         window.height = windowHeight
 
@@ -286,6 +302,7 @@ open class VulkanRenderer : Renderer, AutoCloseable {
         this.settings = getDefaultRendererSettings()
 
         logger.debug("Loading rendering config from $renderConfigFile")
+        this.renderConfigFile = renderConfigFile
         this.renderConfig = RenderConfigReader().loadFromFile(renderConfigFile)
 
         logger.info("Loaded ${renderConfig.name} (${renderConfig.description ?: "no description"})")
@@ -351,6 +368,10 @@ open class VulkanRenderer : Renderer, AutoCloseable {
 
         heartbeatTimer.scheduleAtFixedRate(object : TimerTask() {
             override fun run() {
+                if(shouldClose) {
+                    return
+                }
+
                 fps = frames
                 frames = 0
 
@@ -1025,6 +1046,9 @@ open class VulkanRenderer : Renderer, AutoCloseable {
     protected fun prepareRenderpassesFromConfig(config: RenderConfigReader.RenderConfig, width: Int, height: Int): LinkedHashMap<String, VulkanRenderpass> {
         // create all renderpasses first
         val passes = LinkedHashMap<String, VulkanRenderpass>()
+        val framebuffers = ConcurrentHashMap<String, VulkanFramebuffer>()
+
+        flow = renderConfig.createRenderpassFlow()
 
         config.createRenderpassFlow().map { passName ->
             val passConfig = config.renderpasses.get(passName)!!
@@ -1036,36 +1060,44 @@ open class VulkanRenderer : Renderer, AutoCloseable {
                 config.rendertargets?.filter { it.key == passConfig.output }?.map { rt ->
                     logger.info("Creating render framebuffer ${rt.key} for pass ${passName}")
 
-                    val framebuffer = VulkanFramebuffer(device, physicalDevice, commandPools.Standard,
-                        width, height, this)
+                    logger.info(framebuffers.keys.joinToString(", "))
+                    if(framebuffers.containsKey(rt.key)) {
+                        logger.info("Reusing already created framebuffer")
+                        pass.output.put(rt.key, framebuffers.get(rt.key)!!)
+                    } else {
 
-                    rt.value.forEach { att ->
-                        logger.info(" + attachment ${att.key}, ${att.value.format.name}")
+                        val framebuffer = VulkanFramebuffer(device, physicalDevice, commandPools.Standard,
+                            width, height, this)
 
-                        when (att.value.format) {
-                            RenderConfigReader.TargetFormat.RGBA_Float32 -> framebuffer.addFloatRGBABuffer(att.key, 32)
-                            RenderConfigReader.TargetFormat.RGBA_Float16 -> framebuffer.addFloatRGBABuffer(att.key, 16)
+                        rt.value.forEach { att ->
+                            logger.info(" + attachment ${att.key}, ${att.value.format.name}")
 
-                            RenderConfigReader.TargetFormat.RGB_Float32 -> framebuffer.addFloatRGBBuffer(att.key, 32)
-                            RenderConfigReader.TargetFormat.RGB_Float16 -> framebuffer.addFloatRGBBuffer(att.key, 16)
+                            when (att.value.format) {
+                                RenderConfigReader.TargetFormat.RGBA_Float32 -> framebuffer.addFloatRGBABuffer(att.key, 32)
+                                RenderConfigReader.TargetFormat.RGBA_Float16 -> framebuffer.addFloatRGBABuffer(att.key, 16)
 
-                            RenderConfigReader.TargetFormat.RG_Float32 -> framebuffer.addFloatRGBuffer(att.key, 32)
-                            RenderConfigReader.TargetFormat.RG_Float16 -> framebuffer.addFloatRGBuffer(att.key, 16)
+                                RenderConfigReader.TargetFormat.RGB_Float32 -> framebuffer.addFloatRGBBuffer(att.key, 32)
+                                RenderConfigReader.TargetFormat.RGB_Float16 -> framebuffer.addFloatRGBBuffer(att.key, 16)
 
-                            RenderConfigReader.TargetFormat.RGBA_UInt16 -> framebuffer.addUnsignedByteRGBABuffer(att.key, 16)
-                            RenderConfigReader.TargetFormat.RGBA_UInt8 -> framebuffer.addUnsignedByteRGBABuffer(att.key, 8)
+                                RenderConfigReader.TargetFormat.RG_Float32 -> framebuffer.addFloatRGBuffer(att.key, 32)
+                                RenderConfigReader.TargetFormat.RG_Float16 -> framebuffer.addFloatRGBuffer(att.key, 16)
 
-                            RenderConfigReader.TargetFormat.Depth32 -> framebuffer.addDepthBuffer(att.key, 32)
-                            RenderConfigReader.TargetFormat.Depth24 -> framebuffer.addDepthBuffer(att.key, 24)
+                                RenderConfigReader.TargetFormat.RGBA_UInt16 -> framebuffer.addUnsignedByteRGBABuffer(att.key, 16)
+                                RenderConfigReader.TargetFormat.RGBA_UInt8 -> framebuffer.addUnsignedByteRGBABuffer(att.key, 8)
+
+                                RenderConfigReader.TargetFormat.Depth32 -> framebuffer.addDepthBuffer(att.key, 32)
+                                RenderConfigReader.TargetFormat.Depth24 -> framebuffer.addDepthBuffer(att.key, 24)
+                            }
+
                         }
 
+                        framebuffer.createRenderpassAndFramebuffer()
+                        framebuffer.outputDescriptorSet = VU.createRenderTargetDescriptorSet(device,
+                            descriptorPool, descriptorSetLayouts["outputs-${rt.key}"]!!, rt.value, framebuffer)
+
+                        pass.output.put(rt.key, framebuffer)
+                        framebuffers.put(rt.key, framebuffer)
                     }
-
-                    framebuffer.createRenderpassAndFramebuffer()
-                    framebuffer.outputDescriptorSet = VU.createRenderTargetDescriptorSet(device,
-                        descriptorPool, descriptorSetLayouts["outputs-${rt.key}"]!!, rt.value, framebuffer)
-
-                    pass.output.put(rt.key, framebuffer)
                 }
 
                 if (passConfig.output == "Viewport") {
@@ -1089,16 +1121,35 @@ open class VulkanRenderer : Renderer, AutoCloseable {
                 pass.output.values.first().attachments.values.forEachIndexed { i, att ->
                     when (att.type) {
                         VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> {
-                            pass.vulkanMetadata.clearValues[i].color().float32().put(floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f))
+                            pass.vulkanMetadata.clearValues[i].color().float32().put(pass.passConfig.clearColor.toFloatArray())
                         }
                         VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> {
-                            pass.vulkanMetadata.clearValues[i].depthStencil().set(1.0f, 0)
+                            pass.vulkanMetadata.clearValues[i].depthStencil().set(pass.passConfig.depthClearValue, 0)
                         }
                     }
                 }
 
-                pass.vulkanMetadata.renderArea.extent().set(window.width, window.height)
-                pass.vulkanMetadata.renderArea.offset().set(0, 0)
+                pass.vulkanMetadata.renderArea.extent().set(
+                    (pass.passConfig.viewportSize.first*window.width).toInt(),
+                    (pass.passConfig.viewportSize.second*window.height).toInt())
+                pass.vulkanMetadata.renderArea.offset().set(
+                    (pass.passConfig.viewportOffset.first*window.width).toInt(),
+                    (pass.passConfig.viewportOffset.second*window.height).toInt())
+
+                pass.vulkanMetadata.viewport[0].set(
+                    (pass.passConfig.viewportOffset.first*window.width),
+                    (pass.passConfig.viewportOffset.second*window.height),
+                    (pass.passConfig.viewportSize.first*window.width),
+                    (pass.passConfig.viewportSize.second*window.height),
+                    0.0f, 1.0f)
+
+                pass.vulkanMetadata.scissor[0].extent().set(
+                    (pass.passConfig.viewportSize.first*window.width).toInt(),
+                    (pass.passConfig.viewportSize.second*window.height).toInt())
+
+                pass.vulkanMetadata.scissor[0].offset().set(
+                    (pass.passConfig.viewportOffset.first*window.width).toInt(),
+                    (pass.passConfig.viewportOffset.second*window.height).toInt())
 
                 pass.semaphore = VU.run(memAllocLong(1), "vkCreateSemaphore") {
                      vkCreateSemaphore(device, semaphoreCreateInfo, null, this)
@@ -1330,8 +1381,6 @@ open class VulkanRenderer : Renderer, AutoCloseable {
         updateInstanceBuffers()
 
         beginFrame()
-
-        val flow = renderConfig.createRenderpassFlow()
 
         // firstWaitSemaphore is now the render_complete semaphore of the previous pass
         firstWaitSemaphore.put(0, semaphores[StandardSemaphores.present_complete]!!.get(0))
@@ -2239,9 +2288,6 @@ open class VulkanRenderer : Renderer, AutoCloseable {
         with(commandBuffer.commandBuffer) {
 
             vkCmdBeginRenderPass(this, pass.vulkanMetadata.renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE)
-
-            pass.vulkanMetadata.viewport[0].set(0.0f, 0.0f, window.width.toFloat(), window.height.toFloat(), 0.0f, 1.0f)
-            pass.vulkanMetadata.scissor[0].extent().set(window.width, window.height)
 
             vkCmdSetViewport(this, 0, pass.vulkanMetadata.viewport)
             vkCmdSetScissor(this, 0, pass.vulkanMetadata.scissor)

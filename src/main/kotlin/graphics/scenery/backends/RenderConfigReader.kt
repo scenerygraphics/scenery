@@ -1,5 +1,6 @@
 package graphics.scenery.backends
 
+import cleargl.GLVector
 import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.databind.DeserializationContext
 import com.fasterxml.jackson.databind.JsonDeserializer
@@ -40,15 +41,18 @@ fun RenderConfigReader.RenderConfig.createRenderpassFlow(): List<String> {
     dag.add(start.key)
 
     while(inputs != null) {
-        val current = passes.filter { it.value.output == inputs!!.first() }.entries.first()
-        if(current.value.inputs == null) {
-            inputs = null
-        } else {
-            inputs = current.value.inputs!!
-        }
+        passes.filter { it.value.output == inputs!!.first() }.entries.forEach {
+            if (it.value.inputs == null) {
+                inputs = null
+            } else {
+                inputs = it.value.inputs!!
+            }
 
-        dag.add(current.key)
+            dag.add(it.key)
+        }
     }
+
+    dag.forEach { System.err.println(it) }
 
     return dag.reversed()
 }
@@ -60,6 +64,14 @@ class RenderConfigReader {
             val pair = p.text.split(",").map { it.trim().trimStart().toFloat() }
 
             return Pair(pair[0], pair[1])
+        }
+    }
+
+    class VectorDeserializer : JsonDeserializer<GLVector>() {
+        override fun deserialize(p: JsonParser, ctxt: DeserializationContext?): GLVector {
+            val floats = p.text.split(",").map { it.trim().trimStart().toFloat() }.toFloatArray()
+
+            return GLVector(*floats)
         }
     }
 
@@ -78,7 +90,12 @@ class RenderConfigReader {
         var shaders: Set<String>,
         var inputs: Set<String>?,
         var output: String,
-        var parameters: Map<String, Any>?
+        var parameters: Map<String, Any>?,
+        @JsonDeserialize(using = FloatPairDeserializer::class) var viewportSize: Pair<Float, Float> = Pair(1.0f, 1.0f),
+        @JsonDeserialize(using = FloatPairDeserializer::class) var viewportOffset: Pair<Float, Float> = Pair(0.0f, 0.0f),
+        @JsonDeserialize(using = FloatPairDeserializer::class) var scissor: Pair<Float, Float> = Pair(1.0f, 1.0f),
+        @JsonDeserialize(using = VectorDeserializer::class) var clearColor: GLVector = GLVector(0.0f, 0.0f, 0.0f, 0.0f),
+        var depthClearValue: Float = 1.0f
     )
 
     enum class RenderpassType { geometry, quad }

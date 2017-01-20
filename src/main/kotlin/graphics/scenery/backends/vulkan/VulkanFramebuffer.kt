@@ -430,6 +430,8 @@ class VulkanFramebuffer(protected var device: VkDevice,
         colorDescs.free()
         depthDescs?.free()
         dependencyChain.free()
+
+        initialized = true
     }
 
     inline fun <T: Struct> T.default(): T {
@@ -484,18 +486,22 @@ class VulkanFramebuffer(protected var device: VkDevice,
     fun depthAttachmentCount() = attachments.count { it.value.type == VulkanFramebufferType.DEPTH_ATTACHMENT }
 
     override fun close() {
-        attachments.forEach { s, vulkanFramebufferAttachment ->
-            vulkanFramebufferAttachment.close()
+        if(initialized) {
+            attachments.forEach { s, vulkanFramebufferAttachment ->
+                vulkanFramebufferAttachment.close()
+            }
+
+            vkDestroyRenderPass(device, renderPass.get(0), null)
+            memFree(renderPass)
+
+            vkDestroySampler(device, framebufferSampler.get(0), null)
+            memFree(framebufferSampler)
+
+            vkDestroyFramebuffer(device, this.framebuffer.get(0), null)
+            memFree(framebuffer)
+
+            initialized = false
         }
-
-        vkDestroyRenderPass(device, renderPass.get(0), null)
-        memFree(renderPass)
-
-        vkDestroySampler(device, framebufferSampler.get(0), null)
-        memFree(framebufferSampler)
-
-        vkDestroyFramebuffer(device, this.framebuffer.get(0), null)
-        memFree(framebuffer)
     }
 }
 
