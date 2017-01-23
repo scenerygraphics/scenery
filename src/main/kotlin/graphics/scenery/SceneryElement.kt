@@ -15,5 +15,7 @@ enum class SceneryElement {
     /** Element for OpenCL compute contexts */
     OPENCLCONTEXT,
     /** Element for input handling (ui-behaviour) */
-    INPUT
+    INPUT,
+    /** Element for statistics */
+    STATISTICS
 }

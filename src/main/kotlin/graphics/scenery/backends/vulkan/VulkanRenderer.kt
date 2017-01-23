@@ -21,6 +21,7 @@ import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.backends.createRenderpassFlow
 import graphics.scenery.backends.ShaderPreference
 import graphics.scenery.fonts.SDFFontAtlas
+import graphics.scenery.utils.Statistics
 import java.awt.image.BufferedImage
 import java.awt.image.DataBufferByte
 import java.io.File
@@ -212,6 +213,7 @@ open class VulkanRenderer(applicationName: String,
     override var settings: Settings = Settings()
     protected var logger: Logger = LoggerFactory.getLogger("VulkanRenderer")
     override var shouldClose = false
+    var toggleFullscreen = false
     override var managesRenderLoop = false
     var screenshotRequested = false
 
@@ -335,6 +337,7 @@ open class VulkanRenderer(applicationName: String,
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API)
         glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE)
         window.glfwWindow = glfwCreateWindow(windowWidth, windowHeight, "scenery", NULL, NULL)
+        glfwSetWindowPos(window.glfwWindow!!, 100, 100)
 
         surface = VU.run(memAllocLong(1), "glfwCreateWindowSurface") {
             glfwCreateWindowSurface(instance, window.glfwWindow!!, null, this)
@@ -744,6 +747,8 @@ open class VulkanRenderer(applicationName: String,
     }
 
     protected fun loadTexturesForNode(node: Node, s: VulkanObjectState): VulkanObjectState {
+        val stats = hub?.get(SceneryElement.STATISTICS) as Statistics?
+
         if (node.lock.tryLock()) {
             node.material?.textures?.forEach {
                 type, texture ->
@@ -779,8 +784,13 @@ open class VulkanRenderer(applicationName: String,
 
                         t
                     } else {
-                        VulkanTexture.loadFromFile(device, physicalDevice, memoryProperties,
+                        val start = System.nanoTime()
+                        val t = VulkanTexture.loadFromFile(device, physicalDevice, memoryProperties,
                             commandPools.Standard, queue, texture, true, mipLevels)
+                        val duration = System.nanoTime() - start*1.0f
+                        stats?.add("loadTexture", duration)
+
+                        t
                     }
 
                     s.textures.put(type, vkTexture!!)
@@ -1368,6 +1378,14 @@ open class VulkanRenderer(applicationName: String,
             initializeScene()
 
             Thread.sleep(200)
+            return
+        }
+
+        if(toggleFullscreen) {
+            vkDeviceWaitIdle(device)
+
+            switchFullscreen()
+            toggleFullscreen = false
             return
         }
 
@@ -2658,5 +2676,43 @@ open class VulkanRenderer(applicationName: String,
 
     override fun reshape(newWidth: Int, newHeight: Int) {
 
+    }
+
+    fun toggleFullscreen() {
+        toggleFullscreen = !toggleFullscreen
+    }
+
+    fun switchFullscreen() {
+        if(window.isFullscreen) {
+            glfwSetWindowMonitor(window.glfwWindow!!,
+                NULL,
+                0, 0,
+                window.width, window.height, GLFW_DONT_CARE)
+            glfwSetWindowPos(window.glfwWindow!!, 100, 100)
+
+            swapchainRecreator.mustRecreate = true
+            window.isFullscreen = false
+        } else {
+            val preferredMonitor = System.getProperty("scenery.FullscreenMonitor", "0").toInt()
+
+            val monitor = if(preferredMonitor == 0) {
+                glfwGetPrimaryMonitor()
+            } else {
+                val monitors = glfwGetMonitors()
+                if(monitors.remaining() < preferredMonitor) {
+                    monitors.get(0)
+                } else {
+                    monitors.get(preferredMonitor)
+                }
+            }
+
+            glfwSetWindowMonitor(window.glfwWindow!!,
+                monitor,
+                0, 0,
+                window.width, window.height, GLFW_DONT_CARE)
+
+            swapchainRecreator.mustRecreate = true
+            window.isFullscreen = true
+        }
     }
 }

@@ -77,6 +77,8 @@ open class SceneryDefaultApplication(var applicationName: String,
      *
      */
     open fun main() {
+        hub.add(SceneryElement.STATISTICS, stats)
+
         if(wantREPL) {
             repl = REPL(scene, stats)
         }

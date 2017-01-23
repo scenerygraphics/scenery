@@ -12,4 +12,5 @@ class SceneryWindow {
 
     var width = 0
     var height = 0
+    var isFullscreen = false
 }

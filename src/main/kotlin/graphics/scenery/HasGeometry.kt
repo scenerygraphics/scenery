@@ -1,6 +1,7 @@
 package graphics.scenery
 
 import cleargl.GLVector
+import org.lwjgl.system.MemoryUtil.memAlloc
 import java.io.BufferedInputStream
 import java.io.File
 import java.io.FileInputStream
@@ -229,9 +230,9 @@ interface HasGeometry {
         val vertexBuffers = HashMap<String, Triple<FloatBuffer, FloatBuffer, FloatBuffer>>()
         vertexCountMap.forEach { objectName, vertexCount ->
             vertexBuffers.put(objectName, Triple(
-                ByteBuffer.allocateDirect(vertexCount * vertexSize * 4).order(ByteOrder.nativeOrder()).asFloatBuffer(),
-                ByteBuffer.allocateDirect(vertexCount * vertexSize * 4).order(ByteOrder.nativeOrder()).asFloatBuffer(),
-                ByteBuffer.allocateDirect(vertexCount * vertexSize * 4).order(ByteOrder.nativeOrder()).asFloatBuffer()
+                memAlloc(vertexCount * vertexSize * 4).order(ByteOrder.nativeOrder()).asFloatBuffer(),
+                memAlloc(vertexCount * vertexSize * 4).order(ByteOrder.nativeOrder()).asFloatBuffer(),
+                memAlloc(vertexCount * vertexSize * 4).order(ByteOrder.nativeOrder()).asFloatBuffer()
             ))
         }
 
@@ -282,8 +283,8 @@ interface HasGeometry {
                         val elements = tokens.drop(1).map { it.split("/") }
 
                         val vertices = elements.map { it[0].toInt() }
-                        val uvs = elements.filter { it.size > 1 && it.getOrElse(1, { "" }).length > 0 }.map { it[1].toInt() }
-                        val normals = elements.filter { it.size > 2 && it.getOrElse(2, { "" }).length > 0 }.map { it[2].toInt() }
+                        val uvs = elements.filter { it.size > 1 && it.getOrElse(1, { "" }).isNotEmpty() }.map { it[1].toInt() }
+                        val normals = elements.filter { it.size > 2 && it.getOrElse(2, { "" }).isNotEmpty() }.map { it[2].toInt() }
 
                         val range = if (vertices.size == 3) {
                             triangleIndices
