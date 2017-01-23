@@ -1,5 +1,5 @@
 // standard library
-importPackage(Packages.scenery);
+importPackage(Packages.graphics.scenery);
 importPackage(Packages.cleargl);
 
 // for threading
