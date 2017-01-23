@@ -323,21 +323,15 @@ class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDevice,
             val bi: BufferedImage
             val flippedImage: BufferedImage
             val imageData: ByteBuffer
-            var fis: FileInputStream? = null
-            var channel: FileChannel? = null
-            var pixels: IntArray? = null
+            var fis: FileInputStream
+            var pixels: IntArray
+            val buffer: ByteArray
 
             if (filename.substring(filename.lastIndexOf('.')).toLowerCase().endsWith("tga")) {
-                var buffer: ByteArray? = null
-
                 try {
                     fis = FileInputStream(filename)
-                    channel = fis.channel
-                    val byteArrayOutputStream = ByteArrayOutputStream()
-                    channel!!.transferTo(0, channel.size(), Channels.newChannel(byteArrayOutputStream))
-                    buffer = byteArrayOutputStream.toByteArray()
-
-                    channel.close()
+                    buffer = ByteArray(fis.available())
+                    fis.read(buffer)
                     fis.close()
 
                     pixels = TGAReader.read(buffer, TGAReader.ARGB)
@@ -346,21 +340,18 @@ class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDevice,
                     bi = BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
                     bi.setRGB(0, 0, width, height, pixels, 0, width)
                 } catch (e: Exception) {
-                    System.err.println("GLTexture: could not read image from TGA$filename.")
+                    logger.error("Could not read image from TGA$filename. ${e.message}")
                     return null
                 }
 
             } else {
                 try {
                     fis = FileInputStream(filename)
-                    channel = fis.channel
-                    val byteArrayOutputStream = ByteArrayOutputStream()
-                    channel!!.transferTo(0, channel.size(), Channels.newChannel(byteArrayOutputStream))
-                    bi = ImageIO.read(ByteArrayInputStream(byteArrayOutputStream.toByteArray()))
+                    bi = ImageIO.read(fis)
 
-                    channel.close()
+                    fis.close()
                 } catch (e: Exception) {
-                    System.err.println("GLTexture: could not read image from $filename.")
+                    logger.error("Could not read image from $filename. ${e.message}")
                     return null
                 }
 
@@ -426,7 +417,7 @@ class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDevice,
 
             val data = (texImage.raster.dataBuffer as DataBufferByte).data
 
-            imageBuffer = ByteBuffer.allocateDirect(data.size)
+            imageBuffer = memAlloc(data.size)
             imageBuffer.order(ByteOrder.nativeOrder())
             imageBuffer.put(data, 0, data.size)
             imageBuffer.rewind()
