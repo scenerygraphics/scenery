@@ -1,6 +1,8 @@
 #version 450 core
 #extension GL_ARB_separate_shader_objects: enable
 
+#define PI 3.14159265359
+
 layout(location = 0) in vec2 textureCoord;
 layout(location = 0) out vec4 FragColor;
 
@@ -36,6 +38,7 @@ layout(set = 2, binding = 0, std140) uniform LightParameters {
 layout(set = 3, binding = 0, std140) uniform ShaderParameters {
 	int debugBuffers;
 	int activateSSAO;
+	int reflectanceModel;
 	float ssaoDistanceThreshold;
 	vec2 ssaoFilterRadius;
 };
@@ -75,11 +78,12 @@ void main()
 
 	float fragDist = length(FragPos - ubo.CamPosition);
 
-	vec3 lighting;
+	vec3 lighting = vec3(0.0);
 
 	if(debugBuffers == 0) {
+		float ambientOcclusion = 0.0f;
+
 		if(activateSSAO > 0) {
-			float ambientOcclusion = 0.0f;
 
 			int sample_count = 8;
 			for (int i = 0; i < sample_count;  ++i) {
@@ -103,26 +107,95 @@ void main()
 				ambientOcclusion += (a * b);
 			}
 
-			lighting = Albedo.rgb * (1.0 - (ambientOcclusion/sample_count));
-		} else {
-			lighting = Albedo.rgb * 1.0;
+		    ambientOcclusion /= sample_count;
 		}
+
 		vec3 viewDir = normalize(ubo.CamPosition - FragPos);
 
 		for(int i = 0; i < numLights; ++i)
 		{
-			// Diffuse
-			vec3 lightDir = normalize(lights[i].Position.rgb - FragPos);
-			vec3 diffuse = max(dot(Normal, lightDir), 0.0) * lights[i].Intensity * Albedo.rgb * lights[i].Color.rgb;
-			float distance = length(lights[i].Position.rgb - FragPos);
-			vec3 specular = lights[i].Color.rgb * Specular;
+            vec3 lightDir = normalize(lights[i].Position.rgb - FragPos);
+            float distance = length(lights[i].Position.rgb - FragPos);
+            float lightAttenuation = 1.0 / (1.0 + lights[i].Linear * distance + lights[i].Quadratic * distance * distance);
 
-			float attenuation = 1.0 / (1.0 + lights[i].Linear * distance + lights[i].Quadratic * distance * distance);
-			diffuse *= attenuation;
-			specular *= attenuation;
-			lighting += diffuse + specular;
+		    if(reflectanceModel == 0) {
+		        // Diffuse
+             	vec3 diffuse = max(dot(Normal, lightDir), 0.0) * lights[i].Intensity * Albedo.rgb * lights[i].Color.rgb * (1.0f - ambientOcclusion);
+             	vec3 specular = lights[i].Color.rgb * Specular;
+
+             	diffuse *= lightAttenuation;
+             	specular *= lightAttenuation;
+             	lighting += diffuse + specular;
+		    }
+		    // Oren-Nayar model
+		    else if(reflectanceModel == 1) {
+
+            			float NdotL = dot(Normal, lightDir);
+            			float NdotV = dot(Normal, viewDir);
+
+            			float angleVN = acos(NdotV);
+            			float angleLN = acos(NdotL);
+
+            			float alpha = max(angleVN, angleLN);
+            			float beta = min(angleVN, angleLN);
+            			float gamma = dot(viewDir - Normal*dot(viewDir, Normal), lightDir - Normal*dot(lightDir, Normal));
+
+            			float roughness = 0.75;
+
+            			float roughnessSquared = roughness*roughness;
+
+            			float A = 1.0 - 0.5 * ( roughnessSquared / (roughnessSquared + 0.57));
+            			float B = 0.45 * (roughnessSquared / (roughnessSquared + 0.09));
+            			float C = sin(alpha)*tan(beta);
+
+            			float L1 = max(0.0, NdotL) * (A + B * max(0.0, gamma) * C);
+
+                        vec3 inputColor = lightAttenuation*lights[i].Intensity * lights[i].Color.rgb * Albedo.rgb * (1.0f - ambientOcclusion);
+
+            			vec3 diffuse = inputColor * L1;
+            			vec3 specular = vec3(0.0);
+
+            			specular *= lightAttenuation*specular;
+            			lighting += diffuse + specular;
+            }
+            // Cook-Torrance
+            else if(reflectanceModel == 2) {
+                float roughness = 0.9;
+                float fresnelReflectance = 0.8;
+                float k = 0.5;
+
+                float specular = 0.0f;
+
+                vec3 diffuse = lightAttenuation*lights[i].Intensity * lights[i].Color.rgb * Albedo.rgb * (1.0f - ambientOcclusion);
+
+                float NdotL = max(dot(Normal, lightDir), 0.0);
+
+                if(NdotL > 0.0) {
+                    vec3 halfVector = normalize(lightDir + viewDir);
+                    float NdotH = max(dot(Normal, halfVector), 0.0);
+                    float NdotV = max(dot(Normal, viewDir), 0.0);
+                    float VdotH = max(dot(viewDir, halfVector), 0.0);
+                    float mSquared = roughness*roughness;
+
+                    float NH2 = 2.0 * NdotH;
+                    float g1 = (NH2 * NdotV)/VdotH;
+                    float g2 = (NH2 * NdotL)/VdotH;
+                    float geoAtt = min(1.0, min(g1, g2));
+
+                    float r1 = 1.0 / ( 4.0*mSquared*pow(NdotH, 4.0));
+                    float r2 = (NdotH * NdotH - 1.0)/(mSquared*NdotH*NdotH);
+                    float R = r1*exp(r2);
+
+                    float fresnel = pow(1.0 - VdotH, 5.0);
+                    fresnel *= (1.0 - fresnelReflectance);
+                    fresnel += fresnelReflectance;
+
+                    specular = (fresnel * geoAtt * roughness)/(NdotV*NdotL*PI);
+                }
+
+                lighting += diffuse + lightAttenuation*lights[i].Color.rgb*NdotL*(k+specular*(1.0-k));
+            }
 		}
-
 
 		FragColor = vec4(lighting, 1.0);
 	} else {
