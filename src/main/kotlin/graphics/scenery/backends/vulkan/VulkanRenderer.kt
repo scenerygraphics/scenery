@@ -54,7 +54,7 @@ open class VulkanRenderer(applicationName: String,
         var signalSemaphore: LongBuffer = memAllocLong(1),
         var waitSemaphore: LongBuffer = memAllocLong(1),
         var commandBuffers: PointerBuffer = memAllocPointer(1),
-        var waitStages: IntBuffer = memAllocInt(1)
+        var waitStages: IntBuffer = memAllocInt(2)
     )
 
     enum class VertexDataKinds {
@@ -681,6 +681,7 @@ open class VulkanRenderer(applicationName: String,
         }
 
         s.initialized = true
+        node.initialized = true
         node.metadata["VulkanRenderer"] = s
 
         node.material?.doubleSided?.let {
@@ -1424,6 +1425,7 @@ open class VulkanRenderer(applicationName: String,
             ph.commandBuffers.put(0, commandBuffer.commandBuffer)
             ph.signalSemaphore.put(0, target.semaphore)
             ph.waitStages.put(0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
+            ph.waitStages.put(1, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT)
 
             val si = VkSubmitInfo.calloc()
                 .sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
@@ -2145,10 +2147,10 @@ open class VulkanRenderer(applicationName: String,
 
         stagingBuffer.copyFromStagingBuffer()
 
-        val instanceBuffer = if (state.vertexBuffers.containsKey("instance") && state.vertexBuffers["instance"]!!.maxSize >= instanceBufferSize) {
+        val instanceBuffer = if (state.vertexBuffers.containsKey("instance") && state.vertexBuffers["instance"]!!.size >= instanceBufferSize) {
             state.vertexBuffers["instance"]!!
         } else {
-            logger.debug("Instance buffer for ${parentNode.name} needs to be required, insufficient size ($instanceBufferSize vs ${state.vertexBuffers["instance"]!!.maxSize})")
+            logger.debug("Instance buffer for ${parentNode.name} needs to be required, insufficient size ($instanceBufferSize vs ${state.vertexBuffers["instance"]!!.size})")
             state.vertexBuffers["instance"]?.close()
 
             val buffer = VU.createBuffer(device,
@@ -2222,7 +2224,7 @@ open class VulkanRenderer(applicationName: String,
             VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
             wantAligned = true,
-            allocationSize = 512 * 1024))
+            allocationSize = 512 * 1024 * 10))
 
         map.put("LightParametersBuffer", VU.createBuffer(device, this.memoryProperties,
             VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
@@ -2290,7 +2292,21 @@ open class VulkanRenderer(applicationName: String,
         val renderOrderList = ArrayList<Node>()
 
         scene.discover(scene, { n -> n is Renderable && n is HasGeometry && n.visible }).forEach {
-            renderOrderList.add(it)
+            if(it.dirty) {
+                if(it is FontBoard) {
+                    updateFontBoard(it)
+                }
+
+                it.dirty = false
+            }
+
+            if(!it.metadata.containsKey("VulkanRenderer")) {
+                logger.info("${it.name} is not initialized, doing that now")
+                it.metadata.put("VulkanRenderer", VulkanObjectState())
+                initializeNode(it)
+            } else {
+                renderOrderList.add(it)
+            }
         }
 
         val instanceGroups = renderOrderList.groupBy(Node::instanceOf)
@@ -2311,15 +2327,7 @@ open class VulkanRenderer(applicationName: String,
             vkCmdSetScissor(this, 0, pass.vulkanMetadata.scissor)
 
             instanceGroups[null]?.forEach nonInstancedDrawing@ { node ->
-                if(node.dirty) {
-                    if(node is FontBoard) {
-                        updateFontBoard(node)
-                    }
-
-                    node.dirty = false
-                }
-
-                var s = node.metadata["VulkanRenderer"]!! as VulkanObjectState
+                val s = node.metadata["VulkanRenderer"]!! as VulkanObjectState
 
                 if (node in instanceGroups.keys || s.vertexCount == 0) {
                     return@nonInstancedDrawing
@@ -2553,6 +2561,7 @@ open class VulkanRenderer(applicationName: String,
 
         lights.forEachIndexed { i, light ->
             val l = light as PointLight
+            l.updateWorld(true, false)
 
             lightUbo.members.put("Linear-$i", { l.linear })
             lightUbo.members.put("Quadratic-$i", { l.quadratic })

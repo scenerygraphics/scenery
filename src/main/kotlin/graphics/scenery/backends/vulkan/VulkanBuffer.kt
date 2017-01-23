@@ -6,14 +6,17 @@ import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkDevice
 import java.nio.ByteBuffer
 
-class VulkanBuffer(val device: VkDevice, var memory: Long = -1L, var buffer: Long = -1L, var data: Long = -1L): AutoCloseable {
+class VulkanBuffer(val device: VkDevice, var memory: Long = -1L, var buffer: Long = -1L, var data: Long = -1L, val size: Long): AutoCloseable {
     private var currentPosition = 0L
     private var currentPointer: PointerBuffer? = null
-    var maxSize: Long = 512 * 2048L
     var alignment: Long = 256
     private var mapped = false
 
-    var stagingBuffer = memAlloc(maxSize.toInt())
+    var stagingBuffer: ByteBuffer
+
+    init {
+        stagingBuffer = memAlloc(size.toInt())
+    }
 
     fun getPointerBuffer(size: Int): ByteBuffer {
         if (currentPointer == null) {
@@ -39,7 +42,8 @@ class VulkanBuffer(val device: VkDevice, var memory: Long = -1L, var buffer: Lon
         val rem = pos % align
 
         if(rem != 0L) {
-            stagingBuffer.position(pos + align.toInt() - rem.toInt())
+            val newpos = pos + align.toInt() - rem.toInt()
+            stagingBuffer.position(newpos)
         }
 
         return stagingBuffer.position()
@@ -47,12 +51,13 @@ class VulkanBuffer(val device: VkDevice, var memory: Long = -1L, var buffer: Lon
 
     fun reset() {
         stagingBuffer.position(0)
+        stagingBuffer.limit(size.toInt())
         currentPosition = 0L
     }
 
     fun copyFrom(data: ByteBuffer) {
         val dest = memAllocPointer(1)
-        vkMapMemory(device, memory, 0, maxSize * 1L, 0, dest)
+        vkMapMemory(device, memory, 0, size, 0, dest)
         memCopy(memAddress(data), dest.get(0), data.remaining())
         vkUnmapMemory(device, memory)
         memFree(dest)
@@ -60,7 +65,7 @@ class VulkanBuffer(val device: VkDevice, var memory: Long = -1L, var buffer: Lon
 
     fun copyTo(dest: ByteBuffer) {
         val src = memAllocPointer(1)
-        vkMapMemory(device, memory, 0, maxSize * 1L, 0, src)
+        vkMapMemory(device, memory, 0, size, 0, src)
         memCopy(src.get(0), memAddress(dest), dest.remaining())
         vkUnmapMemory(device, memory)
         memFree(src)
@@ -68,7 +73,7 @@ class VulkanBuffer(val device: VkDevice, var memory: Long = -1L, var buffer: Lon
 
     fun map(): PointerBuffer {
         val dest = memAllocPointer(1)
-        vkMapMemory(device, memory, 0, maxSize * 1L, 0, dest)
+        vkMapMemory(device, memory, 0, size, 0, dest)
 
         currentPointer = dest
         mapped = true

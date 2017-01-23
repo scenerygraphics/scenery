@@ -554,8 +554,7 @@ class VU {
             vkAllocateMemory(device, allocInfo, null, memory)
             vkBindBufferMemory(device, buffer, memory.get(0), 0)
 
-            val vb = VulkanBuffer(device, memory = memory.get(0), buffer = buffer)
-            vb.maxSize = size
+            val vb = VulkanBuffer(device, memory = memory.get(0), buffer = buffer, size = size)
             vb.alignment = reqs.alignment()
 
             reqs.free()

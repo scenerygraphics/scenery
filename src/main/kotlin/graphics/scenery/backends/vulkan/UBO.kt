@@ -209,14 +209,14 @@ open class UBO(val device: VkDevice, val backingBuffer: VulkanBuffer? = null): A
 
             this.descriptor = UBODescriptor()
             this.descriptor!!.memory = buffer.memory
-            this.descriptor!!.allocationSize = buffer.maxSize
+            this.descriptor!!.allocationSize = buffer.size
             this.descriptor!!.buffer = buffer.buffer
             this.descriptor!!.offset = 0L
             this.descriptor!!.range = this.getSize() * 1L
         } else {
             this.descriptor = UBODescriptor()
             this.descriptor!!.memory = backingBuffer.memory
-            this.descriptor!!.allocationSize = backingBuffer.maxSize
+            this.descriptor!!.allocationSize = backingBuffer.size
             this.descriptor!!.buffer = backingBuffer.buffer
             this.descriptor!!.offset = 0L
             this.descriptor!!.range = this.getSize() * 1L
