@@ -200,8 +200,8 @@ interface HasGeometry {
         var vertexCountMap = HashMap<String, Int>()
         lines.forEach {
             line ->
-            val tokens = line.trim().trimEnd().split(" ").filter { it.length > 0 }
-            if (tokens.size > 0) {
+            val tokens = line.trim().trimEnd().split(" ").filter(String::isNotEmpty)
+            if (tokens.isNotEmpty()) {
                 when (tokens[0]) {
                     "" -> {
                     }
@@ -214,7 +214,7 @@ interface HasGeometry {
                             else -> 0
                         }
                     }
-                    "g" -> {
+                    "g", "o" -> {
                         vertexCountMap.put(currentName, vertexCount)
                         vertexCount = 0
                         currentName = tokens[1]
@@ -240,8 +240,8 @@ interface HasGeometry {
 
         lines.forEach {
             line ->
-            val tokens = line.trim().trimEnd().split(" ").filter { it.length > 0 }
-            if (tokens.size > 0) {
+            val tokens = line.trim().trimEnd().split(" ").filter(String::isNotEmpty)
+            if (tokens.isNotEmpty()) {
                 when (tokens[0]) {
                     "" -> {
                     }
@@ -256,8 +256,6 @@ interface HasGeometry {
                         if (targetObject is Node && useMTL) {
                             (targetObject as Node).material = materials[tokens[1]]
                         }
-                    }
-                    "o" -> {
                     }
                 // vertices are specified as v x y z
                     "v" -> tokens.drop(1).forEach { tmpV.add(it.toFloat()) }
@@ -348,7 +346,7 @@ interface HasGeometry {
                     "s" -> {
                         // TODO: Implement smooth shading across faces
                     }
-                    "g" -> @Suppress("UNCHECKED_CAST") {
+                    "g", "o" -> @Suppress("UNCHECKED_CAST") {
                         if (nbuffer.position() == 0) {
                             calculateNormals(vbuffer, nbuffer)
                         }
@@ -371,7 +369,7 @@ interface HasGeometry {
 
                         // add new child mesh
                         if (this is Mesh) {
-                            var child = Mesh()
+                            val child = Mesh()
                             child.name = tokens[1]
                             name = tokens[1]
                             if (!useMTL) {
