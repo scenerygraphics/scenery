@@ -763,7 +763,7 @@ open class VulkanRenderer(applicationName: String,
                     else -> 0
                 }
 
-                val mipLevels = if(type == "ambient" || type == "diffuse") {
+                val mipLevels = if(type == "ambient" || type == "diffuse" || type == "specular") {
                     3
                 } else {
                     1
