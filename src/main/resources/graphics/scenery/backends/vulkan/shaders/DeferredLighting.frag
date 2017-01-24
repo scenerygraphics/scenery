@@ -67,6 +67,34 @@ vec3 calculatePosition(vec2 texCoord, float depth) {
 	return pos.xyz;
 }
 
+float GGXDistribution(vec3 normal, vec3 halfway, float roughness) {
+    float a = roughness*roughness;
+    float aSquared = a*a;
+    float NdotH = max(dot(normal, halfway), 0.0);
+    float NdotH2 = NdotH*NdotH;
+
+    float denom = ((NdotH2 * (aSquared - 1.0) + 1.0));
+    return aSquared/(denom*denom*PI);
+}
+
+float GeometrySchlick(float NdotV, float roughness) {
+    float r = (roughness + 1.0);
+    float k = (r*r) / 8.0;
+
+    return (NdotV)/(NdotV*(1.0 - k) + k);
+}
+
+float GeometrySmith(vec3 normal, vec3 view, vec3 light, float roughness) {
+    float NdotV = max(dot(normal, view), 0.0);
+    float NdotL = max(dot(normal, light), 0.0);
+
+    return GeometrySchlick(NdotV, roughness) * GeometrySchlick(NdotL, roughness);
+}
+
+vec3 FresnelSchlick(float cosTheta, vec3 F0) {
+    return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
+}
+
 void main()
 {
 	// Retrieve data from G-buffer
@@ -115,13 +143,15 @@ void main()
 		for(int i = 0; i < numLights; ++i)
 		{
             vec3 lightDir = normalize(lights[i].Position.rgb - FragPos);
+            vec3 halfway = normalize(lightDir + viewDir);
             float distance = length(lights[i].Position.rgb - FragPos);
             float lightAttenuation = 1.0 / (1.0 + lights[i].Linear * distance + lights[i].Quadratic * distance * distance);
 
 		    if(reflectanceModel == 0) {
 		        // Diffuse
              	vec3 diffuse = max(dot(Normal, lightDir), 0.0) * lights[i].Intensity * Albedo.rgb * lights[i].Color.rgb * (1.0f - ambientOcclusion);
-             	vec3 specular = lights[i].Color.rgb * Specular;
+             	float spec = pow(max(dot(Normal, halfway), 0.0), Specular);
+             	vec3 specular = lights[i].Color.rgb * spec;
 
              	diffuse *= lightAttenuation;
              	specular *= lightAttenuation;
@@ -130,70 +160,56 @@ void main()
 		    // Oren-Nayar model
 		    else if(reflectanceModel == 1) {
 
-            			float NdotL = dot(Normal, lightDir);
-            			float NdotV = dot(Normal, viewDir);
+            	float NdotL = dot(Normal, lightDir);
+            	float NdotV = dot(Normal, viewDir);
 
-            			float angleVN = acos(NdotV);
-            			float angleLN = acos(NdotL);
+            	float angleVN = acos(NdotV);
+            	float angleLN = acos(NdotL);
 
-            			float alpha = max(angleVN, angleLN);
-            			float beta = min(angleVN, angleLN);
-            			float gamma = dot(viewDir - Normal*dot(viewDir, Normal), lightDir - Normal*dot(lightDir, Normal));
+            	float alpha = max(angleVN, angleLN);
+            	float beta = min(angleVN, angleLN);
+            	float gamma = dot(viewDir - Normal*dot(viewDir, Normal), lightDir - Normal*dot(lightDir, Normal));
 
-            			float roughness = 0.75;
+            	float roughness = 0.75;
 
-            			float roughnessSquared = roughness*roughness;
+            	float roughnessSquared = roughness*roughness;
 
-            			float A = 1.0 - 0.5 * ( roughnessSquared / (roughnessSquared + 0.57));
-            			float B = 0.45 * (roughnessSquared / (roughnessSquared + 0.09));
-            			float C = sin(alpha)*tan(beta);
+            	float A = 1.0 - 0.5 * ( roughnessSquared / (roughnessSquared + 0.57));
+            	float B = 0.45 * (roughnessSquared / (roughnessSquared + 0.09));
+            	float C = sin(alpha)*tan(beta);
 
-            			float L1 = max(0.0, NdotL) * (A + B * max(0.0, gamma) * C);
+            	float L1 = max(0.0, NdotL) * (A + B * max(0.0, gamma) * C);
 
-                        vec3 inputColor = lightAttenuation*lights[i].Intensity * lights[i].Color.rgb * Albedo.rgb * (1.0f - ambientOcclusion);
+                vec3 inputColor = lightAttenuation*lights[i].Intensity * lights[i].Color.rgb * Albedo.rgb * (1.0f - ambientOcclusion);
 
-            			vec3 diffuse = inputColor * L1;
-            			vec3 specular = vec3(0.0);
+            	vec3 diffuse = inputColor * L1;
+            	vec3 specular = vec3(0.0);
 
-            			specular *= lightAttenuation*specular;
-            			lighting += diffuse + specular;
+            	specular *= lightAttenuation*specular;
+            	lighting += diffuse + specular;
             }
             // Cook-Torrance
             else if(reflectanceModel == 2) {
-                float roughness = 0.9;
-                float fresnelReflectance = 0.8;
-                float k = 0.5;
+                float metallic = 1.0;
+                vec3 F0 = vec3(0.04);
+                F0 = mix(F0, Albedo.rgb, metallic);
 
-                float specular = 0.0f;
+                float roughness = 1.0 - Specular;
 
-                vec3 diffuse = lightAttenuation*lights[i].Intensity * lights[i].Color.rgb * Albedo.rgb * (1.0f - ambientOcclusion);
+                float NDF = GGXDistribution(Normal, halfway, roughness);
+                float G = GeometrySmith(Normal, viewDir, lightDir, roughness);
+                vec3 F = FresnelSchlick(max(dot(halfway, viewDir), 0.0), F0);
+
+                vec3 BRDF = (NDF * G * F)/(4 * max(dot(viewDir, Normal), 0.0) * max(dot(lightDir, Normal), 0.0) + 0.001);
+
+                vec3 kS = F;
+                vec3 kD = (vec3(1.0) - kS);
+                kD *= 1.0 - metallic;
 
                 float NdotL = max(dot(Normal, lightDir), 0.0);
+                vec3 radiance = lights[i].Intensity * lights[i].Color.rgb * lightAttenuation;
 
-                if(NdotL > 0.0) {
-                    vec3 halfVector = normalize(lightDir + viewDir);
-                    float NdotH = max(dot(Normal, halfVector), 0.0);
-                    float NdotV = max(dot(Normal, viewDir), 0.0);
-                    float VdotH = max(dot(viewDir, halfVector), 0.0);
-                    float mSquared = roughness*roughness;
-
-                    float NH2 = 2.0 * NdotH;
-                    float g1 = (NH2 * NdotV)/VdotH;
-                    float g2 = (NH2 * NdotL)/VdotH;
-                    float geoAtt = min(1.0, min(g1, g2));
-
-                    float r1 = 1.0 / ( 4.0*mSquared*pow(NdotH, 4.0));
-                    float r2 = (NdotH * NdotH - 1.0)/(mSquared*NdotH*NdotH);
-                    float R = r1*exp(r2);
-
-                    float fresnel = pow(1.0 - VdotH, 5.0);
-                    fresnel *= (1.0 - fresnelReflectance);
-                    fresnel += fresnelReflectance;
-
-                    specular = (fresnel * geoAtt * roughness)/(NdotV*NdotL*PI);
-                }
-
-                lighting += diffuse + lightAttenuation*lights[i].Color.rgb*NdotL*(k+specular*(1.0-k));
+                lighting += (kD * Albedo.rgb / PI + BRDF) * radiance * NdotL;
             }
 		}
 
@@ -201,8 +217,12 @@ void main()
 	} else {
 		vec2 newTexCoord;
 		// color
-		if(textureCoord.x < 0.5 && textureCoord.y < 0.5 ) {
+		if(textureCoord.x < 0.25 && textureCoord.y < 0.5 ) {
 			FragColor = Albedo;
+		}
+		// specular
+		if(textureCoord.x > 0.25 && textureCoord.x < 0.5 && textureCoord.y < 0.5) {
+		    FragColor = vec4(Specular, Specular, Specular, 1.0);
 		}
 		// depth
 		if(textureCoord.x > 0.5 && textureCoord.y < 0.5) {

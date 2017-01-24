@@ -56,16 +56,20 @@ void main() {
     gPosition = VertexIn.FragPosition;
     gAlbedoSpec.rgb = vec3(0.0f, 0.0f, 0.0f);
 
+    gAlbedoSpec.rgb = Material.Kd;
+    gAlbedoSpec.a = Material.Ka.r*Material.Shininess;
+
     // Also store the per-fragment normals into the gbuffer
     if((materialType & MATERIAL_HAS_AMBIENT) == MATERIAL_HAS_AMBIENT) {
-        gAlbedoSpec.rgb = texture(ObjectTextures[0], VertexIn.TexCoord).rgb;
-    } else if((materialType & MATERIAL_HAS_DIFFUSE) == MATERIAL_HAS_DIFFUSE) {
+        //gAlbedoSpec.rgb = texture(ObjectTextures[0], VertexIn.TexCoord).rgb;
+    }
+
+    if((materialType & MATERIAL_HAS_DIFFUSE) == MATERIAL_HAS_DIFFUSE) {
         gAlbedoSpec.rgb = texture(ObjectTextures[1], VertexIn.TexCoord).rgb;
-    } else if((materialType & MATERIAL_HAS_SPECULAR) == MATERIAL_HAS_SPECULAR) {
+    }
+
+    if((materialType & MATERIAL_HAS_SPECULAR) == MATERIAL_HAS_SPECULAR) {
         gAlbedoSpec.a = texture(ObjectTextures[2], VertexIn.TexCoord).r;
-    } else {
-         gAlbedoSpec.rgb = Material.Kd;
-         gAlbedoSpec.a = Material.Ka.r*Material.Shininess;
     }
 
     if((materialType & MATERIAL_HAS_NORMAL) == MATERIAL_HAS_NORMAL) {
