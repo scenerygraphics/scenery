@@ -38,7 +38,7 @@ open class Camera : Node("Camera") {
      */
     override var view: GLMatrix = GLMatrix.getIdentity()
         set(m) {
-            m?.let {
+            m.let {
                 this.forward = GLVector(m.get(0, 2), m.get(1, 2), m.get(2, 2)).normalize() * -1.0f
                 this.right = GLVector(m.get(0, 0), m.get(1, 0), m.get(2, 0)).normalize()
                 this.up = GLVector(m.get(0, 1), m.get(1, 1), m.get(2, 1)).normalize()

@@ -2,6 +2,9 @@ package graphics.scenery.controls
 
 import cleargl.GLMatrix
 import cleargl.GLVector
+import org.lwjgl.vulkan.VkDevice
+import org.lwjgl.vulkan.VkInstance
+import org.lwjgl.vulkan.VkQueue
 
 /**
  * Generic interface for head-mounted displays (HMDs)
@@ -62,13 +65,29 @@ interface HMDInput {
     fun hasCompositor(): Boolean
 
     /**
-     * Submit texture IDs to the compositor
+     * Submit OpenGL texture IDs to the compositor
      *
      * @param[leftId] Texture ID of the left eye texture
      * @param[rightId] Texture ID of the right eye texture
      */
     fun submitToCompositor(leftId: Int, rightId: Int)
 
+    /**
+     * Submit a Vulkan texture handle to the compositor
+     *
+     * @param[width] Texture width
+     * @param[height] Texture height
+     * @param[format] Vulkan texture format
+     * @param[instance] Vulkan Instance
+     * @param[device] Vulkan device
+     * @param[queue] Vulkan queue
+     * @param[queueFamilyIndex] Queue family index
+     * @param[image] The Vulkan texture image to be presented to the compositor
+     */
+    fun submitToCompositorVulkan(width: Int, height: Int, format: Int,
+                                 instance: VkInstance, device: VkDevice,
+                                 queue: VkQueue, queueFamilyIndex: Int,
+                                 image: Long)
     /**
      * Returns the optimal render target size for the HMD as 2D vector
      *

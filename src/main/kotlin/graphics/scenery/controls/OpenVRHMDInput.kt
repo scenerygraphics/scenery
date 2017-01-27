@@ -2,12 +2,19 @@ package graphics.scenery.controls
 
 import cleargl.GLMatrix
 import cleargl.GLVector
+import com.sun.jna.Pointer
 import com.sun.jna.Structure
+import com.sun.jna.ptr.FloatByReference
+import com.sun.jna.ptr.IntByReference
+import com.sun.jna.ptr.LongByReference
 import graphics.scenery.jopenvr.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import graphics.scenery.Hub
 import graphics.scenery.Hubable
+import org.lwjgl.vulkan.VkDevice
+import org.lwjgl.vulkan.VkInstance
+import org.lwjgl.vulkan.VkQueue
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.nio.LongBuffer
@@ -23,9 +30,9 @@ import graphics.scenery.jopenvr.JOpenVRLibrary as jvr
  * @property[useCompositor] Whether or not the compositor should be used.
  * @constructor Creates a new OpenVR HMD instance, using the compositor if requested
  */
-open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = false) : HMDInput, Hubable {
+open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean = false) : HMDInput, Hubable {
     /** slf4j logger instance */
-    protected var logger: Logger = LoggerFactory.getLogger("OpenVRInput")
+    protected var logger: Logger = LoggerFactory.getLogger("OpenVRHMDInput")
     /** The Hub to use for communication */
     override var hub: Hub? = null
 
@@ -39,7 +46,7 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
     /** HMD reference pose */
     protected var hmdTrackedDevicePoseReference: TrackedDevicePose_t? = null
     /** OpenVR poses structure for all tracked device */
-    protected var hmdTrackedDevicePoses: Array<Structure>? = null
+    protected var hmdTrackedDevicePoses: Array<TrackedDevicePose_t>? = null
 
     /** error code storage */
     protected val error = IntBuffer.allocate(1)
@@ -51,9 +58,9 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
     protected var eyeTransformCache: ArrayList<GLMatrix?> = ArrayList()
 
     /** When did the last vsync occur? */
-    val lastVsync = FloatBuffer.allocate(1)
+    val lastVsync = FloatByReference(0.0f)
     /** Current frame count on the HMD */
-    val frameCount = LongBuffer.allocate(1)
+    val frameCount = LongByReference(0L)
     /** Display frequency of the HMD */
     val hmdDisplayFreq = IntBuffer.allocate(1)
 
@@ -98,7 +105,7 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
                 hmdDisplayFreq.put(jvr.ETrackedDeviceProperty.ETrackedDeviceProperty_Prop_DisplayFrequency_Float)
 
                 hmdTrackedDevicePoseReference = TrackedDevicePose_t.ByReference()
-                hmdTrackedDevicePoses = hmdTrackedDevicePoseReference?.toArray(jvr.k_unMaxTrackedDeviceCount)
+                hmdTrackedDevicePoses = hmdTrackedDevicePoseReference?.castToArray(jvr.k_unMaxTrackedDeviceCount)
 
                 timePerFrame = 1.0f / hmdDisplayFreq[0]
 
@@ -128,7 +135,7 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
 
         } catch(e: UnsatisfiedLinkError) {
             logger.error("Support library not found, skipping initialization.")
-            logger.debug(e.message + "\n" + e.stackTrace.joinToString("\n"))
+            logger.error(e.message + "\n" + e.stackTrace.joinToString("\n"))
             initialized = false
         }
     }
@@ -137,6 +144,7 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
      * Initialises the OpenVR compositor
      */
     fun initCompositor() {
+        val err = IntByReference(0)
         if (vrFuncs != null) {
             compositorFuncs = VR_IVRCompositor_FnTable(jvr.VR_GetGenericInterface(jvr.IVRCompositor_Version, error))
 
@@ -152,7 +160,7 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
                     compositorFuncs?.SetTrackingSpace?.apply(jvr.ETrackingUniverseOrigin.ETrackingUniverseOrigin_TrackingUniverseStanding)
                 }
 
-                vsyncToPhotons = vrFuncs?.GetFloatTrackedDeviceProperty!!.apply(jvr.k_unTrackedDeviceIndex_Hmd, jvr.ETrackedDeviceProperty.ETrackedDeviceProperty_Prop_SecondsFromVsyncToPhotons_Float, error)
+                vsyncToPhotons = vrFuncs?.GetFloatTrackedDeviceProperty!!.apply(jvr.k_unTrackedDeviceIndex_Hmd, jvr.ETrackedDeviceProperty.ETrackedDeviceProperty_Prop_SecondsFromVsyncToPhotons_Float, err)
             }
         }
     }
@@ -179,12 +187,12 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
      * @return Render target size as 2D vector
      */
     override fun getRenderTargetSize(): GLVector {
-        val x = IntBuffer.allocate(1)
-        val y = IntBuffer.allocate(1)
+        val x = IntByReference(0)
+        val y = IntByReference(0)
 
         vrFuncs!!.GetRecommendedRenderTargetSize.apply(x, y)
 
-        return GLVector(x[0].toFloat(), y[0].toFloat())
+        return GLVector(x.value.toFloat(), y.value.toFloat())
     }
 
     /**
@@ -193,7 +201,8 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
      * @return FOV in degrees
      */
     fun getFOV(direction: Int): Float {
-        val fov = vrFuncs!!.GetFloatTrackedDeviceProperty!!.apply(jvr.k_unTrackedDeviceIndex_Hmd, direction, error)
+        val err = IntByReference(0)
+        val fov = vrFuncs!!.GetFloatTrackedDeviceProperty!!.apply(jvr.k_unTrackedDeviceIndex_Hmd, direction, err)
 
         if (fov == 0f) {
             return 55.0f
@@ -246,10 +255,11 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
      * @return IPD as Float
      */
     override fun getIPD(): Float {
+        val err = IntByReference(0)
         if (vrFuncs == null) {
             return 0.065f
         } else {
-            return vrFuncs!!.GetFloatTrackedDeviceProperty!!.apply(jvr.k_unTrackedDeviceIndex_Hmd, jvr.ETrackedDeviceProperty.ETrackedDeviceProperty_Prop_UserIpdMeters_Float, error)
+            return vrFuncs!!.GetFloatTrackedDeviceProperty!!.apply(jvr.k_unTrackedDeviceIndex_Hmd, jvr.ETrackedDeviceProperty.ETrackedDeviceProperty_Prop_UserIpdMeters_Float, err)
         }
     }
 
@@ -288,7 +298,7 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
 
             vrFuncs!!.GetTimeSinceLastVsync!!.apply(lastVsync, frameCount)
 
-            val secondsUntilPhotons = timePerFrame - lastVsync[0] + vsyncToPhotons
+            val secondsUntilPhotons = timePerFrame - lastVsync.value + vsyncToPhotons
 
             if (debugLatency) {
                 if (frames == 10) {
@@ -299,8 +309,8 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
                 frames = (frames + 1) % 60
             }
 
-            val countNow = frameCount[0]
-            if (countNow - frameCount[0] > 1) {
+            val countNow = frameCount.value
+            if (countNow - frameCount.value > 1) {
                 // skipping!
                 if (debugLatency) {
                     logger.info("FRAMEDROP!")
@@ -315,7 +325,7 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
                 latencyWaitTime += Math.round(Math.pow(frameCountRun / 10.0, 2.0))
             }
 
-            frameCount.put(0, countNow)
+            frameCount.value = countNow
 
             vrFuncs!!.GetDeviceToAbsoluteTrackingPose!!.apply(
                 getExperience(), secondsUntilPhotons, hmdTrackedDevicePoseReference, jvr.k_unMaxTrackedDeviceCount
@@ -371,8 +381,8 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
         leftTexture.eType = jvr.ETextureType.ETextureType_TextureType_OpenGL
         rightTexture.eType = jvr.ETextureType.ETextureType_TextureType_OpenGL
 
-        leftTexture.handle = leftId
-        rightTexture.handle = rightId
+        leftTexture.handle.setInt(0, leftId)
+        rightTexture.handle.setInt(0, rightId)
 
         val bounds = VRTextureBounds_t()
         bounds.uMin = 0.0f
@@ -382,6 +392,47 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
 
         compositorFuncs!!.Submit.apply(0, leftTexture, bounds, 0)
         compositorFuncs!!.Submit.apply(1, rightTexture, bounds, 0)
+    }
+
+    override fun submitToCompositorVulkan(width: Int, height: Int, format: Int,
+                                          instance: VkInstance, device: VkDevice,
+                                          queue: VkQueue, queueFamilyIndex: Int,
+                                          image: Long) {
+
+        val instancePointer = Pointer.createConstant(instance.address())
+        val devicePointer = Pointer.createConstant(device.address())
+        val queuePointer = Pointer.createConstant(queue.address())
+
+        val textureData = VRVulkanTextureData_t()
+        textureData.m_nFormat = format
+        textureData.m_nWidth = width
+        textureData.m_nHeight = height
+        textureData.m_pQueue = graphics.scenery.jopenvr.JOpenVRLibrary.VkQueue_T(queuePointer)
+        textureData.m_nQueueFamilyIndex = queueFamilyIndex
+        textureData.m_pInstance = graphics.scenery.jopenvr.JOpenVRLibrary.VkInstance_T(instancePointer)
+        textureData.m_pDevice = graphics.scenery.jopenvr.JOpenVRLibrary.VkDevice_T(devicePointer)
+        textureData.m_nSampleCount = 1
+        textureData.m_nImage = image
+
+        val texture = Texture_t()
+        texture.eType = jvr.ETextureType.ETextureType_TextureType_Vulkan
+        texture.eColorSpace = jvr.EColorSpace.EColorSpace_ColorSpace_Gamma
+        texture.handle = textureData.pointer
+
+        val bounds = VRTextureBounds_t()
+        bounds.uMin = 0.0f
+        bounds.uMax = 0.5f
+        bounds.vMin = 0.0f
+        bounds.vMax = 1.0f
+
+        compositorFuncs!!.Submit.apply(0, texture, bounds, 0)
+
+        bounds.uMin = 0.5f
+        bounds.uMax = 1.0f
+        bounds.vMin = 0.0f
+        bounds.vMax = 1.0f
+
+        compositorFuncs!!.Submit.apply(1, texture, bounds, 0)
     }
 
     /**

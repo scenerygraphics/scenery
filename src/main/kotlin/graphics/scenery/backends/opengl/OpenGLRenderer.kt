@@ -788,12 +788,8 @@ open class OpenGLRenderer : Renderer, Hubable, ClearGLDefaultEventListener {
             }
 
             eyes.forEachIndexed { i, eye ->
-                val projection: GLMatrix = if (hmd == null) {
-                    GLMatrix().setPerspectiveProjectionMatrix(cam.fov / 180.0f * Math.PI.toFloat(),
-                        (1.0f * geometryBuffer[i].width) / (1.0f * geometryBuffer[i].height), cam.nearPlaneDistance, cam.farPlaneDistance)
-                } else {
-                    hmd.getEyeProjection(i)
-                }
+                val projection: GLMatrix = hmd?.getEyeProjection(i) ?: GLMatrix().setPerspectiveProjectionMatrix(cam.fov / 180.0f * Math.PI.toFloat(),
+                    (1.0f * geometryBuffer[i].width) / (1.0f * geometryBuffer[i].height), cam.nearPlaneDistance, cam.farPlaneDistance)
 
                 mv = if (hmd == null) {
                     GLMatrix.getTranslation(settings.get<Float>("vr.IPD") * -1.0f * Math.pow(-1.0, 1.0 * i).toFloat(), 0.0f, 0.0f).transpose()

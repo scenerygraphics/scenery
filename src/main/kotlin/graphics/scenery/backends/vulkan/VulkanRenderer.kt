@@ -2517,6 +2517,9 @@ open class VulkanRenderer(applicationName: String,
 
         buffers["UBOBuffer"]!!.reset()
 
+//        val pose = hub?.getWorkingHMD()?.getPose() ?: GLMatrix.getIdentity()
+
+        val pose = GLMatrix.getIdentity()
         sceneUBOs.forEach { node, ubo ->
             node.updateWorld(true, false)
 
@@ -2532,7 +2535,8 @@ open class VulkanRenderer(applicationName: String,
             node.projection.copyFrom(cam.projection)
             node.projection.set(1, 1, -1.0f * cam.projection.get(1, 1))
 
-            node.modelView.copyFrom(cam.view)
+            node.modelView.copyFrom(pose)
+            node.modelView.mult(cam.view)
             node.modelView.mult(node.world)
 
             node.mvp.copyFrom(node.projection)

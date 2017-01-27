@@ -1,5 +1,6 @@
 package graphics.scenery
 
+import graphics.scenery.controls.HMDInput
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -42,5 +43,14 @@ class Hub {
      */
     fun has(type: SceneryElement): Boolean {
         return elements.containsKey(type)
+    }
+
+    fun getWorkingHMD(): HMDInput? {
+        if (this.has(SceneryElement.HMDINPUT)
+            && (this.get(SceneryElement.HMDINPUT) as HMDInput).initializedAndWorking()) {
+            return this.get(SceneryElement.HMDINPUT) as HMDInput
+        } else {
+            return null
+        }
     }
 }
