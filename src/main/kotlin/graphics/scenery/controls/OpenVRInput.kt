@@ -3,7 +3,7 @@ package graphics.scenery.controls
 import cleargl.GLMatrix
 import cleargl.GLVector
 import com.sun.jna.Structure
-import jopenvr.*
+import graphics.scenery.jopenvr.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import graphics.scenery.Hub
@@ -13,7 +13,7 @@ import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.util.*
 import java.util.concurrent.TimeUnit
-import jopenvr.JOpenVRLibrary as jvr
+import graphics.scenery.jopenvr.JOpenVRLibrary as jvr
 
 /**
  * HMDInput implementation of OpenVR
@@ -76,15 +76,14 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
         error.put(0, -1)
 
         try {
-            jopenvr.JOpenVRLibrary.VR_InitInternal(error, jopenvr.JOpenVRLibrary.EVRApplicationType.EVRApplicationType_VRApplication_Scene)
-
+            jvr.VR_InitInternal(error, jvr.EVRApplicationType.EVRApplicationType_VRApplication_Scene)
 
             if (error[0] == 0) {
-                vrFuncs = VR_IVRSystem_FnTable(jopenvr.JOpenVRLibrary.VR_GetGenericInterface(jopenvr.JOpenVRLibrary.IVRSystem_Version, error))
+                vrFuncs = VR_IVRSystem_FnTable(jvr.VR_GetGenericInterface(jvr.IVRSystem_Version, error))
             }
 
             if (vrFuncs == null || error[0] != 0) {
-                logger.error("Initialization error - ${jopenvr.JOpenVRLibrary.VR_GetVRInitErrorAsEnglishDescription(error[0]).getString(0)}")
+                logger.error("Initialization error - ${jvr.VR_GetVRInitErrorAsEnglishDescription(error[0]).getString(0)}")
                 vrFuncs = null
                 hmdTrackedDevicePoseReference = null
                 hmdTrackedDevicePoses = null
@@ -96,10 +95,10 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
                 vrFuncs?.setAutoSynch(false)
                 vrFuncs?.read()
 
-                hmdDisplayFreq.put(jopenvr.JOpenVRLibrary.ETrackedDeviceProperty.ETrackedDeviceProperty_Prop_DisplayFrequency_Float)
+                hmdDisplayFreq.put(jvr.ETrackedDeviceProperty.ETrackedDeviceProperty_Prop_DisplayFrequency_Float)
 
                 hmdTrackedDevicePoseReference = TrackedDevicePose_t.ByReference()
-                hmdTrackedDevicePoses = hmdTrackedDevicePoseReference?.toArray(jopenvr.JOpenVRLibrary.k_unMaxTrackedDeviceCount)
+                hmdTrackedDevicePoses = hmdTrackedDevicePoseReference?.toArray(jvr.k_unMaxTrackedDeviceCount)
 
                 timePerFrame = 1.0f / hmdDisplayFreq[0]
 
@@ -139,7 +138,7 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
      */
     fun initCompositor() {
         if (vrFuncs != null) {
-            compositorFuncs = VR_IVRCompositor_FnTable(jopenvr.JOpenVRLibrary.VR_GetGenericInterface(jopenvr.JOpenVRLibrary.IVRCompositor_Version, error))
+            compositorFuncs = VR_IVRCompositor_FnTable(jvr.VR_GetGenericInterface(jvr.IVRCompositor_Version, error))
 
             if (compositorFuncs != null) {
                 logger.info("Compositor initialized")
@@ -148,12 +147,12 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
                 compositorFuncs?.read()
 
                 if (seated) {
-                    compositorFuncs?.SetTrackingSpace?.apply(jopenvr.JOpenVRLibrary.ETrackingUniverseOrigin.ETrackingUniverseOrigin_TrackingUniverseSeated)
+                    compositorFuncs?.SetTrackingSpace?.apply(jvr.ETrackingUniverseOrigin.ETrackingUniverseOrigin_TrackingUniverseSeated)
                 } else {
-                    compositorFuncs?.SetTrackingSpace?.apply(jopenvr.JOpenVRLibrary.ETrackingUniverseOrigin.ETrackingUniverseOrigin_TrackingUniverseStanding)
+                    compositorFuncs?.SetTrackingSpace?.apply(jvr.ETrackingUniverseOrigin.ETrackingUniverseOrigin_TrackingUniverseStanding)
                 }
 
-                vsyncToPhotons = vrFuncs?.GetFloatTrackedDeviceProperty!!.apply(jopenvr.JOpenVRLibrary.k_unTrackedDeviceIndex_Hmd, jopenvr.JOpenVRLibrary.ETrackedDeviceProperty.ETrackedDeviceProperty_Prop_SecondsFromVsyncToPhotons_Float, error)
+                vsyncToPhotons = vrFuncs?.GetFloatTrackedDeviceProperty!!.apply(jvr.k_unTrackedDeviceIndex_Hmd, jvr.ETrackedDeviceProperty.ETrackedDeviceProperty_Prop_SecondsFromVsyncToPhotons_Float, error)
             }
         }
     }
@@ -162,7 +161,7 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
      * Runs the OpenVR shutdown hooks
      */
     fun close() {
-        jopenvr.JOpenVRLibrary.VR_ShutdownInternal()
+        jvr.VR_ShutdownInternal()
     }
 
     /**
@@ -194,7 +193,7 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
      * @return FOV in degrees
      */
     fun getFOV(direction: Int): Float {
-        val fov = vrFuncs!!.GetFloatTrackedDeviceProperty!!.apply(jopenvr.JOpenVRLibrary.k_unTrackedDeviceIndex_Hmd, direction, error)
+        val fov = vrFuncs!!.GetFloatTrackedDeviceProperty!!.apply(jvr.k_unTrackedDeviceIndex_Hmd, direction, error)
 
         if (fov == 0f) {
             return 55.0f
@@ -213,7 +212,7 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
      */
     override fun getEyeProjection(eye: Int): GLMatrix {
         if (eyeProjectionCache[eye] == null) {
-            val proj = vrFuncs!!.GetProjectionMatrix!!.apply(eye, 0.1f, 10000f, jopenvr.JOpenVRLibrary.EGraphicsAPIConvention.EGraphicsAPIConvention_API_OpenGL)
+            val proj = vrFuncs!!.GetProjectionMatrix!!.apply(eye, 0.1f, 10000f)
             proj.read()
 
             eyeProjectionCache[eye] = proj.toGLMatrix().transpose()
@@ -250,7 +249,7 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
         if (vrFuncs == null) {
             return 0.065f
         } else {
-            return vrFuncs!!.GetFloatTrackedDeviceProperty!!.apply(jopenvr.JOpenVRLibrary.k_unTrackedDeviceIndex_Hmd, jopenvr.JOpenVRLibrary.ETrackedDeviceProperty.ETrackedDeviceProperty_Prop_UserIpdMeters_Float, error)
+            return vrFuncs!!.GetFloatTrackedDeviceProperty!!.apply(jvr.k_unTrackedDeviceIndex_Hmd, jvr.ETrackedDeviceProperty.ETrackedDeviceProperty_Prop_UserIpdMeters_Float, error)
         }
     }
 
@@ -281,7 +280,7 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
         }
 
         if (compositorFuncs != null) {
-            compositorFuncs?.WaitGetPoses?.apply(hmdTrackedDevicePoseReference, jopenvr.JOpenVRLibrary.k_unMaxTrackedDeviceCount, null, 0)
+            compositorFuncs?.WaitGetPoses?.apply(hmdTrackedDevicePoseReference, jvr.k_unMaxTrackedDeviceCount, null, 0)
         } else {
             if (latencyWaitTime > 0) {
                 Thread.sleep(0, latencyWaitTime.toInt())
@@ -319,25 +318,24 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
             frameCount.put(0, countNow)
 
             vrFuncs!!.GetDeviceToAbsoluteTrackingPose!!.apply(
-                getExperience(), secondsUntilPhotons, hmdTrackedDevicePoseReference, jopenvr.JOpenVRLibrary.k_unMaxTrackedDeviceCount
+                getExperience(), secondsUntilPhotons, hmdTrackedDevicePoseReference, jvr.k_unMaxTrackedDeviceCount
             )
         }
 
-        for (device in (0..jopenvr.JOpenVRLibrary.k_unMaxTrackedDeviceCount - 1)) {
+        for (device in (0..jvr.k_unMaxTrackedDeviceCount - 1)) {
             val isValid = hmdTrackedDevicePoses!!.get(device).readField("bPoseIsValid")
 
             if (isValid != 0) {
                 val trackedDevice: Int = vrFuncs!!.GetTrackedDeviceClass!!.apply(device)
                 val type = when (trackedDevice) {
-                    jopenvr.JOpenVRLibrary.ETrackedDeviceClass.ETrackedDeviceClass_TrackedDeviceClass_Controller -> "Controller"
-                    jopenvr.JOpenVRLibrary.ETrackedDeviceClass.ETrackedDeviceClass_TrackedDeviceClass_HMD -> "HMD"
-                    jopenvr.JOpenVRLibrary.ETrackedDeviceClass.ETrackedDeviceClass_TrackedDeviceClass_Other -> "Other"
-                    jopenvr.JOpenVRLibrary.ETrackedDeviceClass.ETrackedDeviceClass_TrackedDeviceClass_TrackingReference -> "TrackingReference"
-                    jopenvr.JOpenVRLibrary.ETrackedDeviceClass.ETrackedDeviceClass_TrackedDeviceClass_Invalid -> "Invalid"
+                    jvr.ETrackedDeviceClass.ETrackedDeviceClass_TrackedDeviceClass_Controller -> "Controller"
+                    jvr.ETrackedDeviceClass.ETrackedDeviceClass_TrackedDeviceClass_HMD -> "HMD"
+                    jvr.ETrackedDeviceClass.ETrackedDeviceClass_TrackedDeviceClass_TrackingReference -> "TrackingReference"
+                    jvr.ETrackedDeviceClass.ETrackedDeviceClass_TrackedDeviceClass_Invalid -> "Invalid"
                     else -> "Unknown"
                 }
 
-                val pose = (hmdTrackedDevicePoses!!.get(jopenvr.JOpenVRLibrary.k_unTrackedDeviceIndex_Hmd).readField("mDeviceToAbsoluteTracking") as HmdMatrix34_t)
+                val pose = (hmdTrackedDevicePoses!!.get(jvr.k_unTrackedDeviceIndex_Hmd).readField("mDeviceToAbsoluteTracking") as HmdMatrix34_t)
                 trackedPoses[type] = pose.toGLMatrix().invert()
             }
         }
@@ -367,11 +365,11 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
         val leftTexture = Texture_t()
         val rightTexture = Texture_t()
 
-        leftTexture.eColorSpace = jopenvr.JOpenVRLibrary.EColorSpace.EColorSpace_ColorSpace_Gamma
-        rightTexture.eColorSpace = jopenvr.JOpenVRLibrary.EColorSpace.EColorSpace_ColorSpace_Gamma
+        leftTexture.eColorSpace = jvr.EColorSpace.EColorSpace_ColorSpace_Gamma
+        rightTexture.eColorSpace = jvr.EColorSpace.EColorSpace_ColorSpace_Gamma
 
-        leftTexture.eType = jopenvr.JOpenVRLibrary.EGraphicsAPIConvention.EGraphicsAPIConvention_API_OpenGL
-        rightTexture.eType = jopenvr.JOpenVRLibrary.EGraphicsAPIConvention.EGraphicsAPIConvention_API_OpenGL
+        leftTexture.eType = jvr.ETextureType.ETextureType_TextureType_OpenGL
+        rightTexture.eType = jvr.ETextureType.ETextureType_TextureType_OpenGL
 
         leftTexture.handle = leftId
         rightTexture.handle = rightId
@@ -391,9 +389,9 @@ open class OpenVRInput(val seated: Boolean = true, val useCompositor: Boolean = 
      */
     fun getExperience(): Int {
         if (seated) {
-            return jopenvr.JOpenVRLibrary.ETrackingUniverseOrigin.ETrackingUniverseOrigin_TrackingUniverseSeated
+            return jvr.ETrackingUniverseOrigin.ETrackingUniverseOrigin_TrackingUniverseSeated
         } else {
-            return jopenvr.JOpenVRLibrary.ETrackingUniverseOrigin.ETrackingUniverseOrigin_TrackingUniverseStanding
+            return jvr.ETrackingUniverseOrigin.ETrackingUniverseOrigin_TrackingUniverseStanding
         }
     }
 

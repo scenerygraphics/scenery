@@ -197,9 +197,9 @@
         </dependency>
 
         <dependency>
-            <groupId>net.clearvolume</groupId>
-            <artifactId>scenery-openvr</artifactId>
-            <version>0.1.0.2</version>
+            <groupId>graphics.scenery</groupId>
+            <artifactId>jopenvr</artifactId>
+            <version>1.0.5</version>
         </dependency>
 
         <dependency>
