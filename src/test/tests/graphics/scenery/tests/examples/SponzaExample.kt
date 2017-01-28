@@ -6,7 +6,7 @@ import org.junit.Test
 import org.scijava.ui.behaviour.ClickBehaviour
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.InputHandler
-import graphics.scenery.controls.OpenVRInput
+import graphics.scenery.controls.OpenVRHMDInput
 import graphics.scenery.controls.behaviours.ArcballCameraControl
 import graphics.scenery.controls.behaviours.FPSCameraControl
 import graphics.scenery.repl.REPL
@@ -17,17 +17,17 @@ import kotlin.concurrent.thread
  * Created by ulrik on 20/01/16.
  */
 class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 1280, windowHeight = 720) {
-    private var ovr: OpenVRInput? = null
+    private var ovr: OpenVRHMDInput? = null
 
     override fun init() {
         try {
-            ovr = OpenVRInput(useCompositor = true)
+            ovr = OpenVRHMDInput(useCompositor = true)
             hub.add(SceneryElement.HMDINPUT, ovr!!)
 
-            renderer = Renderer.createRenderer(applicationName,
-                    scene,
-                    1280,
-                    720)
+            renderer = Renderer.createRenderer(hub, applicationName,
+                scene,
+                1280,
+                800)
             hub.add(SceneryElement.RENDERER, renderer!!)
 
             val cam: Camera = DetachedHeadCamera()
@@ -42,15 +42,15 @@ class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 1
 
             var boxes = (1..20).map {
                 Box(GLVector(rangeRandomizer(0.5f, 4.0f),
-                        rangeRandomizer(0.5f, 4.0f),
-                        rangeRandomizer(0.5f, 4.0f)))
+                    rangeRandomizer(0.5f, 4.0f),
+                    rangeRandomizer(0.5f, 4.0f)))
             }
 
             boxes.map { i ->
                 i.position =
-                        GLVector(rangeRandomizer(-10.0f, 10.0f),
-                                rangeRandomizer(-10.0f, 10.0f),
-                                rangeRandomizer(-10.0f, 10.0f))
+                    GLVector(rangeRandomizer(-10.0f, 10.0f),
+                        rangeRandomizer(-10.0f, 10.0f),
+                        rangeRandomizer(-10.0f, 10.0f))
                 scene.addChild(i)
             }
 
@@ -60,14 +60,14 @@ class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 1
 
             lights.map {
                 it.position = GLVector(rangeRandomizer(-600.0f, 600.0f),
-                        rangeRandomizer(-600.0f, 600.0f),
-                        rangeRandomizer(-600.0f, 600.0f))
+                    rangeRandomizer(-600.0f, 600.0f),
+                    rangeRandomizer(-600.0f, 600.0f))
                 it.emissionColor = GLVector(rangeRandomizer(0.0f, 1.0f),
-                        rangeRandomizer(0.0f, 1.0f),
-                        rangeRandomizer(0.0f, 1.0f))
+                    rangeRandomizer(0.0f, 1.0f),
+                    rangeRandomizer(0.0f, 1.0f))
                 it.intensity = rangeRandomizer(1.0f, 1000f)
-                it.linear = 1.0f
-                it.quadratic = 0.0f
+                it.linear = 0.0f
+                it.quadratic = 0.001f
 
                 scene.addChild(it)
             }
@@ -97,8 +97,6 @@ class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 1
             hullboxM.doubleSided = true
             hullbox.material = hullboxM
 
-//                    scene.addChild(hullbox)
-
             val mesh = Mesh()
             val meshM = Material()
             meshM.ambient = GLVector(0.5f, 0.5f, 0.5f)
@@ -106,27 +104,14 @@ class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 1
             meshM.specular = GLVector(0.0f, 0.0f, 0.0f)
 
             mesh.readFromOBJ(System.getenv("SCENERY_DEMO_FILES") + "/sponza.obj", useMTL = true)
-            //mesh.material = meshM
-//            mesh.position = GLVector(155.5f, 150.5f, 55.0f)
             mesh.position = GLVector(0.0f, 5.0f, 0.0f)
             mesh.scale = GLVector(0.05f, 0.05f, 0.05f)
-            mesh.rotation.rotateByEuler(0.05f, -0.2f, 1.11f)
             mesh.updateWorld(true, true)
             mesh.name = "Sponza_Mesh"
 
             scene.addChild(mesh)
 
             boxes.first().addChild(sphere)
-
-
-            /*mesh.children.forEach {
-                val bb = BoundingBox()
-                bb.node = it
-                bb.lineWidth = 0.7f
-                it.boundingBoxCoords?.let { coords ->
-                    bb.gridColor = GLVector(coords[0], coords[2], coords[4])*0.1f
-                }
-            }*/
 
             var ticks: Int = 0
 
@@ -148,9 +133,9 @@ class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 1
                         val phi = Math.PI * 2.0f * ticks / 800.0f
 
                         light.position = GLVector(
-                                -128.0f+18.0f*(i+1),
-                                5.0f+i*5.0f,
-                            (i+1) * 50 * Math.cos(phi+(i*0.2f)).toFloat())
+                            -128.0f + 18.0f * (i + 1),
+                            5.0f + i * 5.0f,
+                            (i + 1) * 50 * Math.cos(phi + (i * 0.2f)).toFloat())
 
                     }
 
@@ -166,7 +151,6 @@ class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 1
                     } else {
                         ticks++
                     }
-
                     Thread.sleep(50)
 
                     boxes.first().rotation.rotateByEuler(0.01f, 0.0f, 0.0f)
@@ -184,8 +168,8 @@ class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 1
     override fun inputSetup() {
         val target = GLVector(1.5f, 5.5f, 55.5f)
         val inputHandler = (hub.get(SceneryElement.INPUT) as InputHandler)
-        val targetArcball = ArcballCameraControl("mouse_control", scene.findObserver(), renderer!!.window.width,  renderer!!.window.height, target)
-        val fpsControl = FPSCameraControl("mouse_control", scene.findObserver(),  renderer!!.window.width, renderer!!.window.height)
+        val targetArcball = ArcballCameraControl("mouse_control", scene.findObserver(), renderer!!.window.width, renderer!!.window.height, target)
+        val fpsControl = FPSCameraControl("mouse_control", scene.findObserver(), renderer!!.window.width, renderer!!.window.height)
 
         val toggleControlMode = object : ClickBehaviour {
             var currentMode = "fps"

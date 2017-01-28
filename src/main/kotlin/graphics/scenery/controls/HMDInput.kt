@@ -4,6 +4,7 @@ import cleargl.GLMatrix
 import cleargl.GLVector
 import org.lwjgl.vulkan.VkDevice
 import org.lwjgl.vulkan.VkInstance
+import org.lwjgl.vulkan.VkPhysicalDevice
 import org.lwjgl.vulkan.VkQueue
 
 /**
@@ -85,9 +86,10 @@ interface HMDInput {
      * @param[image] The Vulkan texture image to be presented to the compositor
      */
     fun submitToCompositorVulkan(width: Int, height: Int, format: Int,
-                                 instance: VkInstance, device: VkDevice,
+                                 instance: VkInstance, device: VkDevice, physicalDevice: VkPhysicalDevice,
                                  queue: VkQueue, queueFamilyIndex: Int,
                                  image: Long)
+
     /**
      * Returns the optimal render target size for the HMD as 2D vector
      *
@@ -101,4 +103,13 @@ interface HMDInput {
      * @return True if HMD is initialiased correctly and working properly
      */
     fun initializedAndWorking(): Boolean
+
+    /**
+     * update state
+     */
+    fun update()
+
+    fun getVulkanInstanceExtensions(): List<String>
+
+    fun getVulkanDeviceExtensions(physicalDevice: VkPhysicalDevice): List<String>
 }

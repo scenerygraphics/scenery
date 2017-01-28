@@ -23,7 +23,7 @@ class LineExample : SceneryDefaultApplication("LineExample") {
     protected var lineAnimating = true
 
     override fun init() {
-        renderer = Renderer.createRenderer(applicationName, scene, windowWidth, windowHeight)
+        renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
         hub.add(SceneryElement.RENDERER, renderer!!)
 
         var hull = Box(GLVector(50.0f, 50.0f, 50.0f))

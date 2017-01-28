@@ -16,7 +16,7 @@ class BoxedProteinExample : SceneryDefaultApplication("BoxedProteinExample", win
         try {
             val lightCount = 32
 
-            renderer = Renderer.createRenderer(applicationName, scene, windowWidth, windowHeight)
+            renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
             hub.add(SceneryElement.RENDERER, renderer!!)
 
             val cam: Camera = DetachedHeadCamera()

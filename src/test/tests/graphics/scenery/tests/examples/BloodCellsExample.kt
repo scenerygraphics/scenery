@@ -5,25 +5,28 @@ import cleargl.GLVector
 import graphics.scenery.*
 import org.junit.Test
 import graphics.scenery.backends.Renderer
-import graphics.scenery.controls.OpenVRInput
+import graphics.scenery.controls.OpenVRHMDInput
 import graphics.scenery.backends.ShaderPreference
 import graphics.scenery.repl.REPL
 import java.io.IOException
 import java.util.*
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 
 /**
  * Created by ulrik on 20/01/16.
  */
 class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowWidth = 1280, windowHeight = 720) {
-    private var ovr: OpenVRInput? = null
+    private var ovr: OpenVRHMDInput? = null
 
     override fun init() {
         try {
-            ovr = OpenVRInput(seated = false, useCompositor = true)
+            ovr = OpenVRHMDInput(seated = false, useCompositor = true)
             hub.add(SceneryElement.HMDINPUT, ovr!!)
 
-            renderer = Renderer.createRenderer(applicationName, scene, windowWidth, windowHeight)
+            renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
             hub.add(SceneryElement.RENDERER, renderer!!)
 
             val cam: Camera = DetachedHeadCamera()
@@ -221,23 +224,22 @@ class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowW
 
                 boxes.mapIndexed {
                     i, box ->
-                    //                                light.position.set(i % 3, step*10 * ticks)
-
                     box.position = GLVector(
                         Math.exp(i.toDouble()).toFloat() * 10 * Math.sin(phi).toFloat() + Math.exp(i.toDouble()).toFloat(),
                         step * ticks,
                         Math.exp(i.toDouble()).toFloat() * 10 * Math.cos(phi).toFloat() + Math.exp(i.toDouble()).toFloat())
 
                     box.children[0].position = box.position
-
                 }
 
-                bloodCells.forEachIndexed { i, bloodCell ->
-                    hoverAndTumble(bloodCell, 0.003f, phi.toFloat(), i)
+                var i=0
+                bloodCells.parallelMap { bloodCell ->
+                    hoverAndTumble(bloodCell, 0.003f, phi.toFloat(), i++)
                 }
 
-                leucocytes.forEachIndexed { i, leukocyte ->
-                    hoverAndTumble(leukocyte, 0.001f, phi.toFloat() / 100.0f, i)
+                i=0
+                leucocytes.parallelMap { leukocyte ->
+                    hoverAndTumble(leukocyte, 0.001f, phi.toFloat() / 100.0f, i++)
                 }
 
                 container.position = container.position - GLVector(0.1f, 0.1f, 0.1f)
@@ -250,6 +252,25 @@ class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowW
             e.printStackTrace()
         }
 
+    }
+
+    fun <T, R> Iterable<T>.parallelMap(
+        numThreads: Int = 8,
+        exec: ExecutorService = Executors.newFixedThreadPool(numThreads),
+        transform: (T) -> R): List<R> {
+
+        // default size is just an inlined version of kotlin.collections.collectionSizeOrDefault
+        val defaultSize = if (this is Collection<*>) this.size else 10
+        val destination = Collections.synchronizedList(ArrayList<R>(defaultSize))
+
+        for (item in this) {
+            exec.submit { destination.add(transform(item)) }
+        }
+
+        exec.shutdown()
+        exec.awaitTermination(1, TimeUnit.DAYS)
+
+        return ArrayList<R>(destination)
     }
 
     @Test override fun main() {

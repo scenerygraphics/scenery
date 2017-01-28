@@ -2,8 +2,8 @@ package graphics.scenery.controls
 
 import cleargl.GLMatrix
 import cleargl.GLVector
-import com.sun.jna.Pointer
-import com.sun.jna.Structure
+import com.ochafik.lang.jnaerator.runtime.CharByReference
+import com.sun.jna.*
 import com.sun.jna.ptr.FloatByReference
 import com.sun.jna.ptr.IntByReference
 import com.sun.jna.ptr.LongByReference
@@ -14,7 +14,9 @@ import graphics.scenery.Hub
 import graphics.scenery.Hubable
 import org.lwjgl.vulkan.VkDevice
 import org.lwjgl.vulkan.VkInstance
+import org.lwjgl.vulkan.VkPhysicalDevice
 import org.lwjgl.vulkan.VkQueue
+import java.nio.ByteBuffer
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.nio.LongBuffer
@@ -41,7 +43,7 @@ open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean
     /** Compositor function table of the OpenVR library */
     protected var compositorFuncs: VR_IVRCompositor_FnTable? = null
     /** Has the HMD already been initialised? */
-    protected var initialized = false
+    @Volatile protected var initialized = false
 
     /** HMD reference pose */
     protected var hmdTrackedDevicePoseReference: TrackedDevicePose_t? = null
@@ -97,6 +99,7 @@ open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean
 
                 initialized = false
             } else {
+                initialized = true
                 logger.info("OpenVR: Initialized.")
 
                 vrFuncs?.setAutoSynch(false)
@@ -129,8 +132,6 @@ open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean
 
                 eyeTransformCache.add(null)
                 eyeTransformCache.add(null)
-
-                initialized = true
             }
 
         } catch(e: UnsatisfiedLinkError) {
@@ -284,7 +285,7 @@ open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean
     /**
      * Queries the OpenVR runtime for updated poses and stores them
      */
-    fun updatePose() {
+    override fun update() {
         if (vrFuncs == null) {
             return
         }
@@ -375,14 +376,20 @@ open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean
         val leftTexture = Texture_t()
         val rightTexture = Texture_t()
 
+        val mLeft = Memory(4)
+        mLeft.setInt(0, leftId)
+
+        val mRight = Memory(4)
+        mRight.setInt(0, rightId)
+
         leftTexture.eColorSpace = jvr.EColorSpace.EColorSpace_ColorSpace_Gamma
         rightTexture.eColorSpace = jvr.EColorSpace.EColorSpace_ColorSpace_Gamma
 
         leftTexture.eType = jvr.ETextureType.ETextureType_TextureType_OpenGL
         rightTexture.eType = jvr.ETextureType.ETextureType_TextureType_OpenGL
 
-        leftTexture.handle.setInt(0, leftId)
-        rightTexture.handle.setInt(0, rightId)
+        leftTexture.handle = mLeft
+        rightTexture.handle = mRight
 
         val bounds = VRTextureBounds_t()
         bounds.uMin = 0.0f
@@ -395,44 +402,115 @@ open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean
     }
 
     override fun submitToCompositorVulkan(width: Int, height: Int, format: Int,
-                                          instance: VkInstance, device: VkDevice,
+                                          instance: VkInstance, device: VkDevice, physicalDevice: VkPhysicalDevice,
                                           queue: VkQueue, queueFamilyIndex: Int,
                                           image: Long) {
 
-        val instancePointer = Pointer.createConstant(instance.address())
-        val devicePointer = Pointer.createConstant(device.address())
-        val queuePointer = Pointer.createConstant(queue.address())
+        val instancePointer = Pointer(instance.address())
+        val devicePointer = Pointer(device.address())
+        val physicalDevicePointer = Pointer(physicalDevice.address())
+        val queuePointer = Pointer(queue.address())
 
         val textureData = VRVulkanTextureData_t()
-        textureData.m_nFormat = format
+        textureData.m_nImage = image
+        textureData.m_pDevice = jvr.VkDevice_T(devicePointer)
+        textureData.m_pPhysicalDevice = jvr.VkPhysicalDevice_T(physicalDevicePointer)
+        textureData.m_pInstance = jvr.VkInstance_T(instancePointer)
+        textureData.m_pQueue = jvr.VkQueue_T(queuePointer)
+        textureData.m_nQueueFamilyIndex = queueFamilyIndex
+
         textureData.m_nWidth = width
         textureData.m_nHeight = height
-        textureData.m_pQueue = graphics.scenery.jopenvr.JOpenVRLibrary.VkQueue_T(queuePointer)
-        textureData.m_nQueueFamilyIndex = queueFamilyIndex
-        textureData.m_pInstance = graphics.scenery.jopenvr.JOpenVRLibrary.VkInstance_T(instancePointer)
-        textureData.m_pDevice = graphics.scenery.jopenvr.JOpenVRLibrary.VkDevice_T(devicePointer)
+        textureData.m_nFormat = format
         textureData.m_nSampleCount = 1
-        textureData.m_nImage = image
+        textureData.write()
 
         val texture = Texture_t()
         texture.eType = jvr.ETextureType.ETextureType_TextureType_Vulkan
         texture.eColorSpace = jvr.EColorSpace.EColorSpace_ColorSpace_Gamma
         texture.handle = textureData.pointer
+        texture.write()
 
-        val bounds = VRTextureBounds_t()
-        bounds.uMin = 0.0f
-        bounds.uMax = 0.5f
-        bounds.vMin = 0.0f
-        bounds.vMax = 1.0f
+        val boundsLeft = VRTextureBounds_t(0.0f, 0.0f, 0.5f, 1.0f)
+        boundsLeft.write()
 
-        compositorFuncs!!.Submit.apply(0, texture, bounds, 0)
+        val err_left = compositorFuncs!!.Submit.apply(jvr.EVREye.EVREye_Eye_Left,
+            texture, boundsLeft, 0)
 
-        bounds.uMin = 0.5f
-        bounds.uMax = 1.0f
-        bounds.vMin = 0.0f
-        bounds.vMax = 1.0f
+        val boundsRight = VRTextureBounds_t(0.5f, 0.0f, 1.0f, 1.0f)
+        boundsRight.write()
 
-        compositorFuncs!!.Submit.apply(1, texture, bounds, 0)
+        val err_right = compositorFuncs!!.Submit.apply(jvr.EVREye.EVREye_Eye_Right,
+            texture, boundsRight, 0)
+
+        if(err_left != jvr.EVRCompositorError.EVRCompositorError_VRCompositorError_None
+            || err_right != jvr.EVRCompositorError.EVRCompositorError_VRCompositorError_None) {
+            logger.error("Compositor error: ${translateError(err_left)} ($err_left)/${translateError(err_right)} ($err_right)")
+        }
+    }
+
+    private fun translateError(error: Int): String {
+        return when (error) {
+            jvr.EVRCompositorError.EVRCompositorError_VRCompositorError_None ->
+                "No error"
+            jvr.EVRCompositorError.EVRCompositorError_VRCompositorError_RequestFailed ->
+                "Request failed"
+            jvr.EVRCompositorError.EVRCompositorError_VRCompositorError_IncompatibleVersion ->
+                "Incompatible API version"
+            jvr.EVRCompositorError.EVRCompositorError_VRCompositorError_DoNotHaveFocus ->
+                "Compositor does not have focus"
+            jvr.EVRCompositorError.EVRCompositorError_VRCompositorError_InvalidTexture ->
+                "Invalid texture"
+            jvr.EVRCompositorError.EVRCompositorError_VRCompositorError_IsNotSceneApplication ->
+                "Not scene application"
+            jvr.EVRCompositorError.EVRCompositorError_VRCompositorError_TextureIsOnWrongDevice ->
+                "Texture is on wrong device"
+            jvr.EVRCompositorError.EVRCompositorError_VRCompositorError_TextureUsesUnsupportedFormat ->
+                "Texture uses unsupported format"
+            jvr.EVRCompositorError.EVRCompositorError_VRCompositorError_SharedTexturesNotSupported ->
+                "Shared textures are not supported"
+            jvr.EVRCompositorError.EVRCompositorError_VRCompositorError_IndexOutOfRange ->
+                "Index out of range"
+            jvr.EVRCompositorError.EVRCompositorError_VRCompositorError_AlreadySubmitted ->
+                "Already submitted"
+            else ->
+                "Unknown error"
+        }
+    }
+
+    override fun getVulkanInstanceExtensions(): List<String> {
+        compositorFuncs?.let {
+            val buffer = Memory(1024)
+            val count = it.GetVulkanInstanceExtensionsRequired.apply(Pointer(0), 0)
+
+            if(count == 0) {
+                return listOf()
+            } else {
+                it.GetVulkanInstanceExtensionsRequired.apply(buffer, count)
+                return Native.toString(buffer.getByteArray(0, count)).split(' ')
+            }
+        }
+
+        return listOf()
+    }
+
+    override fun getVulkanDeviceExtensions(physicalDevice: VkPhysicalDevice): List<String> {
+        val physicalDeviceT = graphics.scenery.jopenvr.JOpenVRLibrary.VkPhysicalDevice_T(Pointer(physicalDevice.address()))
+
+        compositorFuncs?.let {
+            val buffer = Memory(1024)
+
+            val count = it.GetVulkanDeviceExtensionsRequired.apply(physicalDeviceT, Pointer(0), 0)
+
+            if(count == 0) {
+                return listOf()
+            } else {
+                it.GetVulkanDeviceExtensionsRequired.apply(physicalDeviceT, buffer, count)
+                return Native.toString(buffer.getByteArray(0, count)).split(' ')
+            }
+        }
+
+        return listOf()
     }
 
     /**

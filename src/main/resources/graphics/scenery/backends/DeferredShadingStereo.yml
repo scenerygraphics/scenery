@@ -29,6 +29,7 @@ renderpasses:
     output: GeometryBuffer
     viewportSize: 0.5, 1.0
     viewportOffset: 0.0, 0.0
+    vr: LeftEye
   rightEye:
     type: geometry
     shaders:
@@ -37,6 +38,7 @@ renderpasses:
     output: GeometryBuffer
     viewportSize: 0.5, 1.0
     viewportOffset: 0.5, 0.0
+    vr: rightEye
   DeferredLighting:
     type: quad
     shaders:

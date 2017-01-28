@@ -141,7 +141,7 @@ open class OpenGLRenderer : Renderer, Hubable, ClearGLDefaultEventListener {
      * @param[width] window width
      * @param[height] window height
      */
-    constructor(applicationName: String, scene: Scene, width: Int, height: Int) {
+    constructor(hub: Hub, applicationName: String, scene: Scene, width: Int, height: Int) {
 
         this.settings = this.getDefaultRendererSettings()
         this.window.width = width

@@ -43,7 +43,8 @@ import kotlin.concurrent.thread
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-open class VulkanRenderer(applicationName: String,
+open class VulkanRenderer(hub: Hub,
+                          applicationName: String,
                           scene: Scene,
                           windowWidth: Int,
                           windowHeight: Int,
@@ -296,8 +297,17 @@ open class VulkanRenderer(applicationName: String,
         }
 
     init {
-        window.width = windowWidth
-        window.height = windowHeight
+        this.hub = hub
+
+        val hmd = hub.getWorkingHMD()
+        if(hmd != null) {
+            val bounds = hmd.getRenderTargetSize()
+            window.width = bounds.x().toInt()*2
+            window.height = bounds.y().toInt()
+        } else {
+            window.width = windowWidth
+            window.height = windowHeight
+        }
 
         this.applicationName = applicationName
         this.scene = scene
@@ -1360,6 +1370,14 @@ open class VulkanRenderer(applicationName: String,
             screenshotRequested = false
         }
 
+        // submit to OpenVR if attached
+        hub?.getWorkingHMD()?.submitToCompositorVulkan(
+            window.width, window.height,
+            VK_FORMAT_R8G8B8A8_SRGB,
+            instance, device, physicalDevice,
+            queue, queueFamilyIndex,
+            swapchain!!.images!![pass.getReadPosition()])
+
         pass.nextSwapchainImage()
 
         submitInfo.free()
@@ -1486,11 +1504,18 @@ open class VulkanRenderer(applicationName: String,
             .pEngineName(memUTF8("scenery"))
             .apiVersion(VK_MAKE_VERSION(1, 0, 24))
 
-        val ppEnabledExtensionNames = memAllocPointer(requiredExtensions.remaining() + 1)
+        val hmd = hub?.getWorkingHMD()
+        val additionalExts: List<String> = hmd?.getVulkanInstanceExtensions() ?: listOf()
+        logger.info("HMD required instance exts: ${additionalExts.joinToString(", ")} ${additionalExts.size}")
+        val utf8Exts = additionalExts.map(::memUTF8)
+
+        val ppEnabledExtensionNames = memAllocPointer(requiredExtensions.remaining() + additionalExts.size + 1)
         ppEnabledExtensionNames.put(requiredExtensions)
         val VK_EXT_DEBUG_REPORT_EXTENSION = memUTF8(VK_EXT_DEBUG_REPORT_EXTENSION_NAME)
         ppEnabledExtensionNames.put(VK_EXT_DEBUG_REPORT_EXTENSION)
+        utf8Exts.forEach { ppEnabledExtensionNames.put(it) }
         ppEnabledExtensionNames.flip()
+
         val ppEnabledLayerNames = memAllocPointer(layers.size)
         var i = 0
         while (validation && i < layers.size) {
@@ -1612,10 +1637,18 @@ open class VulkanRenderer(applicationName: String,
             .queueFamilyIndex(graphicsQueueFamilyIndex)
             .pQueuePriorities(pQueuePriorities)
 
-        val extensions = memAllocPointer(1)
+        val hmd = hub?.getWorkingHMD()
+        val additionalExts: List<String> = hmd?.getVulkanDeviceExtensions(physicalDevice) ?: listOf()
+        logger.debug("HMD required device exts: ${additionalExts.joinToString(", ")} ${additionalExts.size}")
+        val utf8Exts = additionalExts.map(::memUTF8)
+
+        val extensions = memAllocPointer(1+additionalExts.size)
         val VK_KHR_SWAPCHAIN_EXTENSION = memUTF8(VK_KHR_SWAPCHAIN_EXTENSION_NAME)
+
         extensions.put(VK_KHR_SWAPCHAIN_EXTENSION)
+        utf8Exts.forEach { extensions.put(it) }
         extensions.flip()
+
         val ppEnabledLayerNames = memAllocPointer(layers.size)
         var i = 0
         while (validation && i < layers.size) {
@@ -1655,6 +1688,7 @@ open class VulkanRenderer(applicationName: String,
         deviceCreateInfo.free()
         memFree(ppEnabledLayerNames)
         memFree(VK_KHR_SWAPCHAIN_EXTENSION)
+        utf8Exts.forEach { memFree(it) }
         memFree(extensions)
         memFree(pQueuePriorities)
         queueCreateInfo.free()
@@ -2511,19 +2545,19 @@ open class VulkanRenderer(applicationName: String,
         }
     }
 
-    private fun updateDefaultUBOs(device: VkDevice) {
+    private fun updateDefaultUBOs(device: VkDevice, eye: Int = -1) {
         val cam = scene.findObserver()
         cam.view = cam.getTransformation()
 
         buffers["UBOBuffer"]!!.reset()
 
-//        val pose = hub?.getWorkingHMD()?.getPose() ?: GLMatrix.getIdentity()
+        hub?.getWorkingHMD()?.update()
+        val pose = hub?.getWorkingHMD()?.getPose() ?: GLMatrix.getIdentity()
 
-        val pose = GLMatrix.getIdentity()
         sceneUBOs.forEach { node, ubo ->
             node.updateWorld(true, false)
 
-            if(ubo.offsets == null || ubo.offsets!!.capacity() < 3) {
+            if (ubo.offsets == null || ubo.offsets!!.capacity() < 3) {
                 ubo.offsets = memAllocInt(3)
             }
 
