@@ -1508,7 +1508,7 @@ open class VulkanRenderer(hub: Hub,
 
         val hmd = hub?.getWorkingHMD()
         val additionalExts: List<String> = hmd?.getVulkanInstanceExtensions() ?: listOf()
-        logger.info("HMD required instance exts: ${additionalExts.joinToString(", ")} ${additionalExts.size}")
+        logger.debug("HMD required instance exts: ${additionalExts.joinToString(", ")} ${additionalExts.size}")
         val utf8Exts = additionalExts.map(::memUTF8)
 
         val ppEnabledExtensionNames = memAllocPointer(requiredExtensions.remaining() + additionalExts.size + 1)
@@ -2584,8 +2584,7 @@ open class VulkanRenderer(hub: Hub,
             node.projection.copyFrom(cam.projection)
             node.projection.set(1, 1, -1.0f * cam.projection.get(1, 1))
 
-            node.modelView.copyFrom(pose)
-            node.modelView.mult(cam.view)
+            node.modelView.copyFrom(cam.view)
             node.modelView.mult(node.world)
 
             node.mvp.copyFrom(node.projection)
