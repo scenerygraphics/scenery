@@ -105,7 +105,7 @@ open class GLFWMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandler,
                 0,
                 0,
                 0, 0,
-                floatArrayOf(xoffset.toFloat(), yoffset.toFloat(), 0.0f), 1.0f))
+                floatArrayOf(xoffset.toFloat()*scrollSpeedMultiplier, yoffset.toFloat()*scrollSpeedMultiplier, 0.0f), 1.0f))
         }
 
     }
@@ -160,6 +160,12 @@ open class GLFWMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandler,
 
     /** behaviour expected modifier count */
     private var behaviourMapExpectedModCount: Int = 0
+
+    /** store os name */
+    private var os = ""
+
+    /** scroll speed multiplier to combat OS idiosyncrasies */
+    private var scrollSpeedMultiplier = 1.0f
 
     /**
      * Utility function to search the current class path for JARs with natie libraries
@@ -225,6 +231,21 @@ open class GLFWMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandler,
     }
 
     init {
+        os = if(System.getProperty("os.name").toLowerCase().indexOf("windows") != -1) {
+            "windows"
+        } else if(System.getProperty("os.name").toLowerCase().indexOf("mac") != -1) {
+            "mac"
+        } else if(System.getProperty("os.name").toLowerCase().indexOf("linux") != -1) {
+            "linux"
+        } else {
+            "unknown"
+        }
+
+        scrollSpeedMultiplier = if(os == "mac") {
+            1.0f
+        } else {
+            10.0f
+        }
 
         logger.debug("Native JARs for JInput: ${getNativeJars("jinput-platform").joinToString(", ")}")
         extractLibrariesFromJar(getNativeJars("jinput-platform"))

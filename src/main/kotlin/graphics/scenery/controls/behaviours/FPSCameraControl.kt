@@ -109,11 +109,14 @@ open class FPSCameraControl(private val name: String, private val node: Camera, 
         xoffset *= 0.1f
         yoffset *= 0.1f
 
-        yaw = xoffset
-        pitch = yoffset
+        yaw += xoffset
+        pitch += yoffset
 
-        val rot = Quaternion().setFromEuler(pitch/180.0f*Math.PI.toFloat(), yaw/180.0f*Math.PI.toFloat(), 0.0f)
-        rot.mult(node.rotation).normalize()
+        val yawR = Quaternion().setFromEuler(0.0f, yaw/180.0f*Math.PI.toFloat(), 0.0f)
+        val pitchR = Quaternion().setFromEuler(pitch/180.0f*Math.PI.toFloat(), 0.0f, 0.0f)
+        val rot = pitchR.mult(yawR).normalize()
+
+//        rot.mult(node.rotation).normalize()
 
         node.rotation = rot
     }

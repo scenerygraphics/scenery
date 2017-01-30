@@ -55,6 +55,12 @@ class JOGLMouseAndKeyHandler(protected var hub: Hub?) : graphics.scenery.control
     /** OSX idiosyncrasy: Mask for right alt click */
     private val OSX_ALT_RIGHT_CLICK = InputEvent.BUTTON3_MASK or InputEvent.BUTTON2_MASK or InputEvent.ALT_MASK or InputEvent.META_MASK
 
+    /** store os name */
+    private var os = ""
+
+    /** scroll speed multiplier to combat OS idiosyncrasies */
+    private var scrollSpeedMultiplier = 1.0f
+
     /**
      * Queries the windowing system for the current double click interval
      *
@@ -146,6 +152,21 @@ class JOGLMouseAndKeyHandler(protected var hub: Hub?) : graphics.scenery.control
     }
 
     init {
+        os = if(System.getProperty("os.name").toLowerCase().indexOf("windows") != -1) {
+            "windows"
+        } else if(System.getProperty("os.name").toLowerCase().indexOf("mac") != -1) {
+            "mac"
+        } else if(System.getProperty("os.name").toLowerCase().indexOf("linux") != -1) {
+            "linux"
+        } else {
+            "unknown"
+        }
+
+        scrollSpeedMultiplier = if(os == "mac") {
+            1.0f
+        } else {
+            10.0f
+        }
 
         logger.debug("Native JARs for JInput: ${getNativeJars("jinput-platform").joinToString(", ")}")
         extractLibrariesFromJar(getNativeJars("jinput-platform"))
@@ -486,9 +507,9 @@ class JOGLMouseAndKeyHandler(protected var hub: Hub?) : graphics.scenery.control
         for (scroll in scrolls) {
             if (scroll.buttons.matches(mask, pressedKeys)) {
                 if(isHorizontal) {
-                    scroll.behaviour.scroll(wheelRotation[0].toDouble(), isHorizontal, x, y)
+                    scroll.behaviour.scroll(wheelRotation[0].toDouble()*scrollSpeedMultiplier, isHorizontal, x, y)
                 } else {
-                    scroll.behaviour.scroll(wheelRotation[1].toDouble(), isHorizontal, x, y)
+                    scroll.behaviour.scroll(wheelRotation[1].toDouble()*scrollSpeedMultiplier, isHorizontal, x, y)
                 }
             }
         }
