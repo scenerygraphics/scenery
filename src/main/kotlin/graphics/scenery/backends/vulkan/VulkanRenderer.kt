@@ -2,6 +2,7 @@ package graphics.scenery.backends.vulkan
 
 import cleargl.GLMatrix
 import cleargl.GLVector
+import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.*
 import org.lwjgl.PointerBuffer
 import org.lwjgl.glfw.GLFW.*
@@ -264,7 +265,7 @@ open class VulkanRenderer(hub: Hub,
     protected val swapchainRecreator: SwapchainRecreator
     protected var pipelineCache: Long = -1L
     protected var vertexDescriptors = ConcurrentHashMap<VertexDataKinds, VertexDescription>()
-    protected var sceneUBOs = ConcurrentHashMap<Node, UBO>()
+    protected var sceneUBOs = ArrayList<Node>()
     protected var semaphores = ConcurrentHashMap<StandardSemaphores, Array<Long>>()
     protected var buffers = HashMap<String, VulkanBuffer>()
     protected var textureCache = ConcurrentHashMap<String, VulkanTexture>()
@@ -634,8 +635,9 @@ open class VulkanRenderer(hub: Hub,
 
             requiredOffsetCount = 2
             createUniformBuffer(memoryProperties)
-            sceneUBOs.put(node, this)
-            s.UBOs.put("Default", this)
+            sceneUBOs.add(node)
+
+            s.UBOs.put("Default", descriptorSets["default"]!!.to(this))
         }
 
         s = loadTexturesForNode(node, s)
@@ -670,7 +672,7 @@ open class VulkanRenderer(hub: Hub,
 
                 requiredOffsetCount = 1
                 createUniformBuffer(memoryProperties)
-                s.UBOs.put("BlinnPhongMaterial", this)
+                s.UBOs.put("BlinnPhongMaterial", descriptorSets["default"]!!.to(this))
             }
         } else {
             val materialUbo = UBO(device, backingBuffer = buffers["UBOBuffer"])
@@ -686,7 +688,7 @@ open class VulkanRenderer(hub: Hub,
 
                 requiredOffsetCount = 1
                 createUniformBuffer(memoryProperties)
-                s.UBOs.put("BlinnPhongMaterial", this)
+                s.UBOs.put("BlinnPhongMaterial", descriptorSets["default"]!!.to(this))
             }
         }
 
@@ -748,7 +750,7 @@ open class VulkanRenderer(hub: Hub,
 
         val s = node.metadata["VulkanRenderer"] as VulkanObjectState
 
-        s.UBOs.forEach { it.value.close() }
+        s.UBOs.forEach { it.value.second.close() }
 
         if(node is HasGeometry) {
             s.vertexBuffers.forEach {
@@ -2266,6 +2268,12 @@ open class VulkanRenderer(hub: Hub,
             wantAligned = true,
             allocationSize = 512 * 1024 * 10))
 
+        map.put("UBOBuffer-1", VU.createBuffer(device, this.memoryProperties,
+            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            wantAligned = true,
+            allocationSize = 512 * 1024 * 10))
+
         return map
     }
 
@@ -2369,7 +2377,7 @@ open class VulkanRenderer(hub: Hub,
 
                 pass.vulkanMetadata.vertexBufferOffsets.put(0, 0)
                 pass.vulkanMetadata.vertexBuffers.put(0, s.vertexBuffers["vertex+index"]!!.buffer)
-                pass.vulkanMetadata.descriptorSets.put(0, descriptorSets["default"]!!)
+                pass.vulkanMetadata.descriptorSets.put(0, s.UBOs["Default"]!!.first)
 
                 if (s.textures.size > 0) {
                     pass.vulkanMetadata.descriptorSets.put(1, s.textureDescriptorSet)
@@ -2380,7 +2388,7 @@ open class VulkanRenderer(hub: Hub,
 
                 vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline)
                 vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                    pipeline.layout, 0, pass.vulkanMetadata.descriptorSets, sceneUBOs[node]!!.offsets)
+                    pipeline.layout, 0, pass.vulkanMetadata.descriptorSets, s.UBOs["Default"]!!.second.offsets)
                 vkCmdBindVertexBuffers(this, 0, pass.vulkanMetadata.vertexBuffers, pass.vulkanMetadata.vertexBufferOffsets)
 
                 logger.trace("now drawing {}, {} DS bound, {} textures", node.name, pass.vulkanMetadata.descriptorSets.capacity(), s.textures.count())
@@ -2419,7 +2427,7 @@ open class VulkanRenderer(hub: Hub,
 
                 vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline)
                 vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                    pipeline.layout, 0, pass.vulkanMetadata.descriptorSets, sceneUBOs[node]!!.offsets)
+                    pipeline.layout, 0, pass.vulkanMetadata.descriptorSets, s.UBOs["Default"]!!.second.offsets)
 
                 vkCmdBindVertexBuffers(this, 0, pass.vulkanMetadata.vertexBuffers, pass.vulkanMetadata.vertexBufferOffsets)
                 vkCmdBindVertexBuffers(this, 1, pass.vulkanMetadata.instanceBuffers, pass.vulkanMetadata.vertexBufferOffsets)
@@ -2489,7 +2497,8 @@ open class VulkanRenderer(hub: Hub,
                 } else if (spec.name.startsWith("inputs")) {
                     "inputs-${pass.name}"
                 } else if (spec.name.startsWith("Matrices")) {
-                    pass.vulkanMetadata.uboOffsets.put(sceneUBOs.values.first().offsets)
+                    val offsets = (sceneUBOs.first().metadata["VulkanRenderer"] as VulkanObjectState).UBOs["Default"]!!.second.offsets
+                    pass.vulkanMetadata.uboOffsets.put(offsets)
                     requiredDynamicOffsets += 3
 
                     "default"
@@ -2547,15 +2556,21 @@ open class VulkanRenderer(hub: Hub,
 
     private fun updateDefaultUBOs(device: VkDevice, eye: Int = -1) {
         val cam = scene.findObserver()
-        cam.view = cam.getTransformation()
+        val pose = hub?.getWorkingHMD()?.getPose() ?: GLMatrix.getIdentity()
+        val orientation = hub?.getWorkingHMD()?.getOrientation() ?: Quaternion().setIdentity()
+
+        cam.view = cam.getTransformation(orientation)
 
         buffers["UBOBuffer"]!!.reset()
+        buffers["UBOBuffer-1"]!!.reset()
 
-        hub?.getWorkingHMD()?.update()
-        val pose = hub?.getWorkingHMD()?.getPose() ?: GLMatrix.getIdentity()
+        sceneUBOs.forEach { node ->
+            val ubo = (node.metadata["VulkanRenderer"] as VulkanObjectState).UBOs["Default"]!!.second
 
-        sceneUBOs.forEach { node, ubo ->
+//            ubo.updateBackingBuffer(buffers["UBOBuffer-1"]!!)
             node.updateWorld(true, false)
+
+//            ubo.updateBackingBuffer(buffers[arrayOf("UBOBuffer", "UBOBuffer-1").get(frames % 2)]!!)
 
             if (ubo.offsets == null || ubo.offsets!!.capacity() < 3) {
                 ubo.offsets = memAllocInt(3)
@@ -2563,7 +2578,7 @@ open class VulkanRenderer(hub: Hub,
 
             (0..2).forEach { ubo.offsets!!.put(it, 0) }
 
-            var bufferOffset = buffers["UBOBuffer"]!!.advance()
+            var bufferOffset = ubo.backingBuffer!!.advance()
             ubo.offsets!!.put(0, bufferOffset)
 
             node.projection.copyFrom(cam.projection)
@@ -2578,14 +2593,15 @@ open class VulkanRenderer(hub: Hub,
 
             ubo.populate(offset = bufferOffset.toLong())
 
-            val materialUbo = (node.metadata["VulkanRenderer"]!! as VulkanObjectState).UBOs["BlinnPhongMaterial"]!!
-            bufferOffset = buffers["UBOBuffer"]!!.advance()
+            val materialUbo = (node.metadata["VulkanRenderer"]!! as VulkanObjectState).UBOs["BlinnPhongMaterial"]!!.second
+            bufferOffset = ubo.backingBuffer!!.advance()
             ubo.offsets!!.put(1, bufferOffset)
 
             materialUbo.populate(offset = bufferOffset.toLong())
         }
 
         buffers["UBOBuffer"]!!.copyFromStagingBuffer()
+        buffers["UBOBuffer-1"]!!.copyFromStagingBuffer()
 
         buffers["LightParametersBuffer"]!!.reset()
 

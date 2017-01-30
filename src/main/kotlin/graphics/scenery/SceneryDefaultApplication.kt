@@ -105,6 +105,9 @@ open class SceneryDefaultApplication(var applicationName: String,
 
         while(renderer!!.shouldClose == false) {
             val start = System.nanoTime()
+
+            hub.getWorkingHMD()?.update()
+
             if(renderer!!.managesRenderLoop) {
                 Thread.sleep(2)
             } else {

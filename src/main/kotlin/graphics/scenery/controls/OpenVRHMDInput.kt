@@ -2,6 +2,7 @@ package graphics.scenery.controls
 
 import cleargl.GLMatrix
 import cleargl.GLVector
+import com.jogamp.opengl.math.Quaternion
 import com.sun.jna.*
 import com.sun.jna.ptr.FloatByReference
 import com.sun.jna.ptr.IntByReference
@@ -76,6 +77,9 @@ open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean
     var debugLatency = false
     /** Frame count per-vsync */
     private var frames = 0
+
+    /** disables submission in case of compositor errors */
+    private var disableSubmission: Boolean = false
 
     init {
         error.put(0, -1)
@@ -216,9 +220,9 @@ open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean
      * @param[eye] The index of the eye
      * @return GLMatrix containing the per-eye projection matrix
      */
-    override fun getEyeProjection(eye: Int): GLMatrix {
+    override fun getEyeProjection(eye: Int, nearPlane: Float, farPlane: Float): GLMatrix {
         if (eyeProjectionCache[eye] == null) {
-            val proj = vr!!.GetProjectionMatrix!!.apply(eye, 0.1f, 10000f)
+            val proj = vr!!.GetProjectionMatrix!!.apply(eye, nearPlane, farPlane)
             proj.read()
 
             eyeProjectionCache[eye] = proj.toGLMatrix().transpose()
@@ -265,8 +269,20 @@ open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean
      *
      * @returns GLMatrix with orientation
      */
-    override fun getOrientation(): GLMatrix {
-        return GLMatrix.getIdentity()
+    override fun getOrientation(): Quaternion {
+        val q = Quaternion()
+        val pose = getPose().transposedFloatArray
+
+        q.w = Math.sqrt(1.0*Math.max(0.0f, 1.0f + pose[0] + pose[5] + pose[10])).toFloat() / 2.0f
+        q.x = Math.sqrt(1.0*Math.max(0.0f, 1.0f + pose[0] - pose[5] - pose[10])).toFloat() / 2.0f
+        q.y = Math.sqrt(1.0*Math.max(0.0f, 1.0f - pose[0] + pose[5] - pose[10])).toFloat() / 2.0f
+        q.z = Math.sqrt(1.0*Math.max(0.0f, 1.0f - pose[0] - pose[5] + pose[10])).toFloat() / 2.0f
+
+        q.x *= Math.signum(q.x * (pose[9] - pose[6]))
+        q.y *= Math.signum(q.y * (pose[2] - pose[8]))
+        q.z *= Math.signum(q.z * (pose[4] - pose[1]))
+
+        return q
     }
 
     /**
@@ -275,7 +291,8 @@ open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean
      * @return HMD position as GLVector
      */
     override fun getPosition(): GLVector {
-        return GLVector.getNullVector(3)
+        val m = getPose().floatArray
+        return GLVector(m[12], m[13], m[14])
     }
 
     /**
@@ -427,21 +444,30 @@ open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean
         texture.handle = textureData.pointer
         texture.write()
 
-        val boundsLeft = VRTextureBounds_t(0.0f, 0.0f, 0.5f, 1.0f)
-        boundsLeft.write()
+        try {
+            if(disableSubmission == true) {
+                return
+            }
 
-        val err_left = compositor!!.Submit.apply(jvr.EVREye.EVREye_Eye_Left,
-            texture, boundsLeft, 0)
+            val boundsLeft = VRTextureBounds_t(0.0f, 0.0f, 0.5f, 1.0f)
+            boundsLeft.write()
 
-        val boundsRight = VRTextureBounds_t(0.5f, 0.0f, 1.0f, 1.0f)
-        boundsRight.write()
+            val err_left = compositor!!.Submit.apply(jvr.EVREye.EVREye_Eye_Left,
+                texture, boundsLeft, 0)
 
-        val err_right = compositor!!.Submit.apply(jvr.EVREye.EVREye_Eye_Right,
-            texture, boundsRight, 0)
+            val boundsRight = VRTextureBounds_t(0.5f, 0.0f, 1.0f, 1.0f)
+            boundsRight.write()
 
-        if(err_left != jvr.EVRCompositorError.EVRCompositorError_VRCompositorError_None
-            || err_right != jvr.EVRCompositorError.EVRCompositorError_VRCompositorError_None) {
-            logger.error("Compositor error: ${translateError(err_left)} ($err_left)/${translateError(err_right)} ($err_right)")
+            val err_right = compositor!!.Submit.apply(jvr.EVREye.EVREye_Eye_Right,
+                texture, boundsRight, 0)
+
+            if (err_left != jvr.EVRCompositorError.EVRCompositorError_VRCompositorError_None
+                || err_right != jvr.EVRCompositorError.EVRCompositorError_VRCompositorError_None) {
+                logger.error("Compositor error: ${translateError(err_left)} ($err_left)/${translateError(err_right)} ($err_right)")
+            }
+        } catch(e: java.lang.Error) {
+            logger.error("Compositor submission failed, please restart the HMD, SteamVR and the application.")
+            disableSubmission = true
         }
     }
 
@@ -545,19 +571,12 @@ open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean
      * @return 4x4 GLMatrix created from the original matrix
      */
     fun HmdMatrix34_t.toGLMatrix(): GLMatrix {
-        val m = GLMatrix(floatArrayOf(
+        return GLMatrix(floatArrayOf(
             m[0], m[4], m[8], 0.0f,
             m[1], m[5], m[9], 0.0f,
             m[2], m[6], m[10], 0.0f,
             m[3], m[7], m[11], 1.0f
         ))
-//        val m = GLMatrix(floatArrayOf(
-//                m[0], m[1], m[2], m[3],
-//                m[4], m[5], m[6], m[7],
-//                m[8], m[9], m[10], m[11],
-//                0.0f, 0.0f, 0.0f, 1.0f
-//        ))
-        return m
     }
 
     /**

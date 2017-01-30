@@ -2,6 +2,7 @@ package graphics.scenery.controls
 
 import cleargl.GLMatrix
 import cleargl.GLVector
+import com.jogamp.opengl.math.Quaternion
 import org.lwjgl.vulkan.VkDevice
 import org.lwjgl.vulkan.VkInstance
 import org.lwjgl.vulkan.VkPhysicalDevice
@@ -19,7 +20,7 @@ interface HMDInput {
      * @param[eye] The index of the eye
      * @return GLMatrix containing the per-eye projection matrix
      */
-    fun getEyeProjection(eye: Int): GLMatrix
+    fun getEyeProjection(eye: Int, nearPlane: Float = 1.0f, farPlane: Float = 1000.0f): GLMatrix
 
     /**
      * Returns the inter-pupillary distance (IPD)
@@ -33,7 +34,7 @@ interface HMDInput {
      *
      * @returns GLMatrix with orientation
      */
-    fun getOrientation(): GLMatrix
+    fun getOrientation(): Quaternion
 
     /**
      * Returns the absolute position as GLVector
