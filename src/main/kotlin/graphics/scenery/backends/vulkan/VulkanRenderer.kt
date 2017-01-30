@@ -623,6 +623,11 @@ open class VulkanRenderer(hub: Hub,
             s = createVertexBuffers(device, node, s)
         }
 
+        val defaultDescriptorSet =
+            VU.createDescriptorSetDynamic(device, descriptorPool,
+                descriptorSetLayouts["default"]!!, standardUBOs.count(),
+                buffers["UBOBuffer"]!!)
+
         val matricesUbo = UBO(device, backingBuffer = buffers["UBOBuffer"])
         with(matricesUbo) {
             name = "Default"
@@ -637,7 +642,7 @@ open class VulkanRenderer(hub: Hub,
             createUniformBuffer(memoryProperties)
             sceneUBOs.add(node)
 
-            s.UBOs.put("Default", descriptorSets["default"]!!.to(this))
+            s.UBOs.put("Default", defaultDescriptorSet.to(this))
         }
 
         s = loadTexturesForNode(node, s)
@@ -672,7 +677,7 @@ open class VulkanRenderer(hub: Hub,
 
                 requiredOffsetCount = 1
                 createUniformBuffer(memoryProperties)
-                s.UBOs.put("BlinnPhongMaterial", descriptorSets["default"]!!.to(this))
+                s.UBOs.put("BlinnPhongMaterial", defaultDescriptorSet.to(this))
             }
         } else {
             val materialUbo = UBO(device, backingBuffer = buffers["UBOBuffer"])
@@ -688,7 +693,7 @@ open class VulkanRenderer(hub: Hub,
 
                 requiredOffsetCount = 1
                 createUniformBuffer(memoryProperties)
-                s.UBOs.put("BlinnPhongMaterial", descriptorSets["default"]!!.to(this))
+                s.UBOs.put("BlinnPhongMaterial", defaultDescriptorSet.to(this))
             }
         }
 
@@ -2411,7 +2416,7 @@ open class VulkanRenderer(hub: Hub,
 
                 pass.vulkanMetadata.vertexBufferOffsets.put(0, 0)
                 pass.vulkanMetadata.vertexBuffers.put(0, s.vertexBuffers["vertex+index"]!!.buffer)
-                pass.vulkanMetadata.descriptorSets.put(0, descriptorSets["default"]!!)
+                pass.vulkanMetadata.descriptorSets.put(0, s.UBOs["Default"]!!.first)
 
                 if (s.textures.size > 0) {
                     pass.vulkanMetadata.descriptorSets.put(1, s.textureDescriptorSet)
