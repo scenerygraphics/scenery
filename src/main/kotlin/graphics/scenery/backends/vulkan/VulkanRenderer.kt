@@ -22,6 +22,8 @@ import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.backends.createRenderpassFlow
 import graphics.scenery.backends.ShaderPreference
 import graphics.scenery.fonts.SDFFontAtlas
+import graphics.scenery.utils.GPUStats
+import graphics.scenery.utils.NvidiaGPUStats
 import graphics.scenery.utils.Statistics
 import java.awt.image.BufferedImage
 import java.awt.image.DataBufferByte
@@ -278,6 +280,7 @@ open class VulkanRenderer(hub: Hub,
     protected var frames = 0
     protected var totalFrames = 0L
     protected var heartbeatTimer = Timer()
+    protected var gpuStats: GPUStats? = null
     protected var lastResize = -1L
 
     private var renderConfig: RenderConfigReader.RenderConfig
@@ -390,6 +393,23 @@ open class VulkanRenderer(hub: Hub,
                 fps = frames
                 frames = 0
 
+                gpuStats?.let {
+                    it.update(0)
+
+                    hub.get(SceneryElement.STATISTICS).let { s ->
+                        val stats = s as Statistics
+
+                        stats.add("GPU", it.get("GPU"), isTime = false)
+                        stats.add("GPU bus", it.get("Bus"), isTime = false)
+                        stats.add("GPU mem", it.get("AvailableDedicatedVideoMemory"), isTime = false)
+                    }
+
+                    if(settings.get<Boolean>("VulkanRenderer.PrintGPUStats")) {
+                        logger.info(it.utilisationToString())
+                        logger.info(it.memoryUtilisationToString())
+                    }
+                }
+
                 glfwSetWindowTitle(window.glfwWindow!!,
                     "$applicationName [${this@VulkanRenderer.javaClass.simpleName}, ${this@VulkanRenderer.renderConfig.name}${if (validation) {
                         " - VALIDATIONS ENABLED"
@@ -459,6 +479,8 @@ open class VulkanRenderer(hub: Hub,
         ds.set("hdr.Gamma", 2.2f)
 
         ds.set("sdf.MaxDistance", 10)
+
+        ds.set("VulkanRenderer.PrintGPUStats", false)
 
         return ds
     }
@@ -1595,11 +1617,17 @@ open class VulkanRenderer(hub: Hub,
 
         logger.info("Physical devices: ")
         val properties: VkPhysicalDeviceProperties = VkPhysicalDeviceProperties.calloc()
+        var vendor = ""
 
         for (i in 0..pPhysicalDeviceCount.get(0) - 1) {
             val device = VkPhysicalDevice(pPhysicalDevices.get(i), instance)
 
             vkGetPhysicalDeviceProperties(device, properties)
+
+            if(devicePreference == i) {
+                vendor = VU.vendorToString(properties.vendorID())
+            }
+
             logger.info("  $i: ${VU.vendorToString(properties.vendorID())} ${properties.deviceNameString()} (${VU.deviceTypeToString(properties.deviceType())}, driver version ${VU.driverVersionToString(properties.driverVersion())}, Vulkan API ${VU.driverVersionToString(properties.apiVersion())}) ${if (devicePreference == i) {
                 "(selected)"
             } else {
@@ -1612,6 +1640,10 @@ open class VulkanRenderer(hub: Hub,
         memFree(pPhysicalDeviceCount)
         memFree(pPhysicalDevices)
         properties.free()
+
+        if(vendor.toLowerCase().indexOf("nvidia") != -1 && System.getProperty("os.name").toLowerCase().indexOf("windows") != -1) {
+            gpuStats = NvidiaGPUStats()
+        }
 
         if (err != VK_SUCCESS) {
             throw AssertionError("Failed to get physical devices: " + VU.translate(err))
