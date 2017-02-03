@@ -305,6 +305,7 @@ open class VulkanRenderer(hub: Hub,
 
         val hmd = hub.getWorkingHMD()
         if(hmd != null) {
+            logger.info("Setting window dimensions to bounds from HMD")
             val bounds = hmd.getRenderTargetSize()
             window.width = bounds.x().toInt()*2
             window.height = bounds.y().toInt()
@@ -350,7 +351,7 @@ open class VulkanRenderer(hub: Hub,
         glfwDefaultWindowHints()
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API)
         glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE)
-        window.glfwWindow = glfwCreateWindow(windowWidth, windowHeight, "scenery", NULL, NULL)
+        window.glfwWindow = glfwCreateWindow(window.width, window.height, "scenery", NULL, NULL)
         glfwSetWindowPos(window.glfwWindow!!, 100, 100)
 
         surface = VU.run(memAllocLong(1), "glfwCreateWindowSurface") {
@@ -358,7 +359,6 @@ open class VulkanRenderer(hub: Hub,
         }
 
         swapchainRecreator = SwapchainRecreator()
-
 
         // create resolution-independent resources
         colorFormatAndSpace = getColorFormatAndSpace(physicalDevice, surface)
@@ -653,10 +653,9 @@ open class VulkanRenderer(hub: Hub,
         val matricesUbo = UBO(device, backingBuffer = buffers["UBOBuffer"])
         with(matricesUbo) {
             name = "Default"
-            members.put("ModelViewMatrix", { node.modelView })
-            members.put("ModelMatrix", { node.model })
+            members.put("ModelMatrix", { node.world })
+            members.put("ViewMatrix", { node.view })
             members.put("ProjectionMatrix", { node.projection })
-            members.put("MVP", { node.mvp })
             members.put("CamPosition", { scene.findObserver().position })
             members.put("isBillboard", { node.isBillboard.toInt() })
 
@@ -878,6 +877,13 @@ open class VulkanRenderer(hub: Hub,
             listOf(Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 5)),
             VK_SHADER_STAGE_ALL_GRAPHICS))
 
+        m.put("VRParameters", VU.createDescriptorSetLayout(
+            device,
+            listOf(
+                Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1)
+            ),
+            VK_SHADER_STAGE_ALL_GRAPHICS))
+
         renderConfig.renderpasses.forEach { rp ->
             rp.value.inputs?.let {
                 renderConfig.rendertargets?.let { rts ->
@@ -907,6 +913,11 @@ open class VulkanRenderer(hub: Hub,
             VU.createDescriptorSetDynamic(device, descriptorPool,
                 descriptorSetLayouts["LightParameters"]!!, 1,
                 buffers["LightParametersBuffer"]!!))
+
+        this.descriptorSets.put("VRParameters",
+            VU.createDescriptorSetDynamic(device, descriptorPool,
+                descriptorSetLayouts["VRParameters"]!!, 1,
+                buffers["VRParametersBuffer"]!!))
     }
 
     protected fun prepareStandardVertexDescriptors(): ConcurrentHashMap<VertexDataKinds, VertexDescription> {
@@ -1200,6 +1211,8 @@ open class VulkanRenderer(hub: Hub,
                 pass.vulkanMetadata.scissor[0].offset().set(
                     (pass.passConfig.viewportOffset.first*window.width).toInt(),
                     (pass.passConfig.viewportOffset.second*window.height).toInt())
+
+                pass.vulkanMetadata.eye.put(0, pass.passConfig.eye)
 
                 pass.semaphore = VU.run(memAllocLong(1), "vkCreateSemaphore") {
                      vkCreateSemaphore(device, semaphoreCreateInfo, null, this)
@@ -2305,11 +2318,11 @@ open class VulkanRenderer(hub: Hub,
             wantAligned = true,
             allocationSize = 512 * 1024 * 10))
 
-        map.put("UBOBuffer-1", VU.createBuffer(device, this.memoryProperties,
+        map.put("VRParametersBuffer", VU.createBuffer(device, this.memoryProperties,
             VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
             wantAligned = true,
-            allocationSize = 512 * 1024 * 10))
+            allocationSize = 256 * 10))
 
         return map
     }
@@ -2319,10 +2332,9 @@ open class VulkanRenderer(hub: Hub,
         val defaultUbo = UBO(device)
 
         defaultUbo.name = "default"
-        defaultUbo.members.put("ModelViewMatrix", { GLMatrix.getIdentity() })
-        defaultUbo.members.put("ModelMatrix", { GLMatrix.getIdentity() })
+        defaultUbo.members.put("Model", { GLMatrix.getIdentity() })
+        defaultUbo.members.put("ViewMatrix", { GLMatrix.getIdentity() })
         defaultUbo.members.put("ProjectionMatrix", { GLMatrix.getIdentity() })
-        defaultUbo.members.put("MVP", { GLMatrix.getIdentity() })
         defaultUbo.members.put("CamPosition", { GLVector(0.0f, 0.0f, 0.0f) })
         defaultUbo.members.put("isBillboard", { 0 })
 
@@ -2405,6 +2417,10 @@ open class VulkanRenderer(hub: Hub,
             vkCmdSetViewport(this, 0, pass.vulkanMetadata.viewport)
             vkCmdSetScissor(this, 0, pass.vulkanMetadata.scissor)
 
+            // allocate more vertexBufferOffsets than needed, set limit lateron
+            pass.vulkanMetadata.uboOffsets.limit(16)
+            (0..15).forEach { pass.vulkanMetadata.uboOffsets.put(it, 0) }
+
             instanceGroups[null]?.forEach nonInstancedDrawing@ { node ->
                 val s = node.metadata["VulkanRenderer"]!! as VulkanObjectState
 
@@ -2418,15 +2434,30 @@ open class VulkanRenderer(hub: Hub,
 
                 if (s.textures.size > 0) {
                     pass.vulkanMetadata.descriptorSets.put(1, s.textureDescriptorSet)
+                    pass.vulkanMetadata.descriptorSets.put(2, descriptorSets["VRParameters"]!!)
+                    pass.vulkanMetadata.descriptorSets.limit(3)
+                } else {
+                    pass.vulkanMetadata.descriptorSets.put(1, descriptorSets["VRParameters"]!!)
+                    pass.vulkanMetadata.descriptorSets.limit(2)
                 }
+
+//                pass.vulkanMetadata.descriptorSets.put(2, descriptorSets["VRParameters"]!!)
 
                 val pipeline = pass.pipelines.getOrDefault("preferred-${node.name}", pass.pipelines["default"]!!)
                     .getPipelineForGeometryType((node as HasGeometry).geometryType)
 
+                pass.vulkanMetadata.uboOffsets.put(s.UBOs["Default"]!!.second.offsets)
+                pass.vulkanMetadata.uboOffsets.put(0)
+                pass.vulkanMetadata.uboOffsets.limit(4)
+                pass.vulkanMetadata.uboOffsets.position(0)
+                s.UBOs["Default"]!!.second.offsets!!.flip()
+
                 vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline)
                 vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                    pipeline.layout, 0, pass.vulkanMetadata.descriptorSets, s.UBOs["Default"]!!.second.offsets)
+                    pipeline.layout, 0, pass.vulkanMetadata.descriptorSets, pass.vulkanMetadata.uboOffsets)
                 vkCmdBindVertexBuffers(this, 0, pass.vulkanMetadata.vertexBuffers, pass.vulkanMetadata.vertexBufferOffsets)
+
+                vkCmdPushConstants(this, pipeline.layout, VK_SHADER_STAGE_ALL, 0, pass.vulkanMetadata.eye)
 
                 logger.trace("now drawing {}, {} DS bound, {} textures", node.name, pass.vulkanMetadata.descriptorSets.capacity(), s.textures.count())
 
@@ -2462,9 +2493,15 @@ open class VulkanRenderer(hub: Hub,
                         pass.pipelines["default"]!!
                     }).getPipelineForGeometryType((node as HasGeometry).geometryType)
 
+                pass.vulkanMetadata.uboOffsets.put(s.UBOs["Default"]!!.second.offsets)
+                pass.vulkanMetadata.uboOffsets.put(0)
+                pass.vulkanMetadata.uboOffsets.limit(4)
+                pass.vulkanMetadata.uboOffsets.position(0)
+                s.UBOs["Default"]!!.second.offsets!!.flip()
+
                 vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline)
                 vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                    pipeline.layout, 0, pass.vulkanMetadata.descriptorSets, s.UBOs["Default"]!!.second.offsets)
+                    pipeline.layout, 0, pass.vulkanMetadata.descriptorSets, pass.vulkanMetadata.uboOffsets)
 
                 vkCmdBindVertexBuffers(this, 0, pass.vulkanMetadata.vertexBuffers, pass.vulkanMetadata.vertexBufferOffsets)
                 vkCmdBindVertexBuffers(this, 1, pass.vulkanMetadata.instanceBuffers, pass.vulkanMetadata.vertexBufferOffsets)
@@ -2513,7 +2550,7 @@ open class VulkanRenderer(hub: Hub,
             val pipeline = pass.pipelines["default"]!!
             val vulkanPipeline = pipeline.getPipelineForGeometryType(GeometryType.TRIANGLES)
 
-            if(pass.vulkanMetadata.descriptorSets.capacity() < pipeline.descriptorSpecs.count()) {
+            if(pass.vulkanMetadata.descriptorSets.capacity() != pipeline.descriptorSpecs.count()) {
                 memFree(pass.vulkanMetadata.descriptorSets)
                 pass.vulkanMetadata.descriptorSets = memAllocLong(pipeline.descriptorSpecs.count())
             }
@@ -2591,23 +2628,37 @@ open class VulkanRenderer(hub: Hub,
         }
     }
 
+    fun GLMatrix.flippedProjection(): GLMatrix {
+        this.set(1, 1, -1.0f * this.get(1, 1))
+        return this
+    }
+
     private fun updateDefaultUBOs(device: VkDevice, eye: Int = -1) {
         val cam = scene.findObserver()
-        val pose = hub?.getWorkingHMD()?.getPose() ?: GLMatrix.getIdentity()
+        val hmd = hub?.getWorkingHMD()
         val orientation = hub?.getWorkingHMD()?.getOrientation() ?: Quaternion().setIdentity()
 
         cam.view = cam.getTransformation(orientation)
 
+        buffers["VRParametersBuffer"]!!.reset()
+        val vrUbo = UBO(device, backingBuffer = buffers["VRParametersBuffer"]!!)
+
+        vrUbo.createUniformBuffer(memoryProperties)
+        vrUbo.members.put("projection0", { hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance, flipY = true) ?: GLMatrix.getIdentity() })
+        vrUbo.members.put("projection1", { hmd?.getEyeProjection(1, cam.nearPlaneDistance, cam.farPlaneDistance, flipY = true) ?: GLMatrix.getIdentity() })
+        vrUbo.members.put("headShift",   { hmd?.getHeadToEyeTransform(0) ?: GLMatrix.getIdentity() })
+        vrUbo.members.put("IPD",         { hmd?.getIPD() ?: 0.0f })
+        vrUbo.members.put("stereoEnabled", { renderConfig.stereoEnabled.toInt() })
+
+        vrUbo.populate()
+        buffers["VRParametersBuffer"]!!.copyFromStagingBuffer()
+
         buffers["UBOBuffer"]!!.reset()
-        buffers["UBOBuffer-1"]!!.reset()
 
         sceneUBOs.forEach { node ->
             val ubo = (node.metadata["VulkanRenderer"] as VulkanObjectState).UBOs["Default"]!!.second
 
-//            ubo.updateBackingBuffer(buffers["UBOBuffer-1"]!!)
             node.updateWorld(true, false)
-
-//            ubo.updateBackingBuffer(buffers[arrayOf("UBOBuffer", "UBOBuffer-1").get(frames % 2)]!!)
 
             if (ubo.offsets == null || ubo.offsets!!.capacity() < 3) {
                 ubo.offsets = memAllocInt(3)
@@ -2619,13 +2670,9 @@ open class VulkanRenderer(hub: Hub,
             ubo.offsets!!.put(0, bufferOffset)
 
             node.projection.copyFrom(cam.projection)
-            node.projection.set(1, 1, -1.0f * cam.projection.get(1, 1))
+            node.projection.flippedProjection()
 
-            node.modelView.copyFrom(cam.view)
-            node.modelView.mult(node.world)
-
-            node.mvp.copyFrom(node.projection)
-            node.mvp.mult(node.modelView)
+            node.view.copyFrom(cam.view)
 
             ubo.populate(offset = bufferOffset.toLong())
 
@@ -2637,7 +2684,6 @@ open class VulkanRenderer(hub: Hub,
         }
 
         buffers["UBOBuffer"]!!.copyFromStagingBuffer()
-        buffers["UBOBuffer-1"]!!.copyFromStagingBuffer()
 
         buffers["LightParametersBuffer"]!!.reset()
 
@@ -2665,6 +2711,7 @@ open class VulkanRenderer(hub: Hub,
         lightUbo.populate()
 
         buffers["LightParametersBuffer"]!!.copyFromStagingBuffer()
+
     }
 
     override fun screenshot() {

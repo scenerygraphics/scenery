@@ -13,18 +13,40 @@ layout(location = 0) out VertexData {
 } VertexOut;
 
 layout(binding = 0) uniform Matrices {
-	mat4 ModelViewMatrix;
 	mat4 ModelMatrix;
+	mat4 ViewMatrix;
 	mat4 ProjectionMatrix;
-	mat4 MVP;
 	vec3 CamPosition;
 	int isBillboard;
 } ubo;
 
+layout(set = 2, binding = 0) uniform VRParameters {
+    mat4 projectionMatrices[2];
+    mat4 headShift;
+    float IPD;
+    int stereoEnabled;
+} vrParameters;
+
+layout(push_constant) uniform currentEye_t {
+    int eye;
+} currentEye;
+
 void main()
 {
-	mat4 mv = ubo.ModelViewMatrix;
+	mat4 mv;
 	mat4 nMVP;
+	mat4 projectionMatrix;
+
+	if(vrParameters.stereoEnabled == 0) {
+	    mv = ubo.ViewMatrix*ubo.ModelMatrix;
+	    projectionMatrix = ubo.ProjectionMatrix;
+	} else {
+	    mat4 headToEye = vrParameters.headShift;
+	    headToEye[3][0] += currentEye.eye * vrParameters.IPD;
+
+	    mv = ubo.ViewMatrix*(ubo.ModelMatrix*headToEye);
+	    projectionMatrix = vrParameters.projectionMatrices[currentEye.eye];
+	}
 
 	if(ubo.isBillboard > 0) {
 		mv[0][0] = 1.0f;
@@ -39,10 +61,10 @@ void main()
 		mv[2][1] = .0f;
 		mv[2][2] = 1.0f;
 
-		nMVP = ubo.ProjectionMatrix*mv;
-	} else {
-	    nMVP = ubo.MVP;
+		nMVP = projectionMatrix*mv;
 	}
+
+	nMVP = projectionMatrix*mv;
 
 	VertexOut.Normal = transpose(inverse(mat3(ubo.ModelMatrix)))*vertexNormal;
 	VertexOut.Position = vec3( mv * vec4(vertexPosition, 1.0));

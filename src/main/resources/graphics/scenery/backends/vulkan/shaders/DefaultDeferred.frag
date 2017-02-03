@@ -28,10 +28,9 @@ const int MATERIAL_HAS_SPECULAR = 0x0004;
 const int MATERIAL_HAS_NORMAL =   0x0008;
 
 layout(binding = 0) uniform Matrices {
-	mat4 ModelViewMatrix;
 	mat4 ModelMatrix;
+	mat4 ViewMatrix;
 	mat4 ProjectionMatrix;
-	mat4 MVP;
 	vec3 CamPosition;
 	int isBillboard;
 } ubo;

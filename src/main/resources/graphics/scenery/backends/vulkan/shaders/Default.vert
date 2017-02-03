@@ -1,20 +1,9 @@
 #version 450 core
 #extension GL_ARB_separate_shader_objects: enable
 
-const float PI = 3.14159265358979323846264;
-const int NUM_OBJECT_TEXTURES = 5;
-const int MAX_NUM_LIGHTS = 128;
-
 layout(location = 0) in vec3 vertexPosition;
 layout(location = 1) in vec3 vertexNormal;
 layout(location = 2) in vec2 vertexTexCoord;
-
-struct MaterialInfo {
-    vec3 Ka;
-    vec3 Kd;
-    vec3 Ks;
-    float Shininess;
-};
 
 layout(location = 0) out VertexData {
     vec3 Position;
@@ -24,25 +13,40 @@ layout(location = 0) out VertexData {
 } VertexOut;
 
 layout(binding = 0) uniform Matrices {
-	mat4 ModelViewMatrix;
 	mat4 ModelMatrix;
+	mat4 ViewMatrix;
 	mat4 ProjectionMatrix;
-	mat4 MVP;
 	vec3 CamPosition;
 	int isBillboard;
 } ubo;
 
-layout(binding = 1) uniform MaterialProperties {
-    MaterialInfo Material;
-    int materialType;
-};
+layout(set = 2, binding = 0) uniform VRParameters {
+    mat4 projectionMatrices[2];
+    mat4 headShift;
+    float IPD;
+    int stereoEnabled;
+} vrParameters;
 
-layout(set = 1, binding = 0) uniform sampler2D ObjectTextures[NUM_OBJECT_TEXTURES];
+layout(push_constant) uniform currentEye_t {
+    int eye;
+} currentEye;
 
 void main()
 {
-    mat4 mv = ubo.ModelViewMatrix;
-    mat4 nMVP;
+	mat4 mv;
+	mat4 nMVP;
+	mat4 projectionMatrix;
+
+	if(vrParameters.stereoEnabled == 0) {
+	    mv = ubo.ViewMatrix*ubo.ModelMatrix;
+	    projectionMatrix = ubo.ProjectionMatrix;
+	} else {
+	    mat4 headToEye = vrParameters.headShift;
+	    headToEye[3][0] += currentEye.eye * vrParameters.IPD;
+
+	    mv = ubo.ViewMatrix*(ubo.ModelMatrix*headToEye);
+	    projectionMatrix = vrParameters.projectionMatrices[currentEye.eye];
+	}
 
 	if(ubo.isBillboard > 0) {
 		mv[0][0] = 1.0f;
@@ -57,15 +61,17 @@ void main()
 		mv[2][1] = .0f;
 		mv[2][2] = 1.0f;
 
-		nMVP = ubo.ProjectionMatrix*mv;
-	} else {
-	    nMVP = ubo.MVP;
+		nMVP = projectionMatrix*mv;
 	}
 
-    VertexOut.Normal = transpose(inverse(mat3(ubo.ModelMatrix)))*vertexNormal;
- 	VertexOut.Position = vec3( mv * vec4(vertexPosition, 1.0));
-   	VertexOut.TexCoord = vertexTexCoord;
-   	VertexOut.FragPosition = vec3(ubo.ModelMatrix * vec4(vertexPosition, 1.0));
+	nMVP = projectionMatrix*mv;
 
-   	gl_Position = nMVP * vec4(vertexPosition, 1.0);
+	VertexOut.Normal = transpose(inverse(mat3(ubo.ModelMatrix)))*vertexNormal;
+	VertexOut.Position = vec3( mv * vec4(vertexPosition, 1.0));
+	VertexOut.TexCoord = vertexTexCoord;
+	VertexOut.FragPosition = vec3(ubo.ModelMatrix * vec4(vertexPosition, 1.0));
+
+	gl_Position = nMVP * vec4(vertexPosition, 1.0);
 }
+
+

@@ -50,7 +50,7 @@ open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean
     /** error code storage */
     protected val error = IntBuffer.allocate(1)
     /** Storage for the poses of all tracked devices. */
-    protected var trackedPoses = HashMap<String, GLMatrix>()
+    protected var trackedDevices = HashMap<String, TrackedDevice>()
     /** Cache for per-eye projection matrices */
     protected var eyeProjectionCache: ArrayList<GLMatrix?> = ArrayList()
     /** Cache for head-to-eye transform matrices */
@@ -81,6 +81,8 @@ open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean
     /** disables submission in case of compositor errors */
     private var disableSubmission: Boolean = false
 
+    data class TrackedDevice(val type: Int, var pose: GLMatrix)
+
     init {
         error.put(0, -1)
 
@@ -92,7 +94,12 @@ open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean
             }
 
             if (vr == null || error[0] != 0) {
-                logger.error("Initialization error - ${jvr.VR_GetVRInitErrorAsEnglishDescription(error[0]).getString(0)}")
+                if(error[0] == 108) {
+                    // only warn if no HMD found.
+                    logger.warn("No HMD found. Are all cables connected?")
+                } else {
+                    logger.error("Initialization error - ${jvr.VR_GetVRInitErrorAsEnglishDescription(error[0]).getString(0)}")
+                }
                 vr = null
                 hmdTrackedDevicePoseReference = null
                 hmdTrackedDevicePoses = null
@@ -220,13 +227,18 @@ open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean
      * @param[eye] The index of the eye
      * @return GLMatrix containing the per-eye projection matrix
      */
-    override fun getEyeProjection(eye: Int, nearPlane: Float, farPlane: Float): GLMatrix {
+    override fun getEyeProjection(eye: Int, nearPlane: Float, farPlane: Float, flipY: Boolean): GLMatrix {
         if (eyeProjectionCache[eye] == null) {
             val proj = vr!!.GetProjectionMatrix!!.apply(eye, nearPlane, farPlane)
             proj.read()
 
             eyeProjectionCache[eye] = proj.toGLMatrix().transpose()
-            logger.info("Eye projection #$eye" + eyeProjectionCache[eye].toString())
+
+            if(flipY) {
+                eyeProjectionCache[eye]!!.set(1, 1, -1.0f * eyeProjectionCache[eye]!!.get(1, 1))
+            }
+
+            logger.trace("Eye projection #$eye" + eyeProjectionCache[eye].toString())
         }
 
         return eyeProjectionCache[eye]!!
@@ -244,7 +256,7 @@ open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean
             transform.read()
             eyeTransformCache[eye] = transform.toGLMatrix()
 
-            logger.info("Head-to-eye #$eye: " + eyeTransformCache[eye].toString())
+            logger.trace("Head-to-eye #$eye: " + eyeTransformCache[eye].toString())
         }
 
         return eyeTransformCache[eye]!!
@@ -359,8 +371,10 @@ open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean
                     else -> "Unknown"
                 }
 
+                trackedDevices.computeIfAbsent("$type-$device", { s -> TrackedDevice(trackedDevice, GLMatrix.getIdentity()) })
+
                 val pose = (hmdTrackedDevicePoses!!.get(jvr.k_unTrackedDeviceIndex_Hmd).readField("mDeviceToAbsoluteTracking") as HmdMatrix34_t)
-                trackedPoses[type] = pose.toGLMatrix().invert()
+                trackedDevices["$type-$device"]!!.pose = pose.toGLMatrix().invert()
             }
         }
     }
@@ -552,7 +566,7 @@ open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean
      * @return HMD pose as GLMatrix
      */
     override fun getPose(): GLMatrix {
-        return this.trackedPoses.getOrDefault("HMD", GLMatrix.getIdentity())
+        return this.trackedDevices.values.firstOrNull { it.type == jvr.ETrackedDeviceClass.ETrackedDeviceClass_TrackedDeviceClass_HMD }?.pose ?: GLMatrix.getIdentity()
     }
 
     /**
@@ -561,8 +575,8 @@ open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean
      * @param[type] Type of the tracked device to get the pose for
      * @return HMD pose as GLMatrix
      */
-    fun getPose(type: String): GLMatrix {
-        return this.trackedPoses.getOrDefault(type, GLMatrix.getIdentity())
+    fun getPose(type: Int): GLMatrix {
+        return this.trackedDevices.values.firstOrNull { it.type == type }?.pose ?: GLMatrix.getIdentity()
     }
 
     /**

@@ -20,7 +20,7 @@ interface HMDInput {
      * @param[eye] The index of the eye
      * @return GLMatrix containing the per-eye projection matrix
      */
-    fun getEyeProjection(eye: Int, nearPlane: Float = 1.0f, farPlane: Float = 1000.0f): GLMatrix
+    fun getEyeProjection(eye: Int, nearPlane: Float = 1.0f, farPlane: Float = 1000.0f, flipY: Boolean = false): GLMatrix
 
     /**
      * Returns the inter-pupillary distance (IPD)

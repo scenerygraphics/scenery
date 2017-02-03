@@ -1,5 +1,6 @@
-name: Forward Shading
-description: Forward Shading Pipeline, with HDR postprocessing
+name: Forward Shading, Stereo
+description: Forward Shading with Stereo rendering
+stereoEnabled: true
 
 rendertargets:
   HDR:
@@ -11,12 +12,24 @@ rendertargets:
       format: Depth32
 
 renderpasses:
-  Scene:
+  leftEye:
     type: geometry
     shaders:
       - "Default.vert.spv"
       - "Default.frag.spv"
     output: HDR
+    viewportSize: 0.5, 1.0
+    viewportOffset: 0.0, 0.0
+    eye: LeftEye
+  rightEye:
+    type: geometry
+    shaders:
+      - "Default.vert.spv"
+      - "Default.frag.spv"
+    output: HDR
+    viewportSize: 0.5, 1.0
+    viewportOffset: 0.5, 0.0
+    eye: RightEye
   PostprocessHDR:
     type: quad
     shaders:

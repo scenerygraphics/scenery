@@ -86,6 +86,7 @@ class RenderConfigReader {
     data class RenderConfig(
         var name: String,
         var description: String?,
+        var stereoEnabled: Boolean = false,
         var rendertargets: Map<String, Map<String, AttachmentConfig>>?,
         var renderpasses: Map<String, RenderpassConfig>)
 
@@ -104,7 +105,7 @@ class RenderConfigReader {
         @JsonDeserialize(using = FloatPairDeserializer::class) var scissor: Pair<Float, Float> = Pair(1.0f, 1.0f),
         @JsonDeserialize(using = VectorDeserializer::class) var clearColor: GLVector = GLVector(0.0f, 0.0f, 0.0f, 0.0f),
         var depthClearValue: Float = 1.0f,
-        @JsonDeserialize(using = VREyeDeserializer::class) var vr: Int = -1
+        @JsonDeserialize(using = VREyeDeserializer::class) var eye: Int = -1
     )
 
     enum class RenderpassType { geometry, quad }

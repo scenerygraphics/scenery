@@ -17,10 +17,9 @@ struct Light {
 const int MAX_NUM_LIGHTS = 128;
 
 layout(binding = 0) uniform Matrices {
-	mat4 ModelViewMatrix;
 	mat4 ModelMatrix;
+	mat4 ViewMatrix;
 	mat4 ProjectionMatrix;
-	mat4 MVP;
 	vec3 CamPosition;
 	int isBillboard;
 } ubo;

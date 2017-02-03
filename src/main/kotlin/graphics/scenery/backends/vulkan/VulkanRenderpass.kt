@@ -68,7 +68,7 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
 
     private var currentPosition = 0
 
-    class VulkanMetadata(var descriptorSets: LongBuffer = memAllocLong(2),
+    class VulkanMetadata(var descriptorSets: LongBuffer = memAllocLong(3),
                               var vertexBufferOffsets: LongBuffer = memAllocLong(1),
                               var scissor: VkRect2D.Buffer = VkRect2D.calloc(1),
                               var viewport: VkViewport.Buffer = VkViewport.calloc(1),
@@ -77,7 +77,8 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
                               var clearValues: VkClearValue.Buffer = VkClearValue.calloc(0),
                               var renderArea: VkRect2D = VkRect2D.calloc(),
                               var renderPassBeginInfo: VkRenderPassBeginInfo = VkRenderPassBeginInfo.calloc(),
-                              var uboOffsets: IntBuffer = memAllocInt(16)): AutoCloseable {
+                              var uboOffsets: IntBuffer = memAllocInt(16),
+                              var eye: IntBuffer = memAllocInt(1)): AutoCloseable {
 
         override fun close() {
             memFree(descriptorSets)
@@ -90,6 +91,7 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
             renderArea.free()
             renderPassBeginInfo.free()
             memFree(uboOffsets)
+            memFree(eye)
         }
 
     }
@@ -118,6 +120,13 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
             VK_SHADER_STAGE_ALL_GRAPHICS)
 
         descriptorSetLayouts.put("ObjectTextures", dslObjectTextures)
+
+        val dslVRParameters = VU.createDescriptorSetLayout(
+            device,
+            listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1)),
+            VK_SHADER_STAGE_ALL_GRAPHICS)
+
+        descriptorSetLayouts.put("VRParameters", dslVRParameters)
     }
 
     fun initializePipeline(device: VkDevice, descriptorPool: Long, pipelineCache: Long) {
@@ -262,6 +271,7 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
         } else {
             reqDescriptorLayouts.add(descriptorSetLayouts.get("default")!!)
             reqDescriptorLayouts.add(descriptorSetLayouts.get("ObjectTextures")!!)
+            reqDescriptorLayouts.add(descriptorSetLayouts.get("VRParameters")!!)
 
             p.createPipelines(framebuffer.renderPass.get(0),
                 vertexInputType.state,
