@@ -1,7 +1,14 @@
 name: Forward Shading
-description: OpenGL/Vulkan shader pipeline implementing straight forward shading
+description: Forward Shading Pipeline, with HDR postprocessing
 
 rendertargets:
+  HDR:
+    HDRBuffer:
+      size: 1.0, 1.0
+      format: RGBA_Float32
+    ZBuffer:
+      size: 1.0, 1.0
+      format: Depth32
 
 renderpasses:
   Scene:
@@ -9,4 +16,15 @@ renderpasses:
     shaders:
       - "Default.vert.spv"
       - "Default.frag.spv"
+    output: HDR
+  HDR:
+    type: quad
+    shaders:
+      - "FullscreenQuad.vert.spv"
+      - "HDR.frag.spv"
+    inputs:
+      - HDR
     output: Viewport
+    parameters:
+      Gamma: 1.7
+      Exposure: 1.5
