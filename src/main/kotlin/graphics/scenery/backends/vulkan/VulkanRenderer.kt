@@ -1532,8 +1532,11 @@ open class VulkanRenderer(hub: Hub,
 
     private fun updateTimings() {
         val thisTime = System.nanoTime()
-        time += (thisTime - lastTime) / 1E9f
+        val duration = thisTime - lastTime
+        time += duration / 1E9f
         lastTime = thisTime
+
+        scene.findObserver().deltaT = duration/10E6f
 
         frames++
         totalFrames++

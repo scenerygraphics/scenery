@@ -46,11 +46,11 @@ import kotlin.concurrent.thread
  * @author Ulrik Günther <hello@ulrik.is>
  */
 
-open class OpenGLRenderer : Renderer, Hubable, ClearGLDefaultEventListener {
+class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int, height: Int) : Renderer, Hubable, ClearGLDefaultEventListener() {
     /** slf4j logger */
     protected var logger: Logger = LoggerFactory.getLogger("OpenGLRenderer")
     /** [GL4] instance handed over, coming from [ClearGLDefaultEventListener]*/
-    protected var gl: GL4
+    lateinit protected var gl: GL4
     /** should the window close on next looping? */
     override var shouldClose = false
     /** the scenery window */
@@ -141,28 +141,38 @@ open class OpenGLRenderer : Renderer, Hubable, ClearGLDefaultEventListener {
      * @param[width] window width
      * @param[height] window height
      */
-    constructor(hub: Hub, applicationName: String, scene: Scene, width: Int, height: Int) {
+    init {
 
+        logger.info("Initializing OpenGL Renderer...")
+        this.hub = hub
         this.settings = this.getDefaultRendererSettings()
         this.window.width = width
         this.window.height = height
 
-        window.clearglWindow = ClearGLWindow("",
-            width,
-            height,
-            this)
-
-        window.clearglWindow!!.isVisible = true
-        window.clearglWindow!!.setFPS(60)
-
-        window.clearglWindow!!.start()
-
-        this.gl = window.clearglWindow!!.gl.gL4
         this.scene = scene
         this.applicationName = applicationName
+
+        val hmd = hub.getWorkingHMD()
+        if(settings.get("vr.Active") && hmd != null) {
+            this.window.width = hmd.getRenderTargetSize().x().toInt()*2
+            this.window.height = hmd.getRenderTargetSize().y().toInt()
+        }
+
+        window.clearglWindow = ClearGLWindow("",
+            this.window.width,
+            this.window.height,
+            this).apply {
+
+            this.setFPS(120)
+            this.isVisible = true
+            this.start()
+        }
+
+        logger.info("Launching window...")
     }
 
     override fun init(pDrawable: GLAutoDrawable) {
+        logger.info("Creating context...")
         this.gl = window.clearglWindow!!.gl.gL4
 
         val width = this.window.width
@@ -317,7 +327,7 @@ open class OpenGLRenderer : Renderer, Hubable, ClearGLDefaultEventListener {
         ds.set("ssao.DistanceThreshold", 50.0f)
         ds.set("ssao.Algorithm", 1)
 
-        ds.set("vr.Active", false)
+        ds.set("vr.Active", true)
         ds.set("vr.DoAnaglyph", false)
         ds.set("vr.IPD", 0.0f)
         ds.set("vr.EyeDivisor", 1)
@@ -694,6 +704,7 @@ open class OpenGLRenderer : Renderer, Hubable, ClearGLDefaultEventListener {
      * @param[scene] [Scene] to render. Must have been given to [initializeScene] before or bad things will happen.
      */
     override fun render() {
+        val startRender = System.nanoTime()
         if (scene.children.count() == 0 ||
             lightingPassProgram == null ||
             hdrPassProgram == null ||
@@ -1062,6 +1073,10 @@ open class OpenGLRenderer : Renderer, Hubable, ClearGLDefaultEventListener {
 
             screenshotRequested = false
         }
+
+        val renderDuration = System.nanoTime() - startRender
+
+        cam.deltaT = renderDuration/10E6f
     }
 
     /**

@@ -59,34 +59,34 @@ open class Node(open var name: String) : Renderable {
     open var useClassDerivedShader = false
 
     /** World transform matrix. Will create inverse [iworld] upon modification. */
-    override var world: GLMatrix = GLMatrix.getIdentity()
+    @Volatile override var world: GLMatrix = GLMatrix.getIdentity()
     /** Inverse [world] transform matrix. */
-    override var iworld: GLMatrix = GLMatrix.getIdentity()
+    @Volatile override var iworld: GLMatrix = GLMatrix.getIdentity()
     /** Model transform matrix. Will create inverse [imodel] upon modification. */
-    override var model: GLMatrix = GLMatrix.getIdentity()
+    @Volatile override var model: GLMatrix = GLMatrix.getIdentity()
     /** Inverse [world] transform matrix. */
-    override var imodel: GLMatrix = GLMatrix.getIdentity()
+    @Volatile override var imodel: GLMatrix = GLMatrix.getIdentity()
 
     /** View matrix. Will create inverse [iview] upon modification. */
-    override var view: GLMatrix = GLMatrix.getIdentity()
+    @Volatile override var view: GLMatrix = GLMatrix.getIdentity()
     /** Inverse [view] matrix. */
-    override var iview: GLMatrix = GLMatrix.getIdentity()
+    @Volatile override var iview: GLMatrix = GLMatrix.getIdentity()
 
     /** Projection matrix. Will create inverse [iprojection] upon modification. */
-    override var projection: GLMatrix = GLMatrix.getIdentity()
+    @Volatile override var projection: GLMatrix = GLMatrix.getIdentity()
     /** Inverse [projection] transform matrix. */
-    override var iprojection: GLMatrix = GLMatrix.getIdentity()
+    @Volatile override var iprojection: GLMatrix = GLMatrix.getIdentity()
 
     /** ModelView matrix. Will create inverse [imodelview] upon modification. */
-    override var modelView: GLMatrix = GLMatrix.getIdentity()
+    @Volatile override var modelView: GLMatrix = GLMatrix.getIdentity()
     /** Inverse [modelView] transform matrix. */
-    override var imodelView: GLMatrix = GLMatrix.getIdentity()
+    @Volatile override var imodelView: GLMatrix = GLMatrix.getIdentity()
 
     /** ModelViewProjection matrix. */
-    override var mvp: GLMatrix = GLMatrix.getIdentity()
+    @Volatile override var mvp: GLMatrix = GLMatrix.getIdentity()
 
     /** World position of the Node. Setting will trigger [world] update. */
-    override var position: GLVector = GLVector(0.0f, 0.0f, 0.0f)
+    @Volatile override var position: GLVector = GLVector(0.0f, 0.0f, 0.0f)
         set(v) {
             this.needsUpdate = true
             this.needsUpdateWorld = true
@@ -94,7 +94,7 @@ open class Node(open var name: String) : Renderable {
         }
 
     /** x/y/z scale of the Node. Setting will trigger [world] update. */
-    override var scale: GLVector = GLVector(1.0f, 1.0f, 1.0f)
+    @Volatile override var scale: GLVector = GLVector(1.0f, 1.0f, 1.0f)
         set(v) {
             this.needsUpdate = true
             this.needsUpdateWorld = true
@@ -102,7 +102,7 @@ open class Node(open var name: String) : Renderable {
         }
 
     /** Rotation of the Node. Setting will trigger [world] update. */
-    override var rotation: Quaternion = Quaternion(0.0f, 0.0f, 0.0f, 1.0f);
+    @Volatile override var rotation: Quaternion = Quaternion(0.0f, 0.0f, 0.0f, 1.0f);
         set(q) {
             this.needsUpdate = true
             this.needsUpdateWorld = true

@@ -18,6 +18,7 @@ import org.lwjgl.vulkan.VkPhysicalDevice
 import org.lwjgl.vulkan.VkQueue
 import java.nio.IntBuffer
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import graphics.scenery.jopenvr.JOpenVRLibrary as jvr
 
@@ -50,7 +51,7 @@ open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean
     /** error code storage */
     protected val error = IntBuffer.allocate(1)
     /** Storage for the poses of all tracked devices. */
-    protected var trackedDevices = HashMap<String, TrackedDevice>()
+    protected var trackedDevices = ConcurrentHashMap<String, TrackedDevice>()
     /** Cache for per-eye projection matrices */
     protected var eyeProjectionCache: ArrayList<GLMatrix?> = ArrayList()
     /** Cache for head-to-eye transform matrices */
@@ -403,26 +404,24 @@ open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean
         val leftTexture = Texture_t()
         val rightTexture = Texture_t()
 
-        val mLeft = Memory(4)
-        mLeft.setInt(0, leftId)
-
-        val mRight = Memory(4)
-        mRight.setInt(0, rightId)
-
         leftTexture.eColorSpace = jvr.EColorSpace.EColorSpace_ColorSpace_Gamma
         rightTexture.eColorSpace = jvr.EColorSpace.EColorSpace_ColorSpace_Gamma
 
         leftTexture.eType = jvr.ETextureType.ETextureType_TextureType_OpenGL
         rightTexture.eType = jvr.ETextureType.ETextureType_TextureType_OpenGL
 
-        leftTexture.handle = mLeft
-        rightTexture.handle = mRight
+        leftTexture.handle = Pointer.createConstant(leftId)
+        rightTexture.handle = Pointer.createConstant(rightId)
+
+        leftTexture.write()
+        rightTexture.write()
 
         val bounds = VRTextureBounds_t()
         bounds.uMin = 0.0f
         bounds.uMax = 1.0f
         bounds.vMin = 0.0f
         bounds.vMax = 1.0f
+        bounds.write()
 
         compositor!!.Submit.apply(0, leftTexture, bounds, 0)
         compositor!!.Submit.apply(1, rightTexture, bounds, 0)
