@@ -21,6 +21,7 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.backends.createRenderpassFlow
 import graphics.scenery.backends.ShaderPreference
+import graphics.scenery.controls.HMDInput
 import graphics.scenery.fonts.SDFFontAtlas
 import graphics.scenery.utils.GPUStats
 import graphics.scenery.utils.NvidiaGPUStats
@@ -39,6 +40,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import javax.imageio.ImageIO
 import kotlin.concurrent.thread
+import kotlin.concurrent.withLock
 
 
 /**
@@ -232,7 +234,7 @@ open class VulkanRenderer(hub: Hub,
 
     protected var renderCommandBuffers: Array<VkCommandBuffer>? = null
 
-    protected val validation = java.lang.Boolean.parseBoolean(System.getProperty("scenery.VulkanRenderer.EnableValidation", "false"))
+    protected val validation = java.lang.Boolean.parseBoolean(System.getProperty("scenery.VulkanRenderer.EnableValidations", "false"))
     protected val layers = arrayOf<ByteBuffer>(memUTF8("VK_LAYER_LUNARG_standard_validation"))
 
     protected var instance: VkInstance
@@ -884,22 +886,6 @@ open class VulkanRenderer(hub: Hub,
             ),
             VK_SHADER_STAGE_ALL_GRAPHICS))
 
-        renderConfig.renderpasses.forEach { rp ->
-            rp.value.inputs?.let {
-                renderConfig.rendertargets?.let { rts ->
-                    val rt = rts.get(it.first())!!
-
-                    // create descriptor set layout that matches the render target
-                    m.put("outputs-${it.first()}",
-                        VU.createDescriptorSetLayout(device,
-                            descriptorNum = rt.count(),
-                            descriptorCount = 1,
-                            type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
-                        ))
-                }
-            }
-        }
-
         return m
     }
 
@@ -1111,6 +1097,26 @@ open class VulkanRenderer(hub: Hub,
         val framebuffers = ConcurrentHashMap<String, VulkanFramebuffer>()
 
         flow = renderConfig.createRenderpassFlow()
+
+        descriptorSetLayouts
+            .filter { it.key.startsWith("outputs-") }
+            .values.map { vkDestroyDescriptorSetLayout(device, it, null) }
+
+        renderConfig.renderpasses.forEach { rp ->
+            rp.value.inputs?.let {
+                renderConfig.rendertargets?.let { rts ->
+                    val rt = rts.get(it.first())!!
+
+                    // create descriptor set layout that matches the render target
+                    descriptorSetLayouts.put("outputs-${it.first()}",
+                        VU.createDescriptorSetLayout(device,
+                            descriptorNum = rt.count(),
+                            descriptorCount = 1,
+                            type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
+                        ))
+                }
+            }
+        }
 
         config.createRenderpassFlow().map { passName ->
             val passConfig = config.renderpasses.get(passName)!!
@@ -1328,6 +1334,8 @@ open class VulkanRenderer(hub: Hub,
             throw AssertionError("Failed to present the swapchain image: " + VU.translate(err))
         }
 
+        commandBuffer.waitForFence()
+
         if (screenshotRequested) {
             // default image format is 32bit BGRA
             val imageByteSize = window.width * window.height * 4L
@@ -1372,7 +1380,7 @@ open class VulkanRenderer(hub: Hub,
                     flush = true, dealloc = true)
             }
 
-            vkDeviceWaitIdle(device)
+            vkQueueWaitIdle(queue)
 
             val imageBuffer = memAlloc(imageByteSize.toInt())
             screenshotBuffer.copyTo(imageBuffer)
@@ -1413,14 +1421,12 @@ open class VulkanRenderer(hub: Hub,
         }
 
         // submit to OpenVR if attached
-        hub?.getWorkingHMD()?.submitToCompositorVulkan(
+        hub?.getWorkingHMD()?.wantsVR()?.submitToCompositorVulkan(
             window.width, window.height,
             VK_FORMAT_R8G8B8A8_SRGB,
             instance, device, physicalDevice,
             queue, queueFamilyIndex,
             swapchain!!.images!![pass.getReadPosition()])
-
-        pass.nextSwapchainImage()
 
         submitInfo.free()
         presentInfo.free()
@@ -1431,7 +1437,7 @@ open class VulkanRenderer(hub: Hub,
      *
      * @param[scene] The scene to render.
      */
-    override fun render() {
+    @Synchronized override fun render() {
         pollEvents()
 
         // check whether scene is already initialized
@@ -1471,6 +1477,7 @@ open class VulkanRenderer(hub: Hub,
 
             if (commandBuffer.submitted) {
                 commandBuffer.waitForFence()
+                commandBuffer.submitted = false
             }
 
             commandBuffer.resetFence()
@@ -1521,7 +1528,7 @@ open class VulkanRenderer(hub: Hub,
         viewportPass.updateShaderParameters()
 
         ph.commandBuffers.put(0, viewportCommandBuffer.commandBuffer)
-        ph.waitStages.put(0, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT)
+        ph.waitStages.put(0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
         ph.signalSemaphore.put(0, semaphores[StandardSemaphores.render_complete]!!.get(0))
         ph.waitSemaphore.put(0, firstWaitSemaphore.get(0))
 
@@ -2636,10 +2643,23 @@ open class VulkanRenderer(hub: Hub,
         return this
     }
 
-    private fun updateDefaultUBOs(device: VkDevice, eye: Int = -1) {
+    private fun HMDInput.wantsVR(): HMDInput? {
+       if(settings.get<Boolean>("vr.Active")) {
+           return this@wantsVR
+       } else {
+           return null
+       }
+    }
+
+    @Synchronized private fun updateDefaultUBOs(device: VkDevice, eye: Int = -1) {
         val cam = scene.findObserver()
-        val hmd = hub?.getWorkingHMD()
-        val orientation = hub?.getWorkingHMD()?.getOrientation() ?: Quaternion().setIdentity()
+
+        if(!cam.lock.tryLock()) {
+            return
+        }
+
+        val hmd = hub?.getWorkingHMD()?.wantsVR()
+        val orientation = hmd?.getOrientation() ?: Quaternion().setIdentity()
 
         cam.view = cam.getTransformation(orientation)
 
@@ -2659,31 +2679,33 @@ open class VulkanRenderer(hub: Hub,
         buffers["UBOBuffer"]!!.reset()
 
         sceneUBOs.forEach { node ->
-            val ubo = (node.metadata["VulkanRenderer"] as VulkanObjectState).UBOs["Default"]!!.second
+            node.lock.withLock {
+                val ubo = (node.metadata["VulkanRenderer"] as VulkanObjectState).UBOs["Default"]!!.second
 
-            node.updateWorld(true, false)
+                node.updateWorld(true, false)
 
-            if (ubo.offsets == null || ubo.offsets!!.capacity() < 3) {
-                ubo.offsets = memAllocInt(3)
+                if (ubo.offsets == null || ubo.offsets!!.capacity() < 3) {
+                    ubo.offsets = memAllocInt(3)
+                }
+
+                (0..2).forEach { ubo.offsets!!.put(it, 0) }
+
+                var bufferOffset = ubo.backingBuffer!!.advance()
+                ubo.offsets!!.put(0, bufferOffset)
+
+                node.projection.copyFrom(cam.projection)
+                node.projection.flippedProjection()
+
+                node.view.copyFrom(cam.view)
+
+                ubo.populate(offset = bufferOffset.toLong())
+
+                val materialUbo = (node.metadata["VulkanRenderer"]!! as VulkanObjectState).UBOs["BlinnPhongMaterial"]!!.second
+                bufferOffset = ubo.backingBuffer!!.advance()
+                ubo.offsets!!.put(1, bufferOffset)
+
+                materialUbo.populate(offset = bufferOffset.toLong())
             }
-
-            (0..2).forEach { ubo.offsets!!.put(it, 0) }
-
-            var bufferOffset = ubo.backingBuffer!!.advance()
-            ubo.offsets!!.put(0, bufferOffset)
-
-            node.projection.copyFrom(cam.projection)
-            node.projection.flippedProjection()
-
-            node.view.copyFrom(cam.view)
-
-            ubo.populate(offset = bufferOffset.toLong())
-
-            val materialUbo = (node.metadata["VulkanRenderer"]!! as VulkanObjectState).UBOs["BlinnPhongMaterial"]!!.second
-            bufferOffset = ubo.backingBuffer!!.advance()
-            ubo.offsets!!.put(1, bufferOffset)
-
-            materialUbo.populate(offset = bufferOffset.toLong())
         }
 
         buffers["UBOBuffer"]!!.copyFromStagingBuffer()
@@ -2705,6 +2727,7 @@ open class VulkanRenderer(hub: Hub,
             lightUbo.members.put("Linear-$i", { l.linear })
             lightUbo.members.put("Quadratic-$i", { l.quadratic })
             lightUbo.members.put("Intensity-$i", { l.intensity })
+            lightUbo.members.put("Radius-$i", { l.radius })
             lightUbo.members.put("Position-$i", { l.position })
             lightUbo.members.put("Color-$i", { l.emissionColor })
             lightUbo.members.put("filler-$i", { 0.0f })
@@ -2715,6 +2738,7 @@ open class VulkanRenderer(hub: Hub,
 
         buffers["LightParametersBuffer"]!!.copyFromStagingBuffer()
 
+        cam.lock.unlock()
     }
 
     override fun screenshot() {

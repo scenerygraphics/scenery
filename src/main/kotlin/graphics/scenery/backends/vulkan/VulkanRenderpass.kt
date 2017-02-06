@@ -62,7 +62,7 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
             this.isViewportRenderpass = true
             field = count
 
-            commandBufferBacking = RingBuffer<VulkanCommandBuffer>(size = count * 2,
+            commandBufferBacking = RingBuffer<VulkanCommandBuffer>(size = count,
                 default = { VulkanCommandBuffer(device, null, true) })
         }
 
