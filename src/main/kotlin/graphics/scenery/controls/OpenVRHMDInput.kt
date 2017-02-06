@@ -401,30 +401,38 @@ open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean
      * @param[rightId] Texture ID of the right eye texture
      */
     override fun submitToCompositor(leftId: Int, rightId: Int) {
-        val leftTexture = Texture_t()
-        val rightTexture = Texture_t()
+        try {
+            if (disableSubmission == true) {
+                return
+            }
+            val leftTexture = Texture_t()
+            val rightTexture = Texture_t()
 
-        leftTexture.eColorSpace = jvr.EColorSpace.EColorSpace_ColorSpace_Gamma
-        rightTexture.eColorSpace = jvr.EColorSpace.EColorSpace_ColorSpace_Gamma
+            leftTexture.eColorSpace = jvr.EColorSpace.EColorSpace_ColorSpace_Gamma
+            rightTexture.eColorSpace = jvr.EColorSpace.EColorSpace_ColorSpace_Gamma
 
-        leftTexture.eType = jvr.ETextureType.ETextureType_TextureType_OpenGL
-        rightTexture.eType = jvr.ETextureType.ETextureType_TextureType_OpenGL
+            leftTexture.eType = jvr.ETextureType.ETextureType_TextureType_OpenGL
+            rightTexture.eType = jvr.ETextureType.ETextureType_TextureType_OpenGL
 
-        leftTexture.handle = Pointer.createConstant(leftId)
-        rightTexture.handle = Pointer.createConstant(rightId)
+            leftTexture.handle = Pointer.createConstant(leftId)
+            rightTexture.handle = Pointer.createConstant(rightId)
 
-        leftTexture.write()
-        rightTexture.write()
+            leftTexture.write()
+            rightTexture.write()
 
-        val bounds = VRTextureBounds_t()
-        bounds.uMin = 0.0f
-        bounds.uMax = 1.0f
-        bounds.vMin = 0.0f
-        bounds.vMax = 1.0f
-        bounds.write()
+            val bounds = VRTextureBounds_t()
+            bounds.uMin = 0.0f
+            bounds.uMax = 1.0f
+            bounds.vMin = 0.0f
+            bounds.vMax = 1.0f
+            bounds.write()
 
-        compositor!!.Submit.apply(0, leftTexture, bounds, 0)
-        compositor!!.Submit.apply(1, rightTexture, bounds, 0)
+            compositor!!.Submit.apply(0, leftTexture, bounds, 0)
+            compositor!!.Submit.apply(1, rightTexture, bounds, 0)
+        } catch(e: java.lang.Error) {
+            logger.error("Compositor submission failed, please restart the HMD, SteamVR and the application.")
+            disableSubmission = true
+        }
     }
 
     override fun submitToCompositorVulkan(width: Int, height: Int, format: Int,

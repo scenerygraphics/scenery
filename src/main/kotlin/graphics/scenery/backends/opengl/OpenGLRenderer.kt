@@ -333,8 +333,8 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
         ds.set("vr.EyeDivisor", 1)
 
         ds.set("hdr.Active", true)
-        ds.set("hdr.Exposure", 1.0f)
-        ds.set("hdr.Gamma", 2.2f)
+        ds.set("hdr.Exposure", 1.5f)
+        ds.set("hdr.Gamma", 1.7f)
 
         ds.set("sdf.MaxDistance", 10)
 
