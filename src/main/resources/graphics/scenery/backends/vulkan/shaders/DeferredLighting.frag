@@ -10,6 +10,7 @@ struct Light {
 	float Linear;
 	float Quadratic;
 	float Intensity;
+	float Radius;
 	vec4 Position;
   	vec4 Color;
 };
@@ -137,19 +138,25 @@ void main()
 		    ambientOcclusion /= sample_count;
 		}
 
-		vec3 viewDir = normalize(ubo.CamPosition - FragPos);
+		vec3 viewDir = normalize(vec3(ubo.ViewMatrix*vec4(ubo.CamPosition, 1.0)) - FragPos);
 
 		for(int i = 0; i < numLights; ++i)
 		{
-            vec3 lightDir = normalize(lights[i].Position.rgb - FragPos);
+		    vec3 lightPos = vec3(ubo.ViewMatrix * vec4(lights[i].Position.rgb, 1.0));
+            vec3 lightDir = normalize(lightPos - FragPos);
             vec3 halfway = normalize(lightDir + viewDir);
-            float distance = length(lights[i].Position.rgb - FragPos);
+            float distance = length(lightPos - FragPos);
+
+            if(distance > lights[i].Radius) {
+                continue;
+            }
+
             float lightAttenuation = 1.0 / (1.0 + lights[i].Linear * distance + lights[i].Quadratic * distance * distance);
 
 		    if(reflectanceModel == 0) {
 		        // Diffuse
              	vec3 diffuse = max(dot(Normal, lightDir), 0.0) * lights[i].Intensity * Albedo.rgb * lights[i].Color.rgb * (1.0f - ambientOcclusion);
-             	float spec = pow(max(dot(Normal, halfway), 0.0), Specular);
+             	float spec = pow(max(dot(Normal, halfway), 0.0), 1.0-Specular);
              	vec3 specular = lights[i].Color.rgb * spec;
 
              	diffuse *= lightAttenuation;

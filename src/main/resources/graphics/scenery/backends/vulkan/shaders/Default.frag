@@ -44,7 +44,7 @@ layout(binding = 1) uniform MaterialProperties {
 
 layout(set = 1, binding = 0) uniform sampler2D ObjectTextures[NUM_OBJECT_TEXTURES];
 
-layout(set = 2, binding = 0, std140) uniform LightParameters {
+layout(set = 3, binding = 0, std140) uniform LightParameters {
     int numLights;
 	Light lights[MAX_NUM_LIGHTS];
 };

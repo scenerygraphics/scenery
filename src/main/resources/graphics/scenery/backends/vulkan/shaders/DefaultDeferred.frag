@@ -2,7 +2,6 @@
 #extension GL_ARB_separate_shader_objects: enable
 
 layout(location = 0) in VertexData {
-    vec3 Position;
     vec3 Normal;
     vec2 TexCoord;
     vec3 FragPosition;
@@ -50,6 +49,23 @@ layout(binding = 1) uniform MaterialProperties {
 
 layout(set = 1, binding = 0) uniform sampler2D ObjectTextures[NUM_OBJECT_TEXTURES];
 
+mat3 TBN(vec3 N, vec3 position, vec2 uv) {
+    vec3 dp1 = dFdx(position);
+    vec3 dp2 = dFdy(position);
+    vec2 duv1 = dFdx(uv);
+    vec2 duv2 = dFdy(uv);
+
+    vec3 dp2Perpendicular = cross(dp2, N);
+    vec3 dp1Perpendicular = cross(N, dp1);
+
+    vec3 T = dp2Perpendicular * duv1.x + dp1Perpendicular * duv2.x;
+    vec3 B = dp2Perpendicular * duv1.y + dp1Perpendicular * duv2.y;
+
+    float invmax = inversesqrt(max(dot(T, T), dot(B, B)));
+
+    return mat3(T * invmax, B * invmax, N);
+}
+
 void main() {
     // Store the fragment position vector in the first gbuffer texture
     gPosition = VertexIn.FragPosition;
@@ -72,8 +88,11 @@ void main() {
     }
 
     if((materialType & MATERIAL_HAS_NORMAL) == MATERIAL_HAS_NORMAL) {
-        gNormal = normalize(texture(ObjectTextures[3], VertexIn.TexCoord).rgb*2.0 - 1.0);
+        vec3 normal = texture(ObjectTextures[3], VertexIn.TexCoord).rgb*(255.0/127.0) - (128.0/127.0);
+//        normal = TBN(VertexIn.Normal, -VertexIn.FragPosition, VertexIn.TexCoord)*normal;
+
+        gNormal = normalize(normal);// * 0.5 + vec3(0.5);
     } else {
-        gNormal = normalize(VertexIn.Normal);
+        gNormal = VertexIn.Normal;
     }
 }

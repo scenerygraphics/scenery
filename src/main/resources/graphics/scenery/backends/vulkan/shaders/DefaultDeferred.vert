@@ -6,7 +6,6 @@ layout(location = 1) in vec3 vertexNormal;
 layout(location = 2) in vec2 vertexTexCoord;
 
 layout(location = 0) out VertexData {
-    vec3 Position;
     vec3 Normal;
     vec2 TexCoord;
     vec3 FragPosition;
@@ -37,16 +36,11 @@ void main()
 	mat4 nMVP;
 	mat4 projectionMatrix;
 
-	if(vrParameters.stereoEnabled == 0) {
-	    mv = ubo.ViewMatrix*ubo.ModelMatrix;
-	    projectionMatrix = ubo.ProjectionMatrix;
-	} else {
-	    mat4 headToEye = vrParameters.headShift;
-	    headToEye[3][0] += currentEye.eye * vrParameters.IPD;
+    mat4 headToEye = vrParameters.headShift;
+	headToEye[3][0] += currentEye.eye * vrParameters.IPD;
 
-	    mv = ubo.ViewMatrix*(ubo.ModelMatrix*headToEye);
-	    projectionMatrix = vrParameters.projectionMatrices[currentEye.eye];
-	}
+    mv = (vrParameters.stereoEnabled ^ 1) * ubo.ViewMatrix * ubo.ModelMatrix + (vrParameters.stereoEnabled * ubo.ViewMatrix * (ubo.ModelMatrix * headToEye));
+	projectionMatrix = (vrParameters.stereoEnabled ^ 1) * ubo.ProjectionMatrix + vrParameters.stereoEnabled * vrParameters.projectionMatrices[currentEye.eye];
 
 	if(ubo.isBillboard > 0) {
 		mv[0][0] = 1.0f;
@@ -60,16 +54,15 @@ void main()
 		mv[2][0] = .0f;
 		mv[2][1] = .0f;
 		mv[2][2] = 1.0f;
-
-		nMVP = projectionMatrix*mv;
 	}
 
 	nMVP = projectionMatrix*mv;
 
-	VertexOut.Normal = transpose(inverse(mat3(ubo.ModelMatrix)))*vertexNormal;
-	VertexOut.Position = vec3( mv * vec4(vertexPosition, 1.0));
+    // view-space normals
+    mat3 NormalMatrix = transpose(inverse(mat3(mv)));
+	VertexOut.Normal = normalize(NormalMatrix*vertexNormal);
 	VertexOut.TexCoord = vertexTexCoord;
-	VertexOut.FragPosition = vec3(ubo.ModelMatrix * vec4(vertexPosition, 1.0));
+	VertexOut.FragPosition = vec3(mv * vec4(vertexPosition, 1.0));
 
 	gl_Position = nMVP * vec4(vertexPosition, 1.0);
 }
