@@ -167,7 +167,7 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
         behaviourMap.put("gamepad_camera_control", GamepadCameraControl("gamepad_camera_control", listOf(Component.Identifier.Axis.Z, Component.Identifier.Axis.RZ), scene.findObserver(), window.width, window.height))
         behaviourMap.put("gamepad_movement_control", GamepadMovementControl("gamepad_movement_control", listOf(Component.Identifier.Axis.X, Component.Identifier.Axis.Y), scene.findObserver()))
 
-        behaviourMap.put("select_command", SelectCommand("select_command", renderer as Renderer, scene, scene.findObserver()))
+        behaviourMap.put("select_command", SelectCommand("select_command", renderer, scene, scene.findObserver()))
 
         behaviourMap.put("move_forward", MovementCommand("move_forward", "forward", scene.findObserver()))
         behaviourMap.put("move_back", MovementCommand("move_back", "back", scene.findObserver()))
