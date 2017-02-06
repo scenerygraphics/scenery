@@ -15,7 +15,7 @@ import kotlin.concurrent.thread
  */
 class FontRenderingExample: SceneryDefaultApplication("FontRenderingExample") {
     override fun init() {
-        renderer = Renderer.createRenderer(applicationName, scene, windowWidth, windowHeight)
+        renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
         hub.add(SceneryElement.RENDERER, renderer!!)
 
         var lights = (0..5).map {

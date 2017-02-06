@@ -109,10 +109,16 @@ class VulkanPipeline(val device: VkDevice, val pipelineCache: Long? = null): Aut
             setLayouts.put(i, layout)
         }
 
+        val pushConstantRanges = VkPushConstantRange.calloc(1)
+            .offset(0)
+            .size(4)
+            .stageFlags(VK_SHADER_STAGE_ALL)
+
         val pPipelineLayoutCreateInfo = VkPipelineLayoutCreateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO)
             .pNext(NULL)
             .pSetLayouts(setLayouts)
+            .pPushConstantRanges(pushConstantRanges)
 
         val layout = VU.run(memAllocLong(1), "vkCreatePipelineLayout",
             { vkCreatePipelineLayout(device, pPipelineLayoutCreateInfo, null, this) },

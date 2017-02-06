@@ -1,5 +1,6 @@
 package graphics.scenery.backends
 
+import graphics.scenery.Hub
 import graphics.scenery.Hubable
 import graphics.scenery.Scene
 import graphics.scenery.Settings
@@ -41,13 +42,13 @@ interface Renderer : Hubable {
     val managesRenderLoop: Boolean
 
     companion object Factory {
-        fun createRenderer(applicationName: String, scene: Scene, windowWidth: Int, windowHeight: Int): Renderer {
+        fun createRenderer(hub: Hub, applicationName: String, scene: Scene, windowWidth: Int, windowHeight: Int): Renderer {
             val preference = System.getProperty("scenery.Renderer", "OpenGLRenderer")
 
             return if (preference == "VulkanRenderer") {
-                VulkanRenderer(applicationName, scene, windowWidth, windowHeight)
+                VulkanRenderer(hub, applicationName, scene, windowWidth, windowHeight)
             } else {
-                OpenGLRenderer(applicationName, scene, windowWidth, windowHeight)
+                OpenGLRenderer(hub, applicationName, scene, windowWidth, windowHeight)
             }
         }
     }

@@ -25,7 +25,7 @@ class MovementCommand(private val name: String, private val direction: String, p
      * @param[speed] The speed multiplier for movement.
      */
     constructor(name: String, direction: String, cam: Camera, speed: Float): this(name, direction, cam) {
-        this.speed = speed;
+        this.speed = speed
     }
 
     /**
@@ -33,14 +33,18 @@ class MovementCommand(private val name: String, private val direction: String, p
      * this behaviour. The camera is then moved in the corresponding direction.
      * this behaviour. The camera is then moved in the corresponding direction.
      */
-    override fun click(x: Int, y: Int) {
-        when (direction) {
-            "forward" -> cam.position = cam.position + cam.forward * speed
-            "back" -> cam.position = cam.position - cam.forward * speed
-            "left" -> cam.position = cam.position - cam.forward.cross(cam.up).normalized * speed
-            "right" -> cam.position = cam.position + cam.forward.cross(cam.up).normalized * speed
-            "up" -> cam.position = cam.position + cam.up * speed
-            "down" -> cam.position = cam.position + cam.up * -1.0f * speed
+    @Synchronized override fun click(x: Int, y: Int) {
+        if(cam.lock.tryLock()) {
+            when (direction) {
+                "forward" -> cam.position = cam.position + cam.forward * speed * cam.deltaT
+                "back" -> cam.position = cam.position - cam.forward * speed * cam.deltaT
+                "left" -> cam.position = cam.position - cam.forward.cross(cam.up).normalized * speed * cam.deltaT
+                "right" -> cam.position = cam.position + cam.forward.cross(cam.up).normalized * speed * cam.deltaT
+                "up" -> cam.position = cam.position + cam.up * speed * cam.deltaT
+                "down" -> cam.position = cam.position + cam.up * -1.0f * speed * cam.deltaT
+            }
+
+            cam.lock.unlock()
         }
     }
 }

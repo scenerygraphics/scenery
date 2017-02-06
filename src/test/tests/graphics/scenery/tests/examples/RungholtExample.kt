@@ -16,7 +16,7 @@ class RungholtExample: SceneryDefaultApplication("BoxedProteinExample", windowWi
         try {
             val lightCount = 127
 
-            renderer = Renderer.createRenderer(applicationName, scene, windowWidth, windowHeight)
+            renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
             hub.add(SceneryElement.RENDERER, renderer!!)
 
             val cam: Camera = DetachedHeadCamera()
@@ -47,8 +47,8 @@ class RungholtExample: SceneryDefaultApplication("BoxedProteinExample", windowWi
                     rangeRandomizer(0.0f, 1.0f))
                 it.parent?.material?.diffuse = it.emissionColor
                 it.intensity = rangeRandomizer(0.01f, 10f)
-                it.linear = 0.01f
-                it.quadratic = 0.01f
+                it.linear = 0.00f
+                it.quadratic = 0.001f
 
                 scene.addChild(it)
             }

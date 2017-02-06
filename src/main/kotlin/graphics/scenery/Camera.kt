@@ -32,13 +32,15 @@ open class Camera : Node("Camera") {
     var nearPlaneDistance = 0.05f
     /** Z buffer far plane location */
     var farPlaneDistance = 1000.0f
+    /** delta T from the renderer */
+    var deltaT = 0.0f
 
     /** View matrix of the camera. Setting the view matrix will re-set the forward
      *  vector of the camera according to the given matrix.
      */
     override var view: GLMatrix = GLMatrix.getIdentity()
         set(m) {
-            m?.let {
+            m.let {
                 this.forward = GLVector(m.get(0, 2), m.get(1, 2), m.get(2, 2)).normalize() * -1.0f
                 this.right = GLVector(m.get(0, 0), m.get(1, 0), m.get(2, 0)).normalize()
                 this.up = GLVector(m.get(0, 1), m.get(1, 1), m.get(2, 1)).normalize()
@@ -77,6 +79,13 @@ open class Camera : Node("Camera") {
     fun getTransformation(): GLMatrix {
         val tr = GLMatrix.getTranslation(this.position * (-1.0f)).transpose()
         val r = GLMatrix.fromQuaternion(this.rotation)
+
+        return r * tr
+    }
+
+    fun getTransformation(preRotation: Quaternion): GLMatrix {
+        val tr = GLMatrix.getTranslation(this.position * (-1.0f)).transpose()
+        val r = GLMatrix.fromQuaternion(preRotation.mult(this.rotation))
 
         return r * tr
     }

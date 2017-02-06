@@ -105,6 +105,8 @@ open class SceneryDefaultApplication(var applicationName: String,
 
         while(renderer!!.shouldClose == false) {
             val start = System.nanoTime()
+
+
             if(renderer!!.managesRenderLoop) {
                 Thread.sleep(2)
             } else {
@@ -116,6 +118,8 @@ open class SceneryDefaultApplication(var applicationName: String,
             if(statsRequested && ticks % 100L == 0L) {
                 logger.info("\nStatistics:\n=============\n${stats}")
             }
+
+            hub.getWorkingHMD()?.update()
 
             val duration = System.nanoTime() - start*1.0f
             stats.add("loop", duration)

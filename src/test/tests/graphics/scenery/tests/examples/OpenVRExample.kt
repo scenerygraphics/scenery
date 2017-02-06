@@ -5,7 +5,7 @@ import cleargl.GLVector
 import graphics.scenery.*
 import org.junit.Test
 import graphics.scenery.backends.Renderer
-import graphics.scenery.controls.OpenVRInput
+import graphics.scenery.controls.OpenVRHMDInput
 import graphics.scenery.repl.REPL
 import kotlin.concurrent.thread
 
@@ -15,12 +15,12 @@ import kotlin.concurrent.thread
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class OpenVRExample : SceneryDefaultApplication("OpenVRExample") {
-    private var ovr: OpenVRInput? = null
+    private var ovr: OpenVRHMDInput? = null
     override fun init() {
-        ovr = OpenVRInput(useCompositor = true)
+        ovr = OpenVRHMDInput(useCompositor = true)
         hub.add(SceneryElement.HMDINPUT, ovr!!)
 
-        renderer = Renderer.createRenderer(applicationName, scene, 1280, 720)
+        renderer = Renderer.createRenderer(hub, applicationName, scene, 1280, 720)
         hub.add(SceneryElement.RENDERER, renderer!!)
 
         var box = Box(GLVector(1.0f, 1.0f, 1.0f))

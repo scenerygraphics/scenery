@@ -25,6 +25,8 @@ class PointLight : Mesh(), HasGeometry, Renderable {
     var linear: Float = 10.5f
     /** Quadratic falloff of the light. */
     var quadratic: Float = 2.7f
+    /** Maximum radius in world units */
+    var radius: Float = 500.0f
 
     /** Node name of the Point Light */
     override var name = "PointLight"

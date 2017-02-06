@@ -72,27 +72,44 @@ open class GLFWMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandler,
 
     }
 
+    private var clickBefore = System.nanoTime()
     var mouseCallback = object : GLFWMouseButtonCallback() {
         override fun invoke(window: Long, key: Int, action: Int, mods: Int) {
-            val type = when(action) {
+            val type = when (action) {
                 GLFW_PRESS -> MouseEvent.EVENT_MOUSE_PRESSED
                 GLFW_RELEASE -> MouseEvent.EVENT_MOUSE_RELEASED
                 else -> MouseEvent.EVENT_MOUSE_CLICKED
             }
+
+            var clickCount = 1
+
+            if(action == GLFW_PRESS) {
+                val now = System.nanoTime()
+                val diff = (now - clickBefore) / 10e5
+
+                if (diff > 10 && diff < getDoubleClickInterval()) {
+                    clickCount = 2
+                }
+
+                clickBefore = now
+            }
+
             val event = MouseEvent(type,
                 this,
                 System.nanoTime(),
                 0,
                 mouseX,
                 mouseY,
-                1, 0,
+                clickCount.toShort(), 0,
                 floatArrayOf(0.0f, 0.0f, 0.0f), 1.0f)
 
 
-                when (action) {
-                    GLFW_PRESS -> { mousePressed(event);  }
-                    GLFW_RELEASE -> { mouseReleased(event); }
-                }
+            when (action) {
+                GLFW_PRESS -> {
+                    mousePressed(event); }
+                GLFW_RELEASE -> {
+                    mouseReleased(event); }
+            }
         }
     }
 
@@ -105,7 +122,7 @@ open class GLFWMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandler,
                 0,
                 0,
                 0, 0,
-                floatArrayOf(xoffset.toFloat(), yoffset.toFloat(), 0.0f), 1.0f))
+                floatArrayOf(xoffset.toFloat()*scrollSpeedMultiplier, yoffset.toFloat()*scrollSpeedMultiplier, 0.0f), 1.0f))
         }
 
     }
@@ -160,6 +177,12 @@ open class GLFWMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandler,
 
     /** behaviour expected modifier count */
     private var behaviourMapExpectedModCount: Int = 0
+
+    /** store os name */
+    private var os = ""
+
+    /** scroll speed multiplier to combat OS idiosyncrasies */
+    private var scrollSpeedMultiplier = 1.0f
 
     /**
      * Utility function to search the current class path for JARs with natie libraries
@@ -225,6 +248,21 @@ open class GLFWMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandler,
     }
 
     init {
+        os = if(System.getProperty("os.name").toLowerCase().indexOf("windows") != -1) {
+            "windows"
+        } else if(System.getProperty("os.name").toLowerCase().indexOf("mac") != -1) {
+            "mac"
+        } else if(System.getProperty("os.name").toLowerCase().indexOf("linux") != -1) {
+            "linux"
+        } else {
+            "unknown"
+        }
+
+        scrollSpeedMultiplier = if(os == "mac") {
+            1.0f
+        } else {
+            10.0f
+        }
 
         logger.debug("Native JARs for JInput: ${getNativeJars("jinput-platform").joinToString(", ")}")
         extractLibrariesFromJar(getNativeJars("jinput-platform"))
@@ -632,12 +670,16 @@ open class GLFWMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandler,
         val y = e.y
 
         for (drag in buttonDrags) {
-            logger.trace("$pressedKeys vs ${drag.buttons.pressedKeys}")
-            logger.trace("$mask vs ${drag.buttons.mask}")
             if (drag.buttons.matches(mask, pressedKeys)) {
-                logger.trace("yay! match!")
                 drag.behaviour.init(x, y)
                 activeButtonDrags.add(drag)
+            }
+        }
+
+        val clickMask = mask and InputTrigger.DOUBLE_CLICK_MASK.inv()
+        for (click in buttonClicks) {
+            if (click.buttons.matches(mask, pressedKeys) || clickMask != mask && click.buttons.matches(clickMask, pressedKeys)) {
+                click.behaviour.click(x, y)
             }
         }
     }

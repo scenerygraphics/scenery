@@ -14,7 +14,7 @@ import kotlin.concurrent.thread
  */
 class TexturedArrowExample : SceneryDefaultApplication("TexturedArrowExample") {
     override fun init() {
-        renderer = Renderer.createRenderer(applicationName, scene, 512, 512)
+        renderer = Renderer.createRenderer(hub, applicationName, scene, 512, 512)
         hub.add(SceneryElement.RENDERER, renderer!!)
 
         var mat= Material()

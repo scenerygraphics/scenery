@@ -2,6 +2,7 @@ package graphics.scenery
 
 import cleargl.GLVector
 import org.lwjgl.system.MemoryUtil.memAlloc
+import org.slf4j.LoggerFactory
 import java.io.BufferedInputStream
 import java.io.File
 import java.io.FileInputStream
@@ -51,11 +52,13 @@ interface HasGeometry {
      * @return A HashMap storing material name and [Material].
      */
     fun readFromMTL(filename: String): HashMap<String, Material> {
+        val logger = LoggerFactory.getLogger("OBJImporter")
+
         var materials = HashMap<String, Material>()
 
         var f = File(filename)
         if (!f.exists()) {
-            System.out.println("Could not read MTL from $filename, file does not exist.")
+            logger.error("Could not read materials from $filename, file does not exist.")
 
             vertices = ByteBuffer.allocateDirect(0).asFloatBuffer()
             normals = ByteBuffer.allocateDirect(0).asFloatBuffer()
@@ -67,7 +70,7 @@ interface HasGeometry {
         val lines = Files.lines(FileSystems.getDefault().getPath(filename))
         var currentMaterial: Material? = Material()
 
-        System.out.println("Reading from MTL file $filename")
+        logger.info("Importing materials from MTL file $filename")
         // The MTL file is read line-by-line and tokenized, based on spaces.
         // The first non-whitespace token encountered will be evaluated as command to
         // set up the properties of the [Material], which include e.g. textures and colors.
@@ -129,6 +132,8 @@ interface HasGeometry {
      * @param[useMTL] Whether a accompanying MTL file shall be used, defaults to true.
      */
     fun readFromOBJ(filename: String, useMTL: Boolean = true) {
+        val logger = LoggerFactory.getLogger("OBJImporter")
+
         var name: String = ""
         var vbuffer: FloatBuffer = FloatBuffer.allocate(1)
         var nbuffer: FloatBuffer = FloatBuffer.allocate(1)
@@ -177,7 +182,7 @@ interface HasGeometry {
 
         var f = File(filename)
         if (!f.exists()) {
-            System.out.println("Could not read from $filename, file does not exist.")
+            logger.error("Could not read from $filename, file does not exist.")
 
             return
         }
@@ -192,7 +197,7 @@ interface HasGeometry {
         val triangleIndices = intArrayOf(0, 1, 2)
         val quadIndices = intArrayOf(0, 1, 2, 0, 2, 3)
 
-        System.out.println("Reading from OBJ file $filename")
+        logger.info("Importing geometry from OBJ file $filename")
         // OBJ files are read line-by-line, then tokenized after removing trailing
         // and leading whitespace. The first non-whitespace string encountered is
         // evaluated as command, according to the OBJ spec.
@@ -289,7 +294,7 @@ interface HasGeometry {
                         } else if (vertices.size == 4) {
                             quadIndices
                         } else {
-                            System.err.println("Polygonal triangulation is not yet supported")
+                            logger.error("Polygonal triangulation is not yet supported")
                             quadIndices
                             // TODO: Implement polygons!
                         }
@@ -306,7 +311,7 @@ interface HasGeometry {
                         }
 
                         fun defaultHandler(x: Int): Float {
-                            System.err.println("Could not find v/n/uv for index $x. File broken?")
+                            logger.error("Could not find v/n/uv for index $x. File broken?")
                             return 0.0f
                         }
 
@@ -388,7 +393,7 @@ interface HasGeometry {
                     }
                     else -> {
                         if (!tokens[0].startsWith("#")) {
-                            System.err.println("Unknown element: ${tokens.joinToString(" ")}")
+                            logger.warn("Unknown element: ${tokens.joinToString(" ")}")
                         }
                     }
                 }
@@ -422,7 +427,7 @@ interface HasGeometry {
             }
         }
 
-        System.out.println("Read ${vertexCount / vertexSize}/${normalCount / vertexSize}/${uvCount / texcoordSize} v/n/uv of model $name in ${(end - start) / 1e6} ms")
+        logger.info("Read ${vertexCount / vertexSize}/${normalCount / vertexSize}/${uvCount / texcoordSize} v/n/uv of model $name in ${(end - start) / 1e6} ms")
     }
 
     /**
@@ -431,6 +436,8 @@ interface HasGeometry {
      * @param[filename] The filename to read from.
      */
     fun readFromSTL(filename: String) {
+        val logger = LoggerFactory.getLogger("STLImporter")
+
         var name: String = ""
         var vbuffer = ArrayList<Float>()
         var nbuffer = ArrayList<Float>()
@@ -439,7 +446,7 @@ interface HasGeometry {
 
         var f = File(filename)
         if (!f.exists()) {
-            System.out.println("Could not read from $filename, file does not exist.")
+            logger.error("Could not read from $filename, file does not exist.")
 
             return
         }
@@ -449,7 +456,7 @@ interface HasGeometry {
 
         // This lambda is used in case the STL file is stored in ASCII format
         val readFromAscii = {
-            System.out.println("Reading from ASCII STL file $filename")
+            logger.info("Importing geometry from ASCII STL file $filename")
             lines.forEach {
                 line ->
                 val tokens = line.trim().trimEnd().split(" ")
@@ -488,14 +495,14 @@ interface HasGeometry {
                     }
                     "endsolid" -> {
                     }
-                    else -> System.err.println("Unknown element: ${tokens.joinToString(" ")}")
+                    else -> logger.warn("Unknown element: ${tokens.joinToString(" ")}")
                 }
             }
         }
 
         // This lambda is used in case the STL file is stored binary
         val readFromBinary = {
-            System.out.println("Reading from binary STL file $filename")
+            logger.info("Importing geometry from binary STL file $filename")
 
             val fis = FileInputStream(filename)
             val bis = BufferedInputStream(fis)
@@ -575,7 +582,7 @@ interface HasGeometry {
 
         // normals are incomplete or missing, recalculate
         if (nbuffer.size != vbuffer.size) {
-            System.err.println("Model does not supply surface normals, recalculating.")
+            logger.warn("Model does not supply surface normals, recalculating.")
             nbuffer.clear()
 
             var i = 0
@@ -604,7 +611,7 @@ interface HasGeometry {
 
 
         val end = System.nanoTime()
-        System.out.println("Read ${vbuffer.size} vertices/${nbuffer.size} normals of model ${name} in ${(end - start) / 1e6} ms")
+        logger.info("Read ${vbuffer.size} vertices/${nbuffer.size} normals of model ${name} in ${(end - start) / 1e6} ms")
 
         vertices = ByteBuffer.allocateDirect(vbuffer.size * 4).asFloatBuffer()
         normals = ByteBuffer.allocateDirect(nbuffer.size * 4).asFloatBuffer()
@@ -618,7 +625,7 @@ interface HasGeometry {
         normals.flip()
 
         if (this is Mesh && boundingBox != null) {
-            System.err.println("BB of $name is ${boundingBox?.joinToString(",")}")
+            logger.info("Bounding box of $name is ${boundingBox?.joinToString(",")}")
             this.boundingBoxCoords = boundingBox
         }
     }

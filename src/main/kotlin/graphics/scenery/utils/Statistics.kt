@@ -12,7 +12,7 @@ import java.util.concurrent.ConcurrentLinkedDeque
 class Statistics(override var hub: Hub?) : Hubable {
     private val dataSize = 100
 
-    inner class StatisticData {
+    inner class StatisticData(val isTime: Boolean) {
         var data: Deque<Float> = ConcurrentLinkedDeque()
 
         fun avg(): Float = data.sum() / data.size
@@ -27,25 +27,29 @@ class Statistics(override var hub: Hub?) : Hubable {
             Math.sqrt((data.map { (it - avg()) * (it - avg()) }.sum() / data.size).toDouble()).toFloat()
         }
 
-        fun Float.inMilliseconds(): String {
-            return String.format(Locale.US, "%.2f", this / 10e5)
+        fun Float.inMillisecondsIfTime(): String {
+            if(isTime) {
+                return String.format(Locale.US, "%.2f", this / 10e5)
+            } else {
+                return String.format(Locale.US, "%.2f", this)
+            }
         }
 
-        override fun toString(): String = "${avg().inMilliseconds()}\tmin: ${min().inMilliseconds()}\tmax: ${max().inMilliseconds()}\tstd: ${stddev().inMilliseconds()}"
+        override fun toString(): String = "${avg().inMillisecondsIfTime()}\tmin: ${min().inMillisecondsIfTime()}\tmax: ${max().inMillisecondsIfTime()}\tstd: ${stddev().inMillisecondsIfTime()}"
     }
 
     protected var stats = ConcurrentHashMap<String, StatisticData>()
 
-    fun add(name: String, time: Float) {
+    fun add(name: String, value: Float, isTime: Boolean = true) {
         if (stats.containsKey(name)) {
             if (stats.get(name)!!.data.size >= dataSize) {
                 stats.get(name)!!.data.pop()
             }
 
-            stats.get(name)!!.data.add(time)
+            stats.get(name)!!.data.add(value)
         } else {
-            val d = StatisticData()
-            d.data.add(time)
+            val d = StatisticData(isTime)
+            d.data.add(value)
 
             stats.put(name, d)
         }
@@ -62,7 +66,7 @@ class Statistics(override var hub: Hub?) : Hubable {
     fun get(name: String) = stats.get(name)
 
     override fun toString(): String {
-        return "Statistics:\n" + stats.map {
+        return "Statistics:\n" + stats.toSortedMap().map {
             "${it.key} - ${it.value}"
         }.joinToString("\n")
     }

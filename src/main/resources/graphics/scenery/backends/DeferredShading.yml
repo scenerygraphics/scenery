@@ -1,5 +1,5 @@
 name: Deferred Shading
-description: OpenGL/Vulkan shader pipeline implementing deferred shading
+description: Deferred Shading, with HDR postprocessing
 
 rendertargets:
   GeometryBuffer:
@@ -41,7 +41,7 @@ renderpasses:
       reflectanceModel: 1
       ssaoDistanceThreshold: 20.0
       ssaoFilterRadius: 0.05, 0.05
-  PostprocessHDR:
+  HDR:
     type: quad
     shaders:
       - "FullscreenQuad.vert.spv"

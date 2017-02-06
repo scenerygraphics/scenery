@@ -16,7 +16,31 @@ var ObjectLocator = function(match) {
 
     print("ObjectLocator: Could not find " + match);
     return null;
-}
+};
+
+Array.prototype.first = function() {
+    if(this === void 0 || this === null) {
+        throw new TypeError();
+    }
+
+    if(this.length == 0) {
+        return null;
+    } else {
+        return this[0];
+    }
+};
+
+Array.prototype.last = function() {
+    if(this === void 0 || this === null) {
+        throw new TypeError();
+    }
+
+    if(this.length == 0) {
+        return null;
+    } else {
+        return this[this.length-1];
+    }
+};
 
 // define standard variables
 var scene = ObjectLocator("Scene");

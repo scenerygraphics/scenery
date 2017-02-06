@@ -14,7 +14,7 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import graphics.scenery.Node
 
-open class UBO(val device: VkDevice, val backingBuffer: VulkanBuffer? = null): AutoCloseable {
+open class UBO(val device: VkDevice, var backingBuffer: VulkanBuffer? = null): AutoCloseable {
     var name = ""
     var members = LinkedHashMap<String, () -> Any>()
     var descriptor: UBODescriptor? = null
@@ -123,7 +123,7 @@ open class UBO(val device: VkDevice, val backingBuffer: VulkanBuffer? = null): A
         val data = if(backingBuffer == null) {
             memAlloc(getSize())
         } else {
-            backingBuffer.stagingBuffer
+            backingBuffer!!.stagingBuffer
         }
 
         members.forEach {
@@ -215,14 +215,24 @@ open class UBO(val device: VkDevice, val backingBuffer: VulkanBuffer? = null): A
             this.descriptor!!.range = this.getSize() * 1L
         } else {
             this.descriptor = UBODescriptor()
-            this.descriptor!!.memory = backingBuffer.memory
-            this.descriptor!!.allocationSize = backingBuffer.size
-            this.descriptor!!.buffer = backingBuffer.buffer
+            this.descriptor!!.memory = backingBuffer!!.memory
+            this.descriptor!!.allocationSize = backingBuffer!!.size
+            this.descriptor!!.buffer = backingBuffer!!.buffer
             this.descriptor!!.offset = 0L
             this.descriptor!!.range = this.getSize() * 1L
         }
 
         return this.descriptor!!
+    }
+
+    fun updateBackingBuffer(newBackingBuffer: VulkanBuffer) {
+        backingBuffer = newBackingBuffer
+        this.descriptor = UBODescriptor()
+        this.descriptor!!.memory = backingBuffer!!.memory
+        this.descriptor!!.allocationSize = backingBuffer!!.size
+        this.descriptor!!.buffer = backingBuffer!!.buffer
+        this.descriptor!!.offset = 0L
+        this.descriptor!!.range = this.getSize() * 1L
     }
 
     fun copyFromStagingBuffer() {

@@ -2,6 +2,11 @@ package graphics.scenery.controls
 
 import cleargl.GLMatrix
 import cleargl.GLVector
+import com.jogamp.opengl.math.Quaternion
+import org.lwjgl.vulkan.VkDevice
+import org.lwjgl.vulkan.VkInstance
+import org.lwjgl.vulkan.VkPhysicalDevice
+import org.lwjgl.vulkan.VkQueue
 
 /**
  * Generic interface for head-mounted displays (HMDs)
@@ -15,7 +20,7 @@ interface HMDInput {
      * @param[eye] The index of the eye
      * @return GLMatrix containing the per-eye projection matrix
      */
-    fun getEyeProjection(eye: Int): GLMatrix
+    fun getEyeProjection(eye: Int, nearPlane: Float = 1.0f, farPlane: Float = 1000.0f, flipY: Boolean = false): GLMatrix
 
     /**
      * Returns the inter-pupillary distance (IPD)
@@ -29,7 +34,7 @@ interface HMDInput {
      *
      * @returns GLMatrix with orientation
      */
-    fun getOrientation(): GLMatrix
+    fun getOrientation(): Quaternion
 
     /**
      * Returns the absolute position as GLVector
@@ -62,12 +67,29 @@ interface HMDInput {
     fun hasCompositor(): Boolean
 
     /**
-     * Submit texture IDs to the compositor
+     * Submit OpenGL texture IDs to the compositor
      *
      * @param[leftId] Texture ID of the left eye texture
      * @param[rightId] Texture ID of the right eye texture
      */
     fun submitToCompositor(leftId: Int, rightId: Int)
+
+    /**
+     * Submit a Vulkan texture handle to the compositor
+     *
+     * @param[width] Texture width
+     * @param[height] Texture height
+     * @param[format] Vulkan texture format
+     * @param[instance] Vulkan Instance
+     * @param[device] Vulkan device
+     * @param[queue] Vulkan queue
+     * @param[queueFamilyIndex] Queue family index
+     * @param[image] The Vulkan texture image to be presented to the compositor
+     */
+    fun submitToCompositorVulkan(width: Int, height: Int, format: Int,
+                                 instance: VkInstance, device: VkDevice, physicalDevice: VkPhysicalDevice,
+                                 queue: VkQueue, queueFamilyIndex: Int,
+                                 image: Long)
 
     /**
      * Returns the optimal render target size for the HMD as 2D vector
@@ -82,4 +104,13 @@ interface HMDInput {
      * @return True if HMD is initialiased correctly and working properly
      */
     fun initializedAndWorking(): Boolean
+
+    /**
+     * update state
+     */
+    fun update()
+
+    fun getVulkanInstanceExtensions(): List<String>
+
+    fun getVulkanDeviceExtensions(physicalDevice: VkPhysicalDevice): List<String>
 }

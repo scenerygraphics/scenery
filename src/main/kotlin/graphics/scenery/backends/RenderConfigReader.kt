@@ -73,9 +73,20 @@ class RenderConfigReader {
         }
     }
 
+    class VREyeDeserializer : JsonDeserializer<Int>() {
+        override fun deserialize(p: JsonParser, ctxt: DeserializationContext?): Int {
+            return when(p.text.trim().trimEnd()) {
+                "LeftEye" -> 0
+                "RightEye" -> 1
+                else -> -1
+            }
+        }
+    }
+
     data class RenderConfig(
         var name: String,
         var description: String?,
+        var stereoEnabled: Boolean = false,
         var rendertargets: Map<String, Map<String, AttachmentConfig>>?,
         var renderpasses: Map<String, RenderpassConfig>)
 
@@ -93,7 +104,8 @@ class RenderConfigReader {
         @JsonDeserialize(using = FloatPairDeserializer::class) var viewportOffset: Pair<Float, Float> = Pair(0.0f, 0.0f),
         @JsonDeserialize(using = FloatPairDeserializer::class) var scissor: Pair<Float, Float> = Pair(1.0f, 1.0f),
         @JsonDeserialize(using = VectorDeserializer::class) var clearColor: GLVector = GLVector(0.0f, 0.0f, 0.0f, 0.0f),
-        var depthClearValue: Float = 1.0f
+        var depthClearValue: Float = 1.0f,
+        @JsonDeserialize(using = VREyeDeserializer::class) var eye: Int = -1
     )
 
     enum class RenderpassType { geometry, quad }
