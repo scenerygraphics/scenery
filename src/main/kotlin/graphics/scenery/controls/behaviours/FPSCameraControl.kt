@@ -99,7 +99,11 @@ open class FPSCameraControl(private val name: String, private val node: Camera, 
      * @param[x] x position in window
      * @param[y] y position in window
      */
-    override fun drag(x: Int, y: Int) {
+    @Synchronized override fun drag(x: Int, y: Int) {
+        if(!node.lock.tryLock()) {
+            return
+        }
+
         var xoffset: Float = (x - lastX).toFloat()
         var yoffset: Float = (y - lastY).toFloat()
 
@@ -119,6 +123,7 @@ open class FPSCameraControl(private val name: String, private val node: Camera, 
 //        rot.mult(node.rotation).normalize()
 
         node.rotation = rot
+        node.lock.unlock()
     }
 
 

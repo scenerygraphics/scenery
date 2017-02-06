@@ -33,7 +33,7 @@ open class Camera : Node("Camera") {
     /** Z buffer far plane location */
     var farPlaneDistance = 1000.0f
     /** delta T from the renderer */
-    @Volatile var deltaT = 0.0f
+    var deltaT = 0.0f
 
     /** View matrix of the camera. Setting the view matrix will re-set the forward
      *  vector of the camera according to the given matrix.

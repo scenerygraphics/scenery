@@ -197,7 +197,7 @@ open class Node(open var name: String) : Renderable {
      * @param[recursive] Whether the [children] should be recursed into.
      * @param[force] Force update irrespective of [needsUpdate] state.
      */
-    fun updateWorld(recursive: Boolean, force: Boolean = false) {
+    @Synchronized fun updateWorld(recursive: Boolean, force: Boolean = false) {
         if (needsUpdate or force) {
             this.composeModel()
 
@@ -231,12 +231,14 @@ open class Node(open var name: String) : Renderable {
      * [position], [scale] and [rotation].
      */
     fun composeModel() {
-        model.setIdentity()
-        //   w.translate(-this.position.x(), -this.position.y(), -this.position.z())
-        model.mult(this.rotation)
-        //    w.translate(this.position.x(), this.position.y(), this.position.z())
-        model.scale(this.scale.x(), this.scale.y(), this.scale.z())
-        model.translate(this.position.x(), this.position.y(), this.position.z())
+        if(position != null && rotation != null && scale != null) {
+            model.setIdentity()
+            //   w.translate(-this.position.x(), -this.position.y(), -this.position.z())
+            model.mult(this.rotation)
+            //    w.translate(this.position.x(), this.position.y(), this.position.z())
+            model.scale(this.scale.x(), this.scale.y(), this.scale.z())
+            model.translate(this.position.x(), this.position.y(), this.position.z())
+        }
     }
 
     /**
