@@ -632,7 +632,7 @@ open class VulkanRenderer(hub: Hub,
             val parentMetadata = node.instanceOf!!.metadata["VulkanRenderer"] as VulkanObjectState
 
             if (!parentMetadata.initialized) {
-                logger.info("Instance parent ${node.instanceOf!!} is not initialized yet, initializing now...")
+                logger.debug("Instance parent ${node.instanceOf!!} is not initialized yet, initializing now...")
                 initializeNode(node.instanceOf!!)
             }
 
@@ -2402,7 +2402,7 @@ open class VulkanRenderer(hub: Hub,
             }
 
             if(!it.metadata.containsKey("VulkanRenderer")) {
-                logger.info("${it.name} is not initialized, doing that now")
+                logger.debug("${it.name} is not initialized, doing that now")
                 it.metadata.put("VulkanRenderer", VulkanObjectState())
                 initializeNode(it)
             } else {
@@ -2680,6 +2680,10 @@ open class VulkanRenderer(hub: Hub,
 
         sceneUBOs.forEach { node ->
             node.lock.withLock {
+                if(!node.metadata.containsKey("VulkanRenderer")) {
+                    return@withLock
+                }
+
                 val ubo = (node.metadata["VulkanRenderer"] as VulkanObjectState).UBOs["Default"]!!.second
 
                 node.updateWorld(true, false)
