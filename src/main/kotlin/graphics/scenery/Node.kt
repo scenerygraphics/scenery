@@ -28,8 +28,12 @@ open class Node(open var name: String) : Renderable {
     override var initialized: Boolean = false
     /** Whether the Node is dirty and needs updating. */
     override var dirty: Boolean = true
-    /** Flag to set whether the Node is visible or not. */
+    /** Flag to set whether the Node is visible or not, recursively affects children. */
     override var visible: Boolean = true
+        set(v) {
+            children.forEach { it.visible = v }
+            field = v
+        }
     /** Is this Node an instance of another Node? */
     var instanceOf: Node? = null
     /** instanced properties */
