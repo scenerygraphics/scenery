@@ -6,12 +6,11 @@
 
 ## Synopsis
 
-scenery is a scenegraphing and rendering library. It allows you to quickly create high-quality 3D visualisations based on mesh data. Currently, scenery contains an OpenGL 4-based [Deferred Shading](https://en.wikipedia.org/wiki/Deferred_Shading) renderer that also supports [OpenVR](https://github.com/ValveSoftware/openvr) and an experimental [Vulkan](https://www.khronos.org/vulkan) renderer. Software rendering is planned for the future.
+scenery is a scenegraphing and rendering library. It allows you to quickly create high-quality 3D visualisations based on mesh data. Currently, scenery contains an OpenGL 4-based [Deferred Shading](https://en.wikipedia.org/wiki/Deferred_Shading) renderer and an experimental [Vulkan](https://www.khronos.org/vulkan) renderer with both forward and deferred shading. Both support Virtual Reality headsets like the HTC Vive or Oculus Rift via [OpenVR/SteamVR](https://github.com/ValveSoftware/openvr). A software renderer is planned for the future.
 
 ## Examples
 
-* have a look in the [src/test/kotlin/scenery/examples](./src/test/kotlin/scenery/tests/examples) directory, there you'll find plenty of examples how to use _scenery_ in Kotlin
-* Java examples are coming soon.
+* have a look in the [src/test/tests/graphics/scenery/tests/examples](./src/test/tests/graphics/scenery/tests/examples/) directory, there you'll find plenty of examples how to use _scenery_ in Kotlin, and a few Java examples.
 
 ## Building
 
@@ -26,11 +25,16 @@ git clone https://github.com/ClearVolume/ClearGL.git
 
 ## Using _scenery_
 
+### Maven artifacts
+
+Artifacts are currently published to the ImageJ repository at `https://maven.imagej.net/content/groups/public`. If you want to use the artifacts directly, add this repository to your Maven or Gradle repository configuration.
+
 ### Using _scenery_ in a Maven project
 
 Make sure you have followed the instructions in _Building_, such that both the scenery and ClearGL JARs have been installed into your local Maven repository.
 
 Add these dependencies to your project's `pom.xml`:
+
 ```xml
 <dependencies>
   <dependency>
@@ -52,7 +56,8 @@ Add these dependencies to your project's `pom.xml`:
 Make sure you have followed the instructions in _Building_, such that both the scenery and ClearGL JARs have been installed into your local Maven repository.
 
 Add these dependencies to your project's `build.gradle`:
+
 ```groovy
-compile group: 'net.clearvolume', name: 'scenery', version: '1.0.0-SNAPSHOT'
+compile group: 'graphics.scenery', name: 'scenery', version: '1.0.0-SNAPSHOT'
 compile group: 'net.clearvolume', name: 'cleargl', version: '2.0.0-SNAPSHOT'
 ```
