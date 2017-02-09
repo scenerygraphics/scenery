@@ -2,7 +2,7 @@
 #extension GL_ARB_separate_shader_objects: enable
 
 const float PI = 3.14159265358979323846264;
-const int NUM_OBJECT_TEXTURES = 5;
+const int NUM_OBJECT_TEXTURES = 6;
 const int MAX_NUM_LIGHTS = 128;
 
 struct Light {

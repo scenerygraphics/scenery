@@ -13,7 +13,7 @@ layout(location = 1) out vec3 gNormal;
 layout(location = 2) out vec4 gAlbedoSpec;
 
 const float PI = 3.14159265358979323846264;
-const int NUM_OBJECT_TEXTURES = 5;
+const int NUM_OBJECT_TEXTURES = 6;
 
 struct MaterialInfo {
     vec3 Ka;

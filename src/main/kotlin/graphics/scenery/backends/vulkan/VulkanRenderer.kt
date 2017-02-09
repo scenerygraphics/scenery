@@ -211,6 +211,7 @@ open class VulkanRenderer(hub: Hub,
     private val MATERIAL_HAS_AMBIENT = 0x0002
     private val MATERIAL_HAS_SPECULAR = 0x0004
     private val MATERIAL_HAS_NORMAL = 0x0008
+    private val MATERIAL_HAS_ALPHAMASK = 0x0010
 
     // end helper vars
 
@@ -690,6 +691,10 @@ open class VulkanRenderer(hub: Hub,
                 materialType = materialType or MATERIAL_HAS_NORMAL
             }
 
+            if (node.material!!.textures.containsKey("alphamask") && !s.defaultTexturesFor.contains("alphamask")) {
+                materialType = materialType or MATERIAL_HAS_ALPHAMASK
+            }
+
             with(materialUbo) {
                 name = "BlinnPhongMaterial"
                 members.put("Ka", { node.material!!.ambient })
@@ -794,14 +799,7 @@ open class VulkanRenderer(hub: Hub,
             node.material?.textures?.forEach {
                 type, texture ->
 
-                val slot = when (type) {
-                    "ambient" -> 0
-                    "diffuse" -> 1
-                    "specular" -> 2
-                    "normal" -> 3
-                    "displacement" -> 4
-                    else -> 0
-                }
+                val slot = VulkanObjectState.textureTypeToSlot(type)
 
                 val mipLevels = if(type == "ambient" || type == "diffuse" || type == "specular") {
                     3
@@ -841,7 +839,7 @@ open class VulkanRenderer(hub: Hub,
                 }
             }
 
-            arrayOf("ambient", "diffuse", "specular", "normal", "displacement").forEach {
+            arrayOf("ambient", "diffuse", "specular", "normal", "alphamask", "displacement").forEach {
                 if (!s.textures.containsKey(it)) {
                     s.textures.putIfAbsent(it, textureCache["DefaultTexture"])
                     s.defaultTexturesFor.add(it)
@@ -876,7 +874,7 @@ open class VulkanRenderer(hub: Hub,
 
         m.put("ObjectTextures", VU.createDescriptorSetLayout(
             device,
-            listOf(Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 5)),
+            listOf(Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 6)),
             VK_SHADER_STAGE_ALL_GRAPHICS))
 
         m.put("VRParameters", VU.createDescriptorSetLayout(

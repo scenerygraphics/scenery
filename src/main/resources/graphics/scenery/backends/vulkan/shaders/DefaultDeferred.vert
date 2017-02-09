@@ -59,7 +59,7 @@ void main()
 	nMVP = projectionMatrix*mv;
 
     // view-space normals
-    mat3 NormalMatrix = transpose(inverse(mat3(mv)));
+    mat3 NormalMatrix = mat3(mv);
 	VertexOut.Normal = normalize(NormalMatrix*vertexNormal);
 	VertexOut.TexCoord = vertexTexCoord;
 	VertexOut.FragPosition = vec3(mv * vec4(vertexPosition, 1.0));

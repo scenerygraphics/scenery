@@ -12,7 +12,7 @@ layout(location = 1) out vec3 gNormal;
 layout(location = 2) out vec4 gAlbedoSpec;
 
 const float PI = 3.14159265358979323846264;
-const int NUM_OBJECT_TEXTURES = 5;
+const int NUM_OBJECT_TEXTURES = 6;
 
 struct MaterialInfo {
     vec3 Ka;
@@ -25,6 +25,7 @@ const int MATERIAL_HAS_DIFFUSE =  0x0001;
 const int MATERIAL_HAS_AMBIENT =  0x0002;
 const int MATERIAL_HAS_SPECULAR = 0x0004;
 const int MATERIAL_HAS_NORMAL =   0x0008;
+const int MATERIAL_HAS_ALPHAMASK = 0x0010;
 
 layout(binding = 0) uniform Matrices {
 	mat4 ModelMatrix;
@@ -44,7 +45,8 @@ layout(binding = 1) uniform MaterialProperties {
     ObjectTextures[1] - diffuse
     ObjectTextures[2] - specular
     ObjectTextures[3] - normal
-    ObjectTextures[4] - displacement
+    ObjectTextures[4] - alpha
+    ObjectTextures[5] - displacement
 */
 
 layout(set = 1, binding = 0) uniform sampler2D ObjectTextures[NUM_OBJECT_TEXTURES];
@@ -87,11 +89,17 @@ void main() {
         gAlbedoSpec.a = texture(ObjectTextures[2], VertexIn.TexCoord).r;
     }
 
+    if((materialType & MATERIAL_HAS_ALPHAMASK) == MATERIAL_HAS_ALPHAMASK) {
+        if(texture(ObjectTextures[4], VertexIn.TexCoord).r < 0.1f) {
+            discard;
+        }
+    }
+
     if((materialType & MATERIAL_HAS_NORMAL) == MATERIAL_HAS_NORMAL) {
         vec3 normal = texture(ObjectTextures[3], VertexIn.TexCoord).rgb*(255.0/127.0) - (128.0/127.0);
-//        normal = TBN(VertexIn.Normal, -VertexIn.FragPosition, VertexIn.TexCoord)*normal;
+        normal = TBN(VertexIn.Normal, -VertexIn.FragPosition, VertexIn.TexCoord)*normal;
 
-        gNormal = normalize(normal);// * 0.5 + vec3(0.5);
+        gNormal = normalize(normal);
     } else {
         gNormal = VertexIn.Normal;
     }

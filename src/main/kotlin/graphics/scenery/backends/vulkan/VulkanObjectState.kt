@@ -73,7 +73,7 @@ class VulkanObjectState : NodeMetadata {
                 .pNext(NULL)
                 .dstSet(descriptorSet)
                 .dstBinding(targetBinding)
-                .dstArrayElement(toVulkanSlot(type))
+                .dstArrayElement(textureTypeToSlot(type))
                 .pImageInfo(d[i])
                 .descriptorType(VK10.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
 
@@ -89,14 +89,19 @@ class VulkanObjectState : NodeMetadata {
         return descriptorSet
     }
 
-    fun toVulkanSlot(type: String): Int {
-        return when (type) {
-            "ambient" -> 0
-            "diffuse" -> 1
-            "specular" -> 2
-            "normal" -> 3
-            "displacement" -> 4
-            else -> 0
+    companion object {
+        protected var logger: Logger = LoggerFactory.getLogger("VulkanRenderer")
+
+        fun textureTypeToSlot(type: String): Int {
+            return when (type) {
+                "ambient" -> 0
+                "diffuse" -> 1
+                "specular" -> 2
+                "normal" -> 3
+                "alphamask" -> 4
+                "displacement" -> 5
+                else -> { logger.warn("Unknown texture type: $type"); 0 }
+            }
         }
     }
 }

@@ -6,23 +6,16 @@ import java.awt.Color
 import java.awt.color.ColorSpace
 import java.awt.geom.AffineTransform
 import java.awt.image.*
-import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
 import java.io.FileInputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import java.nio.channels.Channels
-import java.nio.channels.FileChannel
 import java.util.*
 import javax.imageio.ImageIO
 import org.lwjgl.system.MemoryUtil.*
-import org.lwjgl.system.NativeResource
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import sun.nio.ch.DirectBuffer
-
 
 /**
  * Created by ulrik on 11/1/2016.
@@ -323,8 +316,8 @@ class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDevice,
             val bi: BufferedImage
             val flippedImage: BufferedImage
             val imageData: ByteBuffer
-            var fis: FileInputStream
-            var pixels: IntArray
+            val fis: FileInputStream
+            val pixels: IntArray
             val buffer: ByteArray
 
             if (filename.substring(filename.lastIndexOf('.')).toLowerCase().endsWith("tga")) {
