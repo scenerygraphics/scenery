@@ -76,8 +76,8 @@ interface HasGeometry {
         // set up the properties of the [Material], which include e.g. textures and colors.
         lines.forEach {
             line ->
-            val tokens = line.trim().trimEnd().split(" ").filter { it.length > 0 }
-            if (tokens.size > 0) {
+            val tokens = line.trim().trimEnd().split(" ").filter(String::isNotEmpty)
+            if (tokens.isNotEmpty()) {
                 when (tokens[0]) {
                     "#" -> {
                     }
@@ -108,13 +108,15 @@ interface HasGeometry {
                     }
                     "map_d" -> {
                         val mapfile = filename.substringBeforeLast("/") + "/" + tokens[1].replace('\\', '/')
+                        currentMaterial!!.textures.put("alphamask", mapfile)
+                    }
+                    "disp" -> {
+                        val mapfile = filename.substringBeforeLast("/") + "/" + tokens[1].replace('\\', '/')
                         currentMaterial!!.textures.put("displacement", mapfile)
                     }
-                    "map_bump" -> {
+                    "map_bump", "bump" -> {
                         val mapfile = filename.substringBeforeLast("/") + "/" + tokens[1].replace('\\', '/')
                         currentMaterial!!.textures.put("normal", mapfile)
-                    }
-                    "bump" -> {
                     }
                     "Tf" -> {
                     }
