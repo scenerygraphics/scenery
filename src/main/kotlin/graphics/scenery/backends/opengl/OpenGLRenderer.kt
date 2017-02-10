@@ -327,7 +327,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
         ds.set("ssao.DistanceThreshold", 50.0f)
         ds.set("ssao.Algorithm", 1)
 
-        ds.set("vr.Active", true)
+        ds.set("vr.Active", false)
         ds.set("vr.DoAnaglyph", false)
         ds.set("vr.IPD", 0.0f)
         ds.set("vr.EyeDivisor", 1)
