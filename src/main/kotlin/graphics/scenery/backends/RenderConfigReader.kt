@@ -11,7 +11,6 @@ import com.fasterxml.jackson.module.kotlin.KotlinModule
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.*
-import javax.management.monitor.StringMonitor
 
 /**
  * Created by ulrik on 10/19/2016.
@@ -124,14 +123,24 @@ class RenderConfigReader {
     }
 
     fun loadFromFile(path: String): RenderConfig {
-        val p = Paths.get(this.javaClass.getResource(path).toURI())
-
         val mapper = ObjectMapper(YAMLFactory())
         mapper.registerModule(KotlinModule())
 
-        return Files.newBufferedReader(p).use {
-            mapper.readValue(it, RenderConfig::class.java)
-        }
-    }
+        var stream = this.javaClass.getResourceAsStream(path)
 
+        if (stream == null) {
+            val p = Paths.get(path)
+
+            return if (!Files.exists(p)) {
+                stream = this.javaClass.getResourceAsStream("DeferredShading.yml")
+                mapper.readValue(stream, RenderConfig::class.java)
+            } else {
+                Files.newBufferedReader(p).use {
+                    mapper.readValue(it, RenderConfig::class.java)
+                }
+            }
+        }
+
+        return mapper.readValue(stream, RenderConfig::class.java)
+    }
 }

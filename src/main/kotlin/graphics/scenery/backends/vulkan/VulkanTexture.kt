@@ -6,7 +6,6 @@ import java.awt.Color
 import java.awt.color.ColorSpace
 import java.awt.geom.AffineTransform
 import java.awt.image.*
-import java.io.FileInputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.*
@@ -16,6 +15,8 @@ import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import java.io.*
+import java.nio.file.Files
 
 /**
  * Created by ulrik on 11/1/2016.
@@ -313,6 +314,19 @@ class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDevice,
                          commandPool: Long, queue: VkQueue,
                          filename: String, linearInterpolation: Boolean,
                          mipmapLevels: Int): VulkanTexture? {
+            val stream = FileInputStream(filename)
+            val type = filename.substringAfterLast('.')
+
+            return loadFromFile(device, physicalDevice,
+                memoryProperties, commandPool, queue,
+                stream, type, linearInterpolation, mipmapLevels)
+        }
+
+        fun loadFromFile(device: VkDevice, physicalDevice: VkPhysicalDevice,
+                         memoryProperties: VkPhysicalDeviceMemoryProperties,
+                         commandPool: Long, queue: VkQueue,
+                         stream: InputStream, type: String, linearInterpolation: Boolean,
+                         mipmapLevels: Int): VulkanTexture? {
             val bi: BufferedImage
             val flippedImage: BufferedImage
             val imageData: ByteBuffer
@@ -320,12 +334,12 @@ class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDevice,
             val pixels: IntArray
             val buffer: ByteArray
 
-            if (filename.substring(filename.lastIndexOf('.')).toLowerCase().endsWith("tga")) {
+            if (type.endsWith("tga")) {
                 try {
-                    fis = FileInputStream(filename)
-                    buffer = ByteArray(fis.available())
-                    fis.read(buffer)
-                    fis.close()
+                    val reader = BufferedInputStream(stream)
+                    buffer = ByteArray(stream.available())
+                    reader.read(buffer)
+                    reader.close()
 
                     pixels = TGAReader.read(buffer, TGAReader.ARGB)
                     val width = TGAReader.getWidth(buffer)
@@ -333,18 +347,18 @@ class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDevice,
                     bi = BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
                     bi.setRGB(0, 0, width, height, pixels, 0, width)
                 } catch (e: Exception) {
-                    logger.error("Could not read image from TGA$filename. ${e.message}")
+                    logger.error("Could not read image from TGA. ${e.message}")
                     return null
                 }
 
             } else {
                 try {
-                    fis = FileInputStream(filename)
-                    bi = ImageIO.read(fis)
+                    val reader = BufferedInputStream(stream)
+                    bi = ImageIO.read(stream)
+                    reader.close()
 
-                    fis.close()
                 } catch (e: Exception) {
-                    logger.error("Could not read image from $filename. ${e.message}")
+                    logger.error("Could not read image: ${e.message}")
                     return null
                 }
 

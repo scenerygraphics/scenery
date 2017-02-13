@@ -1084,7 +1084,7 @@ open class VulkanRenderer(hub: Hub,
 
     protected fun prepareDefaultTextures(device: VkDevice) {
         val t = VulkanTexture.loadFromFile(device, physicalDevice, memoryProperties, commandPools.Standard, queue,
-            Renderer::class.java.getResource("DefaultTexture.png").path.toString(), true, 1)
+            Renderer::class.java.getResourceAsStream("DefaultTexture.png"), "png", true, 1)
 
         textureCache.put("DefaultTexture", t!!)
     }
