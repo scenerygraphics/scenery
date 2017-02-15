@@ -10,7 +10,37 @@ scenery is a scenegraphing and rendering library. It allows you to quickly creat
 
 ## Examples
 
-* have a look in the [src/test/tests/graphics/scenery/tests/examples](./src/test/tests/graphics/scenery/tests/examples/) directory, there you'll find plenty of examples how to use _scenery_ in Kotlin, and a few Java examples.
+Have a look in the [src/test/tests/graphics/scenery/tests/examples](./src/test/tests/graphics/scenery/tests/examples/) directory, there you'll find plenty of examples how to use _scenery_ in Kotlin, and a few Java examples.
+
+Some of the examples need additional meshes, which are not part of the repository due to their size. These meshes can be downloaded [here](https://github.com/ClearVolume/scenery/releases/download/untagged-9774714572ebaff08515/demo-models.zip) and extracted to a directory of choice. When running the examples, the environment variable `SCENERY_DEMO_FILES` should point to this directory, otherwise the models will not be loaded.
+
+## Key bindings
+
+Most of the demos use the following key bindings:
+
+### Movement
+| Key | Action |
+| --- | --- |
+| Mouse drag | Look-around |
+| `W, A, S, D` | Move forward, left, back, right |
+| `Shift` - `W, A, S, D` | Move forward, left, back, right fast |
+| `Space` | Move upwards |
+| `Shift` - `Space` | Move downwards |
+| `C` | Switch between FPS and Arcball camera control modes (only used in `SponzaExample`) |
+
+If a gamepad is connected (such as a PlayStation 3 or 4 controller), the hats can be used for movement and look-around.
+
+### Rendering
+| Key | Action |
+| --- | --- |
+| `K`, `L` | Increase/decrease exposure for HDR rendering |
+| `Shift`-`K`, `Shift-L` | Increase/decrease gamma for HDR rendering |
+| `F` | Toggle fullscreen |
+| `Q` | Toggle deferred shading buffer debug view |
+| `O` | Toggle SSAO (Screen-space ambient occlusion |
+| `P` | Save screenshot to Desktop as PNG |
+
+All keybindings are also listed in the [InputHandler class](./src/main/kotlin/graphics/scenery/controls/InputHandler.kt#L198).
 
 ## Building
 
@@ -23,7 +53,7 @@ git clone https://github.com/ClearVolume/ClearGL.git
 
 - in both the `ClearGL` and the `scenery` directory, run `mvn clean install` to build and install both packages into your local Maven repository
 
-## Using _scenery_
+## Using _scenery_ in a project
 
 ### Maven artifacts
 
@@ -46,7 +76,7 @@ Add these dependencies to your project's `pom.xml`:
   <dependency>
     <groupId>net.clearvolume</groupId>
     <artifactId>cleargl</artifactId>
-    <version>2.0.0-SNAPSHOT</version>
+    <version>2.0.1</version>
   </dependency>
 </dependencies>
 ```
@@ -59,5 +89,5 @@ Add these dependencies to your project's `build.gradle`:
 
 ```groovy
 compile group: 'graphics.scenery', name: 'scenery', version: '1.0.0-SNAPSHOT'
-compile group: 'net.clearvolume', name: 'cleargl', version: '2.0.0-SNAPSHOT'
+compile group: 'net.clearvolume', name: 'cleargl', version: '2.0.1'
 ```
