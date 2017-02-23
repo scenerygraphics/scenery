@@ -3,13 +3,12 @@ package graphics.scenery.tests.examples
 import cleargl.GLMatrix
 import cleargl.GLVector
 import graphics.scenery.*
-import org.junit.Test
-import org.scijava.ui.behaviour.ClickBehaviour
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.InputHandler
 import graphics.scenery.controls.behaviours.ArcballCameraControl
 import graphics.scenery.controls.behaviours.FPSCameraControl
-import graphics.scenery.repl.REPL
+import org.junit.Test
+import org.scijava.ui.behaviour.ClickBehaviour
 import kotlin.concurrent.thread
 
 /**

@@ -1,11 +1,9 @@
 package graphics.scenery.tests.examples
 
-import cleargl.GLMatrix
 import cleargl.GLVector
 import graphics.scenery.*
-import org.junit.Test
 import graphics.scenery.backends.Renderer
-import graphics.scenery.repl.REPL
+import org.junit.Test
 import kotlin.concurrent.thread
 
 /**
@@ -43,11 +41,7 @@ class FontRenderingExample: SceneryDefaultApplication("FontRenderingExample") {
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
             position = GLVector(5.0f, 0.0f, 15.0f)
-            view = GLMatrix().setCamera(cam.position, cam.position + cam.forward, cam.up)
-            projection = GLMatrix()
-                    .setPerspectiveProjectionMatrix(
-                            70.0f / 180.0f * Math.PI.toFloat(),
-                            1024f / 1024f, 0.1f, 1000.0f)
+            perspectiveCamera(70.0f, windowWidth*1.0f, windowHeight*1.0f, 1.0f, 1000.0f)
             active = true
 
             scene.addChild(this)

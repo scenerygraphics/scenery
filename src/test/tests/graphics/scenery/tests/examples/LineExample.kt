@@ -2,12 +2,12 @@ package graphics.scenery.tests.examples
 
 import cleargl.GLVector
 import graphics.scenery.*
-import org.junit.Test
-import org.scijava.ui.behaviour.ClickBehaviour
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.InputHandler
 import graphics.scenery.controls.behaviours.ArcballCameraControl
 import graphics.scenery.controls.behaviours.FPSCameraControl
+import org.junit.Test
+import org.scijava.ui.behaviour.ClickBehaviour
 import kotlin.concurrent.thread
 
 /**
@@ -26,19 +26,19 @@ class LineExample : SceneryDefaultApplication("LineExample") {
         renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
         hub.add(SceneryElement.RENDERER, renderer!!)
 
-        var hull = Box(GLVector(50.0f, 50.0f, 50.0f))
-        var hullmaterial = Material()
+        val hull = Box(GLVector(50.0f, 50.0f, 50.0f))
+        val hullmaterial = Material()
         hullmaterial.diffuse = GLVector(0.2f, 0.2f, 0.2f)
         hullmaterial.doubleSided = true
         hull.material = hullmaterial
         scene.addChild(hull)
 
-        var linematerial = Material()
+        val linematerial = Material()
         linematerial.ambient = GLVector(1.0f, 0.0f, 0.0f)
         linematerial.diffuse = GLVector(0.0f, 1.0f, 0.0f)
         linematerial.specular = GLVector(1.0f, 1.0f, 1.0f)
 
-        var line = Line()
+        val line = Line()
         line.addPoint(GLVector(-1.0f, -1.0f, -1.0f))
         line.addPoint(GLVector(2.0f, 0.0f, 2.0f))
         line.material = linematerial
@@ -46,13 +46,13 @@ class LineExample : SceneryDefaultApplication("LineExample") {
 
         scene.addChild(line)
 
-        var colors = arrayOf(
+        val colors = arrayOf(
             GLVector(1.0f, 0.0f, 0.0f),
             GLVector(0.0f, 1.0f, 0.0f),
             GLVector(0.0f, 0.0f, 1.0f)
         )
 
-        var lights = (0..2).map {
+        val lights = (0..2).map {
             val l = PointLight()
             l.intensity = 200.0f
             l.emissionColor = colors[it]

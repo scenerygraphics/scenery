@@ -1,11 +1,7 @@
 package graphics.scenery
 
 import cleargl.ClearGLDefaultEventListener
-import cleargl.ClearGLDisplayable
-import cleargl.ClearGLWindow
-import com.jogamp.opengl.GLAutoDrawable
 import graphics.scenery.backends.Renderer
-import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.backends.opengl.OpenGLRenderer
 import graphics.scenery.controls.InputHandler
 import graphics.scenery.repl.REPL
@@ -129,5 +125,19 @@ open class SceneryDefaultApplication(var applicationName: String,
 
         inputHandler?.close()
         renderer!!.close()
+    }
+
+    protected fun getDemoFilesPath(): String {
+        val demoDir = System.getenv("SCENERY_DEMO_FILES")
+
+        if(demoDir == null) {
+            logger.warn("This example needs additional model files, see https://github.com/scenerygraphics/scenery#examples")
+            logger.warn("Download the model files mentioned there and set the environment variable SCENERY_DEMO_FILES to the")
+            logger.warn("directory where you have put these files.")
+
+            return ""
+        } else {
+            return demoDir
+        }
     }
 }

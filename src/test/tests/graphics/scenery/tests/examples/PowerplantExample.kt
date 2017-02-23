@@ -2,15 +2,17 @@ package graphics.scenery.tests.examples
 
 import cleargl.GLVector
 import graphics.scenery.*
-import org.junit.Test
 import graphics.scenery.backends.Renderer
-import graphics.scenery.repl.REPL
+import graphics.scenery.utils.Numerics
+import org.junit.Test
 import java.io.IOException
 import kotlin.concurrent.thread
 
 /**
- * Created by ulrik on 20/01/16.
- */
+* <Description>
+*
+* @author Ulrik Günther <hello@ulrik.is>
+*/
 class PowerplantExample: SceneryDefaultApplication("BoxedProteinExample", windowWidth = 1280, windowHeight = 720) {
     override fun init() {
         try {
@@ -25,7 +27,6 @@ class PowerplantExample: SceneryDefaultApplication("BoxedProteinExample", window
             cam.active = true
 
             scene.addChild(cam)
-            fun rangeRandomizer(min: Float, max: Float): Float = min + (Math.random().toFloat() * ((max - min) + 1.0f))
 
             val boxes = (0..lightCount).map {
                 Box(GLVector(0.5f, 0.5f, 0.5f))
@@ -42,11 +43,9 @@ class PowerplantExample: SceneryDefaultApplication("BoxedProteinExample", window
             }
 
             lights.map {
-                it.emissionColor = GLVector(rangeRandomizer(0.0f, 1.0f),
-                    rangeRandomizer(0.0f, 1.0f),
-                    rangeRandomizer(0.0f, 1.0f))
+                it.emissionColor = Numerics.randomVectorFromRange(3, 0.0f, 1.0f)
                 it.parent?.material?.diffuse = it.emissionColor
-                it.intensity = rangeRandomizer(0.01f, 10f)
+                it.intensity = Numerics.randomFromRange(0.01f, 10f)
                 it.linear = 0.01f
                 it.quadratic = 0.01f
 
@@ -69,7 +68,7 @@ class PowerplantExample: SceneryDefaultApplication("BoxedProteinExample", window
             orcMaterial.specular = GLVector(0.1f, 0f, 0f)
 
             val orcMesh = Mesh()
-            orcMesh.readFromOBJ(System.getenv("SCENERY_DEMO_FILES") + "/powerplant.obj", useMTL = false)
+            orcMesh.readFromOBJ(getDemoFilesPath() + "/powerplant.obj", useMTL = false)
             orcMesh.position = GLVector(0.0f, 0.0f, 0.0f)
 //            orcMesh.scale = GLVector(1f, 1f, 1f)
             // for powerplant
