@@ -13,6 +13,10 @@ import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.backends.ShaderPreference
 import graphics.scenery.controls.HMDInput
 import graphics.scenery.fonts.SDFFontAtlas
+import graphics.scenery.utils.GPUStats
+import graphics.scenery.utils.NvidiaGPUStats
+import graphics.scenery.utils.Statistics
+import org.lwjgl.glfw.GLFW
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -115,6 +119,12 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
     /** Flag to indicate whether framebuffers have to be recreated */
     protected var mustRecreateFramebuffers = false
 
+    /** GPU stats object */
+    protected var gpuStats: GPUStats? = null
+
+    /** heartbeat timer */
+    protected var heartbeatTimer = Timer()
+
     var initialized = false
 
     /**
@@ -172,12 +182,9 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
             this.isVisible = true
             this.start()
         }
-
-        logger.info("Launching window...")
     }
 
     override fun init(pDrawable: GLAutoDrawable) {
-        logger.info("Creating context...")
         this.gl = window.clearglWindow!!.gl.gL4
 
         val width = this.window.width
@@ -185,7 +192,13 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
 
         gl.swapInterval = 0
 
-        logger.info("OpenGLRenderer: $width x $height on ${gl.glGetString(GL.GL_RENDERER)}, ${gl.glGetString(GL.GL_VERSION)}")
+        val driverString = gl.glGetString(GL.GL_RENDERER)
+        val driverVersion = gl.glGetString(GL.GL_VERSION)
+        logger.info("OpenGLRenderer: $width x $height on $driverString, $driverVersion")
+
+        if(driverVersion.toLowerCase().indexOf("nvidia") != -1 && System.getProperty("os.name").toLowerCase().indexOf("windows") != -1) {
+            gpuStats = NvidiaGPUStats()
+        }
 
         val numExtensionsBuffer = IntBuffer.allocate(1)
         gl.glGetIntegerv(GL4.GL_NUM_EXTENSIONS, numExtensionsBuffer)
@@ -223,6 +236,27 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
         gl.glEnable(GL4.GL_TEXTURE_GATHER)
 
         initialized = true
+
+        heartbeatTimer.scheduleAtFixedRate(object : TimerTask() {
+            override fun run() {
+                gpuStats?.let {
+                    it.update(0)
+
+                    hub?.get(SceneryElement.STATISTICS).let { s ->
+                        val stats = s as Statistics
+
+                        stats.add("GPU", it.get("GPU"), isTime = false)
+                        stats.add("GPU bus", it.get("Bus"), isTime = false)
+                        stats.add("GPU mem", it.get("AvailableDedicatedVideoMemory"), isTime = false)
+                    }
+
+                    if(settings.get<Boolean>("OpenGLRenderer.PrintGPUStats")) {
+                        logger.info(it.utilisationToString())
+                        logger.info(it.memoryUtilisationToString())
+                    }
+                }
+            }
+        }, 0, 1000)
 
         initializeScene()
     }
@@ -322,6 +356,8 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
      */
     protected fun getDefaultRendererSettings(): Settings {
         val ds = Settings()
+
+        ds.set("OpenGLRenderer.PrintGPUStats", false)
 
         ds.set("wantsFullscreen", false)
         ds.set("isFullscreen", false)
@@ -752,8 +788,6 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
 
         val renderOrderList = ArrayList<Node>()
         val cam: Camera = scene.findObserver()
-        var mv: GLMatrix
-        var mvp: GLMatrix
 
         val hmd: HMDInput? = if (hub!!.has(SceneryElement.HMDINPUT)
             && (hub!!.get(SceneryElement.HMDINPUT) as HMDInput).initializedAndWorking()) {
@@ -795,10 +829,14 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
         }
 
         val pose = hmd?.getPose() ?: GLMatrix.getIdentity()
+        cam.view = cam.getTransformation()
 
         val projection = eyes.map { i ->
-            hmd?.getEyeProjection(i) ?: GLMatrix().setPerspectiveProjectionMatrix(cam.fov / 180.0f * Math.PI.toFloat(),
-                (1.0f * geometryBuffer[i].width) / (1.0f * geometryBuffer[i].height), cam.nearPlaneDistance, cam.farPlaneDistance)
+            if(settings.get<Boolean>("vr.Active")) {
+                hmd?.getEyeProjection(i) ?: cam.projection
+            } else {
+                cam.projection
+            }
         }
 
         instanceGroups[null]?.forEach nonInstancedDrawing@ { n ->
@@ -826,7 +864,6 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
             }
 
             eyes.forEach { eye ->
-
 
                 n.modelView.copyFrom(headToEye[eye])
                 n.modelView.mult(pose)
