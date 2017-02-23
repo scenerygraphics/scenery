@@ -1,6 +1,6 @@
 [![scenery logo](./artwork/logo-light-small.png)](./artwork/logo-light.png)
 
-[![Travis Build Status](https://travis-ci.org/ClearVolume/scenery.svg?branch=master)](https://travis-ci.org/ClearVolume/scenery) [![Appveyor Build status](https://ci.appveyor.com/api/projects/status/vysiatrptqas4cfy?svg=true)](https://ci.appveyor.com/project/skalarproduktraum/scenery)  [![Join the chat at https://gitter.im/ClearVolume/ClearVolume](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/ClearVolume/ClearVolume?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![Travis Build Status](https://travis-ci.org/scenerygraphics/scenery.svg?branch=master)](https://travis-ci.org/ClearVolume/scenery) [![Appveyor Build status](https://ci.appveyor.com/api/projects/status/vysiatrptqas4cfy?svg=true)](https://ci.appveyor.com/project/skalarproduktraum/scenery)  [![Join the chat at https://gitter.im/ClearVolume/ClearVolume](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/ClearVolume/ClearVolume?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 # scenery  // flexible scenegraphing and rendering for scientific visualisation
 
@@ -12,7 +12,7 @@ scenery is a scenegraphing and rendering library. It allows you to quickly creat
 
 Have a look in the [src/test/tests/graphics/scenery/tests/examples](./src/test/tests/graphics/scenery/tests/examples/) directory, there you'll find plenty of examples how to use _scenery_ in Kotlin, and a few Java examples.
 
-Some of the examples need additional meshes, which are not part of the repository due to their size. These meshes can be downloaded [here](https://github.com/ClearVolume/scenery/releases/download/untagged-9774714572ebaff08515/demo-models.zip) and extracted to a directory of choice. When running the examples, the environment variable `SCENERY_DEMO_FILES` should point to this directory, otherwise the models will not be loaded.
+Some of the examples need additional meshes, which are not part of the repository due to their size. These meshes can be downloaded [here](https://ulrik.is/scenery-demo-models.zip) and extracted to a directory of choice. When running the examples, the environment variable `SCENERY_DEMO_FILES` should point to this directory, otherwise the models will not be loaded and scenery will complain.
 
 ## Key bindings
 
@@ -44,33 +44,34 @@ All keybindings are also listed in the [InputHandler class](./src/main/kotlin/gr
 
 ## Building
 
-- Create a base directory named e.g. `my_scenery_base`. Into this directory, clone the Git repository of scenery.
+Into a directory of your choice, clone the Git repository of scenery:
 
-- Into the same directory, clone the 2.0 version of ClearGL’s Git repository: 
 ```shell
-git clone https://github.com/ClearVolume/ClearGL.git
+git clone https://github.com/scenerygraphics/scenery
 ```
 
-- in both the `ClearGL` and the `scenery` directory, run `mvn clean install` to build and install both packages into your local Maven repository
+Then, change to the newly created `scenery` directory, and run `mvn clean install` to build and install both packages into your local Maven repository.
+
+Alternatively, scenery's Maven project can be imported into IntelliJ or Eclipse. Please note that Eclipse needs the [Kotlin plugin from JetBrains](https://github.com/JetBrains/kotlin-eclipse) to work correctly.
 
 ## Using _scenery_ in a project
 
 ### Maven artifacts
 
-Artifacts are currently published to the ImageJ repository at `https://maven.imagej.net/content/groups/public`. If you want to use the artifacts directly, add this repository to your Maven or Gradle repository configuration.
+Artifacts are currently published to the Sonatype OSS repository, and synchronised with Maven Central. For all commits on master, a new SNAPSHOT build is automatically created.
 
 ### Using _scenery_ in a Maven project
 
 Make sure you have followed the instructions in _Building_, such that both the scenery and ClearGL JARs have been installed into your local Maven repository.
 
-Add these dependencies to your project's `pom.xml`:
+Add scenery and ClearGL to your project's `pom.xml`:
 
 ```xml
 <dependencies>
   <dependency>
     <groupId>graphics.scenery</groupId>
     <artifactId>scenery</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>0.1.0</version>
   </dependency>
 
   <dependency>
@@ -85,9 +86,9 @@ Add these dependencies to your project's `pom.xml`:
 
 Make sure you have followed the instructions in _Building_, such that both the scenery and ClearGL JARs have been installed into your local Maven repository.
 
-Add these dependencies to your project's `build.gradle`:
+Add scenery and ClearGL to your project's `build.gradle`:
 
 ```groovy
-compile group: 'graphics.scenery', name: 'scenery', version: '1.0.0-SNAPSHOT'
+compile group: 'graphics.scenery', name: 'scenery', version: '0.1.0'
 compile group: 'net.clearvolume', name: 'cleargl', version: '2.0.1'
 ```
