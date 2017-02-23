@@ -3,7 +3,6 @@
 layout (location = 0) out vec3 gPosition;
 layout (location = 1) out vec3 gNormal;
 layout (location = 2) out vec4 gAlbedoSpec;
-//layout (location = 3) out vec3 gTangent;
 
 in VertexData {
     vec3 Position;
@@ -28,42 +27,76 @@ struct MaterialInfo {
 };
 uniform MaterialInfo Material;
 
-const int MAX_TEXTURES = 8;
-const int MATERIAL_TYPE_STATIC = 0;
-const int MATERIAL_TYPE_TEXTURED = 1;
-const int MATERIAL_TYPE_MAT = 2;
-const int MATERIAL_TYPE_TEXTURED_NORMAL = 3;
-uniform int materialType = MATERIAL_TYPE_MAT;
+const int MATERIAL_HAS_DIFFUSE =  0x0001;
+const int MATERIAL_HAS_AMBIENT =  0x0002;
+const int MATERIAL_HAS_SPECULAR = 0x0004;
+const int MATERIAL_HAS_NORMAL =   0x0008;
+const int MATERIAL_HAS_ALPHAMASK = 0x0010;
+
+const int MAX_TEXTURES = 6;
+
+uniform int materialType = 0;
 
 /*
     ObjectTextures[0] - ambient
     ObjectTextures[1] - diffuse
     ObjectTextures[2] - specular
     ObjectTextures[3] - normal
-    ObjectTextures[4] - displacement
+    ObjectTextures[4] - alphamask
+    ObjectTextures[5] - displacement
 */
+
 uniform sampler2D ObjectTextures[MAX_TEXTURES];
+
+mat3 TBN(vec3 N, vec3 position, vec2 uv) {
+    vec3 dp1 = dFdx(position);
+    vec3 dp2 = dFdy(position);
+    vec2 duv1 = dFdx(uv);
+    vec2 duv2 = dFdy(uv);
+
+    vec3 dp2Perpendicular = cross(dp2, N);
+    vec3 dp1Perpendicular = cross(N, dp1);
+
+    vec3 T = dp2Perpendicular * duv1.x + dp1Perpendicular * duv2.x;
+    vec3 B = dp2Perpendicular * duv1.y + dp1Perpendicular * duv2.y;
+
+    float invmax = inversesqrt(max(dot(T, T), dot(B, B)));
+
+    return mat3(T * invmax, B * invmax, N);
+}
 
 void main() {
     // Store the fragment position vector in the first gbuffer texture
     gPosition = VertexIn.FragPosition;
     // Also store the per-fragment normals into the gbuffer
-    if(materialType == MATERIAL_TYPE_TEXTURED_NORMAL) {
-        gNormal = normalize(texture(ObjectTextures[3], VertexIn.TexCoord).rgb*2.0 - 1.0);
-    } else {
-        gNormal = normalize(VertexIn.Normal);
+    gAlbedoSpec.rgb = Material.Kd;
+    gAlbedoSpec.a = Material.Ka.r*Material.Shininess;
+
+    // Also store the per-fragment normals into the gbuffer
+    if((materialType & MATERIAL_HAS_AMBIENT) == MATERIAL_HAS_AMBIENT) {
+        //gAlbedoSpec.rgb = texture(ObjectTextures[0], VertexIn.TexCoord).rgb;
     }
-    // And the diffuse per-fragment color
-    if(materialType == MATERIAL_TYPE_MAT) {
-        gAlbedoSpec.rgb = Material.Kd;
-        gAlbedoSpec.a = Material.Ka.r*Material.Shininess;
-    } else if(materialType == MATERIAL_TYPE_STATIC) {
-        gAlbedoSpec.rgb = VertexIn.Color.rgb;
-        gAlbedoSpec.a = Material.Ks.r * Material.Shininess;
-    } else {
+
+    if((materialType & MATERIAL_HAS_DIFFUSE) == MATERIAL_HAS_DIFFUSE) {
         gAlbedoSpec.rgb = texture(ObjectTextures[1], VertexIn.TexCoord).rgb;
+    }
+
+    if((materialType & MATERIAL_HAS_SPECULAR) == MATERIAL_HAS_SPECULAR) {
         gAlbedoSpec.a = texture(ObjectTextures[2], VertexIn.TexCoord).r;
     }
 
-//    gTangent = vec3(gAlbedoSpec.a, gNormal.x, gPosition.y);
+    if((materialType & MATERIAL_HAS_ALPHAMASK) == MATERIAL_HAS_ALPHAMASK) {
+        if(texture(ObjectTextures[4], VertexIn.TexCoord).r < 0.1f) {
+            discard;
+        }
+    }
+
+    if((materialType & MATERIAL_HAS_NORMAL) == MATERIAL_HAS_NORMAL) {
+        vec3 normal = texture(ObjectTextures[3], VertexIn.TexCoord).rgb*(255.0/127.0) - (128.0/127.0);
+        normal = TBN(VertexIn.Normal, -VertexIn.FragPosition, VertexIn.TexCoord)*normal;
+
+        gNormal = normalize(normal);
+    } else {
+        gNormal = VertexIn.Normal;
+    }
 }

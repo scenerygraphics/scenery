@@ -4,6 +4,12 @@ import cleargl.GLMatrix
 import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.*
+import graphics.scenery.backends.*
+import graphics.scenery.controls.HMDInput
+import graphics.scenery.fonts.SDFFontAtlas
+import graphics.scenery.utils.GPUStats
+import graphics.scenery.utils.NvidiaGPUStats
+import graphics.scenery.utils.Statistics
 import org.lwjgl.PointerBuffer
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.glfw.GLFWVulkan.*
@@ -16,16 +22,6 @@ import org.lwjgl.vulkan.KHRSwapchain.*
 import org.lwjgl.vulkan.VK10.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import graphics.scenery.backends.RenderConfigReader
-import graphics.scenery.backends.Renderer
-import graphics.scenery.backends.SceneryWindow
-import graphics.scenery.backends.createRenderpassFlow
-import graphics.scenery.backends.ShaderPreference
-import graphics.scenery.controls.HMDInput
-import graphics.scenery.fonts.SDFFontAtlas
-import graphics.scenery.utils.GPUStats
-import graphics.scenery.utils.NvidiaGPUStats
-import graphics.scenery.utils.Statistics
 import java.awt.image.BufferedImage
 import java.awt.image.DataBufferByte
 import java.io.File
@@ -2118,6 +2114,7 @@ open class VulkanRenderer(hub: Hub,
     private fun createInstanceBuffer(device: VkDevice, parentNode: Node, state: VulkanObjectState): VulkanObjectState {
         val instances = ArrayList<Node>()
         val cam = scene.findObserver()
+        cam.view = cam.getTransformation()
 
         scene.discover(scene, { n -> n.instanceOf == parentNode }).forEach {
             instances.add(it)

@@ -8,15 +8,14 @@ import com.jogamp.opengl.GLAutoDrawable
 import com.jogamp.opengl.GLDrawable
 import com.jogamp.opengl.util.awt.AWTGLReadBufferUtil
 import graphics.scenery.*
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.backends.ShaderPreference
 import graphics.scenery.controls.HMDInput
 import graphics.scenery.fonts.SDFFontAtlas
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import java.io.File
-import java.lang.Byte
 import java.lang.reflect.Field
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
@@ -132,6 +131,12 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
     }
 
     var applicationName = ""
+
+    private val MATERIAL_HAS_DIFFUSE = 0x0001
+    private val MATERIAL_HAS_AMBIENT = 0x0002
+    private val MATERIAL_HAS_SPECULAR = 0x0004
+    private val MATERIAL_HAS_NORMAL = 0x0008
+    private val MATERIAL_HAS_ALPHAMASK = 0x0010
 
     /**
      * Constructor for OpenGLRenderer, initialises geometry buffers
@@ -302,7 +307,6 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
     }
 
     override fun dispose(pDrawable: GLAutoDrawable) {
-        System.err.println("Stopping with dispose")
         pDrawable.animator?.stop()
 
         this.shouldClose = true
@@ -324,7 +328,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
 
         ds.set("ssao.Active", true)
         ds.set("ssao.FilterRadius", GLVector(0.0f, 0.0f))
-        ds.set("ssao.DistanceThreshold", 50.0f)
+        ds.set("ssao.DistanceThreshold", 10.0f)
         ds.set("ssao.Algorithm", 1)
 
         ds.set("vr.Active", false)
@@ -333,7 +337,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
         ds.set("vr.EyeDivisor", 1)
 
         ds.set("hdr.Active", true)
-        ds.set("hdr.Exposure", 1.5f)
+        ds.set("hdr.Exposure", 0.5f)
         ds.set("hdr.Gamma", 1.7f)
 
         ds.set("sdf.MaxDistance", 10)
@@ -356,7 +360,8 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
             "diffuse" -> 1
             "specular" -> 2
             "normal" -> 3
-            "displacement" -> 4
+            "alphamask" -> 4
+            "displacement" -> 5
             else -> {
                 logger.warn("Unknown texture type $type"); 10
             }
@@ -369,7 +374,8 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
             "diffuse" -> "ObjectTextures[1]"
             "specular" -> "ObjectTextures[2]"
             "normal" -> "ObjectTextures[3]"
-            "displacement" -> "ObjectTextures[4]"
+            "alphamask" -> "ObjectTextures[4]"
+            "displacement" -> "ObjectTextures[5]"
             else -> {
                 logger.warn("Unknown texture type $type");
                 "ObjectTextures[0]"
@@ -557,10 +563,30 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
 
         if (s.textures.size > 0) {
             program.getUniform("materialType").setInt(1)
-        }
 
-        if (s.textures.containsKey("normal")) {
-            program.getUniform("materialType").setInt(3)
+            var material = 0
+
+            if (s.textures.containsKey("diffuse")) {
+                material = material or MATERIAL_HAS_DIFFUSE
+            }
+
+            if (s.textures.containsKey("ambient")) {
+                material = material or MATERIAL_HAS_AMBIENT
+            }
+
+            if (s.textures.containsKey("specular")) {
+                material = material or MATERIAL_HAS_SPECULAR
+            }
+
+            if (s.textures.containsKey("normal")) {
+                material = material or MATERIAL_HAS_NORMAL
+            }
+
+            if (s.textures.containsKey("alphamask")) {
+                material = material or MATERIAL_HAS_ALPHAMASK
+            }
+
+            program.getUniform("materialType").setInt(material)
         }
     }
 
@@ -740,24 +766,10 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
             renderOrderList.add(it)
         }
 
-        // depth-sorting based on camera position
-//        renderOrderList.sort {
-//            a, b ->
-//            (a.position.z() - b.position.z()).toInt()
-//        }
-
-
-//        cam.projection = GLMatrix().setPerspectiveProjectionMatrix(70.0f / 180.0f * Math.PI.toFloat(),
-//                (1.0f * width) / (1.0f * height), 0.1f, 100000f)
-
         cam.view = cam.getTransformation()
 
         val instanceGroups = renderOrderList.groupBy { it.instanceOf }
 
-//        System.err.println("Instance groups:\n${instanceGroups.keys.map {
-//            key ->
-//            "  <${key?.name}> " + instanceGroups.get(key)!!.map { it.name }.joinToString(", ") + "\n"
-//        }.joinToString("")}")
 
         gl.glDisable(GL.GL_SCISSOR_TEST)
         gl.glDisable(GL4.GL_BLEND)
@@ -773,6 +785,21 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
         gl.glFrontFace(GL.GL_CCW)
         gl.glCullFace(GL.GL_BACK)
         gl.glDepthFunc(GL.GL_LEQUAL)
+
+        val headToEye = eyes.map { i ->
+            if (hmd == null) {
+                GLMatrix.getTranslation(settings.get<Float>("vr.IPD") * -1.0f * Math.pow(-1.0, 1.0 * i).toFloat(), 0.0f, 0.0f).transpose()
+            } else {
+                hmd.getHeadToEyeTransform(i).clone()
+            }
+        }
+
+        val pose = hmd?.getPose() ?: GLMatrix.getIdentity()
+
+        val projection = eyes.map { i ->
+            hmd?.getEyeProjection(i) ?: GLMatrix().setPerspectiveProjectionMatrix(cam.fov / 180.0f * Math.PI.toFloat(),
+                (1.0f * geometryBuffer[i].width) / (1.0f * geometryBuffer[i].height), cam.nearPlaneDistance, cam.farPlaneDistance)
+        }
 
         instanceGroups[null]?.forEach nonInstancedDrawing@ { n ->
             if (n in instanceGroups.keys) {
@@ -798,33 +825,23 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
                 gl.glDepthFunc(GL.GL_LEQUAL)
             }
 
-            eyes.forEachIndexed { i, eye ->
-                val projection: GLMatrix = hmd?.getEyeProjection(i) ?: GLMatrix().setPerspectiveProjectionMatrix(cam.fov / 180.0f * Math.PI.toFloat(),
-                    (1.0f * geometryBuffer[i].width) / (1.0f * geometryBuffer[i].height), cam.nearPlaneDistance, cam.farPlaneDistance)
+            eyes.forEach { eye ->
 
-                mv = if (hmd == null) {
-                    GLMatrix.getTranslation(settings.get<Float>("vr.IPD") * -1.0f * Math.pow(-1.0, 1.0 * i).toFloat(), 0.0f, 0.0f).transpose()
-                } else {
-                    hmd.getHeadToEyeTransform(i).clone()
-                }
-                val pose = if (hmd == null) {
-                    GLMatrix.getIdentity()
-                } else {
-                    hmd.getPose()
-                }
-                mv.mult(pose)
-                mv.mult(cam.view)
-                mv.mult(n.world)
 
-                mvp = projection.clone()
-                mvp.mult(mv)
+                n.modelView.copyFrom(headToEye[eye])
+                n.modelView.mult(pose)
+                n.modelView.mult(cam.view)
+                n.modelView.mult(n.world)
+
+                n.mvp.copyFrom(projection[eye])
+                n.mvp.mult(n.modelView)
 
                 s.program?.let { program ->
                     program.use(gl)
                     program.getUniform("ModelMatrix")!!.setFloatMatrix(n.model, false)
-                    program.getUniform("ModelViewMatrix")!!.setFloatMatrix(mv, false)
-                    program.getUniform("ProjectionMatrix")!!.setFloatMatrix(projection, false)
-                    program.getUniform("MVP")!!.setFloatMatrix(mvp, false)
+                    program.getUniform("ModelViewMatrix")!!.setFloatMatrix(n.modelView, false)
+                    program.getUniform("ProjectionMatrix")!!.setFloatMatrix(projection[eye], false)
+                    program.getUniform("MVP")!!.setFloatMatrix(n.mvp, false)
                     program.getUniform("isBillboard")!!.setInt(n.isBillboard.toInt())
 
                     setMaterialUniformsForNode(n, gl, s, program)
@@ -832,7 +849,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
                 }
 
                 preDrawAndUpdateGeometryForNode(n)
-                geometryBuffer[i].setDrawBuffers(gl)
+                geometryBuffer[eye].setDrawBuffers(gl)
                 drawNode(n)
             }
         }
@@ -851,15 +868,6 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
             logger.trace("${n.name} has additional instance buffers: ${s.additionalBufferIds.keys}")
             logger.trace("${n.name} instancing: Instancing group size is ${instances.size}")
 
-            val matrixSize = 4 * 4
-            val models = ArrayList<Float>()
-            val modelviews = ArrayList<Float>()
-            val modelviewprojs = ArrayList<Float>()
-
-            mv = GLMatrix.getIdentity()
-            mvp = GLMatrix.getIdentity()
-            var mo: GLMatrix
-
             instances.forEach { node ->
                 if (!node.metadata.containsKey("OpenGLRenderer")) {
                     node.metadata.put("OpenGLRenderer", OpenGLObjectState())
@@ -869,6 +877,11 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
                 node.updateWorld(true, false)
             }
 
+            val matrixSize = 4 * 4
+            val models = ArrayList<Float>(matrixSize * instances.size)
+            val modelviews = ArrayList<Float>(matrixSize * instances.size)
+            val modelviewprojs = ArrayList<Float>(matrixSize * instances.size)
+
             eyes.forEach {
                 eye ->
 
@@ -876,41 +889,18 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
                 modelviews.clear()
                 modelviewprojs.clear()
 
-                models.ensureCapacity(matrixSize * instances.size)
-                modelviews.ensureCapacity(matrixSize * instances.size)
-                modelviewprojs.ensureCapacity(matrixSize * instances.size)
-
                 instances.forEachIndexed { i, node ->
-                    val projection = if (hmd == null) {
-                        GLMatrix().setPerspectiveProjectionMatrix(70.0f / 180.0f * Math.PI.toFloat(),
-                            (1.0f * geometryBuffer[eye].width) / (1.0f * geometryBuffer[eye].height), 0.1f, 100000f)
-                    } else {
-                        hmd.getEyeProjection(eye)
-                    }
+                    node.modelView.copyFrom(headToEye[eye])
+                    node.modelView.mult(pose)
+                    node.modelView.mult(cam.view)
+                    node.modelView.mult(node.world)
 
-                    mo = node.world.clone()
+                    node.mvp.copyFrom(projection[eye])
+                    node.mvp.mult(node.modelView)
 
-                    mv = if (hmd == null) {
-                        GLMatrix.getTranslation(settings.get<Float>("vr.IPD") * -1.0f * Math.pow(-1.0, 1.0 * eye).toFloat(), 0.0f, 0.0f).transpose()
-                    } else {
-                        hmd.getHeadToEyeTransform(eye).clone()
-                    }
-
-                    val pose = if (hmd == null) {
-                        GLMatrix.getIdentity()
-                    } else {
-                        hmd.getPose()
-                    }
-                    mv.mult(pose)
-                    mv.mult(cam.view)
-                    mv.mult(node.world)
-
-                    mvp = projection.clone()
-                    mvp.mult(mv)
-
-                    models.addAll(mo.floatArray.asSequence())
-                    modelviews.addAll(mv.floatArray.asSequence())
-                    modelviewprojs.addAll(mvp.floatArray.asSequence())
+                    models.addAll(node.world.floatArray.asSequence())
+                    modelviews.addAll(node.modelView.floatArray.asSequence())
+                    modelviewprojs.addAll(node.mvp.floatArray.asSequence())
                 }
 
 
