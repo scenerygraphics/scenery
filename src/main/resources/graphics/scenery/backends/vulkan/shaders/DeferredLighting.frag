@@ -138,11 +138,11 @@ void main()
 		    ambientOcclusion /= sample_count;
 		}
 
-		vec3 viewDir = normalize(vec3(ubo.ViewMatrix*vec4(ubo.CamPosition, 1.0)) - FragPos);
+		vec3 viewDir = normalize(ubo.CamPosition - FragPos);
 
 		for(int i = 0; i < numLights; ++i)
 		{
-		    vec3 lightPos = vec3(ubo.ViewMatrix * vec4(lights[i].Position.rgb, 1.0));
+		    vec3 lightPos = lights[i].Position.rgb;
             vec3 lightDir = normalize(lightPos - FragPos);
             vec3 halfway = normalize(lightDir + viewDir);
             float distance = length(lightPos - FragPos);

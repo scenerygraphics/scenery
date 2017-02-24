@@ -2,9 +2,9 @@
 #extension GL_ARB_separate_shader_objects: enable
 
 layout(location = 0) in VertexData {
+    vec3 FragPosition;
     vec3 Normal;
     vec2 TexCoord;
-    vec3 FragPosition;
 } VertexIn;
 
 layout(location = 0) out vec3 gPosition;
@@ -97,10 +97,10 @@ void main() {
 
     if((materialType & MATERIAL_HAS_NORMAL) == MATERIAL_HAS_NORMAL) {
         vec3 normal = texture(ObjectTextures[3], VertexIn.TexCoord).rgb*(255.0/127.0) - (128.0/127.0);
-        normal = TBN(VertexIn.Normal, -VertexIn.FragPosition, VertexIn.TexCoord)*normal;
+        normal = TBN(normalize(VertexIn.Normal), ubo.CamPosition - VertexIn.FragPosition, VertexIn.TexCoord)*normal;
 
         gNormal = normalize(normal);
     } else {
-        gNormal = VertexIn.Normal;
+        gNormal = normalize(VertexIn.Normal);
     }
 }

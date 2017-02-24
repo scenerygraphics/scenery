@@ -655,7 +655,7 @@ open class VulkanRenderer(hub: Hub,
             members.put("ModelMatrix", { node.world })
             members.put("ViewMatrix", { node.view })
             members.put("ProjectionMatrix", { node.projection })
-            members.put("CamPosition", { scene.findObserver().position })
+            members.put("CamPosition", { scene.activeObserver?.position ?: GLVector(0.0f, 0.0f, 0.0f)})
             members.put("isBillboard", { node.isBillboard.toInt() })
 
             requiredOffsetCount = 2
@@ -1537,7 +1537,7 @@ open class VulkanRenderer(hub: Hub,
         time += duration / 1E9f
         lastTime = thisTime
 
-        scene.findObserver().deltaT = duration/10E6f
+        scene.activeObserver?.deltaT = duration/10E6f
 
         frames++
         totalFrames++
@@ -2113,7 +2113,7 @@ open class VulkanRenderer(hub: Hub,
 
     private fun createInstanceBuffer(device: VkDevice, parentNode: Node, state: VulkanObjectState): VulkanObjectState {
         val instances = ArrayList<Node>()
-        val cam = scene.findObserver()
+        val cam = scene.activeObserver ?: scene.findObserver()
         cam.view = cam.getTransformation()
 
         scene.discover(scene, { n -> n.instanceOf == parentNode }).forEach {
@@ -2194,7 +2194,7 @@ open class VulkanRenderer(hub: Hub,
 
     private fun updateInstanceBuffer(device: VkDevice, parentNode: Node, state: VulkanObjectState): VulkanObjectState {
         val instances = ArrayList<Node>()
-        val cam = scene.findObserver()
+        val cam = scene.activeObserver ?: scene.findObserver()
 
         scene.discover(scene, { n -> n.instanceOf == parentNode }).forEach {
             instances.add(it)
@@ -2446,8 +2446,6 @@ open class VulkanRenderer(hub: Hub,
                     pass.vulkanMetadata.descriptorSets.limit(2)
                 }
 
-//                pass.vulkanMetadata.descriptorSets.put(2, descriptorSets["VRParameters"]!!)
-
                 val pipeline = pass.pipelines.getOrDefault("preferred-${node.name}", pass.pipelines["default"]!!)
                     .getPipelineForGeometryType((node as HasGeometry).geometryType)
 
@@ -2488,6 +2486,11 @@ open class VulkanRenderer(hub: Hub,
 
                 if (s.textures.size > 0) {
                     pass.vulkanMetadata.descriptorSets.put(1, s.textureDescriptorSet)
+                    pass.vulkanMetadata.descriptorSets.put(2, descriptorSets["VRParameters"]!!)
+                    pass.vulkanMetadata.descriptorSets.limit(3)
+                } else {
+                    pass.vulkanMetadata.descriptorSets.put(1, descriptorSets["VRParameters"]!!)
+                    pass.vulkanMetadata.descriptorSets.limit(2)
                 }
 
                 pass.vulkanMetadata.instanceBuffers.put(0, s.vertexBuffers["instance"]!!.buffer)
@@ -2726,7 +2729,7 @@ open class VulkanRenderer(hub: Hub,
             lightUbo.members.put("Linear-$i", { l.linear })
             lightUbo.members.put("Quadratic-$i", { l.quadratic })
             lightUbo.members.put("Intensity-$i", { l.intensity })
-            lightUbo.members.put("Radius-$i", { l.radius })
+            lightUbo.members.put("Radius-$i", { -l.linear + Math.sqrt(l.linear*l.linear - 4 * l.quadratic * (1.0 - (256.0f / 5.0)*100)).toFloat() })
             lightUbo.members.put("Position-$i", { l.position })
             lightUbo.members.put("Color-$i", { l.emissionColor })
             lightUbo.members.put("filler-$i", { 0.0f })

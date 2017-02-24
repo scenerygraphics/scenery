@@ -6,9 +6,9 @@ layout(location = 1) in vec3 vertexNormal;
 layout(location = 2) in vec2 vertexTexCoord;
 
 layout(location = 0) out VertexData {
+    vec3 FragPosition;
     vec3 Normal;
     vec2 TexCoord;
-    vec3 FragPosition;
 } VertexOut;
 
 layout(binding = 0) uniform Matrices {
@@ -58,11 +58,10 @@ void main()
 
 	nMVP = projectionMatrix*mv;
 
-    // view-space normals
-    mat3 NormalMatrix = mat3(mv);
-	VertexOut.Normal = normalize(NormalMatrix*vertexNormal);
-	VertexOut.TexCoord = vertexTexCoord;
-	VertexOut.FragPosition = vec3(mv * vec4(vertexPosition, 1.0));
+    mat3 NormalMatrix = transpose(inverse(mat3(ubo.ModelMatrix)));
+    VertexOut.Normal = normalize(NormalMatrix*vertexNormal);
+    VertexOut.TexCoord = vertexTexCoord;
+    VertexOut.FragPosition = vec3(ubo.ModelMatrix * vec4(vertexPosition, 1.0));
 
 	gl_Position = nMVP * vec4(vertexPosition, 1.0);
 }

@@ -60,10 +60,10 @@ void main()
 	nMVP = projectionMatrix*mv;
 
     // view-space normals
-    mat3 NormalMatrix = transpose(inverse(mat3(mv)));
+    mat3 NormalMatrix = transpose(inverse(mat3(ubo.ModelMatrix)));
 	VertexOut.Normal = normalize(NormalMatrix*vertexNormal);
 	VertexOut.TexCoord = vertexTexCoord;
-	VertexOut.FragPosition = vec3(mv * vec4(vertexPosition, 1.0));
+	VertexOut.FragPosition = vec3(ubo.ModelMatrix * vec4(vertexPosition, 1.0));
 
 	gl_Position = nMVP * vec4(vertexPosition, 1.0);
 }
