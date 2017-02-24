@@ -4,6 +4,8 @@
 
 # scenery  // flexible scenegraphing and rendering for scientific visualisation
 
+![Blood Cells Example](https://ulrik.is/scenery-bloodcells.gif)
+
 ## Synopsis
 
 scenery is a scenegraphing and rendering library. It allows you to quickly create high-quality 3D visualisations based on mesh data. Currently, scenery contains an OpenGL 4-based [Deferred Shading](https://en.wikipedia.org/wiki/Deferred_Shading) renderer and an experimental [Vulkan](https://www.khronos.org/vulkan) renderer with both forward and deferred shading. Both support Virtual Reality headsets like the HTC Vive or Oculus Rift via [OpenVR/SteamVR](https://github.com/ValveSoftware/openvr). A software renderer is planned for the future.
