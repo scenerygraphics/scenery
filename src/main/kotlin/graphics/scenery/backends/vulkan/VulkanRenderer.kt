@@ -654,6 +654,7 @@ open class VulkanRenderer(hub: Hub,
             name = "Default"
             members.put("ModelMatrix", { node.world })
             members.put("ViewMatrix", { node.view })
+            members.put("NormalMatrix", { node.world.inverse.transpose() })
             members.put("ProjectionMatrix", { node.projection })
             members.put("CamPosition", { scene.activeObserver?.position ?: GLVector(0.0f, 0.0f, 0.0f)})
             members.put("isBillboard", { node.isBillboard.toInt() })

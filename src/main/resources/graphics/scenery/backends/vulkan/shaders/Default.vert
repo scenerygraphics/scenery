@@ -61,7 +61,7 @@ void main()
 
     // view-space normals
     mat3 NormalMatrix = transpose(inverse(mat3(ubo.ModelMatrix)));
-	VertexOut.Normal = normalize(NormalMatrix*vertexNormal);
+	VertexOut.Normal = NormalMatrix*vertexNormal;
 	VertexOut.TexCoord = vertexTexCoord;
 	VertexOut.FragPosition = vec3(ubo.ModelMatrix * vec4(vertexPosition, 1.0));
 

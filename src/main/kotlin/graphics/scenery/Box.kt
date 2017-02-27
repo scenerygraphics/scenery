@@ -16,9 +16,9 @@ open class Box(val sizes: GLVector) : Mesh("box"), HasGeometry {
     override var texcoords: FloatBuffer = BufferUtils.allocateFloat(0)
     override var indices: IntBuffer = BufferUtils.allocateInt(0)
 
-    override var vertexSize = 3;
-    override var texcoordSize = 2;
-    override var geometryType = GeometryType.TRIANGLES;
+    override var vertexSize = 3
+    override var texcoordSize = 2
+    override var geometryType = GeometryType.TRIANGLES
 
     init {
         val side = 1.0f

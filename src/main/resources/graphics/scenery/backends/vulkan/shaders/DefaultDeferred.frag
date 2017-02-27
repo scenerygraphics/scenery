@@ -74,7 +74,7 @@ void main() {
     gAlbedoSpec.rgb = vec3(0.0f, 0.0f, 0.0f);
 
     gAlbedoSpec.rgb = Material.Kd;
-    gAlbedoSpec.a = Material.Ka.r*Material.Shininess;
+    gAlbedoSpec.a = Material.Ks.r;
 
     // Also store the per-fragment normals into the gbuffer
     if((materialType & MATERIAL_HAS_AMBIENT) == MATERIAL_HAS_AMBIENT) {
@@ -97,7 +97,7 @@ void main() {
 
     if((materialType & MATERIAL_HAS_NORMAL) == MATERIAL_HAS_NORMAL) {
         vec3 normal = texture(ObjectTextures[3], VertexIn.TexCoord).rgb*(255.0/127.0) - (128.0/127.0);
-        normal = TBN(normalize(VertexIn.Normal), ubo.CamPosition - VertexIn.FragPosition, VertexIn.TexCoord)*normal;
+        normal = TBN(normalize(VertexIn.Normal), -ubo.CamPosition + VertexIn.FragPosition, VertexIn.TexCoord) * normal;
 
         gNormal = normalize(normal);
     } else {

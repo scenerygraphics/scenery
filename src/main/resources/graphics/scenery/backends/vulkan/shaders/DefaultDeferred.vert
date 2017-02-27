@@ -14,6 +14,7 @@ layout(location = 0) out VertexData {
 layout(binding = 0) uniform Matrices {
 	mat4 ModelMatrix;
 	mat4 ViewMatrix;
+	mat4 NormalMatrix;
 	mat4 ProjectionMatrix;
 	vec3 CamPosition;
 	int isBillboard;
@@ -58,8 +59,7 @@ void main()
 
 	nMVP = projectionMatrix*mv;
 
-    mat3 NormalMatrix = transpose(inverse(mat3(ubo.ModelMatrix)));
-    VertexOut.Normal = normalize(NormalMatrix*vertexNormal);
+    VertexOut.Normal = mat3(ubo.NormalMatrix) * normalize(vertexNormal);
     VertexOut.TexCoord = vertexTexCoord;
     VertexOut.FragPosition = vec3(ubo.ModelMatrix * vec4(vertexPosition, 1.0));
 
