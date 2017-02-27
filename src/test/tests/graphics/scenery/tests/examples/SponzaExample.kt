@@ -54,9 +54,9 @@ class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 1
             lights.map {
                 it.position = Numerics.randomVectorFromRange(3, -600.0f, 600.0f)
                 it.emissionColor = Numerics.randomVectorFromRange(3, 0.0f, 1.0f)
-                it.intensity = Numerics.randomFromRange(1.0f, 100f)
-                it.linear = 0.0f
-                it.quadratic = 0.001f
+                it.intensity = Numerics.randomFromRange(10.0f, 100f)
+                it.linear = 1.8f
+                it.quadratic = 0.2f
 
                 scene.addChild(it)
             }

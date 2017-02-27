@@ -16,7 +16,7 @@ import kotlin.concurrent.thread
 class RungholtExample: SceneryDefaultApplication("BoxedProteinExample", windowWidth = 1280, windowHeight = 720) {
     override fun init() {
         try {
-            val lightCount = 127
+            val lightCount = 512
 
             renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
             hub.add(SceneryElement.RENDERER, renderer!!)
@@ -45,9 +45,9 @@ class RungholtExample: SceneryDefaultApplication("BoxedProteinExample", windowWi
             lights.map {
                 it.emissionColor = Numerics.randomVectorFromRange(3, 0.0f, 1.0f)
                 it.parent?.material?.diffuse = it.emissionColor
-                it.intensity = Numerics.randomFromRange(0.01f, 10f)
-                it.linear = 0.00f
-                it.quadratic = 0.001f
+                it.intensity = Numerics.randomFromRange(0.1f, 10f)
+                it.linear = 1.2f
+                it.quadratic = 0.2f
 
                 scene.addChild(it)
             }
@@ -84,12 +84,12 @@ class RungholtExample: SceneryDefaultApplication("BoxedProteinExample", windowWi
                 while (true) {
                     boxes.mapIndexed {
                         i, box ->
-                        val phi = Math.PI * 2.0f * ticks / 2500.0f
+                        val phi = ticks / 2500.0f % (Math.PI * 2.0f)
 
                         box.position = GLVector(
-                            -128.0f+18.0f*(i+1),
-                            5.0f+i*5.0f,
-                            (i+1) * 50 * Math.cos(phi+(i*0.2f)).toFloat())
+                            -260.0f+5.0f*(i+1),
+                            15.0f+i*0.2f,
+                            (i+1.0f) * 4.0f * Math.cos(phi+(i*0.2f)).toFloat())
 
                         box.children[0].position = box.position
 

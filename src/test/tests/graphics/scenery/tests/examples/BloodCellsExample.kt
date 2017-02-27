@@ -29,7 +29,7 @@ class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowW
 
             val cam: Camera = DetachedHeadCamera()
             cam.position = GLVector(0.0f, 20.0f, -20.0f)
-            cam.perspectiveCamera(50.0f, 1.0f*windowWidth, 1.0f*windowHeight, 1.0f, 1000.0f)
+            cam.perspectiveCamera(50.0f, 1.0f*windowWidth, 1.0f*windowHeight, 10.0f, 5000.0f)
             cam.rotation = Quaternion().setFromEuler(-1.5f, -0.5f, 0.0f)
             cam.active = true
 
@@ -53,11 +53,22 @@ class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowW
                 it.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
                 it.parent?.material?.diffuse = it.emissionColor
                 it.intensity = 100.0f
-                it.linear = 0.1f;
-                it.quadratic = 0.0f;
+                it.linear = 0f
+                it.quadratic = 0.1f
 
                 scene.addChild(it)
             }
+
+            val hullMaterial = Material()
+            hullMaterial.ambient = GLVector(0.0f, 0.0f, 0.0f)
+            hullMaterial.diffuse = GLVector(1.0f, 1.0f, 1.0f)
+            hullMaterial.specular = GLVector(0.0f, 0.0f, 0.0f)
+            hullMaterial.doubleSided = true
+
+            val hull = Box(GLVector(5000.0f, 5000.0f, 5000.0f))
+            hull.material = hullMaterial
+
+            scene.addChild(hull)
 
             val e_material = Material()
             e_material.ambient = GLVector(0.1f, 0.0f, 0.0f)
