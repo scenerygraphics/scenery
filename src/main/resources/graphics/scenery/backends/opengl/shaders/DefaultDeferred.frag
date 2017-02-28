@@ -5,10 +5,9 @@ layout (location = 1) out vec3 gNormal;
 layout (location = 2) out vec4 gAlbedoSpec;
 
 in VertexData {
-    vec3 Position;
+    vec3 FragPosition;
     vec3 Normal;
     vec2 TexCoord;
-    vec3 FragPosition;
     vec4 Color;
 } VertexIn;
 
@@ -69,8 +68,8 @@ void main() {
     // Store the fragment position vector in the first gbuffer texture
     gPosition = VertexIn.FragPosition;
     // Also store the per-fragment normals into the gbuffer
-    gAlbedoSpec.rgb = Material.Kd;
-    gAlbedoSpec.a = Material.Ka.r*Material.Shininess;
+    gAlbedoSpec.rgb = vec3(0.0f, 0.0f, 0.0f);//Material.Kd;
+    gAlbedoSpec.a = 0.0f;
 
     // Also store the per-fragment normals into the gbuffer
     if((materialType & MATERIAL_HAS_AMBIENT) == MATERIAL_HAS_AMBIENT) {
@@ -93,10 +92,10 @@ void main() {
 
     if((materialType & MATERIAL_HAS_NORMAL) == MATERIAL_HAS_NORMAL) {
         vec3 normal = texture(ObjectTextures[3], VertexIn.TexCoord).rgb*(255.0/127.0) - (128.0/127.0);
-        normal = TBN(VertexIn.Normal, -VertexIn.FragPosition, VertexIn.TexCoord)*normal;
+        normal = TBN(normalize(VertexIn.Normal), -VertexIn.FragPosition, VertexIn.TexCoord)*normal;
 
         gNormal = normalize(normal);
     } else {
-        gNormal = VertexIn.Normal;
+        gNormal = normalize(VertexIn.Normal);
     }
 }

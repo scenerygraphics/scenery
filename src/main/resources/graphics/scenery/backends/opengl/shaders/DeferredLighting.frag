@@ -59,11 +59,11 @@ void main()
 
     float fragDist = length(FragPos - viewPos);
 
-    vec3 lighting;
+    vec3 lighting = vec3(0.0f);
+    float ambientOcclusion = 0.0f;
 
     if(debugDeferredBuffers == 0) {
         if(doSSAO > 0) {
-            float ambientOcclusion = 0.0f;
 
             int sample_count = 8;
             for (int i = 0; i < sample_count;  ++i) {
@@ -81,24 +81,34 @@ void main()
                ambientOcclusion += (a * NdotS);
              }
 
-             lighting = Albedo.rgb * (1.0 - (ambientOcclusion/sample_count));
-        } else {
-            lighting = Albedo.rgb * 1.0;
+             ambientOcclusion /= sample_count;
         }
-        vec3 viewDir = normalize(viewPos - FragPos);
 
         for(int i = 0; i < numLights; ++i)
         {
-            // Diffuse
-            vec3 lightDir = normalize(lights[i].Position - FragPos);
-            vec3 diffuse = max(dot(Normal, lightDir), 0.0) * lights[i].Intensity * Albedo.rgb * lights[i].Color;
-            float distance = length(lights[i].Position - FragPos);
-            vec3 specular = lights[i].Color * Specular;
+            vec3 lightPos = lights[i].Position.xyz;
+            vec3 L = (lightPos - FragPos);
+            vec3 V = normalize(viewPos - FragPos);
+            vec3 H = normalize(L + V);
+            float distance = length(L);
+            L = normalize(L);
 
-            float attenuation = 1.0 / (1.0 + lights[i].Linear * distance + lights[i].Quadratic * distance * distance);
-            diffuse *= attenuation;
-            specular *= attenuation;
-            lighting += diffuse + specular;
+            float lightAttenuation = 1.0 / (1.0 + lights[i].Linear * distance + lights[i].Quadratic * distance * distance);
+
+            float NdotL = max(0.0, dot(Normal, L));
+            vec3 specular = vec3(0.0f);
+
+            vec3 R = reflect(-L, Normal);
+            float NdotR = max(0.0, dot(R, V));
+            float NdotH = max(0.0, dot(Normal, H));
+
+            vec3 diffuse = NdotL * lights[i].Intensity * Albedo.rgb * lights[i].Color.rgb * (1.0f - ambientOcclusion);
+
+            if(NdotL > 0) {
+                specular = pow(NdotH, (1.0-Specular)*4.0) * Albedo.rgb * lights[i].Color.rgb * lights[i].Intensity;
+            }
+
+            lighting += (diffuse + specular) * lightAttenuation;
         }
 
         FragColor = vec4(lighting, 1.0);

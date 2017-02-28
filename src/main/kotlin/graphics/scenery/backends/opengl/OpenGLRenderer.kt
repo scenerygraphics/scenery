@@ -363,7 +363,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
         ds.set("isFullscreen", false)
 
         ds.set("ssao.Active", true)
-        ds.set("ssao.FilterRadius", GLVector(0.0f, 0.0f))
+        ds.set("ssao.FilterRadius", GLVector(0.05f, 0.05f))
         ds.set("ssao.DistanceThreshold", 10.0f)
         ds.set("ssao.Algorithm", 1)
 
@@ -373,8 +373,8 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
         ds.set("vr.EyeDivisor", 1)
 
         ds.set("hdr.Active", true)
-        ds.set("hdr.Exposure", 0.5f)
-        ds.set("hdr.Gamma", 1.7f)
+        ds.set("hdr.Exposure", 5.0f)
+        ds.set("hdr.Gamma", 2.2f)
 
         ds.set("sdf.MaxDistance", 10)
 
@@ -875,7 +875,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
 
                 s.program?.let { program ->
                     program.use(gl)
-                    program.getUniform("ModelMatrix")!!.setFloatMatrix(n.model, false)
+                    program.getUniform("ModelMatrix")!!.setFloatMatrix(n.world, false)
                     program.getUniform("ModelViewMatrix")!!.setFloatMatrix(n.modelView, false)
                     program.getUniform("ProjectionMatrix")!!.setFloatMatrix(projection[eye], false)
                     program.getUniform("MVP")!!.setFloatMatrix(n.mvp, false)
