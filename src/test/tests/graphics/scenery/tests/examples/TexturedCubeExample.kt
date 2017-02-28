@@ -2,9 +2,8 @@ package graphics.scenery.tests.examples
 
 import cleargl.GLVector
 import graphics.scenery.*
-import org.junit.Test
 import graphics.scenery.backends.Renderer
-import graphics.scenery.repl.REPL
+import org.junit.Test
 import kotlin.concurrent.thread
 
 /**
@@ -17,7 +16,7 @@ class TexturedCubeExample : SceneryDefaultApplication("TexturedCubeExample") {
         renderer = Renderer.createRenderer(hub, applicationName, scene, 512, 512)
         hub.add(SceneryElement.RENDERER, renderer!!)
 
-        var boxmaterial = Material()
+        val boxmaterial = Material()
         with(boxmaterial) {
             ambient = GLVector(1.0f, 0.0f, 0.0f)
             diffuse = GLVector(0.0f, 1.0f, 0.0f)
@@ -25,14 +24,14 @@ class TexturedCubeExample : SceneryDefaultApplication("TexturedCubeExample") {
             textures.put("diffuse", TexturedCubeExample::class.java.getResource("textures/helix.png").file)
         }
 
-        var box = Box(GLVector(1.0f, 1.0f, 1.0f))
+        val box = Box(GLVector(1.0f, 1.0f, 1.0f))
 
         with(box) {
             box.material = boxmaterial
             scene.addChild(this)
         }
 
-        var lights = (0..2).map {
+        val lights = (0..2).map {
             PointLight()
         }
 

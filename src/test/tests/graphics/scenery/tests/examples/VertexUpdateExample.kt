@@ -1,11 +1,9 @@
 package graphics.scenery.tests.examples
 
-import cleargl.GLMatrix
 import cleargl.GLVector
 import graphics.scenery.*
-import org.junit.Test
 import graphics.scenery.backends.Renderer
-import graphics.scenery.repl.REPL
+import org.junit.Test
 import java.nio.FloatBuffer
 import java.util.*
 import kotlin.concurrent.thread
@@ -49,12 +47,8 @@ class VertexUpdateExample : SceneryDefaultApplication("VertexUpdateExample") {
 
         val cam: Camera = DetachedHeadCamera()
         cam.position = GLVector(0.0f, 0.0f, -5.0f)
-        cam.view = GLMatrix().setCamera(cam.position, cam.position + cam.forward, cam.up)
-        cam.projection = GLMatrix()
-                .setPerspectiveProjectionMatrix(
-                        70.0f / 180.0f * Math.PI.toFloat(),
-                        renderer!!.window.width.toFloat() / renderer!!.window.height.toFloat(), 0.1f, 1000.0f)
-                .invert()
+        cam.perspectiveCamera(70.0f, 1.0f*windowWidth, 1.0f*windowHeight, 1.0f, 1000.0f)
+
         cam.active = true
 
         scene.addChild(cam)

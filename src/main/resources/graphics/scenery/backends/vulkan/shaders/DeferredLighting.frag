@@ -15,7 +15,7 @@ struct Light {
   	vec4 Color;
 };
 
-const int MAX_NUM_LIGHTS = 128;
+const int MAX_NUM_LIGHTS = 1024;
 
 layout(binding = 0) uniform Matrices {
 	mat4 ModelMatrix;
@@ -61,11 +61,6 @@ const vec2 poisson16[] = vec2[](    // These are the Poisson Disk Samples
 		vec2(  0.19984126,   0.78641367 ),
 		vec2(  0.14383161,  -0.14100790 )
 );
-
-vec3 calculatePosition(vec2 texCoord, float depth) {
-	vec4 pos = inverse(ubo.ProjectionMatrix) * vec4(texCoord.x * 2 - 1, texCoord.y * 2 - 1, depth * 2 - 1, 1);
-	return pos.xyz;
-}
 
 float GGXDistribution(vec3 normal, vec3 halfway, float roughness) {
     float a = roughness*roughness;
@@ -116,65 +111,69 @@ void main()
 			int sample_count = 8;
 			for (int i = 0; i < sample_count;  ++i) {
 				// sample at an offset specified by the current Poisson-Disk sample and scale it by a radius (has to be in Texture-Space)
-				vec2 sampleTexCoord = textureCoord + (poisson16[i] * (ssaoFilterRadius));
+				vec2 sampleTexCoord = textureCoord + (poisson16[i] * ssaoFilterRadius);
 				float sampleDepth = texture(gDepth, sampleTexCoord).r;
-				vec3 samplePos = texture(gPosition, sampleTexCoord).rgb;//calculatePosition(sampleTexCoord, sampleDepth);
+				vec3 samplePos = texture(gPosition, sampleTexCoord).rgb;
 
 				vec3 sampleDir = normalize(samplePos - FragPos);
 
-				// angle between SURFACE-NORMAL and SAMPLE-DIRECTION (vector from SURFACE-POSITION to SAMPLE-POSITION)
 				float NdotS = max(dot(Normal, sampleDir), 0.0);
-				// distance between SURFACE-POSITION and SAMPLE-POSITION
 				float VPdistSP = distance(FragPos, samplePos);
 
-				// a = distance function
 				float a = 1.0 - smoothstep(ssaoDistanceThreshold, ssaoDistanceThreshold * 2, VPdistSP);
-				// b = dot-Product
-				float b = NdotS;
 
-				ambientOcclusion += (a * b);
+				ambientOcclusion += a * NdotS;
 			}
 
 		    ambientOcclusion /= sample_count;
 		}
 
-		vec3 viewDir = normalize(vec3(ubo.ViewMatrix*vec4(ubo.CamPosition, 1.0)) - FragPos);
+		vec3 viewDir = normalize(ubo.CamPosition - FragPos);
 
 		for(int i = 0; i < numLights; ++i)
 		{
-		    vec3 lightPos = vec3(ubo.ViewMatrix * vec4(lights[i].Position.rgb, 1.0));
-            vec3 lightDir = normalize(lightPos - FragPos);
-            vec3 halfway = normalize(lightDir + viewDir);
-            float distance = length(lightPos - FragPos);
+		    vec3 lightPos = lights[i].Position.xyz;
+            vec3 L = (lightPos - FragPos);
+            vec3 V = normalize(ubo.CamPosition - FragPos);
+            vec3 H = normalize(L + V);
+            float distance = length(L);
+            L = normalize(L);
 
-            if(distance > lights[i].Radius) {
-                continue;
-            }
+//            if(distance > 5.0f * lights[i].Radius) {
+//                continue;
+//            }
 
             float lightAttenuation = 1.0 / (1.0 + lights[i].Linear * distance + lights[i].Quadratic * distance * distance);
 
 		    if(reflectanceModel == 0) {
 		        // Diffuse
-             	vec3 diffuse = max(dot(Normal, lightDir), 0.0) * lights[i].Intensity * Albedo.rgb * lights[i].Color.rgb * (1.0f - ambientOcclusion);
-             	float spec = pow(max(dot(Normal, halfway), 0.0), 1.0-Specular);
-             	vec3 specular = lights[i].Color.rgb * spec;
+		        float NdotL = max(0.0, dot(Normal, L));
+		        vec3 specular = vec3(0.0f);
 
-             	diffuse *= lightAttenuation;
-             	specular *= lightAttenuation;
-             	lighting += diffuse + specular;
+             	vec3 R = reflect(-L, Normal);
+             	float NdotR = max(0.0, dot(R, V));
+             	float NdotH = max(0.0, dot(Normal, H));
+
+             	vec3 diffuse = NdotL * lights[i].Intensity * Albedo.rgb * lights[i].Color.rgb * (1.0f - ambientOcclusion);
+
+             	if(NdotL > 0) {
+             	    specular = pow(NdotH, (1.0-Specular)*4.0) * Albedo.rgb * lights[i].Color.rgb * lights[i].Intensity;
+             	}
+
+             	lighting += (diffuse + specular) * lightAttenuation;
 		    }
 		    // Oren-Nayar model
 		    else if(reflectanceModel == 1) {
 
-            	float NdotL = dot(Normal, lightDir);
-            	float NdotV = dot(Normal, viewDir);
+            	float NdotL = dot(Normal, L);
+            	float NdotV = dot(Normal, V);
 
             	float angleVN = acos(NdotV);
             	float angleLN = acos(NdotL);
 
             	float alpha = max(angleVN, angleLN);
             	float beta = min(angleVN, angleLN);
-            	float gamma = dot(viewDir - Normal*dot(viewDir, Normal), lightDir - Normal*dot(lightDir, Normal));
+            	float gamma = dot(viewDir - Normal*dot(V, Normal), L - Normal*dot(L, Normal));
 
             	float roughness = 0.75;
 
@@ -202,17 +201,17 @@ void main()
 
                 float roughness = 1.0 - Specular;
 
-                float NDF = GGXDistribution(Normal, halfway, roughness);
-                float G = GeometrySmith(Normal, viewDir, lightDir, roughness);
-                vec3 F = FresnelSchlick(max(dot(halfway, viewDir), 0.0), F0);
+                float NDF = GGXDistribution(Normal, H, roughness);
+                float G = GeometrySmith(Normal, V, L, roughness);
+                vec3 F = FresnelSchlick(max(dot(H, viewDir), 0.0), F0);
 
-                vec3 BRDF = (NDF * G * F)/(4 * max(dot(viewDir, Normal), 0.0) * max(dot(lightDir, Normal), 0.0) + 0.001);
+                vec3 BRDF = (NDF * G * F)/(4 * max(dot(V, Normal), 0.0) * max(dot(L, Normal), 0.0) + 0.001);
 
                 vec3 kS = F;
                 vec3 kD = (vec3(1.0) - kS);
                 kD *= 1.0 - metallic;
 
-                float NdotL = max(dot(Normal, lightDir), 0.0);
+                float NdotL = max(dot(Normal, L), 0.0);
                 vec3 radiance = lights[i].Intensity * lights[i].Color.rgb * lightAttenuation;
 
                 lighting += (kD * Albedo.rgb / PI + BRDF) * radiance * NdotL;

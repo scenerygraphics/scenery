@@ -48,11 +48,6 @@ const vec2 poisson16[] = vec2[](    // These are the Poisson Disk Samples
                                 vec2(  0.14383161,  -0.14100790 )
                                );
 
-vec3 calculatePosition(vec2 texCoord, float depth) {
-    vec4 pos = InverseProjectionMatrix * vec4(texCoord.x * 2 - 1, texCoord.y * 2 - 1, depth * 2 - 1, 1);
-    return pos.xyz;
-}
-
 void main()
 {
     // Retrieve data from G-buffer
@@ -64,81 +59,57 @@ void main()
 
     float fragDist = length(FragPos - viewPos);
 
-    vec3 lighting;
+    vec3 lighting = vec3(0.0f);
+    float ambientOcclusion = 0.0f;
 
     if(debugDeferredBuffers == 0) {
         if(doSSAO > 0) {
-            float ambientOcclusion = 0.0f;
 
             int sample_count = 8;
             for (int i = 0; i < sample_count;  ++i) {
-               // sample at an offset specified by the current Poisson-Disk sample and scale it by a radius (has to be in Texture-Space)
                vec2 sampleTexCoord = textureCoord + (poisson16[i] * (ssao_filterRadius));
                float sampleDepth = texture(gDepth, sampleTexCoord).r;
-               vec3 samplePos = texture(gPosition, sampleTexCoord).rgb;//calculatePosition(sampleTexCoord, sampleDepth);
+               vec3 samplePos = texture(gPosition, sampleTexCoord).rgb;
 
                vec3 sampleDir = normalize(samplePos - FragPos);
 
-               // angle between SURFACE-NORMAL and SAMPLE-DIRECTION (vector from SURFACE-POSITION to SAMPLE-POSITION)
                float NdotS = max(dot(Normal, sampleDir), 0);
-               // distance between SURFACE-POSITION and SAMPLE-POSITION
                float VPdistSP = distance(FragPos, samplePos);
 
-               // a = distance function
                float a = 1.0 - smoothstep(ssao_distanceThreshold, ssao_distanceThreshold * 2, VPdistSP);
-               // b = dot-Product
-               float b = NdotS;
 
-               ambientOcclusion += (a * b);
+               ambientOcclusion += (a * NdotS);
              }
 
-             lighting = Albedo.rgb * (1.0 - (ambientOcclusion/sample_count));
-        } else {
-            lighting = Albedo.rgb * 1.0;
+             ambientOcclusion /= sample_count;
         }
-        vec3 viewDir = normalize(viewPos - FragPos);
 
         for(int i = 0; i < numLights; ++i)
         {
-            // Diffuse
-            vec3 lightDir = normalize(lights[i].Position - FragPos);
-            vec3 diffuse = max(dot(Normal, lightDir), 0.0) * lights[i].Intensity * Albedo.rgb * lights[i].Color;
-            float distance = length(lights[i].Position - FragPos);
-            vec3 specular = lights[i].Color * Specular;
+            vec3 lightPos = lights[i].Position.xyz;
+            vec3 L = (lightPos - FragPos);
+            vec3 V = normalize(viewPos - FragPos);
+            vec3 H = normalize(L + V);
+            float distance = length(L);
+            L = normalize(L);
 
-            float attenuation = 1.0 / (1.0 + lights[i].Linear * distance + lights[i].Quadratic * distance * distance);
-            diffuse *= attenuation;
-            specular *= attenuation;
-            lighting += diffuse + specular;
+            float lightAttenuation = 1.0 / (1.0 + lights[i].Linear * distance + lights[i].Quadratic * distance * distance);
+
+            float NdotL = max(0.0, dot(Normal, L));
+            vec3 specular = vec3(0.0f);
+
+            vec3 R = reflect(-L, Normal);
+            float NdotR = max(0.0, dot(R, V));
+            float NdotH = max(0.0, dot(Normal, H));
+
+            vec3 diffuse = NdotL * lights[i].Intensity * Albedo.rgb * lights[i].Color.rgb * (1.0f - ambientOcclusion);
+
+            if(NdotL > 0) {
+                specular = pow(NdotH, (1.0-Specular)*4.0) * Albedo.rgb * lights[i].Color.rgb * lights[i].Intensity;
+            }
+
+            lighting += (diffuse + specular) * lightAttenuation;
         }
-
-        /*vec3 directionalOcclusion = vec3(0.0f);
-
-        if(doSSAO > 0) {
-        int sample_count = 16;
-        for (int i = 0; i < sample_count;  ++i) {
-           // sample at an offset specified by the current Poisson-Disk sample and scale it by a radius (has to be in Texture-Space)
-           vec2 sampleTexCoord = textureCoord + (poisson16[i] * (ssao_filterRadius));
-           vec3 samplePos = texture(gPosition, sampleTexCoord).rgb;//calculatePosition(sampleTexCoord, sampleDepth);
-           vec3 sampleColor = texture(gAlbedoSpec, sampleTexCoord).rgb;
-
-           vec3 sampleDir = normalize(samplePos - FragPos);
-
-           // angle between SURFACE-NORMAL and SAMPLE-DIRECTION (vector from SURFACE-POSITION to SAMPLE-POSITION)
-           float NdotS = max(dot(Normal, sampleDir), 0);
-           // distance between SURFACE-POSITION and SAMPLE-POSITION
-           float VPdistSP = distance(FragPos, samplePos);
-
-           // a = distance function
-           float a = 1.0 - smoothstep(ssao_distanceThreshold, ssao_distanceThreshold * 2, VPdistSP);
-           // b = dot-Product
-           vec3 b = NdotS*sampleColor;
-
-           directionalOcclusion += (a * b);
-        }
-        }
-
-        lighting += directionalOcclusion;*/
 
         FragColor = vec4(lighting, 1.0);
     } else {

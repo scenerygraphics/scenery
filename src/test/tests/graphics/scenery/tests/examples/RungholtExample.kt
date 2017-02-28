@@ -1,31 +1,34 @@
 package graphics.scenery.tests.examples
 
 import cleargl.GLVector
+import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.*
-import org.junit.Test
 import graphics.scenery.backends.Renderer
-import graphics.scenery.repl.REPL
+import graphics.scenery.utils.Numerics
+import org.junit.Test
 import java.io.IOException
 import kotlin.concurrent.thread
 
 /**
- * Created by ulrik on 20/01/16.
- */
+* <Description>
+*
+* @author Ulrik Günther <hello@ulrik.is>
+*/
 class RungholtExample: SceneryDefaultApplication("BoxedProteinExample", windowWidth = 1280, windowHeight = 720) {
     override fun init() {
         try {
-            val lightCount = 127
+            val lightCount = 512
 
             renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
             hub.add(SceneryElement.RENDERER, renderer!!)
 
             val cam: Camera = DetachedHeadCamera()
-            cam.position = GLVector(0.0f, 0.0f, 0.0f)
+            cam.position = GLVector(0.0f, 50.0f, -100.0f)
+            cam.rotation.setFromEuler(-0.3f, 0.5f, 0.0f)
             cam.perspectiveCamera(50.0f, windowWidth.toFloat(), windowHeight.toFloat(), nearPlaneLocation = 0.5f, farPlaneLocation = 1000.0f)
             cam.active = true
 
             scene.addChild(cam)
-            fun rangeRandomizer(min: Float, max: Float): Float = min + (Math.random().toFloat() * ((max - min) + 1.0f))
 
             val boxes = (0..lightCount).map {
                 Box(GLVector(0.5f, 0.5f, 0.5f))
@@ -42,13 +45,11 @@ class RungholtExample: SceneryDefaultApplication("BoxedProteinExample", windowWi
             }
 
             lights.map {
-                it.emissionColor = GLVector(rangeRandomizer(0.0f, 1.0f),
-                    rangeRandomizer(0.0f, 1.0f),
-                    rangeRandomizer(0.0f, 1.0f))
+                it.emissionColor = Numerics.randomVectorFromRange(3, 0.0f, 1.0f)
                 it.parent?.material?.diffuse = it.emissionColor
-                it.intensity = rangeRandomizer(0.01f, 10f)
-                it.linear = 0.00f
-                it.quadratic = 0.001f
+                it.intensity = Numerics.randomFromRange(0.1f, 10f)
+                it.linear = 1.2f
+                it.quadratic = 0.2f
 
                 scene.addChild(it)
             }
@@ -69,7 +70,7 @@ class RungholtExample: SceneryDefaultApplication("BoxedProteinExample", windowWi
             orcMaterial.specular = GLVector(0.1f, 0f, 0f)
 
             val orcMesh = Mesh()
-            orcMesh.readFromOBJ(System.getenv("SCENERY_DEMO_FILES") + "/rungholt.obj", useMTL = true)
+            orcMesh.readFromOBJ(getDemoFilesPath() + "/rungholt.obj", useMTL = true)
             orcMesh.position = GLVector(0.0f, 0.0f, 0.0f)
             orcMesh.scale = GLVector(1.0f, 1.0f, 1.0f)
             orcMesh.updateWorld(true, true)
@@ -85,13 +86,12 @@ class RungholtExample: SceneryDefaultApplication("BoxedProteinExample", windowWi
                 while (true) {
                     boxes.mapIndexed {
                         i, box ->
-                        val phi = Math.PI * 2.0f * ticks / 2500.0f
+                        val phi = ticks / 1500.0f % (Math.PI * 2.0f)
 
                         box.position = GLVector(
-                            -128.0f+18.0f*(i+1),
-                            5.0f+i*5.0f,
-                            (i+1) * 50 * Math.cos(phi+(i*0.2f)).toFloat())
-
+                            -320.0f+5.0f*(i+1),
+                            15.0f+i*0.2f,
+                            250.0f * Math.cos(phi+(i*0.2f)).toFloat())
                         box.children[0].position = box.position
 
                     }

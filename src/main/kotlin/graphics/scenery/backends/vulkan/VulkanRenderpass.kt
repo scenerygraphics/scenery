@@ -116,7 +116,7 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
 
         val dslObjectTextures = VU.createDescriptorSetLayout(
             device,
-            listOf(Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 5)),
+            listOf(Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 6)),
             VK_SHADER_STAGE_ALL_GRAPHICS)
 
         descriptorSetLayouts.put("ObjectTextures", dslObjectTextures)

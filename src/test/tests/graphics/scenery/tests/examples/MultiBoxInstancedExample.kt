@@ -1,19 +1,20 @@
 package graphics.scenery.tests.examples
 
-import cleargl.GLMatrix
 import cleargl.GLVector
 import graphics.scenery.*
-import org.junit.Test
 import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.ShaderPreference
-import graphics.scenery.repl.REPL
+import graphics.scenery.utils.Numerics
+import org.junit.Test
 import java.io.IOException
 import java.util.*
 import kotlin.concurrent.thread
 
 /**
- * Created by ulrik on 20/01/16.
- */
+* <Description>
+*
+* @author Ulrik Günther <hello@ulrik.is>
+*/
 class MultiBoxInstancedExample : SceneryDefaultApplication("MultiBoxInstancedExample") {
     override fun init() {
         try {
@@ -23,16 +24,10 @@ class MultiBoxInstancedExample : SceneryDefaultApplication("MultiBoxInstancedExa
             val cam: Camera = DetachedHeadCamera()
 
             cam.position = GLVector(0.0f, 0.0f, 0.0f)
-            cam.view = GLMatrix().setCamera(cam.position, cam.position + cam.forward, cam.up)
-
-            cam.projection = GLMatrix().setPerspectiveProjectionMatrix(
-                50.0f / 180.0f * Math.PI.toFloat(),
-                windowWidth.toFloat() / windowHeight.toFloat(), 0.1f, 10000.0f)
+            cam.perspectiveCamera(60.0f, 1.0f*windowWidth, 1.0f*windowHeight, 1.0f, 1000.0f)
             cam.active = true
 
             scene.addChild(cam)
-
-            fun rangeRandomizer(min: Float, max: Float): Float = min + (Math.random().toFloat() * ((max - min) + 1.0f))
 
             val WIDTH = 15.0
             val HEIGHT = 15.0
@@ -88,11 +83,9 @@ class MultiBoxInstancedExample : SceneryDefaultApplication("MultiBoxInstancedExa
             }
 
             lights.map {
-                it.position = GLVector(rangeRandomizer(-600.0f, 600.0f),
-                        rangeRandomizer(-600.0f, 600.0f),
-                        rangeRandomizer(-600.0f, 600.0f))
+                it.position = Numerics.randomVectorFromRange(3, -600.0f, 600.0f)
                 it.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
-                it.intensity = rangeRandomizer(0.01f, 1000f)
+                it.intensity = Numerics.randomFromRange(0.01f, 1000f)
                 it.linear = 0.1f;
                 it.quadratic = 0.1f;
 

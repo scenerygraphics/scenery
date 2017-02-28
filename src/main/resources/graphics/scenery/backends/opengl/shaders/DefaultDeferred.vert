@@ -8,10 +8,9 @@ layout(location = 7) in vec4 instancedModelView;
 layout(location = 11) in vec4 instancedMVP;
 
 out VertexData {
-    vec3 Position;
+    vec3 FragPosition;
     vec3 Normal;
     vec2 TexCoord;
-    vec3 FragPosition;
     vec4 Color;
 } VertexOut;
 
@@ -48,7 +47,6 @@ void main()
    	}
 
     VertexOut.Normal = transpose(inverse(mat3(ModelMatrix)))*vertexNormal;
-    VertexOut.Position = vec3( mv * vec4(vertexPosition, 1.0));
     VertexOut.TexCoord = vertexTexCoord;
     VertexOut.FragPosition = vec3(ModelMatrix * vec4(vertexPosition, 1.0));
     VertexOut.Color = vec4(0.0f, 0.0f, 0.0f, 0.0f);

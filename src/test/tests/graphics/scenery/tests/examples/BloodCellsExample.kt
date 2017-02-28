@@ -1,23 +1,21 @@
 package graphics.scenery.tests.examples
 
-import cleargl.GLMatrix
 import cleargl.GLVector
+import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.*
-import org.junit.Test
 import graphics.scenery.backends.Renderer
-import graphics.scenery.controls.OpenVRHMDInput
 import graphics.scenery.backends.ShaderPreference
-import graphics.scenery.repl.REPL
+import graphics.scenery.controls.OpenVRHMDInput
+import graphics.scenery.utils.Numerics
+import org.junit.Test
 import java.io.IOException
 import java.util.*
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
-import kotlin.concurrent.thread
 
 /**
- * Created by ulrik on 20/01/16.
- */
+* <Description>
+*
+* @author Ulrik Günther <hello@ulrik.is>
+*/
 class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowWidth = 1280, windowHeight = 720) {
     private var ovr: OpenVRHMDInput? = null
 
@@ -30,26 +28,16 @@ class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowW
             hub.add(SceneryElement.RENDERER, renderer!!)
 
             val cam: Camera = DetachedHeadCamera()
-
-            cam.position = GLVector(0.0f, 0.0f, 0.0f)
-            cam.view = GLMatrix().setCamera(cam.position, cam.position + cam.forward, cam.up)
-
-            cam.projection = GLMatrix().setPerspectiveProjectionMatrix(
-                50.0f / 180.0f * Math.PI.toFloat(),
-                windowWidth.toFloat() / windowHeight.toFloat(), 0.1f, 10000.0f)
+            cam.position = GLVector(0.0f, 20.0f, -20.0f)
+            cam.perspectiveCamera(50.0f, 1.0f*windowWidth, 1.0f*windowHeight, 10.0f, 5000.0f)
+            cam.rotation = Quaternion().setFromEuler(-1.5f, -0.5f, 0.0f)
             cam.active = true
 
             scene.addChild(cam)
 
-            fun rangeRandomizer(min: Float, max: Float): Float = min + (Math.random().toFloat() * ((max - min) + 1.0f))
+            val boxes = (0..10).map { Box(GLVector(0.5f, 0.5f, 0.5f)) }
 
-            var boxes = (0..10).map {
-                Box(GLVector(0.5f, 0.5f, 0.5f))
-            }
-
-            var lights = (0..10).map {
-                PointLight()
-            }
+            val lights = (0..10).map { PointLight() }
 
             boxes.mapIndexed { i, box ->
                 box.material = Material()
@@ -59,28 +47,28 @@ class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowW
             }
 
             lights.map {
-                it.position = GLVector(rangeRandomizer(00.0f, 600.0f),
-                    rangeRandomizer(00.0f, 600.0f),
-                    rangeRandomizer(00.0f, 600.0f))
+                it.position = GLVector(Numerics.randomFromRange(00.0f, 600.0f),
+                    Numerics.randomFromRange(00.0f, 600.0f),
+                    Numerics.randomFromRange(00.0f, 600.0f))
                 it.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
                 it.parent?.material?.diffuse = it.emissionColor
                 it.intensity = 100.0f
-                it.linear = 0.1f;
-                it.quadratic = 0.0f;
+                it.linear = 0f
+                it.quadratic = 0.001f
 
                 scene.addChild(it)
             }
 
-            val hullbox = Box(GLVector(900.0f, 900.0f, 900.0f))
-            hullbox.position = GLVector(0.1f, 0.1f, 0.1f)
-            val hullboxM = Material()
-            hullboxM.ambient = GLVector(1.0f, 1.0f, 1.0f)
-            hullboxM.diffuse = GLVector(1.0f, 1.0f, 1.0f)
-            hullboxM.specular = GLVector(1.0f, 1.0f, 1.0f)
-            hullboxM.doubleSided = true
-            hullbox.material = hullboxM
+            val hullMaterial = Material()
+            hullMaterial.ambient = GLVector(0.0f, 0.0f, 0.0f)
+            hullMaterial.diffuse = GLVector(1.0f, 1.0f, 1.0f)
+            hullMaterial.specular = GLVector(0.0f, 0.0f, 0.0f)
+            hullMaterial.doubleSided = true
 
-            //scene.addChild(hullbox)
+            val hull = Box(GLVector(5000.0f, 5000.0f, 5000.0f))
+            hull.material = hullMaterial
+
+            scene.addChild(hull)
 
             val e_material = Material()
             e_material.ambient = GLVector(0.1f, 0.0f, 0.0f)
@@ -89,7 +77,7 @@ class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowW
             e_material.doubleSided = false
 
             val erythrocyte = Mesh()
-            erythrocyte.readFromOBJ(System.getenv("SCENERY_DEMO_FILES") + "/erythrocyte_simplified.obj")
+            erythrocyte.readFromOBJ(getDemoFilesPath() + "/erythrocyte_simplified.obj")
             erythrocyte.material = e_material
             erythrocyte.name = "Erythrocyte_Master"
             erythrocyte.instanceMaster = true
@@ -112,7 +100,7 @@ class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowW
             l_material.doubleSided = false
 
             val leucocyte = Mesh()
-            leucocyte.readFromOBJ(System.getenv("SCENERY_DEMO_FILES") + "/leukocyte_simplified.obj")
+            leucocyte.readFromOBJ(getDemoFilesPath() + "/leukocyte_simplified.obj")
             leucocyte.material = l_material
             leucocyte.name = "leucocyte_Master"
             leucocyte.instanceMaster = true
@@ -131,7 +119,7 @@ class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowW
             val posRange = 1200.0f
             val container = Node("Cell container")
 
-            val leucocytes = (0..200)
+            val leucocytes = (0..100)
                 .map {
                     val v = Mesh()
                     v.name = "leucocyte_$it"
@@ -143,26 +131,25 @@ class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowW
                 }
                 .map {
                     val p = Node("parent of it")
-                    val scale = rangeRandomizer(30.0f, 40.0f)
+                    val scale = Numerics.randomFromRange(30.0f, 40.0f)
 
                     it.material = l_material
                     it.scale = GLVector(scale, scale, scale)
                     it.children.forEach { ch -> ch.material = l_material }
                     it.rotation.setFromEuler(
-                        rangeRandomizer(0.01f, 0.9f),
-                        rangeRandomizer(0.01f, 0.9f),
-                        rangeRandomizer(0.01f, 0.9f)
+                        Numerics.randomFromRange(0.01f, 0.9f),
+                        Numerics.randomFromRange(0.01f, 0.9f),
+                        Numerics.randomFromRange(0.01f, 0.9f)
                     )
 
-                    p.position = GLVector(rangeRandomizer(0.0f, posRange),
-                        rangeRandomizer(0.0f, posRange), rangeRandomizer(0.0f, posRange))
+                    p.position = Numerics.randomVectorFromRange(3, 0.0f, posRange)
                     p.addChild(it)
 
                     container.addChild(p)
                     it
                 }
 
-            val bloodCells = (0..2000)
+            val erythrocytes = (0..2000)
                 .map {
                     val v = Mesh()
                     v.name = "erythrocyte_$it"
@@ -175,19 +162,18 @@ class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowW
                 }
                 .map {
                     val p = Node("parent of it")
-                    val scale = rangeRandomizer(5f, 12f)
+                    val scale = Numerics.randomFromRange(5f, 12f)
 
                     it.material = e_material
                     it.scale = GLVector(scale, scale, scale)
                     it.children.forEach { ch -> ch.material = e_material }
                     it.rotation.setFromEuler(
-                        rangeRandomizer(0.01f, 0.9f),
-                        rangeRandomizer(0.01f, 0.9f),
-                        rangeRandomizer(0.01f, 0.9f)
+                        Numerics.randomFromRange(0.01f, 0.9f),
+                        Numerics.randomFromRange(0.01f, 0.9f),
+                        Numerics.randomFromRange(0.01f, 0.9f)
                     )
 
-                    p.position = GLVector(rangeRandomizer(0.0f, posRange),
-                        rangeRandomizer(0.0f, posRange), rangeRandomizer(0.0f, posRange))
+                    p.position = Numerics.randomVectorFromRange(3, 0.0f, posRange)
                     p.addChild(it)
 
                     container.addChild(p)
@@ -196,16 +182,6 @@ class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowW
 
             scene.addChild(container)
 
-
-            var ticks: Int = 0
-
-            System.out.println(scene.children)
-
-            fun hover(obj: Node, magnitude: Float, phi: Float) {
-                obj.position = (obj.position +
-                    GLVector(0.0f, magnitude * Math.cos(phi.toDouble() * 4).toFloat(), 0.0f))
-
-            }
 
             fun hoverAndTumble(obj: Node, magnitude: Float, phi: Float, index: Int) {
                 obj.parent.let {
@@ -217,9 +193,9 @@ class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowW
                 obj.rotation.rotateByAngleY(-1.0f * magnitude)
             }
 
+            var ticks: Int = 0
             updateFunction = {
                 val step = 0.05f
-
                 val phi = Math.PI * 2.0f * ticks / 2000.0f
 
                 boxes.mapIndexed {
@@ -232,19 +208,13 @@ class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowW
                     box.children[0].position = box.position
                 }
 
-                var i=0
-                bloodCells.parallelMap { bloodCell ->
-                    hoverAndTumble(bloodCell, 0.003f, phi.toFloat(), i++)
-                }
-
-                i=0
-                leucocytes.parallelMap { leukocyte ->
-                    hoverAndTumble(leukocyte, 0.001f, phi.toFloat() / 100.0f, i++)
-                }
+                erythrocytes.mapIndexed { i, erythrocyte -> hoverAndTumble(erythrocyte, 0.003f, phi.toFloat(), i) }
+                leucocytes.mapIndexed { i, leukocyte -> hoverAndTumble(leukocyte, 0.001f, phi.toFloat() / 100.0f, i) }
 
                 container.position = container.position - GLVector(0.1f, 0.1f, 0.1f)
 
                 container.updateWorld(true)
+                ticks++
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -252,25 +222,6 @@ class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowW
             e.printStackTrace()
         }
 
-    }
-
-    fun <T, R> Iterable<T>.parallelMap(
-        numThreads: Int = 8,
-        exec: ExecutorService = Executors.newFixedThreadPool(numThreads),
-        transform: (T) -> R): List<R> {
-
-        // default size is just an inlined version of kotlin.collections.collectionSizeOrDefault
-        val defaultSize = if (this is Collection<*>) this.size else 10
-        val destination = Collections.synchronizedList(ArrayList<R>(defaultSize))
-
-        for (item in this) {
-            exec.submit { destination.add(transform(item)) }
-        }
-
-        exec.shutdown()
-        exec.awaitTermination(1, TimeUnit.DAYS)
-
-        return ArrayList<R>(destination)
     }
 
     @Test override fun main() {
