@@ -1,6 +1,7 @@
 package graphics.scenery.tests.examples
 
 import cleargl.GLVector
+import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.utils.Numerics
@@ -22,7 +23,8 @@ class RungholtExample: SceneryDefaultApplication("BoxedProteinExample", windowWi
             hub.add(SceneryElement.RENDERER, renderer!!)
 
             val cam: Camera = DetachedHeadCamera()
-            cam.position = GLVector(0.0f, 0.0f, 0.0f)
+            cam.position = GLVector(0.0f, 50.0f, -100.0f)
+            cam.rotation.setFromEuler(-0.3f, 0.5f, 0.0f)
             cam.perspectiveCamera(50.0f, windowWidth.toFloat(), windowHeight.toFloat(), nearPlaneLocation = 0.5f, farPlaneLocation = 1000.0f)
             cam.active = true
 
@@ -84,13 +86,12 @@ class RungholtExample: SceneryDefaultApplication("BoxedProteinExample", windowWi
                 while (true) {
                     boxes.mapIndexed {
                         i, box ->
-                        val phi = ticks / 2500.0f % (Math.PI * 2.0f)
+                        val phi = ticks / 1500.0f % (Math.PI * 2.0f)
 
                         box.position = GLVector(
-                            -260.0f+5.0f*(i+1),
+                            -320.0f+5.0f*(i+1),
                             15.0f+i*0.2f,
-                            (i+1.0f) * 4.0f * Math.cos(phi+(i*0.2f)).toFloat())
-
+                            250.0f * Math.cos(phi+(i*0.2f)).toFloat())
                         box.children[0].position = box.position
 
                     }
