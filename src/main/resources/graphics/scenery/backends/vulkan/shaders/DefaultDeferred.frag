@@ -1,4 +1,4 @@
-#version 450 core
+#version 450
 #extension GL_ARB_separate_shader_objects: enable
 
 layout(location = 0) in VertexData {
@@ -30,6 +30,7 @@ const int MATERIAL_HAS_ALPHAMASK = 0x0010;
 layout(binding = 0) uniform Matrices {
 	mat4 ModelMatrix;
 	mat4 ViewMatrix;
+	mat4 NormalMatrix;
 	mat4 ProjectionMatrix;
 	vec3 CamPosition;
 	int isBillboard;
@@ -51,6 +52,7 @@ layout(binding = 1) uniform MaterialProperties {
 
 layout(set = 1, binding = 0) uniform sampler2D ObjectTextures[NUM_OBJECT_TEXTURES];
 
+// courtesy of Christian Schueler - www.thetenthplanet.de/archives/1180
 mat3 TBN(vec3 N, vec3 position, vec2 uv) {
     vec3 dp1 = dFdx(position);
     vec3 dp2 = dFdy(position);
@@ -63,20 +65,18 @@ mat3 TBN(vec3 N, vec3 position, vec2 uv) {
     vec3 T = dp2Perpendicular * duv1.x + dp1Perpendicular * duv2.x;
     vec3 B = dp2Perpendicular * duv1.y + dp1Perpendicular * duv2.y;
 
-    float invmax = inversesqrt(max(dot(T, T), dot(B, B)));
+    float invmax = 1.0f/sqrt(max(dot(T, T), dot(B, B)));
 
-    return mat3(T * invmax, B * invmax, N);
+    return transpose(mat3(T * invmax, B * invmax, N));
 }
 
 void main() {
-    // Store the fragment position vector in the first gbuffer texture
     gPosition = VertexIn.FragPosition;
     gAlbedoSpec.rgb = vec3(0.0f, 0.0f, 0.0f);
 
-    gAlbedoSpec.rgb = Material.Kd;
-    gAlbedoSpec.a = Material.Ks.r;
+    gAlbedoSpec.rgb = vec3(0.0f);
+    gAlbedoSpec.a = 0.0f;
 
-    // Also store the per-fragment normals into the gbuffer
     if((materialType & MATERIAL_HAS_AMBIENT) == MATERIAL_HAS_AMBIENT) {
         //gAlbedoSpec.rgb = texture(ObjectTextures[0], VertexIn.TexCoord).rgb;
     }
@@ -96,10 +96,10 @@ void main() {
     }
 
     if((materialType & MATERIAL_HAS_NORMAL) == MATERIAL_HAS_NORMAL) {
-        vec3 normal = texture(ObjectTextures[3], VertexIn.TexCoord).rgb*(255.0/127.0) - (128.0/127.0);
-        normal = TBN(normalize(VertexIn.Normal), -ubo.CamPosition + VertexIn.FragPosition, VertexIn.TexCoord) * normal;
+//        vec3 normal = texture(ObjectTextures[3], VertexIn.TexCoord).rgb*(255.0/127.0) - (128.0/127.0);
+//        normal = TBN(normalize(VertexIn.Normal), -VertexIn.FragPosition, VertexIn.TexCoord)*normal;
 
-        gNormal = normalize(normal);
+        gNormal = normalize(VertexIn.Normal);
     } else {
         gNormal = normalize(VertexIn.Normal);
     }

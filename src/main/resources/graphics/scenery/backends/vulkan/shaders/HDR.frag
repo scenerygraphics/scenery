@@ -31,7 +31,6 @@ void main()
 	vec3 hdrColor = 0.02*texture(hdrBuffer, textureCoord).rgb;
 
 	// Exposure tone mapping
-//	vec3 mapped = vec3(1.0) - exp(-hdrColor * 1.0);
     vec3 mapped = Uncharted2Tonemap(hdrParams.Exposure*hdrColor);
     vec3 whiteScale = 1.0/Uncharted2Tonemap(vec3(W));
 

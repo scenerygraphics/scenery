@@ -134,23 +134,31 @@ void main()
 		{
 		    vec3 lightPos = lights[i].Position.xyz;
             vec3 L = (lightPos - FragPos);
-            vec3 H = normalize(L + viewDir);
             vec3 V = normalize(ubo.CamPosition - FragPos);
+            vec3 H = normalize(L + V);
             float distance = length(L);
             L = normalize(L);
+
+//            if(distance > 5.0f * lights[i].Radius) {
+//                continue;
+//            }
 
             float lightAttenuation = 1.0 / (1.0 + lights[i].Linear * distance + lights[i].Quadratic * distance * distance);
 
 		    if(reflectanceModel == 0) {
 		        // Diffuse
 		        float NdotL = max(0.0, dot(Normal, L));
+		        vec3 specular = vec3(0.0f);
 
              	vec3 R = reflect(-L, Normal);
              	float NdotR = max(0.0, dot(R, V));
-                float NdotH = max(0.0, dot(H, V));
+             	float NdotH = max(0.0, dot(Normal, H));
 
              	vec3 diffuse = NdotL * lights[i].Intensity * Albedo.rgb * lights[i].Color.rgb * (1.0f - ambientOcclusion);
-             	vec3 specular = pow(NdotR, (1.0-Specular)*10.0) * lights[i].Color.rgb * Specular * lights[i].Intensity;
+
+             	if(NdotL > 0) {
+             	    specular = pow(NdotH, (1.0-Specular)*4.0) * Albedo.rgb * lights[i].Color.rgb * lights[i].Intensity;
+             	}
 
              	lighting += (diffuse + specular) * lightAttenuation;
 		    }
