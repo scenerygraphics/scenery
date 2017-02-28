@@ -68,7 +68,7 @@ void main() {
     // Store the fragment position vector in the first gbuffer texture
     gPosition = VertexIn.FragPosition;
     // Also store the per-fragment normals into the gbuffer
-    gAlbedoSpec.rgb = vec3(0.0f, 0.0f, 0.0f);//Material.Kd;
+    gAlbedoSpec.rgb = Material.Kd;
     gAlbedoSpec.a = 0.0f;
 
     // Also store the per-fragment normals into the gbuffer

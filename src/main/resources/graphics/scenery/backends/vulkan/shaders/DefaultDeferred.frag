@@ -74,7 +74,7 @@ void main() {
     gPosition = VertexIn.FragPosition;
     gAlbedoSpec.rgb = vec3(0.0f, 0.0f, 0.0f);
 
-    gAlbedoSpec.rgb = vec3(0.0f);
+    gAlbedoSpec.rgb = Material.Kd;
     gAlbedoSpec.a = 0.0f;
 
     if((materialType & MATERIAL_HAS_AMBIENT) == MATERIAL_HAS_AMBIENT) {

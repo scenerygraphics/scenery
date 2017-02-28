@@ -54,7 +54,7 @@ class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowW
                 it.parent?.material?.diffuse = it.emissionColor
                 it.intensity = 100.0f
                 it.linear = 0f
-                it.quadratic = 0.1f
+                it.quadratic = 0.001f
 
                 scene.addChild(it)
             }
@@ -149,7 +149,7 @@ class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowW
                     it
                 }
 
-            val erythrocytes = (0..1000)
+            val erythrocytes = (0..2000)
                 .map {
                     val v = Mesh()
                     v.name = "erythrocyte_$it"
