@@ -64,8 +64,6 @@ Artifacts are currently published to the Sonatype OSS repository, and synchronis
 
 ### Using _scenery_ in a Maven project
 
-Make sure you have followed the instructions in _Building_, such that both the scenery and ClearGL JARs have been installed into your local Maven repository.
-
 Add scenery and ClearGL to your project's `pom.xml`:
 
 ```xml
@@ -85,8 +83,6 @@ Add scenery and ClearGL to your project's `pom.xml`:
 ```
 
 ### Using _scenery_ in a Gradle project
-
-Make sure you have followed the instructions in _Building_, such that both the scenery and ClearGL JARs have been installed into your local Maven repository.
 
 Add scenery and ClearGL to your project's `build.gradle`:
 
