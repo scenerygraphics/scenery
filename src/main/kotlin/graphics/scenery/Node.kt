@@ -23,7 +23,7 @@ open class Node(open var name: String) : Renderable {
     var metadata: HashMap<String, NodeMetadata> = HashMap()
 
     /** Material of the Node */
-    override var material: Material? = null
+    override var material: Material = Material.DefaultMaterial()
     /** Initialisation flag. */
     override var initialized: Boolean = false
     /** Whether the Node is dirty and needs updating. */
@@ -106,7 +106,7 @@ open class Node(open var name: String) : Renderable {
         }
 
     /** Rotation of the Node. Setting will trigger [world] update. */
-    @Volatile override var rotation: Quaternion = Quaternion(0.0f, 0.0f, 0.0f, 1.0f);
+    @Volatile override var rotation: Quaternion = Quaternion(0.0f, 0.0f, 0.0f, 1.0f)
         set(q) {
             this.needsUpdate = true
             this.needsUpdateWorld = true
