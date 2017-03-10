@@ -62,6 +62,9 @@ open class Node(open var name: String) : Renderable {
     /** Should the Node's class name be used to derive a GLSL shader file name for a [GLProgram]? */
     open var useClassDerivedShader = false
 
+    /** Node update routine, called before updateWorld */
+    open var update: (() -> Unit)? = null
+
     /** World transform matrix. Will create inverse [iworld] upon modification. */
     @Volatile override var world: GLMatrix = GLMatrix.getIdentity()
     /** Inverse [world] transform matrix. */
@@ -202,6 +205,8 @@ open class Node(open var name: String) : Renderable {
      * @param[force] Force update irrespective of [needsUpdate] state.
      */
     @Synchronized fun updateWorld(recursive: Boolean, force: Boolean = false) {
+        update?.invoke()
+
         if (needsUpdate or force) {
             this.composeModel()
 
