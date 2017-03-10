@@ -198,6 +198,7 @@ interface HasGeometry {
 
         val triangleIndices = intArrayOf(0, 1, 2)
         val quadIndices = intArrayOf(0, 1, 2, 0, 2, 3)
+        val quintIndices = intArrayOf(0, 1, 2, 0, 2, 3, 0, 3, 4)
 
         logger.info("Importing geometry from OBJ file $filename")
         // OBJ files are read line-by-line, then tokenized after removing trailing
@@ -216,8 +217,8 @@ interface HasGeometry {
                     }
                     "f" -> {
                         vertexCount += when (tokens.count() - 1) {
-                            3 -> 3
-                            4 -> 6
+                            3 -> 6
+                            4 -> 9
                             else -> 0
                         }
                     }
@@ -261,7 +262,7 @@ interface HasGeometry {
                     }
                     "usemtl" -> {
                         if (targetObject is Node && useMTL) {
-                            (targetObject as Node).material = materials[tokens[1]]
+                            (targetObject as Node).material = materials[tokens[1]]!!
                         }
                     }
                 // vertices are specified as v x y z
@@ -296,9 +297,7 @@ interface HasGeometry {
                         } else if (vertices.size == 4) {
                             quadIndices
                         } else {
-                            logger.error("Polygonal triangulation is not yet supported")
-                            quadIndices
-                            // TODO: Implement polygons!
+                            quintIndices
                         }
 
                         fun toBufferIndex(obj: List<Number>, num: Int, vectorSize: Int, offset: Int): Int {
