@@ -18,7 +18,7 @@ open class UBO(val device: VkDevice, var backingBuffer: VulkanBuffer? = null): A
     var name = ""
     var members = LinkedHashMap<String, () -> Any>()
     var descriptor: UBODescriptor? = null
-    var offsets: IntBuffer? = null
+    var offsets: IntBuffer = memAllocInt(3)
     var logger = LoggerFactory.getLogger("VulkanRenderer")
     var requiredOffsetCount = 0
 
