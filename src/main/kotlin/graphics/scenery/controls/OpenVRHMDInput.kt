@@ -7,15 +7,16 @@ import com.sun.jna.*
 import com.sun.jna.ptr.FloatByReference
 import com.sun.jna.ptr.IntByReference
 import com.sun.jna.ptr.LongByReference
+import com.sun.jna.ptr.PointerByReference
+import graphics.scenery.*
 import graphics.scenery.jopenvr.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import graphics.scenery.Hub
-import graphics.scenery.Hubable
 import org.lwjgl.vulkan.VkDevice
 import org.lwjgl.vulkan.VkInstance
 import org.lwjgl.vulkan.VkPhysicalDevice
 import org.lwjgl.vulkan.VkQueue
+import java.io.File
 import java.nio.IntBuffer
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
@@ -40,6 +41,8 @@ open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean
     protected var vr: VR_IVRSystem_FnTable? = null
     /** Compositor function table of the OpenVR library */
     protected var compositor: VR_IVRCompositor_FnTable? = null
+    /** RenderModel function table of the OpenVR library */
+    protected var renderModels: VR_IVRRenderModels_FnTable? = null
     /** Has the HMD already been initialised? */
     @Volatile protected var initialized = false
 
@@ -82,7 +85,6 @@ open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean
     /** disables submission in case of compositor errors */
     private var disableSubmission: Boolean = false
 
-    data class TrackedDevice(val type: Int, var pose: GLMatrix)
 
     init {
         error.put(0, -1)
@@ -92,10 +94,11 @@ open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean
 
             if (error[0] == 0) {
                 vr = VR_IVRSystem_FnTable(jvr.VR_GetGenericInterface(jvr.IVRSystem_Version, error))
+                renderModels = VR_IVRRenderModels_FnTable(jvr.VR_GetGenericInterface(jvr.IVRRenderModels_Version, error))
             }
 
-            if (vr == null || error[0] != 0) {
-                if(error[0] == 108) {
+            if (vr == null || renderModels == null || error[0] != 0) {
+                if (error[0] == 108) {
                     // only warn if no HMD found.
                     logger.warn("No HMD found. Are all cables connected?")
                 } else {
@@ -112,6 +115,9 @@ open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean
 
                 vr?.setAutoSynch(false)
                 vr?.read()
+
+                renderModels?.setAutoSynch(false)
+                renderModels?.read()
 
                 hmdDisplayFreq.put(jvr.ETrackedDeviceProperty.ETrackedDeviceProperty_Prop_DisplayFrequency_Float)
 
@@ -235,7 +241,7 @@ open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean
 
             eyeProjectionCache[eye] = proj.toGLMatrix().transpose()
 
-            if(flipY) {
+            if (flipY) {
                 eyeProjectionCache[eye]!!.set(1, 1, -1.0f * eyeProjectionCache[eye]!!.get(1, 1))
             }
 
@@ -286,14 +292,34 @@ open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean
         val q = Quaternion()
         val pose = getPose().transposedFloatArray
 
-        q.w = Math.sqrt(1.0*Math.max(0.0f, 1.0f + pose[0] + pose[5] + pose[10])).toFloat() / 2.0f
-        q.x = Math.sqrt(1.0*Math.max(0.0f, 1.0f + pose[0] - pose[5] - pose[10])).toFloat() / 2.0f
-        q.y = Math.sqrt(1.0*Math.max(0.0f, 1.0f - pose[0] + pose[5] - pose[10])).toFloat() / 2.0f
-        q.z = Math.sqrt(1.0*Math.max(0.0f, 1.0f - pose[0] - pose[5] + pose[10])).toFloat() / 2.0f
+        q.w = Math.sqrt(1.0 * Math.max(0.0f, 1.0f + pose[0] + pose[5] + pose[10])).toFloat() / 2.0f
+        q.x = Math.sqrt(1.0 * Math.max(0.0f, 1.0f + pose[0] - pose[5] - pose[10])).toFloat() / 2.0f
+        q.y = Math.sqrt(1.0 * Math.max(0.0f, 1.0f - pose[0] + pose[5] - pose[10])).toFloat() / 2.0f
+        q.z = Math.sqrt(1.0 * Math.max(0.0f, 1.0f - pose[0] - pose[5] + pose[10])).toFloat() / 2.0f
 
         q.x *= Math.signum(q.x * (pose[9] - pose[6]))
         q.y *= Math.signum(q.y * (pose[2] - pose[8]))
         q.z *= Math.signum(q.z * (pose[4] - pose[1]))
+
+        return q
+    }
+
+    override fun getOrientation(id: String): Quaternion {
+        val device = trackedDevices.get(id)
+        val q = Quaternion()
+
+        if (device != null) {
+            val pose = device.pose.floatArray
+
+            q.w = Math.sqrt(1.0 * Math.max(0.0f, 1.0f + pose[0] + pose[5] + pose[10])).toFloat() / 2.0f
+            q.x = Math.sqrt(1.0 * Math.max(0.0f, 1.0f + pose[0] - pose[5] - pose[10])).toFloat() / 2.0f
+            q.y = Math.sqrt(1.0 * Math.max(0.0f, 1.0f - pose[0] + pose[5] - pose[10])).toFloat() / 2.0f
+            q.z = Math.sqrt(1.0 * Math.max(0.0f, 1.0f - pose[0] - pose[5] + pose[10])).toFloat() / 2.0f
+
+            q.x *= Math.signum(q.x * (pose[9] - pose[6]))
+            q.y *= Math.signum(q.y * (pose[2] - pose[8]))
+            q.z *= Math.signum(q.z * (pose[4] - pose[1]))
+        }
 
         return q
     }
@@ -365,17 +391,38 @@ open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean
             if (isValid != 0) {
                 val trackedDevice: Int = vr!!.GetTrackedDeviceClass!!.apply(device)
                 val type = when (trackedDevice) {
-                    jvr.ETrackedDeviceClass.ETrackedDeviceClass_TrackedDeviceClass_Controller -> "Controller"
-                    jvr.ETrackedDeviceClass.ETrackedDeviceClass_TrackedDeviceClass_HMD -> "HMD"
-                    jvr.ETrackedDeviceClass.ETrackedDeviceClass_TrackedDeviceClass_TrackingReference -> "TrackingReference"
-                    jvr.ETrackedDeviceClass.ETrackedDeviceClass_TrackedDeviceClass_Invalid -> "Invalid"
-                    else -> "Unknown"
+                    jvr.ETrackedDeviceClass.ETrackedDeviceClass_TrackedDeviceClass_Controller -> TrackedDeviceType.Controller
+                    jvr.ETrackedDeviceClass.ETrackedDeviceClass_TrackedDeviceClass_HMD -> TrackedDeviceType.HMD
+                    jvr.ETrackedDeviceClass.ETrackedDeviceClass_TrackedDeviceClass_TrackingReference -> TrackedDeviceType.BaseStation
+                    jvr.ETrackedDeviceClass.ETrackedDeviceClass_TrackedDeviceClass_GenericTracker -> TrackedDeviceType.Generic
+
+                    jvr.ETrackedDeviceClass.ETrackedDeviceClass_TrackedDeviceClass_Invalid -> TrackedDeviceType.Invalid
+                    else -> TrackedDeviceType.Invalid
                 }
 
-                trackedDevices.computeIfAbsent("$type-$device", { s -> TrackedDevice(trackedDevice, GLMatrix.getIdentity()) })
+                if (type == TrackedDeviceType.Invalid) {
+                    continue
+                }
 
-                val pose = (hmdTrackedDevicePoses!!.get(jvr.k_unTrackedDeviceIndex_Hmd).readField("mDeviceToAbsoluteTracking") as HmdMatrix34_t)
-                trackedDevices["$type-$device"]!!.pose = pose.toGLMatrix().invert()
+                trackedDevices.computeIfAbsent("$type-$device", {
+                    s ->
+                    val nameBuf = Memory(1024)
+                    val err = IntByReference(0)
+
+                    vr!!.GetStringTrackedDeviceProperty.apply(device, jvr.ETrackedDeviceProperty.ETrackedDeviceProperty_Prop_RenderModelName_String, nameBuf, 1024, err)
+
+                    val deviceName = nameBuf.getString(0L)
+                    TrackedDevice(type, deviceName, GLMatrix.getIdentity(), timestamp = System.nanoTime())
+                })
+
+                val pose = (hmdTrackedDevicePoses!!.get(device).readField("mDeviceToAbsoluteTracking") as HmdMatrix34_t)
+                trackedDevices["$type-$device"]!!.pose = pose.toGLMatrix()
+                trackedDevices["$type-$device"]!!.timestamp = System.nanoTime()
+
+                if (type == TrackedDeviceType.HMD) {
+                    trackedDevices["$type-$device"]!!.pose.invert()
+                }
+
             }
         }
     }
@@ -427,8 +474,14 @@ open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean
             bounds.vMax = 1.0f
             bounds.write()
 
-            compositor!!.Submit.apply(0, leftTexture, bounds, 0)
-            compositor!!.Submit.apply(1, rightTexture, bounds, 0)
+            val err_left = compositor!!.Submit.apply(jvr.EVREye.EVREye_Eye_Left, leftTexture, bounds, 0)
+            val err_right = compositor!!.Submit.apply(jvr.EVREye.EVREye_Eye_Right, rightTexture, bounds, 0)
+
+            if(err_left != jvr.EVRCompositorError.EVRCompositorError_VRCompositorError_None
+                || err_right != jvr.EVRCompositorError.EVRCompositorError_VRCompositorError_None) {
+                logger.error("Compositor error: ${translateError(err_left)} ($err_left)/${translateError(err_right)} ($err_right)")
+                disableSubmission = true
+            }
         } catch(e: java.lang.Error) {
             logger.error("Compositor submission failed, please restart the HMD, SteamVR and the application.")
             disableSubmission = true
@@ -466,7 +519,7 @@ open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean
         texture.write()
 
         try {
-            if(disableSubmission == true) {
+            if (disableSubmission == true) {
                 return
             }
 
@@ -526,7 +579,7 @@ open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean
             val buffer = Memory(1024)
             val count = it.GetVulkanInstanceExtensionsRequired.apply(Pointer(0), 0)
 
-            if(count == 0) {
+            if (count == 0) {
                 return listOf()
             } else {
                 it.GetVulkanInstanceExtensionsRequired.apply(buffer, count)
@@ -545,7 +598,7 @@ open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean
 
             val count = it.GetVulkanDeviceExtensionsRequired.apply(physicalDeviceT, Pointer(0), 0)
 
-            if(count == 0) {
+            if (count == 0) {
                 return listOf()
             } else {
                 it.GetVulkanDeviceExtensionsRequired.apply(physicalDeviceT, buffer, count)
@@ -573,7 +626,7 @@ open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean
      * @return HMD pose as GLMatrix
      */
     override fun getPose(): GLMatrix {
-        return this.trackedDevices.values.firstOrNull { it.type == jvr.ETrackedDeviceClass.ETrackedDeviceClass_TrackedDeviceClass_HMD }?.pose ?: GLMatrix.getIdentity()
+        return this.trackedDevices.values.firstOrNull { it.type == TrackedDeviceType.HMD }?.pose ?: GLMatrix.getIdentity()
     }
 
     /**
@@ -582,8 +635,8 @@ open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean
      * @param[type] Type of the tracked device to get the pose for
      * @return HMD pose as GLMatrix
      */
-    fun getPose(type: Int): GLMatrix {
-        return this.trackedDevices.values.firstOrNull { it.type == type }?.pose ?: GLMatrix.getIdentity()
+    fun getPose(type: TrackedDeviceType): List<TrackedDevice> {
+        return this.trackedDevices.values.filter { it.type == type }.toList()
     }
 
     /**
@@ -608,5 +661,33 @@ open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean
     fun HmdMatrix44_t.toGLMatrix(): GLMatrix {
         val m = GLMatrix(this.m)
         return m
+    }
+
+    fun loadModelForMesh(modelName: String, node: Mesh) {
+        val modelNameStr = Memory(modelName.length + 1L)
+        modelNameStr.setString(0L, modelName)
+
+        renderModels?.let {
+            val path = Memory(1024)
+            val error = IntByReference(0)
+            val model = RenderModel_t()
+            val models = PointerByReference(model.pointer)
+
+            it.GetRenderModelOriginalPath.apply(modelNameStr, path, 1024, error)
+
+            logger.info("Loading model for $modelName from ${path.getString(0)}")
+
+            val modelPath = path.getString(0).replace('\\', '/')
+
+            node.name = modelPath.substringAfterLast('/')
+
+            if (modelPath.toLowerCase().endsWith("stl")) {
+                node.readFromSTL(modelPath)
+            } else if (modelPath.toLowerCase().endsWith("obj")) {
+                node.readFromOBJ(modelPath, true)
+            } else {
+                logger.warn("Unknown model format: $modelPath for $modelName")
+            }
+        }
     }
 }

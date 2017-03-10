@@ -1331,6 +1331,14 @@ open class VulkanRenderer(hub: Hub,
 
         commandBuffer.waitForFence()
 
+        // submit to OpenVR if attached
+        hub?.getWorkingHMD()?.wantsVR()?.submitToCompositorVulkan(
+            window.width, window.height,
+            VK_FORMAT_R8G8B8A8_SRGB,
+            instance, device, physicalDevice,
+            queue, queueFamilyIndex,
+            swapchain!!.images!![pass.getReadPosition()])
+
         if (screenshotRequested) {
             // default image format is 32bit BGRA
             val imageByteSize = window.width * window.height * 4L
@@ -1415,13 +1423,7 @@ open class VulkanRenderer(hub: Hub,
             screenshotRequested = false
         }
 
-        // submit to OpenVR if attached
-        hub?.getWorkingHMD()?.wantsVR()?.submitToCompositorVulkan(
-            window.width, window.height,
-            VK_FORMAT_R8G8B8A8_SRGB,
-            instance, device, physicalDevice,
-            queue, queueFamilyIndex,
-            swapchain!!.images!![pass.getReadPosition()])
+
 
         submitInfo.free()
         presentInfo.free()
@@ -2397,6 +2399,8 @@ open class VulkanRenderer(hub: Hub,
                 it.dirty = false
             }
 
+            // if a node is not initialized yet, it'll be initialized here and it's UBO updated
+            // in the next round
             if(!it.metadata.containsKey("VulkanRenderer")) {
                 logger.debug("${it.name} is not initialized, doing that now")
                 it.metadata.put("VulkanRenderer", VulkanObjectState())
@@ -2658,9 +2662,9 @@ open class VulkanRenderer(hub: Hub,
         }
 
         val hmd = hub?.getWorkingHMD()?.wantsVR()
-        val orientation = hmd?.getOrientation() ?: Quaternion().setIdentity()
+//        val orientation = hmd?.getOrientation() ?: Quaternion().setIdentity()
 
-        cam.view = cam.getTransformation(orientation)
+        cam.view = cam.getTransformation()
 
         buffers["VRParametersBuffer"]!!.reset()
         val vrUbo = UBO(device, backingBuffer = buffers["VRParametersBuffer"]!!)
