@@ -304,9 +304,9 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
         }
     }
 
-    fun getReadPosition() = commandBufferBacking.currentReadPosition % (commandBufferCount/2)
+    fun getReadPosition() = commandBufferBacking.currentReadPosition - 1
 
-    fun getWritePosition() = commandBufferBacking.currentWritePosition % (commandBufferCount/2)
+    fun getWritePosition() = commandBufferBacking.currentWritePosition
 
     override fun close() {
         output.forEach { it.value.close() }
