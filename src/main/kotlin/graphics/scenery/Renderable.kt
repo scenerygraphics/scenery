@@ -56,7 +56,7 @@ interface Renderable {
     var isBillboard: Boolean
 
     /** The [Material] of the object. */
-    var material: Material?
+    var material: Material
 
     /** [ReentrantLock] to be used if the object is being updated and should not be
      * touched in the meantime. */
