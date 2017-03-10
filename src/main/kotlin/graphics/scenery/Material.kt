@@ -12,7 +12,7 @@ open class Material {
     /** Name of the material. */
     var name: String = "Material"
     /** Diffuse color of the material. */
-    var diffuse: GLVector = GLVector(0.5f, 0.5f, 0.5f)
+    var diffuse: GLVector = GLVector(0.9f, 0.5f, 0.5f)
     /** Specular color of the material. */
     var specular: GLVector = GLVector(0.5f, 0.5f, 0.5f)
     /** Ambient color of the material. */
