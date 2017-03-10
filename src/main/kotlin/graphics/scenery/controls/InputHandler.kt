@@ -83,7 +83,7 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
         this.scene = scene
         this.renderer = renderer
         this.hub = hub
-        hub?.add(SceneryElement.INPUT, this)
+        hub?.add(SceneryElement.Input, this)
     }
 
     /**

@@ -24,7 +24,7 @@ public class TexturedCubeJavaExample {
         public void init() {
 
             setRenderer( Renderer.Factory.createRenderer(getHub(), getApplicationName(), getScene(), 512, 512));
-            getHub().add(SceneryElement.RENDERER, getRenderer());
+            getHub().add(SceneryElement.Renderer, getRenderer());
 
             Material boxmaterial = new Material();
             boxmaterial.setAmbient( new GLVector(1.0f, 0.0f, 0.0f) );
@@ -32,7 +32,7 @@ public class TexturedCubeJavaExample {
             boxmaterial.setSpecular( new GLVector(1.0f, 1.0f, 1.0f) );
             boxmaterial.getTextures().put("diffuse", TexturedCubeJavaApplication.class.getResource("textures/helix.png").getFile() );
 
-            final Box box = new Box(new GLVector(1.0f, 1.0f, 1.0f) );
+            final Box box = new Box(new GLVector(1.0f, 1.0f, 1.0f), false);
             box.setMaterial( boxmaterial );
             box.setPosition( new GLVector(0.0f, 0.0f, 0.0f) );
 

@@ -36,6 +36,8 @@ open class SceneryDefaultApplication(var applicationName: String,
     protected var renderer: Renderer? = null
     /** The Hub used by the application, see [Hub] */
     var hub: Hub = Hub()
+    /** Global settings storage */
+    protected var settings: Settings = Settings()
     /** ui-behaviour input handler */
     protected var inputHandler: InputHandler? = null
 
@@ -73,7 +75,8 @@ open class SceneryDefaultApplication(var applicationName: String,
      *
      */
     open fun main() {
-        hub.add(SceneryElement.STATISTICS, stats)
+        hub.add(SceneryElement.Statistics, stats)
+        hub.add(SceneryElement.Settings, settings)
 
         if(wantREPL) {
             repl = REPL(scene, stats)

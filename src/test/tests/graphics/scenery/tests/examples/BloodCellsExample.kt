@@ -22,10 +22,10 @@ class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowW
     override fun init() {
         try {
             ovr = OpenVRHMDInput(seated = false, useCompositor = true)
-            hub.add(SceneryElement.HMDINPUT, ovr!!)
+            hub.add(SceneryElement.HMDInput, ovr!!)
 
             renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
-            hub.add(SceneryElement.RENDERER, renderer!!)
+            hub.add(SceneryElement.Renderer, renderer!!)
 
             val cam: Camera = DetachedHeadCamera()
             cam.position = GLVector(0.0f, 20.0f, -20.0f)

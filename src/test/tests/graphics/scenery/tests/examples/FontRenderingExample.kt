@@ -14,7 +14,7 @@ import kotlin.concurrent.thread
 class FontRenderingExample: SceneryDefaultApplication("FontRenderingExample") {
     override fun init() {
         renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
-        hub.add(SceneryElement.RENDERER, renderer!!)
+        hub.add(SceneryElement.Renderer, renderer!!)
 
         var lights = (0..5).map {
             PointLight()

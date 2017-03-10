@@ -46,9 +46,9 @@ class Hub {
     }
 
     fun getWorkingHMD(): HMDInput? {
-        if (this.has(SceneryElement.HMDINPUT)
-            && (this.get(SceneryElement.HMDINPUT) as HMDInput).initializedAndWorking()) {
-            return this.get(SceneryElement.HMDINPUT) as HMDInput
+        if (this.has(SceneryElement.HMDInput)
+            && (this.get(SceneryElement.HMDInput) as HMDInput).initializedAndWorking()) {
+            return this.get(SceneryElement.HMDInput) as HMDInput
         } else {
             return null
         }

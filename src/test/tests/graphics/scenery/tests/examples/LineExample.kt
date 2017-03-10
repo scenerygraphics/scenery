@@ -24,7 +24,7 @@ class LineExample : SceneryDefaultApplication("LineExample") {
 
     override fun init() {
         renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
-        hub.add(SceneryElement.RENDERER, renderer!!)
+        hub.add(SceneryElement.Renderer, renderer!!)
 
         val hull = Box(GLVector(50.0f, 50.0f, 50.0f))
         val hullmaterial = Material()
@@ -89,7 +89,7 @@ class LineExample : SceneryDefaultApplication("LineExample") {
 
     override fun inputSetup() {
         val target = GLVector(0.0f, 0.0f, 0.0f)
-        val inputHandler = (hub.get(SceneryElement.INPUT) as InputHandler)
+        val inputHandler = (hub.get(SceneryElement.Input) as InputHandler)
         val targetArcball = ArcballCameraControl("mouse_control", scene.findObserver(), renderer!!.window.width, renderer!!.window.height, target)
         val fpsControl = FPSCameraControl("mouse_control", scene.findObserver(), renderer!!.window.width, renderer!!.window.height)
 

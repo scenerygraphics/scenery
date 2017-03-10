@@ -19,7 +19,7 @@ class PowerplantExample: SceneryDefaultApplication("BoxedProteinExample", window
             val lightCount = 127
 
             renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
-            hub.add(SceneryElement.RENDERER, renderer!!)
+            hub.add(SceneryElement.Renderer, renderer!!)
 
             val cam: Camera = DetachedHeadCamera()
             cam.position = GLVector(0.0f, 0.0f, 0.0f)

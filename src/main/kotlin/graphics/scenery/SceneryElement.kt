@@ -7,15 +7,17 @@ package graphics.scenery
 */
 enum class SceneryElement {
     /** Element for any renderers */
-    RENDERER,
+    Renderer,
     /** Element for any HMD input devices */
-    HMDINPUT,
+    HMDInput,
     /** Element for any window handles */
-    WINDOW,
+    Window,
     /** Element for OpenCL compute contexts */
-    OPENCLCONTEXT,
+    OpenCLContext,
     /** Element for input handling (ui-behaviour) */
-    INPUT,
+    Input,
     /** Element for statistics */
-    STATISTICS
+    Statistics,
+    /** Element for settings storage */
+    Settings
 }

@@ -1,6 +1,5 @@
 package graphics.scenery
 
-import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -9,7 +8,7 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-open class Settings {
+open class Settings(override var hub: Hub? = null) : Hubable {
     /** Hash map storing all the settings */
     protected var settingsStore = ConcurrentHashMap<String, Any>()
 

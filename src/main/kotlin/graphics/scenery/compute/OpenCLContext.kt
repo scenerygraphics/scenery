@@ -31,7 +31,7 @@ class OpenCLContext(override var hub: Hub?, val devicePreference: String = Syste
     var queue: cl_command_queue
 
     init {
-        hub?.add(SceneryElement.OPENCLCONTEXT, this)
+        hub?.add(SceneryElement.OpenCLContext, this)
 
         val platformPref = devicePreference.substringBefore(",").toInt()
         val devicePref = devicePreference.substringAfter(",").toInt()

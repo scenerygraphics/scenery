@@ -316,7 +316,7 @@ open class VulkanRenderer(hub: Hub,
         this.applicationName = applicationName
         this.scene = scene
 
-        this.settings = getDefaultRendererSettings()
+        this.settings = loadDefaultRendererSettings((hub.get(SceneryElement.Settings) as Settings))
 
         logger.debug("Loading rendering config from $renderConfigFile")
         this.renderConfigFile = renderConfigFile
@@ -395,7 +395,7 @@ open class VulkanRenderer(hub: Hub,
                 gpuStats?.let {
                     it.update(0)
 
-                    hub.get(SceneryElement.STATISTICS).let { s ->
+                    hub.get(SceneryElement.Statistics).let { s ->
                         val stats = s as Statistics
 
                         stats.add("GPU", it.get("GPU"), isTime = false)
@@ -457,21 +457,21 @@ open class VulkanRenderer(hub: Hub,
      *
      * @return Default [Settings] values
      */
-    protected fun getDefaultRendererSettings(): Settings {
-        val ds = Settings()
+    protected fun loadDefaultRendererSettings(ds: Settings): Settings {
+        val base = VulkanRenderer::class.java.simpleName
 
         ds.set("wantsFullscreen", false)
         ds.set("isFullscreen", false)
 
-        ds.set("ssao.Active", true)
-        ds.set("ssao.FilterRadius", GLVector(0.0f, 0.0f))
-        ds.set("ssao.DistanceThreshold", 50.0f)
-        ds.set("ssao.Algorithm", 1)
+//        ds.set("ssao.Active", true)
+//        ds.set("ssao.FilterRadius", GLVector(0.0f, 0.0f))
+//        ds.set("ssao.DistanceThreshold", 50.0f)
+//        ds.set("ssao.Algorithm", 1)
 
-        ds.set("vr.Active", false)
-        ds.set("vr.DoAnaglyph", false)
-        ds.set("vr.IPD", 0.0f)
-        ds.set("vr.EyeDivisor", 1)
+        ds.set("vr.Active", true)
+//        ds.set("vr.DoAnaglyph", false)
+//        ds.set("vr.IPD", 0.0f)
+//        ds.set("vr.EyeDivisor", 1)
 
         ds.set("hdr.Active", true)
         ds.set("hdr.Exposure", 1.0f)
@@ -479,7 +479,7 @@ open class VulkanRenderer(hub: Hub,
 
         ds.set("sdf.MaxDistance", 10)
 
-        ds.set("VulkanRenderer.PrintGPUStats", false)
+        ds.set("$base.PrintGPUStats", false)
 
         return ds
     }
@@ -790,7 +790,7 @@ open class VulkanRenderer(hub: Hub,
     }
 
     protected fun loadTexturesForNode(node: Node, s: VulkanObjectState): VulkanObjectState {
-        val stats = hub?.get(SceneryElement.STATISTICS) as Statistics?
+        val stats = hub?.get(SceneryElement.Statistics) as Statistics?
 
         if (node.lock.tryLock()) {
             node.material?.textures?.forEach {

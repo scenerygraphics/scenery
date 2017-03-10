@@ -18,24 +18,24 @@ import kotlin.concurrent.thread
 *
 * @author Ulrik Günther <hello@ulrik.is>
 */
-class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 1280, windowHeight = 720) {
-    private var ovr: OpenVRHMDInput? = null
+class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 1920, windowHeight = 1080) {
+    private var hmd: OpenVRHMDInput? = null
 
     override fun init() {
         try {
-            ovr = OpenVRHMDInput(useCompositor = true)
-            hub.add(SceneryElement.HMDINPUT, ovr!!)
+            hmd = OpenVRHMDInput(useCompositor = true)
+            hub.add(SceneryElement.HMDInput, hmd!!)
 
             renderer = Renderer.createRenderer(hub, applicationName,
                 scene,
                 1280,
                 800)
-            hub.add(SceneryElement.RENDERER, renderer!!)
+            hub.add(SceneryElement.Renderer, renderer!!)
 
-            val cam: Camera = DetachedHeadCamera()
+            val cam: Camera = DetachedHeadCamera(hmd)
             cam.position = GLVector(0.0f, 5.0f, 0.0f)
             cam.perspectiveCamera(50.0f, 1280.0f, 720.0f)
-            cam.rotation.setFromEuler(Math.PI.toFloat()/2.0f, 0.0f, 0.0f)
+//            cam.rotation.setFromEuler(Math.PI.toFloat()/2.0f, 0.0f, 0.0f)
             cam.active = true
 
             scene.addChild(cam)
@@ -69,7 +69,7 @@ class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 1
 
             mesh.readFromOBJ(getDemoFilesPath() + "/sponza-crytek/sponza.obj", useMTL = true)
             mesh.position = GLVector(-200.0f, 5.0f, 200.0f)
-            mesh.scale = GLVector(0.05f, 0.05f, 0.05f)
+            mesh.scale = GLVector(0.01f, 0.01f, 0.01f)
             mesh.name = "Sponza_Mesh"
 
             scene.addChild(mesh)
@@ -116,7 +116,7 @@ class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 1
 
     override fun inputSetup() {
         val target = GLVector(1.5f, 5.5f, 55.5f)
-        val inputHandler = (hub.get(SceneryElement.INPUT) as InputHandler)
+        val inputHandler = (hub.get(SceneryElement.Input) as InputHandler)
         val targetArcball = ArcballCameraControl("mouse_control", scene.findObserver(), renderer!!.window.width, renderer!!.window.height, target)
         val fpsControl = FPSCameraControl("mouse_control", scene.findObserver(), renderer!!.window.width, renderer!!.window.height)
 

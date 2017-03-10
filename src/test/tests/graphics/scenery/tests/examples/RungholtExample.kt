@@ -4,6 +4,7 @@ import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
+import graphics.scenery.controls.OpenVRHMDInput
 import graphics.scenery.utils.Numerics
 import org.junit.Test
 import java.io.IOException
@@ -15,16 +16,20 @@ import kotlin.concurrent.thread
 * @author Ulrik Günther <hello@ulrik.is>
 */
 class RungholtExample: SceneryDefaultApplication("BoxedProteinExample", windowWidth = 1280, windowHeight = 720) {
+    var hmd: OpenVRHMDInput? = null
     override fun init() {
         try {
             val lightCount = 512
 
-            renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
-            hub.add(SceneryElement.RENDERER, renderer!!)
+            hmd = OpenVRHMDInput(useCompositor = true)
+            hub.add(SceneryElement.HMDInput, hmd!!)
 
-            val cam: Camera = DetachedHeadCamera()
+            renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
+            hub.add(SceneryElement.Renderer, renderer!!)
+
+            val cam: Camera = DetachedHeadCamera(hmd)
             cam.position = GLVector(0.0f, 50.0f, -100.0f)
-            cam.rotation.setFromEuler(-0.3f, 0.5f, 0.0f)
+//            cam.rotation.setFromEuler(-0.3f, 0.5f, 0.0f)
             cam.perspectiveCamera(50.0f, windowWidth.toFloat(), windowHeight.toFloat(), nearPlaneLocation = 0.5f, farPlaneLocation = 1000.0f)
             cam.active = true
 

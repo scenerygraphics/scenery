@@ -15,7 +15,7 @@ import kotlin.concurrent.thread
 class CubeExample : SceneryDefaultApplication("CubeExample") {
     override fun init() {
         renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
-        hub.add(SceneryElement.RENDERER, renderer!!)
+        hub.add(SceneryElement.Renderer, renderer!!)
 
         var box = Box(GLVector(1.0f, 1.0f, 1.0f))
 

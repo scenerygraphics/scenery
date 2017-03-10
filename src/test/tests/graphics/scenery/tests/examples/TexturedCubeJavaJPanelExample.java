@@ -4,7 +4,6 @@ package graphics.scenery.tests.examples;
     import cleargl.GLVector;
     import com.jogamp.opengl.GLAutoDrawable;
     import graphics.scenery.*;
-    import graphics.scenery.repl.REPL;
     import graphics.scenery.backends.Renderer;
     import org.junit.Test;
 
@@ -26,7 +25,7 @@ public class TexturedCubeJavaJPanelExample {
         public void init(GLAutoDrawable pDrawable) {
 
             setRenderer( Renderer.Factory.createRenderer(getHub(), getApplicationName(), getScene(), 512, 512));
-            getHub().add(SceneryElement.RENDERER, getRenderer());
+            getHub().add(SceneryElement.Renderer, getRenderer());
 
             Material boxmaterial = new Material();
             boxmaterial.setAmbient( new GLVector(1.0f, 0.0f, 0.0f) );
@@ -34,7 +33,7 @@ public class TexturedCubeJavaJPanelExample {
             boxmaterial.setSpecular( new GLVector(1.0f, 1.0f, 1.0f) );
             boxmaterial.getTextures().put("diffuse", TexturedCubeJavaApplication.class.getResource("textures/helix.png").getFile() );
 
-            final Box box = new Box(new GLVector(1.0f, 1.0f, 1.0f) );
+            final Box box = new Box(new GLVector(1.0f, 1.0f, 1.0f), false);
             box.setMaterial( boxmaterial );
             box.setPosition( new GLVector(0.0f, 0.0f, 0.0f) );
 
