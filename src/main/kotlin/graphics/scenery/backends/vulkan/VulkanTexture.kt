@@ -196,10 +196,10 @@ class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDevice,
                 this.endCommandBuffer(device, commandPool, queue, flush = true, dealloc = true)
             }
 
+            val imageBlit = VkImageBlit.calloc(1)
             with(VU.newCommandBuffer(device, commandPool, autostart = true)) mipmapCreation@ {
-                (1..mipLevels - 1).forEach { mipLevel ->
-                    val imageBlit = VkImageBlit.calloc(1)
 
+                (1..mipLevels).forEach { mipLevel ->
                     imageBlit.srcSubresource().set(VK_IMAGE_ASPECT_COLOR_BIT, mipLevel - 1, 0, 1)
                     imageBlit.srcOffsets(1).set(width shr (mipLevel - 1), height shr (mipLevel - 1), 1)
 
@@ -208,9 +208,9 @@ class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDevice,
 
                     val mipRange = VkImageSubresourceRange.calloc()
                         .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
+                        .baseArrayLayer(0)
                         .layerCount(1)
                         .baseMipLevel(mipLevel)
-                        .levelCount(1)
 
                     transitionLayout(image!!.image, VK_IMAGE_LAYOUT_UNDEFINED,
                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, subresourceRange = mipRange,
@@ -237,6 +237,7 @@ class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDevice,
                 this@mipmapCreation.endCommandBuffer(device, commandPool, queue, flush = true, dealloc = true)
             }
 
+            imageBlit.free()
             buffer.close()
         }
 
@@ -279,9 +280,9 @@ class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDevice,
             .addressModeW(VK_SAMPLER_ADDRESS_MODE_REPEAT)
             .mipLodBias(0.0f)
             .anisotropyEnable(true)
-            .maxAnisotropy(16.0f)
+            .maxAnisotropy(8.0f)
             .minLod(0.0f)
-            .maxLod(1.0f)
+            .maxLod(mipLevels * 1.0f)
             .borderColor(VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE)
             .compareOp(VK_COMPARE_OP_NEVER)
 
@@ -316,6 +317,8 @@ class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDevice,
                          mipmapLevels: Int): VulkanTexture? {
             val stream = FileInputStream(filename)
             val type = filename.substringAfterLast('.')
+
+            logger.info("Loading texture with m=$mipmapLevels from $filename")
 
             return loadFromFile(device, physicalDevice,
                 memoryProperties, commandPool, queue,
