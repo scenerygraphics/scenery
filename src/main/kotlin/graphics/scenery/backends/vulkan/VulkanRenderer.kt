@@ -838,7 +838,7 @@ open class VulkanRenderer(hub: Hub,
 
             arrayOf("ambient", "diffuse", "specular", "normal", "alphamask", "displacement").forEach {
                 if (!s.textures.containsKey(it)) {
-                    s.textures.putIfAbsent(it, textureCache["DefaultTexture"])
+                    s.textures.putIfAbsent(it, textureCache["DefaultTexture"]!!)
                     s.defaultTexturesFor.add(it)
                 }
             }

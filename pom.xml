@@ -99,7 +99,7 @@
 
     <properties>
         <scijava.jvm.version>1.8</scijava.jvm.version>
-        <kotlin.version>1.1.0</kotlin.version>
+        <kotlin.version>1.1.1</kotlin.version>
         <slf4j.version>1.7.21</slf4j.version>
         <dokka.version>0.9.13</dokka.version>
         <lwjgl.version>3.1.1</lwjgl.version>
