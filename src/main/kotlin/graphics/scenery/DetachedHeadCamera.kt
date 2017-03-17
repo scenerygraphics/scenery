@@ -48,7 +48,7 @@ class DetachedHeadCamera(var hmd: HMDInput? = null) : Camera() {
 //        val r = GLMatrix.fromQuaternion(this.rotation)
 //        val hr = GLMatrix.fromQuaternion(this.headOrientation)
 
-        return hmd!!.getPose() * tr
+        return hmd?.getPose()?.times(tr) ?: GLMatrix.fromQuaternion(rotation) * tr
     }
 
     override fun getTransformation(preRotation: Quaternion): GLMatrix {
