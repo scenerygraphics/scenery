@@ -365,7 +365,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
         ds.set("ssao.DistanceThreshold", 50.0f)
         ds.set("ssao.Algorithm", 1)
 
-        ds.set("vr.Active", true)
+        ds.set("vr.Active", false)
         ds.set("vr.DoAnaglyph", false)
         ds.set("vr.IPD", 0.0f)
         ds.set("vr.EyeDivisor", 1)
@@ -938,7 +938,6 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
                     modelviews.addAll(node.modelView.floatArray.asSequence())
                     modelviewprojs.addAll(node.mvp.floatArray.asSequence())
                 }
-
 
                 logger.trace("${n.name} instancing: Collected ${modelviewprojs.size / matrixSize} MVPs in ${(System.nanoTime() - start) / 10e6}ms")
 
