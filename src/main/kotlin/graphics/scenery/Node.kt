@@ -242,10 +242,8 @@ open class Node(open var name: String) : Renderable {
     fun composeModel() {
         if(position != null && rotation != null && scale != null) {
             model.setIdentity()
-            //   w.translate(-this.position.x(), -this.position.y(), -this.position.z())
-            model.mult(this.rotation)
-            //    w.translate(this.position.x(), this.position.y(), this.position.z())
             model.scale(this.scale.x(), this.scale.y(), this.scale.z())
+            model.mult(this.rotation)
             model.translate(this.position.x(), this.position.y(), this.position.z())
         }
     }
