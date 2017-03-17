@@ -45,6 +45,19 @@ interface HasGeometry {
 
     }
 
+    fun readFrom(filename: String, useMaterial: Boolean = false) {
+        val logger = LoggerFactory.getLogger("Node")
+        val ext = filename.substringAfterLast(".").toLowerCase()
+
+        when(ext) {
+            "obj" -> readFromOBJ(filename, useMaterial)
+            "stl" -> readFromSTL(filename)
+            else -> {
+                logger.error("Unknown file format .$ext for file $filename.")
+            }
+        }
+    }
+
     /**
      * Reads an OBJ file's material properties from the corresponding MTL file
      *
@@ -161,7 +174,7 @@ interface HasGeometry {
          */
         fun calculateNormals(vertexBuffer: FloatBuffer, normalBuffer: FloatBuffer) {
             var i = 0
-            while (i < vbuffer.limit() - 1) {
+            while (i < vertexBuffer.limit() - 1) {
                 val v1 = GLVector(vertexBuffer[i], vertexBuffer[i + 1], vertexBuffer[i + 2])
                 i += 3
 
@@ -175,6 +188,14 @@ interface HasGeometry {
                 val b = v3 - v1
 
                 val n = a.cross(b).normalized
+
+                normalBuffer.put(n.x())
+                normalBuffer.put(n.y())
+                normalBuffer.put(n.z())
+
+                normalBuffer.put(n.x())
+                normalBuffer.put(n.y())
+                normalBuffer.put(n.z())
 
                 normalBuffer.put(n.x())
                 normalBuffer.put(n.y())
@@ -354,7 +375,7 @@ interface HasGeometry {
                     }
                     "g", "o" -> @Suppress("UNCHECKED_CAST") {
                         if (nbuffer.position() == 0) {
-                            calculateNormals(vbuffer, nbuffer)
+                            calculateNormals(vertexBuffers[name]!!.first, vertexBuffers[name]!!.second)
                         }
 
                         targetObject.vertices = vertexBuffers[name]!!.first
@@ -404,8 +425,9 @@ interface HasGeometry {
         val end = System.nanoTime()
 
         // recalculate normals if model did not supply them
-        if (nbuffer.position() == 0) {
-            calculateNormals(vbuffer, nbuffer)
+        if (vertexBuffers[name]!!.second.position() == 0) {
+            logger.warn("Model does not provide surface normals. Recalculating...")
+            calculateNormals(vertexBuffers[name]!!.first, vertexBuffers[name]!!.second)
         }
 
         targetObject.vertices = vertexBuffers[name]!!.first
