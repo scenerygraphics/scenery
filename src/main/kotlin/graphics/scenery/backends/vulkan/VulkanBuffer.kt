@@ -12,11 +12,7 @@ class VulkanBuffer(val device: VkDevice, var memory: Long = -1L, var buffer: Lon
     var alignment: Long = 256
     private var mapped = false
 
-    var stagingBuffer: ByteBuffer
-
-    init {
-        stagingBuffer = memAlloc(size.toInt())
-    }
+    var stagingBuffer: ByteBuffer = memAlloc(size.toInt())
 
     fun getPointerBuffer(size: Int): ByteBuffer {
         if (currentPointer == null) {

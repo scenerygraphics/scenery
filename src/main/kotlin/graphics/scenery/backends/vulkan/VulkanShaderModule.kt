@@ -13,10 +13,11 @@ import java.nio.ByteBuffer
 import java.util.*
 
 /**
- * Created by ulrik on 9/27/2016.
+ * Vulkan Object State class. Saves texture, UBO, pipeline and vertex buffer state.
+ *
+ * @author Ulrik Günther <hello@ulrik.is>
  */
-
-class VulkanShaderModule(device: VkDevice, entryPoint: String, shaderCodePath: String) {
+open class VulkanShaderModule(device: VkDevice, entryPoint: String, shaderCodePath: String) {
     protected var logger: Logger = LoggerFactory.getLogger("VulkanShaderModule")
     var shader: VkPipelineShaderStageCreateInfo
     var shaderModule: Long

@@ -16,16 +16,18 @@ import org.lwjgl.vulkan.VK10.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.*
-import java.nio.file.Files
 
 /**
- * Created by ulrik on 11/1/2016.
+ * Vulkan Textures class. Provides static methods to load textures from files.
+ *
+ * @author Ulrik Günther <hello@ulrik.is>
  */
-class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDevice,
+open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDevice,
                     val memoryProperties: VkPhysicalDeviceMemoryProperties,
                     val commandPool: Long, val queue: VkQueue,
                     val width: Int, val height: Int, val depth: Int = 1,
-                    val format: Int = VK_FORMAT_R8G8B8_SRGB, val mipLevels: Int = 1) : AutoCloseable {
+                    val format: Int = VK_FORMAT_R8G8B8_SRGB, val mipLevels: Int = 1,
+                    val minFilterLinear: Boolean = true, val maxFilterLinear: Boolean = true) : AutoCloseable {
     protected var logger: Logger = LoggerFactory.getLogger("VulkanRenderer")
 
     var image: VulkanImage? = null
@@ -273,8 +275,8 @@ class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDevice,
         val samplerInfo = VkSamplerCreateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO)
             .pNext(NULL)
-            .magFilter(VK_FILTER_LINEAR)
-            .minFilter(VK_FILTER_LINEAR)
+            .magFilter(if(minFilterLinear) { VK_FILTER_LINEAR } else { VK_FILTER_NEAREST })
+            .minFilter(if(maxFilterLinear) { VK_FILTER_LINEAR } else { VK_FILTER_NEAREST })
             .mipmapMode(VK_SAMPLER_MIPMAP_MODE_LINEAR)
             .addressModeU(VK_SAMPLER_ADDRESS_MODE_REPEAT)
             .addressModeV(VK_SAMPLER_ADDRESS_MODE_REPEAT)
@@ -314,7 +316,8 @@ class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDevice,
         fun loadFromFile(device: VkDevice, physicalDevice: VkPhysicalDevice,
                          memoryProperties: VkPhysicalDeviceMemoryProperties,
                          commandPool: Long, queue: VkQueue,
-                         filename: String, linearInterpolation: Boolean,
+                         filename: String,
+                         linearMin: Boolean, linearMax: Boolean,
                          generateMipmaps: Boolean = true): VulkanTexture? {
             val stream = FileInputStream(filename)
             val type = filename.substringAfterLast('.')
@@ -323,18 +326,18 @@ class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDevice,
 
             return loadFromFile(device, physicalDevice,
                 memoryProperties, commandPool, queue,
-                stream, type, linearInterpolation, generateMipmaps)
+                stream, type, linearMin, linearMax, generateMipmaps)
         }
 
         fun loadFromFile(device: VkDevice, physicalDevice: VkPhysicalDevice,
                          memoryProperties: VkPhysicalDeviceMemoryProperties,
                          commandPool: Long, queue: VkQueue,
-                         stream: InputStream, type: String, linearInterpolation: Boolean,
+                         stream: InputStream, type: String,
+                         linearMin: Boolean, linearMax: Boolean,
                          generateMipmaps: Boolean = true): VulkanTexture? {
             val bi: BufferedImage
             val flippedImage: BufferedImage
             val imageData: ByteBuffer
-            val fis: FileInputStream
             val pixels: IntArray
             val buffer: ByteArray
 
@@ -400,7 +403,7 @@ class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDevice,
                     VK_FORMAT_R8G8B8A8_SRGB
                 } else {
                     VK_FORMAT_R8G8B8A8_SRGB
-                }, mipmapLevels)
+                }, mipmapLevels, linearMin, linearMax)
 
             tex.copyFrom(imageData)
 
@@ -453,12 +456,6 @@ class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDevice,
             val at = AffineTransform()
             at.concatenate(AffineTransform.getScaleInstance(1.0, -1.0))
             at.concatenate(AffineTransform.getTranslateInstance(0.0, (-image.height).toDouble()))
-            return createTransformed(image, at)
-        }
-
-        private fun createRotated(image: BufferedImage): BufferedImage {
-            val at = AffineTransform.getRotateInstance(
-                Math.PI, (image.width / 2).toDouble(), image.height / 2.0)
             return createTransformed(image, at)
         }
 

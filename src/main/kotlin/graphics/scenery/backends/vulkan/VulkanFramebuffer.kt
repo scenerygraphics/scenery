@@ -14,7 +14,7 @@ import org.slf4j.LoggerFactory
 
  * @author Ulrik Günther @ulrik.is>
  */
-class VulkanFramebuffer(protected var device: VkDevice,
+open class VulkanFramebuffer(protected var device: VkDevice,
                         protected var physicalDevice: VkPhysicalDevice,
                         protected var commandPool: Long,
                         var width: Int,
@@ -340,7 +340,7 @@ class VulkanFramebuffer(protected var device: VkDevice,
                 .layout(VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
         }
 
-        val depthDescs = if(attachments.filter { it.value.type == VulkanFramebufferType.DEPTH_ATTACHMENT }.size > 0) {
+        val depthDescs = if(attachments.filter { it.value.type == VulkanFramebufferType.DEPTH_ATTACHMENT }.isNotEmpty()) {
             VkAttachmentReference.calloc()
                 .attachment(colorDescs.limit())
                 .layout(VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)

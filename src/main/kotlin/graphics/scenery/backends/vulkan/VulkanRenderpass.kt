@@ -17,9 +17,11 @@ import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Created by ulrik on 11/9/2016.
+ * Class to encapsulate Vulkan Renderpasses
+ *
+ * @author Ulrik Günther <hello@ulrik.is>
  */
-class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderConfig,
+open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderConfig,
                        val device: VkDevice,
                        val descriptorPool: Long,
                        val pipelineCache: Long,
@@ -45,12 +47,12 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
             commandBufferBacking.put(b)
         }
 
-    private var commandBufferBacking = RingBuffer<VulkanCommandBuffer>(size = 2,
+    private var commandBufferBacking = RingBuffer(size = 2,
         default = { VulkanCommandBuffer(device, null, true) })
 
     var semaphore = -1L
 
-    var passConfig: RenderConfigReader.RenderpassConfig
+    var passConfig: RenderConfigReader.RenderpassConfig = config.renderpasses.get(name)!!
 
     var isViewportRenderpass = false
     var commandBufferCount = 2
@@ -62,7 +64,7 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
             this.isViewportRenderpass = true
             field = count
 
-            commandBufferBacking = RingBuffer<VulkanCommandBuffer>(size = count,
+            commandBufferBacking = RingBuffer(size = count,
                 default = { VulkanCommandBuffer(device, null, true) })
         }
 
@@ -99,7 +101,6 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
     var vulkanMetadata = VulkanMetadata()
 
     init {
-        passConfig = config.renderpasses.get(name)!!
 
         val default = VU.createDescriptorSetLayout(device,
             descriptorNum = 3,
@@ -129,10 +130,6 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
         descriptorSetLayouts.put("VRParameters", dslVRParameters)
     }
 
-    fun initializePipeline(device: VkDevice, descriptorPool: Long, pipelineCache: Long) {
-
-    }
-
     fun initializeInputAttachmentDescriptorSetLayouts() {
         inputs.forEach { inputFramebuffer ->
             // create descriptor set layout that matches the render target
@@ -157,8 +154,10 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
             // create UBO
             val ubo = UBO(device)
 
-            ubo.name = "ShaderParameters-${name}"
+            ubo.name = "ShaderParameters-$name"
             params.forEach { entry ->
+                // Entry could be created in Java, so we check for both Java and Kotlin strings
+                @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
                 val value = if (entry.value is String || entry.value is java.lang.String) {
                     val s = entry.value as String
                     GLVector(*(s.split(",").map { it.trim().trimStart().toFloat() }.toFloatArray()))
@@ -192,7 +191,7 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
             descriptorSets.put("ShaderParameters-$name", ds)
 
             logger.debug("Created DSL $dsl for $name, UBO has ${params.count()} members")
-            descriptorSetLayouts.putIfAbsent("ShaderParameters-${name}", dsl)
+            descriptorSetLayouts.putIfAbsent("ShaderParameters-$name", dsl)
         }
     }
 
@@ -278,7 +277,7 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
                 descriptorSetLayouts = reqDescriptorLayouts)
         }
 
-        logger.debug("Prepared pipeline $pipelineName for ${name}")
+        logger.debug("Prepared pipeline $pipelineName for $name")
 
         pipelines.put(pipelineName, p)
     }
@@ -296,17 +295,7 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
         return fb
     }
 
-    fun nextSwapchainImage() {
-        if(!isViewportRenderpass) {
-            logger.error("Renderpass $name is not a viewport renderpass!")
-        } else {
-//            readPos = (readPos + 1) % commandBufferCount
-        }
-    }
-
     fun getReadPosition() = commandBufferBacking.currentReadPosition - 1
-
-    fun getWritePosition() = commandBufferBacking.currentWritePosition
 
     override fun close() {
         output.forEach { it.value.close() }

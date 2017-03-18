@@ -1,7 +1,6 @@
 package graphics.scenery.backends.vulkan
 
 import org.lwjgl.system.MemoryUtil.*
-import org.lwjgl.system.NativeResource
 import org.lwjgl.vulkan.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -10,9 +9,11 @@ import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Created by ulrik on 9/27/2016.
+ * Vulkan Object State class. Saves texture, UBO, pipeline and vertex buffer state.
+ *
+ * @author Ulrik Günther <hello@ulrik.is>
  */
-class VulkanObjectState : NodeMetadata {
+open class VulkanObjectState : NodeMetadata {
     protected var logger: Logger = LoggerFactory.getLogger("VulkanRenderer")
     override val consumers: MutableList<String> = ArrayList()
 
@@ -38,11 +39,11 @@ class VulkanObjectState : NodeMetadata {
     var vertexInputType = VulkanRenderer.VertexDataKinds.coords_normals_texcoords
     var vertexDescription: VulkanRenderer.VertexDescription? = null
 
-    constructor() {
+    var textureDescriptorSet: Long = -1L
+
+    init {
         consumers.add("VulkanRenderer")
     }
-
-    var textureDescriptorSet: Long = -1L
 
     fun texturesToDescriptorSet(device: VkDevice, descriptorSetLayout: Long, descriptorPool: Long, targetBinding: Int = 0): Long {
         val pDescriptorSetLayout = memAllocLong(1)
