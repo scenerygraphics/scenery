@@ -67,9 +67,9 @@ interface HasGeometry {
     fun readFromMTL(filename: String): HashMap<String, Material> {
         val logger = LoggerFactory.getLogger("OBJImporter")
 
-        var materials = HashMap<String, Material>()
+        val materials = HashMap<String, Material>()
 
-        var f = File(filename)
+        val f = File(filename)
         if (!f.exists()) {
             logger.error("Could not read materials from $filename, file does not exist.")
 
@@ -150,13 +150,10 @@ interface HasGeometry {
         val logger = LoggerFactory.getLogger("OBJImporter")
 
         var name: String = ""
-        var vbuffer: FloatBuffer = FloatBuffer.allocate(1)
-        var nbuffer: FloatBuffer = FloatBuffer.allocate(1)
-        var tbuffer: FloatBuffer = FloatBuffer.allocate(1)
 
-        var tmpV = ArrayList<Float>()
-        var tmpN = ArrayList<Float>()
-        var tmpUV = ArrayList<Float>()
+        val tmpV = ArrayList<Float>()
+        val tmpN = ArrayList<Float>()
+        val tmpUV = ArrayList<Float>()
 
         var boundingBox: FloatArray? = null
 
@@ -203,7 +200,7 @@ interface HasGeometry {
             }
         }
 
-        var f = File(filename)
+        val f = File(filename)
         if (!f.exists()) {
             logger.error("Could not read from $filename, file does not exist.")
 
@@ -226,7 +223,8 @@ interface HasGeometry {
         // and leading whitespace. The first non-whitespace string encountered is
         // evaluated as command, according to the OBJ spec.
         var currentName = name
-        var vertexCountMap = HashMap<String, Int>()
+        val vertexCountMap = HashMap<String, Int>()
+
         lines.forEach {
             line ->
             val tokens = line.trim().trimEnd().split(" ").filter(String::isNotEmpty)
@@ -374,7 +372,7 @@ interface HasGeometry {
                         // TODO: Implement smooth shading across faces
                     }
                     "g", "o" -> @Suppress("UNCHECKED_CAST") {
-                        if (nbuffer.position() == 0) {
+                        if (vertexBuffers[name]!!.second.position() == 0) {
                             calculateNormals(vertexBuffers[name]!!.first, vertexBuffers[name]!!.second)
                         }
 
@@ -462,12 +460,12 @@ interface HasGeometry {
         val logger = LoggerFactory.getLogger("STLImporter")
 
         var name: String = ""
-        var vbuffer = ArrayList<Float>()
-        var nbuffer = ArrayList<Float>()
+        val vbuffer = ArrayList<Float>()
+        val nbuffer = ArrayList<Float>()
 
         var boundingBox: FloatArray? = null
 
-        var f = File(filename)
+        val f = File(filename)
         if (!f.exists()) {
             logger.error("Could not read from $filename, file does not exist.")
 
@@ -529,10 +527,10 @@ interface HasGeometry {
 
             val fis = FileInputStream(filename)
             val bis = BufferedInputStream(fis)
-            var headerB: ByteArray = ByteArray(80)
-            var sizeB: ByteArray = ByteArray(4)
-            var buffer: ByteArray = ByteArray(12)
-            var size: Int
+            val headerB: ByteArray = ByteArray(80)
+            val sizeB: ByteArray = ByteArray(4)
+            val buffer: ByteArray = ByteArray(12)
+            val size: Int
 
             bis.read(headerB, 0, 80)
             bis.read(sizeB, 0, 4)
@@ -543,8 +541,8 @@ interface HasGeometry {
                 or ((sizeB[3].toInt() and 0xFF) shl 24))
 
             fun readFloatFromInputStream(fis: BufferedInputStream): Float {
-                var floatBuf = ByteArray(4)
-                var bBuf: ByteBuffer
+                val floatBuf = ByteArray(4)
+                val bBuf: ByteBuffer
 
                 fis.read(floatBuf, 0, 4)
                 bBuf = ByteBuffer.wrap(floatBuf)
@@ -592,7 +590,7 @@ interface HasGeometry {
             fis.close()
         }
 
-        var arr: CharArray = CharArray(6)
+        val arr: CharArray = CharArray(6)
         f.reader().read(arr, 0, 6)
 
         // If the STL file starts with the string "solid", is must be a ASCII STL file,
@@ -634,7 +632,7 @@ interface HasGeometry {
 
 
         val end = System.nanoTime()
-        logger.info("Read ${vbuffer.size} vertices/${nbuffer.size} normals of model ${name} in ${(end - start) / 1e6} ms")
+        logger.info("Read ${vbuffer.size} vertices/${nbuffer.size} normals of model $name in ${(end - start) / 1e6} ms")
 
         vertices = ByteBuffer.allocateDirect(vbuffer.size * 4).asFloatBuffer()
         normals = ByteBuffer.allocateDirect(nbuffer.size * 4).asFloatBuffer()
