@@ -798,10 +798,10 @@ open class VulkanRenderer(hub: Hub,
 
                 val slot = VulkanObjectState.textureTypeToSlot(type)
 
-                val mipLevels = if(type == "ambient" || type == "diffuse" || type == "specular") {
-                    3
+                val generateMipmaps = if(type == "ambient" || type == "diffuse" || type == "specular") {
+                    true
                 } else {
-                    1
+                    false
                 }
 
                 logger.debug("${node.name} will have $type texture from $texture in slot $slot")
@@ -812,17 +812,23 @@ open class VulkanRenderer(hub: Hub,
                     val vkTexture = if (texture.startsWith("fromBuffer:")) {
                         val gt = node.material!!.transferTextures[texture.substringAfter("fromBuffer:")]
 
+                        val miplevels = if(generateMipmaps) {
+                            1 + Math.floor(Math.log(Math.max(gt!!.dimensions.x()*1.0, gt!!.dimensions.y()*1.0))/Math.log(2.0)).toInt()
+                        } else {
+                            1
+                        }
+
                         val t = VulkanTexture(device, physicalDevice, memoryProperties,
                             commandPools.Standard, queue,
                             gt!!.dimensions.x().toInt(), gt.dimensions.y().toInt(), 1,
-                            mipLevels = mipLevels)
+                            miplevels)
                         t.copyFrom(gt.contents)
 
                         t
                     } else {
                         val start = System.nanoTime()
                         val t = VulkanTexture.loadFromFile(device, physicalDevice, memoryProperties,
-                            commandPools.Standard, queue, texture, true, mipLevels)
+                            commandPools.Standard, queue, texture, true, generateMipmaps)
                         val duration = System.nanoTime() - start*1.0f
                         stats?.add("loadTexture", duration)
 
@@ -1081,7 +1087,7 @@ open class VulkanRenderer(hub: Hub,
 
     protected fun prepareDefaultTextures(device: VkDevice) {
         val t = VulkanTexture.loadFromFile(device, physicalDevice, memoryProperties, commandPools.Standard, queue,
-            Renderer::class.java.getResourceAsStream("DefaultTexture.png"), "png", true, 1)
+            Renderer::class.java.getResourceAsStream("DefaultTexture.png"), "png", true, true)
 
         textureCache.put("DefaultTexture", t!!)
     }

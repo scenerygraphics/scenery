@@ -213,7 +213,8 @@ class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDevice,
                         .baseMipLevel(mipLevel)
 
                     transitionLayout(image!!.image, VK_IMAGE_LAYOUT_UNDEFINED,
-                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, subresourceRange = mipRange,
+                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                        subresourceRange = mipRange,
                         srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
                         dstStage = VK_PIPELINE_STAGE_HOST_BIT,
                         commandBuffer = this@mipmapCreation)
@@ -230,7 +231,7 @@ class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDevice,
                         commandBuffer = this@mipmapCreation)
                 }
 
-                transitionLayout(image!!.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                transitionLayout(image!!.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                     VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, mipLevels,
                     commandBuffer = this@mipmapCreation)
 
@@ -247,7 +248,7 @@ class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDevice,
     }
 
     private fun createImageView(image: VulkanImage, format: Int): Long {
-        val subresourceRange = VkImageSubresourceRange.calloc().set(VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1)
+        val subresourceRange = VkImageSubresourceRange.calloc().set(VK_IMAGE_ASPECT_COLOR_BIT, 0, mipLevels, 0, 1)
 
         val vi = VkImageViewCreateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO)
@@ -314,22 +315,22 @@ class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDevice,
                          memoryProperties: VkPhysicalDeviceMemoryProperties,
                          commandPool: Long, queue: VkQueue,
                          filename: String, linearInterpolation: Boolean,
-                         mipmapLevels: Int): VulkanTexture? {
+                         generateMipmaps: Boolean = true): VulkanTexture? {
             val stream = FileInputStream(filename)
             val type = filename.substringAfterLast('.')
 
-            logger.info("Loading texture with m=$mipmapLevels from $filename")
+            logger.debug("Loading${if(generateMipmaps) { " mipmapped" } else { "" }} texture from $filename")
 
             return loadFromFile(device, physicalDevice,
                 memoryProperties, commandPool, queue,
-                stream, type, linearInterpolation, mipmapLevels)
+                stream, type, linearInterpolation, generateMipmaps)
         }
 
         fun loadFromFile(device: VkDevice, physicalDevice: VkPhysicalDevice,
                          memoryProperties: VkPhysicalDeviceMemoryProperties,
                          commandPool: Long, queue: VkQueue,
                          stream: InputStream, type: String, linearInterpolation: Boolean,
-                         mipmapLevels: Int): VulkanTexture? {
+                         generateMipmaps: Boolean = true): VulkanTexture? {
             val bi: BufferedImage
             val flippedImage: BufferedImage
             val imageData: ByteBuffer
@@ -373,12 +374,22 @@ class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDevice,
 
             var texWidth = 2
             var texHeight = 2
+            var levelsW = 1
+            var levelsH = 1
 
             while (texWidth < bi.width) {
                 texWidth *= 2
+                levelsW++
             }
             while (texHeight < bi.height) {
                 texHeight *= 2
+                levelsH++
+            }
+
+            val mipmapLevels = if(generateMipmaps) {
+                Math.max(levelsW, levelsH)
+            } else {
+                1
             }
 
             val tex = VulkanTexture(
