@@ -17,7 +17,7 @@ class DetachedHeadCamera(var hmd: HMDInput? = null) : Camera() {
 
     inner class HeadOrientationDelegate {
         operator fun getValue(thisRef: Any?, property: KProperty<*>): Quaternion {
-            return hmd?.getOrientation() ?: Quaternion(0.0f, 0.0f, 0.0f, 1.0f)
+            return hmd?.getWorkingHMD()?.getOrientation() ?: Quaternion(0.0f, 0.0f, 0.0f, 1.0f)
         }
 
         operator fun setValue(thisRef: Any?, property: KProperty<*>, value: Quaternion) {
@@ -27,7 +27,7 @@ class DetachedHeadCamera(var hmd: HMDInput? = null) : Camera() {
 
     inner class HeadPositionDelegate {
         operator fun getValue(thisRef: Any?, property: KProperty<*>): GLVector {
-            return hmd?.getPosition() ?: GLVector(0.0f, 0.0f, 0.0f)
+            return hmd?.getWorkingHMD()?.getPosition() ?: GLVector(0.0f, 0.0f, 0.0f)
         }
 
         operator fun setValue(thisRef: Any?, property: KProperty<*>, value: Quaternion) {
@@ -48,7 +48,7 @@ class DetachedHeadCamera(var hmd: HMDInput? = null) : Camera() {
 //        val r = GLMatrix.fromQuaternion(this.rotation)
 //        val hr = GLMatrix.fromQuaternion(this.headOrientation)
 
-        return hmd?.getPose()?.times(tr) ?: GLMatrix.fromQuaternion(rotation) * tr
+        return hmd?.getWorkingHMD()?.getPose()?.times(tr) ?: GLMatrix.fromQuaternion(rotation) * tr
     }
 
     override fun getTransformation(preRotation: Quaternion): GLMatrix {

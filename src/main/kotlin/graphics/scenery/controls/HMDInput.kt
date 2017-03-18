@@ -156,4 +156,6 @@ interface HMDInput {
     fun getVulkanInstanceExtensions(): List<String>
 
     fun getVulkanDeviceExtensions(physicalDevice: VkPhysicalDevice): List<String>
+
+    fun getWorkingHMD(): HMDInput?
 }

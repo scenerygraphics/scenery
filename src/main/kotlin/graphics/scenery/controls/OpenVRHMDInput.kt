@@ -187,6 +187,14 @@ open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean
         jvr.VR_ShutdownInternal()
     }
 
+    override fun getWorkingHMD(): HMDInput? {
+        if(initialized) {
+            return this
+        } else {
+            return null
+        }
+    }
+
     /**
      * Check whether the HMD is initialized and working
      *
