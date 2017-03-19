@@ -35,9 +35,9 @@ class MultiBoxInstancedExample : SceneryDefaultApplication("MultiBoxInstancedExa
             val m = Mesh()
             val b = Box(GLVector(0.2f, 0.2f, 0.2f))
             b.material = Material()
-            b.material!!.diffuse = GLVector(1.0f, 1.0f, 1.0f)
-            b.material!!.ambient = GLVector(1.0f, 1.0f, 1.0f)
-            b.material!!.specular = GLVector(1.0f, 1.0f, 1.0f)
+            b.material.diffuse = GLVector(1.0f, 1.0f, 1.0f)
+            b.material.ambient = GLVector(1.0f, 1.0f, 1.0f)
+            b.material.specular = GLVector(1.0f, 1.0f, 1.0f)
             b.instanceMaster = true
             b.name = "boxmaster"
             b.instancedProperties.put("ModelViewMatrix", {b.modelView })
@@ -63,9 +63,9 @@ class MultiBoxInstancedExample : SceneryDefaultApplication("MultiBoxInstancedExa
                 inst.instancedProperties.put("ModelMatrix", { inst.model })
                 inst.instancedProperties.put("MVP", { inst.mvp })
 
-                val k: Double = it % WIDTH;
-                val j: Double = (it / WIDTH) % HEIGHT;
-                val i: Double = it / (WIDTH * HEIGHT);
+                val k: Double = it.rem(WIDTH)
+                val j: Double = (it / WIDTH).rem(HEIGHT)
+                val i: Double = it / (WIDTH * HEIGHT)
 
                 p.position = GLVector(Math.floor(i).toFloat() * 3.0f, Math.floor(j).toFloat() * 3.0f, Math.floor(k).toFloat() * 3.0f)
                 p.needsUpdate = true

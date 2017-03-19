@@ -25,7 +25,7 @@ open class RingBuffer<T: Any>(var size: Int, default: ((Int) -> T)? = null) {
         if(backingStore.size <= size) {
             backingStore.add(element)
         } else {
-            currentWritePosition %= backingStore.size
+            currentWritePosition = currentWritePosition.rem(backingStore.size)
             backingStore[currentWritePosition] = element
         }
 
@@ -33,7 +33,7 @@ open class RingBuffer<T: Any>(var size: Int, default: ((Int) -> T)? = null) {
     }
 
     fun get(): T {
-        currentReadPosition %= backingStore.size
+        currentReadPosition = currentReadPosition.rem(backingStore.size)
         val element = backingStore[currentReadPosition]
 
         currentReadPosition++

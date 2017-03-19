@@ -1669,7 +1669,7 @@ open class VulkanRenderer(hub: Hub,
         var graphicsQueueFamilyIndex: Int
         graphicsQueueFamilyIndex = 0
         while (graphicsQueueFamilyIndex < queueCount) {
-            if (queueProps.get(graphicsQueueFamilyIndex).queueFlags() and VK_QUEUE_GRAPHICS_BIT !== 0)
+            if (queueProps.get(graphicsQueueFamilyIndex).queueFlags() and VK_QUEUE_GRAPHICS_BIT != 0)
                 break
             graphicsQueueFamilyIndex++
         }
@@ -1764,11 +1764,11 @@ open class VulkanRenderer(hub: Hub,
         var graphicsQueueNodeIndex = Integer.MAX_VALUE
         var presentQueueNodeIndex = Integer.MAX_VALUE
         for (i in 0..queueCount - 1) {
-            if (queueProps.get(i).queueFlags() and VK_QUEUE_GRAPHICS_BIT !== 0) {
+            if (queueProps.get(i).queueFlags() and VK_QUEUE_GRAPHICS_BIT != 0) {
                 if (graphicsQueueNodeIndex == Integer.MAX_VALUE) {
                     graphicsQueueNodeIndex = i
                 }
-                if (supportsPresent.get(i) === VK_TRUE) {
+                if (supportsPresent.get(i) == VK_TRUE) {
                     graphicsQueueNodeIndex = i
                     presentQueueNodeIndex = i
                     break
@@ -1779,7 +1779,7 @@ open class VulkanRenderer(hub: Hub,
         if (presentQueueNodeIndex == Integer.MAX_VALUE) {
             // If there's no queue that supports both present and graphics try to find a separate present queue
             for (i in 0..queueCount - 1) {
-                if (supportsPresent.get(i) === VK_TRUE) {
+                if (supportsPresent.get(i) == VK_TRUE) {
                     presentQueueNodeIndex = i
                     break
                 }
@@ -1814,7 +1814,7 @@ open class VulkanRenderer(hub: Hub,
         }
 
         val colorFormat: Int
-        if (formatCount == 1 && surfFormats.get(0).format() === VK_FORMAT_UNDEFINED) {
+        if (formatCount == 1 && surfFormats.get(0).format() == VK_FORMAT_UNDEFINED) {
 //            colorFormat = VK_FORMAT_B8G8R8A8_UNORM
             colorFormat = VK_FORMAT_B8G8R8A8_SRGB
         } else {
@@ -1878,11 +1878,11 @@ open class VulkanRenderer(hub: Hub,
         // Try to use mailbox mode. Low latency and non-tearing
         var swapchainPresentMode = VK_PRESENT_MODE_FIFO_KHR
         for (i in 0..presentModeCount - 1) {
-            if (pPresentModes.get(i) === VK_PRESENT_MODE_MAILBOX_KHR) {
+            if (pPresentModes.get(i) == VK_PRESENT_MODE_MAILBOX_KHR) {
                 swapchainPresentMode = VK_PRESENT_MODE_MAILBOX_KHR
                 break
             }
-            if (swapchainPresentMode != VK_PRESENT_MODE_MAILBOX_KHR && pPresentModes.get(i) === VK_PRESENT_MODE_IMMEDIATE_KHR) {
+            if (swapchainPresentMode != VK_PRESENT_MODE_MAILBOX_KHR && pPresentModes.get(i) == VK_PRESENT_MODE_IMMEDIATE_KHR) {
                 swapchainPresentMode = VK_PRESENT_MODE_IMMEDIATE_KHR
             }
         }
@@ -1906,7 +1906,7 @@ open class VulkanRenderer(hub: Hub,
         }
 
         val preTransform: Int
-        if (surfCaps.supportedTransforms() and VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR !== 0) {
+        if (surfCaps.supportedTransforms() and VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR != 0) {
             preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR
         } else {
             preTransform = surfCaps.currentTransform()

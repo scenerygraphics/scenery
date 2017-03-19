@@ -53,7 +53,7 @@ class BoxedProteinExample : SceneryDefaultApplication("BoxedProteinExample", win
                 scene.addChild(it)
             }
 
-            val hullbox = Box(GLVector(300.0f, 300.0f, 300.0f))
+            val hullbox = Box(GLVector(300.0f, 300.0f, 300.0f), insideNormals = true)
             hullbox.position = GLVector(0.0f, 0.0f, 0.0f)
 
             val hullboxMaterial = Material()

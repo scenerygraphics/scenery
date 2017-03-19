@@ -285,7 +285,7 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
     fun getOutput(): VulkanFramebuffer {
         val fb = if(isViewportRenderpass) {
             val pos = currentPosition
-            currentPosition = (currentPosition + 1) % commandBufferCount
+            currentPosition = (currentPosition + 1).rem(commandBufferCount)
 
             output["Viewport-$pos"]!!
         } else {

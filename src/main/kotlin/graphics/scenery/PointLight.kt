@@ -17,7 +17,7 @@ class PointLight : Mesh(), HasGeometry, Renderable {
     /** The emission color of the point light. Setting it will also affect the accompanying Box' color. */
     var emissionColor: GLVector = GLVector(1.0f, 1.0f, 1.0f)
         set(value) {
-            this.children[0].material?.diffuse = value
+            this.children[0].material.diffuse = value
             field = value
         }
 
@@ -36,7 +36,7 @@ class PointLight : Mesh(), HasGeometry, Renderable {
 
         val box = Box(GLVector(1.0f, 1.0f, 1.0f))
         box.material = Material()
-        box.material?.diffuse = this.emissionColor
+        box.material.diffuse = this.emissionColor
         box.visible = false
 
         this.addChild(box)

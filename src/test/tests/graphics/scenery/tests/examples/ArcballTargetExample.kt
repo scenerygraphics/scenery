@@ -73,7 +73,6 @@ class ArcballTargetExample : SceneryDefaultApplication("ArcballTargetExample") {
     }
 
     override fun inputSetup() {
-        val target = GLVector(1.5f, 5.5f, -5.5f)
         val inputHandler = (hub.get(SceneryElement.Input) as InputHandler)
         val targetArcball = ArcballCameraControl("mouse_control", scene.findObserver(), renderer!!.window.width, renderer!!.window.height)
         val fpsControl = FPSCameraControl("mouse_control", scene.findObserver(), renderer!!.window.width, renderer!!.window.height)

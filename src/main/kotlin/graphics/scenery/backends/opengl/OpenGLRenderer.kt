@@ -168,8 +168,8 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
         this.applicationName = applicationName
 
         val hmd = hub.getWorkingHMD()
-        if(settings.get("vr.Active") && hmd != null) {
-            this.window.width = hmd.getRenderTargetSize().x().toInt()*2
+        if (settings.get("vr.Active") && hmd != null) {
+            this.window.width = hmd.getRenderTargetSize().x().toInt() * 2
             this.window.height = hmd.getRenderTargetSize().y().toInt()
         }
 
@@ -196,7 +196,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
         val driverVersion = gl.glGetString(GL.GL_VERSION)
         logger.info("OpenGLRenderer: $width x $height on $driverString, $driverVersion")
 
-        if(driverVersion.toLowerCase().indexOf("nvidia") != -1 && System.getProperty("os.name").toLowerCase().indexOf("windows") != -1) {
+        if (driverVersion.toLowerCase().indexOf("nvidia") != -1 && System.getProperty("os.name").toLowerCase().indexOf("windows") != -1) {
             gpuStats = NvidiaGPUStats()
         }
 
@@ -250,7 +250,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
                         stats.add("GPU mem", it.get("AvailableDedicatedVideoMemory"), isTime = false)
                     }
 
-                    if(settings.get<Boolean>("OpenGLRenderer.PrintGPUStats")) {
+                    if (settings.get<Boolean>("OpenGLRenderer.PrintGPUStats")) {
                         logger.info(it.utilisationToString())
                         logger.info(it.memoryUtilisationToString())
                     }
@@ -565,25 +565,19 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
         program.use(gl)
         program.getUniform("Material.Shininess").setFloat(0.001f)
 
-        if (n.material != null) {
-            program.getUniform("Material.Ka").setFloatVector(n.material!!.ambient)
-            program.getUniform("Material.Kd").setFloatVector(n.material!!.diffuse)
-            program.getUniform("Material.Ks").setFloatVector(n.material!!.specular)
+        program.getUniform("Material.Ka").setFloatVector(n.material.ambient)
+        program.getUniform("Material.Kd").setFloatVector(n.material.diffuse)
+        program.getUniform("Material.Ks").setFloatVector(n.material.specular)
 
-            if (n.material!!.doubleSided) {
-                gl.glDisable(GL.GL_CULL_FACE)
-            }
+        if (n.material.doubleSided) {
+            gl.glDisable(GL.GL_CULL_FACE)
+        }
 
-            if (n.material!!.transparent) {
-                gl.glEnable(GL.GL_BLEND)
-                gl.glBlendFunc(GL.GL_SRC_COLOR, GL.GL_ONE_MINUS_SRC_ALPHA)
-            } else {
-                gl.glDisable(GL.GL_BLEND)
-            }
+        if (n.material.transparent) {
+            gl.glEnable(GL.GL_BLEND)
+            gl.glBlendFunc(GL.GL_SRC_COLOR, GL.GL_ONE_MINUS_SRC_ALPHA)
         } else {
-            program.getUniform("Material.Ka").setFloatVector3(n.position.toFloatBuffer())
-            program.getUniform("Material.Kd").setFloatVector3(n.position.toFloatBuffer())
-            program.getUniform("Material.Ks").setFloatVector3(n.position.toFloatBuffer())
+            gl.glDisable(GL.GL_BLEND)
         }
 
         s.textures.forEach { type, glTexture ->
@@ -676,7 +670,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
                     updateFontBoard(n)
                 }
 
-                if(n.vertices.remaining() > 0 && n.normals.remaining() > 0) {
+                if (n.vertices.remaining() > 0 && n.normals.remaining() > 0) {
                     updateVertices(n)
                     updateNormals(n)
                 }
@@ -770,13 +764,13 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
             lightingPassProgram == null ||
             hdrPassProgram == null ||
             combinerProgram == null
-        ) {
+            ) {
             logger.info("Waiting for initialization")
             Thread.sleep(200)
             return
         }
 
-        if(mustRecreateFramebuffers) {
+        if (mustRecreateFramebuffers) {
             recreateFramebuffers()
 
             gl.glClear(GL.GL_DEPTH_BUFFER_BIT or GL.GL_COLOR_BUFFER_BIT)
@@ -831,7 +825,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
         cam.view = cam.getTransformation()
 
         val projection = eyes.map { i ->
-            if(settings.get<Boolean>("vr.Active")) {
+            if (settings.get<Boolean>("vr.Active")) {
                 hmd?.getEyeProjection(i) ?: cam.projection
             } else {
                 cam.projection
@@ -851,10 +845,8 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
             val s = getOpenGLObjectStateFromNode(n)
             n.updateWorld(true, false)
 
-            if (n.material != null) {
-                if (n.material?.needsTextureReload!!) {
-                    n.material?.needsTextureReload = !loadTexturesForNode(n, s)
-                }
+            if (n.material.needsTextureReload) {
+                n.material.needsTextureReload = !loadTexturesForNode(n, s)
             }
 
             if (n is Skybox) {
@@ -1101,7 +1093,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
 
         val renderDuration = System.nanoTime() - startRender
 
-        cam.deltaT = renderDuration/10E6f
+        cam.deltaT = renderDuration / 10E6f
     }
 
     /**
@@ -1209,7 +1201,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
         gl.glGenBuffers(3, s.mVertexBuffers, 0)
         gl.glGenBuffers(1, s.mIndexBuffer, 0)
 
-        if (node.material == null || node.material !is OpenGLMaterial || (node.material as OpenGLMaterial).program == null) {
+        if (node.material !is OpenGLMaterial || (node.material as OpenGLMaterial).program == null) {
             if (node.useClassDerivedShader) {
                 val javaClass = node.javaClass.simpleName
                 val className = javaClass.substring(javaClass.indexOf(".") + 1)
@@ -1298,12 +1290,12 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
      */
     protected fun loadTexturesForNode(node: Node, s: OpenGLObjectState): Boolean {
         if (node.lock.tryLock()) {
-            node.material?.textures?.forEach {
+            node.material.textures.forEach {
                 type, texture ->
-                if (!textures.containsKey(texture) || node.material?.needsTextureReload!!) {
+                if (!textures.containsKey(texture) || node.material.needsTextureReload) {
                     logger.trace("Loading texture $texture for ${node.name}")
                     val glTexture = if (texture.startsWith("fromBuffer:")) {
-                        val gt = node.material!!.transferTextures[texture.substringAfter("fromBuffer:")]
+                        val gt = node.material.transferTextures[texture.substringAfter("fromBuffer:")]
 
                         val t = GLTexture(gl, gt!!.type, gt.channels,
                             gt.dimensions.x().toInt(),
