@@ -390,13 +390,13 @@
         <dependency>
             <groupId>graphics.scenery</groupId>
             <artifactId>spirvcrossj</artifactId>
-            <version>0.2.4</version>
+            <version>0.2.5-SNAPSHOT</version>
         </dependency>
 
         <dependency>
             <groupId>graphics.scenery</groupId>
             <artifactId>spirvcrossj</artifactId>
-            <version>0.2.4</version>
+            <version>0.2.5-SNAPSHOT</version>
             <classifier>${lwjgl.natives}</classifier>
             <scope>runtime</scope>
         </dependency>
