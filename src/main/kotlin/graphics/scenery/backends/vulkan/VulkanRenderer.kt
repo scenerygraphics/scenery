@@ -37,6 +37,7 @@ import java.util.concurrent.TimeUnit
 import javax.imageio.ImageIO
 import kotlin.concurrent.thread
 import kotlin.concurrent.withLock
+import org.lwjgl.system.jemalloc.JEmalloc.*
 
 
 /**
@@ -2017,11 +2018,16 @@ open class VulkanRenderer(hub: Hub,
             n.texcoords = memAlloc(4 * n.vertices.remaining() / n.vertexSize * n.texcoordSize).asFloatBuffer()
         }
 
-        val vertexAllocationBytes = 4 * (n.vertices.remaining() + n.normals.remaining() + n.texcoords.remaining())
-        val indexAllocationBytes = 4 * n.indices.remaining()
-        val fullAllocationBytes = vertexAllocationBytes + indexAllocationBytes
+        val vertexAllocationBytes: Long = 4L * (n.vertices.remaining() + n.normals.remaining() + n.texcoords.remaining())
+        val indexAllocationBytes: Long = 4L * n.indices.remaining()
+        val fullAllocationBytes: Long = vertexAllocationBytes + indexAllocationBytes
 
-        val stridedBuffer = memAlloc(fullAllocationBytes)
+        logger.info("Trying to allocate $fullAllocationBytes for ${node.name}")
+        val stridedBuffer = je_malloc(fullAllocationBytes)
+
+        if(stridedBuffer == null) {
+            logger.error("Allocation failed.")
+        }
 
         val fb = stridedBuffer.asFloatBuffer()
         val ib = stridedBuffer.asIntBuffer()
@@ -2047,7 +2053,7 @@ open class VulkanRenderer(hub: Hub,
         logger.trace("Adding ${n.indices.remaining() * 4} bytes to strided buffer")
         if (n.indices.remaining() > 0) {
             state.isIndexed = true
-            ib.position(vertexAllocationBytes / 4)
+            ib.position(vertexAllocationBytes.toInt() / 4)
 
             for (index in 0..n.indices.remaining() - 1) {
                 ib.put(n.indices.get())
@@ -2094,7 +2100,7 @@ open class VulkanRenderer(hub: Hub,
         state.indexOffset = vertexAllocationBytes
         state.indexCount = n.indices.remaining()
 
-        memFree(stridedBuffer)
+        je_free(stridedBuffer)
         stagingBuffer.close()
 
         return state
@@ -2456,7 +2462,7 @@ open class VulkanRenderer(hub: Hub,
                 logger.trace("now drawing {}, {} DS bound, {} textures", node.name, pass.vulkanMetadata.descriptorSets.capacity(), s.textures.count())
 
                 if (s.isIndexed) {
-                    vkCmdBindIndexBuffer(this, pass.vulkanMetadata.vertexBuffers.get(0), s.indexOffset * 1L, VK_INDEX_TYPE_UINT32)
+                    vkCmdBindIndexBuffer(this, pass.vulkanMetadata.vertexBuffers.get(0), s.indexOffset, VK_INDEX_TYPE_UINT32)
                     vkCmdDrawIndexed(this, s.indexCount, 1, 0, 0, 0)
                 } else {
                     vkCmdDraw(this, s.vertexCount, 1, 0, 0)
@@ -2506,7 +2512,7 @@ open class VulkanRenderer(hub: Hub,
                 vkCmdBindVertexBuffers(this, 1, pass.vulkanMetadata.instanceBuffers, pass.vulkanMetadata.vertexBufferOffsets)
 
                 if (s.isIndexed) {
-                    vkCmdBindIndexBuffer(this, pass.vulkanMetadata.vertexBuffers.get(0), s.indexOffset * 1L, VK_INDEX_TYPE_UINT32)
+                    vkCmdBindIndexBuffer(this, pass.vulkanMetadata.vertexBuffers.get(0), s.indexOffset, VK_INDEX_TYPE_UINT32)
                     vkCmdDrawIndexed(this, s.indexCount, s.instanceCount, 0, 0, 0)
                 } else {
                     vkCmdDraw(this, s.vertexCount, s.instanceCount, 0, 0)

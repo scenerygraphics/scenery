@@ -19,7 +19,7 @@ open class VulkanObjectState : NodeMetadata {
 
     var initialized = false
     var isIndexed = false
-    var indexOffset = 0
+    var indexOffset = 0L
     var indexCount = 0
     var vertexCount = 0
     var instanceCount = 1
