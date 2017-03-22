@@ -36,6 +36,12 @@ class VRControllerExample : SceneryDefaultApplication(VRControllerExample::class
 
             scene.addChild(cam)
 
+            val b = (0..10).map {
+                val obj = Box()
+                obj.position = GLVector(2.0f, -4.0f+(it+1)*2.0f, 2.0f)
+                scene.addChild(obj)
+                obj
+            }
 
             val controllers = (0..1).map { Mesh() }
             controllers.forEachIndexed { i, controller ->
@@ -47,7 +53,9 @@ class VRControllerExample : SceneryDefaultApplication(VRControllerExample::class
                             hmd!!.loadModelForMesh(it.name, controller)
                         }
 
-                        controller.model = it.pose
+                        controller.model.setIdentity()
+                        controller.model.translate(cam.position)
+                        controller.model.mult(it.pose)
                         controller.needsUpdate = false
                         controller.needsUpdateWorld = true
                     }
@@ -81,15 +89,15 @@ class VRControllerExample : SceneryDefaultApplication(VRControllerExample::class
             orcMaterial.diffuse = GLVector(0.5f, 0.5f, 0.5f)
             orcMaterial.specular = GLVector(0.1f, 0f, 0f)
 
-//            val orcMesh = Mesh()
-//            orcMesh.readFromOBJ(getDemoFilesPath() + "/ORC6.obj")
-//            orcMesh.position = GLVector(0.0f, 50.0f, -50.0f)
-//            orcMesh.material = orcMaterial
-//            orcMesh.scale = GLVector(1.0f, 1.0f, 1.0f)
-//            orcMesh.updateWorld(true, true)
-//            orcMesh.name = "ORC6"
-//            orcMesh.children.forEach { it.material = orcMaterial }
-//
+            val orcMesh = Mesh()
+            orcMesh.readFrom(getDemoFilesPath() + "/ORC6.obj")
+            orcMesh.position = GLVector(0.0f, 50.0f, -50.0f)
+            orcMesh.material = orcMaterial
+            orcMesh.scale = GLVector(1.0f, 1.0f, 1.0f)
+            orcMesh.updateWorld(true, true)
+            orcMesh.name = "ORC6"
+            orcMesh.children.forEach { it.material = orcMaterial }
+
 //            scene.addChild(orcMesh)
         } catch (e: IOException) {
             e.printStackTrace()

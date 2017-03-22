@@ -269,7 +269,7 @@ open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean
         if (eyeTransformCache[eye] == null) {
             val transform = vr!!.GetEyeToHeadTransform!!.apply(eye)
             transform.read()
-            eyeTransformCache[eye] = transform.toGLMatrix()
+            eyeTransformCache[eye] = transform.toGLMatrix().invert()
 
             logger.trace("Head-to-eye #$eye: " + eyeTransformCache[eye].toString())
         }
