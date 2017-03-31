@@ -26,7 +26,7 @@ interface HasGeometry {
     /** How many elements does a texcoord store? */
     val texcoordSize: Int
     /** The [GeometryType] of the [Node] */
-    val geometryType: GeometryType
+    var geometryType: GeometryType
 
     /** Array of the vertices */
     var vertices: FloatBuffer
@@ -151,10 +151,6 @@ interface HasGeometry {
 
         var name: String = ""
 
-        val tmpV = ArrayList<Float>()
-        val tmpN = ArrayList<Float>()
-        val tmpUV = ArrayList<Float>()
-
         var boundingBox: FloatArray? = null
 
         var vertexCount = 0
@@ -225,9 +221,11 @@ interface HasGeometry {
         var currentName = name
         val vertexCountMap = HashMap<String, Int>()
 
+        val preparseStart = System.nanoTime()
+        logger.info("Starting preparse")
         lines.forEach {
             line ->
-            val tokens = line.trim().trimEnd().split(" ").filter(String::isNotEmpty)
+            val tokens = line.trim().trimEnd().fastSplit(" ", skipEmpty = true)
             if (tokens.isNotEmpty()) {
                 when (tokens[0]) {
                     "" -> {
@@ -249,25 +247,34 @@ interface HasGeometry {
                 }
             }
         }
+        val preparseDuration = (System.nanoTime() - preparseStart)/10e5
+        logger.info("Preparse took $preparseDuration ms")
 
         vertexCountMap.put(currentName, vertexCount)
         vertexCount = 0
-
 
         val vertexBuffers = HashMap<String, Triple<FloatBuffer, FloatBuffer, FloatBuffer>>()
         vertexCountMap.forEach { objectName, vertexCount ->
             vertexBuffers.put(objectName, Triple(
                 memAlloc(vertexCount * vertexSize * 4).order(ByteOrder.nativeOrder()).asFloatBuffer(),
                 memAlloc(vertexCount * vertexSize * 4).order(ByteOrder.nativeOrder()).asFloatBuffer(),
-                memAlloc(vertexCount * vertexSize * 4).order(ByteOrder.nativeOrder()).asFloatBuffer()
+                memAlloc(vertexCount * texcoordSize * 4).order(ByteOrder.nativeOrder()).asFloatBuffer()
             ))
         }
+
+        val tmpV = ArrayList<Float>()
+        logger.info("V gets capacity of ${vertexCountMap.values.sum()*vertexSize}")
+        tmpV.ensureCapacity(vertexCountMap.values.sum() * vertexSize)
+        val tmpN = ArrayList<Float>()
+        tmpN.ensureCapacity(vertexCountMap.values.sum() * vertexSize)
+        val tmpUV = ArrayList<Float>()
+        tmpUV.ensureCapacity(vertexCountMap.values.sum() * texcoordSize)
 
         lines = Files.lines(FileSystems.getDefault().getPath(filename))
 
         lines.forEach {
             line ->
-            val tokens = line.trim().trimEnd().split(" ").filter(String::isNotEmpty)
+            val tokens = line.trim().trimEnd().fastSplit(" ", skipEmpty = true)
             if (tokens.isNotEmpty()) {
                 when (tokens[0]) {
                     "" -> {
@@ -285,17 +292,19 @@ interface HasGeometry {
                         }
                     }
                 // vertices are specified as v x y z
-                    "v" -> tokens.drop(1).forEach { tmpV.add(it.toFloat()) }
+                    "v" -> tokens.subList(1, tokens.size).forEach { tmpV.add(it.toFloat()) }
 
                 // normal coords are specified as vn x y z
-                    "vn" -> tokens.drop(1).forEach { tmpN.add(it.toFloat()) }
+                    "vn" -> tokens.subList(1, tokens.size).forEach { tmpN.add(it.toFloat()) }
 
                 // UV coords maybe vt t1 t2 0.0 or vt t1 t2
                     "vt" -> {
                         if (tokens.drop(1).size == 3) {
-                            tokens.drop(1).dropLast(1)
+//                            tokens.drop(1).dropLast(1)
+                            tokens.subList(1, tokens.size-1)
                         } else {
-                            tokens.drop(1)
+//                            tokens.drop(1)
+                            tokens.subList(1, tokens.size)
                         }.forEach { tmpUV.add(it.toFloat()) }
                     }
 
@@ -305,7 +314,7 @@ interface HasGeometry {
                 // f v1/vt1/vn1 v2/vt2/vn2 ... vn/vtn/vnn
                     "f" -> {
                         count++
-                        val elements = tokens.drop(1).map { it.split("/") }
+                        val elements = tokens.drop(1).map { it: String -> it.fastSplit("/") }
 
                         val vertices = elements.map { it[0].toInt() }
                         val uvs = elements.filter { it.size > 1 && it.getOrElse(1, { "" }).isNotEmpty() }.map { it[1].toInt() }
@@ -319,53 +328,45 @@ interface HasGeometry {
                             quintIndices
                         }
 
-                        fun toBufferIndex(obj: List<Number>, num: Int, vectorSize: Int, offset: Int): Int {
-                            val index: Int
-                            if (num >= 0) {
-                                index = (num - 1) * vectorSize + offset
+                        val coords = (0..vertices.size-1).map { i ->
+                            val base = toBufferIndex(tmpV, vertices[i], 3, 0)
+                            val v = tmpV.subList(base, base + 3).toFloatArray()
+
+                            if (boundingBox == null) {
+                                boundingBox = floatArrayOf(v[0], v[0], v[1], v[1], v[2], v[2])
+                            }
+
+                            boundingBox?.let {
+                                it[0] = minOf(it[0], v[0])
+                                it[2] = minOf(it[2], v[1])
+                                it[4] = minOf(it[4], v[2])
+
+                                it[1] = maxOf(it[1], v[0])
+                                it[3] = maxOf(it[1], v[1])
+                                it[5] = maxOf(it[1], v[2])
+                            }
+
+                            val n = if (normals.size == vertices.size) {
+                                val baseN = toBufferIndex(tmpN, normals[i], 3, 0)
+                                tmpN.subList(baseN, baseN + 3).toFloatArray()
                             } else {
-                                index = (obj.size / vectorSize + num) * vectorSize + offset
+                                floatArrayOf()
                             }
 
-                            return index
+                            val uv = if (uvs.size == vertices.size) {
+                                val baseUV = toBufferIndex(tmpUV, uvs[i], 2, 0)
+                                tmpUV.subList(baseUV, baseUV + 2).toFloatArray()
+                            } else {
+                                floatArrayOf()
+                            }
+
+                            Triple(v, n, uv)
                         }
 
-                        fun defaultHandler(x: Int): Float {
-                            logger.error("Could not find v/n/uv for index $x. File broken?")
-                            return 0.0f
-                        }
-
-                        for (i in range) {
-                            val x = tmpV.getOrElse(toBufferIndex(tmpV, vertices[i], 3, 0), ::defaultHandler)
-                            val y = tmpV.getOrElse(toBufferIndex(tmpV, vertices[i], 3, 1), ::defaultHandler)
-                            val z = tmpV.getOrElse(toBufferIndex(tmpV, vertices[i], 3, 2), ::defaultHandler)
-
-                            if (vertexBuffers[name]!!.first.position() == 0 || boundingBox == null) {
-                                boundingBox = floatArrayOf(x, x, y, y, z, z)
-                            }
-
-                            if (x < boundingBox!![0]) boundingBox!![0] = x
-                            if (y < boundingBox!![2]) boundingBox!![2] = y
-                            if (z < boundingBox!![4]) boundingBox!![4] = z
-
-                            if (x > boundingBox!![1]) boundingBox!![1] = x
-                            if (y > boundingBox!![3]) boundingBox!![3] = y
-                            if (z > boundingBox!![5]) boundingBox!![5] = z
-
-                            vertexBuffers[name]!!.first.put(x)
-                            vertexBuffers[name]!!.first.put(y)
-                            vertexBuffers[name]!!.first.put(z)
-
-                            if (normals.size == vertices.size) {
-                                vertexBuffers[name]!!.second.put(tmpN.getOrElse(toBufferIndex(tmpN, normals[i], 3, 0), ::defaultHandler))
-                                vertexBuffers[name]!!.second.put(tmpN.getOrElse(toBufferIndex(tmpN, normals[i], 3, 1), ::defaultHandler))
-                                vertexBuffers[name]!!.second.put(tmpN.getOrElse(toBufferIndex(tmpN, normals[i], 3, 2), ::defaultHandler))
-                            }
-
-                            if (uvs.size == vertices.size) {
-                                vertexBuffers[name]!!.third.put(tmpUV.getOrElse(toBufferIndex(tmpUV, uvs[i], 2, 0), ::defaultHandler))
-                                vertexBuffers[name]!!.third.put(tmpUV.getOrElse(toBufferIndex(tmpUV, uvs[i], 2, 1), ::defaultHandler))
-                            }
+                        range.map {
+                            vertexBuffers[name]!!.first.put(coords[it].first)
+                            vertexBuffers[name]!!.second.put(coords[it].second)
+                            vertexBuffers[name]!!.third.put(coords[it].third)
                         }
                     }
                     "s" -> {
@@ -379,6 +380,7 @@ interface HasGeometry {
                         targetObject.vertices = vertexBuffers[name]!!.first
                         targetObject.normals = vertexBuffers[name]!!.second
                         targetObject.texcoords = vertexBuffers[name]!!.third
+                        targetObject.geometryType = GeometryType.TRIANGLES
 
                         targetObject.vertices.flip()
                         targetObject.normals.flip()
@@ -449,6 +451,63 @@ interface HasGeometry {
         }
 
         logger.info("Read ${vertexCount / vertexSize}/${normalCount / vertexSize}/${uvCount / texcoordSize} v/n/uv of model $name in ${(end - start) / 1e6} ms")
+    }
+
+    private inline fun toBufferIndex(obj: List<Number>, num: Int, vectorSize: Int, offset: Int): Int {
+        val index: Int
+        if (num >= 0) {
+            index = (num - 1) * vectorSize + offset
+        } else {
+            index = (obj.size / vectorSize + num) * vectorSize + offset
+        }
+
+        return index
+    }
+
+    private fun String.fastSplit(delim: String, limit: Int = 0, skipEmpty: Boolean = false): List<String> {
+        val ch: Char = delim.get(0)
+        var off = 0
+        val limited = limit > 0
+        val list = ArrayList<String>()
+
+        var next = indexOf(ch, off)
+        while (next != -1) {
+            if (!limited || list.size < limit - 1) {
+                if(!(skipEmpty && next - off < 1)) {
+                    list.add(substring(off, next))
+                }
+                off = next + 1
+            } else {    // last one
+                //assert (list.size() == limit - 1);
+                if(!(skipEmpty && this.length - off < 1)) {
+                    list.add(substring(off, this.length))
+                }
+                off = this.length
+                break
+            }
+
+            next = indexOf(ch, off)
+        }
+        // If no match was found, return this
+        if (off == 0)
+            return ArrayList<String>(0)
+
+        // Add remaining segment
+        if (!limited || list.size < limit) {
+            if (!(skipEmpty && this.length - off < 1)) {
+                list.add(substring(off, this.length))
+            }
+        }
+
+        // Construct result
+        var resultSize = list.size
+        if (limit == 0) {
+            while (resultSize > 0 && list.get(resultSize - 1).length == 0) {
+                resultSize--;
+            }
+        }
+
+        return list.subList(0, resultSize)
     }
 
     /**
