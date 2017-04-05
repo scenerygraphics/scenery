@@ -2,6 +2,7 @@ package graphics.scenery
 
 import cleargl.GLTypeEnum
 import cleargl.GLVector
+import java.io.Serializable
 import java.nio.ByteBuffer
 
 /**
@@ -19,9 +20,9 @@ data class GenericTexture(
     /** [NativeTypeEnum] declaring the data type stored in [contents] */
     var type: GLTypeEnum = GLTypeEnum.Byte,
     /** Byte contents of the texture */
-    var contents: ByteBuffer,
+    @Transient var contents: ByteBuffer,
     /** Shall the texture be repeated on the U/S coordinate? */
     var repeatS: Boolean = true,
     /** Shall the texture be repeated on the V/T coordinate? */
     var repeatT: Boolean = true
-)
+) : Serializable

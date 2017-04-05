@@ -67,7 +67,7 @@ class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 1
             meshM.diffuse = GLVector(0.5f, 0.5f, 0.5f)
             meshM.specular = GLVector(0.0f, 0.0f, 0.0f)
 
-            mesh.readFromOBJ(getDemoFilesPath() + "/sponza.obj", useMTL = true)
+            mesh.readFromOBJ(getDemoFilesPath() + "/sponza-crytek/sponza.obj", useMTL = true)
             mesh.position = GLVector(-200.0f, 5.0f, 200.0f)
             mesh.scale = GLVector(0.01f, 0.01f, 0.01f)
             mesh.name = "Sponza_Mesh"

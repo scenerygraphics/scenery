@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory
 import java.io.BufferedInputStream
 import java.io.File
 import java.io.FileInputStream
+import java.io.Serializable
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
@@ -20,7 +21,7 @@ import java.util.*
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-interface HasGeometry {
+interface HasGeometry : Serializable {
     /** How many elements does a vertex store? */
     val vertexSize: Int
     /** How many elements does a texcoord store? */

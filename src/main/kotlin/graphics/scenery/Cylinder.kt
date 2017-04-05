@@ -15,7 +15,7 @@ import java.util.*
 class Cylinder(var radius: Float, var height: Float, var segments: Int) : Node("cylinder"), HasGeometry {
     override val vertexSize = 3
     override val texcoordSize = 2
-    override val geometryType = GeometryType.TRIANGLE_STRIP
+    override var geometryType = GeometryType.TRIANGLE_STRIP
 
     override var vertices: FloatBuffer = BufferUtils.allocateFloat(0)
     override var normals: FloatBuffer = BufferUtils.allocateFloat(0)

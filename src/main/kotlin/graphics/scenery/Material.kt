@@ -1,6 +1,7 @@
 package graphics.scenery
 
 import cleargl.GLVector
+import java.io.Serializable
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -8,7 +9,7 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-open class Material {
+open class Material : Serializable {
     /** Name of the material. */
     var name: String = "Material"
     /** Diffuse color of the material. */

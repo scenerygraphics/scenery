@@ -1,6 +1,5 @@
 package graphics.scenery.tests.examples
 
-import cleargl.GLMatrix
 import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
@@ -9,7 +8,6 @@ import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.utils.Numerics
 import org.junit.Test
 import java.io.IOException
-import kotlin.concurrent.thread
 
 /**
  * <Description>
@@ -84,21 +82,19 @@ class VRControllerExample : SceneryDefaultApplication(VRControllerExample::class
 
             scene.addChild(hullbox)
 
-            val orcMaterial = Material()
-            orcMaterial.ambient = GLVector(0.8f, 0.8f, 0.8f)
-            orcMaterial.diffuse = GLVector(0.5f, 0.5f, 0.5f)
-            orcMaterial.specular = GLVector(0.1f, 0f, 0f)
-
-            val orcMesh = Mesh()
-            orcMesh.readFrom(getDemoFilesPath() + "/ORC6.obj")
-            orcMesh.position = GLVector(0.0f, 50.0f, -50.0f)
-            orcMesh.material = orcMaterial
-            orcMesh.scale = GLVector(1.0f, 1.0f, 1.0f)
-            orcMesh.updateWorld(true, true)
-            orcMesh.name = "ORC6"
-            orcMesh.children.forEach { it.material = orcMaterial }
-
+//            val orcMesh = Mesh()
+//            orcMesh.readFrom("F:/ExampleDatasets/vojtech/polymelt.obj", useMaterial = true)
+//            orcMesh.recalculateNormals()
+//
+//            orcMesh.material.ambient = GLVector(0.8f, 0.8f, 0.8f)
+//            orcMesh.material.diffuse = GLVector(1.0f, 0.95f, 0.95f)
+//            orcMesh.material.specular = GLVector(0.1f, 0f, 0f)
+//
+//            orcMesh.scale = GLVector(1.0f, 1.0f, 1.0f)
+//            orcMesh.updateWorld(true, true)
+//            orcMesh.children.forEach { it.material = orcMesh.material }
 //            scene.addChild(orcMesh)
+
         } catch (e: IOException) {
             e.printStackTrace()
         }

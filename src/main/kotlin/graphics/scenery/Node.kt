@@ -3,6 +3,7 @@ package graphics.scenery
 import cleargl.GLMatrix
 import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
+import java.io.Serializable
 import java.sql.Timestamp
 import java.util.*
 import java.util.concurrent.CopyOnWriteArrayList
@@ -16,11 +17,11 @@ import java.util.concurrent.locks.ReentrantLock
  *  for model, view, projection, etc.
  * @property[name] The name of the [Node]
  */
-open class Node(open var name: String) : Renderable {
+open class Node(open var name: String) : Renderable, Serializable {
 
     /** Hash map used for storing metadata for the Node. [DeferredLightingRenderer] uses
      * it to e.g. store [OpenGLObjectState]. */
-    var metadata: HashMap<String, NodeMetadata> = HashMap()
+    @Transient var metadata: HashMap<String, NodeMetadata> = HashMap()
 
     /** Material of the Node */
     override var material: Material = Material.DefaultMaterial()
@@ -109,7 +110,7 @@ open class Node(open var name: String) : Renderable {
         }
 
     /** Rotation of the Node. Setting will trigger [world] update. */
-    @Volatile override var rotation: Quaternion = Quaternion(0.0f, 0.0f, 0.0f, 1.0f)
+    @Transient @Volatile override var rotation: Quaternion = Quaternion(0.0f, 0.0f, 0.0f, 1.0f)
         set(q) {
             this.needsUpdate = true
             this.needsUpdateWorld = true
@@ -117,9 +118,9 @@ open class Node(open var name: String) : Renderable {
         }
 
     /** Children of the Node. */
-    var children: CopyOnWriteArrayList<Node>
+    @Transient var children: CopyOnWriteArrayList<Node>
     /** Other nodes that have linked transforms. */
-    var linkedNodes: CopyOnWriteArrayList<Node>
+    @Transient var linkedNodes: CopyOnWriteArrayList<Node>
     /** Parent node of this node. */
     var parent: Node? = null
 

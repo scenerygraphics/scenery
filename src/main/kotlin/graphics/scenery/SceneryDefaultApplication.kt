@@ -4,9 +4,14 @@ import cleargl.ClearGLDefaultEventListener
 import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.opengl.OpenGLRenderer
 import graphics.scenery.controls.InputHandler
+import graphics.scenery.net.NodePublisher
+import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.repl.REPL
 import graphics.scenery.utils.Statistics
 import org.slf4j.LoggerFactory
+import org.zeromq.ZContext
+import org.zeromq.ZMQ
+import kotlin.concurrent.thread
 
 /**
  * A default application to use scenery with, keeping the needed boilerplate
@@ -75,6 +80,21 @@ open class SceneryDefaultApplication(var applicationName: String,
      *
      */
     open fun main() {
+        val master = System.getProperty("scenery.master").toBoolean()
+        val context = ZContext(2)
+
+        val publisher: NodePublisher? = if(master) {
+            NodePublisher("tcp://*:6666", context)
+        } else {
+            null
+        }
+
+        var subscriber: NodeSubscriber? = if(!master) {
+            NodeSubscriber(System.getProperty("scenery.MasterNode", "tcp://localhost:6666"), context)
+        } else {
+            null
+        }
+
         hub.add(SceneryElement.Statistics, stats)
         hub.add(SceneryElement.Settings, settings)
 
@@ -102,6 +122,17 @@ open class SceneryDefaultApplication(var applicationName: String,
 
         running = true
 
+        publisher?.nodes?.put("idcamera", scene.findObserver())
+        subscriber?.nodes?.put("idcamera", scene.findObserver())
+
+        if(!master) {
+            thread {
+                while (true) {
+                    subscriber?.process()
+                }
+            }
+        }
+
         while(renderer!!.shouldClose == false) {
             val start = System.nanoTime()
 
@@ -122,6 +153,8 @@ open class SceneryDefaultApplication(var applicationName: String,
 
             val duration = System.nanoTime() - start*1.0f
             stats.add("loop", duration)
+
+            publisher?.publish()
 
             ticks++
         }

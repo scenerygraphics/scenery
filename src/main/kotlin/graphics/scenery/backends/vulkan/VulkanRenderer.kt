@@ -2022,7 +2022,6 @@ open class VulkanRenderer(hub: Hub,
         val indexAllocationBytes: Long = 4L * n.indices.remaining()
         val fullAllocationBytes: Long = vertexAllocationBytes + indexAllocationBytes
 
-        logger.info("Trying to allocate $fullAllocationBytes for ${node.name}")
         val stridedBuffer = je_malloc(fullAllocationBytes)
 
         if(stridedBuffer == null) {

@@ -4,6 +4,7 @@ import cleargl.GLMatrix
 import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.controls.HMDInput
+import java.io.Serializable
 import kotlin.reflect.KProperty
 
 /**
@@ -13,7 +14,7 @@ import kotlin.reflect.KProperty
  * @author Ulrik Günther <hello@ulrik.is>
  */
 
-class DetachedHeadCamera(var hmd: HMDInput? = null) : Camera() {
+class DetachedHeadCamera(@Transient var hmd: HMDInput? = null) : Camera() {
 
     inner class HeadOrientationDelegate {
         operator fun getValue(thisRef: Any?, property: KProperty<*>): Quaternion {
@@ -25,7 +26,7 @@ class DetachedHeadCamera(var hmd: HMDInput? = null) : Camera() {
         }
     }
 
-    inner class HeadPositionDelegate {
+    inner class HeadPositionDelegate : Serializable {
         operator fun getValue(thisRef: Any?, property: KProperty<*>): GLVector {
             return hmd?.getWorkingHMD()?.getPosition() ?: GLVector(0.0f, 0.0f, 0.0f)
         }
@@ -36,11 +37,12 @@ class DetachedHeadCamera(var hmd: HMDInput? = null) : Camera() {
     }
 
     /** Orientation of the user's head */
-    val headOrientation: Quaternion by HeadOrientationDelegate()
+//    val headOrientation: Quaternion by HeadOrientationDelegate()
     val headPosition: GLVector by HeadPositionDelegate()
 
     init {
         this.nodeType = "Camera"
+        this.name = "DetachedHeadCamera-${hmd ?: "0"}"
     }
 
     override fun getTransformation(): GLMatrix {

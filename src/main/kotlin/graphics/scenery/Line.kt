@@ -19,7 +19,7 @@ class Line : Node("Line"), HasGeometry {
     /** Size of one texcoord (e.g. 2 in 3D) */
     override val texcoordSize: Int = 0
     /** Geometry type -- Default for Line is [GeometryType.LINE] */
-    override val geometryType: GeometryType = GeometryType.LINE_STRIP_ADJACENCY
+    override var geometryType: GeometryType = GeometryType.LINE_STRIP_ADJACENCY
     /** Vertex buffer */
     override var vertices: FloatBuffer by this
     /** Normal buffer */

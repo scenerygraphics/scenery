@@ -62,23 +62,22 @@ class PowerplantExample: SceneryDefaultApplication("BoxedProteinExample", window
             hullboxMaterial.doubleSided = true
             hullbox.material = hullboxMaterial
 
-            val orcMaterial = Material()
-            orcMaterial.ambient = GLVector(0.8f, 0.8f, 0.8f)
-            orcMaterial.diffuse = GLVector(0.5f, 0.5f, 0.5f)
-            orcMaterial.specular = GLVector(0.1f, 0f, 0f)
+            val plantMaterial = Material()
+            plantMaterial.ambient = GLVector(0.8f, 0.8f, 0.8f)
+            plantMaterial.diffuse = GLVector(0.5f, 0.5f, 0.5f)
+            plantMaterial.specular = GLVector(0.1f, 0f, 0f)
 
-            val orcMesh = Mesh()
-            orcMesh.readFromOBJ(getDemoFilesPath() + "/powerplant.obj", useMTL = false)
-            orcMesh.position = GLVector(0.0f, 0.0f, 0.0f)
-//            orcMesh.scale = GLVector(1f, 1f, 1f)
+            val plant = Mesh()
+            plant.readFromOBJ(getDemoFilesPath() + "/powerplant.obj", useMTL = true)
+            plant.position = GLVector(0.0f, 0.0f, 0.0f)
             // for powerplant
-            orcMesh.scale = GLVector(0.001f, 0.001f, 0.001f)
-            orcMesh.material = Material()
-            orcMesh.children.forEach { it.material = orcMaterial }
-            orcMesh.updateWorld(true, true)
-            orcMesh.name = "rungholt"
+            plant.scale = GLVector(0.001f, 0.001f, 0.001f)
+            plant.material = Material()
+            plant.children.forEach { it.material = plantMaterial }
+            plant.updateWorld(true, true)
+            plant.name = "rungholt"
 
-            scene.addChild(orcMesh)
+            scene.addChild(plant)
 
             var ticks: Int = 0
 

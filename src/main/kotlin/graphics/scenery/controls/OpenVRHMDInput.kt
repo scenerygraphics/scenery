@@ -17,6 +17,7 @@ import org.lwjgl.vulkan.VkInstance
 import org.lwjgl.vulkan.VkPhysicalDevice
 import org.lwjgl.vulkan.VkQueue
 import java.io.File
+import java.io.Serializable
 import java.nio.IntBuffer
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
@@ -430,7 +431,6 @@ open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean
                 if (type == TrackedDeviceType.HMD) {
                     trackedDevices["$type-$device"]!!.pose.invert()
                 }
-
             }
         }
     }
