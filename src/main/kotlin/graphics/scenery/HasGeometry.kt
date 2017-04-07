@@ -447,7 +447,7 @@ interface HasGeometry : Serializable {
             if (boundingBox != null) {
                 (targetObject as Mesh).boundingBoxCoords = boundingBox!!.clone()
             } else {
-                (targetObject as Mesh).boundingBoxCoords = null
+                (targetObject as Mesh).boundingBoxCoords = floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
             }
         }
 
@@ -503,8 +503,8 @@ interface HasGeometry : Serializable {
         // Construct result
         var resultSize = list.size
         if (limit == 0) {
-            while (resultSize > 0 && list.get(resultSize - 1).length == 0) {
-                resultSize--;
+            while (resultSize > 0 && list[resultSize - 1].isEmpty()) {
+                resultSize--
             }
         }
 
@@ -523,7 +523,7 @@ interface HasGeometry : Serializable {
         val vbuffer = ArrayList<Float>()
         val nbuffer = ArrayList<Float>()
 
-        var boundingBox: FloatArray? = null
+        var boundingBox: FloatArray = floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
 
         val f = File(filename)
         if (!f.exists()) {
@@ -548,17 +548,17 @@ interface HasGeometry : Serializable {
                         val y = get(1).toFloat()
                         val z = get(2).toFloat()
 
-                        if (vbuffer.size == 0 || boundingBox == null) {
+                        if (vbuffer.size == 0) {
                             boundingBox = floatArrayOf(x, x, y, y, z, z)
                         }
 
-                        if (x < boundingBox!![0]) boundingBox!![0] = x
-                        if (y < boundingBox!![2]) boundingBox!![2] = y
-                        if (z < boundingBox!![4]) boundingBox!![4] = z
+                        if (x < boundingBox[0]) boundingBox[0] = x
+                        if (y < boundingBox[2]) boundingBox[2] = y
+                        if (z < boundingBox[4]) boundingBox[4] = z
 
-                        if (x > boundingBox!![1]) boundingBox!![1] = x
-                        if (y > boundingBox!![3]) boundingBox!![3] = y
-                        if (z > boundingBox!![5]) boundingBox!![5] = z
+                        if (x > boundingBox[1]) boundingBox[1] = x
+                        if (y > boundingBox[3]) boundingBox[3] = y
+                        if (z > boundingBox[5]) boundingBox[5] = z
 
                         vbuffer.add(x)
                         vbuffer.add(y)
@@ -623,17 +623,17 @@ interface HasGeometry : Serializable {
                     val y = readFloatFromInputStream(bis)
                     val z = readFloatFromInputStream(bis)
 
-                    if (vbuffer.size == 0 || boundingBox == null) {
+                    if (vbuffer.size == 0) {
                         boundingBox = floatArrayOf(x, x, y, y, z, z)
                     }
 
-                    if (x < boundingBox!![0]) boundingBox!![0] = x
-                    if (y < boundingBox!![2]) boundingBox!![2] = y
-                    if (z < boundingBox!![4]) boundingBox!![4] = z
+                    if (x < boundingBox[0]) boundingBox[0] = x
+                    if (y < boundingBox[2]) boundingBox[2] = y
+                    if (z < boundingBox[4]) boundingBox[4] = z
 
-                    if (x > boundingBox!![1]) boundingBox!![1] = x
-                    if (y > boundingBox!![3]) boundingBox!![3] = y
-                    if (z > boundingBox!![5]) boundingBox!![5] = z
+                    if (x > boundingBox[1]) boundingBox[1] = x
+                    if (y > boundingBox[3]) boundingBox[3] = y
+                    if (z > boundingBox[5]) boundingBox[5] = z
 
                     vbuffer.add(x)
                     vbuffer.add(y)
@@ -705,8 +705,8 @@ interface HasGeometry : Serializable {
         vertices.flip()
         normals.flip()
 
-        if (this is Mesh && boundingBox != null) {
-            logger.info("Bounding box of $name is ${boundingBox?.joinToString(",")}")
+        if (this is Mesh) {
+            logger.info("Bounding box of $name is ${boundingBox.joinToString(",")}")
             this.boundingBoxCoords = boundingBox
         }
     }

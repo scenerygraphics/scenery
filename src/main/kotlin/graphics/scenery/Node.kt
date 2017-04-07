@@ -17,7 +17,7 @@ import java.util.concurrent.locks.ReentrantLock
  *  for model, view, projection, etc.
  * @property[name] The name of the [Node]
  */
-open class Node(open var name: String) : Renderable, Serializable {
+open class Node(open var name: String = "Node") : Renderable, Serializable {
 
     /** Hash map used for storing metadata for the Node. [DeferredLightingRenderer] uses
      * it to e.g. store [OpenGLObjectState]. */
@@ -44,10 +44,8 @@ open class Node(open var name: String) : Renderable, Serializable {
     /** The Node's lock. */
     override var lock: ReentrantLock = ReentrantLock()
 
-    /** bounding box **/
-    var boundingBox: Box? = null
     /** bounding box coordinates **/
-    var boundingBoxCoords: FloatArray? = null
+    var boundingBoxCoords: FloatArray = floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
 
     /**
      * Initialisation function for the Node.
@@ -110,7 +108,7 @@ open class Node(open var name: String) : Renderable, Serializable {
         }
 
     /** Rotation of the Node. Setting will trigger [world] update. */
-    @Transient @Volatile override var rotation: Quaternion = Quaternion(0.0f, 0.0f, 0.0f, 1.0f)
+    @Volatile override var rotation: Quaternion = Quaternion(0.0f, 0.0f, 0.0f, 1.0f)
         set(q) {
             this.needsUpdate = true
             this.needsUpdateWorld = true
@@ -275,7 +273,7 @@ open class Node(open var name: String) : Renderable, Serializable {
         if (this is Mesh) {
             if (vertices.capacity() == 0) {
                 System.err.println("Zero vertices currently, returning null bounding box")
-                boundingBoxCoords = null
+                boundingBoxCoords = floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
             } else {
 
                 /*val x = vertices.filterIndexed { i, fl -> (i + 3).mod(3) == 0 }
@@ -293,7 +291,7 @@ open class Node(open var name: String) : Renderable, Serializable {
 
                 boundingBoxCoords = floatArrayOf(xmin, xmax, ymin, ymax, zmin, zmax)
                 */
-                System.err.println("Created bouding box with ${boundingBoxCoords!!.joinToString(", ")}")
+                System.err.println("Created bouding box with ${boundingBoxCoords.joinToString(", ")}")
             }
         } else {
             System.err.println("Assuming 3rd party BB generation")
