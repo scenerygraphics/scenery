@@ -5,6 +5,7 @@ import cleargl.GLVector
 import com.esotericsoftware.kryo.Kryo
 import com.esotericsoftware.kryo.io.Input
 import com.esotericsoftware.kryo.io.UnsafeInput
+import com.esotericsoftware.kryo.io.UnsafeMemoryInput
 import com.esotericsoftware.minlog.Log
 import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.Camera
@@ -58,7 +59,7 @@ class NodeSubscriber(val address: String = "tcp://localhost:6666", val context: 
                 if(msg == size.toInt()) {
                     nodes[id]?.let { node ->
                         val bin = ByteArrayInputStream(payload)
-                        val input = UnsafeInput(bin)
+                        val input = UnsafeMemoryInput(bin)
                         val o = kryo.readClassAndObject(input) as Camera
 
                         node.position = o.position

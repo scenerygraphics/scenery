@@ -4,6 +4,7 @@ import cleargl.GLMatrix
 import cleargl.GLVector
 import com.esotericsoftware.kryo.Kryo
 import com.esotericsoftware.kryo.io.Output
+import com.esotericsoftware.kryo.io.UnsafeMemoryOutput
 import com.esotericsoftware.kryo.io.UnsafeOutput
 import com.esotericsoftware.minlog.Log
 import com.jogamp.opengl.math.Quaternion
@@ -42,7 +43,7 @@ class NodePublisher(val address: String = "tcp://*:6666", val context: ZContext)
 
     fun publish() {
         val bos = ByteArrayOutputStream()
-        val output = UnsafeOutput(bos)
+        val output = UnsafeMemoryOutput(bos)
         output.flush()
 
         nodes.forEach { guid, node ->
