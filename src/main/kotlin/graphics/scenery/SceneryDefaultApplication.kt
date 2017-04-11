@@ -124,9 +124,7 @@ open class SceneryDefaultApplication(var applicationName: String,
         running = true
 
         publisher?.nodes?.put(13337, scene.findObserver())
-        publisher?.nodes?.put(13338, scene.children.first())
         subscriber?.nodes?.put(13337, scene.findObserver())
-        subscriber?.nodes?.put(13338, scene.children.first())
 
         if(!master) {
             thread {

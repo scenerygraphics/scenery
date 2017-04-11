@@ -3,7 +3,7 @@ package graphics.scenery.net
 import cleargl.GLMatrix
 import cleargl.GLVector
 import com.esotericsoftware.kryo.Kryo
-import com.esotericsoftware.kryo.io.UnsafeMemoryOutput
+import com.esotericsoftware.kryo.io.Output
 import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.*
 import graphics.scenery.utils.Statistics
@@ -12,7 +12,6 @@ import org.zeromq.ZContext
 import org.zeromq.ZMQ
 import java.io.ByteArrayOutputStream
 import java.io.IOException
-import java.nio.ByteBuffer
 import java.util.*
 
 /**
@@ -38,19 +37,16 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://*:6666"
     }
 
     fun publish() {
-        val idBuf = ByteBuffer.allocate(4)
-
         nodes.forEach { guid, node ->
             val start = System.nanoTime()
             try {
                 val bos = ByteArrayOutputStream()
-                val output = UnsafeMemoryOutput(bos)
+                val output = Output(bos)
                 kryo.writeClassAndObject(output, node)
                 output.flush()
 
                 val payload = bos.toByteArray()
-                idBuf.putInt(0, guid)
-                publisher.sendMore(idBuf.array())
+                publisher.sendMore(guid.toString())
                 publisher.send(bos.toByteArray())
                 logger.info("Sending ${node.name} with length ${payload.size}")
 

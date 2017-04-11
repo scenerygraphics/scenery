@@ -3,7 +3,7 @@ package graphics.scenery.net
 import cleargl.GLMatrix
 import cleargl.GLVector
 import com.esotericsoftware.kryo.Kryo
-import com.esotericsoftware.kryo.io.UnsafeMemoryInput
+import com.esotericsoftware.kryo.io.Input
 import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.*
 import graphics.scenery.utils.Statistics
@@ -13,7 +13,6 @@ import org.zeromq.ZContext
 import org.zeromq.ZMQ
 import java.io.ByteArrayInputStream
 import java.io.StreamCorruptedException
-import java.nio.ByteBuffer
 import java.util.*
 
 /**
@@ -46,7 +45,7 @@ class NodeSubscriber(override var hub: Hub?, val address: String = "udp://localh
             var duration = 0L
             try {
                 start = System.nanoTime()
-                val id = ByteBuffer.wrap(subscriber.recv()).getInt(0)
+                val id = subscriber.recvStr().toInt()
 
 //                logger.info("Received $id for deserializiation")
                 duration = (System.nanoTime() - start)
@@ -58,7 +57,7 @@ class NodeSubscriber(override var hub: Hub?, val address: String = "udp://localh
                     nodes[id]?.let { node ->
 //                        logger.info("Deserializing $node from payload ${payload.size}")
                         val bin = ByteArrayInputStream(payload)
-                        val input = UnsafeMemoryInput(bin)
+                        val input = Input(bin)
                         val o = kryo.readClassAndObject(input) as Node
 
 //                        logger.info("Deserialized ${o.name}")
