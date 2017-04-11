@@ -3,29 +3,27 @@ package graphics.scenery.net
 import cleargl.GLMatrix
 import cleargl.GLVector
 import com.esotericsoftware.kryo.Kryo
-import com.esotericsoftware.kryo.io.Input
-import com.esotericsoftware.kryo.io.UnsafeInput
 import com.esotericsoftware.kryo.io.UnsafeMemoryInput
-import com.esotericsoftware.minlog.Log
 import com.jogamp.opengl.math.Quaternion
-import graphics.scenery.Camera
-import graphics.scenery.DetachedHeadCamera
-import graphics.scenery.Node
+import graphics.scenery.*
+import graphics.scenery.utils.Statistics
 import org.objenesis.strategy.StdInstantiatorStrategy
 import org.slf4j.LoggerFactory
 import org.zeromq.ZContext
 import org.zeromq.ZMQ
-import java.io.*
+import java.io.ByteArrayInputStream
+import java.io.StreamCorruptedException
+import java.nio.ByteBuffer
+import java.util.*
 
 /**
  * Created by ulrik on 4/4/2017.
  */
-class NodeSubscriber(val address: String = "tcp://localhost:6666", val context: ZContext) {
+class NodeSubscriber(override var hub: Hub?, val address: String = "udp://localhost:6666", val context: ZContext) : Hubable {
 
     var logger = LoggerFactory.getLogger("NodeSubscriber")
-    var nodes: HashMap<String, Node> = HashMap()
+    var nodes: HashMap<Int, Node> = HashMap()
     var subscriber: ZMQ.Socket = context.createSocket(ZMQ.SUB)
-
     val kryo = Kryo()
 
     init {
@@ -43,27 +41,31 @@ class NodeSubscriber(val address: String = "tcp://localhost:6666", val context: 
     }
 
     fun process() {
-        while(true) {
+        while (true) {
+            var start = 0L
+            var duration = 0L
             try {
-                val id = subscriber.recvStr()
-                val size = subscriber.recvStr()
+                start = System.nanoTime()
+                val id = ByteBuffer.wrap(subscriber.recv()).getInt(0)
 
-                val payload = ByteArray(size.toInt())
-                val msg = subscriber.recv(payload, 0, size.toInt(), 0)
+//                logger.info("Received $id for deserializiation")
+                duration = (System.nanoTime() - start)
+                val payload = subscriber.recv()
 
-                if(msg == -1) {
-                    logger.error("Error on receiving for $id of size $size")
-                    continue
-                }
+//                logger.info("Have: ${nodes.keys.joinToString(", ")}, payload: ${payload != null}")
 
-                if(msg == size.toInt()) {
+                if (payload != null) {
                     nodes[id]?.let { node ->
+//                        logger.info("Deserializing $node from payload ${payload.size}")
                         val bin = ByteArrayInputStream(payload)
                         val input = UnsafeMemoryInput(bin)
-                        val o = kryo.readClassAndObject(input) as Camera
+                        val o = kryo.readClassAndObject(input) as Node
 
-                        node.position = o.position
-                        node.rotation = o.rotation
+//                        logger.info("Deserialized ${o.name}")
+                        if(o.name == node.name) {
+                            node.position = o.position
+                            node.rotation = o.rotation
+                        }
 
                         input.close()
                         bin.close()
@@ -72,6 +74,9 @@ class NodeSubscriber(val address: String = "tcp://localhost:6666", val context: 
             } catch(e: StreamCorruptedException) {
                 logger.warn("Corrupted stream")
             }
+
+            hub?.get<Statistics>(SceneryElement.Statistics)?.add("Deserialise", duration.toFloat())
+
         }
     }
 

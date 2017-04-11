@@ -10,7 +10,6 @@ import graphics.scenery.repl.REPL
 import graphics.scenery.utils.Statistics
 import org.slf4j.LoggerFactory
 import org.zeromq.ZContext
-import org.zeromq.ZMQ
 import kotlin.concurrent.thread
 
 /**
@@ -84,13 +83,15 @@ open class SceneryDefaultApplication(var applicationName: String,
         val context = ZContext(2)
 
         val publisher: NodePublisher? = if(master) {
-            NodePublisher("tcp://*:6666", context)
+            NodePublisher(hub, "tcp://*:6666", context)
         } else {
             null
         }
 
         var subscriber: NodeSubscriber? = if(!master) {
-            NodeSubscriber(System.getProperty("scenery.MasterNode", "tcp://localhost:6666"), context)
+            val masterAddress = System.getProperty("scenery.MasterNode", "tcp://localhost:6666")
+            logger.info("Will connect to master at $masterAddress")
+            NodeSubscriber(hub, masterAddress, context)
         } else {
             null
         }
@@ -122,8 +123,10 @@ open class SceneryDefaultApplication(var applicationName: String,
 
         running = true
 
-        publisher?.nodes?.put("idcamera", scene.findObserver())
-        subscriber?.nodes?.put("idcamera", scene.findObserver())
+        publisher?.nodes?.put(13337, scene.findObserver())
+        publisher?.nodes?.put(13338, scene.children.first())
+        subscriber?.nodes?.put(13337, scene.findObserver())
+        subscriber?.nodes?.put(13338, scene.children.first())
 
         if(!master) {
             thread {

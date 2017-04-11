@@ -24,7 +24,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
     @Transient var metadata: HashMap<String, NodeMetadata> = HashMap()
 
     /** Material of the Node */
-    override var material: Material = Material.DefaultMaterial()
+    @Transient override var material: Material = Material.DefaultMaterial()
     /** Initialisation flag. */
     override var initialized: Boolean = false
     /** Whether the Node is dirty and needs updating. */

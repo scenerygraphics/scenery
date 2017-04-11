@@ -35,6 +35,14 @@ class Hub {
         return elements.get(type)
     }
 
+    fun <T: Hubable> get(type: SceneryElement): T? {
+        if(elements.containsKey(type)) {
+            return elements.get(type) as T
+        } else {
+            return null
+        }
+    }
+
     /**
      * Check whether the Hub has this type of [SceneryElement] registered
      *
