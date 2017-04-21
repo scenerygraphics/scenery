@@ -13,6 +13,7 @@ import javax.imageio.ImageIO
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
+import org.mozilla.javascript.jdk13.VMBridge_jdk13
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.*
@@ -26,7 +27,7 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
                     val memoryProperties: VkPhysicalDeviceMemoryProperties,
                     val commandPool: Long, val queue: VkQueue,
                     val width: Int, val height: Int, val depth: Int = 1,
-                    val format: Int = VK_FORMAT_R8G8B8_SRGB, val mipLevels: Int = 1,
+                    val format: Int = VK_FORMAT_R8G8B8_SRGB, var mipLevels: Int = 1,
                     val minFilterLinear: Boolean = true, val maxFilterLinear: Boolean = true) : AutoCloseable {
     protected var logger: Logger = LoggerFactory.getLogger("VulkanRenderer")
 
@@ -98,7 +99,7 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
             mipLevels = 1)
     }
 
-    private fun createImage(width: Int, height: Int, depth: Int, format: Int, usage: Int, tiling: Int, memoryFlags: Int, mipLevels: Int): VulkanImage {
+    fun createImage(width: Int, height: Int, depth: Int, format: Int, usage: Int, tiling: Int, memoryFlags: Int, mipLevels: Int): VulkanImage {
         val extent = VkExtent3D.calloc().set(width, height, depth)
         val imageInfo = VkImageCreateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO)
@@ -205,6 +206,13 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
                     imageBlit.srcSubresource().set(VK_IMAGE_ASPECT_COLOR_BIT, mipLevel - 1, 0, 1)
                     imageBlit.srcOffsets(1).set(width shr (mipLevel - 1), height shr (mipLevel - 1), 1)
 
+                    val dstWidth = width shr mipLevel
+                    val dstHeight = height shr mipLevel
+
+                    if(dstWidth < 2 || dstHeight < 2) {
+                        return@forEach
+                    }
+
                     imageBlit.dstSubresource().set(VK_IMAGE_ASPECT_COLOR_BIT, mipLevel, 0, 1)
                     imageBlit.dstOffsets(1).set(width shr (mipLevel), height shr (mipLevel), 1)
 
@@ -212,9 +220,11 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
                         .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
                         .baseArrayLayer(0)
                         .layerCount(1)
-                        .baseMipLevel(mipLevel)
+                        .baseMipLevel(mipLevel-1)
+                        .levelCount(1)
 
-                    transitionLayout(image!!.image, VK_IMAGE_LAYOUT_UNDEFINED,
+                    transitionLayout(image!!.image,
+                        VK_IMAGE_LAYOUT_UNDEFINED,
                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                         subresourceRange = mipRange,
                         srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
@@ -226,16 +236,13 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
                         image!!.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                         imageBlit, VK_FILTER_LINEAR)
 
-                    transitionLayout(image!!.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, subresourceRange = mipRange,
+                    transitionLayout(image!!.image,
+                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, subresourceRange = mipRange,
                         srcStage = VK_PIPELINE_STAGE_HOST_BIT,
                         dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
                         commandBuffer = this@mipmapCreation)
                 }
-
-                transitionLayout(image!!.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, mipLevels,
-                    commandBuffer = this@mipmapCreation)
 
                 this@mipmapCreation.endCommandBuffer(device, commandPool, queue, flush = true, dealloc = true)
             }
@@ -249,7 +256,7 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
 
     }
 
-    private fun createImageView(image: VulkanImage, format: Int): Long {
+    fun createImageView(image: VulkanImage, format: Int): Long {
         val subresourceRange = VkImageSubresourceRange.calloc().set(VK_IMAGE_ASPECT_COLOR_BIT, 0, mipLevels, 0, 1)
 
         val vi = VkImageViewCreateInfo.calloc()
@@ -528,7 +535,12 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
                     barrier
                         .srcAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
                         .dstAccessMask(VK_ACCESS_MEMORY_READ_BIT)
-                } else {
+                } else if(oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+                    barrier
+                        .srcAccessMask(0)
+                        .dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
+                }
+                else {
                     logger.error("Unsupported layout transition: $oldLayout -> $newLayout")
                 }
 

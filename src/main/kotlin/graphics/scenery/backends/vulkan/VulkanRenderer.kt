@@ -103,10 +103,17 @@ open class VulkanRenderer(hub: Hub,
             // create new swapchain with changed surface parameters
             with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
                 // Create the swapchain (this will also add a memory barrier to initialize the framebuffer images)
-                swapchain = VulkanSwapchain(window,
-                    device, physicalDevice, queue, commandPools.Standard,
-                    surface, useSRGB = true)
-                    .create(oldSwapchain = swapchain)
+                swapchain = if (wantsOpenGLSwapchain) {
+                    OpenGLSwapchain(window,
+                        device, physicalDevice, memoryProperties, queue, commandPools.Standard,
+                        surface, useSRGB = true)
+                        .create(oldSwapchain = swapchain)
+                } else {
+                    VulkanSwapchain(window,
+                        device, physicalDevice, queue, commandPools.Standard,
+                        surface, useSRGB = true)
+                        .create(oldSwapchain = swapchain)
+                }
 
                 this.endCommandBuffer(device, commandPools.Standard, queue, flush = true, dealloc = true)
 
@@ -209,6 +216,7 @@ open class VulkanRenderer(hub: Hub,
     protected var renderCommandBuffers: Array<VkCommandBuffer>? = null
 
     protected val validation = java.lang.Boolean.parseBoolean(System.getProperty("scenery.VulkanRenderer.EnableValidations", "false"))
+    protected val wantsOpenGLSwapchain = java.lang.Boolean.parseBoolean(System.getProperty("scenery.VulkanRenderer.UseOpenGLSwapchain", "false"))
     protected val layers = arrayOf<ByteBuffer>(memUTF8("VK_LAYER_LUNARG_standard_validation"))
 
     protected var instance: VkInstance
@@ -323,12 +331,20 @@ open class VulkanRenderer(hub: Hub,
 
         // Create GLFW window
         glfwDefaultWindowHints()
-        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API)
-//        glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API)
-//        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE)
-//        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4)
-//        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2)
-//        glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE)
+
+        if (wantsOpenGLSwapchain) {
+            glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API)
+            glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE)
+            glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE)
+            glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4)
+            glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3)
+            glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE)
+
+            glfwWindowHint(GLFW_STEREO, if(renderConfig.stereoEnabled) { GLFW_TRUE } else { GLFW_FALSE })
+        } else {
+            glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API)
+        }
+
 
         window.glfwWindow = glfwCreateWindow(window.width, window.height, "scenery", NULL, NULL)
         glfwSetWindowPos(window.glfwWindow!!, 100, 100)
@@ -337,7 +353,6 @@ open class VulkanRenderer(hub: Hub,
             glfwCreateWindowSurface(instance, window.glfwWindow!!, null, this)
         }
 
-        logger.info("Can render OpenGL -> Vulkan: ${glfwExtensionSupported("NV_draw_vulkan_image")}")
         swapchainRecreator = SwapchainRecreator()
 
         with(commandPools) {
@@ -1495,7 +1510,7 @@ open class VulkanRenderer(hub: Hub,
 
         val ppEnabledLayerNames = memAllocPointer(layers.size)
         var i = 0
-        while (validation && i < layers.size) {
+        while (!wantsOpenGLSwapchain && validation && i < layers.size) {
             ppEnabledLayerNames.put(layers[i])
             i++
         }
@@ -1637,14 +1652,18 @@ open class VulkanRenderer(hub: Hub,
 
         val ppEnabledLayerNames = memAllocPointer(layers.size)
         var i = 0
-        while (validation && i < layers.size) {
+        while (!wantsOpenGLSwapchain && validation && i < layers.size) {
             ppEnabledLayerNames.put(layers[i])
             i++
         }
         ppEnabledLayerNames.flip()
 
-        if (validation) {
+        if (validation && !wantsOpenGLSwapchain) {
             logger.warn("Enabled Vulkan API validations. Expect degraded performance.")
+        }
+
+        if(wantsOpenGLSwapchain && validation) {
+            logger.warn("Using OpenGL-based swapchain. API validations deactivated.")
         }
 
         val deviceCreateInfo = VkDeviceCreateInfo.calloc()
