@@ -2,7 +2,6 @@ package graphics.scenery.backends.vulkan
 
 import cleargl.GLMatrix
 import cleargl.GLVector
-import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.*
 import graphics.scenery.backends.*
 import graphics.scenery.controls.HMDInput
@@ -91,22 +90,6 @@ open class VulkanRenderer(hub: Hub,
         internal var memoryProperties: VkPhysicalDeviceMemoryProperties? = null
     }
 
-    class ColorFormatAndSpace {
-        internal var colorFormat: Int = 0
-        internal var colorSpace: Int = 0
-    }
-
-    inner class Swapchain : AutoCloseable {
-        internal var handle: Long = 0
-        internal var images: LongArray? = null
-        internal var imageViews: LongArray? = null
-
-        override fun close() {
-//            imageViews?.map { vkDestroyImageView(device, it, null) }
-//            images?.map { vkDestroyImage(device, it, null) }
-        }
-    }
-
     class Pipeline {
         internal var pipeline: Long = 0
         internal var layout: Long = 0
@@ -119,15 +102,11 @@ open class VulkanRenderer(hub: Hub,
             logger.info("Recreating Swapchain at frame $frames")
             // create new swapchain with changed surface parameters
             with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
-                val oldChain = swapchain?.handle ?: VK_NULL_HANDLE
-
                 // Create the swapchain (this will also add a memory barrier to initialize the framebuffer images)
-                swapchain = createSwapChain(
-                    device, physicalDevice,
-                    surface, oldChain,
-                    window.width, window.height,
-                    colorFormatAndSpace.colorFormat,
-                    colorFormatAndSpace.colorSpace)
+                swapchain = VulkanSwapchain(window,
+                    device, physicalDevice, queue, commandPools.Standard,
+                    surface, useSRGB = true)
+                    .create(oldSwapchain = swapchain)
 
                 this.endCommandBuffer(device, commandPools.Standard, queue, flush = true, dealloc = true)
 
@@ -144,10 +123,7 @@ open class VulkanRenderer(hub: Hub,
                     { vkCreatePipelineCache(device, pipelineCacheInfo, null, this) },
                     { pipelineCacheInfo.free() })
 
-                renderpasses.forEach { s, vulkanRenderpass ->
-                    vulkanRenderpass.close()
-                }
-
+                renderpasses.values.forEach { it.close() }
                 renderpasses.clear()
 
                 renderpasses = prepareRenderpassesFromConfig(renderConfig, window.width, window.height)
@@ -170,7 +146,7 @@ open class VulkanRenderer(hub: Hub,
 
     var debugCallback = object : VkDebugReportCallbackEXT() {
         override operator fun invoke(flags: Int, objectType: Int, obj: Long, location: Long, messageCode: Int, pLayerPrefix: Long, pMessage: Long, pUserData: Long): Int {
-            var dbg = if (flags and VK_DEBUG_REPORT_DEBUG_BIT_EXT == 1) {
+            val dbg = if (flags and VK_DEBUG_REPORT_DEBUG_BIT_EXT == 1) {
                 " (debug)"
             } else {
                 ""
@@ -212,16 +188,16 @@ open class VulkanRenderer(hub: Hub,
 
     // end helper vars
 
-    override var hub: Hub? = null
+    final override var hub: Hub? = null
     protected var applicationName = ""
-    override var settings: Settings = Settings()
+    final override var settings: Settings = Settings()
     protected var logger: Logger = LoggerFactory.getLogger("VulkanRenderer")
     override var shouldClose = false
     var toggleFullscreen = false
     override var managesRenderLoop = false
     var screenshotRequested = false
 
-    var firstWaitSemaphore = memAllocLong(1)
+    var firstWaitSemaphore: LongBuffer = memAllocLong(1)
 
     var scene: Scene = Scene()
 
@@ -250,7 +226,6 @@ open class VulkanRenderer(hub: Hub,
     protected var semaphoreCreateInfo: VkSemaphoreCreateInfo
 
     // Create static Vulkan resources
-    protected var colorFormatAndSpace: ColorFormatAndSpace
     protected var postPresentCommandBuffer: VkCommandBuffer
     protected var queue: VkQueue
     protected var descriptorPool: Long
@@ -258,11 +233,9 @@ open class VulkanRenderer(hub: Hub,
     protected var standardUBOs = ConcurrentHashMap<String, UBO>()
 
     protected var swapchain: Swapchain? = null
-    protected var pSwapchains: LongBuffer = memAllocLong(1)
-    protected var swapchainImage: IntBuffer = memAllocInt(1)
     protected var ph = PresentHelpers()
 
-    override var window = SceneryWindow()
+    final override var window = SceneryWindow()
 
     protected val swapchainRecreator: SwapchainRecreator
     protected var pipelineCache: Long = -1L
@@ -351,7 +324,12 @@ open class VulkanRenderer(hub: Hub,
         // Create GLFW window
         glfwDefaultWindowHints()
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API)
-        glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE)
+//        glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API)
+//        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE)
+//        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4)
+//        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2)
+//        glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE)
+
         window.glfwWindow = glfwCreateWindow(window.width, window.height, "scenery", NULL, NULL)
         glfwSetWindowPos(window.glfwWindow!!, 100, 100)
 
@@ -359,10 +337,8 @@ open class VulkanRenderer(hub: Hub,
             glfwCreateWindowSurface(instance, window.glfwWindow!!, null, this)
         }
 
+        logger.info("Can render OpenGL -> Vulkan: ${glfwExtensionSupported("NV_draw_vulkan_image")}")
         swapchainRecreator = SwapchainRecreator()
-
-        // create resolution-independent resources
-        colorFormatAndSpace = getColorFormatAndSpace(physicalDevice, surface)
 
         with(commandPools) {
             Render = createCommandPool(device, queueFamilyIndex)
@@ -488,6 +464,7 @@ open class VulkanRenderer(hub: Hub,
 
     // source: http://stackoverflow.com/questions/34697828/parallel-operations-on-kotlin-collections
     // Thanks to Holger :-)
+    @Suppress("UNUSED")
     fun <T, R> Iterable<T>.parallelMap(
         numThreads: Int = Runtime.getRuntime().availableProcessors(),
         exec: ExecutorService = Executors.newFixedThreadPool(numThreads),
@@ -507,14 +484,13 @@ open class VulkanRenderer(hub: Hub,
         return ArrayList<R>(destination)
     }
 
+    @Suppress("UNUSED")
     fun setCurrentScene(scene: Scene) {
         this.scene = scene
     }
 
     /**
-     * This function should initialize the scene contents.
-     *
-     * @param[scene] The scene to initialize.
+     * This function should initialize the current scene contents.
      */
     override fun initializeScene() {
         logger.info("Scene initialization started.")
@@ -546,7 +522,7 @@ open class VulkanRenderer(hub: Hub,
         board.indices = m.indices
         board.texcoords = m.texcoords
 
-        if (board.initialized == false) {
+        if (!board.initialized) {
             board.metadata.put("VulkanRenderer", VulkanObjectState())
             initializeNode(board)
         } else {
@@ -747,7 +723,7 @@ open class VulkanRenderer(hub: Hub,
                     val shaders = (sp as ShaderPreference).shaders
                     logger.info("initializing preferred pipeline for ${node.name} from $shaders")
                     pass.value.initializePipeline("preferred-${node.name}",
-                        shaders.map { VulkanShaderModule(device, "main", "shaders/" + it + ".spv") },
+                        shaders.map { VulkanShaderModule(device, "main", "shaders/$it.spv") },
 
                         vertexInputType = s.vertexDescription!!)
                 }
@@ -781,11 +757,7 @@ open class VulkanRenderer(hub: Hub,
 
                 val slot = VulkanObjectState.textureTypeToSlot(type)
 
-                val generateMipmaps = if (type == "ambient" || type == "diffuse" || type == "specular") {
-                    true
-                } else {
-                    false
-                }
+                val generateMipmaps = (type == "ambient" || type == "diffuse" || type == "specular")
 
                 logger.debug("${node.name} will have $type texture from $texture in slot $slot")
 
@@ -894,7 +866,7 @@ open class VulkanRenderer(hub: Hub,
         val map = ConcurrentHashMap<VertexDataKinds, VertexDescription>()
 
         VertexDataKinds.values().forEach { kind ->
-            var attributeDesc: VkVertexInputAttributeDescription.Buffer
+            val attributeDesc: VkVertexInputAttributeDescription.Buffer
             var stride = 0
 
             when (kind) {
@@ -1019,7 +991,7 @@ open class VulkanRenderer(hub: Hub,
         var position: Int
         var offset = 0
 
-        (0..attributeDescs.capacity() - 1).forEachIndexed { i, attr ->
+        (0..attributeDescs.capacity() - 1).forEach { i ->
             newAttributeDesc[i].set(attributeDescs[i])
             offset += newAttributeDesc[i].offset()
             logger.debug("location(${newAttributeDesc[i].location()})")
@@ -1041,7 +1013,7 @@ open class VulkanRenderer(hub: Hub,
                     .format(attribInfo.format)
                     .offset(offset)
 
-                logger.debug("location($position, ${it}/${attribInfo.elementCount}) for ${property.first}, type: ${property.second.invoke().javaClass.simpleName}")
+                logger.debug("location($position, $it/${attribInfo.elementCount}) for ${property.first}, type: ${property.second.invoke().javaClass.simpleName}")
                 logger.debug("   .format(${attribInfo.format})")
                 logger.debug("   .offset($offset)")
 
@@ -1050,7 +1022,7 @@ open class VulkanRenderer(hub: Hub,
             }
         }
 
-        logger.debug("stride(${offset}), ${bindingDescs.capacity()}")
+        logger.debug("stride($offset), ${bindingDescs.capacity()}")
 
         val newBindingDesc = VkVertexInputBindingDescription.calloc(bindingDescs.capacity() + 1)
         newBindingDesc[0].set(bindingDescs[0])
@@ -1110,7 +1082,7 @@ open class VulkanRenderer(hub: Hub,
             // create framebuffer
             with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
                 config.rendertargets?.filter { it.key == passConfig.output }?.map { rt ->
-                    logger.info("Creating render framebuffer ${rt.key} for pass ${passName}")
+                    logger.info("Creating render framebuffer ${rt.key} for pass $passName")
 
                     if (framebuffers.containsKey(rt.key)) {
                         logger.info("Reusing already created framebuffer")
@@ -1155,7 +1127,7 @@ open class VulkanRenderer(hub: Hub,
                     // let's also create the default framebuffers
                     pass.commandBufferCount = swapchain!!.images!!.size
 
-                    swapchain!!.images!!.forEachIndexed { i, image ->
+                    swapchain!!.images!!.forEachIndexed { i, _ ->
                         val fb = VulkanFramebuffer(device, physicalDevice, commandPools.Standard,
                             width, height, this@with)
 
@@ -1249,6 +1221,7 @@ open class VulkanRenderer(hub: Hub,
         return map
     }
 
+    @Suppress("UNUSED")
     fun Long.hex(): String {
         return String.format("0x%X", this)
     }
@@ -1267,19 +1240,9 @@ open class VulkanRenderer(hub: Hub,
     }
 
     fun beginFrame() {
-        // this will wait infinite time or until an error occurs, then signal
-        // that an image is available
-        var err = vkAcquireNextImageKHR(device, swapchain!!.handle, UINT64_MAX,
-            semaphores[StandardSemaphores.present_complete]!!.get(0),
-            VK_NULL_HANDLE, swapchainImage)
-
-        if (err == VK_ERROR_OUT_OF_DATE_KHR || err == VK_SUBOPTIMAL_KHR) {
-            swapchainRecreator.mustRecreate = true
-        } else if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to acquire next swapchain image: " + VU.translate(err))
-        }
+        swapchainRecreator.mustRecreate = swapchain!!.next(timeout = UINT64_MAX,
+            waitForSemaphore = semaphores[StandardSemaphores.present_complete]!!.get(0))
     }
-
 
     fun submitFrame(queue: VkQueue, pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer, present: PresentHelpers) {
         val submitInfo = VkSubmitInfo.calloc()
@@ -1292,38 +1255,19 @@ open class VulkanRenderer(hub: Hub,
             .pSignalSemaphores(present.signalSemaphore)
 
         // Submit to the graphics queue
-        var err = vkQueueSubmit(queue, submitInfo, commandBuffer.fence.get(0))
+        val err = vkQueueSubmit(queue, submitInfo, commandBuffer.fence.get(0))
         if (err != VK_SUCCESS) {
             throw AssertionError("Frame $frames: Failed to submit render queue: " + VU.translate(err))
         }
 
         commandBuffer.submitted = true
-
-        // Present the current buffer to the swap chain
-        // This will display the image
-        pSwapchains.put(0, swapchain!!.handle)
-
-        // Info struct to present the current swapchain image to the display
-        val presentInfo = VkPresentInfoKHR.calloc()
-            .sType(VK_STRUCTURE_TYPE_PRESENT_INFO_KHR)
-            .pNext(NULL)
-            .pWaitSemaphores(present.signalSemaphore)
-            .swapchainCount(pSwapchains.remaining())
-            .pSwapchains(pSwapchains)
-            .pImageIndices(swapchainImage)
-            .pResults(null)
-
-        err = vkQueuePresentKHR(queue, presentInfo)
-        if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to present the swapchain image: " + VU.translate(err))
-        }
-
+        swapchain!!.present(ph.signalSemaphore)
         commandBuffer.waitForFence()
 
         // submit to OpenVR if attached
         hub?.getWorkingHMD()?.wantsVR()?.submitToCompositorVulkan(
             window.width, window.height,
-            VK_FORMAT_R8G8B8A8_SRGB,
+            swapchain!!.format,
             instance, device, physicalDevice,
             queue, queueFamilyIndex,
             swapchain!!.images!![pass.getReadPosition()])
@@ -1413,19 +1357,16 @@ open class VulkanRenderer(hub: Hub,
         }
 
         submitInfo.free()
-        presentInfo.free()
     }
 
     /**
      * This function renders the scene
-     *
-     * @param[scene] The scene to render.
      */
     @Synchronized override fun render() {
         pollEvents()
 
         // check whether scene is already initialized
-        if (scene.children.count() == 0 || scene.initialized == false) {
+        if (scene.children.count() == 0 || !scene.initialized) {
             initializeScene()
 
             Thread.sleep(200)
@@ -1454,7 +1395,7 @@ open class VulkanRenderer(hub: Hub,
         // firstWaitSemaphore is now the render_complete semaphore of the previous pass
         firstWaitSemaphore.put(0, semaphores[StandardSemaphores.present_complete]!!.get(0))
 
-        flow.take(flow.size - 1).forEachIndexed { i, t ->
+        flow.take(flow.size - 1).forEach { t ->
             logger.debug("Running pass {}", t)
             val target = renderpasses[t]!!
             val commandBuffer = target.commandBuffer
@@ -1667,8 +1608,7 @@ open class VulkanRenderer(hub: Hub,
         vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, pQueueFamilyPropertyCount, queueProps)
         memFree(pQueueFamilyPropertyCount)
 
-        var graphicsQueueFamilyIndex: Int
-        graphicsQueueFamilyIndex = 0
+        var graphicsQueueFamilyIndex: Int = 0
         while (graphicsQueueFamilyIndex < queueCount) {
             if (queueProps.get(graphicsQueueFamilyIndex).queueFlags() and VK_QUEUE_GRAPHICS_BIT != 0)
                 break
@@ -1734,100 +1674,11 @@ open class VulkanRenderer(hub: Hub,
         deviceCreateInfo.free()
         memFree(ppEnabledLayerNames)
         memFree(VK_KHR_SWAPCHAIN_EXTENSION)
-        utf8Exts.forEach { memFree(it) }
+        utf8Exts.forEach(::memFree)
         memFree(extensions)
         memFree(pQueuePriorities)
         queueCreateInfo.free()
 
-        return ret
-    }
-
-
-    private fun getColorFormatAndSpace(physicalDevice: VkPhysicalDevice, surface: Long): ColorFormatAndSpace {
-        val pQueueFamilyPropertyCount = memAllocInt(1)
-        vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, pQueueFamilyPropertyCount, null)
-        val queueCount = pQueueFamilyPropertyCount.get(0)
-        val queueProps = VkQueueFamilyProperties.calloc(queueCount)
-        vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, pQueueFamilyPropertyCount, queueProps)
-        memFree(pQueueFamilyPropertyCount)
-
-        // Iterate over each queue to learn whether it supports presenting:
-        val supportsPresent = memAllocInt(queueCount)
-        for (i in 0..queueCount - 1) {
-            supportsPresent.position(i)
-            val err = vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, surface, supportsPresent)
-            if (err != VK_SUCCESS) {
-                throw AssertionError("Failed to physical device surface support: " + VU.translate(err))
-            }
-        }
-
-        // Search for a graphics and a present queue in the array of queue families, try to find one that supports both
-        var graphicsQueueNodeIndex = Integer.MAX_VALUE
-        var presentQueueNodeIndex = Integer.MAX_VALUE
-        for (i in 0..queueCount - 1) {
-            if (queueProps.get(i).queueFlags() and VK_QUEUE_GRAPHICS_BIT != 0) {
-                if (graphicsQueueNodeIndex == Integer.MAX_VALUE) {
-                    graphicsQueueNodeIndex = i
-                }
-                if (supportsPresent.get(i) == VK_TRUE) {
-                    graphicsQueueNodeIndex = i
-                    presentQueueNodeIndex = i
-                    break
-                }
-            }
-        }
-        queueProps.free()
-        if (presentQueueNodeIndex == Integer.MAX_VALUE) {
-            // If there's no queue that supports both present and graphics try to find a separate present queue
-            for (i in 0..queueCount - 1) {
-                if (supportsPresent.get(i) == VK_TRUE) {
-                    presentQueueNodeIndex = i
-                    break
-                }
-            }
-        }
-        memFree(supportsPresent)
-
-        // Generate error if could not find both a graphics and a present queue
-        if (graphicsQueueNodeIndex == Integer.MAX_VALUE) {
-            throw AssertionError("No graphics queue found")
-        }
-        if (presentQueueNodeIndex == Integer.MAX_VALUE) {
-            throw AssertionError("No presentation queue found")
-        }
-        if (graphicsQueueNodeIndex != presentQueueNodeIndex) {
-            throw AssertionError("Presentation queue != graphics queue")
-        }
-
-        // Get list of supported formats
-        val pFormatCount = memAllocInt(1)
-        var err = vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, pFormatCount, null)
-        val formatCount = pFormatCount.get(0)
-        if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to query number of physical device surface formats: " + VU.translate(err))
-        }
-
-        val surfFormats = VkSurfaceFormatKHR.calloc(formatCount)
-        err = vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, pFormatCount, surfFormats)
-        memFree(pFormatCount)
-        if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to query physical device surface formats: " + VU.translate(err))
-        }
-
-        val colorFormat: Int
-        if (formatCount == 1 && surfFormats.get(0).format() == VK_FORMAT_UNDEFINED) {
-//            colorFormat = VK_FORMAT_B8G8R8A8_UNORM
-            colorFormat = VK_FORMAT_B8G8R8A8_SRGB
-        } else {
-//            colorFormat = surfFormats.get(0).format()
-            colorFormat = VK_FORMAT_B8G8R8A8_SRGB
-        }
-        val colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR//surfFormats.get(0).colorSpace()
-        surfFormats.free()
-
-        val ret = ColorFormatAndSpace()
-        ret.colorFormat = colorFormat
-        ret.colorSpace = colorSpace
         return ret
     }
 
@@ -1850,165 +1701,6 @@ open class VulkanRenderer(hub: Hub,
 
     private fun destroyCommandPool(device: VkDevice, commandPool: Long) {
         vkDestroyCommandPool(device, commandPool, null)
-    }
-
-    private fun createSwapChain(device: VkDevice, physicalDevice: VkPhysicalDevice, surface: Long, oldSwapChain: Long, newWidth: Int,
-                                newHeight: Int, colorFormat: Int, colorSpace: Int): Swapchain {
-        var err: Int
-        // Get physical device surface properties and formats
-        val surfCaps = VkSurfaceCapabilitiesKHR.calloc()
-        err = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, surfCaps)
-        if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to get physical device surface capabilities: " + VU.translate(err))
-        }
-
-        val pPresentModeCount = memAllocInt(1)
-        err = vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, pPresentModeCount, null)
-        val presentModeCount = pPresentModeCount.get(0)
-        if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to get number of physical device surface presentation modes: " + VU.translate(err))
-        }
-
-        val pPresentModes = memAllocInt(presentModeCount)
-        err = vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, pPresentModeCount, pPresentModes)
-        memFree(pPresentModeCount)
-        if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to get physical device surface presentation modes: " + VU.translate(err))
-        }
-
-        // Try to use mailbox mode. Low latency and non-tearing
-        var swapchainPresentMode = VK_PRESENT_MODE_FIFO_KHR
-        for (i in 0..presentModeCount - 1) {
-            if (pPresentModes.get(i) == VK_PRESENT_MODE_MAILBOX_KHR) {
-                swapchainPresentMode = VK_PRESENT_MODE_MAILBOX_KHR
-                break
-            }
-            if (swapchainPresentMode != VK_PRESENT_MODE_MAILBOX_KHR && pPresentModes.get(i) == VK_PRESENT_MODE_IMMEDIATE_KHR) {
-                swapchainPresentMode = VK_PRESENT_MODE_IMMEDIATE_KHR
-            }
-        }
-        memFree(pPresentModes)
-
-        // Determine the number of images
-        var desiredNumberOfSwapchainImages = surfCaps.minImageCount() + 1
-        if (surfCaps.maxImageCount() > 0 && desiredNumberOfSwapchainImages > surfCaps.maxImageCount()) {
-            desiredNumberOfSwapchainImages = surfCaps.maxImageCount()
-        }
-
-        val currentExtent = surfCaps.currentExtent()
-        val currentWidth = currentExtent.width()
-        val currentHeight = currentExtent.height()
-        if (currentWidth != -1 && currentHeight != -1) {
-            window.width = currentWidth
-            window.height = currentHeight
-        } else {
-            window.width = newWidth
-            window.height = newHeight
-        }
-
-        val preTransform: Int
-        if (surfCaps.supportedTransforms() and VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR != 0) {
-            preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR
-        } else {
-            preTransform = surfCaps.currentTransform()
-        }
-        surfCaps.free()
-
-        val swapchainCI = VkSwapchainCreateInfoKHR.calloc()
-            .sType(VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR)
-            .pNext(NULL)
-            .surface(surface)
-            .minImageCount(desiredNumberOfSwapchainImages)
-            .imageFormat(colorFormat)
-            .imageColorSpace(colorSpace)
-            .imageUsage(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT or VK_IMAGE_USAGE_TRANSFER_SRC_BIT)
-            .preTransform(preTransform)
-            .imageArrayLayers(1)
-            .imageSharingMode(VK_SHARING_MODE_EXCLUSIVE)
-            .pQueueFamilyIndices(null)
-            .presentMode(swapchainPresentMode)
-            .oldSwapchain(oldSwapChain)
-            .clipped(true)
-            .compositeAlpha(VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR)
-
-        swapchainCI.imageExtent().width(window.width).height(window.height)
-        val pSwapChain = memAllocLong(1)
-        err = vkCreateSwapchainKHR(device, swapchainCI, null, pSwapChain)
-        swapchainCI.free()
-        val swapChain = pSwapChain.get(0)
-        memFree(pSwapChain)
-        if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to create swap chain: " + VU.translate(err))
-        }
-
-        // If we just re-created an existing swapchain, we should destroy the old swapchain at this point.
-        // Note: destroying the swapchain also cleans up all its associated presentable images once the platform is done with them.
-        if (oldSwapChain != VK_NULL_HANDLE) {
-            vkDestroySwapchainKHR(device, oldSwapChain, null)
-        }
-
-        val pImageCount = memAllocInt(1)
-        err = vkGetSwapchainImagesKHR(device, swapChain, pImageCount, null)
-        val imageCount = pImageCount.get(0)
-        if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to get number of swapchain images: " + VU.translate(err))
-        }
-
-        val pSwapchainImages = memAllocLong(imageCount)
-        err = vkGetSwapchainImagesKHR(device, swapChain, pImageCount, pSwapchainImages)
-        if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to get swapchain images: " + VU.translate(err))
-        }
-        memFree(pImageCount)
-
-        val images = LongArray(imageCount)
-        val imageViews = LongArray(imageCount)
-        val colorAttachmentView = VkImageViewCreateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO)
-            .pNext(NULL)
-            .format(colorFormat)
-            .viewType(VK_IMAGE_VIEW_TYPE_2D)
-            .flags(VK_FLAGS_NONE)
-
-        colorAttachmentView.components()
-            .r(VK_COMPONENT_SWIZZLE_R)
-            .g(VK_COMPONENT_SWIZZLE_G)
-            .b(VK_COMPONENT_SWIZZLE_B)
-            .a(VK_COMPONENT_SWIZZLE_A)
-
-        colorAttachmentView.subresourceRange()
-            .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
-            .baseMipLevel(0)
-            .levelCount(1)
-            .baseArrayLayer(0)
-            .layerCount(1)
-
-        with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
-            for (i in 0..imageCount - 1) {
-                images[i] = pSwapchainImages.get(i)
-
-                VU.setImageLayout(this, images[i],
-                    aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                    oldImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-                    newImageLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
-                colorAttachmentView.image(images[i])
-
-                imageViews[i] = VU.run(memAllocLong(1), "create image view",
-                    { vkCreateImageView(device, colorAttachmentView, null, this) })
-            }
-
-            this.endCommandBuffer(device, commandPools.Standard, queue,
-                flush = true, dealloc = true)
-        }
-
-        colorAttachmentView.free()
-        memFree(pSwapchainImages)
-
-        val ret = Swapchain()
-        ret.images = images
-        ret.imageViews = imageViews
-        ret.handle = swapChain
-        return ret
     }
 
     private fun createVertexBuffers(device: VkDevice, node: Node, state: VulkanObjectState): VulkanObjectState {
@@ -2569,24 +2261,24 @@ open class VulkanRenderer(hub: Hub,
                 logger.debug("pipeline provides {}", pipeline.descriptorSpecs.map { it.name }.joinToString(", "))
             }
 
-            pipeline.descriptorSpecs.forEachIndexed { i, spec ->
-                val dsName = if (spec.name.startsWith("ShaderParameters")) {
+            pipeline.descriptorSpecs.forEachIndexed { i, (name) ->
+                val dsName = if (name.startsWith("ShaderParameters")) {
                     "ShaderParameters-${pass.name}"
-                } else if (spec.name.startsWith("inputs")) {
+                } else if (name.startsWith("inputs")) {
                     "inputs-${pass.name}"
-                } else if (spec.name.startsWith("Matrices")) {
+                } else if (name.startsWith("Matrices")) {
                     val offsets = (sceneUBOs.first().metadata["VulkanRenderer"] as VulkanObjectState).UBOs["Default"]!!.second.offsets
                     pass.vulkanMetadata.uboOffsets.put(offsets)
                     requiredDynamicOffsets += 3
 
                     "default"
                 } else {
-                    if (spec.name.startsWith("LightParameters")) {
+                    if (name.startsWith("LightParameters")) {
                         pass.vulkanMetadata.uboOffsets.put(0)
                         requiredDynamicOffsets++
                     }
 
-                    spec.name
+                    name
                 }
 
                 val set = if (dsName == "default" || dsName == "LightParameters") {
@@ -2739,6 +2431,7 @@ open class VulkanRenderer(hub: Hub,
         cam.lock.unlock()
     }
 
+    @Suppress("UNUSED")
     override fun screenshot() {
         screenshotRequested = true
     }
@@ -2754,6 +2447,7 @@ open class VulkanRenderer(hub: Hub,
         return this
     }
 
+    @Suppress("UNUSED")
     fun toggleDebug() {
         settings.getAllSettings().forEach {
             if (it.toLowerCase().contains("debug")) {
@@ -2778,7 +2472,7 @@ open class VulkanRenderer(hub: Hub,
         }
 
         logger.debug("Closing buffers...")
-        buffers.forEach { s, vulkanBuffer -> vulkanBuffer.close() }
+        buffers.forEach { _, vulkanBuffer -> vulkanBuffer.close() }
         standardUBOs.forEach { it.value.close() }
 
         vertexDescriptors.forEach {
@@ -2803,17 +2497,14 @@ open class VulkanRenderer(hub: Hub,
         semaphoreCreateInfo.free()
 
         logger.debug("Closing swapchain...")
-        memFree(pSwapchains)
-        memFree(swapchainImage)
 
         swapchain?.let {
             it.close()
-            vkDestroySwapchainKHR(device, it.handle, null)
             vkDestroySurfaceKHR(instance, surface, null)
         }
 
         logger.debug("Closing renderpasses...")
-        renderpasses.forEach { s, vulkanRenderpass ->
+        renderpasses.forEach { _, vulkanRenderpass ->
             vulkanRenderpass.close()
         }
 
@@ -2829,7 +2520,7 @@ open class VulkanRenderer(hub: Hub,
             vkDestroyDebugReportCallbackEXT(instance, debugCallbackHandle, null)
             debugCallback.free()
         }
-        layers.forEach { memFree(it) }
+        layers.forEach(::memFree)
 
         logger.debug("Closing device...")
         vkDeviceWaitIdle(device)
@@ -2849,6 +2540,7 @@ open class VulkanRenderer(hub: Hub,
 
     }
 
+    @Suppress("UNUSED")
     fun toggleFullscreen() {
         toggleFullscreen = !toggleFullscreen
     }
