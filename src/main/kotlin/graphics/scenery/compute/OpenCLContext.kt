@@ -180,7 +180,7 @@ class OpenCLContext(override var hub: Hub?, val devicePreference: String = Syste
 
         // Execute the kernel
         clEnqueueNDRangeKernel(this.queue, k, 1, null,
-                global_work_size, null, 0, null, null);
+                global_work_size, local_work_size, 0, null, null);
 
     }
 

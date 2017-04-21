@@ -217,7 +217,7 @@ class VulkanPipeline(val device: VkDevice, val pipelineCache: Long? = null): Aut
     override fun close() {
         val removedLayouts = ArrayList<Long>()
 
-        pipeline.forEach { geometryType, pipeline ->
+        pipeline.forEach { _, pipeline ->
             vkDestroyPipeline(device, pipeline.pipeline, null)
 
             if(!removedLayouts.contains(pipeline.layout)) {

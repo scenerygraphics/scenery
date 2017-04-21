@@ -583,6 +583,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
         s.textures.forEach { type, glTexture ->
             val samplerIndex = geometryBuffer.first().textureTypeToUnit(type)
 
+            @Suppress("SENSELESS_COMPARISON")
             if (glTexture != null) {
                 gl.glActiveTexture(GL.GL_TEXTURE0 + samplerIndex)
                 gl.glBindTexture(GL.GL_TEXTURE_2D, glTexture.id)
@@ -803,7 +804,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
         gl.glEnable(GL.GL_DEPTH_TEST)
         gl.glViewport(0, 0, geometryBuffer.first().width, geometryBuffer.first().height)
 
-        eyes.forEachIndexed { i, eye ->
+        eyes.forEachIndexed { i, _ ->
             geometryBuffer[i].setDrawBuffers(gl)
             gl.glClear(GL.GL_COLOR_BUFFER_BIT or GL.GL_DEPTH_BUFFER_BIT)
         }
@@ -917,7 +918,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
                 modelviews.clear()
                 modelviewprojs.clear()
 
-                instances.forEachIndexed { i, node ->
+                instances.forEach { node ->
                     node.modelView.copyFrom(headToEye[eye])
                     node.modelView.mult(pose)
                     node.modelView.mult(cam.view)
@@ -966,7 +967,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
 
         val lights = scene.discover(scene, { it is PointLight })
 
-        eyes.forEachIndexed { i, eye ->
+        eyes.forEachIndexed { i, _ ->
             lightingPassProgram!!.bind()
 
             lightingPassProgram!!.getUniform("numLights").setInt(lights.size)

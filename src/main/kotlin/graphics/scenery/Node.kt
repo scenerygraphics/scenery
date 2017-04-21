@@ -239,6 +239,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
      * [position], [scale] and [rotation].
      */
     fun composeModel() {
+        @Suppress("SENSELESS_COMPARISON")
         if(position != null && rotation != null && scale != null) {
             model.setIdentity()
             model.scale(this.scale.x(), this.scale.y(), this.scale.z())

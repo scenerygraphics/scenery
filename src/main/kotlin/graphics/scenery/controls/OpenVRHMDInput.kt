@@ -414,7 +414,6 @@ open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean
                 }
 
                 trackedDevices.computeIfAbsent("$type-$device", {
-                    s ->
                     val nameBuf = Memory(1024)
                     val err = IntByReference(0)
 
@@ -678,8 +677,6 @@ open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean
         renderModels?.let {
             val path = Memory(1024)
             val error = IntByReference(0)
-            val model = RenderModel_t()
-            val models = PointerByReference(model.pointer)
 
             it.GetRenderModelOriginalPath.apply(modelNameStr, path, 1024, error)
 

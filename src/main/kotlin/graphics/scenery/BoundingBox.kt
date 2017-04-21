@@ -51,12 +51,8 @@ open class BoundingBox : Mesh() {
         }
 
     fun updateFromNode() {
-        node?.let {
-            var bb: FloatArray = if (node!!.boundingBoxCoords != null) {
-                node!!.boundingBoxCoords!!
-            } else {
-                return
-            }
+        node?.let { node ->
+            var bb: FloatArray = node.boundingBoxCoords
 
             val min = GLVector(bb[0], bb[2], bb[4], 0.0f)
             val max = GLVector(bb[1], bb[3], bb[5], 0.0f)
@@ -76,18 +72,18 @@ open class BoundingBox : Mesh() {
             this.boundingBoxCoords = b.boundingBoxCoords
             this.position = GLVector(bb[0], bb[2], bb[4]) + center
 
-            bb = this.boundingBoxCoords!!
+            bb = this.boundingBoxCoords
             labels["origin"]?.position = GLVector(bb[0], bb[2], bb[4])
 
             labels["x"]?.position = GLVector(bb[1], bb[2], bb[4])
             labels["y"]?.position = GLVector(bb[0], bb[3], bb[4])
             labels["z"]?.position = GLVector(bb[0], bb[2], bb[5])
 
-            node!!.addChild(this)
+            node.addChild(this)
             this.needsUpdate = true
             this.needsUpdateWorld = true
 
-            name = "Bounding Box of ${node!!.name}"
+            name = "Bounding Box of ${node.name}"
         }
     }
 

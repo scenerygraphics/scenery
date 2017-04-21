@@ -334,7 +334,7 @@ open class VulkanFramebuffer(protected var device: VkDevice,
     fun createRenderpassAndFramebuffer() {
         val colorDescs = VkAttachmentReference.calloc(attachments.filter { it.value.type == VulkanFramebufferType.COLOR_ATTACHMENT }.size)
 
-        attachments.values.filter { it.type == VulkanFramebufferType.COLOR_ATTACHMENT }.forEachIndexed { i, att ->
+        attachments.values.filter { it.type == VulkanFramebufferType.COLOR_ATTACHMENT }.forEachIndexed { i, _ ->
             colorDescs[i]
                 .attachment(i)
                 .layout(VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
@@ -487,9 +487,7 @@ open class VulkanFramebuffer(protected var device: VkDevice,
 
     override fun close() {
         if(initialized) {
-            attachments.forEach { s, vulkanFramebufferAttachment ->
-                vulkanFramebufferAttachment.close()
-            }
+            attachments.values.forEach { it.close() }
 
             vkDestroyRenderPass(device, renderPass.get(0), null)
             memFree(renderPass)
