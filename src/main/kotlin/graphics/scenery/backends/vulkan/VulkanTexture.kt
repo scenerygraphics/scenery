@@ -13,7 +13,6 @@ import javax.imageio.ImageIO
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
-import org.mozilla.javascript.jdk13.VMBridge_jdk13
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.*
