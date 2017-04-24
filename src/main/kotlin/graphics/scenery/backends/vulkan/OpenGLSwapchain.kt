@@ -3,9 +3,10 @@ package graphics.scenery.backends.vulkan
 import com.jogamp.opengl.GL2ES3.GL_MAJOR_VERSION
 import com.jogamp.opengl.GL2ES3.GL_MINOR_VERSION
 import com.sun.jna.PointerUtils
-import graphics.scenery.backends.SceneryWindow
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.glfw.GLFWNativeWin32.*
+import org.lwjgl.glfw.GLFWNativeGLX.*
+import org.lwjgl.glfw.GLFWNativeX11.*
 import org.lwjgl.opengl.GL
 import org.lwjgl.opengl.GL11.*
 import org.lwjgl.vulkan.*
@@ -13,13 +14,17 @@ import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.opengl.NVDrawVulkanImage
 import org.lwjgl.opengl.GLXNVSwapGroup
 import org.lwjgl.opengl.WGLNVSwapGroup
+import org.lwjgl.opengl.GL30.GL_NUM_EXTENSIONS
+import org.lwjgl.opengl.GL30.glGetStringi
+import org.lwjgl.system.MemoryUtil.memAllocInt
+import org.lwjgl.system.Platform
 import org.slf4j.LoggerFactory
 import java.nio.LongBuffer
 import com.sun.jna.platform.win32.User32
 import com.sun.jna.platform.win32.WinDef
-import org.lwjgl.opengl.GL30.GL_NUM_EXTENSIONS
-import org.lwjgl.opengl.GL30.glGetStringi
-import org.lwjgl.system.MemoryUtil.memAllocInt
+import graphics.scenery.backends.RenderConfigReader
+import graphics.scenery.backends.SceneryWindow
+import java.lang.UnsupportedOperationException
 
 /**
  * <Description>
@@ -33,6 +38,7 @@ class OpenGLSwapchain(val window: SceneryWindow,
                       val queue: VkQueue,
                       val commandPool: Long,
                       val surface: Long,
+                      val renderConfig: RenderConfigReader.RenderConfig,
                       val useSRGB: Boolean = true,
                       val useFramelock: Boolean = false,
                       val bufferCount: Int = 2) : Swapchain {
@@ -52,8 +58,13 @@ class OpenGLSwapchain(val window: SceneryWindow,
 
         logger.info("OpenGL swapchain running on top of OpenGL ${glGetInteger(GL_MAJOR_VERSION)}.${glGetInteger(GL_MINOR_VERSION)}")
 
-        (0..glGetInteger(GL_NUM_EXTENSIONS)).map {
+        (0..glGetInteger(GL_NUM_EXTENSIONS)-1).map {
             supportedExtensions.add(glGetStringi(GL_EXTENSIONS, it))
+        }
+
+        if(!supportedExtensions.contains("GL_NV_draw_vulkan_image")) {
+            logger.error("NV_draw_vulkan_image not supported. Please use standard Vulkan swapchain.")
+            throw UnsupportedOperationException("NV_draw_vulkan_image not supported. Please use standard Vulkan swapchain.")
         }
 
         format = if (useSRGB) {
@@ -100,35 +111,64 @@ class OpenGLSwapchain(val window: SceneryWindow,
     }
 
     fun enableFramelock(): Boolean {
-        if(!supportedExtensions.contains("WGL_NV_swap_group")) {
+        if(!supportedExtensions.contains("WGL_NV_swap_group") && !supportedExtensions.contains("GLX_NV_swap_group")) {
             logger.warn("Framelock requested, but not supported on this hardware.")
             return false
         }
 
-        val hwnd = glfwGetWin32Window(window.glfwWindow!!)
-        val hwndP = WinDef.HWND(PointerUtils.fromAddress(hwnd))
-        val hdc = User32.INSTANCE.GetDC(hwndP)
+        val swapGroup = System.getProperty("scenery.VulkanRenderer.SwapGroup", "1").toInt()
+        val swapBarrier = System.getProperty("scenery.VulkanRenderer.SwapBarrier", "1").toInt()
 
         val maxGroups = memAllocInt(1)
         val maxBarriers = memAllocInt(1)
 
-        val swapGroup = System.getProperty("scenery.VulkanRenderer.SwapGroup", "1").toInt()
-        val swapBarrier = System.getProperty("scenery.VulkanRenderer.SwapBarrier", "1").toInt()
+        when(Platform.get()) {
+            Platform.WINDOWS -> {
+                val hwnd = glfwGetWin32Window(window.glfwWindow!!)
+                val hwndP = WinDef.HWND(PointerUtils.fromAddress(hwnd))
+                val hdc = User32.INSTANCE.GetDC(hwndP)
 
-        WGLNVSwapGroup.wglQueryMaxSwapGroupsNV(PointerUtils.getAddress(hdc), maxGroups, maxBarriers)
+                WGLNVSwapGroup.wglQueryMaxSwapGroupsNV(PointerUtils.getAddress(hdc), maxGroups, maxBarriers)
 
-        if(!WGLNVSwapGroup.wglJoinSwapGroupNV(PointerUtils.getAddress(hdc), swapGroup)) {
-            logger.error("Failed to bind to swap group $swapGroup")
-            return false
+                if(!WGLNVSwapGroup.wglJoinSwapGroupNV(PointerUtils.getAddress(hdc), swapGroup)) {
+                    logger.error("Failed to bind to swap group $swapGroup")
+                    return false
+                }
+
+                if(!WGLNVSwapGroup.wglBindSwapBarrierNV(swapGroup, swapBarrier)) {
+                    logger.error("Failed to bind to swap barrier $swapBarrier on swap group $swapGroup")
+                    return false
+                }
+
+                logger.info("Joined swap barrier $swapBarrier on swap group $swapGroup")
+                return true
+            }
+
+            Platform.LINUX -> {
+                val display = glfwGetX11Display()
+                val window = glfwGetGLXWindow(window.glfwWindow!!)
+
+                GLXNVSwapGroup.glXQueryMaxSwapGroupsNV(display, 0, maxGroups, maxBarriers)
+
+                if(GLXNVSwapGroup.glXJoinSwapGroupNV(display, window, swapGroup) != 0) {
+                    logger.error("Failed to bind to swap group $swapGroup")
+                    return false
+                }
+
+                if(GLXNVSwapGroup.glXBindSwapBarrierNV(display, swapGroup, swapBarrier) != 0) {
+                    logger.error("Failed to bind to swap barrier $swapBarrier on swap group $swapGroup")
+                    return false
+                }
+
+                logger.info("Joined swap barrier $swapBarrier on swap group $swapGroup")
+                return true
+            }
+
+            else -> {
+                logger.warn("Hardware Framelock not supported on this platform.")
+                return false
+            }
         }
-
-        if(!WGLNVSwapGroup.wglBindSwapBarrierNV(swapGroup, swapBarrier)) {
-            logger.error("Failed to bind to swap barrier $swapBarrier on swap group $swapGroup")
-            return false
-        }
-
-        logger.info("Joined swap barrier 1 on swap group 1")
-        return true
     }
 
     fun disableFramelock() {
@@ -137,19 +177,54 @@ class OpenGLSwapchain(val window: SceneryWindow,
             return
         }
 
-        val hwnd = glfwGetWin32Window(window.glfwWindow!!)
-        val hwndP = WinDef.HWND(PointerUtils.fromAddress(hwnd))
-        val hdc = User32.INSTANCE.GetDC(hwndP)
+        when(Platform.get()) {
+            Platform.WINDOWS -> {
+                val hwnd = glfwGetWin32Window(window.glfwWindow!!)
+                val hwndP = WinDef.HWND(PointerUtils.fromAddress(hwnd))
+                val hdc = User32.INSTANCE.GetDC(hwndP)
 
-        WGLNVSwapGroup.wglJoinSwapGroupNV(PointerUtils.getAddress(hdc), 0)
+                WGLNVSwapGroup.wglJoinSwapGroupNV(PointerUtils.getAddress(hdc), 0)
+            }
+
+            Platform.LINUX -> {
+                val display = glfwGetX11Display()
+                val window = glfwGetGLXWindow(window.glfwWindow!!)
+
+                GLXNVSwapGroup.glXJoinSwapGroupNV(display, window, 0)
+            }
+
+            else -> logger.error("Hardware Framelock not supported on this platform.")
+        }
+
     }
 
     override fun present(waitForSemaphores: LongBuffer?) {
         glDisable(GL_DEPTH_TEST)
-        glClear(GL_COLOR_BUFFER_BIT)
 
         waitForSemaphores?.let { NVDrawVulkanImage.glWaitVkSemaphoreNV(waitForSemaphores.get(0)) }
-        NVDrawVulkanImage.glDrawVkImageNV(images!!.get(0), 0, 0.0f, 0.0f, window.width.toFloat(), window.height.toFloat(), 0.0f, 0.0f, 1.0f, 1.0f, 0.0f)
+
+        // note: glDrawVkImageNV expects the OpenGL screen space conventions,
+        // so the Vulkan image's ST coordinates have to be flipped
+        if(renderConfig.stereoEnabled) {
+            glDrawBuffer(GL_BACK_LEFT)
+            glClear(GL_COLOR_BUFFER_BIT)
+
+            NVDrawVulkanImage.glDrawVkImageNV(images!!.get(0), 0,
+                0.0f, 0.0f, window.width.toFloat(), window.height.toFloat(), 0.0f,
+                0.0f, 1.0f, 0.5f, 0.0f)
+
+            glDrawBuffer(GL_BACK_RIGHT)
+            glClear(GL_COLOR_BUFFER_BIT)
+
+            NVDrawVulkanImage.glDrawVkImageNV(images!!.get(0), 0,
+                0.0f, 0.0f, window.width.toFloat(), window.height.toFloat(), 0.0f,
+                0.5f, 1.0f, 1.0f, 0.0f)
+        } else {
+            glClear(GL_COLOR_BUFFER_BIT)
+            NVDrawVulkanImage.glDrawVkImageNV(images!!.get(0), 0,
+                0.0f, 0.0f, window.width.toFloat(), window.height.toFloat(), 0.0f,
+                0.0f, 1.0f, 1.0f, 0.0f)
+        }
 
         glfwSwapBuffers(window.glfwWindow!!)
     }

@@ -1,5 +1,6 @@
 package graphics.scenery.backends.vulkan
 
+import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.SceneryWindow
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.vulkan.*
@@ -18,6 +19,7 @@ class VulkanSwapchain(val window: SceneryWindow,
                       val queue: VkQueue,
                       val commandPool: Long,
                       val surface: Long,
+                      val renderConfig: RenderConfigReader.RenderConfig,
                       val useSRGB: Boolean = true) : Swapchain {
     override var handle: Long = 0L
     override var images: LongArray? = null

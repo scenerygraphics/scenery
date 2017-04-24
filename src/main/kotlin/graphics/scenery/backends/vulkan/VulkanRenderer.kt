@@ -106,12 +106,13 @@ open class VulkanRenderer(hub: Hub,
                 swapchain = if (wantsOpenGLSwapchain) {
                     OpenGLSwapchain(window,
                         device, physicalDevice, memoryProperties, queue, commandPools.Standard,
-                        surface, useSRGB = true)
+                        surface, renderConfig = renderConfig, useSRGB = true,
+                        useFramelock = System.getProperty("scenery.Renderer.Framelock", "false").toBoolean())
                         .create(oldSwapchain = swapchain)
                 } else {
                     VulkanSwapchain(window,
                         device, physicalDevice, queue, commandPools.Standard,
-                        surface, useSRGB = true)
+                        surface, renderConfig = renderConfig, useSRGB = true)
                         .create(oldSwapchain = swapchain)
                 }
 
