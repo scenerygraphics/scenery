@@ -339,6 +339,7 @@ open class VulkanRenderer(hub: Hub,
             glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE)
             glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4)
             glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3)
+            glfwWindowHint(GLFW_SRGB_CAPABLE, GLFW_TRUE)
             glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE)
 
             glfwWindowHint(GLFW_STEREO, if(renderConfig.stereoEnabled) { GLFW_TRUE } else { GLFW_FALSE })

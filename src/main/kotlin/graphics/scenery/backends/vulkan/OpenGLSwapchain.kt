@@ -14,8 +14,6 @@ import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.opengl.NVDrawVulkanImage
 import org.lwjgl.opengl.GLXNVSwapGroup
 import org.lwjgl.opengl.WGLNVSwapGroup
-import org.lwjgl.opengl.GL30.GL_NUM_EXTENSIONS
-import org.lwjgl.opengl.GL30.glGetStringi
 import org.lwjgl.system.MemoryUtil.memAllocInt
 import org.lwjgl.system.Platform
 import org.slf4j.LoggerFactory
@@ -24,6 +22,7 @@ import com.sun.jna.platform.win32.User32
 import com.sun.jna.platform.win32.WinDef
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.SceneryWindow
+import org.lwjgl.opengl.GL30.*
 import java.lang.UnsupportedOperationException
 
 /**
@@ -56,7 +55,7 @@ class OpenGLSwapchain(val window: SceneryWindow,
         glfwMakeContextCurrent(window.glfwWindow!!)
         GL.createCapabilities()
 
-        logger.info("OpenGL swapchain running on top of OpenGL ${glGetInteger(GL_MAJOR_VERSION)}.${glGetInteger(GL_MINOR_VERSION)}")
+        logger.info("OpenGL swapchain running OpenGL ${glGetInteger(GL_MAJOR_VERSION)}.${glGetInteger(GL_MINOR_VERSION)} on ${glGetString(GL_RENDERER)}")
 
         (0..glGetInteger(GL_NUM_EXTENSIONS)-1).map {
             supportedExtensions.add(glGetStringi(GL_EXTENSIONS, it))
@@ -103,6 +102,8 @@ class OpenGLSwapchain(val window: SceneryWindow,
         glfwSwapInterval(0)
         glfwShowWindow(window.glfwWindow!!)
 
+        glEnable(GL_FRAMEBUFFER_SRGB)
+
         if(useFramelock) {
             enableFramelock()
         }
@@ -113,7 +114,8 @@ class OpenGLSwapchain(val window: SceneryWindow,
     fun enableFramelock(): Boolean {
         if(!supportedExtensions.contains("WGL_NV_swap_group") && !supportedExtensions.contains("GLX_NV_swap_group")) {
             logger.warn("Framelock requested, but not supported on this hardware.")
-            return false
+            // TODO: Figure out why K6000 does not report WGL_NV_swap_group correctly.
+            // return false
         }
 
         val swapGroup = System.getProperty("scenery.VulkanRenderer.SwapGroup", "1").toInt()
