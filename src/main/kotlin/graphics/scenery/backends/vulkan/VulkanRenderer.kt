@@ -2575,6 +2575,7 @@ open class VulkanRenderer(hub: Hub,
                 0, 0,
                 window.width, window.height, GLFW_DONT_CARE)
             glfwSetWindowPos(window.glfwWindow!!, 100, 100)
+            glfwSetInputMode(window.glfwWindow!!, GLFW_CURSOR, GLFW_CURSOR_NORMAL)
 
             swapchainRecreator.mustRecreate = true
             window.isFullscreen = false
@@ -2596,6 +2597,7 @@ open class VulkanRenderer(hub: Hub,
                 monitor,
                 0, 0,
                 window.width, window.height, GLFW_DONT_CARE)
+            glfwSetInputMode(window.glfwWindow!!, GLFW_CURSOR, GLFW_CURSOR_HIDDEN)
 
             swapchainRecreator.mustRecreate = true
             window.isFullscreen = true
