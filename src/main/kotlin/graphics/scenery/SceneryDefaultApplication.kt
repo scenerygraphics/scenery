@@ -55,7 +55,7 @@ open class SceneryDefaultApplication(var applicationName: String,
 
     /**
      * the init function of [SceneryDefaultApplication], override this in your subclass,
-     * e.g. for [Scene] constrution and [OpenGLRenderer] initialisation.
+     * e.g. for [Scene] construction and [OpenGLRenderer] initialisation.
      *
      * @param[pDrawable] a [org.jogamp.jogl.GLAutoDrawable] handed over by [ClearGLDefaultEventListener]
      */
@@ -88,7 +88,7 @@ open class SceneryDefaultApplication(var applicationName: String,
             null
         }
 
-        var subscriber: NodeSubscriber? = if(!master) {
+        val subscriber: NodeSubscriber? = if(!master) {
             val masterAddress = System.getProperty("scenery.MasterNode", "tcp://localhost:6666")
             logger.info("Will connect to master at $masterAddress")
             NodeSubscriber(hub, masterAddress, context)
@@ -106,15 +106,17 @@ open class SceneryDefaultApplication(var applicationName: String,
         // initialize renderer, etc first in init, then setup key bindings
         init()
 
-        repl?.addAccessibleObject(renderer!!)
+        renderer?.let {
+            repl?.addAccessibleObject(it)
+
+            inputHandler = InputHandler(scene, it, hub)
+            inputHandler?.useDefaultBindings(System.getProperty("user.home") + "/.$applicationName.bindings")
+        }
 
         repl?.start()
         repl?.showConsoleWindow()
 
         val statsRequested = java.lang.Boolean.parseBoolean(System.getProperty("scenery.PrintStatistics", "false"))
-
-        inputHandler = InputHandler(scene, renderer!!, hub)
-        inputHandler?.useDefaultBindings(System.getProperty("user.home") + "/.$applicationName.bindings")
 
         // setup additional key bindings, if requested by the user
         inputSetup()
@@ -134,14 +136,15 @@ open class SceneryDefaultApplication(var applicationName: String,
             }
         }
 
-        while(renderer!!.shouldClose == false) {
+        while(!(renderer?.shouldClose ?: true)) {
             val start = System.nanoTime()
 
+            publisher?.publish()
 
-            if(renderer!!.managesRenderLoop) {
+            if(renderer?.managesRenderLoop ?: true) {
                 Thread.sleep(2)
             } else {
-                stats.addTimed("render", { renderer!!.render() })
+                stats.addTimed("render", { renderer?.render() ?: 0.0f })
             }
 
             stats.addTimed("sceneUpdate", updateFunction)
@@ -152,16 +155,13 @@ open class SceneryDefaultApplication(var applicationName: String,
 
             hub.getWorkingHMD()?.update()
 
-            val duration = System.nanoTime() - start*1.0f
-            stats.add("loop", duration)
 
-            publisher?.publish()
-
+            stats.add("loop", System.nanoTime() - start*1.0f)
             ticks++
         }
 
         inputHandler?.close()
-        renderer!!.close()
+        renderer?.close()
     }
 
     protected fun getDemoFilesPath(): String {
