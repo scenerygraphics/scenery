@@ -210,6 +210,7 @@ class OpenGLSwapchain(val window: SceneryWindow,
         if(renderConfig.stereoEnabled) {
             glDrawBuffer(GL_BACK_LEFT)
             glClear(GL_COLOR_BUFFER_BIT)
+            glDisable(GL_DEPTH_TEST)
 
             NVDrawVulkanImage.glDrawVkImageNV(images!!.get(0), 0,
                 0.0f, 0.0f, window.width.toFloat(), window.height.toFloat(), 0.0f,
@@ -217,6 +218,7 @@ class OpenGLSwapchain(val window: SceneryWindow,
 
             glDrawBuffer(GL_BACK_RIGHT)
             glClear(GL_COLOR_BUFFER_BIT)
+            glDisable(GL_DEPTH_TEST)
 
             NVDrawVulkanImage.glDrawVkImageNV(images!!.get(0), 0,
                 0.0f, 0.0f, window.width.toFloat(), window.height.toFloat(), 0.0f,
