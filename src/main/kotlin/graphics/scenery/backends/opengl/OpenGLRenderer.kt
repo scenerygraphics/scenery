@@ -8,15 +8,15 @@ import com.jogamp.opengl.GLAutoDrawable
 import com.jogamp.opengl.GLDrawable
 import com.jogamp.opengl.util.awt.AWTGLReadBufferUtil
 import graphics.scenery.*
+import graphics.scenery.backends.Display
 import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.backends.ShaderPreference
-import graphics.scenery.controls.HMDInput
+import graphics.scenery.controls.TrackerInput
 import graphics.scenery.fonts.SDFFontAtlas
 import graphics.scenery.utils.GPUStats
 import graphics.scenery.utils.NvidiaGPUStats
 import graphics.scenery.utils.Statistics
-import org.lwjgl.glfw.GLFW
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -167,7 +167,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
         this.scene = scene
         this.applicationName = applicationName
 
-        val hmd = hub.getWorkingHMD()
+        val hmd = hub.getWorkingHMDDisplay()
         if (settings.get("vr.Active") && hmd != null) {
             this.window.width = hmd.getRenderTargetSize().x().toInt() * 2
             this.window.height = hmd.getRenderTargetSize().y().toInt()
@@ -783,9 +783,16 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
         val renderOrderList = ArrayList<Node>()
         val cam: Camera = scene.findObserver()
 
-        val hmd: HMDInput? = if (hub!!.has(SceneryElement.HMDInput)
-            && (hub!!.get(SceneryElement.HMDInput) as HMDInput).initializedAndWorking()) {
-            hub!!.get(SceneryElement.HMDInput) as HMDInput
+        val hmd: Display? = if (hub!!.has(SceneryElement.HMDInput)
+            && (hub!!.get(SceneryElement.HMDInput) as Display).initializedAndWorking()) {
+            hub!!.get(SceneryElement.HMDInput) as Display
+        } else {
+            null
+        }
+
+        val tracker: TrackerInput? = if (hub!!.has(SceneryElement.HMDInput)
+            && (hub!!.get(SceneryElement.HMDInput) as TrackerInput).initializedAndWorking()) {
+            hub!!.get(SceneryElement.HMDInput) as TrackerInput
         } else {
             null
         }
@@ -822,7 +829,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
             }
         }
 
-        val pose = hmd?.getPose() ?: GLMatrix.getIdentity()
+        val pose = tracker?.getPose() ?: GLMatrix.getIdentity()
         cam.view = cam.getTransformation()
 
         val projection = eyes.map { i ->

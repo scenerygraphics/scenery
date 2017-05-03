@@ -1,6 +1,7 @@
 package graphics.scenery
 
-import graphics.scenery.controls.HMDInput
+import graphics.scenery.backends.Display
+import graphics.scenery.controls.TrackerInput
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -53,10 +54,19 @@ class Hub {
         return elements.containsKey(type)
     }
 
-    fun getWorkingHMD(): HMDInput? {
+    fun getWorkingHMD(): TrackerInput? {
         if (this.has(SceneryElement.HMDInput)
-            && (this.get(SceneryElement.HMDInput) as HMDInput).initializedAndWorking()) {
-            return this.get(SceneryElement.HMDInput) as HMDInput
+            && (this.get(SceneryElement.HMDInput) as TrackerInput).initializedAndWorking()) {
+            return this.get(SceneryElement.HMDInput) as TrackerInput
+        } else {
+            return null
+        }
+    }
+
+    fun getWorkingHMDDisplay(): Display? {
+        if (this.has(SceneryElement.HMDInput)
+            && (this.get(SceneryElement.HMDInput) as Display).initializedAndWorking()) {
+            return this.get(SceneryElement.HMDInput) as Display
         } else {
             return null
         }

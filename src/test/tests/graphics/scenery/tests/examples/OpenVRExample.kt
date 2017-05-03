@@ -3,10 +3,10 @@ package graphics.scenery.tests.examples
 import cleargl.GLMatrix
 import cleargl.GLVector
 import graphics.scenery.*
-import org.junit.Test
 import graphics.scenery.backends.Renderer
-import graphics.scenery.controls.OpenVRHMDInput
+import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.repl.REPL
+import org.junit.Test
 import kotlin.concurrent.thread
 
 /**
@@ -15,9 +15,9 @@ import kotlin.concurrent.thread
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class OpenVRExample : SceneryDefaultApplication("OpenVRExample") {
-    private var ovr: OpenVRHMDInput? = null
+    private var ovr: OpenVRHMD? = null
     override fun init() {
-        ovr = OpenVRHMDInput(useCompositor = true)
+        ovr = OpenVRHMD(useCompositor = true)
         hub.add(SceneryElement.HMDInput, ovr!!)
 
         renderer = Renderer.createRenderer(hub, applicationName, scene, 1280, 720)

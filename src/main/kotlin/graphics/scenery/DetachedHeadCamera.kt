@@ -3,7 +3,7 @@ package graphics.scenery
 import cleargl.GLMatrix
 import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
-import graphics.scenery.controls.HMDInput
+import graphics.scenery.controls.TrackerInput
 import java.io.Serializable
 import kotlin.reflect.KProperty
 
@@ -14,11 +14,11 @@ import kotlin.reflect.KProperty
  * @author Ulrik Günther <hello@ulrik.is>
  */
 
-class DetachedHeadCamera(@Transient var hmd: HMDInput? = null) : Camera() {
+class DetachedHeadCamera(@Transient var tracker: TrackerInput? = null) : Camera() {
 
     inner class HeadOrientationDelegate {
         operator fun getValue(thisRef: Any?, property: KProperty<*>): Quaternion {
-            return hmd?.getWorkingHMD()?.getOrientation() ?: Quaternion(0.0f, 0.0f, 0.0f, 1.0f)
+            return tracker?.getWorkingTracker()?.getOrientation() ?: Quaternion(0.0f, 0.0f, 0.0f, 1.0f)
         }
 
         operator fun setValue(thisRef: Any?, property: KProperty<*>, value: Quaternion) {
@@ -28,7 +28,7 @@ class DetachedHeadCamera(@Transient var hmd: HMDInput? = null) : Camera() {
 
     inner class HeadPositionDelegate : Serializable {
         operator fun getValue(thisRef: Any?, property: KProperty<*>): GLVector {
-            return hmd?.getWorkingHMD()?.getPosition() ?: GLVector(0.0f, 0.0f, 0.0f)
+            return tracker?.getWorkingTracker()?.getPosition() ?: GLVector(0.0f, 0.0f, 0.0f)
         }
 
         operator fun setValue(thisRef: Any?, property: KProperty<*>, value: Quaternion) {
@@ -42,7 +42,7 @@ class DetachedHeadCamera(@Transient var hmd: HMDInput? = null) : Camera() {
 
     init {
         this.nodeType = "Camera"
-        this.name = "DetachedHeadCamera-${hmd ?: "0"}"
+        this.name = "DetachedHeadCamera-${tracker ?: "0"}"
     }
 
     override fun getTransformation(): GLMatrix {
@@ -50,7 +50,7 @@ class DetachedHeadCamera(@Transient var hmd: HMDInput? = null) : Camera() {
 //        val r = GLMatrix.fromQuaternion(this.rotation)
 //        val hr = GLMatrix.fromQuaternion(this.headOrientation)
 
-        return hmd?.getWorkingHMD()?.getPose()?.times(tr) ?: GLMatrix.fromQuaternion(rotation) * tr
+        return tracker?.getWorkingTracker()?.getPose()?.times(tr) ?: GLMatrix.fromQuaternion(rotation) * tr
     }
 
     override fun getTransformation(preRotation: Quaternion): GLMatrix {

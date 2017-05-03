@@ -3,21 +3,23 @@ package graphics.scenery.controls
 import cleargl.GLMatrix
 import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
-import com.sun.jna.*
+import com.sun.jna.Memory
+import com.sun.jna.Native
+import com.sun.jna.Pointer
 import com.sun.jna.ptr.FloatByReference
 import com.sun.jna.ptr.IntByReference
 import com.sun.jna.ptr.LongByReference
-import com.sun.jna.ptr.PointerByReference
-import graphics.scenery.*
+import graphics.scenery.Hub
+import graphics.scenery.Hubable
+import graphics.scenery.Mesh
+import graphics.scenery.backends.Display
 import graphics.scenery.jopenvr.*
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import org.lwjgl.vulkan.VkDevice
 import org.lwjgl.vulkan.VkInstance
 import org.lwjgl.vulkan.VkPhysicalDevice
 import org.lwjgl.vulkan.VkQueue
-import java.io.File
-import java.io.Serializable
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import java.nio.IntBuffer
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
@@ -25,16 +27,16 @@ import java.util.concurrent.TimeUnit
 import graphics.scenery.jopenvr.JOpenVRLibrary as jvr
 
 /**
- * HMDInput implementation of OpenVR
+ * TrackerInput implementation of OpenVR
  *
  * @author Ulrik Günther <hello@ulrik.is>
  * @property[seated] Whether the user is assumed to be sitting or not.
  * @property[useCompositor] Whether or not the compositor should be used.
  * @constructor Creates a new OpenVR HMD instance, using the compositor if requested
  */
-open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean = false) : HMDInput, Hubable {
+open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = false) : TrackerInput, Display, Hubable {
     /** slf4j logger instance */
-    protected var logger: Logger = LoggerFactory.getLogger("OpenVRHMDInput")
+    protected var logger: Logger = LoggerFactory.getLogger("OpenVRHMD")
     /** The Hub to use for communication */
     override var hub: Hub? = null
 
@@ -188,7 +190,15 @@ open class OpenVRHMDInput(val seated: Boolean = true, val useCompositor: Boolean
         jvr.VR_ShutdownInternal()
     }
 
-    override fun getWorkingHMD(): HMDInput? {
+    override fun getWorkingTracker(): TrackerInput? {
+        if(initialized) {
+            return this
+        } else {
+            return null
+        }
+    }
+
+    override fun getWorkingDisplay(): Display? {
         if(initialized) {
             return this
         } else {

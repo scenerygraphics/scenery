@@ -1,55 +1,18 @@
-package graphics.scenery.controls
+package graphics.scenery.backends
 
 import cleargl.GLMatrix
 import cleargl.GLVector
-import com.jogamp.opengl.math.Quaternion
 import org.lwjgl.vulkan.VkDevice
 import org.lwjgl.vulkan.VkInstance
 import org.lwjgl.vulkan.VkPhysicalDevice
 import org.lwjgl.vulkan.VkQueue
 
 /**
- * Generic interface for head-mounted displays (HMDs)
+ * <Description>
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-
-enum class TrackedDeviceType {
-    Invalid,
-    HMD,
-    Controller,
-    BaseStation,
-    Generic
-}
-
-class TrackedDevice(val type: TrackedDeviceType, var name: String, var pose: GLMatrix, var timestamp: Long) {
-    var orientation = Quaternion()
-        get(): Quaternion {
-//            val pose = pose.floatArray
-//
-//            field.w = Math.sqrt(1.0 * Math.max(0.0f, 1.0f + pose[0] + pose[5] + pose[10])).toFloat() / 2.0f
-//            field.x = Math.sqrt(1.0 * Math.max(0.0f, 1.0f + pose[0] - pose[5] - pose[10])).toFloat() / 2.0f
-//            field.y = Math.sqrt(1.0 * Math.max(0.0f, 1.0f - pose[0] + pose[5] - pose[10])).toFloat() / 2.0f
-//            field.z = Math.sqrt(1.0 * Math.max(0.0f, 1.0f - pose[0] - pose[5] + pose[10])).toFloat() / 2.0f
-//
-//            field.x *= Math.signum(field.x * (pose[9] - pose[6]))
-//            field.y *= Math.signum(field.y * (pose[2] - pose[8]))
-//            field.z *= Math.signum(field.z * (pose[4] - pose[1]))
-            field = Quaternion().setFromMatrix(pose.floatArray, 0)
-
-            return field
-        }
-
-    var position = GLVector(0.0f, 0.0f, 0.0f)
-        get(): GLVector {
-            val m = pose.floatArray
-            field = GLVector(m[12], m[13], m[14])
-
-            return field
-        }
-}
-
-interface HMDInput {
+interface Display {
     /**
      * Returns the per-eye projection matrix
      *
@@ -64,43 +27,6 @@ interface HMDInput {
      * @return IPD as Float
      */
     fun getIPD(): Float
-
-    /**
-     * Returns the orientation of the HMD
-     *
-     * @returns GLMatrix with orientation
-     */
-    fun getOrientation(): Quaternion
-
-    /**
-     * Returns the orientation of the given device, or a unit quaternion if the device is not found.
-     *
-     * @returns GLMatrix with orientation
-     */
-    fun getOrientation(id: String): Quaternion
-
-    /**
-     * Returns the absolute position as GLVector
-     *
-     * @return HMD position as GLVector
-     */
-    fun getPosition(): GLVector
-
-    /**
-     * Returns the per-eye transform that moves from head to eye
-     *
-     * @param[eye] The eye index
-     * @return GLMatrix containing the transform
-     */
-    fun getHeadToEyeTransform(eye: Int): GLMatrix
-
-    /**
-     * Returns the HMD pose
-     *
-     * @return HMD pose as GLMatrix
-     */
-    fun getPose(): GLMatrix
-
     /**
      * Query the HMD whether a compositor is used or the renderer should take
      * care of displaying on the HMD on its own.
@@ -157,5 +83,13 @@ interface HMDInput {
 
     fun getVulkanDeviceExtensions(physicalDevice: VkPhysicalDevice): List<String>
 
-    fun getWorkingHMD(): HMDInput?
+    fun getWorkingDisplay(): Display?
+
+    /**
+     * Returns the per-eye transform that moves from head to eye
+     *
+     * @param[eye] The eye index
+     * @return GLMatrix containing the transform
+     */
+    fun getHeadToEyeTransform(eye: Int): GLMatrix
 }

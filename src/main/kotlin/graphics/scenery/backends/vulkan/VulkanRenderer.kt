@@ -4,7 +4,6 @@ import cleargl.GLMatrix
 import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.*
-import graphics.scenery.controls.HMDInput
 import graphics.scenery.fonts.SDFFontAtlas
 import graphics.scenery.utils.GPUStats
 import graphics.scenery.utils.NvidiaGPUStats
@@ -14,10 +13,13 @@ import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.glfw.GLFWVulkan.*
 import org.lwjgl.glfw.GLFWWindowSizeCallback
 import org.lwjgl.system.MemoryUtil.*
+import org.lwjgl.system.jemalloc.JEmalloc.je_free
+import org.lwjgl.system.jemalloc.JEmalloc.je_malloc
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.EXTDebugReport.*
-import org.lwjgl.vulkan.KHRSurface.*
-import org.lwjgl.vulkan.KHRSwapchain.*
+import org.lwjgl.vulkan.KHRSurface.vkDestroySurfaceKHR
+import org.lwjgl.vulkan.KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+import org.lwjgl.vulkan.KHRSwapchain.VK_KHR_SWAPCHAIN_EXTENSION_NAME
 import org.lwjgl.vulkan.VK10.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -36,7 +38,6 @@ import java.util.concurrent.TimeUnit
 import javax.imageio.ImageIO
 import kotlin.concurrent.thread
 import kotlin.concurrent.withLock
-import org.lwjgl.system.jemalloc.JEmalloc.*
 
 
 /**
@@ -286,7 +287,7 @@ open class VulkanRenderer(hub: Hub,
     init {
         this.hub = hub
 
-        val hmd = hub.getWorkingHMD()
+        val hmd = hub.getWorkingHMDDisplay()
         if (hmd != null) {
             logger.info("Setting window dimensions to bounds from HMD")
             val bounds = hmd.getRenderTargetSize()
@@ -1282,7 +1283,7 @@ open class VulkanRenderer(hub: Hub,
         commandBuffer.waitForFence()
 
         // submit to OpenVR if attached
-        hub?.getWorkingHMD()?.wantsVR()?.submitToCompositorVulkan(
+        hub?.getWorkingHMDDisplay()?.wantsVR()?.submitToCompositorVulkan(
             window.width, window.height,
             swapchain!!.format,
             instance, device, physicalDevice,
@@ -1498,7 +1499,7 @@ open class VulkanRenderer(hub: Hub,
             .pEngineName(memUTF8("scenery"))
             .apiVersion(VK_MAKE_VERSION(1, 0, 24))
 
-        val hmd = hub?.getWorkingHMD()
+        val hmd = hub?.getWorkingHMDDisplay()
         val additionalExts: List<String> = hmd?.getVulkanInstanceExtensions() ?: listOf()
         logger.debug("HMD required instance exts: ${additionalExts.joinToString(", ")} ${additionalExts.size}")
         val utf8Exts = additionalExts.map(::memUTF8)
@@ -1640,7 +1641,7 @@ open class VulkanRenderer(hub: Hub,
             .queueFamilyIndex(graphicsQueueFamilyIndex)
             .pQueuePriorities(pQueuePriorities)
 
-        val hmd = hub?.getWorkingHMD()
+        val hmd = hub?.getWorkingHMDDisplay()
         val additionalExts: List<String> = hmd?.getVulkanDeviceExtensions(physicalDevice) ?: listOf()
         logger.debug("HMD required device exts: ${additionalExts.joinToString(", ")} ${additionalExts.size}")
         val utf8Exts = additionalExts.map(::memUTF8)
@@ -2350,7 +2351,7 @@ open class VulkanRenderer(hub: Hub,
         return this
     }
 
-    private fun HMDInput.wantsVR(): HMDInput? {
+    private fun Display.wantsVR(): Display? {
         if (settings.get<Boolean>("vr.Active")) {
             return this@wantsVR
         } else {
@@ -2365,8 +2366,8 @@ open class VulkanRenderer(hub: Hub,
             return
         }
 
-        val hmd = hub?.getWorkingHMD()?.wantsVR()
-//        val orientation = hmd?.getOrientation() ?: Quaternion().setIdentity()
+        val hmd = hub?.getWorkingHMDDisplay()?.wantsVR()
+//        val orientation = tracker?.getOrientation() ?: Quaternion().setIdentity()
 
         cam.view = cam.getTransformation()
 

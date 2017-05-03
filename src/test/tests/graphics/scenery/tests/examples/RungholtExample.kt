@@ -1,10 +1,9 @@
 package graphics.scenery.tests.examples
 
 import cleargl.GLVector
-import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.controls.OpenVRHMDInput
+import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.utils.Numerics
 import org.junit.Test
 import java.io.IOException
@@ -16,12 +15,12 @@ import kotlin.concurrent.thread
 * @author Ulrik Günther <hello@ulrik.is>
 */
 class RungholtExample: SceneryDefaultApplication("BoxedProteinExample", windowWidth = 1280, windowHeight = 720) {
-    var hmd: OpenVRHMDInput? = null
+    var hmd: OpenVRHMD? = null
     override fun init() {
         try {
             val lightCount = 512
 
-            hmd = OpenVRHMDInput(useCompositor = true)
+            hmd = OpenVRHMD(useCompositor = true)
             hub.add(SceneryElement.HMDInput, hmd!!)
 
             renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)

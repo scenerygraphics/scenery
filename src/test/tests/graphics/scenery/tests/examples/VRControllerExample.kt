@@ -3,7 +3,7 @@ package graphics.scenery.tests.examples
 import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.controls.OpenVRHMDInput
+import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.utils.Numerics
 import org.junit.Test
@@ -16,11 +16,11 @@ import java.io.IOException
  */
 class VRControllerExample : SceneryDefaultApplication(VRControllerExample::class.java.simpleName,
     windowWidth = 1920, windowHeight = 1200) {
-    private var hmd: OpenVRHMDInput? = null
+    private var hmd: OpenVRHMD? = null
 
     override fun init() {
         try {
-            hmd = OpenVRHMDInput(useCompositor = true)
+            hmd = OpenVRHMD(useCompositor = true)
             hub.add(SceneryElement.HMDInput, hmd!!)
 
             renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)

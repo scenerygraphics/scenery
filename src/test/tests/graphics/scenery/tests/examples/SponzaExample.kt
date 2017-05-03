@@ -4,7 +4,7 @@ import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.InputHandler
-import graphics.scenery.controls.OpenVRHMDInput
+import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.behaviours.ArcballCameraControl
 import graphics.scenery.controls.behaviours.FPSCameraControl
 import graphics.scenery.utils.Numerics
@@ -19,11 +19,11 @@ import kotlin.concurrent.thread
 * @author Ulrik Günther <hello@ulrik.is>
 */
 class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 1920, windowHeight = 1080) {
-    private var hmd: OpenVRHMDInput? = null
+    private var hmd: OpenVRHMD? = null
 
     override fun init() {
         try {
-            hmd = OpenVRHMDInput(useCompositor = true)
+            hmd = OpenVRHMD(useCompositor = true)
             hub.add(SceneryElement.HMDInput, hmd!!)
 
             renderer = Renderer.createRenderer(hub, applicationName,
@@ -67,7 +67,7 @@ class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 1
             meshM.diffuse = GLVector(0.5f, 0.5f, 0.5f)
             meshM.specular = GLVector(0.0f, 0.0f, 0.0f)
 
-            mesh.readFromOBJ(getDemoFilesPath() + "/sponza-crytek/sponza.obj", useMTL = true)
+            mesh.readFromOBJ(getDemoFilesPath() + "/sponza.obj", useMTL = true)
             mesh.position = GLVector(-200.0f, 5.0f, 200.0f)
             mesh.scale = GLVector(0.01f, 0.01f, 0.01f)
             mesh.name = "Sponza_Mesh"
