@@ -3,6 +3,8 @@ package graphics.scenery.controls
 import cleargl.GLMatrix
 import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
+import graphics.scenery.Hub
+import graphics.scenery.Hubable
 import graphics.scenery.backends.Display
 import org.lwjgl.vulkan.VkDevice
 import org.lwjgl.vulkan.VkInstance
@@ -14,7 +16,8 @@ import org.lwjgl.vulkan.VkQueue
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class TrackedStereoGlasses(var address: String = "device@localhost:5500", val screenWidth: Int = 1920, val screenHeight: Int = 1080) : Display, TrackerInput {
+class TrackedStereoGlasses(var address: String = "device@localhost:5500", val screenWidth: Int = 1920, val screenHeight: Int = 1080) : Display, TrackerInput, Hubable {
+    override var hub: Hub? = null
 
     var vrpnTracker = VRPNTrackerInput(address)
 
