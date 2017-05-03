@@ -2375,9 +2375,11 @@ open class VulkanRenderer(hub: Hub,
         val vrUbo = UBO(device, backingBuffer = buffers["VRParametersBuffer"]!!)
 
         vrUbo.createUniformBuffer(memoryProperties)
-        vrUbo.members.put("projection0", { hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance, flipY = true)
+//        vrUbo.members.put("projection0", { hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance, flipY = true)
+        vrUbo.members.put("projection0", { cam.projection.clone().flippedProjection()
             ?: GLMatrix().setPerspectiveProjectionMatrix(cam.fov, (1.0f*window.width)/(1.0f*window.height), cam.nearPlaneDistance, cam.farPlaneDistance).flippedProjection()})
-        vrUbo.members.put("projection1", { hmd?.getEyeProjection(1, cam.nearPlaneDistance, cam.farPlaneDistance, flipY = true)
+//        vrUbo.members.put("projection1", { hmd?.getEyeProjection(1, cam.nearPlaneDistance, cam.farPlaneDistance, flipY = true)
+        vrUbo.members.put("projection1", { cam.projection.clone().flippedProjection()
             ?: GLMatrix().setPerspectiveProjectionMatrix(cam.fov, (1.0f*window.width)/(1.0f*window.height), cam.nearPlaneDistance, cam.farPlaneDistance).flippedProjection()})
         vrUbo.members.put("headShift", { hmd?.getHeadToEyeTransform(0) ?: GLMatrix.getIdentity() })
         vrUbo.members.put("IPD", { hmd?.getIPD() ?: 0.05f })

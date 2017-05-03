@@ -90,7 +90,11 @@ open class Camera : Node("Camera") {
 //        GLVector(-1.920000f, 0.000000f, 1.920000f),
 //        GLVector(1.920000f, 0.000000f, 1.920000f),
 //        GLVector(-1.920000f, 2.400000f, 1.920000f),
-            GLVector(0.0f, 1.8f, -5.0f),
+            // left
+//        GLVector(-1.920000f, 0.000000f, -1.920000f),
+//        GLVector(-1.920000f, 0.000000f, 1.920000f),
+//            GLVector(-1.920000f, 2.400000f, 1.920000f),
+            GLVector(0.0f, 0.4f, -0.4f),
             this.nearPlaneDistance,
             this.farPlaneDistance
         )
