@@ -7,6 +7,8 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import vrpn.Loader
 import vrpn.TrackerRemote
+import vrpn.TrackerRemoteListener
+import java.util.*
 
 /**
 * TrackerInput for handling VRPN-based devices
@@ -14,8 +16,7 @@ import vrpn.TrackerRemote
 * @author Ulrik Günther <hello@ulrik.is>
 */
 
-class VRPNTrackerInput(trackerAddress: String = "device@locahost:5500") : TrackerRemote.PositionChangeListener,
-    TrackerRemote.VelocityChangeListener, TrackerRemote.AccelerationChangeListener, TrackerInput {
+class VRPNTrackerInput(trackerAddress: String = "device@locahost:5500") : TrackerInput {
 
     var logger: Logger = LoggerFactory.getLogger("VRPNTrackerInput")
 
@@ -31,24 +32,41 @@ class VRPNTrackerInput(trackerAddress: String = "device@locahost:5500") : Tracke
             tracker = initializeTracker(value)
         }
 
+    var listener: TrackerRemoteListener? = null
+
     var cachedOrientation: Quaternion = Quaternion(0.0f, 0.0f, 0.0f, 1.0f)
 
     var cachedPosition: GLVector = GLVector(0.0f, 0.0f, 0.0f)
+
+    var stats = Timer()
+    var vrpnMsgCount = 0L
 
     init {
         Loader.loadNatives()
 
         this.trackerAddress = trackerAddress
 
+        stats.scheduleAtFixedRate(object : TimerTask() {
+            override fun run() {
+                logger.info("VRPN msg/sec: $vrpnMsgCount")
+                vrpnMsgCount = 0
+            }
+        }, 0, 1000)
+
         logger.info("${tracker?.isConnected}/${tracker?.isLive}")
     }
 
     private fun initializeTracker(address: String): TrackerRemote {
         val t = TrackerRemote(address, null, null, null, null)
-        t.setUpdateRate(500.0)
+//        t.setUpdateRate(500.0)
 //        t.addAccelerationChangeListener(this)
-        t.addPositionChangeListener(this)
+//        t.addPositionChangeListener(this)
 //        t.addVelocityChangeListener(this)
+
+        val listener = TrackerRemoteListener(tracker)
+        listener.setModeLastTrackerUpdate()
+        listener.setModeLastAccelerationUpdate()
+        listener.setModeLastVelocityUpdate()
 
         return t
     }
@@ -102,6 +120,20 @@ class VRPNTrackerInput(trackerAddress: String = "device@locahost:5500") : Tracke
      * update state
      */
     override fun update() {
+        listener?.let {
+            cachedPosition = GLVector(it.lastTrackerUpdate.pos[0].toFloat(), it.lastTrackerUpdate.pos[1].toFloat(), -1.0f * it.lastTrackerUpdate.pos[2].toFloat())
+            val newOrientation = Quaternion(
+                -it.lastTrackerUpdate.quat[0].toFloat(),
+                -it.lastTrackerUpdate.quat[1].toFloat(),
+                it.lastTrackerUpdate.quat[2].toFloat(),
+                it.lastTrackerUpdate.quat[3].toFloat())
+                .rotateByAngleX(Math.PI.toFloat()/2.0f)
+                .normalize()
+
+            cachedOrientation = newOrientation
+
+            vrpnMsgCount++
+        }
     }
 
     override fun getWorkingTracker(): TrackerInput? {
@@ -111,30 +143,4 @@ class VRPNTrackerInput(trackerAddress: String = "device@locahost:5500") : Tracke
             return null
         }
     }
-
-    override fun trackerAccelerationUpdate(p0: TrackerRemote.AccelerationUpdate?, p1: TrackerRemote?) {
-
-    }
-
-    override fun trackerPositionUpdate(p0: TrackerRemote.TrackerUpdate?, p1: TrackerRemote?) {
-        p0?.let { update ->
-            cachedPosition = GLVector(update.pos[0].toFloat(), update.pos[1].toFloat(), -1.0f * update.pos[2].toFloat())
-
-            // FIXME: View still seems slightly tilted
-            val newOrientation = Quaternion(
-                -update.quat[0].toFloat(),
-                -update.quat[1].toFloat(),
-                update.quat[2].toFloat(),
-                update.quat[3].toFloat())
-                .rotateByAngleX(Math.PI.toFloat()/2.0f)
-                .normalize()
-
-            cachedOrientation.set(newOrientation)
-        }
-    }
-
-    override fun trackerVelocityUpdate(p0: TrackerRemote.VelocityUpdate?, p1: TrackerRemote?) {
-
-    }
-
 }
