@@ -63,10 +63,10 @@ class VRPNTrackerInput(trackerAddress: String = "device@locahost:5500") : Tracke
 //        t.addPositionChangeListener(this)
 //        t.addVelocityChangeListener(this)
 
-        val listener = TrackerRemoteListener(tracker)
-        listener.setModeLastTrackerUpdate()
-        listener.setModeLastAccelerationUpdate()
-        listener.setModeLastVelocityUpdate()
+        listener = TrackerRemoteListener(t)
+        listener?.setModeLastTrackerUpdate()
+        listener?.setModeLastAccelerationUpdate()
+        listener?.setModeLastVelocityUpdate()
 
         return t
     }
@@ -121,7 +121,9 @@ class VRPNTrackerInput(trackerAddress: String = "device@locahost:5500") : Tracke
      */
     override fun update() {
         listener?.let {
+
             cachedPosition = GLVector(it.lastTrackerUpdate.pos[0].toFloat(), it.lastTrackerUpdate.pos[1].toFloat(), -1.0f * it.lastTrackerUpdate.pos[2].toFloat())
+            logger.info("Position: $cachedPosition")
             val newOrientation = Quaternion(
                 -it.lastTrackerUpdate.quat[0].toFloat(),
                 -it.lastTrackerUpdate.quat[1].toFloat(),
