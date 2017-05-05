@@ -20,6 +20,7 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", val sc
     override var hub: Hub? = null
 
     var vrpnTracker = VRPNTrackerInput(address)
+    var currentOrientation = GLMatrix()
 
     /**
      * Returns the per-eye projection matrix
@@ -109,7 +110,15 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", val sc
      *
      * @return HMD pose as GLMatrix
      */
-    override fun getPose(): GLMatrix = vrpnTracker.getPose()
+    override fun getPose(): GLMatrix {
+        val trackerOrientation = vrpnTracker.getOrientation()
+        val trackerPos = vrpnTracker.getPosition()
+
+        currentOrientation.setIdentity()
+        currentOrientation.translate(trackerPos).mult(trackerOrientation).invert()
+
+        return currentOrientation
+    }
 
     /**
      * Check whether the HMD is initialized and working

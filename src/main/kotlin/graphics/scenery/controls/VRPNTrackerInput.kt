@@ -45,9 +45,10 @@ class VRPNTrackerInput(trackerAddress: String = "device@locahost:5500") : Tracke
 
     private fun initializeTracker(address: String): TrackerRemote {
         val t = TrackerRemote(address, null, null, null, null)
-        t.addAccelerationChangeListener(this)
+        t.setUpdateRate(500.0)
+//        t.addAccelerationChangeListener(this)
         t.addPositionChangeListener(this)
-        t.addVelocityChangeListener(this)
+//        t.addVelocityChangeListener(this)
 
         return t
     }
@@ -101,9 +102,6 @@ class VRPNTrackerInput(trackerAddress: String = "device@locahost:5500") : Tracke
      * update state
      */
     override fun update() {
-        tracker?.TrackerUpdate()
-        tracker?.VelocityUpdate()
-        tracker?.AccelerationUpdate()
     }
 
     override fun getWorkingTracker(): TrackerInput? {
@@ -120,8 +118,18 @@ class VRPNTrackerInput(trackerAddress: String = "device@locahost:5500") : Tracke
 
     override fun trackerPositionUpdate(p0: TrackerRemote.TrackerUpdate?, p1: TrackerRemote?) {
         p0?.let { update ->
-            cachedPosition = GLVector(update.pos[0].toFloat(), update.pos[1].toFloat(), update.pos[2].toFloat())
-            cachedOrientation.set(update.quat[0].toFloat(), update.quat[1].toFloat(), update.quat[2].toFloat(), update.quat[3].toFloat())
+            cachedPosition = GLVector(update.pos[0].toFloat(), update.pos[1].toFloat(), -1.0f * update.pos[2].toFloat())
+
+            // FIXME: View still seems slightly tilted
+            val newOrientation = Quaternion(
+                -update.quat[0].toFloat(),
+                -update.quat[1].toFloat(),
+                update.quat[2].toFloat(),
+                update.quat[3].toFloat())
+                .rotateByAngleX(Math.PI.toFloat()/2.0f)
+                .normalize()
+
+            cachedOrientation.set(newOrientation)
         }
     }
 
