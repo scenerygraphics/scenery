@@ -2159,11 +2159,12 @@ open class VulkanRenderer(hub: Hub,
                 val pipeline = pass.pipelines.getOrDefault("preferred-${node.name}", pass.pipelines["default"]!!)
                     .getPipelineForGeometryType((node as HasGeometry).geometryType)
 
+                pass.vulkanMetadata.uboOffsets.position(0)
+                s.UBOs["Default"]!!.second.offsets.position(0)
+
                 pass.vulkanMetadata.uboOffsets.put(s.UBOs["Default"]!!.second.offsets)
                 pass.vulkanMetadata.uboOffsets.put(0)
-                pass.vulkanMetadata.uboOffsets.limit(4)
-                pass.vulkanMetadata.uboOffsets.position(0)
-                s.UBOs["Default"]!!.second.offsets.flip()
+                pass.vulkanMetadata.uboOffsets.flip()
 
                 vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline)
                 vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -2401,6 +2402,7 @@ open class VulkanRenderer(hub: Hub,
                 node.updateWorld(true, false)
 
                 if (ubo.offsets.capacity() < 3) {
+                    memFree(ubo.offsets)
                     ubo.offsets = memAllocInt(3)
                 }
 
