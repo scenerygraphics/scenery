@@ -11,13 +11,17 @@ import org.slf4j.LoggerFactory
 import graphics.scenery.BufferUtils
 import java.nio.ByteBuffer
 import java.util.*
+import graphics.scenery.spirvcrossj.EShLanguage
+import graphics.scenery.spirvcrossj.EShMessages
+import java.nio.Buffer
+
 
 /**
  * Vulkan Object State class. Saves texture, UBO, pipeline and vertex buffer state.
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-open class VulkanShaderModule(device: VkDevice, entryPoint: String, shaderCodePath: String) {
+open class VulkanShaderModule(device: VkDevice, entryPoint: String, clazz: Class<*>, shaderCodePath: String) {
     protected var logger: Logger = LoggerFactory.getLogger("VulkanShaderModule")
     var shader: VkPipelineShaderStageCreateInfo
     var shaderModule: Long
@@ -27,15 +31,72 @@ open class VulkanShaderModule(device: VkDevice, entryPoint: String, shaderCodePa
     data class UBOSpec(val name: String, val set: Long, val binding: Long)
 
     init {
-        Loader.loadNatives()
 
         logger.debug("Creating VulkanShaderModule $entryPoint, $shaderCodePath")
 
         this.device = device
-        val code = BufferUtils.allocateByteAndPut(this.javaClass.getResource(shaderCodePath).readBytes())
-        val compiler = CompilerGLSL(code.toSPIRVBytecode())
+        val codeResource = if(clazz.javaClass.getResource(shaderCodePath) != null) {
+            clazz.javaClass.getResource(shaderCodePath)
+        } else {
+            VulkanRenderer::class.java.getResource(shaderCodePath)
+        }
 
-        val uniformBuffers = compiler.getShaderResources().uniformBuffers
+        var code = ByteBuffer.allocate(0)
+
+        val spirv = if(shaderCodePath.toLowerCase().endsWith("spv")) {
+            code = BufferUtils.allocateByteAndPut(codeResource.readBytes())
+            code.toSPIRVBytecode()
+        } else {
+            logger.info("Compiling $shaderCodePath to SPIR-V...")
+            // code needs to be compiled first
+            val program = TProgram()
+            val defaultResources = libspirvcrossj.getDefaultTBuiltInResource()
+            val shaderType = when (shaderCodePath.substringAfterLast(".")) {
+                "vert" -> EShLanguage.EShLangVertex
+                "frag" -> EShLanguage.EShLangFragment
+                "geom" -> EShLanguage.EShLangGeometry
+                "tesc" -> EShLanguage.EShLangTessControl
+                "tese" -> EShLanguage.EShLangTessEvaluation
+                "comp" -> EShLanguage.EShLangCompute
+                else -> { logger.warn("Unknown shader extension ." + shaderCodePath.substringAfterLast(".")); 0 }
+            }
+
+
+            val shader = TShader(shaderType)
+
+            var messages = EShMessages.EShMsgDefault
+            messages = messages or EShMessages.EShMsgVulkanRules
+            messages = messages or EShMessages.EShMsgSpvRules
+
+            val shaderCode = arrayOf(codeResource.readText())
+            shader.setStrings(shaderCode, shaderCode.size)
+            shader.setAutoMapBindings(true)
+
+            val compileFail = !shader.parse(defaultResources, 450, false, messages)
+            if(compileFail) {
+                logger.error("Error in shader compilation of $shaderCodePath for ${clazz.simpleName}: ${shader.infoLog}")
+            }
+
+            program.addShader(shader)
+
+            val linkFail = !program.link(EShMessages.EShMsgDefault) || !program.mapIO()
+
+            if(!linkFail && !compileFail) {
+                val tmp = IntVec()
+                libspirvcrossj.glslangToSpv(program.getIntermediate(shaderType), tmp)
+
+                code = tmp.toByteBuffer()
+
+                tmp
+            } else {
+                logger.error("Error in shader linking of $shaderCodePath for ${clazz.simpleName}: ${program.infoLog}")
+                IntVec()
+            }
+        }
+
+        val compiler = CompilerGLSL(spirv)
+
+        val uniformBuffers = compiler.shaderResources.uniformBuffers
 
         for(i in 0..uniformBuffers.size()-1) {
             val res = uniformBuffers.get(i.toInt())
@@ -51,8 +112,8 @@ open class VulkanShaderModule(device: VkDevice, entryPoint: String, shaderCodePa
         }
 
         // inputs are summarized into one descriptor set
-        if(compiler.getShaderResources().sampledImages.size() > 0) {
-            val res = compiler.getShaderResources().sampledImages.get(0)
+        if(compiler.shaderResources.sampledImages.size() > 0) {
+            val res = compiler.shaderResources.sampledImages.get(0)
             if(res.name != "ObjectTextures") {
                 uboSpecs.put(res.name, UBOSpec("inputs",
                     set = compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet),
@@ -60,7 +121,7 @@ open class VulkanShaderModule(device: VkDevice, entryPoint: String, shaderCodePa
             }
         }
 
-        val inputs = compiler.getShaderResources().stageInputs
+        val inputs = compiler.shaderResources.stageInputs
         if(inputs.size() > 0) {
             for (i in 0..inputs.size()-1) {
                 logger.debug("$shaderCodePath: ${inputs.get(i.toInt()).name}")
@@ -86,6 +147,17 @@ open class VulkanShaderModule(device: VkDevice, entryPoint: String, shaderCodePa
             .module(this.shaderModule)
             .pName(memUTF8(entryPoint))
             .pNext(NULL)
+    }
+
+    private fun IntVec.toByteBuffer(): ByteBuffer {
+        val buf = BufferUtils.allocateByte(this.size().toInt()*4)
+        val ib = buf.asIntBuffer()
+
+        for (i in 0..this.size()-1) {
+            ib.put(this[i.toInt()].toInt())
+        }
+
+        return buf
     }
 
     private fun ByteBuffer.toSPIRVBytecode(): IntVec {
@@ -124,17 +196,15 @@ open class VulkanShaderModule(device: VkDevice, entryPoint: String, shaderCodePa
         return type
     }
 
-    fun destroy() {
-        vkDestroyShaderModule(device, this.shaderModule, null)
-    }
-
     companion object {
-        fun createFromSPIRV(device: VkDevice, name: String, sourceFile: String): VulkanShaderModule {
-            return VulkanShaderModule(device, name, sourceFile)
+        @Suppress("UNUSED")
+        fun createFromSPIRV(device: VkDevice, name: String, clazz: Class<*>, sourceFile: String): VulkanShaderModule {
+            return VulkanShaderModule(device, name, clazz, sourceFile)
         }
 
-        fun createFromSource(device: VkDevice, name: String, sourceFile: String): VulkanShaderModule {
-            return VulkanShaderModule(device, name, sourceFile)
+        @Suppress("UNUSED")
+        fun createFromSource(device: VkDevice, name: String, clazz: Class<*>, sourceFile: String): VulkanShaderModule {
+            return VulkanShaderModule(device, name, clazz, sourceFile)
         }
     }
 }

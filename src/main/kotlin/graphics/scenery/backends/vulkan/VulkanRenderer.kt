@@ -5,9 +5,11 @@ import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.*
 import graphics.scenery.fonts.SDFFontAtlas
+import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.utils.GPUStats
 import graphics.scenery.utils.NvidiaGPUStats
 import graphics.scenery.utils.Statistics
+import graphics.scenery.spirvcrossj.*
 import org.lwjgl.PointerBuffer
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.glfw.GLFWVulkan.*
@@ -286,6 +288,9 @@ open class VulkanRenderer(hub: Hub,
 
     init {
         this.hub = hub
+
+        Loader.loadNatives()
+        libspirvcrossj.initializeProcess()
 
         val hmd = hub.getWorkingHMDDisplay()
         if (hmd != null) {
@@ -712,7 +717,7 @@ open class VulkanRenderer(hub: Hub,
                     logger.info("initializing double-sided pipeline for ${node.name} from $shaders")
 
                     pass.value.initializePipeline("preferred-${node.name}",
-                        shaders.map { VulkanShaderModule(device, "main", "shaders/" + it) },
+                        shaders.map { VulkanShaderModule(device, "main", node.javaClass, "shaders/" + it) },
 
                         settings = { pipeline ->
                             pipeline.rasterizationState.cullMode(VK_CULL_MODE_NONE)
@@ -729,7 +734,7 @@ open class VulkanRenderer(hub: Hub,
                     logger.debug("initializing custom vertex input pipeline for ${node.name} from $shaders")
 
                     pass.value.initializePipeline("preferred-${node.name}",
-                        shaders.map { VulkanShaderModule(device, "main", "shaders/" + it) },
+                        shaders.map { VulkanShaderModule(device, "main", node.javaClass, "shaders/" + it) },
                         vertexInputType = s.vertexDescription!!)
                 }
         }
@@ -741,7 +746,7 @@ open class VulkanRenderer(hub: Hub,
                     val shaders = (sp as ShaderPreference).shaders
                     logger.info("initializing preferred pipeline for ${node.name} from $shaders")
                     pass.value.initializePipeline("preferred-${node.name}",
-                        shaders.map { VulkanShaderModule(device, "main", "shaders/$it.spv") },
+                        shaders.map { VulkanShaderModule(device, "main", node.javaClass, "shaders/$it.spv") },
 
                         vertexInputType = s.vertexDescription!!)
                 }
@@ -2560,6 +2565,8 @@ open class VulkanRenderer(hub: Hub,
 
         windowSizeCallback.close()
         glfwDestroyWindow(window.glfwWindow!!)
+
+        libspirvcrossj.finalizeProcess()
 
         logger.info("Renderer teardown complete.")
     }

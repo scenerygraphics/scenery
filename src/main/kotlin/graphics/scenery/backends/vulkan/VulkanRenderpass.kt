@@ -204,7 +204,7 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
     }
 
     fun initializeDefaultPipeline() {
-        initializePipeline("default", passConfig.shaders.map { VulkanShaderModule(device, "main", "shaders/" + it) })
+        initializePipeline("default", passConfig.shaders.map { VulkanShaderModule(device, "main", VulkanRenderer::class.java, "shaders/" + it) })
     }
 
     fun initializePipeline(pipelineName: String = "default", shaders: List<VulkanShaderModule>,
