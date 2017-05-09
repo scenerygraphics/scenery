@@ -15,8 +15,7 @@ import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.glfw.GLFWVulkan.*
 import org.lwjgl.glfw.GLFWWindowSizeCallback
 import org.lwjgl.system.MemoryUtil.*
-import org.lwjgl.system.jemalloc.JEmalloc.je_free
-import org.lwjgl.system.jemalloc.JEmalloc.je_malloc
+import org.lwjgl.system.jemalloc.JEmalloc.*
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.EXTDebugReport.*
 import org.lwjgl.vulkan.KHRSurface.vkDestroySurfaceKHR
@@ -622,6 +621,8 @@ open class VulkanRenderer(hub: Hub,
 
         // create custom vertex description if necessary, else use one of the defaults
         s.vertexDescription = if (node.instanceMaster) {
+            // TODO: Rewrite shader in case it does not conform to coord/normal/texcoord vertex description
+            s.vertexInputType = VertexDataKinds.coords_normals_texcoords
             vertexDescriptionFromInstancedNode(node, vertexDescriptors[VertexDataKinds.coords_normals_texcoords]!!)
         } else {
             vertexDescriptors[s.vertexInputType]!!
@@ -1733,8 +1734,8 @@ open class VulkanRenderer(hub: Hub,
     private fun createVertexBuffers(device: VkDevice, node: Node, state: VulkanObjectState): VulkanObjectState {
         val n = node as HasGeometry
 
-        if (n.texcoords.remaining() == 0) {
-            n.texcoords = memAlloc(4 * n.vertices.remaining() / n.vertexSize * n.texcoordSize).asFloatBuffer()
+        if (n.texcoords.remaining() == 0 && node.instanceMaster) {
+            n.texcoords = je_calloc(1, 4L * n.vertices.remaining() / n.vertexSize * n.texcoordSize).asFloatBuffer()
         }
 
         val vertexAllocationBytes: Long = 4L * (n.vertices.remaining() + n.normals.remaining() + n.texcoords.remaining())
@@ -2217,11 +2218,12 @@ open class VulkanRenderer(hub: Hub,
                         pass.pipelines["default"]!!
                     }).getPipelineForGeometryType((node as HasGeometry).geometryType)
 
+                pass.vulkanMetadata.uboOffsets.position(0)
+                s.UBOs["Default"]!!.second.offsets.position(0)
+
                 pass.vulkanMetadata.uboOffsets.put(s.UBOs["Default"]!!.second.offsets)
                 pass.vulkanMetadata.uboOffsets.put(0)
-                pass.vulkanMetadata.uboOffsets.limit(4)
-                pass.vulkanMetadata.uboOffsets.position(0)
-                s.UBOs["Default"]!!.second.offsets.flip()
+                pass.vulkanMetadata.uboOffsets.flip()
 
                 vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline)
                 vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_GRAPHICS,
