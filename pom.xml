@@ -99,7 +99,7 @@
 
     <properties>
         <scijava.jvm.version>1.8</scijava.jvm.version>
-        <kotlin.version>1.1.2</kotlin.version>
+        <kotlin.version>1.1.2-2</kotlin.version>
         <kotlin.compiler.jvmTarget>1.8</kotlin.compiler.jvmTarget>
         <slf4j.version>1.7.21</slf4j.version>
         <dokka.version>0.9.13</dokka.version>
@@ -527,6 +527,11 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.5.1</version>
+                <configuration>
+                    <source>1.8</source>
+                    <target>1.8</target>
+                </configuration>
                 <executions>
                     <execution>
                         <id>default-compile</id>
