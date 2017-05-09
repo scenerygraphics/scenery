@@ -88,11 +88,17 @@ class VulkanBuffer(val device: VkDevice, var memory: Long = -1L, var buffer: Lon
 
     override fun close() {
         if(mapped) {
-            vkUnmapMemory(device, memory)
+            unmap()
         }
 
         memFree(stagingBuffer)
-        vkFreeMemory(device, memory, null)
-        vkDestroyBuffer(device, buffer, null)
+
+        if(memory != -1L) {
+            vkFreeMemory(device, memory, null)
+        }
+
+        if(buffer != -1L) {
+            vkDestroyBuffer(device, buffer, null)
+        }
     }
 }
