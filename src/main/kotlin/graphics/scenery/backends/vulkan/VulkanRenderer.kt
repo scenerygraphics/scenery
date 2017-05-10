@@ -270,6 +270,13 @@ open class VulkanRenderer(hub: Hub,
     private var renderConfig: RenderConfigReader.RenderConfig
     private var flow: List<String> = listOf()
 
+    private val vulkanProjectionFix =
+        GLMatrix(floatArrayOf(
+            1.0f,  0.0f, 0.0f, 0.0f,
+            0.0f, -1.0f, 0.0f, 0.0f,
+            0.0f,  0.0f, 0.5f, 0.5f,
+            0.0f,  0.0f, 0.0f, 1.0f))
+
     var renderConfigFile = ""
         set(config) {
             field = config
@@ -2354,9 +2361,11 @@ open class VulkanRenderer(hub: Hub,
         }
     }
 
-    fun GLMatrix.flippedProjection(): GLMatrix {
-        this.set(1, 1, -1.0f * this.get(1, 1))
-        return this
+    fun GLMatrix.applyVulkanCoordinateSystem(): GLMatrix {
+        val m = vulkanProjectionFix.clone()
+        m.mult(this)
+
+        return m
     }
 
     private fun Display.wantsVR(): Display? {
@@ -2384,11 +2393,11 @@ open class VulkanRenderer(hub: Hub,
 
         vrUbo.createUniformBuffer(memoryProperties)
 //        vrUbo.members.put("projection0", { hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance, flipY = true)
-        vrUbo.members.put("projection0", { cam.projection.clone().flippedProjection()
-            ?: GLMatrix().setPerspectiveProjectionMatrix(cam.fov, (1.0f*window.width)/(1.0f*window.height), cam.nearPlaneDistance, cam.farPlaneDistance).flippedProjection()})
+        vrUbo.members.put("projection0", { cam.projection.clone().applyVulkanCoordinateSystem()
+            ?: GLMatrix().setPerspectiveProjectionMatrix(cam.fov, (1.0f*window.width)/(1.0f*window.height), cam.nearPlaneDistance, cam.farPlaneDistance).applyVulkanCoordinateSystem()})
 //        vrUbo.members.put("projection1", { hmd?.getEyeProjection(1, cam.nearPlaneDistance, cam.farPlaneDistance, flipY = true)
-        vrUbo.members.put("projection1", { cam.projection.clone().flippedProjection()
-            ?: GLMatrix().setPerspectiveProjectionMatrix(cam.fov, (1.0f*window.width)/(1.0f*window.height), cam.nearPlaneDistance, cam.farPlaneDistance).flippedProjection()})
+        vrUbo.members.put("projection1", { cam.projection.clone().applyVulkanCoordinateSystem()
+            ?: GLMatrix().setPerspectiveProjectionMatrix(cam.fov, (1.0f*window.width)/(1.0f*window.height), cam.nearPlaneDistance, cam.farPlaneDistance).applyVulkanCoordinateSystem()})
         vrUbo.members.put("headShift", { hmd?.getHeadToEyeTransform(0) ?: GLMatrix.getIdentity() })
         vrUbo.members.put("IPD", { hmd?.getIPD() ?: 0.05f })
         vrUbo.members.put("stereoEnabled", { renderConfig.stereoEnabled.toInt() })
@@ -2418,8 +2427,7 @@ open class VulkanRenderer(hub: Hub,
                 var bufferOffset = ubo.backingBuffer!!.advance()
                 ubo.offsets.put(0, bufferOffset)
 
-                node.projection.copyFrom(cam.projection)
-                node.projection.flippedProjection()
+                node.projection.copyFrom(cam.projection.applyVulkanCoordinateSystem())
 
                 node.view.copyFrom(cam.view)
 
