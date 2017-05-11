@@ -1100,8 +1100,6 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
         }
 
         val renderDuration = System.nanoTime() - startRender
-
-        cam.deltaT = renderDuration / 10E6f
     }
 
     /**

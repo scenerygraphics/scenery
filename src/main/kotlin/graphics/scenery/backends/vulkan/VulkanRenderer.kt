@@ -1499,7 +1499,7 @@ open class VulkanRenderer(hub: Hub,
         time += duration / 1E9f
         lastTime = thisTime
 
-        scene.activeObserver?.deltaT = duration / 10E6f
+//        scene.activeObserver?.deltaT = duration / 10E6f
 
         frames++
         totalFrames++

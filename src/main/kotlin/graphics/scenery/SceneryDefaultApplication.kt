@@ -53,6 +53,17 @@ open class SceneryDefaultApplication(var applicationName: String,
 
     protected var running: Boolean = false
 
+    var maxFrameskip = 5
+
+    var ticksPerSecond = 60000.0f
+        set(value) {
+            field = value
+            skipTicks = 1000000.0f/value
+        }
+
+    var skipTicks = 1000000.0f/ticksPerSecond
+        private set
+
     /**
      * the init function of [SceneryDefaultApplication], override this in your subclass,
      * e.g. for [Scene] construction and [OpenGLRenderer] initialisation.
@@ -136,10 +147,27 @@ open class SceneryDefaultApplication(var applicationName: String,
             }
         }
 
+        var nextTick = getTickCount()
+        var interpolation = 0.0f
+
         while(!(renderer?.shouldClose ?: true)) {
             val start = System.nanoTime()
+            var loops = 0
+
+            hub.getWorkingHMD()?.update()
+
+            while(getTickCount() > nextTick && loops < maxFrameskip) {
+                // update
+                stats.addTimed("sceneUpdate", updateFunction)
+
+                nextTick += skipTicks
+                loops++
+            }
 
             publisher?.publish()
+
+            interpolation = (1.0f*getTickCount() + skipTicks - nextTick)/skipTicks
+            scene.activeObserver?.deltaT = interpolation/10e5f
 
             if(renderer?.managesRenderLoop ?: true) {
                 Thread.sleep(2)
@@ -147,14 +175,9 @@ open class SceneryDefaultApplication(var applicationName: String,
                 stats.addTimed("render", { renderer?.render() ?: 0.0f })
             }
 
-            stats.addTimed("sceneUpdate", updateFunction)
-
             if(statsRequested && ticks % 100L == 0L) {
                 logger.info("\nStatistics:\n=============\n${stats}")
             }
-
-            hub.getWorkingHMD()?.update()
-
 
             stats.add("loop", System.nanoTime() - start*1.0f)
             ticks++
@@ -163,6 +186,8 @@ open class SceneryDefaultApplication(var applicationName: String,
         inputHandler?.close()
         renderer?.close()
     }
+
+    protected fun getTickCount(): Float = System.nanoTime()/1000.0f
 
     protected fun getDemoFilesPath(): String {
         val demoDir = System.getenv("SCENERY_DEMO_FILES")
