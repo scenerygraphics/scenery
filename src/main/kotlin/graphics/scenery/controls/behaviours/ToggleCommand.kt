@@ -2,6 +2,7 @@ package graphics.scenery.controls.behaviours
 
 import org.scijava.ui.behaviour.ClickBehaviour
 import org.slf4j.LoggerFactory
+import java.lang.reflect.InvocationTargetException
 
 /**
  * Toggle command class. Enables to call a parameter-free method of an instance
@@ -29,6 +30,9 @@ class ToggleCommand(private val name: String, private val receiver: Any, private
             m.invoke(receiver)
         } catch(e: NoSuchMethodException) {
             logger.warn("Method $method not found for ${receiver.javaClass.simpleName}")
+        } catch(e: InvocationTargetException) {
+            logger.warn("Method $method for ${receiver.javaClass.simpleName} threw an error: $e:")
+            e.printStackTrace()
         }
     }
 }
