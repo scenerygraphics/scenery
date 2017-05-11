@@ -1296,12 +1296,14 @@ open class VulkanRenderer(hub: Hub,
         commandBuffer.waitForFence()
 
         // submit to OpenVR if attached
-        hub?.getWorkingHMDDisplay()?.wantsVR()?.submitToCompositorVulkan(
-            window.width, window.height,
-            swapchain!!.format,
-            instance, device, physicalDevice,
-            queue, queueFamilyIndex,
-            swapchain!!.images!![pass.getReadPosition()])
+        if(hub?.getWorkingHMDDisplay()?.hasCompositor() ?: false) {
+            hub?.getWorkingHMDDisplay()?.wantsVR()?.submitToCompositorVulkan(
+                window.width, window.height,
+                swapchain!!.format,
+                instance, device, physicalDevice,
+                queue, queueFamilyIndex,
+                swapchain!!.images!![pass.getReadPosition()])
+        }
 
         if (screenshotRequested) {
             // default image format is 32bit BGRA
