@@ -2392,9 +2392,9 @@ open class VulkanRenderer(hub: Hub,
 
         vrUbo.createUniformBuffer(memoryProperties)
         vrUbo.members.put("projection0", { hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance, flipY = true)
-            ?: cam.projection } )
+            ?: cam.projection.applyVulkanCoordinateSystem() } )
         vrUbo.members.put("projection1", { hmd?.getEyeProjection(1, cam.nearPlaneDistance, cam.farPlaneDistance, flipY = true)
-            ?: cam.projection } )
+            ?: cam.projection.applyVulkanCoordinateSystem() } )
         vrUbo.members.put("headShift", { hmd?.getHeadToEyeTransform(0) ?: GLMatrix.getIdentity() })
         vrUbo.members.put("IPD", { hmd?.getIPD() ?: 0.05f })
         vrUbo.members.put("stereoEnabled", { renderConfig.stereoEnabled.toInt() })
