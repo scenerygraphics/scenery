@@ -475,7 +475,7 @@ open class VulkanRenderer(hub: Hub,
 //        ds.set("ssao.DistanceThreshold", 50.0f)
 //        ds.set("ssao.Algorithm", 1)
 
-        ds.set("vr.Active", false)
+        ds.set("vr.Active", true)
 //        ds.set("vr.DoAnaglyph", false)
 //        ds.set("vr.IPD", 0.0f)
 //        ds.set("vr.EyeDivisor", 1)
@@ -2384,7 +2384,6 @@ open class VulkanRenderer(hub: Hub,
         }
 
         val hmd = hub?.getWorkingHMDDisplay()?.wantsVR()
-//        val orientation = tracker?.getOrientation() ?: Quaternion().setIdentity()
 
         cam.view = cam.getTransformation()
 
@@ -2392,12 +2391,10 @@ open class VulkanRenderer(hub: Hub,
         val vrUbo = UBO(device, backingBuffer = buffers["VRParametersBuffer"]!!)
 
         vrUbo.createUniformBuffer(memoryProperties)
-//        vrUbo.members.put("projection0", { hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance, flipY = true)
-        vrUbo.members.put("projection0", { cam.projection.clone().applyVulkanCoordinateSystem()
-            ?: GLMatrix().setPerspectiveProjectionMatrix(cam.fov, (1.0f*window.width)/(1.0f*window.height), cam.nearPlaneDistance, cam.farPlaneDistance).applyVulkanCoordinateSystem()})
-//        vrUbo.members.put("projection1", { hmd?.getEyeProjection(1, cam.nearPlaneDistance, cam.farPlaneDistance, flipY = true)
-        vrUbo.members.put("projection1", { cam.projection.clone().applyVulkanCoordinateSystem()
-            ?: GLMatrix().setPerspectiveProjectionMatrix(cam.fov, (1.0f*window.width)/(1.0f*window.height), cam.nearPlaneDistance, cam.farPlaneDistance).applyVulkanCoordinateSystem()})
+        vrUbo.members.put("projection0", { hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance, flipY = true)
+            ?: cam.projection } )
+        vrUbo.members.put("projection1", { hmd?.getEyeProjection(1, cam.nearPlaneDistance, cam.farPlaneDistance, flipY = true)
+            ?: cam.projection } )
         vrUbo.members.put("headShift", { hmd?.getHeadToEyeTransform(0) ?: GLMatrix.getIdentity() })
         vrUbo.members.put("IPD", { hmd?.getIPD() ?: 0.05f })
         vrUbo.members.put("stereoEnabled", { renderConfig.stereoEnabled.toInt() })
@@ -2588,6 +2585,32 @@ open class VulkanRenderer(hub: Hub,
     @Suppress("UNUSED")
     fun toggleFullscreen() {
         toggleFullscreen = !toggleFullscreen
+    }
+
+    @Suppress("UNUSED")
+    fun toggleVR() {
+        logger.info("Toggling VR!")
+        val isStereo = renderConfigFile.substringBeforeLast(".").indexOf("Stereo") != -1
+
+        if(isStereo) {
+            val nonStereoConfig = renderConfigFile.substringBeforeLast("Stereo") + ".yml"
+
+            if(RenderConfigReader::class.java.getResource(nonStereoConfig) != null) {
+                renderConfigFile = nonStereoConfig
+                settings.set("vr.Active", false)
+            } else {
+                logger.warn("Non-stereo configuration for $renderConfigFile ($nonStereoConfig) not found.")
+            }
+        } else {
+            val stereoConfig = renderConfigFile.substringBeforeLast(".") + "Stereo.yml"
+
+            if(RenderConfigReader::class.java.getResource(stereoConfig) != null) {
+                renderConfigFile = stereoConfig
+                settings.set("vr.Active", true)
+            } else {
+                logger.warn("Stereo VR configuration for $renderConfigFile ($stereoConfig) not found.")
+            }
+        }
     }
 
     fun switchFullscreen() {

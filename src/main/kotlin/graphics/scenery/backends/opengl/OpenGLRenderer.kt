@@ -203,19 +203,12 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
         val numExtensionsBuffer = IntBuffer.allocate(1)
         gl.glGetIntegerv(GL4.GL_NUM_EXTENSIONS, numExtensionsBuffer)
         val extensions = (0..numExtensionsBuffer[0] - 1).map { gl.glGetStringi(GL4.GL_EXTENSIONS, it) }
-        logger.info("Supported OpenGL extensions:\n${extensions.joinToString(", ")}")
 
         settings.set("ssao.FilterRadius", GLVector(5.0f / width, 5.0f / height))
 
         geometryBuffer = ArrayList<GLFramebuffer>()
         hdrBuffer = ArrayList<GLFramebuffer>()
         combinationBuffer = ArrayList<GLFramebuffer>()
-
-        // if vr.Active is set to true, we use two eyes for stereo render targets.
-        if (settings.get("vr.Active")) {
-            eyes = (0..1)
-            settings.set("vr.IPD", -0.5f)
-        }
 
         recreateFramebuffers()
 
@@ -262,6 +255,12 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
     }
 
     fun recreateFramebuffers() {
+
+        // if vr.Active is set to true, we use two eyes for stereo render targets.
+        if (settings.get("vr.Active")) {
+            eyes = (0..1)
+            settings.set("vr.IPD", -0.5f)
+        }
 
         geometryBuffer.map { it.destroy(this.gl) }
         hdrBuffer.map { it.destroy(this.gl) }
@@ -316,6 +315,16 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
         clearGLWindow.windowTitle = "$applicationName [${this.javaClass.simpleName}] - ${pDrawable.animator?.lastFPS} fps"
 
         this.joglDrawable = pDrawable
+
+        if (mustRecreateFramebuffers) {
+            recreateFramebuffers()
+
+            gl.glClear(GL.GL_DEPTH_BUFFER_BIT or GL.GL_COLOR_BUFFER_BIT)
+            gl.glViewport(0, 0, window.width, window.height)
+
+            mustRecreateFramebuffers = false
+        }
+
         this@OpenGLRenderer.render()
     }
 
@@ -441,6 +450,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
      * Toggles deferred shading buffer debug view. Used for e.g.
      * [scenery.controls.behaviours.ToggleCommand].
      */
+    @Suppress("UNUSED")
     fun toggleDebug() {
         if (settings.get<Boolean>("debug.DebugDeferredBuffers") == false) {
             settings.set("debug.DebugDeferredBuffers", true)
@@ -453,6 +463,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
      * Toggles Screen-space ambient occlusion. Used for e.g.
      * [scenery.controls.behaviours.ToggleCommand].
      */
+    @Suppress("UNUSED")
     fun toggleSSAO() {
         if (settings.get<Boolean>("ssao.Active") == false) {
             settings.set("ssao.Active", true)
@@ -465,6 +476,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
      * Toggles HDR rendering. Used for e.g.
      * [scenery.controls.behaviours.ToggleCommand].
      */
+    @Suppress("UNUSED")
     fun toggleHDR() {
         if (settings.get<Boolean>("hdr.Active") == false) {
             settings.set("hdr.Active", true)
@@ -474,9 +486,24 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
     }
 
     /**
+     * Toggles VR on and off
+     */
+    @Suppress("UNUSED")
+    fun toggleVR() {
+        if(!settings.get<Boolean>("vr.Active")) {
+            settings.set("vr.Active", true)
+        } else {
+            settings.set("vr.Active", false)
+        }
+
+        mustRecreateFramebuffers = true
+    }
+
+    /**
      * Increases the HDR exposure value. Used for e.g.
      * [scenery.controls.behaviours.ToggleCommand].
      */
+    @Suppress("UNUSED")
     fun increaseExposure() {
         val exp: Float = settings.get<Float>("hdr.Exposure")
         settings.set("hdr.Exposure", exp + 0.05f)
@@ -486,6 +513,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
      * Decreases the HDR exposure value.Used for e.g.
      * [scenery.controls.behaviours.ToggleCommand].
      */
+    @Suppress("UNUSED")
     fun decreaseExposure() {
         val exp: Float = settings.get<Float>("hdr.Exposure")
         settings.set("hdr.Exposure", exp - 0.05f)
@@ -761,6 +789,8 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
      */
     override fun render() {
         val startRender = System.nanoTime()
+        val vrActive = settings.get<Boolean>("vr.Active")
+
         if (scene.children.count() == 0 ||
             lightingPassProgram == null ||
             hdrPassProgram == null ||
@@ -769,15 +799,6 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
             logger.info("Waiting for initialization")
             Thread.sleep(200)
             return
-        }
-
-        if (mustRecreateFramebuffers) {
-            recreateFramebuffers()
-
-            gl.glClear(GL.GL_DEPTH_BUFFER_BIT or GL.GL_COLOR_BUFFER_BIT)
-            gl.glViewport(0, 0, window.width, window.height)
-
-            mustRecreateFramebuffers = false
         }
 
         val renderOrderList = ArrayList<Node>()
@@ -833,7 +854,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
         cam.view = cam.getTransformation()
 
         val projection = eyes.map { i ->
-            if (settings.get<Boolean>("vr.Active")) {
+            if (vrActive) {
                 hmd?.getEyeProjection(i) ?: cam.projection
             } else {
                 cam.projection
@@ -1057,7 +1078,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
         gl.glViewport(0, 0, window.width, window.height)
         gl.glScissor(0, 0, window.width, window.height)
 
-        if (settings.get<Boolean>("vr.Active")) {
+        if (vrActive) {
             if (settings.get<Boolean>("vr.DoAnaglyph")) {
                 combinerProgram!!.getUniform("vrActive").setInt(0)
                 combinerProgram!!.getUniform("anaglyphActive").setInt(1)

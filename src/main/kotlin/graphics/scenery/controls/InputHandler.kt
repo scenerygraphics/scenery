@@ -195,6 +195,8 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
         behaviourMap.put("increase_gamma", ToggleCommand("increase_gamma", renderer, "increaseGamma"))
         behaviourMap.put("decrease_gamma", ToggleCommand("decrease_gamma", renderer, "decreaseGamma"))
 
+        behaviourMap.put("toggle_vr", ToggleCommand("toggle_vr", renderer, "toggleVR"))
+
         val adder = config.inputTriggerAdder(inputMap, "all")
         adder.put("mouse_control") // put input trigger as defined in config
         adder.put("gamepad_movement_control")
@@ -226,6 +228,8 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
         adder.put("decrease_gamma", "shift L")
 
         adder.put("screenshot", "P")
+
+        adder.put("toggle_vr", "shift V")
     }
 
     override fun close() {
