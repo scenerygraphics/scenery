@@ -248,6 +248,18 @@
         </dependency>
 
         <dependency>
+            <groupId>net.clearvolume</groupId>
+            <artifactId>clearcl</artifactId>
+            <version>0.4.5</version>
+        </dependency>
+
+        <dependency>
+            <groupId>net.coremem</groupId>
+            <artifactId>CoreMem</artifactId>
+            <version>0.4.3</version>
+        </dependency>
+
+        <dependency>
             <groupId>graphics.scenery</groupId>
             <artifactId>jopenvr</artifactId>
             <version>1.0.5</version>
@@ -463,6 +475,10 @@
         <repository>
             <id>imagej.public</id>
             <url>http://maven.imagej.net/content/groups/public</url>
+        </repository>
+        <repository>
+            <id>clearcontrol</id>
+            <url>http://dl.bintray.com/clearcontrol/ClearControl</url>
         </repository>
     </repositories>
 
