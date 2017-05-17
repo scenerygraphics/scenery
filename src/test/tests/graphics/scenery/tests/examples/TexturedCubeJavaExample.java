@@ -44,7 +44,9 @@ public class TexturedCubeJavaExample {
                 lights[i] = new PointLight();
                 lights[i].setPosition( new GLVector(2.0f * i, 2.0f * i, 2.0f * i) );
                 lights[i].setEmissionColor( new GLVector(1.0f, 0.0f, 1.0f) );
-                lights[i].setIntensity( 0.2f*(i+1) );
+                lights[i].setIntensity( 100.2f*(i+1) );
+                lights[i].setLinear(0.0f);
+                lights[i].setQuadratic(0.5f);
                 getScene().addChild( lights[i] );
             }
 
