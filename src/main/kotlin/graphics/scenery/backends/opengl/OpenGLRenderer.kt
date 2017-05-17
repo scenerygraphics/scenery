@@ -884,6 +884,8 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
             }
 
             eyes.forEach { eye ->
+                n.projection.copyFrom(projection[eye])
+                n.view.copyFrom(cam.view)
 
                 n.modelView.copyFrom(headToEye[eye])
                 n.modelView.mult(pose)
@@ -954,6 +956,9 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
 
                     node.mvp.copyFrom(projection[eye])
                     node.mvp.mult(node.modelView)
+
+                    node.projection.copyFrom(projection[eye])
+                    node.view.copyFrom(cam.view)
 
                     models.addAll(node.world.floatArray.asSequence())
                     modelviews.addAll(node.modelView.floatArray.asSequence())
