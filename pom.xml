@@ -480,6 +480,10 @@
             <id>clearcontrol</id>
             <url>http://dl.bintray.com/clearcontrol/ClearControl</url>
         </repository>
+        <repository>
+            <id>clearvolume</id>
+            <url>http://dl.bintray.com/clearvolume/ClearVolume</url>
+        </repository>
     </repositories>
 
     <pluginRepositories>
