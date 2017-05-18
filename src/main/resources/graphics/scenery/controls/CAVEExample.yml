@@ -1,0 +1,32 @@
+name: CAVE example configuration
+description: Multi-screen configuration, demoing a 4-sided CAVE environment
+
+screens:
+  front:
+    match:
+      type: property
+      value: front
+    lowerLeft: -1.92, 0.00, 1.92
+    lowerRight: 1.92, 0.00, 1.92
+    upperLeft: -1.92, 2.40, 1.92
+  left:
+      match:
+        type: property
+        value: left
+      lowerLeft: -1.92, 0.00, -1.92
+      lowerRight: -1.92, 0.00, 1.92
+      upperLeft: -1.92, 2.40, 1.92
+  right:
+      match:
+        type: property
+        value: right
+      lowerLeft: 1.92, 0.00, 1.92
+      lowerRight: 1.92, 0.00, -1.92
+      upperLeft: 1.92, 2.40, 1.92
+  floor:
+      match:
+        type: property
+        value: floor
+      lowerLeft: -1.92, 0.00, -0.48
+      lowerRight: 1.92, 0.00, -0.48
+      upperLeft: -1.92, 0.00, 1.92

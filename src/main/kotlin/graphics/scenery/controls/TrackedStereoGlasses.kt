@@ -18,7 +18,7 @@ import org.slf4j.LoggerFactory
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class TrackedStereoGlasses(var address: String = "device@localhost:5500", val screenWidth: Int = 1920, val screenHeight: Int = 1080) : Display, TrackerInput, Hubable {
+class TrackedStereoGlasses(var address: String = "device@localhost:5500", var screenConfig: String = "CAVEExample.yml", val screenWidth: Int = 1920, val screenHeight: Int = 1080) : Display, TrackerInput, Hubable {
     override var hub: Hub? = null
 
     var vrpnTracker = VRPNTrackerInput(address)
@@ -26,6 +26,8 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", val sc
     var ipd = 0.05f
 
     var logger: Logger = LoggerFactory.getLogger("TrackedStereoGlasses")
+    var config: ScreenConfig.Config = ScreenConfig.loadFromFile(screenConfig)
+    var screen: ScreenConfig.SingleScreenConfig? = null
 
     private val vulkanProjectionFix =
         GLMatrix(floatArrayOf(
@@ -33,6 +35,11 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", val sc
             0.0f, -1.0f, 0.0f, 0.0f,
             0.0f,  0.0f, 0.5f, 0.5f,
             0.0f,  0.0f, 0.0f, 1.0f))
+
+    init {
+        logger.info("My screen is ${ScreenConfig.getScreen(config)}")
+        screen = ScreenConfig.getScreen(config)
+    }
 
     /**
      * Returns the per-eye projection matrix
@@ -42,11 +49,9 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", val sc
      */
     override fun getEyeProjection(eye: Int, nearPlane: Float, farPlane: Float, flipY: Boolean): GLMatrix {
         val m = GLMatrix().setGeneralizedPerspectiveProjectionMatrix(
-            //front
-            // floor
-            GLVector(-1.920000f, 0.000000f, -0.48000f),
-            GLVector(1.920000f, 0.000000f, -0.48000f),
-            GLVector(-1.920000f, 0.000000f, 1.920000f),
+            screen?.lowerLeft ?: GLVector(0.0f, 0.0f, 0.0f),
+            screen?.lowerRight ?: GLVector(1.0f, 0.0f, 0.0f),
+            screen?.upperLeft ?: GLVector(0.0f, 1.0f, 0.0f),
             getPosition(),
             nearPlane,
             farPlane
@@ -146,12 +151,11 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", val sc
      * @return HMD pose as GLMatrix
      */
     override fun getPose(): GLMatrix {
+        logger.info("returning pose")
         val trackerOrientation = vrpnTracker.getOrientation()
         val trackerPos = vrpnTracker.getPosition()
 
-        val flip = Quaternion().rotateByAngleX(Math.PI.toFloat()).rotateByAngleY(Math.PI.toFloat())
         currentOrientation.setIdentity()
-        currentOrientation.mult(flip)
         currentOrientation.translate(trackerPos).invert()
 
         return currentOrientation
