@@ -41,6 +41,8 @@ class VRPNTrackerInput(trackerAddress: String = "device@locahost:5500") : Tracke
     var stats = Timer()
     var vrpnMsgCount = 0L
 
+    var positionScaling: Float = 1.0f
+
     init {
         Loader.loadNatives()
 
@@ -64,9 +66,9 @@ class VRPNTrackerInput(trackerAddress: String = "device@locahost:5500") : Tracke
 //        t.addVelocityChangeListener(this)
 
         listener = TrackerRemoteListener(t)
-        listener?.setModeLastTrackerUpdate()
-        listener?.setModeLastAccelerationUpdate()
-        listener?.setModeLastVelocityUpdate()
+        listener?.setModeAllTrackerUpdates()
+        listener?.setModeAllAccelerationUpdates()
+        listener?.setModeAllVelocityUpdates()
 
         return t
     }
@@ -122,19 +124,21 @@ class VRPNTrackerInput(trackerAddress: String = "device@locahost:5500") : Tracke
     override fun update() {
         listener?.let {
 
-            cachedPosition = GLVector(it.lastTrackerUpdate.pos[0].toFloat(), it.lastTrackerUpdate.pos[1].toFloat(), -1.0f * it.lastTrackerUpdate.pos[2].toFloat())
-            logger.info("Position: $cachedPosition")
-            val newOrientation = Quaternion(
-                -it.lastTrackerUpdate.quat[0].toFloat(),
-                -it.lastTrackerUpdate.quat[1].toFloat(),
-                it.lastTrackerUpdate.quat[2].toFloat(),
-                it.lastTrackerUpdate.quat[3].toFloat())
-                .rotateByAngleX(Math.PI.toFloat()/2.0f)
-                .normalize()
+            it.lastTrackerUpdate?.let {
+                cachedPosition = GLVector(-it.pos[0].toFloat(), it.pos[1].toFloat(), it.pos[2].toFloat())*positionScaling
+//                val newOrientation = Quaternion(
+//                   it.quat[0].toFloat(),
+//                   -it.quat[2].toFloat(),
+//                   -it.quat[1].toFloat(),
+//                   it.quat[3].toFloat()
+//                )
+//                    .rotateByAngleX(-Math.PI.toFloat() / 2.0f)
+//                    .normalize()
+//
+//                cachedOrientation = newOrientation.conjugate().normalize()
 
-            cachedOrientation = newOrientation
-
-            vrpnMsgCount++
+                vrpnMsgCount++
+            }
         }
     }
 

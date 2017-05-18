@@ -10,6 +10,8 @@ import org.lwjgl.vulkan.VkDevice
 import org.lwjgl.vulkan.VkInstance
 import org.lwjgl.vulkan.VkPhysicalDevice
 import org.lwjgl.vulkan.VkQueue
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 
 /**
  * Display/TrackerInput implementation for stereoscopic displays and tracked shutter glasses
@@ -21,6 +23,16 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", val sc
 
     var vrpnTracker = VRPNTrackerInput(address)
     var currentOrientation = GLMatrix()
+    var ipd = 0.05f
+
+    var logger: Logger = LoggerFactory.getLogger("TrackedStereoGlasses")
+
+    private val vulkanProjectionFix =
+        GLMatrix(floatArrayOf(
+            1.0f,  0.0f, 0.0f, 0.0f,
+            0.0f, -1.0f, 0.0f, 0.0f,
+            0.0f,  0.0f, 0.5f, 0.5f,
+            0.0f,  0.0f, 0.0f, 1.0f))
 
     /**
      * Returns the per-eye projection matrix
@@ -29,7 +41,27 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", val sc
      * @return GLMatrix containing the per-eye projection matrix
      */
     override fun getEyeProjection(eye: Int, nearPlane: Float, farPlane: Float, flipY: Boolean): GLMatrix {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        val m = GLMatrix().setGeneralizedPerspectiveProjectionMatrix(
+            GLVector(-1.920000f, 0.000000f, 1.920000f),
+            GLVector(1.920000f, 0.000000f, 1.920000f),
+            GLVector(-1.920000f, 2.400000f, 1.920000f),
+            GLVector(0.0f, 0.0f, 0.0f),
+            nearPlane,
+            farPlane
+        )
+
+        if(flipY) {
+            return m.applyVulkanCoordinateSystem()
+        } else {
+            return m
+        }
+    }
+
+    fun GLMatrix.applyVulkanCoordinateSystem(): GLMatrix {
+        val m = vulkanProjectionFix.clone()
+        m.mult(this)
+
+        return m
     }
 
     /**
@@ -38,7 +70,7 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", val sc
      * @return IPD as Float
      */
     override fun getIPD(): Float {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        return ipd
     }
 
     /**
@@ -80,6 +112,7 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", val sc
      * @param[image] The Vulkan texture image to be presented to the compositor
      */
     override fun submitToCompositorVulkan(width: Int, height: Int, format: Int, instance: VkInstance, device: VkDevice, physicalDevice: VkPhysicalDevice, queue: VkQueue, queueFamilyIndex: Int, image: Long) {
+        logger.error("This Display implementation does not have a compositor. Incorrect configuration?")
     }
 
     /**
@@ -115,7 +148,8 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", val sc
         val trackerPos = vrpnTracker.getPosition()
 
         currentOrientation.setIdentity()
-        currentOrientation.translate(trackerPos).mult(trackerOrientation).invert()
+//        currentOrientation.mult(trackerOrientation).invert()
+        currentOrientation.translate(trackerPos).invert()
 
         return currentOrientation
     }
@@ -161,6 +195,13 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", val sc
      * @return GLMatrix containing the transform
      */
     override fun getHeadToEyeTransform(eye: Int): GLMatrix {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        val shift = GLMatrix.getIdentity()
+        if(eye == 0) {
+            shift.translate(-0.025f, 0.0f, -0.015f)
+        } else {
+            shift.translate(0.025f, 0.0f, -0.015f)
+        }
+
+        return shift
     }
 }
