@@ -42,10 +42,12 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", val sc
      */
     override fun getEyeProjection(eye: Int, nearPlane: Float, farPlane: Float, flipY: Boolean): GLMatrix {
         val m = GLMatrix().setGeneralizedPerspectiveProjectionMatrix(
+            //front
+            // floor
+            GLVector(-1.920000f, 0.000000f, -0.48000f),
+            GLVector(1.920000f, 0.000000f, -0.48000f),
             GLVector(-1.920000f, 0.000000f, 1.920000f),
-            GLVector(1.920000f, 0.000000f, 1.920000f),
-            GLVector(-1.920000f, 2.400000f, 1.920000f),
-            GLVector(0.0f, 0.0f, 0.0f),
+            getPosition(),
             nearPlane,
             farPlane
         )
@@ -147,8 +149,9 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", val sc
         val trackerOrientation = vrpnTracker.getOrientation()
         val trackerPos = vrpnTracker.getPosition()
 
+        val flip = Quaternion().rotateByAngleX(Math.PI.toFloat()).rotateByAngleY(Math.PI.toFloat())
         currentOrientation.setIdentity()
-//        currentOrientation.mult(trackerOrientation).invert()
+        currentOrientation.mult(flip)
         currentOrientation.translate(trackerPos).invert()
 
         return currentOrientation
