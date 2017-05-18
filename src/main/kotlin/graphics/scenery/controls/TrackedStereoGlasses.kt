@@ -202,6 +202,6 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", val sc
             shift.translate(0.025f, 0.0f, -0.015f)
         }
 
-        return shift
+        return shift.invert()
     }
 }
