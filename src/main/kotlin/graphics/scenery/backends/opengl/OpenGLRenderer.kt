@@ -380,7 +380,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
         ds.set("vr.EyeDivisor", 1)
 
         ds.set("hdr.Active", true)
-        ds.set("hdr.Exposure", 1.0f)
+        ds.set("hdr.Exposure", 10.0f)
         ds.set("hdr.Gamma", 2.2f)
 
         ds.set("sdf.MaxDistance", 10)
@@ -855,7 +855,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
 
         val projection = eyes.map { i ->
             if (vrActive) {
-                hmd?.getEyeProjection(i) ?: cam.projection
+                hmd?.getEyeProjection(i, cam.nearPlaneDistance, cam.farPlaneDistance, flipY = false) ?: cam.projection
             } else {
                 cam.projection
             }

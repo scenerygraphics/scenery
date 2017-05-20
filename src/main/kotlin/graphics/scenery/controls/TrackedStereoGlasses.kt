@@ -48,11 +48,17 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
      * @return GLMatrix containing the per-eye projection matrix
      */
     override fun getEyeProjection(eye: Int, nearPlane: Float, farPlane: Float, flipY: Boolean): GLMatrix {
+        val eyeShift = if(eye == 0) {
+            -ipd/2.0f
+        } else {
+            ipd/2.0f
+        }
+
         val m = GLMatrix().setGeneralizedPerspectiveProjectionMatrix(
             screen?.lowerLeft ?: GLVector(0.0f, 0.0f, 0.0f),
             screen?.lowerRight ?: GLVector(1.0f, 0.0f, 0.0f),
             screen?.upperLeft ?: GLVector(0.0f, 1.0f, 0.0f),
-            getPosition(),
+            getPosition() + GLVector(eyeShift, 0.0f, 0.0f),
             nearPlane,
             farPlane
         )
@@ -151,7 +157,6 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
      * @return HMD pose as GLMatrix
      */
     override fun getPose(): GLMatrix {
-        logger.info("returning pose")
         val trackerOrientation = vrpnTracker.getOrientation()
         val trackerPos = vrpnTracker.getPosition()
 

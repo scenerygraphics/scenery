@@ -4,7 +4,6 @@ import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.InputHandler
-import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedStereoGlasses
 import graphics.scenery.controls.behaviours.ArcballCameraControl
 import graphics.scenery.controls.behaviours.FPSCameraControl
@@ -25,7 +24,7 @@ class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 2
     override fun init() {
         try {
 //            hmd = OpenVRHMD(useCompositor = true)
-            hmd = TrackedStereoGlasses("DTrack@10.1.2.201", 2560, 1600)
+            hmd = TrackedStereoGlasses("DTrack@10.1.2.201", "CAVEExample.yml", 2560, 1600)
             hub.add(SceneryElement.HMDInput, hmd!!)
 
             renderer = Renderer.createRenderer(hub, applicationName,
@@ -69,7 +68,7 @@ class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 2
             meshM.diffuse = GLVector(0.5f, 0.5f, 0.5f)
             meshM.specular = GLVector(0.0f, 0.0f, 0.0f)
 
-            mesh.readFromOBJ(getDemoFilesPath() + "/sponza-crytek/sponza.obj", useMTL = true)
+            mesh.readFromOBJ(getDemoFilesPath() + "/sponza.obj", useMTL = true)
             mesh.position = GLVector(-200.0f, 5.0f, 200.0f)
             mesh.scale = GLVector(0.01f, 0.01f, 0.01f)
             mesh.name = "Sponza_Mesh"
