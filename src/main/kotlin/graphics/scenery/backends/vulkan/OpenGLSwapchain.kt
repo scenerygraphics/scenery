@@ -214,7 +214,7 @@ class OpenGLSwapchain(val window: SceneryWindow,
 
             NVDrawVulkanImage.glDrawVkImageNV(images!!.get(0), 0,
                 0.0f, 0.0f, window.width.toFloat(), window.height.toFloat(), 0.0f,
-                0.0f, 1.0f, 0.5f, 0.0f)
+                0.0f, 0.0f, 0.5f, 1.0f)
 
             glDrawBuffer(GL_BACK_RIGHT)
             glClear(GL_COLOR_BUFFER_BIT)
@@ -222,7 +222,7 @@ class OpenGLSwapchain(val window: SceneryWindow,
 
             NVDrawVulkanImage.glDrawVkImageNV(images!!.get(0), 0,
                 0.0f, 0.0f, window.width.toFloat(), window.height.toFloat(), 0.0f,
-                0.5f, 1.0f, 1.0f, 0.0f)
+                0.5f, 0.0f, 1.0f, 1.0f)
         } else {
             glClear(GL_COLOR_BUFFER_BIT)
             NVDrawVulkanImage.glDrawVkImageNV(images!!.get(0), 0,

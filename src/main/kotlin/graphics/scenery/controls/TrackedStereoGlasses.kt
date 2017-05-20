@@ -161,7 +161,7 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
         val trackerPos = vrpnTracker.getPosition()
 
         currentOrientation.setIdentity()
-        currentOrientation.translate(trackerPos).invert()
+//        currentOrientation.translate(trackerPos).invert()
 
         return currentOrientation
     }
@@ -209,11 +209,11 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
     override fun getHeadToEyeTransform(eye: Int): GLMatrix {
         val shift = GLMatrix.getIdentity()
         if(eye == 0) {
-            shift.translate(-0.025f, 0.0f, -0.015f)
-        } else {
             shift.translate(0.025f, 0.0f, -0.015f)
+        } else {
+            shift.translate(-0.025f, 0.0f, -0.015f)
         }
 
-        return shift.invert()
+        return shift
     }
 }
