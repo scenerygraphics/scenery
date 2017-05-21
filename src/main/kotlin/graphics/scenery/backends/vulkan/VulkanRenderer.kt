@@ -810,6 +810,7 @@ open class VulkanRenderer(hub: Hub,
                             1 -> VK_FORMAT_R8_UNORM
                             2 -> VK_FORMAT_R8G8_UNORM
                             3 -> VK_FORMAT_R8G8B8_UNORM
+                            -1 -> VK_FORMAT_R16_UINT
                             else -> if(gt.type == GLTypeEnum.Float) {
                                 VK_FORMAT_R32G32B32A32_SFLOAT
                             } else {
@@ -817,9 +818,15 @@ open class VulkanRenderer(hub: Hub,
                             }
                         }
 
+                        val zSize = if(gt.dimensions.dimension == 3) {
+                            gt.dimensions.z().toInt()
+                        } else {
+                            1
+                        }
+
                         val t = VulkanTexture(device, physicalDevice, memoryProperties,
                             commandPools.Standard, queue,
-                            gt.dimensions.x().toInt(), gt.dimensions.y().toInt(), 1,
+                            gt.dimensions.x().toInt(), gt.dimensions.y().toInt(), zSize,
                             format, miplevels)
                         t.copyFrom(gt.contents)
 
@@ -1186,16 +1193,21 @@ open class VulkanRenderer(hub: Hub,
                 }
 
                 pass.vulkanMetadata.clearValues.free()
-                pass.vulkanMetadata.clearValues = VkClearValue.calloc(pass.output.values.first().attachments.count())
-                pass.output.values.first().attachments.values.forEachIndexed { i, att ->
-                    when (att.type) {
-                        VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> {
-                            pass.vulkanMetadata.clearValues[i].color().float32().put(pass.passConfig.clearColor.toFloatArray())
-                        }
-                        VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> {
-                            pass.vulkanMetadata.clearValues[i].depthStencil().set(pass.passConfig.depthClearValue, 0)
+                if(!passConfig.blitInputs) {
+                    pass.vulkanMetadata.clearValues = VkClearValue.calloc(pass.output.values.first().attachments.count())
+
+                    pass.output.values.first().attachments.values.forEachIndexed { i, att ->
+                        when (att.type) {
+                            VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> {
+                                pass.vulkanMetadata.clearValues[i].color().float32().put(pass.passConfig.clearColor.toFloatArray())
+                            }
+                            VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> {
+                                pass.vulkanMetadata.clearValues[i].depthStencil().set(pass.passConfig.depthClearValue, 0)
+                            }
                         }
                     }
+                } else {
+                    pass.vulkanMetadata.clearValues = VkClearValue.calloc(0)
                 }
 
                 pass.vulkanMetadata.renderArea.extent().set(
@@ -2203,10 +2215,18 @@ open class VulkanRenderer(hub: Hub,
 
                             val transitionBuffer = this@with!!
 
+                            val subresourceRange = VkImageSubresourceRange.callocStack(stack)
+                                .aspectMask(type)
+                                .baseMipLevel(0)
+                                .levelCount(1)
+                                .baseArrayLayer(0)
+                                .layerCount(1)
+
                             // transition source attachment
                             VulkanTexture.transitionLayout(inputAttachment.image,
                                 VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                                 VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                subresourceRange = subresourceRange,
                                 commandBuffer = transitionBuffer
                             )
 
@@ -2214,26 +2234,29 @@ open class VulkanRenderer(hub: Hub,
                             VulkanTexture.transitionLayout(outputAttachment.image,
                                 inputAspectType,
                                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                subresourceRange = subresourceRange,
                                 commandBuffer = transitionBuffer
                             )
 
                             vkCmdBlitImage(this@with,
                                 inputAttachment.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                                 outputAttachment.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                imageBlit, VK_FILTER_LINEAR
+                                imageBlit, VK_FILTER_NEAREST
                             )
 
                             // transition destination attachment back to attachment
                             VulkanTexture.transitionLayout(outputAttachment.image,
                                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                                 outputAspectType,
+                                subresourceRange = subresourceRange,
                                 commandBuffer = transitionBuffer
                             )
 
                             // transition source attachment back to shader read-only
                             VulkanTexture.transitionLayout(inputAttachment.image,
                                 VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                                VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                outputAspectType,
+                                subresourceRange = subresourceRange,
                                 commandBuffer = transitionBuffer
                             )
 

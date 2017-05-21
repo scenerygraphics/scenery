@@ -3,6 +3,7 @@ package graphics.scenery.tests.examples
 import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
+import graphics.scenery.volumes.DirectVolume
 import graphics.scenery.volumes.Volume
 import org.junit.Test
 import java.nio.file.Paths
@@ -15,10 +16,10 @@ import kotlin.concurrent.thread
  */
 class VolumeExample: SceneryDefaultApplication("Volume Rendering example") {
     override fun init() {
-        renderer = Renderer.createRenderer(hub, applicationName, scene, 512, 512)
+        renderer = Renderer.createRenderer(hub, applicationName, scene, 1920, 1200)
         hub.add(SceneryElement.Renderer, renderer!!)
 
-        val shell = Box(GLVector(20.0f, 20.0f, 20.0f), insideNormals = true)
+        val shell = Box(GLVector(120.0f, 120.0f, 120.0f), insideNormals = true)
         shell.material.doubleSided = true
         shell.material.diffuse = GLVector(1.0f, 1.0f, 1.0f)
         shell.material.specular = GLVector.getNullVector(3)
@@ -34,7 +35,7 @@ class VolumeExample: SceneryDefaultApplication("Volume Rendering example") {
             scene.addChild(this)
         }
 
-        val volume = Volume()
+        val volume = DirectVolume()
 
         with(volume) {
             volume.readFrom(Paths.get("/Users/ulrik/Desktop/t1-head.raw"))
@@ -54,13 +55,6 @@ class VolumeExample: SceneryDefaultApplication("Volume Rendering example") {
             scene.addChild(light)
         }
 
-        volume.update = { volume.render() }
-
-        thread {
-            while (true) {
-                Thread.sleep(20)
-            }
-        }
     }
 
     @Test override fun main() {

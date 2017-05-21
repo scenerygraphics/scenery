@@ -16,6 +16,9 @@ import org.lwjgl.vulkan.VK10.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.*
+import java.nio.file.Files
+import java.nio.file.Paths
+import kotlin.streams.toList
 
 /**
  * Vulkan Textures class. Provides static methods to load textures from files.
@@ -49,10 +52,8 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
                     .baseArrayLayer(0)
                     .layerCount(1)
 
-                bufferImageCopy.imageExtent()
-                    .width(width)
-                    .height(height)
-                    .depth(1)
+                bufferImageCopy.imageExtent().set(width, height, depth)
+                bufferImageCopy.imageOffset().set(0, 0, 0)
 
                 vkCmdCopyBufferToImage(this,
                     buffer.buffer,
@@ -91,11 +92,19 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
     }
 
     init {
-        stagingImage = createImage(width, height, depth,
-            format, VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-            VK_IMAGE_TILING_LINEAR,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
-            mipLevels = 1)
+        if(depth == 1) {
+            stagingImage = createImage(width, height, depth,
+                format, VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+                VK_IMAGE_TILING_LINEAR,
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
+                mipLevels = 1)
+        } else {
+            stagingImage = createImage(16, 16, 1,
+                format, VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+                VK_IMAGE_TILING_LINEAR,
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
+                mipLevels = 1)
+        }
     }
 
     fun createImage(width: Int, height: Int, depth: Int, format: Int, usage: Int, tiling: Int, memoryFlags: Int, mipLevels: Int): VulkanImage {
@@ -113,7 +122,7 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
             .arrayLayers(1)
             .format(format)
             .tiling(tiling)
-            .initialLayout(VK_IMAGE_LAYOUT_PREINITIALIZED)
+            .initialLayout(if(depth == 1) {VK_IMAGE_LAYOUT_PREINITIALIZED} else { VK_IMAGE_LAYOUT_UNDEFINED })
             .usage(usage)
             .sharingMode(VK_SHARING_MODE_EXCLUSIVE)
             .samples(VK_SAMPLE_COUNT_1_BIT)
@@ -124,6 +133,8 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
             { vkCreateImage(device, imageInfo, null, this) })
 
         vkGetImageMemoryRequirements(device, image, reqs)
+
+        logger.info("Allocating ${reqs.size()} for $width/$height/$depth")
 
         val allocInfo = VkMemoryAllocateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO)
@@ -142,7 +153,7 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
 
 
     fun copyFrom(data: ByteBuffer) {
-        if(data.remaining() > stagingImage.maxSize) {
+        if(depth == 1 && data.remaining() > stagingImage.maxSize) {
             logger.warn("Allocated image size for $this (${stagingImage.maxSize}) less than copy source size ${data.remaining()}.")
             return
         }
@@ -154,26 +165,46 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
                     VK_IMAGE_TILING_OPTIMAL, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                     mipLevels)
 
-                val dest = memAllocPointer(1)
-                vkMapMemory(device, stagingImage.memory, 0, data.remaining() * 1L, 0, dest)
-                memCopy(memAddress(data), dest.get(0), data.remaining())
-                vkUnmapMemory(device, stagingImage.memory)
-                memFree(dest)
+                if(depth == 1) {
+                    val dest = memAllocPointer(1)
+                    vkMapMemory(device, stagingImage.memory, 0, data.remaining() * 1L, 0, dest)
+                    memCopy(memAddress(data), dest.get(0), data.remaining())
+                    vkUnmapMemory(device, stagingImage.memory)
+                    memFree(dest)
 
-                transitionLayout(stagingImage.image,
-                    VK_IMAGE_LAYOUT_PREINITIALIZED,
-                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, mipLevels,
-                    commandBuffer = this)
-                transitionLayout(image!!.image,
-                    VK_IMAGE_LAYOUT_PREINITIALIZED,
-                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevels,
-                    commandBuffer = this)
+                    transitionLayout(stagingImage.image,
+                        VK_IMAGE_LAYOUT_PREINITIALIZED,
+                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, mipLevels,
+                        commandBuffer = this)
+                    transitionLayout(image!!.image,
+                        VK_IMAGE_LAYOUT_PREINITIALIZED,
+                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevels,
+                        commandBuffer = this)
 
-                image!!.copyFrom(this, stagingImage)
-                transitionLayout(image!!.image,
-                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, mipLevels,
-                    commandBuffer = this)
+                    image!!.copyFrom(this, stagingImage)
+
+                    transitionLayout(image!!.image,
+                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, mipLevels,
+                        commandBuffer = this)
+                } else {
+                    val buffer = VU.createBuffer(device, memoryProperties, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, false, data.capacity().toLong())
+
+                    buffer.copyFrom(data)
+
+                    transitionLayout(image!!.image,
+                        VK_IMAGE_LAYOUT_UNDEFINED,
+                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevels,
+                        commandBuffer = this)
+
+                    image!!.copyFrom(this, buffer)
+
+                    transitionLayout(image!!.image,
+                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, mipLevels,
+                        commandBuffer = this)
+                }
 
                 this.endCommandBuffer(device, commandPool, queue, flush = true, dealloc = true)
             }
@@ -328,11 +359,22 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
             val stream = FileInputStream(filename)
             val type = filename.substringAfterLast('.')
 
+
             logger.debug("Loading${if(generateMipmaps) { " mipmapped" } else { "" }} texture from $filename")
 
-            return loadFromFile(device, physicalDevice,
-                memoryProperties, commandPool, queue,
-                stream, type, linearMin, linearMax, generateMipmaps)
+            if(type == "raw") {
+                val path = Paths.get(filename)
+                val infoFile = path.resolveSibling(path.fileName.toString().substringBeforeLast(".") + ".info")
+                val dimensions = Files.lines(infoFile).toList().first().split(",").map { it.toLong() }.toLongArray()
+
+                return loadFromFileRaw(device, physicalDevice,
+                    memoryProperties, commandPool, queue,
+                    stream, type, dimensions)
+            } else {
+                return loadFromFile(device, physicalDevice,
+                    memoryProperties, commandPool, queue,
+                    stream, type, linearMin, linearMax, generateMipmaps)
+            }
         }
 
         fun loadFromFile(device: VkDevice, physicalDevice: VkPhysicalDevice,
@@ -377,6 +419,8 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
 
             }
 
+            stream.close()
+
             // convert to OpenGL UV space
             flippedImage = createFlipped(bi)
             imageData = bufferedImageToRGBABuffer(flippedImage)
@@ -412,6 +456,32 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
                 }, mipmapLevels, linearMin, linearMax)
 
             tex.copyFrom(imageData)
+
+            return tex
+        }
+
+        fun loadFromFileRaw(device: VkDevice, physicalDevice: VkPhysicalDevice,
+                         memoryProperties: VkPhysicalDeviceMemoryProperties,
+                         commandPool: Long, queue: VkQueue,
+                         stream: InputStream, type: String, dimensions: LongArray): VulkanTexture? {
+            val imageData: ByteBuffer = ByteBuffer.allocateDirect((2 * dimensions[0] * dimensions[1] * dimensions[2]).toInt())
+            val buffer = ByteArray(1024*1024)
+
+            var bytesRead = stream.read(buffer)
+            while(bytesRead > -1) {
+                imageData.put(buffer)
+                bytesRead = stream.read(buffer)
+            }
+
+            val tex = VulkanTexture(
+                device, physicalDevice, memoryProperties,
+                commandPool, queue,
+                dimensions[0].toInt(), dimensions[1].toInt(), dimensions[2].toInt(),
+                VK_FORMAT_R16_UINT, 1, true, true)
+
+            tex.copyFrom(imageData)
+
+            stream.close()
 
             return tex
         }
@@ -562,8 +632,10 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
                 } else if(oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
                     barrier.srcAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
                         .dstAccessMask(VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT)
-                }
-                else {
+                } else if(oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
+                    barrier.srcAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
+                        .dstAccessMask(VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT)
+                } else {
                     logger.error("Unsupported layout transition: $oldLayout -> $newLayout")
                 }
 

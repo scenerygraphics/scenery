@@ -2,6 +2,7 @@ package graphics.scenery.volumes
 
 import clearcl.*
 import clearcl.backend.ClearCLBackends
+import clearcl.backend.jocl.ClearCLBackendJOCL
 import clearcl.enums.*
 import cleargl.GLTypeEnum
 import cleargl.GLVector
@@ -90,7 +91,7 @@ class Volume : Mesh("Volume") {
         this.geometryType = b.geometryType
         this.isBillboard = true
 
-        val ccl = ClearCL(ClearCLBackends.getBestBackend())
+        val ccl = ClearCL(ClearCLBackendJOCL())
         val device = ccl.bestGPUDevice
         context = device.createContext()
         textureBuffer = ByteBuffer.allocateDirect(1024 * 1024 * 4 * 4).order(ByteOrder.nativeOrder())
