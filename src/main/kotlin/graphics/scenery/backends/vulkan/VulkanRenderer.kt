@@ -1,6 +1,7 @@
 package graphics.scenery.backends.vulkan
 
 import cleargl.GLMatrix
+import cleargl.GLTypeEnum
 import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.*
@@ -14,6 +15,7 @@ import org.lwjgl.PointerBuffer
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.glfw.GLFWVulkan.*
 import org.lwjgl.glfw.GLFWWindowSizeCallback
+import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.system.jemalloc.JEmalloc.*
 import org.lwjgl.vulkan.*
@@ -804,10 +806,21 @@ open class VulkanRenderer(hub: Hub,
                             1
                         }
 
+                        val format = when(gt.channels) {
+                            1 -> VK_FORMAT_R8_UNORM
+                            2 -> VK_FORMAT_R8G8_UNORM
+                            3 -> VK_FORMAT_R8G8B8_UNORM
+                            else -> if(gt.type == GLTypeEnum.Float) {
+                                VK_FORMAT_R32G32B32A32_SFLOAT
+                            } else {
+                                VK_FORMAT_R8G8B8A8_UNORM
+                            }
+                        }
+
                         val t = VulkanTexture(device, physicalDevice, memoryProperties,
                             commandPools.Standard, queue,
                             gt.dimensions.x().toInt(), gt.dimensions.y().toInt(), 1,
-                            miplevels)
+                            format, miplevels)
                         t.copyFrom(gt.contents)
 
                         t
@@ -1120,8 +1133,10 @@ open class VulkanRenderer(hub: Hub,
                         pass.output.put(rt.key, framebuffers.get(rt.key)!!)
                     } else {
 
+                        // create framebuffer -- don't clear it, if blitting is needed
                         val framebuffer = VulkanFramebuffer(device, physicalDevice, commandPools.Standard,
-                            width, height, this)
+                            width, height, this,
+                            shouldClear = !passConfig.blitInputs)
 
                         rt.value.forEach { att ->
                             logger.info(" + attachment ${att.key}, ${att.value.format.name}")
@@ -1253,7 +1268,7 @@ open class VulkanRenderer(hub: Hub,
     }
 
     @Suppress("UNUSED")
-    fun Long.hex(): String {
+    fun Long.toHexString(): String {
         return String.format("0x%X", this)
     }
 
@@ -2119,6 +2134,11 @@ open class VulkanRenderer(hub: Hub,
                 it.dirty = false
             }
 
+            if(it.material.needsTextureReload) {
+                val s = loadTexturesForNode(it, it.metadata["VulkanRenderer"]!! as VulkanObjectState)
+                it.metadata.put("VulkanRenderer", s)
+            }
+
             // if a node is not initialized yet, it'll be initialized here and it's UBO updated
             // in the next round
             if (!it.metadata.containsKey("VulkanRenderer")) {
@@ -2142,6 +2162,86 @@ open class VulkanRenderer(hub: Hub,
 
         with(commandBuffer.commandBuffer) {
 
+            if(pass.passConfig.blitInputs) {
+                stackPush().use { stack ->
+                    val imageBlit = VkImageBlit.callocStack(1, stack)
+
+                    for((name, input) in pass.inputs) {
+                        for((attachment_name, inputAttachment) in input.attachments) {
+
+                            val type = when(inputAttachment.type) {
+                                VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> VK_IMAGE_ASPECT_COLOR_BIT
+                                VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> VK_IMAGE_ASPECT_DEPTH_BIT
+                                else -> { logger.error("Unknown attachment type for $attachment_name (${inputAttachment.type})"); return@use }
+                            }
+
+                            // return to use() if no output with the correct attachment type is found
+                            val outputAttachment = pass.getOutput().attachments.values.find { it.type == inputAttachment.type }
+                            if(outputAttachment == null) {
+                                logger.warn("Didn't find matching attachment for $name of type ${inputAttachment.type}")
+                                return@use
+                            }
+
+                            val outputAspectType = when(outputAttachment.type) {
+                                VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+                                VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+                                else -> { logger.error("Unknown output attachment type for $outputAttachment"); return@use }
+                            }
+
+                            val inputAspectType = when(inputAttachment.type) {
+                                VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+                                VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+                            }
+
+                            imageBlit.srcSubresource().set(type, 0, 0, 1)
+                            imageBlit.srcOffsets(0).set(0, 0, 0)
+                            imageBlit.srcOffsets(1).set(input.width, input.height, 1)
+
+                            imageBlit.dstSubresource().set(type, 0, 0, 1)
+                            imageBlit.dstOffsets(0).set(0, 0, 0)
+                            imageBlit.dstOffsets(1).set(input.width, input.height, 1)
+
+                            val transitionBuffer = this@with!!
+
+                            // transition source attachment
+                            VulkanTexture.transitionLayout(inputAttachment.image,
+                                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                commandBuffer = transitionBuffer
+                            )
+
+                            // transition destination attachment
+                            VulkanTexture.transitionLayout(outputAttachment.image,
+                                inputAspectType,
+                                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                commandBuffer = transitionBuffer
+                            )
+
+                            vkCmdBlitImage(this@with,
+                                inputAttachment.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                outputAttachment.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                imageBlit, VK_FILTER_LINEAR
+                            )
+
+                            // transition destination attachment back to attachment
+                            VulkanTexture.transitionLayout(outputAttachment.image,
+                                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                outputAspectType,
+                                commandBuffer = transitionBuffer
+                            )
+
+                            // transition source attachment back to shader read-only
+                            VulkanTexture.transitionLayout(inputAttachment.image,
+                                VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                commandBuffer = transitionBuffer
+                            )
+
+                        }
+                    }
+                }
+            }
+
             vkCmdBeginRenderPass(this, pass.vulkanMetadata.renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE)
 
             vkCmdSetViewport(this, 0, pass.vulkanMetadata.viewport)
@@ -2153,6 +2253,14 @@ open class VulkanRenderer(hub: Hub,
 
             instanceGroups[null]?.forEach nonInstancedDrawing@ { node ->
                 val s = node.metadata["VulkanRenderer"]!! as VulkanObjectState
+
+                if(pass.passConfig.renderOpaque && node.material.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) {
+                    return@nonInstancedDrawing
+                }
+
+                if(pass.passConfig.renderTransparent && !node.material.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) {
+                    return@nonInstancedDrawing
+                }
 
                 if (node in instanceGroups.keys || s.vertexCount == 0) {
                     return@nonInstancedDrawing

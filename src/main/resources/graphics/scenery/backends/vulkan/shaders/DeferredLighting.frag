@@ -219,6 +219,7 @@ void main()
 		}
 
 		FragColor = vec4(lighting, 1.0);
+        gl_FragDepth = Depth;
 	} else {
 		vec2 newTexCoord;
 		// color

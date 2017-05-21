@@ -223,9 +223,21 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
 
         val blendMasks = VkPipelineColorBlendAttachmentState.calloc(framebuffer.colorAttachmentCount())
         (0..framebuffer.colorAttachmentCount() - 1).forEach {
-            blendMasks[it]
-                .blendEnable(false)
-                .colorWriteMask(0xF)
+            if(passConfig.renderTransparent) {
+                blendMasks[it]
+                    .blendEnable(true)
+                    .colorBlendOp(passConfig.colorBlendOp.toVulkan())
+                    .srcColorBlendFactor(passConfig.srcColorBlendFactor.toVulkan())
+                    .dstColorBlendFactor(passConfig.dstColorBlendFactor.toVulkan())
+                    .alphaBlendOp(passConfig.alphaBlendOp.toVulkan())
+                    .srcAlphaBlendFactor(passConfig.srcAlphaBlendFactor.toVulkan())
+                    .dstAlphaBlendFactor(passConfig.dstAlphaBlendFactor.toVulkan())
+                    .colorWriteMask(VK_COLOR_COMPONENT_R_BIT or VK_COLOR_COMPONENT_G_BIT or VK_COLOR_COMPONENT_B_BIT or VK_COLOR_COMPONENT_A_BIT)
+            } else {
+                blendMasks[it]
+                    .blendEnable(false)
+                    .colorWriteMask(0xF)
+            }
         }
 
         p.colorBlendState
@@ -311,5 +323,19 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
         if(semaphore != -1L) {
             vkDestroySemaphore(device, semaphore, null)
         }
+    }
+
+    private fun RenderConfigReader.BlendFactor.toVulkan() = when (this) {
+        RenderConfigReader.BlendFactor.Zero -> VK_BLEND_FACTOR_ZERO
+        RenderConfigReader.BlendFactor.One -> VK_BLEND_FACTOR_ONE
+        RenderConfigReader.BlendFactor.OneMinusSrcAlpha -> VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA
+    }
+
+    private fun RenderConfigReader.BlendOp.toVulkan() = when (this) {
+        RenderConfigReader.BlendOp.add -> VK_BLEND_OP_ADD
+        RenderConfigReader.BlendOp.subtract -> VK_BLEND_OP_SUBTRACT
+        RenderConfigReader.BlendOp.min -> VK_BLEND_OP_MIN
+        RenderConfigReader.BlendOp.max -> VK_BLEND_OP_MAX
+        RenderConfigReader.BlendOp.reverse_subtract -> VK_BLEND_OP_REVERSE_SUBTRACT
     }
 }

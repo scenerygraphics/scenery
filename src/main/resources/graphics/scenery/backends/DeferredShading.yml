@@ -15,14 +15,26 @@ rendertargets:
     ZBuffer:
       size: 1.0, 1.0
       format: Depth32
+  DeferredForward:
+    Output:
+      size: 1.0, 1.0
+      format: RGBA_Float32
+    OutputDepth:
+      size: 1.0, 1.0
+      format: Depth32
   HDR:
     HDRBuffer:
       size: 1.0, 1.0
       format: RGBA_Float32
+    HDRDepth:
+      size: 1.0, 1.0
+      format: Depth32
 
 renderpasses:
   Scene:
     type: geometry
+    renderTransparent: false
+    renderOpaque: true
     shaders:
       - "DefaultDeferred.vert.spv"
       - "DefaultDeferred.frag.spv"
@@ -34,13 +46,24 @@ renderpasses:
       - "DeferredLighting.frag.spv"
     inputs:
       - GeometryBuffer
-    output: HDR
+    output: DeferredForward
     parameters:
       debugBuffers: 0
       activateSSAO: 1
       reflectanceModel: 0
       ssaoDistanceThreshold: 20.0
       ssaoFilterRadius: 0.05, 0.05
+  ForwardShading:
+    type: geometry
+    renderTransparent: true
+    renderOpaque: false
+    blitInputs: true
+    shaders:
+      - "DefaultForward.vert.spv"
+      - "DefaultForward.frag.spv"
+    inputs:
+      - DeferredForward
+    output: HDR
   HDR:
     type: quad
     shaders:
