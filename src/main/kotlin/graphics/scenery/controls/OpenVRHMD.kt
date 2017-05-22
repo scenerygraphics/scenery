@@ -285,7 +285,7 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = fa
             logger.trace("Head-to-eye #$eye: " + eyeTransformCache[eye].toString())
         }
 
-        logger.info("eye: ${eyeTransformCache[eye]!!}")
+//        logger.info("eye: ${eyeTransformCache[eye]!!}")
         return eyeTransformCache[eye]!!
     }
 
