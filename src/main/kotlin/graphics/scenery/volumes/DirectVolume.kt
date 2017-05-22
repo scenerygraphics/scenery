@@ -12,6 +12,7 @@ import graphics.scenery.*
 import graphics.scenery.backends.ShaderPreference
 import graphics.scenery.backends.vulkan.VulkanTexture
 import org.lwjgl.system.MemoryUtil.memAlloc
+import org.lwjgl.system.MemoryUtil.memFree
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.awt.Color
@@ -95,8 +96,6 @@ class DirectVolume : Mesh("DirectVolume") {
         val stream = FileInputStream(file.toFile())
         val imageData: ByteBuffer = memAlloc((2 * dimensions[0] * dimensions[1] * dimensions[2]).toInt())
 
-        logger.info("Buffer capacity: ${imageData.capacity()}")
-
         var bytesRead = stream.read(buffer, 0, buffer.size)
         while(bytesRead > -1) {
             imageData.put(buffer, 0, bytesRead)
@@ -122,7 +121,12 @@ class DirectVolume : Mesh("DirectVolume") {
             -1, GLTypeEnum.UnsignedInt, imageData, false, false)
 
         this.material.textures.put("3D-volume", "fromBuffer:volume")
-        this.material.transferTextures.put("volume", gtv)
+        this.material.transferTextures.put("volume", gtv)?.let {
+            if(replace) {
+                memFree(it.contents)
+            }
+        }
+        this.material.needsTextureReload = true
 
         this.scale = dim*0.01f
 

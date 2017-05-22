@@ -3,10 +3,14 @@ package graphics.scenery.tests.examples
 import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
+import graphics.scenery.controls.InputHandler
 import graphics.scenery.controls.OpenVRHMD
+import graphics.scenery.controls.behaviours.ArcballCameraControl
+import graphics.scenery.controls.behaviours.FPSCameraControl
 import graphics.scenery.volumes.DirectVolume
 import graphics.scenery.volumes.Volume
 import org.junit.Test
+import org.scijava.ui.behaviour.ClickBehaviour
 import java.nio.file.Paths
 import kotlin.concurrent.thread
 
@@ -61,6 +65,49 @@ class VolumeExample: SceneryDefaultApplication("Volume Rendering example") {
             scene.addChild(light)
         }
 
+        thread {
+            while(!scene.initialized) { Thread.sleep(200) }
+
+            while(true) {
+                Thread.sleep(2000)
+
+                volume.readFrom(Paths.get("/Users/ulrik/Desktop/stack_00101.raw"), replace = true)
+            }
+        }
+
+    }
+
+    override fun inputSetup() {
+        val target = GLVector(1.5f, 5.5f, 55.5f)
+        val inputHandler = (hub.get(SceneryElement.Input) as InputHandler)
+        val targetArcball = ArcballCameraControl("mouse_control", scene.findObserver(), renderer!!.window.width, renderer!!.window.height, target)
+        val fpsControl = FPSCameraControl("mouse_control", scene.findObserver(), renderer!!.window.width, renderer!!.window.height)
+
+        val toggleControlMode = object : ClickBehaviour {
+            var currentMode = "fps"
+
+            override fun click(x: Int, y: Int) {
+                if (currentMode.startsWith("fps")) {
+                    targetArcball.target = GLVector(0.0f, 0.0f, 0.0f)
+
+                    inputHandler.addBehaviour("mouse_control", targetArcball)
+                    inputHandler.addBehaviour("scroll_arcball", targetArcball)
+                    inputHandler.addKeyBinding("scroll_arcball", "scroll")
+
+                    currentMode = "arcball"
+                } else {
+                    inputHandler.addBehaviour("mouse_control", fpsControl)
+                    inputHandler.removeBehaviour("scroll_arcball")
+
+                    currentMode = "fps"
+                }
+
+                System.out.println("Switched to $currentMode control")
+            }
+        }
+
+        inputHandler.addBehaviour("toggle_control_mode", toggleControlMode)
+        inputHandler.addKeyBinding("toggle_control_mode", "C")
     }
 
     @Test override fun main() {

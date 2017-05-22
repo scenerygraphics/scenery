@@ -824,10 +824,22 @@ open class VulkanRenderer(hub: Hub,
                             1
                         }
 
-                        val t = VulkanTexture(device, physicalDevice, memoryProperties,
-                            commandPools.Standard, queue,
-                            gt.dimensions.x().toInt(), gt.dimensions.y().toInt(), zSize,
-                            format, miplevels)
+                        val existingTexture = s.textures.get(type)
+                        val t = if(existingTexture != null && existingTexture.device == device
+                            && existingTexture.physicalDevice  == physicalDevice
+                            && existingTexture.width == gt.dimensions.x().toInt()
+                            && existingTexture.height == gt.dimensions.y().toInt()
+                            && existingTexture.depth == zSize
+                            && existingTexture.format == format
+                            && existingTexture.mipLevels == miplevels) {
+                            existingTexture
+                        } else {
+                            VulkanTexture(device, physicalDevice, memoryProperties,
+                                commandPools.Standard, queue,
+                                gt.dimensions.x().toInt(), gt.dimensions.y().toInt(), zSize,
+                                format, miplevels)
+                        }
+
                         t.copyFrom(gt.contents)
 
                         t
@@ -841,6 +853,7 @@ open class VulkanRenderer(hub: Hub,
                         t
                     }
 
+                    // add new texture to texture list and cache, and close old texture
                     s.textures.put(type, vkTexture!!)
                     textureCache.put(texture, vkTexture)
                 } else {
@@ -2150,6 +2163,7 @@ open class VulkanRenderer(hub: Hub,
             if(it.material.needsTextureReload) {
                 val s = loadTexturesForNode(it, it.metadata["VulkanRenderer"]!! as VulkanObjectState)
                 it.metadata.put("VulkanRenderer", s)
+                it.material.needsTextureReload = false
             }
 
             // if a node is not initialized yet, it'll be initialized here and it's UBO updated

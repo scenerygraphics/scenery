@@ -89,11 +89,11 @@ bool IntersectBox(Ray r, AABB aabb, out float t0, out float t1)
 float Absorption = 2.5;
 
 const float maxDist = sqrt(2.0);
-const int numSamples = 128;
+const int numSamples = 256;
 const float stepSize = maxDist/float(numSamples);
 const int numLightSamples = 16;
 const float lscale = maxDist / float(numLightSamples);
-const float densityFactor = 1050;
+const float densityFactor = 700;
 
 void main()
 {
@@ -132,8 +132,7 @@ void main()
             vec3 lightDir = normalize(lights[l].Position.rgb - pos)*lscale;
             float Tl = 1.0;
             vec3 lpos = pos + lightDir;
-            vec3 L = lights[l].Position.rgb - pos;
-            float distance = length(L);
+            float distance = distance(lights[l].Position.rgb, pos);
 
             for (int s=0; s < numLightSamples; ++s) {
                 float ld = texture(VolumeTextures, lpos).x;

@@ -158,10 +158,12 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
 
         if (mipLevels == 1) {
             with(VU.newCommandBuffer(device, commandPool, autostart = true)) {
-                image = createImage(width, height, depth,
-                    format, VK_IMAGE_USAGE_TRANSFER_DST_BIT or VK_IMAGE_USAGE_SAMPLED_BIT,
-                    VK_IMAGE_TILING_OPTIMAL, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                    mipLevels)
+                if(image == null) {
+                    image = createImage(width, height, depth,
+                        format, VK_IMAGE_USAGE_TRANSFER_DST_BIT or VK_IMAGE_USAGE_SAMPLED_BIT,
+                        VK_IMAGE_TILING_OPTIMAL, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                        mipLevels)
+                }
 
                 if(depth == 1) {
                     val dest = memAllocPointer(1)
@@ -202,6 +204,8 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, mipLevels,
                         commandBuffer = this)
+
+                    buffer.close()
                 }
 
                 this.endCommandBuffer(device, commandPool, queue, flush = true, dealloc = true)
