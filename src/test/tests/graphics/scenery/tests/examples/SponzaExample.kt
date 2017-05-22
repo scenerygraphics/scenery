@@ -24,8 +24,8 @@ class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 2
     override fun init() {
         try {
 //            hmd = OpenVRHMD(useCompositor = true)
-            hmd = TrackedStereoGlasses("DTrack@10.1.2.201", "CAVEExample.yml", 2560, 1600)
-            hub.add(SceneryElement.HMDInput, hmd!!)
+//            hmd = TrackedStereoGlasses("DTrack@10.1.2.201", "CAVEExample.yml", 2560, 1600)
+//            hub.add(SceneryElement.HMDInput, hmd!!)
 
             renderer = Renderer.createRenderer(hub, applicationName,
                 scene,
@@ -44,6 +44,12 @@ class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 2
             val lights = (0..16).map {
                 Box(GLVector(0.5f, 0.5f, 0.5f))
             }
+
+            val b = Box(GLVector(10.0f, 10.0f, 10.0f))
+            b.position = GLVector(0.0f, 15.0f, 0.0f)
+            b.material.transparent = true
+            b.material.diffuse = GLVector(1.0f, 0.0f, 0.0f)
+            scene.addChild(b)
 
             lights.map {
                 it.position = Numerics.randomVectorFromRange(3, -600.0f, 600.0f)

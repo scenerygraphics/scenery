@@ -134,8 +134,6 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
 
         vkGetImageMemoryRequirements(device, image, reqs)
 
-        logger.info("Allocating ${reqs.size()} for $width/$height/$depth")
-
         val allocInfo = VkMemoryAllocateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO)
             .pNext(NULL)
@@ -298,8 +296,12 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
             } else {
                 VK_IMAGE_VIEW_TYPE_2D
             })
-            .format(format)
+            .format(if(depth == 1) { format } else { VK_FORMAT_R16_UNORM })
             .subresourceRange(subresourceRange)
+
+        if(depth > 1) {
+            vi.components(VkComponentMapping.calloc().set(VK_COMPONENT_SWIZZLE_R,VK_COMPONENT_SWIZZLE_R,VK_COMPONENT_SWIZZLE_R,VK_COMPONENT_SWIZZLE_R ))
+        }
 
         val view = VU.run(memAllocLong(1), "Creating image view",
             { vkCreateImageView(device, vi, null, this) },
@@ -312,17 +314,17 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
         val samplerInfo = VkSamplerCreateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO)
             .pNext(NULL)
-            .magFilter(if(minFilterLinear) { VK_FILTER_LINEAR } else { VK_FILTER_NEAREST })
-            .minFilter(if(maxFilterLinear) { VK_FILTER_LINEAR } else { VK_FILTER_NEAREST })
-            .mipmapMode(VK_SAMPLER_MIPMAP_MODE_LINEAR)
-            .addressModeU(VK_SAMPLER_ADDRESS_MODE_REPEAT)
-            .addressModeV(VK_SAMPLER_ADDRESS_MODE_REPEAT)
-            .addressModeW(VK_SAMPLER_ADDRESS_MODE_REPEAT)
+            .magFilter(if(minFilterLinear && !(depth > 1)) { VK_FILTER_LINEAR } else { VK_FILTER_NEAREST })
+            .minFilter(if(maxFilterLinear && !(depth > 1)) { VK_FILTER_LINEAR } else { VK_FILTER_NEAREST })
+            .mipmapMode(if(depth == 1) { VK_SAMPLER_MIPMAP_MODE_LINEAR } else { VK_SAMPLER_MIPMAP_MODE_NEAREST })
+            .addressModeU(if(depth == 1) { VK_SAMPLER_ADDRESS_MODE_REPEAT } else { VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE })
+            .addressModeV(if(depth == 1) { VK_SAMPLER_ADDRESS_MODE_REPEAT } else { VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE })
+            .addressModeW(if(depth == 1) { VK_SAMPLER_ADDRESS_MODE_REPEAT } else { VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE })
             .mipLodBias(0.0f)
-            .anisotropyEnable(true)
-            .maxAnisotropy(8.0f)
+            .anisotropyEnable(depth == 1)
+            .maxAnisotropy(if(depth == 1) { 8.0f } else { 1.0f })
             .minLod(0.0f)
-            .maxLod(mipLevels * 1.0f)
+            .maxLod(if(depth == 1) {mipLevels * 1.0f} else { 0.0f })
             .borderColor(VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE)
             .compareOp(VK_COMPARE_OP_NEVER)
 

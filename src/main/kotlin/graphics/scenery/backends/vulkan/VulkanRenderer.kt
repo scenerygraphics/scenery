@@ -883,7 +883,8 @@ open class VulkanRenderer(hub: Hub,
 
         m.put("ObjectTextures", VU.createDescriptorSetLayout(
             device,
-            listOf(Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 6)),
+            listOf(Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 6),
+                Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1)),
             VK_SHADER_STAGE_ALL_GRAPHICS))
 
         m.put("VRParameters", VU.createDescriptorSetLayout(
@@ -2205,13 +2206,19 @@ open class VulkanRenderer(hub: Hub,
                                 VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
                             }
 
+                            val offsetX = (input.width * pass.passConfig.viewportOffset.first).toInt()
+                            val offsetY = (input.height * pass.passConfig.viewportOffset.second).toInt()
+
+                            val sizeX = offsetX + (input.width * pass.passConfig.viewportSize.first).toInt()
+                            val sizeY = offsetY + (input.height * pass.passConfig.viewportSize.second).toInt()
+
                             imageBlit.srcSubresource().set(type, 0, 0, 1)
-                            imageBlit.srcOffsets(0).set(0, 0, 0)
-                            imageBlit.srcOffsets(1).set(input.width, input.height, 1)
+                            imageBlit.srcOffsets(0).set(offsetX, offsetY, 0)
+                            imageBlit.srcOffsets(1).set(sizeX, sizeY, 1)
 
                             imageBlit.dstSubresource().set(type, 0, 0, 1)
-                            imageBlit.dstOffsets(0).set(0, 0, 0)
-                            imageBlit.dstOffsets(1).set(input.width, input.height, 1)
+                            imageBlit.dstOffsets(0).set(offsetX, offsetY, 0)
+                            imageBlit.dstOffsets(1).set(sizeX, sizeY, 1)
 
                             val transitionBuffer = this@with!!
 

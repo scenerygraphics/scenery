@@ -73,7 +73,7 @@ open class VulkanObjectState : NodeMetadata {
                 .sType(VK10.VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET)
                 .pNext(NULL)
                 .dstSet(descriptorSet)
-                .dstBinding(targetBinding)
+                .dstBinding(if(type.contains("3D")) { targetBinding+1 } else { targetBinding })
                 .dstArrayElement(textureTypeToSlot(type))
                 .pImageInfo(d[i])
                 .descriptorType(VK10.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
@@ -101,6 +101,7 @@ open class VulkanObjectState : NodeMetadata {
                 "normal" -> 3
                 "alphamask" -> 4
                 "displacement" -> 5
+                "3D-volume" -> 0
                 else -> { logger.warn("Unknown texture type: $type"); 0 }
             }
         }

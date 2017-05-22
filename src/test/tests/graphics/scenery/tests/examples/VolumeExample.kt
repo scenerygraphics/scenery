@@ -3,6 +3,7 @@ package graphics.scenery.tests.examples
 import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
+import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.volumes.DirectVolume
 import graphics.scenery.volumes.Volume
 import org.junit.Test
@@ -15,9 +16,14 @@ import kotlin.concurrent.thread
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class VolumeExample: SceneryDefaultApplication("Volume Rendering example") {
+    var hmd: OpenVRHMD? = null
+
     override fun init() {
         renderer = Renderer.createRenderer(hub, applicationName, scene, 1920, 1200)
         hub.add(SceneryElement.Renderer, renderer!!)
+
+//        hmd = OpenVRHMD(useCompositor = true)
+//        hub.add(SceneryElement.HMDInput, hmd!!)
 
         val shell = Box(GLVector(120.0f, 120.0f, 120.0f), insideNormals = true)
         shell.material.doubleSided = true
@@ -26,7 +32,7 @@ class VolumeExample: SceneryDefaultApplication("Volume Rendering example") {
         shell.material.ambient = GLVector.getNullVector(3)
         scene.addChild(shell)
 
-        val cam: Camera = DetachedHeadCamera()
+        val cam: Camera = DetachedHeadCamera(hmd)
         with(cam) {
             position = GLVector(0.0f, 0.0f, 5.0f)
             perspectiveCamera(50.0f, 512.0f, 512.0f)
@@ -38,7 +44,7 @@ class VolumeExample: SceneryDefaultApplication("Volume Rendering example") {
         val volume = DirectVolume()
 
         with(volume) {
-            volume.readFrom(Paths.get("/Users/ulrik/Desktop/t1-head.raw"))
+            volume.readFrom(Paths.get("/Users/ulrik/Desktop/stack_00100.raw"))
             scene.addChild(this)
         }
 

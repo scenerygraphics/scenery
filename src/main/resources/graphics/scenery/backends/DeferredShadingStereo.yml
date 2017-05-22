@@ -16,10 +16,20 @@ rendertargets:
     ZBuffer:
       size: 1.0, 1.0
       format: Depth32
+  DeferredForward:
+    Output:
+      size: 1.0, 1.0
+      format: RGBA_Float32
+    OutputDepth:
+      size: 1.0, 1.0
+      format: Depth32
   HDR:
     HDRBuffer:
       size: 1.0, 1.0
       format: RGBA_Float32
+    HDRDepth:
+      size: 1.0, 1.0
+      format: Depth32
 
 renderpasses:
   leftEye:
@@ -47,13 +57,41 @@ renderpasses:
       - "DeferredLighting.frag.spv"
     inputs:
       - GeometryBuffer
-    output: HDR
+    output: DeferredForward
     parameters:
       debugBuffers: 0
       activateSSAO: 1
       reflectanceModel: 1
       ssaoDistanceThreshold: 2.0
       ssaoFilterRadius: 0.01, 0.03
+  ForwardShadingLeft:
+      type: geometry
+      renderTransparent: true
+      renderOpaque: false
+      blitInputs: true
+      shaders:
+        - "DefaultForward.vert.spv"
+        - "DefaultForward.frag.spv"
+      inputs:
+        - DeferredForward
+      output: HDR
+      viewportSize: 0.5, 1.0
+      viewportOffset: 0.0, 0.0
+      eye: LeftEye
+  ForwardShadingRight:
+      type: geometry
+      renderTransparent: true
+      renderOpaque: false
+      blitInputs: true
+      shaders:
+        - "DefaultForward.vert.spv"
+        - "DefaultForward.frag.spv"
+      inputs:
+        - DeferredForward
+      output: HDR
+      viewportSize: 0.5, 1.0
+      viewportOffset: 0.5, 0.0
+      eye: RightEye
   PostprocessHDR:
     type: quad
     shaders:

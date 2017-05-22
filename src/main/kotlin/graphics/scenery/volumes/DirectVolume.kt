@@ -121,7 +121,7 @@ class DirectVolume : Mesh("DirectVolume") {
         val gtv = GenericTexture("volume", dim,
             -1, GLTypeEnum.UnsignedInt, imageData, false, false)
 
-        this.material.textures.put("normal", "fromBuffer:volume")
+        this.material.textures.put("3D-volume", "fromBuffer:volume")
         this.material.transferTextures.put("volume", gtv)
 
         this.scale = dim*0.01f
