@@ -46,6 +46,7 @@ Array.prototype.last = function() {
 var scene = ObjectLocator("Scene");
 var renderer = ObjectLocator("Renderer");
 var stats = ObjectLocator("Statistics");
+var hub = ObjectLocator("Hub");
 
 // and say hello :-)
 print("\n\n");

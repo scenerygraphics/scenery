@@ -111,7 +111,7 @@ open class SceneryDefaultApplication(var applicationName: String,
         hub.add(SceneryElement.Settings, settings)
 
         if(wantREPL) {
-            repl = REPL(scene, stats)
+            repl = REPL(scene, stats, hub)
         }
 
         // initialize renderer, etc first in init, then setup key bindings
