@@ -29,13 +29,6 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
     var config: ScreenConfig.Config = ScreenConfig.loadFromFile(screenConfig)
     var screen: ScreenConfig.SingleScreenConfig? = null
 
-    private val vulkanProjectionFix =
-        GLMatrix(floatArrayOf(
-            1.0f,  0.0f, 0.0f, 0.0f,
-            0.0f, -1.0f, 0.0f, 0.0f,
-            0.0f,  0.0f, 0.5f, 0.5f,
-            0.0f,  0.0f, 0.0f, 1.0f))
-
     init {
         logger.info("My screen is ${ScreenConfig.getScreen(config)}")
         screen = ScreenConfig.getScreen(config)
@@ -47,7 +40,7 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
      * @param[eye] The index of the eye
      * @return GLMatrix containing the per-eye projection matrix
      */
-    override fun getEyeProjection(eye: Int, nearPlane: Float, farPlane: Float, flipY: Boolean): GLMatrix {
+    override fun getEyeProjection(eye: Int, nearPlane: Float, farPlane: Float): GLMatrix {
         val eyeShift = if(eye == 0) {
             -ipd/2.0f
         } else {
@@ -62,17 +55,6 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
             nearPlane,
             farPlane
         )
-
-        if(flipY) {
-            return m.applyVulkanCoordinateSystem()
-        } else {
-            return m
-        }
-    }
-
-    fun GLMatrix.applyVulkanCoordinateSystem(): GLMatrix {
-        val m = vulkanProjectionFix.clone()
-        m.mult(this)
 
         return m
     }

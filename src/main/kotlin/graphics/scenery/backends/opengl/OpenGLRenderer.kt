@@ -855,7 +855,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
 
         val projection = eyes.map { i ->
             if (vrActive) {
-                hmd?.getEyeProjection(i, cam.nearPlaneDistance, cam.farPlaneDistance, flipY = false) ?: cam.projection
+                hmd?.getEyeProjection(i, cam.nearPlaneDistance, cam.farPlaneDistance) ?: cam.projection
             } else {
                 cam.projection
             }

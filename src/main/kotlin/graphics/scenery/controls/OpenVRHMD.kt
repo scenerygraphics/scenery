@@ -253,18 +253,12 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = fa
      * @param[eye] The index of the eye
      * @return GLMatrix containing the per-eye projection matrix
      */
-    override fun getEyeProjection(eye: Int, nearPlane: Float, farPlane: Float, flipY: Boolean): GLMatrix {
+    override fun getEyeProjection(eye: Int, nearPlane: Float, farPlane: Float): GLMatrix {
         if (eyeProjectionCache[eye] == null) {
             val proj = vr!!.GetProjectionMatrix!!.apply(eye, nearPlane, farPlane)
             proj.read()
 
             eyeProjectionCache[eye] = proj.toGLMatrix().transpose()
-
-            if (flipY) {
-                eyeProjectionCache[eye]!!.set(1, 1, -1.0f * eyeProjectionCache[eye]!!.get(1, 1))
-            }
-
-            logger.trace("Eye projection #$eye" + eyeProjectionCache[eye].toString())
         }
 
         return eyeProjectionCache[eye]!!

@@ -276,8 +276,8 @@ open class VulkanRenderer(hub: Hub,
         GLMatrix(floatArrayOf(
             1.0f,  0.0f, 0.0f, 0.0f,
             0.0f, -1.0f, 0.0f, 0.0f,
-            0.0f,  0.0f, 0.5f, 0.5f,
-            0.0f,  0.0f, 0.0f, 1.0f))
+            0.0f,  0.0f, 0.5f, 0.0f,
+            0.0f,  0.0f, 0.5f, 1.0f))
 
     var renderConfigFile = ""
         set(config) {
@@ -352,7 +352,7 @@ open class VulkanRenderer(hub: Hub,
             glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE)
             glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE)
             glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4)
-            glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3)
+            glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5)
             glfwWindowHint(GLFW_SRGB_CAPABLE, GLFW_TRUE)
             glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE)
 
@@ -2545,10 +2545,10 @@ open class VulkanRenderer(hub: Hub,
         val vrUbo = UBO(device, backingBuffer = buffers["VRParametersBuffer"]!!)
 
         vrUbo.createUniformBuffer(memoryProperties)
-        vrUbo.members.put("projection0", { hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance, flipY = true)
-            ?: cam.projection.applyVulkanCoordinateSystem() } )
-        vrUbo.members.put("projection1", { hmd?.getEyeProjection(1, cam.nearPlaneDistance, cam.farPlaneDistance, flipY = true)
-            ?: cam.projection.applyVulkanCoordinateSystem() } )
+        vrUbo.members.put("projection0", { (hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance)
+            ?: cam.projection).applyVulkanCoordinateSystem() } )
+        vrUbo.members.put("projection1", { (hmd?.getEyeProjection(1, cam.nearPlaneDistance, cam.farPlaneDistance)
+            ?: cam.projection).applyVulkanCoordinateSystem() } )
         vrUbo.members.put("headShift", { hmd?.getHeadToEyeTransform(0) ?: GLMatrix.getIdentity() })
         vrUbo.members.put("IPD", { hmd?.getIPD() ?: 0.05f })
         vrUbo.members.put("stereoEnabled", { renderConfig.stereoEnabled.toInt() })
