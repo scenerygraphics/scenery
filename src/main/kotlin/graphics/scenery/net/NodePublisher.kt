@@ -48,7 +48,7 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://*:6666"
                 val payload = bos.toByteArray()
                 publisher.sendMore(guid.toString())
                 publisher.send(bos.toByteArray())
-                logger.info("Sending ${node.name} with length ${payload.size}")
+//                logger.info("Sending ${node.name} with length ${payload.size}")
 
                 output.close()
                 bos.close()
