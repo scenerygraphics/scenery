@@ -24,8 +24,8 @@ class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 2
     override fun init() {
         try {
 //            hmd = OpenVRHMD(useCompositor = true)
-//            hmd = TrackedStereoGlasses("DTrack@10.1.2.201", "CAVEExample.yml", 2560, 1600)
-//            hub.add(SceneryElement.HMDInput, hmd!!)
+            hmd = TrackedStereoGlasses("DTrack@10.1.2.201", "CAVEExample.yml", 2560, 1600)
+            hub.add(SceneryElement.HMDInput, hmd!!)
 
             renderer = Renderer.createRenderer(hub, applicationName,
                 scene,
@@ -34,7 +34,7 @@ class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 2
             hub.add(SceneryElement.Renderer, renderer!!)
 
             val cam: Camera = DetachedHeadCamera(hmd)
-            cam.position = GLVector(0.0f, 5.0f, 0.0f)
+            cam.position = GLVector(0.0f, 1.0f, 0.0f)
             cam.perspectiveCamera(50.0f, 1280.0f, 720.0f)
 //            cam.rotation.setFromEuler(Math.PI.toFloat()/2.0f, 0.0f, 0.0f)
             cam.active = true
@@ -45,11 +45,12 @@ class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 2
                 Box(GLVector(0.5f, 0.5f, 0.5f))
             }
 
-            val b = Box(GLVector(10.0f, 10.0f, 10.0f))
-            b.position = GLVector(0.0f, 15.0f, 0.0f)
-            b.material.transparent = true
-            b.material.diffuse = GLVector(1.0f, 0.0f, 0.0f)
-            scene.addChild(b)
+            val leftbox = Box(GLVector(2.0f, 2.0f, 2.0f))
+            leftbox.position = GLVector(1.5f, 1.0f, -4.0f)
+            leftbox.material.transparent = true
+            leftbox.material.diffuse = GLVector(0.0f, 0.0f, 1.0f)
+            leftbox.name = "leftbox"
+            scene.addChild(leftbox)
 
             lights.map {
                 it.position = Numerics.randomVectorFromRange(3, -600.0f, 600.0f)
@@ -74,8 +75,9 @@ class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 2
             meshM.diffuse = GLVector(0.5f, 0.5f, 0.5f)
             meshM.specular = GLVector(0.0f, 0.0f, 0.0f)
 
-            mesh.readFromOBJ(getDemoFilesPath() + "/sponza-crytek/sponza.obj", useMTL = true)
+            mesh.readFromOBJ(getDemoFilesPath() + "/sponza-crytek/sponza.obj", useMTL = false)
             mesh.position = GLVector(-200.0f, 5.0f, 200.0f)
+            mesh.rotation.rotateByAngleY(Math.PI.toFloat()/2.0f)
             mesh.scale = GLVector(0.01f, 0.01f, 0.01f)
             mesh.name = "Sponza_Mesh"
 
