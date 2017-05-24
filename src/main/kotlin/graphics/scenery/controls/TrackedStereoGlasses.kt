@@ -122,7 +122,20 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
      *
      * @return HMD position as GLVector
      */
-    override fun getPosition(): GLVector = vrpnTracker.getPosition()
+    override fun getPosition(): GLVector {
+        if(System.getProperty("scenery.FakeVRPN", "false").toBoolean()) {
+//            val pos = GLVector(
+//                1.92f * Math.sin(System.nanoTime()/10e9 % (2.0*Math.PI)).toFloat(),
+//                1.5f,
+//                -1.92f * Math.cos(System.nanoTime()/10e9 % (2.0*Math.PI)).toFloat())
+
+            val pos = GLVector(0.0f, 1.7f, 0.0f)
+            logger.info("Using fake position: $pos")
+            return pos
+        }
+
+        return vrpnTracker.getPosition()
+    }
 
     /**
      * Returns the optimal render target size for the HMD as 2D vector
@@ -153,7 +166,13 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
      *
      * @return True if HMD is initialised correctly and working properly
      */
-    override fun initializedAndWorking(): Boolean = vrpnTracker.initializedAndWorking()
+    override fun initializedAndWorking(): Boolean {
+        if(System.getProperty("scenery.FakeVRPN", "false").toBoolean()) {
+            return true
+        }
+
+        return vrpnTracker.initializedAndWorking()
+    }
 
     /**
      * update state
