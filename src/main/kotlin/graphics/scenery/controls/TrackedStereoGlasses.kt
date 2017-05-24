@@ -51,7 +51,7 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
             screen?.lowerLeft ?: GLVector(0.0f, 0.0f, 0.0f),
             screen?.lowerRight ?: GLVector(1.0f, 0.0f, 0.0f),
             screen?.upperLeft ?: GLVector(0.0f, 1.0f, 0.0f),
-            getPosition() + GLVector(-eyeShift, 0.0f, 0.0f),
+            getPosition() + GLVector(eyeShift, 0.0f, 0.0f),
             nearPlane,
             farPlane
         )
@@ -210,9 +210,9 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
     override fun getHeadToEyeTransform(eye: Int): GLMatrix {
         val shift = GLMatrix.getIdentity()
         if(eye == 0) {
-            shift.translate(0.025f, 0.0f, 0.0f)
-        } else {
             shift.translate(-0.025f, 0.0f, 0.0f)
+        } else {
+            shift.translate(0.025f, 0.0f, 0.0f)
         }
 
         return shift
