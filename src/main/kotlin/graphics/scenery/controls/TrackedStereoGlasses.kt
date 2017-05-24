@@ -156,7 +156,7 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
         val trackerPos = vrpnTracker.getPosition()
 
         currentOrientation.setIdentity()
-//        currentOrientation.translate(trackerPos).invert()
+        currentOrientation.translate(trackerPos).invert()
 
         return currentOrientation
     }
