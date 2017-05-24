@@ -125,7 +125,7 @@ class VRPNTrackerInput(trackerAddress: String = "device@locahost:5500") : Tracke
         listener?.let {
 
             it.lastTrackerUpdate?.let {
-                cachedPosition = GLVector(-it.pos[0].toFloat(), it.pos[1].toFloat(), it.pos[2].toFloat())*positionScaling
+                cachedPosition = GLVector(it.pos[0].toFloat(), it.pos[1].toFloat(), -it.pos[2].toFloat())*positionScaling
 //                val newOrientation = Quaternion(
 //                   it.quat[0].toFloat(),
 //                   -it.quat[2].toFloat(),
