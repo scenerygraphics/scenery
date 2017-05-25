@@ -23,7 +23,7 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
 
     var vrpnTracker = VRPNTrackerInput(address)
     var currentOrientation = GLMatrix()
-    var ipd = 0.06f
+    var ipd = -0.065f
 
     var logger: Logger = LoggerFactory.getLogger("TrackedStereoGlasses")
     var config: ScreenConfig.Config = ScreenConfig.loadFromFile(screenConfig)
@@ -156,7 +156,7 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
         val trackerPos = vrpnTracker.getPosition()
 
         currentOrientation.setIdentity()
-        currentOrientation.translate(trackerPos).invert()
+//        currentOrientation.translate(trackerPos)
 
         return currentOrientation
     }
