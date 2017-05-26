@@ -51,10 +51,22 @@ class ScreenConfig {
     ) {
         private var screenTransform: GLMatrix
 
+        var width = 0.0f
+            private set
+
+        var height = 0.0f
+            private set
+
         init {
-            var vr = lowerRight.minus(lowerLeft).normalize()
-            val vu = upperLeft.minus(lowerLeft).normalize()
-            val vn = vr.cross(vu).normalize()
+            var vr = lowerRight.minus(lowerLeft)
+            val vu = upperLeft.minus(lowerLeft)
+            val vn = vr.cross(vu)
+
+            width = vr.magnitude()
+            height = vu.magnitude()
+
+            vu.normalize()
+            vn.normalize()
 
             vr = vu.cross(vn).normalize()
 
@@ -68,10 +80,6 @@ class ScreenConfig {
         }
 
         fun getTransform(): GLMatrix = screenTransform
-
-        fun width(): Float = Math.abs(lowerLeft.x() - lowerRight.x())
-
-        fun height(): Float = Math.abs(upperLeft.y() - lowerLeft.y())
     }
 
     data class ScreenMatcher(

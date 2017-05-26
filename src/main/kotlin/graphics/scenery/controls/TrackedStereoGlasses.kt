@@ -54,14 +54,18 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
             val result = screen.getTransform().mult(position4)
 
             val left = -result.x()
-            val right = screen.width() - result.x()
+            val right = screen.width - result.x()
             val bottom = -result.y()
-            val top = screen.height() - result.y()
-            val near = -result.z()
+            val top = screen.height - result.y()
+            var near = -result.z()
+
+            if(near < 0.0001f) {
+                near = 0.0001f
+            }
 
             val scaledNear = nearPlane / maxOf(near, 0.001f)
 
-            logger.info(eye.toString() + ", " + screen.width() + "/" + screen.height() + " => " + near + " -> " + left + "/" + right + "/" + bottom + "/" + top + ", s=" + scaledNear)
+            logger.info(eye.toString() + ", " + screen.width + "/" + screen.height + " => " + near + " -> " + left + "/" + right + "/" + bottom + "/" + top + ", s=" + scaledNear)
 
             val projection = GLMatrix().setFrustumMatrix(left * scaledNear, right * scaledNear, bottom * scaledNear, top * scaledNear, near * scaledNear, farPlane)
             return projection
