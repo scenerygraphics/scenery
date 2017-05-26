@@ -29,9 +29,16 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
     var config: ScreenConfig.Config = ScreenConfig.loadFromFile(screenConfig)
     var screen: ScreenConfig.SingleScreenConfig? = null
 
+    private var rotation: Quaternion
+
     init {
         logger.info("My screen is ${ScreenConfig.getScreen(config)}")
         screen = ScreenConfig.getScreen(config)
+        rotation = Quaternion().setIdentity()
+
+        screen?.let {
+            rotation = Quaternion().setFromMatrix(it. getTransform().transposedFloatArray, 0)
+        }
     }
 
     /**
@@ -68,6 +75,7 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
             logger.info(eye.toString() + ", " + screen.width + "/" + screen.height + " => " + near + " -> " + left + "/" + right + "/" + bottom + "/" + top + ", s=" + scaledNear)
 
             val projection = GLMatrix().setFrustumMatrix(left * scaledNear, right * scaledNear, bottom * scaledNear, top * scaledNear, near * scaledNear, farPlane)
+            projection.mult(rotation)
             return projection
         }
 
