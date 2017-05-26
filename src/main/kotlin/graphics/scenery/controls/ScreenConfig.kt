@@ -1,5 +1,6 @@
 package graphics.scenery.controls
 
+import cleargl.GLMatrix
 import cleargl.GLVector
 import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.databind.DeserializationContext
@@ -38,7 +39,7 @@ class ScreenConfig {
     )
 
 
-    data class SingleScreenConfig(
+    class SingleScreenConfig(
         var match: ScreenMatcher,
 
         @JsonDeserialize(using = VectorDeserializer::class)
@@ -47,7 +48,31 @@ class ScreenConfig {
         var lowerRight: GLVector = GLVector(0.0f, 0.0f, 0.0f),
         @JsonDeserialize(using = VectorDeserializer::class)
         var upperLeft: GLVector = GLVector(0.0f, 0.0f, 0.0f)
-    )
+    ) {
+        private var screenTransform: GLMatrix
+
+        init {
+            var vr = lowerRight.minus(lowerLeft).normalize()
+            val vu = upperLeft.minus(lowerLeft).normalize()
+            val vn = vr.cross(vu).normalize()
+
+            vr = vu.cross(vn).normalize()
+
+            screenTransform = GLMatrix(floatArrayOf(
+                vr.x(), vr.y(), vr.z(), 0.0f,
+                vu.x(), vu.y(), vu.z(), 0.0f,
+                vn.x(), vn.y(), vn.z(), 0.0f,
+                lowerLeft.x(), lowerLeft.y(), lowerLeft.z(), 1.0f))
+
+            screenTransform.invert()
+        }
+
+        fun getTransform(): GLMatrix = screenTransform
+
+        fun width(): Float = Math.abs(lowerLeft.x() - lowerRight.x())
+
+        fun height(): Float = Math.abs(upperLeft.y() - lowerLeft.y())
+    }
 
     data class ScreenMatcher(
         var type: ScreenMatcherType,
