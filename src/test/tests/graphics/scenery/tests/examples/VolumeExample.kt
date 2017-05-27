@@ -8,9 +8,11 @@ import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.behaviours.ArcballCameraControl
 import graphics.scenery.controls.behaviours.FPSCameraControl
 import graphics.scenery.volumes.DirectVolume
+import graphics.scenery.volumes.DirectVolumeFullscreen
 import graphics.scenery.volumes.Volume
 import org.junit.Test
 import org.scijava.ui.behaviour.ClickBehaviour
+import java.io.File
 import java.nio.file.Paths
 import kotlin.concurrent.thread
 
@@ -23,11 +25,20 @@ class VolumeExample: SceneryDefaultApplication("Volume Rendering example") {
     var hmd: OpenVRHMD? = null
 
     override fun init() {
-        renderer = Renderer.createRenderer(hub, applicationName, scene, 1920, 1200)
+        hmd = OpenVRHMD(useCompositor = true)
+        hub.add(SceneryElement.HMDInput, hmd!!)
+
+        renderer = Renderer.createRenderer(hub, applicationName, scene, 2560, 1600)
         hub.add(SceneryElement.Renderer, renderer!!)
 
-//        hmd = OpenVRHMD(useCompositor = true)
-//        hub.add(SceneryElement.HMDInput, hmd!!)
+        val cam: Camera = DetachedHeadCamera(hmd)
+        with(cam) {
+            position = GLVector(0.0f, 0.0f, 5.0f)
+            perspectiveCamera(50.0f, 1.0f*windowWidth, 1.0f*windowHeight)
+            active = true
+
+            scene.addChild(this)
+        }
 
         val shell = Box(GLVector(120.0f, 120.0f, 120.0f), insideNormals = true)
         shell.material.doubleSided = true
@@ -36,19 +47,9 @@ class VolumeExample: SceneryDefaultApplication("Volume Rendering example") {
         shell.material.ambient = GLVector.getNullVector(3)
         scene.addChild(shell)
 
-        val cam: Camera = DetachedHeadCamera(hmd)
-        with(cam) {
-            position = GLVector(0.0f, 0.0f, 5.0f)
-            perspectiveCamera(50.0f, 512.0f, 512.0f)
-            active = true
-
-            scene.addChild(this)
-        }
-
-        val volume = DirectVolume()
+        val volume = DirectVolumeFullscreen()
 
         with(volume) {
-            volume.readFrom(Paths.get("/Users/ulrik/Desktop/stack_00100.raw"))
             scene.addChild(this)
         }
 
@@ -65,13 +66,35 @@ class VolumeExample: SceneryDefaultApplication("Volume Rendering example") {
             scene.addChild(light)
         }
 
+        val folder = File("F:/ExampleDatasets/xwing-isonet-drosophila")
+        val files = folder.listFiles()
+        val volumes = files.filter { System.err.println(it); it.isFile && it.name.endsWith("raw") }.map { it.absolutePath }
+
+        var currentVolume = 0
+        fun nextVolume(): String {
+            val v = volumes[currentVolume % (volumes.size - 1)]
+            currentVolume++
+
+            return v
+        }
+
         thread {
             while(!scene.initialized) { Thread.sleep(200) }
 
             while(true) {
-                Thread.sleep(2000)
+                Thread.sleep(600)
 
-                volume.readFrom(Paths.get("/Users/ulrik/Desktop/stack_00101.raw"), replace = true)
+                logger.info("Reading next volume...")
+                volume.readFrom(Paths.get(nextVolume()), replace = true)
+            }
+        }
+
+        thread {
+            while(true) {
+                volume.rotation.rotateByAngleY(0.01f)
+                volume.needsUpdate = true
+
+                Thread.sleep(20)
             }
         }
 

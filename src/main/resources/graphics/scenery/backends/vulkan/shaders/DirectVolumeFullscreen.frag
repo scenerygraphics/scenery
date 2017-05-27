@@ -29,6 +29,8 @@ struct MaterialInfo {
 };
 
 layout(location = 0) in vec2 textureCoord;
+layout(location = 1) in mat4 inverseProjection;
+layout(location = 5) in mat4 inverseModelView;
 
 
 layout(binding = 0) uniform Matrices {
@@ -48,6 +50,16 @@ layout(binding = 1) uniform MaterialProperties {
 layout(set = 1, binding = 0) uniform sampler2D ObjectTextures[NUM_OBJECT_TEXTURES];
 layout(set = 1, binding = 1) uniform sampler3D VolumeTextures;
 
+layout(set = 2, binding = 0) uniform VRParameters {
+    mat4 projectionMatrices[2];
+    mat4 headShift;
+    float IPD;
+    int stereoEnabled;
+} vrParameters;
+
+layout(push_constant) uniform currentEye_t {
+    int eye;
+} currentEye;
 layout(set = 3, binding = 0, std140) uniform LightParameters {
     int numLights;
 	Light lights[MAX_NUM_LIGHTS];
@@ -81,17 +93,8 @@ struct AABB {
 //    return t0 <= t1;
 //}
 
-float Absorption = 2.5;
-
-const float maxDist = sqrt(2.0);
-const int numSamples = 256;
-const float stepSize = maxDist/float(numSamples);
-const int numLightSamples = 16;
-const float lscale = maxDist / float(numLightSamples);
-const float densityFactor = 700;
-
-const float trangemin = 0.0f;
-const float trangemax = 2000.0f;
+const float trangemin = 0.0006f;
+const float trangemax = 0.05f;
 
 const float boxMin_x = -1.0f;
 const float boxMin_y = -1.0f;
@@ -104,10 +107,8 @@ const float boxMax_z = 1.0f;
 const int maxsteps = 128;
 const float dithering = 0.0f;
 const float phase = 0.0f;
-const float alpha_blending = -1.0f;
-const float gamma = 1.0f;
-
-const int LOOPUNROLL=16;
+const float alpha_blending = 2.0f;
+const float gamma = 0.05;
 
 struct Intersection {
     bool hit;
@@ -135,8 +136,6 @@ Intersection intersectBox(vec4 r_o, vec4 r_d, vec4 boxmin, vec4 boxmax)
 
 void main()
 {
-    const mat4 invP = transpose(inverse(ubo.ProjectionMatrix));
-    const mat4 invM = transpose(inverse(ubo.ViewMatrix * ubo.ModelMatrix));
     // convert range bounds to linear map:
       const float ta = 1.f/(trangemax-trangemin);
       const float tb = trangemin/(trangemin-trangemax);
@@ -159,37 +158,17 @@ void main()
       vec4 orig0, orig;
       vec4 direc0, direc;
 
-      orig0.x = dot(front, invP[0]);
-      orig0.y = dot(front, invP[1]);
-      orig0.z = dot(front, invP[2]);
-      orig0.w = dot(front, invP[3]);
-
+      orig0 = inverseProjection * front;
       orig0 *= 1.f/orig0.w;
 
-      orig.x = dot(orig0, invM[0]);
-      orig.y = dot(orig0, invM[1]);
-      orig.z = dot(orig0, invM[2]);
-      orig.w = dot(orig0, invM[3]);
-
+      orig = inverseModelView * orig0;
       orig *= 1.f/orig.w;
 
-      direc0.x = dot(back, invP[0]);
-      direc0.y = dot(back, invP[1]);
-      direc0.z = dot(back, invP[2]);
-      direc0.w = dot(back, invP[3]);
-
+      direc0 = inverseProjection * back;
       direc0 *= 1.f/direc0.w;
 
-      direc0 = normalize(direc0-orig0);
-
-      direc.x = dot(direc0, invM[0]);
-      direc.y = dot(direc0, invM[1]);
-      direc.z = dot(direc0, invM[2]);
+      direc = inverseModelView * normalize(direc0-orig0);
       direc.w = 0.0f;
-
-    //    printf("%f %f %f %f\n", invP[0], invP[5], invP[10], invP[15]);
-    //printf("orig: %f %f %f\n", orig.x, orig.y, orig.z);
-    //printf("dir: %f %f %f\n", direc.x, direc.y, direc.z);
 
       // find intersection with box
       const Intersection inter = intersectBox(orig, direc, boxMin, boxMax);
@@ -208,61 +187,67 @@ void main()
       orig += phase*tstep*direc;
 
       // precompute vectors:
-      const vec4 vecstep = 0.5f*tstep*direc;
-      vec4 pos = orig*0.5f+0.5f + tnear*0.5f*direc;
+      const vec3 vecstep = 0.5*tstep*direc.xyz;
+      vec3 pos = 0.5 * (1.0 + orig.xyz + tnear * direc.xyz);
+      vec3 stop = 0.5 * (1.0 + orig.xyz + tfar * direc.xyz);
 
         // raycasting loop:
         float maxp = 0.0f;
-
         float mappedVal = 0.0f;
 
-        float volume_sample = texture(VolumeTextures, pos.xyz).x;
+        float transmission = 1.0;
+        float density = 100.0f;
+        float absorption = 0.05f;
 
-        if (alpha_blending<=0.f)
+        float colVal = 0.0;
+        float alphaVal = 0.0;
+        float newVal = 0.0;
+
+        if (alpha_blending <= 0.f)
         {
           // No alpha blending:
-      	  for(int i=0; i<maxsteps; i++)
+      	  for(int i = 0; i < maxsteps; ++i, pos += vecstep)
       	  {
+     	        float volume_sample = texture(VolumeTextures, pos.xyz).r * density;
 //      	  		maxp = fmax(maxp,read_imagef(volume, volumeSampler, pos).x);
-      	  		maxp = max(volume_sample, maxp);
-      	  		pos+=vecstep;
+      	  		transmission *= 1.0 - tstep * volume_sample * absorption;
+                maxp = volume_sample * tstep * transmission;
+
+      	  		if(transmission < 0.01) {
+          	  		break;
+      	  		}
       		}
 
       		// Mapping to transfer function range and gamma correction:
-//      		mappedVal = clamp(pow(mad(ta,maxp,tb),gamma),0.f,1.f);
+//      		mappedVal = clamp(pow(ta*maxp + tb,gamma),0.f,1.f);
 //      		mappedVal = pow(ta*maxp+tb,gamma);
-            mappedVal = maxp;
+//      		mappedVal = 0.5;
       	}
       	else
       	{
       	  // alpha blending:
-      		float cumsum = 1.f;
-      	  float decay_rate = alpha_blending*tstep;
+      	float cumsum = 1.f;
+             	for(int i=0; i<=maxsteps; ++i, pos += vecstep){
+             		newVal = 1.f*texture(VolumeTextures, pos.xyz).r;
+             		newVal = (trangemax== 0)?newVal:(newVal-trangemin)/(trangemax-trangemin);
+             		colVal = max(colVal,cumsum*newVal);
 
-      		for(int i=0; i<maxsteps; i++)
-      		{
-//      		  	float new_val = read_imagef(volume, volumeSampler, pos).x;
-      		  	float new_val = volume_sample.x;
-
-      		  	//normalize to 0...1
-      		  	float normalized_val = ta*new_val+tb;
-      		  	maxp = max(maxp,cumsum*normalized_val);
-      		  	cumsum  *= exp(-decay_rate*normalized_val);
-      	  		pos+=vecstep;
-      		}
-
-      		// Mapping to transfer function range and gamma correction:
-          mappedVal = clamp(pow(maxp,gamma),0.f,1.f);
+             		cumsum  *= (1.f-.1f*alpha_blending*newVal);
+             		if (cumsum<=0.02f)
+             		  break;
+             	}
       	}
 
+        colVal = clamp(pow(colVal, gamma), 0.0, 1.0);
+        alphaVal = clamp(colVal, 0.0, 1.0);
 
-      	vec4 color = vec4(mappedVal);//brightness*read_imagef(transferColor4,transferSampler, (float2)(mappedVal,0.0f));
+      	vec4 color = texture(ObjectTextures[3], vec2(colVal, 0.5f));
 
           // Alpha pre-multiply:
-          color.x = color.x;
-          color.y = color.y;
-          color.z = color.z;
-          color.w = 1.0f;
+//          color.x = color.x;
+//          color.y = color.y;
+//          color.z = color.z;
+          color.w = alphaVal;
 
       // write output color:
       FragColor = color;

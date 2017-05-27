@@ -136,25 +136,30 @@ class DirectVolumeFullscreen : Mesh("DirectVolume") {
         metadata.put(
             "ShaderPreference",
             ShaderPreference(
-                arrayListOf("Passthrough.vert", "DirectVolumeFullscreen.frag"),
+                arrayListOf("DirectVolumeFullscreen.vert", "DirectVolumeFullscreen.frag"),
                 HashMap<String, String>(),
                 arrayListOf("DeferredShadingRenderer")))
     }
 
     fun readFrom(file: Path, replace: Boolean = false): String {
 
-        val infoFile = file.resolveSibling(file.fileName.toString().substringBeforeLast(".") + ".info")
+        val infoFile = file.resolveSibling("stacks" + ".info")
         val dimensions = Files.lines(infoFile).toList().first().split(",").map { it.toLong() }.toTypedArray()
 
         val buffer = ByteArray(1024*1024)
         val stream = FileInputStream(file.toFile())
         val imageData: ByteBuffer = memAlloc((2 * dimensions[0] * dimensions[1] * dimensions[2]).toInt())
 
+        logger.info("${file.fileName}: Allocated ${imageData.capacity()} bytes for UINT16 image of ${dimensions.joinToString("x")}")
+
+        val start = System.nanoTime()
         var bytesRead = stream.read(buffer, 0, buffer.size)
         while(bytesRead > -1) {
             imageData.put(buffer, 0, bytesRead)
             bytesRead = stream.read(buffer, 0, buffer.size)
         }
+        val duration = (System.nanoTime() - start)/10e5
+        logger.info("Reading took $duration ms")
 
         imageData.flip()
 
@@ -180,9 +185,10 @@ class DirectVolumeFullscreen : Mesh("DirectVolume") {
                 memFree(it.contents)
             }
         }
+        this.material.textures.put("normal", this.javaClass.getResource("colormap-viridis.png").file)
         this.material.needsTextureReload = true
 
-//        this.scale = dim*0.001f
+        this.scale = dim*0.01f
 
         return id
     }

@@ -89,11 +89,14 @@ bool IntersectBox(Ray r, AABB aabb, out float t0, out float t1)
 float Absorption = 2.5;
 
 const float maxDist = sqrt(2.0);
-const int numSamples = 256;
+const int numSamples = 128;
 const float stepSize = maxDist/float(numSamples);
-const int numLightSamples = 16;
+const int numLightSamples = 32;
 const float lscale = maxDist / float(numLightSamples);
-const float densityFactor = 700;
+const float densityFactor = 5000;
+
+vec3 lightPosition = vec3(5.0, 2.5, 3.0);
+vec3 lightIntensity = vec3(15.0);
 
 void main()
 {
@@ -128,11 +131,29 @@ void main()
         if (T <= 0.01)
             break;
 
-        for(int l = 0; l < numLights; l++) {
-            vec3 lightDir = normalize(lights[l].Position.rgb - pos)*lscale;
+//        for(int l = 0; l < numLights; l++) {
+//            vec3 lightDir = normalize(lights[l].Position.rgb - pos)*lscale;
+//            float Tl = 1.0;
+//            vec3 lpos = pos + lightDir;
+//            float distance = distance(lights[l].Position.rgb, pos);
+//
+//            for (int s=0; s < numLightSamples; ++s) {
+//                float ld = texture(VolumeTextures, lpos).x;
+//                Tl *= 1.0-Absorption*stepSize*ld;
+//                if (Tl <= 0.01)
+//                lpos += lightDir;
+//            }
+//
+//            float lightAttenuation = 1.0 / (1.0 + lights[i].Linear * distance + lights[i].Quadratic * distance * distance);
+//            vec3 Li = lights[i].Color.rgb * lightAttenuation * lights[l].Intensity * Tl;
+//            Lo += T*texture(ObjectTextures[3], vec2(density/(densityFactor*5), 0.5)).rgb*stepSize;
+//        }
+
+
+            vec3 lightDir = normalize(lightPosition - pos)*lscale;
             float Tl = 1.0;
             vec3 lpos = pos + lightDir;
-            float distance = distance(lights[l].Position.rgb, pos);
+            float distance = distance(lightPosition, pos);
 
             for (int s=0; s < numLightSamples; ++s) {
                 float ld = texture(VolumeTextures, lpos).x;
@@ -141,10 +162,8 @@ void main()
                 lpos += lightDir;
             }
 
-            float lightAttenuation = 1.0 / (1.0 + lights[i].Linear * distance + lights[i].Quadratic * distance * distance);
-            vec3 Li = lights[i].Color.rgb * lightAttenuation * lights[l].Intensity * Tl;
-            Lo += Li*T*density*stepSize;
-        }
+            vec3 Li = lightIntensity * Tl;
+            Lo += T*texture(ObjectTextures[3], vec2(density, 0.5)).rgb*stepSize;
     }
 
     FragColor.rgb = Lo;
