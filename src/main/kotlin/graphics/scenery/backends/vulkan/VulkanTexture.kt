@@ -157,6 +157,7 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
         }
 
         if (mipLevels == 1) {
+            var buffer: VulkanBuffer? = null
             with(VU.newCommandBuffer(device, commandPool, autostart = true)) {
                 if(image == null) {
                     image = createImage(width, height, depth,
@@ -188,27 +189,28 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
                         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, mipLevels,
                         commandBuffer = this)
                 } else {
-                    val buffer = VU.createBuffer(device, memoryProperties, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                    buffer = VU.createBuffer(device, memoryProperties, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, false, data.capacity().toLong())
 
-                    buffer.copyFrom(data)
+                    buffer?.let { buffer ->
+                        buffer.copyFrom(data)
 
-                    transitionLayout(image!!.image,
-                        VK_IMAGE_LAYOUT_UNDEFINED,
-                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevels,
-                        commandBuffer = this)
+                        transitionLayout(image!!.image,
+                            VK_IMAGE_LAYOUT_UNDEFINED,
+                            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevels,
+                            commandBuffer = this)
 
-                    image!!.copyFrom(this, buffer)
+                        image!!.copyFrom(this, buffer)
 
-                    transitionLayout(image!!.image,
-                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, mipLevels,
-                        commandBuffer = this)
-
-                    buffer.close()
+                        transitionLayout(image!!.image,
+                            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, mipLevels,
+                            commandBuffer = this)
+                    }
                 }
 
                 this.endCommandBuffer(device, commandPool, queue, flush = true, dealloc = true)
+                buffer?.close()
             }
         } else {
             val buffer = VU.createBuffer(device, memoryProperties, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
