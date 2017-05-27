@@ -99,6 +99,8 @@ open class VulkanRenderer(hub: Hub,
         internal var layout: Long = 0
     }
 
+    private val lateResizeInitializers = HashMap<Node, () -> Any>()
+
     inner class SwapchainRecreator {
         var mustRecreate = true
 
@@ -147,6 +149,8 @@ open class VulkanRenderer(hub: Hub,
                 if (renderCommandBuffers != null) {
                     vkResetCommandPool(device, commandPools.Render, VK_FLAGS_NONE)
                 }
+
+                lateResizeInitializers.map { it.value.invoke() }
             }
 
             refreshResolutionDependentResources.invoke()
@@ -720,6 +724,14 @@ open class VulkanRenderer(hub: Hub,
         node.initialized = true
         node.metadata["VulkanRenderer"] = s
 
+        initializeCustumShadersForNode(node)
+        return true
+    }
+
+    fun initializeCustumShadersForNode(node: Node): Boolean {
+
+        val s = node.metadata["VulkanRenderer"] as VulkanObjectState
+
         if (node.material.doubleSided) {
             renderpasses.filter { it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry }
                 .map { pass ->
@@ -762,6 +774,8 @@ open class VulkanRenderer(hub: Hub,
                 }
         }
 
+        lateResizeInitializers.put(node, { initializeCustumShadersForNode(node) })
+
         return true
     }
 
@@ -771,6 +785,8 @@ open class VulkanRenderer(hub: Hub,
         }
 
         val s = node.metadata["VulkanRenderer"] as VulkanObjectState
+
+        lateResizeInitializers.remove(node)
 
         s.UBOs.forEach { it.value.second.close() }
 
@@ -782,99 +798,101 @@ open class VulkanRenderer(hub: Hub,
     }
 
     protected fun loadTexturesForNode(node: Node, s: VulkanObjectState): VulkanObjectState {
-        val stats = hub?.get(SceneryElement.Statistics) as Statistics?
+        thread {
+            val stats = hub?.get(SceneryElement.Statistics) as Statistics?
 
-        if (node.lock.tryLock()) {
-            node.material.textures.forEach {
-                type, texture ->
+            if (node.lock.tryLock()) {
+                node.material.textures.forEach {
+                    type, texture ->
 
-                val slot = VulkanObjectState.textureTypeToSlot(type)
+                    val slot = VulkanObjectState.textureTypeToSlot(type)
 
-                val generateMipmaps = (type == "ambient" || type == "diffuse" || type == "specular")
+                    val generateMipmaps = (type == "ambient" || type == "diffuse" || type == "specular")
 
-                logger.debug("${node.name} will have $type texture from $texture in slot $slot")
+                    logger.debug("${node.name} will have $type texture from $texture in slot $slot")
 
-                if (!textureCache.containsKey(texture) || node.material.needsTextureReload) {
-                    logger.trace("Loading texture $texture for ${node.name}")
+                    if (!textureCache.containsKey(texture) || node.material.needsTextureReload) {
+                        logger.trace("Loading texture $texture for ${node.name}")
 
-                    val gt = node.material.transferTextures.get(texture.substringAfter("fromBuffer:"))
+                        val gt = node.material.transferTextures.get(texture.substringAfter("fromBuffer:"))
 
-                    val vkTexture = if (texture.startsWith("fromBuffer:") && gt != null) {
-                        val miplevels = if (generateMipmaps) {
-                            1 + Math.floor(Math.log(Math.max(gt.dimensions.x() * 1.0, gt.dimensions.y() * 1.0)) / Math.log(2.0)).toInt()
-                        } else {
-                            1
-                        }
-
-                        val format = when(gt.channels) {
-                            1 -> VK_FORMAT_R8_UNORM
-                            2 -> VK_FORMAT_R8G8_UNORM
-                            3 -> VK_FORMAT_R8G8B8_UNORM
-                            -1 -> VK_FORMAT_R16_UINT
-                            else -> if(gt.type == GLTypeEnum.Float) {
-                                VK_FORMAT_R32G32B32A32_SFLOAT
+                        val vkTexture = if (texture.startsWith("fromBuffer:") && gt != null) {
+                            val miplevels = if (generateMipmaps) {
+                                1 + Math.floor(Math.log(Math.max(gt.dimensions.x() * 1.0, gt.dimensions.y() * 1.0)) / Math.log(2.0)).toInt()
                             } else {
-                                VK_FORMAT_R8G8B8A8_UNORM
+                                1
                             }
-                        }
 
-                        val zSize = if(gt.dimensions.dimension == 3) {
-                            gt.dimensions.z().toInt()
+                            val format = when (gt.channels) {
+                                1 -> VK_FORMAT_R8_UNORM
+                                2 -> VK_FORMAT_R8G8_UNORM
+                                3 -> VK_FORMAT_R8G8B8_UNORM
+                                -1 -> VK_FORMAT_R16_UINT
+                                else -> if (gt.type == GLTypeEnum.Float) {
+                                    VK_FORMAT_R32G32B32A32_SFLOAT
+                                } else {
+                                    VK_FORMAT_R8G8B8A8_UNORM
+                                }
+                            }
+
+                            val zSize = if (gt.dimensions.dimension == 3) {
+                                gt.dimensions.z().toInt()
+                            } else {
+                                1
+                            }
+
+                            val existingTexture = s.textures.get(type)
+                            val t = if (existingTexture != null && existingTexture.device == device
+                                && existingTexture.physicalDevice == physicalDevice
+                                && existingTexture.width == gt.dimensions.x().toInt()
+                                && existingTexture.height == gt.dimensions.y().toInt()
+                                && existingTexture.depth == zSize
+                                && existingTexture.format == format
+                                && existingTexture.mipLevels == miplevels) {
+                                existingTexture
+                            } else {
+                                VulkanTexture(device, physicalDevice, memoryProperties,
+                                    commandPools.Standard, queue,
+                                    gt.dimensions.x().toInt(), gt.dimensions.y().toInt(), zSize,
+                                    format, miplevels)
+                            }
+
+                            t.copyFrom(gt.contents)
+
+                            t
                         } else {
-                            1
+                            val start = System.nanoTime()
+                            val t = VulkanTexture.loadFromFile(device, physicalDevice, memoryProperties,
+                                commandPools.Standard, queue, texture, true, generateMipmaps)
+                            val duration = System.nanoTime() - start * 1.0f
+                            stats?.add("loadTexture", duration)
+
+                            t
                         }
 
-                        val existingTexture = s.textures.get(type)
-                        val t = if(existingTexture != null && existingTexture.device == device
-                            && existingTexture.physicalDevice  == physicalDevice
-                            && existingTexture.width == gt.dimensions.x().toInt()
-                            && existingTexture.height == gt.dimensions.y().toInt()
-                            && existingTexture.depth == zSize
-                            && existingTexture.format == format
-                            && existingTexture.mipLevels == miplevels) {
-                            existingTexture
-                        } else {
-                            VulkanTexture(device, physicalDevice, memoryProperties,
-                                commandPools.Standard, queue,
-                                gt.dimensions.x().toInt(), gt.dimensions.y().toInt(), zSize,
-                                format, miplevels)
-                        }
-
-                        t.copyFrom(gt.contents)
-
-                        t
+                        // add new texture to texture list and cache, and close old texture
+                        s.textures.put(type, vkTexture!!)
+                        textureCache.put(texture, vkTexture)
                     } else {
-                        val start = System.nanoTime()
-                        val t = VulkanTexture.loadFromFile(device, physicalDevice, memoryProperties,
-                            commandPools.Standard, queue, texture, true, generateMipmaps)
-                        val duration = System.nanoTime() - start * 1.0f
-                        stats?.add("loadTexture", duration)
-
-                        t
+                        s.textures.put(type, textureCache[texture]!!)
                     }
-
-                    // add new texture to texture list and cache, and close old texture
-                    s.textures.put(type, vkTexture!!)
-                    textureCache.put(texture, vkTexture)
-                } else {
-                    s.textures.put(type, textureCache[texture]!!)
                 }
+
+                arrayOf("ambient", "diffuse", "specular", "normal", "alphamask", "displacement").forEach {
+                    if (!s.textures.containsKey(it)) {
+                        s.textures.putIfAbsent(it, textureCache["DefaultTexture"]!!)
+                        s.defaultTexturesFor.add(it)
+                    }
+                }
+
+                s.texturesToDescriptorSet(device, descriptorSetLayouts["ObjectTextures"]!!,
+                    descriptorPool,
+                    targetBinding = 0)
+
+                node.lock.unlock()
             }
 
-            arrayOf("ambient", "diffuse", "specular", "normal", "alphamask", "displacement").forEach {
-                if (!s.textures.containsKey(it)) {
-                    s.textures.putIfAbsent(it, textureCache["DefaultTexture"]!!)
-                    s.defaultTexturesFor.add(it)
-                }
-            }
-
-            s.texturesToDescriptorSet(device, descriptorSetLayouts["ObjectTextures"]!!,
-                descriptorPool,
-                targetBinding = 0)
-
-            node.lock.unlock()
-        }
-
+        }.join()
         return s
     }
 
