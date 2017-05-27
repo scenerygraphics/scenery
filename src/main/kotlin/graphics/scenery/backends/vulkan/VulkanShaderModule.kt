@@ -14,6 +14,7 @@ import java.util.*
 import graphics.scenery.spirvcrossj.EShLanguage
 import graphics.scenery.spirvcrossj.EShMessages
 import java.nio.Buffer
+import kotlin.collections.LinkedHashMap
 
 
 /**
@@ -28,7 +29,8 @@ open class VulkanShaderModule(device: VkDevice, entryPoint: String, clazz: Class
     var device: VkDevice
     var uboSpecs = LinkedHashMap<String, UBOSpec>()
 
-    data class UBOSpec(val name: String, val set: Long, val binding: Long)
+    data class UBOMemberSpec(val name: String, val index: Long, val offset: Long, val range: Long)
+    data class UBOSpec(val name: String, val set: Long, val binding: Long, val members: LinkedHashMap<String, UBOMemberSpec>)
 
     init {
 
@@ -137,11 +139,30 @@ open class VulkanShaderModule(device: VkDevice, entryPoint: String, clazz: Class
             val res = uniformBuffers.get(i.toInt())
             logger.debug("${res.name}, set=${compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet)}, binding=${compiler.getDecoration(res.id, Decoration.DecorationBinding)}")
 
+            val members = LinkedHashMap<String, UBOMemberSpec>()
+            val activeRanges = compiler.getActiveBufferRanges(res.id)
+
+            // record all members of the UBO struct, order by index, and store them to UBOSpec.members
+            // for further use
+            members.putAll((0..activeRanges.size()-1).map {
+                val range = activeRanges.get(it.toInt())
+                val name = compiler.getMemberName(res.baseTypeId, range.index)
+
+                name.to(UBOMemberSpec(
+                    compiler.getMemberName(res.baseTypeId, range.index),
+                    range.index,
+                    range.offset,
+                    range.range))
+            }.sortedBy { it.second.index })
+
             val ubo = UBOSpec(res.name,
                 set = compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet),
-                binding = compiler.getDecoration(res.id, Decoration.DecorationBinding))
+                binding = compiler.getDecoration(res.id, Decoration.DecorationBinding),
+                members = members)
 
-            if(!uboSpecs.contains(res.name)) {
+            // only add the UBO spec if it doesn't already exist, and has more than 0 members
+            // SPIRV UBOs may have 0 members, if they are not used in the actual shader code
+            if(!uboSpecs.contains(res.name) && ubo.members.size > 0) {
                 uboSpecs.put(res.name, ubo)
             }
         }
@@ -152,7 +173,8 @@ open class VulkanShaderModule(device: VkDevice, entryPoint: String, clazz: Class
             if(res.name != "ObjectTextures") {
                 uboSpecs.put(res.name, UBOSpec("inputs",
                     set = compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet),
-                    binding = 0))
+                    binding = 0,
+                    members = LinkedHashMap<String, UBOMemberSpec>()))
             }
         }
 
