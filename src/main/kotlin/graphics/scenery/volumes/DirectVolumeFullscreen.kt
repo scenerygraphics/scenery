@@ -58,22 +58,25 @@ class DirectVolumeFullscreen : Mesh("DirectVolume") {
         var function: FloatArray = floatArrayOf()
     )
 
-    @ShaderProperty var trangemin = 0.0006f
-    @ShaderProperty var trangemax = 0.008f
+    val boxwidth = 1.0f
+//    @ShaderProperty var trangemin = 0.0006f
+//    @ShaderProperty var trangemax = 0.008f
+    @ShaderProperty var trangemin = 0.00f
+    @ShaderProperty var trangemax = 0.02f
 
-    @ShaderProperty var boxMin_x = -0.8f
-    @ShaderProperty var boxMin_y = -0.7f
-    @ShaderProperty var boxMin_z = -0.8f
+    @ShaderProperty var boxMin_x = -boxwidth
+    @ShaderProperty var boxMin_y = -boxwidth
+    @ShaderProperty var boxMin_z = -boxwidth
 
-    @ShaderProperty var boxMax_x = 0.8f
-    @ShaderProperty var boxMax_y = 0.8f
-    @ShaderProperty var boxMax_z = 0.8f
+    @ShaderProperty var boxMax_x = boxwidth
+    @ShaderProperty var boxMax_y = boxwidth
+    @ShaderProperty var boxMax_z = boxwidth
 
     @ShaderProperty var maxsteps = 128
     @ShaderProperty var dithering = 0.0f
     @ShaderProperty var phase = 0.0f
     @ShaderProperty var alpha_blending = 2.0f
-    @ShaderProperty var gamma = 0.05f
+    @ShaderProperty var gamma = 1.0f
 
     val logger: Logger = LoggerFactory.getLogger("Volume")
 
@@ -209,10 +212,12 @@ class DirectVolumeFullscreen : Mesh("DirectVolume") {
                 memFree(it.contents)
             }
         }
-        this.material.textures.put("normal", this.javaClass.getResource("colormap-viridis.png").file)
+        this.material.textures.put("normal", this.javaClass.getResource("colormap-hot.png").file)
         this.material.needsTextureReload = true
 
         this.scale = dim*0.01f
+        this.scale = GLVector(1.0f,1.0f,3.0f)
+
 
         return id
     }

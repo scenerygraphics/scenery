@@ -211,7 +211,7 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
                 listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1)),
                 VK_SHADER_STAGE_ALL_GRAPHICS)
 
-            logger.info("Created Shader Property DSL $dsl for $name")
+            logger.debug("Created Shader Property DSL $dsl for $name")
             descriptorSetLayouts.putIfAbsent("ShaderProperties-$name", dsl)
             dsl
         } else {
@@ -224,7 +224,7 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
 
     fun getShaderPropertyOrder(node: Node): List<String> {
         // this creates a shader property UBO for items marked @ShaderProperty in node
-        logger.info("specs: ${this.pipelines["preferred-${node.name}"]!!.descriptorSpecs}")
+        logger.debug("specs: ${this.pipelines["preferred-${node.name}"]!!.descriptorSpecs}")
         val shaderPropertiesSpec = this.pipelines["preferred-${node.name}"]!!.descriptorSpecs.find { it.name == "ShaderProperties" }
 
         if(shaderPropertiesSpec == null) {
@@ -334,7 +334,7 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
             reqDescriptorLayouts.add(descriptorSetLayouts.get("VRParameters")!!)
 
             if(descriptorSetLayouts.containsKey("ShaderProperties-$name")) {
-                logger.info("Adding shader property DSL")
+                logger.debug("Adding shader property DSL")
                  reqDescriptorLayouts.add(descriptorSetLayouts["ShaderProperties-$name"]!!)
             }
 //            if(descriptorSetLayouts.containsKey("inputs-$name")) {
@@ -386,6 +386,7 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
         RenderConfigReader.BlendFactor.Zero -> VK_BLEND_FACTOR_ZERO
         RenderConfigReader.BlendFactor.One -> VK_BLEND_FACTOR_ONE
         RenderConfigReader.BlendFactor.OneMinusSrcAlpha -> VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA
+        RenderConfigReader.BlendFactor.SrcAlpha -> VK_BLEND_FACTOR_SRC_ALPHA
     }
 
     private fun RenderConfigReader.BlendOp.toVulkan() = when (this) {

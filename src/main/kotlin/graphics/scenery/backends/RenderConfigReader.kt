@@ -100,10 +100,10 @@ class RenderConfigReader {
         var renderOpaque: Boolean = true,
         var colorBlendOp: BlendOp = BlendOp.add,
         var alphaBlendOp: BlendOp = BlendOp.add,
-        var srcColorBlendFactor: BlendFactor = BlendFactor.One,
+        var srcColorBlendFactor: BlendFactor = BlendFactor.SrcAlpha,
         var dstColorBlendFactor: BlendFactor = BlendFactor.OneMinusSrcAlpha,
-        var srcAlphaBlendFactor: BlendFactor = BlendFactor.One,
-        var dstAlphaBlendFactor: BlendFactor = BlendFactor.Zero,
+        var srcAlphaBlendFactor: BlendFactor = BlendFactor.SrcAlpha,
+        var dstAlphaBlendFactor: BlendFactor = BlendFactor.OneMinusSrcAlpha,
         var shaders: Set<String>,
         var inputs: Set<String>?,
         var output: String,
@@ -119,7 +119,7 @@ class RenderConfigReader {
     enum class BlendOp { add, subtract, reverse_subtract, min, max }
 
     // TODO: Implemnent residual blend factors
-    enum class BlendFactor { Zero, One, OneMinusSrcAlpha }
+    enum class BlendFactor { Zero, One, OneMinusSrcAlpha, SrcAlpha }
 
     enum class RenderpassType { geometry, quad }
 

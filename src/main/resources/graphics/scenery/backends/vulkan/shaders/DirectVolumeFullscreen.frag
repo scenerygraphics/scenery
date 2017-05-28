@@ -74,6 +74,8 @@ layout(set = 3, binding = 0) uniform ShaderProperties {
     float gamma;
 };
 
+// useless comment
+
 float PI_r = 0.3183098;
 
 struct Ray {
@@ -124,7 +126,7 @@ Intersection intersectBox(vec4 r_o, vec4 r_d, vec4 boxmin, vec4 boxmax)
 	return Intersection(smallest_tmax > largest_tmin, largest_tmin, smallest_tmax);
 }
 
-void main()
+void mainold()
 {
     // convert range bounds to linear map:
       const float ta = 1.f/(trangemax-trangemin);
@@ -241,5 +243,105 @@ void main()
 
       // write output color:
       FragColor = color;
+
+}
+
+
+void main()
+{
+    // convert range bounds to linear map:
+      const float ta = 1.f/(trangemax-trangemin);
+      const float tb = trangemin/(trangemin-trangemax);
+
+    	// box bounds using the clipping box
+      const vec4 boxMin = vec4(boxMin_x,boxMin_y,boxMin_z,1.f);
+      const vec4 boxMax = vec4(boxMax_x,boxMax_y,boxMax_z,1.f);
+
+      // thread float coordinates:
+//      const float u = (x / (float) imageW)*2.0f-1.0f;
+//      const float v = (y / (float) imageH)*2.0f-1.0f;
+      const float u = textureCoord.s*2.0 - 1.0;
+      const float v = textureCoord.t*2.0 - 1.0;
+
+      // front and back:
+      const vec4 front = vec4(u,v,-1.f,1.f);
+      const vec4 back = vec4(u,v,1.f,1.f);
+
+      // calculate eye ray in world space
+      vec4 orig0, orig;
+      vec4 direc0, direc;
+
+      orig0 = inverseProjection * front;
+      orig0 *= 1.f/orig0.w;
+
+      orig = inverseModelView * orig0;
+      orig *= 1.f/orig.w;
+
+      direc0 = inverseProjection * back;
+      direc0 *= 1.f/direc0.w;
+
+      direc = inverseModelView * normalize(direc0-orig0);
+      direc.w = 0.0f;
+
+      // find intersection with box
+      const Intersection inter = intersectBox(orig, direc, boxMin, boxMax);
+
+      if (!inter.hit || inter.tfar <= 0)
+      {
+       	FragColor = vec4(0.0f, 0.0f, 0.0f, 0.0f);
+      	return;
+      }
+
+
+      const float tnear = inter.tnear;
+      const float tfar = max(inter.tfar, 0.0f);
+      const float tstep = abs(tnear-tfar)/(maxsteps);
+
+      // apply phase:
+      orig += phase*tstep*direc;
+
+      // precompute vectors:
+      const vec3 vecstep = 0.5*tstep*direc.xyz;
+      vec3 pos = 0.5 * (1.0 + orig.xyz + tnear * direc.xyz);
+      vec3 stop = 0.5 * (1.0 + orig.xyz + tfar * direc.xyz);
+
+        // raycasting loop:
+        float maxp = 0.0f;
+        float mappedVal = 0.0f;
+
+        float transmission = 1.0;
+        float density = 100.0f;
+        float absorption = 0.05f;
+
+        float colVal = 0.0;
+        float alphaVal = 0.0;
+        float newVal = 0.0;
+
+
+          // No alpha blending:
+      for(int i = 0; i < maxsteps; ++i, pos += vecstep)
+      {
+     	   float volume_sample = texture(VolumeTextures, pos.xyz).r;
+     	   maxp = max(maxp,volume_sample);
+
+      }
+
+      // Mapping to transfer function range and gamma correction:
+      colVal = clamp(pow(ta*maxp + tb,gamma),0.f,1.f);
+      colVal = clamp(ta*maxp + tb,0.f,1.f);
+      alphaVal = clamp(colVal, 0.0, 1.0);
+
+
+      vec4 color = texture(ObjectTextures[3], vec2(colVal, 0.5f));
+      color.w = alphaVal;
+
+      // useless comment
+      FragColor = color;
+
+      //FragColor = vec4(colVal, 0.0f, 0.0f, alphaVal);
+      //FragColor = vec4(color.x, 0.0f, 0.0f, alphaVal);
+
+      // FIXME sanity check: this should give the colormap texture (but doesnt!)
+      //FragColor = texture(ObjectTextures[3], vec2(textureCoord.s ,0.5f));
 
 }

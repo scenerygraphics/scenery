@@ -24,7 +24,7 @@ class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 2
     override fun init() {
         try {
 //            hmd = OpenVRHMD(useCompositor = true)
-            hmd = TrackedStereoGlasses("DTrack@10.1.2.201", "CAVEExample.yml", 2560, 1600)
+            hmd = TrackedStereoGlasses("DTrack@10.1.2.201", "CAVEExample.yml")
             hub.add(SceneryElement.HMDInput, hmd!!)
 
             renderer = Renderer.createRenderer(hub, applicationName,

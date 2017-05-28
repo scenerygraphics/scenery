@@ -5,6 +5,7 @@ import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.InputHandler
 import graphics.scenery.controls.OpenVRHMD
+import graphics.scenery.controls.TrackedStereoGlasses
 import graphics.scenery.controls.behaviours.ArcballCameraControl
 import graphics.scenery.controls.behaviours.FPSCameraControl
 import graphics.scenery.volumes.DirectVolume
@@ -22,18 +23,19 @@ import kotlin.concurrent.thread
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class VolumeExample: SceneryDefaultApplication("Volume Rendering example") {
-    var hmd: OpenVRHMD? = null
+    var hmd: TrackedStereoGlasses? = null
 
     override fun init() {
-//        hmd = OpenVRHMD(useCompositor = true)
-//        hub.add(SceneryElement.HMDInput, hmd!!)
+        hmd = TrackedStereoGlasses("DTrack@10.1.2.201")
+        hub.add(SceneryElement.HMDInput, hmd!!)
 
         renderer = Renderer.createRenderer(hub, applicationName, scene, 2560, 1600)
         hub.add(SceneryElement.Renderer, renderer!!)
 
         val cam: Camera = DetachedHeadCamera(hmd)
         with(cam) {
-            position = GLVector(0.0f, 0.0f, 5.0f)
+            //position = GLVector(0.0f, 0.0f, 5.0f)
+            position = GLVector(0.0f, -1.0f, 5.0f)
             perspectiveCamera(50.0f, 1.0f*windowWidth, 1.0f*windowHeight)
             active = true
 
@@ -42,7 +44,7 @@ class VolumeExample: SceneryDefaultApplication("Volume Rendering example") {
 
         val shell = Box(GLVector(120.0f, 120.0f, 120.0f), insideNormals = true)
         shell.material.doubleSided = true
-        shell.material.diffuse = GLVector(1.0f, 1.0f, 1.0f)
+        shell.material.diffuse = GLVector(0.0f, 0.0f, 0.0f)
         shell.material.specular = GLVector.getNullVector(3)
         shell.material.ambient = GLVector.getNullVector(3)
         scene.addChild(shell)
@@ -66,9 +68,11 @@ class VolumeExample: SceneryDefaultApplication("Volume Rendering example") {
             scene.addChild(light)
         }
 
-        val folder = File("F:/ExampleDatasets/xwing-isonet-drosophila")
+        val folder = File("Y:/CAVE_DATA/histones-isonet/stacks/default/")
+        //val folder = File("Y:/CAVE_DATA/droso-royer/drosos-royer/stacks/default/")
+        //val folder = File("Y:/CAVE_DATA/droso-isonet/stacks/default/")
         val files = folder.listFiles()
-        val volumes = files.filter { System.err.println(it); it.isFile && it.name.endsWith("raw") }.map { it.absolutePath }
+        val volumes = files.filter { System.err.println(it); it.isFile && it.name.endsWith("0.raw") }.map { it.absolutePath }.sorted()
 
         var currentVolume = 0
         fun nextVolume(): String {
@@ -78,20 +82,29 @@ class VolumeExample: SceneryDefaultApplication("Volume Rendering example") {
             return v
         }
 
+        //var delay = 140L
+        var delay = 400L
+
+
+
+        repl?.addAccessibleObject(delay)
+
         thread {
             while(!scene.initialized) { Thread.sleep(200) }
 
             while(true) {
-                Thread.sleep(2500)
+                Thread.sleep(delay)
 
                 logger.info("Reading next volume...")
                 volume.readFrom(Paths.get(nextVolume()), replace = true)
+
+                //delay = 100000000L // only load one volume
             }
         }
 
         thread {
             while(true) {
-                volume.rotation.rotateByAngleY(0.01f)
+                volume.rotation.rotateByAngleY(0.001f)
                 volume.needsUpdate = true
 
                 Thread.sleep(20)

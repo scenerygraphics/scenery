@@ -105,7 +105,7 @@ class VulkanPipeline(val device: VkDevice, val pipelineCache: Long? = null): Aut
         val setLayouts = memAllocLong(descriptorSetLayouts.size)
 
         descriptorSetLayouts.forEachIndexed { i, layout ->
-            logger.info("Adding DSL $layout for renderpass $renderPass")
+            logger.debug("Adding DSL $layout for renderpass $renderPass")
             setLayouts.put(i, layout)
         }
 
