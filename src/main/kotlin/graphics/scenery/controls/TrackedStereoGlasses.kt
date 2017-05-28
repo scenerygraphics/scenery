@@ -18,7 +18,7 @@ import org.slf4j.LoggerFactory
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class TrackedStereoGlasses(var address: String = "device@localhost:5500", var screenConfig: String = "CAVEExample.yml", val screenWidth: Int = 1920, val screenHeight: Int = 1080) : Display, TrackerInput, Hubable {
+class TrackedStereoGlasses(var address: String = "device@localhost:5500", var screenConfig: String = "CAVEExample.yml") : Display, TrackerInput, Hubable {
     override var hub: Hub? = null
 
     var vrpnTracker = VRPNTrackerInput(address)
@@ -167,7 +167,7 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
      * @return Render target size as 2D vector
      */
     override fun getRenderTargetSize(): GLVector {
-        return GLVector(screenWidth * 2.0f, screenHeight * 1.0f)
+        return GLVector(config.screenWidth * 2.0f, config.screenHeight * 1.0f)
     }
 
     /**

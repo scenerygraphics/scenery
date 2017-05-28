@@ -34,6 +34,8 @@ class ScreenConfig {
     data class Config(
         var name: String,
         var description: String?,
+        var screenWidth: Int = 1920,
+        var screenHeight: Int = 1200,
 
         var screens: Map<String, SingleScreenConfig>
     )

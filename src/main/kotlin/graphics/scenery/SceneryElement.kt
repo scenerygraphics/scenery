@@ -19,5 +19,9 @@ enum class SceneryElement {
     /** Element for statistics */
     Statistics,
     /** Element for settings storage */
-    Settings
+    Settings,
+    /** Element for subscribing to Node updates */
+    NodeSubscriber,
+    /** Element for publishing Node updates */
+    NodePublisher
 }

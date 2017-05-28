@@ -64,6 +64,7 @@ class NodeSubscriber(override var hub: Hub?, val address: String = "udp://localh
                         if(o.name == node.name) {
                             node.position = o.position
                             node.rotation = o.rotation
+                            node.visible = o.visible
                         }
 
                         input.close()

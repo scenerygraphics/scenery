@@ -99,6 +99,8 @@ open class SceneryDefaultApplication(var applicationName: String,
             null
         }
 
+        publisher?.let { hub.add(SceneryElement.NodePublisher, it) }
+
         val subscriber: NodeSubscriber? = if(!master) {
             val masterAddress = System.getProperty("scenery.MasterNode", "tcp://localhost:6666")
             logger.info("Will connect to master at $masterAddress")
@@ -106,6 +108,8 @@ open class SceneryDefaultApplication(var applicationName: String,
         } else {
             null
         }
+
+        subscriber?.let { hub.add(SceneryElement.NodeSubscriber, it) }
 
         hub.add(SceneryElement.Statistics, stats)
         hub.add(SceneryElement.Settings, settings)
@@ -135,9 +139,6 @@ open class SceneryDefaultApplication(var applicationName: String,
         var ticks = 0L
 
         running = true
-
-        publisher?.nodes?.put(13337, scene.findObserver())
-        subscriber?.nodes?.put(13337, scene.findObserver())
 
         if(!master) {
             thread {

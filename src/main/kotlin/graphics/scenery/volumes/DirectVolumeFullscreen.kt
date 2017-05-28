@@ -23,6 +23,7 @@ import java.nio.ByteOrder
 import java.nio.channels.FileChannel
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.Paths
 import java.nio.file.StandardOpenOption
 import java.util.*
 import javax.imageio.ImageIO
@@ -78,10 +79,17 @@ class DirectVolumeFullscreen : Mesh("DirectVolume") {
 
     val volumes = LinkedHashMap<String, VolumeDescriptor>()
 
+    var currentVolume: String = ""
+        set(value) {
+            field = value
+            if(value != "") {
+                readFrom(Paths.get(field), true)
+            }
+        }
+
     val parameters = VolumeRenderingParameters()
 
     var hub: Hub? = null
-    var context: ClearCLContext? = null
 
     init {
         // fake geometry
@@ -159,7 +167,6 @@ class DirectVolumeFullscreen : Mesh("DirectVolume") {
     }
 
     fun readFrom(file: Path, replace: Boolean = false): String {
-
         val infoFile = file.resolveSibling("stacks" + ".info")
         val dimensions = Files.lines(infoFile).toList().first().split(",").map { it.toLong() }.toTypedArray()
 

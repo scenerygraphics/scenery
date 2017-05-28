@@ -5,8 +5,11 @@ import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.InputHandler
 import graphics.scenery.controls.OpenVRHMD
+import graphics.scenery.controls.TrackedStereoGlasses
 import graphics.scenery.controls.behaviours.ArcballCameraControl
 import graphics.scenery.controls.behaviours.FPSCameraControl
+import graphics.scenery.net.NodePublisher
+import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.volumes.DirectVolume
 import graphics.scenery.volumes.DirectVolumeFullscreen
 import graphics.scenery.volumes.Volume
@@ -21,12 +24,13 @@ import kotlin.concurrent.thread
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class VolumeExample: SceneryDefaultApplication("Volume Rendering example") {
-    var hmd: OpenVRHMD? = null
+class ClusterExample: SceneryDefaultApplication("Clustered Volume Rendering example") {
+    var hmd: TrackedStereoGlasses? = null
+    var publishedNodes = ArrayList<Node>()
 
     override fun init() {
-//        hmd = OpenVRHMD(useCompositor = true)
-//        hub.add(SceneryElement.HMDInput, hmd!!)
+        hmd = TrackedStereoGlasses("DTrack@10.1.2.201", screenConfig = "CAVEExample.yml")
+        hub.add(SceneryElement.HMDInput, hmd!!)
 
         renderer = Renderer.createRenderer(hub, applicationName, scene, 2560, 1600)
         hub.add(SceneryElement.Renderer, renderer!!)
@@ -40,6 +44,18 @@ class VolumeExample: SceneryDefaultApplication("Volume Rendering example") {
             scene.addChild(this)
         }
 
+        val bileMesh = Mesh()
+        bileMesh.readFrom("F:/ExampleDatasets/scenery-models-large/adult_mouse_bile_canaliculi_network.obj", useMaterial = false)
+        bileMesh.scale = GLVector(0.01f, 0.01f, 0.01f)
+        bileMesh.visible = false
+        scene.addChild(bileMesh)
+
+        val vasculature = Mesh()
+        vasculature.readFrom("C:/Users/ulrik/Code/ClearVolume/scenery/models/Drerio.stl", useMaterial = false)
+        vasculature.scale = GLVector(0.1f, 0.1f, 0.1f)
+        bileMesh.visible = false
+        scene.addChild(vasculature)
+
         val shell = Box(GLVector(120.0f, 120.0f, 120.0f), insideNormals = true)
         shell.material.doubleSided = true
         shell.material.diffuse = GLVector(1.0f, 1.0f, 1.0f)
@@ -50,6 +66,7 @@ class VolumeExample: SceneryDefaultApplication("Volume Rendering example") {
         val volume = DirectVolumeFullscreen()
 
         with(volume) {
+            volume.visible = false
             scene.addChild(this)
         }
 
@@ -76,6 +93,20 @@ class VolumeExample: SceneryDefaultApplication("Volume Rendering example") {
             currentVolume++
 
             return v
+        }
+
+        publishedNodes.add(cam)
+        publishedNodes.add(bileMesh)
+        publishedNodes.add(vasculature)
+        publishedNodes.add(volume)
+
+        val publisher = hub.get<NodePublisher>(SceneryElement.NodePublisher)
+        val subscriber = hub.get<NodeSubscriber>(SceneryElement.NodeSubscriber)
+
+        publishedNodes.forEachIndexed { index, node ->
+            publisher?.nodes?.put(13337 + index, node)
+
+            subscriber?.nodes?.put(13337 + index, node)
         }
 
         thread {
@@ -129,8 +160,19 @@ class VolumeExample: SceneryDefaultApplication("Volume Rendering example") {
             }
         }
 
+        val cycleObjects = ClickBehaviour { _, _ ->
+            val currentObject = publishedNodes.find { it.visible == true }
+            val currentIndex = publishedNodes.indexOf(currentObject)
+
+            publishedNodes.forEach { it.visible = false }
+            publishedNodes[(currentIndex + 1) % (publishedNodes.size-1)].visible = true
+        }
+
         inputHandler.addBehaviour("toggle_control_mode", toggleControlMode)
         inputHandler.addKeyBinding("toggle_control_mode", "C")
+
+        inputHandler.addBehaviour("cycle_objects", cycleObjects)
+        inputHandler.addKeyBinding("cycle_objects", "N")
     }
 
     @Test override fun main() {

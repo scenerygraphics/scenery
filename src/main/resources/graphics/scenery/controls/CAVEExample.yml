@@ -1,5 +1,7 @@
 name: CAVE example configuration
 description: Multi-screen configuration, demoing a 4-sided CAVE environment
+screenWidth: 2560
+screenHeight: 1600
 
 screens:
   front:
