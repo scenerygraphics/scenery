@@ -55,17 +55,17 @@ class NodeSubscriber(override var hub: Hub?, val address: String = "udp://localh
 
                 if (payload != null) {
                     nodes[id]?.let { node ->
-//                        logger.info("Deserializing $node from payload ${payload.size}")
+                        logger.info("Deserializing $node from payload ${payload.size}")
                         val bin = ByteArrayInputStream(payload)
                         val input = Input(bin)
                         val o = kryo.readClassAndObject(input) as Node
 
-//                        logger.info("Deserialized ${o.name}")
-                        if(o.name == node.name) {
+                        logger.info("Deserialized ${o.name}")
+//                        if(o.name == node.name) {
                             node.position = o.position
                             node.rotation = o.rotation
                             node.visible = o.visible
-                        }
+//                        }
 
                         input.close()
                         bin.close()
