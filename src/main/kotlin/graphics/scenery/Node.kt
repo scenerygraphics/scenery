@@ -4,6 +4,7 @@ import cleargl.GLMatrix
 import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
 import java.io.Serializable
+import java.lang.reflect.Field
 import java.sql.Timestamp
 import java.util.*
 import java.util.concurrent.CopyOnWriteArrayList
@@ -297,6 +298,24 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
         } else {
             System.err.println("Assuming 3rd party BB generation")
             // assume bounding box was created somehow
+        }
+    }
+
+    private val shaderPropertyFieldCache = HashMap<String, Field>()
+    fun getShaderProperty(name: String): Any? {
+        if(shaderPropertyFieldCache.containsKey(name)) {
+            return shaderPropertyFieldCache[name]!!.get(this)
+        } else {
+            val field = this.javaClass.declaredFields.find { it.name == name && it.isAnnotationPresent(ShaderProperty::class.java) }
+
+            if(field != null) {
+                field.isAccessible = true
+                shaderPropertyFieldCache.put(name, field)
+
+                return field.get(this)
+            } else {
+                return null
+            }
         }
     }
 

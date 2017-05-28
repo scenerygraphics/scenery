@@ -1,5 +1,6 @@
 package graphics.scenery.backends.vulkan
 
+import cleargl.GLMatrix
 import cleargl.GLVector
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.vulkan.*
@@ -7,10 +8,13 @@ import org.lwjgl.vulkan.VK10.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import graphics.scenery.GeometryType
+import graphics.scenery.Node
 import graphics.scenery.Settings
+import graphics.scenery.ShaderProperty
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.utils.RingBuffer
 import org.lwjgl.system.MemoryUtil.*
+import java.lang.reflect.Field
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.util.*
@@ -70,7 +74,7 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
 
     private var currentPosition = 0
 
-    class VulkanMetadata(var descriptorSets: LongBuffer = memAllocLong(3),
+    class VulkanMetadata(var descriptorSets: LongBuffer = memAllocLong(4),
                               var vertexBufferOffsets: LongBuffer = memAllocLong(1),
                               var scissor: VkRect2D.Buffer = VkRect2D.calloc(1),
                               var viewport: VkViewport.Buffer = VkViewport.calloc(1),
@@ -183,7 +187,7 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
                 VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, 1)
 
             val ds = VU.createDescriptorSet(device, descriptorPool, dsl,
-                1, ubo.descriptor!!, type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+            1, ubo.descriptor!!, type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
 
             // populate descriptor set
             ubo.populate()
@@ -196,9 +200,53 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
         }
     }
 
+    fun initializeShaderPropertyDescriptorSetLayout(): Long {
+        // this creates a shader property UBO for items marked @ShaderProperty in node
+        val alreadyCreated = descriptorSetLayouts.containsKey("ShaderProperties-$name")
+
+        val dsl = if(!alreadyCreated) {
+            // create descriptor set layout
+            val dsl = VU.createDescriptorSetLayout(
+                device,
+                listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1)),
+                VK_SHADER_STAGE_ALL_GRAPHICS)
+
+            logger.info("Created Shader Property DSL $dsl for $name")
+            descriptorSetLayouts.putIfAbsent("ShaderProperties-$name", dsl)
+            dsl
+        } else {
+            descriptorSetLayouts.get("ShaderProperties-$name")!!
+        }
+
+        // returns a ordered list of the members of the ShaderProperties struct
+        return dsl
+    }
+
+    fun getShaderPropertyOrder(node: Node): List<String> {
+        // this creates a shader property UBO for items marked @ShaderProperty in node
+        logger.info("specs: ${this.pipelines["preferred-${node.name}"]!!.descriptorSpecs}")
+        val shaderPropertiesSpec = this.pipelines["preferred-${node.name}"]!!.descriptorSpecs.find { it.name == "ShaderProperties" }
+
+        if(shaderPropertiesSpec == null) {
+            logger.error("Shader uses no declared shader properties!")
+            return emptyList()
+        }
+
+        // returns a ordered list of the members of the ShaderProperties struct
+        return shaderPropertiesSpec.members.map { it.key }.toList()
+    }
+
     fun updateShaderParameters() {
         UBOs.forEach { uboName, ubo ->
             if(uboName.startsWith("ShaderParameters-")) {
+                ubo.populate()
+            }
+        }
+    }
+
+    fun updateShaderProperties() {
+        UBOs.forEach { uboName, ubo ->
+            if(uboName.startsWith("ShaderProperties-")) {
                 ubo.populate()
             }
         }
@@ -285,8 +333,9 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
             reqDescriptorLayouts.add(descriptorSetLayouts.get("ObjectTextures")!!)
             reqDescriptorLayouts.add(descriptorSetLayouts.get("VRParameters")!!)
 
-            if(descriptorSetLayouts.containsKey("ShaderParameters-$name")) {
-                 reqDescriptorLayouts.add(descriptorSetLayouts["ShaderParameters-$name"]!!)
+            if(descriptorSetLayouts.containsKey("ShaderProperties-$name")) {
+                logger.info("Adding shader property DSL")
+                 reqDescriptorLayouts.add(descriptorSetLayouts["ShaderProperties-$name"]!!)
             }
 //            if(descriptorSetLayouts.containsKey("inputs-$name")) {
 //                reqDescriptorLayouts.add(descriptorSetLayouts.get("inputs-$name")!!)

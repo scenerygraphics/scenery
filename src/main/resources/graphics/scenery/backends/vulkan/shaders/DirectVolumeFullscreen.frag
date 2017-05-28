@@ -42,11 +42,6 @@ layout(binding = 0) uniform Matrices {
 	int isBillboard;
 } ubo;
 
-layout(binding = 1) uniform MaterialProperties {
-    MaterialInfo Material;
-    int materialType;
-};
-
 layout(set = 1, binding = 0) uniform sampler2D ObjectTextures[NUM_OBJECT_TEXTURES];
 layout(set = 1, binding = 1) uniform sampler3D VolumeTextures;
 
@@ -60,12 +55,24 @@ layout(set = 2, binding = 0) uniform VRParameters {
 layout(push_constant) uniform currentEye_t {
     int eye;
 } currentEye;
-layout(set = 3, binding = 0, std140) uniform LightParameters {
-    int numLights;
-	Light lights[MAX_NUM_LIGHTS];
-};
 
 layout(location = 0) out vec4 FragColor;
+
+layout(set = 3, binding = 0) uniform ShaderProperties {
+    float trangemin;
+    float trangemax;
+    float boxMin_x;
+    float boxMin_y;
+    float boxMin_z;
+    float boxMax_x;
+    float boxMax_y;
+    float boxMax_z;
+    int maxsteps;
+    float dithering;
+    float phase;
+    float alpha_blending;
+    float gamma;
+};
 
 float PI_r = 0.3183098;
 
@@ -92,23 +99,6 @@ struct AABB {
 //    t1 = min(t.x, t.y);
 //    return t0 <= t1;
 //}
-
-const float trangemin = 0.0006f;
-const float trangemax = 0.05f;
-
-const float boxMin_x = -1.0f;
-const float boxMin_y = -1.0f;
-const float boxMin_z = -1.0f;
-
-const float boxMax_x = 1.0f;
-const float boxMax_y = 1.0f;
-const float boxMax_z = 1.0f;
-
-const int maxsteps = 128;
-const float dithering = 0.0f;
-const float phase = 0.0f;
-const float alpha_blending = 2.0f;
-const float gamma = 0.05;
 
 struct Intersection {
     bool hit;

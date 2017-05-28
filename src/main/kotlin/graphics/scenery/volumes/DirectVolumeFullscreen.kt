@@ -57,6 +57,23 @@ class DirectVolumeFullscreen : Mesh("DirectVolume") {
         var function: FloatArray = floatArrayOf()
     )
 
+    @ShaderProperty var trangemin = 0.0006f
+    @ShaderProperty var trangemax = 0.008f
+
+    @ShaderProperty var boxMin_x = -0.8f
+    @ShaderProperty var boxMin_y = -0.7f
+    @ShaderProperty var boxMin_z = -0.8f
+
+    @ShaderProperty var boxMax_x = 0.8f
+    @ShaderProperty var boxMax_y = 0.8f
+    @ShaderProperty var boxMax_z = 0.8f
+
+    @ShaderProperty var maxsteps = 128
+    @ShaderProperty var dithering = 0.0f
+    @ShaderProperty var phase = 0.0f
+    @ShaderProperty var alpha_blending = 2.0f
+    @ShaderProperty var gamma = 0.05f
+
     val logger: Logger = LoggerFactory.getLogger("Volume")
 
     val volumes = LinkedHashMap<String, VolumeDescriptor>()

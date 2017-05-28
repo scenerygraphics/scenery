@@ -724,13 +724,31 @@ open class VulkanRenderer(hub: Hub,
         node.initialized = true
         node.metadata["VulkanRenderer"] = s
 
-        initializeCustumShadersForNode(node)
+        initializeCustomShadersForNode(node)
         return true
     }
 
-    fun initializeCustumShadersForNode(node: Node): Boolean {
+    fun initializeCustomShadersForNode(node: Node): Boolean {
 
         val s = node.metadata["VulkanRenderer"] as VulkanObjectState
+
+        val needsShaderPropertyUBO = if(node.javaClass.declaredFields.filter { it.isAnnotationPresent(ShaderProperty::class.java) }.count() > 0) {
+            var dsl: Long = 0L
+
+            renderpasses.filter { it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry }
+                .map { pass ->
+                    logger.info("Initializing shader properties for ${node.name}")
+                    dsl = pass.value.initializeShaderPropertyDescriptorSetLayout()
+                }
+
+            val descriptorSet = VU.createDescriptorSetDynamic(device, descriptorPool, dsl,
+                1, buffers["ShaderPropertyBuffer"]!!)
+
+            s.requiredDescriptorSets.put("ShaderProperties", descriptorSet)
+            true
+        } else {
+            false
+        }
 
         if (node.material.doubleSided) {
             renderpasses.filter { it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry }
@@ -774,7 +792,29 @@ open class VulkanRenderer(hub: Hub,
                 }
         }
 
-        lateResizeInitializers.put(node, { initializeCustumShadersForNode(node) })
+        if(needsShaderPropertyUBO) {
+            var order: List<String> = emptyList()
+            renderpasses.filter { it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry }
+                .map { pass ->
+                    logger.info("Initializing shader properties for ${node.name}")
+                    order = pass.value.getShaderPropertyOrder(node)
+                }
+
+            val shaderPropertyUbo = UBO(device, backingBuffer = buffers["ShaderPropertyBuffer"])
+            with(shaderPropertyUbo) {
+                name = "ShaderProperties"
+
+                order.forEach { name ->
+                    members.put(name, { node.getShaderProperty(name)!! })
+                }
+
+                requiredOffsetCount = 1
+                this.createUniformBuffer(memoryProperties)
+                s.UBOs.put("ShaderProperties", s.requiredDescriptorSets["ShaderProperties"]!!.to(this))
+            }
+        }
+
+        lateResizeInitializers.put(node, { initializeCustomShadersForNode(node) })
 
         return true
     }
@@ -2109,6 +2149,12 @@ open class VulkanRenderer(hub: Hub,
             wantAligned = true,
             allocationSize = 256 * 10))
 
+        map.put("ShaderPropertyBuffer", VU.createBuffer(device, this.memoryProperties,
+            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            wantAligned = true,
+            allocationSize = 1024 * 10))
+
         return map
     }
 
@@ -2329,14 +2375,22 @@ open class VulkanRenderer(hub: Hub,
                 pass.vulkanMetadata.vertexBufferOffsets.put(0, 0)
                 pass.vulkanMetadata.vertexBuffers.put(0, s.vertexBuffers["vertex+index"]!!.buffer)
                 pass.vulkanMetadata.descriptorSets.put(0, s.UBOs["Default"]!!.first)
+                var pos = 0
 
                 if (s.textures.size > 0) {
                     pass.vulkanMetadata.descriptorSets.put(1, s.textureDescriptorSet)
                     pass.vulkanMetadata.descriptorSets.put(2, descriptorSets["VRParameters"]!!)
                     pass.vulkanMetadata.descriptorSets.limit(3)
+                    pos = 3
                 } else {
                     pass.vulkanMetadata.descriptorSets.put(1, descriptorSets["VRParameters"]!!)
                     pass.vulkanMetadata.descriptorSets.limit(2)
+                    pos = 2
+                }
+
+                if(s.requiredDescriptorSets.containsKey("ShaderProperties")) {
+                    pass.vulkanMetadata.descriptorSets.limit(pos + 1)
+                    pass.vulkanMetadata.descriptorSets.put(pos, s.requiredDescriptorSets["ShaderProperties"]!!)
                 }
 
                 val pipeline = pass.pipelines.getOrDefault("preferred-${node.name}", pass.pipelines["default"]!!)
@@ -2347,6 +2401,9 @@ open class VulkanRenderer(hub: Hub,
 
                 pass.vulkanMetadata.uboOffsets.put(s.UBOs["Default"]!!.second.offsets)
                 pass.vulkanMetadata.uboOffsets.put(0)
+                if(s.requiredDescriptorSets.containsKey("ShaderProperties")) {
+                    pass.vulkanMetadata.uboOffsets.put(0)
+                }
                 pass.vulkanMetadata.uboOffsets.flip()
 
                 vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline)
@@ -2648,6 +2705,7 @@ open class VulkanRenderer(hub: Hub,
         buffers["VRParametersBuffer"]!!.copyFromStagingBuffer()
 
         buffers["UBOBuffer"]!!.reset()
+        buffers["ShaderPropertyBuffer"]!!.reset()
 
         sceneUBOs.forEach { node ->
             node.lock.withLock {
@@ -2655,7 +2713,9 @@ open class VulkanRenderer(hub: Hub,
                     return@withLock
                 }
 
-                val ubo = (node.metadata["VulkanRenderer"] as VulkanObjectState).UBOs["Default"]!!.second
+                val s = node.metadata["VulkanRenderer"] as VulkanObjectState
+
+                val ubo = s.UBOs["Default"]!!.second
 
                 node.updateWorld(true, false)
 
@@ -2680,6 +2740,13 @@ open class VulkanRenderer(hub: Hub,
                 ubo.offsets.put(1, bufferOffset)
 
                 materialUbo.populate(offset = bufferOffset.toLong())
+
+                if(s.requiredDescriptorSets.containsKey("ShaderProperties")) {
+                    val propertyUbo = s.UBOs["ShaderProperties"]!!.second
+                    // TODO: Correct buffer advancement
+                    val offset = propertyUbo.backingBuffer!!.advance()
+                    propertyUbo.populate(offset = offset.toLong())
+                }
             }
         }
 
@@ -2712,6 +2779,7 @@ open class VulkanRenderer(hub: Hub,
         lightUbo.populate()
 
         buffers["LightParametersBuffer"]!!.copyFromStagingBuffer()
+        buffers["ShaderPropertyBuffer"]!!.copyFromStagingBuffer()
 
         cam.lock.unlock()
     }
