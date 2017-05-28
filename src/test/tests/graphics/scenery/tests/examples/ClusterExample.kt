@@ -45,13 +45,13 @@ class ClusterExample: SceneryDefaultApplication("Clustered Volume Rendering exam
         }
 
         val bileMesh = Mesh()
-        bileMesh.readFrom("F:/ExampleDatasets/scenery-models-large/adult_mouse_bile_canaliculi_network.obj", useMaterial = false)
+        bileMesh.readFrom("Z:/data/models-inauguration/celegans_epithelium.stl", useMaterial = false)
         bileMesh.scale = GLVector(0.01f, 0.01f, 0.01f)
         bileMesh.visible = false
         scene.addChild(bileMesh)
 
         val vasculature = Mesh()
-        vasculature.readFrom("C:/Users/ulrik/Code/ClearVolume/scenery/models/Drerio.stl", useMaterial = false)
+        vasculature.readFrom("Z:/data/models-inauguration/Drerio.stl", useMaterial = false)
         vasculature.scale = GLVector(0.1f, 0.1f, 0.1f)
         bileMesh.visible = false
         scene.addChild(vasculature)
@@ -83,9 +83,11 @@ class ClusterExample: SceneryDefaultApplication("Clustered Volume Rendering exam
             scene.addChild(light)
         }
 
-        val folder = File("F:/ExampleDatasets/xwing-isonet-drosophila")
+        val folder = File("Y:/CAVE_DATA/histones-isonet/stacks/default/")
         val files = folder.listFiles()
-        val volumes = files.filter { System.err.println(it); it.isFile && it.name.endsWith("raw") }.map { it.absolutePath }
+        val volumes = files.filter { it.isFile && it.name.endsWith("raw") }.map { it.absolutePath }
+
+        volumes.forEach { logger.info("Volume: $it")}
 
         var currentVolume = 0
         fun nextVolume(): String {
