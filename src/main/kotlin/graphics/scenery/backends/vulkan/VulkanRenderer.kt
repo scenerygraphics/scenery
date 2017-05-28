@@ -2462,49 +2462,13 @@ open class VulkanRenderer(hub: Hub,
             pass.vulkanMetadata.uboOffsets.limit(16)
             (0..15).forEach { pass.vulkanMetadata.uboOffsets.put(it, 0) }
 
-            var requiredDynamicOffsets = 0
             if (logger.isDebugEnabled) {
                 logger.debug("descriptor sets are {}", pass.descriptorSets.keys.joinToString(", "))
                 logger.debug("pipeline provides {}", pipeline.descriptorSpecs.map { it.name }.joinToString(", "))
             }
 
-            pipeline.descriptorSpecs.forEachIndexed { i, (name) ->
-                val dsName = if (name.startsWith("ShaderParameters")) {
-                    "ShaderParameters-${pass.name}"
-                } else if (name.startsWith("inputs")) {
-                    "inputs-${pass.name}"
-                } else if (name.startsWith("Matrices")) {
-                    val offsets = (sceneUBOs.first().metadata["VulkanRenderer"] as VulkanObjectState).UBOs["Default"]!!.second.offsets
-                    pass.vulkanMetadata.uboOffsets.put(offsets)
-                    requiredDynamicOffsets += 3
-
-                    "default"
-                } else {
-                    if (name.startsWith("LightParameters")) {
-                        pass.vulkanMetadata.uboOffsets.put(0)
-                        requiredDynamicOffsets++
-                    }
-
-                    name
-                }
-
-                val set = if (dsName == "default" || dsName == "LightParameters") {
-                    descriptorSets.get(dsName)
-                } else {
-                    pass.descriptorSets.get(dsName)
-                }
-
-                if (set != null) {
-                    logger.debug("Adding DS#{} for {} to required pipeline DSs", i, dsName)
-                    pass.vulkanMetadata.descriptorSets.put(i, set)
-                } else {
-                    logger.error("DS for {} not found!", dsName)
-                }
-            }
-
-            // see if this stage requires dynamic buffers
-            pass.vulkanMetadata.uboOffsets.limit(requiredDynamicOffsets)
-            pass.vulkanMetadata.uboOffsets.position(0)
+            // set the required descriptor sets for this render pass
+            pass.vulkanMetadata.setRequiredDescriptorSets(pass, pipeline)
 
             vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkanPipeline.pipeline)
             vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -2515,6 +2479,49 @@ open class VulkanRenderer(hub: Hub,
             vkCmdEndRenderPass(this)
             this!!.endCommandBuffer()
         }
+    }
+
+    fun VulkanRenderpass.VulkanMetadata.setRequiredDescriptorSets(pass: VulkanRenderpass, pipeline: VulkanPipeline): Int {
+        var requiredDynamicOffsets = 0
+
+        pipeline.descriptorSpecs.forEachIndexed { i, (name) ->
+            val dsName = if (name.startsWith("ShaderParameters")) {
+                "ShaderParameters-${pass.name}"
+            } else if (name.startsWith("inputs")) {
+                "inputs-${pass.name}"
+            } else if (name.startsWith("Matrices")) {
+                val offsets = (sceneUBOs.first().metadata["VulkanRenderer"] as VulkanObjectState).UBOs["Default"]!!.second.offsets
+                this.uboOffsets.put(offsets)
+                requiredDynamicOffsets += 3
+
+                "default"
+            } else {
+                if (name.startsWith("LightParameters")) {
+                    this.uboOffsets.put(0)
+                    requiredDynamicOffsets++
+                }
+
+                name
+            }
+
+            val set = if (dsName == "default" || dsName == "LightParameters") {
+                this@VulkanRenderer.descriptorSets.get(dsName)
+            } else {
+                pass.descriptorSets.get(dsName)
+            }
+
+            if (set != null) {
+                logger.debug("Adding DS#{} for {} to required pipeline DSs", i, dsName)
+                this.descriptorSets.put(i, set)
+            } else {
+                logger.error("DS for {} not found!", dsName)
+            }
+        }
+
+        this.uboOffsets.limit(requiredDynamicOffsets)
+        this.uboOffsets.position(0)
+
+        return requiredDynamicOffsets
     }
 
     private fun updateInstanceBuffers() {
