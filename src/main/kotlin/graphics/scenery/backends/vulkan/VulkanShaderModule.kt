@@ -167,10 +167,28 @@ open class VulkanShaderModule(device: VkDevice, entryPoint: String, clazz: Class
             }
         }
 
+        /* Updated version:
+       for(i in 0..compiler.shaderResources.sampledImages.size()-1) {
+        // inputs are summarized into one descriptor set
+            val res = compiler.shaderResources.sampledImages.get(i.toInt())
+            logger.info("Adding textures ${res.name} with set=${compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet)}")
+
+            // FIXME: Here we assume at the moment that we either have only input textures (from framebuffers), or only object textures
+            val name = if(res.name == "ObjectTextures" || res.name == "VolumeTextures") {
+                "ObjectTextures"
+            } else {
+                "inputs"
+            }
+
+            uboSpecs.put(res.name, UBOSpec(name,
+                    set = compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet),
+                    binding = 0,
+                    members = LinkedHashMap<String, UBOMemberSpec>()))
+         */
         // inputs are summarized into one descriptor set
         if(compiler.shaderResources.sampledImages.size() > 0) {
             val res = compiler.shaderResources.sampledImages.get(0)
-            if(res.name != "ObjectTextures") {
+            if (res.name != "ObjectTextures") {
                 uboSpecs.put(res.name, UBOSpec("inputs",
                     set = compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet),
                     binding = 0,

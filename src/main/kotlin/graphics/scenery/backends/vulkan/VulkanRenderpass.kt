@@ -285,6 +285,13 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
             reqDescriptorLayouts.add(descriptorSetLayouts.get("ObjectTextures")!!)
             reqDescriptorLayouts.add(descriptorSetLayouts.get("VRParameters")!!)
 
+            if(descriptorSetLayouts.containsKey("ShaderParameters-$name")) {
+                 reqDescriptorLayouts.add(descriptorSetLayouts["ShaderParameters-$name"]!!)
+            }
+//            if(descriptorSetLayouts.containsKey("inputs-$name")) {
+//                reqDescriptorLayouts.add(descriptorSetLayouts.get("inputs-$name")!!)
+//            }
+//
             p.createPipelines(framebuffer.renderPass.get(0),
                 vertexInputType.state,
                 descriptorSetLayouts = reqDescriptorLayouts)

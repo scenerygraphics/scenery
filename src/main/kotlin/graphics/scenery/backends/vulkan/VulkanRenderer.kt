@@ -2468,7 +2468,7 @@ open class VulkanRenderer(hub: Hub,
             }
 
             // set the required descriptor sets for this render pass
-            pass.vulkanMetadata.setRequiredDescriptorSets(pass, pipeline)
+            pass.vulkanMetadata.setRequiredDescriptorSetsPostprocess(pass, pipeline)
 
             vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkanPipeline.pipeline)
             vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -2481,7 +2481,7 @@ open class VulkanRenderer(hub: Hub,
         }
     }
 
-    fun VulkanRenderpass.VulkanMetadata.setRequiredDescriptorSets(pass: VulkanRenderpass, pipeline: VulkanPipeline): Int {
+    fun VulkanRenderpass.VulkanMetadata.setRequiredDescriptorSetsPostprocess(pass: VulkanRenderpass, pipeline: VulkanPipeline): Int {
         var requiredDynamicOffsets = 0
 
         pipeline.descriptorSpecs.forEachIndexed { i, (name) ->
@@ -2520,6 +2520,74 @@ open class VulkanRenderer(hub: Hub,
 
         this.uboOffsets.limit(requiredDynamicOffsets)
         this.uboOffsets.position(0)
+
+        return requiredDynamicOffsets
+    }
+
+    fun VulkanRenderpass.VulkanMetadata.setRequiredDescriptorSetsScene(pass: VulkanRenderpass, pipeline: VulkanPipeline, objectState: VulkanObjectState?): Int {
+        var requiredDynamicOffsets = 0
+
+//        logger.info("sorted descriptor sets are: ${pipeline.descriptorSpecs.sortedBy { it.set }}")
+
+        val uniqueDescriptorSets = pipeline.descriptorSpecs.sortedBy { it.set }.map { (name) ->
+            if (name.startsWith("ShaderParameters")) {
+                "ShaderParameters-${pass.name}"
+            } else if (name.startsWith("inputs")) {
+                "inputs-${pass.name}"
+            } else if (name.startsWith("Matrices") || name.startsWith("MaterialProperties")) {
+                "default"
+            } else {
+                name
+            }
+        }.distinct()
+
+        if(this.descriptorSets.capacity() < uniqueDescriptorSets.size) {
+            this.descriptorSets = memAllocLong(uniqueDescriptorSets.size)
+        }
+
+//        logger.info("${pass.name}: Unique descriptor sets are: ${uniqueDescriptorSets.joinToString(", ")}")
+
+        uniqueDescriptorSets.forEachIndexed { i, dsName ->
+            val set = if (dsName == "default" || dsName == "LightParameters" || dsName == "VRParameters") {
+                if(dsName == "default") {
+                    val offsets = if(objectState != null) {
+                        objectState.UBOs["Default"]!!.second.offsets
+                    } else {
+                        (sceneUBOs.first().metadata["VulkanRenderer"] as VulkanObjectState).UBOs["Default"]!!.second.offsets
+                    }
+
+                    this.uboOffsets.put(offsets)
+
+                    offsets.position(0)
+                    requiredDynamicOffsets += 3
+                } else if(dsName == "VRParameters" || dsName == "LightParameters") {
+                    this.uboOffsets.put(0)
+                    requiredDynamicOffsets++
+                }
+
+                this@VulkanRenderer.descriptorSets.get(dsName)
+            } else if(dsName == "ObjectTextures" && objectState != null) {
+                objectState.textureDescriptorSet
+            }
+            else {
+                pass.descriptorSets.get(dsName)
+            }
+
+            if (set != null) {
+//                logger.info("{}: Adding DS#{} for {} to required pipeline DSs", pass.name, i, dsName)
+                this.descriptorSets.put(i, set)
+            } else {
+                logger.error("DS for {} not found!", dsName)
+            }
+        }
+
+//        logger.info("${pass.name} requires $requiredDynamicOffsets dynamic offsets")
+
+        this.uboOffsets.limit(requiredDynamicOffsets)
+        this.uboOffsets.position(0)
+
+        this.descriptorSets.limit(uniqueDescriptorSets.count())
+        this.descriptorSets.position(0)
 
         return requiredDynamicOffsets
     }
