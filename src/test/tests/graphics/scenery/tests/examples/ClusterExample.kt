@@ -57,7 +57,7 @@ class ClusterExample: SceneryDefaultApplication("Clustered Volume Rendering exam
 //        scene.addChild(vasculature)
         val box = Box()
         box.material.diffuse = GLVector(1.0f, 0.0f, 0.0f)
-        scene.addChild(box)
+//        scene.addChild(box)
 
         val shell = Box(GLVector(120.0f, 120.0f, 120.0f), insideNormals = true)
         shell.material.doubleSided = true
@@ -66,12 +66,12 @@ class ClusterExample: SceneryDefaultApplication("Clustered Volume Rendering exam
         shell.material.ambient = GLVector.getNullVector(3)
         scene.addChild(shell)
 
-//        val volume = DirectVolumeFullscreen()
+        val volume = DirectVolumeFullscreen()
 
-//        with(volume) {
-//            volume.visible = true
-//            scene.addChild(this)
-//        }
+        with(volume) {
+            volume.visible = true
+            scene.addChild(this)
+        }
 
         val lights = (0..3).map {
             PointLight()
@@ -86,26 +86,26 @@ class ClusterExample: SceneryDefaultApplication("Clustered Volume Rendering exam
             scene.addChild(light)
         }
 
-//        val folder = File("Y:/CAVE_DATA/histones-isonet/stacks/default/")
-//        val folder = File("C:/TestData/")
-//        val files = folder.listFiles()
-//        val volumes = files.filter { it.isFile && it.name.endsWith("raw") }.map { it.absolutePath }.sorted()
-
-//        volumes.forEach { logger.info("Volume: $it")}
-
-//        var currentVolume = 0
-//        fun nextVolume(): String {
-//            val v = volumes[currentVolume % (volumes.size - 1)]
-//            currentVolume++
+        val folder = File("M:/CAVE_DATA/histones-isonet/stacks/default/")
+//        val folder = File("M:/TestData/")
+        val files = folder.listFiles()
+        val volumes = files.filter { it.isFile && it.name.endsWith("raw") }.map { it.absolutePath }.sorted()
 //
-//            return v
-//        }
+        volumes.forEach { logger.info("Volume: $it")}
+//
+        var currentVolume = 0
+        fun nextVolume(): String {
+            val v = volumes[currentVolume % (volumes.size - 1)]
+            currentVolume++
+
+            return v
+        }
 
         publishedNodes.add(cam)
 //        publishedNodes.add(bileMesh)
 //        publishedNodes.add(vasculature)
-        publishedNodes.add(box)
-//        publishedNodes.add(volume)
+//        publishedNodes.add(box)
+        publishedNodes.add(volume)
 
         val publisher = hub.get<NodePublisher>(SceneryElement.NodePublisher)
         val subscriber = hub.get<NodeSubscriber>(SceneryElement.NodeSubscriber)
@@ -123,10 +123,10 @@ class ClusterExample: SceneryDefaultApplication("Clustered Volume Rendering exam
                 }
 
                 while (true) {
-                    Thread.sleep(50)
 
                     logger.debug("Reading next volume...")
-//                    volume.currentVolume = nextVolume()
+                    volume.currentVolume = nextVolume()
+                    Thread.sleep(200)
                 }
             }
 

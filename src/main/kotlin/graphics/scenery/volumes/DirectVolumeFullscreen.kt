@@ -62,7 +62,7 @@ class DirectVolumeFullscreen : Mesh("DirectVolume") {
 //    @ShaderProperty var trangemin = 0.0006f
 //    @ShaderProperty var trangemax = 0.008f
     @ShaderProperty var trangemin = 0.00f
-    @ShaderProperty var trangemax = 0.02f
+    @ShaderProperty var trangemax = 0.0f
 
     @ShaderProperty var boxMin_x = -boxwidth
     @ShaderProperty var boxMin_y = -boxwidth
@@ -213,7 +213,8 @@ class DirectVolumeFullscreen : Mesh("DirectVolume") {
                     memFree(it.contents)
                 }
             }
-            this.material.textures.put("normal", this.javaClass.getResource("colormap-hot.png").file)
+//            this.material.textures.put("normal", this.javaClass.getResource("colormap-viridis.png").file)
+            this.material.textures.put("normal", "m:/colormaps/colormap-viridis.png")
             this.material.needsTextureReload = true
 
             this.lock.unlock()
