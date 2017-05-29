@@ -460,6 +460,10 @@ open class VulkanRenderer(hub: Hub,
 
         lastTime = System.nanoTime()
         time = 0.0f
+
+        if(System.getProperty("scenery.RunFullscreen","false").toBoolean()) {
+            toggleFullscreen = true
+        }
     }
 
     /**

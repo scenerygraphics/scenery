@@ -87,19 +87,19 @@ class ClusterExample: SceneryDefaultApplication("Clustered Volume Rendering exam
         }
 
 //        val folder = File("Y:/CAVE_DATA/histones-isonet/stacks/default/")
-        val folder = File("C:/TestData/")
-        val files = folder.listFiles()
-        val volumes = files.filter { it.isFile && it.name.endsWith("raw") }.map { it.absolutePath }.sorted()
+//        val folder = File("C:/TestData/")
+//        val files = folder.listFiles()
+//        val volumes = files.filter { it.isFile && it.name.endsWith("raw") }.map { it.absolutePath }.sorted()
 
-        volumes.forEach { logger.info("Volume: $it")}
+//        volumes.forEach { logger.info("Volume: $it")}
 
-        var currentVolume = 0
-        fun nextVolume(): String {
-            val v = volumes[currentVolume % (volumes.size - 1)]
-            currentVolume++
-
-            return v
-        }
+//        var currentVolume = 0
+//        fun nextVolume(): String {
+//            val v = volumes[currentVolume % (volumes.size - 1)]
+//            currentVolume++
+//
+//            return v
+//        }
 
         publishedNodes.add(cam)
 //        publishedNodes.add(bileMesh)
