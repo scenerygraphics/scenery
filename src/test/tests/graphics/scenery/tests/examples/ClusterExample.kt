@@ -44,17 +44,20 @@ class ClusterExample: SceneryDefaultApplication("Clustered Volume Rendering exam
             scene.addChild(this)
         }
 
-        val bileMesh = Mesh()
-        bileMesh.readFrom("Z:/data/models-inauguration/celegans_epithelium.stl", useMaterial = false)
-        bileMesh.scale = GLVector(0.01f, 0.01f, 0.01f)
-        bileMesh.visible = false
-        scene.addChild(bileMesh)
-
-        val vasculature = Mesh()
-        vasculature.readFrom("Z:/data/models-inauguration/Drerio.stl", useMaterial = false)
-        vasculature.scale = GLVector(0.1f, 0.1f, 0.1f)
-        bileMesh.visible = false
-        scene.addChild(vasculature)
+//        val bileMesh = Mesh()
+//        bileMesh.readFrom("Z:/data/models-inauguration/celegans_epithelium.stl", useMaterial = false)
+//        bileMesh.scale = GLVector(0.01f, 0.01f, 0.01f)
+//        bileMesh.visible = false
+//        scene.addChild(bileMesh)
+//
+//        val vasculature = Mesh()
+//        vasculature.readFrom("Z:/data/models-inauguration/Drerio.stl", useMaterial = false)
+//        vasculature.scale = GLVector(0.1f, 0.1f, 0.1f)
+//        bileMesh.visible = false
+//        scene.addChild(vasculature)
+        val box = Box()
+        box.material.diffuse = GLVector(1.0f, 0.0f, 0.0f)
+        scene.addChild(box)
 
         val shell = Box(GLVector(120.0f, 120.0f, 120.0f), insideNormals = true)
         shell.material.doubleSided = true
@@ -63,12 +66,12 @@ class ClusterExample: SceneryDefaultApplication("Clustered Volume Rendering exam
         shell.material.ambient = GLVector.getNullVector(3)
         scene.addChild(shell)
 
-        val volume = DirectVolumeFullscreen()
+//        val volume = DirectVolumeFullscreen()
 
-        with(volume) {
-            volume.visible = true
-            scene.addChild(this)
-        }
+//        with(volume) {
+//            volume.visible = true
+//            scene.addChild(this)
+//        }
 
         val lights = (0..3).map {
             PointLight()
@@ -83,7 +86,8 @@ class ClusterExample: SceneryDefaultApplication("Clustered Volume Rendering exam
             scene.addChild(light)
         }
 
-        val folder = File("Y:/CAVE_DATA/histones-isonet/stacks/default/")
+//        val folder = File("Y:/CAVE_DATA/histones-isonet/stacks/default/")
+        val folder = File("C:/TestData/")
         val files = folder.listFiles()
         val volumes = files.filter { it.isFile && it.name.endsWith("raw") }.map { it.absolutePath }.sorted()
 
@@ -98,9 +102,10 @@ class ClusterExample: SceneryDefaultApplication("Clustered Volume Rendering exam
         }
 
         publishedNodes.add(cam)
-        publishedNodes.add(bileMesh)
-        publishedNodes.add(vasculature)
-        publishedNodes.add(volume)
+//        publishedNodes.add(bileMesh)
+//        publishedNodes.add(vasculature)
+        publishedNodes.add(box)
+//        publishedNodes.add(volume)
 
         val publisher = hub.get<NodePublisher>(SceneryElement.NodePublisher)
         val subscriber = hub.get<NodeSubscriber>(SceneryElement.NodeSubscriber)
@@ -118,18 +123,18 @@ class ClusterExample: SceneryDefaultApplication("Clustered Volume Rendering exam
                 }
 
                 while (true) {
-                    Thread.sleep(500)
+                    Thread.sleep(50)
 
-                    logger.info("Reading next volume...")
-                    volume.currentVolume = nextVolume()
+                    logger.debug("Reading next volume...")
+//                    volume.currentVolume = nextVolume()
                 }
             }
 
 
             thread {
                 while (true) {
-                    volume.rotation.rotateByAngleY(0.01f)
-                    volume.needsUpdate = true
+//                    volume.rotation.rotateByAngleY(0.01f)
+//                    volume.needsUpdate = true
 
                     Thread.sleep(20)
                 }
