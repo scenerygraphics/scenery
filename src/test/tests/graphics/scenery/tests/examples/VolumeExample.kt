@@ -68,9 +68,10 @@ class VolumeExample: SceneryDefaultApplication("Volume Rendering example") {
             scene.addChild(light)
         }
 
-        val folder = File("Y:/CAVE_DATA/histones-isonet/stacks/default/")
+        //val folder = File("Y:/CAVE_DATA/histones-isonet/stacks/default/")
         //val folder = File("Y:/CAVE_DATA/droso-royer/drosos-royer/stacks/default/")
         //val folder = File("Y:/CAVE_DATA/droso-isonet/stacks/default/")
+        val folder = File("Y:/CAVE_DATA/droso-royer/drosos-royer/stacks/default/")
         val files = folder.listFiles()
         val volumes = files.filter { System.err.println(it); it.isFile && it.name.endsWith("0.raw") }.map { it.absolutePath }.sorted()
 

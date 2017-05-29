@@ -111,23 +111,28 @@ class ClusterExample: SceneryDefaultApplication("Clustered Volume Rendering exam
             subscriber?.nodes?.put(13337 + index, node)
         }
 
-        thread {
-            while(!scene.initialized) { Thread.sleep(200) }
+        if(publisher != null) {
+            thread {
+                while (!scene.initialized) {
+                    Thread.sleep(200)
+                }
 
-            while(true) {
-                Thread.sleep(2500)
+                while (true) {
+                    Thread.sleep(2500)
 
-                logger.info("Reading next volume...")
-                volume.readFrom(Paths.get(nextVolume()), replace = true)
+                    logger.info("Reading next volume...")
+                    volume.readFrom(Paths.get(nextVolume()), replace = true)
+                }
             }
-        }
 
-        thread {
-            while(true) {
-                volume.rotation.rotateByAngleY(0.01f)
-                volume.needsUpdate = true
 
-                Thread.sleep(20)
+            thread {
+                while (true) {
+                    volume.rotation.rotateByAngleY(0.01f)
+                    volume.needsUpdate = true
+
+                    Thread.sleep(20)
+                }
             }
         }
 
