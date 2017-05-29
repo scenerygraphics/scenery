@@ -67,8 +67,10 @@ class NodeSubscriber(override var hub: Hub?, val address: String = "udp://localh
                             node.rotation = o.rotation
                             node.visible = o.visible
 
-                        if(o is DirectVolumeFullscreen && node is DirectVolumeFullscreen) {
-                            node.currentVolume = o.currentVolume
+                        if(o is DirectVolumeFullscreen && node is DirectVolumeFullscreen && node.initialized) {
+                            if(node.currentVolume != o.currentVolume) {
+                                node.currentVolume = o.currentVolume
+                            }
                         }
 //                        }
 
