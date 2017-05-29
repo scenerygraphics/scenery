@@ -905,8 +905,23 @@ open class VulkanRenderer(hub: Hub,
                         t
                     } else {
                         val start = System.nanoTime()
-                        val t = VulkanTexture.loadFromFile(device, physicalDevice, memoryProperties,
-                            commandPools.Standard, queue, texture, true, generateMipmaps)
+
+                        val t = if(texture.contains("jar!")) {
+                            val f = texture.substringAfterLast(File.separatorChar)
+                            val stream = node.javaClass.getResourceAsStream(f)
+
+                            if(stream == null) {
+                                logger.error("Not found: $f for $node")
+                                textureCache["DefaultTexture"]
+                            } else {
+                                VulkanTexture.loadFromFile(device, physicalDevice, memoryProperties,
+                                    commandPools.Standard, queue, stream, texture.substringAfterLast("."), true, generateMipmaps)
+                            }
+                        } else {
+                            VulkanTexture.loadFromFile(device, physicalDevice, memoryProperties,
+                                commandPools.Standard, queue, texture, true, generateMipmaps)
+                        }
+
                         val duration = System.nanoTime() - start * 1.0f
                         stats?.add("loadTexture", duration)
 
