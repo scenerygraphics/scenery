@@ -80,7 +80,7 @@ class DirectVolumeFullscreen : Mesh("DirectVolume") {
 
     val logger: Logger = LoggerFactory.getLogger("Volume")
 
-    val volumes = LinkedHashMap<String, VolumeDescriptor>()
+    @Transient val volumes = LinkedHashMap<String, VolumeDescriptor>()
 
     var currentVolume: String = ""
         set(value) {
