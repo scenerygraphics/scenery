@@ -58,7 +58,7 @@ class ClusterExample: SceneryDefaultApplication("Clustered Volume Rendering exam
 
         val shell = Box(GLVector(120.0f, 120.0f, 120.0f), insideNormals = true)
         shell.material.doubleSided = true
-        shell.material.diffuse = GLVector(0.1f, 0.1f, 0.1f)
+        shell.material.diffuse = GLVector(0.0f, 0.0f, 0.0f)
         shell.material.specular = GLVector.getNullVector(3)
         shell.material.ambient = GLVector.getNullVector(3)
         scene.addChild(shell)
@@ -77,7 +77,7 @@ class ClusterExample: SceneryDefaultApplication("Clustered Volume Rendering exam
         lights.mapIndexed { i, light ->
             light.position = GLVector(4.0f * i, 4.0f * i, 4.0f)
             light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
-            light.intensity = 500.2f*(i+1)
+            light.intensity = 200.2f*(i+1)
             light.linear = 1.8f
             light.quadratic = 0.7f
             scene.addChild(light)
@@ -85,7 +85,7 @@ class ClusterExample: SceneryDefaultApplication("Clustered Volume Rendering exam
 
         val folder = File("Y:/CAVE_DATA/histones-isonet/stacks/default/")
         val files = folder.listFiles()
-        val volumes = files.filter { it.isFile && it.name.endsWith("raw") }.map { it.absolutePath }
+        val volumes = files.filter { it.isFile && it.name.endsWith("raw") }.map { it.absolutePath }.sorted()
 
         volumes.forEach { logger.info("Volume: $it")}
 
@@ -118,7 +118,7 @@ class ClusterExample: SceneryDefaultApplication("Clustered Volume Rendering exam
                 }
 
                 while (true) {
-                    Thread.sleep(2500)
+                    Thread.sleep(500)
 
                     logger.info("Reading next volume...")
                     volume.currentVolume = nextVolume()
