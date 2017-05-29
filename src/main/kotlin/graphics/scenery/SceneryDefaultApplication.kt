@@ -144,6 +144,7 @@ open class SceneryDefaultApplication(var applicationName: String,
             thread {
                 while (true) {
                     subscriber?.process()
+                    Thread.sleep(2)
                 }
             }
         }
