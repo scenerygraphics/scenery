@@ -58,7 +58,7 @@ class ClusterExample: SceneryDefaultApplication("Clustered Volume Rendering exam
 
         val shell = Box(GLVector(120.0f, 120.0f, 120.0f), insideNormals = true)
         shell.material.doubleSided = true
-        shell.material.diffuse = GLVector(1.0f, 1.0f, 1.0f)
+        shell.material.diffuse = GLVector(0.1f, 0.1f, 0.1f)
         shell.material.specular = GLVector.getNullVector(3)
         shell.material.ambient = GLVector.getNullVector(3)
         scene.addChild(shell)
@@ -66,7 +66,7 @@ class ClusterExample: SceneryDefaultApplication("Clustered Volume Rendering exam
         val volume = DirectVolumeFullscreen()
 
         with(volume) {
-            volume.visible = false
+            volume.visible = true
             scene.addChild(this)
         }
 
@@ -121,7 +121,7 @@ class ClusterExample: SceneryDefaultApplication("Clustered Volume Rendering exam
                     Thread.sleep(2500)
 
                     logger.info("Reading next volume...")
-                    volume.readFrom(Paths.get(nextVolume()), replace = true)
+                    volume.currentVolume = nextVolume()
                 }
             }
 
@@ -172,7 +172,10 @@ class ClusterExample: SceneryDefaultApplication("Clustered Volume Rendering exam
             val currentIndex = publishedNodes.indexOf(currentObject)
 
             publishedNodes.forEach { it.visible = false }
-            publishedNodes[(currentIndex + 1) % (publishedNodes.size-1)].visible = true
+            publishedNodes[(currentIndex + 1) % (publishedNodes.size-1)].run {
+                this.visible = true
+                logger.info("Now visible: $this")
+            }
         }
 
         inputHandler.addBehaviour("toggle_control_mode", toggleControlMode)
