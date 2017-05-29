@@ -206,14 +206,18 @@ class DirectVolumeFullscreen : Mesh("DirectVolume") {
         val gtv = GenericTexture("volume", dim,
             -1, GLTypeEnum.UnsignedInt, imageData, false, false)
 
-        this.material.textures.put("3D-volume", "fromBuffer:volume")
-        this.material.transferTextures.put("volume", gtv)?.let {
-            if(replace) {
-                memFree(it.contents)
+        if(this.lock.tryLock()) {
+            this.material.textures.put("3D-volume", "fromBuffer:volume")
+            this.material.transferTextures.put("volume", gtv)?.let {
+                if (replace) {
+                    memFree(it.contents)
+                }
             }
+            this.material.textures.put("normal", this.javaClass.getResource("colormap-hot.png").file)
+            this.material.needsTextureReload = true
+
+            this.lock.unlock()
         }
-        this.material.textures.put("normal", this.javaClass.getResource("colormap-hot.png").file)
-        this.material.needsTextureReload = true
 
         this.scale = dim*0.01f
         this.scale = GLVector(1.0f,1.0f,3.0f)
