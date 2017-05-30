@@ -17,7 +17,7 @@ screens:
         value: left
       lowerLeft: -1.92, 0.00, -1.92
       lowerRight: -1.92, 0.00, 1.92
-      upperLeft: -1.92, 2.40, 1.92
+      upperLeft: -1.92, 2.40, -1.92
   right:
       match:
         type: property
