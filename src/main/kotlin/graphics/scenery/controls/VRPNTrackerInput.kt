@@ -66,9 +66,9 @@ class VRPNTrackerInput(trackerAddress: String = "device@locahost:5500") : Tracke
 //        t.addVelocityChangeListener(this)
 
         listener = TrackerRemoteListener(t)
-        listener?.setModeAllTrackerUpdates()
-        listener?.setModeAllAccelerationUpdates()
-        listener?.setModeAllVelocityUpdates()
+        listener?.setModeLastTrackerUpdate()
+        listener?.setModeLastAccelerationUpdate()
+        listener?.setModeLastVelocityUpdate()
 
         return t
     }
