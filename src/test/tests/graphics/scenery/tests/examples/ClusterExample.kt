@@ -37,7 +37,8 @@ class ClusterExample: SceneryDefaultApplication("Clustered Volume Rendering exam
 
         val cam: Camera = DetachedHeadCamera(hmd)
         with(cam) {
-            position = GLVector(0.0f, 0.0f, 5.0f)
+            //position = GLVector(.4f, .4f, 1.4f)
+            position = GLVector(.0f, -0.4f, 2.0f)
             perspectiveCamera(50.0f, 1.0f*windowWidth, 1.0f*windowHeight)
             active = true
 
@@ -86,12 +87,14 @@ class ClusterExample: SceneryDefaultApplication("Clustered Volume Rendering exam
             scene.addChild(light)
         }
 
-        val folder = File("M:/CAVE_DATA/histones-isonet/stacks/default/")
+        //val folder = File("M:/CAVE_DATA/histones-isonet/stacks/default/")
+        val folder = File("M:/CAVE_DATA/droso-royer-autopilot-transposed/")
+        //val folder = File("M:/CAVE_DATA/droso-royer-long/stacks/default/")
 //        val folder = File("M:/TestData/")
         val files = folder.listFiles()
         val volumes = files.filter { it.isFile && it.name.endsWith("raw") }.map { it.absolutePath }.sorted()
 //
-        volumes.forEach { logger.info("Volume: $it")}
+        //volumes.forEach { logger.info("Volume: $it")}
 //
         var currentVolume = 0
         fun nextVolume(): String {
@@ -116,25 +119,43 @@ class ClusterExample: SceneryDefaultApplication("Clustered Volume Rendering exam
             subscriber?.nodes?.put(13337 + index, node)
         }
 
+        //val min_delay = 600
+        val min_delay = 60000000
+
         if(publisher != null) {
             thread {
                 while (!scene.initialized) {
-                    Thread.sleep(200)
+                    Thread.sleep(1000)
                 }
 
-                while (true) {
 
-                    logger.debug("Reading next volume...")
+                //fvolume.rotation.rotateByAngleY(1.57f)
+                //volume.rotation.rotateByAngleZ(1.57f)
+                volume.rotation.rotateByAngleX(.8f)
+
+
+                volume.needsUpdate = true
+
+
+                while (true) {
+                    val start = System.currentTimeMillis()
+
+                    logger.info("Reading next volume...")
                     volume.currentVolume = nextVolume()
-                    Thread.sleep(200)
+
+                    val time_to_read  = System.currentTimeMillis()-start
+
+                    logger.info("took ${time_to_read} ms")
+                    Thread.sleep(Math.max(0,min_delay-time_to_read))
+
                 }
             }
 
 
             thread {
                 while (true) {
-//                    volume.rotation.rotateByAngleY(0.01f)
-//                    volume.needsUpdate = true
+                    //volume.rotation.rotateByAngleX(0.001f)
+                    volume.needsUpdate = true
 
                     Thread.sleep(20)
                 }

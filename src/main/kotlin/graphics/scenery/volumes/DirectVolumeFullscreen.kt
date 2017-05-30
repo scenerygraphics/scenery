@@ -59,10 +59,9 @@ class DirectVolumeFullscreen : Mesh("DirectVolume") {
     )
 
     val boxwidth = 1.0f
-//    @ShaderProperty var trangemin = 0.0006f
-//    @ShaderProperty var trangemax = 0.008f
     @ShaderProperty var trangemin = 0.00f
-    @ShaderProperty var trangemax = 0.0f
+    @ShaderProperty var trangemax = 0.06f //for histones
+    //@ShaderProperty var trangemax = 0.01f // for droso-autopilot
 
     @ShaderProperty var boxMin_x = -boxwidth
     @ShaderProperty var boxMin_y = -boxwidth
@@ -75,7 +74,7 @@ class DirectVolumeFullscreen : Mesh("DirectVolume") {
     @ShaderProperty var maxsteps = 128
     @ShaderProperty var dithering = 0.0f
     @ShaderProperty var phase = 0.0f
-    @ShaderProperty var alpha_blending = 2.0f
+    @ShaderProperty var alpha_blending = 0.06f
     @ShaderProperty var gamma = 1.0f
 
     val logger: Logger = LoggerFactory.getLogger("Volume")
@@ -171,7 +170,44 @@ class DirectVolumeFullscreen : Mesh("DirectVolume") {
 
     fun readFrom(file: Path, replace: Boolean = false): String {
         val infoFile = file.resolveSibling("stacks" + ".info")
-        val dimensions = Files.lines(infoFile).toList().first().split(",").map { it.toLong() }.toTypedArray()
+
+        //val dimensions = Files.lines(infoFile).toList().first().split(",").map { it.toLong() }.toTypedArray()
+
+        val lines = Files.lines(infoFile).toList()
+
+        logger.info("reading stacks.info (${lines.joinToString()}) (${lines.size} lines)")
+        val dimensions = lines.get(0).split(",").map { it.toLong() }.toTypedArray()
+        logger.info("setting dim to ${dimensions.joinToString()}")
+        //var scaling = floatArrayOf(1.0f,1.0f,1.0f)
+        var scaling = arrayOf(1.0f,1.0f,1.0f)
+        if (lines.size>1) {
+            scaling = lines.get(1).split(",").map { it.toFloat() }.toTypedArray()
+            logger.info("setting scaling to ${scaling.joinToString()}")
+        }
+
+        var min_max_range_alpha  =  arrayOf(0.0f,0.01f,0.03f)
+        if (lines.size>2) {
+            min_max_range_alpha = lines.get(2).split(",").map { it.toFloat() }.toTypedArray()
+
+        }
+        this.trangemin = min_max_range_alpha.get(0)
+        this.trangemax = min_max_range_alpha.get(1)
+        this.alpha_blending = min_max_range_alpha.get(2)
+
+        //this.trangemin = 0.0005f
+        //this.trangemax = 0.008f
+
+        // FIXME: this fixes the wrong xyz order of scaling
+        // FIXME: sclaing seems to be handled wrong!
+        //scaling = arrayOf(1.0f/scaling.get(2),1.0f/scaling.get(1),1.0f/scaling.get(0))
+        //scaling = arrayOf(1.0f,0.6f,1.0f)
+
+
+
+        logger.info("setting scaling to ${scaling.joinToString()}")
+        logger.info("setting min max to ${this.trangemin}, ${this.trangemax} ")
+        logger.info("setting alpha blending to ${this.alpha_blending}")
+
 
         val buffer = ByteArray(1024*1024)
         val stream = FileInputStream(file.toFile())
@@ -214,14 +250,18 @@ class DirectVolumeFullscreen : Mesh("DirectVolume") {
                 }
             }
 //            this.material.textures.put("normal", this.javaClass.getResource("colormap-viridis.png").file)
-            this.material.textures.put("normal", "m:/colormaps/colormap-viridis.png")
+            this.material.textures.put("normal", "m:/colormaps/colormap-hot.png")
             this.material.needsTextureReload = true
 
             this.lock.unlock()
         }
 
-        this.scale = dim*0.01f
-        this.scale = GLVector(1.0f,1.0f,3.0f)
+
+        //this.scale = GLVector(1.0f,1.0f,1.0f) // for histones
+        //this.scale = GLVector(1.0f,1.0f,5.0f) // for droso (non isoneted)
+
+        this.scale = GLVector(scaling.get(0),scaling.get(1),scaling.get(2)) // for droso (non isoneted)
+
 
 
         return id
