@@ -58,25 +58,37 @@ class NodeSubscriber(override var hub: Hub?, val address: String = "udp://localh
 
                 if (payload != null) {
                     nodes[id]?.let { node ->
-//                        logger.info("Deserializing $node from payload ${payload.size}")
                         val bin = ByteArrayInputStream(payload)
                         val input = Input(bin)
                         val o = kryo.readClassAndObject(input) as Node
 
-//                        logger.info("Deserialized ${o.name}")
-//                        if(o.name == node.name) {
-                            node.position = o.position
-                            node.rotation = o.rotation
-                            node.visible = o.visible
+                        node.position = o.position
+                        node.rotation = o.rotation
+                        node.scale = o.scale
+                        node.visible = o.visible
 
-                        if(o is DirectVolumeFullscreen && node is DirectVolumeFullscreen && node.initialized) {
-                            if(node.currentVolume != o.currentVolume) {
+                        if (o is DirectVolumeFullscreen && node is DirectVolumeFullscreen && node.initialized) {
+                            if (node.currentVolume != o.currentVolume) {
+                                node.currentVolume = o.currentVolume
 
-//                                    logger.info("Current volume is ${o.currentVolume}")
-                                    node.currentVolume = o.currentVolume
+                                node.trangemin = o.trangemin
+                                node.trangemax = o.trangemax
+
+                                node.boxMin_x = o.boxMin_x
+                                node.boxMin_y = o.boxMin_y
+                                node.boxMin_z = o.boxMin_z
+
+                                node.boxMax_x = o.boxMax_x
+                                node.boxMax_y = o.boxMax_y
+                                node.boxMax_z = o.boxMax_z
+
+                                node.maxsteps = o.maxsteps
+                                node.dithering = o.dithering
+                                node.phase = o.phase
+                                node.alpha_blending = o.alpha_blending
+                                node.gamma = o.gamma
                             }
                         }
-//                        }
 
                         input.close()
                         bin.close()
