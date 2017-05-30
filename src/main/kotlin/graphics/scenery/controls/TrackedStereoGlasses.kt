@@ -37,7 +37,7 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
         rotation = Quaternion().setIdentity()
 
         screen?.let {
-            rotation = Quaternion().setFromMatrix(it. getTransform().transposedFloatArray, 0)
+            rotation = Quaternion().setFromMatrix(it.getTransform().transposedFloatArray, 0).normalize()
         }
     }
 
