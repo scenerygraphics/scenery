@@ -5,6 +5,8 @@ import graphics.scenery.backends.SceneryWindow
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.KHRSwapchain.vkAcquireNextImageKHR
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 
@@ -26,6 +28,8 @@ class VulkanSwapchain(val window: SceneryWindow,
     override var imageViews: LongArray? = null
 
     override var format: Int = 0
+
+    var logger: Logger = LoggerFactory.getLogger("VulkanSwapchain")
 
     var swapchainImage: IntBuffer = MemoryUtil.memAllocInt(1)
     var swapchainPointer: LongBuffer = MemoryUtil.memAllocLong(1)
@@ -81,9 +85,15 @@ class VulkanSwapchain(val window: SceneryWindow,
         val currentWidth = currentExtent.width()
         val currentHeight = currentExtent.height()
 
-        if (currentWidth != -1 && currentHeight != -1) {
+        logger.info("Current window size: $currentWidth x $currentHeight")
+
+        if (currentWidth > 0 && currentHeight > 0) {
             window.width = currentWidth
             window.height = currentHeight
+        } else {
+            // TODO: Better default values
+            window.width = 1920
+            window.height = 1200
         }
 
         val preTransform: Int
