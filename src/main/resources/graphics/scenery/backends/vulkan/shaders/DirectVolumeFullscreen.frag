@@ -393,9 +393,12 @@ void main()
       	return;
       }
 
+//      const float tnear = inter.tnear;
+//      const float tfar = max(inter.tfar, 0.0f);
+//
+      const float tnear = max(inter.tnear, 0.0f);
+      const float tfar = inter.tfar;
 
-      const float tnear = inter.tnear;
-      const float tfar = max(inter.tfar, 0.0f);
       const float tstep = abs(tnear-tfar)/(maxsteps);
 
       // apply phase:
@@ -417,7 +420,7 @@ void main()
 
 
 
-      if (alpha_blending <= -10.f){
+      if (alpha_blending <= 0.f){
           // nop alpha blending
           for(int i = 0; i < maxsteps; ++i, pos += vecstep)
           {
@@ -441,6 +444,7 @@ void main()
 
                opacity  *= (1.f-alpha_blending*clamp(newVal,0.f,1.f));
 
+
                if (opacity<=0.02f)
                     break;
 
@@ -460,7 +464,7 @@ void main()
       FragColor = color;
 
       //FragColor = vec4(colVal, 0.0f, 0.0f, alphaVal);
-      //FragColor = vec4(color.x, 0.0f, 0.0f, alphaVal);
+      //FragColor = vec4(1.0f, 0.0f, 0.0f, alphaVal);
 
       // FIXME sanity check: this should give the colormap texture (but doesnt!)
       //FragColor = texture(ObjectTextures[3], vec2(textureCoord.s ,0.5f));

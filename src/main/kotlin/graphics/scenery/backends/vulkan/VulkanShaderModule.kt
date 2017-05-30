@@ -51,13 +51,17 @@ open class VulkanShaderModule(device: VkDevice, entryPoint: String, clazz: Class
         val actualCodePath: String
 
         val sourceNewer = if(shaderCodePath.toLowerCase().endsWith("spv")) {
-            // a slight bias is needed here, as if both files are compiled into the
-            // classes/ or jar at the same time, they'll carry the same timestamp.
-            val spirvModificationDate = Date(codeResource.openConnection().lastModified + 500)
-
             val sourceCodeResource = sourceClass.getResource(shaderCodePath.substringBeforeLast(".spv"))
 
             if(sourceCodeResource != null) {
+                // a slight bias is needed here, as if both files are compiled into the
+                // classes/ or jar at the same time, they'll carry the same timestamp.
+                val spirvModificationDate = if(codeResource != null) {
+                    Date(codeResource.openConnection().lastModified + 500)
+                } else {
+                    Date(0)
+                }
+
                 val sourceModificationDate = Date(sourceCodeResource.openConnection().lastModified)
 
                 if(sourceModificationDate.after(spirvModificationDate)) {
