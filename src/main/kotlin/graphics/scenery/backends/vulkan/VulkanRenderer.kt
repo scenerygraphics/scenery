@@ -2970,6 +2970,14 @@ open class VulkanRenderer(hub: Hub,
                 }
             }
 
+            val hmd = hub!!.getWorkingHMDDisplay()
+
+            if(hmd != null) {
+                window.width = hmd.getRenderTargetSize().x().toInt()/2
+                window.height = hmd.getRenderTargetSize().y().toInt()
+                logger.info("Set fullscreen window dimensions to ${window.width}x${window.height}")
+            }
+
             glfwSetWindowMonitor(window.glfwWindow!!,
                 monitor,
                 0, 0,

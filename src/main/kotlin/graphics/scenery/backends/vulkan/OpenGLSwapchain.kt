@@ -72,6 +72,13 @@ class OpenGLSwapchain(val window: SceneryWindow,
             VK10.VK_FORMAT_B8G8R8A8_UNORM
         }
 
+        if(window.width <= 0 || window.height <= 0) {
+            logger.warn("Received invalid window dimensions, resizing to sane values")
+            // TODO: Better default values
+            window.width = 1920
+            window.height = 1200
+        }
+
         val imgs = (0..bufferCount - 1).map {
             with(VU.newCommandBuffer(device, commandPool, autostart = true)) {
                 val t = VulkanTexture(device, physicalDevice, memoryProperties, commandPool, queue,
