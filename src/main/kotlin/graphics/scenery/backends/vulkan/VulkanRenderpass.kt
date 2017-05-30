@@ -225,15 +225,17 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
     fun getShaderPropertyOrder(node: Node): List<String> {
         // this creates a shader property UBO for items marked @ShaderProperty in node
         logger.debug("specs: ${this.pipelines["preferred-${node.name}"]!!.descriptorSpecs}")
-        val shaderPropertiesSpec = this.pipelines["preferred-${node.name}"]!!.descriptorSpecs.find { it.name == "ShaderProperties" }
+        val shaderPropertiesSpec = this.pipelines["preferred-${node.name}"]!!.descriptorSpecs.filter { it.name == "ShaderProperties" }
 
-        if(shaderPropertiesSpec == null) {
+        if(shaderPropertiesSpec.count() == 0) {
             logger.error("Shader uses no declared shader properties!")
             return emptyList()
         }
 
+        val specs = shaderPropertiesSpec.map { it.members }.flatMap { it.keys }
+
         // returns a ordered list of the members of the ShaderProperties struct
-        return shaderPropertiesSpec.members.map { it.key }.toList()
+        return specs.toList()
     }
 
     fun updateShaderParameters() {
