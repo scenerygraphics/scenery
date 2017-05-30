@@ -37,7 +37,7 @@ class VolumeBoxExample: SceneryDefaultApplication("Clustered Volume Rendering ex
 
         val cam: Camera = DetachedHeadCamera(hmd)
         with(cam) {
-            position = GLVector(.0f, -0.4f, 2.0f)
+            position = GLVector(.0f, -0.4f, 5.0f)
             perspectiveCamera(50.0f, 1.0f*windowWidth, 1.0f*windowHeight)
             active = true
 
@@ -114,7 +114,7 @@ class VolumeBoxExample: SceneryDefaultApplication("Clustered Volume Rendering ex
                     with(volume) {
                         trangemin = 0.00f
                         trangemax = 1.0f
-                        alpha_blending = 0.06f
+                        alpha_blending = 0.01f
                         scale = GLVector(1.0f, 1.0f, 1.0f)
                     }
 
@@ -128,8 +128,8 @@ class VolumeBoxExample: SceneryDefaultApplication("Clustered Volume Rendering ex
 
             thread {
                 while (true) {
-//                    volume.rotation.rotateByAngleX(0.001f)
-//                    volume.needsUpdate = true
+                    volume.rotation.rotateByAngleX(0.01f)
+                    volume.needsUpdate = true
 
                     Thread.sleep(20)
                 }

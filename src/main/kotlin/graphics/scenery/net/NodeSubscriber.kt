@@ -83,10 +83,16 @@ class NodeSubscriber(override var hub: Hub?, val address: String = "udp://localh
                                 node.boxMax_z = o.boxMax_z
 
                                 node.maxsteps = o.maxsteps
-                                node.dithering = o.dithering
-                                node.phase = o.phase
                                 node.alpha_blending = o.alpha_blending
                                 node.gamma = o.gamma
+
+                                node.voxelSizeX = o.voxelSizeX
+                                node.voxelSizeY = o.voxelSizeY
+                                node.voxelSizeZ = o.voxelSizeZ
+
+                                node.sizeX = o.sizeX
+                                node.sizeY = o.sizeY
+                                node.sizeZ = o.sizeZ
                             }
                         }
 

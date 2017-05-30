@@ -59,6 +59,7 @@ class DirectVolumeFullscreen : Mesh("DirectVolume") {
     )
 
     val boxwidth = 1.0f
+
     @ShaderProperty var trangemin = 0.00f
     @ShaderProperty var trangemax = 0.06f //for histones
     //@ShaderProperty var trangemax = 0.01f // for droso-autopilot
@@ -71,11 +72,16 @@ class DirectVolumeFullscreen : Mesh("DirectVolume") {
     @ShaderProperty var boxMax_y = boxwidth
     @ShaderProperty var boxMax_z = boxwidth
 
-    @ShaderProperty var maxsteps = 128
-    @ShaderProperty var dithering = 0.0f
-    @ShaderProperty var phase = 0.0f
+    @ShaderProperty var maxsteps = 256
     @ShaderProperty var alpha_blending = 0.06f
     @ShaderProperty var gamma = 1.0f
+
+    @ShaderProperty var sizeX = 256
+    @ShaderProperty var sizeY = 256
+    @ShaderProperty var sizeZ = 256
+    @ShaderProperty var voxelSizeX = 1.0f
+    @ShaderProperty var voxelSizeY = 1.0f
+    @ShaderProperty var voxelSizeZ = 1.0f
 
     val logger: Logger = LoggerFactory.getLogger("Volume")
 
@@ -190,9 +196,23 @@ class DirectVolumeFullscreen : Mesh("DirectVolume") {
             min_max_range_alpha = lines.get(2).split(",").map { it.toFloat() }.toTypedArray()
 
         }
-        this.trangemin = min_max_range_alpha.get(0)
-        this.trangemax = min_max_range_alpha.get(1)
-        this.alpha_blending = min_max_range_alpha.get(2)
+        //this.trangemin = min_max_range_alpha.get(0)
+        //this.trangemax = min_max_range_alpha.get(1)
+        //this.alpha_blending = min_max_range_alpha.get(2)
+
+//         histone
+//        this.trangemin = 0.004f
+//        this.trangemax = 0.015f
+//        this.alpha_blending = 0.03f
+//        scaling = arrayOf(1.0f,1.0f,1.0f)
+
+        // droso
+//        this.trangemin = 0.00f
+//        this.trangemax = 0.02f
+//        this.alpha_blending = 0.06f
+//        scaling = arrayOf(1.0f,0.4f,1.0f)
+//
+
 
         //this.trangemin = 0.0005f
         //this.trangemax = 0.008f
@@ -203,11 +223,17 @@ class DirectVolumeFullscreen : Mesh("DirectVolume") {
         //scaling = arrayOf(1.0f,0.6f,1.0f)
 
 
+        voxelSizeX = 1.0f
+        voxelSizeY = 1.0f
+        voxelSizeZ = 3.0f
+        sizeX = dimensions[0].toInt()
+        sizeY = dimensions[1].toInt()
+        sizeZ = dimensions[2].toInt()
 
-        logger.info("setting scaling to ${scaling.joinToString()}")
+        logger.info("setting scaling to $voxelSizeX x $voxelSizeY x $voxelSizeZ")
         logger.info("setting min max to ${this.trangemin}, ${this.trangemax} ")
         logger.info("setting alpha blending to ${this.alpha_blending}")
-
+        logger.info("setting dim to ${sizeX}, ${sizeY}, ${sizeZ}")
 
         val buffer = ByteArray(1024*1024)
         val stream = FileInputStream(file.toFile())
@@ -259,8 +285,6 @@ class DirectVolumeFullscreen : Mesh("DirectVolume") {
 
         //this.scale = GLVector(1.0f,1.0f,1.0f) // for histones
         //this.scale = GLVector(1.0f,1.0f,5.0f) // for droso (non isoneted)
-
-        this.scale = GLVector(scaling.get(0),scaling.get(1),scaling.get(2)) // for droso (non isoneted)
 
 
 
