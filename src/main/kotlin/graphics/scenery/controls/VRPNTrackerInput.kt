@@ -50,7 +50,7 @@ class VRPNTrackerInput(trackerAddress: String = "device@locahost:5500") : Tracke
 
         stats.scheduleAtFixedRate(object : TimerTask() {
             override fun run() {
-                logger.info("VRPN msg/sec: $vrpnMsgCount")
+                logger.debug("VRPN msg/sec: $vrpnMsgCount")
                 vrpnMsgCount = 0
             }
         }, 0, 1000)
