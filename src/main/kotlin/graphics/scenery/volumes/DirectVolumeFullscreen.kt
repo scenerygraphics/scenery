@@ -26,6 +26,7 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import java.nio.file.StandardOpenOption
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 import javax.imageio.ImageIO
 import kotlin.streams.toList
 
@@ -34,13 +35,14 @@ import kotlin.streams.toList
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class DirectVolumeFullscreen : Mesh("DirectVolume") {
+class DirectVolumeFullscreen(var autosetProperties: Boolean = true) : Mesh("DirectVolume") {
     data class VolumeDescriptor(val path: Path,
                                 val width: Long,
                                 val height: Long,
                                 val depth: Long,
                                 val dataType: NativeTypeEnum,
-                                val bytesPerVoxel: Int)
+                                val bytesPerVoxel: Int,
+                                val data: ByteBuffer)
 
     data class VolumeRenderingParameters(
         val boundingBox: FloatArray = floatArrayOf(-1.0f, 1.0f, -1.0f, 1.0f, -1.0f, 1.0f),
@@ -61,7 +63,7 @@ class DirectVolumeFullscreen : Mesh("DirectVolume") {
     val boxwidth = 1.0f
 
     @ShaderProperty var trangemin = 0.00f
-    @ShaderProperty var trangemax = 0.06f //for histones
+    @ShaderProperty var trangemax = 0.01f //for histones
     //@ShaderProperty var trangemax = 0.01f // for droso-autopilot
 
     @ShaderProperty var boxMin_x = -boxwidth
@@ -85,7 +87,7 @@ class DirectVolumeFullscreen : Mesh("DirectVolume") {
 
     val logger: Logger = LoggerFactory.getLogger("Volume")
 
-    @Transient val volumes = LinkedHashMap<String, VolumeDescriptor>()
+    @Transient val volumes = ConcurrentHashMap<String, VolumeDescriptor>()
 
     var currentVolume: String = ""
         set(value) {
@@ -174,6 +176,72 @@ class DirectVolumeFullscreen : Mesh("DirectVolume") {
                 arrayListOf("DeferredShadingRenderer")))
     }
 
+    fun preload(file: Path) {
+        val id = file.fileName.toString()
+
+        val infoFile = file.resolveSibling("stacks" + ".info")
+
+        //val dimensions = Files.lines(infoFile).toList().first().split(",").map { it.toLong() }.toTypedArray()
+
+        val lines = Files.lines(infoFile).toList()
+
+        logger.info("reading stacks.info (${lines.joinToString()}) (${lines.size} lines)")
+        val dimensions = lines.get(0).split(",").map { it.toLong() }.toTypedArray()
+
+
+        if(autosetProperties) {
+            trangemax = 0.03f
+            voxelSizeX = 1.0f
+            voxelSizeY = 1.0f
+            voxelSizeZ = 1.0f
+        }
+
+
+        sizeX = dimensions[0].toInt()
+        sizeY = dimensions[1].toInt()
+        sizeZ = dimensions[2].toInt()
+
+        logger.info("setting voxelsize to $voxelSizeX x $voxelSizeY x $voxelSizeZ")
+        logger.info("setting min max to ${this.trangemin}, ${this.trangemax} ")
+        logger.info("setting alpha blending to ${this.alpha_blending}")
+        logger.info("setting dim to ${sizeX}, ${sizeY}, ${sizeZ}")
+
+
+        if(volumes.containsKey(id)) {
+            logger.info("$id is already in cache")
+        } else {
+            logger.info("Preloading $id from disk")
+            val buffer = ByteArray(1024 * 1024)
+            val stream = FileInputStream(file.toFile())
+            val imageData: ByteBuffer = memAlloc((2 * dimensions[0] * dimensions[1] * dimensions[2]).toInt())
+
+            logger.info("${file.fileName}: Allocated ${imageData.capacity()} bytes for UINT16 image of ${dimensions.joinToString("x")}")
+
+            val start = System.nanoTime()
+            var bytesRead = stream.read(buffer, 0, buffer.size)
+            while (bytesRead > -1) {
+                imageData.put(buffer, 0, bytesRead)
+                bytesRead = stream.read(buffer, 0, buffer.size)
+            }
+            val duration = (System.nanoTime() - start) / 10e5
+            logger.info("Reading took $duration ms")
+
+            imageData.flip()
+
+//            if (replace) {
+//                volumes.clear()
+//            }
+
+            val descriptor = VolumeDescriptor(
+                file,
+                dimensions[0], dimensions[1], dimensions[2],
+                NativeTypeEnum.UnsignedInt, 2, data = imageData
+            )
+
+            volumes.put(id, descriptor)
+        }
+    }
+
     fun readFrom(file: Path, replace: Boolean = false): String {
         val infoFile = file.resolveSibling("stacks" + ".info")
 
@@ -184,96 +252,72 @@ class DirectVolumeFullscreen : Mesh("DirectVolume") {
         logger.info("reading stacks.info (${lines.joinToString()}) (${lines.size} lines)")
         val dimensions = lines.get(0).split(",").map { it.toLong() }.toTypedArray()
         logger.info("setting dim to ${dimensions.joinToString()}")
-        //var scaling = floatArrayOf(1.0f,1.0f,1.0f)
-        var scaling = arrayOf(1.0f,1.0f,1.0f)
-        if (lines.size>1) {
-            scaling = lines.get(1).split(",").map { it.toFloat() }.toTypedArray()
-            logger.info("setting scaling to ${scaling.joinToString()}")
+
+        if(autosetProperties) {
+            this.trangemax = 0.03f
+            voxelSizeX = 1.0f
+            voxelSizeY = 1.0f
+            voxelSizeZ = 1.0f
         }
-
-        var min_max_range_alpha  =  arrayOf(0.0f,0.01f,0.03f)
-        if (lines.size>2) {
-            min_max_range_alpha = lines.get(2).split(",").map { it.toFloat() }.toTypedArray()
-
-        }
-        //this.trangemin = min_max_range_alpha.get(0)
-        //this.trangemax = min_max_range_alpha.get(1)
-        //this.alpha_blending = min_max_range_alpha.get(2)
-
-//         histone
-//        this.trangemin = 0.004f
-//        this.trangemax = 0.015f
-//        this.alpha_blending = 0.03f
-//        scaling = arrayOf(1.0f,1.0f,1.0f)
-
-        // droso
-//        this.trangemin = 0.00f
-//        this.trangemax = 0.02f
-//        this.alpha_blending = 0.06f
-//        scaling = arrayOf(1.0f,0.4f,1.0f)
-//
-
-
-        //this.trangemin = 0.0005f
-        //this.trangemax = 0.008f
-
-        // FIXME: this fixes the wrong xyz order of scaling
-        // FIXME: sclaing seems to be handled wrong!
-        //scaling = arrayOf(1.0f/scaling.get(2),1.0f/scaling.get(1),1.0f/scaling.get(0))
-        //scaling = arrayOf(1.0f,0.6f,1.0f)
-
-
-        voxelSizeX = 1.0f
-        voxelSizeY = 1.0f
-        voxelSizeZ = 3.0f
         sizeX = dimensions[0].toInt()
         sizeY = dimensions[1].toInt()
         sizeZ = dimensions[2].toInt()
 
-        logger.info("setting scaling to $voxelSizeX x $voxelSizeY x $voxelSizeZ")
+
+
+        logger.info("setting voxelsize to $voxelSizeX x $voxelSizeY x $voxelSizeZ")
         logger.info("setting min max to ${this.trangemin}, ${this.trangemax} ")
         logger.info("setting alpha blending to ${this.alpha_blending}")
         logger.info("setting dim to ${sizeX}, ${sizeY}, ${sizeZ}")
 
-        val buffer = ByteArray(1024*1024)
-        val stream = FileInputStream(file.toFile())
-        val imageData: ByteBuffer = memAlloc((2 * dimensions[0] * dimensions[1] * dimensions[2]).toInt())
-
-        logger.info("${file.fileName}: Allocated ${imageData.capacity()} bytes for UINT16 image of ${dimensions.joinToString("x")}")
-
-        val start = System.nanoTime()
-        var bytesRead = stream.read(buffer, 0, buffer.size)
-        while(bytesRead > -1) {
-            imageData.put(buffer, 0, bytesRead)
-            bytesRead = stream.read(buffer, 0, buffer.size)
-        }
-        val duration = (System.nanoTime() - start)/10e5
-        logger.info("Reading took $duration ms")
-
-        imageData.flip()
-
-        if (replace) {
-            volumes.clear()
-        }
-
         val id = file.fileName.toString()
 
-        volumes.put(id, VolumeDescriptor(
-            file,
-            dimensions[0], dimensions[1], dimensions[2],
-            NativeTypeEnum.UnsignedInt, 2
-        ))
+        val vol = if(volumes.containsKey(id)) {
+            logger.info("Getting $id from cache")
+            volumes.get(id)!!
+        } else {
+            logger.info("Loading $id from disk")
+            val buffer = ByteArray(1024 * 1024)
+            val stream = FileInputStream(file.toFile())
+            val imageData: ByteBuffer = memAlloc((2 * dimensions[0] * dimensions[1] * dimensions[2]).toInt())
+
+            logger.info("${file.fileName}: Allocated ${imageData.capacity()} bytes for UINT16 image of ${dimensions.joinToString("x")}")
+
+            val start = System.nanoTime()
+            var bytesRead = stream.read(buffer, 0, buffer.size)
+            while (bytesRead > -1) {
+                imageData.put(buffer, 0, bytesRead)
+                bytesRead = stream.read(buffer, 0, buffer.size)
+            }
+            val duration = (System.nanoTime() - start) / 10e5
+            logger.info("Reading took $duration ms")
+
+            imageData.flip()
+
+//            if (replace) {
+//                volumes.clear()
+//            }
+
+            val descriptor = VolumeDescriptor(
+                file,
+                dimensions[0], dimensions[1], dimensions[2],
+                NativeTypeEnum.UnsignedInt, 2, data = imageData
+            )
+
+            volumes.put(id, descriptor)
+            descriptor
+        }
 
         val dim = GLVector(dimensions[0].toFloat(), dimensions[1].toFloat(), dimensions[2].toFloat())
         val gtv = GenericTexture("volume", dim,
-            -1, GLTypeEnum.UnsignedInt, imageData, false, false)
+            -1, GLTypeEnum.UnsignedInt, vol.data, false, false)
 
         if(this.lock.tryLock()) {
             this.material.textures.put("3D-volume", "fromBuffer:volume")
             this.material.transferTextures.put("volume", gtv)?.let {
-                if (replace) {
-                    memFree(it.contents)
-                }
+//                if (replace) {
+//                    memFree(it.contents)
+//                }
             }
 //            this.material.textures.put("normal", this.javaClass.getResource("colormap-viridis.png").file)
             this.material.textures.put("normal", "m:/colormaps/colormap-hot.png")
@@ -281,13 +325,6 @@ class DirectVolumeFullscreen : Mesh("DirectVolume") {
 
             this.lock.unlock()
         }
-
-
-        //this.scale = GLVector(1.0f,1.0f,1.0f) // for histones
-        //this.scale = GLVector(1.0f,1.0f,5.0f) // for droso (non isoneted)
-
-
-
         return id
     }
 

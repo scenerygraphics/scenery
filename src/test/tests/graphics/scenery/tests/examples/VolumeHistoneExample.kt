@@ -24,7 +24,7 @@ import kotlin.concurrent.thread
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class ClusterExample: SceneryDefaultApplication("Clustered Volume Rendering example") {
+class VolumeHistoneExample: SceneryDefaultApplication("Clustered Volume Rendering example") {
     var hmd: TrackedStereoGlasses? = null
     var publishedNodes = ArrayList<Node>()
 
@@ -37,28 +37,14 @@ class ClusterExample: SceneryDefaultApplication("Clustered Volume Rendering exam
 
         val cam: Camera = DetachedHeadCamera(hmd)
         with(cam) {
-            //position = GLVector(.4f, .4f, 1.4f)
-            position = GLVector(.0f, -0.4f, 2.0f)
+            position = GLVector(-0.16273244f, -0.85279214f, 1.0995241f)
+            //position = GLVector(0.0f, -1.3190879f, 0.8841703f)
+
             perspectiveCamera(50.0f, 1.0f*windowWidth, 1.0f*windowHeight)
             active = true
 
             scene.addChild(this)
         }
-
-//        val bileMesh = Mesh()
-//        bileMesh.readFrom("Z:/data/models-inauguration/celegans_epithelium.stl", useMaterial = false)
-//        bileMesh.scale = GLVector(0.01f, 0.01f, 0.01f)
-//        bileMesh.visible = false
-//        scene.addChild(bileMesh)
-//
-//        val vasculature = Mesh()
-//        vasculature.readFrom("Z:/data/models-inauguration/Drerio.stl", useMaterial = false)
-//        vasculature.scale = GLVector(0.1f, 0.1f, 0.1f)
-//        bileMesh.visible = false
-//        scene.addChild(vasculature)
-        val box = Box(GLVector(2.0f, 2.0f, 2.0f))
-        box.material.diffuse = GLVector(1.0f, 0.0f, 0.0f)
-        //scene.addChild(box)
 
         val shell = Box(GLVector(120.0f, 120.0f, 120.0f), insideNormals = true)
         shell.material.doubleSided = true
@@ -67,10 +53,23 @@ class ClusterExample: SceneryDefaultApplication("Clustered Volume Rendering exam
         shell.material.ambient = GLVector.getNullVector(3)
         scene.addChild(shell)
 
-        val volume = DirectVolumeFullscreen()
+        val volume = DirectVolumeFullscreen(autosetProperties = false)
 
         with(volume) {
-            volume.visible = true
+            trangemin = 0.005f
+            trangemax = 0.04f
+            alpha_blending = 0.02f
+            scale = GLVector(1.0f, 1.0f, 1.0f)
+            voxelSizeX = 1.0f
+            voxelSizeY = 1.0f
+            voxelSizeZ = 1.0f
+
+        }
+
+
+
+        with(volume) {
+            visible = true
             scene.addChild(this)
         }
 
@@ -88,17 +87,11 @@ class ClusterExample: SceneryDefaultApplication("Clustered Volume Rendering exam
         }
 
         val folder = File("M:/CAVE_DATA/histones-isonet/stacks/default/")
-        //val folder = File("M:/CAVE_DATA/box_test/aniso")
-
-
-        //val folder = File("M:/CAVE_DATA/droso-royer-autopilot-transposed/")
-//        val folder = File("M:/CAVE_DATA/droso-royer-long/stacks/default/")
-//        val folder = File("M:/TestData/")
         val files = folder.listFiles()
         val volumes = files.filter { it.isFile && it.name.endsWith("raw") }.map { it.absolutePath }.sorted()
-//
+
         volumes.forEach { logger.info("Volume: $it")}
-//
+
         var currentVolume = 0
         fun nextVolume(): String {
             val v = volumes[currentVolume % volumes.size]
@@ -108,9 +101,6 @@ class ClusterExample: SceneryDefaultApplication("Clustered Volume Rendering exam
         }
 
         publishedNodes.add(cam)
-//        publishedNodes.add(bileMesh)
-//        publishedNodes.add(vasculature)
-        publishedNodes.add(box)
         publishedNodes.add(volume)
 
         val publisher = hub.get<NodePublisher>(SceneryElement.NodePublisher)
@@ -122,8 +112,9 @@ class ClusterExample: SceneryDefaultApplication("Clustered Volume Rendering exam
             subscriber?.nodes?.put(13337 + index, node)
         }
 
-        val min_delay = 600
-        //val min_delay = 0
+        val min_delay = 100
+
+        //volume.rotation.rotateByAngleX(1.57f)
 
         if(publisher != null) {
             thread {
@@ -131,37 +122,34 @@ class ClusterExample: SceneryDefaultApplication("Clustered Volume Rendering exam
                     Thread.sleep(1000)
                 }
 
-
-                //fvolume.rotation.rotateByAngleY(1.57f)
-                //volume.rotation.rotateByAngleZ(1.57f)
-//                volume.rotation.rotateByAngleX(.8f)
-
-
-//                volume.needsUpdate = true
-
-
                 while (true) {
                     val start = System.currentTimeMillis()
 
                     logger.info("Reading next volume...")
                     volume.currentVolume = nextVolume()
 
+
                     val time_to_read  = System.currentTimeMillis()-start
 
                     logger.info("took ${time_to_read} ms")
-                    Thread.sleep(Math.max(0,min_delay-time_to_read))
+                    Thread.sleep(Math.max(50, min_delay-time_to_read))
+
 
                 }
             }
 
-
             thread {
                 while (true) {
-//                    volume.rotation.rotateByAngleX(0.001f)
-//                    volume.needsUpdate = true
+                    volume.rotation.rotateByAngleX(0.002f)
+                    //volume.needsUpdate = true
 
                     Thread.sleep(20)
                 }
+            }
+
+            thread {
+                volumes.map { volume.preload( Paths.get(it)) }
+                Thread.sleep(2)
             }
         }
 

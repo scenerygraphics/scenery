@@ -232,7 +232,10 @@ void main()
 
 
       alphaVal = clamp(colVal, 0.0, 1.0);
-    //dummy
+
+      // FIXME: this is a workaround for grez lines appearing at borders
+      alphaVal = alphaVal<0.01?0.0f:alphaVal;
+
       // Mapping to transfer function range and gamma correction:
 
 

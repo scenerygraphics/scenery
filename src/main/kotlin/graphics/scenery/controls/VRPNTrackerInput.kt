@@ -36,7 +36,7 @@ class VRPNTrackerInput(trackerAddress: String = "device@locahost:5500") : Tracke
 
     var cachedOrientation: Quaternion = Quaternion(0.0f, 0.0f, 0.0f, 1.0f)
 
-    var cachedPosition: GLVector = GLVector(0.0f, 0.0f, 0.0f)
+    var cachedPosition: GLVector = GLVector(0.0f, 1.5f, 1.5f)
 
     var stats = Timer()
     var vrpnMsgCount = 0L

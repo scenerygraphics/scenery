@@ -71,7 +71,7 @@ class VolumeBoxExample: SceneryDefaultApplication("Clustered Volume Rendering ex
             scene.addChild(light)
         }
 
-        val folder = File("M:/CAVE_DATA/box_test/aniso")
+        val folder = File("M:/CAVE_DATA/box_test/iso")
         val files = folder.listFiles()
         val volumes = files.filter { it.isFile && it.name.endsWith("raw") }.map { it.absolutePath }.sorted()
 
@@ -114,8 +114,8 @@ class VolumeBoxExample: SceneryDefaultApplication("Clustered Volume Rendering ex
                     with(volume) {
                         trangemin = 0.00f
                         trangemax = 1.0f
-                        alpha_blending = 0.01f
-                        scale = GLVector(1.0f, 1.0f, 1.0f)
+                        alpha_blending = 0.02f
+                        scale = GLVector(0.3f, 0.3f, 0.3f)
                     }
 
                     val time_to_read  = System.currentTimeMillis()-start
@@ -128,7 +128,7 @@ class VolumeBoxExample: SceneryDefaultApplication("Clustered Volume Rendering ex
 
             thread {
                 while (true) {
-                    volume.rotation.rotateByAngleX(0.01f)
+                    volume.rotation.rotateByAngleX(0.0f)
                     volume.needsUpdate = true
 
                     Thread.sleep(20)

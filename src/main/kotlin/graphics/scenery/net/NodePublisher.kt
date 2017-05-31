@@ -51,12 +51,15 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://*:6666"
                 val payload = bos.toByteArray()
                 publisher.sendMore(guid.toString())
                 publisher.send(bos.toByteArray())
+                Thread.sleep(1)
 //                logger.info("Sending ${node.name} with length ${payload.size}")
 
                 output.close()
                 bos.close()
             } catch(e: IOException) {
                 logger.warn("in ${node.name}: ${e}")
+            } catch(e: AssertionError) {
+                logger.warn("assertion: ${node.name}: ${e}")
             }
 
             val duration = (System.nanoTime() - start).toFloat()

@@ -2421,7 +2421,7 @@ open class VulkanRenderer(hub: Hub,
                 pass.vulkanMetadata.uboOffsets.put(s.UBOs["Default"]!!.second.offsets)
                 pass.vulkanMetadata.uboOffsets.put(0)
                 if(s.requiredDescriptorSets.containsKey("ShaderProperties")) {
-                    pass.vulkanMetadata.uboOffsets.put(0)
+                    pass.vulkanMetadata.uboOffsets.put(s.UBOs["ShaderProperties"]!!.second.offsets.get(0))
                 }
                 pass.vulkanMetadata.uboOffsets.flip()
 
@@ -2765,6 +2765,7 @@ open class VulkanRenderer(hub: Hub,
                     // TODO: Correct buffer advancement
                     val offset = propertyUbo.backingBuffer!!.advance()
                     propertyUbo.populate(offset = offset.toLong())
+                    propertyUbo.offsets.put(0, offset)
                 }
             }
         }
