@@ -61,6 +61,10 @@
             <name>Loic Royer</name>
             <properties><id>royerloic</id></properties>
         </contributor>
+        <contributor>
+            <name>Martin Weigert</name>
+            <properties><id>maweigert</id></properties>
+        </contributor>
     </contributors>
 
     <mailingLists>
