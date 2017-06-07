@@ -611,6 +611,25 @@
                 </configuration>
             </plugin>
 
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>1.4.1</version>
+
+                <configuration>
+                    <rules>
+                        <banDuplicateClasses>
+                            <ignoreClasses>
+                                <ignoreClass>com.nativelibs4java.*</ignoreClass>
+                                <ignoreClass>junit.*</ignoreClass>
+                                <ignoreClass>org.bridj.*</ignoreClass>
+                                <ignoreClass>com.ochafik.*</ignoreClass>
+                            </ignoreClasses>
+                        </banDuplicateClasses>
+                    </rules>
+                </configuration>
+            </plugin>
+
         </plugins>
     </build>
 
