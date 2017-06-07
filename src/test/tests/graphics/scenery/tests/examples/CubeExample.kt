@@ -17,9 +17,16 @@ class CubeExample : SceneryDefaultApplication("CubeExample") {
         renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
         hub.add(SceneryElement.Renderer, renderer!!)
 
-        var box = Box(GLVector(1.0f, 1.0f, 1.0f))
+        val cam: Camera = DetachedHeadCamera()
+        cam.position = GLVector(0.0f, 0.0f, 5.0f)
+        cam.perspectiveCamera(70.0f, 1.0f*windowWidth, 1.0f*windowHeight, 1.0f, 100.0f)
+        cam.active = true
 
-        var boxmaterial = Material()
+        scene.addChild(cam)
+
+        val box = Box(GLVector(1.0f, 1.0f, 1.0f))
+
+        val boxmaterial = Material()
         boxmaterial.ambient = GLVector(1.0f, 0.0f, 0.0f)
         boxmaterial.diffuse = GLVector(0.0f, 1.0f, 0.0f)
         boxmaterial.specular = GLVector(1.0f, 1.0f, 1.0f)
@@ -28,23 +35,23 @@ class CubeExample : SceneryDefaultApplication("CubeExample") {
 
         scene.addChild(box)
 
-        var lights = (0..0).map {
+        val lights = (0..2).map {
             PointLight()
         }
 
         lights.mapIndexed { i, light ->
             light.position = GLVector(2.0f * i, 2.0f * i, 2.0f * i)
-            light.emissionColor = GLVector(0.0f, 0.1f, 0.8f)
-            light.intensity = 0.8f;
+            light.emissionColor = GLVector(1.0f, 0.0f, 1.0f)
+            light.intensity = 500.2f*(i+1)
             scene.addChild(light)
         }
 
-        val cam: Camera = DetachedHeadCamera()
-        cam.position = GLVector(0.0f, 0.0f, -5.0f)
-        cam.perspectiveCamera(70.0f, 1.0f*windowWidth, 1.0f*windowHeight, 1.0f, 100.0f)
-        cam.active = true
-
-        scene.addChild(cam)
+        lights.mapIndexed { i, light ->
+            light.position = GLVector(2.0f * i, 2.0f * i, 2.0f * i)
+            light.emissionColor = GLVector(0.0f, 0.1f, 0.8f)
+            light.intensity = 200.0f
+            scene.addChild(light)
+        }
 
         thread {
             while (true) {
