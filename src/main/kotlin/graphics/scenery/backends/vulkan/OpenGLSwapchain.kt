@@ -159,12 +159,12 @@ class OpenGLSwapchain(val window: SceneryWindow,
 
                 GLXNVSwapGroup.glXQueryMaxSwapGroupsNV(display, 0, maxGroups, maxBarriers)
 
-                if(GLXNVSwapGroup.glXJoinSwapGroupNV(display, window, swapGroup) != 0) {
+                if(GLXNVSwapGroup.glXJoinSwapGroupNV(display, window, swapGroup)) {
                     logger.error("Failed to bind to swap group $swapGroup")
                     return false
                 }
 
-                if(GLXNVSwapGroup.glXBindSwapBarrierNV(display, swapGroup, swapBarrier) != 0) {
+                if(GLXNVSwapGroup.glXBindSwapBarrierNV(display, swapGroup, swapBarrier)) {
                     logger.error("Failed to bind to swap barrier $swapBarrier on swap group $swapGroup")
                     return false
                 }
