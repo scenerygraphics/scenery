@@ -11,12 +11,19 @@ layout(set = 1, binding = 0, std140) uniform ShaderParameters {
 layout(location = 0) out vec4 FragColor;
 layout(location = 0) in vec2 textureCoord;
 
+// Shoulder Strength
 const float A = 0.15;
+// Linear Strength
 const float B = 0.50;
+// Linear Angle
 const float C = 0.10;
+// Toe Strength
 const float D = 0.20;
+// Toe Numerator
 const float E = 0.02;
+// Toe Denominator
 const float F = 0.30;
+// White Point
 const float W = 11.2;
 
 const float ExposureBias = 1.0;

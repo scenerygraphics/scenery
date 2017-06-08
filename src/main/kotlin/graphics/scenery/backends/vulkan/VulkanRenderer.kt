@@ -140,6 +140,9 @@ open class VulkanRenderer(hub: Hub,
                 renderpasses.values.forEach { it.close() }
                 renderpasses.clear()
 
+                settings.set("Renderer.displayWidth", window.width)
+                settings.set("Renderer.displayHeight", window.height)
+
                 renderpasses = prepareRenderpassesFromConfig(renderConfig, window.width, window.height)
 
                 semaphores.forEach { it.value.forEach { semaphore -> vkDestroySemaphore(device, semaphore, null) } }

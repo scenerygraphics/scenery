@@ -172,8 +172,16 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
                     entry.value
                 }
 
-                val settingsKey = "VulkanRenderer.$name.${entry.key}"
-                settings.set(settingsKey, value)
+                val settingsKey = if(entry.key.startsWith("Global")) {
+                    "Renderer.${entry.key.substringAfter("Global.")}"
+                } else {
+                    "Renderer.$name.${entry.key}"
+                }
+
+                if(!entry.key.startsWith("Global")) {
+                    settings.set(settingsKey, value)
+                }
+
                 ubo.members.put(entry.key, { settings.get(settingsKey) })
             }
 

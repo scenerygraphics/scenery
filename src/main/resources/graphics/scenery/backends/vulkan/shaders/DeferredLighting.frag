@@ -40,7 +40,9 @@ layout(set = 3, binding = 0, std140) uniform ShaderParameters {
 	int activateSSAO;
 	int reflectanceModel;
 	float ssaoDistanceThreshold;
-	vec2 ssaoFilterRadius;
+	float ssaoRadius;
+	int displayWidth;
+	int displayHeight;
 };
 
 const vec2 poisson16[] = vec2[](    // These are the Poisson Disk Samples
@@ -90,6 +92,10 @@ vec3 FresnelSchlick(float cosTheta, vec3 F0) {
     return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
 }
 
+float rand(vec2 co){
+    return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
+}
+
 void main()
 {
 	// Retrieve data from G-buffer
@@ -98,6 +104,8 @@ void main()
 	vec4 Albedo = texture(gAlbedoSpec, textureCoord).rgba;
 	float Specular = texture(gAlbedoSpec, textureCoord).a;
 	float Depth = texture(gDepth, textureCoord).r;
+
+	vec2 ssaoFilterRadius = vec2(ssaoRadius/displayWidth, ssaoRadius/displayHeight);
 
 	float fragDist = length(FragPos - ubo.CamPosition);
 
@@ -125,7 +133,7 @@ void main()
 				ambientOcclusion += a * NdotS;
 			}
 
-		    ambientOcclusion /= sample_count;
+		    ambientOcclusion /= float(sample_count);
 		}
 
 		vec3 viewDir = normalize(ubo.CamPosition - FragPos);

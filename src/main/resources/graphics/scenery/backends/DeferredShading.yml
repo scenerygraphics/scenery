@@ -1,5 +1,5 @@
 name: Deferred Shading
-description: Deferred Shading, with HDR postprocessing
+description: Deferred Shading, with HDR postprocessing and FXAA
 
 rendertargets:
   GeometryBuffer:
@@ -26,9 +26,13 @@ rendertargets:
     HDRBuffer:
       size: 1.0, 1.0
       format: RGBA_Float32
-    HDRDepth:
+    Depth:
       size: 1.0, 1.0
       format: Depth32
+  FXAA:
+    FXAAOut:
+      size: 1.0, 1.0
+      format: RGBA_UInt8
 
 renderpasses:
   Scene:
@@ -51,8 +55,10 @@ renderpasses:
       debugBuffers: 0
       activateSSAO: 1
       reflectanceModel: 0
-      ssaoDistanceThreshold: 20.0
-      ssaoFilterRadius: 0.05, 0.05
+      ssaoDistanceThreshold: 8.0
+      ssaoRadius: 4.0
+      Global.displayWidth: 0
+      Global.displayHeight: 0
   ForwardShading:
     type: geometry
     renderTransparent: true
@@ -64,14 +70,32 @@ renderpasses:
     inputs:
       - DeferredForward
     output: HDR
-  HDR:
+  PostprocessHDR:
     type: quad
     shaders:
       - "FullscreenQuad.vert.spv"
       - "HDR.frag.spv"
     inputs:
       - HDR
-    output: Viewport
+    output: FXAA
     parameters:
       Gamma: 2.2
       Exposure: 5.0
+  PostprocessFXAA:
+    type: quad
+    shaders:
+      - "FullscreenQuad.vert.spv"
+      - "FXAA.frag.spv"
+    parameters:
+      activateFXAA: 1
+      showEdges: 0
+      lumaThreshold: 0.125
+      minLumaThreshold: 0.02
+      mulReduce: 0.125
+      minReduce: 0.0078125
+      maxSpan: 8.0
+      Global.displayWidth: 0
+      Global.displayHeight: 0
+    inputs:
+      - FXAA
+    output: Viewport

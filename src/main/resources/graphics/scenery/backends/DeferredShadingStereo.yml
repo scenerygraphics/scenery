@@ -27,9 +27,13 @@ rendertargets:
     HDRBuffer:
       size: 1.0, 1.0
       format: RGBA_Float32
-    HDRDepth:
+    Depth:
       size: 1.0, 1.0
       format: Depth32
+  FXAA:
+    FXAAOut:
+      size: 1.0, 1.0
+      format: RGBA_UInt8
 
 renderpasses:
   leftEye:
@@ -61,9 +65,11 @@ renderpasses:
     parameters:
       debugBuffers: 0
       activateSSAO: 1
-      reflectanceModel: 1
-      ssaoDistanceThreshold: 2.0
-      ssaoFilterRadius: 0.01, 0.03
+      reflectanceModel: 0
+      ssaoDistanceThreshold: 8.0
+      ssaoRadius: 4.0
+      Global.displayWidth: 0
+      Global.displayHeight: 0
   ForwardShadingLeft:
       type: geometry
       renderTransparent: true
@@ -99,7 +105,25 @@ renderpasses:
       - "HDR.frag.spv"
     inputs:
       - HDR
-    output: Viewport
+    output: FXAA
     parameters:
       Gamma: 2.2
       Exposure: 25.0
+  PostprocessFXAA:
+    type: quad
+    shaders:
+      - "FullscreenQuad.vert.spv"
+      - "FXAA.frag.spv"
+    parameters:
+      activateFXAA: 1
+      showEdges: 0
+      lumaThreshold: 0.5
+      minLumaThreshold: 0.02
+      mulReduce: 0.125
+      minReduce: 0.0078125
+      maxSpan: 8.0
+      Global.displayWidth: 0
+      Global.displayHeight: 0
+    inputs:
+      - FXAA
+    output: Viewport

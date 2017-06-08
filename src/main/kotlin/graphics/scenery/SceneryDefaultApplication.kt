@@ -116,6 +116,7 @@ open class SceneryDefaultApplication(var applicationName: String,
 
         if(wantREPL) {
             repl = REPL(scene, stats, hub)
+            repl?.addAccessibleObject(settings)
         }
 
         // initialize renderer, etc first in init, then setup key bindings

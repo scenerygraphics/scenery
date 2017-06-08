@@ -47,6 +47,7 @@ var scene = ObjectLocator("Scene");
 var renderer = ObjectLocator("Renderer");
 var stats = ObjectLocator("Statistics");
 var hub = ObjectLocator("Hub");
+var settings = ObjectLocator("Settings");
 
 // and say hello :-)
 print("\n\n");
