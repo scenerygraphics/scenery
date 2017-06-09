@@ -38,9 +38,9 @@ void main()
 	mat4 projectionMatrix;
 
     mat4 headToEye = vrParameters.headShift;
-	headToEye[3][0] += currentEye.eye * vrParameters.IPD;
+	headToEye[3][0] -= currentEye.eye * vrParameters.IPD;
 
-    mv = (vrParameters.stereoEnabled ^ 1) * ubo.ViewMatrix * ubo.ModelMatrix + (vrParameters.stereoEnabled * ubo.ViewMatrix * (ubo.ModelMatrix * headToEye));
+    mv = (vrParameters.stereoEnabled ^ 1) * ubo.ViewMatrix * ubo.ModelMatrix + (vrParameters.stereoEnabled * headToEye * ubo.ViewMatrix * ubo.ModelMatrix);
 	projectionMatrix = (vrParameters.stereoEnabled ^ 1) * ubo.ProjectionMatrix + vrParameters.stereoEnabled * vrParameters.projectionMatrices[currentEye.eye];
 
 	if(ubo.isBillboard > 0) {

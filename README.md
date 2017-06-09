@@ -4,6 +4,11 @@
 
 # scenery  // flexible scenegraphing and rendering for scientific visualisation
 
+---
+Hello, this is the master branch, where development happens and stuff breaks. If you require a stable version of scenery, please check out the [latest stable version of this repository](https://github.com/scenerygraphics/scenery/tree/scenery-0.1.0).
+
+---
+
 ![Blood Cells Example](https://ulrik.is/scenery-bloodcells.gif)
 
 ## Synopsis

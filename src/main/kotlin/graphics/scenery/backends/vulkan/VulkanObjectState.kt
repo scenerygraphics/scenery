@@ -1,24 +1,30 @@
 package graphics.scenery.backends.vulkan
 
+import cleargl.GLMatrix
+import cleargl.GLVector
+import graphics.scenery.Node
 import org.lwjgl.system.MemoryUtil.*
-import org.lwjgl.system.NativeResource
 import org.lwjgl.vulkan.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import graphics.scenery.NodeMetadata
+import graphics.scenery.ShaderProperty
+import java.lang.reflect.Field
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Created by ulrik on 9/27/2016.
+ * Vulkan Object State class. Saves texture, UBO, pipeline and vertex buffer state.
+ *
+ * @author Ulrik Günther <hello@ulrik.is>
  */
-class VulkanObjectState : NodeMetadata {
+open class VulkanObjectState : NodeMetadata {
     protected var logger: Logger = LoggerFactory.getLogger("VulkanRenderer")
     override val consumers: MutableList<String> = ArrayList()
 
     var initialized = false
     var isIndexed = false
-    var indexOffset = 0
+    var indexOffset = 0L
     var indexCount = 0
     var vertexCount = 0
     var instanceCount = 1
@@ -33,16 +39,16 @@ class VulkanObjectState : NodeMetadata {
 
     var defaultTexturesFor = HashSet<String>()
 
-    var requiredDescriptorSets = ArrayList<String>()
+    var requiredDescriptorSets = HashMap<String, Long>()
 
     var vertexInputType = VulkanRenderer.VertexDataKinds.coords_normals_texcoords
     var vertexDescription: VulkanRenderer.VertexDescription? = null
 
-    constructor() {
+    var textureDescriptorSet: Long = -1L
+
+    init {
         consumers.add("VulkanRenderer")
     }
-
-    var textureDescriptorSet: Long = -1L
 
     fun texturesToDescriptorSet(device: VkDevice, descriptorSetLayout: Long, descriptorPool: Long, targetBinding: Int = 0): Long {
         val pDescriptorSetLayout = memAllocLong(1)
@@ -72,7 +78,7 @@ class VulkanObjectState : NodeMetadata {
                 .sType(VK10.VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET)
                 .pNext(NULL)
                 .dstSet(descriptorSet)
-                .dstBinding(targetBinding)
+                .dstBinding(if(type.contains("3D")) { targetBinding+1 } else { targetBinding })
                 .dstArrayElement(textureTypeToSlot(type))
                 .pImageInfo(d[i])
                 .descriptorType(VK10.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
@@ -100,6 +106,7 @@ class VulkanObjectState : NodeMetadata {
                 "normal" -> 3
                 "alphamask" -> 4
                 "displacement" -> 5
+                "3D-volume" -> 0
                 else -> { logger.warn("Unknown texture type: $type"); 0 }
             }
         }

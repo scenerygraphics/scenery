@@ -17,9 +17,9 @@ class Sphere(radius: Float, segments: Int) : Node("sphere"), HasGeometry {
     /** Segment count in latitude and longitude. */
     var segments: Int
 
-    override val vertexSize = 3;
-    override val texcoordSize = 2;
-    override val geometryType = GeometryType.TRIANGLE_STRIP;
+    override val vertexSize = 3
+    override val texcoordSize = 2
+    override var geometryType = GeometryType.TRIANGLE_STRIP
 
     override var vertices: FloatBuffer = BufferUtils.allocateFloat(0)
     override var normals: FloatBuffer = BufferUtils.allocateFloat(0)

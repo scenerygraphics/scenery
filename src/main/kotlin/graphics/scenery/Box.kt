@@ -3,6 +3,7 @@ package graphics.scenery
 import cleargl.GLVector
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
+import kotlin.jvm.JvmOverloads
 
 /**
  * Constructs a Box [Node] with the dimensions given in [sizes]
@@ -10,7 +11,7 @@ import java.nio.IntBuffer
  * @author Ulrik Günther <hello@ulrik.is>
  * @property[sizes] The x/y/z sizes of the box
  */
-open class Box(val sizes: GLVector) : Mesh("box"), HasGeometry {
+open class Box(val sizes: GLVector = GLVector(1.0f, 1.0f, 1.0f), val insideNormals: Boolean = false) : Mesh("box"), HasGeometry {
     override var vertices: FloatBuffer = BufferUtils.allocateFloat(0)
     override var normals: FloatBuffer = BufferUtils.allocateFloat(0)
     override var texcoords: FloatBuffer = BufferUtils.allocateFloat(0)
@@ -65,37 +66,38 @@ open class Box(val sizes: GLVector) : Mesh("box"), HasGeometry {
             -sizes.x() * side2, side2*sizes.y(), -side2*sizes.z()
         ))
 
+        val flip: Float = if(insideNormals) { -1.0f } else { 1.0f }
         normals = BufferUtils.allocateFloatAndPut(floatArrayOf(
             // Front
-            0.0f, 0.0f, 1.0f,
-            0.0f, 0.0f, 1.0f,
-            0.0f, 0.0f, 1.0f,
-            0.0f, 0.0f, 1.0f,
+            0.0f, 0.0f, 1.0f*flip,
+            0.0f, 0.0f, 1.0f*flip,
+            0.0f, 0.0f, 1.0f*flip,
+            0.0f, 0.0f, 1.0f*flip,
             // Right
-            1.0f, 0.0f, 0.0f,
-            1.0f, 0.0f, 0.0f,
-            1.0f, 0.0f, 0.0f,
-            1.0f, 0.0f, 0.0f,
+            1.0f*flip, 0.0f, 0.0f,
+            1.0f*flip, 0.0f, 0.0f,
+            1.0f*flip, 0.0f, 0.0f,
+            1.0f*flip, 0.0f, 0.0f,
             // Back
-            0.0f, 0.0f, -1.0f,
-            0.0f, 0.0f, -1.0f,
-            0.0f, 0.0f, -1.0f,
-            0.0f, 0.0f, -1.0f,
+            0.0f, 0.0f, -1.0f*flip,
+            0.0f, 0.0f, -1.0f*flip,
+            0.0f, 0.0f, -1.0f*flip,
+            0.0f, 0.0f, -1.0f*flip,
             // Left
-            -1.0f, 0.0f, 0.0f,
-            -1.0f, 0.0f, 0.0f,
-            -1.0f, 0.0f, 0.0f,
-            -1.0f, 0.0f, 0.0f,
+            -1.0f*flip, 0.0f, 0.0f,
+            -1.0f*flip, 0.0f, 0.0f,
+            -1.0f*flip, 0.0f, 0.0f,
+            -1.0f*flip, 0.0f, 0.0f,
             // Bottom
-            0.0f, -1.0f, 0.0f,
-            0.0f, -1.0f, 0.0f,
-            0.0f, -1.0f, 0.0f,
-            0.0f, -1.0f, 0.0f,
+            0.0f, -1.0f*flip, 0.0f,
+            0.0f, -1.0f*flip, 0.0f,
+            0.0f, -1.0f*flip, 0.0f,
+            0.0f, -1.0f*flip, 0.0f,
             // Top
-            0.0f, 1.0f, 0.0f,
-            0.0f, 1.0f, 0.0f,
-            0.0f, 1.0f, 0.0f,
-            0.0f, 1.0f, 0.0f
+            0.0f, 1.0f*flip, 0.0f,
+            0.0f, 1.0f*flip, 0.0f,
+            0.0f, 1.0f*flip, 0.0f,
+            0.0f, 1.0f*flip, 0.0f
         ))
 
         indices = BufferUtils.allocateIntAndPut(intArrayOf(

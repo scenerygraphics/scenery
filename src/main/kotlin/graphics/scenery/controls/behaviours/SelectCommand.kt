@@ -90,11 +90,8 @@ open class SelectCommand(private val name: String,
 
     // code adapted from zachamarz, http://gamedev.stackexchange.com/a/18459
     fun intersectAABB(node: Node, origin: GLVector, dir: GLVector): Pair<Boolean, Float> {
-        if (node.boundingBoxCoords == null) {
-            return false.to(Float.MAX_VALUE)
-        } else {
-            val bbmin = GLVector(node.boundingBoxCoords!![0], node.boundingBoxCoords!![2], node.boundingBoxCoords!![4], 1.0f)
-            val bbmax = GLVector(node.boundingBoxCoords!![1], node.boundingBoxCoords!![3], node.boundingBoxCoords!![5], 1.0f)
+            val bbmin = GLVector(node.boundingBoxCoords[0], node.boundingBoxCoords[2], node.boundingBoxCoords[4], 1.0f)
+            val bbmax = GLVector(node.boundingBoxCoords[1], node.boundingBoxCoords[3], node.boundingBoxCoords[5], 1.0f)
 
             val min = node.world.mult(bbmin)
             val max = node.world.mult(bbmax)
@@ -130,6 +127,5 @@ open class SelectCommand(private val name: String,
 
             // we have a match!
             return true.to(tmin)
-        }
     }
 }

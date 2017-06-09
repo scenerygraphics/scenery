@@ -8,15 +8,15 @@ import com.jogamp.opengl.GLAutoDrawable
 import com.jogamp.opengl.GLDrawable
 import com.jogamp.opengl.util.awt.AWTGLReadBufferUtil
 import graphics.scenery.*
+import graphics.scenery.backends.Display
 import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.backends.ShaderPreference
-import graphics.scenery.controls.HMDInput
+import graphics.scenery.controls.TrackerInput
 import graphics.scenery.fonts.SDFFontAtlas
 import graphics.scenery.utils.GPUStats
 import graphics.scenery.utils.NvidiaGPUStats
 import graphics.scenery.utils.Statistics
-import org.lwjgl.glfw.GLFW
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -160,16 +160,16 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
 
         logger.info("Initializing OpenGL Renderer...")
         this.hub = hub
-        this.settings = this.getDefaultRendererSettings()
+        this.settings = loadDefaultRendererSettings(hub.get(SceneryElement.Settings) as Settings)
         this.window.width = width
         this.window.height = height
 
         this.scene = scene
         this.applicationName = applicationName
 
-        val hmd = hub.getWorkingHMD()
-        if(settings.get("vr.Active") && hmd != null) {
-            this.window.width = hmd.getRenderTargetSize().x().toInt()*2
+        val hmd = hub.getWorkingHMDDisplay()
+        if (settings.get("vr.Active") && hmd != null) {
+            this.window.width = hmd.getRenderTargetSize().x().toInt() * 2
             this.window.height = hmd.getRenderTargetSize().y().toInt()
         }
 
@@ -196,26 +196,19 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
         val driverVersion = gl.glGetString(GL.GL_VERSION)
         logger.info("OpenGLRenderer: $width x $height on $driverString, $driverVersion")
 
-        if(driverVersion.toLowerCase().indexOf("nvidia") != -1 && System.getProperty("os.name").toLowerCase().indexOf("windows") != -1) {
+        if (driverVersion.toLowerCase().indexOf("nvidia") != -1 && System.getProperty("os.name").toLowerCase().indexOf("windows") != -1) {
             gpuStats = NvidiaGPUStats()
         }
 
         val numExtensionsBuffer = IntBuffer.allocate(1)
         gl.glGetIntegerv(GL4.GL_NUM_EXTENSIONS, numExtensionsBuffer)
         val extensions = (0..numExtensionsBuffer[0] - 1).map { gl.glGetStringi(GL4.GL_EXTENSIONS, it) }
-        logger.info("Supported OpenGL extensions:\n${extensions.joinToString(", ")}")
 
         settings.set("ssao.FilterRadius", GLVector(5.0f / width, 5.0f / height))
 
         geometryBuffer = ArrayList<GLFramebuffer>()
         hdrBuffer = ArrayList<GLFramebuffer>()
         combinationBuffer = ArrayList<GLFramebuffer>()
-
-        // if vr.Active is set to true, we use two eyes for stereo render targets.
-        if (settings.get("vr.Active")) {
-            eyes = (0..1)
-            settings.set("vr.IPD", -0.5f)
-        }
 
         recreateFramebuffers()
 
@@ -242,7 +235,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
                 gpuStats?.let {
                     it.update(0)
 
-                    hub?.get(SceneryElement.STATISTICS).let { s ->
+                    hub?.get(SceneryElement.Statistics).let { s ->
                         val stats = s as Statistics
 
                         stats.add("GPU", it.get("GPU"), isTime = false)
@@ -250,7 +243,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
                         stats.add("GPU mem", it.get("AvailableDedicatedVideoMemory"), isTime = false)
                     }
 
-                    if(settings.get<Boolean>("OpenGLRenderer.PrintGPUStats")) {
+                    if (settings.get<Boolean>("OpenGLRenderer.PrintGPUStats")) {
                         logger.info(it.utilisationToString())
                         logger.info(it.memoryUtilisationToString())
                     }
@@ -262,6 +255,12 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
     }
 
     fun recreateFramebuffers() {
+
+        // if vr.Active is set to true, we use two eyes for stereo render targets.
+        if (settings.get("vr.Active")) {
+            eyes = (0..1)
+            settings.set("vr.IPD", -0.5f)
+        }
 
         geometryBuffer.map { it.destroy(this.gl) }
         hdrBuffer.map { it.destroy(this.gl) }
@@ -316,6 +315,16 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
         clearGLWindow.windowTitle = "$applicationName [${this.javaClass.simpleName}] - ${pDrawable.animator?.lastFPS} fps"
 
         this.joglDrawable = pDrawable
+
+        if (mustRecreateFramebuffers) {
+            recreateFramebuffers()
+
+            gl.glClear(GL.GL_DEPTH_BUFFER_BIT or GL.GL_COLOR_BUFFER_BIT)
+            gl.glViewport(0, 0, window.width, window.height)
+
+            mustRecreateFramebuffers = false
+        }
+
         this@OpenGLRenderer.render()
     }
 
@@ -354,17 +363,15 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
      *
      * @return Default [Settings] values
      */
-    protected fun getDefaultRendererSettings(): Settings {
-        val ds = Settings()
-
-        ds.set("OpenGLRenderer.PrintGPUStats", false)
+    protected fun loadDefaultRendererSettings(ds: Settings): Settings {
+        val base = OpenGLRenderer::class.java.simpleName
 
         ds.set("wantsFullscreen", false)
         ds.set("isFullscreen", false)
 
         ds.set("ssao.Active", true)
-        ds.set("ssao.FilterRadius", GLVector(0.05f, 0.05f))
-        ds.set("ssao.DistanceThreshold", 10.0f)
+        ds.set("ssao.FilterRadius", GLVector(0.0f, 0.0f))
+        ds.set("ssao.DistanceThreshold", 50.0f)
         ds.set("ssao.Algorithm", 1)
 
         ds.set("vr.Active", false)
@@ -373,12 +380,13 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
         ds.set("vr.EyeDivisor", 1)
 
         ds.set("hdr.Active", true)
-        ds.set("hdr.Exposure", 5.0f)
+        ds.set("hdr.Exposure", 10.0f)
         ds.set("hdr.Gamma", 2.2f)
 
         ds.set("sdf.MaxDistance", 10)
 
         ds.set("debug.DebugDeferredBuffers", false)
+        ds.set("$base.PrintGPUStats", false)
 
         return ds
     }
@@ -442,6 +450,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
      * Toggles deferred shading buffer debug view. Used for e.g.
      * [scenery.controls.behaviours.ToggleCommand].
      */
+    @Suppress("UNUSED")
     fun toggleDebug() {
         if (settings.get<Boolean>("debug.DebugDeferredBuffers") == false) {
             settings.set("debug.DebugDeferredBuffers", true)
@@ -454,6 +463,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
      * Toggles Screen-space ambient occlusion. Used for e.g.
      * [scenery.controls.behaviours.ToggleCommand].
      */
+    @Suppress("UNUSED")
     fun toggleSSAO() {
         if (settings.get<Boolean>("ssao.Active") == false) {
             settings.set("ssao.Active", true)
@@ -466,6 +476,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
      * Toggles HDR rendering. Used for e.g.
      * [scenery.controls.behaviours.ToggleCommand].
      */
+    @Suppress("UNUSED")
     fun toggleHDR() {
         if (settings.get<Boolean>("hdr.Active") == false) {
             settings.set("hdr.Active", true)
@@ -475,9 +486,24 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
     }
 
     /**
+     * Toggles VR on and off
+     */
+    @Suppress("UNUSED")
+    fun toggleVR() {
+        if(!settings.get<Boolean>("vr.Active")) {
+            settings.set("vr.Active", true)
+        } else {
+            settings.set("vr.Active", false)
+        }
+
+        mustRecreateFramebuffers = true
+    }
+
+    /**
      * Increases the HDR exposure value. Used for e.g.
      * [scenery.controls.behaviours.ToggleCommand].
      */
+    @Suppress("UNUSED")
     fun increaseExposure() {
         val exp: Float = settings.get<Float>("hdr.Exposure")
         settings.set("hdr.Exposure", exp + 0.05f)
@@ -487,6 +513,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
      * Decreases the HDR exposure value.Used for e.g.
      * [scenery.controls.behaviours.ToggleCommand].
      */
+    @Suppress("UNUSED")
     fun decreaseExposure() {
         val exp: Float = settings.get<Float>("hdr.Exposure")
         settings.set("hdr.Exposure", exp - 0.05f)
@@ -566,30 +593,25 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
         program.use(gl)
         program.getUniform("Material.Shininess").setFloat(0.001f)
 
-        if (n.material != null) {
-            program.getUniform("Material.Ka").setFloatVector(n.material!!.ambient)
-            program.getUniform("Material.Kd").setFloatVector(n.material!!.diffuse)
-            program.getUniform("Material.Ks").setFloatVector(n.material!!.specular)
+        program.getUniform("Material.Ka").setFloatVector(n.material.ambient)
+        program.getUniform("Material.Kd").setFloatVector(n.material.diffuse)
+        program.getUniform("Material.Ks").setFloatVector(n.material.specular)
 
-            if (n.material!!.doubleSided) {
-                gl.glDisable(GL.GL_CULL_FACE)
-            }
+        if (n.material.doubleSided) {
+            gl.glDisable(GL.GL_CULL_FACE)
+        }
 
-            if (n.material!!.transparent) {
-                gl.glEnable(GL.GL_BLEND)
-                gl.glBlendFunc(GL.GL_SRC_COLOR, GL.GL_ONE_MINUS_SRC_ALPHA)
-            } else {
-                gl.glDisable(GL.GL_BLEND)
-            }
+        if (n.material.transparent) {
+            gl.glEnable(GL.GL_BLEND)
+            gl.glBlendFunc(GL.GL_SRC_COLOR, GL.GL_ONE_MINUS_SRC_ALPHA)
         } else {
-            program.getUniform("Material.Ka").setFloatVector3(n.position.toFloatBuffer())
-            program.getUniform("Material.Kd").setFloatVector3(n.position.toFloatBuffer())
-            program.getUniform("Material.Ks").setFloatVector3(n.position.toFloatBuffer())
+            gl.glDisable(GL.GL_BLEND)
         }
 
         s.textures.forEach { type, glTexture ->
             val samplerIndex = geometryBuffer.first().textureTypeToUnit(type)
 
+            @Suppress("SENSELESS_COMPARISON")
             if (glTexture != null) {
                 gl.glActiveTexture(GL.GL_TEXTURE0 + samplerIndex)
                 gl.glBindTexture(GL.GL_TEXTURE_2D, glTexture.id)
@@ -677,7 +699,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
                     updateFontBoard(n)
                 }
 
-                if(n.vertices.remaining() > 0 && n.normals.remaining() > 0) {
+                if (n.vertices.remaining() > 0 && n.normals.remaining() > 0) {
                     updateVertices(n)
                     updateNormals(n)
                 }
@@ -767,31 +789,31 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
      */
     override fun render() {
         val startRender = System.nanoTime()
+        val vrActive = settings.get<Boolean>("vr.Active")
+
         if (scene.children.count() == 0 ||
             lightingPassProgram == null ||
             hdrPassProgram == null ||
             combinerProgram == null
-        ) {
+            ) {
             logger.info("Waiting for initialization")
             Thread.sleep(200)
             return
         }
 
-        if(mustRecreateFramebuffers) {
-            recreateFramebuffers()
-
-            gl.glClear(GL.GL_DEPTH_BUFFER_BIT or GL.GL_COLOR_BUFFER_BIT)
-            gl.glViewport(0, 0, window.width, window.height)
-
-            mustRecreateFramebuffers = false
-        }
-
         val renderOrderList = ArrayList<Node>()
         val cam: Camera = scene.findObserver()
 
-        val hmd: HMDInput? = if (hub!!.has(SceneryElement.HMDINPUT)
-            && (hub!!.get(SceneryElement.HMDINPUT) as HMDInput).initializedAndWorking()) {
-            hub!!.get(SceneryElement.HMDINPUT) as HMDInput
+        val hmd: Display? = if (hub!!.has(SceneryElement.HMDInput)
+            && (hub!!.get(SceneryElement.HMDInput) as Display).initializedAndWorking()) {
+            hub!!.get(SceneryElement.HMDInput) as Display
+        } else {
+            null
+        }
+
+        val tracker: TrackerInput? = if (hub!!.has(SceneryElement.HMDInput)
+            && (hub!!.get(SceneryElement.HMDInput) as TrackerInput).initializedAndWorking()) {
+            hub!!.get(SceneryElement.HMDInput) as TrackerInput
         } else {
             null
         }
@@ -810,7 +832,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
         gl.glEnable(GL.GL_DEPTH_TEST)
         gl.glViewport(0, 0, geometryBuffer.first().width, geometryBuffer.first().height)
 
-        eyes.forEachIndexed { i, eye ->
+        eyes.forEachIndexed { i, _ ->
             geometryBuffer[i].setDrawBuffers(gl)
             gl.glClear(GL.GL_COLOR_BUFFER_BIT or GL.GL_DEPTH_BUFFER_BIT)
         }
@@ -828,12 +850,12 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
             }
         }
 
-        val pose = hmd?.getPose() ?: GLMatrix.getIdentity()
+        val pose = tracker?.getPose() ?: GLMatrix.getIdentity()
         cam.view = cam.getTransformation()
 
         val projection = eyes.map { i ->
-            if(settings.get<Boolean>("vr.Active")) {
-                hmd?.getEyeProjection(i) ?: cam.projection
+            if (vrActive) {
+                hmd?.getEyeProjection(i, cam.nearPlaneDistance, cam.farPlaneDistance) ?: cam.projection
             } else {
                 cam.projection
             }
@@ -852,10 +874,8 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
             val s = getOpenGLObjectStateFromNode(n)
             n.updateWorld(true, false)
 
-            if (n.material != null) {
-                if (n.material?.needsTextureReload!!) {
-                    n.material?.needsTextureReload = !loadTexturesForNode(n, s)
-                }
+            if (n.material.needsTextureReload) {
+                n.material.needsTextureReload = !loadTexturesForNode(n, s)
             }
 
             if (n is Skybox) {
@@ -864,6 +884,8 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
             }
 
             eyes.forEach { eye ->
+                n.projection.copyFrom(projection[eye])
+                n.view.copyFrom(cam.view)
 
                 n.modelView.copyFrom(headToEye[eye])
                 n.modelView.mult(pose)
@@ -926,7 +948,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
                 modelviews.clear()
                 modelviewprojs.clear()
 
-                instances.forEachIndexed { i, node ->
+                instances.forEach { node ->
                     node.modelView.copyFrom(headToEye[eye])
                     node.modelView.mult(pose)
                     node.modelView.mult(cam.view)
@@ -935,11 +957,13 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
                     node.mvp.copyFrom(projection[eye])
                     node.mvp.mult(node.modelView)
 
+                    node.projection.copyFrom(projection[eye])
+                    node.view.copyFrom(cam.view)
+
                     models.addAll(node.world.floatArray.asSequence())
                     modelviews.addAll(node.modelView.floatArray.asSequence())
                     modelviewprojs.addAll(node.mvp.floatArray.asSequence())
                 }
-
 
                 logger.trace("${n.name} instancing: Collected ${modelviewprojs.size / matrixSize} MVPs in ${(System.nanoTime() - start) / 10e6}ms")
 
@@ -976,7 +1000,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
 
         val lights = scene.discover(scene, { it is PointLight })
 
-        eyes.forEachIndexed { i, eye ->
+        eyes.forEachIndexed { i, _ ->
             lightingPassProgram!!.bind()
 
             lightingPassProgram!!.getUniform("numLights").setInt(lights.size)
@@ -1059,7 +1083,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
         gl.glViewport(0, 0, window.width, window.height)
         gl.glScissor(0, 0, window.width, window.height)
 
-        if (settings.get<Boolean>("vr.Active")) {
+        if (vrActive) {
             if (settings.get<Boolean>("vr.DoAnaglyph")) {
                 combinerProgram!!.getUniform("vrActive").setInt(0)
                 combinerProgram!!.getUniform("anaglyphActive").setInt(1)
@@ -1102,8 +1126,6 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
         }
 
         val renderDuration = System.nanoTime() - startRender
-
-        cam.deltaT = renderDuration/10E6f
     }
 
     /**
@@ -1211,7 +1233,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
         gl.glGenBuffers(3, s.mVertexBuffers, 0)
         gl.glGenBuffers(1, s.mIndexBuffer, 0)
 
-        if (node.material == null || node.material !is OpenGLMaterial || (node.material as OpenGLMaterial).program == null) {
+        if (node.material !is OpenGLMaterial || (node.material as OpenGLMaterial).program == null) {
             if (node.useClassDerivedShader) {
                 val javaClass = node.javaClass.simpleName
                 val className = javaClass.substring(javaClass.indexOf(".") + 1)
@@ -1300,12 +1322,12 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
      */
     protected fun loadTexturesForNode(node: Node, s: OpenGLObjectState): Boolean {
         if (node.lock.tryLock()) {
-            node.material?.textures?.forEach {
+            node.material.textures.forEach {
                 type, texture ->
-                if (!textures.containsKey(texture) || node.material?.needsTextureReload!!) {
+                if (!textures.containsKey(texture) || node.material.needsTextureReload) {
                     logger.trace("Loading texture $texture for ${node.name}")
                     val glTexture = if (texture.startsWith("fromBuffer:")) {
-                        val gt = node.material!!.transferTextures[texture.substringAfter("fromBuffer:")]
+                        val gt = node.material.transferTextures[texture.substringAfter("fromBuffer:")]
 
                         val t = GLTexture(gl, gt!!.type, gt.channels,
                             gt.dimensions.x().toInt(),

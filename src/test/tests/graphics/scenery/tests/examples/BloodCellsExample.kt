@@ -5,7 +5,7 @@ import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.ShaderPreference
-import graphics.scenery.controls.OpenVRHMDInput
+import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.utils.Numerics
 import org.junit.Test
 import java.io.IOException
@@ -17,15 +17,15 @@ import java.util.*
 * @author Ulrik Günther <hello@ulrik.is>
 */
 class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowWidth = 1280, windowHeight = 720) {
-    private var ovr: OpenVRHMDInput? = null
+    private var ovr: OpenVRHMD? = null
 
     override fun init() {
         try {
-            ovr = OpenVRHMDInput(seated = false, useCompositor = true)
-            hub.add(SceneryElement.HMDINPUT, ovr!!)
+            ovr = OpenVRHMD(seated = false, useCompositor = true)
+            hub.add(SceneryElement.HMDInput, ovr!!)
 
             renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
-            hub.add(SceneryElement.RENDERER, renderer!!)
+            hub.add(SceneryElement.Renderer, renderer!!)
 
             val cam: Camera = DetachedHeadCamera()
             cam.position = GLVector(0.0f, 20.0f, -20.0f)

@@ -16,10 +16,24 @@ rendertargets:
     ZBuffer:
       size: 1.0, 1.0
       format: Depth32
+  DeferredForward:
+    Output:
+      size: 1.0, 1.0
+      format: RGBA_Float32
+    OutputDepth:
+      size: 1.0, 1.0
+      format: Depth32
   HDR:
     HDRBuffer:
       size: 1.0, 1.0
       format: RGBA_Float32
+    Depth:
+      size: 1.0, 1.0
+      format: Depth32
+  FXAA:
+    FXAAOut:
+      size: 1.0, 1.0
+      format: RGBA_UInt8
 
 renderpasses:
   leftEye:
@@ -47,13 +61,43 @@ renderpasses:
       - "DeferredLighting.frag.spv"
     inputs:
       - GeometryBuffer
-    output: HDR
+    output: DeferredForward
     parameters:
       debugBuffers: 0
       activateSSAO: 1
-      reflectanceModel: 1
-      ssaoDistanceThreshold: 20.0
-      ssaoFilterRadius: 0.05, 0.05
+      reflectanceModel: 0
+      ssaoDistanceThreshold: 8.0
+      ssaoRadius: 4.0
+      Global.displayWidth: 0
+      Global.displayHeight: 0
+  ForwardShadingLeft:
+      type: geometry
+      renderTransparent: true
+      renderOpaque: false
+      blitInputs: true
+      shaders:
+        - "DefaultForward.vert.spv"
+        - "DefaultForward.frag.spv"
+      inputs:
+        - DeferredForward
+      output: HDR
+      viewportSize: 0.5, 1.0
+      viewportOffset: 0.0, 0.0
+      eye: LeftEye
+  ForwardShadingRight:
+      type: geometry
+      renderTransparent: true
+      renderOpaque: false
+      blitInputs: true
+      shaders:
+        - "DefaultForward.vert.spv"
+        - "DefaultForward.frag.spv"
+      inputs:
+        - DeferredForward
+      output: HDR
+      viewportSize: 0.5, 1.0
+      viewportOffset: 0.5, 0.0
+      eye: RightEye
   PostprocessHDR:
     type: quad
     shaders:
@@ -61,7 +105,25 @@ renderpasses:
       - "HDR.frag.spv"
     inputs:
       - HDR
-    output: Viewport
+    output: FXAA
     parameters:
-      Gamma: 1.7
-      Exposure: 1.5
+      Gamma: 2.2
+      Exposure: 25.0
+  PostprocessFXAA:
+    type: quad
+    shaders:
+      - "FullscreenQuad.vert.spv"
+      - "FXAA.frag.spv"
+    parameters:
+      activateFXAA: 1
+      showEdges: 0
+      lumaThreshold: 0.5
+      minLumaThreshold: 0.02
+      mulReduce: 0.125
+      minReduce: 0.0078125
+      maxSpan: 8.0
+      Global.displayWidth: 0
+      Global.displayHeight: 0
+    inputs:
+      - FXAA
+    output: Viewport

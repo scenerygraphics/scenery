@@ -14,7 +14,7 @@ import graphics.scenery.Camera
 class MovementCommand(private val name: String, private val direction: String, private val cam: Camera) : ClickBehaviour {
 
     /** Movement speed multiplier */
-    private var speed = 0.1f
+    private var speed = 0.01f
 
     /**
      * Additional constructor to directly adjust movement speed.

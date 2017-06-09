@@ -1,5 +1,6 @@
 package graphics.scenery.backends.vulkan
 
+import cleargl.GLMatrix
 import cleargl.GLVector
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.vulkan.*
@@ -7,19 +8,24 @@ import org.lwjgl.vulkan.VK10.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import graphics.scenery.GeometryType
+import graphics.scenery.Node
 import graphics.scenery.Settings
+import graphics.scenery.ShaderProperty
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.utils.RingBuffer
 import org.lwjgl.system.MemoryUtil.*
+import java.lang.reflect.Field
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Created by ulrik on 11/9/2016.
+ * Class to encapsulate Vulkan Renderpasses
+ *
+ * @author Ulrik Günther <hello@ulrik.is>
  */
-class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderConfig,
+open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderConfig,
                        val device: VkDevice,
                        val descriptorPool: Long,
                        val pipelineCache: Long,
@@ -45,12 +51,12 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
             commandBufferBacking.put(b)
         }
 
-    private var commandBufferBacking = RingBuffer<VulkanCommandBuffer>(size = 2,
+    private var commandBufferBacking = RingBuffer(size = 2,
         default = { VulkanCommandBuffer(device, null, true) })
 
     var semaphore = -1L
 
-    var passConfig: RenderConfigReader.RenderpassConfig
+    var passConfig: RenderConfigReader.RenderpassConfig = config.renderpasses.get(name)!!
 
     var isViewportRenderpass = false
     var commandBufferCount = 2
@@ -62,13 +68,13 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
             this.isViewportRenderpass = true
             field = count
 
-            commandBufferBacking = RingBuffer<VulkanCommandBuffer>(size = count,
+            commandBufferBacking = RingBuffer(size = count,
                 default = { VulkanCommandBuffer(device, null, true) })
         }
 
     private var currentPosition = 0
 
-    class VulkanMetadata(var descriptorSets: LongBuffer = memAllocLong(3),
+    class VulkanMetadata(var descriptorSets: LongBuffer = memAllocLong(4),
                               var vertexBufferOffsets: LongBuffer = memAllocLong(1),
                               var scissor: VkRect2D.Buffer = VkRect2D.calloc(1),
                               var viewport: VkViewport.Buffer = VkViewport.calloc(1),
@@ -99,7 +105,6 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
     var vulkanMetadata = VulkanMetadata()
 
     init {
-        passConfig = config.renderpasses.get(name)!!
 
         val default = VU.createDescriptorSetLayout(device,
             descriptorNum = 3,
@@ -116,7 +121,8 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
 
         val dslObjectTextures = VU.createDescriptorSetLayout(
             device,
-            listOf(Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 6)),
+            listOf(Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 6),
+                Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1)),
             VK_SHADER_STAGE_ALL_GRAPHICS)
 
         descriptorSetLayouts.put("ObjectTextures", dslObjectTextures)
@@ -127,10 +133,6 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
             VK_SHADER_STAGE_ALL_GRAPHICS)
 
         descriptorSetLayouts.put("VRParameters", dslVRParameters)
-    }
-
-    fun initializePipeline(device: VkDevice, descriptorPool: Long, pipelineCache: Long) {
-
     }
 
     fun initializeInputAttachmentDescriptorSetLayouts() {
@@ -157,8 +159,10 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
             // create UBO
             val ubo = UBO(device)
 
-            ubo.name = "ShaderParameters-${name}"
+            ubo.name = "ShaderParameters-$name"
             params.forEach { entry ->
+                // Entry could be created in Java, so we check for both Java and Kotlin strings
+                @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
                 val value = if (entry.value is String || entry.value is java.lang.String) {
                     val s = entry.value as String
                     GLVector(*(s.split(",").map { it.trim().trimStart().toFloat() }.toFloatArray()))
@@ -168,8 +172,16 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
                     entry.value
                 }
 
-                val settingsKey = "VulkanRenderer.$name.${entry.key}"
-                settings.set(settingsKey, value)
+                val settingsKey = if(entry.key.startsWith("Global")) {
+                    "Renderer.${entry.key.substringAfter("Global.")}"
+                } else {
+                    "Renderer.$name.${entry.key}"
+                }
+
+                if(!entry.key.startsWith("Global")) {
+                    settings.set(settingsKey, value)
+                }
+
                 ubo.members.put(entry.key, { settings.get(settingsKey) })
             }
 
@@ -183,7 +195,7 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
                 VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, 1)
 
             val ds = VU.createDescriptorSet(device, descriptorPool, dsl,
-                1, ubo.descriptor!!, type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+            1, ubo.descriptor!!, type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
 
             // populate descriptor set
             ubo.populate()
@@ -192,8 +204,46 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
             descriptorSets.put("ShaderParameters-$name", ds)
 
             logger.debug("Created DSL $dsl for $name, UBO has ${params.count()} members")
-            descriptorSetLayouts.putIfAbsent("ShaderParameters-${name}", dsl)
+            descriptorSetLayouts.putIfAbsent("ShaderParameters-$name", dsl)
         }
+    }
+
+    fun initializeShaderPropertyDescriptorSetLayout(): Long {
+        // this creates a shader property UBO for items marked @ShaderProperty in node
+        val alreadyCreated = descriptorSetLayouts.containsKey("ShaderProperties-$name")
+
+        val dsl = if(!alreadyCreated) {
+            // create descriptor set layout
+            val dsl = VU.createDescriptorSetLayout(
+                device,
+                listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1)),
+                VK_SHADER_STAGE_ALL_GRAPHICS)
+
+            logger.debug("Created Shader Property DSL $dsl for $name")
+            descriptorSetLayouts.putIfAbsent("ShaderProperties-$name", dsl)
+            dsl
+        } else {
+            descriptorSetLayouts.get("ShaderProperties-$name")!!
+        }
+
+        // returns a ordered list of the members of the ShaderProperties struct
+        return dsl
+    }
+
+    fun getShaderPropertyOrder(node: Node): List<String> {
+        // this creates a shader property UBO for items marked @ShaderProperty in node
+        logger.debug("specs: ${this.pipelines["preferred-${node.name}"]!!.descriptorSpecs}")
+        val shaderPropertiesSpec = this.pipelines["preferred-${node.name}"]!!.descriptorSpecs.filter { it.name == "ShaderProperties" }
+
+        if(shaderPropertiesSpec.count() == 0) {
+            logger.error("Shader uses no declared shader properties!")
+            return emptyList()
+        }
+
+        val specs = shaderPropertiesSpec.map { it.members }.flatMap { it.keys }
+
+        // returns a ordered list of the members of the ShaderProperties struct
+        return specs.toList()
     }
 
     fun updateShaderParameters() {
@@ -204,8 +254,16 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
         }
     }
 
+    fun updateShaderProperties() {
+        UBOs.forEach { uboName, ubo ->
+            if(uboName.startsWith("ShaderProperties-")) {
+                ubo.populate()
+            }
+        }
+    }
+
     fun initializeDefaultPipeline() {
-        initializePipeline("default", passConfig.shaders.map { VulkanShaderModule(device, "main", "shaders/" + it) })
+        initializePipeline("default", passConfig.shaders.map { VulkanShaderModule(device, "main", VulkanRenderer::class.java, "shaders/" + it) })
     }
 
     fun initializePipeline(pipelineName: String = "default", shaders: List<VulkanShaderModule>,
@@ -224,9 +282,21 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
 
         val blendMasks = VkPipelineColorBlendAttachmentState.calloc(framebuffer.colorAttachmentCount())
         (0..framebuffer.colorAttachmentCount() - 1).forEach {
-            blendMasks[it]
-                .blendEnable(false)
-                .colorWriteMask(0xF)
+            if(passConfig.renderTransparent) {
+                blendMasks[it]
+                    .blendEnable(true)
+                    .colorBlendOp(passConfig.colorBlendOp.toVulkan())
+                    .srcColorBlendFactor(passConfig.srcColorBlendFactor.toVulkan())
+                    .dstColorBlendFactor(passConfig.dstColorBlendFactor.toVulkan())
+                    .alphaBlendOp(passConfig.alphaBlendOp.toVulkan())
+                    .srcAlphaBlendFactor(passConfig.srcAlphaBlendFactor.toVulkan())
+                    .dstAlphaBlendFactor(passConfig.dstAlphaBlendFactor.toVulkan())
+                    .colorWriteMask(VK_COLOR_COMPONENT_R_BIT or VK_COLOR_COMPONENT_G_BIT or VK_COLOR_COMPONENT_B_BIT or VK_COLOR_COMPONENT_A_BIT)
+            } else {
+                blendMasks[it]
+                    .blendEnable(false)
+                    .colorWriteMask(0xF)
+            }
         }
 
         p.colorBlendState
@@ -273,12 +343,20 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
             reqDescriptorLayouts.add(descriptorSetLayouts.get("ObjectTextures")!!)
             reqDescriptorLayouts.add(descriptorSetLayouts.get("VRParameters")!!)
 
+            if(descriptorSetLayouts.containsKey("ShaderProperties-$name")) {
+                logger.debug("Adding shader property DSL")
+                 reqDescriptorLayouts.add(descriptorSetLayouts["ShaderProperties-$name"]!!)
+            }
+//            if(descriptorSetLayouts.containsKey("inputs-$name")) {
+//                reqDescriptorLayouts.add(descriptorSetLayouts.get("inputs-$name")!!)
+//            }
+//
             p.createPipelines(framebuffer.renderPass.get(0),
                 vertexInputType.state,
                 descriptorSetLayouts = reqDescriptorLayouts)
         }
 
-        logger.debug("Prepared pipeline $pipelineName for ${name}")
+        logger.debug("Prepared pipeline $pipelineName for $name")
 
         pipelines.put(pipelineName, p)
     }
@@ -286,7 +364,7 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
     fun getOutput(): VulkanFramebuffer {
         val fb = if(isViewportRenderpass) {
             val pos = currentPosition
-            currentPosition = (currentPosition + 1) % commandBufferCount
+            currentPosition = (currentPosition + 1).rem(commandBufferCount)
 
             output["Viewport-$pos"]!!
         } else {
@@ -296,17 +374,7 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
         return fb
     }
 
-    fun nextSwapchainImage() {
-        if(!isViewportRenderpass) {
-            logger.error("Renderpass $name is not a viewport renderpass!")
-        } else {
-//            readPos = (readPos + 1) % commandBufferCount
-        }
-    }
-
-    fun getReadPosition() = commandBufferBacking.currentReadPosition % (commandBufferCount/2)
-
-    fun getWritePosition() = commandBufferBacking.currentWritePosition % (commandBufferCount/2)
+    fun getReadPosition() = commandBufferBacking.currentReadPosition - 1
 
     override fun close() {
         output.forEach { it.value.close() }
@@ -322,5 +390,20 @@ class VulkanRenderpass(val name: String, val config: RenderConfigReader.RenderCo
         if(semaphore != -1L) {
             vkDestroySemaphore(device, semaphore, null)
         }
+    }
+
+    private fun RenderConfigReader.BlendFactor.toVulkan() = when (this) {
+        RenderConfigReader.BlendFactor.Zero -> VK_BLEND_FACTOR_ZERO
+        RenderConfigReader.BlendFactor.One -> VK_BLEND_FACTOR_ONE
+        RenderConfigReader.BlendFactor.OneMinusSrcAlpha -> VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA
+        RenderConfigReader.BlendFactor.SrcAlpha -> VK_BLEND_FACTOR_SRC_ALPHA
+    }
+
+    private fun RenderConfigReader.BlendOp.toVulkan() = when (this) {
+        RenderConfigReader.BlendOp.add -> VK_BLEND_OP_ADD
+        RenderConfigReader.BlendOp.subtract -> VK_BLEND_OP_SUBTRACT
+        RenderConfigReader.BlendOp.min -> VK_BLEND_OP_MIN
+        RenderConfigReader.BlendOp.max -> VK_BLEND_OP_MAX
+        RenderConfigReader.BlendOp.reverse_subtract -> VK_BLEND_OP_REVERSE_SUBTRACT
     }
 }

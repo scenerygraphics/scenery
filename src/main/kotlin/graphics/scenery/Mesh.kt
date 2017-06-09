@@ -11,13 +11,13 @@ import java.nio.IntBuffer
  */
 open class Mesh(override var name: String = "Mesh") : Node(name), HasGeometry {
     /** Vertex storage array. Also see [HasGeometry] */
-    override var vertices: FloatBuffer = BufferUtils.allocateFloat(0)
+    @Transient override var vertices: FloatBuffer = BufferUtils.allocateFloat(0)
     /** Normal storage array. Also see [HasGeometry] */
-    override var normals: FloatBuffer = BufferUtils.allocateFloat(0)
+    @Transient override var normals: FloatBuffer = BufferUtils.allocateFloat(0)
     /** Texcoord storage array. Also see [HasGeometry] */
-    override var texcoords: FloatBuffer = BufferUtils.allocateFloat(0)
+    @Transient override var texcoords: FloatBuffer = BufferUtils.allocateFloat(0)
     /** Index storage array. Also see [HasGeometry] */
-    override var indices: IntBuffer = BufferUtils.allocateInt(0)
+    @Transient override var indices: IntBuffer = BufferUtils.allocateInt(0)
 
     /** Vertex element size. Also see [HasGeometry] */
     override var vertexSize = 3;

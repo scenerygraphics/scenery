@@ -14,7 +14,7 @@ import kotlin.concurrent.thread
 class FontRenderingExample: SceneryDefaultApplication("FontRenderingExample") {
     override fun init() {
         renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
-        hub.add(SceneryElement.RENDERER, renderer!!)
+        hub.add(SceneryElement.Renderer, renderer!!)
 
         var lights = (0..5).map {
             PointLight()
@@ -23,7 +23,9 @@ class FontRenderingExample: SceneryDefaultApplication("FontRenderingExample") {
         lights.mapIndexed { i, light ->
             light.position = GLVector(5.0f + i*2.0f, 5.0f, 5.0f)
             light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
-            light.intensity = 100.0f
+            light.intensity = 1000.0f
+            light.quadratic = 0.001f
+            light.linear = 0.0f
             scene.addChild(light)
         }
 

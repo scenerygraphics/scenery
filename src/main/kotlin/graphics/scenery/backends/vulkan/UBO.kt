@@ -18,7 +18,7 @@ open class UBO(val device: VkDevice, var backingBuffer: VulkanBuffer? = null): A
     var name = ""
     var members = LinkedHashMap<String, () -> Any>()
     var descriptor: UBODescriptor? = null
-    var offsets: IntBuffer? = null
+    var offsets: IntBuffer = memAllocInt(3)
     var logger = LoggerFactory.getLogger("VulkanRenderer")
     var requiredOffsetCount = 0
 
@@ -91,7 +91,7 @@ open class UBO(val device: VkDevice, var backingBuffer: VulkanBuffer? = null): A
             }.fold(0) { current_position, element ->
                 // next element should start at the position
                 // required by it's alignment
-                val remainder = current_position % element.second
+                val remainder = current_position.rem(element.second)
 
                 val new_position = if (remainder != 0) {
                     current_position + element.second - remainder + element.first
@@ -131,8 +131,8 @@ open class UBO(val device: VkDevice, var backingBuffer: VulkanBuffer? = null): A
             val value = it.value.invoke()
             val (size, alignment) = getSizeAndAlignment(value)
 
-            if(pos % alignment != 0) {
-                pos = pos + alignment - (pos % alignment)
+            if(pos.rem(alignment) != 0) {
+                pos = pos + alignment - (pos.rem(alignment))
                 data.position(pos)
             }
 

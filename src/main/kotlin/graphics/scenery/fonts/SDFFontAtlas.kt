@@ -242,7 +242,7 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
         var basex = 0.0f
         var basei = 0
 
-        text.toCharArray().forEachIndexed { index, char ->
+        text.toCharArray().forEachIndexed { _, char ->
             val glyphWidth = fontMap[char]!!.first
 
             vertices.addAll(listOf(

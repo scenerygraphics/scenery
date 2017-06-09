@@ -5,10 +5,9 @@ layout (location = 1) out vec3 gNormal;
 layout (location = 2) out vec4 gAlbedoSpec;
 
 in VertexData {
-    vec3 Position;
+    vec3 FragPosition;
     vec3 Normal;
     vec2 TexCoord;
-    vec3 FragPosition;
     vec4 Color;
 } VertexIn;
 

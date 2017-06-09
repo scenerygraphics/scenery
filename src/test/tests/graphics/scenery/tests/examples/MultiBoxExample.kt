@@ -17,7 +17,7 @@ class MultiBoxExample : SceneryDefaultApplication("MultiBoxExample") {
     override fun init() {
         try {
             renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
-            hub.add(SceneryElement.RENDERER, renderer!!)
+            hub.add(SceneryElement.Renderer, renderer!!)
 
             val cam: Camera = DetachedHeadCamera()
 

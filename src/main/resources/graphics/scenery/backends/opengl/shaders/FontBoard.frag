@@ -6,10 +6,9 @@ layout (location = 2) out vec4 gAlbedoSpec;
 //layout (location = 3) out vec3 gTangent;
 
 in VertexData {
-    vec3 Position;
+    vec3 FragPosition;
     vec3 Normal;
     vec2 TexCoord;
-    vec3 FragPosition;
     vec4 Color;
 } VertexIn;
 

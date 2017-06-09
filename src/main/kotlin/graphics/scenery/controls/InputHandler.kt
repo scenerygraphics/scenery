@@ -83,7 +83,7 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
         this.scene = scene
         this.renderer = renderer
         this.hub = hub
-        hub?.add(SceneryElement.INPUT, this)
+        hub?.add(SceneryElement.Input, this)
     }
 
     /**
@@ -176,12 +176,12 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
         behaviourMap.put("move_up", MovementCommand("move_up", "up", scene.findObserver()))
         behaviourMap.put("move_down", MovementCommand("move_down", "down", scene.findObserver()))
 
-        behaviourMap.put("move_forward_fast", MovementCommand("move_forward", "forward", scene.findObserver(), 1.0f))
-        behaviourMap.put("move_back_fast", MovementCommand("move_back", "back", scene.findObserver(), 1.0f))
-        behaviourMap.put("move_left_fast", MovementCommand("move_left", "left", scene.findObserver(), 1.0f))
-        behaviourMap.put("move_right_fast", MovementCommand("move_right", "right", scene.findObserver(), 1.0f))
-        behaviourMap.put("move_up_fast", MovementCommand("move_up", "up", scene.findObserver(), 1.0f))
-        behaviourMap.put("move_down_fast", MovementCommand("move_down", "down", scene.findObserver(), 1.0f))
+        behaviourMap.put("move_forward_fast", MovementCommand("move_forward", "forward", scene.findObserver(), 0.2f))
+        behaviourMap.put("move_back_fast", MovementCommand("move_back", "back", scene.findObserver(), 0.2f))
+        behaviourMap.put("move_left_fast", MovementCommand("move_left", "left", scene.findObserver(), 0.2f))
+        behaviourMap.put("move_right_fast", MovementCommand("move_right", "right", scene.findObserver(), 0.2f))
+        behaviourMap.put("move_up_fast", MovementCommand("move_up", "up", scene.findObserver(), 0.2f))
+        behaviourMap.put("move_down_fast", MovementCommand("move_down", "down", scene.findObserver(), 0.2f))
 
         behaviourMap.put("toggle_debug", ToggleCommand("toggle_debug", renderer, "toggleDebug"))
         behaviourMap.put("toggle_fullscreen", ToggleCommand("toggle_fullscreen", renderer, "toggleFullscreen"))
@@ -194,6 +194,8 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
         behaviourMap.put("decrease_exposure", ToggleCommand("decrease_exposure", renderer, "decreaseExposure"))
         behaviourMap.put("increase_gamma", ToggleCommand("increase_gamma", renderer, "increaseGamma"))
         behaviourMap.put("decrease_gamma", ToggleCommand("decrease_gamma", renderer, "decreaseGamma"))
+
+        behaviourMap.put("toggle_vr", ToggleCommand("toggle_vr", renderer, "toggleVR"))
 
         val adder = config.inputTriggerAdder(inputMap, "all")
         adder.put("mouse_control") // put input trigger as defined in config
@@ -226,6 +228,8 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
         adder.put("decrease_gamma", "shift L")
 
         adder.put("screenshot", "P")
+
+        adder.put("toggle_vr", "shift V")
     }
 
     override fun close() {

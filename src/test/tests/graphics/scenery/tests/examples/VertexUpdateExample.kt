@@ -19,7 +19,7 @@ class VertexUpdateExample : SceneryDefaultApplication("VertexUpdateExample") {
     override fun init() {
         renderer = Renderer.createRenderer(hub, applicationName,
                scene, 512, 512)
-        hub.add(SceneryElement.RENDERER, renderer!!)
+        hub.add(SceneryElement.Renderer, renderer!!)
 
         var sphere = Sphere(2.0f, 50)
 

@@ -1,26 +1,25 @@
-package graphics.scenery.controls
+package graphics.scenery.backends
 
 import cleargl.GLMatrix
 import cleargl.GLVector
-import com.jogamp.opengl.math.Quaternion
 import org.lwjgl.vulkan.VkDevice
 import org.lwjgl.vulkan.VkInstance
 import org.lwjgl.vulkan.VkPhysicalDevice
 import org.lwjgl.vulkan.VkQueue
 
 /**
- * Generic interface for head-mounted displays (HMDs)
+ * <Description>
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-interface HMDInput {
+interface Display {
     /**
      * Returns the per-eye projection matrix
      *
      * @param[eye] The index of the eye
      * @return GLMatrix containing the per-eye projection matrix
      */
-    fun getEyeProjection(eye: Int, nearPlane: Float = 1.0f, farPlane: Float = 1000.0f, flipY: Boolean = false): GLMatrix
+    fun getEyeProjection(eye: Int, nearPlane: Float = 1.0f, farPlane: Float = 1000.0f): GLMatrix
 
     /**
      * Returns the inter-pupillary distance (IPD)
@@ -28,36 +27,6 @@ interface HMDInput {
      * @return IPD as Float
      */
     fun getIPD(): Float
-
-    /**
-     * Returns the orientation of the HMD
-     *
-     * @returns GLMatrix with orientation
-     */
-    fun getOrientation(): Quaternion
-
-    /**
-     * Returns the absolute position as GLVector
-     *
-     * @return HMD position as GLVector
-     */
-    fun getPosition(): GLVector
-
-    /**
-     * Returns the per-eye transform that moves from head to eye
-     *
-     * @param[eye] The eye index
-     * @return GLMatrix containing the transform
-     */
-    fun getHeadToEyeTransform(eye: Int): GLMatrix
-
-    /**
-     * Returns the HMD pose
-     *
-     * @return HMD pose as GLMatrix
-     */
-    fun getPose(): GLMatrix
-
     /**
      * Query the HMD whether a compositor is used or the renderer should take
      * care of displaying on the HMD on its own.
@@ -113,4 +82,14 @@ interface HMDInput {
     fun getVulkanInstanceExtensions(): List<String>
 
     fun getVulkanDeviceExtensions(physicalDevice: VkPhysicalDevice): List<String>
+
+    fun getWorkingDisplay(): Display?
+
+    /**
+     * Returns the per-eye transform that moves from head to eye
+     *
+     * @param[eye] The eye index
+     * @return GLMatrix containing the transform
+     */
+    fun getHeadToEyeTransform(eye: Int): GLMatrix
 }

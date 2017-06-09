@@ -1,7 +1,6 @@
 package graphics.scenery.backends.vulkan
 
 import org.lwjgl.system.MemoryUtil.*
-import org.lwjgl.system.NativeResource
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
 import org.slf4j.Logger
@@ -9,10 +8,11 @@ import org.slf4j.LoggerFactory
 import graphics.scenery.GeometryType
 import java.nio.IntBuffer
 import java.util.*
-import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Created by ulrik on 9/28/2016.
+ * Vulkan Pipeline class.
+ *
+ * @author Ulrik Günther <hello@ulrik.is>
  */
 class VulkanPipeline(val device: VkDevice, val pipelineCache: Long? = null): AutoCloseable {
     protected var logger: Logger = LoggerFactory.getLogger("VulkanPipeline")
@@ -20,12 +20,12 @@ class VulkanPipeline(val device: VkDevice, val pipelineCache: Long? = null): Aut
     var pipeline = HashMap<GeometryType, VulkanRenderer.Pipeline>()
     var descriptorSpecs = ArrayList<VulkanShaderModule.UBOSpec>()
 
-    val inputAssemblyState = VkPipelineInputAssemblyStateCreateInfo.calloc()
+    val inputAssemblyState: VkPipelineInputAssemblyStateCreateInfo = VkPipelineInputAssemblyStateCreateInfo.calloc()
         .sType(VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO)
         .topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST)
         .pNext(NULL)
 
-    val rasterizationState = VkPipelineRasterizationStateCreateInfo.calloc()
+    val rasterizationState: VkPipelineRasterizationStateCreateInfo = VkPipelineRasterizationStateCreateInfo.calloc()
         .sType(VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO)
         .pNext(NULL)
         .polygonMode(VK_POLYGON_MODE_FILL)
@@ -36,16 +36,16 @@ class VulkanPipeline(val device: VkDevice, val pipelineCache: Long? = null): Aut
         .depthBiasEnable(false)
         .lineWidth(1.0f)
 
-    val colorWriteMask = VkPipelineColorBlendAttachmentState.calloc(1)
+    val colorWriteMask: VkPipelineColorBlendAttachmentState.Buffer = VkPipelineColorBlendAttachmentState.calloc(1)
         .blendEnable(false)
         .colorWriteMask(0xF) // this means RGBA writes
 
-    val colorBlendState = VkPipelineColorBlendStateCreateInfo.calloc()
+    val colorBlendState: VkPipelineColorBlendStateCreateInfo = VkPipelineColorBlendStateCreateInfo.calloc()
         .sType(VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO)
         .pNext(NULL)
         .pAttachments(colorWriteMask)
 
-    val viewportState = VkPipelineViewportStateCreateInfo.calloc()
+    val viewportState: VkPipelineViewportStateCreateInfo = VkPipelineViewportStateCreateInfo.calloc()
         .sType(VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO)
         .pNext(NULL)
         .viewportCount(1)
@@ -61,7 +61,7 @@ class VulkanPipeline(val device: VkDevice, val pipelineCache: Long? = null): Aut
         .pNext(NULL)
         .pDynamicStates(pDynamicStates)
 
-    var depthStencilState = VkPipelineDepthStencilStateCreateInfo.calloc()
+    var depthStencilState: VkPipelineDepthStencilStateCreateInfo = VkPipelineDepthStencilStateCreateInfo.calloc()
         .sType(VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO)
         .pNext(NULL)
         .depthTestEnable(true)
@@ -72,14 +72,14 @@ class VulkanPipeline(val device: VkDevice, val pipelineCache: Long? = null): Aut
         .maxDepthBounds(1.0f)
         .stencilTestEnable(false)
 
-    var depthStencilStateBack = depthStencilState.back()
+    var depthStencilStateBack: VkStencilOpState = depthStencilState.back()
         .failOp(VK_STENCIL_OP_KEEP)
         .passOp(VK_STENCIL_OP_KEEP)
         .compareOp(VK_COMPARE_OP_ALWAYS)
 
-    var depthStencilStateFront = depthStencilState.front(depthStencilState.back())
+    var depthStencilStateFront: VkStencilOpState = depthStencilState.front(depthStencilState.back()).front()
 
-    val multisampleState = VkPipelineMultisampleStateCreateInfo.calloc()
+    val multisampleState: VkPipelineMultisampleStateCreateInfo = VkPipelineMultisampleStateCreateInfo.calloc()
         .sType(VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO)
         .pNext(NULL)
         .pSampleMask(null)
@@ -217,7 +217,7 @@ class VulkanPipeline(val device: VkDevice, val pipelineCache: Long? = null): Aut
     override fun close() {
         val removedLayouts = ArrayList<Long>()
 
-        pipeline.forEach { geometryType, pipeline ->
+        pipeline.forEach { _, pipeline ->
             vkDestroyPipeline(device, pipeline.pipeline, null)
 
             if(!removedLayouts.contains(pipeline.layout)) {

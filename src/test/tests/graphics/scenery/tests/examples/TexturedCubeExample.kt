@@ -14,7 +14,7 @@ import kotlin.concurrent.thread
 class TexturedCubeExample : SceneryDefaultApplication("TexturedCubeExample") {
     override fun init() {
         renderer = Renderer.createRenderer(hub, applicationName, scene, 512, 512)
-        hub.add(SceneryElement.RENDERER, renderer!!)
+        hub.add(SceneryElement.Renderer, renderer!!)
 
         val boxmaterial = Material()
         with(boxmaterial) {
@@ -25,6 +25,7 @@ class TexturedCubeExample : SceneryDefaultApplication("TexturedCubeExample") {
         }
 
         val box = Box(GLVector(1.0f, 1.0f, 1.0f))
+        box.name = "le box du win"
 
         with(box) {
             box.material = boxmaterial
@@ -38,7 +39,7 @@ class TexturedCubeExample : SceneryDefaultApplication("TexturedCubeExample") {
         lights.mapIndexed { i, light ->
             light.position = GLVector(2.0f * i, 2.0f * i, 2.0f * i)
             light.emissionColor = GLVector(1.0f, 0.0f, 1.0f)
-            light.intensity = 500.2f*(i+1);
+            light.intensity = 500.2f*(i+1)
             scene.addChild(light)
         }
 

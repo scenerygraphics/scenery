@@ -7,9 +7,10 @@ import org.slf4j.LoggerFactory
 import java.nio.LongBuffer
 
 /**
- * Created by ulrik on 10/27/2016.
+ * Vulkan Command Buffer class. Wraps command buffer and fencing functionality.
+ *
+ * @author Ulrik Günther <hello@ulrik.is>
  */
-
 class VulkanCommandBuffer(val device: VkDevice, var commandBuffer: VkCommandBuffer?, val fenced: Boolean = true): AutoCloseable {
     private var logger = LoggerFactory.getLogger("VulkanCommandBuffer")
 

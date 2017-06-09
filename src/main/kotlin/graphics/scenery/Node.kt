@@ -3,6 +3,8 @@ package graphics.scenery
 import cleargl.GLMatrix
 import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
+import java.io.Serializable
+import java.lang.reflect.Field
 import java.sql.Timestamp
 import java.util.*
 import java.util.concurrent.CopyOnWriteArrayList
@@ -16,14 +18,14 @@ import java.util.concurrent.locks.ReentrantLock
  *  for model, view, projection, etc.
  * @property[name] The name of the [Node]
  */
-open class Node(open var name: String) : Renderable {
+open class Node(open var name: String = "Node") : Renderable, Serializable {
 
     /** Hash map used for storing metadata for the Node. [DeferredLightingRenderer] uses
      * it to e.g. store [OpenGLObjectState]. */
-    var metadata: HashMap<String, NodeMetadata> = HashMap()
+    @Transient var metadata: HashMap<String, NodeMetadata> = HashMap()
 
     /** Material of the Node */
-    override var material: Material? = null
+    @Transient override var material: Material = Material.DefaultMaterial()
     /** Initialisation flag. */
     override var initialized: Boolean = false
     /** Whether the Node is dirty and needs updating. */
@@ -43,10 +45,8 @@ open class Node(open var name: String) : Renderable {
     /** The Node's lock. */
     override var lock: ReentrantLock = ReentrantLock()
 
-    /** bounding box **/
-    var boundingBox: Box? = null
     /** bounding box coordinates **/
-    var boundingBoxCoords: FloatArray? = null
+    var boundingBoxCoords: FloatArray = floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
 
     /**
      * Initialisation function for the Node.
@@ -61,6 +61,9 @@ open class Node(open var name: String) : Renderable {
     open var nodeType = "Node"
     /** Should the Node's class name be used to derive a GLSL shader file name for a [GLProgram]? */
     open var useClassDerivedShader = false
+
+    /** Node update routine, called before updateWorld */
+    open var update: (() -> Unit)? = null
 
     /** World transform matrix. Will create inverse [iworld] upon modification. */
     @Volatile override var world: GLMatrix = GLMatrix.getIdentity()
@@ -106,7 +109,7 @@ open class Node(open var name: String) : Renderable {
         }
 
     /** Rotation of the Node. Setting will trigger [world] update. */
-    @Volatile override var rotation: Quaternion = Quaternion(0.0f, 0.0f, 0.0f, 1.0f);
+    @Volatile override var rotation: Quaternion = Quaternion(0.0f, 0.0f, 0.0f, 1.0f)
         set(q) {
             this.needsUpdate = true
             this.needsUpdateWorld = true
@@ -114,9 +117,9 @@ open class Node(open var name: String) : Renderable {
         }
 
     /** Children of the Node. */
-    var children: CopyOnWriteArrayList<Node>
+    @Transient var children: CopyOnWriteArrayList<Node>
     /** Other nodes that have linked transforms. */
-    var linkedNodes: CopyOnWriteArrayList<Node>
+    @Transient var linkedNodes: CopyOnWriteArrayList<Node>
     /** Parent node of this node. */
     var parent: Node? = null
 
@@ -202,6 +205,8 @@ open class Node(open var name: String) : Renderable {
      * @param[force] Force update irrespective of [needsUpdate] state.
      */
     @Synchronized fun updateWorld(recursive: Boolean, force: Boolean = false) {
+        update?.invoke()
+
         if (needsUpdate or force) {
             this.composeModel()
 
@@ -235,12 +240,11 @@ open class Node(open var name: String) : Renderable {
      * [position], [scale] and [rotation].
      */
     fun composeModel() {
+        @Suppress("SENSELESS_COMPARISON")
         if(position != null && rotation != null && scale != null) {
             model.setIdentity()
-            //   w.translate(-this.position.x(), -this.position.y(), -this.position.z())
-            model.mult(this.rotation)
-            //    w.translate(this.position.x(), this.position.y(), this.position.z())
             model.scale(this.scale.x(), this.scale.y(), this.scale.z())
+            model.mult(this.rotation)
             model.translate(this.position.x(), this.position.y(), this.position.z())
         }
     }
@@ -271,7 +275,7 @@ open class Node(open var name: String) : Renderable {
         if (this is Mesh) {
             if (vertices.capacity() == 0) {
                 System.err.println("Zero vertices currently, returning null bounding box")
-                boundingBoxCoords = null
+                boundingBoxCoords = floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
             } else {
 
                 /*val x = vertices.filterIndexed { i, fl -> (i + 3).mod(3) == 0 }
@@ -289,11 +293,29 @@ open class Node(open var name: String) : Renderable {
 
                 boundingBoxCoords = floatArrayOf(xmin, xmax, ymin, ymax, zmin, zmax)
                 */
-                System.err.println("Created bouding box with ${boundingBoxCoords!!.joinToString(", ")}")
+                System.err.println("Created bouding box with ${boundingBoxCoords.joinToString(", ")}")
             }
         } else {
             System.err.println("Assuming 3rd party BB generation")
             // assume bounding box was created somehow
+        }
+    }
+
+    private val shaderPropertyFieldCache = HashMap<String, Field>()
+    fun getShaderProperty(name: String): Any? {
+        if(shaderPropertyFieldCache.containsKey(name)) {
+            return shaderPropertyFieldCache[name]!!.get(this)
+        } else {
+            val field = this.javaClass.declaredFields.find { it.name == name && it.isAnnotationPresent(ShaderProperty::class.java) }
+
+            if(field != null) {
+                field.isAccessible = true
+                shaderPropertyFieldCache.put(name, field)
+
+                return field.get(this)
+            } else {
+                return null
+            }
         }
     }
 

@@ -31,7 +31,7 @@ class OpenCLContext(override var hub: Hub?, val devicePreference: String = Syste
     var queue: cl_command_queue
 
     init {
-        hub?.add(SceneryElement.OPENCLCONTEXT, this)
+        hub?.add(SceneryElement.OpenCLContext, this)
 
         val platformPref = devicePreference.substringBefore(",").toInt()
         val devicePref = devicePreference.substringAfter(",").toInt()
@@ -180,7 +180,7 @@ class OpenCLContext(override var hub: Hub?, val devicePreference: String = Syste
 
         // Execute the kernel
         clEnqueueNDRangeKernel(this.queue, k, 1, null,
-                global_work_size, null, 0, null, null);
+                global_work_size, local_work_size, 0, null, null);
 
     }
 

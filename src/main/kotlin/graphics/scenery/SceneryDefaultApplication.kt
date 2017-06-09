@@ -4,9 +4,13 @@ import cleargl.ClearGLDefaultEventListener
 import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.opengl.OpenGLRenderer
 import graphics.scenery.controls.InputHandler
+import graphics.scenery.net.NodePublisher
+import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.repl.REPL
 import graphics.scenery.utils.Statistics
 import org.slf4j.LoggerFactory
+import org.zeromq.ZContext
+import kotlin.concurrent.thread
 
 /**
  * A default application to use scenery with, keeping the needed boilerplate
@@ -36,6 +40,8 @@ open class SceneryDefaultApplication(var applicationName: String,
     protected var renderer: Renderer? = null
     /** The Hub used by the application, see [Hub] */
     var hub: Hub = Hub()
+    /** Global settings storage */
+    protected var settings: Settings = Settings()
     /** ui-behaviour input handler */
     protected var inputHandler: InputHandler? = null
 
@@ -47,9 +53,20 @@ open class SceneryDefaultApplication(var applicationName: String,
 
     protected var running: Boolean = false
 
+    var maxFrameskip = 5
+
+    var ticksPerSecond = 60000.0f
+        set(value) {
+            field = value
+            skipTicks = 1000000.0f/value
+        }
+
+    var skipTicks = 1000000.0f/ticksPerSecond
+        private set
+
     /**
      * the init function of [SceneryDefaultApplication], override this in your subclass,
-     * e.g. for [Scene] constrution and [OpenGLRenderer] initialisation.
+     * e.g. for [Scene] construction and [OpenGLRenderer] initialisation.
      *
      * @param[pDrawable] a [org.jogamp.jogl.GLAutoDrawable] handed over by [ClearGLDefaultEventListener]
      */
@@ -73,24 +90,49 @@ open class SceneryDefaultApplication(var applicationName: String,
      *
      */
     open fun main() {
-        hub.add(SceneryElement.STATISTICS, stats)
+        val master = System.getProperty("scenery.master").toBoolean()
+        val context = ZContext(2)
+
+        val publisher: NodePublisher? = if(master) {
+            NodePublisher(hub, "tcp://*:6666", context)
+        } else {
+            null
+        }
+
+        publisher?.let { hub.add(SceneryElement.NodePublisher, it) }
+
+        val subscriber: NodeSubscriber? = if(!master) {
+            val masterAddress = System.getProperty("scenery.MasterNode", "tcp://localhost:6666")
+            logger.info("Will connect to master at $masterAddress")
+            NodeSubscriber(hub, masterAddress, context)
+        } else {
+            null
+        }
+
+        subscriber?.let { hub.add(SceneryElement.NodeSubscriber, it) }
+
+        hub.add(SceneryElement.Statistics, stats)
+        hub.add(SceneryElement.Settings, settings)
 
         if(wantREPL) {
-            repl = REPL(scene, stats)
+            repl = REPL(scene, stats, hub)
+            repl?.addAccessibleObject(settings)
         }
 
         // initialize renderer, etc first in init, then setup key bindings
         init()
 
-        repl?.addAccessibleObject(renderer!!)
+        renderer?.let {
+            repl?.addAccessibleObject(it)
+
+            inputHandler = InputHandler(scene, it, hub)
+            inputHandler?.useDefaultBindings(System.getProperty("user.home") + "/.$applicationName.bindings")
+        }
 
         repl?.start()
         repl?.showConsoleWindow()
 
         val statsRequested = java.lang.Boolean.parseBoolean(System.getProperty("scenery.PrintStatistics", "false"))
-
-        inputHandler = InputHandler(scene, renderer!!, hub)
-        inputHandler?.useDefaultBindings(System.getProperty("user.home") + "/.$applicationName.bindings")
 
         // setup additional key bindings, if requested by the user
         inputSetup()
@@ -99,33 +141,56 @@ open class SceneryDefaultApplication(var applicationName: String,
 
         running = true
 
-        while(renderer!!.shouldClose == false) {
+        if(!master) {
+            thread {
+                while (true) {
+                    subscriber?.process()
+                    Thread.sleep(2)
+                }
+            }
+        }
+
+        var nextTick = getTickCount()
+        var interpolation = 0.0f
+
+        while(!(renderer?.shouldClose ?: true)) {
             val start = System.nanoTime()
+            var loops = 0
 
+            hub.getWorkingHMD()?.update()
 
-            if(renderer!!.managesRenderLoop) {
-                Thread.sleep(2)
-            } else {
-                stats.addTimed("render", { renderer!!.render() })
+            while(getTickCount() > nextTick && loops < maxFrameskip) {
+                // update
+                stats.addTimed("sceneUpdate", updateFunction)
+
+                nextTick += skipTicks
+                loops++
             }
 
-            stats.addTimed("sceneUpdate", updateFunction)
+            publisher?.publish()
+
+            interpolation = (1.0f*getTickCount() + skipTicks - nextTick)/skipTicks
+            scene.activeObserver?.deltaT = interpolation/10e5f
+
+            if(renderer?.managesRenderLoop ?: true) {
+                Thread.sleep(2)
+            } else {
+                stats.addTimed("render", { renderer?.render() ?: 0.0f })
+            }
 
             if(statsRequested && ticks % 100L == 0L) {
                 logger.info("\nStatistics:\n=============\n${stats}")
             }
 
-            hub.getWorkingHMD()?.update()
-
-            val duration = System.nanoTime() - start*1.0f
-            stats.add("loop", duration)
-
+            stats.add("loop", System.nanoTime() - start*1.0f)
             ticks++
         }
 
         inputHandler?.close()
-        renderer!!.close()
+        renderer?.close()
     }
+
+    protected fun getTickCount(): Float = System.nanoTime()/1000.0f
 
     protected fun getDemoFilesPath(): String {
         val demoDir = System.getenv("SCENERY_DEMO_FILES")

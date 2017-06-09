@@ -25,7 +25,7 @@ fun VkCommandBuffer.endCommandBuffer() {
 }
 
 fun VkCommandBuffer.endCommandBuffer(device: VkDevice, commandPool: Long, queue: VkQueue?, flush: Boolean = true, dealloc: Boolean = false) {
-    if (this.address() === NULL) {
+    if (this.address() == NULL) {
         return
     }
 
@@ -317,7 +317,7 @@ class VU {
             var bits = typeBits
             for (i in 0..31) {
                 if (bits and 1 == 1) {
-                    if (deviceMemoryProperties.memoryTypes(i).propertyFlags() and properties === properties) {
+                    if (deviceMemoryProperties.memoryTypes(i).propertyFlags() and properties == properties) {
                         typeIndex.put(0, i)
                         return true
                     }
@@ -539,10 +539,10 @@ class VU {
                 memTypeIndex)
 
             val size = if (wantAligned) {
-                if (reqs.size() % reqs.alignment() == 0L) {
+                if (reqs.size().rem(reqs.alignment()) == 0L) {
                     reqs.size()
                 } else {
-                    reqs.size() + reqs.alignment() - (reqs.size() % reqs.alignment())
+                    reqs.size() + reqs.alignment() - (reqs.size().rem(reqs.alignment()))
                 }
             } else {
                 reqs.size()

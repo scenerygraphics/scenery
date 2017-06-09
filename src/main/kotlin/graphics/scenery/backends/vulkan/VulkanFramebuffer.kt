@@ -14,12 +14,13 @@ import org.slf4j.LoggerFactory
 
  * @author Ulrik Günther @ulrik.is>
  */
-class VulkanFramebuffer(protected var device: VkDevice,
+open class VulkanFramebuffer(protected var device: VkDevice,
                         protected var physicalDevice: VkPhysicalDevice,
                         protected var commandPool: Long,
                         var width: Int,
                         var height: Int,
-                        var commandBuffer: VkCommandBuffer): AutoCloseable {
+                        var commandBuffer: VkCommandBuffer,
+                        var shouldClear: Boolean = true): AutoCloseable {
     protected var logger: Logger = LoggerFactory.getLogger("VulkanRenderer")
 
     var framebuffer = memAllocLong(1)
@@ -98,7 +99,7 @@ class VulkanFramebuffer(protected var device: VkDevice,
             .arrayLayers(1)
             .samples(VK_SAMPLE_COUNT_1_BIT)
             .tiling(VK_IMAGE_TILING_OPTIMAL)
-            .usage(usage or VK_IMAGE_USAGE_SAMPLED_BIT)
+            .usage(usage or VK_IMAGE_USAGE_SAMPLED_BIT or VK_IMAGE_USAGE_TRANSFER_SRC_BIT or VK_IMAGE_USAGE_TRANSFER_DST_BIT)
 
 
         val images = memAllocLong(1)
@@ -163,10 +164,17 @@ class VulkanFramebuffer(protected var device: VkDevice,
         }
 
         val att = createAttachment(format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
+
+        val (loadOp, stencilLoadOp) = if(!shouldClear) {
+            VK_ATTACHMENT_LOAD_OP_LOAD.to(VK_ATTACHMENT_LOAD_OP_LOAD)
+        } else {
+            VK_ATTACHMENT_LOAD_OP_CLEAR.to(VK_ATTACHMENT_LOAD_OP_DONT_CARE)
+        }
+
         att.desc.samples(VK_SAMPLE_COUNT_1_BIT)
-            .loadOp(VK_ATTACHMENT_LOAD_OP_CLEAR)
+            .loadOp(loadOp)
             .storeOp(VK_ATTACHMENT_STORE_OP_STORE)
-            .stencilLoadOp(VK_ATTACHMENT_LOAD_OP_DONT_CARE)
+            .stencilLoadOp(stencilLoadOp)
             .stencilStoreOp(VK_ATTACHMENT_STORE_OP_DONT_CARE)
             .initialLayout(VK_IMAGE_LAYOUT_UNDEFINED)
             .finalLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
@@ -185,10 +193,17 @@ class VulkanFramebuffer(protected var device: VkDevice,
         }
 
         val att = createAttachment(format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
+
+        val (loadOp, stencilLoadOp) = if(!shouldClear) {
+            VK_ATTACHMENT_LOAD_OP_LOAD.to(VK_ATTACHMENT_LOAD_OP_LOAD)
+        } else {
+            VK_ATTACHMENT_LOAD_OP_CLEAR.to(VK_ATTACHMENT_LOAD_OP_DONT_CARE)
+        }
+
         att.desc.samples(VK_SAMPLE_COUNT_1_BIT)
-            .loadOp(VK_ATTACHMENT_LOAD_OP_CLEAR)
+            .loadOp(loadOp)
             .storeOp(VK_ATTACHMENT_STORE_OP_STORE)
-            .stencilLoadOp(VK_ATTACHMENT_LOAD_OP_DONT_CARE)
+            .stencilLoadOp(stencilLoadOp)
             .stencilStoreOp(VK_ATTACHMENT_STORE_OP_DONT_CARE)
             .initialLayout(VK_IMAGE_LAYOUT_UNDEFINED)
             .finalLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
@@ -207,10 +222,17 @@ class VulkanFramebuffer(protected var device: VkDevice,
         }
 
         val att = createAttachment(format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
+
+        val (loadOp, stencilLoadOp) = if(!shouldClear) {
+            VK_ATTACHMENT_LOAD_OP_LOAD.to(VK_ATTACHMENT_LOAD_OP_LOAD)
+        } else {
+            VK_ATTACHMENT_LOAD_OP_CLEAR.to(VK_ATTACHMENT_LOAD_OP_DONT_CARE)
+        }
+
         att.desc.samples(VK_SAMPLE_COUNT_1_BIT)
-            .loadOp(VK_ATTACHMENT_LOAD_OP_CLEAR)
+            .loadOp(loadOp)
             .storeOp(VK_ATTACHMENT_STORE_OP_STORE)
-            .stencilLoadOp(VK_ATTACHMENT_LOAD_OP_DONT_CARE)
+            .stencilLoadOp(stencilLoadOp)
             .stencilStoreOp(VK_ATTACHMENT_STORE_OP_DONT_CARE)
             .initialLayout(VK_IMAGE_LAYOUT_UNDEFINED)
             .finalLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
@@ -229,10 +251,17 @@ class VulkanFramebuffer(protected var device: VkDevice,
         }
 
         val att = createAttachment(format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
+
+        val (loadOp, stencilLoadOp) = if(!shouldClear) {
+            VK_ATTACHMENT_LOAD_OP_LOAD.to(VK_ATTACHMENT_LOAD_OP_LOAD)
+        } else {
+            VK_ATTACHMENT_LOAD_OP_CLEAR.to(VK_ATTACHMENT_LOAD_OP_DONT_CARE)
+        }
+
         att.desc.samples(VK_SAMPLE_COUNT_1_BIT)
-            .loadOp(VK_ATTACHMENT_LOAD_OP_CLEAR)
+            .loadOp(loadOp)
             .storeOp(VK_ATTACHMENT_STORE_OP_STORE)
-            .stencilLoadOp(VK_ATTACHMENT_LOAD_OP_DONT_CARE)
+            .stencilLoadOp(stencilLoadOp)
             .stencilStoreOp(VK_ATTACHMENT_STORE_OP_DONT_CARE)
             .initialLayout(VK_IMAGE_LAYOUT_UNDEFINED)
             .finalLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
@@ -251,10 +280,17 @@ class VulkanFramebuffer(protected var device: VkDevice,
         }
 
         val att = createAttachment(format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
+
+        val (loadOp, stencilLoadOp) = if(!shouldClear) {
+            VK_ATTACHMENT_LOAD_OP_LOAD.to(VK_ATTACHMENT_LOAD_OP_LOAD)
+        } else {
+            VK_ATTACHMENT_LOAD_OP_CLEAR.to(VK_ATTACHMENT_LOAD_OP_DONT_CARE)
+        }
+
         att.desc.samples(VK_SAMPLE_COUNT_1_BIT)
-            .loadOp(VK_ATTACHMENT_LOAD_OP_CLEAR)
+            .loadOp(loadOp)
             .storeOp(VK_ATTACHMENT_STORE_OP_STORE)
-            .stencilLoadOp(VK_ATTACHMENT_LOAD_OP_DONT_CARE)
+            .stencilLoadOp(stencilLoadOp)
             .stencilStoreOp(VK_ATTACHMENT_STORE_OP_DONT_CARE)
             .initialLayout(VK_IMAGE_LAYOUT_UNDEFINED)
             .finalLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
@@ -276,13 +312,20 @@ class VulkanFramebuffer(protected var device: VkDevice,
         val bestSupportedFormat = getBestDepthFormat(format).first()
 
         val att = createAttachment(bestSupportedFormat, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
+
+        val (loadOp, stencilLoadOp) = if(!shouldClear) {
+            VK_ATTACHMENT_LOAD_OP_LOAD.to(VK_ATTACHMENT_LOAD_OP_LOAD)
+        } else {
+            VK_ATTACHMENT_LOAD_OP_CLEAR.to(VK_ATTACHMENT_LOAD_OP_DONT_CARE)
+        }
+
         att.desc.samples(VK_SAMPLE_COUNT_1_BIT)
-            .loadOp(VK_ATTACHMENT_LOAD_OP_CLEAR)
+            .loadOp(loadOp)
             .storeOp(VK_ATTACHMENT_STORE_OP_STORE)
-            .stencilLoadOp(VK_ATTACHMENT_LOAD_OP_DONT_CARE)
-            .stencilStoreOp(VK_ATTACHMENT_STORE_OP_DONT_CARE)
+            .stencilLoadOp(stencilLoadOp)
+            .stencilStoreOp(VK_ATTACHMENT_STORE_OP_STORE)
             .initialLayout(VK_IMAGE_LAYOUT_UNDEFINED)
-            .finalLayout(VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+            .finalLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
             .format(bestSupportedFormat)
 
         att.type = VulkanFramebufferType.DEPTH_ATTACHMENT
@@ -292,7 +335,7 @@ class VulkanFramebuffer(protected var device: VkDevice,
         return this
     }
 
-    fun addSwapchainAttachment(name: String, swapchain: VulkanRenderer.Swapchain, index: Int): VulkanFramebuffer {
+    fun addSwapchainAttachment(name: String, swapchain: Swapchain, index: Int): VulkanFramebuffer {
         val att = VulkanFramebufferAttachment()
 
         att.image = swapchain.images!!.get(index)
@@ -300,11 +343,17 @@ class VulkanFramebuffer(protected var device: VkDevice,
         att.type = VulkanFramebufferType.COLOR_ATTACHMENT
         att.fromSwapchain = true
 
+        val (loadOp, stencilLoadOp) = if(!shouldClear) {
+            VK_ATTACHMENT_LOAD_OP_LOAD.to(VK_ATTACHMENT_LOAD_OP_LOAD)
+        } else {
+            VK_ATTACHMENT_LOAD_OP_CLEAR.to(VK_ATTACHMENT_LOAD_OP_DONT_CARE)
+        }
+
         att.desc
             .samples(VK_SAMPLE_COUNT_1_BIT)
-            .loadOp(VK_ATTACHMENT_LOAD_OP_CLEAR)
+            .loadOp(loadOp)
             .storeOp(VK_ATTACHMENT_STORE_OP_STORE)
-            .stencilLoadOp(VK_ATTACHMENT_LOAD_OP_DONT_CARE)
+            .stencilLoadOp(stencilLoadOp)
             .stencilStoreOp(VK_ATTACHMENT_STORE_OP_DONT_CARE)
             .initialLayout(VK_IMAGE_LAYOUT_UNDEFINED)
             .finalLayout(KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
@@ -334,13 +383,13 @@ class VulkanFramebuffer(protected var device: VkDevice,
     fun createRenderpassAndFramebuffer() {
         val colorDescs = VkAttachmentReference.calloc(attachments.filter { it.value.type == VulkanFramebufferType.COLOR_ATTACHMENT }.size)
 
-        attachments.values.filter { it.type == VulkanFramebufferType.COLOR_ATTACHMENT }.forEachIndexed { i, att ->
+        attachments.values.filter { it.type == VulkanFramebufferType.COLOR_ATTACHMENT }.forEachIndexed { i, _ ->
             colorDescs[i]
                 .attachment(i)
                 .layout(VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
         }
 
-        val depthDescs = if(attachments.filter { it.value.type == VulkanFramebufferType.DEPTH_ATTACHMENT }.size > 0) {
+        val depthDescs = if(attachments.filter { it.value.type == VulkanFramebufferType.DEPTH_ATTACHMENT }.isNotEmpty()) {
             VkAttachmentReference.calloc()
                 .attachment(colorDescs.limit())
                 .layout(VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
@@ -487,9 +536,7 @@ class VulkanFramebuffer(protected var device: VkDevice,
 
     override fun close() {
         if(initialized) {
-            attachments.forEach { s, vulkanFramebufferAttachment ->
-                vulkanFramebufferAttachment.close()
-            }
+            attachments.values.forEach { it.close() }
 
             vkDestroyRenderPass(device, renderPass.get(0), null)
             memFree(renderPass)

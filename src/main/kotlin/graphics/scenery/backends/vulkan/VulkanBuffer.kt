@@ -12,11 +12,7 @@ class VulkanBuffer(val device: VkDevice, var memory: Long = -1L, var buffer: Lon
     var alignment: Long = 256
     private var mapped = false
 
-    var stagingBuffer: ByteBuffer
-
-    init {
-        stagingBuffer = memAlloc(size.toInt())
-    }
+    var stagingBuffer: ByteBuffer = memAlloc(size.toInt())
 
     fun getPointerBuffer(size: Int): ByteBuffer {
         if (currentPointer == null) {
@@ -30,8 +26,8 @@ class VulkanBuffer(val device: VkDevice, var memory: Long = -1L, var buffer: Lon
     }
 
     fun getCurrentOffset(): Int {
-        if (currentPosition % alignment != 0L) {
-            currentPosition += alignment - (currentPosition % alignment)
+        if (currentPosition.rem(alignment) != 0L) {
+            currentPosition += alignment - currentPosition.rem(alignment)
             stagingBuffer.position(currentPosition.toInt())
         }
         return currentPosition.toInt()
@@ -39,7 +35,7 @@ class VulkanBuffer(val device: VkDevice, var memory: Long = -1L, var buffer: Lon
 
     fun advance(align: Long = this.alignment): Int {
         val pos = stagingBuffer.position()
-        val rem = pos % align
+        val rem = pos.rem(align)
 
         if(rem != 0L) {
             val newpos = pos + align.toInt() - rem.toInt()
@@ -92,11 +88,17 @@ class VulkanBuffer(val device: VkDevice, var memory: Long = -1L, var buffer: Lon
 
     override fun close() {
         if(mapped) {
-            vkUnmapMemory(device, memory)
+            unmap()
         }
 
         memFree(stagingBuffer)
-        vkFreeMemory(device, memory, null)
-        vkDestroyBuffer(device, buffer, null)
+
+        if(memory != -1L) {
+            vkFreeMemory(device, memory, null)
+        }
+
+        if(buffer != -1L) {
+            vkDestroyBuffer(device, buffer, null)
+        }
     }
 }
