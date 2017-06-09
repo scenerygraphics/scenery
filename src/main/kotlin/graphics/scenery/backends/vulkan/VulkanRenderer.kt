@@ -6,15 +6,16 @@ import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.*
 import graphics.scenery.fonts.SDFFontAtlas
+import graphics.scenery.spirvcrossj.Loader
 import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.utils.GPUStats
 import graphics.scenery.utils.NvidiaGPUStats
 import graphics.scenery.utils.Statistics
-import graphics.scenery.spirvcrossj.*
 import org.lwjgl.PointerBuffer
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.glfw.GLFWVulkan.*
 import org.lwjgl.glfw.GLFWWindowSizeCallback
+import org.lwjgl.system.Configuration
 import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.system.jemalloc.JEmalloc.*
@@ -328,6 +329,13 @@ open class VulkanRenderer(hub: Hub,
         this.renderConfig = RenderConfigReader().loadFromFile(renderConfigFile)
 
         logger.info("Loaded ${renderConfig.name} (${renderConfig.description ?: "no description"})")
+
+
+        // explicitly create VK, to make GLFW pick up MoltenVK on OS X
+        try {
+            Configuration.VULKAN_EXPLICIT_INIT.set(true)
+            VK.create()
+        } catch(e: IllegalStateException) {}
 
         if (!glfwInit()) {
             throw RuntimeException("Failed to initialize GLFW")
@@ -1687,14 +1695,18 @@ open class VulkanRenderer(hub: Hub,
             .flags(flags)
 
         val pCallback = memAllocLong(1)
-        val err = vkCreateDebugReportCallbackEXT(instance, dbgCreateInfo, null, pCallback)
-        val callbackHandle = pCallback.get(0)
-        memFree(pCallback)
-        dbgCreateInfo.free()
-        if (err != VK_SUCCESS) {
-            throw AssertionError("Failed to create VkInstance: " + VU.translate(err))
+        try {
+            val err = vkCreateDebugReportCallbackEXT(instance, dbgCreateInfo, null, pCallback)
+            val callbackHandle = pCallback.get(0)
+            memFree(pCallback)
+            dbgCreateInfo.free()
+            if (err != VK_SUCCESS) {
+                throw AssertionError("Failed to create VkInstance: " + VU.translate(err))
+            }
+            return callbackHandle
+        } catch(e: NullPointerException) {
+            return -1
         }
-        return callbackHandle
     }
 
 
