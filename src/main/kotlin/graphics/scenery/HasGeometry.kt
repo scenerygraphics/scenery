@@ -46,7 +46,11 @@ interface HasGeometry : Serializable {
 
     }
 
-    fun readFrom(filename: String, useMaterial: Boolean = false) {
+    fun readFrom(filename: String) {
+        readFrom(filename, true)
+    }
+
+    fun readFrom(filename: String, useMaterial: Boolean = true) {
         val logger = LoggerFactory.getLogger("Node")
         val ext = filename.substringAfterLast(".").toLowerCase()
 
