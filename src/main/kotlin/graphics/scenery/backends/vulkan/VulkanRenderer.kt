@@ -508,6 +508,7 @@ open class VulkanRenderer(hub: Hub,
         ds.set("sdf.MaxDistance", 10)
 
         ds.set("$base.PrintGPUStats", false)
+        ds.set("Renderer.SupersamplingFactor", System.getProperty("scenery.Renderer.SupersamplingFactor")?.toFloat() ?: 1.0f)
 
         return ds
     }
@@ -1198,7 +1199,7 @@ open class VulkanRenderer(hub: Hub,
         textureCache.put("DefaultTexture", t!!)
     }
 
-    protected fun prepareRenderpassesFromConfig(config: RenderConfigReader.RenderConfig, width: Int, height: Int): LinkedHashMap<String, VulkanRenderpass> {
+    protected fun prepareRenderpassesFromConfig(config: RenderConfigReader.RenderConfig, windowWidth: Int, windowHeight: Int): LinkedHashMap<String, VulkanRenderpass> {
         // create all renderpasses first
         val passes = LinkedHashMap<String, VulkanRenderpass>()
         val framebuffers = ConcurrentHashMap<String, VulkanFramebuffer>()
@@ -1230,10 +1231,16 @@ open class VulkanRenderer(hub: Hub,
             val pass = VulkanRenderpass(passName, config, device, descriptorPool, pipelineCache,
                 memoryProperties, vertexDescriptors)
 
+            var width = windowWidth
+            var height = windowHeight
+
             // create framebuffer
             with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
                 config.rendertargets?.filter { it.key == passConfig.output }?.map { rt ->
                     logger.info("Creating render framebuffer ${rt.key} for pass $passName")
+
+                    width = (settings.get<Float>("Renderer.SupersamplingFactor") * windowWidth).toInt()
+                    height = (settings.get<Float>("Renderer.SupersamplingFactor") * windowHeight).toInt()
 
                     if (framebuffers.containsKey(rt.key)) {
                         logger.info("Reusing already created framebuffer")
@@ -1280,6 +1287,9 @@ open class VulkanRenderer(hub: Hub,
                     // let's also create the default framebuffers
                     pass.commandBufferCount = swapchain!!.images!!.size
 
+                    width = windowWidth
+                    height = windowHeight
+
                     swapchain!!.images!!.forEachIndexed { i, _ ->
                         val fb = VulkanFramebuffer(device, physicalDevice, commandPools.Standard,
                             width, height, this@with)
@@ -1311,26 +1321,27 @@ open class VulkanRenderer(hub: Hub,
                 }
 
                 pass.vulkanMetadata.renderArea.extent().set(
-                    (pass.passConfig.viewportSize.first * window.width).toInt(),
-                    (pass.passConfig.viewportSize.second * window.height).toInt())
+                    (pass.passConfig.viewportSize.first * width).toInt(),
+                    (pass.passConfig.viewportSize.second * height).toInt())
                 pass.vulkanMetadata.renderArea.offset().set(
-                    (pass.passConfig.viewportOffset.first * window.width).toInt(),
-                    (pass.passConfig.viewportOffset.second * window.height).toInt())
+                    (pass.passConfig.viewportOffset.first * width).toInt(),
+                    (pass.passConfig.viewportOffset.second * height).toInt())
+                logger.info("Render area for $passName: ${pass.vulkanMetadata.renderArea.extent().width()}x${pass.vulkanMetadata.renderArea.extent().height()}")
 
                 pass.vulkanMetadata.viewport[0].set(
-                    (pass.passConfig.viewportOffset.first * window.width),
-                    (pass.passConfig.viewportOffset.second * window.height),
-                    (pass.passConfig.viewportSize.first * window.width),
-                    (pass.passConfig.viewportSize.second * window.height),
+                    (pass.passConfig.viewportOffset.first * width),
+                    (pass.passConfig.viewportOffset.second * height),
+                    (pass.passConfig.viewportSize.first * width),
+                    (pass.passConfig.viewportSize.second * height),
                     0.0f, 1.0f)
 
                 pass.vulkanMetadata.scissor[0].extent().set(
-                    (pass.passConfig.viewportSize.first * window.width).toInt(),
-                    (pass.passConfig.viewportSize.second * window.height).toInt())
+                    (pass.passConfig.viewportSize.first * width).toInt(),
+                    (pass.passConfig.viewportSize.second * height).toInt())
 
                 pass.vulkanMetadata.scissor[0].offset().set(
-                    (pass.passConfig.viewportOffset.first * window.width).toInt(),
-                    (pass.passConfig.viewportOffset.second * window.height).toInt())
+                    (pass.passConfig.viewportOffset.first * width).toInt(),
+                    (pass.passConfig.viewportOffset.second * height).toInt())
 
                 pass.vulkanMetadata.eye.put(0, pass.passConfig.eye)
 
@@ -1598,6 +1609,7 @@ open class VulkanRenderer(hub: Hub,
 
         val viewportPass = renderpasses.values.last()
         val viewportCommandBuffer = viewportPass.commandBuffer
+        logger.debug("Running pass {}", renderpasses.keys.last())
 
         if (viewportCommandBuffer.submitted) {
             viewportCommandBuffer.waitForFence()
