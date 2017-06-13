@@ -33,13 +33,20 @@ open class ArcballCameraControl(private val name: String, private val node: Came
     private var firstEntered = true
 
     /** pitch angle created from x/y position */
-    private var pitch: Float = 0.0f
+    var pitch: Float = 0.0f
+        private set
     /** yaw angle created from x/y position */
-    private var yaw: Float = 0.0f
+    var yaw: Float = 0.0f
+        private set
     /** distance to target */
-    private var distance: Float = 5.0f
+    var distance: Float = 5.0f
+        set(value) {
+            field = value
+            node.position = target + node.forward * value * (-1.0f)
+        }
+
     /** multiplier for zooming in and out */
-    var scrollSpeedMultiplier = 0.05f
+    var scrollSpeedMultiplier = 0.005f
     /** multiplier for mouse movement */
     var mouseSpeedMultiplier = 0.1f
     /** minimum distance value to target */
