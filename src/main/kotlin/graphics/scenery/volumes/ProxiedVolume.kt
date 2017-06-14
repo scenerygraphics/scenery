@@ -30,6 +30,7 @@ import kotlin.streams.toList
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
+@Deprecated("This class is only kept for reference purposes, please use Volume instead", ReplaceWith("Volume"))
 class ProxiedVolume : Mesh("Volume") {
     data class VolumeDescriptor(val path: Path,
                                 val width: Long,
