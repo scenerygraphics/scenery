@@ -7,7 +7,7 @@ import com.esotericsoftware.kryo.io.Input
 import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.*
 import graphics.scenery.utils.Statistics
-import graphics.scenery.volumes.DirectVolumeFullscreen
+import graphics.scenery.volumes.Volume
 import org.objenesis.strategy.StdInstantiatorStrategy
 import org.slf4j.LoggerFactory
 import org.zeromq.ZContext
@@ -37,7 +37,7 @@ class NodeSubscriber(override var hub: Hub?, val address: String = "udp://localh
         kryo.register(DetachedHeadCamera::class.java)
         kryo.register(Quaternion::class.java)
         kryo.register(Mesh::class.java)
-        kryo.register(DirectVolumeFullscreen::class.java)
+        kryo.register(Volume::class.java)
 
         kryo.instantiatorStrategy = StdInstantiatorStrategy()
     }
@@ -67,7 +67,7 @@ class NodeSubscriber(override var hub: Hub?, val address: String = "udp://localh
                         node.scale = o.scale
                         node.visible = o.visible
 
-                        if (o is DirectVolumeFullscreen && node is DirectVolumeFullscreen && node.initialized) {
+                        if (o is Volume && node is Volume && node.initialized) {
                             if (node.currentVolume != o.currentVolume) {
                                 node.currentVolume = o.currentVolume
 

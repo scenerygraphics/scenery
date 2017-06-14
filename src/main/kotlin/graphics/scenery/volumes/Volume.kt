@@ -1,29 +1,20 @@
 package graphics.scenery.volumes
 
-import clearcl.*
-import clearcl.backend.ClearCLBackends
-import clearcl.backend.jocl.ClearCLBackendJOCL
-import clearcl.enums.*
 import cleargl.GLTypeEnum
 import cleargl.GLVector
 import coremem.enums.NativeTypeEnum
-import coremem.offheap.OffHeapMemory
-import graphics.scenery.GenericTexture
-import graphics.scenery.Hub
-import graphics.scenery.Mesh
-import graphics.scenery.Plane
+import graphics.scenery.*
+import graphics.scenery.backends.ShaderPreference
+import org.lwjgl.system.MemoryUtil.memAlloc
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import java.awt.Color
-import java.awt.image.BufferedImage
+import java.io.FileInputStream
 import java.nio.ByteBuffer
-import java.nio.ByteOrder
-import java.nio.channels.FileChannel
 import java.nio.file.Files
 import java.nio.file.Path
-import java.nio.file.StandardOpenOption
+import java.nio.file.Paths
 import java.util.*
-import javax.imageio.ImageIO
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.streams.toList
 
 /**
@@ -31,15 +22,14 @@ import kotlin.streams.toList
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class Volume : Mesh("Volume") {
+class Volume(var autosetProperties: Boolean = true) : Mesh("DirectVolume") {
     data class VolumeDescriptor(val path: Path,
                                 val width: Long,
                                 val height: Long,
                                 val depth: Long,
                                 val dataType: NativeTypeEnum,
                                 val bytesPerVoxel: Int,
-                                val buffer: OffHeapMemory,
-                                val image: ClearCLImage?)
+                                val data: ByteBuffer)
 
     data class VolumeRenderingParameters(
         val boundingBox: FloatArray = floatArrayOf(-1.0f, 1.0f, -1.0f, 1.0f, -1.0f, 1.0f),
@@ -57,201 +47,275 @@ class Volume : Mesh("Volume") {
         var function: FloatArray = floatArrayOf()
     )
 
+    val boxwidth = 1.0f
+
+    @ShaderProperty var trangemin = 0.00f
+    @ShaderProperty var trangemax = 0.01f //for histones
+    //@ShaderProperty var trangemax = 0.01f // for droso-autopilot
+
+    @ShaderProperty var boxMin_x = -boxwidth
+    @ShaderProperty var boxMin_y = -boxwidth
+    @ShaderProperty var boxMin_z = -boxwidth
+
+    @ShaderProperty var boxMax_x = boxwidth
+    @ShaderProperty var boxMax_y = boxwidth
+    @ShaderProperty var boxMax_z = boxwidth
+
+    @ShaderProperty var maxsteps = 256
+    @ShaderProperty var alpha_blending = 0.06f
+    @ShaderProperty var gamma = 1.0f
+
+    @ShaderProperty var sizeX = 256
+    @ShaderProperty var sizeY = 256
+    @ShaderProperty var sizeZ = 256
+    @ShaderProperty var voxelSizeX = 1.0f
+    @ShaderProperty var voxelSizeY = 1.0f
+    @ShaderProperty var voxelSizeZ = 1.0f
+
     val logger: Logger = LoggerFactory.getLogger("Volume")
 
-    val volumes = LinkedHashMap<String, VolumeDescriptor>()
-    val kernelNames = arrayListOf(
-        "VolumeRenderer.cl".to("maxproj_render"),
-        "VolumeRenderer.cl".to("isosurface_render"))
-    val kernels = HashMap<String, ClearCLKernel?>()
+    @Transient val volumes = ConcurrentHashMap<String, VolumeDescriptor>()
+
+    var currentVolume: String = ""
+        set(value) {
+            field = value
+            if (value != "") {
+                readFrom(Paths.get(field), true)
+            }
+        }
 
     val parameters = VolumeRenderingParameters()
 
-    val defaultKernel = "maxproj_render"
     var hub: Hub? = null
-    var context: ClearCLContext? = null
-    var outputBuffer: ClearCLBuffer? = null
-    var textureBuffer: ByteBuffer? = null
-    var projectionBuffer: ClearCLBuffer? = null
-    var worldBuffer: ClearCLBuffer? = null
-
-    var offheapBuffers = arrayOf(OffHeapMemory.allocateFloats(16), OffHeapMemory.allocateFloats(16))
-
-    var transferFunction: ClearCLImage? = null
 
     init {
         // fake geometry
-        val b = Plane(GLVector(1.0f, 1.0f, 1.0f))
-        this.vertices = b.vertices
-        this.normals = b.normals
-        this.texcoords = b.texcoords
-        this.indices = b.indices
+        val b = Box(GLVector(1.0f, 1.0f, 1.0f))
+        this.vertices = BufferUtils.allocateFloat(12)
+        this.vertices.put(-1.0f)
+        this.vertices.put(-1.0f)
+        this.vertices.put(0.0f)
+
+        this.vertices.put(1.0f)
+        this.vertices.put(-1.0f)
+        this.vertices.put(0.0f)
+
+        this.vertices.put(1.0f)
+        this.vertices.put(1.0f)
+        this.vertices.put(0.0f)
+
+        this.vertices.put(-1.0f)
+        this.vertices.put(1.0f)
+        this.vertices.put(0.0f)
+
+        this.vertices.flip()
+        this.normals = BufferUtils.allocateFloat(12)
+        this.normals.put(1.0f)
+        this.normals.put(0.0f)
+        this.normals.put(0.0f)
+        this.normals.put(0.0f)
+        this.normals.put(1.0f)
+        this.normals.put(0.0f)
+        this.normals.put(0.0f)
+        this.normals.put(0.0f)
+        this.normals.put(1.0f)
+        this.normals.put(0.0f)
+        this.normals.put(0.0f)
+        this.normals.put(1.0f)
+        this.normals.flip()
+//        this.vertices = b.vertices
+//        this.normals = b.normals
+//        this.texcoords = b.texcoords
+//        this.indices = b.indices
+        this.texcoords = BufferUtils.allocateFloat(8)
+        this.texcoords.put(0.0f)
+        this.texcoords.put(0.0f)
+
+        this.texcoords.put(1.0f)
+        this.texcoords.put(0.0f)
+
+        this.texcoords.put(1.0f)
+        this.texcoords.put(1.0f)
+
+        this.texcoords.put(0.0f)
+        this.texcoords.put(1.0f)
+        this.texcoords.flip()
+
         this.vertexSize = 3
         this.texcoordSize = 2
-        this.geometryType = b.geometryType
-        this.isBillboard = true
+        this.indices = BufferUtils.allocateInt(6)
+        this.indices.put(0)
+        this.indices.put(1)
+        this.indices.put(2)
+        this.indices.put(0)
+        this.indices.put(2)
+        this.indices.put(3)
+        this.indices.flip()
+        this.geometryType = GeometryType.TRIANGLE_STRIP
 
-        val ccl = ClearCL(ClearCLBackendJOCL())
-        val device = ccl.bestGPUDevice
-        context = device.createContext()
-        textureBuffer = ByteBuffer.allocateDirect(1024 * 1024 * 4 * 4).order(ByteOrder.nativeOrder())
+        this.material.transparent = true
 
-        context?.let { cl ->
-            kernels.putAll(kernelNames.map {
-                logger.info("Loaded kernel ${it.first}::${it.second}")
-                val program = context?.createProgram(Volume::class.java, it.first)
-                program?.buildAndLog()
-                it.second.to(program?.createKernel(it.second))
-            }.toMap())
-
-            outputBuffer = context?.createBuffer(
-                HostAccessType.ReadOnly,
-                KernelAccessType.WriteOnly,
-                NativeTypeEnum.Float,
-                4 * 1024 * 1024L)
-
-            projectionBuffer = cl.createBuffer(
-                MemAllocMode.Best,
-                HostAccessType.WriteOnly,
-                KernelAccessType.ReadOnly,
-                NativeTypeEnum.Float,
-                16
-            )
-
-            worldBuffer = cl.createBuffer(
-                MemAllocMode.Best,
-                HostAccessType.WriteOnly,
-                KernelAccessType.ReadOnly,
-                NativeTypeEnum.Float,
-                16
-            )
-
-            textureBuffer?.let { texture ->
-                this@Volume.material.transferTextures.put("volume",
-                    GenericTexture("diffuse", GLVector(1024.0f, 1024.0f), 4, GLTypeEnum.Float,
-                        texture, false, false))
-                this@Volume.material.textures.put("diffuse", "fromBuffer:volume")
-            }
-
-            val image = ImageIO.read(this.javaClass.getResourceAsStream("transferFunction.png"))
-
-            transferFunction = context?.createImage(
-                MemAllocMode.Best,
-                HostAccessType.ReadWrite,
-                KernelAccessType.ReadWrite, ImageChannelOrder.RGBA, ImageChannelDataType.UnsignedInt32,
-                image.width.toLong(), image.height.toLong(), 1L)
-
-            logger.info("${image.width*image.height*4} vs. ${image.getRGBA().size}")
-
-            val mem = OffHeapMemory.allocateInts(image.getRGBA().size.toLong())
-            mem.copyFrom(image.getRGBA())
-
-            transferFunction?.readFrom(mem, longArrayOf(0, 0, 0), longArrayOf(image.width.toLong(), image.height.toLong(), 1), true)
-        }
-
-        logger.info("Kernels: ${kernels.keys.joinToString(", ")}")
-        this.update = {
-            render()
-        }
+        metadata.put(
+            "ShaderPreference",
+            ShaderPreference(
+                arrayListOf("Volume.vert", "Volume.frag"),
+                HashMap<String, String>(),
+                arrayListOf("DeferredShadingRenderer")))
     }
 
-    private fun BufferedImage.getRGBA(): IntArray {
-        val result = ArrayList<Int>(this.width*this.height*4)
-        for (x in 0..this.width - 1) {
-            for (y in 0..this.height - 1) {
-                val c = Color(this.getRGB(x, y), true)
-                result.add(c.red)
-                result.add(c.green)
-                result.add(c.blue)
-                result.add(c.alpha)
-            }
+    fun preload(file: Path) {
+        val id = file.fileName.toString()
+
+        val infoFile = file.resolveSibling("stacks" + ".info")
+
+        //val dimensions = Files.lines(infoFile).toList().first().split(",").map { it.toLong() }.toTypedArray()
+
+        val lines = Files.lines(infoFile).toList()
+
+        logger.info("reading stacks.info (${lines.joinToString()}) (${lines.size} lines)")
+        val dimensions = lines.get(0).split(",").map { it.toLong() }.toTypedArray()
+
+
+        if (autosetProperties) {
+            trangemax = 0.03f
+            voxelSizeX = 1.0f
+            voxelSizeY = 1.0f
+            voxelSizeZ = 1.0f
         }
 
-        return result.toIntArray()
+
+        sizeX = dimensions[0].toInt()
+        sizeY = dimensions[1].toInt()
+        sizeZ = dimensions[2].toInt()
+
+        logger.info("setting voxelsize to $voxelSizeX x $voxelSizeY x $voxelSizeZ")
+        logger.info("setting min max to ${this.trangemin}, ${this.trangemax} ")
+        logger.info("setting alpha blending to ${this.alpha_blending}")
+        logger.info("setting dim to ${sizeX}, ${sizeY}, ${sizeZ}")
+
+
+        if (volumes.containsKey(id)) {
+            logger.info("$id is already in cache")
+        } else {
+            logger.info("Preloading $id from disk")
+            val buffer = ByteArray(1024 * 1024)
+            val stream = FileInputStream(file.toFile())
+            val imageData: ByteBuffer = memAlloc((2 * dimensions[0] * dimensions[1] * dimensions[2]).toInt())
+
+            logger.info("${file.fileName}: Allocated ${imageData.capacity()} bytes for UINT16 image of ${dimensions.joinToString("x")}")
+
+            val start = System.nanoTime()
+            var bytesRead = stream.read(buffer, 0, buffer.size)
+            while (bytesRead > -1) {
+                imageData.put(buffer, 0, bytesRead)
+                bytesRead = stream.read(buffer, 0, buffer.size)
+            }
+            val duration = (System.nanoTime() - start) / 10e5
+            logger.info("Reading took $duration ms")
+
+            imageData.flip()
+
+//            if (replace) {
+//                volumes.clear()
+//            }
+
+            val descriptor = VolumeDescriptor(
+                file,
+                dimensions[0], dimensions[1], dimensions[2],
+                NativeTypeEnum.UnsignedInt, 2, data = imageData
+            )
+
+            volumes.put(id, descriptor)
+        }
     }
 
     fun readFrom(file: Path, replace: Boolean = false): String {
+        val infoFile = file.resolveSibling("stacks" + ".info")
 
-        val buffer = OffHeapMemory.allocateBytes(Files.size(file))
-        val infoFile = file.resolveSibling(file.fileName.toString().substringBeforeLast(".") + ".info")
-        val dimensions = Files.lines(infoFile).toList().first().split(",").map { it.toLong() }.toTypedArray()
+        //val dimensions = Files.lines(infoFile).toList().first().split(",").map { it.toLong() }.toTypedArray()
 
-        val fc = FileChannel.open(file, EnumSet.of(StandardOpenOption.READ))
-        val bytesRead = buffer.readBytesFromFileChannel(fc, 0, Files.size(file))
-        fc.close()
+        val lines = Files.lines(infoFile).toList()
 
-        logger.info("Read ${bytesRead} from $file")
+        logger.info("reading stacks.info (${lines.joinToString()}) (${lines.size} lines)")
+        val dimensions = lines.get(0).split(",").map { it.toLong() }.toTypedArray()
+        logger.info("setting dim to ${dimensions.joinToString()}")
 
-        if (replace) {
-            volumes.clear()
+        if (autosetProperties) {
+            this.trangemax = 0.03f
+            voxelSizeX = 1.0f
+            voxelSizeY = 1.0f
+            voxelSizeZ = 1.0f
         }
+        sizeX = dimensions[0].toInt()
+        sizeY = dimensions[1].toInt()
+        sizeZ = dimensions[2].toInt()
 
-        val image = context?.createSingleChannelImage(
-            ImageChannelDataType.UnsignedNormalizedInt16,
-            dimensions[0], dimensions[1], dimensions[2])
 
-        logger.info("image: $image")
 
-        image?.readFrom(buffer, longArrayOf(0, 0, 0), longArrayOf(dimensions[0], dimensions[1], dimensions[2]), true)
+        logger.info("setting voxelsize to $voxelSizeX x $voxelSizeY x $voxelSizeZ")
+        logger.info("setting min max to ${this.trangemin}, ${this.trangemax} ")
+        logger.info("setting alpha blending to ${this.alpha_blending}")
+        logger.info("setting dim to ${sizeX}, ${sizeY}, ${sizeZ}")
 
         val id = file.fileName.toString()
 
-        volumes.put(id, VolumeDescriptor(
-            file,
-            dimensions[0], dimensions[1], dimensions[2],
-            NativeTypeEnum.UnsignedInt, 2, buffer, image
-        ))
+        val vol = if (volumes.containsKey(id)) {
+            logger.info("Getting $id from cache")
+            volumes.get(id)!!
+        } else {
+            logger.info("Loading $id from disk")
+            val buffer = ByteArray(1024 * 1024)
+            val stream = FileInputStream(file.toFile())
+            val imageData: ByteBuffer = memAlloc((2 * dimensions[0] * dimensions[1] * dimensions[2]).toInt())
 
+            logger.info("${file.fileName}: Allocated ${imageData.capacity()} bytes for UINT16 image of ${dimensions.joinToString("x")}")
+
+            val start = System.nanoTime()
+            var bytesRead = stream.read(buffer, 0, buffer.size)
+            while (bytesRead > -1) {
+                imageData.put(buffer, 0, bytesRead)
+                bytesRead = stream.read(buffer, 0, buffer.size)
+            }
+            val duration = (System.nanoTime() - start) / 10e5
+            logger.info("Reading took $duration ms")
+
+            imageData.flip()
+
+//            if (replace) {
+//                volumes.clear()
+//            }
+
+            val descriptor = VolumeDescriptor(
+                file,
+                dimensions[0], dimensions[1], dimensions[2],
+                NativeTypeEnum.UnsignedInt, 2, data = imageData
+            )
+
+            volumes.put(id, descriptor)
+            descriptor
+        }
+
+        val dim = GLVector(dimensions[0].toFloat(), dimensions[1].toFloat(), dimensions[2].toFloat())
+        val gtv = GenericTexture("volume", dim,
+            -1, GLTypeEnum.UnsignedInt, vol.data, false, false)
+
+        if (this.lock.tryLock()) {
+            this.material.textures.put("3D-volume", "fromBuffer:volume")
+            this.material.transferTextures.put("volume", gtv)?.let {
+                //                if (replace) {
+//                    memFree(it.contents)
+//                }
+            }
+//            this.material.textures.put("normal", this.javaClass.getResource("colormap-viridis.png").file)
+            this.material.textures.put("normal", "m:/colormaps/colormap-hot.png")
+            this.material.needsTextureReload = true
+
+            this.lock.unlock()
+        }
         return id
     }
 
     fun render() {
-        kernels[defaultKernel]?.let { kernel ->
-            if (volumes.values.last().image != null) {
-                offheapBuffers[0].copyFrom(projection.inverse.transposedFloatArray)
-                offheapBuffers[1].copyFrom(modelView.inverse.transposedFloatArray)
-
-                projectionBuffer?.readFrom(offheapBuffers[0], 0, 16, true)
-                worldBuffer?.readFrom(offheapBuffers[1], 0, 16, true)
-
-                val clearBeforeRendering = 0
-                val phase = 0.0f
-
-                kernel.setArguments(
-                    outputBuffer,
-                    1024,
-                    1024,
-                    parameters.brightness,
-                    parameters.transferFunction.min,
-                    parameters.transferFunction.max,
-                    parameters.gamma,
-                    parameters.alpha,
-                    parameters.maxSteps,
-                    parameters.dithering,
-                    phase,
-                    clearBeforeRendering,
-                    parameters.boundingBox[0],
-                    parameters.boundingBox[1],
-                    parameters.boundingBox[2],
-                    parameters.boundingBox[3],
-                    parameters.boundingBox[4],
-                    parameters.boundingBox[5],
-                    transferFunction,
-                    projectionBuffer,
-                    worldBuffer,
-                    volumes.values.last().image)
-
-                kernel.setGlobalSizes(
-                    1024, 1024)
-                kernel.run(true)
-
-                outputBuffer!!.writeTo(textureBuffer, 0, 4 * 1024 * 1024, true)
-
-                textureBuffer!!.let { texture ->
-                    this@Volume.material.needsTextureReload = true
-                }
-            }
-        }
     }
 
 

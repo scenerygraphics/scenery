@@ -9,7 +9,7 @@ import graphics.scenery.controls.behaviours.ArcballCameraControl
 import graphics.scenery.controls.behaviours.FPSCameraControl
 import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
-import graphics.scenery.volumes.DirectVolumeFullscreen
+import graphics.scenery.volumes.Volume
 import org.junit.Test
 import org.scijava.ui.behaviour.ClickBehaviour
 import java.io.File
@@ -83,13 +83,13 @@ class DemoReelExample: SceneryDefaultApplication("Demo Reel") {
         volumes.put(histoneScene.name, getVolumes("M:/CAVE_DATA/histones-isonet/stacks/default/"))
         volumes.put(drosophilaScene.name, getVolumes("M:/CAVE_DATA/droso-royer-autopilot-transposed/"))
 
-        val histoneVolume = DirectVolumeFullscreen(autosetProperties = false)
+        val histoneVolume = Volume(autosetProperties = false)
         //histoneVolume.
         histoneScene.addChild(histoneVolume)
         histoneScene.visible = false
         scene.addChild(histoneScene)
 
-        val drosophilaVolume = DirectVolumeFullscreen(autosetProperties = false)
+        val drosophilaVolume = Volume(autosetProperties = false)
         drosophilaVolume.rotation.rotateByAngleX(1.57f)
         drosophilaScene.addChild(drosophilaVolume)
         drosophilaScene.visible = false
@@ -160,15 +160,15 @@ class DemoReelExample: SceneryDefaultApplication("Demo Reel") {
                             logger.info("Reading next volume for ${it.name} ...")
                             val start = System.currentTimeMillis()
 
-                            if(it.children[0] is DirectVolumeFullscreen && volumes.containsKey(it.name)) {
-                                (it.children[0] as DirectVolumeFullscreen).nextVolume(volumes[it.name]!!)
+                            if(it.children[0] is Volume && volumes.containsKey(it.name)) {
+                                (it.children[0] as Volume).nextVolume(volumes[it.name]!!)
 
                                 val time_to_read  = System.currentTimeMillis()-start
 
                                 if(it.name == "drosophila") {
                                     sleepDuration = Math.max(40,min_delay-time_to_read)
 
-                                    with(it.children[0] as DirectVolumeFullscreen) {
+                                    with(it.children[0] as Volume) {
                                         trangemin = 0.00f
                                         trangemax = .006f
                                         //trangemax = .0003f
@@ -183,7 +183,7 @@ class DemoReelExample: SceneryDefaultApplication("Demo Reel") {
                                 if(it.name == "histone") {
                                     sleepDuration = Math.max(300,min_delay-time_to_read)
 
-                                    with(it.children[0] as DirectVolumeFullscreen) {
+                                    with(it.children[0] as Volume) {
                                         trangemin = 0.005f
                                         trangemax = 0.04f
                                         alpha_blending = 0.02f
@@ -225,7 +225,7 @@ class DemoReelExample: SceneryDefaultApplication("Demo Reel") {
         return volumes
     }
 
-    fun DirectVolumeFullscreen.nextVolume(volumes: List<String>): String {
+    fun Volume.nextVolume(volumes: List<String>): String {
         var curr = if (volumes.indexOf(this.currentVolume) == -1) {
             0
         } else {
@@ -296,7 +296,7 @@ class DemoReelExample: SceneryDefaultApplication("Demo Reel") {
             histoneScene.showAll()
             drosophilaScene.hideAll()
 
-            with(histoneScene.children[0] as DirectVolumeFullscreen) {
+            with(histoneScene.children[0] as Volume) {
                 trangemin = 0.005f
                 trangemax = 0.04f
                 alpha_blending = 0.02f
@@ -315,7 +315,7 @@ class DemoReelExample: SceneryDefaultApplication("Demo Reel") {
             histoneScene.hideAll()
             drosophilaScene.showAll()
 
-            with(drosophilaScene.children[0] as DirectVolumeFullscreen) {
+            with(drosophilaScene.children[0] as Volume) {
                 trangemin = 0.00f
                 //trangemax = .006f
                 trangemax = .0003f

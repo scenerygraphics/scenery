@@ -4,19 +4,15 @@ import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.InputHandler
-import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedStereoGlasses
 import graphics.scenery.controls.behaviours.ArcballCameraControl
 import graphics.scenery.controls.behaviours.FPSCameraControl
 import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
-import graphics.scenery.volumes.DirectVolume
-import graphics.scenery.volumes.DirectVolumeFullscreen
 import graphics.scenery.volumes.Volume
 import org.junit.Test
 import org.scijava.ui.behaviour.ClickBehaviour
 import java.io.File
-import java.nio.file.Paths
 import kotlin.concurrent.thread
 
 /**
@@ -67,7 +63,7 @@ class ClusterExample: SceneryDefaultApplication("Clustered Volume Rendering exam
         shell.material.ambient = GLVector.getNullVector(3)
         scene.addChild(shell)
 
-        val volume = DirectVolumeFullscreen()
+        val volume = Volume()
 
         with(volume) {
             volume.visible = true
