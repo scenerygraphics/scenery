@@ -144,7 +144,7 @@ class VolumeDrosoExample: SceneryDefaultApplication("Clustered Volume Rendering 
             }
 
             thread {
-                volumes.map { volume.preload( Paths.get(it)) }
+                volumes.map { volume.preloadRawFromPath( Paths.get(it)) }
                 Thread.sleep(2)
             }
         }

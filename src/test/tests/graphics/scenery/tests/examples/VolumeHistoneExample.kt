@@ -145,7 +145,7 @@ class VolumeHistoneExample: SceneryDefaultApplication("Clustered Volume Renderin
             }
 
             thread {
-                volumes.map { volume.preload( Paths.get(it)) }
+                volumes.map { volume.preloadRawFromPath( Paths.get(it)) }
                 Thread.sleep(2)
             }
         }

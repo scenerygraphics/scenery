@@ -94,7 +94,7 @@ class VolumeExample: SceneryDefaultApplication("Volume Rendering example") {
                 Thread.sleep(delay)
 
                 logger.info("Reading next volume...")
-                volume.readFrom(Paths.get(nextVolume()), replace = true)
+                volume.readFromRaw(Paths.get(nextVolume()), replace = true)
 
                 //delay = 100000000L // only load one volume
             }

@@ -210,8 +210,8 @@ class DemoReelExample: SceneryDefaultApplication("Demo Reel") {
 
         thread {
             logger.info("Preloading volumes")
-            volumes["histone"]?.map { histoneVolume.preload(Paths.get(it)) }
-            volumes["drosophila"]?.map { drosophilaVolume.preload(Paths.get(it)) }
+            volumes["histone"]?.map { histoneVolume.preloadRawFromPath(Paths.get(it)) }
+            volumes["drosophila"]?.map { drosophilaVolume.preloadRawFromPath(Paths.get(it)) }
         }
     }
 

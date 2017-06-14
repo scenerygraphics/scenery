@@ -42,13 +42,13 @@ class ClusterExample: SceneryDefaultApplication("Clustered Volume Rendering exam
         }
 
 //        val bileMesh = Mesh()
-//        bileMesh.readFrom("Z:/data/models-inauguration/celegans_epithelium.stl", useMaterial = false)
+//        bileMesh.readFromRaw("Z:/data/models-inauguration/celegans_epithelium.stl", useMaterial = false)
 //        bileMesh.scale = GLVector(0.01f, 0.01f, 0.01f)
 //        bileMesh.visible = false
 //        scene.addChild(bileMesh)
 //
 //        val vasculature = Mesh()
-//        vasculature.readFrom("Z:/data/models-inauguration/Drerio.stl", useMaterial = false)
+//        vasculature.readFromRaw("Z:/data/models-inauguration/Drerio.stl", useMaterial = false)
 //        vasculature.scale = GLVector(0.1f, 0.1f, 0.1f)
 //        bileMesh.visible = false
 //        scene.addChild(vasculature)

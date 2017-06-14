@@ -6,6 +6,7 @@ import coremem.enums.NativeTypeEnum
 import graphics.scenery.*
 import graphics.scenery.backends.ShaderPreference
 import org.lwjgl.system.MemoryUtil.memAlloc
+import org.lwjgl.system.MemoryUtil.memFree
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.FileInputStream
@@ -18,12 +19,13 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlin.streams.toList
 
 /**
- * <Description>
+ * Volume Rendering Node for scenery
  *
  * @author Ulrik Günther <hello@ulrik.is>
+ * @author Martin Weigert <mweigert@mpi-cbg.de>
  */
 class Volume(var autosetProperties: Boolean = true) : Mesh("DirectVolume") {
-    data class VolumeDescriptor(val path: Path,
+    data class VolumeDescriptor(val path: Path?,
                                 val width: Long,
                                 val height: Long,
                                 val depth: Long,
@@ -50,8 +52,7 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("DirectVolume") {
     val boxwidth = 1.0f
 
     @ShaderProperty var trangemin = 0.00f
-    @ShaderProperty var trangemax = 0.01f //for histones
-    //@ShaderProperty var trangemax = 0.01f // for droso-autopilot
+    @ShaderProperty var trangemax = 1.0f
 
     @ShaderProperty var boxMin_x = -boxwidth
     @ShaderProperty var boxMin_y = -boxwidth
@@ -80,7 +81,7 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("DirectVolume") {
         set(value) {
             field = value
             if (value != "") {
-                readFrom(Paths.get(field), true)
+                readFromRaw(Paths.get(field), true)
             }
         }
 
@@ -91,67 +92,37 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("DirectVolume") {
     init {
         // fake geometry
         val b = Box(GLVector(1.0f, 1.0f, 1.0f))
-        this.vertices = BufferUtils.allocateFloat(12)
-        this.vertices.put(-1.0f)
-        this.vertices.put(-1.0f)
-        this.vertices.put(0.0f)
-
-        this.vertices.put(1.0f)
-        this.vertices.put(-1.0f)
-        this.vertices.put(0.0f)
-
-        this.vertices.put(1.0f)
-        this.vertices.put(1.0f)
-        this.vertices.put(0.0f)
-
-        this.vertices.put(-1.0f)
-        this.vertices.put(1.0f)
-        this.vertices.put(0.0f)
-
+        this.vertices = BufferUtils.allocateFloatAndPut(
+            floatArrayOf(
+                -1.0f, -1.0f, 0.0f,
+                1.0f, -1.0f, 0.0f,
+                1.0f, 1.0f, 0.0f,
+                -1.0f, 1.0f, 0.0f))
         this.vertices.flip()
-        this.normals = BufferUtils.allocateFloat(12)
-        this.normals.put(1.0f)
-        this.normals.put(0.0f)
-        this.normals.put(0.0f)
-        this.normals.put(0.0f)
-        this.normals.put(1.0f)
-        this.normals.put(0.0f)
-        this.normals.put(0.0f)
-        this.normals.put(0.0f)
-        this.normals.put(1.0f)
-        this.normals.put(0.0f)
-        this.normals.put(0.0f)
-        this.normals.put(1.0f)
+
+        this.normals = BufferUtils.allocateFloatAndPut(
+            floatArrayOf(
+                1.0f, 0.0f, 0.0f,
+                0.0f, 1.0f, 0.0f,
+                0.0f, 0.0f, 1.0f,
+                0.0f, 0.0f, 1.0f))
         this.normals.flip()
-//        this.vertices = b.vertices
-//        this.normals = b.normals
-//        this.texcoords = b.texcoords
-//        this.indices = b.indices
-        this.texcoords = BufferUtils.allocateFloat(8)
-        this.texcoords.put(0.0f)
-        this.texcoords.put(0.0f)
 
-        this.texcoords.put(1.0f)
-        this.texcoords.put(0.0f)
-
-        this.texcoords.put(1.0f)
-        this.texcoords.put(1.0f)
-
-        this.texcoords.put(0.0f)
-        this.texcoords.put(1.0f)
+        this.texcoords = BufferUtils.allocateFloatAndPut(
+            floatArrayOf(
+                0.0f, 0.0f,
+                1.0f, 0.0f,
+                1.0f, 1.0f,
+                0.0f, 1.0f))
         this.texcoords.flip()
 
+        this.indices = BufferUtils.allocateIntAndPut(
+            intArrayOf(0, 1, 2, 0, 2, 3))
+        this.indices.flip()
+
+        this.geometryType = GeometryType.TRIANGLE_STRIP
         this.vertexSize = 3
         this.texcoordSize = 2
-        this.indices = BufferUtils.allocateInt(6)
-        this.indices.put(0)
-        this.indices.put(1)
-        this.indices.put(2)
-        this.indices.put(0)
-        this.indices.put(2)
-        this.indices.put(3)
-        this.indices.flip()
-        this.geometryType = GeometryType.TRIANGLE_STRIP
 
         this.material.transparent = true
 
@@ -163,16 +134,14 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("DirectVolume") {
                 arrayListOf("DeferredShadingRenderer")))
     }
 
-    fun preload(file: Path) {
+    fun preloadRawFromPath(file: Path) {
         val id = file.fileName.toString()
 
         val infoFile = file.resolveSibling("stacks" + ".info")
 
-        //val dimensions = Files.lines(infoFile).toList().first().split(",").map { it.toLong() }.toTypedArray()
-
         val lines = Files.lines(infoFile).toList()
 
-        logger.info("reading stacks.info (${lines.joinToString()}) (${lines.size} lines)")
+        logger.debug("reading stacks.info (${lines.joinToString()}) (${lines.size} lines)")
         val dimensions = lines.get(0).split(",").map { it.toLong() }.toTypedArray()
 
 
@@ -188,21 +157,21 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("DirectVolume") {
         sizeY = dimensions[1].toInt()
         sizeZ = dimensions[2].toInt()
 
-        logger.info("setting voxelsize to $voxelSizeX x $voxelSizeY x $voxelSizeZ")
-        logger.info("setting min max to ${this.trangemin}, ${this.trangemax} ")
-        logger.info("setting alpha blending to ${this.alpha_blending}")
-        logger.info("setting dim to ${sizeX}, ${sizeY}, ${sizeZ}")
+        logger.debug("setting voxelsize to $voxelSizeX x $voxelSizeY x $voxelSizeZ")
+        logger.debug("setting min max to ${this.trangemin}, ${this.trangemax} ")
+        logger.debug("setting alpha blending to ${this.alpha_blending}")
+        logger.debug("setting dim to ${sizeX}, ${sizeY}, ${sizeZ}")
 
 
         if (volumes.containsKey(id)) {
-            logger.info("$id is already in cache")
+            logger.debug("$id is already in cache")
         } else {
-            logger.info("Preloading $id from disk")
+            logger.debug("Preloading $id from disk")
             val buffer = ByteArray(1024 * 1024)
             val stream = FileInputStream(file.toFile())
             val imageData: ByteBuffer = memAlloc((2 * dimensions[0] * dimensions[1] * dimensions[2]).toInt())
 
-            logger.info("${file.fileName}: Allocated ${imageData.capacity()} bytes for UINT16 image of ${dimensions.joinToString("x")}")
+            logger.debug("${file.fileName}: Allocated ${imageData.capacity()} bytes for UINT16 image of ${dimensions.joinToString("x")}")
 
             val start = System.nanoTime()
             var bytesRead = stream.read(buffer, 0, buffer.size)
@@ -211,7 +180,7 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("DirectVolume") {
                 bytesRead = stream.read(buffer, 0, buffer.size)
             }
             val duration = (System.nanoTime() - start) / 10e5
-            logger.info("Reading took $duration ms")
+            logger.debug("Reading took $duration ms")
 
             imageData.flip()
 
@@ -229,16 +198,42 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("DirectVolume") {
         }
     }
 
-    fun readFrom(file: Path, replace: Boolean = false): String {
-        val infoFile = file.resolveSibling("stacks" + ".info")
+    fun readFromBuffer(id: String, buffer: ByteBuffer,
+                       x: Long, y: Long, z: Long,
+                       voxelX: Float, voxelY: Float, voxelZ: Float,
+                       dataType: NativeTypeEnum = NativeTypeEnum.UnsignedInt, bytesPerVoxel: Int = 2) {
+        if (autosetProperties) {
+            voxelSizeX = voxelX
+            voxelSizeY = voxelY
+            voxelSizeZ = voxelZ
+        }
 
-        //val dimensions = Files.lines(infoFile).toList().first().split(",").map { it.toLong() }.toTypedArray()
+        sizeX = x.toInt()
+        sizeY = y.toInt()
+        sizeZ = z.toInt()
+
+        val vol = if (volumes.containsKey(id)) {
+            volumes.get(id)
+        } else {
+            val descriptor = VolumeDescriptor(
+                null,
+                x, y, z, dataType, bytesPerVoxel,
+                buffer
+            )
+
+            volumes.put(id, descriptor)
+            descriptor
+        }
+    }
+
+    fun readFromRaw(file: Path, replace: Boolean = false): String {
+        val infoFile = file.resolveSibling("stacks" + ".info")
 
         val lines = Files.lines(infoFile).toList()
 
-        logger.info("reading stacks.info (${lines.joinToString()}) (${lines.size} lines)")
+        logger.debug("reading stacks.info (${lines.joinToString()}) (${lines.size} lines)")
         val dimensions = lines.get(0).split(",").map { it.toLong() }.toTypedArray()
-        logger.info("setting dim to ${dimensions.joinToString()}")
+        logger.debug("setting dim to ${dimensions.joinToString()}")
 
         if (autosetProperties) {
             this.trangemax = 0.03f
@@ -246,16 +241,15 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("DirectVolume") {
             voxelSizeY = 1.0f
             voxelSizeZ = 1.0f
         }
+
         sizeX = dimensions[0].toInt()
         sizeY = dimensions[1].toInt()
         sizeZ = dimensions[2].toInt()
 
-
-
-        logger.info("setting voxelsize to $voxelSizeX x $voxelSizeY x $voxelSizeZ")
-        logger.info("setting min max to ${this.trangemin}, ${this.trangemax} ")
-        logger.info("setting alpha blending to ${this.alpha_blending}")
-        logger.info("setting dim to ${sizeX}, ${sizeY}, ${sizeZ}")
+        logger.debug("setting voxelsize to $voxelSizeX x $voxelSizeY x $voxelSizeZ")
+        logger.debug("setting min max to ${this.trangemin}, ${this.trangemax} ")
+        logger.debug("setting alpha blending to ${this.alpha_blending}")
+        logger.debug("setting dim to ${sizeX}, ${sizeY}, ${sizeZ}")
 
         val id = file.fileName.toString()
 
@@ -281,10 +275,6 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("DirectVolume") {
 
             imageData.flip()
 
-//            if (replace) {
-//                volumes.clear()
-//            }
-
             val descriptor = VolumeDescriptor(
                 file,
                 dimensions[0], dimensions[1], dimensions[2],
@@ -295,29 +285,48 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("DirectVolume") {
             descriptor
         }
 
+        assignVolumeTexture(dimensions.toLongArray(), vol, replace)
+
+        return id
+    }
+
+    private fun NativeTypeEnum.toGLType() =
+        when (this) {
+            NativeTypeEnum.UnsignedInt -> GLTypeEnum.UnsignedInt
+            NativeTypeEnum.Byte -> TODO()
+            NativeTypeEnum.UnsignedByte -> TODO()
+            NativeTypeEnum.Short -> TODO()
+            NativeTypeEnum.UnsignedShort -> TODO()
+            NativeTypeEnum.Int -> TODO()
+            NativeTypeEnum.Long -> TODO()
+            NativeTypeEnum.UnsignedLong -> TODO()
+            NativeTypeEnum.HalfFloat -> TODO()
+            NativeTypeEnum.Float -> TODO()
+            NativeTypeEnum.Double -> TODO()
+        }
+
+    private fun assignVolumeTexture(dimensions: LongArray, descriptor: VolumeDescriptor, replace: Boolean) {
         val dim = GLVector(dimensions[0].toFloat(), dimensions[1].toFloat(), dimensions[2].toFloat())
         val gtv = GenericTexture("volume", dim,
-            -1, GLTypeEnum.UnsignedInt, vol.data, false, false)
+            -1, descriptor.dataType.toGLType(), descriptor.data, false, false)
 
         if (this.lock.tryLock()) {
             this.material.textures.put("3D-volume", "fromBuffer:volume")
             this.material.transferTextures.put("volume", gtv)?.let {
-                //                if (replace) {
-//                    memFree(it.contents)
-//                }
+                if (replace) {
+                    memFree(it.contents)
+                }
             }
-//            this.material.textures.put("normal", this.javaClass.getResource("colormap-viridis.png").file)
+
             this.material.textures.put("normal", "m:/colormaps/colormap-hot.png")
             this.material.needsTextureReload = true
 
             this.lock.unlock()
         }
-        return id
     }
 
     fun render() {
     }
-
 
     fun purge(id: String) {
         volumes.remove(id)
