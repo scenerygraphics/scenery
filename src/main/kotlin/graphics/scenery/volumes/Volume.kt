@@ -16,7 +16,14 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
+import javax.imageio.ImageIO
 import kotlin.streams.toList
+import com.sun.deploy.trace.Trace.flush
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.awt.image.BufferedImage
+
+
 
 /**
  * Volume Rendering Node for scenery
@@ -132,6 +139,21 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("DirectVolume") {
                 arrayListOf("Volume.vert", "Volume.frag"),
                 HashMap<String, String>(),
                 arrayListOf("DeferredShadingRenderer")))
+    }
+
+    fun colormapFileToByteBuffer(name: String): ByteBuffer {
+        val image = ImageIO.read(this.javaClass.getResourceAsStream("colormap-$name.png"))
+        val baos = ByteArrayOutputStream()
+        ImageIO.write(image, "png", baos)
+        baos.flush()
+        val imageInByte = baos.toByteArray()
+        baos.close()
+
+        val buffer = memAlloc(imageInByte.size)
+        buffer.put(imageInByte)
+        buffer.flip()
+
+        return buffer
     }
 
     fun preloadRawFromPath(file: Path) {
@@ -310,6 +332,9 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("DirectVolume") {
         val gtv = GenericTexture("volume", dim,
             -1, descriptor.dataType.toGLType(), descriptor.data, false, false)
 
+        val colormap = GenericTexture("colormap", GLVector(256.0f, 20.0f, 1.0f), 4, GLTypeEnum.Byte,
+            colormapFileToByteBuffer("viridis"), false, false)
+
         if (this.lock.tryLock()) {
             this.material.textures.put("3D-volume", "fromBuffer:volume")
             this.material.transferTextures.put("volume", gtv)?.let {
@@ -318,7 +343,8 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("DirectVolume") {
                 }
             }
 
-            this.material.textures.put("normal", "m:/colormaps/colormap-hot.png")
+            this.material.textures.put("normal", "fromBuffer:colormap")
+            this.material.transferTextures.put("colormap", colormap)
             this.material.needsTextureReload = true
 
             this.lock.unlock()
