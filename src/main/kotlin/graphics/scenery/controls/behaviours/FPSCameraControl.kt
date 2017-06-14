@@ -23,16 +23,7 @@ open class FPSCameraControl(private val name: String, private val node: Camera, 
     /** whether this is the first entering event */
     private var firstEntered = true
 
-    /** pitch angle created from x/y position */
-    private var pitch: Float = 0.0f
-    /** yaw angle created from x/y position */
-    private var yaw: Float = 0.0f
-
     init {
-        val yp = node.forward.toYawPitch()
-        this.yaw = yp.first
-        this.pitch = yp.second
-
         node.targeted = false
     }
 
@@ -47,7 +38,7 @@ open class FPSCameraControl(private val name: String, private val node: Camera, 
         val dy = this.y()
         val dz = this.z()
         var yaw: Float = 0.0f
-        var pitch: Float
+        val pitch: Float
 
         if (Math.abs(dx) < 0.000001f) {
             if (dx < 0.0f) {
@@ -63,7 +54,7 @@ open class FPSCameraControl(private val name: String, private val node: Camera, 
 
         pitch = Math.atan(Math.sqrt(1.0*dx*dx + 1.0*dy*dy)/dz).toFloat()
 
-        return Pair((-yaw * 180.0f / Math.PI.toFloat() - 90.0f), pitch)
+        return Pair((-yaw * 180.0f / Math.PI.toFloat()), pitch)
     }
 
     /**
@@ -113,16 +104,13 @@ open class FPSCameraControl(private val name: String, private val node: Camera, 
         xoffset *= 0.1f
         yoffset *= 0.1f
 
-        yaw += xoffset
-        pitch += yoffset
+        val frameYaw = xoffset
+        val framePitch = yoffset
 
-        val yawR = Quaternion().setFromEuler(0.0f, yaw/180.0f*Math.PI.toFloat(), 0.0f)
-        val pitchR = Quaternion().setFromEuler(pitch/180.0f*Math.PI.toFloat(), 0.0f, 0.0f)
-        val rot = pitchR.mult(yawR).normalize()
+        val yawQ = Quaternion().setFromEuler(0.0f, frameYaw/180.0f*Math.PI.toFloat(), 0.0f)
+        val pitchQ = Quaternion().setFromEuler(framePitch/180.0f*Math.PI.toFloat(), 0.0f, 0.0f)
+        node.rotation = pitchQ.mult(node.rotation).mult(yawQ).normalize()
 
-//        rot.mult(node.rotation).normalize()
-
-        node.rotation = rot
         node.lock.unlock()
     }
 

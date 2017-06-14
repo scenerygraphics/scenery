@@ -32,12 +32,6 @@ open class ArcballCameraControl(private val name: String, private val node: Came
     /** whether this is the first entering event */
     private var firstEntered = true
 
-    /** pitch angle created from x/y position */
-    var pitch: Float = 0.0f
-        private set
-    /** yaw angle created from x/y position */
-    var yaw: Float = 0.0f
-        private set
     /** distance to target */
     var distance: Float = 5.0f
         set(value) {
@@ -58,16 +52,8 @@ open class ArcballCameraControl(private val name: String, private val node: Came
         set(value) {
             field = value
 
-            node.target = value
             distance = (value - node.position).magnitude()
         }
-
-    init {
-        this.target = target
-
-        node.target = target
-        node.targeted = true
-    }
 
     /**
      * This function is called upon mouse down and initialises the camera control
@@ -105,6 +91,10 @@ open class ArcballCameraControl(private val name: String, private val node: Came
      * @param[y] y position in window
      */
     override fun drag(x: Int, y: Int) {
+        if(!node.lock.tryLock()) {
+            return
+        }
+
         var xoffset: Float = (x - lastX).toFloat()
         var yoffset: Float = (lastY - y).toFloat()
 
@@ -114,18 +104,17 @@ open class ArcballCameraControl(private val name: String, private val node: Came
         xoffset *= mouseSpeedMultiplier
         yoffset *= -mouseSpeedMultiplier
 
-        yaw = xoffset/180.0f*Math.PI.toFloat()
-        pitch = yoffset/180.0f*Math.PI.toFloat()
+        val frameYaw = (xoffset)/180.0f*Math.PI.toFloat()
+        val framePitch = yoffset/180.0f*Math.PI.toFloat()
 
         // first calculate the total rotation quaternion to be applied to the camera
-        val rot = Quaternion().setFromEuler(pitch, yaw, 0.0f)
-        rot.mult(node.rotation).normalize()
-        node.rotation = rot
+        val yawQ = Quaternion().setFromEuler(0.0f, frameYaw, 0.0f)
+        val pitchQ = Quaternion().setFromEuler(framePitch, 0.0f, 0.0f)
 
-        // then use it to generate a new forward vector for correct positioning
-        val m = GLMatrix.fromQuaternion(node.rotation)
-        node.forward = GLVector(m.get(0, 2), m.get(1, 2), m.get(2, 2)).normalize() * -1.0f
+        node.rotation = pitchQ.mult(node.rotation).mult(yawQ).normalize()
         node.position = target + node.forward * distance * (-1.0f)
+
+        node.lock.unlock()
     }
 
     /**
