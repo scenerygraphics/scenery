@@ -1,13 +1,17 @@
 package graphics.scenery
 
 import cleargl.ClearGLDefaultEventListener
+import cleargl.GLVector
 import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.opengl.OpenGLRenderer
 import graphics.scenery.controls.InputHandler
+import graphics.scenery.controls.behaviours.ArcballCameraControl
+import graphics.scenery.controls.behaviours.FPSCameraControl
 import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.repl.REPL
 import graphics.scenery.utils.Statistics
+import org.scijava.ui.behaviour.ClickBehaviour
 import org.slf4j.LoggerFactory
 import org.zeromq.ZContext
 import kotlin.concurrent.thread
@@ -188,6 +192,39 @@ open class SceneryDefaultApplication(var applicationName: String,
 
         inputHandler?.close()
         renderer?.close()
+    }
+
+    fun setupCameraModeSwitching(keybinding: String = "C") {
+        val target = GLVector.getNullVector(3)
+        val inputHandler = (hub.get(SceneryElement.Input) as InputHandler)
+        val targetArcball = ArcballCameraControl("mouse_control", scene.findObserver(), renderer!!.window.width, renderer!!.window.height, target)
+        val fpsControl = FPSCameraControl("mouse_control", scene.findObserver(), renderer!!.window.width, renderer!!.window.height)
+
+        val toggleControlMode = object : ClickBehaviour {
+            var currentMode = "fps"
+
+            override fun click(x: Int, y: Int) {
+                if (currentMode.startsWith("fps")) {
+                    targetArcball.target = GLVector(0.0f, 0.0f, 0.0f)
+
+                    inputHandler.addBehaviour("mouse_control", targetArcball)
+                    inputHandler.addBehaviour("scroll_arcball", targetArcball)
+                    inputHandler.addKeyBinding("scroll_arcball", "scroll")
+
+                    currentMode = "arcball"
+                } else {
+                    inputHandler.addBehaviour("mouse_control", fpsControl)
+                    inputHandler.removeBehaviour("scroll_arcball")
+
+                    currentMode = "fps"
+                }
+
+                System.out.println("Switched to $currentMode control")
+            }
+        }
+
+        inputHandler.addBehaviour("toggle_control_mode", toggleControlMode)
+        inputHandler.addKeyBinding("toggle_control_mode", keybinding)
     }
 
     protected fun getTickCount(): Float = System.nanoTime()/1000.0f
