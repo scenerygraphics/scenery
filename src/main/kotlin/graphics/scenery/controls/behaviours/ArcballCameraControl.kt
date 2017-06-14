@@ -52,16 +52,8 @@ open class ArcballCameraControl(private val name: String, private val node: Came
         set(value) {
             field = value
 
-            node.target = value
             distance = (value - node.position).magnitude()
         }
-
-    init {
-        this.target = target
-
-        node.target = target
-        node.targeted = true
-    }
 
     /**
      * This function is called upon mouse down and initialises the camera control
