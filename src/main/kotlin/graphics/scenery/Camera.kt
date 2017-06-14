@@ -54,6 +54,13 @@ open class Camera : Node("Camera") {
 
     /** Rotation of the camera. The rotation is applied after the view matrix */
     override var rotation: Quaternion = Quaternion(0.0f, 0.0f, 0.0f, 1.0f)
+        set(q) {
+            q.let {
+                field = q
+                val m = GLMatrix.fromQuaternion(q)
+                this.forward = GLVector(m.get(0, 2), m.get(1, 2), m.get(2, 2)).normalize() * -1.0f
+            }
+        }
 
     init {
         this.nodeType = "Camera"
