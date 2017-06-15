@@ -17,6 +17,7 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import graphics.scenery.Hub
 import graphics.scenery.controls.behaviours.GamepadBehaviour
+import graphics.scenery.utils.ExtractsNatives
 import java.awt.Toolkit
 import java.io.File
 import java.io.FileOutputStream
@@ -27,9 +28,11 @@ import java.util.jar.JarFile
 import kotlin.concurrent.thread
 
 /**
- * Created by ulrik on 10/26/2016.
+ * Input handling class for GLFW-based windows.
+ *
+ * @author Ulrik Günther <hello@ulrik.is>
  */
-open class GLFWMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandler, AutoCloseable {
+open class GLFWMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandler, AutoCloseable, ExtractsNatives {
 
     var cursorCallback = object : GLFWCursorPosCallback() {
         override fun invoke(window: Long, xpos: Double, ypos: Double) {
@@ -184,69 +187,6 @@ open class GLFWMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandler,
     /** scroll speed multiplier to combat OS idiosyncrasies */
     private var scrollSpeedMultiplier = 1.0f
 
-    /**
-     * Utility function to search the current class path for JARs with natie libraries
-     *
-     * @param[searchName] The string to match the JAR's name against
-     * @return A list of JARs matching [searchName]
-     */
-    private fun getNativeJars(searchName: String): List<String> {
-        val classpath = System.getProperty("java.class.path")
-
-        return classpath.split(File.pathSeparator).filter { it.contains(searchName) }
-    }
-
-    /**
-     * Utility function to extract native libraries from a given JAR, store them in a
-     * temporary directory and modify the JRE's library path such that it can find
-     * these libraries.
-     *
-     * @param[paths] A list of JAR paths to extract natives from.
-     * @param[replace] Whether or not the java.library.path should be replaced.
-     */
-    private fun extractLibrariesFromJar(paths: List<String>, replace: Boolean = false) {
-        val lp = System.getProperty("java.library.path")
-        val tmpDir = Files.createTempDirectory("scenery-natives-tmp").toFile()
-
-        paths.filter { it.toLowerCase().endsWith("jar") }.forEach {
-            val jar = JarFile(it)
-            val enumEntries = jar.entries()
-
-            while (enumEntries.hasMoreElements()) {
-                val file = enumEntries.nextElement()
-                val f = File(tmpDir.absolutePath + File.separator + file.getName())
-
-                if (file.isDirectory()) { // if its a directory, create it
-                    f.mkdir()
-                    continue
-                }
-
-                val ins = jar.getInputStream(file) // get the input stream
-                val fos = FileOutputStream(f)
-                while (ins.available() > 0) {  // write contents of 'is' to 'fos'
-                    fos.write(ins.read())
-                }
-
-                fos.close()
-                ins.close()
-            }
-        }
-
-        if (replace) {
-            System.setProperty("java.library.path", paths.joinToString(File.pathSeparator))
-        } else {
-            val newPath = "${lp}${File.pathSeparator}${tmpDir.absolutePath}"
-            logger.debug("New java.library.path is $newPath")
-            System.setProperty("java.library.path", newPath)
-        }
-
-        val fieldSysPath = ClassLoader::class.java.getDeclaredField("sys_paths")
-        fieldSysPath.setAccessible(true)
-        fieldSysPath.set(null, null)
-
-        logger.debug("java.library.path is now ${System.getProperty("java.library.path")}")
-    }
-
     init {
         os = if(System.getProperty("os.name").toLowerCase().indexOf("windows") != -1) {
             "windows"
@@ -264,8 +204,8 @@ open class GLFWMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandler,
             10.0f
         }
 
-        logger.debug("Native JARs for JInput: ${getNativeJars("jinput-platform").joinToString(", ")}")
-        extractLibrariesFromJar(getNativeJars("jinput-platform"))
+        logger.debug("Native JARs for JInput: ${getNativeJars("jinput-platform", hint = "jinput-raw.dll").joinToString(", ")}")
+        extractLibrariesFromJar(getNativeJars("jinput-platform", hint = "jinput-raw.dll"))
 
         ControllerEnvironment.getDefaultEnvironment().controllers.forEach {
             if (it.type == Controller.Type.STICK || it.type == Controller.Type.GAMEPAD) {
