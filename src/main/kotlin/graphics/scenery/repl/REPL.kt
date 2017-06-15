@@ -76,6 +76,7 @@ class REPL(vararg accessibleObjects: Any) {
      */
     fun start() {
         // waiting for scijava/scijava-ui-swing#22
+        interpreterWindow.repl.lang("JavaScript")
         interpreterWindow.repl.interpreter.eval(startupScriptCode)
     }
 
