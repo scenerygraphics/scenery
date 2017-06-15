@@ -8,7 +8,7 @@ layout(location = 0) in VertexData {
 } VertexIn;
 
 layout(location = 0) out vec3 gPosition;
-layout(location = 1) out vec3 gNormal;
+layout(location = 1) out vec2 gNormal;
 layout(location = 2) out vec4 gAlbedoSpec;
 
 const float PI = 3.14159265358979323846264;
@@ -70,6 +70,42 @@ mat3 TBN(vec3 N, vec3 position, vec2 uv) {
     return transpose(mat3(T * invmax, B * invmax, N));
 }
 
+/*
+Encodes a three component unit vector into a 2 component vector. The z component of the vector is stored, along with
+the angle between the vector and the x axis.
+*/
+vec2 EncodeSpherical(vec3 In) {
+    vec2 enc;
+    enc.x = atan(In.y, In.x) / PI;
+    enc.y = In.z;
+    enc = enc * 0.5f + 0.5f;
+    return enc;
+}
+
+vec2 OctWrap( vec2 v )
+{
+    vec2 ret;
+    ret.x = (1-abs(v.y)) * (v.x >= 0 ? 1.0 : -1.0);
+    ret.y = (1-abs(v.x)) * (v.y >= 0 ? 1.0 : -1.0);
+    return ret.xy;
+}
+
+/*
+Encodes a three component vector into a 2 component vector. First, a normal vector is projected onto one of the 8 planes
+of an octahedron(|x| + |y| + |z| = 1). Then, the octahedron is orthogonally projected onto the xy plane to form a
+square. The half of the octahedron where z is positive is projected directly by equating the z component to 0. The other
+hemisphere is unfolded by splitting all edges adjacent to (0, 0, -1). The z component can be recovered while decoding by
+using the property |x| + |y| + |z| = 1.
+For more, refer to: http://www.vis.uni-stuttgart.de/~engelhts/paper/vmvOctaMaps.pdf.
+ */
+vec2 EncodeOctaH( vec3 n )
+{
+    n /= ( abs( n.x ) + abs( n.y ) + abs( n.z ));
+    n.xy = n.z >= 0.0 ? n.xy : OctWrap( n.xy );
+    n.xy = n.xy * 0.5 + 0.5;
+    return n.xy;
+}
+
 void main() {
     gPosition = VertexIn.FragPosition;
     gAlbedoSpec.rgb = vec3(0.0f, 0.0f, 0.0f);
@@ -94,13 +130,24 @@ void main() {
             discard;
         }
     }
+/*
+Normals are encoded as Octahedron Normal Vectors, or Spherical Normal Vectors, which saves on storage as well as read/write processing of one
+component. If using Spherical Encoding, do not forget to use spherical decode function in DeferredLighting shader.
+*/
+    vec2 EncodedNormal = EncodeOctaH(VertexIn.Normal);
+//    vec3 NormalizedNormal = normalize(VertexIn.Normal);
+//    vec2 EncodedNormal = EncodeSpherical(NormalizedNormal);
+
 
     if((materialType & MATERIAL_HAS_NORMAL) == MATERIAL_HAS_NORMAL) {
 //        vec3 normal = texture(ObjectTextures[3], VertexIn.TexCoord).rgb*(255.0/127.0) - (128.0/127.0);
 //        normal = TBN(normalize(VertexIn.Normal), -VertexIn.FragPosition, VertexIn.TexCoord)*normal;
 
-        gNormal = normalize(VertexIn.Normal);
+        gNormal = EncodedNormal;
     } else {
-        gNormal = normalize(VertexIn.Normal);
+        gNormal = EncodedNormal;
     }
 }
+
+
+

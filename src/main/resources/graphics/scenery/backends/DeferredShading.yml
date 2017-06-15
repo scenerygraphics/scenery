@@ -8,7 +8,7 @@ rendertargets:
       format: RGBA_Float32
     Normal:
       size: 1.0, 1.0
-      format: RGBA_Float16
+      format: RG_Float16
     DiffuseAlbedo:
       size: 1.0, 1.0
       format: RGBA_UInt8
@@ -53,12 +53,16 @@ renderpasses:
     output: DeferredForward
     parameters:
       debugBuffers: 0
-      activateSSAO: 1
+      SSAO_Options: 1
       reflectanceModel: 0
       ssaoDistanceThreshold: 8.0
       ssaoRadius: 4.0
       Global.displayWidth: 0
       Global.displayHeight: 0
+      IntensityScale: 1.0
+      Epsilon: 0.001
+      BiasDistance: 0.0001
+      Contrast: 1.0
   ForwardShading:
     type: geometry
     renderTransparent: true
