@@ -43,6 +43,7 @@ class VolumeExample: SceneryDefaultApplication("Volume Rendering example") {
         scene.addChild(shell)
 
         val volume = Volume()
+        volume.colormap = "jet"
         scene.addChild(volume)
 
         val lights = (0..3).map {
