@@ -274,7 +274,7 @@ open class VulkanFramebuffer(protected var device: VkDevice,
 
     fun addUnsignedByteRGBABuffer(name: String, channelDepth: Int): VulkanFramebuffer {
         val format: Int = when(channelDepth) {
-            8 -> VK_FORMAT_R8G8B8A8_UNORM
+            8 -> VK_FORMAT_R8G8B8A8_SRGB
             16 -> VK_FORMAT_R16G16B16A16_UNORM
             else -> { System.err.println("Unsupported channel depth $channelDepth, using 16 bit."); VK_FORMAT_R16G16B16A16_UINT }
         }
@@ -466,7 +466,7 @@ open class VulkanFramebuffer(protected var device: VkDevice,
             .addressModeV(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE)
             .addressModeW(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE)
             .mipLodBias(0.0f)
-            .maxAnisotropy(0.0f)
+            .maxAnisotropy(1.0f)
             .minLod(0.0f)
             .maxLod(1.0f)
             .borderColor(VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE)
