@@ -19,10 +19,12 @@ import java.util.concurrent.ConcurrentHashMap
 import javax.imageio.ImageIO
 import kotlin.streams.toList
 import com.sun.deploy.trace.Trace.flush
+import graphics.scenery.backends.vulkan.VulkanTexture
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.awt.image.BufferedImage
-
+import kotlin.collections.HashMap
+import kotlin.concurrent.thread
 
 
 /**
@@ -31,7 +33,7 @@ import java.awt.image.BufferedImage
  * @author Ulrik Günther <hello@ulrik.is>
  * @author Martin Weigert <mweigert@mpi-cbg.de>
  */
-class Volume(var autosetProperties: Boolean = true) : Mesh("DirectVolume") {
+class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
     data class VolumeDescriptor(val path: Path?,
                                 val width: Long,
                                 val height: Long,
@@ -55,6 +57,17 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("DirectVolume") {
         var max: Float = 1.0f,
         var function: FloatArray = floatArrayOf()
     )
+
+    class Histogram<T : Comparable<T>>(histogramSize: Int) {
+        val bins: HashMap<T, Long> = HashMap(histogramSize)
+
+        fun add(value: T) {
+            bins.put(value, (bins.get(value) ?: 0L) + 1L)
+        }
+
+        fun min(): T = bins.keys.minBy { it } ?: (0 as T)
+        fun max(): T = bins.keys.maxBy { it } ?: (0 as T)
+    }
 
     val boxwidth = 1.0f
 
@@ -82,6 +95,17 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("DirectVolume") {
 
     val logger: Logger = LoggerFactory.getLogger("Volume")
 
+    var colormaps = HashMap<String, String>()
+
+    var colormap: String = "viridis"
+        set(name) {
+            colormaps.get(name)?.let { cm ->
+                field = name
+                this@Volume.material.textures.put("normal", cm)
+                this@Volume.material.needsTextureReload = true
+            }
+        }
+
     @Transient val volumes = ConcurrentHashMap<String, VolumeDescriptor>()
 
     var currentVolume: String = ""
@@ -94,18 +118,14 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("DirectVolume") {
 
     val parameters = VolumeRenderingParameters()
 
-    var hub: Hub? = null
-
     init {
         // fake geometry
-        val b = Box(GLVector(1.0f, 1.0f, 1.0f))
         this.vertices = BufferUtils.allocateFloatAndPut(
             floatArrayOf(
                 -1.0f, -1.0f, 0.0f,
                 1.0f, -1.0f, 0.0f,
                 1.0f, 1.0f, 0.0f,
                 -1.0f, 1.0f, 0.0f))
-        this.vertices.flip()
 
         this.normals = BufferUtils.allocateFloatAndPut(
             floatArrayOf(
@@ -113,7 +133,6 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("DirectVolume") {
                 0.0f, 1.0f, 0.0f,
                 0.0f, 0.0f, 1.0f,
                 0.0f, 0.0f, 1.0f))
-        this.normals.flip()
 
         this.texcoords = BufferUtils.allocateFloatAndPut(
             floatArrayOf(
@@ -121,11 +140,9 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("DirectVolume") {
                 1.0f, 0.0f,
                 1.0f, 1.0f,
                 0.0f, 1.0f))
-        this.texcoords.flip()
 
         this.indices = BufferUtils.allocateIntAndPut(
             intArrayOf(0, 1, 2, 0, 2, 3))
-        this.indices.flip()
 
         this.geometryType = GeometryType.TRIANGLE_STRIP
         this.vertexSize = 3
@@ -139,21 +156,12 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("DirectVolume") {
                 arrayListOf("Volume.vert", "Volume.frag"),
                 HashMap<String, String>(),
                 arrayListOf("DeferredShadingRenderer")))
-    }
 
-    fun colormapFileToByteBuffer(name: String): ByteBuffer {
-        val image = ImageIO.read(this.javaClass.getResourceAsStream("colormap-$name.png"))
-        val baos = ByteArrayOutputStream()
-        ImageIO.write(image, "png", baos)
-        baos.flush()
-        val imageInByte = baos.toByteArray()
-        baos.close()
-
-        val buffer = memAlloc(imageInByte.size)
-        buffer.put(imageInByte)
-        buffer.flip()
-
-        return buffer
+        colormaps.put("grays", this.javaClass.getResource("colormap-grays.png").file)
+        colormaps.put("hot", this.javaClass.getResource("colormap-hot.png").file)
+        colormaps.put("jet", this.javaClass.getResource("colormap-jet.png").file)
+        colormaps.put("plasma", this.javaClass.getResource("colormap-plasma.png").file)
+        colormaps.put("viridis", this.javaClass.getResource("colormap-viridis.png").file)
     }
 
     fun preloadRawFromPath(file: Path) {
@@ -303,6 +311,16 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("DirectVolume") {
                 NativeTypeEnum.UnsignedInt, 2, data = imageData
             )
 
+            thread {
+                val histogram = Histogram<Short>(65536)
+                val buf = imageData.asShortBuffer()
+                while (buf.hasRemaining()) {
+                    histogram.add(buf.get())
+                }
+
+                logger.info("Min/max of $id: ${histogram.min()}/${histogram.max()} in ${histogram.bins.size}")
+            }
+
             volumes.put(id, descriptor)
             descriptor
         }
@@ -332,29 +350,17 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("DirectVolume") {
         val gtv = GenericTexture("volume", dim,
             -1, descriptor.dataType.toGLType(), descriptor.data, false, false)
 
-        val colormap = GenericTexture("colormap", GLVector(256.0f, 20.0f, 1.0f), 4, GLTypeEnum.Byte,
-            colormapFileToByteBuffer("viridis"), false, false)
-
         if (this.lock.tryLock()) {
-            this.material.textures.put("3D-volume", "fromBuffer:volume")
             this.material.transferTextures.put("volume", gtv)?.let {
                 if (replace) {
                     memFree(it.contents)
                 }
             }
-
-            this.material.textures.put("normal", "fromBuffer:colormap")
-            this.material.transferTextures.put("colormap", colormap)
+            this.material.textures.put("3D-volume", "fromBuffer:volume")
+            this.material.textures.put("normal", colormaps[colormap]!!)
             this.material.needsTextureReload = true
 
             this.lock.unlock()
         }
-    }
-
-    fun render() {
-    }
-
-    fun purge(id: String) {
-        volumes.remove(id)
     }
 }

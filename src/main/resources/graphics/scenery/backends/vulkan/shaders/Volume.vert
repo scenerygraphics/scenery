@@ -63,9 +63,6 @@ void main()
 
 	vec3 L = vec3(sizeX, sizeY, sizeZ) * vec3(voxelSizeX, voxelSizeY, voxelSizeZ);
 
-//    vec4 voxelSize = vec4(1.0f,1.0f,3.0f,0.0f);
-//	vec3 L = vec3(200, 200, 40) * voxelSize.rgb;
-
 	float Lmax = max3(L);
 
 	mat4 invScale = mat4(1.0);

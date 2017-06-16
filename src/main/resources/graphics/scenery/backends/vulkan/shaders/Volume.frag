@@ -208,9 +208,6 @@ void main()
 
           }
           colVal = clamp(pow(ta*maxp + tb,gamma),0.f,1.f);
-
-
-
       }
       else{
           // alpha blending:
