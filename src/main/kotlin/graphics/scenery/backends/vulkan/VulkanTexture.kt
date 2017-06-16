@@ -494,7 +494,7 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
             return tex
         }
 
-        private fun bufferedImageToRGBABuffer(bufferedImage: BufferedImage): ByteBuffer {
+        fun bufferedImageToRGBABuffer(bufferedImage: BufferedImage): ByteBuffer {
             val imageBuffer: ByteBuffer
             val raster: WritableRaster
             val texImage: BufferedImage

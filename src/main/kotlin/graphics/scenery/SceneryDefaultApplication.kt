@@ -197,8 +197,8 @@ open class SceneryDefaultApplication(var applicationName: String,
     fun setupCameraModeSwitching(keybinding: String = "C") {
         val target = GLVector.getNullVector(3)
         val inputHandler = (hub.get(SceneryElement.Input) as InputHandler)
-        val targetArcball = ArcballCameraControl("mouse_control", scene.findObserver(), renderer!!.window.width, renderer!!.window.height, target)
-        val fpsControl = FPSCameraControl("mouse_control", scene.findObserver(), renderer!!.window.width, renderer!!.window.height)
+        val targetArcball = ArcballCameraControl("mouse_control", { scene.findObserver() }, renderer!!.window.width, renderer!!.window.height, target)
+        val fpsControl = FPSCameraControl("mouse_control", { scene.findObserver() }, renderer!!.window.width, renderer!!.window.height)
 
         val toggleControlMode = object : ClickBehaviour {
             var currentMode = "fps"

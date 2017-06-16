@@ -163,25 +163,25 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
         /*
      * Create behaviours and input mappings.
      */
-        behaviourMap.put("mouse_control", FPSCameraControl("mouse_control", scene.findObserver(), window.width, window.height))
-        behaviourMap.put("gamepad_camera_control", GamepadCameraControl("gamepad_camera_control", listOf(Component.Identifier.Axis.Z, Component.Identifier.Axis.RZ), scene.findObserver(), window.width, window.height))
-        behaviourMap.put("gamepad_movement_control", GamepadMovementControl("gamepad_movement_control", listOf(Component.Identifier.Axis.X, Component.Identifier.Axis.Y), scene.findObserver()))
+        behaviourMap.put("mouse_control", FPSCameraControl("mouse_control", { scene.findObserver() }, window.width, window.height))
+        behaviourMap.put("gamepad_camera_control", GamepadCameraControl("gamepad_camera_control", listOf(Component.Identifier.Axis.Z, Component.Identifier.Axis.RZ), { scene.findObserver() }, window.width, window.height))
+        behaviourMap.put("gamepad_movement_control", GamepadMovementControl("gamepad_movement_control", listOf(Component.Identifier.Axis.X, Component.Identifier.Axis.Y), { scene.findObserver() }))
 
-        behaviourMap.put("select_command", SelectCommand("select_command", renderer, scene, scene.findObserver()))
+        behaviourMap.put("select_command", SelectCommand("select_command", renderer, scene, { scene.findObserver() }))
 
-        behaviourMap.put("move_forward", MovementCommand("move_forward", "forward", scene.findObserver()))
-        behaviourMap.put("move_back", MovementCommand("move_back", "back", scene.findObserver()))
-        behaviourMap.put("move_left", MovementCommand("move_left", "left", scene.findObserver()))
-        behaviourMap.put("move_right", MovementCommand("move_right", "right", scene.findObserver()))
-        behaviourMap.put("move_up", MovementCommand("move_up", "up", scene.findObserver()))
-        behaviourMap.put("move_down", MovementCommand("move_down", "down", scene.findObserver()))
+        behaviourMap.put("move_forward", MovementCommand("move_forward", "forward", { scene.findObserver() }))
+        behaviourMap.put("move_back", MovementCommand("move_back", "back", { scene.findObserver() }))
+        behaviourMap.put("move_left", MovementCommand("move_left", "left", { scene.findObserver() }))
+        behaviourMap.put("move_right", MovementCommand("move_right", "right", { scene.findObserver() }))
+        behaviourMap.put("move_up", MovementCommand("move_up", "up", { scene.findObserver() }))
+        behaviourMap.put("move_down", MovementCommand("move_down", "down", { scene.findObserver() }))
 
-        behaviourMap.put("move_forward_fast", MovementCommand("move_forward", "forward", scene.findObserver(), 0.2f))
-        behaviourMap.put("move_back_fast", MovementCommand("move_back", "back", scene.findObserver(), 0.2f))
-        behaviourMap.put("move_left_fast", MovementCommand("move_left", "left", scene.findObserver(), 0.2f))
-        behaviourMap.put("move_right_fast", MovementCommand("move_right", "right", scene.findObserver(), 0.2f))
-        behaviourMap.put("move_up_fast", MovementCommand("move_up", "up", scene.findObserver(), 0.2f))
-        behaviourMap.put("move_down_fast", MovementCommand("move_down", "down", scene.findObserver(), 0.2f))
+        behaviourMap.put("move_forward_fast", MovementCommand("move_forward", "forward", { scene.findObserver() }, 0.2f))
+        behaviourMap.put("move_back_fast", MovementCommand("move_back", "back", { scene.findObserver() }, 0.2f))
+        behaviourMap.put("move_left_fast", MovementCommand("move_left", "left", { scene.findObserver() }, 0.2f))
+        behaviourMap.put("move_right_fast", MovementCommand("move_right", "right", { scene.findObserver() }, 0.2f))
+        behaviourMap.put("move_up_fast", MovementCommand("move_up", "up", { scene.findObserver() }, 0.2f))
+        behaviourMap.put("move_down_fast", MovementCommand("move_down", "down", { scene.findObserver() }, 0.2f))
 
         behaviourMap.put("toggle_debug", ToggleCommand("toggle_debug", renderer, "toggleDebug"))
         behaviourMap.put("toggle_fullscreen", ToggleCommand("toggle_fullscreen", renderer, "toggleFullscreen"))

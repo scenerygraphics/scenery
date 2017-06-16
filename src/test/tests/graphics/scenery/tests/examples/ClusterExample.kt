@@ -164,33 +164,9 @@ class ClusterExample: SceneryDefaultApplication("Clustered Volume Rendering exam
     }
 
     override fun inputSetup() {
-        val target = GLVector(1.5f, 5.5f, 55.5f)
-        val inputHandler = (hub.get(SceneryElement.Input) as InputHandler)
-        val targetArcball = ArcballCameraControl("mouse_control", scene.findObserver(), renderer!!.window.width, renderer!!.window.height, target)
-        val fpsControl = FPSCameraControl("mouse_control", scene.findObserver(), renderer!!.window.width, renderer!!.window.height)
+        setupCameraModeSwitching(keybinding = "C")
 
-        val toggleControlMode = object : ClickBehaviour {
-            var currentMode = "fps"
-
-            override fun click(x: Int, y: Int) {
-                if (currentMode.startsWith("fps")) {
-                    targetArcball.target = GLVector(0.0f, 0.0f, 0.0f)
-
-                    inputHandler.addBehaviour("mouse_control", targetArcball)
-                    inputHandler.addBehaviour("scroll_arcball", targetArcball)
-                    inputHandler.addKeyBinding("scroll_arcball", "scroll")
-
-                    currentMode = "arcball"
-                } else {
-                    inputHandler.addBehaviour("mouse_control", fpsControl)
-                    inputHandler.removeBehaviour("scroll_arcball")
-
-                    currentMode = "fps"
-                }
-
-                System.out.println("Switched to $currentMode control")
-            }
-        }
+        val inputHandler = hub.get(SceneryElement.Input) as InputHandler
 
         val cycleObjects = ClickBehaviour { _, _ ->
             val currentObject = publishedNodes.find { it.visible == true }
@@ -202,9 +178,6 @@ class ClusterExample: SceneryDefaultApplication("Clustered Volume Rendering exam
                 logger.info("Now visible: $this")
             }
         }
-
-        inputHandler.addBehaviour("toggle_control_mode", toggleControlMode)
-        inputHandler.addKeyBinding("toggle_control_mode", "C")
 
         inputHandler.addBehaviour("cycle_objects", cycleObjects)
         inputHandler.addKeyBinding("cycle_objects", "N")

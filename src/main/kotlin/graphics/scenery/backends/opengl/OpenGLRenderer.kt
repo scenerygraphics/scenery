@@ -802,7 +802,8 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
         }
 
         val renderOrderList = ArrayList<Node>()
-        val cam: Camera = scene.findObserver()
+        // find observer, or return immediately
+        val cam: Camera = scene.findObserver() ?: return
 
         val hmd: Display? = if (hub!!.has(SceneryElement.HMDInput)
             && (hub!!.get(SceneryElement.HMDInput) as Display).initializedAndWorking()) {

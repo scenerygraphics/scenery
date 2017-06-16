@@ -4,6 +4,7 @@ import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
 import org.scijava.ui.behaviour.DragBehaviour
 import graphics.scenery.Camera
+import kotlin.reflect.KProperty
 
 /**
  * FPS-style camera control
@@ -15,7 +16,7 @@ import graphics.scenery.Camera
  * @property[h] Window height
  * @constructor Creates a new FPSCameraControl behaviour
  */
-open class FPSCameraControl(private val name: String, private val node: Camera, private val w: Int, private val h: Int) : DragBehaviour {
+open class FPSCameraControl(private val name: String, private val n: () -> Camera?, private val w: Int, private val h: Int) : DragBehaviour {
     /** default mouse x position in window */
     private var lastX = w / 2
     /** default mouse y position in window */
@@ -23,8 +24,20 @@ open class FPSCameraControl(private val name: String, private val node: Camera, 
     /** whether this is the first entering event */
     private var firstEntered = true
 
+    private var node: Camera? by CameraDelegate()
+
+    inner class CameraDelegate {
+        operator fun getValue(thisRef: Any?, property: KProperty<*>): Camera? {
+            return n.invoke()
+        }
+
+        operator fun setValue(thisRef: Any?, property: KProperty<*>, value: Camera?) {
+            throw UnsupportedOperationException()
+        }
+    }
+
     init {
-        node.targeted = false
+        node?.targeted = false
     }
 
     /**
@@ -65,7 +78,7 @@ open class FPSCameraControl(private val name: String, private val node: Camera, 
      * @param[y] y position in window
      */
     override fun init(x: Int, y: Int) {
-        node.targeted = false
+        node?.targeted = false
         if (firstEntered) {
             lastX = x
             lastY = y
@@ -91,7 +104,7 @@ open class FPSCameraControl(private val name: String, private val node: Camera, 
      * @param[y] y position in window
      */
     @Synchronized override fun drag(x: Int, y: Int) {
-        if(!node.lock.tryLock()) {
+        if(!(node?.lock?.tryLock() ?: false)) {
             return
         }
 
@@ -109,9 +122,9 @@ open class FPSCameraControl(private val name: String, private val node: Camera, 
 
         val yawQ = Quaternion().setFromEuler(0.0f, frameYaw/180.0f*Math.PI.toFloat(), 0.0f)
         val pitchQ = Quaternion().setFromEuler(framePitch/180.0f*Math.PI.toFloat(), 0.0f, 0.0f)
-        node.rotation = pitchQ.mult(node.rotation).mult(yawQ).normalize()
+        node?.rotation = pitchQ.mult(node?.rotation).mult(yawQ).normalize()
 
-        node.lock.unlock()
+        node?.lock?.unlock()
     }
 
 

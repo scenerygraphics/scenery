@@ -5,6 +5,7 @@ import graphics.scenery.*
 import org.scijava.ui.behaviour.ClickBehaviour
 import graphics.scenery.backends.Renderer
 import org.slf4j.LoggerFactory
+import kotlin.reflect.KProperty
 
 /**
  * Raycasting-based selection command
@@ -14,78 +15,92 @@ import org.slf4j.LoggerFactory
 open class SelectCommand(private val name: String,
                          private val renderer: Renderer,
                          private val scene: Scene,
-                         private val cam: Camera,
+                         private val camera: () -> Camera?,
                          private var debugRaycast: Boolean = false,
                          private var action: ((List<SelectResult>) -> Any) = {}) : ClickBehaviour {
     val logger = LoggerFactory.getLogger(this.javaClass.simpleName)
 
+    val cam: Camera? by CameraDelegate()
+
+    inner class CameraDelegate {
+        operator fun getValue(thisRef: Any?, property: KProperty<*>): Camera? {
+            return camera.invoke()
+        }
+
+        operator fun setValue(thisRef: Any?, property: KProperty<*>, value: Camera?) {
+            throw UnsupportedOperationException()
+        }
+    }
+
     data class SelectResult(val node: Node, val distance: Float)
 
     override fun click(x: Int, y: Int) {
-        val view = (cam.target - cam.position).normalize()
-        var h = view.cross(cam.up).normalize()
-        var v = h.cross(view)
+        cam?.let { cam ->
+            val view = (cam.target - cam.position).normalize()
+            var h = view.cross(cam.up).normalize()
+            var v = h.cross(view)
 
-        val width = renderer.window.width.toFloat()
-        val height = renderer.window.height.toFloat()
+            val width = renderer.window.width.toFloat()
+            val height = renderer.window.height.toFloat()
 
-        val fov = cam.fov * Math.PI / 180.0f
-        val lengthV = Math.tan(fov / 2.0).toFloat() * cam.nearPlaneDistance
-        val lengthH = lengthV * (width / height)
+            val fov = cam.fov * Math.PI / 180.0f
+            val lengthV = Math.tan(fov / 2.0).toFloat() * cam.nearPlaneDistance
+            val lengthH = lengthV * (width / height)
 
-        v *= lengthV
-        h *= lengthH
+            v *= lengthV
+            h *= lengthH
 
-        val posX = (x - width / 2.0f) / (width / 2.0f)
-        val posY = -1.0f * (y - height / 2.0f) / (height / 2.0f)
+            val posX = (x - width / 2.0f) / (width / 2.0f)
+            val posY = -1.0f * (y - height / 2.0f) / (height / 2.0f)
 
-        val worldPos = cam.position + view * cam.nearPlaneDistance + h * posX + v * posY
-        val worldDir = (worldPos - cam.position).normalized
+            val worldPos = cam.position + view * cam.nearPlaneDistance + h * posX + v * posY
+            val worldDir = (worldPos - cam.position).normalized
 
-        if(debugRaycast) {
-            val indicatorMaterial = Material()
-            indicatorMaterial.diffuse = GLVector(1.0f, 0.2f, 0.2f)
-            indicatorMaterial.specular = GLVector(1.0f, 0.2f, 0.2f)
-            indicatorMaterial.ambient = GLVector(0.0f, 0.0f, 0.0f)
+            if (debugRaycast) {
+                val indicatorMaterial = Material()
+                indicatorMaterial.diffuse = GLVector(1.0f, 0.2f, 0.2f)
+                indicatorMaterial.specular = GLVector(1.0f, 0.2f, 0.2f)
+                indicatorMaterial.ambient = GLVector(0.0f, 0.0f, 0.0f)
 
-            (5..50).forEach {
-                val s = Sphere(0.2f, 20)
-                s.material = indicatorMaterial
-                s.position = worldPos + worldDir * it.toFloat() * 5.0f
-                scene.addChild(s)
+                (5..50).forEach {
+                    val s = Sphere(0.2f, 20)
+                    s.material = indicatorMaterial
+                    s.position = worldPos + worldDir * it.toFloat() * 5.0f
+                    scene.addChild(s)
+                }
             }
-        }
 
-        val matches = scene.discover(scene, { node ->
-            node is Renderable && node.visible
-        }).map {
-            Pair(it, intersectAABB(it, worldPos, worldDir))
-        }.filter {
-            it.second.first && it.second.second > 0.0f
-        }.map {
-            SelectResult(it.first, it.second.second)
-        }.sortedBy {
-            it.distance
-        }
-
-        if(debugRaycast) {
-            logger.info(matches.map { "${it.node.name} at distance ${it.distance}" }.joinToString(", "))
-
-            val m = Material()
-            m.diffuse = GLVector(1.0f, 0.0f, 0.0f)
-            m.specular = GLVector(0.0f, 0.0f, 0.0f)
-            m.ambient = GLVector(0.0f, 0.0f, 0.0f)
-            m.needsTextureReload = true
-
-            matches.firstOrNull()?.let {
-                it.node.material = m
-                it.node.initialized = false
-                it.node.metadata.clear()
-                it.node.dirty = true
+            val matches = scene.discover(scene, { node ->
+                node is Renderable && node.visible
+            }).map {
+                Pair(it, intersectAABB(it, worldPos, worldDir))
+            }.filter {
+                it.second.first && it.second.second > 0.0f
+            }.map {
+                SelectResult(it.first, it.second.second)
+            }.sortedBy {
+                it.distance
             }
-        }
 
-        action.invoke(matches)
+            if (debugRaycast) {
+                logger.info(matches.map { "${it.node.name} at distance ${it.distance}" }.joinToString(", "))
+
+                val m = Material()
+                m.diffuse = GLVector(1.0f, 0.0f, 0.0f)
+                m.specular = GLVector(0.0f, 0.0f, 0.0f)
+                m.ambient = GLVector(0.0f, 0.0f, 0.0f)
+                m.needsTextureReload = true
+
+                matches.firstOrNull()?.let {
+                    it.node.material = m
+                    it.node.initialized = false
+                    it.node.metadata.clear()
+                    it.node.dirty = true
+                }
+            }
+
+            action.invoke(matches)
+        }
     }
 
     // code adapted from zachamarz, http://gamedev.stackexchange.com/a/18459

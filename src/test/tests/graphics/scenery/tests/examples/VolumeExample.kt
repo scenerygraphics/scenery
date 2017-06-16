@@ -43,10 +43,7 @@ class VolumeExample: SceneryDefaultApplication("Volume Rendering example") {
         scene.addChild(shell)
 
         val volume = Volume()
-
-        with(volume) {
-            scene.addChild(this)
-        }
+        scene.addChild(volume)
 
         val lights = (0..3).map {
             PointLight()
@@ -77,6 +74,7 @@ class VolumeExample: SceneryDefaultApplication("Volume Rendering example") {
             while(!scene.initialized) { Thread.sleep(200) }
 
             volume.readFromRaw(Paths.get(nextVolume()), replace = true)
+            logger.info("Got volume!")
             while(true) {
                 volume.rotation.rotateByAngleY(0.001f)
                 volume.needsUpdate = true

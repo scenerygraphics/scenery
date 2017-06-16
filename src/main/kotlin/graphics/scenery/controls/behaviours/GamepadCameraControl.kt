@@ -3,6 +3,7 @@ package graphics.scenery.controls.behaviours
 import cleargl.GLVector
 import net.java.games.input.Component
 import graphics.scenery.Camera
+import kotlin.reflect.KProperty
 
 /**
  * Implementation of GamepadBehaviour for Camera Control
@@ -16,13 +17,25 @@ import graphics.scenery.Camera
  */
 class GamepadCameraControl(private val name: String,
                            override val axis: List<Component.Identifier.Axis>,
-                           private val node: Camera, private val w: Int, private val h: Int) : GamepadBehaviour {
+                           private val n: () -> Camera?, private val w: Int, private val h: Int) : GamepadBehaviour {
     /** Last x position */
     private var lastX: Float = 0.0f
     /** Last y position */
     private var lastY: Float = 0.0f
     /** Is this the first event? */
     private var firstEntered = true;
+
+    private var node: Camera? by CameraDelegate()
+
+    inner class CameraDelegate {
+        operator fun getValue(thisRef: Any?, property: KProperty<*>): Camera? {
+            return n.invoke()
+        }
+
+        operator fun setValue(thisRef: Any?, property: KProperty<*>, value: Camera?) {
+            throw UnsupportedOperationException()
+        }
+    }
 
     /** Pitch angle calculated from the axis position */
     private var pitch: Float = 0.0f;
@@ -96,6 +109,6 @@ class GamepadCameraControl(private val name: String,
                 Math.sin(Math.toRadians(pitch.toDouble())).toFloat(),
                 Math.sin(Math.toRadians(yaw.toDouble())).toFloat() * Math.cos(Math.toRadians(pitch.toDouble())).toFloat())
 
-        node.forward = forward.normalized
+        node?.forward = forward.normalized
     }
 }

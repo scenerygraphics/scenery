@@ -154,6 +154,10 @@ open class VulkanRenderer(hub: Hub,
                     vkResetCommandPool(device, commandPools.Render, VK_FLAGS_NONE)
                 }
 
+                scene.findObserver()?.let { cam ->
+                    cam.perspectiveCamera(cam.fov, window.width.toFloat(), window.height.toFloat(), cam.nearPlaneDistance, cam.farPlaneDistance)
+                }
+
                 lateResizeInitializers.map { it.value.invoke() }
             }
 
@@ -881,12 +885,12 @@ open class VulkanRenderer(hub: Hub,
                         val format = when (gt.channels) {
                             1 -> VK_FORMAT_R8_UNORM
                             2 -> VK_FORMAT_R8G8_UNORM
-                            3 -> VK_FORMAT_R8G8B8_UNORM
+                            3 -> VK_FORMAT_R8G8B8_SRGB
                             -1 -> VK_FORMAT_R16_UINT
                             else -> if (gt.type == GLTypeEnum.Float) {
                                 VK_FORMAT_R32G32B32A32_SFLOAT
                             } else {
-                                VK_FORMAT_R8G8B8A8_UNORM
+                                VK_FORMAT_R8G8B8A8_SRGB
                             }
                         }
 
@@ -1979,7 +1983,10 @@ open class VulkanRenderer(hub: Hub,
 
     private fun createInstanceBuffer(device: VkDevice, parentNode: Node, state: VulkanObjectState): VulkanObjectState {
         val instances = ArrayList<Node>()
-        val cam = scene.activeObserver ?: scene.findObserver()
+
+        // return if no observer found
+        val cam = scene.activeObserver ?: scene.findObserver() ?: return state
+
         cam.view = cam.getTransformation()
 
         scene.discover(scene, { n -> n.instanceOf == parentNode }).forEach {
@@ -2060,7 +2067,8 @@ open class VulkanRenderer(hub: Hub,
 
     private fun updateInstanceBuffer(device: VkDevice, parentNode: Node, state: VulkanObjectState): VulkanObjectState {
         val instances = ArrayList<Node>()
-        val cam = scene.activeObserver ?: scene.findObserver()
+        // return if no observer found
+        val cam = scene.findObserver() ?: return state
 
         scene.discover(scene, { n -> n.instanceOf == parentNode }).forEach {
             instances.add(it)
@@ -2725,7 +2733,8 @@ open class VulkanRenderer(hub: Hub,
     }
 
     @Synchronized private fun updateDefaultUBOs(device: VkDevice) {
-        val cam = scene.findObserver()
+        // find observer, if none, return
+        val cam = scene.findObserver() ?: return
 
         if (!cam.lock.tryLock()) {
             return
