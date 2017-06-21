@@ -2,9 +2,10 @@ package graphics.scenery.controls.behaviours
 
 import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
+import graphics.scenery.Camera
 import org.scijava.ui.behaviour.DragBehaviour
 import org.scijava.ui.behaviour.ScrollBehaviour
-import graphics.scenery.Camera
+import java.util.function.Supplier
 import kotlin.reflect.KProperty
 
 /**
@@ -67,6 +68,8 @@ open class ArcballCameraControl(private val name: String, private val n: () -> C
 
             node?.let { node -> distance = (value - node.position).magnitude() }
         }
+
+    constructor(name: String, n: Supplier<Camera?>, w: Int, h: Int, target: GLVector) : this(name, { n.get() }, w, h, target)
 
     /**
      * This function is called upon mouse down and initialises the camera control

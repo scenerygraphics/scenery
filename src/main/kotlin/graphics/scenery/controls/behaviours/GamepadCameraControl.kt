@@ -1,8 +1,9 @@
 package graphics.scenery.controls.behaviours
 
 import cleargl.GLVector
-import net.java.games.input.Component
 import graphics.scenery.Camera
+import net.java.games.input.Component
+import java.util.function.Supplier
 import kotlin.reflect.KProperty
 
 /**
@@ -50,6 +51,8 @@ class GamepadCameraControl(private val name: String,
     init {
 
     }
+
+    constructor(name: String, axis: List<Component.Identifier.Axis>, n: Supplier<Camera?>, w: Int, h: Int) : this(name, axis, { n.get() }, w, h)
 
     /**
      * This function is trigger upon arrival of an axis event that

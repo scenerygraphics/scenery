@@ -2,8 +2,9 @@ package graphics.scenery.controls.behaviours
 
 import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
-import org.scijava.ui.behaviour.DragBehaviour
 import graphics.scenery.Camera
+import org.scijava.ui.behaviour.DragBehaviour
+import java.util.function.Supplier
 import kotlin.reflect.KProperty
 
 /**
@@ -39,6 +40,8 @@ open class FPSCameraControl(private val name: String, private val n: () -> Camer
     init {
         node?.targeted = false
     }
+
+    constructor(name: String, n: Supplier<Camera?>, w: Int, h: Int) : this(name, { n.get() }, w, h)
 
     /**
      * This extension function creates yaw/pitch angles from
