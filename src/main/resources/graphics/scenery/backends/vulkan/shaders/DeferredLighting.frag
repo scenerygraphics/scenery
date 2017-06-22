@@ -37,13 +37,19 @@ layout(set = 2, binding = 0, std140) uniform LightParameters {
 
 layout(set = 3, binding = 0, std140) uniform ShaderParameters {
 	int debugBuffers;
-	int activateSSAO;
+	int SSAO_Options;
 	int reflectanceModel;
 	float ssaoDistanceThreshold;
 	float ssaoRadius;
 	int displayWidth;
 	int displayHeight;
+    float IntensityScale;
+    float Epsilon;
+    float BiasDistance;
+    float Contrast;
 };
+
+
 
 const vec2 poisson16[] = vec2[](    // These are the Poisson Disk Samples
 		vec2( -0.94201624,  -0.39906216 ),
@@ -96,16 +102,57 @@ float rand(vec2 co){
     return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
 }
 
+vec3 DecodeSpherical(vec2 In)
+{
+    vec2 ang = In.xy * 2.0 - 1.0;
+    vec2 scth;
+    scth.x = sin(ang.x * PI);
+    scth.y = cos(ang.x * PI);
+    vec2 scphi = vec2(sqrt(1 - ang.y*ang.y), ang.y);
+
+    vec3 dec;
+    dec.x = scth.y * scphi.x;
+    dec.y = scth.x * scphi.x;
+    dec.z = scphi.y;
+    return dec;
+}
+
+vec2 OctWrap( vec2 v )
+{
+    vec2 ret;
+    ret.x = (1-abs(v.y)) * (v.x >= 0 ? 1.0 : -1.0);
+    ret.y = (1-abs(v.x)) * (v.y >= 0 ? 1.0 : -1.0);
+    return ret.xy;
+}
+
+/*
+Decodes the octahedron normal vector from it's two component form to return the normal with its three components. Uses the
+property |x| + |y| + |z| = 1 and reverses the orthogonal projection performed while encoding.
+*/
+vec3 DecodeOctaH( vec2 encN )
+{
+    encN = encN * 2.0 - 1.0;
+    vec3 n;
+    n.z = 1.0 - abs( encN.x ) - abs( encN.y );
+    n.xy = n.z >= 0.0 ? encN.xy : OctWrap( encN.xy );
+    n = normalize( n );
+    return n;
+}
+
+
 void main()
 {
 	// Retrieve data from G-buffer
 	vec3 FragPos = texture(gPosition, textureCoord).rgb;
-	vec3 Normal = texture(gNormal, textureCoord).rgb;
+    vec3 DecodedNormal = DecodeOctaH(texture(gNormal, textureCoord).rg);
+//	vec3 DecodedNormal = DecodeSpherical(texture(gNormal, textureCoord).rg);
+	vec3 Normal = DecodedNormal;
 	vec4 Albedo = texture(gAlbedoSpec, textureCoord).rgba;
 	float Specular = texture(gAlbedoSpec, textureCoord).a;
 	float Depth = texture(gDepth, textureCoord).r;
 
 	vec2 ssaoFilterRadius = vec2(ssaoRadius/displayWidth, ssaoRadius/displayHeight);
+	vec3 viewSpacePos = (ubo.ViewMatrix * (vec4(FragPos, 1.0) - vec4(ubo.CamPosition, 1.0))).rgb;
 
 	float fragDist = length(FragPos - ubo.CamPosition);
 
@@ -114,7 +161,7 @@ void main()
 	if(debugBuffers == 0) {
 		float ambientOcclusion = 0.0f;
 
-		if(activateSSAO > 0) {
+		if(SSAO_Options == 1) {
 
 			int sample_count = 8;
 			for (int i = 0; i < sample_count;  ++i) {
@@ -134,6 +181,33 @@ void main()
 			}
 
 		    ambientOcclusion /= float(sample_count);
+		}
+
+		else if (SSAO_Options == 2) {
+		//Alchemy SSAO algorithm
+		    float A = 0.0f;
+		    int sample_count = 8;
+            for (int i = 0; i < sample_count;  ++i) {
+                vec2 sampleTexCoord = textureCoord + (poisson16[i] * (ssaoFilterRadius));
+                //                       float sampleDepth = texture(gDepth, sampleTexCoord).r;
+                vec3 samplePos = texture(gPosition, sampleTexCoord).rgb;
+
+                vec3 sampleDir = samplePos - FragPos;
+
+
+                float NdotV = max(dot(Normal, sampleDir), 0);
+                float VdotV = max(dot(sampleDir, sampleDir), 0);
+                float temp = max(0, NdotV + viewSpacePos.z*BiasDistance);
+                temp /= (VdotV + Epsilon);
+                A+=temp;
+             }
+
+             A/=sample_count;
+             A*= (2*IntensityScale);
+             A = max(0, 1-A);
+             A = pow(A, Contrast);
+             ambientOcclusion = 1- A;
+
 		}
 
 		vec3 viewDir = normalize(ubo.CamPosition - FragPos);
@@ -231,27 +305,27 @@ void main()
 	} else {
 		vec2 newTexCoord;
 		// color
-		if(textureCoord.x < 0.25 && textureCoord.y < 0.5 ) {
-			FragColor = Albedo;
-		}
-		// specular
-		if(textureCoord.x > 0.25 && textureCoord.x < 0.5 && textureCoord.y < 0.5) {
-		    FragColor = vec4(Specular, Specular, Specular, 1.0);
-		}
-		// depth
-		if(textureCoord.x > 0.5 && textureCoord.y < 0.5) {
-		    float near = 0.5f;
-		    float far = 1000.0f;
-		    vec3 linearizedDepth = vec3((2.0f * near) / (far + near - Depth * (far - near)));
-			FragColor = vec4(linearizedDepth, 1.0f);
-		}
-		// normal
-		if(textureCoord.x > 0.5 && textureCoord.y > 0.5) {
-			FragColor = vec4(Normal, 1.0f);
-		}
-		// position
-		if(textureCoord.x < 0.5 && textureCoord.y > 0.5) {
-			FragColor = vec4(FragPos, 1.0f);
-		}
+        if(textureCoord.x < 0.25 && textureCoord.y < 0.5 ) {
+            FragColor = Albedo;
+        }
+        // specular
+        if(textureCoord.x > 0.25 && textureCoord.x < 0.5 && textureCoord.y < 0.5) {
+            FragColor = vec4(Specular, Specular, Specular, 1.0);
+        }
+        // depth
+        if(textureCoord.x > 0.5 && textureCoord.y < 0.5) {
+            float near = 0.5f;
+            float far = 1000.0f;
+            vec3 linearizedDepth = vec3((2.0f * near) / (far + near - Depth * (far - near)));
+            FragColor = vec4(linearizedDepth, 1.0f);
+        }
+        // normal
+        if(textureCoord.x > 0.5 && textureCoord.y > 0.5) {
+            FragColor = vec4(Normal, 1.0f);
+        }
+        // position
+        if(textureCoord.x < 0.5 && textureCoord.y > 0.5) {
+            FragColor = vec4(FragPos, 1.0f);
+        }
 	}
 }
