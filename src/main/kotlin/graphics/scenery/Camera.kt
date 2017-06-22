@@ -83,30 +83,6 @@ open class Camera : Node("Camera") {
         )
     }
 
-    fun generalizedPerspectiveCamera(fov: Float, width: Float, height: Float, nearPlaneLocation: Float = 0.1f, farPlaneLocation: Float = 1000.0f) {
-        this.nearPlaneDistance = nearPlaneLocation
-        this.farPlaneDistance = farPlaneLocation
-        this.fov = fov
-
-        this.projection = GLMatrix().setGeneralizedPerspectiveProjectionMatrix(
-//              bottom
-        GLVector(-1.920000f, 0.000000f, -0.48000f),
-        GLVector(1.920000f, 0.000000f, -0.48000f),
-        GLVector(-1.920000f, 0.000000f, 1.920000f),
-//            front
-//        GLVector(-1.920000f, 0.000000f, 1.920000f),
-//        GLVector(1.920000f, 0.000000f, 1.920000f),
-//        GLVector(-1.920000f, 2.400000f, 1.920000f),
-            // left
-//        GLVector(-1.920000f, 0.000000f, -1.920000f),
-//        GLVector(-1.920000f, 0.000000f, 1.920000f),
-//            GLVector(-1.920000f, 2.400000f, 1.920000f),
-            GLVector(0.0f, 0.4f, -0.4f),
-            this.nearPlaneDistance,
-            this.farPlaneDistance
-        )
-    }
-
     open fun getTransformation(): GLMatrix {
         val tr = GLMatrix.getTranslation(this.position * (-1.0f)).transpose()
         val r = GLMatrix.fromQuaternion(this.rotation)

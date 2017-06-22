@@ -4,14 +4,11 @@ import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.InputHandler
-import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedStereoGlasses
 import graphics.scenery.controls.behaviours.ArcballCameraControl
 import graphics.scenery.controls.behaviours.FPSCameraControl
 import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
-import graphics.scenery.volumes.DirectVolume
-import graphics.scenery.volumes.DirectVolumeFullscreen
 import graphics.scenery.volumes.Volume
 import org.junit.Test
 import org.scijava.ui.behaviour.ClickBehaviour
@@ -53,7 +50,7 @@ class VolumeHistoneExample: SceneryDefaultApplication("Clustered Volume Renderin
         shell.material.ambient = GLVector.getNullVector(3)
         scene.addChild(shell)
 
-        val volume = DirectVolumeFullscreen(autosetProperties = false)
+        val volume = Volume(autosetProperties = false)
 
         with(volume) {
             trangemin = 0.005f
@@ -148,7 +145,7 @@ class VolumeHistoneExample: SceneryDefaultApplication("Clustered Volume Renderin
             }
 
             thread {
-                volumes.map { volume.preload( Paths.get(it)) }
+                volumes.map { volume.preloadRawFromPath( Paths.get(it)) }
                 Thread.sleep(2)
             }
         }
@@ -156,33 +153,8 @@ class VolumeHistoneExample: SceneryDefaultApplication("Clustered Volume Renderin
     }
 
     override fun inputSetup() {
-        val target = GLVector(1.5f, 5.5f, 55.5f)
         val inputHandler = (hub.get(SceneryElement.Input) as InputHandler)
-        val targetArcball = ArcballCameraControl("mouse_control", scene.findObserver(), renderer!!.window.width, renderer!!.window.height, target)
-        val fpsControl = FPSCameraControl("mouse_control", scene.findObserver(), renderer!!.window.width, renderer!!.window.height)
-
-        val toggleControlMode = object : ClickBehaviour {
-            var currentMode = "fps"
-
-            override fun click(x: Int, y: Int) {
-                if (currentMode.startsWith("fps")) {
-                    targetArcball.target = GLVector(0.0f, 0.0f, 0.0f)
-
-                    inputHandler.addBehaviour("mouse_control", targetArcball)
-                    inputHandler.addBehaviour("scroll_arcball", targetArcball)
-                    inputHandler.addKeyBinding("scroll_arcball", "scroll")
-
-                    currentMode = "arcball"
-                } else {
-                    inputHandler.addBehaviour("mouse_control", fpsControl)
-                    inputHandler.removeBehaviour("scroll_arcball")
-
-                    currentMode = "fps"
-                }
-
-                System.out.println("Switched to $currentMode control")
-            }
-        }
+        setupCameraModeSwitching(keybinding = "C")
 
         val cycleObjects = ClickBehaviour { _, _ ->
             val currentObject = publishedNodes.find { it.visible == true }
@@ -194,9 +166,6 @@ class VolumeHistoneExample: SceneryDefaultApplication("Clustered Volume Renderin
                 logger.info("Now visible: $this")
             }
         }
-
-        inputHandler.addBehaviour("toggle_control_mode", toggleControlMode)
-        inputHandler.addKeyBinding("toggle_control_mode", "C")
 
         inputHandler.addBehaviour("cycle_objects", cycleObjects)
         inputHandler.addKeyBinding("cycle_objects", "N")

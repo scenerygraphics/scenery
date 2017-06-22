@@ -127,36 +127,7 @@ class OrientationBoxesExample: SceneryDefaultApplication("OrientationBoxesExampl
     }
 
     override fun inputSetup() {
-        val target = GLVector(1.5f, 5.5f, 55.5f)
-        val inputHandler = (hub.get(SceneryElement.Input) as InputHandler)
-        val targetArcball = ArcballCameraControl("mouse_control", scene.findObserver(), renderer!!.window.width, renderer!!.window.height, target)
-        val fpsControl = FPSCameraControl("mouse_control", scene.findObserver(), renderer!!.window.width, renderer!!.window.height)
-
-        val toggleControlMode = object : ClickBehaviour {
-            var currentMode = "fps"
-
-            override fun click(x: Int, y: Int) {
-                if (currentMode.startsWith("fps")) {
-                    targetArcball.target = scene.findObserver().position + scene.findObserver().forward
-
-                    inputHandler.addBehaviour("mouse_control", targetArcball)
-                    inputHandler.addBehaviour("scroll_arcball", targetArcball)
-                    inputHandler.addKeyBinding("scroll_arcball", "scroll")
-
-                    currentMode = "arcball"
-                } else {
-                    inputHandler.addBehaviour("mouse_control", fpsControl)
-                    inputHandler.removeBehaviour("scroll_arcball")
-
-                    currentMode = "fps"
-                }
-
-                System.out.println("Switched to $currentMode control")
-            }
-        }
-
-        inputHandler.addBehaviour("toggle_control_mode", toggleControlMode)
-        inputHandler.addKeyBinding("toggle_control_mode", "C")
+        setupCameraModeSwitching(keybinding = "C")
     }
 
 

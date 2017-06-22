@@ -1,11 +1,12 @@
 package graphics.scenery.controls.behaviours
 
-import cleargl.GLMatrix
 import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
+import graphics.scenery.Camera
 import org.scijava.ui.behaviour.DragBehaviour
 import org.scijava.ui.behaviour.ScrollBehaviour
-import graphics.scenery.Camera
+import java.util.function.Supplier
+import kotlin.reflect.KProperty
 
 /**
  * Targeted ArcBall control
@@ -24,7 +25,7 @@ import graphics.scenery.Camera
  * @property[target] Vector with the look-at target of the arcball
  * @constructor Creates a new ArcballCameraControl behaviour
  */
-open class ArcballCameraControl(private val name: String, private val node: Camera, private val w: Int, private val h: Int, target: GLVector = GLVector(0.0f, 0.0f, 0.0f)) : DragBehaviour, ScrollBehaviour {
+open class ArcballCameraControl(private val name: String, private val n: () -> Camera?, private val w: Int, private val h: Int, target: GLVector = GLVector(0.0f, 0.0f, 0.0f)) : DragBehaviour, ScrollBehaviour {
     /** default mouse x position in window */
     private var lastX = w / 2
     /** default mouse y position in window */
@@ -32,11 +33,24 @@ open class ArcballCameraControl(private val name: String, private val node: Came
     /** whether this is the first entering event */
     private var firstEntered = true
 
+    private var node: Camera? by CameraDelegate()
+
+    inner class CameraDelegate {
+        operator fun getValue(thisRef: Any?, property: KProperty<*>): Camera? {
+            return n.invoke()
+        }
+
+        operator fun setValue(thisRef: Any?, property: KProperty<*>, value: Camera?) {
+            throw UnsupportedOperationException()
+        }
+    }
+
     /** distance to target */
     var distance: Float = 5.0f
         set(value) {
             field = value
-            node.position = target + node.forward * value * (-1.0f)
+
+            node?.let { node -> node.position = target + node.forward * value * (-1.0f) }
         }
 
     /** multiplier for zooming in and out */
@@ -52,8 +66,10 @@ open class ArcballCameraControl(private val name: String, private val node: Came
         set(value) {
             field = value
 
-            distance = (value - node.position).magnitude()
+            node?.let { node -> distance = (value - node.position).magnitude() }
         }
+
+    constructor(name: String, n: Supplier<Camera?>, w: Int, h: Int, target: GLVector) : this(name, { n.get() }, w, h, target)
 
     /**
      * This function is called upon mouse down and initialises the camera control
@@ -69,8 +85,8 @@ open class ArcballCameraControl(private val name: String, private val node: Came
             firstEntered = false
         }
 
-        node.targeted = true
-        node.target = target
+        node?.targeted = true
+        node?.target = target
     }
 
     /**
@@ -91,30 +107,32 @@ open class ArcballCameraControl(private val name: String, private val node: Came
      * @param[y] y position in window
      */
     override fun drag(x: Int, y: Int) {
-        if(!node.lock.tryLock()) {
-            return
+        node?.let { node ->
+            if (!node.lock.tryLock()) {
+                return
+            }
+
+            var xoffset: Float = (x - lastX).toFloat()
+            var yoffset: Float = (lastY - y).toFloat()
+
+            lastX = x
+            lastY = y
+
+            xoffset *= mouseSpeedMultiplier
+            yoffset *= -mouseSpeedMultiplier
+
+            val frameYaw = (xoffset) / 180.0f * Math.PI.toFloat()
+            val framePitch = yoffset / 180.0f * Math.PI.toFloat()
+
+            // first calculate the total rotation quaternion to be applied to the camera
+            val yawQ = Quaternion().setFromEuler(0.0f, frameYaw, 0.0f)
+            val pitchQ = Quaternion().setFromEuler(framePitch, 0.0f, 0.0f)
+
+            node.rotation = pitchQ.mult(node.rotation).mult(yawQ).normalize()
+            node.position = target + node.forward * distance * (-1.0f)
+
+            node.lock.unlock()
         }
-
-        var xoffset: Float = (x - lastX).toFloat()
-        var yoffset: Float = (lastY - y).toFloat()
-
-        lastX = x
-        lastY = y
-
-        xoffset *= mouseSpeedMultiplier
-        yoffset *= -mouseSpeedMultiplier
-
-        val frameYaw = (xoffset)/180.0f*Math.PI.toFloat()
-        val framePitch = yoffset/180.0f*Math.PI.toFloat()
-
-        // first calculate the total rotation quaternion to be applied to the camera
-        val yawQ = Quaternion().setFromEuler(0.0f, frameYaw, 0.0f)
-        val pitchQ = Quaternion().setFromEuler(framePitch, 0.0f, 0.0f)
-
-        node.rotation = pitchQ.mult(node.rotation).mult(yawQ).normalize()
-        node.position = target + node.forward * distance * (-1.0f)
-
-        node.lock.unlock()
     }
 
     /**
@@ -137,7 +155,7 @@ open class ArcballCameraControl(private val name: String, private val node: Came
         if (distance >= maximumDistance) distance = maximumDistance
         if (distance <= minimumDistance) distance = minimumDistance
 
-        node.position = target + node.forward * distance * (-1.0f)
+        node?.let { node -> node.position = target + node.forward * distance * (-1.0f) }
     }
 
 }

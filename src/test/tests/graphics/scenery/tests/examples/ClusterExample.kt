@@ -4,19 +4,15 @@ import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.InputHandler
-import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedStereoGlasses
 import graphics.scenery.controls.behaviours.ArcballCameraControl
 import graphics.scenery.controls.behaviours.FPSCameraControl
 import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
-import graphics.scenery.volumes.DirectVolume
-import graphics.scenery.volumes.DirectVolumeFullscreen
 import graphics.scenery.volumes.Volume
 import org.junit.Test
 import org.scijava.ui.behaviour.ClickBehaviour
 import java.io.File
-import java.nio.file.Paths
 import kotlin.concurrent.thread
 
 /**
@@ -46,13 +42,13 @@ class ClusterExample: SceneryDefaultApplication("Clustered Volume Rendering exam
         }
 
 //        val bileMesh = Mesh()
-//        bileMesh.readFrom("Z:/data/models-inauguration/celegans_epithelium.stl", useMaterial = false)
+//        bileMesh.readFromRaw("Z:/data/models-inauguration/celegans_epithelium.stl", useMaterial = false)
 //        bileMesh.scale = GLVector(0.01f, 0.01f, 0.01f)
 //        bileMesh.visible = false
 //        scene.addChild(bileMesh)
 //
 //        val vasculature = Mesh()
-//        vasculature.readFrom("Z:/data/models-inauguration/Drerio.stl", useMaterial = false)
+//        vasculature.readFromRaw("Z:/data/models-inauguration/Drerio.stl", useMaterial = false)
 //        vasculature.scale = GLVector(0.1f, 0.1f, 0.1f)
 //        bileMesh.visible = false
 //        scene.addChild(vasculature)
@@ -67,7 +63,7 @@ class ClusterExample: SceneryDefaultApplication("Clustered Volume Rendering exam
         shell.material.ambient = GLVector.getNullVector(3)
         scene.addChild(shell)
 
-        val volume = DirectVolumeFullscreen()
+        val volume = Volume()
 
         with(volume) {
             volume.visible = true
@@ -168,33 +164,9 @@ class ClusterExample: SceneryDefaultApplication("Clustered Volume Rendering exam
     }
 
     override fun inputSetup() {
-        val target = GLVector(1.5f, 5.5f, 55.5f)
-        val inputHandler = (hub.get(SceneryElement.Input) as InputHandler)
-        val targetArcball = ArcballCameraControl("mouse_control", scene.findObserver(), renderer!!.window.width, renderer!!.window.height, target)
-        val fpsControl = FPSCameraControl("mouse_control", scene.findObserver(), renderer!!.window.width, renderer!!.window.height)
+        setupCameraModeSwitching(keybinding = "C")
 
-        val toggleControlMode = object : ClickBehaviour {
-            var currentMode = "fps"
-
-            override fun click(x: Int, y: Int) {
-                if (currentMode.startsWith("fps")) {
-                    targetArcball.target = GLVector(0.0f, 0.0f, 0.0f)
-
-                    inputHandler.addBehaviour("mouse_control", targetArcball)
-                    inputHandler.addBehaviour("scroll_arcball", targetArcball)
-                    inputHandler.addKeyBinding("scroll_arcball", "scroll")
-
-                    currentMode = "arcball"
-                } else {
-                    inputHandler.addBehaviour("mouse_control", fpsControl)
-                    inputHandler.removeBehaviour("scroll_arcball")
-
-                    currentMode = "fps"
-                }
-
-                System.out.println("Switched to $currentMode control")
-            }
-        }
+        val inputHandler = hub.get(SceneryElement.Input) as InputHandler
 
         val cycleObjects = ClickBehaviour { _, _ ->
             val currentObject = publishedNodes.find { it.visible == true }
@@ -206,9 +178,6 @@ class ClusterExample: SceneryDefaultApplication("Clustered Volume Rendering exam
                 logger.info("Now visible: $this")
             }
         }
-
-        inputHandler.addBehaviour("toggle_control_mode", toggleControlMode)
-        inputHandler.addKeyBinding("toggle_control_mode", "C")
 
         inputHandler.addBehaviour("cycle_objects", cycleObjects)
         inputHandler.addKeyBinding("cycle_objects", "N")

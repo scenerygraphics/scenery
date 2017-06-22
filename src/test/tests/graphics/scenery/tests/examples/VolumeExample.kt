@@ -4,12 +4,9 @@ import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.InputHandler
-import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedStereoGlasses
 import graphics.scenery.controls.behaviours.ArcballCameraControl
 import graphics.scenery.controls.behaviours.FPSCameraControl
-import graphics.scenery.volumes.DirectVolume
-import graphics.scenery.volumes.DirectVolumeFullscreen
 import graphics.scenery.volumes.Volume
 import org.junit.Test
 import org.scijava.ui.behaviour.ClickBehaviour
@@ -26,15 +23,11 @@ class VolumeExample: SceneryDefaultApplication("Volume Rendering example") {
     var hmd: TrackedStereoGlasses? = null
 
     override fun init() {
-        hmd = TrackedStereoGlasses("DTrack@10.1.2.201")
-        hub.add(SceneryElement.HMDInput, hmd!!)
-
-        renderer = Renderer.createRenderer(hub, applicationName, scene, 2560, 1600)
+        renderer = Renderer.createRenderer(hub, applicationName, scene, 1280, 720)
         hub.add(SceneryElement.Renderer, renderer!!)
 
         val cam: Camera = DetachedHeadCamera(hmd)
         with(cam) {
-            //position = GLVector(0.0f, 0.0f, 5.0f)
             position = GLVector(0.0f, -1.0f, 5.0f)
             perspectiveCamera(50.0f, 1.0f*windowWidth, 1.0f*windowHeight)
             active = true
@@ -44,16 +37,14 @@ class VolumeExample: SceneryDefaultApplication("Volume Rendering example") {
 
         val shell = Box(GLVector(120.0f, 120.0f, 120.0f), insideNormals = true)
         shell.material.doubleSided = true
-        shell.material.diffuse = GLVector(0.0f, 0.0f, 0.0f)
+        shell.material.diffuse = GLVector(0.2f, 0.2f, 0.2f)
         shell.material.specular = GLVector.getNullVector(3)
         shell.material.ambient = GLVector.getNullVector(3)
         scene.addChild(shell)
 
-        val volume = DirectVolumeFullscreen()
-
-        with(volume) {
-            scene.addChild(this)
-        }
+        val volume = Volume()
+        volume.colormap = "jet"
+        scene.addChild(volume)
 
         val lights = (0..3).map {
             PointLight()
@@ -68,12 +59,9 @@ class VolumeExample: SceneryDefaultApplication("Volume Rendering example") {
             scene.addChild(light)
         }
 
-        //val folder = File("Y:/CAVE_DATA/histones-isonet/stacks/default/")
-        //val folder = File("Y:/CAVE_DATA/droso-royer/drosos-royer/stacks/default/")
-        //val folder = File("Y:/CAVE_DATA/droso-isonet/stacks/default/")
-        val folder = File("Y:/CAVE_DATA/droso-royer/drosos-royer/stacks/default/")
+        val folder = File(getDemoFilesPath() + "/volumes/box-iso/")
         val files = folder.listFiles()
-        val volumes = files.filter { System.err.println(it); it.isFile && it.name.endsWith("0.raw") }.map { it.absolutePath }.sorted()
+        val volumes = files.filter { System.err.println(it); it.isFile }.map { it.absolutePath }.sorted()
 
         var currentVolume = 0
         fun nextVolume(): String {
@@ -83,27 +71,11 @@ class VolumeExample: SceneryDefaultApplication("Volume Rendering example") {
             return v
         }
 
-        //var delay = 140L
-        var delay = 400L
-
-
-
-        repl?.addAccessibleObject(delay)
-
         thread {
             while(!scene.initialized) { Thread.sleep(200) }
 
-            while(true) {
-                Thread.sleep(delay)
-
-                logger.info("Reading next volume...")
-                volume.readFrom(Paths.get(nextVolume()), replace = true)
-
-                //delay = 100000000L // only load one volume
-            }
-        }
-
-        thread {
+            volume.readFromRaw(Paths.get(nextVolume()), replace = true)
+            logger.info("Got volume!")
             while(true) {
                 volume.rotation.rotateByAngleY(0.001f)
                 volume.needsUpdate = true
@@ -115,36 +87,7 @@ class VolumeExample: SceneryDefaultApplication("Volume Rendering example") {
     }
 
     override fun inputSetup() {
-        val target = GLVector(1.5f, 5.5f, 55.5f)
-        val inputHandler = (hub.get(SceneryElement.Input) as InputHandler)
-        val targetArcball = ArcballCameraControl("mouse_control", scene.findObserver(), renderer!!.window.width, renderer!!.window.height, target)
-        val fpsControl = FPSCameraControl("mouse_control", scene.findObserver(), renderer!!.window.width, renderer!!.window.height)
-
-        val toggleControlMode = object : ClickBehaviour {
-            var currentMode = "fps"
-
-            override fun click(x: Int, y: Int) {
-                if (currentMode.startsWith("fps")) {
-                    targetArcball.target = GLVector(0.0f, 0.0f, 0.0f)
-
-                    inputHandler.addBehaviour("mouse_control", targetArcball)
-                    inputHandler.addBehaviour("scroll_arcball", targetArcball)
-                    inputHandler.addKeyBinding("scroll_arcball", "scroll")
-
-                    currentMode = "arcball"
-                } else {
-                    inputHandler.addBehaviour("mouse_control", fpsControl)
-                    inputHandler.removeBehaviour("scroll_arcball")
-
-                    currentMode = "fps"
-                }
-
-                System.out.println("Switched to $currentMode control")
-            }
-        }
-
-        inputHandler.addBehaviour("toggle_control_mode", toggleControlMode)
-        inputHandler.addKeyBinding("toggle_control_mode", "C")
+        setupCameraModeSwitching()
     }
 
     @Test override fun main() {

@@ -2,6 +2,7 @@ package graphics.scenery.controls.behaviours
 
 import net.java.games.input.Component
 import graphics.scenery.Camera
+import kotlin.reflect.KProperty
 
 /**
  * Implementation of GamepadBehaviour for Camera Movement Control
@@ -13,11 +14,23 @@ import graphics.scenery.Camera
  */
 class GamepadMovementControl(private val name: String,
                              override val axis: List<Component.Identifier>,
-                             private val cam: Camera) : GamepadBehaviour {
+                             private val camera: () -> Camera?) : GamepadBehaviour {
     /** Speed multiplier for camera movement */
     protected val speedMultiplier = 0.8f
     /** Threshold below which the behaviour does not trigger */
     protected val threshold = 0.05f
+
+    private val cam: Camera? by CameraDelegate()
+
+    inner class CameraDelegate {
+        operator fun getValue(thisRef: Any?, property: KProperty<*>): Camera? {
+            return camera.invoke()
+        }
+
+        operator fun setValue(thisRef: Any?, property: KProperty<*>, value: Camera?) {
+            throw UnsupportedOperationException()
+        }
+    }
 
     /**
      * This function is triggered upon arrival of an axis event that
@@ -29,19 +42,20 @@ class GamepadMovementControl(private val name: String,
      */
     @Synchronized
     override fun axisEvent(axis: Component.Identifier, value: Float) {
-        if (Math.abs(value) < threshold) {
-            return
-        }
-
-        when (axis) {
-            Component.Identifier.Axis.Y -> {
-                cam.position = cam.position + cam.forward * -1.0f * value * speedMultiplier
+        cam?.let { cam ->
+            if (Math.abs(value) < threshold) {
+                return
             }
-            Component.Identifier.Axis.X -> {
-                cam.position = cam.position + cam.forward.cross(cam.up).normalized * value * speedMultiplier
+
+            when (axis) {
+                Component.Identifier.Axis.Y -> {
+                    cam.position = cam.position + cam.forward * -1.0f * value * speedMultiplier
+                }
+                Component.Identifier.Axis.X -> {
+                    cam.position = cam.position + cam.forward.cross(cam.up).normalized * value * speedMultiplier
+                }
             }
         }
-
 //        System.err.println("Camera.position=${cam.position.x()}/${cam.position.y()}/${cam.position.z()}")
     }
 

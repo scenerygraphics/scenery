@@ -88,45 +88,7 @@ class LineExample : SceneryDefaultApplication("LineExample") {
     }
 
     override fun inputSetup() {
-        val target = GLVector(0.0f, 0.0f, 0.0f)
-        val inputHandler = (hub.get(SceneryElement.Input) as InputHandler)
-        val targetArcball = ArcballCameraControl("mouse_control", scene.findObserver(), renderer!!.window.width, renderer!!.window.height, target)
-        val fpsControl = FPSCameraControl("mouse_control", scene.findObserver(), renderer!!.window.width, renderer!!.window.height)
-
-        val toggleControlMode = object : ClickBehaviour {
-            var currentMode = "fps"
-
-            override fun click(x: Int, y: Int) {
-                if (currentMode.startsWith("fps")) {
-                    targetArcball.target = target
-
-                    inputHandler.addBehaviour("mouse_control", targetArcball)
-                    inputHandler.addBehaviour("scroll_arcball", targetArcball)
-                    inputHandler.addKeyBinding("scroll_arcball", "scroll")
-
-                    currentMode = "arcball"
-                } else {
-                    inputHandler.addBehaviour("mouse_control", fpsControl)
-                    inputHandler.removeBehaviour("scroll_arcball")
-
-                    currentMode = "fps"
-                }
-
-                System.out.println("Switched to $currentMode control")
-            }
-        }
-
-        val toggleLineAnimation = object : ClickBehaviour {
-            override fun click(x: Int, y: Int) {
-                lineAnimating = !lineAnimating
-            }
-        }
-
-        inputHandler.addBehaviour("toggle_control_mode", toggleControlMode)
-        inputHandler.addKeyBinding("toggle_control_mode", "C")
-
-        inputHandler.addBehaviour("toggle_line_animating", toggleLineAnimation)
-        inputHandler.addKeyBinding("toggle_line_animating", "L")
+        setupCameraModeSwitching(keybinding = "C")
     }
 
     @Test override fun main() {

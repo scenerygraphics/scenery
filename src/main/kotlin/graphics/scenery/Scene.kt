@@ -34,14 +34,14 @@ open class Scene : Node("RootNode") {
      *
      * @return The [Camera] that is currently active.
      */
-    fun findObserver(): Camera {
+    fun findObserver(): Camera? {
         if(activeObserver == null) {
-            var observers = discover(this, { n -> n.nodeType == "Camera" && (n as Camera?)?.active == true })
+            val observers = discover(this, { n -> n.nodeType == "Camera" && (n as Camera?)?.active == true })
 
-            activeObserver = observers.first() as Camera
-            return activeObserver!!
+            activeObserver = observers.firstOrNull() as Camera?
+            return activeObserver
         } else {
-            return activeObserver!!
+            return activeObserver
         }
     }
 
