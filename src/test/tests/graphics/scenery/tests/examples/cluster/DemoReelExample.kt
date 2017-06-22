@@ -1,12 +1,10 @@
-package graphics.scenery.tests.examples
+package graphics.scenery.tests.examples.cluster
 
 import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.InputHandler
 import graphics.scenery.controls.TrackedStereoGlasses
-import graphics.scenery.controls.behaviours.ArcballCameraControl
-import graphics.scenery.controls.behaviours.FPSCameraControl
 import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.volumes.Volume

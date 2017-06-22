@@ -1,4 +1,4 @@
-package graphics.scenery.tests.examples;
+package graphics.scenery.tests.examples.basic;
 
 import cleargl.GLVector;
 import graphics.scenery.*;

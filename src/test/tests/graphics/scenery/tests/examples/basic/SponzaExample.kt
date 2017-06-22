@@ -1,31 +1,27 @@
-package graphics.scenery.tests.examples
+package graphics.scenery.tests.examples.basic
 
 import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.controls.InputHandler
 import graphics.scenery.controls.TrackedStereoGlasses
-import graphics.scenery.controls.behaviours.ArcballCameraControl
-import graphics.scenery.controls.behaviours.FPSCameraControl
 import graphics.scenery.utils.Numerics
 import org.junit.Test
-import org.scijava.ui.behaviour.ClickBehaviour
 import java.io.IOException
 import kotlin.concurrent.thread
 
 /**
- * <Description>
- *
- * @author Ulrik Günther <hello@ulrik.is>
- */
-class OrientationBoxesExample: SceneryDefaultApplication("OrientationBoxesExample", windowWidth = 2560, windowHeight = 1600) {
+* <Description>
+*
+* @author Ulrik Günther <hello@ulrik.is>
+*/
+class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 2560, windowHeight = 1600) {
     private var hmd: TrackedStereoGlasses? = null
 
     override fun init() {
         try {
 //            hmd = OpenVRHMD(useCompositor = true)
-            hmd = TrackedStereoGlasses("DTrack@10.1.2.201", "CAVEExample.yml")
-            hub.add(SceneryElement.HMDInput, hmd!!)
+//            hmd = TrackedStereoGlasses("DTrack@10.1.2.201", "CAVEExample.yml")
+//            hub.add(SceneryElement.HMDInput, hmd!!)
 
             renderer = Renderer.createRenderer(hub, applicationName,
                 scene,
@@ -34,9 +30,9 @@ class OrientationBoxesExample: SceneryDefaultApplication("OrientationBoxesExampl
             hub.add(SceneryElement.Renderer, renderer!!)
 
             val cam: Camera = DetachedHeadCamera(hmd)
-            cam.position = GLVector(0.0f, 0.0f, 0.0f)
-            cam.perspectiveCamera(50.0f, 1280.0f, 720.0f, 0.5f, 100.0f)
-//            cam.rotation.setFromEuler(Math.PI.toFloat()/2.0f, 0.0f, 0.0f)
+            cam.position = GLVector(0.0f, 1.0f, 0.0f)
+            cam.perspectiveCamera(50.0f, 1280.0f, 720.0f)
+            cam.rotation.setFromEuler(-1.5f, -0.5f, 0.0f)
             cam.active = true
 
             scene.addChild(cam)
@@ -45,17 +41,12 @@ class OrientationBoxesExample: SceneryDefaultApplication("OrientationBoxesExampl
                 Box(GLVector(0.5f, 0.5f, 0.5f))
             }
 
-            val leftbox = Box(GLVector(1.0f, 1.0f, 1.0f))
+            val leftbox = Box(GLVector(2.0f, 2.0f, 2.0f))
             leftbox.position = GLVector(1.5f, 1.0f, -4.0f)
-            leftbox.material.diffuse = GLVector(0.8f, 0.2f, 0.2f)
+            leftbox.material.transparent = true
+            leftbox.material.diffuse = GLVector(0.0f, 0.0f, 1.0f)
             leftbox.name = "leftbox"
             scene.addChild(leftbox)
-
-            val bigbox = Box(GLVector(5.0f, 5.0f, 5.0f))
-            bigbox.position = GLVector(-3.5f, 1.0f, -8.0f)
-            bigbox.material.diffuse = GLVector(0.2f, 0.8f, 0.2f)
-            bigbox.name = "leftbox"
-            scene.addChild(bigbox)
 
             lights.map {
                 it.position = Numerics.randomVectorFromRange(3, -600.0f, 600.0f)
@@ -74,17 +65,19 @@ class OrientationBoxesExample: SceneryDefaultApplication("OrientationBoxesExampl
                 scene.addChild(it)
             }
 
-            val farbox = Box(GLVector(1.0f, 1.0f, 50.0f))
-            farbox.material.diffuse = GLVector(0.2f, 0.2f, 0.8f)
-            farbox.name = "farbox"
-            farbox.position = GLVector(0.0f, 0.0f, -40.0f)
-            scene.addChild(farbox)
+            val mesh = Mesh()
+            val meshM = Material()
+            meshM.ambient = GLVector(0.5f, 0.5f, 0.5f)
+            meshM.diffuse = GLVector(0.5f, 0.5f, 0.5f)
+            meshM.specular = GLVector(0.0f, 0.0f, 0.0f)
 
-            val floor = Box(GLVector(50.0f, 0.5f, 50.0f))
-            floor.position = GLVector(0.0f, -0.5f, 0.0f)
-            floor.material.diffuse = GLVector(0.5f, 0.5f, 0.5f)
-            floor.name = "floor"
-            scene.addChild(floor)
+            mesh.readFromOBJ(getDemoFilesPath() + "/sponza.obj", useMTL = true)
+            mesh.position = GLVector(-200.0f, 5.0f, 200.0f)
+            mesh.rotation.rotateByAngleY(Math.PI.toFloat()/2.0f)
+            mesh.scale = GLVector(0.01f, 0.01f, 0.01f)
+            mesh.name = "Sponza_Mesh"
+
+            scene.addChild(mesh)
 
             var ticks: Int = 0
 
@@ -127,7 +120,7 @@ class OrientationBoxesExample: SceneryDefaultApplication("OrientationBoxesExampl
     }
 
     override fun inputSetup() {
-        setupCameraModeSwitching(keybinding = "C")
+       setupCameraModeSwitching(keybinding = "C")
     }
 
 

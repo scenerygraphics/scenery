@@ -1,4 +1,4 @@
-package graphics.scenery.tests.examples
+package graphics.scenery.tests.examples.stresstests
 
 import cleargl.GLVector
 import graphics.scenery.*
@@ -13,7 +13,7 @@ import kotlin.concurrent.thread
 *
 * @author Ulrik Günther <hello@ulrik.is>
 */
-class PowerplantExample: SceneryDefaultApplication("BoxedProteinExample", windowWidth = 1280, windowHeight = 720) {
+class PowerplantExample: SceneryDefaultApplication("PowerplantExample", windowWidth = 1280, windowHeight = 720) {
     override fun init() {
         try {
             val lightCount = 127

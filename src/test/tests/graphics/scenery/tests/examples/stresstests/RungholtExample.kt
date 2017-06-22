@@ -1,4 +1,4 @@
-package graphics.scenery.tests.examples
+package graphics.scenery.tests.examples.stresstests
 
 import cleargl.GLVector
 import graphics.scenery.*
@@ -14,7 +14,7 @@ import kotlin.concurrent.thread
 *
 * @author Ulrik Günther <hello@ulrik.is>
 */
-class RungholtExample: SceneryDefaultApplication("BoxedProteinExample", windowWidth = 1280, windowHeight = 720) {
+class RungholtExample: SceneryDefaultApplication("RungholtExample", windowWidth = 1280, windowHeight = 720) {
     var hmd: OpenVRHMD? = null
     override fun init() {
         try {
