@@ -18,43 +18,46 @@ class VertexUpdateExample : SceneryDefaultApplication("VertexUpdateExample") {
 
     override fun init() {
         renderer = Renderer.createRenderer(hub, applicationName,
-               scene, 512, 512)
+            scene, 512, 512)
         hub.add(SceneryElement.Renderer, renderer!!)
 
-        var sphere = Sphere(2.0f, 50)
-
-        var material = Material()
-        material.ambient = GLVector(1.0f, 1.0f, 1.0f)
-        material.diffuse = GLVector(1.0f, 1.0f, 1.0f)
-        material.specular = GLVector(1.0f, 1.0f, 1.0f)
-        material.doubleSided = true
-
-        sphere.position = GLVector(0.0f, 0.0f, 0.0f)
-        sphere.material = material
-
-        scene.addChild(sphere)
-
-        var lights = (0..2).map {
-            PointLight()
+        val cam: Camera = DetachedHeadCamera()
+        with(cam) {
+            position = GLVector(0.0f, 0.0f, 5.0f)
+            perspectiveCamera(70.0f, 1.0f * windowWidth, 1.0f * windowHeight, 1.0f, 1000.0f)
+            active = true
+            scene.addChild(this)
         }
 
-        lights.mapIndexed { i, light ->
+        val sphere = Sphere(2.0f, 50)
+        with(sphere) {
+            material.ambient = GLVector(1.0f, 1.0f, 1.0f)
+            material.diffuse = GLVector(1.0f, 1.0f, 1.0f)
+            material.specular = GLVector(1.0f, 1.0f, 1.0f)
+            material.doubleSided = true
+
+            position = GLVector(0.0f, 0.0f, 0.0f)
+            material = material
+
+            scene.addChild(this)
+        }
+
+        val lights = (0..2).map {
+            PointLight()
+        }.mapIndexed { i, light ->
             light.position = GLVector(2.0f * i, 2.0f * i, 2.0f * i)
             light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
-            light.intensity = 100f * (i + 1);
+            light.intensity = 150f * (i + 1)
             scene.addChild(light)
+            light
         }
-
-        val cam: Camera = DetachedHeadCamera()
-        cam.position = GLVector(0.0f, 0.0f, -5.0f)
-        cam.perspectiveCamera(70.0f, 1.0f*windowWidth, 1.0f*windowHeight, 1.0f, 1000.0f)
-
-        cam.active = true
-
-        scene.addChild(cam)
 
         var ticks = 0
         thread {
+            while(!scene.initialized) {
+                Thread.sleep(200)
+            }
+
             while (true) {
                 sphere.rotation.rotateByAngleY(0.01f)
                 sphere.needsUpdate = true

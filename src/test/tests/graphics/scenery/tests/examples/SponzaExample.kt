@@ -3,13 +3,9 @@ package graphics.scenery.tests.examples
 import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.controls.InputHandler
 import graphics.scenery.controls.TrackedStereoGlasses
-import graphics.scenery.controls.behaviours.ArcballCameraControl
-import graphics.scenery.controls.behaviours.FPSCameraControl
 import graphics.scenery.utils.Numerics
 import org.junit.Test
-import org.scijava.ui.behaviour.ClickBehaviour
 import java.io.IOException
 import kotlin.concurrent.thread
 
@@ -75,7 +71,7 @@ class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 2
             meshM.diffuse = GLVector(0.5f, 0.5f, 0.5f)
             meshM.specular = GLVector(0.0f, 0.0f, 0.0f)
 
-            mesh.readFromOBJ(getDemoFilesPath() + "/sponza-crytek/sponza.obj", useMTL = true)
+            mesh.readFromOBJ(getDemoFilesPath() + "/sponza.obj", useMTL = true)
             mesh.position = GLVector(-200.0f, 5.0f, 200.0f)
             mesh.rotation.rotateByAngleY(Math.PI.toFloat()/2.0f)
             mesh.scale = GLVector(0.01f, 0.01f, 0.01f)
