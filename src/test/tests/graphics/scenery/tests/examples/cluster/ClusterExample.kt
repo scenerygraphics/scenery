@@ -23,6 +23,10 @@ class ClusterExample: SceneryDefaultApplication("Clustered Volume Rendering exam
     var publishedNodes = ArrayList<Node>()
 
     override fun init() {
+        logger.warn("*** WARNING - EXPERIMENTAL ***")
+        logger.warn("This is an experimental example, which might need additional configuration on your computer")
+        logger.warn("or might not work at all. You have been warned!")
+
         hmd = TrackedStereoGlasses("DTrack@10.1.2.201", screenConfig = "CAVEExample.yml")
         hub.add(SceneryElement.HMDInput, hmd!!)
 
