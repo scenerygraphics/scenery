@@ -1,28 +1,27 @@
-package graphics.scenery.tests.examples;
+package graphics.scenery.tests.examples.basic;
 
-    import cleargl.GLMatrix;
-    import cleargl.GLVector;
-    import com.jogamp.opengl.GLAutoDrawable;
-    import graphics.scenery.*;
-    import graphics.scenery.backends.Renderer;
-    import org.junit.Test;
+import cleargl.GLVector;
+import graphics.scenery.*;
+import graphics.scenery.backends.Renderer;
+import org.junit.Test;
+import graphics.scenery.repl.REPL;
 
 /**
  * Created by kharrington on 7/6/16.
  */
-public class TexturedCubeJavaJPanelExample {
+public class TexturedCubeJavaExample {
     @Test
     public void testExample() throws Exception {
-        TexturedCubeJavaApplication viewer = new TexturedCubeJavaApplication( "scenery - TexturedCubeJavaJPanelExample", 800, 600 );
+        TexturedCubeJavaApplication viewer = new TexturedCubeJavaApplication( "scenery - TexturedCubeExample", 800, 600 );
         viewer.main();
     }
 
-    private class TexturedCubeJavaApplication extends SceneryDefaultJPanelApplication {
+    private class TexturedCubeJavaApplication extends SceneryDefaultApplication {
         public TexturedCubeJavaApplication(String applicationName, int windowWidth, int windowHeight) {
-            super(applicationName, windowWidth, windowHeight);
+            super(applicationName, windowWidth, windowHeight, true);
         }
 
-        public void init(GLAutoDrawable pDrawable) {
+        public void init() {
 
             setRenderer( Renderer.Factory.createRenderer(getHub(), getApplicationName(), getScene(), 512, 512));
             getHub().add(SceneryElement.Renderer, getRenderer());
@@ -45,17 +44,17 @@ public class TexturedCubeJavaJPanelExample {
                 lights[i] = new PointLight();
                 lights[i].setPosition( new GLVector(2.0f * i, 2.0f * i, 2.0f * i) );
                 lights[i].setEmissionColor( new GLVector(1.0f, 0.0f, 1.0f) );
-                lights[i].setIntensity( 0.2f*(i+1) );
+                lights[i].setIntensity( 100.2f*(i+1) );
+                lights[i].setLinear(0.0f);
+                lights[i].setQuadratic(0.5f);
                 getScene().addChild( lights[i] );
             }
 
             Camera cam = new DetachedHeadCamera();
-            cam.setPosition( new GLVector(0.0f, 0.0f, -5.0f) );
-            cam.setView( new GLMatrix().setCamera(cam.getPosition(), cam.getPosition().plus(cam.getForward()), cam.getUp()) );
-            cam.setProjection( new GLMatrix().setPerspectiveProjectionMatrix( (float) (70.0f / 180.0f * java.lang.Math.PI), 1024f / 1024f, 0.1f, 1000.0f) );
+            cam.setPosition( new GLVector(0.0f, 0.0f, 5.0f) );
+            cam.perspectiveCamera(50.0f, getRenderer().getWindow().getWidth(), getRenderer().getWindow().getHeight(), 0.1f, 1000.0f);
             cam.setActive( true );
             getScene().addChild(cam);
-
 
             Thread rotator = new Thread(){
                 public void run() {
@@ -72,10 +71,14 @@ public class TexturedCubeJavaJPanelExample {
                 }
             };
             rotator.start();
+
+            setRepl(new REPL(getScene(), getRenderer()));
+            getRepl().start();
+            getRepl().showConsoleWindow();
+
         }
 
 
     }
 
 }
-

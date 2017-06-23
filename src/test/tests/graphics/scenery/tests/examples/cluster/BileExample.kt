@@ -1,4 +1,4 @@
-package graphics.scenery.tests.examples
+package graphics.scenery.tests.examples.cluster
 
 import cleargl.GLVector
 import graphics.scenery.*
@@ -13,11 +13,15 @@ import org.junit.Test
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class BileExample: SceneryDefaultApplication("Clustered Volume Rendering example") {
+class BileExample: SceneryDefaultApplication("Bile Canaliculi example") {
     var hmd: TrackedStereoGlasses? = null
     var publishedNodes = ArrayList<Node>()
 
     override fun init() {
+        logger.warn("*** WARNING - EXPERIMENTAL ***")
+        logger.warn("This is an experimental example, which might need additional configuration on your computer")
+        logger.warn("or might not work at all. You have been warned!")
+
         hmd = TrackedStereoGlasses("DTrack@10.1.2.201", screenConfig = "CAVEExample.yml")
         hub.add(SceneryElement.HMDInput, hmd!!)
 

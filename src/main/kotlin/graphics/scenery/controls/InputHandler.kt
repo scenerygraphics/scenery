@@ -1,5 +1,12 @@
 package graphics.scenery.controls
 
+import graphics.scenery.Hub
+import graphics.scenery.Hubable
+import graphics.scenery.Scene
+import graphics.scenery.SceneryElement
+import graphics.scenery.backends.Renderer
+import graphics.scenery.backends.SceneryWindow
+import graphics.scenery.controls.behaviours.*
 import net.java.games.input.Component
 import org.lwjgl.glfw.GLFW.*
 import org.scijava.ui.behaviour.Behaviour
@@ -9,13 +16,6 @@ import org.scijava.ui.behaviour.io.InputTriggerConfig
 import org.scijava.ui.behaviour.io.yaml.YamlConfigIO
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import graphics.scenery.Hub
-import graphics.scenery.Hubable
-import graphics.scenery.Scene
-import graphics.scenery.SceneryElement
-import graphics.scenery.backends.Renderer
-import graphics.scenery.backends.SceneryWindow
-import graphics.scenery.controls.behaviours.*
 import java.io.FileNotFoundException
 import java.io.FileReader
 import java.io.Reader
@@ -125,6 +125,15 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
     }
 
     /**
+     * Returns the behaviour with the given name, if it exists. Otherwise null is returned.
+     *
+     * @param[behaviourName] The name of the behaviour
+     */
+    fun getBehaviour(behaviourName: String): Behaviour? {
+        return behaviourMap.get(behaviourName)
+    }
+
+    /**
      * Reads a default list of key bindings from a file, and sets sane
      * defaults for those not set by the config
      *
@@ -139,23 +148,23 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
         } catch (e: FileNotFoundException) {
             System.err.println("Falling back to default keybindings...")
             reader = StringReader("---\n" +
-                "- !mapping" + "\n" +
-                "  action: mouse_control" + "\n" +
-                "  contexts: [all]" + "\n" +
-                "  triggers: [button1, G]" + "\n" +
-                "- !mapping" + "\n" +
-                "  action: gamepad_movement_control" + "\n" +
-                "  contexts: [all]" + "\n" +
-                "  triggers: [button1]" + "\n" +
-                "- !mapping" + "\n" +
-                "  action: gamepad_camera_control" + "\n" +
-                "  contexts: [all]" + "\n" +
-                "  triggers: [P]" + "\n" +
-                "- !mapping" + "\n" +
-                "  action: scroll1" + "\n" +
-                "  contexts: [all]" + "\n" +
-                "  triggers: [scroll]" + "\n" +
-                "")
+                    "- !mapping" + "\n" +
+                    "  action: mouse_control" + "\n" +
+                    "  contexts: [all]" + "\n" +
+                    "  triggers: [button1, G]" + "\n" +
+                    "- !mapping" + "\n" +
+                    "  action: gamepad_movement_control" + "\n" +
+                    "  contexts: [all]" + "\n" +
+                    "  triggers: [button1]" + "\n" +
+                    "- !mapping" + "\n" +
+                    "  action: gamepad_camera_control" + "\n" +
+                    "  contexts: [all]" + "\n" +
+                    "  triggers: [P]" + "\n" +
+                    "- !mapping" + "\n" +
+                    "  action: scroll1" + "\n" +
+                    "  contexts: [all]" + "\n" +
+                    "  triggers: [scroll]" + "\n" +
+                    "") as Reader
         }
 
         config = InputTriggerConfig(YamlConfigIO.read(reader))
