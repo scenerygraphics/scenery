@@ -32,8 +32,6 @@ class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 1
             scene.addChild(this)
         }
 
-
-
         val transparentBox = Box(GLVector(2.0f, 2.0f, 2.0f))
         with(transparentBox) {
             position = GLVector(1.5f, 1.0f, -4.0f)
