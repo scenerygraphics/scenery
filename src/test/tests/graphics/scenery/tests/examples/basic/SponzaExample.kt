@@ -6,123 +6,95 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.TrackedStereoGlasses
 import graphics.scenery.utils.Numerics
 import org.junit.Test
-import java.io.IOException
 import kotlin.concurrent.thread
 
 /**
-* <Description>
-*
-* @author Ulrik Günther <hello@ulrik.is>
-*/
-class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 2560, windowHeight = 1600) {
+ * Demo loading the Sponza Model, demonstrating multiple moving lights
+ * and transparent objects.
+ *
+ * @author Ulrik Günther <hello@ulrik.is>
+ */
+class SponzaExample : SceneryDefaultApplication("SponzaExample", windowWidth = 1280, windowHeight = 720) {
     private var hmd: TrackedStereoGlasses? = null
 
     override fun init() {
-        try {
-//            hmd = OpenVRHMD(useCompositor = true)
-//            hmd = TrackedStereoGlasses("DTrack@10.1.2.201", "CAVEExample.yml")
-//            hub.add(SceneryElement.HMDInput, hmd!!)
+        renderer = Renderer.createRenderer(hub, applicationName,
+            scene,
+            windowWidth,
+            windowHeight)
+        hub.add(SceneryElement.Renderer, renderer!!)
 
-            renderer = Renderer.createRenderer(hub, applicationName,
-                scene,
-                1280,
-                800)
-            hub.add(SceneryElement.Renderer, renderer!!)
-
-            val cam: Camera = DetachedHeadCamera(hmd)
+        val cam: Camera = DetachedHeadCamera(hmd)
+        with(cam) {
             cam.position = GLVector(0.0f, 1.0f, 0.0f)
-            cam.perspectiveCamera(50.0f, 1280.0f, 720.0f)
-            cam.rotation.setFromEuler(-1.5f, -0.5f, 0.0f)
+            cam.perspectiveCamera(50.0f, windowWidth.toFloat(), windowHeight.toFloat())
             cam.active = true
-
-            scene.addChild(cam)
-
-            val lights = (0..16).map {
-                Box(GLVector(0.5f, 0.5f, 0.5f))
-            }
-
-            val leftbox = Box(GLVector(2.0f, 2.0f, 2.0f))
-            leftbox.position = GLVector(1.5f, 1.0f, -4.0f)
-            leftbox.material.transparent = true
-            leftbox.material.diffuse = GLVector(0.0f, 0.0f, 1.0f)
-            leftbox.name = "leftbox"
-            scene.addChild(leftbox)
-
-            lights.map {
-                it.position = Numerics.randomVectorFromRange(3, -600.0f, 600.0f)
-                val mat = Material()
-                mat.diffuse = Numerics.randomVectorFromRange(3, 0.0f, 1.0f)
-                it.material = mat
-
-                val light = PointLight()
-                light.emissionColor = it.material.diffuse
-                light.intensity = Numerics.randomFromRange(1.0f, 100f)
-                light.linear = 1.8f
-                light.quadratic = 0.7f
-
-                it.addChild(light)
-
-                scene.addChild(it)
-            }
-
-            val mesh = Mesh()
-            val meshM = Material()
-            meshM.ambient = GLVector(0.5f, 0.5f, 0.5f)
-            meshM.diffuse = GLVector(0.5f, 0.5f, 0.5f)
-            meshM.specular = GLVector(0.0f, 0.0f, 0.0f)
-
-            mesh.readFromOBJ(getDemoFilesPath() + "/sponza.obj", useMTL = true)
-            mesh.position = GLVector(-200.0f, 5.0f, 200.0f)
-            mesh.rotation.rotateByAngleY(Math.PI.toFloat()/2.0f)
-            mesh.scale = GLVector(0.01f, 0.01f, 0.01f)
-            mesh.name = "Sponza_Mesh"
-
-            scene.addChild(mesh)
-
-            var ticks: Int = 0
-
-            thread {
-                var reverse = false
-
-                while (true) {
-                    lights.mapIndexed {
-                        i, light ->
-                        val phi = Math.PI * 2.0f * ticks / 800.0f
-
-                        light.position = GLVector(
-                            -128.0f + 7.0f * (i + 1),
-                            5.0f + i * 1.0f,
-                            (i + 1) * 5.0f * Math.cos(phi + (i * 0.2f)).toFloat())
-
-                        light.children[0].position = light.position
-
-                    }
-
-                    if (ticks >= 5000 && reverse == false) {
-                        reverse = true
-                    }
-                    if (ticks <= 0 && reverse == true) {
-                        reverse = false
-                    }
-
-                    if (reverse) {
-                        ticks--
-                    } else {
-                        ticks++
-                    }
-                    Thread.sleep(50)
-                }
-            }
-        } catch (e: IOException) {
-            e.printStackTrace()
+            scene.addChild(this)
         }
 
+
+
+        val transparentBox = Box(GLVector(2.0f, 2.0f, 2.0f))
+        with(transparentBox) {
+            position = GLVector(1.5f, 1.0f, -4.0f)
+            material.transparent = true
+            material.diffuse = GLVector(0.0f, 0.0f, 1.0f)
+            name = "transparent box"
+            scene.addChild(this)
+        }
+
+        val lights = (0..16).map {
+            Box(GLVector(0.1f, 0.1f, 0.1f))
+        }.map {
+            it.position = Numerics.randomVectorFromRange(3, -600.0f, 600.0f)
+            it.material.diffuse = Numerics.randomVectorFromRange(3, 0.0f, 1.0f)
+
+            val light = PointLight()
+            light.emissionColor = it.material.diffuse
+            light.intensity = Numerics.randomFromRange(1.0f, 50f)
+            light.linear = 0.0f
+            light.quadratic = 2.2f
+
+            it.addChild(light)
+
+            scene.addChild(it)
+            it
+        }
+
+        val mesh = Mesh()
+        with(mesh) {
+            readFromOBJ(getDemoFilesPath() + "/sponza.obj", useMTL = true)
+            position = GLVector(-200.0f, 5.0f, 200.0f)
+            rotation.rotateByAngleY(Math.PI.toFloat() / 2.0f)
+            scale = GLVector(0.01f, 0.01f, 0.01f)
+            name = "Sponza Mesh"
+
+            scene.addChild(this)
+        }
+
+        thread {
+            var ticks = 0L
+            while (true) {
+                lights.mapIndexed { i, light ->
+                    val phi = (Math.PI * 2.0f * ticks / 500.0f) % (Math.PI * 2.0f)
+
+                    light.position = GLVector(
+                        5.0f * Math.cos(phi + (i * 0.5f)).toFloat(),
+                        0.1f + i * 0.2f,
+                        -20.0f + 2.0f * i)
+
+                    light.children[0].position = light.position
+                }
+
+                ticks++
+                Thread.sleep(15)
+            }
+        }
     }
 
     override fun inputSetup() {
-       setupCameraModeSwitching(keybinding = "C")
+        setupCameraModeSwitching(keybinding = "C")
     }
-
 
     @Test override fun main() {
         super.main()
