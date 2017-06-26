@@ -14,15 +14,8 @@ import java.nio.ByteBuffer
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
-import java.util.*
 import java.util.concurrent.ConcurrentHashMap
-import javax.imageio.ImageIO
 import kotlin.streams.toList
-import com.sun.deploy.trace.Trace.flush
-import graphics.scenery.backends.vulkan.VulkanTexture
-import java.io.ByteArrayOutputStream
-import java.io.File
-import java.awt.image.BufferedImage
 import kotlin.collections.HashMap
 import kotlin.concurrent.thread
 
