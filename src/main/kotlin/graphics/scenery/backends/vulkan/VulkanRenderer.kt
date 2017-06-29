@@ -110,18 +110,8 @@ open class VulkanRenderer(hub: Hub,
             // create new swapchain with changed surface parameters
             with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
                 // Create the swapchain (this will also add a memory barrier to initialize the framebuffer images)
-                swapchain = if (wantsOpenGLSwapchain) {
-                    OpenGLSwapchain(window,
-                        device, physicalDevice, memoryProperties, queue, commandPools.Standard,
-                        surface, renderConfig = renderConfig, useSRGB = true,
-                        useFramelock = System.getProperty("scenery.Renderer.Framelock", "false").toBoolean())
-                        .create(oldSwapchain = swapchain)
-                } else {
-                    VulkanSwapchain(window,
-                        device, physicalDevice, queue, commandPools.Standard,
-                        surface, renderConfig = renderConfig, useSRGB = true)
-                        .create(oldSwapchain = swapchain)
-                }
+
+                swapchain?.create(oldSwapchain = swapchain)
 
                 this.endCommandBuffer(device, commandPools.Standard, queue, flush = true, dealloc = true)
 
@@ -201,7 +191,6 @@ open class VulkanRenderer(hub: Hub,
     private var MAX_UBOS = 2048
     private var MAX_INPUT_ATTACHMENTS = 32
     private val UINT64_MAX: Long = -1L
-    private val WINDOW_RESIZE_TIMEOUT = 200 * 10e6
 
 
     private val MATERIAL_HAS_DIFFUSE = 0x0001
@@ -239,14 +228,11 @@ open class VulkanRenderer(hub: Hub,
     protected var instance: VkInstance
 
     protected var debugCallbackHandle: Long
-    protected var windowSizeCallback: GLFWWindowSizeCallback
     protected var physicalDevice: VkPhysicalDevice
     protected var deviceAndGraphicsQueueFamily: DeviceAndGraphicsQueueFamily
     protected var device: VkDevice
     protected var queueFamilyIndex: Int
     protected var memoryProperties: VkPhysicalDeviceMemoryProperties
-
-    protected var surface: Long
 
     protected var semaphoreCreateInfo: VkSemaphoreCreateInfo
 
@@ -279,7 +265,6 @@ open class VulkanRenderer(hub: Hub,
     protected var totalFrames = 0L
     protected var heartbeatTimer = Timer()
     protected var gpuStats: GPUStats? = null
-    protected var lastResize = -1L
 
     private var renderConfig: RenderConfigReader.RenderConfig
     private var flow: List<String> = listOf()
@@ -363,33 +348,6 @@ open class VulkanRenderer(hub: Hub,
         queueFamilyIndex = deviceAndGraphicsQueueFamily.queueFamilyIndex
         memoryProperties = deviceAndGraphicsQueueFamily.memoryProperties!!
 
-        // Create GLFW window
-        glfwDefaultWindowHints()
-
-        if (wantsOpenGLSwapchain) {
-            glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API)
-            glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE)
-            glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE)
-            glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4)
-            glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5)
-            glfwWindowHint(GLFW_SRGB_CAPABLE, GLFW_TRUE)
-            glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE)
-
-            glfwWindowHint(GLFW_STEREO, if(renderConfig.stereoEnabled) { GLFW_TRUE } else { GLFW_FALSE })
-        } else {
-            glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API)
-        }
-
-
-        window.glfwWindow = glfwCreateWindow(window.width, window.height, "scenery", NULL, NULL)
-        glfwSetWindowPos(window.glfwWindow!!, 100, 100)
-
-        surface = VU.run(memAllocLong(1), "glfwCreateWindowSurface") {
-            glfwCreateWindowSurface(instance, window.glfwWindow!!, null, this)
-        }
-
-        swapchainRecreator = SwapchainRecreator()
-
         with(commandPools) {
             Render = createCommandPool(device, queueFamilyIndex)
             Standard = createCommandPool(device, queueFamilyIndex)
@@ -400,6 +358,21 @@ open class VulkanRenderer(hub: Hub,
 
         queue = VU.createDeviceQueue(device, queueFamilyIndex)
 
+        swapchainRecreator = SwapchainRecreator()
+
+        swapchain = if (wantsOpenGLSwapchain) {
+            OpenGLSwapchain(window,
+                device, physicalDevice, memoryProperties, queue, commandPools.Standard,
+                renderConfig = renderConfig, useSRGB = true,
+                useFramelock = System.getProperty("scenery.Renderer.Framelock", "false").toBoolean())
+        } else {
+            VulkanSwapchain(window,
+                device, physicalDevice, queue, commandPools.Standard,
+                renderConfig = renderConfig, useSRGB = true)
+        }
+
+        swapchain?.createWindow(window, instance, swapchainRecreator)
+
         descriptorPool = createDescriptorPool(device)
         vertexDescriptors = prepareStandardVertexDescriptors()
 
@@ -409,7 +382,6 @@ open class VulkanRenderer(hub: Hub,
 
         prepareDescriptorSets(device, descriptorPool)
         prepareDefaultTextures(device)
-
 
         heartbeatTimer.scheduleAtFixedRate(object : TimerTask() {
             override fun run() {
@@ -437,35 +409,15 @@ open class VulkanRenderer(hub: Hub,
                     }
                 }
 
-                glfwSetWindowTitle(window.glfwWindow!!,
-                    "$applicationName [${this@VulkanRenderer.javaClass.simpleName}, ${this@VulkanRenderer.renderConfig.name}${if (validation) {
-                        " - VALIDATIONS ENABLED"
-                    } else {
-                        ""
-                    }}] - $fps fps")
-            }
-        }, 0, 1000)
-
-        // Handle canvas resize
-        windowSizeCallback = object : GLFWWindowSizeCallback() {
-            override operator fun invoke(glfwWindow: Long, w: Int, h: Int) {
-                if (lastResize > 0L && lastResize + WINDOW_RESIZE_TIMEOUT < System.nanoTime()) {
-                    lastResize = System.nanoTime()
-                    return
+                val validationsEnabled = if (validation) {
+                    " - VALIDATIONS ENABLED"
+                } else {
+                    ""
                 }
 
-                if (window.width <= 0 || window.height <= 0)
-                    return
-
-                window.width = w
-                window.height = h
-                swapchainRecreator.mustRecreate = true
-                lastResize = -1L
+                window.setTitle("$applicationName [${this@VulkanRenderer.javaClass.simpleName}, ${this@VulkanRenderer.renderConfig.name}] $validationsEnabled - $fps fps")
             }
-        }
-
-        glfwSetWindowSizeCallback(window.glfwWindow!!, windowSizeCallback)
-        glfwShowWindow(window.glfwWindow!!)
+        }, 0, 1000)
 
         // Info struct to create a semaphore
         semaphoreCreateInfo = VkSemaphoreCreateInfo.calloc()
@@ -2907,10 +2859,7 @@ open class VulkanRenderer(hub: Hub,
 
         logger.debug("Closing swapchain...")
 
-        swapchain?.let {
-            it.close()
-            vkDestroySurfaceKHR(instance, surface, null)
-        }
+        swapchain?.close()
 
         logger.debug("Closing renderpasses...")
         renderpasses.forEach { _, vulkanRenderpass ->
@@ -2938,9 +2887,6 @@ open class VulkanRenderer(hub: Hub,
         vkDestroyInstance(instance, null)
 
         memoryProperties.free()
-
-        windowSizeCallback.close()
-        glfwDestroyWindow(window.glfwWindow!!)
 
         libspirvcrossj.finalizeProcess()
 

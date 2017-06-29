@@ -2,6 +2,9 @@ package graphics.scenery.backends.vulkan
 
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.SceneryWindow
+import org.lwjgl.glfw.GLFW.*
+import org.lwjgl.glfw.GLFWVulkan
+import org.lwjgl.glfw.GLFWWindowSizeCallback
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.KHRSwapchain.vkAcquireNextImageKHR
@@ -11,7 +14,7 @@ import java.nio.IntBuffer
 import java.nio.LongBuffer
 
 /**
- * <Description>
+ * GLFW-based default Vulkan Swapchain and window.
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
@@ -20,7 +23,6 @@ class VulkanSwapchain(val window: SceneryWindow,
                       val physicalDevice: VkPhysicalDevice,
                       val queue: VkQueue,
                       val commandPool: Long,
-                      val surface: Long,
                       val renderConfig: RenderConfigReader.RenderConfig,
                       val useSRGB: Boolean = true) : Swapchain {
     override var handle: Long = 0L
@@ -34,8 +36,46 @@ class VulkanSwapchain(val window: SceneryWindow,
     var swapchainImage: IntBuffer = MemoryUtil.memAllocInt(1)
     var swapchainPointer: LongBuffer = MemoryUtil.memAllocLong(1)
     var presentInfo: VkPresentInfoKHR = VkPresentInfoKHR.calloc()
+    var surface: Long = 0
+    lateinit var windowSizeCallback: GLFWWindowSizeCallback
+
+    var lastResize = -1L
+    private val WINDOW_RESIZE_TIMEOUT = 200 * 10e6
 
     data class ColorFormatAndSpace(var colorFormat: Int = 0, var colorSpace: Int = 0)
+
+    override fun createWindow(window: SceneryWindow, instance: VkInstance, swapchainRecreator: VulkanRenderer.SwapchainRecreator) {
+        glfwDefaultWindowHints()
+        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API)
+
+        window.glfwWindow = glfwCreateWindow(window.width, window.height, "scenery", MemoryUtil.NULL, MemoryUtil.NULL)
+        glfwSetWindowPos(window.glfwWindow!!, 100, 100)
+
+        surface = VU.run(MemoryUtil.memAllocLong(1), "glfwCreateWindowSurface") {
+            GLFWVulkan.glfwCreateWindowSurface(instance, window.glfwWindow!!, null, this)
+        }
+
+        // Handle canvas resize
+        windowSizeCallback = object : GLFWWindowSizeCallback() {
+            override operator fun invoke(glfwWindow: Long, w: Int, h: Int) {
+                if (lastResize > 0L && lastResize + WINDOW_RESIZE_TIMEOUT < System.nanoTime()) {
+                    lastResize = System.nanoTime()
+                    return
+                }
+
+                if (window.width <= 0 || window.height <= 0)
+                    return
+
+                window.width = w
+                window.height = h
+                swapchainRecreator.mustRecreate = true
+                lastResize = -1L
+            }
+        }
+
+        glfwSetWindowSizeCallback(window.glfwWindow!!, windowSizeCallback)
+        glfwShowWindow(window.glfwWindow!!)
+    }
 
     override fun create(oldSwapchain: Swapchain?): Swapchain {
         val colorFormatAndSpace = getColorFormatAndSpace()
@@ -345,5 +385,8 @@ class VulkanSwapchain(val window: SceneryWindow,
         presentInfo.free()
         MemoryUtil.memFree(swapchainImage)
         MemoryUtil.memFree(swapchainPointer)
+
+        windowSizeCallback.close()
+        glfwDestroyWindow(window.glfwWindow!!)
     }
 }
