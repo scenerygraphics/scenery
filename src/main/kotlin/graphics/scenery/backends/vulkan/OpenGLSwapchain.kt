@@ -76,6 +76,9 @@ class OpenGLSwapchain(val window: SceneryWindow,
             GLFW_FALSE
         })
 
+        window.glfwWindow = glfwCreateWindow(window.width, window.height, "scenery", MemoryUtil.NULL, MemoryUtil.NULL)
+        glfwSetWindowPos(window.glfwWindow!!, 100, 100)
+
         surface = VU.run(MemoryUtil.memAllocLong(1), "glfwCreateWindowSurface") {
             GLFWVulkan.glfwCreateWindowSurface(instance, window.glfwWindow!!, null, this)
         }
