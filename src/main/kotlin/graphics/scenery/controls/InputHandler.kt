@@ -75,6 +75,11 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
             glfwSetKeyCallback(window.glfwWindow!!, handler.keyCallback)
             glfwSetScrollCallback(window.glfwWindow!!, handler.scrollCallback)
             glfwSetMouseButtonCallback(window.glfwWindow!!, handler.mouseCallback)
+        } else if(window.javafxStage != null) {
+            handler = JavaFXMouseAndKeyHandler(hub, window.javafxStage!!)
+
+            handler.setInputMap(inputMap)
+            handler.setBehaviourMap(behaviourMap)
         } else {
             logger.error("No suitable window was found")
             handler = null
