@@ -294,6 +294,9 @@ class OpenGLSwapchain(val window: SceneryWindow,
         glfwSwapBuffers(window.glfwWindow!!)
     }
 
+    override fun postPresent(image: Int) {
+    }
+
     override fun next(timeout: Long, waitForSemaphore: Long): Boolean {
         NVDrawVulkanImage.glSignalVkSemaphoreNV(waitForSemaphore)
         return false

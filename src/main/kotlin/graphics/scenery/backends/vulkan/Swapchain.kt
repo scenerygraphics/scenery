@@ -19,6 +19,7 @@ interface Swapchain : AutoCloseable {
     fun createWindow(window: SceneryWindow, instance: VkInstance, swapchainRecreator: VulkanRenderer.SwapchainRecreator)
     fun create(oldSwapchain: Swapchain?): Swapchain
     fun present(waitForSemaphores: LongBuffer? = null)
+    fun postPresent(image: Int)
     fun next(timeout: Long = -1L, waitForSemaphore: Long = 0L): Boolean
     override fun close()
 }

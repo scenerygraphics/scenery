@@ -365,6 +365,9 @@ class VulkanSwapchain(val window: SceneryWindow,
         }
     }
 
+    override fun postPresent(image: Int) {
+    }
+
     override fun next(timeout: Long, waitForSemaphore: Long): Boolean {
         val err = vkAcquireNextImageKHR(device, handle, timeout,
             waitForSemaphore,

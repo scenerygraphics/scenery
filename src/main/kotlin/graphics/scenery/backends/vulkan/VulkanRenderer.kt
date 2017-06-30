@@ -366,9 +366,15 @@ open class VulkanRenderer(hub: Hub,
                 renderConfig = renderConfig, useSRGB = true,
                 useFramelock = System.getProperty("scenery.Renderer.Framelock", "false").toBoolean())
         } else {
-            VulkanSwapchain(window,
-                device, physicalDevice, queue, commandPools.Standard,
-                renderConfig = renderConfig, useSRGB = true)
+            if(System.getProperty("scenery.Renderer.UseJavaFX", "false").toBoolean()) {
+                FXSwapchain(window,
+                    device, physicalDevice, memoryProperties, queue, commandPools.Standard,
+                    renderConfig = renderConfig, useSRGB = true)
+            } else {
+                VulkanSwapchain(window,
+                    device, physicalDevice, queue, commandPools.Standard,
+                    renderConfig = renderConfig, useSRGB = true)
+            }
         }
 
         swapchain?.createWindow(window, instance, swapchainRecreator)
@@ -385,7 +391,8 @@ open class VulkanRenderer(hub: Hub,
 
         heartbeatTimer.scheduleAtFixedRate(object : TimerTask() {
             override fun run() {
-                if (shouldClose) {
+                if (window.shouldClose) {
+                    shouldClose = true
                     return
                 }
 
@@ -1352,11 +1359,7 @@ open class VulkanRenderer(hub: Hub,
     }
 
     private fun pollEvents() {
-        if (glfwWindowShouldClose(window.glfwWindow!!)) {
-            this.shouldClose = true
-        }
-
-        glfwPollEvents()
+        window.pollEvents()
 
         if (swapchainRecreator.mustRecreate) {
             swapchainRecreator.recreate()
@@ -1388,6 +1391,8 @@ open class VulkanRenderer(hub: Hub,
         commandBuffer.submitted = true
         swapchain!!.present(ph.signalSemaphore)
         commandBuffer.waitForFence()
+
+        swapchain!!.postPresent(pass.getReadPosition())
 
         // submit to OpenVR if attached
         if(hub?.getWorkingHMDDisplay()?.hasCompositor() ?: false) {
@@ -1508,7 +1513,8 @@ open class VulkanRenderer(hub: Hub,
             return
         }
 
-        if (shouldClose) {
+        if (window.shouldClose) {
+            shouldClose = true
             // stop all
             vkDeviceWaitIdle(device)
             return
@@ -1611,7 +1617,7 @@ open class VulkanRenderer(hub: Hub,
 
         val hmd = hub?.getWorkingHMDDisplay()
         val additionalExts: List<String> = hmd?.getVulkanInstanceExtensions() ?: listOf()
-        logger.debug("HMD required instance exts: ${additionalExts.joinToString(", ")} ${additionalExts.size}")
+        logger.info("HMD required instance exts: ${additionalExts.joinToString(", ")} ${additionalExts.size}")
         val utf8Exts = additionalExts.map(::memUTF8)
 
         val ppEnabledExtensionNames = memAllocPointer(requiredExtensions.remaining() + additionalExts.size + 1)
@@ -1757,7 +1763,7 @@ open class VulkanRenderer(hub: Hub,
 
         val hmd = hub?.getWorkingHMDDisplay()
         val additionalExts: List<String> = hmd?.getVulkanDeviceExtensions(physicalDevice) ?: listOf()
-        logger.debug("HMD required device exts: ${additionalExts.joinToString(", ")} ${additionalExts.size}")
+        logger.info("HMD required device exts: ${additionalExts.joinToString(", ")} ${additionalExts.size}")
         val utf8Exts = additionalExts.map(::memUTF8)
 
         val extensions = memAllocPointer(1 + additionalExts.size)
