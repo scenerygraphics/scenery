@@ -22,7 +22,7 @@ open class PointCloud(var radius: Float=0.1f, override var name: String = "Point
     override var vertexSize = 3;
     override var texcoordSize = 2;
     override var geometryType = GeometryType.POINTS;
-    override var isBillboard = true;
+    override var isBillboard = false;
 
     var pointRadius = radius;
 

@@ -50,7 +50,6 @@ void main()
     VertexOut.Normal = transpose(inverse(mat3(ModelMatrix)))*vec3(1,0,0);
     VertexOut.TexCoord = vertexTexCoord;
     VertexOut.FragPosition = vec3(ModelMatrix * vec4(vertexPosition, 1.0));
-    //VertexOut.FragPosition = vertexPosition;
     VertexOut.Color = vec4(0.0f, 0.0f, 0.0f, 0.0f);
     VertexOut.nMVP = nMVP;
 
