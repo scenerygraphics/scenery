@@ -323,7 +323,7 @@ class FXSwapchain(val window: SceneryWindow,
         imageBuffer = MemoryUtil.memAlloc(imageByteSize.toInt())
         sharingBuffer = VU.createBuffer(device,
             memoryProperties, VK10.VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-            VK10.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+            VK10.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK10.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
             wantAligned = true,
             allocationSize = imageByteSize)
 
@@ -492,11 +492,10 @@ class FXSwapchain(val window: SceneryWindow,
 
         VK10.vkQueueWaitIdle(queue)
 
-        sharingBuffer.copyTo(imageBuffer)
-
         Platform.runLater {
-            if(lock.tryLock()) {
-                imagePanel.update(imageBuffer)
+            if (lock.tryLock()) {
+                val imageByteSize = window.width * window.height * 4
+                imagePanel.update(sharingBuffer.map().getByteBuffer(imageByteSize))
                 lock.unlock()
             }
         }
