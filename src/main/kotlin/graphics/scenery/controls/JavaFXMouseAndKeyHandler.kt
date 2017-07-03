@@ -119,7 +119,7 @@ class JavaFXMouseAndKeyHandler(protected var hub: Hub?, protected var stage: Sta
                     }
                 }
 
-                for (gamepad in gamepads) {
+                gamepads?.forEach { gamepad ->
                     for (it in controllerAxisDown) {
                         if (Math.abs(it.value) > 0.02f && gamepad.behaviour.axis.contains(it.key)) {
                             logger.trace("Triggering ${it.key} because axis is down (${it.value})")
@@ -143,28 +143,19 @@ class JavaFXMouseAndKeyHandler(protected var hub: Hub?, protected var stage: Sta
      */
     override fun handle(event: javafx.event.Event) {
         if (event is KeyEvent) {
-            logger.info("Key event!: ${event.eventType}")
             when (event.eventType) {
                 KeyEvent.KEY_PRESSED -> keyPressed(event)
                 KeyEvent.KEY_RELEASED -> keyReleased(event)
-                KeyEvent.KEY_TYPED -> keyPressed(event)
-            }
-        } else if (event is DragEvent) {
-            logger.info("Drag event!")
-            when (event.eventType) {
-//                DragEvent.DRAG_ENTERED -> mouseDragged(event)
-//                DragEvent.DRAG_DONE -> mouseReleased(event)
             }
         } else if (event is MouseEvent) {
-            logger.info("mouse event! ${event.eventType}")
             when (event.eventType) {
                 MouseEvent.MOUSE_PRESSED -> mousePressed(event)
                 MouseEvent.MOUSE_CLICKED -> mouseClicked(event)
                 MouseEvent.MOUSE_MOVED -> mouseMoved(event)
+                MouseEvent.MOUSE_DRAGGED -> mouseDragged(event)
                 MouseEvent.MOUSE_RELEASED -> mouseReleased(event)
             }
         } else if (event is ScrollEvent) {
-            logger.info("Scroll event!")
             when (event.eventType) {
                 ScrollEvent.ANY -> mouseWheelMoved(event)
             }
@@ -576,7 +567,7 @@ class JavaFXMouseAndKeyHandler(protected var hub: Hub?, protected var stage: Sta
         } else if (e.code != KeyCode.ALT &&
             e.code != KeyCode.CONTROL &&
             e.code != KeyCode.ALT_GRAPH) {
-            val inserted = pressedKeys.add(e.code.ordinal)
+            val inserted = pressedKeys.add(e.code.impl_getCode())
 
             /*
 			 * Create mask and deal with double-click on keys.
@@ -586,11 +577,11 @@ class JavaFXMouseAndKeyHandler(protected var hub: Hub?, protected var stage: Sta
             var doubleClick = false
             if (inserted) {
                 // double-click on keys.
-                val lastPressTime = keyPressTimes.get(e.code.ordinal)
+                val lastPressTime = keyPressTimes.get(e.code.impl_getCode())
                 if (lastPressTime.toInt() != -1 && System.nanoTime() - lastPressTime < DOUBLE_CLICK_INTERVAL)
                     doubleClick = true
 
-                keyPressTimes.put(e.code.ordinal, System.nanoTime())
+                keyPressTimes.put(e.code.impl_getCode(), System.nanoTime())
             }
             val doubleClickMask = mask or InputTrigger.DOUBLE_CLICK_MASK
 
@@ -626,7 +617,7 @@ class JavaFXMouseAndKeyHandler(protected var hub: Hub?, protected var stage: Sta
         } else if (e.code != KeyCode.ALT &&
             e.code != KeyCode.CONTROL &&
             e.code != KeyCode.ALT_GRAPH) {
-            pressedKeys.remove(e.code.ordinal)
+            pressedKeys.remove(e.code.impl_getCode())
 
             for (drag in activeKeyDrags)
                 drag.behaviour.end(mouseX, mouseY)
