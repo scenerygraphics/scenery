@@ -51,6 +51,10 @@ open class VulkanObjectState : NodeMetadata {
     }
 
     fun texturesToDescriptorSet(device: VkDevice, descriptorSetLayout: Long, descriptorPool: Long, targetBinding: Int = 0): Long {
+        if(textureDescriptorSet != -1L) {
+            VK10.vkFreeDescriptorSets(device, descriptorPool, textureDescriptorSet)
+        }
+
         val pDescriptorSetLayout = memAllocLong(1)
         pDescriptorSetLayout.put(0, descriptorSetLayout)
 
