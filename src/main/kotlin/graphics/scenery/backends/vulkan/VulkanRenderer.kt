@@ -122,6 +122,10 @@ open class VulkanRenderer(hub: Hub,
                 .flags(VK_FLAGS_NONE)
 
             val refreshResolutionDependentResources = {
+                if(pipelineCache != -1L) {
+                    vkDestroyPipelineCache(device, pipelineCache, null)
+                }
+
                 pipelineCache = VU.run(memAllocLong(1), "create pipeline cache",
                     { vkCreatePipelineCache(device, pipelineCacheInfo, null, this) },
                     { pipelineCacheInfo.free() })
@@ -361,23 +365,23 @@ open class VulkanRenderer(hub: Hub,
         swapchain = if (wantsOpenGLSwapchain) {
             logger.info("Using OpenGL-based swapchain")
             OpenGLSwapchain(window,
-                device, physicalDevice, memoryProperties, queue, commandPools.Standard,
+                device, physicalDevice, instance, memoryProperties, queue, commandPools.Standard,
                 renderConfig = renderConfig, useSRGB = true,
                 useFramelock = System.getProperty("scenery.Renderer.Framelock", "false").toBoolean())
         } else {
             if(System.getProperty("scenery.Renderer.UseJavaFX", "false").toBoolean()) {
                 logger.info("Using JavaFX-based swapchain")
                 FXSwapchain(window,
-                    device, physicalDevice, memoryProperties, queue, commandPools.Standard,
+                    device, physicalDevice, instance, memoryProperties, queue, commandPools.Standard,
                     renderConfig = renderConfig, useSRGB = true)
             } else {
                 VulkanSwapchain(window,
-                    device, physicalDevice, queue, commandPools.Standard,
+                    device, physicalDevice, instance, queue, commandPools.Standard,
                     renderConfig = renderConfig, useSRGB = true)
             }
         }
 
-        swapchain?.createWindow(window, instance, swapchainRecreator)
+        swapchain?.createWindow(window, swapchainRecreator)
 
         descriptorPool = createDescriptorPool(device)
         vertexDescriptors = prepareStandardVertexDescriptors()

@@ -76,6 +76,16 @@ class VulkanBuffer(val device: VkDevice, var memory: Long = -1L, var buffer: Lon
         return dest
     }
 
+    fun mapIfUnmapped(): PointerBuffer {
+        currentPointer?.let {
+            if(mapped) {
+                return it.rewind()
+            }
+        }
+
+        return map()
+    }
+
     fun unmap() {
         mapped = false
         vkUnmapMemory(device, memory)

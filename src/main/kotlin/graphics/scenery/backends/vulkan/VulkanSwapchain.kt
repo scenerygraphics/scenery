@@ -19,25 +19,26 @@ import java.nio.LongBuffer
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class VulkanSwapchain(val window: SceneryWindow,
-                      val device: VkDevice,
-                      val physicalDevice: VkPhysicalDevice,
-                      val queue: VkQueue,
-                      val commandPool: Long,
-                      val renderConfig: RenderConfigReader.RenderConfig,
-                      val useSRGB: Boolean = true) : Swapchain {
+open class VulkanSwapchain(open val window: SceneryWindow,
+                           open val device: VkDevice,
+                           open val physicalDevice: VkPhysicalDevice,
+                           open val instance: VkInstance,
+                           open val queue: VkQueue,
+                           open val commandPool: Long,
+                           @Suppress("unused") open val renderConfig: RenderConfigReader.RenderConfig,
+                           open val useSRGB: Boolean = true) : Swapchain {
     override var handle: Long = 0L
     override var images: LongArray? = null
     override var imageViews: LongArray? = null
 
     override var format: Int = 0
 
-    var logger: Logger = LoggerFactory.getLogger("VulkanSwapchain")
+    open var logger: Logger = LoggerFactory.getLogger("VulkanSwapchain")
 
     var swapchainImage: IntBuffer = MemoryUtil.memAllocInt(1)
     var swapchainPointer: LongBuffer = MemoryUtil.memAllocLong(1)
     var presentInfo: VkPresentInfoKHR = VkPresentInfoKHR.calloc()
-    var surface: Long = 0
+    open var surface: Long = 0
     lateinit var windowSizeCallback: GLFWWindowSizeCallback
 
     var lastResize = -1L
@@ -45,7 +46,7 @@ class VulkanSwapchain(val window: SceneryWindow,
 
     data class ColorFormatAndSpace(var colorFormat: Int = 0, var colorSpace: Int = 0)
 
-    override fun createWindow(window: SceneryWindow, instance: VkInstance, swapchainRecreator: VulkanRenderer.SwapchainRecreator) {
+    override fun createWindow(window: SceneryWindow, swapchainRecreator: VulkanRenderer.SwapchainRecreator) {
         glfwDefaultWindowHints()
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API)
 
@@ -159,7 +160,7 @@ class VulkanSwapchain(val window: SceneryWindow,
             .clipped(true)
             .compositeAlpha(KHRSurface.VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR)
 
-        if (oldSwapchain is VulkanSwapchain) {
+        if (oldSwapchain is VulkanSwapchain || oldSwapchain is FXSwapchain) {
             swapchainCI.oldSwapchain(oldSwapchain.handle)
         }
 
@@ -406,7 +407,7 @@ class VulkanSwapchain(val window: SceneryWindow,
                 }
             }
 
-            val hmd = hub!!.getWorkingHMDDisplay()
+            val hmd = hub.getWorkingHMDDisplay()
 
             if (hmd != null) {
                 window.width = hmd.getRenderTargetSize().x().toInt() / 2

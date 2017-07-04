@@ -37,6 +37,7 @@ import java.lang.UnsupportedOperationException
 class OpenGLSwapchain(val window: SceneryWindow,
                       val device: VkDevice,
                       val physicalDevice: VkPhysicalDevice,
+                      val instance: VkInstance,
                       val memoryProperties: VkPhysicalDeviceMemoryProperties,
                       val queue: VkQueue,
                       val commandPool: Long,
@@ -60,7 +61,7 @@ class OpenGLSwapchain(val window: SceneryWindow,
     var lastResize = -1L
     private val WINDOW_RESIZE_TIMEOUT = 200 * 10e6
 
-    override fun createWindow(window: SceneryWindow, instance: VkInstance, swapchainRecreator: VulkanRenderer.SwapchainRecreator) {
+    override fun createWindow(window: SceneryWindow, swapchainRecreator: VulkanRenderer.SwapchainRecreator) {
         glfwDefaultWindowHints()
 
         glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API)
