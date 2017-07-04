@@ -103,7 +103,7 @@ open class VulkanRenderer(hub: Hub,
     inner class SwapchainRecreator {
         var mustRecreate = true
 
-        fun recreate() {
+        @Synchronized fun recreate() {
             logger.info("Recreating Swapchain at frame $frames")
             // create new swapchain with changed surface parameters
             with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
@@ -359,12 +359,14 @@ open class VulkanRenderer(hub: Hub,
         swapchainRecreator = SwapchainRecreator()
 
         swapchain = if (wantsOpenGLSwapchain) {
+            logger.info("Using OpenGL-based swapchain")
             OpenGLSwapchain(window,
                 device, physicalDevice, memoryProperties, queue, commandPools.Standard,
                 renderConfig = renderConfig, useSRGB = true,
                 useFramelock = System.getProperty("scenery.Renderer.Framelock", "false").toBoolean())
         } else {
             if(System.getProperty("scenery.Renderer.UseJavaFX", "false").toBoolean()) {
+                logger.info("Using JavaFX-based swapchain")
                 FXSwapchain(window,
                     device, physicalDevice, memoryProperties, queue, commandPools.Standard,
                     renderConfig = renderConfig, useSRGB = true)
@@ -1281,7 +1283,7 @@ open class VulkanRenderer(hub: Hub,
                 pass.vulkanMetadata.renderArea.offset().set(
                     (pass.passConfig.viewportOffset.first * width).toInt(),
                     (pass.passConfig.viewportOffset.second * height).toInt())
-                logger.info("Render area for $passName: ${pass.vulkanMetadata.renderArea.extent().width()}x${pass.vulkanMetadata.renderArea.extent().height()}")
+                logger.debug("Render area for $passName: ${pass.vulkanMetadata.renderArea.extent().width()}x${pass.vulkanMetadata.renderArea.extent().height()}")
 
                 pass.vulkanMetadata.viewport[0].set(
                     (pass.passConfig.viewportOffset.first * width),
@@ -2927,46 +2929,6 @@ open class VulkanRenderer(hub: Hub,
     }
 
     fun switchFullscreen() {
-        if (window.isFullscreen) {
-            glfwSetWindowMonitor(window.glfwWindow!!,
-                NULL,
-                0, 0,
-                window.width, window.height, GLFW_DONT_CARE)
-            glfwSetWindowPos(window.glfwWindow!!, 100, 100)
-            glfwSetInputMode(window.glfwWindow!!, GLFW_CURSOR, GLFW_CURSOR_NORMAL)
-
-            swapchainRecreator.mustRecreate = true
-            window.isFullscreen = false
-        } else {
-            val preferredMonitor = System.getProperty("scenery.FullscreenMonitor", "0").toInt()
-
-            val monitor = if (preferredMonitor == 0) {
-                glfwGetPrimaryMonitor()
-            } else {
-                val monitors = glfwGetMonitors()
-                if (monitors.remaining() < preferredMonitor) {
-                    monitors.get(0)
-                } else {
-                    monitors.get(preferredMonitor)
-                }
-            }
-
-            val hmd = hub!!.getWorkingHMDDisplay()
-
-            if(hmd != null) {
-                window.width = hmd.getRenderTargetSize().x().toInt()/2
-                window.height = hmd.getRenderTargetSize().y().toInt()
-                logger.info("Set fullscreen window dimensions to ${window.width}x${window.height}")
-            }
-
-            glfwSetWindowMonitor(window.glfwWindow!!,
-                monitor,
-                0, 0,
-                window.width, window.height, GLFW_DONT_CARE)
-            glfwSetInputMode(window.glfwWindow!!, GLFW_CURSOR, GLFW_CURSOR_HIDDEN)
-
-            swapchainRecreator.mustRecreate = true
-            window.isFullscreen = true
-        }
+        hub?.let { hub -> swapchain?.toggleFullscreen(hub, swapchainRecreator) }
     }
 }

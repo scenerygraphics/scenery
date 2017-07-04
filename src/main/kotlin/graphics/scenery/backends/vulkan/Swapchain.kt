@@ -1,5 +1,6 @@
 package graphics.scenery.backends.vulkan
 
+import graphics.scenery.Hub
 import graphics.scenery.backends.SceneryWindow
 import org.lwjgl.vulkan.VkInstance
 import java.nio.LongBuffer
@@ -22,4 +23,5 @@ interface Swapchain : AutoCloseable {
     fun postPresent(image: Int)
     fun next(timeout: Long = -1L, waitForSemaphore: Long = 0L): Boolean
     override fun close()
+    fun toggleFullscreen(hub: Hub, swapchainRecreator: VulkanRenderer.SwapchainRecreator)
 }

@@ -1,5 +1,6 @@
 package graphics.scenery.backends.vulkan
 
+import graphics.scenery.Hub
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.SceneryWindow
 import org.lwjgl.glfw.GLFW.*
@@ -124,8 +125,6 @@ class VulkanSwapchain(val window: SceneryWindow,
         val currentExtent = surfCaps.currentExtent()
         val currentWidth = currentExtent.width()
         val currentHeight = currentExtent.height()
-
-        logger.info("Current window size: $currentWidth x $currentHeight")
 
         if (currentWidth > 0 && currentHeight > 0) {
             window.width = currentWidth
@@ -380,6 +379,50 @@ class VulkanSwapchain(val window: SceneryWindow,
         }
 
         return false
+    }
+
+    override fun toggleFullscreen(hub: Hub, swapchainRecreator: VulkanRenderer.SwapchainRecreator) {
+        if (window.isFullscreen) {
+            glfwSetWindowMonitor(window.glfwWindow!!,
+                MemoryUtil.NULL,
+                0, 0,
+                window.width, window.height, GLFW_DONT_CARE)
+            glfwSetWindowPos(window.glfwWindow!!, 100, 100)
+            glfwSetInputMode(window.glfwWindow!!, GLFW_CURSOR, GLFW_CURSOR_NORMAL)
+
+            swapchainRecreator.mustRecreate = true
+            window.isFullscreen = false
+        } else {
+            val preferredMonitor = System.getProperty("scenery.FullscreenMonitor", "0").toInt()
+
+            val monitor = if (preferredMonitor == 0) {
+                glfwGetPrimaryMonitor()
+            } else {
+                val monitors = glfwGetMonitors()
+                if (monitors.remaining() < preferredMonitor) {
+                    monitors.get(0)
+                } else {
+                    monitors.get(preferredMonitor)
+                }
+            }
+
+            val hmd = hub!!.getWorkingHMDDisplay()
+
+            if (hmd != null) {
+                window.width = hmd.getRenderTargetSize().x().toInt() / 2
+                window.height = hmd.getRenderTargetSize().y().toInt()
+                logger.info("Set fullscreen window dimensions to ${window.width}x${window.height}")
+            }
+
+            glfwSetWindowMonitor(window.glfwWindow!!,
+                monitor,
+                0, 0,
+                window.width, window.height, GLFW_DONT_CARE)
+            glfwSetInputMode(window.glfwWindow!!, GLFW_CURSOR, GLFW_CURSOR_HIDDEN)
+
+            swapchainRecreator.mustRecreate = true
+            window.isFullscreen = true
+        }
     }
 
     override fun close() {

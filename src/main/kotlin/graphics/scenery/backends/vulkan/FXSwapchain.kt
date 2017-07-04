@@ -4,7 +4,6 @@ import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.SceneryWindow
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.glfw.GLFWVulkan
-import org.lwjgl.glfw.GLFWWindowSizeCallback
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.vulkan.*
 import org.slf4j.LoggerFactory
@@ -14,16 +13,17 @@ import java.nio.LongBuffer
 import javafx.stage.Stage
 import java.util.concurrent.CountDownLatch
 import com.sun.javafx.application.PlatformImpl
+import graphics.scenery.Hub
 import graphics.scenery.utils.SceneryPanel
 import javafx.application.Platform
 import javafx.event.EventHandler
 import javafx.geometry.HPos
 import javafx.geometry.Insets
+import javafx.geometry.VPos
 import javafx.scene.Scene
 import javafx.scene.control.Label
 import javafx.scene.layout.*
 import javafx.scene.paint.Color
-import javafx.scene.text.Font
 import javafx.scene.text.TextAlignment
 import java.util.concurrent.locks.ReentrantLock
 
@@ -55,49 +55,59 @@ class FXSwapchain(val window: SceneryWindow,
     lateinit var imageBuffer: ByteBuffer
     var lock = ReentrantLock()
 
-    private var glfwOffscreenWindow: Long = 0
+    private var glfwOffscreenWindow: Long = -1L
     lateinit private var stage: Stage
     lateinit private var imagePanel: SceneryPanel
 
     var surface: Long = 0
-    lateinit var windowSizeCallback: GLFWWindowSizeCallback
 
-    var lastResize = -1L
-    private val WINDOW_RESIZE_TIMEOUT = 200 * 10e6
+    lateinit var vulkanInstance: VkInstance
+    lateinit var vulkanSwapchainRecreator: VulkanRenderer.SwapchainRecreator
+
+    private val WINDOW_RESIZE_TIMEOUT = 400 * 10e6
 
     val logger = LoggerFactory.getLogger("FXSwapchain")
 
-    override fun createWindow(window: SceneryWindow, instance: VkInstance, swapchainRecreator: VulkanRenderer.SwapchainRecreator) {
-        // create off-screen GLFW window
-        glfwDefaultWindowHints()
-        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API)
-        glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE)
+    inner class ResizeHandler {
+        @Volatile var lastResize = -1L
+        var lastWidth = window.width
+        var lastHeight = window.height
 
-        glfwOffscreenWindow = glfwCreateWindow(window.width, window.height, "scenery", MemoryUtil.NULL, MemoryUtil.NULL)
+        private var lock = ReentrantLock()
 
-        surface = VU.run(MemoryUtil.memAllocLong(1), "glfwCreateWindowSurface") {
-            GLFWVulkan.glfwCreateWindowSurface(instance, glfwOffscreenWindow, null, this)
-        }
+        @Synchronized fun queryResize() {
+            if (lastWidth <= 0 || lastHeight <= 0) {
+                lastWidth = Math.max(1, lastWidth)
+                lastHeight = Math.max(1, lastHeight)
+                return
+            }
 
-        // Handle canvas resize
-        windowSizeCallback = object : GLFWWindowSizeCallback() {
-            override operator fun invoke(glfwWindow: Long, w: Int, h: Int) {
-                if (lastResize > 0L && lastResize + WINDOW_RESIZE_TIMEOUT < System.nanoTime()) {
-                    lastResize = System.nanoTime()
-                    return
-                }
+            if (lastResize > 0L && lastResize + WINDOW_RESIZE_TIMEOUT < System.nanoTime()) {
+                lastResize = System.nanoTime()
+                return
+            }
 
-                if (window.width <= 0 || window.height <= 0)
-                    return
+            if(lastWidth == window.width && lastHeight == window.height) {
+                return
+            }
 
-                window.width = w
-                window.height = h
-                swapchainRecreator.mustRecreate = true
+            if (lock.tryLock()) {
+                window.width = lastWidth
+                window.height = lastHeight
+
+                vulkanSwapchainRecreator.mustRecreate = true
+
                 lastResize = -1L
+                lock.unlock()
             }
         }
+    }
 
-        glfwSetWindowSizeCallback(glfwOffscreenWindow, windowSizeCallback)
+    var resizeHandler = ResizeHandler()
+
+    override fun createWindow(window: SceneryWindow, instance: VkInstance, swapchainRecreator: VulkanRenderer.SwapchainRecreator) {
+        vulkanInstance = instance
+        vulkanSwapchainRecreator = swapchainRecreator
 
         PlatformImpl.startup { }
         val lCountDownLatch = CountDownLatch(1)
@@ -112,12 +122,39 @@ class FXSwapchain(val window: SceneryWindow,
                     CornerRadii.EMPTY,
                     Insets.EMPTY)))
 
-            imagePanel = SceneryPanel(window.width, window.height)
-
             val pane = GridPane()
             val label = Label("Experimental JavaFX Swapchain - use with caution!")
+
+            imagePanel = SceneryPanel(window.width, window.height)
+
+            resizeHandler.lastWidth = window.width
+            resizeHandler.lastHeight = window.height
+
+            imagePanel.widthProperty().addListener { _, _, newWidth ->
+                logger.info("New width: $newWidth")
+                resizeHandler.lastWidth = newWidth.toInt()
+            }
+
+            imagePanel.heightProperty().addListener { _, _, newHeight ->
+                logger.info("New height: $newHeight")
+                resizeHandler.lastHeight = newHeight.toInt()
+            }
+
+            imagePanel.minWidth = 100.0
+            imagePanel.minHeight = 100.0
+            imagePanel.prefWidth = window.width.toDouble()
+            imagePanel.prefHeight = window.height.toDouble()
+
+            GridPane.setHgrow(imagePanel, Priority.ALWAYS)
+            GridPane.setVgrow(imagePanel, Priority.ALWAYS)
+
+            GridPane.setFillHeight(imagePanel, true)
+            GridPane.setFillWidth(imagePanel, true)
+
             GridPane.setHgrow(label, Priority.ALWAYS)
             GridPane.setHalignment(label, HPos.CENTER)
+            GridPane.setValignment(label, VPos.BOTTOM)
+
             label.maxWidthProperty().bind(pane.widthProperty())
             pane.style = """
             -fx-background-color: linear-gradient(
@@ -159,6 +196,26 @@ class FXSwapchain(val window: SceneryWindow,
     }
 
     override fun create(oldSwapchain: Swapchain?): Swapchain {
+        if (glfwOffscreenWindow != -1L) {
+            glfwDestroyWindow(glfwOffscreenWindow)
+        }
+
+        // create off-screen, undecorated GLFW window
+        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API)
+        glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE)
+        glfwWindowHint(GLFW_DECORATED, GLFW_FALSE)
+
+        logger.info("Creating window: ${window.width}/${window.height}")
+        glfwOffscreenWindow = glfwCreateWindow(window.width, window.height, "scenery", MemoryUtil.NULL, MemoryUtil.NULL)
+        val w = intArrayOf(1)
+        val h = intArrayOf(1)
+        glfwGetWindowSize(glfwOffscreenWindow, w, h)
+        logger.info("actual w/h: ${w[0]}/${h[0]}")
+
+        surface = VU.run(MemoryUtil.memAllocLong(1), "glfwCreateWindowSurface") {
+            GLFWVulkan.glfwCreateWindowSurface(vulkanInstance, glfwOffscreenWindow, null, this)
+        }
+
         val colorFormatAndSpace = getColorFormatAndSpace()
 
         var err: Int
@@ -205,8 +262,6 @@ class FXSwapchain(val window: SceneryWindow,
         val currentExtent = surfCaps.currentExtent()
         val currentWidth = currentExtent.width()
         val currentHeight = currentExtent.height()
-
-        logger.info("Current window size: $currentWidth x $currentHeight")
 
         if (currentWidth > 0 && currentHeight > 0) {
             window.width = currentWidth
@@ -327,6 +382,16 @@ class FXSwapchain(val window: SceneryWindow,
             wantAligned = true,
             allocationSize = imageByteSize)
 
+        imagePanel.prefWidth = currentWidth.toDouble()
+        imagePanel.prefHeight = currentHeight.toDouble()
+
+//        imagePanel.resize(currentWidth.toDouble(), currentHeight.toDouble())
+
+        resizeHandler.lastWidth = currentWidth
+        resizeHandler.lastHeight = currentHeight
+
+        logger.info("Final surface size is ${window.width}/${window.height}")
+
         this.images = images
         this.imageViews = imageViews
         this.handle = swapChain
@@ -433,6 +498,10 @@ class FXSwapchain(val window: SceneryWindow,
     }
 
     override fun present(waitForSemaphores: LongBuffer?) {
+        if(vulkanSwapchainRecreator.mustRecreate) {
+            return
+        }
+
         // Present the current buffer to the swap chain
         // This will display the image
         swapchainPointer.put(0, handle)
@@ -455,6 +524,10 @@ class FXSwapchain(val window: SceneryWindow,
     }
 
     override fun postPresent(image: Int) {
+        if (vulkanSwapchainRecreator.mustRecreate) {
+            return
+        }
+
         with(VU.newCommandBuffer(device, commandPool, autostart = true)) {
             val subresource = VkImageSubresourceLayers.calloc()
                 .aspectMask(VK10.VK_IMAGE_ASPECT_COLOR_BIT)
@@ -493,12 +566,14 @@ class FXSwapchain(val window: SceneryWindow,
         VK10.vkQueueWaitIdle(queue)
 
         Platform.runLater {
-            if (lock.tryLock()) {
+            if (lock.tryLock() && vulkanSwapchainRecreator.mustRecreate == false) {
                 val imageByteSize = window.width * window.height * 4
                 imagePanel.update(sharingBuffer.map().getByteBuffer(imageByteSize))
                 lock.unlock()
             }
         }
+
+        resizeHandler.queryResize()
     }
 
     override fun next(timeout: Long, waitForSemaphore: Long): Boolean {
@@ -515,6 +590,12 @@ class FXSwapchain(val window: SceneryWindow,
         return false
     }
 
+    override fun toggleFullscreen(hub: Hub, swapchainRecreator: VulkanRenderer.SwapchainRecreator) {
+        PlatformImpl.runLater {
+            stage.isFullScreen = !stage.isFullScreen
+        }
+    }
+
     override fun close() {
         KHRSwapchain.vkDestroySwapchainKHR(device, handle, null)
 
@@ -522,7 +603,6 @@ class FXSwapchain(val window: SceneryWindow,
         MemoryUtil.memFree(swapchainImage)
         MemoryUtil.memFree(swapchainPointer)
 
-        windowSizeCallback.close()
         glfwDestroyWindow(glfwOffscreenWindow)
     }
 }
