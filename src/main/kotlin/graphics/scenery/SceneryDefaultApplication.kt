@@ -12,6 +12,7 @@ import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.repl.REPL
 import graphics.scenery.utils.Statistics
 import org.scijava.ui.behaviour.ClickBehaviour
+import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.zeromq.ZContext
 import kotlin.concurrent.thread
@@ -39,7 +40,7 @@ open class SceneryDefaultApplication(var applicationName: String,
     /** REPL for the application, can be initialised in the [init] function */
     protected var repl: REPL? = null
     /** Frame number for counting FPS */
-    protected var frameNum = 0
+    protected var ticks = 0L
     /** The Deferred Lighting Renderer for the application, see [OpenGLRenderer] */
     protected var renderer: Renderer? = null
     /** The Hub used by the application, see [Hub] */
@@ -51,9 +52,9 @@ open class SceneryDefaultApplication(var applicationName: String,
 
     protected var stats: Statistics = Statistics(hub)
 
-    protected var logger = LoggerFactory.getLogger(applicationName)
+    protected var logger: Logger = LoggerFactory.getLogger(applicationName)
 
-    var updateFunction: ()->Any = {}
+    var updateFunction: () -> Any = {}
 
     protected var running: Boolean = false
 
@@ -70,9 +71,7 @@ open class SceneryDefaultApplication(var applicationName: String,
 
     /**
      * the init function of [SceneryDefaultApplication], override this in your subclass,
-     * e.g. for [Scene] construction and [OpenGLRenderer] initialisation.
-     *
-     * @param[pDrawable] a [org.jogamp.jogl.GLAutoDrawable] handed over by [ClearGLDefaultEventListener]
+     * e.g. for [Scene] construction and [Renderer] initialisation.
      */
     open fun init() {
 
@@ -141,8 +140,6 @@ open class SceneryDefaultApplication(var applicationName: String,
         // setup additional key bindings, if requested by the user
         inputSetup()
 
-        var ticks = 0L
-
         running = true
 
         if(!master) {
@@ -155,7 +152,7 @@ open class SceneryDefaultApplication(var applicationName: String,
         }
 
         var nextTick = getTickCount()
-        var interpolation = 0.0f
+        var interpolation: Float
 
         while(!(renderer?.shouldClose ?: true)) {
             val start = System.nanoTime()
@@ -183,7 +180,7 @@ open class SceneryDefaultApplication(var applicationName: String,
             }
 
             if(statsRequested && ticks % 100L == 0L) {
-                logger.info("\nStatistics:\n=============\n${stats}")
+                logger.info("\nStatistics:\n=============\n$stats")
             }
 
             stats.add("loop", System.nanoTime() - start*1.0f)
