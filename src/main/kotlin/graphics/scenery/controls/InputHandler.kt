@@ -31,15 +31,15 @@ import java.io.StringReader
  * @property[hub] [Hub] for handoing communication
  * @constructor Creates a default behaviour list and input map, also reads the configuration from a file.
  */
-class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : Hubable, AutoCloseable {
+open class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : Hubable, AutoCloseable {
     /** logger for the InputHandler **/
     protected var logger: Logger = LoggerFactory.getLogger("InputHandler")
     /** ui-behaviour input trigger map, stores what actions (key presses, etc) trigger which actions. */
     protected val inputMap = InputTriggerMap()
     /** ui-behaviour behaviour map, stores the available behaviours */
     protected val behaviourMap = BehaviourMap()
-    /** JOGL-flavoured ui-behaviour MouseAndKeyHandler */
-    protected val handler: MouseAndKeyHandler?
+    /** JOGL-flavoured ui-behaviour MouseAndKeyHandlerBase */
+    protected val handler: MouseAndKeyHandlerBase?
 
     /** Scene the input handler refers to */
     protected val scene: Scene
@@ -63,7 +63,7 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
             with(window.clearglWindow!!) {
                 addKeyListener(handler)
                 addMouseListener(handler)
-                addWindowListener(handler)
+//                addWindowListener(handler)
             }
         } else if(window.glfwWindow != null) {
             handler = GLFWMouseAndKeyHandler(hub)
@@ -169,7 +169,7 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
                     "  action: scroll1" + "\n" +
                     "  contexts: [all]" + "\n" +
                     "  triggers: [scroll]" + "\n" +
-                    "") as Reader
+                    "")
         }
 
         config = InputTriggerConfig(YamlConfigIO.read(reader))
