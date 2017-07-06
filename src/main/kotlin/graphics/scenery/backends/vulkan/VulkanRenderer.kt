@@ -248,7 +248,7 @@ open class VulkanRenderer(hub: Hub,
     protected var swapchain: Swapchain? = null
     protected var ph = PresentHelpers()
 
-    final override var window = SceneryWindow()
+    final override var window: SceneryWindow = SceneryWindow.UninitializedWindow()
 
     protected val swapchainRecreator: SwapchainRecreator
     protected var pipelineCache: Long = -1L
@@ -364,24 +364,24 @@ open class VulkanRenderer(hub: Hub,
 
         swapchain = if (wantsOpenGLSwapchain) {
             logger.info("Using OpenGL-based swapchain")
-            OpenGLSwapchain(window,
+            OpenGLSwapchain(
                 device, physicalDevice, instance, memoryProperties, queue, commandPools.Standard,
                 renderConfig = renderConfig, useSRGB = true,
                 useFramelock = System.getProperty("scenery.Renderer.Framelock", "false").toBoolean())
         } else {
             if(System.getProperty("scenery.Renderer.UseJavaFX", "false").toBoolean()) {
                 logger.info("Using JavaFX-based swapchain")
-                FXSwapchain(window,
+                FXSwapchain(
                     device, physicalDevice, instance, memoryProperties, queue, commandPools.Standard,
                     renderConfig = renderConfig, useSRGB = true)
             } else {
-                VulkanSwapchain(window,
+                VulkanSwapchain(
                     device, physicalDevice, instance, queue, commandPools.Standard,
                     renderConfig = renderConfig, useSRGB = true)
             }
+        }.apply {
+            window = createWindow(window, swapchainRecreator)
         }
-
-        swapchain?.createWindow(window, swapchainRecreator)
 
         descriptorPool = createDescriptorPool(device)
         vertexDescriptors = prepareStandardVertexDescriptors()

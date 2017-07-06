@@ -17,7 +17,7 @@ interface Swapchain : AutoCloseable {
 
     var format: Int
 
-    fun createWindow(window: SceneryWindow, swapchainRecreator: VulkanRenderer.SwapchainRecreator)
+    fun createWindow(win: SceneryWindow, swapchainRecreator: VulkanRenderer.SwapchainRecreator): SceneryWindow
     fun create(oldSwapchain: Swapchain?): Swapchain
     fun present(waitForSemaphores: LongBuffer? = null)
     fun postPresent(image: Int)

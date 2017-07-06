@@ -1,6 +1,5 @@
 package graphics.scenery.backends
 
-import cleargl.ClearGLWindow
 import javafx.application.Platform
 import javafx.stage.Stage
 import org.lwjgl.glfw.GLFW.*
@@ -10,10 +9,12 @@ import org.lwjgl.glfw.GLFW.*
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class SceneryWindow {
-    var glfwWindow: Long? = null
-    var clearglWindow: ClearGLWindow? = null
-    var javafxStage: Stage? = null
+sealed class SceneryWindow {
+    class UninitializedWindow : SceneryWindow()
+    class GLFWWindow(var window: Long): SceneryWindow()
+    class ClearGLWindow(var window: cleargl.ClearGLWindow): SceneryWindow()
+    class JavaFXStage(var stage: Stage): SceneryWindow()
+
     var shouldClose = false
 
     var width = 0
@@ -21,21 +22,17 @@ class SceneryWindow {
     var isFullscreen = false
 
     fun setTitle(title: String) {
-        glfwWindow?.let { window ->
-            glfwSetWindowTitle(window, title)
-        }
-
-        clearglWindow?.let { window ->
-            window.windowTitle = title
-        }
-
-        javafxStage?.let { window ->
-            Platform.runLater { window.title = title }
+        when(this) {
+            is GLFWWindow -> glfwSetWindowTitle(window, title)
+            is ClearGLWindow -> window.windowTitle = title
+            is JavaFXStage -> {
+                Platform.runLater { stage.title = title }
+            }
         }
     }
 
     fun pollEvents() {
-        glfwWindow?.let { window ->
+        if(this is GLFWWindow) {
             if (glfwWindowShouldClose(window)) {
                 shouldClose = true
             }

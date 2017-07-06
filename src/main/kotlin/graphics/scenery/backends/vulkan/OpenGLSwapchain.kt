@@ -27,6 +27,7 @@ import org.lwjgl.glfw.GLFWWindowSizeCallback
 import org.lwjgl.opengl.GL30.*
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.*
+import org.slf4j.Logger
 import java.lang.UnsupportedOperationException
 
 /**
@@ -34,8 +35,7 @@ import java.lang.UnsupportedOperationException
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class OpenGLSwapchain(val window: SceneryWindow,
-                      val device: VkDevice,
+class OpenGLSwapchain(val device: VkDevice,
                       val physicalDevice: VkPhysicalDevice,
                       val instance: VkInstance,
                       val memoryProperties: VkPhysicalDeviceMemoryProperties,
@@ -52,7 +52,9 @@ class OpenGLSwapchain(val window: SceneryWindow,
 
     override var format: Int = 0
 
-    val logger = LoggerFactory.getLogger("VulkanRenderer")
+    lateinit var window: SceneryWindow.GLFWWindow
+
+    val logger: Logger = LoggerFactory.getLogger("VulkanRenderer")
     val supportedExtensions = ArrayList<String>()
 
     var surface: Long = 0
@@ -61,7 +63,7 @@ class OpenGLSwapchain(val window: SceneryWindow,
     var lastResize = -1L
     private val WINDOW_RESIZE_TIMEOUT = 200 * 10e6
 
-    override fun createWindow(window: SceneryWindow, swapchainRecreator: VulkanRenderer.SwapchainRecreator) {
+    override fun createWindow(win: SceneryWindow, swapchainRecreator: VulkanRenderer.SwapchainRecreator): SceneryWindow {
         glfwDefaultWindowHints()
 
         glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API)
@@ -78,37 +80,39 @@ class OpenGLSwapchain(val window: SceneryWindow,
             GLFW_FALSE
         })
 
-        window.glfwWindow = glfwCreateWindow(window.width, window.height, "scenery", MemoryUtil.NULL, MemoryUtil.NULL)
-        glfwSetWindowPos(window.glfwWindow!!, 100, 100)
+        window = SceneryWindow.GLFWWindow(glfwCreateWindow(win.width, win.height, "scenery", MemoryUtil.NULL, MemoryUtil.NULL)).apply {
+            glfwSetWindowPos(window, 100, 100)
 
-        surface = VU.run(MemoryUtil.memAllocLong(1), "glfwCreateWindowSurface") {
-            GLFWVulkan.glfwCreateWindowSurface(instance, window.glfwWindow!!, null, this)
-        }
-
-        // Handle canvas resize
-        windowSizeCallback = object : GLFWWindowSizeCallback() {
-            override operator fun invoke(glfwWindow: Long, w: Int, h: Int) {
-                if (lastResize > 0L && lastResize + WINDOW_RESIZE_TIMEOUT < System.nanoTime()) {
-                    lastResize = System.nanoTime()
-                    return
-                }
-
-                if (window.width <= 0 || window.height <= 0)
-                    return
-
-                window.width = w
-                window.height = h
-                swapchainRecreator.mustRecreate = true
-                lastResize = -1L
+            surface = VU.run(MemoryUtil.memAllocLong(1), "glfwCreateWindowSurface") {
+                GLFWVulkan.glfwCreateWindowSurface(instance, window, null, this)
             }
-        }
 
-        glfwSetWindowSizeCallback(window.glfwWindow!!, windowSizeCallback)
-        glfwShowWindow(window.glfwWindow!!)
+            // Handle canvas resize
+            windowSizeCallback = object : GLFWWindowSizeCallback() {
+                override operator fun invoke(window: Long, w: Int, h: Int) {
+                    if (lastResize > 0L && lastResize + WINDOW_RESIZE_TIMEOUT < System.nanoTime()) {
+                        lastResize = System.nanoTime()
+                        return
+                    }
+
+                    if (width <= 0 || height <= 0)
+                        return
+
+                    width = w
+                    height = h
+                    swapchainRecreator.mustRecreate = true
+                    lastResize = -1L
+                }
+            }
+
+            glfwSetWindowSizeCallback(window, windowSizeCallback)
+            glfwShowWindow(window)
+        }
+        return window
     }
 
     override fun create(oldSwapchain: Swapchain?): Swapchain {
-        glfwMakeContextCurrent(window.glfwWindow!!)
+        glfwMakeContextCurrent(window.window)
         GL.createCapabilities()
 
         logger.info("OpenGL swapchain running OpenGL ${glGetInteger(GL_MAJOR_VERSION)}.${glGetInteger(GL_MINOR_VERSION)} on ${glGetString(GL_RENDERER)}")
@@ -163,7 +167,7 @@ class OpenGLSwapchain(val window: SceneryWindow,
         handle = -1L
 
         glfwSwapInterval(0)
-        glfwShowWindow(window.glfwWindow!!)
+        glfwShowWindow(window.window)
 
         glEnable(GL_FRAMEBUFFER_SRGB)
 
@@ -189,7 +193,7 @@ class OpenGLSwapchain(val window: SceneryWindow,
 
         when (Platform.get()) {
             Platform.WINDOWS -> {
-                val hwnd = glfwGetWin32Window(window.glfwWindow!!)
+                val hwnd = glfwGetWin32Window(window.window)
                 val hwndP = WinDef.HWND(PointerUtils.fromAddress(hwnd))
                 val hdc = User32.INSTANCE.GetDC(hwndP)
 
@@ -211,7 +215,7 @@ class OpenGLSwapchain(val window: SceneryWindow,
 
             Platform.LINUX -> {
                 val display = glfwGetX11Display()
-                val window = glfwGetGLXWindow(window.glfwWindow!!)
+                val window = glfwGetGLXWindow(window.window)
 
                 GLXNVSwapGroup.glXQueryMaxSwapGroupsNV(display, 0, maxGroups, maxBarriers)
 
@@ -236,6 +240,7 @@ class OpenGLSwapchain(val window: SceneryWindow,
         }
     }
 
+    @Suppress("unused")
     fun disableFramelock() {
         if (!supportedExtensions.contains("WGL_NV_swap_group")) {
             logger.warn("Framelock requested, but not supported on this hardware.")
@@ -244,7 +249,7 @@ class OpenGLSwapchain(val window: SceneryWindow,
 
         when (Platform.get()) {
             Platform.WINDOWS -> {
-                val hwnd = glfwGetWin32Window(window.glfwWindow!!)
+                val hwnd = glfwGetWin32Window(window.window)
                 val hwndP = WinDef.HWND(PointerUtils.fromAddress(hwnd))
                 val hdc = User32.INSTANCE.GetDC(hwndP)
 
@@ -253,7 +258,7 @@ class OpenGLSwapchain(val window: SceneryWindow,
 
             Platform.LINUX -> {
                 val display = glfwGetX11Display()
-                val window = glfwGetGLXWindow(window.glfwWindow!!)
+                val window = glfwGetGLXWindow(window.window)
 
                 GLXNVSwapGroup.glXJoinSwapGroupNV(display, window, 0)
             }
@@ -270,30 +275,32 @@ class OpenGLSwapchain(val window: SceneryWindow,
 
         // note: glDrawVkImageNV expects the OpenGL screen space conventions,
         // so the Vulkan image's ST coordinates have to be flipped
-        if (renderConfig.stereoEnabled) {
-            glDrawBuffer(GL_BACK_LEFT)
-            glClear(GL_COLOR_BUFFER_BIT)
-            glDisable(GL_DEPTH_TEST)
+        images?.let { images ->
+            if (renderConfig.stereoEnabled) {
+                glDrawBuffer(GL_BACK_LEFT)
+                glClear(GL_COLOR_BUFFER_BIT)
+                glDisable(GL_DEPTH_TEST)
 
-            NVDrawVulkanImage.glDrawVkImageNV(images!!.get(0), 0,
-                0.0f, 0.0f, window.width.toFloat(), window.height.toFloat(), 0.0f,
-                0.0f, 1.0f, 0.5f, 0.0f)
+                NVDrawVulkanImage.glDrawVkImageNV(images[0], 0,
+                    0.0f, 0.0f, window.width.toFloat(), window.height.toFloat(), 0.0f,
+                    0.0f, 1.0f, 0.5f, 0.0f)
 
-            glDrawBuffer(GL_BACK_RIGHT)
-            glClear(GL_COLOR_BUFFER_BIT)
-            glDisable(GL_DEPTH_TEST)
+                glDrawBuffer(GL_BACK_RIGHT)
+                glClear(GL_COLOR_BUFFER_BIT)
+                glDisable(GL_DEPTH_TEST)
 
-            NVDrawVulkanImage.glDrawVkImageNV(images!!.get(0), 0,
-                0.0f, 0.0f, window.width.toFloat(), window.height.toFloat(), 0.0f,
-                0.5f, 1.0f, 1.0f, 0.0f)
-        } else {
-            glClear(GL_COLOR_BUFFER_BIT)
-            NVDrawVulkanImage.glDrawVkImageNV(images!!.get(0), 0,
-                0.0f, 0.0f, window.width.toFloat(), window.height.toFloat(), 0.0f,
-                0.0f, 1.0f, 1.0f, 0.0f)
+                NVDrawVulkanImage.glDrawVkImageNV(images[0], 0,
+                    0.0f, 0.0f, window.width.toFloat(), window.height.toFloat(), 0.0f,
+                    0.5f, 1.0f, 1.0f, 0.0f)
+            } else {
+                glClear(GL_COLOR_BUFFER_BIT)
+                NVDrawVulkanImage.glDrawVkImageNV(images[0], 0,
+                    0.0f, 0.0f, window.width.toFloat(), window.height.toFloat(), 0.0f,
+                    0.0f, 1.0f, 1.0f, 0.0f)
+            }
         }
 
-        glfwSwapBuffers(window.glfwWindow!!)
+        glfwSwapBuffers(window.window)
     }
 
     override fun postPresent(image: Int) {
@@ -306,12 +313,12 @@ class OpenGLSwapchain(val window: SceneryWindow,
 
     override fun toggleFullscreen(hub: Hub, swapchainRecreator: VulkanRenderer.SwapchainRecreator) {
         if (window.isFullscreen) {
-            glfwSetWindowMonitor(window.glfwWindow!!,
+            glfwSetWindowMonitor(window.window,
                 NULL,
                 0, 0,
                 window.width, window.height, GLFW_DONT_CARE)
-            glfwSetWindowPos(window.glfwWindow!!, 100, 100)
-            glfwSetInputMode(window.glfwWindow!!, GLFW_CURSOR, GLFW_CURSOR_NORMAL)
+            glfwSetWindowPos(window.window, 100, 100)
+            glfwSetInputMode(window.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL)
 
             swapchainRecreator.mustRecreate = true
             window.isFullscreen = false
@@ -329,7 +336,7 @@ class OpenGLSwapchain(val window: SceneryWindow,
                 }
             }
 
-            val hmd = hub!!.getWorkingHMDDisplay()
+            val hmd = hub.getWorkingHMDDisplay()
 
             if (hmd != null) {
                 window.width = hmd.getRenderTargetSize().x().toInt() / 2
@@ -337,11 +344,11 @@ class OpenGLSwapchain(val window: SceneryWindow,
                 logger.info("Set fullscreen window dimensions to ${window.width}x${window.height}")
             }
 
-            glfwSetWindowMonitor(window.glfwWindow!!,
+            glfwSetWindowMonitor(window.window,
                 monitor,
                 0, 0,
                 window.width, window.height, GLFW_DONT_CARE)
-            glfwSetInputMode(window.glfwWindow!!, GLFW_CURSOR, GLFW_CURSOR_HIDDEN)
+            glfwSetInputMode(window.window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN)
 
             swapchainRecreator.mustRecreate = true
             window.isFullscreen = true
@@ -353,6 +360,6 @@ class OpenGLSwapchain(val window: SceneryWindow,
         images?.forEach { vkDestroyImage(device, it, null) }
 
         windowSizeCallback.close()
-        glfwDestroyWindow(window.glfwWindow!!)
+        glfwDestroyWindow(window.window)
     }
 }

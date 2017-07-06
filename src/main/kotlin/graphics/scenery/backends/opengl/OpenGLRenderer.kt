@@ -57,7 +57,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
     /** should the window close on next looping? */
     override var shouldClose = false
     /** the scenery window */
-    override var window = SceneryWindow()
+    lateinit override var window: SceneryWindow
     /** Whether the renderer manages its own event loop, which is the case for this one. */
     override var managesRenderLoop = true
 
@@ -173,19 +173,23 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
             this.window.height = hmd.getRenderTargetSize().y().toInt()
         }
 
-        window.clearglWindow = ClearGLWindow("",
+        window = SceneryWindow.ClearGLWindow(ClearGLWindow("",
             this.window.width,
             this.window.height,
-            this).apply {
+            this)).apply {
 
-            this.setFPS(120)
-            this.isVisible = true
-            this.start()
+            window.setFPS(120)
+            window.isVisible = true
+            window.start()
         }
     }
 
     override fun init(pDrawable: GLAutoDrawable) {
-        this.gl = window.clearglWindow!!.gl.gL4
+        this.gl = if(window is SceneryWindow.ClearGLWindow) {
+            (window as SceneryWindow.ClearGLWindow).window.gl.gL4
+        } else {
+            return
+        }
 
         val width = this.window.width
         val height = this.window.height
@@ -329,11 +333,11 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
     }
 
     override fun setClearGLWindow(pClearGLWindow: ClearGLWindow) {
-        window.clearglWindow = pClearGLWindow
+        (window as SceneryWindow.ClearGLWindow).window = pClearGLWindow
     }
 
     override fun getClearGLWindow(): ClearGLDisplayable {
-        return window.clearglWindow!!
+        return (window as SceneryWindow.ClearGLWindow).window
     }
 
     override fun reshape(pDrawable: GLAutoDrawable,

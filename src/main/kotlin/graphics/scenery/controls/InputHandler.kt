@@ -31,63 +31,68 @@ import java.io.StringReader
  * @property[hub] [Hub] for handoing communication
  * @constructor Creates a default behaviour list and input map, also reads the configuration from a file.
  */
-open class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : Hubable, AutoCloseable {
+class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : Hubable, AutoCloseable {
     /** logger for the InputHandler **/
-    protected var logger: Logger = LoggerFactory.getLogger("InputHandler")
+    internal var logger: Logger = LoggerFactory.getLogger("InputHandler")
     /** ui-behaviour input trigger map, stores what actions (key presses, etc) trigger which actions. */
-    protected val inputMap = InputTriggerMap()
+    internal val inputMap = InputTriggerMap()
     /** ui-behaviour behaviour map, stores the available behaviours */
-    protected val behaviourMap = BehaviourMap()
+    internal val behaviourMap = BehaviourMap()
     /** JOGL-flavoured ui-behaviour MouseAndKeyHandlerBase */
-    protected val handler: MouseAndKeyHandlerBase?
+    internal val handler: MouseAndKeyHandlerBase?
 
     /** Scene the input handler refers to */
-    protected val scene: Scene
+    internal val scene: Scene
     /** Renderer the input handler uses */
-    protected val renderer: Renderer
+    internal val renderer: Renderer
     /** window the input handler receives input events from */
-    protected val window: SceneryWindow
+    internal val window: SceneryWindow = renderer.window
 
     /** configuration of the input triggers */
-    protected var config: InputTriggerConfig = InputTriggerConfig()
+    internal var config: InputTriggerConfig = InputTriggerConfig()
 
     init {
-        window = renderer.window
 
-        if(window.clearglWindow != null) {
-            // create Mouse & Keyboard Handler
-            handler = JOGLMouseAndKeyHandler(hub)
-            handler.setInputMap(inputMap)
-            handler.setBehaviourMap(behaviourMap)
+        when(window) {
+            is SceneryWindow.ClearGLWindow -> {
+                // create Mouse & Keyboard Handler
+                handler = JOGLMouseAndKeyHandler(hub)
+                handler.setInputMap(inputMap)
+                handler.setBehaviourMap(behaviourMap)
 
-            with(window.clearglWindow!!) {
-                addKeyListener(handler)
-                addMouseListener(handler)
-//                addWindowListener(handler)
+                window.window.addKeyListener(handler)
+                window.window.addMouseListener(handler)
             }
-        } else if(window.glfwWindow != null) {
-            handler = GLFWMouseAndKeyHandler(hub)
 
-            handler.setInputMap(inputMap)
-            handler.setBehaviourMap(behaviourMap)
+            is SceneryWindow.GLFWWindow -> {
+                handler = GLFWMouseAndKeyHandler(hub)
 
-            glfwSetCursorPosCallback(window.glfwWindow!!, handler.cursorCallback)
-            glfwSetKeyCallback(window.glfwWindow!!, handler.keyCallback)
-            glfwSetScrollCallback(window.glfwWindow!!, handler.scrollCallback)
-            glfwSetMouseButtonCallback(window.glfwWindow!!, handler.mouseCallback)
-        } else if(window.javafxStage != null) {
-            handler = JavaFXMouseAndKeyHandler(hub, window.javafxStage!!)
+                handler.setInputMap(inputMap)
+                handler.setBehaviourMap(behaviourMap)
 
-            handler.setInputMap(inputMap)
-            handler.setBehaviourMap(behaviourMap)
-        } else {
-            logger.error("No suitable window was found")
-            handler = null
+                glfwSetCursorPosCallback(window.window, handler.cursorCallback)
+                glfwSetKeyCallback(window.window, handler.keyCallback)
+                glfwSetScrollCallback(window.window, handler.scrollCallback)
+                glfwSetMouseButtonCallback(window.window, handler.mouseCallback)
+            }
+
+            is SceneryWindow.JavaFXStage -> {
+                handler = JavaFXMouseAndKeyHandler(hub, window.stage)
+
+                handler.setInputMap(inputMap)
+                handler.setBehaviourMap(behaviourMap)
+            }
+
+            is SceneryWindow.UninitializedWindow -> {
+                logger.error("Uninitialized windows cannot have input handlers.")
+                handler = null
+            }
         }
 
         this.scene = scene
         this.renderer = renderer
         this.hub = hub
+
         hub?.add(SceneryElement.Input, this)
     }
 
@@ -125,6 +130,7 @@ open class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?
      *
      * @param[behaviourName] The behaviour to remove the key binding for.
      */
+    @Suppress("unused")
     fun removeKeyBinding(behaviourName: String) {
         config.inputTriggerAdder(inputMap, "all").put(behaviourName)
     }
