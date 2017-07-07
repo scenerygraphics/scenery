@@ -1,5 +1,6 @@
 package graphics.scenery.backends
 
+import graphics.scenery.utils.SceneryPanel
 import javafx.application.Platform
 import javafx.stage.Stage
 import org.lwjgl.glfw.GLFW.*
@@ -13,7 +14,7 @@ sealed class SceneryWindow {
     class UninitializedWindow : SceneryWindow()
     class GLFWWindow(var window: Long): SceneryWindow()
     class ClearGLWindow(var window: cleargl.ClearGLWindow): SceneryWindow()
-    class JavaFXStage(var stage: Stage): SceneryWindow()
+    class JavaFXStage(var panel: SceneryPanel): SceneryWindow()
 
     var shouldClose = false
 
@@ -26,7 +27,7 @@ sealed class SceneryWindow {
             is GLFWWindow -> glfwSetWindowTitle(window, title)
             is ClearGLWindow -> window.windowTitle = title
             is JavaFXStage -> {
-                Platform.runLater { stage.title = title }
+                Platform.runLater { (panel.scene.window as Stage).title = title }
             }
         }
     }

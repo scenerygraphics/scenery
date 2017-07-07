@@ -1,6 +1,7 @@
 package graphics.scenery.controls
 
 import graphics.scenery.Hub
+import graphics.scenery.utils.SceneryPanel
 import javafx.event.EventHandler
 import javafx.scene.input.*
 import javafx.stage.Stage
@@ -11,7 +12,7 @@ import org.scijava.ui.behaviour.InputTrigger
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-open class JavaFXMouseAndKeyHandler(protected var hub: Hub?, protected var stage: Stage) : MouseAndKeyHandlerBase(), EventHandler<javafx.event.Event> {
+open class JavaFXMouseAndKeyHandler(protected var hub: Hub?, protected var panel: SceneryPanel) : MouseAndKeyHandlerBase(), EventHandler<javafx.event.Event> {
     /** store os name */
     private var os = ""
 
@@ -34,6 +35,8 @@ open class JavaFXMouseAndKeyHandler(protected var hub: Hub?, protected var stage
         } else {
             10.0f
         }
+        
+        val stage = panel.scene.window as Stage
 
         stage.addEventHandler(DragEvent.ANY, this)
         stage.addEventHandler(MouseEvent.ANY, this)

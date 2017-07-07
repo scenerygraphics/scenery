@@ -22,6 +22,7 @@ import com.sun.jna.platform.win32.WinDef
 import graphics.scenery.Hub
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.SceneryWindow
+import graphics.scenery.utils.SceneryPanel
 import org.lwjgl.glfw.GLFWVulkan
 import org.lwjgl.glfw.GLFWWindowSizeCallback
 import org.lwjgl.opengl.GL30.*
@@ -353,6 +354,10 @@ class OpenGLSwapchain(val device: VkDevice,
             swapchainRecreator.mustRecreate = true
             window.isFullscreen = true
         }
+    }
+
+    override fun embedIn(panel: SceneryPanel?) {
+        logger.error("Embedding is not supported with the OpenGL-based swapchain. Use FXSwapchain instead.")
     }
 
     override fun close() {

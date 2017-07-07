@@ -16,6 +16,7 @@ import graphics.scenery.controls.TrackerInput
 import graphics.scenery.fonts.SDFFontAtlas
 import graphics.scenery.utils.GPUStats
 import graphics.scenery.utils.NvidiaGPUStats
+import graphics.scenery.utils.SceneryPanel
 import graphics.scenery.utils.Statistics
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -49,13 +50,15 @@ import kotlin.concurrent.thread
  * @author Ulrik Günther <hello@ulrik.is>
  */
 
-class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int, height: Int) : Renderer, Hubable, ClearGLDefaultEventListener() {
+class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int, height: Int, embedIn: SceneryPanel? = null) : Renderer, Hubable, ClearGLDefaultEventListener() {
     /** slf4j logger */
     protected var logger: Logger = LoggerFactory.getLogger("OpenGLRenderer")
     /** [GL4] instance handed over, coming from [ClearGLDefaultEventListener]*/
     lateinit protected var gl: GL4
     /** should the window close on next looping? */
     override var shouldClose = false
+    /** JavaFX window for embedding */
+    override var embedIn: SceneryPanel? = null
     /** the scenery window */
     lateinit override var window: SceneryWindow
     /** Whether the renderer manages its own event loop, which is the case for this one. */

@@ -10,6 +10,7 @@ import graphics.scenery.spirvcrossj.Loader
 import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.utils.GPUStats
 import graphics.scenery.utils.NvidiaGPUStats
+import graphics.scenery.utils.SceneryPanel
 import graphics.scenery.utils.Statistics
 import org.lwjgl.PointerBuffer
 import org.lwjgl.glfw.GLFW.*
@@ -52,6 +53,7 @@ open class VulkanRenderer(hub: Hub,
                           scene: Scene,
                           windowWidth: Int,
                           windowHeight: Int,
+                          override var embedIn: SceneryPanel? = null,
                           renderConfigFile: String = System.getProperty("scenery.Renderer.Config", "DeferredShading.yml")) : Renderer, AutoCloseable {
 
     // helper classes
@@ -362,6 +364,7 @@ open class VulkanRenderer(hub: Hub,
 
         swapchainRecreator = SwapchainRecreator()
 
+        logger.info("$embedIn")
         swapchain = if (wantsOpenGLSwapchain) {
             logger.info("Using OpenGL-based swapchain")
             OpenGLSwapchain(
@@ -369,7 +372,7 @@ open class VulkanRenderer(hub: Hub,
                 renderConfig = renderConfig, useSRGB = true,
                 useFramelock = System.getProperty("scenery.Renderer.Framelock", "false").toBoolean())
         } else {
-            if(System.getProperty("scenery.Renderer.UseJavaFX", "false").toBoolean()) {
+            if(System.getProperty("scenery.Renderer.UseJavaFX", "false").toBoolean() || embedIn != null) {
                 logger.info("Using JavaFX-based swapchain")
                 FXSwapchain(
                     device, physicalDevice, instance, memoryProperties, queue, commandPools.Standard,
@@ -380,6 +383,7 @@ open class VulkanRenderer(hub: Hub,
                     renderConfig = renderConfig, useSRGB = true)
             }
         }.apply {
+            embedIn(embedIn)
             window = createWindow(window, swapchainRecreator)
         }
 

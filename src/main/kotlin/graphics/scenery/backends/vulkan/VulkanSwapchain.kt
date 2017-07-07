@@ -3,6 +3,7 @@ package graphics.scenery.backends.vulkan
 import graphics.scenery.Hub
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.SceneryWindow
+import graphics.scenery.utils.SceneryPanel
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.glfw.GLFWVulkan
 import org.lwjgl.glfw.GLFWWindowSizeCallback
@@ -433,6 +434,10 @@ open class VulkanSwapchain(open val device: VkDevice,
                 window.isFullscreen = true
             }
         }
+    }
+
+    override fun embedIn(panel: SceneryPanel?) {
+        logger.error("Embedding is not supported with the default Vulkan swapchain. Use FXSwapchain instead.")
     }
 
     override fun close() {

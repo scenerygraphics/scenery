@@ -77,7 +77,7 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
             }
 
             is SceneryWindow.JavaFXStage -> {
-                handler = JavaFXMouseAndKeyHandler(hub, window.stage)
+                handler = JavaFXMouseAndKeyHandler(hub, window.panel)
 
                 handler.setInputMap(inputMap)
                 handler.setBehaviourMap(behaviourMap)

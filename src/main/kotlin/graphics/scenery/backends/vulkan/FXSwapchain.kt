@@ -49,7 +49,7 @@ class FXSwapchain(device: VkDevice,
 
     private var glfwOffscreenWindow: Long = -1L
     lateinit var stage: Stage
-    lateinit private var imagePanel: SceneryPanel
+    private var imagePanel: SceneryPanel? = null
 
     lateinit var vulkanInstance: VkInstance
     lateinit var vulkanSwapchainRecreator: VulkanRenderer.SwapchainRecreator
@@ -97,52 +97,36 @@ class FXSwapchain(device: VkDevice,
         PlatformImpl.startup { }
         val lCountDownLatch = CountDownLatch(1)
         Platform.runLater {
-            stage = Stage()
-            stage.title = "FXSwapchain"
+            if (imagePanel == null) {
+                stage = Stage()
+                stage.title = "FXSwapchain"
 
-            window = SceneryWindow.JavaFXStage(stage)
-            window.width = win.width
-            window.height = win.height
+                val lStackPane = StackPane()
+                lStackPane.backgroundProperty()
+                    .set(Background(BackgroundFill(Color.TRANSPARENT,
+                        CornerRadii.EMPTY,
+                        Insets.EMPTY)))
 
-            val lStackPane = StackPane()
-            lStackPane.backgroundProperty()
-                .set(Background(BackgroundFill(Color.TRANSPARENT,
-                    CornerRadii.EMPTY,
-                    Insets.EMPTY)))
+                val pane = GridPane()
+                val label = Label("Experimental JavaFX Swapchain - use with caution!")
 
-            val pane = GridPane()
-            val label = Label("Experimental JavaFX Swapchain - use with caution!")
+                imagePanel = SceneryPanel(win.width, win.height).apply {
+                    window = SceneryWindow.JavaFXStage(this)
+                }
 
-            imagePanel = SceneryPanel(win.width, win.height)
+                GridPane.setHgrow(imagePanel, Priority.ALWAYS)
+                GridPane.setVgrow(imagePanel, Priority.ALWAYS)
 
-            resizeHandler.lastWidth = win.width
-            resizeHandler.lastHeight = win.height
+                GridPane.setFillHeight(imagePanel, true)
+                GridPane.setFillWidth(imagePanel, true)
 
-            imagePanel.widthProperty().addListener { _, _, newWidth ->
-                resizeHandler.lastWidth = newWidth.toInt()
-            }
+                GridPane.setHgrow(label, Priority.ALWAYS)
+                GridPane.setHalignment(label, HPos.CENTER)
+                GridPane.setValignment(label, VPos.BOTTOM)
 
-            imagePanel.heightProperty().addListener { _, _, newHeight ->
-                resizeHandler.lastHeight = newHeight.toInt()
-            }
+                label.maxWidthProperty().bind(pane.widthProperty())
 
-            imagePanel.minWidth = 100.0
-            imagePanel.minHeight = 100.0
-            imagePanel.prefWidth = win.width.toDouble()
-            imagePanel.prefHeight = win.height.toDouble()
-
-            GridPane.setHgrow(imagePanel, Priority.ALWAYS)
-            GridPane.setVgrow(imagePanel, Priority.ALWAYS)
-
-            GridPane.setFillHeight(imagePanel, true)
-            GridPane.setFillWidth(imagePanel, true)
-
-            GridPane.setHgrow(label, Priority.ALWAYS)
-            GridPane.setHalignment(label, HPos.CENTER)
-            GridPane.setValignment(label, VPos.BOTTOM)
-
-            label.maxWidthProperty().bind(pane.widthProperty())
-            pane.style = """
+                pane.style = """
             -fx-background-color: linear-gradient(
                         from 0px .75em to .75em 0px,
                         repeat,
@@ -156,25 +140,52 @@ class FXSwapchain(device: VkDevice,
             -fx-text-fill: white;
             -fx-text-alignment: center;
             """
-            label.style = """
+                label.style = """
             -fx-padding: 0.2em;
             -fx-background-color: rgba(228, 205, 0, 0.6);
             -fx-text-fill: black;
             """
-            label.textAlignment = TextAlignment.CENTER
 
-            pane.add(imagePanel, 1, 1)
-            pane.add(label, 1, 2)
-            lStackPane.children.addAll(pane)
+                label.textAlignment = TextAlignment.CENTER
 
-            val scene = Scene(lStackPane)
-            stage.scene = scene
-            stage.show()
+                pane.add(imagePanel, 1, 1)
+                pane.add(label, 1, 2)
+                lStackPane.children.addAll(pane)
+
+                val scene = Scene(lStackPane)
+                stage.scene = scene
+                stage.show()
+            } else {
+                imagePanel?.let {
+                    window = SceneryWindow.JavaFXStage(it)
+
+                    stage = it.scene.window as Stage
+                }
+            }
+
+            window.width = win.width
+            window.height = win.height
+
+            resizeHandler.lastWidth = win.width
+            resizeHandler.lastHeight = win.height
+
+            imagePanel?.widthProperty()?.addListener { _, _, newWidth ->
+                resizeHandler.lastWidth = newWidth.toInt()
+            }
+
+            imagePanel?.heightProperty()?.addListener { _, _, newHeight ->
+                resizeHandler.lastHeight = newHeight.toInt()
+            }
+
+            imagePanel?.minWidth = 100.0
+            imagePanel?.minHeight = 100.0
+            imagePanel?.prefWidth = win.width.toDouble()
+            imagePanel?.prefHeight = win.height.toDouble()
+
+
             lCountDownLatch.countDown()
 
             stage.onCloseRequest = EventHandler { window.shouldClose = true }
-
-
         }
 
         lCountDownLatch.await()
@@ -220,8 +231,8 @@ class FXSwapchain(device: VkDevice,
             wantAligned = true,
             allocationSize = imageByteSize)
 
-        imagePanel.prefWidth = window.width.toDouble()
-        imagePanel.prefHeight = window.height.toDouble()
+        imagePanel?.prefWidth = window.width.toDouble()
+        imagePanel?.prefHeight = window.height.toDouble()
 
         resizeHandler.lastWidth = window.width
         resizeHandler.lastHeight = window.height
@@ -282,7 +293,10 @@ class FXSwapchain(device: VkDevice,
         Platform.runLater {
             if (lock.tryLock() && !vulkanSwapchainRecreator.mustRecreate) {
                 val imageByteSize = window.width * window.height * 4
-                imagePanel.update(sharingBuffer.mapIfUnmapped().getByteBuffer(imageByteSize))
+                val buffer = sharingBuffer.mapIfUnmapped().getByteBuffer(imageByteSize)
+
+                buffer?.let { imagePanel?.update(buffer) }
+
                 lock.unlock()
             }
         }
@@ -295,6 +309,10 @@ class FXSwapchain(device: VkDevice,
             stage.isFullScreen = !stage.isFullScreen
             window.isFullscreen = !window.isFullscreen
         }
+    }
+
+    override fun embedIn(panel: SceneryPanel?) {
+        imagePanel = panel
     }
 
     override fun close() {
