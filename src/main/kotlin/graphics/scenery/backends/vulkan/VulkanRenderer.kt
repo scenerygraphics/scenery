@@ -53,7 +53,7 @@ open class VulkanRenderer(hub: Hub,
                           scene: Scene,
                           windowWidth: Int,
                           windowHeight: Int,
-                          override var embedIn: SceneryPanel? = null,
+                          override final var embedIn: SceneryPanel? = null,
                           renderConfigFile: String = System.getProperty("scenery.Renderer.Config", "DeferredShading.yml")) : Renderer, AutoCloseable {
 
     // helper classes

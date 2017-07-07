@@ -80,7 +80,8 @@ class JavaFXTexturedCubeExample : SceneryDefaultApplication("JavaFXTexturedCubeE
             stage.scene = scene
             stage.onCloseRequest = EventHandler {
                 renderer?.shouldClose = true
-                Platform.exit()
+
+                Platform.runLater { Platform.exit() }
             }
 
             stage.show()
