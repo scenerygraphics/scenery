@@ -308,6 +308,9 @@ class FXSwapchain(device: VkDevice,
         PlatformImpl.runLater {
             stage.isFullScreen = !stage.isFullScreen
             window.isFullscreen = !window.isFullscreen
+
+            resizeHandler.lastWidth = window.width
+            resizeHandler.lastHeight = window.height
         }
     }
 
