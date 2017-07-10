@@ -10,18 +10,17 @@ import graphics.scenery.spirvcrossj.Loader
 import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.utils.GPUStats
 import graphics.scenery.utils.NvidiaGPUStats
+import graphics.scenery.utils.SceneryPanel
 import graphics.scenery.utils.Statistics
 import org.lwjgl.PointerBuffer
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.glfw.GLFWVulkan.*
-import org.lwjgl.glfw.GLFWWindowSizeCallback
 import org.lwjgl.system.Configuration
 import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.system.jemalloc.JEmalloc.*
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.EXTDebugReport.*
-import org.lwjgl.vulkan.KHRSurface.vkDestroySurfaceKHR
 import org.lwjgl.vulkan.KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
 import org.lwjgl.vulkan.KHRSwapchain.VK_KHR_SWAPCHAIN_EXTENSION_NAME
 import org.lwjgl.vulkan.VK10.*
@@ -54,6 +53,7 @@ open class VulkanRenderer(hub: Hub,
                           scene: Scene,
                           windowWidth: Int,
                           windowHeight: Int,
+                          override final var embedIn: SceneryPanel? = null,
                           renderConfigFile: String = System.getProperty("scenery.Renderer.Config", "DeferredShading.yml")) : Renderer, AutoCloseable {
 
     // helper classes
@@ -105,23 +105,13 @@ open class VulkanRenderer(hub: Hub,
     inner class SwapchainRecreator {
         var mustRecreate = true
 
-        fun recreate() {
+        @Synchronized fun recreate() {
             logger.info("Recreating Swapchain at frame $frames")
             // create new swapchain with changed surface parameters
             with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
                 // Create the swapchain (this will also add a memory barrier to initialize the framebuffer images)
-                swapchain = if (wantsOpenGLSwapchain) {
-                    OpenGLSwapchain(window,
-                        device, physicalDevice, memoryProperties, queue, commandPools.Standard,
-                        surface, renderConfig = renderConfig, useSRGB = true,
-                        useFramelock = System.getProperty("scenery.Renderer.Framelock", "false").toBoolean())
-                        .create(oldSwapchain = swapchain)
-                } else {
-                    VulkanSwapchain(window,
-                        device, physicalDevice, queue, commandPools.Standard,
-                        surface, renderConfig = renderConfig, useSRGB = true)
-                        .create(oldSwapchain = swapchain)
-                }
+
+                swapchain?.create(oldSwapchain = swapchain)
 
                 this.endCommandBuffer(device, commandPools.Standard, queue, flush = true, dealloc = true)
 
@@ -134,6 +124,10 @@ open class VulkanRenderer(hub: Hub,
                 .flags(VK_FLAGS_NONE)
 
             val refreshResolutionDependentResources = {
+                if(pipelineCache != -1L) {
+                    vkDestroyPipelineCache(device, pipelineCache, null)
+                }
+
                 pipelineCache = VU.run(memAllocLong(1), "create pipeline cache",
                     { vkCreatePipelineCache(device, pipelineCacheInfo, null, this) },
                     { pipelineCacheInfo.free() })
@@ -201,7 +195,6 @@ open class VulkanRenderer(hub: Hub,
     private var MAX_UBOS = 2048
     private var MAX_INPUT_ATTACHMENTS = 32
     private val UINT64_MAX: Long = -1L
-    private val WINDOW_RESIZE_TIMEOUT = 200 * 10e6
 
 
     private val MATERIAL_HAS_DIFFUSE = 0x0001
@@ -239,14 +232,11 @@ open class VulkanRenderer(hub: Hub,
     protected var instance: VkInstance
 
     protected var debugCallbackHandle: Long
-    protected var windowSizeCallback: GLFWWindowSizeCallback
     protected var physicalDevice: VkPhysicalDevice
     protected var deviceAndGraphicsQueueFamily: DeviceAndGraphicsQueueFamily
     protected var device: VkDevice
     protected var queueFamilyIndex: Int
     protected var memoryProperties: VkPhysicalDeviceMemoryProperties
-
-    protected var surface: Long
 
     protected var semaphoreCreateInfo: VkSemaphoreCreateInfo
 
@@ -260,7 +250,7 @@ open class VulkanRenderer(hub: Hub,
     protected var swapchain: Swapchain? = null
     protected var ph = PresentHelpers()
 
-    final override var window = SceneryWindow()
+    final override var window: SceneryWindow = SceneryWindow.UninitializedWindow()
 
     protected val swapchainRecreator: SwapchainRecreator
     protected var pipelineCache: Long = -1L
@@ -279,7 +269,6 @@ open class VulkanRenderer(hub: Hub,
     protected var totalFrames = 0L
     protected var heartbeatTimer = Timer()
     protected var gpuStats: GPUStats? = null
-    protected var lastResize = -1L
 
     private var renderConfig: RenderConfigReader.RenderConfig
     private var flow: List<String> = listOf()
@@ -363,33 +352,6 @@ open class VulkanRenderer(hub: Hub,
         queueFamilyIndex = deviceAndGraphicsQueueFamily.queueFamilyIndex
         memoryProperties = deviceAndGraphicsQueueFamily.memoryProperties!!
 
-        // Create GLFW window
-        glfwDefaultWindowHints()
-
-        if (wantsOpenGLSwapchain) {
-            glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API)
-            glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE)
-            glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE)
-            glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4)
-            glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5)
-            glfwWindowHint(GLFW_SRGB_CAPABLE, GLFW_TRUE)
-            glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE)
-
-            glfwWindowHint(GLFW_STEREO, if(renderConfig.stereoEnabled) { GLFW_TRUE } else { GLFW_FALSE })
-        } else {
-            glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API)
-        }
-
-
-        window.glfwWindow = glfwCreateWindow(window.width, window.height, "scenery", NULL, NULL)
-        glfwSetWindowPos(window.glfwWindow!!, 100, 100)
-
-        surface = VU.run(memAllocLong(1), "glfwCreateWindowSurface") {
-            glfwCreateWindowSurface(instance, window.glfwWindow!!, null, this)
-        }
-
-        swapchainRecreator = SwapchainRecreator()
-
         with(commandPools) {
             Render = createCommandPool(device, queueFamilyIndex)
             Standard = createCommandPool(device, queueFamilyIndex)
@@ -399,6 +361,31 @@ open class VulkanRenderer(hub: Hub,
         postPresentCommandBuffer = VU.newCommandBuffer(device, commandPools.Standard)
 
         queue = VU.createDeviceQueue(device, queueFamilyIndex)
+
+        swapchainRecreator = SwapchainRecreator()
+
+        logger.info("$embedIn")
+        swapchain = if (wantsOpenGLSwapchain) {
+            logger.info("Using OpenGL-based swapchain")
+            OpenGLSwapchain(
+                device, physicalDevice, instance, memoryProperties, queue, commandPools.Standard,
+                renderConfig = renderConfig, useSRGB = true,
+                useFramelock = System.getProperty("scenery.Renderer.Framelock", "false").toBoolean())
+        } else {
+            if(System.getProperty("scenery.Renderer.UseJavaFX", "false").toBoolean() || embedIn != null) {
+                logger.info("Using JavaFX-based swapchain")
+                FXSwapchain(
+                    device, physicalDevice, instance, memoryProperties, queue, commandPools.Standard,
+                    renderConfig = renderConfig, useSRGB = true)
+            } else {
+                VulkanSwapchain(
+                    device, physicalDevice, instance, queue, commandPools.Standard,
+                    renderConfig = renderConfig, useSRGB = true)
+            }
+        }.apply {
+            embedIn(embedIn)
+            window = createWindow(window, swapchainRecreator)
+        }
 
         descriptorPool = createDescriptorPool(device)
         vertexDescriptors = prepareStandardVertexDescriptors()
@@ -410,10 +397,10 @@ open class VulkanRenderer(hub: Hub,
         prepareDescriptorSets(device, descriptorPool)
         prepareDefaultTextures(device)
 
-
         heartbeatTimer.scheduleAtFixedRate(object : TimerTask() {
             override fun run() {
-                if (shouldClose) {
+                if (window.shouldClose) {
+                    shouldClose = true
                     return
                 }
 
@@ -437,35 +424,15 @@ open class VulkanRenderer(hub: Hub,
                     }
                 }
 
-                glfwSetWindowTitle(window.glfwWindow!!,
-                    "$applicationName [${this@VulkanRenderer.javaClass.simpleName}, ${this@VulkanRenderer.renderConfig.name}${if (validation) {
-                        " - VALIDATIONS ENABLED"
-                    } else {
-                        ""
-                    }}] - $fps fps")
-            }
-        }, 0, 1000)
-
-        // Handle canvas resize
-        windowSizeCallback = object : GLFWWindowSizeCallback() {
-            override operator fun invoke(glfwWindow: Long, w: Int, h: Int) {
-                if (lastResize > 0L && lastResize + WINDOW_RESIZE_TIMEOUT < System.nanoTime()) {
-                    lastResize = System.nanoTime()
-                    return
+                val validationsEnabled = if (validation) {
+                    " - VALIDATIONS ENABLED"
+                } else {
+                    ""
                 }
 
-                if (window.width <= 0 || window.height <= 0)
-                    return
-
-                window.width = w
-                window.height = h
-                swapchainRecreator.mustRecreate = true
-                lastResize = -1L
+                window.setTitle("$applicationName [${this@VulkanRenderer.javaClass.simpleName}, ${this@VulkanRenderer.renderConfig.name}] $validationsEnabled - $fps fps")
             }
-        }
-
-        glfwSetWindowSizeCallback(window.glfwWindow!!, windowSizeCallback)
-        glfwShowWindow(window.glfwWindow!!)
+        }, 0, 1000)
 
         // Info struct to create a semaphore
         semaphoreCreateInfo = VkSemaphoreCreateInfo.calloc()
@@ -584,7 +551,7 @@ open class VulkanRenderer(hub: Hub,
             updateNodeGeometry(board)
         }
 
-        val s = board.metadata.get("VulkanRenderer") as VulkanObjectState
+        val s = board.metadata["VulkanRenderer"] as VulkanObjectState
 
         val texture = textureCache.getOrPut("sdf-${board.fontFamily}", {
             val t = VulkanTexture(device, physicalDevice, memoryProperties,
@@ -873,7 +840,7 @@ open class VulkanRenderer(hub: Hub,
                 if (!textureCache.containsKey(texture) || node.material.needsTextureReload) {
                     logger.trace("Loading texture $texture for ${node.name}")
 
-                    val gt = node.material.transferTextures.get(texture.substringAfter("fromBuffer:"))
+                    val gt = node.material.transferTextures[texture.substringAfter("fromBuffer:")]
 
                     val vkTexture = if (texture.startsWith("fromBuffer:") && gt != null) {
                         val miplevels = if (generateMipmaps) {
@@ -900,7 +867,7 @@ open class VulkanRenderer(hub: Hub,
                             1
                         }
 
-                        val existingTexture = s.textures.get(type)
+                        val existingTexture = s.textures[type]
                         val t = if (existingTexture != null && existingTexture.device == device
                             && existingTexture.physicalDevice == physicalDevice
                             && existingTexture.width == gt.dimensions.x().toInt()
@@ -1071,13 +1038,7 @@ open class VulkanRenderer(hub: Hub,
                 }
             }
 
-            if (attributeDesc != null) {
-                attributeDesc.get(0)
-                    .binding(0)
-                    .location(0)
-                    .format(VK_FORMAT_R32G32B32_SFLOAT)
-                    .offset(0)
-            }
+            attributeDesc?.get(0)?.binding(0)?.location(0)?.format(VK_FORMAT_R32G32B32_SFLOAT)?.offset(0)
 
             val bindingDesc = if (attributeDesc.capacity() > 0) {
                 VkVertexInputBindingDescription.calloc(1)
@@ -1217,7 +1178,7 @@ open class VulkanRenderer(hub: Hub,
         renderConfig.renderpasses.forEach { rp ->
             rp.value.inputs?.let {
                 renderConfig.rendertargets?.let { rts ->
-                    val rt = rts.get(it.first())!!
+                    val rt = rts[it.first()]!!
 
                     // create descriptor set layout that matches the render target
                     descriptorSetLayouts.put("outputs-${it.first()}",
@@ -1231,7 +1192,7 @@ open class VulkanRenderer(hub: Hub,
         }
 
         config.createRenderpassFlow().map { passName ->
-            val passConfig = config.renderpasses.get(passName)!!
+            val passConfig = config.renderpasses[passName]!!
             val pass = VulkanRenderpass(passName, config, device, descriptorPool, pipelineCache,
                 memoryProperties, vertexDescriptors)
 
@@ -1248,7 +1209,7 @@ open class VulkanRenderer(hub: Hub,
 
                     if (framebuffers.containsKey(rt.key)) {
                         logger.info("Reusing already created framebuffer")
-                        pass.output.put(rt.key, framebuffers.get(rt.key)!!)
+                        pass.output.put(rt.key, framebuffers[rt.key]!!)
                     } else {
 
                         // create framebuffer -- don't clear it, if blitting is needed
@@ -1330,7 +1291,7 @@ open class VulkanRenderer(hub: Hub,
                 pass.vulkanMetadata.renderArea.offset().set(
                     (pass.passConfig.viewportOffset.first * width).toInt(),
                     (pass.passConfig.viewportOffset.second * height).toInt())
-                logger.info("Render area for $passName: ${pass.vulkanMetadata.renderArea.extent().width()}x${pass.vulkanMetadata.renderArea.extent().height()}")
+                logger.debug("Render area for $passName: ${pass.vulkanMetadata.renderArea.extent().width()}x${pass.vulkanMetadata.renderArea.extent().height()}")
 
                 pass.vulkanMetadata.viewport[0].set(
                     (pass.passConfig.viewportOffset.first * width),
@@ -1361,12 +1322,12 @@ open class VulkanRenderer(hub: Hub,
 
         // connect inputs with each other
         passes.forEach { pass ->
-            val passConfig = config.renderpasses.get(pass.key)!!
+            val passConfig = config.renderpasses[pass.key]!!
 
             passConfig.inputs?.forEach { inputTarget ->
                 passes.filter {
                     it.value.output.keys.contains(inputTarget)
-                }.forEach { pass.value.inputs.put(inputTarget, it.value.output.get(inputTarget)!!) }
+                }.forEach { pass.value.inputs.put(inputTarget, it.value.output[inputTarget]!!) }
             }
 
             with(pass.value) {
@@ -1400,11 +1361,7 @@ open class VulkanRenderer(hub: Hub,
     }
 
     private fun pollEvents() {
-        if (glfwWindowShouldClose(window.glfwWindow!!)) {
-            this.shouldClose = true
-        }
-
-        glfwPollEvents()
+        window.pollEvents()
 
         if (swapchainRecreator.mustRecreate) {
             swapchainRecreator.recreate()
@@ -1414,7 +1371,7 @@ open class VulkanRenderer(hub: Hub,
 
     fun beginFrame() {
         swapchainRecreator.mustRecreate = swapchain!!.next(timeout = UINT64_MAX,
-            waitForSemaphore = semaphores[StandardSemaphores.present_complete]!!.get(0))
+            waitForSemaphore = semaphores[StandardSemaphores.present_complete]!![0])
     }
 
     fun submitFrame(queue: VkQueue, pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer, present: PresentHelpers) {
@@ -1436,6 +1393,8 @@ open class VulkanRenderer(hub: Hub,
         commandBuffer.submitted = true
         swapchain!!.present(ph.signalSemaphore)
         commandBuffer.waitForFence()
+
+        swapchain!!.postPresent(pass.getReadPosition())
 
         // submit to OpenVR if attached
         if(hub?.getWorkingHMDDisplay()?.hasCompositor() ?: false) {
@@ -1556,7 +1515,8 @@ open class VulkanRenderer(hub: Hub,
             return
         }
 
-        if (shouldClose) {
+        if (window.shouldClose) {
+            shouldClose = true
             // stop all
             vkDeviceWaitIdle(device)
             return
@@ -1568,7 +1528,7 @@ open class VulkanRenderer(hub: Hub,
         beginFrame()
 
         // firstWaitSemaphore is now the render_complete semaphore of the previous pass
-        firstWaitSemaphore.put(0, semaphores[StandardSemaphores.present_complete]!!.get(0))
+        firstWaitSemaphore.put(0, semaphores[StandardSemaphores.present_complete]!![0])
 
         flow.take(flow.size - 1).forEach { t ->
             logger.debug("Running pass {}", t)
@@ -1630,7 +1590,7 @@ open class VulkanRenderer(hub: Hub,
 
         ph.commandBuffers.put(0, viewportCommandBuffer.commandBuffer)
         ph.waitStages.put(0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
-        ph.signalSemaphore.put(0, semaphores[StandardSemaphores.render_complete]!!.get(0))
+        ph.signalSemaphore.put(0, semaphores[StandardSemaphores.render_complete]!![0])
         ph.waitSemaphore.put(0, firstWaitSemaphore.get(0))
 
         submitFrame(queue, viewportPass, viewportCommandBuffer, ph)
@@ -1659,7 +1619,7 @@ open class VulkanRenderer(hub: Hub,
 
         val hmd = hub?.getWorkingHMDDisplay()
         val additionalExts: List<String> = hmd?.getVulkanInstanceExtensions() ?: listOf()
-        logger.debug("HMD required instance exts: ${additionalExts.joinToString(", ")} ${additionalExts.size}")
+        logger.info("HMD required instance exts: ${additionalExts.joinToString(", ")} ${additionalExts.size}")
         val utf8Exts = additionalExts.map(::memUTF8)
 
         val ppEnabledExtensionNames = memAllocPointer(requiredExtensions.remaining() + additionalExts.size + 1)
@@ -1805,7 +1765,7 @@ open class VulkanRenderer(hub: Hub,
 
         val hmd = hub?.getWorkingHMDDisplay()
         val additionalExts: List<String> = hmd?.getVulkanDeviceExtensions(physicalDevice) ?: listOf()
-        logger.debug("HMD required device exts: ${additionalExts.joinToString(", ")} ${additionalExts.size}")
+        logger.info("HMD required device exts: ${additionalExts.joinToString(", ")} ${additionalExts.size}")
         val utf8Exts = additionalExts.map(::memUTF8)
 
         val extensions = memAllocPointer(1 + additionalExts.size)
@@ -2310,12 +2270,11 @@ open class VulkanRenderer(hub: Hub,
                     val imageBlit = VkImageBlit.callocStack(1, stack)
 
                     for((name, input) in pass.inputs) {
-                        for((attachment_name, inputAttachment) in input.attachments) {
+                        for((_, inputAttachment) in input.attachments) {
 
                             val type = when(inputAttachment.type) {
                                 VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> VK_IMAGE_ASPECT_COLOR_BIT
                                 VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> VK_IMAGE_ASPECT_DEPTH_BIT
-                                else -> { logger.error("Unknown attachment type for $attachment_name (${inputAttachment.type})"); return@use }
                             }
 
                             // return to use() if no output with the correct attachment type is found
@@ -2328,7 +2287,6 @@ open class VulkanRenderer(hub: Hub,
                             val outputAspectType = when(outputAttachment.type) {
                                 VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
                                 VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-                                else -> { logger.error("Unknown output attachment type for $outputAttachment"); return@use }
                             }
 
                             val inputAspectType = when(inputAttachment.type) {
@@ -2429,17 +2387,18 @@ open class VulkanRenderer(hub: Hub,
                 pass.vulkanMetadata.vertexBufferOffsets.put(0, 0)
                 pass.vulkanMetadata.vertexBuffers.put(0, s.vertexBuffers["vertex+index"]!!.buffer)
                 pass.vulkanMetadata.descriptorSets.put(0, s.UBOs["Default"]!!.first)
-                var pos = 0
 
-                if (s.textures.size > 0) {
+                val pos = if (s.textures.size > 0) {
                     pass.vulkanMetadata.descriptorSets.put(1, s.textureDescriptorSet)
                     pass.vulkanMetadata.descriptorSets.put(2, descriptorSets["VRParameters"]!!)
                     pass.vulkanMetadata.descriptorSets.limit(3)
-                    pos = 3
+
+                    3
                 } else {
                     pass.vulkanMetadata.descriptorSets.put(1, descriptorSets["VRParameters"]!!)
                     pass.vulkanMetadata.descriptorSets.limit(2)
-                    pos = 2
+
+                    2
                 }
 
                 if(s.requiredDescriptorSets.containsKey("ShaderProperties")) {
@@ -2616,9 +2575,9 @@ open class VulkanRenderer(hub: Hub,
             }
 
             val set = if (dsName == "default" || dsName == "LightParameters") {
-                this@VulkanRenderer.descriptorSets.get(dsName)
+                this@VulkanRenderer.descriptorSets[dsName]
             } else {
-                pass.descriptorSets.get(dsName)
+                pass.descriptorSets[dsName]
             }
 
             if (set != null) {
@@ -2635,6 +2594,7 @@ open class VulkanRenderer(hub: Hub,
         return requiredDynamicOffsets
     }
 
+    @Suppress("unused")
     fun VulkanRenderpass.VulkanMetadata.setRequiredDescriptorSetsScene(pass: VulkanRenderpass, pipeline: VulkanPipeline, objectState: VulkanObjectState?): Int {
         var requiredDynamicOffsets = 0
 
@@ -2676,12 +2636,12 @@ open class VulkanRenderer(hub: Hub,
                     requiredDynamicOffsets++
                 }
 
-                this@VulkanRenderer.descriptorSets.get(dsName)
+                this@VulkanRenderer.descriptorSets[dsName]
             } else if(dsName == "ObjectTextures" && objectState != null) {
                 objectState.textureDescriptorSet
             }
             else {
-                pass.descriptorSets.get(dsName)
+                pass.descriptorSets[dsName]
             }
 
             if (set != null) {
@@ -2907,10 +2867,7 @@ open class VulkanRenderer(hub: Hub,
 
         logger.debug("Closing swapchain...")
 
-        swapchain?.let {
-            it.close()
-            vkDestroySurfaceKHR(instance, surface, null)
-        }
+        swapchain?.close()
 
         logger.debug("Closing renderpasses...")
         renderpasses.forEach { _, vulkanRenderpass ->
@@ -2938,9 +2895,6 @@ open class VulkanRenderer(hub: Hub,
         vkDestroyInstance(instance, null)
 
         memoryProperties.free()
-
-        windowSizeCallback.close()
-        glfwDestroyWindow(window.glfwWindow!!)
 
         libspirvcrossj.finalizeProcess()
 
@@ -2983,46 +2937,6 @@ open class VulkanRenderer(hub: Hub,
     }
 
     fun switchFullscreen() {
-        if (window.isFullscreen) {
-            glfwSetWindowMonitor(window.glfwWindow!!,
-                NULL,
-                0, 0,
-                window.width, window.height, GLFW_DONT_CARE)
-            glfwSetWindowPos(window.glfwWindow!!, 100, 100)
-            glfwSetInputMode(window.glfwWindow!!, GLFW_CURSOR, GLFW_CURSOR_NORMAL)
-
-            swapchainRecreator.mustRecreate = true
-            window.isFullscreen = false
-        } else {
-            val preferredMonitor = System.getProperty("scenery.FullscreenMonitor", "0").toInt()
-
-            val monitor = if (preferredMonitor == 0) {
-                glfwGetPrimaryMonitor()
-            } else {
-                val monitors = glfwGetMonitors()
-                if (monitors.remaining() < preferredMonitor) {
-                    monitors.get(0)
-                } else {
-                    monitors.get(preferredMonitor)
-                }
-            }
-
-            val hmd = hub!!.getWorkingHMDDisplay()
-
-            if(hmd != null) {
-                window.width = hmd.getRenderTargetSize().x().toInt()/2
-                window.height = hmd.getRenderTargetSize().y().toInt()
-                logger.info("Set fullscreen window dimensions to ${window.width}x${window.height}")
-            }
-
-            glfwSetWindowMonitor(window.glfwWindow!!,
-                monitor,
-                0, 0,
-                window.width, window.height, GLFW_DONT_CARE)
-            glfwSetInputMode(window.glfwWindow!!, GLFW_CURSOR, GLFW_CURSOR_HIDDEN)
-
-            swapchainRecreator.mustRecreate = true
-            window.isFullscreen = true
-        }
+        hub?.let { hub -> swapchain?.toggleFullscreen(hub, swapchainRecreator) }
     }
 }

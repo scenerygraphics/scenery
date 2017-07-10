@@ -1,5 +1,8 @@
 package graphics.scenery.backends.vulkan
 
+import graphics.scenery.Hub
+import graphics.scenery.backends.SceneryWindow
+import graphics.scenery.utils.SceneryPanel
 import java.nio.LongBuffer
 
 /**
@@ -14,8 +17,12 @@ interface Swapchain : AutoCloseable {
 
     var format: Int
 
+    fun createWindow(win: SceneryWindow, swapchainRecreator: VulkanRenderer.SwapchainRecreator): SceneryWindow
     fun create(oldSwapchain: Swapchain?): Swapchain
     fun present(waitForSemaphores: LongBuffer? = null)
+    fun postPresent(image: Int)
     fun next(timeout: Long = -1L, waitForSemaphore: Long = 0L): Boolean
     override fun close()
+    fun toggleFullscreen(hub: Hub, swapchainRecreator: VulkanRenderer.SwapchainRecreator)
+    fun embedIn(panel: SceneryPanel?)
 }

@@ -2,10 +2,8 @@ package graphics.scenery.backends.opengl
 
 import cleargl.*
 import com.jogamp.common.nio.Buffers
-import com.jogamp.opengl.GL
-import com.jogamp.opengl.GL4
-import com.jogamp.opengl.GLAutoDrawable
-import com.jogamp.opengl.GLDrawable
+import com.jogamp.opengl.*
+import com.jogamp.opengl.util.FPSAnimator
 import com.jogamp.opengl.util.awt.AWTGLReadBufferUtil
 import graphics.scenery.*
 import graphics.scenery.backends.Display
@@ -16,7 +14,9 @@ import graphics.scenery.controls.TrackerInput
 import graphics.scenery.fonts.SDFFontAtlas
 import graphics.scenery.utils.GPUStats
 import graphics.scenery.utils.NvidiaGPUStats
+import graphics.scenery.utils.SceneryPanel
 import graphics.scenery.utils.Statistics
+import javafx.application.Platform
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -26,6 +26,7 @@ import java.nio.IntBuffer
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 import javax.imageio.ImageIO
 import kotlin.concurrent.thread
 
@@ -40,24 +41,31 @@ import kotlin.concurrent.thread
  * make sure the `vr.Active` [Settings] is set to `true`, and that the `Hub` has a HMD
  * instance attached.
  *
- * @property[gl] A [GL4] handed over by [ClearGLDefaultEventListener]
- * @property[width] Initial window width, will be used for framebuffer construction
- * @property[height] Initial window height, will be used for framebuffer construction
+ * @param[hub] A [Hub] instance needed for Scenery-internal communication
+ * @param[applicationName] The name of this application
+ * @param[scene] The initial scene to use
+ * @param[width] Initial window width, will be used for framebuffer construction
+ * @param[height] Initial window height, will be used for framebuffer construction
+ * @param[embedIn] JavaFX SceneryPanel where this renderer might be embedded in, otherwise null
  *
  * @constructor Initializes the [OpenGLRenderer] with the given window dimensions and GL context
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
 
-class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int, height: Int) : Renderer, Hubable, ClearGLDefaultEventListener() {
+class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int, height: Int, override var embedIn: SceneryPanel? = null) : Renderer, Hubable, ClearGLDefaultEventListener() {
     /** slf4j logger */
-    protected var logger: Logger = LoggerFactory.getLogger("OpenGLRenderer")
+    private var logger: Logger = LoggerFactory.getLogger("OpenGLRenderer")
     /** [GL4] instance handed over, coming from [ClearGLDefaultEventListener]*/
-    lateinit protected var gl: GL4
+    lateinit private var gl: GL4
     /** should the window close on next looping? */
     override var shouldClose = false
     /** the scenery window */
-    override var window = SceneryWindow()
+    override var window: SceneryWindow = SceneryWindow.UninitializedWindow()
+    /** separately stored ClearGLWindow */
+    var cglWindow: ClearGLWindow? = null
+    /** drawble for offscreen rendering */
+    var drawable: GLOffscreenAutoDrawable? = null
     /** Whether the renderer manages its own event loop, which is the case for this one. */
     override var managesRenderLoop = true
 
@@ -65,28 +73,28 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
     var scene: Scene = Scene()
 
     /** [GLFramebuffer] Geometry buffer for rendering */
-    protected var geometryBuffer = ArrayList<GLFramebuffer>()
+    private var geometryBuffer = ArrayList<GLFramebuffer>()
 
     /** [GLFramebuffer] used for HDR rendering */
-    protected var hdrBuffer = ArrayList<GLFramebuffer>()
+    private var hdrBuffer = ArrayList<GLFramebuffer>()
 
     /** 3rd [GLFramebuffer] to use for combining eventual stereo render targets */
-    protected var combinationBuffer = ArrayList<GLFramebuffer>()
+    private var combinationBuffer = ArrayList<GLFramebuffer>()
 
     /** [GLProgram] for the deferred shading pass */
-    protected var lightingPassProgram: GLProgram? = null
+    private var lightingPassProgram: GLProgram? = null
 
     /** [GLProgram] used for the Exposure/Gamma HDR pass */
-    protected var hdrPassProgram: GLProgram? = null
+    private var hdrPassProgram: GLProgram? = null
 
     /** [GLProgram] used for combining stereo render targets */
-    protected var combinerProgram: GLProgram? = null
+    private var combinerProgram: GLProgram? = null
 
     /** Cache of [Node]s, needed e.g. for fullscreen quad rendering */
-    protected var nodeStore = ConcurrentHashMap<String, Node>()
+    private var nodeStore = ConcurrentHashMap<String, Node>()
 
     /** Cache for [SDFFontAtlas]es used for font rendering */
-    protected var fontAtlas = HashMap<String, SDFFontAtlas>()
+    private var fontAtlas = HashMap<String, SDFFontAtlas>()
 
     /** [Settings] for the renderer */
     override var settings: Settings = Settings()
@@ -95,37 +103,42 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
     override var hub: Hub? = null
 
     /** Texture cache */
-    protected var textures = HashMap<String, GLTexture>()
+    private var textures = HashMap<String, GLTexture>()
 
     /** Shader Property cache */
-    protected var shaderPropertyCache = HashMap<Class<*>, List<Field>>()
+    private var shaderPropertyCache = HashMap<Class<*>, List<Field>>()
 
     /** JOGL Drawable */
-    protected var joglDrawable: GLDrawable? = null
+    private var joglDrawable: GLDrawable? = null
 
     /** Flag set when a screenshot is requested */
-    protected var screenshotRequested = false
+    private var screenshotRequested = false
 
     /** Eyes of the stereo render targets */
     var eyes = (0..0)
 
 
     /** time since last resizing */
-    protected var lastResizeTimer = Timer()
+    private var lastResizeTimer = Timer()
 
     /** Window resizing timeout */
-    protected var WINDOW_RESIZE_TIMEOUT = 200L
+    private var WINDOW_RESIZE_TIMEOUT = 200L
 
     /** Flag to indicate whether framebuffers have to be recreated */
-    protected var mustRecreateFramebuffers = false
+    private var mustRecreateFramebuffers = false
 
     /** GPU stats object */
-    protected var gpuStats: GPUStats? = null
+    private var gpuStats: GPUStats? = null
 
     /** heartbeat timer */
-    protected var heartbeatTimer = Timer()
+    private var heartbeatTimer = Timer()
 
     var initialized = false
+        private set
+
+    private val pbos: IntArray = intArrayOf(0, 0)
+    private var readIndex = 0
+    private var updateIndex = 0
 
     /**
      * Extension function of Boolean to use Booleans in GLSL
@@ -148,13 +161,50 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
     private val MATERIAL_HAS_NORMAL = 0x0008
     private val MATERIAL_HAS_ALPHAMASK = 0x0010
 
+    inner class ResizeHandler {
+        @Volatile var lastResize = -1L
+        var lastWidth = 0
+        var lastHeight = 0
+
+        @Synchronized fun queryResize() {
+            if (lastWidth <= 0 || lastHeight <= 0) {
+                lastWidth = Math.max(1, lastWidth)
+                lastHeight = Math.max(1, lastHeight)
+                return
+            }
+
+            if (lastResize > 0L && lastResize + WINDOW_RESIZE_TIMEOUT < System.nanoTime()) {
+                lastResize = System.nanoTime()
+                return
+            }
+
+            if (lastWidth == window.width && lastHeight == window.height) {
+                return
+            }
+
+            window.width = lastWidth
+            window.height = lastHeight
+
+            drawable?.setSurfaceSize(window.width, window.height)
+            mustRecreateFramebuffers = true
+            pbos[0] = 0
+            pbos[1] = 0
+
+            embedIn?.let { panel ->
+                panel.prefWidth = window.width.toDouble()
+                panel.prefHeight = window.height.toDouble()
+            }
+
+            lastResize = -1L
+        }
+    }
+
+    internal val resizeHandler = ResizeHandler()
+
     /**
      * Constructor for OpenGLRenderer, initialises geometry buffers
      * according to eye configuration. Also initialises different rendering passes.
      *
-     * @param[gl] GL4 context handle
-     * @param[width] window width
-     * @param[height] window height
      */
     init {
 
@@ -173,19 +223,73 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
             this.window.height = hmd.getRenderTargetSize().y().toInt()
         }
 
-        window.clearglWindow = ClearGLWindow("",
-            this.window.width,
-            this.window.height,
-            this).apply {
+        if (embedIn != null) {
+            val profile = GLProfile.getMaxProgrammableCore(true)
+            val caps = GLCapabilities(profile)
+            caps.hardwareAccelerated = true
+            caps.doubleBuffered = true
+            caps.isOnscreen = false
+            caps.isPBuffer = true
+            caps.redBits = 8
+            caps.greenBits = 8
+            caps.blueBits = 8
+            caps.alphaBits = 8
 
-            this.setFPS(120)
-            this.isVisible = true
-            this.start()
+            val factory = GLDrawableFactory.getFactory(profile)
+            drawable = factory.createOffscreenAutoDrawable(factory.defaultDevice, caps,
+                DefaultGLCapabilitiesChooser(), window.width, window.height)
+                .apply {
+
+                    addGLEventListener(this@OpenGLRenderer)
+
+                    animator = FPSAnimator(this, 600)
+                    animator.setUpdateFPSFrames(600, null)
+                    animator.start()
+
+                    embedIn?.let { panel ->
+                        panel.imageView.scaleY = -1.0
+
+                        panel.widthProperty()?.addListener { _, _, newWidth ->
+                            resizeHandler.lastWidth = newWidth.toInt()
+                        }
+
+                        panel.heightProperty()?.addListener { _, _, newHeight ->
+                            resizeHandler.lastHeight = newHeight.toInt()
+                        }
+
+                        panel.minWidth = 100.0
+                        panel.minHeight = 100.0
+                        panel.prefWidth = window.width.toDouble()
+                        panel.prefHeight = window.height.toDouble()
+                    }
+
+                    window = SceneryWindow.JavaFXStage(embedIn!!)
+                    window.width = width
+                    window.height = height
+
+                    resizeHandler.lastWidth = window.width
+                    resizeHandler.lastHeight = window.height
+
+                }
+        } else {
+            cglWindow = ClearGLWindow("",
+                this.window.width,
+                this.window.height, this).apply {
+
+                cglWindow!!.start()
+
+                if (embedIn != null) {
+
+                } else {
+                    window = SceneryWindow.ClearGLWindow(this)
+                    cglWindow!!.isVisible = true
+                }
+            }
         }
     }
 
     override fun init(pDrawable: GLAutoDrawable) {
-        this.gl = window.clearglWindow!!.gl.gL4
+        this.gl = drawable?.gl?.gL4 ?: cglWindow!!.gl.gL4
 
         val width = this.window.width
         val height = this.window.height
@@ -203,6 +307,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
         val numExtensionsBuffer = IntBuffer.allocate(1)
         gl.glGetIntegerv(GL4.GL_NUM_EXTENSIONS, numExtensionsBuffer)
         val extensions = (0..numExtensionsBuffer[0] - 1).map { gl.glGetStringi(GL4.GL_EXTENSIONS, it) }
+        logger.debug("Available OpenGL extensions: ${extensions.joinToString(", ")}")
 
         settings.set("ssao.FilterRadius", GLVector(5.0f / width, 5.0f / height))
 
@@ -312,7 +417,13 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
     override fun display(pDrawable: GLAutoDrawable) {
         super.display(pDrawable)
 
-        clearGLWindow.windowTitle = "$applicationName [${this.javaClass.simpleName}] - ${pDrawable.animator?.lastFPS} fps"
+        val fps = if(drawable != null) {
+            drawable?.animator?.lastFPS ?: 1.0f
+        } else {
+            cglWindow?.lastFPS ?: 0.0f
+        }
+
+        window.setTitle("$applicationName [${this@OpenGLRenderer.javaClass.simpleName}] - $fps fps")
 
         this.joglDrawable = pDrawable
 
@@ -329,11 +440,13 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
     }
 
     override fun setClearGLWindow(pClearGLWindow: ClearGLWindow) {
-        window.clearglWindow = pClearGLWindow
+//        (window as SceneryWindow.ClearGLWindow).window = pClearGLWindow
+        cglWindow = pClearGLWindow
     }
 
     override fun getClearGLWindow(): ClearGLDisplayable {
-        return window.clearglWindow!!
+//        return (window as SceneryWindow.ClearGLWindow).window
+        return cglWindow!!
     }
 
     override fun reshape(pDrawable: GLAutoDrawable,
@@ -363,7 +476,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
      *
      * @return Default [Settings] values
      */
-    protected fun loadDefaultRendererSettings(ds: Settings): Settings {
+    private fun loadDefaultRendererSettings(ds: Settings): Settings {
         val base = OpenGLRenderer::class.java.simpleName
 
         ds.set("wantsFullscreen", false)
@@ -412,7 +525,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
         }
     }
 
-    protected fun textureTypeToArrayName(type: String): String {
+    private fun textureTypeToArrayName(type: String): String {
         return when (type) {
             "ambient" -> "ObjectTextures[0]"
             "diffuse" -> "ObjectTextures[1]"
@@ -421,7 +534,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
             "alphamask" -> "ObjectTextures[4]"
             "displacement" -> "ObjectTextures[5]"
             else -> {
-                logger.warn("Unknown texture type $type");
+                logger.warn("Unknown texture type $type")
                 "ObjectTextures[0]"
             }
         }
@@ -432,7 +545,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
      *
      * @return Int of the OpenGL geometry type.
      */
-    protected fun GeometryType.toOpenGLType(): Int {
+    private fun GeometryType.toOpenGLType(): Int {
         return when (this) {
             GeometryType.TRIANGLE_STRIP -> GL.GL_TRIANGLE_STRIP
             GeometryType.POLYGON -> GL.GL_TRIANGLES
@@ -448,11 +561,11 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
 
     /**
      * Toggles deferred shading buffer debug view. Used for e.g.
-     * [scenery.controls.behaviours.ToggleCommand].
+     * [graphics.scenery.controls.behaviours.ToggleCommand]
      */
     @Suppress("UNUSED")
     fun toggleDebug() {
-        if (settings.get<Boolean>("debug.DebugDeferredBuffers") == false) {
+        if (!settings.get<Boolean>("debug.DebugDeferredBuffers")) {
             settings.set("debug.DebugDeferredBuffers", true)
         } else {
             settings.set("debug.DebugDeferredBuffers", false)
@@ -461,11 +574,11 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
 
     /**
      * Toggles Screen-space ambient occlusion. Used for e.g.
-     * [scenery.controls.behaviours.ToggleCommand].
+     * [graphics.scenery.controls.behaviours.ToggleCommand].
      */
     @Suppress("UNUSED")
     fun toggleSSAO() {
-        if (settings.get<Boolean>("ssao.Active") == false) {
+        if (!settings.get<Boolean>("ssao.Active")) {
             settings.set("ssao.Active", true)
         } else {
             settings.set("ssao.Active", false)
@@ -474,11 +587,11 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
 
     /**
      * Toggles HDR rendering. Used for e.g.
-     * [scenery.controls.behaviours.ToggleCommand].
+     * [graphics.scenery.controls.behaviours.ToggleCommand].
      */
     @Suppress("UNUSED")
     fun toggleHDR() {
-        if (settings.get<Boolean>("hdr.Active") == false) {
+        if (!settings.get<Boolean>("hdr.Active")) {
             settings.set("hdr.Active", true)
         } else {
             settings.set("hdr.Active", false)
@@ -490,7 +603,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
      */
     @Suppress("UNUSED")
     fun toggleVR() {
-        if(!settings.get<Boolean>("vr.Active")) {
+        if (!settings.get<Boolean>("vr.Active")) {
             settings.set("vr.Active", true)
         } else {
             settings.set("vr.Active", false)
@@ -501,7 +614,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
 
     /**
      * Increases the HDR exposure value. Used for e.g.
-     * [scenery.controls.behaviours.ToggleCommand].
+     * [graphics.scenery.controls.behaviours.ToggleCommand].
      */
     @Suppress("UNUSED")
     fun increaseExposure() {
@@ -511,7 +624,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
 
     /**
      * Decreases the HDR exposure value.Used for e.g.
-     * [scenery.controls.behaviours.ToggleCommand].
+     * [graphics.scenery.controls.behaviours.ToggleCommand].
      */
     @Suppress("UNUSED")
     fun decreaseExposure() {
@@ -521,8 +634,9 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
 
     /**
      * Increases the HDR gamma value. Used for e.g.
-     * [scenery.controls.behaviours.ToggleCommand].
+     * [graphics.scenery.controls.behaviours.ToggleCommand].
      */
+    @Suppress("unused")
     fun increaseGamma() {
         val gamma: Float = settings.get<Float>("hdr.Gamma")
         settings.set("hdr.Gamma", gamma + 0.05f)
@@ -530,8 +644,9 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
 
     /**
      * Decreases the HDR gamma value. Used for e.g.
-     * [scenery.controls.behaviours.ToggleCommand].
+     * [graphics.scenery.controls.behaviours.ToggleCommand].
      */
+    @Suppress("unused")
     fun decreaseGamma() {
         val gamma: Float = settings.get<Float>("hdr.Gamma")
         if (gamma - 0.05f >= 0) settings.set("hdr.Gamma", gamma - 0.05f)
@@ -539,8 +654,9 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
 
     /**
      * Toggles fullscreen. Used for e.g.
-     * [scenery.controls.behaviours.ToggleCommand].
+     * [graphics.scenery.controls.behaviours.ToggleCommand].
      */
+    @Suppress("unused")
     fun toggleFullscreen() {
         if (!settings.get<Boolean>("wantsFullscreen")) {
             settings.set("wantsFullscreen", true)
@@ -563,8 +679,6 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
     /**
      * Initializes the [Scene] with the [OpenGLRenderer], to be called
      * before [render].
-     *
-     * @param[scene] The [Scene] one intends to render.
      */
     override fun initializeScene() {
         scene.discover(scene, { it is HasGeometry })
@@ -589,7 +703,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
      * @param[s] The [OpenGLObjectState] of the [Node].
      * @param[program] The [GLProgram] GLSL shader to render the [Node] with.
      */
-    protected fun setMaterialUniformsForNode(n: Node, gl: GL4, s: OpenGLObjectState, program: GLProgram) {
+    private fun setMaterialUniformsForNode(n: Node, gl: GL4, s: OpenGLObjectState, program: GLProgram) {
         program.use(gl)
         program.getUniform("Material.Shininess").setFloat(0.001f)
 
@@ -656,7 +770,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
      *
      * @param[board] The [FontBoard] instance.
      */
-    protected fun updateFontBoard(board: FontBoard) {
+    private fun updateFontBoard(board: FontBoard) {
         val atlas = fontAtlas.getOrPut(board.fontFamily, { SDFFontAtlas(this.hub!!, board.fontFamily, maxDistance = settings.get<Int>("sdf.MaxDistance")) })
         val m = atlas.createMeshForString(board.text)
 
@@ -692,27 +806,31 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
      *
      * @param[n] The Node to update and preDraw()
      */
-    protected fun preDrawAndUpdateGeometryForNode(n: Node) {
+    private fun preDrawAndUpdateGeometryForNode(n: Node) {
         if (n is HasGeometry) {
             if (n.dirty) {
-                if (n is FontBoard) {
-                    updateFontBoard(n)
-                }
+                if(n.lock.tryLock()) {
+                    if (n is FontBoard) {
+                        updateFontBoard(n)
+                    }
 
-                if (n.vertices.remaining() > 0 && n.normals.remaining() > 0) {
-                    updateVertices(n)
-                    updateNormals(n)
-                }
+                    if (n.vertices.remaining() > 0 && n.normals.remaining() > 0) {
+                        updateVertices(n)
+                        updateNormals(n)
+                    }
 
-                if (n.texcoords.remaining() > 0) {
-                    updateTextureCoords(n)
-                }
+                    if (n.texcoords.remaining() > 0) {
+                        updateTextureCoords(n)
+                    }
 
-                if (n.indices.remaining() > 0) {
-                    updateIndices(n)
-                }
+                    if (n.indices.remaining() > 0) {
+                        updateIndices(n)
+                    }
 
-                n.dirty = false
+                    n.dirty = false
+
+                    n.lock.unlock()
+                }
             }
 
             n.preDraw()
@@ -731,7 +849,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
      * @param[n] The Node to search for [ShaderProperty]s
      * @param[program] The [GLProgram] used to render the Node
      */
-    protected fun setShaderPropertiesForNode(n: Node, program: GLProgram) {
+    private fun setShaderPropertiesForNode(n: Node, program: GLProgram) {
         shaderPropertyCache
             .getOrPut(n.javaClass, { n.javaClass.declaredFields.filter { it.isAnnotationPresent(ShaderProperty::class.java) } })
             .forEach { property ->
@@ -784,11 +902,12 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
      * 6) If HDR is active, Exposure/Gamma tone mapping is performed. Else, this part is skipped.
      * 7) The resulting image is drawn to the screen, or -- if a HMD is present -- submitted to the OpenVR
      *    compositor.
-     *
-     * @param[scene] [Scene] to render. Must have been given to [initializeScene] before or bad things will happen.
      */
     override fun render() {
-        val startRender = System.nanoTime()
+        if(shouldClose) {
+            return
+        }
+
         val vrActive = settings.get<Boolean>("vr.Active")
 
         if (scene.children.count() == 0 ||
@@ -1110,6 +1229,46 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
             renderFullscreenQuad(combinerProgram!!)
         }
 
+        embedIn?.let { embedPanel ->
+            if(shouldClose) {
+                return
+            }
+
+            readIndex = (readIndex + 1) % 2
+            updateIndex = (readIndex + 1) % 2
+
+            if(pbos[0] == 0 || pbos[1] == 0) {
+                gl.glGenBuffers(2, pbos, 0)
+
+                gl.glBindBuffer(GL4.GL_PIXEL_PACK_BUFFER, pbos[0])
+                gl.glBufferData(GL4.GL_PIXEL_PACK_BUFFER, embedPanel.width.toInt() * embedPanel.height.toInt() * 4L, null, GL4.GL_STREAM_READ)
+
+                gl.glBindBuffer(GL4.GL_PIXEL_PACK_BUFFER, pbos[1])
+                gl.glBufferData(GL4.GL_PIXEL_PACK_BUFFER, embedPanel.width.toInt() * embedPanel.height.toInt() * 4L, null, GL4.GL_STREAM_READ)
+
+                gl.glBindBuffer(GL4.GL_PIXEL_PACK_BUFFER, 0)
+            }
+
+            gl.glBindBuffer(GL4.GL_PIXEL_PACK_BUFFER, pbos[readIndex])
+
+            gl.glReadBuffer(GL4.GL_FRONT)
+            gl.glReadPixels(0, 0, window.width, window.height, GL4.GL_BGRA, GL4.GL_UNSIGNED_BYTE, 0)
+
+            gl.glBindBuffer(GL4.GL_PIXEL_PACK_BUFFER, pbos[updateIndex])
+
+            val buffer = gl.glMapBuffer(GL4.GL_PIXEL_PACK_BUFFER, GL4.GL_READ_ONLY)
+            if(buffer != null) {
+                Platform.runLater {
+                    if (!mustRecreateFramebuffers) embedPanel.update(buffer)
+                }
+                gl.glUnmapBuffer(GL4.GL_PIXEL_PACK_BUFFER)
+            }
+
+            gl.glBindBuffer(GL4.GL_PIXEL_PACK_BUFFER, 0)
+
+            resizeHandler.queryResize()
+        }
+
         if (screenshotRequested && joglDrawable != null) {
             try {
                 val readBufferUtil = AWTGLReadBufferUtil(joglDrawable!!.glProfile, false)
@@ -1125,8 +1284,6 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
 
             screenshotRequested = false
         }
-
-        val renderDuration = System.nanoTime() - startRender
     }
 
     /**
@@ -1272,15 +1429,20 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
         }
 
         if (node is HasGeometry) {
-            setVerticesAndCreateBufferForNode(node)
-            setNormalsAndCreateBufferForNode(node)
+            node.lock.tryLock(100, TimeUnit.MILLISECONDS)
+            if(node.lock.tryLock()) {
+                setVerticesAndCreateBufferForNode(node)
+                setNormalsAndCreateBufferForNode(node)
 
-            if (node.texcoords.limit() > 0) {
-                setTextureCoordsAndCreateBufferForNode(node)
-            }
+                if (node.texcoords.limit() > 0) {
+                    setTextureCoordsAndCreateBufferForNode(node)
+                }
 
-            if (node.indices.limit() > 0) {
-                setIndicesAndCreateBufferForNode(node)
+                if (node.indices.limit() > 0) {
+                    setIndicesAndCreateBufferForNode(node)
+                }
+
+                node.lock.unlock()
             }
         }
 
@@ -1295,6 +1457,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
      * @param[maxThreads] Maximum number of parallel threads
      * @param[action] Lambda containing the action to be executed for each key, value pair.
      */
+    @Suppress("unused")
     fun <K, V> HashMap<K, V>.forEachParallel(maxThreads: Int = 5, action: ((K, V) -> Unit)) {
         val iterator = this.asSequence().iterator()
         var threadCount = 0
@@ -1321,7 +1484,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
      * @param[node] The [Node] to load textures for.
      * @param[s] The [Node]'s [OpenGLObjectState]
      */
-    protected fun loadTexturesForNode(node: Node, s: OpenGLObjectState): Boolean {
+    private fun loadTexturesForNode(node: Node, s: OpenGLObjectState): Boolean {
         if (node.lock.tryLock()) {
             node.material.textures.forEach {
                 type, texture ->
@@ -1540,10 +1703,13 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
         gl.glBindBuffer(GL.GL_ARRAY_BUFFER, s.mVertexBuffers[1])
 
         gl.gL3.glEnableVertexAttribArray(1)
-        gl.glBufferSubData(GL.GL_ARRAY_BUFFER,
-            0,
+        gl.glBufferData(GL.GL_ARRAY_BUFFER,
             (pNormalBuffer.remaining() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
-            pNormalBuffer)
+            pNormalBuffer,
+            if (s.isDynamic)
+                GL.GL_DYNAMIC_DRAW
+            else
+                GL.GL_STATIC_DRAW)
 
         gl.gL3.glVertexAttribPointer(1,
             node.vertexSize,
@@ -1602,10 +1768,13 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
             s.mVertexBuffers[2])
 
         gl.gL3.glEnableVertexAttribArray(2)
-        gl.glBufferSubData(GL.GL_ARRAY_BUFFER,
-            0,
+        gl.glBufferData(GL.GL_ARRAY_BUFFER,
             (pTextureCoordsBuffer.remaining() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
-            pTextureCoordsBuffer)
+            pTextureCoordsBuffer,
+            if(s.isDynamic)
+                GL.GL_DYNAMIC_DRAW
+            else
+                GL.GL_STATIC_DRAW)
 
         gl.gL3.glVertexAttribPointer(2,
             node.texcoordSize,
@@ -1675,6 +1844,10 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
      */
     fun drawNode(node: Node, offset: Int = 0) {
         val s = getOpenGLObjectStateFromNode(node)
+
+        if(s.mStoredIndexCount == 0 && s.mStoredPrimitiveCount == 0) {
+            return
+        }
 
         s.program?.use(gl)
 

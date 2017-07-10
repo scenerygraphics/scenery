@@ -1,7 +1,12 @@
 package graphics.scenery.backends.vulkan
 
+import graphics.scenery.Hub
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.SceneryWindow
+import graphics.scenery.utils.SceneryPanel
+import org.lwjgl.glfw.GLFW.*
+import org.lwjgl.glfw.GLFWVulkan
+import org.lwjgl.glfw.GLFWWindowSizeCallback
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.KHRSwapchain.vkAcquireNextImageKHR
@@ -11,31 +16,76 @@ import java.nio.IntBuffer
 import java.nio.LongBuffer
 
 /**
- * <Description>
+ * GLFW-based default Vulkan Swapchain and window.
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class VulkanSwapchain(val window: SceneryWindow,
-                      val device: VkDevice,
-                      val physicalDevice: VkPhysicalDevice,
-                      val queue: VkQueue,
-                      val commandPool: Long,
-                      val surface: Long,
-                      val renderConfig: RenderConfigReader.RenderConfig,
-                      val useSRGB: Boolean = true) : Swapchain {
+open class VulkanSwapchain(open val device: VkDevice,
+                           open val physicalDevice: VkPhysicalDevice,
+                           open val instance: VkInstance,
+                           open val queue: VkQueue,
+                           open val commandPool: Long,
+                           @Suppress("unused") open val renderConfig: RenderConfigReader.RenderConfig,
+                           open val useSRGB: Boolean = true) : Swapchain {
     override var handle: Long = 0L
     override var images: LongArray? = null
     override var imageViews: LongArray? = null
 
     override var format: Int = 0
 
-    var logger: Logger = LoggerFactory.getLogger("VulkanSwapchain")
+    open var logger: Logger = LoggerFactory.getLogger("VulkanSwapchain")
 
     var swapchainImage: IntBuffer = MemoryUtil.memAllocInt(1)
     var swapchainPointer: LongBuffer = MemoryUtil.memAllocLong(1)
     var presentInfo: VkPresentInfoKHR = VkPresentInfoKHR.calloc()
+    open var surface: Long = 0
+    lateinit var window: SceneryWindow
+    lateinit var windowSizeCallback: GLFWWindowSizeCallback
+
+    var lastResize = -1L
+    private val WINDOW_RESIZE_TIMEOUT = 200 * 10e6
 
     data class ColorFormatAndSpace(var colorFormat: Int = 0, var colorSpace: Int = 0)
+
+    override fun createWindow(win: SceneryWindow, swapchainRecreator: VulkanRenderer.SwapchainRecreator): SceneryWindow {
+        glfwDefaultWindowHints()
+        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API)
+
+        window = SceneryWindow.GLFWWindow(glfwCreateWindow(win.width, win.height, "scenery", MemoryUtil.NULL, MemoryUtil.NULL)).apply {
+            width = win.width
+            height = win.height
+
+            glfwSetWindowPos(window, 100, 100)
+
+            surface = VU.run(MemoryUtil.memAllocLong(1), "glfwCreateWindowSurface") {
+                GLFWVulkan.glfwCreateWindowSurface(instance, window, null, this)
+            }
+
+            // Handle canvas resize
+            windowSizeCallback = object : GLFWWindowSizeCallback() {
+                override operator fun invoke(glfwWindow: Long, w: Int, h: Int) {
+                    if (lastResize > 0L && lastResize + WINDOW_RESIZE_TIMEOUT < System.nanoTime()) {
+                        lastResize = System.nanoTime()
+                        return
+                    }
+
+                    if (width <= 0 || height <= 0)
+                        return
+
+                    width = w
+                    height = h
+
+                    swapchainRecreator.mustRecreate = true
+                    lastResize = -1L
+                }
+            }
+
+            glfwSetWindowSizeCallback(window, windowSizeCallback)
+            glfwShowWindow(window)
+        }
+
+        return window
+    }
 
     override fun create(oldSwapchain: Swapchain?): Swapchain {
         val colorFormatAndSpace = getColorFormatAndSpace()
@@ -85,8 +135,6 @@ class VulkanSwapchain(val window: SceneryWindow,
         val currentWidth = currentExtent.width()
         val currentHeight = currentExtent.height()
 
-        logger.info("Current window size: $currentWidth x $currentHeight")
-
         if (currentWidth > 0 && currentHeight > 0) {
             window.width = currentWidth
             window.height = currentHeight
@@ -120,7 +168,7 @@ class VulkanSwapchain(val window: SceneryWindow,
             .clipped(true)
             .compositeAlpha(KHRSurface.VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR)
 
-        if (oldSwapchain is VulkanSwapchain) {
+        if (oldSwapchain is VulkanSwapchain || oldSwapchain is FXSwapchain) {
             swapchainCI.oldSwapchain(oldSwapchain.handle)
         }
 
@@ -325,6 +373,9 @@ class VulkanSwapchain(val window: SceneryWindow,
         }
     }
 
+    override fun postPresent(image: Int) {
+    }
+
     override fun next(timeout: Long, waitForSemaphore: Long): Boolean {
         val err = vkAcquireNextImageKHR(device, handle, timeout,
             waitForSemaphore,
@@ -339,11 +390,64 @@ class VulkanSwapchain(val window: SceneryWindow,
         return false
     }
 
+    override fun toggleFullscreen(hub: Hub, swapchainRecreator: VulkanRenderer.SwapchainRecreator) {
+        (window as SceneryWindow.GLFWWindow?)?.let { window ->
+            if (window.isFullscreen) {
+                glfwSetWindowMonitor(window.window,
+                    MemoryUtil.NULL,
+                    0, 0,
+                    window.width, window.height, GLFW_DONT_CARE)
+                glfwSetWindowPos(window.window, 100, 100)
+                glfwSetInputMode(window.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL)
+
+                swapchainRecreator.mustRecreate = true
+                window.isFullscreen = false
+            } else {
+                val preferredMonitor = System.getProperty("scenery.FullscreenMonitor", "0").toInt()
+
+                val monitor = if (preferredMonitor == 0) {
+                    glfwGetPrimaryMonitor()
+                } else {
+                    val monitors = glfwGetMonitors()
+                    if (monitors.remaining() < preferredMonitor) {
+                        monitors.get(0)
+                    } else {
+                        monitors.get(preferredMonitor)
+                    }
+                }
+
+                val hmd = hub.getWorkingHMDDisplay()
+
+                if (hmd != null) {
+                    window.width = hmd.getRenderTargetSize().x().toInt() / 2
+                    window.height = hmd.getRenderTargetSize().y().toInt()
+                    logger.info("Set fullscreen window dimensions to ${window.width}x${window.height}")
+                }
+
+                glfwSetWindowMonitor(window.window,
+                    monitor,
+                    0, 0,
+                    window.width, window.height, GLFW_DONT_CARE)
+                glfwSetInputMode(window.window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN)
+
+                swapchainRecreator.mustRecreate = true
+                window.isFullscreen = true
+            }
+        }
+    }
+
+    override fun embedIn(panel: SceneryPanel?) {
+        logger.error("Embedding is not supported with the default Vulkan swapchain. Use FXSwapchain instead.")
+    }
+
     override fun close() {
         KHRSwapchain.vkDestroySwapchainKHR(device, handle, null)
 
         presentInfo.free()
         MemoryUtil.memFree(swapchainImage)
         MemoryUtil.memFree(swapchainPointer)
+
+        windowSizeCallback.close()
+        (window as SceneryWindow.GLFWWindow?)?.let { window -> glfwDestroyWindow(window.window) }
     }
 }
