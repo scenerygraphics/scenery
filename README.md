@@ -5,7 +5,7 @@
 # scenery  // flexible scenegraphing and rendering for scientific visualisation
 
 ---
-Hello, this is the master branch, where development happens and stuff breaks. If you require a stable version of scenery, please check out the [latest stable version of this repository](https://github.com/scenerygraphics/scenery/tree/scenery-0.1.0).
+__Hello, this is the master branch, where development happens and stuff breaks.__ If you require a stable version of scenery, please check out the [latest stable version of this repository](https://github.com/scenerygraphics/scenery/tree/scenery-0.1.0).
 
 ---
 
@@ -20,6 +20,10 @@ scenery is a scenegraphing and rendering library. It allows you to quickly creat
 Have a look in the [src/test/tests/graphics/scenery/tests/examples](./src/test/tests/graphics/scenery/tests/examples/) directory, there you'll find plenty of examples how to use _scenery_ in Kotlin, and a few Java examples.
 
 Some of the examples need additional meshes, which are not part of the repository due to their size. These meshes can be downloaded [here](https://ulrik.is/scenery-demo-models.zip) and extracted to a directory of choice. When running the examples, the environment variable `SCENERY_DEMO_FILES` should point to this directory, otherwise the models will not be loaded and scenery will complain.
+
+## Contributed examples
+
+* Scala - [@Sciss](https://github.com/Sciss) has translated the Kotlin and Java examples to Scala, [https://github.com/Sciss/SceneryScalaExamples](https://github.com/Sciss/SceneryScalaExamples)
 
 ## Key bindings
 
@@ -76,13 +80,13 @@ Add scenery and ClearGL to your project's `pom.xml`:
   <dependency>
     <groupId>graphics.scenery</groupId>
     <artifactId>scenery</artifactId>
-    <version>0.1.0</version>
+    <version>0.1.1-SNAPSHOT</version>
   </dependency>
 
   <dependency>
     <groupId>net.clearvolume</groupId>
     <artifactId>cleargl</artifactId>
-    <version>2.0.1</version>
+    <version>2.0.5</version>
   </dependency>
 </dependencies>
 ```
@@ -92,6 +96,6 @@ Add scenery and ClearGL to your project's `pom.xml`:
 Add scenery and ClearGL to your project's `build.gradle`:
 
 ```groovy
-compile group: 'graphics.scenery', name: 'scenery', version: '0.1.0'
-compile group: 'net.clearvolume', name: 'cleargl', version: '2.0.1'
+compile group: 'graphics.scenery', name: 'scenery', version: '0.1.1-SNAPSHOT'
+compile group: 'net.clearvolume', name: 'cleargl', version: '2.0.5'
 ```
