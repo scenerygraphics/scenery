@@ -26,6 +26,7 @@ import java.nio.IntBuffer
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 import javax.imageio.ImageIO
 import kotlin.concurrent.thread
 
@@ -808,24 +809,28 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
     private fun preDrawAndUpdateGeometryForNode(n: Node) {
         if (n is HasGeometry) {
             if (n.dirty) {
-                if (n is FontBoard) {
-                    updateFontBoard(n)
-                }
+                if(n.lock.tryLock()) {
+                    if (n is FontBoard) {
+                        updateFontBoard(n)
+                    }
 
-                if (n.vertices.remaining() > 0 && n.normals.remaining() > 0) {
-                    updateVertices(n)
-                    updateNormals(n)
-                }
+                    if (n.vertices.remaining() > 0 && n.normals.remaining() > 0) {
+                        updateVertices(n)
+                        updateNormals(n)
+                    }
 
-                if (n.texcoords.remaining() > 0) {
-                    updateTextureCoords(n)
-                }
+                    if (n.texcoords.remaining() > 0) {
+                        updateTextureCoords(n)
+                    }
 
-                if (n.indices.remaining() > 0) {
-                    updateIndices(n)
-                }
+                    if (n.indices.remaining() > 0) {
+                        updateIndices(n)
+                    }
 
-                n.dirty = false
+                    n.dirty = false
+
+                    n.lock.unlock()
+                }
             }
 
             n.preDraw()
@@ -1424,15 +1429,20 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
         }
 
         if (node is HasGeometry) {
-            setVerticesAndCreateBufferForNode(node)
-            setNormalsAndCreateBufferForNode(node)
+            node.lock.tryLock(100, TimeUnit.MILLISECONDS)
+            if(node.lock.tryLock()) {
+                setVerticesAndCreateBufferForNode(node)
+                setNormalsAndCreateBufferForNode(node)
 
-            if (node.texcoords.limit() > 0) {
-                setTextureCoordsAndCreateBufferForNode(node)
-            }
+                if (node.texcoords.limit() > 0) {
+                    setTextureCoordsAndCreateBufferForNode(node)
+                }
 
-            if (node.indices.limit() > 0) {
-                setIndicesAndCreateBufferForNode(node)
+                if (node.indices.limit() > 0) {
+                    setIndicesAndCreateBufferForNode(node)
+                }
+
+                node.lock.unlock()
             }
         }
 
@@ -1693,10 +1703,13 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
         gl.glBindBuffer(GL.GL_ARRAY_BUFFER, s.mVertexBuffers[1])
 
         gl.gL3.glEnableVertexAttribArray(1)
-        gl.glBufferSubData(GL.GL_ARRAY_BUFFER,
-            0,
+        gl.glBufferData(GL.GL_ARRAY_BUFFER,
             (pNormalBuffer.remaining() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
-            pNormalBuffer)
+            pNormalBuffer,
+            if (s.isDynamic)
+                GL.GL_DYNAMIC_DRAW
+            else
+                GL.GL_STATIC_DRAW)
 
         gl.gL3.glVertexAttribPointer(1,
             node.vertexSize,
@@ -1755,10 +1768,13 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
             s.mVertexBuffers[2])
 
         gl.gL3.glEnableVertexAttribArray(2)
-        gl.glBufferSubData(GL.GL_ARRAY_BUFFER,
-            0,
+        gl.glBufferData(GL.GL_ARRAY_BUFFER,
             (pTextureCoordsBuffer.remaining() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
-            pTextureCoordsBuffer)
+            pTextureCoordsBuffer,
+            if(s.isDynamic)
+                GL.GL_DYNAMIC_DRAW
+            else
+                GL.GL_STATIC_DRAW)
 
         gl.gL3.glVertexAttribPointer(2,
             node.texcoordSize,
@@ -1828,6 +1844,10 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
      */
     fun drawNode(node: Node, offset: Int = 0) {
         val s = getOpenGLObjectStateFromNode(node)
+
+        if(s.mStoredIndexCount == 0 && s.mStoredPrimitiveCount == 0) {
+            return
+        }
 
         s.program?.use(gl)
 
