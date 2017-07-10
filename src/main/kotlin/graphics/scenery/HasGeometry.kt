@@ -415,6 +415,21 @@ interface HasGeometry : Serializable {
 
                             this.addChild(child)
                             targetObject = child
+                        } else if (this is PointCloud) {
+                            val child = PointCloud()
+                            child.name = tokens[1]
+                            name = tokens[1]
+                            if (!useMTL) {
+                                child.material = Material()
+                            }
+
+                            boundingBox?.let {
+                                (targetObject as PointCloud).boundingBoxCoords = it.clone()
+                            }
+                            boundingBox = null
+
+                            this.addChild(child)
+                            targetObject = child
                         }
 
                     }
