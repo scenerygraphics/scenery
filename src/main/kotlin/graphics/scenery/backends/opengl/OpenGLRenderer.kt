@@ -109,7 +109,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
     private var shaderPropertyCache = HashMap<Class<*>, List<Field>>()
 
     /** JOGL Drawable */
-    private var joglDrawable: GLDrawable? = null
+    private var joglDrawable: GLAutoDrawable? = null
 
     /** Flag set when a screenshot is requested */
     private var screenshotRequested = false
@@ -272,24 +272,31 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
 
                 }
         } else {
-            cglWindow = ClearGLWindow("",
-                this.window.width,
-                this.window.height, this).apply {
+            val w = this.window.width
+            val h = this.window.height
 
-                cglWindow!!.start()
+            cglWindow = ClearGLWindow("",
+                w,
+                h, this).apply {
 
                 if (embedIn != null) {
 
                 } else {
                     window = SceneryWindow.ClearGLWindow(this)
-                    cglWindow!!.isVisible = true
+                    window.width = w
+                    window.height = h
+
+                    this.setFPS(300)
+                    this.start()
+
+                    this.isVisible = true
                 }
             }
         }
     }
 
     override fun init(pDrawable: GLAutoDrawable) {
-        this.gl = drawable?.gl?.gL4 ?: cglWindow!!.gl.gL4
+        this.gl = pDrawable.gl.gL4
 
         val width = this.window.width
         val height = this.window.height
@@ -417,11 +424,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
     override fun display(pDrawable: GLAutoDrawable) {
         super.display(pDrawable)
 
-        val fps = if(drawable != null) {
-            drawable?.animator?.lastFPS ?: 1.0f
-        } else {
-            cglWindow?.lastFPS ?: 0.0f
-        }
+        val fps = pDrawable?.animator?.lastFPS ?: 0.0f
 
         window.setTitle("$applicationName [${this@OpenGLRenderer.javaClass.simpleName}] - $fps fps")
 
@@ -440,12 +443,10 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
     }
 
     override fun setClearGLWindow(pClearGLWindow: ClearGLWindow) {
-//        (window as SceneryWindow.ClearGLWindow).window = pClearGLWindow
         cglWindow = pClearGLWindow
     }
 
     override fun getClearGLWindow(): ClearGLDisplayable {
-//        return (window as SceneryWindow.ClearGLWindow).window
         return cglWindow!!
     }
 
@@ -905,6 +906,7 @@ class OpenGLRenderer(hub: Hub, applicationName: String, scene: Scene, width: Int
      */
     override fun render() {
         if(shouldClose) {
+            joglDrawable?.animator?.stop()
             return
         }
 
