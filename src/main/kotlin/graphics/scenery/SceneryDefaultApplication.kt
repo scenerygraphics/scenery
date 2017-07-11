@@ -56,7 +56,8 @@ open class SceneryDefaultApplication(var applicationName: String,
 
     var updateFunction: () -> Any = {}
 
-    protected var running: Boolean = false
+    var running: Boolean = false
+        protected set
 
     var maxFrameskip = 5
 
