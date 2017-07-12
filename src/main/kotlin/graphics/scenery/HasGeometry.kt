@@ -513,6 +513,7 @@ interface HasGeometry : Serializable {
         targetObject.vertices = vertexBuffers[name]!!.first
         targetObject.normals = vertexBuffers[name]!!.second
         targetObject.texcoords = vertexBuffers[name]!!.third
+        targetObject.indices = BufferUtils.allocateIntAndPut(indexBuffers[name]!!.toIntArray())
 
         targetObject.vertices.flip()
         targetObject.normals.flip()
@@ -521,6 +522,7 @@ interface HasGeometry : Serializable {
         vertexCount += targetObject.vertices.limit()
         normalCount += targetObject.normals.limit()
         uvCount += targetObject.texcoords.limit()
+        indexCount += targetObject.indices.limit()
 
         (targetObject as Mesh?)?.boundingBoxCoords = boundingBox.clone()
 
