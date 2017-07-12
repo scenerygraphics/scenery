@@ -256,10 +256,6 @@ interface HasGeometry : Serializable {
             val tokens = line.trim().trimEnd()
             if (tokens.isNotEmpty()) {
                 when (tokens[0]) {
-                    ' ' -> {
-                    }
-                    '#' -> {
-                    }
                     'f' -> {
                         faceCount++
                         vertexCount += when (tokens.fastSplit(" ").count() - 1) {
@@ -298,7 +294,7 @@ interface HasGeometry : Serializable {
                 memAlloc(objectVertexCount * texcoordSize * 4).order(ByteOrder.nativeOrder()).asFloatBuffer()
             ))
 
-            indexBuffers.put(objectName, ArrayList<Int>(1000))
+            indexBuffers.put(objectName, ArrayList<Int>(objectVertexCount))
             faceBuffers.put(objectName, TIndexedHashSet<Vertex>((faceCountMap[objectName]!! * 1.5).toInt()))
         }
 
@@ -320,21 +316,21 @@ interface HasGeometry : Serializable {
             val tokens = line.trim().trimEnd()
             if (tokens.isNotEmpty()) {
                 when (tokens[0]) {
-                    ' ' -> {
-                    }
-                    '#' -> {
-                    }
                     'm' -> {
                         if (useMTL) {
                             materials = readFromMTL(filename.substringBeforeLast("/") + "/" + tokens.substringAfter(" ").trim().trimEnd())
                         }
                     }
+
                     'u' -> {
                         if (targetObject is Node && useMTL) {
                             (targetObject as Node).material = materials[tokens.substringAfter(" ").trim().trimEnd()]!!
                         }
                     }
-                // vertices are specified as v x y z
+
+                    // vertices are specified as v x y z
+                    // normals as vn x y z
+                    // uv coords as vt x y z
                     'v' -> {
                         val elements = tokens.fastSplit(" ", skipEmpty = true)
                         when (tokens[1]) {
@@ -359,10 +355,10 @@ interface HasGeometry : Serializable {
                         }
                     }
 
-                // faces can reference to three or more vertices in these notations:
-                // f v1 v2 ... vn
-                // f v1//vn1 v2//vn2 ... vn//vnn
-                // f v1/vt1/vn1 v2/vt2/vn2 ... vn/vtn/vnn
+                    // faces can reference to three or more vertices in these notations:
+                    // f v1 v2 ... vn
+                    // f v1//vn1 v2//vn2 ... vn//vnn
+                    // f v1/vt1/vn1 v2/vt2/vn2 ... vn/vtn/vnn
                     'f' -> {
                         count++
                         vertices.clear()
@@ -437,9 +433,11 @@ interface HasGeometry : Serializable {
 
                         range.forEach { indexBuffers[name]!!.add(indices[it]) }
                     }
+
                     's' -> {
                         // TODO: Implement smooth shading across faces
                     }
+
                     'g', 'o' -> {
                         if (vertexBuffers[name]!!.second.position() == 0) {
                             calculateNormals(vertexBuffers[name]!!.first, vertexBuffers[name]!!.second)
@@ -493,6 +491,7 @@ interface HasGeometry : Serializable {
                             targetObject = child
                         }
                     }
+
                     else -> {
                         if (tokens[0] != '#') {
                             logger.warn("Unknown element: $tokens")
