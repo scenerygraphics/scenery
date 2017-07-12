@@ -1,6 +1,8 @@
 package graphics.scenery
 
 import cleargl.GLVector
+import gnu.trove.map.hash.THashMap
+import gnu.trove.set.hash.TLinkedHashSet
 import org.lwjgl.system.MemoryUtil.memAlloc
 import org.slf4j.LoggerFactory
 import java.io.BufferedInputStream
@@ -14,7 +16,6 @@ import java.nio.IntBuffer
 import java.nio.file.FileSystems
 import java.nio.file.Files
 import java.util.*
-import kotlin.collections.LinkedHashSet
 
 /**
  * Interface for any [Node] that stores geometry in the form of vertices,
@@ -55,7 +56,7 @@ interface HasGeometry : Serializable {
         val logger = LoggerFactory.getLogger("Node")
         val ext = filename.substringAfterLast(".").toLowerCase()
 
-        when(ext) {
+        when (ext) {
             "obj" -> readFromOBJ(filename, useMaterial)
             "stl" -> readFromSTL(filename)
             else -> {
@@ -148,6 +149,22 @@ interface HasGeometry : Serializable {
         return materials
     }
 
+    class TIndexedHashSet<E : Any>(initialCapacity: Int) : TLinkedHashSet<E>(initialCapacity, 0.9f) {
+        private val index: THashMap<E, Int> = THashMap(initialCapacity)
+
+        override fun add(element: E): Boolean {
+            index.putIfAbsent(element, size)
+            return super.add(element)
+        }
+
+        fun indexOf(obj: E): Int {
+            index[obj]?.let { return it }
+
+            System.err.println("Index not found!")
+            return -1
+        }
+    }
+
     /**
      * Read the [Node]'s geometry from an OBJ file, possible including materials
      *
@@ -159,12 +176,13 @@ interface HasGeometry : Serializable {
 
         var name: String = ""
 
-        var boundingBox: FloatArray? = null
+        var boundingBox: FloatArray
 
         var vertexCount = 0
         var normalCount = 0
         var uvCount = 0
         var indexCount = 0
+        var faceCount = 0
 
         var materials = HashMap<String, Material>()
 
@@ -228,43 +246,50 @@ interface HasGeometry : Serializable {
         // and leading whitespace. The first non-whitespace string encountered is
         // evaluated as command, according to the OBJ spec.
         var currentName = name
-        val vertexCountMap = HashMap<String, Int>()
+        val vertexCountMap = HashMap<String, Int>(50)
+        val faceCountMap = HashMap<String, Int>(50)
 
         val preparseStart = System.nanoTime()
         logger.info("Starting preparse")
         lines.forEach {
             line ->
-            val tokens = line.trim().trimEnd().fastSplit(" ", skipEmpty = true)
+            val tokens = line.trim().trimEnd()
             if (tokens.isNotEmpty()) {
                 when (tokens[0]) {
-                    "" -> {
+                    ' ' -> {
                     }
-                    "#" -> {
+                    '#' -> {
                     }
-                    "f" -> {
-                        vertexCount += when (tokens.count() - 1) {
+                    'f' -> {
+                        faceCount++
+                        vertexCount += when (tokens.fastSplit(" ").count() - 1) {
                             3 -> 6
                             4 -> 9
                             else -> 0
                         }
                     }
-                    "g", "o" -> {
+                    'g', 'o' -> {
                         vertexCountMap.put(currentName, vertexCount)
+                        faceCountMap.put(currentName, faceCount)
                         vertexCount = 0
-                        currentName = tokens[1]
+                        faceCount = 0
+                        currentName = tokens.substringAfter(" ").trim().trimEnd()
                     }
                 }
             }
         }
-        val preparseDuration = (System.nanoTime() - preparseStart)/10e5
+        val preparseDuration = (System.nanoTime() - preparseStart) / 10e5
         logger.info("Preparse took $preparseDuration ms")
 
         vertexCountMap.put(currentName, vertexCount)
         vertexCount = 0
 
+        faceCountMap.put(currentName, faceCount)
+        faceCount = 0
+
         val vertexBuffers = HashMap<String, Triple<FloatBuffer, FloatBuffer, FloatBuffer>>()
         val indexBuffers = HashMap<String, ArrayList<Int>>()
-        val faceBuffers = HashMap<String, LinkedHashSet<Vertex>>()
+        val faceBuffers = HashMap<String, TIndexedHashSet<Vertex>>()
 
         vertexCountMap.forEach { objectName, objectVertexCount ->
             vertexBuffers.put(objectName, Triple(
@@ -274,75 +299,82 @@ interface HasGeometry : Serializable {
             ))
 
             indexBuffers.put(objectName, ArrayList<Int>(1000))
-            faceBuffers.put(objectName, LinkedHashSet<Vertex>(1000))
+            faceBuffers.put(objectName, TIndexedHashSet<Vertex>((faceCountMap[objectName]!! * 1.5).toInt()))
         }
 
-        val tmpV = ArrayList<Float>()
-        logger.info("V gets capacity of ${vertexCountMap.values.sum()*vertexSize}")
-        tmpV.ensureCapacity(vertexCountMap.values.sum() * vertexSize)
-        val tmpN = ArrayList<Float>()
-        tmpN.ensureCapacity(vertexCountMap.values.sum() * vertexSize)
-        val tmpUV = ArrayList<Float>()
-        tmpUV.ensureCapacity(vertexCountMap.values.sum() * texcoordSize)
+        val tmpV = ArrayList<Float>(vertexCountMap.values.sum() * vertexSize)
+        val tmpN = ArrayList<Float>(vertexCountMap.values.sum() * vertexSize)
+        val tmpUV = ArrayList<Float>(vertexCountMap.values.sum() * texcoordSize)
 
         lines = Files.lines(FileSystems.getDefault().getPath(filename))
 
         val vertex = floatArrayOf(0.0f, 0.0f, 0.0f)
+        val vertices = ArrayList<Int>(5)
+        val normals = ArrayList<Int>(5)
+        val uvs = ArrayList<Int>(5)
+
+        boundingBox = floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
 
         lines.forEach {
             line ->
-            val tokens = line.trim().trimEnd().fastSplit(" ", skipEmpty = true)
+            val tokens = line.trim().trimEnd()
             if (tokens.isNotEmpty()) {
                 when (tokens[0]) {
-                    "" -> {
+                    ' ' -> {
                     }
-                    "#" -> {
+                    '#' -> {
                     }
-                    "mtllib" -> {
+                    'm' -> {
                         if (useMTL) {
-                            materials = readFromMTL(filename.substringBeforeLast("/") + "/" + tokens[1])
+                            materials = readFromMTL(filename.substringBeforeLast("/") + "/" + tokens.substringAfter(" ").trim().trimEnd())
                         }
                     }
-                    "usemtl" -> {
+                    'u' -> {
                         if (targetObject is Node && useMTL) {
-                            (targetObject as Node).material = materials[tokens[1]]!!
+                            (targetObject as Node).material = materials[tokens.substringAfter(" ").trim().trimEnd()]!!
                         }
                     }
                 // vertices are specified as v x y z
-                    "v" -> tokens.subList(1, tokens.size).forEach { tmpV.add(it.toFloat()) }
+                    'v' -> {
+                        val elements = tokens.fastSplit(" ", skipEmpty = true)
+                        when (tokens[1]) {
+                            ' ' -> {
+                                tmpV.add(elements[1].toFloat())
+                                tmpV.add(elements[2].toFloat())
+                                tmpV.add(elements[3].toFloat())
+                            }
 
-                // normal coords are specified as vn x y z
-                    "vn" -> tokens.subList(1, tokens.size).forEach { tmpN.add(it.toFloat()) }
+                        // normal coords are specified as vn x y z
+                            'n' -> {
+                                tmpN.add(elements[1].toFloat())
+                                tmpN.add(elements[2].toFloat())
+                                tmpN.add(elements[3].toFloat())
+                            }
 
-                // UV coords maybe vt t1 t2 0.0 or vt t1 t2
-                    "vt" -> {
-                        if (tokens.drop(1).size == 3) {
-                            tokens.subList(1, tokens.size-1)
-                        } else {
-                            tokens.subList(1, tokens.size)
-                        }.forEach { tmpUV.add(it.toFloat()) }
+                        // UV coords maybe vt t1 t2 0.0 or vt t1 t2
+                            't' -> {
+                                tmpUV.add(elements[1].toFloat())
+                                tmpUV.add(elements[2].toFloat())
+                            }
+                        }
                     }
 
                 // faces can reference to three or more vertices in these notations:
                 // f v1 v2 ... vn
                 // f v1//vn1 v2//vn2 ... vn//vnn
                 // f v1/vt1/vn1 v2/vt2/vn2 ... vn/vtn/vnn
-                    "f" -> {
+                    'f' -> {
                         count++
-                        val elements = tokens.drop(1).map { it: String -> it.fastSplit("/") }
+                        vertices.clear()
+                        normals.clear()
+                        uvs.clear()
 
-                        val vertices = elements.map { it[0].toInt() }
-
-                        val uvs = if(elements[0].size > 1) {
-                            elements.map { it[1].toInt() }
-                        } else {
-                            emptyList()
-                        }
-
-                        val normals = if(elements[0].size > 2) {
-                            elements.map { it[2].toInt() }
-                        } else {
-                            emptyList()
+                        val elements = tokens.fastSplit(" ", skipEmpty = true)
+                        elements.subList(1, elements.size).forEach { elem ->
+                            val tri = elem.fastSplit("/")
+                            vertices.add(tri[0].toInt())
+                            tri.getOrNull(1)?.let { if(it.isNotEmpty()) { uvs.add(it.toInt()) } }
+                            tri.getOrNull(2)?.let { if(it.isNotEmpty()) { normals.add(it.toInt()) } }
                         }
 
                         val range = if (vertices.size == 3) {
@@ -353,56 +385,62 @@ interface HasGeometry : Serializable {
                             quintIndices
                         }
 
-                        if (boundingBox == null) {
-                            boundingBox = floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
-                        }
-
-                        val indices = (0..vertices.size-1).map { i ->
+                        val indices = vertices.mapIndexed { i, _ ->
                             val face = Vertex(vertices[i], normals.getOrElse(i, { -1 }), uvs.getOrElse(i, { -1 }))
                             val present = !faceBuffers[name]!!.add(face)
-                            val index = faceBuffers[name]!!.indexOf(face)
 
-                            if(!present) {
+                            val index = if (!present) {
                                 val base = toBufferIndex(tmpV, vertices[i], 3, 0)
                                 vertex[0] = tmpV[base]
-                                vertex[1] = tmpV[base+1]
-                                vertex[2] = tmpV[base+2]
+                                vertex[1] = tmpV[base + 1]
+                                vertex[2] = tmpV[base + 2]
 
                                 vertexBuffers[name]!!.first.put(vertex[0])
                                 vertexBuffers[name]!!.first.put(vertex[1])
                                 vertexBuffers[name]!!.first.put(vertex[2])
 
-                                boundingBox!![0] = minOf(boundingBox!![0], vertex[0])
-                                boundingBox!![2] = minOf(boundingBox!![2], vertex[1])
-                                boundingBox!![4] = minOf(boundingBox!![4], vertex[2])
+                                boundingBox[0] = minOf(boundingBox[0], vertex[0])
+                                boundingBox[2] = minOf(boundingBox[2], vertex[1])
+                                boundingBox[4] = minOf(boundingBox[4], vertex[2])
 
-                                boundingBox!![1] = maxOf(boundingBox!![1], vertex[0])
-                                boundingBox!![3] = maxOf(boundingBox!![3], vertex[1])
-                                boundingBox!![5] = maxOf(boundingBox!![5], vertex[2])
+                                boundingBox[1] = maxOf(boundingBox[1], vertex[0])
+                                boundingBox[3] = maxOf(boundingBox[3], vertex[1])
+                                boundingBox[5] = maxOf(boundingBox[5], vertex[2])
 
                                 if (normals.size == vertices.size) {
                                     val baseN = toBufferIndex(tmpN, normals[i], 3, 0)
                                     vertexBuffers[name]!!.second.put(tmpN[baseN])
-                                    vertexBuffers[name]!!.second.put(tmpN[baseN+1])
-                                    vertexBuffers[name]!!.second.put(tmpN[baseN+2])
+                                    vertexBuffers[name]!!.second.put(tmpN[baseN + 1])
+                                    vertexBuffers[name]!!.second.put(tmpN[baseN + 2])
+                                } else {
+                                    vertexBuffers[name]!!.second.put(0.0f)
+                                    vertexBuffers[name]!!.second.put(0.0f)
+                                    vertexBuffers[name]!!.second.put(0.0f)
                                 }
 
                                 if (uvs.size == vertices.size) {
                                     val baseUV = toBufferIndex(tmpUV, uvs[i], 2, 0)
                                     vertexBuffers[name]!!.third.put(tmpUV[baseUV])
-                                    vertexBuffers[name]!!.third.put(tmpUV[baseUV+1])
+                                    vertexBuffers[name]!!.third.put(tmpUV[baseUV + 1])
+                                } else {
+                                    vertexBuffers[name]!!.third.put(0.0f)
+                                    vertexBuffers[name]!!.third.put(0.0f)
                                 }
+
+                                faceBuffers[name]!!.size - 1
+                            } else {
+                                faceBuffers[name]!!.indexOf(face)
                             }
 
                             index
                         }
 
-                        range.map { indexBuffers[name]!!.add(indices[it]) }
+                        range.forEach { indexBuffers[name]!!.add(indices[it]) }
                     }
-                    "s" -> {
+                    's' -> {
                         // TODO: Implement smooth shading across faces
                     }
-                    "g", "o" -> @Suppress("UNCHECKED_CAST") {
+                    'g', 'o' -> {
                         if (vertexBuffers[name]!!.second.position() == 0) {
                             calculateNormals(vertexBuffers[name]!!.first, vertexBuffers[name]!!.second)
                         }
@@ -429,40 +467,35 @@ interface HasGeometry : Serializable {
                         // add new child mesh
                         if (this is Mesh) {
                             val child = Mesh()
-                            child.name = tokens[1]
-                            name = tokens[1]
+                            child.name = tokens.substringAfter(" ").trim().trimEnd()
+                            name = tokens.substringAfter(" ").trim().trimEnd()
                             if (!useMTL) {
                                 child.material = Material()
                             }
 
-                            boundingBox?.let {
-                                (targetObject as Mesh).boundingBoxCoords = it.clone()
-                            }
-                            boundingBox = null
+                            (targetObject as Mesh?)?.boundingBoxCoords = boundingBox.clone()
+                            boundingBox = floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
 
                             this.addChild(child)
                             targetObject = child
                         } else if (this is PointCloud) {
                             val child = PointCloud()
-                            child.name = tokens[1]
-                            name = tokens[1]
+                            child.name = tokens.substringAfter(" ").trim().trimEnd()
+                            name = tokens.substringAfter(" ").trim().trimEnd()
                             if (!useMTL) {
                                 child.material = Material()
                             }
 
-                            boundingBox?.let {
-                                (targetObject as PointCloud).boundingBoxCoords = it.clone()
-                            }
-                            boundingBox = null
+                            (targetObject as PointCloud?)?.boundingBoxCoords = boundingBox.clone()
+                            boundingBox = floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
 
                             this.addChild(child)
                             targetObject = child
                         }
-
                     }
                     else -> {
-                        if (!tokens[0].startsWith("#")) {
-                            logger.warn("Unknown element: ${tokens.joinToString(" ")}")
+                        if (tokens[0] != '#') {
+                            logger.warn("Unknown element: $tokens")
                         }
                     }
                 }
@@ -489,13 +522,7 @@ interface HasGeometry : Serializable {
         normalCount += targetObject.normals.limit()
         uvCount += targetObject.texcoords.limit()
 
-        if (targetObject is Mesh) {
-            if (boundingBox != null) {
-                (targetObject as Mesh).boundingBoxCoords = boundingBox!!.clone()
-            } else {
-                (targetObject as Mesh).boundingBoxCoords = floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
-            }
-        }
+        (targetObject as Mesh?)?.boundingBoxCoords = boundingBox.clone()
 
         logger.info("Read ${vertexCount / vertexSize}/${normalCount / vertexSize}/${uvCount / texcoordSize}/$indexCount v/n/uv/i of model $name in ${(end - start) / 1e6} ms")
     }
@@ -511,23 +538,22 @@ interface HasGeometry : Serializable {
         return index
     }
 
-    private fun String.fastSplit(delim: String, limit: Int = 0, skipEmpty: Boolean = false): List<String> {
-        val ch: Char = delim[0]
+    private fun String.fastSplit(delimiter: String, limit: Int = 0, list: ArrayList<String> = ArrayList<String>(this.length / 5), skipEmpty: Boolean = false): List<String> {
+        val ch: Char = delimiter[0]
         var off = 0
         val limited = limit > 0
-        val list = ArrayList<String>()
-        list.ensureCapacity(this.length/5)
+        list.clear()
 
         var next = indexOf(ch, off)
         while (next != -1) {
             if (!limited || list.size < limit - 1) {
-                if(!(skipEmpty && next - off < 1)) {
+                if (!(skipEmpty && next - off < 1)) {
                     list.add(substring(off, next))
                 }
                 off = next + 1
             } else {    // last one
                 //assert (list.size() == limit - 1);
-                if(!(skipEmpty && this.length - off < 1)) {
+                if (!(skipEmpty && this.length - off < 1)) {
                     list.add(substring(off, this.length))
                 }
                 off = this.length
