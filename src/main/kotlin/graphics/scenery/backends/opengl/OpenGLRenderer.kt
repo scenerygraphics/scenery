@@ -425,6 +425,8 @@ class OpenGLRenderer(hub: Hub,
                 (pass.passConfig.viewportOffset.second * height).toInt())
 
             pass.openglMetadata.eye = pass.passConfig.eye
+            pass.defaultShader = prepareShaderProgram(pass.passConfig.shaders.toTypedArray())
+
             passes.put(passName, pass)
         }
 
@@ -444,6 +446,12 @@ class OpenGLRenderer(hub: Hub,
         }
 
         return passes
+    }
+
+    fun prepareShaderProgram(shaders: Array<String>) {
+
+        GLProgram.buildProgram(gl, OpenGLRenderer::class.java,
+            pass.passConfig.shaders.map { "../vulkan/shaders/" + it.substringBeforeLast(".spv") }.toTypedArray())
     }
 
     override fun display(pDrawable: GLAutoDrawable) {
@@ -967,8 +975,6 @@ class OpenGLRenderer(hub: Hub,
             renderOrderList.add(it)
         }
 
-        cam.view = cam.getTransformation()
-
         val instanceGroups = renderOrderList.groupBy { it.instanceOf }
 
         val headToEye = eyes.map { i ->
@@ -981,7 +987,6 @@ class OpenGLRenderer(hub: Hub,
 
         val pose = tracker?.getPose() ?: GLMatrix.getIdentity()
         cam.view = cam.getTransformation()
-
         val projection = eyes.map { i ->
             if (vrActive) {
                 hmd?.getEyeProjection(i, cam.nearPlaneDistance, cam.farPlaneDistance) ?: cam.projection
