@@ -44,6 +44,12 @@ class OpenGLObjectState : NodeMetadata {
     var mStoredPrimitiveCount = 0
     /** buffer bindings **/
     var bufferBindings = ArrayList<OpenGLBufferBinding>()
+    /** OpenGL UBOs **/
+    var UBOs = HashMap<String, OpenGLUBO>()
+    /** are we missing textures? **/
+    var defaultTexturesFor = HashSet<String>()
+    /** shader to use for the program */
+    var shader: GLProgram? = null
 
     /**
      * Default constructor, adding the [OpenGLRenderer]

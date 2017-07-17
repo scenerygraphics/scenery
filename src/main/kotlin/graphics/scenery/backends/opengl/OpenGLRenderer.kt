@@ -17,10 +17,12 @@ import graphics.scenery.utils.NvidiaGPUStats
 import graphics.scenery.utils.SceneryPanel
 import graphics.scenery.utils.Statistics
 import javafx.application.Platform
+import org.lwjgl.system.MemoryUtil
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.lang.reflect.Field
+import java.nio.ByteBuffer
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.text.SimpleDateFormat
@@ -30,6 +32,7 @@ import java.util.concurrent.TimeUnit
 import javax.imageio.ImageIO
 import kotlin.collections.LinkedHashMap
 import kotlin.concurrent.thread
+import kotlin.concurrent.withLock
 
 /**
  * Deferred Lighting Renderer for scenery
@@ -199,6 +202,46 @@ class OpenGLRenderer(hub: Hub,
         }
     }
 
+    inner class OpenGLBuffer(var gl: GL4, var size: Int) {
+        var buffer: ByteBuffer
+        var id = intArrayOf(-1)
+        var alignment = 256L
+
+        init {
+            gl.glGenBuffers(1, id, 0)
+            buffer = MemoryUtil.memAlloc(size)
+
+            gl.glBindBuffer(GL4.GL_UNIFORM_BUFFER, id[0])
+            gl.glBufferData(GL4.GL_UNIFORM_BUFFER, size * 1L, null, GL.GL_DYNAMIC_DRAW)
+            gl.glBindBuffer(GL4.GL_UNIFORM_BUFFER, 0)
+        }
+
+        fun copyFromStagingBuffer() {
+            buffer.flip()
+            gl.glBufferSubData(GL4.GL_UNIFORM_BUFFER, 0, buffer.capacity() * 1L, buffer)
+        }
+
+        fun reset() {
+            buffer.position(0)
+            buffer.limit(size)
+        }
+
+        fun advance(align: Long = this.alignment): Int {
+            val pos = buffer.position()
+            val rem = pos.rem(align)
+
+            if (rem != 0L) {
+                val newpos = pos + align.toInt() - rem.toInt()
+                buffer.position(newpos)
+            }
+
+            return buffer.position()
+        }
+    }
+
+    internal val buffers = HashMap<String, OpenGLBuffer>()
+    internal val sceneUBOs = ArrayList<Node>()
+
     internal val resizeHandler = ResizeHandler()
 
     /**
@@ -357,10 +400,16 @@ class OpenGLRenderer(hub: Hub,
             }
         }, 0, 1000)
 
+        buffers.put("UBOBuffer", OpenGLBuffer(gl, 10 * 1024 * 1024))
+        buffers.put("LightParametersBuffer", OpenGLBuffer(gl, 10 * 1024 * 1024))
+        buffers.put("VRParametersBuffer", OpenGLBuffer(gl, 2 * 1024))
+        buffers.put("ShaderPropertyBuffer", OpenGLBuffer(gl, 10 * 1024 * 1024))
+
+
         initializeScene()
     }
 
-    fun prepareRenderpasses(config: RenderConfigReader.RenderConfig, windowWidth: Int, windowHeight: Int) : LinkedHashMap<String, OpenGLRenderpass> {
+    fun prepareRenderpasses(config: RenderConfigReader.RenderConfig, windowWidth: Int, windowHeight: Int): LinkedHashMap<String, OpenGLRenderpass> {
         val framebuffers = ConcurrentHashMap<String, GLFramebuffer>()
         val passes = LinkedHashMap<String, OpenGLRenderpass>()
 
@@ -378,7 +427,7 @@ class OpenGLRenderer(hub: Hub,
                 width = (settings.get<Float>("Renderer.SupersamplingFactor") * windowWidth).toInt()
                 height = (settings.get<Float>("Renderer.SupersamplingFactor") * windowHeight).toInt()
 
-                if(framebuffers.containsKey(rt.key)) {
+                if (framebuffers.containsKey(rt.key)) {
                     logger.info("Reusing already created framebuffer")
                     pass.output.put(rt.key, framebuffers[rt.key]!!)
                 } else {
@@ -741,75 +790,114 @@ class OpenGLRenderer(hub: Hub,
         logger.info("Initialized ${textures.size} textures")
     }
 
-    /**
-     * Sets the [Material] GLSL uniforms for a given [Node].
-     *
-     * If a Node does not have a Material set, the position of the Node will be used
-     * for all ambient, diffuse, and specular color. If textures are attached to the Material,
-     * the corresponding uniforms are set such that the GLProgram can sample from them.
-     *
-     * @param[n] The [Node] to set the uniforms for.
-     * @param[gl] A [GL4] context.
-     * @param[s] The [OpenGLObjectState] of the [Node].
-     * @param[program] The [GLProgram] GLSL shader to render the [Node] with.
-     */
-    private fun setMaterialUniformsForNode(n: Node, gl: GL4, s: OpenGLObjectState, program: GLProgram) {
-        program.use(gl)
-        program.getUniform("Material.Shininess").setFloat(0.001f)
-
-        program.getUniform("Material.Ka").setFloatVector(n.material.ambient)
-        program.getUniform("Material.Kd").setFloatVector(n.material.diffuse)
-        program.getUniform("Material.Ks").setFloatVector(n.material.specular)
-
-        if (n.material.doubleSided) {
-            gl.glDisable(GL.GL_CULL_FACE)
-        }
-
-        if (n.material.transparent) {
-            gl.glEnable(GL.GL_BLEND)
-            gl.glBlendFunc(GL.GL_SRC_COLOR, GL.GL_ONE_MINUS_SRC_ALPHA)
+    private fun Display.wantsVR(): Display? {
+        if (settings.get<Boolean>("vr.Active")) {
+            return this@wantsVR
         } else {
-            gl.glDisable(GL.GL_BLEND)
+            return null
+        }
+    }
+
+    @Synchronized fun updateDefaultUBOs() {
+        // find observer, if none, return
+        val cam = scene.findObserver() ?: return
+
+        if (!cam.lock.tryLock()) {
+            return
         }
 
-        s.textures.forEach { type, glTexture ->
-            val samplerIndex = 0 //geometryBuffer.first().textureTypeToUnit(type)
+        val hmd = hub?.getWorkingHMDDisplay()?.wantsVR()
 
-            @Suppress("SENSELESS_COMPARISON")
-            if (glTexture != null) {
-                gl.glActiveTexture(GL.GL_TEXTURE0 + samplerIndex)
-                gl.glBindTexture(GL.GL_TEXTURE_2D, glTexture.id)
-                program.getUniform(textureTypeToArrayName(type)).setInt(samplerIndex)
+        cam.view = cam.getTransformation()
+
+        buffers["VRParametersBuffer"]!!.reset()
+        val vrUbo = OpenGLUBO(backingBuffer = buffers["VRParametersBuffer"]!!)
+
+//        vrUbo.createUniformBuffer(memoryProperties)
+        vrUbo.members.put("projection0", {
+            (hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance)
+                ?: cam.projection)
+        })
+        vrUbo.members.put("projection1", {
+            (hmd?.getEyeProjection(1, cam.nearPlaneDistance, cam.farPlaneDistance)
+                ?: cam.projection)
+        })
+        vrUbo.members.put("headShift", { hmd?.getHeadToEyeTransform(0) ?: GLMatrix.getIdentity() })
+        vrUbo.members.put("IPD", { hmd?.getIPD() ?: 0.05f })
+        vrUbo.members.put("stereoEnabled", { renderConfig.stereoEnabled.toInt() })
+
+        vrUbo.populate()
+        buffers["VRParametersBuffer"]!!.copyFromStagingBuffer()
+
+        buffers["UBOBuffer"]!!.reset()
+        buffers["ShaderPropertyBuffer"]!!.reset()
+
+        sceneUBOs.forEach { node ->
+            node.lock.withLock {
+                if (!node.metadata.containsKey(this.javaClass.simpleName)) {
+                    return@withLock
+                }
+
+                val s = node.metadata[this.javaClass.simpleName] as OpenGLObjectState
+
+                val ubo = s.UBOs["Default"]!!
+
+                node.updateWorld(true, false)
+
+                var bufferOffset = ubo.backingBuffer!!.advance()
+                ubo.offset = bufferOffset
+                node.projection.copyFrom(cam.projection)
+                node.view.copyFrom(cam.view)
+                ubo.populate(offset = bufferOffset.toLong())
+
+                val materialUbo = (node.metadata["OpenGLRenderer"]!! as OpenGLObjectState).UBOs["BlinnPhongMaterial"]!!
+                bufferOffset = ubo.backingBuffer.advance()
+                ubo.offset = bufferOffset
+
+                materialUbo.populate(offset = bufferOffset.toLong())
+
+//                if(s.requiredDescriptorSets.containsKey("ShaderProperties")) {
+//                    val propertyUbo = s.UBOs["ShaderProperties"]!!.second
+//                    // TODO: Correct buffer advancement
+//                    val offset = propertyUbo.backingBuffer!!.advance()
+//                    propertyUbo.populate(offset = offset.toLong())
+//                    propertyUbo.offsets.put(0, offset)
+//                }
             }
         }
 
-        if (s.textures.size > 0) {
-            program.getUniform("materialType").setInt(1)
+        buffers["UBOBuffer"]!!.copyFromStagingBuffer()
 
-            var material = 0
+        buffers["LightParametersBuffer"]!!.reset()
 
-            if (s.textures.containsKey("diffuse")) {
-                material = material or MATERIAL_HAS_DIFFUSE
-            }
+        val lights = scene.discover(scene, { n -> n is PointLight })
 
-            if (s.textures.containsKey("ambient")) {
-                material = material or MATERIAL_HAS_AMBIENT
-            }
+        val lightUbo = OpenGLUBO(backingBuffer = buffers["LightParametersBuffer"]!!)
+        lightUbo.members.put("numLights", { lights.size })
+        lightUbo.members.put("filler1", { 0.0f })
+        lightUbo.members.put("filler2", { 0.0f })
+        lightUbo.members.put("filler3", { 0.0f })
 
-            if (s.textures.containsKey("specular")) {
-                material = material or MATERIAL_HAS_SPECULAR
-            }
+        lights.forEachIndexed { i, light ->
+            val l = light as PointLight
+            l.updateWorld(true, false)
 
-            if (s.textures.containsKey("normal")) {
-                material = material or MATERIAL_HAS_NORMAL
-            }
-
-            if (s.textures.containsKey("alphamask")) {
-                material = material or MATERIAL_HAS_ALPHAMASK
-            }
-
-            program.getUniform("materialType").setInt(material)
+            lightUbo.members.put("Linear-$i", { l.linear })
+            lightUbo.members.put("Quadratic-$i", { l.quadratic })
+            lightUbo.members.put("Intensity-$i", { l.intensity })
+            lightUbo.members.put("Radius-$i", { -l.linear + Math.sqrt(l.linear * l.linear - 4 * l.quadratic * (1.0 - (256.0f / 5.0) * 100)).toFloat() })
+            lightUbo.members.put("Position-$i", { l.position })
+            lightUbo.members.put("Color-$i", { l.emissionColor })
+            lightUbo.members.put("filler-$i", { 0.0f })
         }
+
+//        lightUbo.createUniformBuffer(memoryProperties)
+        lightUbo.populate()
+
+        buffers["LightParametersBuffer"]!!.copyFromStagingBuffer()
+        buffers["ShaderPropertyBuffer"]!!.copyFromStagingBuffer()
+
+        cam.lock.unlock()
     }
 
     /**
@@ -859,7 +947,7 @@ class OpenGLRenderer(hub: Hub,
     private fun preDrawAndUpdateGeometryForNode(n: Node) {
         if (n is HasGeometry) {
             if (n.dirty) {
-                if(n.lock.tryLock()) {
+                if (n.lock.tryLock()) {
                     if (n is FontBoard) {
                         updateFontBoard(n)
                     }
@@ -954,7 +1042,7 @@ class OpenGLRenderer(hub: Hub,
      *    compositor.
      */
     override fun render() {
-        if(shouldClose) {
+        if (shouldClose) {
             joglDrawable?.animator?.stop()
             return
         }
@@ -966,6 +1054,8 @@ class OpenGLRenderer(hub: Hub,
             Thread.sleep(200)
             return
         }
+
+        updateDefaultUBOs()
 
         val renderOrderList = ArrayList<Node>()
         // find observer, or return immediately
@@ -1017,12 +1107,12 @@ class OpenGLRenderer(hub: Hub,
             target.inputs.values.forEach { it.bindTexturesToUnitsWithOffset(gl, 0) }
 
             gl.glClearColor(
-                        target.openglMetadata.clearValues.clearColor.x(),
-                        target.openglMetadata.clearValues.clearColor.y(),
-                        target.openglMetadata.clearValues.clearColor.z(),
-                        target.openglMetadata.clearValues.clearColor.w())
+                target.openglMetadata.clearValues.clearColor.x(),
+                target.openglMetadata.clearValues.clearColor.y(),
+                target.openglMetadata.clearValues.clearColor.z(),
+                target.openglMetadata.clearValues.clearColor.w())
 
-            if(target.output.values.first().hasDepthAttachment(gl)) {
+            if (target.output.values.first().hasDepthAttachment(gl)) {
                 gl.glClear(GL.GL_DEPTH_BUFFER_BIT)
             }
             gl.glClear(GL.GL_COLOR_BUFFER_BIT)
@@ -1056,11 +1146,11 @@ class OpenGLRenderer(hub: Hub,
                         initializeNode(n)
                     }
 
-                    val s = getOpenGLObjectStateFromNode(n)
+                    var s = getOpenGLObjectStateFromNode(n)
                     n.updateWorld(true, false)
 
                     if (n.material.needsTextureReload) {
-                        n.material.needsTextureReload = !loadTexturesForNode(n, s)
+                        s = loadTexturesForNode(n, s)
                     }
 
                     if (n is Skybox) {
@@ -1068,34 +1158,20 @@ class OpenGLRenderer(hub: Hub,
                         gl.glDepthFunc(GL.GL_LEQUAL)
                     }
 
-                    eyes.forEach { eye ->
-                        n.projection.copyFrom(projection[eye])
-                        n.view.copyFrom(cam.view)
+                    preDrawAndUpdateGeometryForNode(n)
 
-                        n.modelView.copyFrom(headToEye[eye])
-                        n.modelView.mult(pose)
-                        n.modelView.mult(cam.view)
-                        n.modelView.mult(n.world)
-
-                        n.mvp.copyFrom(projection[eye])
-                        n.mvp.mult(n.modelView)
-
-                        s.program?.let { program ->
-                            program.use(gl)
-                            program.getUniform("ModelMatrix")!!.setFloatMatrix(n.world, false)
-                            program.getUniform("ModelViewMatrix")!!.setFloatMatrix(n.modelView, false)
-                            program.getUniform("ProjectionMatrix")!!.setFloatMatrix(projection[eye], false)
-                            program.getUniform("MVP")!!.setFloatMatrix(n.mvp, false)
-                            program.getUniform("isBillboard")!!.setInt(n.isBillboard.toInt())
-
-                            setMaterialUniformsForNode(n, gl, s, program)
-                            setShaderPropertiesForNode(n, program)
-                        }
-
-                        target.output.values.first().setDrawBuffers(gl)
-                        preDrawAndUpdateGeometryForNode(n)
-                        drawNode(n)
+                    val shader = if (s.shader != null) {
+                        s.shader!!
+                    } else {
+                        target.defaultShader!!
                     }
+
+                    s.UBOs.keys.forEachIndexed { binding, name ->
+                        val index = gl.glGetUniformBlockIndex(shader.id, name)
+                        gl.glUniformBlockBinding(shader.id, index, binding)
+                    }
+
+                    drawNode(n)
                 }
 
                 instanceGroups.keys.filterNotNull().forEach instancedDrawing@ { n ->
@@ -1172,10 +1248,6 @@ class OpenGLRenderer(hub: Hub,
 
                         logger.trace("${n.name} instancing: Updated matrix buffers in ${(System.nanoTime() - start) / 10e6}ms")
 
-                        s.program?.let {
-                            setMaterialUniformsForNode(n, gl, s, it)
-                        }
-
                         preDrawAndUpdateGeometryForNode(n)
 
                         target.output.values.first().setDrawBuffers(gl)
@@ -1196,14 +1268,14 @@ class OpenGLRenderer(hub: Hub,
         }
 
         embedIn?.let { embedPanel ->
-            if(shouldClose) {
+            if (shouldClose) {
                 return
             }
 
             readIndex = (readIndex + 1) % 2
             updateIndex = (readIndex + 1) % 2
 
-            if(pbos[0] == 0 || pbos[1] == 0) {
+            if (pbos[0] == 0 || pbos[1] == 0) {
                 gl.glGenBuffers(2, pbos, 0)
 
                 gl.glBindBuffer(GL4.GL_PIXEL_PACK_BUFFER, pbos[0])
@@ -1223,7 +1295,7 @@ class OpenGLRenderer(hub: Hub,
             gl.glBindBuffer(GL4.GL_PIXEL_PACK_BUFFER, pbos[updateIndex])
 
             val buffer = gl.glMapBuffer(GL4.GL_PIXEL_PACK_BUFFER, GL4.GL_READ_ONLY)
-            if(buffer != null) {
+            if (buffer != null) {
                 Platform.runLater {
                     if (!mustRecreateFramebuffers) embedPanel.update(buffer)
                 }
@@ -1371,7 +1443,7 @@ class OpenGLRenderer(hub: Hub,
 
         if (node is HasGeometry) {
             node.lock.tryLock(100, TimeUnit.MILLISECONDS)
-            if(node.lock.tryLock()) {
+            if (node.lock.tryLock()) {
                 setVerticesAndCreateBufferForNode(node)
                 setNormalsAndCreateBufferForNode(node)
 
@@ -1387,7 +1459,61 @@ class OpenGLRenderer(hub: Hub,
             }
         }
 
+        val matricesUbo = OpenGLUBO(backingBuffer = buffers["UBOBuffer"])
+        with(matricesUbo) {
+            name = "Default"
+            members.put("ModelMatrix", { node.world })
+            members.put("ViewMatrix", { node.view })
+            members.put("NormalMatrix", { node.world.inverse.transpose() })
+            members.put("ProjectionMatrix", { node.projection })
+            members.put("CamPosition", { scene.activeObserver?.position ?: GLVector(0.0f, 0.0f, 0.0f) })
+            members.put("isBillboard", { node.isBillboard.toInt() })
+
+            sceneUBOs.add(node)
+
+            s.UBOs.put("Default", this)
+        }
+
         loadTexturesForNode(node, s)
+
+        val materialUbo = OpenGLUBO(backingBuffer = buffers["UBOBuffer"])
+        var materialType = 0
+
+        if (node.material.textures.containsKey("ambient") && !s.defaultTexturesFor.contains("ambient")) {
+            materialType = materialType or MATERIAL_HAS_AMBIENT
+        }
+
+        if (node.material.textures.containsKey("diffuse") && !s.defaultTexturesFor.contains("diffuse")) {
+            materialType = materialType or MATERIAL_HAS_DIFFUSE
+        }
+
+        if (node.material.textures.containsKey("specular") && !s.defaultTexturesFor.contains("specular")) {
+            materialType = materialType or MATERIAL_HAS_SPECULAR
+        }
+
+        if (node.material.textures.containsKey("normal") && !s.defaultTexturesFor.contains("normal")) {
+            materialType = materialType or MATERIAL_HAS_NORMAL
+        }
+
+        if (node.material.textures.containsKey("alphamask") && !s.defaultTexturesFor.contains("alphamask")) {
+            materialType = materialType or MATERIAL_HAS_ALPHAMASK
+        }
+
+        with(materialUbo) {
+            name = "BlinnPhongMaterial"
+            members.put("Ka", { node.material.ambient })
+            members.put("Kd", { node.material.diffuse })
+            members.put("Ks", { node.material.specular })
+            members.put("Shininess", { node.material.specularExponent })
+            members.put("materialType", { materialType })
+
+            s.UBOs.put("BlinnPhongMaterial", this)
+        }
+
+        s.initialized = true
+        node.initialized = true
+        node.metadata["VulkanRenderer"] = s
+
         s.initialized = true
         return true
     }
@@ -1425,7 +1551,7 @@ class OpenGLRenderer(hub: Hub,
      * @param[node] The [Node] to load textures for.
      * @param[s] The [Node]'s [OpenGLObjectState]
      */
-    private fun loadTexturesForNode(node: Node, s: OpenGLObjectState): Boolean {
+    private fun loadTexturesForNode(node: Node, s: OpenGLObjectState): OpenGLObjectState {
         if (node.lock.tryLock()) {
             node.material.textures.forEach {
                 type, texture ->
@@ -1455,11 +1581,19 @@ class OpenGLRenderer(hub: Hub,
                 }
             }
 
+            arrayOf("ambient", "diffuse", "specular", "normal", "alphamask", "displacement").forEach {
+                if (!s.textures.containsKey(it)) {
+//                    s.textures.putIfAbsent(it, textureCache["DefaultTexture"]!!)
+                    s.defaultTexturesFor.add(it)
+                }
+            }
+
+            node.material.needsTextureReload = false
             s.initialized = true
             node.lock.unlock()
-            return true
+            return s
         } else {
-            return false
+            return s
         }
     }
 
@@ -1712,7 +1846,7 @@ class OpenGLRenderer(hub: Hub,
         gl.glBufferData(GL.GL_ARRAY_BUFFER,
             (pTextureCoordsBuffer.remaining() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
             pTextureCoordsBuffer,
-            if(s.isDynamic)
+            if (s.isDynamic)
                 GL.GL_DYNAMIC_DRAW
             else
                 GL.GL_STATIC_DRAW)
@@ -1786,7 +1920,7 @@ class OpenGLRenderer(hub: Hub,
     fun drawNode(node: Node, offset: Int = 0) {
         val s = getOpenGLObjectStateFromNode(node)
 
-        if(s.mStoredIndexCount == 0 && s.mStoredPrimitiveCount == 0) {
+        if (s.mStoredIndexCount == 0 && s.mStoredPrimitiveCount == 0) {
             return
         }
 
