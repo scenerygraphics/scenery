@@ -1,15 +1,10 @@
 package graphics.scenery.backends.vulkan
 
-import cleargl.GLMatrix
-import cleargl.GLVector
-import graphics.scenery.Node
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import graphics.scenery.NodeMetadata
-import graphics.scenery.ShaderProperty
-import java.lang.reflect.Field
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
@@ -33,7 +28,7 @@ open class VulkanObjectState : NodeMetadata {
 
     var pipeline = VulkanRenderer.Pipeline()
 
-    var UBOs = LinkedHashMap<String, Pair<Long, UBO>>()
+    var UBOs = LinkedHashMap<String, Pair<Long, VulkanUBO>>()
 
     var textures = ConcurrentHashMap<String, VulkanTexture>()
 

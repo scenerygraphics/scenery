@@ -423,7 +423,7 @@ class VU {
         }
 
         fun createDescriptorSet(device: VkDevice, descriptorPool: Long, descriptorSetLayout: Long, bindingCount: Int,
-                                ubo: UBO.UBODescriptor, type: Int = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER): Long {
+                                ubo: VulkanUBO.UBODescriptor, type: Int = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER): Long {
             logger.debug("Creating descriptor set with ${bindingCount} bindings, DSL=$descriptorSetLayout")
 
             val pDescriptorSetLayout = MemoryUtil.memAllocLong(1)

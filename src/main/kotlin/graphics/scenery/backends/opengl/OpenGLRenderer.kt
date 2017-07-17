@@ -463,6 +463,8 @@ class OpenGLRenderer(hub: Hub,
             modules.put(m.shaderType, m.shader)
         }
 
+        logger.info("Creating shader program from ${modules.keys.joinToString(", ")}")
+
         return GLProgram(gl, modules)
     }
 
@@ -1007,10 +1009,12 @@ class OpenGLRenderer(hub: Hub,
             }
         }
 
-
         flow.take(flow.size - 1).forEach { t ->
             val target = renderpasses[t]!!
+
             target.updateShaderParameters()
+            target.output.values.first().setDrawBuffers(gl)
+            target.inputs.values.forEach { it.bindTexturesToUnitsWithOffset(gl, 0) }
 
             gl.glClearColor(
                         target.openglMetadata.clearValues.clearColor.x(),

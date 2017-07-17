@@ -220,8 +220,8 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, clazz: Class<*>, shad
         }
 
         this.shaderType = toClearGLShaderType(extension)
+
         val source = compiler.compile()
-        logger.info("GLSL compiled to v410: $source")
         this.shader = GLShader(gl, source, toClearGLShaderType(extension))
     }
 

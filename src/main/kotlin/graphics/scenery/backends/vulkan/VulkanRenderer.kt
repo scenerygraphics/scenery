@@ -245,7 +245,7 @@ open class VulkanRenderer(hub: Hub,
     protected var queue: VkQueue
     protected var descriptorPool: Long
 
-    protected var standardUBOs = ConcurrentHashMap<String, UBO>()
+    protected var standardUBOs = ConcurrentHashMap<String, VulkanUBO>()
 
     protected var swapchain: Swapchain? = null
     protected var ph = PresentHelpers()
@@ -652,7 +652,7 @@ open class VulkanRenderer(hub: Hub,
                 descriptorSetLayouts["default"]!!, standardUBOs.count(),
                 buffers["UBOBuffer"]!!)
 
-        val matricesUbo = UBO(device, backingBuffer = buffers["UBOBuffer"])
+        val matricesUbo = VulkanUBO(device, backingBuffer = buffers["UBOBuffer"])
         with(matricesUbo) {
             name = "Default"
             members.put("ModelMatrix", { node.world })
@@ -671,7 +671,7 @@ open class VulkanRenderer(hub: Hub,
 
         s = loadTexturesForNode(node, s)
 
-        val materialUbo = UBO(device, backingBuffer = buffers["UBOBuffer"])
+        val materialUbo = VulkanUBO(device, backingBuffer = buffers["UBOBuffer"])
         var materialType = 0
 
         if (node.material.textures.containsKey("ambient") && !s.defaultTexturesFor.contains("ambient")) {
@@ -787,7 +787,7 @@ open class VulkanRenderer(hub: Hub,
                     order = pass.value.getShaderPropertyOrder(node)
                 }
 
-            val shaderPropertyUbo = UBO(device, backingBuffer = buffers["ShaderPropertyBuffer"])
+            val shaderPropertyUbo = VulkanUBO(device, backingBuffer = buffers["ShaderPropertyBuffer"])
             with(shaderPropertyUbo) {
                 name = "ShaderProperties"
 
@@ -1959,7 +1959,7 @@ open class VulkanRenderer(hub: Hub,
         }
 
         // first we create a fake UBO to gauge the size of the needed properties
-        val ubo = UBO(device)
+        val ubo = VulkanUBO(device)
         ubo.fromInstance(instances.first())
 
         val instanceBufferSize = ubo.getSize() * instances.size
@@ -1986,7 +1986,7 @@ open class VulkanRenderer(hub: Hub,
             node.mvp.copyFrom(node.projection)
             node.mvp.mult(node.modelView)
 
-            val instanceUbo = UBO(device, backingBuffer = stagingBuffer)
+            val instanceUbo = VulkanUBO(device, backingBuffer = stagingBuffer)
             instanceUbo.fromInstance(node)
             instanceUbo.createUniformBuffer(memoryProperties)
             instanceUbo.populate()
@@ -2040,7 +2040,7 @@ open class VulkanRenderer(hub: Hub,
         }
 
         // first we create a fake UBO to gauge the size of the needed properties
-        val ubo = UBO(device)
+        val ubo = VulkanUBO(device)
         ubo.fromInstance(instances.first())
 
         val instanceBufferSize = ubo.getSize() * instances.size
@@ -2064,7 +2064,7 @@ open class VulkanRenderer(hub: Hub,
             node.mvp.copyFrom(node.projection)
             node.mvp.mult(node.modelView)
 
-            val instanceUbo = UBO(device, backingBuffer = stagingBuffer)
+            val instanceUbo = VulkanUBO(device, backingBuffer = stagingBuffer)
             instanceUbo.fromInstance(node)
             instanceUbo.createUniformBuffer(memoryProperties)
             instanceUbo.populate()
@@ -2172,9 +2172,9 @@ open class VulkanRenderer(hub: Hub,
         return map
     }
 
-    private fun prepareDefaultUniformBuffers(device: VkDevice): ConcurrentHashMap<String, UBO> {
-        val ubos = ConcurrentHashMap<String, UBO>()
-        val defaultUbo = UBO(device)
+    private fun prepareDefaultUniformBuffers(device: VkDevice): ConcurrentHashMap<String, VulkanUBO> {
+        val ubos = ConcurrentHashMap<String, VulkanUBO>()
+        val defaultUbo = VulkanUBO(device)
 
         defaultUbo.name = "default"
         defaultUbo.members.put("Model", { GLMatrix.getIdentity() })
@@ -2186,7 +2186,7 @@ open class VulkanRenderer(hub: Hub,
         defaultUbo.createUniformBuffer(memoryProperties)
         ubos.put("default", defaultUbo)
 
-        val lightUbo = UBO(device)
+        val lightUbo = VulkanUBO(device)
 
         lightUbo.name = "BlinnPhongLighting"
         lightUbo.members.put("Position", { GLVector(0.0f, 0.0f, 0.0f) })
@@ -2197,7 +2197,7 @@ open class VulkanRenderer(hub: Hub,
         lightUbo.createUniformBuffer(memoryProperties)
         ubos.put("BlinnPhongLighting", lightUbo)
 
-        val materialUbo = UBO(device)
+        val materialUbo = VulkanUBO(device)
 
         materialUbo.name = "BlinnPhongMaterial"
         materialUbo.members.put("Ka", { GLVector(0.0f, 0.0f, 0.0f) })
@@ -2705,7 +2705,7 @@ open class VulkanRenderer(hub: Hub,
         cam.view = cam.getTransformation()
 
         buffers["VRParametersBuffer"]!!.reset()
-        val vrUbo = UBO(device, backingBuffer = buffers["VRParametersBuffer"]!!)
+        val vrUbo = VulkanUBO(device, backingBuffer = buffers["VRParametersBuffer"]!!)
 
         vrUbo.createUniformBuffer(memoryProperties)
         vrUbo.members.put("projection0", { (hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance)
@@ -2772,7 +2772,7 @@ open class VulkanRenderer(hub: Hub,
 
         val lights = scene.discover(scene, { n -> n is PointLight })
 
-        val lightUbo = UBO(device, backingBuffer = buffers["LightParametersBuffer"]!!)
+        val lightUbo = VulkanUBO(device, backingBuffer = buffers["LightParametersBuffer"]!!)
         lightUbo.members.put("numLights", { lights.size })
         lightUbo.members.put("filler1", { 0.0f })
         lightUbo.members.put("filler2", { 0.0f })

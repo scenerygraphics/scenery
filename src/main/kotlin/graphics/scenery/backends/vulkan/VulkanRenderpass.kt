@@ -1,6 +1,5 @@
 package graphics.scenery.backends.vulkan
 
-import cleargl.GLMatrix
 import cleargl.GLVector
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.vulkan.*
@@ -10,11 +9,9 @@ import org.slf4j.LoggerFactory
 import graphics.scenery.GeometryType
 import graphics.scenery.Node
 import graphics.scenery.Settings
-import graphics.scenery.ShaderProperty
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.utils.RingBuffer
 import org.lwjgl.system.MemoryUtil.*
-import java.lang.reflect.Field
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.util.*
@@ -38,7 +35,7 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
     val output = ConcurrentHashMap<String, VulkanFramebuffer>()
 
     var pipelines = ConcurrentHashMap<String, VulkanPipeline>()
-    var UBOs = ConcurrentHashMap<String, UBO>()
+    var UBOs = ConcurrentHashMap<String, VulkanUBO>()
     var descriptorSets = ConcurrentHashMap<String, Long>()
     var descriptorSetLayouts = LinkedHashMap<String, Long>()
 
@@ -155,9 +152,9 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
         // renderpasses might have parameters set up in their YAML config. These get translated to
         // descriptor layouts, UBOs and descriptor sets
         passConfig.parameters?.let { params ->
-            logger.debug("Creating UBO for $name")
+            logger.debug("Creating VulkanUBO for $name")
             // create UBO
-            val ubo = UBO(device)
+            val ubo = VulkanUBO(device)
 
             ubo.name = "ShaderParameters-$name"
             params.forEach { entry ->
@@ -186,7 +183,7 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
             }
 
             logger.debug("Members are: ${ubo.members.values.joinToString(", ")}")
-            logger.debug("Allocating UBO memory now, space needed: ${ubo.getSize()}")
+            logger.debug("Allocating VulkanUBO memory now, space needed: ${ubo.getSize()}")
 
             ubo.createUniformBuffer(memoryProperties)
 
@@ -203,7 +200,7 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
             UBOs.put("ShaderParameters-$name", ubo)
             descriptorSets.put("ShaderParameters-$name", ds)
 
-            logger.debug("Created DSL $dsl for $name, UBO has ${params.count()} members")
+            logger.debug("Created DSL $dsl for $name, VulkanUBO has ${params.count()} members")
             descriptorSetLayouts.putIfAbsent("ShaderParameters-$name", dsl)
         }
     }
