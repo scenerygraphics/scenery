@@ -7,8 +7,11 @@ import com.jogamp.opengl.util.FPSAnimator
 import com.jogamp.opengl.util.awt.AWTGLReadBufferUtil
 import graphics.scenery.*
 import graphics.scenery.backends.*
+import graphics.scenery.backends.vulkan.VulkanRenderer
 import graphics.scenery.controls.TrackerInput
 import graphics.scenery.fonts.SDFFontAtlas
+import graphics.scenery.spirvcrossj.Loader
+import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.utils.GPUStats
 import graphics.scenery.utils.NvidiaGPUStats
 import graphics.scenery.utils.SceneryPanel
@@ -204,6 +207,9 @@ class OpenGLRenderer(hub: Hub,
      *
      */
     init {
+
+        Loader.loadNatives()
+        libspirvcrossj.initializeProcess()
 
         logger.info("Initializing OpenGL Renderer...")
         this.hub = hub
@@ -448,10 +454,16 @@ class OpenGLRenderer(hub: Hub,
         return passes
     }
 
-    fun prepareShaderProgram(shaders: Array<String>) {
+    fun prepareShaderProgram(shaders: Array<String>): GLProgram {
 
-        GLProgram.buildProgram(gl, OpenGLRenderer::class.java,
-            pass.passConfig.shaders.map { "../vulkan/shaders/" + it.substringBeforeLast(".spv") }.toTypedArray())
+        val modules = HashMap<GLShaderType, GLShader>()
+
+        shaders.forEach {
+            val m = OpenGLShaderModule(gl, "main", VulkanRenderer::class.java, "shaders/" + it)
+            modules.put(m.shaderType, m.shader)
+        }
+
+        return GLProgram(gl, modules)
     }
 
     override fun display(pDrawable: GLAutoDrawable) {
@@ -1832,6 +1844,6 @@ class OpenGLRenderer(hub: Hub,
     }
 
     override fun close() {
-
+        libspirvcrossj.finalizeProcess()
     }
 }

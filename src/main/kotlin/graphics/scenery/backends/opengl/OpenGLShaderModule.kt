@@ -1,11 +1,14 @@
 package graphics.scenery.backends.opengl
 
 import cleargl.GLProgram
+import cleargl.GLShader
+import cleargl.GLShaderType
 import com.jogamp.opengl.GL4
 import graphics.scenery.spirvcrossj.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import graphics.scenery.BufferUtils
+import graphics.scenery.backends.vulkan.VulkanRenderer
 import java.nio.ByteBuffer
 import java.util.*
 import graphics.scenery.spirvcrossj.EShLanguage
@@ -20,7 +23,10 @@ import kotlin.collections.LinkedHashMap
  */
 open class OpenGLShaderModule(gl: GL4, entryPoint: String, clazz: Class<*>, shaderCodePath: String) {
     protected var logger: Logger = LoggerFactory.getLogger("OpenGLShaderModule")
-    var shader: GLProgram
+    var shader: GLShader
+        private set
+    var shaderType: GLShaderType
+        private set
     var uboSpecs = LinkedHashMap<String, UBOSpec>()
 
     data class UBOMemberSpec(val name: String, val index: Long, val offset: Long, val range: Long)
@@ -36,8 +42,8 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, clazz: Class<*>, shad
             sourceClass = clazz
             clazz.javaClass.getResource(shaderCodePath)
         } else {
-            sourceClass = OpenGLRenderer::class.java
-            OpenGLRenderer::class.java.getResource(shaderCodePath)
+            sourceClass = VulkanRenderer::class.java
+            VulkanRenderer::class.java.getResource(shaderCodePath)
         }
 
         val actualCodePath: String
@@ -73,6 +79,8 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, clazz: Class<*>, shad
             actualCodePath = shaderCodePath
             false
         }
+
+        logger.info("Reading shader from $actualCodePath...")
 
         var code = ByteBuffer.allocate(0)
 
@@ -199,7 +207,22 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, clazz: Class<*>, shad
             }
         }
 
-        this.shader = GLProgram.buildProgram()
+        val options = CompilerGLSL.Options()
+        options.version = 400
+        options.es = false
+        options.vulkanSemantics = false
+        compiler.options = options
+
+        val extension = if(actualCodePath.endsWith(".spv")) {
+            actualCodePath.substringBeforeLast(".spv").substringAfterLast(".")
+        } else {
+            actualCodePath.substringAfterLast(".")
+        }
+
+        this.shaderType = toClearGLShaderType(extension)
+        val source = compiler.compile()
+        logger.info("GLSL compiled to v410: $source")
+        this.shader = GLShader(gl, source, toClearGLShaderType(extension))
     }
 
     private fun IntVec.toByteBuffer(): ByteBuffer {
@@ -222,5 +245,20 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, clazz: Class<*>, shad
         }
 
         return bytecode
+    }
+
+    private fun toClearGLShaderType(extension: String): GLShaderType {
+        return when(extension) {
+            "vert" -> GLShaderType.VertexShader
+            "frag" -> GLShaderType.FragmentShader
+            "tesc" -> GLShaderType.TesselationControlShader
+            "tese" -> GLShaderType.TesselationEvaluationShader
+            "geom" -> GLShaderType.GeometryShader
+            "comp" -> GLShaderType.ComputeShader
+            else -> {
+                logger.error("Unknown shader type: $extension")
+                GLShaderType.VertexShader
+            }
+        }
     }
 }
