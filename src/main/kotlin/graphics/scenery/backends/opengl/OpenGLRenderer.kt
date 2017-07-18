@@ -371,8 +371,16 @@ class OpenGLRenderer(hub: Hub,
 
         settings.set("ssao.FilterRadius", GLVector(5.0f / width, 5.0f / height))
 
-        renderpasses = prepareRenderpasses(renderConfig, window.width, window.height)
+        buffers.put("UBOBuffer", OpenGLBuffer(gl, 10 * 1024 * 1024))
+        buffers.put("LightParametersBuffer", OpenGLBuffer(gl, 10 * 1024 * 1024))
+        buffers.put("VRParametersBuffer", OpenGLBuffer(gl, 2 * 1024))
+        buffers.put("ShaderPropertyBuffer", OpenGLBuffer(gl, 10 * 1024 * 1024))
+        buffers.put("ShaderParameterBuffer", OpenGLBuffer(gl, 128 * 1024))
 
+        settings.set("Renderer.displayWidth", window.width)
+        settings.set("Renderer.displayHeight", window.height)
+
+        renderpasses = prepareRenderpasses(renderConfig, window.width, window.height)
 
         // enable required features
         gl.glEnable(GL4.GL_TEXTURE_GATHER)
@@ -399,12 +407,6 @@ class OpenGLRenderer(hub: Hub,
                 }
             }
         }, 0, 1000)
-
-        buffers.put("UBOBuffer", OpenGLBuffer(gl, 10 * 1024 * 1024))
-        buffers.put("LightParametersBuffer", OpenGLBuffer(gl, 10 * 1024 * 1024))
-        buffers.put("VRParametersBuffer", OpenGLBuffer(gl, 2 * 1024))
-        buffers.put("ShaderPropertyBuffer", OpenGLBuffer(gl, 10 * 1024 * 1024))
-
 
         initializeScene()
     }
@@ -482,6 +484,8 @@ class OpenGLRenderer(hub: Hub,
             pass.openglMetadata.eye = pass.passConfig.eye
             pass.defaultShader = prepareShaderProgram(pass.passConfig.shaders.toTypedArray())
 
+            pass.initializeShaderParameters(settings, buffers["ShaderParameterBuffer"]!!)
+
             passes.put(passName, pass)
         }
 
@@ -514,7 +518,9 @@ class OpenGLRenderer(hub: Hub,
 
         logger.info("Creating shader program from ${modules.keys.joinToString(", ")}")
 
-        return GLProgram(gl, modules)
+        val program = GLProgram(gl, modules)
+
+        return program
     }
 
     override fun display(pDrawable: GLAutoDrawable) {
@@ -840,7 +846,7 @@ class OpenGLRenderer(hub: Hub,
 
                 val s = node.metadata[this.javaClass.simpleName] as OpenGLObjectState
 
-                val ubo = s.UBOs["Default"]!!
+                val ubo = s.UBOs["Matrices"]!!
 
                 node.updateWorld(true, false)
 
@@ -850,7 +856,7 @@ class OpenGLRenderer(hub: Hub,
                 node.view.copyFrom(cam.view)
                 ubo.populate(offset = bufferOffset.toLong())
 
-                val materialUbo = (node.metadata["OpenGLRenderer"]!! as OpenGLObjectState).UBOs["BlinnPhongMaterial"]!!
+                val materialUbo = (node.metadata["OpenGLRenderer"]!! as OpenGLObjectState).UBOs["MaterialProperties"]!!
                 bufferOffset = ubo.backingBuffer.advance()
                 ubo.offset = bufferOffset
 
@@ -1099,11 +1105,18 @@ class OpenGLRenderer(hub: Hub,
             }
         }
 
-        flow.take(flow.size - 1).forEach { t ->
+        buffers["ShaderParameterBuffer"]!!.reset()
+
+        flow.forEach { t ->
             val target = renderpasses[t]!!
 
             target.updateShaderParameters()
-            target.output.values.first().setDrawBuffers(gl)
+
+            if(target.output.isNotEmpty()) {
+                target.output.values.first().setDrawBuffers(gl)
+            } else {
+                gl.glBindFramebuffer(GL.GL_FRAMEBUFFER, 0)
+            }
             target.inputs.values.forEach { it.bindTexturesToUnitsWithOffset(gl, 0) }
 
             gl.glClearColor(
@@ -1112,9 +1125,7 @@ class OpenGLRenderer(hub: Hub,
                 target.openglMetadata.clearValues.clearColor.z(),
                 target.openglMetadata.clearValues.clearColor.w())
 
-            if (target.output.values.first().hasDepthAttachment(gl)) {
-                gl.glClear(GL.GL_DEPTH_BUFFER_BIT)
-            }
+            target.output.values.forEach { if(it.hasDepthAttachment(gl)) { gl.glClear(GL.GL_DEPTH_BUFFER_BIT) } }
             gl.glClear(GL.GL_COLOR_BUFFER_BIT)
 
             gl.glViewport(
@@ -1147,7 +1158,6 @@ class OpenGLRenderer(hub: Hub,
                     }
 
                     var s = getOpenGLObjectStateFromNode(n)
-                    n.updateWorld(true, false)
 
                     if (n.material.needsTextureReload) {
                         s = loadTexturesForNode(n, s)
@@ -1166,9 +1176,20 @@ class OpenGLRenderer(hub: Hub,
                         target.defaultShader!!
                     }
 
-                    s.UBOs.keys.forEachIndexed { binding, name ->
+                    shader.bind()
+
+                    gl.glBindBuffer(GL4.GL_UNIFORM_BUFFER, buffers["UBOBuffer"]!!.id[0])
+
+                    var binding = 0
+                    s.UBOs.forEach { name, ubo ->
                         val index = gl.glGetUniformBlockIndex(shader.id, name)
                         gl.glUniformBlockBinding(shader.id, index, binding)
+                        gl.glBindBufferRange(GL4.GL_UNIFORM_BUFFER, index, ubo.backingBuffer!!.id[0], 1L * ubo.offset, 1L * ubo.getSize())
+
+                        if(index == -1) {
+                            logger.error("Failed to bind UBO $name for ${n.name} to $binding")
+                        }
+                        binding++
                     }
 
                     drawNode(n)
@@ -1259,13 +1280,35 @@ class OpenGLRenderer(hub: Hub,
                 gl.glDisable(GL.GL_BLEND)
                 gl.glDisable(GL.GL_DEPTH_TEST)
 
+                gl.glBindBuffer(GL4.GL_UNIFORM_BUFFER, buffers["ShaderParameterBuffer"]!!.id[0])
+
                 target.defaultShader?.let { shader ->
                     shader.bind()
+
+                    var binding = 0
+                    target.UBOs.forEach { name, ubo ->
+                        val actualName = if(name.contains("ShaderParameters")) {
+                            "ShaderParameters"
+                        } else {
+                            name
+                        }
+
+                        val index = gl.glGetUniformBlockIndex(shader.id, actualName)
+                        gl.glUniformBlockBinding(shader.id, index, binding)
+                        gl.glBindBufferRange(GL4.GL_UNIFORM_BUFFER, index, ubo.backingBuffer!!.id[0], 1L * ubo.offset, 1L * ubo.getSize())
+
+                        if(index == -1) {
+                            logger.error("Failed to bind shader parameter UBO $actualName for ${target.passName} to $binding")
+                        }
+                        binding++
+                    }
 
                     renderFullscreenQuad(shader)
                 }
             }
         }
+
+        logger.info("Error: ${gl.glGetError()}")
 
         embedIn?.let { embedPanel ->
             if (shouldClose) {
@@ -1461,7 +1504,7 @@ class OpenGLRenderer(hub: Hub,
 
         val matricesUbo = OpenGLUBO(backingBuffer = buffers["UBOBuffer"])
         with(matricesUbo) {
-            name = "Default"
+            name = "Matrices"
             members.put("ModelMatrix", { node.world })
             members.put("ViewMatrix", { node.view })
             members.put("NormalMatrix", { node.world.inverse.transpose() })
@@ -1471,7 +1514,7 @@ class OpenGLRenderer(hub: Hub,
 
             sceneUBOs.add(node)
 
-            s.UBOs.put("Default", this)
+            s.UBOs.put("Matrices", this)
         }
 
         loadTexturesForNode(node, s)
@@ -1500,14 +1543,14 @@ class OpenGLRenderer(hub: Hub,
         }
 
         with(materialUbo) {
-            name = "BlinnPhongMaterial"
+            name = "MaterialProperties"
             members.put("Ka", { node.material.ambient })
             members.put("Kd", { node.material.diffuse })
             members.put("Ks", { node.material.specular })
             members.put("Shininess", { node.material.specularExponent })
             members.put("materialType", { materialType })
 
-            s.UBOs.put("BlinnPhongMaterial", this)
+            s.UBOs.put("MaterialProperties", this)
         }
 
         s.initialized = true

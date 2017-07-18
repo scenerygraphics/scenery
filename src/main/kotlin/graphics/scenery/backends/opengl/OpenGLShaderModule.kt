@@ -1,18 +1,15 @@
 package graphics.scenery.backends.opengl
 
-import cleargl.GLProgram
 import cleargl.GLShader
 import cleargl.GLShaderType
 import com.jogamp.opengl.GL4
+import graphics.scenery.BufferUtils
+import graphics.scenery.backends.vulkan.VulkanRenderer
 import graphics.scenery.spirvcrossj.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import graphics.scenery.BufferUtils
-import graphics.scenery.backends.vulkan.VulkanRenderer
 import java.nio.ByteBuffer
 import java.util.*
-import graphics.scenery.spirvcrossj.EShLanguage
-import graphics.scenery.spirvcrossj.EShMessages
 import kotlin.collections.LinkedHashMap
 
 
@@ -221,8 +218,53 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, clazz: Class<*>, shad
 
         this.shaderType = toClearGLShaderType(extension)
 
-        val source = compiler.compile()
+        var source = compiler.compile()
+        // remove binding and set qualifiers
+        var start = 0
+        var found = source.indexOf("layout(", start)
+        while(found != -1) {
+            logger.debug("Found match at $found with start index $start")
+            start = found + 7
+            val end = source.indexOf(")", start) + 1
+
+            if(source.substring(end, source.indexOf(";", end)).contains("sampler")) {
+                logger.info("Converting sampler UBO to uniform")
+                source = source.replaceRange(start-7, end, "")
+                start = found
+                found = source.indexOf("layout(", start)
+                continue
+            }
+
+            if(source.substring(end, source.indexOf(";", end)).contains("vec")) {
+                logger.info("Converting location-based struct to regular struct")
+                source = source.replaceRange(start-7, end, "")
+                start = found
+                found = source.indexOf("layout(", start)
+                continue
+            }
+
+            if(source.substring(end, source.indexOf(";", end)).contains("out")) {
+                logger.info("Converting location-based output to regular output")
+                source = source.replaceRange(start-7, end, "")
+                start = found
+                found = source.indexOf("layout(", start)
+                continue
+            }
+
+            if(source.substring(start, end).contains("set") || source.substring(start, end).contains("binding")) {
+                logger.info("Replacing ${source.substring(start, end)}")
+                source = source.replaceRange(start-7, end, "layout(std140)")
+                start = found + 15
+            } else {
+                logger.info("Skipping ${source.substring(start, end)}")
+                start = end
+            }
+
+            found = source.indexOf("layout(", start)
+        }
+
         this.shader = GLShader(gl, source, toClearGLShaderType(extension))
+        logger.info(this.shader.shaderInfoLog)
     }
 
     private fun IntVec.toByteBuffer(): ByteBuffer {

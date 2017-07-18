@@ -45,7 +45,7 @@ class OpenGLObjectState : NodeMetadata {
     /** buffer bindings **/
     var bufferBindings = ArrayList<OpenGLBufferBinding>()
     /** OpenGL UBOs **/
-    var UBOs = HashMap<String, OpenGLUBO>()
+    var UBOs = LinkedHashMap<String, OpenGLUBO>()
     /** are we missing textures? **/
     var defaultTexturesFor = HashSet<String>()
     /** shader to use for the program */
