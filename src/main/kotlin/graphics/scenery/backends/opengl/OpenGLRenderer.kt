@@ -202,7 +202,7 @@ class OpenGLRenderer(hub: Hub,
         }
     }
 
-    inner class OpenGLBuffer(var gl: GL4, var size: Int) {
+    class OpenGLBuffer(var gl: GL4, var size: Int) {
         var buffer: ByteBuffer
         var id = intArrayOf(-1)
         var alignment = 256L
@@ -218,7 +218,10 @@ class OpenGLRenderer(hub: Hub,
 
         fun copyFromStagingBuffer() {
             buffer.flip()
-            gl.glBufferSubData(GL4.GL_UNIFORM_BUFFER, 0, buffer.capacity() * 1L, buffer)
+            gl.glBindBuffer(GL4.GL_UNIFORM_BUFFER, id[0])
+//            System.err.println("Copying ${buffer.remaining()} for ${id[0]}")
+            gl.glBufferSubData(GL4.GL_UNIFORM_BUFFER, 0, buffer.remaining() * 1L, buffer)
+            gl.glBindBuffer(GL4.GL_UNIFORM_BUFFER, 0)
         }
 
         fun reset() {
@@ -383,7 +386,7 @@ class OpenGLRenderer(hub: Hub,
         renderpasses = prepareRenderpasses(renderConfig, window.width, window.height)
 
         // enable required features
-        gl.glEnable(GL4.GL_TEXTURE_GATHER)
+//        gl.glEnable(GL4.GL_TEXTURE_GATHER)
 
         initialized = true
 
@@ -484,7 +487,7 @@ class OpenGLRenderer(hub: Hub,
             pass.openglMetadata.eye = pass.passConfig.eye
             pass.defaultShader = prepareShaderProgram(pass.passConfig.shaders.toTypedArray())
 
-            pass.initializeShaderParameters(settings, buffers["ShaderParameterBuffer"]!!)
+            pass.initializeShaderParameters(settings, OpenGLBuffer(gl, 1024))
 
             passes.put(passName, pass)
         }
@@ -519,6 +522,7 @@ class OpenGLRenderer(hub: Hub,
         logger.info("Creating shader program from ${modules.keys.joinToString(", ")}")
 
         val program = GLProgram(gl, modules)
+        logger.info(program.programInfoLog)
 
         return program
     }
@@ -1111,6 +1115,7 @@ class OpenGLRenderer(hub: Hub,
             val target = renderpasses[t]!!
 
             target.updateShaderParameters()
+            buffers["ShaderParameterBuffer"]!!.copyFromStagingBuffer()
 
             if(target.output.isNotEmpty()) {
                 target.output.values.first().setDrawBuffers(gl)
@@ -1176,18 +1181,17 @@ class OpenGLRenderer(hub: Hub,
                         target.defaultShader!!
                     }
 
-                    shader.bind()
-
-                    gl.glBindBuffer(GL4.GL_UNIFORM_BUFFER, buffers["UBOBuffer"]!!.id[0])
+                    shader.use(gl)
 
                     var binding = 0
                     s.UBOs.forEach { name, ubo ->
                         val index = gl.glGetUniformBlockIndex(shader.id, name)
                         gl.glUniformBlockBinding(shader.id, index, binding)
+//                        logger.info("Binding $name of ${n.name} at offset ${ubo.offset}-${ubo.offset+ubo.getSize()} of ${ubo.backingBuffer!!.buffer.remaining()}")
                         gl.glBindBufferRange(GL4.GL_UNIFORM_BUFFER, index, ubo.backingBuffer!!.id[0], 1L * ubo.offset, 1L * ubo.getSize())
 
                         if(index == -1) {
-                            logger.error("Failed to bind UBO $name for ${n.name} to $binding")
+                            logger.debug("Failed to bind UBO $name for ${n.name} to $binding")
                         }
                         binding++
                     }
@@ -1280,10 +1284,8 @@ class OpenGLRenderer(hub: Hub,
                 gl.glDisable(GL.GL_BLEND)
                 gl.glDisable(GL.GL_DEPTH_TEST)
 
-                gl.glBindBuffer(GL4.GL_UNIFORM_BUFFER, buffers["ShaderParameterBuffer"]!!.id[0])
-
                 target.defaultShader?.let { shader ->
-                    shader.bind()
+                    shader.use(gl)
 
                     var binding = 0
                     target.UBOs.forEach { name, ubo ->
@@ -1307,8 +1309,6 @@ class OpenGLRenderer(hub: Hub,
                 }
             }
         }
-
-        logger.info("Error: ${gl.glGetError()}")
 
         embedIn?.let { embedPanel ->
             if (shouldClose) {
@@ -1967,7 +1967,7 @@ class OpenGLRenderer(hub: Hub,
             return
         }
 
-        s.program?.use(gl)
+//        s.program?.use(gl)
 
         gl.gL3.glBindVertexArray(s.mVertexArrayObject[0])
 
@@ -1998,7 +1998,7 @@ class OpenGLRenderer(hub: Hub,
     fun drawNodeInstanced(node: Node, count: Int, offset: Long = 0) {
         val s = getOpenGLObjectStateFromNode(node)
 
-        s.program?.use(gl)
+//        s.program?.use(gl)
 
         gl.gL4.glBindVertexArray(s.mVertexArrayObject[0])
 

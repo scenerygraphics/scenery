@@ -2,6 +2,7 @@ package graphics.scenery
 
 import cleargl.ClearGLDefaultEventListener
 import cleargl.GLVector
+import com.sun.jna.Pointer
 import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.opengl.OpenGLRenderer
 import graphics.scenery.controls.InputHandler
@@ -16,6 +17,14 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.zeromq.ZContext
 import kotlin.concurrent.thread
+import java.lang.reflect.AccessibleObject.setAccessible
+import com.sun.jna.platform.win32.WinNT
+import com.sun.jna.platform.win32.Kernel32
+import java.lang.management.ManagementFactory
+
+
+
+
 
 /**
  * A default application to use scenery with, keeping the needed boilerplate
@@ -94,6 +103,8 @@ open class SceneryDefaultApplication(var applicationName: String,
      *
      */
     open fun main() {
+        logger.info("Running as PID ${getProcessID()}")
+        Thread.sleep(3500)
         val master = System.getProperty("scenery.master").toBoolean()
         val context = ZContext(2)
 
@@ -239,5 +250,9 @@ open class SceneryDefaultApplication(var applicationName: String,
         } else {
             return demoDir
         }
+    }
+
+    protected fun getProcessID(): Int {
+       return Integer.parseInt(ManagementFactory.getRuntimeMXBean().name.split("@".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()[0])
     }
 }

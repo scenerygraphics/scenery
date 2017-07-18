@@ -15,6 +15,7 @@ layout(location = 0) out VertexData {
 layout(binding = 0) uniform Matrices {
 	mat4 ModelMatrix;
 	mat4 ViewMatrix;
+	mat4 NormalMatrix;
 	mat4 ProjectionMatrix;
 	vec3 CamPosition;
 	int isBillboard;
