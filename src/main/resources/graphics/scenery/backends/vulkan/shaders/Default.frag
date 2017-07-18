@@ -29,10 +29,10 @@ layout(location = 0) in VertexData {
 
 
 layout(binding = 0) uniform Matrices {
-	mat4 ModelViewMatrix;
 	mat4 ModelMatrix;
+	mat4 ViewMatrix;
+	mat4 NormalMatrix;
 	mat4 ProjectionMatrix;
-	mat4 MVP;
 	vec3 CamPosition;
 	int isBillboard;
 } ubo;
