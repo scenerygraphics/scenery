@@ -204,12 +204,20 @@ class OpenGLRenderer(hub: Hub,
 
     class OpenGLBuffer(var gl: GL4, var size: Int) {
         var buffer: ByteBuffer
+            private set
         var id = intArrayOf(-1)
+            private set
         var alignment = 256L
+            private set
 
         init {
+            val tmp = intArrayOf(0, 0)
+            gl.glGetIntegerv(GL4.GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, tmp, 0)
+            gl.glGetIntegerv(GL4.GL_UNIFORM_BLOCK_DATA_SIZE, tmp, 1)
+            alignment = tmp[0].toLong()
+
             gl.glGenBuffers(1, id, 0)
-            buffer = MemoryUtil.memAlloc(size)
+            buffer = MemoryUtil.memAlloc(maxOf(tmp[0], size))
 
             gl.glBindBuffer(GL4.GL_UNIFORM_BUFFER, id[0])
             gl.glBufferData(GL4.GL_UNIFORM_BUFFER, size * 1L, null, GL.GL_DYNAMIC_DRAW)
@@ -472,10 +480,10 @@ class OpenGLRenderer(hub: Hub,
             logger.debug("Render area for $passName: ${pass.openglMetadata.renderArea.width}x${pass.openglMetadata.renderArea.height}")
 
             pass.openglMetadata.viewport = OpenGLRenderpass.Viewport(OpenGLRenderpass.Rect2D(
-                (pass.passConfig.viewportOffset.first * width).toInt(),
-                (pass.passConfig.viewportOffset.second * height).toInt(),
                 (pass.passConfig.viewportSize.first * width).toInt(),
-                (pass.passConfig.viewportSize.second * height).toInt()),
+                (pass.passConfig.viewportSize.second * height).toInt(),
+                (pass.passConfig.viewportOffset.first * width).toInt(),
+                (pass.passConfig.viewportOffset.second * height).toInt()),
                 0.0f, 1.0f)
 
             pass.openglMetadata.scissor = OpenGLRenderpass.Rect2D(
@@ -589,23 +597,11 @@ class OpenGLRenderer(hub: Hub,
         ds.set("wantsFullscreen", false)
         ds.set("isFullscreen", false)
 
-        ds.set("ssao.Active", true)
-        ds.set("ssao.FilterRadius", GLVector(0.0f, 0.0f))
-        ds.set("ssao.DistanceThreshold", 50.0f)
-        ds.set("ssao.Algorithm", 1)
-
         ds.set("vr.Active", false)
         ds.set("vr.DoAnaglyph", false)
         ds.set("vr.IPD", 0.0f)
         ds.set("vr.EyeDivisor", 1)
 
-        ds.set("hdr.Active", true)
-        ds.set("hdr.Exposure", 10.0f)
-        ds.set("hdr.Gamma", 2.2f)
-
-        ds.set("sdf.MaxDistance", 10)
-
-        ds.set("debug.DebugDeferredBuffers", false)
         ds.set("$base.PrintGPUStats", false)
 
         ds.set("Renderer.SupersamplingFactor", 1.0f)
@@ -620,8 +616,14 @@ class OpenGLRenderer(hub: Hub,
      * @param[type] texture type
      * @return Int of the texture unit to be used
      */
-    fun GLFramebuffer.textureTypeToUnit(type: String): Int {
-        return this.boundBufferNum + when (type) {
+    fun textureTypeToUnit(target: OpenGLRenderpass, type: String): Int {
+        val offset = if(target.output.values.isNotEmpty()) {
+            target.output.values.first().boundBufferNum
+        } else {
+            0
+        }
+
+        return offset + when (type) {
             "ambient" -> 0
             "diffuse" -> 1
             "specular" -> 2
@@ -667,6 +669,16 @@ class OpenGLRenderer(hub: Hub,
         }
     }
 
+    fun Int.toggle(): Int {
+        if (this == 0) {
+            return 1
+        } else if (this == 1) {
+            return 0
+        }
+
+        logger.warn("Property is not togglable.")
+        return this
+    }
 
     /**
      * Toggles deferred shading buffer debug view. Used for e.g.
@@ -674,10 +686,16 @@ class OpenGLRenderer(hub: Hub,
      */
     @Suppress("UNUSED")
     fun toggleDebug() {
-        if (!settings.get<Boolean>("debug.DebugDeferredBuffers")) {
-            settings.set("debug.DebugDeferredBuffers", true)
-        } else {
-            settings.set("debug.DebugDeferredBuffers", false)
+        settings.getAllSettings().forEach {
+            if (it.toLowerCase().contains("debug")) {
+                try {
+                    val property = settings.get<Int>(it).toggle()
+                    settings.set(it, property)
+
+                } catch(e: Exception) {
+                    logger.warn("$it is a property that is not togglable.")
+                }
+            }
         }
     }
 
@@ -849,6 +867,7 @@ class OpenGLRenderer(hub: Hub,
                 }
 
                 val s = node.metadata[this.javaClass.simpleName] as OpenGLObjectState
+                s.UBOs.put("VRParameters", vrUbo)
 
                 val ubo = s.UBOs["Matrices"]!!
 
@@ -1122,7 +1141,8 @@ class OpenGLRenderer(hub: Hub,
             } else {
                 gl.glBindFramebuffer(GL.GL_FRAMEBUFFER, 0)
             }
-            target.inputs.values.forEach { it.bindTexturesToUnitsWithOffset(gl, 0) }
+
+            target.inputs.values.fold(0, { acc, fb -> acc + fb.bindTexturesToUnitsWithOffset(gl, acc) })
 
             gl.glClearColor(
                 target.openglMetadata.clearValues.clearColor.x(),
@@ -1151,6 +1171,9 @@ class OpenGLRenderer(hub: Hub,
                 target.openglMetadata.viewport.maxDepth.toDouble())
 
             if (target.passConfig.type == RenderConfigReader.RenderpassType.geometry) {
+
+                gl.glEnable(GL.GL_DEPTH_TEST)
+                gl.glEnable(GL.GL_CULL_FACE)
 
                 instanceGroups[null]?.forEach nonInstancedDrawing@ { n ->
                     if (n in instanceGroups.keys) {
@@ -1183,15 +1206,26 @@ class OpenGLRenderer(hub: Hub,
 
                     shader.use(gl)
 
+                    s.textures.forEach { type, glTexture ->
+                        val samplerIndex = textureTypeToUnit(target, type)
+
+                        @Suppress("SENSELESS_COMPARISON")
+                        if (glTexture != null) {
+                            gl.glActiveTexture(GL.GL_TEXTURE0 + samplerIndex)
+                            gl.glBindTexture(GL.GL_TEXTURE_2D, glTexture.id)
+                            shader.getUniform(textureTypeToArrayName(type)).setInt(samplerIndex)
+                        }
+                    }
+
                     var binding = 0
                     s.UBOs.forEach { name, ubo ->
                         val index = gl.glGetUniformBlockIndex(shader.id, name)
                         gl.glUniformBlockBinding(shader.id, index, binding)
-//                        logger.info("Binding $name of ${n.name} at offset ${ubo.offset}-${ubo.offset+ubo.getSize()} of ${ubo.backingBuffer!!.buffer.remaining()}")
+//                        logger.info("Binding $name of ${n.name} with index $index at offset ${ubo.offset}-${ubo.offset+ubo.getSize()} of ${ubo.backingBuffer!!.buffer.remaining()}")
                         gl.glBindBufferRange(GL4.GL_UNIFORM_BUFFER, index, ubo.backingBuffer!!.id[0], 1L * ubo.offset, 1L * ubo.getSize())
 
                         if(index == -1) {
-                            logger.debug("Failed to bind UBO $name for ${n.name} to $binding")
+                            logger.info("Failed to bind UBO $name for ${n.name} to $binding")
                         }
                         binding++
                     }
