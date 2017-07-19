@@ -103,7 +103,7 @@ open class SceneryDefaultApplication(var applicationName: String,
      *
      */
     open fun main() {
-        logger.info("Running as PID ${getProcessID()}")
+        logger.info("Started application as PID ${getProcessID()}")
         Thread.sleep(3500)
         val master = System.getProperty("scenery.master").toBoolean()
         val context = ZContext(2)
@@ -128,6 +128,8 @@ open class SceneryDefaultApplication(var applicationName: String,
 
         hub.add(SceneryElement.Statistics, stats)
         hub.add(SceneryElement.Settings, settings)
+
+        settings.set("System.PID", getProcessID())
 
         if(wantREPL) {
             repl = REPL(scene, stats, hub)
