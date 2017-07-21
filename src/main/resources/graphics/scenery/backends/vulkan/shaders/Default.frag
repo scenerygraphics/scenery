@@ -3,15 +3,6 @@
 
 const float PI = 3.14159265358979323846264;
 const int NUM_OBJECT_TEXTURES = 6;
-const int MAX_NUM_LIGHTS = 128;
-
-struct Light {
-	float Linear;
-	float Quadratic;
-	float Intensity;
-	vec4 Position;
-  	vec4 Color;
-};
 
 struct MaterialInfo {
     vec3 Ka;
@@ -30,10 +21,8 @@ layout(location = 0) in VertexData {
 
 layout(binding = 0) uniform Matrices {
 	mat4 ModelMatrix;
-	mat4 ViewMatrix;
 	mat4 NormalMatrix;
 	mat4 ProjectionMatrix;
-	vec3 CamPosition;
 	int isBillboard;
 } ubo;
 
@@ -44,7 +33,20 @@ layout(binding = 1) uniform MaterialProperties {
 
 layout(set = 1, binding = 0) uniform sampler2D ObjectTextures[NUM_OBJECT_TEXTURES];
 
-layout(set = 3, binding = 0, std140) uniform LightParameters {
+struct Light {
+	float Linear;
+	float Quadratic;
+	float Intensity;
+	float Radius;
+	vec4 Position;
+  	vec4 Color;
+};
+
+const int MAX_NUM_LIGHTS = 1024;
+
+layout(set = 2, binding = 0) uniform LightParameters {
+    mat4 ViewMatrix;
+    vec3 CamPosition;
     int numLights;
 	Light lights[MAX_NUM_LIGHTS];
 };
@@ -94,6 +96,6 @@ void main() {
     vec3 diffuse = texture(ObjectTextures[1], VertexIn.TexCoord).rgb;
     vec3 specular = texture(ObjectTextures[2], VertexIn.TexCoord).rgb;
 
-    FragColor = BlinnPhong(VertexIn.FragPosition, ubo.CamPosition, VertexIn.Normal,
+    FragColor = BlinnPhong(VertexIn.FragPosition, CamPosition, VertexIn.Normal,
         ambient, diffuse, specular);
 }

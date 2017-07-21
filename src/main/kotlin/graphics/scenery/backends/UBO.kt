@@ -19,12 +19,26 @@ open class UBO {
     protected var sizeCached = 0
 
     companion object alignmentsCache {
-        var alignments = HashMap<Class<*>, Pair<Int, Int>>()
+        var alignments = HashMap<Pair<Class<*>, Int>, Pair<Int, Int>>()
+    }
+
+    @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
+    fun sizeOf(element: Any): Int {
+        return when(element) {
+            is GLVector -> element.toFloatArray().size
+            is GLMatrix -> element.floatArray.size
+            is Float, is java.lang.Float -> 4
+            is Double, is java.lang.Double -> 8
+            is Int, is Integer -> 4
+            is Short, is java.lang.Short  -> 2
+            is Boolean, is java.lang.Boolean -> 4
+            else -> { logger.error("Don't know how to determine size of $element"); 0 }
+        }
     }
 
     fun getSizeAndAlignment(element: Any): Pair<Int, Int> {
-        if(alignments.containsKey(element.javaClass)) {
-            return alignments[element.javaClass]!!
+        if(alignments.containsKey(element.javaClass.to(sizeOf(element)))) {
+            return alignments[element.javaClass.to(sizeOf(element))]!!
         } else {
             val sa = when (element.javaClass) {
                 GLMatrix::class.java -> {
@@ -64,7 +78,7 @@ open class UBO {
                 }
             }
 
-            alignments.put(element.javaClass, sa)
+            alignments.put(element.javaClass.to(sizeOf(element)), sa)
 
             return sa
         }

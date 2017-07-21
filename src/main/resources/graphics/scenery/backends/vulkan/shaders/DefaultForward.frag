@@ -11,7 +11,6 @@ layout(set = 4, binding = 1) uniform sampler2D depth;
 
 const float PI = 3.14159265358979323846264;
 const int NUM_OBJECT_TEXTURES = 6;
-const int MAX_NUM_LIGHTS = 128;
 
 struct Light {
 	float Linear;
@@ -36,15 +35,6 @@ layout(location = 0) in VertexData {
 } VertexIn;
 
 
-layout(binding = 0) uniform Matrices {
-	mat4 ModelMatrix;
-	mat4 ViewMatrix;
-	mat4 NormalMatrix;
-	mat4 ProjectionMatrix;
-	vec3 CamPosition;
-	int isBillboard;
-} ubo;
-
 const int MATERIAL_HAS_DIFFUSE =  0x0001;
 const int MATERIAL_HAS_AMBIENT =  0x0002;
 const int MATERIAL_HAS_SPECULAR = 0x0004;
@@ -57,11 +47,6 @@ layout(binding = 1) uniform MaterialProperties {
 };
 
 layout(set = 1, binding = 0) uniform sampler2D ObjectTextures[NUM_OBJECT_TEXTURES];
-
-layout(set = 3, binding = 0, std140) uniform LightParameters {
-    int numLights;
-	Light lights[MAX_NUM_LIGHTS];
-};
 
 layout(location = 0) out vec4 FragColor;
 

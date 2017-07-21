@@ -20,7 +20,7 @@ class OpenGLObjectState : NodeMetadata {
     override val consumers: MutableList<String> = ArrayList<String>()
 
     /** GLSL program for the Node */
-    var program: GLProgram? = null
+    var program: OpenGLShaderProgram? = null
     /** IDs of buffers that may be additionally required. */
     val additionalBufferIds = Hashtable<String, Int>()
     /** Hash map of GLTexture objects storing the OpenGL texture handles. */
@@ -49,7 +49,7 @@ class OpenGLObjectState : NodeMetadata {
     /** are we missing textures? **/
     var defaultTexturesFor = HashSet<String>()
     /** shader to use for the program */
-    var shader: GLProgram? = null
+    var shader: OpenGLShaderProgram? = null
 
     /**
      * Default constructor, adding the [OpenGLRenderer]

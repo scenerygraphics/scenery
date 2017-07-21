@@ -6,6 +6,19 @@
 layout(location = 0) in vec2 textureCoord;
 layout(location = 0) out vec4 FragColor;
 
+
+
+layout(binding = 0) uniform Matrices {
+	mat4 ModelMatrix;
+	mat4 ProjectionMatrix;
+	int isBillboard;
+} ubo;
+
+layout(set = 1, binding = 0) uniform sampler2D Position;
+layout(set = 1, binding = 1) uniform sampler2D Normal;
+layout(set = 1, binding = 2) uniform sampler2D DiffuseAlbedo;
+layout(set = 1, binding = 3) uniform sampler2D ZBuffer;
+
 struct Light {
 	float Linear;
 	float Quadratic;
@@ -17,20 +30,9 @@ struct Light {
 
 const int MAX_NUM_LIGHTS = 1024;
 
-layout(binding = 0) uniform Matrices {
-	mat4 ModelMatrix;
-	mat4 ViewMatrix;
-	mat4 ProjectionMatrix;
-	vec3 CamPosition;
-	int isBillboard;
-} ubo;
-
-layout(set = 1, binding = 0) uniform sampler2D gPosition;
-layout(set = 1, binding = 1) uniform sampler2D gNormal;
-layout(set = 1, binding = 2) uniform sampler2D gAlbedoSpec;
-layout(set = 1, binding = 3) uniform sampler2D gDepth;
-
-layout(set = 2, binding = 0, std140) uniform LightParameters {
+layout(set = 2, binding = 0) uniform LightParameters {
+    mat4 ViewMatrix;
+    vec3 CamPosition;
     int numLights;
 	Light lights[MAX_NUM_LIGHTS];
 };
@@ -143,18 +145,18 @@ vec3 DecodeOctaH( vec2 encN )
 void main()
 {
 	// Retrieve data from G-buffer
-	vec3 FragPos = texture(gPosition, textureCoord).rgb;
-    vec3 DecodedNormal = DecodeOctaH(texture(gNormal, textureCoord).rg);
+	vec3 FragPos = texture(Position, textureCoord).rgb;
+    vec3 DecodedNormal = DecodeOctaH(texture(Normal, textureCoord).rg);
 //	vec3 DecodedNormal = DecodeSpherical(texture(gNormal, textureCoord).rg);
-	vec3 Normal = DecodedNormal;
-	vec4 Albedo = texture(gAlbedoSpec, textureCoord).rgba;
-	float Specular = texture(gAlbedoSpec, textureCoord).a;
-	float Depth = texture(gDepth, textureCoord).r;
+	vec3 N = DecodedNormal;
+	vec4 Albedo = texture(DiffuseAlbedo, textureCoord).rgba;
+	float Specular = texture(DiffuseAlbedo, textureCoord).a;
+	float Depth = texture(ZBuffer, textureCoord).r;
 
 	vec2 ssaoFilterRadius = vec2(ssaoRadius/displayWidth, ssaoRadius/displayHeight);
-	vec3 viewSpacePos = (ubo.ViewMatrix * (vec4(FragPos, 1.0) - vec4(ubo.CamPosition, 1.0))).rgb;
+	vec3 viewSpacePos = (ViewMatrix * (vec4(FragPos, 1.0) - vec4(CamPosition, 1.0))).rgb;
 
-	float fragDist = length(FragPos - ubo.CamPosition);
+	float fragDist = length(FragPos - CamPosition);
 
 	vec3 lighting = vec3(0.0);
 
@@ -167,12 +169,12 @@ void main()
 			for (int i = 0; i < sample_count;  ++i) {
 				// sample at an offset specified by the current Poisson-Disk sample and scale it by a radius (has to be in Texture-Space)
 				vec2 sampleTexCoord = textureCoord + (poisson16[i] * ssaoFilterRadius);
-				float sampleDepth = texture(gDepth, sampleTexCoord).r;
-				vec3 samplePos = texture(gPosition, sampleTexCoord).rgb;
+				float sampleDepth = texture(ZBuffer, sampleTexCoord).r;
+				vec3 samplePos = texture(Position, sampleTexCoord).rgb;
 
 				vec3 sampleDir = normalize(samplePos - FragPos);
 
-				float NdotS = max(dot(Normal, sampleDir), 0.0);
+				float NdotS = max(dot(N, sampleDir), 0.0);
 				float VPdistSP = distance(FragPos, samplePos);
 
 				float a = 1.0 - smoothstep(ssaoDistanceThreshold, ssaoDistanceThreshold * 2, VPdistSP);
@@ -190,12 +192,12 @@ void main()
             for (int i = 0; i < sample_count;  ++i) {
                 vec2 sampleTexCoord = textureCoord + (poisson16[i] * (ssaoFilterRadius));
                 //                       float sampleDepth = texture(gDepth, sampleTexCoord).r;
-                vec3 samplePos = texture(gPosition, sampleTexCoord).rgb;
+                vec3 samplePos = texture(Position, sampleTexCoord).rgb;
 
                 vec3 sampleDir = samplePos - FragPos;
 
 
-                float NdotV = max(dot(Normal, sampleDir), 0);
+                float NdotV = max(dot(N, sampleDir), 0);
                 float VdotV = max(dot(sampleDir, sampleDir), 0);
                 float temp = max(0, NdotV + viewSpacePos.z*BiasDistance);
                 temp /= (VdotV + Epsilon);
@@ -210,13 +212,13 @@ void main()
 
 		}
 
-		vec3 viewDir = normalize(ubo.CamPosition - FragPos);
+		vec3 viewDir = normalize(CamPosition - FragPos);
 
 		for(int i = 0; i < numLights; ++i)
 		{
 		    vec3 lightPos = lights[i].Position.xyz;
             vec3 L = (lightPos - FragPos);
-            vec3 V = normalize(ubo.CamPosition - FragPos);
+            vec3 V = normalize(CamPosition - FragPos);
             vec3 H = normalize(L + V);
             float distance = length(L);
             L = normalize(L);
@@ -229,12 +231,12 @@ void main()
 
 		    if(reflectanceModel == 0) {
 		        // Diffuse
-		        float NdotL = max(0.0, dot(Normal, L));
+		        float NdotL = max(0.0, dot(N, L));
 		        vec3 specular = vec3(0.0f);
 
-             	vec3 R = reflect(-L, Normal);
+             	vec3 R = reflect(-L, N);
              	float NdotR = max(0.0, dot(R, V));
-             	float NdotH = max(0.0, dot(Normal, H));
+             	float NdotH = max(0.0, dot(N, H));
 
              	vec3 diffuse = NdotL * lights[i].Intensity * Albedo.rgb * lights[i].Color.rgb * (1.0f - ambientOcclusion);
 
@@ -247,15 +249,15 @@ void main()
 		    // Oren-Nayar model
 		    else if(reflectanceModel == 1) {
 
-            	float NdotL = dot(Normal, L);
-            	float NdotV = dot(Normal, V);
+            	float NdotL = dot(N, L);
+            	float NdotV = dot(N, V);
 
             	float angleVN = acos(NdotV);
             	float angleLN = acos(NdotL);
 
             	float alpha = max(angleVN, angleLN);
             	float beta = min(angleVN, angleLN);
-            	float gamma = dot(viewDir - Normal*dot(V, Normal), L - Normal*dot(L, Normal));
+            	float gamma = dot(viewDir - N*dot(V, N), L - N*dot(L, N));
 
             	float roughness = 0.75;
 
@@ -283,17 +285,17 @@ void main()
 
                 float roughness = 1.0 - Specular;
 
-                float NDF = GGXDistribution(Normal, H, roughness);
-                float G = GeometrySmith(Normal, V, L, roughness);
+                float NDF = GGXDistribution(N, H, roughness);
+                float G = GeometrySmith(N, V, L, roughness);
                 vec3 F = FresnelSchlick(max(dot(H, viewDir), 0.0), F0);
 
-                vec3 BRDF = (NDF * G * F)/(4 * max(dot(V, Normal), 0.0) * max(dot(L, Normal), 0.0) + 0.001);
+                vec3 BRDF = (NDF * G * F)/(4 * max(dot(V, N), 0.0) * max(dot(L, N), 0.0) + 0.001);
 
                 vec3 kS = F;
                 vec3 kD = (vec3(1.0) - kS);
                 kD *= 1.0 - metallic;
 
-                float NdotL = max(dot(Normal, L), 0.0);
+                float NdotL = max(dot(N, L), 0.0);
                 vec3 radiance = lights[i].Intensity * lights[i].Color.rgb * lightAttenuation;
 
                 lighting += (kD * Albedo.rgb / PI + BRDF) * radiance * NdotL;
@@ -321,7 +323,7 @@ void main()
         }
         // normal
         if(textureCoord.x > 0.5 && textureCoord.y > 0.5) {
-            FragColor = vec4(Normal, 1.0f);
+            FragColor = vec4(N, 1.0f);
         }
         // position
         if(textureCoord.x < 0.5 && textureCoord.y > 0.5) {

@@ -13,6 +13,7 @@ layout(location = 2) out vec4 gAlbedoSpec;
 
 const float PI = 3.14159265358979323846264;
 const int NUM_OBJECT_TEXTURES = 6;
+const int MAX_NUM_LIGHTS = 1024;
 
 struct MaterialInfo {
     vec3 Ka;
@@ -29,16 +30,22 @@ const int MATERIAL_HAS_ALPHAMASK = 0x0010;
 
 layout(binding = 0) uniform Matrices {
 	mat4 ModelMatrix;
-	mat4 ViewMatrix;
 	mat4 NormalMatrix;
 	mat4 ProjectionMatrix;
-	vec3 CamPosition;
 	int isBillboard;
 } ubo;
 
 layout(binding = 1) uniform MaterialProperties {
     MaterialInfo Material;
     int materialType;
+};
+
+struct Light {
+	float Linear;
+	float Quadratic;
+	float Intensity;
+	vec4 Position;
+  	vec4 Color;
 };
 
 /*

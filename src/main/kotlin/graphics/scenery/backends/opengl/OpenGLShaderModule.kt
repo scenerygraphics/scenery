@@ -138,7 +138,7 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, clazz: Class<*>, shad
 
         for(i in 0..uniformBuffers.size()-1) {
             val res = uniformBuffers.get(i.toInt())
-            logger.debug("${res.name}, set=${compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet)}, binding=${compiler.getDecoration(res.id, Decoration.DecorationBinding)}")
+            logger.info("${res.name}, set=${compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet)}, binding=${compiler.getDecoration(res.id, Decoration.DecorationBinding)}")
 
             val members = LinkedHashMap<String, UBOMemberSpec>()
             val activeRanges = compiler.getActiveBufferRanges(res.id)
@@ -205,7 +205,7 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, clazz: Class<*>, shad
         }
 
         val options = CompilerGLSL.Options()
-        options.version = 400
+        options.version = 410
         options.es = false
         options.vulkanSemantics = false
         compiler.options = options
@@ -227,8 +227,15 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, clazz: Class<*>, shad
             start = found + 7
             val end = source.indexOf(")", start) + 1
 
+            if(source.substring(end, source.indexOf(";", end)).contains(" in ")) {
+                logger.debug("Not touching input layouts")
+                start = end
+                found = source.indexOf("layout(", start)
+                continue
+            }
+
             if(source.substring(end, source.indexOf(";", end)).contains("sampler")) {
-                logger.info("Converting sampler UBO to uniform")
+                logger.debug("Converting sampler UBO to uniform")
                 source = source.replaceRange(start-7, end, "")
                 start = found
                 found = source.indexOf("layout(", start)
@@ -236,7 +243,7 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, clazz: Class<*>, shad
             }
 
             if(source.substring(end, source.indexOf(";", end)).contains("vec")) {
-                logger.info("Converting location-based struct to regular struct")
+                logger.debug("Converting location-based struct to regular struct")
                 source = source.replaceRange(start-7, end, "")
                 start = found
                 found = source.indexOf("layout(", start)
@@ -244,7 +251,7 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, clazz: Class<*>, shad
             }
 
             if(source.substring(end, source.indexOf(";", end)).contains("out")) {
-                logger.info("Converting location-based output to regular output")
+                logger.debug("Converting location-based output to regular output")
                 source = source.replaceRange(start-7, end, "")
                 start = found
                 found = source.indexOf("layout(", start)
@@ -252,11 +259,11 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, clazz: Class<*>, shad
             }
 
             if(source.substring(start, end).contains("set") || source.substring(start, end).contains("binding")) {
-                logger.info("Replacing ${source.substring(start, end)}")
+                logger.debug("Replacing ${source.substring(start, end)}")
                 source = source.replaceRange(start-7, end, "layout(std140)")
                 start = found + 15
             } else {
-                logger.info("Skipping ${source.substring(start, end)}")
+                logger.debug("Skipping ${source.substring(start, end)}")
                 start = end
             }
 

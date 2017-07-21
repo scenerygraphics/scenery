@@ -11,5 +11,5 @@ import graphics.scenery.Material
  */
 class OpenGLMaterial : Material() {
     /** The shader program */
-    var program: GLProgram? = null
+    var program: OpenGLShaderProgram? = null
 }
