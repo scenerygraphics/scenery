@@ -1021,6 +1021,11 @@ class OpenGLRenderer(hub: Hub,
     private fun blitFramebuffers(source: GLFramebuffer?, target: GLFramebuffer?,
                                    sourceOffset: OpenGLRenderpass.Rect2D,
                                    targetOffset: OpenGLRenderpass.Rect2D) {
+        if(target != null) {
+            target.setDrawBuffers(gl)
+        } else {
+            gl.glBindFramebuffer(GL.GL_DRAW_FRAMEBUFFER, 0)
+        }
 
         if(source != null) {
             source.setReadBuffers(gl)
@@ -1028,28 +1033,25 @@ class OpenGLRenderer(hub: Hub,
             gl.glBindFramebuffer(GL.GL_READ_FRAMEBUFFER, 0)
         }
 
-        if(target != null) {
-            target.setDrawBuffers(gl)
-        } else {
-            gl.glBindFramebuffer(GL.GL_DRAW_FRAMEBUFFER, 0)
-        }
-
-        var mask = 0
-
         if(source?.hasColorAttachment() ?: true) {
-            mask = mask or GL.GL_COLOR_BUFFER_BIT
+            gl.glBlitFramebuffer(
+                sourceOffset.offsetX, sourceOffset.offsetY,
+                sourceOffset.offsetX + sourceOffset.width, sourceOffset.offsetY + sourceOffset.height,
+                targetOffset.offsetX, targetOffset.offsetY,
+                targetOffset.offsetX + targetOffset.width, targetOffset.offsetY + targetOffset.height,
+                GL.GL_COLOR_BUFFER_BIT, GL.GL_LINEAR)
         }
 
-        if(source?.hasDepthAttachment() ?: true) {
-            mask = mask or GL.GL_DEPTH_BUFFER_BIT
+        if(source?.hasDepthAttachment() ?: true && target?.hasDepthAttachment() ?: true) {
+            gl.glBlitFramebuffer(
+                sourceOffset.offsetX, sourceOffset.offsetY,
+                sourceOffset.offsetX + sourceOffset.width, sourceOffset.offsetY + sourceOffset.height,
+                targetOffset.offsetX, targetOffset.offsetY,
+                targetOffset.offsetX + targetOffset.width, targetOffset.offsetY + targetOffset.height,
+                GL.GL_DEPTH_BUFFER_BIT, GL.GL_NEAREST)
+        } else {
+            logger.info("Either source or target don't have a depth buffer :-(")
         }
-
-        gl.glBlitFramebuffer(
-            sourceOffset.offsetX, sourceOffset.offsetY,
-            sourceOffset.offsetX + sourceOffset.width, sourceOffset.offsetY + sourceOffset.height,
-            targetOffset.offsetX, targetOffset.offsetY,
-            targetOffset.offsetX + targetOffset.width, targetOffset.offsetY + targetOffset.height,
-            mask, GL.GL_NEAREST)
 
         gl.glBindFramebuffer(GL.GL_FRAMEBUFFER, 0)
     }
@@ -1144,6 +1146,13 @@ class OpenGLRenderer(hub: Hub,
         flow.forEach { t ->
             val pass = renderpasses[t]!!
 
+            if(pass.passConfig.blitInputs) {
+                pass.inputs.forEach { name, input ->
+                    blitFramebuffers(input, pass.output.values.firstOrNull(),
+                        pass.openglMetadata.viewport.area, pass.openglMetadata.viewport.area)
+                }
+            }
+
             if(pass.output.isNotEmpty()) {
                 pass.output.values.first().setDrawBuffers(gl)
             } else {
@@ -1152,20 +1161,12 @@ class OpenGLRenderer(hub: Hub,
 
             pass.inputs.values.fold(0, { acc, fb -> acc + fb.bindTexturesToUnitsWithOffset(gl, acc) })
 
-            if(pass.passConfig.blitInputs) {
-                pass.inputs.forEach { name, input ->
-                    blitFramebuffers(input, pass.output.values.firstOrNull(),
-                        pass.openglMetadata.viewport.area, pass.openglMetadata.viewport.area)
-                }
-            }
-
             gl.glViewport(
                 pass.openglMetadata.viewport.area.offsetX,
                 pass.openglMetadata.viewport.area.offsetY,
                 pass.openglMetadata.viewport.area.width,
                 pass.openglMetadata.viewport.area.height)
 
-            logger.info("${pass.passName}: ${pass.openglMetadata.scissor} / ${pass.openglMetadata.viewport}")
             gl.glScissor(
                 pass.openglMetadata.scissor.offsetX,
                 pass.openglMetadata.scissor.offsetY,
@@ -1200,6 +1201,22 @@ class OpenGLRenderer(hub: Hub,
 
                 gl.glEnable(GL.GL_DEPTH_TEST)
                 gl.glEnable(GL.GL_CULL_FACE)
+
+                if(pass.passConfig.renderTransparent) {
+                    gl.glEnable(GL.GL_BLEND)
+                    gl.glBlendFuncSeparate(
+                        pass.passConfig.srcColorBlendFactor.toOpenGL(),
+                        pass.passConfig.dstColorBlendFactor.toOpenGL(),
+                        pass.passConfig.srcAlphaBlendFactor.toOpenGL(),
+                        pass.passConfig.dstAlphaBlendFactor.toOpenGL())
+
+                    gl.glBlendEquationSeparate(
+                        pass.passConfig.colorBlendOp.toOpenGL(),
+                        pass.passConfig.alphaBlendOp.toOpenGL()
+                    )
+                } else {
+                    gl.glDisable(GL.GL_BLEND)
+                }
 
                 instanceGroups[null]?.forEach nonInstancedDrawing@ { n ->
                     if (n in instanceGroups.keys) {
@@ -1374,10 +1391,26 @@ class OpenGLRenderer(hub: Hub,
                 gl.glDisable(GL.GL_CULL_FACE)
                 if(pass.passConfig.renderTransparent) {
                     gl.glEnable(GL.GL_BLEND)
+
+                    gl.glBlendFuncSeparate(
+                        pass.passConfig.srcColorBlendFactor.toOpenGL(),
+                        pass.passConfig.dstColorBlendFactor.toOpenGL(),
+                        pass.passConfig.srcAlphaBlendFactor.toOpenGL(),
+                        pass.passConfig.dstAlphaBlendFactor.toOpenGL())
+
+                    gl.glBlendEquationSeparate(
+                        pass.passConfig.colorBlendOp.toOpenGL(),
+                        pass.passConfig.alphaBlendOp.toOpenGL()
+                    )
                 } else {
                     gl.glDisable(GL.GL_BLEND)
                 }
-                gl.glDisable(GL.GL_DEPTH_TEST)
+
+                if(pass.output.filter { it.value.hasDepthAttachment() }.isNotEmpty()) {
+                    gl.glEnable(GL.GL_DEPTH_TEST)
+                } else {
+                    gl.glDisable(GL.GL_DEPTH_TEST)
+                }
 
                 pass.defaultShader?.let { shader ->
                     shader.use(gl)
@@ -1714,21 +1747,33 @@ class OpenGLRenderer(hub: Hub,
                 type, texture ->
                 if (!textures.containsKey(texture) || node.material.needsTextureReload) {
                     logger.trace("Loading texture $texture for ${node.name}")
+
+                    val generateMipmaps = (type == "ambient" || type == "diffuse" || type == "specular")
                     val glTexture = if (texture.startsWith("fromBuffer:")) {
                         val gt = node.material.transferTextures[texture.substringAfter("fromBuffer:")]
+
+                        val miplevels = if (generateMipmaps) {
+                            1 + Math.floor(Math.log(Math.max(gt!!.dimensions.x() * 1.0, gt!!.dimensions.y() * 1.0)) / Math.log(2.0)).toInt()
+                        } else {
+                            1
+                        }
 
                         val t = GLTexture(gl, gt!!.type, gt.channels,
                             gt.dimensions.x().toInt(),
                             gt.dimensions.y().toInt(),
                             1,
                             true,
-                            1)
+                            miplevels)
+
+                        if(generateMipmaps) {
+                            t.updateMipMaps()
+                        }
 
                         t.setClamp(!gt.repeatS, !gt.repeatT)
                         t.copyFrom(gt.contents)
                         t
                     } else {
-                        GLTexture.loadFromFile(gl, texture, true, 1)
+                        GLTexture.loadFromFile(gl, texture, true, true, 8)
                     }
 
                     s.textures.put(type, glTexture)
@@ -2134,6 +2179,21 @@ class OpenGLRenderer(hub: Hub,
 
     override fun screenshot() {
         screenshotRequested = true
+    }
+
+    private fun RenderConfigReader.BlendFactor.toOpenGL() = when (this) {
+        RenderConfigReader.BlendFactor.Zero -> GL.GL_ZERO
+        RenderConfigReader.BlendFactor.One -> GL.GL_ONE
+        RenderConfigReader.BlendFactor.OneMinusSrcAlpha -> GL.GL_ONE_MINUS_SRC_ALPHA
+        RenderConfigReader.BlendFactor.SrcAlpha -> GL.GL_SRC_ALPHA
+    }
+
+    private fun RenderConfigReader.BlendOp.toOpenGL() = when (this) {
+        RenderConfigReader.BlendOp.add -> GL.GL_FUNC_ADD
+        RenderConfigReader.BlendOp.subtract -> GL.GL_FUNC_SUBTRACT
+        RenderConfigReader.BlendOp.min -> GL4.GL_MIN
+        RenderConfigReader.BlendOp.max -> GL4.GL_MAX
+        RenderConfigReader.BlendOp.reverse_subtract -> GL.GL_FUNC_REVERSE_SUBTRACT
     }
 
     override fun close() {

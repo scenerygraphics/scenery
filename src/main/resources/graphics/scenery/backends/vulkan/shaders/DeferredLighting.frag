@@ -329,5 +329,7 @@ void main()
         if(textureCoord.x < 0.5 && textureCoord.y > 0.5) {
             FragColor = vec4(FragPos, 1.0f);
         }
+
+        gl_FragDepth = Depth;
 	}
 }

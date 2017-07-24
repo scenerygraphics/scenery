@@ -52,8 +52,8 @@ layout(location = 0) out vec4 FragColor;
 
 void main()
 {
-    vec3 diffuse;
-    float specular;
+    vec3 diffuse = Material.Kd;
+    float specular = Material.Shininess;
     vec3 normal;
 
 	if((materialType & MATERIAL_HAS_AMBIENT) == MATERIAL_HAS_AMBIENT) {
