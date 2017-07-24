@@ -7,9 +7,9 @@ layout(location = 0) in VertexData {
     vec2 TexCoord;
 } VertexIn;
 
-layout(location = 0) out vec3 gPosition;
-layout(location = 1) out vec2 gNormal;
-layout(location = 2) out vec4 gAlbedoSpec;
+layout(location = 0) out vec3 Position;
+layout(location = 1) out vec2 Normal;
+layout(location = 2) out vec4 DiffuseAlbedo;
 
 const float PI = 3.14159265358979323846264;
 const int NUM_OBJECT_TEXTURES = 6;
@@ -114,22 +114,22 @@ vec2 EncodeOctaH( vec3 n )
 }
 
 void main() {
-    gPosition = VertexIn.FragPosition;
-    gAlbedoSpec.rgb = vec3(0.0f, 0.0f, 0.0f);
+    Position = VertexIn.FragPosition;
+    DiffuseAlbedo.rgb = vec3(0.0f, 0.0f, 0.0f);
 
-    gAlbedoSpec.rgb = Material.Kd;
-    gAlbedoSpec.a = 0.0f;
+    DiffuseAlbedo.rgb = Material.Kd;
+    DiffuseAlbedo.a = 0.0f;
 
     if((materialType & MATERIAL_HAS_AMBIENT) == MATERIAL_HAS_AMBIENT) {
-        //gAlbedoSpec.rgb = texture(ObjectTextures[0], VertexIn.TexCoord).rgb;
+        //DiffuseAlbedo.rgb = texture(ObjectTextures[0], VertexIn.TexCoord).rgb;
     }
 
     if((materialType & MATERIAL_HAS_DIFFUSE) == MATERIAL_HAS_DIFFUSE) {
-        gAlbedoSpec.rgb = texture(ObjectTextures[1], VertexIn.TexCoord).rgb;
+        DiffuseAlbedo.rgb = texture(ObjectTextures[1], VertexIn.TexCoord).rgb;
     }
 
     if((materialType & MATERIAL_HAS_SPECULAR) == MATERIAL_HAS_SPECULAR) {
-        gAlbedoSpec.a = texture(ObjectTextures[2], VertexIn.TexCoord).r;
+        DiffuseAlbedo.a = texture(ObjectTextures[2], VertexIn.TexCoord).r;
     }
 
     if((materialType & MATERIAL_HAS_ALPHAMASK) == MATERIAL_HAS_ALPHAMASK) {
@@ -150,9 +150,9 @@ component. If using Spherical Encoding, do not forget to use spherical decode fu
 //        vec3 normal = texture(ObjectTextures[3], VertexIn.TexCoord).rgb*(255.0/127.0) - (128.0/127.0);
 //        normal = TBN(normalize(VertexIn.Normal), -VertexIn.FragPosition, VertexIn.TexCoord)*normal;
 
-        gNormal = EncodedNormal;
+        Normal = EncodedNormal;
     } else {
-        gNormal = EncodedNormal;
+        Normal = EncodedNormal;
     }
 }
 
