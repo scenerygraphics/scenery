@@ -280,7 +280,7 @@ open class VulkanRenderer(hub: Hub,
             0.0f,  0.0f, 0.5f, 0.0f,
             0.0f,  0.0f, 0.5f, 1.0f))
 
-    var renderConfigFile = ""
+    override var renderConfigFile = ""
         set(config) {
             field = config
 
@@ -2908,32 +2908,6 @@ open class VulkanRenderer(hub: Hub,
     @Suppress("UNUSED")
     fun toggleFullscreen() {
         toggleFullscreen = !toggleFullscreen
-    }
-
-    @Suppress("UNUSED")
-    fun toggleVR() {
-        logger.info("Toggling VR!")
-        val isStereo = renderConfigFile.substringBeforeLast(".").indexOf("Stereo") != -1
-
-        if(isStereo) {
-            val nonStereoConfig = renderConfigFile.substringBeforeLast("Stereo") + ".yml"
-
-            if(RenderConfigReader::class.java.getResource(nonStereoConfig) != null) {
-                renderConfigFile = nonStereoConfig
-                settings.set("vr.Active", false)
-            } else {
-                logger.warn("Non-stereo configuration for $renderConfigFile ($nonStereoConfig) not found.")
-            }
-        } else {
-            val stereoConfig = renderConfigFile.substringBeforeLast(".") + "Stereo.yml"
-
-            if(RenderConfigReader::class.java.getResource(stereoConfig) != null) {
-                renderConfigFile = stereoConfig
-                settings.set("vr.Active", true)
-            } else {
-                logger.warn("Stereo VR configuration for $renderConfigFile ($stereoConfig) not found.")
-            }
-        }
     }
 
     fun switchFullscreen() {

@@ -7,6 +7,7 @@ import graphics.scenery.Settings
 import graphics.scenery.backends.opengl.OpenGLRenderer
 import graphics.scenery.backends.vulkan.VulkanRenderer
 import graphics.scenery.utils.SceneryPanel
+import org.slf4j.LoggerFactory
 
 /**
  * Renderer interface. Defines the minimal set of functions a renderer has to implement.
@@ -15,16 +16,12 @@ import graphics.scenery.utils.SceneryPanel
  */
 interface Renderer : Hubable {
     /**
-     * This function should initialize the scene contents.
-     *
-     * @param[scene] The scene to initialize.
+     * Initializes scene and contents
      */
     fun initializeScene()
 
     /**
-     * This function renders the scene
-     *
-     * @param[scene] The scene to render.
+     * Renders the scene
      */
     fun render()
 
@@ -43,6 +40,34 @@ interface Renderer : Hubable {
     fun reshape(newWidth: Int, newHeight: Int)
 
     val managesRenderLoop: Boolean
+
+    var renderConfigFile: String
+
+    @Suppress("UNUSED")
+    fun toggleVR() {
+        LoggerFactory.getLogger("Renderer").info("Toggling VR!")
+        val isStereo = renderConfigFile.substringBeforeLast(".").indexOf("Stereo") != -1
+
+        if(isStereo) {
+            val nonStereoConfig = renderConfigFile.substringBeforeLast("Stereo") + ".yml"
+
+            if(RenderConfigReader::class.java.getResource(nonStereoConfig) != null) {
+                renderConfigFile = nonStereoConfig
+                settings.set("vr.Active", false)
+            } else {
+                LoggerFactory.getLogger("Renderer").warn("Non-stereo configuration for $renderConfigFile ($nonStereoConfig) not found.")
+            }
+        } else {
+            val stereoConfig = renderConfigFile.substringBeforeLast(".") + "Stereo.yml"
+
+            if(RenderConfigReader::class.java.getResource(stereoConfig) != null) {
+                renderConfigFile = stereoConfig
+                settings.set("vr.Active", true)
+            } else {
+                LoggerFactory.getLogger("Renderer").warn("Stereo VR configuration for $renderConfigFile ($stereoConfig) not found.")
+            }
+        }
+    }
 
     companion object Factory {
         @JvmOverloads fun createRenderer(hub: Hub, applicationName: String, scene: Scene, windowWidth: Int, windowHeight: Int, embedIn: SceneryPanel? = null): Renderer {

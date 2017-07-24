@@ -77,7 +77,7 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, clazz: Class<*>, shad
             false
         }
 
-        logger.info("Reading shader from $actualCodePath...")
+        logger.debug("Reading shader from $actualCodePath...")
 
         var code = ByteBuffer.allocate(0)
 
@@ -138,7 +138,7 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, clazz: Class<*>, shad
 
         for(i in 0..uniformBuffers.size()-1) {
             val res = uniformBuffers.get(i.toInt())
-            logger.info("${res.name}, set=${compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet)}, binding=${compiler.getDecoration(res.id, Decoration.DecorationBinding)}")
+            logger.debug("${res.name}, set=${compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet)}, binding=${compiler.getDecoration(res.id, Decoration.DecorationBinding)}")
 
             val members = LinkedHashMap<String, UBOMemberSpec>()
             val activeRanges = compiler.getActiveBufferRanges(res.id)
@@ -234,6 +234,13 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, clazz: Class<*>, shad
                 continue
             }
 
+            if(source.substring(end, source.indexOf(";", end)).contains(" out ")) {
+                logger.debug("Not touching output layouts")
+                start = end
+                found = source.indexOf("layout(", start)
+                continue
+            }
+
             if(source.substring(end, source.indexOf(";", end)).contains("sampler")) {
                 logger.debug("Converting sampler UBO to uniform")
                 source = source.replaceRange(start-7, end, "")
@@ -250,13 +257,6 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, clazz: Class<*>, shad
                 continue
             }
 
-            if(source.substring(end, source.indexOf(";", end)).contains("out")) {
-                logger.debug("Converting location-based output to regular output")
-                source = source.replaceRange(start-7, end, "")
-                start = found
-                found = source.indexOf("layout(", start)
-                continue
-            }
 
             if(source.substring(start, end).contains("set") || source.substring(start, end).contains("binding")) {
                 logger.debug("Replacing ${source.substring(start, end)}")
@@ -271,7 +271,11 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, clazz: Class<*>, shad
         }
 
         this.shader = GLShader(gl, source, toClearGLShaderType(extension))
-        logger.info(this.shader.shaderInfoLog)
+
+        if(this.shader.shaderInfoLog.isNotEmpty()) {
+            logger.warn("Shader compilation log:")
+            logger.warn(this.shader.shaderInfoLog)
+        }
     }
 
     private fun IntVec.toByteBuffer(): ByteBuffer {

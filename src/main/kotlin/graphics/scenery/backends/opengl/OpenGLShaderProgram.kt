@@ -22,7 +22,7 @@ class OpenGLShaderProgram(var gl: GL4, val modules: HashMap<GLShaderType, OpenGL
             shaders.put(type, module.shader)
         }
 
-        logger.info("Creating shader program from ${modules.keys.joinToString(", ")}")
+        logger.debug("Creating shader program from ${modules.keys.joinToString(", ")}")
 
         program = GLProgram(gl, shaders)
         logger.info(program.programInfoLog)

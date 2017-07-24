@@ -132,7 +132,7 @@ class OpenGLRenderer(hub: Hub,
     private var updateIndex = 0
 
     private var renderConfig: RenderConfigReader.RenderConfig
-    var renderConfigFile = ""
+    override var renderConfigFile = ""
         set(config) {
             field = config
             this.renderConfig = RenderConfigReader().loadFromFile(renderConfigFile)
@@ -449,20 +449,20 @@ class OpenGLRenderer(hub: Hub,
                         logger.info(" + attachment ${att.key}, ${att.value.format.name}")
 
                         when (att.value.format) {
-                            RenderConfigReader.TargetFormat.RGBA_Float32 -> framebuffer.addFloatRGBABuffer(gl, 32)
-                            RenderConfigReader.TargetFormat.RGBA_Float16 -> framebuffer.addFloatRGBABuffer(gl, 16)
+                            RenderConfigReader.TargetFormat.RGBA_Float32 -> framebuffer.addFloatRGBABuffer(gl, att.key, 32)
+                            RenderConfigReader.TargetFormat.RGBA_Float16 -> framebuffer.addFloatRGBABuffer(gl, att.key, 16)
 
-                            RenderConfigReader.TargetFormat.RGB_Float32 -> framebuffer.addFloatRGBBuffer(gl, 32)
-                            RenderConfigReader.TargetFormat.RGB_Float16 -> framebuffer.addFloatRGBBuffer(gl, 16)
+                            RenderConfigReader.TargetFormat.RGB_Float32 -> framebuffer.addFloatRGBBuffer(gl, att.key, 32)
+                            RenderConfigReader.TargetFormat.RGB_Float16 -> framebuffer.addFloatRGBBuffer(gl, att.key, 16)
 
-                            RenderConfigReader.TargetFormat.RG_Float32 -> framebuffer.addFloatRGBuffer(gl, 32)
-                            RenderConfigReader.TargetFormat.RG_Float16 -> framebuffer.addFloatRGBuffer(gl, 16)
+                            RenderConfigReader.TargetFormat.RG_Float32 -> framebuffer.addFloatRGBuffer(gl, att.key, 32)
+                            RenderConfigReader.TargetFormat.RG_Float16 -> framebuffer.addFloatRGBuffer(gl, att.key, 16)
 
-                            RenderConfigReader.TargetFormat.RGBA_UInt16 -> framebuffer.addUnsignedByteRGBABuffer(gl, 16)
-                            RenderConfigReader.TargetFormat.RGBA_UInt8 -> framebuffer.addUnsignedByteRGBABuffer(gl, 8)
+                            RenderConfigReader.TargetFormat.RGBA_UInt16 -> framebuffer.addUnsignedByteRGBABuffer(gl, att.key, 16)
+                            RenderConfigReader.TargetFormat.RGBA_UInt8 -> framebuffer.addUnsignedByteRGBABuffer(gl, att.key, 8)
 
-                            RenderConfigReader.TargetFormat.Depth32 -> framebuffer.addDepthBuffer(gl, 32)
-                            RenderConfigReader.TargetFormat.Depth24 -> framebuffer.addDepthBuffer(gl, 24)
+                            RenderConfigReader.TargetFormat.Depth32 -> framebuffer.addDepthBuffer(gl, att.key, 32)
+                            RenderConfigReader.TargetFormat.Depth24 -> framebuffer.addDepthBuffer(gl, att.key, 24)
                         }
                     }
 
@@ -542,9 +542,7 @@ class OpenGLRenderer(hub: Hub,
 
         if (mustRecreateFramebuffers) {
             renderpasses = prepareRenderpasses(renderConfig, window.width, window.height)
-
-            gl.glClear(GL.GL_DEPTH_BUFFER_BIT or GL.GL_COLOR_BUFFER_BIT)
-            gl.glViewport(0, 0, window.width, window.height)
+            flow = renderConfig.createRenderpassFlow()
 
             mustRecreateFramebuffers = false
         }
@@ -722,20 +720,6 @@ class OpenGLRenderer(hub: Hub,
     }
 
     /**
-     * Toggles VR on and off
-     */
-    @Suppress("UNUSED")
-    fun toggleVR() {
-        if (!settings.get<Boolean>("vr.Active")) {
-            settings.set("vr.Active", true)
-        } else {
-            settings.set("vr.Active", false)
-        }
-
-        mustRecreateFramebuffers = true
-    }
-
-    /**
      * Increases the HDR exposure value. Used for e.g.
      * [graphics.scenery.controls.behaviours.ToggleCommand].
      */
@@ -826,10 +810,6 @@ class OpenGLRenderer(hub: Hub,
         // find observer, if none, return
         val cam = scene.findObserver() ?: return
 
-        if (!cam.lock.tryLock()) {
-            return
-        }
-
         val hmd = hub?.getWorkingHMDDisplay()?.wantsVR()
 
         cam.view = cam.getTransformation()
@@ -837,7 +817,6 @@ class OpenGLRenderer(hub: Hub,
         buffers["VRParameters"]!!.reset()
         val vrUbo = OpenGLUBO(backingBuffer = buffers["VRParameters"]!!)
 
-//        vrUbo.createUniformBuffer(memoryProperties)
         vrUbo.members.put("projection0", {
             (hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance)
                 ?: cam.projection)
@@ -900,9 +879,6 @@ class OpenGLRenderer(hub: Hub,
         lightUbo.members.put("ViewMatrix", { cam.view })
         lightUbo.members.put("CamPosition", { cam.position })
         lightUbo.members.put("numLights", { lights.size })
-//        lightUbo.members.put("filler1", { 0.0f })
-//        lightUbo.members.put("filler2", { 0.0f })
-//        lightUbo.members.put("filler3", { 0.0f })
 
         lights.forEachIndexed { i, light ->
             val l = light as PointLight
@@ -917,13 +893,10 @@ class OpenGLRenderer(hub: Hub,
             lightUbo.members.put("filler-$i", { 0.0f })
         }
 
-//        lightUbo.createUniformBuffer(memoryProperties)
         lightUbo.populate()
 
         buffers["LightParameters"]!!.copyFromStagingBuffer()
         buffers["ShaderPropertyBuffer"]!!.copyFromStagingBuffer()
-
-        cam.lock.unlock()
     }
 
     /**
@@ -1013,6 +986,7 @@ class OpenGLRenderer(hub: Hub,
      * @param[n] The Node to search for [ShaderProperty]s
      * @param[program] The [GLProgram] used to render the Node
      */
+    @Suppress("unused")
     private fun setShaderPropertiesForNode(n: Node, program: GLProgram) {
         shaderPropertyCache
             .getOrPut(n.javaClass, { n.javaClass.declaredFields.filter { it.isAnnotationPresent(ShaderProperty::class.java) } })
@@ -1111,7 +1085,7 @@ class OpenGLRenderer(hub: Hub,
 
         val vrActive = settings.get<Boolean>("vr.Active")
 
-        if (scene.children.count() == 0 || renderpasses.isEmpty()) {
+        if (scene.children.count() == 0 || renderpasses.isEmpty() || mustRecreateFramebuffers) {
             logger.info("Waiting for initialization")
             Thread.sleep(200)
             return
@@ -1170,7 +1144,6 @@ class OpenGLRenderer(hub: Hub,
         flow.forEach { t ->
             val pass = renderpasses[t]!!
 
-
             if(pass.output.isNotEmpty()) {
                 pass.output.values.first().setDrawBuffers(gl)
             } else {
@@ -1185,6 +1158,22 @@ class OpenGLRenderer(hub: Hub,
                         pass.openglMetadata.viewport.area, pass.openglMetadata.viewport.area)
                 }
             }
+
+            gl.glViewport(
+                pass.openglMetadata.viewport.area.offsetX,
+                pass.openglMetadata.viewport.area.offsetY,
+                pass.openglMetadata.viewport.area.width,
+                pass.openglMetadata.viewport.area.height)
+
+            logger.info("${pass.passName}: ${pass.openglMetadata.scissor} / ${pass.openglMetadata.viewport}")
+            gl.glScissor(
+                pass.openglMetadata.scissor.offsetX,
+                pass.openglMetadata.scissor.offsetY,
+                pass.openglMetadata.scissor.width,
+                pass.openglMetadata.scissor.height
+            )
+
+            gl.glEnable(GL.GL_SCISSOR_TEST)
 
             gl.glClearColor(
                 pass.openglMetadata.clearValues.clearColor.x(),
@@ -1201,18 +1190,7 @@ class OpenGLRenderer(hub: Hub,
                 gl.glClear(GL.GL_COLOR_BUFFER_BIT)
             }
 
-            gl.glViewport(
-                pass.openglMetadata.viewport.area.offsetX,
-                pass.openglMetadata.viewport.area.offsetY,
-                pass.openglMetadata.viewport.area.width,
-                pass.openglMetadata.viewport.area.height)
-
-            gl.glScissor(
-                pass.openglMetadata.scissor.offsetX,
-                pass.openglMetadata.scissor.offsetY,
-                pass.openglMetadata.scissor.width,
-                pass.openglMetadata.scissor.height
-            )
+            gl.glDisable(GL.GL_SCISSOR_TEST)
 
             gl.glDepthRange(
                 pass.openglMetadata.viewport.minDepth.toDouble(),
@@ -1266,6 +1244,10 @@ class OpenGLRenderer(hub: Hub,
 
                     shader.use(gl)
 
+                    if(renderConfig.stereoEnabled) {
+                        shader.getUniform("currentEye").setInt(pass.openglMetadata.eye)
+                    }
+
                     s.textures.forEach { type, glTexture ->
                         val samplerIndex = textureTypeToUnit(pass, type)
 
@@ -1285,7 +1267,7 @@ class OpenGLRenderer(hub: Hub,
                             ubo.backingBuffer!!.id[0], 1L * ubo.offset, 1L * ubo.getSize())
 
                         if(index == -1) {
-                            logger.info("Failed to bind UBO $name for ${n.name} to $binding")
+                            logger.error("Failed to bind UBO $name for ${n.name} to $binding")
                         }
                         binding++
                     }
@@ -1390,7 +1372,11 @@ class OpenGLRenderer(hub: Hub,
                 }
             } else {
                 gl.glDisable(GL.GL_CULL_FACE)
-                gl.glDisable(GL.GL_BLEND)
+                if(pass.passConfig.renderTransparent) {
+                    gl.glEnable(GL.GL_BLEND)
+                } else {
+                    gl.glDisable(GL.GL_BLEND)
+                }
                 gl.glDisable(GL.GL_DEPTH_TEST)
 
                 pass.defaultShader?.let { shader ->
@@ -1418,8 +1404,6 @@ class OpenGLRenderer(hub: Hub,
                             ubo.backingBuffer!!.id[0],
                             1L * ubo.offset, 1L * ubo.getSize())
 
-//                        logger.info("Binding $name in ${pass.passName} to $binding with index $index")
-
                         if(index == -1) {
                             logger.error("Failed to bind shader parameter UBO $actualName for ${pass.passName} to $binding")
                         }
@@ -1428,14 +1412,11 @@ class OpenGLRenderer(hub: Hub,
 
                     arrayOf("LightParameters", "VRParameters").forEach { name ->
                         if(shader.uboSpecs.containsKey(name)) {
-//                            logger.info("Binding $name for ${pass.passName}")
                             val index = gl.glGetUniformBlockIndex(shader.id, name)
                             gl.glUniformBlockBinding(shader.id, index, binding)
                             gl.glBindBufferRange(GL4.GL_UNIFORM_BUFFER, binding,
                                 buffers[name]!!.id[0],
                                 0L, buffers[name]!!.buffer.remaining().toLong())
-
-//                            logger.info("Binding $name in ${pass.passName} to $binding with index $index")
 
                             if(index == -1) {
                                 logger.error("Failed to bind shader parameter UBO $name for ${pass.passName} to $binding, though it is required by the shader")
@@ -2099,8 +2080,6 @@ class OpenGLRenderer(hub: Hub,
         if (s.mStoredIndexCount == 0 && s.mStoredPrimitiveCount == 0) {
             return
         }
-
-//        s.program?.use(gl)
 
         gl.gL3.glBindVertexArray(s.mVertexArrayObject[0])
 
