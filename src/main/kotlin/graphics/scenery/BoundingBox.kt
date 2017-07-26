@@ -3,7 +3,6 @@ package graphics.scenery
 import cleargl.GLVector
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import graphics.scenery.backends.ShaderPreference
 import java.util.*
 
 /**
@@ -89,12 +88,7 @@ open class BoundingBox : Mesh() {
 
     init {
         name = "Bounding Box"
-        metadata.put(
-            "ShaderPreference",
-            ShaderPreference(
-                arrayListOf("DefaultDeferred.vert", "BoundingBox.frag"),
-                HashMap<String, String>(),
-                arrayListOf("DeferredShadingRenderer")))
+        this.material = ShaderMaterial(arrayListOf("DefaultDeferred.vert", "BoundingBox.frag"))
 
         labels = hashMapOf(
             "origin".to(FontBoard()),

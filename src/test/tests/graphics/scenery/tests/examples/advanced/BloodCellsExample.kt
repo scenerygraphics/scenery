@@ -4,11 +4,9 @@ import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.backends.ShaderPreference
 import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.utils.Numerics
 import org.junit.Test
-import java.util.*
 
 /**
  * <Description>
@@ -84,12 +82,7 @@ class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowW
         erythrocyte.instancedProperties.put("MVP", { erythrocyte.mvp })
         scene.addChild(erythrocyte)
 
-        erythrocyte.metadata.put(
-            "ShaderPreference",
-            ShaderPreference(
-                arrayListOf("DefaultDeferredInstanced.vert", "DefaultDeferred.frag"),
-                HashMap(),
-                arrayListOf("DeferredShadingRenderer")))
+        erythrocyte.material = ShaderMaterial(arrayListOf("DefaultDeferredInstanced.vert", "DefaultDeferred.frag"))
 
         val l_material = Material()
         l_material.ambient = GLVector(0.1f, 0.0f, 0.0f)
@@ -107,12 +100,7 @@ class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowW
         leucocyte.instancedProperties.put("MVP", { leucocyte.mvp })
         scene.addChild(leucocyte)
 
-        leucocyte.metadata.put(
-            "ShaderPreference",
-            ShaderPreference(
-                arrayListOf("DefaultDeferredInstanced.vert", "DefaultDeferred.frag"),
-                HashMap(),
-                arrayListOf("DeferredShadingRenderer")))
+        leucocyte.material = ShaderMaterial(arrayListOf("DefaultDeferredInstanced.vert", "DefaultDeferred.frag"))
 
         val posRange = 1200.0f
         val container = Node("Cell container")

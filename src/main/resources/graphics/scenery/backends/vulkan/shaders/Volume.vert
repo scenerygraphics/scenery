@@ -11,10 +11,8 @@ layout(location = 5) out mat4 inverseModelView;
 
 layout(binding = 0) uniform Matrices {
 	mat4 ModelMatrix;
-	mat4 ViewMatrix;
 	mat4 NormalMatrix;
 	mat4 ProjectionMatrix;
-	vec3 CamPosition;
 	int isBillboard;
 } ubo;
 
@@ -45,6 +43,24 @@ layout(set = 3, binding = 0) uniform ShaderProperties {
     float gamma;
 };
 
+struct Light {
+	float Linear;
+	float Quadratic;
+	float Intensity;
+	float Radius;
+	vec4 Position;
+  	vec4 Color;
+};
+
+const int MAX_NUM_LIGHTS = 1024;
+
+layout(set = 4, binding = 0) uniform LightParameters {
+    mat4 ViewMatrix;
+    vec3 CamPosition;
+    int numLights;
+	Light lights[MAX_NUM_LIGHTS];
+};
+
 layout(push_constant) uniform currentEye_t {
     int eye;
 } currentEye;
@@ -55,11 +71,15 @@ float max3 (vec3 v) {
 
 void main()
 {
+	mat4 mv;
+	mat4 nMVP;
+	mat4 projectionMatrix;
+
     mat4 headToEye = vrParameters.headShift;
 	headToEye[3][0] -= currentEye.eye * vrParameters.IPD;
 
-    mat4 mv = (vrParameters.stereoEnabled ^ 1) * ubo.ViewMatrix * ubo.ModelMatrix + (vrParameters.stereoEnabled * headToEye * ubo.ViewMatrix * ubo.ModelMatrix);
-	mat4 projectionMatrix = (vrParameters.stereoEnabled ^ 1) * ubo.ProjectionMatrix + vrParameters.stereoEnabled * vrParameters.projectionMatrices[currentEye.eye];
+    mv = (vrParameters.stereoEnabled ^ 1) * ViewMatrix * ubo.ModelMatrix + (vrParameters.stereoEnabled * headToEye * ViewMatrix * ubo.ModelMatrix);
+	projectionMatrix = (vrParameters.stereoEnabled ^ 1) * ubo.ProjectionMatrix + vrParameters.stereoEnabled * vrParameters.projectionMatrices[currentEye.eye];
 
 	vec3 L = vec3(sizeX, sizeY, sizeZ) * vec3(voxelSizeX, voxelSizeY, voxelSizeZ);
 

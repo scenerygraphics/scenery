@@ -36,7 +36,7 @@ struct Light {
 
 const int MAX_NUM_LIGHTS = 1024;
 
-layout(set = 2, binding = 0) uniform LightParameters {
+layout(set = 3, binding = 0) uniform LightParameters {
     mat4 ViewMatrix;
     vec3 CamPosition;
     int numLights;

@@ -37,4 +37,19 @@ class OpenGLShaderProgram(var gl: GL4, val modules: HashMap<GLShaderType, OpenGL
     fun getUniform(name: String): GLUniform {
         return program.getUniform(name)
     }
+
+    fun getShaderPropertyOrder(): List<String> {
+        // this creates a shader property UBO for items marked @ShaderProperty in node
+        val shaderPropertiesSpec = uboSpecs.filter { it.key == "ShaderProperties" }.values
+
+        if (shaderPropertiesSpec.count() == 0) {
+            logger.error("Shader uses no declared shader properties!")
+            return emptyList()
+        }
+
+        val specs = shaderPropertiesSpec.map { it.members }.flatMap { it.keys }
+
+        // returns a ordered list of the members of the ShaderProperties struct
+        return specs.toList()
+    }
 }

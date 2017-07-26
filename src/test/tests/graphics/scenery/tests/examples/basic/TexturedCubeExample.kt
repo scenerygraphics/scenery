@@ -3,6 +3,7 @@ package graphics.scenery.tests.examples.basic
 import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
+import graphics.scenery.volumes.Volume
 import org.junit.Test
 import kotlin.concurrent.thread
 

@@ -35,10 +35,8 @@ layout(location = 5) in mat4 inverseModelView;
 
 layout(binding = 0) uniform Matrices {
 	mat4 ModelMatrix;
-	mat4 ViewMatrix;
 	mat4 NormalMatrix;
 	mat4 ProjectionMatrix;
-	vec3 CamPosition;
 	int isBillboard;
 } ubo;
 
@@ -76,6 +74,11 @@ layout(set = 3, binding = 0) uniform ShaderProperties {
     int maxsteps;
     float alpha_blending;
     float gamma;
+};
+
+layout(set = 4) uniform MaterialProperties {
+    MaterialInfo Material;
+    int materialType;
 };
 
 // useless comment

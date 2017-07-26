@@ -656,10 +656,8 @@ open class VulkanRenderer(hub: Hub,
         with(matricesUbo) {
             name = "Default"
             members.put("ModelMatrix", { node.world })
-            members.put("ViewMatrix", { node.view })
             members.put("NormalMatrix", { node.world.inverse.transpose() })
             members.put("ProjectionMatrix", { node.projection })
-            members.put("CamPosition", { scene.activeObserver?.position ?: GLVector(0.0f, 0.0f, 0.0f) })
             members.put("isBillboard", { node.isBillboard.toInt() })
 
             requiredOffsetCount = 2
@@ -766,11 +764,10 @@ open class VulkanRenderer(hub: Hub,
                 }
         }
 
-        val sp = node.metadata.values.find { it is ShaderPreference }
-        if (sp != null) {
+        if (node.material is ShaderMaterial) {
             renderpasses.filter { it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry }
                 .map { pass ->
-                    val shaders = (sp as ShaderPreference).shaders
+                    val shaders = (node.material as ShaderMaterial).shaders
                     logger.info("initializing preferred pipeline for ${node.name} from $shaders")
                     pass.value.initializePipeline("preferred-${node.name}",
                         shaders.map { VulkanShaderModule(device, "main", node.javaClass, "shaders/$it.spv") },
@@ -2178,9 +2175,7 @@ open class VulkanRenderer(hub: Hub,
 
         defaultUbo.name = "default"
         defaultUbo.members.put("Model", { GLMatrix.getIdentity() })
-        defaultUbo.members.put("ViewMatrix", { GLMatrix.getIdentity() })
         defaultUbo.members.put("ProjectionMatrix", { GLMatrix.getIdentity() })
-        defaultUbo.members.put("CamPosition", { GLVector(0.0f, 0.0f, 0.0f) })
         defaultUbo.members.put("isBillboard", { 0 })
 
         defaultUbo.createUniformBuffer(memoryProperties)
@@ -2773,6 +2768,8 @@ open class VulkanRenderer(hub: Hub,
         val lights = scene.discover(scene, { n -> n is PointLight })
 
         val lightUbo = VulkanUBO(device, backingBuffer = buffers["LightParametersBuffer"]!!)
+        lightUbo.members.put("ViewMatrix", { cam.view })
+        lightUbo.members.put("CamPosition", { cam.position })
         lightUbo.members.put("numLights", { lights.size })
         lightUbo.members.put("filler1", { 0.0f })
         lightUbo.members.put("filler2", { 0.0f })

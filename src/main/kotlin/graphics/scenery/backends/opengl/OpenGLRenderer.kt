@@ -95,7 +95,7 @@ class OpenGLRenderer(hub: Hub,
     override var hub: Hub? = null
 
     /** Texture cache */
-    private var textures = HashMap<String, GLTexture>()
+    private var textureCache = HashMap<String, GLTexture>()
 
     /** Shader Property cache */
     private var shaderPropertyCache = HashMap<Class<*>, List<Field>>()
@@ -522,8 +522,12 @@ class OpenGLRenderer(hub: Hub,
         val modules = HashMap<GLShaderType, OpenGLShaderModule>()
 
         shaders.forEach {
-            val m = OpenGLShaderModule(gl, "main", baseClass, "shaders/" + it)
-            modules.put(m.shaderType, m)
+            if (baseClass.getResource("shaders/" + it) != null) {
+                val m = OpenGLShaderModule(gl, "main", baseClass, "shaders/" + it)
+                modules.put(m.shaderType, m)
+            } else {
+                logger.warn("Shader not found: shaders/$it")
+            }
         }
 
         val program = OpenGLShaderProgram(gl, modules)
@@ -611,7 +615,7 @@ class OpenGLRenderer(hub: Hub,
      * @return Int of the texture unit to be used
      */
     fun textureTypeToUnit(target: OpenGLRenderpass, type: String): Int {
-        val offset = if(target.output.values.isNotEmpty()) {
+        val offset = if (target.output.values.isNotEmpty()) {
             target.output.values.first().boundBufferNum
         } else {
             0
@@ -624,6 +628,7 @@ class OpenGLRenderer(hub: Hub,
             "normal" -> 3
             "alphamask" -> 4
             "displacement" -> 5
+            "3D-volume" -> 6
             else -> {
                 logger.warn("Unknown texture type $type"); 10
             }
@@ -638,6 +643,7 @@ class OpenGLRenderer(hub: Hub,
             "normal" -> "ObjectTextures[3]"
             "alphamask" -> "ObjectTextures[4]"
             "displacement" -> "ObjectTextures[5]"
+            "3D-volume" -> "VolumeTextures"
             else -> {
                 logger.warn("Unknown texture type $type")
                 "ObjectTextures[0]"
@@ -795,7 +801,7 @@ class OpenGLRenderer(hub: Hub,
             }
 
         scene.initialized = true
-        logger.info("Initialized ${textures.size} textures")
+        logger.info("Initialized ${textureCache.size} textures")
     }
 
     private fun Display.wantsVR(): Display? {
@@ -859,13 +865,13 @@ class OpenGLRenderer(hub: Hub,
 
                 materialUbo.populate(offset = bufferOffset.toLong())
 
-//                if(s.requiredDescriptorSets.containsKey("ShaderProperties")) {
-//                    val propertyUbo = s.UBOs["ShaderProperties"]!!.second
-//                    // TODO: Correct buffer advancement
-//                    val offset = propertyUbo.backingBuffer!!.advance()
-//                    propertyUbo.populate(offset = offset.toLong())
-//                    propertyUbo.offsets.put(0, offset)
-//                }
+                if (s.UBOs.containsKey("ShaderProperties")) {
+                    val propertyUbo = s.UBOs["ShaderProperties"]!!
+                    // TODO: Correct buffer advancement
+                    val offset = propertyUbo.backingBuffer!!.advance()
+                    propertyUbo.populate(offset = offset.toLong())
+                    propertyUbo.offset = offset
+                }
             }
         }
 
@@ -921,7 +927,7 @@ class OpenGLRenderer(hub: Hub,
         initializeNode(board)
 
         val s = getOpenGLObjectStateFromNode(board)
-        val texture = textures.getOrPut("sdf-${board.fontFamily}", {
+        val texture = textureCache.getOrPut("sdf-${board.fontFamily}", {
             val t = GLTexture(gl, GLTypeEnum.Float, 1,
                 atlas.atlasWidth,
                 atlas.atlasHeight,
@@ -1019,21 +1025,21 @@ class OpenGLRenderer(hub: Hub,
     }
 
     private fun blitFramebuffers(source: GLFramebuffer?, target: GLFramebuffer?,
-                                   sourceOffset: OpenGLRenderpass.Rect2D,
-                                   targetOffset: OpenGLRenderpass.Rect2D) {
-        if(target != null) {
+                                 sourceOffset: OpenGLRenderpass.Rect2D,
+                                 targetOffset: OpenGLRenderpass.Rect2D) {
+        if (target != null) {
             target.setDrawBuffers(gl)
         } else {
             gl.glBindFramebuffer(GL.GL_DRAW_FRAMEBUFFER, 0)
         }
 
-        if(source != null) {
+        if (source != null) {
             source.setReadBuffers(gl)
         } else {
             gl.glBindFramebuffer(GL.GL_READ_FRAMEBUFFER, 0)
         }
 
-        if(source?.hasColorAttachment() ?: true) {
+        if (source?.hasColorAttachment() ?: true) {
             gl.glBlitFramebuffer(
                 sourceOffset.offsetX, sourceOffset.offsetY,
                 sourceOffset.offsetX + sourceOffset.width, sourceOffset.offsetY + sourceOffset.height,
@@ -1042,7 +1048,7 @@ class OpenGLRenderer(hub: Hub,
                 GL.GL_COLOR_BUFFER_BIT, GL.GL_LINEAR)
         }
 
-        if(source?.hasDepthAttachment() ?: true && target?.hasDepthAttachment() ?: true) {
+        if (source?.hasDepthAttachment() ?: true && target?.hasDepthAttachment() ?: true) {
             gl.glBlitFramebuffer(
                 sourceOffset.offsetX, sourceOffset.offsetY,
                 sourceOffset.offsetX + sourceOffset.width, sourceOffset.offsetY + sourceOffset.height,
@@ -1146,14 +1152,14 @@ class OpenGLRenderer(hub: Hub,
         flow.forEach { t ->
             val pass = renderpasses[t]!!
 
-            if(pass.passConfig.blitInputs) {
-                pass.inputs.forEach { name, input ->
+            if (pass.passConfig.blitInputs) {
+                pass.inputs.forEach { _, input ->
                     blitFramebuffers(input, pass.output.values.firstOrNull(),
                         pass.openglMetadata.viewport.area, pass.openglMetadata.viewport.area)
                 }
             }
 
-            if(pass.output.isNotEmpty()) {
+            if (pass.output.isNotEmpty()) {
                 pass.output.values.first().setDrawBuffers(gl)
             } else {
                 gl.glBindFramebuffer(GL.GL_FRAMEBUFFER, 0)
@@ -1182,7 +1188,7 @@ class OpenGLRenderer(hub: Hub,
                 pass.openglMetadata.clearValues.clearColor.z(),
                 pass.openglMetadata.clearValues.clearColor.w())
 
-            if(!pass.passConfig.blitInputs) {
+            if (!pass.passConfig.blitInputs) {
                 pass.output.values.forEach {
                     if (it.hasDepthAttachment()) {
                         gl.glClear(GL.GL_DEPTH_BUFFER_BIT)
@@ -1202,7 +1208,7 @@ class OpenGLRenderer(hub: Hub,
                 gl.glEnable(GL.GL_DEPTH_TEST)
                 gl.glEnable(GL.GL_CULL_FACE)
 
-                if(pass.passConfig.renderTransparent) {
+                if (pass.passConfig.renderTransparent) {
                     gl.glEnable(GL.GL_BLEND)
                     gl.glBlendFuncSeparate(
                         pass.passConfig.srcColorBlendFactor.toOpenGL(),
@@ -1223,15 +1229,15 @@ class OpenGLRenderer(hub: Hub,
                         return@nonInstancedDrawing
                     }
 
-                    if(pass.passConfig.renderOpaque && n.material.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) {
+                    if (pass.passConfig.renderOpaque && n.material.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) {
                         return@nonInstancedDrawing
                     }
 
-                    if(pass.passConfig.renderTransparent && !n.material.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) {
+                    if (pass.passConfig.renderTransparent && !n.material.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) {
                         return@nonInstancedDrawing
                     }
 
-                    if(n.material.doubleSided) {
+                    if (n.material.doubleSided) {
                         gl.glDisable(GL.GL_CULL_FACE)
                     }
 
@@ -1261,7 +1267,7 @@ class OpenGLRenderer(hub: Hub,
 
                     shader.use(gl)
 
-                    if(renderConfig.stereoEnabled) {
+                    if (renderConfig.stereoEnabled) {
                         shader.getUniform("currentEye").setInt(pass.openglMetadata.eye)
                     }
 
@@ -1271,7 +1277,14 @@ class OpenGLRenderer(hub: Hub,
                         @Suppress("SENSELESS_COMPARISON")
                         if (glTexture != null) {
                             gl.glActiveTexture(GL.GL_TEXTURE0 + samplerIndex)
-                            gl.glBindTexture(GL.GL_TEXTURE_2D, glTexture.id)
+
+                            val target = if (glTexture.depth > 1) {
+                                GL4.GL_TEXTURE_3D
+                            } else {
+                                GL4.GL_TEXTURE_2D
+                            }
+
+                            gl.glBindTexture(target, glTexture.id)
                             shader.getUniform(textureTypeToArrayName(type)).setInt(samplerIndex)
                         }
                     }
@@ -1283,21 +1296,21 @@ class OpenGLRenderer(hub: Hub,
                         gl.glBindBufferRange(GL4.GL_UNIFORM_BUFFER, binding,
                             ubo.backingBuffer!!.id[0], 1L * ubo.offset, 1L * ubo.getSize())
 
-                        if(index == -1) {
+                        if (index == -1) {
                             logger.error("Failed to bind UBO $name for ${n.name} to $binding")
                         }
                         binding++
                     }
 
                     arrayOf("LightParameters", "VRParameters").forEach { name ->
-                        if(shader.uboSpecs.containsKey(name)) {
+                        if (shader.uboSpecs.containsKey(name)) {
                             val index = gl.glGetUniformBlockIndex(shader.id, name)
                             gl.glUniformBlockBinding(shader.id, index, binding)
                             gl.glBindBufferRange(GL4.GL_UNIFORM_BUFFER, binding,
                                 buffers[name]!!.id[0],
                                 0L, buffers[name]!!.buffer.remaining().toLong())
 
-                            if(index == -1) {
+                            if (index == -1) {
                                 logger.error("Failed to bind shader parameter UBO $name for ${pass.passName} to $binding, though it is required by the shader")
                             }
                             binding++
@@ -1389,7 +1402,7 @@ class OpenGLRenderer(hub: Hub,
                 }
             } else {
                 gl.glDisable(GL.GL_CULL_FACE)
-                if(pass.passConfig.renderTransparent) {
+                if (pass.passConfig.renderTransparent) {
                     gl.glEnable(GL.GL_BLEND)
 
                     gl.glBlendFuncSeparate(
@@ -1406,7 +1419,7 @@ class OpenGLRenderer(hub: Hub,
                     gl.glDisable(GL.GL_BLEND)
                 }
 
-                if(pass.output.filter { it.value.hasDepthAttachment() }.isNotEmpty()) {
+                if (pass.output.filter { it.value.hasDepthAttachment() }.isNotEmpty()) {
                     gl.glEnable(GL.GL_DEPTH_TEST)
                 } else {
                     gl.glDisable(GL.GL_DEPTH_TEST)
@@ -1425,7 +1438,7 @@ class OpenGLRenderer(hub: Hub,
 
                     var binding = 0
                     pass.UBOs.forEach { name, ubo ->
-                        val actualName = if(name.contains("ShaderParameters")) {
+                        val actualName = if (name.contains("ShaderParameters")) {
                             "ShaderParameters"
                         } else {
                             name
@@ -1437,21 +1450,21 @@ class OpenGLRenderer(hub: Hub,
                             ubo.backingBuffer!!.id[0],
                             1L * ubo.offset, 1L * ubo.getSize())
 
-                        if(index == -1) {
+                        if (index == -1) {
                             logger.error("Failed to bind shader parameter UBO $actualName for ${pass.passName} to $binding")
                         }
                         binding++
                     }
 
                     arrayOf("LightParameters", "VRParameters").forEach { name ->
-                        if(shader.uboSpecs.containsKey(name)) {
+                        if (shader.uboSpecs.containsKey(name)) {
                             val index = gl.glGetUniformBlockIndex(shader.id, name)
                             gl.glUniformBlockBinding(shader.id, index, binding)
                             gl.glBindBufferRange(GL4.GL_UNIFORM_BUFFER, binding,
                                 buffers[name]!!.id[0],
                                 0L, buffers[name]!!.buffer.remaining().toLong())
 
-                            if(index == -1) {
+                            if (index == -1) {
                                 logger.error("Failed to bind shader parameter UBO $name for ${pass.passName} to $binding, though it is required by the shader")
                             }
 
@@ -1533,11 +1546,7 @@ class OpenGLRenderer(hub: Hub,
 
         if (!nodeStore.containsKey(quadName)) {
             quad = Plane(GLVector(1.0f, 1.0f, 0.0f))
-            val material = OpenGLMaterial()
 
-            material.program = program
-
-            quad.material = material
             quad.metadata.put("OpenGLRenderer", OpenGLObjectState())
             initializeNode(quad)
 
@@ -1545,8 +1554,6 @@ class OpenGLRenderer(hub: Hub,
         } else {
             quad = nodeStore[quadName]!!
         }
-
-        (quad.material as OpenGLMaterial).program = program
 
         drawNode(quad)
         program.gl.gL4.glBindTexture(GL.GL_TEXTURE_2D, 0)
@@ -1560,7 +1567,7 @@ class OpenGLRenderer(hub: Hub,
      * this Material will be used. Else, a default GLProgram will be used.
      *
      * For the assigned Material case, the GLProgram is derived either from the class name of the
-     * Node (if useClassDerivedShader is set), or from a set [ShaderPreference] which may define
+     * Node (if useClassDerivedShader is set), or from a set [ShaderMaterial] which may define
      * the whole shader pipeline for the Node.
      *
      * If the [Node] implements [HasGeometry], it's geometry is also initialized by this function.
@@ -1601,36 +1608,21 @@ class OpenGLRenderer(hub: Hub,
         gl.glGenBuffers(3, s.mVertexBuffers, 0)
         gl.glGenBuffers(1, s.mIndexBuffer, 0)
 
-        if(node.material is OpenGLMaterial) {
-            s.program = (node.material as OpenGLMaterial).program
-        } else {
-            if (node.useClassDerivedShader) {
-                val javaClass = node.javaClass.simpleName
-                val className = javaClass.substring(javaClass.indexOf(".") + 1)
+        if (node.useClassDerivedShader) {
+            val javaClass = node.javaClass.simpleName
+            val className = javaClass.substring(javaClass.indexOf(".") + 1)
 
-                val shaders = arrayOf(".vert", ".geom", ".tese", ".tesc", ".frag", ".comp")
-                    .map { "shaders/$className$it" }
-                    .filter {
-                        OpenGLRenderer::class.java.getResource(it) != null
-                    }
-
-                s.program = prepareShaderProgram(OpenGLRenderer::class.java, shaders.toTypedArray())
-            } else if (node.metadata.filter { it.value is ShaderPreference }.isNotEmpty()) {
-                val prefs = node.metadata["ShaderPreference"] as ShaderPreference
-
-                if (prefs.parameters.size > 0) {
-                    s.program =  prepareShaderProgram(node.javaClass, prefs.shaders.toTypedArray())
-                } else {
-                    try {
-                        s.program = prepareShaderProgram(node.javaClass, prefs.shaders.toTypedArray())
-                    } catch(e: NullPointerException) {
-                        s.program = prepareShaderProgram(this.javaClass, prefs.shaders.toTypedArray())
-                    }
-
+            val shaders = arrayOf(".vert", ".geom", ".tese", ".tesc", ".frag", ".comp")
+                .map { "$className$it" }
+                .filter {
+                    VulkanRenderer::class.java.getResource("shaders/$it") != null
                 }
-            } else {
-                s.program = null
-            }
+
+            s.shader = prepareShaderProgram(VulkanRenderer::class.java, shaders.toTypedArray())
+        } else if (node.material is ShaderMaterial) {
+            s.shader = prepareShaderProgram(node.javaClass, (node.material as ShaderMaterial).shaders.toTypedArray())
+        } else {
+            s.shader = null
         }
 
         if (node is HasGeometry) {
@@ -1663,6 +1655,7 @@ class OpenGLRenderer(hub: Hub,
 
             s.UBOs.put("Matrices", this)
         }
+
 
         loadTexturesForNode(node, s)
 
@@ -1698,6 +1691,21 @@ class OpenGLRenderer(hub: Hub,
             members.put("materialType", { materialType })
 
             s.UBOs.put("MaterialProperties", this)
+        }
+
+        if (node.javaClass.declaredFields.filter { it.isAnnotationPresent(ShaderProperty::class.java) }.count() > 0) {
+            val shaderPropertyUBO = OpenGLUBO(backingBuffer = buffers["ShaderPropertyBuffer"])
+            with(shaderPropertyUBO) {
+                name = "ShaderProperties"
+
+                if (node.useClassDerivedShader || node.material is ShaderMaterial) {
+                    s.shader?.getShaderPropertyOrder()?.forEach { name ->
+                        members.put(name, { node.getShaderProperty(name)!! })
+                    }
+                }
+            }
+
+            s.UBOs.put("ShaderProperties", shaderPropertyUBO)
         }
 
         s.initialized = true
@@ -1741,45 +1749,60 @@ class OpenGLRenderer(hub: Hub,
      * @param[node] The [Node] to load textures for.
      * @param[s] The [Node]'s [OpenGLObjectState]
      */
+    @Suppress("USELESS_ELVIS")
     private fun loadTexturesForNode(node: Node, s: OpenGLObjectState): OpenGLObjectState {
         if (node.lock.tryLock()) {
             node.material.textures.forEach {
                 type, texture ->
-                if (!textures.containsKey(texture) || node.material.needsTextureReload) {
-                    logger.trace("Loading texture $texture for ${node.name}")
+                if (!textureCache.containsKey(texture) || node.material.needsTextureReload) {
+                    logger.info("Loading texture $texture for ${node.name}")
 
                     val generateMipmaps = (type == "ambient" || type == "diffuse" || type == "specular")
-                    val glTexture = if (texture.startsWith("fromBuffer:")) {
-                        val gt = node.material.transferTextures[texture.substringAfter("fromBuffer:")]
+                    if (texture.startsWith("fromBuffer:")) {
+                        node.material.transferTextures[texture.substringAfter("fromBuffer:")]?.let {
+                            (_, dimensions, channels, type1, contents, repeatS, repeatT) ->
 
-                        val miplevels = if (generateMipmaps) {
-                            1 + Math.floor(Math.log(Math.max(gt!!.dimensions.x() * 1.0, gt!!.dimensions.y() * 1.0)) / Math.log(2.0)).toInt()
-                        } else {
-                            1
+                            logger.debug("Dims of $texture: $dimensions, mipmaps=$generateMipmaps")
+
+                            val miplevels = if (generateMipmaps && dimensions.z().toInt() == 1) {
+                                1 + Math.floor(Math.log(Math.max(dimensions.x() * 1.0, dimensions.y() * 1.0)) / Math.log(2.0)).toInt()
+                            } else {
+                                1
+                            }
+
+                            // TODO: Add support for more than one channel for volumes
+                            val channelCount = if (dimensions.z().toInt() == 1) {
+                                channels
+                            } else {
+                                1
+                            }
+
+                            val t = GLTexture(gl, type1, channelCount,
+                                dimensions.x().toInt(),
+                                dimensions.y().toInt(),
+                                dimensions.z().toInt() ?: 1,
+                                dimensions.z().toInt() == 1,
+                                miplevels)
+
+                            if (generateMipmaps) {
+                                t.updateMipMaps()
+                            }
+
+                            t.setClamp(!repeatS, !repeatT)
+                            logger.info("Copying data from buffer: ${contents.remaining()}")
+                            t.copyFrom(contents)
+
+                            s.textures.put(type, t)
+                            textureCache.put(texture, t)
                         }
-
-                        val t = GLTexture(gl, gt!!.type, gt.channels,
-                            gt.dimensions.x().toInt(),
-                            gt.dimensions.y().toInt(),
-                            1,
-                            true,
-                            miplevels)
-
-                        if(generateMipmaps) {
-                            t.updateMipMaps()
-                        }
-
-                        t.setClamp(!gt.repeatS, !gt.repeatT)
-                        t.copyFrom(gt.contents)
-                        t
                     } else {
-                        GLTexture.loadFromFile(gl, texture, true, true, 8)
-                    }
+                        val glTexture = GLTexture.loadFromFile(gl, texture, true, generateMipmaps, 8)
 
-                    s.textures.put(type, glTexture)
-                    textures.put(texture, glTexture)
+                        s.textures.put(type, glTexture)
+                        textureCache.put(texture, glTexture)
+                    }
                 } else {
-                    s.textures.put(type, textures[texture]!!)
+                    s.textures.put(type, textureCache[texture]!!)
                 }
             }
 

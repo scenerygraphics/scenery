@@ -19,8 +19,6 @@ class OpenGLObjectState : NodeMetadata {
     /** List of consumers of this metadata, e.g. [OpenGLRenderer] */
     override val consumers: MutableList<String> = ArrayList<String>()
 
-    /** GLSL program for the Node */
-    var program: OpenGLShaderProgram? = null
     /** IDs of buffers that may be additionally required. */
     val additionalBufferIds = Hashtable<String, Int>()
     /** Hash map of GLTexture objects storing the OpenGL texture handles. */

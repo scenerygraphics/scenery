@@ -4,7 +4,6 @@ import cleargl.GLTypeEnum
 import cleargl.GLVector
 import coremem.enums.NativeTypeEnum
 import graphics.scenery.*
-import graphics.scenery.backends.ShaderPreference
 import org.lwjgl.system.MemoryUtil.memAlloc
 import org.lwjgl.system.MemoryUtil.memFree
 import org.slf4j.Logger
@@ -142,13 +141,7 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         this.texcoordSize = 2
 
         this.material.transparent = true
-
-        metadata.put(
-            "ShaderPreference",
-            ShaderPreference(
-                arrayListOf("Volume.vert", "Volume.frag"),
-                HashMap<String, String>(),
-                arrayListOf("DeferredShadingRenderer")))
+        this.useClassDerivedShader = true
 
         colormaps.put("grays", this.javaClass.getResource("colormap-grays.png").file)
         colormaps.put("hot", this.javaClass.getResource("colormap-hot.png").file)
@@ -301,7 +294,7 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
             val descriptor = VolumeDescriptor(
                 file,
                 dimensions[0], dimensions[1], dimensions[2],
-                NativeTypeEnum.UnsignedInt, 2, data = imageData
+                NativeTypeEnum.UnsignedShort, 2, data = imageData
             )
 
             thread {
@@ -329,7 +322,7 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
             NativeTypeEnum.Byte -> TODO()
             NativeTypeEnum.UnsignedByte -> TODO()
             NativeTypeEnum.Short -> TODO()
-            NativeTypeEnum.UnsignedShort -> TODO()
+            NativeTypeEnum.UnsignedShort -> GLTypeEnum.UnsignedShort
             NativeTypeEnum.Int -> TODO()
             NativeTypeEnum.Long -> TODO()
             NativeTypeEnum.UnsignedLong -> TODO()
@@ -343,7 +336,8 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         val gtv = GenericTexture("volume", dim,
             -1, descriptor.dataType.toGLType(), descriptor.data, false, false)
 
-        if (this.lock.tryLock()) {
+//        if (this.lock.tryLock()) {
+            logger.info("Adding texture")
             this.material.transferTextures.put("volume", gtv)?.let {
                 if (replace) {
                     memFree(it.contents)
@@ -353,7 +347,7 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
             this.material.textures.put("normal", colormaps[colormap]!!)
             this.material.needsTextureReload = true
 
-            this.lock.unlock()
-        }
+//            this.lock.unlock()
+//        }
     }
 }
