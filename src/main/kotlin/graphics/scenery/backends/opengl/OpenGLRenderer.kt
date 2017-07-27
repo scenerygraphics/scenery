@@ -219,7 +219,7 @@ class OpenGLRenderer(hub: Hub,
             buffer = MemoryUtil.memAlloc(maxOf(tmp[0], size))
 
             gl.glBindBuffer(GL4.GL_UNIFORM_BUFFER, id[0])
-            gl.glBufferData(GL4.GL_UNIFORM_BUFFER, size * 1L, null, GL.GL_DYNAMIC_DRAW)
+            gl.glBufferData(GL4.GL_UNIFORM_BUFFER, size * 1L, null, GL4.GL_DYNAMIC_DRAW)
             gl.glBindBuffer(GL4.GL_UNIFORM_BUFFER, 0)
         }
 
@@ -366,8 +366,8 @@ class OpenGLRenderer(hub: Hub,
 
         gl.swapInterval = 0
 
-        val driverString = gl.glGetString(GL.GL_RENDERER)
-        val driverVersion = gl.glGetString(GL.GL_VERSION)
+        val driverString = gl.glGetString(GL4.GL_RENDERER)
+        val driverVersion = gl.glGetString(GL4.GL_VERSION)
         logger.info("OpenGLRenderer: $width x $height on $driverString, $driverVersion")
 
         if (driverVersion.toLowerCase().indexOf("nvidia") != -1 && System.getProperty("os.name").toLowerCase().indexOf("windows") != -1) {
@@ -658,12 +658,12 @@ class OpenGLRenderer(hub: Hub,
      */
     private fun GeometryType.toOpenGLType(): Int {
         return when (this) {
-            GeometryType.TRIANGLE_STRIP -> GL.GL_TRIANGLE_STRIP
-            GeometryType.POLYGON -> GL.GL_TRIANGLES
-            GeometryType.TRIANGLES -> GL.GL_TRIANGLES
-            GeometryType.TRIANGLE_FAN -> GL.GL_TRIANGLE_FAN
-            GeometryType.POINTS -> GL.GL_POINTS
-            GeometryType.LINE -> GL.GL_LINE_STRIP
+            GeometryType.TRIANGLE_STRIP -> GL4.GL_TRIANGLE_STRIP
+            GeometryType.POLYGON -> GL4.GL_TRIANGLES
+            GeometryType.TRIANGLES -> GL4.GL_TRIANGLES
+            GeometryType.TRIANGLE_FAN -> GL4.GL_TRIANGLE_FAN
+            GeometryType.POINTS -> GL4.GL_POINTS
+            GeometryType.LINE -> GL4.GL_LINE_STRIP
             GeometryType.LINES_ADJACENCY -> GL4.GL_LINES_ADJACENCY
             GeometryType.LINE_STRIP_ADJACENCY -> GL4.GL_LINE_STRIP_ADJACENCY
         }
@@ -1030,13 +1030,13 @@ class OpenGLRenderer(hub: Hub,
         if (target != null) {
             target.setDrawBuffers(gl)
         } else {
-            gl.glBindFramebuffer(GL.GL_DRAW_FRAMEBUFFER, 0)
+            gl.glBindFramebuffer(GL4.GL_DRAW_FRAMEBUFFER, 0)
         }
 
         if (source != null) {
             source.setReadBuffers(gl)
         } else {
-            gl.glBindFramebuffer(GL.GL_READ_FRAMEBUFFER, 0)
+            gl.glBindFramebuffer(GL4.GL_READ_FRAMEBUFFER, 0)
         }
 
         if (source?.hasColorAttachment() ?: true) {
@@ -1045,7 +1045,7 @@ class OpenGLRenderer(hub: Hub,
                 sourceOffset.offsetX + sourceOffset.width, sourceOffset.offsetY + sourceOffset.height,
                 targetOffset.offsetX, targetOffset.offsetY,
                 targetOffset.offsetX + targetOffset.width, targetOffset.offsetY + targetOffset.height,
-                GL.GL_COLOR_BUFFER_BIT, GL.GL_LINEAR)
+                GL4.GL_COLOR_BUFFER_BIT, GL4.GL_LINEAR)
         }
 
         if (source?.hasDepthAttachment() ?: true && target?.hasDepthAttachment() ?: true) {
@@ -1054,12 +1054,12 @@ class OpenGLRenderer(hub: Hub,
                 sourceOffset.offsetX + sourceOffset.width, sourceOffset.offsetY + sourceOffset.height,
                 targetOffset.offsetX, targetOffset.offsetY,
                 targetOffset.offsetX + targetOffset.width, targetOffset.offsetY + targetOffset.height,
-                GL.GL_DEPTH_BUFFER_BIT, GL.GL_NEAREST)
+                GL4.GL_DEPTH_BUFFER_BIT, GL4.GL_NEAREST)
         } else {
             logger.info("Either source or target don't have a depth buffer :-(")
         }
 
-        gl.glBindFramebuffer(GL.GL_FRAMEBUFFER, 0)
+        gl.glBindFramebuffer(GL4.GL_FRAMEBUFFER, 0)
     }
 
     /**
@@ -1162,7 +1162,7 @@ class OpenGLRenderer(hub: Hub,
             if (pass.output.isNotEmpty()) {
                 pass.output.values.first().setDrawBuffers(gl)
             } else {
-                gl.glBindFramebuffer(GL.GL_FRAMEBUFFER, 0)
+                gl.glBindFramebuffer(GL4.GL_FRAMEBUFFER, 0)
             }
 
             pass.inputs.values.fold(0, { acc, fb -> acc + fb.bindTexturesToUnitsWithOffset(gl, acc) })
@@ -1180,7 +1180,7 @@ class OpenGLRenderer(hub: Hub,
                 pass.openglMetadata.scissor.height
             )
 
-            gl.glEnable(GL.GL_SCISSOR_TEST)
+            gl.glEnable(GL4.GL_SCISSOR_TEST)
 
             gl.glClearColor(
                 pass.openglMetadata.clearValues.clearColor.x(),
@@ -1191,13 +1191,13 @@ class OpenGLRenderer(hub: Hub,
             if (!pass.passConfig.blitInputs) {
                 pass.output.values.forEach {
                     if (it.hasDepthAttachment()) {
-                        gl.glClear(GL.GL_DEPTH_BUFFER_BIT)
+                        gl.glClear(GL4.GL_DEPTH_BUFFER_BIT)
                     }
                 }
-                gl.glClear(GL.GL_COLOR_BUFFER_BIT)
+                gl.glClear(GL4.GL_COLOR_BUFFER_BIT)
             }
 
-            gl.glDisable(GL.GL_SCISSOR_TEST)
+            gl.glDisable(GL4.GL_SCISSOR_TEST)
 
             gl.glDepthRange(
                 pass.openglMetadata.viewport.minDepth.toDouble(),
@@ -1205,11 +1205,11 @@ class OpenGLRenderer(hub: Hub,
 
             if (pass.passConfig.type == RenderConfigReader.RenderpassType.geometry) {
 
-                gl.glEnable(GL.GL_DEPTH_TEST)
-                gl.glEnable(GL.GL_CULL_FACE)
+                gl.glEnable(GL4.GL_DEPTH_TEST)
+                gl.glEnable(GL4.GL_CULL_FACE)
 
                 if (pass.passConfig.renderTransparent) {
-                    gl.glEnable(GL.GL_BLEND)
+                    gl.glEnable(GL4.GL_BLEND)
                     gl.glBlendFuncSeparate(
                         pass.passConfig.srcColorBlendFactor.toOpenGL(),
                         pass.passConfig.dstColorBlendFactor.toOpenGL(),
@@ -1221,7 +1221,7 @@ class OpenGLRenderer(hub: Hub,
                         pass.passConfig.alphaBlendOp.toOpenGL()
                     )
                 } else {
-                    gl.glDisable(GL.GL_BLEND)
+                    gl.glDisable(GL4.GL_BLEND)
                 }
 
                 instanceGroups[null]?.forEach nonInstancedDrawing@ { n ->
@@ -1238,7 +1238,7 @@ class OpenGLRenderer(hub: Hub,
                     }
 
                     if (n.material.doubleSided) {
-                        gl.glDisable(GL.GL_CULL_FACE)
+                        gl.glDisable(GL4.GL_CULL_FACE)
                     }
 
                     if (!n.metadata.containsKey("OpenGLRenderer")) {
@@ -1253,8 +1253,8 @@ class OpenGLRenderer(hub: Hub,
                     }
 
                     if (n is Skybox) {
-                        gl.glCullFace(GL.GL_FRONT)
-                        gl.glDepthFunc(GL.GL_LEQUAL)
+                        gl.glCullFace(GL4.GL_FRONT)
+                        gl.glDepthFunc(GL4.GL_LEQUAL)
                     }
 
                     preDrawAndUpdateGeometryForNode(n)
@@ -1276,7 +1276,7 @@ class OpenGLRenderer(hub: Hub,
 
                         @Suppress("SENSELESS_COMPARISON")
                         if (glTexture != null) {
-                            gl.glActiveTexture(GL.GL_TEXTURE0 + samplerIndex)
+                            gl.glActiveTexture(GL4.GL_TEXTURE0 + samplerIndex)
 
                             val target = if (glTexture.depth > 1) {
                                 GL4.GL_TEXTURE_3D
@@ -1309,15 +1309,17 @@ class OpenGLRenderer(hub: Hub,
                     arrayOf("LightParameters", "VRParameters").forEach { name ->
                         if (shader.uboSpecs.containsKey(name)) {
                             val index = gl.glGetUniformBlockIndex(shader.id, name)
-                            gl.glUniformBlockBinding(shader.id, index, binding)
-                            gl.glBindBufferRange(GL4.GL_UNIFORM_BUFFER, binding,
-                                buffers[name]!!.id[0],
-                                0L, buffers[name]!!.buffer.remaining().toLong())
 
                             if (index == -1) {
                                 logger.error("Failed to bind shader parameter UBO $name for ${pass.passName} to $binding, though it is required by the shader")
+                            } else {
+                                gl.glUniformBlockBinding(shader.id, index, binding)
+                                gl.glBindBufferRange(GL4.GL_UNIFORM_BUFFER, binding,
+                                    buffers[name]!!.id[0],
+                                    0L, buffers[name]!!.buffer.remaining().toLong())
+
+                                binding++
                             }
-                            binding++
                         }
                     }
 
@@ -1382,19 +1384,19 @@ class OpenGLRenderer(hub: Hub,
                         start = System.nanoTime()
                         val matrixSizeBytes: Long = 1L * Buffers.SIZEOF_FLOAT * matrixSize * instances.size
 
-                        gl.gL4.glBindVertexArray(s.mVertexArrayObject[0])
+                        gl.glBindVertexArray(s.mVertexArrayObject[0])
 
-                        gl.gL4.glBindBuffer(GL.GL_ARRAY_BUFFER, s.additionalBufferIds["Model"]!!)
-                        gl.gL4.glBufferData(GL.GL_ARRAY_BUFFER, matrixSizeBytes,
-                            FloatBuffer.wrap(models.toFloatArray()), GL.GL_DYNAMIC_DRAW)
+                        gl.glBindBuffer(GL4.GL_ARRAY_BUFFER, s.additionalBufferIds["Model"]!!)
+                        gl.glBufferData(GL4.GL_ARRAY_BUFFER, matrixSizeBytes,
+                            FloatBuffer.wrap(models.toFloatArray()), GL4.GL_DYNAMIC_DRAW)
 
-                        gl.gL4.glBindBuffer(GL.GL_ARRAY_BUFFER, s.additionalBufferIds["ModelView"]!!)
-                        gl.gL4.glBufferData(GL.GL_ARRAY_BUFFER, matrixSizeBytes,
-                            FloatBuffer.wrap(modelviews.toFloatArray()), GL.GL_DYNAMIC_DRAW)
+                        gl.glBindBuffer(GL4.GL_ARRAY_BUFFER, s.additionalBufferIds["ModelView"]!!)
+                        gl.glBufferData(GL4.GL_ARRAY_BUFFER, matrixSizeBytes,
+                            FloatBuffer.wrap(modelviews.toFloatArray()), GL4.GL_DYNAMIC_DRAW)
 
-                        gl.gL4.glBindBuffer(GL.GL_ARRAY_BUFFER, s.additionalBufferIds["MVP"]!!)
-                        gl.gL4.glBufferData(GL.GL_ARRAY_BUFFER, matrixSizeBytes,
-                            FloatBuffer.wrap(modelviewprojs.toFloatArray()), GL.GL_DYNAMIC_DRAW)
+                        gl.glBindBuffer(GL4.GL_ARRAY_BUFFER, s.additionalBufferIds["MVP"]!!)
+                        gl.glBufferData(GL4.GL_ARRAY_BUFFER, matrixSizeBytes,
+                            FloatBuffer.wrap(modelviewprojs.toFloatArray()), GL4.GL_DYNAMIC_DRAW)
 
                         logger.trace("${n.name} instancing: Updated matrix buffers in ${(System.nanoTime() - start) / 10e6}ms")
 
@@ -1405,9 +1407,9 @@ class OpenGLRenderer(hub: Hub,
                     }
                 }
             } else {
-                gl.glDisable(GL.GL_CULL_FACE)
+                gl.glDisable(GL4.GL_CULL_FACE)
                 if (pass.passConfig.renderTransparent) {
-                    gl.glEnable(GL.GL_BLEND)
+                    gl.glEnable(GL4.GL_BLEND)
 
                     gl.glBlendFuncSeparate(
                         pass.passConfig.srcColorBlendFactor.toOpenGL(),
@@ -1420,13 +1422,13 @@ class OpenGLRenderer(hub: Hub,
                         pass.passConfig.alphaBlendOp.toOpenGL()
                     )
                 } else {
-                    gl.glDisable(GL.GL_BLEND)
+                    gl.glDisable(GL4.GL_BLEND)
                 }
 
                 if (pass.output.filter { it.value.hasDepthAttachment() }.isNotEmpty()) {
-                    gl.glEnable(GL.GL_DEPTH_TEST)
+                    gl.glEnable(GL4.GL_DEPTH_TEST)
                 } else {
-                    gl.glDisable(GL.GL_DEPTH_TEST)
+                    gl.glDisable(GL4.GL_DEPTH_TEST)
                 }
 
                 pass.defaultShader?.let { shader ->
@@ -1560,7 +1562,7 @@ class OpenGLRenderer(hub: Hub,
         }
 
         drawNode(quad)
-        program.gl.gL4.glBindTexture(GL.GL_TEXTURE_2D, 0)
+        program.gl.glBindTexture(GL4.GL_TEXTURE_2D, 0)
     }
 
     /**
@@ -1606,7 +1608,7 @@ class OpenGLRenderer(hub: Hub,
         }
 
         // generate VAO for attachment of VBO and indices
-        gl.gL3.glGenVertexArrays(1, s.mVertexArrayObject, 0)
+        gl.glGenVertexArrays(1, s.mVertexArrayObject, 0)
 
         // generate three VBOs for coords, normals, texcoords
         gl.glGenBuffers(3, s.mVertexBuffers, 0)
@@ -1870,13 +1872,13 @@ class OpenGLRenderer(hub: Hub,
         val matrices = arrayOf("Model", "ModelView", "MVP")
         val i = IntArray(matrices.size)
 
-        gl.gL4.glBindVertexArray(s.mVertexArrayObject[0])
-        gl.gL4.glGenBuffers(matrices.size, i, 0)
+        gl.glBindVertexArray(s.mVertexArrayObject[0])
+        gl.glGenBuffers(matrices.size, i, 0)
 
         i.forEachIndexed { locationOffset, bufferId ->
             s.additionalBufferIds.put(matrices[locationOffset], bufferId)
 
-            gl.gL4.glBindBuffer(GL.GL_ARRAY_BUFFER, bufferId)
+            gl.glBindBuffer(GL4.GL_ARRAY_BUFFER, bufferId)
 
             for (offset in 0..3) {
                 val l = locationBase + locationOffset * vectorSize + offset
@@ -1884,15 +1886,15 @@ class OpenGLRenderer(hub: Hub,
                 val pointerOffsetBytes: Long = 1L * Buffers.SIZEOF_FLOAT * offset * vectorSize
                 val matrixSizeBytes = matrixSize * Buffers.SIZEOF_FLOAT
 
-                gl.gL4.glEnableVertexAttribArray(l)
-                gl.gL4.glVertexAttribPointer(l, vectorSize, GL.GL_FLOAT, false,
+                gl.glEnableVertexAttribArray(l)
+                gl.glVertexAttribPointer(l, vectorSize, GL4.GL_FLOAT, false,
                     matrixSizeBytes, pointerOffsetBytes)
-                gl.gL4.glVertexAttribDivisor(l, 1)
+                gl.glVertexAttribDivisor(l, 1)
             }
         }
 
-        gl.gL4.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-        gl.gL4.glBindVertexArray(0)
+        gl.glBindBuffer(GL4.GL_ARRAY_BUFFER, 0)
+        gl.glBindVertexArray(0)
     }
 
     /**
@@ -1906,27 +1908,27 @@ class OpenGLRenderer(hub: Hub,
 
         s.mStoredPrimitiveCount = pVertexBuffer.remaining() / node.vertexSize
 
-        gl.gL3.glBindVertexArray(s.mVertexArrayObject[0])
-        gl.glBindBuffer(GL.GL_ARRAY_BUFFER, s.mVertexBuffers[0])
+        gl.glBindVertexArray(s.mVertexArrayObject[0])
+        gl.glBindBuffer(GL4.GL_ARRAY_BUFFER, s.mVertexBuffers[0])
 
-        gl.gL3.glEnableVertexAttribArray(0)
-        gl.glBufferData(GL.GL_ARRAY_BUFFER,
+        gl.glEnableVertexAttribArray(0)
+        gl.glBufferData(GL4.GL_ARRAY_BUFFER,
             (pVertexBuffer.remaining() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
             pVertexBuffer,
             if (s.isDynamic)
-                GL.GL_DYNAMIC_DRAW
+                GL4.GL_DYNAMIC_DRAW
             else
-                GL.GL_STATIC_DRAW)
+                GL4.GL_STATIC_DRAW)
 
-        gl.gL3.glVertexAttribPointer(0,
+        gl.glVertexAttribPointer(0,
             node.vertexSize,
-            GL.GL_FLOAT,
+            GL4.GL_FLOAT,
             false,
             0,
             0)
 
-        gl.gL3.glBindVertexArray(0)
-        gl.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+        gl.glBindVertexArray(0)
+        gl.glBindBuffer(GL4.GL_ARRAY_BUFFER, 0)
     }
 
     /**
@@ -1940,24 +1942,24 @@ class OpenGLRenderer(hub: Hub,
 
         s.mStoredPrimitiveCount = pVertexBuffer.remaining() / node.vertexSize
 
-        gl.gL3.glBindVertexArray(s.mVertexArrayObject[0])
-        gl.glBindBuffer(GL.GL_ARRAY_BUFFER, s.mVertexBuffers[0])
+        gl.glBindVertexArray(s.mVertexArrayObject[0])
+        gl.glBindBuffer(GL4.GL_ARRAY_BUFFER, s.mVertexBuffers[0])
 
-        gl.gL3.glEnableVertexAttribArray(0)
-        gl.glBufferData(GL.GL_ARRAY_BUFFER,
+        gl.glEnableVertexAttribArray(0)
+        gl.glBufferData(GL4.GL_ARRAY_BUFFER,
             (pVertexBuffer.remaining() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
             pVertexBuffer,
-            GL.GL_DYNAMIC_DRAW)
+            GL4.GL_DYNAMIC_DRAW)
 
-        gl.gL3.glVertexAttribPointer(0,
+        gl.glVertexAttribPointer(0,
             node.vertexSize,
-            GL.GL_FLOAT,
+            GL4.GL_FLOAT,
             false,
             0,
             0)
 
-        gl.gL3.glBindVertexArray(0)
-        gl.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+        gl.glBindVertexArray(0)
+        gl.glBindBuffer(GL4.GL_ARRAY_BUFFER, 0)
     }
 
     /**
@@ -1969,29 +1971,29 @@ class OpenGLRenderer(hub: Hub,
         val s = getOpenGLObjectStateFromNode(node)
         val pNormalBuffer: FloatBuffer = (node as HasGeometry).normals
 
-        gl.gL3.glBindVertexArray(s.mVertexArrayObject[0])
-        gl.glBindBuffer(GL.GL_ARRAY_BUFFER, s.mVertexBuffers[1])
+        gl.glBindVertexArray(s.mVertexArrayObject[0])
+        gl.glBindBuffer(GL4.GL_ARRAY_BUFFER, s.mVertexBuffers[1])
 
         if (pNormalBuffer.limit() > 0) {
-            gl.gL3.glEnableVertexAttribArray(1)
-            gl.glBufferData(GL.GL_ARRAY_BUFFER,
+            gl.glEnableVertexAttribArray(1)
+            gl.glBufferData(GL4.GL_ARRAY_BUFFER,
                 (pNormalBuffer.remaining() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
                 pNormalBuffer,
                 if (s.isDynamic)
-                    GL.GL_DYNAMIC_DRAW
+                    GL4.GL_DYNAMIC_DRAW
                 else
-                    GL.GL_STATIC_DRAW)
+                    GL4.GL_STATIC_DRAW)
 
-            gl.gL3.glVertexAttribPointer(1,
+            gl.glVertexAttribPointer(1,
                 node.vertexSize,
-                GL.GL_FLOAT,
+                GL4.GL_FLOAT,
                 false,
                 0,
                 0)
 
         }
-        gl.gL3.glBindVertexArray(0)
-        gl.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+        gl.glBindVertexArray(0)
+        gl.glBindBuffer(GL4.GL_ARRAY_BUFFER, 0)
     }
 
     /**
@@ -2003,27 +2005,27 @@ class OpenGLRenderer(hub: Hub,
         val s = getOpenGLObjectStateFromNode(node)
         val pNormalBuffer: FloatBuffer = (node as HasGeometry).normals
 
-        gl.gL3.glBindVertexArray(s.mVertexArrayObject[0])
-        gl.glBindBuffer(GL.GL_ARRAY_BUFFER, s.mVertexBuffers[1])
+        gl.glBindVertexArray(s.mVertexArrayObject[0])
+        gl.glBindBuffer(GL4.GL_ARRAY_BUFFER, s.mVertexBuffers[1])
 
-        gl.gL3.glEnableVertexAttribArray(1)
-        gl.glBufferData(GL.GL_ARRAY_BUFFER,
+        gl.glEnableVertexAttribArray(1)
+        gl.glBufferData(GL4.GL_ARRAY_BUFFER,
             (pNormalBuffer.remaining() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
             pNormalBuffer,
             if (s.isDynamic)
-                GL.GL_DYNAMIC_DRAW
+                GL4.GL_DYNAMIC_DRAW
             else
-                GL.GL_STATIC_DRAW)
+                GL4.GL_STATIC_DRAW)
 
-        gl.gL3.glVertexAttribPointer(1,
+        gl.glVertexAttribPointer(1,
             node.vertexSize,
-            GL.GL_FLOAT,
+            GL4.GL_FLOAT,
             false,
             0,
             0)
 
-        gl.gL3.glBindVertexArray(0)
-        gl.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+        gl.glBindVertexArray(0)
+        gl.glBindBuffer(GL4.GL_ARRAY_BUFFER, 0)
     }
 
     /**
@@ -2035,27 +2037,27 @@ class OpenGLRenderer(hub: Hub,
         val s = getOpenGLObjectStateFromNode(node)
         val pTextureCoordsBuffer: FloatBuffer = (node as HasGeometry).texcoords
 
-        gl.gL3.glBindVertexArray(s.mVertexArrayObject[0])
-        gl.glBindBuffer(GL.GL_ARRAY_BUFFER, s.mVertexBuffers[2])
+        gl.glBindVertexArray(s.mVertexArrayObject[0])
+        gl.glBindBuffer(GL4.GL_ARRAY_BUFFER, s.mVertexBuffers[2])
 
-        gl.gL3.glEnableVertexAttribArray(2)
-        gl.glBufferData(GL.GL_ARRAY_BUFFER,
+        gl.glEnableVertexAttribArray(2)
+        gl.glBufferData(GL4.GL_ARRAY_BUFFER,
             (pTextureCoordsBuffer.remaining() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
             pTextureCoordsBuffer,
             if (s.isDynamic)
-                GL.GL_DYNAMIC_DRAW
+                GL4.GL_DYNAMIC_DRAW
             else
-                GL.GL_STATIC_DRAW)
+                GL4.GL_STATIC_DRAW)
 
-        gl.gL3.glVertexAttribPointer(2,
+        gl.glVertexAttribPointer(2,
             node.texcoordSize,
-            GL.GL_FLOAT,
+            GL4.GL_FLOAT,
             false,
             0,
             0)
 
-        gl.gL3.glBindVertexArray(0)
-        gl.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+        gl.glBindVertexArray(0)
+        gl.glBindBuffer(GL4.GL_ARRAY_BUFFER, 0)
     }
 
     /**
@@ -2067,28 +2069,28 @@ class OpenGLRenderer(hub: Hub,
         val s = getOpenGLObjectStateFromNode(node)
         val pTextureCoordsBuffer: FloatBuffer = (node as HasGeometry).texcoords
 
-        gl.gL3.glBindVertexArray(s.mVertexArrayObject[0])
-        gl.gL3.glBindBuffer(GL.GL_ARRAY_BUFFER,
+        gl.glBindVertexArray(s.mVertexArrayObject[0])
+        gl.glBindBuffer(GL4.GL_ARRAY_BUFFER,
             s.mVertexBuffers[2])
 
-        gl.gL3.glEnableVertexAttribArray(2)
-        gl.glBufferData(GL.GL_ARRAY_BUFFER,
+        gl.glEnableVertexAttribArray(2)
+        gl.glBufferData(GL4.GL_ARRAY_BUFFER,
             (pTextureCoordsBuffer.remaining() * (java.lang.Float.SIZE / java.lang.Byte.SIZE)).toLong(),
             pTextureCoordsBuffer,
             if (s.isDynamic)
-                GL.GL_DYNAMIC_DRAW
+                GL4.GL_DYNAMIC_DRAW
             else
-                GL.GL_STATIC_DRAW)
+                GL4.GL_STATIC_DRAW)
 
-        gl.gL3.glVertexAttribPointer(2,
+        gl.glVertexAttribPointer(2,
             node.texcoordSize,
-            GL.GL_FLOAT,
+            GL4.GL_FLOAT,
             false,
             0,
             0)
 
-        gl.gL3.glBindVertexArray(0)
-        gl.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+        gl.glBindVertexArray(0)
+        gl.glBindBuffer(GL4.GL_ARRAY_BUFFER, 0)
     }
 
     /**
@@ -2102,19 +2104,19 @@ class OpenGLRenderer(hub: Hub,
 
         s.mStoredIndexCount = pIndexBuffer.remaining()
 
-        gl.gL3.glBindVertexArray(s.mVertexArrayObject[0])
-        gl.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, s.mIndexBuffer[0])
+        gl.glBindVertexArray(s.mVertexArrayObject[0])
+        gl.glBindBuffer(GL4.GL_ELEMENT_ARRAY_BUFFER, s.mIndexBuffer[0])
 
-        gl.glBufferData(GL.GL_ELEMENT_ARRAY_BUFFER,
+        gl.glBufferData(GL4.GL_ELEMENT_ARRAY_BUFFER,
             (pIndexBuffer.remaining() * (Integer.SIZE / java.lang.Byte.SIZE)).toLong(),
             pIndexBuffer,
             if (s.isDynamic)
-                GL.GL_DYNAMIC_DRAW
+                GL4.GL_DYNAMIC_DRAW
             else
-                GL.GL_STATIC_DRAW)
+                GL4.GL_STATIC_DRAW)
 
-        gl.gL3.glBindVertexArray(0)
-        gl.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, 0)
+        gl.glBindVertexArray(0)
+        gl.glBindBuffer(GL4.GL_ELEMENT_ARRAY_BUFFER, 0)
     }
 
     /**
@@ -2128,16 +2130,16 @@ class OpenGLRenderer(hub: Hub,
 
         s.mStoredIndexCount = pIndexBuffer.remaining()
 
-        gl.gL3.glBindVertexArray(s.mVertexArrayObject[0])
-        gl.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, s.mIndexBuffer[0])
+        gl.glBindVertexArray(s.mVertexArrayObject[0])
+        gl.glBindBuffer(GL4.GL_ELEMENT_ARRAY_BUFFER, s.mIndexBuffer[0])
 
-        gl.glBufferSubData(GL.GL_ELEMENT_ARRAY_BUFFER,
+        gl.glBufferSubData(GL4.GL_ELEMENT_ARRAY_BUFFER,
             0,
             (pIndexBuffer.remaining() * (Integer.SIZE / java.lang.Byte.SIZE)).toLong(),
             pIndexBuffer)
 
-        gl.gL3.glBindVertexArray(0)
-        gl.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, 0)
+        gl.glBindVertexArray(0)
+        gl.glBindBuffer(GL4.GL_ELEMENT_ARRAY_BUFFER, 0)
     }
 
     /**
@@ -2152,24 +2154,24 @@ class OpenGLRenderer(hub: Hub,
         if (s.mStoredIndexCount == 0 && s.mStoredPrimitiveCount == 0) {
             return
         }
-
-        gl.gL3.glBindVertexArray(s.mVertexArrayObject[0])
+        logger.info("Drawing ${node.name} with ${s.shader?.modules?.entries?.joinToString(", ")}")
+        gl.glBindVertexArray(s.mVertexArrayObject[0])
 
         if (s.mStoredIndexCount > 0) {
-            gl.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER,
+            gl.glBindBuffer(GL4.GL_ELEMENT_ARRAY_BUFFER,
                 s.mIndexBuffer[0])
             gl.glDrawElements((node as HasGeometry).geometryType.toOpenGLType(),
                 s.mStoredIndexCount,
-                GL.GL_UNSIGNED_INT,
+                GL4.GL_UNSIGNED_INT,
                 offset.toLong())
 
-            gl.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, 0)
+            gl.glBindBuffer(GL4.GL_ELEMENT_ARRAY_BUFFER, 0)
         } else {
             gl.glDrawArrays((node as HasGeometry).geometryType.toOpenGLType(), offset, s.mStoredPrimitiveCount)
         }
 
-        gl.gL3.glUseProgram(0)
-        gl.gL4.glBindVertexArray(0)
+        gl.glUseProgram(0)
+        gl.glBindVertexArray(0)
     }
 
     /**
@@ -2184,24 +2186,24 @@ class OpenGLRenderer(hub: Hub,
 
 //        s.program?.use(gl)
 
-        gl.gL4.glBindVertexArray(s.mVertexArrayObject[0])
+        gl.glBindVertexArray(s.mVertexArrayObject[0])
 
         if (s.mStoredIndexCount > 0) {
-            gl.gL4.glDrawElementsInstanced(
+            gl.glDrawElementsInstanced(
                 (node as HasGeometry).geometryType.toOpenGLType(),
                 s.mStoredIndexCount,
-                GL.GL_UNSIGNED_INT,
+                GL4.GL_UNSIGNED_INT,
                 offset,
                 count)
         } else {
-            gl.gL4.glDrawArraysInstanced(
+            gl.glDrawArraysInstanced(
                 (node as HasGeometry).geometryType.toOpenGLType(),
                 0, s.mStoredPrimitiveCount, count)
 
         }
 
-        gl.gL4.glUseProgram(0)
-        gl.gL4.glBindVertexArray(0)
+        gl.glUseProgram(0)
+        gl.glBindVertexArray(0)
     }
 
     override fun screenshot() {
@@ -2209,18 +2211,18 @@ class OpenGLRenderer(hub: Hub,
     }
 
     private fun RenderConfigReader.BlendFactor.toOpenGL() = when (this) {
-        RenderConfigReader.BlendFactor.Zero -> GL.GL_ZERO
-        RenderConfigReader.BlendFactor.One -> GL.GL_ONE
-        RenderConfigReader.BlendFactor.OneMinusSrcAlpha -> GL.GL_ONE_MINUS_SRC_ALPHA
-        RenderConfigReader.BlendFactor.SrcAlpha -> GL.GL_SRC_ALPHA
+        RenderConfigReader.BlendFactor.Zero -> GL4.GL_ZERO
+        RenderConfigReader.BlendFactor.One -> GL4.GL_ONE
+        RenderConfigReader.BlendFactor.OneMinusSrcAlpha -> GL4.GL_ONE_MINUS_SRC_ALPHA
+        RenderConfigReader.BlendFactor.SrcAlpha -> GL4.GL_SRC_ALPHA
     }
 
     private fun RenderConfigReader.BlendOp.toOpenGL() = when (this) {
-        RenderConfigReader.BlendOp.add -> GL.GL_FUNC_ADD
-        RenderConfigReader.BlendOp.subtract -> GL.GL_FUNC_SUBTRACT
+        RenderConfigReader.BlendOp.add -> GL4.GL_FUNC_ADD
+        RenderConfigReader.BlendOp.subtract -> GL4.GL_FUNC_SUBTRACT
         RenderConfigReader.BlendOp.min -> GL4.GL_MIN
         RenderConfigReader.BlendOp.max -> GL4.GL_MAX
-        RenderConfigReader.BlendOp.reverse_subtract -> GL.GL_FUNC_REVERSE_SUBTRACT
+        RenderConfigReader.BlendOp.reverse_subtract -> GL4.GL_FUNC_REVERSE_SUBTRACT
     }
 
     override fun close() {
