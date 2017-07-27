@@ -185,7 +185,7 @@ open class SceneryDefaultApplication(var applicationName: String,
             publisher?.publish()
 
             interpolation = (1.0f*getTickCount() + skipTicks - nextTick)/skipTicks
-            scene.activeObserver?.deltaT = interpolation/10e5f
+            scene.activeObserver?.deltaT = interpolation/10e4f
 
             if(renderer?.managesRenderLoop ?: true) {
                 Thread.sleep(2)
