@@ -1291,15 +1291,19 @@ class OpenGLRenderer(hub: Hub,
 
                     var binding = 0
                     s.UBOs.forEach { name, ubo ->
-                        val index = gl.glGetUniformBlockIndex(shader.id, name)
-                        gl.glUniformBlockBinding(shader.id, index, binding)
-                        gl.glBindBufferRange(GL4.GL_UNIFORM_BUFFER, binding,
-                            ubo.backingBuffer!!.id[0], 1L * ubo.offset, 1L * ubo.getSize())
+                        if(shader.uboSpecs.containsKey(name)) {
+                            val index = gl.glGetUniformBlockIndex(shader.id, name)
+                            logger.info("Binding $name for ${n.name}, index=$index, binding=$binding")
 
-                        if (index == -1) {
-                            logger.error("Failed to bind UBO $name for ${n.name} to $binding")
+                            if (index == -1) {
+                                logger.error("Failed to bind UBO $name for ${n.name} to $binding")
+                            } else {
+                                gl.glUniformBlockBinding(shader.id, index, binding)
+                                gl.glBindBufferRange(GL4.GL_UNIFORM_BUFFER, binding,
+                                    ubo.backingBuffer!!.id[0], 1L * ubo.offset, 1L * ubo.getSize())
+                                binding++
+                            }
                         }
-                        binding++
                     }
 
                     arrayOf("LightParameters", "VRParameters").forEach { name ->
