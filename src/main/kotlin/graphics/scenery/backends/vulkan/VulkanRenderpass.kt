@@ -179,10 +179,10 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
                     settings.set(settingsKey, value)
                 }
 
-                ubo.members.put(entry.key, { settings.get(settingsKey) })
+                ubo.add(entry.key, { settings.get(settingsKey) })
             }
 
-            logger.debug("Members are: ${ubo.members.values.joinToString(", ")}")
+            logger.debug("Members are: ${ubo.members()}")
             logger.debug("Allocating VulkanUBO memory now, space needed: ${ubo.getSize()}")
 
             ubo.createUniformBuffer(memoryProperties)

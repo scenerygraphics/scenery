@@ -315,4 +315,8 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, clazz: Class<*>, shad
             }
         }
     }
+
+    override fun toString(): String {
+        return "$shader: $shaderType with UBOs ${uboSpecs.keys.joinToString(", ") }}"
+    }
 }

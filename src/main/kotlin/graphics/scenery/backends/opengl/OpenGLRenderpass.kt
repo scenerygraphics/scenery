@@ -1,7 +1,6 @@
 package graphics.scenery.backends.opengl
 
 import cleargl.GLFramebuffer
-import cleargl.GLProgram
 import cleargl.GLVector
 import graphics.scenery.Settings
 import graphics.scenery.backends.RenderConfigReader
@@ -61,7 +60,7 @@ class OpenGLRenderpass(var passName: String = "", var passConfig: RenderConfigRe
                     settings.set(settingsKey, value)
                 }
 
-                ubo.members.put(entry.key, { settings.get(settingsKey) })
+                ubo.add(entry.key, { settings.get(settingsKey) })
             }
 
             ubo.populate()

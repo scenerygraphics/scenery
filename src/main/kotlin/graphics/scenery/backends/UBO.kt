@@ -13,10 +13,11 @@ import java.nio.ByteBuffer
  */
 open class UBO {
     var name = ""
-    var members = LinkedHashMap<String, () -> Any>()
+    protected var members = LinkedHashMap<String, () -> Any>()
+    protected var memberOffsets = HashMap<String, Int>()
     var logger: Logger = LoggerFactory.getLogger("UBO")
 
-    protected var sizeCached = 0
+    protected var sizeCached = -1
 
     companion object alignmentsCache {
         var alignments = HashMap<Pair<Class<*>, Int>, Pair<Int, Int>>()
@@ -85,7 +86,7 @@ open class UBO {
     }
 
     fun getSize(): Int {
-        val totalSize = if(sizeCached == 0) {
+        val totalSize = if(sizeCached == -1) {
             val size = members.map {
                 getSizeAndAlignment(it.value.invoke())
             }.fold(0) { current_position, (first, second) ->
@@ -112,14 +113,24 @@ open class UBO {
     }
 
     fun populate(data: ByteBuffer, offset: Long = 0) {
+        val originalPos = data.position()
+
         members.forEach {
             var pos = data.position()
             val value = it.value.invoke()
+
             val (size, alignment) = getSizeAndAlignment(value)
 
-            if(pos.rem(alignment) != 0) {
-                pos = pos + alignment - (pos.rem(alignment))
-                data.position(pos)
+            if(memberOffsets[it.key] != null) {
+                // position in buffer is known, use it
+                logger.info("${it.key} goes to ${memberOffsets[it.key]!!}")
+                data.position(originalPos + memberOffsets[it.key]!!)
+            } else {
+                // position in buffer is not explicitly known, advance based on size
+                if (pos.rem(alignment) != 0) {
+                    pos = pos + alignment - (pos.rem(alignment))
+                    data.position(pos)
+                }
             }
 
             when(value.javaClass) {
@@ -172,5 +183,26 @@ open class UBO {
 
             data.position(pos + size)
         }
+
+        sizeCached = data.position() - originalPos
+    }
+
+    fun add(name: String, value: () -> Any, offset: Int? = null) {
+        logger.info("Adding member $name, offset=$offset")
+        members.put(name, value)
+
+        offset?.let {
+            memberOffsets.put(name, offset)
+        }
+
+        sizeCached = -1
+    }
+
+    fun members(): String {
+        return members.keys.joinToString(", ")
+    }
+
+    fun get(name: String): (() -> Any)? {
+        return members[name]
     }
 }

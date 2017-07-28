@@ -655,10 +655,10 @@ open class VulkanRenderer(hub: Hub,
         val matricesUbo = VulkanUBO(device, backingBuffer = buffers["UBOBuffer"])
         with(matricesUbo) {
             name = "Default"
-            members.put("ModelMatrix", { node.world })
-            members.put("NormalMatrix", { node.world.inverse.transpose() })
-            members.put("ProjectionMatrix", { node.projection })
-            members.put("isBillboard", { node.isBillboard.toInt() })
+            add("ModelMatrix", { node.world })
+            add("NormalMatrix", { node.world.inverse.transpose() })
+            add("ProjectionMatrix", { node.projection })
+            add("isBillboard", { node.isBillboard.toInt() })
 
             requiredOffsetCount = 2
             createUniformBuffer(memoryProperties)
@@ -694,11 +694,11 @@ open class VulkanRenderer(hub: Hub,
 
         with(materialUbo) {
             name = "BlinnPhongMaterial"
-            members.put("Ka", { node.material.ambient })
-            members.put("Kd", { node.material.diffuse })
-            members.put("Ks", { node.material.specular })
-            members.put("Shininess", { node.material.specularExponent })
-            members.put("materialType", { materialType })
+            add("Ka", { node.material.ambient })
+            add("Kd", { node.material.diffuse })
+            add("Ks", { node.material.specular })
+            add("Shininess", { node.material.specularExponent })
+            add("materialType", { materialType })
 
             requiredOffsetCount = 1
             createUniformBuffer(memoryProperties)
@@ -789,7 +789,7 @@ open class VulkanRenderer(hub: Hub,
                 name = "ShaderProperties"
 
                 order.forEach { name ->
-                    members.put(name, { node.getShaderProperty(name)!! })
+                    add(name, { node.getShaderProperty(name)!! })
                 }
 
                 requiredOffsetCount = 1
@@ -2174,9 +2174,9 @@ open class VulkanRenderer(hub: Hub,
         val defaultUbo = VulkanUBO(device)
 
         defaultUbo.name = "default"
-        defaultUbo.members.put("Model", { GLMatrix.getIdentity() })
-        defaultUbo.members.put("ProjectionMatrix", { GLMatrix.getIdentity() })
-        defaultUbo.members.put("isBillboard", { 0 })
+        defaultUbo.add("Model", { GLMatrix.getIdentity() })
+        defaultUbo.add("ProjectionMatrix", { GLMatrix.getIdentity() })
+        defaultUbo.add("isBillboard", { 0 })
 
         defaultUbo.createUniformBuffer(memoryProperties)
         ubos.put("default", defaultUbo)
@@ -2184,10 +2184,10 @@ open class VulkanRenderer(hub: Hub,
         val lightUbo = VulkanUBO(device)
 
         lightUbo.name = "BlinnPhongLighting"
-        lightUbo.members.put("Position", { GLVector(0.0f, 0.0f, 0.0f) })
-        lightUbo.members.put("La", { GLVector(0.0f, 0.0f, 0.0f) })
-        lightUbo.members.put("Ld", { GLVector(0.0f, 0.0f, 0.0f) })
-        lightUbo.members.put("Ls", { GLVector(0.0f, 0.0f, 0.0f) })
+        lightUbo.add("Position", { GLVector(0.0f, 0.0f, 0.0f) })
+        lightUbo.add("La", { GLVector(0.0f, 0.0f, 0.0f) })
+        lightUbo.add("Ld", { GLVector(0.0f, 0.0f, 0.0f) })
+        lightUbo.add("Ls", { GLVector(0.0f, 0.0f, 0.0f) })
 
         lightUbo.createUniformBuffer(memoryProperties)
         ubos.put("BlinnPhongLighting", lightUbo)
@@ -2195,11 +2195,11 @@ open class VulkanRenderer(hub: Hub,
         val materialUbo = VulkanUBO(device)
 
         materialUbo.name = "BlinnPhongMaterial"
-        materialUbo.members.put("Ka", { GLVector(0.0f, 0.0f, 0.0f) })
-        materialUbo.members.put("Kd", { GLVector(0.0f, 0.0f, 0.0f) })
-        materialUbo.members.put("Ks", { GLVector(0.0f, 0.0f, 0.0f) })
-        materialUbo.members.put("Shininess", { 1.0f })
-        materialUbo.members.put("materialType", { 0 })
+        materialUbo.add("Ka", { GLVector(0.0f, 0.0f, 0.0f) })
+        materialUbo.add("Kd", { GLVector(0.0f, 0.0f, 0.0f) })
+        materialUbo.add("Ks", { GLVector(0.0f, 0.0f, 0.0f) })
+        materialUbo.add("Shininess", { 1.0f })
+        materialUbo.add("materialType", { 0 })
 
         materialUbo.createUniformBuffer(memoryProperties)
         ubos.put("BlinnPhongMaterial", materialUbo)
@@ -2703,13 +2703,13 @@ open class VulkanRenderer(hub: Hub,
         val vrUbo = VulkanUBO(device, backingBuffer = buffers["VRParametersBuffer"]!!)
 
         vrUbo.createUniformBuffer(memoryProperties)
-        vrUbo.members.put("projection0", { (hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance)
+        vrUbo.add("projection0", { (hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance)
             ?: cam.projection).applyVulkanCoordinateSystem() } )
-        vrUbo.members.put("projection1", { (hmd?.getEyeProjection(1, cam.nearPlaneDistance, cam.farPlaneDistance)
+        vrUbo.add("projection1", { (hmd?.getEyeProjection(1, cam.nearPlaneDistance, cam.farPlaneDistance)
             ?: cam.projection).applyVulkanCoordinateSystem() } )
-        vrUbo.members.put("headShift", { hmd?.getHeadToEyeTransform(0) ?: GLMatrix.getIdentity() })
-        vrUbo.members.put("IPD", { hmd?.getIPD() ?: 0.05f })
-        vrUbo.members.put("stereoEnabled", { renderConfig.stereoEnabled.toInt() })
+        vrUbo.add("headShift", { hmd?.getHeadToEyeTransform(0) ?: GLMatrix.getIdentity() })
+        vrUbo.add("IPD", { hmd?.getIPD() ?: 0.05f })
+        vrUbo.add("stereoEnabled", { renderConfig.stereoEnabled.toInt() })
 
         vrUbo.populate()
         buffers["VRParametersBuffer"]!!.copyFromStagingBuffer()
@@ -2768,24 +2768,24 @@ open class VulkanRenderer(hub: Hub,
         val lights = scene.discover(scene, { n -> n is PointLight })
 
         val lightUbo = VulkanUBO(device, backingBuffer = buffers["LightParametersBuffer"]!!)
-        lightUbo.members.put("ViewMatrix", { cam.view })
-        lightUbo.members.put("CamPosition", { cam.position })
-        lightUbo.members.put("numLights", { lights.size })
-        lightUbo.members.put("filler1", { 0.0f })
-        lightUbo.members.put("filler2", { 0.0f })
-        lightUbo.members.put("filler3", { 0.0f })
+        lightUbo.add("ViewMatrix", { cam.view })
+        lightUbo.add("CamPosition", { cam.position })
+        lightUbo.add("numLights", { lights.size })
+        lightUbo.add("filler1", { 0.0f })
+        lightUbo.add("filler2", { 0.0f })
+        lightUbo.add("filler3", { 0.0f })
 
         lights.forEachIndexed { i, light ->
             val l = light as PointLight
             l.updateWorld(true, false)
 
-            lightUbo.members.put("Linear-$i", { l.linear })
-            lightUbo.members.put("Quadratic-$i", { l.quadratic })
-            lightUbo.members.put("Intensity-$i", { l.intensity })
-            lightUbo.members.put("Radius-$i", { -l.linear + Math.sqrt(l.linear * l.linear - 4 * l.quadratic * (1.0 - (256.0f / 5.0) * 100)).toFloat() })
-            lightUbo.members.put("Position-$i", { l.position })
-            lightUbo.members.put("Color-$i", { l.emissionColor })
-            lightUbo.members.put("filler-$i", { 0.0f })
+            lightUbo.add("Linear-$i", { l.linear })
+            lightUbo.add("Quadratic-$i", { l.quadratic })
+            lightUbo.add("Intensity-$i", { l.intensity })
+            lightUbo.add("Radius-$i", { -l.linear + Math.sqrt(l.linear * l.linear - 4 * l.quadratic * (1.0 - (256.0f / 5.0) * 100)).toFloat() })
+            lightUbo.add("Position-$i", { l.position })
+            lightUbo.add("Color-$i", { l.emissionColor })
+            lightUbo.add("filler-$i", { 0.0f })
         }
 
         lightUbo.createUniformBuffer(memoryProperties)

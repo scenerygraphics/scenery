@@ -823,17 +823,17 @@ class OpenGLRenderer(hub: Hub,
         buffers["VRParameters"]!!.reset()
         val vrUbo = OpenGLUBO(backingBuffer = buffers["VRParameters"]!!)
 
-        vrUbo.members.put("projection0", {
+        vrUbo.add("projection0", {
             (hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance)
                 ?: cam.projection)
         })
-        vrUbo.members.put("projection1", {
+        vrUbo.add("projection1", {
             (hmd?.getEyeProjection(1, cam.nearPlaneDistance, cam.farPlaneDistance)
                 ?: cam.projection)
         })
-        vrUbo.members.put("headShift", { hmd?.getHeadToEyeTransform(0) ?: GLMatrix.getIdentity() })
-        vrUbo.members.put("IPD", { hmd?.getIPD() ?: 0.05f })
-        vrUbo.members.put("stereoEnabled", { renderConfig.stereoEnabled.toInt() })
+        vrUbo.add("headShift", { hmd?.getHeadToEyeTransform(0) ?: GLMatrix.getIdentity() })
+        vrUbo.add("IPD", { hmd?.getIPD() ?: 0.05f })
+        vrUbo.add("stereoEnabled", { renderConfig.stereoEnabled.toInt() })
 
         vrUbo.populate()
         buffers["VRParameters"]!!.copyFromStagingBuffer()
@@ -882,21 +882,21 @@ class OpenGLRenderer(hub: Hub,
         val lights = scene.discover(scene, { n -> n is PointLight })
 
         val lightUbo = OpenGLUBO(backingBuffer = buffers["LightParameters"]!!)
-        lightUbo.members.put("ViewMatrix", { cam.view })
-        lightUbo.members.put("CamPosition", { cam.position })
-        lightUbo.members.put("numLights", { lights.size })
+        lightUbo.add("ViewMatrix", { cam.view })
+        lightUbo.add("CamPosition", { cam.position })
+        lightUbo.add("numLights", { lights.size })
 
         lights.forEachIndexed { i, light ->
             val l = light as PointLight
             l.updateWorld(true, false)
 
-            lightUbo.members.put("Linear-$i", { l.linear })
-            lightUbo.members.put("Quadratic-$i", { l.quadratic })
-            lightUbo.members.put("Intensity-$i", { l.intensity })
-            lightUbo.members.put("Radius-$i", { -l.linear + Math.sqrt(l.linear * l.linear - 4 * l.quadratic * (1.0 - (256.0f / 5.0) * 100)).toFloat() })
-            lightUbo.members.put("Position-$i", { l.position })
-            lightUbo.members.put("Color-$i", { l.emissionColor })
-            lightUbo.members.put("filler-$i", { 0.0f })
+            lightUbo.add("Linear-$i", { l.linear })
+            lightUbo.add("Quadratic-$i", { l.quadratic })
+            lightUbo.add("Intensity-$i", { l.intensity })
+            lightUbo.add("Radius-$i", { -l.linear + Math.sqrt(l.linear * l.linear - 4 * l.quadratic * (1.0 - (256.0f / 5.0) * 100)).toFloat() })
+            lightUbo.add("Position-$i", { l.position })
+            lightUbo.add("Color-$i", { l.emissionColor })
+            lightUbo.add("filler-$i", { 0.0f })
         }
 
         lightUbo.populate()
@@ -1244,6 +1244,7 @@ class OpenGLRenderer(hub: Hub,
                     if (!n.metadata.containsKey("OpenGLRenderer")) {
                         n.metadata.put("OpenGLRenderer", OpenGLObjectState())
                         initializeNode(n)
+                        return@nonInstancedDrawing
                     }
 
                     var s = getOpenGLObjectStateFromNode(n)
@@ -1293,7 +1294,7 @@ class OpenGLRenderer(hub: Hub,
                     s.UBOs.forEach { name, ubo ->
                         if(shader.uboSpecs.containsKey(name)) {
                             val index = gl.glGetUniformBlockIndex(shader.id, name)
-                            logger.info("Binding $name for ${n.name}, index=$index, binding=$binding")
+                            logger.debug("Binding {} for {}, index={}, binding={}, size={}", name, n.name, index, binding, ubo.getSize())
 
                             if (index == -1) {
                                 logger.error("Failed to bind UBO $name for ${n.name} to $binding")
@@ -1332,6 +1333,7 @@ class OpenGLRenderer(hub: Hub,
                     if (!n.metadata.containsKey("OpenGLRenderer")) {
                         n.metadata.put("OpenGLRenderer", OpenGLObjectState())
                         initializeNode(n)
+                        return@instancedDrawing
                     }
 
                     val s = getOpenGLObjectStateFromNode(n)
@@ -1652,10 +1654,10 @@ class OpenGLRenderer(hub: Hub,
         val matricesUbo = OpenGLUBO(backingBuffer = buffers["UBOBuffer"])
         with(matricesUbo) {
             name = "Matrices"
-            members.put("ModelMatrix", { node.world })
-            members.put("NormalMatrix", { node.world.inverse.transpose() })
-            members.put("ProjectionMatrix", { node.projection })
-            members.put("isBillboard", { node.isBillboard.toInt() })
+            add("ModelMatrix", { node.world })
+            add("NormalMatrix", { node.world.inverse.transpose() })
+            add("ProjectionMatrix", { node.projection })
+            add("isBillboard", { node.isBillboard.toInt() })
 
             sceneUBOs.add(node)
 
@@ -1690,11 +1692,11 @@ class OpenGLRenderer(hub: Hub,
 
         with(materialUbo) {
             name = "MaterialProperties"
-            members.put("Ka", { node.material.ambient })
-            members.put("Kd", { node.material.diffuse })
-            members.put("Ks", { node.material.specular })
-            members.put("Shininess", { node.material.specularExponent })
-            members.put("materialType", { materialType })
+            add("Ka", { node.material.ambient })
+            add("Kd", { node.material.diffuse })
+            add("Ks", { node.material.specular })
+            add("Shininess", { node.material.specularExponent })
+            add("materialType", { materialType })
 
             s.UBOs.put("MaterialProperties", this)
         }
@@ -1705,8 +1707,9 @@ class OpenGLRenderer(hub: Hub,
                 name = "ShaderProperties"
 
                 if (node.useClassDerivedShader || node.material is ShaderMaterial) {
-                    s.shader?.getShaderPropertyOrder()?.forEach { name ->
-                        members.put(name, { node.getShaderProperty(name)!! })
+                    logger.info("Shader properties are: ${s.shader?.getShaderPropertyOrder()}")
+                    s.shader?.getShaderPropertyOrder()?.forEach { name, offset ->
+                        add(name, { node.getShaderProperty(name)!! }, offset)
                     }
                 }
             }
@@ -2154,7 +2157,7 @@ class OpenGLRenderer(hub: Hub,
         if (s.mStoredIndexCount == 0 && s.mStoredPrimitiveCount == 0) {
             return
         }
-        logger.info("Drawing ${node.name} with ${s.shader?.modules?.entries?.joinToString(", ")}")
+        logger.trace("Drawing {} with {}", node.name, s.shader?.modules?.entries?.joinToString(", "))
         gl.glBindVertexArray(s.mVertexArrayObject[0])
 
         if (s.mStoredIndexCount > 0) {
