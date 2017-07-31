@@ -136,7 +136,7 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         this.indices = BufferUtils.allocateIntAndPut(
             intArrayOf(0, 1, 2, 0, 2, 3))
 
-        this.geometryType = GeometryType.TRIANGLE_STRIP
+        this.geometryType = GeometryType.TRIANGLES
         this.vertexSize = 3
         this.texcoordSize = 2
 
@@ -148,6 +148,8 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         colormaps.put("jet", this.javaClass.getResource("colormap-jet.png").file)
         colormaps.put("plasma", this.javaClass.getResource("colormap-plasma.png").file)
         colormaps.put("viridis", this.javaClass.getResource("colormap-viridis.png").file)
+
+        assignEmptyVolumeTexture()
     }
 
     fun preloadRawFromPath(file: Path) {
@@ -330,6 +332,16 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
             NativeTypeEnum.Float -> TODO()
             NativeTypeEnum.Double -> TODO()
         }
+
+    private fun assignEmptyVolumeTexture() {
+        val emptyBuffer = BufferUtils.allocateByteAndPut(byteArrayOf(0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0))
+        val dim = GLVector(1.0f, 1.0f, 1.0f)
+        val gtv = GenericTexture("volume", dim, -1, GLTypeEnum.UnsignedShort, emptyBuffer, false, false)
+
+        this.material.transferTextures.put("volume", gtv)
+        this.material.textures.put("3D-volume", "fromBuffer:volume")
+        this.material.textures.put("normal", colormaps.values.first())
+    }
 
     private fun assignVolumeTexture(dimensions: LongArray, descriptor: VolumeDescriptor, replace: Boolean) {
         val dim = GLVector(dimensions[0].toFloat(), dimensions[1].toFloat(), dimensions[2].toFloat())
