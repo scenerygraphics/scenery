@@ -18,14 +18,28 @@ class OpenGLShaderProgram(var gl: GL4, val modules: HashMap<GLShaderType, OpenGL
         val shaders = HashMap<GLShaderType, GLShader>()
 
         modules.forEach { type, module ->
-            uboSpecs.putAll(module.uboSpecs)
+            module.uboSpecs.forEach { uboName, ubo ->
+                if(uboSpecs.containsKey(uboName)) {
+                    uboSpecs[uboName]!!.members.putAll(ubo.members)
+                } else {
+                    uboSpecs.put(uboName, ubo)
+                }
+            }
+
             shaders.put(type, module.shader)
         }
 
         logger.debug("Creating shader program from ${modules.keys.joinToString(", ")}")
 
         program = GLProgram(gl, shaders)
-        logger.info(program.programInfoLog)
+        if(program.programInfoLog.length > 0) {
+            logger.warn("There was an issue linking the following shaders:")
+            logger.warn("Error produced: ${program.programInfoLog}")
+
+            modules.forEach { shaderType, m ->
+                logger.warn("$shaderType: ${m.source}")
+            }
+        }
 
         id = program.id
     }

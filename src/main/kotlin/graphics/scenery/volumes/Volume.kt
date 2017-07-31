@@ -352,7 +352,7 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
             logger.info("Adding texture")
             this.material.transferTextures.put("volume", gtv)?.let {
                 if (replace) {
-                    memFree(it.contents)
+//                    memFree(it.contents)
                 }
             }
             this.material.textures.put("3D-volume", "fromBuffer:volume")

@@ -123,7 +123,7 @@ open class UBO {
 
             if(memberOffsets[it.key] != null) {
                 // position in buffer is known, use it
-                logger.info("${it.key} goes to ${memberOffsets[it.key]!!}")
+//                logger.info("${it.key} goes to ${memberOffsets[it.key]!!}")
                 data.position(originalPos + memberOffsets[it.key]!!)
             } else {
                 // position in buffer is not explicitly known, advance based on size
@@ -188,7 +188,6 @@ open class UBO {
     }
 
     fun add(name: String, value: () -> Any, offset: Int? = null) {
-        logger.info("Adding member $name, offset=$offset")
         members.put(name, value)
 
         offset?.let {

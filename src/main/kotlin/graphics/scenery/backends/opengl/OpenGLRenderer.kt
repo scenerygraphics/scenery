@@ -2154,7 +2154,7 @@ class OpenGLRenderer(hub: Hub,
     fun drawNode(node: Node, offset: Int = 0) {
         val s = getOpenGLObjectStateFromNode(node)
 
-        if (s.mStoredIndexCount == 0 && s.mStoredPrimitiveCount == 0) {
+        if (s.mStoredIndexCount == 0 && s.mStoredPrimitiveCount == 0 || node.material.needsTextureReload) {
             return
         }
         logger.trace("Drawing {} with {}", node.name, s.shader?.modules?.entries?.joinToString(", "))

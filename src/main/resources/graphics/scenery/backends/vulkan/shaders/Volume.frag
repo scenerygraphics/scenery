@@ -1,22 +1,26 @@
 #version 450 core
 #extension GL_ARB_separate_shader_objects: enable
 
-layout(set = 5, binding = 0) uniform sampler2D hdrColor;
-layout(set = 5, binding = 1) uniform sampler2D depth;
+//layout(set = 5, binding = 0) uniform sampler2D hdrColor;
+//layout(set = 5, binding = 1) uniform sampler2D depth;
 
-//layout(set = 1, binding = 0, std140) uniform ShaderParameters {
-//	float Gamma;
-//	float Exposure;
-//} hdrParams;
+layout(location = 0) in Input {
+    vec2 textureCoord;
+    mat4 inverseProjection;
+    mat4 inverseModelView;
+} InputData;
+
+layout(location = 0) out vec4 FragColor;
 
 const float PI = 3.14159265358979323846264;
 const int NUM_OBJECT_TEXTURES = 6;
-const int MAX_NUM_LIGHTS = 128;
+const int MAX_NUM_LIGHTS = 1024;
 
 struct Light {
 	float Linear;
 	float Quadratic;
 	float Intensity;
+	float Radius;
 	vec4 Position;
   	vec4 Color;
 };
@@ -28,33 +32,15 @@ struct MaterialInfo {
     float Shininess;
 };
 
-layout(location = 0) in vec2 textureCoord;
-layout(location = 1) in mat4 inverseProjection;
-layout(location = 5) in mat4 inverseModelView;
-
-
-layout(binding = 0) uniform Matrices {
-	mat4 ModelMatrix;
-	mat4 NormalMatrix;
-	mat4 ProjectionMatrix;
-	int isBillboard;
-} ubo;
+layout(set = 4, binding = 0) uniform LightParameters {
+    mat4 ViewMatrix;
+    vec3 CamPosition;
+    int numLights;
+	Light lights[MAX_NUM_LIGHTS];
+};
 
 layout(set = 1, binding = 0) uniform sampler2D ObjectTextures[NUM_OBJECT_TEXTURES];
-layout(set = 1, binding = 1) uniform sampler3D VolumeTextures;
-
-layout(set = 2, binding = 0) uniform VRParameters {
-    mat4 projectionMatrices[2];
-    mat4 headShift;
-    float IPD;
-    int stereoEnabled;
-} vrParameters;
-
-layout(push_constant) uniform currentEye_t {
-    int eye;
-} currentEye;
-
-layout(location = 0) out vec4 FragColor;
+layout(set = 1, binding = 1) uniform usampler3D VolumeTextures;
 
 layout(set = 3, binding = 0) uniform ShaderProperties {
     float voxelSizeX;
@@ -80,8 +66,6 @@ layout(set = 4) uniform MaterialProperties {
     MaterialInfo Material;
     int materialType;
 };
-
-// useless comment
 
 float PI_r = 0.3183098;
 
@@ -146,8 +130,8 @@ void main()
       // thread float coordinates:
 //      const float u = (x / (float) imageW)*2.0f-1.0f;
 //      const float v = (y / (float) imageH)*2.0f-1.0f;
-      const float u = textureCoord.s*2.0 - 1.0;
-      const float v = textureCoord.t*2.0 - 1.0;
+      const float u = InputData.textureCoord.s*2.0 - 1.0;
+      const float v = InputData.textureCoord.t*2.0 - 1.0;
 
       // front and back:
       const vec4 front = vec4(u,v,-1.f,1.f);
@@ -157,16 +141,16 @@ void main()
       vec4 orig0, orig;
       vec4 direc0, direc;
 
-      orig0 = inverseProjection * front;
+      orig0 = InputData.inverseProjection * front;
       orig0 *= 1.f/orig0.w;
 
-      orig = inverseModelView * orig0;
+      orig = InputData.inverseModelView * orig0;
       orig *= 1.f/orig.w;
 
-      direc0 = inverseProjection * back;
+      direc0 = InputData.inverseProjection * back;
       direc0 *= 1.f/direc0.w;
 
-      direc = inverseModelView * normalize(direc0-orig0);
+      direc = InputData.inverseModelView * normalize(direc0-orig0);
       direc.w = 0.0f;
 
       // find intersection with box
@@ -174,7 +158,7 @@ void main()
 
       if (!inter.hit || inter.tfar <= 0)
       {
-       	FragColor = vec4(0.0f, 0.0f, 0.0f, 0.0f);
+       	FragColor = vec4(1.0f, 0.0f, 0.0f,1.0f);
       	return;
       }
 
@@ -250,6 +234,5 @@ void main()
 
       // FIXME sanity check: this should give the colormap texture (but doesnt!)
       //FragColor = texture(ObjectTextures[3], vec2(textureCoord.s ,0.5f));
-
 }
 

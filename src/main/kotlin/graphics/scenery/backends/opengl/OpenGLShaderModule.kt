@@ -26,6 +26,9 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, clazz: Class<*>, shad
         private set
     var uboSpecs = LinkedHashMap<String, UBOSpec>()
 
+    var source: String = ""
+        private set
+
     data class UBOMemberSpec(val name: String, val index: Long, val offset: Long, val range: Long)
     data class UBOSpec(val name: String, val set: Long, val binding: Long, val members: LinkedHashMap<String, UBOMemberSpec>)
 
@@ -219,7 +222,7 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, clazz: Class<*>, shad
 
         this.shaderType = toClearGLShaderType(extension)
 
-        var source = compiler.compile()
+        source = compiler.compile()
         // remove binding and set qualifiers
         var start = 0
         var found = source.indexOf("layout(", start)
@@ -258,6 +261,13 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, clazz: Class<*>, shad
                 continue
             }
 
+            if(source.substring(end, source.indexOf(";", end)).contains("mat")) {
+                logger.debug("Converting location-based struct to regular struct")
+                source = source.replaceRange(start-7, end, "")
+                start = found
+                found = source.indexOf("layout(", start)
+                continue
+            }
 
             if(source.substring(start, end).contains("set") || source.substring(start, end).contains("binding")) {
                 logger.debug("Replacing ${source.substring(start, end)}")

@@ -5,9 +5,11 @@ layout(location = 0) in vec3 vertexPosition;
 layout(location = 1) in vec3 vertexNormal;
 layout(location = 2) in vec2 vertexTexCoord;
 
-layout(location = 0) out vec2 textureCoord;
-layout(location = 1) out mat4 inverseProjection;
-layout(location = 5) out mat4 inverseModelView;
+layout(location = 0) out Output {
+    vec2 textureCoord;
+    mat4 inverseProjection;
+    mat4 inverseModelView;
+} OutputData;
 
 layout(binding = 0) uniform Matrices {
 	mat4 ModelMatrix;
@@ -90,9 +92,9 @@ void main()
 	invScale[1][1] = Lmax/L.y;
 	invScale[2][2] = Lmax/L.z;
 
-    inverseProjection = inverse(projectionMatrix);
-    inverseModelView = invScale*inverse(mv);
+    OutputData.inverseProjection = mat4(1.0);//inverse(projectionMatrix);
+    OutputData.inverseModelView = mat4(1.0);//invScale*inverse(mv);
 
-    textureCoord = vertexTexCoord;
+    OutputData.textureCoord = vertexTexCoord;
 	gl_Position = vec4(vertexPosition, 1.0);
 }
