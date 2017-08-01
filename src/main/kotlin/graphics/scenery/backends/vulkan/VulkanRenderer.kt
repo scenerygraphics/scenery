@@ -1788,12 +1788,17 @@ open class VulkanRenderer(hub: Hub,
             logger.warn("Using OpenGL-based swapchain. API validations deactivated.")
         }
 
+        val enabledFeatures = VkPhysicalDeviceFeatures.calloc()
+            .samplerAnisotropy(true)
+            .largePoints(true)
+
         val deviceCreateInfo = VkDeviceCreateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO)
             .pNext(NULL)
             .pQueueCreateInfos(queueCreateInfo)
             .ppEnabledExtensionNames(extensions)
             .ppEnabledLayerNames(ppEnabledLayerNames)
+            .pEnabledFeatures(enabledFeatures)
 
         val pDevice = memAllocPointer(1)
         val err = vkCreateDevice(physicalDevice, deviceCreateInfo, null, pDevice)
@@ -1819,6 +1824,7 @@ open class VulkanRenderer(hub: Hub,
         memFree(extensions)
         memFree(pQueuePriorities)
         queueCreateInfo.free()
+        enabledFeatures.free()
 
         return ret
     }
