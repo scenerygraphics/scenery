@@ -49,7 +49,7 @@ open class VulkanRenderer(hub: Hub,
                           windowWidth: Int,
                           windowHeight: Int,
                           override final var embedIn: SceneryPanel? = null,
-                          renderConfigFile: String = System.getProperty("scenery.Renderer.Config", "DeferredShading.yml")) : Renderer, AutoCloseable {
+                          renderConfigFile: String = System.getProperty("scenery.Renderer.Config", "DeferredShading.yml")) : Renderer(), AutoCloseable {
 
     protected val logger by LazyLogger()
 
@@ -449,42 +449,6 @@ open class VulkanRenderer(hub: Hub,
         if(System.getProperty("scenery.RunFullscreen","false").toBoolean()) {
             toggleFullscreen = true
         }
-    }
-
-    /**
-     * Returns the default [Settings] for [VulkanRenderer]
-     *
-     * Providing some sane defaults that may of course be overridden after
-     * construction of the renderer.
-     *
-     * @return Default [Settings] values
-     */
-    protected fun loadDefaultRendererSettings(ds: Settings): Settings {
-        val base = VulkanRenderer::class.java.simpleName
-
-        ds.set("wantsFullscreen", false)
-        ds.set("isFullscreen", false)
-
-//        ds.set("ssao.Active", true)
-//        ds.set("ssao.FilterRadius", GLVector(0.0f, 0.0f))
-//        ds.set("ssao.DistanceThreshold", 50.0f)
-//        ds.set("ssao.Algorithm", 1)
-
-        ds.set("vr.Active", true)
-//        ds.set("vr.DoAnaglyph", false)
-//        ds.set("vr.IPD", 0.0f)
-//        ds.set("vr.EyeDivisor", 1)
-
-        ds.set("hdr.Active", true)
-        ds.set("hdr.Exposure", 1.0f)
-        ds.set("hdr.Gamma", 2.2f)
-
-        ds.set("sdf.MaxDistance", 10)
-
-        ds.set("$base.PrintGPUStats", false)
-        ds.set("Renderer.SupersamplingFactor", System.getProperty("scenery.Renderer.SupersamplingFactor")?.toFloat() ?: 1.0f)
-
-        return ds
     }
 
     // source: http://stackoverflow.com/questions/34697828/parallel-operations-on-kotlin-collections

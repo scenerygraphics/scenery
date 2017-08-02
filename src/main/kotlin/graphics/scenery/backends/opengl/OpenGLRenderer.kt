@@ -15,8 +15,6 @@ import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.utils.*
 import javafx.application.Platform
 import org.lwjgl.system.MemoryUtil
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import java.io.File
 import java.lang.reflect.Field
 import java.nio.ByteBuffer
@@ -60,7 +58,7 @@ class OpenGLRenderer(hub: Hub,
                      width: Int,
                      height: Int,
                      override var embedIn: SceneryPanel? = null,
-                     renderConfigFile: String = System.getProperty("scenery.Renderer.Config", "DeferredShading.yml")) : Renderer, Hubable, ClearGLDefaultEventListener() {
+                     renderConfigFile: String = System.getProperty("scenery.Renderer.Config", "DeferredShading.yml")) : Renderer(), Hubable, ClearGLEventListener {
     /** slf4j logger */
     private val logger by LazyLogger()
     /** [GL4] instance handed over, coming from [ClearGLDefaultEventListener]*/
@@ -533,8 +531,6 @@ class OpenGLRenderer(hub: Hub,
     }
 
     override fun display(pDrawable: GLAutoDrawable) {
-        super.display(pDrawable)
-
         val fps = pDrawable.animator?.lastFPS ?: 0.0f
 
         window.setTitle("$applicationName [${this@OpenGLRenderer.javaClass.simpleName}] - $fps fps")
@@ -576,32 +572,6 @@ class OpenGLRenderer(hub: Hub,
         pDrawable.animator?.stop()
 
         this.shouldClose = true
-    }
-
-    /**
-     * Returns the default [Settings] for [OpenGLRenderer]
-     *
-     * Providing some sane defaults that may of course be overridden after
-     * construction of the renderer.
-     *
-     * @return Default [Settings] values
-     */
-    private fun loadDefaultRendererSettings(ds: Settings): Settings {
-        val base = OpenGLRenderer::class.java.simpleName
-
-        ds.set("wantsFullscreen", false)
-        ds.set("isFullscreen", false)
-
-        ds.set("vr.Active", false)
-        ds.set("vr.DoAnaglyph", false)
-        ds.set("vr.IPD", 0.0f)
-        ds.set("vr.EyeDivisor", 1)
-
-        ds.set("$base.PrintGPUStats", false)
-
-        ds.set("Renderer.SupersamplingFactor", 1.0f)
-
-        return ds
     }
 
     /**
