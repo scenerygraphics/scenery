@@ -193,6 +193,8 @@ open class VulkanRenderer(hub: Hub,
             return if(strictValidation) {
                 VK_FALSE
             } else {
+                // set 15s of delay until the next frame is rendered if a validation error happens
+                renderDelay = 15000L
                 VK_TRUE
             }
         }
@@ -279,6 +281,7 @@ open class VulkanRenderer(hub: Hub,
     protected var fps = 0
     protected var frames = 0
     protected var totalFrames = 0L
+    protected var renderDelay = 0L
     protected var heartbeatTimer = Timer()
     protected var gpuStats: GPUStats? = null
 
@@ -1478,6 +1481,7 @@ open class VulkanRenderer(hub: Hub,
     @Synchronized override fun render() {
         pollEvents()
 
+
         // check whether scene is already initialized
         if (scene.children.count() == 0 || !scene.initialized) {
             initializeScene()
@@ -1499,6 +1503,11 @@ open class VulkanRenderer(hub: Hub,
             // stop all
             vkDeviceWaitIdle(device)
             return
+        }
+
+        if(renderDelay > 0) {
+            logger.warn("Delaying next frame for $renderDelay ms, as one or more validation error have occured in the previous frame.")
+            Thread.sleep(renderDelay)
         }
 
         updateDefaultUBOs(device)
