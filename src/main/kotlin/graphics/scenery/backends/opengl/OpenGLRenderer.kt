@@ -40,14 +40,13 @@ import kotlin.concurrent.withLock
  * make sure the `vr.Active` [Settings] is set to `true`, and that the `Hub` has a HMD
  * instance attached.
  *
- * @param[hub] A [Hub] instance needed for Scenery-internal communication
- * @param[applicationName] The name of this application
- * @param[scene] The initial scene to use
- * @param[width] Initial window width, will be used for framebuffer construction
- * @param[height] Initial window height, will be used for framebuffer construction
- * @param[embedIn] JavaFX SceneryPanel where this renderer might be embedded in, otherwise null
- *
- * @constructor Initializes the [OpenGLRenderer] with the given window dimensions and GL context
+ * @param[hub] Hub instance to use and attach to.
+ * @param[applicationName] The name of this application.
+ * @param[scene] The [Scene] instance to initialize first.
+ * @param[windowWidth] Horizontal window size.
+ * @param[windowHeight] Vertical window size.
+ * @param[embedIn] An optional [SceneryPanel] in which to embed the renderer instance.
+ * @param[renderConfigFile] The file to create a [RenderConfigReader.RenderConfig] from.
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */

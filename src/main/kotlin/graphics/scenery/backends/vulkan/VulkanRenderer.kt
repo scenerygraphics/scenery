@@ -39,10 +39,19 @@ import kotlin.concurrent.withLock
 
 
 /**
- * <Description>
+ * Vulkan Renderer
+ *
+ * @param[hub] Hub instance to use and attach to.
+ * @param[applicationName] The name of this application.
+ * @param[scene] The [Scene] instance to initialize first.
+ * @param[windowWidth] Horizontal window size.
+ * @param[windowHeight] Vertical window size.
+ * @param[embedIn] An optional [SceneryPanel] in which to embed the renderer instance.
+ * @param[renderConfigFile] The file to create a [RenderConfigReader.RenderConfig] from.
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
+
 open class VulkanRenderer(hub: Hub,
                           applicationName: String,
                           scene: Scene,
