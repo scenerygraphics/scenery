@@ -6,7 +6,6 @@ import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.glfw.GLFWVulkan
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.vulkan.*
-import org.slf4j.LoggerFactory
 import java.nio.ByteBuffer
 import java.nio.LongBuffer
 import javafx.stage.Stage
@@ -24,7 +23,6 @@ import javafx.scene.control.Label
 import javafx.scene.layout.*
 import javafx.scene.paint.Color
 import javafx.scene.text.TextAlignment
-import org.slf4j.Logger
 import java.util.concurrent.locks.ReentrantLock
 
 
@@ -55,8 +53,6 @@ class FXSwapchain(device: VkDevice,
     lateinit var vulkanSwapchainRecreator: VulkanRenderer.SwapchainRecreator
 
     private val WINDOW_RESIZE_TIMEOUT = 400 * 10e6
-
-    override var logger: Logger = LoggerFactory.getLogger("FXSwapchain")
 
     inner class ResizeHandler {
         @Volatile var lastResize = -1L

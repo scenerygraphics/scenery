@@ -2,9 +2,8 @@ package graphics.scenery.backends.vulkan
 
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import graphics.scenery.NodeMetadata
+import graphics.scenery.utils.LazyLogger
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
@@ -14,7 +13,8 @@ import java.util.concurrent.ConcurrentHashMap
  * @author Ulrik Günther <hello@ulrik.is>
  */
 open class VulkanObjectState : NodeMetadata {
-    protected var logger: Logger = LoggerFactory.getLogger("VulkanRenderer")
+    protected val logger by LazyLogger()
+
     override val consumers: MutableList<String> = ArrayList()
 
     var initialized = false
@@ -95,7 +95,7 @@ open class VulkanObjectState : NodeMetadata {
     }
 
     companion object {
-        protected var logger: Logger = LoggerFactory.getLogger("VulkanRenderer")
+        protected val logger by LazyLogger()
 
         fun textureTypeToSlot(type: String): Int {
             return when (type) {

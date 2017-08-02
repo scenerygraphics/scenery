@@ -2,7 +2,6 @@ package graphics.scenery
 
 import cleargl.ClearGLDefaultEventListener
 import cleargl.GLVector
-import com.sun.jna.Pointer
 import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.opengl.OpenGLRenderer
 import graphics.scenery.controls.InputHandler
@@ -13,18 +12,10 @@ import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.repl.REPL
 import graphics.scenery.utils.Statistics
 import org.scijava.ui.behaviour.ClickBehaviour
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import org.zeromq.ZContext
 import kotlin.concurrent.thread
-import java.lang.reflect.AccessibleObject.setAccessible
-import com.sun.jna.platform.win32.WinNT
-import com.sun.jna.platform.win32.Kernel32
+import graphics.scenery.utils.LazyLogger
 import java.lang.management.ManagementFactory
-
-
-
-
 
 /**
  * A default application to use scenery with, keeping the needed boilerplate
@@ -61,7 +52,7 @@ open class SceneryDefaultApplication(var applicationName: String,
 
     protected var stats: Statistics = Statistics(hub)
 
-    protected var logger: Logger = LoggerFactory.getLogger(applicationName)
+    protected val logger by LazyLogger()
 
     var updateFunction: () -> Any = {}
 

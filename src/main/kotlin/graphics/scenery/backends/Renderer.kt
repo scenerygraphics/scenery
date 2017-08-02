@@ -6,8 +6,8 @@ import graphics.scenery.Scene
 import graphics.scenery.Settings
 import graphics.scenery.backends.opengl.OpenGLRenderer
 import graphics.scenery.backends.vulkan.VulkanRenderer
+import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.SceneryPanel
-import org.slf4j.LoggerFactory
 
 /**
  * Renderer interface. Defines the minimal set of functions a renderer has to implement.
@@ -45,7 +45,8 @@ interface Renderer : Hubable {
 
     @Suppress("UNUSED")
     fun toggleVR() {
-        LoggerFactory.getLogger("Renderer").info("Toggling VR!")
+        val logger by LazyLogger()
+        logger.info("Toggling VR!")
         val isStereo = renderConfigFile.substringBeforeLast(".").indexOf("Stereo") != -1
 
         if(isStereo) {
@@ -55,7 +56,7 @@ interface Renderer : Hubable {
                 renderConfigFile = nonStereoConfig
                 settings.set("vr.Active", false)
             } else {
-                LoggerFactory.getLogger("Renderer").warn("Non-stereo configuration for $renderConfigFile ($nonStereoConfig) not found.")
+                logger.warn("Non-stereo configuration for $renderConfigFile ($nonStereoConfig) not found.")
             }
         } else {
             val stereoConfig = renderConfigFile.substringBeforeLast(".") + "Stereo.yml"
@@ -64,7 +65,7 @@ interface Renderer : Hubable {
                 renderConfigFile = stereoConfig
                 settings.set("vr.Active", true)
             } else {
-                LoggerFactory.getLogger("Renderer").warn("Stereo VR configuration for $renderConfigFile ($stereoConfig) not found.")
+                logger.warn("Stereo VR configuration for $renderConfigFile ($stereoConfig) not found.")
             }
         }
     }

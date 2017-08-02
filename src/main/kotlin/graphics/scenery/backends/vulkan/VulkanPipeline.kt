@@ -3,9 +3,8 @@ package graphics.scenery.backends.vulkan
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import graphics.scenery.GeometryType
+import graphics.scenery.utils.LazyLogger
 import java.nio.IntBuffer
 import java.util.*
 
@@ -15,7 +14,7 @@ import java.util.*
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class VulkanPipeline(val device: VkDevice, val pipelineCache: Long? = null): AutoCloseable {
-    protected var logger: Logger = LoggerFactory.getLogger("VulkanPipeline")
+    private val logger by LazyLogger()
 
     var pipeline = HashMap<GeometryType, VulkanRenderer.Pipeline>()
     var descriptorSpecs = ArrayList<VulkanShaderModule.UBOSpec>()

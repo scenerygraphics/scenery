@@ -5,12 +5,12 @@ import cleargl.GLShader
 import cleargl.GLShaderType
 import cleargl.GLUniform
 import com.jogamp.opengl.GL4
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
+import graphics.scenery.utils.LazyLogger
 
 class OpenGLShaderProgram(var gl: GL4, val modules: HashMap<GLShaderType, OpenGLShaderModule>) {
+    private val logger by LazyLogger()
+
     var program: GLProgram
-    val logger: Logger = LoggerFactory.getLogger("OpenGLRenderer")
     val uboSpecs = LinkedHashMap<String, OpenGLShaderModule.UBOSpec>()
     var id: Int
 
@@ -32,7 +32,7 @@ class OpenGLShaderProgram(var gl: GL4, val modules: HashMap<GLShaderType, OpenGL
         logger.debug("Creating shader program from ${modules.keys.joinToString(", ")}")
 
         program = GLProgram(gl, shaders)
-        if(program.programInfoLog.length > 0) {
+        if(program.programInfoLog.isNotEmpty()) {
             logger.warn("There was an issue linking the following shaders:")
             logger.warn("Error produced: ${program.programInfoLog}")
 

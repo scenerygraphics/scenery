@@ -3,6 +3,7 @@ package graphics.scenery.backends.vulkan
 import graphics.scenery.Hub
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.SceneryWindow
+import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.SceneryPanel
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.glfw.GLFWVulkan
@@ -10,8 +11,6 @@ import org.lwjgl.glfw.GLFWWindowSizeCallback
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.KHRSwapchain.vkAcquireNextImageKHR
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 
@@ -27,13 +26,13 @@ open class VulkanSwapchain(open val device: VkDevice,
                            open val commandPool: Long,
                            @Suppress("unused") open val renderConfig: RenderConfigReader.RenderConfig,
                            open val useSRGB: Boolean = true) : Swapchain {
+    protected val logger by LazyLogger()
+
     override var handle: Long = 0L
     override var images: LongArray? = null
     override var imageViews: LongArray? = null
 
     override var format: Int = 0
-
-    open var logger: Logger = LoggerFactory.getLogger("VulkanSwapchain")
 
     var swapchainImage: IntBuffer = MemoryUtil.memAllocInt(1)
     var swapchainPointer: LongBuffer = MemoryUtil.memAllocLong(1)
@@ -437,6 +436,10 @@ open class VulkanSwapchain(open val device: VkDevice,
     }
 
     override fun embedIn(panel: SceneryPanel?) {
+        if(panel == null) {
+            return
+        }
+
         logger.error("Embedding is not supported with the default Vulkan swapchain. Use FXSwapchain instead.")
     }
 

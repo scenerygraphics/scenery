@@ -1,13 +1,12 @@
 package graphics.scenery.backends.vulkan
 
+import graphics.scenery.utils.LazyLogger
 import org.lwjgl.vulkan.*
 import java.util.*
 import org.lwjgl.vulkan.VK10.*
 import java.nio.LongBuffer
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.system.Struct
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 
 /**
  *
@@ -21,7 +20,7 @@ open class VulkanFramebuffer(protected var device: VkDevice,
                         var height: Int,
                         var commandBuffer: VkCommandBuffer,
                         var shouldClear: Boolean = true): AutoCloseable {
-    protected var logger: Logger = LoggerFactory.getLogger("VulkanRenderer")
+    protected val logger by LazyLogger()
 
     var framebuffer = memAllocLong(1)
     var renderPass = memAllocLong(1)

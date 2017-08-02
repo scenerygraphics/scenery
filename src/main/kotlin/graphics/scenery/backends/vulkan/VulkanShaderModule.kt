@@ -6,24 +6,34 @@ import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkDevice
 import org.lwjgl.vulkan.VkPipelineShaderStageCreateInfo
 import org.lwjgl.vulkan.VkShaderModuleCreateInfo
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import graphics.scenery.BufferUtils
 import java.nio.ByteBuffer
 import java.util.*
 import graphics.scenery.spirvcrossj.EShLanguage
 import graphics.scenery.spirvcrossj.EShMessages
-import java.nio.Buffer
+import graphics.scenery.utils.LazyLogger
 import kotlin.collections.LinkedHashMap
 
 
 /**
- * Vulkan Object State class. Saves texture, UBO, pipeline and vertex buffer state.
+ * Vulkan Shader Module
+ *
+ * Class facilitating the use of shaders in Vulkan. Supports loading SPIR-V binaries and compiling GLSL
+ * shader text files to SPIR-V binaries, with introspection.
+ *
+ * When loading a SPIR-V binary, VulkanShaderModule will check if a newer GLSL text file with the same name
+ * exists and load that.
+ *
+ * @param[device] The Vulkan device to use (VkDevice)
+ * @param[entryPoint] Customizable main entry point for the shader, usually "main"
+ * @param[clazz] Base path for the shader module, to determine where to load the file from
+ * @param[shaderCodePath] Path of the shader text file or SPIR-V binary file, relative to clazz.
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
+
 open class VulkanShaderModule(device: VkDevice, entryPoint: String, clazz: Class<*>, shaderCodePath: String) {
-    protected var logger: Logger = LoggerFactory.getLogger("VulkanShaderModule")
+    protected val logger by LazyLogger()
     var shader: VkPipelineShaderStageCreateInfo
     var shaderModule: Long
     var device: VkDevice

@@ -8,10 +8,7 @@ import graphics.scenery.backends.*
 import graphics.scenery.fonts.SDFFontAtlas
 import graphics.scenery.spirvcrossj.Loader
 import graphics.scenery.spirvcrossj.libspirvcrossj
-import graphics.scenery.utils.GPUStats
-import graphics.scenery.utils.NvidiaGPUStats
-import graphics.scenery.utils.SceneryPanel
-import graphics.scenery.utils.Statistics
+import graphics.scenery.utils.*
 import org.lwjgl.PointerBuffer
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.glfw.GLFWVulkan.*
@@ -24,8 +21,6 @@ import org.lwjgl.vulkan.EXTDebugReport.*
 import org.lwjgl.vulkan.KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
 import org.lwjgl.vulkan.KHRSwapchain.VK_KHR_SWAPCHAIN_EXTENSION_NAME
 import org.lwjgl.vulkan.VK10.*
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import java.awt.image.BufferedImage
 import java.awt.image.DataBufferByte
 import java.io.File
@@ -55,6 +50,8 @@ open class VulkanRenderer(hub: Hub,
                           windowHeight: Int,
                           override final var embedIn: SceneryPanel? = null,
                           renderConfigFile: String = System.getProperty("scenery.Renderer.Config", "DeferredShading.yml")) : Renderer, AutoCloseable {
+
+    protected val logger by LazyLogger()
 
     // helper classes
     data class PresentHelpers(
@@ -182,7 +179,13 @@ open class VulkanRenderer(hub: Hub,
                 logger.info("!! Validation (unknown message type)$dbg: " + getString(pMessage))
             }
 
-            return VK_FALSE
+            // if strict validation is enabled, the application will quit after a
+            // validation error has been encountered
+            return if(strictValidation) {
+                VK_FALSE
+            } else {
+                VK_TRUE
+            }
         }
     }
 
@@ -208,7 +211,6 @@ open class VulkanRenderer(hub: Hub,
     final override var hub: Hub? = null
     protected var applicationName = ""
     final override var settings: Settings = Settings()
-    protected var logger: Logger = LoggerFactory.getLogger("VulkanRenderer")
     override var shouldClose = false
     var toggleFullscreen = false
     override var managesRenderLoop = false
@@ -226,6 +228,7 @@ open class VulkanRenderer(hub: Hub,
     protected var renderCommandBuffers: Array<VkCommandBuffer>? = null
 
     protected val validation = java.lang.Boolean.parseBoolean(System.getProperty("scenery.VulkanRenderer.EnableValidations", "false"))
+    protected val strictValidation = java.lang.Boolean.parseBoolean(System.getProperty("scenery.VulkanRenderer.StrictValidation", "false"))
     protected val wantsOpenGLSwapchain = java.lang.Boolean.parseBoolean(System.getProperty("scenery.VulkanRenderer.UseOpenGLSwapchain", "false"))
     protected val layers = arrayOf<ByteBuffer>(memUTF8("VK_LAYER_LUNARG_standard_validation"))
 
@@ -649,12 +652,12 @@ open class VulkanRenderer(hub: Hub,
 
         val defaultDescriptorSet =
             VU.createDescriptorSetDynamic(device, descriptorPool,
-                descriptorSetLayouts["default"]!!, standardUBOs.count(),
+                descriptorSetLayouts["Matrices"]!!, standardUBOs.count(),
                 buffers["UBOBuffer"]!!)
 
         val matricesUbo = VulkanUBO(device, backingBuffer = buffers["UBOBuffer"])
         with(matricesUbo) {
-            name = "Default"
+            name = "Matrices"
             add("ModelMatrix", { node.world })
             add("NormalMatrix", { node.world.inverse.transpose() })
             add("ProjectionMatrix", { node.projection })
@@ -664,7 +667,7 @@ open class VulkanRenderer(hub: Hub,
             createUniformBuffer(memoryProperties)
             sceneUBOs.add(node)
 
-            s.UBOs.put("Default", defaultDescriptorSet.to(this))
+            s.UBOs.put(name, defaultDescriptorSet.to(this))
         }
 
         s = loadTexturesForNode(node, s)
@@ -693,7 +696,7 @@ open class VulkanRenderer(hub: Hub,
         }
 
         with(materialUbo) {
-            name = "BlinnPhongMaterial"
+            name = "MaterialProperties"
             add("Ka", { node.material.ambient })
             add("Kd", { node.material.diffuse })
             add("Ks", { node.material.specular })
@@ -702,7 +705,7 @@ open class VulkanRenderer(hub: Hub,
 
             requiredOffsetCount = 1
             createUniformBuffer(memoryProperties)
-            s.UBOs.put("BlinnPhongMaterial", defaultDescriptorSet.to(this))
+            s.UBOs.put("MaterialProperties", defaultDescriptorSet.to(this))
         }
 
         s.initialized = true
@@ -936,39 +939,45 @@ open class VulkanRenderer(hub: Hub,
     protected fun prepareDefaultDescriptorSetLayouts(device: VkDevice): ConcurrentHashMap<String, Long> {
         val m = ConcurrentHashMap<String, Long>()
 
-        m.put("default", VU.createDescriptorSetLayout(
+        m.put("Matrices", VU.createDescriptorSetLayout(
             device,
-            listOf(
-                Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1),
-                Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1),
-                Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1)),
-            VK_SHADER_STAGE_ALL_GRAPHICS))
+            listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1)),
+            VK_SHADER_STAGE_ALL))
+
+        m.put("MaterialProperties", VU.createDescriptorSetLayout(
+            device,
+            listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1)),
+            VK_SHADER_STAGE_ALL))
 
         m.put("LightParameters", VU.createDescriptorSetLayout(
             device,
             listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1)),
-            VK_SHADER_STAGE_ALL_GRAPHICS))
+            VK_SHADER_STAGE_ALL))
 
         m.put("ObjectTextures", VU.createDescriptorSetLayout(
             device,
-            listOf(Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 6),
+            listOf(
+                Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 6),
                 Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1)),
-            VK_SHADER_STAGE_ALL_GRAPHICS))
+            VK_SHADER_STAGE_ALL))
 
         m.put("VRParameters", VU.createDescriptorSetLayout(
             device,
-            listOf(
-                Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1)
-            ),
-            VK_SHADER_STAGE_ALL_GRAPHICS))
+            listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1)),
+            VK_SHADER_STAGE_ALL))
 
         return m
     }
 
     protected fun prepareDescriptorSets(device: VkDevice, descriptorPool: Long) {
-        this.descriptorSets.put("default",
+        this.descriptorSets.put("Matrices",
             VU.createDescriptorSetDynamic(device, descriptorPool,
-                descriptorSetLayouts["default"]!!, standardUBOs.count(),
+                descriptorSetLayouts["Matrices"]!!, 1,
+                buffers["UBOBuffer"]!!))
+
+        this.descriptorSets.put("MaterialProperties",
+            VU.createDescriptorSetDynamic(device, descriptorPool,
+                descriptorSetLayouts["MaterialProperties"]!!, 1,
                 buffers["UBOBuffer"]!!))
 
         this.descriptorSets.put("LightParameters",
@@ -1612,7 +1621,7 @@ open class VulkanRenderer(hub: Hub,
             .sType(VK_STRUCTURE_TYPE_APPLICATION_INFO)
             .pApplicationName(memUTF8(applicationName))
             .pEngineName(memUTF8("scenery"))
-            .apiVersion(VK_MAKE_VERSION(1, 0, 24))
+            .apiVersion(VK_MAKE_VERSION(1, 0, 54))
 
         val hmd = hub?.getWorkingHMDDisplay()
         val additionalExts: List<String> = hmd?.getVulkanInstanceExtensions() ?: listOf()
@@ -2177,30 +2186,19 @@ open class VulkanRenderer(hub: Hub,
 
     private fun prepareDefaultUniformBuffers(device: VkDevice): ConcurrentHashMap<String, VulkanUBO> {
         val ubos = ConcurrentHashMap<String, VulkanUBO>()
-        val defaultUbo = VulkanUBO(device)
+        val matricesUbo = VulkanUBO(device)
 
-        defaultUbo.name = "default"
-        defaultUbo.add("Model", { GLMatrix.getIdentity() })
-        defaultUbo.add("ProjectionMatrix", { GLMatrix.getIdentity() })
-        defaultUbo.add("isBillboard", { 0 })
+        matricesUbo.name = "Matrices"
+        matricesUbo.add("Model", { GLMatrix.getIdentity() })
+        matricesUbo.add("ProjectionMatrix", { GLMatrix.getIdentity() })
+        matricesUbo.add("isBillboard", { 0 })
 
-        defaultUbo.createUniformBuffer(memoryProperties)
-        ubos.put("default", defaultUbo)
-
-        val lightUbo = VulkanUBO(device)
-
-        lightUbo.name = "BlinnPhongLighting"
-        lightUbo.add("Position", { GLVector(0.0f, 0.0f, 0.0f) })
-        lightUbo.add("La", { GLVector(0.0f, 0.0f, 0.0f) })
-        lightUbo.add("Ld", { GLVector(0.0f, 0.0f, 0.0f) })
-        lightUbo.add("Ls", { GLVector(0.0f, 0.0f, 0.0f) })
-
-        lightUbo.createUniformBuffer(memoryProperties)
-        ubos.put("BlinnPhongLighting", lightUbo)
+        matricesUbo.createUniformBuffer(memoryProperties)
+        ubos.put("Matrices", matricesUbo)
 
         val materialUbo = VulkanUBO(device)
 
-        materialUbo.name = "BlinnPhongMaterial"
+        materialUbo.name = "MaterialProperties"
         materialUbo.add("Ka", { GLVector(0.0f, 0.0f, 0.0f) })
         materialUbo.add("Kd", { GLVector(0.0f, 0.0f, 0.0f) })
         materialUbo.add("Ks", { GLVector(0.0f, 0.0f, 0.0f) })
@@ -2208,7 +2206,7 @@ open class VulkanRenderer(hub: Hub,
         materialUbo.add("materialType", { 0 })
 
         materialUbo.createUniformBuffer(memoryProperties)
-        ubos.put("BlinnPhongMaterial", materialUbo)
+        ubos.put("MaterialProperties", materialUbo)
 
         return ubos
     }
@@ -2387,7 +2385,7 @@ open class VulkanRenderer(hub: Hub,
 
                 pass.vulkanMetadata.vertexBufferOffsets.put(0, 0)
                 pass.vulkanMetadata.vertexBuffers.put(0, s.vertexBuffers["vertex+index"]!!.buffer)
-                pass.vulkanMetadata.descriptorSets.put(0, s.UBOs["Default"]!!.first)
+                pass.vulkanMetadata.descriptorSets.put(0, s.UBOs["Matrices"]!!.first)
 
                 val pos = if (s.textures.size > 0) {
                     pass.vulkanMetadata.descriptorSets.put(1, s.textureDescriptorSet)
@@ -2407,13 +2405,12 @@ open class VulkanRenderer(hub: Hub,
                     pass.vulkanMetadata.descriptorSets.put(pos, s.requiredDescriptorSets["ShaderProperties"]!!)
                 }
 
-                val pipeline = pass.pipelines.getOrDefault("preferred-${node.name}", pass.pipelines["default"]!!)
-                    .getPipelineForGeometryType((node as HasGeometry).geometryType)
+                val pipeline = pass.getActivePipeline(node).getPipelineForGeometryType((node as HasGeometry).geometryType)
 
                 pass.vulkanMetadata.uboOffsets.position(0)
-                s.UBOs["Default"]!!.second.offsets.position(0)
+                s.UBOs["Matrices"]!!.second.offsets.position(0)
 
-                pass.vulkanMetadata.uboOffsets.put(s.UBOs["Default"]!!.second.offsets)
+                pass.vulkanMetadata.uboOffsets.put(s.UBOs["Matrices"]!!.second.offsets)
                 pass.vulkanMetadata.uboOffsets.put(0)
                 if(s.requiredDescriptorSets.containsKey("ShaderProperties")) {
                     pass.vulkanMetadata.uboOffsets.put(s.UBOs["ShaderProperties"]!!.second.offsets.get(0))
@@ -2447,7 +2444,7 @@ open class VulkanRenderer(hub: Hub,
 
                 pass.vulkanMetadata.vertexBufferOffsets.put(0, 0)
                 pass.vulkanMetadata.vertexBuffers.put(0, s.vertexBuffers["vertex+index"]!!.buffer)
-                pass.vulkanMetadata.descriptorSets.put(0, s.UBOs["Default"]!!.first)
+                pass.vulkanMetadata.descriptorSets.put(0, s.UBOs["Matrices"]!!.first)
 
                 if (s.textures.size > 0) {
                     pass.vulkanMetadata.descriptorSets.put(1, s.textureDescriptorSet)
@@ -2460,16 +2457,12 @@ open class VulkanRenderer(hub: Hub,
 
                 pass.vulkanMetadata.instanceBuffers.put(0, s.vertexBuffers["instance"]!!.buffer)
 
-                val pipeline = pass.pipelines.getOrElse("preferred-${node.name}",
-                    {
-                        logger.warn("Preferred pipeline for instanced node {} not found. Using default.", node.name)
-                        pass.pipelines["default"]!!
-                    }).getPipelineForGeometryType((node as HasGeometry).geometryType)
+                val pipeline = pass.getActivePipeline(node).getPipelineForGeometryType((node as HasGeometry).geometryType)
 
                 pass.vulkanMetadata.uboOffsets.position(0)
-                s.UBOs["Default"]!!.second.offsets.position(0)
+                s.UBOs["Matrices"]!!.second.offsets.position(0)
 
-                pass.vulkanMetadata.uboOffsets.put(s.UBOs["Default"]!!.second.offsets)
+                pass.vulkanMetadata.uboOffsets.put(s.UBOs["Matrices"]!!.second.offsets)
                 pass.vulkanMetadata.uboOffsets.put(0)
                 pass.vulkanMetadata.uboOffsets.flip()
 
@@ -2521,7 +2514,7 @@ open class VulkanRenderer(hub: Hub,
             vkCmdSetViewport(this, 0, pass.vulkanMetadata.viewport)
             vkCmdSetScissor(this, 0, pass.vulkanMetadata.scissor)
 
-            val pipeline = pass.pipelines["default"]!!
+            val pipeline = pass.getDefaultPipeline()
             val vulkanPipeline = pipeline.getPipelineForGeometryType(GeometryType.TRIANGLES)
 
             if (pass.vulkanMetadata.descriptorSets.capacity() != pipeline.descriptorSpecs.count()) {
@@ -2561,11 +2554,11 @@ open class VulkanRenderer(hub: Hub,
             } else if (name.startsWith("inputs")) {
                 "inputs-${pass.name}"
             } else if (name.startsWith("Matrices")) {
-                val offsets = (sceneUBOs.first().metadata["VulkanRenderer"] as VulkanObjectState).UBOs["Default"]!!.second.offsets
+                val offsets = (sceneUBOs.first().metadata["VulkanRenderer"] as VulkanObjectState).UBOs["Matrices"]!!.second.offsets
                 this.uboOffsets.put(offsets)
                 requiredDynamicOffsets += 3
 
-                "default"
+                "Matrices"
             } else {
                 if (name.startsWith("LightParameters")) {
                     this.uboOffsets.put(0)
@@ -2575,7 +2568,7 @@ open class VulkanRenderer(hub: Hub,
                 name
             }
 
-            val set = if (dsName == "default" || dsName == "LightParameters") {
+            val set = if (dsName == "Matrices" || dsName == "LightParameters") {
                 this@VulkanRenderer.descriptorSets[dsName]
             } else {
                 pass.descriptorSets[dsName]
@@ -2620,12 +2613,12 @@ open class VulkanRenderer(hub: Hub,
 //        logger.info("${pass.name}: Unique descriptor sets are: ${uniqueDescriptorSets.joinToString(", ")}")
 
         uniqueDescriptorSets.forEachIndexed { i, dsName ->
-            val set = if (dsName == "default" || dsName == "LightParameters" || dsName == "VRParameters") {
-                if(dsName == "default") {
+            val set = if (dsName == "Matrices" || dsName == "LightParameters" || dsName == "VRParameters") {
+                if(dsName == "Matrices") {
                     val offsets = if(objectState != null) {
-                        objectState.UBOs["Default"]!!.second.offsets
+                        objectState.UBOs["Matrices"]!!.second.offsets
                     } else {
-                        (sceneUBOs.first().metadata["VulkanRenderer"] as VulkanObjectState).UBOs["Default"]!!.second.offsets
+                        (sceneUBOs.first().metadata["VulkanRenderer"] as VulkanObjectState).UBOs["Matrices"]!!.second.offsets
                     }
 
                     this.uboOffsets.put(offsets)
@@ -2731,7 +2724,7 @@ open class VulkanRenderer(hub: Hub,
 
                 val s = node.metadata["VulkanRenderer"] as VulkanObjectState
 
-                val ubo = s.UBOs["Default"]!!.second
+                val ubo = s.UBOs["Matrices"]!!.second
 
                 node.updateWorld(true, false)
 
@@ -2751,7 +2744,7 @@ open class VulkanRenderer(hub: Hub,
 
                 ubo.populate(offset = bufferOffset.toLong())
 
-                val materialUbo = (node.metadata["VulkanRenderer"]!! as VulkanObjectState).UBOs["BlinnPhongMaterial"]!!.second
+                val materialUbo = (node.metadata["VulkanRenderer"]!! as VulkanObjectState).UBOs["MaterialProperties"]!!.second
                 bufferOffset = ubo.backingBuffer!!.advance()
                 ubo.offsets.put(1, bufferOffset)
 

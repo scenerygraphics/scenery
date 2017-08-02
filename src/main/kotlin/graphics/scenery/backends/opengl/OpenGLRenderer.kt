@@ -12,10 +12,7 @@ import graphics.scenery.controls.TrackerInput
 import graphics.scenery.fonts.SDFFontAtlas
 import graphics.scenery.spirvcrossj.Loader
 import graphics.scenery.spirvcrossj.libspirvcrossj
-import graphics.scenery.utils.GPUStats
-import graphics.scenery.utils.NvidiaGPUStats
-import graphics.scenery.utils.SceneryPanel
-import graphics.scenery.utils.Statistics
+import graphics.scenery.utils.*
 import javafx.application.Platform
 import org.lwjgl.system.MemoryUtil
 import org.slf4j.Logger
@@ -65,7 +62,7 @@ class OpenGLRenderer(hub: Hub,
                      override var embedIn: SceneryPanel? = null,
                      renderConfigFile: String = System.getProperty("scenery.Renderer.Config", "DeferredShading.yml")) : Renderer, Hubable, ClearGLDefaultEventListener() {
     /** slf4j logger */
-    private var logger: Logger = LoggerFactory.getLogger("OpenGLRenderer")
+    private val logger by LazyLogger()
     /** [GL4] instance handed over, coming from [ClearGLDefaultEventListener]*/
     lateinit private var gl: GL4
     /** should the window close on next looping? */

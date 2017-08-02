@@ -6,6 +6,7 @@ import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.Hub
 import graphics.scenery.Hubable
 import graphics.scenery.backends.Display
+import graphics.scenery.utils.LazyLogger
 import org.lwjgl.vulkan.VkDevice
 import org.lwjgl.vulkan.VkInstance
 import org.lwjgl.vulkan.VkPhysicalDevice
@@ -19,13 +20,13 @@ import org.slf4j.LoggerFactory
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class TrackedStereoGlasses(var address: String = "device@localhost:5500", var screenConfig: String = "CAVEExample.yml") : Display, TrackerInput, Hubable {
+    private val logger by LazyLogger()
     override var hub: Hub? = null
 
     var vrpnTracker = VRPNTrackerInput(address)
     var currentOrientation = GLMatrix()
     var ipd = -0.065f
 
-    var logger: Logger = LoggerFactory.getLogger("TrackedStereoGlasses")
     var config: ScreenConfig.Config = ScreenConfig.loadFromFile(screenConfig)
     var screen: ScreenConfig.SingleScreenConfig? = null
 

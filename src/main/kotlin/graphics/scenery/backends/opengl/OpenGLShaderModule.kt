@@ -6,8 +6,7 @@ import com.jogamp.opengl.GL4
 import graphics.scenery.BufferUtils
 import graphics.scenery.backends.vulkan.VulkanRenderer
 import graphics.scenery.spirvcrossj.*
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
+import graphics.scenery.utils.LazyLogger
 import java.nio.ByteBuffer
 import java.util.*
 import kotlin.collections.LinkedHashMap
@@ -19,7 +18,8 @@ import kotlin.collections.LinkedHashMap
  * @author Ulrik Günther <hello@ulrik.is>
  */
 open class OpenGLShaderModule(gl: GL4, entryPoint: String, clazz: Class<*>, shaderCodePath: String) {
-    protected var logger: Logger = LoggerFactory.getLogger("OpenGLShaderModule")
+    protected val logger by LazyLogger()
+
     var shader: GLShader
         private set
     var shaderType: GLShaderType

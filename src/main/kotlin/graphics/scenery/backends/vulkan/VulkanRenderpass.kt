@@ -4,12 +4,11 @@ import cleargl.GLVector
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import graphics.scenery.GeometryType
 import graphics.scenery.Node
 import graphics.scenery.Settings
 import graphics.scenery.backends.RenderConfigReader
+import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.RingBuffer
 import org.lwjgl.system.MemoryUtil.*
 import java.nio.IntBuffer
@@ -29,7 +28,7 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
                        val memoryProperties: VkPhysicalDeviceMemoryProperties,
                        val vertexDescriptors: ConcurrentHashMap<VulkanRenderer.VertexDataKinds, VulkanRenderer.VertexDescription>): AutoCloseable {
 
-    protected var logger: Logger = LoggerFactory.getLogger("VulkanRenderpass")
+    protected val logger by LazyLogger()
 
     val inputs = ConcurrentHashMap<String, VulkanFramebuffer>()
     val output = ConcurrentHashMap<String, VulkanFramebuffer>()
@@ -372,6 +371,14 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
     }
 
     fun getReadPosition() = commandBufferBacking.currentReadPosition - 1
+
+    fun getActivePipeline(forNode: Node): VulkanPipeline {
+        return pipelines.getOrDefault("preferred-${forNode.name}", getDefaultPipeline())
+    }
+
+    fun getDefaultPipeline(): VulkanPipeline {
+        return pipelines["default"]!!
+    }
 
     override fun close() {
         output.forEach { it.value.close() }

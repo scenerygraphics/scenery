@@ -14,9 +14,18 @@ import org.lwjgl.vulkan.VK10.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import graphics.scenery.backends.RenderConfigReader
+import graphics.scenery.utils.LazyLogger
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.util.*
+
+/**
+ * VU - Vulkan Utils
+ *
+ * A conllection of convenience methods for various Vulkan-related tasks
+ *
+ * @author Ulrik Guenther <hello@ulrik.is>
+ */
 
 fun VkCommandBuffer.endCommandBuffer() {
     if(vkEndCommandBuffer(this) != VK_SUCCESS) {
@@ -80,7 +89,7 @@ fun VkPhysicalDevice.getMemoryType(typeBits: Int, memoryFlags: Int): Pair<Boolea
 class VU {
 
     companion object VU {
-        protected var logger: Logger = LoggerFactory.getLogger("VulkanRenderer")
+        private val logger by LazyLogger()
 
         inline fun <T: LongBuffer> run(receiver: T, name: String, function: T.() -> Int): Long {
             val result = function.invoke(receiver)
@@ -348,7 +357,7 @@ class VU {
                 cleanup = { descriptorLayout.free(); layoutBinding.free() }
             )
 
-            logger.debug("Created DSL ${descriptorSetLayout} with $descriptorNum descriptors with $descriptorCount elements.")
+            logger.debug("Created DSL $descriptorSetLayout with $descriptorNum descriptors with $descriptorCount elements.")
 
             return descriptorSetLayout
         }

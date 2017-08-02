@@ -4,8 +4,7 @@ import cleargl.GLFramebuffer
 import cleargl.GLVector
 import graphics.scenery.Settings
 import graphics.scenery.backends.RenderConfigReader
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
+import graphics.scenery.utils.LazyLogger
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -14,12 +13,13 @@ import java.util.concurrent.ConcurrentHashMap
 
 
 class OpenGLRenderpass(var passName: String = "", var passConfig: RenderConfigReader.RenderpassConfig) {
+    private val logger by LazyLogger()
+
     var openglMetadata: OpenGLMetadata = OpenGLMetadata()
     var output = ConcurrentHashMap<String, GLFramebuffer>()
     var inputs = ConcurrentHashMap<String, GLFramebuffer>()
     var defaultShader: OpenGLShaderProgram? = null
     var UBOs = ConcurrentHashMap<String, OpenGLUBO>()
-    val logger: Logger = LoggerFactory.getLogger("OpenGLRenderer")
 
     data class Rect2D(var width: Int = 0, var height: Int = 0, var offsetX: Int = 0, var offsetY: Int = 0)
     data class Viewport(var area: Rect2D = Rect2D(), var minDepth: Float = 0.0f, var maxDepth: Float = 1.0f)

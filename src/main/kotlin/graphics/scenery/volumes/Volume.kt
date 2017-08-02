@@ -4,10 +4,8 @@ import cleargl.GLTypeEnum
 import cleargl.GLVector
 import coremem.enums.NativeTypeEnum
 import graphics.scenery.*
+import graphics.scenery.utils.LazyLogger
 import org.lwjgl.system.MemoryUtil.memAlloc
-import org.lwjgl.system.MemoryUtil.memFree
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import java.io.FileInputStream
 import java.nio.ByteBuffer
 import java.nio.file.Files
@@ -85,7 +83,7 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
     @ShaderProperty var voxelSizeY = 1.0f
     @ShaderProperty var voxelSizeZ = 1.0f
 
-    val logger: Logger = LoggerFactory.getLogger("Volume")
+    private val logger by LazyLogger()
 
     var colormaps = HashMap<String, String>()
 

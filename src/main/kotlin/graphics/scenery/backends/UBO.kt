@@ -2,8 +2,7 @@ package graphics.scenery.backends
 
 import cleargl.GLMatrix
 import cleargl.GLVector
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
+import graphics.scenery.utils.LazyLogger
 import java.nio.ByteBuffer
 
 /**
@@ -15,7 +14,7 @@ open class UBO {
     var name = ""
     protected var members = LinkedHashMap<String, () -> Any>()
     protected var memberOffsets = HashMap<String, Int>()
-    var logger: Logger = LoggerFactory.getLogger("UBO")
+    protected val logger by LazyLogger()
 
     protected var sizeCached = -1
 
