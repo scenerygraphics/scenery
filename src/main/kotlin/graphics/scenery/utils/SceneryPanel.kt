@@ -39,6 +39,7 @@ class SceneryPanel(imageWidth: Int, imageHeight: Int) : BorderPane() {
             super.resize(width, height)
             image = DirectWritableImage(width.toInt(), height.toInt())
             imageView = ImageView(image)
+            imageView.scaleY = -1.0
 
             center = imageView
         }
