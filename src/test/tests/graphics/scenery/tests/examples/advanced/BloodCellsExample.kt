@@ -13,7 +13,7 @@ import org.junit.Test
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class BloodCellsExample : SceneryDefaultApplication("BloodCellsExample", windowWidth = 1280, windowHeight = 720) {
+class BloodCellsExample : SceneryBase("BloodCellsExample", windowWidth = 1280, windowHeight = 720) {
     private var ovr: OpenVRHMD? = null
 
     override fun init() {

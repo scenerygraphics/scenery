@@ -13,7 +13,7 @@ import org.junit.Test
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class VRControllerExample : SceneryDefaultApplication(VRControllerExample::class.java.simpleName,
+class VRControllerExample : SceneryBase(VRControllerExample::class.java.simpleName,
     windowWidth = 1920, windowHeight = 1200) {
     private var hmd: OpenVRHMD? = null
 

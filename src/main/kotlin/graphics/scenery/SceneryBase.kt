@@ -18,22 +18,22 @@ import graphics.scenery.utils.LazyLogger
 import java.lang.management.ManagementFactory
 
 /**
- * A default application to use scenery with, keeping the needed boilerplate
+ * Base class to use scenery with, keeping the needed boilerplate
  * to a minimum. Inherit from this class for a quick start.
  *
  * @property[applicationName] Name of the application, do not use special chars
  * @property[windowWidth] Window width of the application window
  * @property[windowHeight] Window height of the application window
  *
- * @constructor Creates a new SceneryDefaultApplication
+ * @constructor Creates a new SceneryBase
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
 
-open class SceneryDefaultApplication(var applicationName: String,
-                                     var windowWidth: Int = 1024,
-                                     var windowHeight: Int = 1024,
-                                     val wantREPL: Boolean = true) {
+open class SceneryBase(var applicationName: String,
+                       var windowWidth: Int = 1024,
+                       var windowHeight: Int = 1024,
+                       val wantREPL: Boolean = true) {
 
     /** The scene used by the renderer in the application */
     protected val scene: Scene = Scene()
@@ -71,7 +71,7 @@ open class SceneryDefaultApplication(var applicationName: String,
         private set
 
     /**
-     * the init function of [SceneryDefaultApplication], override this in your subclass,
+     * the init function of [SceneryBase], override this in your subclass,
      * e.g. for [Scene] construction and [Renderer] initialisation.
      */
     open fun init() {
@@ -83,7 +83,7 @@ open class SceneryDefaultApplication(var applicationName: String,
     }
 
     /**
-     * Main routine for [SceneryDefaultApplication]
+     * Main routine for [SceneryBase]
      *
      * This routine will construct a internal [ClearGLDefaultEventListener], and initialize
      * with the [init] function. Override this in your subclass and be sure to call `super.main()`.

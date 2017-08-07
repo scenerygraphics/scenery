@@ -4,7 +4,6 @@ import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import org.junit.Test
-import kotlin.concurrent.thread
 
 /**
  * Simple example to demonstrate the drawing of a 3D point cloud.
@@ -14,7 +13,7 @@ import kotlin.concurrent.thread
  *
  * @author Kyle Harrington <kharrington@uidaho.edu>
  */
-class PointCloudExample : SceneryDefaultApplication("PointCloudExample") {
+class PointCloudExample : SceneryBase("PointCloudExample") {
     protected var lineAnimating = true
 
     override fun init() {

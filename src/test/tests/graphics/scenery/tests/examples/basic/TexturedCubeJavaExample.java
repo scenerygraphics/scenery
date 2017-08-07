@@ -16,7 +16,7 @@ public class TexturedCubeJavaExample {
         viewer.main();
     }
 
-    private class TexturedCubeJavaApplication extends SceneryDefaultApplication {
+    private class TexturedCubeJavaApplication extends SceneryBase {
         public TexturedCubeJavaApplication(String applicationName, int windowWidth, int windowHeight) {
             super(applicationName, windowWidth, windowHeight, true);
         }

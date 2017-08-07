@@ -18,7 +18,7 @@ import kotlin.concurrent.thread
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class ClusterExample: SceneryDefaultApplication("Clustered Volume Rendering example") {
+class ClusterExample: SceneryBase("Clustered Volume Rendering example") {
     var hmd: TrackedStereoGlasses? = null
     var publishedNodes = ArrayList<Node>()
 
