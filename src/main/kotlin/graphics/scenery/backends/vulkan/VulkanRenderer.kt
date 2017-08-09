@@ -188,13 +188,21 @@ open class VulkanRenderer(hub: Hub,
                 logger.info("!! Validation (unknown message type)$dbg: " + getString(pMessage))
             }
 
+            try {
+                throw Exception("Vulkan validation layer exception, see validation layer error messages above. To disable these exceptions, set scenery.VulkanRenderer.StrictValidation=false. Stack trace:")
+            } catch (e: Exception) {
+                logger.error(e.message)
+                e.printStackTrace()
+            }
+
+            // set 15s of delay until the next frame is rendered if a validation error happens
+            renderDelay = 15000L
+
             // if strict validation is enabled, the application will quit after a
             // validation error has been encountered
             return if(strictValidation) {
                 VK_FALSE
             } else {
-                // set 15s of delay until the next frame is rendered if a validation error happens
-                renderDelay = 15000L
                 VK_TRUE
             }
         }
