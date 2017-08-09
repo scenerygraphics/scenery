@@ -32,17 +32,17 @@ struct MaterialInfo {
     float Shininess;
 };
 
-layout(set = 4, binding = 0) uniform LightParameters {
+layout(set = 1, binding = 0) uniform LightParameters {
     mat4 ViewMatrix;
     vec3 CamPosition;
     int numLights;
 	Light lights[MAX_NUM_LIGHTS];
 };
 
-layout(set = 1, binding = 0) uniform sampler2D ObjectTextures[NUM_OBJECT_TEXTURES];
-layout(set = 1, binding = 1) uniform usampler3D VolumeTextures;
+layout(set = 4, binding = 0) uniform sampler2D ObjectTextures[NUM_OBJECT_TEXTURES];
+layout(set = 4, binding = 1) uniform usampler3D VolumeTextures;
 
-layout(set = 3, binding = 0) uniform ShaderProperties {
+layout(set = 5, binding = 0) uniform ShaderProperties {
     float voxelSizeX;
     float voxelSizeY;
     float voxelSizeZ;
@@ -62,7 +62,7 @@ layout(set = 3, binding = 0) uniform ShaderProperties {
     float gamma;
 };
 
-layout(set = 4) uniform MaterialProperties {
+layout(set = 3, binding = 0) uniform MaterialProperties {
     MaterialInfo Material;
     int materialType;
 };

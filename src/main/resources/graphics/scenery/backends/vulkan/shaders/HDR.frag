@@ -1,9 +1,9 @@
 #version 450 core
 #extension GL_ARB_separate_shader_objects: enable
 
-layout(set = 0, binding = 0) uniform sampler2D hdrBuffer;
+layout(set = 2, binding = 0) uniform sampler2D hdrBuffer;
 
-layout(set = 1, binding = 0, std140) uniform ShaderParameters {
+layout(set = 3, binding = 0, std140) uniform ShaderParameters {
 	float Gamma;
 	float Exposure;
 } hdrParams;

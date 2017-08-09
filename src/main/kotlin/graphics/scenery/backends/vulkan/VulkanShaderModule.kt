@@ -1,17 +1,15 @@
 package graphics.scenery.backends.vulkan
 
+import graphics.scenery.BufferUtils
 import graphics.scenery.spirvcrossj.*
+import graphics.scenery.utils.LazyLogger
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkDevice
 import org.lwjgl.vulkan.VkPipelineShaderStageCreateInfo
 import org.lwjgl.vulkan.VkShaderModuleCreateInfo
-import graphics.scenery.BufferUtils
 import java.nio.ByteBuffer
 import java.util.*
-import graphics.scenery.spirvcrossj.EShLanguage
-import graphics.scenery.spirvcrossj.EShMessages
-import graphics.scenery.utils.LazyLogger
 import kotlin.collections.LinkedHashMap
 
 
@@ -200,14 +198,12 @@ open class VulkanShaderModule(device: VkDevice, entryPoint: String, clazz: Class
                     members = LinkedHashMap<String, UBOMemberSpec>()))
          */
         // inputs are summarized into one descriptor set
-        if(compiler.shaderResources.sampledImages.size() > 0) {
-            val res = compiler.shaderResources.sampledImages.get(0)
-            if (res.name != "ObjectTextures") {
-                uboSpecs.put(res.name, UBOSpec("inputs",
-                    set = compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet),
-                    binding = 0,
-                    members = LinkedHashMap<String, UBOMemberSpec>()))
-            }
+        (0..compiler.shaderResources.sampledImages.size()-1).forEach { samplerId ->
+            val res = compiler.shaderResources.sampledImages.get(samplerId.toInt())
+            uboSpecs.put(res.name, UBOSpec(res.name,
+                set = compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet),
+                binding = compiler.getDecoration(res.id, Decoration.DecorationBinding),
+                members = LinkedHashMap<String, UBOMemberSpec>()))
         }
 
         val inputs = compiler.shaderResources.stageInputs

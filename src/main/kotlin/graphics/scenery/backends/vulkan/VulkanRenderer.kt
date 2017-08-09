@@ -176,13 +176,13 @@ open class VulkanRenderer(hub: Hub,
                 ""
             }
 
-            if (flags and VK_DEBUG_REPORT_ERROR_BIT_EXT == 0) {
+            if (flags and VK_DEBUG_REPORT_ERROR_BIT_EXT == VK_DEBUG_REPORT_ERROR_BIT_EXT) {
                 logger.error("!! Validation$dbg: " + getString(pMessage))
-            } else if (flags and VK_DEBUG_REPORT_WARNING_BIT_EXT == 0) {
+            } else if (flags and VK_DEBUG_REPORT_WARNING_BIT_EXT == VK_DEBUG_REPORT_WARNING_BIT_EXT) {
                 logger.warn("!! Validation$dbg: " + getString(pMessage))
-            } else if (flags and VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT == 0) {
+            } else if (flags and VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT == VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT) {
                 logger.error("!! Validation (performance)$dbg: " + getString(pMessage))
-            } else if (flags and VK_DEBUG_REPORT_INFORMATION_BIT_EXT == 0) {
+            } else if (flags and VK_DEBUG_REPORT_INFORMATION_BIT_EXT == VK_DEBUG_REPORT_INFORMATION_BIT_EXT) {
                 logger.info("!! Validation$dbg: " + getString(pMessage))
             } else {
                 logger.info("!! Validation (unknown message type)$dbg: " + getString(pMessage))
@@ -918,16 +918,19 @@ open class VulkanRenderer(hub: Hub,
         m.put("Matrices", VU.createDescriptorSetLayout(
             device,
             listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1)),
+            0,
             VK_SHADER_STAGE_ALL))
 
         m.put("MaterialProperties", VU.createDescriptorSetLayout(
             device,
             listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1)),
+            0,
             VK_SHADER_STAGE_ALL))
 
         m.put("LightParameters", VU.createDescriptorSetLayout(
             device,
             listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1)),
+            0,
             VK_SHADER_STAGE_ALL))
 
         m.put("ObjectTextures", VU.createDescriptorSetLayout(
@@ -935,11 +938,13 @@ open class VulkanRenderer(hub: Hub,
             listOf(
                 Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 6),
                 Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1)),
+            0,
             VK_SHADER_STAGE_ALL))
 
         m.put("VRParameters", VU.createDescriptorSetLayout(
             device,
             listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1)),
+            0,
             VK_SHADER_STAGE_ALL))
 
         return m

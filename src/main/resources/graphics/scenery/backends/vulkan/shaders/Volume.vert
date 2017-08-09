@@ -11,21 +11,39 @@ layout(location = 0) out Output {
     mat4 inverseModelView;
 } OutputData;
 
-layout(binding = 0) uniform Matrices {
-	mat4 ModelMatrix;
-	mat4 NormalMatrix;
-	mat4 ProjectionMatrix;
-	int isBillboard;
-} ubo;
-
-layout(set = 2, binding = 0) uniform VRParameters {
+layout(set = 0, binding = 0) uniform VRParameters {
     mat4 projectionMatrices[2];
     mat4 headShift;
     float IPD;
     int stereoEnabled;
 } vrParameters;
 
-layout(set = 3, binding = 0) uniform ShaderProperties {
+struct Light {
+	float Linear;
+	float Quadratic;
+	float Intensity;
+	float Radius;
+	vec4 Position;
+  	vec4 Color;
+};
+
+const int MAX_NUM_LIGHTS = 1024;
+
+layout(set = 1, binding = 0) uniform LightParameters {
+    mat4 ViewMatrix;
+    vec3 CamPosition;
+    int numLights;
+	Light lights[MAX_NUM_LIGHTS];
+};
+
+layout(set = 2, binding = 0) uniform Matrices {
+	mat4 ModelMatrix;
+	mat4 NormalMatrix;
+	mat4 ProjectionMatrix;
+	int isBillboard;
+} ubo;
+
+layout(set = 5, binding = 0) uniform ShaderProperties {
     float voxelSizeX;
     float voxelSizeY;
     float voxelSizeZ;
@@ -43,24 +61,6 @@ layout(set = 3, binding = 0) uniform ShaderProperties {
     int maxsteps;
     float alpha_blending;
     float gamma;
-};
-
-struct Light {
-	float Linear;
-	float Quadratic;
-	float Intensity;
-	float Radius;
-	vec4 Position;
-  	vec4 Color;
-};
-
-const int MAX_NUM_LIGHTS = 1024;
-
-layout(set = 4, binding = 0) uniform LightParameters {
-    mat4 ViewMatrix;
-    vec3 CamPosition;
-    int numLights;
-	Light lights[MAX_NUM_LIGHTS];
 };
 
 layout(push_constant) uniform currentEye_t {

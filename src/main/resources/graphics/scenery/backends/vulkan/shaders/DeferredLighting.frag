@@ -6,18 +6,10 @@
 layout(location = 0) in vec2 textureCoord;
 layout(location = 0) out vec4 FragColor;
 
-
-
-layout(binding = 0) uniform Matrices {
-	mat4 ModelMatrix;
-	mat4 ProjectionMatrix;
-	int isBillboard;
-} ubo;
-
-layout(set = 1, binding = 0) uniform sampler2D Position;
-layout(set = 1, binding = 1) uniform sampler2D Normal;
-layout(set = 1, binding = 2) uniform sampler2D DiffuseAlbedo;
-layout(set = 1, binding = 3) uniform sampler2D ZBuffer;
+layout(set = 2, binding = 0) uniform sampler2D Position;
+layout(set = 2, binding = 1) uniform sampler2D Normal;
+layout(set = 2, binding = 2) uniform sampler2D DiffuseAlbedo;
+layout(set = 2, binding = 3) uniform sampler2D ZBuffer;
 
 struct Light {
 	float Linear;
@@ -30,14 +22,14 @@ struct Light {
 
 const int MAX_NUM_LIGHTS = 1024;
 
-layout(set = 2, binding = 0) uniform LightParameters {
+layout(set = 1, binding = 0) uniform LightParameters {
     mat4 ViewMatrix;
     vec3 CamPosition;
     int numLights;
 	Light lights[MAX_NUM_LIGHTS];
 };
 
-layout(set = 3, binding = 0, std140) uniform ShaderParameters {
+layout(set = 5, binding = 0, std140) uniform ShaderParameters {
 	int debugBuffers;
 	int SSAO_Options;
 	int reflectanceModel;
@@ -50,8 +42,6 @@ layout(set = 3, binding = 0, std140) uniform ShaderParameters {
     float BiasDistance;
     float Contrast;
 };
-
-
 
 const vec2 poisson16[] = vec2[](    // These are the Poisson Disk Samples
 		vec2( -0.94201624,  -0.39906216 ),

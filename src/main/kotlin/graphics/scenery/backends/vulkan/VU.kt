@@ -11,7 +11,6 @@ import org.lwjgl.vulkan.KHRSurface.VK_ERROR_NATIVE_WINDOW_IN_USE_KHR
 import org.lwjgl.vulkan.KHRSurface.VK_ERROR_SURFACE_LOST_KHR
 import org.lwjgl.vulkan.KHRSwapchain.*
 import org.lwjgl.vulkan.VK10.*
-import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.utils.LazyLogger
@@ -336,9 +335,9 @@ class VU {
             return false
         }
 
-        fun createDescriptorSetLayout(device: VkDevice, type: Int = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, descriptorNum: Int = 1, descriptorCount: Int = 1, shaderStages: Int = VK_SHADER_STAGE_ALL_GRAPHICS): Long {
+        fun createDescriptorSetLayout(device: VkDevice, type: Int = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, binding: Int = 0, descriptorNum: Int = 1, descriptorCount: Int = 1, shaderStages: Int = VK_SHADER_STAGE_ALL_GRAPHICS): Long {
             val layoutBinding = VkDescriptorSetLayoutBinding.calloc(descriptorNum)
-            (0..descriptorNum - 1).forEach { i ->
+            (binding..descriptorNum - 1).forEach { i ->
                 layoutBinding[i]
                     .binding(i)
                     .descriptorType(type)
@@ -362,14 +361,14 @@ class VU {
             return descriptorSetLayout
         }
 
-        fun createDescriptorSetLayout(device: VkDevice, types: List<Pair<Int, Int>>, shaderStages: Int): Long {
+        fun createDescriptorSetLayout(device: VkDevice, types: List<Pair<Int, Int>>, binding: Int = 0, shaderStages: Int): Long {
             val layoutBinding = VkDescriptorSetLayoutBinding.calloc(types.size)
 
-            types.forEachIndexed { i, type ->
+            types.forEachIndexed { i, (type, count) ->
                 layoutBinding[i]
-                    .binding(i)
-                    .descriptorType(type.first)
-                    .descriptorCount(type.second)
+                    .binding(i + binding)
+                    .descriptorType(type)
+                    .descriptorCount(count)
                     .stageFlags(shaderStages)
                     .pImmutableSamplers(null)
             }
@@ -384,7 +383,7 @@ class VU {
                 cleanup = { descriptorLayout.free(); layoutBinding.free() }
             )
 
-            logger.debug("Created DSL ${descriptorSetLayout} with ${types.size} descriptors.")
+            logger.debug("Created DSL $descriptorSetLayout with ${types.size} descriptors.")
 
             return descriptorSetLayout
         }

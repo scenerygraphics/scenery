@@ -5,7 +5,7 @@ layout(location = 0) in VertexData {
     vec3 FragPosition;
     vec3 Normal;
     vec2 TexCoord;
-} VertexIn;
+} Vertex;
 
 layout(location = 0) out vec3 Position;
 layout(location = 1) out vec2 Normal;
@@ -28,24 +28,16 @@ const int MATERIAL_HAS_SPECULAR = 0x0004;
 const int MATERIAL_HAS_NORMAL =   0x0008;
 const int MATERIAL_HAS_ALPHAMASK = 0x0010;
 
-layout(binding = 0) uniform Matrices {
+layout(set = 2, binding = 0) uniform Matrices {
 	mat4 ModelMatrix;
 	mat4 NormalMatrix;
 	mat4 ProjectionMatrix;
 	int isBillboard;
 } ubo;
 
-layout(binding = 1) uniform MaterialProperties {
+layout(set = 3, binding = 0) uniform MaterialProperties {
     MaterialInfo Material;
     int materialType;
-};
-
-struct Light {
-	float Linear;
-	float Quadratic;
-	float Intensity;
-	vec4 Position;
-  	vec4 Color;
 };
 
 /*
@@ -57,7 +49,7 @@ struct Light {
     ObjectTextures[5] - displacement
 */
 
-layout(set = 1, binding = 0) uniform sampler2D ObjectTextures[NUM_OBJECT_TEXTURES];
+layout(set = 4, binding = 0) uniform sampler2D ObjectTextures[NUM_OBJECT_TEXTURES];
 
 // courtesy of Christian Schueler - www.thetenthplanet.de/archives/1180
 mat3 TBN(vec3 N, vec3 position, vec2 uv) {
@@ -114,7 +106,7 @@ vec2 EncodeOctaH( vec3 n )
 }
 
 void main() {
-    Position = VertexIn.FragPosition;
+    Position = Vertex.FragPosition;
     DiffuseAlbedo.rgb = vec3(0.0f, 0.0f, 0.0f);
 
     DiffuseAlbedo.rgb = Material.Kd;
@@ -125,15 +117,15 @@ void main() {
     }
 
     if((materialType & MATERIAL_HAS_DIFFUSE) == MATERIAL_HAS_DIFFUSE) {
-        DiffuseAlbedo.rgb = texture(ObjectTextures[1], VertexIn.TexCoord).rgb;
+        DiffuseAlbedo.rgb = texture(ObjectTextures[1], Vertex.TexCoord).rgb;
     }
 
     if((materialType & MATERIAL_HAS_SPECULAR) == MATERIAL_HAS_SPECULAR) {
-        DiffuseAlbedo.a = texture(ObjectTextures[2], VertexIn.TexCoord).r;
+        DiffuseAlbedo.a = texture(ObjectTextures[2], Vertex.TexCoord).r;
     }
 
     if((materialType & MATERIAL_HAS_ALPHAMASK) == MATERIAL_HAS_ALPHAMASK) {
-        if(texture(ObjectTextures[4], VertexIn.TexCoord).r < 0.1f) {
+        if(texture(ObjectTextures[4], Vertex.TexCoord).r < 0.1f) {
             discard;
         }
     }
@@ -141,7 +133,7 @@ void main() {
 Normals are encoded as Octahedron Normal Vectors, or Spherical Normal Vectors, which saves on storage as well as read/write processing of one
 component. If using Spherical Encoding, do not forget to use spherical decode function in DeferredLighting shader.
 */
-    vec2 EncodedNormal = EncodeOctaH(VertexIn.Normal);
+    vec2 EncodedNormal = EncodeOctaH(Vertex.Normal);
 //    vec3 NormalizedNormal = normalize(VertexIn.Normal);
 //    vec2 EncodedNormal = EncodeSpherical(NormalizedNormal);
 
@@ -155,6 +147,3 @@ component. If using Spherical Encoding, do not forget to use spherical decode fu
         Normal = EncodedNormal;
     }
 }
-
-
-

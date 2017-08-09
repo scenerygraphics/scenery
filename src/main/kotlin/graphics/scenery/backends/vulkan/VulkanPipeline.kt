@@ -99,14 +99,12 @@ class VulkanPipeline(val device: VkDevice, val pipelineCache: Long? = null): Aut
         }
     }
 
-    fun createPipelines(renderPass: Long, vi: VkPipelineVertexInputStateCreateInfo,
+    fun createPipelines(renderpass: VulkanRenderpass, vulkanRenderpass: Long, vi: VkPipelineVertexInputStateCreateInfo,
                         descriptorSetLayouts: List<Long>, onlyForTopology: GeometryType? = null) {
-        val setLayouts = memAllocLong(descriptorSetLayouts.size)
+        val setLayouts = memAllocLong(descriptorSetLayouts.size).put(descriptorSetLayouts.toLongArray())
+        setLayouts.flip()
 
-        descriptorSetLayouts.forEachIndexed { i, layout ->
-            logger.debug("Adding DSL $layout for renderpass $renderPass")
-            setLayouts.put(i, layout)
-        }
+//        descriptorSetLayouts.forEachIndexed { i, layout -> setLayouts.put(i, layout) }
 
         val pushConstantRanges = VkPushConstantRange.calloc(1)
             .offset(0)
@@ -127,7 +125,7 @@ class VulkanPipeline(val device: VkDevice, val pipelineCache: Long? = null): Aut
             .sType(VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO)
             .pNext(NULL)
             .layout(layout)
-            .renderPass(renderPass)
+            .renderPass(vulkanRenderpass)
             .pVertexInputState(vi)
             .pInputAssemblyState(inputAssemblyState)
             .pRasterizationState(rasterizationState)
@@ -144,7 +142,7 @@ class VulkanPipeline(val device: VkDevice, val pipelineCache: Long? = null): Aut
             inputAssemblyState.topology(onlyForTopology.asVulkanTopology())
         }
 
-        val p = VU.run(memAllocLong(1), "vkCreateGraphicsPipelines",
+        val p = VU.run(memAllocLong(1), "vkCreateGraphicsPipelines for ${renderpass.name} ($vulkanRenderpass)",
             { vkCreateGraphicsPipelines(device, pipelineCache ?: VK_NULL_HANDLE, pipelineCreateInfo, null, this) })
 
         val vkp = VulkanRenderer.Pipeline()
@@ -154,7 +152,7 @@ class VulkanPipeline(val device: VkDevice, val pipelineCache: Long? = null): Aut
         this.pipeline.put(GeometryType.TRIANGLES, vkp)
         descriptorSpecs.sortBy { spec -> spec.set }
 
-        logger.debug("Pipeline needs descriptor sets ${descriptorSpecs.joinToString(", ")}")
+        logger.debug("Pipeline needs descriptor sets ${descriptorSpecs.joinToString { it.name }}")
 
         if(onlyForTopology == null) {
             // create pipelines for other topologies as well
@@ -171,7 +169,7 @@ class VulkanPipeline(val device: VkDevice, val pipelineCache: Long? = null): Aut
                     .basePipelineIndex(-1)
                     .flags(VK_PIPELINE_CREATE_DERIVATIVE_BIT)
 
-                val derivativeP = VU.run(memAllocLong(1), "vkCreateGraphicsPipelines(derivative)",
+                val derivativeP = VU.run(memAllocLong(1), "vkCreateGraphicsPipelines(derivative) for ${renderpass.name} ($vulkanRenderpass)",
                     { vkCreateGraphicsPipelines(device, pipelineCache ?: VK_NULL_HANDLE, pipelineCreateInfo, null, this) })
 
                 val derivativePipeline = VulkanRenderer.Pipeline()
@@ -182,7 +180,7 @@ class VulkanPipeline(val device: VkDevice, val pipelineCache: Long? = null): Aut
             }
         }
 
-        logger.debug("Created $this for renderpass $renderPass with pipeline layout $layout (${if(onlyForTopology == null) { "Derivatives:" + this.pipeline.keys.joinToString(", ")} else { "no derivatives, only ${this.pipeline.keys.first()}" }})")
+        logger.debug("Created $this for renderpass ${renderpass.name} ($vulkanRenderpass) with pipeline layout $layout (${if(onlyForTopology == null) { "Derivatives:" + this.pipeline.keys.joinToString(", ")} else { "no derivatives, only ${this.pipeline.keys.first()}" }})")
 
         pipelineCreateInfo.free()
     }

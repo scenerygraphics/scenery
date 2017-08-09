@@ -1405,7 +1405,7 @@ class OpenGLRenderer(hub: Hub,
                     var unit = 0
                     pass.passConfig.inputs?.forEach { name ->
                         renderConfig.rendertargets?.get(name)?.forEach {
-                            shader.getUniform(it.key).setInt(unit)
+                            shader.getUniform("Input" + it.key).setInt(unit)
                             unit++
                         }
                     }
