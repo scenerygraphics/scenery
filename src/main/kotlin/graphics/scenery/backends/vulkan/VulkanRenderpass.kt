@@ -187,8 +187,11 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
             ubo.createUniformBuffer(memoryProperties)
 
             // create descriptor set layout
+//            val dsl = VU.createDescriptorSetLayout(device,
+//                VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, 1)
             val dsl = VU.createDescriptorSetLayout(device,
-                VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, 1)
+                listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1)),
+                0, VK_SHADER_STAGE_ALL)
 
             val ds = VU.createDescriptorSet(device, descriptorPool, dsl,
             1, ubo.descriptor!!, type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
