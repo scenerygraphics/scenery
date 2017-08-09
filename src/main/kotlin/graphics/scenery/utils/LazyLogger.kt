@@ -21,5 +21,6 @@ private fun <T : Any> unwrapCompanionClass(ofClass: Class<T>): Class<*> {
 }
 
 fun <R : Any> R.LazyLogger(): Lazy<Logger> {
+    System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", System.getProperty("scenery.LogLevel", "info"))
     return lazyOf(LoggerFactory.getLogger(unwrapCompanionClass(this.javaClass).simpleName))
 }
