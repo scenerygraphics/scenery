@@ -70,7 +70,7 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
 
     private var currentPosition = 0
 
-    class VulkanMetadata(var descriptorSets: LongBuffer = memAllocLong(4),
+    class VulkanMetadata(var descriptorSets: LongBuffer = memAllocLong(10),
                               var vertexBufferOffsets: LongBuffer = memAllocLong(1),
                               var scissor: VkRect2D.Buffer = VkRect2D.calloc(1),
                               var viewport: VkViewport.Buffer = VkViewport.calloc(1),
@@ -229,20 +229,21 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
         return dsl
     }
 
-    fun getShaderPropertyOrder(node: Node): List<String> {
+    fun getShaderPropertyOrder(node: Node): Map<String, Int> {
         // this creates a shader property UBO for items marked @ShaderProperty in node
         logger.debug("specs: ${this.pipelines["preferred-${node.name}"]!!.descriptorSpecs}")
-        val shaderPropertiesSpec = this.pipelines["preferred-${node.name}"]!!.descriptorSpecs.filter { it.name == "ShaderProperties" }
+        val shaderPropertiesSpec = this.pipelines["preferred-${node.name}"]!!.descriptorSpecs.filter { it.key == "ShaderProperties" }.map { it.value.members }
 
         if(shaderPropertiesSpec.count() == 0) {
             logger.error("Shader uses no declared shader properties!")
-            return emptyList()
+            return emptyMap()
         }
 
-        val specs = shaderPropertiesSpec.map { it.members }.flatMap { it.keys }
-
         // returns a ordered list of the members of the ShaderProperties struct
-        return specs.toList()
+        return shaderPropertiesSpec
+            .flatMap { it.values }
+            .map { it.name.to(it.offset.toInt()) }
+            .toMap()
     }
 
     fun updateShaderParameters() {
@@ -308,7 +309,7 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
             p.rasterizationState.frontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
 
             if(logger.isDebugEnabled) {
-                logger.debug("DS are: ${p.descriptorSpecs.map { it.name }.joinToString(", ")}")
+                logger.debug("DS are: ${p.descriptorSpecs.keys.joinToString(", ")}")
             }
 
             // add descriptor specs. at this time, they are expected to be already
@@ -333,12 +334,13 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
 //                }
 //            }
 
-            p.descriptorSpecs.sortedBy { it.set }.forEach { spec ->
+//            p.descriptorSpecs.sortedBy { it.set }.forEach { spec ->
+            p.descriptorSpecs.entries.sortedBy { it.value.set }.forEach { (name, spec) ->
                 reqDescriptorLayouts.add(initializeDescriptorSetLayoutForSpec(spec))
             }
 
             p.createPipelines(this, framebuffer.renderPass.get(0),
-                vertexDescriptors.get(VulkanRenderer.VertexDataKinds.coords_none)!!.state,
+                vertexDescriptors[VulkanRenderer.VertexDataKinds.coords_none]!!.state,
                 descriptorSetLayouts = reqDescriptorLayouts,
                 onlyForTopology = GeometryType.TRIANGLES)
         } else {
@@ -355,7 +357,8 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
 //            }
 //
 
-            p.descriptorSpecs.sortedBy { it.set }.forEach { spec ->
+//            p.descriptorSpecs.sortedBy { it.set }.forEach { spec ->
+            p.descriptorSpecs.entries.sortedBy { it.value.set }.forEach { (name, spec) ->
                 reqDescriptorLayouts.add(initializeDescriptorSetLayoutForSpec(spec))
             }
 
@@ -371,17 +374,24 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
     }
 
     private fun initializeDescriptorSetLayoutForSpec(spec: VulkanShaderModule.UBOSpec): Long {
-        logger.debug("Initialiasing DSL for ${spec.name}, set=${spec.set}, binding=${spec.binding}")
-        val contents = when(spec.name) {
-            "LightParameters" -> listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1))
-            "ShaderParameters" -> listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1))
-            "Matrices" -> listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1))
-            "VRParameters" -> listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1))
-            "MaterialProperties" -> listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1))
-            "ObjectTextures" -> listOf(Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 6),
+        val contents = when {
+            spec.name == "LightParameters" ||
+            spec.name == "Matrices" ||
+            spec.name == "VRParameters" ||
+            spec.name == "MaterialProperties" -> listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1))
+
+            spec.name == "ObjectTextures" -> listOf(Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 6),
                 Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1))
+
+            spec.name.startsWith("Inputs") -> (0..spec.members.size-1).map { Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1) }.toList()
+
+            spec.name == "ShaderParameters" && passConfig.type == RenderConfigReader.RenderpassType.geometry -> listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1))
+            spec.name == "ShaderParameters" && passConfig.type == RenderConfigReader.RenderpassType.quad -> listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1))
+
             else -> listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1))
         }
+
+        logger.debug("Initialiasing DSL for ${spec.name}, set=${spec.set}, binding=${spec.binding}, type=${contents.first().first}")
 
         val dsl = VU.createDescriptorSetLayout(device, contents, spec.binding.toInt(), shaderStages = VK_SHADER_STAGE_ALL)
         descriptorSetLayouts.put(spec.name, dsl)

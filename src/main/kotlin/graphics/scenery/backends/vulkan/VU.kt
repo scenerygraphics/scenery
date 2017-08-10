@@ -335,7 +335,7 @@ class VU {
             return false
         }
 
-        fun createDescriptorSetLayout(device: VkDevice, type: Int = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, binding: Int = 0, descriptorNum: Int = 1, descriptorCount: Int = 1, shaderStages: Int = VK_SHADER_STAGE_ALL_GRAPHICS): Long {
+        fun createDescriptorSetLayout(device: VkDevice, type: Int = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, binding: Int = 0, descriptorNum: Int = 1, descriptorCount: Int = 1, shaderStages: Int = VK_SHADER_STAGE_ALL): Long {
             val layoutBinding = VkDescriptorSetLayoutBinding.calloc(descriptorNum)
             (binding..descriptorNum - 1).forEach { i ->
                 layoutBinding[i]

@@ -177,15 +177,15 @@ open class VulkanRenderer(hub: Hub,
             }
 
             if (flags and VK_DEBUG_REPORT_ERROR_BIT_EXT == VK_DEBUG_REPORT_ERROR_BIT_EXT) {
-                logger.error("!! Validation$dbg: " + getString(pMessage))
+                logger.error("!! $obj Validation$dbg: " + getString(pMessage))
             } else if (flags and VK_DEBUG_REPORT_WARNING_BIT_EXT == VK_DEBUG_REPORT_WARNING_BIT_EXT) {
-                logger.warn("!! Validation$dbg: " + getString(pMessage))
+                logger.warn("!! $obj Validation$dbg: " + getString(pMessage))
             } else if (flags and VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT == VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT) {
-                logger.error("!! Validation (performance)$dbg: " + getString(pMessage))
+                logger.error("!! $obj Validation (performance)$dbg: " + getString(pMessage))
             } else if (flags and VK_DEBUG_REPORT_INFORMATION_BIT_EXT == VK_DEBUG_REPORT_INFORMATION_BIT_EXT) {
-                logger.info("!! Validation$dbg: " + getString(pMessage))
+                logger.info("!! $obj Validation$dbg: " + getString(pMessage))
             } else {
-                logger.info("!! Validation (unknown message type)$dbg: " + getString(pMessage))
+                logger.info("!! $obj Validation (unknown message type)$dbg: " + getString(pMessage))
             }
 
             try {
@@ -203,7 +203,7 @@ open class VulkanRenderer(hub: Hub,
             return if(strictValidation) {
                 VK_FALSE
             } else {
-                VK_TRUE
+                VK_FALSE
             }
         }
     }
@@ -634,9 +634,14 @@ open class VulkanRenderer(hub: Hub,
             s = createVertexBuffers(device, node, s)
         }
 
-        val defaultDescriptorSet =
+        val matricesDescriptorSet =
             VU.createDescriptorSetDynamic(device, descriptorPool,
-                descriptorSetLayouts["Matrices"]!!, standardUBOs.count(),
+                descriptorSetLayouts["Matrices"]!!, 1,
+                buffers["UBOBuffer"]!!)
+
+        val materialPropertiesDescriptorSet =
+            VU.createDescriptorSetDynamic(device, descriptorPool,
+                descriptorSetLayouts["MaterialProperties"]!!, 1,
                 buffers["UBOBuffer"]!!)
 
         val matricesUbo = VulkanUBO(device, backingBuffer = buffers["UBOBuffer"])
@@ -651,7 +656,7 @@ open class VulkanRenderer(hub: Hub,
             createUniformBuffer(memoryProperties)
             sceneUBOs.add(node)
 
-            s.UBOs.put(name, defaultDescriptorSet.to(this))
+            s.UBOs.put(name, matricesDescriptorSet.to(this))
         }
 
         s = loadTexturesForNode(node, s)
@@ -689,7 +694,7 @@ open class VulkanRenderer(hub: Hub,
 
             requiredOffsetCount = 1
             createUniformBuffer(memoryProperties)
-            s.UBOs.put("MaterialProperties", defaultDescriptorSet.to(this))
+            s.UBOs.put("MaterialProperties", materialPropertiesDescriptorSet.to(this))
         }
 
         s.initialized = true
@@ -764,7 +769,7 @@ open class VulkanRenderer(hub: Hub,
         }
 
         if(needsShaderPropertyUBO) {
-            var order: List<String> = emptyList()
+            var order: Map<String, Int> = emptyMap()
             renderpasses.filter { it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry }
                 .map { pass ->
                     logger.info("Initializing shader properties for ${node.name}")
@@ -775,8 +780,8 @@ open class VulkanRenderer(hub: Hub,
             with(shaderPropertyUbo) {
                 name = "ShaderProperties"
 
-                order.forEach { name ->
-                    add(name, { node.getShaderProperty(name)!! })
+                order.forEach { name, offset  ->
+                    add(name, { node.getShaderProperty(name)!! }, offset)
                 }
 
                 requiredOffsetCount = 1
@@ -2360,6 +2365,12 @@ open class VulkanRenderer(hub: Hub,
                     return@nonInstancedDrawing
                 }
 
+                logger.info("${node.name} has these UBOs: ${s.UBOs.keys.joinToString(", ")}")
+                logger.info("pipeline needs: ${pass.getActivePipeline(node).descriptorSpecs.keys.joinToString(", ")}")
+
+                val pipeline = pass.getActivePipeline(node).getPipelineForGeometryType((node as HasGeometry).geometryType)
+                val specs = pass.getActivePipeline(node).descriptorSpecs.keys
+                /*
                 pass.vulkanMetadata.vertexBufferOffsets.put(0, 0)
                 pass.vulkanMetadata.vertexBuffers.put(0, s.vertexBuffers["vertex+index"]!!.buffer)
                 pass.vulkanMetadata.descriptorSets.put(0, s.UBOs["Matrices"]!!.first)
@@ -2382,7 +2393,6 @@ open class VulkanRenderer(hub: Hub,
                     pass.vulkanMetadata.descriptorSets.put(pos, s.requiredDescriptorSets["ShaderProperties"]!!)
                 }
 
-                val pipeline = pass.getActivePipeline(node).getPipelineForGeometryType((node as HasGeometry).geometryType)
 
                 pass.vulkanMetadata.uboOffsets.position(0)
                 s.UBOs["Matrices"]!!.second.offsets.position(0)
@@ -2393,6 +2403,41 @@ open class VulkanRenderer(hub: Hub,
                     pass.vulkanMetadata.uboOffsets.put(s.UBOs["ShaderProperties"]!!.second.offsets.get(0))
                 }
                 pass.vulkanMetadata.uboOffsets.flip()
+                */
+
+                pass.vulkanMetadata.descriptorSets.rewind()
+
+                var index = 0
+                pass.vulkanMetadata.vertexBufferOffsets.put(0, 0)
+                pass.vulkanMetadata.vertexBuffers.put(0, s.vertexBuffers["vertex+index"]!!.buffer)
+                pass.vulkanMetadata.descriptorSets.put(0, descriptorSets["VRParameters"]!!)
+                pass.vulkanMetadata.uboOffsets.put(0)
+                index++
+
+                if(specs.contains("LightParameters")) {
+                    pass.vulkanMetadata.descriptorSets.put(index, descriptorSets["LightParameters"]!!)
+                    pass.vulkanMetadata.uboOffsets.put(0)
+                    index++
+                }
+
+                s.UBOs.forEach{ name, (descriptorSet, ubo) ->
+                    if(specs.contains(name)) {
+                        pass.vulkanMetadata.descriptorSets.put(index, descriptorSet)
+                        pass.vulkanMetadata.uboOffsets.put(ubo.offsets)
+                        index++
+                    }
+                }
+
+                if(s.textures.size > 0 && specs.contains("ObjectTextures")) {
+                    pass.vulkanMetadata.descriptorSets.put(index, s.textureDescriptorSet)
+                    index++
+                }
+
+                pass.vulkanMetadata.descriptorSets.position(0)
+                pass.vulkanMetadata.descriptorSets.limit(index)
+                pass.vulkanMetadata.uboOffsets.flip()
+
+                logger.info("I have ${pass.vulkanMetadata.uboOffsets.remaining()} offsets left")
 
                 vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline)
                 vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -2505,7 +2550,7 @@ open class VulkanRenderer(hub: Hub,
 
             if (logger.isDebugEnabled) {
                 logger.debug("descriptor sets are {}", pass.descriptorSets.keys.joinToString(", "))
-                logger.debug("pipeline provides {}", pipeline.descriptorSpecs.map { it.name }.joinToString(", "))
+                logger.debug("pipeline provides {}", pipeline.descriptorSpecs.keys.joinToString(", "))
             }
 
             // set the required descriptor sets for this render pass
@@ -2525,10 +2570,10 @@ open class VulkanRenderer(hub: Hub,
     fun VulkanRenderpass.VulkanMetadata.setRequiredDescriptorSetsPostprocess(pass: VulkanRenderpass, pipeline: VulkanPipeline): Int {
         var requiredDynamicOffsets = 0
 
-        pipeline.descriptorSpecs.forEachIndexed { i, (name) ->
+        pipeline.descriptorSpecs.entries.sortedBy { it.value.set }.forEachIndexed { i, (name, _) ->
             val dsName = if (name.startsWith("ShaderParameters")) {
                 "ShaderParameters-${pass.name}"
-            } else if (name.startsWith("inputs")) {
+            } else if (name.startsWith("Inputs")) {
                 "inputs-${pass.name}"
             } else if (name.startsWith("Matrices")) {
                 val offsets = (sceneUBOs.first().metadata["VulkanRenderer"] as VulkanObjectState).UBOs["Matrices"]!!.second.offsets
@@ -2571,7 +2616,7 @@ open class VulkanRenderer(hub: Hub,
 
 //        logger.info("sorted descriptor sets are: ${pipeline.descriptorSpecs.sortedBy { it.set }}")
 
-        val uniqueDescriptorSets = pipeline.descriptorSpecs.sortedBy { it.set }.map { (name) ->
+        val uniqueDescriptorSets = pipeline.descriptorSpecs.keys.map { name ->
             if (name.startsWith("ShaderParameters")) {
                 "ShaderParameters-${pass.name}"
             } else if (name.startsWith("inputs")) {
@@ -2705,12 +2750,13 @@ open class VulkanRenderer(hub: Hub,
 
                 node.updateWorld(true, false)
 
-                if (ubo.offsets.capacity() < 3) {
-                    memFree(ubo.offsets)
-                    ubo.offsets = memAllocInt(3)
-                }
-
-                (0..2).forEach { ubo.offsets.put(it, 0) }
+//                if (ubo.offsets.capacity() < 3) {
+//                    memFree(ubo.offsets)
+//                    ubo.offsets = memAllocInt(3)
+//                }
+//
+//                (0..2).forEach { ubo.offsets.put(it, 0) }
+                ubo.offsets.limit(1)
 
                 var bufferOffset = ubo.backingBuffer!!.advance()
                 ubo.offsets.put(0, bufferOffset)
@@ -2723,7 +2769,8 @@ open class VulkanRenderer(hub: Hub,
 
                 val materialUbo = (node.metadata["VulkanRenderer"]!! as VulkanObjectState).UBOs["MaterialProperties"]!!.second
                 bufferOffset = ubo.backingBuffer!!.advance()
-                ubo.offsets.put(1, bufferOffset)
+                materialUbo.offsets.put(0, bufferOffset)
+                materialUbo.offsets.limit(1)
 
                 materialUbo.populate(offset = bufferOffset.toLong())
 
@@ -2733,6 +2780,7 @@ open class VulkanRenderer(hub: Hub,
                     val offset = propertyUbo.backingBuffer!!.advance()
                     propertyUbo.populate(offset = offset.toLong())
                     propertyUbo.offsets.put(0, offset)
+                    propertyUbo.offsets.limit(1)
                 }
             }
         }

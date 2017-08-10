@@ -200,10 +200,26 @@ open class VulkanShaderModule(device: VkDevice, entryPoint: String, clazz: Class
         // inputs are summarized into one descriptor set
         (0..compiler.shaderResources.sampledImages.size()-1).forEach { samplerId ->
             val res = compiler.shaderResources.sampledImages.get(samplerId.toInt())
-            uboSpecs.put(res.name, UBOSpec(res.name,
-                set = compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet),
-                binding = compiler.getDecoration(res.id, Decoration.DecorationBinding),
-                members = LinkedHashMap<String, UBOMemberSpec>()))
+            val name = if(res.name.startsWith("Input")) {
+                "Inputs"
+            } else {
+                res.name
+            }
+
+            if(uboSpecs.containsKey(name)) {
+                logger.info("Adding inputs member ${res.name}")
+                uboSpecs[name]!!.members.put(res.name, UBOMemberSpec(res.name, uboSpecs[name]!!.members.size.toLong(), 0L, 0L))
+            } else {
+                logger.info("Adding inputs UBO")
+                uboSpecs.put(name, UBOSpec(name,
+                    set = compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet),
+                    binding = compiler.getDecoration(res.id, Decoration.DecorationBinding),
+                    members = LinkedHashMap<String, UBOMemberSpec>()))
+
+                if(name == "Inputs") {
+                    uboSpecs[name]!!.members.put(res.name, UBOMemberSpec(res.name, 0L, 0L, 0L))
+                }
+            }
         }
 
         val inputs = compiler.shaderResources.stageInputs

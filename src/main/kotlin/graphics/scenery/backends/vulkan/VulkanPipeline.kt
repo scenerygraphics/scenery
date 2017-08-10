@@ -17,7 +17,7 @@ class VulkanPipeline(val device: VkDevice, val pipelineCache: Long? = null): Aut
     private val logger by LazyLogger()
 
     var pipeline = HashMap<GeometryType, VulkanRenderer.Pipeline>()
-    var descriptorSpecs = ArrayList<VulkanShaderModule.UBOSpec>()
+    var descriptorSpecs = LinkedHashMap<String, VulkanShaderModule.UBOSpec>()
 
     val inputAssemblyState: VkPipelineInputAssemblyStateCreateInfo = VkPipelineInputAssemblyStateCreateInfo.calloc()
         .sType(VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO)
@@ -94,8 +94,13 @@ class VulkanPipeline(val device: VkDevice, val pipelineCache: Long? = null): Aut
             i, it ->
             this.shaderStages.put(i, it.shader)
 
-            descriptorSpecs.addAll(it.uboSpecs.values)
-            descriptorSpecs.sortBy { spec -> spec.set }
+            it.uboSpecs.forEach { uboName, ubo ->
+                if(descriptorSpecs.containsKey(uboName)) {
+                    descriptorSpecs[uboName]!!.members.putAll(ubo.members)
+                } else {
+                    descriptorSpecs.put(uboName, ubo)
+                }
+            }
         }
     }
 
@@ -103,6 +108,7 @@ class VulkanPipeline(val device: VkDevice, val pipelineCache: Long? = null): Aut
                         descriptorSetLayouts: List<Long>, onlyForTopology: GeometryType? = null) {
         val setLayouts = memAllocLong(descriptorSetLayouts.size).put(descriptorSetLayouts.toLongArray())
         setLayouts.flip()
+        logger.debug("${descriptorSetLayouts.joinToString(", ")}")
 
 //        descriptorSetLayouts.forEachIndexed { i, layout -> setLayouts.put(i, layout) }
 
@@ -150,9 +156,9 @@ class VulkanPipeline(val device: VkDevice, val pipelineCache: Long? = null): Aut
         vkp.pipeline = p
 
         this.pipeline.put(GeometryType.TRIANGLES, vkp)
-        descriptorSpecs.sortBy { spec -> spec.set }
+//        descriptorSpecs.sortBy { spec -> spec.set }
 
-        logger.debug("Pipeline needs descriptor sets ${descriptorSpecs.joinToString { it.name }}")
+        logger.debug("Pipeline needs descriptor sets ${descriptorSpecs.keys.joinToString(", ")}")
 
         if(onlyForTopology == null) {
             // create pipelines for other topologies as well
