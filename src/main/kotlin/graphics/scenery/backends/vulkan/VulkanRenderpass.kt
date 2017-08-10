@@ -362,7 +362,7 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
                 reqDescriptorLayouts.add(initializeDescriptorSetLayoutForSpec(spec))
             }
 
-            logger.info("Required DSLs: ${reqDescriptorLayouts.joinToString(", ")}")
+            logger.debug("Required DSLs: ${reqDescriptorLayouts.joinToString(", ")}")
             p.createPipelines(this, framebuffer.renderPass.get(0),
                 vertexInputType.state,
                 descriptorSetLayouts = reqDescriptorLayouts)

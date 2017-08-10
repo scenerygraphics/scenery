@@ -207,10 +207,10 @@ open class VulkanShaderModule(device: VkDevice, entryPoint: String, clazz: Class
             }
 
             if(uboSpecs.containsKey(name)) {
-                logger.info("Adding inputs member ${res.name}")
+                logger.debug("Adding inputs member ${res.name}")
                 uboSpecs[name]!!.members.put(res.name, UBOMemberSpec(res.name, uboSpecs[name]!!.members.size.toLong(), 0L, 0L))
             } else {
-                logger.info("Adding inputs UBO")
+                logger.debug("Adding inputs UBO")
                 uboSpecs.put(name, UBOSpec(name,
                     set = compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet),
                     binding = compiler.getDecoration(res.id, Decoration.DecorationBinding),

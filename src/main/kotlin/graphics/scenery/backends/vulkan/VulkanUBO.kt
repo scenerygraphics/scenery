@@ -16,7 +16,7 @@ import java.nio.IntBuffer
  */
 open class VulkanUBO(val device: VkDevice, var backingBuffer: VulkanBuffer? = null): AutoCloseable, UBO() {
     var descriptor: UBODescriptor? = null
-    var offsets: IntBuffer = memAllocInt(3)
+    var offsets: IntBuffer = memAllocInt(1)
     var requiredOffsetCount = 0
 
     class UBODescriptor {

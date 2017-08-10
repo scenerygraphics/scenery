@@ -2365,47 +2365,14 @@ open class VulkanRenderer(hub: Hub,
                     return@nonInstancedDrawing
                 }
 
-                logger.info("${node.name} has these UBOs: ${s.UBOs.keys.joinToString(", ")}")
-                logger.info("pipeline needs: ${pass.getActivePipeline(node).descriptorSpecs.keys.joinToString(", ")}")
+                logger.debug("${node.name} has these UBOs: ${s.UBOs.keys.joinToString(", ")}")
+                logger.debug("pipeline needs: ${pass.getActivePipeline(node).descriptorSpecs.keys.joinToString(", ")}")
 
                 val pipeline = pass.getActivePipeline(node).getPipelineForGeometryType((node as HasGeometry).geometryType)
                 val specs = pass.getActivePipeline(node).descriptorSpecs.keys
-                /*
-                pass.vulkanMetadata.vertexBufferOffsets.put(0, 0)
-                pass.vulkanMetadata.vertexBuffers.put(0, s.vertexBuffers["vertex+index"]!!.buffer)
-                pass.vulkanMetadata.descriptorSets.put(0, s.UBOs["Matrices"]!!.first)
-
-                val pos = if (s.textures.size > 0) {
-                    pass.vulkanMetadata.descriptorSets.put(1, s.textureDescriptorSet)
-                    pass.vulkanMetadata.descriptorSets.put(2, descriptorSets["VRParameters"]!!)
-                    pass.vulkanMetadata.descriptorSets.limit(3)
-
-                    3
-                } else {
-                    pass.vulkanMetadata.descriptorSets.put(1, descriptorSets["VRParameters"]!!)
-                    pass.vulkanMetadata.descriptorSets.limit(2)
-
-                    2
-                }
-
-                if(s.requiredDescriptorSets.containsKey("ShaderProperties")) {
-                    pass.vulkanMetadata.descriptorSets.limit(pos + 1)
-                    pass.vulkanMetadata.descriptorSets.put(pos, s.requiredDescriptorSets["ShaderProperties"]!!)
-                }
-
-
-                pass.vulkanMetadata.uboOffsets.position(0)
-                s.UBOs["Matrices"]!!.second.offsets.position(0)
-
-                pass.vulkanMetadata.uboOffsets.put(s.UBOs["Matrices"]!!.second.offsets)
-                pass.vulkanMetadata.uboOffsets.put(0)
-                if(s.requiredDescriptorSets.containsKey("ShaderProperties")) {
-                    pass.vulkanMetadata.uboOffsets.put(s.UBOs["ShaderProperties"]!!.second.offsets.get(0))
-                }
-                pass.vulkanMetadata.uboOffsets.flip()
-                */
 
                 pass.vulkanMetadata.descriptorSets.rewind()
+                pass.vulkanMetadata.uboOffsets.rewind()
 
                 var index = 0
                 pass.vulkanMetadata.vertexBufferOffsets.put(0, 0)
@@ -2424,6 +2391,7 @@ open class VulkanRenderer(hub: Hub,
                     if(specs.contains(name)) {
                         pass.vulkanMetadata.descriptorSets.put(index, descriptorSet)
                         pass.vulkanMetadata.uboOffsets.put(ubo.offsets)
+                        ubo.offsets.flip()
                         index++
                     }
                 }
@@ -2437,7 +2405,7 @@ open class VulkanRenderer(hub: Hub,
                 pass.vulkanMetadata.descriptorSets.limit(index)
                 pass.vulkanMetadata.uboOffsets.flip()
 
-                logger.info("I have ${pass.vulkanMetadata.uboOffsets.remaining()} offsets left")
+                logger.debug("I have ${pass.vulkanMetadata.uboOffsets.remaining()}/${pass.vulkanMetadata.uboOffsets.capacity()} offsets left")
 
                 vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline)
                 vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -2760,6 +2728,7 @@ open class VulkanRenderer(hub: Hub,
 
                 var bufferOffset = ubo.backingBuffer!!.advance()
                 ubo.offsets.put(0, bufferOffset)
+                ubo.offsets.limit(1)
 
                 node.projection.copyFrom(cam.projection.applyVulkanCoordinateSystem())
 
