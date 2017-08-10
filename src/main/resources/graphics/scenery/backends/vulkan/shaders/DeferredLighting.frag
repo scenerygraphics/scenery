@@ -6,10 +6,10 @@
 layout(location = 0) in vec2 textureCoord;
 layout(location = 0) out vec4 FragColor;
 
-layout(set = 2, binding = 0) uniform sampler2D Position;
-layout(set = 2, binding = 1) uniform sampler2D Normal;
-layout(set = 2, binding = 2) uniform sampler2D DiffuseAlbedo;
-layout(set = 2, binding = 3) uniform sampler2D ZBuffer;
+layout(set = 2, binding = 0) uniform sampler2D InputPosition;
+layout(set = 2, binding = 1) uniform sampler2D InputNormal;
+layout(set = 2, binding = 2) uniform sampler2D InputDiffuseAlbedo;
+layout(set = 2, binding = 3) uniform sampler2D InputZBuffer;
 
 struct Light {
 	float Linear;
@@ -22,14 +22,14 @@ struct Light {
 
 const int MAX_NUM_LIGHTS = 1024;
 
-layout(set = 1, binding = 0) uniform LightParameters {
+layout(set = 0, binding = 0) uniform LightParameters {
     mat4 ViewMatrix;
     vec3 CamPosition;
     int numLights;
 	Light lights[MAX_NUM_LIGHTS];
 };
 
-layout(set = 5, binding = 0, std140) uniform ShaderParameters {
+layout(set = 1, binding = 0, std140) uniform ShaderParameters {
 	int debugBuffers;
 	int SSAO_Options;
 	int reflectanceModel;
@@ -135,13 +135,13 @@ vec3 DecodeOctaH( vec2 encN )
 void main()
 {
 	// Retrieve data from G-buffer
-	vec3 FragPos = texture(Position, textureCoord).rgb;
-    vec3 DecodedNormal = DecodeOctaH(texture(Normal, textureCoord).rg);
+	vec3 FragPos = texture(InputPosition, textureCoord).rgb;
+    vec3 DecodedNormal = DecodeOctaH(texture(InputNormal, textureCoord).rg);
 //	vec3 DecodedNormal = DecodeSpherical(texture(gNormal, textureCoord).rg);
 	vec3 N = DecodedNormal;
-	vec4 Albedo = texture(DiffuseAlbedo, textureCoord).rgba;
-	float Specular = texture(DiffuseAlbedo, textureCoord).a;
-	float Depth = texture(ZBuffer, textureCoord).r;
+	vec4 Albedo = texture(InputDiffuseAlbedo, textureCoord).rgba;
+	float Specular = texture(InputDiffuseAlbedo, textureCoord).a;
+	float Depth = texture(InputZBuffer, textureCoord).r;
 
 	vec2 ssaoFilterRadius = vec2(ssaoRadius/displayWidth, ssaoRadius/displayHeight);
 	vec3 viewSpacePos = (ViewMatrix * (vec4(FragPos, 1.0) - vec4(CamPosition, 1.0))).rgb;
@@ -159,8 +159,8 @@ void main()
 			for (int i = 0; i < sample_count;  ++i) {
 				// sample at an offset specified by the current Poisson-Disk sample and scale it by a radius (has to be in Texture-Space)
 				vec2 sampleTexCoord = textureCoord + (poisson16[i] * ssaoFilterRadius);
-				float sampleDepth = texture(ZBuffer, sampleTexCoord).r;
-				vec3 samplePos = texture(Position, sampleTexCoord).rgb;
+				float sampleDepth = texture(InputZBuffer, sampleTexCoord).r;
+				vec3 samplePos = texture(InputPosition, sampleTexCoord).rgb;
 
 				vec3 sampleDir = normalize(samplePos - FragPos);
 
@@ -182,7 +182,7 @@ void main()
             for (int i = 0; i < sample_count;  ++i) {
                 vec2 sampleTexCoord = textureCoord + (poisson16[i] * (ssaoFilterRadius));
                 //                       float sampleDepth = texture(gDepth, sampleTexCoord).r;
-                vec3 samplePos = texture(Position, sampleTexCoord).rgb;
+                vec3 samplePos = texture(InputPosition, sampleTexCoord).rgb;
 
                 vec3 sampleDir = samplePos - FragPos;
 

@@ -10,16 +10,16 @@ layout(location = 0) out VertexData {
     vec3 Normal;
     vec2 TexCoord;
     vec3 FragPosition;
-} VertexOut;
+} Vertex;
 
-layout(binding = 0) uniform Matrices {
+layout(set = 2, binding = 0) uniform Matrices {
 	mat4 ModelMatrix;
 	mat4 NormalMatrix;
 	mat4 ProjectionMatrix;
 	int isBillboard;
 } ubo;
 
-layout(set = 2, binding = 0) uniform VRParameters {
+layout(set = 0, binding = 0) uniform VRParameters {
     mat4 projectionMatrices[2];
     mat4 headShift;
     float IPD;
@@ -37,7 +37,7 @@ struct Light {
 
 const int MAX_NUM_LIGHTS = 1024;
 
-layout(set = 2, binding = 0) uniform LightParameters {
+layout(set = 1, binding = 0) uniform LightParameters {
     mat4 ViewMatrix;
     vec3 CamPosition;
     int numLights;
@@ -76,9 +76,9 @@ void main()
 
 	nMVP = projectionMatrix*mv;
 
-    VertexOut.Normal = mat3(ubo.NormalMatrix) * normalize(vertexNormal);
-    VertexOut.TexCoord = vertexTexCoord;
-    VertexOut.FragPosition = vec3(ubo.ModelMatrix * vec4(vertexPosition, 1.0));
+    Vertex.Normal = mat3(ubo.NormalMatrix) * normalize(vertexNormal);
+    Vertex.TexCoord = vertexTexCoord;
+    Vertex.FragPosition = vec3(ubo.ModelMatrix * vec4(vertexPosition, 1.0));
 
 	gl_Position = nMVP * vec4(vertexPosition, 1.0);
 }

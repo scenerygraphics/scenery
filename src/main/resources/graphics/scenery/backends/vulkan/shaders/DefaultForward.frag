@@ -1,8 +1,8 @@
 #version 450 core
 #extension GL_ARB_separate_shader_objects: enable
 
-layout(set = 4, binding = 0) uniform sampler2D hdrColor;
-layout(set = 4, binding = 1) uniform sampler2D depth;
+layout(set = 5, binding = 0) uniform sampler2D InputHDRColor;
+layout(set = 5, binding = 1) uniform sampler2D InputDepth;
 
 //layout(set = 1, binding = 0, std140) uniform ShaderParameters {
 //	float Gamma;
@@ -32,7 +32,7 @@ layout(location = 0) in VertexData {
     vec3 Normal;
     vec2 TexCoord;
     vec3 FragPosition;
-} VertexIn;
+} Vertex;
 
 
 const int MATERIAL_HAS_DIFFUSE =  0x0001;
@@ -41,12 +41,12 @@ const int MATERIAL_HAS_SPECULAR = 0x0004;
 const int MATERIAL_HAS_NORMAL =   0x0008;
 const int MATERIAL_HAS_ALPHAMASK = 0x0010;
 
-layout(binding = 1) uniform MaterialProperties {
+layout(set = 3, binding = 0) uniform MaterialProperties {
     MaterialInfo Material;
     int materialType;
 };
 
-layout(set = 1, binding = 0) uniform sampler2D ObjectTextures[NUM_OBJECT_TEXTURES];
+layout(set = 4, binding = 0) uniform sampler2D ObjectTextures[NUM_OBJECT_TEXTURES];
 
 layout(location = 0) out vec4 FragColor;
 
@@ -61,15 +61,15 @@ void main()
         }
 
         if((materialType & MATERIAL_HAS_DIFFUSE) == MATERIAL_HAS_DIFFUSE) {
-            diffuse = texture(ObjectTextures[1], VertexIn.TexCoord).rgb;
+            diffuse = texture(ObjectTextures[1], Vertex.TexCoord).rgb;
         }
 
         if((materialType & MATERIAL_HAS_SPECULAR) == MATERIAL_HAS_SPECULAR) {
-            specular = texture(ObjectTextures[2], VertexIn.TexCoord).r;
+            specular = texture(ObjectTextures[2], Vertex.TexCoord).r;
         }
 
         if((materialType & MATERIAL_HAS_ALPHAMASK) == MATERIAL_HAS_ALPHAMASK) {
-            if(texture(ObjectTextures[4], VertexIn.TexCoord).r < 0.1f) {
+            if(texture(ObjectTextures[4], Vertex.TexCoord).r < 0.1f) {
                 discard;
             }
         }
@@ -78,9 +78,9 @@ void main()
     //        vec3 normal = texture(ObjectTextures[3], VertexIn.TexCoord).rgb*(255.0/127.0) - (128.0/127.0);
     //        normal = TBN(normalize(VertexIn.Normal), -VertexIn.FragPosition, VertexIn.TexCoord)*normal;
 
-            normal = normalize(VertexIn.Normal);
+            normal = normalize(Vertex.Normal);
         } else {
-            normal = normalize(VertexIn.Normal);
+            normal = normalize(Vertex.Normal);
         }
 
      FragColor = vec4(diffuse, 0.2);

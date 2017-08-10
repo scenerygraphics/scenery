@@ -13,7 +13,6 @@ layout(location = 2) out vec4 DiffuseAlbedo;
 
 const float PI = 3.14159265358979323846264;
 const int NUM_OBJECT_TEXTURES = 6;
-const int MAX_NUM_LIGHTS = 1024;
 
 struct MaterialInfo {
     vec3 Ka;

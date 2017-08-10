@@ -16,22 +16,7 @@ layout(location = 0) in VertexData {
     vec3 Normal;
     vec2 TexCoord;
     vec3 FragPosition;
-} VertexIn;
-
-
-layout(binding = 0) uniform Matrices {
-	mat4 ModelMatrix;
-	mat4 NormalMatrix;
-	mat4 ProjectionMatrix;
-	int isBillboard;
-} ubo;
-
-layout(binding = 1) uniform MaterialProperties {
-    MaterialInfo Material;
-    int materialType;
-};
-
-layout(set = 1, binding = 0) uniform sampler2D ObjectTextures[NUM_OBJECT_TEXTURES];
+} Vertex;
 
 struct Light {
 	float Linear;
@@ -44,12 +29,26 @@ struct Light {
 
 const int MAX_NUM_LIGHTS = 1024;
 
-layout(set = 2, binding = 0) uniform LightParameters {
+layout(set = 1, binding = 0) uniform LightParameters {
     mat4 ViewMatrix;
     vec3 CamPosition;
     int numLights;
 	Light lights[MAX_NUM_LIGHTS];
 };
+
+layout(set = 2, binding = 0) uniform Matrices {
+	mat4 ModelMatrix;
+	mat4 NormalMatrix;
+	mat4 ProjectionMatrix;
+	int isBillboard;
+} ubo;
+
+layout(set = 3, binding = 0) uniform MaterialProperties {
+    MaterialInfo Material;
+    int materialType;
+};
+
+layout(set = 4, binding = 0) uniform sampler2D ObjectTextures[NUM_OBJECT_TEXTURES];
 
 layout(location = 0) out vec4 FragColor;
 
@@ -58,8 +57,8 @@ vec4 BlinnPhong(vec3 FragPos, vec3 viewPos, vec3 Normal, vec3 a, vec3 d, vec3 s)
       vec3 color = d;
       // Ambient
       vec3 ambient = 0.05 * a;
-      vec3 diffuse = vec3(0.0f);
-      vec3 specular = vec3(0.0f);
+      vec3 diffuse = Material.Kd;
+      vec3 specular = Material.Ks;
 
       for(int i = 0; i < numLights; ++i) {
           // Diffuse
@@ -92,10 +91,10 @@ vec4 BlinnPhong(vec3 FragPos, vec3 viewPos, vec3 Normal, vec3 a, vec3 d, vec3 s)
 }
 
 void main() {
-    vec3 ambient = texture(ObjectTextures[0], VertexIn.TexCoord).rgb;
-    vec3 diffuse = texture(ObjectTextures[1], VertexIn.TexCoord).rgb;
-    vec3 specular = texture(ObjectTextures[2], VertexIn.TexCoord).rgb;
+    vec3 ambient = texture(ObjectTextures[0], Vertex.TexCoord).rgb;
+    vec3 diffuse = texture(ObjectTextures[1], Vertex.TexCoord).rgb;
+    vec3 specular = texture(ObjectTextures[2], Vertex.TexCoord).rgb;
 
-    FragColor = BlinnPhong(VertexIn.FragPosition, CamPosition, VertexIn.Normal,
+    FragColor = BlinnPhong(Vertex.FragPosition, CamPosition, Vertex.Normal,
         ambient, diffuse, specular);
 }

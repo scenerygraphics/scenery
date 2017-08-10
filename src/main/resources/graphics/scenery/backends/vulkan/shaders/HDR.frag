@@ -1,9 +1,10 @@
 #version 450 core
 #extension GL_ARB_separate_shader_objects: enable
 
-layout(set = 2, binding = 0) uniform sampler2D hdrBuffer;
+layout(set = 0, binding = 0) uniform sampler2D InputHDRBuffer;
+layout(set = 0, binding = 1) uniform sampler2D InputDepth;
 
-layout(set = 3, binding = 0, std140) uniform ShaderParameters {
+layout(set = 1, binding = 0, std140) uniform ShaderParameters {
 	float Gamma;
 	float Exposure;
 } hdrParams;
@@ -35,7 +36,7 @@ vec3 Uncharted2Tonemap(vec3 x) {
 
 void main()
 {
-	vec3 hdrColor = 0.02*texture(hdrBuffer, textureCoord).rgb;
+	vec3 hdrColor = 0.02*texture(InputHDRBuffer, textureCoord).rgb;
 
 	// Exposure tone mapping
     vec3 mapped = Uncharted2Tonemap(hdrParams.Exposure*hdrColor);
