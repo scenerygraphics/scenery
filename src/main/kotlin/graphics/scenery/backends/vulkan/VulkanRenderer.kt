@@ -441,7 +441,7 @@ open class VulkanRenderer(hub: Hub,
                         stats.add("GPU mem", it.get("AvailableDedicatedVideoMemory"), isTime = false)
                     }
 
-                    if (settings.get<Boolean>("VulkanRenderer.PrintGPUStats")) {
+                    if (settings.get<Boolean>("Renderer.PrintGPUStats")) {
                         logger.info(it.utilisationToString())
                         logger.info(it.memoryUtilisationToString())
                     }
