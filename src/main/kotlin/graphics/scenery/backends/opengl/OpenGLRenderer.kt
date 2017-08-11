@@ -7,7 +7,6 @@ import com.jogamp.opengl.util.FPSAnimator
 import com.jogamp.opengl.util.awt.AWTGLReadBufferUtil
 import graphics.scenery.*
 import graphics.scenery.backends.*
-import graphics.scenery.backends.vulkan.VulkanRenderer
 import graphics.scenery.controls.TrackerInput
 import graphics.scenery.fonts.SDFFontAtlas
 import graphics.scenery.spirvcrossj.Loader
@@ -486,7 +485,7 @@ class OpenGLRenderer(hub: Hub,
                 (pass.passConfig.viewportOffset.second * height).toInt())
 
             pass.openglMetadata.eye = pass.passConfig.eye
-            pass.defaultShader = prepareShaderProgram(VulkanRenderer::class.java, pass.passConfig.shaders.toTypedArray())
+            pass.defaultShader = prepareShaderProgram(Renderer::class.java, pass.passConfig.shaders.toTypedArray())
 
             pass.initializeShaderParameters(settings, buffers["ShaderParametersBuffer"]!!)
 
@@ -1589,10 +1588,10 @@ class OpenGLRenderer(hub: Hub,
             val shaders = arrayOf(".vert", ".geom", ".tese", ".tesc", ".frag", ".comp")
                 .map { "$className$it" }
                 .filter {
-                    VulkanRenderer::class.java.getResource("shaders/$it") != null
+                    Renderer::class.java.getResource("shaders/$it") != null
                 }
 
-            s.shader = prepareShaderProgram(VulkanRenderer::class.java, shaders.toTypedArray())
+            s.shader = prepareShaderProgram(Renderer::class.java, shaders.toTypedArray())
         } else if (node.material is ShaderMaterial) {
             s.shader = prepareShaderProgram(node.javaClass, (node.material as ShaderMaterial).shaders.toTypedArray())
         } else {

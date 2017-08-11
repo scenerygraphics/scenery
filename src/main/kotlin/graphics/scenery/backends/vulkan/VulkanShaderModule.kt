@@ -1,6 +1,7 @@
 package graphics.scenery.backends.vulkan
 
 import graphics.scenery.BufferUtils
+import graphics.scenery.backends.Renderer
 import graphics.scenery.spirvcrossj.*
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.system.MemoryUtil.*
@@ -53,7 +54,7 @@ open class VulkanShaderModule(device: VkDevice, entryPoint: String, clazz: Class
             clazz.javaClass.getResource(shaderCodePath)
         } else {
             sourceClass = VulkanRenderer::class.java
-            VulkanRenderer::class.java.getResource(shaderCodePath)
+            Renderer::class.java.getResource(shaderCodePath)
         }
 
         val actualCodePath: String

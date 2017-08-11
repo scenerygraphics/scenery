@@ -4,6 +4,7 @@ import cleargl.GLShader
 import cleargl.GLShaderType
 import com.jogamp.opengl.GL4
 import graphics.scenery.BufferUtils
+import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.vulkan.VulkanRenderer
 import graphics.scenery.spirvcrossj.*
 import graphics.scenery.utils.LazyLogger
@@ -42,8 +43,8 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, clazz: Class<*>, shad
             sourceClass = clazz
             clazz.javaClass.getResource(shaderCodePath)
         } else {
-            sourceClass = VulkanRenderer::class.java
-            VulkanRenderer::class.java.getResource(shaderCodePath)
+            sourceClass = Renderer::class.java
+            Renderer::class.java.getResource(shaderCodePath)
         }
 
         val actualCodePath: String
