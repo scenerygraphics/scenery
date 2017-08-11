@@ -14,7 +14,7 @@ import kotlin.concurrent.thread
  * @author Ulrik Günther <hello@ulrik.is>
  */
 
-class VertexUpdateExample : SceneryDefaultApplication("VertexUpdateExample") {
+class VertexUpdateExample : SceneryBase("VertexUpdateExample") {
 
     override fun init() {
         renderer = Renderer.createRenderer(hub, applicationName,

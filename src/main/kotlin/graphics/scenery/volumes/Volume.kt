@@ -4,11 +4,8 @@ import cleargl.GLTypeEnum
 import cleargl.GLVector
 import coremem.enums.NativeTypeEnum
 import graphics.scenery.*
-import graphics.scenery.backends.ShaderPreference
+import graphics.scenery.utils.LazyLogger
 import org.lwjgl.system.MemoryUtil.memAlloc
-import org.lwjgl.system.MemoryUtil.memFree
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import java.io.FileInputStream
 import java.nio.ByteBuffer
 import java.nio.file.Files
@@ -86,7 +83,7 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
     @ShaderProperty var voxelSizeY = 1.0f
     @ShaderProperty var voxelSizeZ = 1.0f
 
-    val logger: Logger = LoggerFactory.getLogger("Volume")
+    private val logger by LazyLogger()
 
     var colormaps = HashMap<String, String>()
 
@@ -137,24 +134,20 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         this.indices = BufferUtils.allocateIntAndPut(
             intArrayOf(0, 1, 2, 0, 2, 3))
 
-        this.geometryType = GeometryType.TRIANGLE_STRIP
+        this.geometryType = GeometryType.TRIANGLES
         this.vertexSize = 3
         this.texcoordSize = 2
 
         this.material.transparent = true
-
-        metadata.put(
-            "ShaderPreference",
-            ShaderPreference(
-                arrayListOf("Volume.vert", "Volume.frag"),
-                HashMap<String, String>(),
-                arrayListOf("DeferredShadingRenderer")))
+        this.useClassDerivedShader = true
 
         colormaps.put("grays", this.javaClass.getResource("colormap-grays.png").file)
         colormaps.put("hot", this.javaClass.getResource("colormap-hot.png").file)
         colormaps.put("jet", this.javaClass.getResource("colormap-jet.png").file)
         colormaps.put("plasma", this.javaClass.getResource("colormap-plasma.png").file)
         colormaps.put("viridis", this.javaClass.getResource("colormap-viridis.png").file)
+
+        assignEmptyVolumeTexture()
     }
 
     fun preloadRawFromPath(file: Path) {
@@ -301,7 +294,7 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
             val descriptor = VolumeDescriptor(
                 file,
                 dimensions[0], dimensions[1], dimensions[2],
-                NativeTypeEnum.UnsignedInt, 2, data = imageData
+                NativeTypeEnum.UnsignedShort, 2, data = imageData
             )
 
             thread {
@@ -329,7 +322,7 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
             NativeTypeEnum.Byte -> TODO()
             NativeTypeEnum.UnsignedByte -> TODO()
             NativeTypeEnum.Short -> TODO()
-            NativeTypeEnum.UnsignedShort -> TODO()
+            NativeTypeEnum.UnsignedShort -> GLTypeEnum.UnsignedShort
             NativeTypeEnum.Int -> TODO()
             NativeTypeEnum.Long -> TODO()
             NativeTypeEnum.UnsignedLong -> TODO()
@@ -338,22 +331,33 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
             NativeTypeEnum.Double -> TODO()
         }
 
+    private fun assignEmptyVolumeTexture() {
+        val emptyBuffer = BufferUtils.allocateByteAndPut(byteArrayOf(0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0))
+        val dim = GLVector(1.0f, 1.0f, 1.0f)
+        val gtv = GenericTexture("volume", dim, -1, GLTypeEnum.UnsignedShort, emptyBuffer, false, false)
+
+        this.material.transferTextures.put("volume", gtv)
+        this.material.textures.put("3D-volume", "fromBuffer:volume")
+        this.material.textures.put("normal", colormaps.values.first())
+    }
+
     private fun assignVolumeTexture(dimensions: LongArray, descriptor: VolumeDescriptor, replace: Boolean) {
         val dim = GLVector(dimensions[0].toFloat(), dimensions[1].toFloat(), dimensions[2].toFloat())
         val gtv = GenericTexture("volume", dim,
             -1, descriptor.dataType.toGLType(), descriptor.data, false, false)
 
-        if (this.lock.tryLock()) {
+//        if (this.lock.tryLock()) {
+            logger.info("Adding texture")
             this.material.transferTextures.put("volume", gtv)?.let {
                 if (replace) {
-                    memFree(it.contents)
+//                    memFree(it.contents)
                 }
             }
             this.material.textures.put("3D-volume", "fromBuffer:volume")
             this.material.textures.put("normal", colormaps[colormap]!!)
             this.material.needsTextureReload = true
 
-            this.lock.unlock()
-        }
+//            this.lock.unlock()
+//        }
     }
 }

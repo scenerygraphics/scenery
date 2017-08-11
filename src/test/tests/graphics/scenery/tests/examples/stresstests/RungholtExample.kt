@@ -13,7 +13,7 @@ import kotlin.concurrent.thread
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class RungholtExample : SceneryDefaultApplication("RungholtExample", windowWidth = 1280, windowHeight = 720) {
+class RungholtExample : SceneryBase("RungholtExample", windowWidth = 1280, windowHeight = 720) {
     var hmd: OpenVRHMD? = null
     override fun init() {
         val lightCount = 512

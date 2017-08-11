@@ -16,14 +16,14 @@ public class TexturedCubeJavaExample {
         viewer.main();
     }
 
-    private class TexturedCubeJavaApplication extends SceneryDefaultApplication {
+    private class TexturedCubeJavaApplication extends SceneryBase {
         public TexturedCubeJavaApplication(String applicationName, int windowWidth, int windowHeight) {
             super(applicationName, windowWidth, windowHeight, true);
         }
 
         public void init() {
 
-            setRenderer( Renderer.Factory.createRenderer(getHub(), getApplicationName(), getScene(), 512, 512));
+            setRenderer( Renderer.createRenderer(getHub(), getApplicationName(), getScene(), 512, 512));
             getHub().add(SceneryElement.Renderer, getRenderer());
 
             Material boxmaterial = new Material();

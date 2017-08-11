@@ -11,12 +11,20 @@ import org.lwjgl.vulkan.KHRSurface.VK_ERROR_NATIVE_WINDOW_IN_USE_KHR
 import org.lwjgl.vulkan.KHRSurface.VK_ERROR_SURFACE_LOST_KHR
 import org.lwjgl.vulkan.KHRSwapchain.*
 import org.lwjgl.vulkan.VK10.*
-import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import graphics.scenery.backends.RenderConfigReader
+import graphics.scenery.utils.LazyLogger
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.util.*
+
+/**
+ * VU - Vulkan Utils
+ *
+ * A conllection of convenience methods for various Vulkan-related tasks
+ *
+ * @author Ulrik Guenther <hello@ulrik.is>
+ */
 
 fun VkCommandBuffer.endCommandBuffer() {
     if(vkEndCommandBuffer(this) != VK_SUCCESS) {
@@ -80,7 +88,15 @@ fun VkPhysicalDevice.getMemoryType(typeBits: Int, memoryFlags: Int): Pair<Boolea
 class VU {
 
     companion object VU {
-        protected var logger: Logger = LoggerFactory.getLogger("VulkanRenderer")
+        private val logger by LazyLogger()
+
+        inline fun run(name: String, function: () -> Int) {
+            val result = function.invoke()
+
+            if(result != VK_SUCCESS) {
+                LoggerFactory.getLogger("VulkanRenderer").error("Call to $name failed: ${translate(result)}")
+            }
+        }
 
         inline fun <T: LongBuffer> run(receiver: T, name: String, function: T.() -> Int): Long {
             val result = function.invoke(receiver)
@@ -308,7 +324,7 @@ class VU {
                 .pNext(NULL)
                 .flags(flags)
 
-            vkBeginCommandBuffer(commandBuffer, cmdBufInfo)
+            VU.run("Beginning command buffer", { vkBeginCommandBuffer(commandBuffer, cmdBufInfo) })
 
             cmdBufInfo.free()
         }
@@ -327,9 +343,9 @@ class VU {
             return false
         }
 
-        fun createDescriptorSetLayout(device: VkDevice, type: Int = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, descriptorNum: Int = 1, descriptorCount: Int = 1, shaderStages: Int = VK_SHADER_STAGE_ALL_GRAPHICS): Long {
+        fun createDescriptorSetLayout(device: VkDevice, type: Int = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, binding: Int = 0, descriptorNum: Int = 1, descriptorCount: Int = 1, shaderStages: Int = VK_SHADER_STAGE_ALL): Long {
             val layoutBinding = VkDescriptorSetLayoutBinding.calloc(descriptorNum)
-            (0..descriptorNum - 1).forEach { i ->
+            (binding..descriptorNum - 1).forEach { i ->
                 layoutBinding[i]
                     .binding(i)
                     .descriptorType(type)
@@ -348,19 +364,19 @@ class VU {
                 cleanup = { descriptorLayout.free(); layoutBinding.free() }
             )
 
-            logger.debug("Created DSL ${descriptorSetLayout} with $descriptorNum descriptors with $descriptorCount elements.")
+            logger.debug("Created DSL $descriptorSetLayout with $descriptorNum descriptors with $descriptorCount elements.")
 
             return descriptorSetLayout
         }
 
-        fun createDescriptorSetLayout(device: VkDevice, types: List<Pair<Int, Int>>, shaderStages: Int): Long {
+        fun createDescriptorSetLayout(device: VkDevice, types: List<Pair<Int, Int>>, binding: Int = 0, shaderStages: Int): Long {
             val layoutBinding = VkDescriptorSetLayoutBinding.calloc(types.size)
 
-            types.forEachIndexed { i, type ->
+            types.forEachIndexed { i, (type, count) ->
                 layoutBinding[i]
-                    .binding(i)
-                    .descriptorType(type.first)
-                    .descriptorCount(type.second)
+                    .binding(i + binding)
+                    .descriptorType(type)
+                    .descriptorCount(count)
                     .stageFlags(shaderStages)
                     .pImmutableSamplers(null)
             }
@@ -375,7 +391,7 @@ class VU {
                 cleanup = { descriptorLayout.free(); layoutBinding.free() }
             )
 
-            logger.debug("Created DSL ${descriptorSetLayout} with ${types.size} descriptors.")
+            logger.debug("Created DSL $descriptorSetLayout with ${types.size} descriptors.")
 
             return descriptorSetLayout
         }
@@ -423,7 +439,7 @@ class VU {
         }
 
         fun createDescriptorSet(device: VkDevice, descriptorPool: Long, descriptorSetLayout: Long, bindingCount: Int,
-                                ubo: UBO.UBODescriptor, type: Int = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER): Long {
+                                ubo: VulkanUBO.UBODescriptor, type: Int = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER): Long {
             logger.debug("Creating descriptor set with ${bindingCount} bindings, DSL=$descriptorSetLayout")
 
             val pDescriptorSetLayout = MemoryUtil.memAllocLong(1)

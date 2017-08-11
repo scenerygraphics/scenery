@@ -12,11 +12,11 @@ import kotlin.concurrent.thread
 /**
  * This example demonstrates how to use the TargetArcBallBehaviour and how
  * to modify the default behaviour/key map of scenery, and also manually
- * trigger behaviours. See also [SceneryDefaultApplication.setupCameraModeSwitching].
+ * trigger behaviours. See also [SceneryBase.setupCameraModeSwitching].
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class ArcballExample : SceneryDefaultApplication("ArcballExample") {
+class ArcballExample : SceneryBase("ArcballExample") {
     override fun init() {
         renderer = Renderer.createRenderer(hub, applicationName, scene, 1024, 1024)
         hub.add(SceneryElement.Renderer, renderer!!)

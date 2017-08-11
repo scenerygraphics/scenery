@@ -11,7 +11,7 @@ import kotlin.concurrent.thread
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class TexturedCubeExample : SceneryDefaultApplication("TexturedCubeExample") {
+class TexturedCubeExample : SceneryBase("TexturedCubeExample") {
     override fun init() {
         renderer = Renderer.createRenderer(hub, applicationName, scene, 512, 512)
         hub.add(SceneryElement.Renderer, renderer!!)

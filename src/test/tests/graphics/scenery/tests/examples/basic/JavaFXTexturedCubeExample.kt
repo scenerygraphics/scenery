@@ -25,7 +25,7 @@ import kotlin.concurrent.thread
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class JavaFXTexturedCubeExample : SceneryDefaultApplication("JavaFXTexturedCubeExample") {
+class JavaFXTexturedCubeExample : SceneryBase("JavaFXTexturedCubeExample") {
     override fun init() {
         val latch = CountDownLatch(1)
         var imagePanel: SceneryPanel? = null

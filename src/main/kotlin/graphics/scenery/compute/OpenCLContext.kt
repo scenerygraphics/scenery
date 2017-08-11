@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory
 import graphics.scenery.Hub
 import graphics.scenery.Hubable
 import graphics.scenery.SceneryElement
+import graphics.scenery.utils.LazyLogger
 import java.io.File
 import java.net.URL
 import java.nio.Buffer
@@ -23,7 +24,7 @@ import java.util.concurrent.ConcurrentHashMap
  */
 
 class OpenCLContext(override var hub: Hub?, val devicePreference: String = System.getProperty("scenery.OpenCLDevice", "0,0")) : Hubable {
-    protected var logger: Logger = LoggerFactory.getLogger("OpenCLContext")
+    private val logger by LazyLogger()
 
     var device: cl_device_id
     var kernels = ConcurrentHashMap<String, cl_kernel>()

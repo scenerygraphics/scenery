@@ -6,6 +6,7 @@ import graphics.scenery.Scene
 import graphics.scenery.Settings
 import graphics.scenery.backends.opengl.OpenGLRenderer
 import graphics.scenery.backends.vulkan.VulkanRenderer
+import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.SceneryPanel
 
 /**
@@ -13,39 +14,92 @@ import graphics.scenery.utils.SceneryPanel
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-interface Renderer : Hubable {
+abstract class Renderer : Hubable {
     /**
-     * This function should initialize the scene contents.
-     *
-     * @param[scene] The scene to initialize.
+     * Initializes scene and contents
      */
-    fun initializeScene()
+    abstract fun initializeScene()
 
     /**
-     * This function renders the scene
-     *
-     * @param[scene] The scene to render.
+     * Renders the scene
      */
-    fun render()
+    abstract fun render()
 
-    var shouldClose: Boolean
+    abstract var shouldClose: Boolean
 
-    var settings: Settings
+    abstract var settings: Settings
 
-    var window: SceneryWindow
+    abstract var window: SceneryWindow
 
-    var embedIn: SceneryPanel?
+    abstract var embedIn: SceneryPanel?
 
-    fun close()
+    abstract fun close()
 
-    fun screenshot()
+    abstract fun screenshot()
 
-    fun reshape(newWidth: Int, newHeight: Int)
+    abstract fun reshape(newWidth: Int, newHeight: Int)
 
-    val managesRenderLoop: Boolean
+    abstract val managesRenderLoop: Boolean
 
-    companion object Factory {
-        @JvmOverloads fun createRenderer(hub: Hub, applicationName: String, scene: Scene, windowWidth: Int, windowHeight: Int, embedIn: SceneryPanel? = null): Renderer {
+    abstract var renderConfigFile: String
+
+    /**
+     * Toggles VR on and off, and loads the appropriate renderer config file, if it exists.
+     * The name is the name of the current renderer config file, with "Stereo" at the end.
+     */
+    @Suppress("UNUSED")
+    fun toggleVR() {
+        val logger by LazyLogger()
+        logger.info("Toggling VR!")
+        val isStereo = renderConfigFile.substringBeforeLast(".").indexOf("Stereo") != -1
+
+        if(isStereo) {
+            val nonStereoConfig = renderConfigFile.substringBeforeLast("Stereo") + ".yml"
+
+            if(RenderConfigReader::class.java.getResource(nonStereoConfig) != null) {
+                renderConfigFile = nonStereoConfig
+                settings.set("vr.Active", false)
+            } else {
+                logger.warn("Non-stereo configuration for $renderConfigFile ($nonStereoConfig) not found.")
+            }
+        } else {
+            val stereoConfig = renderConfigFile.substringBeforeLast(".") + "Stereo.yml"
+
+            if(RenderConfigReader::class.java.getResource(stereoConfig) != null) {
+                renderConfigFile = stereoConfig
+                settings.set("vr.Active", true)
+            } else {
+                logger.warn("Stereo VR configuration for $renderConfigFile ($stereoConfig) not found.")
+            }
+        }
+    }
+
+    /**
+     * Adds the default [Settings] for [Renderer] to a given [Settings] instance.
+     *
+     * Providing some sane defaults that may of course be overridden after
+     * construction of the renderer.
+     *
+     * @param[settings] The [Settings] instance to augment.
+     * @return Default [Settings] values.
+     */
+    fun loadDefaultRendererSettings(settings: Settings): Settings {
+        settings.set("wantsFullscreen", false)
+        settings.set("isFullscreen", false)
+
+        settings.set("vr.Active", true)
+        settings.set("vr.IPD", 0.05f)
+
+        settings.set("sdf.MaxDistance", 10)
+
+        settings.set("Renderer.PrintGPUStats", false)
+        settings.set("Renderer.SupersamplingFactor", System.getProperty("scenery.Renderer.SupersamplingFactor")?.toFloat() ?: 1.0f)
+
+        return settings
+    }
+
+    companion object {
+        @JvmOverloads @JvmStatic fun createRenderer(hub: Hub, applicationName: String, scene: Scene, windowWidth: Int, windowHeight: Int, embedIn: SceneryPanel? = null): Renderer {
             val preference = System.getProperty("scenery.Renderer", "OpenGLRenderer")
 
             return if (preference == "VulkanRenderer") {
