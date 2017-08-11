@@ -90,6 +90,14 @@ class VU {
     companion object VU {
         private val logger by LazyLogger()
 
+        inline fun run(name: String, function: () -> Int) {
+            val result = function.invoke()
+
+            if(result != VK_SUCCESS) {
+                LoggerFactory.getLogger("VulkanRenderer").error("Call to $name failed: ${translate(result)}")
+            }
+        }
+
         inline fun <T: LongBuffer> run(receiver: T, name: String, function: T.() -> Int): Long {
             val result = function.invoke(receiver)
 
@@ -316,7 +324,7 @@ class VU {
                 .pNext(NULL)
                 .flags(flags)
 
-            vkBeginCommandBuffer(commandBuffer, cmdBufInfo)
+            VU.run("Beginning command buffer", { vkBeginCommandBuffer(commandBuffer, cmdBufInfo) })
 
             cmdBufInfo.free()
         }

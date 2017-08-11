@@ -29,8 +29,10 @@ open class VulkanUBO(val device: VkDevice, var backingBuffer: VulkanBuffer? = nu
 
     fun copy(data: ByteBuffer, offset: Long = 0) {
         val dest = memAllocPointer(1)
-        vkMapMemory(device, descriptor!!.memory, offset, descriptor!!.allocationSize* 1L, 0, dest)
+
+        VU.run("Mapping buffer memory/vkMapMemory", { vkMapMemory(device, descriptor!!.memory, offset, descriptor!!.allocationSize* 1L, 0, dest) })
         memCopy(memAddress(data), dest.get(0), data.remaining())
+
         vkUnmapMemory(device, descriptor!!.memory)
         memFree(dest)
     }

@@ -67,7 +67,7 @@ open class VulkanRenderer(hub: Hub,
         var signalSemaphore: LongBuffer = memAllocLong(1),
         var waitSemaphore: LongBuffer = memAllocLong(1),
         var commandBuffers: PointerBuffer = memAllocPointer(1),
-        var waitStages: IntBuffer = memAllocInt(2)
+        var waitStages: IntBuffer = memAllocInt(1)
     )
 
     enum class VertexDataKinds {
@@ -97,7 +97,9 @@ open class VulkanRenderer(hub: Hub,
 
     data class DeviceAndGraphicsQueueFamily(
         val device: VkDevice? = null,
-        val queueFamilyIndex: Int = 0,
+        val graphicsQueue: Int = 0,
+        val computeQueue: Int = 0,
+        val presentQueue: Int = 0,
         val memoryProperties: VkPhysicalDeviceMemoryProperties? = null
     )
 
@@ -372,7 +374,7 @@ open class VulkanRenderer(hub: Hub,
         physicalDevice = getPhysicalDevice(instance)
         deviceAndGraphicsQueueFamily = createDeviceAndGetGraphicsQueueFamily(physicalDevice)
         device = deviceAndGraphicsQueueFamily.device!!
-        queueFamilyIndex = deviceAndGraphicsQueueFamily.queueFamilyIndex
+        queueFamilyIndex = deviceAndGraphicsQueueFamily.graphicsQueue
         memoryProperties = deviceAndGraphicsQueueFamily.memoryProperties!!
 
         with(commandPools) {
@@ -1385,10 +1387,7 @@ open class VulkanRenderer(hub: Hub,
             .pSignalSemaphores(present.signalSemaphore)
 
         // Submit to the graphics queue
-        val err = vkQueueSubmit(queue, submitInfo, commandBuffer.fence.get(0))
-        if (err != VK_SUCCESS) {
-            throw AssertionError("Frame $frames: Failed to submit render queue: " + VU.translate(err))
-        }
+        VU.run("Submit viewport render queue", { vkQueueSubmit(queue, submitInfo, commandBuffer.fence.get(0)) })
 
         commandBuffer.submitted = true
         swapchain!!.present(ph.signalSemaphore)
@@ -1558,7 +1557,6 @@ open class VulkanRenderer(hub: Hub,
             ph.commandBuffers.put(0, commandBuffer.commandBuffer)
             ph.signalSemaphore.put(0, target.semaphore)
             ph.waitStages.put(0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
-            ph.waitStages.put(1, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT)
 
             val si = VkSubmitInfo.calloc()
                 .sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
@@ -1569,7 +1567,7 @@ open class VulkanRenderer(hub: Hub,
                 .pSignalSemaphores(ph.signalSemaphore)
                 .pWaitSemaphores(firstWaitSemaphore)
 
-            vkQueueSubmit(queue, si, commandBuffer.fence.get(0))
+            VU.run("Submit pass $t render queue", { vkQueueSubmit(queue, si, commandBuffer.fence.get(0) )})
 
             commandBuffer.submitted = true
             firstWaitSemaphore.put(0, target.semaphore)
@@ -1749,10 +1747,20 @@ open class VulkanRenderer(hub: Hub,
             vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, pQueueFamilyPropertyCount, queueProps)
 
             var graphicsQueueFamilyIndex: Int = 0
-            while (graphicsQueueFamilyIndex < queueCount) {
-                if (queueProps.get(graphicsQueueFamilyIndex).queueFlags() and VK_QUEUE_GRAPHICS_BIT != 0)
-                    break
-                graphicsQueueFamilyIndex++
+            var computeQueueFamilyIndex: Int = 0
+            var presentQueueFamilyIndex: Int = 0
+            var index = 0
+
+            while (index < queueCount) {
+                if (queueProps.get(index).queueFlags() and VK_QUEUE_GRAPHICS_BIT != 0) {
+                    graphicsQueueFamilyIndex = index
+                }
+
+                if (queueProps.get(index).queueFlags() and VK_QUEUE_COMPUTE_BIT != 0) {
+                    computeQueueFamilyIndex = index
+                }
+
+                index++
             }
 
             val pQueuePriorities = stack.mallocFloat(1).put(0, 0.0f)
@@ -1813,7 +1821,7 @@ open class VulkanRenderer(hub: Hub,
             vkGetPhysicalDeviceMemoryProperties(physicalDevice, memoryProperties)
 
             DeviceAndGraphicsQueueFamily(VkDevice(device, physicalDevice, deviceCreateInfo),
-                graphicsQueueFamilyIndex, memoryProperties)
+                graphicsQueueFamilyIndex, computeQueueFamilyIndex, presentQueueFamilyIndex, memoryProperties)
         }
     }
 
