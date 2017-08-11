@@ -281,11 +281,19 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, clazz: Class<*>, shad
             found = source.indexOf("layout(", start)
         }
 
+        // add GL_ARB_seperate_shader_objects extension to use layout(location = ...) qualifier
+        source = source.replace("#version 410", "#version 410\n#extension GL_ARB_separate_shader_objects : enable")
+
         this.shader = GLShader(gl, source, toClearGLShaderType(extension))
 
         if(this.shader.shaderInfoLog.isNotEmpty()) {
             logger.warn("Shader compilation log:")
             logger.warn(this.shader.shaderInfoLog)
+
+            if(this.shader.shaderInfoLog.toLowerCase().contains("error")) {
+                logger.error("Shader code follows:")
+                logger.error("--------------------\n$source")
+            }
         }
     }
 
