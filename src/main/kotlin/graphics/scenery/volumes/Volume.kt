@@ -240,6 +240,10 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
             volumes.put(id, descriptor)
             descriptor
         }
+
+        if (vol != null) {
+            assignVolumeTexture( longArrayOf( x, y, z ), vol, true)
+        }
     }
 
     fun readFromRaw(file: Path, replace: Boolean = false): String {
