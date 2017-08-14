@@ -5,7 +5,6 @@ import cleargl.GLShaderType
 import com.jogamp.opengl.GL4
 import graphics.scenery.BufferUtils
 import graphics.scenery.backends.Renderer
-import graphics.scenery.backends.vulkan.VulkanRenderer
 import graphics.scenery.spirvcrossj.*
 import graphics.scenery.utils.LazyLogger
 import java.nio.ByteBuffer
@@ -233,14 +232,26 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, clazz: Class<*>, shad
             val end = source.indexOf(")", start) + 1
 
             if(source.substring(end, source.indexOf(";", end)).contains(" in ")) {
-                logger.debug("Not touching input layouts")
+                if(source.substring(end, source.indexOf(";", end)).contains("{")) {
+                    logger.debug("Removing layout qualifier from interface block input")
+                    source = source.replaceRange(start-7, end, "")
+                } else {
+                    logger.debug("Not touching input layouts")
+                }
+                
                 start = end
                 found = source.indexOf("layout(", start)
                 continue
             }
 
             if(source.substring(end, source.indexOf(";", end)).contains(" out ")) {
-                logger.debug("Not touching output layouts")
+                if(source.substring(end, source.indexOf(";", end)).contains("{")) {
+                    logger.debug("Removing layout qualifier from interface block output")
+                    source = source.replaceRange(start-7, end, "")
+                } else {
+                    logger.debug("Not touching output layouts")
+                }
+
                 start = end
                 found = source.indexOf("layout(", start)
                 continue
@@ -283,7 +294,7 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, clazz: Class<*>, shad
         }
 
         // add GL_ARB_seperate_shader_objects extension to use layout(location = ...) qualifier
-        source = source.replace("#version 410", "#version 410\n#extension GL_ARB_separate_shader_objects : enable")
+        source = source.replace("#version 410", "#version 410 core\n#extension GL_ARB_separate_shader_objects : require\n")
 
         this.shader = GLShader(gl, source, toClearGLShaderType(extension))
 
