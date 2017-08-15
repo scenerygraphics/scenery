@@ -11,12 +11,7 @@ import java.util.*
  * @param[radius] The radius of the sphere
  * @param[segments] Number of segments in latitude and longitude.
  */
-class Sphere(radius: Float, segments: Int) : Node("sphere"), HasGeometry {
-    /** Radius of the sphere. */
-    var radius: Float
-    /** Segment count in latitude and longitude. */
-    var segments: Int
-
+class Sphere(val radius: Float, val segments: Int) : Node("sphere"), HasGeometry {
     override val vertexSize = 3
     override val texcoordSize = 2
     override var geometryType = GeometryType.TRIANGLE_STRIP
@@ -27,9 +22,6 @@ class Sphere(radius: Float, segments: Int) : Node("sphere"), HasGeometry {
     override var indices: IntBuffer = BufferUtils.allocateInt(0)
 
     init {
-        this.radius = radius
-        this.segments = segments
-
         var vbuffer = ArrayList<Float>(segments*segments*2*3)
         var nbuffer = ArrayList<Float>(segments*segments*2*3)
         var tbuffer = ArrayList<Float>(segments*segments*2*2)
@@ -49,21 +41,21 @@ class Sphere(radius: Float, segments: Int) : Node("sphere"), HasGeometry {
                 val x = Math.cos(lng.toDouble()).toFloat()
                 val y = Math.sin(lng.toDouble()).toFloat()
 
-                vbuffer.add(x * zr0 * radius)
-                vbuffer.add(y * zr0 * radius)
-                vbuffer.add(z0 * radius)
-
                 vbuffer.add(x * zr1 * radius)
                 vbuffer.add(y * zr1 * radius)
                 vbuffer.add(z1 * radius)
 
-                nbuffer.add(x)
-                nbuffer.add(y)
-                nbuffer.add(z0)
+                vbuffer.add(x * zr0 * radius)
+                vbuffer.add(y * zr0 * radius)
+                vbuffer.add(z0 * radius)
 
                 nbuffer.add(x)
                 nbuffer.add(y)
                 nbuffer.add(z1)
+
+                nbuffer.add(x)
+                nbuffer.add(y)
+                nbuffer.add(z0)
 
                 tbuffer.add(0.0f)
                 tbuffer.add(0.0f)

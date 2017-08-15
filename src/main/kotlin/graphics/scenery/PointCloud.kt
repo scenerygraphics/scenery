@@ -1,8 +1,5 @@
 package graphics.scenery
 
-import cleargl.GLVector
-import graphics.scenery.backends.ShaderPreference
-import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.memAlloc
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
@@ -27,12 +24,7 @@ open class PointCloud(var radius: Float=0.1f, override var name: String = "Point
     var pointRadius = radius;
 
     init {
-        this.metadata.put(
-            "ShaderPreference",
-            ShaderPreference(
-                arrayListOf("PointCloud.vert", "PointCloud.frag", "PointCloud.geom"),
-                hashMapOf<String, String>(),
-                arrayListOf("OpenGLRenderer")))
+        material = ShaderMaterial(arrayListOf("PointCloud.vert", "PointCloud.frag", "PointCloud.geom"))
         this.pointRadius = radius
     }
 

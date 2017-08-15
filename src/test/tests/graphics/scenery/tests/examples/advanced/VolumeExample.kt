@@ -15,7 +15,7 @@ import kotlin.concurrent.thread
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class VolumeExample: SceneryDefaultApplication("Volume Rendering example") {
+class VolumeExample: SceneryBase("Volume Rendering example") {
     var hmd: TrackedStereoGlasses? = null
 
     override fun init() {

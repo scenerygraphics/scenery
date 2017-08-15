@@ -1,8 +1,6 @@
 package graphics.scenery
 
 import cleargl.GLVector
-import graphics.scenery.backends.ShaderPreference
-import java.util.*
 
 /**
  * FontBoard is a possibly billboarded display of a string of text,
@@ -12,7 +10,7 @@ import java.util.*
  * @property[font]  Name of the font to use for this font board
  * @property[isBillboard] Whether the board should be billboarded or not
  *
- * @constructor Returns a FontBoard instance, with [fontFamily] and a declared [ShaderPreference]
+ * @constructor Returns a FontBoard instance, with [fontFamily] and a declared [ShaderMaterial]
  */
 class FontBoard(font: String = "Segoe UI Light", override var isBillboard: Boolean = true) : Mesh() {
 
@@ -43,12 +41,7 @@ class FontBoard(font: String = "Segoe UI Light", override var isBillboard: Boole
     init {
         name = "FontBoard"
         fontFamily = font
-        metadata.put(
-            "ShaderPreference",
-            ShaderPreference(
-                arrayListOf("DefaultDeferred.vert", "FontBoard.frag"),
-                HashMap<String, String>(),
-                arrayListOf("DeferredShadingRenderer")))
+        material = ShaderMaterial(arrayListOf("DefaultDeferred.vert", "FontBoard.frag"))
     }
 
     /** Stringify the font board. Returns [fontFamily] used as well as the [text]. */

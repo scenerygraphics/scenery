@@ -6,6 +6,7 @@ import com.esotericsoftware.kryo.Kryo
 import com.esotericsoftware.kryo.io.Output
 import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.*
+import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.Statistics
 import graphics.scenery.volumes.Volume
 import org.slf4j.LoggerFactory
@@ -20,7 +21,7 @@ import java.util.*
  */
 
 class NodePublisher(override var hub: Hub?, val address: String = "tcp://*:6666", val context: ZContext): Hubable {
-    var logger = LoggerFactory.getLogger("NodePublisher")
+    private val logger by LazyLogger()
 
     var nodes: HashMap<Int, Node> = HashMap()
     var publisher: ZMQ.Socket = context.createSocket(ZMQ.PUB)

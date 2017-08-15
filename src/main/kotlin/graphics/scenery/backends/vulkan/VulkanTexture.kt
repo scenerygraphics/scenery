@@ -1,6 +1,7 @@
 package graphics.scenery.backends.vulkan
 
 import cleargl.TGAReader
+import graphics.scenery.utils.LazyLogger
 import org.lwjgl.vulkan.VkImageCreateInfo
 import java.awt.Color
 import java.awt.color.ColorSpace
@@ -13,8 +14,6 @@ import javax.imageio.ImageIO
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import java.io.*
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -31,7 +30,7 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
                     val width: Int, val height: Int, val depth: Int = 1,
                     val format: Int = VK_FORMAT_R8G8B8_SRGB, var mipLevels: Int = 1,
                     val minFilterLinear: Boolean = true, val maxFilterLinear: Boolean = true) : AutoCloseable {
-    protected var logger: Logger = LoggerFactory.getLogger("VulkanRenderer")
+    protected val logger by LazyLogger()
 
     var image: VulkanImage? = null
     private var stagingImage: VulkanImage
@@ -340,7 +339,7 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
     }
 
     companion object {
-        private val logger = LoggerFactory.getLogger("VulkanTexture")
+        private val logger by LazyLogger()
 
         private val StandardAlphaColorModel = ComponentColorModel(
             ColorSpace.getInstance(ColorSpace.CS_sRGB),

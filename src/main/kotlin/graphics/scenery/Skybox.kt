@@ -1,11 +1,9 @@
 package graphics.scenery
 
 import cleargl.GLVector
-import graphics.scenery.backends.ShaderPreference
-import java.util.*
 
 /**
- * Skybox class. Sets a [ShaderPreference] using a shader that will always cause
+ * Skybox class. Sets a [ShaderMaterial] using a shader that will always cause
  * the depth test to fail if there is geometry in front, creating the illusion of a far
  * away box.
  *
@@ -14,11 +12,6 @@ import java.util.*
  */
 open class Skybox : Box(GLVector(50.0f, 50.0f, 50.0f)) {
     init {
-        this.metadata.put(
-                "ShaderPreference",
-                ShaderPreference(
-                        arrayListOf("Skybox.vert", "DefaultDeferred.frag"),
-                        HashMap(),
-                        arrayListOf("DeferredShadingRenderer")))
+        material = ShaderMaterial(arrayListOf("Skybox.vert", "DefaultDeferred.frag"))
     }
 }

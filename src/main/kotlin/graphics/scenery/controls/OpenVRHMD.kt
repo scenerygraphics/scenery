@@ -14,6 +14,7 @@ import graphics.scenery.Hubable
 import graphics.scenery.Mesh
 import graphics.scenery.backends.Display
 import graphics.scenery.jopenvr.*
+import graphics.scenery.utils.LazyLogger
 import org.lwjgl.vulkan.VkDevice
 import org.lwjgl.vulkan.VkInstance
 import org.lwjgl.vulkan.VkPhysicalDevice
@@ -36,7 +37,7 @@ import graphics.scenery.jopenvr.JOpenVRLibrary as jvr
  */
 open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = false) : TrackerInput, Display, Hubable {
     /** slf4j logger instance */
-    protected var logger: Logger = LoggerFactory.getLogger("OpenVRHMD")
+    protected val logger by LazyLogger()
     /** The Hub to use for communication */
     override var hub: Hub? = null
 

@@ -4,6 +4,7 @@ import cleargl.GLVector
 import graphics.scenery.*
 import org.scijava.ui.behaviour.ClickBehaviour
 import graphics.scenery.backends.Renderer
+import graphics.scenery.utils.LazyLogger
 import org.slf4j.LoggerFactory
 import kotlin.reflect.KProperty
 
@@ -18,7 +19,7 @@ open class SelectCommand(private val name: String,
                          private val camera: () -> Camera?,
                          private var debugRaycast: Boolean = false,
                          private var action: ((List<SelectResult>) -> Any) = {}) : ClickBehaviour {
-    val logger = LoggerFactory.getLogger(this.javaClass.simpleName)
+    protected val logger by LazyLogger()
 
     val cam: Camera? by CameraDelegate()
 

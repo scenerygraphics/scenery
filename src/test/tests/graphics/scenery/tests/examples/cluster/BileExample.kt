@@ -13,7 +13,7 @@ import org.junit.Test
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class BileExample: SceneryDefaultApplication("Bile Canaliculi example") {
+class BileExample: SceneryBase("Bile Canaliculi example") {
     var hmd: TrackedStereoGlasses? = null
     var publishedNodes = ArrayList<Node>()
 

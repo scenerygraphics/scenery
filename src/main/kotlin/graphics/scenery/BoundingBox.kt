@@ -1,9 +1,7 @@
 package graphics.scenery
 
 import cleargl.GLVector
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
-import graphics.scenery.backends.ShaderPreference
+import graphics.scenery.utils.LazyLogger
 import java.util.*
 
 /**
@@ -21,7 +19,7 @@ import java.util.*
  * @author Ulrik Günther <hello@ulrik.is>
  */
 open class BoundingBox : Mesh() {
-    protected var logger: Logger = LoggerFactory.getLogger("BoundingBox")
+    protected val logger by LazyLogger()
 
     var boundingCoords = floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
     var labels = HashMap<String, FontBoard>()
@@ -89,12 +87,7 @@ open class BoundingBox : Mesh() {
 
     init {
         name = "Bounding Box"
-        metadata.put(
-            "ShaderPreference",
-            ShaderPreference(
-                arrayListOf("DefaultDeferred.vert", "BoundingBox.frag"),
-                HashMap<String, String>(),
-                arrayListOf("DeferredShadingRenderer")))
+        this.material = ShaderMaterial(arrayListOf("DefaultDeferred.vert", "BoundingBox.frag"))
 
         labels = hashMapOf(
             "origin".to(FontBoard()),

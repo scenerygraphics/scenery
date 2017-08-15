@@ -7,6 +7,7 @@ import graphics.scenery.SceneryElement
 import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.controls.behaviours.*
+import graphics.scenery.utils.LazyLogger
 import net.java.games.input.Component
 import org.lwjgl.glfw.GLFW.*
 import org.scijava.ui.behaviour.Behaviour
@@ -33,7 +34,7 @@ import java.io.StringReader
  */
 class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : Hubable, AutoCloseable {
     /** logger for the InputHandler **/
-    internal var logger: Logger = LoggerFactory.getLogger("InputHandler")
+    internal val logger by LazyLogger()
     /** ui-behaviour input trigger map, stores what actions (key presses, etc) trigger which actions. */
     internal val inputMap = InputTriggerMap()
     /** ui-behaviour behaviour map, stores the available behaviours */

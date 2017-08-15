@@ -15,20 +15,19 @@ import org.lwjgl.opengl.NVDrawVulkanImage
 import org.lwjgl.opengl.GLXNVSwapGroup
 import org.lwjgl.opengl.WGLNVSwapGroup
 import org.lwjgl.system.Platform
-import org.slf4j.LoggerFactory
 import java.nio.LongBuffer
 import com.sun.jna.platform.win32.User32
 import com.sun.jna.platform.win32.WinDef
 import graphics.scenery.Hub
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.SceneryWindow
+import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.SceneryPanel
 import org.lwjgl.glfw.GLFWVulkan
 import org.lwjgl.glfw.GLFWWindowSizeCallback
 import org.lwjgl.opengl.GL30.*
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.*
-import org.slf4j.Logger
 import java.lang.UnsupportedOperationException
 
 /**
@@ -46,6 +45,7 @@ class OpenGLSwapchain(val device: VkDevice,
                       val useSRGB: Boolean = true,
                       val useFramelock: Boolean = false,
                       val bufferCount: Int = 2) : Swapchain {
+    private val logger by LazyLogger()
 
     override var handle: Long = 0L
     override var images: LongArray? = null
@@ -55,7 +55,6 @@ class OpenGLSwapchain(val device: VkDevice,
 
     lateinit var window: SceneryWindow.GLFWWindow
 
-    val logger: Logger = LoggerFactory.getLogger("VulkanRenderer")
     val supportedExtensions = ArrayList<String>()
 
     var surface: Long = 0

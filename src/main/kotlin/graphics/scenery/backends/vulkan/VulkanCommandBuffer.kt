@@ -1,9 +1,9 @@
 package graphics.scenery.backends.vulkan
 
+import graphics.scenery.utils.LazyLogger
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.system.MemoryUtil.*
-import org.slf4j.LoggerFactory
 import java.nio.LongBuffer
 
 /**
@@ -12,7 +12,7 @@ import java.nio.LongBuffer
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class VulkanCommandBuffer(val device: VkDevice, var commandBuffer: VkCommandBuffer?, val fenced: Boolean = true): AutoCloseable {
-    private var logger = LoggerFactory.getLogger("VulkanCommandBuffer")
+    private val logger by LazyLogger()
 
     var fence: LongBuffer = memAllocLong(1)
     var submitted = false

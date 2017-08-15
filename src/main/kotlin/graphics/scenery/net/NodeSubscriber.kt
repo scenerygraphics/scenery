@@ -6,10 +6,10 @@ import com.esotericsoftware.kryo.Kryo
 import com.esotericsoftware.kryo.io.Input
 import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.*
+import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.Statistics
 import graphics.scenery.volumes.Volume
 import org.objenesis.strategy.StdInstantiatorStrategy
-import org.slf4j.LoggerFactory
 import org.zeromq.ZContext
 import org.zeromq.ZMQ
 import java.io.ByteArrayInputStream
@@ -21,7 +21,7 @@ import java.util.*
  */
 class NodeSubscriber(override var hub: Hub?, val address: String = "udp://localhost:6666", val context: ZContext) : Hubable {
 
-    var logger = LoggerFactory.getLogger("NodeSubscriber")
+    private val logger by LazyLogger()
     var nodes: HashMap<Int, Node> = HashMap()
     var subscriber: ZMQ.Socket = context.createSocket(ZMQ.SUB)
     val kryo = Kryo()
