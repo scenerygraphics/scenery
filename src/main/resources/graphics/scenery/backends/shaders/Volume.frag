@@ -4,11 +4,11 @@
 //layout(set = 5, binding = 0) uniform sampler2D hdrColor;
 //layout(set = 5, binding = 1) uniform sampler2D depth;
 
-layout(location = 0) in Input {
+layout(location = 0) in VertexData {
     vec2 textureCoord;
     mat4 inverseProjection;
     mat4 inverseModelView;
-} InputData;
+} Vertex;
 
 layout(location = 0) out vec4 FragColor;
 
@@ -130,8 +130,8 @@ void main()
       // thread float coordinates:
 //      const float u = (x / (float) imageW)*2.0f-1.0f;
 //      const float v = (y / (float) imageH)*2.0f-1.0f;
-      const float u = InputData.textureCoord.s*2.0 - 1.0;
-      const float v = InputData.textureCoord.t*2.0 - 1.0;
+      const float u = Vertex.textureCoord.s*2.0 - 1.0;
+      const float v = Vertex.textureCoord.t*2.0 - 1.0;
 
       // front and back:
       const vec4 front = vec4(u,v,-1.f,1.f);
@@ -141,16 +141,16 @@ void main()
       vec4 orig0, orig;
       vec4 direc0, direc;
 
-      orig0 = InputData.inverseProjection * front;
+      orig0 = Vertex.inverseProjection * front;
       orig0 *= 1.f/orig0.w;
 
-      orig = InputData.inverseModelView * orig0;
+      orig = Vertex.inverseModelView * orig0;
       orig *= 1.f/orig.w;
 
-      direc0 = InputData.inverseProjection * back;
+      direc0 = Vertex.inverseProjection * back;
       direc0 *= 1.f/direc0.w;
 
-      direc = InputData.inverseModelView * normalize(direc0-orig0);
+      direc = Vertex.inverseModelView * normalize(direc0-orig0);
       direc.w = 0.0f;
 
       // find intersection with box
@@ -158,7 +158,7 @@ void main()
 
       if (!inter.hit || inter.tfar <= 0)
       {
-       	FragColor = vec4(1.0f, 0.0f, 0.0f,1.0f);
+       	FragColor = vec4(0.0f, 0.0f, 0.0f, 0.0f);
       	return;
       }
 
