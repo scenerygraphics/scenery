@@ -140,7 +140,7 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, clazz: Class<*>, shad
         val uniformBuffers = compiler.shaderResources.uniformBuffers
 
         for(i in 0..uniformBuffers.size()-1) {
-            logger.info("Getting ${i.toInt()} for $actualCodePath (size: ${uniformBuffers.capacity()}/${uniformBuffers.size()})")
+            logger.debug("Getting ${i.toInt()} for $actualCodePath (size: ${uniformBuffers.capacity()}/${uniformBuffers.size()})")
             val res = uniformBuffers.get(i.toInt())
             logger.debug("${res.name}, set=${compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet)}, binding=${compiler.getDecoration(res.id, Decoration.DecorationBinding)}")
 
@@ -238,7 +238,7 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, clazz: Class<*>, shad
                 } else {
                     logger.debug("Not touching input layouts")
                 }
-                
+
                 start = end
                 found = source.indexOf("layout(", start)
                 continue

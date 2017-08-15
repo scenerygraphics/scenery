@@ -5,11 +5,11 @@ layout(location = 0) in vec3 vertexPosition;
 layout(location = 1) in vec3 vertexNormal;
 layout(location = 2) in vec2 vertexTexCoord;
 
-layout(location = 0) out Output {
+layout(location = 0) out VertexData {
     vec2 textureCoord;
     mat4 inverseProjection;
     mat4 inverseModelView;
-} OutputData;
+} Vertex;
 
 layout(set = 0, binding = 0) uniform VRParameters {
     mat4 projectionMatrices[2];
@@ -92,9 +92,9 @@ void main()
 	invScale[1][1] = Lmax/L.y;
 	invScale[2][2] = Lmax/L.z;
 
-    OutputData.inverseProjection = mat4(1.0);//inverse(projectionMatrix);
-    OutputData.inverseModelView = mat4(1.0);//invScale*inverse(mv);
+    Vertex.inverseProjection = inverse(projectionMatrix);
+    Vertex.inverseModelView = invScale*inverse(mv);
 
-    OutputData.textureCoord = vertexTexCoord;
+    Vertex.textureCoord = vertexTexCoord;
 	gl_Position = vec4(vertexPosition, 1.0);
 }
