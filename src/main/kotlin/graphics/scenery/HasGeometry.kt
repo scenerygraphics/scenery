@@ -5,6 +5,7 @@ import gnu.trove.map.hash.THashMap
 import gnu.trove.set.hash.TLinkedHashSet
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.system.MemoryUtil.memAlloc
+import org.slf4j.LoggerFactory
 import java.io.BufferedInputStream
 import java.io.File
 import java.io.FileInputStream
@@ -53,7 +54,9 @@ interface HasGeometry : Serializable {
     }
 
     fun readFrom(filename: String, useMaterial: Boolean = true) {
-        val logger by LazyLogger()
+        // FIXME: Kotlin bug, revert to LazyLogger as soon as https://youtrack.jetbrains.com/issue/KT-19690 is fixed.
+        // val logger by LazyLogger()
+        val logger = LoggerFactory.getLogger(this.javaClass.simpleName)
         val ext = filename.substringAfterLast(".").toLowerCase()
 
         when (ext) {
@@ -74,7 +77,9 @@ interface HasGeometry : Serializable {
      * @return A HashMap storing material name and [Material].
      */
     fun readFromMTL(filename: String): HashMap<String, Material> {
-        val logger by LazyLogger()
+        // FIXME: Kotlin bug, revert to LazyLogger as soon as https://youtrack.jetbrains.com/issue/KT-19690 is fixed.
+        // val logger by LazyLogger()
+        val logger = LoggerFactory.getLogger(this.javaClass.simpleName)
 
         val materials = HashMap<String, Material>()
 
@@ -172,7 +177,10 @@ interface HasGeometry : Serializable {
      * @param[useMTL] Whether a accompanying MTL file shall be used, defaults to true.
      */
     fun readFromOBJ(filename: String, useMTL: Boolean = true) {
-        val logger by LazyLogger()
+        // FIXME: Kotlin bug, revert to LazyLogger as soon as https://youtrack.jetbrains.com/issue/KT-19690 is fixed.
+        // val logger by LazyLogger()
+        val logger = LoggerFactory.getLogger(this.javaClass.simpleName)
+
 
         var name: String = ""
 
@@ -591,7 +599,9 @@ interface HasGeometry : Serializable {
      * @param[filename] The filename to read from.
      */
     fun readFromSTL(filename: String) {
-        val logger by LazyLogger()
+        // FIXME: Kotlin bug, revert to LazyLogger as soon as https://youtrack.jetbrains.com/issue/KT-19690 is fixed.
+        // val logger by LazyLogger()
+        val logger = LoggerFactory.getLogger(this.javaClass.simpleName)
 
         var name: String = ""
         val vbuffer = ArrayList<Float>()
