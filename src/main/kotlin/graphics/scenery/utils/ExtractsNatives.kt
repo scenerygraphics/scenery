@@ -1,5 +1,6 @@
 package graphics.scenery.utils;
 
+import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.FileOutputStream
 import java.nio.file.Files
@@ -58,7 +59,9 @@ interface ExtractsNatives {
      * @param[replace] Whether or not the java.library.path should be replaced.
      */
     fun extractLibrariesFromJar(paths: List<String>, replace: Boolean = false) {
-        val logger by LazyLogger()
+        // FIXME: Kotlin bug, revert to LazyLogger as soon as https://youtrack.jetbrains.com/issue/KT-19690 is fixed.
+        // val logger by LazyLogger()
+        val logger = LoggerFactory.getLogger(this.javaClass.simpleName)
 
         val lp = System.getProperty("java.library.path")
         val tmpDir = Files.createTempDirectory("scenery-natives-tmp").toFile()
