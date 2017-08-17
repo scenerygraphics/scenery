@@ -9,6 +9,7 @@ layout(location = 0) out VertexData {
     vec2 textureCoord;
     mat4 inverseProjection;
     mat4 inverseModelView;
+    mat4 MVP;
 } Vertex;
 
 layout(set = 0, binding = 0) uniform VRParameters {
@@ -92,8 +93,14 @@ void main()
 	invScale[1][1] = Lmax/L.y;
 	invScale[2][2] = Lmax/L.z;
 
+	mat4 scale = mat4(1.0);
+	scale[0][0] = L.x/Lmax;
+	scale[1][1] = L.y/Lmax;
+	scale[2][2] = L.z/Lmax;
+
     Vertex.inverseProjection = inverse(projectionMatrix);
-    Vertex.inverseModelView = invScale*inverse(mv);
+    Vertex.inverseModelView = invScale * inverse(mv);
+    Vertex.MVP = projectionMatrix * scale * mv;
 
     Vertex.textureCoord = vertexTexCoord;
 	gl_Position = vec4(vertexPosition, 1.0);

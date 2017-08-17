@@ -15,11 +15,11 @@ import kotlin.concurrent.thread
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class VolumeExample: SceneryBase("Volume Rendering example") {
+class VolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
     var hmd: TrackedStereoGlasses? = null
 
     override fun init() {
-        renderer = Renderer.createRenderer(hub, applicationName, scene, 1280, 720)
+        renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
         hub.add(SceneryElement.Renderer, renderer!!)
 
         val cam: Camera = DetachedHeadCamera(hmd)
@@ -41,6 +41,14 @@ class VolumeExample: SceneryBase("Volume Rendering example") {
         val volume = Volume()
         volume.colormap = "jet"
         scene.addChild(volume)
+
+        val b = Box()
+        b.position = GLVector(-2.0f, 0.0f, 0.0f)
+        scene.addChild(b)
+
+        val b2 = Box()
+        b2.position = GLVector(2.0f, 0.0f, 0.0f)
+        scene.addChild(b2)
 
         val lights = (0..3).map {
             PointLight()
@@ -73,7 +81,7 @@ class VolumeExample: SceneryBase("Volume Rendering example") {
             volume.readFromRaw(Paths.get(nextVolume()), replace = true)
             logger.info("Got volume!")
             while(true) {
-                volume.rotation.rotateByAngleY(0.001f)
+//                volume.rotation.rotateByAngleY(0.001f)
                 volume.needsUpdate = true
 
                 Thread.sleep(20)

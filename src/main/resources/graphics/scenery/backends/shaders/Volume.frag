@@ -1,13 +1,14 @@
 #version 450 core
 #extension GL_ARB_separate_shader_objects: enable
 
-//layout(set = 5, binding = 0) uniform sampler2D hdrColor;
-//layout(set = 5, binding = 1) uniform sampler2D depth;
+layout(set = 6, binding = 0) uniform sampler2D InputOutput;
+layout(set = 6, binding = 1) uniform sampler2D InputDepth;
 
 layout(location = 0) in VertexData {
     vec2 textureCoord;
     mat4 inverseProjection;
     mat4 inverseModelView;
+    mat4 MVP;
 } Vertex;
 
 layout(location = 0) out vec4 FragColor;
@@ -38,6 +39,13 @@ layout(set = 1, binding = 0) uniform LightParameters {
     int numLights;
 	Light lights[MAX_NUM_LIGHTS];
 };
+
+layout(set = 2, binding = 0) uniform Matrices {
+	mat4 ModelMatrix;
+	mat4 NormalMatrix;
+	mat4 ProjectionMatrix;
+	int isBillboard;
+} ubo;
 
 layout(set = 4, binding = 0) uniform sampler2D ObjectTextures[NUM_OBJECT_TEXTURES];
 layout(set = 4, binding = 1) uniform usampler3D VolumeTextures;
@@ -162,9 +170,6 @@ void main()
       	return;
       }
 
-//      const float tnear = inter.tnear;
-//      const float tfar = max(inter.tfar, 0.0f);
-//
       const float tnear = max(inter.tnear, 0.0f);
       const float tfar = inter.tfar;
 
@@ -175,6 +180,8 @@ void main()
       vec3 pos = 0.5 * (1.0 + orig.xyz + tnear * direc.xyz);
       vec3 stop = 0.5 * (1.0 + orig.xyz + tfar * direc.xyz);
 
+      vec3 origin = pos;
+
       // raycasting loop:
       float maxp = 0.0f;
       float mappedVal = 0.0f;
@@ -184,55 +191,47 @@ void main()
       float alphaVal = 0.0;
       float newVal = 0.0;
 
-
-
       if (alpha_blending <= 0.f){
           // nop alpha blending
-          for(int i = 0; i < maxsteps; ++i, pos += vecstep)
-          {
+          for(int i = 0; i < maxsteps; ++i, pos += vecstep) {
             float volume_sample = texture(VolumeTextures, pos.xyz).r;
             maxp = max(maxp,volume_sample);
-
           }
+
           colVal = clamp(pow(ta*maxp + tb,gamma),0.f,1.f);
       }
       else{
           // alpha blending:
-          float opacity= 1.0f;
-          for(int i = 0; i < maxsteps; ++i, pos += vecstep){
-
+          float opacity = 1.0f;
+          for(int i = 0; i < maxsteps; ++i, pos += vecstep) {
                float volume_sample = texture(VolumeTextures, pos.xyz).r;
                newVal = clamp(ta*volume_sample + tb,0.f,1.f);
                colVal = max(colVal,opacity*newVal);
 
                opacity  *= (1.f-alpha_blending*clamp(newVal,0.f,1.f));
 
-
-               if (opacity<=0.02f)
+               if (opacity<=0.02f) {
                     break;
+               }
 
+//               vec4 proj = Vertex.MVP * vec4(pos, 1.0);
+//               if(proj.w < texture(InputDepth, Vertex.textureCoord).r) {
+//                    break;
+//               }
           }
       }
 
 
       alphaVal = clamp(colVal, 0.0, 1.0);
 
-      // FIXME: this is a workaround for grez lines appearing at borders
+      // FIXME: this is a workaround for grey lines appearing at borders
       alphaVal = alphaVal<0.01?0.0f:alphaVal;
 
       // Mapping to transfer function range and gamma correction:
-
-
       vec4 color = texture(ObjectTextures[3], vec2(colVal, 0.5f));
       color.w = alphaVal;
 
-      // useless comment
       FragColor = color;
-
-      //FragColor = vec4(colVal, 0.0f, 0.0f, alphaVal);
-      //FragColor = vec4(1.0f, 0.0f, 0.0f, alphaVal);
-
-      // FIXME sanity check: this should give the colormap texture (but doesnt!)
-      //FragColor = texture(ObjectTextures[3], vec2(textureCoord.s ,0.5f));
+//      gl_FragDepth = p.w;
 }
 
