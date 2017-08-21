@@ -765,7 +765,17 @@ open class VulkanRenderer(hub: Hub,
                     logger.info("initializing preferred pipeline for ${node.name} from $shaders")
                     pass.value.initializePipeline("preferred-${node.name}",
                         shaders.map { VulkanShaderModule(device, "main", node.javaClass, "shaders/$it.spv") },
+                        vertexInputType = s.vertexDescription!!)
+                }
+        }
 
+        if(node.useClassDerivedShader) {
+            renderpasses.filter { it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry }
+                .map { pass ->
+                    val shaders = listOf("${node.javaClass.simpleName}.vert", "${node.javaClass.simpleName}.frag")
+                    logger.info("Initializing class-derived preferred pipeline for ${node.name} from $shaders")
+                    pass.value.initializePipeline("preferred-${node.name}",
+                        shaders.map { VulkanShaderModule(device, "main", node.javaClass, "shaders/$it.spv") },
                         vertexInputType = s.vertexDescription!!)
                 }
         }
