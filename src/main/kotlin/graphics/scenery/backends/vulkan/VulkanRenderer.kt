@@ -161,6 +161,20 @@ open class VulkanRenderer(hub: Hub,
                 }
 
                 lateResizeInitializers.map { it.value.invoke() }
+
+                if(timestampQueryPool != -1L) {
+                    vkDestroyQueryPool(device, timestampQueryPool, null)
+                }
+
+                val queryPoolCreateInfo = VkQueryPoolCreateInfo.calloc()
+                    .sType(VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO)
+                    .pNext(NULL)
+                    .queryType(VK_QUERY_TYPE_TIMESTAMP)
+                    .queryCount(renderConfig.renderpasses.size * 2)
+
+                timestampQueryPool = VU.run(memAllocLong(1), "Create timestamp query pool",
+                    { vkCreateQueryPool(device, queryPoolCreateInfo, null, this) },
+                    { queryPoolCreateInfo.free() })
             }
 
             refreshResolutionDependentResources.invoke()
@@ -260,6 +274,7 @@ open class VulkanRenderer(hub: Hub,
     protected var deviceAndGraphicsQueueFamily: DeviceAndGraphicsQueueFamily
     protected var device: VkDevice
     protected var queueFamilyIndex: Int
+    protected var timestampQueryPool: Long = -1L
     protected var memoryProperties: VkPhysicalDeviceMemoryProperties
 
     protected var semaphoreCreateInfo: VkSemaphoreCreateInfo
@@ -382,6 +397,7 @@ open class VulkanRenderer(hub: Hub,
             Standard = createCommandPool(device, queueFamilyIndex)
             Compute = createCommandPool(device, queueFamilyIndex)
         }
+
 
         postPresentCommandBuffer = VU.newCommandBuffer(device, commandPools.Standard)
 
@@ -1387,6 +1403,7 @@ open class VulkanRenderer(hub: Hub,
     }
 
     private fun submitFrame(queue: VkQueue, pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer, present: PresentHelpers) {
+        val stats = hub?.get(SceneryElement.Statistics) as? Statistics
         val submitInfo = VkSubmitInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
             .pNext(NULL)
@@ -1560,6 +1577,11 @@ open class VulkanRenderer(hub: Hub,
                 commandBuffer.waitForFence()
                 commandBuffer.submitted = false
                 commandBuffer.resetFence()
+
+                val timing = intArrayOf(0,0)
+                VU.run("getting query pool results", { vkGetQueryPoolResults(device, timestampQueryPool, 2*i, 2, timing, 0, VK_FLAGS_NONE)})
+
+                stats?.add("Renderer.$t.gpuTiming", timing[1] - timing[0])
             }
 
             when (target.passConfig.type) {
@@ -2266,6 +2288,9 @@ open class VulkanRenderer(hub: Hub,
 
         with(commandBuffer.commandBuffer) {
 
+            vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+                timestampQueryPool, 2*renderpasses.values.indexOf(pass))
+
             if(pass.passConfig.blitInputs) {
                 stackPush().use { stack ->
                     val imageBlit = VkImageBlit.callocStack(1, stack)
@@ -2492,6 +2517,10 @@ open class VulkanRenderer(hub: Hub,
             }
 
             vkCmdEndRenderPass(this)
+
+            vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+                timestampQueryPool, 2*renderpasses.values.indexOf(pass)+1)
+
             this!!.endCommandBuffer()
         }
     }
@@ -2519,6 +2548,8 @@ open class VulkanRenderer(hub: Hub,
 
         with(commandBuffer.commandBuffer) {
 
+            vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+                timestampQueryPool, 2*renderpasses.values.indexOf(pass))
             vkCmdBeginRenderPass(this, pass.vulkanMetadata.renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE)
 
             vkCmdSetViewport(this, 0, pass.vulkanMetadata.viewport)
@@ -2551,6 +2582,8 @@ open class VulkanRenderer(hub: Hub,
             vkCmdDraw(this, 3, 1, 0, 0)
 
             vkCmdEndRenderPass(this)
+            vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+                timestampQueryPool, 2*renderpasses.values.indexOf(pass)+1)
             this!!.endCommandBuffer()
         }
     }
