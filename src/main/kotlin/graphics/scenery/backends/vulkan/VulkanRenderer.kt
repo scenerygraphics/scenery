@@ -707,12 +707,12 @@ open class VulkanRenderer(hub: Hub,
         return true
     }
 
-    fun initializeCustomShadersForNode(node: Node): Boolean {
+    private fun initializeCustomShadersForNode(node: Node): Boolean {
 
         val s = node.metadata["VulkanRenderer"] as VulkanObjectState
 
         val needsShaderPropertyUBO = if(node.javaClass.declaredFields.filter { it.isAnnotationPresent(ShaderProperty::class.java) }.count() > 0) {
-            var dsl: Long = 0L
+            var dsl = 0L
 
             renderpasses.filter { it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry }
                 .map { pass ->
@@ -1381,12 +1381,12 @@ open class VulkanRenderer(hub: Hub,
         }
     }
 
-    fun beginFrame() {
+    private fun beginFrame() {
         swapchainRecreator.mustRecreate = swapchain!!.next(timeout = UINT64_MAX,
             waitForSemaphore = semaphores[StandardSemaphores.present_complete]!![0])
     }
 
-    fun submitFrame(queue: VkQueue, pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer, present: PresentHelpers) {
+    private fun submitFrame(queue: VkQueue, pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer, present: PresentHelpers) {
         val submitInfo = VkSubmitInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
             .pNext(NULL)
@@ -1397,7 +1397,7 @@ open class VulkanRenderer(hub: Hub,
             .pSignalSemaphores(present.signalSemaphore)
 
         // Submit to the graphics queue
-        VU.run("Submit viewport render queue", { vkQueueSubmit(queue, submitInfo, commandBuffer.fence.get(0)) })
+        VU.run("Submit viewport render queue", { vkQueueSubmit(queue, submitInfo, commandBuffer.getFence()) })
 
         commandBuffer.submitted = true
         swapchain!!.present(ph.signalSemaphore)
@@ -1508,6 +1508,7 @@ open class VulkanRenderer(hub: Hub,
     @Synchronized override fun render() {
         pollEvents()
 
+        val stats = hub?.get(SceneryElement.Statistics) as? Statistics
 
         // check whether scene is already initialized
         if (scene.children.count() == 0 || !scene.initialized) {
@@ -1545,7 +1546,12 @@ open class VulkanRenderer(hub: Hub,
         // firstWaitSemaphore is now the render_complete semaphore of the previous pass
         firstWaitSemaphore.put(0, semaphores[StandardSemaphores.present_complete]!![0])
 
-        flow.take(flow.size - 1).forEach { t ->
+        val si = VkSubmitInfo.calloc()
+
+        var waitSemaphore = semaphores[StandardSemaphores.present_complete]!![0]
+
+        flow.take(flow.size - 1).forEachIndexed { i, t ->
+            val start = System.nanoTime()
             logger.debug("Running pass {}", t)
             val target = renderpasses[t]!!
             val commandBuffer = target.commandBuffer
@@ -1553,9 +1559,8 @@ open class VulkanRenderer(hub: Hub,
             if (commandBuffer.submitted) {
                 commandBuffer.waitForFence()
                 commandBuffer.submitted = false
+                commandBuffer.resetFence()
             }
-
-            commandBuffer.resetFence()
 
             when (target.passConfig.type) {
                 RenderConfigReader.RenderpassType.geometry -> recordSceneRenderCommands(device, target, commandBuffer)
@@ -1564,36 +1569,33 @@ open class VulkanRenderer(hub: Hub,
 
             target.updateShaderParameters()
 
-            ph.commandBuffers.put(0, commandBuffer.commandBuffer)
-            ph.signalSemaphore.put(0, target.semaphore)
-            ph.waitStages.put(0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
+            target.submitCommandBuffers.put(0, commandBuffer.commandBuffer)
+            target.signalSemaphores.put(0, target.semaphore)
+            target.waitSemaphores.put(0, waitSemaphore)
+            target.waitStages.put(0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
 
-            val si = VkSubmitInfo.calloc()
-                .sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
+            si.sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
                 .pNext(NULL)
                 .waitSemaphoreCount(1)
-                .pWaitDstStageMask(ph.waitStages)
-                .pCommandBuffers(ph.commandBuffers)
-                .pSignalSemaphores(ph.signalSemaphore)
-                .pWaitSemaphores(firstWaitSemaphore)
+                .pWaitDstStageMask(target.waitStages)
+                .pCommandBuffers(target.submitCommandBuffers)
+                .pSignalSemaphores(target.signalSemaphores)
+                .pWaitSemaphores(target.waitSemaphores)
 
-            VU.run("Submit pass $t render queue", { vkQueueSubmit(queue, si, commandBuffer.fence.get(0) )})
+            VU.run("Submit pass $t render queue", { vkQueueSubmit(queue, si, commandBuffer.getFence() )})
 
             commandBuffer.submitted = true
             firstWaitSemaphore.put(0, target.semaphore)
+            waitSemaphore = target.semaphore
 
-            si.free()
+            stats?.add("VulkanRenderer.$t.recordCmdBuffer", System.nanoTime() - start)
         }
+
+        si.free()
 
         val viewportPass = renderpasses.values.last()
         val viewportCommandBuffer = viewportPass.commandBuffer
         logger.debug("Running pass {}", renderpasses.keys.last())
-
-        if (viewportCommandBuffer.submitted) {
-            viewportCommandBuffer.waitForFence()
-        }
-
-        viewportCommandBuffer.resetFence()
 
         when (viewportPass.passConfig.type) {
             RenderConfigReader.RenderpassType.geometry -> recordSceneRenderCommands(device, viewportPass, viewportCommandBuffer)
@@ -1718,7 +1720,7 @@ open class VulkanRenderer(hub: Hub,
             val properties: VkPhysicalDeviceProperties = VkPhysicalDeviceProperties.callocStack(stack)
             var vendor = ""
 
-            for (i in 0..pPhysicalDeviceCount.get(0) - 1) {
+            for (i in 0 until pPhysicalDeviceCount.get(0)) {
                 val device = VkPhysicalDevice(pPhysicalDevices.get(i), instance)
 
                 vkGetPhysicalDeviceProperties(device, properties)
@@ -1756,9 +1758,9 @@ open class VulkanRenderer(hub: Hub,
             val queueProps = VkQueueFamilyProperties.callocStack(queueCount, stack)
             vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, pQueueFamilyPropertyCount, queueProps)
 
-            var graphicsQueueFamilyIndex: Int = 0
-            var computeQueueFamilyIndex: Int = 0
-            var presentQueueFamilyIndex: Int = 0
+            var graphicsQueueFamilyIndex = 0
+            var computeQueueFamilyIndex = 0
+            val presentQueueFamilyIndex = 0
             var index = 0
 
             while (index < queueCount) {
@@ -2226,7 +2228,7 @@ open class VulkanRenderer(hub: Hub,
 
         val renderOrderList = ArrayList<Node>()
 
-        scene.discover(scene, { n -> n is Renderable && n is HasGeometry && n.visible }).forEach {
+        scene.discover(scene, { n -> n is HasGeometry && n.visible }).forEach {
             if (it.dirty) {
                 if (it is FontBoard) {
                     updateFontBoard(it)
@@ -2553,7 +2555,7 @@ open class VulkanRenderer(hub: Hub,
         }
     }
 
-    fun VulkanRenderpass.VulkanMetadata.setRequiredDescriptorSetsPostprocess(pass: VulkanRenderpass, pipeline: VulkanPipeline): Int {
+    private fun VulkanRenderpass.VulkanMetadata.setRequiredDescriptorSetsPostprocess(pass: VulkanRenderpass, pipeline: VulkanPipeline): Int {
         var requiredDynamicOffsets = 0
 
         pipeline.descriptorSpecs.entries.sortedBy { it.value.set }.forEachIndexed { i, (name, _) ->
@@ -2597,7 +2599,7 @@ open class VulkanRenderer(hub: Hub,
     }
 
     @Suppress("unused")
-    fun VulkanRenderpass.VulkanMetadata.setRequiredDescriptorSetsScene(pass: VulkanRenderpass, pipeline: VulkanPipeline, objectState: VulkanObjectState?): Int {
+    private fun VulkanRenderpass.VulkanMetadata.setRequiredDescriptorSetsScene(pass: VulkanRenderpass, pipeline: VulkanPipeline, objectState: VulkanObjectState?): Int {
         var requiredDynamicOffsets = 0
 
 //        logger.info("sorted descriptor sets are: ${pipeline.descriptorSpecs.sortedBy { it.set }}")
@@ -2668,7 +2670,7 @@ open class VulkanRenderer(hub: Hub,
     private fun updateInstanceBuffers() {
         val renderOrderList = ArrayList<Node>()
 
-        scene.discover(scene, { n -> n is Renderable && n is HasGeometry && n.visible }).forEach {
+        scene.discover(scene, { n -> n is HasGeometry && n.visible }).forEach {
             renderOrderList.add(it)
         }
 

@@ -38,6 +38,11 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
     var descriptorSets = ConcurrentHashMap<String, Long>()
     var descriptorSetLayouts = LinkedHashMap<String, Long>()
 
+    var waitSemaphores = memAllocLong(1)
+    var waitStages = memAllocInt(1)
+    var signalSemaphores = memAllocLong(1)
+    var submitCommandBuffers = memAllocPointer(1)
+
     var commandBuffer: VulkanCommandBuffer
         get() {
             return commandBufferBacking.get()

@@ -14,7 +14,7 @@ import java.nio.LongBuffer
 class VulkanCommandBuffer(val device: VkDevice, var commandBuffer: VkCommandBuffer?, val fenced: Boolean = true): AutoCloseable {
     private val logger by LazyLogger()
 
-    var fence: LongBuffer = memAllocLong(1)
+    private var fence: LongBuffer = memAllocLong(1)
     var submitted = false
 
     init {
@@ -43,6 +43,14 @@ class VulkanCommandBuffer(val device: VkDevice, var commandBuffer: VkCommandBuff
     fun resetFence() {
         VU.run(memAllocLong(1), "Resetting fence",
             { vkResetFences(device, fence) })
+    }
+
+    fun getFence(): Long {
+        return if(fenced) {
+            fence.get(0)
+        } else {
+            return NULL
+        }
     }
 
     override fun close() {
