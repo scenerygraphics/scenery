@@ -2782,9 +2782,6 @@ open class VulkanRenderer(hub: Hub,
         lightUbo.add("ViewMatrix", { cam.view })
         lightUbo.add("CamPosition", { cam.position })
         lightUbo.add("numLights", { lights.size })
-        lightUbo.add("filler1", { 0.0f })
-        lightUbo.add("filler2", { 0.0f })
-        lightUbo.add("filler3", { 0.0f })
 
         lights.forEachIndexed { i, light ->
             val l = light as PointLight
