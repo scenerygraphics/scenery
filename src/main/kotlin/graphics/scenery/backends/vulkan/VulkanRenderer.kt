@@ -1555,8 +1555,10 @@ open class VulkanRenderer(hub: Hub,
             Thread.sleep(renderDelay)
         }
 
+        val startUboUpdate = System.nanoTime()
         updateDefaultUBOs(device)
         updateInstanceBuffers()
+        stats?.add("Renderer.updateUBOs", System.nanoTime() - startUboUpdate)
 
         beginFrame()
 
@@ -2797,6 +2799,7 @@ open class VulkanRenderer(hub: Hub,
                 materialUbo.populate(offset = bufferOffset.toLong())
 
                 if(s.requiredDescriptorSets.containsKey("ShaderProperties")) {
+                    logger.info("Updating shader properties for ${node.name}")
                     val propertyUbo = s.UBOs["ShaderProperties"]!!.second
                     // TODO: Correct buffer advancement
                     val offset = propertyUbo.backingBuffer!!.advance()
@@ -2825,7 +2828,8 @@ open class VulkanRenderer(hub: Hub,
             lightUbo.add("Linear-$i", { l.linear })
             lightUbo.add("Quadratic-$i", { l.quadratic })
             lightUbo.add("Intensity-$i", { l.intensity })
-            lightUbo.add("Radius-$i", { -l.linear + Math.sqrt(l.linear * l.linear - 4 * l.quadratic * (1.0 - (256.0f / 5.0) * 100)).toFloat() })
+            lightUbo.add("Radius-$i",
+                { ((-l.linear + Math.sqrt(l.linear * l.linear - 4 * l.quadratic * (1.0 - (256.0f / 5.0) * l.intensity)))/(2 * l.quadratic)).toFloat() })
             lightUbo.add("Position-$i", { l.position })
             lightUbo.add("Color-$i", { l.emissionColor })
             lightUbo.add("filler-$i", { 0.0f })
