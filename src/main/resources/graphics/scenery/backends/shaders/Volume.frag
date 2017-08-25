@@ -125,6 +125,15 @@ Intersection intersectBox(vec4 r_o, vec4 r_d, vec4 boxmin, vec4 boxmax)
 	return Intersection(smallest_tmax > largest_tmin, largest_tmin, smallest_tmax);
 }
 
+vec3 posFromDepth(vec2 textureCoord) {
+    float z = texture(InputDepth, textureCoord).r;
+    float x = textureCoord.x * 2.0 - 1.0;
+    float y = (1.0 - textureCoord.y) * 2.0 - 1.0;
+    vec4 projectedPos = Vertex.inverseProjection * vec4(x, y, z, 1.0);
+
+    return projectedPos.xyz/projectedPos.w;
+}
+
 void main()
 {
     // convert range bounds to linear map:
@@ -180,6 +189,21 @@ void main()
       vec3 pos = 0.5 * (1.0 + orig.xyz + tnear * direc.xyz);
       vec3 stop = 0.5 * (1.0 + orig.xyz + tfar * direc.xyz);
 
+      vec4 stopNDC = Vertex.MVP * vec4(stop, 1.0);
+//      stopWorld *= 1.0/stopWorld.w;
+
+      vec4 geompos = Vertex.MVP * vec4(posFromDepth(Vertex.textureCoord), 1.0);
+
+//      if(stopWorld.z > texture(InputDepth, Vertex.textureCoord).r) {
+      if(stopNDC.z > geompos.z) {
+        stop = (Vertex.inverseProjection * vec4(posFromDepth(Vertex.textureCoord), 1.0)).xyz;
+//        FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+//        return;
+      }
+
+      FragColor = vec4(stop, 1.0);
+      return;
+
       vec3 origin = pos;
 
       // raycasting loop:
@@ -215,8 +239,9 @@ void main()
                }
 
 //               vec4 proj = Vertex.MVP * vec4(pos, 1.0);
-//               if(proj.w < texture(InputDepth, Vertex.textureCoord).r) {
-//                    break;
+//               vec3 coord = proj.xyz/proj.w;
+//               if(coord.z > texture(InputDepth, Vertex.textureCoord).r) {
+//                    discard;
 //               }
           }
       }
