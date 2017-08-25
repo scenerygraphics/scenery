@@ -1051,6 +1051,8 @@ class OpenGLRenderer(hub: Hub,
      *    compositor.
      */
     override fun render() {
+        val stats = hub?.get(SceneryElement.Statistics) as? Statistics
+
         if (shouldClose) {
             joglDrawable?.animator?.stop()
             return
@@ -1064,7 +1066,9 @@ class OpenGLRenderer(hub: Hub,
             return
         }
 
+        val startUboUpdate = System.nanoTime()
         updateDefaultUBOs()
+        stats?.add("OpenGLRenderer.updateUBOs", System.nanoTime() - startUboUpdate)
 
         val renderOrderList = ArrayList<Node>()
         // find observer, or return immediately
@@ -1116,6 +1120,7 @@ class OpenGLRenderer(hub: Hub,
 
         flow.forEach { t ->
             val pass = renderpasses[t]!!
+            val startPass = System.nanoTime()
 
             if (pass.passConfig.blitInputs) {
                 pass.inputs.forEach { _, input ->
@@ -1458,6 +1463,8 @@ class OpenGLRenderer(hub: Hub,
                     renderFullscreenQuad(shader)
                 }
             }
+
+            stats?.add("Renderer.$t.renderTiming", System.nanoTime() - startPass)
         }
 
         embedIn?.let { embedPanel ->
