@@ -1271,7 +1271,7 @@ class OpenGLRenderer(hub: Hub,
                     var binding = 0
                     s.UBOs.forEach { name, ubo ->
                         if(shader.uboSpecs.containsKey(name)) {
-                            val index = gl.glGetUniformBlockIndex(shader.id, name)
+                            val index = shader.getUniformBlockIndex(name)
                             logger.debug("Binding {} for {}, index={}, binding={}, size={}", name, n.name, index, binding, ubo.getSize())
 
                             if (index == -1) {
@@ -1287,7 +1287,7 @@ class OpenGLRenderer(hub: Hub,
 
                     arrayOf("LightParameters", "VRParameters").forEach { name ->
                         if (shader.uboSpecs.containsKey(name)) {
-                            val index = gl.glGetUniformBlockIndex(shader.id, name)
+                            val index = shader.getUniformBlockIndex(name)
 
                             if (index == -1) {
                                 logger.error("Failed to bind shader parameter UBO $name for ${pass.passName} to $binding, though it is required by the shader")
@@ -1432,7 +1432,7 @@ class OpenGLRenderer(hub: Hub,
                             name
                         }
 
-                        val index = gl.glGetUniformBlockIndex(shader.id, actualName)
+                        val index = shader.getUniformBlockIndex(actualName)
                         gl.glUniformBlockBinding(shader.id, index, binding)
                         gl.glBindBufferRange(GL4.GL_UNIFORM_BUFFER, binding,
                             ubo.backingBuffer!!.id[0],
@@ -1446,7 +1446,7 @@ class OpenGLRenderer(hub: Hub,
 
                     arrayOf("LightParameters", "VRParameters").forEach { name ->
                         if (shader.uboSpecs.containsKey(name)) {
-                            val index = gl.glGetUniformBlockIndex(shader.id, name)
+                            val index = shader.getUniformBlockIndex(name)
                             gl.glUniformBlockBinding(shader.id, index, binding)
                             gl.glBindBufferRange(GL4.GL_UNIFORM_BUFFER, binding,
                                 buffers[name]!!.id[0],
