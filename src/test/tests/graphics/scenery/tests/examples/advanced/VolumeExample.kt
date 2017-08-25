@@ -40,10 +40,17 @@ class VolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
 
         val volume = Volume()
         volume.colormap = "jet"
+        volume.trangemax = 1000.0f
         scene.addChild(volume)
 
+        val v2 = Volume()
+        v2.colormap = "viridis"
+        v2.trangemax = 1000.0f
+        v2.position = GLVector(1.0f, 0.0f, -2.0f)
+        scene.addChild(v2)
+
         val b = Box()
-        b.position = GLVector(-2.0f, 0.0f, 0.0f)
+        b.position = GLVector(-1.0f, 0.0f, 0.0f)
         scene.addChild(b)
 
         val b2 = Box()
@@ -78,11 +85,15 @@ class VolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
         thread {
             while(!scene.initialized) { Thread.sleep(200) }
 
-            volume.readFromRaw(Paths.get(nextVolume()), replace = true)
+            val v = nextVolume()
+            volume.readFromRaw(Paths.get(v), replace = true)
+            v2.readFromRaw(Paths.get(v), replace = true)
+
             logger.info("Got volume!")
             while(true) {
 //                volume.rotation.rotateByAngleY(0.001f)
                 volume.needsUpdate = true
+                v2.needsUpdate = true
 
                 Thread.sleep(20)
             }

@@ -100,7 +100,7 @@ void main()
 
     Vertex.inverseProjection = inverse(projectionMatrix);
     Vertex.inverseModelView = invScale * inverse(mv);
-    Vertex.MVP = projectionMatrix * scale * mv;
+    Vertex.MVP = projectionMatrix * mv;
 
     Vertex.textureCoord = vertexTexCoord;
 	gl_Position = vec4(vertexPosition, 1.0);

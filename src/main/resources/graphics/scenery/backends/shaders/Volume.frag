@@ -2,7 +2,7 @@
 #extension GL_ARB_separate_shader_objects: enable
 
 layout(set = 6, binding = 0) uniform sampler2D InputOutput;
-layout(set = 6, binding = 1) uniform sampler2D InputDepth;
+layout(set = 6, binding = 1) uniform sampler2D InputOutputDepth;
 
 layout(location = 0) in VertexData {
     vec2 textureCoord;
@@ -126,7 +126,7 @@ Intersection intersectBox(vec4 r_o, vec4 r_d, vec4 boxmin, vec4 boxmax)
 }
 
 vec3 posFromDepth(vec2 textureCoord) {
-    float z = texture(InputDepth, textureCoord).r;
+    float z = texture(InputOutputDepth, textureCoord).r;
     float x = textureCoord.x * 2.0 - 1.0;
     float y = (1.0 - textureCoord.y) * 2.0 - 1.0;
     vec4 projectedPos = Vertex.inverseProjection * vec4(x, y, z, 1.0);
@@ -176,6 +176,7 @@ void main()
       if (!inter.hit || inter.tfar <= 0)
       {
        	FragColor = vec4(0.0f, 0.0f, 0.0f, 0.0f);
+       	gl_FragDepth = texture(InputOutputDepth, Vertex.textureCoord).r;
       	return;
       }
 
@@ -190,19 +191,46 @@ void main()
       vec3 stop = 0.5 * (1.0 + orig.xyz + tfar * direc.xyz);
 
       vec4 stopNDC = Vertex.MVP * vec4(stop, 1.0);
-//      stopWorld *= 1.0/stopWorld.w;
+      stopNDC *= 1.0/stopNDC.w;
 
-      vec4 geompos = Vertex.MVP * vec4(posFromDepth(Vertex.textureCoord), 1.0);
+      vec4 startNDC = Vertex.MVP * vec4(pos, 1.0);
+      startNDC *= 1.0/startNDC.w;
+//      gl_FragDepth = texture(InputOutputDepth, Vertex.textureCoord).r;
+
+
+//      float d = (geomstart.z + 1.0)/2.0;
+
+//      float d = geomstart.z;
+//      if(d > texture(InputDepth, Vertex.textureCoord).r) {
+//        FragColor = vec4(0.0, 0.0, 0.0, 0.0);
+//        return;
+//      }
+
+//      d = (stopNDC.z + 1.0)/2.0;
 
 //      if(stopWorld.z > texture(InputDepth, Vertex.textureCoord).r) {
-      if(stopNDC.z > geompos.z) {
-        stop = (Vertex.inverseProjection * vec4(posFromDepth(Vertex.textureCoord), 1.0)).xyz;
-//        FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+      vec4 geompos = Vertex.MVP * vec4(posFromDepth(Vertex.textureCoord), 1.0);
+
+      // geometry is in front of volume, don't raycast at all
+      if(startNDC.z > texture(InputOutputDepth, Vertex.textureCoord).r) {
+        FragColor = vec4(0.0, 1.0, 0.0, 0.0);
+        return;
+      }
+
+      // geometry intersects volume, terminate rays early
+      if(stopNDC.z > texture(InputOutputDepth, Vertex.textureCoord).r) {
+        stop = posFromDepth(Vertex.textureCoord);
+//        stop0 *= 1.0/stop0.w;
+//
+//        vec4 stopW = Vertex.inverseModelView * stop0;
+//        stop = stopW.xyz/stopW.w;
+//        FragColor = vec4(1.0, 0.0, 0.0, 0.0);
 //        return;
       }
 
-      FragColor = vec4(stop, 1.0);
-      return;
+//      FragColor = vec4(stop, 1.0);
+//      return;
+
 
       vec3 origin = pos;
 
@@ -214,6 +242,8 @@ void main()
       float colVal = 0.0;
       float alphaVal = 0.0;
       float newVal = 0.0;
+//      gl_FragDepth = geompos.z/geompos.w;
+
 
       if (alpha_blending <= 0.f){
           // nop alpha blending
@@ -234,10 +264,14 @@ void main()
 
                opacity  *= (1.f-alpha_blending*clamp(newVal,0.f,1.f));
 
+              vec4 geomstart = Vertex.MVP * vec4(pos, 1.0);
+              geomstart *= 1.0/geomstart.w;
+              gl_FragDepth = geomstart.z;
+
                if (opacity<=0.02f) {
+//                    gl_FragDepth = geomstart.z;
                     break;
                }
-
 //               vec4 proj = Vertex.MVP * vec4(pos, 1.0);
 //               vec3 coord = proj.xyz/proj.w;
 //               if(coord.z > texture(InputDepth, Vertex.textureCoord).r) {

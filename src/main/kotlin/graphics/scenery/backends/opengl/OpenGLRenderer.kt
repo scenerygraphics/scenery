@@ -580,8 +580,8 @@ class OpenGLRenderer(hub: Hub,
      * @return Int of the texture unit to be used
      */
     fun textureTypeToUnit(target: OpenGLRenderpass, type: String): Int {
-        val offset = if (target.output.values.isNotEmpty()) {
-            target.output.values.first().boundBufferNum
+        val offset = if (target.inputs.values.isNotEmpty()) {
+            target.inputs.values.sumBy { it.boundBufferNum }
         } else {
             0
         }
@@ -1130,7 +1130,7 @@ class OpenGLRenderer(hub: Hub,
                 gl.glBindFramebuffer(GL4.GL_FRAMEBUFFER, 0)
             }
 
-            pass.inputs.values.fold(0, { acc, fb -> acc + fb.bindTexturesToUnitsWithOffset(gl, acc) })
+            val inputsBound = pass.inputs.values.fold(0, { acc, fb -> acc + fb.bindTexturesToUnitsWithOffset(gl, acc) })
 
             gl.glViewport(
                 pass.openglMetadata.viewport.area.offsetX,
@@ -1235,6 +1235,14 @@ class OpenGLRenderer(hub: Hub,
 
                     if (renderConfig.stereoEnabled) {
                         shader.getUniform("currentEye").setInt(pass.openglMetadata.eye)
+                    }
+
+                    var unit = 0
+                    pass.passConfig.inputs?.forEach { name ->
+                        renderConfig.rendertargets?.get(name)?.forEach {
+                            shader.getUniform("Input" + it.key).setInt(unit)
+                            unit++
+                        }
                     }
 
                     s.textures.forEach { type, glTexture ->
@@ -1375,6 +1383,13 @@ class OpenGLRenderer(hub: Hub,
                 }
             } else {
                 gl.glDisable(GL4.GL_CULL_FACE)
+
+                if (pass.output.filter { it.value.hasDepthAttachment() }.isNotEmpty()) {
+                    gl.glEnable(GL4.GL_DEPTH_TEST)
+                } else {
+                    gl.glDisable(GL4.GL_DEPTH_TEST)
+                }
+
                 if (pass.passConfig.renderTransparent) {
                     gl.glEnable(GL4.GL_BLEND)
 
@@ -1392,11 +1407,6 @@ class OpenGLRenderer(hub: Hub,
                     gl.glDisable(GL4.GL_BLEND)
                 }
 
-                if (pass.output.filter { it.value.hasDepthAttachment() }.isNotEmpty()) {
-                    gl.glEnable(GL4.GL_DEPTH_TEST)
-                } else {
-                    gl.glDisable(GL4.GL_DEPTH_TEST)
-                }
 
                 pass.defaultShader?.let { shader ->
                     shader.use(gl)
