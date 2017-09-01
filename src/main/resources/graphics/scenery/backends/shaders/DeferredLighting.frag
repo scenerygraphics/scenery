@@ -213,9 +213,9 @@ void main()
             float distance = length(L);
             L = normalize(L);
 
-//            if(distance > 5.0f * lights[i].Radius) {
-//                continue;
-//            }
+            if(distance > lights[i].Radius) {
+                continue;
+            }
 
             float lightAttenuation = 1.0 / (1.0 + lights[i].Linear * distance + lights[i].Quadratic * distance * distance);
 

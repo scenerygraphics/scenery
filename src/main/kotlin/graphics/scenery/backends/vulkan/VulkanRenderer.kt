@@ -405,7 +405,6 @@ open class VulkanRenderer(hub: Hub,
 
         swapchainRecreator = SwapchainRecreator()
 
-        logger.info("$embedIn")
         swapchain = if (wantsOpenGLSwapchain) {
             logger.info("Using OpenGL-based swapchain")
             OpenGLSwapchain(
@@ -1383,11 +1382,6 @@ open class VulkanRenderer(hub: Hub,
         return map
     }
 
-    @Suppress("UNUSED")
-    fun Long.toHexString(): String {
-        return String.format("0x%X", this)
-    }
-
     private fun pollEvents() {
         window.pollEvents()
 
@@ -1660,7 +1654,7 @@ open class VulkanRenderer(hub: Hub,
 
             val hmd = hub?.getWorkingHMDDisplay()
             val additionalExts: List<String> = hmd?.getVulkanInstanceExtensions() ?: listOf()
-            logger.info("HMD required instance exts: ${additionalExts.joinToString(", ")} ${additionalExts.size}")
+            logger.debug("HMD required instance exts: ${additionalExts.joinToString(", ")} ${additionalExts.size}")
             val utf8Exts = additionalExts.map { stack.UTF8(it) }
 
             val ppEnabledExtensionNames = stack.mallocPointer(requiredExtensions.remaining() + additionalExts.size + 1)
@@ -1738,26 +1732,37 @@ open class VulkanRenderer(hub: Hub,
             val pPhysicalDevices = stack.mallocPointer(pPhysicalDeviceCount.get(0))
             err = vkEnumeratePhysicalDevices(instance, pPhysicalDeviceCount, pPhysicalDevices)
 
-            val devicePreference = System.getProperty("scenery.VulkanRenderer.Device", "0").toInt()
+            val devicePreferenceName = System.getProperty("scenery.VulkanRenderer.Device", "")
+            var devicePreference = 0
 
             logger.info("Physical devices: ")
             val properties: VkPhysicalDeviceProperties = VkPhysicalDeviceProperties.callocStack(stack)
             var vendor = ""
+
+            val deviceList = ArrayList<String>()
 
             for (i in 0 until pPhysicalDeviceCount.get(0)) {
                 val device = VkPhysicalDevice(pPhysicalDevices.get(i), instance)
 
                 vkGetPhysicalDeviceProperties(device, properties)
 
-                if (devicePreference == i) {
-                    vendor = VU.vendorToString(properties.vendorID())
+                val name = VU.vendorToString(properties.vendorID()) + ", " + properties.deviceNameString()
+
+                if (devicePreferenceName.isNotBlank() && name.startsWith(devicePreferenceName)) {
+                    devicePreference = i
                 }
 
-                logger.info("  $i: ${VU.vendorToString(properties.vendorID())} ${properties.deviceNameString()} (${VU.deviceTypeToString(properties.deviceType())}, driver version ${VU.driverVersionToString(properties.driverVersion())}, Vulkan API ${VU.driverVersionToString(properties.apiVersion())}) ${if (devicePreference == i) {
+                deviceList.add("$name (${VU.deviceTypeToString(properties.deviceType())}, driver version ${VU.driverVersionToString(properties.driverVersion())}, Vulkan API ${VU.driverVersionToString(properties.apiVersion())})")
+            }
+
+            deviceList.forEachIndexed { i, deviceString ->
+                val selected = if(devicePreference == i) {
                     "(selected)"
                 } else {
                     ""
-                }}")
+                }
+
+                logger.info("  $i: $deviceString $selected")
             }
 
             val physicalDevice = pPhysicalDevices.get(devicePreference)
@@ -1807,7 +1812,7 @@ open class VulkanRenderer(hub: Hub,
 
             val hmd = hub?.getWorkingHMDDisplay()
             val additionalExts: List<String> = hmd?.getVulkanDeviceExtensions(physicalDevice) ?: listOf()
-            logger.info("HMD required device exts: ${additionalExts.joinToString(", ")} ${additionalExts.size}")
+            logger.debug("HMD required device exts: ${additionalExts.joinToString(", ")} ${additionalExts.size}")
             val utf8Exts = additionalExts.map { stack.UTF8(it) }
 
             val extensions = stack.mallocPointer(1 + additionalExts.size)
@@ -2172,6 +2177,7 @@ open class VulkanRenderer(hub: Hub,
                 .pNext(NULL)
                 .pPoolSizes(typeCounts)
                 .maxSets(this.MAX_TEXTURES + this.MAX_UBOS + this.MAX_INPUT_ATTACHMENTS + this.MAX_UBOS)// Set the max. number of sets that can be requested
+                .flags(VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT)
 
             val descriptorPool = VU.run(memAllocLong(1), "vkCreateDescriptorPool",
                 function = { vkCreateDescriptorPool(device, descriptorPoolInfo, null, this) })
@@ -2350,7 +2356,9 @@ open class VulkanRenderer(hub: Hub,
                                 VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                                 VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                                 subresourceRange = subresourceRange,
-                                commandBuffer = transitionBuffer
+                                commandBuffer = transitionBuffer,
+                                srcStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                                dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT
                             )
 
                             // transition destination attachment
@@ -2358,7 +2366,9 @@ open class VulkanRenderer(hub: Hub,
                                 inputAspectType,
                                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                                 subresourceRange = subresourceRange,
-                                commandBuffer = transitionBuffer
+                                commandBuffer = transitionBuffer,
+                                srcStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                                dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT
                             )
 
                             vkCmdBlitImage(this@with,
@@ -2372,7 +2382,9 @@ open class VulkanRenderer(hub: Hub,
                                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                                 outputAspectType,
                                 subresourceRange = subresourceRange,
-                                commandBuffer = transitionBuffer
+                                commandBuffer = transitionBuffer,
+                                srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
                             )
 
                             // transition source attachment back to shader read-only
@@ -2380,7 +2392,9 @@ open class VulkanRenderer(hub: Hub,
                                 VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                                 outputAspectType,
                                 subresourceRange = subresourceRange,
-                                commandBuffer = transitionBuffer
+                                commandBuffer = transitionBuffer,
+                                srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
                             )
 
                         }
@@ -2425,17 +2439,20 @@ open class VulkanRenderer(hub: Hub,
                 pass.vulkanMetadata.vertexBufferOffsets.put(0, 0)
                 pass.vulkanMetadata.vertexBuffers.put(0, s.vertexBuffers["vertex+index"]!!.buffer)
                 pass.vulkanMetadata.descriptorSets.put(0, descriptorSets["VRParameters"]!!)
+                logger.debug("${node.name}: putting VRParameters")
                 pass.vulkanMetadata.uboOffsets.put(0)
                 index++
 
                 if(specs.contains("LightParameters")) {
                     pass.vulkanMetadata.descriptorSets.put(index, descriptorSets["LightParameters"]!!)
+                    logger.debug("${node.name}: putting LightParameters")
                     pass.vulkanMetadata.uboOffsets.put(0)
                     index++
                 }
 
                 s.UBOs.forEach{ name, (descriptorSet, ubo) ->
                     if(specs.contains(name)) {
+                        logger.debug("${node.name}: putting $name")
                         pass.vulkanMetadata.descriptorSets.put(index, descriptorSet)
                         pass.vulkanMetadata.uboOffsets.put(ubo.offsets)
                         ubo.offsets.flip()
@@ -2445,6 +2462,13 @@ open class VulkanRenderer(hub: Hub,
 
                 if(s.textures.size > 0 && specs.contains("ObjectTextures")) {
                     pass.vulkanMetadata.descriptorSets.put(index, s.textureDescriptorSet)
+                    logger.debug("${node.name}: putting ObjectTextures")
+                    index++
+                }
+
+                if(specs.contains("Inputs")) {
+                    pass.vulkanMetadata.descriptorSets.put(index, pass.descriptorSets["inputs-${pass.name}"]!!)
+                    logger.debug("${node.name}: putting Inputs/inputs-${pass.name}")
                     index++
                 }
 
@@ -2799,7 +2823,6 @@ open class VulkanRenderer(hub: Hub,
                 materialUbo.populate(offset = bufferOffset.toLong())
 
                 if(s.requiredDescriptorSets.containsKey("ShaderProperties")) {
-                    logger.info("Updating shader properties for ${node.name}")
                     val propertyUbo = s.UBOs["ShaderProperties"]!!.second
                     // TODO: Correct buffer advancement
                     val offset = propertyUbo.backingBuffer!!.advance()

@@ -1,8 +1,8 @@
 #version 450 core
 #extension GL_ARB_separate_shader_objects: enable
 
-layout(set = 6, binding = 0) uniform sampler2D InputOutput;
-layout(set = 6, binding = 1) uniform sampler2D InputOutputDepth;
+layout(set = 5, binding = 0) uniform sampler2D InputOutput;
+layout(set = 5, binding = 1) uniform sampler2D InputOutputDepth;
 
 layout(location = 0) in VertexData {
     vec2 textureCoord;
@@ -26,13 +26,6 @@ struct Light {
   	vec4 Color;
 };
 
-struct MaterialInfo {
-    vec3 Ka;
-    vec3 Kd;
-    vec3 Ks;
-    float Shininess;
-};
-
 layout(set = 1, binding = 0) uniform LightParameters {
     mat4 ViewMatrix;
     vec3 CamPosition;
@@ -47,10 +40,10 @@ layout(set = 2, binding = 0) uniform Matrices {
 	int isBillboard;
 } ubo;
 
-layout(set = 4, binding = 0) uniform sampler2D ObjectTextures[NUM_OBJECT_TEXTURES];
-layout(set = 4, binding = 1) uniform usampler3D VolumeTextures;
+layout(set = 3, binding = 0) uniform sampler2D ObjectTextures[NUM_OBJECT_TEXTURES];
+layout(set = 3, binding = 1) uniform usampler3D VolumeTextures;
 
-layout(set = 5, binding = 0) uniform ShaderProperties {
+layout(set = 4, binding = 0) uniform ShaderProperties {
     float voxelSizeX;
     float voxelSizeY;
     float voxelSizeZ;
@@ -68,11 +61,6 @@ layout(set = 5, binding = 0) uniform ShaderProperties {
     int maxsteps;
     float alpha_blending;
     float gamma;
-};
-
-layout(set = 3, binding = 0) uniform MaterialProperties {
-    MaterialInfo Material;
-    int materialType;
 };
 
 float PI_r = 0.3183098;
@@ -244,8 +232,14 @@ void main()
       float newVal = 0.0;
 //      gl_FragDepth = geompos.z/geompos.w;
 
+      if(numLights == 0) {
+        FragColor = vec4(0.0, 0.0, 0.0, 0.0);
+       	gl_FragDepth = texture(InputOutputDepth, Vertex.textureCoord).r;
+      }
+
 
       if (alpha_blending <= 0.f){
+          gl_FragDepth = 0.0;
           // nop alpha blending
           for(int i = 0; i < maxsteps; ++i, pos += vecstep) {
             float volume_sample = texture(VolumeTextures, pos.xyz).r;
@@ -264,19 +258,13 @@ void main()
 
                opacity  *= (1.f-alpha_blending*clamp(newVal,0.f,1.f));
 
-              vec4 geomstart = Vertex.MVP * vec4(pos, 1.0);
-              geomstart *= 1.0/geomstart.w;
-              gl_FragDepth = geomstart.z;
+                vec4 geomstart = Vertex.MVP * vec4(pos, 1.0);
+                geomstart *= 1.0/geomstart.w;
+                gl_FragDepth = geomstart.z;
 
                if (opacity<=0.02f) {
-//                    gl_FragDepth = geomstart.z;
                     break;
                }
-//               vec4 proj = Vertex.MVP * vec4(pos, 1.0);
-//               vec3 coord = proj.xyz/proj.w;
-//               if(coord.z > texture(InputDepth, Vertex.textureCoord).r) {
-//                    discard;
-//               }
           }
       }
 

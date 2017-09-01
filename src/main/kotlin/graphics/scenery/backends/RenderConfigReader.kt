@@ -97,6 +97,7 @@ class RenderConfigReader {
         var type: RenderpassType,
         var blitInputs: Boolean = false,
         var renderTransparent: Boolean = false,
+        var order: RenderOrder = RenderOrder.BackToFront,
         var renderOpaque: Boolean = true,
         var colorBlendOp: BlendOp = BlendOp.add,
         var alphaBlendOp: BlendOp = BlendOp.add,
@@ -122,6 +123,8 @@ class RenderConfigReader {
     enum class BlendFactor { Zero, One, OneMinusSrcAlpha, SrcAlpha }
 
     enum class RenderpassType { geometry, quad }
+
+    enum class RenderOrder { DontCare, BackToFront, FrontToBack }
 
     enum class TargetFormat {
         RGBA_Float32,

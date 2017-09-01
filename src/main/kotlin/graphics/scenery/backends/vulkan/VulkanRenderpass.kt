@@ -223,7 +223,7 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
                 listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1)),
                 binding = 0, shaderStages = VK_SHADER_STAGE_ALL_GRAPHICS)
 
-            logger.debug("Created Shader Property DSL $dsl for $name")
+            logger.debug("Created Shader Property DSL ${dsl.toHexString()} for $name")
             descriptorSetLayouts.putIfAbsent("ShaderProperties-$name", dsl)
             dsl
         } else {
@@ -309,68 +309,39 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
             .pNext(MemoryUtil.NULL)
             .pAttachments(blendMasks)
 
-        if (passConfig.type == RenderConfigReader.RenderpassType.quad) {
-            p.rasterizationState.cullMode(VK_CULL_MODE_FRONT_BIT)
-            p.rasterizationState.frontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
+        p.descriptorSpecs.entries
+            .sortedBy { it.value.binding }
+            .sortedBy { it.value.set }
+            .forEach { (name, spec) ->
+            logger.debug("${this.name}: Initialising DSL for ${name} at set=${spec.set} binding=${spec.binding}")
 
-            if(logger.isDebugEnabled) {
-                logger.debug("DS are: ${p.descriptorSpecs.keys.joinToString(", ")}")
-            }
-
-            // add descriptor specs. at this time, they are expected to be already
-            // ordered (which happens at pipeline creation time).
-//            p.descriptorSpecs.forEach { spec ->
-//                val dslName = if(spec.name.startsWith("ShaderParameters")) {
-//                    "ShaderParameters-$name"
-//                } else if(spec.name.startsWith("inputs")) {
-//                    "inputs-$name"
-//                } else if(spec.name.startsWith("Matrices")) {
-//                    "default"
-//                } else {
-//                    spec.name
-//                }
-//
-//                val dsl = descriptorSetLayouts[dslName]
-//                if(dsl != null) {
-//                    logger.debug("Adding DSL for $dslName ($dsl) to required pipeline DSLs")
-//                    reqDescriptorLayouts.add(dsl)
-//                } else {
-//                    logger.error("DSL for $dslName not found, but required by $this!")
-//                }
-//            }
-
-//            p.descriptorSpecs.sortedBy { it.set }.forEach { spec ->
-            p.descriptorSpecs.entries.sortedBy { it.value.set }.forEach { (name, spec) ->
+            if(spec.binding == 0L) {
                 reqDescriptorLayouts.add(initializeDescriptorSetLayoutForSpec(spec))
             }
+        }
 
-            p.createPipelines(this, framebuffer.renderPass.get(0),
-                vertexDescriptors[VulkanRenderer.VertexDataKinds.coords_none]!!.state,
-                descriptorSetLayouts = reqDescriptorLayouts,
-                onlyForTopology = GeometryType.TRIANGLES)
-        } else {
-//            reqDescriptorLayouts.add(descriptorSetLayouts["default"]!!)
-//            reqDescriptorLayouts.add(descriptorSetLayouts["ObjectTextures"]!!)
-//            reqDescriptorLayouts.add(descriptorSetLayouts["VRParameters"]!!)
-//
-//            if(descriptorSetLayouts.containsKey("ShaderProperties-$name")) {
-//                logger.debug("Adding shader property DSL")
-//                 reqDescriptorLayouts.add(descriptorSetLayouts["ShaderProperties-$name"]!!)
-//            }
-//            if(descriptorSetLayouts.containsKey("inputs-$name")) {
-//                reqDescriptorLayouts.add(descriptorSetLayouts.get("inputs-$name")!!)
-//            }
-//
+        if(logger.isDebugEnabled) {
+            logger.debug("DS are: ${p.descriptorSpecs.entries.sortedBy { it.value.binding }.sortedBy { it.value.set }.joinToString { "${it.key} (set=${it.value.set}, binding=${it.value.binding})" } }")
+        }
 
-//            p.descriptorSpecs.sortedBy { it.set }.forEach { spec ->
-            p.descriptorSpecs.entries.sortedBy { it.value.set }.forEach { (name, spec) ->
-                reqDescriptorLayouts.add(initializeDescriptorSetLayoutForSpec(spec))
+        logger.debug("Required DSLs: ${reqDescriptorLayouts.joinToString(", ")}")
+
+        when(passConfig.type) {
+            RenderConfigReader.RenderpassType.quad -> {
+                p.rasterizationState.cullMode(VK_CULL_MODE_FRONT_BIT)
+                p.rasterizationState.frontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
+
+                p.createPipelines(this, framebuffer.renderPass.get(0),
+                    vertexDescriptors[VulkanRenderer.VertexDataKinds.coords_none]!!.state,
+                    descriptorSetLayouts = reqDescriptorLayouts,
+                    onlyForTopology = GeometryType.TRIANGLES)
             }
 
-            logger.debug("Required DSLs: ${reqDescriptorLayouts.joinToString(", ")}")
-            p.createPipelines(this, framebuffer.renderPass.get(0),
-                vertexInputType.state,
-                descriptorSetLayouts = reqDescriptorLayouts)
+            RenderConfigReader.RenderpassType.geometry -> {
+                p.createPipelines(this, framebuffer.renderPass.get(0),
+                    vertexInputType.state,
+                    descriptorSetLayouts = reqDescriptorLayouts)
+            }
         }
 
         logger.debug("Prepared pipeline $pipelineName for $name")
@@ -388,7 +359,7 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
             spec.name == "ObjectTextures" -> listOf(Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 6),
                 Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1))
 
-            spec.name.startsWith("Inputs") -> (0..spec.members.size-1).map { Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1) }.toList()
+            spec.name.startsWith("Input") -> (0..spec.members.size-1).map { Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1) }.toList()
 
             spec.name == "ShaderParameters" && passConfig.type == RenderConfigReader.RenderpassType.geometry -> listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1))
             spec.name == "ShaderParameters" && passConfig.type == RenderConfigReader.RenderpassType.quad -> listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1))

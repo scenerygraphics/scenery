@@ -39,7 +39,7 @@ open class VulkanShaderModule(device: VkDevice, entryPoint: String, clazz: Class
     var uboSpecs = LinkedHashMap<String, UBOSpec>()
 
     data class UBOMemberSpec(val name: String, val index: Long, val offset: Long, val range: Long)
-    data class UBOSpec(val name: String, val set: Long, val binding: Long, val members: LinkedHashMap<String, UBOMemberSpec>)
+    data class UBOSpec(val name: String, var set: Long, var binding: Long, val members: LinkedHashMap<String, UBOMemberSpec>)
 
     init {
 
@@ -199,7 +199,7 @@ open class VulkanShaderModule(device: VkDevice, entryPoint: String, clazz: Class
                     members = LinkedHashMap<String, UBOMemberSpec>()))
          */
         // inputs are summarized into one descriptor set
-        (0..compiler.shaderResources.sampledImages.size()-1).forEach { samplerId ->
+        (0 until compiler.shaderResources.sampledImages.size()).forEach { samplerId ->
             val res = compiler.shaderResources.sampledImages.get(samplerId.toInt())
             val name = if(res.name.startsWith("Input")) {
                 "Inputs"
@@ -210,12 +210,13 @@ open class VulkanShaderModule(device: VkDevice, entryPoint: String, clazz: Class
             if(uboSpecs.containsKey(name)) {
                 logger.debug("Adding inputs member ${res.name}")
                 uboSpecs[name]!!.members.put(res.name, UBOMemberSpec(res.name, uboSpecs[name]!!.members.size.toLong(), 0L, 0L))
+                uboSpecs[name]!!.binding = minOf(uboSpecs[name]!!.binding, compiler.getDecoration(res.id, Decoration.DecorationBinding))
             } else {
-                logger.debug("Adding inputs UBO")
+                logger.debug("Adding inputs UBO, ${res.name}")
                 uboSpecs.put(name, UBOSpec(name,
                     set = compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet),
                     binding = compiler.getDecoration(res.id, Decoration.DecorationBinding),
-                    members = LinkedHashMap<String, UBOMemberSpec>()))
+                    members = LinkedHashMap()))
 
                 if(name == "Inputs") {
                     uboSpecs[name]!!.members.put(res.name, UBOMemberSpec(res.name, 0L, 0L, 0L))

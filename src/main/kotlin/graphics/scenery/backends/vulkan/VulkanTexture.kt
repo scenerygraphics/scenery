@@ -175,10 +175,14 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
                     transitionLayout(stagingImage.image,
                         VK_IMAGE_LAYOUT_PREINITIALIZED,
                         VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, mipLevels,
+                        srcStage = VK_PIPELINE_STAGE_HOST_BIT,
+                        dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
                         commandBuffer = this)
                     transitionLayout(image!!.image,
                         VK_IMAGE_LAYOUT_PREINITIALIZED,
                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevels,
+                        srcStage = VK_PIPELINE_STAGE_HOST_BIT,
+                        dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
                         commandBuffer = this)
 
                     image!!.copyFrom(this, stagingImage)
@@ -186,6 +190,8 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
                     transitionLayout(image!!.image,
                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, mipLevels,
+                        srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                        dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                         commandBuffer = this)
                 } else {
                     buffer = VU.createBuffer(device, memoryProperties, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
@@ -197,6 +203,8 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
                         transitionLayout(image!!.image,
                             VK_IMAGE_LAYOUT_UNDEFINED,
                             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevels,
+                            srcStage = VK_PIPELINE_STAGE_HOST_BIT,
+                            dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
                             commandBuffer = this)
 
                         image!!.copyFrom(this, buffer)
@@ -204,6 +212,8 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
                         transitionLayout(image!!.image,
                             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, mipLevels,
+                            srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                            dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                             commandBuffer = this)
                     }
                 }
@@ -224,10 +234,14 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
                 buffer.copyFrom(data)
 
                 transitionLayout(image!!.image, VK_IMAGE_LAYOUT_UNDEFINED,
-                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, commandBuffer = this)
+                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, commandBuffer = this,
+                    srcStage = VK_PIPELINE_STAGE_HOST_BIT,
+                    dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT)
                 image!!.copyFrom(this, buffer)
                 transitionLayout(image!!.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, 1, commandBuffer = this)
+                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, 1, commandBuffer = this,
+                    srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                    dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT)
 
                 this.endCommandBuffer(device, commandPool, queue, flush = true, dealloc = true)
             }
@@ -260,8 +274,8 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
                         VK_IMAGE_LAYOUT_UNDEFINED,
                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                         subresourceRange = mipRange,
-                        srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                        dstStage = VK_PIPELINE_STAGE_HOST_BIT,
+                        srcStage = VK_PIPELINE_STAGE_HOST_BIT,
+                        dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
                         commandBuffer = this@mipmapCreation)
 
                     vkCmdBlitImage(this@mipmapCreation,
@@ -272,8 +286,8 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
                     transitionLayout(image!!.image,
                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, subresourceRange = mipRange,
-                        srcStage = VK_PIPELINE_STAGE_HOST_BIT,
-                        dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                        srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                        dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                         commandBuffer = this@mipmapCreation)
                 }
 
@@ -645,6 +659,8 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
                 } else {
                     logger.error("Unsupported layout transition: $oldLayout -> $newLayout")
                 }
+
+                logger.trace("Transition: {} -> {} with srcAccessMark={}, dstAccessMask={}, srcStage={}, dstStage={}", oldLayout, newLayout, barrier.srcAccessMask(), barrier.dstAccessMask(), srcStage, dstStage)
 
                 vkCmdPipelineBarrier(this,
                     srcStage,
