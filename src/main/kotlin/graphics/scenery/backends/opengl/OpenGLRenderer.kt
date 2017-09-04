@@ -15,6 +15,7 @@ import graphics.scenery.utils.*
 import javafx.application.Platform
 import org.lwjgl.system.MemoryUtil
 import java.io.File
+import java.io.FileNotFoundException
 import java.lang.reflect.Field
 import java.nio.ByteBuffer
 import java.nio.FloatBuffer
@@ -1787,7 +1788,23 @@ class OpenGLRenderer(hub: Hub,
                             textureCache.put(texture, t)
                         }
                     } else {
-                        val glTexture = GLTexture.loadFromFile(gl, texture, true, generateMipmaps, 8)
+                        val glTexture = if(texture.contains("jar!")) {
+                            val f = texture.substringAfterLast(File.separatorChar)
+                            val stream = node.javaClass.getResourceAsStream(f)
+
+                            if(stream == null) {
+                                logger.error("Not found: $f for $node")
+                                textureCache["DefaultTexture"]!!
+                            } else {
+                                GLTexture.loadFromFile(gl, stream, texture.substringAfterLast("."), true, generateMipmaps, 8)
+                            }
+                        } else {
+                            try {
+                                GLTexture.loadFromFile(gl, texture, true, generateMipmaps, 8)
+                            } catch(e: FileNotFoundException) {
+                                textureCache["DefaultTexture"]!!
+                            }
+                        }
 
                         s.textures.put(type, glTexture)
                         textureCache.put(texture, glTexture)
