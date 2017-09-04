@@ -108,6 +108,12 @@ open class VulkanRenderer(hub: Hub,
         internal var layout: Long = 0
     }
 
+    sealed class DescriptorSet(val id: Long = 0L) {
+        object None: DescriptorSet(0L)
+        data class Set(val setId: Long) : DescriptorSet(setId)
+        data class DynamicSet(val setId: Long, val offset: Int) : DescriptorSet(setId)
+    }
+
     private val lateResizeInitializers = HashMap<Node, () -> Any>()
 
     inner class SwapchainRecreator {
@@ -204,15 +210,17 @@ open class VulkanRenderer(hub: Hub,
                 logger.info("!! $obj Validation (unknown message type)$dbg: " + getString(pMessage))
             }
 
-            try {
-                throw Exception("Vulkan validation layer exception, see validation layer error messages above. To disable these exceptions, set scenery.VulkanRenderer.StrictValidation=false. Stack trace:")
-            } catch (e: Exception) {
-                logger.error(e.message)
-                e.printStackTrace()
-            }
+            if(strictValidation) {
+                // set 15s of delay until the next frame is rendered if a validation error happens
+                renderDelay = 15000L
 
-            // set 15s of delay until the next frame is rendered if a validation error happens
-            renderDelay = 15000L
+                try {
+                    throw Exception("Vulkan validation layer exception, see validation layer error messages above. To disable these exceptions, set scenery.VulkanRenderer.StrictValidation=false. Stack trace:")
+                } catch (e: Exception) {
+                    logger.error(e.message)
+                    e.printStackTrace()
+                }
+            }
 
             // if strict validation is enabled, the application will quit after a
             // validation error has been encountered
@@ -729,7 +737,8 @@ open class VulkanRenderer(hub: Hub,
         val needsShaderPropertyUBO = if(node.javaClass.declaredFields.filter { it.isAnnotationPresent(ShaderProperty::class.java) }.count() > 0) {
             var dsl = 0L
 
-            renderpasses.filter { it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry }
+            renderpasses.filter { it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry
+                                    && it.value.passConfig.renderTransparent == node.material.transparent }
                 .map { pass ->
                     logger.info("Initializing shader properties for ${node.name}")
                     dsl = pass.value.initializeShaderPropertyDescriptorSetLayout()
@@ -785,7 +794,8 @@ open class VulkanRenderer(hub: Hub,
         }
 
         if(node.useClassDerivedShader) {
-            renderpasses.filter { it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry }
+            renderpasses.filter { it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry
+                                    && it.value.passConfig.renderTransparent == node.material.transparent }
                 .map { pass ->
                     val shaders = listOf("${node.javaClass.simpleName}.vert", "${node.javaClass.simpleName}.frag")
                     logger.info("Initializing class-derived preferred pipeline for ${node.name} from $shaders")
@@ -797,7 +807,8 @@ open class VulkanRenderer(hub: Hub,
 
         if(needsShaderPropertyUBO) {
             var order: Map<String, Int> = emptyMap()
-            renderpasses.filter { it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry }
+            renderpasses.filter { it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry &&
+                                    it.value.passConfig.renderTransparent == node.material.transparent }
                 .map { pass ->
                     logger.info("Initializing shader properties for ${node.name}")
                     order = pass.value.getShaderPropertyOrder(node)
@@ -2426,57 +2437,52 @@ open class VulkanRenderer(hub: Hub,
                     return@nonInstancedDrawing
                 }
 
-                logger.debug("${node.name} has these UBOs: ${s.UBOs.keys.joinToString(", ")}")
-                logger.debug("pipeline needs: ${pass.getActivePipeline(node).descriptorSpecs.keys.joinToString(", ")}")
-
                 val pipeline = pass.getActivePipeline(node).getPipelineForGeometryType((node as HasGeometry).geometryType)
-                val specs = pass.getActivePipeline(node).descriptorSpecs.keys
+                val specs = pass.getActivePipeline(node).orderedDescriptorSpecs()
+
+                logger.debug("node {} has: {} / pipeline needs: {}", node.name, s.UBOs.keys.joinToString(", "), specs.joinToString { it.key })
 
                 pass.vulkanMetadata.descriptorSets.rewind()
                 pass.vulkanMetadata.uboOffsets.rewind()
 
-                var index = 0
                 pass.vulkanMetadata.vertexBufferOffsets.put(0, 0)
                 pass.vulkanMetadata.vertexBuffers.put(0, s.vertexBuffers["vertex+index"]!!.buffer)
-                pass.vulkanMetadata.descriptorSets.put(0, descriptorSets["VRParameters"]!!)
-                logger.debug("${node.name}: putting VRParameters")
-                pass.vulkanMetadata.uboOffsets.put(0)
-                index++
 
-                if(specs.contains("LightParameters")) {
-                    pass.vulkanMetadata.descriptorSets.put(index, descriptorSets["LightParameters"]!!)
-                    logger.debug("${node.name}: putting LightParameters")
-                    pass.vulkanMetadata.uboOffsets.put(0)
-                    index++
-                }
+                val sets = specs.map { (name, _) ->
+                    when(name) {
+                        "VRParameters" -> {
+                            DescriptorSet.DynamicSet(descriptorSets["VRParameters"]!!, offset = 0)
+                        }
 
-                s.UBOs.forEach{ name, (descriptorSet, ubo) ->
-                    if(specs.contains(name)) {
-                        logger.debug("${node.name}: putting $name")
-                        pass.vulkanMetadata.descriptorSets.put(index, descriptorSet)
-                        pass.vulkanMetadata.uboOffsets.put(ubo.offsets)
-                        ubo.offsets.flip()
-                        index++
+                        "LightParameters" -> {
+                            DescriptorSet.DynamicSet(descriptorSets["LightParameters"]!!, offset = 0)
+                        }
+
+                        "ObjectTextures" -> {
+                            DescriptorSet.Set(s.textureDescriptorSet)
+                        }
+
+                        "Inputs" -> {
+                            DescriptorSet.Set(pass.descriptorSets["inputs-${pass.name}"]!!)
+                        }
+
+                        else -> {
+                            if (s.UBOs.containsKey(name)) {
+                                DescriptorSet.DynamicSet(s.UBOs[name]!!.first, offset = s.UBOs[name]!!.second.offsets.get(0))
+                            } else {
+                                DescriptorSet.None
+                            }
+                        }
                     }
                 }
 
-                if(s.textures.size > 0 && specs.contains("ObjectTextures")) {
-                    pass.vulkanMetadata.descriptorSets.put(index, s.textureDescriptorSet)
-                    logger.debug("${node.name}: putting ObjectTextures")
-                    index++
-                }
-
-                if(specs.contains("Inputs")) {
-                    pass.vulkanMetadata.descriptorSets.put(index, pass.descriptorSets["inputs-${pass.name}"]!!)
-                    logger.debug("${node.name}: putting Inputs/inputs-${pass.name}")
-                    index++
-                }
-
                 pass.vulkanMetadata.descriptorSets.position(0)
-                pass.vulkanMetadata.descriptorSets.limit(index)
-                pass.vulkanMetadata.uboOffsets.flip()
+                pass.vulkanMetadata.descriptorSets.put(sets.filter { it !is DescriptorSet.None }.map { it.id }.toLongArray())
+                pass.vulkanMetadata.descriptorSets.flip()
 
-                logger.debug("I have ${pass.vulkanMetadata.uboOffsets.remaining()}/${pass.vulkanMetadata.uboOffsets.capacity()} offsets left")
+                pass.vulkanMetadata.uboOffsets.position(0)
+                pass.vulkanMetadata.uboOffsets.put(sets.filter { it is DescriptorSet.DynamicSet }.map { (it as DescriptorSet.DynamicSet).offset }.toIntArray())
+                pass.vulkanMetadata.uboOffsets.flip()
 
                 vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline)
                 vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_GRAPHICS,

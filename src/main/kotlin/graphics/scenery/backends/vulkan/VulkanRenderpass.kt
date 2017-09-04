@@ -116,7 +116,7 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
         val lightParameters = VU.createDescriptorSetLayout(
             device,
             listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1)),
-            binding = 0, shaderStages = VK_SHADER_STAGE_ALL_GRAPHICS)
+            binding = 0, shaderStages = VK_SHADER_STAGE_ALL)
 
         descriptorSetLayouts.put("LightParameters", lightParameters)
 
@@ -124,14 +124,14 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
             device,
             listOf(Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 6),
                 Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1)),
-            binding = 0, shaderStages = VK_SHADER_STAGE_ALL_GRAPHICS)
+            binding = 0, shaderStages = VK_SHADER_STAGE_ALL)
 
         descriptorSetLayouts.put("ObjectTextures", dslObjectTextures)
 
         val dslVRParameters = VU.createDescriptorSetLayout(
             device,
             listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1)),
-            binding = 0, shaderStages = VK_SHADER_STAGE_ALL_GRAPHICS)
+            binding = 0, shaderStages = VK_SHADER_STAGE_ALL)
 
         descriptorSetLayouts.put("VRParameters", dslVRParameters)
     }
@@ -221,7 +221,7 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
             val dsl = VU.createDescriptorSetLayout(
                 device,
                 listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1)),
-                binding = 0, shaderStages = VK_SHADER_STAGE_ALL_GRAPHICS)
+                binding = 0, shaderStages = VK_SHADER_STAGE_ALL)
 
             logger.debug("Created Shader Property DSL ${dsl.toHexString()} for $name")
             descriptorSetLayouts.putIfAbsent("ShaderProperties-$name", dsl)
@@ -286,7 +286,7 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
         logger.debug("${descriptorSetLayouts.count()} DSLs are available: ${descriptorSetLayouts.keys.joinToString(", ")}")
 
         val blendMasks = VkPipelineColorBlendAttachmentState.calloc(framebuffer.colorAttachmentCount())
-        (0..framebuffer.colorAttachmentCount() - 1).forEach {
+        (0 until framebuffer.colorAttachmentCount()).forEach {
             if(passConfig.renderTransparent) {
                 blendMasks[it]
                     .blendEnable(true)
@@ -313,7 +313,7 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
             .sortedBy { it.value.binding }
             .sortedBy { it.value.set }
             .forEach { (name, spec) ->
-            logger.debug("${this.name}: Initialising DSL for ${name} at set=${spec.set} binding=${spec.binding}")
+            logger.debug("${this.name}: Initialising DSL for $name at set=${spec.set} binding=${spec.binding}")
 
             if(spec.binding == 0L) {
                 reqDescriptorLayouts.add(initializeDescriptorSetLayoutForSpec(spec))
@@ -324,7 +324,7 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
             logger.debug("DS are: ${p.descriptorSpecs.entries.sortedBy { it.value.binding }.sortedBy { it.value.set }.joinToString { "${it.key} (set=${it.value.set}, binding=${it.value.binding})" } }")
         }
 
-        logger.debug("Required DSLs: ${reqDescriptorLayouts.joinToString(", ")}")
+        logger.debug("Required DSLs: ${reqDescriptorLayouts.joinToString { it.toHexString() } }")
 
         when(passConfig.type) {
             RenderConfigReader.RenderpassType.quad -> {
@@ -363,6 +363,8 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
 
             spec.name == "ShaderParameters" && passConfig.type == RenderConfigReader.RenderpassType.geometry -> listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1))
             spec.name == "ShaderParameters" && passConfig.type == RenderConfigReader.RenderpassType.quad -> listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1))
+
+            spec.name == "ShaderProperties" && passConfig.type == RenderConfigReader.RenderpassType.geometry -> listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1))
 
             else -> listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1))
         }
