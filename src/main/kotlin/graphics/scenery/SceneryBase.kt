@@ -10,12 +10,12 @@ import graphics.scenery.controls.behaviours.FPSCameraControl
 import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.repl.REPL
+import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.Statistics
 import org.scijava.ui.behaviour.ClickBehaviour
 import org.zeromq.ZContext
-import kotlin.concurrent.thread
-import graphics.scenery.utils.LazyLogger
 import java.lang.management.ManagementFactory
+import kotlin.concurrent.thread
 
 /**
  * Base class to use scenery with, keeping the needed boilerplate
@@ -95,7 +95,7 @@ open class SceneryBase(var applicationName: String,
      */
     open fun main() {
         logger.info("Started application as PID ${getProcessID()}")
-        Thread.sleep(3500)
+
         val master = System.getProperty("scenery.master").toBoolean()
         val context = ZContext(2)
 
