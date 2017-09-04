@@ -321,6 +321,8 @@ open class VulkanRenderer(hub: Hub,
     private var renderConfig: RenderConfigReader.RenderConfig
     private var flow: List<String> = listOf()
 
+    private var renderLists = HashMap<VulkanCommandBuffer, ArrayList<Node>>()
+
     private val vulkanProjectionFix =
         GLMatrix(floatArrayOf(
             1.0f,  0.0f, 0.0f, 0.0f,
@@ -2267,7 +2269,7 @@ open class VulkanRenderer(hub: Hub,
             .renderArea(pass.vulkanMetadata.renderArea)
             .pClearValues(pass.vulkanMetadata.clearValues)
 
-        val renderOrderList = ArrayList<Node>()
+        val renderOrderList = ArrayList<Node>(renderLists[commandBuffer]?.size ?: 512)
 
         scene.discover(scene, { n -> n is HasGeometry && n.visible }).forEach {
             if (it.dirty) {
@@ -2295,7 +2297,19 @@ open class VulkanRenderer(hub: Hub,
             }
         }
 
+        if(renderOrderList.equals(renderLists[commandBuffer])) {
+            renderLists.put(commandBuffer, renderOrderList)
+            commandBuffer.stale = false
+        } else {
+            renderLists.put(commandBuffer, renderOrderList)
+            commandBuffer.stale = true
+        }
+
         val instanceGroups = renderOrderList.groupBy(Node::instanceOf)
+
+        if(!commandBuffer.stale && commandBuffer.commandBuffer != null) {
+            return
+        }
 
         // start command buffer recording
         if (commandBuffer.commandBuffer == null) {
@@ -2553,6 +2567,7 @@ open class VulkanRenderer(hub: Hub,
             vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
                 timestampQueryPool, 2*renderpasses.values.indexOf(pass)+1)
 
+            commandBuffer.stale = false
             this!!.endCommandBuffer()
         }
     }
@@ -2569,6 +2584,10 @@ open class VulkanRenderer(hub: Hub,
             .framebuffer(target.framebuffer.get(0))
             .renderArea(pass.vulkanMetadata.renderArea)
             .pClearValues(pass.vulkanMetadata.clearValues)
+
+        if(!commandBuffer.stale) {
+            return
+        }
 
         // start command buffer recording
         if (commandBuffer.commandBuffer == null) {
@@ -2616,6 +2635,8 @@ open class VulkanRenderer(hub: Hub,
             vkCmdEndRenderPass(this)
             vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
                 timestampQueryPool, 2*renderpasses.values.indexOf(pass)+1)
+
+            commandBuffer.stale = false
             this!!.endCommandBuffer()
         }
     }

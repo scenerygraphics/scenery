@@ -13,6 +13,7 @@ import java.nio.LongBuffer
  */
 class VulkanCommandBuffer(val device: VkDevice, var commandBuffer: VkCommandBuffer?, val fenced: Boolean = true): AutoCloseable {
     private val logger by LazyLogger()
+    var stale: Boolean = true
 
     private var fence: LongBuffer = memAllocLong(1)
     var submitted = false
