@@ -372,7 +372,11 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
         logger.debug("Initialiasing DSL for ${spec.name}, set=${spec.set}, binding=${spec.binding}, type=${contents.first().first}")
 
         val dsl = VU.createDescriptorSetLayout(device, contents, spec.binding.toInt(), shaderStages = VK_SHADER_STAGE_ALL)
-        descriptorSetLayouts.put(spec.name, dsl)
+        // destroy descriptor set layout if there was a previously associated one,
+        // and add the new one
+        descriptorSetLayouts.put(spec.name, dsl)?.let { dslOld ->
+            vkDestroyDescriptorSetLayout(device, dslOld, null)
+        }
 
         return dsl
     }
@@ -403,8 +407,8 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
     override fun close() {
         output.forEach { it.value.close() }
         pipelines.forEach { it.value.close() }
-        descriptorSetLayouts.forEach { vkDestroyDescriptorSetLayout(device, it.value, null) }
         UBOs.forEach { it.value.close() }
+        descriptorSetLayouts.forEach { vkDestroyDescriptorSetLayout(device, it.value, null) }
 
         vulkanMetadata.close()
 
