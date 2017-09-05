@@ -1760,7 +1760,7 @@ open class VulkanRenderer(hub: Hub,
             val pPhysicalDevices = stack.mallocPointer(pPhysicalDeviceCount.get(0))
             err = vkEnumeratePhysicalDevices(instance, pPhysicalDeviceCount, pPhysicalDevices)
 
-            val devicePreferenceName = System.getProperty("scenery.VulkanRenderer.Device", "")
+            val devicePreferenceName = System.getProperty("scenery.Renderer.Device", "")
             var devicePreference = 0
 
             logger.info("Physical devices: ")
