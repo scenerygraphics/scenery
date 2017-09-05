@@ -315,7 +315,7 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
             } else {
                 VK_IMAGE_VIEW_TYPE_2D
             })
-            .format(if(depth == 1) { format } else { VK_FORMAT_R16_UNORM })
+            .format(if(depth == 1) { format } else { VK_FORMAT_R16_UINT })
             .subresourceRange(subresourceRange)
 
         if(depth > 1) {
