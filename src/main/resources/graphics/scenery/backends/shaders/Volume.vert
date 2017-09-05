@@ -102,6 +102,6 @@ void main()
     Vertex.inverseModelView = invScale * inverse(mv);
     Vertex.MVP = projectionMatrix * mv;
 
-    Vertex.textureCoord = vertexTexCoord;
-	gl_Position = vec4(vertexPosition, 1.0);
+    Vertex.textureCoord = vec2((gl_VertexIndex << 1) & 2, gl_VertexIndex & 2);
+    gl_Position = vec4(Vertex.textureCoord * 2.0f - 1.0f, 0.0f, 1.0f);
 }

@@ -799,11 +799,20 @@ open class VulkanRenderer(hub: Hub,
             renderpasses.filter { it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry
                                     && it.value.passConfig.renderTransparent == node.material.transparent }
                 .map { pass ->
+                    val cullMode = if(node.material.doubleSided) {
+                        VK_CULL_MODE_NONE
+                    } else {
+                        VK_CULL_MODE_BACK_BIT
+                    }
+
                     val shaders = listOf("${node.javaClass.simpleName}.vert", "${node.javaClass.simpleName}.frag")
                     logger.info("Initializing class-derived preferred pipeline for ${node.name} from $shaders")
                     pass.value.initializePipeline("preferred-${node.name}",
                         shaders.map { VulkanShaderModule(device, "main", node.javaClass, "shaders/$it.spv") },
-                        vertexInputType = s.vertexDescription!!)
+                        vertexInputType = s.vertexDescription!!,
+                        settings = { pipeline ->
+                            pipeline.rasterizationState.cullMode(cullMode)
+                        })
                 }
         }
 

@@ -139,6 +139,7 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         this.texcoordSize = 2
 
         this.material.transparent = true
+        this.material.doubleSided = true
         this.useClassDerivedShader = true
 
         colormaps.put("grays", this.javaClass.getResource("colormap-grays.png").file)
