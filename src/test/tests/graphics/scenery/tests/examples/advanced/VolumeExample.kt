@@ -24,14 +24,14 @@ class VolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
 
         val cam: Camera = DetachedHeadCamera(hmd)
         with(cam) {
-            position = GLVector(0.0f, -1.0f, 5.0f)
+            position = GLVector(0.0f, 0.5f, 5.0f)
             perspectiveCamera(50.0f, 1.0f*windowWidth, 1.0f*windowHeight)
             active = true
 
             scene.addChild(this)
         }
 
-        val shell = Box(GLVector(120.0f, 120.0f, 120.0f), insideNormals = true)
+        val shell = Box(GLVector(20.0f, 20.0f, 20.0f), insideNormals = true)
         shell.material.doubleSided = true
         shell.material.diffuse = GLVector(0.2f, 0.2f, 0.2f)
         shell.material.specular = GLVector.getNullVector(3)
@@ -40,12 +40,11 @@ class VolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
 
         val volume = Volume()
         volume.colormap = "jet"
-        volume.trangemax = 1000.0f
 
         val v2 = Volume()
         v2.colormap = "viridis"
-        v2.trangemax = 1000.0f
         v2.position = GLVector(1.0f, 0.0f, -2.0f)
+
         scene.addChild(v2)
         scene.addChild(volume)
 
@@ -90,13 +89,6 @@ class VolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
             v2.readFromRaw(Paths.get(v), replace = true)
 
             logger.info("Got volume!")
-            while(true) {
-//                volume.rotation.rotateByAngleY(0.001f)
-                volume.needsUpdate = true
-                v2.needsUpdate = true
-
-                Thread.sleep(20)
-            }
         }
 
     }
