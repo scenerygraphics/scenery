@@ -212,7 +212,7 @@ open class VulkanRenderer(hub: Hub,
 
             if(strictValidation) {
                 // set 15s of delay until the next frame is rendered if a validation error happens
-                renderDelay = 15000L
+                renderDelay = 1500L
 
                 try {
                     throw Exception("Vulkan validation layer exception, see validation layer error messages above. To disable these exceptions, set scenery.VulkanRenderer.StrictValidation=false. Stack trace:")
@@ -1633,6 +1633,12 @@ open class VulkanRenderer(hub: Hub,
             RenderConfigReader.RenderpassType.quad -> recordPostprocessRenderCommands(device, viewportPass, viewportCommandBuffer)
         }
 
+        if(viewportCommandBuffer.submitted) {
+            viewportCommandBuffer.waitForFence()
+            viewportCommandBuffer.submitted = false
+            viewportCommandBuffer.resetFence()
+        }
+
         viewportPass.updateShaderParameters()
 
         ph.commandBuffers.put(0, viewportCommandBuffer.commandBuffer)
@@ -2953,6 +2959,11 @@ open class VulkanRenderer(hub: Hub,
         memFree(ph.signalSemaphore)
         memFree(ph.waitSemaphore)
         memFree(ph.waitStages)
+
+        if(timestampQueryPool != -1L) {
+            logger.debug("Closing query pools...")
+            vkDestroyQueryPool(device, timestampQueryPool, null)
+        }
 
         semaphores.forEach { it.value.forEach { semaphore -> vkDestroySemaphore(device, semaphore, null) } }
 
