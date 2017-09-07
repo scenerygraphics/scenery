@@ -61,14 +61,16 @@ open class SceneryBase(var applicationName: String,
 
     var maxFrameskip = 5
 
-    var ticksPerSecond = 60000.0f
+    var ticksPerSecond = 60.0f
         set(value) {
             field = value
-            skipTicks = 1000000.0f/value
+            skipTicks = 1000.0f/value
         }
 
-    var skipTicks = 1000000.0f/ticksPerSecond
+    var skipTicks = 1000.0f/ticksPerSecond
         private set
+
+    private var startTime = System.nanoTime().toFloat()
 
     /**
      * the init function of [SceneryBase], override this in your subclass,
@@ -158,16 +160,19 @@ open class SceneryBase(var applicationName: String,
 
         var nextTick = getTickCount()
         var interpolation: Float
+        var loops = 0
+        var looptime = 0L
 
-        while(!(renderer?.shouldClose ?: true)) {
+        while(renderer?.shouldClose == false) {
             val start = System.nanoTime()
-            var loops = 0
 
             hub.getWorkingHMD()?.update()
 
+            loops = 0
             while(getTickCount() > nextTick && loops < maxFrameskip) {
                 // update
                 stats.addTimed("sceneUpdate", updateFunction)
+                inputHandler?.window?.pollEvents()
 
                 nextTick += skipTicks
                 loops++
@@ -175,10 +180,11 @@ open class SceneryBase(var applicationName: String,
 
             publisher?.publish()
 
-            interpolation = (1.0f*getTickCount() + skipTicks - nextTick)/skipTicks
-            scene.activeObserver?.deltaT = interpolation/10e4f
+            interpolation = (getTickCount() + skipTicks - nextTick)/skipTicks
+//            logger.info("$interpolation, $loops, $nextTick")
+            scene.activeObserver?.deltaT = interpolation
 
-            if(renderer?.managesRenderLoop ?: true) {
+            if(renderer?.managesRenderLoop != false) {
                 Thread.sleep(2)
             } else {
                 stats.addTimed("render", { renderer?.render() ?: 0.0f })
@@ -188,7 +194,8 @@ open class SceneryBase(var applicationName: String,
                 logger.info("\nStatistics:\n=============\n$stats")
             }
 
-            stats.add("loop", System.nanoTime() - start*1.0f)
+            looptime = System.nanoTime() - start
+            stats.add("loop", looptime)
             ticks++
         }
 
@@ -229,7 +236,7 @@ open class SceneryBase(var applicationName: String,
         inputHandler.addKeyBinding("toggle_control_mode", keybinding)
     }
 
-    protected fun getTickCount(): Float = System.nanoTime()/1000.0f
+    protected fun getTickCount(): Float = (System.nanoTime() - startTime)/10e6f
 
     protected fun getDemoFilesPath(): String {
         val demoDir = System.getenv("SCENERY_DEMO_FILES")

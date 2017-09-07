@@ -174,14 +174,14 @@ void main()
       const float tstep = abs(tnear-tfar)/(maxsteps);
 
       // precompute vectors:
-      const vec3 vecstep = 0.5*tstep*direc.xyz;
+      const vec3 vecstep = 0.5 * tstep * direc.xyz;
       vec3 pos = 0.5 * (1.0 + orig.xyz + tnear * direc.xyz);
       vec3 stop = 0.5 * (1.0 + orig.xyz + tfar * direc.xyz);
 
-      vec4 stopNDC = Vertex.MVP * vec4(stop, 1.0);
+      vec4 stopNDC = Vertex.MVP * vec4(orig.xyz + tfar * direc.xyz, 1.0);
       stopNDC *= 1.0/stopNDC.w;
 
-      vec4 startNDC = Vertex.MVP * vec4(pos, 1.0);
+      vec4 startNDC = Vertex.MVP * vec4(orig.xyz + tnear * direc.xyz, 1.0);
       startNDC *= 1.0/startNDC.w;
 //      gl_FragDepth = texture(InputOutputDepth, Vertex.textureCoord).r;
 
@@ -201,22 +201,28 @@ void main()
 
       // geometry is in front of volume, don't raycast at all
       if(startNDC.z > texture(InputOutputDepth, Vertex.textureCoord).r) {
-        FragColor = vec4(0.0, 1.0, 0.0, 0.0);
+        FragColor = vec4(0.0, 1.0, 0.0, 1.0);
+        gl_FragDepth = 0.0;
         return;
       }
 
       // geometry intersects volume, terminate rays early
       if(stopNDC.z > texture(InputOutputDepth, Vertex.textureCoord).r) {
-        stop = posFromDepth(Vertex.textureCoord);
+        vec4 stoptmp = Vertex.inverseModelView*vec4(posFromDepth(Vertex.textureCoord), 1.0);
+        stop = 0.5 * (1.0 + stoptmp.xyz/stoptmp.w);
+//        FragColor = vec4(1.0, 0.0, 0.0, 1.0);
 //        stop0 *= 1.0/stop0.w;
 //
 //        vec4 stopW = Vertex.inverseModelView * stop0;
 //        stop = stopW.xyz/stopW.w;
 //        FragColor = vec4(1.0, 0.0, 0.0, 0.0);
-//        return;
+        FragColor = vec4(0.0);
+        gl_FragDepth = 0.0;
+        return;
       }
 
 //      FragColor = vec4(stop, 1.0);
+//      gl_FragDepth = 0.0f;
 //      return;
 
 
