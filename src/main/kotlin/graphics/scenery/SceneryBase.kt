@@ -13,7 +13,6 @@ import graphics.scenery.repl.REPL
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.Statistics
 import org.scijava.ui.behaviour.ClickBehaviour
-import org.zeromq.ZContext
 import java.lang.management.ManagementFactory
 import kotlin.concurrent.thread
 
@@ -99,10 +98,9 @@ open class SceneryBase(var applicationName: String,
         logger.info("Started application as PID ${getProcessID()}")
 
         val master = System.getProperty("scenery.master").toBoolean()
-        val context = ZContext(2)
 
         val publisher: NodePublisher? = if(master) {
-            NodePublisher(hub, "tcp://*:6666", context)
+            NodePublisher(hub, "tcp://*:6666")
         } else {
             null
         }
@@ -112,7 +110,7 @@ open class SceneryBase(var applicationName: String,
         val subscriber: NodeSubscriber? = if(!master) {
             val masterAddress = System.getProperty("scenery.MasterNode", "tcp://localhost:6666")
             logger.info("Will connect to master at $masterAddress")
-            NodeSubscriber(hub, masterAddress, context)
+            NodeSubscriber(hub, masterAddress)
         } else {
             null
         }
