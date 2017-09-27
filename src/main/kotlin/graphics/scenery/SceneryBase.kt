@@ -105,8 +105,8 @@ open class SceneryBase(var applicationName: String,
 
         publisher?.let { hub.add(SceneryElement.NodePublisher, it) }
 
-        val subscriber: NodeSubscriber? = if(!master) {
-            val masterAddress = System.getProperty("scenery.MasterNode", "tcp://localhost:6666")
+        val masterAddress = System.getProperty("scenery.MasterNode")
+        val subscriber: NodeSubscriber? = if(!master && masterAddress != null) {
             logger.info("Will connect to master at $masterAddress")
             NodeSubscriber(hub, masterAddress)
         } else {
