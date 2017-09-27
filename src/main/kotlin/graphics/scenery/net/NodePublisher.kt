@@ -9,7 +9,6 @@ import graphics.scenery.*
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.Statistics
 import graphics.scenery.volumes.Volume
-import org.slf4j.LoggerFactory
 import org.zeromq.ZContext
 import org.zeromq.ZMQ
 import java.io.ByteArrayOutputStream
@@ -20,7 +19,7 @@ import java.util.*
  * Created by ulrik on 4/4/2017.
  */
 
-class NodePublisher(override var hub: Hub?, val address: String = "tcp://*:6666", val context: ZContext): Hubable {
+class NodePublisher(override var hub: Hub?, val address: String = "tcp://*:6666", val context: ZContext = ZContext(4)): Hubable {
     private val logger by LazyLogger()
 
     var nodes: HashMap<Int, Node> = HashMap()
