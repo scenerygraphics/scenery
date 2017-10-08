@@ -9,6 +9,8 @@ import java.sql.Timestamp
 import java.util.*
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.locks.ReentrantLock
+import kotlin.properties.Delegates
+import kotlin.reflect.KProperty
 
 /**
  * Class describing a [Node] of a [Scene], inherits from [Renderable]
@@ -66,55 +68,40 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
     open var update: (() -> Unit)? = null
 
     /** World transform matrix. Will create inverse [iworld] upon modification. */
-    @Volatile override var world: GLMatrix = GLMatrix.getIdentity()
+    override var world: GLMatrix by Delegates.observable(GLMatrix.getIdentity()) { property, old, new -> propertyChanged(property, old, new) }
     /** Inverse [world] transform matrix. */
-    @Volatile override var iworld: GLMatrix = GLMatrix.getIdentity()
+    override var iworld: GLMatrix by Delegates.observable(GLMatrix.getIdentity()) { property, old, new -> propertyChanged(property, old, new) }
     /** Model transform matrix. Will create inverse [imodel] upon modification. */
-    @Volatile override var model: GLMatrix = GLMatrix.getIdentity()
+    override var model: GLMatrix by Delegates.observable(GLMatrix.getIdentity()) { property, old, new -> propertyChanged(property, old, new) }
     /** Inverse [world] transform matrix. */
-    @Volatile override var imodel: GLMatrix = GLMatrix.getIdentity()
+    override var imodel: GLMatrix by Delegates.observable(GLMatrix.getIdentity()) { property, old, new -> propertyChanged(property, old, new) }
 
     /** View matrix. Will create inverse [iview] upon modification. */
-    @Volatile override var view: GLMatrix = GLMatrix.getIdentity()
+    override var view: GLMatrix by Delegates.observable(GLMatrix.getIdentity()) { property, old, new -> propertyChanged(property, old, new) }
     /** Inverse [view] matrix. */
-    @Volatile override var iview: GLMatrix = GLMatrix.getIdentity()
+    override var iview: GLMatrix by Delegates.observable(GLMatrix.getIdentity()) { property, old, new -> propertyChanged(property, old, new) }
 
     /** Projection matrix. Will create inverse [iprojection] upon modification. */
-    @Volatile override var projection: GLMatrix = GLMatrix.getIdentity()
+    override var projection: GLMatrix by Delegates.observable(GLMatrix.getIdentity()) { property, old, new -> propertyChanged(property, old, new) }
     /** Inverse [projection] transform matrix. */
-    @Volatile override var iprojection: GLMatrix = GLMatrix.getIdentity()
+    override var iprojection: GLMatrix by Delegates.observable(GLMatrix.getIdentity()) { property, old, new -> propertyChanged(property, old, new) }
 
     /** ModelView matrix. Will create inverse [imodelview] upon modification. */
-    @Volatile override var modelView: GLMatrix = GLMatrix.getIdentity()
+    override var modelView: GLMatrix by Delegates.observable(GLMatrix.getIdentity()) { property, old, new -> propertyChanged(property, old, new) }
     /** Inverse [modelView] transform matrix. */
-    @Volatile override var imodelView: GLMatrix = GLMatrix.getIdentity()
+    override var imodelView: GLMatrix by Delegates.observable(GLMatrix.getIdentity()) { property, old, new -> propertyChanged(property, old, new) }
 
     /** ModelViewProjection matrix. */
-    @Volatile override var mvp: GLMatrix = GLMatrix.getIdentity()
+    override var mvp: GLMatrix by Delegates.observable(GLMatrix.getIdentity()) { property, old, new -> propertyChanged(property, old, new) }
 
     /** World position of the Node. Setting will trigger [world] update. */
-    @Volatile override var position: GLVector = GLVector(0.0f, 0.0f, 0.0f)
-        set(v) {
-            this.needsUpdate = true
-            this.needsUpdateWorld = true
-            field = v
-        }
+    override var position: GLVector by Delegates.observable(GLVector(0.0f, 0.0f, 0.0f)) { property, old, new -> propertyChanged(property, old, new) }
 
     /** x/y/z scale of the Node. Setting will trigger [world] update. */
-    @Volatile override var scale: GLVector = GLVector(1.0f, 1.0f, 1.0f)
-        set(v) {
-            this.needsUpdate = true
-            this.needsUpdateWorld = true
-            field = v
-        }
+    override var scale: GLVector by Delegates.observable(GLVector(1.0f, 1.0f, 1.0f)) { property, old, new -> propertyChanged(property, old, new) }
 
     /** Rotation of the Node. Setting will trigger [world] update. */
-    @Volatile override var rotation: Quaternion = Quaternion(0.0f, 0.0f, 0.0f, 1.0f)
-        set(q) {
-            this.needsUpdate = true
-            this.needsUpdateWorld = true
-            field = q
-        }
+    override var rotation: Quaternion by Delegates.observable(Quaternion(0.0f, 0.0f, 0.0f, 1.0f)) { property, old, new -> propertyChanged(property, old, new) }
 
     /** Children of the Node. */
     @Transient var children: CopyOnWriteArrayList<Node>
@@ -135,6 +122,13 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
     var needsUpdate = true
     /** Stores whether the [world] matrix needs an update. */
     var needsUpdateWorld = true
+
+    protected fun <R> propertyChanged(property: KProperty<*>, old: R, new: R): Unit {
+        if(property.name == "rotation" || property.name == "position" || property.name  == "scale") {
+            needsUpdate = true
+            needsUpdateWorld = true
+        }
+    }
 
     init {
         this.createdAt = (Timestamp(Date().time).time).toLong()
