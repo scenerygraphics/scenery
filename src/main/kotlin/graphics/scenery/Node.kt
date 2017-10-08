@@ -328,6 +328,38 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
         return p as? Scene
     }
 
+    /**
+     * Centers the [Node] on a given position.
+     *
+     * @param[position] - the position to center the [Node] on.
+     * @return GLVector - the center offset calculcated for the [Node].
+     */
+    fun centerOn(position: GLVector): GLVector {
+        val min = GLMatrix.getScaling(this.scale).mult(GLVector(this.boundingBoxCoords[0], this.boundingBoxCoords[2], this.boundingBoxCoords[4], 1.0f))
+        val max = GLMatrix.getScaling(this.scale).mult(GLVector(this.boundingBoxCoords[1], this.boundingBoxCoords[3], this.boundingBoxCoords[5], 1.0f))
+
+        val center = (max - min) * 0.5f
+        this.position = position - center
+
+        return center
+    }
+
+    /**
+     * Fits the [Node] within a box of the given dimension.
+     *
+     * @param[sideLength] - The size of the box to fit the [Node] uniformly into.
+     */
+    fun fitInto(sideLength: Float) {
+        val min = GLVector(this.boundingBoxCoords[0], this.boundingBoxCoords[2], this.boundingBoxCoords[4], 1.0f)
+        val max = GLVector(this.boundingBoxCoords[1], this.boundingBoxCoords[3], this.boundingBoxCoords[5], 1.0f)
+
+        (max - min).toFloatArray().max()?.let { maxDimension ->
+            val scaling = sideLength/maxDimension
+
+            this.scale = GLVector(scaling, scaling, scaling)
+        }
+    }
+
     companion object NodeHelpers {
         /**
          * Depth-first search for elements in a Scene.
