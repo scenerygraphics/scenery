@@ -187,7 +187,6 @@ class OpenGLRenderer(hub: Hub,
             pbos[1] = 0
 
             embedIn?.let { panel ->
-                panel.imageView.scaleY = -1.0
                 panel.prefWidth = window.width.toDouble()
                 panel.prefHeight = window.height.toDouble()
             }
