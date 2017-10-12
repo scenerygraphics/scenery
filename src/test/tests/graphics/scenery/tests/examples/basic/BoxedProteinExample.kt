@@ -14,7 +14,7 @@ import kotlin.concurrent.thread
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class BoxedProteinExample : SceneryDefaultApplication("BoxedProteinExample", windowWidth = 1280, windowHeight = 720) {
+class BoxedProteinExample : SceneryBase("BoxedProteinExample", windowWidth = 1280, windowHeight = 720) {
     override fun init() {
         val lightCount = 8
 

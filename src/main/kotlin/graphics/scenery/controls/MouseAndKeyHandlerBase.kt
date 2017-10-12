@@ -4,6 +4,7 @@ import gnu.trove.map.hash.TIntLongHashMap
 import gnu.trove.set.hash.TIntHashSet
 import graphics.scenery.controls.behaviours.GamepadBehaviour
 import graphics.scenery.utils.ExtractsNatives
+import graphics.scenery.utils.LazyLogger
 import net.java.games.input.*
 import org.scijava.ui.behaviour.*
 import org.slf4j.Logger
@@ -19,7 +20,7 @@ import kotlin.concurrent.thread
  * @author Ulrik Günther <hello@ulrik.is>
  */
 open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
-    protected var logger: Logger = LoggerFactory.getLogger(this.javaClass.simpleName)
+    protected val logger by LazyLogger()
     /** ui-behaviour input trigger map */
     protected var inputTriggerMap: InputTriggerMap? = null
 

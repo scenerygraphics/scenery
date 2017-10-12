@@ -3,10 +3,8 @@ package graphics.scenery.tests.examples.advanced
 import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.backends.ShaderPreference
 import graphics.scenery.utils.Numerics
 import org.junit.Test
-import java.util.*
 import kotlin.concurrent.thread
 
 /**
@@ -14,7 +12,7 @@ import kotlin.concurrent.thread
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class MultiBoxInstancedExample : SceneryDefaultApplication("MultiBoxInstancedExample") {
+class MultiBoxInstancedExample : SceneryBase("MultiBoxInstancedExample") {
     override fun init() {
         renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
         hub.add(SceneryElement.Renderer, renderer!!)
@@ -44,12 +42,7 @@ class MultiBoxInstancedExample : SceneryDefaultApplication("MultiBoxInstancedExa
         b.instancedProperties.put("ModelViewMatrix", { b.modelView })
         b.instancedProperties.put("ModelMatrix", { b.model })
         b.instancedProperties.put("MVP", { b.mvp })
-        b.metadata.put(
-            "ShaderPreference",
-            ShaderPreference(
-                arrayListOf("DefaultDeferredInstanced.vert", "DefaultDeferred.frag"),
-                HashMap(),
-                arrayListOf("DeferredShadingRenderer")))
+        b.material = ShaderMaterial(arrayListOf("DefaultDeferredInstanced.vert", "DefaultDeferred.frag"))
         scene.addChild(b)
 
         (0..(boundaryWidth * boundaryHeight * boundaryHeight).toInt()).map {

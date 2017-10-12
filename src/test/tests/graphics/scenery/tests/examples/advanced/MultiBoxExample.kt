@@ -12,7 +12,7 @@ import kotlin.concurrent.thread
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class MultiBoxExample : SceneryDefaultApplication("MultiBoxExample") {
+class MultiBoxExample : SceneryBase("MultiBoxExample") {
     override fun init() {
         renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
         hub.add(SceneryElement.Renderer, renderer!!)

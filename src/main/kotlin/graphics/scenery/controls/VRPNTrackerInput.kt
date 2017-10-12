@@ -3,6 +3,7 @@ package graphics.scenery.controls
 import cleargl.GLMatrix
 import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
+import graphics.scenery.utils.LazyLogger
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import vrpn.Loader
@@ -18,7 +19,7 @@ import java.util.*
 
 class VRPNTrackerInput(trackerAddress: String = "device@locahost:5500") : TrackerInput {
 
-    var logger: Logger = LoggerFactory.getLogger("VRPNTrackerInput")
+    private val logger by LazyLogger()
 
     var tracker: TrackerRemote? = null
 

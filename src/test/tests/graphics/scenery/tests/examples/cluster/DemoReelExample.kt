@@ -19,7 +19,7 @@ import kotlin.concurrent.thread
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class DemoReelExample: SceneryDefaultApplication("Demo Reel") {
+class DemoReelExample: SceneryBase("Demo Reel") {
     var hmd: TrackedStereoGlasses? = null
     var publishedNodes = ArrayList<Node>()
 

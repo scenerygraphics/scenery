@@ -319,6 +319,15 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
         }
     }
 
+    fun getScene(): Scene? {
+        var p: Node? = this.parent
+        while(p !is Scene && p != null) {
+            p = p.parent
+        }
+
+        return p as? Scene
+    }
+
     companion object NodeHelpers {
         /**
          * Depth-first search for elements in a Scene.

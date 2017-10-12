@@ -5,7 +5,6 @@ import com.sun.jna.win32.StdCallLibrary
 import com.sun.jna.Native
 import com.sun.jna.Pointer
 import com.sun.jna.ptr.IntByReference
-import org.slf4j.LoggerFactory
 import java.util.*
 
 /**
@@ -21,9 +20,9 @@ interface NVAPI : StdCallLibrary {
 }
 
 class NvidiaGPUStats: GPUStats {
-    override val utilisations: HashMap<String, Float> = HashMap()
+    private val logger by LazyLogger()
 
-    val logger = LoggerFactory.getLogger("NvidiaGPUStats")
+    override val utilisations: HashMap<String, Float> = HashMap()
 
     val NVAPI_MAX_USAGES_PER_GPU = 34
     val NVAPI_MAX_PHYSICAL_GPUS = 64

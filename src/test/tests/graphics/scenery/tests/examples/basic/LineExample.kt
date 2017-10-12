@@ -15,7 +15,7 @@ import kotlin.concurrent.thread
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class LineExample : SceneryDefaultApplication("LineExample") {
+class LineExample : SceneryBase("LineExample") {
     protected var lineAnimating = true
 
     override fun init() {

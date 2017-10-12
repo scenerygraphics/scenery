@@ -12,7 +12,7 @@ import kotlin.concurrent.thread
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class PowerplantExample : SceneryDefaultApplication("PowerplantExample", windowWidth = 1280, windowHeight = 720) {
+class PowerplantExample : SceneryBase("PowerplantExample", windowWidth = 1280, windowHeight = 720) {
     override fun init() {
         val lightCount = 127
 

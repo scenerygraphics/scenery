@@ -11,7 +11,7 @@ import kotlin.concurrent.thread
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class FontRenderingExample: SceneryDefaultApplication("FontRenderingExample") {
+class FontRenderingExample: SceneryBase("FontRenderingExample") {
     override fun init() {
         renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
         hub.add(SceneryElement.Renderer, renderer!!)

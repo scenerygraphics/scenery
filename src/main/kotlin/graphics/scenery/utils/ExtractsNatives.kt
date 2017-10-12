@@ -59,7 +59,9 @@ interface ExtractsNatives {
      * @param[replace] Whether or not the java.library.path should be replaced.
      */
     fun extractLibrariesFromJar(paths: List<String>, replace: Boolean = false) {
-        val logger = LoggerFactory.getLogger("ExtractsNatives")
+        // FIXME: Kotlin bug, revert to LazyLogger as soon as https://youtrack.jetbrains.com/issue/KT-19690 is fixed.
+        // val logger by LazyLogger()
+        val logger = LoggerFactory.getLogger(this.javaClass.simpleName)
 
         val lp = System.getProperty("java.library.path")
         val tmpDir = Files.createTempDirectory("scenery-natives-tmp").toFile()

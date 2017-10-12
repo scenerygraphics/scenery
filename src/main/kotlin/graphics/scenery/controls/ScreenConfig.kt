@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.KotlinModule
+import graphics.scenery.utils.LazyLogger
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.nio.file.Files
@@ -21,7 +22,7 @@ import java.util.*
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class ScreenConfig {
-    var logger: Logger = LoggerFactory.getLogger("ScreenConfig")
+    private val logger by LazyLogger()
 
     class VectorDeserializer : JsonDeserializer<GLVector>() {
         override fun deserialize(p: JsonParser, ctxt: DeserializationContext?): GLVector {
@@ -78,6 +79,8 @@ class ScreenConfig {
                 vn.x(), vn.y(), vn.z(), 0.0f,
                 lowerLeft.x(), lowerLeft.y(), lowerLeft.z(), 1.0f))
 
+            logger.debug("Screen {}: {} {} {} {}x{}", match, lowerLeft, lowerRight, upperLeft, width, height)
+
             screenTransform.invert()
         }
 
@@ -93,9 +96,10 @@ class ScreenConfig {
 
 
     companion object {
-        var logger: Logger = LoggerFactory.getLogger("ScreenConfig")
+        private val logger by LazyLogger()
+
         fun getScreen(config: Config): SingleScreenConfig? {
-            for ((name, screen) in config.screens) {
+            for ((_, screen) in config.screens) {
                 if (screen.match.type == ScreenMatcherType.hostname) {
                     if (getHostname().toLowerCase() == screen.match.value) {
                         return screen
@@ -122,13 +126,13 @@ class ScreenConfig {
             val mapper = ObjectMapper(YAMLFactory())
             mapper.registerModule(KotlinModule())
 
-            var stream = this.javaClass.getResourceAsStream(path)
+            var stream = this::class.java.getResourceAsStream(path)
 
             if (stream == null) {
                 val p = Paths.get(path)
 
                 return if (!Files.exists(p)) {
-                    stream = this.javaClass.getResourceAsStream("CAVEExample.yml")
+                    stream = this::class.java.getResourceAsStream("CAVEExample.yml")
                     mapper.readValue(stream, ScreenConfig.Config::class.java)
                 } else {
                     Files.newBufferedReader(p).use {

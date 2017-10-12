@@ -57,7 +57,7 @@ class ProxiedVolume : Mesh("Volume") {
         var function: FloatArray = floatArrayOf()
     )
 
-    val logger: Logger = LoggerFactory.getLogger("Volume")
+    private val logger: Logger = LoggerFactory.getLogger("Volume")
 
     val volumes = LinkedHashMap<String, VolumeDescriptor>()
     val kernelNames = arrayListOf(

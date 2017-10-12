@@ -36,7 +36,7 @@ fun RenderConfigReader.RenderConfig.createRenderpassFlow(): List<String> {
 
     // find first
     val start = passes.filter { it.value.output == "Viewport" }.entries.first()
-    var inputs: Set<String>? = start.value.inputs
+    var inputs: List<String>? = start.value.inputs
     dag.add(start.key)
 
     while(inputs != null) {
@@ -104,8 +104,8 @@ class RenderConfigReader {
         var dstColorBlendFactor: BlendFactor = BlendFactor.OneMinusSrcAlpha,
         var srcAlphaBlendFactor: BlendFactor = BlendFactor.SrcAlpha,
         var dstAlphaBlendFactor: BlendFactor = BlendFactor.OneMinusSrcAlpha,
-        var shaders: Set<String>,
-        var inputs: Set<String>?,
+        var shaders: List<String>,
+        var inputs: List<String>?,
         var output: String,
         var parameters: Map<String, Any>?,
         @JsonDeserialize(using = FloatPairDeserializer::class) var viewportSize: Pair<Float, Float> = Pair(1.0f, 1.0f),
