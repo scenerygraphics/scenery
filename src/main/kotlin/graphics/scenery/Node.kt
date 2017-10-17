@@ -273,14 +273,15 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
     fun generateBoundingBox() {
 
         if (this is Mesh) {
-            if (vertices.capacity() == 0) {
+            if (this.vertices.capacity() == 0) {
                 System.err.println("Zero vertices currently, returning null bounding box")
                 boundingBoxCoords = floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
             } else {
+                val verticesFloat = this.vertices.array()
 
-                /*val x = vertices.filterIndexed { i, fl -> (i + 3).mod(3) == 0 }
-                val y = vertices.filterIndexed { i, fl -> (i + 2).mod(3) == 0 }
-                val z = vertices.filterIndexed { i, fl -> (i + 1).mod(3) == 0 }
+                val x = verticesFloat.filterIndexed { i, fl -> (i + 3).mod(3) == 0 }
+                val y = verticesFloat.filterIndexed { i, fl -> (i + 2).mod(3) == 0 }
+                val z = verticesFloat.filterIndexed { i, fl -> (i + 1).mod(3) == 0 }
 
                 val xmin: Float = x.min()!!.toFloat()
                 val xmax: Float = x.max()!!.toFloat()
@@ -292,7 +293,6 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
                 val zmax: Float = z.max()!!.toFloat()
 
                 boundingBoxCoords = floatArrayOf(xmin, xmax, ymin, ymax, zmin, zmax)
-                */
                 System.err.println("Created bouding box with ${boundingBoxCoords.joinToString(", ")}")
             }
         } else {
