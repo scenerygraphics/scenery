@@ -279,9 +279,9 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
             } else {
                 val verticesFloat = this.vertices.array()
 
-                val x = verticesFloat.filterIndexed { i, fl -> (i + 1).mod(3) == 0 }
+                val x = verticesFloat.filterIndexed { i, fl -> (i + 3).mod(3) == 0 }
                 val y = verticesFloat.filterIndexed { i, fl -> (i + 2).mod(3) == 0 }
-                val z = verticesFloat.filterIndexed { i, fl -> (i + 3).mod(3) == 0 }
+                val z = verticesFloat.filterIndexed { i, fl -> (i + 1).mod(3) == 0 }
 
                 val xmin: Float = x.min()!!.toFloat()
                 val xmax: Float = x.max()!!.toFloat()
