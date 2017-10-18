@@ -1748,7 +1748,7 @@ class OpenGLRenderer(hub: Hub,
             node.material.textures.forEach {
                 type, texture ->
                 if (!textureCache.containsKey(texture) || node.material.needsTextureReload) {
-                    logger.info("Loading texture $texture for ${node.name}")
+                    logger.debug("Loading texture $texture for ${node.name}")
 
                     val generateMipmaps = (type == "ambient" || type == "diffuse" || type == "specular")
                     if (texture.startsWith("fromBuffer:")) {
@@ -1782,7 +1782,7 @@ class OpenGLRenderer(hub: Hub,
                             }
 
                             t.setClamp(!repeatS, !repeatT)
-                            logger.info("Copying data from buffer: ${contents.remaining()}")
+                            logger.debug("Copying data from buffer: ${contents.remaining()}")
                             t.copyFrom(contents)
 
                             s.textures.put(type, t)
