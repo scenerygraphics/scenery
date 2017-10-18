@@ -1675,11 +1675,12 @@ class OpenGLRenderer(hub: Hub,
 
         with(materialUbo) {
             name = "MaterialProperties"
+            add("materialType", { materialType })
             add("Ka", { node.material.ambient })
             add("Kd", { node.material.diffuse })
             add("Ks", { node.material.specular })
             add("Shininess", { node.material.specularExponent })
-            add("materialType", { materialType })
+            add("Opacity", { node.material.opacity })
 
             s.UBOs.put("MaterialProperties", this)
         }

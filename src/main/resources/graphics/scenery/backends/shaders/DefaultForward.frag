@@ -25,6 +25,7 @@ struct MaterialInfo {
     vec3 Kd;
     vec3 Ks;
     float Shininess;
+    float Opacity;
 };
 
 layout(location = 0) in VertexData {
@@ -42,8 +43,8 @@ const int MATERIAL_HAS_NORMAL =   0x0008;
 const int MATERIAL_HAS_ALPHAMASK = 0x0010;
 
 layout(set = 3, binding = 0) uniform MaterialProperties {
-    MaterialInfo Material;
     int materialType;
+    MaterialInfo Material;
 };
 
 layout(set = 4, binding = 0) uniform sampler2D ObjectTextures[NUM_OBJECT_TEXTURES];
@@ -83,5 +84,5 @@ void main()
             normal = normalize(Vertex.Normal);
         }
 
-     FragColor = vec4(diffuse, 0.2);
+     FragColor = vec4(diffuse, Material.Opacity);
 }

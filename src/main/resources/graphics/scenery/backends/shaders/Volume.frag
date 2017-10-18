@@ -203,7 +203,7 @@ void main()
       if(startNDC.z > texture(InputOutputDepth, Vertex.textureCoord).r) {
         FragColor = vec4(0.0, 1.0, 0.0, 1.0);
         gl_FragDepth = 0.0;
-        return;
+//        return;
       }
 
       // geometry intersects volume, terminate rays early
@@ -218,7 +218,7 @@ void main()
 //        FragColor = vec4(1.0, 0.0, 0.0, 0.0);
         FragColor = vec4(0.0);
         gl_FragDepth = 0.0;
-        return;
+//        return;
       }
 
 //      FragColor = vec4(stop, 1.0);

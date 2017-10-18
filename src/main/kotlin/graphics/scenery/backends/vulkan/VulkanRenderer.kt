@@ -713,11 +713,12 @@ open class VulkanRenderer(hub: Hub,
 
         with(materialUbo) {
             name = "MaterialProperties"
+            add("materialType", { materialType })
             add("Ka", { node.material.ambient })
             add("Kd", { node.material.diffuse })
             add("Ks", { node.material.specular })
             add("Shininess", { node.material.specularExponent })
-            add("materialType", { materialType })
+            add("Opacity", { node.material.opacity })
 
             requiredOffsetCount = 1
             createUniformBuffer(memoryProperties)
@@ -2259,11 +2260,12 @@ open class VulkanRenderer(hub: Hub,
         val materialUbo = VulkanUBO(device)
 
         materialUbo.name = "MaterialProperties"
+        materialUbo.add("materialType", { 0 })
         materialUbo.add("Ka", { GLVector(0.0f, 0.0f, 0.0f) })
         materialUbo.add("Kd", { GLVector(0.0f, 0.0f, 0.0f) })
         materialUbo.add("Ks", { GLVector(0.0f, 0.0f, 0.0f) })
         materialUbo.add("Shininess", { 1.0f })
-        materialUbo.add("materialType", { 0 })
+        materialUbo.add("Opacity", { 1.0f })
 
         materialUbo.createUniformBuffer(memoryProperties)
         ubos.put("MaterialProperties", materialUbo)
@@ -2308,7 +2310,10 @@ open class VulkanRenderer(hub: Hub,
                 it.metadata.put("VulkanRenderer", VulkanObjectState())
                 initializeNode(it)
             } else {
-                renderOrderList.add(it)
+                if(!((pass.passConfig.renderOpaque && it.material.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) ||
+                   (pass.passConfig.renderTransparent && !it.material.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent))) {
+                    renderOrderList.add(it)
+                }
             }
         }
 

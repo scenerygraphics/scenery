@@ -9,6 +9,7 @@ struct MaterialInfo {
     vec3 Kd;
     vec3 Ks;
     float Shininess;
+    float Opacity;
 };
 
 layout(location = 0) in VertexData {
@@ -44,8 +45,8 @@ layout(set = 2, binding = 0) uniform Matrices {
 } ubo;
 
 layout(set = 3, binding = 0) uniform MaterialProperties {
-    MaterialInfo Material;
     int materialType;
+    MaterialInfo Material;
 };
 
 layout(set = 4, binding = 0) uniform sampler2D ObjectTextures[NUM_OBJECT_TEXTURES];
