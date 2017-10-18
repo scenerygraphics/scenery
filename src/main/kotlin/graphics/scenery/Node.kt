@@ -3,6 +3,7 @@ package graphics.scenery
 import cleargl.GLMatrix
 import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
+import graphics.scenery.utils.LazyLogger
 import java.io.Serializable
 import java.lang.reflect.Field
 import java.sql.Timestamp
@@ -21,6 +22,7 @@ import kotlin.reflect.KProperty
  * @property[name] The name of the [Node]
  */
 open class Node(open var name: String = "Node") : Renderable, Serializable {
+    private val logger by LazyLogger()
 
     /** Hash map used for storing metadata for the Node. [DeferredLightingRenderer] uses
      * it to e.g. store [OpenGLObjectState]. */
@@ -211,21 +213,19 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
         if (needsUpdateWorld or force) {
             if (this.parent == null || this.parent is Scene) {
                 world.copyFrom(model)
-                //          this.world.translate(this.position.x(), this.position.y(), this.position.z())
             } else {
                 world.copyFrom(parent!!.world)
                 world.mult(this.model)
-                //m.translate(this.position.x(), this.position.y(), this.position.z())
             }
 
             this.needsUpdateWorld = false
         }
 
         if (recursive) {
-            this.children.forEach { it.updateWorld(true, true) }
+            this.children.forEach { it.updateWorld(true, force) }
             // also update linked nodes -- they might need updated
             // model/view/proj matrices as well
-            this.linkedNodes.forEach { it.updateWorld(true, true) }
+            this.linkedNodes.forEach { it.updateWorld(true, force) }
         }
     }
 
@@ -264,35 +264,41 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
     }
 
 
-    fun generateBoundingBox() {
+    fun generateBoundingBox(): FloatArray {
+        if (this is HasGeometry) {
+            val position = vertices.position()
+            val limit = vertices.limit()
 
-        if (this is Mesh) {
+            vertices.position(0)
+
             if (vertices.capacity() == 0) {
-                System.err.println("Zero vertices currently, returning null bounding box")
+                logger.warn("$name: Zero vertices currently, returning empty bounding box")
                 boundingBoxCoords = floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
             } else {
+                val tmp = floatArrayOf(0.0f, 0.0f, 0.0f)
+                while(vertices.hasRemaining()) {
+                    vertices.get(tmp)
 
-                /*val x = vertices.filterIndexed { i, fl -> (i + 3).mod(3) == 0 }
-                val y = vertices.filterIndexed { i, fl -> (i + 2).mod(3) == 0 }
-                val z = vertices.filterIndexed { i, fl -> (i + 1).mod(3) == 0 }
+                    boundingBoxCoords[0] = minOf(boundingBoxCoords[0], tmp[0])
+                    boundingBoxCoords[2] = minOf(boundingBoxCoords[2], tmp[1])
+                    boundingBoxCoords[4] = minOf(boundingBoxCoords[4], tmp[2])
 
-                val xmin: Float = x.min()!!.toFloat()
-                val xmax: Float = x.max()!!.toFloat()
+                    boundingBoxCoords[1] = maxOf(boundingBoxCoords[1], tmp[0])
+                    boundingBoxCoords[3] = maxOf(boundingBoxCoords[3], tmp[1])
+                    boundingBoxCoords[5] = maxOf(boundingBoxCoords[5], tmp[2])
+                }
 
-                val ymin: Float = y.min()!!.toFloat()
-                val ymax: Float = y.max()!!.toFloat()
-
-                val zmin: Float = z.min()!!.toFloat()
-                val zmax: Float = z.max()!!.toFloat()
-
-                boundingBoxCoords = floatArrayOf(xmin, xmax, ymin, ymax, zmin, zmax)
-                */
-                System.err.println("Created bouding box with ${boundingBoxCoords.joinToString(", ")}")
+                logger.debug("$name: Calculated bounding box with ${boundingBoxCoords.joinToString(", ")}")
             }
+
+            vertices.position(position)
+            vertices.limit(limit)
         } else {
-            System.err.println("Assuming 3rd party BB generation")
+            logger.warn("$name: Assuming 3rd party BB generation")
             // assume bounding box was created somehow
         }
+
+        return boundingBoxCoords
     }
 
     private val shaderPropertyFieldCache = HashMap<String, Field>()
@@ -342,8 +348,9 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
      * Fits the [Node] within a box of the given dimension.
      *
      * @param[sideLength] - The size of the box to fit the [Node] uniformly into.
+     * @return GLVector - containing the applied scaling
      */
-    fun fitInto(sideLength: Float) {
+    fun fitInto(sideLength: Float): GLVector {
         val min = GLVector(this.boundingBoxCoords[0], this.boundingBoxCoords[2], this.boundingBoxCoords[4], 1.0f)
         val max = GLVector(this.boundingBoxCoords[1], this.boundingBoxCoords[3], this.boundingBoxCoords[5], 1.0f)
 
@@ -352,6 +359,8 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
 
             this.scale = GLVector(scaling, scaling, scaling)
         }
+
+        return this.scale
     }
 
     companion object NodeHelpers {
