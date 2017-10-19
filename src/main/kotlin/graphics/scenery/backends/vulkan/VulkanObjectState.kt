@@ -51,8 +51,12 @@ open class VulkanObjectState : NodeMetadata {
         currentInCommandBuffer.put(commandBuffer, isUpdated)
     }
 
+    fun setAllCommandBufferUpdated(isUpdated: Boolean) {
+        currentInCommandBuffer.entries.forEach { it.setValue(false) }
+    }
+
     fun isCurrentInCommandBuffer(commandBuffer: VulkanCommandBuffer): Boolean {
-        return currentInCommandBuffer.getOrPut(commandBuffer, { false })
+        return currentInCommandBuffer.getOrPut(commandBuffer, { true })
     }
 
     fun texturesToDescriptorSet(device: VkDevice, descriptorSetLayout: Long, descriptorPool: Long, targetBinding: Int = 0): Long {
