@@ -41,27 +41,37 @@ open class VulkanObjectState : NodeMetadata {
 
     var textureDescriptorSet: Long = -1L
 
+    private val currentInCommandBuffer = HashMap<VulkanCommandBuffer, Boolean>(3)
+
     init {
         consumers.add("VulkanRenderer")
     }
 
+    fun setCommandBufferUpdated(commandBuffer: VulkanCommandBuffer, isUpdated: Boolean) {
+        currentInCommandBuffer.put(commandBuffer, isUpdated)
+    }
+
+    fun isCurrentInCommandBuffer(commandBuffer: VulkanCommandBuffer): Boolean {
+        return currentInCommandBuffer.getOrPut(commandBuffer, { false })
+    }
+
     fun texturesToDescriptorSet(device: VkDevice, descriptorSetLayout: Long, descriptorPool: Long, targetBinding: Int = 0): Long {
-        if(textureDescriptorSet != -1L) {
-            VK10.vkFreeDescriptorSets(device, descriptorPool, textureDescriptorSet)
+        val descriptorSet = if(textureDescriptorSet == -1L) {
+            val pDescriptorSetLayout = memAllocLong(1)
+            pDescriptorSetLayout.put(0, descriptorSetLayout)
+
+            val allocInfo = VkDescriptorSetAllocateInfo.calloc()
+                .sType(VK10.VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO)
+                .pNext(NULL)
+                .descriptorPool(descriptorPool)
+                .pSetLayouts(pDescriptorSetLayout)
+
+            VU.run(memAllocLong(1), "vkAllocateDescriptorSets",
+                { VK10.vkAllocateDescriptorSets(device, allocInfo, this) },
+                { allocInfo.free(); memFree(pDescriptorSetLayout) })
+        } else {
+            textureDescriptorSet
         }
-
-        val pDescriptorSetLayout = memAllocLong(1)
-        pDescriptorSetLayout.put(0, descriptorSetLayout)
-
-        val allocInfo = VkDescriptorSetAllocateInfo.calloc()
-            .sType(VK10.VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO)
-            .pNext(NULL)
-            .descriptorPool(descriptorPool)
-            .pSetLayouts(pDescriptorSetLayout)
-
-        val descriptorSet = VU.run(memAllocLong(1), "vkAllocateDescriptorSets",
-            { VK10.vkAllocateDescriptorSets(device, allocInfo, this) },
-            { allocInfo.free(); memFree(pDescriptorSetLayout) })
 
         val d = (1..textures.count()).map { VkDescriptorImageInfo.calloc(1) }.toTypedArray()
         val wd = VkWriteDescriptorSet.calloc(textures.count())

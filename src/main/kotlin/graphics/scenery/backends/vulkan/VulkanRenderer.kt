@@ -10,8 +10,9 @@ import graphics.scenery.spirvcrossj.Loader
 import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.utils.*
 import org.lwjgl.PointerBuffer
-import org.lwjgl.glfw.GLFW.*
-import org.lwjgl.glfw.GLFWVulkan.*
+import org.lwjgl.glfw.GLFW.glfwInit
+import org.lwjgl.glfw.GLFWVulkan.glfwGetRequiredInstanceExtensions
+import org.lwjgl.glfw.GLFWVulkan.glfwVulkanSupported
 import org.lwjgl.system.Configuration
 import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil.*
@@ -686,7 +687,7 @@ open class VulkanRenderer(hub: Hub,
             s.UBOs.put(name, matricesDescriptorSet.to(this))
         }
 
-        s = loadTexturesForNode(node, s)
+        loadTexturesForNode(node, s)
 
         val materialUbo = VulkanUBO(device, backingBuffer = buffers["UBOBuffer"])
         var materialType = 0
@@ -2273,6 +2274,10 @@ open class VulkanRenderer(hub: Hub,
         return ubos
     }
 
+    private fun Node.rendererMetadata(): VulkanObjectState? {
+        return this.metadata["VulkanRenderer"] as? VulkanObjectState
+    }
+
     private fun recordSceneRenderCommands(device: VkDevice, pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer) {
         val target = pass.getOutput()
 
@@ -2287,37 +2292,48 @@ open class VulkanRenderer(hub: Hub,
             .pClearValues(pass.vulkanMetadata.clearValues)
 
         val renderOrderList = ArrayList<Node>(renderLists[commandBuffer]?.size ?: 512)
+        var forceRerecording = false
 
         scene.discover(scene, { n -> n is HasGeometry && n.visible }).forEach {
-            if (it.dirty) {
-                if (it is FontBoard) {
-                    updateFontBoard(it)
-                }
-
-                it.dirty = false
-            }
-
-            if(it.material.needsTextureReload) {
-                val s = loadTexturesForNode(it, it.metadata["VulkanRenderer"]!! as VulkanObjectState)
-                it.metadata.put("VulkanRenderer", s)
-                it.material.needsTextureReload = false
-            }
-
-            // if a node is not initialized yet, it'll be initialized here and it's UBO updated
-            // in the next round
-            if (!it.metadata.containsKey("VulkanRenderer")) {
+            if(it.rendererMetadata() == null) {
                 logger.debug("${it.name} is not initialized, doing that now")
                 it.metadata.put("VulkanRenderer", VulkanObjectState())
                 initializeNode(it)
-            } else {
-                if(!((pass.passConfig.renderOpaque && it.material.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) ||
-                   (pass.passConfig.renderTransparent && !it.material.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent))) {
+
+                return@forEach
+            }
+
+            it.rendererMetadata()?.let { metadata ->
+                if (it.dirty) {
+                    if (it is FontBoard) {
+                        updateFontBoard(it)
+                    }
+
+                    it.dirty = false
+                    it.rendererMetadata()?.setCommandBufferUpdated(commandBuffer, false)
+                }
+
+                if (it.material.needsTextureReload) {
+                    loadTexturesForNode(it, metadata)
+                    metadata.setCommandBufferUpdated(commandBuffer, false)
+
+                    it.material.needsTextureReload = false
+                }
+
+                // if a node is not initialized yet, it'll be initialized here and it's UBO updated
+                // in the next round
+                if (!((pass.passConfig.renderOpaque && it.material.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) ||
+                    (pass.passConfig.renderTransparent && !it.material.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent))) {
                     renderOrderList.add(it)
+                }
+
+                if (!metadata.isCurrentInCommandBuffer(commandBuffer)) {
+                    forceRerecording = true
                 }
             }
         }
 
-        if(renderOrderList.equals(renderLists[commandBuffer])) {
+        if(renderOrderList == renderLists[commandBuffer] && !forceRerecording) {
             renderLists.put(commandBuffer, renderOrderList)
             commandBuffer.stale = false
         } else {
@@ -2533,6 +2549,8 @@ open class VulkanRenderer(hub: Hub,
                 } else {
                     vkCmdDraw(this, s.vertexCount, 1, 0, 0)
                 }
+
+                s.setCommandBufferUpdated(commandBuffer, true)
             }
 
             instanceGroups.keys.filterNotNull().forEach instancedDrawing@ { node ->
@@ -2580,6 +2598,8 @@ open class VulkanRenderer(hub: Hub,
                 } else {
                     vkCmdDraw(this, s.vertexCount, s.instanceCount, 0, 0)
                 }
+
+                s.setCommandBufferUpdated(commandBuffer, true)
             }
 
             vkCmdEndRenderPass(this)

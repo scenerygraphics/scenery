@@ -226,10 +226,12 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, false, data.limit() * 1L)
 
             with(VU.newCommandBuffer(device, commandPool, autostart = true)) {
-                image = createImage(width, height, depth,
-                    format, VK_IMAGE_USAGE_TRANSFER_DST_BIT or VK_IMAGE_USAGE_SAMPLED_BIT or VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-                    VK_IMAGE_TILING_OPTIMAL, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                    mipLevels)
+                if(image == null) {
+                    image = createImage(width, height, depth,
+                        format, VK_IMAGE_USAGE_TRANSFER_DST_BIT or VK_IMAGE_USAGE_SAMPLED_BIT or VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+                        VK_IMAGE_TILING_OPTIMAL, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                        mipLevels)
+                }
 
                 buffer.copyFrom(data)
 
@@ -298,9 +300,12 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
             buffer.close()
         }
 
-        image!!.sampler = createSampler()
-        image!!.view = createImageView(image!!, format)
-
+        if(image!!.sampler == -1L) {
+            image!!.sampler = createSampler()
+        }
+        if(image!!.view == -1L) {
+            image!!.view = createImageView(image!!, format)
+        }
     }
 
     fun createImageView(image: VulkanImage, format: Int): Long {
