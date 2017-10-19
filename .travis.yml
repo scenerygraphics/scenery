@@ -30,7 +30,7 @@ install:
   - cd ../scenery
 
 script: 
-  - mvn clean package
+  - mvn clean package -Dmaven.test.skip=true
   - mvn test
 
 after_success:
