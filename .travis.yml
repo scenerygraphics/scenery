@@ -20,8 +20,6 @@ cache:
     - $HOME/.m2
 
 before_install:
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update        ; fi
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install gradle; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then /usr/libexec/java_home -V; fi
 
 install:
