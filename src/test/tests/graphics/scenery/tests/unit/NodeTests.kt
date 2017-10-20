@@ -67,7 +67,7 @@ class NodeTests {
     @Test
     fun testLargeScenegraph() {
         val scene = Scene()
-        val levels = 8
+        val levels = 7
         val maxSiblings = 8
 
         var totalNodes = 0
