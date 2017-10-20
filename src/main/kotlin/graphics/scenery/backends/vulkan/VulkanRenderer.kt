@@ -728,7 +728,17 @@ open class VulkanRenderer(hub: Hub,
         node.initialized = true
         node.metadata["VulkanRenderer"] = s
 
-        initializeCustomShadersForNode(node)
+        try {
+            initializeCustomShadersForNode(node)
+        } catch(e: VulkanShaderModule.ShaderCompilationException) {
+            logger.error("Compilation of custom shader failed: ${e.message}")
+            logger.error("Node ${node.name} will use default shader for render pass.")
+
+            if(logger.isDebugEnabled) {
+                e.printStackTrace()
+            }
+        }
+
         return true
     }
 

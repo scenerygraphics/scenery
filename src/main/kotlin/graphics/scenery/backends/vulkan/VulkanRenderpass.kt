@@ -8,6 +8,7 @@ import graphics.scenery.GeometryType
 import graphics.scenery.Node
 import graphics.scenery.Settings
 import graphics.scenery.backends.RenderConfigReader
+import graphics.scenery.backends.Renderer
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.RingBuffer
 import org.lwjgl.system.MemoryUtil.*
@@ -268,7 +269,7 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
     }
 
     fun initializeDefaultPipeline() {
-        initializePipeline("default", passConfig.shaders.map { VulkanShaderModule(device, "main", VulkanRenderer::class.java, "shaders/" + it) })
+        initializePipeline("default", passConfig.shaders.map { VulkanShaderModule(device, "main", Renderer::class.java, "shaders/" + it) })
     }
 
     fun initializePipeline(pipelineName: String = "default", shaders: List<VulkanShaderModule>,
