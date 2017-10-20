@@ -3,7 +3,6 @@ package graphics.scenery
 import cleargl.GLVector
 import gnu.trove.map.hash.THashMap
 import gnu.trove.set.hash.TLinkedHashSet
-import graphics.scenery.utils.LazyLogger
 import org.lwjgl.system.MemoryUtil.memAlloc
 import org.slf4j.LoggerFactory
 import java.io.BufferedInputStream
@@ -27,18 +26,18 @@ import java.util.*
 interface HasGeometry : Serializable {
     /** How many elements does a vertex store? */
     val vertexSize: Int
-    /** How many elements does a texcoord store? */
+    /** How many elements does a texture coordinate store? */
     val texcoordSize: Int
     /** The [GeometryType] of the [Node] */
     var geometryType: GeometryType
 
-    /** Array of the vertices */
+    /** Array of the vertices. This buffer is _required_, but may empty. */
     var vertices: FloatBuffer
-    /** Array of the normals */
+    /** Array of the normals. This buffer is _required_, and may _only_ be empty if [vertices] is empty as well. */
     var normals: FloatBuffer
-    /** Array of the texcoords */
+    /** Array of the texture coordinates. Texture coordinates are optional. */
     var texcoords: FloatBuffer
-    /** Array of the indices */
+    /** Array of the indices to create an indexed mesh. Optional, but advisable to use to minimize the number of submitted vertices. */
     var indices: IntBuffer
 
     /**

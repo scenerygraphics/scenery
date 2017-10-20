@@ -3,12 +3,15 @@ package graphics.scenery
 import cleargl.GLMatrix
 import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
+import graphics.scenery.utils.LazyLogger
 import java.io.Serializable
 import java.lang.reflect.Field
 import java.sql.Timestamp
 import java.util.*
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.locks.ReentrantLock
+import kotlin.properties.Delegates
+import kotlin.reflect.KProperty
 
 /**
  * Class describing a [Node] of a [Scene], inherits from [Renderable]
@@ -19,6 +22,7 @@ import java.util.concurrent.locks.ReentrantLock
  * @property[name] The name of the [Node]
  */
 open class Node(open var name: String = "Node") : Renderable, Serializable {
+    private val logger by LazyLogger()
 
     /** Hash map used for storing metadata for the Node. [DeferredLightingRenderer] uses
      * it to e.g. store [OpenGLObjectState]. */
@@ -66,55 +70,40 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
     open var update: (() -> Unit)? = null
 
     /** World transform matrix. Will create inverse [iworld] upon modification. */
-    @Volatile override var world: GLMatrix = GLMatrix.getIdentity()
+    override var world: GLMatrix by Delegates.observable(GLMatrix.getIdentity()) { property, old, new -> propertyChanged(property, old, new) }
     /** Inverse [world] transform matrix. */
-    @Volatile override var iworld: GLMatrix = GLMatrix.getIdentity()
+    override var iworld: GLMatrix by Delegates.observable(GLMatrix.getIdentity()) { property, old, new -> propertyChanged(property, old, new) }
     /** Model transform matrix. Will create inverse [imodel] upon modification. */
-    @Volatile override var model: GLMatrix = GLMatrix.getIdentity()
+    override var model: GLMatrix by Delegates.observable(GLMatrix.getIdentity()) { property, old, new -> propertyChanged(property, old, new) }
     /** Inverse [world] transform matrix. */
-    @Volatile override var imodel: GLMatrix = GLMatrix.getIdentity()
+    override var imodel: GLMatrix by Delegates.observable(GLMatrix.getIdentity()) { property, old, new -> propertyChanged(property, old, new) }
 
     /** View matrix. Will create inverse [iview] upon modification. */
-    @Volatile override var view: GLMatrix = GLMatrix.getIdentity()
+    override var view: GLMatrix by Delegates.observable(GLMatrix.getIdentity()) { property, old, new -> propertyChanged(property, old, new) }
     /** Inverse [view] matrix. */
-    @Volatile override var iview: GLMatrix = GLMatrix.getIdentity()
+    override var iview: GLMatrix by Delegates.observable(GLMatrix.getIdentity()) { property, old, new -> propertyChanged(property, old, new) }
 
     /** Projection matrix. Will create inverse [iprojection] upon modification. */
-    @Volatile override var projection: GLMatrix = GLMatrix.getIdentity()
+    override var projection: GLMatrix by Delegates.observable(GLMatrix.getIdentity()) { property, old, new -> propertyChanged(property, old, new) }
     /** Inverse [projection] transform matrix. */
-    @Volatile override var iprojection: GLMatrix = GLMatrix.getIdentity()
+    override var iprojection: GLMatrix by Delegates.observable(GLMatrix.getIdentity()) { property, old, new -> propertyChanged(property, old, new) }
 
     /** ModelView matrix. Will create inverse [imodelview] upon modification. */
-    @Volatile override var modelView: GLMatrix = GLMatrix.getIdentity()
+    override var modelView: GLMatrix by Delegates.observable(GLMatrix.getIdentity()) { property, old, new -> propertyChanged(property, old, new) }
     /** Inverse [modelView] transform matrix. */
-    @Volatile override var imodelView: GLMatrix = GLMatrix.getIdentity()
+    override var imodelView: GLMatrix by Delegates.observable(GLMatrix.getIdentity()) { property, old, new -> propertyChanged(property, old, new) }
 
     /** ModelViewProjection matrix. */
-    @Volatile override var mvp: GLMatrix = GLMatrix.getIdentity()
+    override var mvp: GLMatrix by Delegates.observable(GLMatrix.getIdentity()) { property, old, new -> propertyChanged(property, old, new) }
 
     /** World position of the Node. Setting will trigger [world] update. */
-    @Volatile override var position: GLVector = GLVector(0.0f, 0.0f, 0.0f)
-        set(v) {
-            this.needsUpdate = true
-            this.needsUpdateWorld = true
-            field = v
-        }
+    override var position: GLVector by Delegates.observable(GLVector(0.0f, 0.0f, 0.0f)) { property, old, new -> propertyChanged(property, old, new) }
 
     /** x/y/z scale of the Node. Setting will trigger [world] update. */
-    @Volatile override var scale: GLVector = GLVector(1.0f, 1.0f, 1.0f)
-        set(v) {
-            this.needsUpdate = true
-            this.needsUpdateWorld = true
-            field = v
-        }
+    override var scale: GLVector by Delegates.observable(GLVector(1.0f, 1.0f, 1.0f)) { property, old, new -> propertyChanged(property, old, new) }
 
     /** Rotation of the Node. Setting will trigger [world] update. */
-    @Volatile override var rotation: Quaternion = Quaternion(0.0f, 0.0f, 0.0f, 1.0f)
-        set(q) {
-            this.needsUpdate = true
-            this.needsUpdateWorld = true
-            field = q
-        }
+    override var rotation: Quaternion by Delegates.observable(Quaternion(0.0f, 0.0f, 0.0f, 1.0f)) { property, old, new -> propertyChanged(property, old, new) }
 
     /** Children of the Node. */
     @Transient var children: CopyOnWriteArrayList<Node>
@@ -135,6 +124,13 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
     var needsUpdate = true
     /** Stores whether the [world] matrix needs an update. */
     var needsUpdateWorld = true
+
+    protected fun <R> propertyChanged(property: KProperty<*>, old: R, new: R): Unit {
+        if(property.name == "rotation" || property.name == "position" || property.name  == "scale") {
+            needsUpdate = true
+            needsUpdateWorld = true
+        }
+    }
 
     init {
         this.createdAt = (Timestamp(Date().time).time).toLong()
@@ -217,21 +213,19 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
         if (needsUpdateWorld or force) {
             if (this.parent == null || this.parent is Scene) {
                 world.copyFrom(model)
-                //          this.world.translate(this.position.x(), this.position.y(), this.position.z())
             } else {
                 world.copyFrom(parent!!.world)
                 world.mult(this.model)
-                //m.translate(this.position.x(), this.position.y(), this.position.z())
             }
 
             this.needsUpdateWorld = false
         }
 
         if (recursive) {
-            this.children.forEach { it.updateWorld(true, true) }
+            this.children.forEach { it.updateWorld(true, force) }
             // also update linked nodes -- they might need updated
             // model/view/proj matrices as well
-            this.linkedNodes.forEach { it.updateWorld(true, true) }
+            this.linkedNodes.forEach { it.updateWorld(true, force) }
         }
     }
 
@@ -270,35 +264,41 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
     }
 
 
-    fun generateBoundingBox() {
+    fun generateBoundingBox(): FloatArray {
+        if (this is HasGeometry) {
+            val position = vertices.position()
+            val limit = vertices.limit()
 
-        if (this is Mesh) {
-            if (this.vertices.capacity() == 0) {
-                System.err.println("Zero vertices currently, returning null bounding box")
+            vertices.position(0)
+
+            if (vertices.capacity() == 0) {
+                logger.warn("$name: Zero vertices currently, returning empty bounding box")
                 boundingBoxCoords = floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
             } else {
-                val verticesFloat = this.vertices.array()
+                val tmp = floatArrayOf(0.0f, 0.0f, 0.0f)
+                while(vertices.hasRemaining()) {
+                    vertices.get(tmp)
 
-                val x = verticesFloat.filterIndexed { i, fl -> (i + 3).mod(3) == 0 }
-                val y = verticesFloat.filterIndexed { i, fl -> (i + 2).mod(3) == 0 }
-                val z = verticesFloat.filterIndexed { i, fl -> (i + 1).mod(3) == 0 }
+                    boundingBoxCoords[0] = minOf(boundingBoxCoords[0], tmp[0])
+                    boundingBoxCoords[2] = minOf(boundingBoxCoords[2], tmp[1])
+                    boundingBoxCoords[4] = minOf(boundingBoxCoords[4], tmp[2])
 
-                val xmin: Float = x.min()!!.toFloat()
-                val xmax: Float = x.max()!!.toFloat()
+                    boundingBoxCoords[1] = maxOf(boundingBoxCoords[1], tmp[0])
+                    boundingBoxCoords[3] = maxOf(boundingBoxCoords[3], tmp[1])
+                    boundingBoxCoords[5] = maxOf(boundingBoxCoords[5], tmp[2])
+                }
 
-                val ymin: Float = y.min()!!.toFloat()
-                val ymax: Float = y.max()!!.toFloat()
-
-                val zmin: Float = z.min()!!.toFloat()
-                val zmax: Float = z.max()!!.toFloat()
-
-                boundingBoxCoords = floatArrayOf(xmin, xmax, ymin, ymax, zmin, zmax)
-                System.err.println("Created bouding box with ${boundingBoxCoords.joinToString(", ")}")
+                logger.debug("$name: Calculated bounding box with ${boundingBoxCoords.joinToString(", ")}")
             }
+
+            vertices.position(position)
+            vertices.limit(limit)
         } else {
-            System.err.println("Assuming 3rd party BB generation")
+            logger.warn("$name: Assuming 3rd party BB generation")
             // assume bounding box was created somehow
         }
+
+        return boundingBoxCoords
     }
 
     private val shaderPropertyFieldCache = HashMap<String, Field>()
@@ -326,6 +326,41 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
         }
 
         return p as? Scene
+    }
+
+    /**
+     * Centers the [Node] on a given position.
+     *
+     * @param[position] - the position to center the [Node] on.
+     * @return GLVector - the center offset calculcated for the [Node].
+     */
+    fun centerOn(position: GLVector): GLVector {
+        val min = GLMatrix.getScaling(this.scale).mult(GLVector(this.boundingBoxCoords[0], this.boundingBoxCoords[2], this.boundingBoxCoords[4], 1.0f))
+        val max = GLMatrix.getScaling(this.scale).mult(GLVector(this.boundingBoxCoords[1], this.boundingBoxCoords[3], this.boundingBoxCoords[5], 1.0f))
+
+        val center = (max - min) * 0.5f
+        this.position = position - center
+
+        return center
+    }
+
+    /**
+     * Fits the [Node] within a box of the given dimension.
+     *
+     * @param[sideLength] - The size of the box to fit the [Node] uniformly into.
+     * @return GLVector - containing the applied scaling
+     */
+    fun fitInto(sideLength: Float): GLVector {
+        val min = GLVector(this.boundingBoxCoords[0], this.boundingBoxCoords[2], this.boundingBoxCoords[4], 1.0f)
+        val max = GLVector(this.boundingBoxCoords[1], this.boundingBoxCoords[3], this.boundingBoxCoords[5], 1.0f)
+
+        (max - min).toFloatArray().max()?.let { maxDimension ->
+            val scaling = sideLength/maxDimension
+
+            this.scale = GLVector(scaling, scaling, scaling)
+        }
+
+        return this.scale
     }
 
     companion object NodeHelpers {

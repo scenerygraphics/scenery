@@ -26,6 +26,10 @@ import java.util.*
  * @author Ulrik Guenther <hello@ulrik.is>
  */
 
+fun Long.toHexString(): String {
+    return String.format("0x%X", this)
+}
+
 fun VkCommandBuffer.endCommandBuffer() {
     if(vkEndCommandBuffer(this) != VK_SUCCESS) {
         throw AssertionError("Failed to end command buffer $this")
@@ -364,7 +368,7 @@ class VU {
                 cleanup = { descriptorLayout.free(); layoutBinding.free() }
             )
 
-            logger.debug("Created DSL $descriptorSetLayout with $descriptorNum descriptors with $descriptorCount elements.")
+            logger.debug("Created DSL ${descriptorSetLayout.toHexString()} with $descriptorNum descriptors with $descriptorCount elements.")
 
             return descriptorSetLayout
         }
@@ -391,14 +395,14 @@ class VU {
                 cleanup = { descriptorLayout.free(); layoutBinding.free() }
             )
 
-            logger.debug("Created DSL $descriptorSetLayout with ${types.size} descriptors.")
+            logger.debug("Created DSL ${descriptorSetLayout.toHexString()} with ${types.size} descriptors.")
 
             return descriptorSetLayout
         }
 
         fun createDescriptorSetDynamic(device: VkDevice, descriptorPool: Long, descriptorSetLayout: Long,
                                        bindingCount: Int, buffer: VulkanBuffer): Long {
-            logger.debug("Creating dynamic descriptor set with ${bindingCount} bindings, DSL=$descriptorSetLayout")
+            logger.debug("Creating dynamic descriptor set with $bindingCount bindings, DSL=${descriptorSetLayout.toHexString()}")
 
             val pDescriptorSetLayout = MemoryUtil.memAllocLong(1)
             pDescriptorSetLayout.put(0, descriptorSetLayout)

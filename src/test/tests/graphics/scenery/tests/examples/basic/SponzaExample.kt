@@ -36,7 +36,8 @@ class SponzaExample : SceneryBase("SponzaExample", windowWidth = 1280, windowHei
         with(transparentBox) {
             position = GLVector(1.5f, 1.0f, -4.0f)
             material.transparent = true
-            material.diffuse = GLVector(0.0f, 0.0f, 1.0f)
+            material.opacity = 0.8f
+            material.diffuse = GLVector(0.9f, 0.1f, 0.1f)
             name = "transparent box"
             scene.addChild(this)
         }

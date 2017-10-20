@@ -139,6 +139,7 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         this.texcoordSize = 2
 
         this.material.transparent = true
+        this.material.doubleSided = true
         this.useClassDerivedShader = true
 
         colormaps.put("grays", this.javaClass.getResource("colormap-grays.png").file)
@@ -302,13 +303,18 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
             )
 
             thread {
-                val histogram = Histogram<Short>(65536)
+                val histogram = Histogram<Int>(65536)
                 val buf = imageData.asShortBuffer()
                 while (buf.hasRemaining()) {
-                    histogram.add(buf.get())
+                    histogram.add(buf.get().toInt() + Short.MAX_VALUE + 1)
                 }
 
-                logger.info("Min/max of $id: ${histogram.min()}/${histogram.max()} in ${histogram.bins.size}")
+                logger.info("Min/max of $id: ${histogram.min()}/${histogram.max()} in ${histogram.bins.size} bins")
+
+                this.trangemin = histogram.min().toFloat()
+                this.trangemax = histogram.max().toFloat()
+
+                this.maxsteps = Math.floor(maxOf(sizeX, sizeY, sizeZ) * 1.3).toInt()
             }
 
             volumes.put(id, descriptor)

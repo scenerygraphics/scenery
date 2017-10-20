@@ -6,11 +6,11 @@ layout(location = 1) in vec3 vertexNormal;
 layout(location = 2) in vec2 vertexTexCoord;
 
 layout(location = 0) out VertexData {
-    vec2 textureCoord;
-    mat4 inverseProjection;
-    mat4 inverseModelView;
-    mat4 MVP;
+    vec3 FragPosition;
+    vec3 Normal;
+    vec2 TexCoord;
 } Vertex;
+
 
 layout(set = 0, binding = 0) uniform VRParameters {
     mat4 projectionMatrices[2];
@@ -44,33 +44,9 @@ layout(set = 2, binding = 0) uniform Matrices {
 	int isBillboard;
 } ubo;
 
-layout(set = 4, binding = 0) uniform ShaderProperties {
-    float voxelSizeX;
-    float voxelSizeY;
-    float voxelSizeZ;
-    int sizeX;
-    int sizeY;
-    int sizeZ;
-    float trangemin;
-    float trangemax;
-    float boxMin_x;
-    float boxMin_y;
-    float boxMin_z;
-    float boxMax_x;
-    float boxMax_y;
-    float boxMax_z;
-    int maxsteps;
-    float alpha_blending;
-    float gamma;
-};
-
 layout(push_constant) uniform currentEye_t {
     int eye;
 } currentEye;
-
-float max3 (vec3 v) {
-  return max (max (v.x, v.y), v.z);
-}
 
 void main()
 {
@@ -84,24 +60,35 @@ void main()
     mv = (vrParameters.stereoEnabled ^ 1) * ViewMatrix * ubo.ModelMatrix + (vrParameters.stereoEnabled * headToEye * ViewMatrix * ubo.ModelMatrix);
 	projectionMatrix = (vrParameters.stereoEnabled ^ 1) * ubo.ProjectionMatrix + vrParameters.stereoEnabled * vrParameters.projectionMatrices[currentEye.eye];
 
-	vec3 L = vec3(sizeX, sizeY, sizeZ) * vec3(voxelSizeX, voxelSizeY, voxelSizeZ);
+	if(ubo.isBillboard > 0) {
+		mv[0][0] = 1.0f;
+		mv[0][1] = .0f;
+		mv[0][2] = .0f;
 
-	float Lmax = max3(L);
+		mv[1][0] = .0f;
+		mv[1][1] = 1.0f;
+		mv[1][2] = .0f;
 
-	mat4 invScale = mat4(1.0);
-	invScale[0][0] = Lmax/L.x;
-	invScale[1][1] = Lmax/L.y;
-	invScale[2][2] = Lmax/L.z;
+		mv[2][0] = .0f;
+		mv[2][1] = .0f;
+		mv[2][2] = 1.0f;
+	}
 
-	mat4 scale = mat4(1.0);
-	scale[0][0] = L.x/Lmax;
-	scale[1][1] = L.y/Lmax;
-	scale[2][2] = L.z/Lmax;
+	nMVP = projectionMatrix*mv;
 
-    Vertex.inverseProjection = inverse(projectionMatrix);
-    Vertex.inverseModelView = invScale * inverse(mv);
-    Vertex.MVP = projectionMatrix * mv;
+//    Vertex.Normal = mat3(ubo.NormalMatrix) * normalize(vertexNormal);
+    Vertex.Normal = mat3(ubo.NormalMatrix)*vec3(1.0, 0.0, 0.0);
+    Vertex.TexCoord = vertexTexCoord;
+    Vertex.FragPosition = vec3(ubo.ModelMatrix * vec4(vertexPosition, 1.0));
 
-    Vertex.textureCoord = vec2((gl_VertexIndex << 1) & 2, gl_VertexIndex & 2);
-    gl_Position = vec4(Vertex.textureCoord * 2.0f - 1.0f, 0.0f, 1.0f);
+    vec4 p = nMVP * vec4(vertexPosition, 1.0);
+	gl_Position = p;
+	if(p.w == 0.0f) {
+	    p.w = 0.000001;
+	}
+
+    gl_PointSize = (max(vertexTexCoord.x, vertexTexCoord.y)/10.0) / p.w;
+
 }
+
+

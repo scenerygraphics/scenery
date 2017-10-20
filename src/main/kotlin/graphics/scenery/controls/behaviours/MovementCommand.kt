@@ -3,6 +3,8 @@ package graphics.scenery.controls.behaviours
 import graphics.scenery.Camera
 import org.scijava.ui.behaviour.ClickBehaviour
 import graphics.scenery.Node
+import graphics.scenery.utils.LazyLogger
+import org.slf4j.Logger
 import kotlin.reflect.KProperty
 
 /**
@@ -16,6 +18,7 @@ import kotlin.reflect.KProperty
 class MovementCommand(private val name: String, private val direction: String, private var n: () -> Node?) : ClickBehaviour {
 
     private val node: Node? by NodeDelegate()
+    private val logger: Logger by LazyLogger()
 
     inner class NodeDelegate {
         operator fun getValue(thisRef: Any?, property: KProperty<*>): Node? {
@@ -28,7 +31,7 @@ class MovementCommand(private val name: String, private val direction: String, p
     }
 
     /** Movement speed multiplier */
-    private var speed = 0.01f
+    private var speed = 0.1f
 
     /**
      * Additional constructor to directly adjust movement speed.
@@ -48,9 +51,12 @@ class MovementCommand(private val name: String, private val direction: String, p
      * this behaviour. The camera is then moved in the corresponding direction.
      */
     @Synchronized override fun click(x: Int, y: Int) {
+//        logger.info("moving!")
         node?.let { node ->
             if (node.lock.tryLock()) {
                 if(node is Camera) {
+                    logger.info("Moving by " + node.deltaT * speed)
+//                    logger.info("Camera delta=${node.deltaT}")
                     when (direction) {
                         "forward" -> node.position = node.position + node.forward * speed * node.deltaT
                         "back" -> node.position = node.position - node.forward * speed * node.deltaT
@@ -58,6 +64,7 @@ class MovementCommand(private val name: String, private val direction: String, p
                         "right" -> node.position = node.position + node.forward.cross(node.up).normalized * speed * node.deltaT
                         "up" -> node.position = node.position + node.up * speed * node.deltaT
                         "down" -> node.position = node.position + node.up * -1.0f * speed * node.deltaT
+                        else -> {}
                     }
                 } else {
                     // need to find a camera; if we can't find one, just return
@@ -69,6 +76,7 @@ class MovementCommand(private val name: String, private val direction: String, p
                             "right" -> node.position = node.position + cam.forward.cross(cam.up).normalized * speed * cam.deltaT
                             "up" -> node.position = node.position + cam.up * speed * cam.deltaT
                             "down" -> node.position = node.position + cam.up * -1.0f * speed * cam.deltaT
+                            else -> {}
                         }
                     }
                 }
