@@ -122,7 +122,7 @@ open class UBO {
 
             if(memberOffsets[it.key] != null) {
                 // position in buffer is known, use it
-//                logger.info("${it.key} goes to ${memberOffsets[it.key]!!}")
+                logger.trace("{} goes to {}", it.key, memberOffsets[it.key]!!)
                 data.position(originalPos + memberOffsets[it.key]!!)
             } else {
                 // position in buffer is not explicitly known, advance based on size

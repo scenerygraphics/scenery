@@ -1,13 +1,14 @@
 #version 450 core
 #extension GL_ARB_separate_shader_objects: enable
 
-//layout(set = 5, binding = 0) uniform sampler2D hdrColor;
-//layout(set = 5, binding = 1) uniform sampler2D depth;
+layout(set = 5, binding = 0) uniform sampler2D InputOutput;
+layout(set = 5, binding = 1) uniform sampler2D InputOutputDepth;
 
 layout(location = 0) in VertexData {
     vec2 textureCoord;
     mat4 inverseProjection;
     mat4 inverseModelView;
+    mat4 MVP;
 } Vertex;
 
 layout(location = 0) out vec4 FragColor;
@@ -25,13 +26,6 @@ struct Light {
   	vec4 Color;
 };
 
-struct MaterialInfo {
-    vec3 Ka;
-    vec3 Kd;
-    vec3 Ks;
-    float Shininess;
-};
-
 layout(set = 1, binding = 0) uniform LightParameters {
     mat4 ViewMatrix;
     vec3 CamPosition;
@@ -39,10 +33,17 @@ layout(set = 1, binding = 0) uniform LightParameters {
 	Light lights[MAX_NUM_LIGHTS];
 };
 
-layout(set = 4, binding = 0) uniform sampler2D ObjectTextures[NUM_OBJECT_TEXTURES];
-layout(set = 4, binding = 1) uniform usampler3D VolumeTextures;
+layout(set = 2, binding = 0) uniform Matrices {
+	mat4 ModelMatrix;
+	mat4 NormalMatrix;
+	mat4 ProjectionMatrix;
+	int isBillboard;
+} ubo;
 
-layout(set = 5, binding = 0) uniform ShaderProperties {
+layout(set = 3, binding = 0) uniform sampler2D ObjectTextures[NUM_OBJECT_TEXTURES];
+layout(set = 3, binding = 1) uniform usampler3D VolumeTextures;
+
+layout(set = 4, binding = 0) uniform ShaderProperties {
     float voxelSizeX;
     float voxelSizeY;
     float voxelSizeZ;
@@ -60,11 +61,6 @@ layout(set = 5, binding = 0) uniform ShaderProperties {
     int maxsteps;
     float alpha_blending;
     float gamma;
-};
-
-layout(set = 3, binding = 0) uniform MaterialProperties {
-    MaterialInfo Material;
-    int materialType;
 };
 
 float PI_r = 0.3183098;
@@ -117,6 +113,15 @@ Intersection intersectBox(vec4 r_o, vec4 r_d, vec4 boxmin, vec4 boxmax)
 	return Intersection(smallest_tmax > largest_tmin, largest_tmin, smallest_tmax);
 }
 
+vec3 posFromDepth(vec2 textureCoord) {
+    float z = texture(InputOutputDepth, textureCoord).r;
+    float x = textureCoord.x * 2.0 - 1.0;
+    float y = (1.0 - textureCoord.y) * 2.0 - 1.0;
+    vec4 projectedPos = Vertex.inverseProjection * vec4(x, y, z, 1.0);
+
+    return projectedPos.xyz/projectedPos.w;
+}
+
 void main()
 {
     // convert range bounds to linear map:
@@ -159,21 +164,69 @@ void main()
       if (!inter.hit || inter.tfar <= 0)
       {
        	FragColor = vec4(0.0f, 0.0f, 0.0f, 0.0f);
+       	gl_FragDepth = texture(InputOutputDepth, Vertex.textureCoord).r;
       	return;
       }
 
-//      const float tnear = inter.tnear;
-//      const float tfar = max(inter.tfar, 0.0f);
-//
       const float tnear = max(inter.tnear, 0.0f);
       const float tfar = inter.tfar;
 
       const float tstep = abs(tnear-tfar)/(maxsteps);
 
       // precompute vectors:
-      const vec3 vecstep = 0.5*tstep*direc.xyz;
+      const vec3 vecstep = 0.5 * tstep * direc.xyz;
       vec3 pos = 0.5 * (1.0 + orig.xyz + tnear * direc.xyz);
       vec3 stop = 0.5 * (1.0 + orig.xyz + tfar * direc.xyz);
+
+      vec4 stopNDC = Vertex.MVP * vec4(orig.xyz + tfar * direc.xyz, 1.0);
+      stopNDC *= 1.0/stopNDC.w;
+
+      vec4 startNDC = Vertex.MVP * vec4(orig.xyz + tnear * direc.xyz, 1.0);
+      startNDC *= 1.0/startNDC.w;
+//      gl_FragDepth = texture(InputOutputDepth, Vertex.textureCoord).r;
+
+
+//      float d = (geomstart.z + 1.0)/2.0;
+
+//      float d = geomstart.z;
+//      if(d > texture(InputDepth, Vertex.textureCoord).r) {
+//        FragColor = vec4(0.0, 0.0, 0.0, 0.0);
+//        return;
+//      }
+
+//      d = (stopNDC.z + 1.0)/2.0;
+
+//      if(stopWorld.z > texture(InputDepth, Vertex.textureCoord).r) {
+      vec4 geompos = Vertex.MVP * vec4(posFromDepth(Vertex.textureCoord), 1.0);
+
+      // geometry is in front of volume, don't raycast at all
+      if(startNDC.z > texture(InputOutputDepth, Vertex.textureCoord).r) {
+        FragColor = vec4(0.0, 1.0, 0.0, 1.0);
+        gl_FragDepth = 0.0;
+//        return;
+      }
+
+      // geometry intersects volume, terminate rays early
+      if(stopNDC.z > texture(InputOutputDepth, Vertex.textureCoord).r) {
+        vec4 stoptmp = Vertex.inverseModelView*vec4(posFromDepth(Vertex.textureCoord), 1.0);
+        stop = 0.5 * (1.0 + stoptmp.xyz/stoptmp.w);
+//        FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+//        stop0 *= 1.0/stop0.w;
+//
+//        vec4 stopW = Vertex.inverseModelView * stop0;
+//        stop = stopW.xyz/stopW.w;
+//        FragColor = vec4(1.0, 0.0, 0.0, 0.0);
+        FragColor = vec4(0.0);
+        gl_FragDepth = 0.0;
+//        return;
+      }
+
+//      FragColor = vec4(stop, 1.0);
+//      gl_FragDepth = 0.0f;
+//      return;
+
+
+      vec3 origin = pos;
 
       // raycasting loop:
       float maxp = 0.0f;
@@ -183,56 +236,55 @@ void main()
       float colVal = 0.0;
       float alphaVal = 0.0;
       float newVal = 0.0;
+//      gl_FragDepth = geompos.z/geompos.w;
 
+      if(numLights == 0) {
+        FragColor = vec4(0.0, 0.0, 0.0, 0.0);
+       	gl_FragDepth = texture(InputOutputDepth, Vertex.textureCoord).r;
+      }
 
 
       if (alpha_blending <= 0.f){
+          gl_FragDepth = 0.0;
           // nop alpha blending
-          for(int i = 0; i < maxsteps; ++i, pos += vecstep)
-          {
+          for(int i = 0; i < maxsteps; ++i, pos += vecstep) {
             float volume_sample = texture(VolumeTextures, pos.xyz).r;
             maxp = max(maxp,volume_sample);
-
           }
+
           colVal = clamp(pow(ta*maxp + tb,gamma),0.f,1.f);
       }
       else{
           // alpha blending:
-          float opacity= 1.0f;
-          for(int i = 0; i < maxsteps; ++i, pos += vecstep){
-
+          float opacity = 1.0f;
+          for(int i = 0; i < maxsteps; ++i, pos += vecstep) {
                float volume_sample = texture(VolumeTextures, pos.xyz).r;
                newVal = clamp(ta*volume_sample + tb,0.f,1.f);
                colVal = max(colVal,opacity*newVal);
 
                opacity  *= (1.f-alpha_blending*clamp(newVal,0.f,1.f));
 
+                vec4 geomstart = Vertex.MVP * vec4(pos, 1.0);
+                geomstart *= 1.0/geomstart.w;
+                gl_FragDepth = geomstart.z;
 
-               if (opacity<=0.02f)
+               if (opacity<=0.02f) {
                     break;
-
+               }
           }
       }
 
 
       alphaVal = clamp(colVal, 0.0, 1.0);
 
-      // FIXME: this is a workaround for grez lines appearing at borders
+      // FIXME: this is a workaround for grey lines appearing at borders
       alphaVal = alphaVal<0.01?0.0f:alphaVal;
 
       // Mapping to transfer function range and gamma correction:
-
-
       vec4 color = texture(ObjectTextures[3], vec2(colVal, 0.5f));
       color.w = alphaVal;
 
-      // useless comment
       FragColor = color;
-
-      //FragColor = vec4(colVal, 0.0f, 0.0f, alphaVal);
-      //FragColor = vec4(1.0f, 0.0f, 0.0f, alphaVal);
-
-      // FIXME sanity check: this should give the colormap texture (but doesnt!)
-      //FragColor = texture(ObjectTextures[3], vec2(textureCoord.s ,0.5f));
+//      gl_FragDepth = p.w;
 }
 

@@ -15,23 +15,23 @@ import kotlin.concurrent.thread
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class VolumeExample: SceneryBase("Volume Rendering example") {
+class VolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
     var hmd: TrackedStereoGlasses? = null
 
     override fun init() {
-        renderer = Renderer.createRenderer(hub, applicationName, scene, 1280, 720)
+        renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
         hub.add(SceneryElement.Renderer, renderer!!)
 
         val cam: Camera = DetachedHeadCamera(hmd)
         with(cam) {
-            position = GLVector(0.0f, -1.0f, 5.0f)
+            position = GLVector(0.0f, 0.5f, 5.0f)
             perspectiveCamera(50.0f, 1.0f*windowWidth, 1.0f*windowHeight)
             active = true
 
             scene.addChild(this)
         }
 
-        val shell = Box(GLVector(120.0f, 120.0f, 120.0f), insideNormals = true)
+        val shell = Box(GLVector(20.0f, 20.0f, 20.0f), insideNormals = true)
         shell.material.doubleSided = true
         shell.material.diffuse = GLVector(0.2f, 0.2f, 0.2f)
         shell.material.specular = GLVector.getNullVector(3)
@@ -40,7 +40,21 @@ class VolumeExample: SceneryBase("Volume Rendering example") {
 
         val volume = Volume()
         volume.colormap = "jet"
+
+        val v2 = Volume()
+        v2.colormap = "viridis"
+        v2.position = GLVector(1.0f, 0.0f, -2.0f)
+
+        scene.addChild(v2)
         scene.addChild(volume)
+
+        val b = Box()
+        b.position = GLVector(-1.0f, 0.0f, 0.0f)
+        scene.addChild(b)
+
+        val b2 = Box()
+        b2.position = GLVector(2.0f, 0.0f, 0.0f)
+        scene.addChild(b2)
 
         val lights = (0..3).map {
             PointLight()
@@ -70,14 +84,11 @@ class VolumeExample: SceneryBase("Volume Rendering example") {
         thread {
             while(!scene.initialized) { Thread.sleep(200) }
 
-            volume.readFromRaw(Paths.get(nextVolume()), replace = true)
-            logger.info("Got volume!")
-            while(true) {
-                volume.rotation.rotateByAngleY(0.001f)
-                volume.needsUpdate = true
+            val v = nextVolume()
+            volume.readFromRaw(Paths.get(v), replace = true)
+            v2.readFromRaw(Paths.get(v), replace = true)
 
-                Thread.sleep(20)
-            }
+            logger.info("Got volume!")
         }
 
     }

@@ -55,7 +55,11 @@ class Statistics(override var hub: Hub?) : Hubable {
         }
     }
 
-    fun addTimed(name: String, lambda: () -> Any) {
+    fun add(name: String, value: Number, isTime: Boolean = true) {
+        add(name, value.toFloat(), isTime)
+    }
+
+    inline fun addTimed(name: String, lambda: () -> Any) {
         val start = System.nanoTime()
         lambda.invoke()
         val duration = System.nanoTime() - start

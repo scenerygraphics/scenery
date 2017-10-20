@@ -12,6 +12,7 @@ class OpenGLShaderProgram(var gl: GL4, val modules: HashMap<GLShaderType, OpenGL
 
     var program: GLProgram
     val uboSpecs = LinkedHashMap<String, OpenGLShaderModule.UBOSpec>()
+    private val blockIndices = HashMap<String, Int>()
     var id: Int
 
     init {
@@ -66,5 +67,11 @@ class OpenGLShaderProgram(var gl: GL4, val modules: HashMap<GLShaderType, OpenGL
             .map { it.name.to(it.offset.toInt()) }
             .toMap()
 //        val specs = shaderPropertiesSpec.map { it.members }.flatMap { it.entries }.map { it.key.to(it.value.offset) }
+    }
+
+    fun getUniformBlockIndex(name: String): Int {
+        return blockIndices.getOrPut(name, {
+            gl.glGetUniformBlockIndex(program.id, name)
+        })
     }
 }

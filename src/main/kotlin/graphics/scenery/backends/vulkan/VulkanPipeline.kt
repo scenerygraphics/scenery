@@ -108,7 +108,6 @@ class VulkanPipeline(val device: VkDevice, val pipelineCache: Long? = null): Aut
                         descriptorSetLayouts: List<Long>, onlyForTopology: GeometryType? = null) {
         val setLayouts = memAllocLong(descriptorSetLayouts.size).put(descriptorSetLayouts.toLongArray())
         setLayouts.flip()
-        logger.debug("${descriptorSetLayouts.joinToString(", ")}")
 
 //        descriptorSetLayouts.forEachIndexed { i, layout -> setLayouts.put(i, layout) }
 
@@ -211,6 +210,10 @@ class VulkanPipeline(val device: VkDevice, val pipelineCache: Long? = null): Aut
             GeometryType.POLYGON -> VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
             GeometryType.TRIANGLE_STRIP -> VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP
         }
+    }
+
+    fun orderedDescriptorSpecs(): List<MutableMap.MutableEntry<String, VulkanShaderModule.UBOSpec>> {
+        return descriptorSpecs.entries.sortedBy { it.value.binding }.sortedBy { it.value.set }
     }
 
     override fun toString(): String {
