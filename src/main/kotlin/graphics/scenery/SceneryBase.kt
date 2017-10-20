@@ -58,16 +58,11 @@ open class SceneryBase(var applicationName: String,
     var running: Boolean = false
         protected set
 
-    var maxFrameskip = 5
+    var timeStep = 0.01f
 
-    var ticksPerSecond = 60000.0f
-        set(value) {
-            field = value
-            skipTicks = 1000000.0f/value
-        }
-
-    var skipTicks = 1000000.0f/ticksPerSecond
-        private set
+    private var accumulator = 0.0f
+    private var currentTime = millisecondTime()
+    private var t = 0.0f
 
     /**
      * the init function of [SceneryBase], override this in your subclass,
@@ -96,31 +91,21 @@ open class SceneryBase(var applicationName: String,
         logger.info("Started application as PID ${getProcessID()}")
 
         val master = System.getProperty("scenery.master").toBoolean()
+        val masterAddress = System.getProperty("scenery.MasterNode")
 
-        val publisher: NodePublisher? = if(master) {
+        val publisher: NodePublisher? = if (master) {
+            logger.info("Listening on 0.0.0.0:6666")
             NodePublisher(hub, "tcp://*:6666")
         } else {
             null
         }
-
-        publisher?.let { hub.add(SceneryElement.NodePublisher, it) }
-
-        val masterAddress = System.getProperty("scenery.MasterNode")
-        val subscriber: NodeSubscriber? = if(!master && masterAddress != null) {
-            logger.info("Will connect to master at $masterAddress")
-            NodeSubscriber(hub, masterAddress)
-        } else {
-            null
-        }
-
-        subscriber?.let { hub.add(SceneryElement.NodeSubscriber, it) }
 
         hub.add(SceneryElement.Statistics, stats)
         hub.add(SceneryElement.Settings, settings)
 
         settings.set("System.PID", getProcessID())
 
-        if(wantREPL) {
+        if (wantREPL) {
             repl = REPL(scene, stats, hub)
             repl?.addAccessibleObject(settings)
         }
@@ -145,48 +130,83 @@ open class SceneryBase(var applicationName: String,
 
         running = true
 
-        if(!master) {
+        if (!master && masterAddress != null) {
             thread {
+                logger.info("Will connect to master at $masterAddress")
+                val subscriber = NodeSubscriber(hub, masterAddress)
+
+                hub.add(SceneryElement.NodeSubscriber, subscriber)
+                scene.discover(scene, { it is Node }).forEachIndexed { index, node ->
+                    subscriber.nodes.put(index, node)
+                }
+
                 while (true) {
-                    subscriber?.process()
+                    subscriber.process()
+                    Thread.sleep(2)
+                }
+            }
+        } else {
+            thread {
+                publisher?.let {
+                    hub.add(SceneryElement.NodePublisher, it)
+                    scene.discover(scene, { it is Node }).forEachIndexed { index, node ->
+                        publisher.nodes.put(index, node)
+                    }
+                }
+
+                while (true) {
+                    publisher?.publish()
                     Thread.sleep(2)
                 }
             }
         }
 
-        var nextTick = getTickCount()
-        var interpolation: Float
+        var frameTime = 0.0f
 
-        while(!(renderer?.shouldClose ?: true)) {
-            val start = System.nanoTime()
-            var loops = 0
-
+        while (renderer?.shouldClose == false) {
             hub.getWorkingHMD()?.update()
 
-            while(getTickCount() > nextTick && loops < maxFrameskip) {
-                // update
-                stats.addTimed("sceneUpdate", updateFunction)
+            // only run loop if we are either in standalone mode, or master
+            // for details about the interpolation code, see
+            // https://gafferongames.com/post/fix_your_timestep/
+            if(master || masterAddress == null) {
+                val newTime = millisecondTime()
+                frameTime = newTime - currentTime
+                if(frameTime > 250.0f) {
+                    frameTime = 250.0f
+                }
 
-                nextTick += skipTicks
-                loops++
+                currentTime = newTime
+                accumulator += frameTime
+
+                while(accumulator >= timeStep) {
+                    // evolve state
+                    t += timeStep
+                    accumulator -= timeStep
+
+                    stats.addTimed("Scene.Update", updateFunction)
+                }
+
+                inputHandler?.window?.pollEvents()
+
+                val alpha = accumulator/timeStep
+
+                scene.activeObserver?.deltaT = alpha
             }
 
-            publisher?.publish()
-
-            interpolation = (1.0f*getTickCount() + skipTicks - nextTick)/skipTicks
-            scene.activeObserver?.deltaT = interpolation/10e4f
-
-            if(renderer?.managesRenderLoop ?: true) {
+            if (renderer?.managesRenderLoop != false) {
                 Thread.sleep(2)
             } else {
                 stats.addTimed("render", { renderer?.render() ?: 0.0f })
             }
 
-            if(statsRequested && ticks % 100L == 0L) {
+            if (statsRequested && ticks % 100L == 0L) {
                 logger.info("\nStatistics:\n=============\n$stats")
             }
 
-            stats.add("loop", System.nanoTime() - start*1.0f)
+            stats.add("loop", frameTime)
+            stats.add("ticks", ticks, isTime = false)
+
             ticks++
         }
 
@@ -227,12 +247,12 @@ open class SceneryBase(var applicationName: String,
         inputHandler.addKeyBinding("toggle_control_mode", keybinding)
     }
 
-    protected fun getTickCount(): Float = System.nanoTime()/1000.0f
+    protected fun millisecondTime(): Float = System.nanoTime() / 10e6f
 
     protected fun getDemoFilesPath(): String {
         val demoDir = System.getenv("SCENERY_DEMO_FILES")
 
-        if(demoDir == null) {
+        if (demoDir == null) {
             logger.warn("This example needs additional model files, see https://github.com/scenerygraphics/scenery#examples")
             logger.warn("Download the model files mentioned there and set the environment variable SCENERY_DEMO_FILES to the")
             logger.warn("directory where you have put these files.")
@@ -244,6 +264,6 @@ open class SceneryBase(var applicationName: String,
     }
 
     protected fun getProcessID(): Int {
-       return Integer.parseInt(ManagementFactory.getRuntimeMXBean().name.split("@".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()[0])
+        return Integer.parseInt(ManagementFactory.getRuntimeMXBean().name.split("@".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()[0])
     }
 }

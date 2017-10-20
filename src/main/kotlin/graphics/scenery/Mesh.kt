@@ -7,6 +7,8 @@ import java.nio.IntBuffer
  * Simple Mesh class to store geometry, inherits from [HasGeometry].
  * Can also be used for grouping objects easily.
  *
+ * Also see [HasGeomerty]  for more interface details.
+ *
  * @author Ulrik Günther <hello@ulrik.is>
  */
 open class Mesh(override var name: String = "Mesh") : Node(name), HasGeometry {

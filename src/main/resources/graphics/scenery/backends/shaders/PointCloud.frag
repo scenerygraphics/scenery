@@ -106,6 +106,11 @@ vec2 EncodeOctaH( vec3 n )
 }
 
 void main() {
+    vec2 coord = gl_PointCoord - vec2(0.5);
+    if(length(coord) > 0.5) {
+        discard;
+    }
+
     Position = Vertex.FragPosition;
     DiffuseAlbedo.rgb = vec3(0.0f, 0.0f, 0.0f);
 
@@ -146,4 +151,5 @@ component. If using Spherical Encoding, do not forget to use spherical decode fu
     } else {
         Normal = EncodedNormal;
     }
+
 }

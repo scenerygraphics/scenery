@@ -20,6 +20,7 @@ struct MaterialInfo {
     vec3 Kd;
     vec3 Ks;
     float Shininess;
+    float Opacity;
 };
 
 const int MATERIAL_HAS_DIFFUSE =  0x0001;
@@ -37,8 +38,8 @@ layout(binding = 0) uniform Matrices {
 } ubo;
 
 layout(binding = 1) uniform MaterialProperties {
-    MaterialInfo Material;
     int materialType;
+    MaterialInfo Material;
 };
 /*
     ObjectTextures[0] - ambient
