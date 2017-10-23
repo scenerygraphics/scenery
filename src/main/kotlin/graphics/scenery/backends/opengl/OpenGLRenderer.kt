@@ -511,7 +511,7 @@ class OpenGLRenderer(hub: Hub,
         return passes
     }
 
-    fun prepareShaderProgram(baseClass: Class<*>, shaders: Array<String>): OpenGLShaderProgram {
+    protected fun prepareShaderProgram(baseClass: Class<*>, shaders: Array<String>): OpenGLShaderProgram? {
 
         val modules = HashMap<GLShaderType, OpenGLShaderModule>()
 
@@ -520,13 +520,22 @@ class OpenGLRenderer(hub: Hub,
                 val m = OpenGLShaderModule(gl, "main", baseClass, "shaders/" + it)
                 modules.put(m.shaderType, m)
             } else {
-                logger.warn("Shader not found: shaders/$it")
+                if(Renderer::class.java.getResource("shaders/" + it) != null && baseClass !is Renderer) {
+                    val m = OpenGLShaderModule(gl, "main", Renderer::class.java, "shaders/" + it)
+                    modules.put(m.shaderType, m)
+                } else {
+                    logger.warn("Shader not found: shaders/$it")
+                    return null
+                }
             }
         }
 
         val program = OpenGLShaderProgram(gl, modules)
-
-        return program
+        return if(program.isValid()) {
+            program
+        } else {
+            null
+        }
     }
 
     override fun display(pDrawable: GLAutoDrawable) {
@@ -1287,7 +1296,7 @@ class OpenGLRenderer(hub: Hub,
                     }
 
                     arrayOf("LightParameters", "VRParameters").forEach { name ->
-                        if (shader.uboSpecs.containsKey(name)) {
+                        if (shader.uboSpecs.containsKey(name) && shader.isValid()) {
                             val index = shader.getUniformBlockIndex(name)
 
                             if (index == -1) {

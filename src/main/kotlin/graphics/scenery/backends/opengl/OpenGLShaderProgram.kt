@@ -42,7 +42,19 @@ class OpenGLShaderProgram(var gl: GL4, val modules: HashMap<GLShaderType, OpenGL
             }
         }
 
-        id = program.id
+        val result = intArrayOf(0)
+        gl.glGetProgramiv(program.id, GL4.GL_LINK_STATUS, result, 0)
+
+        id = if(result[0] != GL4.GL_TRUE) {
+            logger.error("An error occured during linking.")
+            -1
+        } else {
+            program.id
+        }
+    }
+
+    fun isValid(): Boolean {
+        return id > 0
     }
 
     fun use(gl: GL4) {
