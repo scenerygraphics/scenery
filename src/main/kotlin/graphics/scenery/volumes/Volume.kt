@@ -83,8 +83,6 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
     @ShaderProperty var voxelSizeY = 1.0f
     @ShaderProperty var voxelSizeZ = 1.0f
 
-    private val logger by LazyLogger()
-
     var colormaps = HashMap<String, String>()
 
     var colormap: String = "viridis"

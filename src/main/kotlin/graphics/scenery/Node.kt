@@ -22,7 +22,7 @@ import kotlin.reflect.KProperty
  * @property[name] The name of the [Node]
  */
 open class Node(open var name: String = "Node") : Renderable, Serializable {
-    private val logger by LazyLogger()
+    protected val logger by LazyLogger()
 
     /** Hash map used for storing metadata for the Node. [DeferredLightingRenderer] uses
      * it to e.g. store [OpenGLObjectState]. */
