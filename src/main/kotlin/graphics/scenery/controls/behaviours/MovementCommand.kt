@@ -55,8 +55,6 @@ class MovementCommand(private val name: String, private val direction: String, p
         node?.let { node ->
             if (node.lock.tryLock()) {
                 if(node is Camera) {
-                    logger.info("Moving by " + node.deltaT * speed)
-//                    logger.info("Camera delta=${node.deltaT}")
                     when (direction) {
                         "forward" -> node.position = node.position + node.forward * speed * node.deltaT
                         "back" -> node.position = node.position - node.forward * speed * node.deltaT
