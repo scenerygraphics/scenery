@@ -204,7 +204,7 @@ void main()
 
 		vec3 viewDir = normalize(CamPosition - FragPos);
 
-		for(int i = 0; i < numLights; ++i)
+		for(int i = 0; i < numLights; i++)
 		{
 		    vec3 lightPos = lights[i].Position.xyz;
             vec3 L = (lightPos - FragPos);
@@ -212,10 +212,6 @@ void main()
             vec3 H = normalize(L + V);
             float distance = length(L);
             L = normalize(L);
-
-            if(distance > lights[i].Radius) {
-                continue;
-            }
 
             float lightAttenuation = 1.0 / (1.0 + lights[i].Linear * distance + lights[i].Quadratic * distance * distance);
 
@@ -230,7 +226,7 @@ void main()
 
              	vec3 diffuse = NdotL * lights[i].Intensity * Albedo.rgb * lights[i].Color.rgb * (1.0f - ambientOcclusion);
 
-             	if(NdotL > 0) {
+             	if(NdotL > 0.0) {
              	    specular = pow(NdotH, (1.0-Specular)*4.0) * Albedo.rgb * lights[i].Color.rgb * lights[i].Intensity;
              	}
 
@@ -320,6 +316,12 @@ void main()
             FragColor = vec4(FragPos, 1.0f);
         }
 
-        gl_FragDepth = Depth;
+        if(textureCoord.y >= 0.97 || textureCoord.x >= 0.97 || textureCoord.y <= 0.03 || textureCoord.x <= 0.03) {
+            FragColor = mix(20.0*vec4(1.0, 201.0/255.0, 51.0/255.0,1.0), vec4(0.2, 0.2, 0.2, 1.0), step(fract(0.25 + 5.0*textureCoord.y - 5.0*textureCoord.x), 0.5));
+
+            gl_FragDepth = 0.0;
+        } else {
+            gl_FragDepth = Depth;
+        }
 	}
 }

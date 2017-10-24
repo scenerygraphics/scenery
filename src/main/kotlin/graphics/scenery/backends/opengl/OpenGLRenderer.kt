@@ -110,7 +110,7 @@ class OpenGLRenderer(hub: Hub,
     private var WINDOW_RESIZE_TIMEOUT = 200L
 
     /** Flag to indicate whether framebuffers have to be recreated */
-    private var mustRecreateFramebuffers = false
+    @Volatile private var mustRecreateFramebuffers = false
 
     /** GPU stats object */
     private var gpuStats: GPUStats? = null
@@ -121,7 +121,7 @@ class OpenGLRenderer(hub: Hub,
     var initialized = false
         private set
 
-    private val pbos: IntArray = intArrayOf(0, 0)
+    @Volatile private var pbos: IntArray = intArrayOf(0, 0)
     private var readIndex = 0
     private var updateIndex = 0
 
@@ -179,13 +179,15 @@ class OpenGLRenderer(hub: Hub,
                 return
             }
 
+            mustRecreateFramebuffers = true
+            gl.glDeleteBuffers(2, pbos, 0)
+            pbos[0] = 0
+            pbos[1] = 0
+
             window.width = lastWidth
             window.height = lastHeight
 
             drawable?.setSurfaceSize(window.width, window.height)
-            mustRecreateFramebuffers = true
-            pbos[0] = 0
-            pbos[1] = 0
 
             embedIn?.let { panel ->
                 panel.prefWidth = window.width.toDouble()
@@ -511,7 +513,7 @@ class OpenGLRenderer(hub: Hub,
         return passes
     }
 
-    fun prepareShaderProgram(baseClass: Class<*>, shaders: Array<String>): OpenGLShaderProgram {
+    protected fun prepareShaderProgram(baseClass: Class<*>, shaders: Array<String>): OpenGLShaderProgram? {
 
         val modules = HashMap<GLShaderType, OpenGLShaderModule>()
 
@@ -520,13 +522,22 @@ class OpenGLRenderer(hub: Hub,
                 val m = OpenGLShaderModule(gl, "main", baseClass, "shaders/" + it)
                 modules.put(m.shaderType, m)
             } else {
-                logger.warn("Shader not found: shaders/$it")
+                if(Renderer::class.java.getResource("shaders/" + it) != null && baseClass !is Renderer) {
+                    val m = OpenGLShaderModule(gl, "main", Renderer::class.java, "shaders/" + it)
+                    modules.put(m.shaderType, m)
+                } else {
+                    logger.warn("Shader not found: shaders/$it")
+                    return null
+                }
             }
         }
 
         val program = OpenGLShaderProgram(gl, modules)
-
-        return program
+        return if(program.isValid()) {
+            program
+        } else {
+            null
+        }
     }
 
     override fun display(pDrawable: GLAutoDrawable) {
@@ -1287,7 +1298,7 @@ class OpenGLRenderer(hub: Hub,
                     }
 
                     arrayOf("LightParameters", "VRParameters").forEach { name ->
-                        if (shader.uboSpecs.containsKey(name)) {
+                        if (shader.uboSpecs.containsKey(name) && shader.isValid()) {
                             val index = shader.getUniformBlockIndex(name)
 
                             if (index == -1) {
@@ -1469,21 +1480,21 @@ class OpenGLRenderer(hub: Hub,
         }
 
         embedIn?.let { embedPanel ->
-            if (shouldClose) {
+            if (shouldClose || mustRecreateFramebuffers) {
                 return
             }
 
             readIndex = (readIndex + 1) % 2
             updateIndex = (readIndex + 1) % 2
 
-            if (pbos[0] == 0 || pbos[1] == 0) {
+            if (pbos[0] == 0 || pbos[1] == 0 || mustRecreateFramebuffers) {
                 gl.glGenBuffers(2, pbos, 0)
 
                 gl.glBindBuffer(GL4.GL_PIXEL_PACK_BUFFER, pbos[0])
-                gl.glBufferData(GL4.GL_PIXEL_PACK_BUFFER, embedPanel.width.toInt() * embedPanel.height.toInt() * 4L, null, GL4.GL_STREAM_READ)
+                gl.glBufferData(GL4.GL_PIXEL_PACK_BUFFER, window.width * window.height * 4L, null, GL4.GL_STREAM_READ)
 
                 gl.glBindBuffer(GL4.GL_PIXEL_PACK_BUFFER, pbos[1])
-                gl.glBufferData(GL4.GL_PIXEL_PACK_BUFFER, embedPanel.width.toInt() * embedPanel.height.toInt() * 4L, null, GL4.GL_STREAM_READ)
+                gl.glBufferData(GL4.GL_PIXEL_PACK_BUFFER, window.width * window.height * 4L, null, GL4.GL_STREAM_READ)
 
                 gl.glBindBuffer(GL4.GL_PIXEL_PACK_BUFFER, 0)
             }
