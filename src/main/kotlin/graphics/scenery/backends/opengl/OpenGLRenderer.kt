@@ -180,6 +180,7 @@ class OpenGLRenderer(hub: Hub,
             }
 
             mustRecreateFramebuffers = true
+            gl.glDeleteBuffers(2, pbos, 0)
             pbos[0] = 0
             pbos[1] = 0
 
