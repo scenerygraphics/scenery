@@ -36,12 +36,12 @@ interface Display {
     fun hasCompositor(): Boolean
 
     /**
-     * Submit OpenGL texture IDs to the compositor
+     * Submit OpenGL texture IDs to the compositor. The texture is assumed to have the left eye in the
+     * left half, right eye in the right half.
      *
-     * @param[leftId] Texture ID of the left eye texture
-     * @param[rightId] Texture ID of the right eye texture
+     * @param[textureId] OpenGL Texture ID of the left eye texture
      */
-    fun submitToCompositor(leftId: Int, rightId: Int)
+    fun submitToCompositor(textureId: Int)
 
     /**
      * Submit a Vulkan texture handle to the compositor
