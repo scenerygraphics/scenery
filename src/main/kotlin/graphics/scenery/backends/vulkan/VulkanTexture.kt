@@ -133,10 +133,12 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
 
         vkGetImageMemoryRequirements(device, image, reqs)
 
+        val memorySize = reqs.size()
+
         val allocInfo = VkMemoryAllocateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO)
             .pNext(NULL)
-            .allocationSize(reqs.size())
+            .allocationSize(memorySize)
             .memoryTypeIndex(physicalDevice.getMemoryType(reqs.memoryTypeBits(), memoryFlags).second)
 
         val memory = VU.run(memAllocLong(1), "allocate image staging memory",
@@ -145,7 +147,7 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
 
         vkBindImageMemory(device, image, memory, 0)
 
-        return VulkanImage(image, memory, reqs.size())
+        return VulkanImage(image, memory, memorySize)
     }
 
 
