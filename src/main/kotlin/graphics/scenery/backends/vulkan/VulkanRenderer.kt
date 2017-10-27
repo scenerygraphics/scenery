@@ -15,6 +15,7 @@ import org.lwjgl.glfw.GLFWVulkan.glfwGetRequiredInstanceExtensions
 import org.lwjgl.glfw.GLFWVulkan.glfwVulkanSupported
 import org.lwjgl.system.Configuration
 import org.lwjgl.system.MemoryStack.stackPush
+import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.system.jemalloc.JEmalloc.*
 import org.lwjgl.vulkan.*
@@ -123,6 +124,8 @@ open class VulkanRenderer(hub: Hub,
         @Synchronized fun recreate() {
             logger.info("Recreating Swapchain at frame $frames")
             // create new swapchain with changed surface parameters
+            vkQueueWaitIdle(queue)
+
             with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
                 // Create the swapchain (this will also add a memory barrier to initialize the framebuffer images)
 
@@ -1456,7 +1459,7 @@ open class VulkanRenderer(hub: Hub,
         swapchain!!.postPresent(pass.getReadPosition())
 
         // submit to OpenVR if attached
-        if(hub?.getWorkingHMDDisplay()?.hasCompositor() ?: false) {
+        if(hub?.getWorkingHMDDisplay()?.hasCompositor() == true) {
             hub?.getWorkingHMDDisplay()?.wantsVR()?.submitToCompositorVulkan(
                 window.width, window.height,
                 swapchain!!.format,
@@ -1698,11 +1701,12 @@ open class VulkanRenderer(hub: Hub,
                 .apiVersion(VK_MAKE_VERSION(1, 0, 54))
 
             val hmd = hub?.getWorkingHMDDisplay()
+            logger.info("HMD: $hmd")
             val additionalExts: List<String> = hmd?.getVulkanInstanceExtensions() ?: listOf()
             logger.debug("HMD required instance exts: ${additionalExts.joinToString(", ")} ${additionalExts.size}")
             val utf8Exts = additionalExts.map { stack.UTF8(it) }
 
-            val ppEnabledExtensionNames = stack.mallocPointer(requiredExtensions.remaining() + additionalExts.size + 1)
+            val ppEnabledExtensionNames = stack.callocPointer(requiredExtensions.remaining() + additionalExts.size + 1)
             ppEnabledExtensionNames.put(requiredExtensions)
 
             val VK_EXT_DEBUG_REPORT_EXTENSION = stack.UTF8(VK_EXT_DEBUG_REPORT_EXTENSION_NAME)
@@ -1710,7 +1714,7 @@ open class VulkanRenderer(hub: Hub,
             utf8Exts.forEach { ppEnabledExtensionNames.put(it) }
             ppEnabledExtensionNames.flip()
 
-            val ppEnabledLayerNames = stack.mallocPointer(layers.size)
+            val ppEnabledLayerNames = stack.callocPointer(layers.size)
             var i = 0
             while (!wantsOpenGLSwapchain && validation && i < layers.size) {
                 ppEnabledLayerNames.put(layers[i])
@@ -1725,7 +1729,7 @@ open class VulkanRenderer(hub: Hub,
                 .ppEnabledExtensionNames(ppEnabledExtensionNames)
                 .ppEnabledLayerNames(ppEnabledLayerNames)
 
-            val pInstance = stack.mallocPointer(1)
+            val pInstance = stack.callocPointer(1)
             val err = vkCreateInstance(pCreateInfo, null, pInstance)
             val instance = pInstance.get(0)
 
@@ -1763,7 +1767,7 @@ open class VulkanRenderer(hub: Hub,
 
     private fun getPhysicalDevice(instance: VkInstance): VkPhysicalDevice {
         return stackPush().use { stack ->
-            val pPhysicalDeviceCount = stack.mallocInt(1)
+            val pPhysicalDeviceCount = stack.callocInt(1)
             var err = vkEnumeratePhysicalDevices(instance, pPhysicalDeviceCount, null)
 
             if (err != VK_SUCCESS) {
@@ -1774,7 +1778,7 @@ open class VulkanRenderer(hub: Hub,
                 throw AssertionError("No Vulkan-compatible devices found!")
             }
 
-            val pPhysicalDevices = stack.mallocPointer(pPhysicalDeviceCount.get(0))
+            val pPhysicalDevices = stack.callocPointer(pPhysicalDeviceCount.get(0))
             err = vkEnumeratePhysicalDevices(instance, pPhysicalDeviceCount, pPhysicalDevices)
 
             val devicePreferenceName = System.getProperty("scenery.Renderer.Device", "")
@@ -1826,7 +1830,7 @@ open class VulkanRenderer(hub: Hub,
 
     private fun createDeviceAndGetGraphicsQueueFamily(physicalDevice: VkPhysicalDevice): DeviceAndGraphicsQueueFamily {
         return stackPush().use { stack ->
-            val pQueueFamilyPropertyCount = stack.mallocInt(1)
+            val pQueueFamilyPropertyCount = stack.callocInt(1)
             vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, pQueueFamilyPropertyCount, null)
             val queueCount = pQueueFamilyPropertyCount.get(0)
             val queueProps = VkQueueFamilyProperties.callocStack(queueCount, stack)
@@ -1849,7 +1853,7 @@ open class VulkanRenderer(hub: Hub,
                 index++
             }
 
-            val pQueuePriorities = stack.mallocFloat(1).put(0, 0.0f)
+            val pQueuePriorities = stack.callocFloat(1).put(0, 0.0f)
             val queueCreateInfo = VkDeviceQueueCreateInfo.callocStack(1, stack)
                 .sType(VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO)
                 .queueFamilyIndex(graphicsQueueFamilyIndex)
@@ -1860,14 +1864,14 @@ open class VulkanRenderer(hub: Hub,
             logger.debug("HMD required device exts: ${additionalExts.joinToString(", ")} ${additionalExts.size}")
             val utf8Exts = additionalExts.map { stack.UTF8(it) }
 
-            val extensions = stack.mallocPointer(1 + additionalExts.size)
+            val extensions = stack.callocPointer(1 + additionalExts.size)
             val VK_KHR_SWAPCHAIN_EXTENSION = stack.UTF8(VK_KHR_SWAPCHAIN_EXTENSION_NAME)
 
             extensions.put(VK_KHR_SWAPCHAIN_EXTENSION)
             utf8Exts.forEach { extensions.put(it) }
             extensions.flip()
 
-            val ppEnabledLayerNames = stack.mallocPointer(layers.size)
+            val ppEnabledLayerNames = stack.callocPointer(layers.size)
             var i = 0
             while (!wantsOpenGLSwapchain && validation && i < layers.size) {
                 ppEnabledLayerNames.put(layers[i])
@@ -1895,13 +1899,15 @@ open class VulkanRenderer(hub: Hub,
                 .ppEnabledLayerNames(ppEnabledLayerNames)
                 .pEnabledFeatures(enabledFeatures)
 
-            val pDevice = stack.mallocPointer(1)
+            logger.debug("Creating device...")
+            val pDevice = stack.callocPointer(1)
             val err = vkCreateDevice(physicalDevice, deviceCreateInfo, null, pDevice)
             val device = pDevice.get(0)
 
             if (err != VK_SUCCESS) {
                 throw AssertionError("Failed to create device: " + VU.translate(err))
             }
+            logger.debug("Device successfully created.")
 
             val memoryProperties = VkPhysicalDeviceMemoryProperties.callocStack(stack)
             vkGetPhysicalDeviceMemoryProperties(physicalDevice, memoryProperties)
@@ -1918,7 +1924,7 @@ open class VulkanRenderer(hub: Hub,
                 .queueFamilyIndex(queueNodeIndex)
                 .flags(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT)
 
-            val pCmdPool = stack.mallocLong(1)
+            val pCmdPool = stack.callocLong(1)
             val err = vkCreateCommandPool(device, cmdPoolInfo, null, pCmdPool)
             val commandPool = pCmdPool.get(0)
 
@@ -2509,7 +2515,7 @@ open class VulkanRenderer(hub: Hub,
                 val pipeline = pass.getActivePipeline(node).getPipelineForGeometryType((node as HasGeometry).geometryType)
                 val specs = pass.getActivePipeline(node).orderedDescriptorSpecs()
 
-                logger.debug("node {} has: {} / pipeline needs: {}", node.name, s.UBOs.keys.joinToString(", "), specs.joinToString { it.key })
+                logger.trace("node {} has: {} / pipeline needs: {}", node.name, s.UBOs.keys.joinToString(", "), specs.joinToString { it.key })
 
                 pass.vulkanMetadata.descriptorSets.rewind()
                 pass.vulkanMetadata.uboOffsets.rewind()
@@ -2635,7 +2641,7 @@ open class VulkanRenderer(hub: Hub,
     private fun recordPostprocessRenderCommands(device: VkDevice, pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer) {
         val target = pass.getOutput()
 
-        logger.debug("Creating postprocessing command buffer for {}/{} ({} attachments)", pass.name, target, target.attachments.count())
+        logger.trace("Creating postprocessing command buffer for {}/{} ({} attachments)", pass.name, target, target.attachments.count())
 
         pass.vulkanMetadata.renderPassBeginInfo
             .sType(VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO)
@@ -3050,6 +3056,7 @@ open class VulkanRenderer(hub: Hub,
         logger.debug("Closing device...")
         vkDeviceWaitIdle(device)
         vkDestroyDevice(device, null)
+
         logger.debug("Closing instance...")
         vkDestroyInstance(instance, null)
 

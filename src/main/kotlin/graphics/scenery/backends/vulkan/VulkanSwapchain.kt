@@ -163,7 +163,7 @@ open class VulkanSwapchain(open val device: VkDevice,
             .imageUsage(VK10.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT or VK10.VK_IMAGE_USAGE_TRANSFER_SRC_BIT)
             .preTransform(preTransform)
             .imageArrayLayers(1)
-            .imageSharingMode(VK10.VK_SHARING_MODE_EXCLUSIVE)
+            .imageSharingMode(VK10.VK_SHARING_MODE_CONCURRENT)
             .pQueueFamilyIndices(null)
             .presentMode(swapchainPresentMode)
             .clipped(true)
@@ -372,6 +372,7 @@ open class VulkanSwapchain(open val device: VkDevice,
 
         waitForSemaphores?.let { presentInfo.pWaitSemaphores(it) }
 
+        logger.info("vkQueuePresentKHR: $presentQueue $handle ${swapchainImage.get(0)} ${swapchainPointer.remaining()} ${waitForSemaphores?.get(0) ?: "none"}")
         val err = KHRSwapchain.vkQueuePresentKHR(presentQueue, presentInfo)
         if (err != VK10.VK_SUCCESS) {
             throw AssertionError("Failed to present the swapchain image: " + VU.translate(err))
@@ -452,6 +453,7 @@ open class VulkanSwapchain(open val device: VkDevice,
     }
 
     override fun close() {
+        logger.info("Closing swapchain $this")
         KHRSwapchain.vkDestroySwapchainKHR(device, handle, null)
 
         presentInfo.free()
