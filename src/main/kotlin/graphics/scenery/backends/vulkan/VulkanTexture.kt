@@ -168,7 +168,7 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
                 if(depth == 1) {
                     val dest = memAllocPointer(1)
                     vkMapMemory(device, stagingImage.memory, 0, data.remaining() * 1L, 0, dest)
-                    memCopy(memAddress(data), dest.get(0), data.remaining())
+                    memCopy(memAddress(data), dest.get(0), data.remaining().toLong())
                     vkUnmapMemory(device, stagingImage.memory)
                     memFree(dest)
 

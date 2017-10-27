@@ -54,7 +54,7 @@ class VulkanBuffer(val device: VkDevice, var memory: Long = -1L, var buffer: Lon
     fun copyFrom(data: ByteBuffer) {
         val dest = memAllocPointer(1)
         vkMapMemory(device, memory, 0, size, 0, dest)
-        memCopy(memAddress(data), dest.get(0), data.remaining())
+        memCopy(memAddress(data), dest.get(0), data.remaining().toLong())
         vkUnmapMemory(device, memory)
         memFree(dest)
     }
@@ -62,7 +62,7 @@ class VulkanBuffer(val device: VkDevice, var memory: Long = -1L, var buffer: Lon
     fun copyTo(dest: ByteBuffer) {
         val src = memAllocPointer(1)
         vkMapMemory(device, memory, 0, size, 0, src)
-        memCopy(src.get(0), memAddress(dest), dest.remaining())
+        memCopy(src.get(0), memAddress(dest), dest.remaining().toLong())
         vkUnmapMemory(device, memory)
         memFree(src)
     }
