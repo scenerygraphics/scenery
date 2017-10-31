@@ -22,12 +22,12 @@ cache:
 before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then /usr/libexec/java_home -V; fi
 
-install:
-  - cd ..
-  - git clone git://github.com/ClearVolume/ClearGL.git ClearGL
-  - cd ClearGL
-  - mvn install
-  - cd ../scenery
+#install:
+#  - cd ..
+#  - git clone git://github.com/ClearVolume/ClearGL.git ClearGL
+#  - cd ClearGL
+#  - mvn install
+#  - cd ../scenery
 
 script: 
   - mvn clean package -Dmaven.test.skip=true
