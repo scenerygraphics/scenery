@@ -16,10 +16,6 @@ install:
   - cmd: SET JAVA_OPTS=-Xmx2g
   - cmd: mvn --version
   - cmd: java -version
-  - cmd: git clone https://github.com/clearvolume/cleargl.git C:\cleargl
-  - cmd: cd C:\cleargl
-  - cmd: mvn install
-  - cmd: cd C:\projects\scenery
 build_script:
   - mvn initialize
   - mvn clean package -B -Dmaven.test.skip=true
