@@ -7,7 +7,9 @@ import graphics.scenery.Hub
 import graphics.scenery.Hubable
 import graphics.scenery.Mesh
 import graphics.scenery.backends.Display
+import graphics.scenery.backends.vulkan.toHexString
 import graphics.scenery.utils.LazyLogger
+import org.lwjgl.PointerBuffer
 import org.lwjgl.openvr.*
 import org.lwjgl.openvr.VR.*
 import org.lwjgl.openvr.VRCompositor.*
@@ -15,10 +17,7 @@ import org.lwjgl.openvr.VRRenderModels.VRRenderModels_GetRenderModelOriginalPath
 import org.lwjgl.openvr.VRSystem.*
 import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil.*
-import org.lwjgl.vulkan.VkDevice
-import org.lwjgl.vulkan.VkInstance
-import org.lwjgl.vulkan.VkPhysicalDevice
-import org.lwjgl.vulkan.VkQueue
+import org.lwjgl.vulkan.*
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.nio.LongBuffer
@@ -480,24 +479,26 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
                                                            image: Long) {
         stackPush().use { stack ->
 
-            val instancePointer = memAllocPointer(1).put(0, instance.address())
-            val devicePointer = memAllocPointer(1).put(0, device.address())
-            val physicalDevicePointer = memAllocPointer(1).put(0, physicalDevice.address())
-            val queuePointer = memAllocPointer(1).put(0, queue.address())
+            val instancePointer = PointerBuffer.create(instance.address(), 1)
+            val devicePointer = PointerBuffer.create(device.address(), 1)
+            val physicalDevicePointer = PointerBuffer.create(physicalDevice.address(), 1)
+            val queuePointer = PointerBuffer.create(queue.address(), 1)
 
-            val textureData = VRVulkanTextureData.calloc()
+            logger.debug("${physicalDevicePointer.address().toHexString()}, ${memAddressSafe(physicalDevice).toHexString()}")
+
+            val textureData = VRVulkanTextureData.callocStack(stack)
+                .m_nImage(image)
                 .m_pInstance(instancePointer)
                 .m_pPhysicalDevice(physicalDevicePointer)
                 .m_pDevice(devicePointer)
                 .m_pQueue(queuePointer)
-                .m_nImage(image)
                 .m_nQueueFamilyIndex(queueFamilyIndex)
-                .m_nWidth(width-100)
-                .m_nHeight(height-100)
+                .m_nWidth(width)
+                .m_nHeight(height)
                 .m_nFormat(format)
                 .m_nSampleCount(1)
 
-            val texture = Texture.calloc()
+            val texture = Texture.callocStack(stack)
                 .handle(textureData.address())
                 .eColorSpace(EColorSpace_ColorSpace_Gamma)
                 .eType(ETextureType_TextureType_Vulkan)
@@ -508,12 +509,12 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
 
             readyForSubmission = false
 
-            logger.info("Submitting left...")
-            val boundsLeft = VRTextureBounds.calloc().set(0.0f, 0.0f, 0.5f, 1.0f)
+            logger.trace("Submitting left...")
+            val boundsLeft = VRTextureBounds.callocStack(stack).set(0.0f, 0.0f, 0.5f, 1.0f)
             val errorLeft = VRCompositor_Submit(EVREye_Eye_Left, texture, boundsLeft, 0)
 
-            logger.info("Submitting right...")
-            val boundsRight = VRTextureBounds.calloc().set(0.5f, 0.0f, 1.0f, 1.0f)
+            logger.trace("Submitting right...")
+            val boundsRight = VRTextureBounds.callocStack(stack).set(0.5f, 0.0f, 1.0f, 1.0f)
             val errorRight = VRCompositor_Submit(EVREye_Eye_Right, texture, boundsRight, 0)
 
             if (errorLeft != EVRCompositorError_VRCompositorError_None
