@@ -87,7 +87,7 @@ abstract class Renderer : Hubable {
         settings.set("wantsFullscreen", false)
         settings.set("isFullscreen", false)
 
-        settings.set("vr.Active", true)
+        settings.set("vr.Active", false)
         settings.set("vr.IPD", 0.05f)
 
         settings.set("sdf.MaxDistance", 10)

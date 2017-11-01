@@ -104,12 +104,12 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
     }
 
     /**
-     * Submit OpenGL texture IDs to the compositor
+     * Submit OpenGL texture IDs to the compositor. The texture is assumed to have the left eye in the
+     * left half, right eye in the right half.
      *
-     * @param[leftId] Texture ID of the left eye texture
-     * @param[rightId] Texture ID of the right eye texture
+     * @param[textureId] OpenGL Texture ID of the left eye texture
      */
-    override fun submitToCompositor(leftId: Int, rightId: Int) {
+    override fun submitToCompositor(textureId: Int) {
     }
 
     /**

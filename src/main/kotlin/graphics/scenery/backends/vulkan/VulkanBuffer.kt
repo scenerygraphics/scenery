@@ -1,5 +1,6 @@
 package graphics.scenery.backends.vulkan
 
+import graphics.scenery.utils.LazyLogger
 import org.lwjgl.PointerBuffer
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.VK10.*
@@ -7,6 +8,7 @@ import org.lwjgl.vulkan.VkDevice
 import java.nio.ByteBuffer
 
 class VulkanBuffer(val device: VkDevice, var memory: Long = -1L, var buffer: Long = -1L, var data: Long = -1L, val size: Long): AutoCloseable {
+    protected val logger by LazyLogger()
     private var currentPosition = 0L
     private var currentPointer: PointerBuffer? = null
     var alignment: Long = 256
@@ -54,7 +56,7 @@ class VulkanBuffer(val device: VkDevice, var memory: Long = -1L, var buffer: Lon
     fun copyFrom(data: ByteBuffer) {
         val dest = memAllocPointer(1)
         vkMapMemory(device, memory, 0, size, 0, dest)
-        memCopy(memAddress(data), dest.get(0), data.remaining())
+        memCopy(memAddress(data), dest.get(0), data.remaining().toLong())
         vkUnmapMemory(device, memory)
         memFree(dest)
     }
@@ -62,7 +64,7 @@ class VulkanBuffer(val device: VkDevice, var memory: Long = -1L, var buffer: Lon
     fun copyTo(dest: ByteBuffer) {
         val src = memAllocPointer(1)
         vkMapMemory(device, memory, 0, size, 0, src)
-        memCopy(src.get(0), memAddress(dest), dest.remaining())
+        memCopy(src.get(0), memAddress(dest), dest.remaining().toLong())
         vkUnmapMemory(device, memory)
         memFree(src)
     }
@@ -97,6 +99,8 @@ class VulkanBuffer(val device: VkDevice, var memory: Long = -1L, var buffer: Lon
     }
 
     override fun close() {
+        logger.debug("Closing buffer $this ...")
+
         if(mapped) {
             unmap()
         }
@@ -105,10 +109,12 @@ class VulkanBuffer(val device: VkDevice, var memory: Long = -1L, var buffer: Lon
 
         if(memory != -1L) {
             vkFreeMemory(device, memory, null)
+            memory = -1L
         }
 
         if(buffer != -1L) {
             vkDestroyBuffer(device, buffer, null)
+            buffer = -1L
         }
     }
 }
