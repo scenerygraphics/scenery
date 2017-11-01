@@ -445,31 +445,33 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
      * @param[textureId] OpenGL Texture ID of the left eye texture
      */
     @Synchronized override fun submitToCompositor(textureId: Int) {
-        try {
-            if (disableSubmission || !readyForSubmission) {
-                return
+        stackPush().use { stack ->
+            try {
+                if (disableSubmission || !readyForSubmission) {
+                    return
+                }
+
+                readyForSubmission = false
+
+                val texture = Texture.callocStack(stack)
+                    .eColorSpace(EColorSpace_ColorSpace_Gamma)
+                    .eType(ETextureType_TextureType_OpenGL)
+                    .handle(textureId.toLong())
+
+                val boundsLeft = VRTextureBounds.callocStack(stack).set(0.0f, 0.0f, 0.5f, 1.0f)
+                val errorLeft = VRCompositor_Submit(EVREye_Eye_Left, texture, boundsLeft, 0)
+
+                val boundsRight = VRTextureBounds.callocStack(stack).set(0.5f, 0.0f, 1.0f, 1.0f)
+                val errorRight = VRCompositor_Submit(EVREye_Eye_Right, texture, boundsRight, 0)
+
+                if (errorLeft != EVRCompositorError_VRCompositorError_None
+                    || errorRight != EVRCompositorError_VRCompositorError_None) {
+                    logger.error("Compositor error: ${translateError(errorLeft)} ($errorLeft)/${translateError(errorRight)} ($errorRight)")
+                }
+            } catch (e: java.lang.Error) {
+                logger.error("Compositor submission failed, please restart the HMD, SteamVR and the application.")
+                disableSubmission = true
             }
-
-            readyForSubmission = false
-
-            val texture = Texture.calloc()
-                .eColorSpace(EColorSpace_ColorSpace_Gamma)
-                .eType(ETextureType_TextureType_OpenGL)
-                .handle(textureId.toLong())
-
-            val boundsLeft = VRTextureBounds.calloc().set(0.0f, 0.0f, 0.5f, 1.0f)
-            val errorLeft = VRCompositor_Submit(EVREye_Eye_Left, texture, boundsLeft, 0)
-
-            val boundsRight = VRTextureBounds.calloc().set(0.5f, 0.0f, 1.0f, 1.0f)
-            val errorRight = VRCompositor_Submit(EVREye_Eye_Right, texture, boundsRight, 0)
-
-            if (errorLeft != EVRCompositorError_VRCompositorError_None
-                || errorRight != EVRCompositorError_VRCompositorError_None) {
-                logger.error("Compositor error: ${translateError(errorLeft)} ($errorLeft)/${translateError(errorRight)} ($errorRight)")
-            }
-        } catch(e: java.lang.Error) {
-            logger.error("Compositor submission failed, please restart the HMD, SteamVR and the application.")
-            disableSubmission = true
         }
     }
 
