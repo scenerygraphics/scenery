@@ -479,6 +479,8 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
                                                            image: Long) {
         stackPush().use { stack ->
 
+            // FIXME: This works around a bug in lwjgl-openvr, due to be fixed.
+            // Switch back to memAllocPointer(1).put(0, instance.address()) etc. as soon as it's fixed.
             val instancePointer = PointerBuffer.create(instance.address(), 1)
             val devicePointer = PointerBuffer.create(device.address(), 1)
             val physicalDevicePointer = PointerBuffer.create(physicalDevice.address(), 1)
