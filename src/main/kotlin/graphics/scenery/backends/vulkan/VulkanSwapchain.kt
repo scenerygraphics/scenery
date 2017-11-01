@@ -45,6 +45,7 @@ open class VulkanSwapchain(open val device: VkDevice,
 
     var lastResize = -1L
     private val WINDOW_RESIZE_TIMEOUT = 200 * 10e6
+    private val retiredSwapchains: ArrayList<Long> = ArrayList(10)
 
     data class ColorFormatAndSpace(var colorFormat: Int = 0, var colorSpace: Int = 0)
 
@@ -90,6 +91,7 @@ open class VulkanSwapchain(open val device: VkDevice,
 
     override fun create(oldSwapchain: Swapchain?): Swapchain {
         val colorFormatAndSpace = getColorFormatAndSpace()
+        val oldHandle = oldSwapchain?.handle
 
         var err: Int
         // Get physical device surface properties and formats
@@ -169,8 +171,8 @@ open class VulkanSwapchain(open val device: VkDevice,
             .clipped(true)
             .compositeAlpha(KHRSurface.VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR)
 
-        if (oldSwapchain is VulkanSwapchain || oldSwapchain is FXSwapchain) {
-            swapchainCI.oldSwapchain(oldSwapchain.handle)
+        if ((oldSwapchain is VulkanSwapchain || oldSwapchain is FXSwapchain) && oldHandle != null) {
+            swapchainCI.oldSwapchain(oldHandle)
         }
 
         swapchainCI.imageExtent().width(window.width).height(window.height)
@@ -178,7 +180,7 @@ open class VulkanSwapchain(open val device: VkDevice,
         err = KHRSwapchain.vkCreateSwapchainKHR(device, swapchainCI, null, pSwapChain)
         swapchainCI.free()
 
-        val swapChain = pSwapChain.get(0)
+        handle = pSwapChain.get(0)
         MemoryUtil.memFree(pSwapChain)
         if (err != VK10.VK_SUCCESS) {
             throw AssertionError("Failed to create swap chain: " + VU.translate(err))
@@ -186,19 +188,21 @@ open class VulkanSwapchain(open val device: VkDevice,
 
         // If we just re-created an existing swapchain, we should destroy the old swapchain at this point.
         // Note: destroying the swapchain also cleans up all its associated presentable images once the platform is done with them.
-        if (oldSwapchain is VulkanSwapchain && oldSwapchain.handle != VK10.VK_NULL_HANDLE) {
-            KHRSwapchain.vkDestroySwapchainKHR(device, oldSwapchain.handle, null)
+        if (oldSwapchain is VulkanSwapchain && oldHandle != null && oldHandle != VK10.VK_NULL_HANDLE) {
+            // TODO: Figure out why deleting a retired swapchain crashes on Nvidia
+            //KHRSwapchain.vkDestroySwapchainKHR(device, oldHandle, null)
+            retiredSwapchains.add(oldHandle)
         }
 
         val pImageCount = MemoryUtil.memAllocInt(1)
-        err = KHRSwapchain.vkGetSwapchainImagesKHR(device, swapChain, pImageCount, null)
+        err = KHRSwapchain.vkGetSwapchainImagesKHR(device, handle, pImageCount, null)
         val imageCount = pImageCount.get(0)
         if (err != VK10.VK_SUCCESS) {
             throw AssertionError("Failed to get number of swapchain images: " + VU.translate(err))
         }
 
         val pSwapchainImages = MemoryUtil.memAllocLong(imageCount)
-        err = KHRSwapchain.vkGetSwapchainImagesKHR(device, swapChain, pImageCount, pSwapchainImages)
+        err = KHRSwapchain.vkGetSwapchainImagesKHR(device, handle, pImageCount, pSwapchainImages)
         if (err != VK10.VK_SUCCESS) {
             throw AssertionError("Failed to get swapchain images: " + VU.translate(err))
         }
@@ -249,7 +253,6 @@ open class VulkanSwapchain(open val device: VkDevice,
 
         this.images = images
         this.imageViews = imageViews
-        this.handle = swapChain
         this.format = colorFormatAndSpace.colorFormat
 
         return this
@@ -455,6 +458,7 @@ open class VulkanSwapchain(open val device: VkDevice,
     override fun close() {
         logger.info("Closing swapchain $this")
         KHRSwapchain.vkDestroySwapchainKHR(device, handle, null)
+        retiredSwapchains.forEach { KHRSwapchain.vkDestroySwapchainKHR(device, it, null) }
 
         presentInfo.free()
         MemoryUtil.memFree(swapchainImage)

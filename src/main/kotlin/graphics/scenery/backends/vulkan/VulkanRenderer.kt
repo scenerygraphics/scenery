@@ -1909,7 +1909,7 @@ open class VulkanRenderer(hub: Hub,
             }
             logger.debug("Device successfully created.")
 
-            val memoryProperties = VkPhysicalDeviceMemoryProperties.callocStack(stack)
+            val memoryProperties = VkPhysicalDeviceMemoryProperties.calloc()
             vkGetPhysicalDeviceMemoryProperties(physicalDevice, memoryProperties)
 
             DeviceAndGraphicsQueueFamily(VkDevice(device, physicalDevice, deviceCreateInfo),
@@ -3002,11 +3002,18 @@ open class VulkanRenderer(hub: Hub,
 
         logger.debug("Closing buffers...")
         buffers.forEach { _, vulkanBuffer -> vulkanBuffer.close() }
+        logger.debug("Closing UBOs...")
         standardUBOs.forEach { it.value.close() }
 
+        logger.debug("Closing vertex descriptors ...")
         vertexDescriptors.forEach {
-            it.value.attributeDescription.free()
-            it.value.bindingDescription.free()
+            logger.debug("Closing vertex descriptor ${it.key}...")
+
+            if(it.value.attributeDescription.capacity() > 0) {
+                it.value.attributeDescription.free()
+                it.value.bindingDescription.free()
+            }
+
             it.value.state.free()
         }
 
@@ -3060,8 +3067,10 @@ open class VulkanRenderer(hub: Hub,
         logger.debug("Closing instance...")
         vkDestroyInstance(instance, null)
 
+        logger.debug("Freeing memory properties...")
         memoryProperties.free()
 
+        logger.debug("Finalizing spirvcrossj process...")
         libspirvcrossj.finalizeProcess()
 
         logger.info("Renderer teardown complete.")
