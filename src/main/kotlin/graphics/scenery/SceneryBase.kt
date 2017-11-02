@@ -12,6 +12,7 @@ import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.repl.REPL
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.Statistics
+import org.lwjgl.system.MemoryUtil
 import org.scijava.ui.behaviour.ClickBehaviour
 import java.lang.management.ManagementFactory
 import kotlin.concurrent.thread
@@ -164,7 +165,9 @@ open class SceneryBase(var applicationName: String,
         var frameTime = 0.0f
 
         while (renderer?.shouldClose == false) {
-            hub.getWorkingHMD()?.update()
+            if(renderer?.managesRenderLoop == false) {
+                hub.getWorkingHMD()?.update()
+            }
 
             // only run loop if we are either in standalone mode, or master
             // for details about the interpolation code, see

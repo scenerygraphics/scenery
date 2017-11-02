@@ -19,8 +19,6 @@ import java.util.*
  * @author Ulrik Günther <hello@ulrik.is>
  */
 open class BoundingBox : Mesh() {
-    protected val logger by LazyLogger()
-
     var boundingCoords = floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
     var labels = HashMap<String, FontBoard>()
 
