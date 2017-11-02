@@ -22,7 +22,7 @@ import kotlin.reflect.KProperty
  * @property[name] The name of the [Node]
  */
 open class Node(open var name: String = "Node") : Renderable, Serializable {
-    private val logger by LazyLogger()
+    protected val logger by LazyLogger()
 
     /** Hash map used for storing metadata for the Node. [DeferredLightingRenderer] uses
      * it to e.g. store [OpenGLObjectState]. */
@@ -275,17 +275,29 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
                 logger.warn("$name: Zero vertices currently, returning empty bounding box")
                 boundingBoxCoords = floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
             } else {
-                val tmp = floatArrayOf(0.0f, 0.0f, 0.0f)
+
+                val vertex = floatArrayOf(0.0f, 0.0f, 0.0f)
+                vertices.get(vertex)
+
+                boundingBoxCoords[0] = vertex[0]
+                boundingBoxCoords[1] = vertex[0]
+
+                boundingBoxCoords[2] = vertex[1]
+                boundingBoxCoords[3] = vertex[1]
+
+                boundingBoxCoords[4] = vertex[2]
+                boundingBoxCoords[5] = vertex[2]
+
                 while(vertices.hasRemaining()) {
-                    vertices.get(tmp)
+                    vertices.get(vertex)
 
-                    boundingBoxCoords[0] = minOf(boundingBoxCoords[0], tmp[0])
-                    boundingBoxCoords[2] = minOf(boundingBoxCoords[2], tmp[1])
-                    boundingBoxCoords[4] = minOf(boundingBoxCoords[4], tmp[2])
+                    boundingBoxCoords[0] = minOf(boundingBoxCoords[0], vertex[0])
+                    boundingBoxCoords[2] = minOf(boundingBoxCoords[2], vertex[1])
+                    boundingBoxCoords[4] = minOf(boundingBoxCoords[4], vertex[2])
 
-                    boundingBoxCoords[1] = maxOf(boundingBoxCoords[1], tmp[0])
-                    boundingBoxCoords[3] = maxOf(boundingBoxCoords[3], tmp[1])
-                    boundingBoxCoords[5] = maxOf(boundingBoxCoords[5], tmp[2])
+                    boundingBoxCoords[1] = maxOf(boundingBoxCoords[1], vertex[0])
+                    boundingBoxCoords[3] = maxOf(boundingBoxCoords[3], vertex[1])
+                    boundingBoxCoords[5] = maxOf(boundingBoxCoords[5], vertex[2])
                 }
 
                 logger.debug("$name: Calculated bounding box with ${boundingBoxCoords.joinToString(", ")}")

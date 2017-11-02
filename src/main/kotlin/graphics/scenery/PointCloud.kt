@@ -16,7 +16,6 @@ import java.nio.file.Files
  * @author Kyle Harrington <kharrington@uidaho.edu>
  */
 open class PointCloud(var radius: Float=0.1f, override var name: String = "PointCloud") : Node(name), HasGeometry {
-    protected val logger: Logger by LazyLogger()
     override var vertices: FloatBuffer = FloatBuffer.allocate(0)
     override var normals: FloatBuffer = FloatBuffer.allocate(0)
     override var texcoords: FloatBuffer = FloatBuffer.allocate(0)

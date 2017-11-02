@@ -110,7 +110,7 @@ class OpenGLRenderer(hub: Hub,
     private var WINDOW_RESIZE_TIMEOUT = 200L
 
     /** Flag to indicate whether framebuffers have to be recreated */
-    private var mustRecreateFramebuffers = false
+    @Volatile private var mustRecreateFramebuffers = false
 
     /** GPU stats object */
     private var gpuStats: GPUStats? = null
@@ -121,7 +121,7 @@ class OpenGLRenderer(hub: Hub,
     var initialized = false
         private set
 
-    private val pbos: IntArray = intArrayOf(0, 0)
+    @Volatile private var pbos: IntArray = intArrayOf(0, 0)
     private var readIndex = 0
     private var updateIndex = 0
 
@@ -179,13 +179,15 @@ class OpenGLRenderer(hub: Hub,
                 return
             }
 
+            mustRecreateFramebuffers = true
+            gl.glDeleteBuffers(2, pbos, 0)
+            pbos[0] = 0
+            pbos[1] = 0
+
             window.width = lastWidth
             window.height = lastHeight
 
             drawable?.setSurfaceSize(window.width, window.height)
-            mustRecreateFramebuffers = true
-            pbos[0] = 0
-            pbos[1] = 0
 
             embedIn?.let { panel ->
                 panel.prefWidth = window.width.toDouble()
@@ -384,6 +386,8 @@ class OpenGLRenderer(hub: Hub,
         settings.set("Renderer.displayWidth", window.width)
         settings.set("Renderer.displayHeight", window.height)
 
+        prepareDefaultTextures()
+
         renderpasses = prepareRenderpasses(renderConfig, window.width, window.height)
 
         // enable required features
@@ -465,6 +469,14 @@ class OpenGLRenderer(hub: Hub,
                 }
             }
 
+            if(passConfig.output == "Viewport") {
+                val framebuffer = GLFramebuffer(gl, width, height)
+                framebuffer.addUnsignedByteRGBABuffer(gl, "Viewport", 8)
+
+                pass.output.put("Viewport", framebuffer)
+                framebuffers.put("Viewport", framebuffer)
+            }
+
             pass.openglMetadata.renderArea = OpenGLRenderpass.Rect2D(
                 (pass.passConfig.viewportSize.first * width).toInt(),
                 (pass.passConfig.viewportSize.second * height).toInt(),
@@ -511,7 +523,7 @@ class OpenGLRenderer(hub: Hub,
         return passes
     }
 
-    fun prepareShaderProgram(baseClass: Class<*>, shaders: Array<String>): OpenGLShaderProgram {
+    protected fun prepareShaderProgram(baseClass: Class<*>, shaders: Array<String>): OpenGLShaderProgram? {
 
         val modules = HashMap<GLShaderType, OpenGLShaderModule>()
 
@@ -520,13 +532,22 @@ class OpenGLRenderer(hub: Hub,
                 val m = OpenGLShaderModule(gl, "main", baseClass, "shaders/" + it)
                 modules.put(m.shaderType, m)
             } else {
-                logger.warn("Shader not found: shaders/$it")
+                if(Renderer::class.java.getResource("shaders/" + it) != null && baseClass !is Renderer) {
+                    val m = OpenGLShaderModule(gl, "main", Renderer::class.java, "shaders/" + it)
+                    modules.put(m.shaderType, m)
+                } else {
+                    logger.warn("Shader not found: shaders/$it")
+                    return null
+                }
             }
         }
 
         val program = OpenGLShaderProgram(gl, modules)
-
-        return program
+        return if(program.isValid()) {
+            program
+        } else {
+            null
+        }
     }
 
     override fun display(pDrawable: GLAutoDrawable) {
@@ -1022,7 +1043,7 @@ class OpenGLRenderer(hub: Hub,
                 targetOffset.offsetX + targetOffset.width, targetOffset.offsetY + targetOffset.height,
                 GL4.GL_DEPTH_BUFFER_BIT, GL4.GL_NEAREST)
         } else {
-            logger.info("Either source or target don't have a depth buffer :-(")
+            logger.debug("Either source or target don't have a depth buffer. If blitting to window surface, this is not a problem.")
         }
 
         gl.glBindFramebuffer(GL4.GL_FRAMEBUFFER, 0)
@@ -1053,6 +1074,7 @@ class OpenGLRenderer(hub: Hub,
      */
     override fun render() {
         val stats = hub?.get(SceneryElement.Statistics) as? Statistics
+        hub?.getWorkingHMD()?.update()
 
         if (shouldClose) {
             joglDrawable?.animator?.stop()
@@ -1240,7 +1262,7 @@ class OpenGLRenderer(hub: Hub,
                     shader.use(gl)
 
                     if (renderConfig.stereoEnabled) {
-                        shader.getUniform("currentEye").setInt(pass.openglMetadata.eye)
+                        shader.getUniform("currentEye.eye").setInt(pass.openglMetadata.eye)
                     }
 
                     var unit = 0
@@ -1273,7 +1295,7 @@ class OpenGLRenderer(hub: Hub,
                     s.UBOs.forEach { name, ubo ->
                         if(shader.uboSpecs.containsKey(name)) {
                             val index = shader.getUniformBlockIndex(name)
-                            logger.debug("Binding {} for {}, index={}, binding={}, size={}", name, n.name, index, binding, ubo.getSize())
+                            logger.trace("Binding {} for {}, index={}, binding={}, size={}", name, n.name, index, binding, ubo.getSize())
 
                             if (index == -1) {
                                 logger.error("Failed to bind UBO $name for ${n.name} to $binding")
@@ -1287,7 +1309,7 @@ class OpenGLRenderer(hub: Hub,
                     }
 
                     arrayOf("LightParameters", "VRParameters").forEach { name ->
-                        if (shader.uboSpecs.containsKey(name)) {
+                        if (shader.uboSpecs.containsKey(name) && shader.isValid()) {
                             val index = shader.getUniformBlockIndex(name)
 
                             if (index == -1) {
@@ -1468,22 +1490,35 @@ class OpenGLRenderer(hub: Hub,
             stats?.add("Renderer.$t.renderTiming", System.nanoTime() - startPass)
         }
 
+        val viewportPass = renderpasses.get(flow.last())!!
+        gl.glBindFramebuffer(GL4.GL_DRAW_FRAMEBUFFER, 0)
+
+        blitFramebuffers(viewportPass.output.values.first(), null,
+            OpenGLRenderpass.Rect2D(window.width, window.height, 0, 0),
+            OpenGLRenderpass.Rect2D(window.width, window.height, 0, 0))
+
+        // submit to OpenVR if attached
+        if(hub?.getWorkingHMDDisplay()?.hasCompositor() == true && !mustRecreateFramebuffers) {
+            hub?.getWorkingHMDDisplay()?.wantsVR()?.submitToCompositor(
+                viewportPass.output.values.first().getTextureId("Viewport"))
+        }
+
         embedIn?.let { embedPanel ->
-            if (shouldClose) {
+            if (shouldClose || mustRecreateFramebuffers) {
                 return
             }
 
             readIndex = (readIndex + 1) % 2
             updateIndex = (readIndex + 1) % 2
 
-            if (pbos[0] == 0 || pbos[1] == 0) {
+            if (pbos[0] == 0 || pbos[1] == 0 || mustRecreateFramebuffers) {
                 gl.glGenBuffers(2, pbos, 0)
 
                 gl.glBindBuffer(GL4.GL_PIXEL_PACK_BUFFER, pbos[0])
-                gl.glBufferData(GL4.GL_PIXEL_PACK_BUFFER, embedPanel.width.toInt() * embedPanel.height.toInt() * 4L, null, GL4.GL_STREAM_READ)
+                gl.glBufferData(GL4.GL_PIXEL_PACK_BUFFER, window.width * window.height * 4L, null, GL4.GL_STREAM_READ)
 
                 gl.glBindBuffer(GL4.GL_PIXEL_PACK_BUFFER, pbos[1])
-                gl.glBufferData(GL4.GL_PIXEL_PACK_BUFFER, embedPanel.width.toInt() * embedPanel.height.toInt() * 4L, null, GL4.GL_STREAM_READ)
+                gl.glBufferData(GL4.GL_PIXEL_PACK_BUFFER, window.width * window.height * 4L, null, GL4.GL_STREAM_READ)
 
                 gl.glBindBuffer(GL4.GL_PIXEL_PACK_BUFFER, 0)
             }
@@ -1736,6 +1771,19 @@ class OpenGLRenderer(hub: Hub,
     }
 
     /**
+     * Initializes a default set of textures that the renderer can fall back to and provide a non-intrusive
+     * hint to the user that a texture could not be loaded.
+     */
+    private fun prepareDefaultTextures() {
+        val t = GLTexture.loadFromFile(gl, Renderer::class.java.getResourceAsStream("DefaultTexture.png"), "png", false, true, 8)
+        if(t == null) {
+            logger.error("Could not load default texture! This indicates a serious issue.")
+        } else {
+            textureCache.put("DefaultTexture", t)
+        }
+    }
+
+    /**
      * Loads textures for a [Node]. The textures either come from a [Material.transferTextures] buffer,
      * or from a file. This is indicated by stating fromBuffer:bufferName in the textures hash map.
      *
@@ -1790,11 +1838,11 @@ class OpenGLRenderer(hub: Hub,
                         }
                     } else {
                         val glTexture = if(texture.contains("jar!")) {
-                            val f = texture.substringAfterLast(File.separatorChar)
+                            val f = texture.substringAfterLast("!")
                             val stream = node.javaClass.getResourceAsStream(f)
 
                             if(stream == null) {
-                                logger.error("Not found: $f for $node")
+                                logger.error("Texture not found for $node: $f (from JAR)")
                                 textureCache["DefaultTexture"]!!
                             } else {
                                 GLTexture.loadFromFile(gl, stream, texture.substringAfterLast("."), true, generateMipmaps, 8)
@@ -1803,6 +1851,7 @@ class OpenGLRenderer(hub: Hub,
                             try {
                                 GLTexture.loadFromFile(gl, texture, true, generateMipmaps, 8)
                             } catch(e: FileNotFoundException) {
+                                logger.error("Texture not found for $node: $texture")
                                 textureCache["DefaultTexture"]!!
                             }
                         }
