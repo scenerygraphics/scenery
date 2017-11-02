@@ -386,6 +386,8 @@ class OpenGLRenderer(hub: Hub,
         settings.set("Renderer.displayWidth", window.width)
         settings.set("Renderer.displayHeight", window.height)
 
+        prepareDefaultTextures()
+
         renderpasses = prepareRenderpasses(renderConfig, window.width, window.height)
 
         // enable required features
@@ -1769,6 +1771,19 @@ class OpenGLRenderer(hub: Hub,
     }
 
     /**
+     * Initializes a default set of textures that the renderer can fall back to and provide a non-intrusive
+     * hint to the user that a texture could not be loaded.
+     */
+    private fun prepareDefaultTextures() {
+        val t = GLTexture.loadFromFile(gl, Renderer::class.java.getResourceAsStream("DefaultTexture.png"), "png", false, true, 8)
+        if(t == null) {
+            logger.error("Could not load default texture! This indicates a serious issue.")
+        } else {
+            textureCache.put("DefaultTexture", t)
+        }
+    }
+
+    /**
      * Loads textures for a [Node]. The textures either come from a [Material.transferTextures] buffer,
      * or from a file. This is indicated by stating fromBuffer:bufferName in the textures hash map.
      *
@@ -1823,11 +1838,11 @@ class OpenGLRenderer(hub: Hub,
                         }
                     } else {
                         val glTexture = if(texture.contains("jar!")) {
-                            val f = texture.substringAfterLast(File.separatorChar)
+                            val f = texture.substringAfterLast("!")
                             val stream = node.javaClass.getResourceAsStream(f)
 
                             if(stream == null) {
-                                logger.error("Not found: $f for $node")
+                                logger.error("Texture not found for $node: $f (from JAR)")
                                 textureCache["DefaultTexture"]!!
                             } else {
                                 GLTexture.loadFromFile(gl, stream, texture.substringAfterLast("."), true, generateMipmaps, 8)
@@ -1836,6 +1851,7 @@ class OpenGLRenderer(hub: Hub,
                             try {
                                 GLTexture.loadFromFile(gl, texture, true, generateMipmaps, 8)
                             } catch(e: FileNotFoundException) {
+                                logger.error("Texture not found for $node: $texture")
                                 textureCache["DefaultTexture"]!!
                             }
                         }
