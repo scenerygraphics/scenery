@@ -32,6 +32,8 @@ open class VulkanObjectState : NodeMetadata {
 
     var textures = ConcurrentHashMap<String, VulkanTexture>()
 
+    var blendingHashCode = 0
+
     var defaultTexturesFor = HashSet<String>()
 
     var requiredDescriptorSets = HashMap<String, Long>()

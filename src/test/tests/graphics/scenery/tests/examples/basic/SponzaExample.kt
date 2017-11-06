@@ -2,6 +2,7 @@ package graphics.scenery.tests.examples.basic
 
 import cleargl.GLVector
 import graphics.scenery.*
+import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.TrackedStereoGlasses
 import graphics.scenery.utils.Numerics
@@ -35,8 +36,10 @@ class SponzaExample : SceneryBase("SponzaExample", windowWidth = 1280, windowHei
         val transparentBox = Box(GLVector(2.0f, 2.0f, 2.0f))
         with(transparentBox) {
             position = GLVector(1.5f, 1.0f, -4.0f)
-            material.transparent = true
-            material.opacity = 0.8f
+            material.blending.transparent = true
+            material.blending.opacity = 0.8f
+            material.blending.colorBlending = Blending.BlendOp.reverse_subtract
+            material.blending.alphaBlending = Blending.BlendOp.min
             material.diffuse = GLVector(0.9f, 0.1f, 0.1f)
             name = "transparent box"
             scene.addChild(this)
