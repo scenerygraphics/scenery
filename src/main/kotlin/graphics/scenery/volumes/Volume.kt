@@ -136,7 +136,7 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         this.vertexSize = 3
         this.texcoordSize = 2
 
-        this.material.transparent = true
+        this.material.blending.transparent = true
         this.material.doubleSided = true
         this.useClassDerivedShader = true
 

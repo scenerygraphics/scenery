@@ -1,5 +1,6 @@
 package graphics.scenery.backends.vulkan
 
+import graphics.scenery.Blending
 import org.lwjgl.PointerBuffer
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.NULL
@@ -87,6 +88,22 @@ fun VkPhysicalDevice.getMemoryType(typeBits: Int, memoryFlags: Int): Pair<Boolea
     properties.free()
 
     return false.to(0)
+}
+
+
+fun Blending.BlendFactor.toVulkan() = when (this) {
+    Blending.BlendFactor.Zero -> VK_BLEND_FACTOR_ZERO
+    Blending.BlendFactor.One -> VK_BLEND_FACTOR_ONE
+    Blending.BlendFactor.OneMinusSrcAlpha -> VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA
+    Blending.BlendFactor.SrcAlpha -> VK_BLEND_FACTOR_SRC_ALPHA
+}
+
+fun Blending.BlendOp.toVulkan() = when (this) {
+    Blending.BlendOp.add -> VK_BLEND_OP_ADD
+    Blending.BlendOp.subtract -> VK_BLEND_OP_SUBTRACT
+    Blending.BlendOp.min -> VK_BLEND_OP_MIN
+    Blending.BlendOp.max -> VK_BLEND_OP_MAX
+    Blending.BlendOp.reverse_subtract -> VK_BLEND_OP_REVERSE_SUBTRACT
 }
 
 class VU {
