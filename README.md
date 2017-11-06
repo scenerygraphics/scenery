@@ -5,7 +5,7 @@
 # scenery  // flexible scenegraphing and rendering for scientific visualisation
 
 ---
-__Hello, this is the master branch, where development happens and stuff breaks.__ If you require a stable version of scenery, please check out the [latest stable version of this repository](https://github.com/scenerygraphics/scenery/tree/scenery-0.1.0).
+__Hello, this is the master branch, where development happens and stuff breaks.__ If you require a stable version of scenery, please check out the [latest stable version of this repository](https://github.com/scenerygraphics/scenery/tree/scenery-0.2.0).
 
 ---
 
@@ -13,7 +13,9 @@ __Hello, this is the master branch, where development happens and stuff breaks._
 
 ## Synopsis
 
-scenery is a scenegraphing and rendering library. It allows you to quickly create high-quality 3D visualisations based on mesh data. Currently, scenery contains an OpenGL 4-based [Deferred Shading](https://en.wikipedia.org/wiki/Deferred_Shading) renderer and an experimental [Vulkan](https://www.khronos.org/vulkan) renderer with both forward and deferred shading. Both support Virtual Reality headsets like the HTC Vive or Oculus Rift via [OpenVR/SteamVR](https://github.com/ValveSoftware/openvr). A software renderer is planned for the future.
+scenery is a scenegraphing and rendering library. It allows you to quickly create high-quality 3D visualisations based on mesh data. scenery contains both a OpenGL 4.1 and Vulkan renderer. The rendering pipelines of both renderers are configurable using YAML files, so it's easy to switch between e.g. [Forward Shading](./src/main/resources/graphics/scenery/backends/ForwardShading.yml) and [Deferred Shading](./src/main/resources/graphics/scenery/backends/DeferredShading.yml), as well as [stereo rendering](./src/main/resources/graphics/scenery/backends/DeferredShadingStereo.yml). Rendering pipelines can be switched on-the-fly.
+
+Both renderers support rendering to head-mounted VR goggles like the HTC Vive or Oculus Rift via [OpenVR/SteamVR](https://github.com/ValveSoftware/openvr).
 
 ## Examples
 
@@ -53,6 +55,10 @@ If a gamepad is connected (such as a PlayStation 3 or 4 controller), the hats ca
 
 All keybindings are also listed in the [InputHandler class](./src/main/kotlin/graphics/scenery/controls/InputHandler.kt#L198).
 
+## Selecting a renderer
+
+scenery defaults to using the OpenGL 4.1 renderer, which works on Linux, OS X and Windows. If you want to use the Vulkan renderer, which is supported on Linux and Windows, set the system property `scenery.Renderer=VulkanRenderer`.
+
 ## Building
 
 Into a directory of your choice, clone the Git repository of scenery:
@@ -80,13 +86,13 @@ Add scenery and ClearGL to your project's `pom.xml`:
   <dependency>
     <groupId>graphics.scenery</groupId>
     <artifactId>scenery</artifactId>
-    <version>0.2.0-SNAPSHOT</version>
+    <version>0.2.1-SNAPSHOT</version>
   </dependency>
 
   <dependency>
     <groupId>net.clearvolume</groupId>
     <artifactId>cleargl</artifactId>
-    <version>2.1.0-SNAPSHOT</version>
+    <version>2.1.1</version>
   </dependency>
 </dependencies>
 ```
@@ -96,6 +102,12 @@ Add scenery and ClearGL to your project's `pom.xml`:
 Add scenery and ClearGL to your project's `build.gradle`:
 
 ```groovy
-compile group: 'graphics.scenery', name: 'scenery', version: '0.2.0-SNAPSHOT'
-compile group: 'net.clearvolume', name: 'cleargl', version: '2.1.0-SNAPSHOT'
+compile group: 'graphics.scenery', name: 'scenery', version: '0.2.1-SNAPSHOT'
+compile group: 'net.clearvolume', name: 'cleargl', version: '2.1.1'
 ```
+
+### Logging
+
+scenery uses [slf4j](https://slf4j.org) for logging. If you use scenery in your own library and want to see scenery's messages, you need to have a logger (e.g. `slf4j-simple`) configured in your project. Check [this page](https://www.slf4j.org/manual.html) on how to do that.
+
+To configure the logging level that scenery uses, set the system property `scenery.LogLevel` to `info` (default), `warn`, `debug` or `trace`. Be advised that both `debug` and `trace` produce a lot of output and thereby negatively affect performance.
