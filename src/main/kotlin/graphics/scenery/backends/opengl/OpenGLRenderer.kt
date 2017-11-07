@@ -2281,8 +2281,32 @@ class OpenGLRenderer(hub: Hub,
     private fun Blending.BlendFactor.toOpenGL() = when (this) {
         Blending.BlendFactor.Zero -> GL4.GL_ZERO
         Blending.BlendFactor.One -> GL4.GL_ONE
-        Blending.BlendFactor.OneMinusSrcAlpha -> GL4.GL_ONE_MINUS_SRC_ALPHA
+
         Blending.BlendFactor.SrcAlpha -> GL4.GL_SRC_ALPHA
+        Blending.BlendFactor.OneMinusSrcAlpha -> GL4.GL_ONE_MINUS_SRC_ALPHA
+
+        Blending.BlendFactor.SrcColor -> GL4.GL_SRC_COLOR
+        Blending.BlendFactor.OneMinusSrcColor -> GL4.GL_ONE_MINUS_SRC_COLOR
+
+        Blending.BlendFactor.DstColor -> GL4.GL_DST_COLOR
+        Blending.BlendFactor.OneMinusDstColor -> GL4.GL_ONE_MINUS_DST_COLOR
+
+        Blending.BlendFactor.DstAlpha -> GL4.GL_DST_ALPHA
+        Blending.BlendFactor.OneMinusDstAlpha -> GL4.GL_ONE_MINUS_DST_ALPHA
+
+        Blending.BlendFactor.ConstantColor -> GL4.GL_CONSTANT_COLOR
+        Blending.BlendFactor.OneMinusConstantColor -> GL4.GL_ONE_MINUS_CONSTANT_COLOR
+
+        Blending.BlendFactor.ConstantAlpha -> GL4.GL_CONSTANT_ALPHA
+        Blending.BlendFactor.OneMinusConstantAlpha -> GL4.GL_ONE_MINUS_CONSTANT_ALPHA
+
+        Blending.BlendFactor.Src1Color -> GL4.GL_SRC1_COLOR
+        Blending.BlendFactor.OneMinusSrc1Color -> GL4.GL_ONE_MINUS_SRC1_COLOR
+
+        Blending.BlendFactor.Src1Alpha -> GL4.GL_SRC1_ALPHA
+        Blending.BlendFactor.OneMinusSrc1Alpha -> GL4.GL_ONE_MINUS_SRC1_ALPHA
+
+        Blending.BlendFactor.SrcAlphaSaturate -> GL4.GL_SRC_ALPHA_SATURATE
     }
 
     private fun Blending.BlendOp.toOpenGL() = when (this) {
