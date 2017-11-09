@@ -101,7 +101,7 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
         logger.debug("Closing UBO $this ...")
         if(backingBuffer == null) {
             descriptor?.let {
-                logger.debug("Destroying buffer of $this/$it (${it.buffer}, ${it.memory})...")
+                logger.debug("Destroying buffer of $this/$it (${it.buffer.toHexString()}, ${it.memory.toHexString()})...")
                 vkDestroyBuffer(device.vulkanDevice, it.buffer, null)
                 vkFreeMemory(device.vulkanDevice, it.memory, null)
             }
