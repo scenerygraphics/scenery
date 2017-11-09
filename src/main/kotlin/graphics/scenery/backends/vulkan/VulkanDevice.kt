@@ -185,7 +185,7 @@ class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysicalDevic
                                           validationLayers: Array<String> = arrayOf()): VulkanDevice {
             return stackPush().use { stack ->
 
-                val physicalDeviceCount = VU.getInt("Enumerate physical devices", 1,
+                val physicalDeviceCount = VU.getInt("Enumerate physical devices",
                     { vkEnumeratePhysicalDevices(instance, this, null)} )
 
                 if (physicalDeviceCount < 1) {
