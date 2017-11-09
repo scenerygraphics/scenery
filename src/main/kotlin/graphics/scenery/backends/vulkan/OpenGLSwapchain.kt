@@ -35,10 +35,7 @@ import java.lang.UnsupportedOperationException
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class OpenGLSwapchain(val device: VkDevice,
-                      val physicalDevice: VkPhysicalDevice,
-                      val instance: VkInstance,
-                      val memoryProperties: VkPhysicalDeviceMemoryProperties,
+class OpenGLSwapchain(val device: VulkanDevice,
                       val queue: VkQueue,
                       val commandPool: Long,
                       val renderConfig: RenderConfigReader.RenderConfig,
@@ -84,7 +81,7 @@ class OpenGLSwapchain(val device: VkDevice,
             glfwSetWindowPos(window, 100, 100)
 
             surface = VU.run(MemoryUtil.memAllocLong(1), "glfwCreateWindowSurface") {
-                GLFWVulkan.glfwCreateWindowSurface(instance, window, null, this)
+                GLFWVulkan.glfwCreateWindowSurface(device.instance, window, null, this)
             }
 
             // Handle canvas resize
@@ -141,7 +138,7 @@ class OpenGLSwapchain(val device: VkDevice,
 
         val imgs = (0..bufferCount - 1).map {
             with(VU.newCommandBuffer(device, commandPool, autostart = true)) {
-                val t = VulkanTexture(device, physicalDevice, memoryProperties, commandPool, queue,
+                val t = VulkanTexture(device, commandPool, queue,
                     window.width, window.height, 1, format, 1)
 
                 val image = t.createImage(window.width, window.height, 1,
@@ -360,8 +357,8 @@ class OpenGLSwapchain(val device: VkDevice,
     }
 
     override fun close() {
-        imageViews?.forEach { vkDestroyImageView(device, it, null) }
-        images?.forEach { vkDestroyImage(device, it, null) }
+        imageViews?.forEach { vkDestroyImageView(device.vulkanDevice, it, null) }
+        images?.forEach { vkDestroyImage(device.vulkanDevice, it, null) }
 
         windowSizeCallback.close()
         glfwDestroyWindow(window.window)

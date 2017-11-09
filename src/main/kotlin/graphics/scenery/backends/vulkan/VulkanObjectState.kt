@@ -61,7 +61,7 @@ open class VulkanObjectState : NodeMetadata {
         return currentInCommandBuffer.getOrPut(commandBuffer, { true })
     }
 
-    fun texturesToDescriptorSet(device: VkDevice, descriptorSetLayout: Long, descriptorPool: Long, targetBinding: Int = 0): Long {
+    fun texturesToDescriptorSet(device: VulkanDevice, descriptorSetLayout: Long, descriptorPool: Long, targetBinding: Int = 0): Long {
         val descriptorSet = if(textureDescriptorSet == -1L) {
             val pDescriptorSetLayout = memAllocLong(1)
             pDescriptorSetLayout.put(0, descriptorSetLayout)
@@ -73,7 +73,7 @@ open class VulkanObjectState : NodeMetadata {
                 .pSetLayouts(pDescriptorSetLayout)
 
             VU.run(memAllocLong(1), "vkAllocateDescriptorSets",
-                { VK10.vkAllocateDescriptorSets(device, allocInfo, this) },
+                { VK10.vkAllocateDescriptorSets(device.vulkanDevice, allocInfo, this) },
                 { allocInfo.free(); memFree(pDescriptorSetLayout) })
         } else {
             textureDescriptorSet
@@ -101,7 +101,7 @@ open class VulkanObjectState : NodeMetadata {
             i++
         }
 
-        VK10.vkUpdateDescriptorSets(device, wd, null)
+        VK10.vkUpdateDescriptorSets(device.vulkanDevice, wd, null)
         wd.free()
         d.forEach { it.free() }
 
