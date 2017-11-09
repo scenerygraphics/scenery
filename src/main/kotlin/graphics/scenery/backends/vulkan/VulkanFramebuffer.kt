@@ -113,7 +113,7 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
 
         val allocation = VkMemoryAllocateInfo.calloc()
             .allocationSize(requirements.size())
-            .memoryTypeIndex(device.physicalDevice.getMemoryType(requirements.memoryTypeBits(), VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT).second)
+            .memoryTypeIndex(device.getMemoryType(requirements.memoryTypeBits(), VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT).second)
             .sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO)
             .pNext(NULL)
 
@@ -436,7 +436,7 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
             .pDependencies(dependencyChain)
             .pNext(NULL)
 
-        renderPass.put(0, VU.run(memAllocLong(1), "create renderpass",
+        renderPass.put(0, VU.getLong("create renderpass",
             { vkCreateRenderPass(device.vulkanDevice, renderPassInfo, null, this) },
             { attachmentDescs.free() }))
 
@@ -451,7 +451,7 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
             .height(height)
             .layers(1)
 
-        framebuffer.put(0, VU.run(memAllocLong(1), "create framebuffer",
+        framebuffer.put(0, VU.getLong("create framebuffer",
             { vkCreateFramebuffer(device.vulkanDevice, fbinfo, null, this) },
             { fbinfo.free(); memFree(attachmentImageViews); }))
 

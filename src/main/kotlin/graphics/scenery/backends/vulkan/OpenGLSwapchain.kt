@@ -80,9 +80,8 @@ class OpenGLSwapchain(val device: VulkanDevice,
         window = SceneryWindow.GLFWWindow(glfwCreateWindow(win.width, win.height, "scenery", MemoryUtil.NULL, MemoryUtil.NULL)).apply {
             glfwSetWindowPos(window, 100, 100)
 
-            surface = VU.run(MemoryUtil.memAllocLong(1), "glfwCreateWindowSurface") {
-                GLFWVulkan.glfwCreateWindowSurface(device.instance, window, null, this)
-            }
+            surface = VU.getLong("glfwCreateWindowSurface",
+                { GLFWVulkan.glfwCreateWindowSurface(device.instance, window, null, this) }, {})
 
             // Handle canvas resize
             windowSizeCallback = object : GLFWWindowSizeCallback() {
