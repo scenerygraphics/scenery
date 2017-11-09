@@ -122,7 +122,7 @@ class VulkanPipeline(val device: VulkanDevice, val pipelineCache: Long? = null):
             .pSetLayouts(setLayouts)
             .pPushConstantRanges(pushConstantRanges)
 
-        val layout = VU.run(memAllocLong(1), "vkCreatePipelineLayout",
+        val layout = VU.getLong("vkCreatePipelineLayout",
             { vkCreatePipelineLayout(device.vulkanDevice, pPipelineLayoutCreateInfo, null, this) },
             { pPipelineLayoutCreateInfo.free(); memFree(setLayouts); })
 
@@ -147,8 +147,8 @@ class VulkanPipeline(val device: VulkanDevice, val pipelineCache: Long? = null):
             inputAssemblyState.topology(onlyForTopology.asVulkanTopology())
         }
 
-        val p = VU.run(memAllocLong(1), "vkCreateGraphicsPipelines for ${renderpass.name} ($vulkanRenderpass)",
-            { vkCreateGraphicsPipelines(device.vulkanDevice, pipelineCache ?: VK_NULL_HANDLE, pipelineCreateInfo, null, this) })
+        val p = VU.getLong("vkCreateGraphicsPipelines for ${renderpass.name} ($vulkanRenderpass)",
+            { vkCreateGraphicsPipelines(device.vulkanDevice, pipelineCache ?: VK_NULL_HANDLE, pipelineCreateInfo, null, this) }, {})
 
         val vkp = VulkanRenderer.Pipeline()
         vkp.layout = layout
@@ -162,8 +162,7 @@ class VulkanPipeline(val device: VulkanDevice, val pipelineCache: Long? = null):
         if(onlyForTopology == null) {
             // create pipelines for other topologies as well
             GeometryType.values().forEach { topology ->
-                if (topology == GeometryType.TRIANGLES) {
-                    return@forEach
+                if (topology == GeometryType.TRIANGLES) { return@forEach
                 }
 
                 inputAssemblyState.topology(topology.asVulkanTopology()).pNext(NULL)
@@ -174,8 +173,8 @@ class VulkanPipeline(val device: VulkanDevice, val pipelineCache: Long? = null):
                     .basePipelineIndex(-1)
                     .flags(VK_PIPELINE_CREATE_DERIVATIVE_BIT)
 
-                val derivativeP = VU.run(memAllocLong(1), "vkCreateGraphicsPipelines(derivative) for ${renderpass.name} ($vulkanRenderpass)",
-                    { vkCreateGraphicsPipelines(device.vulkanDevice, pipelineCache ?: VK_NULL_HANDLE, pipelineCreateInfo, null, this) })
+                val derivativeP = VU.getLong("vkCreateGraphicsPipelines(derivative) for ${renderpass.name} ($vulkanRenderpass)",
+                    { vkCreateGraphicsPipelines(device.vulkanDevice, pipelineCache ?: VK_NULL_HANDLE, pipelineCreateInfo, null, this) }, {})
 
                 val derivativePipeline = VulkanRenderer.Pipeline()
                 derivativePipeline.layout = layout

@@ -33,14 +33,9 @@ class VulkanBuffer(val device: VulkanDevice, val size: Long, val usage: Int, val
             .usage(usage)
             .size(size)
 
-        val buffer = VU.run(memAllocLong(1), "Creating buffer",
-            { vkCreateBuffer(device.vulkanDevice, bufferInfo, null, this) })
+        val buffer = VU.getLong("Creating buffer",
+            { vkCreateBuffer(device.vulkanDevice, bufferInfo, null, this) }, {})
         vkGetBufferMemoryRequirements(device.vulkanDevice, buffer, reqs)
-
-        VU.getMemoryType(device.memoryProperties,
-            reqs.memoryTypeBits(),
-            requestedMemoryProperties,
-            memTypeIndex)
 
         val size = if (wantAligned) {
             if (reqs.size().rem(reqs.alignment()) == 0L) {
@@ -56,7 +51,7 @@ class VulkanBuffer(val device: VulkanDevice, val size: Long, val usage: Int, val
             .sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO)
             .pNext(NULL)
             .allocationSize(size)
-            .memoryTypeIndex(memTypeIndex.get(0))
+            .memoryTypeIndex(device.getMemoryType(reqs.memoryTypeBits(), requestedMemoryProperties).second)
 
 
         vkAllocateMemory(device.vulkanDevice, allocInfo, null, memory)

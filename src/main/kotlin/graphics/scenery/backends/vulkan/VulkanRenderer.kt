@@ -147,7 +147,7 @@ open class VulkanRenderer(hub: Hub,
                     vkDestroyPipelineCache(device.vulkanDevice, pipelineCache, null)
                 }
 
-                pipelineCache = VU.run(memAllocLong(1), "create pipeline cache",
+                pipelineCache = VU.getLong("create pipeline cache",
                     { vkCreatePipelineCache(device.vulkanDevice, pipelineCacheInfo, null, this) },
                     { pipelineCacheInfo.free() })
 
@@ -181,7 +181,7 @@ open class VulkanRenderer(hub: Hub,
                     .queryType(VK_QUERY_TYPE_TIMESTAMP)
                     .queryCount(renderConfig.renderpasses.size * 2)
 
-                timestampQueryPool = VU.run(memAllocLong(1), "Create timestamp query pool",
+                timestampQueryPool = VU.getLong("Create timestamp query pool",
                     { vkCreateQueryPool(device.vulkanDevice, queryPoolCreateInfo, null, this) },
                     { queryPoolCreateInfo.free() })
             }
@@ -324,7 +324,7 @@ open class VulkanRenderer(hub: Hub,
             0.0f,  0.0f, 0.5f, 0.0f,
             0.0f,  0.0f, 0.5f, 1.0f))
 
-    override var renderConfigFile = ""
+    override var renderConfigFile: String = ""
         set(config) {
             field = config
 
@@ -1383,9 +1383,8 @@ open class VulkanRenderer(hub: Hub,
 
                 pass.vulkanMetadata.eye.put(0, pass.passConfig.eye)
 
-                pass.semaphore = VU.run(memAllocLong(1), "vkCreateSemaphore") {
-                    vkCreateSemaphore(device.vulkanDevice, semaphoreCreateInfo, null, this)
-                }
+                pass.semaphore = VU.getLong("vkCreateSemaphore",
+                    { vkCreateSemaphore(device.vulkanDevice, semaphoreCreateInfo, null, this) }, {})
 
                 this.endCommandBuffer(device, commandPools.Standard, this@VulkanRenderer.queue, flush = true)
             }
@@ -1419,9 +1418,8 @@ open class VulkanRenderer(hub: Hub,
 
         StandardSemaphores.values().forEach {
             map.put(it, swapchain!!.images!!.map {
-                VU.run(memAllocLong(1), "Semaphore for $it") {
-                    vkCreateSemaphore(device.vulkanDevice, semaphoreCreateInfo, null, this)
-                }
+                VU.getLong("Semaphore for $it",
+                { vkCreateSemaphore(device.vulkanDevice, semaphoreCreateInfo, null, this) }, {})
             }.toTypedArray())
         }
 
@@ -2074,8 +2072,8 @@ open class VulkanRenderer(hub: Hub,
                 .maxSets(this.MAX_TEXTURES + this.MAX_UBOS + this.MAX_INPUT_ATTACHMENTS + this.MAX_UBOS)// Set the max. number of sets that can be requested
                 .flags(VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT)
 
-            val descriptorPool = VU.run(memAllocLong(1), "vkCreateDescriptorPool",
-                function = { vkCreateDescriptorPool(device.vulkanDevice, descriptorPoolInfo, null, this) })
+            val descriptorPool = VU.getLong("vkCreateDescriptorPool",
+                { vkCreateDescriptorPool(device.vulkanDevice, descriptorPoolInfo, null, this) }, {})
 
             descriptorPool
         }

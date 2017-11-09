@@ -57,9 +57,8 @@ open class VulkanSwapchain(open val device: VulkanDevice,
 
             glfwSetWindowPos(window, 100, 100)
 
-            surface = VU.run(MemoryUtil.memAllocLong(1), "glfwCreateWindowSurface") {
-                GLFWVulkan.glfwCreateWindowSurface(device.instance, window, null, this)
-            }
+            surface = VU.getLong("glfwCreateWindowSurface",
+                { GLFWVulkan.glfwCreateWindowSurface(device.instance, window, null, this) }, {})
 
             // Handle canvas resize
             windowSizeCallback = object : GLFWWindowSizeCallback() {
@@ -238,8 +237,8 @@ open class VulkanSwapchain(open val device: VulkanDevice,
                     newImageLayout = KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
                 colorAttachmentView.image(images[i])
 
-                imageViews[i] = VU.run(MemoryUtil.memAllocLong(1), "create image view",
-                    { VK10.vkCreateImageView(device.vulkanDevice, colorAttachmentView, null, this) })
+                imageViews[i] = VU.getLong("create image view",
+                    { VK10.vkCreateImageView(device.vulkanDevice, colorAttachmentView, null, this) }, {})
             }
 
             this.endCommandBuffer(device, commandPool, queue,
@@ -312,7 +311,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
             throw AssertionError("Presentation queue != graphics queue")
         }
 
-        presentQueue = VkQueue(VU.run(MemoryUtil.memAllocPointer(1), "Get present queue",
+        presentQueue = VkQueue(VU.getPointer("Get present queue",
             { VK10.vkGetDeviceQueue(device.vulkanDevice, presentQueueNodeIndex, 0, this); VK10.VK_SUCCESS }, {} ),
             device.vulkanDevice)
 

@@ -15,7 +15,7 @@ import java.util.concurrent.ConcurrentHashMap
 open class VulkanObjectState : NodeMetadata {
     protected val logger by LazyLogger()
 
-    override val consumers: MutableList<String> = ArrayList()
+    override val consumers: MutableList<String> = ArrayList(setOf("VulkanRenderer"))
 
     var initialized = false
     var isIndexed = false
@@ -25,8 +25,6 @@ open class VulkanObjectState : NodeMetadata {
     var instanceCount = 1
 
     var vertexBuffers = ConcurrentHashMap<String, VulkanBuffer>()
-
-    var pipeline = VulkanRenderer.Pipeline()
 
     var UBOs = LinkedHashMap<String, Pair<Long, VulkanUBO>>()
 
@@ -45,16 +43,12 @@ open class VulkanObjectState : NodeMetadata {
 
     private val currentInCommandBuffer = HashMap<VulkanCommandBuffer, Boolean>(3)
 
-    init {
-        consumers.add("VulkanRenderer")
-    }
-
     fun setCommandBufferUpdated(commandBuffer: VulkanCommandBuffer, isUpdated: Boolean) {
         currentInCommandBuffer.put(commandBuffer, isUpdated)
     }
 
     fun setAllCommandBufferUpdated(isUpdated: Boolean) {
-        currentInCommandBuffer.entries.forEach { it.setValue(false) }
+        currentInCommandBuffer.entries.forEach { it.setValue(isUpdated) }
     }
 
     fun isCurrentInCommandBuffer(commandBuffer: VulkanCommandBuffer): Boolean {
@@ -72,7 +66,7 @@ open class VulkanObjectState : NodeMetadata {
                 .descriptorPool(descriptorPool)
                 .pSetLayouts(pDescriptorSetLayout)
 
-            VU.run(memAllocLong(1), "vkAllocateDescriptorSets",
+            VU.getLong("vkAllocateDescriptorSets",
                 { VK10.vkAllocateDescriptorSets(device.vulkanDevice, allocInfo, this) },
                 { allocInfo.free(); memFree(pDescriptorSetLayout) })
         } else {

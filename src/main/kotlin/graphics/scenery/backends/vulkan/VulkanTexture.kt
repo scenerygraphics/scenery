@@ -127,8 +127,8 @@ open class VulkanTexture(val device: VulkanDevice,
             .flags(VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT)
 
         val reqs = VkMemoryRequirements.calloc()
-        val image = VU.run(memAllocLong(1), "create staging image",
-            { vkCreateImage(device.vulkanDevice, imageInfo, null, this) })
+        val image = VU.getLong("create staging image",
+            { vkCreateImage(device.vulkanDevice, imageInfo, null, this) }, {})
 
         vkGetImageMemoryRequirements(device.vulkanDevice, image, reqs)
 
@@ -138,9 +138,9 @@ open class VulkanTexture(val device: VulkanDevice,
             .sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO)
             .pNext(NULL)
             .allocationSize(memorySize)
-            .memoryTypeIndex(device.physicalDevice.getMemoryType(reqs.memoryTypeBits(), memoryFlags).second)
+            .memoryTypeIndex(device.getMemoryType(reqs.memoryTypeBits(), memoryFlags).second)
 
-        val memory = VU.run(memAllocLong(1), "allocate image staging memory",
+        val memory = VU.getLong("allocate image staging memory",
             { vkAllocateMemory(device.vulkanDevice, allocInfo, null, this) },
             { imageInfo.free(); allocInfo.free(); reqs.free(); extent.free() })
 
@@ -334,11 +334,9 @@ open class VulkanTexture(val device: VulkanDevice,
             vi.components(VkComponentMapping.calloc().set(VK_COMPONENT_SWIZZLE_R,VK_COMPONENT_SWIZZLE_R,VK_COMPONENT_SWIZZLE_R,VK_COMPONENT_SWIZZLE_R ))
         }
 
-        val view = VU.run(memAllocLong(1), "Creating image view",
+        return VU.getLong("Creating image view",
             { vkCreateImageView(device.vulkanDevice, vi, null, this) },
             { vi.free(); subresourceRange.free(); })
-
-        return view
     }
 
     private fun createSampler(): Long {
@@ -359,7 +357,7 @@ open class VulkanTexture(val device: VulkanDevice,
             .borderColor(VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE)
             .compareOp(VK_COMPARE_OP_NEVER)
 
-        return VU.run(memAllocLong(1), "creating sampler",
+        return VU.getLong("creating sampler",
             { vkCreateSampler(device.vulkanDevice, samplerInfo, null, this) },
             { samplerInfo.free() })
     }

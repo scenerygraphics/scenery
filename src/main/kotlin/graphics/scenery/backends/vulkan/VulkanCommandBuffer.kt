@@ -30,7 +30,7 @@ class VulkanCommandBuffer(val device: VulkanDevice, var commandBuffer: VkCommand
             .sType(VK_STRUCTURE_TYPE_FENCE_CREATE_INFO)
             .pNext(NULL)
 
-        val f = VU.run(memAllocLong(1), "Creating fence",
+        val f = VU.getLong("Creating fence",
             { vkCreateFence(device.vulkanDevice, fc, null, this) },
             { fc.free() })
 
@@ -40,15 +40,15 @@ class VulkanCommandBuffer(val device: VulkanDevice, var commandBuffer: VkCommand
 
     fun waitForFence(timeout: Long? = null) {
         if(fenced && fenceInitialized) {
-            VU.run(memAllocLong(1), "Waiting for fence",
-                { vkWaitForFences(device.vulkanDevice, fence, true, timeout ?: -1L) })
+            VU.getLong("Waiting for fence",
+                { vkWaitForFences(device.vulkanDevice, fence, true, timeout ?: -1L) }, {})
         }
     }
 
     fun resetFence() {
         if(fenced && fenceInitialized) {
-            VU.run(memAllocLong(1), "Resetting fence",
-                { vkResetFences(device.vulkanDevice, fence) })
+            VU.getLong("Resetting fence",
+                { vkResetFences(device.vulkanDevice, fence) }, {})
         }
     }
 

@@ -210,9 +210,8 @@ class FXSwapchain(device: VulkanDevice,
         val h = intArrayOf(1)
         glfwGetWindowSize(glfwOffscreenWindow, w, h)
 
-        surface = VU.run(MemoryUtil.memAllocLong(1), "glfwCreateWindowSurface") {
-            GLFWVulkan.glfwCreateWindowSurface(vulkanInstance, glfwOffscreenWindow, null, this)
-        }
+        surface = VU.getLong("glfwCreateWindowSurface",
+            { GLFWVulkan.glfwCreateWindowSurface(vulkanInstance, glfwOffscreenWindow, null, this) }, {})
 
         super.create(null)
 
