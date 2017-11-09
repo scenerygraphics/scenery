@@ -452,7 +452,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
     }
 
     override fun close() {
-        logger.info("Closing swapchain $this")
+        logger.debug("Closing swapchain $this")
         KHRSwapchain.vkDestroySwapchainKHR(device.vulkanDevice, handle, null)
         retiredSwapchains.forEach { KHRSwapchain.vkDestroySwapchainKHR(device.vulkanDevice, it, null) }
 

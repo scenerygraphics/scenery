@@ -1,7 +1,7 @@
 package graphics.scenery.backends.vulkan
 
 import graphics.scenery.utils.LazyLogger
-import org.lwjgl.system.MemoryStack
+import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.memUTF8
 import org.lwjgl.vulkan.*
@@ -21,7 +21,7 @@ class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysicalDevic
     data class QueueIndices(val presentQueue: Int, val graphicsQueue: Int, val computeQueue: Int)
 
     init {
-        val result = MemoryStack.stackPush().use { stack ->
+        val result = stackPush().use { stack ->
             val pQueueFamilyPropertyCount = stack.callocInt(1)
             vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, pQueueFamilyPropertyCount, null)
             val queueCount = pQueueFamilyPropertyCount.get(0)
@@ -118,15 +118,12 @@ class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysicalDevic
     }
 
     fun getMemoryType(typeBits: Int, flags: Int): Pair<Boolean, Int> {
-        var found = false
         var bits = typeBits
 
         for (i in 0 until memoryProperties.memoryTypeCount()) {
             if (bits and 1 == 1) {
                 if ((memoryProperties.memoryTypes(i).propertyFlags() and flags) == flags) {
-                    found = true
-
-                    return found.to(i)
+                    return true.to(i)
                 }
             }
 
@@ -186,7 +183,7 @@ class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysicalDevic
         @JvmStatic fun fromPhysicalDevice(instance: VkInstance, physicalDeviceFilter: (Int, DeviceData) -> Boolean,
                                           additionalExtensions: (VkPhysicalDevice) -> Array<String> = { arrayOf() },
                                           validationLayers: Array<String> = arrayOf()): VulkanDevice {
-            return MemoryStack.stackPush().use { stack ->
+            return stackPush().use { stack ->
 
                 val physicalDeviceCount = VU.getInt("Enumerate physical devices", 1,
                     { vkEnumeratePhysicalDevices(instance, this, null)} )
