@@ -22,12 +22,10 @@ import org.lwjgl.system.jemalloc.JEmalloc.je_malloc
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.EXTDebugReport.*
 import org.lwjgl.vulkan.KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
-import org.lwjgl.vulkan.KHRSwapchain.VK_KHR_SWAPCHAIN_EXTENSION_NAME
 import org.lwjgl.vulkan.VK10.*
 import java.awt.image.BufferedImage
 import java.awt.image.DataBufferByte
 import java.io.File
-import java.nio.ByteBuffer
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.text.SimpleDateFormat
@@ -806,7 +804,7 @@ open class VulkanRenderer(hub: Hub,
                         }
                     }
 
-                    logger.info("Shaders are: ${shaders.joinToString(", ")}")
+                    logger.debug("Shaders are: ${shaders.joinToString(", ")}")
 
                     pass.value.initializePipeline("preferred-${node.name}",
                         shaders.map { VulkanShaderModule(device, "main", node.javaClass, "shaders/" + it) },
