@@ -13,10 +13,15 @@ class VulkanBuffer(val device: VulkanDevice, val size: Long, val usage: Int, val
     private var currentPosition = 0L
     private var currentPointer: PointerBuffer? = null
     var alignment: Long = 256
+        private set
     var memory: Long = -1L
+        private set
     var vulkanBuffer: Long = -1L
+        private set
     var data: Long = -1L
+        private set
     var allocatedSize: Long = 0
+        private set
 
     private var mapped = false
 
