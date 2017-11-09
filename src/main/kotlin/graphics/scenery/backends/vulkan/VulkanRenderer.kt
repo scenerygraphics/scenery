@@ -15,9 +15,10 @@ import org.lwjgl.glfw.GLFWVulkan.glfwGetRequiredInstanceExtensions
 import org.lwjgl.glfw.GLFWVulkan.glfwVulkanSupported
 import org.lwjgl.system.Configuration
 import org.lwjgl.system.MemoryStack.stackPush
-import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.*
-import org.lwjgl.system.jemalloc.JEmalloc.*
+import org.lwjgl.system.jemalloc.JEmalloc.je_calloc
+import org.lwjgl.system.jemalloc.JEmalloc.je_free
+import org.lwjgl.system.jemalloc.JEmalloc.je_malloc
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.EXTDebugReport.*
 import org.lwjgl.vulkan.KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
@@ -713,6 +714,8 @@ open class VulkanRenderer(hub: Hub,
             materialType = materialType or MATERIAL_HAS_ALPHAMASK
         }
 
+        s.blendingHashCode = node.material.blending.hashCode()
+
         with(materialUbo) {
             name = "MaterialProperties"
             add("materialType", { materialType })
@@ -720,7 +723,7 @@ open class VulkanRenderer(hub: Hub,
             add("Kd", { node.material.diffuse })
             add("Ks", { node.material.specular })
             add("Shininess", { node.material.specularExponent })
-            add("Opacity", { node.material.opacity })
+            add("Opacity", { node.material.blending.opacity })
 
             requiredOffsetCount = 1
             createUniformBuffer(memoryProperties)
@@ -733,11 +736,11 @@ open class VulkanRenderer(hub: Hub,
 
         try {
             initializeCustomShadersForNode(node)
-        } catch(e: VulkanShaderModule.ShaderCompilationException) {
+        } catch (e: VulkanShaderModule.ShaderCompilationException) {
             logger.error("Compilation of custom shader failed: ${e.message}")
             logger.error("Node ${node.name} will use default shader for render pass.")
 
-            if(logger.isDebugEnabled) {
+            if (logger.isDebugEnabled) {
                 e.printStackTrace()
             }
         }
@@ -747,6 +750,14 @@ open class VulkanRenderer(hub: Hub,
 
     private fun initializeCustomShadersForNode(node: Node): Boolean {
 
+        if(!(node.material.blending.transparent || node.useClassDerivedShader || node.material.doubleSided || node.material is ShaderMaterial)) {
+            logger.debug("Using default renderpass material for ${node.name}")
+            return false
+        }
+
+        lateResizeInitializers.remove(node)
+
+        // TODO: Add check whether the node actually needs a custom shader
         node.rendererMetadata()?.let { s ->
 
             val needsShaderPropertyUBO = if (node.javaClass.declaredFields.filter { it.isAnnotationPresent(ShaderProperty::class.java) }.count() > 0) {
@@ -754,10 +765,10 @@ open class VulkanRenderer(hub: Hub,
 
                 renderpasses.filter {
                     it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry
-                        && it.value.passConfig.renderTransparent == node.material.transparent
+                        && it.value.passConfig.renderTransparent == node.material.blending.transparent
                 }
                     .map { pass ->
-                        logger.info("Initializing shader properties for ${node.name}")
+                        logger.debug("Initializing shader properties for ${node.name}")
                         dsl = pass.value.initializeShaderPropertyDescriptorSetLayout()
                     }
 
@@ -770,77 +781,67 @@ open class VulkanRenderer(hub: Hub,
                 false
             }
 
-            if (node.material.doubleSided) {
-                renderpasses.filter { it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry }
-                    .map { pass ->
-                        val shaders = pass.value.passConfig.shaders
-                        logger.info("initializing double-sided pipeline for ${node.name} from $shaders")
 
-                        pass.value.initializePipeline("preferred-${node.name}",
-                            shaders.map { VulkanShaderModule(device, "main", node.javaClass, "shaders/" + it) },
-
-                            settings = { pipeline ->
-                                pipeline.rasterizationState.cullMode(VK_CULL_MODE_NONE)
-                            },
-                            vertexInputType = s.vertexDescription!!)
-
-                    }
-            }
-
-            if (s.vertexInputType == VertexDataKinds.coords_normals) {
-                renderpasses.filter { it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry }
-                    .map { pass ->
-                        val shaders = pass.value.passConfig.shaders
-                        logger.debug("initializing custom vertex input pipeline for ${node.name} from $shaders")
-
-                        pass.value.initializePipeline("preferred-${node.name}",
-                            shaders.map { VulkanShaderModule(device, "main", node.javaClass, "shaders/" + it) },
-                            vertexInputType = s.vertexDescription!!)
-                    }
-            }
-
-            if (node.material is ShaderMaterial) {
-                renderpasses.filter { it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry }
-                    .map { pass ->
-                        val shaders = (node.material as ShaderMaterial).shaders
-                        logger.info("initializing preferred pipeline for ${node.name} from $shaders")
-                        pass.value.initializePipeline("preferred-${node.name}",
-                            shaders.map { VulkanShaderModule(device, "main", node.javaClass, "shaders/$it.spv") },
-                            vertexInputType = s.vertexDescription!!)
-                    }
-            }
-
-            if (node.useClassDerivedShader) {
-                renderpasses.filter {
-                    it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry
-                        && it.value.passConfig.renderTransparent == node.material.transparent
-                }
-                    .map { pass ->
-                        val cullMode = if (node.material.doubleSided) {
-                            VK_CULL_MODE_NONE
-                        } else {
-                            VK_CULL_MODE_BACK_BIT
+            renderpasses.filter { it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry }
+                .map { pass ->
+                    val shaders = when {
+                        node.material is ShaderMaterial -> {
+                            logger.debug("Initializing preferred pipeline for ${node.name} from ShaderMaterial")
+                            (node.material as ShaderMaterial).shaders
                         }
 
-                        val shaders = listOf("${node.javaClass.simpleName}.vert", "${node.javaClass.simpleName}.frag")
-                        logger.info("Initializing class-derived preferred pipeline for ${node.name} from $shaders")
-                        pass.value.initializePipeline("preferred-${node.name}",
-                            shaders.map { VulkanShaderModule(device, "main", node.javaClass, "shaders/$it.spv") },
-                            vertexInputType = s.vertexDescription!!,
-                            settings = { pipeline ->
-                                pipeline.rasterizationState.cullMode(cullMode)
-                            })
+                        node.useClassDerivedShader && pass.value.passConfig.renderTransparent == node.material.blending.transparent -> {
+                            logger.debug("Initializing classname-derived preferred pipeline for ${node.name}")
+                            listOf("${node.javaClass.simpleName}.vert", "${node.javaClass.simpleName}.frag")
+                        }
+
+                        else -> {
+                            logger.debug("Initializing pass-default shader preferred pipeline for ${node.name}")
+                            pass.value.passConfig.shaders
+                        }
                     }
-            }
+
+                    logger.info("Shaders are: ${shaders.joinToString(", ")}")
+
+                    pass.value.initializePipeline("preferred-${node.name}",
+                        shaders.map { VulkanShaderModule(device, "main", node.javaClass, "shaders/" + it) },
+
+                        settings = { pipeline ->
+                            if (node.material.doubleSided) {
+                                logger.debug("Pipeline for ${node.name} will be double-sided, backface culling disabled.")
+                                pipeline.rasterizationState.cullMode(VK_CULL_MODE_NONE)
+                            }
+
+                            if(node.material.blending.transparent) {
+                                with(node.material.blending) {
+                                    val blendStates = pipeline.colorBlendState.pAttachments()
+                                    for (attachment in 0 until blendStates.capacity()) {
+                                        blendStates[attachment]
+                                            .blendEnable(true)
+                                            .colorBlendOp(colorBlending.toVulkan())
+                                            .srcColorBlendFactor(sourceColorBlendFactor.toVulkan())
+                                            .dstColorBlendFactor(destinationColorBlendFactor.toVulkan())
+                                            .alphaBlendOp(alphaBlending.toVulkan())
+                                            .srcAlphaBlendFactor(sourceAlphaBlendFactor.toVulkan())
+                                            .dstAlphaBlendFactor(destinationAlphaBlendFactor.toVulkan())
+                                            .colorWriteMask(VK_COLOR_COMPONENT_R_BIT or VK_COLOR_COMPONENT_G_BIT or VK_COLOR_COMPONENT_B_BIT or VK_COLOR_COMPONENT_A_BIT)
+                                    }
+                                }
+                            }
+                        },
+                        vertexInputType = s.vertexDescription!!)
+                }
+
+            s.blendingHashCode = node.material.blending.hashCode()
 
             if (needsShaderPropertyUBO) {
                 var order: Map<String, Int> = emptyMap()
                 renderpasses.filter {
                     it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry &&
-                        it.value.passConfig.renderTransparent == node.material.transparent
+                        it.value.passConfig.renderTransparent == node.material.blending.transparent
                 }
                     .map { pass ->
-                        logger.info("Initializing shader properties for ${node.name}")
+                        logger.debug("Initializing shader properties for ${node.name}")
                         order = pass.value.getShaderPropertyOrder(node)
                     }
 
@@ -2341,10 +2342,15 @@ open class VulkanRenderer(hub: Hub,
                     it.material.needsTextureReload = false
                 }
 
+                if(it.material.blending.hashCode() != metadata.blendingHashCode) {
+                    initializeCustomShadersForNode(it)
+                    metadata.setAllCommandBufferUpdated(false)
+                }
+
                 // if a node is not initialized yet, it'll be initialized here and it's UBO updated
                 // in the next round
-                if (!((pass.passConfig.renderOpaque && it.material.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) ||
-                    (pass.passConfig.renderTransparent && !it.material.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent))) {
+                if (!((pass.passConfig.renderOpaque && it.material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) ||
+                    (pass.passConfig.renderTransparent && !it.material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent))) {
                     renderOrderList.add(it)
 
                     if (!metadata.isCurrentInCommandBuffer(commandBuffer)) {
@@ -2497,12 +2503,12 @@ open class VulkanRenderer(hub: Hub,
             instanceGroups[null]?.forEach nonInstancedDrawing@ { node ->
                 val s = node.rendererMetadata()!!
 
-                if(pass.passConfig.renderOpaque && node.material.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) {
+                if(pass.passConfig.renderOpaque && node.material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) {
                     s.setCommandBufferUpdated(commandBuffer, true)
                     return@nonInstancedDrawing
                 }
 
-                if(pass.passConfig.renderTransparent && !node.material.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) {
+                if(pass.passConfig.renderTransparent && !node.material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) {
                     s.setCommandBufferUpdated(commandBuffer, true)
                     return@nonInstancedDrawing
                 }

@@ -116,8 +116,8 @@ interface HasGeometry : Serializable {
                     "Ka" -> currentMaterial?.ambient = GLVector(tokens[1].toFloat(), tokens[2].toFloat(), tokens[3].toFloat())
                     "Kd" -> currentMaterial?.diffuse = GLVector(tokens[1].toFloat(), tokens[2].toFloat(), tokens[3].toFloat())
                     "Ks" -> currentMaterial?.specular = GLVector(tokens[1].toFloat(), tokens[2].toFloat(), tokens[3].toFloat())
-                    "d" -> currentMaterial?.opacity = tokens[1].toFloat()
-                    "Tr" -> currentMaterial?.opacity = 1.0f - tokens[1].toFloat()
+                    "d" -> currentMaterial?.blending?.opacity = tokens[1].toFloat()
+                    "Tr" -> currentMaterial?.blending?.opacity = 1.0f - tokens[1].toFloat()
                     "illum" -> {
                     }
                     "map_Ka" -> {
