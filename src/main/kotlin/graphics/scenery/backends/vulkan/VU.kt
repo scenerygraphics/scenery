@@ -6,9 +6,7 @@ import graphics.scenery.utils.LazyLogger
 import org.lwjgl.PointerBuffer
 import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil
-import org.lwjgl.system.MemoryUtil.NULL
-import org.lwjgl.system.MemoryUtil.memAllocLong
-import org.lwjgl.system.MemoryUtil.memAllocPointer
+import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.system.NativeResource
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.EXTDebugReport.VK_ERROR_VALIDATION_FAILED_EXT
@@ -134,9 +132,9 @@ class VU {
             cleanup.invoke()
         }
 
-        inline fun getInt(name: String, count: Int, function: IntBuffer.() -> Int): Int {
+        inline fun getInt(name: String, function: IntBuffer.() -> Int): Int {
             return stackPush().use { stack ->
-                val receiver = stack.callocInt(count)
+                val receiver = stack.callocInt(1)
                 val result = function.invoke(receiver)
 
                 if (result != VK_SUCCESS) {
@@ -147,6 +145,17 @@ class VU {
 
                 ret
             }
+        }
+
+        inline fun getInts(name: String, count: Int, function: IntBuffer.() -> Int): IntBuffer {
+            val receiver = memAllocInt(count)
+            val result = function.invoke(receiver)
+
+            if (result != VK_SUCCESS) {
+                LoggerFactory.getLogger("VulkanRenderer").error("Call to $name failed: ${translate(result)}")
+            }
+
+            return receiver
         }
 
         inline fun getLong(name: String, function: LongBuffer.() -> Int, cleanup: LongBuffer.() -> Any): Long {
