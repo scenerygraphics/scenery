@@ -276,7 +276,6 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
                            vertexInputType: VulkanRenderer.VertexDescription = vertexDescriptors.get(VulkanRenderer.VertexDataKinds.coords_normals_texcoords)!!,
                            settings: (VulkanPipeline) -> Any = {}) {
         val p = VulkanPipeline(device, pipelineCache)
-        settings.invoke(p)
 
         val reqDescriptorLayouts = ArrayList<Long>()
 
@@ -320,6 +319,8 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
                 reqDescriptorLayouts.add(initializeDescriptorSetLayoutForSpec(spec))
             }
         }
+
+        settings.invoke(p)
 
         if(logger.isDebugEnabled) {
             logger.debug("DS are: ${p.descriptorSpecs.entries.sortedBy { it.value.binding }.sortedBy { it.value.set }.joinToString { "${it.key} (set=${it.value.set}, binding=${it.value.binding})" } }")
@@ -419,20 +420,5 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
         if(semaphore != -1L) {
             vkDestroySemaphore(device, semaphore, null)
         }
-    }
-
-    private fun RenderConfigReader.BlendFactor.toVulkan() = when (this) {
-        RenderConfigReader.BlendFactor.Zero -> VK_BLEND_FACTOR_ZERO
-        RenderConfigReader.BlendFactor.One -> VK_BLEND_FACTOR_ONE
-        RenderConfigReader.BlendFactor.OneMinusSrcAlpha -> VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA
-        RenderConfigReader.BlendFactor.SrcAlpha -> VK_BLEND_FACTOR_SRC_ALPHA
-    }
-
-    private fun RenderConfigReader.BlendOp.toVulkan() = when (this) {
-        RenderConfigReader.BlendOp.add -> VK_BLEND_OP_ADD
-        RenderConfigReader.BlendOp.subtract -> VK_BLEND_OP_SUBTRACT
-        RenderConfigReader.BlendOp.min -> VK_BLEND_OP_MIN
-        RenderConfigReader.BlendOp.max -> VK_BLEND_OP_MAX
-        RenderConfigReader.BlendOp.reverse_subtract -> VK_BLEND_OP_REVERSE_SUBTRACT
     }
 }

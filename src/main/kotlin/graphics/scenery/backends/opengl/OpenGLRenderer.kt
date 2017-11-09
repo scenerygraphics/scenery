@@ -1222,16 +1222,32 @@ class OpenGLRenderer(hub: Hub,
                         return@nonInstancedDrawing
                     }
 
-                    if (pass.passConfig.renderOpaque && n.material.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) {
+                    if (pass.passConfig.renderOpaque && n.material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) {
                         return@nonInstancedDrawing
                     }
 
-                    if (pass.passConfig.renderTransparent && !n.material.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) {
+                    if (pass.passConfig.renderTransparent && !n.material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) {
                         return@nonInstancedDrawing
                     }
 
                     if (n.material.doubleSided) {
                         gl.glDisable(GL4.GL_CULL_FACE)
+                    }
+
+                    if (n.material.blending.transparent) {
+                        with(n.material.blending) {
+                            gl.glBlendFuncSeparate(
+                                sourceColorBlendFactor.toOpenGL(),
+                                destinationColorBlendFactor.toOpenGL(),
+                                sourceAlphaBlendFactor.toOpenGL(),
+                                destinationAlphaBlendFactor.toOpenGL()
+                            )
+
+                            gl.glBlendEquationSeparate(
+                                colorBlending.toOpenGL(),
+                                alphaBlending.toOpenGL()
+                            )
+                        }
                     }
 
                     if (!n.metadata.containsKey("OpenGLRenderer")) {
@@ -1715,7 +1731,7 @@ class OpenGLRenderer(hub: Hub,
             add("Kd", { node.material.diffuse })
             add("Ks", { node.material.specular })
             add("Shininess", { node.material.specularExponent })
-            add("Opacity", { node.material.opacity })
+            add("Opacity", { node.material.blending.opacity })
 
             s.UBOs.put("MaterialProperties", this)
         }
@@ -2262,19 +2278,43 @@ class OpenGLRenderer(hub: Hub,
         screenshotRequested = true
     }
 
-    private fun RenderConfigReader.BlendFactor.toOpenGL() = when (this) {
-        RenderConfigReader.BlendFactor.Zero -> GL4.GL_ZERO
-        RenderConfigReader.BlendFactor.One -> GL4.GL_ONE
-        RenderConfigReader.BlendFactor.OneMinusSrcAlpha -> GL4.GL_ONE_MINUS_SRC_ALPHA
-        RenderConfigReader.BlendFactor.SrcAlpha -> GL4.GL_SRC_ALPHA
+    private fun Blending.BlendFactor.toOpenGL() = when (this) {
+        Blending.BlendFactor.Zero -> GL4.GL_ZERO
+        Blending.BlendFactor.One -> GL4.GL_ONE
+
+        Blending.BlendFactor.SrcAlpha -> GL4.GL_SRC_ALPHA
+        Blending.BlendFactor.OneMinusSrcAlpha -> GL4.GL_ONE_MINUS_SRC_ALPHA
+
+        Blending.BlendFactor.SrcColor -> GL4.GL_SRC_COLOR
+        Blending.BlendFactor.OneMinusSrcColor -> GL4.GL_ONE_MINUS_SRC_COLOR
+
+        Blending.BlendFactor.DstColor -> GL4.GL_DST_COLOR
+        Blending.BlendFactor.OneMinusDstColor -> GL4.GL_ONE_MINUS_DST_COLOR
+
+        Blending.BlendFactor.DstAlpha -> GL4.GL_DST_ALPHA
+        Blending.BlendFactor.OneMinusDstAlpha -> GL4.GL_ONE_MINUS_DST_ALPHA
+
+        Blending.BlendFactor.ConstantColor -> GL4.GL_CONSTANT_COLOR
+        Blending.BlendFactor.OneMinusConstantColor -> GL4.GL_ONE_MINUS_CONSTANT_COLOR
+
+        Blending.BlendFactor.ConstantAlpha -> GL4.GL_CONSTANT_ALPHA
+        Blending.BlendFactor.OneMinusConstantAlpha -> GL4.GL_ONE_MINUS_CONSTANT_ALPHA
+
+        Blending.BlendFactor.Src1Color -> GL4.GL_SRC1_COLOR
+        Blending.BlendFactor.OneMinusSrc1Color -> GL4.GL_ONE_MINUS_SRC1_COLOR
+
+        Blending.BlendFactor.Src1Alpha -> GL4.GL_SRC1_ALPHA
+        Blending.BlendFactor.OneMinusSrc1Alpha -> GL4.GL_ONE_MINUS_SRC1_ALPHA
+
+        Blending.BlendFactor.SrcAlphaSaturate -> GL4.GL_SRC_ALPHA_SATURATE
     }
 
-    private fun RenderConfigReader.BlendOp.toOpenGL() = when (this) {
-        RenderConfigReader.BlendOp.add -> GL4.GL_FUNC_ADD
-        RenderConfigReader.BlendOp.subtract -> GL4.GL_FUNC_SUBTRACT
-        RenderConfigReader.BlendOp.min -> GL4.GL_MIN
-        RenderConfigReader.BlendOp.max -> GL4.GL_MAX
-        RenderConfigReader.BlendOp.reverse_subtract -> GL4.GL_FUNC_REVERSE_SUBTRACT
+    private fun Blending.BlendOp.toOpenGL() = when (this) {
+        Blending.BlendOp.add -> GL4.GL_FUNC_ADD
+        Blending.BlendOp.subtract -> GL4.GL_FUNC_SUBTRACT
+        Blending.BlendOp.min -> GL4.GL_MIN
+        Blending.BlendOp.max -> GL4.GL_MAX
+        Blending.BlendOp.reverse_subtract -> GL4.GL_FUNC_REVERSE_SUBTRACT
     }
 
     override fun close() {

@@ -1,6 +1,7 @@
 package graphics.scenery
 
 import cleargl.GLVector
+import graphics.scenery.backends.RenderConfigReader
 import java.io.Serializable
 import java.util.concurrent.ConcurrentHashMap
 
@@ -10,6 +11,8 @@ import java.util.concurrent.ConcurrentHashMap
  * @author Ulrik Günther <hello@ulrik.is>
  */
 open class Material : Serializable {
+
+
     /** Name of the material. */
     var name: String = "Material"
     /** Diffuse color of the material. */
@@ -18,13 +21,11 @@ open class Material : Serializable {
     var specular: GLVector = GLVector(0.5f, 0.5f, 0.5f)
     /** Ambient color of the material. */
     var ambient: GLVector = GLVector(0.5f, 0.5f, 0.5f)
-
-    /** Opacity of the material. */
-    var opacity = 1.0f
-    /** Set whether this material should be transparent, transparency degree can be set via [opacity]. */
-    var transparent: Boolean = false
     /** Specular exponent */
     var specularExponent: Float = 0.0f
+
+    /** Blending settings for this material. See [Blending]. */
+    var blending: Blending = Blending()
 
     /** Hash map storing the type and origin of the material's textures. Key is the
      * type, e.g. ("diffuse", "normal", "displacement"...), value can be a file path or

@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.KotlinModule
+import graphics.scenery.Blending
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.*
@@ -99,12 +100,12 @@ class RenderConfigReader {
         var renderTransparent: Boolean = false,
         var order: RenderOrder = RenderOrder.BackToFront,
         var renderOpaque: Boolean = true,
-        var colorBlendOp: BlendOp = BlendOp.add,
-        var alphaBlendOp: BlendOp = BlendOp.add,
-        var srcColorBlendFactor: BlendFactor = BlendFactor.SrcAlpha,
-        var dstColorBlendFactor: BlendFactor = BlendFactor.OneMinusSrcAlpha,
-        var srcAlphaBlendFactor: BlendFactor = BlendFactor.SrcAlpha,
-        var dstAlphaBlendFactor: BlendFactor = BlendFactor.OneMinusSrcAlpha,
+        var colorBlendOp: Blending.BlendOp = Blending.BlendOp.add,
+        var alphaBlendOp: Blending.BlendOp = Blending.BlendOp.add,
+        var srcColorBlendFactor: Blending.BlendFactor = Blending.BlendFactor.SrcAlpha,
+        var dstColorBlendFactor: Blending.BlendFactor = Blending.BlendFactor.OneMinusSrcAlpha,
+        var srcAlphaBlendFactor: Blending.BlendFactor = Blending.BlendFactor.SrcAlpha,
+        var dstAlphaBlendFactor: Blending.BlendFactor = Blending.BlendFactor.OneMinusSrcAlpha,
         var shaders: List<String>,
         var inputs: List<String>?,
         var output: String,
@@ -116,11 +117,6 @@ class RenderConfigReader {
         var depthClearValue: Float = 1.0f,
         @JsonDeserialize(using = VREyeDeserializer::class) var eye: Int = -1
     )
-
-    enum class BlendOp { add, subtract, reverse_subtract, min, max }
-
-    // TODO: Implemnent residual blend factors
-    enum class BlendFactor { Zero, One, OneMinusSrcAlpha, SrcAlpha }
 
     enum class RenderpassType { geometry, quad }
 
