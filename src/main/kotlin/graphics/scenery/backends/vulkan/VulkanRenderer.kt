@@ -1699,44 +1699,39 @@ open class VulkanRenderer(hub: Hub,
                 .pEngineName(memUTF8("scenery"))
                 .apiVersion(VK_MAKE_VERSION(1, 0, 54))
 
-            val hmd = hub?.getWorkingHMDDisplay()
-            val additionalExts: List<String> = hmd?.getVulkanInstanceExtensions() ?: listOf()
-            logger.debug("HMD required instance exts: ${additionalExts.joinToString(", ")} ${additionalExts.size}")
+            val additionalExts: List<String> = hub?.getWorkingHMDDisplay()?.getVulkanInstanceExtensions() ?: listOf()
             val utf8Exts = additionalExts.map { stack.UTF8(it) }
 
+            logger.debug("HMD required instance exts: ${additionalExts.joinToString(", ")} ${additionalExts.size}")
+
             // allocate enough pointers for already pre-required extensions, plus HMD-required extensions, plus the debug extension
-            val ppEnabledExtensionNames = stack.callocPointer(requiredExtensions.remaining() + additionalExts.size + 1)
-            ppEnabledExtensionNames.put(requiredExtensions)
+            val enabledExtensionNames = stack.callocPointer(requiredExtensions.remaining() + additionalExts.size + 1)
+            enabledExtensionNames.put(requiredExtensions)
+            enabledExtensionNames.put(stack.UTF8(VK_EXT_DEBUG_REPORT_EXTENSION_NAME))
+            utf8Exts.forEach { enabledExtensionNames.put(it) }
+            enabledExtensionNames.flip()
 
-            val VK_EXT_DEBUG_REPORT_EXTENSION = stack.UTF8(VK_EXT_DEBUG_REPORT_EXTENSION_NAME)
-            ppEnabledExtensionNames.put(VK_EXT_DEBUG_REPORT_EXTENSION)
-            utf8Exts.forEach { ppEnabledExtensionNames.put(it) }
-            ppEnabledExtensionNames.flip()
-
-            val ppEnabledLayerNames = stack.callocPointer(defaultValidationLayers.size)
-            var i = 0
-            while (!wantsOpenGLSwapchain && validation && i < defaultValidationLayers.size) {
-                ppEnabledLayerNames.put(memUTF8(defaultValidationLayers[i]))
-                i++
+            val enabledLayerNames = if(!wantsOpenGLSwapchain && validation) {
+                val pointers = stack.callocPointer(defaultValidationLayers.size)
+                defaultValidationLayers.forEach { pointers.put(stack.UTF8(it)) }
+                pointers
+            } else {
+                stack.callocPointer(0)
             }
-            ppEnabledLayerNames.flip()
 
-            val pCreateInfo = VkInstanceCreateInfo.callocStack(stack)
+            enabledLayerNames.flip()
+
+            val createInfo = VkInstanceCreateInfo.callocStack(stack)
                 .sType(VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO)
                 .pNext(NULL)
                 .pApplicationInfo(appInfo)
-                .ppEnabledExtensionNames(ppEnabledExtensionNames)
-                .ppEnabledLayerNames(ppEnabledLayerNames)
+                .ppEnabledExtensionNames(enabledExtensionNames)
+                .ppEnabledLayerNames(enabledLayerNames)
 
-            val pInstance = stack.callocPointer(1)
-            val err = vkCreateInstance(pCreateInfo, null, pInstance)
-            val instance = pInstance.get(0)
+            val instance = VU.getPointer("Creating Vulkan instance",
+                { vkCreateInstance(createInfo, null, this) }, {})
 
-            if (err != VK_SUCCESS) {
-                throw AssertionError("Failed to create VkInstance: " + VU.translate(err))
-            }
-
-            VkInstance(instance, pCreateInfo)
+            VkInstance(instance, createInfo)
         }
     }
 
