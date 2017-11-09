@@ -13,7 +13,7 @@ import java.util.*
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class VulkanPipeline(val device: VkDevice, val pipelineCache: Long? = null): AutoCloseable {
+class VulkanPipeline(val device: VulkanDevice, val pipelineCache: Long? = null): AutoCloseable {
     private val logger by LazyLogger()
 
     var pipeline = HashMap<GeometryType, VulkanRenderer.Pipeline>()
@@ -123,7 +123,7 @@ class VulkanPipeline(val device: VkDevice, val pipelineCache: Long? = null): Aut
             .pPushConstantRanges(pushConstantRanges)
 
         val layout = VU.run(memAllocLong(1), "vkCreatePipelineLayout",
-            { vkCreatePipelineLayout(device, pPipelineLayoutCreateInfo, null, this) },
+            { vkCreatePipelineLayout(device.vulkanDevice, pPipelineLayoutCreateInfo, null, this) },
             { pPipelineLayoutCreateInfo.free(); memFree(setLayouts); })
 
         val pipelineCreateInfo = VkGraphicsPipelineCreateInfo.calloc(1)
@@ -148,7 +148,7 @@ class VulkanPipeline(val device: VkDevice, val pipelineCache: Long? = null): Aut
         }
 
         val p = VU.run(memAllocLong(1), "vkCreateGraphicsPipelines for ${renderpass.name} ($vulkanRenderpass)",
-            { vkCreateGraphicsPipelines(device, pipelineCache ?: VK_NULL_HANDLE, pipelineCreateInfo, null, this) })
+            { vkCreateGraphicsPipelines(device.vulkanDevice, pipelineCache ?: VK_NULL_HANDLE, pipelineCreateInfo, null, this) })
 
         val vkp = VulkanRenderer.Pipeline()
         vkp.layout = layout
@@ -175,7 +175,7 @@ class VulkanPipeline(val device: VkDevice, val pipelineCache: Long? = null): Aut
                     .flags(VK_PIPELINE_CREATE_DERIVATIVE_BIT)
 
                 val derivativeP = VU.run(memAllocLong(1), "vkCreateGraphicsPipelines(derivative) for ${renderpass.name} ($vulkanRenderpass)",
-                    { vkCreateGraphicsPipelines(device, pipelineCache ?: VK_NULL_HANDLE, pipelineCreateInfo, null, this) })
+                    { vkCreateGraphicsPipelines(device.vulkanDevice, pipelineCache ?: VK_NULL_HANDLE, pipelineCreateInfo, null, this) })
 
                 val derivativePipeline = VulkanRenderer.Pipeline()
                 derivativePipeline.layout = layout
@@ -224,16 +224,16 @@ class VulkanPipeline(val device: VkDevice, val pipelineCache: Long? = null): Aut
         val removedLayouts = ArrayList<Long>()
 
         pipeline.forEach { _, pipeline ->
-            vkDestroyPipeline(device, pipeline.pipeline, null)
+            vkDestroyPipeline(device.vulkanDevice, pipeline.pipeline, null)
 
             if(!removedLayouts.contains(pipeline.layout)) {
-                vkDestroyPipelineLayout(device, pipeline.layout, null)
+                vkDestroyPipelineLayout(device.vulkanDevice, pipeline.layout, null)
                 removedLayouts.add(pipeline.layout)
             }
         }
 
         (0..shaderStages.capacity()-1).forEach { i ->
-            vkDestroyShaderModule(device, shaderStages.get(i).module(), null)
+            vkDestroyShaderModule(device.vulkanDevice, shaderStages.get(i).module(), null)
         }
 
         inputAssemblyState.free()

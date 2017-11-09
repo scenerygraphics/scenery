@@ -11,10 +11,11 @@ import java.nio.LongBuffer
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class VulkanCommandBuffer(val device: VkDevice, var commandBuffer: VkCommandBuffer?, val fenced: Boolean = true): AutoCloseable {
+class VulkanCommandBuffer(val device: VulkanDevice, var commandBuffer: VkCommandBuffer?, val fenced: Boolean = true): AutoCloseable {
     private val logger by LazyLogger()
     var stale: Boolean = true
 
+    private var fenceInitialized: Boolean = false
     private var fence: LongBuffer = memAllocLong(1)
     var submitted = false
 
@@ -30,20 +31,25 @@ class VulkanCommandBuffer(val device: VkDevice, var commandBuffer: VkCommandBuff
             .pNext(NULL)
 
         val f = VU.run(memAllocLong(1), "Creating fence",
-            { vkCreateFence(device, fc, null, this) },
+            { vkCreateFence(device.vulkanDevice, fc, null, this) },
             { fc.free() })
 
         fence.put(0, f)
+        fenceInitialized = true
     }
 
     fun waitForFence(timeout: Long? = null) {
-        VU.run(memAllocLong(1), "Waiting for fence",
-            { vkWaitForFences(device, fence, true, timeout ?: -1L) })
+        if(fenced && fenceInitialized) {
+            VU.run(memAllocLong(1), "Waiting for fence",
+                { vkWaitForFences(device.vulkanDevice, fence, true, timeout ?: -1L) })
+        }
     }
 
     fun resetFence() {
-        VU.run(memAllocLong(1), "Resetting fence",
-            { vkResetFences(device, fence) })
+        if(fenced && fenceInitialized) {
+            VU.run(memAllocLong(1), "Resetting fence",
+                { vkResetFences(device.vulkanDevice, fence) })
+        }
     }
 
     fun getFence(): Long {
@@ -55,8 +61,8 @@ class VulkanCommandBuffer(val device: VkDevice, var commandBuffer: VkCommandBuff
     }
 
     override fun close() {
-        if(fenced) {
-            vkDestroyFence(device, fence.get(0), null)
+        if(fenced && fenceInitialized) {
+            vkDestroyFence(device.vulkanDevice, fence.get(0), null)
         }
 
         memFree(fence)

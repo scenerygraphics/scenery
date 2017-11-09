@@ -19,9 +19,7 @@ import java.nio.LongBuffer
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-open class VulkanSwapchain(open val device: VkDevice,
-                           open val physicalDevice: VkPhysicalDevice,
-                           open val instance: VkInstance,
+open class VulkanSwapchain(open val device: VulkanDevice,
                            open val queue: VkQueue,
                            open val commandPool: Long,
                            @Suppress("unused") open val renderConfig: RenderConfigReader.RenderConfig,
@@ -60,7 +58,7 @@ open class VulkanSwapchain(open val device: VkDevice,
             glfwSetWindowPos(window, 100, 100)
 
             surface = VU.run(MemoryUtil.memAllocLong(1), "glfwCreateWindowSurface") {
-                GLFWVulkan.glfwCreateWindowSurface(instance, window, null, this)
+                GLFWVulkan.glfwCreateWindowSurface(device.instance, window, null, this)
             }
 
             // Handle canvas resize
@@ -96,20 +94,20 @@ open class VulkanSwapchain(open val device: VkDevice,
         var err: Int
         // Get physical device surface properties and formats
         val surfCaps = VkSurfaceCapabilitiesKHR.calloc()
-        err = KHRSurface.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, surfCaps)
+        err = KHRSurface.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device.physicalDevice, surface, surfCaps)
         if (err != VK10.VK_SUCCESS) {
             throw AssertionError("Failed to get physical device surface capabilities: " + VU.translate(err))
         }
 
         val pPresentModeCount = MemoryUtil.memAllocInt(1)
-        err = KHRSurface.vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, pPresentModeCount, null)
+        err = KHRSurface.vkGetPhysicalDeviceSurfacePresentModesKHR(device.physicalDevice, surface, pPresentModeCount, null)
         val presentModeCount = pPresentModeCount.get(0)
         if (err != VK10.VK_SUCCESS) {
             throw AssertionError("Failed to get number of physical device surface presentation modes: " + VU.translate(err))
         }
 
         val pPresentModes = MemoryUtil.memAllocInt(presentModeCount)
-        err = KHRSurface.vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, pPresentModeCount, pPresentModes)
+        err = KHRSurface.vkGetPhysicalDeviceSurfacePresentModesKHR(device.physicalDevice, surface, pPresentModeCount, pPresentModes)
         MemoryUtil.memFree(pPresentModeCount)
         if (err != VK10.VK_SUCCESS) {
             throw AssertionError("Failed to get physical device surface presentation modes: " + VU.translate(err))
@@ -177,7 +175,7 @@ open class VulkanSwapchain(open val device: VkDevice,
 
         swapchainCI.imageExtent().width(window.width).height(window.height)
         val pSwapChain = MemoryUtil.memAllocLong(1)
-        err = KHRSwapchain.vkCreateSwapchainKHR(device, swapchainCI, null, pSwapChain)
+        err = KHRSwapchain.vkCreateSwapchainKHR(device.vulkanDevice, swapchainCI, null, pSwapChain)
         swapchainCI.free()
 
         handle = pSwapChain.get(0)
@@ -195,14 +193,14 @@ open class VulkanSwapchain(open val device: VkDevice,
         }
 
         val pImageCount = MemoryUtil.memAllocInt(1)
-        err = KHRSwapchain.vkGetSwapchainImagesKHR(device, handle, pImageCount, null)
+        err = KHRSwapchain.vkGetSwapchainImagesKHR(device.vulkanDevice, handle, pImageCount, null)
         val imageCount = pImageCount.get(0)
         if (err != VK10.VK_SUCCESS) {
             throw AssertionError("Failed to get number of swapchain images: " + VU.translate(err))
         }
 
         val pSwapchainImages = MemoryUtil.memAllocLong(imageCount)
-        err = KHRSwapchain.vkGetSwapchainImagesKHR(device, handle, pImageCount, pSwapchainImages)
+        err = KHRSwapchain.vkGetSwapchainImagesKHR(device.vulkanDevice, handle, pImageCount, pSwapchainImages)
         if (err != VK10.VK_SUCCESS) {
             throw AssertionError("Failed to get swapchain images: " + VU.translate(err))
         }
@@ -241,7 +239,7 @@ open class VulkanSwapchain(open val device: VkDevice,
                 colorAttachmentView.image(images[i])
 
                 imageViews[i] = VU.run(MemoryUtil.memAllocLong(1), "create image view",
-                    { VK10.vkCreateImageView(device, colorAttachmentView, null, this) })
+                    { VK10.vkCreateImageView(device.vulkanDevice, colorAttachmentView, null, this) })
             }
 
             this.endCommandBuffer(device, commandPool, queue,
@@ -260,17 +258,17 @@ open class VulkanSwapchain(open val device: VkDevice,
 
     private fun getColorFormatAndSpace(): ColorFormatAndSpace {
         val pQueueFamilyPropertyCount = MemoryUtil.memAllocInt(1)
-        VK10.vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, pQueueFamilyPropertyCount, null)
+        VK10.vkGetPhysicalDeviceQueueFamilyProperties(device.physicalDevice, pQueueFamilyPropertyCount, null)
         val queueCount = pQueueFamilyPropertyCount.get(0)
         val queueProps = VkQueueFamilyProperties.calloc(queueCount)
-        VK10.vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, pQueueFamilyPropertyCount, queueProps)
+        VK10.vkGetPhysicalDeviceQueueFamilyProperties(device.physicalDevice, pQueueFamilyPropertyCount, queueProps)
         MemoryUtil.memFree(pQueueFamilyPropertyCount)
 
         // Iterate over each queue to learn whether it supports presenting:
         val supportsPresent = MemoryUtil.memAllocInt(queueCount)
         for (i in 0..queueCount - 1) {
             supportsPresent.position(i)
-            val err = KHRSurface.vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, surface, supportsPresent)
+            val err = KHRSurface.vkGetPhysicalDeviceSurfaceSupportKHR(device.physicalDevice, i, surface, supportsPresent)
             if (err != VK10.VK_SUCCESS) {
                 throw AssertionError("Failed to physical device surface support: " + VU.translate(err))
             }
@@ -315,19 +313,19 @@ open class VulkanSwapchain(open val device: VkDevice,
         }
 
         presentQueue = VkQueue(VU.run(MemoryUtil.memAllocPointer(1), "Get present queue",
-            { VK10.vkGetDeviceQueue(device, presentQueueNodeIndex, 0, this); VK10.VK_SUCCESS }, {} ),
-            device)
+            { VK10.vkGetDeviceQueue(device.vulkanDevice, presentQueueNodeIndex, 0, this); VK10.VK_SUCCESS }, {} ),
+            device.vulkanDevice)
 
         // Get list of supported formats
         val pFormatCount = MemoryUtil.memAllocInt(1)
-        var err = KHRSurface.vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, pFormatCount, null)
+        var err = KHRSurface.vkGetPhysicalDeviceSurfaceFormatsKHR(device.physicalDevice, surface, pFormatCount, null)
         val formatCount = pFormatCount.get(0)
         if (err != VK10.VK_SUCCESS) {
             throw AssertionError("Failed to query number of physical device surface formats: " + VU.translate(err))
         }
 
         val surfFormats = VkSurfaceFormatKHR.calloc(formatCount)
-        err = KHRSurface.vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, pFormatCount, surfFormats)
+        err = KHRSurface.vkGetPhysicalDeviceSurfaceFormatsKHR(device.physicalDevice, surface, pFormatCount, surfFormats)
         MemoryUtil.memFree(pFormatCount)
         if (err != VK10.VK_SUCCESS) {
             throw AssertionError("Failed to query physical device surface formats: " + VU.translate(err))
@@ -387,7 +385,7 @@ open class VulkanSwapchain(open val device: VkDevice,
     }
 
     override fun next(timeout: Long, waitForSemaphore: Long): Boolean {
-        val err = vkAcquireNextImageKHR(device, handle, timeout,
+        val err = vkAcquireNextImageKHR(device.vulkanDevice, handle, timeout,
             waitForSemaphore,
             VK10.VK_NULL_HANDLE, swapchainImage)
 
@@ -456,8 +454,8 @@ open class VulkanSwapchain(open val device: VkDevice,
 
     override fun close() {
         logger.info("Closing swapchain $this")
-        KHRSwapchain.vkDestroySwapchainKHR(device, handle, null)
-        retiredSwapchains.forEach { KHRSwapchain.vkDestroySwapchainKHR(device, it, null) }
+        KHRSwapchain.vkDestroySwapchainKHR(device.vulkanDevice, handle, null)
+        retiredSwapchains.forEach { KHRSwapchain.vkDestroySwapchainKHR(device.vulkanDevice, it, null) }
 
         presentInfo.free()
         MemoryUtil.memFree(swapchainImage)

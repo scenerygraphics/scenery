@@ -15,6 +15,8 @@ import org.lwjgl.vulkan.VK10.*
 import org.slf4j.LoggerFactory
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.utils.LazyLogger
+import org.lwjgl.system.MemoryStack.stackPush
+import org.lwjgl.system.MemoryUtil.memAllocPointer
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.util.*
@@ -37,7 +39,7 @@ fun VkCommandBuffer.endCommandBuffer() {
     }
 }
 
-fun VkCommandBuffer.endCommandBuffer(device: VkDevice, commandPool: Long, queue: VkQueue?, flush: Boolean = true, dealloc: Boolean = false) {
+fun VkCommandBuffer.endCommandBuffer(device: VulkanDevice, commandPool: Long, queue: VkQueue?, flush: Boolean = true, dealloc: Boolean = false) {
     if (this.address() == NULL) {
         return
     }
@@ -60,7 +62,7 @@ fun VkCommandBuffer.endCommandBuffer(device: VkDevice, commandPool: Long, queue:
     }
 
     if(dealloc) {
-        vkFreeCommandBuffers(device, commandPool, this)
+        vkFreeCommandBuffers(device.vulkanDevice, commandPool, this)
     }
 }
 
@@ -156,6 +158,21 @@ class VU {
             return ret
         }
 
+        inline fun getInt(name: String, count: Int, function: IntBuffer.() -> Int): Int {
+            return stackPush().use { stack ->
+                val receiver = stack.callocInt(count)
+                val result = function.invoke(receiver)
+
+                if (result != VK_SUCCESS) {
+                    LoggerFactory.getLogger("VulkanRenderer").error("Call to $name failed: ${translate(result)}")
+                }
+
+                val ret = receiver.get(0)
+
+                ret
+            }
+        }
+
         inline fun <T: LongBuffer> run(receiver: T, name: String, function: T.() -> Int, cleanup: T.() -> Any, free: Boolean = true): Long {
             val result = function.invoke(receiver)
 
@@ -165,11 +182,10 @@ class VU {
             }
 
             val ret = receiver.get(0)
+            cleanup.invoke(receiver)
             if(free) {
                 MemoryUtil.memFree(receiver)
             }
-
-            cleanup.invoke(receiver)
 
             return ret
         }
@@ -183,43 +199,41 @@ class VU {
             }
 
             val ret = receiver.get(0)
+            cleanup.invoke(receiver)
+
             if(free) {
                 MemoryUtil.memFree(receiver)
             }
 
-            cleanup.invoke(receiver)
-
             return ret
         }
 
-        fun deviceTypeToString(deviceType: Int): String {
-            return when(deviceType) {
-                0 -> "other"
-                1 -> "Integrated GPU"
-                2 -> "Discrete GPU"
-                3 -> "Virtual GPU"
-                4 -> "CPU"
-                else -> "Unknown device type"
+        inline fun getPointers(name: String, count: Int, function: PointerBuffer.() -> Int): PointerBuffer {
+            val receiver = memAllocPointer(count)
+            val result = function.invoke(receiver)
+
+            if(result != VK_SUCCESS) {
+                LoggerFactory.getLogger("VulkanRenderer").error("Call to $name failed: ${translate(result)}")
             }
+
+            return receiver
         }
 
-        fun vendorToString(vendor: Int): String =
-            when(vendor) {
-                0x1002 -> "AMD"
-                0x10DE -> "Nvidia"
-                0x8086 -> "Intel"
-                else -> "(Unknown vendor)"
+        inline fun getPointers(name: String, count: Int, function: PointerBuffer.() -> Int, cleanup: PointerBuffer.() -> Any): PointerBuffer {
+            val receiver = memAllocPointer(count)
+            val result = function.invoke(receiver)
+
+            if(result != VK_SUCCESS) {
+                LoggerFactory.getLogger("VulkanRenderer").error("Call to $name failed: ${translate(result)}")
+                cleanup.invoke(receiver)
             }
 
-        fun decodeDriverVersion(version: Int) =
-            Triple(
-                version and 0xFFC00000.toInt() shr 22,
-                version and 0x003FF000 shr 12,
-                version and 0x00000FFF
-            )
+            cleanup.invoke(receiver)
 
-        fun driverVersionToString(version: Int) =
-            decodeDriverVersion(version).toList().joinToString(".")
+            return receiver
+        }
+
+
 
         /**
          * Translates a Vulkan `VkResult` value to a String describing the result.
@@ -331,15 +345,15 @@ class VU {
             setImageLayout(commandBuffer, image, aspectMask, oldImageLayout, newImageLayout, range)
         }
 
-        fun createDeviceQueue(device: VkDevice, queueFamilyIndex: Int): VkQueue {
+        fun createDeviceQueue(device: VulkanDevice, queueFamilyIndex: Int): VkQueue {
             val pQueue = MemoryUtil.memAllocPointer(1)
-            vkGetDeviceQueue(device, queueFamilyIndex, 0, pQueue)
+            vkGetDeviceQueue(device.vulkanDevice, queueFamilyIndex, 0, pQueue)
             val queue = pQueue.get(0)
             MemoryUtil.memFree(pQueue)
-            return VkQueue(queue, device)
+            return VkQueue(queue, device.vulkanDevice)
         }
 
-        fun newCommandBuffer(device: VkDevice, commandPool: Long, level: Int = VK_COMMAND_BUFFER_LEVEL_PRIMARY): VkCommandBuffer {
+        fun newCommandBuffer(device: VulkanDevice, commandPool: Long, level: Int = VK_COMMAND_BUFFER_LEVEL_PRIMARY): VkCommandBuffer {
             val cmdBufAllocateInfo = VkCommandBufferAllocateInfo.calloc()
                 .sType(VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO)
                 .commandPool(commandPool)
@@ -347,13 +361,13 @@ class VU {
                 .commandBufferCount(1)
 
             val commandBuffer = run(MemoryUtil.memAllocPointer(1),"Creating command buffer",
-                { vkAllocateCommandBuffers(device, cmdBufAllocateInfo, this) },
+                { vkAllocateCommandBuffers(device.vulkanDevice, cmdBufAllocateInfo, this) },
                 { cmdBufAllocateInfo.free() })
 
-            return VkCommandBuffer(commandBuffer, device)
+            return VkCommandBuffer(commandBuffer, device.vulkanDevice)
         }
 
-        fun newCommandBuffer(device: VkDevice, commandPool: Long, level: Int = VK_COMMAND_BUFFER_LEVEL_PRIMARY, autostart: Boolean = false): VkCommandBuffer {
+        fun newCommandBuffer(device: VulkanDevice, commandPool: Long, level: Int = VK_COMMAND_BUFFER_LEVEL_PRIMARY, autostart: Boolean = false): VkCommandBuffer {
             val cmdBuf = newCommandBuffer(device, commandPool, level)
 
             if(autostart) {
@@ -376,19 +390,24 @@ class VU {
 
         fun getMemoryType(deviceMemoryProperties: VkPhysicalDeviceMemoryProperties, typeBits: Int, properties: Int, typeIndex: IntBuffer): Boolean {
             var bits = typeBits
-            for (i in 0..31) {
+
+            for (i in 0 until deviceMemoryProperties.memoryTypeCount()) {
                 if (bits and 1 == 1) {
-                    if (deviceMemoryProperties.memoryTypes(i).propertyFlags() and properties == properties) {
+                    if ((deviceMemoryProperties.memoryTypes(i).propertyFlags() and properties) == properties) {
                         typeIndex.put(0, i)
                         return true
                     }
                 }
+
                 bits = bits shr 1
             }
+
+            logger.warn("Memory type $properties not found for device")
+
             return false
         }
 
-        fun createDescriptorSetLayout(device: VkDevice, type: Int = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, binding: Int = 0, descriptorNum: Int = 1, descriptorCount: Int = 1, shaderStages: Int = VK_SHADER_STAGE_ALL): Long {
+        fun createDescriptorSetLayout(device: VulkanDevice, type: Int = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, binding: Int = 0, descriptorNum: Int = 1, descriptorCount: Int = 1, shaderStages: Int = VK_SHADER_STAGE_ALL): Long {
             val layoutBinding = VkDescriptorSetLayoutBinding.calloc(descriptorNum)
             (binding..descriptorNum - 1).forEach { i ->
                 layoutBinding[i]
@@ -405,7 +424,7 @@ class VU {
                 .pBindings(layoutBinding)
 
             val descriptorSetLayout = run(MemoryUtil.memAllocLong(1), "vkCreateDescriptorSetLayout",
-                function = { vkCreateDescriptorSetLayout(device, descriptorLayout, null, this) },
+                function = { vkCreateDescriptorSetLayout(device.vulkanDevice, descriptorLayout, null, this) },
                 cleanup = { descriptorLayout.free(); layoutBinding.free() }
             )
 
@@ -414,7 +433,7 @@ class VU {
             return descriptorSetLayout
         }
 
-        fun createDescriptorSetLayout(device: VkDevice, types: List<Pair<Int, Int>>, binding: Int = 0, shaderStages: Int): Long {
+        fun createDescriptorSetLayout(device: VulkanDevice, types: List<Pair<Int, Int>>, binding: Int = 0, shaderStages: Int): Long {
             val layoutBinding = VkDescriptorSetLayoutBinding.calloc(types.size)
 
             types.forEachIndexed { i, (type, count) ->
@@ -432,7 +451,7 @@ class VU {
                 .pBindings(layoutBinding)
 
             val descriptorSetLayout = run(MemoryUtil.memAllocLong(1), "vkCreateDescriptorSetLayout",
-                function = { vkCreateDescriptorSetLayout(device, descriptorLayout, null, this) },
+                function = { vkCreateDescriptorSetLayout(device.vulkanDevice, descriptorLayout, null, this) },
                 cleanup = { descriptorLayout.free(); layoutBinding.free() }
             )
 
@@ -441,7 +460,7 @@ class VU {
             return descriptorSetLayout
         }
 
-        fun createDescriptorSetDynamic(device: VkDevice, descriptorPool: Long, descriptorSetLayout: Long,
+        fun createDescriptorSetDynamic(device: VulkanDevice, descriptorPool: Long, descriptorSetLayout: Long,
                                        bindingCount: Int, buffer: VulkanBuffer): Long {
             logger.debug("Creating dynamic descriptor set with $bindingCount bindings, DSL=${descriptorSetLayout.toHexString()}")
 
@@ -455,11 +474,11 @@ class VU {
                 .pSetLayouts(pDescriptorSetLayout)
 
             val descriptorSet = run(MemoryUtil.memAllocLong(1), "createDescriptorSet",
-                { vkAllocateDescriptorSets(device, allocInfo, this) },
+                { vkAllocateDescriptorSets(device.vulkanDevice, allocInfo, this) },
                 { allocInfo.free(); MemoryUtil.memFree(pDescriptorSetLayout) })
 
             val d = VkDescriptorBufferInfo.calloc(1)
-                    .buffer(buffer.buffer)
+                    .buffer(buffer.vulkanBuffer)
                     .range(2048)
                     .offset(0L)
 
@@ -476,14 +495,14 @@ class VU {
                     .descriptorType(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC)
             }
 
-            vkUpdateDescriptorSets(device, writeDescriptorSet, null)
+            vkUpdateDescriptorSets(device.vulkanDevice, writeDescriptorSet, null)
             writeDescriptorSet.free()
             (d as NativeResource).free()
 
             return descriptorSet
         }
 
-        fun createDescriptorSet(device: VkDevice, descriptorPool: Long, descriptorSetLayout: Long, bindingCount: Int,
+        fun createDescriptorSet(device: VulkanDevice, descriptorPool: Long, descriptorSetLayout: Long, bindingCount: Int,
                                 ubo: VulkanUBO.UBODescriptor, type: Int = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER): Long {
             logger.debug("Creating descriptor set with ${bindingCount} bindings, DSL=$descriptorSetLayout")
 
@@ -497,7 +516,7 @@ class VU {
                 .pSetLayouts(pDescriptorSetLayout)
 
             val descriptorSet = run(MemoryUtil.memAllocLong(1), "createDescriptorSet",
-                { vkAllocateDescriptorSets(device, allocInfo, this) },
+                { vkAllocateDescriptorSets(device.vulkanDevice, allocInfo, this) },
                 { allocInfo.free(); MemoryUtil.memFree(pDescriptorSetLayout) })
 
             val d =
@@ -518,14 +537,14 @@ class VU {
                     .descriptorType(type)
             }
 
-            vkUpdateDescriptorSets(device, writeDescriptorSet, null)
+            vkUpdateDescriptorSets(device.vulkanDevice, writeDescriptorSet, null)
             writeDescriptorSet.free()
             (d as NativeResource).free()
 
             return descriptorSet
         }
 
-        fun createRenderTargetDescriptorSet(device: VkDevice, descriptorPool: Long, descriptorSetLayout: Long,
+        fun createRenderTargetDescriptorSet(device: VulkanDevice, descriptorPool: Long, descriptorSetLayout: Long,
                                              rt: Map<String, RenderConfigReader.AttachmentConfig>,
                                              target: VulkanFramebuffer): Long {
 
@@ -539,7 +558,7 @@ class VU {
                 .pSetLayouts(pDescriptorSetLayout)
 
             val descriptorSet = run(MemoryUtil.memAllocLong(1), "createDescriptorSet",
-                { vkAllocateDescriptorSets(device, allocInfo, this) },
+                { vkAllocateDescriptorSets(device.vulkanDevice, allocInfo, this) },
                 { allocInfo.free(); MemoryUtil.memFree(pDescriptorSetLayout) })
 
             val writeDescriptorSet = VkWriteDescriptorSet.calloc(rt.size)
@@ -565,67 +584,12 @@ class VU {
                     .descriptorType(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
             }
 
-            vkUpdateDescriptorSets(device, writeDescriptorSet, null)
+            vkUpdateDescriptorSets(device.vulkanDevice, writeDescriptorSet, null)
             writeDescriptorSet.free()
             dlist.forEach { it.free() }
 
             logger.debug("Creating framebuffer attachment descriptor $descriptorSet set with ${rt.size} bindings, DSL=$descriptorSetLayout")
             return descriptorSet
         }
-
-        fun createBuffer(device: VkDevice, deviceMemoryProperties: VkPhysicalDeviceMemoryProperties, usage: Int, memoryProperties: Int, wantAligned: Boolean = false, allocationSize: Long = 0): VulkanBuffer {
-            val memory = MemoryUtil.memAllocLong(1)
-            val memTypeIndex = MemoryUtil.memAllocInt(1)
-
-            val reqs = VkMemoryRequirements.calloc()
-            val bufferInfo = VkBufferCreateInfo.calloc()
-                .sType(VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO)
-                .pNext(NULL)
-                .usage(usage)
-                .size(allocationSize)
-
-            val buffer = run(MemoryUtil.memAllocLong(1), "Creating buffer",
-                { vkCreateBuffer(device, bufferInfo, null, this) })
-            vkGetBufferMemoryRequirements(device, buffer, reqs)
-
-            bufferInfo.free()
-
-            val allocInfo = VkMemoryAllocateInfo.calloc()
-                .sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO)
-                .pNext(NULL)
-
-            getMemoryType(deviceMemoryProperties,
-                reqs.memoryTypeBits(),
-                memoryProperties,
-                memTypeIndex)
-
-            val size = if (wantAligned) {
-                if (reqs.size().rem(reqs.alignment()) == 0L) {
-                    reqs.size()
-                } else {
-                    reqs.size() + reqs.alignment() - (reqs.size().rem(reqs.alignment()))
-                }
-            } else {
-                reqs.size()
-            }
-
-            allocInfo.allocationSize(size)
-                .memoryTypeIndex(memTypeIndex.get(0))
-
-            vkAllocateMemory(device, allocInfo, null, memory)
-            vkBindBufferMemory(device, buffer, memory.get(0), 0)
-
-            val vb = VulkanBuffer(device, memory = memory.get(0), buffer = buffer, size = size)
-            vb.alignment = reqs.alignment()
-
-            reqs.free()
-            allocInfo.free()
-            MemoryUtil.memFree(memTypeIndex)
-            MemoryUtil.memFree(memory)
-
-            return vb
-        }
     }
-
-
 }

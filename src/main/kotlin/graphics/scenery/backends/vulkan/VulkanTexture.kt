@@ -24,8 +24,7 @@ import kotlin.streams.toList
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDevice,
-                    val memoryProperties: VkPhysicalDeviceMemoryProperties,
+open class VulkanTexture(val device: VulkanDevice,
                     val commandPool: Long, val queue: VkQueue,
                     val width: Int, val height: Int, val depth: Int = 1,
                     val format: Int = VK_FORMAT_R8G8B8_SRGB, var mipLevels: Int = 1,
@@ -55,7 +54,7 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
                 bufferImageCopy.imageOffset().set(0, 0, 0)
 
                 vkCmdCopyBufferToImage(this,
-                    buffer.buffer,
+                    buffer.vulkanBuffer,
                     this@VulkanImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                     bufferImageCopy)
 
@@ -129,9 +128,9 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
 
         val reqs = VkMemoryRequirements.calloc()
         val image = VU.run(memAllocLong(1), "create staging image",
-            { vkCreateImage(device, imageInfo, null, this) })
+            { vkCreateImage(device.vulkanDevice, imageInfo, null, this) })
 
-        vkGetImageMemoryRequirements(device, image, reqs)
+        vkGetImageMemoryRequirements(device.vulkanDevice, image, reqs)
 
         val memorySize = reqs.size()
 
@@ -139,13 +138,13 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
             .sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO)
             .pNext(NULL)
             .allocationSize(memorySize)
-            .memoryTypeIndex(physicalDevice.getMemoryType(reqs.memoryTypeBits(), memoryFlags).second)
+            .memoryTypeIndex(device.physicalDevice.getMemoryType(reqs.memoryTypeBits(), memoryFlags).second)
 
         val memory = VU.run(memAllocLong(1), "allocate image staging memory",
-            { vkAllocateMemory(device, allocInfo, null, this) },
+            { vkAllocateMemory(device.vulkanDevice, allocInfo, null, this) },
             { imageInfo.free(); allocInfo.free(); reqs.free(); extent.free() })
 
-        vkBindImageMemory(device, image, memory, 0)
+        vkBindImageMemory(device.vulkanDevice, image, memory, 0)
 
         return VulkanImage(image, memory, memorySize)
     }
@@ -169,9 +168,9 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
 
                 if(depth == 1) {
                     val dest = memAllocPointer(1)
-                    vkMapMemory(device, stagingImage.memory, 0, data.remaining() * 1L, 0, dest)
+                    vkMapMemory(device.vulkanDevice, stagingImage.memory, 0, data.remaining() * 1L, 0, dest)
                     memCopy(memAddress(data), dest.get(0), data.remaining().toLong())
-                    vkUnmapMemory(device, stagingImage.memory)
+                    vkUnmapMemory(device.vulkanDevice, stagingImage.memory)
                     memFree(dest)
 
                     transitionLayout(stagingImage.image,
@@ -196,8 +195,11 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
                         dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                         commandBuffer = this)
                 } else {
-                    buffer = VU.createBuffer(device, memoryProperties, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, false, data.capacity().toLong())
+                    buffer = VulkanBuffer(device,
+                        data.capacity().toLong(),
+                        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                        wantAligned = false)
 
                     buffer?.let { buffer ->
                         buffer.copyFrom(data)
@@ -224,8 +226,11 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
                 buffer?.close()
             }
         } else {
-            val buffer = VU.createBuffer(device, memoryProperties, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, false, data.limit() * 1L)
+            val buffer = VulkanBuffer(device,
+                data.limit().toLong(),
+                VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+                wantAligned = false)
 
             with(VU.newCommandBuffer(device, commandPool, autostart = true)) {
                 if(image == null) {
@@ -330,7 +335,7 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
         }
 
         val view = VU.run(memAllocLong(1), "Creating image view",
-            { vkCreateImageView(device, vi, null, this) },
+            { vkCreateImageView(device.vulkanDevice, vi, null, this) },
             { vi.free(); subresourceRange.free(); })
 
         return view
@@ -355,7 +360,7 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
             .compareOp(VK_COMPARE_OP_NEVER)
 
         return VU.run(memAllocLong(1), "creating sampler",
-            { vkCreateSampler(device, samplerInfo, null, this) },
+            { vkCreateSampler(device.vulkanDevice, samplerInfo, null, this) },
             { samplerInfo.free() })
     }
 
@@ -378,8 +383,7 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
             ComponentColorModel.OPAQUE,
             DataBuffer.TYPE_BYTE)
 
-        fun loadFromFile(device: VkDevice, physicalDevice: VkPhysicalDevice,
-                         memoryProperties: VkPhysicalDeviceMemoryProperties,
+        fun loadFromFile(device: VulkanDevice,
                          commandPool: Long, queue: VkQueue,
                          filename: String,
                          linearMin: Boolean, linearMax: Boolean,
@@ -395,18 +399,17 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
                 val infoFile = path.resolveSibling(path.fileName.toString().substringBeforeLast(".") + ".info")
                 val dimensions = Files.lines(infoFile).toList().first().split(",").map { it.toLong() }.toLongArray()
 
-                return loadFromFileRaw(device, physicalDevice,
-                    memoryProperties, commandPool, queue,
+                return loadFromFileRaw(device,
+                    commandPool, queue,
                     stream, type, dimensions)
             } else {
-                return loadFromFile(device, physicalDevice,
-                    memoryProperties, commandPool, queue,
+                return loadFromFile(device,
+                    commandPool, queue,
                     stream, type, linearMin, linearMax, generateMipmaps)
             }
         }
 
-        fun loadFromFile(device: VkDevice, physicalDevice: VkPhysicalDevice,
-                         memoryProperties: VkPhysicalDeviceMemoryProperties,
+        fun loadFromFile(device: VulkanDevice,
                          commandPool: Long, queue: VkQueue,
                          stream: InputStream, type: String,
                          linearMin: Boolean, linearMax: Boolean,
@@ -474,7 +477,7 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
             }
 
             val tex = VulkanTexture(
-                device, physicalDevice, memoryProperties,
+                device,
                 commandPool, queue,
                 texWidth, texHeight, 1,
                 if (bi.colorModel.hasAlpha()) {
@@ -488,8 +491,7 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
             return tex
         }
 
-        fun loadFromFileRaw(device: VkDevice, physicalDevice: VkPhysicalDevice,
-                         memoryProperties: VkPhysicalDeviceMemoryProperties,
+        fun loadFromFileRaw(device: VulkanDevice,
                          commandPool: Long, queue: VkQueue,
                          stream: InputStream, type: String, dimensions: LongArray): VulkanTexture? {
             val imageData: ByteBuffer = ByteBuffer.allocateDirect((2 * dimensions[0] * dimensions[1] * dimensions[2]).toInt())
@@ -502,7 +504,7 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
             }
 
             val tex = VulkanTexture(
-                device, physicalDevice, memoryProperties,
+                device,
                 commandPool, queue,
                 dimensions[0].toInt(), dimensions[1].toInt(), dimensions[2].toInt(),
                 VK_FORMAT_R16_UINT, 1, true, true)
@@ -681,13 +683,13 @@ open class VulkanTexture(val device: VkDevice, val physicalDevice: VkPhysicalDev
 
     override fun close() {
         image?.let {
-            if (it.view != -1L) vkDestroyImageView(device, it.view, null)
-            if (it.image != -1L) vkDestroyImage(device, it.image, null)
-            if (it.sampler != -1L) vkDestroySampler(device, it.sampler, null)
-            if (it.memory != -1L) vkFreeMemory(device, it.memory, null)
+            if (it.view != -1L) vkDestroyImageView(device.vulkanDevice, it.view, null)
+            if (it.image != -1L) vkDestroyImage(device.vulkanDevice, it.image, null)
+            if (it.sampler != -1L) vkDestroySampler(device.vulkanDevice, it.sampler, null)
+            if (it.memory != -1L) vkFreeMemory(device.vulkanDevice, it.memory, null)
         }
 
-        if (stagingImage.image != -1L) vkDestroyImage(device, stagingImage.image, null)
-        if (stagingImage.memory != -1L) vkFreeMemory(device, stagingImage.memory, null)
+        if (stagingImage.image != -1L) vkDestroyImage(device.vulkanDevice, stagingImage.image, null)
+        if (stagingImage.memory != -1L) vkFreeMemory(device.vulkanDevice, stagingImage.memory, null)
     }
 }

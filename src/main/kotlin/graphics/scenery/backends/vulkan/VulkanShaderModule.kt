@@ -34,11 +34,10 @@ import kotlin.collections.LinkedHashMap
  * @author Ulrik Günther <hello@ulrik.is>
  */
 
-open class VulkanShaderModule(device: VkDevice, entryPoint: String, clazz: Class<*>, shaderCodePath: String) {
+open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, clazz: Class<*>, shaderCodePath: String) {
     protected val logger by LazyLogger()
     var shader: VkPipelineShaderStageCreateInfo
     var shaderModule: Long
-    var device: VkDevice
     var uboSpecs = LinkedHashMap<String, UBOSpec>()
     private var shaderPackage: ShaderPackage
 
@@ -92,8 +91,6 @@ open class VulkanShaderModule(device: VkDevice, entryPoint: String, clazz: Class
         val codePath: String
 
         logger.debug("Creating VulkanShaderModule $entryPoint, $shaderCodePath")
-
-        this.device = device
 
         if(shaderCodePath.endsWith(".spv")) {
             spirvPath = shaderCodePath
@@ -265,7 +262,7 @@ open class VulkanShaderModule(device: VkDevice, entryPoint: String, clazz: Class
             .flags(0)
 
         val shaderModule = memAllocLong(1)
-        vkCreateShaderModule(device, moduleCreateInfo, null, shaderModule)
+        vkCreateShaderModule(device.vulkanDevice, moduleCreateInfo, null, shaderModule)
         this.shaderModule = shaderModule.get(0)
 
         moduleCreateInfo.free()
@@ -328,12 +325,12 @@ open class VulkanShaderModule(device: VkDevice, entryPoint: String, clazz: Class
 
     companion object {
         @Suppress("UNUSED")
-        fun createFromSPIRV(device: VkDevice, name: String, clazz: Class<*>, sourceFile: String): VulkanShaderModule {
+        fun createFromSPIRV(device: VulkanDevice, name: String, clazz: Class<*>, sourceFile: String): VulkanShaderModule {
             return VulkanShaderModule(device, name, clazz, sourceFile)
         }
 
         @Suppress("UNUSED")
-        fun createFromSource(device: VkDevice, name: String, clazz: Class<*>, sourceFile: String): VulkanShaderModule {
+        fun createFromSource(device: VulkanDevice, name: String, clazz: Class<*>, sourceFile: String): VulkanShaderModule {
             return VulkanShaderModule(device, name, clazz, sourceFile)
         }
     }

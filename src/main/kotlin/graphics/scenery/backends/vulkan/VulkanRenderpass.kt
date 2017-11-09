@@ -23,10 +23,9 @@ import java.util.concurrent.ConcurrentHashMap
  * @author Ulrik Günther <hello@ulrik.is>
  */
 open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderConfig,
-                       val device: VkDevice,
+                       val device: VulkanDevice,
                        val descriptorPool: Long,
                        val pipelineCache: Long,
-                       val memoryProperties: VkPhysicalDeviceMemoryProperties,
                        val vertexDescriptors: ConcurrentHashMap<VulkanRenderer.VertexDataKinds, VulkanRenderer.VertexDescription>): AutoCloseable {
 
     protected val logger by LazyLogger()
@@ -190,7 +189,7 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
             logger.debug("Members are: ${ubo.members()}")
             logger.debug("Allocating VulkanUBO memory now, space needed: ${ubo.getSize()}")
 
-            ubo.createUniformBuffer(memoryProperties)
+            ubo.createUniformBuffer()
 
             // create descriptor set layout
 //            val dsl = VU.createDescriptorSetLayout(device,
@@ -377,7 +376,7 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
         // destroy descriptor set layout if there was a previously associated one,
         // and add the new one
         descriptorSetLayouts.put(spec.name, dsl)?.let { dslOld ->
-            vkDestroyDescriptorSetLayout(device, dslOld, null)
+            vkDestroyDescriptorSetLayout(device.vulkanDevice, dslOld, null)
         }
 
         return dsl
@@ -407,10 +406,11 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
     }
 
     override fun close() {
+        logger.debug("Closing renderpass $name...")
         output.forEach { it.value.close() }
         pipelines.forEach { it.value.close() }
         UBOs.forEach { it.value.close() }
-        descriptorSetLayouts.forEach { vkDestroyDescriptorSetLayout(device, it.value, null) }
+        descriptorSetLayouts.forEach { vkDestroyDescriptorSetLayout(device.vulkanDevice, it.value, null) }
 
         vulkanMetadata.close()
 
@@ -418,7 +418,7 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
         commandBufferBacking.reset()
 
         if(semaphore != -1L) {
-            vkDestroySemaphore(device, semaphore, null)
+            vkDestroySemaphore(device.vulkanDevice, semaphore, null)
         }
     }
 }
