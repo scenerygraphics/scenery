@@ -371,8 +371,7 @@ open class VulkanRenderer(hub: Hub,
             Configuration.VULKAN_EXPLICIT_INIT.set(true)
             VK.create()
         } catch(e: IllegalStateException) {
-            logger.error("IllegalStateException during Vulkan initialisation")
-            System.exit(1)
+            logger.warn("IllegalStateException during Vulkan initialisation")
         }
 
         if (!glfwInit()) {
