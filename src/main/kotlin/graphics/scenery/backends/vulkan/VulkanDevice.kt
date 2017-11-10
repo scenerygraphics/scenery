@@ -102,7 +102,10 @@ class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysicalDevic
                 graphicsQueueFamilyIndex, computeQueueFamilyIndex, presentQueueFamilyIndex, memoryProperties)
 
             Triple(VkDevice(device, physicalDevice, deviceCreateInfo),
-                QueueIndices(presentQueueFamilyIndex, computeQueueFamilyIndex, graphicsQueueFamilyIndex),
+                QueueIndices(
+                    presentQueue = presentQueueFamilyIndex,
+                    computeQueue = computeQueueFamilyIndex,
+                    graphicsQueue = graphicsQueueFamilyIndex),
                 memoryProperties
             )
         }
