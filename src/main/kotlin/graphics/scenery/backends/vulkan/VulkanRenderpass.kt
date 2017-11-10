@@ -81,7 +81,7 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
                               var viewport: VkViewport.Buffer = VkViewport.calloc(1),
                               var vertexBuffers: LongBuffer = memAllocLong(1),
                               var instanceBuffers: LongBuffer = memAllocLong(1),
-                              var clearValues: VkClearValue.Buffer = VkClearValue.calloc(0),
+                              var clearValues: VkClearValue.Buffer? = null,
                               var renderArea: VkRect2D = VkRect2D.calloc(),
                               var renderPassBeginInfo: VkRenderPassBeginInfo = VkRenderPassBeginInfo.calloc(),
                               var uboOffsets: IntBuffer = memAllocInt(16),
@@ -94,7 +94,7 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
             viewport.free()
             memFree(vertexBuffers)
             memFree(instanceBuffers)
-            clearValues.free()
+            clearValues?.free()
             renderArea.free()
             renderPassBeginInfo.free()
             memFree(uboOffsets)

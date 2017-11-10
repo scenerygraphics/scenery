@@ -86,8 +86,8 @@ open class VulkanRenderer(hub: Hub,
 
     data class VertexDescription(
         var state: VkPipelineVertexInputStateCreateInfo,
-        var attributeDescription: VkVertexInputAttributeDescription.Buffer,
-        var bindingDescription: VkVertexInputBindingDescription.Buffer
+        var attributeDescription: VkVertexInputAttributeDescription.Buffer?,
+        var bindingDescription: VkVertexInputBindingDescription.Buffer?
     )
 
     data class CommandPools(
@@ -1066,13 +1066,13 @@ open class VulkanRenderer(hub: Hub,
         val map = ConcurrentHashMap<VertexDataKinds, VertexDescription>()
 
         VertexDataKinds.values().forEach { kind ->
-            val attributeDesc: VkVertexInputAttributeDescription.Buffer
+            val attributeDesc: VkVertexInputAttributeDescription.Buffer?
             var stride = 0
 
             when (kind) {
                 VertexDataKinds.coords_none -> {
                     stride = 0
-                    attributeDesc = VkVertexInputAttributeDescription.calloc(0)
+                    attributeDesc = null
                 }
 
                 VertexDataKinds.coords_normals -> {
@@ -1117,13 +1117,13 @@ open class VulkanRenderer(hub: Hub,
 
             attributeDesc?.get(0)?.binding(0)?.location(0)?.format(VK_FORMAT_R32G32B32_SFLOAT)?.offset(0)
 
-            val bindingDesc = if (attributeDesc.capacity() > 0) {
+            val bindingDesc = if (attributeDesc != null) {
                 VkVertexInputBindingDescription.calloc(1)
                     .binding(0)
                     .stride(stride * 4)
                     .inputRate(VK_VERTEX_INPUT_RATE_VERTEX)
             } else {
-                VkVertexInputBindingDescription.calloc(0)
+                null
             }
 
             val inputState = VkPipelineVertexInputStateCreateInfo.calloc()
@@ -1173,8 +1173,12 @@ open class VulkanRenderer(hub: Hub,
     protected fun vertexDescriptionFromInstancedNode(node: Node, template: VertexDescription): VertexDescription {
         logger.debug("Creating instanced vertex description for ${node.name}")
 
-        val attributeDescs = template.attributeDescription
-        val bindingDescs = template.bindingDescription
+        if(template.attributeDescription == null || template.bindingDescription == null) {
+            return template
+        }
+
+        val attributeDescs = template.attributeDescription!!
+        val bindingDescs = template.bindingDescription!!
 
         val formatsAndAttributeSizes = node.instancedProperties.getFormatsAndRequiredAttributeSize()
         val newAttributesNeeded = formatsAndAttributeSizes.map { it.elementCount }.sum()
@@ -1343,22 +1347,24 @@ open class VulkanRenderer(hub: Hub,
                     }
                 }
 
-                pass.vulkanMetadata.clearValues.free()
+                pass.vulkanMetadata.clearValues?.free()
                 if(!passConfig.blitInputs) {
                     pass.vulkanMetadata.clearValues = VkClearValue.calloc(pass.output.values.first().attachments.count())
+                    pass.vulkanMetadata.clearValues?.let { clearValues ->
 
-                    pass.output.values.first().attachments.values.forEachIndexed { i, att ->
-                        when (att.type) {
-                            VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> {
-                                pass.vulkanMetadata.clearValues[i].color().float32().put(pass.passConfig.clearColor.toFloatArray())
-                            }
-                            VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> {
-                                pass.vulkanMetadata.clearValues[i].depthStencil().set(pass.passConfig.depthClearValue, 0)
+                        pass.output.values.first().attachments.values.forEachIndexed { i, att ->
+                            when (att.type) {
+                                VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> {
+                                    clearValues[i].color().float32().put(pass.passConfig.clearColor.toFloatArray())
+                                }
+                                VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> {
+                                    clearValues[i].depthStencil().set(pass.passConfig.depthClearValue, 0)
+                                }
                             }
                         }
                     }
                 } else {
-                    pass.vulkanMetadata.clearValues = VkClearValue.calloc(0)
+                    pass.vulkanMetadata.clearValues = null
                 }
 
                 pass.vulkanMetadata.renderArea.extent().set(
@@ -2834,10 +2840,8 @@ open class VulkanRenderer(hub: Hub,
         vertexDescriptors.forEach {
             logger.debug("Closing vertex descriptor ${it.key}...")
 
-            if(it.value.attributeDescription.capacity() > 0) {
-                it.value.attributeDescription.free()
-                it.value.bindingDescription.free()
-            }
+            it.value.attributeDescription?.free()
+            it.value.bindingDescription?.free()
 
             it.value.state.free()
         }
