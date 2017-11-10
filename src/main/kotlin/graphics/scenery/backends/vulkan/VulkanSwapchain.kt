@@ -164,8 +164,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
             swapchainCI.imageExtent().width(window.width).height(window.height)
 
             handle = VU.getLong("Creating swapchain",
-                { KHRSwapchain.vkCreateSwapchainKHR(device.vulkanDevice, swapchainCI, null, this) },
-                { swapchainCI.free() })
+                { KHRSwapchain.vkCreateSwapchainKHR(device.vulkanDevice, swapchainCI, null, this) }, {})
 
             // If we just re-created an existing swapchain, we should destroy the old swapchain at this point.
             // Note: destroying the swapchain also cleans up all its associated presentable images once the platform is done with them.
