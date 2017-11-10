@@ -2,6 +2,7 @@ package graphics.scenery.backends
 
 import cleargl.GLMatrix
 import cleargl.GLVector
+import graphics.scenery.backends.vulkan.VulkanDevice
 import org.lwjgl.vulkan.VkDevice
 import org.lwjgl.vulkan.VkInstance
 import org.lwjgl.vulkan.VkPhysicalDevice
@@ -56,8 +57,8 @@ interface Display {
      * @param[image] The Vulkan texture image to be presented to the compositor
      */
     fun submitToCompositorVulkan(width: Int, height: Int, format: Int,
-                                 instance: VkInstance, device: VkDevice, physicalDevice: VkPhysicalDevice,
-                                 queue: VkQueue, queueFamilyIndex: Int,
+                                 instance: VkInstance, device: VulkanDevice,
+                                 queue: VkQueue,
                                  image: Long)
 
     /**

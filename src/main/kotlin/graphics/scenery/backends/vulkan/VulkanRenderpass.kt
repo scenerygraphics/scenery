@@ -23,10 +23,9 @@ import java.util.concurrent.ConcurrentHashMap
  * @author Ulrik Günther <hello@ulrik.is>
  */
 open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderConfig,
-                       val device: VkDevice,
+                       val device: VulkanDevice,
                        val descriptorPool: Long,
                        val pipelineCache: Long,
-                       val memoryProperties: VkPhysicalDeviceMemoryProperties,
                        val vertexDescriptors: ConcurrentHashMap<VulkanRenderer.VertexDataKinds, VulkanRenderer.VertexDescription>): AutoCloseable {
 
     protected val logger by LazyLogger()
@@ -82,7 +81,7 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
                               var viewport: VkViewport.Buffer = VkViewport.calloc(1),
                               var vertexBuffers: LongBuffer = memAllocLong(1),
                               var instanceBuffers: LongBuffer = memAllocLong(1),
-                              var clearValues: VkClearValue.Buffer = VkClearValue.calloc(0),
+                              var clearValues: VkClearValue.Buffer? = null,
                               var renderArea: VkRect2D = VkRect2D.calloc(),
                               var renderPassBeginInfo: VkRenderPassBeginInfo = VkRenderPassBeginInfo.calloc(),
                               var uboOffsets: IntBuffer = memAllocInt(16),
@@ -95,7 +94,7 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
             viewport.free()
             memFree(vertexBuffers)
             memFree(instanceBuffers)
-            clearValues.free()
+            clearValues?.free()
             renderArea.free()
             renderPassBeginInfo.free()
             memFree(uboOffsets)
@@ -190,7 +189,7 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
             logger.debug("Members are: ${ubo.members()}")
             logger.debug("Allocating VulkanUBO memory now, space needed: ${ubo.getSize()}")
 
-            ubo.createUniformBuffer(memoryProperties)
+            ubo.createUniformBuffer()
 
             // create descriptor set layout
 //            val dsl = VU.createDescriptorSetLayout(device,
@@ -304,6 +303,7 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
             }
         }
 
+        p.colorBlendState.pAttachments().free()
         p.colorBlendState
             .sType(VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO)
             .pNext(MemoryUtil.NULL)
@@ -377,7 +377,7 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
         // destroy descriptor set layout if there was a previously associated one,
         // and add the new one
         descriptorSetLayouts.put(spec.name, dsl)?.let { dslOld ->
-            vkDestroyDescriptorSetLayout(device, dslOld, null)
+            vkDestroyDescriptorSetLayout(device.vulkanDevice, dslOld, null)
         }
 
         return dsl
@@ -407,10 +407,11 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
     }
 
     override fun close() {
+        logger.debug("Closing renderpass $name...")
         output.forEach { it.value.close() }
         pipelines.forEach { it.value.close() }
         UBOs.forEach { it.value.close() }
-        descriptorSetLayouts.forEach { vkDestroyDescriptorSetLayout(device, it.value, null) }
+        descriptorSetLayouts.forEach { vkDestroyDescriptorSetLayout(device.vulkanDevice, it.value, null) }
 
         vulkanMetadata.close()
 
@@ -418,7 +419,13 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
         commandBufferBacking.reset()
 
         if(semaphore != -1L) {
-            vkDestroySemaphore(device, semaphore, null)
+            vkDestroySemaphore(device.vulkanDevice, semaphore, null)
+            memFree(waitSemaphores)
+            memFree(signalSemaphores)
+            memFree(waitStages)
+            memFree(submitCommandBuffers)
+
+            semaphore = -1L
         }
     }
 }

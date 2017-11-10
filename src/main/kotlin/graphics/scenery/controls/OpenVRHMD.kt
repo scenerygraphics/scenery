@@ -7,6 +7,7 @@ import graphics.scenery.Hub
 import graphics.scenery.Hubable
 import graphics.scenery.Mesh
 import graphics.scenery.backends.Display
+import graphics.scenery.backends.vulkan.VulkanDevice
 import graphics.scenery.backends.vulkan.toHexString
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.PointerBuffer
@@ -476,19 +477,18 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
     }
 
     override fun submitToCompositorVulkan(width: Int, height: Int, format: Int,
-                                                           instance: VkInstance, device: VkDevice, physicalDevice: VkPhysicalDevice,
-                                                           queue: VkQueue, queueFamilyIndex: Int,
-                                                           image: Long) {
+                                          instance: VkInstance, device: VulkanDevice,
+                                          queue: VkQueue, image: Long) {
         stackPush().use { stack ->
 
             // FIXME: This works around a bug in lwjgl-openvr, due to be fixed.
             // Switch back to memAllocPointer(1).put(0, instance.address()) etc. as soon as it's fixed.
             val instancePointer = PointerBuffer.create(instance.address(), 1)
-            val devicePointer = PointerBuffer.create(device.address(), 1)
-            val physicalDevicePointer = PointerBuffer.create(physicalDevice.address(), 1)
+            val devicePointer = PointerBuffer.create(device.vulkanDevice.address(), 1)
+            val physicalDevicePointer = PointerBuffer.create(device.physicalDevice.address(), 1)
             val queuePointer = PointerBuffer.create(queue.address(), 1)
 
-            logger.debug("${physicalDevicePointer.address().toHexString()}, ${memAddressSafe(physicalDevice).toHexString()}")
+            logger.debug("${physicalDevicePointer.address().toHexString()}, ${memAddressSafe(device.physicalDevice).toHexString()}")
 
             val textureData = VRVulkanTextureData.callocStack(stack)
                 .m_nImage(image)
@@ -496,7 +496,7 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
                 .m_pPhysicalDevice(physicalDevicePointer)
                 .m_pDevice(devicePointer)
                 .m_pQueue(queuePointer)
-                .m_nQueueFamilyIndex(queueFamilyIndex)
+                .m_nQueueFamilyIndex(device.queueIndices.graphicsQueue)
                 .m_nWidth(width)
                 .m_nHeight(height)
                 .m_nFormat(format)

@@ -13,12 +13,11 @@ import org.lwjgl.system.Struct
 
  * @author Ulrik Günther @ulrik.is>
  */
-open class VulkanFramebuffer(protected var device: VkDevice,
-                        protected var physicalDevice: VkPhysicalDevice,
+open class VulkanFramebuffer(protected val device: VulkanDevice,
                         protected var commandPool: Long,
                         var width: Int,
                         var height: Int,
-                        var commandBuffer: VkCommandBuffer,
+                        val commandBuffer: VkCommandBuffer,
                         var shouldClear: Boolean = true): AutoCloseable {
     protected val logger by LazyLogger()
 
@@ -47,15 +46,15 @@ open class VulkanFramebuffer(protected var device: VkDevice,
         }
 
         override fun close() {
-            vkDestroyImageView(device, imageView.get(0), null)
+            vkDestroyImageView(device.vulkanDevice, imageView.get(0), null)
             memFree(imageView)
 
             if(image != -1L && fromSwapchain == false) {
-                vkDestroyImage(device, image, null)
+                vkDestroyImage(device.vulkanDevice, image, null)
             }
 
             if(memory.get(0) != -1L) {
-                vkFreeMemory(device, memory.get(0), null)
+                vkFreeMemory(device.vulkanDevice, memory.get(0), null)
             }
 
             memFree(memory)
@@ -101,25 +100,21 @@ open class VulkanFramebuffer(protected var device: VkDevice,
             .usage(usage or VK_IMAGE_USAGE_SAMPLED_BIT or VK_IMAGE_USAGE_TRANSFER_SRC_BIT or VK_IMAGE_USAGE_TRANSFER_DST_BIT)
 
 
-        val images = memAllocLong(1)
-        vkCreateImage(device, image, null, images)
-        a.image = images.get(0)
-
-        memFree(images)
-        image.free()
-        imageExtent.free()
+        a.image = VU.getLong("Create VkImage",
+            { vkCreateImage(device.vulkanDevice, image, null, this) },
+            { image.free(); imageExtent.free() })
 
         val requirements = VkMemoryRequirements.calloc()
-        vkGetImageMemoryRequirements(device, a.image, requirements)
+        vkGetImageMemoryRequirements(device.vulkanDevice, a.image, requirements)
 
         val allocation = VkMemoryAllocateInfo.calloc()
             .allocationSize(requirements.size())
-            .memoryTypeIndex(physicalDevice.getMemoryType(requirements.memoryTypeBits(), VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT).second)
+            .memoryTypeIndex(device.getMemoryType(requirements.memoryTypeBits(), VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT).second)
             .sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO)
             .pNext(NULL)
 
-        vkAllocateMemory(device, allocation, null, a.memory)
-        vkBindImageMemory(device, a.image, a.memory.get(0), 0)
+        vkAllocateMemory(device.vulkanDevice, allocation, null, a.memory)
+        vkBindImageMemory(device.vulkanDevice, a.image, a.memory.get(0), 0)
 
         requirements.free()
         allocation.free()
@@ -148,7 +143,7 @@ open class VulkanFramebuffer(protected var device: VkDevice,
             .sType(VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO)
             .pNext(NULL)
 
-        vkCreateImageView(device, iv, null, a.imageView)
+        vkCreateImageView(device.vulkanDevice, iv, null, a.imageView)
         iv.free()
         subresourceRange.free()
 
@@ -338,7 +333,7 @@ open class VulkanFramebuffer(protected var device: VkDevice,
         val att = VulkanFramebufferAttachment()
 
         att.image = swapchain.images!!.get(index)
-        att.imageView.put(swapchain.imageViews!!.get(index))
+        att.imageView.put(0, swapchain.imageViews!!.get(index))
         att.type = VulkanFramebufferType.COLOR_ATTACHMENT
         att.fromSwapchain = true
 
@@ -388,7 +383,7 @@ open class VulkanFramebuffer(protected var device: VkDevice,
                 .layout(VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
         }
 
-        val depthDescs = if(attachments.filter { it.value.type == VulkanFramebufferType.DEPTH_ATTACHMENT }.isNotEmpty()) {
+        val depthDescs = if(attachments.any { it.value.type == VulkanFramebufferType.DEPTH_ATTACHMENT }) {
             VkAttachmentReference.calloc()
                 .attachment(colorDescs.limit())
                 .layout(VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
@@ -437,8 +432,8 @@ open class VulkanFramebuffer(protected var device: VkDevice,
             .pDependencies(dependencyChain)
             .pNext(NULL)
 
-        renderPass.put(0, VU.run(memAllocLong(1), "create renderpass",
-            { vkCreateRenderPass(device, renderPassInfo, null, this) },
+        renderPass.put(0, VU.getLong("create renderpass",
+            { vkCreateRenderPass(device.vulkanDevice, renderPassInfo, null, this) },
             { attachmentDescs.free() }))
 
         logger.trace("Created renderpass ${renderPass.get(0)}")
@@ -452,8 +447,8 @@ open class VulkanFramebuffer(protected var device: VkDevice,
             .height(height)
             .layers(1)
 
-        framebuffer.put(0, VU.run(memAllocLong(1), "create framebuffer",
-            { vkCreateFramebuffer(device, fbinfo, null, this) },
+        framebuffer.put(0, VU.getLong("create framebuffer",
+            { vkCreateFramebuffer(device.vulkanDevice, fbinfo, null, this) },
             { fbinfo.free(); memFree(attachmentImageViews); }))
 
         val samplerCreateInfo = VkSamplerCreateInfo.calloc()
@@ -470,7 +465,7 @@ open class VulkanFramebuffer(protected var device: VkDevice,
             .maxLod(1.0f)
             .borderColor(VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE)
 
-        vkCreateSampler(device, samplerCreateInfo, null, this.framebufferSampler)
+        vkCreateSampler(device.vulkanDevice, samplerCreateInfo, null, this.framebufferSampler)
 
         renderPassInfo.free()
         samplerCreateInfo.free()
@@ -518,7 +513,7 @@ open class VulkanFramebuffer(protected var device: VkDevice,
             VK_FORMAT_D16_UNORM_S8_UINT,
             VK_FORMAT_D16_UNORM
         ).filter {
-            vkGetPhysicalDeviceFormatProperties(physicalDevice, it, props)
+            vkGetPhysicalDeviceFormatProperties(device.physicalDevice, it, props)
 
             props.optimalTilingFeatures() and VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT > 0
         }
@@ -537,13 +532,13 @@ open class VulkanFramebuffer(protected var device: VkDevice,
         if(initialized) {
             attachments.values.forEach { it.close() }
 
-            vkDestroyRenderPass(device, renderPass.get(0), null)
+            vkDestroyRenderPass(device.vulkanDevice, renderPass.get(0), null)
             memFree(renderPass)
 
-            vkDestroySampler(device, framebufferSampler.get(0), null)
+            vkDestroySampler(device.vulkanDevice, framebufferSampler.get(0), null)
             memFree(framebufferSampler)
 
-            vkDestroyFramebuffer(device, this.framebuffer.get(0), null)
+            vkDestroyFramebuffer(device.vulkanDevice, this.framebuffer.get(0), null)
             memFree(framebuffer)
 
             initialized = false
