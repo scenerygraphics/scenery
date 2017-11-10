@@ -152,7 +152,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
                 .imageUsage(VK10.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT or VK10.VK_IMAGE_USAGE_TRANSFER_SRC_BIT)
                 .preTransform(preTransform)
                 .imageArrayLayers(1)
-                .imageSharingMode(VK10.VK_SHARING_MODE_CONCURRENT)
+                .imageSharingMode(VK10.VK_SHARING_MODE_EXCLUSIVE)
                 .pQueueFamilyIndices(null)
                 .presentMode(swapchainPresentMode)
                 .clipped(true)
