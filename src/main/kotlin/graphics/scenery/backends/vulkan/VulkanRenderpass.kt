@@ -303,6 +303,7 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
             }
         }
 
+        p.colorBlendState.pAttachments().free()
         p.colorBlendState
             .sType(VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO)
             .pNext(MemoryUtil.NULL)
@@ -419,6 +420,12 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
 
         if(semaphore != -1L) {
             vkDestroySemaphore(device.vulkanDevice, semaphore, null)
+            memFree(waitSemaphores)
+            memFree(signalSemaphores)
+            memFree(waitStages)
+            memFree(submitCommandBuffers)
+
+            semaphore = -1L
         }
     }
 }

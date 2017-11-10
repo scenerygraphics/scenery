@@ -298,6 +298,8 @@ open class VulkanTexture(val device: VulkanDevice,
                         srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
                         dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                         commandBuffer = this@mipmapCreation)
+
+                    mipRange.free()
                 }
 
                 this@mipmapCreation.endCommandBuffer(device, commandPool, queue, flush = true, dealloc = true)
@@ -485,6 +487,7 @@ open class VulkanTexture(val device: VulkanDevice,
                 }, mipmapLevels, linearMin, linearMax)
 
             tex.copyFrom(imageData)
+            memFree(imageData)
 
             return tex
         }

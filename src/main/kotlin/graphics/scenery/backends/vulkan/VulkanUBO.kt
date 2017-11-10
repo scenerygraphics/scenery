@@ -16,6 +16,7 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
     var descriptor: UBODescriptor? = null
     var offsets: IntBuffer = memAllocInt(1).put(0)
     var requiredOffsetCount = 0
+    private var ownedBackingBuffer: VulkanBuffer? = null
 
     class UBODescriptor {
         internal var memory: Long = 0
@@ -57,18 +58,20 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
 
     fun createUniformBuffer(): UBODescriptor {
         if(backingBuffer == null) {
-            val buffer = VulkanBuffer(device,
+            ownedBackingBuffer = VulkanBuffer(device,
                 this.getSize() * 1L,
                 VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
                 wantAligned = true)
 
-            this.descriptor = UBODescriptor()
-            this.descriptor!!.memory = buffer.memory
-            this.descriptor!!.allocationSize = buffer.size
-            this.descriptor!!.buffer = buffer.vulkanBuffer
-            this.descriptor!!.offset = 0L
-            this.descriptor!!.range = this.getSize() * 1L
+            ownedBackingBuffer?.let { buffer ->
+                this.descriptor = UBODescriptor()
+                this.descriptor!!.memory = buffer.memory
+                this.descriptor!!.allocationSize = buffer.size
+                this.descriptor!!.buffer = buffer.vulkanBuffer
+                this.descriptor!!.offset = 0L
+                this.descriptor!!.range = this.getSize() * 1L
+            }
         } else {
             this.descriptor = UBODescriptor()
             this.descriptor!!.memory = backingBuffer!!.memory
@@ -100,11 +103,12 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
     override fun close() {
         logger.debug("Closing UBO $this ...")
         if(backingBuffer == null) {
-            descriptor?.let {
-                logger.debug("Destroying buffer of $this/$it (${it.buffer.toHexString()}, ${it.memory.toHexString()})...")
-                vkDestroyBuffer(device.vulkanDevice, it.buffer, null)
-                vkFreeMemory(device.vulkanDevice, it.memory, null)
+            ownedBackingBuffer?.let {
+                logger.debug("Destroying self-owned buffer of $this/$it  ${it.memory.toHexString()})...")
+                it.close()
             }
         }
+
+        memFree(offsets)
     }
 }

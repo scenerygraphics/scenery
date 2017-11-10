@@ -73,11 +73,11 @@ class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysicalDevic
             }
             ppEnabledLayerNames.flip()
 
-            val enabledFeatures = VkPhysicalDeviceFeatures.calloc()
+            val enabledFeatures = VkPhysicalDeviceFeatures.callocStack(stack)
                 .samplerAnisotropy(true)
                 .largePoints(true)
 
-            val deviceCreateInfo = VkDeviceCreateInfo.calloc()
+            val deviceCreateInfo = VkDeviceCreateInfo.callocStack(stack)
                 .sType(VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO)
                 .pNext(MemoryUtil.NULL)
                 .pQueueCreateInfos(queueCreateInfo)
@@ -234,6 +234,8 @@ class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysicalDevic
                 val selectedDeviceData = deviceList[devicePreference]
 
                 val physicalDevice = VkPhysicalDevice(selectedDevice, instance)
+
+                physicalDevices.free()
 
                 VulkanDevice(instance, physicalDevice, selectedDeviceData, additionalExtensions, validationLayers)
             }
