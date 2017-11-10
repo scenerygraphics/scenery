@@ -231,10 +231,7 @@ class VU {
         /**
          * Translates a Vulkan `VkResult` value to a String describing the result.
 
-         * @param result
-         * *            the `VkResult` value
-         * *
-         * *
+         * @param result the `VkResult` value
          * @return the result description
          */
         fun translate(result: Int): String {
@@ -271,71 +268,75 @@ class VU {
         }
 
         fun setImageLayout(commandBuffer: VkCommandBuffer, image: Long, aspectMask: Int, oldImageLayout: Int, newImageLayout: Int, range: VkImageSubresourceRange) {
-            val imageMemoryBarrier = VkImageMemoryBarrier.calloc(1)
-                .sType(VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER)
-                .pNext(NULL)
-                .oldLayout(oldImageLayout)
-                .newLayout(newImageLayout)
-                .image(image)
-                .subresourceRange(range)
-                .srcAccessMask(when(oldImageLayout) {
-                    VK_IMAGE_LAYOUT_PREINITIALIZED -> VK_ACCESS_HOST_WRITE_BIT
-                    VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL -> VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
-                    VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL -> VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT
-                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL -> VK_ACCESS_TRANSFER_READ_BIT
-                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL -> VK_ACCESS_TRANSFER_WRITE_BIT
-                    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL -> VK_ACCESS_SHADER_READ_BIT
+            stackPush().use { stack ->
+                val imageMemoryBarrier = VkImageMemoryBarrier.callocStack(1, stack)
+                    .sType(VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER)
+                    .pNext(NULL)
+                    .oldLayout(oldImageLayout)
+                    .newLayout(newImageLayout)
+                    .image(image)
+                    .subresourceRange(range)
+                    .srcAccessMask(when (oldImageLayout) {
+                        VK_IMAGE_LAYOUT_PREINITIALIZED -> VK_ACCESS_HOST_WRITE_BIT
+                        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL -> VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
+                        VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL -> VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT
+                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL -> VK_ACCESS_TRANSFER_READ_BIT
+                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL -> VK_ACCESS_TRANSFER_WRITE_BIT
+                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL -> VK_ACCESS_SHADER_READ_BIT
 
-                    VK_IMAGE_LAYOUT_UNDEFINED -> 0
-                    else -> 0
-                })
+                        VK_IMAGE_LAYOUT_UNDEFINED -> 0
+                        else -> 0
+                    })
 
-            when(newImageLayout) {
-                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL -> imageMemoryBarrier.dstAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
-                VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL -> {
-                    imageMemoryBarrier.srcAccessMask(imageMemoryBarrier.srcAccessMask() or VK_ACCESS_TRANSFER_READ_BIT)
-                        .dstAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
-                }
-                VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL -> {
-                    imageMemoryBarrier.srcAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
-                    imageMemoryBarrier.dstAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
-                }
-                VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL -> {
-                    imageMemoryBarrier.dstAccessMask(imageMemoryBarrier.dstAccessMask() or VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT)
-                }
-                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL -> {
-                    if(imageMemoryBarrier.srcAccessMask() == 0) {
-                        imageMemoryBarrier.dstAccessMask(VK_ACCESS_HOST_WRITE_BIT or VK_ACCESS_TRANSFER_WRITE_BIT)
+                when (newImageLayout) {
+                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL -> imageMemoryBarrier.dstAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
+                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL -> {
+                        imageMemoryBarrier.srcAccessMask(imageMemoryBarrier.srcAccessMask() or VK_ACCESS_TRANSFER_READ_BIT)
+                            .dstAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
                     }
+                    VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL -> {
+                        imageMemoryBarrier.srcAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
+                        imageMemoryBarrier.dstAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
+                    }
+                    VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL -> {
+                        imageMemoryBarrier.dstAccessMask(imageMemoryBarrier.dstAccessMask() or VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT)
+                    }
+                    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL -> {
+                        if (imageMemoryBarrier.srcAccessMask() == 0) {
+                            imageMemoryBarrier.dstAccessMask(VK_ACCESS_HOST_WRITE_BIT or VK_ACCESS_TRANSFER_WRITE_BIT)
+                        }
 
-                    imageMemoryBarrier.dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
+                        imageMemoryBarrier.dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
+                    }
+                    VK_IMAGE_LAYOUT_PRESENT_SRC_KHR -> {
+                        imageMemoryBarrier.dstAccessMask(imageMemoryBarrier.dstAccessMask() or VK_ACCESS_MEMORY_READ_BIT)
+                    }
                 }
-                VK_IMAGE_LAYOUT_PRESENT_SRC_KHR -> {
-                    imageMemoryBarrier.dstAccessMask(imageMemoryBarrier.dstAccessMask() or VK_ACCESS_MEMORY_READ_BIT)
-                }
+
+                val srcStageFlags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+                val dstStageFlags = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
+
+                vkCmdPipelineBarrier(commandBuffer,
+                    srcStageFlags,
+                    dstStageFlags,
+                    0,
+                    null,
+                    null,
+                    imageMemoryBarrier
+                )
             }
-
-            val srcStageFlags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
-            val dstStageFlags = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
-
-            vkCmdPipelineBarrier(commandBuffer,
-                srcStageFlags,
-                dstStageFlags,
-                0,
-                null,
-                null,
-                imageMemoryBarrier
-            )
         }
 
         fun setImageLayout(commandBuffer: VkCommandBuffer, image: Long, aspectMask: Int, oldImageLayout: Int, newImageLayout: Int) {
-            val range = VkImageSubresourceRange.calloc()
-                .aspectMask(aspectMask)
-                .baseMipLevel(0)
-                .levelCount(1)
-                .layerCount(1)
+            stackPush().use { stack ->
+                val range = VkImageSubresourceRange.callocStack(stack)
+                    .aspectMask(aspectMask)
+                    .baseMipLevel(0)
+                    .levelCount(1)
+                    .layerCount(1)
 
-            setImageLayout(commandBuffer, image, aspectMask, oldImageLayout, newImageLayout, range)
+                setImageLayout(commandBuffer, image, aspectMask, oldImageLayout, newImageLayout, range)
+            }
         }
 
         fun createDeviceQueue(device: VulkanDevice, queueFamilyIndex: Int): VkQueue {

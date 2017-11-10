@@ -10,6 +10,7 @@ import org.lwjgl.glfw.GLFWVulkan
 import org.lwjgl.glfw.GLFWWindowSizeCallback
 import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil
+import org.lwjgl.system.MemoryUtil.memFree
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.KHRSwapchain.vkAcquireNextImageKHR
 import java.nio.IntBuffer
@@ -224,6 +225,11 @@ open class VulkanSwapchain(open val device: VulkanDevice,
             this.imageViews = imageViews
             this.format = colorFormatAndSpace.colorFormat
 
+            memFree(swapchainImages)
+            memFree(imageCount)
+            memFree(presentModeCount)
+            memFree(presentModes)
+
             this
         }
     }
@@ -312,6 +318,8 @@ open class VulkanSwapchain(open val device: VulkanDevice,
             } else {
                 surfFormats.get(0).colorSpace()
             }
+
+            memFree(formatCount)
 
             ColorFormatAndSpace(colorFormat, colorSpace)
         }

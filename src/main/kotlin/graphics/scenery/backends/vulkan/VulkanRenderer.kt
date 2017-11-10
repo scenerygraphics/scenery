@@ -387,9 +387,13 @@ open class VulkanRenderer(hub: Hub,
 
         // Create the Vulkan instance
         instance = createInstance(requiredExtensions)
-        debugCallbackHandle = setupDebugging(instance,
-            VK_DEBUG_REPORT_ERROR_BIT_EXT or VK_DEBUG_REPORT_WARNING_BIT_EXT,
-            debugCallback)
+        if(validation) {
+            debugCallbackHandle = setupDebugging(instance,
+                VK_DEBUG_REPORT_ERROR_BIT_EXT or VK_DEBUG_REPORT_WARNING_BIT_EXT,
+                debugCallback)
+        } else {
+            debugCallbackHandle = -1L
+        }
 
         val requestedValidationLayers = if(validation) {
             if(wantsOpenGLSwapchain) {
@@ -871,6 +875,7 @@ open class VulkanRenderer(hub: Hub,
     }
 
     fun destroyNode(node: Node) {
+        logger.debug("Destroying node ${node.name}...")
         if (!node.metadata.containsKey("VulkanRenderer")) {
             return
         }
@@ -1696,7 +1701,7 @@ open class VulkanRenderer(hub: Hub,
             val appInfo = VkApplicationInfo.callocStack(stack)
                 .sType(VK_STRUCTURE_TYPE_APPLICATION_INFO)
                 .pApplicationName(stack.UTF8(applicationName))
-                .pEngineName(memUTF8("scenery"))
+                .pEngineName(stack.UTF8("scenery"))
                 .apiVersion(VK_MAKE_VERSION(1, 0, 54))
 
             val additionalExts: List<String> = hub?.getWorkingHMDDisplay()?.getVulkanInstanceExtensions() ?: listOf()
@@ -2687,6 +2692,7 @@ open class VulkanRenderer(hub: Hub,
         vrUbo.add("stereoEnabled", { renderConfig.stereoEnabled.toInt() })
 
         vrUbo.populate()
+        vrUbo.close()
         buffers["VRParametersBuffer"]!!.copyFromStagingBuffer()
 
         buffers["UBOBuffer"]!!.reset()
@@ -2767,6 +2773,7 @@ open class VulkanRenderer(hub: Hub,
 
         lightUbo.createUniformBuffer()
         lightUbo.populate()
+        lightUbo.close()
 
         buffers["LightParametersBuffer"]!!.copyFromStagingBuffer()
         buffers["ShaderPropertyBuffer"]!!.copyFromStagingBuffer()
@@ -2809,8 +2816,13 @@ open class VulkanRenderer(hub: Hub,
         logger.info("Renderer teardown started.")
         vkQueueWaitIdle(queue)
 
+        logger.debug("Cleaning texture cache...")
+        textureCache.forEach {
+            logger.debug("Cleaning ${it.key}...")
+            it.value.close()
+        }
+
         logger.debug("Closing nodes...")
-        textureCache.forEach { it.value.close() }
         scene.discover(scene, { n -> n is Renderable }).forEach {
             destroyNode(it)
         }
@@ -2866,8 +2878,9 @@ open class VulkanRenderer(hub: Hub,
 
         if (validation) {
             vkDestroyDebugReportCallbackEXT(instance, debugCallbackHandle, null)
-            debugCallback.free()
         }
+
+        debugCallback.free()
 
         device.close()
 

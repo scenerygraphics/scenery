@@ -113,7 +113,7 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, claz
             base.getResourceAsStream(spirvPath),
             base.getResourceAsStream(codePath))
 
-        var code = ByteBuffer.allocate(0)
+        val code: ByteBuffer
 
         val spirv = if(shaderPackage.spirv != null && !shaderPackage.isSourceNewer()) {
             code = BufferUtils.allocateByteAndPut(shaderPackage.spirv!!.readBytes())
@@ -261,12 +261,9 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, claz
             .pCode(code)
             .flags(0)
 
-        val shaderModule = memAllocLong(1)
-        vkCreateShaderModule(device.vulkanDevice, moduleCreateInfo, null, shaderModule)
-        this.shaderModule = shaderModule.get(0)
-
-        moduleCreateInfo.free()
-        memFree(shaderModule)
+        this.shaderModule = VU.getLong("Creating shader module",
+            { vkCreateShaderModule(device.vulkanDevice, moduleCreateInfo, null, this) },
+            { moduleCreateInfo.free(); })
 
         this.shader = VkPipelineShaderStageCreateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO)
@@ -321,6 +318,13 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, claz
         logger.trace("$shaderCodePath has type $type")
 
         return type
+    }
+
+    fun close() {
+        vkDestroyShaderModule(device.vulkanDevice, shader.module(), null)
+
+        memFree(shader.pName())
+        shader.free()
     }
 
     companion object {

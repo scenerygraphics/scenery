@@ -84,15 +84,15 @@ class VulkanPipeline(val device: VulkanDevice, val pipelineCache: Long? = null):
         .pSampleMask(null)
         .rasterizationSamples(VK_SAMPLE_COUNT_1_BIT)
 
-    var shaderStages: VkPipelineShaderStageCreateInfo.Buffer = VkPipelineShaderStageCreateInfo.calloc(2)
+    val shaderStages = ArrayList<VulkanShaderModule>(2)
 
     fun addShaderStages(shaderModules: List<VulkanShaderModule>) {
-        this.shaderStages.free()
-        this.shaderStages = VkPipelineShaderStageCreateInfo.calloc(shaderModules.size)
+        shaderStages.forEach { it.close() }
+        shaderStages.clear()
 
         shaderModules.forEachIndexed {
             i, it ->
-            this.shaderStages.put(i, it.shader)
+            this.shaderStages.add(it)
 
             it.uboSpecs.forEach { uboName, ubo ->
                 if(descriptorSpecs.containsKey(uboName)) {
@@ -124,7 +124,12 @@ class VulkanPipeline(val device: VulkanDevice, val pipelineCache: Long? = null):
 
         val layout = VU.getLong("vkCreatePipelineLayout",
             { vkCreatePipelineLayout(device.vulkanDevice, pPipelineLayoutCreateInfo, null, this) },
-            { pPipelineLayoutCreateInfo.free(); memFree(setLayouts); })
+            { pushConstantRanges.free(); pPipelineLayoutCreateInfo.free(); memFree(setLayouts); })
+
+        val stages = VkPipelineShaderStageCreateInfo.calloc(shaderStages.size)
+        shaderStages.forEachIndexed { i, shaderStage ->
+            stages.put(i, shaderStage.shader)
+        }
 
         val pipelineCreateInfo = VkGraphicsPipelineCreateInfo.calloc(1)
             .sType(VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO)
@@ -138,7 +143,7 @@ class VulkanPipeline(val device: VulkanDevice, val pipelineCache: Long? = null):
             .pMultisampleState(multisampleState)
             .pViewportState(viewportState)
             .pDepthStencilState(depthStencilState)
-            .pStages(shaderStages)
+            .pStages(stages)
             .pDynamicState(dynamicState)
             .flags(VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT)
             .subpass(0)
@@ -187,6 +192,7 @@ class VulkanPipeline(val device: VulkanDevice, val pipelineCache: Long? = null):
         logger.debug("Created $this for renderpass ${renderpass.name} ($vulkanRenderpass) with pipeline layout $layout (${if(onlyForTopology == null) { "Derivatives:" + this.pipeline.keys.joinToString(", ")} else { "no derivatives, only ${this.pipeline.keys.first()}" }})")
 
         pipelineCreateInfo.free()
+        stages.free()
     }
 
     fun getPipelineForGeometryType(type: GeometryType): VulkanRenderer.Pipeline {
@@ -231,20 +237,16 @@ class VulkanPipeline(val device: VulkanDevice, val pipelineCache: Long? = null):
             }
         }
 
-        (0..shaderStages.capacity()-1).forEach { i ->
-            vkDestroyShaderModule(device.vulkanDevice, shaderStages.get(i).module(), null)
-        }
-
         inputAssemblyState.free()
         rasterizationState.free()
         depthStencilState.free()
+        colorBlendState.pAttachments().free()
         colorBlendState.free()
-        colorWriteMask.free()
         viewportState.free()
         dynamicState.free()
         memFree(pDynamicStates)
         multisampleState.free()
 
-        shaderStages.free()
+        shaderStages.forEach { it.close() }
     }
 }
