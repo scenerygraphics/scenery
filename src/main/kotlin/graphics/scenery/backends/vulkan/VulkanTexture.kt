@@ -681,13 +681,35 @@ open class VulkanTexture(val device: VulkanDevice,
 
     override fun close() {
         image?.let {
-            if (it.view != -1L) vkDestroyImageView(device.vulkanDevice, it.view, null)
-            if (it.image != -1L) vkDestroyImage(device.vulkanDevice, it.image, null)
-            if (it.sampler != -1L) vkDestroySampler(device.vulkanDevice, it.sampler, null)
-            if (it.memory != -1L) vkFreeMemory(device.vulkanDevice, it.memory, null)
+            if (it.view != -1L) {
+                vkDestroyImageView(device.vulkanDevice, it.view, null)
+                it.view = -1L
+            }
+
+            if (it.image != -1L) {
+                vkDestroyImage(device.vulkanDevice, it.image, null)
+                it.image = -1L
+            }
+
+            if (it.sampler != -1L) {
+                vkDestroySampler(device.vulkanDevice, it.sampler, null)
+                it.sampler = -1L
+            }
+
+            if (it.memory != -1L) {
+                vkFreeMemory(device.vulkanDevice, it.memory, null)
+                it.memory = -1L
+            }
         }
 
-        if (stagingImage.image != -1L) vkDestroyImage(device.vulkanDevice, stagingImage.image, null)
-        if (stagingImage.memory != -1L) vkFreeMemory(device.vulkanDevice, stagingImage.memory, null)
+        if (stagingImage.image != -1L) {
+            vkDestroyImage(device.vulkanDevice, stagingImage.image, null)
+            stagingImage.image = -1L
+        }
+
+        if (stagingImage.memory != -1L) {
+            vkFreeMemory(device.vulkanDevice, stagingImage.memory, null)
+            stagingImage.memory = -1L
+        }
     }
 }
