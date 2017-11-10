@@ -100,13 +100,9 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
             .usage(usage or VK_IMAGE_USAGE_SAMPLED_BIT or VK_IMAGE_USAGE_TRANSFER_SRC_BIT or VK_IMAGE_USAGE_TRANSFER_DST_BIT)
 
 
-        val images = memAllocLong(1)
-        vkCreateImage(device.vulkanDevice, image, null, images)
-        a.image = images.get(0)
-
-        memFree(images)
-        image.free()
-        imageExtent.free()
+        a.image = VU.getLong("Create VkImage",
+            { vkCreateImage(device.vulkanDevice, image, null, this) },
+            { image.free(); imageExtent.free() })
 
         val requirements = VkMemoryRequirements.calloc()
         vkGetImageMemoryRequirements(device.vulkanDevice, a.image, requirements)
@@ -337,7 +333,7 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
         val att = VulkanFramebufferAttachment()
 
         att.image = swapchain.images!!.get(index)
-        att.imageView.put(swapchain.imageViews!!.get(index))
+        att.imageView.put(0, swapchain.imageViews!!.get(index))
         att.type = VulkanFramebufferType.COLOR_ATTACHMENT
         att.fromSwapchain = true
 
@@ -387,7 +383,7 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
                 .layout(VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
         }
 
-        val depthDescs = if(attachments.filter { it.value.type == VulkanFramebufferType.DEPTH_ATTACHMENT }.isNotEmpty()) {
+        val depthDescs = if(attachments.any { it.value.type == VulkanFramebufferType.DEPTH_ATTACHMENT }) {
             VkAttachmentReference.calloc()
                 .attachment(colorDescs.limit())
                 .layout(VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
