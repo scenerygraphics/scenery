@@ -34,11 +34,10 @@ import kotlin.collections.LinkedHashMap
  * @author Ulrik Günther <hello@ulrik.is>
  */
 
-open class VulkanShaderModule(device: VkDevice, entryPoint: String, clazz: Class<*>, shaderCodePath: String) {
+open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, clazz: Class<*>, shaderCodePath: String) {
     protected val logger by LazyLogger()
     var shader: VkPipelineShaderStageCreateInfo
     var shaderModule: Long
-    var device: VkDevice
     var uboSpecs = LinkedHashMap<String, UBOSpec>()
     private var shaderPackage: ShaderPackage
 
@@ -93,8 +92,6 @@ open class VulkanShaderModule(device: VkDevice, entryPoint: String, clazz: Class
 
         logger.debug("Creating VulkanShaderModule $entryPoint, $shaderCodePath")
 
-        this.device = device
-
         if(shaderCodePath.endsWith(".spv")) {
             spirvPath = shaderCodePath
             codePath = shaderCodePath.substringBeforeLast(".spv")
@@ -116,7 +113,7 @@ open class VulkanShaderModule(device: VkDevice, entryPoint: String, clazz: Class
             base.getResourceAsStream(spirvPath),
             base.getResourceAsStream(codePath))
 
-        var code = ByteBuffer.allocate(0)
+        val code: ByteBuffer
 
         val spirv = if(shaderPackage.spirv != null && !shaderPackage.isSourceNewer()) {
             code = BufferUtils.allocateByteAndPut(shaderPackage.spirv!!.readBytes())
@@ -264,12 +261,9 @@ open class VulkanShaderModule(device: VkDevice, entryPoint: String, clazz: Class
             .pCode(code)
             .flags(0)
 
-        val shaderModule = memAllocLong(1)
-        vkCreateShaderModule(device, moduleCreateInfo, null, shaderModule)
-        this.shaderModule = shaderModule.get(0)
-
-        moduleCreateInfo.free()
-        memFree(shaderModule)
+        this.shaderModule = VU.getLong("Creating shader module",
+            { vkCreateShaderModule(device.vulkanDevice, moduleCreateInfo, null, this) },
+            { moduleCreateInfo.free(); })
 
         this.shader = VkPipelineShaderStageCreateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO)
@@ -326,14 +320,21 @@ open class VulkanShaderModule(device: VkDevice, entryPoint: String, clazz: Class
         return type
     }
 
+    fun close() {
+        vkDestroyShaderModule(device.vulkanDevice, shader.module(), null)
+
+        memFree(shader.pName())
+        shader.free()
+    }
+
     companion object {
         @Suppress("UNUSED")
-        fun createFromSPIRV(device: VkDevice, name: String, clazz: Class<*>, sourceFile: String): VulkanShaderModule {
+        fun createFromSPIRV(device: VulkanDevice, name: String, clazz: Class<*>, sourceFile: String): VulkanShaderModule {
             return VulkanShaderModule(device, name, clazz, sourceFile)
         }
 
         @Suppress("UNUSED")
-        fun createFromSource(device: VkDevice, name: String, clazz: Class<*>, sourceFile: String): VulkanShaderModule {
+        fun createFromSource(device: VulkanDevice, name: String, clazz: Class<*>, sourceFile: String): VulkanShaderModule {
             return VulkanShaderModule(device, name, clazz, sourceFile)
         }
     }

@@ -31,16 +31,13 @@ import java.util.concurrent.locks.ReentrantLock
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class FXSwapchain(device: VkDevice,
-                  physicalDevice: VkPhysicalDevice,
-                  instance: VkInstance,
-                  val memoryProperties: VkPhysicalDeviceMemoryProperties,
+class FXSwapchain(device: VulkanDevice,
                   queue: VkQueue,
                   commandPool: Long,
                   renderConfig: RenderConfigReader.RenderConfig,
                   useSRGB: Boolean = true,
                   @Suppress("unused") val useFramelock: Boolean = false,
-                  @Suppress("unused") val bufferCount: Int = 2) : VulkanSwapchain(device, physicalDevice, instance, queue, commandPool, renderConfig, useSRGB) {
+                  @Suppress("unused") val bufferCount: Int = 2) : VulkanSwapchain(device, queue, commandPool, renderConfig, useSRGB) {
     lateinit var sharingBuffer: VulkanBuffer
     lateinit var imageBuffer: ByteBuffer
     var lock = ReentrantLock()
@@ -87,7 +84,7 @@ class FXSwapchain(device: VkDevice,
     var resizeHandler = ResizeHandler()
 
     override fun createWindow(win: SceneryWindow, swapchainRecreator: VulkanRenderer.SwapchainRecreator): SceneryWindow {
-        vulkanInstance = instance
+        vulkanInstance = device.instance
         vulkanSwapchainRecreator = swapchainRecreator
 
         PlatformImpl.startup { }
@@ -196,10 +193,10 @@ class FXSwapchain(device: VkDevice,
 
             // we have to get rid of the old swapchain, as we have already constructed a new surface
             if (oldSwapchain is FXSwapchain && oldSwapchain.handle != VK10.VK_NULL_HANDLE) {
-                KHRSwapchain.vkDestroySwapchainKHR(device, oldSwapchain.handle, null)
+                KHRSwapchain.vkDestroySwapchainKHR(device.vulkanDevice, oldSwapchain.handle, null)
             }
 
-            KHRSurface.vkDestroySurfaceKHR(instance, surface, null)
+            KHRSurface.vkDestroySurfaceKHR(device.instance, surface, null)
             glfwDestroyWindow(glfwOffscreenWindow)
         }
 
@@ -213,19 +210,18 @@ class FXSwapchain(device: VkDevice,
         val h = intArrayOf(1)
         glfwGetWindowSize(glfwOffscreenWindow, w, h)
 
-        surface = VU.run(MemoryUtil.memAllocLong(1), "glfwCreateWindowSurface") {
-            GLFWVulkan.glfwCreateWindowSurface(vulkanInstance, glfwOffscreenWindow, null, this)
-        }
+        surface = VU.getLong("glfwCreateWindowSurface",
+            { GLFWVulkan.glfwCreateWindowSurface(vulkanInstance, glfwOffscreenWindow, null, this) }, {})
 
         super.create(null)
 
         val imageByteSize = window.width * window.height * 4L
         imageBuffer = MemoryUtil.memAlloc(imageByteSize.toInt())
-        sharingBuffer = VU.createBuffer(device,
-            memoryProperties, VK10.VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+        sharingBuffer = VulkanBuffer(device,
+            imageByteSize,
+            VK10.VK_BUFFER_USAGE_TRANSFER_DST_BIT,
             VK10.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK10.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-            wantAligned = true,
-            allocationSize = imageByteSize)
+            wantAligned = true)
 
         imagePanel?.prefWidth = window.width.toDouble()
         imagePanel?.prefHeight = window.height.toDouble()
@@ -272,7 +268,7 @@ class FXSwapchain(device: VkDevice,
 
             VK10.vkCmdCopyImageToBuffer(this, transferImage,
                 VK10.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                sharingBuffer.buffer,
+                sharingBuffer.vulkanBuffer,
                 regions)
 
             VulkanTexture.transitionLayout(transferImage,
@@ -315,8 +311,8 @@ class FXSwapchain(device: VkDevice,
     }
 
     override fun close() {
-        KHRSwapchain.vkDestroySwapchainKHR(device, handle, null)
-        KHRSurface.vkDestroySurfaceKHR(instance, surface, null)
+        KHRSwapchain.vkDestroySwapchainKHR(device.vulkanDevice, handle, null)
+        KHRSurface.vkDestroySurfaceKHR(device.instance, surface, null)
 
         presentInfo.free()
 

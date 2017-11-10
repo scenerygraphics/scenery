@@ -6,13 +6,11 @@ import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.Hub
 import graphics.scenery.Hubable
 import graphics.scenery.backends.Display
+import graphics.scenery.backends.vulkan.VulkanDevice
 import graphics.scenery.utils.LazyLogger
-import org.lwjgl.vulkan.VkDevice
 import org.lwjgl.vulkan.VkInstance
 import org.lwjgl.vulkan.VkPhysicalDevice
 import org.lwjgl.vulkan.VkQueue
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 
 /**
  * Display/TrackerInput implementation for stereoscopic displays and tracked shutter glasses
@@ -131,7 +129,7 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
      * @param[queueFamilyIndex] Queue family index
      * @param[image] The Vulkan texture image to be presented to the compositor
      */
-    override fun submitToCompositorVulkan(width: Int, height: Int, format: Int, instance: VkInstance, device: VkDevice, physicalDevice: VkPhysicalDevice, queue: VkQueue, queueFamilyIndex: Int, image: Long) {
+    override fun submitToCompositorVulkan(width: Int, height: Int, format: Int, instance: VkInstance, device: VulkanDevice, queue: VkQueue, image: Long) {
         logger.error("This Display implementation does not have a compositor. Incorrect configuration?")
     }
 
