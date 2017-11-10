@@ -448,8 +448,7 @@ class VU {
                     .pSetLayouts(pDescriptorSetLayout)
 
                 val descriptorSet = getLong("createDescriptorSet",
-                    { vkAllocateDescriptorSets(device.vulkanDevice, allocInfo, this) },
-                    { allocInfo.free(); MemoryUtil.memFree(pDescriptorSetLayout) })
+                    { vkAllocateDescriptorSets(device.vulkanDevice, allocInfo, this) }, {})
 
                 val d = VkDescriptorBufferInfo.callocStack(1, stack)
                     .buffer(buffer.vulkanBuffer)
@@ -528,8 +527,7 @@ class VU {
                     .pSetLayouts(pDescriptorSetLayout)
 
                 val descriptorSet = getLong("createDescriptorSet",
-                    { vkAllocateDescriptorSets(device.vulkanDevice, allocInfo, this) },
-                    { allocInfo.free(); MemoryUtil.memFree(pDescriptorSetLayout) })
+                    { vkAllocateDescriptorSets(device.vulkanDevice, allocInfo, this) }, {})
 
                 val writeDescriptorSet = VkWriteDescriptorSet.callocStack(rt.size, stack)
 
