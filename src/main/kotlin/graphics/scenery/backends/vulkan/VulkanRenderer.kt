@@ -1294,7 +1294,7 @@ open class VulkanRenderer(hub: Hub,
                         // create framebuffer -- don't clear it, if blitting is needed
                         val framebuffer = VulkanFramebuffer(device, commandPools.Standard,
                             width, height, this,
-                            shouldClear = !passConfig.blitInputs)
+                            shouldClear = !passConfig.blitInputs || passConfig.clearRenderTarget)
 
                         rt.value.forEach { att ->
                             logger.info(" + attachment ${att.key}, ${att.value.format.name}")
@@ -1347,7 +1347,7 @@ open class VulkanRenderer(hub: Hub,
                 }
 
                 pass.vulkanMetadata.clearValues?.free()
-                if(!passConfig.blitInputs) {
+                if(!passConfig.blitInputs && !passConfig.clearRenderTarget) {
                     pass.vulkanMetadata.clearValues = VkClearValue.calloc(pass.output.values.first().attachments.count())
                     pass.vulkanMetadata.clearValues?.let { clearValues ->
 
@@ -2682,6 +2682,12 @@ open class VulkanRenderer(hub: Hub,
 
         val hmd = hub?.getWorkingHMDDisplay()?.wantsVR()
 
+        val defaultProjection = if(renderConfig.defaultProjection == RenderConfigReader.Projection.Default) {
+            cam.projection.to(cam.projection)
+        } else {
+            cam.getOffCenterProjection(cam.fov.toInt(), 0, 0.05f).to(cam.getOffCenterProjection(cam.fov.toInt(), 1, 0.05f))
+        }
+
         cam.view = cam.getTransformation()
 
         buffers["VRParametersBuffer"]!!.reset()
@@ -2689,9 +2695,9 @@ open class VulkanRenderer(hub: Hub,
 
         vrUbo.createUniformBuffer()
         vrUbo.add("projection0", { (hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance)
-            ?: cam.projection).applyVulkanCoordinateSystem() } )
+            ?: defaultProjection.first).applyVulkanCoordinateSystem() } )
         vrUbo.add("projection1", { (hmd?.getEyeProjection(1, cam.nearPlaneDistance, cam.farPlaneDistance)
-            ?: cam.projection).applyVulkanCoordinateSystem() } )
+            ?: defaultProjection.second).applyVulkanCoordinateSystem() } )
         vrUbo.add("headShift", { hmd?.getHeadToEyeTransform(0) ?: GLMatrix.getIdentity() })
         vrUbo.add("IPD", { hmd?.getIPD() ?: 0.05f })
         vrUbo.add("stereoEnabled", { renderConfig.stereoEnabled.toInt() })

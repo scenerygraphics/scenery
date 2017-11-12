@@ -295,11 +295,11 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
                     .alphaBlendOp(passConfig.alphaBlendOp.toVulkan())
                     .srcAlphaBlendFactor(passConfig.srcAlphaBlendFactor.toVulkan())
                     .dstAlphaBlendFactor(passConfig.dstAlphaBlendFactor.toVulkan())
-                    .colorWriteMask(VK_COLOR_COMPONENT_R_BIT or VK_COLOR_COMPONENT_G_BIT or VK_COLOR_COMPONENT_B_BIT or VK_COLOR_COMPONENT_A_BIT)
+                    .colorWriteMask(passConfig.writeColorChannels.toVulkan())
             } else {
                 blendMasks[it]
                     .blendEnable(false)
-                    .colorWriteMask(0xF)
+                    .colorWriteMask(passConfig.writeColorChannels.toVulkan())
             }
         }
 
@@ -404,6 +404,27 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
 
     fun getDefaultPipeline(): VulkanPipeline {
         return pipelines["default"]!!
+    }
+
+    fun Set<RenderConfigReader.ColorChannel>.toVulkan(): Int {
+        var mask = 0
+        if(this.contains(graphics.scenery.backends.RenderConfigReader.ColorChannel.R)) {
+            mask = mask or VK_COLOR_COMPONENT_R_BIT
+        }
+
+        if(this.contains(graphics.scenery.backends.RenderConfigReader.ColorChannel.G)) {
+            mask = mask or VK_COLOR_COMPONENT_G_BIT
+        }
+
+        if(this.contains(graphics.scenery.backends.RenderConfigReader.ColorChannel.B)) {
+            mask = mask or VK_COLOR_COMPONENT_B_BIT
+        }
+
+        if(this.contains(graphics.scenery.backends.RenderConfigReader.ColorChannel.A)) {
+            mask = mask or VK_COLOR_COMPONENT_A_BIT
+        }
+
+        return mask
     }
 
     override fun close() {

@@ -497,6 +497,13 @@ class OpenGLRenderer(hub: Hub,
                 (pass.passConfig.viewportOffset.first * width).toInt(),
                 (pass.passConfig.viewportOffset.second * height).toInt())
 
+            pass.openglMetadata.colorWriteMask = arrayOf(
+                pass.passConfig.writeColorChannels.contains(RenderConfigReader.ColorChannel.R),
+                pass.passConfig.writeColorChannels.contains(RenderConfigReader.ColorChannel.G),
+                pass.passConfig.writeColorChannels.contains(RenderConfigReader.ColorChannel.B),
+                pass.passConfig.writeColorChannels.contains(RenderConfigReader.ColorChannel.A)
+            )
+
             pass.openglMetadata.eye = pass.passConfig.eye
             pass.defaultShader = prepareShaderProgram(Renderer::class.java, pass.passConfig.shaders.toTypedArray())
 
@@ -1195,6 +1202,13 @@ class OpenGLRenderer(hub: Hub,
             gl.glDepthRange(
                 pass.openglMetadata.viewport.minDepth.toDouble(),
                 pass.openglMetadata.viewport.maxDepth.toDouble())
+
+            gl.glColorMask(
+                pass.openglMetadata.colorWriteMask[0],
+                pass.openglMetadata.colorWriteMask[1],
+                pass.openglMetadata.colorWriteMask[2],
+                pass.openglMetadata.colorWriteMask[3]
+            )
 
             if (pass.passConfig.type == RenderConfigReader.RenderpassType.geometry) {
 

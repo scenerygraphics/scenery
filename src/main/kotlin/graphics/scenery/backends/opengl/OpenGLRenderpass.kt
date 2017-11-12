@@ -29,6 +29,7 @@ class OpenGLRenderpass(var passName: String = "", var passConfig: RenderConfigRe
         var scissor: Rect2D = Rect2D(),
         var renderArea: Rect2D = Rect2D(),
         var clearValues: ClearValue = ClearValue(),
+        var colorWriteMask: Array<Boolean> = arrayOf(true, true, true, true),
         var viewport: Viewport = Viewport(),
         var eye: Int = 0
     )

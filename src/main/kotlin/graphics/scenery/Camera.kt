@@ -32,8 +32,12 @@ open class Camera : Node("Camera") {
     var nearPlaneDistance = 0.05f
     /** Z buffer far plane location */
     var farPlaneDistance = 1000.0f
+    /** aspect ratio */
+    var aspect = 1.0f
     /** delta T from the renderer */
     var deltaT = 0.0f
+    /** off-center matrices cache, in case needed */
+    private val offCenterProjectionCache = HashMap<Pair<Int, Int>, GLMatrix>(2)
 
     /** View matrix of the camera. Setting the view matrix will re-set the forward
      *  vector of the camera according to the given matrix.
@@ -73,6 +77,7 @@ open class Camera : Node("Camera") {
     fun perspectiveCamera(fov: Float, width: Float, height: Float, nearPlaneLocation: Float = 0.1f, farPlaneLocation: Float = 1000.0f) {
         this.nearPlaneDistance = nearPlaneLocation
         this.farPlaneDistance = farPlaneLocation
+        this.aspect = width/height
         this.fov = fov
 
         this.projection = GLMatrix().setPerspectiveProjectionMatrix(
@@ -81,6 +86,30 @@ open class Camera : Node("Camera") {
             this.nearPlaneDistance,
             this.farPlaneDistance
         )
+    }
+
+    fun getOffCenterProjection(fov: Int, eye: Int, separation: Float, convergenceDistance: Float = 1.0f): GLMatrix {
+        return offCenterProjectionCache.getOrPut(eye.to(fov), {
+            val top = nearPlaneDistance * Math.tan(fov/2.0).toFloat()
+            val bottom = -top
+
+            val a = aspect * Math.tan(fov/2.0).toFloat() * convergenceDistance
+            val b = a - separation/2.0f
+            val c = a + separation/2.0f
+
+            val left: Float
+            val right: Float
+
+            if(eye == 0) {
+                left = -b * nearPlaneDistance / convergenceDistance
+                right = c * nearPlaneDistance / convergenceDistance
+            } else {
+                left = -c * nearPlaneDistance / convergenceDistance
+                right = b * nearPlaneDistance / convergenceDistance
+            }
+
+            GLMatrix().setFrustumMatrix(left, right, bottom, top, nearPlaneDistance, farPlaneDistance)
+        })
     }
 
     open fun getTransformation(): GLMatrix {

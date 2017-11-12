@@ -83,10 +83,24 @@ class RenderConfigReader {
         }
     }
 
+    class ColorChannelDeserializer : JsonDeserializer<Set<ColorChannel>>() {
+        override fun deserialize(p: JsonParser, ctxt: DeserializationContext): Set<ColorChannel> {
+            val set = ArrayList<ColorChannel>(4)
+
+            if(p.text.contains(ColorChannel.R.name)) { set.add(ColorChannel.R) }
+            if(p.text.contains(ColorChannel.G.name)) { set.add(ColorChannel.G) }
+            if(p.text.contains(ColorChannel.B.name)) { set.add(ColorChannel.B) }
+            if(p.text.contains(ColorChannel.A.name)) { set.add(ColorChannel.A) }
+
+            return set.toSet()
+        }
+    }
+
     data class RenderConfig(
         var name: String,
         var description: String?,
         var stereoEnabled: Boolean = false,
+        var defaultProjection: Projection = Projection.Default,
         var rendertargets: Map<String, Map<String, AttachmentConfig>>?,
         var renderpasses: Map<String, RenderpassConfig>)
 
@@ -106,6 +120,7 @@ class RenderConfigReader {
         var dstColorBlendFactor: Blending.BlendFactor = Blending.BlendFactor.OneMinusSrcAlpha,
         var srcAlphaBlendFactor: Blending.BlendFactor = Blending.BlendFactor.SrcAlpha,
         var dstAlphaBlendFactor: Blending.BlendFactor = Blending.BlendFactor.OneMinusSrcAlpha,
+        @JsonDeserialize(using = ColorChannelDeserializer::class) var writeColorChannels: Set<ColorChannel> = setOf(ColorChannel.R, ColorChannel.G, ColorChannel.B, ColorChannel.A),
         var shaders: List<String>,
         var inputs: List<String>?,
         var output: String,
@@ -113,6 +128,7 @@ class RenderConfigReader {
         @JsonDeserialize(using = FloatPairDeserializer::class) var viewportSize: Pair<Float, Float> = Pair(1.0f, 1.0f),
         @JsonDeserialize(using = FloatPairDeserializer::class) var viewportOffset: Pair<Float, Float> = Pair(0.0f, 0.0f),
         @JsonDeserialize(using = FloatPairDeserializer::class) var scissor: Pair<Float, Float> = Pair(1.0f, 1.0f),
+        var clearRenderTarget: Boolean = true,
         @JsonDeserialize(using = VectorDeserializer::class) var clearColor: GLVector = GLVector(0.0f, 0.0f, 0.0f, 0.0f),
         var depthClearValue: Float = 1.0f,
         @JsonDeserialize(using = VREyeDeserializer::class) var eye: Int = -1
@@ -134,6 +150,10 @@ class RenderConfigReader {
         RGBA_UInt8,
         RGBA_UInt16
     }
+
+    enum class ColorChannel { R, G, B, A }
+
+    enum class Projection { Default, OffCenter }
 
     fun loadFromFile(path: String): RenderConfig {
         val mapper = ObjectMapper(YAMLFactory())
