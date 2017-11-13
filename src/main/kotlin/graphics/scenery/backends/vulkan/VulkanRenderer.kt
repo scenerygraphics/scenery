@@ -1462,6 +1462,7 @@ open class VulkanRenderer(hub: Hub,
         // Submit to the graphics queue
         VU.run("Submit viewport render queue", { vkQueueSubmit(queue, submitInfo, commandBuffer.getFence()) })
 
+        val startPresent = System.nanoTime()
         commandBuffer.submitted = true
         swapchain!!.present(ph.signalSemaphore)
         commandBuffer.waitForFence()
@@ -1560,6 +1561,9 @@ open class VulkanRenderer(hub: Hub,
 
             screenshotRequested = false
         }
+
+        val presentDuration = System.nanoTime() - startPresent
+        stats?.add("Renderer.present", presentDuration)
 
         submitInfo.free()
     }
