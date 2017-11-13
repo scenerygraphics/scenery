@@ -272,7 +272,7 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
     }
 
     fun initializePipeline(pipelineName: String = "default", shaders: List<VulkanShaderModule>,
-                           vertexInputType: VulkanRenderer.VertexDescription = vertexDescriptors.get(VulkanRenderer.VertexDataKinds.coords_normals_texcoords)!!,
+                           vertexInputType: VulkanRenderer.VertexDescription = vertexDescriptors.get(VulkanRenderer.VertexDataKinds.PositionNormalTexcoord)!!,
                            settings: (VulkanPipeline) -> Any = {}) {
         val p = VulkanPipeline(device, pipelineCache)
 
@@ -334,7 +334,7 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
                 p.rasterizationState.frontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
 
                 p.createPipelines(this, framebuffer.renderPass.get(0),
-                    vertexDescriptors[VulkanRenderer.VertexDataKinds.coords_none]!!.state,
+                    vertexDescriptors[VulkanRenderer.VertexDataKinds.None]!!.state,
                     descriptorSetLayouts = reqDescriptorLayouts,
                     onlyForTopology = GeometryType.TRIANGLES)
             }

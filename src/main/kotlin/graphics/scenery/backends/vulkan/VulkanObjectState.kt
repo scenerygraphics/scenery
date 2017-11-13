@@ -36,7 +36,7 @@ open class VulkanObjectState : NodeMetadata {
 
     var requiredDescriptorSets = HashMap<String, Long>()
 
-    var vertexInputType = VulkanRenderer.VertexDataKinds.coords_normals_texcoords
+    var vertexInputType = VulkanRenderer.VertexDataKinds.PositionNormalTexcoord
     var vertexDescription: VulkanRenderer.VertexDescription? = null
 
     var textureDescriptorSet: Long = -1L
