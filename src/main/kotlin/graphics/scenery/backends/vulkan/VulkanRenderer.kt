@@ -2771,7 +2771,7 @@ open class VulkanRenderer(hub: Hub,
         }
 
         logger.debug("Closing nodes...")
-        scene.discover(scene, { n -> n is Renderable }).forEach {
+        scene.discover(scene, { _ -> true }).forEach {
             destroyNode(it)
         }
 
