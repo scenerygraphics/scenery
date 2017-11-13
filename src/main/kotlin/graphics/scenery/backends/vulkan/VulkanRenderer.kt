@@ -2375,8 +2375,16 @@ open class VulkanRenderer(hub: Hub,
                     }
                 }
 
+                val requiredSets = sets.filter { it !is DescriptorSet.None }.map { it.id }.toLongArray()
+                if(pass.vulkanMetadata.descriptorSets.capacity() < requiredSets.size) {
+                    logger.info("Reallocating descriptor set storage")
+                    memFree(pass.vulkanMetadata.descriptorSets)
+                    pass.vulkanMetadata.descriptorSets = memAllocLong(requiredSets.size)
+                }
+
                 pass.vulkanMetadata.descriptorSets.position(0)
-                pass.vulkanMetadata.descriptorSets.put(sets.filter { it !is DescriptorSet.None }.map { it.id }.toLongArray())
+                pass.vulkanMetadata.descriptorSets.limit(pass.vulkanMetadata.descriptorSets.capacity())
+                pass.vulkanMetadata.descriptorSets.put(requiredSets)
                 pass.vulkanMetadata.descriptorSets.flip()
 
                 pass.vulkanMetadata.uboOffsets.position(0)
