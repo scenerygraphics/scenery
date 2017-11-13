@@ -72,16 +72,16 @@ open class VulkanRenderer(hub: Hub,
     )
 
     enum class VertexDataKinds {
-        coords_none,
-        coords_normals_texcoords,
-        coords_texcoords,
-        coords_normals
+        None,
+        PositionNormalTexcoord,
+        PositionTexcoords,
+        PositionNormal
     }
 
     enum class StandardSemaphores {
-        render_complete,
-        image_available,
-        present_complete
+        RenderComplete,
+        ImageAvailable,
+        PresentComplete
     }
 
     data class VertexDescription(
@@ -256,11 +256,11 @@ open class VulkanRenderer(hub: Hub,
     protected var applicationName = ""
     final override var settings: Settings = Settings()
     override var shouldClose = false
-    var toggleFullscreen = false
+    private var toggleFullscreen = false
     override var managesRenderLoop = false
-    var screenshotRequested = false
+    private var screenshotRequested = false
 
-    var firstWaitSemaphore: LongBuffer = memAllocLong(1)
+    private var firstWaitSemaphore: LongBuffer = memAllocLong(1)
 
     var scene: Scene = Scene()
 
@@ -322,7 +322,7 @@ open class VulkanRenderer(hub: Hub,
             0.0f,  0.0f, 0.5f, 0.0f,
             0.0f,  0.0f, 0.5f, 1.0f))
 
-    override var renderConfigFile: String = ""
+    final override var renderConfigFile: String = ""
         set(config) {
             field = config
 
@@ -631,22 +631,22 @@ open class VulkanRenderer(hub: Hub,
 
         // determine vertex input type
         if (node.vertices.remaining() > 0 && node.normals.remaining() > 0 && node.texcoords.remaining() > 0) {
-            s.vertexInputType = VertexDataKinds.coords_normals_texcoords
+            s.vertexInputType = VertexDataKinds.PositionNormalTexcoord
         }
 
         if (node.vertices.remaining() > 0 && node.normals.remaining() > 0 && node.texcoords.remaining() == 0) {
-            s.vertexInputType = VertexDataKinds.coords_normals
+            s.vertexInputType = VertexDataKinds.PositionNormal
         }
 
         if (node.vertices.remaining() > 0 && node.normals.remaining() == 0 && node.texcoords.remaining() > 0) {
-            s.vertexInputType = VertexDataKinds.coords_texcoords
+            s.vertexInputType = VertexDataKinds.PositionTexcoords
         }
 
         // create custom vertex description if necessary, else use one of the defaults
         s.vertexDescription = if (node.instanceMaster) {
             // TODO: Rewrite shader in case it does not conform to coord/normal/texcoord vertex description
-            s.vertexInputType = VertexDataKinds.coords_normals_texcoords
-            vertexDescriptionFromInstancedNode(node, vertexDescriptors[VertexDataKinds.coords_normals_texcoords]!!)
+            s.vertexInputType = VertexDataKinds.PositionNormalTexcoord
+            vertexDescriptionFromInstancedNode(node, vertexDescriptors[VertexDataKinds.PositionNormalTexcoord]!!)
         } else {
             vertexDescriptors[s.vertexInputType]!!
         }
@@ -1069,12 +1069,12 @@ open class VulkanRenderer(hub: Hub,
             var stride = 0
 
             when (kind) {
-                VertexDataKinds.coords_none -> {
+                VertexDataKinds.None -> {
                     stride = 0
                     attributeDesc = null
                 }
 
-                VertexDataKinds.coords_normals -> {
+                VertexDataKinds.PositionNormal -> {
                     stride = 3 + 3
                     attributeDesc = VkVertexInputAttributeDescription.calloc(2)
 
@@ -1085,7 +1085,7 @@ open class VulkanRenderer(hub: Hub,
                         .offset(3 * 4)
                 }
 
-                VertexDataKinds.coords_normals_texcoords -> {
+                VertexDataKinds.PositionNormalTexcoord -> {
                     stride = 3 + 3 + 2
                     attributeDesc = VkVertexInputAttributeDescription.calloc(3)
 
@@ -1102,7 +1102,7 @@ open class VulkanRenderer(hub: Hub,
                         .offset(3 * 4 + 3 * 4)
                 }
 
-                VertexDataKinds.coords_texcoords -> {
+                VertexDataKinds.PositionTexcoords -> {
                     stride = 3 + 2
                     attributeDesc = VkVertexInputAttributeDescription.calloc(2)
 
@@ -1445,7 +1445,7 @@ open class VulkanRenderer(hub: Hub,
 
     private fun beginFrame() {
         swapchainRecreator.mustRecreate = swapchain!!.next(timeout = UINT64_MAX,
-            waitForSemaphore = semaphores[StandardSemaphores.present_complete]!![0])
+            waitForSemaphore = semaphores[StandardSemaphores.PresentComplete]!![0])
     }
 
     private fun submitFrame(queue: VkQueue, pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer, present: PresentHelpers) {
@@ -1611,12 +1611,12 @@ open class VulkanRenderer(hub: Hub,
 
         beginFrame()
 
-        // firstWaitSemaphore is now the render_complete semaphore of the previous pass
-        firstWaitSemaphore.put(0, semaphores[StandardSemaphores.present_complete]!![0])
+        // firstWaitSemaphore is now the RenderComplete semaphore of the previous pass
+        firstWaitSemaphore.put(0, semaphores[StandardSemaphores.PresentComplete]!![0])
 
         val si = VkSubmitInfo.calloc()
 
-        var waitSemaphore = semaphores[StandardSemaphores.present_complete]!![0]
+        var waitSemaphore = semaphores[StandardSemaphores.PresentComplete]!![0]
 
         flow.take(flow.size - 1).forEachIndexed { i, t ->
             val start = System.nanoTime()
@@ -1685,7 +1685,7 @@ open class VulkanRenderer(hub: Hub,
 
         ph.commandBuffers.put(0, viewportCommandBuffer.commandBuffer)
         ph.waitStages.put(0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
-        ph.signalSemaphore.put(0, semaphores[StandardSemaphores.render_complete]!![0])
+        ph.signalSemaphore.put(0, semaphores[StandardSemaphores.RenderComplete]!![0])
         ph.waitSemaphore.put(0, firstWaitSemaphore.get(0))
 
         submitFrame(queue, viewportPass, viewportCommandBuffer, ph)
