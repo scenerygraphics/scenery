@@ -613,7 +613,6 @@ open class VulkanRenderer(hub: Hub,
     fun updateNodeGeometry(node: Node) {
         if (node is HasGeometry && node.vertices.remaining() > 0) {
             node.rendererMetadata()?.let { s ->
-                s.vertexBuffers.forEach { it.value.close() }
                 createVertexBuffers(device, node, s)
             }
         }
@@ -1835,7 +1834,7 @@ open class VulkanRenderer(hub: Hub,
             }
         }
 
-        logger.trace("Adding ${n.indices.remaining() * 4} bytes to strided buffer")
+        logger.trace("Adding {} bytes to strided buffer", n.indices.remaining() * 4)
         if (n.indices.remaining() > 0) {
             state.isIndexed = true
             ib.position(vertexAllocationBytes.toInt() / 4)
@@ -1845,7 +1844,7 @@ open class VulkanRenderer(hub: Hub,
             }
         }
 
-        logger.trace("Strided buffer is now at ${stridedBuffer.remaining()} bytes")
+        logger.trace("Strided buffer is now at {} bytes", stridedBuffer.remaining())
 
         n.vertices.flip()
         n.normals.flip()
@@ -1860,11 +1859,14 @@ open class VulkanRenderer(hub: Hub,
 
         stagingBuffer.copyFrom(stridedBuffer)
 
-        val vertexBuffer = if(state.vertexBuffers.contains("vertex+index") && state.vertexBuffers["vertex+index"]?.size == fullAllocationBytes) {
+        val vertexBuffer = if(state.vertexBuffers.containsKey("vertex+index") && state.vertexBuffers["vertex+index"]?.size == fullAllocationBytes) {
+            logger.debug("Reusing existing vertex+index buffer for {} update", node.name)
             state.vertexBuffers["vertex+index"]!!
         } else {
+            logger.debug("Creating new vertex+index buffer for {} with {} bytes", node.name, fullAllocationBytes)
+            state.vertexBuffers["vertex+index"]?.close()
             VulkanBuffer(device,
-                fullAllocationBytes * 1L,
+                fullAllocationBytes,
                 VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or VK_BUFFER_USAGE_INDEX_BUFFER_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                 wantAligned = false)
@@ -2165,7 +2167,7 @@ open class VulkanRenderer(hub: Hub,
                 }
 
                 if (it.material.needsTextureReload) {
-                    logger.info("Reloading textures for ${it.name}")
+                    logger.debug("Reloading textures for ${it.name}")
                     loadTexturesForNode(it, metadata)
                     metadata.setAllCommandBufferUpdated(false)
 
@@ -2184,7 +2186,7 @@ open class VulkanRenderer(hub: Hub,
                     renderOrderList.add(it)
 
                     if (!metadata.isCurrentInCommandBuffer(commandBuffer)) {
-                        logger.info("Forcing command buffer rerecording as ${it.name} needs an update")
+                        logger.debug("Forcing command buffer rerecording as ${it.name} needs an update")
                         forceRerecording = true
                     }
                 }
