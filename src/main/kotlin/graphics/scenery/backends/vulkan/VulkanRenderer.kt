@@ -560,8 +560,9 @@ open class VulkanRenderer(hub: Hub,
     }
 
     protected fun updateFontBoard(board: FontBoard) {
+        logger.debug("Updating font board ... ${board.name}")
         val atlas = fontAtlas.getOrPut(board.fontFamily,
-            { SDFFontAtlas(this.hub!!, board.fontFamily, maxDistance = settings.get<Int>("sdf.MaxDistance")) })
+            { SDFFontAtlas(this.hub!!, board.fontFamily, maxDistance = settings.get("sdf.MaxDistance")) })
         val m = atlas.createMeshForString(board.text)
 
         board.vertices = m.vertices
@@ -597,6 +598,7 @@ open class VulkanRenderer(hub: Hub,
 
             board.dirty = false
             board.initialized = true
+            logger.info("Update complete")
         }
     }
 
@@ -609,7 +611,7 @@ open class VulkanRenderer(hub: Hub,
     }
 
     fun updateNodeGeometry(node: Node) {
-        if (node is HasGeometry) {
+        if (node is HasGeometry && node.vertices.remaining() > 0) {
             node.rendererMetadata()?.let { s ->
                 s.vertexBuffers.forEach { it.value.close() }
                 createVertexBuffers(device, node, s)
@@ -1858,11 +1860,15 @@ open class VulkanRenderer(hub: Hub,
 
         stagingBuffer.copyFrom(stridedBuffer)
 
-        val vertexBuffer = VulkanBuffer(device,
-            fullAllocationBytes * 1L,
-            VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or VK_BUFFER_USAGE_INDEX_BUFFER_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-            wantAligned = false)
+        val vertexBuffer = if(state.vertexBuffers.contains("vertex+index") && state.vertexBuffers["vertex+index"]?.size == fullAllocationBytes) {
+            state.vertexBuffers["vertex+index"]!!
+        } else {
+            VulkanBuffer(device,
+                fullAllocationBytes * 1L,
+                VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or VK_BUFFER_USAGE_INDEX_BUFFER_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                wantAligned = false)
+        }
 
         with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
             val copyRegion = VkBufferCopy.calloc(1)
@@ -2151,13 +2157,15 @@ open class VulkanRenderer(hub: Hub,
                 if (it.dirty) {
                     if (it is FontBoard) {
                         updateFontBoard(it)
+                    } else {
+                        updateNodeGeometry(it)
+                        it.dirty = false
                     }
-
-                    it.dirty = false
-                    it.rendererMetadata()?.setAllCommandBufferUpdated(false)
+                    metadata.setAllCommandBufferUpdated(false)
                 }
 
                 if (it.material.needsTextureReload) {
+                    logger.info("Reloading textures for ${it.name}")
                     loadTexturesForNode(it, metadata)
                     metadata.setAllCommandBufferUpdated(false)
 
@@ -2176,7 +2184,7 @@ open class VulkanRenderer(hub: Hub,
                     renderOrderList.add(it)
 
                     if (!metadata.isCurrentInCommandBuffer(commandBuffer)) {
-                        logger.debug("Forcing command buffer rerecording as ${it.name} needs an update")
+                        logger.info("Forcing command buffer rerecording as ${it.name} needs an update")
                         forceRerecording = true
                     }
                 }
