@@ -911,15 +911,17 @@ class OpenGLRenderer(hub: Hub,
 
         board.metadata.remove("OpenGLRenderer")
         board.metadata.put("OpenGLRenderer", OpenGLObjectState())
+        board.atlasWidth = atlas.atlasWidth.toFloat()
+        board.atlasHeight = atlas.atlasHeight.toFloat()
         initializeNode(board)
 
         val s = getOpenGLObjectStateFromNode(board)
         val texture = textureCache.getOrPut("sdf-${board.fontFamily}", {
-            val t = GLTexture(gl, GLTypeEnum.Float, 1,
+            val t = GLTexture(gl, GLTypeEnum.UnsignedByte, 1,
                 atlas.atlasWidth,
                 atlas.atlasHeight,
                 1,
-                true,
+                false,
                 1)
 
             t.setClamp(false, false)
@@ -1742,7 +1744,7 @@ class OpenGLRenderer(hub: Hub,
                 name = "ShaderProperties"
 
                 if (node.useClassDerivedShader || node.material is ShaderMaterial) {
-                    logger.info("Shader properties are: ${s.shader?.getShaderPropertyOrder()}")
+                    logger.debug("Shader properties are: ${s.shader?.getShaderPropertyOrder()}")
                     s.shader?.getShaderPropertyOrder()?.forEach { name, offset ->
                         add(name, { node.getShaderProperty(name)!! }, offset)
                     }

@@ -569,6 +569,8 @@ open class VulkanRenderer(hub: Hub,
         board.normals = m.normals
         board.indices = m.indices
         board.texcoords = m.texcoords
+        board.atlasWidth = atlas.atlasWidth.toFloat()
+        board.atlasHeight = atlas.atlasHeight.toFloat()
 
         if (!board.initialized) {
             board.metadata.put("VulkanRenderer", VulkanObjectState())
@@ -582,8 +584,8 @@ open class VulkanRenderer(hub: Hub,
                 val t = VulkanTexture(device,
                     commandPools.Standard, queue,
                     atlas.atlasWidth, atlas.atlasHeight, 1,
-                    format = VK_FORMAT_R32_SFLOAT,
-                    mipLevels = 3)
+                    format = VK_FORMAT_R8_UNORM,
+                    mipLevels = 1)
 
                 t.copyFrom(atlas.getAtlas())
                 t

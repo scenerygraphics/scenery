@@ -28,7 +28,7 @@ import java.util.*
  * @property[distanceFieldSize] The size of the SDF in pixels
  * @constructor Generates a SDF of the given font
  */
-open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSize: Int = 64, val maxDistance: Int = 10) {
+open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSize: Int = 512, val maxDistance: Int = 20) {
     /** default charset for the SDF font atlas, default is ASCII charset */
     var charset = (32..127)
     /** Hash map of the char linked to it's width and a byte buffer with the SDF of the char */
@@ -59,11 +59,11 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
             val character =  genCharImage(it.toChar(), font, distanceFieldSize)
 
             input = ocl.wrapInput(character.second)
-            val outputBuffer = ByteBuffer.allocate(4*distanceFieldSize*distanceFieldSize)
+            val outputBuffer = ByteBuffer.allocate(1*distanceFieldSize*distanceFieldSize)
             output = ocl.wrapOutput(outputBuffer)
 
-            ocl.loadKernel(OpenCLContext::class.java.getResource("DistanceTransform.cl"), "SignedDistanceTransformByte")
-                    .runKernel("SignedDistanceTransformByte",
+            ocl.loadKernel(OpenCLContext::class.java.getResource("DistanceTransform.cl"), "SignedDistanceTransformUnsignedByte")
+                    .runKernel("SignedDistanceTransformUnsignedByte",
                             distanceFieldSize*distanceFieldSize,
                             input,
                             output,
@@ -154,8 +154,7 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
         }
         val texHeight = texWidth
 
-        val buffer = ByteBuffer.allocateDirect(4*texWidth*texWidth)
-        val fb = buffer.asFloatBuffer()
+        val buffer = ByteBuffer.allocateDirect(texWidth*texWidth)
         val glyphsPerLine: Int = texWidth/charSize
         val lines: Int = mapSize/glyphsPerLine
 
@@ -175,7 +174,7 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
                             (line*charSize*1.0f)/texHeight,
                             (glyphIndexOnLine*charSize*1.0f+12.0f)/texWidth+(glyphWidth*charSize*1.0f)/(1.0f*texWidth),
                             (line*charSize*1.0f+charSize*1.0f)/texHeight))
-                    fb.put(readLineFromBuffer(charSize, it, charBuffer.second))
+                    buffer.put(readLineFromBuffer(charSize, it, charBuffer.second))
                 }
             }
         }
@@ -196,12 +195,11 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
      * @param[buf] The ByteBuffer to read the line from
      * @return FloatArray of the line pixels
      */
-    protected fun readLineFromBuffer(lineSize: Int, line: Int, buf: ByteBuffer): FloatArray {
-        val array = FloatArray(lineSize)
-        val fb = buf.asFloatBuffer()
+    protected fun readLineFromBuffer(lineSize: Int, line: Int, buf: ByteBuffer): ByteArray {
+        val array = ByteArray(lineSize)
 
-        fb.position(lineSize*line)
-        fb.get(array, 0, lineSize)
+        buf.position(lineSize*line)
+        buf.get(array, 0, lineSize)
 
         return array
     }

@@ -30,6 +30,8 @@ class FontBoard(font: String = "Segoe UI Light", override var isBillboard: Boole
             field = value
         }
 
+    @ShaderProperty var atlasWidth = 1024.0f
+    @ShaderProperty var atlasHeight = 1024.0f
     /** The [ShaderProperty] storing the font's color. */
     @ShaderProperty var fontColor: GLVector = GLVector(0.5f, 0.5f, 0.5f)
     /** The [ShaderProperty] storing the background color of the font board,
@@ -41,7 +43,14 @@ class FontBoard(font: String = "Segoe UI Light", override var isBillboard: Boole
     init {
         name = "FontBoard"
         fontFamily = font
-        material = ShaderMaterial(arrayListOf("DefaultDeferred.vert", "FontBoard.frag"))
+        material = ShaderMaterial(arrayListOf("DefaultForward.vert", "FontBoard.frag"))
+        material.blending.transparent = true
+        material.blending.sourceColorBlendFactor = Blending.BlendFactor.One
+        material.blending.destinationColorBlendFactor = Blending.BlendFactor.OneMinusSrcAlpha
+        material.blending.sourceAlphaBlendFactor = Blending.BlendFactor.One
+        material.blending.destinationAlphaBlendFactor = Blending.BlendFactor.Zero
+        material.blending.colorBlending = Blending.BlendOp.add
+        material.blending.alphaBlending = Blending.BlendOp.add
     }
 
     /** Stringify the font board. Returns [fontFamily] used as well as the [text]. */

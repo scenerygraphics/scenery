@@ -36,7 +36,7 @@ __kernel void DistanceTransform(
   vOut[iGID] = minVal;
 }
 
-__kernel void DistanceTransformByte(
+__kernel void DistanceTransformUnsignedByte(
   __global const unsigned char* vIn,
   __global unsigned char*       vOut,
   int iDx,
@@ -75,10 +75,9 @@ __kernel void DistanceTransformByte(
 }
 
 // Adapted version for Signed Distance Fields
-
-__kernel void SignedDistanceTransformByte(
+__kernel void SignedDistanceTransformUnsignedByte(
   __global const unsigned char* vIn,
-  __global float*       vOut,
+  __global unsigned char*       vOut,
   int iDx,
   int iDy,
   int max_dist)
@@ -98,27 +97,39 @@ __kernel void SignedDistanceTransformByte(
   int minY = clamp( idY - max_dist, 0, iDy );
   int maxY = clamp( idY + max_dist, 0, iDy );
 
-  float minVal = max(iDx, iDy);
-  for(int y = minY; y < maxY; y++)
-  {
-	for(int x = minX; x < maxX; x++)
-	{
-	  float dist = fast_length( pos - (float2)(x, y) );
-	  if(dist < minVal && fabs((float)(vIn[y*iDy + x] - vIn[iGID])) > 0)
-	  {
-		  minVal = dist;
+  float minVal  = 0.0f;
+  const float max_distf = convert_float(max_dist);
+
+  if(vIn[iGID] > 128) {
+    float shortest_distance = max_distf;
+    for(int y = minY; y < maxY; y++) {
+  	  for(int x = minX; x < maxX; x++) {
+	    float dist = length(pos - (float2)(x,y));
+
+	    if(dist < shortest_distance && vIn[y*iDy + x] <= 128) {
+		  shortest_distance = dist;
+	    }
 	  }
-	}
-  }
-  if (vIn[iGID] < 254.0f)
-	minVal = -minVal;
+    }
 
-//  unsigned char val = (unsigned char)floor((minVal+192.0f));
-//  val = clamp((int)val, (int)0, (int)255);
-
-  if(minVal > max_dist) {
-    vOut[iGID] = max_dist;
+    minVal = shortest_distance/max_distf;
   } else {
-    vOut[iGID] = minVal + 0.5f;
+    float shortest_distance = max_distf;
+    for(int y = minY; y < maxY; y++) {
+  	  for(int x = minX; x < maxX; x++) {
+	    float dist = length(pos - (float2)(x,y));
+
+	    if(dist < shortest_distance && vIn[y*iDy + x] > 128) {
+		  shortest_distance = dist;
+	    }
+	  }
+    }
+
+    minVal = -shortest_distance/max_distf;
   }
+
+  float mapped = clamp(minVal * 0.5f + 0.5f, 0.0f, 1.0f);
+  unsigned char val = convert_uchar(mapped*255.0f);
+
+  vOut[iGID] = val;
 }
