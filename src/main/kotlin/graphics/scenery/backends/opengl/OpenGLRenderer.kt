@@ -1045,7 +1045,7 @@ class OpenGLRenderer(hub: Hub,
                 targetOffset.offsetX + targetOffset.width, targetOffset.offsetY + targetOffset.height,
                 GL4.GL_DEPTH_BUFFER_BIT, GL4.GL_NEAREST)
         } else {
-            logger.debug("Either source or target don't have a depth buffer. If blitting to window surface, this is not a problem.")
+            logger.trace("Either source or target don't have a depth buffer. If blitting to window surface, this is not a problem.")
         }
 
         gl.glBindFramebuffer(GL4.GL_FRAMEBUFFER, 0)
