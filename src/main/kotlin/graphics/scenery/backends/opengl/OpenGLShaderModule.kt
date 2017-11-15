@@ -63,7 +63,7 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, clazz: Class<*>, shad
                 val sourceModificationDate = Date(sourceCodeResource.openConnection().lastModified)
 
                 if(sourceModificationDate.after(spirvModificationDate)) {
-                    logger.info("Recompiling $shaderCodePath, as source file is newer than SPV file.")
+                    logger.debug("Recompiling $shaderCodePath, as source file is newer than SPV file.")
                     actualCodePath = shaderCodePath.substringBeforeLast(".spv")
                     codeResource = sourceCodeResource
                     true
@@ -88,7 +88,7 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, clazz: Class<*>, shad
             code = BufferUtils.allocateByteAndPut(codeResource.readBytes())
             code.toSPIRVBytecode()
         } else {
-            logger.info("Compiling $actualCodePath to SPIR-V...")
+            logger.debug("Compiling $actualCodePath to SPIR-V...")
             // code needs to be compiled first
             val program = TProgram()
             val defaultResources = libspirvcrossj.getDefaultTBuiltInResource()
