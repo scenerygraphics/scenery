@@ -584,7 +584,7 @@ open class VulkanRenderer(hub: Hub,
                 val t = VulkanTexture(device,
                     commandPools.Standard, queue,
                     atlas.atlasWidth, atlas.atlasHeight, 1,
-                    format = VK_FORMAT_R32_SFLOAT,
+                    format = VK_FORMAT_R8_UNORM,
                     mipLevels = 1)
 
                 t.copyFrom(atlas.getAtlas())

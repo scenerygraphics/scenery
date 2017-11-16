@@ -11,6 +11,8 @@ import org.jocl.cl_mem
 import java.awt.Color
 import java.awt.Font
 import java.awt.Graphics2D
+import java.awt.geom.AffineTransform
+import java.awt.image.AffineTransformOp
 import java.awt.image.BufferedImage
 import java.awt.image.DataBufferByte
 import java.io.File
@@ -18,7 +20,6 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import java.nio.FloatBuffer
 import java.util.*
 
 
@@ -78,11 +79,11 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
             val character =  genCharImage(it.toChar(), font, distanceFieldSize)
 
             input = ocl.wrapInput(character.second)
-            val outputBuffer = ByteBuffer.allocate(4*distanceFieldSize*distanceFieldSize)
+            val outputBuffer = ByteBuffer.allocate(1*distanceFieldSize*distanceFieldSize)
             output = ocl.wrapOutput(outputBuffer)
 
-            ocl.loadKernel(OpenCLContext::class.java.getResource("DistanceTransform.cl"), "SignedDistanceTransformFloat")
-                    .runKernel("SignedDistanceTransformFloat",
+            ocl.loadKernel(OpenCLContext::class.java.getResource("DistanceTransform.cl"), "SignedDistanceTransformUnsignedByte")
+                    .runKernel("SignedDistanceTransformUnsignedByte",
                             distanceFieldSize*distanceFieldSize,
                             input,
                             output,
@@ -173,7 +174,7 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
         }
         val texHeight = texWidth
 
-        val buffer = ArrayList<Float>(texWidth*texWidth)
+        val buffer = ArrayList<Byte>(texWidth*texWidth)
         val glyphsPerLine: Int = texWidth/charSize
         val lines: Int = mapSize/glyphsPerLine
 
@@ -193,32 +194,30 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
                             (line*charSize*1.0f)/texHeight,
                             (glyphIndexOnLine*charSize*1.0f+12.0f)/texWidth+(glyphWidth*charSize*1.0f)/(1.0f*texWidth),
                             (line*charSize*1.0f+charSize*1.0f)/texHeight))
-                    buffer.addAll(readLineFromBuffer(charSize, it, charBuffer.second.asFloatBuffer()).asIterable())
+                    buffer.addAll(readLineFromBuffer(charSize, it, charBuffer.second).asIterable())
                 }
             }
         }
 
-//        val bi = BufferedImage(texWidth, texHeight, BufferedImage.TYPE_BYTE_GRAY)
-//        val a = (bi.raster.dataBuffer as DataBufferByte).data
-//        System.arraycopy(buffer.toFloatArray(), 0, a, 0, buffer.size)
-//
-//         we want to arrive at 64x64 per glyph
-//        val scale = 64.0/charSize
-//
-//        val scaledImage = BufferedImage((texWidth*scale).toInt(), (texHeight*scale).toInt(), BufferedImage.TYPE_BYTE_GRAY)
-//        val at = AffineTransform.getScaleInstance(scale, scale)
-//        val scaleOp = AffineTransformOp(at, AffineTransformOp.TYPE_BILINEAR)
-//        scaleOp.filter(bi, scaledImage)
-//
-//        val b = BufferUtils.allocateByteAndPut((scaledImage.raster.dataBuffer as DataBufferByte).data)
+        val bi = BufferedImage(texWidth, texHeight, BufferedImage.TYPE_BYTE_GRAY)
+        val a = (bi.raster.dataBuffer as DataBufferByte).data
+        System.arraycopy(buffer.toByteArray(), 0, a, 0, buffer.size)
 
-        atlasWidth = (texWidth).toInt()
-        atlasHeight = (texHeight).toInt()
+        // we want to arrive at 64x64 per glyph
+        val scale = 64.0/charSize
+
+        val scaledImage = BufferedImage((texWidth*scale).toInt(), (texHeight*scale).toInt(), BufferedImage.TYPE_BYTE_GRAY)
+        val at = AffineTransform.getScaleInstance(scale, scale)
+        val scaleOp = AffineTransformOp(at, AffineTransformOp.TYPE_BILINEAR)
+        scaleOp.filter(bi, scaledImage)
+
+        val b = BufferUtils.allocateByteAndPut((scaledImage.raster.dataBuffer as DataBufferByte).data)
+
+        atlasWidth = (texWidth*scale).toInt()
+        atlasHeight = (texHeight*scale).toInt()
 
         logger.debug("Stored original ${texWidth}x${texHeight} atlas in ${atlasWidth}x${atlasHeight} texture")
 
-        val b = BufferUtils.allocateByte(4*texWidth*texHeight)
-        b.asFloatBuffer().put(buffer.toFloatArray())
         return b
     }
 
@@ -230,8 +229,8 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
      * @param[buf] The ByteBuffer to read the line from
      * @return FloatArray of the line pixels
      */
-    protected fun readLineFromBuffer(lineSize: Int, line: Int, buf: FloatBuffer): FloatArray {
-        val array = FloatArray(lineSize)
+    protected fun readLineFromBuffer(lineSize: Int, line: Int, buf: ByteBuffer): ByteArray {
+        val array = ByteArray(lineSize)
 
         buf.position(lineSize*line)
         buf.get(array, 0, lineSize)
