@@ -1,5 +1,6 @@
 package graphics.scenery.tests.examples.advanced
 
+import cleargl.GLTypeEnum
 import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
@@ -68,7 +69,8 @@ class ProceduralTextureExample : SceneryBase("ProceduralTextureExample") {
                     GenericTexture(
                         "diffuse",
                         GLVector(imageSize.toFloat(), imageSize.toFloat(), 1.0f),
-                        channels = imageChannels, contents = textureBuffer))
+                        channels = imageChannels, contents = textureBuffer,
+                        type = GLTypeEnum.UnsignedByte))
                 box.material.textures.put("diffuse", "fromBuffer:diffuse")
                 box.material.needsTextureReload = true
 
