@@ -3,16 +3,16 @@ package graphics.scenery
 import cleargl.GLVector
 
 /**
- * FontBoard is a possibly billboarded display of a string of text,
+ * TextBoard is a possibly billboarded display of a string of text,
  * rendered using signed-distance fields.
  *
  * @author Ulrik Günther <hello@ulrik.is>
- * @property[font]  Name of the font to use for this font board
+ * @property[font]  Name of the font to use for this text board
  * @property[isBillboard] Whether the board should be billboarded or not
  *
- * @constructor Returns a FontBoard instance, with [fontFamily] and a declared [ShaderMaterial]
+ * @constructor Returns a TextBoard instance, with [fontFamily] and a declared [ShaderMaterial]
  */
-class FontBoard(font: String = "SourceSansPro-Regular.ttf", override var isBillboard: Boolean = false) : Mesh() {
+class TextBoard(font: String = "SourceSansPro-Regular.ttf", override var isBillboard: Boolean = false) : Mesh() {
 
     /** The text displayed on this font board */
     var text: String = ""
@@ -44,9 +44,9 @@ class FontBoard(font: String = "SourceSansPro-Regular.ttf", override var isBillb
     @ShaderProperty var backgroundColor: GLVector = GLVector(1.0f, 1.0f, 1.0f, 1.0f)
 
     init {
-        name = "FontBoard"
+        name = "TextBoard"
         fontFamily = font
-        material = ShaderMaterial(arrayListOf("DefaultForward.vert", "FontBoard.frag"))
+        material = ShaderMaterial(arrayListOf("DefaultForward.vert", "TextBoard.frag"))
         material.blending.transparent = true
         material.blending.sourceColorBlendFactor = Blending.BlendFactor.One
         material.blending.destinationColorBlendFactor = Blending.BlendFactor.OneMinusSrcAlpha
@@ -58,6 +58,6 @@ class FontBoard(font: String = "SourceSansPro-Regular.ttf", override var isBillb
 
     /** Stringify the font board. Returns [fontFamily] used as well as the [text]. */
     override fun toString(): String {
-        return "FontBoard ($fontFamily): $text"
+        return "TextBoard ($fontFamily): $text"
     }
 }

@@ -49,9 +49,9 @@ class FontRenderingExample: SceneryBase("FontRenderingExample", windowWidth = 12
             scene.addChild(this)
         }
 
-        val board = FontBoard()
+        val board = TextBoard()
         board.text = "hello world"
-        board.name = "FontBoard"
+        board.name = "TextBoard"
         board.transparent = 0
         board.fontColor = GLVector(100.0f, 100.0f, 100.0f, 1.0f)
         board.backgroundColor = GLVector(0.0f, 0.0f, 0.0f, 1.0f)

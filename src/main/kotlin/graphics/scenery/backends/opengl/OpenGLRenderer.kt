@@ -905,14 +905,14 @@ class OpenGLRenderer(hub: Hub,
     }
 
     /**
-     * Updates a [FontBoard], in case it's fontFamily or contents have changed.
+     * Updates a [TextBoard], in case it's fontFamily or contents have changed.
      *
      * If a SDFFontAtlas has already been created for the given fontFamily, this will be used, and
      * cached as well. Else, a new one will be created.
      *
-     * @param[board] The [FontBoard] instance.
+     * @param[board] The [TextBoard] instance.
      */
-    private fun updateFontBoard(board: FontBoard) {
+    private fun updateTextBoard(board: TextBoard) {
         val atlas = fontAtlas.getOrPut(board.fontFamily, { SDFFontAtlas(this.hub!!, board.fontFamily, maxDistance = settings.get<Int>("sdf.MaxDistance")) })
         val m = atlas.createMeshForString(board.text)
 
@@ -953,8 +953,8 @@ class OpenGLRenderer(hub: Hub,
         if (n is HasGeometry) {
             if (n.dirty) {
                 if (n.lock.tryLock()) {
-                    if (n is FontBoard) {
-                        updateFontBoard(n)
+                    if (n is TextBoard) {
+                        updateTextBoard(n)
                     }
 
                     if (n.vertices.remaining() > 0 && n.normals.remaining() > 0) {
