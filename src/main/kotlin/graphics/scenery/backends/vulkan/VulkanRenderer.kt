@@ -110,10 +110,10 @@ open class VulkanRenderer(hub: Hub,
         internal var layout: Long = 0
     }
 
-    sealed class DescriptorSet(val id: Long = 0L) {
+    sealed class DescriptorSet(val id: Long = 0L, val name: String = "") {
         object None: DescriptorSet(0L)
-        data class Set(val setId: Long) : DescriptorSet(setId)
-        data class DynamicSet(val setId: Long, val offset: Int) : DescriptorSet(setId)
+        data class Set(val setId: Long, val setName: String = "") : DescriptorSet(setId, setName)
+        data class DynamicSet(val setId: Long, val offset: Int, val setName: String = "") : DescriptorSet(setId, setName)
     }
 
     private val lateResizeInitializers = HashMap<Node, () -> Any>()
@@ -593,6 +593,13 @@ open class VulkanRenderer(hub: Hub,
 
             s.textures.put("ambient", texture)
             s.textures.put("diffuse", texture)
+
+            arrayOf("ambient", "diffuse", "specular", "normal", "alphamask", "displacement").forEach {
+                if (!s.textures.containsKey(it)) {
+                    s.textures.putIfAbsent(it, textureCache["DefaultTexture"]!!)
+                    s.defaultTexturesFor.add(it)
+                }
+            }
 
             s.texturesToDescriptorSet(device, descriptorSetLayouts["ObjectTextures"]!!,
                 descriptorPool,
@@ -2366,24 +2373,24 @@ open class VulkanRenderer(hub: Hub,
                 val sets = specs.map { (name, _) ->
                     when(name) {
                         "VRParameters" -> {
-                            DescriptorSet.DynamicSet(descriptorSets["VRParameters"]!!, offset = 0)
+                            DescriptorSet.DynamicSet(descriptorSets["VRParameters"]!!, offset = 0, setName = "VRParameters")
                         }
 
                         "LightParameters" -> {
-                            DescriptorSet.DynamicSet(descriptorSets["LightParameters"]!!, offset = 0)
+                            DescriptorSet.DynamicSet(descriptorSets["LightParameters"]!!, offset = 0, setName = "LightParameters")
                         }
 
                         "ObjectTextures" -> {
-                            DescriptorSet.Set(s.textureDescriptorSet)
+                            DescriptorSet.Set(s.textureDescriptorSet, setName = "ObjectTextures")
                         }
 
                         "Inputs" -> {
-                            DescriptorSet.Set(pass.descriptorSets["inputs-${pass.name}"]!!)
+                            DescriptorSet.Set(pass.descriptorSets["inputs-${pass.name}"]!!, setName = "Inputs")
                         }
 
                         else -> {
                             if (s.UBOs.containsKey(name)) {
-                                DescriptorSet.DynamicSet(s.UBOs[name]!!.first, offset = s.UBOs[name]!!.second.offsets.get(0))
+                                DescriptorSet.DynamicSet(s.UBOs[name]!!.first, offset = s.UBOs[name]!!.second.offsets.get(0), setName = name)
                             } else {
                                 DescriptorSet.None
                             }
