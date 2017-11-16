@@ -916,7 +916,7 @@ class OpenGLRenderer(hub: Hub,
 
         val s = getOpenGLObjectStateFromNode(board)
         val texture = textureCache.getOrPut("sdf-${board.fontFamily}", {
-            val t = GLTexture(gl, GLTypeEnum.UnsignedByte, 1,
+            val t = GLTexture(gl, GLTypeEnum.Float, 1,
                 atlas.atlasWidth,
                 atlas.atlasHeight,
                 1,
