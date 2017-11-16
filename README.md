@@ -11,6 +11,7 @@ __Hello, this is the master branch, where development happens and stuff breaks._
 
 ![Blood Cells Example](https://ulrik.is/scenery-bloodcells.gif)
 
+
 ## Synopsis
 
 scenery is a scenegraphing and rendering library. It allows you to quickly create high-quality 3D visualisations based on mesh data. scenery contains both a OpenGL 4.1 and Vulkan renderer. The rendering pipelines of both renderers are configurable using YAML files, so it's easy to switch between e.g. [Forward Shading](./src/main/resources/graphics/scenery/backends/ForwardShading.yml) and [Deferred Shading](./src/main/resources/graphics/scenery/backends/DeferredShading.yml), as well as [stereo rendering](./src/main/resources/graphics/scenery/backends/DeferredShadingStereo.yml). Rendering pipelines can be switched on-the-fly.
@@ -27,7 +28,7 @@ Some of the examples need additional meshes, which are not part of the repositor
 
 * Scala - [@Sciss](https://github.com/Sciss) has translated the Kotlin and Java examples to Scala, [https://github.com/Sciss/SceneryScalaExamples](https://github.com/Sciss/SceneryScalaExamples)
 
-## Key bindings
+## Default Key bindings
 
 Most of the demos use the following key bindings:
 
@@ -111,3 +112,27 @@ compile group: 'net.clearvolume', name: 'cleargl', version: '2.1.1'
 scenery uses [slf4j](https://slf4j.org) for logging. If you use scenery in your own library and want to see scenery's messages, you need to have a logger (e.g. `slf4j-simple`) configured in your project. Check [this page](https://www.slf4j.org/manual.html) on how to do that.
 
 To configure the logging level that scenery uses, set the system property `scenery.LogLevel` to `info` (default), `warn`, `debug` or `trace`. Be advised that both `debug` and `trace` produce a lot of output and thereby negatively affect performance.
+
+## GPU compatibility
+
+scenery has been tested with a number of different systems and GPUs. If you have a setup that is not listed in the following table - or marked as untested - please submit a PR with the setup added.
+
+✅ Works 
+⛔ Does not work
+⬜ Untested
+
+| GPU | Windows, OpenGL | Windows, Vulkan | Linux, OpenGL | Linux, Vulkan | Mac OS X, OpenGL |
+|:--|:--|:--|:--|:--|:--|
+| AMD Radeon R9 390 (Hawaii Pro) | ✅ | ✅ | ⬜ | ⬜ | ⬜ |
+| AMD Radeon R9 Nano (Fiji XT) | ⛔ | ⛔ | ⬜ | ⬜ | ⬜ |
+| AMD Radeon R9 M930X (Strato Pro) | ⬜ | ⬜ | ⬜ | ⬜ | ✅ |
+| AMD FirePro W9100 (Hawaii XT) | ✅ | ✅ | ⬜ | ⬜ | ⬜ |
+| Nvidia Geforce Titan X (Maxwell) | ✅ | ✅ | ✅ | ✅ | ⬜	 |
+| Nvidia Titan Xp (Pascal) | ✅ | ✅ | ⬜ | ⬜	 | ⬜	 |
+| Nvidia Geforce 1080 Ti (Pascal) | ✅ | ✅ | ⬜ | ⬜ | ⬜	 |
+| Nvidia Geforce 1070 (Pascal) | ✅ | ✅ | ⬜ | ⬜	| ✅ |
+| Nvidia Geforce 960 (Maxwell) | ✅ | ✅ | ⬜ | ⬜ | ⬜ |
+| Nvidia Quadro K6000 (Kepler) | ✅ | ✅ | ⬜ | ⬜ | ⬜ |
+| Nvidia Geforce 750M (Maxwell) | ✅  | ✅  | ⬜ | ⬜ | ✅  |
+
+Please also note that Nvidia's Vulkan drivers before version 382.33 have a bug that prevents scenery's Vulkan renderer from working correctly.
