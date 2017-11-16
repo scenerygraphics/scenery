@@ -425,6 +425,18 @@ class OpenGLRenderer(hub: Hub,
 
         val flow = renderConfig.createRenderpassFlow()
 
+        val supersamplingFactor = if(settings.get<Float>("Renderer.SupersamplingFactor").toInt() == 1) {
+            if(cglWindow != null && ClearGLWindow.isRetina(cglWindow!!.gl)) {
+                logger.debug("Setting Renderer.SupersamplingFactor to 0.5, as we are rendering on a retina display.")
+                settings.set("Renderer.SupersamplingFactor", 0.5f)
+                0.5f
+            } else {
+                settings.get<Float>("Renderer.SupersamplingFactor")
+            }
+        } else {
+            settings.get<Float>("Renderer.SupersamplingFactor")
+        }
+
         flow.map { passName ->
             val passConfig = config.renderpasses[passName]!!
             val pass = OpenGLRenderpass(passName, passConfig)
@@ -434,8 +446,8 @@ class OpenGLRenderer(hub: Hub,
 
             config.rendertargets?.filter { it.key == passConfig.output }?.map { rt ->
                 logger.info("Creating render framebuffer ${rt.key} for pass $passName")
-                width = (settings.get<Float>("Renderer.SupersamplingFactor") * windowWidth).toInt()
-                height = (settings.get<Float>("Renderer.SupersamplingFactor") * windowHeight).toInt()
+                width = (supersamplingFactor * windowWidth).toInt()
+                height = (supersamplingFactor * windowHeight).toInt()
 
                 if (framebuffers.containsKey(rt.key)) {
                     logger.info("Reusing already created framebuffer")
@@ -893,14 +905,14 @@ class OpenGLRenderer(hub: Hub,
     }
 
     /**
-     * Updates a [FontBoard], in case it's fontFamily or contents have changed.
+     * Updates a [TextBoard], in case it's fontFamily or contents have changed.
      *
      * If a SDFFontAtlas has already been created for the given fontFamily, this will be used, and
      * cached as well. Else, a new one will be created.
      *
-     * @param[board] The [FontBoard] instance.
+     * @param[board] The [TextBoard] instance.
      */
-    private fun updateFontBoard(board: FontBoard) {
+    private fun updateTextBoard(board: TextBoard) {
         val atlas = fontAtlas.getOrPut(board.fontFamily, { SDFFontAtlas(this.hub!!, board.fontFamily, maxDistance = settings.get<Int>("sdf.MaxDistance")) })
         val m = atlas.createMeshForString(board.text)
 
@@ -911,11 +923,12 @@ class OpenGLRenderer(hub: Hub,
 
         board.metadata.remove("OpenGLRenderer")
         board.metadata.put("OpenGLRenderer", OpenGLObjectState())
+        board.atlasSize = GLVector(atlas.atlasWidth.toFloat(), atlas.atlasHeight.toFloat(), 0.0f, 0.0f)
         initializeNode(board)
 
         val s = getOpenGLObjectStateFromNode(board)
         val texture = textureCache.getOrPut("sdf-${board.fontFamily}", {
-            val t = GLTexture(gl, GLTypeEnum.Float, 1,
+            val t = GLTexture(gl, GLTypeEnum.UnsignedByte, 1,
                 atlas.atlasWidth,
                 atlas.atlasHeight,
                 1,
@@ -940,8 +953,8 @@ class OpenGLRenderer(hub: Hub,
         if (n is HasGeometry) {
             if (n.dirty) {
                 if (n.lock.tryLock()) {
-                    if (n is FontBoard) {
-                        updateFontBoard(n)
+                    if (n is TextBoard) {
+                        updateTextBoard(n)
                     }
 
                     if (n.vertices.remaining() > 0 && n.normals.remaining() > 0) {
@@ -1043,7 +1056,7 @@ class OpenGLRenderer(hub: Hub,
                 targetOffset.offsetX + targetOffset.width, targetOffset.offsetY + targetOffset.height,
                 GL4.GL_DEPTH_BUFFER_BIT, GL4.GL_NEAREST)
         } else {
-            logger.debug("Either source or target don't have a depth buffer. If blitting to window surface, this is not a problem.")
+            logger.trace("Either source or target don't have a depth buffer. If blitting to window surface, this is not a problem.")
         }
 
         gl.glBindFramebuffer(GL4.GL_FRAMEBUFFER, 0)
@@ -1742,7 +1755,7 @@ class OpenGLRenderer(hub: Hub,
                 name = "ShaderProperties"
 
                 if (node.useClassDerivedShader || node.material is ShaderMaterial) {
-                    logger.info("Shader properties are: ${s.shader?.getShaderPropertyOrder()}")
+                    logger.debug("Shader properties are: ${s.shader?.getShaderPropertyOrder()}")
                     s.shader?.getShaderPropertyOrder()?.forEach { name, offset ->
                         add(name, { node.getShaderProperty(name)!! }, offset)
                     }
