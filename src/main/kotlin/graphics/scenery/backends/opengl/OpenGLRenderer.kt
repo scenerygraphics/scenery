@@ -425,6 +425,18 @@ class OpenGLRenderer(hub: Hub,
 
         val flow = renderConfig.createRenderpassFlow()
 
+        val supersamplingFactor = if(settings.get<Float>("Renderer.SupersamplingFactor").toInt() == 1) {
+            if(cglWindow != null && ClearGLWindow.isRetina(cglWindow!!.gl)) {
+                logger.debug("Setting Renderer.SupersamplingFactor to 0.5, as we are rendering on a retina display.")
+                settings.set("Renderer.SupersamplingFactor", 0.5f)
+                0.5f
+            } else {
+                settings.get<Float>("Renderer.SupersamplingFactor")
+            }
+        } else {
+            settings.get<Float>("Renderer.SupersamplingFactor")
+        }
+
         flow.map { passName ->
             val passConfig = config.renderpasses[passName]!!
             val pass = OpenGLRenderpass(passName, passConfig)
@@ -434,8 +446,8 @@ class OpenGLRenderer(hub: Hub,
 
             config.rendertargets?.filter { it.key == passConfig.output }?.map { rt ->
                 logger.info("Creating render framebuffer ${rt.key} for pass $passName")
-                width = (settings.get<Float>("Renderer.SupersamplingFactor") * windowWidth).toInt()
-                height = (settings.get<Float>("Renderer.SupersamplingFactor") * windowHeight).toInt()
+                width = (supersamplingFactor * windowWidth).toInt()
+                height = (supersamplingFactor * windowHeight).toInt()
 
                 if (framebuffers.containsKey(rt.key)) {
                     logger.info("Reusing already created framebuffer")
