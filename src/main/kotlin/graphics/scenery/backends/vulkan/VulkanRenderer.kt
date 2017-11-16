@@ -8,7 +8,10 @@ import graphics.scenery.backends.*
 import graphics.scenery.fonts.SDFFontAtlas
 import graphics.scenery.spirvcrossj.Loader
 import graphics.scenery.spirvcrossj.libspirvcrossj
-import graphics.scenery.utils.*
+import graphics.scenery.utils.GPUStats
+import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.SceneryPanel
+import graphics.scenery.utils.Statistics
 import org.lwjgl.PointerBuffer
 import org.lwjgl.glfw.GLFW.glfwInit
 import org.lwjgl.glfw.GLFWVulkan.glfwGetRequiredInstanceExtensions
@@ -16,9 +19,7 @@ import org.lwjgl.glfw.GLFWVulkan.glfwVulkanSupported
 import org.lwjgl.system.Configuration
 import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil.*
-import org.lwjgl.system.jemalloc.JEmalloc.je_calloc
-import org.lwjgl.system.jemalloc.JEmalloc.je_free
-import org.lwjgl.system.jemalloc.JEmalloc.je_malloc
+import org.lwjgl.system.jemalloc.JEmalloc.*
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.EXTDebugReport.*
 import org.lwjgl.vulkan.KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
@@ -569,8 +570,7 @@ open class VulkanRenderer(hub: Hub,
         board.normals = m.normals
         board.indices = m.indices
         board.texcoords = m.texcoords
-        board.atlasWidth = atlas.atlasWidth.toFloat()
-        board.atlasHeight = atlas.atlasHeight.toFloat()
+        board.atlasSize = GLVector(atlas.atlasWidth.toFloat(), atlas.atlasHeight.toFloat(), 0.0f, 0.0f)
 
         if (!board.initialized) {
             board.metadata.put("VulkanRenderer", VulkanObjectState())

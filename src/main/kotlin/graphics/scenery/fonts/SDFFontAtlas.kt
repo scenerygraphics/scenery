@@ -17,6 +17,7 @@ import java.awt.image.BufferedImage
 import java.awt.image.DataBufferByte
 import java.io.File
 import java.io.FileOutputStream
+import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.*
@@ -49,7 +50,7 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
     /** Font atlas height */
     var atlasHeight = 0
 
-    /** Backing store for the font atlas, will finally have a size of 4*atlasWidth*atlasHeight. */
+    /** Backing store for the font atlas, will finally have a size of atlasWidth*atlasHeight. */
     var fontAtlasBacking: ByteBuffer
 
     init {
@@ -59,7 +60,20 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
 
         fontSize = distanceFieldSize*0.65f
 
-        val font = Font(fontName, Font.PLAIN, fontSize.toInt())
+        val font = if(fontName.contains(".")) {
+            val f = try {
+                Font
+                    .createFont(Font.TRUETYPE_FONT, this.javaClass.getResourceAsStream(fontName))
+                    .deriveFont(fontSize)
+            } catch(e: IOException) {
+                logger.warn("Could not create font from $fontName/${this.javaClass.getResource(fontName)}, falling back to default system font.")
+                Font("System", Font.PLAIN, fontSize.toInt())
+            }
+
+            f
+        } else {
+            Font(fontName, Font.PLAIN, fontSize.toInt())
+        }
 
         charset.map {
             val character =  genCharImage(it.toChar(), font, distanceFieldSize)

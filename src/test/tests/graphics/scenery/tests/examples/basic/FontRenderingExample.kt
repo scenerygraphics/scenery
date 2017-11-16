@@ -50,22 +50,29 @@ class FontRenderingExample: SceneryBase("FontRenderingExample", windowWidth = 12
         }
 
         val board = FontBoard()
-        board.text = ""
+        board.text = "hello world"
         board.name = "FontBoard"
+        board.transparent = 0
+        board.fontColor = GLVector(100.0f, 100.0f, 100.0f, 1.0f)
+        board.backgroundColor = GLVector(0.0f, 0.0f, 0.0f, 1.0f)
         board.position = GLVector(0.0f, 0.0f, 0.0f)
 
         scene.addChild(board)
 
         thread {
-            while(!running) { Thread.sleep(200) }
+            while(board.dirty) { Thread.sleep(200) }
 
-            arrayOf(
-                "hello world!",
+            val text = arrayOf(
                 "this is scenery.",
-                "demonstrating sdf font rendering."
-            ).map {
-                Thread.sleep(5000)
-                board.text = it
+                "with sdf font rendering.",
+                "hello world."
+            )
+
+            while(running) {
+                text.map {
+                    Thread.sleep(2500)
+                    board.text = it
+                }
             }
         }
     }

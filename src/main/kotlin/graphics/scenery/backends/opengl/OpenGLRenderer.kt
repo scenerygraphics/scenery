@@ -911,8 +911,7 @@ class OpenGLRenderer(hub: Hub,
 
         board.metadata.remove("OpenGLRenderer")
         board.metadata.put("OpenGLRenderer", OpenGLObjectState())
-        board.atlasWidth = atlas.atlasWidth.toFloat()
-        board.atlasHeight = atlas.atlasHeight.toFloat()
+        board.atlasSize = GLVector(atlas.atlasWidth.toFloat(), atlas.atlasHeight.toFloat(), 0.0f, 0.0f)
         initializeNode(board)
 
         val s = getOpenGLObjectStateFromNode(board)
@@ -921,7 +920,7 @@ class OpenGLRenderer(hub: Hub,
                 atlas.atlasWidth,
                 atlas.atlasHeight,
                 1,
-                false,
+                true,
                 1)
 
             t.setClamp(false, false)
