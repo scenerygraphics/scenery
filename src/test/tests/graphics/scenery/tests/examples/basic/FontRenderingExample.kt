@@ -11,7 +11,7 @@ import kotlin.concurrent.thread
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class FontRenderingExample: SceneryBase("FontRenderingExample") {
+class FontRenderingExample: SceneryBase("FontRenderingExample", windowWidth = 1280, windowHeight = 720) {
     override fun init() {
         renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
         hub.add(SceneryElement.Renderer, renderer!!)
@@ -29,7 +29,7 @@ class FontRenderingExample: SceneryBase("FontRenderingExample") {
             scene.addChild(light)
         }
 
-        val hullbox = Box(GLVector(900.0f, 900.0f, 900.0f))
+        val hullbox = Box(GLVector(40.0f, 40.0f, 40.0f), insideNormals = true)
         hullbox.position = GLVector(0.1f, 0.1f, 0.1f)
         val hullboxM = Material()
         hullboxM.ambient = GLVector(1.0f, 1.0f, 1.0f)
@@ -42,29 +42,37 @@ class FontRenderingExample: SceneryBase("FontRenderingExample") {
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
-            position = GLVector(5.0f, 0.0f, 15.0f)
+            position = GLVector(3.3f, 0.0f, 4.0f)
             perspectiveCamera(70.0f, windowWidth*1.0f, windowHeight*1.0f, 1.0f, 1000.0f)
             active = true
 
             scene.addChild(this)
         }
 
-        val board = FontBoard()
-        board.text = ""
+        val board = TextBoard()
+        board.text = "hello world"
+        board.name = "TextBoard"
+        board.transparent = 0
+        board.fontColor = GLVector(100.0f, 100.0f, 100.0f, 1.0f)
+        board.backgroundColor = GLVector(0.0f, 0.0f, 0.0f, 1.0f)
         board.position = GLVector(0.0f, 0.0f, 0.0f)
 
         scene.addChild(board)
 
         thread {
-            while(!running) { Thread.sleep(200) }
+            while(board.dirty) { Thread.sleep(200) }
 
-            arrayOf(
-                "hello world!",
+            val text = arrayOf(
                 "this is scenery.",
-                "demonstrating sdf font rendering."
-            ).map {
-                Thread.sleep(5000)
-                board.text = it
+                "with sdf font rendering.",
+                "hello world."
+            )
+
+            while(running) {
+                text.map {
+                    Thread.sleep(2500)
+                    board.text = it
+                }
             }
         }
     }

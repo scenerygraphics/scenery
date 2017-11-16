@@ -240,7 +240,7 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
         val shaderPropertiesSpec = this.pipelines["preferred-${node.name}"]!!.descriptorSpecs.filter { it.key == "ShaderProperties" }.map { it.value.members }
 
         if(shaderPropertiesSpec.count() == 0) {
-            logger.error("Shader uses no declared shader properties!")
+            logger.debug("Warning: Shader file uses no declared shader properties, despite the class declaring them.")
             return emptyMap()
         }
 

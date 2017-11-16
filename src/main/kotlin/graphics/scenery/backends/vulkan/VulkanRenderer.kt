@@ -8,7 +8,10 @@ import graphics.scenery.backends.*
 import graphics.scenery.fonts.SDFFontAtlas
 import graphics.scenery.spirvcrossj.Loader
 import graphics.scenery.spirvcrossj.libspirvcrossj
-import graphics.scenery.utils.*
+import graphics.scenery.utils.GPUStats
+import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.SceneryPanel
+import graphics.scenery.utils.Statistics
 import org.lwjgl.PointerBuffer
 import org.lwjgl.glfw.GLFW.glfwInit
 import org.lwjgl.glfw.GLFWVulkan.glfwGetRequiredInstanceExtensions
@@ -16,9 +19,7 @@ import org.lwjgl.glfw.GLFWVulkan.glfwVulkanSupported
 import org.lwjgl.system.Configuration
 import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil.*
-import org.lwjgl.system.jemalloc.JEmalloc.je_calloc
-import org.lwjgl.system.jemalloc.JEmalloc.je_free
-import org.lwjgl.system.jemalloc.JEmalloc.je_malloc
+import org.lwjgl.system.jemalloc.JEmalloc.*
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.EXTDebugReport.*
 import org.lwjgl.vulkan.KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
@@ -109,10 +110,10 @@ open class VulkanRenderer(hub: Hub,
         internal var layout: Long = 0
     }
 
-    sealed class DescriptorSet(val id: Long = 0L) {
+    sealed class DescriptorSet(val id: Long = 0L, val name: String = "") {
         object None: DescriptorSet(0L)
-        data class Set(val setId: Long) : DescriptorSet(setId)
-        data class DynamicSet(val setId: Long, val offset: Int) : DescriptorSet(setId)
+        data class Set(val setId: Long, val setName: String = "") : DescriptorSet(setId, setName)
+        data class DynamicSet(val setId: Long, val offset: Int, val setName: String = "") : DescriptorSet(setId, setName)
     }
 
     private val lateResizeInitializers = HashMap<Node, () -> Any>()
@@ -548,8 +549,8 @@ open class VulkanRenderer(hub: Hub,
                 logger.debug("Initializing object '${node.name}'")
                 node.metadata.put("VulkanRenderer", VulkanObjectState())
 
-                if (node is FontBoard) {
-                    updateFontBoard(node)
+                if (node is TextBoard) {
+                    updateTextBoard(node)
                 } else {
                     initializeNode(node)
                 }
@@ -559,15 +560,17 @@ open class VulkanRenderer(hub: Hub,
         logger.info("Scene initialization complete.")
     }
 
-    protected fun updateFontBoard(board: FontBoard) {
+    protected fun updateTextBoard(board: TextBoard) {
+        logger.debug("Updating font board ... ${board.name}")
         val atlas = fontAtlas.getOrPut(board.fontFamily,
-            { SDFFontAtlas(this.hub!!, board.fontFamily, maxDistance = settings.get<Int>("sdf.MaxDistance")) })
+            { SDFFontAtlas(this.hub!!, board.fontFamily, maxDistance = settings.get("sdf.MaxDistance")) })
         val m = atlas.createMeshForString(board.text)
 
         board.vertices = m.vertices
         board.normals = m.normals
         board.indices = m.indices
         board.texcoords = m.texcoords
+        board.atlasSize = GLVector(atlas.atlasWidth.toFloat(), atlas.atlasHeight.toFloat(), 0.0f, 0.0f)
 
         if (!board.initialized) {
             board.metadata.put("VulkanRenderer", VulkanObjectState())
@@ -581,8 +584,8 @@ open class VulkanRenderer(hub: Hub,
                 val t = VulkanTexture(device,
                     commandPools.Standard, queue,
                     atlas.atlasWidth, atlas.atlasHeight, 1,
-                    format = VK_FORMAT_R32_SFLOAT,
-                    mipLevels = 3)
+                    format = VK_FORMAT_R8_UNORM,
+                    mipLevels = 1)
 
                 t.copyFrom(atlas.getAtlas())
                 t
@@ -591,12 +594,20 @@ open class VulkanRenderer(hub: Hub,
             s.textures.put("ambient", texture)
             s.textures.put("diffuse", texture)
 
+            arrayOf("ambient", "diffuse", "specular", "normal", "alphamask", "displacement").forEach {
+                if (!s.textures.containsKey(it)) {
+                    s.textures.putIfAbsent(it, textureCache["DefaultTexture"]!!)
+                    s.defaultTexturesFor.add(it)
+                }
+            }
+
             s.texturesToDescriptorSet(device, descriptorSetLayouts["ObjectTextures"]!!,
                 descriptorPool,
                 targetBinding = 0)
 
             board.dirty = false
             board.initialized = true
+            logger.info("Update complete")
         }
     }
 
@@ -609,9 +620,8 @@ open class VulkanRenderer(hub: Hub,
     }
 
     fun updateNodeGeometry(node: Node) {
-        if (node is HasGeometry) {
+        if (node is HasGeometry && node.vertices.remaining() > 0) {
             node.rendererMetadata()?.let { s ->
-                s.vertexBuffers.forEach { it.value.close() }
                 createVertexBuffers(device, node, s)
             }
         }
@@ -1833,7 +1843,7 @@ open class VulkanRenderer(hub: Hub,
             }
         }
 
-        logger.trace("Adding ${n.indices.remaining() * 4} bytes to strided buffer")
+        logger.trace("Adding {} bytes to strided buffer", n.indices.remaining() * 4)
         if (n.indices.remaining() > 0) {
             state.isIndexed = true
             ib.position(vertexAllocationBytes.toInt() / 4)
@@ -1843,7 +1853,7 @@ open class VulkanRenderer(hub: Hub,
             }
         }
 
-        logger.trace("Strided buffer is now at ${stridedBuffer.remaining()} bytes")
+        logger.trace("Strided buffer is now at {} bytes", stridedBuffer.remaining())
 
         n.vertices.flip()
         n.normals.flip()
@@ -1858,11 +1868,18 @@ open class VulkanRenderer(hub: Hub,
 
         stagingBuffer.copyFrom(stridedBuffer)
 
-        val vertexBuffer = VulkanBuffer(device,
-            fullAllocationBytes * 1L,
-            VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or VK_BUFFER_USAGE_INDEX_BUFFER_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-            wantAligned = false)
+        val vertexBuffer = if(state.vertexBuffers.containsKey("vertex+index") && state.vertexBuffers["vertex+index"]?.size == fullAllocationBytes) {
+            logger.debug("Reusing existing vertex+index buffer for {} update", node.name)
+            state.vertexBuffers["vertex+index"]!!
+        } else {
+            logger.debug("Creating new vertex+index buffer for {} with {} bytes", node.name, fullAllocationBytes)
+            state.vertexBuffers["vertex+index"]?.close()
+            VulkanBuffer(device,
+                fullAllocationBytes,
+                VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or VK_BUFFER_USAGE_INDEX_BUFFER_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                wantAligned = false)
+        }
 
         with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
             val copyRegion = VkBufferCopy.calloc(1)
@@ -2149,15 +2166,17 @@ open class VulkanRenderer(hub: Hub,
 
             it.rendererMetadata()?.let { metadata ->
                 if (it.dirty) {
-                    if (it is FontBoard) {
-                        updateFontBoard(it)
+                    if (it is TextBoard) {
+                        updateTextBoard(it)
+                    } else {
+                        updateNodeGeometry(it)
+                        it.dirty = false
                     }
-
-                    it.dirty = false
-                    it.rendererMetadata()?.setAllCommandBufferUpdated(false)
+                    metadata.setAllCommandBufferUpdated(false)
                 }
 
                 if (it.material.needsTextureReload) {
+                    logger.debug("Reloading textures for ${it.name}")
                     loadTexturesForNode(it, metadata)
                     metadata.setAllCommandBufferUpdated(false)
 
@@ -2354,24 +2373,24 @@ open class VulkanRenderer(hub: Hub,
                 val sets = specs.map { (name, _) ->
                     when(name) {
                         "VRParameters" -> {
-                            DescriptorSet.DynamicSet(descriptorSets["VRParameters"]!!, offset = 0)
+                            DescriptorSet.DynamicSet(descriptorSets["VRParameters"]!!, offset = 0, setName = "VRParameters")
                         }
 
                         "LightParameters" -> {
-                            DescriptorSet.DynamicSet(descriptorSets["LightParameters"]!!, offset = 0)
+                            DescriptorSet.DynamicSet(descriptorSets["LightParameters"]!!, offset = 0, setName = "LightParameters")
                         }
 
                         "ObjectTextures" -> {
-                            DescriptorSet.Set(s.textureDescriptorSet)
+                            DescriptorSet.Set(s.textureDescriptorSet, setName = "ObjectTextures")
                         }
 
                         "Inputs" -> {
-                            DescriptorSet.Set(pass.descriptorSets["inputs-${pass.name}"]!!)
+                            DescriptorSet.Set(pass.descriptorSets["inputs-${pass.name}"]!!, setName = "Inputs")
                         }
 
                         else -> {
                             if (s.UBOs.containsKey(name)) {
-                                DescriptorSet.DynamicSet(s.UBOs[name]!!.first, offset = s.UBOs[name]!!.second.offsets.get(0))
+                                DescriptorSet.DynamicSet(s.UBOs[name]!!.first, offset = s.UBOs[name]!!.second.offsets.get(0), setName = name)
                             } else {
                                 DescriptorSet.None
                             }
