@@ -4,11 +4,6 @@
 layout(set = 5, binding = 0) uniform sampler2D InputHDRColor;
 layout(set = 5, binding = 1) uniform sampler2D InputDepth;
 
-//layout(set = 1, binding = 0, std140) uniform ShaderParameters {
-//	float Gamma;
-//	float Exposure;
-//} hdrParams;
-
 const float PI = 3.14159265358979323846264;
 const int NUM_OBJECT_TEXTURES = 6;
 
@@ -64,7 +59,9 @@ float aastep (float threshold , float value) {
 }
 
 void main() {
-    // Store the fragment position vector in the first gbuffer texture
+    // Bilinear SDF interpolation by Stefan Gustavson, OpenGL Insights, 2011
+    // see https://github.com/OpenGLInsights/OpenGLInsightsCode/tree/master/Chapter%2012%202D%20Shape%20Rendering%20by%20Distance%20Fields/demo
+
     vec3 rgb = vec3(0.0f, 0.0f, 0.0f);
 
     float pattern = 0.0f;
@@ -95,12 +92,9 @@ void main() {
     vec2 D0_1 = mix ( D00_10 , D01_11 , uvlerp.y);
     float D = mix( D0_1.x , D0_1.y , uvlerp.x);
 
-    pattern = aastep(0.6, D);
+    pattern = aastep(0.5, D);
 
     if(transparent == 1) {
-//        rgb = vec3(pattern);
-//        rgb = mix(rgb, fontColor.rgb, pattern);
-
         FragColor = vec4(fontColor.rgb, pattern);
     } else {
         rgb = vec3(fontColor.rgb);

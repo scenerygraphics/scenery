@@ -39,11 +39,11 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
     /** default charset for the SDF font atlas, default is ASCII charset */
     var charset = (32..127)
     /** Hash map of the char linked to it's width and a byte buffer with the SDF of the char */
-    var fontMap = LinkedHashMap<Char, Pair<Float, ByteBuffer>>()
+    protected var fontMap = LinkedHashMap<Char, Pair<Float, ByteBuffer>>()
     /** Font size for the SDF */
-    var fontSize: Float = 0f
+    protected var fontSize: Float = 0f
     /** Texcoord storage for each glyph */
-    var glyphTexcoords = HashMap<Char, GLVector>()
+    protected var glyphTexcoords = HashMap<Char, GLVector>()
 
     /** Font atlas width */
     var atlasWidth = 0
@@ -51,7 +51,7 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
     var atlasHeight = 0
 
     /** Backing store for the font atlas, will finally have a size of atlasWidth*atlasHeight. */
-    var fontAtlasBacking: ByteBuffer
+    protected var fontAtlasBacking: ByteBuffer
 
     init {
         val ocl = OpenCLContext(hub)
