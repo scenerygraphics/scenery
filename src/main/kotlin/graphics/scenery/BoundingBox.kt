@@ -1,7 +1,6 @@
 package graphics.scenery
 
 import cleargl.GLVector
-import graphics.scenery.utils.LazyLogger
 import java.util.*
 
 /**
@@ -20,7 +19,7 @@ import java.util.*
  */
 open class BoundingBox : Mesh() {
     var boundingCoords = floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
-    var labels = HashMap<String, FontBoard>()
+    var labels = HashMap<String, TextBoard>()
 
     @ShaderProperty
     var gridColor: GLVector = GLVector(1.0f, 1.0f, 1.0f)
@@ -88,10 +87,10 @@ open class BoundingBox : Mesh() {
         this.material = ShaderMaterial(arrayListOf("DefaultDeferred.vert", "BoundingBox.frag"))
 
         labels = hashMapOf(
-            "origin".to(FontBoard()),
-            "x".to(FontBoard()),
-            "y".to(FontBoard()),
-            "z".to(FontBoard())
+            "origin".to(TextBoard()),
+            "x".to(TextBoard()),
+            "y".to(TextBoard()),
+            "z".to(TextBoard())
         )
 
         labels.forEach { s, fontBoard ->

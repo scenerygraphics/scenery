@@ -549,8 +549,8 @@ open class VulkanRenderer(hub: Hub,
                 logger.debug("Initializing object '${node.name}'")
                 node.metadata.put("VulkanRenderer", VulkanObjectState())
 
-                if (node is FontBoard) {
-                    updateFontBoard(node)
+                if (node is TextBoard) {
+                    updateTextBoard(node)
                 } else {
                     initializeNode(node)
                 }
@@ -560,7 +560,7 @@ open class VulkanRenderer(hub: Hub,
         logger.info("Scene initialization complete.")
     }
 
-    protected fun updateFontBoard(board: FontBoard) {
+    protected fun updateTextBoard(board: TextBoard) {
         logger.debug("Updating font board ... ${board.name}")
         val atlas = fontAtlas.getOrPut(board.fontFamily,
             { SDFFontAtlas(this.hub!!, board.fontFamily, maxDistance = settings.get("sdf.MaxDistance")) })
@@ -2166,8 +2166,8 @@ open class VulkanRenderer(hub: Hub,
 
             it.rendererMetadata()?.let { metadata ->
                 if (it.dirty) {
-                    if (it is FontBoard) {
-                        updateFontBoard(it)
+                    if (it is TextBoard) {
+                        updateTextBoard(it)
                     } else {
                         updateNodeGeometry(it)
                         it.dirty = false
