@@ -129,7 +129,7 @@ scenery has been tested with a number of different systems and GPUs. If you have
 | AMD FirePro W9100 (Hawaii XT) | ✅ | ✅ | ⬜ | ⬜ | ⬜ |
 | Nvidia Geforce Titan X (Maxwell) | ✅ | ✅ | ✅ | ✅ | ⬜	 |
 | Nvidia Titan Xp (Pascal) | ✅ | ✅ | ⬜ | ⬜	 | ⬜	 |
-| Nvidia Geforce 1080 Ti (Pascal) | ✅ | ✅ | ⬜ | ⬜ | ⬜	 |
+| Nvidia Geforce 1080 Ti (Pascal) | ✅ | ✅ | ✅ | ✅| ⬜	 |
 | Nvidia Geforce 1070 (Pascal) | ✅ | ✅ | ⬜ | ⬜	| ✅ |
 | Nvidia Geforce 960 (Maxwell) | ✅ | ✅ | ⬜ | ⬜ | ⬜ |
 | Nvidia Quadro K6000 (Kepler) | ✅ | ✅ | ⬜ | ⬜ | ⬜ |
