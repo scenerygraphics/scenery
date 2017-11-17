@@ -19,7 +19,9 @@ import org.lwjgl.glfw.GLFWVulkan.glfwVulkanSupported
 import org.lwjgl.system.Configuration
 import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil.*
-import org.lwjgl.system.jemalloc.JEmalloc.*
+import org.lwjgl.system.jemalloc.JEmalloc.je_calloc
+import org.lwjgl.system.jemalloc.JEmalloc.je_free
+import org.lwjgl.system.jemalloc.JEmalloc.je_malloc
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.EXTDebugReport.*
 import org.lwjgl.vulkan.KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
@@ -35,6 +37,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.locks.ReentrantLock
 import javax.imageio.ImageIO
 import kotlin.concurrent.thread
 import kotlin.concurrent.withLock
@@ -116,79 +119,85 @@ open class VulkanRenderer(hub: Hub,
         data class DynamicSet(val setId: Long, val offset: Int, val setName: String = "") : DescriptorSet(setId, setName)
     }
 
-    private val lateResizeInitializers = HashMap<Node, () -> Any>()
+    private val lateResizeInitializers = ConcurrentHashMap<Node, () -> Any>()
 
     inner class SwapchainRecreator {
         var mustRecreate = true
+        private val lock = ReentrantLock()
 
         @Synchronized fun recreate() {
-            logger.info("Recreating Swapchain at frame $frames")
-            // create new swapchain with changed surface parameters
-            vkQueueWaitIdle(queue)
+            if(lock.tryLock()) {
+                logger.info("Recreating Swapchain at frame $frames")
+                // create new swapchain with changed surface parameters
+                vkQueueWaitIdle(queue)
 
-            with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
-                // Create the swapchain (this will also add a memory barrier to initialize the framebuffer images)
+                with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
+                    // Create the swapchain (this will also add a memory barrier to initialize the framebuffer images)
 
-                swapchain?.create(oldSwapchain = swapchain)
+                    swapchain?.create(oldSwapchain = swapchain)
 
-                this.endCommandBuffer(device, commandPools.Standard, queue, flush = true, dealloc = true)
+                    this.endCommandBuffer(device, commandPools.Standard, queue, flush = true, dealloc = true)
 
-                this
-            }
-
-            val pipelineCacheInfo = VkPipelineCacheCreateInfo.calloc()
-                .sType(VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO)
-                .pNext(NULL)
-                .flags(VK_FLAGS_NONE)
-
-            val refreshResolutionDependentResources = {
-                if(pipelineCache != -1L) {
-                    vkDestroyPipelineCache(device.vulkanDevice, pipelineCache, null)
+                    this
                 }
 
-                pipelineCache = VU.getLong("create pipeline cache",
-                    { vkCreatePipelineCache(device.vulkanDevice, pipelineCacheInfo, null, this) },
-                    { pipelineCacheInfo.free() })
-
-                renderpasses.values.forEach { it.close() }
-                renderpasses.clear()
-
-                settings.set("Renderer.displayWidth", window.width)
-                settings.set("Renderer.displayHeight", window.height)
-
-                renderpasses = prepareRenderpassesFromConfig(renderConfig, window.width, window.height)
-
-                semaphores.forEach { it.value.forEach { semaphore -> vkDestroySemaphore(device.vulkanDevice, semaphore, null) } }
-                semaphores = prepareStandardSemaphores(device)
-
-                // Create render command buffers
-                vkResetCommandPool(device.vulkanDevice, commandPools.Render, VK_FLAGS_NONE)
-
-                scene.findObserver()?.let { cam ->
-                    cam.perspectiveCamera(cam.fov, window.width.toFloat(), window.height.toFloat(), cam.nearPlaneDistance, cam.farPlaneDistance)
-                }
-
-                lateResizeInitializers.map { it.value.invoke() }
-
-                if(timestampQueryPool != -1L) {
-                    vkDestroyQueryPool(device.vulkanDevice, timestampQueryPool, null)
-                }
-
-                val queryPoolCreateInfo = VkQueryPoolCreateInfo.calloc()
-                    .sType(VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO)
+                val pipelineCacheInfo = VkPipelineCacheCreateInfo.calloc()
+                    .sType(VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO)
                     .pNext(NULL)
-                    .queryType(VK_QUERY_TYPE_TIMESTAMP)
-                    .queryCount(renderConfig.renderpasses.size * 2)
+                    .flags(VK_FLAGS_NONE)
 
-                timestampQueryPool = VU.getLong("Create timestamp query pool",
-                    { vkCreateQueryPool(device.vulkanDevice, queryPoolCreateInfo, null, this) },
-                    { queryPoolCreateInfo.free() })
+                val refreshResolutionDependentResources = {
+                    if (pipelineCache != -1L) {
+                        vkDestroyPipelineCache(device.vulkanDevice, pipelineCache, null)
+                    }
+
+                    pipelineCache = VU.getLong("create pipeline cache",
+                        { vkCreatePipelineCache(device.vulkanDevice, pipelineCacheInfo, null, this) },
+                        { pipelineCacheInfo.free() })
+
+                    renderpasses.values.forEach { it.close() }
+                    renderpasses.clear()
+
+                    settings.set("Renderer.displayWidth", window.width)
+                    settings.set("Renderer.displayHeight", window.height)
+
+                    prepareRenderpassesFromConfig(renderConfig, window.width, window.height)
+
+                    semaphores.forEach { it.value.forEach { semaphore -> vkDestroySemaphore(device.vulkanDevice, semaphore, null) } }
+                    semaphores = prepareStandardSemaphores(device)
+
+                    // Create render command buffers
+                    vkResetCommandPool(device.vulkanDevice, commandPools.Render, VK_FLAGS_NONE)
+
+                    scene.findObserver()?.let { cam ->
+                        cam.perspectiveCamera(cam.fov, window.width.toFloat(), window.height.toFloat(), cam.nearPlaneDistance, cam.farPlaneDistance)
+                    }
+
+                    logger.info("Calling late resize initializers for ${lateResizeInitializers.keys.joinToString(", ")}")
+                    lateResizeInitializers.map { it.value.invoke() }
+
+                    if (timestampQueryPool != -1L) {
+                        vkDestroyQueryPool(device.vulkanDevice, timestampQueryPool, null)
+                    }
+
+                    val queryPoolCreateInfo = VkQueryPoolCreateInfo.calloc()
+                        .sType(VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO)
+                        .pNext(NULL)
+                        .queryType(VK_QUERY_TYPE_TIMESTAMP)
+                        .queryCount(renderConfig.renderpasses.size * 2)
+
+                    timestampQueryPool = VU.getLong("Create timestamp query pool",
+                        { vkCreateQueryPool(device.vulkanDevice, queryPoolCreateInfo, null, this) },
+                        { queryPoolCreateInfo.free() })
+                }
+
+                refreshResolutionDependentResources.invoke()
+
+                totalFrames = 0
+                mustRecreate = false
+
+                lock.unlock()
             }
-
-            refreshResolutionDependentResources.invoke()
-
-            totalFrames = 0
-            mustRecreate = false
         }
     }
 
@@ -266,7 +275,7 @@ open class VulkanRenderer(hub: Hub,
     var scene: Scene = Scene()
 
     protected var commandPools = CommandPools()
-    protected var renderpasses = LinkedHashMap<String, VulkanRenderpass>()
+    protected val renderpasses = Collections.synchronizedMap(LinkedHashMap<String, VulkanRenderpass>())
     /** Cache for [SDFFontAtlas]es used for font rendering */
     protected var fontAtlas = HashMap<String, SDFFontAtlas>()
 
@@ -607,7 +616,7 @@ open class VulkanRenderer(hub: Hub,
 
             board.dirty = false
             board.initialized = true
-            logger.info("Update complete")
+            logger.debug("Update complete")
         }
     }
 
@@ -764,14 +773,16 @@ open class VulkanRenderer(hub: Hub,
         return true
     }
 
-    private fun initializeCustomShadersForNode(node: Node): Boolean {
+    private fun initializeCustomShadersForNode(node: Node, addInitializer: Boolean = true): Boolean {
 
         if(!(node.material.blending.transparent || node.useClassDerivedShader || node.material.doubleSided || node.material is ShaderMaterial)) {
             logger.debug("Using default renderpass material for ${node.name}")
             return false
         }
 
-        lateResizeInitializers.remove(node)
+        if(addInitializer) {
+            lateResizeInitializers.remove(node)
+        }
 
         // TODO: Add check whether the node actually needs a custom shader
         node.rendererMetadata()?.let { s ->
@@ -875,7 +886,9 @@ open class VulkanRenderer(hub: Hub,
                 }
             }
 
-            lateResizeInitializers.put(node, { initializeCustomShadersForNode(node) })
+            if(addInitializer) {
+                lateResizeInitializers.put(node, { initializeCustomShadersForNode(node, addInitializer = false) })
+            }
 
             return true
         }
@@ -1254,9 +1267,8 @@ open class VulkanRenderer(hub: Hub,
         textureCache.put("DefaultTexture", t!!)
     }
 
-    protected fun prepareRenderpassesFromConfig(config: RenderConfigReader.RenderConfig, windowWidth: Int, windowHeight: Int): LinkedHashMap<String, VulkanRenderpass> {
+    protected fun prepareRenderpassesFromConfig(config: RenderConfigReader.RenderConfig, windowWidth: Int, windowHeight: Int) {
         // create all renderpasses first
-        val passes = LinkedHashMap<String, VulkanRenderpass>()
         val framebuffers = ConcurrentHashMap<String, VulkanFramebuffer>()
 
         flow = renderConfig.createRenderpassFlow()
@@ -1407,15 +1419,15 @@ open class VulkanRenderer(hub: Hub,
                 this.endCommandBuffer(device, commandPools.Standard, this@VulkanRenderer.queue, flush = true)
             }
 
-            passes.put(passName, pass)
+            renderpasses.put(passName, pass)
         }
 
         // connect inputs with each other
-        passes.forEach { pass ->
+        renderpasses.forEach { pass ->
             val passConfig = config.renderpasses[pass.key]!!
 
             passConfig.inputs?.forEach { inputTarget ->
-                passes.filter {
+                renderpasses.filter {
                     it.value.output.keys.contains(inputTarget)
                 }.forEach { pass.value.inputs.put(inputTarget, it.value.output[inputTarget]!!) }
             }
@@ -1427,8 +1439,6 @@ open class VulkanRenderer(hub: Hub,
                 initializeDefaultPipeline()
             }
         }
-
-        return passes
     }
 
     protected fun prepareStandardSemaphores(device: VulkanDevice): ConcurrentHashMap<StandardSemaphores, Array<Long>> {
