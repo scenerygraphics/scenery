@@ -125,7 +125,7 @@ scenery has been tested with a number of different systems and GPUs. If you have
 |:--|:--|:--|:--|:--|:--|
 | AMD Radeon R9 390 (Hawaii Pro) | ✅ | ✅ | ⬜ | ⬜ | ⬜ |
 | AMD Radeon R9 Nano (Fiji XT) | ⛔ | ⛔ | ⬜ | ⬜ | ⬜ |
-| AMD Radeon R9 M930X (Strato Pro) | ⬜ | ⬜ | ⬜ | ⬜ | ✅ |
+| AMD Radeon R9 M370X (Strato Pro) | ⬜ | ⬜ | ⬜ | ⬜ | ✅ |
 | AMD FirePro W9100 (Hawaii XT) | ✅ | ✅ | ⬜ | ⬜ | ⬜ |
 | Nvidia Geforce Titan X (Maxwell) | ✅ | ✅ | ✅ | ✅ | ⬜	 |
 | Nvidia Titan Xp (Pascal) | ✅ | ✅ | ⬜ | ⬜	 | ⬜	 |
