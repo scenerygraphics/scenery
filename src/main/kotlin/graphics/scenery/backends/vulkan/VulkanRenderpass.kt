@@ -52,7 +52,7 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
             commandBufferBacking.put(b)
         }
 
-    private var commandBufferBacking = RingBuffer(size = 2,
+    private var commandBufferBacking = RingBuffer(size = 3,
         default = { VulkanCommandBuffer(device, null, true) })
 
     var semaphore = -1L
@@ -60,13 +60,12 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
     var passConfig: RenderConfigReader.RenderpassConfig = config.renderpasses.get(name)!!
 
     var isViewportRenderpass = false
-    var commandBufferCount = 2
+    var commandBufferCount = 3
         set(count) {
             // clean up old backing
             (1..commandBufferBacking.size).forEach { commandBufferBacking.get().close() }
             commandBufferBacking.reset()
 
-            this.isViewportRenderpass = true
             field = count
 
             commandBufferBacking = RingBuffer(size = count,
@@ -85,7 +84,8 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
                               var renderArea: VkRect2D = VkRect2D.calloc(),
                               var renderPassBeginInfo: VkRenderPassBeginInfo = VkRenderPassBeginInfo.calloc(),
                               var uboOffsets: IntBuffer = memAllocInt(16),
-                              var eye: IntBuffer = memAllocInt(1)): AutoCloseable {
+                              var eye: IntBuffer = memAllocInt(1),
+                              var renderLists: HashMap<VulkanCommandBuffer, Array<Node>> = HashMap()): AutoCloseable {
 
         override fun close() {
             memFree(descriptorSets)
