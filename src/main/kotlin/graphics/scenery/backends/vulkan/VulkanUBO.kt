@@ -101,10 +101,10 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
     }
 
     override fun close() {
-        logger.debug("Closing UBO $this ...")
+        logger.trace("Closing UBO $this ...")
         if(backingBuffer == null) {
             ownedBackingBuffer?.let {
-                logger.debug("Destroying self-owned buffer of $this/$it  ${it.memory.toHexString()})...")
+                logger.trace("Destroying self-owned buffer of $this/$it  ${it.memory.toHexString()})...")
                 it.close()
             }
         }

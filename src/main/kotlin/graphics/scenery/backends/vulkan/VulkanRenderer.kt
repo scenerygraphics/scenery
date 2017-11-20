@@ -323,8 +323,6 @@ open class VulkanRenderer(hub: Hub,
     private var renderConfig: RenderConfigReader.RenderConfig
     private var flow: List<String> = listOf()
 
-    private var renderLists = HashMap<VulkanCommandBuffer, Array<Node>>()
-
     private val vulkanProjectionFix =
         GLMatrix(floatArrayOf(
             1.0f,  0.0f, 0.0f, 0.0f,
@@ -859,7 +857,6 @@ open class VulkanRenderer(hub: Hub,
                         vertexInputType = s.vertexDescription!!)
                 }
 
-            s.blendingHashCode = node.material.blending.hashCode()
 
             if (needsShaderPropertyUBO) {
                 var order: Map<String, Int> = emptyMap()
@@ -1349,10 +1346,11 @@ open class VulkanRenderer(hub: Hub,
                     }
                 }
 
-                if (passConfig.output == "Viewport") {
-                    // let's also create the default framebuffers
-                    pass.commandBufferCount = swapchain!!.images!!.size
+                pass.commandBufferCount = swapchain!!.images!!.size
 
+                if (passConfig.output == "Viewport") {
+                    // create viewport renderpass with swapchain image-derived framebuffer
+                    pass.isViewportRenderpass = true
                     width = windowWidth
                     height = windowHeight
 
@@ -1640,7 +1638,7 @@ open class VulkanRenderer(hub: Hub,
 
         flow.take(flow.size - 1).forEachIndexed { i, t ->
             val start = System.nanoTime()
-            logger.debug("Running pass {}", t)
+            logger.trace("Running pass {}", t)
             val target = renderpasses[t]!!
             val commandBuffer = target.commandBuffer
 
@@ -1688,7 +1686,7 @@ open class VulkanRenderer(hub: Hub,
 
         val viewportPass = renderpasses.values.last()
         val viewportCommandBuffer = viewportPass.commandBuffer
-        logger.debug("Running pass {}", renderpasses.keys.last())
+        logger.trace("Running viewport pass {}", renderpasses.keys.last())
 
         when (viewportPass.passConfig.type) {
             RenderConfigReader.RenderpassType.geometry -> recordSceneRenderCommands(device, viewportPass, viewportCommandBuffer)
@@ -2152,7 +2150,7 @@ open class VulkanRenderer(hub: Hub,
     private fun recordSceneRenderCommands(device: VulkanDevice, pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer) {
         val target = pass.getOutput()
 
-        logger.debug("Creating scene command buffer for {}/{} ({} attachments)", pass.name, target, target.attachments.count())
+        logger.trace("Creating scene command buffer for {}/{} ({} attachments)", pass.name, target, target.attachments.count())
 
         pass.vulkanMetadata.renderPassBeginInfo
             .sType(VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO)
@@ -2162,10 +2160,17 @@ open class VulkanRenderer(hub: Hub,
             .renderArea(pass.vulkanMetadata.renderArea)
             .pClearValues(pass.vulkanMetadata.clearValues)
 
-        val renderOrderList = ArrayList<Node>(renderLists[commandBuffer]?.size ?: 512)
+        val renderOrderList = ArrayList<Node>(pass.vulkanMetadata.renderLists[commandBuffer]?.size ?: 512)
         var forceRerecording = false
+        val rerecordingCauses = ArrayList<String>(20)
 
-        scene.discover(scene, { n -> n is HasGeometry && n.visible }).forEach {
+        // here we discover all the nodes which are relevant for this pass,
+        // e.g. which have the same transparency settings as the pass
+        scene.discover(scene, { n -> n is HasGeometry
+            && n.visible
+            && n.material.blending.transparent == pass.passConfig.renderTransparent}).forEach {
+            // if a node is not initialized yet, it'll be initialized here and it's UBO updated
+            // in the next round
             if(it.rendererMetadata() == null) {
                 logger.debug("${it.name} is not initialized, doing that now")
                 it.metadata.put("VulkanRenderer", VulkanObjectState())
@@ -2174,59 +2179,73 @@ open class VulkanRenderer(hub: Hub,
                 return@forEach
             }
 
+            // the current command buffer will be forced to be re-recorded if either geometry, blending or
+            // texturing of a given node have changed, as these might change pipelines or descriptor sets, leading
+            // to the original command buffer becoming obsolete.
             it.rendererMetadata()?.let { metadata ->
                 if (it.dirty) {
+                    logger.debug("Force command buffer re-recording, as geometry for ${it.name} has been updated")
                     if (it is TextBoard) {
                         updateTextBoard(it)
                     } else {
                         updateNodeGeometry(it)
                         it.dirty = false
                     }
-                    metadata.setAllCommandBufferUpdated(false)
+
+                    rerecordingCauses.add(it.name)
+                    forceRerecording = true
                 }
 
                 if (it.material.needsTextureReload) {
-                    logger.debug("Reloading textures for ${it.name}")
+                    logger.debug("Force command buffer re-recording, as reloading textures for ${it.name}")
                     loadTexturesForNode(it, metadata)
-                    metadata.setAllCommandBufferUpdated(false)
 
                     it.material.needsTextureReload = false
+
+                    rerecordingCauses.add(it.name)
+                    forceRerecording = true
                 }
 
                 if(it.material.blending.hashCode() != metadata.blendingHashCode) {
+                    logger.debug("Force command buffer re-recording, as blending options for ${it.name} have changed")
                     initializeCustomShadersForNode(it)
-                    metadata.setAllCommandBufferUpdated(false)
+                    metadata.blendingHashCode = it.material.blending.hashCode()
+
+                    rerecordingCauses.add(it.name)
+                    forceRerecording = true
                 }
 
-                // if a node is not initialized yet, it'll be initialized here and it's UBO updated
-                // in the next round
                 if (!((pass.passConfig.renderOpaque && it.material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) ||
                     (pass.passConfig.renderTransparent && !it.material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent))) {
                     renderOrderList.add(it)
-
-                    if (!metadata.isCurrentInCommandBuffer(commandBuffer)) {
-                        logger.debug("Forcing command buffer rerecording as ${it.name} needs an update")
-                        forceRerecording = true
-                    }
                 }
             }
         }
 
-        if(renderLists.containsKey(commandBuffer) && renderOrderList.toTypedArray().contentDeepEquals(renderLists[commandBuffer]!!) && !forceRerecording) {
-            renderLists.put(commandBuffer, renderOrderList.toTypedArray())
-            commandBuffer.stale = false
-        } else {
-            renderLists.put(commandBuffer, renderOrderList.toTypedArray())
-            commandBuffer.stale = true
+        // if the pass' metadata does not contain a commond buffer,
+        // OR the cached command buffer does not contain the same nodes in the same order,
+        // OR re-recording is forced due to node changes, the buffer will be re-recorded.
+        // Furthermore, all sibling command buffers for this pass will be marked stale, thus
+        // also forcing their re-recording.
+        if(!pass.vulkanMetadata.renderLists.containsKey(commandBuffer)
+            || !renderOrderList.toTypedArray().contentDeepEquals(pass.vulkanMetadata.renderLists[commandBuffer]!!)
+            || forceRerecording) {
+
+            pass.vulkanMetadata.renderLists.put(commandBuffer, renderOrderList.toTypedArray())
+            pass.vulkanMetadata.renderLists.keys.forEach { it.stale = true }
         }
 
-        val instanceGroups = renderOrderList.groupBy(Node::instanceOf)
-
+        // If the command buffer is not stale, though, we keep the cached one and return. This
+        // can buy quite a bit of performance.
         if(!commandBuffer.stale && commandBuffer.commandBuffer != null) {
             return
         }
 
+        logger.debug("Recording command buffer $commandBuffer...")
+
         // start command buffer recording
+        val instanceGroups = renderOrderList.groupBy(Node::instanceOf)
+
         if (commandBuffer.commandBuffer == null) {
             commandBuffer.commandBuffer = VU.newCommandBuffer(device, commandPools.Render, autostart = true)
         } else {
@@ -2355,20 +2374,21 @@ open class VulkanRenderer(hub: Hub,
                 val s = node.rendererMetadata()!!
 
                 if(pass.passConfig.renderOpaque && node.material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) {
-                    s.setCommandBufferUpdated(commandBuffer, true)
                     return@nonInstancedDrawing
                 }
 
                 if(pass.passConfig.renderTransparent && !node.material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) {
-                    s.setCommandBufferUpdated(commandBuffer, true)
                     return@nonInstancedDrawing
                 }
 
                 if (node in instanceGroups.keys || s.vertexCount == 0) {
-                    s.setCommandBufferUpdated(commandBuffer, true)
                     return@nonInstancedDrawing
                 }
 
+                logger.debug("Rendering ${node.name}...")
+                if(rerecordingCauses.contains(node.name)) {
+                    logger.debug("Using pipeline ${pass.getActivePipeline(node)} for re-recording")
+                }
                 val pipeline = pass.getActivePipeline(node).getPipelineForGeometryType((node as HasGeometry).geometryType)
                 val specs = pass.getActivePipeline(node).orderedDescriptorSpecs()
 
@@ -2439,8 +2459,6 @@ open class VulkanRenderer(hub: Hub,
                 } else {
                     vkCmdDraw(this, s.vertexCount, 1, 0, 0)
                 }
-
-                s.setCommandBufferUpdated(commandBuffer, true)
             }
 
             instanceGroups.keys.filterNotNull().forEach instancedDrawing@ { node ->
@@ -2448,7 +2466,6 @@ open class VulkanRenderer(hub: Hub,
 
                 // this only lets non-instanced, parent nodes through
                 if (s.vertexCount == 0) {
-                    s.setCommandBufferUpdated(commandBuffer, true)
                     return@instancedDrawing
                 }
 
@@ -2489,8 +2506,6 @@ open class VulkanRenderer(hub: Hub,
                 } else {
                     vkCmdDraw(this, s.vertexCount, s.instanceCount, 0, 0)
                 }
-
-                s.setCommandBufferUpdated(commandBuffer, true)
             }
 
             vkCmdEndRenderPass(this)
@@ -2498,6 +2513,7 @@ open class VulkanRenderer(hub: Hub,
             vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
                 timestampQueryPool, 2*renderpasses.values.indexOf(pass)+1)
 
+            // finish command buffer recording by marking this buffer non-stale
             commandBuffer.stale = false
             this!!.endCommandBuffer()
         }
