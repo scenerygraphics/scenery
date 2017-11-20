@@ -323,7 +323,7 @@ open class VulkanRenderer(hub: Hub,
     private var renderConfig: RenderConfigReader.RenderConfig
     private var flow: List<String> = listOf()
 
-    private var renderLists = HashMap<VulkanCommandBuffer, ArrayList<Node>>()
+    private var renderLists = HashMap<VulkanCommandBuffer, Array<Node>>()
 
     private val vulkanProjectionFix =
         GLMatrix(floatArrayOf(
@@ -2212,11 +2212,11 @@ open class VulkanRenderer(hub: Hub,
             }
         }
 
-        if(renderOrderList == renderLists[commandBuffer] && !forceRerecording) {
-            renderLists.put(commandBuffer, renderOrderList)
+        if(renderLists.containsKey(commandBuffer) && renderOrderList.toTypedArray().contentDeepEquals(renderLists[commandBuffer]!!) && !forceRerecording) {
+            renderLists.put(commandBuffer, renderOrderList.toTypedArray())
             commandBuffer.stale = false
         } else {
-            renderLists.put(commandBuffer, renderOrderList)
+            renderLists.put(commandBuffer, renderOrderList.toTypedArray())
             commandBuffer.stale = true
         }
 
