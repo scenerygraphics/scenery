@@ -4,7 +4,8 @@ import cleargl.GLTypeEnum
 import cleargl.GLVector
 import coremem.enums.NativeTypeEnum
 import graphics.scenery.*
-import graphics.scenery.utils.LazyLogger
+import io.scif.SCIFIO
+import io.scif.util.FormatTools
 import org.lwjgl.system.MemoryUtil.memAlloc
 import java.io.FileInputStream
 import java.nio.ByteBuffer
@@ -15,6 +16,9 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlin.streams.toList
 import kotlin.collections.HashMap
 import kotlin.concurrent.thread
+import sun.misc.Unsafe
+
+
 
 
 /**
@@ -245,6 +249,114 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         }
     }
 
+    // Endianness conversion via Unsafe
+    // by Peter Lawrey, https://stackoverflow.com/a/21089527/2129040
+    private fun swapEndianUnsafe(bytes: ByteArray): ByteArray {
+        assert(bytes.size % 4 == 0)
+        var i = 0
+        while (i < bytes.size) {
+            UNSAFE.putInt(bytes, BYTES_OFFSET + i, Integer.reverseBytes(UNSAFE.getInt(bytes, BYTES_OFFSET + i)))
+            i += 4
+        }
+
+        return bytes
+    }
+
+    fun readFrom(file: Path, replace: Boolean = false): String {
+        if(file.normalize().toString().endsWith("raw")) {
+            return readFromRaw(file, replace)
+        }
+
+        val reader = scifio.initializer().initializeReader(file.normalize().toString())
+
+        if(autosetProperties) {
+            voxelSizeX = 1.0f
+            voxelSizeY = 1.0f
+            voxelSizeZ = 1.0f
+        }
+
+        with(reader.openPlane(0, 0)) {
+            sizeX = lengths[0].toInt()
+            sizeY = lengths[1].toInt()
+            sizeZ = reader.getPlaneCount(0).toInt()
+        }
+
+        val id = file.fileName.toString()
+        val bytesPerVoxel = reader.openPlane(0, 0).imageMetadata.bitsPerPixel/8
+        reader.openPlane(0, 0).imageMetadata.pixelType
+
+        val dataType = when(reader.openPlane(0, 0).imageMetadata.pixelType) {
+            FormatTools.INT8 -> NativeTypeEnum.Byte
+            FormatTools.INT16 -> NativeTypeEnum.Short
+            FormatTools.INT32 -> NativeTypeEnum.Int
+
+            FormatTools.UINT8 -> NativeTypeEnum.UnsignedByte
+            FormatTools.UINT16 -> NativeTypeEnum.UnsignedShort
+            FormatTools.UINT32 -> NativeTypeEnum.UnsignedInt
+
+            FormatTools.FLOAT -> NativeTypeEnum.Float
+            else -> {
+                logger.error("Unknown scif.io pixel type ${reader.openPlane(0, 0).imageMetadata.pixelType}, assuming unsigned byte.")
+                NativeTypeEnum.UnsignedByte
+            }
+        }
+
+        val vol = if (volumes.containsKey(id)) {
+            logger.info("Getting $id from cache")
+            volumes.get(id)!!
+        } else {
+            logger.info("Loading $id from disk")
+            val imageData: ByteBuffer = memAlloc((bytesPerVoxel * sizeX * sizeY * sizeZ))
+
+            logger.info("${file.fileName}: Allocated ${imageData.capacity()} bytes for $dataType ${8*bytesPerVoxel}bit image of $sizeX/$sizeY/$sizeZ")
+
+            val start = System.nanoTime()
+
+            if(reader.openPlane(0, 0).imageMetadata.isLittleEndian) {
+                logger.info("Volume is little endian")
+                (0 until reader.getPlaneCount(0)).forEach { plane ->
+                    imageData.put(reader.openPlane(0, plane).bytes)
+                }
+            } else {
+                logger.info("Volume is big endian")
+                (0 until reader.getPlaneCount(0)).forEach { plane ->
+                    imageData.put(swapEndianUnsafe(reader.openPlane(0, plane).bytes))
+                }
+            }
+
+            val duration = (System.nanoTime() - start) / 10e5
+            logger.info("Reading took $duration ms")
+
+            imageData.flip()
+
+            val descriptor = VolumeDescriptor(
+                file,
+                sizeX.toLong(), sizeY.toLong(), sizeZ.toLong(),
+                dataType, bytesPerVoxel, data = imageData
+            )
+
+            thread {
+                val histogram = Histogram<Int>(65536)
+                val buf = imageData.asShortBuffer()
+                while (buf.hasRemaining()) {
+                    histogram.add(buf.get().toInt() + Short.MAX_VALUE + 1)
+                }
+
+                logger.info("Min/max of $id: ${histogram.min()}/${histogram.max()} in ${histogram.bins.size} bins")
+
+                this.trangemin = histogram.min().toFloat()
+                this.trangemax = histogram.max().toFloat()
+            }
+
+            volumes.put(id, descriptor)
+            descriptor
+        }
+
+        assignVolumeTexture(longArrayOf(sizeX.toLong(), sizeY.toLong(), sizeZ.toLong()), vol, replace)
+
+        return id
+    }
+
     fun readFromRaw(file: Path, replace: Boolean = false): String {
         val infoFile = file.resolveSibling("stacks" + ".info")
 
@@ -311,8 +423,6 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
 
                 this.trangemin = histogram.min().toFloat()
                 this.trangemax = histogram.max().toFloat()
-
-                this.maxsteps = Math.floor(maxOf(sizeX, sizeY, sizeZ) * 1.3).toInt()
             }
 
             volumes.put(id, descriptor)
@@ -327,22 +437,23 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
     private fun NativeTypeEnum.toGLType() =
         when (this) {
             NativeTypeEnum.UnsignedInt -> GLTypeEnum.UnsignedInt
-            NativeTypeEnum.Byte -> TODO()
-            NativeTypeEnum.UnsignedByte -> TODO()
-            NativeTypeEnum.Short -> TODO()
+            NativeTypeEnum.Byte -> GLTypeEnum.Byte
+            NativeTypeEnum.UnsignedByte -> GLTypeEnum.UnsignedByte
+            NativeTypeEnum.Short -> GLTypeEnum.Short
             NativeTypeEnum.UnsignedShort -> GLTypeEnum.UnsignedShort
-            NativeTypeEnum.Int -> TODO()
+            NativeTypeEnum.Int -> GLTypeEnum.Int
             NativeTypeEnum.Long -> TODO()
             NativeTypeEnum.UnsignedLong -> TODO()
             NativeTypeEnum.HalfFloat -> TODO()
-            NativeTypeEnum.Float -> TODO()
+            NativeTypeEnum.Float -> GLTypeEnum.Float
             NativeTypeEnum.Double -> TODO()
         }
 
     private fun assignEmptyVolumeTexture() {
-        val emptyBuffer = BufferUtils.allocateByteAndPut(byteArrayOf(0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0))
-        val dim = GLVector(1.0f, 1.0f, 1.0f)
-        val gtv = GenericTexture("volume", dim, -1, GLTypeEnum.UnsignedShort, emptyBuffer, false, false)
+        val emptyBuffer = BufferUtils.allocateByteAndPut(byteArrayOf(0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+                                                                     0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0))
+        val dim = GLVector(2.0f, 2.0f, 2.0f)
+        val gtv = GenericTexture("volume", dim, 1, GLTypeEnum.UnsignedByte, emptyBuffer, false, false, normalized = false)
 
         this.material.transferTextures.put("volume", gtv)
         this.material.textures.put("3D-volume", "fromBuffer:volume")
@@ -352,7 +463,7 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
     private fun assignVolumeTexture(dimensions: LongArray, descriptor: VolumeDescriptor, replace: Boolean) {
         val dim = GLVector(dimensions[0].toFloat(), dimensions[1].toFloat(), dimensions[2].toFloat())
         val gtv = GenericTexture("volume", dim,
-            -1, descriptor.dataType.toGLType(), descriptor.data, false, false)
+            1, descriptor.dataType.toGLType(), descriptor.data, false, false, normalized = false)
 
 //        if (this.lock.tryLock()) {
             logger.info("Adding texture")
@@ -367,5 +478,24 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
 
 //            this.lock.unlock()
 //        }
+    }
+
+    companion object {
+        val scifio: SCIFIO = SCIFIO()
+        val UNSAFE: Unsafe
+        val BYTES_OFFSET: Int
+
+        init {
+            try {
+                val theUnsafe = Unsafe::class.java.getDeclaredField("theUnsafe")
+                theUnsafe.isAccessible = true
+                UNSAFE = theUnsafe.get(null) as Unsafe
+                BYTES_OFFSET = UNSAFE.arrayBaseOffset(ByteArray::class.java)
+
+            } catch (e: Exception) {
+                throw AssertionError(e)
+            }
+
+        }
     }
 }
