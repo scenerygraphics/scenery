@@ -41,20 +41,6 @@ open class VulkanObjectState : NodeMetadata {
 
     var textureDescriptorSet: Long = -1L
 
-    private val currentInCommandBuffer = HashMap<VulkanCommandBuffer, Boolean>(3)
-
-    fun setCommandBufferUpdated(commandBuffer: VulkanCommandBuffer, isUpdated: Boolean) {
-        currentInCommandBuffer.put(commandBuffer, isUpdated)
-    }
-
-    fun setAllCommandBufferUpdated(isUpdated: Boolean) {
-        currentInCommandBuffer.entries.forEach { it.setValue(isUpdated) }
-    }
-
-    fun isCurrentInCommandBuffer(commandBuffer: VulkanCommandBuffer): Boolean {
-        return currentInCommandBuffer.getOrPut(commandBuffer, { true })
-    }
-
     fun texturesToDescriptorSet(device: VulkanDevice, descriptorSetLayout: Long, descriptorPool: Long, targetBinding: Int = 0): Long {
         val descriptorSet = if(textureDescriptorSet == -1L) {
             val pDescriptorSetLayout = memAllocLong(1)
