@@ -24,5 +24,7 @@ data class GenericTexture(
     /** Shall the texture be repeated on the U/S coordinate? */
     var repeatS: Boolean = true,
     /** Shall the texture be repeated on the V/T coordinate? */
-    var repeatT: Boolean = true
+    var repeatT: Boolean = true,
+    /** Should the texture data be interpreted as normalized? Default is true, non-normalisation is better for volume data, though */
+    var normalized: Boolean = true
 ) : Serializable

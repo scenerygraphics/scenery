@@ -935,37 +935,16 @@ open class VulkanRenderer(hub: Hub,
                             1
                         }
 
-                        val format = when (gt.channels) {
-                            1 -> VK_FORMAT_R8_UNORM
-                            2 -> VK_FORMAT_R8G8_UNORM
-                            3 -> VK_FORMAT_R8G8B8_SRGB
-                            -1 -> VK_FORMAT_R16_UINT
-                            else -> if (gt.type == GLTypeEnum.Float) {
-                                VK_FORMAT_R32G32B32A32_SFLOAT
-                            } else {
-                                VK_FORMAT_R8G8B8A8_SRGB
-                            }
-                        }
-
-                        val zSize = if (gt.dimensions.dimension == 3) {
-                            gt.dimensions.z().toInt()
-                        } else {
-                            1
-                        }
-
                         val existingTexture = s.textures[type]
                         val t = if (existingTexture != null && existingTexture.device == device
                             && existingTexture.width == gt.dimensions.x().toInt()
                             && existingTexture.height == gt.dimensions.y().toInt()
-                            && existingTexture.depth == zSize
-                            && existingTexture.format == format
+                            && existingTexture.depth == gt.dimensions.z().toInt()
                             && existingTexture.mipLevels == miplevels) {
                             existingTexture
                         } else {
                             VulkanTexture(device,
-                                commandPools.Standard, queue,
-                                gt.dimensions.x().toInt(), gt.dimensions.y().toInt(), zSize,
-                                format, miplevels)
+                                commandPools.Standard, queue, gt, miplevels)
                         }
 
                         t.copyFrom(gt.contents)

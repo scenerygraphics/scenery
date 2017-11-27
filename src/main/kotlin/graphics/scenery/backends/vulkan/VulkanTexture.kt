@@ -1,6 +1,8 @@
 package graphics.scenery.backends.vulkan
 
+import cleargl.GLTypeEnum
 import cleargl.TGAReader
+import graphics.scenery.GenericTexture
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.vulkan.VkImageCreateInfo
 import java.awt.Color
@@ -33,6 +35,7 @@ open class VulkanTexture(val device: VulkanDevice,
 
     var image: VulkanImage? = null
     private var stagingImage: VulkanImage
+    private var gt: GenericTexture? = null
 
     inner class VulkanImage(var image: Long = -1L, var memory: Long = -1L, val maxSize: Long = -1L) {
 
@@ -90,19 +93,33 @@ open class VulkanTexture(val device: VulkanDevice,
     }
 
     init {
-        if(depth == 1) {
-            stagingImage = createImage(width, height, depth,
+        stagingImage = if(depth == 1) {
+            createImage(width, height, depth,
                 format, VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
                 VK_IMAGE_TILING_LINEAR,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
                 mipLevels = 1)
         } else {
-            stagingImage = createImage(16, 16, 1,
+            createImage(16, 16, 1,
                 format, VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
                 VK_IMAGE_TILING_LINEAR,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
                 mipLevels = 1)
         }
+    }
+
+    constructor(device: VulkanDevice,
+                commandPool: Long, queue: VkQueue,
+                genericTexture: GenericTexture, mipLevels: Int = 1,
+                minFilterLinear: Boolean = true, maxFilterLinear: Boolean = true) : this(device,
+        commandPool,
+        queue,
+        genericTexture.dimensions.x().toInt(),
+        genericTexture.dimensions.y().toInt(),
+        genericTexture.dimensions.z()?.toInt() ?: 1,
+        genericTexture.toVulkanFormat(),
+        mipLevels, minFilterLinear, maxFilterLinear) {
+        gt = genericTexture
     }
 
     fun createImage(width: Int, height: Int, depth: Int, format: Int, usage: Int, tiling: Int, memoryFlags: Int, mipLevels: Int): VulkanImage {
@@ -320,6 +337,15 @@ open class VulkanTexture(val device: VulkanDevice,
     fun createImageView(image: VulkanImage, format: Int): Long {
         val subresourceRange = VkImageSubresourceRange.calloc().set(VK_IMAGE_ASPECT_COLOR_BIT, 0, mipLevels, 0, 1)
 
+        var viewFormat = format
+
+        gt?.let { genericTexture ->
+            if(!genericTexture.normalized && genericTexture.type != GLTypeEnum.Float) {
+                logger.info("Shifting format to unsigned int")
+                viewFormat += 4
+            }
+        }
+
         val vi = VkImageViewCreateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO)
             .pNext(NULL)
@@ -329,7 +355,7 @@ open class VulkanTexture(val device: VulkanDevice,
             } else {
                 VK_IMAGE_VIEW_TYPE_2D
             })
-            .format(if(depth == 1) { format } else { VK_FORMAT_R16_UINT })
+            .format(viewFormat)
             .subresourceRange(subresourceRange)
 
         if(depth > 1) {
@@ -363,6 +389,8 @@ open class VulkanTexture(val device: VulkanDevice,
             { vkCreateSampler(device.vulkanDevice, samplerInfo, null, this) },
             { samplerInfo.free() })
     }
+
+
 
     companion object {
         private val logger by LazyLogger()
@@ -680,6 +708,75 @@ open class VulkanTexture(val device: VulkanDevice,
                 barrier.free()
             }
         }
+
+        private fun GenericTexture.toVulkanFormat(): Int {
+            return when(this.type) {
+                GLTypeEnum.Byte -> when(this.channels) {
+                    1 -> VK_FORMAT_R8_SNORM
+                    2 -> VK_FORMAT_R8G8_SNORM
+                    3 -> VK_FORMAT_R8G8B8_SNORM
+                    4 -> VK_FORMAT_R8G8B8A8_SNORM
+
+                    else -> { logger.warn("Unknown texture type: $type, with $channels channels, falling back to default"); VK_FORMAT_R8G8B8A8_UNORM }
+                }
+
+                GLTypeEnum.UnsignedByte -> when(this.channels) {
+                    1 -> VK_FORMAT_R8_UNORM
+                    2 -> VK_FORMAT_R8G8_UNORM
+                    3 -> VK_FORMAT_R8G8B8_UNORM
+                    4 -> VK_FORMAT_R8G8B8A8_UNORM
+
+                    else -> { logger.warn("Unknown texture type: $type, with $channels channels, falling back to default"); VK_FORMAT_R8G8B8A8_UNORM }
+                }
+
+                GLTypeEnum.Short ->  when(this.channels) {
+                    1 -> VK_FORMAT_R16_SNORM
+                    2 -> VK_FORMAT_R16G16_SNORM
+                    3 -> VK_FORMAT_R16G16B16_SNORM
+                    4 -> VK_FORMAT_R16G16B16A16_SNORM
+
+                    else -> { logger.warn("Unknown texture type: $type, with $channels channels, falling back to default"); VK_FORMAT_R8G8B8A8_UNORM }
+                }
+
+                GLTypeEnum.UnsignedShort -> when(this.channels) {
+                    1 -> VK_FORMAT_R16_UNORM
+                    2 -> VK_FORMAT_R16G16_UNORM
+                    3 -> VK_FORMAT_R16G16B16_UNORM
+                    4 -> VK_FORMAT_R16G16B16A16_UNORM
+
+                    else -> { logger.warn("Unknown texture type: $type, with $channels channels, falling back to default"); VK_FORMAT_R8G8B8A8_UNORM }
+                }
+
+                GLTypeEnum.Int ->  when(this.channels) {
+                    1 -> VK_FORMAT_R32_SINT
+                    2 -> VK_FORMAT_R32G32_SINT
+                    3 -> VK_FORMAT_R32G32B32_SINT
+                    4 -> VK_FORMAT_R32G32B32A32_SINT
+
+                    else -> { logger.warn("Unknown texture type: $type, with $channels channels, falling back to default"); VK_FORMAT_R8G8B8A8_UNORM }
+                }
+
+                GLTypeEnum.UnsignedInt ->  when(this.channels) {
+                    1 -> VK_FORMAT_R32_UINT
+                    2 -> VK_FORMAT_R32G32_UINT
+                    3 -> VK_FORMAT_R32G32B32_UINT
+                    4 -> VK_FORMAT_R32G32B32A32_UINT
+
+                    else -> { logger.warn("Unknown texture type: $type, with $channels channels, falling back to default"); VK_FORMAT_R8G8B8A8_UNORM }
+                }
+
+                GLTypeEnum.Float ->  when(this.channels) {
+                    1 -> VK_FORMAT_R32_SFLOAT
+                    2 -> VK_FORMAT_R32G32_SFLOAT
+                    3 -> VK_FORMAT_R32G32B32_SFLOAT
+                    4 -> VK_FORMAT_R32G32B32A32_SFLOAT
+
+                    else -> { logger.warn("Unknown texture type: $type, with $channels channels, falling back to default"); VK_FORMAT_R8G8B8A8_UNORM }
+                }
+
+                GLTypeEnum.Double -> TODO("Double format textures are not supported")
+            }
+        }
     }
 
     override fun close() {
@@ -715,4 +812,6 @@ open class VulkanTexture(val device: VulkanDevice,
             stagingImage.memory = -1L
         }
     }
+
+
 }
