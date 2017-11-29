@@ -1446,6 +1446,19 @@ open class VulkanRenderer(hub: Hub,
     var screenshotBuffer: VulkanBuffer? = null
     var imageBuffer: ByteBuffer? = null
     var encoder: H264Encoder? = null
+    var recordMovie: Boolean = false
+
+
+    fun recordMovie() {
+        if(recordMovie) {
+            encoder?.finish()
+            encoder = null
+
+            recordMovie = false
+        } else {
+            recordMovie = true
+        }
+    }
 
     private fun submitFrame(queue: VkQueue, pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer, present: PresentHelpers) {
         val stats = hub?.get(SceneryElement.Statistics) as? Statistics
@@ -1477,7 +1490,7 @@ open class VulkanRenderer(hub: Hub,
                 swapchain!!.images!![pass.getReadPosition()])
         }
 
-        if (true) {
+        if (recordMovie) {
                 // default image format is 32bit BGRA
                 val imageByteSize = window.width * window.height * 4L
             if(screenshotBuffer == null || screenshotBuffer?.size != imageByteSize) {
@@ -1494,7 +1507,7 @@ open class VulkanRenderer(hub: Hub,
             }
 
             if(encoder == null || encoder?.frameWidth != window.width || encoder?.frameHeight != window.height) {
-                encoder = H264Encoder(window.width, window.height)
+                encoder = H264Encoder(window.width, window.height, "${SimpleDateFormat("yyyy-MM-dd_HH.mm.ss").format(Date())}.mkv")
             }
 
             screenshotBuffer?.let { sb ->
