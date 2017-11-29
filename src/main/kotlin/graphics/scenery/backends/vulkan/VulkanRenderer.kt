@@ -8,10 +8,7 @@ import graphics.scenery.backends.*
 import graphics.scenery.fonts.SDFFontAtlas
 import graphics.scenery.spirvcrossj.Loader
 import graphics.scenery.spirvcrossj.libspirvcrossj
-import graphics.scenery.utils.GPUStats
-import graphics.scenery.utils.LazyLogger
-import graphics.scenery.utils.SceneryPanel
-import graphics.scenery.utils.Statistics
+import graphics.scenery.utils.*
 import org.lwjgl.PointerBuffer
 import org.lwjgl.glfw.GLFW.glfwInit
 import org.lwjgl.glfw.GLFWVulkan.glfwGetRequiredInstanceExtensions
@@ -29,6 +26,7 @@ import org.lwjgl.vulkan.VK10.*
 import java.awt.image.BufferedImage
 import java.awt.image.DataBufferByte
 import java.io.File
+import java.nio.ByteBuffer
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.text.SimpleDateFormat
@@ -1445,6 +1443,10 @@ open class VulkanRenderer(hub: Hub,
             waitForSemaphore = semaphores[StandardSemaphores.PresentComplete]!![0])
     }
 
+    var screenshotBuffer: VulkanBuffer? = null
+    var imageBuffer: ByteBuffer? = null
+    var encoder: H264Encoder? = null
+
     private fun submitFrame(queue: VkQueue, pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer, present: PresentHelpers) {
         val stats = hub?.get(SceneryElement.Statistics) as? Statistics
         val submitInfo = VkSubmitInfo.calloc()
@@ -1475,56 +1477,70 @@ open class VulkanRenderer(hub: Hub,
                 swapchain!!.images!![pass.getReadPosition()])
         }
 
-        if (screenshotRequested) {
-            // default image format is 32bit BGRA
-            val imageByteSize = window.width * window.height * 4L
-            val screenshotBuffer = VulkanBuffer(device, imageByteSize,
-                 VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-                wantAligned = true)
-
-
-            with(VU.newCommandBuffer(device, commandPools.Render, autostart = true)) {
-                val subresource = VkImageSubresourceLayers.calloc()
-                    .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
-                    .mipLevel(0)
-                    .baseArrayLayer(0)
-                    .layerCount(1)
-
-                val regions = VkBufferImageCopy.calloc(1)
-                    .bufferRowLength(0)
-                    .bufferImageHeight(0)
-                    .imageOffset(VkOffset3D.calloc().set(0, 0, 0))
-                    .imageExtent(VkExtent3D.calloc().set(window.width, window.height, 1))
-                    .imageSubresource(subresource)
-
-                val image = swapchain!!.images!![pass.getReadPosition()]
-
-                VulkanTexture.transitionLayout(image,
-                    VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                    commandBuffer = this)
-
-                vkCmdCopyImageToBuffer(this, image,
-                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                    screenshotBuffer.vulkanBuffer,
-                    regions)
-
-                VulkanTexture.transitionLayout(image,
-                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                    VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                    commandBuffer = this)
-
-                this.endCommandBuffer(device, commandPools.Render, queue,
-                    flush = true, dealloc = true)
+        if (true) {
+                // default image format is 32bit BGRA
+                val imageByteSize = window.width * window.height * 4L
+            if(screenshotBuffer == null || screenshotBuffer?.size != imageByteSize) {
+                logger.info("Reallocating screenshot buffer")
+                screenshotBuffer = VulkanBuffer(device, imageByteSize,
+                    VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+                    wantAligned = true)
             }
 
-            vkQueueWaitIdle(queue)
+            if(imageBuffer == null || imageBuffer?.capacity() != imageByteSize.toInt()) {
+                logger.info("Reallocating image buffer")
+                imageBuffer = memAlloc(imageByteSize.toInt())
+            }
 
-            val imageBuffer = memAlloc(imageByteSize.toInt())
-            screenshotBuffer.copyTo(imageBuffer)
-            screenshotBuffer.close()
+            if(encoder == null || encoder?.frameWidth != window.width || encoder?.frameHeight != window.height) {
+                encoder = H264Encoder(window.width, window.height)
+            }
 
+            screenshotBuffer?.let { sb ->
+                with(VU.newCommandBuffer(device, commandPools.Render, autostart = true)) {
+                    val subresource = VkImageSubresourceLayers.calloc()
+                        .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
+                        .mipLevel(0)
+                        .baseArrayLayer(0)
+                        .layerCount(1)
+
+                    val regions = VkBufferImageCopy.calloc(1)
+                        .bufferRowLength(0)
+                        .bufferImageHeight(0)
+                        .imageOffset(VkOffset3D.calloc().set(0, 0, 0))
+                        .imageExtent(VkExtent3D.calloc().set(window.width, window.height, 1))
+                        .imageSubresource(subresource)
+
+                    val image = swapchain!!.images!![pass.getReadPosition()]
+
+                    VulkanTexture.transitionLayout(image,
+                        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                        commandBuffer = this)
+
+                    vkCmdCopyImageToBuffer(this, image,
+                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                        sb.vulkanBuffer,
+                        regions)
+
+                    VulkanTexture.transitionLayout(image,
+                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                        commandBuffer = this)
+
+                    this.endCommandBuffer(device, commandPools.Render, queue,
+                        flush = true, dealloc = true)
+                }
+
+//            vkQueueWaitIdle(queue)
+
+//                sb.copyTo(imageBuffer!!)
+                encoder?.encodeFrame(sb.mapIfUnmapped().getByteBuffer(imageByteSize.toInt()))
+//                sb.close()
+            }
+
+            /*
             thread {
                 try {
                     val file = File(System.getProperty("user.home"), "Desktop" + File.separator + "$applicationName - ${SimpleDateFormat("yyyy-MM-dd HH.mm.ss").format(Date())}.png")
@@ -1555,6 +1571,7 @@ open class VulkanRenderer(hub: Hub,
                     memFree(imageBuffer)
                 }
             }
+            */
 
             screenshotRequested = false
         }
