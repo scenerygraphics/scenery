@@ -118,6 +118,7 @@ class VU {
             val result = function.invoke()
 
             if (result != VK_SUCCESS) {
+                System.exit(1)
                 LoggerFactory.getLogger("VulkanRenderer").error("Call to $name failed: ${translate(result)}")
             }
         }
@@ -134,7 +135,7 @@ class VU {
 
         inline fun getInt(name: String, function: IntBuffer.() -> Int): Int {
             return stackPush().use { stack ->
-                val receiver = stack.callocInt(1)
+                val receiver = stack.callocInt(2)
                 val result = function.invoke(receiver)
 
                 if (result != VK_SUCCESS) {

@@ -8,6 +8,10 @@ import graphics.scenery.volumes.Volume
 import org.junit.Test
 import java.io.File
 import java.nio.file.Paths
+import javax.swing.JFileChooser
+import javax.swing.SwingUtilities
+import javax.swing.UIManager
+import javax.swing.filechooser.FileNameExtensionFilter
 import kotlin.concurrent.thread
 
 /**
@@ -40,21 +44,7 @@ class VolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
 
         val volume = Volume()
         volume.colormap = "jet"
-
-        val v2 = Volume()
-        v2.colormap = "viridis"
-        v2.position = GLVector(1.0f, 0.0f, -2.0f)
-
-        scene.addChild(v2)
         scene.addChild(volume)
-
-        val b = Box()
-        b.position = GLVector(-1.0f, 0.0f, 0.0f)
-        scene.addChild(b)
-
-        val b2 = Box()
-        b2.position = GLVector(2.0f, 0.0f, 0.0f)
-        scene.addChild(b2)
 
         val lights = (0..3).map {
             PointLight()
@@ -69,13 +59,30 @@ class VolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
             scene.addChild(light)
         }
 
-        val folder = File(getDemoFilesPath() + "/volumes/box-iso/")
-        val files = folder.listFiles()
-        val volumes = files.filter { System.err.println(it); it.isFile }.map { it.absolutePath }.sorted()
+        val chooser = JFileChooser()
+        chooser.dialogTitle = "Choose volume file"
+        chooser.approveButtonText = "Open volume file"
+        UIManager.put("FileChooser.cancelButtonText", "Open example volume")
+        UIManager.put("FileChooser.cancelButtonToolTipText", "Close this dialog and show an example volume provided by scenery.")
+        SwingUtilities.updateComponentTreeUI(chooser)
+        chooser.isMultiSelectionEnabled = true
+        chooser.fileFilter = FileNameExtensionFilter("Volume files", "tif", "tiff", "raw", "czi")
+        val result = chooser.showOpenDialog(null)
+
+        val files = if(result == JFileChooser.CANCEL_OPTION || result == JFileChooser.ERROR_OPTION) {
+            logger.info("Cancelled file selection, falling back to included demo volume")
+
+            File(getDemoFilesPath() + "/volumes/box-iso/").listFiles().toList()
+        } else {
+            chooser.selectedFiles.toList()
+        }
+
+        val volumes = files.filter { it.isFile }.map { it.absolutePath }.sorted()
+        logger.info("Got ${volumes.size} volumes: ${volumes.joinToString(", ")}")
 
         var currentVolume = 0
         fun nextVolume(): String {
-            val v = volumes[currentVolume % (volumes.size - 1)]
+            val v = volumes[currentVolume % (volumes.size)]
             currentVolume++
 
             return v
@@ -85,8 +92,7 @@ class VolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
             while(!scene.initialized) { Thread.sleep(200) }
 
             val v = nextVolume()
-            volume.readFromRaw(Paths.get(v), replace = true)
-            v2.readFromRaw(Paths.get(v), replace = true)
+            volume.readFrom(Paths.get(v), replace = true)
 
             logger.info("Got volume!")
         }

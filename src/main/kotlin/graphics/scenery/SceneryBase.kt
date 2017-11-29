@@ -91,7 +91,7 @@ open class SceneryBase(var applicationName: String,
     open fun main() {
         logger.info("Started application as PID ${getProcessID()}")
 
-        val master = System.getProperty("scenery.master").toBoolean()
+        val master = System.getProperty("scenery.master")?.toBoolean() ?: false
         val masterAddress = System.getProperty("scenery.MasterNode")
 
         val publisher: NodePublisher? = if (master) {
