@@ -77,7 +77,8 @@ void main()
 	nMVP = projectionMatrix*mv;
 
 //    Vertex.Normal = mat3(ubo.NormalMatrix) * normalize(vertexNormal);
-    Vertex.Normal = mat3(ubo.NormalMatrix)*vec3(1.0, 0.0, 0.0);
+    //Vertex.Normal = mat3(ubo.NormalMatrix)*vec3(1.0, 0.0, 0.0);
+    Vertex.Normal = vertexNormal;
     Vertex.TexCoord = vertexTexCoord;
     Vertex.FragPosition = vec3(ubo.ModelMatrix * vec4(vertexPosition, 1.0));
 

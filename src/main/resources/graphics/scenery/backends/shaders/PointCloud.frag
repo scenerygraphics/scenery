@@ -106,6 +106,10 @@ vec2 EncodeOctaH( vec3 n )
 }
 
 void main() {
+    if( Vertex.TexCoord.x < 10e-6 && Vertex.TexCoord.y  < 10e-6 ) {
+        discard;
+    }
+
     vec2 coord = gl_PointCoord - vec2(0.5);
     if(length(coord) > 0.5) {
         discard;
@@ -117,7 +121,14 @@ void main() {
     DiffuseAlbedo.rgb = Material.Kd;
     DiffuseAlbedo.a = 0.0f;
 
-    if((materialType & MATERIAL_HAS_AMBIENT) == MATERIAL_HAS_AMBIENT) {
+    // Correct
+    DiffuseAlbedo.rgb = Vertex.Normal;
+
+    //DiffuseAlbedo.rgb = vec3( Vertex.TexCoord.x, Vertex.TexCoord.y, 1.0f );
+
+    //DiffuseAlbedo.rgb = vec3(0.0, 1.0, 0.0);
+
+/*    if((materialType & MATERIAL_HAS_AMBIENT) == MATERIAL_HAS_AMBIENT) {
         //DiffuseAlbedo.rgb = texture(ObjectTextures[0], VertexIn.TexCoord).rgb;
     }
 
@@ -133,12 +144,14 @@ void main() {
         if(texture(ObjectTextures[4], Vertex.TexCoord).r < 0.1f) {
             discard;
         }
-    }
+    } */
+
+
 /*
 Normals are encoded as Octahedron Normal Vectors, or Spherical Normal Vectors, which saves on storage as well as read/write processing of one
 component. If using Spherical Encoding, do not forget to use spherical decode function in DeferredLighting shader.
 */
-    vec2 EncodedNormal = EncodeOctaH(Vertex.Normal);
+    vec2 EncodedNormal = EncodeOctaH(mat3(ubo.NormalMatrix)*vec3(1.0, 0.0, 0.0));
 //    vec3 NormalizedNormal = normalize(VertexIn.Normal);
 //    vec2 EncodedNormal = EncodeSpherical(NormalizedNormal);
 

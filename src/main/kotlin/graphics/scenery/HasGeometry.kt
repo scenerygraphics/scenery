@@ -531,10 +531,10 @@ interface HasGeometry : Serializable {
         indexCount += targetObject.indices.limit()
 
         if (this is Mesh) {
-	   (targetObject as Mesh?)?.boundingBoxCoords = boundingBox.clone()
-	} else if (this is PointCloud) {
-	   (targetObject as PointCloud?)?.boundingBoxCoords = boundingBox.clone()
-	}
+           (targetObject as Mesh?)?.boundingBoxCoords = boundingBox.clone()
+        } else if (this is PointCloud) {
+           (targetObject as PointCloud?)?.boundingBoxCoords = boundingBox.clone()
+        }
 
         logger.info("Read ${vertexCount / vertexSize}/${normalCount / vertexSize}/${uvCount / texcoordSize}/$indexCount v/n/uv/i of model $name in ${(end - start) / 1e6} ms")
     }

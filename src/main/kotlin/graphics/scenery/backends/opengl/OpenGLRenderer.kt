@@ -391,7 +391,8 @@ class OpenGLRenderer(hub: Hub,
         renderpasses = prepareRenderpasses(renderConfig, window.width, window.height)
 
         // enable required features
-//        gl.glEnable(GL4.GL_TEXTURE_GATHER)
+        gl.glEnable(GL4.GL_TEXTURE_GATHER)
+        gl.glEnable(GL4.GL_PROGRAM_POINT_SIZE)
 
         initialized = true
 
