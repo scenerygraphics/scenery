@@ -562,7 +562,9 @@
                     </execution>
                 </executions>
                 <configuration>
+                    <outputFormat>javadoc</outputFormat>
                     <outputDir>target/javadoc</outputDir>
+                    <jdkVersion>8</jdkVersion>
                     <sourceLinks>
                         <link>
                             <dir>${project.basedir}/src/main/kotlin</dir>
