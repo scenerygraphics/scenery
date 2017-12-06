@@ -35,12 +35,17 @@ open class PointCloud(var radius: Float=0.1f, override var name: String = "Point
     }
 
     fun setupPointCloud() {
-        this.texcoords = memAlloc(vertices.limit() * texcoordSize * 4).order(ByteOrder.nativeOrder()).asFloatBuffer()
-        var i = 0
-        while (i < this.texcoords.limit() - 1) {
-            this.texcoords.put(i, this.pointRadius)
-            this.texcoords.put(i+1, this.pointRadius)
-            i += 3
+        if( this.texcoords.limit() == 0 ) {// Only preinitialize if texcoords has not been preinialized
+            this.texcoords = memAlloc(vertices.limit() * texcoordSize * 4).order(ByteOrder.nativeOrder()).asFloatBuffer()
+            var i = 0
+            while (i < this.texcoords.limit() - 1) {
+                this.texcoords.put(i, this.pointRadius)
+                this.texcoords.put(i + 1, this.pointRadius)
+                i += 3
+            }
+        }
+        if( this.normals.limit() == 0 ) {// Only preinitialize if need be
+            this.normals = BufferUtils.allocateFloatAndPut( FloatArray(vertices.limit()*2/3, {1.0f} ) )
         }
     }
 
