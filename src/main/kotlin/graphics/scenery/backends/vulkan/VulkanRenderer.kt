@@ -1,7 +1,6 @@
 package graphics.scenery.backends.vulkan
 
 import cleargl.GLMatrix
-import cleargl.GLTypeEnum
 import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.*
@@ -759,7 +758,7 @@ open class VulkanRenderer(hub: Hub,
 
         try {
             initializeCustomShadersForNode(node)
-        } catch (e: VulkanShaderModule.ShaderCompilationException) {
+        } catch (e: ShaderCompilationException) {
             logger.error("Compilation of custom shader failed: ${e.message}")
             logger.error("Node ${node.name} will use default shader for render pass.")
 
