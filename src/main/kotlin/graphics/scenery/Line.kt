@@ -32,29 +32,31 @@ class Line : Node("Line"), HasGeometry {
     /** Defines whether a class-name derived shader shall be used by the renderer, default true */
     override var useClassDerivedShader = true
 
-    /** Shader property for the line's edge width. Consumed by the renderer. */
+
+    /** Shader property for the line's starting segment color. Consumed by the renderer. */
     @ShaderProperty
-    var edgeWidth = 0.04f
+    var startColor = GLVector(0.0f, 1.0f, 0.0f, 1.0f)
+
+    /** Shader property for the line's color. Consumed by the renderer. */
+    @ShaderProperty
+    var lineColor = GLVector(1.0f, 1.0f, 1.0f, 1.0f)
+
+    /** Shader property for the line's end segment color. Consumed by the renderer. */
+    @ShaderProperty
+    var endColor = GLVector(0.7f, 0.5f, 0.5f, 1.0f)
+
+    /** Shader property for the line's cap length (start and end caps). Consumed by the renderer. */
+    @ShaderProperty
+    var capLength = 1
 
     /** (Private) shader property to keep track of the current number of vertices. Consumed by the renderer. */
     @ShaderProperty
     private var vertexCount: Int = 0
 
-    /** Shader property for the line's color. Consumed by the renderer. */
+    /** Shader property for the line's edge width. Consumed by the renderer. */
     @ShaderProperty
-    var lineColor = GLVector(1.0f, 1.0f, 1.0f)
+    var edgeWidth = 2.0f
 
-    /** Shader property for the line's starting segment color. Consumed by the renderer. */
-    @ShaderProperty
-    var startColor = GLVector(0.0f, 1.0f, 0.0f)
-
-    /** Shader property for the line's end segment color. Consumed by the renderer. */
-    @ShaderProperty
-    var endColor = GLVector(0.7f, 0.5f, 0.5f)
-
-    /** Shader property for the line's cap length (start and end caps). Consumed by the renderer. */
-    @ShaderProperty
-    var capLength = 1
 
     /**
      * Adds a line point to the line.
