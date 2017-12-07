@@ -1507,7 +1507,7 @@ open class VulkanRenderer(hub: Hub,
             }
 
             if(encoder == null || encoder?.frameWidth != window.width || encoder?.frameHeight != window.height) {
-                encoder = H264Encoder(window.width, window.height, "${SimpleDateFormat("yyyy-MM-dd_HH.mm.ss").format(Date())}.mkv")
+                encoder = H264Encoder(window.width, window.height, "${SimpleDateFormat("yyyy-MM-dd_HH.mm.ss").format(Date())}.mp4")
             }
 
             screenshotBuffer?.let { sb ->
