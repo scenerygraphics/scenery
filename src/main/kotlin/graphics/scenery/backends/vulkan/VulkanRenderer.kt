@@ -28,7 +28,6 @@ import org.lwjgl.vulkan.VK10.*
 import java.awt.image.BufferedImage
 import java.awt.image.DataBufferByte
 import java.io.File
-import java.io.FileNotFoundException
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.text.SimpleDateFormat
