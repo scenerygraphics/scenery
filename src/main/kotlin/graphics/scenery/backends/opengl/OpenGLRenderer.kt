@@ -7,6 +7,7 @@ import com.jogamp.opengl.util.FPSAnimator
 import com.jogamp.opengl.util.awt.AWTGLReadBufferUtil
 import graphics.scenery.*
 import graphics.scenery.backends.*
+import graphics.scenery.backends.ShaderCompilationException
 import graphics.scenery.controls.TrackerInput
 import graphics.scenery.fonts.SDFFontAtlas
 import graphics.scenery.spirvcrossj.Loader
@@ -1674,9 +1675,22 @@ class OpenGLRenderer(hub: Hub,
                     Renderer::class.java.getResource("shaders/$it") != null
                 }
 
-            s.shader = prepareShaderProgram(Renderer::class.java, shaders.toTypedArray())
+            try {
+                s.shader = prepareShaderProgram(Renderer::class.java, shaders.toTypedArray())
+            } catch (e: ShaderCompilationException) {
+                logger.warn("Shader compilation for node ${node.name} with shaders $shaders failed, falling back to default shaders.")
+                logger.warn("Shader compiler error was: ${e.message}")
+                s.shader = null
+            }
         } else if (node.material is ShaderMaterial) {
-            s.shader = prepareShaderProgram(node.javaClass, (node.material as ShaderMaterial).shaders.toTypedArray())
+            val shaders = (node.material as ShaderMaterial).shaders.toTypedArray()
+
+            try {
+                s.shader = prepareShaderProgram(node.javaClass, shaders)
+            } catch (e: ShaderCompilationException) {
+                logger.warn("Shader compilation for node ${node.name} with shaders $shaders failed, falling back to default shaders.")
+                logger.warn("Shader compiler error was: ${e.message}")
+            }
         } else {
             s.shader = null
         }

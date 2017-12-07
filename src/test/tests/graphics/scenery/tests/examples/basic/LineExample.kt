@@ -22,7 +22,7 @@ class LineExample : SceneryBase("LineExample") {
         renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
         hub.add(SceneryElement.Renderer, renderer!!)
 
-        val hull = Box(GLVector(50.0f, 50.0f, 50.0f))
+        val hull = Box(GLVector(50.0f, 50.0f, 50.0f), insideNormals = true)
         val hullmaterial = Material()
         hullmaterial.diffuse = GLVector(0.2f, 0.2f, 0.2f)
         hullmaterial.doubleSided = true
@@ -50,7 +50,8 @@ class LineExample : SceneryBase("LineExample") {
 
         val lights = (0..2).map {
             val l = PointLight()
-            l.intensity = 200.0f
+            l.intensity = 400.0f
+            l.quadratic = 0.2f
             l.emissionColor = colors[it]
 
             scene.addChild(l)

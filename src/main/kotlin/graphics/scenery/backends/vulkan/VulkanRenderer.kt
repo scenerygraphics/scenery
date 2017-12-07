@@ -1,7 +1,6 @@
 package graphics.scenery.backends.vulkan
 
 import cleargl.GLMatrix
-import cleargl.GLTypeEnum
 import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.*
@@ -759,7 +758,7 @@ open class VulkanRenderer(hub: Hub,
 
         try {
             initializeCustomShadersForNode(node)
-        } catch (e: VulkanShaderModule.ShaderCompilationException) {
+        } catch (e: ShaderCompilationException) {
             logger.error("Compilation of custom shader failed: ${e.message}")
             logger.error("Node ${node.name} will use default shader for render pass.")
 
@@ -769,6 +768,18 @@ open class VulkanRenderer(hub: Hub,
         }
 
         return true
+    }
+
+    private fun Node.findExistingShaders(): List<String> {
+        val baseName = this.javaClass.simpleName
+        val base = if(this.javaClass.`package`.name.startsWith("graphics.scenery")) {
+            Renderer::class.java.to("shaders/")
+        } else {
+            this.javaClass.to("")
+        }
+
+        return listOf("$baseName.vert", "$baseName.geom", "$baseName.tesc", "$baseName.tese", "$baseName.frag")
+            .filter { base.first.getResource(base.second + it) != null }
     }
 
     private fun initializeCustomShadersForNode(node: Node, addInitializer: Boolean = true): Boolean {
@@ -817,7 +828,13 @@ open class VulkanRenderer(hub: Hub,
 
                         node.useClassDerivedShader && pass.value.passConfig.renderTransparent == node.material.blending.transparent -> {
                             logger.debug("Initializing classname-derived preferred pipeline for ${node.name}")
-                            listOf("${node.javaClass.simpleName}.vert", "${node.javaClass.simpleName}.frag")
+                            val shaders = node.findExistingShaders()
+
+                            if(shaders.isEmpty()) {
+                                throw ShaderCompilationException("No shaders found for ${node.name}")
+                            }
+
+                            shaders
                         }
 
                         else -> {
@@ -2420,6 +2437,7 @@ open class VulkanRenderer(hub: Hub,
                 pass.vulkanMetadata.descriptorSets.flip()
 
                 pass.vulkanMetadata.uboOffsets.position(0)
+                pass.vulkanMetadata.uboOffsets.limit(pass.vulkanMetadata.uboOffsets.capacity())
                 pass.vulkanMetadata.uboOffsets.put(sets.filter { it is DescriptorSet.DynamicSet }.map { (it as DescriptorSet.DynamicSet).offset }.toIntArray())
                 pass.vulkanMetadata.uboOffsets.flip()
 
