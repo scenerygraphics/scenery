@@ -15,12 +15,12 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String) {
     protected val frame: AVFrame
     protected val codec: AVCodec
     protected val codecContext: AVCodecContext
-    protected val outputContext: AVFormatContext = AVFormatContext()
+    protected val outputContext: AVFormatContext
     protected val stream: AVStream
     protected val packet: AVPacket
 
     protected var frameNum = 0L
-    protected val timebase = AVRational().num(1).den(25)
+    protected val timebase = AVRational().num(1).den(60)
     protected val conversionContext: swscale.SwsContext
     protected val lineSize: IntBuffer
     protected val frameLineSize: IntBuffer
@@ -47,11 +47,12 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String) {
         codecContext.width(512)
         codecContext.height(512)
         codecContext.time_base(timebase)
-        codecContext.framerate(AVRational().num(25).den(1))
+        codecContext.framerate(AVRational().num(60).den(1))
         codecContext.gop_size(10)
         codecContext.max_b_frames(1)
         codecContext.pix_fmt(AV_PIX_FMT_YUV420P)
         codecContext.codec_type(AVMEDIA_TYPE_VIDEO)
+//        codecContext.flags(CODEC_FLAG_GLOBAL_HEADER)
 
         av_opt_set(codecContext.priv_data(), "preset", "ultrafast", 0)
         var ret = avcodec_open2(codecContext, codec, AVDictionary())
@@ -77,10 +78,12 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String) {
             "matroska".to(av_guess_format("matroska", null, null))
         }
 
-        ret = avformat_alloc_output_context2(outputContext, format.second, format.first, outputFile)
-        if(ret < 0) {
-            logger.error("Could not allocate output context: $ret")
-        }
+        outputContext = avformat_alloc_context()
+        outputContext.oformat(format.second)
+//        ret = avformat_alloc_output_context2(outputContext, format.second, format.first, outputFile)
+//        if(ret < 0) {
+//            logger.error("Could not allocate output context: $ret")
+//        }
 
         stream = avformat_new_stream(outputContext, null)
         if(stream == null) {
@@ -166,9 +169,13 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String) {
         if(noencode && data != null) {
             return
         }
-        av_frame_make_writable(frame)
+        var ret = av_frame_make_writable(frame)
 
-        var ret = if(data != null) {
+        if(ret < 0) {
+            logger.error("Frame not writable: ${ffmpegErrorToString(ret)}")
+        }
+
+        ret = if(data != null) {
             conversionBuffer.data(0, BytePointer(data))
             swscale.sws_scale(conversionContext,
                 conversionBuffer.data(), conversionBuffer.linesize(),
@@ -197,7 +204,7 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String) {
 
 //            packet.pts(AV_NOPTS_VALUE)
 //            packet.dts(AV_NOPTS_VALUE)
-            av_packet_rescale_ts(packet, timebase, stream.time_base())
+            av_packet_rescale_ts(packet, codecContext.time_base(), stream.time_base())
             packet.stream_index(stream.index())
 
             logPacket(packet)
