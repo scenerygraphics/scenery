@@ -28,6 +28,7 @@ import org.lwjgl.vulkan.VK10.*
 import java.awt.image.BufferedImage
 import java.awt.image.DataBufferByte
 import java.io.File
+import java.io.FileNotFoundException
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.text.SimpleDateFormat
@@ -770,6 +771,18 @@ open class VulkanRenderer(hub: Hub,
         return true
     }
 
+    private fun Node.findExistingShaders(): List<String> {
+        val baseName = this.javaClass.simpleName
+        val base = if(this.javaClass.`package`.name.startsWith("graphics.scenery")) {
+            Renderer::class.java.to("shaders/")
+        } else {
+            this.javaClass.to("")
+        }
+
+        return listOf("$baseName.vert", "$baseName.geom", "$baseName.tesc", "$baseName.tese", "$baseName.frag")
+            .filter { base.first.getResource(base.second + it) != null }
+    }
+
     private fun initializeCustomShadersForNode(node: Node, addInitializer: Boolean = true): Boolean {
 
         if(!(node.material.blending.transparent || node.useClassDerivedShader || node.material.doubleSided || node.material is ShaderMaterial)) {
@@ -816,7 +829,13 @@ open class VulkanRenderer(hub: Hub,
 
                         node.useClassDerivedShader && pass.value.passConfig.renderTransparent == node.material.blending.transparent -> {
                             logger.debug("Initializing classname-derived preferred pipeline for ${node.name}")
-                            listOf("${node.javaClass.simpleName}.vert", "${node.javaClass.simpleName}.frag")
+                            val shaders = node.findExistingShaders()
+
+                            if(shaders.isEmpty()) {
+                                throw ShaderCompilationException("No shaders found for ${node.name}")
+                            }
+
+                            shaders
                         }
 
                         else -> {
@@ -2419,6 +2438,7 @@ open class VulkanRenderer(hub: Hub,
                 pass.vulkanMetadata.descriptorSets.flip()
 
                 pass.vulkanMetadata.uboOffsets.position(0)
+                pass.vulkanMetadata.uboOffsets.limit(pass.vulkanMetadata.uboOffsets.capacity())
                 pass.vulkanMetadata.uboOffsets.put(sets.filter { it is DescriptorSet.DynamicSet }.map { (it as DescriptorSet.DynamicSet).offset }.toIntArray())
                 pass.vulkanMetadata.uboOffsets.flip()
 
