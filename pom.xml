@@ -307,7 +307,7 @@
             <artifactId>ui-behaviour</artifactId>
             <version>1.2.0</version>
         </dependency>
-	
+
         <dependency>
             <groupId>net.sf.trove4j</groupId>
             <artifactId>trove4j</artifactId>
