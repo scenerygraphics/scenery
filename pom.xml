@@ -307,12 +307,6 @@
             <artifactId>ui-behaviour</artifactId>
             <version>1.2.0</version>
         </dependency>
-
-        <dependency>
-            <groupId>org.scijava</groupId>
-            <artifactId>scijava-plugins-commands</artifactId>
-            <version>0.2.3</version>
-        </dependency>
 	
         <dependency>
             <groupId>net.sf.trove4j</groupId>
