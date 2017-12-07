@@ -2,14 +2,13 @@ package graphics.scenery.backends.vulkan
 
 import graphics.scenery.BufferUtils
 import graphics.scenery.backends.Renderer
+import graphics.scenery.backends.ShaderCompilationException
 import graphics.scenery.spirvcrossj.*
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.VK10.*
-import org.lwjgl.vulkan.VkDevice
 import org.lwjgl.vulkan.VkPipelineShaderStageCreateInfo
 import org.lwjgl.vulkan.VkShaderModuleCreateInfo
-import java.io.FileNotFoundException
 import java.io.InputStream
 import java.nio.ByteBuffer
 import java.nio.charset.Charset
@@ -45,8 +44,6 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, claz
     data class UBOSpec(val name: String, var set: Long, var binding: Long, val members: LinkedHashMap<String, UBOMemberSpec>)
 
     data class ShaderPackage(val baseClass: Class<*>, val spirvPath: String, val codePath: String, val spirv: InputStream?, val code: InputStream?)
-
-    class ShaderCompilationException(message: String = "Shader compilation failed") : Exception(message)
 
     private fun ShaderPackage.isSourceNewer(): Boolean {
         return if(code != null) {
