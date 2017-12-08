@@ -7,7 +7,6 @@ import com.jogamp.opengl.util.FPSAnimator
 import com.jogamp.opengl.util.awt.AWTGLReadBufferUtil
 import graphics.scenery.*
 import graphics.scenery.backends.*
-import graphics.scenery.backends.ShaderCompilationException
 import graphics.scenery.controls.TrackerInput
 import graphics.scenery.fonts.SDFFontAtlas
 import graphics.scenery.spirvcrossj.Loader
@@ -122,9 +121,11 @@ class OpenGLRenderer(hub: Hub,
     var initialized = false
         private set
 
+    private var pboBuffers: Array<ByteBuffer?> = arrayOf(null, null)
+    private var pboBufferAvailable = arrayOf(true, true)
     @Volatile private var pbos: IntArray = intArrayOf(0, 0)
     private var readIndex = 0
-    private var updateIndex = 0
+    private var updateIndex = 1
 
     private var renderConfig: RenderConfigReader.RenderConfig
     override var renderConfigFile = ""
@@ -1540,7 +1541,7 @@ class OpenGLRenderer(hub: Hub,
             }
 
             readIndex = (readIndex + 1) % 2
-            updateIndex = (readIndex + 1) % 2
+            updateIndex = (updateIndex + 1) % 2
 
             if (pbos[0] == 0 || pbos[1] == 0 || mustRecreateFramebuffers) {
                 gl.glGenBuffers(2, pbos, 0)
@@ -1552,21 +1553,42 @@ class OpenGLRenderer(hub: Hub,
                 gl.glBufferData(GL4.GL_PIXEL_PACK_BUFFER, window.width * window.height * 4L, null, GL4.GL_STREAM_READ)
 
                 gl.glBindBuffer(GL4.GL_PIXEL_PACK_BUFFER, 0)
+
+                if(pboBuffers[0] != null) {
+                    MemoryUtil.memFree(pboBuffers[0])
+                }
+
+                if(pboBuffers[1] != null) {
+                    MemoryUtil.memFree(pboBuffers[1])
+                }
+
+                pboBuffers[0] = null
+                pboBuffers[1] = null
             }
 
-            gl.glBindBuffer(GL4.GL_PIXEL_PACK_BUFFER, pbos[readIndex])
+            if(pboBuffers[0] == null) {
+                pboBuffers[0] = MemoryUtil.memAlloc(4*window.width*window.height)
+            }
 
-            gl.glReadBuffer(GL4.GL_FRONT)
-            gl.glReadPixels(0, 0, window.width, window.height, GL4.GL_BGRA, GL4.GL_UNSIGNED_BYTE, 0)
+            if(pboBuffers[1] == null) {
+                pboBuffers[1] = MemoryUtil.memAlloc(4*window.width*window.height)
+            }
 
             gl.glBindBuffer(GL4.GL_PIXEL_PACK_BUFFER, pbos[updateIndex])
 
-            val buffer = gl.glMapBuffer(GL4.GL_PIXEL_PACK_BUFFER, GL4.GL_READ_ONLY)
-            if (buffer != null) {
+            gl.glReadBuffer(GL4.GL_BACK)
+            gl.glReadPixels(0, 0, window.width, window.height, GL4.GL_BGRA, GL4.GL_UNSIGNED_BYTE, 0)
+
+            gl.glGetBufferSubData(GL4.GL_PIXEL_PACK_BUFFER, 0,
+                4L * window.width * window.height, pboBuffers[updateIndex])
+
+            if (!mustRecreateFramebuffers) {
                 Platform.runLater {
-                    if (!mustRecreateFramebuffers) embedPanel.update(buffer)
+                    pboBuffers[readIndex]?.let {
+                        val id = viewportPass.output.values.first().getTextureId("Viewport")
+                        embedPanel.update(it, id = id)
+                    }
                 }
-                gl.glUnmapBuffer(GL4.GL_PIXEL_PACK_BUFFER)
             }
 
             gl.glBindBuffer(GL4.GL_PIXEL_PACK_BUFFER, 0)
