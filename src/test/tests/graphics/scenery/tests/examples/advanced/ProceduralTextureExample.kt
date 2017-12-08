@@ -46,29 +46,31 @@ class ProceduralTextureExample : SceneryBase("ProceduralTextureExample") {
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
-            position = GLVector(0.0f, 0.0f, 5.0f)
-            perspectiveCamera(50.0f, 512.0f, 512.0f)
+            position = GLVector(0.0f, 0.0f, 3.0f)
+            perspectiveCamera(50.0f, windowWidth.toFloat(), windowHeight.toFloat())
             active = true
 
             scene.addChild(this)
         }
 
         thread {
-            val imageSize = 64
+            val imageSizeX = 256
+            val imageSizeY = 256
             val imageChannels = 4
-            val textureBuffer = BufferUtils.allocateByte(imageSize * imageSize * imageChannels)
+            val textureBuffer = BufferUtils.allocateByte(imageSizeX * imageSizeY * imageChannels)
             var ticks = 0L
 
             while(true) {
                 box.rotation.rotateByAngleY(0.01f)
                 box.needsUpdate = true
 
-                textureBuffer.generateProceduralTextureAtTick(ticks)
+                textureBuffer.generateProceduralTextureAtTick(ticks,
+                    imageSizeX, imageSizeY, imageChannels)
 
                 box.material.transferTextures.put("diffuse",
                     GenericTexture(
-                        "diffuse",
-                        GLVector(imageSize.toFloat(), imageSize.toFloat(), 1.0f),
+                        "myProceduralTexture",
+                        GLVector(imageSizeX.toFloat(), imageSizeY.toFloat(), 1.0f),
                         channels = imageChannels, contents = textureBuffer,
                         type = GLTypeEnum.UnsignedByte))
                 box.material.textures.put("diffuse", "fromBuffer:diffuse")
@@ -85,13 +87,12 @@ class ProceduralTextureExample : SceneryBase("ProceduralTextureExample") {
      *
      * @param[tick] The time parameter for the generated texture.
      */
-    private fun ByteBuffer.generateProceduralTextureAtTick(tick: Long) {
-        val imageSize = Math.sqrt(this.capacity()/4.0).toInt()
+    private fun ByteBuffer.generateProceduralTextureAtTick(tick: Long, width: Int, height: Int, channels: Int) {
         val rgba = byteArrayOf(0, 0, 0, 255.toByte())
 
-        (0 until imageSize * imageSize).forEach {
-            val x = it % imageSize
-            val y = it / imageSize
+        (0 until width * height).forEach {
+            val x = it % width
+            val y = it / height
 
             val g = (255*Math.sin(0.1*x + 0.1*y + tick/10.0f)).toByte()
             val m = (Math.sin(tick/100.0) * g).toByte()
@@ -99,7 +100,7 @@ class ProceduralTextureExample : SceneryBase("ProceduralTextureExample") {
             rgba[1] = m
             rgba[2] = m
 
-            this.put(rgba)
+            this.put(rgba.take(channels).toByteArray())
         }
 
         this.flip()
