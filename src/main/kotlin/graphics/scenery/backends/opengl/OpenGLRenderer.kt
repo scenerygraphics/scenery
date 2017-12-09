@@ -1266,7 +1266,7 @@ class OpenGLRenderer(hub: Hub,
                         }
                     }
 
-                    if (!n.metadata.containsKey("OpenGLRenderer")) {
+                    if (!n.metadata.containsKey("OpenGLRenderer") || !n.initialized) {
                         n.metadata.put("OpenGLRenderer", OpenGLObjectState())
                         initializeNode(n)
                         return@nonInstancedDrawing
@@ -1655,6 +1655,10 @@ class OpenGLRenderer(hub: Hub,
      * @return True if the initialisation went alright, False if it failed.
      */
     fun initializeNode(node: Node): Boolean {
+        if(!node.lock.tryLock(2, TimeUnit.MILLISECONDS)) {
+            return false
+        }
+
         val s: OpenGLObjectState
 
         if (node.instanceOf == null) {
@@ -1718,21 +1722,17 @@ class OpenGLRenderer(hub: Hub,
         }
 
         if (node is HasGeometry) {
-            node.lock.tryLock(100, TimeUnit.MILLISECONDS)
-            if (node.lock.tryLock()) {
-                setVerticesAndCreateBufferForNode(node)
-                setNormalsAndCreateBufferForNode(node)
+            setVerticesAndCreateBufferForNode(node)
+            setNormalsAndCreateBufferForNode(node)
 
-                if (node.texcoords.limit() > 0) {
-                    setTextureCoordsAndCreateBufferForNode(node)
-                }
-
-                if (node.indices.limit() > 0) {
-                    setIndicesAndCreateBufferForNode(node)
-                }
-
-                node.lock.unlock()
+            if (node.texcoords.limit() > 0) {
+                setTextureCoordsAndCreateBufferForNode(node)
             }
+
+            if (node.indices.limit() > 0) {
+                setIndicesAndCreateBufferForNode(node)
+            }
+
         }
 
         val matricesUbo = OpenGLUBO(backingBuffer = buffers["UBOBuffer"])
@@ -1807,6 +1807,7 @@ class OpenGLRenderer(hub: Hub,
         node.metadata[this.javaClass.simpleName] = s
 
         s.initialized = true
+        node.lock.unlock()
         return true
     }
 

@@ -61,20 +61,27 @@ class ProceduralTextureExample : SceneryBase("ProceduralTextureExample") {
             var ticks = 0L
 
             while(true) {
-                box.rotation.rotateByAngleY(0.01f)
-                box.needsUpdate = true
+                if(box.lock.tryLock()) {
+                    box.rotation.rotateByAngleY(0.01f)
+                    box.needsUpdate = true
 
-                textureBuffer.generateProceduralTextureAtTick(ticks,
-                    imageSizeX, imageSizeY, imageChannels)
+                    textureBuffer.generateProceduralTextureAtTick(ticks,
+                        imageSizeX, imageSizeY, imageChannels)
 
-                box.material.transferTextures.put("diffuse",
-                    GenericTexture(
-                        "myProceduralTexture",
-                        GLVector(imageSizeX.toFloat(), imageSizeY.toFloat(), 1.0f),
-                        channels = imageChannels, contents = textureBuffer,
-                        type = GLTypeEnum.UnsignedByte))
-                box.material.textures.put("diffuse", "fromBuffer:diffuse")
-                box.material.needsTextureReload = true
+                    box.material.transferTextures.put("diffuse",
+                        GenericTexture(
+                            "myProceduralTexture",
+                            GLVector(imageSizeX.toFloat(), imageSizeY.toFloat(), 1.0f),
+                            channels = imageChannels, contents = textureBuffer,
+                            type = GLTypeEnum.UnsignedByte))
+                    box.material.textures.put("diffuse", "fromBuffer:diffuse")
+                    box.material.needsTextureReload = true
+
+
+                    box.lock.unlock()
+                } else {
+                    logger.info("unsuccessful lock")
+                }
 
                 Thread.sleep(50)
                 ticks++
