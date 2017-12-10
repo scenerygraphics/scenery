@@ -1748,35 +1748,13 @@ class OpenGLRenderer(hub: Hub,
             s.UBOs.put("Matrices", this)
         }
 
-
         loadTexturesForNode(node, s)
 
         val materialUbo = OpenGLUBO(backingBuffer = buffers["UBOBuffer"])
-        var materialType = 0
-
-        if (node.material.textures.containsKey("ambient") && !s.defaultTexturesFor.contains("ambient")) {
-            materialType = materialType or MATERIAL_HAS_AMBIENT
-        }
-
-        if (node.material.textures.containsKey("diffuse") && !s.defaultTexturesFor.contains("diffuse")) {
-            materialType = materialType or MATERIAL_HAS_DIFFUSE
-        }
-
-        if (node.material.textures.containsKey("specular") && !s.defaultTexturesFor.contains("specular")) {
-            materialType = materialType or MATERIAL_HAS_SPECULAR
-        }
-
-        if (node.material.textures.containsKey("normal") && !s.defaultTexturesFor.contains("normal")) {
-            materialType = materialType or MATERIAL_HAS_NORMAL
-        }
-
-        if (node.material.textures.containsKey("alphamask") && !s.defaultTexturesFor.contains("alphamask")) {
-            materialType = materialType or MATERIAL_HAS_ALPHAMASK
-        }
 
         with(materialUbo) {
             name = "MaterialProperties"
-            add("materialType", { materialType })
+            add("materialType", { node.materialToMaterialType() })
             add("Ka", { node.material.ambient })
             add("Kd", { node.material.diffuse })
             add("Ks", { node.material.specular })
@@ -1809,6 +1787,40 @@ class OpenGLRenderer(hub: Hub,
         s.initialized = true
         node.lock.unlock()
         return true
+    }
+
+    private fun Node.materialToMaterialType(): Int {
+        var materialType = 0
+        val s = this.metadata["OpenGLRenderer"] as? OpenGLObjectState ?: return 0
+
+        s.defaultTexturesFor.clear()
+        arrayOf("ambient", "diffuse", "specular", "normal", "alphamask", "displacement").forEach {
+            if (!s.textures.containsKey(it)) {
+                s.defaultTexturesFor.add(it)
+            }
+        }
+
+        if (this.material.textures.containsKey("ambient") && !s.defaultTexturesFor.contains("ambient")) {
+            materialType = materialType or MATERIAL_HAS_AMBIENT
+        }
+
+        if (this.material.textures.containsKey("diffuse") && !s.defaultTexturesFor.contains("diffuse")) {
+            materialType = materialType or MATERIAL_HAS_DIFFUSE
+        }
+
+        if (this.material.textures.containsKey("specular") && !s.defaultTexturesFor.contains("specular")) {
+            materialType = materialType or MATERIAL_HAS_SPECULAR
+        }
+
+        if (this.material.textures.containsKey("normal") && !s.defaultTexturesFor.contains("normal")) {
+            materialType = materialType or MATERIAL_HAS_NORMAL
+        }
+
+        if (this.material.textures.containsKey("alphamask") && !s.defaultTexturesFor.contains("alphamask")) {
+            materialType = materialType or MATERIAL_HAS_ALPHAMASK
+        }
+
+        return materialType
     }
 
     /**
@@ -1928,13 +1940,6 @@ class OpenGLRenderer(hub: Hub,
                     }
                 } else {
                     s.textures.put(type, textureCache[texture]!!)
-                }
-            }
-
-            arrayOf("ambient", "diffuse", "specular", "normal", "alphamask", "displacement").forEach {
-                if (!s.textures.containsKey(it)) {
-//                    s.textures.putIfAbsent(it, textureCache["DefaultTexture"]!!)
-                    s.defaultTexturesFor.add(it)
                 }
             }
 
