@@ -241,7 +241,7 @@ class FXSwapchain(device: VulkanDevice,
     }
 
     override fun postPresent(image: Int) {
-        if (vulkanSwapchainRecreator.mustRecreate) {
+        if (vulkanSwapchainRecreator.mustRecreate && sharingBuffer.initialized()) {
             return
         }
 
@@ -283,7 +283,7 @@ class FXSwapchain(device: VulkanDevice,
         VK10.vkQueueWaitIdle(queue)
 
         Platform.runLater {
-            if (lock.tryLock() && !vulkanSwapchainRecreator.mustRecreate) {
+            if (lock.tryLock() && !vulkanSwapchainRecreator.mustRecreate && sharingBuffer.initialized()) {
                 val imageByteSize = window.width * window.height * 4
                 val buffer = sharingBuffer.mapIfUnmapped().getByteBuffer(imageByteSize)
 
