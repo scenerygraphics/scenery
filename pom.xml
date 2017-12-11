@@ -10,7 +10,7 @@
 
     <groupId>graphics.scenery</groupId>
     <artifactId>scenery</artifactId>
-    <version>0.2.3-SNAPSHOT</version>
+    <version>0.2.3</version>
     <inceptionYear>2016</inceptionYear>
     <licenses>
         <license>
@@ -485,18 +485,6 @@
             <version>${jvrpn.version}</version>
             <classifier>${lwjgl.natives}</classifier>
             <scope>runtime</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>io.scif</groupId>
-            <artifactId>scifio</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>net.imagej</groupId>
-            <artifactId>imagej</artifactId>
-            <version>2.0.0-rc-59</version>
-            <scope>test</scope>
         </dependency>
 
         <dependency>
