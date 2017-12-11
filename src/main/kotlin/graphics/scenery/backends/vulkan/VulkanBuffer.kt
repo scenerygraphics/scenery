@@ -156,6 +156,10 @@ class VulkanBuffer(val device: VulkanDevice, val size: Long, val usage: Int, val
         copyFrom(stagingBuffer)
     }
 
+    fun initialized(): Boolean {
+        return ((vulkanBuffer != -1L) && (memory != -1L))
+    }
+
     override fun close() {
         logger.debug("Closing buffer $this ...")
 
