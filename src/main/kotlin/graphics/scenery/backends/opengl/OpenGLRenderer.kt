@@ -7,7 +7,6 @@ import com.jogamp.opengl.util.FPSAnimator
 import com.jogamp.opengl.util.awt.AWTGLReadBufferUtil
 import graphics.scenery.*
 import graphics.scenery.backends.*
-import graphics.scenery.backends.ShaderCompilationException
 import graphics.scenery.controls.TrackerInput
 import graphics.scenery.fonts.SDFFontAtlas
 import graphics.scenery.spirvcrossj.Loader
@@ -122,9 +121,11 @@ class OpenGLRenderer(hub: Hub,
     var initialized = false
         private set
 
+    private var pboBuffers: Array<ByteBuffer?> = arrayOf(null, null)
+    private var pboBufferAvailable = arrayOf(true, true)
     @Volatile private var pbos: IntArray = intArrayOf(0, 0)
     private var readIndex = 0
-    private var updateIndex = 0
+    private var updateIndex = 1
 
     private var renderConfig: RenderConfigReader.RenderConfig
     override var renderConfigFile = ""
@@ -1265,7 +1266,7 @@ class OpenGLRenderer(hub: Hub,
                         }
                     }
 
-                    if (!n.metadata.containsKey("OpenGLRenderer")) {
+                    if (!n.metadata.containsKey("OpenGLRenderer") || !n.initialized) {
                         n.metadata.put("OpenGLRenderer", OpenGLObjectState())
                         initializeNode(n)
                         return@nonInstancedDrawing
@@ -1540,7 +1541,7 @@ class OpenGLRenderer(hub: Hub,
             }
 
             readIndex = (readIndex + 1) % 2
-            updateIndex = (readIndex + 1) % 2
+            updateIndex = (updateIndex + 1) % 2
 
             if (pbos[0] == 0 || pbos[1] == 0 || mustRecreateFramebuffers) {
                 gl.glGenBuffers(2, pbos, 0)
@@ -1552,21 +1553,42 @@ class OpenGLRenderer(hub: Hub,
                 gl.glBufferData(GL4.GL_PIXEL_PACK_BUFFER, window.width * window.height * 4L, null, GL4.GL_STREAM_READ)
 
                 gl.glBindBuffer(GL4.GL_PIXEL_PACK_BUFFER, 0)
+
+                if(pboBuffers[0] != null) {
+                    MemoryUtil.memFree(pboBuffers[0])
+                }
+
+                if(pboBuffers[1] != null) {
+                    MemoryUtil.memFree(pboBuffers[1])
+                }
+
+                pboBuffers[0] = null
+                pboBuffers[1] = null
             }
 
-            gl.glBindBuffer(GL4.GL_PIXEL_PACK_BUFFER, pbos[readIndex])
+            if(pboBuffers[0] == null) {
+                pboBuffers[0] = MemoryUtil.memAlloc(4*window.width*window.height)
+            }
 
-            gl.glReadBuffer(GL4.GL_FRONT)
-            gl.glReadPixels(0, 0, window.width, window.height, GL4.GL_BGRA, GL4.GL_UNSIGNED_BYTE, 0)
+            if(pboBuffers[1] == null) {
+                pboBuffers[1] = MemoryUtil.memAlloc(4*window.width*window.height)
+            }
 
             gl.glBindBuffer(GL4.GL_PIXEL_PACK_BUFFER, pbos[updateIndex])
 
-            val buffer = gl.glMapBuffer(GL4.GL_PIXEL_PACK_BUFFER, GL4.GL_READ_ONLY)
-            if (buffer != null) {
+            gl.glReadBuffer(GL4.GL_BACK)
+            gl.glReadPixels(0, 0, window.width, window.height, GL4.GL_BGRA, GL4.GL_UNSIGNED_BYTE, 0)
+
+            gl.glGetBufferSubData(GL4.GL_PIXEL_PACK_BUFFER, 0,
+                4L * window.width * window.height, pboBuffers[updateIndex])
+
+            if (!mustRecreateFramebuffers) {
                 Platform.runLater {
-                    if (!mustRecreateFramebuffers) embedPanel.update(buffer)
+                    pboBuffers[readIndex]?.let {
+                        val id = viewportPass.output.values.first().getTextureId("Viewport")
+                        embedPanel.update(it, id = id)
+                    }
                 }
-                gl.glUnmapBuffer(GL4.GL_PIXEL_PACK_BUFFER)
             }
 
             gl.glBindBuffer(GL4.GL_PIXEL_PACK_BUFFER, 0)
@@ -1633,6 +1655,10 @@ class OpenGLRenderer(hub: Hub,
      * @return True if the initialisation went alright, False if it failed.
      */
     fun initializeNode(node: Node): Boolean {
+        if(!node.lock.tryLock(2, TimeUnit.MILLISECONDS)) {
+            return false
+        }
+
         val s: OpenGLObjectState
 
         if (node.instanceOf == null) {
@@ -1696,21 +1722,17 @@ class OpenGLRenderer(hub: Hub,
         }
 
         if (node is HasGeometry) {
-            node.lock.tryLock(100, TimeUnit.MILLISECONDS)
-            if (node.lock.tryLock()) {
-                setVerticesAndCreateBufferForNode(node)
-                setNormalsAndCreateBufferForNode(node)
+            setVerticesAndCreateBufferForNode(node)
+            setNormalsAndCreateBufferForNode(node)
 
-                if (node.texcoords.limit() > 0) {
-                    setTextureCoordsAndCreateBufferForNode(node)
-                }
-
-                if (node.indices.limit() > 0) {
-                    setIndicesAndCreateBufferForNode(node)
-                }
-
-                node.lock.unlock()
+            if (node.texcoords.limit() > 0) {
+                setTextureCoordsAndCreateBufferForNode(node)
             }
+
+            if (node.indices.limit() > 0) {
+                setIndicesAndCreateBufferForNode(node)
+            }
+
         }
 
         val matricesUbo = OpenGLUBO(backingBuffer = buffers["UBOBuffer"])
@@ -1726,35 +1748,13 @@ class OpenGLRenderer(hub: Hub,
             s.UBOs.put("Matrices", this)
         }
 
-
         loadTexturesForNode(node, s)
 
         val materialUbo = OpenGLUBO(backingBuffer = buffers["UBOBuffer"])
-        var materialType = 0
-
-        if (node.material.textures.containsKey("ambient") && !s.defaultTexturesFor.contains("ambient")) {
-            materialType = materialType or MATERIAL_HAS_AMBIENT
-        }
-
-        if (node.material.textures.containsKey("diffuse") && !s.defaultTexturesFor.contains("diffuse")) {
-            materialType = materialType or MATERIAL_HAS_DIFFUSE
-        }
-
-        if (node.material.textures.containsKey("specular") && !s.defaultTexturesFor.contains("specular")) {
-            materialType = materialType or MATERIAL_HAS_SPECULAR
-        }
-
-        if (node.material.textures.containsKey("normal") && !s.defaultTexturesFor.contains("normal")) {
-            materialType = materialType or MATERIAL_HAS_NORMAL
-        }
-
-        if (node.material.textures.containsKey("alphamask") && !s.defaultTexturesFor.contains("alphamask")) {
-            materialType = materialType or MATERIAL_HAS_ALPHAMASK
-        }
 
         with(materialUbo) {
             name = "MaterialProperties"
-            add("materialType", { materialType })
+            add("materialType", { node.materialToMaterialType() })
             add("Ka", { node.material.ambient })
             add("Kd", { node.material.diffuse })
             add("Ks", { node.material.specular })
@@ -1785,7 +1785,42 @@ class OpenGLRenderer(hub: Hub,
         node.metadata[this.javaClass.simpleName] = s
 
         s.initialized = true
+        node.lock.unlock()
         return true
+    }
+
+    private fun Node.materialToMaterialType(): Int {
+        var materialType = 0
+        val s = this.metadata["OpenGLRenderer"] as? OpenGLObjectState ?: return 0
+
+        s.defaultTexturesFor.clear()
+        arrayOf("ambient", "diffuse", "specular", "normal", "alphamask", "displacement").forEach {
+            if (!s.textures.containsKey(it)) {
+                s.defaultTexturesFor.add(it)
+            }
+        }
+
+        if (this.material.textures.containsKey("ambient") && !s.defaultTexturesFor.contains("ambient")) {
+            materialType = materialType or MATERIAL_HAS_AMBIENT
+        }
+
+        if (this.material.textures.containsKey("diffuse") && !s.defaultTexturesFor.contains("diffuse")) {
+            materialType = materialType or MATERIAL_HAS_DIFFUSE
+        }
+
+        if (this.material.textures.containsKey("specular") && !s.defaultTexturesFor.contains("specular")) {
+            materialType = materialType or MATERIAL_HAS_SPECULAR
+        }
+
+        if (this.material.textures.containsKey("normal") && !s.defaultTexturesFor.contains("normal")) {
+            materialType = materialType or MATERIAL_HAS_NORMAL
+        }
+
+        if (this.material.textures.containsKey("alphamask") && !s.defaultTexturesFor.contains("alphamask")) {
+            materialType = materialType or MATERIAL_HAS_ALPHAMASK
+        }
+
+        return materialType
     }
 
     /**
@@ -1905,13 +1940,6 @@ class OpenGLRenderer(hub: Hub,
                     }
                 } else {
                     s.textures.put(type, textureCache[texture]!!)
-                }
-            }
-
-            arrayOf("ambient", "diffuse", "specular", "normal", "alphamask", "displacement").forEach {
-                if (!s.textures.containsKey(it)) {
-//                    s.textures.putIfAbsent(it, textureCache["DefaultTexture"]!!)
-                    s.defaultTexturesFor.add(it)
                 }
             }
 
