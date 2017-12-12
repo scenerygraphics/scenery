@@ -264,6 +264,12 @@
             <groupId>net.coremem</groupId>
             <artifactId>CoreMem</artifactId>
             <version>0.4.3</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.google.android.tools</groupId>
+                    <artifactId>dx</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>
@@ -593,25 +599,6 @@
                 <version>2.5.3</version>
                 <configuration>
                     <goals>dokka:javadocJar deploy</goals>
-                </configuration>
-            </plugin>
-
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-enforcer-plugin</artifactId>
-                <version>1.4.1</version>
-
-                <configuration>
-                    <rules>
-                        <banDuplicateClasses>
-                            <ignoreClasses>
-                                <ignoreClass>com.nativelibs4java.*</ignoreClass>
-                                <ignoreClass>junit.*</ignoreClass>
-                                <ignoreClass>org.bridj.*</ignoreClass>
-                                <ignoreClass>com.ochafik.*</ignoreClass>
-                            </ignoreClasses>
-                        </banDuplicateClasses>
-                    </rules>
                 </configuration>
             </plugin>
 
