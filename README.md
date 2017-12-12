@@ -124,10 +124,12 @@ scenery has been tested with a number of different systems and GPUs. If you have
 
 | GPU | Windows, OpenGL | Windows, Vulkan | Linux, OpenGL | Linux, Vulkan | Mac OS X, OpenGL |
 |:--|:--|:--|:--|:--|:--|
+| AMD Radeon R5 M230 (Caicos Pro) | ⛔ | ✅ | ⬜ | ⬜ | ⬜ |
 | AMD Radeon R9 390 (Hawaii Pro) | ✅ | ✅ | ⬜ | ⬜ | ⬜ |
 | AMD Radeon R9 Nano (Fiji XT) | ⛔ | ⛔ | ⬜ | ⬜ | ⬜ |
 | AMD Radeon R9 M370X (Strato Pro) | ⬜ | ⬜ | ⬜ | ⬜ | ✅ |
 | AMD FirePro W9100 (Hawaii XT) | ✅ | ✅ | ⬜ | ⬜ | ⬜ |
+| Intel HD Graphics 4400 (Haswell) | ⛔ | ⬜ | ✅ | ✅ | ⬜ |
 | Nvidia Geforce Titan X (Maxwell) | ✅ | ✅ | ✅ | ✅ | ⬜	 |
 | Nvidia Titan Xp (Pascal) | ✅ | ✅ | ⬜ | ⬜	 | ⬜	 |
 | Nvidia Geforce 1080 Ti (Pascal) | ✅ | ✅ | ✅ | ✅| ⬜	 |
