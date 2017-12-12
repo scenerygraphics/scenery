@@ -6,14 +6,20 @@ import com.sun.javafx.sg.prism.NGRegion
 import com.sun.prism.Graphics
 import com.sun.prism.Texture
 import javafx.scene.image.ImageView
+import javafx.scene.layout.BorderPane
+import javafx.scene.layout.Pane
 import javafx.scene.layout.Region
 import java.nio.ByteBuffer
 import java.util.*
 
 /**
  * Created by ulrik on 6/30/2017.
+ *
+ * @author Ulrik Günther <hello@ulrik.is>
+ * @author Hongkee Moon <moon@mpi-cbg.de>
+ * @author Philipp Hanslovsky <hanslovskyp@janelia.hmmi.org>
  */
-class SceneryPanel(imageWidth: Int, imageHeight: Int) : Region() {
+class SceneryPanel(var imageWidth: Int, var imageHeight: Int) : Pane() {
     private val logger by LazyLogger()
 
     val RESIZE_DELAY_MS = 200L
@@ -27,8 +33,9 @@ class SceneryPanel(imageWidth: Int, imageHeight: Int) : Region() {
 
             PlatformImpl.runLater {
                 imageView.image = image
-                imageView.scaleY = -1.0
             }
+
+            resizeTimer = null
         }
 
     }
@@ -42,7 +49,6 @@ class SceneryPanel(imageWidth: Int, imageHeight: Int) : Region() {
 
     init {
         imageView = ImageView(image)
-        imageView.style = "-fx-background-color: white;"
         imageView.scaleY = -1.0
 
         width = imageWidth.toDouble()
@@ -52,6 +58,10 @@ class SceneryPanel(imageWidth: Int, imageHeight: Int) : Region() {
     }
 
     fun update(buffer: ByteBuffer, id: Int = -1) {
+        if(resizeTimer != null) {
+            return
+        }
+
         latestImageSize = buffer.capacity()
         image.update(buffer)
         imageBuffer = buffer
@@ -63,13 +73,20 @@ class SceneryPanel(imageWidth: Int, imageHeight: Int) : Region() {
             return
         }
 
+        if( !(width > 0 && height > 0 ) ) {
+            return
+        }
+
+
+
         this.width = width
         this.height = height
 
-        imageView.image = null
+        this.imageWidth = width.toInt()
+        this.imageHeight = height.toInt()
+
         imageView.fitWidth = width
         imageView.fitHeight = height
-
         if (resizeTimer != null) {
             resizeTimer?.cancel()
             resizeTimer?.purge()
@@ -86,19 +103,14 @@ class SceneryPanel(imageWidth: Int, imageHeight: Int) : Region() {
 
     private inner class NGSceneryPanelRegion: NGRegion() {
         override fun renderContent(g: Graphics) {
+
+            logger.trace(" w x h : {} {} panel w x h : {} {} buffer sizes {} vs {}", imageWidth, imageHeight, width, height, latestImageSize, this@SceneryPanel.width*this@SceneryPanel.height*4)
             if (latestImageSize == this@SceneryPanel.width.toInt() * this@SceneryPanel.height.toInt() * 4 && imageBuffer != null) {
                 val t = g.resourceFactory.getCachedTexture(image.getWritablePlatformImage(image) as com.sun.prism.Image, Texture.WrapMode.CLAMP_TO_EDGE)
-//                t.update(imageBuffer, com.sun.prism.PixelFormat.BYTE_BGRA_PRE, 0, 0, 0, 0, width.toInt(), height.toInt(), 4*width.toInt(), false)
-
-//                if(textureId != -1) {
-//                    ES2TextureInjector.create(t, textureId, width.toInt(), height.toInt())
-//                }
 
                 g.clearQuad(0.0f, 0.0f, width.toFloat(), height.toFloat())
                 g.drawTexture(t, 0.0f, 0.0f, width.toFloat(), height.toFloat())
-
-//                dirty = DirtyFlag.DIRTY
-            }
+           }
         }
     }
 
