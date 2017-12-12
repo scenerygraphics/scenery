@@ -2,20 +2,7 @@ package graphics.scenery.backends.vulkan
 
 import com.jogamp.opengl.GL2ES3.GL_MAJOR_VERSION
 import com.jogamp.opengl.GL2ES3.GL_MINOR_VERSION
-import com.sun.jna.PointerUtils
-import org.lwjgl.glfw.GLFW.*
-import org.lwjgl.glfw.GLFWNativeWin32.*
-import org.lwjgl.glfw.GLFWNativeGLX.*
-import org.lwjgl.glfw.GLFWNativeX11.*
-import org.lwjgl.opengl.GL
-import org.lwjgl.opengl.GL11.*
-import org.lwjgl.vulkan.*
-import org.lwjgl.vulkan.VK10.*
-import org.lwjgl.opengl.NVDrawVulkanImage
-import org.lwjgl.opengl.GLXNVSwapGroup
-import org.lwjgl.opengl.WGLNVSwapGroup
-import org.lwjgl.system.Platform
-import java.nio.LongBuffer
+import com.sun.jna.Pointer
 import com.sun.jna.platform.win32.User32
 import com.sun.jna.platform.win32.WinDef
 import graphics.scenery.Hub
@@ -23,12 +10,27 @@ import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.SceneryPanel
+import org.lwjgl.glfw.GLFW.*
+import org.lwjgl.glfw.GLFWNativeGLX.glfwGetGLXWindow
+import org.lwjgl.glfw.GLFWNativeWin32.glfwGetWin32Window
+import org.lwjgl.glfw.GLFWNativeX11.glfwGetX11Display
 import org.lwjgl.glfw.GLFWVulkan
 import org.lwjgl.glfw.GLFWWindowSizeCallback
+import org.lwjgl.opengl.GL
+import org.lwjgl.opengl.GL11.*
 import org.lwjgl.opengl.GL30.*
+import org.lwjgl.opengl.GLXNVSwapGroup
+import org.lwjgl.opengl.NVDrawVulkanImage
+import org.lwjgl.opengl.WGLNVSwapGroup
 import org.lwjgl.system.MemoryUtil
-import org.lwjgl.system.MemoryUtil.*
+import org.lwjgl.system.MemoryUtil.NULL
+import org.lwjgl.system.MemoryUtil.memAllocInt
+import org.lwjgl.system.Platform
+import org.lwjgl.vulkan.VK10
+import org.lwjgl.vulkan.VK10.*
+import org.lwjgl.vulkan.VkQueue
 import java.lang.UnsupportedOperationException
+import java.nio.LongBuffer
 
 /**
  * GLFW-based OpenGL swapchain and window, using Nvidia's NV_draw_vulkan_image GL extension.
@@ -190,12 +192,12 @@ class OpenGLSwapchain(val device: VulkanDevice,
         when (Platform.get()) {
             Platform.WINDOWS -> {
                 val hwnd = glfwGetWin32Window(window.window)
-                val hwndP = WinDef.HWND(PointerUtils.fromAddress(hwnd))
+                val hwndP = WinDef.HWND(Pointer(hwnd))
                 val hdc = User32.INSTANCE.GetDC(hwndP)
 
-                WGLNVSwapGroup.wglQueryMaxSwapGroupsNV(PointerUtils.getAddress(hdc), maxGroups, maxBarriers)
+                WGLNVSwapGroup.wglQueryMaxSwapGroupsNV(Pointer.nativeValue(hdc.pointer), maxGroups, maxBarriers)
 
-                if (!WGLNVSwapGroup.wglJoinSwapGroupNV(PointerUtils.getAddress(hdc), swapGroup)) {
+                if (!WGLNVSwapGroup.wglJoinSwapGroupNV(Pointer.nativeValue(hdc.pointer), swapGroup)) {
                     logger.error("Failed to bind to swap group $swapGroup")
                     return false
                 }
@@ -246,10 +248,10 @@ class OpenGLSwapchain(val device: VulkanDevice,
         when (Platform.get()) {
             Platform.WINDOWS -> {
                 val hwnd = glfwGetWin32Window(window.window)
-                val hwndP = WinDef.HWND(PointerUtils.fromAddress(hwnd))
+                val hwndP = WinDef.HWND(Pointer(hwnd))
                 val hdc = User32.INSTANCE.GetDC(hwndP)
 
-                WGLNVSwapGroup.wglJoinSwapGroupNV(PointerUtils.getAddress(hdc), 0)
+                WGLNVSwapGroup.wglJoinSwapGroupNV(Pointer.nativeValue(hdc.pointer), 0)
             }
 
             Platform.LINUX -> {
