@@ -4,14 +4,14 @@ import gnu.trove.map.hash.TIntLongHashMap
 import gnu.trove.set.hash.TIntHashSet
 import graphics.scenery.controls.behaviours.GamepadBehaviour
 import graphics.scenery.utils.ExtractsNatives
+import graphics.scenery.utils.ExtractsNatives.Platform.*
 import graphics.scenery.utils.LazyLogger
 import net.java.games.input.*
 import org.scijava.ui.behaviour.*
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import java.awt.Toolkit
-import java.util.ArrayList
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
+import java.util.logging.Level
 import kotlin.concurrent.thread
 
 /**
@@ -130,32 +130,48 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
     protected val DOUBLE_CLICK_INTERVAL = getDoubleClickInterval()
 
     init {
-        logger.debug("Native JARs for JInput: ${getNativeJars("jinput-platform").joinToString(", ")}")
-        extractLibrariesFromJar(getNativeJars("jinput-platform", hint = "jinput-raw.dll"))
+        java.util.logging.Logger.getLogger(ControllerEnvironment::class.java.name).parent.level = Level.SEVERE
 
-        ControllerEnvironment.getDefaultEnvironment().controllers.forEach {
-            if (it.type == Controller.Type.STICK || it.type == Controller.Type.GAMEPAD) {
-                this.controller = it
-                logger.info("Added gamepad controller: $it")
+        fun ExtractsNatives.Platform.getPlatformJinputLibraryName(): String {
+            return when(this) {
+                WINDOWS -> "jinput-raw_64.dll"
+                LINUX -> "libjinput-linux64.so"
+                MACOS -> "libjinput-osx.jnilib"
+                UNKNOWN -> "none"
             }
         }
 
+        try {
+            logger.debug("Native JARs for JInput: ${getNativeJars("jinput-platform").joinToString(", ")}")
+            extractLibrariesFromJar(getNativeJars("jinput-platform", hint = getPlatform().getPlatformJinputLibraryName()))
+
+            ControllerEnvironment.getDefaultEnvironment().controllers.forEach {
+                if (it.type == Controller.Type.STICK || it.type == Controller.Type.GAMEPAD) {
+                    this.controller = it
+                    logger.info("Added gamepad controller: $it")
+                }
+            }
+        } catch (e: Exception) {
+            logger.warn("Could not initialize JInput: ${e.message}")
+            logger.debug("Traceback: ${e.stackTrace}")
+        }
+
         controllerThread = thread {
-            var event_queue: EventQueue
+            var queue: EventQueue
             val event: Event = Event()
 
             while (true) {
                 controller?.let {
                     controller!!.poll()
 
-                    event_queue = controller!!.eventQueue
+                    queue = controller!!.eventQueue
 
-                    while (event_queue.getNextEvent(event)) {
+                    while (queue.getNextEvent(event)) {
                         controllerEvent(event)
                     }
                 }
 
-                gamepads?.forEach { gamepad ->
+                gamepads.forEach { gamepad ->
                     for (it in controllerAxisDown) {
                         if (Math.abs(it.value) > 0.02f && gamepad.behaviour.axis.contains(it.key)) {
                             logger.trace("Triggering ${it.key} because axis is down (${it.value})")

@@ -6,12 +6,15 @@ import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.utils.SceneryPanel
 import javafx.application.Platform
+import javafx.beans.property.SimpleDoubleProperty
 import javafx.event.EventHandler
 import javafx.geometry.HPos
 import javafx.geometry.Insets
 import javafx.geometry.VPos
 import javafx.scene.Scene
 import javafx.scene.control.Label
+import javafx.scene.image.Image
+import javafx.scene.image.ImageView
 import javafx.scene.layout.*
 import javafx.scene.paint.Color
 import javafx.scene.text.TextAlignment
@@ -24,11 +27,17 @@ import kotlin.concurrent.thread
  * TexturedCubeExample, embedded in a JavaFX window
  *
  * @author Ulrik Günther <hello@ulrik.is>
+ * @author Hongkee Moon <moon@mpi-cbg.de>
+ * @author Philipp Hanslovsky <hanslovskyp@janelia.hmmi.org>
  */
-class JavaFXTexturedCubeExample : SceneryBase("JavaFXTexturedCubeExample", windowWidth = 512, windowHeight = 512) {
+class JavaFXGridPaneExample : SceneryBase("JavaFXGridPaneExample", windowWidth = 512, windowHeight = 512) {
     override fun init() {
         val latch = CountDownLatch(1)
-        var imagePanel: SceneryPanel? = null
+        val imagePanel = SceneryPanel(windowWidth, windowHeight)
+        val pane = GridPane()
+
+        val initialWidth = SimpleDoubleProperty()
+        val initialHeight = SimpleDoubleProperty()
 
         PlatformImpl.startup { }
 
@@ -36,62 +45,52 @@ class JavaFXTexturedCubeExample : SceneryBase("JavaFXTexturedCubeExample", windo
             val stage = Stage()
             stage.title = applicationName
 
-            val stackPane = StackPane()
-            stackPane.backgroundProperty()
-                .set(Background(BackgroundFill(Color.TRANSPARENT, CornerRadii.EMPTY, Insets.EMPTY)))
 
-            val pane = GridPane()
-            val label = Label(applicationName)
+            pane.add(imagePanel, 0, 0 )
 
-            imagePanel = SceneryPanel(windowWidth, windowHeight)
+            initialWidth.bind(pane.widthProperty().divide(2))
+            initialHeight.bind(pane.heightProperty().divide(2))
 
-            GridPane.setHgrow(imagePanel, Priority.ALWAYS)
-            GridPane.setVgrow(imagePanel, Priority.ALWAYS)
+            val cc1 = ColumnConstraints()
+            cc1.percentWidth = 50.0
+            val cc2 = ColumnConstraints()
+            cc2.percentWidth = 50.0
+            val rc1 = RowConstraints()
+            rc1.percentHeight = 50.0
+            val rc2 = RowConstraints()
+            rc2.percentHeight = 50.0
 
-            GridPane.setFillHeight(imagePanel, true)
-            GridPane.setFillWidth(imagePanel, true)
+            pane.columnConstraints.setAll( cc1, cc2 )
+            pane.rowConstraints.setAll( rc1, rc2 )
 
-            GridPane.setHgrow(label, Priority.ALWAYS)
-            GridPane.setHalignment(label, HPos.CENTER)
-            GridPane.setValignment(label, VPos.BOTTOM)
+            val img = Image( "https://github.com/hanslovsky/imglyb-examples/raw/master/resources/butterfly_small.jpg" );
+            val p = Pane()
+            val v = ImageView(img)
+            v.fitWidthProperty().bind(p.widthProperty())
+            v.fitHeightProperty().bind(p.heightProperty())
+            p.children.addAll(v)
 
-            label.maxWidthProperty().bind(pane.widthProperty())
+            pane.add( p, 1, 1)
 
-            pane.style = """
-            -fx-background-color: rgb(20, 255, 20);
-            -fx-font-family: Consolas;
-            -fx-font-weight: 400;
-            -fx-font-size: 1.2em;
-            -fx-text-fill: white;
-            -fx-text-alignment: center;
-            """
-            label.style = """
-            -fx-padding: 0.2em;
-            -fx-text-fill: black;
-            """
-
-            label.textAlignment = TextAlignment.CENTER
-
-            pane.add(imagePanel, 1, 1)
-            pane.add(label, 1, 2)
-            stackPane.children.addAll(pane)
-
-            val scene = Scene(stackPane)
+            val scene = Scene(pane, windowWidth.toDouble(), windowHeight.toDouble())
             stage.scene = scene
             stage.onCloseRequest = EventHandler {
                 renderer?.shouldClose = true
 
                 Platform.runLater { Platform.exit() }
             }
-
             stage.show()
 
+
             latch.countDown()
+
         }
 
         latch.await()
 
-        renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight, embedIn = imagePanel)
+
+
+        renderer = Renderer.createRenderer(hub, applicationName, scene, initialWidth.get().toInt(), initialHeight.get().toInt(), embedIn = imagePanel)
         hub.add(SceneryElement.Renderer, renderer!!)
 
         val boxmaterial = Material()

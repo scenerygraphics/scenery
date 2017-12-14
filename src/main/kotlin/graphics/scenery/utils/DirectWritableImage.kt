@@ -1,13 +1,12 @@
 package graphics.scenery.utils
 
-import java.lang.reflect.Array
-import java.lang.reflect.InvocationTargetException
-import java.nio.ByteBuffer
-
 import coremem.ContiguousMemoryInterface
 import javafx.scene.image.WritableImage
+import java.lang.reflect.Array
 import java.lang.reflect.Field
+import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
+import java.nio.ByteBuffer
 
 /**
  * Direct writable image
@@ -15,7 +14,7 @@ import java.lang.reflect.Method
  * @author Loic Royer <royerloic@gmail.com>, Ulrik Guenther <hello@ulrik.is>
  */
 class DirectWritableImage(pWidth: Int, pHeight: Int) : WritableImage(pWidth, pHeight) {
-    private var getWritablePlatformImage: Method
+    var getWritablePlatformImage: Method
     private var pixelBuffer: Field
     private var serial: Field
     private var pixelsDirty: Method
@@ -69,7 +68,7 @@ class DirectWritableImage(pWidth: Int, pHeight: Int) : WritableImage(pWidth, pHe
     private fun writeToImageDirectly(direct: ByteBuffer,
                                      writableImg: WritableImage) {
         // Get the platform image
-        val prismImg = getWritablePlatformImage.invoke(writableImg) as com.sun.prism.Image
+        val prismImg = getWritablePlatformImage(writableImg) as com.sun.prism.Image
 
         // Replace the buffer
         pixelBuffer.set(prismImg, direct)
@@ -87,7 +86,7 @@ class DirectWritableImage(pWidth: Int, pHeight: Int) : WritableImage(pWidth, pHe
         // Get the platform image
         val getWritablePlatformImage = javafx.scene.image.Image::class.java.getDeclaredMethod("getWritablePlatformImage")
         getWritablePlatformImage.isAccessible = true
-        val prismImg = getWritablePlatformImage.invoke(writableImg) as com.sun.prism.Image
+        val prismImg = getWritablePlatformImage(writableImg) as com.sun.prism.Image
 
         // Replace the buffer
         val pixelBuffer = com.sun.prism.Image::class.java.getDeclaredField("pixelBuffer")
@@ -106,7 +105,7 @@ class DirectWritableImage(pWidth: Int, pHeight: Int) : WritableImage(pWidth, pHe
             Array.getInt(serial.get(prismImg), 0) + 1)
 
         // Invalidate the WritableImage
-        pixelsDirty.invoke(writableImg)
+        pixelsDirty(writableImg)
     }
 
 }
