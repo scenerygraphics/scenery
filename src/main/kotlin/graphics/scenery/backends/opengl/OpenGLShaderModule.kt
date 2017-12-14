@@ -5,6 +5,7 @@ import cleargl.GLShaderType
 import com.jogamp.opengl.GL4
 import graphics.scenery.BufferUtils
 import graphics.scenery.backends.Renderer
+import graphics.scenery.backends.ShaderCompilationException
 import graphics.scenery.spirvcrossj.*
 import graphics.scenery.utils.LazyLogger
 import java.nio.ByteBuffer
@@ -80,13 +81,10 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, clazz: Class<*>, shad
             false
         }
 
-        logger.debug("Reading shader from $actualCodePath...")
-
-        var code = ByteBuffer.allocate(0)
+        logger.info("Reading shader from $actualCodePath...")
 
         val spirv = if(shaderCodePath.toLowerCase().endsWith("spv") && !sourceNewer) {
-            code = BufferUtils.allocateByteAndPut(codeResource.readBytes())
-            code.toSPIRVBytecode()
+            BufferUtils.allocateByteAndPut(codeResource.readBytes()).toSPIRVBytecode()
         } else {
             logger.debug("Compiling $actualCodePath to SPIR-V...")
             // code needs to be compiled first
@@ -102,7 +100,6 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, clazz: Class<*>, shad
                 else -> { logger.warn("Unknown shader extension ." + actualCodePath.substringAfterLast(".")); 0 }
             }
 
-
             val shader = TShader(shaderType)
 
             var messages = EShMessages.EShMsgDefault
@@ -115,7 +112,7 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, clazz: Class<*>, shad
 
             val compileFail = !shader.parse(defaultResources, 450, false, messages)
             if(compileFail) {
-                logger.error("Error in shader compilation of $actualCodePath for ${clazz.simpleName}: ${shader.infoLog}")
+                throw ShaderCompilationException("Error in shader compilation of $actualCodePath for ${clazz.simpleName}: ${shader.infoLog}")
             }
 
             program.addShader(shader)
@@ -126,19 +123,20 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, clazz: Class<*>, shad
                 val tmp = IntVec()
                 libspirvcrossj.glslangToSpv(program.getIntermediate(shaderType), tmp)
 
-                code = tmp.toByteBuffer()
-
                 tmp
             } else {
-                logger.error("Error in shader linking of $actualCodePath for ${clazz.simpleName}: ${program.infoLog}")
-                IntVec()
+                throw ShaderCompilationException("Error in shader linking of $actualCodePath for ${clazz.simpleName}: ${program.infoLog}")
             }
         }
 
+        logger.debug("Emitted ${spirv.size()} SPIR-V opcodes")
+        logger.debug("Creating GLSL compiler ...")
         val compiler = CompilerGLSL(spirv)
 
+        logger.debug("Got compiler")
         val uniformBuffers = compiler.shaderResources.uniformBuffers
 
+        logger.debug("Analysing uniform buffers ...")
         for(i in 0..uniformBuffers.size()-1) {
             logger.debug("Getting ${i.toInt()} for $actualCodePath (size: ${uniformBuffers.capacity()}/${uniformBuffers.size()})")
             val res = uniformBuffers.get(i.toInt())

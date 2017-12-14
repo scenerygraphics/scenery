@@ -5,10 +5,12 @@ layout(location = 0) in vec3 vertexPosition;
 layout(location = 1) in vec3 vertexNormal;
 layout(location = 2) in vec2 vertexTexCoord;
 
-layout(location = 0) out VertexData {
-    vec3 FragPosition;
+layout(location = 0) out VertexDataIn {
+    vec4 Position;
     vec3 Normal;
     vec2 TexCoord;
+    vec3 FragPosition;
+    vec4 Color;
 } Vertex;
 
 
@@ -44,6 +46,15 @@ layout(set = 2, binding = 0) uniform Matrices {
 	int isBillboard;
 } ubo;
 
+layout(set = 4, binding = 0) uniform ShaderProperties {
+    vec4 startColor;
+    vec4 endColor;
+    vec4 lineColor;
+    int capLength;
+    int vertexCount;
+    float edgeWidth;
+};
+
 layout(push_constant) uniform currentEye_t {
     int eye;
 } currentEye;
@@ -60,36 +71,24 @@ void main()
     mv = (vrParameters.stereoEnabled ^ 1) * ViewMatrix * ubo.ModelMatrix + (vrParameters.stereoEnabled * headToEye * ViewMatrix * ubo.ModelMatrix);
 	projectionMatrix = (vrParameters.stereoEnabled ^ 1) * ubo.ProjectionMatrix + vrParameters.stereoEnabled * vrParameters.projectionMatrices[currentEye.eye];
 
-	if(ubo.isBillboard > 0) {
-		mv[0][0] = 1.0f;
-		mv[0][1] = .0f;
-		mv[0][2] = .0f;
-
-		mv[1][0] = .0f;
-		mv[1][1] = 1.0f;
-		mv[1][2] = .0f;
-
-		mv[2][0] = .0f;
-		mv[2][1] = .0f;
-		mv[2][2] = 1.0f;
-	}
-
 	nMVP = projectionMatrix*mv;
 
-//    Vertex.Normal = mat3(ubo.NormalMatrix) * normalize(vertexNormal);
-    //Vertex.Normal = mat3(ubo.NormalMatrix)*vec3(1.0, 0.0, 0.0);
-    Vertex.Normal = vertexNormal;
+    Vertex.Normal = mat3(ubo.NormalMatrix) * normalize(vertexNormal);
     Vertex.TexCoord = vertexTexCoord;
     Vertex.FragPosition = vec3(ubo.ModelMatrix * vec4(vertexPosition, 1.0));
 
-    vec4 p = nMVP * vec4(vertexPosition, 1.0);
-	gl_Position = p;
-	if(p.w == 0.0f) {
-	    p.w = 0.000001;
-	}
+	gl_Position = nMVP * vec4(vertexPosition, 1.0);
+	Vertex.Position = gl_Position;
 
-    gl_PointSize = (max(vertexTexCoord.x, vertexTexCoord.y)/10.0) / p.w;
+   Vertex.Color = lineColor;
 
+//   if(gl_VertexID < capLength) {
+   if(0 < capLength) {
+        Vertex.Color = startColor;
+   }
+
+//   if(gl_VertexID > vertexCount-capLength) {
+   if(vertexCount > vertexCount-capLength) {
+        Vertex.Color = endColor;
+   }
 }
-
-

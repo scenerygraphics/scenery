@@ -12,14 +12,14 @@ import java.util.jar.JarFile
  * @author Ulrik Günther <hello@ulrik.is>
  */
 interface ExtractsNatives {
-    private enum class Platform {
+    enum class Platform {
         UNKNOWN, WINDOWS, LINUX, MACOS
     }
 
     /**
      * Returns the platform based on the os.name system property.
      */
-    private fun getPlatform(): Platform {
+    fun getPlatform(): Platform {
         val os = System.getProperty("os.name").toLowerCase()
 
         if (os.contains("win")) {
@@ -125,15 +125,21 @@ interface ExtractsNatives {
         val classpath = System.getProperty("java.class.path")
 
         if (classpath.toLowerCase().contains("imagej-launcher")) {
-            var res = Thread.currentThread().contextClassLoader.getResource(hint)
+            val res = Thread.currentThread().contextClassLoader.getResource(hint)
 
             if (res == null) {
-                System.err.println("ERROR: Could not find JAR with native libraries.")
+                LoggerFactory.getLogger(this.javaClass.simpleName).error("Could not find JAR with native libraries.")
                 return listOf()
             }
 
             var jar = res.path
-            jar = jar.substring(jar.indexOf("file:/") + 6).substringBeforeLast("!")
+            var pathOffset = 5
+
+            if(getPlatform() == Platform.WINDOWS) {
+                pathOffset = 6
+            }
+
+            jar = jar.substring(jar.indexOf("file:/") + pathOffset).substringBeforeLast("!")
             return jar.split(File.pathSeparator)
         } else {
             return classpath.split(File.pathSeparator).filter { it.contains(searchName) }

@@ -1,10 +1,11 @@
-#version 450
-#extension GL_ARB_separate_shader_objects: enable
+#version 450 core
 
-layout(location = 0) in VertexData {
-    vec3 FragPosition;
+in VertexData {
+    vec3 Position;
     vec3 Normal;
     vec2 TexCoord;
+    vec3 FragPosition;
+    vec4 Color;
 } Vertex;
 
 layout(location = 0) out vec3 Position;
@@ -49,7 +50,14 @@ layout(set = 3, binding = 0) uniform MaterialProperties {
     ObjectTextures[5] - displacement
 */
 
-layout(set = 4, binding = 0) uniform sampler2D ObjectTextures[NUM_OBJECT_TEXTURES];
+layout(set = 4, binding = 0) uniform ShaderProperties {
+    vec4 startColor;
+    vec4 endColor;
+    vec4 lineColor;
+    int capLength;
+    int vertexCount;
+    float edgeWidth;
+};
 
 // courtesy of Christian Schueler - www.thetenthplanet.de/archives/1180
 mat3 TBN(vec3 N, vec3 position, vec2 uv) {
@@ -106,52 +114,16 @@ vec2 EncodeOctaH( vec3 n )
 }
 
 void main() {
-    if( Vertex.TexCoord.x < 10e-6 && Vertex.TexCoord.y  < 10e-6 ) {
-        discard;
-    }
-
-    vec2 coord = gl_PointCoord - vec2(0.5);
-    if(length(coord) > 0.5) {
-        discard;
-    }
-
     Position = Vertex.FragPosition;
     DiffuseAlbedo.rgb = vec3(0.0f, 0.0f, 0.0f);
 
-    DiffuseAlbedo.rgb = Material.Kd;
+    DiffuseAlbedo.rgb = Vertex.Color.rgb;
     DiffuseAlbedo.a = 0.0f;
-
-    // Correct
-    DiffuseAlbedo.rgb = Vertex.Normal;
-
-    //DiffuseAlbedo.rgb = vec3( Vertex.TexCoord.x, Vertex.TexCoord.y, 1.0f );
-
-    //DiffuseAlbedo.rgb = vec3(0.0, 1.0, 0.0);
-
-/*    if((materialType & MATERIAL_HAS_AMBIENT) == MATERIAL_HAS_AMBIENT) {
-        //DiffuseAlbedo.rgb = texture(ObjectTextures[0], VertexIn.TexCoord).rgb;
-    }
-
-    if((materialType & MATERIAL_HAS_DIFFUSE) == MATERIAL_HAS_DIFFUSE) {
-        DiffuseAlbedo.rgb = texture(ObjectTextures[1], Vertex.TexCoord).rgb;
-    }
-
-    if((materialType & MATERIAL_HAS_SPECULAR) == MATERIAL_HAS_SPECULAR) {
-        DiffuseAlbedo.a = texture(ObjectTextures[2], Vertex.TexCoord).r;
-    }
-
-    if((materialType & MATERIAL_HAS_ALPHAMASK) == MATERIAL_HAS_ALPHAMASK) {
-        if(texture(ObjectTextures[4], Vertex.TexCoord).r < 0.1f) {
-            discard;
-        }
-    } */
-
-
 /*
 Normals are encoded as Octahedron Normal Vectors, or Spherical Normal Vectors, which saves on storage as well as read/write processing of one
 component. If using Spherical Encoding, do not forget to use spherical decode function in DeferredLighting shader.
 */
-    vec2 EncodedNormal = EncodeOctaH(mat3(ubo.NormalMatrix)*vec3(1.0, 0.0, 0.0));
+    vec2 EncodedNormal = EncodeOctaH(Vertex.Normal);
 //    vec3 NormalizedNormal = normalize(VertexIn.Normal);
 //    vec2 EncodedNormal = EncodeSpherical(NormalizedNormal);
 
@@ -164,5 +136,4 @@ component. If using Spherical Encoding, do not forget to use spherical decode fu
     } else {
         Normal = EncodedNormal;
     }
-
 }

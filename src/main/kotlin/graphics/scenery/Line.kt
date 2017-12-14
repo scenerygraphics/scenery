@@ -4,57 +4,63 @@ import cleargl.GLVector
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.util.*
+import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.reflect.KProperty
 
 /**
- * Class, deriving from Node for creating 3D lines
+ * Class for creating 3D lines, derived from [Node] and using [HasGeometry]
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class Line : Node("Line"), HasGeometry {
-    /** Array to store the current line points */
-    var linePoints = ArrayList<Float>()
+class Line(var capacity: Int = 50) : Node("Line"), HasGeometry {
     /** Size of one vertex (e.g. 3 in 3D) */
     override val vertexSize: Int = 3
     /** Size of one texcoord (e.g. 2 in 3D) */
-    override val texcoordSize: Int = 0
+    override val texcoordSize: Int = 2
     /** Geometry type -- Default for Line is [GeometryType.LINE] */
     override var geometryType: GeometryType = GeometryType.LINE_STRIP_ADJACENCY
     /** Vertex buffer */
-    override var vertices: FloatBuffer by this
+    override var vertices: FloatBuffer = BufferUtils.allocateFloat(3*capacity)
     /** Normal buffer */
-    override var normals: FloatBuffer by this
+    override var normals: FloatBuffer = BufferUtils.allocateFloat(3*capacity)
     /** Texcoord buffer */
-    override var texcoords: FloatBuffer = FloatBuffer.wrap(floatArrayOf())
+    override var texcoords: FloatBuffer = BufferUtils.allocateFloat(2*capacity)
     /** Index buffer */
     override var indices: IntBuffer = IntBuffer.wrap(intArrayOf())
 
     /** Defines whether a class-name derived shader shall be used by the renderer, default true */
     override var useClassDerivedShader = true
 
-    /** Shader property for the line's edge width. Consumed by the renderer. */
+
+    /** Shader property for the line's starting segment color. Consumed by the renderer. */
     @ShaderProperty
-    var edgeWidth = 0.04f
+    var startColor = GLVector(0.0f, 1.0f, 0.0f, 1.0f)
+
+    /** Shader property for the line's color. Consumed by the renderer. */
+    @ShaderProperty
+    var lineColor = GLVector(1.0f, 1.0f, 1.0f, 1.0f)
+
+    /** Shader property for the line's end segment color. Consumed by the renderer. */
+    @ShaderProperty
+    var endColor = GLVector(0.7f, 0.5f, 0.5f, 1.0f)
+
+    /** Shader property for the line's cap length (start and end caps). Consumed by the renderer. */
+    @ShaderProperty
+    var capLength = 1
 
     /** (Private) shader property to keep track of the current number of vertices. Consumed by the renderer. */
     @ShaderProperty
     private var vertexCount: Int = 0
 
-    /** Shader property for the line's color. Consumed by the renderer. */
+    /** Shader property for the line's edge width. Consumed by the renderer. */
     @ShaderProperty
-    var lineColor = GLVector(1.0f, 1.0f, 1.0f)
+    var edgeWidth = 2.0f
 
-    /** Shader property for the line's starting segment color. Consumed by the renderer. */
-    @ShaderProperty
-    var startColor = GLVector(0.0f, 1.0f, 0.0f)
-
-    /** Shader property for the line's end segment color. Consumed by the renderer. */
-    @ShaderProperty
-    var endColor = GLVector(0.7f, 0.5f, 0.5f)
-
-    /** Shader property for the line's cap length (start and end caps). Consumed by the renderer. */
-    @ShaderProperty
-    var capLength = 1
+    init {
+        vertices.limit(0)
+        normals.limit(0)
+        texcoords.limit(0)
+    }
 
     /**
      * Adds a line point to the line.
@@ -62,103 +68,65 @@ class Line : Node("Line"), HasGeometry {
      * @param p     The vector containing the vertex data
      */
     fun addPoint(p: GLVector) {
-        linePoints.add(p.x())
-        linePoints.add(p.y())
-        linePoints.add(p.z())
+        if(vertices.limit() + 3 > vertices.capacity()) {
+            val newVertices = BufferUtils.allocateFloat(vertices.capacity() + 3*capacity)
+            vertices.position(0)
+            vertices.limit(vertices.capacity())
+            newVertices.put(vertices)
+            newVertices.limit(vertices.limit())
 
-        dirty = true
-        vertexCount = linePoints.size/vertexSize
-    }
+            vertices = newVertices
 
-    /**
-     * Returns the line's current length, using a Euclidean metric.
-     *
-     * @returns The line's length as Float
-     */
-    fun getLength(): Float {
-        var i = 0
-        var len = 0.0f
-        while(i < linePoints.size) {
-            len += Math.sqrt(1.0*linePoints[i]*linePoints[i] + 1.0*linePoints[i+1]*linePoints[i+1] + 1.0*linePoints[i+2]*linePoints[i+2]).toFloat()
-            i = i + 3
+            val newNormals = BufferUtils.allocateFloat(vertices.capacity() + 3*capacity)
+            normals.position(0)
+            normals.limit(normals.capacity())
+            newNormals.put(normals)
+            newNormals.limit(normals.limit())
+
+            normals = newNormals
+
+
+            val newTexcoords = BufferUtils.allocateFloat(vertices.capacity() + 2*capacity)
+            texcoords.position(0)
+            texcoords.limit(texcoords.capacity())
+            newTexcoords.put(texcoords)
+            newTexcoords.limit(texcoords.limit())
+
+            texcoords = newTexcoords
+
+            capacity = vertices.capacity()/3
         }
 
-        return len
-    }
+        vertices.position(vertices.limit())
+        vertices.limit(vertices.limit() + 3)
+        vertices.put(p.toFloatArray())
+        vertices.flip()
 
-    /**
-     * Removes the line point at the given index.
-     *
-     * @param index     The index of the point to remove from the line's vertex array.
-     */
-    fun removePointAtIndex(index: Int) {
-        linePoints.removeAt(index*3 + 0)
-        linePoints.removeAt(index*3 + 1)
-        linePoints.removeAt(index*3 + 2)
+        normals.position(normals.limit())
+        normals.limit(normals.limit() + 3)
+        normals.put(p.toFloatArray())
+        normals.flip()
+
+        texcoords.position(texcoords.limit())
+        texcoords.limit(texcoords.limit() + 2)
+        texcoords.put(0.225f)
+        texcoords.put(0.225f)
+        texcoords.flip()
 
         dirty = true
-        vertexCount = linePoints.size/vertexSize
+        vertexCount = vertices.limit()/vertexSize
     }
 
     /**
      * Fully clears the line.
      */
     fun clearPoints() {
-        linePoints.clear()
-    }
+        vertices.clear()
+        normals.clear()
+        texcoords.clear()
 
-    /**
-     * Extension function required to use delegation
-     */
-    operator fun setValue(line: Line, property: KProperty<*>, floats: FloatBuffer) {
-    }
-
-    /**
-     * Extension function of FloatBuffer to delegate buffer creation to this class.
-     *
-     * @param line      The line to create a FloatBuffer for
-     * @param property  The requested property for which the FloatBuffer shall be created.
-     *                  Currently, vertices and normals are supported.
-     *
-     * @returns FloatBuffer for storage.
-     */
-    operator fun getValue(line: Line, property: KProperty<*>): FloatBuffer {
-        return when(property.name) {
-            "vertices" -> {
-                val buf: FloatBuffer = BufferUtils.allocateFloat(line.linePoints.size+6)
-                buf.put(line.linePoints[0])
-                buf.put(line.linePoints[1])
-                buf.put(line.linePoints[2])
-
-                buf.put(line.linePoints.toFloatArray())
-
-                buf.put((line.linePoints[line.linePoints.size-3]))
-                buf.put((line.linePoints[line.linePoints.size-2]))
-                buf.put((line.linePoints[line.linePoints.size-1]))
-
-                buf.flip()
-
-                return buf
-
-            }
-            "normals" -> {
-                val buf: FloatBuffer = BufferUtils.allocateFloat(line.linePoints.size+6)
-                buf.put(line.linePoints[0])
-                buf.put(line.linePoints[1])
-                buf.put(line.linePoints[2])
-
-                buf.put(line.linePoints.toFloatArray())
-
-                buf.put((line.linePoints[line.linePoints.size-3]))
-                buf.put((line.linePoints[line.linePoints.size-2]))
-                buf.put((line.linePoints[line.linePoints.size-1]))
-
-                buf.flip()
-
-                return buf
-
-            }
-            else -> FloatBuffer.wrap(floatArrayOf())
-        }
+        vertices.limit(0)
+        normals.limit(0)
+        texcoords.limit(0)
     }
 }
