@@ -135,6 +135,6 @@ scenery has been tested with a number of different systems and GPUs. If you have
 | Nvidia Geforce 960 (Maxwell) | ✅ | ✅ | ⬜ | ⬜ | ⬜ |
 | Nvidia Quadro K6000 (Kepler) | ✅ | ✅ | ⬜ | ⬜ | ⬜ |
 | Nvidia Geforce 750M (Maxwell) | ✅  | ✅  | ⬜ | ⬜ | ✅  |
-| Nvidia Geforce 650M | ⬜  | ⬜  | ⬜ | ⬜ | ✅  |
+| Nvidia Geforce 650M (Kepler) | ⬜  | ⬜  | ⬜ | ⬜ | ✅  |
 
 Please also note that Nvidia's Vulkan drivers before version 382.33 have a bug that prevents scenery's Vulkan renderer from working correctly.
