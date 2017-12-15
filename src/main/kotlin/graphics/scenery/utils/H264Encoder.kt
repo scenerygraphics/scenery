@@ -20,42 +20,12 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String) {
     protected var outputFile: String = filename
 
     init {
+        var ret = 0
         av_log_set_level(AV_LOG_TRACE)
+        avcodec_register_all()
         av_register_all()
 
-        codec = avcodec_find_encoder(AV_CODEC_ID_H264)
-        if(codec == null) {
-            logger.error("Could not find H264 encoder")
-        }
-
-        codecContext = avcodec_alloc_context3(codec)
-        if(codecContext == null) {
-            logger.error("Could not allocate video codecContext")
-        }
-
-        codecContext.codec_id(codec.id())
-        codecContext.bit_rate(400000)
-        codecContext.width(512)
-        codecContext.height(512)
-        codecContext.time_base(timebase)
-        codecContext.framerate(AVRational().num(25).den(1))
-        codecContext.gop_size(10)
-        codecContext.max_b_frames(1)
-        codecContext.pix_fmt(AV_PIX_FMT_YUV420P)
-        codecContext.codec_type(AVMEDIA_TYPE_VIDEO)
-
-        av_opt_set(codecContext.priv_data(), "preset", "ultrafast", 0)
-        var ret = avcodec_open2(codecContext, codec, AVDictionary())
-        if(ret < 0) {
-            logger.error("Could not open codec")
-        }
-
-        frame = av_frame_alloc()
-        frame.format(codecContext.pix_fmt())
-        frame.width(codecContext.width())
-        frame.height(codecContext.height())
-
-        val networked = true
+        val networked = false
         val url = "rtp://127.0.0.1:13337"
 
         val format = if(networked) {
@@ -73,14 +43,55 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String) {
             logger.error("Could not allocate output context: $ret")
         }
 
+        outputContext.video_codec_id(AV_CODEC_ID_H264)
+        outputContext.audio_codec_id(AV_CODEC_ID_NONE)
+
+        codec = avcodec_find_encoder(outputContext.video_codec_id())
+        if(codec == null) {
+            logger.error("Could not find H264 encoder")
+        }
+
+        codecContext = avcodec_alloc_context3(codec)
+        if(codecContext == null) {
+            logger.error("Could not allocate video codecContext")
+        }
+
+        codecContext.codec_id(outputContext.oformat().video_codec())
+        codecContext.bit_rate(400000)
+        codecContext.width(512)
+        codecContext.height(512)
+        codecContext.time_base(timebase)
+//        codecContext.framerate(AVRational().num(25).den(1))
+        codecContext.gop_size(10)
+        codecContext.max_b_frames(1)
+        codecContext.pix_fmt(AV_PIX_FMT_YUV420P)
+//        codecContext.codec_type(AVMEDIA_TYPE_VIDEO)
+
+        if(outputContext.oformat().flags() and AVFMT_GLOBALHEADER == 1) {
+            logger.info("Output format requires global format header")
+            codecContext.flags(codecContext.flags() or CODEC_FLAG_GLOBAL_HEADER)
+        }
+//        av_opt_set(codecContext.priv_data(), "preset", "ultrafast", 0)
+        ret = avcodec_open2(codecContext, codec, AVDictionary())
+        if(ret < 0) {
+            logger.error("Could not open codec")
+        }
+
         stream = avformat_new_stream(outputContext, null)
         if(stream == null) {
             logger.error("Could not allocate stream")
         }
-        stream.time_base(timebase)
+
+//        stream.time_base(timebase)
         stream.id(outputContext.nb_streams()-1)
-        stream.r_frame_rate(codecContext.framerate())
+//        stream.r_frame_rate(codecContext.framerate())
+
         logger.info("Stream ID will be ${stream.id()}")
+
+        frame = av_frame_alloc()
+        frame.format(codecContext.pix_fmt())
+        frame.width(codecContext.width())
+        frame.height(codecContext.height())
 
         ret = avcodec_parameters_from_context(stream.codecpar(), codecContext)
         if(ret < 0) {
@@ -94,13 +105,17 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String) {
 
         av_dump_format(outputContext, 0, outputFile, 1)
 
-        logger.info("IOContext: ${outputContext.pb()}")
-        outputContext.pb(AVIOContext())
+        if(outputContext.oformat().flags() and AVFMT_NOFILE == 0) {
+            outputContext.pb(AVIOContext())
+            logger.info("IOContext: ${outputContext.pb()}")
 
-        ret = avio_open(outputContext.pb(), outputFile, AVIO_FLAG_WRITE)
+            ret = avio_open(outputContext.pb(), outputFile, AVIO_FLAG_WRITE)
 
-        if(ret < 0) {
-            logger.error("Failed to open output file $outputFile: $ret")
+            if (ret < 0) {
+                logger.error("Failed to open output file $outputFile: $ret")
+            }
+        } else {
+            logger.info("Not opening file as not required by outputContext")
         }
 
         logger.info("Will write to $outputFile, with format ${String(outputContext.oformat().long_name().stringBytes)}")
