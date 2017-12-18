@@ -1065,6 +1065,9 @@ class OpenGLRenderer(hub: Hub,
         gl.glBindFramebuffer(GL4.GL_FRAMEBUFFER, 0)
     }
 
+
+    var encoder: H264Encoder? = null
+    var recordMovie: Boolean = true
     /**
      * Renders the [Scene].
      *
@@ -1535,7 +1538,11 @@ class OpenGLRenderer(hub: Hub,
                 viewportPass.output.values.first().getTextureId("Viewport"))
         }
 
-        embedIn?.let { embedPanel ->
+        if(encoder == null || encoder?.frameWidth != window.width || encoder?.frameHeight != window.height) {
+            encoder = H264Encoder(window.width, window.height, "${SimpleDateFormat("yyyy-MM-dd_HH.mm.ss").format(Date())}.mp4")
+        }
+
+        if(embedIn != null || recordMovie) {
             if (shouldClose || mustRecreateFramebuffers) {
                 return
             }
@@ -1576,17 +1583,25 @@ class OpenGLRenderer(hub: Hub,
 
             gl.glBindBuffer(GL4.GL_PIXEL_PACK_BUFFER, pbos[updateIndex])
 
-            gl.glReadBuffer(GL4.GL_BACK)
+            gl.glReadBuffer(GL4.GL_FRONT)
             gl.glReadPixels(0, 0, window.width, window.height, GL4.GL_BGRA, GL4.GL_UNSIGNED_BYTE, 0)
 
             gl.glGetBufferSubData(GL4.GL_PIXEL_PACK_BUFFER, 0,
                 4L * window.width * window.height, pboBuffers[updateIndex])
 
             if (!mustRecreateFramebuffers) {
-                Platform.runLater {
+                embedIn?.let { embedPanel ->
+                    Platform.runLater {
+                        pboBuffers[readIndex]?.let {
+                            val id = viewportPass.output.values.first().getTextureId("Viewport")
+                            embedPanel.update(it, id = id)
+                        }
+                    }
+                }
+
+                encoder?.let { e ->
                     pboBuffers[readIndex]?.let {
-                        val id = viewportPass.output.values.first().getTextureId("Viewport")
-                        embedPanel.update(it, id = id)
+//                        e.encodeFrame(it)
                     }
                 }
             }
@@ -1595,6 +1610,7 @@ class OpenGLRenderer(hub: Hub,
 
             resizeHandler.queryResize()
         }
+
 
         if (screenshotRequested && joglDrawable != null) {
             try {
