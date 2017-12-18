@@ -7,7 +7,7 @@ import org.bytedeco.javacpp.avutil.*
 import org.bytedeco.javacpp.presets.avutil
 import java.nio.ByteBuffer
 
-class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String) {
+class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, fps: Int = 25) {
     protected val logger by LazyLogger()
     protected val frame: AVFrame
     protected val codec: AVCodec
@@ -16,7 +16,8 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String) {
     protected val stream: AVStream
 
     protected var frameNum = 0L
-    protected val timebase = AVRational().num(1).den(25)
+    protected val timebase = AVRational().num(1).den(fps)
+    protected val framerate = AVRational().num(fps).den(1)
 
     protected var outputFile: String = filename
 
@@ -59,10 +60,10 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String) {
 
         codecContext.codec_id(outputContext.oformat().video_codec())
         codecContext.bit_rate(400000)
-        codecContext.width(512)
-        codecContext.height(512)
+        codecContext.width(frameWidth)
+        codecContext.height(frameHeight)
         codecContext.time_base(timebase)
-        codecContext.framerate(AVRational().num(25).den(1))
+        codecContext.framerate(framerate)
         codecContext.gop_size(10)
         codecContext.max_b_frames(1)
         codecContext.pix_fmt(AV_PIX_FMT_YUV420P)
@@ -72,7 +73,7 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String) {
             logger.info("Output format requires global format header")
             codecContext.flags(codecContext.flags() or CODEC_FLAG_GLOBAL_HEADER)
         }
-//        av_opt_set(codecContext.priv_data(), "preset", "ultrafast", 0)
+        av_opt_set(codecContext.priv_data(), "preset", "ultrafast", 0)
         ret = avcodec_open2(codecContext, codec, AVDictionary())
         if(ret < 0) {
             logger.error("Could not open codec")
@@ -83,9 +84,9 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String) {
             logger.error("Could not allocate stream")
         }
 
-//        stream.time_base(timebase)
+        stream.time_base(timebase)
         stream.id(outputContext.nb_streams()-1)
-//        stream.r_frame_rate(codecContext.framerate())
+        stream.r_frame_rate(codecContext.framerate())
 
         logger.info("Stream ID will be ${stream.id()}")
 
@@ -161,15 +162,14 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String) {
 
             av_packet_rescale_ts(packet, timebase, stream.time_base())
             packet.stream_index(0)
-            packet.pts(AV_NOPTS_VALUE)
-            packet.dts(AV_NOPTS_VALUE)
-            packet.pos(-1)
-            ret = av_write_frame(outputContext, packet)
+            ret = av_interleaved_write_frame(outputContext, packet)
 
             if(ret < 0) {
                 logger.error("Error writing frame $frameNum: ${ffmpegErrorString(ret)}")
             }
         }
+
+        logger.info("Encoded frame $frameNum")
 
         frameNum++
     }
