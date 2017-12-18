@@ -1,15 +1,19 @@
 package graphics.scenery.utils
 
 import org.bytedeco.javacpp.BytePointer
+import org.bytedeco.javacpp.DoublePointer
 import org.bytedeco.javacpp.avcodec.*
 import org.bytedeco.javacpp.avformat.*
 import org.bytedeco.javacpp.avutil.*
 import org.bytedeco.javacpp.presets.avutil
+import org.bytedeco.javacpp.swscale
 import java.nio.ByteBuffer
 
-class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, fps: Int = 25) {
+class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, fps: Int = 60) {
     protected val logger by LazyLogger()
     protected val frame: AVFrame
+    protected val tmpframe: AVFrame
+
     protected val codec: AVCodec
     protected val codecContext: AVCodecContext
     protected val outputContext: AVFormatContext = AVFormatContext()
@@ -59,7 +63,7 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, f
         }
 
         codecContext.codec_id(outputContext.oformat().video_codec())
-        codecContext.bit_rate(400000)
+        codecContext.bit_rate(4000000)
         codecContext.width(frameWidth)
         codecContext.height(frameHeight)
         codecContext.time_base(timebase)
@@ -94,6 +98,11 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, f
         frame.format(codecContext.pix_fmt())
         frame.width(codecContext.width())
         frame.height(codecContext.height())
+
+        tmpframe = av_frame_alloc()
+        tmpframe.format(codecContext.pix_fmt())
+        tmpframe.width(codecContext.width())
+        tmpframe.height(codecContext.height())
 
         outputContext.streams(0, stream)
 
@@ -135,16 +144,34 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, f
         }
     }
 
+    var scalingContext: swscale.SwsContext? = null
+
     fun encodeFrame(data: ByteBuffer?) {
+        if(scalingContext == null) {
+            scalingContext = swscale.sws_getContext(
+                frameWidth, frameHeight, AV_PIX_FMT_BGRA,
+                frameWidth, frameHeight, AV_PIX_FMT_YUV420P, swscale.SWS_BICUBIC,
+                null, null, DoublePointer())
+        }
+
+        av_frame_make_writable(tmpframe)
+        av_frame_make_writable(frame)
+
+        av_image_fill_arrays(tmpframe.data(), tmpframe.linesize(), BytePointer(data), AV_PIX_FMT_BGRA, frameWidth, frameHeight, 1)
+//        av_image_fill_arrays(frame.data(), frame.linesize(), BytePointer(data), AV_PIX_FMT_YUV420P, frameWidth, frameHeight, 1)
+
         val packet = AVPacket()
         av_init_packet(packet)
 
-        av_frame_make_writable(frame)
-
-        frame.data(0, BytePointer(data))
-        frame.pts(frameNum)
-
         var ret = if(data != null) {
+            tmpframe.pts(frameNum)
+            frame.pts(frameNum)
+
+            swscale.sws_scale(scalingContext,
+                tmpframe.data(),
+                tmpframe.linesize(), 0, frameHeight,
+                frame.data(), frame.linesize())
+
             avcodec_send_frame(codecContext, frame)
         } else {
             avcodec_send_frame(codecContext, null)
