@@ -1601,14 +1601,16 @@ class OpenGLRenderer(hub: Hub,
 
                 encoder?.let { e ->
                     pboBuffers[readIndex]?.let {
-//                        e.encodeFrame(it)
+                        e.encodeFrame(it)
                     }
                 }
             }
 
             gl.glBindBuffer(GL4.GL_PIXEL_PACK_BUFFER, 0)
 
-            resizeHandler.queryResize()
+            embedIn?.let {
+                resizeHandler.queryResize()
+            }
         }
 
 
@@ -2391,5 +2393,9 @@ class OpenGLRenderer(hub: Hub,
 
     override fun close() {
         libspirvcrossj.finalizeProcess()
+
+        encoder?.let {
+            it.finish()
+        }
     }
 }
