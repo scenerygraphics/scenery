@@ -191,11 +191,6 @@ class OpenGLRenderer(hub: Hub,
 
             drawable?.setSurfaceSize(window.width, window.height)
 
-            embedIn?.let { panel ->
-                panel.prefWidth = window.width.toDouble()
-                panel.prefHeight = window.height.toDouble()
-            }
-
             lastResize = -1L
         }
     }
@@ -317,11 +312,6 @@ class OpenGLRenderer(hub: Hub,
                         panel.heightProperty()?.addListener { _, _, newHeight ->
                             resizeHandler.lastHeight = newHeight.toInt()
                         }
-
-                        panel.minWidth = 100.0
-                        panel.minHeight = 100.0
-                        panel.prefWidth = window.width.toDouble()
-                        panel.prefHeight = window.height.toDouble()
                     }
 
                     window = SceneryWindow.JavaFXStage(embedIn!!)
