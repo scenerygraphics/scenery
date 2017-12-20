@@ -6,9 +6,7 @@ import com.sun.javafx.sg.prism.NGRegion
 import com.sun.prism.Graphics
 import com.sun.prism.Texture
 import javafx.scene.image.ImageView
-import javafx.scene.layout.BorderPane
 import javafx.scene.layout.Pane
-import javafx.scene.layout.Region
 import java.nio.ByteBuffer
 import java.util.*
 
@@ -53,6 +51,9 @@ class SceneryPanel(var imageWidth: Int, var imageHeight: Int) : Pane() {
 
         width = imageWidth.toDouble()
         height = imageHeight.toDouble()
+
+        minWidth = 1.0
+        minHeight = 1.0
 
         children.add(imageView)
     }
