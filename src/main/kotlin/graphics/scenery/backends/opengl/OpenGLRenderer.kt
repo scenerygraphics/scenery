@@ -100,6 +100,11 @@ class OpenGLRenderer(hub: Hub,
     /** Flag set when a screenshot is requested */
     private var screenshotRequested = false
 
+    /** H264 movie encoder */
+    private var encoder: H264Encoder? = null
+    /** Flag set when a movie recording is requested */
+    private var recordMovie = false
+
     /** Eyes of the stereo render targets */
     var eyes = (0..0)
 
@@ -1055,9 +1060,6 @@ class OpenGLRenderer(hub: Hub,
         gl.glBindFramebuffer(GL4.GL_FRAMEBUFFER, 0)
     }
 
-
-    var encoder: H264Encoder? = null
-    var recordMovie: Boolean = true
     /**
      * Renders the [Scene].
      *
@@ -1528,13 +1530,16 @@ class OpenGLRenderer(hub: Hub,
                 viewportPass.output.values.first().getTextureId("Viewport"))
         }
 
-        if(encoder == null || encoder?.frameWidth != window.width || encoder?.frameHeight != window.height) {
-            encoder = H264Encoder(window.width, window.height, "${SimpleDateFormat("yyyy-MM-dd_HH.mm.ss").format(Date())}.mp4")
-        }
-
         if(embedIn != null || recordMovie) {
             if (shouldClose || mustRecreateFramebuffers) {
+                encoder?.finish()
+
+                encoder = null
                 return
+            }
+
+            if (encoder == null || encoder?.frameWidth != window.width || encoder?.frameHeight != window.height) {
+                encoder = H264Encoder(window.width, window.height, "$applicationName - ${SimpleDateFormat("yyyy-MM-dd_HH.mm.ss").format(Date())}.mp4")
             }
 
             readIndex = (readIndex + 1) % 2
@@ -2340,6 +2345,17 @@ class OpenGLRenderer(hub: Hub,
 
     override fun screenshot() {
         screenshotRequested = true
+    }
+
+    fun recordMovie() {
+        if(recordMovie) {
+            encoder?.finish()
+            encoder = null
+
+            recordMovie = false
+        } else {
+            recordMovie = true
+        }
     }
 
     private fun Blending.BlendFactor.toOpenGL() = when (this) {
