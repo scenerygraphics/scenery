@@ -100,6 +100,11 @@ class OpenGLRenderer(hub: Hub,
     /** Flag set when a screenshot is requested */
     private var screenshotRequested = false
 
+    /** H264 movie encoder */
+    private var encoder: H264Encoder? = null
+    /** Flag set when a movie recording is requested */
+    private var recordMovie = false
+
     /** Eyes of the stereo render targets */
     var eyes = (0..0)
 
@@ -1525,9 +1530,16 @@ class OpenGLRenderer(hub: Hub,
                 viewportPass.output.values.first().getTextureId("Viewport"))
         }
 
-        embedIn?.let { embedPanel ->
+        if(embedIn != null || recordMovie) {
             if (shouldClose || mustRecreateFramebuffers) {
+                encoder?.finish()
+
+                encoder = null
                 return
+            }
+
+            if (encoder == null || encoder?.frameWidth != window.width || encoder?.frameHeight != window.height) {
+                encoder = H264Encoder(window.width, window.height, "$applicationName - ${SimpleDateFormat("yyyy-MM-dd_HH.mm.ss").format(Date())}.mp4")
             }
 
             readIndex = (readIndex + 1) % 2
@@ -1566,25 +1578,36 @@ class OpenGLRenderer(hub: Hub,
 
             gl.glBindBuffer(GL4.GL_PIXEL_PACK_BUFFER, pbos[updateIndex])
 
-            gl.glReadBuffer(GL4.GL_BACK)
+            gl.glReadBuffer(GL4.GL_FRONT)
             gl.glReadPixels(0, 0, window.width, window.height, GL4.GL_BGRA, GL4.GL_UNSIGNED_BYTE, 0)
 
             gl.glGetBufferSubData(GL4.GL_PIXEL_PACK_BUFFER, 0,
                 4L * window.width * window.height, pboBuffers[updateIndex])
 
             if (!mustRecreateFramebuffers) {
-                Platform.runLater {
+                embedIn?.let { embedPanel ->
+                    Platform.runLater {
+                        pboBuffers[readIndex]?.let {
+                            val id = viewportPass.output.values.first().getTextureId("Viewport")
+                            embedPanel.update(it, id = id)
+                        }
+                    }
+                }
+
+                encoder?.let { e ->
                     pboBuffers[readIndex]?.let {
-                        val id = viewportPass.output.values.first().getTextureId("Viewport")
-                        embedPanel.update(it, id = id)
+                        e.encodeFrame(it)
                     }
                 }
             }
 
             gl.glBindBuffer(GL4.GL_PIXEL_PACK_BUFFER, 0)
 
-            resizeHandler.queryResize()
+            embedIn?.let {
+                resizeHandler.queryResize()
+            }
         }
+
 
         if (screenshotRequested && joglDrawable != null) {
             try {
@@ -2324,6 +2347,17 @@ class OpenGLRenderer(hub: Hub,
         screenshotRequested = true
     }
 
+    fun recordMovie() {
+        if(recordMovie) {
+            encoder?.finish()
+            encoder = null
+
+            recordMovie = false
+        } else {
+            recordMovie = true
+        }
+    }
+
     private fun Blending.BlendFactor.toOpenGL() = when (this) {
         Blending.BlendFactor.Zero -> GL4.GL_ZERO
         Blending.BlendFactor.One -> GL4.GL_ONE
@@ -2365,5 +2399,9 @@ class OpenGLRenderer(hub: Hub,
 
     override fun close() {
         libspirvcrossj.finalizeProcess()
+
+        encoder?.let {
+            it.finish()
+        }
     }
 }
