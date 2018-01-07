@@ -209,6 +209,7 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
         behaviourMap.put("toggle_ssao", ToggleCommand("toggle_ssao", renderer, "toggleSSAO"))
         behaviourMap.put("toggle_hdr", ToggleCommand("toggle_hdr", renderer, "toggleHDR"))
         behaviourMap.put("screenshot", ToggleCommand("screenshot", renderer, "screenshot"))
+        behaviourMap.put("record_movie", ToggleCommand("record_movie", renderer, "recordMovie"))
 
 
         behaviourMap.put("increase_exposure", ToggleCommand("increase_exposure", renderer, "increaseExposure"))
@@ -249,6 +250,7 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
         adder.put("decrease_gamma", "shift L")
 
         adder.put("screenshot", "P")
+        adder.put("record_movie", "shift P")
 
         adder.put("toggle_vr", "shift V")
     }
