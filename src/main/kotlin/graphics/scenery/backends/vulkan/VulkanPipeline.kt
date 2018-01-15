@@ -240,7 +240,7 @@ class VulkanPipeline(val device: VulkanDevice, val pipelineCache: Long? = null):
         inputAssemblyState.free()
         rasterizationState.free()
         depthStencilState.free()
-        colorBlendState.pAttachments().free()
+        colorBlendState.pAttachments()?.free()
         colorBlendState.free()
         viewportState.free()
         dynamicState.free()

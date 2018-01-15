@@ -303,7 +303,7 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
             }
         }
 
-        p.colorBlendState.pAttachments().free()
+        p.colorBlendState.pAttachments()?.free()
         p.colorBlendState
             .sType(VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO)
             .pNext(MemoryUtil.NULL)

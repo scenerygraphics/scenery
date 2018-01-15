@@ -387,10 +387,10 @@ open class VulkanSwapchain(open val device: VulkanDevice,
                     glfwGetPrimaryMonitor()
                 } else {
                     val monitors = glfwGetMonitors()
-                    if (monitors.remaining() < preferredMonitor) {
-                        monitors.get(0)
-                    } else {
+                    if (monitors != null && monitors.remaining() >= preferredMonitor) {
                         monitors.get(preferredMonitor)
+                    } else {
+                        glfwGetPrimaryMonitor()
                     }
                 }
 
