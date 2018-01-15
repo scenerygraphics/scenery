@@ -287,7 +287,7 @@ class FXSwapchain(device: VulkanDevice,
                 val imageByteSize = window.width * window.height * 4
                 val buffer = sharingBuffer.mapIfUnmapped().getByteBuffer(imageByteSize)
 
-                buffer?.let { imagePanel?.update(buffer) }
+                imagePanel?.update(buffer)
 
                 lock.unlock()
             }

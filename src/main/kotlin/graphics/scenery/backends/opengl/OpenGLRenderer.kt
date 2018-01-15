@@ -1169,8 +1169,6 @@ class OpenGLRenderer(hub: Hub,
                 gl.glBindFramebuffer(GL4.GL_FRAMEBUFFER, 0)
             }
 
-            val inputsBound = pass.inputs.values.fold(0, { acc, fb -> acc + fb.bindTexturesToUnitsWithOffset(gl, acc) })
-
             gl.glViewport(
                 pass.openglMetadata.viewport.area.offsetX,
                 pass.openglMetadata.viewport.area.offsetY,

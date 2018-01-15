@@ -25,7 +25,7 @@ import kotlin.reflect.KProperty
  * @property[target] Vector with the look-at target of the arcball
  * @constructor Creates a new ArcballCameraControl behaviour
  */
-open class ArcballCameraControl(private val name: String, private val n: () -> Camera?, private val w: Int, private val h: Int, target: GLVector = GLVector(0.0f, 0.0f, 0.0f)) : DragBehaviour, ScrollBehaviour {
+open class ArcballCameraControl(private val name: String, private val n: () -> Camera?, private val w: Int, private val h: Int, initialTarget: GLVector = GLVector(0.0f, 0.0f, 0.0f)) : DragBehaviour, ScrollBehaviour {
     /** default mouse x position in window */
     private var lastX = w / 2
     /** default mouse y position in window */
@@ -62,7 +62,7 @@ open class ArcballCameraControl(private val name: String, private val n: () -> C
     /** maximum distance value to target */
     var maximumDistance = Float.MAX_VALUE
     /** target of the camera */
-    var target: GLVector = GLVector(0.0f, 0.0f, 0.0f)
+    var target: GLVector = initialTarget
         set(value) {
             field = value
 
