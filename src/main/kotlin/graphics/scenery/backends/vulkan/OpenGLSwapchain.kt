@@ -115,8 +115,8 @@ class OpenGLSwapchain(val device: VulkanDevice,
 
         logger.info("OpenGL swapchain running OpenGL ${glGetInteger(GL_MAJOR_VERSION)}.${glGetInteger(GL_MINOR_VERSION)} on ${glGetString(GL_RENDERER)}")
 
-        (0..glGetInteger(GL_NUM_EXTENSIONS) - 1).map {
-            supportedExtensions.add(glGetStringi(GL_EXTENSIONS, it))
+        (0 until glGetInteger(GL_NUM_EXTENSIONS)).map {
+            supportedExtensions.add(glGetStringi(GL_EXTENSIONS, it) ?: "")
         }
 
         if (!supportedExtensions.contains("GL_NV_draw_vulkan_image")) {
@@ -327,10 +327,10 @@ class OpenGLSwapchain(val device: VulkanDevice,
                 glfwGetPrimaryMonitor()
             } else {
                 val monitors = glfwGetMonitors()
-                if (monitors.remaining() < preferredMonitor) {
-                    monitors.get(0)
-                } else {
+                if (monitors != null && monitors.remaining() >= preferredMonitor) {
                     monitors.get(preferredMonitor)
+                } else {
+                    glfwGetPrimaryMonitor()
                 }
             }
 

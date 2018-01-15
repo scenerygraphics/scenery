@@ -480,22 +480,12 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
                                           instance: VkInstance, device: VulkanDevice,
                                           queue: VkQueue, image: Long) {
         stackPush().use { stack ->
-
-            // FIXME: This works around a bug in lwjgl-openvr, due to be fixed.
-            // Switch back to memAllocPointer(1).put(0, instance.address()) etc. as soon as it's fixed.
-            val instancePointer = PointerBuffer.create(instance.address(), 1)
-            val devicePointer = PointerBuffer.create(device.vulkanDevice.address(), 1)
-            val physicalDevicePointer = PointerBuffer.create(device.physicalDevice.address(), 1)
-            val queuePointer = PointerBuffer.create(queue.address(), 1)
-
-            logger.debug("${physicalDevicePointer.address().toHexString()}, ${memAddressSafe(device.physicalDevice).toHexString()}")
-
             val textureData = VRVulkanTextureData.callocStack(stack)
                 .m_nImage(image)
-                .m_pInstance(instancePointer)
-                .m_pPhysicalDevice(physicalDevicePointer)
-                .m_pDevice(devicePointer)
-                .m_pQueue(queuePointer)
+                .m_pInstance(instance.address())
+                .m_pPhysicalDevice(device.physicalDevice.address())
+                .m_pDevice(device.vulkanDevice.address())
+                .m_pQueue(queue.address())
                 .m_nQueueFamilyIndex(device.queueIndices.graphicsQueue)
                 .m_nWidth(width)
                 .m_nHeight(height)

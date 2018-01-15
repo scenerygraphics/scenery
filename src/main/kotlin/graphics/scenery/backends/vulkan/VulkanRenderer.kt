@@ -860,16 +860,18 @@ open class VulkanRenderer(hub: Hub,
                             if(node.material.blending.transparent) {
                                 with(node.material.blending) {
                                     val blendStates = pipeline.colorBlendState.pAttachments()
-                                    for (attachment in 0 until blendStates.capacity()) {
-                                        blendStates[attachment]
-                                            .blendEnable(true)
-                                            .colorBlendOp(colorBlending.toVulkan())
-                                            .srcColorBlendFactor(sourceColorBlendFactor.toVulkan())
-                                            .dstColorBlendFactor(destinationColorBlendFactor.toVulkan())
-                                            .alphaBlendOp(alphaBlending.toVulkan())
-                                            .srcAlphaBlendFactor(sourceAlphaBlendFactor.toVulkan())
-                                            .dstAlphaBlendFactor(destinationAlphaBlendFactor.toVulkan())
-                                            .colorWriteMask(VK_COLOR_COMPONENT_R_BIT or VK_COLOR_COMPONENT_G_BIT or VK_COLOR_COMPONENT_B_BIT or VK_COLOR_COMPONENT_A_BIT)
+                                    for (attachment in 0 until (blendStates?.capacity() ?: 0)) {
+                                        val state = blendStates?.get(attachment)
+                                        if (state != null) {
+                                            state.blendEnable(true)
+                                                .colorBlendOp(colorBlending.toVulkan())
+                                                .srcColorBlendFactor(sourceColorBlendFactor.toVulkan())
+                                                .dstColorBlendFactor(destinationColorBlendFactor.toVulkan())
+                                                .alphaBlendOp(alphaBlending.toVulkan())
+                                                .srcAlphaBlendFactor(sourceAlphaBlendFactor.toVulkan())
+                                                .dstAlphaBlendFactor(destinationAlphaBlendFactor.toVulkan())
+                                                .colorWriteMask(VK_COLOR_COMPONENT_R_BIT or VK_COLOR_COMPONENT_G_BIT or VK_COLOR_COMPONENT_B_BIT or VK_COLOR_COMPONENT_A_BIT)
+                                        }
                                     }
                                 }
                             }
@@ -1857,7 +1859,14 @@ open class VulkanRenderer(hub: Hub,
         val n = node as HasGeometry
 
         if (n.texcoords.remaining() == 0 && node.instanceMaster) {
-            n.texcoords = je_calloc(1, 4L * n.vertices.remaining() / n.vertexSize * n.texcoordSize).asFloatBuffer()
+            val buffer = je_calloc(1, 4L * n.vertices.remaining() / n.vertexSize * n.texcoordSize)
+
+            if(buffer == null) {
+                logger.error("Could not allocate texcoords buffer with ${4L * n.vertices.remaining() / n.vertexSize * n.texcoordSize} bytes for ${node.name}")
+                return state
+            } else {
+                n.texcoords = buffer.asFloatBuffer()
+            }
         }
 
         val vertexAllocationBytes: Long = 4L * (n.vertices.remaining() + n.normals.remaining() + n.texcoords.remaining())
@@ -1867,7 +1876,8 @@ open class VulkanRenderer(hub: Hub,
         val stridedBuffer = je_malloc(fullAllocationBytes)
 
         if(stridedBuffer == null) {
-            logger.error("Allocation failed.")
+            logger.error("Allocation failed, skipping vertex buffer creation for ${node.name}.")
+            return state
         }
 
         val fb = stridedBuffer.asFloatBuffer()
