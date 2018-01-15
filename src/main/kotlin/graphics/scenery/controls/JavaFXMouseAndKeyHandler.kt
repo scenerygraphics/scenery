@@ -136,7 +136,7 @@ open class JavaFXMouseAndKeyHandler(protected var hub: Hub?, protected var panel
 		 * Deal with mouse double-clicks.
 		 */
 
-        if (e is MouseEvent && e.clickCount > 1) {
+        if (e.clickCount > 1) {
             mask = mask or InputTrigger.DOUBLE_CLICK_MASK
         }
 

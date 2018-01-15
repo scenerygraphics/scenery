@@ -72,7 +72,7 @@ open class SelectCommand(private val name: String,
             }
 
             val matches = scene.discover(scene, { node ->
-                node is Renderable && node.visible
+                node.visible
             }).map {
                 Pair(it, intersectAABB(it, worldPos, worldDir))
             }.filter {

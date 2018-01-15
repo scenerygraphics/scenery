@@ -90,8 +90,7 @@ class VulkanPipeline(val device: VulkanDevice, val pipelineCache: Long? = null):
         shaderStages.forEach { it.close() }
         shaderStages.clear()
 
-        shaderModules.forEachIndexed {
-            i, it ->
+        shaderModules.forEach {
             this.shaderStages.add(it)
 
             it.uboSpecs.forEach { uboName, ubo ->

@@ -477,7 +477,7 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
         initialized = true
     }
 
-    inline fun <T: Struct> T.default(): T {
+    fun <T: Struct> T.default(): T {
         if(this is VkSamplerCreateInfo) {
             this.sType(VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO).pNext(NULL)
         } else if(this is VkFramebufferCreateInfo) {

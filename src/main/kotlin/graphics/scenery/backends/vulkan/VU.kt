@@ -268,7 +268,7 @@ class VU {
             }
         }
 
-        fun setImageLayout(commandBuffer: VkCommandBuffer, image: Long, aspectMask: Int, oldImageLayout: Int, newImageLayout: Int, range: VkImageSubresourceRange) {
+        fun setImageLayout(commandBuffer: VkCommandBuffer, image: Long, oldImageLayout: Int, newImageLayout: Int, range: VkImageSubresourceRange) {
             stackPush().use { stack ->
                 val imageMemoryBarrier = VkImageMemoryBarrier.callocStack(1, stack)
                     .sType(VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER)
@@ -336,7 +336,7 @@ class VU {
                     .levelCount(1)
                     .layerCount(1)
 
-                setImageLayout(commandBuffer, image, aspectMask, oldImageLayout, newImageLayout, range)
+                setImageLayout(commandBuffer, image, oldImageLayout, newImageLayout, range)
             }
         }
 
