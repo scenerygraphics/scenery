@@ -26,6 +26,10 @@ class Hub {
         obj.hub = this
     }
 
+    fun addApplication(application: SceneryBase) {
+        elements.put(SceneryElement.Application, application)
+    }
+
     /**
      * Query the Hub for a given type of [SceneryElement]
      *
