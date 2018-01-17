@@ -59,7 +59,7 @@ All keybindings are also listed in the [InputHandler class](./src/main/kotlin/gr
 
 ## Selecting a renderer
 
-scenery defaults to using the OpenGL 4.1 renderer, which works on Linux, OS X and Windows. If you want to use the Vulkan renderer, which is supported on Linux and Windows, set the system property `scenery.Renderer=VulkanRenderer`.
+scenery defaults to using the OpenGL 4.1 renderer, which works on Linux, OS X and Windows. If you want to use the Vulkan renderer, which is supported on Linux and Windows, set the system property `scenery.Renderer=VulkanRenderer`. If you want to use Vulkan validation layers, or select a different graphics card than the primary one, please consult the [VulkanRenderer README](./src/main/kotlin/graphics/scenery/backends/vulkan/README.md).
 
 ## Building
 
