@@ -792,6 +792,11 @@ open class VulkanRenderer(hub: Hub,
             return false
         }
 
+        if(node.instanceOf != null) {
+            logger.debug("${node.name} is instance slave, not initializing custom shaders")
+            return false
+        }
+
         if(addInitializer) {
             lateResizeInitializers.remove(node)
         }
