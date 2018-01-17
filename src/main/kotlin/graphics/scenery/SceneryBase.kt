@@ -12,7 +12,6 @@ import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.repl.REPL
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.Statistics
-import org.lwjgl.system.MemoryUtil
 import org.scijava.ui.behaviour.ClickBehaviour
 import java.lang.management.ManagementFactory
 import kotlin.concurrent.thread
@@ -89,6 +88,7 @@ open class SceneryBase(var applicationName: String,
      *
      */
     open fun main() {
+        hub.addApplication(this)
         logger.info("Started application as PID ${getProcessID()}")
 
         val master = System.getProperty("scenery.master")?.toBoolean() ?: false
@@ -268,5 +268,12 @@ open class SceneryBase(var applicationName: String,
 
     protected fun getProcessID(): Int {
         return Integer.parseInt(ManagementFactory.getRuntimeMXBean().name.split("@".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()[0])
+    }
+
+    /**
+     * Sets the shouldClose flag on renderer, causing it to shut down and thereby ending the main loop.
+     */
+    fun close() {
+        renderer?.shouldClose = true
     }
 }
