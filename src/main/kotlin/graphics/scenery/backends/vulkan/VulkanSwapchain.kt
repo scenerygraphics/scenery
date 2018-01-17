@@ -178,7 +178,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
             val imageCount = VU.getInts("Getting swapchain images", 1,
                 { KHRSwapchain.vkGetSwapchainImagesKHR(device.vulkanDevice, handle, this, null) })
 
-            logger.info("Got ${imageCount.get(0)} swapchain images")
+            logger.debug("Got ${imageCount.get(0)} swapchain images")
 
             val swapchainImages = VU.getLongs("Getting swapchain images", imageCount.get(0),
                 { KHRSwapchain.vkGetSwapchainImagesKHR(device.vulkanDevice, handle, imageCount, this) }, {})
