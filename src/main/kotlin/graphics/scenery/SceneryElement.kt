@@ -6,6 +6,8 @@ package graphics.scenery
 * @author Ulrik Günther <hello@ulrik.is>
 */
 enum class SceneryElement {
+    /** The application base object itself */
+    Application,
     /** Element for any renderers */
     Renderer,
     /** Element for any HMD input devices */

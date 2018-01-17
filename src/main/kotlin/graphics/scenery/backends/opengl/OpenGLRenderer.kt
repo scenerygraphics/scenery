@@ -1088,7 +1088,11 @@ class OpenGLRenderer(hub: Hub,
         hub?.getWorkingHMD()?.update()
 
         if (shouldClose) {
-            joglDrawable?.animator?.stop()
+            try {
+                joglDrawable?.animator?.stop()
+            } catch(e: ThreadDeath) {
+                logger.debug("Caught JOGL ThreadDeath, ignoring.")
+            }
             return
         }
 
