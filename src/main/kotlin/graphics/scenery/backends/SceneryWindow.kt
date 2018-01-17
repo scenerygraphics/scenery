@@ -24,6 +24,7 @@ sealed class SceneryWindow {
 
     fun setTitle(title: String) {
         when(this) {
+            is UninitializedWindow -> {}
             is GLFWWindow -> glfwSetWindowTitle(window, title)
             is ClearGLWindow -> window.windowTitle = title
             is JavaFXStage -> {

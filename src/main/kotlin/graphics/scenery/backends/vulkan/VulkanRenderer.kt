@@ -170,7 +170,7 @@ open class VulkanRenderer(hub: Hub,
                         cam.perspectiveCamera(cam.fov, window.width.toFloat(), window.height.toFloat(), cam.nearPlaneDistance, cam.farPlaneDistance)
                     }
 
-                    logger.info("Calling late resize initializers for ${lateResizeInitializers.keys.joinToString(", ")}")
+                    logger.debug("Calling late resize initializers for ${lateResizeInitializers.keys.joinToString(", ")}")
                     lateResizeInitializers.map { it.value.invoke() }
 
                     if (timestampQueryPool != -1L) {
@@ -416,7 +416,7 @@ open class VulkanRenderer(hub: Hub,
         }
 
         device = VulkanDevice.fromPhysicalDevice(instance,
-            physicalDeviceFilter = { id, device -> device.name.contains(System.getProperty("scenery.Renderer.Device", "DOES_NOT_EXIST"))},
+            physicalDeviceFilter = { _, device -> device.name.contains(System.getProperty("scenery.Renderer.Device", "DOES_NOT_EXIST"))},
             additionalExtensions = { physicalDevice -> hub.getWorkingHMDDisplay()?.getVulkanDeviceExtensions(physicalDevice)?.toTypedArray() ?: arrayOf() },
             validationLayers = requestedValidationLayers)
 
@@ -860,16 +860,18 @@ open class VulkanRenderer(hub: Hub,
                             if(node.material.blending.transparent) {
                                 with(node.material.blending) {
                                     val blendStates = pipeline.colorBlendState.pAttachments()
-                                    for (attachment in 0 until blendStates.capacity()) {
-                                        blendStates[attachment]
-                                            .blendEnable(true)
-                                            .colorBlendOp(colorBlending.toVulkan())
-                                            .srcColorBlendFactor(sourceColorBlendFactor.toVulkan())
-                                            .dstColorBlendFactor(destinationColorBlendFactor.toVulkan())
-                                            .alphaBlendOp(alphaBlending.toVulkan())
-                                            .srcAlphaBlendFactor(sourceAlphaBlendFactor.toVulkan())
-                                            .dstAlphaBlendFactor(destinationAlphaBlendFactor.toVulkan())
-                                            .colorWriteMask(VK_COLOR_COMPONENT_R_BIT or VK_COLOR_COMPONENT_G_BIT or VK_COLOR_COMPONENT_B_BIT or VK_COLOR_COMPONENT_A_BIT)
+                                    for (attachment in 0 until (blendStates?.capacity() ?: 0)) {
+                                        val state = blendStates?.get(attachment)
+                                        if (state != null) {
+                                            state.blendEnable(true)
+                                                .colorBlendOp(colorBlending.toVulkan())
+                                                .srcColorBlendFactor(sourceColorBlendFactor.toVulkan())
+                                                .dstColorBlendFactor(destinationColorBlendFactor.toVulkan())
+                                                .alphaBlendOp(alphaBlending.toVulkan())
+                                                .srcAlphaBlendFactor(sourceAlphaBlendFactor.toVulkan())
+                                                .dstAlphaBlendFactor(destinationAlphaBlendFactor.toVulkan())
+                                                .colorWriteMask(VK_COLOR_COMPONENT_R_BIT or VK_COLOR_COMPONENT_G_BIT or VK_COLOR_COMPONENT_B_BIT or VK_COLOR_COMPONENT_A_BIT)
+                                        }
                                     }
                                 }
                             }
@@ -1741,7 +1743,7 @@ open class VulkanRenderer(hub: Hub,
 
         viewportPass.updateShaderParameters()
 
-        ph.commandBuffers.put(0, viewportCommandBuffer.commandBuffer)
+        ph.commandBuffers.put(0, viewportCommandBuffer.commandBuffer!!)
         ph.waitStages.put(0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
         ph.signalSemaphore.put(0, semaphores[StandardSemaphores.RenderComplete]!![0])
         ph.waitSemaphore.put(0, firstWaitSemaphore.get(0))
@@ -1857,7 +1859,14 @@ open class VulkanRenderer(hub: Hub,
         val n = node as HasGeometry
 
         if (n.texcoords.remaining() == 0 && node.instanceMaster) {
-            n.texcoords = je_calloc(1, 4L * n.vertices.remaining() / n.vertexSize * n.texcoordSize).asFloatBuffer()
+            val buffer = je_calloc(1, 4L * n.vertices.remaining() / n.vertexSize * n.texcoordSize)
+
+            if(buffer == null) {
+                logger.error("Could not allocate texcoords buffer with ${4L * n.vertices.remaining() / n.vertexSize * n.texcoordSize} bytes for ${node.name}")
+                return state
+            } else {
+                n.texcoords = buffer.asFloatBuffer()
+            }
         }
 
         val vertexAllocationBytes: Long = 4L * (n.vertices.remaining() + n.normals.remaining() + n.texcoords.remaining())
@@ -1867,7 +1876,8 @@ open class VulkanRenderer(hub: Hub,
         val stridedBuffer = je_malloc(fullAllocationBytes)
 
         if(stridedBuffer == null) {
-            logger.error("Allocation failed.")
+            logger.error("Allocation failed, skipping vertex buffer creation for ${node.name}.")
+            return state
         }
 
         val fb = stridedBuffer.asFloatBuffer()
@@ -2293,7 +2303,8 @@ open class VulkanRenderer(hub: Hub,
             VU.beginCommandBuffer(commandBuffer.commandBuffer!!)
         }
 
-        with(commandBuffer.commandBuffer) {
+        // command buffer cannot be null here anymore, otherwise this is clearly in error
+        with(commandBuffer.commandBuffer!!) {
 
             vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
                 timestampQueryPool, 2*renderpasses.values.indexOf(pass))
@@ -2341,7 +2352,7 @@ open class VulkanRenderer(hub: Hub,
                             imageBlit.dstOffsets(0).set(offsetX, offsetY, 0)
                             imageBlit.dstOffsets(1).set(sizeX, sizeY, 1)
 
-                            val transitionBuffer = this@with!!
+                            val transitionBuffer = this@with
 
                             val subresourceRange = VkImageSubresourceRange.callocStack(stack)
                                 .aspectMask(type)
@@ -2556,7 +2567,7 @@ open class VulkanRenderer(hub: Hub,
 
             // finish command buffer recording by marking this buffer non-stale
             commandBuffer.stale = false
-            this!!.endCommandBuffer()
+            this.endCommandBuffer()
         }
     }
 
@@ -2585,7 +2596,8 @@ open class VulkanRenderer(hub: Hub,
             VU.beginCommandBuffer(commandBuffer.commandBuffer!!)
         }
 
-        with(commandBuffer.commandBuffer) {
+        // commandBuffer is expected to be non-null here, otherwise this is in error
+        with(commandBuffer.commandBuffer!!) {
 
             vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
                 timestampQueryPool, 2*renderpasses.values.indexOf(pass))

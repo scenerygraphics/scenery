@@ -18,7 +18,7 @@ open class Settings(override var hub: Hub? = null) : Hubable {
      * @param[name] The name of the setting
      * @return The setting as type T
      */
-    inline fun <reified T> get(name: String): T {
+    fun <T> get(name: String): T {
         if(!settingsStore.containsKey(name)) {
             System.err.println("WARNING: Settings don't contain '$name'")
         }
