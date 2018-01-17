@@ -170,7 +170,7 @@ open class VulkanRenderer(hub: Hub,
                         cam.perspectiveCamera(cam.fov, window.width.toFloat(), window.height.toFloat(), cam.nearPlaneDistance, cam.farPlaneDistance)
                     }
 
-                    logger.info("Calling late resize initializers for ${lateResizeInitializers.keys.joinToString(", ")}")
+                    logger.debug("Calling late resize initializers for ${lateResizeInitializers.keys.joinToString(", ")}")
                     lateResizeInitializers.map { it.value.invoke() }
 
                     if (timestampQueryPool != -1L) {
