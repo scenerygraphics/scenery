@@ -555,6 +555,12 @@ open class VulkanRenderer(hub: Hub,
         this.scene.discover(this.scene, { it is HasGeometry })
 //            .parallelMap(numThreads = System.getProperty("scenery.MaxInitThreads", "1").toInt()) { node ->
             .map { node ->
+                // skip initialization for nodes that are only instance slaves
+                if(node.instanceOf != null) {
+                    node.initialized = true
+                    return@map
+                }
+
                 logger.debug("Initializing object '${node.name}'")
                 node.metadata.put("VulkanRenderer", VulkanObjectState())
 
@@ -2044,12 +2050,19 @@ open class VulkanRenderer(hub: Hub,
 
         stagingBuffer.close()
 
-        logger.debug("Instance buffer creation done")
+        logger.debug("Instance buffer creation done, master node has ${state.instanceCount} instances.")
 
         return state
     }
 
+    var instancesUpdated = false
     private fun updateInstanceBuffer(device: VulkanDevice, parentNode: Node, state: VulkanObjectState): VulkanObjectState {
+        if(instancesUpdated) {
+            return state
+        }
+
+        instancesUpdated = true
+        logger.trace("Updating instance buffer for ${parentNode.name}")
         val instances = ArrayList<Node>()
         // return if no observer found
         val cam = scene.findObserver() ?: return state
@@ -2078,14 +2091,14 @@ open class VulkanRenderer(hub: Hub,
         instances.forEach { node ->
             node.updateWorld(true, false)
 
-            node.projection.copyFrom(cam.projection)
-            node.projection.set(1, 1, -1.0f * cam.projection.get(1, 1))
+//            node.projection.copyFrom(cam.projection)
+//            node.projection.set(1, 1, -1.0f * cam.projection.get(1, 1))
 
-            node.modelView.copyFrom(cam.view)
-            node.modelView.mult(node.world)
-
-            node.mvp.copyFrom(node.projection)
-            node.mvp.mult(node.modelView)
+//            node.modelView.copyFrom(cam.view)
+//            node.modelView.mult(node.world)
+//
+//            node.mvp.copyFrom(node.projection)
+//            node.mvp.mult(node.modelView)
 
             val instanceUbo = VulkanUBO(device, backingBuffer = stagingBuffer)
             instanceUbo.fromInstance(node)
@@ -2098,7 +2111,7 @@ open class VulkanRenderer(hub: Hub,
         val instanceBuffer = if (state.vertexBuffers.containsKey("instance") && state.vertexBuffers["instance"]!!.size >= instanceBufferSize) {
             state.vertexBuffers["instance"]!!
         } else {
-            logger.debug("Instance buffer for ${parentNode.name} needs to be required, insufficient size ($instanceBufferSize vs ${state.vertexBuffers["instance"]!!.size})")
+            logger.debug("Instance buffer for ${parentNode.name} needs to be required, insufficient size ($instanceBufferSize vs ${state.vertexBuffers["instance"]?.size ?: "<not allocated yet>"})")
             state.vertexBuffers["instance"]?.close()
 
             val buffer = VulkanBuffer(device,
@@ -2125,6 +2138,7 @@ open class VulkanRenderer(hub: Hub,
         }
 
         state.instanceCount = instances.size
+        logger.info("Updated instance buffer, ${parentNode.name} has ${state.instanceCount} instances.")
 
         stagingBuffer.close()
         return state
@@ -2223,7 +2237,7 @@ open class VulkanRenderer(hub: Hub,
         // e.g. which have the same transparency settings as the pass
         scene.discover(scene, { n -> n is HasGeometry
             && n.visible
-            && n.material.blending.transparent == pass.passConfig.renderTransparent}).forEach {
+            && n.material.blending.transparent == pass.passConfig.renderTransparent && n.instanceOf == null}).forEach {
             // if a node is not initialized yet, it'll be initialized here and it's UBO updated
             // in the next round
             if(it.rendererMetadata() == null) {
@@ -2239,7 +2253,7 @@ open class VulkanRenderer(hub: Hub,
             // to the original command buffer becoming obsolete.
             it.rendererMetadata()?.let { metadata ->
                 if (it.dirty) {
-                    logger.debug("Force command buffer re-recording, as geometry for ${it.name} has been updated")
+                    logger.trace("Force command buffer re-recording, as geometry for ${it.name} has been updated")
                     if (it is TextBoard) {
                         updateTextBoard(it)
                     } else {
@@ -2252,7 +2266,7 @@ open class VulkanRenderer(hub: Hub,
                 }
 
                 if (it.material.needsTextureReload) {
-                    logger.debug("Force command buffer re-recording, as reloading textures for ${it.name}")
+                    logger.trace("Force command buffer re-recording, as reloading textures for ${it.name}")
                     loadTexturesForNode(it, metadata)
 
                     it.material.needsTextureReload = false
@@ -2262,7 +2276,7 @@ open class VulkanRenderer(hub: Hub,
                 }
 
                 if(it.material.blending.hashCode() != metadata.blendingHashCode) {
-                    logger.debug("Force command buffer re-recording, as blending options for ${it.name} have changed")
+                    logger.trace("Force command buffer re-recording, as blending options for ${it.name} have changed")
                     initializeCustomShadersForNode(it)
                     metadata.blendingHashCode = it.material.blending.hashCode()
 
@@ -2296,11 +2310,9 @@ open class VulkanRenderer(hub: Hub,
             return
         }
 
-        logger.debug("Recording command buffer $commandBuffer...")
+        logger.debug("Recording scene command buffer $commandBuffer...")
 
-        // start command buffer recording
-        val instanceGroups = renderOrderList.groupBy(Node::instanceOf)
-
+        // initialize command buffer recording, reset it if already existent, otherwise allocate it.
         if (commandBuffer.commandBuffer == null) {
             commandBuffer.commandBuffer = VU.newCommandBuffer(device, commandPools.Render, autostart = true)
         } else {
@@ -2424,21 +2436,25 @@ open class VulkanRenderer(hub: Hub,
 
             // allocate more vertexBufferOffsets than needed, set limit lateron
             pass.vulkanMetadata.uboOffsets.limit(16)
-            (0..15).forEach { pass.vulkanMetadata.uboOffsets.put(it, 0) }
+            (0 until pass.vulkanMetadata.uboOffsets.limit()).forEach { pass.vulkanMetadata.uboOffsets.put(it, 0) }
 
-            instanceGroups[null]?.forEach nonInstancedDrawing@ { node ->
+            renderOrderList.forEach drawLoop@ { node ->
                 val s = node.rendererMetadata()!!
 
+                // instanced nodes will not be drawn directly, but only the master node.
+                // nodes with no vertices will also not be drawn.
+                if(node.instanceOf != null || s.vertexCount == 0) {
+                    return@drawLoop
+                }
+
+                // return if we are on a opaque pass, but the node requires transparency.
                 if(pass.passConfig.renderOpaque && node.material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) {
-                    return@nonInstancedDrawing
+                    return@drawLoop
                 }
 
+                // return if we are on a transparency pass, but the node is only opaque.
                 if(pass.passConfig.renderTransparent && !node.material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) {
-                    return@nonInstancedDrawing
-                }
-
-                if (node in instanceGroups.keys || s.vertexCount == 0) {
-                    return@nonInstancedDrawing
+                    return@drawLoop
                 }
 
                 logger.debug("Rendering ${node.name}...")
@@ -2455,6 +2471,17 @@ open class VulkanRenderer(hub: Hub,
 
                 pass.vulkanMetadata.vertexBufferOffsets.put(0, 0)
                 pass.vulkanMetadata.vertexBuffers.put(0, s.vertexBuffers["vertex+index"]!!.vulkanBuffer)
+
+                pass.vulkanMetadata.vertexBufferOffsets.limit(1)
+                pass.vulkanMetadata.vertexBuffers.limit(1)
+
+                if(node.instanceMaster) {
+                    pass.vulkanMetadata.vertexBuffers.limit(2)
+                    pass.vulkanMetadata.vertexBufferOffsets.limit(2)
+
+                    pass.vulkanMetadata.vertexBufferOffsets.put(1, 0)
+                    pass.vulkanMetadata.vertexBuffers.put(1, s.vertexBuffers["instance"]!!.vulkanBuffer)
+                }
 
                 val sets = specs.map { (name, _) ->
                     when(name) {
@@ -2483,6 +2510,7 @@ open class VulkanRenderer(hub: Hub,
                         }
                     }
                 }
+                logger.debug("${node.name} requires DS ${specs.joinToString { "${it.key}, " }}")
 
                 val requiredSets = sets.filter { it !is DescriptorSet.None }.map { it.id }.toLongArray()
                 if(pass.vulkanMetadata.descriptorSets.capacity() < requiredSets.size) {
@@ -2509,53 +2537,6 @@ open class VulkanRenderer(hub: Hub,
                 vkCmdPushConstants(this, pipeline.layout, VK_SHADER_STAGE_ALL, 0, pass.vulkanMetadata.eye)
 
                 logger.trace("now drawing {}, {} DS bound, {} textures", node.name, pass.vulkanMetadata.descriptorSets.capacity(), s.textures.count())
-
-                if (s.isIndexed) {
-                    vkCmdBindIndexBuffer(this, pass.vulkanMetadata.vertexBuffers.get(0), s.indexOffset, VK_INDEX_TYPE_UINT32)
-                    vkCmdDrawIndexed(this, s.indexCount, 1, 0, 0, 0)
-                } else {
-                    vkCmdDraw(this, s.vertexCount, 1, 0, 0)
-                }
-            }
-
-            instanceGroups.keys.filterNotNull().forEach instancedDrawing@ { node ->
-                val s = node.rendererMetadata()!!
-
-                // this only lets non-instanced, parent nodes through
-                if (s.vertexCount == 0) {
-                    return@instancedDrawing
-                }
-
-                pass.vulkanMetadata.vertexBufferOffsets.put(0, 0)
-                pass.vulkanMetadata.vertexBuffers.put(0, s.vertexBuffers["vertex+index"]!!.vulkanBuffer)
-                pass.vulkanMetadata.descriptorSets.put(0, s.UBOs["Matrices"]!!.first)
-
-                if (s.textures.size > 0) {
-                    pass.vulkanMetadata.descriptorSets.put(1, s.textureDescriptorSet)
-                    pass.vulkanMetadata.descriptorSets.put(2, descriptorSets["VRParameters"]!!)
-                    pass.vulkanMetadata.descriptorSets.limit(3)
-                } else {
-                    pass.vulkanMetadata.descriptorSets.put(1, descriptorSets["VRParameters"]!!)
-                    pass.vulkanMetadata.descriptorSets.limit(2)
-                }
-
-                pass.vulkanMetadata.instanceBuffers.put(0, s.vertexBuffers["instance"]!!.vulkanBuffer)
-
-                val pipeline = pass.getActivePipeline(node).getPipelineForGeometryType((node as HasGeometry).geometryType)
-
-                pass.vulkanMetadata.uboOffsets.position(0)
-                s.UBOs["Matrices"]!!.second.offsets.position(0)
-
-                pass.vulkanMetadata.uboOffsets.put(s.UBOs["Matrices"]!!.second.offsets)
-                pass.vulkanMetadata.uboOffsets.put(0)
-                pass.vulkanMetadata.uboOffsets.flip()
-
-                vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline)
-                vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                    pipeline.layout, 0, pass.vulkanMetadata.descriptorSets, pass.vulkanMetadata.uboOffsets)
-
-                vkCmdBindVertexBuffers(this, 0, pass.vulkanMetadata.vertexBuffers, pass.vulkanMetadata.vertexBufferOffsets)
-                vkCmdBindVertexBuffers(this, 1, pass.vulkanMetadata.instanceBuffers, pass.vulkanMetadata.vertexBufferOffsets)
 
                 if (s.isIndexed) {
                     vkCmdBindIndexBuffer(this, pass.vulkanMetadata.vertexBuffers.get(0), s.indexOffset, VK_INDEX_TYPE_UINT32)
@@ -2751,7 +2732,7 @@ open class VulkanRenderer(hub: Hub,
 
         sceneUBOs.forEach { node ->
             node.lock.withLock {
-                if (!node.metadata.containsKey("VulkanRenderer")) {
+                if (!node.metadata.containsKey("VulkanRenderer") || node.instanceOf != null) {
                     return@withLock
                 }
 
