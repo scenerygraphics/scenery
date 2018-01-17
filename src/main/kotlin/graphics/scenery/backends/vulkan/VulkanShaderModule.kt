@@ -13,6 +13,7 @@ import java.io.InputStream
 import java.nio.ByteBuffer
 import java.nio.charset.Charset
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.collections.LinkedHashMap
 
 
@@ -39,6 +40,7 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, claz
     var shaderModule: Long
     var uboSpecs = LinkedHashMap<String, UBOSpec>()
     private var shaderPackage: ShaderPackage
+    private var deallocated: Boolean = false
 
     data class UBOMemberSpec(val name: String, val index: Long, val offset: Long, val range: Long)
     data class UBOSpec(val name: String, var set: Long, var binding: Long, val members: LinkedHashMap<String, UBOMemberSpec>)
@@ -318,13 +320,20 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, claz
     }
 
     fun close() {
-        vkDestroyShaderModule(device.vulkanDevice, shader.module(), null)
+        if(!deallocated) {
+            vkDestroyShaderModule(device.vulkanDevice, shader.module(), null)
 
-        memFree(shader.pName())
-        shader.free()
+            memFree(shader.pName())
+            shader.free()
+
+            deallocated = true
+        }
     }
 
     companion object {
+        private data class ShaderSignature(val device: VulkanDevice, val clazz: Class<*>, val shaderCodePath: String)
+        private val shaderModuleCache = ConcurrentHashMap<ShaderSignature, VulkanShaderModule>()
+
         @Suppress("UNUSED")
         fun createFromSPIRV(device: VulkanDevice, name: String, clazz: Class<*>, sourceFile: String): VulkanShaderModule {
             return VulkanShaderModule(device, name, clazz, sourceFile)
@@ -333,6 +342,19 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, claz
         @Suppress("UNUSED")
         fun createFromSource(device: VulkanDevice, name: String, clazz: Class<*>, sourceFile: String): VulkanShaderModule {
             return VulkanShaderModule(device, name, clazz, sourceFile)
+        }
+
+        fun getFromCacheOrCreate(device: VulkanDevice, entryPoint: String, clazz: Class<*>, shaderCodePath: String): VulkanShaderModule {
+            val signature = ShaderSignature(device, clazz, shaderCodePath)
+
+            return if(shaderModuleCache.containsKey(signature)) {
+                shaderModuleCache[signature]!!
+            } else {
+                val module = VulkanShaderModule(device, entryPoint, clazz, shaderCodePath)
+                shaderModuleCache[signature] = module
+
+                module
+            }
         }
     }
 }
