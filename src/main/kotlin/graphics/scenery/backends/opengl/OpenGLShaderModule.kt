@@ -10,6 +10,7 @@ import graphics.scenery.spirvcrossj.*
 import graphics.scenery.utils.LazyLogger
 import java.nio.ByteBuffer
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.collections.LinkedHashMap
 
 
@@ -346,5 +347,23 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, clazz: Class<*>, shad
 
     override fun toString(): String {
         return "$shader: $shaderType with UBOs ${uboSpecs.keys.joinToString(", ") }}"
+    }
+
+    companion object {
+        private data class ShaderSignature(val gl: GL4, val clazz: Class<*>, val shaderCodePath: String)
+        private val shaderModuleCache = ConcurrentHashMap<ShaderSignature, OpenGLShaderModule>()
+
+        fun getFromCacheOrCreate(gl: GL4, entryPoint: String, clazz: Class<*>, shaderCodePath: String): OpenGLShaderModule {
+            val signature = ShaderSignature(gl, clazz, shaderCodePath)
+
+            return if(shaderModuleCache.containsKey(signature)) {
+                shaderModuleCache[signature]!!
+            } else {
+                val module = OpenGLShaderModule(gl, entryPoint, clazz, shaderCodePath)
+                shaderModuleCache[signature] = module
+
+                module
+            }
+        }
     }
 }
