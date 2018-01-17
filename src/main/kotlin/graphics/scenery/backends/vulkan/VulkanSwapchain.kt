@@ -178,7 +178,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
             val imageCount = VU.getInts("Getting swapchain images", 1,
                 { KHRSwapchain.vkGetSwapchainImagesKHR(device.vulkanDevice, handle, this, null) })
 
-            logger.info("Got ${imageCount.get(0)} swapchain images")
+            logger.debug("Got ${imageCount.get(0)} swapchain images")
 
             val swapchainImages = VU.getLongs("Getting swapchain images", imageCount.get(0),
                 { KHRSwapchain.vkGetSwapchainImagesKHR(device.vulkanDevice, handle, imageCount, this) }, {})
@@ -387,10 +387,10 @@ open class VulkanSwapchain(open val device: VulkanDevice,
                     glfwGetPrimaryMonitor()
                 } else {
                     val monitors = glfwGetMonitors()
-                    if (monitors.remaining() < preferredMonitor) {
-                        monitors.get(0)
-                    } else {
+                    if (monitors != null && monitors.remaining() >= preferredMonitor) {
                         monitors.get(preferredMonitor)
+                    } else {
+                        glfwGetPrimaryMonitor()
                     }
                 }
 
