@@ -539,11 +539,11 @@ class OpenGLRenderer(hub: Hub,
 
         shaders.forEach {
             if (baseClass.getResource("shaders/" + it) != null) {
-                val m = OpenGLShaderModule(gl, "main", baseClass, "shaders/" + it)
+                val m = OpenGLShaderModule.getFromCacheOrCreate(gl, "main", baseClass, "shaders/" + it)
                 modules.put(m.shaderType, m)
             } else {
                 if(Renderer::class.java.getResource("shaders/" + it) != null && baseClass !is Renderer) {
-                    val m = OpenGLShaderModule(gl, "main", Renderer::class.java, "shaders/" + it)
+                    val m = OpenGLShaderModule.getFromCacheOrCreate(gl, "main", Renderer::class.java, "shaders/" + it)
                     modules.put(m.shaderType, m)
                 } else {
                     logger.warn("Shader not found: shaders/$it")

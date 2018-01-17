@@ -849,7 +849,7 @@ open class VulkanRenderer(hub: Hub,
                     logger.debug("Shaders are: ${shaders.joinToString(", ")}")
 
                     pass.value.initializePipeline("preferred-${node.name}",
-                        shaders.map { VulkanShaderModule(device, "main", node.javaClass, "shaders/" + it) },
+                        shaders.map { VulkanShaderModule.getFromCacheOrCreate(device, "main", node.javaClass, "shaders/" + it) },
 
                         settings = { pipeline ->
                             if (node.material.doubleSided) {
