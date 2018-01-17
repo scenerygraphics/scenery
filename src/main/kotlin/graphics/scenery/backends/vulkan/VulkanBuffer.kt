@@ -161,7 +161,7 @@ class VulkanBuffer(val device: VulkanDevice, val size: Long, val usage: Int, val
     }
 
     override fun close() {
-        logger.debug("Closing buffer $this ...")
+        logger.trace("Closing buffer $this ...")
 
         if(mapped) {
             unmap()

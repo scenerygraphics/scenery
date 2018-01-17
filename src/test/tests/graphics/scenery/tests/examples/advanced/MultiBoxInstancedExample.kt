@@ -26,8 +26,8 @@ class MultiBoxInstancedExample : SceneryBase("MultiBoxInstancedExample") {
             scene.addChild(this)
         }
 
-        val boundaryWidth = 15.0
-        val boundaryHeight = 15.0
+        val boundaryWidth = 50.0
+        val boundaryHeight = 50.0
 
         val container = Mesh()
 
@@ -39,34 +39,27 @@ class MultiBoxInstancedExample : SceneryBase("MultiBoxInstancedExample") {
         b.name = "boxmaster"
 
         b.instanceMaster = true
-        b.instancedProperties.put("ModelViewMatrix", { b.modelView })
         b.instancedProperties.put("ModelMatrix", { b.model })
-        b.instancedProperties.put("MVP", { b.mvp })
         b.material = ShaderMaterial(arrayListOf("DefaultDeferredInstanced.vert", "DefaultDeferred.frag"))
         scene.addChild(b)
 
         (0..(boundaryWidth * boundaryHeight * boundaryHeight).toInt()).map {
-            val p = Node("Parent of $it")
-
             val inst = Mesh()
             inst.name = "Box_$it"
             inst.instanceOf = b
             inst.material = b.material
 
-            inst.instancedProperties.put("ModelViewMatrix", { inst.modelView })
-            inst.instancedProperties.put("ModelMatrix", { inst.model })
-            inst.instancedProperties.put("MVP", { inst.mvp })
+            inst.instancedProperties.put("ModelMatrix", { inst.world })
 
             val k: Double = it.rem(boundaryWidth)
             val j: Double = (it / boundaryWidth).rem(boundaryHeight)
             val i: Double = it / (boundaryWidth * boundaryHeight)
 
-            p.position = GLVector(Math.floor(i).toFloat() * 3.0f, Math.floor(j).toFloat() * 3.0f, Math.floor(k).toFloat() * 3.0f)
-            p.needsUpdate = true
-            p.needsUpdateWorld = true
-            p.addChild(inst)
+            inst.position = GLVector(Math.floor(i).toFloat(), Math.floor(j).toFloat(), Math.floor(k).toFloat())
+            inst.needsUpdate = true
+            inst.needsUpdateWorld = true
 
-            container.addChild(p)
+            container.addChild(inst)
             inst
         }
 
@@ -114,7 +107,7 @@ class MultiBoxInstancedExample : SceneryBase("MultiBoxInstancedExample") {
                 ticks++
 
                 container.rotation.rotateByEuler(0.001f, 0.001f, 0.0f)
-                container.needsUpdate = true
+                container.updateWorld(true, false)
 
                 Thread.sleep(10)
             }
