@@ -41,11 +41,14 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, claz
     var uboSpecs = LinkedHashMap<String, UBOSpec>()
     private var shaderPackage: ShaderPackage
     private var deallocated: Boolean = false
+    private var signature: ShaderSignature
 
     data class UBOMemberSpec(val name: String, val index: Long, val offset: Long, val range: Long)
     data class UBOSpec(val name: String, var set: Long, var binding: Long, val members: LinkedHashMap<String, UBOMemberSpec>)
 
     data class ShaderPackage(val baseClass: Class<*>, val spirvPath: String, val codePath: String, val spirv: InputStream?, val code: InputStream?)
+
+    private data class ShaderSignature(val device: VulkanDevice, val clazz: Class<*>, val shaderCodePath: String)
 
     private fun ShaderPackage.isSourceNewer(): Boolean {
         return if(code != null) {
@@ -86,6 +89,7 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, claz
     }
 
     init {
+        signature = ShaderSignature(device, clazz, shaderCodePath)
         val spirvPath: String
         val codePath: String
 
@@ -322,6 +326,7 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, claz
     fun close() {
         if(!deallocated) {
             vkDestroyShaderModule(device.vulkanDevice, shader.module(), null)
+            shaderModuleCache.remove(signature)
 
             memFree(shader.pName())
             shader.free()
@@ -331,7 +336,6 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, claz
     }
 
     companion object {
-        private data class ShaderSignature(val device: VulkanDevice, val clazz: Class<*>, val shaderCodePath: String)
         private val shaderModuleCache = ConcurrentHashMap<ShaderSignature, VulkanShaderModule>()
 
         @Suppress("UNUSED")
