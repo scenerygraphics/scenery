@@ -77,9 +77,7 @@ class BloodCellsExample : SceneryBase("BloodCellsExample", windowWidth = 1280, w
         erythrocyte.material = e_material
         erythrocyte.name = "Erythrocyte_Master"
         erythrocyte.instanceMaster = true
-        erythrocyte.instancedProperties.put("ModelViewMatrix", { erythrocyte.modelView })
         erythrocyte.instancedProperties.put("ModelMatrix", { erythrocyte.model })
-        erythrocyte.instancedProperties.put("MVP", { erythrocyte.mvp })
         scene.addChild(erythrocyte)
 
         erythrocyte.material = ShaderMaterial(arrayListOf("DefaultDeferredInstanced.vert", "DefaultDeferred.frag"))
@@ -95,9 +93,7 @@ class BloodCellsExample : SceneryBase("BloodCellsExample", windowWidth = 1280, w
         leucocyte.material = l_material
         leucocyte.name = "leucocyte_Master"
         leucocyte.instanceMaster = true
-        leucocyte.instancedProperties.put("ModelViewMatrix", { leucocyte.modelView })
         leucocyte.instancedProperties.put("ModelMatrix", { leucocyte.model })
-        leucocyte.instancedProperties.put("MVP", { leucocyte.mvp })
         scene.addChild(leucocyte)
 
         leucocyte.material = ShaderMaterial(arrayListOf("DefaultDeferredInstanced.vert", "DefaultDeferred.frag"))
@@ -110,13 +106,12 @@ class BloodCellsExample : SceneryBase("BloodCellsExample", windowWidth = 1280, w
                 val v = Mesh()
                 v.name = "leucocyte_$it"
                 v.instanceOf = leucocyte
-                v.instancedProperties.put("ModelViewMatrix", { v.modelView })
-                v.instancedProperties.put("ModelMatrix", { v.model })
-                v.instancedProperties.put("MVP", { v.mvp })
+//                v.instancedProperties.put("ModelViewMatrix", { v.modelView })
+                v.instancedProperties.put("ModelMatrix", { v.world})
+//                v.instancedProperties.put("MVP", { v.mvp })
                 v
             }
             .map {
-                val p = Node("parent of it")
                 val scale = Numerics.randomFromRange(30.0f, 40.0f)
 
                 it.material = l_material
@@ -128,10 +123,10 @@ class BloodCellsExample : SceneryBase("BloodCellsExample", windowWidth = 1280, w
                     Numerics.randomFromRange(0.01f, 0.9f)
                 )
 
-                p.position = Numerics.randomVectorFromRange(3, 0.0f, posRange)
-                p.addChild(it)
+                it.position = Numerics.randomVectorFromRange(3, 0.0f, posRange)
+                it.parent = container
+                leucocyte.instances.add(it)
 
-                container.addChild(p)
                 it
             }
 
@@ -140,14 +135,11 @@ class BloodCellsExample : SceneryBase("BloodCellsExample", windowWidth = 1280, w
                 val v = Mesh()
                 v.name = "erythrocyte_$it"
                 v.instanceOf = erythrocyte
-                v.instancedProperties.put("ModelViewMatrix", { v.modelView })
-                v.instancedProperties.put("ModelMatrix", { v.model })
-                v.instancedProperties.put("MVP", { v.mvp })
+                v.instancedProperties.put("ModelMatrix", { v.world})
 
                 v
             }
             .map {
-                val p = Node("parent of it")
                 val scale = Numerics.randomFromRange(5f, 12f)
 
                 it.material = e_material
@@ -159,10 +151,10 @@ class BloodCellsExample : SceneryBase("BloodCellsExample", windowWidth = 1280, w
                     Numerics.randomFromRange(0.01f, 0.9f)
                 )
 
-                p.position = Numerics.randomVectorFromRange(3, 0.0f, posRange)
-                p.addChild(it)
+                it.position = Numerics.randomVectorFromRange(3, 0.0f, posRange)
+                it.parent = container
+                erythrocyte.instances.add(it)
 
-                container.addChild(p)
                 it
             }
 

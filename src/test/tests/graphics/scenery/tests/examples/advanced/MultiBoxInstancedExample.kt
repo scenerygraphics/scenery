@@ -49,21 +49,22 @@ class MultiBoxInstancedExample : SceneryBase("MultiBoxInstancedExample") {
             inst.instanceOf = b
             inst.material = b.material
 
-            inst.instancedProperties.put("ModelMatrix", { inst.world })
+            inst.instancedProperties["ModelMatrix"] = { inst.world }
 
             val k: Double = it.rem(boundaryWidth)
             val j: Double = (it / boundaryWidth).rem(boundaryHeight)
             val i: Double = it / (boundaryWidth * boundaryHeight)
 
-            inst.position = GLVector(Math.floor(i).toFloat(), Math.floor(j).toFloat(), Math.floor(k).toFloat())
+            val jitter = Numerics.randomVectorFromRange(3, -0.1f, 0.1f)
+
+            inst.position = GLVector(Math.floor(i).toFloat(), Math.floor(j).toFloat(), Math.floor(k).toFloat()) + jitter
             inst.needsUpdate = true
             inst.needsUpdateWorld = true
 
-            container.addChild(inst)
+            b.instances.add(inst)
+            inst.parent = container
             inst
         }
-
-        scene.addChild(container)
 
         val lights = (0..20).map {
             PointLight()
@@ -106,7 +107,9 @@ class MultiBoxInstancedExample : SceneryBase("MultiBoxInstancedExample") {
 
                 ticks++
 
-                container.rotation.rotateByEuler(0.001f, 0.001f, 0.0f)
+                container.rotation.rotateByAngleY(0.001f)
+                container.needsUpdateWorld = true
+                container.needsUpdate = true
                 container.updateWorld(true, false)
 
                 Thread.sleep(10)
