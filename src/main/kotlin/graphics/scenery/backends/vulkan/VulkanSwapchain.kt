@@ -12,6 +12,7 @@ import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.memFree
 import org.lwjgl.vulkan.*
+import org.lwjgl.vulkan.KHRSwapchain.VK_ERROR_OUT_OF_DATE_KHR
 import org.lwjgl.vulkan.KHRSwapchain.vkAcquireNextImageKHR
 import java.nio.IntBuffer
 import java.nio.LongBuffer
@@ -45,7 +46,6 @@ open class VulkanSwapchain(open val device: VulkanDevice,
 
     var lastResize = -1L
     private val WINDOW_RESIZE_TIMEOUT = 200 * 10e6
-    private val retiredSwapchains: ArrayList<Long> = ArrayList(10)
 
     data class ColorFormatAndSpace(var colorFormat: Int = 0, var colorSpace: Int = 0)
 
@@ -171,8 +171,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
             // Note: destroying the swapchain also cleans up all its associated presentable images once the platform is done with them.
             if (oldSwapchain is VulkanSwapchain && oldHandle != null && oldHandle != VK10.VK_NULL_HANDLE) {
                 // TODO: Figure out why deleting a retired swapchain crashes on Nvidia
-                //KHRSwapchain.vkDestroySwapchainKHR(device, oldHandle, null)
-                retiredSwapchains.add(oldHandle)
+                KHRSwapchain.vkDestroySwapchainKHR(device.vulkanDevice, oldHandle, null)
             }
 
             val imageCount = VU.getInts("Getting swapchain images", 1,
@@ -343,8 +342,11 @@ open class VulkanSwapchain(open val device: VulkanDevice,
 
         waitForSemaphores?.let { presentInfo.pWaitSemaphores(it) }
 
+        // here we accept the VK_ERROR_OUT_OF_DATE_KHR error code, which
+        // seems to spuriously occur on Linux upon resizing.
         VU.run("Presenting swapchain image",
-            { KHRSwapchain.vkQueuePresentKHR(presentQueue, presentInfo) })
+            { KHRSwapchain.vkQueuePresentKHR(presentQueue, presentInfo) },
+            allowedResults = listOf(VK_ERROR_OUT_OF_DATE_KHR))
     }
 
     override fun postPresent(image: Int) {
@@ -425,7 +427,6 @@ open class VulkanSwapchain(open val device: VulkanDevice,
     override fun close() {
         logger.debug("Closing swapchain $this")
         KHRSwapchain.vkDestroySwapchainKHR(device.vulkanDevice, handle, null)
-        retiredSwapchains.forEach { KHRSwapchain.vkDestroySwapchainKHR(device.vulkanDevice, it, null) }
 
         presentInfo.free()
         MemoryUtil.memFree(swapchainImage)
