@@ -26,7 +26,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
 
     /** Hash map used for storing metadata for the Node. [DeferredLightingRenderer] uses
      * it to e.g. store [OpenGLObjectState]. */
-    @Transient var metadata: HashMap<String, NodeMetadata> = HashMap()
+    @Transient var metadata: HashMap<String, Any> = HashMap()
 
     /** Material of the Node */
     @Transient override var material: Material = Material.DefaultMaterial()
@@ -125,6 +125,10 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
     /** Stores whether the [world] matrix needs an update. */
     var needsUpdateWorld = true
 
+    var discoveryBarrier = false
+
+    val instances = CopyOnWriteArrayList<Node>()
+
     protected fun <R> propertyChanged(property: KProperty<*>, old: R, new: R): Unit {
         if(property.name == "rotation" || property.name == "position" || property.name  == "scale") {
             needsUpdate = true
@@ -153,6 +157,8 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
     fun addChild(child: Node) {
         child.parent = this
         this.children.add(child)
+
+        this.getScene()?.sceneSize?.incrementAndGet()
     }
 
     /**
@@ -161,6 +167,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
      * @param[child] The child node to remove.
      */
     fun removeChild(child: Node): Boolean {
+        this.getScene()?.sceneSize?.decrementAndGet()
         return this.children.remove(child)
     }
 
