@@ -4,6 +4,7 @@ import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.Renderer
+import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedStereoGlasses
 import graphics.scenery.utils.Numerics
 import org.junit.Test
@@ -16,9 +17,11 @@ import kotlin.concurrent.thread
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class SponzaExample : SceneryBase("SponzaExample", windowWidth = 1280, windowHeight = 720) {
-    private var hmd: TrackedStereoGlasses? = null
+    private var hmd: OpenVRHMD? = null//OpenVRHMD(false, true)
 
     override fun init() {
+//        hub.add(SceneryElement.HMDInput, hmd!!)
+
         renderer = Renderer.createRenderer(hub, applicationName,
             scene,
             windowWidth,

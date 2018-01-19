@@ -11,6 +11,7 @@ import java.util.*
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.properties.Delegates
+import kotlin.reflect.KMutableProperty1
 import kotlin.reflect.KProperty
 
 /**
@@ -125,6 +126,8 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
     /** Stores whether the [world] matrix needs an update. */
     var needsUpdateWorld = true
 
+    var discoveryBarrier = false
+
     protected fun <R> propertyChanged(property: KProperty<*>, old: R, new: R): Unit {
         if(property.name == "rotation" || property.name == "position" || property.name  == "scale") {
             needsUpdate = true
@@ -153,6 +156,12 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
     fun addChild(child: Node) {
         child.parent = this
         this.children.add(child)
+
+        this.getScene()?.sceneSize?.incrementAndGet()
+
+        if(child is PointLight) {
+            this.getScene()?.lights?.add(child)
+        }
     }
 
     /**
@@ -161,6 +170,12 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
      * @param[child] The child node to remove.
      */
     fun removeChild(child: Node): Boolean {
+        this.getScene()?.sceneSize?.decrementAndGet()
+
+        if(child is PointLight) {
+            this.getScene()?.lights?.remove(child)
+        }
+
         return this.children.remove(child)
     }
 
