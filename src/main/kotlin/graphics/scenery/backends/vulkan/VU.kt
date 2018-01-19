@@ -114,12 +114,15 @@ class VU {
     companion object VU {
         private val logger by LazyLogger()
 
-        inline fun run(name: String, function: () -> Int) {
+        inline fun run(name: String, function: () -> Int, allowedResults: List<Int> = emptyList()) {
             val result = function.invoke()
 
-            if (result != VK_SUCCESS) {
-                System.exit(1)
+            if (result != VK_SUCCESS && result !in allowedResults) {
                 LoggerFactory.getLogger("VulkanRenderer").error("Call to $name failed: ${translate(result)}")
+            }
+
+            if(result in allowedResults) {
+                LoggerFactory.getLogger("VulkanRenderer").debug("Call to $name did not result in error because return code(s) ${allowedResults.joinToString(", ")} were explicitly tolerated.")
             }
         }
 
