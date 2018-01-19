@@ -10,6 +10,7 @@ import java.util.concurrent.ConcurrentLinkedDeque
  * Created by ulrik on 1/18/2017.
  */
 class Statistics(override var hub: Hub?) : Hubable {
+    private val logger by LazyLogger()
     private val dataSize = 100
 
     inner class StatisticData(val isTime: Boolean) {
@@ -29,7 +30,7 @@ class Statistics(override var hub: Hub?) : Hubable {
 
         fun Float.inMillisecondsIfTime(): String {
             if(isTime) {
-                return String.format(Locale.US, "%.2f", this / 10e5)
+                return String.format(Locale.US, "%.2f", this / 1000000)
             } else {
                 return String.format(Locale.US, "%.2f", this)
             }
@@ -81,5 +82,9 @@ class Statistics(override var hub: Hub?) : Hubable {
         } else {
             return ""
         }
+    }
+
+    fun log() {
+         logger.info(this.toString())
     }
 }
