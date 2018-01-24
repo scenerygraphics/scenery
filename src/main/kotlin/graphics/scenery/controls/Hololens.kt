@@ -5,12 +5,21 @@ import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.Hub
 import graphics.scenery.Hubable
+import graphics.scenery.SceneryBase
+import graphics.scenery.SceneryElement
 import graphics.scenery.backends.Display
 import graphics.scenery.backends.vulkan.VulkanDevice
+import graphics.scenery.backends.vulkan.VulkanTexture
+import graphics.scenery.backends.vulkan.toHexString
 import graphics.scenery.utils.LazyLogger
-import org.lwjgl.vulkan.VkInstance
-import org.lwjgl.vulkan.VkPhysicalDevice
-import org.lwjgl.vulkan.VkQueue
+import org.lwjgl.vulkan.*
+import org.lwjgl.vulkan.NVDedicatedAllocation.VK_STRUCTURE_TYPE_DEDICATED_ALLOCATION_IMAGE_CREATE_INFO_NV
+import org.lwjgl.vulkan.NVExternalMemory.VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO_NV
+import org.lwjgl.vulkan.NVExternalMemoryCapabilities.*
+import org.lwjgl.vulkan.VK10.*
+import org.zeromq.ZContext
+import org.zeromq.ZMQ
+import java.math.BigInteger
 
 /**
  * Hololens support class
@@ -30,6 +39,15 @@ class Hololens: TrackerInput, Display, Hubable {
     private val headToEyeTransforms = arrayOf(
         GLMatrix.getIdentity().translate(-0.033f, 0.0f, 0.0f),
         GLMatrix.getIdentity().translate(0.033f, 0.0f, 0.0f))
+
+    private val zmqContext = ZContext()
+    private val zmqSocket = zmqContext.createSocket(ZMQ.REQ)
+
+    private var d3dSharedHandle = -1L
+
+    init {
+        zmqSocket.connect("tcp://localhost:1339")
+    }
 
     /**
      * Returns the orientation of the HMD
@@ -99,7 +117,7 @@ class Hololens: TrackerInput, Display, Hubable {
      * @return GLMatrix containing the per-eye projection matrix
      */
     override fun getEyeProjection(eye: Int, nearPlane: Float, farPlane: Float): GLMatrix {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        return GLMatrix().setPerspectiveProjectionMatrix(50.0f, 1.0f,  nearPlane, farPlane )
     }
 
     /**
@@ -108,7 +126,7 @@ class Hololens: TrackerInput, Display, Hubable {
      * @return IPD as Float
      */
     override fun getIPD(): Float {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        return 0.05f
     }
 
     /**
@@ -144,7 +162,54 @@ class Hololens: TrackerInput, Display, Hubable {
      * @param[image] The Vulkan texture image to be presented to the compositor
      */
     override fun submitToCompositorVulkan(width: Int, height: Int, format: Int, instance: VkInstance, device: VulkanDevice, queue: VkQueue, image: Long) {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        if(d3dSharedHandle == -1L) {
+            zmqSocket.send("RegPid${SceneryBase.getProcessID()}")
+            val handle = zmqSocket.recvStr()
+
+            val address = BigInteger(handle, 16)
+            d3dSharedHandle = address.toLong()
+            logger.info("Registered D3D shared texture handle as ${d3dSharedHandle.toHexString()}/${address.toString(16)}")
+
+            val handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_IMAGE_BIT_NV
+            val extProperties = VkExternalImageFormatPropertiesNV.calloc()
+
+            val formatSupported = vkGetPhysicalDeviceExternalImageFormatPropertiesNV(
+                device.physicalDevice,
+                VK_FORMAT_R8G8B8A8_UNORM,
+                VK_IMAGE_TYPE_2D,
+                VK_IMAGE_TILING_OPTIMAL,
+                VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                0,
+                handleType,
+                extProperties)
+
+            if(formatSupported == VK_ERROR_FORMAT_NOT_SUPPORTED) {
+                logger.error("Shared handles not supported, omfg!")
+
+                return
+            }
+
+            if(extProperties.externalMemoryFeatures() and VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT_NV != VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT_NV) {
+                logger.error("Importable handles are not support, omfg! ${extProperties.externalMemoryFeatures()}")
+            }
+
+            val extMemoryImageInfo = VkExternalMemoryImageCreateInfoNV.calloc()
+                .sType(VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO_NV)
+                .pNext(0)
+                .handleTypes(handleType)
+
+            val dedicatedAllocationCreateInfo = VkDedicatedAllocationImageCreateInfoNV.calloc()
+                .sType(VK_STRUCTURE_TYPE_DEDICATED_ALLOCATION_IMAGE_CREATE_INFO_NV)
+                .pNext(0)
+                .dedicatedAllocation(false)
+
+            if(extProperties.externalMemoryFeatures() and VK_EXTERNAL_MEMORY_FEATURE_DEDICATED_ONLY_BIT_NV == VK_EXTERNAL_MEMORY_FEATURE_DEDICATED_ONLY_BIT_NV) {
+                logger.info("Platform requires dedicated allocation")
+
+                extMemoryImageInfo.pNext(dedicatedAllocationCreateInfo.address())
+                dedicatedAllocationCreateInfo.dedicatedAllocation(true)
+            }
+        }
     }
 
     /**

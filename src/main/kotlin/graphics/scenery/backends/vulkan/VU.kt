@@ -18,6 +18,7 @@ import org.lwjgl.vulkan.KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
 import org.lwjgl.vulkan.KHRSwapchain.VK_SUBOPTIMAL_KHR
 import org.lwjgl.vulkan.VK10.*
 import org.slf4j.LoggerFactory
+import java.math.BigInteger
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.util.*
@@ -32,6 +33,10 @@ import java.util.*
 
 fun Long.toHexString(): String {
     return String.format("0x%X", this)
+}
+
+fun BigInteger.toHexString(): String {
+    return "0x${this.toString(16)}"
 }
 
 fun VkCommandBuffer.endCommandBuffer() {
