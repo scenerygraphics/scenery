@@ -6,16 +6,18 @@ import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.Hub
 import graphics.scenery.Hubable
 import graphics.scenery.SceneryBase
-import graphics.scenery.SceneryElement
 import graphics.scenery.backends.Display
+import graphics.scenery.backends.vulkan.VU
 import graphics.scenery.backends.vulkan.VulkanDevice
 import graphics.scenery.backends.vulkan.VulkanTexture
 import graphics.scenery.backends.vulkan.toHexString
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.NVDedicatedAllocation.VK_STRUCTURE_TYPE_DEDICATED_ALLOCATION_IMAGE_CREATE_INFO_NV
+import org.lwjgl.vulkan.NVDedicatedAllocation.VK_STRUCTURE_TYPE_DEDICATED_ALLOCATION_MEMORY_ALLOCATE_INFO_NV
 import org.lwjgl.vulkan.NVExternalMemory.VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO_NV
 import org.lwjgl.vulkan.NVExternalMemoryCapabilities.*
+import org.lwjgl.vulkan.NVExternalMemoryWin32.VK_STRUCTURE_TYPE_IMPORT_MEMORY_WIN32_HANDLE_INFO_NV
 import org.lwjgl.vulkan.VK10.*
 import org.zeromq.ZContext
 import org.zeromq.ZMQ
@@ -43,7 +45,9 @@ class Hololens: TrackerInput, Display, Hubable {
     private val zmqContext = ZContext()
     private val zmqSocket = zmqContext.createSocket(ZMQ.REQ)
 
+    private var hololensCommandPool = -1L
     private var d3dSharedHandle = -1L
+    private var d3dImage: VulkanTexture.VulkanImage? = null
 
     init {
         zmqSocket.connect("tcp://localhost:1339")
@@ -162,7 +166,11 @@ class Hololens: TrackerInput, Display, Hubable {
      * @param[image] The Vulkan texture image to be presented to the compositor
      */
     override fun submitToCompositorVulkan(width: Int, height: Int, format: Int, instance: VkInstance, device: VulkanDevice, queue: VkQueue, image: Long) {
-        if(d3dSharedHandle == -1L) {
+        if(hololensCommandPool == -1L) {
+            hololensCommandPool = device.createCommandPool(device.queueIndices.graphicsQueue)
+        }
+
+        if(d3dSharedHandle == -1L || d3dImage == null) {
             zmqSocket.send("RegPid${SceneryBase.getProcessID()}")
             val handle = zmqSocket.recvStr()
 
@@ -183,13 +191,13 @@ class Hololens: TrackerInput, Display, Hubable {
                 handleType,
                 extProperties)
 
-            if(formatSupported == VK_ERROR_FORMAT_NOT_SUPPORTED) {
+            if (formatSupported == VK_ERROR_FORMAT_NOT_SUPPORTED) {
                 logger.error("Shared handles not supported, omfg!")
 
                 return
             }
 
-            if(extProperties.externalMemoryFeatures() and VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT_NV != VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT_NV) {
+            if (extProperties.externalMemoryFeatures() and VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT_NV != VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT_NV) {
                 logger.error("Importable handles are not support, omfg! ${extProperties.externalMemoryFeatures()}")
             }
 
@@ -203,12 +211,57 @@ class Hololens: TrackerInput, Display, Hubable {
                 .pNext(0)
                 .dedicatedAllocation(false)
 
-            if(extProperties.externalMemoryFeatures() and VK_EXTERNAL_MEMORY_FEATURE_DEDICATED_ONLY_BIT_NV == VK_EXTERNAL_MEMORY_FEATURE_DEDICATED_ONLY_BIT_NV) {
+            if (extProperties.externalMemoryFeatures() and VK_EXTERNAL_MEMORY_FEATURE_DEDICATED_ONLY_BIT_NV == VK_EXTERNAL_MEMORY_FEATURE_DEDICATED_ONLY_BIT_NV) {
                 logger.info("Platform requires dedicated allocation")
 
                 extMemoryImageInfo.pNext(dedicatedAllocationCreateInfo.address())
                 dedicatedAllocationCreateInfo.dedicatedAllocation(true)
             }
+
+            val t = VulkanTexture(device, hololensCommandPool, queue,
+                hololensDisplaySize.x().toInt(), hololensDisplaySize.y().toInt(), 1,
+                VK_FORMAT_R8G8B8A8_UNORM, 1, true, true)
+
+            d3dImage = t.createImage(hololensDisplaySize.x().toInt(), hololensDisplaySize.y().toInt(), 1,
+                VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                VK_IMAGE_TILING_OPTIMAL, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 1,
+                imageCreateInfoPNext = extMemoryImageInfo.address(),
+                customAllocator = { memoryRequirements ->
+                    logger.debug("Using custom image allocation for external handle ...")
+                    val memoryTypeIndex = device.getMemoryType(memoryRequirements.memoryTypeBits(),
+                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+
+                    if(memoryTypeIndex.first == false) {
+                        logger.error("Could not find suitable memory type")
+                    } else {
+                        logger.debug("Got memory type ${memoryTypeIndex.second}")
+                    }
+
+                    val importMemoryInfo = VkImportMemoryWin32HandleInfoNV.calloc()
+                        .sType(VK_STRUCTURE_TYPE_IMPORT_MEMORY_WIN32_HANDLE_INFO_NV)
+                        .pNext(0)
+                        .handleType(handleType)
+                        .handle(d3dSharedHandle)
+
+                    val memoryInfo = VkMemoryAllocateInfo.calloc()
+                        .sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO)
+                        .pNext(importMemoryInfo.address())
+                        .allocationSize(memoryRequirements.size())
+                        .memoryTypeIndex(memoryTypeIndex.second)
+
+                    val dedicatedAllocationInfo = VkDedicatedAllocationMemoryAllocateInfoNV.calloc()
+                        .sType(VK_STRUCTURE_TYPE_DEDICATED_ALLOCATION_MEMORY_ALLOCATE_INFO_NV)
+
+                    if (extProperties.externalMemoryFeatures() and VK_EXTERNAL_MEMORY_FEATURE_DEDICATED_ONLY_BIT_NV == VK_EXTERNAL_MEMORY_FEATURE_DEDICATED_ONLY_BIT_NV) {
+                        logger.debug("Using VK_NV_dedicated_allocation")
+                        dedicatedAllocationInfo.image(d3dImage!!.image)
+                        importMemoryInfo.pNext(dedicatedAllocationInfo.address())
+                    }
+
+                    VU.getLong("Allocate memory for D3D shared image",
+                        { vkAllocateMemory(device.vulkanDevice, memoryInfo, null, this) },
+                        { dedicatedAllocationInfo.free(); memoryInfo.free(); importMemoryInfo.free(); })
+                })
         }
     }
 

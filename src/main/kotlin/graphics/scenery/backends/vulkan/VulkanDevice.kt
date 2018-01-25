@@ -138,6 +138,29 @@ class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysicalDevic
         return false.to(0)
     }
 
+    fun createCommandPool(queueNodeIndex: Int): Long {
+        return stackPush().use { stack ->
+            val cmdPoolInfo = VkCommandPoolCreateInfo.callocStack(stack)
+                .sType(VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO)
+                .queueFamilyIndex(queueNodeIndex)
+                .flags(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT)
+
+            val pCmdPool = stack.callocLong(1)
+            val err = vkCreateCommandPool(vulkanDevice, cmdPoolInfo, null, pCmdPool)
+            val commandPool = pCmdPool.get(0)
+
+            if (err != VK_SUCCESS) {
+                throw AssertionError("Failed to create command pool: " + VU.translate(err))
+            }
+
+            commandPool
+        }
+    }
+
+    fun destroyCommandPool(commandPool: Long) {
+        vkDestroyCommandPool(vulkanDevice, commandPool, null)
+    }
+
     override fun toString(): String {
         return "${deviceData.vendor} ${deviceData.name}"
     }

@@ -122,11 +122,13 @@ open class VulkanTexture(val device: VulkanDevice,
         gt = genericTexture
     }
 
-    fun createImage(width: Int, height: Int, depth: Int, format: Int, usage: Int, tiling: Int, memoryFlags: Int, mipLevels: Int): VulkanImage {
+    fun createImage(width: Int, height: Int, depth: Int, format: Int,
+                    usage: Int, tiling: Int, memoryFlags: Int, mipLevels: Int,
+                    customAllocator: ((VkMemoryRequirements) -> Long)? = null, imageCreateInfoPNext: Long? = null): VulkanImage {
         val extent = VkExtent3D.calloc().set(width, height, depth)
         val imageInfo = VkImageCreateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO)
-            .pNext(NULL)
+            .pNext(imageCreateInfoPNext ?: NULL)
             .imageType(if (depth == 1) {
                 VK_IMAGE_TYPE_2D
             } else {
@@ -143,23 +145,28 @@ open class VulkanTexture(val device: VulkanDevice,
             .samples(VK_SAMPLE_COUNT_1_BIT)
             .flags(VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT)
 
-        val reqs = VkMemoryRequirements.calloc()
         val image = VU.getLong("create staging image",
             { vkCreateImage(device.vulkanDevice, imageInfo, null, this) }, {})
 
+        val reqs = VkMemoryRequirements.calloc()
         vkGetImageMemoryRequirements(device.vulkanDevice, image, reqs)
-
         val memorySize = reqs.size()
 
-        val allocInfo = VkMemoryAllocateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO)
-            .pNext(NULL)
-            .allocationSize(memorySize)
-            .memoryTypeIndex(device.getMemoryType(reqs.memoryTypeBits(), memoryFlags).second)
+        val memory = if(customAllocator == null) {
+            val allocInfo = VkMemoryAllocateInfo.calloc()
+                .sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO)
+                .pNext(NULL)
+                .allocationSize(memorySize)
+                .memoryTypeIndex(device.getMemoryType(reqs.memoryTypeBits(), memoryFlags).second)
 
-        val memory = VU.getLong("allocate image staging memory",
-            { vkAllocateMemory(device.vulkanDevice, allocInfo, null, this) },
-            { imageInfo.free(); allocInfo.free(); reqs.free(); extent.free() })
+            VU.getLong("allocate image staging memory",
+                { vkAllocateMemory(device.vulkanDevice, allocInfo, null, this) },
+                { imageInfo.free(); allocInfo.free(); extent.free() })
+        } else {
+            customAllocator.invoke(reqs)
+        }
+
+        reqs.free()
 
         vkBindImageMemory(device.vulkanDevice, image, memory, 0)
 
