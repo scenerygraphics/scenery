@@ -424,9 +424,9 @@ open class VulkanRenderer(hub: Hub,
 
         queue = VU.createDeviceQueue(device, device.queueIndices.graphicsQueue)
         with(commandPools) {
-            Render = createCommandPool(device, device.queueIndices.graphicsQueue)
-            Standard = createCommandPool(device, device.queueIndices.graphicsQueue)
-            Compute = createCommandPool(device, device.queueIndices.graphicsQueue)
+            Render = device.createCommandPool(device.queueIndices.graphicsQueue)
+            Standard = device.createCommandPool(device.queueIndices.graphicsQueue)
+            Compute = device.createCommandPool(device.queueIndices.graphicsQueue)
         }
         logger.debug("Creating command pools done")
 
@@ -1832,29 +1832,6 @@ open class VulkanRenderer(hub: Hub,
         }
     }
 
-    private fun createCommandPool(device: VulkanDevice, queueNodeIndex: Int): Long {
-        return stackPush().use { stack ->
-            val cmdPoolInfo = VkCommandPoolCreateInfo.callocStack(stack)
-                .sType(VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO)
-                .queueFamilyIndex(queueNodeIndex)
-                .flags(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT)
-
-            val pCmdPool = stack.callocLong(1)
-            val err = vkCreateCommandPool(device.vulkanDevice, cmdPoolInfo, null, pCmdPool)
-            val commandPool = pCmdPool.get(0)
-
-            if (err != VK_SUCCESS) {
-                throw AssertionError("Failed to create command pool: " + VU.translate(err))
-            }
-
-            commandPool
-        }
-    }
-
-    private fun destroyCommandPool(device: VulkanDevice, commandPool: Long) {
-        vkDestroyCommandPool(device.vulkanDevice, commandPool, null)
-    }
-
     private fun createVertexBuffers(device: VulkanDevice, node: Node, state: VulkanObjectState): VulkanObjectState {
         val n = node as HasGeometry
 
@@ -2913,9 +2890,9 @@ open class VulkanRenderer(hub: Hub,
         renderpasses.forEach { _, vulkanRenderpass -> vulkanRenderpass.close() }
 
         with(commandPools) {
-            destroyCommandPool(device, Render)
-            destroyCommandPool(device, Compute)
-            destroyCommandPool(device, Standard)
+            device.destroyCommandPool(Render)
+            device.destroyCommandPool(Compute)
+            device.destroyCommandPool(Standard)
         }
 
         vkDestroyPipelineCache(device.vulkanDevice, pipelineCache, null)
