@@ -13,11 +13,10 @@ import graphics.scenery.backends.vulkan.VulkanTexture
 import graphics.scenery.backends.vulkan.toHexString
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.vulkan.*
-import org.lwjgl.vulkan.NVDedicatedAllocation.VK_STRUCTURE_TYPE_DEDICATED_ALLOCATION_IMAGE_CREATE_INFO_NV
-import org.lwjgl.vulkan.NVDedicatedAllocation.VK_STRUCTURE_TYPE_DEDICATED_ALLOCATION_MEMORY_ALLOCATE_INFO_NV
-import org.lwjgl.vulkan.NVExternalMemory.VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO_NV
+import org.lwjgl.vulkan.NVDedicatedAllocation.*
+import org.lwjgl.vulkan.NVExternalMemory.*
 import org.lwjgl.vulkan.NVExternalMemoryCapabilities.*
-import org.lwjgl.vulkan.NVExternalMemoryWin32.VK_STRUCTURE_TYPE_IMPORT_MEMORY_WIN32_HANDLE_INFO_NV
+import org.lwjgl.vulkan.NVExternalMemoryWin32.*
 import org.lwjgl.vulkan.VK10.*
 import org.zeromq.ZContext
 import org.zeromq.ZMQ
@@ -222,10 +221,24 @@ class Hololens: TrackerInput, Display, Hubable {
                 hololensDisplaySize.x().toInt(), hololensDisplaySize.y().toInt(), 1,
                 VK_FORMAT_R8G8B8A8_UNORM, 1, true, true)
 
+            val imageCreateInfo = VkImageCreateInfo.calloc()
+                .sType(VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO)
+                .format(VK_FORMAT_R8G8B8A8_UNORM)
+                .mipLevels(1)
+                .arrayLayers(1)
+                .samples(VK_SAMPLE_COUNT_1_BIT)
+                .tiling(VK_IMAGE_TILING_OPTIMAL)
+                .usage(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
+                .flags(0)
+                .sharingMode(VK_SHARING_MODE_EXCLUSIVE)
+                .pNext(extMemoryImageInfo.address())
+
+            imageCreateInfo.extent().set(hololensDisplaySize.x().toInt(), hololensDisplaySize.y().toInt(), 1)
+
             d3dImage = t.createImage(hololensDisplaySize.x().toInt(), hololensDisplaySize.y().toInt(), 1,
                 VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
                 VK_IMAGE_TILING_OPTIMAL, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 1,
-                imageCreateInfoPNext = extMemoryImageInfo.address(),
+                imageCreateInfo = imageCreateInfo,
                 customAllocator = { memoryRequirements ->
                     logger.debug("Using custom image allocation for external handle ...")
                     val memoryTypeIndex = device.getMemoryType(memoryRequirements.memoryTypeBits(),
@@ -257,6 +270,8 @@ class Hololens: TrackerInput, Display, Hubable {
                         dedicatedAllocationInfo.image(d3dImage!!.image)
                         importMemoryInfo.pNext(dedicatedAllocationInfo.address())
                     }
+
+                    logger.debug("Trying to allocate ${memoryRequirements.size()} bytes for shared texture")
 
                     VU.getLong("Allocate memory for D3D shared image",
                         { vkAllocateMemory(device.vulkanDevice, memoryInfo, null, this) },
