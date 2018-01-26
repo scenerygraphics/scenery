@@ -124,11 +124,10 @@ open class VulkanTexture(val device: VulkanDevice,
 
     fun createImage(width: Int, height: Int, depth: Int, format: Int,
                     usage: Int, tiling: Int, memoryFlags: Int, mipLevels: Int,
-                    customAllocator: ((VkMemoryRequirements) -> Long)? = null, imageCreateInfoPNext: Long? = null): VulkanImage {
+                    customAllocator: ((VkMemoryRequirements) -> Long)? = null, imageCreateInfo: VkImageCreateInfo? = null): VulkanImage {
         val extent = VkExtent3D.calloc().set(width, height, depth)
-        val imageInfo = VkImageCreateInfo.calloc()
+        val imageInfo = imageCreateInfo ?: VkImageCreateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO)
-            .pNext(imageCreateInfoPNext ?: NULL)
             .imageType(if (depth == 1) {
                 VK_IMAGE_TYPE_2D
             } else {
