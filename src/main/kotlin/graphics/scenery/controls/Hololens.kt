@@ -7,11 +7,9 @@ import graphics.scenery.Hub
 import graphics.scenery.Hubable
 import graphics.scenery.SceneryBase
 import graphics.scenery.backends.Display
-import graphics.scenery.backends.vulkan.VU
-import graphics.scenery.backends.vulkan.VulkanDevice
-import graphics.scenery.backends.vulkan.VulkanTexture
-import graphics.scenery.backends.vulkan.toHexString
+import graphics.scenery.backends.vulkan.*
 import graphics.scenery.utils.LazyLogger
+import org.lwjgl.system.MemoryStack
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.NVDedicatedAllocation.*
 import org.lwjgl.vulkan.NVExternalMemory.*
@@ -295,7 +293,89 @@ class Hololens: TrackerInput, Display, Hubable {
                         { vkAllocateMemory(device.vulkanDevice, memoryInfo, null, this) },
                         { dedicatedAllocationInfo.free(); memoryInfo.free(); importMemoryInfo.free(); })
                 })
+
+            zmqSocket.send("NopeTT")
+            zmqSocket.recv()
         }
+
+        zmqSocket.send("GiefTT")
+        zmqSocket.recv()
+
+        // blit into D3D image
+        val commandBuffer = with(VU.newCommandBuffer(device, hololensCommandPool)) {
+            MemoryStack.stackPush().use { stack ->
+                val imageBlit = VkImageBlit.callocStack(1, stack)
+                val type = VK_IMAGE_ASPECT_COLOR_BIT
+
+                imageBlit.srcSubresource().set(type, 0, 0, 1)
+                imageBlit.srcOffsets(0).set(0, 0, 0)
+                imageBlit.srcOffsets(1).set(width, height, 1)
+
+                imageBlit.dstSubresource().set(type, 0, 0, 1)
+                imageBlit.dstOffsets(0).set(0, 0, 0)
+                imageBlit.dstOffsets(1).set(width, height, 1)
+
+                val subresourceRange = VkImageSubresourceRange.callocStack(stack)
+                    .aspectMask(type)
+                    .baseMipLevel(0)
+                    .levelCount(1)
+                    .baseArrayLayer(0)
+                    .layerCount(1)
+
+                // transition source attachment
+                VulkanTexture.transitionLayout(image,
+                    KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                    subresourceRange = subresourceRange,
+                    commandBuffer = this,
+                    srcStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                    dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT
+                )
+
+                // transition destination attachment
+                VulkanTexture.transitionLayout(d3dImage!!.image,
+                    VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                    subresourceRange = subresourceRange,
+                    commandBuffer = this,
+                    srcStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                    dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT
+                )
+
+                vkCmdBlitImage(this@with,
+                    image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                    d3dImage!!.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                    imageBlit, VK_FILTER_NEAREST
+                )
+
+                // transition destination attachment back to attachment
+                VulkanTexture.transitionLayout(d3dImage!!.image,
+                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                    VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                    subresourceRange = subresourceRange,
+                    commandBuffer = this,
+                    srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                    dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
+                )
+
+                // transition source attachment back to shader read-only
+                VulkanTexture.transitionLayout(image,
+                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                    KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                    subresourceRange = subresourceRange,
+                    commandBuffer = this,
+                    srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                    dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
+                )
+            }
+
+            this
+        }
+
+        commandBuffer.endCommandBuffer(device, hololensCommandPool, queue, true, true)
+
+        zmqSocket.send("NopeTT")
+        zmqSocket.recv()
     }
 
     /**
