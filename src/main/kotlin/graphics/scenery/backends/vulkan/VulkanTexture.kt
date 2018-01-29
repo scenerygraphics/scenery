@@ -156,11 +156,11 @@ open class VulkanTexture(val device: VulkanDevice,
                 .sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO)
                 .pNext(NULL)
                 .allocationSize(memorySize)
-                .memoryTypeIndex(device.getMemoryType(reqs.memoryTypeBits(), memoryFlags).second)
+                .memoryTypeIndex(device.getMemoryType(reqs.memoryTypeBits(), memoryFlags).first())
 
             VU.getLong("allocate image staging memory",
                 { vkAllocateMemory(device.vulkanDevice, allocInfo, null, this) },
-                { imageInfo.free(); allocInfo.free(); extent.free() })
+                { imageInfo.free(); allocInfo.free() })
         } else {
             customAllocator.invoke(reqs)
         }
