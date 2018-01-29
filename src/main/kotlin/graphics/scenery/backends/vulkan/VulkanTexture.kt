@@ -125,24 +125,29 @@ open class VulkanTexture(val device: VulkanDevice,
     fun createImage(width: Int, height: Int, depth: Int, format: Int,
                     usage: Int, tiling: Int, memoryFlags: Int, mipLevels: Int,
                     customAllocator: ((VkMemoryRequirements) -> Long)? = null, imageCreateInfo: VkImageCreateInfo? = null): VulkanImage {
-        val extent = VkExtent3D.calloc().set(width, height, depth)
-        val imageInfo = imageCreateInfo ?: VkImageCreateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO)
-            .imageType(if (depth == 1) {
-                VK_IMAGE_TYPE_2D
-            } else {
-                VK_IMAGE_TYPE_3D
-            })
-            .extent(extent)
-            .mipLevels(mipLevels)
-            .arrayLayers(1)
-            .format(format)
-            .tiling(tiling)
-            .initialLayout(if(depth == 1) {VK_IMAGE_LAYOUT_PREINITIALIZED} else { VK_IMAGE_LAYOUT_UNDEFINED })
-            .usage(usage)
-            .sharingMode(VK_SHARING_MODE_EXCLUSIVE)
-            .samples(VK_SAMPLE_COUNT_1_BIT)
-            .flags(VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT)
+        val imageInfo = if(imageCreateInfo != null) {
+            imageCreateInfo
+        } else {
+            val i = VkImageCreateInfo.calloc()
+                .sType(VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO)
+                .imageType(if (depth == 1) {
+                    VK_IMAGE_TYPE_2D
+                } else {
+                    VK_IMAGE_TYPE_3D
+                })
+                .mipLevels(mipLevels)
+                .arrayLayers(1)
+                .format(format)
+                .tiling(tiling)
+                .initialLayout(if(depth == 1) {VK_IMAGE_LAYOUT_PREINITIALIZED} else { VK_IMAGE_LAYOUT_UNDEFINED })
+                .usage(usage)
+                .sharingMode(VK_SHARING_MODE_EXCLUSIVE)
+                .samples(VK_SAMPLE_COUNT_1_BIT)
+                .flags(VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT)
+
+            i.extent().set(width, height, depth)
+            i
+        }
 
         val image = VU.getLong("create staging image",
             { vkCreateImage(device.vulkanDevice, imageInfo, null, this) }, {})
