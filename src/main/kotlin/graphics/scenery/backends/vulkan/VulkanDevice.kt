@@ -120,22 +120,25 @@ class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysicalDevic
         logger.debug("Created logical Vulkan device on ${deviceData.vendor} ${deviceData.name}")
     }
 
-    fun getMemoryType(typeBits: Int, flags: Int): Pair<Boolean, Int> {
+    fun getMemoryType(typeBits: Int, flags: Int): List<Int> {
         var bits = typeBits
+        val types = ArrayList<Int>(5)
 
         for (i in 0 until memoryProperties.memoryTypeCount()) {
             if (bits and 1 == 1) {
                 if ((memoryProperties.memoryTypes(i).propertyFlags() and flags) == flags) {
-                    return true.to(i)
+                    types.add(i)
                 }
             }
 
             bits = bits shr 1
         }
 
-        logger.warn("Memory type $flags not found for device $this (${vulkanDevice.address().toHexString()}")
+        if(types.isEmpty()) {
+            logger.warn("Memory type $flags not found for device $this (${vulkanDevice.address().toHexString()}")
+        }
 
-        return false.to(0)
+        return types
     }
 
     fun createCommandPool(queueNodeIndex: Int): Long {
