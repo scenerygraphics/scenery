@@ -19,6 +19,7 @@ import org.lwjgl.vulkan.VK10.*
 import org.zeromq.ZContext
 import org.zeromq.ZMQ
 import java.math.BigInteger
+import java.nio.charset.Charset
 
 /**
  * Hololens support class
@@ -38,12 +39,16 @@ class Hololens: TrackerInput, Display, Hubable {
     private val headToEyeTransforms = arrayOf(
         GLMatrix.getIdentity().translate(-0.033f, 0.0f, 0.0f),
         GLMatrix.getIdentity().translate(0.033f, 0.0f, 0.0f))
+    // BGR is native surface format and saves unnecessary conversions
+    private val textureFormat = VK_FORMAT_B8G8R8A8_SRGB
 
     private val zmqContext = ZContext()
     private val zmqSocket = zmqContext.createSocket(ZMQ.REQ)
 
+    private var commandBuffer: VulkanCommandBuffer? = null
     private var hololensCommandPool = -1L
     private var d3dSharedHandle = -1L
+    private var memoryHandle = -1L
     private var d3dImage: VulkanTexture.VulkanImage? = null
 
     init {
@@ -181,7 +186,7 @@ class Hololens: TrackerInput, Display, Hubable {
 
             val formatSupported = vkGetPhysicalDeviceExternalImageFormatPropertiesNV(
                 device.physicalDevice,
-                VK_FORMAT_B8G8R8A8_UNORM,
+                textureFormat,
                 VK_IMAGE_TYPE_2D,
                 VK_IMAGE_TILING_OPTIMAL,
                 VK_IMAGE_USAGE_TRANSFER_DST_BIT or VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
@@ -233,20 +238,20 @@ class Hololens: TrackerInput, Display, Hubable {
 
             val t = VulkanTexture(device, hololensCommandPool, queue,
                 hololensDisplaySize.x().toInt(), hololensDisplaySize.y().toInt(), 1,
-                VK_FORMAT_B8G8R8A8_UNORM, 1, true, true)
+                textureFormat, 1, true, true)
 
             val imageCreateInfo = VkImageCreateInfo.calloc()
                 .sType(VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO)
                 .pNext(extMemoryImageInfo.address())
                 .imageType(VK_IMAGE_TYPE_2D)
-                .format(VK_FORMAT_B8G8R8A8_UNORM)
+                .format(textureFormat)
                 .mipLevels(1)
                 .arrayLayers(1)
                 .samples(VK_SAMPLE_COUNT_1_BIT)
                 .tiling(VK_IMAGE_TILING_OPTIMAL)
                 .usage(VK_IMAGE_USAGE_TRANSFER_DST_BIT or VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
                 .sharingMode(VK_SHARING_MODE_EXCLUSIVE)
-                .initialLayout(VK_IMAGE_LAYOUT_GENERAL)
+                .initialLayout(VK_IMAGE_LAYOUT_UNDEFINED)
                 .flags(0)
 
             imageCreateInfo.extent().set(hololensDisplaySize.x().toInt(), hololensDisplaySize.y().toInt(), 1)
@@ -289,93 +294,142 @@ class Hololens: TrackerInput, Display, Hubable {
 
                     logger.debug("Trying to allocate ${memoryRequirements.size()} bytes for shared texture")
 
-                    VU.getLong("Allocate memory for D3D shared image",
+                    memoryHandle = VU.getLong("Allocate memory for D3D shared image",
                         { vkAllocateMemory(device.vulkanDevice, memoryInfo, null, this) },
                         { dedicatedAllocationInfo.free(); memoryInfo.free(); importMemoryInfo.free(); })
+                    memoryHandle
                 })
 
+            with(VU.newCommandBuffer(device, hololensCommandPool, autostart = true)) {
+                VulkanTexture.transitionLayout(d3dImage!!.image,
+                    VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1,
+                    srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                    dstStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                    commandBuffer = this)
+
+                this
+            }.endCommandBuffer(device, hololensCommandPool,
+                queue, flush = true, dealloc = true)
+
             zmqSocket.send("NopeTT")
-            zmqSocket.recv()
+            checkSocketResponse(zmqSocket.recv())
         }
 
         zmqSocket.send("GiefTT")
-        zmqSocket.recv()
+        checkSocketResponse(zmqSocket.recv())
 
-        // blit into D3D image
-        val commandBuffer = with(VU.newCommandBuffer(device, hololensCommandPool)) {
-            MemoryStack.stackPush().use { stack ->
-                val imageBlit = VkImageBlit.callocStack(1, stack)
-                val type = VK_IMAGE_ASPECT_COLOR_BIT
-
-                imageBlit.srcSubresource().set(type, 0, 0, 1)
-                imageBlit.srcOffsets(0).set(0, 0, 0)
-                imageBlit.srcOffsets(1).set(width, height, 1)
-
-                imageBlit.dstSubresource().set(type, 0, 0, 1)
-                imageBlit.dstOffsets(0).set(0, 0, 0)
-                imageBlit.dstOffsets(1).set(width, height, 1)
-
-                val subresourceRange = VkImageSubresourceRange.callocStack(stack)
-                    .aspectMask(type)
-                    .baseMipLevel(0)
-                    .levelCount(1)
-                    .baseArrayLayer(0)
-                    .layerCount(1)
-
-                // transition source attachment
-                VulkanTexture.transitionLayout(image,
-                    KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                    subresourceRange = subresourceRange,
-                    commandBuffer = this,
-                    srcStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                    dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT
-                )
-
-                // transition destination attachment
-                VulkanTexture.transitionLayout(d3dImage!!.image,
-                    VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                    subresourceRange = subresourceRange,
-                    commandBuffer = this,
-                    srcStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                    dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT
-                )
-
-                vkCmdBlitImage(this@with,
-                    image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                    d3dImage!!.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                    imageBlit, VK_FILTER_NEAREST
-                )
-
-                // transition destination attachment back to attachment
-                VulkanTexture.transitionLayout(d3dImage!!.image,
-                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                    VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                    subresourceRange = subresourceRange,
-                    commandBuffer = this,
-                    srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                    dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
-                )
-
-                // transition source attachment back to shader read-only
-                VulkanTexture.transitionLayout(image,
-                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                    KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                    subresourceRange = subresourceRange,
-                    commandBuffer = this,
-                    srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                    dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
-                )
-            }
-
-            this
+        if(commandBuffer == null) {
+            commandBuffer = VulkanCommandBuffer(device, null, false)
         }
 
-        commandBuffer.endCommandBuffer(device, hololensCommandPool, queue, true, true)
+        // blit into D3D image
+        if(commandBuffer!!.commandBuffer == null) {
+            commandBuffer!!.commandBuffer = with(VU.newCommandBuffer(device, hololensCommandPool, autostart = true)) {
+                MemoryStack.stackPush().use { stack ->
+                    logger.info("Blitting image of size ${width}x$height")
+                    val imageBlit = VkImageBlit.callocStack(1, stack)
+                    val type = VK_IMAGE_ASPECT_COLOR_BIT
+
+                    imageBlit.srcSubresource().set(type, 0, 0, 1)
+                    imageBlit.srcOffsets(0).set(0, 0, 0)
+                    imageBlit.srcOffsets(1).set(width, height, 1)
+
+                    imageBlit.dstSubresource().set(type, 0, 0, 1)
+                    imageBlit.dstOffsets(0).set(0, 0, 0)
+                    imageBlit.dstOffsets(1).set(hololensDisplaySize.x().toInt(), hololensDisplaySize.y().toInt(), 1)
+
+                    val subresourceRange = VkImageSubresourceRange.callocStack(stack)
+                        .aspectMask(type)
+                        .baseMipLevel(0)
+                        .levelCount(1)
+                        .baseArrayLayer(0)
+                        .layerCount(1)
+
+                    // transition source attachment
+                    VulkanTexture.transitionLayout(image,
+                        KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                        subresourceRange = subresourceRange,
+                        commandBuffer = this,
+                        srcStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                        dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT
+                    )
+
+                    // transition destination attachment
+                    VulkanTexture.transitionLayout(d3dImage!!.image,
+                        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                        subresourceRange = subresourceRange,
+                        commandBuffer = this,
+                        srcStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                        dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT
+                    )
+
+                    vkCmdBlitImage(this@with,
+                        image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                        d3dImage!!.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                        imageBlit, VK_FILTER_NEAREST
+                    )
+
+                    // transition destination attachment back to attachment
+                    VulkanTexture.transitionLayout(d3dImage!!.image,
+                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                        subresourceRange = subresourceRange,
+                        commandBuffer = this,
+                        srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                        dstStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+                    )
+
+                    // transition source attachment back to shader read-only
+                    VulkanTexture.transitionLayout(image,
+                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                        KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                        subresourceRange = subresourceRange,
+                        commandBuffer = this,
+                        srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                        dstStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+                    )
+                }
+
+                this
+            }
+
+            // TODO: Actually use keyed mutex, currently leads to crash
+            commandBuffer?.commandBuffer?.endCommandBuffer(device, hololensCommandPool, queue,
+                flush = false, dealloc = false, submitInfoPNext = null)
+        }
+
+//        val mem = memAllocLong(1).put(0, memoryHandle)
+//        val acqKeys = memAllocLong(1).put(0, 1)
+//        val releaseKeys = memAllocLong(1).put(0, 1)
+//        val timeout = memAllocInt(1).put(0, 1)
+
+//        val keyedMutex = VkWin32KeyedMutexAcquireReleaseInfoNV.calloc()
+//            .sType(VK_STRUCTURE_TYPE_WIN32_KEYED_MUTEX_ACQUIRE_RELEASE_INFO_NV)
+//            .pNext(NULL)
+//            .acquireCount(1)
+//            .pAcquireSyncs(mem)
+//            .pAcquireSyncs(acqKeys)
+//            .pAcquireTimeoutMilliseconds(timeout)
+//            .releaseCount(1)
+//            .pReleaseKeys(releaseKeys)
+
+        commandBuffer?.commandBuffer?.submit(queue, null)
 
         zmqSocket.send("NopeTT")
-        zmqSocket.recv()
+        checkSocketResponse(zmqSocket.recv())
+
+//        memFree(mem)
+//        memFree(acqKeys)
+//        memFree(releaseKeys)
+//        memFree(timeout)
+    }
+
+    private fun checkSocketResponse(response: ByteArray) {
+        if(String(response, Charset.defaultCharset()) != "kthxbye") {
+            logger.error("Did not receive expected response!")
+        }
     }
 
     /**
