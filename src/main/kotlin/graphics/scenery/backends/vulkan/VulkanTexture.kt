@@ -124,7 +124,7 @@ open class VulkanTexture(val device: VulkanDevice,
 
     fun createImage(width: Int, height: Int, depth: Int, format: Int,
                     usage: Int, tiling: Int, memoryFlags: Int, mipLevels: Int,
-                    customAllocator: ((VkMemoryRequirements) -> Long)? = null, imageCreateInfo: VkImageCreateInfo? = null): VulkanImage {
+                    customAllocator: ((VkMemoryRequirements, Long) -> Long)? = null, imageCreateInfo: VkImageCreateInfo? = null): VulkanImage {
         val imageInfo = if(imageCreateInfo != null) {
             imageCreateInfo
         } else {
@@ -167,7 +167,7 @@ open class VulkanTexture(val device: VulkanDevice,
                 { vkAllocateMemory(device.vulkanDevice, allocInfo, null, this) },
                 { imageInfo.free(); allocInfo.free() })
         } else {
-            customAllocator.invoke(reqs)
+            customAllocator.invoke(reqs, image)
         }
 
         reqs.free()

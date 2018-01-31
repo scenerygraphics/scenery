@@ -260,7 +260,7 @@ class Hololens: TrackerInput, Display, Hubable {
                 VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT,
                 VK_IMAGE_TILING_OPTIMAL, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 1,
                 imageCreateInfo = imageCreateInfo,
-                customAllocator = { memoryRequirements ->
+                customAllocator = { memoryRequirements, allocatedImage ->
                     logger.debug("Using custom image allocation for external handle ...")
                     val memoryTypeIndex = device.getMemoryType(memoryRequirements.memoryTypeBits(),
                         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
@@ -285,10 +285,11 @@ class Hololens: TrackerInput, Display, Hubable {
 
                     val dedicatedAllocationInfo = VkDedicatedAllocationMemoryAllocateInfoNV.calloc()
                         .sType(VK_STRUCTURE_TYPE_DEDICATED_ALLOCATION_MEMORY_ALLOCATE_INFO_NV)
+                        .pNext(0)
 
                     if (extProperties.externalMemoryFeatures() and VK_EXTERNAL_MEMORY_FEATURE_DEDICATED_ONLY_BIT_NV != 0) {
                         logger.debug("Using VK_NV_dedicated_allocation")
-                        dedicatedAllocationInfo.image(d3dImage!!.image)
+                        dedicatedAllocationInfo.image(allocatedImage)
                         importMemoryInfo.pNext(dedicatedAllocationInfo.address())
                     }
 
