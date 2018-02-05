@@ -5,6 +5,7 @@ import graphics.scenery.backends.UBO
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.VK10.*
 import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.nio.IntBuffer
 
 /**
@@ -14,8 +15,9 @@ import java.nio.IntBuffer
  */
 open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? = null): AutoCloseable, UBO() {
     var descriptor: UBODescriptor? = null
-    var offsets: IntBuffer = memAllocInt(1).put(0)
+    var offsets: IntBuffer = memAllocInt(1).put(0, 0)
     var requiredOffsetCount = 0
+
     private var ownedBackingBuffer: VulkanBuffer? = null
 
     class UBODescriptor {
@@ -43,13 +45,19 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
             backingBuffer!!.stagingBuffer
         }
 
-        super.populate(data, offset)
+        super.populate(data, offset, elements = null)
 
         if(backingBuffer == null) {
             data.flip()
             copy(data, offset = offset)
             memFree(data)
         }
+    }
+
+    fun populateParallel(bufferView: ByteBuffer, offset: Long, elements: LinkedHashMap<String, () -> Any>) {
+        bufferView.position(0)
+        bufferView.limit(bufferView.capacity())
+        super.populate(bufferView, offset, elements)
     }
 
     fun fromInstance(node: Node) {

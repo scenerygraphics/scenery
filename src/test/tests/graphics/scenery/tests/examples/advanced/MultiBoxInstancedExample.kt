@@ -26,7 +26,7 @@ class MultiBoxInstancedExample : SceneryBase("MultiBoxInstancedExample") {
             scene.addChild(this)
         }
 
-        val boundaryWidth = 50.0
+        val boundaryWidth = 100.0
         val boundaryHeight = 50.0
 
         val container = Mesh()
@@ -43,7 +43,7 @@ class MultiBoxInstancedExample : SceneryBase("MultiBoxInstancedExample") {
         b.material = ShaderMaterial(arrayListOf("DefaultDeferredInstanced.vert", "DefaultDeferred.frag"))
         scene.addChild(b)
 
-        (0..(boundaryWidth * boundaryHeight * boundaryHeight).toInt()).map {
+        (0 until (boundaryWidth * boundaryHeight * boundaryHeight).toInt()).map {
             val inst = Mesh()
             inst.name = "Box_$it"
             inst.instanceOf = b
@@ -81,12 +81,11 @@ class MultiBoxInstancedExample : SceneryBase("MultiBoxInstancedExample") {
 
         val hullbox = Box(GLVector(100.0f, 100.0f, 100.0f))
         hullbox.position = GLVector(0.0f, 0.0f, 0.0f)
-        val hullboxM = Material()
-        hullboxM.ambient = GLVector(0.6f, 0.6f, 0.6f)
-        hullboxM.diffuse = GLVector(0.4f, 0.4f, 0.4f)
-        hullboxM.specular = GLVector(0.0f, 0.0f, 0.0f)
-        hullboxM.doubleSided = true
-        hullbox.material = hullboxM
+        hullbox.name = "hullbox"
+        hullbox.material.ambient = GLVector(0.6f, 0.6f, 0.6f)
+        hullbox.material.diffuse = GLVector(0.4f, 0.4f, 0.4f)
+        hullbox.material.specular = GLVector(0.0f, 0.0f, 0.0f)
+        hullbox.material.doubleSided = true
 
         scene.addChild(hullbox)
 

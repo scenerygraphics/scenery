@@ -14,7 +14,7 @@ class OpenGLUBO(val backingBuffer: OpenGLRenderer.OpenGLBuffer? = null) : UBO() 
 
     fun populate(offset: Long = 0) {
         backingBuffer?.let { data ->
-            super.populate(data.buffer, 0L)
+            super.populate(data.buffer, 0L, elements = null)
         }
     }
 }
