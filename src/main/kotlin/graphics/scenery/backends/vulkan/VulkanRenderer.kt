@@ -674,7 +674,7 @@ open class VulkanRenderer(hub: Hub,
 
         // create custom vertex description if necessary, else use one of the defaults
         s.vertexDescription = if (node.instanceMaster) {
-            createInstanceBuffer(device, node, s)
+            updateInstanceBuffer(device, node, s)
             // TODO: Rewrite shader in case it does not conform to coord/normal/texcoord vertex description
             s.vertexInputType = VertexDataKinds.PositionNormalTexcoord
             vertexDescriptionFromInstancedNode(node, vertexDescriptors[VertexDataKinds.PositionNormalTexcoord]!!)
@@ -1992,84 +1992,6 @@ open class VulkanRenderer(hub: Hub,
         return state
     }
 
-    private fun createInstanceBuffer(device: VulkanDevice, parentNode: Node, state: VulkanObjectState): VulkanObjectState {
-        // return if no observer found
-        val cam = scene.activeObserver ?: scene.findObserver() ?: return state
-
-        cam.view = cam.getTransformation()
-
-        if (parentNode.instances.size < 1) {
-            logger.info("$parentNode has no child instances attached, returning.")
-            return state
-        }
-
-        // first we create a fake UBO to gauge the size of the needed properties
-        val ubo = VulkanUBO(device)
-        ubo.fromInstance(parentNode.instances.first())
-
-        val instanceBufferSize = ubo.getSize() * parentNode.instances.size
-
-        logger.debug("$parentNode has ${parentNode.instances.size} child instances with ${ubo.getSize()} bytes each.")
-        logger.debug("Creating staging buffer...")
-
-        val stagingBuffer = VulkanBuffer(device,
-            instanceBufferSize * 1L,
-            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-            wantAligned = false)
-
-        parentNode.instances.forEach { node ->
-            node.updateWorld(true, false)
-
-            node.projection.copyFrom(cam.projection)
-            node.projection.set(1, 1, -1.0f * cam.projection.get(1, 1))
-
-            node.modelView.copyFrom(cam.view)
-            node.modelView.mult(node.world)
-
-            node.mvp.copyFrom(node.projection)
-            node.mvp.mult(node.modelView)
-
-            node.metadata["instanceUBO"] = VulkanUBO(device, backingBuffer = stagingBuffer)
-            with(node.metadata["instanceUBO"] as VulkanUBO) {
-                    fromInstance(node)
-                    createUniformBuffer()
-                    populate()
-            }
-        }
-
-        logger.debug("Copying from staging buffer")
-        stagingBuffer.copyFromStagingBuffer()
-
-        // the actual instance buffer is kept device-local for performance reasons
-        val instanceBuffer = VulkanBuffer(device,
-            instanceBufferSize * 1L,
-            VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-            wantAligned = false)
-
-        with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
-            val copyRegion = VkBufferCopy.calloc(1)
-                .size(instanceBufferSize * 1L)
-
-            vkCmdCopyBuffer(this,
-                stagingBuffer.vulkanBuffer,
-                instanceBuffer.vulkanBuffer,
-                copyRegion)
-
-            this.endCommandBuffer(device, commandPools.Standard, queue, flush = true, dealloc = true)
-        }
-
-        state.vertexBuffers.put("instance", instanceBuffer)
-        state.instanceCount = parentNode.instances.size
-
-        stagingBuffer.close()
-
-        logger.debug("Instance buffer creation done, master node has ${state.instanceCount} instances.")
-
-        return state
-    }
-
     fun <A, B>List<A>.mapParallel(f: suspend (A) -> B): List<B> = runBlocking {
         map { async(CommonPool) { f(it) } }.map { it.await() }
     }
@@ -2091,8 +2013,6 @@ open class VulkanRenderer(hub: Hub,
 
 //        instancesUpdated = true
         logger.trace("Updating instance buffer for ${parentNode.name}")
-        // return if no observer found
-        val cam = scene.findObserver() ?: return state
 
         if (parentNode.instances.isEmpty()) {
             logger.debug("$parentNode has no child instances attached, returning.")
@@ -2122,8 +2042,8 @@ open class VulkanRenderer(hub: Hub,
             node.needsUpdateWorld = true
             node.updateWorld(true, false)
 
-            node.metadata["instanceUBO"]?.let {
-                val u = it as? VulkanUBO ?: return@let
+            node.metadata.getOrPut("instanceUBO", { VulkanUBO(device, backingBuffer = stagingBuffer) }).run {
+                val u = this as? VulkanUBO ?: return@run
 
                 u.updateBackingBuffer(stagingBuffer)
                 u.fromInstance(node)
