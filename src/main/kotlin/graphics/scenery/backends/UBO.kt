@@ -6,6 +6,7 @@ import gnu.trove.map.hash.TIntObjectHashMap
 import graphics.scenery.utils.LazyLogger
 import java.nio.ByteBuffer
 import java.util.*
+import kotlin.collections.LinkedHashMap
 
 /**
  * UBO base class, providing API-independent functionality for OpenGL and Vulkan.
@@ -131,11 +132,11 @@ open class UBO {
         return totalSize
     }
 
-    fun populate(data: ByteBuffer, offset: Long = 0L) {
+    fun populate(data: ByteBuffer, offset: Long = 0L, elements: (LinkedHashMap<String, () -> Any>)? = null) {
         offset?.let { data.position(it.toInt()) }
         val originalPos = data.position()
 
-        members.forEach {
+        (elements ?: members).forEach {
             var pos = data.position()
             val value = it.value.invoke()
 
@@ -153,9 +154,9 @@ open class UBO {
                 }
             }
 
-            if(data.remaining() < size) {
-                return@forEach
-            }
+//            if(data.remaining() < size) {
+//                return@forEach
+//            }
 
             when(value.javaClass) {
 

@@ -30,6 +30,7 @@ import java.awt.image.BufferedImage
 import java.awt.image.DataBufferByte
 import java.io.File
 import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.text.SimpleDateFormat
@@ -2005,13 +2006,7 @@ open class VulkanRenderer(hub: Hub,
         map { async(CommonPool) { f(index.getAndIncrement(), it) } }.forEach { it.await() }
     }
 
-//    var instancesUpdated = false
     private fun updateInstanceBuffer(device: VulkanDevice, parentNode: Node, state: VulkanObjectState): VulkanObjectState {
-//        if(instancesUpdated) {
-//            return state
-//        }
-
-//        instancesUpdated = true
         logger.trace("Updating instance buffer for ${parentNode.name}")
 
         if (parentNode.instances.isEmpty()) {
@@ -2028,31 +2023,37 @@ open class VulkanRenderer(hub: Hub,
         val stagingBuffer = if(state.vertexBuffers.containsKey("instanceStaging") && state.vertexBuffers["instanceStaging"]!!.size >= instanceBufferSize) {
             state.vertexBuffers["instanceStaging"]!!
         } else {
-            VulkanBuffer(device,
+            logger.info("Creating new staging buffer")
+            val buffer = VulkanBuffer(device,
                 instanceBufferSize * 1L,
                 VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
                 wantAligned = true)
+
+            state.vertexBuffers.put("instanceStaging", buffer)
+            buffer
         }
 
-    logger.info("Running on ${Runtime.getRuntime().availableProcessors()} cores")
+        logger.info("Staging buffer position, ${stagingBuffer.stagingBuffer.position()}")
+        ubo.updateBackingBuffer(stagingBuffer)
+        ubo.createUniformBuffer()
+
         val index = AtomicInteger(0)
         parentNode.instances.parallelStream().forEach { node ->
             node.needsUpdate = true
             node.needsUpdateWorld = true
             node.updateWorld(true, false)
 
-            node.metadata.getOrPut("instanceUBO", { VulkanUBO(device, backingBuffer = stagingBuffer) }).run {
-                val u = this as? VulkanUBO ?: return@run
+            node.metadata.getOrPut("instanceBufferView", {
+                stagingBuffer.stagingBuffer.duplicate().order(ByteOrder.LITTLE_ENDIAN)
+            }).run {
+                val buffer = this as? ByteBuffer?: return@run
 
-                u.updateBackingBuffer(stagingBuffer)
-                u.fromInstance(node)
-                u.createUniformBuffer()
-                u.descriptor!!.offset = index.getAndIncrement() * ubo.getSize()*1L
-                u.populate(offset = u.descriptor!!.offset)
+                ubo.populateParallel(buffer, offset = index.getAndIncrement() * ubo.getSize()*1L, elements = node.instancedProperties)
             }
         }
 
+        stagingBuffer.stagingBuffer.position(parentNode.instances.size * ubo.getSize())
         stagingBuffer.copyFromStagingBuffer()
 
         val instanceBuffer = if (state.vertexBuffers.containsKey("instance") && state.vertexBuffers["instance"]!!.size >= instanceBufferSize) {
@@ -2674,8 +2675,6 @@ open class VulkanRenderer(hub: Hub,
 
         buffers["UBOBuffer"]!!.reset()
         buffers["ShaderPropertyBuffer"]!!.reset()
-
-        logger.info("Populating ${sceneUBOs.size} ubos")
 
         sceneUBOs.forEach { node ->
             node.lock.withLock {

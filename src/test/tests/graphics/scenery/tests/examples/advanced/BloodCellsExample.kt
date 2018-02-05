@@ -7,6 +7,7 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.utils.Numerics
 import org.junit.Test
+import kotlin.concurrent.thread
 
 /**
  * <Description>
@@ -106,9 +107,7 @@ class BloodCellsExample : SceneryBase("BloodCellsExample", windowWidth = 1280, w
                 val v = Mesh()
                 v.name = "leucocyte_$it"
                 v.instanceOf = leucocyte
-//                v.instancedProperties.put("ModelViewMatrix", { v.modelView })
                 v.instancedProperties.put("ModelMatrix", { v.world})
-//                v.instancedProperties.put("MVP", { v.mvp })
                 v
             }
             .map {
@@ -135,7 +134,7 @@ class BloodCellsExample : SceneryBase("BloodCellsExample", windowWidth = 1280, w
                 val v = Mesh()
                 v.name = "erythrocyte_$it"
                 v.instanceOf = erythrocyte
-                v.instancedProperties.put("ModelMatrix", { v.world})
+                v.instancedProperties.put("ModelMatrix", { v.world })
 
                 v
             }
@@ -168,27 +167,28 @@ class BloodCellsExample : SceneryBase("BloodCellsExample", windowWidth = 1280, w
         }
 
         var ticks: Int = 0
-        updateFunction = {
-            val step = 0.05f
-            val phi = Math.PI * 2.0f * ticks / 2000.0f
+        thread {
+            while(true) {
+                val step = 0.05f
+                val phi = Math.PI * 2.0f * ticks / 2000.0f
 
-            boxes.mapIndexed {
-                i, box ->
-                box.position = GLVector(
-                    Math.exp(i.toDouble()).toFloat() * 10 * Math.sin(phi).toFloat() + Math.exp(i.toDouble()).toFloat(),
-                    step * ticks,
-                    Math.exp(i.toDouble()).toFloat() * 10 * Math.cos(phi).toFloat() + Math.exp(i.toDouble()).toFloat())
+                boxes.mapIndexed { i, box ->
+                    box.position = GLVector(
+                        Math.exp(i.toDouble()).toFloat() * 10 * Math.sin(phi).toFloat() + Math.exp(i.toDouble()).toFloat(),
+                        step * ticks,
+                        Math.exp(i.toDouble()).toFloat() * 10 * Math.cos(phi).toFloat() + Math.exp(i.toDouble()).toFloat())
 
-                box.children[0].position = box.position
+                    box.children[0].position = box.position
+                }
+
+                erythrocytes.mapIndexed { i, erythrocyte -> hoverAndTumble(erythrocyte, 0.003f, phi.toFloat(), i) }
+                leucocytes.mapIndexed { i, leukocyte -> hoverAndTumble(leukocyte, 0.001f, phi.toFloat() / 100.0f, i) }
+
+                container.position = container.position - GLVector(0.1f, 0.1f, 0.1f)
+
+                container.updateWorld(true)
+                ticks++
             }
-
-            erythrocytes.mapIndexed { i, erythrocyte -> hoverAndTumble(erythrocyte, 0.003f, phi.toFloat(), i) }
-            leucocytes.mapIndexed { i, leukocyte -> hoverAndTumble(leukocyte, 0.001f, phi.toFloat() / 100.0f, i) }
-
-            container.position = container.position - GLVector(0.1f, 0.1f, 0.1f)
-
-            container.updateWorld(true)
-            ticks++
         }
     }
 
