@@ -36,7 +36,7 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
         memFree(dest)
     }
 
-    fun populate(offset: Long = 0) {
+    fun populate(offset: Long = 0L) {
         val data = if(backingBuffer == null) {
             memAlloc(getSize())
         } else {
@@ -53,7 +53,7 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
     }
 
     fun fromInstance(node: Node) {
-        members.putAll(node.instancedProperties)
+        node.instancedProperties.forEach { members.putIfAbsent(it.key, it.value) }
     }
 
     fun createUniformBuffer(): UBODescriptor {
@@ -73,7 +73,9 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
                 this.descriptor!!.range = this.getSize() * 1L
             }
         } else {
-            this.descriptor = UBODescriptor()
+            if(this.descriptor == null) {
+                this.descriptor = UBODescriptor()
+            }
             this.descriptor!!.memory = backingBuffer!!.memory
             this.descriptor!!.allocationSize = backingBuffer!!.size
             this.descriptor!!.buffer = backingBuffer!!.vulkanBuffer
@@ -87,7 +89,11 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
     @Suppress("unused")
     fun updateBackingBuffer(newBackingBuffer: VulkanBuffer) {
         backingBuffer = newBackingBuffer
-        this.descriptor = UBODescriptor()
+
+        if(this.descriptor == null) {
+            this.descriptor = UBODescriptor()
+        }
+
         this.descriptor!!.memory = backingBuffer!!.memory
         this.descriptor!!.allocationSize = backingBuffer!!.size
         this.descriptor!!.buffer = backingBuffer!!.vulkanBuffer

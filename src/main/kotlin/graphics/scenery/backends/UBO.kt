@@ -2,8 +2,10 @@ package graphics.scenery.backends
 
 import cleargl.GLMatrix
 import cleargl.GLVector
+import gnu.trove.map.hash.TIntObjectHashMap
 import graphics.scenery.utils.LazyLogger
 import java.nio.ByteBuffer
+import java.util.*
 
 /**
  * UBO base class, providing API-independent functionality for OpenGL and Vulkan.
@@ -18,8 +20,9 @@ open class UBO {
 
     protected var sizeCached = -1
 
-    companion object alignmentsCache {
-        var alignments = HashMap<Pair<Class<*>, Int>, Pair<Int, Int>>()
+    companion object {
+//        var alignments: Table<Class<*>, Int, Pair<Int, Int>> = HashBasedTable.create<Class<*>, Int, Pair<Int, Int>>()
+        var alignments = TIntObjectHashMap<Pair<Int, Int>>()
     }
 
     @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
@@ -36,9 +39,26 @@ open class UBO {
         }
     }
 
+    @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
+    fun Any.objectId(): Int {
+        return when(this) {
+            is GLVector -> 0
+            is GLMatrix -> 1
+            is Float, is java.lang.Float -> 2
+            is Double, is java.lang.Double -> 3
+            is Int, is Integer -> 4
+            is Short, is java.lang.Short  -> 5
+            is Boolean, is java.lang.Boolean -> 6
+            else -> { logger.error("Don't know how to determine object ID of $this/${this.javaClass.simpleName}"); -1 }
+        }
+    }
+
     fun getSizeAndAlignment(element: Any): Pair<Int, Int> {
-        if(alignments.containsKey(element.javaClass.to(sizeOf(element)))) {
-            return alignments[element.javaClass.to(sizeOf(element))]!!
+        // pack object id and size into one integer
+        val key = (element.objectId() shl 16) or (sizeOf(element) and 0xffff)
+
+        if(alignments.containsKey(key)) {
+            return alignments.get(key)
         } else {
             val sa = when (element.javaClass) {
                 GLMatrix::class.java -> {
@@ -78,7 +98,7 @@ open class UBO {
                 }
             }
 
-            alignments.put(element.javaClass.to(sizeOf(element)), sa)
+            alignments.put(key, sa)
 
             return sa
         }
@@ -111,7 +131,8 @@ open class UBO {
         return totalSize
     }
 
-    fun populate(data: ByteBuffer, offset: Long = 0) {
+    fun populate(data: ByteBuffer, offset: Long = 0L) {
+        offset?.let { data.position(it.toInt()) }
         val originalPos = data.position()
 
         members.forEach {
@@ -130,6 +151,10 @@ open class UBO {
                     pos = pos + alignment - (pos.rem(alignment))
                     data.position(pos)
                 }
+            }
+
+            if(data.remaining() < size) {
+                return@forEach
             }
 
             when(value.javaClass) {
