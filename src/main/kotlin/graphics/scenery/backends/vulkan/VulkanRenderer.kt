@@ -8,6 +8,7 @@ import graphics.scenery.fonts.SDFFontAtlas
 import graphics.scenery.spirvcrossj.Loader
 import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.utils.*
+import kotlinx.coroutines.experimental.CommonPool
 import kotlinx.coroutines.experimental.Deferred
 import kotlinx.coroutines.experimental.async
 import kotlinx.coroutines.experimental.runBlocking
@@ -37,6 +38,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantLock
 import javax.imageio.ImageIO
 import kotlin.concurrent.thread
@@ -1689,8 +1691,13 @@ open class VulkanRenderer(hub: Hub,
             Thread.sleep(renderDelay)
         }
 
-        stats?.addTimed("Renderer.updateUBOs", { updateDefaultUBOs(device, sceneObjects) })
-        stats?.addTimed("Renderer.updateInstances" , { updateInstanceBuffers(allObjects) })
+        val startUboUpdate = System.nanoTime()
+        updateDefaultUBOs(device, sceneObjects)
+        stats?.add("Renderer.updateUBOs", System.nanoTime() - startUboUpdate)
+
+        val startInstanceUpdate = System.nanoTime()
+        updateInstanceBuffers(sceneObjects)
+        stats?.add("Renderer.updateInstanceBuffers", System.nanoTime() - startInstanceUpdate)
 
         beginFrame()
 
@@ -1986,29 +1993,23 @@ open class VulkanRenderer(hub: Hub,
     }
 
     private fun createInstanceBuffer(device: VulkanDevice, parentNode: Node, state: VulkanObjectState): VulkanObjectState {
-        val instances = ArrayList<Node>()
-
         // return if no observer found
         val cam = scene.activeObserver ?: scene.findObserver() ?: return state
 
         cam.view = cam.getTransformation()
 
-        scene.discover(scene, { n -> n.instanceOf == parentNode }).forEach {
-            instances.add(it)
-        }
-
-        if (instances.size < 1) {
+        if (parentNode.instances.size < 1) {
             logger.info("$parentNode has no child instances attached, returning.")
             return state
         }
 
         // first we create a fake UBO to gauge the size of the needed properties
         val ubo = VulkanUBO(device)
-        ubo.fromInstance(instances.first())
+        ubo.fromInstance(parentNode.instances.first())
 
-        val instanceBufferSize = ubo.getSize() * instances.size
+        val instanceBufferSize = ubo.getSize() * parentNode.instances.size
 
-        logger.debug("$parentNode has ${instances.size} child instances with ${ubo.getSize()} bytes each.")
+        logger.debug("$parentNode has ${parentNode.instances.size} child instances with ${ubo.getSize()} bytes each.")
         logger.debug("Creating staging buffer...")
 
         val stagingBuffer = VulkanBuffer(device,
@@ -2017,7 +2018,7 @@ open class VulkanRenderer(hub: Hub,
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
             wantAligned = false)
 
-        instances.forEach { node ->
+        parentNode.instances.forEach { node ->
             node.updateWorld(true, false)
 
             node.projection.copyFrom(cam.projection)
@@ -2029,10 +2030,12 @@ open class VulkanRenderer(hub: Hub,
             node.mvp.copyFrom(node.projection)
             node.mvp.mult(node.modelView)
 
-            val instanceUbo = VulkanUBO(device, backingBuffer = stagingBuffer)
-            instanceUbo.fromInstance(node)
-            instanceUbo.createUniformBuffer()
-            instanceUbo.populate()
+            node.metadata["instanceUBO"] = VulkanUBO(device, backingBuffer = stagingBuffer)
+            with(node.metadata["instanceUBO"] as VulkanUBO) {
+                    fromInstance(node)
+                    createUniformBuffer()
+                    populate()
+            }
         }
 
         logger.debug("Copying from staging buffer")
@@ -2058,7 +2061,7 @@ open class VulkanRenderer(hub: Hub,
         }
 
         state.vertexBuffers.put("instance", instanceBuffer)
-        state.instanceCount = instances.size
+        state.instanceCount = parentNode.instances.size
 
         stagingBuffer.close()
 
@@ -2067,46 +2070,69 @@ open class VulkanRenderer(hub: Hub,
         return state
     }
 
-    private fun updateInstanceBuffer(device: VulkanDevice, parentNode: Node, state: VulkanObjectState, instances: List<Node>): VulkanObjectState {
+    fun <A, B>List<A>.mapParallel(f: suspend (A) -> B): List<B> = runBlocking {
+        map { async(CommonPool) { f(it) } }.map { it.await() }
+    }
+
+    fun <A, B>List<A>.forEachParallel(f: suspend (A) -> B) = runBlocking {
+        map { async(CommonPool) { f(it) } }.forEach { it.await() }
+    }
+
+    fun <A, B>List<A>.forEachIndexedParallel(f: suspend (Int, A) -> B) = runBlocking {
+        val index = AtomicInteger(0)
+        map { async(CommonPool) { f(index.getAndIncrement(), it) } }.forEach { it.await() }
+    }
+
+//    var instancesUpdated = false
+    private fun updateInstanceBuffer(device: VulkanDevice, parentNode: Node, state: VulkanObjectState): VulkanObjectState {
+//        if(instancesUpdated) {
+//            return state
+//        }
+
+//        instancesUpdated = true
         logger.trace("Updating instance buffer for ${parentNode.name}")
         // return if no observer found
-        if (instances.isEmpty()) {
+        val cam = scene.findObserver() ?: return state
+
+        if (parentNode.instances.isEmpty()) {
             logger.debug("$parentNode has no child instances attached, returning.")
             return state
         }
 
         // first we create a fake UBO to gauge the size of the needed properties
         val ubo = VulkanUBO(device)
-        ubo.fromInstance(instances.first())
+        ubo.fromInstance(parentNode.instances.first())
 
-        val instanceBufferSize = ubo.getSize() * instances.size
+        val instanceBufferSize = ubo.getSize() * parentNode.instances.size
 
-        val stagingBuffer = if (state.vertexBuffers["instance-staging"] != null && state.vertexBuffers["instance-staging"]!!.size >= instanceBufferSize) {
-            state.vertexBuffers["instance-staging"]!!
+        val stagingBuffer = if(state.vertexBuffers.containsKey("instanceStaging") && state.vertexBuffers["instanceStaging"]!!.size >= instanceBufferSize) {
+            state.vertexBuffers["instanceStaging"]!!
         } else {
-            state.vertexBuffers["instance-staging"]?.close()
-
-            val buffer = VulkanBuffer(device,
+            VulkanBuffer(device,
                 instanceBufferSize * 1L,
                 VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
                 wantAligned = true)
-
-            state.vertexBuffers["instance-staging"] = buffer
-            buffer
         }
 
-        val start = System.nanoTime()
-        instances.forEach { node ->
-            val instanceUbo = VulkanUBO(device, backingBuffer = stagingBuffer)
-            instanceUbo.fromInstance(node)
-            instanceUbo.createUniformBuffer()
-            instanceUbo.populate()
-        }
-        val duration = (System.nanoTime() - start)/10e6
-        logger.info("Instance update took $duration ms")
+    logger.info("Running on ${Runtime.getRuntime().availableProcessors()} cores")
+        val index = AtomicInteger(0)
+        parentNode.instances.parallelStream().forEach { node ->
+            node.needsUpdate = true
+            node.needsUpdateWorld = true
+            node.updateWorld(true, false)
 
-        val startCopy = System.nanoTime()
+            node.metadata["instanceUBO"]?.let {
+                val u = it as? VulkanUBO ?: return@let
+
+                u.updateBackingBuffer(stagingBuffer)
+                u.fromInstance(node)
+                u.createUniformBuffer()
+                u.descriptor!!.offset = index.getAndIncrement() * ubo.getSize()*1L
+                u.populate(offset = u.descriptor!!.offset)
+            }
+        }
+
         stagingBuffer.copyFromStagingBuffer()
 
         val instanceBuffer = if (state.vertexBuffers.containsKey("instance") && state.vertexBuffers["instance"]!!.size >= instanceBufferSize) {
@@ -2137,10 +2163,8 @@ open class VulkanRenderer(hub: Hub,
             copyRegion.free()
             this.endCommandBuffer(device, commandPools.Standard, queue, flush = true, dealloc = true)
         }
-        val durationCopy = (System.nanoTime() - startCopy)/10e6
-        logger.info("Instance buffer copy took $durationCopy ms")
 
-        state.instanceCount = instances.size
+        state.instanceCount = parentNode.instances.size
         logger.info("Updated instance buffer, ${parentNode.name} has ${state.instanceCount} instances.")
 
         return state
@@ -2676,13 +2700,13 @@ open class VulkanRenderer(hub: Hub,
 //        }
         val start = System.nanoTime()
 
-        val instanceGroups = sceneObjects.await().groupBy(Node::instanceOf)
-        logger.info("Grouping: Took ${(System.nanoTime()-start)/10e6}ms")
+        val instanceMasters = sceneObjects.await().filter { it.instanceMaster }
 
-        instanceGroups.filter { it.key != null }.forEach { parent, instances ->
-            updateInstanceBuffer(device, parent!!, parent.rendererMetadata()!!, instances)
+        instanceMasters.forEach { parent ->
+            updateInstanceBuffer(device, parent, parent.rendererMetadata()!!)
         }
 
+//        logger.info("Update: Took ${(System.nanoTime()-start)/10e6}ms")
     }
 
     fun GLMatrix.applyVulkanCoordinateSystem(): GLMatrix {
@@ -2700,9 +2724,8 @@ open class VulkanRenderer(hub: Hub,
         }
     }
 
-    private fun updateDefaultUBOs(device: VulkanDevice, sceneObjects: Deferred<List<Node>>) = runBlocking {
+    @Synchronized private fun updateDefaultUBOs(device: VulkanDevice, sceneObjects: Deferred<List<Node>>) = runBlocking {
         // find observer, if none, return
-        val startLights = System.nanoTime()
         val cam = scene.findObserver() ?: return@runBlocking
 
         if (!cam.lock.tryLock()) {
@@ -2814,8 +2837,6 @@ open class VulkanRenderer(hub: Hub,
 
         buffers["LightParametersBuffer"]!!.copyFromStagingBuffer()
         buffers["ShaderPropertyBuffer"]!!.copyFromStagingBuffer()
-        val durationLights = (System.nanoTime() - startLights)/10e6
-        logger.info("Light update took $durationLights ms")
 
         cam.lock.unlock()
     }

@@ -255,7 +255,7 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         assert(bytes.size % 4 == 0)
         var i = 0
         while (i < bytes.size) {
-            UNSAFE.putInt(bytes, BYTES_OFFSET + i, Integer.reverseBytes(UNSAFE.getInt(bytes, BYTES_OFFSET + i)))
+            UNSAFE.putInt(bytes, 1L*BYTES_OFFSET + i, Integer.reverseBytes(UNSAFE.getInt(bytes, 1L*BYTES_OFFSET + i)))
             i += 4
         }
 

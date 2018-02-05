@@ -27,7 +27,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
 
     /** Hash map used for storing metadata for the Node. [DeferredLightingRenderer] uses
      * it to e.g. store [OpenGLObjectState]. */
-    @Transient var metadata: HashMap<String, NodeMetadata> = HashMap()
+    @Transient var metadata: HashMap<String, Any> = HashMap()
 
     /** Material of the Node */
     @Transient override var material: Material = Material.DefaultMaterial()
@@ -127,6 +127,8 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
     var needsUpdateWorld = true
 
     var discoveryBarrier = false
+
+    val instances = CopyOnWriteArrayList<Node>()
 
     protected fun <R> propertyChanged(property: KProperty<*>, old: R, new: R): Unit {
         if(property.name == "rotation" || property.name == "position" || property.name  == "scale") {

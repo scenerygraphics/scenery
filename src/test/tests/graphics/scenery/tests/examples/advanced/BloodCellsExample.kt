@@ -1,15 +1,12 @@
 package graphics.scenery.tests.examples.advanced
 
 import cleargl.GLVector
+import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.utils.Numerics
-import kotlinx.coroutines.experimental.delay
-import kotlinx.coroutines.experimental.launch
 import org.junit.Test
-import java.util.concurrent.TimeUnit
-import kotlin.concurrent.thread
 
 /**
  * <Description>
@@ -20,28 +17,40 @@ class BloodCellsExample : SceneryBase("BloodCellsExample", windowWidth = 1280, w
     private var ovr: OpenVRHMD? = null
 
     override fun init() {
-//        ovr = OpenVRHMD(seated = false, useCompositor = true)
-//        hub.add(SceneryElement.HMDInput, ovr!!)
+        ovr = OpenVRHMD(seated = false, useCompositor = true)
+        hub.add(SceneryElement.HMDInput, ovr!!)
 
         renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
         hub.add(SceneryElement.Renderer, renderer!!)
 
         val cam: Camera = DetachedHeadCamera()
-        cam.perspectiveCamera(50.0f, 1.0f * windowWidth, 1.0f * windowHeight, 1.0f, 5000.0f)
+        cam.position = GLVector(0.0f, 20.0f, -20.0f)
+        cam.perspectiveCamera(50.0f, 1.0f * windowWidth, 1.0f * windowHeight, 10.0f, 5000.0f)
+        cam.rotation = Quaternion().setFromEuler(-1.5f, -0.5f, 0.0f)
         cam.active = true
 
         scene.addChild(cam)
 
+        val boxes = (0..10).map { Box(GLVector(0.5f, 0.5f, 0.5f)) }
+
         val lights = (0..10).map { PointLight() }
 
+        boxes.mapIndexed { i, box ->
+            box.material = Material()
+            box.addChild(lights[i])
+            box.visible = false
+            scene.addChild(box)
+        }
+
         lights.map {
-            it.position = GLVector(Numerics.randomFromRange(-50.0f, 50.0f),
-                Numerics.randomFromRange(-50.0f, 50.0f),
-                Numerics.randomFromRange(-50.0f, 50.0f))
+            it.position = GLVector(Numerics.randomFromRange(00.0f, 600.0f),
+                Numerics.randomFromRange(00.0f, 600.0f),
+                Numerics.randomFromRange(00.0f, 600.0f))
             it.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
-            it.intensity = 10.0f
-            it.linear = 0.0f
-            it.quadratic = 0.01f
+            it.parent?.material?.diffuse = it.emissionColor
+            it.intensity = 100.0f
+            it.linear = 0f
+            it.quadratic = 0.001f
 
             scene.addChild(it)
         }
@@ -52,7 +61,7 @@ class BloodCellsExample : SceneryBase("BloodCellsExample", windowWidth = 1280, w
         hullMaterial.specular = GLVector(0.0f, 0.0f, 0.0f)
         hullMaterial.doubleSided = true
 
-        val hull = Box(GLVector(1000.0f, 1000.0f, 1000.0f), insideNormals = true)
+        val hull = Box(GLVector(5000.0f, 5000.0f, 5000.0f))
         hull.material = hullMaterial
 
         scene.addChild(hull)
@@ -68,9 +77,7 @@ class BloodCellsExample : SceneryBase("BloodCellsExample", windowWidth = 1280, w
         erythrocyte.material = e_material
         erythrocyte.name = "Erythrocyte_Master"
         erythrocyte.instanceMaster = true
-        erythrocyte.instancedProperties.put("ModelMatrix", { erythrocyte.world })
-//        erythrocyte.instancedProperties.put("ModelViewMatrix", { erythrocyte.modelView })
-//        erythrocyte.instancedProperties.put("MVP", { erythrocyte.mvp })
+        erythrocyte.instancedProperties.put("ModelMatrix", { erythrocyte.model })
         scene.addChild(erythrocyte)
 
         erythrocyte.material = ShaderMaterial(arrayListOf("DefaultDeferredInstanced.vert", "DefaultDeferred.frag"))
@@ -86,14 +93,12 @@ class BloodCellsExample : SceneryBase("BloodCellsExample", windowWidth = 1280, w
         leucocyte.material = l_material
         leucocyte.name = "leucocyte_Master"
         leucocyte.instanceMaster = true
-        leucocyte.instancedProperties.put("ModelMatrix", { leucocyte.world})
-//        leucocyte.instancedProperties.put("ModelViewMatrix", { leucocyte.modelView })
-//        leucocyte.instancedProperties.put("MVP", { leucocyte.mvp })
+        leucocyte.instancedProperties.put("ModelMatrix", { leucocyte.model })
         scene.addChild(leucocyte)
 
         leucocyte.material = ShaderMaterial(arrayListOf("DefaultDeferredInstanced.vert", "DefaultDeferred.frag"))
 
-        val posRange = 100.0f
+        val posRange = 1200.0f
         val container = Node("Cell container")
 
         val leucocytes = (0..100)
@@ -101,23 +106,28 @@ class BloodCellsExample : SceneryBase("BloodCellsExample", windowWidth = 1280, w
                 val v = Mesh()
                 v.name = "leucocyte_$it"
                 v.instanceOf = leucocyte
-                v.instancedProperties.put("ModelMatrix", { v.world })
+//                v.instancedProperties.put("ModelViewMatrix", { v.modelView })
+                v.instancedProperties.put("ModelMatrix", { v.world})
+//                v.instancedProperties.put("MVP", { v.mvp })
+                v
+            }
+            .map {
+                val scale = Numerics.randomFromRange(30.0f, 40.0f)
 
-                val scale = Numerics.randomFromRange(1.5f, 2.0f)
-
-                v.material = l_material
-                v.scale = GLVector(scale, scale, scale)
-                v.children.forEach { ch -> ch.material = l_material }
-                v.rotation.setFromEuler(
+                it.material = l_material
+                it.scale = GLVector(scale, scale, scale)
+                it.children.forEach { ch -> ch.material = l_material }
+                it.rotation.setFromEuler(
                     Numerics.randomFromRange(0.01f, 0.9f),
                     Numerics.randomFromRange(0.01f, 0.9f),
                     Numerics.randomFromRange(0.01f, 0.9f)
                 )
 
-                v.position = Numerics.randomVectorFromRange(3, 0.0f, posRange)
+                it.position = Numerics.randomVectorFromRange(3, 0.0f, posRange)
+                it.parent = container
+                leucocyte.instances.add(it)
 
-                container.addChild(v)
-                v
+                it
             }
 
         val erythrocytes = (0..2000)
@@ -125,23 +135,27 @@ class BloodCellsExample : SceneryBase("BloodCellsExample", windowWidth = 1280, w
                 val v = Mesh()
                 v.name = "erythrocyte_$it"
                 v.instanceOf = erythrocyte
-                v.instancedProperties.put("ModelMatrix", { v.world })
+                v.instancedProperties.put("ModelMatrix", { v.world})
 
-                val scale = Numerics.randomFromRange(0.9f, 1.1f)
+                v
+            }
+            .map {
+                val scale = Numerics.randomFromRange(5f, 12f)
 
-                v.material = e_material
-                v.scale = GLVector(scale, scale, scale)
-                v.children.forEach { ch -> ch.material = e_material }
-                v.rotation.setFromEuler(
+                it.material = e_material
+                it.scale = GLVector(scale, scale, scale)
+                it.children.forEach { ch -> ch.material = e_material }
+                it.rotation.setFromEuler(
                     Numerics.randomFromRange(0.01f, 0.9f),
                     Numerics.randomFromRange(0.01f, 0.9f),
                     Numerics.randomFromRange(0.01f, 0.9f)
                 )
 
-                v.position = Numerics.randomVectorFromRange(3, 0.0f, posRange)
+                it.position = Numerics.randomVectorFromRange(3, 0.0f, posRange)
+                it.parent = container
+                erythrocyte.instances.add(it)
 
-                container.addChild(v)
-                v
+                it
             }
 
         scene.addChild(container)
@@ -151,37 +165,30 @@ class BloodCellsExample : SceneryBase("BloodCellsExample", windowWidth = 1280, w
             val axis = GLVector(Math.sin(0.01 * index).toFloat(), -Math.cos(0.01 * index).toFloat(), index * 0.01f).normalized
             obj.rotation.rotateByAngleNormalAxis(magnitude, axis.x(), axis.y(), axis.z())
             obj.rotation.rotateByAngleY(-1.0f * magnitude)
-
-            obj.needsUpdate = true
-            obj.needsUpdateWorld = true
         }
 
-        var ticks = 0
-        launch {
-            while(true) {
-                val step = 0.05f
-                val phi = Math.PI * 2.0f * ticks / 2000.0f
+        var ticks: Int = 0
+        updateFunction = {
+            val step = 0.05f
+            val phi = Math.PI * 2.0f * ticks / 2000.0f
 
-//            boxes.mapIndexed {
-//                i, box ->
-//                box.position = GLVector(
-//                    Math.exp(i.toDouble()).toFloat() * 10 * Math.sin(phi).toFloat() + Math.exp(i.toDouble()).toFloat(),
-//                    step * ticks,
-//                    Math.exp(i.toDouble()).toFloat() * 10 * Math.cos(phi).toFloat() + Math.exp(i.toDouble()).toFloat())
-//
-//                box.children[0].position = box.position
-//            }
+            boxes.mapIndexed {
+                i, box ->
+                box.position = GLVector(
+                    Math.exp(i.toDouble()).toFloat() * 10 * Math.sin(phi).toFloat() + Math.exp(i.toDouble()).toFloat(),
+                    step * ticks,
+                    Math.exp(i.toDouble()).toFloat() * 10 * Math.cos(phi).toFloat() + Math.exp(i.toDouble()).toFloat())
 
-                erythrocytes.mapIndexed { i, erythrocyte -> hoverAndTumble(erythrocyte, 0.003f, phi.toFloat(), i) }
-                leucocytes.mapIndexed { i, leukocyte -> hoverAndTumble(leukocyte, 0.001f, phi.toFloat() / 100.0f, i) }
-
-                container.position = container.position - GLVector(0.1f, 0.1f, 0.1f)
-
-                container.updateWorld(true)
-                ticks++
-
-                delay(5, TimeUnit.MILLISECONDS)
+                box.children[0].position = box.position
             }
+
+            erythrocytes.mapIndexed { i, erythrocyte -> hoverAndTumble(erythrocyte, 0.003f, phi.toFloat(), i) }
+            leucocytes.mapIndexed { i, leukocyte -> hoverAndTumble(leukocyte, 0.001f, phi.toFloat() / 100.0f, i) }
+
+            container.position = container.position - GLVector(0.1f, 0.1f, 0.1f)
+
+            container.updateWorld(true)
+            ticks++
         }
     }
 
