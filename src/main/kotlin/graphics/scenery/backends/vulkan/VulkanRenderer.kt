@@ -2058,7 +2058,7 @@ open class VulkanRenderer(hub: Hub,
         val instanceBuffer = if (state.vertexBuffers.containsKey("instance") && state.vertexBuffers["instance"]!!.size >= instanceBufferSize) {
             state.vertexBuffers["instance"]!!
         } else {
-            logger.debug("Instance buffer for ${parentNode.name} needs to be required, insufficient size ($instanceBufferSize vs ${state.vertexBuffers["instance"]?.size ?: "<not allocated yet>"})")
+            logger.debug("Instance buffer for ${parentNode.name} needs to be reallocated due to insufficient size ($instanceBufferSize vs ${state.vertexBuffers["instance"]?.size ?: "<not allocated yet>"})")
             state.vertexBuffers["instance"]?.close()
 
             val buffer = VulkanBuffer(device,
