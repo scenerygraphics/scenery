@@ -2034,7 +2034,6 @@ open class VulkanRenderer(hub: Hub,
             buffer
         }
 
-        logger.info("Staging buffer position, ${stagingBuffer.stagingBuffer.position()}")
         ubo.updateBackingBuffer(stagingBuffer)
         ubo.createUniformBuffer()
 
@@ -2086,7 +2085,6 @@ open class VulkanRenderer(hub: Hub,
         }
 
         state.instanceCount = parentNode.instances.size
-        logger.info("Updated instance buffer, ${parentNode.name} has ${state.instanceCount} instances.")
 
         return state
     }
