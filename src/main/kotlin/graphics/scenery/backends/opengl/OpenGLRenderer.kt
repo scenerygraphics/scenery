@@ -13,17 +13,22 @@ import graphics.scenery.spirvcrossj.Loader
 import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.utils.*
 import javafx.application.Platform
+import kotlinx.coroutines.experimental.Deferred
+import kotlinx.coroutines.experimental.async
+import kotlinx.coroutines.experimental.runBlocking
 import org.lwjgl.system.MemoryUtil
 import java.io.File
 import java.io.FileNotFoundException
 import java.lang.reflect.Field
 import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import javax.imageio.ImageIO
 import kotlin.collections.LinkedHashMap
 import kotlin.concurrent.thread
@@ -388,7 +393,7 @@ class OpenGLRenderer(hub: Hub,
         renderpasses = prepareRenderpasses(renderConfig, window.width, window.height)
 
         // enable required features
-        gl.glEnable(GL4.GL_TEXTURE_GATHER)
+//        gl.glEnable(GL4.GL_TEXTURE_GATHER)
         gl.glEnable(GL4.GL_PROGRAM_POINT_SIZE)
 
         initialized = true
@@ -415,6 +420,10 @@ class OpenGLRenderer(hub: Hub,
         }, 0, 1000)
 
         initializeScene()
+    }
+
+    private fun Node.rendererMetadata(): OpenGLObjectState? {
+        return this.metadata["OpenGLRenderer"] as? OpenGLObjectState
     }
 
     fun prepareRenderpasses(config: RenderConfigReader.RenderConfig, windowWidth: Int, windowHeight: Int): LinkedHashMap<String, OpenGLRenderpass> {
@@ -809,7 +818,7 @@ class OpenGLRenderer(hub: Hub,
         }
     }
 
-    @Synchronized fun updateDefaultUBOs() {
+    @Synchronized fun updateDefaultUBOs(sceneObjects: List<Node>) {
         // find observer, if none, return
         val cam = scene.findObserver() ?: return
 
@@ -876,7 +885,7 @@ class OpenGLRenderer(hub: Hub,
 
         buffers["LightParameters"]!!.reset()
 
-        val lights = scene.discover(scene, { n -> n is PointLight })
+        val lights = sceneObjects.filter { it is PointLight }
 
         val lightUbo = OpenGLUBO(backingBuffer = buffers["LightParameters"]!!)
         lightUbo.add("ViewMatrix", { cam.view })
@@ -1060,6 +1069,112 @@ class OpenGLRenderer(hub: Hub,
         gl.glBindFramebuffer(GL4.GL_FRAMEBUFFER, 0)
     }
 
+    private fun updateInstanceBuffers(sceneObjects:List<Node>) {
+        val instanceMasters = sceneObjects.filter { it.instanceMaster }
+
+        instanceMasters.forEach { parent ->
+            updateInstanceBuffer(parent, parent.rendererMetadata()!!)
+        }
+    }
+
+    private fun updateInstanceBuffer(parentNode: Node, state: OpenGLObjectState): OpenGLObjectState {
+        logger.trace("Updating instance buffer for ${parentNode.name}")
+
+        if (parentNode.instances.isEmpty()) {
+            logger.debug("$parentNode has no child instances attached, returning.")
+            return state
+        }
+
+        // first we create a fake UBO to gauge the size of the needed properties
+        val ubo = OpenGLUBO()
+        ubo.fromInstance(parentNode.instances.first())
+
+        val instanceBufferSize = ubo.getSize() * parentNode.instances.size
+
+        val stagingBuffer = if(state.vertexBuffers.containsKey("instanceStaging") && state.vertexBuffers["instanceStaging"]!!.capacity() >= instanceBufferSize) {
+            state.vertexBuffers["instanceStaging"]!!
+        } else {
+            logger.info("Creating new staging buffer with capacity=$instanceBufferSize (${ubo.getSize()} x ${parentNode.instances.size})")
+            val buffer = BufferUtils.allocateByte(instanceBufferSize)
+
+            state.vertexBuffers.put("instanceStaging", buffer)
+            buffer
+        }
+
+        logger.info("Staging buffer position, ${stagingBuffer.position()}, cap=${stagingBuffer.capacity()}")
+
+        val index = AtomicInteger(0)
+        parentNode.instances.parallelStream().forEach { node ->
+            node.needsUpdate = true
+            node.needsUpdateWorld = true
+            node.updateWorld(true, false)
+
+            node.metadata.getOrPut("instanceBufferView", {
+                stagingBuffer.duplicate().order(ByteOrder.LITTLE_ENDIAN)
+            }).run {
+                val buffer = this as? ByteBuffer?: return@run
+
+                ubo.populateParallel(buffer, offset = index.getAndIncrement() * ubo.getSize()*1L, elements = node.instancedProperties)
+            }
+        }
+
+        stagingBuffer.position(parentNode.instances.size * ubo.getSize())
+        stagingBuffer.flip()
+
+        val instanceBuffer = if (state.additionalBufferIds.containsKey("instance")) {
+            state.additionalBufferIds["instance"]!!
+        } else {
+            logger.debug("Instance buffer for ${parentNode.name} needs to be reallocated due to insufficient size ($instanceBufferSize vs ${state.vertexBuffers["instance"]?.capacity() ?: "<not allocated yet>"})")
+
+            val bufferArray = intArrayOf(0)
+            gl.glGenBuffers(1, bufferArray, 0)
+
+            gl.glBindVertexArray(state.mVertexArrayObject[0])
+            gl.glBindBuffer(GL4.GL_ARRAY_BUFFER, bufferArray[0])
+
+            // instance data starts after vertex, normal, texcoord
+            val locationBase = 3
+            var location = locationBase
+            parentNode.instances.first().instancedProperties.entries.forEachIndexed { locationOffset, element ->
+                val result = element.value.invoke()
+                val sizeAlignment = ubo.getSizeAndAlignment(result)
+                location += locationOffset
+
+                val necessaryAttributes = if(result is GLMatrix) {
+                    if(result.floatArray.size == 12) {
+                        3
+                    } else {
+                        4
+                    }
+                } else {
+                    1
+                }
+
+                (0 until necessaryAttributes).forEach { attrib ->
+                    // TODO: Enable vertex attrib array in dependency to instanced property size
+                    gl.glEnableVertexAttribArray(location)
+                    gl.glVertexAttribPointer(location, sizeAlignment.first/necessaryAttributes, GL4.GL_FLOAT, false,
+                        sizeAlignment.first, sizeAlignment.first/necessaryAttributes*attrib*1L)
+                    gl.glVertexAttribDivisor(location, 1)
+                    location++
+                }
+            }
+            gl.glBindVertexArray(0)
+
+            state.additionalBufferIds["instance"] = bufferArray[0]
+            bufferArray[0]
+        }
+
+        gl.glBindBuffer(GL4.GL_ARRAY_BUFFER, instanceBuffer)
+        gl.glBufferData(GL4.GL_ARRAY_BUFFER, instanceBufferSize.toLong(), stagingBuffer, GL4.GL_DYNAMIC_DRAW)
+        gl.glBindBuffer(GL4.GL_ARRAY_BUFFER, 0)
+
+        state.instanceCount = parentNode.instances.size
+        logger.info("Updated instance buffer, ${parentNode.name} has ${state.instanceCount} instances.")
+
+        return state
+    }
+
     /**
      * Renders the [Scene].
      *
@@ -1096,59 +1211,27 @@ class OpenGLRenderer(hub: Hub,
             return
         }
 
-        val vrActive = settings.get<Boolean>("vr.Active")
+        val running = hub?.getApplication()?.running ?: true
 
-        if (scene.children.count() == 0 || renderpasses.isEmpty() || mustRecreateFramebuffers) {
+        if (scene.children.count() == 0 || renderpasses.isEmpty() || mustRecreateFramebuffers || !running) {
             logger.info("Waiting for initialization")
             Thread.sleep(200)
             return
         }
 
+        val sceneObjects = scene.discover(scene, { n ->
+                n is HasGeometry
+                    && n.visible
+                    && n.instanceOf == null
+            }, useDiscoveryBarriers = true)
+
         val startUboUpdate = System.nanoTime()
-        updateDefaultUBOs()
+        updateDefaultUBOs(sceneObjects)
         stats?.add("OpenGLRenderer.updateUBOs", System.nanoTime() - startUboUpdate)
 
-        val renderOrderList = ArrayList<Node>()
-        // find observer, or return immediately
-        val cam: Camera = scene.findObserver() ?: return
-
-        val hmd: Display? = if (hub!!.has(SceneryElement.HMDInput)
-            && (hub!!.get(SceneryElement.HMDInput) as Display).initializedAndWorking()) {
-            hub!!.get(SceneryElement.HMDInput) as Display
-        } else {
-            null
-        }
-
-        val tracker: TrackerInput? = if (hub!!.has(SceneryElement.HMDInput)
-            && (hub!!.get(SceneryElement.HMDInput) as TrackerInput).initializedAndWorking()) {
-            hub!!.get(SceneryElement.HMDInput) as TrackerInput
-        } else {
-            null
-        }
-
-        scene.discover(scene, { n -> n is Renderable && n is HasGeometry && n.visible }).forEach {
-            renderOrderList.add(it)
-        }
-
-        val instanceGroups = renderOrderList.groupBy { it.instanceOf }
-
-        val headToEye = eyes.map { i ->
-            if (hmd == null) {
-                GLMatrix.getTranslation(settings.get<Float>("vr.IPD") * -1.0f * Math.pow(-1.0, 1.0 * i).toFloat(), 0.0f, 0.0f).transpose()
-            } else {
-                hmd.getHeadToEyeTransform(i).clone()
-            }
-        }
-
-        val pose = tracker?.getPose() ?: GLMatrix.getIdentity()
-        cam.view = cam.getTransformation()
-        val projection = eyes.map { i ->
-            if (vrActive) {
-                hmd?.getEyeProjection(i, cam.nearPlaneDistance, cam.farPlaneDistance) ?: cam.projection
-            } else {
-                cam.projection
-            }
-        }
+        val startInstanceUpdate = System.nanoTime()
+        updateInstanceBuffers(sceneObjects)
+        stats?.add("OpenGLRenderer.updateInstanceBuffers", System.nanoTime() - startInstanceUpdate)
 
         buffers["ShaderParametersBuffer"]?.let { shaderParametersBuffer ->
             shaderParametersBuffer.reset()
@@ -1233,17 +1316,17 @@ class OpenGLRenderer(hub: Hub,
                     gl.glDisable(GL4.GL_BLEND)
                 }
 
-                instanceGroups[null]?.forEach nonInstancedDrawing@ { n ->
-                    if (n in instanceGroups.keys) {
-                        return@nonInstancedDrawing
+                sceneObjects.forEach renderLoop@ { n ->
+                    if (n.instanceOf != null) {
+                        return@renderLoop
                     }
 
                     if (pass.passConfig.renderOpaque && n.material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) {
-                        return@nonInstancedDrawing
+                        return@renderLoop
                     }
 
                     if (pass.passConfig.renderTransparent && !n.material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) {
-                        return@nonInstancedDrawing
+                        return@renderLoop
                     }
 
                     if (n.material.doubleSided) {
@@ -1269,7 +1352,7 @@ class OpenGLRenderer(hub: Hub,
                     if (!n.metadata.containsKey("OpenGLRenderer") || !n.initialized) {
                         n.metadata.put("OpenGLRenderer", OpenGLObjectState())
                         initializeNode(n)
-                        return@nonInstancedDrawing
+                        return@renderLoop
                     }
 
                     var s = getOpenGLObjectStateFromNode(n)
@@ -1357,94 +1440,16 @@ class OpenGLRenderer(hub: Hub,
                         }
                     }
 
-                    drawNode(n)
-                }
-
-                instanceGroups.keys.filterNotNull().forEach instancedDrawing@ { n ->
-                    var start = System.nanoTime()
-
-                    if (!n.metadata.containsKey("OpenGLRenderer")) {
-                        n.metadata.put("OpenGLRenderer", OpenGLObjectState())
-                        initializeNode(n)
-                        return@instancedDrawing
-                    }
-
-                    val s = getOpenGLObjectStateFromNode(n)
-                    val instances = instanceGroups[n]!!
-
-                    logger.trace("${n.name} has additional instance buffers: ${s.additionalBufferIds.keys}")
-                    logger.trace("${n.name} instancing: Instancing group size is ${instances.size}")
-
-                    instances.forEach { node ->
-                        if (!node.metadata.containsKey("OpenGLRenderer")) {
-                            node.metadata.put("OpenGLRenderer", OpenGLObjectState())
-                            initializeNode(node)
-                        }
-
-                        node.updateWorld(true, false)
-                    }
-
-                    val matrixSize = 4 * 4
-                    val models = ArrayList<Float>(matrixSize * instances.size)
-                    val modelviews = ArrayList<Float>(matrixSize * instances.size)
-                    val modelviewprojs = ArrayList<Float>(matrixSize * instances.size)
-
-                    eyes.forEach {
-                        eye ->
-
-                        models.clear()
-                        modelviews.clear()
-                        modelviewprojs.clear()
-
-                        instances.forEach { node ->
-                            node.modelView.copyFrom(headToEye[eye])
-                            node.modelView.mult(pose)
-                            node.modelView.mult(cam.view)
-                            node.modelView.mult(node.world)
-
-                            node.mvp.copyFrom(projection[eye])
-                            node.mvp.mult(node.modelView)
-
-                            node.projection.copyFrom(projection[eye])
-                            node.view.copyFrom(cam.view)
-
-                            models.addAll(node.world.floatArray.asSequence())
-                            modelviews.addAll(node.modelView.floatArray.asSequence())
-                            modelviewprojs.addAll(node.mvp.floatArray.asSequence())
-                        }
-
-                        logger.trace("${n.name} instancing: Collected ${modelviewprojs.size / matrixSize} MVPs in ${(System.nanoTime() - start) / 10e6}ms")
-
-                        // bind instance buffers
-                        start = System.nanoTime()
-                        val matrixSizeBytes: Long = 1L * Buffers.SIZEOF_FLOAT * matrixSize * instances.size
-
-                        gl.glBindVertexArray(s.mVertexArrayObject[0])
-
-                        gl.glBindBuffer(GL4.GL_ARRAY_BUFFER, s.additionalBufferIds["Model"]!!)
-                        gl.glBufferData(GL4.GL_ARRAY_BUFFER, matrixSizeBytes,
-                            FloatBuffer.wrap(models.toFloatArray()), GL4.GL_DYNAMIC_DRAW)
-
-                        gl.glBindBuffer(GL4.GL_ARRAY_BUFFER, s.additionalBufferIds["ModelView"]!!)
-                        gl.glBufferData(GL4.GL_ARRAY_BUFFER, matrixSizeBytes,
-                            FloatBuffer.wrap(modelviews.toFloatArray()), GL4.GL_DYNAMIC_DRAW)
-
-                        gl.glBindBuffer(GL4.GL_ARRAY_BUFFER, s.additionalBufferIds["MVP"]!!)
-                        gl.glBufferData(GL4.GL_ARRAY_BUFFER, matrixSizeBytes,
-                            FloatBuffer.wrap(modelviewprojs.toFloatArray()), GL4.GL_DYNAMIC_DRAW)
-
-                        logger.trace("${n.name} instancing: Updated matrix buffers in ${(System.nanoTime() - start) / 10e6}ms")
-
-                        preDrawAndUpdateGeometryForNode(n)
-
-                        pass.output.values.first().setDrawBuffers(gl)
-                        drawNodeInstanced(n, count = instances.size)
+                    if(n.instanceMaster) {
+                        drawNodeInstanced(n)
+                    } else {
+                        drawNode(n)
                     }
                 }
             } else {
                 gl.glDisable(GL4.GL_CULL_FACE)
 
-                if (pass.output.filter { it.value.hasDepthAttachment() }.isNotEmpty()) {
+                if (pass.output.any { it.value.hasDepthAttachment() }) {
                     gl.glEnable(GL4.GL_DEPTH_TEST)
                 } else {
                     gl.glDisable(GL4.GL_DEPTH_TEST)
@@ -1690,11 +1695,11 @@ class OpenGLRenderer(hub: Hub,
                 initializeNode(node.instanceOf!!)
             }
 
-            if (!s.additionalBufferIds.containsKey("Model") || !s.additionalBufferIds.containsKey("ModelView") || !s.additionalBufferIds.containsKey("MVP")) {
-                logger.trace("${node.name} triggered instance buffer creation")
-                createInstanceBuffer(node.instanceOf!!)
-                logger.trace("---")
-            }
+//            if (!s.additionalBufferIds.containsKey("Model") || !s.additionalBufferIds.containsKey("ModelView") || !s.additionalBufferIds.containsKey("MVP")) {
+//                logger.trace("${node.name} triggered instance buffer creation")
+//                createInstanceBuffer(node.instanceOf!!)
+//                logger.trace("---")
+//            }
             return true
         }
 
@@ -2001,45 +2006,6 @@ class OpenGLRenderer(hub: Hub,
     }
 
     /**
-     * Creates an instance buffer for a [Node]'s model, view and mvp matrices.
-     *
-     * @param[node] The [Node] to create the instance buffer for.
-     */
-    private fun createInstanceBuffer(node: Node) {
-        val s = getOpenGLObjectStateFromNode(node)
-
-        val matrixSize = 4 * 4
-        val vectorSize = 4
-        val locationBase = 3
-        val matrices = arrayOf("Model", "ModelView", "MVP")
-        val i = IntArray(matrices.size)
-
-        gl.glBindVertexArray(s.mVertexArrayObject[0])
-        gl.glGenBuffers(matrices.size, i, 0)
-
-        i.forEachIndexed { locationOffset, bufferId ->
-            s.additionalBufferIds.put(matrices[locationOffset], bufferId)
-
-            gl.glBindBuffer(GL4.GL_ARRAY_BUFFER, bufferId)
-
-            for (offset in 0..3) {
-                val l = locationBase + locationOffset * vectorSize + offset
-
-                val pointerOffsetBytes: Long = 1L * Buffers.SIZEOF_FLOAT * offset * vectorSize
-                val matrixSizeBytes = matrixSize * Buffers.SIZEOF_FLOAT
-
-                gl.glEnableVertexAttribArray(l)
-                gl.glVertexAttribPointer(l, vectorSize, GL4.GL_FLOAT, false,
-                    matrixSizeBytes, pointerOffsetBytes)
-                gl.glVertexAttribDivisor(l, 1)
-            }
-        }
-
-        gl.glBindBuffer(GL4.GL_ARRAY_BUFFER, 0)
-        gl.glBindVertexArray(0)
-    }
-
-    /**
      * Creates VAOs and VBO for a given [Node]'s vertices.
      *
      * @param[node] The [Node] to create the VAO/VBO for.
@@ -2060,7 +2026,7 @@ class OpenGLRenderer(hub: Hub,
             if (s.isDynamic)
                 GL4.GL_DYNAMIC_DRAW
             else
-                GL4.GL_STATIC_DRAW)
+                GL4.GL_DYNAMIC_DRAW)
 
         gl.glVertexAttribPointer(0,
             node.vertexSize,
@@ -2189,7 +2155,7 @@ class OpenGLRenderer(hub: Hub,
             if (s.isDynamic)
                 GL4.GL_DYNAMIC_DRAW
             else
-                GL4.GL_STATIC_DRAW)
+                GL4.GL_DYNAMIC_DRAW)
 
         gl.glVertexAttribPointer(2,
             node.texcoordSize,
@@ -2255,7 +2221,7 @@ class OpenGLRenderer(hub: Hub,
             if (s.isDynamic)
                 GL4.GL_DYNAMIC_DRAW
             else
-                GL4.GL_STATIC_DRAW)
+                GL4.GL_DYNAMIC_DRAW)
 
         gl.glBindVertexArray(0)
         gl.glBindBuffer(GL4.GL_ELEMENT_ARRAY_BUFFER, 0)
@@ -2296,7 +2262,7 @@ class OpenGLRenderer(hub: Hub,
         if (s.mStoredIndexCount == 0 && s.mStoredPrimitiveCount == 0 || node.material.needsTextureReload) {
             return
         }
-        logger.trace("Drawing {} with {}", node.name, s.shader?.modules?.entries?.joinToString(", "))
+        logger.trace("Drawing {} with {}, {} primitives, {} indices", node.name, s.shader?.modules?.entries?.joinToString(", "), s.mStoredPrimitiveCount, s.mStoredIndexCount)
         gl.glBindVertexArray(s.mVertexArrayObject[0])
 
         if (s.mStoredIndexCount > 0) {
@@ -2323,10 +2289,8 @@ class OpenGLRenderer(hub: Hub,
      * @param[count] The number of instances to be drawn.
      * @param[offset] offset in the array or index buffer.
      */
-    fun drawNodeInstanced(node: Node, count: Int, offset: Long = 0) {
+    fun drawNodeInstanced(node: Node, offset: Long = 0) {
         val s = getOpenGLObjectStateFromNode(node)
-
-//        s.program?.use(gl)
 
         gl.glBindVertexArray(s.mVertexArrayObject[0])
 
@@ -2336,11 +2300,11 @@ class OpenGLRenderer(hub: Hub,
                 s.mStoredIndexCount,
                 GL4.GL_UNSIGNED_INT,
                 offset,
-                count)
+                s.instanceCount)
         } else {
             gl.glDrawArraysInstanced(
                 (node as HasGeometry).geometryType.toOpenGLType(),
-                0, s.mStoredPrimitiveCount, count)
+                0, s.mStoredPrimitiveCount, s.instanceCount)
 
         }
 

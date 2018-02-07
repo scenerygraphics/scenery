@@ -132,8 +132,11 @@ open class UBO {
         return totalSize
     }
 
-    fun populate(data: ByteBuffer, offset: Long = 0L, elements: (LinkedHashMap<String, () -> Any>)? = null) {
-        offset?.let { data.position(it.toInt()) }
+    fun populate(data: ByteBuffer, offset: Long = -1L, elements: (LinkedHashMap<String, () -> Any>)? = null) {
+        if(offset != -1L) {
+            data.position(offset.toInt())
+        }
+
         val originalPos = data.position()
 
         (elements ?: members).forEach {
@@ -153,10 +156,6 @@ open class UBO {
                     data.position(pos)
                 }
             }
-
-//            if(data.remaining() < size) {
-//                return@forEach
-//            }
 
             when(value.javaClass) {
 
