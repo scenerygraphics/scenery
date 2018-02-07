@@ -254,9 +254,9 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
         @Suppress("SENSELESS_COMPARISON")
         if(position != null && rotation != null && scale != null) {
             model.setIdentity()
-            model.scale(this.scale.x(), this.scale.y(), this.scale.z())
-            model.mult(this.rotation)
             model.translate(this.position.x(), this.position.y(), this.position.z())
+            model.mult(this.rotation)
+            model.scale(this.scale.x(), this.scale.y(), this.scale.z())
         }
     }
 
