@@ -26,7 +26,7 @@ class MultiBoxInstancedExample : SceneryBase("MultiBoxInstancedExample") {
             scene.addChild(this)
         }
 
-        val boundaryWidth = 100.0
+        val boundaryWidth = 50.0
         val boundaryHeight = 50.0
 
         val container = Mesh()
