@@ -51,9 +51,9 @@ class NodeTests {
 
         val expectedResult = GLMatrix.getIdentity()
         expectedResult.translate(1.0f, 1.0f, 1.0f)
-        expectedResult.scale(2.0f, 1.0f, 1.0f)
-        expectedResult.rotEuler(0.5, 0.5, 0.5)
         expectedResult.translate(-1.0f, -1.0f, -1.0f)
+        expectedResult.rotEuler(0.5, 0.5, 0.5)
+        expectedResult.scale(2.0f, 1.0f, 1.0f)
 
         logger.info(expectedResult.toString())
 
