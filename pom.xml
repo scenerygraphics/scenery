@@ -105,14 +105,14 @@
         <scijava-common.version>2.69.0</scijava-common.version>
         <scijava.jvm.version>1.8</scijava.jvm.version>
         <javac.target>1.8</javac.target>
-        <kotlin.version>1.2.20</kotlin.version>
+        <kotlin.version>1.2.21</kotlin.version>
         <kotlin.compiler.jvmTarget>1.8</kotlin.compiler.jvmTarget>
         <kotlin.compiler.incremental>true</kotlin.compiler.incremental>
         <dokka.version>0.9.15</dokka.version>
         <dokka.skip>true</dokka.skip>
 
         <slf4j.version>1.7.25</slf4j.version>
-        <lwjgl.version>3.1.6-SNAPSHOT</lwjgl.version>
+        <lwjgl.version>3.1.6</lwjgl.version>
         <spirvcrossj.version>0.3.1</spirvcrossj.version>
         <jvrpn.version>1.1.0</jvrpn.version>
 
@@ -216,7 +216,7 @@
     <dependencies>
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
-            <artifactId>kotlin-stdlib-jre8</artifactId>
+            <artifactId>kotlin-stdlib-jdk8</artifactId>
             <version>${kotlin.version}</version>
         </dependency>
 
@@ -224,6 +224,12 @@
             <groupId>org.jetbrains.kotlin</groupId>
             <artifactId>kotlin-reflect</artifactId>
             <version>${kotlin.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.jetbrains.kotlinx</groupId>
+            <artifactId>kotlinx-coroutines-core</artifactId>
+            <version>0.21.2</version>
         </dependency>
 
         <dependency>
@@ -257,7 +263,7 @@
         <dependency>
             <groupId>net.clearvolume</groupId>
             <artifactId>cleargl</artifactId>
-            <version>2.1.1</version>
+            <version>2.1.2</version>
         </dependency>
 
         <dependency>
@@ -518,6 +524,9 @@
         <plugins>
             <plugin>
                 <artifactId>kotlin-maven-plugin</artifactId>
+                <configuration>
+                    <experimentalCoroutines>enable</experimentalCoroutines>
+                </configuration>
                 <groupId>org.jetbrains.kotlin</groupId>
                 <version>${kotlin.version}</version>
                 <executions>
@@ -626,18 +635,13 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>
                 <version>1.4.1</version>
-                <configuration>
-                    <rules>
-                        <banDuplicateClasses>
-                            <ignoreClasses>
-                                <ignoreClass>module-info</ignoreClass>
-                            </ignoreClasses>
-                        </banDuplicateClasses>
-                        <enforceBytecodeVersion>
-                            <maxJdkVersion>1.9</maxJdkVersion>
-                        </enforceBytecodeVersion>
-                    </rules>
-                </configuration>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>extra-enforcer-rules</artifactId>
+                        <version>1.0-beta-7</version>
+                    </dependency>
+                </dependencies>
             </plugin>
 
         </plugins>
