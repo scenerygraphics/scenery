@@ -75,11 +75,10 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
     private var currentPosition = 0
 
     class VulkanMetadata(var descriptorSets: LongBuffer = memAllocLong(10),
-                              var vertexBufferOffsets: LongBuffer = memAllocLong(1),
+                              var vertexBufferOffsets: LongBuffer = memAllocLong(4),
                               var scissor: VkRect2D.Buffer = VkRect2D.calloc(1),
                               var viewport: VkViewport.Buffer = VkViewport.calloc(1),
-                              var vertexBuffers: LongBuffer = memAllocLong(1),
-                              var instanceBuffers: LongBuffer = memAllocLong(1),
+                              var vertexBuffers: LongBuffer = memAllocLong(4),
                               var clearValues: VkClearValue.Buffer? = null,
                               var renderArea: VkRect2D = VkRect2D.calloc(),
                               var renderPassBeginInfo: VkRenderPassBeginInfo = VkRenderPassBeginInfo.calloc(),
@@ -93,7 +92,6 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
             scissor.free()
             viewport.free()
             memFree(vertexBuffers)
-            memFree(instanceBuffers)
             clearValues?.free()
             renderArea.free()
             renderPassBeginInfo.free()
