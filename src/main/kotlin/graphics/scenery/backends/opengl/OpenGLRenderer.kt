@@ -1,21 +1,16 @@
 package graphics.scenery.backends.opengl
 
 import cleargl.*
-import com.jogamp.common.nio.Buffers
 import com.jogamp.opengl.*
 import com.jogamp.opengl.util.FPSAnimator
 import com.jogamp.opengl.util.awt.AWTGLReadBufferUtil
 import graphics.scenery.*
 import graphics.scenery.backends.*
-import graphics.scenery.controls.TrackerInput
 import graphics.scenery.fonts.SDFFontAtlas
 import graphics.scenery.spirvcrossj.Loader
 import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.utils.*
 import javafx.application.Platform
-import kotlinx.coroutines.experimental.Deferred
-import kotlinx.coroutines.experimental.async
-import kotlinx.coroutines.experimental.runBlocking
 import org.lwjgl.system.MemoryUtil
 import java.io.File
 import java.io.FileNotFoundException
@@ -1094,14 +1089,14 @@ class OpenGLRenderer(hub: Hub,
         val stagingBuffer = if(state.vertexBuffers.containsKey("instanceStaging") && state.vertexBuffers["instanceStaging"]!!.capacity() >= instanceBufferSize) {
             state.vertexBuffers["instanceStaging"]!!
         } else {
-            logger.info("Creating new staging buffer with capacity=$instanceBufferSize (${ubo.getSize()} x ${parentNode.instances.size})")
+            logger.debug("${parentNode.name}: Creating new staging buffer with capacity=$instanceBufferSize (${ubo.getSize()} x ${parentNode.instances.size})")
             val buffer = BufferUtils.allocateByte(instanceBufferSize)
 
             state.vertexBuffers.put("instanceStaging", buffer)
             buffer
         }
 
-        logger.info("Staging buffer position, ${stagingBuffer.position()}, cap=${stagingBuffer.capacity()}")
+        logger.trace("{}: Staging buffer position, {}, cap={}", parentNode.name, stagingBuffer.position(), stagingBuffer.capacity())
 
         val index = AtomicInteger(0)
         parentNode.instances.parallelStream().forEach { node ->
@@ -1140,25 +1135,62 @@ class OpenGLRenderer(hub: Hub,
                 val sizeAlignment = ubo.getSizeAndAlignment(result)
                 location += locationOffset
 
+                val glType = when(result.javaClass) {
+                    java.lang.Integer::class.java,
+                    Int::class.java -> GL4.GL_INT
+
+                    java.lang.Float::class.java,
+                    Float::class.java -> GL4.GL_FLOAT
+
+                    java.lang.Boolean::class.java,
+                    Boolean::class.java -> GL4.GL_INT
+
+                    GLMatrix::class.java -> GL4.GL_FLOAT
+                    GLVector::class.java -> GL4.GL_FLOAT
+
+                    else -> { logger.error("Don't know how to serialise ${result.javaClass} for instancing."); GL4.GL_FLOAT }
+                }
+
+                val count = when (result) {
+                    is GLMatrix -> 4
+                    is GLVector -> result.toFloatArray().size
+                    else -> { logger.error("Don't know element size of ${result.javaClass} for instancing."); 1 }
+                }
+
                 val necessaryAttributes = if(result is GLMatrix) {
-                    if(result.floatArray.size == 12) {
-                        3
-                    } else {
-                        4
-                    }
+                    result.floatArray.size / count
                 } else {
                     1
                 }
 
-                (0 until necessaryAttributes).forEach { attrib ->
-                    // TODO: Enable vertex attrib array in dependency to instanced property size
-                    gl.glEnableVertexAttribArray(location)
-                    gl.glVertexAttribPointer(location, sizeAlignment.first/necessaryAttributes, GL4.GL_FLOAT, false,
-                        sizeAlignment.first, sizeAlignment.first/necessaryAttributes*attrib*1L)
-                    gl.glVertexAttribDivisor(location, 1)
-                    location++
+                logger.trace("{} needs {} locations with {} elements:", result.javaClass, necessaryAttributes, count)
+                (0 until necessaryAttributes).forEach { attributeLocation ->
+                    val stride = sizeAlignment.first
+                    val offset = 1L * attributeLocation * (sizeAlignment.first/necessaryAttributes)
+
+                    logger.trace("{}, stride={}, offset={}",
+                        location + attributeLocation,
+                        stride,
+                        offset)
+
+                    gl.glEnableVertexAttribArray(location + attributeLocation)
+
+                    // glVertexAttribPoint takes parameters:
+                    // * index: attribute location
+                    // * size: element count per location
+                    // * type: the OpenGL type
+                    // * normalized: whether the OpenGL type should be taken as normalized
+                    // * stride: the stride between different occupants in the instance array
+                    // * pointer_buffer_offset: the offset of the current element (e.g. matrix row) with respect
+                    //   to the start of the element in the instance array
+                    gl.glVertexAttribPointer(location + attributeLocation, count, glType, false,
+                        stride, offset)
+                    gl.glVertexAttribDivisor(location + attributeLocation, 1)
                 }
+
+                location += necessaryAttributes
             }
+
             gl.glBindVertexArray(0)
 
             state.additionalBufferIds["instance"] = bufferArray[0]
@@ -1170,7 +1202,7 @@ class OpenGLRenderer(hub: Hub,
         gl.glBindBuffer(GL4.GL_ARRAY_BUFFER, 0)
 
         state.instanceCount = parentNode.instances.size
-        logger.info("Updated instance buffer, ${parentNode.name} has ${state.instanceCount} instances.")
+        logger.trace("Updated instance buffer, {parentNode.name} has {} instances.", parentNode.name, state.instanceCount)
 
         return state
     }
