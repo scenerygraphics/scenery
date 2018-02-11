@@ -30,6 +30,10 @@ class Hub {
         elements.put(SceneryElement.Application, application)
     }
 
+    fun getApplication(): SceneryBase? {
+        return elements.get(SceneryElement.Application) as? SceneryBase
+    }
+
     /**
      * Query the Hub for a given type of [SceneryElement]
      *
