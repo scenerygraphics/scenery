@@ -4,24 +4,37 @@
 layout(location = 0) in vec3 vertexPosition;
 layout(location = 1) in vec3 vertexNormal;
 layout(location = 2) in vec2 vertexTexCoord;
-layout(location = 3) in mat4 ModelMatrix;
-layout(location = 7) in mat4 ModelViewMatrix;
-layout(location = 11) in mat4 MVP;
+layout(location = 3) in mat4 iModelMatrix;
 
 layout(location = 0) out VertexData {
     vec3 FragPosition;
     vec3 Normal;
     vec2 TexCoord;
-} VertexOut;
+} Vertex;
 
 layout(binding = 0) uniform Matrices {
-	mat4 uModelViewMatrix;
-	mat4 uModelMatrix;
-	mat4 uNormalMatrix;
-	mat4 uProjectionMatrix;
-	vec3 CamPosition;
+	mat4 ModelMatrix;
+	mat4 NormalMatrix;
+	mat4 ProjectionMatrix;
 	int isBillboard;
 } ubo;
+
+struct Light {
+	float Linear;
+	float Quadratic;
+	float Intensity;
+	float Radius;
+	vec4 Position;
+  	vec4 Color;
+};
+
+const int MAX_NUM_LIGHTS = 1024;
+layout(set = 1, binding = 0) uniform LightParameters {
+    mat4 ViewMatrix;
+    vec3 CamPosition;
+    int numLights;
+	Light lights[MAX_NUM_LIGHTS];
+};
 
 layout(set = 2, binding = 0) uniform VRParameters {
     mat4 projectionMatrices[2];
@@ -36,11 +49,37 @@ layout(push_constant) uniform currentEye_t {
 
 void main()
 {
-	VertexOut.Normal = transpose(inverse(mat3(ModelMatrix))) * normalize(vertexNormal);
-    VertexOut.TexCoord = vertexTexCoord;
-    VertexOut.FragPosition = vec3(ModelMatrix * vec4(vertexPosition, 1.0));
+mat4 mv;
+	mat4 nMVP;
+	mat4 projectionMatrix;
 
-    gl_Position = MVP * vec4(vertexPosition, 1.0);
+    mat4 headToEye = vrParameters.headShift;
+	headToEye[3][0] -= currentEye.eye * vrParameters.IPD;
+
+    mv = (vrParameters.stereoEnabled ^ 1) * ViewMatrix * iModelMatrix + (vrParameters.stereoEnabled * headToEye * ViewMatrix * iModelMatrix);
+	projectionMatrix = (vrParameters.stereoEnabled ^ 1) * ubo.ProjectionMatrix + vrParameters.stereoEnabled * vrParameters.projectionMatrices[currentEye.eye];
+
+	if(ubo.isBillboard > 0) {
+		mv[0][0] = 1.0f;
+		mv[0][1] = .0f;
+		mv[0][2] = .0f;
+
+		mv[1][0] = .0f;
+		mv[1][1] = 1.0f;
+		mv[1][2] = .0f;
+
+		mv[2][0] = .0f;
+		mv[2][1] = .0f;
+		mv[2][2] = 1.0f;
+	}
+
+	nMVP = projectionMatrix*mv;
+
+    Vertex.Normal = mat3(ubo.NormalMatrix) * normalize(vertexNormal);
+    Vertex.TexCoord = vertexTexCoord;
+    Vertex.FragPosition = vec3(iModelMatrix * vec4(vertexPosition, 1.0));
+
+	gl_Position = nMVP * vec4(vertexPosition, 1.0);
 }
 
 

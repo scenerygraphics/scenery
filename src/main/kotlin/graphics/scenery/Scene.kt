@@ -1,6 +1,17 @@
 package graphics.scenery
 
+import kotlinx.coroutines.experimental.*
+import kotlinx.coroutines.experimental.channels.Channel
+import kotlinx.coroutines.experimental.channels.consumeEach
+import kotlinx.coroutines.experimental.channels.map
+import kotlinx.coroutines.experimental.channels.toList
 import java.util.*
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicLong
+import kotlin.collections.ArrayList
 
 /**
  * Scene class. A Scene is a special kind of [Node] that can only exist once per graph,
@@ -13,6 +24,8 @@ open class Scene : Node("RootNode") {
     /** Temporary storage of the active observer ([Camera]) of the Scene. */
     var activeObserver: Camera? = null
 
+    internal var sceneSize: AtomicLong = AtomicLong(0L)
+    var lights = ArrayList<Node>()
     /**
      * Adds a [Node] to the Scene, at the position given by [parent]
      *
@@ -36,7 +49,7 @@ open class Scene : Node("RootNode") {
      */
     fun findObserver(): Camera? {
         if(activeObserver == null) {
-            val observers = discover(this, { n -> n.nodeType == "Camera" && (n as Camera?)?.active == true })
+            val observers = discover(this, { n -> n.nodeType == "Camera" && (n as Camera?)?.active == true }, useDiscoveryBarriers = true)
 
             activeObserver = observers.firstOrNull() as Camera?
             return activeObserver
@@ -45,6 +58,28 @@ open class Scene : Node("RootNode") {
         }
     }
 
+    fun <T, R> List<T>.parallelFor (
+        numThreads: Int = Runtime.getRuntime().availableProcessors() - 2,
+        exec: ExecutorService = Executors.newFixedThreadPool(numThreads),
+        transform: (T) -> R) {
+
+        // default size is just an inlined version of kotlin.collections.collectionSizeOrDefault
+
+        if(this.size < 4) {
+            this.forEach { transform(it) }
+        } else {
+            for (item in this) {
+                exec.submit { transform(item) }
+            }
+        }
+
+//        exec.shutdown()
+//        exec.awaitTermination(1, TimeUnit.DAYS)
+    }
+
+    fun <A, B>List<A>.pmap(f: suspend (A) -> B) = runBlocking {
+        map { async(CommonPool) { f(it) } }.forEach { it.await() }
+    }
     /**
      * Depth-first search for elements in a Scene.
      *
@@ -52,7 +87,7 @@ open class Scene : Node("RootNode") {
      * @param[func] A lambda taking a [Node] and returning a Boolean for matching.
      * @return A list of [Node]s that match [func].
      */
-    fun discover(s: Scene, func: (Node) -> Boolean): ArrayList<Node> {
+    fun discover(s: Scene, func: (Node) -> Boolean, useDiscoveryBarriers: Boolean = false): ArrayList<Node> {
         val visited = HashSet<Node>()
         val matched = ArrayList<Node>()
 
@@ -62,13 +97,51 @@ open class Scene : Node("RootNode") {
                 if (f(v)) {
                     matched.add(v)
                 }
-                discover(v, f)
+
+                if(!(useDiscoveryBarriers && v.discoveryBarrier)) {
+                    discover(v, f)
+                }
             }
         }
 
         discover(s as Node, func)
 
         return matched
+    }
+
+    fun discoverParallel(s: Scene, func: (Node) -> Boolean, useDiscoveryBarriers: Boolean = false) = runBlocking<List<Node>> {
+        val visited = Collections.synchronizedSet(HashSet<Node>(sceneSize.toInt()))
+        val crs = Collections.synchronizedSet(HashSet<Job>())
+        val matches = Collections.synchronizedSet(HashSet<Node>(sceneSize.toInt()))
+
+        val channel = Channel<Node>()
+
+        fun discover(current: Node, f: (Node) -> Boolean) {
+            if (!visited.add(current)) return
+
+            crs.add(launch {
+                for(v in current.children) {
+                    if (f(v)) {
+//                        channel.send(v)
+                        matches.add(v)
+                    }
+
+                    if (useDiscoveryBarriers && v.discoveryBarrier) {
+
+                    } else {
+                        discover(v, f)
+                    }
+                }
+            })
+        }
+
+        discover(s as Node, func)
+
+//        channel.close()
+
+        crs.forEach { it.join() }
+//        channel.consumeEach { logger.info("Added ${it.name}"); matches.add(it) }
+        matches.toList()
     }
 
     /**
@@ -103,7 +176,7 @@ open class Scene : Node("RootNode") {
      * @param[name] The class name of the [Node] to find.
      * @return A list of Nodes with class name [name].
      */
-    fun findByClassname(className: String): ArrayList<Node> {
+    fun findByClassname(className: String): List<Node> {
         return this.discover(this, { n -> n.javaClass.simpleName.contains(className) })
     }
 }
