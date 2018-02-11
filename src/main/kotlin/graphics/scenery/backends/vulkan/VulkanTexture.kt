@@ -300,17 +300,34 @@ open class VulkanTexture(val device: VulkanDevice,
                     imageBlit.dstSubresource().set(VK_IMAGE_ASPECT_COLOR_BIT, mipLevel, 0, 1)
                     imageBlit.dstOffsets(1).set(width shr (mipLevel), height shr (mipLevel), 1)
 
-                    val mipRange = VkImageSubresourceRange.calloc()
+                    val mipSourceRange = VkImageSubresourceRange.calloc()
                         .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
                         .baseArrayLayer(0)
                         .layerCount(1)
                         .baseMipLevel(mipLevel-1)
                         .levelCount(1)
 
+                    val mipTargetRange = VkImageSubresourceRange.calloc()
+                        .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
+                        .baseArrayLayer(0)
+                        .layerCount(1)
+                        .baseMipLevel(mipLevel)
+                        .levelCount(1)
+
+                    if(mipLevel > 1) {
+                        transitionLayout(image!!.image,
+                            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                            subresourceRange = mipSourceRange,
+                            srcStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                            dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                            commandBuffer = this@mipmapCreation)
+                    }
+
                     transitionLayout(image!!.image,
                         VK_IMAGE_LAYOUT_UNDEFINED,
                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                        subresourceRange = mipRange,
+                        subresourceRange = mipTargetRange,
                         srcStage = VK_PIPELINE_STAGE_HOST_BIT,
                         dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
                         commandBuffer = this@mipmapCreation)
@@ -321,13 +338,21 @@ open class VulkanTexture(val device: VulkanDevice,
                         imageBlit, VK_FILTER_LINEAR)
 
                     transitionLayout(image!!.image,
-                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, subresourceRange = mipRange,
+                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, subresourceRange = mipSourceRange,
                         srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
                         dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                         commandBuffer = this@mipmapCreation)
 
-                    mipRange.free()
+                    transitionLayout(image!!.image,
+                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, subresourceRange = mipTargetRange,
+                        srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                        dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                        commandBuffer = this@mipmapCreation)
+
+                    mipSourceRange.free()
+                    mipTargetRange.free()
                 }
 
                 this@mipmapCreation.endCommandBuffer(device, commandPool, queue, flush = true, dealloc = true)
@@ -679,7 +704,7 @@ open class VulkanTexture(val device: VulkanDevice,
                         .srcAccessMask(0)
                         .dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
                 } else if(oldLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
-                    barrier.srcAccessMask(VK_ACCESS_INPUT_ATTACHMENT_READ_BIT)
+                    barrier.srcAccessMask(VK_ACCESS_SHADER_READ_BIT)
                         .dstAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
                 } else if(oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
                     barrier.srcAccessMask(VK_ACCESS_TRANSFER_READ_BIT)

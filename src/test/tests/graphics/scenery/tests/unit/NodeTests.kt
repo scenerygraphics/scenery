@@ -51,13 +51,36 @@ class NodeTests {
 
         val expectedResult = GLMatrix.getIdentity()
         expectedResult.translate(1.0f, 1.0f, 1.0f)
-        expectedResult.scale(2.0f, 1.0f, 1.0f)
-        expectedResult.rotEuler(0.5, 0.5, 0.5)
         expectedResult.translate(-1.0f, -1.0f, -1.0f)
+        expectedResult.rotEuler(0.5, 0.5, 0.5)
+        expectedResult.scale(2.0f, 1.0f, 1.0f)
 
         logger.info(expectedResult.toString())
 
         assert(GLMatrix.compare(expectedResult, subChild.world, true))
+    }
+
+    private fun addSiblings(toNode: Node, maxSiblings: Int, currentLevel: Int, maxLevels: Int): Int {
+        var totalNodes = 0
+        val numSib = ThreadLocalRandom.current().nextInt(1, maxSiblings)
+
+        (0 until numSib).map {
+            if(currentLevel >= maxLevels) {
+                return totalNodes
+            }
+
+            val n = Node("Sibling#$it/$currentLevel/$maxLevels")
+            n.position = Numerics.randomVectorFromRange(3, -100.0f, 100.0f)
+            n.scale = Numerics.randomVectorFromRange(3, 0.1f, 10.0f)
+            n.rotation = Numerics.randomQuaternion()
+
+            toNode.addChild(n)
+            totalNodes++
+
+            totalNodes += addSiblings(n, maxSiblings, currentLevel + 1, maxLevels)
+        }
+
+        return totalNodes
     }
 
     /**
@@ -67,32 +90,10 @@ class NodeTests {
     @Test
     fun testLargeScenegraph() {
         val scene = Scene()
-        val levels = 7
+        val levels = 6
         val maxSiblings = 8
 
-        var totalNodes = 0
-
-        fun addSiblings(toNode: Node, maxSiblings: Int, currentLevel: Int) {
-            val numSib = ThreadLocalRandom.current().nextInt(1, maxSiblings)
-
-            (0 until numSib).map {
-                if(currentLevel >= levels) {
-                    return
-                }
-
-                val n = Node("Sibling#$it")
-                n.position = Numerics.randomVectorFromRange(3, -100.0f, 100.0f)
-                n.scale = Numerics.randomVectorFromRange(3, 0.1f, 10.0f)
-                n.rotation = Numerics.randomQuaternion()
-
-                toNode.addChild(n)
-                totalNodes++
-
-                addSiblings(n, maxSiblings, currentLevel + 1)
-            }
-        }
-
-        addSiblings(scene, maxSiblings, 0)
+        val totalNodes = addSiblings(scene, maxSiblings, 0, levels)
 
         logger.info("Created $totalNodes nodes")
 
@@ -104,6 +105,39 @@ class NodeTests {
         assert(totalNodes > maxSiblings)
 
         logger.info("Updating world for $totalNodes took $duration ms")
+    }
+
+
+    /**
+     * Generates a large scene graph which should update fast and not run
+     * into an overflow, while staying within a bound for the number of Nodes created.
+     */
+    @Test
+    fun testLargeScenegraphDiscovery() {
+        val scene = Scene()
+        val levels = 6
+        val maxSiblings = 8
+
+        val totalNodes = addSiblings(scene, maxSiblings, 0, levels)
+
+        logger.info("Created $totalNodes nodes")
+
+        var start = System.nanoTime()
+        scene.updateWorld(true, true)
+        var duration = (System.nanoTime() - start)/10e6
+
+        assert(totalNodes <= Math.pow(1.0*maxSiblings, 1.0*levels).toInt())
+        assert(totalNodes > maxSiblings)
+
+        logger.info("Updating world for $totalNodes took $duration ms")
+
+        start = System.nanoTime()
+        val discoveredNodes = scene.discover(scene, { node -> node.visible })
+        duration = (System.nanoTime() - start)/10e6
+
+        assert(totalNodes == discoveredNodes.size, { "$totalNodes nodes created, but only ${discoveredNodes.size} nodes discovered."})
+
+        logger.info("Scene discovery for $totalNodes took $duration ms, discovered ${discoveredNodes.size} nodes")
     }
 
     /**
