@@ -1,9 +1,6 @@
 package graphics.scenery
 
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
-import java.nio.FloatBuffer
-import java.nio.IntBuffer
+import java.nio.*
 
 /**
  * <Description>
@@ -21,7 +18,7 @@ class BufferUtils {
 
         fun allocateFloatAndPut(array: FloatArray): FloatBuffer {
             val b = ByteBuffer.allocateDirect(SIZE_FLOAT *array.size).order(ByteOrder.nativeOrder()).asFloatBuffer()
-            b.put(array).flip()
+            (b.put(array) as Buffer).flip()
 
             return b
         }
@@ -32,7 +29,7 @@ class BufferUtils {
 
         fun allocateIntAndPut(array: IntArray): IntBuffer {
             val b = ByteBuffer.allocateDirect(SIZE_INT *array.size).order(ByteOrder.nativeOrder()).asIntBuffer()
-            b.put(array).flip()
+            (b.put(array) as Buffer).flip()
 
             return b
         }

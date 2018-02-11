@@ -14,7 +14,11 @@ import java.util.concurrent.ConcurrentHashMap
  * @constructor Creates an empty OpenGLObjectState, with [OpenGLRenderer] as
  *  default consumers.
  */
-class OpenGLObjectState : NodeMetadata {
+class OpenGLObjectState
+/**
+ * Default constructor, adding the [OpenGLRenderer]
+ * to the list of consumers.
+ */() : NodeMetadata {
     data class OpenGLBufferBinding(var buffer: ByteBuffer? = null, var offset: Long = 0L, var name: String, var binding: Int = 0)
     /** List of consumers of this metadata, e.g. [OpenGLRenderer] */
     override val consumers: MutableList<String> = ArrayList<String>()
@@ -48,12 +52,12 @@ class OpenGLObjectState : NodeMetadata {
     var defaultTexturesFor = HashSet<String>()
     /** shader to use for the program */
     var shader: OpenGLShaderProgram? = null
+    /** instance count */
+    var instanceCount: Int = 1
+    /** buffer storage */
+    var vertexBuffers = HashMap<String, ByteBuffer>()
 
-    /**
-     * Default constructor, adding the [OpenGLRenderer]
-     * to the list of consumers.
-     */
-    constructor() {
+    init {
         consumers.add("OpenGLRenderer")
     }
 }
