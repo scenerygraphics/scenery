@@ -2,17 +2,44 @@
 #extension GL_ARB_separate_shader_objects: enable
 
 layout(location = 0) in VertexData {
-    vec3 FragPosition;
     vec3 Normal;
     vec2 TexCoord;
 } Vertex;
 
-layout(location = 0) out vec3 Position;
-layout(location = 1) out vec2 Normal;
-layout(location = 2) out vec4 DiffuseAlbedo;
+layout(location = 0) out vec2 Normal;
+layout(location = 1) out vec4 DiffuseAlbedo;
 
 const float PI = 3.14159265358979323846264;
 const int NUM_OBJECT_TEXTURES = 6;
+
+layout(set = 0, binding = 0) uniform VRParameters {
+    mat4 projectionMatrices[2];
+    mat4 inverseProjectionMatrices[2];
+    mat4 headShift;
+    float IPD;
+    int stereoEnabled;
+} vrParameters;
+
+const int MAX_NUM_LIGHTS = 1024;
+
+struct Light {
+	float Linear;
+	float Quadratic;
+	float Intensity;
+	float Radius;
+	vec4 Position;
+  	vec4 Color;
+};
+
+layout(set = 1, binding = 0) uniform LightParameters {
+    mat4 ViewMatrix;
+    mat4 InverseViewMatrix;
+    mat4 ProjectionMatrix;
+    mat4 InverseProjectionMatrix;
+    vec3 CamPosition;
+    int numLights;
+	Light lights[MAX_NUM_LIGHTS];
+};
 
 struct MaterialInfo {
     vec3 Ka;
@@ -31,7 +58,6 @@ const int MATERIAL_HAS_ALPHAMASK = 0x0010;
 layout(set = 2, binding = 0) uniform Matrices {
 	mat4 ModelMatrix;
 	mat4 NormalMatrix;
-	mat4 ProjectionMatrix;
 	int isBillboard;
 } ubo;
 
@@ -39,6 +65,10 @@ layout(set = 3, binding = 0) uniform MaterialProperties {
     int materialType;
     MaterialInfo Material;
 };
+
+layout(push_constant) uniform currentEye_t {
+    int eye;
+} currentEye;
 
 /*
     ObjectTextures[0] - ambient
@@ -106,7 +136,6 @@ vec2 EncodeOctaH( vec3 n )
 }
 
 void main() {
-    Position = Vertex.FragPosition;
     DiffuseAlbedo.rgb = vec3(0.0f, 0.0f, 0.0f);
 
     DiffuseAlbedo.rgb = Material.Kd;
