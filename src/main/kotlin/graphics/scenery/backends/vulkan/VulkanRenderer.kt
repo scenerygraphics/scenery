@@ -713,14 +713,13 @@ open class VulkanRenderer(hub: Hub,
             name = "Matrices"
             add("ModelMatrix", { node.world })
             add("NormalMatrix", { node.world.inverse.transpose() })
-            add("ProjectionMatrix", { node.projection })
             add("isBillboard", { node.isBillboard.toInt() })
 
             requiredOffsetCount = 2
             createUniformBuffer()
             sceneUBOs.add(node)
 
-            s.UBOs.put(name, matricesDescriptorSet.to(this))
+            s.UBOs.put(name, matricesDescriptorSet to this)
         }
 
         loadTexturesForNode(node, s)
@@ -2593,7 +2592,7 @@ open class VulkanRenderer(hub: Hub,
                 name
             }
 
-            val set = if (dsName == "Matrices" || dsName == "LightParameters") {
+            val set = if (dsName == "Matrices" || dsName == "LightParameters" || dsName == "VRParameters") {
                 this@VulkanRenderer.descriptorSets[dsName]
             } else {
                 pass.descriptorSets[dsName]
@@ -2663,6 +2662,10 @@ open class VulkanRenderer(hub: Hub,
             ?: cam.projection).applyVulkanCoordinateSystem() } )
         vrUbo.add("projection1", { (hmd?.getEyeProjection(1, cam.nearPlaneDistance, cam.farPlaneDistance)
             ?: cam.projection).applyVulkanCoordinateSystem() } )
+        vrUbo.add("inverseProjection0", { (hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance)
+            ?: cam.projection).applyVulkanCoordinateSystem().inverse } )
+        vrUbo.add("inverseProjection1", { (hmd?.getEyeProjection(1, cam.nearPlaneDistance, cam.farPlaneDistance)
+            ?: cam.projection).applyVulkanCoordinateSystem().inverse } )
         vrUbo.add("headShift", { hmd?.getHeadToEyeTransform(0) ?: GLMatrix.getIdentity() })
         vrUbo.add("IPD", { hmd?.getIPD() ?: 0.05f })
         vrUbo.add("stereoEnabled", { renderConfig.stereoEnabled.toInt() })
@@ -2698,7 +2701,7 @@ open class VulkanRenderer(hub: Hub,
                 ubo.offsets.put(0, bufferOffset)
                 ubo.offsets.limit(1)
 
-                node.projection.copyFrom(cam.projection.applyVulkanCoordinateSystem())
+//                node.projection.copyFrom(cam.projection.applyVulkanCoordinateSystem())
 
                 node.view.copyFrom(cam.view)
 
@@ -2730,6 +2733,9 @@ open class VulkanRenderer(hub: Hub,
 
         val lightUbo = VulkanUBO(device, backingBuffer = buffers["LightParametersBuffer"]!!)
         lightUbo.add("ViewMatrix", { cam.view })
+        lightUbo.add("InverseViewMatrix", { cam.view.inverse })
+        lightUbo.add("ProjectionMatrix", { cam.projection.applyVulkanCoordinateSystem() })
+        lightUbo.add("InverseProjectionMatrix", { cam.projection.applyVulkanCoordinateSystem().inverse })
         lightUbo.add("CamPosition", { cam.position })
         lightUbo.add("numLights", { lights.size })
 

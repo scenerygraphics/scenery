@@ -832,6 +832,14 @@ class OpenGLRenderer(hub: Hub,
             (hmd?.getEyeProjection(1, cam.nearPlaneDistance, cam.farPlaneDistance)
                 ?: cam.projection)
         })
+        vrUbo.add("inverseProjection0", {
+            (hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance)
+                ?: cam.projection)
+        })
+        vrUbo.add("inverseProjection1", {
+            (hmd?.getEyeProjection(1, cam.nearPlaneDistance, cam.farPlaneDistance)
+                ?: cam.projection)
+        })
         vrUbo.add("headShift", { hmd?.getHeadToEyeTransform(0) ?: GLMatrix.getIdentity() })
         vrUbo.add("IPD", { hmd?.getIPD() ?: 0.05f })
         vrUbo.add("stereoEnabled", { renderConfig.stereoEnabled.toInt() })
@@ -856,7 +864,6 @@ class OpenGLRenderer(hub: Hub,
 
                 var bufferOffset = ubo.backingBuffer!!.advance()
                 ubo.offset = bufferOffset
-                node.projection.copyFrom(cam.projection)
                 node.view.copyFrom(cam.view)
                 ubo.populate(offset = bufferOffset.toLong())
 
@@ -884,6 +891,9 @@ class OpenGLRenderer(hub: Hub,
 
         val lightUbo = OpenGLUBO(backingBuffer = buffers["LightParameters"]!!)
         lightUbo.add("ViewMatrix", { cam.view })
+        lightUbo.add("InverseViewMatrix", { cam.view.inverse })
+        lightUbo.add("ProjectionMatrix", { cam.projection })
+        lightUbo.add("InverseProjectionMatrix", { cam.projection.inverse })
         lightUbo.add("CamPosition", { cam.position })
         lightUbo.add("numLights", { lights.size })
 
@@ -1795,7 +1805,6 @@ class OpenGLRenderer(hub: Hub,
             name = "Matrices"
             add("ModelMatrix", { node.world })
             add("NormalMatrix", { node.world.inverse.transpose() })
-            add("ProjectionMatrix", { node.projection })
             add("isBillboard", { node.isBillboard.toInt() })
 
             sceneUBOs.add(node)

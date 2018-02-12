@@ -3,9 +3,6 @@ description: Deferred Shading, with HDR postprocessing and FXAA
 
 rendertargets:
   GeometryBuffer:
-    Position:
-      size: 1.0, 1.0
-      format: RGBA_Float32
     Normal:
       size: 1.0, 1.0
       format: RG_Float16

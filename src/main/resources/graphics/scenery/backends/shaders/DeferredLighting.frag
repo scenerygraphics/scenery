@@ -6,10 +6,9 @@
 layout(location = 0) in vec2 textureCoord;
 layout(location = 0) out vec4 FragColor;
 
-layout(set = 2, binding = 0) uniform sampler2D InputPosition;
-layout(set = 2, binding = 1) uniform sampler2D InputNormal;
-layout(set = 2, binding = 2) uniform sampler2D InputDiffuseAlbedo;
-layout(set = 2, binding = 3) uniform sampler2D InputZBuffer;
+layout(set = 2, binding = 0) uniform sampler2D InputNormal;
+layout(set = 2, binding = 1) uniform sampler2D InputDiffuseAlbedo;
+layout(set = 2, binding = 2) uniform sampler2D InputZBuffer;
 
 struct Light {
 	float Linear;
@@ -22,14 +21,29 @@ struct Light {
 
 const int MAX_NUM_LIGHTS = 1024;
 
-layout(set = 0, binding = 0) uniform LightParameters {
+layout(set = 0, binding = 0) uniform VRParameters {
+    mat4 projectionMatrices[2];
+    mat4 inverseProjectionMatrices[2];
+    mat4 headShift;
+    float IPD;
+    int stereoEnabled;
+} vrParameters;
+
+layout(set = 1, binding = 0) uniform LightParameters {
     mat4 ViewMatrix;
+    mat4 InverseViewMatrix;
+    mat4 ProjectionMatrix;
+    mat4 InverseProjectionMatrix;
     vec3 CamPosition;
     int numLights;
 	Light lights[MAX_NUM_LIGHTS];
 };
 
-layout(set = 1, binding = 0, std140) uniform ShaderParameters {
+layout(push_constant) uniform currentEye_t {
+    int eye;
+} currentEye;
+
+layout(set = 3, binding = 0, std140) uniform ShaderParameters {
 	int debugBuffers;
 	int SSAO_Options;
 	int reflectanceModel;
@@ -131,17 +145,34 @@ vec3 DecodeOctaH( vec2 encN )
     return n;
 }
 
+vec3 worldFromDepth(float depth, vec2 texcoord) {
+    float z = depth * 2.0 - 1.0;
+
+    mat4 invHeadToEye = vrParameters.headShift;
+    invHeadToEye[0][3] += currentEye.eye * vrParameters.IPD;
+
+	mat4 invProjection = (vrParameters.stereoEnabled ^ 1) * InverseProjectionMatrix + vrParameters.stereoEnabled * vrParameters.inverseProjectionMatrices[currentEye.eye];
+	mat4 invView = (vrParameters.stereoEnabled ^ 1) * InverseViewMatrix + vrParameters.stereoEnabled * InverseViewMatrix * invHeadToEye;
+
+    vec4 clipSpacePosition = vec4(texcoord * 2.0 - 1.0, z, 1.0);
+    vec4 viewSpacePosition = invProjection * clipSpacePosition;
+
+    viewSpacePosition /= viewSpacePosition.w;
+    vec4 world = InverseViewMatrix * viewSpacePosition;
+    return world.xyz;
+}
 
 void main()
 {
 	// Retrieve data from G-buffer
-	vec3 FragPos = texture(InputPosition, textureCoord).rgb;
+//	vec3 FragPos = texture(InputPosition, textureCoord).rgb;
     vec3 DecodedNormal = DecodeOctaH(texture(InputNormal, textureCoord).rg);
 //	vec3 DecodedNormal = DecodeSpherical(texture(gNormal, textureCoord).rg);
 	vec3 N = DecodedNormal;
 	vec4 Albedo = texture(InputDiffuseAlbedo, textureCoord).rgba;
 	float Specular = texture(InputDiffuseAlbedo, textureCoord).a;
 	float Depth = texture(InputZBuffer, textureCoord).r;
+    vec3 FragPos = worldFromDepth(Depth, textureCoord);
 
 	vec2 ssaoFilterRadius = vec2(ssaoRadius/displayWidth, ssaoRadius/displayHeight);
 	vec3 viewSpacePos = (ViewMatrix * (vec4(FragPos, 1.0) - vec4(CamPosition, 1.0))).rgb;
@@ -160,7 +191,8 @@ void main()
 				// sample at an offset specified by the current Poisson-Disk sample and scale it by a radius (has to be in Texture-Space)
 				vec2 sampleTexCoord = textureCoord + (poisson16[i] * ssaoFilterRadius);
 				float sampleDepth = texture(InputZBuffer, sampleTexCoord).r;
-				vec3 samplePos = texture(InputPosition, sampleTexCoord).rgb;
+//				vec3 samplePos = texture(InputPosition, sampleTexCoord).rgb;
+                vec3 samplePos = worldFromDepth(sampleDepth, sampleTexCoord);
 
 				vec3 sampleDir = normalize(samplePos - FragPos);
 
@@ -181,8 +213,9 @@ void main()
 		    int sample_count = 8;
             for (int i = 0; i < sample_count;  ++i) {
                 vec2 sampleTexCoord = textureCoord + (poisson16[i] * (ssaoFilterRadius));
-                //                       float sampleDepth = texture(gDepth, sampleTexCoord).r;
-                vec3 samplePos = texture(InputPosition, sampleTexCoord).rgb;
+                float sampleDepth = texture(InputZBuffer, sampleTexCoord).r;
+//                vec3 samplePos = texture(InputPosition, sampleTexCoord).rgb;
+                vec3 samplePos = worldFromDepth(sampleDepth, sampleTexCoord);
 
                 vec3 sampleDir = samplePos - FragPos;
 

@@ -4,9 +4,6 @@ stereoEnabled: true
 
 rendertargets:
   GeometryBuffer:
-    Position:
-      size: 1.0, 1.0
-      format: RGBA_Float32
     Normal:
       size: 1.0, 1.0
       format: RGBA_Float16
