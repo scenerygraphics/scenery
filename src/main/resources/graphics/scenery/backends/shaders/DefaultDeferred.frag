@@ -2,6 +2,7 @@
 #extension GL_ARB_separate_shader_objects: enable
 
 layout(location = 0) in VertexData {
+    vec3 FragPosition;
     vec3 Normal;
     vec2 TexCoord;
 } Vertex;
@@ -81,7 +82,7 @@ layout(push_constant) uniform currentEye_t {
 
 layout(set = 4, binding = 0) uniform sampler2D ObjectTextures[NUM_OBJECT_TEXTURES];
 
-// courtesy of Christian Schueler - www.thetenthplanet.de/archives/1180
+// courtesy of Christian Schueler - http://www.thetenthplanet.de/archives/1180
 mat3 TBN(vec3 N, vec3 position, vec2 uv) {
     vec3 dp1 = dFdx(position);
     vec3 dp2 = dFdy(position);
@@ -94,7 +95,7 @@ mat3 TBN(vec3 N, vec3 position, vec2 uv) {
     vec3 T = dp2Perpendicular * duv1.x + dp1Perpendicular * duv2.x;
     vec3 B = dp2Perpendicular * duv1.y + dp1Perpendicular * duv2.y;
 
-    float invmax = 1.0f/sqrt(max(dot(T, T), dot(B, B)));
+    float invmax = inversesqrt(max(dot(T, T), dot(B, B)));
 
     return transpose(mat3(T * invmax, B * invmax, N));
 }
@@ -168,11 +169,11 @@ component. If using Spherical Encoding, do not forget to use spherical decode fu
 
 
     if((materialType & MATERIAL_HAS_NORMAL) == MATERIAL_HAS_NORMAL) {
-//        vec3 normal = texture(ObjectTextures[3], VertexIn.TexCoord).rgb*(255.0/127.0) - (128.0/127.0);
-//        normal = TBN(normalize(VertexIn.Normal), -VertexIn.FragPosition, VertexIn.TexCoord)*normal;
+        vec3 normal = texture(ObjectTextures[3], Vertex.TexCoord).rgb*(255.0/127.0) - (128.0/127.0);
+        normal = TBN(normalize(Vertex.Normal), CamPosition-Vertex.FragPosition, Vertex.TexCoord)*normal;
 
-        Normal = EncodedNormal;
-    } else {
-        Normal = EncodedNormal;
+        EncodedNormal = EncodeOctaH(normal);
     }
+
+    Normal = EncodedNormal;
 }
