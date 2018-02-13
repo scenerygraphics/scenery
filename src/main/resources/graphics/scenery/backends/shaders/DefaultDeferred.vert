@@ -6,6 +6,7 @@ layout(location = 1) in vec3 vertexNormal;
 layout(location = 2) in vec2 vertexTexCoord;
 
 layout(location = 0) out VertexData {
+    vec3 FragPosition;
     vec3 Normal;
     vec2 TexCoord;
 } Vertex;
@@ -78,6 +79,7 @@ void main()
 
 	nMVP = projectionMatrix*mv;
 
+    Vertex.FragPosition = vec3(ubo.ModelMatrix * vec4(vertexPosition, 1.0));
     Vertex.Normal = mat3(ubo.NormalMatrix) * normalize(vertexNormal);
     Vertex.TexCoord = vertexTexCoord;
 
