@@ -98,6 +98,8 @@ class RenderConfigReader {
         var type: RenderpassType,
         var blitInputs: Boolean = false,
         var renderTransparent: Boolean = false,
+        var depthTestEnabled: Boolean = true,
+        var depthWriteEnabled: Boolean = true,
         var order: RenderOrder = RenderOrder.BackToFront,
         var renderOpaque: Boolean = true,
         var colorBlendOp: Blending.BlendOp = Blending.BlendOp.add,
@@ -118,7 +120,7 @@ class RenderConfigReader {
         @JsonDeserialize(using = VREyeDeserializer::class) var eye: Int = -1
     )
 
-    enum class RenderpassType { geometry, quad }
+    enum class RenderpassType { geometry, quad, lights }
 
     enum class RenderOrder { DontCare, BackToFront, FrontToBack }
 

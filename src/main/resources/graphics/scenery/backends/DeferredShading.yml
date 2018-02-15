@@ -41,25 +41,21 @@ renderpasses:
       - "DefaultDeferred.frag.spv"
     output: GeometryBuffer
   DeferredLighting:
-    type: quad
+    type: lights
+    renderTransparent: true
+    renderOpaque: false
+    depthWriteEnabled: false
+    depthTestEnabled: false
     shaders:
-      - "FullscreenQuad.vert.spv"
+      - "DeferredLighting.vert.spv"
       - "DeferredLighting.frag.spv"
     inputs:
       - GeometryBuffer
     output: DeferredForward
     parameters:
-      debugBuffers: 0
-      SSAO_Options: 1
       reflectanceModel: 0
-      ssaoDistanceThreshold: 8.0
-      ssaoRadius: 4.0
       Global.displayWidth: 0
       Global.displayHeight: 0
-      IntensityScale: 1.0
-      Epsilon: 0.001
-      BiasDistance: 0.0001
-      Contrast: 1.0
   ForwardShading:
     type: geometry
     renderTransparent: true

@@ -38,8 +38,6 @@ layout(set = 1, binding = 0) uniform LightParameters {
     mat4 ProjectionMatrix;
     mat4 InverseProjectionMatrix;
     vec3 CamPosition;
-    int numLights;
-	Light lights[MAX_NUM_LIGHTS];
 };
 
 struct MaterialInfo {
@@ -168,12 +166,12 @@ component. If using Spherical Encoding, do not forget to use spherical decode fu
 //    vec2 EncodedNormal = EncodeSpherical(NormalizedNormal);
 
 
-    if((materialType & MATERIAL_HAS_NORMAL) == MATERIAL_HAS_NORMAL) {
-        vec3 normal = texture(ObjectTextures[3], Vertex.TexCoord).rgb*(255.0/127.0) - (128.0/127.0);
-        normal = TBN(normalize(Vertex.Normal), CamPosition-Vertex.FragPosition, Vertex.TexCoord)*normal;
-
-        EncodedNormal = EncodeOctaH(normal);
-    }
+//    if((materialType & MATERIAL_HAS_NORMAL) == MATERIAL_HAS_NORMAL) {
+//        vec3 normal = texture(ObjectTextures[3], Vertex.TexCoord).rgb*(255.0/127.0) - (128.0/127.0);
+//        normal = TBN(normalize(Vertex.Normal), CamPosition-Vertex.FragPosition, Vertex.TexCoord)*normal;
+//
+//        EncodedNormal = EncodeOctaH(normal);
+//    }
 
     Normal = EncodedNormal;
 }

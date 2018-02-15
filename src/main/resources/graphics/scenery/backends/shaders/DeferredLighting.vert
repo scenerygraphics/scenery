@@ -6,11 +6,17 @@ layout(location = 1) in vec3 vertexNormal;
 layout(location = 2) in vec2 vertexTexCoord;
 
 layout(location = 0) out VertexData {
-    vec3 FragPosition;
+    vec3 Position;
     vec3 Normal;
     vec2 TexCoord;
+    vec3 FragPosition;
 } Vertex;
 
+layout(set = 2, binding = 0) uniform Matrices {
+	mat4 ModelMatrix;
+	mat4 NormalMatrix;
+	int isBillboard;
+} ubo;
 
 layout(set = 0, binding = 0) uniform VRParameters {
     mat4 projectionMatrices[2];
@@ -20,17 +26,6 @@ layout(set = 0, binding = 0) uniform VRParameters {
     int stereoEnabled;
 } vrParameters;
 
-struct Light {
-	float Linear;
-	float Quadratic;
-	float Intensity;
-	float Radius;
-	vec4 Position;
-  	vec4 Color;
-};
-
-const int MAX_NUM_LIGHTS = 1024;
-
 layout(set = 1, binding = 0) uniform LightParameters {
     mat4 ViewMatrix;
     mat4 InverseViewMatrix;
@@ -38,12 +33,6 @@ layout(set = 1, binding = 0) uniform LightParameters {
     mat4 InverseProjectionMatrix;
     vec3 CamPosition;
 };
-
-layout(set = 2, binding = 0) uniform Matrices {
-	mat4 ModelMatrix;
-	mat4 NormalMatrix;
-	int isBillboard;
-} ubo;
 
 layout(push_constant) uniform currentEye_t {
     int eye;
@@ -81,7 +70,9 @@ void main()
     Vertex.Normal = mat3(ubo.NormalMatrix) * normalize(vertexNormal);
     Vertex.TexCoord = vertexTexCoord;
 
-	gl_Position = nMVP * vec4(vertexPosition, 1.0);
+    vec4 pos = mv*vec4(vertexPosition, 1.0);
+    float near = 0.05;
+    pos.z = min(pos.z, -near - 0.0001);
+
+	gl_Position = projectionMatrix * pos;
 }
-
-

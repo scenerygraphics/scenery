@@ -245,7 +245,7 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
         // returns a ordered list of the members of the ShaderProperties struct
         return shaderPropertiesSpec
             .flatMap { it.values }
-            .map { it.name.to(it.offset.toInt()) }
+            .map { it.name to it.offset.toInt() }
             .toMap()
     }
 
@@ -307,6 +307,10 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
             .pNext(MemoryUtil.NULL)
             .pAttachments(blendMasks)
 
+        p.depthStencilState
+            .depthTestEnable(passConfig.depthTestEnabled)
+            .depthWriteEnable(passConfig.depthWriteEnabled)
+
         p.descriptorSpecs.entries
             .sortedBy { it.value.binding }
             .sortedBy { it.value.set }
@@ -337,7 +341,8 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
                     onlyForTopology = GeometryType.TRIANGLES)
             }
 
-            RenderConfigReader.RenderpassType.geometry -> {
+            RenderConfigReader.RenderpassType.geometry,
+            RenderConfigReader.RenderpassType.lights -> {
                 p.createPipelines(this, framebuffer.renderPass.get(0),
                     vertexInputType.state,
                     descriptorSetLayouts = reqDescriptorLayouts)
@@ -361,10 +366,10 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
 
             spec.name.startsWith("Input") -> (0..spec.members.size-1).map { Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1) }.toList()
 
-            spec.name == "ShaderParameters" && passConfig.type == RenderConfigReader.RenderpassType.geometry -> listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1))
+            spec.name == "ShaderParameters" && (passConfig.type == RenderConfigReader.RenderpassType.geometry || passConfig.type == RenderConfigReader.RenderpassType.lights) -> listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1))
             spec.name == "ShaderParameters" && passConfig.type == RenderConfigReader.RenderpassType.quad -> listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1))
 
-            spec.name == "ShaderProperties" && passConfig.type == RenderConfigReader.RenderpassType.geometry -> listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1))
+            spec.name == "ShaderProperties" && (passConfig.type == RenderConfigReader.RenderpassType.geometry || passConfig.type == RenderConfigReader.RenderpassType.lights) -> listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1))
 
             else -> listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1))
         }

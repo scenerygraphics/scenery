@@ -44,6 +44,9 @@ import java.util.concurrent.locks.ReentrantLock
 import javax.imageio.ImageIO
 import kotlin.concurrent.thread
 import kotlin.concurrent.withLock
+import kotlin.reflect.full.declaredMemberProperties
+import kotlin.reflect.full.findAnnotation
+import kotlin.reflect.full.memberProperties
 
 
 /**
@@ -558,7 +561,7 @@ open class VulkanRenderer(hub: Hub,
     override fun initializeScene() {
         logger.info("Scene initialization started.")
 
-        this.scene.discover(this.scene, { it is HasGeometry })
+        this.scene.discover(this.scene, { it is HasGeometry && it !is PointLight })
 //            .parallelMap(numThreads = System.getProperty("scenery.MaxInitThreads", "1").toInt()) { node ->
             .map { node ->
                 // skip initialization for nodes that are only instance slaves
@@ -812,11 +815,12 @@ open class VulkanRenderer(hub: Hub,
         // TODO: Add check whether the node actually needs a custom shader
         node.rendererMetadata()?.let { s ->
 
-            val needsShaderPropertyUBO = if (node.javaClass.declaredFields.filter { it.isAnnotationPresent(ShaderProperty::class.java) }.count() > 0) {
+//            node.javaClass.kotlin.memberProperties.filter { it.findAnnotation<ShaderProperty>() != null }.forEach { logger.info("${node.name}.${it.name} is ShaderProperty!") }
+            val needsShaderPropertyUBO = if (node.javaClass.kotlin.memberProperties.filter { it.findAnnotation<ShaderProperty>() != null }.count() > 0) {
                 var dsl = 0L
 
                 renderpasses.filter {
-                    it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry
+                    (it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry || it.value.passConfig.type == RenderConfigReader.RenderpassType.lights)
                         && it.value.passConfig.renderTransparent == node.material.blending.transparent
                 }
                     .map { pass ->
@@ -834,7 +838,7 @@ open class VulkanRenderer(hub: Hub,
             }
 
 
-            renderpasses.filter { it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry }
+            renderpasses.filter { it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry || it.value.passConfig.type == RenderConfigReader.RenderpassType.lights }
                 .map { pass ->
                     val shaders = when {
                         node.material is ShaderMaterial -> {
@@ -870,6 +874,23 @@ open class VulkanRenderer(hub: Hub,
                                 pipeline.rasterizationState.cullMode(VK_CULL_MODE_NONE)
                             }
 
+                            when(node.material.cullingMode) {
+                                Material.CullingMode.None -> pipeline.rasterizationState.cullMode(VK_CULL_MODE_NONE)
+                                Material.CullingMode.Front -> pipeline.rasterizationState.cullMode(VK_CULL_MODE_FRONT_BIT)
+                                Material.CullingMode.Back -> pipeline.rasterizationState.cullMode(VK_CULL_MODE_BACK_BIT)
+                                Material.CullingMode.FrontAndBack -> pipeline.rasterizationState.cullMode(VK_CULL_MODE_FRONT_AND_BACK)
+                            }
+
+                            when(node.material.depthTest) {
+                                Material.DepthTest.Equal -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_EQUAL)
+                                Material.DepthTest.Less -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_LESS)
+                                Material.DepthTest.Greater -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_GREATER)
+                                Material.DepthTest.LessEqual -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_LESS_OR_EQUAL)
+                                Material.DepthTest.GreaterEqual -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_GREATER_OR_EQUAL)
+                                Material.DepthTest.Always -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_GREATER)
+                                Material.DepthTest.Never -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_NEVER)
+                            }
+
                             if(node.material.blending.transparent) {
                                 with(node.material.blending) {
                                     val blendStates = pipeline.colorBlendState.pAttachments()
@@ -894,28 +915,27 @@ open class VulkanRenderer(hub: Hub,
 
 
             if (needsShaderPropertyUBO) {
-                var order: Map<String, Int> = emptyMap()
                 renderpasses.filter {
-                    it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry &&
+                    (it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry || it.value.passConfig.type == RenderConfigReader.RenderpassType.lights) &&
                         it.value.passConfig.renderTransparent == node.material.blending.transparent
-                }
-                    .map { pass ->
-                        logger.debug("Initializing shader properties for ${node.name}")
-                        order = pass.value.getShaderPropertyOrder(node)
+                }.forEach { pass ->
+                        logger.debug("Initializing shader properties for ${node.name} in pass ${pass.key}")
+                        val order = pass.value.getShaderPropertyOrder(node)
+
+                        val shaderPropertyUbo = VulkanUBO(device, backingBuffer = buffers["ShaderPropertyBuffer"])
+                        with(shaderPropertyUbo) {
+                            name = "ShaderProperties"
+
+                            order.forEach { name, offset ->
+                                add(name, { node.getShaderProperty(name)!! }, offset)
+                            }
+
+                            requiredOffsetCount = 1
+                            this.createUniformBuffer()
+                            s.UBOs.put("${pass.key}-ShaderProperties", s.requiredDescriptorSets["ShaderProperties"]!! to this)
+                        }
                     }
 
-                val shaderPropertyUbo = VulkanUBO(device, backingBuffer = buffers["ShaderPropertyBuffer"])
-                with(shaderPropertyUbo) {
-                    name = "ShaderProperties"
-
-                    order.forEach { name, offset ->
-                        add(name, { node.getShaderProperty(name)!! }, offset)
-                    }
-
-                    requiredOffsetCount = 1
-                    this.createUniformBuffer()
-                    s.UBOs.put("ShaderProperties", s.requiredDescriptorSets["ShaderProperties"]!!.to(this))
-                }
             }
 
             if(addInitializer) {
@@ -1644,7 +1664,7 @@ open class VulkanRenderer(hub: Hub,
     /**
      * This function renders the scene
      */
-    @Synchronized override fun render() {
+    override fun render() {
         pollEvents()
 
         val stats = hub?.get(SceneryElement.Statistics) as? Statistics
@@ -1726,7 +1746,8 @@ open class VulkanRenderer(hub: Hub,
             }
 
             when (target.passConfig.type) {
-                RenderConfigReader.RenderpassType.geometry -> recordSceneRenderCommands(device, target, commandBuffer, sceneObjects)
+                RenderConfigReader.RenderpassType.geometry -> recordSceneRenderCommands(device, target, commandBuffer, sceneObjects, { it !is PointLight })
+                RenderConfigReader.RenderpassType.lights -> recordSceneRenderCommands(device, target, commandBuffer, sceneObjects, { it is PointLight })
                 RenderConfigReader.RenderpassType.quad -> recordPostprocessRenderCommands(device, target, commandBuffer)
             }
 
@@ -1762,6 +1783,7 @@ open class VulkanRenderer(hub: Hub,
 
         when (viewportPass.passConfig.type) {
             RenderConfigReader.RenderpassType.geometry -> recordSceneRenderCommands(device, viewportPass, viewportCommandBuffer, sceneObjects)
+            RenderConfigReader.RenderpassType.lights -> recordSceneRenderCommands(device, viewportPass, viewportCommandBuffer, sceneObjects, { it is PointLight })
             RenderConfigReader.RenderpassType.quad -> recordPostprocessRenderCommands(device, viewportPass, viewportCommandBuffer)
         }
 
@@ -2149,7 +2171,7 @@ open class VulkanRenderer(hub: Hub,
         logger.debug("Created VRP buffer")
 
         bufferStorage.put("ShaderPropertyBuffer", VulkanBuffer(device,
-            1024 * 10,
+            1024 * 1024,
             VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
             wantAligned = true))
@@ -2160,7 +2182,7 @@ open class VulkanRenderer(hub: Hub,
         return this.metadata["VulkanRenderer"] as? VulkanObjectState
     }
 
-    private fun recordSceneRenderCommands(device: VulkanDevice, pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer, sceneObjects: Deferred<List<Node>>) = runBlocking {
+    private fun recordSceneRenderCommands(device: VulkanDevice, pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer, sceneObjects: Deferred<List<Node>>, customNodeFilter: ((Node) -> Boolean)? = null) = runBlocking {
         val target = pass.getOutput()
 
         logger.trace("Creating scene command buffer for {}/{} ({} attachments)", pass.name, target, target.attachments.count())
@@ -2179,7 +2201,7 @@ open class VulkanRenderer(hub: Hub,
 
         // here we discover all the nodes which are relevant for this pass,
         // e.g. which have the same transparency settings as the pass
-        sceneObjects.await().forEach {
+        sceneObjects.await().filter { customNodeFilter?.invoke(it) ?: true }.forEach {
             // if a node is not initialized yet, it'll be initialized here and it's UBO updated
             // in the next round
             if(it.rendererMetadata() == null) {
@@ -2443,11 +2465,17 @@ open class VulkanRenderer(hub: Hub,
                             DescriptorSet.Set(pass.descriptorSets["inputs-${pass.name}"]!!, setName = "Inputs")
                         }
 
+                        "ShaderParameters" -> {
+                            DescriptorSet.Set(pass.descriptorSets["ShaderParameters-${pass.name}"]!!, setName = "ShaderParameters")
+                        }
+
                         else -> {
-                            if (s.UBOs.containsKey(name)) {
-                                DescriptorSet.DynamicSet(s.UBOs[name]!!.first, offset = s.UBOs[name]!!.second.offsets.get(0), setName = name)
-                            } else {
-                                DescriptorSet.None
+                            when {
+                                s.UBOs.containsKey(name)
+                                    -> DescriptorSet.DynamicSet(s.UBOs[name]!!.first, offset = s.UBOs[name]!!.second.offsets.get(0), setName = name)
+                                s.UBOs.containsKey("${pass.name}-$name")
+                                    -> DescriptorSet.DynamicSet(s.UBOs["${pass.name}-$name"]!!.first, offset = s.UBOs["${pass.name}-$name"]!!.second.offsets.get(0), setName = name)
+                                else -> DescriptorSet.None
                             }
                         }
                     }
@@ -2478,7 +2506,7 @@ open class VulkanRenderer(hub: Hub,
 
                 vkCmdPushConstants(this, pipeline.layout, VK_SHADER_STAGE_ALL, 0, pass.vulkanMetadata.eye)
 
-                logger.trace("now drawing {}, {} DS bound, {} textures", node.name, pass.vulkanMetadata.descriptorSets.capacity(), s.textures.count())
+                logger.debug("${pass.name}: now drawing {}, {} DS bound, {} textures, {} vertices, {} indices, {} instances", node.name, pass.vulkanMetadata.descriptorSets.limit(), s.textures.count(), s.vertexCount, s.indexCount, s.instanceCount)
 
                 if (s.isIndexed) {
                     vkCmdBindIndexBuffer(this, pass.vulkanMetadata.vertexBuffers.get(0), s.indexOffset, VK_INDEX_TYPE_UINT32)
@@ -2642,7 +2670,7 @@ open class VulkanRenderer(hub: Hub,
         }
     }
 
-    @Synchronized private fun updateDefaultUBOs(device: VulkanDevice, sceneObjects: Deferred<List<Node>>) = runBlocking {
+    private fun updateDefaultUBOs(device: VulkanDevice, sceneObjects: Deferred<List<Node>>) = runBlocking {
         // find observer, if none, return
         val cam = scene.findObserver() ?: return@runBlocking
 
@@ -2714,8 +2742,9 @@ open class VulkanRenderer(hub: Hub,
 
                 materialUbo.populate(offset = bufferOffset.toLong())
 
-                if(s.requiredDescriptorSets.containsKey("ShaderProperties")) {
-                    val propertyUbo = s.UBOs["ShaderProperties"]!!.second
+                s.UBOs.filter { it.key.contains("ShaderProperties") }.forEach {
+//                if(s.requiredDescriptorSets.keys.any { it.contains("ShaderProperties") }) {
+                    val propertyUbo = it.value.second
                     // TODO: Correct buffer advancement
                     val offset = propertyUbo.backingBuffer!!.advance()
                     propertyUbo.populate(offset = offset.toLong())
@@ -2737,7 +2766,7 @@ open class VulkanRenderer(hub: Hub,
         lightUbo.add("ProjectionMatrix", { cam.projection.applyVulkanCoordinateSystem() })
         lightUbo.add("InverseProjectionMatrix", { cam.projection.applyVulkanCoordinateSystem().inverse })
         lightUbo.add("CamPosition", { cam.position })
-        lightUbo.add("numLights", { lights.size })
+        /*lightUbo.add("numLights", { lights.size })
 
         lights.forEachIndexed { i, light ->
             val l = light as PointLight
@@ -2751,7 +2780,7 @@ open class VulkanRenderer(hub: Hub,
             lightUbo.add("Position-$i", { l.position })
             lightUbo.add("Color-$i", { l.emissionColor })
             lightUbo.add("filler-$i", { 0.0f })
-        }
+        }*/
 
         lightUbo.createUniformBuffer()
         lightUbo.populate()

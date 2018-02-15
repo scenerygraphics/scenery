@@ -9,6 +9,7 @@ import graphics.scenery.controls.TrackedStereoGlasses
 import graphics.scenery.utils.Numerics
 import org.junit.Test
 import kotlin.concurrent.thread
+import kotlin.math.floor
 
 /**
  * Demo loading the Sponza Model, demonstrating multiple moving lights
@@ -48,17 +49,21 @@ class SponzaExample : SceneryBase("SponzaExample", windowWidth = 1280, windowHei
             scene.addChild(this)
         }
 
-        val lights = (0..16).map {
+        val lights = (0 until 512).map {
             Box(GLVector(0.1f, 0.1f, 0.1f))
         }.map {
-            it.position = Numerics.randomVectorFromRange(3, -600.0f, 600.0f)
-            it.material.diffuse = Numerics.randomVectorFromRange(3, 0.0f, 1.0f)
+            it.position = GLVector(
+                Numerics.randomFromRange(-6.0f, 6.0f),
+                Numerics.randomFromRange(0.1f, 1.2f),
+                Numerics.randomFromRange(-10.0f, 10.0f)
+            )
+
+            it.material.diffuse = Numerics.randomVectorFromRange(3, 0.1f, 0.9f)
 
             val light = PointLight()
             light.emissionColor = it.material.diffuse
-            light.intensity = Numerics.randomFromRange(1.0f, 50f)
-            light.linear = 0.0f
-            light.quadratic = 2.2f
+            light.intensity = Numerics.randomFromRange(1.0f, 2.0f)
+            light.lightRadius = Numerics.randomFromRange(0.5f, 2.0f)
 
             it.addChild(light)
 
@@ -80,14 +85,14 @@ class SponzaExample : SceneryBase("SponzaExample", windowWidth = 1280, windowHei
             var ticks = 0L
             while (true) {
                 lights.mapIndexed { i, light ->
-                    val phi = (Math.PI * 2.0f * ticks / 500.0f) % (Math.PI * 2.0f)
+                    val phi = (Math.PI * 2.0f * ticks / 1000.0f) % (Math.PI * 2.0f)
 
                     light.position = GLVector(
-                        5.0f * Math.cos(phi + (i * 0.5f)).toFloat(),
-                        0.1f + i * 0.2f,
-                        -20.0f + 2.0f * i)
+                        light.position.x(),
+                        5.0f * Math.cos(phi + (i * 0.5f)).toFloat() + 5.2f,
+                        light.position.z())
 
-                    light.children[0].position = light.position
+                    light.children.forEach { it.needsUpdateWorld = true }
                 }
 
                 ticks++

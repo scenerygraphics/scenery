@@ -142,6 +142,7 @@ open class UBO {
         (elements ?: members).forEach {
             var pos = data.position()
             val value = it.value.invoke()
+            logger.trace("Populating {} of type {}", it.key, value.javaClass.simpleName)
 
             val (size, alignment) = getSizeAndAlignment(value)
 

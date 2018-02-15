@@ -11,7 +11,7 @@ import com.jogamp.opengl.math.Quaternion
 class Numerics {
     companion object {
         @JvmStatic
-        fun randomFromRange(min: Float, max: Float): Float = min + (Math.random().toFloat() * ((max - min) + 1.0f))
+        fun randomFromRange(min: Float, max: Float): Float = (max - min)*Math.random().toFloat() + min
 
         @JvmStatic
         fun randomVectorFromRange(dimension: Int, min: Float, max: Float): GLVector {

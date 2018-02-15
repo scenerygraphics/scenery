@@ -3,12 +3,17 @@
 
 #define PI 3.14159265359
 
-layout(location = 0) in vec2 textureCoord;
+layout(location = 0) in VertexData {
+    vec3 FragPosition;
+    vec3 Normal;
+    vec2 TexCoord;
+} Vertex;
+
 layout(location = 0) out vec4 FragColor;
 
-layout(set = 2, binding = 0) uniform sampler2D InputNormal;
-layout(set = 2, binding = 1) uniform sampler2D InputDiffuseAlbedo;
-layout(set = 2, binding = 2) uniform sampler2D InputZBuffer;
+layout(set = 3, binding = 0) uniform sampler2D InputNormal;
+layout(set = 3, binding = 1) uniform sampler2D InputDiffuseAlbedo;
+layout(set = 3, binding = 2) uniform sampler2D InputZBuffer;
 
 struct Light {
 	float Linear;
@@ -35,26 +40,26 @@ layout(set = 1, binding = 0) uniform LightParameters {
     mat4 ProjectionMatrix;
     mat4 InverseProjectionMatrix;
     vec3 CamPosition;
-    int numLights;
-	Light lights[MAX_NUM_LIGHTS];
 };
 
 layout(push_constant) uniform currentEye_t {
     int eye;
 } currentEye;
 
-layout(set = 3, binding = 0, std140) uniform ShaderParameters {
-	int debugBuffers;
-	int SSAO_Options;
+layout(set = 4, binding = 0, std140) uniform ShaderProperties {
+    float intensity;
+    float linear;
+    float quadratic;
+    float lightRadius;
+    int debugMode;
+    vec3 worldPosition;
+    vec3 emissionColor;
+};
+
+layout(set = 5, binding = 0, std140) uniform ShaderParameters {
 	int reflectanceModel;
-	float ssaoDistanceThreshold;
-	float ssaoRadius;
 	int displayWidth;
 	int displayHeight;
-    float IntensityScale;
-    float Epsilon;
-    float BiasDistance;
-    float Contrast;
 };
 
 const vec2 poisson16[] = vec2[](    // These are the Poisson Disk Samples
@@ -146,7 +151,7 @@ vec3 DecodeOctaH( vec2 encN )
 }
 
 vec3 worldFromDepth(float depth, vec2 texcoord) {
-    float z = depth * 2.0 - 1.0;
+    float z = depth;//* 2.0 - 1.0;
 
     mat4 invHeadToEye = vrParameters.headShift;
     invHeadToEye[0][3] += currentEye.eye * vrParameters.IPD;
@@ -158,95 +163,53 @@ vec3 worldFromDepth(float depth, vec2 texcoord) {
     vec4 viewSpacePosition = invProjection * clipSpacePosition;
 
     viewSpacePosition /= viewSpacePosition.w;
-    vec4 world = InverseViewMatrix * viewSpacePosition;
+    vec4 world = invView * viewSpacePosition;
     return world.xyz;
 }
 
 void main()
 {
+    vec2 textureCoord = gl_FragCoord.xy/vec2(displayWidth, displayHeight);
 	// Retrieve data from G-buffer
 //	vec3 FragPos = texture(InputPosition, textureCoord).rgb;
-    vec3 DecodedNormal = DecodeOctaH(texture(InputNormal, textureCoord).rg);
 //	vec3 DecodedNormal = DecodeSpherical(texture(gNormal, textureCoord).rg);
-	vec3 N = DecodedNormal;
+	vec3 N = DecodeOctaH(texture(InputNormal, textureCoord).rg);
 	vec4 Albedo = texture(InputDiffuseAlbedo, textureCoord).rgba;
 	float Specular = texture(InputDiffuseAlbedo, textureCoord).a;
 	float Depth = texture(InputZBuffer, textureCoord).r;
     vec3 FragPos = worldFromDepth(Depth, textureCoord);
 
-	vec2 ssaoFilterRadius = vec2(ssaoRadius/displayWidth, ssaoRadius/displayHeight);
-	vec3 viewSpacePos = (ViewMatrix * (vec4(FragPos, 1.0) - vec4(CamPosition, 1.0))).rgb;
+//	vec2 ssaoFilterRadius = vec2(ssaoRadius/displayWidth, ssaoRadius/displayHeight);
+	vec3 viewSpacePos = (ViewMatrix * (vec4(CamPosition, 1.0))).xyz;
+	vec3 viewSpaceFragPos = (InverseViewMatrix * (vec4(FragPos, 1.0))).xyz;
 
 	float fragDist = length(FragPos - CamPosition);
+	if(debugMode == 1) {
+	    FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+	    return;
+	}
 
 	vec3 lighting = vec3(0.0);
 
-	if(debugBuffers == 0) {
 		float ambientOcclusion = 0.0f;
-
-		if(SSAO_Options == 1) {
-
-			int sample_count = 8;
-			for (int i = 0; i < sample_count;  ++i) {
-				// sample at an offset specified by the current Poisson-Disk sample and scale it by a radius (has to be in Texture-Space)
-				vec2 sampleTexCoord = textureCoord + (poisson16[i] * ssaoFilterRadius);
-				float sampleDepth = texture(InputZBuffer, sampleTexCoord).r;
-//				vec3 samplePos = texture(InputPosition, sampleTexCoord).rgb;
-                vec3 samplePos = worldFromDepth(sampleDepth, sampleTexCoord);
-
-				vec3 sampleDir = normalize(samplePos - FragPos);
-
-				float NdotS = max(dot(N, sampleDir), 0.0);
-				float VPdistSP = distance(FragPos, samplePos);
-
-				float a = 1.0 - smoothstep(ssaoDistanceThreshold, ssaoDistanceThreshold * 2, VPdistSP);
-
-				ambientOcclusion += a * NdotS;
-			}
-
-		    ambientOcclusion /= float(sample_count);
-		}
-
-		else if (SSAO_Options == 2) {
-		//Alchemy SSAO algorithm
-		    float A = 0.0f;
-		    int sample_count = 8;
-            for (int i = 0; i < sample_count;  ++i) {
-                vec2 sampleTexCoord = textureCoord + (poisson16[i] * (ssaoFilterRadius));
-                float sampleDepth = texture(InputZBuffer, sampleTexCoord).r;
-//                vec3 samplePos = texture(InputPosition, sampleTexCoord).rgb;
-                vec3 samplePos = worldFromDepth(sampleDepth, sampleTexCoord);
-
-                vec3 sampleDir = samplePos - FragPos;
-
-
-                float NdotV = max(dot(N, sampleDir), 0);
-                float VdotV = max(dot(sampleDir, sampleDir), 0);
-                float temp = max(0, NdotV + viewSpacePos.z*BiasDistance);
-                temp /= (VdotV + Epsilon);
-                A+=temp;
-             }
-
-             A/=sample_count;
-             A*= (2*IntensityScale);
-             A = max(0, 1-A);
-             A = pow(A, Contrast);
-             ambientOcclusion = 1- A;
-
-		}
 
 		vec3 viewDir = normalize(CamPosition - FragPos);
 
-		for(int i = 0; i < numLights; i++)
-		{
-		    vec3 lightPos = lights[i].Position.xyz;
-            vec3 L = (lightPos - FragPos);
+            vec3 L = (worldPosition.xyz - FragPos.xyz);
             vec3 V = normalize(CamPosition - FragPos);
             vec3 H = normalize(L + V);
             float distance = length(L);
             L = normalize(L);
 
-            float lightAttenuation = 1.0 / (1.0 + lights[i].Linear * distance + lights[i].Quadratic * distance * distance);
+//            FragColor = vec4(FragPos, 1.0);
+//            return;
+//            FragColor = vec4(distance, distance, distance, 1.0);
+//            return;
+//                FragColor = vec4(FragPos, 1.0);
+//                return;
+
+//            float lightAttenuation = 1.0 / (1.0 + linear * distance + quadratic * distance * distance);
+            float lightAttenuation = pow(clamp(1.0 - pow(distance/lightRadius, 4.0), 0.0, 1.0), 2.0) / (distance * distance + 1.0);
 
 		    if(reflectanceModel == 0) {
 		        // Diffuse
@@ -257,38 +220,32 @@ void main()
              	float NdotR = max(0.0, dot(R, V));
              	float NdotH = max(0.0, dot(N, H));
 
-             	vec3 diffuse = NdotL * lights[i].Intensity * Albedo.rgb * lights[i].Color.rgb * (1.0f - ambientOcclusion);
+             	vec3 diffuse = NdotL * intensity * Albedo.rgb * emissionColor.rgb * (1.0f - ambientOcclusion);
 
              	if(NdotL > 0.0) {
-             	    specular = pow(NdotH, (1.0-Specular)*4.0) * Albedo.rgb * lights[i].Color.rgb * lights[i].Intensity;
+             	    specular = pow(NdotH, (1.0-Specular)*4.0) * Albedo.rgb * emissionColor.rgb * intensity;
              	}
 
              	lighting += (diffuse + specular) * lightAttenuation;
 		    }
 		    // Oren-Nayar model
 		    else if(reflectanceModel == 1) {
+		        float roughness = 0.95;
 
-            	float NdotL = dot(N, L);
-            	float NdotV = dot(N, V);
+            	float LdotV = dot(L, V);
+                float NdotL = dot(L, N);
+                float NdotV = dot(N, V);
 
-            	float angleVN = acos(NdotV);
-            	float angleLN = acos(NdotL);
+                float s = LdotV - NdotL * NdotV;
+                float t = mix(1.0, max(NdotL, NdotV), step(0.0, s));
 
-            	float alpha = max(angleVN, angleLN);
-            	float beta = min(angleVN, angleLN);
-            	float gamma = dot(viewDir - N*dot(V, N), L - N*dot(L, N));
+                float sigma2 = roughness * roughness;
+                float A = 1.0 + sigma2 * (Albedo.a/ (sigma2 + 0.13) + 0.5 / (sigma2 + 0.33));
+                float B = 0.45 * sigma2 / (sigma2 + 0.09);
 
-            	float roughness = 0.75;
+                float L1 = Albedo.a * max(0.0, NdotL) * (A + B * s / t) / PI;
 
-            	float roughnessSquared = roughness*roughness;
-
-            	float A = 1.0 - 0.5 * ( roughnessSquared / (roughnessSquared + 0.57));
-            	float B = 0.45 * (roughnessSquared / (roughnessSquared + 0.09));
-            	float C = sin(alpha)*tan(beta);
-
-            	float L1 = max(0.0, NdotL) * (A + B * max(0.0, gamma) * C);
-
-                vec3 inputColor = lightAttenuation*lights[i].Intensity * lights[i].Color.rgb * Albedo.rgb * (1.0f - ambientOcclusion);
+                vec3 inputColor = lightAttenuation * intensity * emissionColor.rgb * Albedo.rgb * (1.0f - ambientOcclusion);
 
             	vec3 diffuse = inputColor * L1;
             	vec3 specular = vec3(0.0);
@@ -315,46 +272,11 @@ void main()
                 kD *= 1.0 - metallic;
 
                 float NdotL = max(dot(N, L), 0.0);
-                vec3 radiance = lights[i].Intensity * lights[i].Color.rgb * lightAttenuation;
+                vec3 radiance = intensity * emissionColor.rgb * lightAttenuation;
 
                 lighting += (kD * Albedo.rgb / PI + BRDF) * radiance * NdotL;
             }
-		}
 
 		FragColor = vec4(lighting, 1.0);
         gl_FragDepth = Depth;
-	} else {
-		vec2 newTexCoord;
-		// color
-        if(textureCoord.x < 0.25 && textureCoord.y < 0.5 ) {
-            FragColor = Albedo;
-        }
-        // specular
-        if(textureCoord.x > 0.25 && textureCoord.x < 0.5 && textureCoord.y < 0.5) {
-            FragColor = vec4(Specular, Specular, Specular, 1.0);
-        }
-        // depth
-        if(textureCoord.x > 0.5 && textureCoord.y < 0.5) {
-            float near = 0.5f;
-            float far = 1000.0f;
-            vec3 linearizedDepth = vec3((2.0f * near) / (far + near - Depth * (far - near)));
-            FragColor = vec4(linearizedDepth, 1.0f);
-        }
-        // normal
-        if(textureCoord.x > 0.5 && textureCoord.y > 0.5) {
-            FragColor = vec4(N, 1.0f);
-        }
-        // position
-        if(textureCoord.x < 0.5 && textureCoord.y > 0.5) {
-            FragColor = vec4(FragPos, 1.0f);
-        }
-
-        if(textureCoord.y >= 0.97 || textureCoord.x >= 0.97 || textureCoord.y <= 0.03 || textureCoord.x <= 0.03) {
-            FragColor = mix(20.0*vec4(1.0, 201.0/255.0, 51.0/255.0,1.0), vec4(0.2, 0.2, 0.2, 1.0), step(fract(0.25 + 5.0*textureCoord.y - 5.0*textureCoord.x), 0.5));
-
-            gl_FragDepth = 0.0;
-        } else {
-            gl_FragDepth = Depth;
-        }
-	}
 }
