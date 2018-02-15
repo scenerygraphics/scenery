@@ -32,16 +32,14 @@ class TexturedCubeExample : SceneryBase("TexturedCubeExample") {
             scene.addChild(this)
         }
 
-        val lights = (0..2).map {
-            PointLight()
-        }
-
-        lights.mapIndexed { i, light ->
-            light.position = GLVector(2.0f * i, 2.0f * i, 2.0f * i)
-            light.emissionColor = GLVector(1.0f, 0.0f, 1.0f)
-            light.intensity = 500.2f*(i+1)
-            scene.addChild(light)
-        }
+        val light = PointLight()
+        light.position = GLVector(0.0f, 3.0f, -1.0f)
+        light.lightRadius = 15.0f
+        light.intensity = 500.0f
+        light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
+        light.quadratic = 2.0f
+        light.linear = 0.0f
+        scene.addChild(light)
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
