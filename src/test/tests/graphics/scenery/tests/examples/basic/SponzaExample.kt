@@ -49,7 +49,7 @@ class SponzaExample : SceneryBase("SponzaExample", windowWidth = 1280, windowHei
             scene.addChild(this)
         }
 
-        val lights = (0 until 512).map {
+        val lights = (0 until 256).map {
             Box(GLVector(0.1f, 0.1f, 0.1f))
         }.map {
             it.position = GLVector(
@@ -60,10 +60,9 @@ class SponzaExample : SceneryBase("SponzaExample", windowWidth = 1280, windowHei
 
             it.material.diffuse = Numerics.randomVectorFromRange(3, 0.1f, 0.9f)
 
-            val light = PointLight()
+            val light = PointLight(radius = Numerics.randomFromRange(0.5f, 2.0f))
             light.emissionColor = it.material.diffuse
             light.intensity = Numerics.randomFromRange(1.0f, 2.0f)
-            light.lightRadius = Numerics.randomFromRange(0.5f, 2.0f)
 
             it.addChild(light)
 
