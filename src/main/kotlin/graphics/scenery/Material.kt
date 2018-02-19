@@ -41,7 +41,7 @@ open class Material : Serializable {
     /** Set whether the material is double-sided */
     var doubleSided: Boolean = false
 
-    var cullingMode: CullingMode = CullingMode.Front
+    var cullingMode: CullingMode = CullingMode.Back
 
     var depthTest: DepthTest = DepthTest.LessEqual
 

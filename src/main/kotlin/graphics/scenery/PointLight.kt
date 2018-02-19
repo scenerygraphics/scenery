@@ -1,7 +1,6 @@
 package graphics.scenery
 
 import cleargl.GLVector
-import kotlin.reflect.KProperty
 
 /**
  * Point light class.
@@ -12,7 +11,8 @@ import kotlin.reflect.KProperty
  * @author Ulrik Günther <hello@ulrik.is>
  * @constructor Creates a PointLight with default settings, e.g. white emission color.
  */
-class PointLight : Sphere(1.0f, 21) {
+class PointLight(radius: Float = 0.5f) : Mesh("PointLight") {
+    private var proxySphere = Sphere(radius, 21)
     /** The intensity of the point light. Bound to [0.0, 1.0] if using non-HDR rendering. */
     @ShaderProperty var intensity: Float = 0.5f
 
@@ -20,10 +20,17 @@ class PointLight : Sphere(1.0f, 21) {
     @ShaderProperty var emissionColor: GLVector = GLVector(1.0f, 1.0f, 1.0f)
 
     /** Maximum radius in world units */
-    @ShaderProperty var lightRadius: Float = 0.5f
+    @ShaderProperty var lightRadius: Float = radius
         set(value) {
-            field = value
-            scale = GLVector(2.0f*value, 2.0f*value, 2.0f*value)
+            if(value != lightRadius) {
+                field = value
+                proxySphere = Sphere(value, 21)
+                this.vertices = proxySphere.vertices
+                this.normals = proxySphere.normals
+                this.texcoords = proxySphere.texcoords
+
+                this.dirty = true
+            }
         }
 
     /** Node name of the Point Light */
@@ -41,6 +48,13 @@ class PointLight : Sphere(1.0f, 21) {
     @ShaderProperty var debugMode = 0
 
     init {
+        this.vertices = proxySphere.vertices
+        this.normals = proxySphere.normals
+        this.texcoords = proxySphere.texcoords
+        this.geometryType = proxySphere.geometryType
+        this.vertexSize = proxySphere.vertexSize
+        this.texcoordSize = proxySphere.texcoordSize
+
         material.blending.transparent = true
         material.blending.colorBlending = Blending.BlendOp.add
         material.blending.sourceColorBlendFactor = Blending.BlendFactor.One

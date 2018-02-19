@@ -31,22 +31,9 @@ class BloodCellsExample : SceneryBase("BloodCellsExample", windowWidth = 1280, w
         val cam: Camera = DetachedHeadCamera()
         cam.position = GLVector(0.0f, 20.0f, -20.0f)
         cam.perspectiveCamera(50.0f, 1.0f * windowWidth, 1.0f * windowHeight, 10.0f, 5000.0f)
-        cam.rotation = Quaternion().setFromEuler(-1.5f, -0.5f, 0.0f)
         cam.active = true
 
         scene.addChild(cam)
-
-        val lights = (0 until lightCount).map { PointLight() }
-
-        lights.map {
-            it.position = Numerics.randomVectorFromRange(3, -positionRange, positionRange)
-            it.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
-            it.intensity = 100.0f
-            it.linear = 0f
-            it.quadratic = 0.01f
-
-            scene.addChild(it)
-        }
 
         val hull = Box(GLVector(2*positionRange, 2*positionRange, 2*positionRange), insideNormals = true)
         hull.material.ambient = GLVector(0.0f, 0.0f, 0.0f)
@@ -55,6 +42,16 @@ class BloodCellsExample : SceneryBase("BloodCellsExample", windowWidth = 1280, w
         hull.material.doubleSided = true
 
         scene.addChild(hull)
+
+        val lights = (0 until lightCount).map { PointLight(radius = 1500.0f) }
+
+        lights.map {
+            it.position = Numerics.randomVectorFromRange(3, -positionRange/10, positionRange/10)
+            it.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
+            it.intensity = 500.0f
+
+            scene.addChild(it)
+        }
 
         val erythrocyte = Mesh()
         erythrocyte.readFromOBJ(getDemoFilesPath() + "/erythrocyte_simplified.obj")

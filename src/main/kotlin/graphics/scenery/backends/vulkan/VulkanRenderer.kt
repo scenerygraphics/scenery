@@ -1665,8 +1665,6 @@ open class VulkanRenderer(hub: Hub,
      * This function renders the scene
      */
     override fun render() {
-        pollEvents()
-
         val stats = hub?.get(SceneryElement.Statistics) as? Statistics
         val sceneObjects = async {
             scene.discover(scene, { n ->
@@ -1690,6 +1688,8 @@ open class VulkanRenderer(hub: Hub,
             Thread.sleep(200)
             return
         }
+
+        pollEvents()
 
         if (toggleFullscreen) {
             vkDeviceWaitIdle(device.vulkanDevice)

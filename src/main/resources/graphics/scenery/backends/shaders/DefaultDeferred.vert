@@ -20,17 +20,6 @@ layout(set = 0, binding = 0) uniform VRParameters {
     int stereoEnabled;
 } vrParameters;
 
-struct Light {
-	float Linear;
-	float Quadratic;
-	float Intensity;
-	float Radius;
-	vec4 Position;
-  	vec4 Color;
-};
-
-const int MAX_NUM_LIGHTS = 1024;
-
 layout(set = 1, binding = 0) uniform LightParameters {
     mat4 ViewMatrix;
     mat4 InverseViewMatrix;
