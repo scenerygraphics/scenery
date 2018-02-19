@@ -44,7 +44,6 @@ import java.util.concurrent.locks.ReentrantLock
 import javax.imageio.ImageIO
 import kotlin.concurrent.thread
 import kotlin.concurrent.withLock
-import kotlin.reflect.full.declaredMemberProperties
 import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.memberProperties
 
@@ -445,18 +444,18 @@ open class VulkanRenderer(hub: Hub,
             logger.info("Using OpenGL-based swapchain")
             OpenGLSwapchain(
                 device, queue, commandPools.Standard,
-                renderConfig = renderConfig, useSRGB = true,
+                renderConfig = renderConfig, useSRGB = renderConfig.sRGB,
                 useFramelock = System.getProperty("scenery.Renderer.Framelock", "false").toBoolean())
         } else {
             if(System.getProperty("scenery.Renderer.UseJavaFX", "false").toBoolean() || embedIn != null) {
                 logger.info("Using JavaFX-based swapchain")
                 FXSwapchain(
                     device, queue, commandPools.Standard,
-                    renderConfig = renderConfig, useSRGB = true)
+                    renderConfig = renderConfig, useSRGB = renderConfig.sRGB)
             } else {
                 VulkanSwapchain(
                     device, queue, commandPools.Standard,
-                    renderConfig = renderConfig, useSRGB = true)
+                    renderConfig = renderConfig, useSRGB = renderConfig.sRGB)
             }
         }.apply {
             embedIn(embedIn)
@@ -758,7 +757,8 @@ open class VulkanRenderer(hub: Hub,
             add("Ka", { node.material.ambient })
             add("Kd", { node.material.diffuse })
             add("Ks", { node.material.specular })
-            add("Shininess", { node.material.specularExponent })
+            add("Roughness", { node.material.roughness})
+            add("Metallic", { node.material.metallic})
             add("Opacity", { node.material.blending.opacity })
 
             requiredOffsetCount = 1
@@ -887,7 +887,7 @@ open class VulkanRenderer(hub: Hub,
                                 Material.DepthTest.Greater -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_GREATER)
                                 Material.DepthTest.LessEqual -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_LESS_OR_EQUAL)
                                 Material.DepthTest.GreaterEqual -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_GREATER_OR_EQUAL)
-                                Material.DepthTest.Always -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_GREATER)
+                                Material.DepthTest.Always -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_ALWAYS)
                                 Material.DepthTest.Never -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_NEVER)
                             }
 
@@ -1311,10 +1311,16 @@ open class VulkanRenderer(hub: Hub,
         renderConfig.renderpasses.forEach { rp ->
             rp.value.inputs?.let {
                 renderConfig.rendertargets?.let { rts ->
-                    val rt = rts[it.first()]!!
+                    val name = if(it.first().contains(".")) {
+                        it.first().substringBefore(".")
+                    } else {
+                        it.first()
+                    }
+
+                    val rt = rts[name]!!
 
                     // create descriptor set layout that matches the render target
-                    descriptorSetLayouts.put("outputs-${it.first()}",
+                    descriptorSetLayouts.put("outputs-$name",
                         VU.createDescriptorSetLayout(device,
                             descriptorNum = rt.count(),
                             descriptorCount = 1,
@@ -1347,7 +1353,8 @@ open class VulkanRenderer(hub: Hub,
                         // create framebuffer -- don't clear it, if blitting is needed
                         val framebuffer = VulkanFramebuffer(device, commandPools.Standard,
                             width, height, this,
-                            shouldClear = !passConfig.blitInputs)
+                            shouldClear = !passConfig.blitInputs,
+                            sRGB = renderConfig.sRGB)
 
                         rt.value.forEach { att ->
                             logger.info(" + attachment ${att.key}, ${att.value.format.name}")
@@ -1390,7 +1397,7 @@ open class VulkanRenderer(hub: Hub,
 
                     swapchain!!.images!!.forEachIndexed { i, _ ->
                         val fb = VulkanFramebuffer(device, commandPools.Standard,
-                            width, height, this@with)
+                            width, height, this@with, sRGB = renderConfig.sRGB)
 
                         fb.addSwapchainAttachment("swapchain-$i", swapchain!!, i)
                         fb.addDepthBuffer("swapchain-$i-depth", 32)
@@ -1459,9 +1466,14 @@ open class VulkanRenderer(hub: Hub,
             val passConfig = config.renderpasses[pass.key]!!
 
             passConfig.inputs?.forEach { inputTarget ->
+                val targetName = if(inputTarget.contains(".")) {
+                    inputTarget.substringBefore(".")
+                } else {
+                    inputTarget
+                }
                 renderpasses.filter {
-                    it.value.output.keys.contains(inputTarget)
-                }.forEach { pass.value.inputs.put(inputTarget, it.value.output[inputTarget]!!) }
+                    it.value.output.keys.contains(targetName)
+                }.forEach { pass.value.inputs.put(inputTarget, it.value.output[targetName]!!) }
             }
 
             with(pass.value) {
@@ -1643,7 +1655,7 @@ open class VulkanRenderer(hub: Hub,
                             ImageIO.write(image, "png", file)
                             logger.info("Screenshot saved to ${file.absolutePath}")
                         } catch (e: Exception) {
-                            System.err.println("Unable to take screenshot: ")
+                            logger.error("Unable to take screenshot: ")
                             e.printStackTrace()
                         } finally {
 //                            memFree(ib)
@@ -1665,6 +1677,8 @@ open class VulkanRenderer(hub: Hub,
      * This function renders the scene
      */
     override fun render() {
+        pollEvents()
+
         val stats = hub?.get(SceneryElement.Statistics) as? Statistics
         val sceneObjects = async {
             scene.discover(scene, { n ->
@@ -1688,8 +1702,6 @@ open class VulkanRenderer(hub: Hub,
             Thread.sleep(200)
             return
         }
-
-        pollEvents()
 
         if (toggleFullscreen) {
             vkDeviceWaitIdle(device.vulkanDevice)
@@ -1753,7 +1765,7 @@ open class VulkanRenderer(hub: Hub,
 
             target.updateShaderParameters()
 
-            target.submitCommandBuffers.put(0, commandBuffer.commandBuffer)
+            target.submitCommandBuffers.put(0, commandBuffer.commandBuffer!!)
             target.signalSemaphores.put(0, target.semaphore)
             target.waitSemaphores.put(0, waitSemaphore)
             target.waitStages.put(0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
@@ -1782,7 +1794,7 @@ open class VulkanRenderer(hub: Hub,
         logger.trace("Running viewport pass {}", renderpasses.keys.last())
 
         when (viewportPass.passConfig.type) {
-            RenderConfigReader.RenderpassType.geometry -> recordSceneRenderCommands(device, viewportPass, viewportCommandBuffer, sceneObjects)
+            RenderConfigReader.RenderpassType.geometry -> recordSceneRenderCommands(device, viewportPass, viewportCommandBuffer, sceneObjects, { it !is PointLight })
             RenderConfigReader.RenderpassType.lights -> recordSceneRenderCommands(device, viewportPass, viewportCommandBuffer, sceneObjects, { it is PointLight })
             RenderConfigReader.RenderpassType.quad -> recordPostprocessRenderCommands(device, viewportPass, viewportCommandBuffer)
         }
@@ -2295,7 +2307,13 @@ open class VulkanRenderer(hub: Hub,
                     val imageBlit = VkImageBlit.callocStack(1, stack)
 
                     for((name, input) in pass.inputs) {
-                        for((_, inputAttachment) in input.attachments) {
+                        val attachmentList = if(name.contains(".")) {
+                            input.attachments.filter { it.key == name.substringAfter(".") }
+                        } else {
+                            input.attachments
+                        }
+
+                        for((_, inputAttachment) in attachmentList) {
 
                             val type = when(inputAttachment.type) {
                                 VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> VK_IMAGE_ASPECT_COLOR_BIT
@@ -2309,14 +2327,24 @@ open class VulkanRenderer(hub: Hub,
                                 return@use
                             }
 
-                            val outputAspectType = when(outputAttachment.type) {
-                                VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+                            val outputAspectSrcType = when(outputAttachment.type) {
                                 VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+                                VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+                            }
+
+                            val outputAspectDstType = when(outputAttachment.type) {
+                                VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+                                VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
                             }
 
                             val inputAspectType = when(inputAttachment.type) {
                                 VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
                                 VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+                            }
+
+                            val outputDstStage = when(outputAttachment.type) {
+                                VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+                                VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT
                             }
 
                             val offsetX = (input.width * pass.passConfig.viewportOffset.first).toInt()
@@ -2371,21 +2399,21 @@ open class VulkanRenderer(hub: Hub,
                             // transition destination attachment back to attachment
                             VulkanTexture.transitionLayout(outputAttachment.image,
                                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                outputAspectType,
+                                outputAspectDstType,
                                 subresourceRange = subresourceRange,
                                 commandBuffer = transitionBuffer,
                                 srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
+                                dstStage = outputDstStage
                             )
 
                             // transition source attachment back to shader read-only
                             VulkanTexture.transitionLayout(inputAttachment.image,
                                 VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                                outputAspectType,
+                                outputAspectSrcType,
                                 subresourceRange = subresourceRange,
                                 commandBuffer = transitionBuffer,
                                 srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
+                                dstStage = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT
                             )
 
                         }
@@ -2681,6 +2709,7 @@ open class VulkanRenderer(hub: Hub,
         val hmd = hub?.getWorkingHMDDisplay()?.wantsVR()
 
         cam.view = cam.getTransformation()
+        cam.updateWorld(true, false)
 
         buffers["VRParametersBuffer"]!!.reset()
         val vrUbo = VulkanUBO(device, backingBuffer = buffers["VRParametersBuffer"]!!)

@@ -1,5 +1,6 @@
 package graphics.scenery
 
+import cleargl.GLVector
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.util.*
@@ -52,13 +53,16 @@ open class Sphere(val radius: Float, val segments: Int) : Node("sphere"), HasGeo
                 vbuffer.add(y * zr0 * radius)
                 vbuffer.add(z0 * radius)
 
-                nbuffer.add(x)
-                nbuffer.add(y)
-                nbuffer.add(z1)
+                val normal0 = GLVector(x * zr0 * radius, y * zr0 * radius, z0 * radius).normalize()
+                val normal1 = GLVector(x * zr1 * radius, y * zr1 * radius, z1 * radius).normalize()
 
-                nbuffer.add(x)
-                nbuffer.add(y)
-                nbuffer.add(z0)
+                nbuffer.add(normal0.x())
+                nbuffer.add(normal0.y())
+                nbuffer.add(normal0.z())
+
+                nbuffer.add(normal1.x())
+                nbuffer.add(normal1.y())
+                nbuffer.add(normal1.z())
 
                 tbuffer.add(0.0f)
                 tbuffer.add(0.0f)

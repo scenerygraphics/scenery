@@ -1,8 +1,8 @@
 #version 450 core
 #extension GL_ARB_separate_shader_objects: enable
 
-layout(set = 5, binding = 0) uniform sampler2D InputHDRColor;
-layout(set = 5, binding = 1) uniform sampler2D InputDepth;
+//layout(set = 5, binding = 0) uniform sampler2D InputHDRColor;
+//layout(set = 5, binding = 1) uniform sampler2D InputDepth;
 
 //layout(set = 1, binding = 0, std140) uniform ShaderParameters {
 //	float Gamma;

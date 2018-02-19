@@ -42,14 +42,14 @@ class SponzaExample : SceneryBase("SponzaExample", windowWidth = 1280, windowHei
             position = GLVector(1.5f, 1.0f, -4.0f)
             material.blending.transparent = true
             material.blending.opacity = 0.8f
-            material.blending.colorBlending = Blending.BlendOp.reverse_subtract
-            material.blending.alphaBlending = Blending.BlendOp.min
+            material.blending.colorBlending = Blending.BlendOp.add
+            material.blending.alphaBlending = Blending.BlendOp.add
             material.diffuse = GLVector(0.9f, 0.1f, 0.1f)
             name = "transparent box"
             scene.addChild(this)
         }
 
-        val lights = (0 until 256).map {
+        val lights = (0 until 128).map {
             Box(GLVector(0.1f, 0.1f, 0.1f))
         }.map {
             it.position = GLVector(
@@ -60,7 +60,7 @@ class SponzaExample : SceneryBase("SponzaExample", windowWidth = 1280, windowHei
 
             it.material.diffuse = Numerics.randomVectorFromRange(3, 0.1f, 0.9f)
 
-            val light = PointLight(radius = Numerics.randomFromRange(0.5f, 2.0f))
+            val light = PointLight(radius = Numerics.randomFromRange(0.5f, 5.0f))
             light.emissionColor = it.material.diffuse
             light.intensity = Numerics.randomFromRange(1.0f, 2.0f)
 

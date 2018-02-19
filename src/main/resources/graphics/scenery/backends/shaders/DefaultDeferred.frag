@@ -7,7 +7,7 @@ layout(location = 0) in VertexData {
     vec2 TexCoord;
 } Vertex;
 
-layout(location = 0) out vec2 Normal;
+layout(location = 0) out vec4 NormalsMaterial;
 layout(location = 1) out vec4 DiffuseAlbedo;
 
 const float PI = 3.14159265358979323846264;
@@ -44,7 +44,8 @@ struct MaterialInfo {
     vec3 Ka;
     vec3 Kd;
     vec3 Ks;
-    float Shininess;
+    float Roughness;
+    float Metallic;
     float Opacity;
 };
 
@@ -140,6 +141,8 @@ void main() {
     DiffuseAlbedo.rgb = Material.Kd;
     DiffuseAlbedo.a = 0.0f;
 
+    NormalsMaterial.ba = vec2(Material.Roughness, Material.Metallic);
+
     if((materialType & MATERIAL_HAS_AMBIENT) == MATERIAL_HAS_AMBIENT) {
         //DiffuseAlbedo.rgb = texture(ObjectTextures[0], VertexIn.TexCoord).rgb;
     }
@@ -150,6 +153,7 @@ void main() {
 
     if((materialType & MATERIAL_HAS_SPECULAR) == MATERIAL_HAS_SPECULAR) {
         DiffuseAlbedo.a = texture(ObjectTextures[2], Vertex.TexCoord).r;
+        NormalsMaterial.b = texture(ObjectTextures[2], Vertex.TexCoord).r;
     }
 
     if((materialType & MATERIAL_HAS_ALPHAMASK) == MATERIAL_HAS_ALPHAMASK) {
@@ -173,5 +177,5 @@ component. If using Spherical Encoding, do not forget to use spherical decode fu
 //        EncodedNormal = EncodeOctaH(normal);
 //    }
 
-    Normal = EncodedNormal;
+    NormalsMaterial.rg = EncodedNormal;
 }

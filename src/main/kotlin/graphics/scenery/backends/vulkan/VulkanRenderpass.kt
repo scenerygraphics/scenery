@@ -145,7 +145,7 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
 
             val ds = inputFramebuffer.value.outputDescriptorSet
 
-            descriptorSetLayouts.put("inputs-${this.name}", dsl)
+            descriptorSetLayouts.put("inputs-${this.name}", dsl)?.let { oldDSL -> vkDestroyDescriptorSetLayout(device.vulkanDevice, oldDSL, null) }
             descriptorSets.put("inputs-${this.name}", ds)
         }
     }

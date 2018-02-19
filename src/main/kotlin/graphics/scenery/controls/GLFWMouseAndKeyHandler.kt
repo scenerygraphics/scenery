@@ -166,7 +166,7 @@ open class GLFWMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandlerB
         }
 
         if (modifiers and GLFW_MOD_SUPER == 1) {
-            System.err.println("Windows key not supported")
+            logger.warn("Windows key not supported")
         }
 
         /*

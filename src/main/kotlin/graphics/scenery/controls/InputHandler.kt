@@ -158,7 +158,7 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
         try {
             reader = FileReader(bindingConfigFile)
         } catch (e: FileNotFoundException) {
-            System.err.println("Falling back to default keybindings...")
+            logger.info("No custom key configuration found, using default keybindings.")
             reader = StringReader("---\n" +
                     "- !mapping" + "\n" +
                     "  action: mouse_control" + "\n" +

@@ -15,12 +15,12 @@ layout(location = 0) out VertexData {
 layout(set = 2, binding = 0) uniform Matrices {
 	mat4 ModelMatrix;
 	mat4 NormalMatrix;
-	mat4 ProjectionMatrix;
 	int isBillboard;
 } ubo;
 
 layout(set = 0, binding = 0) uniform VRParameters {
     mat4 projectionMatrices[2];
+    mat4 inverseProjectionMatrices[2];
     mat4 headShift;
     float IPD;
     int stereoEnabled;
@@ -39,9 +39,10 @@ const int MAX_NUM_LIGHTS = 1024;
 
 layout(set = 1, binding = 0) uniform LightParameters {
     mat4 ViewMatrix;
+    mat4 InverseViewMatrix;
+    mat4 ProjectionMatrix;
+    mat4 InverseProjectionMatrix;
     vec3 CamPosition;
-    int numLights;
-	Light lights[MAX_NUM_LIGHTS];
 };
 
 layout(push_constant) uniform currentEye_t {
@@ -58,7 +59,7 @@ void main()
 	headToEye[3][0] -= currentEye.eye * vrParameters.IPD;
 
     mv = (vrParameters.stereoEnabled ^ 1) * ViewMatrix * ubo.ModelMatrix + (vrParameters.stereoEnabled * headToEye * ViewMatrix * ubo.ModelMatrix);
-	projectionMatrix = (vrParameters.stereoEnabled ^ 1) * ubo.ProjectionMatrix + vrParameters.stereoEnabled * vrParameters.projectionMatrices[currentEye.eye];
+	projectionMatrix = (vrParameters.stereoEnabled ^ 1) * ProjectionMatrix + vrParameters.stereoEnabled * vrParameters.projectionMatrices[currentEye.eye];
 
 	if(ubo.isBillboard > 0) {
 		mv[0][0] = 1.0f;
@@ -81,5 +82,6 @@ void main()
     Vertex.FragPosition = vec3(ubo.ModelMatrix * vec4(vertexPosition, 1.0));
 
 	gl_Position = nMVP * vec4(vertexPosition, 1.0);
+	Vertex.Position = gl_Position.xyz;
 }
 

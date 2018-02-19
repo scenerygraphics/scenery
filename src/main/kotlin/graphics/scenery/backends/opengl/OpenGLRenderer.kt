@@ -1822,7 +1822,8 @@ class OpenGLRenderer(hub: Hub,
             add("Ka", { node.material.ambient })
             add("Kd", { node.material.diffuse })
             add("Ks", { node.material.specular })
-            add("Shininess", { node.material.specularExponent })
+            add("Roughness", { node.material.roughness })
+            add("Metallic", { node.material.metallic })
             add("Opacity", { node.material.blending.opacity })
 
             s.UBOs.put("MaterialProperties", this)

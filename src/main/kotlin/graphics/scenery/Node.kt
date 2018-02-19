@@ -240,15 +240,17 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
                 world.copyFrom(parent!!.world)
                 world.mult(this.model)
             }
-
-            this.needsUpdateWorld = false
         }
 
         if (recursive) {
-            this.children.forEach { it.updateWorld(true, force) }
+            this.children.forEach { it.updateWorld(true, needsUpdateWorld) }
             // also update linked nodes -- they might need updated
             // model/view/proj matrices as well
-            this.linkedNodes.forEach { it.updateWorld(true, force) }
+            this.linkedNodes.forEach { it.updateWorld(true, needsUpdateWorld) }
+        }
+
+        if(needsUpdateWorld) {
+            needsUpdateWorld = false
         }
     }
 

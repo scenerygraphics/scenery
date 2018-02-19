@@ -11,7 +11,7 @@ layout(location = 0) in VertexData {
 
 layout(location = 0) out vec4 FragColor;
 
-layout(set = 3, binding = 0) uniform sampler2D InputNormal;
+layout(set = 3, binding = 0) uniform sampler2D InputNormalsMaterial;
 layout(set = 3, binding = 1) uniform sampler2D InputDiffuseAlbedo;
 layout(set = 3, binding = 2) uniform sampler2D InputZBuffer;
 
@@ -60,6 +60,12 @@ layout(set = 5, binding = 0, std140) uniform ShaderParameters {
 	int reflectanceModel;
 	int displayWidth;
 	int displayHeight;
+	float ssaoRadius;
+	int ssaoSamples;
+    float IntensityScale;
+    float Epsilon;
+    float BiasDistance;
+    float Contrast;
 };
 
 const vec2 poisson16[] = vec2[](    // These are the Poisson Disk Samples
@@ -84,7 +90,7 @@ const vec2 poisson16[] = vec2[](    // These are the Poisson Disk Samples
 float GGXDistribution(vec3 normal, vec3 halfway, float roughness) {
     float a = roughness*roughness;
     float aSquared = a*a;
-    float NdotH = max(dot(normal, halfway), 0.0);
+    float NdotH = abs(dot(normal, halfway));
     float NdotH2 = NdotH*NdotH;
 
     float denom = ((NdotH2 * (aSquared - 1.0) + 1.0));
@@ -99,8 +105,8 @@ float GeometrySchlick(float NdotV, float roughness) {
 }
 
 float GeometrySmith(vec3 normal, vec3 view, vec3 light, float roughness) {
-    float NdotV = max(dot(normal, view), 0.0);
-    float NdotL = max(dot(normal, light), 0.0);
+    float NdotV = abs(dot(normal, view));
+    float NdotL = abs(dot(normal, light));
 
     return GeometrySchlick(NdotV, roughness) * GeometrySchlick(NdotL, roughness);
 }
@@ -170,18 +176,20 @@ vec3 worldFromDepth(float depth, vec2 texcoord) {
 void main()
 {
     vec2 textureCoord = gl_FragCoord.xy/vec2(displayWidth, displayHeight);
-	// Retrieve data from G-buffer
-//	vec3 FragPos = texture(InputPosition, textureCoord).rgb;
-//	vec3 DecodedNormal = DecodeSpherical(texture(gNormal, textureCoord).rg);
-	vec3 N = DecodeOctaH(texture(InputNormal, textureCoord).rg);
+
+	vec3 N = DecodeOctaH(texture(InputNormalsMaterial, textureCoord).rg);
+
 	vec4 Albedo = texture(InputDiffuseAlbedo, textureCoord).rgba;
 	float Specular = texture(InputDiffuseAlbedo, textureCoord).a;
-	float Depth = texture(InputZBuffer, textureCoord).r;
-    vec3 FragPos = worldFromDepth(Depth, textureCoord);
+	vec2 MaterialParams = texture(InputNormalsMaterial, textureCoord).ba;
 
-//	vec2 ssaoFilterRadius = vec2(ssaoRadius/displayWidth, ssaoRadius/displayHeight);
+	float Depth = texture(InputZBuffer, textureCoord).r;
+
+    vec3 FragPos = worldFromDepth(Depth, textureCoord);
 	vec3 viewSpacePos = (ViewMatrix * (vec4(CamPosition, 1.0))).xyz;
 	vec3 viewSpaceFragPos = (InverseViewMatrix * (vec4(FragPos, 1.0))).xyz;
+
+	vec2 ssaoFilterRadius = vec2(ssaoRadius/displayWidth, ssaoRadius/displayHeight);
 
 	float fragDist = length(FragPos - CamPosition);
 	if(debugMode == 1) {
@@ -191,92 +199,102 @@ void main()
 
 	vec3 lighting = vec3(0.0);
 
-		float ambientOcclusion = 0.0f;
+    vec3 L = (worldPosition.xyz - FragPos.xyz);
+    float distance = length(L);
+    L = normalize(L);
 
-		vec3 viewDir = normalize(CamPosition - FragPos);
+    vec3 V = normalize(CamPosition - FragPos);
+    vec3 H = normalize(L + V);
 
-            vec3 L = (worldPosition.xyz - FragPos.xyz);
-            vec3 V = normalize(CamPosition - FragPos);
-            vec3 H = normalize(L + V);
-            float distance = length(L);
-            L = normalize(L);
+    float ambientOcclusion = 0.0f;
+    float lightAttenuation = pow(clamp(1.0 - pow(distance/lightRadius, 4.0), 0.0, 1.0), 2.0) / (distance * distance + 1.0);
 
-//            FragColor = vec4(FragPos, 1.0);
-//            return;
-//            FragColor = vec4(distance, distance, distance, 1.0);
-//            return;
-//                FragColor = vec4(FragPos, 1.0);
-//                return;
+    //Alchemy SSAO
+	float A = 0.0f;
+    for (int i = 0; i < ssaoSamples;  ++i) {
+        vec2 sampleTexCoord = textureCoord + (poisson16[i] * (ssaoFilterRadius));
+        vec3 samplePos = worldFromDepth(Depth, sampleTexCoord);
 
-//            float lightAttenuation = 1.0 / (1.0 + linear * distance + quadratic * distance * distance);
-            float lightAttenuation = pow(clamp(1.0 - pow(distance/lightRadius, 4.0), 0.0, 1.0), 2.0) / (distance * distance + 1.0);
+        vec3 sampleDir = samplePos - FragPos;
 
-		    if(reflectanceModel == 0) {
-		        // Diffuse
-		        float NdotL = max(0.0, dot(N, L));
-		        vec3 specular = vec3(0.0f);
+        float NdotV = max(dot(N, sampleDir), 0);
+        float VdotV = max(dot(sampleDir, sampleDir), 0);
+        float temp = max(0, NdotV + viewSpacePos.z*BiasDistance);
+        temp /= (VdotV + Epsilon);
+        A+=temp;
+    }
 
-             	vec3 R = reflect(-L, N);
-             	float NdotR = max(0.0, dot(R, V));
-             	float NdotH = max(0.0, dot(N, H));
+    A /= ssaoSamples;
+    A *= (2*IntensityScale);
+    A = max(0, 1-A);
+    A = pow(A, Contrast);
+    ambientOcclusion = 1 - A;
 
-             	vec3 diffuse = NdotL * intensity * Albedo.rgb * emissionColor.rgb * (1.0f - ambientOcclusion);
+    if(reflectanceModel == 1) {
+        // Diffuse
+        float NdotL = max(0.0, dot(N, L));
+        vec3 specular = vec3(0.0f);
 
-             	if(NdotL > 0.0) {
-             	    specular = pow(NdotH, (1.0-Specular)*4.0) * Albedo.rgb * emissionColor.rgb * intensity;
-             	}
+        vec3 R = reflect(-L, N);
+        float NdotR = max(0.0, dot(R, V));
+        float NdotH = max(0.0, dot(N, H));
 
-             	lighting += (diffuse + specular) * lightAttenuation;
-		    }
-		    // Oren-Nayar model
-		    else if(reflectanceModel == 1) {
-		        float roughness = 0.95;
+        vec3 diffuse = NdotL * intensity * Albedo.rgb * emissionColor.rgb * (1.0f - ambientOcclusion);
 
-            	float LdotV = dot(L, V);
-                float NdotL = dot(L, N);
-                float NdotV = dot(N, V);
+        if(NdotL > 0.0) {
+            specular = pow(NdotH, (1.0-Specular)*4.0) * Albedo.rgb * emissionColor.rgb * intensity;
+        }
 
-                float s = LdotV - NdotL * NdotV;
-                float t = mix(1.0, max(NdotL, NdotV), step(0.0, s));
+        lighting += (diffuse + specular) * lightAttenuation;
+    }
+    // Oren-Nayar model for diffuse and Cook-Torrance for Specular
+    else if(reflectanceModel == 0) {
+        vec3 diffuse = vec3(0.0);
+        vec3 specular = vec3(0.0);
 
-                float sigma2 = roughness * roughness;
-                float A = 1.0 + sigma2 * (Albedo.a/ (sigma2 + 0.13) + 0.5 / (sigma2 + 0.33));
-                float B = 0.45 * sigma2 / (sigma2 + 0.09);
+        float roughness = MaterialParams.r;
 
-                float L1 = Albedo.a * max(0.0, NdotL) * (A + B * s / t) / PI;
+        float LdotV = max(dot(L, V), 0.0);
+        float NdotL = max(dot(L, N), 0.0);
+        float NdotV = max(dot(N, V), 0.0);
 
-                vec3 inputColor = lightAttenuation * intensity * emissionColor.rgb * Albedo.rgb * (1.0f - ambientOcclusion);
+        float s = LdotV - NdotL * NdotV;
+        float t = max(mix(1.0, max(NdotL, NdotV), step(0.0, s)), 0.0001);
 
-            	vec3 diffuse = inputColor * L1;
-            	vec3 specular = vec3(0.0);
+        float sigma2 = roughness * roughness;
+        float A = 1.0 - sigma2 / (sigma2 + 0.33);
+        float B = 0.45 * sigma2 / (sigma2 + 0.09);
 
-            	specular *= lightAttenuation*specular;
-            	lighting += diffuse + specular;
-            }
-            // Cook-Torrance
-            else if(reflectanceModel == 2) {
-                float metallic = 1.0;
-                vec3 F0 = vec3(0.04);
-                F0 = mix(F0, Albedo.rgb, metallic);
+        float L1 = NdotL * (A + B * s / t) / PI;
 
-                float roughness = 1.0 - Specular;
+        vec3 inputColor = intensity * emissionColor.rgb * Albedo.rgb * (1.0f - ambientOcclusion);
 
-                float NDF = GGXDistribution(N, H, roughness);
-                float G = GeometrySmith(N, V, L, roughness);
-                vec3 F = FresnelSchlick(max(dot(H, viewDir), 0.0), F0);
+        diffuse = inputColor * L1;
 
-                vec3 BRDF = (NDF * G * F)/(4 * max(dot(V, N), 0.0) * max(dot(L, N), 0.0) + 0.001);
+        if(Specular > 0.0 || MaterialParams.g > 0.0) {
+            float metallic = MaterialParams.g;
+            vec3 F0 = vec3(0.04);
+            F0 = mix(F0, Albedo.rgb, metallic);
 
-                vec3 kS = F;
-                vec3 kD = (vec3(1.0) - kS);
-                kD *= 1.0 - metallic;
+            float roughness = MaterialParams.r;
 
-                float NdotL = max(dot(N, L), 0.0);
-                vec3 radiance = intensity * emissionColor.rgb * lightAttenuation;
+            float NDF = GGXDistribution(N, H, roughness);
+            float G = GeometrySmith(N, V, L, roughness);
+            vec3 F = FresnelSchlick(max(dot(H, V), 0.0), F0);
 
-                lighting += (kD * Albedo.rgb / PI + BRDF) * radiance * NdotL;
-            }
+            vec3 BRDF = (NDF * G * F)/max(4.0 * abs(dot(N, V)) * abs(dot(N, L)), 0.001);
 
-		FragColor = vec4(lighting, 1.0);
-        gl_FragDepth = Depth;
+            vec3 kS = F;
+            vec3 kD = (vec3(1.0) - kS);
+            kD *= 1.0 - metallic;
+
+            vec3 radiance = intensity * emissionColor.rgb;
+            specular = (kD * Albedo.rgb / PI + BRDF) * radiance * NdotL;
+        }
+
+        lighting += (diffuse + specular) * lightAttenuation;
+    }
+
+    FragColor = vec4(lighting, 1.0);
+    gl_FragDepth = Depth;
 }

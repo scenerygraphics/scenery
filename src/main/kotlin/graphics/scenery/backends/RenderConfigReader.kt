@@ -41,14 +41,14 @@ fun RenderConfigReader.RenderConfig.createRenderpassFlow(): List<String> {
     dag.add(start.key)
 
     while(inputs != null) {
-        passes.filter { it.value.output == inputs!!.first() }.entries.forEach {
-            if (it.value.inputs == null) {
-                inputs = null
+        passes.filter { it.value.output == inputs!!.first().substringBefore(".") }.entries.forEach {
+            inputs = if (it.value.inputs == null) {
+                null
             } else {
-                inputs = it.value.inputs!!
+                it.value.inputs!!
             }
 
-            dag.add(it.key)
+            dag.add(it.key.substringBefore("."))
         }
     }
 
@@ -85,6 +85,7 @@ class RenderConfigReader {
 
     data class RenderConfig(
         var name: String,
+        var sRGB: Boolean = false,
         var description: String?,
         var stereoEnabled: Boolean = false,
         var rendertargets: Map<String, Map<String, AttachmentConfig>>?,
