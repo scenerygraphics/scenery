@@ -25,7 +25,9 @@ open class Material : Serializable {
     /** Ambient color of the material. */
     var ambient: GLVector = GLVector(0.5f, 0.5f, 0.5f)
     /** Specular exponent */
-    var specularExponent: Float = 0.0f
+    var roughness: Float = 1.0f
+
+    var metallic: Float = 0.0f
 
     /** Blending settings for this material. See [Blending]. */
     var blending: Blending = Blending()

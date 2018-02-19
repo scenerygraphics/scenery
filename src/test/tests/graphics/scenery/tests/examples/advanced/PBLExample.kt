@@ -5,6 +5,7 @@ import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.utils.Numerics
 import org.junit.Test
+import kotlin.math.floor
 
 /**
  * <Description>
@@ -16,40 +17,60 @@ class PBLExample: SceneryBase("PBLExample", windowWidth = 1280, windowHeight = 7
         renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
         hub.add(SceneryElement.Renderer, renderer!!)
 
-        val spheres = (0 until 16).map {
-            val s = Sphere(0.5f, 40)
-            s.position = GLVector(it / 4f, (it % 4).toFloat(), -3.0f) - GLVector(2.0f, 2.0f, 0.0f)
-            s.material.roughness = (it / 4f)/4.0f
-            s.material.metallic = (it % 4f)/4.0f
+        val rowSize = 10f
+        val spheres = (0 until 100).map {
+            val s = Sphere(0.4f, 80)
+            s.position = GLVector(floor(it / rowSize), (it % rowSize.toInt()).toFloat(), -4.0f) - GLVector((rowSize - 1.0f)/2.0f, (rowSize - 1.0f)/2.0f, 0.0f)
+            s.material.roughness = (it / rowSize)/rowSize
+            s.material.metallic = (it % rowSize.toInt())/rowSize
+            s.material.diffuse = GLVector(1.0f, 0.0f, 0.0f)
 
             s
         }
 
         spheres.forEach { scene.addChild(it) }
 
+        val lightbox = Box(GLVector(15.0f, 15.0f, 15.0f), insideNormals = true)
+        lightbox.name = "Lightbox"
+        lightbox.material.diffuse = GLVector(0.3f, 0.3f, 0.3f)
+        lightbox.material.roughness = 1.0f
+        lightbox.material.metallic = 0.0f
+        scene.addChild(lightbox)
+
         val lights = (0 until 8).map {
-            val l = PointLight(radius = 10.0f)
-            l.position = GLVector(it / 4f, (it % 4).toFloat(), 2.0f) - GLVector(1.5f, 1.5f, 0.0f)
-            l.emissionColor = Numerics.randomVectorFromRange(3, 0.2f, 0.8f)
-            l.intensity = 10.0f
+            val l = PointLight(radius = 20.0f)
+            l.position = GLVector(
+                Numerics.randomFromRange(-rowSize/2.0f, rowSize/2.0f),
+                Numerics.randomFromRange(-rowSize/2.0f, rowSize/2.0f),
+                Numerics.randomFromRange(1.0f, 5.0f)
+            )
+            l.emissionColor = Numerics.randomVectorFromRange(3, 0.8f, 1.0f)
+            l.intensity = Numerics.randomFromRange(10.0f, 75.0f)
+
+            lightbox.addChild(l)
             l
         }
 
-        lights.forEach { scene.addChild(it) }
-
-        val stageLight = PointLight(radius = 15.0f)
+        val stageLight = PointLight(radius = 35.0f)
         stageLight.name = "StageLight"
         stageLight.intensity = 100.0f
+        stageLight.position = GLVector(0.0f, 0.0f, -5.0f)
         scene.addChild(stageLight)
+
+        val cameraLight = PointLight(radius = 10.0f)
+        cameraLight.name = "CameraLight"
+        cameraLight.intensity = 25.0f
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
-            position = GLVector(0.0f, 0.0f, 0.0f)
+            position = GLVector(0.0f, 0.2f, 7.5f)
             perspectiveCamera(50.0f, windowWidth.toFloat(), windowHeight.toFloat())
             active = true
 
             scene.addChild(this)
         }
+
+        cam.addChild(cameraLight)
     }
 
     @Test override fun main() {

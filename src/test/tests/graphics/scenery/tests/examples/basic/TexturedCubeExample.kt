@@ -32,13 +32,10 @@ class TexturedCubeExample : SceneryBase("TexturedCubeExample") {
             scene.addChild(this)
         }
 
-        val light = PointLight()
+        val light = PointLight(radius = 5.0f)
         light.position = GLVector(0.0f, 3.0f, -1.0f)
-        light.lightRadius = 15.0f
-        light.intensity = 500.0f
+        light.intensity = 100.0f
         light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
-        light.quadratic = 2.0f
-        light.linear = 0.0f
         scene.addChild(light)
 
         val cam: Camera = DetachedHeadCamera()

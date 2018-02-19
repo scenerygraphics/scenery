@@ -23,6 +23,7 @@ class PointLight(radius: Float = 0.5f) : Mesh("PointLight") {
     @ShaderProperty var lightRadius: Float = radius
         set(value) {
             if(value != lightRadius) {
+                logger.info("Resetting light radius")
                 field = value
                 proxySphere = Sphere(value, 21)
                 this.vertices = proxySphere.vertices

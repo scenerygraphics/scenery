@@ -3,31 +3,28 @@ description: Deferred Shading, with HDR postprocessing and FXAA
 
 rendertargets:
   GeometryBuffer:
-    Normal:
+    NormalsMaterial:
       size: 1.0, 1.0
-      format: RG_Float16
+      format: RGBA_Float16
     DiffuseAlbedo:
       size: 1.0, 1.0
       format: RGBA_UInt8
     ZBuffer:
       size: 1.0, 1.0
       format: Depth32
-  DeferredForward:
-    Output:
+  ForwardBuffer:
+    Color:
       size: 1.0, 1.0
       format: RGBA_Float32
-    OutputDepth:
-      size: 1.0, 1.0
-      format: Depth32
-  HDR:
-    HDRBuffer:
+  HDRBuffer:
+    Color:
       size: 1.0, 1.0
       format: RGBA_Float32
     Depth:
       size: 1.0, 1.0
       format: Depth32
-  FXAA:
-    FXAAOut:
+  FXAABuffer:
+    Color:
       size: 1.0, 1.0
       format: RGBA_UInt8
 
@@ -51,11 +48,17 @@ renderpasses:
       - "DeferredLighting.frag.spv"
     inputs:
       - GeometryBuffer
-    output: DeferredForward
+    output: ForwardBuffer
     parameters:
       reflectanceModel: 0
       Global.displayWidth: 0
       Global.displayHeight: 0
+      ssaoRadius: 4.0
+      ssaoSamples: 8
+      IntensityScale: 1.0
+      Epsilon: 0.001
+      BiasDistance: 0.0001
+      Contrast: 1.0
   ForwardShading:
     type: geometry
     renderTransparent: true
@@ -65,20 +68,23 @@ renderpasses:
       - "DefaultForward.vert.spv"
       - "DefaultForward.frag.spv"
     inputs:
-      - DeferredForward
-    output: HDR
-  PostprocessHDR:
+      - ForwardBuffer.Color
+      - GeometryBuffer.ZBuffer
+    output: HDRBuffer
+  HDR:
     type: quad
     shaders:
       - "FullscreenQuad.vert.spv"
       - "HDR.frag.spv"
     inputs:
-      - HDR
-    output: FXAA
+      - HDRBuffer
+    output: FXAABuffer
     parameters:
+      TonemappingOperator: 0
       Gamma: 2.2
-      Exposure: 5.0
-  PostprocessFXAA:
+      Exposure: 10.0
+      WhitePoint: 11.2
+  FXAA:
     type: quad
     shaders:
       - "FullscreenQuad.vert.spv"
@@ -94,5 +100,5 @@ renderpasses:
       Global.displayWidth: 0
       Global.displayHeight: 0
     inputs:
-      - FXAA
+      - FXAABuffer
     output: Viewport

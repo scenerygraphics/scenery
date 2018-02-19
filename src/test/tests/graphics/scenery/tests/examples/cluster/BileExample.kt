@@ -69,7 +69,7 @@ class BileExample: SceneryBase("Bile Canaliculi example") {
         bile.position = GLVector(-600.0f, -800.0f, -20.0f)
         bile.material.diffuse = GLVector(0.8f, 0.5f, 0.5f)
         bile.material.specular = GLVector(1.0f, 1.0f, 1.0f)
-        bile.material.specularExponent = 0.5f
+        bile.material.roughness = 0.5f
         scene.addChild(bile)
 
 
