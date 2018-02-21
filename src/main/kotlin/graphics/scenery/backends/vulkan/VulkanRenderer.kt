@@ -430,6 +430,10 @@ open class VulkanRenderer(hub: Hub,
 
         logger.debug("Device creation done")
 
+        if(device.deviceData.vendor.toLowerCase().contains("nvidia")) {
+            gpuStats = NvidiaGPUStats()
+        }
+
         queue = VU.createDeviceQueue(device, device.queueIndices.graphicsQueue)
         with(commandPools) {
             Render = createCommandPool(device, device.queueIndices.graphicsQueue)
