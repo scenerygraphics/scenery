@@ -48,8 +48,6 @@ layout(push_constant) uniform currentEye_t {
 
 layout(set = 4, binding = 0, std140) uniform ShaderProperties {
     float intensity;
-    float linear;
-    float quadratic;
     float lightRadius;
     int debugMode;
     vec3 worldPosition;

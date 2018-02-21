@@ -1,7 +1,7 @@
 #version 450 core
 #extension GL_ARB_separate_shader_objects: enable
 
-layout(set = 0, binding = 0) uniform sampler2D InputHDRBuffer;
+layout(set = 0, binding = 0) uniform sampler2D InputColor;
 layout(set = 0, binding = 1) uniform sampler2D InputDepth;
 
 layout(set = 1, binding = 0, std140) uniform ShaderParameters {
@@ -42,7 +42,7 @@ vec3 ACESFilm(vec3 x) {
 
 void main()
 {
-	vec3 hdrColor = 0.02*texture(InputHDRBuffer, textureCoord).rgb;
+	vec3 hdrColor = 0.02*texture(InputColor, textureCoord).rgb;
 	vec3 color = vec3(0.0f);
 
     if(hdrParams.TonemappingOperator == 0) {

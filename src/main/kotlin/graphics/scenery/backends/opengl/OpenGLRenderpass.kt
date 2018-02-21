@@ -70,6 +70,7 @@ class OpenGLRenderpass(var passName: String = "", var passConfig: RenderConfigRe
     }
 
     fun updateShaderParameters() {
+        logger.trace("Updating shader parameters for ${this.passName}")
         UBOs.forEach { uboName, ubo ->
             if(uboName.startsWith("ShaderParameters-")) {
                 ubo.offset = ubo.backingBuffer!!.advance()
