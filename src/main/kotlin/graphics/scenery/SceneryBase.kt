@@ -91,8 +91,6 @@ open class SceneryBase(var applicationName: String,
         hub.addApplication(this)
         logger.info("Started application as PID ${getProcessID()}")
 
-        Thread.sleep(10000)
-
         val master = System.getProperty("scenery.master")?.toBoolean() ?: false
         val masterAddress = System.getProperty("scenery.MasterNode")
 
