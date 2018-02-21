@@ -57,6 +57,7 @@ layout(set = 4, binding = 0, std140) uniform ShaderProperties {
 };
 
 layout(set = 5, binding = 0, std140) uniform ShaderParameters {
+    int debugLights;
 	int reflectanceModel;
 	int displayWidth;
 	int displayHeight;
@@ -188,6 +189,11 @@ void main()
     vec3 FragPos = worldFromDepth(Depth, textureCoord);
 	vec3 viewSpacePos = (ViewMatrix * (vec4(CamPosition, 1.0))).xyz;
 	vec3 viewSpaceFragPos = (InverseViewMatrix * (vec4(FragPos, 1.0))).xyz;
+
+	if(debugLights == 1) {
+        FragColor = vec4(Albedo.rgb, 1.0);
+        return;
+	}
 
 	vec2 ssaoFilterRadius = vec2(ssaoRadius/displayWidth, ssaoRadius/displayHeight);
 

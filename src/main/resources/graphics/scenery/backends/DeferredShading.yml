@@ -50,6 +50,7 @@ renderpasses:
       - GeometryBuffer
     output: ForwardBuffer
     parameters:
+      debugLights: 0
       reflectanceModel: 0
       Global.displayWidth: 0
       Global.displayHeight: 0
