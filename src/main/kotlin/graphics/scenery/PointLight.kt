@@ -38,10 +38,10 @@ class PointLight(radius: Float = 0.5f) : Mesh("PointLight") {
     override var name = "PointLight"
 
     /** Linear falloff of the light. */
-    @ShaderProperty var linear: Float = 10.5f
+    var linear: Float = 10.5f
 
     /** Quadratic falloff of the light. */
-    @ShaderProperty var quadratic: Float = 2.7f
+    var quadratic: Float = 2.7f
 
     @ShaderProperty val worldPosition
         get() = this.world.mult(GLVector(position.x(), position.y(), position.z(), 1.0f))
