@@ -351,7 +351,7 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
 
         logger.debug("Prepared pipeline $pipelineName for $name")
 
-        pipelines.put(pipelineName, p)
+        pipelines.put(pipelineName, p)?.close()
     }
 
     private fun initializeDescriptorSetLayoutForSpec(spec: VulkanShaderModule.UBOSpec): Long {
