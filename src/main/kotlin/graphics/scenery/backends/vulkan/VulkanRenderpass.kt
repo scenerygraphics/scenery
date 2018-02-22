@@ -135,7 +135,8 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
     }
 
     fun initializeInputAttachmentDescriptorSetLayouts() {
-        inputs.forEach { inputFramebuffer ->
+        var input = 0
+        inputs.entries.reversed().forEach { inputFramebuffer ->
             // create descriptor set layout that matches the render target
             val dsl = VU.createDescriptorSetLayout(device,
                 descriptorNum = inputFramebuffer.value.attachments.count(),
@@ -145,8 +146,10 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
 
             val ds = inputFramebuffer.value.outputDescriptorSet
 
-            descriptorSetLayouts.put("inputs-${this.name}", dsl)?.let { oldDSL -> vkDestroyDescriptorSetLayout(device.vulkanDevice, oldDSL, null) }
-            descriptorSets.put("inputs-${this.name}", ds)
+            logger.debug("${this.name}: Creating input descriptor set for ${inputFramebuffer.key}, input-${this.name}-$input")
+            descriptorSetLayouts.put("input-${this.name}-$input", dsl)?.let { oldDSL -> vkDestroyDescriptorSetLayout(device.vulkanDevice, oldDSL, null) }
+            descriptorSets.put("input-${this.name}-$input", ds)
+            input++
         }
     }
 

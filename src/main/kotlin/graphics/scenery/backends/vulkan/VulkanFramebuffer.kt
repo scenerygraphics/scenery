@@ -325,6 +325,41 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
         return this
     }
 
+    fun addUnsignedByteRBuffer(name: String, channelDepth: Int): VulkanFramebuffer {
+        val format: Int = when(channelDepth) {
+            8 -> VK_FORMAT_R8_UNORM
+            16 -> VK_FORMAT_R16_UNORM
+            else -> { logger.warn("Unsupported channel depth $channelDepth, using 16 bit."); VK_FORMAT_R16_UNORM }
+        }
+
+        val att = createAttachment(format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
+
+        val (loadOp, stencilLoadOp) = if(!shouldClear) {
+            VK_ATTACHMENT_LOAD_OP_LOAD to VK_ATTACHMENT_LOAD_OP_LOAD
+        } else {
+            VK_ATTACHMENT_LOAD_OP_CLEAR to VK_ATTACHMENT_LOAD_OP_DONT_CARE
+        }
+
+        val initialImageLayout = if(!shouldClear) {
+            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+        } else {
+            VK_IMAGE_LAYOUT_UNDEFINED
+        }
+
+        att.desc.samples(VK_SAMPLE_COUNT_1_BIT)
+            .loadOp(loadOp)
+            .storeOp(VK_ATTACHMENT_STORE_OP_STORE)
+            .stencilLoadOp(stencilLoadOp)
+            .stencilStoreOp(VK_ATTACHMENT_STORE_OP_DONT_CARE)
+            .initialLayout(initialImageLayout)
+            .finalLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+            .format(format)
+
+        attachments.put(name, att)
+
+        return this
+    }
+
     fun addDepthBuffer(name: String, depth: Int): VulkanFramebuffer {
         val format: Int = when(depth) {
             16 -> VK_FORMAT_D16_UNORM

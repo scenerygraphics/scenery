@@ -1347,7 +1347,7 @@ class OpenGLRenderer(hub: Hub,
             }
 
             // bind framebuffers to texture units and determine total number
-            val inputsBound = pass.inputs.values.fold(0, { acc, fb -> acc + fb.bindTexturesToUnitsWithOffset(gl, acc) })
+            pass.inputs.values.reversed().fold(0, { acc, fb -> acc + fb.bindTexturesToUnitsWithOffset(gl, acc) })
 
             gl.glViewport(
                 pass.openglMetadata.viewport.area.offsetX,

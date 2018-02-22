@@ -1307,24 +1307,26 @@ open class VulkanRenderer(hub: Hub,
         val framebuffers = ConcurrentHashMap<String, VulkanFramebuffer>()
 
         flow = renderConfig.createRenderpassFlow()
+        logger.debug("Renderpasses to be run: ${flow.joinToString(", ")}")
 
         descriptorSetLayouts
             .filter { it.key.startsWith("outputs-") }
             .values.map { vkDestroyDescriptorSetLayout(device.vulkanDevice, it, null) }
 
         renderConfig.renderpasses.forEach { rp ->
-            rp.value.inputs?.let {
+            rp.value.inputs?.forEach {
                 renderConfig.rendertargets?.let { rts ->
-                    val name = if(it.first().contains(".")) {
-                        it.first().substringBefore(".")
+                    val name = if(it.contains(".")) {
+                        it.substringBefore(".")
                     } else {
-                        it.first()
+                        it
                     }
 
                     val rt = rts[name]!!
 
+                    logger.debug("Creating output descriptor set for $name")
                     // create descriptor set layout that matches the render target
-                    descriptorSetLayouts.put("outputs-$name",
+                    descriptorSetLayouts.putIfAbsent("outputs-$name",
                         VU.createDescriptorSetLayout(device,
                             descriptorNum = rt.count(),
                             descriptorCount = 1,
@@ -1375,9 +1377,12 @@ open class VulkanRenderer(hub: Hub,
 
                                 RenderConfigReader.TargetFormat.RGBA_UInt16 -> framebuffer.addUnsignedByteRGBABuffer(att.key, 16)
                                 RenderConfigReader.TargetFormat.RGBA_UInt8 -> framebuffer.addUnsignedByteRGBABuffer(att.key, 8)
+                                RenderConfigReader.TargetFormat.R_UInt16 -> framebuffer.addUnsignedByteRBuffer(att.key, 16)
+                                RenderConfigReader.TargetFormat.R_UInt8 -> framebuffer.addUnsignedByteRBuffer(att.key, 8)
 
                                 RenderConfigReader.TargetFormat.Depth32 -> framebuffer.addDepthBuffer(att.key, 32)
                                 RenderConfigReader.TargetFormat.Depth24 -> framebuffer.addDepthBuffer(att.key, 24)
+                                RenderConfigReader.TargetFormat.R_Float16 -> framebuffer.addFloatBuffer(att.key, 16)
                             }
 
                         }
@@ -2480,24 +2485,24 @@ open class VulkanRenderer(hub: Hub,
                 }
 
                 val sets = specs.map { (name, _) ->
-                    when(name) {
-                        "VRParameters" -> {
+                    when {
+                        name == "VRParameters" -> {
                             DescriptorSet.DynamicSet(descriptorSets["VRParameters"]!!, offset = 0, setName = "VRParameters")
                         }
 
-                        "LightParameters" -> {
+                        name == "LightParameters" -> {
                             DescriptorSet.DynamicSet(descriptorSets["LightParameters"]!!, offset = 0, setName = "LightParameters")
                         }
 
-                        "ObjectTextures" -> {
+                        name == "ObjectTextures" -> {
                             DescriptorSet.Set(s.textureDescriptorSet, setName = "ObjectTextures")
                         }
 
-                        "Inputs" -> {
-                            DescriptorSet.Set(pass.descriptorSets["inputs-${pass.name}"]!!, setName = "Inputs")
+                        name.startsWith("Inputs") -> {
+                            DescriptorSet.Set(pass.descriptorSets["input-${pass.name}-${name.substringAfter("-")}"]!!, setName = "Inputs")
                         }
 
-                        "ShaderParameters" -> {
+                        name == "ShaderParameters" -> {
                             DescriptorSet.Set(pass.descriptorSets["ShaderParameters-${pass.name}"]!!, setName = "ShaderParameters")
                         }
 
@@ -2603,11 +2608,12 @@ open class VulkanRenderer(hub: Hub,
             }
 
             // allocate more vertexBufferOffsets than needed, set limit lateron
+            pass.vulkanMetadata.uboOffsets.position(0)
             pass.vulkanMetadata.uboOffsets.limit(16)
             (0..15).forEach { pass.vulkanMetadata.uboOffsets.put(it, 0) }
 
             if (logger.isDebugEnabled) {
-                logger.debug("descriptor sets are {}", pass.descriptorSets.keys.joinToString(", "))
+                logger.debug("${pass.name}: descriptor sets are {}", pass.descriptorSets.keys.joinToString(", "))
                 logger.debug("pipeline provides {}", pipeline.descriptorSpecs.keys.joinToString(", "))
             }
 
@@ -2631,24 +2637,29 @@ open class VulkanRenderer(hub: Hub,
 
     private fun VulkanRenderpass.VulkanMetadata.setRequiredDescriptorSetsPostprocess(pass: VulkanRenderpass, pipeline: VulkanPipeline): Int {
         var requiredDynamicOffsets = 0
+        logger.debug("Ubo position: ${this.uboOffsets.position()}")
 
         pipeline.descriptorSpecs.entries.sortedBy { it.value.set }.forEachIndexed { i, (name, _) ->
             val dsName = if (name.startsWith("ShaderParameters")) {
                 "ShaderParameters-${pass.name}"
             } else if (name.startsWith("Inputs")) {
-                "inputs-${pass.name}"
+                "input-${pass.name}-${name.substringAfter("-")}"
             } else if (name.startsWith("Matrices")) {
                 val offsets = sceneUBOs.first().rendererMetadata()!!.UBOs["Matrices"]!!.second.offsets
                 this.uboOffsets.put(offsets)
                 requiredDynamicOffsets += 3
 
                 "Matrices"
-            } else {
-                if (name.startsWith("LightParameters")) {
-                    this.uboOffsets.put(0)
-                    requiredDynamicOffsets++
-                }
+            } else if (name.startsWith("LightParameters")) {
+                logger.debug("Adding dynamic offset for LightParameters")
+                this.uboOffsets.put(0)
+                this.uboOffsets.put(0)
+                requiredDynamicOffsets++
 
+                name
+            }
+
+            else {
                 name
             }
 
@@ -2666,8 +2677,10 @@ open class VulkanRenderer(hub: Hub,
             }
         }
 
-        this.uboOffsets.limit(requiredDynamicOffsets)
-        this.uboOffsets.position(0)
+        logger.debug("${pass.name}: Requires $requiredDynamicOffsets dynamic offsets")
+//        this.uboOffsets.limit(requiredDynamicOffsets)
+//        this.uboOffsets.position(0)
+        this.uboOffsets.flip()
 
         return requiredDynamicOffsets
     }

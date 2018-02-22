@@ -20,7 +20,7 @@ class PBLExample: SceneryBase("PBLExample", windowWidth = 1280, windowHeight = 7
         val rowSize = 10f
         val spheres = (0 until 100).map {
             val s = Sphere(0.4f, 80)
-            s.position = GLVector(floor(it / rowSize), (it % rowSize.toInt()).toFloat(), -4.0f) - GLVector((rowSize - 1.0f)/2.0f, (rowSize - 1.0f)/2.0f, 0.0f)
+            s.position = GLVector(floor(it / rowSize), (it % rowSize.toInt()).toFloat(), 0.0f) - GLVector((rowSize - 1.0f)/2.0f, (rowSize - 1.0f)/2.0f, 0.0f)
             s.material.roughness = (it / rowSize)/rowSize
             s.material.metallic = (it % rowSize.toInt())/rowSize
             s.material.diffuse = GLVector(1.0f, 0.0f, 0.0f)
@@ -30,11 +30,13 @@ class PBLExample: SceneryBase("PBLExample", windowWidth = 1280, windowHeight = 7
 
         spheres.forEach { scene.addChild(it) }
 
-        val lightbox = Box(GLVector(15.0f, 15.0f, 15.0f), insideNormals = true)
+        val lightbox = Box(GLVector(25.0f, 25.0f, 25.0f), insideNormals = true)
         lightbox.name = "Lightbox"
-        lightbox.material.diffuse = GLVector(0.3f, 0.3f, 0.3f)
+        lightbox.material.diffuse = GLVector(0.1f, 0.1f, 0.1f)
         lightbox.material.roughness = 1.0f
         lightbox.material.metallic = 0.0f
+        lightbox.material.doubleSided = true
+        lightbox.material.cullingMode = Material.CullingMode.None
         scene.addChild(lightbox)
 
         val lights = (0 until 8).map {
@@ -57,13 +59,13 @@ class PBLExample: SceneryBase("PBLExample", windowWidth = 1280, windowHeight = 7
         stageLight.position = GLVector(0.0f, 0.0f, -5.0f)
         scene.addChild(stageLight)
 
-        val cameraLight = PointLight(radius = 10.0f)
+        val cameraLight = PointLight(radius = 5.0f)
         cameraLight.name = "CameraLight"
         cameraLight.intensity = 25.0f
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
-            position = GLVector(0.0f, 0.2f, 7.5f)
+            position = GLVector(0.0f, 0.2f, 12.0f)
             perspectiveCamera(50.0f, windowWidth.toFloat(), windowHeight.toFloat())
             active = true
 
@@ -71,6 +73,11 @@ class PBLExample: SceneryBase("PBLExample", windowWidth = 1280, windowHeight = 7
         }
 
         cam.addChild(cameraLight)
+    }
+
+    override fun inputSetup() {
+        super.inputSetup()
+        setupCameraModeSwitching()
     }
 
     @Test override fun main() {
