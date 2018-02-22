@@ -41,7 +41,8 @@ fun RenderConfigReader.RenderConfig.createRenderpassFlow(): List<String> {
     dag.add(start.key)
 
     while(inputs != null) {
-        passes.filter { it.value.output == inputs!!.first().substringBefore(".") }.entries.forEach {
+//        passes.filter { it.value.output == inputs!!.first().substringBefore(".") }.entries.forEach {
+        passes.filter { inputs!!.map { it.substringBefore(".") }.contains(it.value.output) }.entries.forEach {
             inputs = if (it.value.inputs == null) {
                 null
             } else {
@@ -52,7 +53,7 @@ fun RenderConfigReader.RenderConfig.createRenderpassFlow(): List<String> {
         }
     }
 
-    return dag.reversed()
+    return dag.reversed().toSet().toList()
 }
 
 class RenderConfigReader {
@@ -132,10 +133,13 @@ class RenderConfigReader {
         RGB_Float16,
         RG_Float32,
         RG_Float16,
+        R_Float16,
         Depth24,
         Depth32,
         RGBA_UInt8,
-        RGBA_UInt16
+        RGBA_UInt16,
+        R_UInt16,
+        R_UInt8
     }
 
     fun loadFromFile(path: String): RenderConfig {
