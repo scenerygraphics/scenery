@@ -19,7 +19,7 @@ class PBLExample: SceneryBase("PBLExample", windowWidth = 1280, windowHeight = 7
 
         val rowSize = 10f
         val spheres = (0 until 100).map {
-            val s = Sphere(0.4f, 80)
+            val s = Icosphere(0.4f, 2)
             s.position = GLVector(floor(it / rowSize), (it % rowSize.toInt()).toFloat(), 0.0f) - GLVector((rowSize - 1.0f)/2.0f, (rowSize - 1.0f)/2.0f, 0.0f)
             s.material.roughness = (it / rowSize)/rowSize
             s.material.metallic = (it % rowSize.toInt())/rowSize
