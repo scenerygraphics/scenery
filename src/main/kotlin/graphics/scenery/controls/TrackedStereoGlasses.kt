@@ -175,6 +175,7 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
      * @return HMD pose as GLMatrix
      */
     override fun getPose(): GLMatrix {
+        @Suppress("UNUSED_VARIABLE")
         val trackerOrientation = vrpnTracker.getOrientation()
         val trackerPos = vrpnTracker.getPosition()
 

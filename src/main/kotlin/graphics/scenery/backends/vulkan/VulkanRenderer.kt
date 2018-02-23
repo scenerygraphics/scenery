@@ -904,6 +904,8 @@ open class VulkanRenderer(hub: Hub,
                                     val blendStates = pipeline.colorBlendState.pAttachments()
                                     for (attachment in 0 until (blendStates?.capacity() ?: 0)) {
                                         val state = blendStates?.get(attachment)
+
+                                        @Suppress("SENSELESS_COMPARISON")
                                         if (state != null) {
                                             state.blendEnable(true)
                                                 .colorBlendOp(colorBlending.toVulkan())
@@ -1176,9 +1178,13 @@ open class VulkanRenderer(hub: Hub,
                 }
             }
 
-            attributeDesc?.get(0)?.binding(0)?.location(0)?.format(VK_FORMAT_R32G32B32_SFLOAT)?.offset(0)
+            attributeDesc?.let {
+                if(it.capacity() > 0) {
+                    it.get(0).binding(0).location(0).format(VK_FORMAT_R32G32B32_SFLOAT).offset(0)
+                }
+            }
 
-            val bindingDesc = if (attributeDesc != null) {
+            val bindingDesc: VkVertexInputBindingDescription.Buffer? = if (attributeDesc != null) {
                 VkVertexInputBindingDescription.calloc(1)
                     .binding(0)
                     .stride(stride * 4)
@@ -1701,13 +1707,6 @@ open class VulkanRenderer(hub: Hub,
             }, useDiscoveryBarriers = true)
         }
 
-        val allObjects = async {
-            scene.discover(scene, { n ->
-                n is HasGeometry
-                    && n.visible
-            }, useDiscoveryBarriers = false)
-        }
-
         // check whether scene is already initialized
         if (scene.children.count() == 0 || !scene.initialized) {
             initializeScene()
@@ -1737,7 +1736,7 @@ open class VulkanRenderer(hub: Hub,
         }
 
         val startUboUpdate = System.nanoTime()
-        updateDefaultUBOs(device, sceneObjects)
+        updateDefaultUBOs(device)
         stats?.add("Renderer.updateUBOs", System.nanoTime() - startUboUpdate)
 
         val startInstanceUpdate = System.nanoTime()
@@ -2682,26 +2681,17 @@ open class VulkanRenderer(hub: Hub,
         }
 
         logger.debug("${pass.name}: Requires $requiredDynamicOffsets dynamic offsets")
-//        this.uboOffsets.limit(requiredDynamicOffsets)
-//        this.uboOffsets.position(0)
         this.uboOffsets.flip()
 
         return requiredDynamicOffsets
     }
 
     private fun updateInstanceBuffers(sceneObjects: Deferred<List<Node>>) = runBlocking {
-//        if(instancesUpdated) {
-//            return@runBlocking
-//        }
-        val start = System.nanoTime()
-
         val instanceMasters = sceneObjects.await().filter { it.instanceMaster }
 
         instanceMasters.forEach { parent ->
             updateInstanceBuffer(device, parent, parent.rendererMetadata()!!)
         }
-
-//        logger.info("Update: Took ${(System.nanoTime()-start)/10e6}ms")
     }
 
     fun GLMatrix.applyVulkanCoordinateSystem(): GLMatrix {
@@ -2719,7 +2709,7 @@ open class VulkanRenderer(hub: Hub,
         }
     }
 
-    private fun updateDefaultUBOs(device: VulkanDevice, sceneObjects: Deferred<List<Node>>) = runBlocking {
+    private fun updateDefaultUBOs(device: VulkanDevice) = runBlocking {
         // find observer, if none, return
         val cam = scene.findObserver() ?: return@runBlocking
 
@@ -2808,7 +2798,7 @@ open class VulkanRenderer(hub: Hub,
 
         buffers["LightParametersBuffer"]!!.reset()
 
-        val lights = sceneObjects.await().filter { node -> node is PointLight }
+        // val lights = sceneObjects.await().filter { node -> node is PointLight }
 
         val lightUbo = VulkanUBO(device, backingBuffer = buffers["LightParametersBuffer"]!!)
         lightUbo.add("ViewMatrix", { cam.view })

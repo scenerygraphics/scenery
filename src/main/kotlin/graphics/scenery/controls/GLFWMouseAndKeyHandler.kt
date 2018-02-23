@@ -232,6 +232,7 @@ open class GLFWMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandlerB
      *
      * @param[e] The incoming MouseEvent
      */
+    @Suppress("UNUSED_PARAMETER")
     fun mouseEntered(e: MouseEvent) {
         update()
     }
@@ -241,6 +242,7 @@ open class GLFWMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandlerB
      *
      * @param[e] The incoming MouseEvent
      */
+    @Suppress("UNUSED_PARAMETER")
     fun mouseClicked(e: MouseEvent) {
         update()
 
@@ -327,6 +329,7 @@ open class GLFWMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandlerB
      *
      * @param[e] The incoming mouse event
      */
+    @Suppress("UNUSED_PARAMETER")
     fun mouseExited(e: MouseEvent) {
         update()
     }
@@ -440,6 +443,7 @@ open class GLFWMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandlerB
      *
      * @param[e] The incoming window update event
      */
+    @Suppress("UNUSED_PARAMETER")
     fun windowLostFocus(e: WindowEvent?) {
         pressedKeys.clear()
         shiftPressed = false
@@ -452,6 +456,7 @@ open class GLFWMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandlerB
      *
      * @param[e] The incoming window update event
      */
+    @Suppress("UNUSED_PARAMETER")
     fun windowGainedFocus(e: WindowEvent?) {
         pressedKeys.clear()
         shiftPressed = false

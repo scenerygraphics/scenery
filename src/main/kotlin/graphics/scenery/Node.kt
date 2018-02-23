@@ -136,7 +136,8 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
 
     val instances = CopyOnWriteArrayList<Node>()
 
-    protected fun <R> propertyChanged(property: KProperty<*>, old: R, new: R): Unit {
+    @Suppress("UNUSED_PARAMETER")
+    protected fun <R> propertyChanged(property: KProperty<*>, old: R, new: R) {
         if(property.name == "rotation" || property.name == "position" || property.name  == "scale") {
             needsUpdate = true
             needsUpdateWorld = true

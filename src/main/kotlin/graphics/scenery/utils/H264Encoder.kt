@@ -63,7 +63,6 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, f
     }
 
     init {
-        var ret = 0
         if(logger.isDebugEnabled) {
             av_log_set_level(AV_LOG_TRACE)
         } else {
@@ -81,7 +80,7 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, f
             "mp4".to(av_guess_format("mp4", null, null))
         }
 
-        ret = avformat_alloc_output_context2(outputContext, format.second, format.first, outputFile)
+        var ret = avformat_alloc_output_context2(outputContext, format.second, format.first, outputFile)
         if(ret < 0) {
             logger.error("Could not allocate output context: $ret")
         }

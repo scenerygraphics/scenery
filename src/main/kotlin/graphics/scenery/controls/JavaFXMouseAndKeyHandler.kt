@@ -77,6 +77,7 @@ open class JavaFXMouseAndKeyHandler(protected var hub: Hub?, protected var panel
      *
      * @param[e] The input event to evaluate.
      */
+    @Suppress("UNUSED_PARAMETER")
     private fun getMask(e: GestureEvent): Int {
         var mask = 0
 
@@ -143,6 +144,7 @@ open class JavaFXMouseAndKeyHandler(protected var hub: Hub?, protected var panel
         return mask
     }
 
+    @Suppress("UNUSED_PARAMETER")
     private fun getMask(e: KeyEvent): Int {
         var mask = 0
 
@@ -185,6 +187,7 @@ open class JavaFXMouseAndKeyHandler(protected var hub: Hub?, protected var panel
      *
      * @param[e] The incoming MouseEvent
      */
+    @Suppress("UNUSED_PARAMETER")
     fun mouseEntered(e: MouseEvent) {
         update()
     }
@@ -271,6 +274,7 @@ open class JavaFXMouseAndKeyHandler(protected var hub: Hub?, protected var panel
      *
      * @param[e] The incoming mouse event
      */
+    @Suppress("UNUSED_PARAMETER")
     fun mouseExited(e: MouseEvent) {
         update()
     }
@@ -300,6 +304,7 @@ open class JavaFXMouseAndKeyHandler(protected var hub: Hub?, protected var panel
      *
      * @param[e] The incoming keyboard event
      */
+    @Suppress("DEPRECATION")
     fun keyPressed(e: KeyEvent) {
         update()
 
@@ -350,6 +355,7 @@ open class JavaFXMouseAndKeyHandler(protected var hub: Hub?, protected var panel
      *
      * @param[e] The incoming keyboard event
      */
+    @Suppress("DEPRECATION")
     fun keyReleased(e: KeyEvent) {
         update()
 

@@ -137,7 +137,7 @@ open class SceneryBase(var applicationName: String,
                 val subscriber = NodeSubscriber(hub, masterAddress)
 
                 hub.add(SceneryElement.NodeSubscriber, subscriber)
-                scene.discover(scene, { it is Node }).forEachIndexed { index, node ->
+                scene.discover(scene, { true }).forEachIndexed { index, node ->
                     subscriber.nodes.put(index, node)
                 }
 
@@ -150,7 +150,7 @@ open class SceneryBase(var applicationName: String,
             thread {
                 publisher?.let {
                     hub.add(SceneryElement.NodePublisher, it)
-                    scene.discover(scene, { it is Node }).forEachIndexed { index, node ->
+                    scene.discover(scene, { true }).forEachIndexed { index, node ->
                         publisher.nodes.put(index, node)
                     }
                 }
