@@ -289,7 +289,7 @@ open class VulkanRenderer(hub: Hub,
     /** Cache for [SDFFontAtlas]es used for font rendering */
     protected var fontAtlas = HashMap<String, SDFFontAtlas>()
 
-    protected val validation = java.lang.Boolean.parseBoolean(System.getProperty("scenery.VulkanRenderer.EnableValidations", "false"))
+    protected var validation = java.lang.Boolean.parseBoolean(System.getProperty("scenery.VulkanRenderer.EnableValidations", "false"))
     protected val strictValidation = java.lang.Boolean.parseBoolean(System.getProperty("scenery.VulkanRenderer.StrictValidation", "false"))
     protected val wantsOpenGLSwapchain = java.lang.Boolean.parseBoolean(System.getProperty("scenery.VulkanRenderer.UseOpenGLSwapchain", "false"))
     protected val defaultValidationLayers = arrayOf("VK_LAYER_LUNARG_standard_validation")
@@ -383,6 +383,10 @@ open class VulkanRenderer(hub: Hub,
 
         logger.info("Loaded ${renderConfig.name} (${renderConfig.description ?: "no description"})")
 
+        if(System.getenv("ENABLE_VULKAN_RENDERDOC_CAPTURE").toInt() == 1 && validation) {
+            logger.warn("Validation Layers requested, but Renderdoc capture and Validation Layers are mutually incompatible. Disabling validations layers.")
+            validation = false
+        }
 
         // explicitly create VK, to make GLFW pick up MoltenVK on OS X
         try {
@@ -404,12 +408,12 @@ open class VulkanRenderer(hub: Hub,
 
         // Create the Vulkan instance
         instance = createInstance(requiredExtensions)
-        if(validation) {
-            debugCallbackHandle = setupDebugging(instance,
+        debugCallbackHandle = if(validation) {
+            setupDebugging(instance,
                 VK_DEBUG_REPORT_ERROR_BIT_EXT or VK_DEBUG_REPORT_WARNING_BIT_EXT,
                 debugCallback)
         } else {
-            debugCallbackHandle = -1L
+            -1L
         }
 
         val requestedValidationLayers = if(validation) {
