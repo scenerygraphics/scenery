@@ -1,8 +1,12 @@
 package graphics.scenery
 
+import cleargl.GLVector
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.util.*
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
  * Constructs a sphere with the given [radius] and number of [segments].
@@ -11,7 +15,7 @@ import java.util.*
  * @param[radius] The radius of the sphere
  * @param[segments] Number of segments in latitude and longitude.
  */
-class Sphere(val radius: Float, val segments: Int) : Node("sphere"), HasGeometry {
+open class Sphere(val radius: Float, val segments: Int) : Node("sphere"), HasGeometry {
     override val vertexSize = 3
     override val texcoordSize = 2
     override var geometryType = GeometryType.TRIANGLE_STRIP
@@ -22,24 +26,24 @@ class Sphere(val radius: Float, val segments: Int) : Node("sphere"), HasGeometry
     override var indices: IntBuffer = BufferUtils.allocateInt(0)
 
     init {
-        var vbuffer = ArrayList<Float>(segments*segments*2*3)
-        var nbuffer = ArrayList<Float>(segments*segments*2*3)
-        var tbuffer = ArrayList<Float>(segments*segments*2*2)
+        val vbuffer = ArrayList<Float>(segments*segments*2*3)
+        val nbuffer = ArrayList<Float>(segments*segments*2*3)
+        val tbuffer = ArrayList<Float>(segments*segments*2*2)
 
         for (i: Int in 0..segments) {
-            val lat0: Float = Math.PI.toFloat() * (-0.5f + (i-1).toFloat() / segments.toFloat())
-            val lat1: Float = Math.PI.toFloat() * (-0.5f + i.toFloat() / segments.toFloat())
+            val lat0: Float = PI.toFloat() * (-0.5f + (i-1.0f) / segments)
+            val lat1: Float = PI.toFloat() * (-0.5f + 1.0f*i / segments)
 
-            val z0 = Math.sin(lat0.toDouble()).toFloat()
-            val z1 = Math.sin(lat1.toDouble()).toFloat()
+            val z0: Float = sin(lat0)
+            val z1: Float = sin(lat1)
 
-            val zr0 = Math.cos(lat0.toDouble()).toFloat()
-            val zr1 = Math.cos(lat1.toDouble()).toFloat()
+            val zr0: Float = cos(lat0)
+            val zr1: Float = cos(lat1)
 
             for (j: Int in 0..segments) {
-                val lng = 2 * Math.PI.toFloat() * (j - 1) / segments
-                val x = Math.cos(lng.toDouble()).toFloat()
-                val y = Math.sin(lng.toDouble()).toFloat()
+                val lng: Float = 2 * PI.toFloat() * (j - 1) / segments
+                val x: Float = cos(lng)
+                val y: Float = sin(lng)
 
                 vbuffer.add(x * zr1 * radius)
                 vbuffer.add(y * zr1 * radius)
@@ -49,13 +53,16 @@ class Sphere(val radius: Float, val segments: Int) : Node("sphere"), HasGeometry
                 vbuffer.add(y * zr0 * radius)
                 vbuffer.add(z0 * radius)
 
-                nbuffer.add(x)
-                nbuffer.add(y)
-                nbuffer.add(z1)
+                val normal0 = GLVector(x * zr0 * radius, y * zr0 * radius, z0 * radius).normalize()
+                val normal1 = GLVector(x * zr1 * radius, y * zr1 * radius, z1 * radius).normalize()
 
-                nbuffer.add(x)
-                nbuffer.add(y)
-                nbuffer.add(z0)
+                nbuffer.add(normal0.x())
+                nbuffer.add(normal0.y())
+                nbuffer.add(normal0.z())
+
+                nbuffer.add(normal1.x())
+                nbuffer.add(normal1.y())
+                nbuffer.add(normal1.z())
 
                 tbuffer.add(0.0f)
                 tbuffer.add(0.0f)

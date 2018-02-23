@@ -97,7 +97,7 @@ open class JavaFXMouseAndKeyHandler(protected var hub: Hub?, protected var panel
         }
 
         if (winPressed) {
-            System.err.println("Windows key not supported")
+            logger.warn("Windows key not supported")
         }
 
         return mask
@@ -119,7 +119,7 @@ open class JavaFXMouseAndKeyHandler(protected var hub: Hub?, protected var panel
         }
 
         if (winPressed) {
-            System.err.println("Windows key not supported")
+            logger.warn("Windows key not supported")
         }
 
         if (e.isPrimaryButtonDown) {
@@ -159,7 +159,7 @@ open class JavaFXMouseAndKeyHandler(protected var hub: Hub?, protected var panel
         }
 
         if (winPressed) {
-            System.err.println("Windows key not supported")
+            logger.warn("Windows key not supported")
         }
 
         return mask

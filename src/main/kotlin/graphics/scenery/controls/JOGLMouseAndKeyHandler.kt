@@ -62,7 +62,7 @@ open class JOGLMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandlerB
         }
 
         if (winPressed) {
-            System.err.println("Windows key not supported")
+            logger.warn("Windows key not supported")
         }
 
         /*
