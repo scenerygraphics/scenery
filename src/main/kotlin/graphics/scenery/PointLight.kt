@@ -20,6 +20,7 @@ class PointLight(radius: Float = 0.5f) : Mesh("PointLight") {
     @ShaderProperty var emissionColor: GLVector = GLVector(1.0f, 1.0f, 1.0f)
 
     /** Maximum radius in world units */
+    @Suppress("unused") // will be serialised into ShaderProperty buffer
     @ShaderProperty var lightRadius: Float = radius
         set(value) {
             if(value != lightRadius) {
@@ -43,9 +44,11 @@ class PointLight(radius: Float = 0.5f) : Mesh("PointLight") {
     /** Quadratic falloff of the light. */
     var quadratic: Float = 2.7f
 
+    @Suppress("unused") // will be serialised into ShaderProperty buffer
     @ShaderProperty val worldPosition
         get() = this.world.mult(GLVector(position.x(), position.y(), position.z(), 1.0f))
 
+    @Suppress("unused") // will be serialised into ShaderProperty buffer
     @ShaderProperty var debugMode = 0
 
     init {
