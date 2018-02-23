@@ -24,7 +24,7 @@ open class Settings(override var hub: Hub? = null) : Hubable {
         if(!settingsStore.containsKey(name)) {
             logger.warn("WARNING: Settings don't contain '$name'")
         }
-        return settingsStore.get(name) as T
+        return settingsStore[name] as T
     }
 
     /**
@@ -34,11 +34,11 @@ open class Settings(override var hub: Hub? = null) : Hubable {
      * @param[type] Class of the setting to fetch.
      * @return The setting, if found.
      */
-    fun <T> getProperty(name: String, type: Class<T>): T{
+    fun <T> getProperty(name: String): T{
         if(!settingsStore.containsKey(name)) {
             logger.warn("WARNING: Settings don't contain '$name'")
         }
-        return settingsStore.get(name) as T
+        return settingsStore[name] as T
     }
 
     /**

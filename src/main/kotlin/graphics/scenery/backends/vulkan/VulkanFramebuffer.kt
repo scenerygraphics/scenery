@@ -452,7 +452,7 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
                 .layout(VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
         }
 
-        val depthDescs = if(attachments.any { it.value.type == VulkanFramebufferType.DEPTH_ATTACHMENT }) {
+        val depthDescs: VkAttachmentReference? = if(attachments.any { it.value.type == VulkanFramebufferType.DEPTH_ATTACHMENT }) {
             VkAttachmentReference.calloc()
                 .attachment(colorDescs.limit())
                 .layout(VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)

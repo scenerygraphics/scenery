@@ -471,9 +471,12 @@ class OpenGLRenderer(hub: Hub,
 
                             RenderConfigReader.TargetFormat.RG_Float32 -> framebuffer.addFloatRGBuffer(gl, att.key, 32)
                             RenderConfigReader.TargetFormat.RG_Float16 -> framebuffer.addFloatRGBuffer(gl, att.key, 16)
+                            RenderConfigReader.TargetFormat.R_Float16 -> framebuffer.addFloatRBuffer(gl, att.key, 16)
 
                             RenderConfigReader.TargetFormat.RGBA_UInt16 -> framebuffer.addUnsignedByteRGBABuffer(gl, att.key, 16)
                             RenderConfigReader.TargetFormat.RGBA_UInt8 -> framebuffer.addUnsignedByteRGBABuffer(gl, att.key, 8)
+                            RenderConfigReader.TargetFormat.R_UInt16 -> framebuffer.addUnsignedByteRBuffer(gl, att.key, 16)
+                            RenderConfigReader.TargetFormat.R_UInt8 -> framebuffer.addUnsignedByteRBuffer(gl, att.key, 8)
 
                             RenderConfigReader.TargetFormat.Depth32 -> framebuffer.addDepthBuffer(gl, att.key, 32)
                             RenderConfigReader.TargetFormat.Depth24 -> framebuffer.addDepthBuffer(gl, att.key, 24)
@@ -821,7 +824,7 @@ class OpenGLRenderer(hub: Hub,
         }
     }
 
-    @Synchronized fun updateDefaultUBOs(sceneObjects: List<Node>) {
+    @Synchronized fun updateDefaultUBOs() {
         // find observer, if none, return
         val cam = scene.findObserver() ?: return
 
@@ -896,7 +899,7 @@ class OpenGLRenderer(hub: Hub,
 
         buffers["LightParameters"]!!.reset()
 
-        val lights = sceneObjects.filter { it is PointLight }
+//        val lights = sceneObjects.filter { it is PointLight }
 
         val lightUbo = OpenGLUBO(backingBuffer = buffers["LightParameters"]!!)
         lightUbo.add("ViewMatrix", { cam.view })
@@ -1292,7 +1295,7 @@ class OpenGLRenderer(hub: Hub,
             }, useDiscoveryBarriers = true)
 
         val startUboUpdate = System.nanoTime()
-        updateDefaultUBOs(sceneObjects)
+        updateDefaultUBOs()
         stats?.add("OpenGLRenderer.updateUBOs", System.nanoTime() - startUboUpdate)
 
         val startInstanceUpdate = System.nanoTime()

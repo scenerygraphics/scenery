@@ -108,6 +108,7 @@ open class VulkanTexture(val device: VulkanDevice,
         }
     }
 
+    @Suppress("USELESS_ELVIS", "UNNECESSARY_SAFE_CALL")
     constructor(device: VulkanDevice,
                 commandPool: Long, queue: VkQueue,
                 genericTexture: GenericTexture, mipLevels: Int = 1,
@@ -545,9 +546,10 @@ open class VulkanTexture(val device: VulkanDevice,
             return tex
         }
 
+        @Suppress("UNUSED_PARAMETER")
         fun loadFromFileRaw(device: VulkanDevice,
-                         commandPool: Long, queue: VkQueue,
-                         stream: InputStream, type: String, dimensions: LongArray): VulkanTexture? {
+                            commandPool: Long, queue: VkQueue,
+                            stream: InputStream, type: String, dimensions: LongArray): VulkanTexture? {
             val imageData: ByteBuffer = ByteBuffer.allocateDirect((2 * dimensions[0] * dimensions[1] * dimensions[2]).toInt())
             val buffer = ByteArray(1024*1024)
 
