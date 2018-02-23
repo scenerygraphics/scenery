@@ -16,6 +16,7 @@ interface ExtractsNatives {
         UNKNOWN, WINDOWS, LINUX, MACOS
     }
 
+    companion object {
     /**
      * Returns the platform based on the os.name system property.
      */
@@ -31,6 +32,7 @@ interface ExtractsNatives {
         }
 
         return Platform.UNKNOWN
+    }
     }
 
     /**
