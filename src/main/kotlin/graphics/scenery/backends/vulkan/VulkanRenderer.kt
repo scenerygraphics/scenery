@@ -434,7 +434,7 @@ open class VulkanRenderer(hub: Hub,
 
         logger.debug("Device creation done")
 
-        if(device.deviceData.vendor.toLowerCase().contains("nvidia")) {
+        if(device.deviceData.vendor.toLowerCase().contains("nvidia") && ExtractsNatives.getPlatform() == ExtractsNatives.Platform.WINDOWS) {
             gpuStats = NvidiaGPUStats()
         }
 
