@@ -457,7 +457,7 @@
         <dependency>
             <groupId>org.zeromq</groupId>
             <artifactId>jeromq</artifactId>
-            <version>0.3.5</version>
+            <version>0.4.3</version>
         </dependency>
         <!-- ZeroMQ dependencies end -->
 
@@ -465,6 +465,12 @@
             <groupId>com.esotericsoftware</groupId>
             <artifactId>kryo</artifactId>
             <version>4.0.1</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.msgpack</groupId>
+            <artifactId>msgpack-core</artifactId>
+            <version>0.8.14</version>
         </dependency>
 
         <dependency>
