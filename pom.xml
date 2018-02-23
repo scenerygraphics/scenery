@@ -474,6 +474,12 @@
         </dependency>
 
         <dependency>
+            <groupId>org.msgpack</groupId>
+            <artifactId>jackson-dataformat-msgpack</artifactId>
+            <version>0.8.14</version>
+        </dependency>
+
+        <dependency>
             <groupId>graphics.scenery</groupId>
             <artifactId>jvrpn</artifactId>
             <version>${jvrpn.version}</version>
