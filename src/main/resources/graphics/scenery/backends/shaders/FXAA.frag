@@ -10,7 +10,7 @@
  * @author Ulrik Günther <hello@ulrik.is>
  */
 
-layout(set = 0, binding = 0) uniform sampler2D InputHDRBuffer;
+layout(set = 0, binding = 0) uniform sampler2D InputColor;
 
 layout(set = 1, binding = 0, std140) uniform ShaderParameters {
     int activateFXAA;
@@ -31,7 +31,7 @@ layout(location = 0) in vec2 textureCoord;
 void main()
 {
 
-    vec3 sampleCenter = texture(InputHDRBuffer, textureCoord).rgb;
+    vec3 sampleCenter = texture(InputColor, textureCoord).rgb;
 
     if(params.activateFXAA == 0) {
 	    FragColor = vec4(sampleCenter, 1.0);
@@ -39,10 +39,10 @@ void main()
     }
 
     // sample 4-neighborhood of current texture coord
-    vec3 sampleNW = textureOffset(InputHDRBuffer, textureCoord, ivec2(-1, 1)).rgb;
-    vec3 sampleNE = textureOffset(InputHDRBuffer, textureCoord, ivec2(1, 1)).rgb;
-    vec3 sampleSW = textureOffset(InputHDRBuffer, textureCoord, ivec2(-1, -1)).rgb;
-    vec3 sampleSE = textureOffset(InputHDRBuffer, textureCoord, ivec2(1, -1)).rgb;
+    vec3 sampleNW = textureOffset(InputColor, textureCoord, ivec2(-1, 1)).rgb;
+    vec3 sampleNE = textureOffset(InputColor, textureCoord, ivec2(1, 1)).rgb;
+    vec3 sampleSW = textureOffset(InputColor, textureCoord, ivec2(-1, -1)).rgb;
+    vec3 sampleSE = textureOffset(InputColor, textureCoord, ivec2(1, -1)).rgb;
 
     // convert all samples to luma representation
     const vec3 rgbToLuma = vec3(0.299, 0.587, 0.114);
@@ -74,13 +74,13 @@ void main()
         vec2(-params.maxSpan, -params.maxSpan),
         vec2(params.maxSpan, params.maxSpan)) * texelStep;
 
-    vec3 sampleNegative = texture(InputHDRBuffer, textureCoord + sampleDirection * (1.0/3.0 - 0.5)).rgb;
-    vec3 samplePositive = texture(InputHDRBuffer, textureCoord + sampleDirection * (2.0/3.0 - 0.5)).rgb;
+    vec3 sampleNegative = texture(InputColor, textureCoord + sampleDirection * (1.0/3.0 - 0.5)).rgb;
+    vec3 samplePositive = texture(InputColor, textureCoord + sampleDirection * (2.0/3.0 - 0.5)).rgb;
 
     vec3 twoTab = (samplePositive + sampleNegative) * 0.5;
 
-    vec3 sampleNegativeOuter = texture(InputHDRBuffer, textureCoord + sampleDirection * (0.0/3.0 - 0.5)).rgb;
-    vec3 samplePositiveOuter = texture(InputHDRBuffer, textureCoord + sampleDirection * (3.0/3.0 - 0.5)).rgb;
+    vec3 sampleNegativeOuter = texture(InputColor, textureCoord + sampleDirection * (0.0/3.0 - 0.5)).rgb;
+    vec3 samplePositiveOuter = texture(InputColor, textureCoord + sampleDirection * (3.0/3.0 - 0.5)).rgb;
 
     vec3 fourTab = (samplePositiveOuter + sampleNegativeOuter) * 0.25 + twoTab * 0.5;
 

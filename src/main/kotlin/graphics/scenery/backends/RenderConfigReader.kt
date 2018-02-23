@@ -41,18 +41,19 @@ fun RenderConfigReader.RenderConfig.createRenderpassFlow(): List<String> {
     dag.add(start.key)
 
     while(inputs != null) {
-        passes.filter { it.value.output == inputs!!.first() }.entries.forEach {
-            if (it.value.inputs == null) {
-                inputs = null
+//        passes.filter { it.value.output == inputs!!.first().substringBefore(".") }.entries.forEach {
+        passes.filter { inputs!!.map { it.substringBefore(".") }.contains(it.value.output) }.entries.forEach {
+            inputs = if (it.value.inputs == null) {
+                null
             } else {
-                inputs = it.value.inputs!!
+                it.value.inputs!!
             }
 
-            dag.add(it.key)
+            dag.add(it.key.substringBefore("."))
         }
     }
 
-    return dag.reversed()
+    return dag.reversed().toSet().toList()
 }
 
 class RenderConfigReader {
@@ -85,6 +86,7 @@ class RenderConfigReader {
 
     data class RenderConfig(
         var name: String,
+        var sRGB: Boolean = false,
         var description: String?,
         var stereoEnabled: Boolean = false,
         var rendertargets: Map<String, Map<String, AttachmentConfig>>?,
@@ -98,6 +100,8 @@ class RenderConfigReader {
         var type: RenderpassType,
         var blitInputs: Boolean = false,
         var renderTransparent: Boolean = false,
+        var depthTestEnabled: Boolean = true,
+        var depthWriteEnabled: Boolean = true,
         var order: RenderOrder = RenderOrder.BackToFront,
         var renderOpaque: Boolean = true,
         var colorBlendOp: Blending.BlendOp = Blending.BlendOp.add,
@@ -118,7 +122,7 @@ class RenderConfigReader {
         @JsonDeserialize(using = VREyeDeserializer::class) var eye: Int = -1
     )
 
-    enum class RenderpassType { geometry, quad }
+    enum class RenderpassType { geometry, quad, lights }
 
     enum class RenderOrder { DontCare, BackToFront, FrontToBack }
 
@@ -129,10 +133,13 @@ class RenderConfigReader {
         RGB_Float16,
         RG_Float32,
         RG_Float16,
+        R_Float16,
         Depth24,
         Depth32,
         RGBA_UInt8,
-        RGBA_UInt16
+        RGBA_UInt16,
+        R_UInt16,
+        R_UInt8
     }
 
     fun loadFromFile(path: String): RenderConfig {

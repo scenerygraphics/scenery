@@ -135,7 +135,8 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
     }
 
     fun initializeInputAttachmentDescriptorSetLayouts() {
-        inputs.forEach { inputFramebuffer ->
+        var input = 0
+        inputs.entries.reversed().forEach { inputFramebuffer ->
             // create descriptor set layout that matches the render target
             val dsl = VU.createDescriptorSetLayout(device,
                 descriptorNum = inputFramebuffer.value.attachments.count(),
@@ -145,8 +146,10 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
 
             val ds = inputFramebuffer.value.outputDescriptorSet
 
-            descriptorSetLayouts.put("inputs-${this.name}", dsl)
-            descriptorSets.put("inputs-${this.name}", ds)
+            logger.debug("${this.name}: Creating input descriptor set for ${inputFramebuffer.key}, input-${this.name}-$input")
+            descriptorSetLayouts.put("input-${this.name}-$input", dsl)?.let { oldDSL -> vkDestroyDescriptorSetLayout(device.vulkanDevice, oldDSL, null) }
+            descriptorSets.put("input-${this.name}-$input", ds)
+            input++
         }
     }
 
@@ -245,7 +248,7 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
         // returns a ordered list of the members of the ShaderProperties struct
         return shaderPropertiesSpec
             .flatMap { it.values }
-            .map { it.name.to(it.offset.toInt()) }
+            .map { it.name to it.offset.toInt() }
             .toMap()
     }
 
@@ -307,6 +310,10 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
             .pNext(MemoryUtil.NULL)
             .pAttachments(blendMasks)
 
+        p.depthStencilState
+            .depthTestEnable(passConfig.depthTestEnabled)
+            .depthWriteEnable(passConfig.depthWriteEnabled)
+
         p.descriptorSpecs.entries
             .sortedBy { it.value.binding }
             .sortedBy { it.value.set }
@@ -337,7 +344,8 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
                     onlyForTopology = GeometryType.TRIANGLES)
             }
 
-            RenderConfigReader.RenderpassType.geometry -> {
+            RenderConfigReader.RenderpassType.geometry,
+            RenderConfigReader.RenderpassType.lights -> {
                 p.createPipelines(this, framebuffer.renderPass.get(0),
                     vertexInputType.state,
                     descriptorSetLayouts = reqDescriptorLayouts)
@@ -346,7 +354,7 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
 
         logger.debug("Prepared pipeline $pipelineName for $name")
 
-        pipelines.put(pipelineName, p)
+        pipelines.put(pipelineName, p)?.close()
     }
 
     private fun initializeDescriptorSetLayoutForSpec(spec: VulkanShaderModule.UBOSpec): Long {
@@ -361,10 +369,10 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
 
             spec.name.startsWith("Input") -> (0..spec.members.size-1).map { Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1) }.toList()
 
-            spec.name == "ShaderParameters" && passConfig.type == RenderConfigReader.RenderpassType.geometry -> listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1))
+            spec.name == "ShaderParameters" && (passConfig.type == RenderConfigReader.RenderpassType.geometry || passConfig.type == RenderConfigReader.RenderpassType.lights) -> listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1))
             spec.name == "ShaderParameters" && passConfig.type == RenderConfigReader.RenderpassType.quad -> listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1))
 
-            spec.name == "ShaderProperties" && passConfig.type == RenderConfigReader.RenderpassType.geometry -> listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1))
+            spec.name == "ShaderProperties" && (passConfig.type == RenderConfigReader.RenderpassType.geometry || passConfig.type == RenderConfigReader.RenderpassType.lights) -> listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1))
 
             else -> listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1))
         }
