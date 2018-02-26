@@ -99,13 +99,15 @@ abstract class Renderer : Hubable {
     }
 
     companion object {
-        @JvmOverloads @JvmStatic fun createRenderer(hub: Hub, applicationName: String, scene: Scene, windowWidth: Int, windowHeight: Int, embedIn: SceneryPanel? = null): Renderer {
+        @JvmOverloads @JvmStatic fun createRenderer(hub: Hub, applicationName: String, scene: Scene, windowWidth: Int, windowHeight: Int, embedIn: SceneryPanel? = null, renderConfigFile: String? = null): Renderer {
             val preference = System.getProperty("scenery.Renderer", "OpenGLRenderer")
 
+            val config = renderConfigFile ?: System.getProperty("scenery.Renderer.Config", "DeferredShading.yml")
+
             return if (preference == "VulkanRenderer") {
-                VulkanRenderer(hub, applicationName, scene, windowWidth, windowHeight, embedIn)
+                VulkanRenderer(hub, applicationName, scene, windowWidth, windowHeight, embedIn, config)
             } else {
-                OpenGLRenderer(hub, applicationName, scene, windowWidth, windowHeight, embedIn)
+                OpenGLRenderer(hub, applicationName, scene, windowWidth, windowHeight, embedIn, config)
             }
         }
     }
