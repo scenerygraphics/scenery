@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.KeyDeserializer
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.module.kotlin.readValue
+import graphics.scenery.Node
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.Numerics
 import kotlinx.coroutines.experimental.Job
@@ -163,7 +164,7 @@ class PupilEyeTracker(val host: String = "localhost", val port: Int = 50020) {
         }
     }
 
-    fun calibrate(generateReferenceData: Boolean = false) {
+    fun calibrate(generateReferenceData: Boolean = false, calibrationTarget: Node? = null) {
         subscribe("notify.calibration.successful")
         subscribe("notify.calibration.failed")
         subscribe("pupil.")
@@ -203,6 +204,8 @@ class PupilEyeTracker(val host: String = "localhost", val port: Int = 50020) {
 
             positionList.map { normalizedScreenPos ->
                 logger.info("Dummy subject looking at $normalizedScreenPos")
+
+                calibrationTarget?.position = normalizedScreenPos
 
                 (0 until 60).forEach {
                     val timestamp = getPupilTimestamp()
