@@ -383,7 +383,7 @@ open class VulkanRenderer(hub: Hub,
 
         logger.info("Loaded ${renderConfig.name} (${renderConfig.description ?: "no description"})")
 
-        if(System.getenv("ENABLE_VULKAN_RENDERDOC_CAPTURE").toInt() == 1 && validation) {
+        if(System.getenv("ENABLE_VULKAN_RENDERDOC_CAPTURE")?.toInt() == 1 && validation) {
             logger.warn("Validation Layers requested, but Renderdoc capture and Validation Layers are mutually incompatible. Disabling validations layers.")
             validation = false
         }
