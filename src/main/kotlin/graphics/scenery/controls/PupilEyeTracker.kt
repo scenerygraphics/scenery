@@ -1,10 +1,14 @@
 package graphics.scenery.controls
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import com.fasterxml.jackson.databind.DeserializationContext
+import com.fasterxml.jackson.databind.KeyDeserializer
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.module.SimpleModule
+import com.fasterxml.jackson.module.kotlin.readValue
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.Numerics
 import kotlinx.coroutines.experimental.Job
-import kotlinx.coroutines.experimental.cancelAndJoin
 import kotlinx.coroutines.experimental.launch
 import kotlinx.coroutines.experimental.runBlocking
 import org.msgpack.jackson.dataformat.MessagePackFactory
@@ -26,12 +30,38 @@ class PupilEyeTracker(val host: String = "localhost", val port: Int = 50020) {
     var isCalibrated = false
         private set
 
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    data class Gaze(var confidence: Float = 0.0f,
+                    var topic: String = "gaze",
+                    var timestamp: Float = 0.0f,
+                    var norm_pos: List<Float> = listOf(),
+                    var gaze_point_3d: List<Float> = listOf(),
+                    var eye_centers_3d: HashMap<Int, List<Float>> = hashMapOf(),
+                    var gaze_normals_3d: HashMap<Int, List<Float>> = hashMapOf())
+
+    private var currentPupilDatumLeft = HashMap<Any, Any>()
+    private var currentPupilDatumRight = HashMap<Any, Any>()
+
+    var currentGaze: Gaze? = null
+        private set
+
     init {
         req.connect("tcp://$host:$port")
         req.send("SUB_PORT")
 
         subscriptionPort = req.recvStr().toInt()
         logger.info("Subscription port received as $subscriptionPort")
+
+        val module = SimpleModule()
+        module.addKeyDeserializer(Int::class.java, object : KeyDeserializer() {
+            /**
+             * Method called to deserialize a [java.util.Map] key from JSON property name.
+             */
+            override fun deserializeKey(key: String?, ctxt: DeserializationContext?): Any {
+                return Integer.valueOf(key)
+            }
+        })
+        objectMapper.registerModule(module)
     }
 
     protected fun getPupilTimestamp(): Float {
@@ -44,7 +74,7 @@ class PupilEyeTracker(val host: String = "localhost", val port: Int = 50020) {
         req.send(objectMapper.writeValueAsBytes(dict))
 
         val answer = req.recvStr()
-        logger.info(answer)
+        logger.debug(answer)
         return answer
     }
 
@@ -67,13 +97,52 @@ class PupilEyeTracker(val host: String = "localhost", val port: Int = 50020) {
 
                         if(poller.isReadable(socket)) {
                             val msg = ZMsg.recvMsg(socket)
+                            val msgSize = msg.size
                             val msgType = msg.popString()
-                            logger.info("$topic: Received $msgType, ${msg.size} frames")
+
+                            when(msgType) {
+                                "notify.calibration.successful" -> {
+                                    logger.info("Calibration successful.")
+                                    isCalibrated = true
+                                }
+
+                                "notify.calibration.failed" -> {
+                                    logger.error("Calibration failed.")
+                                }
+
+                                "pupil.0", "pupil.1" -> {
+                                    if(msgType == "gaze") {
+                                        logger.info("$topic: Received $msgType, $msgSize frames")
+                                    }
+                                    val bytes = msg.pop().data
+                                    val dict = objectMapper.readValue<HashMap<Any, Any>>(bytes)
+                                    val confidence = (dict["confidence"] as Double).toFloat()
+                                    val eyeId = dict["id"] as Int
+
+                                    if(confidence > 0.8) {
+                                        when(eyeId) {
+                                            0 -> currentPupilDatumLeft = dict
+                                            1 -> currentPupilDatumRight = dict
+                                        }
+                                    }
+                                }
+
+                                "gaze" -> {
+                                    val bytes = msg.pop().data
+                                    val g = objectMapper.readValue(bytes, Gaze::class.java)
+
+                                    if(g.confidence > 0.6f) {
+                                        currentGaze = g
+                                        logger.debug("Current gaze: {}", g)
+                                    }
+                                }
+                            }
+
                             msg.destroy()
                         }
                     }
                 } finally {
-                    logger.info("Closing topic socket for $topic")
+                    logger.debug("Closing topic socket for $topic")
                     poller.unregister(socket)
                     poller.close()
                     socket.close()
@@ -86,7 +155,7 @@ class PupilEyeTracker(val host: String = "localhost", val port: Int = 50020) {
 
     private fun unsubscribe(topic: String) = runBlocking {
         if(subscriberSockets.containsKey(topic)) {
-            logger.info("Cancelling subscription of $topic")
+            logger.debug("Cancelling subscription of $topic")
             subscriberSockets.get(topic)?.cancel()
             subscriberSockets.get(topic)?.join()
 
@@ -169,13 +238,14 @@ class PupilEyeTracker(val host: String = "localhost", val port: Int = 50020) {
             "subject" to "calibration.should_stop"
         ))
 
-        Thread.sleep(2000)
-
-        logger.info("Calibration successful")
+        Thread.sleep(5000)
 
         unsubscribe("notify.calibration.successful")
         unsubscribe("notify.calibration.failed")
 
-        isCalibrated = true
+        if(isCalibrated) {
+            logger.info("Calibration succeeded, subscribing to gaze data")
+            subscribe("gaze")
+        }
     }
 }
