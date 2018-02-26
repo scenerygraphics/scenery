@@ -59,7 +59,7 @@ class OpenGLRenderer(hub: Hub,
                      width: Int,
                      height: Int,
                      override var embedIn: SceneryPanel? = null,
-                     renderConfigFile: String = System.getProperty("scenery.Renderer.Config", "DeferredShading.yml")) : Renderer(), Hubable, ClearGLEventListener {
+                     renderConfigFile: String) : Renderer(), Hubable, ClearGLEventListener {
     /** slf4j logger */
     private val logger by LazyLogger()
     /** [GL4] instance handed over, coming from [ClearGLDefaultEventListener]*/

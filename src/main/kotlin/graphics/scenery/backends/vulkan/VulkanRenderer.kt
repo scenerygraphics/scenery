@@ -68,7 +68,7 @@ open class VulkanRenderer(hub: Hub,
                           windowWidth: Int,
                           windowHeight: Int,
                           override final var embedIn: SceneryPanel? = null,
-                          renderConfigFile: String = System.getProperty("scenery.Renderer.Config", "DeferredShading.yml")) : Renderer(), AutoCloseable {
+                          renderConfigFile: String) : Renderer(), AutoCloseable {
 
     protected val logger by LazyLogger()
 
