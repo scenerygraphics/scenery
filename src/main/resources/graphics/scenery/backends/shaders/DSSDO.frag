@@ -47,19 +47,22 @@ layout(set = 2, binding = 0, std140) uniform ShaderParameters {
 };
 
 vec3 worldFromDepth(float depth, vec2 texcoord) {
-     mat4 invHeadToEye = vrParameters.headShift;
-     invHeadToEye[0][3] += currentEye.eye * vrParameters.IPD;
+    vec2 uv = (vrParameters.stereoEnabled ^ 1) * texcoord + vrParameters.stereoEnabled * vec2((texcoord.x - 0.5 * currentEye.eye) * 2.0, texcoord.y);
 
- 	mat4 invProjection = (vrParameters.stereoEnabled ^ 1) * InverseProjectionMatrix + vrParameters.stereoEnabled * vrParameters.inverseProjectionMatrices[currentEye.eye];
- 	mat4 invView = (vrParameters.stereoEnabled ^ 1) * InverseViewMatrix + vrParameters.stereoEnabled * InverseViewMatrix * invHeadToEye;
+    mat4 invHeadToEye = vrParameters.headShift;
+    invHeadToEye[3][0] -= currentEye.eye * vrParameters.IPD;
+    invHeadToEye = inverse(invHeadToEye);
 
-     vec4 clipSpacePosition = vec4(texcoord * 2.0 - 1.0, depth, 1.0);
-     vec4 viewSpacePosition = invProjection * clipSpacePosition;
+	mat4 invProjection = (vrParameters.stereoEnabled ^ 1) * InverseProjectionMatrix + vrParameters.stereoEnabled * vrParameters.inverseProjectionMatrices[currentEye.eye];
+	mat4 invView = (vrParameters.stereoEnabled ^ 1) * InverseViewMatrix + vrParameters.stereoEnabled * (InverseViewMatrix * invHeadToEye);
 
-     viewSpacePosition /= viewSpacePosition.w;
-     vec4 world = invView * viewSpacePosition;
-     return world.xyz;
- }
+    vec4 clipSpacePosition = vec4(uv * 2.0 - 1.0, depth, 1.0);
+    vec4 viewSpacePosition = invProjection * clipSpacePosition;
+
+    viewSpacePosition /= viewSpacePosition.w;
+    vec4 world = invView * viewSpacePosition;
+    return world.xyz;
+}
 
 // McGuire Noise -- https://www.shadertoy.com/view/4dS3Wd
 float hash(float n) { return fract(sin(n) * 1e4); }
