@@ -19,7 +19,7 @@ import kotlin.math.floor
 class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280, windowHeight = 720) {
     val pupilTracker = PupilEyeTracker()
     val hmd = OpenVRHMD(seated = false, useCompositor = true)
-    val referenceTarget = Icosphere(1.0f, 3)
+    val referenceTarget = Icosphere(0.5f, 3)
 
     override fun init() {
         hub.add(SceneryElement.HMDInput, hmd)
@@ -55,7 +55,7 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
         val stageLight = PointLight(radius = 35.0f)
         stageLight.name = "StageLight"
         stageLight.intensity = 100.0f
-        stageLight.position = GLVector(0.0f, 0.0f, -5.0f)
+        stageLight.position = GLVector(0.0f, 4.0f, 0.0f)
         scene.addChild(stageLight)
 
     }
