@@ -133,13 +133,16 @@ vec3 DecodeOctaH( vec2 encN )
 }
 
 vec3 worldFromDepth(float depth, vec2 texcoord) {
+    vec2 uv = (vrParameters.stereoEnabled ^ 1) * texcoord + vrParameters.stereoEnabled * vec2((texcoord.x - 0.5 * currentEye.eye) * 2.0, texcoord.y);
+
     mat4 invHeadToEye = vrParameters.headShift;
-    invHeadToEye[0][3] += currentEye.eye * vrParameters.IPD;
+    invHeadToEye[3][0] -= currentEye.eye * vrParameters.IPD;
+    invHeadToEye = inverse(invHeadToEye);
 
 	mat4 invProjection = (vrParameters.stereoEnabled ^ 1) * InverseProjectionMatrix + vrParameters.stereoEnabled * vrParameters.inverseProjectionMatrices[currentEye.eye];
-	mat4 invView = (vrParameters.stereoEnabled ^ 1) * InverseViewMatrix + vrParameters.stereoEnabled * InverseViewMatrix * invHeadToEye;
+	mat4 invView = (vrParameters.stereoEnabled ^ 1) * InverseViewMatrix + vrParameters.stereoEnabled * (InverseViewMatrix * invHeadToEye);
 
-    vec4 clipSpacePosition = vec4(texcoord * 2.0 - 1.0, depth, 1.0);
+    vec4 clipSpacePosition = vec4(uv * 2.0 - 1.0, depth, 1.0);
     vec4 viewSpacePosition = invProjection * clipSpacePosition;
 
     viewSpacePosition /= viewSpacePosition.w;
@@ -196,16 +199,11 @@ void main()
     vec3 FragPos = worldFromDepth(Depth, textureCoord);
     vec4 ambientOcclusion = texture(InputOcclusion, textureCoord).rgba;
 
-	if(debugLights == 1) {
-        FragColor = vec4(Albedo.rgb, 1.0);
-        return;
-	}
+    mat4 headToEye = vrParameters.headShift;
+    headToEye[3][0] = -currentEye.eye * vrParameters.IPD;
+    vec3 cameraPosition = (vrParameters.stereoEnabled ^ 1) * CamPosition + vrParameters.stereoEnabled * (headToEye * vec4(CamPosition, 1.0)).xyz;
 
-	float fragDist = length(FragPos - CamPosition);
-	if(debugMode == 1) {
-	    FragColor = vec4(1.0, 0.0, 0.0, 1.0);
-	    return;
-	}
+	float fragDist = length(FragPos - cameraPosition);
 
 	vec3 lighting = vec3(0.0);
 
@@ -213,10 +211,20 @@ void main()
     float distance = length(L);
     L = normalize(L);
 
-    vec3 V = normalize(CamPosition - FragPos);
+    vec3 V = normalize(cameraPosition - FragPos);
     vec3 H = normalize(L + V);
 
     float lightAttenuation = pow(clamp(1.0 - pow(distance/lightRadius, 4.0), 0.0, 1.0), 2.0) / (distance * distance + 1.0);
+
+	if(debugLights == 1) {
+        FragColor = vec4(Albedo.rgb, 1.0);
+        return;
+	}
+
+	if(debugLights == 2) {
+	    FragColor = vec4(FragPos, 1.0);
+	    return;
+	}
 
     if(reflectanceModel == 1) {
         // Diffuse
@@ -262,6 +270,7 @@ void main()
         float lightOcclusion = 1.0 - clamp(dot(vec4(-L, 1.0), ambientOcclusion), 0.0, 1.0);
         vec3 inputColor = intensity * emissionColor.rgb * Albedo.rgb * lightOcclusion;
 
+
         diffuse = inputColor * L1;
 
         if(Specular > 0.0 || MaterialParams.g > 0.0) {
@@ -285,11 +294,11 @@ void main()
             specular = (kD * Albedo.rgb / PI + BRDF) * radiance * NdotL;
         }
 
-        if(debugLights == 2) {
+        if(debugLights == 3) {
             lighting += specular * lightAttenuation;
-        } if(debugLights == 3) {
-            lighting += diffuse * lightAttenuation;
         } if(debugLights == 4) {
+            lighting += diffuse * lightAttenuation;
+        } if(debugLights == 5) {
             lighting += ambientOcclusion.rgb;
         } else {
             lighting += (diffuse + specular) * lightAttenuation;
