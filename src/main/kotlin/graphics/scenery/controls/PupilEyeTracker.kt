@@ -1,5 +1,6 @@
 package graphics.scenery.controls
 
+import cleargl.GLVector
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.databind.DeserializationContext
 import com.fasterxml.jackson.databind.KeyDeserializer
@@ -18,27 +19,66 @@ import org.zeromq.ZMQ
 import org.zeromq.ZMsg
 import org.zeromq.ZPoller
 import java.io.Serializable
+import java.util.*
 
 class PupilEyeTracker(val host: String = "localhost", val port: Int = 50020) {
     private val logger by LazyLogger()
 
-    val zmqContext = ZContext(4)
-    val req = zmqContext.createSocket(ZMQ.REQ)
-    val objectMapper = ObjectMapper(MessagePackFactory())
+    private val zmqContext = ZContext(4)
+    private val req = zmqContext.createSocket(ZMQ.REQ)
+    private val objectMapper = ObjectMapper(MessagePackFactory())
 
-    var subscriptionPort = 0
+    private val subscriptionPort: Int
 
     var isCalibrated = false
         private set
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     data class Gaze(var confidence: Float = 0.0f,
-                    var topic: String = "gaze",
                     var timestamp: Float = 0.0f,
-                    var norm_pos: List<Float> = listOf(),
-                    var gaze_point_3d: List<Float> = listOf(),
-                    var eye_centers_3d: HashMap<Int, List<Float>> = hashMapOf(),
-                    var gaze_normals_3d: HashMap<Int, List<Float>> = hashMapOf())
+
+                    var norm_pos: FloatArray = floatArrayOf(),
+                    var gaze_point_3d: FloatArray = floatArrayOf(),
+                    var eye_centers_3d: HashMap<Int, FloatArray> = hashMapOf(),
+                    var gaze_normals_3d: HashMap<Int, FloatArray> = hashMapOf()) {
+
+
+        fun normalizedPosition() = GLVector(*this.norm_pos)
+        fun gazePoint() = GLVector(*this.gaze_point_3d)
+
+        fun leftEyeCenter() = GLVector(*this.eye_centers_3d.getOrDefault(0, floatArrayOf(0.0f, 0.0f, 0.0f)))
+        fun rightEyeCenter() = GLVector(*this.eye_centers_3d.getOrDefault(1, floatArrayOf(0.0f, 0.0f, 0.0f)))
+
+        fun leftGazeNormal() = GLVector(*this.gaze_normals_3d.getOrDefault(0, floatArrayOf(0.0f, 0.0f, 0.0f)))
+        fun rightGazeNormal() = GLVector(*this.eye_centers_3d.getOrDefault(1, floatArrayOf(0.0f, 0.0f, 0.0f)))
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+
+            other as Gaze
+
+            if (confidence != other.confidence) return false
+            if (timestamp != other.timestamp) return false
+            if (!Arrays.equals(norm_pos, other.norm_pos)) return false
+            if (!Arrays.equals(gaze_point_3d, other.gaze_point_3d)) return false
+            if (eye_centers_3d != other.eye_centers_3d) return false
+            if (gaze_normals_3d != other.gaze_normals_3d) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = confidence.hashCode()
+            result = 31 * result + timestamp.hashCode()
+            result = 31 * result + Arrays.hashCode(norm_pos)
+            result = 31 * result + Arrays.hashCode(gaze_point_3d)
+            result = 31 * result + eye_centers_3d.hashCode()
+            result = 31 * result + gaze_normals_3d.hashCode()
+            return result
+        }
+    }
+
 
     private var currentPupilDatumLeft = HashMap<Any, Any>()
     private var currentPupilDatumRight = HashMap<Any, Any>()
@@ -47,6 +87,7 @@ class PupilEyeTracker(val host: String = "localhost", val port: Int = 50020) {
         private set
 
     init {
+        logger.info("Connecting to $host:$port ...")
         req.connect("tcp://$host:$port")
         req.send("SUB_PORT")
 
@@ -55,9 +96,6 @@ class PupilEyeTracker(val host: String = "localhost", val port: Int = 50020) {
 
         val module = SimpleModule()
         module.addKeyDeserializer(Int::class.java, object : KeyDeserializer() {
-            /**
-             * Method called to deserialize a [java.util.Map] key from JSON property name.
-             */
             override fun deserializeKey(key: String?, ctxt: DeserializationContext?): Any {
                 return Integer.valueOf(key)
             }
@@ -91,14 +129,13 @@ class PupilEyeTracker(val host: String = "localhost", val port: Int = 50020) {
                 try {
                     socket.connect("tcp://$host:$subscriptionPort")
                     socket.subscribe(topic)
-                    logger.info("Subscribed to topic $topic")
+                    logger.debug("Subscribed to topic $topic")
 
                     while (isActive) {
                         poller.poll(10)
 
                         if(poller.isReadable(socket)) {
                             val msg = ZMsg.recvMsg(socket)
-                            val msgSize = msg.size
                             val msgType = msg.popString()
 
                             when(msgType) {
@@ -112,9 +149,6 @@ class PupilEyeTracker(val host: String = "localhost", val port: Int = 50020) {
                                 }
 
                                 "pupil.0", "pupil.1" -> {
-                                    if(msgType == "gaze") {
-                                        logger.info("$topic: Received $msgType, $msgSize frames")
-                                    }
                                     val bytes = msg.pop().data
                                     val dict = objectMapper.readValue<HashMap<Any, Any>>(bytes)
                                     val confidence = (dict["confidence"] as Double).toFloat()
@@ -134,7 +168,7 @@ class PupilEyeTracker(val host: String = "localhost", val port: Int = 50020) {
 
                                     if(g.confidence > 0.6f) {
                                         currentGaze = g
-                                        logger.debug("Current gaze: {}", g)
+                                        logger.info("Current gaze: {}", g)
                                     }
                                 }
                             }
@@ -164,7 +198,7 @@ class PupilEyeTracker(val host: String = "localhost", val port: Int = 50020) {
         }
     }
 
-    fun calibrate(generateReferenceData: Boolean = false, calibrationTarget: Node? = null) {
+    fun calibrate(generateReferenceData: Boolean = false, calibrationTarget: Node? = null): Boolean {
         subscribe("notify.calibration.successful")
         subscribe("notify.calibration.failed")
         subscribe("pupil.")
@@ -200,7 +234,11 @@ class PupilEyeTracker(val host: String = "localhost", val port: Int = 50020) {
         val referenceData = arrayListOf<HashMap<String, Serializable>>()
 
         if(generateReferenceData) {
-            val positionList = (0..10).map { Numerics.randomVectorFromRange(3, 0.0f, 1.0f) }
+            val positionList = (0..10).map {
+                GLVector(Numerics.randomFromRange(-4.0f, 4.0f),
+                    Numerics.randomFromRange(-4.0f, 4.0f),
+                    Numerics.randomFromRange(0.0f, -3.0f))
+            }
 
             positionList.map { normalizedScreenPos ->
                 logger.info("Dummy subject looking at $normalizedScreenPos")
@@ -249,6 +287,10 @@ class PupilEyeTracker(val host: String = "localhost", val port: Int = 50020) {
         if(isCalibrated) {
             logger.info("Calibration succeeded, subscribing to gaze data")
             subscribe("gaze")
+
+            return true
         }
+
+        return false
     }
 }
