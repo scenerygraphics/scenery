@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.module.kotlin.readValue
 import graphics.scenery.Node
+import graphics.scenery.backends.Display
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.Numerics
 import kotlinx.coroutines.experimental.Job
@@ -32,6 +33,8 @@ class PupilEyeTracker(val host: String = "localhost", val port: Int = 50020) {
 
     var isCalibrated = false
         private set
+
+    var onGazeReceived: ((Gaze) -> Any)? = null
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     data class Gaze(var confidence: Float = 0.0f,
@@ -168,7 +171,7 @@ class PupilEyeTracker(val host: String = "localhost", val port: Int = 50020) {
 
                                     if(g.confidence > 0.6f) {
                                         currentGaze = g
-                                        logger.info("Current gaze: {}", g)
+                                        onGazeReceived?.invoke(g)
                                     }
                                 }
                             }
@@ -198,7 +201,7 @@ class PupilEyeTracker(val host: String = "localhost", val port: Int = 50020) {
         }
     }
 
-    fun calibrate(generateReferenceData: Boolean = false, calibrationTarget: Node? = null): Boolean {
+    fun calibrate(hmd: Display, generateReferenceData: Boolean = false, calibrationTarget: Node? = null): Boolean {
         subscribe("notify.calibration.successful")
         subscribe("notify.calibration.failed")
         subscribe("pupil.")
@@ -223,12 +226,22 @@ class PupilEyeTracker(val host: String = "localhost", val port: Int = 50020) {
             "args" to emptyMap<String, Any>()
         ))
 
+        val shiftLeftEye = floatArrayOf(
+            hmd.getHeadToEyeTransform(0)[0, 3],
+            hmd.getHeadToEyeTransform(0)[1, 3],
+            hmd.getHeadToEyeTransform(0)[2, 3])
+
+        val shiftRightEye = floatArrayOf(
+            hmd.getHeadToEyeTransform(1)[0, 3],
+            hmd.getHeadToEyeTransform(1)[1, 3],
+            hmd.getHeadToEyeTransform(1)[2, 3])
+
         notify(hashMapOf(
             "subject" to "calibration.should_start",
-            "hmd_video_frame_size" to listOf(1000, 1000),
+            "hmd_video_frame_size" to listOf(hmd.getRenderTargetSize().x().toInt(), hmd.getRenderTargetSize().y().toInt()),
             "outlier_threshold" to 35,
-            "translation_eye0" to floatArrayOf(0.032f, 0.0f, 0.0f),
-            "translation_eye1" to floatArrayOf(-0.032f, 0.0f, 0.0f)
+            "translation_eye0" to shiftLeftEye,
+            "translation_eye1" to shiftRightEye
         ))
 
         val referenceData = arrayListOf<HashMap<String, Serializable>>()

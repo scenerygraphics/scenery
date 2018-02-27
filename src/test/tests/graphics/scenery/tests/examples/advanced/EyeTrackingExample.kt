@@ -74,18 +74,12 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
             thread {
                 if (!pupilTracker.isCalibrated) {
                     logger.info("Starting eye tracker calibration")
-                    pupilTracker.calibrate(generateReferenceData = true, calibrationTarget = referenceTarget)
+                    pupilTracker.calibrate(hmd, generateReferenceData = true, calibrationTarget = referenceTarget)
                 }
 
-                while(true) {
-                    pupilTracker.currentGaze?.let { gaze ->
-                        if(gaze.gazePoint().dimension == 3) {
-                            referenceTarget.position = gaze.gazePoint()
-                            logger.info("Current pos: ${referenceTarget.position}")
-                        }
-                    }
-
-                    Thread.sleep(10)
+                pupilTracker.onGazeReceived = { gaze ->
+                    referenceTarget.position = gaze.gazePoint()
+                    Any()
                 }
             }
         }
