@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.KeyDeserializer
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.module.kotlin.readValue
+import graphics.scenery.Camera
 import graphics.scenery.Node
 import graphics.scenery.backends.Display
 import graphics.scenery.utils.LazyLogger
@@ -21,8 +22,13 @@ import org.zeromq.ZMsg
 import org.zeromq.ZPoller
 import java.io.Serializable
 import java.util.*
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
-class PupilEyeTracker(val host: String = "localhost", val port: Int = 50020) {
+class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "localhost", val port: Int = 50020) {
+    enum class CalibrationType { ScreenSpace, WorldSpace}
+
     private val logger by LazyLogger()
 
     private val zmqContext = ZContext(4)
@@ -33,6 +39,7 @@ class PupilEyeTracker(val host: String = "localhost", val port: Int = 50020) {
 
     var isCalibrated = false
         private set
+    private var calibrating = false
 
     var onGazeReceived: ((Gaze) -> Any)? = null
 
@@ -41,19 +48,19 @@ class PupilEyeTracker(val host: String = "localhost", val port: Int = 50020) {
                     var timestamp: Float = 0.0f,
 
                     var norm_pos: FloatArray = floatArrayOf(),
-                    var gaze_point_3d: FloatArray = floatArrayOf(),
-                    var eye_centers_3d: HashMap<Int, FloatArray> = hashMapOf(),
-                    var gaze_normals_3d: HashMap<Int, FloatArray> = hashMapOf()) {
+                    var gaze_point_3d: FloatArray? = floatArrayOf(),
+                    var eye_centers_3d: HashMap<Int, FloatArray>? = hashMapOf(),
+                    var gaze_normals_3d: HashMap<Int, FloatArray>? = hashMapOf()) {
 
 
         fun normalizedPosition() = GLVector(*this.norm_pos)
-        fun gazePoint() = GLVector(*this.gaze_point_3d)
+        fun gazePoint() = gaze_point_3d?.let { GLVector(*it) }
 
-        fun leftEyeCenter() = GLVector(*this.eye_centers_3d.getOrDefault(0, floatArrayOf(0.0f, 0.0f, 0.0f)))
-        fun rightEyeCenter() = GLVector(*this.eye_centers_3d.getOrDefault(1, floatArrayOf(0.0f, 0.0f, 0.0f)))
+        fun leftEyeCenter() = eye_centers_3d?.let { GLVector(*it.getOrDefault(0, floatArrayOf(0.0f, 0.0f, 0.0f))) }
+        fun rightEyeCenter() = eye_centers_3d?.let { GLVector(*it.getOrDefault(1, floatArrayOf(0.0f, 0.0f, 0.0f))) }
 
-        fun leftGazeNormal() = GLVector(*this.gaze_normals_3d.getOrDefault(0, floatArrayOf(0.0f, 0.0f, 0.0f)))
-        fun rightGazeNormal() = GLVector(*this.eye_centers_3d.getOrDefault(1, floatArrayOf(0.0f, 0.0f, 0.0f)))
+        fun leftGazeNormal() = gaze_normals_3d?.let { GLVector(*it.getOrDefault(0, floatArrayOf(0.0f, 0.0f, 0.0f))) }
+        fun rightGazeNormal() = gaze_normals_3d?.let { GLVector(*it.getOrDefault(1, floatArrayOf(0.0f, 0.0f, 0.0f))) }
 
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
@@ -76,8 +83,8 @@ class PupilEyeTracker(val host: String = "localhost", val port: Int = 50020) {
             result = 31 * result + timestamp.hashCode()
             result = 31 * result + Arrays.hashCode(norm_pos)
             result = 31 * result + Arrays.hashCode(gaze_point_3d)
-            result = 31 * result + eye_centers_3d.hashCode()
-            result = 31 * result + gaze_normals_3d.hashCode()
+            result = 31 * result + (eye_centers_3d?.hashCode() ?: 0)
+            result = 31 * result + (gaze_normals_3d?.hashCode() ?: 0)
             return result
         }
     }
@@ -144,11 +151,13 @@ class PupilEyeTracker(val host: String = "localhost", val port: Int = 50020) {
                             when(msgType) {
                                 "notify.calibration.successful" -> {
                                     logger.info("Calibration successful.")
+                                    calibrating = false
                                     isCalibrated = true
                                 }
 
                                 "notify.calibration.failed" -> {
                                     logger.error("Calibration failed.")
+                                    calibrating = false
                                 }
 
                                 "pupil.0", "pupil.1" -> {
@@ -201,7 +210,7 @@ class PupilEyeTracker(val host: String = "localhost", val port: Int = 50020) {
         }
     }
 
-    fun calibrate(hmd: Display, generateReferenceData: Boolean = false, calibrationTarget: Node? = null): Boolean {
+    fun calibrate(cam: Camera, hmd: Display, generateReferenceData: Boolean = false, calibrationTarget: Node? = null): Boolean {
         subscribe("notify.calibration.successful")
         subscribe("notify.calibration.failed")
         subscribe("pupil.")
@@ -220,55 +229,91 @@ class PupilEyeTracker(val host: String = "localhost", val port: Int = 50020) {
 
         Thread.sleep(2000)
 
-        notify(hashMapOf(
-            "subject" to "start_plugin",
-            "name" to "HMD_Calibration_3D",
-            "args" to emptyMap<String, Any>()
-        ))
 
-        val shiftLeftEye = floatArrayOf(
-            hmd.getHeadToEyeTransform(0)[0, 3],
-            hmd.getHeadToEyeTransform(0)[1, 3],
-            hmd.getHeadToEyeTransform(0)[2, 3])
+        when(calibrationType) {
+            CalibrationType.ScreenSpace -> {
+                notify(hashMapOf(
+                    "subject" to "start_plugin",
+                    "name" to "HMD_Calibration",
+                    "args" to emptyMap<String, Any>()
+                ))
 
-        val shiftRightEye = floatArrayOf(
-            hmd.getHeadToEyeTransform(1)[0, 3],
-            hmd.getHeadToEyeTransform(1)[1, 3],
-            hmd.getHeadToEyeTransform(1)[2, 3])
+                notify(hashMapOf(
+                    "subject" to "calibration.should_start",
+                    "hmd_video_frame_size" to listOf(hmd.getRenderTargetSize().x().toInt(), hmd.getRenderTargetSize().y().toInt()),
+                    "outlier_threshold" to 35
+                ))
+            }
 
-        notify(hashMapOf(
-            "subject" to "calibration.should_start",
-            "hmd_video_frame_size" to listOf(hmd.getRenderTargetSize().x().toInt(), hmd.getRenderTargetSize().y().toInt()),
-            "outlier_threshold" to 35,
-            "translation_eye0" to shiftLeftEye,
-            "translation_eye1" to shiftRightEye
-        ))
+            CalibrationType.WorldSpace -> {
+                notify(hashMapOf(
+                    "subject" to "start_plugin",
+                    "name" to "HMD_Calibration_3D",
+                    "args" to emptyMap<String, Any>()
+                ))
 
+                val shiftLeftEye = floatArrayOf(
+                    hmd.getHeadToEyeTransform(0)[0, 3],
+                    hmd.getHeadToEyeTransform(0)[1, 3],
+                    hmd.getHeadToEyeTransform(0)[2, 3])
+
+                val shiftRightEye = floatArrayOf(
+                    hmd.getHeadToEyeTransform(1)[0, 3],
+                    hmd.getHeadToEyeTransform(1)[1, 3],
+                    hmd.getHeadToEyeTransform(1)[2, 3])
+
+                notify(hashMapOf(
+                    "subject" to "calibration.should_start",
+                    "hmd_video_frame_size" to listOf(hmd.getRenderTargetSize().x().toInt(), hmd.getRenderTargetSize().y().toInt()),
+                    "outlier_threshold" to 35,
+                    "translation_eye0" to shiftLeftEye,
+                    "translation_eye1" to shiftRightEye
+                ))
+            }
+        }
+
+        calibrating = true
         val referenceData = arrayListOf<HashMap<String, Serializable>>()
 
         if(generateReferenceData) {
-            val positionList = (0..10).map {
-                GLVector(Numerics.randomFromRange(-4.0f, 4.0f),
-                    Numerics.randomFromRange(-4.0f, 4.0f),
-                    Numerics.randomFromRange(0.0f, -3.0f))
+            val numReferencePoints = 15
+            val (posKeyName, posGenerator: ((Int) -> Pair<GLVector, GLVector>)) = when(calibrationType) {
+                CalibrationType.ScreenSpace -> "norm_pos" to { index: Int ->
+                    val v = GLVector(
+                        0.5f + 0.5f * (index.toFloat()/numReferencePoints) * cos(2 * PI.toFloat() * index.toFloat()/numReferencePoints),
+                        0.5f + 0.5f * (index.toFloat()/numReferencePoints) * sin(2 * PI.toFloat() * index.toFloat()/numReferencePoints),
+                        cam.nearPlaneDistance + 0.5f)
+                    v to cam.viewportToWorld(GLVector(v.x() * 2.0f - 1.0f, v.y() * 2.0f - 1.0f))
+                }
+
+                CalibrationType.WorldSpace -> "mm_pos" to { index: Int ->
+                    val v = GLVector(Numerics.randomFromRange(-4.0f, 4.0f),
+                        Numerics.randomFromRange(-4.0f, 4.0f),
+                        Numerics.randomFromRange(0.0f, -3.0f))
+                    v to v
+                }
+            }
+
+            val positionList = (0 until numReferencePoints).map {
+                posGenerator.invoke(it)
             }
 
             positionList.map { normalizedScreenPos ->
-                logger.info("Dummy subject looking at $normalizedScreenPos")
+                logger.info("Dummy subject looking at ${normalizedScreenPos.first}/${normalizedScreenPos.second}")
 
-                calibrationTarget?.position = normalizedScreenPos
+                calibrationTarget?.position = normalizedScreenPos.second
 
                 (0 until 60).forEach {
                     val timestamp = getPupilTimestamp()
 
                     val datum0 = hashMapOf(
-                        "mm_pos" to normalizedScreenPos.toFloatArray(),
+                        posKeyName to normalizedScreenPos.first.toFloatArray(),
                         "timestamp" to timestamp,
                         "id" to 0
                     )
 
                     val datum1 = hashMapOf(
-                        "mm_pos" to normalizedScreenPos.toFloatArray(),
+                        posKeyName to normalizedScreenPos.first.toFloatArray(),
                         "timestamp" to timestamp,
                         "id" to 1
                     )
@@ -292,7 +337,9 @@ class PupilEyeTracker(val host: String = "localhost", val port: Int = 50020) {
             "subject" to "calibration.should_stop"
         ))
 
-        Thread.sleep(5000)
+        while(calibrating) {
+            Thread.sleep(100)
+        }
 
         unsubscribe("notify.calibration.successful")
         unsubscribe("notify.calibration.failed")
