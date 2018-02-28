@@ -8,9 +8,7 @@ import graphics.scenery.Hubable
 import graphics.scenery.Mesh
 import graphics.scenery.backends.Display
 import graphics.scenery.backends.vulkan.VulkanDevice
-import graphics.scenery.backends.vulkan.toHexString
 import graphics.scenery.utils.LazyLogger
-import org.lwjgl.PointerBuffer
 import org.lwjgl.openvr.*
 import org.lwjgl.openvr.VR.*
 import org.lwjgl.openvr.VRCompositor.*
@@ -19,6 +17,7 @@ import org.lwjgl.openvr.VRSystem.*
 import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
+import org.scijava.ui.behaviour.MouseAndKeyHandler
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.nio.LongBuffer
@@ -35,7 +34,7 @@ import java.util.concurrent.TimeUnit
  * @property[useCompositor] Whether or not the compositor should be used.
  * @constructor Creates a new OpenVR HMD instance, using the compositor if requested
  */
-open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = true) : TrackerInput, Display, Hubable {
+open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = true) : MouseAndKeyHandler(), TrackerInput, Display, Hubable {
     /** slf4j logger instance */
     protected val logger by LazyLogger()
     /** The Hub to use for communication */
@@ -411,6 +410,31 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
                     TrackedDevice(type, deviceName, GLMatrix.getIdentity(), timestamp = System.nanoTime())
                 })
 
+                if(type == TrackedDeviceType.Controller) {
+                    if(trackedDevices["$type-$device"]!!.metadata !is VRControllerState) {
+                        trackedDevices["$type-$device"]!!.metadata = VRControllerState.calloc()
+                    }
+
+                    val state = trackedDevices["$type-$device"]!!.metadata as VRControllerState
+                    VRSystem_GetControllerState(device, state)
+
+                    if(state.rAxis(0).x() > 0.8f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) {
+                        logger.info("Right down")
+                    }
+
+                    if(state.rAxis(0).x() < -0.8f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) {
+                        logger.info("Left down")
+                    }
+
+                    if(state.rAxis(0).y() > 0.8f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) {
+                        logger.info("Top down")
+                    }
+
+                    if(state.rAxis(0).y() < -0.8f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) {
+                        logger.info("Bottom down")
+                    }
+                }
+
                 val pose = hmdTrackedDevicePoses.get(device).mDeviceToAbsoluteTracking()
 
                 trackedDevices["$type-$device"]!!.pose = pose.toGLMatrix()
@@ -421,6 +445,24 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
                 }
             }
         }
+
+        val event = VREvent.calloc()
+        while(VRSystem_PollNextEvent(event)) {
+            if(event.eventType() == EVREventType_VREvent_ButtonUnpress) {
+                val button = event.data().controller().button()
+
+                logger.info("Button $button pressed")
+            }
+
+            if(event.eventType() == EVREventType_VREvent_MouseMove) {
+                val x = event.data().mouse().x()
+                val y = event.data().mouse().y()
+                val down = event.data().mouse().button()
+
+                logger.info("Touchpad moved $x $y, down=$down")
+            }
+        }
+        event.free()
 
         readyForSubmission = true
     }
