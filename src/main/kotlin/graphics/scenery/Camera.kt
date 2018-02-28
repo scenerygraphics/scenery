@@ -103,5 +103,39 @@ open class Camera : Node("Camera") {
 
         return m
     }
+
+    /**
+     * Transforms a 3D/4D vector from view space to world coordinates.
+     *
+     * @param v - The vector to be transformed into world space.
+     * @return GLVector - [v] transformed into world space.
+     */
+    fun viewToWorld(v: GLVector): GLVector =
+        this.view.mult(if(v.dimension == 3) {
+            GLVector(*v.toFloatArray(), 1.0f)
+        } else {
+            v
+        })
+
+    /**
+     * Transforms a 2D/3D vector from NDC coordinates to world coordinates.
+     * If the vector is 2D, [nearPlaneDistance] is assumed for the Z value, otherwise
+     * the Z value from the vector is taken.
+     *
+     * @param v - The vector to be transformed into world space.
+     * @return GLVector - [v] transformed into world space.
+     */
+    fun viewportToWorld(v: GLVector): GLVector {
+        var clipSpace = projection.inverse.mult(when (v.dimension) {
+            1 -> GLVector(*v.toFloatArray(), 1.0f, nearPlaneDistance + 0.01f, 1.0f)
+            2 -> GLVector(*v.toFloatArray(), nearPlaneDistance + 0.01f, 1.0f)
+            3 -> GLVector(*v.toFloatArray(), 1.0f)
+            else -> v
+        })
+
+        clipSpace *= (1.0f / clipSpace.w())
+
+        return getTransformation().invert().mult(clipSpace).xyz()
+    }
 }
 
