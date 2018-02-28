@@ -141,8 +141,8 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         this.texcoordSize = 2
 
         this.material.blending.transparent = true
-        this.material.doubleSided = true
         this.useClassDerivedShader = true
+        this.material.cullingMode = Material.CullingMode.Front
 
         colormaps.put("grays", this.javaClass.getResource("colormap-grays.png").file)
         colormaps.put("hot", this.javaClass.getResource("colormap-hot.png").file)

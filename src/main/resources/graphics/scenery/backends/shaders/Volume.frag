@@ -1,8 +1,10 @@
 #version 450 core
 #extension GL_ARB_separate_shader_objects: enable
 
-layout(set = 5, binding = 0) uniform sampler2D InputOutput;
-layout(set = 5, binding = 1) uniform sampler2D InputOutputDepth;
+layout(set = 5, binding = 0) uniform sampler2D InputN;
+layout(set = 5, binding = 1) uniform sampler2D InputA;
+layout(set = 5, binding = 2) uniform sampler2D InputZBuffer;
+layout(set = 6, binding = 0) uniform sampler2D InputColor;
 
 layout(location = 0) in VertexData {
     vec2 textureCoord;
@@ -26,11 +28,20 @@ struct Light {
   	vec4 Color;
 };
 
+layout(set = 0, binding = 0) uniform VRParameters {
+    mat4 projectionMatrices[2];
+    mat4 inverseProjectionMatrices[2];
+    mat4 headShift;
+    float IPD;
+    int stereoEnabled;
+} vrParameters;
+
 layout(set = 1, binding = 0) uniform LightParameters {
     mat4 ViewMatrix;
+    mat4 InverseViewMatrix;
+    mat4 ProjectionMatrix;
+    mat4 InverseProjectionMatrix;
     vec3 CamPosition;
-    int numLights;
-	Light lights[MAX_NUM_LIGHTS];
 };
 
 layout(set = 2, binding = 0) uniform Matrices {
@@ -62,6 +73,10 @@ layout(set = 4, binding = 0) uniform ShaderProperties {
     float alpha_blending;
     float gamma;
 };
+
+layout(push_constant) uniform currentEye_t {
+    int eye;
+} currentEye;
 
 float PI_r = 0.3183098;
 
@@ -114,12 +129,30 @@ Intersection intersectBox(vec4 r_o, vec4 r_d, vec4 boxmin, vec4 boxmax)
 }
 
 vec3 posFromDepth(vec2 textureCoord) {
-    float z = texture(InputOutputDepth, textureCoord).r;
+    float z = texture(InputZBuffer, textureCoord).r;
     float x = textureCoord.x * 2.0 - 1.0;
     float y = (1.0 - textureCoord.y) * 2.0 - 1.0;
     vec4 projectedPos = Vertex.inverseProjection * vec4(x, y, z, 1.0);
 
     return projectedPos.xyz/projectedPos.w;
+}
+
+vec3 worldFromDepth(float depth, vec2 texcoord) {
+    vec2 uv = (vrParameters.stereoEnabled ^ 1) * texcoord + vrParameters.stereoEnabled * vec2((texcoord.x - 0.5 * currentEye.eye) * 2.0, texcoord.y);
+
+    mat4 invHeadToEye = vrParameters.headShift;
+    invHeadToEye[3][0] -= currentEye.eye * vrParameters.IPD;
+    invHeadToEye = inverse(invHeadToEye);
+
+	mat4 invProjection = (vrParameters.stereoEnabled ^ 1) * InverseProjectionMatrix + vrParameters.stereoEnabled * vrParameters.inverseProjectionMatrices[currentEye.eye];
+	mat4 invView = (vrParameters.stereoEnabled ^ 1) * InverseViewMatrix + vrParameters.stereoEnabled * (InverseViewMatrix * invHeadToEye);
+
+    vec4 clipSpacePosition = vec4(uv * 2.0 - 1.0, depth, 1.0);
+    vec4 viewSpacePosition = invProjection * clipSpacePosition;
+
+    viewSpacePosition /= viewSpacePosition.w;
+    vec4 world = invView * viewSpacePosition;
+    return world.xyz;
 }
 
 void main()
@@ -139,8 +172,8 @@ void main()
       const float v = Vertex.textureCoord.t*2.0 - 1.0;
 
       // front and back:
-      const vec4 front = vec4(u,v,-1.f,1.f);
-      const vec4 back = vec4(u,v,1.f,1.f);
+      const vec4 front = vec4(u,v,0.0f,1.f);
+      const vec4 back = vec4(u,v,1.0f,1.f);
 
       // calculate eye ray in world space
       vec4 orig0, orig;
@@ -164,7 +197,7 @@ void main()
       if (!inter.hit || inter.tfar <= 0)
       {
        	FragColor = vec4(0.0f, 0.0f, 0.0f, 0.0f);
-       	gl_FragDepth = texture(InputOutputDepth, Vertex.textureCoord).r;
+       	gl_FragDepth = texture(InputZBuffer, Vertex.textureCoord).r;
       	return;
       }
 
@@ -179,10 +212,18 @@ void main()
       vec3 stop = 0.5 * (1.0 + orig.xyz + tfar * direc.xyz);
 
       vec4 stopNDC = Vertex.MVP * vec4(orig.xyz + tfar * direc.xyz, 1.0);
-      stopNDC *= 1.0/stopNDC.w;
+//      stopNDC *= 1.0/stopNDC.w;
+
+      FragColor = vec4(vec3(stopNDC.z/stopNDC.w+1.0), 1.0);
+      return;
 
       vec4 startNDC = Vertex.MVP * vec4(orig.xyz + tnear * direc.xyz, 1.0);
-      startNDC *= 1.0/startNDC.w;
+//      FragColor = vec4(abs(mvp[3].xyz)*1000, 1.0);
+//      gl_FragDepth = 0.0;
+//      return;
+
+//      FragColor = vec4(startNDC.w);
+//      FragColor.w = 1.0f;
 //      gl_FragDepth = texture(InputOutputDepth, Vertex.textureCoord).r;
 
 
@@ -197,17 +238,17 @@ void main()
 //      d = (stopNDC.z + 1.0)/2.0;
 
 //      if(stopWorld.z > texture(InputDepth, Vertex.textureCoord).r) {
-      vec4 geompos = Vertex.MVP * vec4(posFromDepth(Vertex.textureCoord), 1.0);
 
       // geometry is in front of volume, don't raycast at all
-      if(startNDC.z > texture(InputOutputDepth, Vertex.textureCoord).r) {
+      float startDepth = (startNDC.z + 1.0) * 0.5;
+      if(startDepth > texture(InputZBuffer, Vertex.textureCoord).r) {
         FragColor = vec4(0.0, 1.0, 0.0, 1.0);
         gl_FragDepth = 0.0;
-//        return;
+        return;
       }
 
       // geometry intersects volume, terminate rays early
-      if(stopNDC.z > texture(InputOutputDepth, Vertex.textureCoord).r) {
+      if(stopNDC.z > texture(InputZBuffer, Vertex.textureCoord).r) {
         vec4 stoptmp = Vertex.inverseModelView*vec4(posFromDepth(Vertex.textureCoord), 1.0);
         stop = 0.5 * (1.0 + stoptmp.xyz/stoptmp.w);
 //        FragColor = vec4(1.0, 0.0, 0.0, 1.0);
@@ -238,10 +279,10 @@ void main()
       float newVal = 0.0;
 //      gl_FragDepth = geompos.z/geompos.w;
 
-      if(numLights == 0) {
-        FragColor = vec4(0.0, 0.0, 0.0, 0.0);
-       	gl_FragDepth = texture(InputOutputDepth, Vertex.textureCoord).r;
-      }
+//      if(numLights == 0) {
+//        FragColor = vec4(0.0, 0.0, 0.0, 0.0);
+//       	gl_FragDepth = texture(InputOutputDepth, Vertex.textureCoord).r;
+//      }
 
 
       if (alpha_blending <= 0.f){
