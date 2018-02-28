@@ -14,6 +14,7 @@ layout(location = 0) out VertexData {
 
 layout(set = 0, binding = 0) uniform VRParameters {
     mat4 projectionMatrices[2];
+    mat4 inverseProjectionMatrices[2];
     mat4 headShift;
     float IPD;
     int stereoEnabled;
@@ -32,9 +33,10 @@ const int MAX_NUM_LIGHTS = 1024;
 
 layout(set = 1, binding = 0) uniform LightParameters {
     mat4 ViewMatrix;
+    mat4 InverseViewMatrix;
+    mat4 ProjectionMatrix;
+    mat4 InverseProjectionMatrix;
     vec3 CamPosition;
-    int numLights;
-	Light lights[MAX_NUM_LIGHTS];
 };
 
 layout(set = 2, binding = 0) uniform Matrices {
@@ -98,7 +100,7 @@ void main()
 	scale[1][1] = L.y/Lmax;
 	scale[2][2] = L.z/Lmax;
 
-    Vertex.inverseProjection = inverse(projectionMatrix);
+    Vertex.inverseProjection = (vrParameters.stereoEnabled ^ 1) * InverseProjectionMatrix + (vrParameters.stereoEnabled * vrParameters.inverseProjectionMatrices[currentEye.eye]);
     Vertex.inverseModelView = invScale * inverse(mv);
     Vertex.MVP = projectionMatrix * mv;
 

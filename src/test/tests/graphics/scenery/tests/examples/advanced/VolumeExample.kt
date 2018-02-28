@@ -35,47 +35,32 @@ class VolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
             scene.addChild(this)
         }
 
-        val shell = Box(GLVector(20.0f, 20.0f, 20.0f), insideNormals = true)
+        val shell = Box(GLVector(5.0f, 5.0f, 5.0f), insideNormals = true)
         shell.material.doubleSided = true
+        shell.material.cullingMode = Material.CullingMode.Front
         shell.material.diffuse = GLVector(0.2f, 0.2f, 0.2f)
         shell.material.specular = GLVector.getNullVector(3)
         shell.material.ambient = GLVector.getNullVector(3)
         scene.addChild(shell)
 
         val volume = Volume()
+        volume.name = "volume"
         volume.colormap = "jet"
+        volume.position = GLVector(0.0f, 0.0f, -0.0f)
         scene.addChild(volume)
 
-        val lights = (0..3).map {
-            PointLight()
+        val lights = (0 until 3).map {
+            PointLight(radius = 15.0f)
         }
 
         lights.mapIndexed { i, light ->
-            light.position = GLVector(4.0f * i, 4.0f * i, 4.0f)
+            light.position = GLVector(2.0f * i - 4.0f,  i - 1.0f, 0.0f)
             light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
-            light.intensity = 500.2f*(i+1)
-            light.linear = 1.8f
-            light.quadratic = 0.7f
+            light.intensity = 150.0f
             scene.addChild(light)
         }
 
-        val chooser = JFileChooser()
-        chooser.dialogTitle = "Choose volume file"
-        chooser.approveButtonText = "Open volume file"
-        UIManager.put("FileChooser.cancelButtonText", "Open example volume")
-        UIManager.put("FileChooser.cancelButtonToolTipText", "Close this dialog and show an example volume provided by scenery.")
-        SwingUtilities.updateComponentTreeUI(chooser)
-        chooser.isMultiSelectionEnabled = true
-        chooser.fileFilter = FileNameExtensionFilter("Volume files", "tif", "tiff", "raw", "czi")
-        val result = chooser.showOpenDialog(null)
-
-        val files = if(result == JFileChooser.CANCEL_OPTION || result == JFileChooser.ERROR_OPTION) {
-            logger.info("Cancelled file selection, falling back to included demo volume")
-
-            File(getDemoFilesPath() + "/volumes/box-iso/").listFiles().toList()
-        } else {
-            chooser.selectedFiles.toList()
-        }
+        val files: List<File> = File(getDemoFilesPath() + "/volumes/box-iso/").listFiles().toList()
 
         val volumes = files.filter { it.isFile }.map { it.absolutePath }.sorted()
         logger.info("Got ${volumes.size} volumes: ${volumes.joinToString(", ")}")
@@ -89,7 +74,7 @@ class VolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
         }
 
         thread {
-            while(!scene.initialized) { Thread.sleep(200) }
+            while(!scene.initialized || volumes.isEmpty()) { Thread.sleep(200) }
 
             val v = nextVolume()
             volume.readFrom(Paths.get(v), replace = true)
