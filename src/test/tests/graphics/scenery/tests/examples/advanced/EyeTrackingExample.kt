@@ -17,9 +17,9 @@ import kotlin.math.floor
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280, windowHeight = 720) {
-    val pupilTracker = PupilEyeTracker()
+    val pupilTracker = PupilEyeTracker(calibrationType = PupilEyeTracker.CalibrationType.ScreenSpace)
     val hmd = OpenVRHMD(seated = false, useCompositor = true)
-    val referenceTarget = Icosphere(0.5f, 3)
+    val referenceTarget = Icosphere(0.01f, 3)
 
     override fun init() {
         hub.add(SceneryElement.HMDInput, hmd)
@@ -72,14 +72,24 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
     private fun setupCalibration(keybinding: String = "C") {
         val startCalibration = ClickBehaviour { _, _ ->
             thread {
-                if (!pupilTracker.isCalibrated) {
+                val cam = scene.findObserver()
+                if (!pupilTracker.isCalibrated && cam != null) {
                     logger.info("Starting eye tracker calibration")
-                    pupilTracker.calibrate(hmd, generateReferenceData = true, calibrationTarget = referenceTarget)
-                }
+                    pupilTracker.calibrate(cam, hmd,
+                        generateReferenceData = true,
+                        calibrationTarget = referenceTarget)
 
-                pupilTracker.onGazeReceived = { gaze ->
-                    referenceTarget.position = gaze.gazePoint()
-                    Any()
+                    pupilTracker.onGazeReceived = when (pupilTracker.calibrationType) {
+                        PupilEyeTracker.CalibrationType.ScreenSpace -> { gaze ->
+                            referenceTarget.position = cam.viewportToWorld(GLVector(gaze.normalizedPosition().x() * 2.0f - 1.0f, gaze.normalizedPosition().y() * 2.0f - 1.0f))
+                            Any()
+                        }
+
+                        PupilEyeTracker.CalibrationType.WorldSpace -> { gaze ->
+                            referenceTarget.position = gaze.gazePoint() ?: GLVector.getNullVector(3)
+                            Any()
+                        }
+                    }
                 }
             }
         }
