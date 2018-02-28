@@ -19,6 +19,7 @@ enum class TrackedDeviceType {
 }
 
 class TrackedDevice(val type: TrackedDeviceType, var name: String, var pose: GLMatrix, var timestamp: Long) {
+    var metadata: Any? = null
     var orientation = Quaternion()
         get(): Quaternion {
 //            val pose = pose.floatArray
