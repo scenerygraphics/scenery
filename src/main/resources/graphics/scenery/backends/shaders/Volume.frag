@@ -89,20 +89,6 @@ struct AABB {
     vec3 Max;
 };
 
-//bool IntersectBox(Ray r, AABB aabb, out float t0, out float t1)
-//{
-//    vec3 invR = 1.0 / r.Dir;
-//    vec3 tbot = invR * (aabb.Min-r.Origin);
-//    vec3 ttop = invR * (aabb.Max-r.Origin);
-//    vec3 tmin = min(ttop, tbot);
-//    vec3 tmax = max(ttop, tbot);
-//    vec2 t = max(tmin.xx, tmin.yz);
-//    t0 = max(t.x, t.y);
-//    t = min(tmax.xx, tmax.yz);
-//    t1 = min(t.x, t.y);
-//    return t0 <= t1;
-//}
-
 struct Intersection {
     bool hit;
     float tnear;
@@ -174,123 +160,118 @@ vec3 worldFromDepth(float depth, vec2 texcoord) {
 void main()
 {
     // convert range bounds to linear map:
-      const float ta = 1.f/(trangemax-trangemin);
-      const float tb = trangemin/(trangemin-trangemax);
+    const float ta = 1.f/(trangemax-trangemin);
+    const float tb = trangemin/(trangemin-trangemax);
 
-    	// box bounds using the clipping box
-      const vec4 boxMin = vec4(boxMin_x,boxMin_y,boxMin_z,1.f);
-      const vec4 boxMax = vec4(boxMax_x,boxMax_y,boxMax_z,1.f);
+    // box bounds using the clipping box
+    const vec4 boxMin = vec4(boxMin_x,boxMin_y,boxMin_z,1.f);
+    const vec4 boxMax = vec4(boxMax_x,boxMax_y,boxMax_z,1.f);
 
-      // thread float coordinates:
-      const float u = Vertex.textureCoord.s*2.0 - 1.0;
-      const float v = Vertex.textureCoord.t*2.0 - 1.0;
+    // thread float coordinates:
+    const float u = Vertex.textureCoord.s*2.0 - 1.0;
+    const float v = Vertex.textureCoord.t*2.0 - 1.0;
 
-      const float depth = texture(InputZBuffer, Vertex.textureCoord).r;
-      // front and back:
-      const vec4 front = vec4(u,v,0.0f,1.f);
-      const vec4 back = vec4(u,v,min(1.0f, depth),1.f);
+    const float depth = texture(InputZBuffer, Vertex.textureCoord).r;
+    // front and back:
+    const vec4 front = vec4(u,v,0.0f,1.f);
+    const vec4 back = vec4(u,v,min(1.0f, depth),1.f);
 
-      // calculate eye ray in world space
-      vec4 orig0, orig;
-      vec4 direc0, direc;
+    // calculate eye ray in world space
+    vec4 orig0, orig;
+    vec4 direc0, direc;
 
-      orig0 = Vertex.inverseProjection * front;
-      orig0 *= 1.f/orig0.w;
+    orig0 = Vertex.inverseProjection * front;
+    orig0 *= 1.f/orig0.w;
 
-      orig = Vertex.inverseModelView * orig0;
-      orig *= 1.f/orig.w;
+    orig = Vertex.inverseModelView * orig0;
+    orig *= 1.f/orig.w;
 
-      direc0 = Vertex.inverseProjection * back;
-      direc0 *= 1.f/direc0.w;
+    direc0 = Vertex.inverseProjection * back;
+    direc0 *= 1.f/direc0.w;
 
-      direc = Vertex.inverseModelView * normalize(direc0-orig0);
-      direc.w = 0.0f;
+    direc = Vertex.inverseModelView * normalize(direc0-orig0);
+    direc.w = 0.0f;
 
-      // find intersection with box
-      const Intersection inter = intersectBox(orig, direc, boxMin, boxMax);
+    // find intersection with box
+    const Intersection inter = intersectBox(orig, direc, boxMin, boxMax);
 
-      if (!inter.hit || inter.tfar <= 0)
-      {
-       	FragColor = vec4(0.0f, 0.0f, 0.0f, 0.0f);
-       	gl_FragDepth = texture(InputZBuffer, Vertex.textureCoord).r;
-      	return;
-      }
+    if (!inter.hit || inter.tfar <= 0)
+    {
+    FragColor = vec4(0.0f, 0.0f, 0.0f, 0.0f);
+    gl_FragDepth = texture(InputZBuffer, Vertex.textureCoord).r;
+    return;
+    }
 
-      const float tnear = max(inter.tnear, 0.0f);
-      const float tfar = min(inter.tfar, length(direc0 - orig0));
+    const float tnear = max(inter.tnear, 0.0f);
+    const float tfar = min(inter.tfar, length(direc0 - orig0));
 
-      const float tstep = abs(tnear-tfar)/(maxsteps);
+    const float tstep = abs(tnear-tfar)/(maxsteps);
 
-      // precompute vectors:
-      const vec3 vecstep = 0.5 * tstep * direc.xyz;
-      vec3 pos = 0.5 * (1.0 + orig.xyz + tnear * direc.xyz);
-      vec3 stop = 0.5 * (1.0 + orig.xyz + tfar * direc.xyz);
+    // precompute vectors:
+    const vec3 vecstep = 0.5 * tstep * direc.xyz;
+    vec3 pos = 0.5 * (1.0 + orig.xyz + tnear * direc.xyz);
+    vec3 stop = 0.5 * (1.0 + orig.xyz + tfar * direc.xyz);
 
-      vec4 startNDC = Vertex.MVP * vec4(orig.xyz + tnear * direc.xyz, 1.0);
-      startNDC *= 1.0/startNDC.w;
+    vec4 startNDC = Vertex.MVP * vec4(orig.xyz + tnear * direc.xyz, 1.0);
+    startNDC *= 1.0/startNDC.w;
 
-      float currentSceneDepth = texture(InputZBuffer, Vertex.textureCoord).r;
+    float currentSceneDepth = texture(InputZBuffer, Vertex.textureCoord).r;
 
-      if(startNDC.z > currentSceneDepth) {
-        // for debugging, green = occluded by existing scene geometry
-        // FragColor = vec4(0.0, 1.0, 0.0, 1.0);
-        gl_FragDepth = currentSceneDepth;
-        discard;
-      }
+    if(startNDC.z > currentSceneDepth) {
+    // for debugging, green = occluded by existing scene geometry
+    // FragColor = vec4(0.0, 1.0, 0.0, 1.0);
+    gl_FragDepth = currentSceneDepth;
+    discard;
+    }
 
-      vec3 origin = pos;
+    vec3 origin = pos;
 
-      // raycasting loop:
-      float maxp = 0.0f;
-      float mappedVal = 0.0f;
+    // raycasting loop:
+    float maxp = 0.0f;
+    float mappedVal = 0.0f;
 
 
-      float colVal = 0.0;
-      float alphaVal = 0.0;
-      float newVal = 0.0;
+    float colVal = 0.0;
+    float alphaVal = 0.0;
+    float newVal = 0.0;
 
-      if (alpha_blending <= 0.f){
-          gl_FragDepth = 0.0;
-          // nop alpha blending
-          for(int i = 0; i < maxsteps; ++i, pos += vecstep) {
-            float volume_sample = texture(VolumeTextures, pos.xyz).r;
-            maxp = max(maxp,volume_sample);
-          }
-
-          colVal = clamp(pow(ta*maxp + tb,gamma),0.f,1.f);
-      }
-      else{
-          // alpha blending:
-          float opacity = 1.0f;
-          for(int i = 0; i < maxsteps; ++i, pos += vecstep) {
-               float volume_sample = texture(VolumeTextures, pos.xyz).r;
-               newVal = clamp(ta*volume_sample + tb,0.f,1.f);
-               colVal = max(colVal,opacity*newVal);
-
-               opacity  *= (1.f-alpha_blending*clamp(newVal,0.f,1.f));
-
-//                vec4 geomstart = Vertex.MVP * vec4(pos, 1.0);
-//                geomstart *= 1.0/geomstart.w;
-//                gl_FragDepth = geomstart.z;
-
-               if (opacity<=0.02f) {
-                    break;
-               }
-          }
-      }
-
+    if (alpha_blending <= 0.f){
       gl_FragDepth = 0.0;
+      // nop alpha blending
+      for(int i = 0; i < maxsteps; ++i, pos += vecstep) {
+        float volume_sample = texture(VolumeTextures, pos.xyz).r;
+        maxp = max(maxp,volume_sample);
+      }
 
-      alphaVal = clamp(colVal, 0.0, 1.0);
+      colVal = clamp(pow(ta*maxp + tb,gamma),0.f,1.f);
+    }
+    else{
+      // alpha blending:
+      float opacity = 1.0f;
+      for(int i = 0; i < maxsteps; ++i, pos += vecstep) {
+           float volume_sample = texture(VolumeTextures, pos.xyz).r;
+           newVal = clamp(ta*volume_sample + tb,0.f,1.f);
+           colVal = max(colVal,opacity*newVal);
 
-      // FIXME: this is a workaround for grey lines appearing at borders
-      alphaVal = alphaVal<0.01?0.0f:alphaVal;
+           opacity  *= (1.f-alpha_blending*clamp(newVal,0.f,1.f));
 
-      // Mapping to transfer function range and gamma correction:
-      vec4 color = texture(ObjectTextures[3], vec2(colVal, 0.5f));
-      color.w = alphaVal;
+           if (opacity<=0.02f) {
+                break;
+           }
+      }
+    }
 
-      FragColor = color;
-//      gl_FragDepth = p.w;
+    gl_FragDepth = 0.0;
+
+    alphaVal = clamp(colVal, 0.0, 1.0);
+
+    // FIXME: this is a workaround for grey lines appearing at borders
+    alphaVal = alphaVal<0.01?0.0f:alphaVal;
+
+    // Mapping to transfer function range and gamma correction:
+    vec4 color = texture(ObjectTextures[3], vec2(colVal, 0.5f));
+    color.w = alphaVal;
+
+    FragColor = color;
 }
 
