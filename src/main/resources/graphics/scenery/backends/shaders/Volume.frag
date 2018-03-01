@@ -1,8 +1,8 @@
 #version 450 core
 #extension GL_ARB_separate_shader_objects: enable
 
-layout(set = 5, binding = 0) uniform sampler2D InputN;
-layout(set = 5, binding = 1) uniform sampler2D InputA;
+layout(set = 5, binding = 0) uniform sampler2D InputNormalsMaterial;
+layout(set = 5, binding = 1) uniform sampler2D InputDiffuseAlbedo;
 layout(set = 5, binding = 2) uniform sampler2D InputZBuffer;
 layout(set = 6, binding = 0) uniform sampler2D InputColor;
 

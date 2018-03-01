@@ -37,7 +37,7 @@ class VolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
 
         val shell = Box(GLVector(5.0f, 5.0f, 5.0f), insideNormals = true)
         shell.material.doubleSided = true
-        shell.material.cullingMode = Material.CullingMode.Front
+        shell.material.cullingMode = Material.CullingMode.None
         shell.material.diffuse = GLVector(0.2f, 0.2f, 0.2f)
         shell.material.specular = GLVector.getNullVector(3)
         shell.material.ambient = GLVector.getNullVector(3)
