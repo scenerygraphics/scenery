@@ -142,7 +142,7 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
 
         this.material.blending.transparent = true
         this.useClassDerivedShader = true
-        this.material.cullingMode = Material.CullingMode.Front
+        this.material.cullingMode = Material.CullingMode.None
 
         colormaps.put("grays", this.javaClass.getResource("colormap-grays.png").file)
         colormaps.put("hot", this.javaClass.getResource("colormap-hot.png").file)
