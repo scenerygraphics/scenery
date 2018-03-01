@@ -8,10 +8,6 @@ import graphics.scenery.volumes.Volume
 import org.junit.Test
 import java.io.File
 import java.nio.file.Paths
-import javax.swing.JFileChooser
-import javax.swing.SwingUtilities
-import javax.swing.UIManager
-import javax.swing.filechooser.FileNameExtensionFilter
 import kotlin.concurrent.thread
 
 /**
@@ -35,7 +31,7 @@ class VolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
             scene.addChild(this)
         }
 
-        val shell = Box(GLVector(5.0f, 5.0f, 5.0f), insideNormals = true)
+        val shell = Box(GLVector(10.0f, 10.0f, 10.0f), insideNormals = true)
         shell.material.doubleSided = true
         shell.material.cullingMode = Material.CullingMode.None
         shell.material.diffuse = GLVector(0.2f, 0.2f, 0.2f)
@@ -46,7 +42,9 @@ class VolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
         val volume = Volume()
         volume.name = "volume"
         volume.colormap = "jet"
-        volume.position = GLVector(0.0f, 0.0f, -2.0f)
+        volume.position = GLVector(0.0f, 0.0f, -3.5f)
+        volume.rotation = volume.rotation.rotateByEuler(0.05f, 0.05f, 0.05f)
+        volume.scale = GLVector(2.0f, 2.0f, 2.0f)
         scene.addChild(volume)
 
         val lights = (0 until 3).map {
@@ -80,6 +78,11 @@ class VolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
             volume.readFrom(Paths.get(v), replace = true)
 
             logger.info("Got volume!")
+
+            while(true) {
+                volume.rotation = volume.rotation.rotateByAngleY(0.01f)
+                Thread.sleep(5)
+            }
         }
 
     }
