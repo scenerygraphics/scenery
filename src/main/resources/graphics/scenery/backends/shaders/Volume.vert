@@ -42,7 +42,6 @@ layout(set = 1, binding = 0) uniform LightParameters {
 layout(set = 2, binding = 0) uniform Matrices {
 	mat4 ModelMatrix;
 	mat4 NormalMatrix;
-	mat4 ProjectionMatrix;
 	int isBillboard;
 } ubo;
 
@@ -84,7 +83,7 @@ void main()
 	headToEye[3][0] -= currentEye.eye * vrParameters.IPD;
 
     mv = (vrParameters.stereoEnabled ^ 1) * ViewMatrix * ubo.ModelMatrix + (vrParameters.stereoEnabled * headToEye * ViewMatrix * ubo.ModelMatrix);
-	projectionMatrix = (vrParameters.stereoEnabled ^ 1) * ubo.ProjectionMatrix + vrParameters.stereoEnabled * vrParameters.projectionMatrices[currentEye.eye];
+	projectionMatrix = (vrParameters.stereoEnabled ^ 1) * ProjectionMatrix + vrParameters.stereoEnabled * vrParameters.projectionMatrices[currentEye.eye];
 
 	vec3 L = vec3(sizeX, sizeY, sizeZ) * vec3(voxelSizeX, voxelSizeY, voxelSizeZ);
 

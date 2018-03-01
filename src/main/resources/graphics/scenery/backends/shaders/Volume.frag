@@ -47,7 +47,6 @@ layout(set = 1, binding = 0) uniform LightParameters {
 layout(set = 2, binding = 0) uniform Matrices {
 	mat4 ModelMatrix;
 	mat4 NormalMatrix;
-	mat4 ProjectionMatrix;
 	int isBillboard;
 } ubo;
 
@@ -137,6 +136,23 @@ vec3 posFromDepth(vec2 textureCoord) {
     return projectedPos.xyz/projectedPos.w;
 }
 
+vec3 viewFromDepth(float depth, vec2 texcoord) {
+    vec2 uv = (vrParameters.stereoEnabled ^ 1) * texcoord + vrParameters.stereoEnabled * vec2((texcoord.x - 0.5 * currentEye.eye) * 2.0, texcoord.y);
+
+    mat4 invHeadToEye = vrParameters.headShift;
+    invHeadToEye[3][0] -= currentEye.eye * vrParameters.IPD;
+    invHeadToEye = inverse(invHeadToEye);
+
+	mat4 invProjection = (vrParameters.stereoEnabled ^ 1) * InverseProjectionMatrix + vrParameters.stereoEnabled * vrParameters.inverseProjectionMatrices[currentEye.eye];
+	mat4 invView = (vrParameters.stereoEnabled ^ 1) * InverseViewMatrix + vrParameters.stereoEnabled * (InverseViewMatrix * invHeadToEye);
+
+    vec4 clipSpacePosition = vec4(uv * 2.0 - 1.0, depth, 1.0);
+    vec4 viewSpacePosition = invProjection * clipSpacePosition;
+
+    viewSpacePosition /= viewSpacePosition.w;
+    return viewSpacePosition.xyz;
+}
+
 vec3 worldFromDepth(float depth, vec2 texcoord) {
     vec2 uv = (vrParameters.stereoEnabled ^ 1) * texcoord + vrParameters.stereoEnabled * vec2((texcoord.x - 0.5 * currentEye.eye) * 2.0, texcoord.y);
 
@@ -166,14 +182,13 @@ void main()
       const vec4 boxMax = vec4(boxMax_x,boxMax_y,boxMax_z,1.f);
 
       // thread float coordinates:
-//      const float u = (x / (float) imageW)*2.0f-1.0f;
-//      const float v = (y / (float) imageH)*2.0f-1.0f;
       const float u = Vertex.textureCoord.s*2.0 - 1.0;
       const float v = Vertex.textureCoord.t*2.0 - 1.0;
 
+      const float depth = texture(InputZBuffer, Vertex.textureCoord).r;
       // front and back:
       const vec4 front = vec4(u,v,0.0f,1.f);
-      const vec4 back = vec4(u,v,1.0f,1.f);
+      const vec4 back = vec4(u,v,min(1.0f, depth),1.f);
 
       // calculate eye ray in world space
       vec4 orig0, orig;
@@ -202,7 +217,7 @@ void main()
       }
 
       const float tnear = max(inter.tnear, 0.0f);
-      const float tfar = inter.tfar;
+      const float tfar = min(inter.tfar, length(direc0 - orig0));
 
       const float tstep = abs(tnear-tfar)/(maxsteps);
 
@@ -211,61 +226,17 @@ void main()
       vec3 pos = 0.5 * (1.0 + orig.xyz + tnear * direc.xyz);
       vec3 stop = 0.5 * (1.0 + orig.xyz + tfar * direc.xyz);
 
-      vec4 stopNDC = Vertex.MVP * vec4(orig.xyz + tfar * direc.xyz, 1.0);
-//      stopNDC *= 1.0/stopNDC.w;
-
-      FragColor = vec4(vec3(stopNDC.z/stopNDC.w+1.0), 1.0);
-      return;
-
       vec4 startNDC = Vertex.MVP * vec4(orig.xyz + tnear * direc.xyz, 1.0);
-//      FragColor = vec4(abs(mvp[3].xyz)*1000, 1.0);
-//      gl_FragDepth = 0.0;
-//      return;
+      startNDC *= 1.0/startNDC.w;
 
-//      FragColor = vec4(startNDC.w);
-//      FragColor.w = 1.0f;
-//      gl_FragDepth = texture(InputOutputDepth, Vertex.textureCoord).r;
+      float currentSceneDepth = texture(InputZBuffer, Vertex.textureCoord).r;
 
-
-//      float d = (geomstart.z + 1.0)/2.0;
-
-//      float d = geomstart.z;
-//      if(d > texture(InputDepth, Vertex.textureCoord).r) {
-//        FragColor = vec4(0.0, 0.0, 0.0, 0.0);
-//        return;
-//      }
-
-//      d = (stopNDC.z + 1.0)/2.0;
-
-//      if(stopWorld.z > texture(InputDepth, Vertex.textureCoord).r) {
-
-      // geometry is in front of volume, don't raycast at all
-      float startDepth = (startNDC.z + 1.0) * 0.5;
-      if(startDepth > texture(InputZBuffer, Vertex.textureCoord).r) {
-        FragColor = vec4(0.0, 1.0, 0.0, 1.0);
-        gl_FragDepth = 0.0;
-        return;
+      if(startNDC.z > currentSceneDepth) {
+        // for debugging, green = occluded by existing scene geometry
+        // FragColor = vec4(0.0, 1.0, 0.0, 1.0);
+        gl_FragDepth = currentSceneDepth;
+        discard;
       }
-
-      // geometry intersects volume, terminate rays early
-      if(stopNDC.z > texture(InputZBuffer, Vertex.textureCoord).r) {
-        vec4 stoptmp = Vertex.inverseModelView*vec4(posFromDepth(Vertex.textureCoord), 1.0);
-        stop = 0.5 * (1.0 + stoptmp.xyz/stoptmp.w);
-//        FragColor = vec4(1.0, 0.0, 0.0, 1.0);
-//        stop0 *= 1.0/stop0.w;
-//
-//        vec4 stopW = Vertex.inverseModelView * stop0;
-//        stop = stopW.xyz/stopW.w;
-//        FragColor = vec4(1.0, 0.0, 0.0, 0.0);
-        FragColor = vec4(0.0);
-        gl_FragDepth = 0.0;
-//        return;
-      }
-
-//      FragColor = vec4(stop, 1.0);
-//      gl_FragDepth = 0.0f;
-//      return;
-
 
       vec3 origin = pos;
 
@@ -277,13 +248,6 @@ void main()
       float colVal = 0.0;
       float alphaVal = 0.0;
       float newVal = 0.0;
-//      gl_FragDepth = geompos.z/geompos.w;
-
-//      if(numLights == 0) {
-//        FragColor = vec4(0.0, 0.0, 0.0, 0.0);
-//       	gl_FragDepth = texture(InputOutputDepth, Vertex.textureCoord).r;
-//      }
-
 
       if (alpha_blending <= 0.f){
           gl_FragDepth = 0.0;
@@ -305,9 +269,9 @@ void main()
 
                opacity  *= (1.f-alpha_blending*clamp(newVal,0.f,1.f));
 
-                vec4 geomstart = Vertex.MVP * vec4(pos, 1.0);
-                geomstart *= 1.0/geomstart.w;
-                gl_FragDepth = geomstart.z;
+//                vec4 geomstart = Vertex.MVP * vec4(pos, 1.0);
+//                geomstart *= 1.0/geomstart.w;
+//                gl_FragDepth = geomstart.z;
 
                if (opacity<=0.02f) {
                     break;
@@ -315,6 +279,7 @@ void main()
           }
       }
 
+      gl_FragDepth = 0.0;
 
       alphaVal = clamp(colVal, 0.0, 1.0);
 
