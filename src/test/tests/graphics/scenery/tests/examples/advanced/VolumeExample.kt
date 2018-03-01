@@ -46,7 +46,7 @@ class VolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
         val volume = Volume()
         volume.name = "volume"
         volume.colormap = "jet"
-        volume.position = GLVector(0.0f, 0.0f, -0.0f)
+        volume.position = GLVector(0.0f, 0.0f, -2.0f)
         scene.addChild(volume)
 
         val lights = (0 until 3).map {
