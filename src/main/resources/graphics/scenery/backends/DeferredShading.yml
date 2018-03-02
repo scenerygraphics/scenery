@@ -46,8 +46,8 @@ renderpasses:
     parameters:
       Global.displayWidth: 0
       Global.displayHeight: 0
-      ssaoRadius: 0.27
-      ssaoSamples: 32
+      ssaoRadius: 0.17
+      ssaoSamples: 0
       IntensityScale: 1.0
       Epsilon: 0.001
       BiasDistance: 0.0001

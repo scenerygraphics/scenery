@@ -1488,7 +1488,7 @@ class OpenGLRenderer(hub: Hub,
                     }
 
                     var unit = 0
-                    pass.passConfig.inputs?.forEach { name ->
+                    pass.inputs.keys.reversed().forEach { name ->
                         renderConfig.rendertargets?.get(name.substringBefore("."))?.forEach {
                             shader.getUniform("Input" + it.key).setInt(unit)
                             unit++
@@ -1591,7 +1591,7 @@ class OpenGLRenderer(hub: Hub,
                     shader.use(gl)
 
                     var unit = 0
-                    pass.passConfig.inputs?.forEach { name ->
+                    pass.inputs.keys.reversed().forEach { name ->
                         renderConfig.rendertargets?.get(name.substringBefore("."))?.forEach {
                             shader.getUniform("Input" + it.key).setInt(unit)
                             unit++
@@ -1751,7 +1751,7 @@ class OpenGLRenderer(hub: Hub,
                 ImageIO.write(image, "png", file)
                 logger.info("Screenshot saved to ${file.absolutePath}")
             } catch (e: Exception) {
-                System.err.println("Unable to take screenshot: ")
+                logger.error("Unable to take screenshot: ")
                 e.printStackTrace()
             }
 
