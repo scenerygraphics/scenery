@@ -17,7 +17,13 @@ import org.lwjgl.openvr.VRSystem.*
 import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
+import org.scijava.ui.behaviour.Behaviour
+import org.scijava.ui.behaviour.BehaviourMap
+import org.scijava.ui.behaviour.InputTriggerMap
 import org.scijava.ui.behaviour.MouseAndKeyHandler
+import org.scijava.ui.behaviour.io.InputTriggerConfig
+import java.awt.Component
+import java.awt.event.KeyEvent
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.nio.LongBuffer
@@ -34,7 +40,7 @@ import java.util.concurrent.TimeUnit
  * @property[useCompositor] Whether or not the compositor should be used.
  * @constructor Creates a new OpenVR HMD instance, using the compositor if requested
  */
-open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = true) : MouseAndKeyHandler(), TrackerInput, Display, Hubable {
+open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = true) : TrackerInput, Display, Hubable {
     /** slf4j logger instance */
     protected val logger by LazyLogger()
     /** The Hub to use for communication */
@@ -85,8 +91,15 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
     @Volatile protected var readyForSubmission: Boolean = false
         private set
 
+    protected val inputHandler = MouseAndKeyHandler()
+    protected val config: InputTriggerConfig = InputTriggerConfig()
+    protected val inputMap = InputTriggerMap()
+    protected val behaviourMap = BehaviourMap()
 
     init {
+        inputHandler.setBehaviourMap(behaviourMap)
+        inputHandler.setInputMap(inputMap)
+
         error.put(0, -1)
 
         try {
@@ -419,19 +432,23 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
                     VRSystem_GetControllerState(device, state)
 
                     if(state.rAxis(0).x() > 0.8f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) {
+                        inputHandler.keyPressed(OpenVRButton.Right.toKeyEvent())
                         logger.info("Right down")
                     }
 
                     if(state.rAxis(0).x() < -0.8f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) {
+                        inputHandler.keyPressed(OpenVRButton.Left.toKeyEvent())
                         logger.info("Left down")
                     }
 
                     if(state.rAxis(0).y() > 0.8f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) {
-                        logger.info("Top down")
+                        inputHandler.keyPressed(OpenVRButton.Up.toKeyEvent())
+                        logger.info("Up down")
                     }
 
                     if(state.rAxis(0).y() < -0.8f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) {
-                        logger.info("Bottom down")
+                        inputHandler.keyPressed(OpenVRButton.Down.toKeyEvent())
+                        logger.info("Down down")
                     }
                 }
 
@@ -451,6 +468,10 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
             if(event.eventType() == EVREventType_VREvent_ButtonUnpress) {
                 val button = event.data().controller().button()
 
+                OpenVRButton.values().find { it.internalId == button }?.let {
+                    inputHandler.keyPressed(it.toKeyEvent())
+                }
+
                 logger.info("Button $button pressed")
             }
 
@@ -465,6 +486,32 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
         event.free()
 
         readyForSubmission = true
+    }
+
+    enum class OpenVRButton(val internalId: Int) {
+        Left(EVRButtonId_k_EButton_DPad_Left),
+        Right(EVRButtonId_k_EButton_DPad_Right),
+        Up(EVRButtonId_k_EButton_DPad_Up),
+        Down(EVRButtonId_k_EButton_DPad_Down),
+        Menu(EVRButtonId_k_EButton_ApplicationMenu),
+        Side(EVRButtonId_k_EButton_Grip)
+    }
+
+    data class AWTKey(val code: Int, val char: Char)
+
+    private fun OpenVRButton.toKeyEvent(): KeyEvent {
+        return KeyEvent(object: Component() {}, KeyEvent.KEY_PRESSED, 1, 0, this.toAWTKeyCode().code, this.toAWTKeyCode().char)
+    }
+
+    private fun OpenVRButton.toAWTKeyCode(): AWTKey {
+        return when(this) {
+            OpenVRHMD.OpenVRButton.Left -> AWTKey(KeyEvent.VK_LEFT, KeyEvent.CHAR_UNDEFINED)
+            OpenVRHMD.OpenVRButton.Right -> AWTKey(KeyEvent.VK_RIGHT, KeyEvent.CHAR_UNDEFINED)
+            OpenVRHMD.OpenVRButton.Up -> AWTKey(KeyEvent.VK_UP, KeyEvent.CHAR_UNDEFINED)
+            OpenVRHMD.OpenVRButton.Down -> AWTKey(KeyEvent.VK_DOWN, KeyEvent.CHAR_UNDEFINED)
+            OpenVRHMD.OpenVRButton.Menu -> AWTKey(KeyEvent.VK_M, 'M')
+            OpenVRHMD.OpenVRButton.Side -> AWTKey(KeyEvent.VK_S, 'S')
+        }
     }
 
     /**
@@ -702,5 +749,53 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
             modelPath.toLowerCase().endsWith("obj") -> node.readFromOBJ(modelPath, true)
             else -> logger.warn("Unknown model format: $modelPath for $modelName")
         }
+    }
+
+    /**
+     * Adds a behaviour to the map of behaviours, making them available for key bindings
+     *
+     * @param[behaviourName] The name of the behaviour
+     * @param[behaviour] The behaviour to add.
+     */
+    fun addBehaviour(behaviourName: String, behaviour: Behaviour) {
+        behaviourMap.put(behaviourName, behaviour)
+    }
+
+    /**
+     * Removes a behaviour from the map of behaviours.
+     *
+     * @param[behaviourName] The name of the behaviour to remove.
+     */
+    fun removeBehaviour(behaviourName: String) {
+        behaviourMap.remove(behaviourName)
+    }
+
+    /**
+     * Adds a key binding for a given behaviour
+     *
+     * @param[behaviourName] The behaviour to add a key binding for
+     * @param[keys] Which keys should trigger this behaviour?
+     */
+    fun addKeyBinding(behaviourName: String, keys: String) {
+        config.inputTriggerAdder(inputMap, "all").put(behaviourName, keys)
+    }
+
+    /**
+     * Removes a key binding for a given behaviour
+     *
+     * @param[behaviourName] The behaviour to remove the key binding for.
+     */
+    @Suppress("unused")
+    fun removeKeyBinding(behaviourName: String) {
+        config.inputTriggerAdder(inputMap, "all").put(behaviourName)
+    }
+
+    /**
+     * Returns the behaviour with the given name, if it exists. Otherwise null is returned.
+     *
+     * @param[behaviourName] The name of the behaviour
+     */
+    fun getBehaviour(behaviourName: String): Behaviour? {
+        return behaviourMap.get(behaviourName)
     }
 }

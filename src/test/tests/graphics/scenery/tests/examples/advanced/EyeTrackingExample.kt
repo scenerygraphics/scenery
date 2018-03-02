@@ -57,11 +57,19 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
         stageLight.intensity = 100.0f
         stageLight.position = GLVector(0.0f, 4.0f, 0.0f)
         scene.addChild(stageLight)
-
     }
 
     override fun inputSetup() {
         super.inputSetup()
+
+        inputHandler?.let { handler ->
+            hashMapOf("move_forward" to "UP", "move_back" to "DOWN", "move_left" to "LEFT", "move_right" to "RIGHT").forEach { name, key ->
+                handler.getBehaviour(name)?.let { b ->
+                    hmd.addBehaviour(name, b)
+                    hmd.addKeyBinding(name, key)
+                }
+            }
+        }
         setupCalibration()
     }
 
@@ -69,7 +77,7 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
         super.main()
     }
 
-    private fun setupCalibration(keybinding: String = "C") {
+    private fun setupCalibration() {
         val startCalibration = ClickBehaviour { _, _ ->
             thread {
                 val cam = scene.findObserver()
@@ -94,7 +102,7 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
             }
         }
 
-        inputHandler?.addBehaviour("start_calibration", startCalibration)
-        inputHandler?.addKeyBinding("start_calibration", keybinding)
+        hmd.addBehaviour("start_calibration", startCalibration)
+        hmd.addKeyBinding("start_calibration", "M")
     }
 }
