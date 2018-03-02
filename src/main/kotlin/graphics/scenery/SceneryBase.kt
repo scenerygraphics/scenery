@@ -242,7 +242,7 @@ open class SceneryBase(var applicationName: String,
                     currentMode = "fps"
                 }
 
-                System.out.println("Switched to $currentMode control")
+                logger.info("Switched to $currentMode control")
             }
         }
 

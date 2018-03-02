@@ -1751,7 +1751,7 @@ class OpenGLRenderer(hub: Hub,
                 ImageIO.write(image, "png", file)
                 logger.info("Screenshot saved to ${file.absolutePath}")
             } catch (e: Exception) {
-                System.err.println("Unable to take screenshot: ")
+                logger.error("Unable to take screenshot: ")
                 e.printStackTrace()
             }
 
