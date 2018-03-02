@@ -105,10 +105,10 @@
         <scijava-common.version>2.69.0</scijava-common.version>
         <scijava.jvm.version>1.8</scijava.jvm.version>
         <javac.target>1.8</javac.target>
-        <kotlin.version>1.2.21</kotlin.version>
+        <kotlin.version>1.2.30</kotlin.version>
         <kotlin.compiler.jvmTarget>1.8</kotlin.compiler.jvmTarget>
         <kotlin.compiler.incremental>true</kotlin.compiler.incremental>
-        <dokka.version>0.9.15</dokka.version>
+        <dokka.version>0.9.16</dokka.version>
         <dokka.skip>true</dokka.skip>
 
         <slf4j.version>1.7.25</slf4j.version>
@@ -305,13 +305,13 @@
         <dependency>
             <groupId>org.scijava</groupId>
             <artifactId>script-editor</artifactId>
-            <version>0.1.1</version>
+            <version>0.1.5</version>
         </dependency>
 
         <dependency>
             <groupId>org.scijava</groupId>
             <artifactId>ui-behaviour</artifactId>
-            <version>1.2.0</version>
+            <version>1.7.1</version>
         </dependency>
 
         <dependency>
@@ -323,7 +323,7 @@
         <dependency>
             <groupId>org.scijava</groupId>
             <artifactId>scripting-javascript</artifactId>
-            <version>0.4.3</version>
+            <version>0.4.4</version>
         </dependency>
 
         <dependency>
