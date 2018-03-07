@@ -64,6 +64,9 @@ class Hololens: TrackerInput, Display, Hubable {
     private var leftProjection: GLMatrix? = null
     private var rightProjection: GLMatrix? = null
 
+    private var poseLeft: GLMatrix = GLMatrix.getIdentity()
+    private var poseRight: GLMatrix = GLMatrix.getIdentity()
+
     init {
         zmqSocket.connect("tcp://localhost:1339")
     }
@@ -105,7 +108,7 @@ class Hololens: TrackerInput, Display, Hubable {
      */
     override fun getPose(): GLMatrix {
         // TODO: Return actual Hololens pose
-        return GLMatrix.getIdentity()
+        return poseLeft
     }
 
     /**
@@ -122,7 +125,12 @@ class Hololens: TrackerInput, Display, Hubable {
      * update state
      */
     override fun update() {
-        // TODO: Update Hololens state
+        zmqSocket.send("ViewTransform")
+        val matrixData = zmqSocket.recv()
+        assert(matrixData.size == 128)
+
+        ByteBuffer.wrap(matrixData).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer().limit(16).get(poseLeft.floatArray)
+        ByteBuffer.wrap(matrixData).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer().position(16).get(poseRight.floatArray)
     }
 
     override fun getWorkingTracker(): TrackerInput? {
@@ -196,17 +204,17 @@ class Hololens: TrackerInput, Display, Hubable {
 
             leftProjection = GLMatrix.getIdentity()
             ByteBuffer.wrap(matrixData).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer().get(leftProjection!!.floatArray)
-            logger.debug("Left projection matrix: $leftProjection")
+            logger.info("Hololens left projection: $leftProjection")
         }
 
         if(rightProjection == null) {
-            zmqSocket.send("LeftPR")
+            zmqSocket.send("RightPR")
             val matrixData = zmqSocket.recv()
             assert(matrixData.size == 64)
 
             rightProjection = GLMatrix.getIdentity()
             ByteBuffer.wrap(matrixData).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer().get(rightProjection!!.floatArray)
-            logger.debug("Right projection matrix: $rightProjection")
+            logger.info("Hololens right projection: $rightProjection")
         }
 
         if(d3dSharedHandle == -1L || d3dImage == null) {
