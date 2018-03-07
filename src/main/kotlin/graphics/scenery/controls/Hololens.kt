@@ -10,15 +10,20 @@ import graphics.scenery.backends.Display
 import graphics.scenery.backends.vulkan.*
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.system.MemoryStack
+import org.lwjgl.system.MemoryUtil.memAllocInt
+import org.lwjgl.system.MemoryUtil.memAllocLong
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.NVDedicatedAllocation.*
 import org.lwjgl.vulkan.NVExternalMemory.*
 import org.lwjgl.vulkan.NVExternalMemoryCapabilities.*
 import org.lwjgl.vulkan.NVExternalMemoryWin32.*
+import org.lwjgl.vulkan.NVWin32KeyedMutex.VK_STRUCTURE_TYPE_WIN32_KEYED_MUTEX_ACQUIRE_RELEASE_INFO_NV
 import org.lwjgl.vulkan.VK10.*
 import org.zeromq.ZContext
 import org.zeromq.ZMQ
 import java.math.BigInteger
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.nio.charset.Charset
 
 /**
@@ -50,6 +55,14 @@ class Hololens: TrackerInput, Display, Hubable {
     private var d3dSharedHandle = -1L
     private var memoryHandle = -1L
     private var d3dImage: VulkanTexture.VulkanImage? = null
+
+    private val acqKeys = memAllocLong(1).put(0, 0)
+    private val releaseKeys = memAllocLong(1).put(0, 0)
+    private val memoryHandleBuffer = memAllocLong(1)
+    private val acquireTimeout = memAllocInt(1).put(0, 1)
+
+    private var leftProjection: GLMatrix? = null
+    private var rightProjection: GLMatrix? = null
 
     init {
         zmqSocket.connect("tcp://localhost:1339")
@@ -123,7 +136,11 @@ class Hololens: TrackerInput, Display, Hubable {
      * @return GLMatrix containing the per-eye projection matrix
      */
     override fun getEyeProjection(eye: Int, nearPlane: Float, farPlane: Float): GLMatrix {
-        return GLMatrix().setPerspectiveProjectionMatrix(50.0f, 1.0f,  nearPlane, farPlane )
+        return when(eye) {
+            0 -> leftProjection ?: GLMatrix().setPerspectiveProjectionMatrix(50.0f, 1.0f, nearPlane, farPlane)
+            1 -> rightProjection ?: GLMatrix().setPerspectiveProjectionMatrix(50.0f, 1.0f, nearPlane, farPlane)
+            else -> { logger.error("3rd eye, wtf?"); GLMatrix.getIdentity() }
+        }
     }
 
     /**
@@ -170,6 +187,26 @@ class Hololens: TrackerInput, Display, Hubable {
     override fun submitToCompositorVulkan(width: Int, height: Int, format: Int, instance: VkInstance, device: VulkanDevice, queue: VkQueue, image: Long) {
         if(hololensCommandPool == -1L) {
             hololensCommandPool = device.createCommandPool(device.queueIndices.graphicsQueue)
+        }
+
+        if(leftProjection == null) {
+            zmqSocket.send("LeftPR")
+            val matrixData = zmqSocket.recv()
+            assert(matrixData.size == 64)
+
+            leftProjection = GLMatrix.getIdentity()
+            ByteBuffer.wrap(matrixData).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer().get(leftProjection!!.floatArray)
+            logger.debug("Left projection matrix: $leftProjection")
+        }
+
+        if(rightProjection == null) {
+            zmqSocket.send("LeftPR")
+            val matrixData = zmqSocket.recv()
+            assert(matrixData.size == 64)
+
+            rightProjection = GLMatrix.getIdentity()
+            ByteBuffer.wrap(matrixData).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer().get(rightProjection!!.floatArray)
+            logger.debug("Right projection matrix: $rightProjection")
         }
 
         if(d3dSharedHandle == -1L || d3dImage == null) {
@@ -311,13 +348,7 @@ class Hololens: TrackerInput, Display, Hubable {
                 this
             }.endCommandBuffer(device, hololensCommandPool,
                 queue, flush = true, dealloc = true)
-
-            zmqSocket.send("NopeTT")
-            checkSocketResponse(zmqSocket.recv())
         }
-
-        zmqSocket.send("GiefTT")
-        checkSocketResponse(zmqSocket.recv())
 
         if(commandBuffer == null) {
             commandBuffer = VulkanCommandBuffer(device, null, false)
@@ -396,35 +427,24 @@ class Hololens: TrackerInput, Display, Hubable {
                 this
             }
 
-            // TODO: Actually use keyed mutex, currently leads to crash
             commandBuffer?.commandBuffer?.endCommandBuffer(device, hololensCommandPool, queue,
                 flush = false, dealloc = false, submitInfoPNext = null)
         }
 
-//        val mem = memAllocLong(1).put(0, memoryHandle)
-//        val acqKeys = memAllocLong(1).put(0, 1)
-//        val releaseKeys = memAllocLong(1).put(0, 1)
-//        val timeout = memAllocInt(1).put(0, 1)
+        memoryHandleBuffer.put(0, memoryHandle)
 
-//        val keyedMutex = VkWin32KeyedMutexAcquireReleaseInfoNV.calloc()
-//            .sType(VK_STRUCTURE_TYPE_WIN32_KEYED_MUTEX_ACQUIRE_RELEASE_INFO_NV)
-//            .pNext(NULL)
-//            .acquireCount(1)
-//            .pAcquireSyncs(mem)
-//            .pAcquireSyncs(acqKeys)
-//            .pAcquireTimeoutMilliseconds(timeout)
-//            .releaseCount(1)
-//            .pReleaseKeys(releaseKeys)
+        val keyedMutex = VkWin32KeyedMutexAcquireReleaseInfoNV.calloc()
+            .sType(VK_STRUCTURE_TYPE_WIN32_KEYED_MUTEX_ACQUIRE_RELEASE_INFO_NV)
+            .pNext(0)
+            .acquireCount(1)
+            .pAcquireSyncs(memoryHandleBuffer)
+            .pAcquireKeys(acqKeys)
+            .pAcquireTimeoutMilliseconds(acquireTimeout)
+            .releaseCount(1)
+            .pReleaseKeys(releaseKeys)
+            .pReleaseSyncs(memoryHandleBuffer)
 
-        commandBuffer?.commandBuffer?.submit(queue, null)
-
-        zmqSocket.send("NopeTT")
-        checkSocketResponse(zmqSocket.recv())
-
-//        memFree(mem)
-//        memFree(acqKeys)
-//        memFree(releaseKeys)
-//        memFree(timeout)
+        commandBuffer?.commandBuffer?.submit(queue, submitInfoPNext = keyedMutex)
     }
 
     private fun checkSocketResponse(response: ByteArray) {
