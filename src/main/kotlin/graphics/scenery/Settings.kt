@@ -1,5 +1,6 @@
 package graphics.scenery
 
+import graphics.scenery.utils.LazyLogger
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -10,7 +11,8 @@ import java.util.concurrent.ConcurrentHashMap
  */
 open class Settings(override var hub: Hub? = null) : Hubable {
     /** Hash map storing all the settings */
-    protected var settingsStore = ConcurrentHashMap<String, Any>()
+    private var settingsStore = ConcurrentHashMap<String, Any>()
+    protected val logger by LazyLogger()
 
     /**
      * Query the settings store for a setting [name] and type T
@@ -20,23 +22,23 @@ open class Settings(override var hub: Hub? = null) : Hubable {
      */
     fun <T> get(name: String): T {
         if(!settingsStore.containsKey(name)) {
-            System.err.println("WARNING: Settings don't contain '$name'")
+            logger.warn("WARNING: Settings don't contain '$name'")
         }
-        return settingsStore.get(name) as T
+        return settingsStore[name] as T
     }
 
     /**
      * Compatibility function for Java, see [get].
      *
      * @param[name] Name of the setting to fetch.
-     * @param[tyope] Class of the setting to fetch.
+     * @param[type] Class of the setting to fetch.
      * @return The setting, if found.
      */
-    fun <T> getProperty(name: String, type: Class<T>): T{
+    fun <T> getProperty(name: String): T{
         if(!settingsStore.containsKey(name)) {
-            System.err.println("WARNING: Settings don't contain '$name'")
+            logger.warn("WARNING: Settings don't contain '$name'")
         }
-        return settingsStore.get(name) as T
+        return settingsStore[name] as T
     }
 
     /**
@@ -61,7 +63,7 @@ open class Settings(override var hub: Hub? = null) : Hubable {
                     settingsStore[name] = contents.toInt()
                 }
                 else {
-                    System.err.println("Cannot cast $contents from ${contents.javaClass} to $type, $name will stay ${settingsStore[name]}")
+                    logger.warn("Cannot cast $contents from ${contents.javaClass} to $type, $name will stay ${settingsStore[name]}")
                 }
             }
 

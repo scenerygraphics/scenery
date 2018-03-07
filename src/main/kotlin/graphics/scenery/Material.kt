@@ -12,6 +12,9 @@ import java.util.concurrent.ConcurrentHashMap
  */
 open class Material : Serializable {
 
+    enum class CullingMode { None, Front, Back, FrontAndBack }
+
+    enum class DepthTest { Less, Greater, LessEqual, GreaterEqual, Always, Never, Equal }
 
     /** Name of the material. */
     var name: String = "Material"
@@ -22,7 +25,9 @@ open class Material : Serializable {
     /** Ambient color of the material. */
     var ambient: GLVector = GLVector(0.5f, 0.5f, 0.5f)
     /** Specular exponent */
-    var specularExponent: Float = 0.0f
+    var roughness: Float = 1.0f
+
+    var metallic: Float = 0.0f
 
     /** Blending settings for this material. See [Blending]. */
     var blending: Blending = Blending()
@@ -37,6 +42,10 @@ open class Material : Serializable {
 
     /** Set whether the material is double-sided */
     var doubleSided: Boolean = false
+
+    var cullingMode: CullingMode = CullingMode.Back
+
+    var depthTest: DepthTest = DepthTest.LessEqual
 
     /** Flag to check whether the [transferTextures] need reloading */
     var needsTextureReload: Boolean = false

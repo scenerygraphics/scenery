@@ -109,6 +109,7 @@ open class Scene : Node("RootNode") {
         return matched
     }
 
+    @Suppress("UNUSED_VARIABLE", "unused")
     fun discoverParallel(s: Scene, func: (Node) -> Boolean, useDiscoveryBarriers: Boolean = false) = runBlocking<List<Node>> {
         val visited = Collections.synchronizedSet(HashSet<Node>(sceneSize.toInt()))
         val crs = Collections.synchronizedSet(HashSet<Job>())

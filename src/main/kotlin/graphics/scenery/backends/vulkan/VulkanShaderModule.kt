@@ -226,26 +226,33 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, claz
                     members = LinkedHashMap<String, UBOMemberSpec>()))
          */
         // inputs are summarized into one descriptor set
+        val inputSets = mutableSetOf<Long>()
         (0 until compiler.shaderResources.sampledImages.size()).forEach { samplerId ->
             val res = compiler.shaderResources.sampledImages.get(samplerId.toInt())
+            val setId = compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet)
+
             val name = if(res.name.startsWith("Input")) {
-                "Inputs"
+                if(!inputSets.contains(setId)) {
+                    inputSets.add(setId)
+                }
+
+                "Inputs-${inputSets.size-1}"
             } else {
                 res.name
             }
 
             if(uboSpecs.containsKey(name)) {
-                logger.debug("Adding inputs member ${res.name}")
+                logger.debug("Adding inputs member ${res.name}/$name")
                 uboSpecs[name]!!.members.put(res.name, UBOMemberSpec(res.name, uboSpecs[name]!!.members.size.toLong(), 0L, 0L))
                 uboSpecs[name]!!.binding = minOf(uboSpecs[name]!!.binding, compiler.getDecoration(res.id, Decoration.DecorationBinding))
             } else {
-                logger.debug("Adding inputs UBO, ${res.name}")
+                logger.debug("Adding inputs UBO, ${res.name}/$name")
                 uboSpecs.put(name, UBOSpec(name,
-                    set = compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet),
+                    set = setId,
                     binding = compiler.getDecoration(res.id, Decoration.DecorationBinding),
                     members = LinkedHashMap()))
 
-                if(name == "Inputs") {
+                if(name.startsWith("Inputs")) {
                     uboSpecs[name]!!.members.put(res.name, UBOMemberSpec(res.name, 0L, 0L, 0L))
                 }
             }

@@ -28,6 +28,8 @@ import javax.imageio.ImageIO
 import kotlin.collections.LinkedHashMap
 import kotlin.concurrent.thread
 import kotlin.concurrent.withLock
+import kotlin.reflect.full.findAnnotation
+import kotlin.reflect.full.memberProperties
 
 /**
  * Deferred Lighting Renderer for scenery
@@ -469,9 +471,12 @@ class OpenGLRenderer(hub: Hub,
 
                             RenderConfigReader.TargetFormat.RG_Float32 -> framebuffer.addFloatRGBuffer(gl, att.key, 32)
                             RenderConfigReader.TargetFormat.RG_Float16 -> framebuffer.addFloatRGBuffer(gl, att.key, 16)
+                            RenderConfigReader.TargetFormat.R_Float16 -> framebuffer.addFloatRBuffer(gl, att.key, 16)
 
                             RenderConfigReader.TargetFormat.RGBA_UInt16 -> framebuffer.addUnsignedByteRGBABuffer(gl, att.key, 16)
                             RenderConfigReader.TargetFormat.RGBA_UInt8 -> framebuffer.addUnsignedByteRGBABuffer(gl, att.key, 8)
+                            RenderConfigReader.TargetFormat.R_UInt16 -> framebuffer.addUnsignedByteRBuffer(gl, att.key, 16)
+                            RenderConfigReader.TargetFormat.R_UInt8 -> framebuffer.addUnsignedByteRBuffer(gl, att.key, 8)
 
                             RenderConfigReader.TargetFormat.Depth32 -> framebuffer.addDepthBuffer(gl, att.key, 32)
                             RenderConfigReader.TargetFormat.Depth24 -> framebuffer.addDepthBuffer(gl, att.key, 24)
@@ -524,9 +529,15 @@ class OpenGLRenderer(hub: Hub,
             val passConfig = config.renderpasses[pass.key]!!
 
             passConfig.inputs?.forEach { inputTarget ->
+                val targetName = if(inputTarget.contains(".")) {
+                    inputTarget.substringBefore(".")
+                } else {
+                    inputTarget
+                }
+
                 passes.filter {
-                    it.value.output.keys.contains(inputTarget)
-                }.forEach { pass.value.inputs.put(inputTarget, it.value.output[inputTarget]!!) }
+                    it.value.output.keys.contains(targetName)
+                }.forEach { pass.value.inputs.put(inputTarget, it.value.output[targetName]!!) }
             }
 
             with(pass.value) {
@@ -813,13 +824,14 @@ class OpenGLRenderer(hub: Hub,
         }
     }
 
-    @Synchronized fun updateDefaultUBOs(sceneObjects: List<Node>) {
+    @Synchronized fun updateDefaultUBOs() {
         // find observer, if none, return
         val cam = scene.findObserver() ?: return
 
         val hmd = hub?.getWorkingHMDDisplay()?.wantsVR()
 
         cam.view = cam.getTransformation()
+        cam.updateWorld(true, false)
 
         buffers["VRParameters"]!!.reset()
         val vrUbo = OpenGLUBO(backingBuffer = buffers["VRParameters"]!!)
@@ -829,6 +841,14 @@ class OpenGLRenderer(hub: Hub,
                 ?: cam.projection)
         })
         vrUbo.add("projection1", {
+            (hmd?.getEyeProjection(1, cam.nearPlaneDistance, cam.farPlaneDistance)
+                ?: cam.projection)
+        })
+        vrUbo.add("inverseProjection0", {
+            (hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance)
+                ?: cam.projection)
+        })
+        vrUbo.add("inverseProjection1", {
             (hmd?.getEyeProjection(1, cam.nearPlaneDistance, cam.farPlaneDistance)
                 ?: cam.projection)
         })
@@ -856,7 +876,6 @@ class OpenGLRenderer(hub: Hub,
 
                 var bufferOffset = ubo.backingBuffer!!.advance()
                 ubo.offset = bufferOffset
-                node.projection.copyFrom(cam.projection)
                 node.view.copyFrom(cam.view)
                 ubo.populate(offset = bufferOffset.toLong())
 
@@ -880,25 +899,28 @@ class OpenGLRenderer(hub: Hub,
 
         buffers["LightParameters"]!!.reset()
 
-        val lights = sceneObjects.filter { it is PointLight }
+//        val lights = sceneObjects.filter { it is PointLight }
 
         val lightUbo = OpenGLUBO(backingBuffer = buffers["LightParameters"]!!)
         lightUbo.add("ViewMatrix", { cam.view })
+        lightUbo.add("InverseViewMatrix", { cam.view.inverse })
+        lightUbo.add("ProjectionMatrix", { cam.projection })
+        lightUbo.add("InverseProjectionMatrix", { cam.projection.inverse })
         lightUbo.add("CamPosition", { cam.position })
-        lightUbo.add("numLights", { lights.size })
+//        lightUbo.add("numLights", { lights.size })
 
-        lights.forEachIndexed { i, light ->
-            val l = light as PointLight
-            l.updateWorld(true, false)
-
-            lightUbo.add("Linear-$i", { l.linear })
-            lightUbo.add("Quadratic-$i", { l.quadratic })
-            lightUbo.add("Intensity-$i", { l.intensity })
-            lightUbo.add("Radius-$i", { -l.linear + Math.sqrt(l.linear * l.linear - 4 * l.quadratic * (1.0 - (256.0f / 5.0) * 100)).toFloat() })
-            lightUbo.add("Position-$i", { l.position })
-            lightUbo.add("Color-$i", { l.emissionColor })
-            lightUbo.add("filler-$i", { 0.0f })
-        }
+//        lights.forEachIndexed { i, light ->
+//            val l = light as PointLight
+//            l.updateWorld(true, false)
+//
+//            lightUbo.add("Linear-$i", { l.linear })
+//            lightUbo.add("Quadratic-$i", { l.quadratic })
+//            lightUbo.add("Intensity-$i", { l.intensity })
+//            lightUbo.add("Radius-$i", { -l.linear + Math.sqrt(l.linear * l.linear - 4 * l.quadratic * (1.0 - (256.0f / 5.0) * 100)).toFloat() })
+//            lightUbo.add("Position-$i", { l.position })
+//            lightUbo.add("Color-$i", { l.emissionColor })
+//            lightUbo.add("filler-$i", { 0.0f })
+//        }
 
         lightUbo.populate()
 
@@ -1028,7 +1050,9 @@ class OpenGLRenderer(hub: Hub,
 
     private fun blitFramebuffers(source: GLFramebuffer?, target: GLFramebuffer?,
                                  sourceOffset: OpenGLRenderpass.Rect2D,
-                                 targetOffset: OpenGLRenderpass.Rect2D) {
+                                 targetOffset: OpenGLRenderpass.Rect2D,
+                                 colorOnly: Boolean = false, depthOnly: Boolean = false,
+                                 sourceName: String? = null) {
         if (target != null) {
             target.setDrawBuffers(gl)
         } else {
@@ -1036,29 +1060,43 @@ class OpenGLRenderer(hub: Hub,
         }
 
         if (source != null) {
-            source.setReadBuffers(gl)
+            if(sourceName != null) {
+                source.setReadBuffers(gl, sourceName)
+            } else {
+                source.setReadBuffers(gl)
+            }
         } else {
             gl.glBindFramebuffer(GL4.GL_READ_FRAMEBUFFER, 0)
         }
 
-        if (source?.hasColorAttachment() ?: true) {
-            gl.glBlitFramebuffer(
-                sourceOffset.offsetX, sourceOffset.offsetY,
-                sourceOffset.offsetX + sourceOffset.width, sourceOffset.offsetY + sourceOffset.height,
-                targetOffset.offsetX, targetOffset.offsetY,
-                targetOffset.offsetX + targetOffset.width, targetOffset.offsetY + targetOffset.height,
-                GL4.GL_COLOR_BUFFER_BIT, GL4.GL_LINEAR)
+        val (blitColor, blitDepth) = when {
+            colorOnly && !depthOnly -> true to false
+            !colorOnly && depthOnly -> false to true
+            else -> true to true
         }
 
-        if (source?.hasDepthAttachment() ?: true && target?.hasDepthAttachment() ?: true) {
-            gl.glBlitFramebuffer(
-                sourceOffset.offsetX, sourceOffset.offsetY,
-                sourceOffset.offsetX + sourceOffset.width, sourceOffset.offsetY + sourceOffset.height,
-                targetOffset.offsetX, targetOffset.offsetY,
-                targetOffset.offsetX + targetOffset.width, targetOffset.offsetY + targetOffset.height,
-                GL4.GL_DEPTH_BUFFER_BIT, GL4.GL_NEAREST)
-        } else {
-            logger.trace("Either source or target don't have a depth buffer. If blitting to window surface, this is not a problem.")
+        if(blitColor) {
+            if (source?.hasColorAttachment() != false) {
+                gl.glBlitFramebuffer(
+                    sourceOffset.offsetX, sourceOffset.offsetY,
+                    sourceOffset.offsetX + sourceOffset.width, sourceOffset.offsetY + sourceOffset.height,
+                    targetOffset.offsetX, targetOffset.offsetY,
+                    targetOffset.offsetX + targetOffset.width, targetOffset.offsetY + targetOffset.height,
+                    GL4.GL_COLOR_BUFFER_BIT, GL4.GL_LINEAR)
+            }
+        }
+
+        if(blitDepth) {
+            if ((source?.hasDepthAttachment() != false && target?.hasDepthAttachment() != false) || (depthOnly && !colorOnly)) {
+                gl.glBlitFramebuffer(
+                    sourceOffset.offsetX, sourceOffset.offsetY,
+                    sourceOffset.offsetX + sourceOffset.width, sourceOffset.offsetY + sourceOffset.height,
+                    targetOffset.offsetX, targetOffset.offsetY,
+                    targetOffset.offsetX + targetOffset.width, targetOffset.offsetY + targetOffset.height,
+                    GL4.GL_DEPTH_BUFFER_BIT, GL4.GL_NEAREST)
+            } else {
+                logger.trace("Either source or target don't have a depth buffer. If blitting to window surface, this is not a problem.")
+            }
         }
 
         gl.glBindFramebuffer(GL4.GL_FRAMEBUFFER, 0)
@@ -1246,7 +1284,6 @@ class OpenGLRenderer(hub: Hub,
         val running = hub?.getApplication()?.running ?: true
 
         if (scene.children.count() == 0 || renderpasses.isEmpty() || mustRecreateFramebuffers || !running) {
-            logger.info("Waiting for initialization")
             Thread.sleep(200)
             return
         }
@@ -1258,7 +1295,7 @@ class OpenGLRenderer(hub: Hub,
             }, useDiscoveryBarriers = true)
 
         val startUboUpdate = System.nanoTime()
-        updateDefaultUBOs(sceneObjects)
+        updateDefaultUBOs()
         stats?.add("OpenGLRenderer.updateUBOs", System.nanoTime() - startUboUpdate)
 
         val startInstanceUpdate = System.nanoTime()
@@ -1267,18 +1304,42 @@ class OpenGLRenderer(hub: Hub,
 
         buffers["ShaderParametersBuffer"]?.let { shaderParametersBuffer ->
             shaderParametersBuffer.reset()
-            renderpasses.forEach { _, pass -> pass.updateShaderParameters() }
+            renderpasses.forEach { name, pass ->
+                logger.trace("Updating shader parameters for {}", name)
+                pass.updateShaderParameters()
+            }
             shaderParametersBuffer.copyFromStagingBuffer()
         }
 
         flow.forEach { t ->
+            if(logger.isDebugEnabled || logger.isTraceEnabled) {
+                val error = gl.glGetError()
+
+                if (error != 0) {
+                    throw Exception("OpenGL error: $error")
+                }
+            }
+
             val pass = renderpasses[t]!!
+            logger.trace("Running pass {}", pass.passName)
             val startPass = System.nanoTime()
 
             if (pass.passConfig.blitInputs) {
-                pass.inputs.forEach { _, input ->
-                    blitFramebuffers(input, pass.output.values.firstOrNull(),
-                        pass.openglMetadata.viewport.area, pass.openglMetadata.viewport.area)
+                pass.inputs.forEach { name, input ->
+                    val targetName = name.substringAfter(".")
+                    if(name.contains(".") && input.getTextureType(targetName) == 0) {
+                        logger.trace("Blitting {} into {} (color only)", targetName, pass.output.values.first().id)
+                        blitFramebuffers(input, pass.output.values.firstOrNull(),
+                            pass.openglMetadata.viewport.area, pass.openglMetadata.viewport.area, colorOnly = true, sourceName = name.substringAfter("."))
+                    } else if(name.contains(".") && input.getTextureType(targetName) == 1) {
+                        logger.trace("Blitting {} into {} (depth only)", targetName, pass.output.values.first().id)
+                        blitFramebuffers(input, pass.output.values.firstOrNull(),
+                            pass.openglMetadata.viewport.area, pass.openglMetadata.viewport.area, depthOnly = true)
+                    } else {
+                        logger.trace("Blitting {} into {}", targetName, pass.output.values.first().id)
+                        blitFramebuffers(input, pass.output.values.firstOrNull(),
+                            pass.openglMetadata.viewport.area, pass.openglMetadata.viewport.area)
+                    }
                 }
             }
 
@@ -1289,7 +1350,7 @@ class OpenGLRenderer(hub: Hub,
             }
 
             // bind framebuffers to texture units and determine total number
-            val inputsBound = pass.inputs.values.fold(0, { acc, fb -> acc + fb.bindTexturesToUnitsWithOffset(gl, acc) })
+            pass.inputs.values.reversed().fold(0, { acc, fb -> acc + fb.bindTexturesToUnitsWithOffset(gl, acc) })
 
             gl.glViewport(
                 pass.openglMetadata.viewport.area.offsetX,
@@ -1327,7 +1388,8 @@ class OpenGLRenderer(hub: Hub,
                 pass.openglMetadata.viewport.minDepth.toDouble(),
                 pass.openglMetadata.viewport.maxDepth.toDouble())
 
-            if (pass.passConfig.type == RenderConfigReader.RenderpassType.geometry) {
+            if (pass.passConfig.type == RenderConfigReader.RenderpassType.geometry ||
+                pass.passConfig.type == RenderConfigReader.RenderpassType.lights) {
 
                 gl.glEnable(GL4.GL_DEPTH_TEST)
                 gl.glEnable(GL4.GL_CULL_FACE)
@@ -1348,7 +1410,13 @@ class OpenGLRenderer(hub: Hub,
                     gl.glDisable(GL4.GL_BLEND)
                 }
 
-                sceneObjects.forEach renderLoop@ { n ->
+                val actualObjects = if(pass.passConfig.type == RenderConfigReader.RenderpassType.geometry) {
+                    sceneObjects.filter { it !is PointLight }
+                } else {
+                    sceneObjects.filter { it is PointLight }
+                }
+
+                actualObjects.forEach renderLoop@ { n ->
                     if (n.instanceOf != null) {
                         return@renderLoop
                     }
@@ -1363,6 +1431,13 @@ class OpenGLRenderer(hub: Hub,
 
                     if (n.material.doubleSided) {
                         gl.glDisable(GL4.GL_CULL_FACE)
+                    }
+
+                    when(n.material.cullingMode) {
+                        Material.CullingMode.None -> gl.glDisable(GL4.GL_CULL_FACE)
+                        Material.CullingMode.Front -> gl.glCullFace(GL4.GL_FRONT)
+                        Material.CullingMode.Back -> gl.glCullFace(GL4.GL_BACK)
+                        Material.CullingMode.FrontAndBack -> gl.glCullFace(GL4.GL_FRONT_AND_BACK)
                     }
 
                     if (n.material.blending.transparent) {
@@ -1413,8 +1488,8 @@ class OpenGLRenderer(hub: Hub,
                     }
 
                     var unit = 0
-                    pass.passConfig.inputs?.forEach { name ->
-                        renderConfig.rendertargets?.get(name)?.forEach {
+                    pass.inputs.keys.reversed().forEach { name ->
+                        renderConfig.rendertargets?.get(name.substringBefore("."))?.forEach {
                             shader.getUniform("Input" + it.key).setInt(unit)
                             unit++
                         }
@@ -1439,13 +1514,20 @@ class OpenGLRenderer(hub: Hub,
                     }
 
                     var binding = 0
-                    s.UBOs.forEach { name, ubo ->
-                        if(shader.uboSpecs.containsKey(name)) {
-                            val index = shader.getUniformBlockIndex(name)
-                            logger.trace("Binding {} for {}, index={}, binding={}, size={}", name, n.name, index, binding, ubo.getSize())
+
+                    (s.UBOs + pass.UBOs).forEach { name, ubo ->
+                        val actualName = if (name.contains("ShaderParameters")) {
+                            "ShaderParameters"
+                        } else {
+                            name
+                        }
+
+                        if(shader.uboSpecs.containsKey(actualName) && shader.isValid()) {
+                            val index = shader.getUniformBlockIndex(actualName)
+                            logger.trace("Binding {} for {}, index={}, binding={}, size={}", actualName, n.name, index, binding, ubo.getSize())
 
                             if (index == -1) {
-                                logger.error("Failed to bind UBO $name for ${n.name} to $binding")
+                                logger.error("Failed to bind UBO $actualName for ${n.name} to $binding")
                             } else {
                                 gl.glUniformBlockBinding(shader.id, index, binding)
                                 gl.glBindBufferRange(GL4.GL_UNIFORM_BUFFER, binding,
@@ -1509,8 +1591,8 @@ class OpenGLRenderer(hub: Hub,
                     shader.use(gl)
 
                     var unit = 0
-                    pass.passConfig.inputs?.forEach { name ->
-                        renderConfig.rendertargets?.get(name)?.forEach {
+                    pass.inputs.keys.reversed().forEach { name ->
+                        renderConfig.rendertargets?.get(name.substringBefore("."))?.forEach {
                             shader.getUniform("Input" + it.key).setInt(unit)
                             unit++
                         }
@@ -1559,6 +1641,15 @@ class OpenGLRenderer(hub: Hub,
             stats?.add("Renderer.$t.renderTiming", System.nanoTime() - startPass)
         }
 
+        if(logger.isDebugEnabled || logger.isTraceEnabled) {
+            val error = gl.glGetError()
+
+            if (error != 0) {
+                throw Exception("OpenGL error: $error")
+            }
+        }
+
+        logger.trace("Running viewport pass")
         val viewportPass = renderpasses.get(flow.last())!!
         gl.glBindFramebuffer(GL4.GL_DRAW_FRAMEBUFFER, 0)
 
@@ -1660,7 +1751,7 @@ class OpenGLRenderer(hub: Hub,
                 ImageIO.write(image, "png", file)
                 logger.info("Screenshot saved to ${file.absolutePath}")
             } catch (e: Exception) {
-                System.err.println("Unable to take screenshot: ")
+                logger.error("Unable to take screenshot: ")
                 e.printStackTrace()
             }
 
@@ -1795,7 +1886,6 @@ class OpenGLRenderer(hub: Hub,
             name = "Matrices"
             add("ModelMatrix", { node.world })
             add("NormalMatrix", { node.world.inverse.transpose() })
-            add("ProjectionMatrix", { node.projection })
             add("isBillboard", { node.isBillboard.toInt() })
 
             sceneUBOs.add(node)
@@ -1813,22 +1903,30 @@ class OpenGLRenderer(hub: Hub,
             add("Ka", { node.material.ambient })
             add("Kd", { node.material.diffuse })
             add("Ks", { node.material.specular })
-            add("Shininess", { node.material.specularExponent })
+            add("Roughness", { node.material.roughness })
+            add("Metallic", { node.material.metallic })
             add("Opacity", { node.material.blending.opacity })
 
             s.UBOs.put("MaterialProperties", this)
         }
 
-        if (node.javaClass.declaredFields.filter { it.isAnnotationPresent(ShaderProperty::class.java) }.count() > 0) {
+        if (node.javaClass.kotlin.memberProperties.filter { it.findAnnotation<ShaderProperty>() != null }.count() > 0) {
             val shaderPropertyUBO = OpenGLUBO(backingBuffer = buffers["ShaderPropertyBuffer"])
             with(shaderPropertyUBO) {
                 name = "ShaderProperties"
 
-                if (node.useClassDerivedShader || node.material is ShaderMaterial) {
-                    logger.debug("Shader properties are: ${s.shader?.getShaderPropertyOrder()}")
-                    s.shader?.getShaderPropertyOrder()?.forEach { name, offset ->
-                        add(name, { node.getShaderProperty(name)!! }, offset)
-                    }
+                val shader = if (node.useClassDerivedShader || node.material is ShaderMaterial) {
+                    s.shader
+                } else {
+                    renderpasses.filter {
+                        (it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry || it.value.passConfig.type == RenderConfigReader.RenderpassType.lights)
+                            && it.value.passConfig.renderTransparent == node.material.blending.transparent
+                    }.entries.first().value.defaultShader
+                }
+
+                logger.debug("Shader properties are: ${shader?.getShaderPropertyOrder()}")
+                shader?.getShaderPropertyOrder()?.forEach { name, offset ->
+                    add(name, { node.getShaderProperty(name)!! }, offset)
                 }
             }
 

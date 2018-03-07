@@ -12,10 +12,9 @@ layout(location = 0) out VertexData {
     vec2 TexCoord;
 } Vertex;
 
-layout(binding = 0) uniform Matrices {
+layout(set = 2, binding = 0) uniform Matrices {
 	mat4 ModelMatrix;
 	mat4 NormalMatrix;
-	mat4 ProjectionMatrix;
 	int isBillboard;
 } ubo;
 
@@ -28,16 +27,17 @@ struct Light {
   	vec4 Color;
 };
 
-const int MAX_NUM_LIGHTS = 1024;
 layout(set = 1, binding = 0) uniform LightParameters {
     mat4 ViewMatrix;
+    mat4 InverseViewMatrix;
+    mat4 ProjectionMatrix;
+    mat4 InverseProjectionMatrix;
     vec3 CamPosition;
-    int numLights;
-	Light lights[MAX_NUM_LIGHTS];
 };
 
-layout(set = 2, binding = 0) uniform VRParameters {
+layout(set = 0, binding = 0) uniform VRParameters {
     mat4 projectionMatrices[2];
+    mat4 inverseProjectionMatrices[2];
     mat4 headShift;
     float IPD;
     int stereoEnabled;
@@ -57,7 +57,7 @@ mat4 mv;
 	headToEye[3][0] -= currentEye.eye * vrParameters.IPD;
 
     mv = (vrParameters.stereoEnabled ^ 1) * ViewMatrix * iModelMatrix + (vrParameters.stereoEnabled * headToEye * ViewMatrix * iModelMatrix);
-	projectionMatrix = (vrParameters.stereoEnabled ^ 1) * ubo.ProjectionMatrix + vrParameters.stereoEnabled * vrParameters.projectionMatrices[currentEye.eye];
+	projectionMatrix = (vrParameters.stereoEnabled ^ 1) * ProjectionMatrix + vrParameters.stereoEnabled * vrParameters.projectionMatrices[currentEye.eye];
 
 	if(ubo.isBillboard > 0) {
 		mv[0][0] = 1.0f;
