@@ -66,6 +66,7 @@ class OpenCLContext(override var hub: Hub?, val devicePreference: String = Syste
                 null, null, null);
 
         // Create a command-queue for the selected device
+        @Suppress("DEPRECATION")
         queue = clCreateCommandQueue(context, device, 0, null)
     }
 

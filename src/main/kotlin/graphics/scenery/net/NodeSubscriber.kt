@@ -44,8 +44,8 @@ class NodeSubscriber(override var hub: Hub?, val address: String = "udp://localh
 
     fun process() {
         while (true) {
-            var start = 0L
-            var duration = 0L
+            var start: Long
+            var duration: Long = 0L
             try {
                 start = System.nanoTime()
                 val id = subscriber.recvStr().toInt()

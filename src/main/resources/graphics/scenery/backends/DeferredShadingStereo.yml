@@ -4,10 +4,7 @@ stereoEnabled: true
 
 rendertargets:
   GeometryBuffer:
-    Position:
-      size: 1.0, 1.0
-      format: RGBA_Float32
-    Normal:
+    NormalsMaterial:
       size: 1.0, 1.0
       format: RGBA_Float16
     DiffuseAlbedo:
@@ -16,28 +13,31 @@ rendertargets:
     ZBuffer:
       size: 1.0, 1.0
       format: Depth32
-  DeferredForward:
-    Output:
+  ForwardBuffer:
+    Color:
       size: 1.0, 1.0
       format: RGBA_Float32
-    OutputDepth:
-      size: 1.0, 1.0
-      format: Depth32
-  HDR:
-    HDRBuffer:
+  DSSDOBuffer:
+    Occlusion:
+      size: 0.5, 0.5
+      format: RGBA_UInt8
+  HDRBuffer:
+    Color:
       size: 1.0, 1.0
       format: RGBA_Float32
     Depth:
       size: 1.0, 1.0
       format: Depth32
-  FXAA:
-    FXAAOut:
+  FXAABuffer:
+    Color:
       size: 1.0, 1.0
       format: RGBA_UInt8
 
 renderpasses:
   leftEye:
     type: geometry
+    renderTransparent: false
+    renderOpaque: true
     shaders:
       - "DefaultDeferred.vert.spv"
       - "DefaultDeferred.frag.spv"
@@ -47,6 +47,8 @@ renderpasses:
     eye: LeftEye
   rightEye:
     type: geometry
+    renderTransparent: false
+    renderOpaque: true
     shaders:
       - "DefaultDeferred.vert.spv"
       - "DefaultDeferred.frag.spv"
@@ -54,20 +56,63 @@ renderpasses:
     viewportSize: 0.5, 1.0
     viewportOffset: 0.5, 0.0
     eye: RightEye
-  DeferredLighting:
+  DSSDO:
     type: quad
+    parameters:
+      Global.displayWidth: 0
+      Global.displayHeight: 0
+      ssaoRadius: 0.27
+      ssaoSamples: 32
+      IntensityScale: 1.0
+      Epsilon: 0.001
+      BiasDistance: 0.0001
+      Contrast: 1.0
     shaders:
       - "FullscreenQuad.vert.spv"
+      - "DSSDO.frag.spv"
+    inputs:
+      - GeometryBuffer
+    output: DSSDOBuffer
+  DeferredLightingLeft:
+    type: lights
+    renderTransparent: true
+    renderOpaque: false
+    depthWriteEnabled: false
+    depthTestEnabled: false
+    shaders:
+      - "DeferredLighting.vert.spv"
       - "DeferredLighting.frag.spv"
     inputs:
       - GeometryBuffer
-    output: DeferredForward
+      - DSSDOBuffer
+    output: ForwardBuffer
+    viewportSize: 0.5, 1.0
+    viewportOffset: 0.0, 0.0
+    eye: LeftEye
     parameters:
-      debugBuffers: 0
-      activateSSAO: 1
+      debugLights: 0
       reflectanceModel: 0
-      ssaoDistanceThreshold: 8.0
-      ssaoRadius: 4.0
+      Global.displayWidth: 0
+      Global.displayHeight: 0
+  DeferredLightingRight:
+    type: lights
+    renderTransparent: true
+    renderOpaque: false
+    depthWriteEnabled: false
+    depthTestEnabled: false
+    shaders:
+      - "DeferredLighting.vert.spv"
+      - "DeferredLighting.frag.spv"
+    inputs:
+      - GeometryBuffer
+      - DSSDOBuffer
+    output: ForwardBuffer
+    viewportSize: 0.5, 1.0
+    viewportOffset: 0.5, 0.0
+    eye: RightEye
+    parameters:
+      debugLights: 0
+      reflectanceModel: 0
       Global.displayWidth: 0
       Global.displayHeight: 0
   ForwardShadingLeft:
@@ -79,8 +124,9 @@ renderpasses:
         - "DefaultForward.vert.spv"
         - "DefaultForward.frag.spv"
       inputs:
-        - DeferredForward
-      output: HDR
+        - ForwardBuffer.Color
+        - GeometryBuffer.ZBuffer
+      output: HDRBuffer
       viewportSize: 0.5, 1.0
       viewportOffset: 0.0, 0.0
       eye: LeftEye
@@ -93,23 +139,26 @@ renderpasses:
         - "DefaultForward.vert.spv"
         - "DefaultForward.frag.spv"
       inputs:
-        - DeferredForward
-      output: HDR
+        - ForwardBuffer.Color
+        - GeometryBuffer.ZBuffer
+      output: HDRBuffer
       viewportSize: 0.5, 1.0
       viewportOffset: 0.5, 0.0
       eye: RightEye
-  PostprocessHDR:
+  HDR:
     type: quad
     shaders:
       - "FullscreenQuad.vert.spv"
       - "HDR.frag.spv"
     inputs:
-      - HDR
-    output: FXAA
+      - HDRBuffer
+    output: FXAABuffer
     parameters:
+      TonemappingOperator: 0
       Gamma: 2.2
-      Exposure: 25.0
-  PostprocessFXAA:
+      Exposure: 10.0
+      WhitePoint: 11.2
+  FXAA:
     type: quad
     shaders:
       - "FullscreenQuad.vert.spv"
@@ -117,7 +166,7 @@ renderpasses:
     parameters:
       activateFXAA: 1
       showEdges: 0
-      lumaThreshold: 0.5
+      lumaThreshold: 0.125
       minLumaThreshold: 0.02
       mulReduce: 0.125
       minReduce: 0.0078125
@@ -125,5 +174,5 @@ renderpasses:
       Global.displayWidth: 0
       Global.displayHeight: 0
     inputs:
-      - FXAA
+      - FXAABuffer
     output: Viewport

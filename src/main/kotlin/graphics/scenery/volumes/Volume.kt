@@ -7,16 +7,15 @@ import graphics.scenery.*
 import io.scif.SCIFIO
 import io.scif.util.FormatTools
 import org.lwjgl.system.MemoryUtil.memAlloc
+import sun.misc.Unsafe
 import java.io.FileInputStream
 import java.nio.ByteBuffer
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.streams.toList
-import kotlin.collections.HashMap
 import kotlin.concurrent.thread
-import sun.misc.Unsafe
+import kotlin.streams.toList
 
 
 
@@ -76,7 +75,7 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
     @ShaderProperty var boxMax_y = boxwidth
     @ShaderProperty var boxMax_z = boxwidth
 
-    @ShaderProperty var maxsteps = 256
+    @ShaderProperty var maxsteps = 128
     @ShaderProperty var alpha_blending = 0.06f
     @ShaderProperty var gamma = 1.0f
 
@@ -141,8 +140,8 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         this.texcoordSize = 2
 
         this.material.blending.transparent = true
-        this.material.doubleSided = true
         this.useClassDerivedShader = true
+        this.material.cullingMode = Material.CullingMode.None
 
         colormaps.put("grays", this.javaClass.getResource("colormap-grays.png").file)
         colormaps.put("hot", this.javaClass.getResource("colormap-hot.png").file)

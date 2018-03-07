@@ -71,13 +71,6 @@ class VulkanPipeline(val device: VulkanDevice, val pipelineCache: Long? = null):
         .maxDepthBounds(1.0f)
         .stencilTestEnable(false)
 
-    var depthStencilStateBack: VkStencilOpState = depthStencilState.back()
-        .failOp(VK_STENCIL_OP_KEEP)
-        .passOp(VK_STENCIL_OP_KEEP)
-        .compareOp(VK_COMPARE_OP_ALWAYS)
-
-    var depthStencilStateFront: VkStencilOpState = depthStencilState.front(depthStencilState.back()).front()
-
     val multisampleState: VkPipelineMultisampleStateCreateInfo = VkPipelineMultisampleStateCreateInfo.calloc()
         .sType(VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO)
         .pNext(NULL)

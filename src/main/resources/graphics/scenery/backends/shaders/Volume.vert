@@ -14,6 +14,7 @@ layout(location = 0) out VertexData {
 
 layout(set = 0, binding = 0) uniform VRParameters {
     mat4 projectionMatrices[2];
+    mat4 inverseProjectionMatrices[2];
     mat4 headShift;
     float IPD;
     int stereoEnabled;
@@ -32,15 +33,15 @@ const int MAX_NUM_LIGHTS = 1024;
 
 layout(set = 1, binding = 0) uniform LightParameters {
     mat4 ViewMatrix;
+    mat4 InverseViewMatrix;
+    mat4 ProjectionMatrix;
+    mat4 InverseProjectionMatrix;
     vec3 CamPosition;
-    int numLights;
-	Light lights[MAX_NUM_LIGHTS];
 };
 
 layout(set = 2, binding = 0) uniform Matrices {
 	mat4 ModelMatrix;
 	mat4 NormalMatrix;
-	mat4 ProjectionMatrix;
 	int isBillboard;
 } ubo;
 
@@ -82,7 +83,7 @@ void main()
 	headToEye[3][0] -= currentEye.eye * vrParameters.IPD;
 
     mv = (vrParameters.stereoEnabled ^ 1) * ViewMatrix * ubo.ModelMatrix + (vrParameters.stereoEnabled * headToEye * ViewMatrix * ubo.ModelMatrix);
-	projectionMatrix = (vrParameters.stereoEnabled ^ 1) * ubo.ProjectionMatrix + vrParameters.stereoEnabled * vrParameters.projectionMatrices[currentEye.eye];
+	projectionMatrix = (vrParameters.stereoEnabled ^ 1) * ProjectionMatrix + vrParameters.stereoEnabled * vrParameters.projectionMatrices[currentEye.eye];
 
 	vec3 L = vec3(sizeX, sizeY, sizeZ) * vec3(voxelSizeX, voxelSizeY, voxelSizeZ);
 
@@ -98,10 +99,10 @@ void main()
 	scale[1][1] = L.y/Lmax;
 	scale[2][2] = L.z/Lmax;
 
-    Vertex.inverseProjection = inverse(projectionMatrix);
+    Vertex.inverseProjection = (vrParameters.stereoEnabled ^ 1) * InverseProjectionMatrix + (vrParameters.stereoEnabled * vrParameters.inverseProjectionMatrices[currentEye.eye]);
     Vertex.inverseModelView = invScale * inverse(mv);
     Vertex.MVP = projectionMatrix * mv;
 
-    Vertex.textureCoord = vec2((gl_VertexIndex << 1) & 2, gl_VertexIndex & 2);
-    gl_Position = vec4(Vertex.textureCoord * 2.0f - 1.0f, 0.0f, 1.0f);
+    Vertex.textureCoord = vertexTexCoord;
+    gl_Position = vec4(vertexPosition, 1.0f);
 }

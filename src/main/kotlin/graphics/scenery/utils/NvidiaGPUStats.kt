@@ -52,7 +52,7 @@ class NvidiaGPUStats: GPUStats {
         NVAPI_GetDisplayHandle = Function.getFunction(Pointer(NVAPI.instance.nvapi_QueryInterface(nvapi_get_display_handle)))
 
         if(NVAPI_Initialize.invokeInt(null) != 0) {
-            System.err.println("Failed to initialize NVAPI")
+            logger.error("Failed to initialize NVAPI")
         }
 
         // initialise structs to correct version

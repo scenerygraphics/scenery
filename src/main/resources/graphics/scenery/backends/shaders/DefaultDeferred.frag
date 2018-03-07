@@ -7,18 +7,45 @@ layout(location = 0) in VertexData {
     vec2 TexCoord;
 } Vertex;
 
-layout(location = 0) out vec3 Position;
-layout(location = 1) out vec2 Normal;
-layout(location = 2) out vec4 DiffuseAlbedo;
+layout(location = 0) out vec4 NormalsMaterial;
+layout(location = 1) out vec4 DiffuseAlbedo;
 
 const float PI = 3.14159265358979323846264;
 const int NUM_OBJECT_TEXTURES = 6;
+
+layout(set = 0, binding = 0) uniform VRParameters {
+    mat4 projectionMatrices[2];
+    mat4 inverseProjectionMatrices[2];
+    mat4 headShift;
+    float IPD;
+    int stereoEnabled;
+} vrParameters;
+
+const int MAX_NUM_LIGHTS = 1024;
+
+struct Light {
+	float Linear;
+	float Quadratic;
+	float Intensity;
+	float Radius;
+	vec4 Position;
+  	vec4 Color;
+};
+
+layout(set = 1, binding = 0) uniform LightParameters {
+    mat4 ViewMatrix;
+    mat4 InverseViewMatrix;
+    mat4 ProjectionMatrix;
+    mat4 InverseProjectionMatrix;
+    vec3 CamPosition;
+};
 
 struct MaterialInfo {
     vec3 Ka;
     vec3 Kd;
     vec3 Ks;
-    float Shininess;
+    float Roughness;
+    float Metallic;
     float Opacity;
 };
 
@@ -31,7 +58,6 @@ const int MATERIAL_HAS_ALPHAMASK = 0x0010;
 layout(set = 2, binding = 0) uniform Matrices {
 	mat4 ModelMatrix;
 	mat4 NormalMatrix;
-	mat4 ProjectionMatrix;
 	int isBillboard;
 } ubo;
 
@@ -39,6 +65,10 @@ layout(set = 3, binding = 0) uniform MaterialProperties {
     int materialType;
     MaterialInfo Material;
 };
+
+layout(push_constant) uniform currentEye_t {
+    int eye;
+} currentEye;
 
 /*
     ObjectTextures[0] - ambient
@@ -51,7 +81,7 @@ layout(set = 3, binding = 0) uniform MaterialProperties {
 
 layout(set = 4, binding = 0) uniform sampler2D ObjectTextures[NUM_OBJECT_TEXTURES];
 
-// courtesy of Christian Schueler - www.thetenthplanet.de/archives/1180
+// courtesy of Christian Schueler - http://www.thetenthplanet.de/archives/1180
 mat3 TBN(vec3 N, vec3 position, vec2 uv) {
     vec3 dp1 = dFdx(position);
     vec3 dp2 = dFdy(position);
@@ -64,7 +94,7 @@ mat3 TBN(vec3 N, vec3 position, vec2 uv) {
     vec3 T = dp2Perpendicular * duv1.x + dp1Perpendicular * duv2.x;
     vec3 B = dp2Perpendicular * duv1.y + dp1Perpendicular * duv2.y;
 
-    float invmax = 1.0f/sqrt(max(dot(T, T), dot(B, B)));
+    float invmax = inversesqrt(max(dot(T, T), dot(B, B)));
 
     return transpose(mat3(T * invmax, B * invmax, N));
 }
@@ -106,11 +136,12 @@ vec2 EncodeOctaH( vec3 n )
 }
 
 void main() {
-    Position = Vertex.FragPosition;
     DiffuseAlbedo.rgb = vec3(0.0f, 0.0f, 0.0f);
 
     DiffuseAlbedo.rgb = Material.Kd;
     DiffuseAlbedo.a = 0.0f;
+
+    NormalsMaterial.ba = vec2(Material.Roughness, Material.Metallic);
 
     if((materialType & MATERIAL_HAS_AMBIENT) == MATERIAL_HAS_AMBIENT) {
         //DiffuseAlbedo.rgb = texture(ObjectTextures[0], VertexIn.TexCoord).rgb;
@@ -122,6 +153,7 @@ void main() {
 
     if((materialType & MATERIAL_HAS_SPECULAR) == MATERIAL_HAS_SPECULAR) {
         DiffuseAlbedo.a = texture(ObjectTextures[2], Vertex.TexCoord).r;
+        NormalsMaterial.b = texture(ObjectTextures[2], Vertex.TexCoord).r;
     }
 
     if((materialType & MATERIAL_HAS_ALPHAMASK) == MATERIAL_HAS_ALPHAMASK) {
@@ -138,12 +170,12 @@ component. If using Spherical Encoding, do not forget to use spherical decode fu
 //    vec2 EncodedNormal = EncodeSpherical(NormalizedNormal);
 
 
-    if((materialType & MATERIAL_HAS_NORMAL) == MATERIAL_HAS_NORMAL) {
-//        vec3 normal = texture(ObjectTextures[3], VertexIn.TexCoord).rgb*(255.0/127.0) - (128.0/127.0);
-//        normal = TBN(normalize(VertexIn.Normal), -VertexIn.FragPosition, VertexIn.TexCoord)*normal;
+//    if((materialType & MATERIAL_HAS_NORMAL) == MATERIAL_HAS_NORMAL) {
+//        vec3 normal = texture(ObjectTextures[3], Vertex.TexCoord).rgb*(255.0/127.0) - (128.0/127.0);
+//        normal = TBN(normalize(Vertex.Normal), CamPosition-Vertex.FragPosition, Vertex.TexCoord)*normal;
+//
+//        EncodedNormal = EncodeOctaH(normal);
+//    }
 
-        Normal = EncodedNormal;
-    } else {
-        Normal = EncodedNormal;
-    }
+    NormalsMaterial.rg = EncodedNormal;
 }

@@ -3,6 +3,7 @@ package graphics.scenery
 import cleargl.GLMatrix
 import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
+import com.sun.prism.ps.Shader
 import graphics.scenery.utils.LazyLogger
 import java.io.Serializable
 import java.lang.reflect.Field
@@ -13,6 +14,11 @@ import java.util.concurrent.locks.ReentrantLock
 import kotlin.properties.Delegates
 import kotlin.reflect.KMutableProperty1
 import kotlin.reflect.KProperty
+import kotlin.reflect.KProperty1
+import kotlin.reflect.full.declaredMemberProperties
+import kotlin.reflect.full.findAnnotation
+import kotlin.reflect.full.memberProperties
+import kotlin.reflect.jvm.isAccessible
 
 /**
  * Class describing a [Node] of a [Scene], inherits from [Renderable]
@@ -130,7 +136,8 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
 
     val instances = CopyOnWriteArrayList<Node>()
 
-    protected fun <R> propertyChanged(property: KProperty<*>, old: R, new: R): Unit {
+    @Suppress("UNUSED_PARAMETER")
+    protected fun <R> propertyChanged(property: KProperty<*>, old: R, new: R) {
         if(property.name == "rotation" || property.name == "position" || property.name  == "scale") {
             needsUpdate = true
             needsUpdateWorld = true
@@ -234,15 +241,17 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
                 world.copyFrom(parent!!.world)
                 world.mult(this.model)
             }
-
-            this.needsUpdateWorld = false
         }
 
         if (recursive) {
-            this.children.forEach { it.updateWorld(true, force) }
+            this.children.forEach { it.updateWorld(true, needsUpdateWorld) }
             // also update linked nodes -- they might need updated
             // model/view/proj matrices as well
-            this.linkedNodes.forEach { it.updateWorld(true, force) }
+            this.linkedNodes.forEach { it.updateWorld(true, needsUpdateWorld) }
+        }
+
+        if(needsUpdateWorld) {
+            needsUpdateWorld = false
         }
     }
 
@@ -330,20 +339,21 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
         return boundingBoxCoords
     }
 
-    private val shaderPropertyFieldCache = HashMap<String, Field>()
+    private val shaderPropertyFieldCache = HashMap<String, KProperty1<Node, *>>()
     fun getShaderProperty(name: String): Any? {
-        if(shaderPropertyFieldCache.containsKey(name)) {
-            return shaderPropertyFieldCache[name]!!.get(this)
+        return if(shaderPropertyFieldCache.containsKey(name)) {
+            shaderPropertyFieldCache[name]!!.get(this)
         } else {
-            val field = this.javaClass.declaredFields.find { it.name == name && it.isAnnotationPresent(ShaderProperty::class.java) }
+            val field = this.javaClass.kotlin.memberProperties.find { it.name == name && it.findAnnotation<ShaderProperty>() != null}
 
             if(field != null) {
                 field.isAccessible = true
+
                 shaderPropertyFieldCache.put(name, field)
 
-                return field.get(this)
+                field.get(this)
             } else {
-                return null
+                null
             }
         }
     }

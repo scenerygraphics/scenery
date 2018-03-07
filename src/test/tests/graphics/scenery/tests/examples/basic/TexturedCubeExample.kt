@@ -21,6 +21,8 @@ class TexturedCubeExample : SceneryBase("TexturedCubeExample") {
             ambient = GLVector(1.0f, 0.0f, 0.0f)
             diffuse = GLVector(0.0f, 1.0f, 0.0f)
             specular = GLVector(1.0f, 1.0f, 1.0f)
+            roughness = 0.3f
+            metallic = 1.0f
             textures.put("diffuse", TexturedCubeExample::class.java.getResource("textures/helix.png").file)
         }
 
@@ -32,16 +34,11 @@ class TexturedCubeExample : SceneryBase("TexturedCubeExample") {
             scene.addChild(this)
         }
 
-        val lights = (0..2).map {
-            PointLight()
-        }
-
-        lights.mapIndexed { i, light ->
-            light.position = GLVector(2.0f * i, 2.0f * i, 2.0f * i)
-            light.emissionColor = GLVector(1.0f, 0.0f, 1.0f)
-            light.intensity = 500.2f*(i+1)
-            scene.addChild(light)
-        }
+        val light = PointLight(radius = 15.0f)
+        light.position = GLVector(0.0f, 0.0f, 2.0f)
+        light.intensity = 100.0f
+        light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
+        scene.addChild(light)
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {

@@ -48,7 +48,6 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://*:6666"
                 kryo.writeClassAndObject(output, node)
                 output.flush()
 
-                val payload = bos.toByteArray()
                 publisher.sendMore(guid.toString())
                 publisher.send(bos.toByteArray())
                 Thread.sleep(1)

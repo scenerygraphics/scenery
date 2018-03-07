@@ -6,7 +6,7 @@ package graphics.scenery
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-@Target(AnnotationTarget.FIELD)
+@Target(AnnotationTarget.FIELD, AnnotationTarget.PROPERTY)
 @Retention(AnnotationRetention.RUNTIME)
 @MustBeDocumented
 annotation class ShaderProperty

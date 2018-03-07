@@ -113,7 +113,7 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
             channel.write(buf)
             channel.close()
         } catch (e: Exception) {
-            System.err.println("Unable to dump " + this.fontName)
+            logger.error("Unable to dump " + this.fontName)
             e.printStackTrace()
         }
 
