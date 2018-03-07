@@ -12,6 +12,7 @@ import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.utils.*
 import javafx.application.Platform
 import org.lwjgl.system.MemoryUtil
+import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.FileNotFoundException
 import java.lang.reflect.Field
@@ -226,6 +227,7 @@ class OpenGLRenderer(hub: Hub,
         fun copyFromStagingBuffer() {
             buffer.flip()
 
+            LoggerFactory.getLogger("OpenGLUBO").info("Copying ${buffer.remaining()}")
             gl.glBindBuffer(GL4.GL_UNIFORM_BUFFER, id[0])
             gl.glBufferSubData(GL4.GL_UNIFORM_BUFFER, 0, buffer.remaining() * 1L, buffer)
             gl.glBindBuffer(GL4.GL_UNIFORM_BUFFER, 0)
@@ -856,6 +858,7 @@ class OpenGLRenderer(hub: Hub,
         vrUbo.add("IPD", { hmd?.getIPD() ?: 0.05f })
         vrUbo.add("stereoEnabled", { renderConfig.stereoEnabled.toInt() })
 
+        logger.info("Populating VRUBO")
         vrUbo.populate()
         buffers["VRParameters"]!!.copyFromStagingBuffer()
 
@@ -1537,7 +1540,7 @@ class OpenGLRenderer(hub: Hub,
                         }
                     }
 
-                    arrayOf("LightParameters", "VRParameters").forEach { name ->
+                    arrayOf("VRParameters", "LightParameters").forEach { name ->
                         if (shader.uboSpecs.containsKey(name) && shader.isValid()) {
                             val index = shader.getUniformBlockIndex(name)
 
@@ -1549,6 +1552,8 @@ class OpenGLRenderer(hub: Hub,
                                     buffers[name]!!.id[0],
                                     0L, buffers[name]!!.buffer.remaining().toLong())
 
+
+                                logger.info("${pass.passName}: binding $name b=$binding index=$index with ${buffers[name]!!.buffer.remaining().toLong()} remaining")
                                 binding++
                             }
                         }
