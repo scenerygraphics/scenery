@@ -4,6 +4,7 @@ import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.Renderer
+import graphics.scenery.controls.Hololens
 import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedStereoGlasses
 import graphics.scenery.utils.Numerics
@@ -18,10 +19,10 @@ import kotlin.math.floor
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class SponzaExample : SceneryBase("SponzaExample", windowWidth = 1280, windowHeight = 720) {
-    private var hmd: OpenVRHMD? = null//OpenVRHMD(false, true)
+    private var hmd: Hololens = Hololens()
 
     override fun init() {
-//        hub.add(SceneryElement.HMDInput, hmd!!)
+        hub.add(SceneryElement.HMDInput, hmd!!)
 
         renderer = Renderer.createRenderer(hub, applicationName,
             scene,
