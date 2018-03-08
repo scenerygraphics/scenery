@@ -142,14 +142,16 @@ open class UBO {
         (elements ?: members).forEach {
             var pos = data.position()
             val value = it.value.invoke()
-            logger.trace("Populating {} of type {}", it.key, value.javaClass.simpleName)
 
             val (size, alignment) = getSizeAndAlignment(value)
+
+            logger.trace("Populating {} of type {} size={} alignment={}", it.key, value.javaClass.simpleName, size, alignment)
 
             if(memberOffsets[it.key] != null) {
                 // position in buffer is known, use it
                 logger.trace("{} goes to {}", it.key, memberOffsets[it.key]!!)
-                data.position(originalPos + memberOffsets[it.key]!!)
+                pos = (originalPos + memberOffsets[it.key]!!)
+                data.position(pos)
             } else {
                 // position in buffer is not explicitly known, advance based on size
                 if (pos.rem(alignment) != 0) {
