@@ -855,11 +855,11 @@ class OpenGLRenderer(hub: Hub,
         })
         vrUbo.add("inverseProjection0", {
             (hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance)
-                ?: cam.projection)
+                ?: cam.projection).inverse
         })
         vrUbo.add("inverseProjection1", {
             (hmd?.getEyeProjection(1, cam.nearPlaneDistance, cam.farPlaneDistance)
-                ?: cam.projection)
+                ?: cam.projection).inverse
         })
         vrUbo.add("headShift", { hmd?.getHeadToEyeTransform(0) ?: GLMatrix.getIdentity() })
         vrUbo.add("IPD", { hmd?.getIPD() ?: 0.05f })
