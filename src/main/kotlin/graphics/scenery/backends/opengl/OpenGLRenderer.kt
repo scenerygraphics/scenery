@@ -12,6 +12,7 @@ import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.utils.*
 import javafx.application.Platform
 import org.lwjgl.system.MemoryUtil
+import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.FileNotFoundException
 import java.lang.reflect.Field
@@ -218,9 +219,15 @@ class OpenGLRenderer(hub: Hub,
             gl.glGenBuffers(1, id, 0)
             buffer = MemoryUtil.memAlloc(maxOf(tmp[0], size))
 
+            val valBuf = MemoryUtil.memAlloc(maxOf(tmp[0], size))
+            while(valBuf.hasRemaining()) { valBuf.put(0xAF.toByte()) }
+            valBuf.flip()
+
             gl.glBindBuffer(GL4.GL_UNIFORM_BUFFER, id[0])
-            gl.glBufferData(GL4.GL_UNIFORM_BUFFER, size * 1L, null, GL4.GL_DYNAMIC_DRAW)
+            gl.glBufferData(GL4.GL_UNIFORM_BUFFER, size * 1L, valBuf, GL4.GL_DYNAMIC_DRAW)
             gl.glBindBuffer(GL4.GL_UNIFORM_BUFFER, 0)
+
+            MemoryUtil.memFree(valBuf)
         }
 
         fun copyFromStagingBuffer() {
@@ -371,7 +378,7 @@ class OpenGLRenderer(hub: Hub,
 
         val numExtensionsBuffer = IntBuffer.allocate(1)
         gl.glGetIntegerv(GL4.GL_NUM_EXTENSIONS, numExtensionsBuffer)
-        val extensions = (0..numExtensionsBuffer[0] - 1).map { gl.glGetStringi(GL4.GL_EXTENSIONS, it) }
+        val extensions = (0 until numExtensionsBuffer[0]).map { gl.glGetStringi(GL4.GL_EXTENSIONS, it) }
         logger.debug("Available OpenGL extensions: ${extensions.joinToString(", ")}")
 
         settings.set("ssao.FilterRadius", GLVector(5.0f / width, 5.0f / height))
@@ -424,6 +431,8 @@ class OpenGLRenderer(hub: Hub,
     }
 
     fun prepareRenderpasses(config: RenderConfigReader.RenderConfig, windowWidth: Int, windowHeight: Int): LinkedHashMap<String, OpenGLRenderpass> {
+        buffers["ShaderParametersBuffer"]!!.reset()
+
         val framebuffers = ConcurrentHashMap<String, GLFramebuffer>()
         val passes = LinkedHashMap<String, OpenGLRenderpass>()
 
@@ -846,11 +855,11 @@ class OpenGLRenderer(hub: Hub,
         })
         vrUbo.add("inverseProjection0", {
             (hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance)
-                ?: cam.projection)
+                ?: cam.projection).inverse
         })
         vrUbo.add("inverseProjection1", {
             (hmd?.getEyeProjection(1, cam.nearPlaneDistance, cam.farPlaneDistance)
-                ?: cam.projection)
+                ?: cam.projection).inverse
         })
         vrUbo.add("headShift", { hmd?.getHeadToEyeTransform(0) ?: GLMatrix.getIdentity() })
         vrUbo.add("IPD", { hmd?.getIPD() ?: 0.05f })
@@ -896,7 +905,6 @@ class OpenGLRenderer(hub: Hub,
         }
 
         buffers["UBOBuffer"]!!.copyFromStagingBuffer()
-
         buffers["LightParameters"]!!.reset()
 
 //        val lights = sceneObjects.filter { it is PointLight }
@@ -1537,7 +1545,7 @@ class OpenGLRenderer(hub: Hub,
                         }
                     }
 
-                    arrayOf("LightParameters", "VRParameters").forEach { name ->
+                    arrayOf("VRParameters", "LightParameters").forEach { name ->
                         if (shader.uboSpecs.containsKey(name) && shader.isValid()) {
                             val index = shader.getUniformBlockIndex(name)
 
@@ -1548,6 +1556,7 @@ class OpenGLRenderer(hub: Hub,
                                 gl.glBindBufferRange(GL4.GL_UNIFORM_BUFFER, binding,
                                     buffers[name]!!.id[0],
                                     0L, buffers[name]!!.buffer.remaining().toLong())
+
 
                                 binding++
                             }
@@ -1837,34 +1846,37 @@ class OpenGLRenderer(hub: Hub,
         gl.glGenBuffers(3, s.mVertexBuffers, 0)
         gl.glGenBuffers(1, s.mIndexBuffer, 0)
 
-        if (node.useClassDerivedShader) {
-            val javaClass = node.javaClass.simpleName
-            val className = javaClass.substring(javaClass.indexOf(".") + 1)
+        when {
+            node.useClassDerivedShader -> {
+                val javaClass = node.javaClass.simpleName
+                val className = javaClass.substring(javaClass.indexOf(".") + 1)
 
-            val shaders = arrayOf(".vert", ".geom", ".tese", ".tesc", ".frag", ".comp")
-                .map { "$className$it" }
-                .filter {
-                    Renderer::class.java.getResource("shaders/$it") != null
+                val shaders = arrayOf(".vert", ".geom", ".tese", ".tesc", ".frag", ".comp")
+                    .map { "$className$it" }
+                    .filter {
+                        Renderer::class.java.getResource("shaders/$it") != null
+                    }
+
+                try {
+                    s.shader = prepareShaderProgram(Renderer::class.java, shaders.toTypedArray())
+                } catch (e: ShaderCompilationException) {
+                    logger.warn("Shader compilation for node ${node.name} with shaders $shaders failed, falling back to default shaders.")
+                    logger.warn("Shader compiler error was: ${e.message}")
+                    s.shader = null
                 }
-
-            try {
-                s.shader = prepareShaderProgram(Renderer::class.java, shaders.toTypedArray())
-            } catch (e: ShaderCompilationException) {
-                logger.warn("Shader compilation for node ${node.name} with shaders $shaders failed, falling back to default shaders.")
-                logger.warn("Shader compiler error was: ${e.message}")
-                s.shader = null
             }
-        } else if (node.material is ShaderMaterial) {
-            val shaders = (node.material as ShaderMaterial).shaders.toTypedArray()
 
-            try {
-                s.shader = prepareShaderProgram(node.javaClass, shaders)
-            } catch (e: ShaderCompilationException) {
-                logger.warn("Shader compilation for node ${node.name} with shaders $shaders failed, falling back to default shaders.")
-                logger.warn("Shader compiler error was: ${e.message}")
+            node.material is ShaderMaterial -> {
+                val shaders = (node.material as ShaderMaterial).shaders.toTypedArray()
+
+                try {
+                    s.shader = prepareShaderProgram(node.javaClass, shaders)
+                } catch (e: ShaderCompilationException) {
+                    logger.warn("Shader compilation for node ${node.name} with shaders $shaders failed, falling back to default shaders.")
+                    logger.warn("Shader compiler error was: ${e.message}")
+                }
             }
-        } else {
-            s.shader = null
+            else -> s.shader = null
         }
 
         if (node is HasGeometry) {
@@ -2062,7 +2074,6 @@ class OpenGLRenderer(hub: Hub,
                             }
 
                             t.setClamp(!repeatS, !repeatT)
-                            logger.debug("Copying data from buffer: ${contents.remaining()}")
                             t.copyFrom(contents)
 
                             s.textures.put(type, t)

@@ -63,6 +63,7 @@ class OpenGLRenderpass(var passName: String = "", var passConfig: RenderConfigRe
                 ubo.add(entry.key, { settings.get(settingsKey) })
             }
 
+            ubo.setOffsetFromBackingBuffer()
             ubo.populate()
 
             UBOs.put(ubo.name, ubo)
@@ -73,7 +74,7 @@ class OpenGLRenderpass(var passName: String = "", var passConfig: RenderConfigRe
         logger.trace("Updating shader parameters for ${this.passName}")
         UBOs.forEach { uboName, ubo ->
             if(uboName.startsWith("ShaderParameters-")) {
-                ubo.offset = ubo.backingBuffer!!.advance()
+                ubo.setOffsetFromBackingBuffer()
                 ubo.populate()
             }
         }

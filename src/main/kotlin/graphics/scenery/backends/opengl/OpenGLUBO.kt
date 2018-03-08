@@ -29,4 +29,10 @@ class OpenGLUBO(val backingBuffer: OpenGLRenderer.OpenGLBuffer? = null) : UBO() 
     fun fromInstance(node: Node) {
         node.instancedProperties.forEach { members.putIfAbsent(it.key, it.value) }
     }
+
+    fun setOffsetFromBackingBuffer() {
+        backingBuffer?.let {
+            offset = it.advance()
+        }
+    }
 }
