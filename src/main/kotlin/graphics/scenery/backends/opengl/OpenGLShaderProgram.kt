@@ -5,6 +5,8 @@ import cleargl.GLShader
 import cleargl.GLShaderType
 import cleargl.GLUniform
 import com.jogamp.opengl.GL4
+import gnu.trove.map.hash.THashMap
+import gnu.trove.map.hash.TObjectIntHashMap
 import graphics.scenery.utils.LazyLogger
 
 class OpenGLShaderProgram(var gl: GL4, val modules: HashMap<GLShaderType, OpenGLShaderModule>) {
@@ -12,7 +14,7 @@ class OpenGLShaderProgram(var gl: GL4, val modules: HashMap<GLShaderType, OpenGL
 
     var program: GLProgram
     val uboSpecs = LinkedHashMap<String, OpenGLShaderModule.UBOSpec>()
-    private val blockIndices = HashMap<String, Int>()
+    private val blockIndices = THashMap<String, Int>()
     var id: Int
 
     init {
@@ -76,7 +78,7 @@ class OpenGLShaderProgram(var gl: GL4, val modules: HashMap<GLShaderType, OpenGL
 
         return shaderPropertiesSpec
             .flatMap { it.values }
-            .map { it.name.to(it.offset.toInt()) }
+            .map { it.name to it.offset.toInt() }
             .toMap()
 //        val specs = shaderPropertiesSpec.map { it.members }.flatMap { it.entries }.map { it.key.to(it.value.offset) }
     }

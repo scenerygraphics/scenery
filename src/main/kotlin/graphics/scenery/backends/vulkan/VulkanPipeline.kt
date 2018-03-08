@@ -80,7 +80,6 @@ class VulkanPipeline(val device: VulkanDevice, val pipelineCache: Long? = null):
     val shaderStages = ArrayList<VulkanShaderModule>(2)
 
     fun addShaderStages(shaderModules: List<VulkanShaderModule>) {
-        shaderStages.forEach { it.close() }
         shaderStages.clear()
 
         shaderModules.forEach {
@@ -238,7 +237,5 @@ class VulkanPipeline(val device: VulkanDevice, val pipelineCache: Long? = null):
         dynamicState.free()
         memFree(pDynamicStates)
         multisampleState.free()
-
-        shaderStages.forEach { it.close() }
     }
 }
