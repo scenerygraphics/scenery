@@ -31,7 +31,7 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
         settings.set("vr.Active", true)
         val cam: Camera = DetachedHeadCamera(hmd)
         with(cam) {
-            position = GLVector(0.0f, 0.2f, 15.0f)
+            position = GLVector(0.0f, 0.2f, 5.0f)
             perspectiveCamera(50.0f, windowWidth.toFloat(), windowHeight.toFloat())
             active = true
 
