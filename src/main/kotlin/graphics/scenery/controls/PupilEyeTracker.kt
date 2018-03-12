@@ -277,42 +277,32 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
 
         if(generateReferenceData) {
             val numReferencePoints = 15
-            val (posKeyName, posGenerator: ((Int) -> Pair<GLVector, GLVector>)) = when(calibrationType) {
-                CalibrationType.ScreenSpace -> "norm_pos" to { index: Int ->
-                    val v = GLVector(
-                        0.5f + 0.5f * (index.toFloat()/numReferencePoints) * cos(2 * PI.toFloat() * index.toFloat()/numReferencePoints),
-                        0.5f + 0.5f * (index.toFloat()/numReferencePoints) * sin(2 * PI.toFloat() * index.toFloat()/numReferencePoints),
-                        cam.nearPlaneDistance + 0.5f)
-                    v to cam.viewportToWorld(GLVector(v.x() * 2.0f - 1.0f, v.y() * 2.0f - 1.0f))
-                }
+            val samplesPerPoint = 120
 
-                CalibrationType.WorldSpace -> "mm_pos" to { index: Int ->
-                    val v = GLVector(Numerics.randomFromRange(-4.0f, 4.0f),
-                        Numerics.randomFromRange(-4.0f, 4.0f),
-                        Numerics.randomFromRange(0.0f, -3.0f))
-                    v to v
-                }
+            val (posKeyName, posGenerator: ((Camera, Int, Int) -> Pair<GLVector, GLVector>)) = when(calibrationType) {
+                CalibrationType.ScreenSpace -> "norm_pos" to PupilEyeTracker.EquidistributedScreenSpaceCalibrationPointGenerator
+                CalibrationType.WorldSpace -> "mm_pos" to PupilEyeTracker.DefaultWorldSpaceCalibrationPointGenerator
             }
 
             val positionList = (0 until numReferencePoints).map {
-                posGenerator.invoke(it)
+                posGenerator.invoke(cam, it, numReferencePoints)
             }
 
             positionList.map { normalizedScreenPos ->
-                logger.info("Dummy subject looking at ${normalizedScreenPos.first}/${normalizedScreenPos.second}")
+                logger.info("Subject looking at ${normalizedScreenPos.first}/${normalizedScreenPos.second}")
 
                 calibrationTarget?.position = normalizedScreenPos.second
 
-                (0 until 60).forEach {
+                (0 until samplesPerPoint).forEach {
                     val timestamp = getPupilTimestamp()
 
-                    val datum0 = hashMapOf(
+                    val datum0 = hashMapOf<String, Serializable>(
                         posKeyName to normalizedScreenPos.first.toFloatArray(),
                         "timestamp" to timestamp,
                         "id" to 0
                     )
 
-                    val datum1 = hashMapOf(
+                    val datum1 = hashMapOf<String, Serializable>(
                         posKeyName to normalizedScreenPos.first.toFloatArray(),
                         "timestamp" to timestamp,
                         "id" to 1
@@ -325,10 +315,10 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
                 }
             }
 
-            logger.info("Generated ${referenceData.size} pieces of dummy data")
+            logger.info("Generated ${referenceData.size} calibration points ($samplesPerPoint samples x $numReferencePoints points)")
         }
 
-        notify(hashMapOf(
+        notify(hashMapOf<String, Any>(
             "subject" to "calibration.add_ref_data",
             "ref_data" to referenceData.toArray()
         ))
@@ -352,5 +342,47 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
         }
 
         return false
+    }
+
+    companion object {
+        val SpiralScreenSpaceCalibrationPointGenerator = { cam: Camera, index: Int, referencePointCount: Int ->
+            val spiralOrigin = 0.5f
+            val spiralRadius = 0.3f
+
+            val v = GLVector(
+                spiralOrigin + spiralRadius * (index.toFloat()/referencePointCount) * cos(2 * PI.toFloat() * index.toFloat()/referencePointCount),
+                spiralOrigin + spiralRadius * (index.toFloat()/referencePointCount) * sin(2 * PI.toFloat() * index.toFloat()/referencePointCount),
+                cam.nearPlaneDistance + 1.0f)
+            v to cam.viewportToWorld(GLVector(v.x() * 2.0f - 1.0f, v.y() * 2.0f - 1.0f))
+        }
+
+        val EquidistributedScreenSpaceCalibrationPointGenerator = { cam: Camera, index: Int, _: Int ->
+            val points = arrayOf(
+                GLVector(0.0f, 0.5f),
+                GLVector(0.0f, 0.5f),
+
+                GLVector(-0.5f, 0.5f),
+                GLVector(-0.5f, -0.5f),
+
+                GLVector(0.5f, 0.5f),
+                GLVector(0.5f, -0.5f),
+
+                GLVector(-0.25f, 0.0f),
+                GLVector(0.25f, 0.0f)
+            )
+
+            val v = GLVector(
+                0.5f + 0.3f * points[index % (points.size - 1)].x(),
+                0.5f + 0.3f * points[index % (points.size - 1)].y(),
+                cam.nearPlaneDistance + 0.5f)
+            v to cam.viewportToWorld(GLVector(v.x() * 2.0f - 1.0f, v.y() * 2.0f - 1.0f))
+        }
+
+        val DefaultWorldSpaceCalibrationPointGenerator = { _: Camera, _: Int, _: Int ->
+            val v = GLVector(Numerics.randomFromRange(-4.0f, 4.0f),
+                Numerics.randomFromRange(-4.0f, 4.0f),
+                Numerics.randomFromRange(0.0f, -3.0f))
+            v to v
+        }
     }
 }
