@@ -5,6 +5,9 @@ import java.io.File
 import java.io.FileOutputStream
 import java.nio.file.Files
 import java.util.jar.JarFile
+import java.io.ByteArrayOutputStream
+
+
 
 /**
  * Helper interface for classes which might need to extract native libraries.
@@ -23,15 +26,13 @@ interface ExtractsNatives {
     fun getPlatform(): Platform {
         val os = System.getProperty("os.name").toLowerCase()
 
-        if (os.contains("win")) {
-            return Platform.WINDOWS
-        } else if (os.contains("linux")) {
-            return Platform.LINUX
-        } else if (os.contains("mac")) {
-            return Platform.MACOS
+        when {
+            os.contains("win") -> return Platform.WINDOWS
+            os.contains("linux") -> return Platform.LINUX
+            os.contains("mac") -> return Platform.MACOS
+            else -> return Platform.UNKNOWN
         }
 
-        return Platform.UNKNOWN
     }
     }
 
@@ -91,12 +92,22 @@ interface ExtractsNatives {
                 }
 
                 val ins = jar.getInputStream(file)
+                val baos = ByteArrayOutputStream()
                 val fos = FileOutputStream(f)
-                while (ins.available() > 0) {
-                    fos.write(ins.read())
+
+                val buffer = ByteArray(1024)
+                var len: Int = ins.read(buffer)
+
+                while (len > -1) {
+                    baos.write(buffer, 0, len)
+                    len = ins.read(buffer)
                 }
 
+                baos.flush()
+                fos.write(baos.toByteArray())
+
                 fos.close()
+                baos.close()
                 ins.close()
             }
         }
@@ -124,27 +135,21 @@ interface ExtractsNatives {
      * @return A list of JARs matching [searchName]
      */
     fun getNativeJars(searchName: String, hint: String = ""): List<String> {
-        val classpath = System.getProperty("java.class.path")
+        val res = Thread.currentThread().contextClassLoader.getResource(hint)
 
-        if (classpath.toLowerCase().contains("imagej-launcher")) {
-            val res = Thread.currentThread().contextClassLoader.getResource(hint)
-
-            if (res == null) {
-                LoggerFactory.getLogger(this.javaClass.simpleName).error("Could not find JAR with native libraries.")
-                return listOf()
-            }
-
-            var jar = res.path
-            var pathOffset = 5
-
-            if(getPlatform() == Platform.WINDOWS) {
-                pathOffset = 6
-            }
-
-            jar = jar.substring(jar.indexOf("file:/") + pathOffset).substringBeforeLast("!")
-            return jar.split(File.pathSeparator)
-        } else {
-            return classpath.split(File.pathSeparator).filter { it.contains(searchName) }
+        if (res == null) {
+            LoggerFactory.getLogger(this.javaClass.simpleName).error("Could not find JAR with native libraries.")
+            return listOf()
         }
+
+        var jar = res.path
+        var pathOffset = 5
+
+        if (getPlatform() == Platform.WINDOWS) {
+            pathOffset = 6
+        }
+
+        jar = jar.substring(jar.indexOf("file:/") + pathOffset).substringBeforeLast("!")
+        return jar.split(File.pathSeparator)
     }
 }
