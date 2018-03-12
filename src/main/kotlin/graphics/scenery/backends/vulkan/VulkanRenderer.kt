@@ -1321,30 +1321,40 @@ open class VulkanRenderer(hub: Hub,
 
         descriptorSetLayouts
             .filter { it.key.startsWith("outputs-") }
-            .values.map { vkDestroyDescriptorSetLayout(device.vulkanDevice, it, null) }
+            .map {
+                logger.debug("Marking RT DSL ${it.value.toHexString()} for deletion")
+                vkDestroyDescriptorSetLayout(device.vulkanDevice, it.value, null)
+                it.key
+            }
+            .map {
+                descriptorSetLayouts.remove(it)
+            }
 
-        renderConfig.renderpasses.forEach { rp ->
-            rp.value.inputs?.forEach {
+        renderConfig.renderpasses.filter { it.value.inputs != null }
+            .flatMap { rp ->
+                rp.value.inputs!!
+            }
+            .mapNotNull {
                 renderConfig.rendertargets?.let { rts ->
-                    val name = if(it.contains(".")) {
+                    val name = if (it.contains(".")) {
                         it.substringBefore(".")
                     } else {
                         it
                     }
 
-                    val rt = rts[name]!!
-
-                    logger.debug("Creating output descriptor set for $name")
-                    // create descriptor set layout that matches the render target
-                    descriptorSetLayouts.putIfAbsent("outputs-$name",
-                        VU.createDescriptorSetLayout(device,
-                            descriptorNum = rt.count(),
-                            descriptorCount = 1,
-                            type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
-                        ))
+                    name to rts[name]!!
                 }
             }
-        }
+            .map { rt ->
+                logger.debug("Creating output descriptor set for $")
+                // create descriptor set layout that matches the render target
+                descriptorSetLayouts.put("outputs-${rt.first}",
+                    VU.createDescriptorSetLayout(device,
+                        descriptorNum = rt.second.count(),
+                        descriptorCount = 1,
+                        type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
+                    ))
+            }
 
         config.createRenderpassFlow().map { passName ->
             val passConfig = config.renderpasses[passName]!!
@@ -2917,6 +2927,8 @@ open class VulkanRenderer(hub: Hub,
         swapchain?.close()
 
         renderpasses.forEach { _, vulkanRenderpass -> vulkanRenderpass.close() }
+
+        VulkanShaderModule.clearCache()
 
         with(commandPools) {
             destroyCommandPool(device, Render)
