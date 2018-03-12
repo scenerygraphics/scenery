@@ -280,7 +280,7 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
             val samplesPerPoint = 120
 
             val (posKeyName, posGenerator: ((Camera, Int, Int) -> Pair<GLVector, GLVector>)) = when(calibrationType) {
-                CalibrationType.ScreenSpace -> "norm_pos" to PupilEyeTracker.EquidistributedScreenSpaceCalibrationPointGenerator
+                CalibrationType.ScreenSpace -> "norm_pos" to PupilEyeTracker.CircularScreenSpaceCalibrationPointGenerator
                 CalibrationType.WorldSpace -> "mm_pos" to PupilEyeTracker.DefaultWorldSpaceCalibrationPointGenerator
             }
 
@@ -345,13 +345,13 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
     }
 
     companion object {
-        val SpiralScreenSpaceCalibrationPointGenerator = { cam: Camera, index: Int, referencePointCount: Int ->
-            val spiralOrigin = 0.5f
-            val spiralRadius = 0.3f
+        val CircularScreenSpaceCalibrationPointGenerator = { cam: Camera, index: Int, referencePointCount: Int ->
+            val origin = 0.5f
+            val radius = 0.3f
 
             val v = GLVector(
-                spiralOrigin + spiralRadius * (index.toFloat()/referencePointCount) * cos(2 * PI.toFloat() * index.toFloat()/referencePointCount),
-                spiralOrigin + spiralRadius * (index.toFloat()/referencePointCount) * sin(2 * PI.toFloat() * index.toFloat()/referencePointCount),
+                origin + radius * cos(2 * PI.toFloat() * index.toFloat()/referencePointCount),
+                origin + radius * sin(2 * PI.toFloat() * index.toFloat()/referencePointCount),
                 cam.nearPlaneDistance + 1.0f)
             v to cam.viewportToWorld(GLVector(v.x() * 2.0f - 1.0f, v.y() * 2.0f - 1.0f))
         }
