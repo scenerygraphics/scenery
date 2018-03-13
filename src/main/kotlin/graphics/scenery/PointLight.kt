@@ -12,7 +12,7 @@ import cleargl.GLVector
  * @constructor Creates a PointLight with default settings, e.g. white emission color.
  */
 class PointLight(radius: Float = 0.5f) : Mesh("PointLight") {
-    private var proxySphere = Sphere(radius, 21)
+    private var proxySphere = Sphere(radius, 10)
     /** The intensity of the point light. Bound to [0.0, 1.0] if using non-HDR rendering. */
     @ShaderProperty var intensity: Float = 0.5f
 
@@ -26,7 +26,7 @@ class PointLight(radius: Float = 0.5f) : Mesh("PointLight") {
             if(value != lightRadius) {
                 logger.info("Resetting light radius")
                 field = value
-                proxySphere = Sphere(value, 21)
+                proxySphere = Sphere(value, 10)
                 this.vertices = proxySphere.vertices
                 this.normals = proxySphere.normals
                 this.texcoords = proxySphere.texcoords
