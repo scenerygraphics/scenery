@@ -4,9 +4,7 @@ import cleargl.GLVector
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.util.*
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.sin
+import kotlin.math.*
 
 /**
  * Constructs a sphere with the given [radius] and number of [segments].
@@ -18,57 +16,94 @@ import kotlin.math.sin
 open class Sphere(val radius: Float, val segments: Int) : Node("sphere"), HasGeometry {
     override val vertexSize = 3
     override val texcoordSize = 2
-    override var geometryType = GeometryType.TRIANGLE_STRIP
+    override var geometryType = GeometryType.TRIANGLES
 
-    override var vertices: FloatBuffer = BufferUtils.allocateFloat(0)
-    override var normals: FloatBuffer = BufferUtils.allocateFloat(0)
-    override var texcoords: FloatBuffer = BufferUtils.allocateFloat(0)
-    override var indices: IntBuffer = BufferUtils.allocateInt(0)
+    final override var vertices: FloatBuffer = BufferUtils.allocateFloat(0)
+    final override var normals: FloatBuffer = BufferUtils.allocateFloat(0)
+    final override var texcoords: FloatBuffer = BufferUtils.allocateFloat(0)
+    final override var indices: IntBuffer = BufferUtils.allocateInt(0)
 
     init {
         val vbuffer = ArrayList<Float>(segments*segments*2*3)
         val nbuffer = ArrayList<Float>(segments*segments*2*3)
         val tbuffer = ArrayList<Float>(segments*segments*2*2)
 
-        for (i: Int in 0..segments) {
-            val lat0: Float = PI.toFloat() * (-0.5f + (i-1.0f) / segments)
-            val lat1: Float = PI.toFloat() * (-0.5f + 1.0f*i / segments)
+        for (i in 0 until segments) {
+            val theta0: Float = PI.toFloat() * i.toFloat() / segments
+            val theta1: Float = PI.toFloat() * (i + 1.0f) / segments
 
-            val z0: Float = sin(lat0)
-            val z1: Float = sin(lat1)
+            for (j in 0 until segments) {
+                val phi0: Float = 2 * PI.toFloat() * j.toFloat() / segments
+                val phi1: Float = 2 * PI.toFloat() * (j + 1.0f) / segments
 
-            val zr0: Float = cos(lat0)
-            val zr1: Float = cos(lat1)
+                val v00 = vertexOnSphere(radius, theta0, phi0)
+                val v01 = vertexOnSphere(radius, theta0, phi1)
+                val v11 = vertexOnSphere(radius, theta1, phi1)
+                val v10 = vertexOnSphere(radius, theta1, phi0)
 
-            for (j: Int in 0..segments) {
-                val lng: Float = 2 * PI.toFloat() * (j - 1) / segments
-                val x: Float = cos(lng)
-                val y: Float = sin(lng)
+                val n00 = GLVector(*v00.toFloatArray()).normalize().toFloatArray().toTypedArray()
+                val n01 = GLVector(*v01.toFloatArray()).normalize().toFloatArray().toTypedArray()
+                val n11 = GLVector(*v11.toFloatArray()).normalize().toFloatArray().toTypedArray()
+                val n10 = GLVector(*v10.toFloatArray()).normalize().toFloatArray().toTypedArray()
 
-                vbuffer.add(x * zr1 * radius)
-                vbuffer.add(y * zr1 * radius)
-                vbuffer.add(z1 * radius)
+                val uv00 = uvOnSphere(n00)
+                val uv01 = uvOnSphere(n01)
+                val uv11 = uvOnSphere(n11)
+                val uv10 = uvOnSphere(n10)
 
-                vbuffer.add(x * zr0 * radius)
-                vbuffer.add(y * zr0 * radius)
-                vbuffer.add(z0 * radius)
+                when {
+                    i == 0 -> {
+                        vbuffer.addAll(v00)
+                        vbuffer.addAll(v11)
+                        vbuffer.addAll(v10)
 
-                val normal0 = GLVector(x * zr0 * radius, y * zr0 * radius, z0 * radius).normalize()
-                val normal1 = GLVector(x * zr1 * radius, y * zr1 * radius, z1 * radius).normalize()
+                        nbuffer.addAll(n00)
+                        nbuffer.addAll(n11)
+                        nbuffer.addAll(n10)
 
-                nbuffer.add(normal0.x())
-                nbuffer.add(normal0.y())
-                nbuffer.add(normal0.z())
+                        tbuffer.addAll(uv00)
+                        tbuffer.addAll(uv11)
+                        tbuffer.addAll(uv10)
+                    }
+                    i + 1 == segments -> {
+                        vbuffer.addAll(v11)
+                        vbuffer.addAll(v00)
+                        vbuffer.addAll(v01)
 
-                nbuffer.add(normal1.x())
-                nbuffer.add(normal1.y())
-                nbuffer.add(normal1.z())
+                        nbuffer.addAll(n11)
+                        nbuffer.addAll(n00)
+                        nbuffer.addAll(n01)
 
-                tbuffer.add(0.0f)
-                tbuffer.add(0.0f)
+                        tbuffer.addAll(uv11)
+                        tbuffer.addAll(uv00)
+                        tbuffer.addAll(uv01)
+                    }
+                    else -> {
+                        vbuffer.addAll(v00)
+                        vbuffer.addAll(v01)
+                        vbuffer.addAll(v10)
 
-                tbuffer.add(0.0f)
-                tbuffer.add(0.0f)
+                        nbuffer.addAll(n00)
+                        nbuffer.addAll(n01)
+                        nbuffer.addAll(n10)
+
+                        tbuffer.addAll(uv00)
+                        tbuffer.addAll(uv01)
+                        tbuffer.addAll(uv10)
+
+                        vbuffer.addAll(v01)
+                        vbuffer.addAll(v11)
+                        vbuffer.addAll(v10)
+
+                        nbuffer.addAll(n01)
+                        nbuffer.addAll(n11)
+                        nbuffer.addAll(n10)
+
+                        tbuffer.addAll(uv01)
+                        tbuffer.addAll(uv11)
+                        tbuffer.addAll(uv10)
+                    }
+                }
             }
         }
 
@@ -77,4 +112,31 @@ open class Sphere(val radius: Float, val segments: Int) : Node("sphere"), HasGeo
         texcoords = BufferUtils.allocateFloatAndPut(tbuffer.toFloatArray())
     }
 
+    /**
+     * Creates a vertex on a sphere with radius [radius], and angles [theta] and [phi].
+     *
+     * @param[radius] The radius of the sphere
+     * @param[theta] Theta coordinate, in interval [0, PI]
+     * @param[phi] Phi coordinate, in interval [0, 2PI]
+     *
+     * @return Vertex on a sphere, in cartesian coordinates
+     */
+    private fun vertexOnSphere(radius: Float, theta: Float, phi: Float) = arrayOf(
+        radius * sin(theta) * cos(phi),
+        radius * sin(theta) * sin(phi),
+        radius * cos(theta)
+    )
+
+    /**
+     * Creates UV coordinates for a given surface normal that is assumed to be
+     * on a sphere.
+     *
+     * @param[normal] Normal vector on a sphere.
+     *
+     * @return UV coordinates in [0.0, 1.0] range.
+     */
+    private fun uvOnSphere(normal: Array<Float>) = arrayOf(
+        atan2(normal[2], normal[0]) / (2.0f*PI.toFloat()) + 0.5f,
+        0.5f + asin(normal[1])/PI.toFloat()
+    )
 }
