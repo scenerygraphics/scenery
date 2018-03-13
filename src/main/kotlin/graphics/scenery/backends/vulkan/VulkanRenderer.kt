@@ -2905,6 +2905,8 @@ open class VulkanRenderer(hub: Hub,
 
         renderpasses.forEach { _, vulkanRenderpass -> vulkanRenderpass.close() }
 
+        VulkanShaderModule.clearCache()
+
         with(commandPools) {
             device.destroyCommandPool(Render)
             device.destroyCommandPool(Compute)

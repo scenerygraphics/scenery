@@ -66,7 +66,7 @@ class PointLight(radius: Float = 0.5f) : Mesh("PointLight") {
         material.blending.sourceAlphaBlendFactor = Blending.BlendFactor.One
         material.blending.destinationAlphaBlendFactor = Blending.BlendFactor.One
         material.blending.alphaBlending = Blending.BlendOp.add
-        material.cullingMode = Material.CullingMode.Front
+        material.cullingMode = Material.CullingMode.None
         material.depthTest = Material.DepthTest.Greater
     }
 }
