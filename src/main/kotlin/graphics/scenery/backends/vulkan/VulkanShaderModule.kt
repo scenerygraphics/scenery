@@ -9,6 +9,7 @@ import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkPipelineShaderStageCreateInfo
 import org.lwjgl.vulkan.VkShaderModuleCreateInfo
+import org.slf4j.LoggerFactory
 import java.io.InputStream
 import java.nio.ByteBuffer
 import java.nio.charset.Charset
@@ -333,7 +334,7 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, claz
     fun close() {
         if(!deallocated) {
             vkDestroyShaderModule(device.vulkanDevice, shader.module(), null)
-            shaderModuleCache.remove(signature)
+            shaderModuleCache.remove(signature.hashCode())
 
             memFree(shader.pName())
             shader.free()
@@ -343,7 +344,7 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, claz
     }
 
     companion object {
-        private val shaderModuleCache = ConcurrentHashMap<ShaderSignature, VulkanShaderModule>()
+        private val shaderModuleCache = ConcurrentHashMap<Int, VulkanShaderModule>()
 
         @Suppress("UNUSED")
         fun createFromSPIRV(device: VulkanDevice, name: String, clazz: Class<*>, sourceFile: String): VulkanShaderModule {
@@ -356,7 +357,7 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, claz
         }
 
         fun getFromCacheOrCreate(device: VulkanDevice, entryPoint: String, clazz: Class<*>, shaderCodePath: String): VulkanShaderModule {
-            val signature = ShaderSignature(device, clazz, shaderCodePath)
+            val signature = ShaderSignature(device, clazz, shaderCodePath).hashCode()
 
             return if(shaderModuleCache.containsKey(signature)) {
                 shaderModuleCache[signature]!!
@@ -366,6 +367,11 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, claz
 
                 module
             }
+        }
+
+        fun clearCache() {
+            shaderModuleCache.forEach { it.value.close() }
+            shaderModuleCache.clear()
         }
     }
 }
