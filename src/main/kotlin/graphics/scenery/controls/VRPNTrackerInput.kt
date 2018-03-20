@@ -3,6 +3,9 @@ package graphics.scenery.controls
 import cleargl.GLMatrix
 import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
+import graphics.scenery.Camera
+import graphics.scenery.Mesh
+import graphics.scenery.Node
 import graphics.scenery.utils.LazyLogger
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -18,7 +21,6 @@ import java.util.*
 */
 
 class VRPNTrackerInput(trackerAddress: String = "device@locahost:5500") : TrackerInput {
-
     private val logger by LazyLogger()
 
     var tracker: TrackerRemote? = null
@@ -150,4 +152,13 @@ class VRPNTrackerInput(trackerAddress: String = "device@locahost:5500") : Tracke
             return null
         }
     }
+
+    override fun loadModelForMesh(type: TrackedDeviceType, mesh: Mesh): Mesh {
+        TODO("not implemented")
+    }
+
+    override fun attachToNode(type: TrackedDeviceType, index: Int, node: Node, camera: Camera?) {
+        TODO("not implemented")
+    }
+
 }

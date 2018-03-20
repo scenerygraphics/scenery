@@ -3,9 +3,7 @@ package graphics.scenery.controls
 import cleargl.GLMatrix
 import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
-import graphics.scenery.Hub
-import graphics.scenery.Hubable
-import graphics.scenery.Mesh
+import graphics.scenery.*
 import graphics.scenery.backends.Display
 import graphics.scenery.backends.vulkan.VulkanDevice
 import graphics.scenery.utils.LazyLogger
@@ -697,7 +695,7 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
      * @return HMD pose as GLMatrix
      */
     fun getPose(type: TrackedDeviceType): List<TrackedDevice> {
-        return this.trackedDevices.values.filter { it.type == type }.toList()
+        return this.trackedDevices.values.filter { it.type == type }
     }
 
     /**
@@ -729,25 +727,65 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
         return GLMatrix(m)
     }
 
-    fun loadModelForMesh(modelName: String, node: Mesh) {
-        val pathBuffer = memAlloc(1024)
-        val pathArray = ByteArray(pathBuffer.capacity())
-        val error = memAllocInt(1)
+    override fun loadModelForMesh(type: TrackedDeviceType, mesh: Mesh): Mesh {
+        val modelName = when(type) {
+            TrackedDeviceType.HMD -> "generic_hmd"
+            TrackedDeviceType.Controller -> "vr_controller_vive_1_5"
+            TrackedDeviceType.BaseStation -> "lh_basestation_vive"
+            TrackedDeviceType.Generic -> "generic_tracker"
 
-        VRRenderModels_GetRenderModelOriginalPath(modelName, pathBuffer, error)
-        pathBuffer.get(pathArray)
-        val path = String(pathArray, Charset.defaultCharset())
+            else -> {
+                logger.warn("No model available for $type")
+                return mesh
+            }
+        }
 
-        logger.info("Loading model for $modelName from $path")
+        stackPush().use { stack ->
+            val pathBuffer = stack.calloc(1024)
+            val error = stack.callocInt(1)
 
-        val modelPath = path.replace('\\', '/')
+            val l = VRRenderModels_GetRenderModelOriginalPath(modelName, pathBuffer, error)
+            val pathArray = ByteArray(l-1)
+            pathBuffer.get(pathArray, 0, l-1)
+            val path = String(pathArray, Charset.forName("UTF-8"))
 
-        node.name = modelPath.substringAfterLast('/')
+            logger.info("Loading model for $modelName from $path")
 
-        when {
-            modelPath.toLowerCase().endsWith("stl") -> node.readFromSTL(modelPath)
-            modelPath.toLowerCase().endsWith("obj") -> node.readFromOBJ(modelPath, true)
-            else -> logger.warn("Unknown model format: $modelPath for $modelName")
+            val modelPath = path.replace('\\', '/')
+
+            mesh.name = modelPath.substringAfterLast('/')
+
+            when {
+                mesh.name.toLowerCase().endsWith("stl") -> mesh.readFromSTL(modelPath)
+                mesh.name.toLowerCase().endsWith("obj") -> mesh.readFromOBJ(modelPath, true)
+                else -> logger.warn("Unknown model format: $modelPath for $modelName")
+            }
+
+            return mesh
+        }
+    }
+
+    override fun attachToNode(type: TrackedDeviceType, index: Int, node: Node, camera: Camera?) {
+        if(type != TrackedDeviceType.Controller) {
+            logger.warn("No idea how to attach device type $type to a node, sorry.")
+            return
+        }
+
+        logger.info("Adding child $node to $camera")
+        camera?.addChild(node)
+
+        node.update.add {
+            this.getPose(TrackedDeviceType.Controller).getOrNull(index)?.let { controller ->
+
+                node.wantsComposeModel = false
+                node.model.setIdentity()
+                node.model.mult(controller.pose.invert())
+
+//                logger.info("Updating pose of $controller, ${node.model}")
+
+                node.needsUpdate = false
+                node.needsUpdateWorld = true
+            }
         }
     }
 
