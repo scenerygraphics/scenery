@@ -41,7 +41,8 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
         private set
     private var calibrating = false
 
-    var onGazeReceived: ((Gaze) -> Any)? = null
+    var onGazeReceived: ((Gaze) -> Unit)? = null
+    var gazeConfidenceThreshold = 0.9f
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     data class Gaze(var confidence: Float = 0.0f,
@@ -178,7 +179,7 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
                                     val bytes = msg.pop().data
                                     val g = objectMapper.readValue(bytes, Gaze::class.java)
 
-                                    if(g.confidence > 0.6f) {
+                                    if(g.confidence > gazeConfidenceThreshold) {
                                         currentGaze = g
                                         onGazeReceived?.invoke(g)
                                     }
@@ -347,12 +348,12 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
     companion object {
         val CircularScreenSpaceCalibrationPointGenerator = { cam: Camera, index: Int, referencePointCount: Int ->
             val origin = 0.5f
-            val radius = 0.3f
+            val radius = 0.2f
 
             val v = GLVector(
                 origin + radius * cos(2 * PI.toFloat() * index.toFloat()/referencePointCount),
                 origin + radius * sin(2 * PI.toFloat() * index.toFloat()/referencePointCount),
-                cam.nearPlaneDistance + 1.0f)
+                cam.nearPlaneDistance + 2.0f)
             v to cam.viewportToWorld(GLVector(v.x() * 2.0f - 1.0f, v.y() * 2.0f - 1.0f))
         }
 

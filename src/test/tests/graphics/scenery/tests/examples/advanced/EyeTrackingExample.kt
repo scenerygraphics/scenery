@@ -5,6 +5,7 @@ import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.PupilEyeTracker
+import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.utils.Numerics
 import org.junit.Test
 import org.scijava.ui.behaviour.ClickBehaviour
@@ -57,13 +58,26 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
         stageLight.intensity = 100.0f
         stageLight.position = GLVector(0.0f, 4.0f, 0.0f)
         scene.addChild(stageLight)
+
+        val controllers = (0..1).map {
+            val c = Mesh()
+            c.name = "default"
+            hmd.loadModelForMesh(TrackedDeviceType.Controller, c)
+            hmd.attachToNode(TrackedDeviceType.Controller, it, c, cam)
+
+            c
+        }
     }
 
     override fun inputSetup() {
         super.inputSetup()
 
         inputHandler?.let { handler ->
-            hashMapOf("move_forward" to "UP", "move_back" to "DOWN", "move_left" to "LEFT", "move_right" to "RIGHT").forEach { name, key ->
+            hashMapOf(
+                "move_forward_fast" to "W",
+                "move_back_fast" to "S",
+                "move_left_fast" to "A",
+                "move_right_fast" to "D").forEach { name, key ->
                 handler.getBehaviour(name)?.let { b ->
                     hmd.addBehaviour(name, b)
                     hmd.addKeyBinding(name, key)
@@ -90,12 +104,10 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
                     pupilTracker.onGazeReceived = when (pupilTracker.calibrationType) {
                         PupilEyeTracker.CalibrationType.ScreenSpace -> { gaze ->
                             referenceTarget.position = cam.viewportToWorld(GLVector(gaze.normalizedPosition().x() * 2.0f - 1.0f, gaze.normalizedPosition().y() * 2.0f - 1.0f))
-                            Any()
                         }
 
                         PupilEyeTracker.CalibrationType.WorldSpace -> { gaze ->
                             referenceTarget.position = gaze.gazePoint() ?: GLVector.getNullVector(3)
-                            Any()
                         }
                     }
                 }
