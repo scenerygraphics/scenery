@@ -3,6 +3,9 @@ package graphics.scenery.controls
 import cleargl.GLMatrix
 import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
+import graphics.scenery.Camera
+import graphics.scenery.Mesh
+import graphics.scenery.Node
 
 /**
  * Generic interface for head-mounted displays (HMDs)
@@ -88,4 +91,8 @@ interface TrackerInput {
     fun update()
 
     fun getWorkingTracker(): TrackerInput?
+
+    fun loadModelForMesh(type: TrackedDeviceType = TrackedDeviceType.Controller, mesh: Mesh): Mesh
+
+    fun attachToNode(type: TrackedDeviceType, index: Int, node: Node, camera: Camera? = null)
 }
