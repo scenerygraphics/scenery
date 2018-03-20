@@ -6,6 +6,7 @@ import graphics.scenery.Scene
 import graphics.scenery.Settings
 import graphics.scenery.backends.opengl.OpenGLRenderer
 import graphics.scenery.backends.vulkan.VulkanRenderer
+import graphics.scenery.utils.ExtractsNatives
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.SceneryPanel
 
@@ -100,9 +101,19 @@ abstract class Renderer : Hubable {
 
     companion object {
         @JvmOverloads @JvmStatic fun createRenderer(hub: Hub, applicationName: String, scene: Scene, windowWidth: Int, windowHeight: Int, embedIn: SceneryPanel? = null, renderConfigFile: String? = null): Renderer {
-            val preference = System.getProperty("scenery.Renderer", "OpenGLRenderer")
-
+            var preference = System.getProperty("scenery.Renderer", null)
             val config = renderConfigFile ?: System.getProperty("scenery.Renderer.Config", "DeferredShading.yml")
+
+            preference = when {
+                preference == null &&
+                    (ExtractsNatives.getPlatform() == ExtractsNatives.Platform.LINUX
+                        || ExtractsNatives.getPlatform() == ExtractsNatives.Platform.WINDOWS) -> "VulkanRenderer"
+
+                preference == null &&
+                    ExtractsNatives.getPlatform() == ExtractsNatives.Platform.MACOS -> "OpenGLRenderer"
+
+                else -> preference
+            }
 
             return if (preference == "VulkanRenderer") {
                 VulkanRenderer(hub, applicationName, scene, windowWidth, windowHeight, embedIn, config)
