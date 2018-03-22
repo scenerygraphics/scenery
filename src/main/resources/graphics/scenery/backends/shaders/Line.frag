@@ -32,7 +32,6 @@ const int MATERIAL_HAS_ALPHAMASK = 0x0010;
 layout(set = 2, binding = 0) uniform Matrices {
 	mat4 ModelMatrix;
 	mat4 NormalMatrix;
-	mat4 ProjectionMatrix;
 	int isBillboard;
 } ubo;
 
