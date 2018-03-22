@@ -40,6 +40,7 @@ import kotlin.math.absoluteValue
  * @constructor Creates a new OpenVR HMD instance, using the compositor if requested
  */
 open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = true) : TrackerInput, Display, Hubable {
+
     /** slf4j logger instance */
     protected val logger by LazyLogger()
     /** The Hub to use for communication */
@@ -266,12 +267,11 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
         if (eyeTransformCache[eye] == null) {
             val transform = HmdMatrix34.calloc()
             VRSystem_GetEyeToHeadTransform(eye, transform)
-            eyeTransformCache[eye] = transform.toGLMatrix().invert()
+            eyeTransformCache[eye] = transform.toGLMatrix().invert().transpose()
 
             logger.trace("Head-to-eye #$eye: " + eyeTransformCache[eye].toString())
         }
 
-//        logger.info("eye: ${eyeTransformCache[eye]!!}")
         return eyeTransformCache[eye]!!
     }
 
@@ -678,6 +678,13 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
      */
     override fun getPose(): GLMatrix {
         return this.trackedDevices.values.firstOrNull { it.type == TrackedDeviceType.HMD }?.pose ?: GLMatrix.getIdentity()
+    }
+
+    override fun getPoseForEye(eye: Int): GLMatrix {
+        val p = this.getPose()
+        p.mult(getHeadToEyeTransform(eye))
+
+        return p
     }
 
     /**

@@ -2788,8 +2788,10 @@ open class VulkanRenderer(hub: Hub,
         // val lights = sceneObjects.await().filter { node -> node is PointLight }
 
         val lightUbo = VulkanUBO(device, backingBuffer = buffers["LightParametersBuffer"]!!)
-        lightUbo.add("ViewMatrix", { cam.view })
-        lightUbo.add("InverseViewMatrix", { cam.view.inverse })
+        lightUbo.add("ViewMatrix0", { cam.getTransformationForEye(0) })
+        lightUbo.add("ViewMatrix1", { cam.getTransformationForEye(1) })
+        lightUbo.add("InverseViewMatrix0", { cam.getTransformationForEye(0).inverse })
+        lightUbo.add("InverseViewMatrix1", { cam.getTransformationForEye(1).inverse })
         lightUbo.add("ProjectionMatrix", { cam.projection.applyVulkanCoordinateSystem() })
         lightUbo.add("InverseProjectionMatrix", { cam.projection.applyVulkanCoordinateSystem().inverse })
         lightUbo.add("CamPosition", { cam.position })

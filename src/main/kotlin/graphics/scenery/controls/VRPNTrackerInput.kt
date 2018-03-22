@@ -113,6 +113,15 @@ class VRPNTrackerInput(trackerAddress: String = "device@locahost:5500") : Tracke
     }
 
     /**
+     * Returns the HMD pose per eye
+     *
+     * @return HMD pose as GLMatrix
+     */
+    override fun getPoseForEye(eye: Int): GLMatrix {
+        return this.getPose()
+    }
+
+    /**
      * Check whether the HMD is initialized and working
      *
      * @return True if HMD is initialiased correctly and working properly

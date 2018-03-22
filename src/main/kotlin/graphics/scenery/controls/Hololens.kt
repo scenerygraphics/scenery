@@ -3,9 +3,7 @@ package graphics.scenery.controls
 import cleargl.GLMatrix
 import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
-import graphics.scenery.Hub
-import graphics.scenery.Hubable
-import graphics.scenery.SceneryBase
+import graphics.scenery.*
 import graphics.scenery.backends.Display
 import graphics.scenery.backends.vulkan.*
 import graphics.scenery.utils.LazyLogger
@@ -129,8 +127,10 @@ class Hololens: TrackerInput, Display, Hubable {
         val matrixData = zmqSocket.recv()
         assert(matrixData.size == 128)
 
-        ByteBuffer.wrap(matrixData).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer().limit(16).get(poseLeft.floatArray)
-        ByteBuffer.wrap(matrixData).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer().position(16).get(poseRight.floatArray)
+        val b0 = ByteBuffer.wrap(matrixData).order(ByteOrder.LITTLE_ENDIAN).limit(16 * 4) as ByteBuffer
+        b0.asFloatBuffer().get(poseLeft.floatArray)
+
+        (b0.position(16 * 4).limit(16 * 8) as ByteBuffer).asFloatBuffer().get(poseRight.floatArray)
     }
 
     override fun getWorkingTracker(): TrackerInput? {
@@ -148,6 +148,13 @@ class Hololens: TrackerInput, Display, Hubable {
             0 -> leftProjection ?: GLMatrix().setPerspectiveProjectionMatrix(50.0f, 1.0f, nearPlane, farPlane)
             1 -> rightProjection ?: GLMatrix().setPerspectiveProjectionMatrix(50.0f, 1.0f, nearPlane, farPlane)
             else -> { logger.error("3rd eye, wtf?"); GLMatrix.getIdentity() }
+        }
+    }
+
+    override fun getPoseForEye(eye: Int): GLMatrix {
+        return when(eye) {
+            0 -> poseLeft
+            else -> poseRight
         }
     }
 
@@ -169,6 +176,14 @@ class Hololens: TrackerInput, Display, Hubable {
      */
     override fun hasCompositor(): Boolean {
         return true
+    }
+
+    override fun loadModelForMesh(type: TrackedDeviceType, mesh: Mesh): Mesh {
+        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    }
+
+    override fun attachToNode(type: TrackedDeviceType, index: Int, node: Node, camera: Camera?) {
+        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
     /**

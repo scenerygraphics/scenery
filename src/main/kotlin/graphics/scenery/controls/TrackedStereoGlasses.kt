@@ -17,6 +17,7 @@ import org.lwjgl.vulkan.VkQueue
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class TrackedStereoGlasses(var address: String = "device@localhost:5500", var screenConfig: String = "CAVEExample.yml") : Display, TrackerInput, Hubable {
+
     private val logger by LazyLogger()
     override var hub: Hub? = null
 
@@ -182,6 +183,18 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
         currentOrientation.translate(-trackerPos.x(), -trackerPos.y(), trackerPos.z())
 
         return currentOrientation
+    }
+
+    /**
+     * Returns the HMD pose per eye
+     *
+     * @return HMD pose as GLMatrix
+     */
+    override fun getPoseForEye(eye: Int): GLMatrix {
+        val p = this.getPose()
+        p.mult(getHeadToEyeTransform(eye))
+
+        return p
     }
 
     /**

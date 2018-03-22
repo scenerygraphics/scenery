@@ -79,6 +79,13 @@ interface TrackerInput {
     fun getPose(): GLMatrix
 
     /**
+     * Returns the HMD pose
+     *
+     * @return HMD pose as GLMatrix
+     */
+    fun getPoseForEye(eye: Int): GLMatrix
+
+    /**
      * Check whether the HMD is initialized and working
      *
      * @return True if HMD is initialiased correctly and working properly
