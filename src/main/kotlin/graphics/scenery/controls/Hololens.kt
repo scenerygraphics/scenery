@@ -10,15 +10,20 @@ import graphics.scenery.backends.Display
 import graphics.scenery.backends.vulkan.*
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.system.MemoryStack
+import org.lwjgl.system.MemoryUtil.memAllocInt
+import org.lwjgl.system.MemoryUtil.memAllocLong
 import org.lwjgl.vulkan.*
-import org.lwjgl.vulkan.KHRDedicatedAllocation.VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO_KHR
-import org.lwjgl.vulkan.KHRExternalMemory.VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO_KHR
-import org.lwjgl.vulkan.KHRExternalMemoryCapabilities.*
-import org.lwjgl.vulkan.KHRExternalMemoryWin32.VK_STRUCTURE_TYPE_IMPORT_MEMORY_WIN32_HANDLE_INFO_KHR
+import org.lwjgl.vulkan.NVDedicatedAllocation.*
+import org.lwjgl.vulkan.NVExternalMemory.*
+import org.lwjgl.vulkan.NVExternalMemoryCapabilities.*
+import org.lwjgl.vulkan.NVExternalMemoryWin32.*
+import org.lwjgl.vulkan.NVWin32KeyedMutex.VK_STRUCTURE_TYPE_WIN32_KEYED_MUTEX_ACQUIRE_RELEASE_INFO_NV
 import org.lwjgl.vulkan.VK10.*
 import org.zeromq.ZContext
 import org.zeromq.ZMQ
 import java.math.BigInteger
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.nio.charset.Charset
 
 /**
@@ -50,6 +55,17 @@ class Hololens: TrackerInput, Display, Hubable {
     private var d3dSharedHandle = -1L
     private var memoryHandle = -1L
     private var d3dImage: VulkanTexture.VulkanImage? = null
+
+    private val acqKeys = memAllocLong(1).put(0, 0)
+    private val releaseKeys = memAllocLong(1).put(0, 0)
+    private val memoryHandleBuffer = memAllocLong(1)
+    private val acquireTimeout = memAllocInt(1).put(0, 1)
+
+    private var leftProjection: GLMatrix? = null
+    private var rightProjection: GLMatrix? = null
+
+    private var poseLeft: GLMatrix = GLMatrix.getIdentity()
+    private var poseRight: GLMatrix = GLMatrix.getIdentity()
 
     init {
         zmqSocket.connect("tcp://localhost:1339")
@@ -92,7 +108,7 @@ class Hololens: TrackerInput, Display, Hubable {
      */
     override fun getPose(): GLMatrix {
         // TODO: Return actual Hololens pose
-        return GLMatrix.getIdentity()
+        return poseLeft
     }
 
     /**
@@ -109,7 +125,12 @@ class Hololens: TrackerInput, Display, Hubable {
      * update state
      */
     override fun update() {
-        // TODO: Update Hololens state
+        zmqSocket.send("ViewTransform")
+        val matrixData = zmqSocket.recv()
+        assert(matrixData.size == 128)
+
+        ByteBuffer.wrap(matrixData).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer().limit(16).get(poseLeft.floatArray)
+        ByteBuffer.wrap(matrixData).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer().position(16).get(poseRight.floatArray)
     }
 
     override fun getWorkingTracker(): TrackerInput? {
@@ -123,7 +144,11 @@ class Hololens: TrackerInput, Display, Hubable {
      * @return GLMatrix containing the per-eye projection matrix
      */
     override fun getEyeProjection(eye: Int, nearPlane: Float, farPlane: Float): GLMatrix {
-        return GLMatrix().setPerspectiveProjectionMatrix(50.0f, 1.0f,  nearPlane, farPlane )
+        return when(eye) {
+            0 -> leftProjection ?: GLMatrix().setPerspectiveProjectionMatrix(50.0f, 1.0f, nearPlane, farPlane)
+            1 -> rightProjection ?: GLMatrix().setPerspectiveProjectionMatrix(50.0f, 1.0f, nearPlane, farPlane)
+            else -> { logger.error("3rd eye, wtf?"); GLMatrix.getIdentity() }
+        }
     }
 
     /**
@@ -172,6 +197,26 @@ class Hololens: TrackerInput, Display, Hubable {
             hololensCommandPool = device.createCommandPool(device.queueIndices.graphicsQueue)
         }
 
+        if(leftProjection == null) {
+            zmqSocket.send("LeftPR")
+            val matrixData = zmqSocket.recv()
+            assert(matrixData.size == 64)
+
+            leftProjection = GLMatrix.getIdentity()
+            ByteBuffer.wrap(matrixData).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer().get(leftProjection!!.floatArray)
+            logger.info("Hololens left projection: $leftProjection")
+        }
+
+        if(rightProjection == null) {
+            zmqSocket.send("RightPR")
+            val matrixData = zmqSocket.recv()
+            assert(matrixData.size == 64)
+
+            rightProjection = GLMatrix.getIdentity()
+            ByteBuffer.wrap(matrixData).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer().get(rightProjection!!.floatArray)
+            logger.info("Hololens right projection: $rightProjection")
+        }
+
         if(d3dSharedHandle == -1L || d3dImage == null) {
             zmqSocket.send("RegPid${SceneryBase.getProcessID()}")
             val handle = zmqSocket.recvStr()
@@ -181,59 +226,59 @@ class Hololens: TrackerInput, Display, Hubable {
             logger.info("Registered D3D shared texture handle as ${d3dSharedHandle.toHexString()}/${address.toString(16)}")
 
             // VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_IMAGE_BIT_NV does not seem to work here
-            val handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_BIT_KHR
-            val extProperties = VkExternalBufferPropertiesKHR.calloc()
+            val handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_IMAGE_BIT_NV
+            val extProperties = VkExternalImageFormatPropertiesNV.calloc()
 
-            val bufferInfo = VkPhysicalDeviceExternalBufferInfoKHR.calloc()
-                .sType(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_BUFFER_INFO_KHR)
-                .pNext(0)
-                .flags(0)
-                .handleType(handleType)
-
-            val formatSupported = vkGetPhysicalDeviceExternalBufferPropertiesKHR(
+            val formatSupported = vkGetPhysicalDeviceExternalImageFormatPropertiesNV(
                 device.physicalDevice,
-                bufferInfo,
-                extProperties
-            )
-//            val formatSupported = vkGetPhysicalDeviceExternalImageFormatPropertiesNV(
-//                device.physicalDevice,
-//                textureFormat,
-//                VK_IMAGE_TYPE_2D,
-//                VK_IMAGE_TILING_OPTIMAL,
-//                VK_IMAGE_USAGE_TRANSFER_DST_BIT or VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-//                0,
-//                handleType,
-//                extProperties)
+                textureFormat,
+                VK_IMAGE_TYPE_2D,
+                VK_IMAGE_TILING_OPTIMAL,
+                VK_IMAGE_USAGE_TRANSFER_DST_BIT or VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                0,
+                handleType,
+                extProperties)
+
+            if (formatSupported == VK_ERROR_FORMAT_NOT_SUPPORTED) {
+                logger.error("Shared handles not supported, omfg!")
+                return
+            }
+
+            if(formatSupported < 0) {
+                logger.error("Something else went wrong: $formatSupported")
+            }
 
             logger.debug("Can import these types: ")
-            logger.debug(" VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_BIT_KHR: ${extProperties.externalMemoryProperties().compatibleHandleTypes() and VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_BIT_KHR != 0}")
-            logger.debug(" VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_KMT_BIT_KHR: ${extProperties.externalMemoryProperties().compatibleHandleTypes() and VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_KMT_BIT_KHR != 0}")
-            logger.debug(" VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT_KHR : ${extProperties.externalMemoryProperties().compatibleHandleTypes() and VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT_KHR != 0}")
-            logger.debug(" VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT_KHR : ${extProperties.externalMemoryProperties().compatibleHandleTypes() and VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT_KHR != 0}")
+            logger.debug(" VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_IMAGE_BIT_NV: ${extProperties.compatibleHandleTypes() and VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_IMAGE_BIT_NV != 0}")
+            logger.debug(" VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_IMAGE_KMT_BIT_NV: ${extProperties.compatibleHandleTypes() and VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_IMAGE_KMT_BIT_NV != 0}")
+            logger.debug(" VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT_NV : ${extProperties.compatibleHandleTypes() and VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT_NV != 0}")
+            logger.debug(" VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT_NV : ${extProperties.compatibleHandleTypes() and VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_KMT_BIT_NV != 0}")
 
-            if (extProperties.externalMemoryProperties().externalMemoryFeatures() and VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT_KHR == 0) {
-                logger.error("Importable handles are not support, omfg! ${extProperties.externalMemoryProperties().externalMemoryFeatures()}")
+            if (extProperties.externalMemoryFeatures() and VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT_NV == 0) {
+                logger.error("Importable handles are not support, omfg! ${extProperties.externalMemoryFeatures()}")
                 return
             }
 
-            if(handleType and extProperties.externalMemoryProperties().compatibleHandleTypes() == 0) {
-                logger.error("Requested import type not available! ${extProperties.externalMemoryProperties().compatibleHandleTypes()}")
+            if(handleType and extProperties.compatibleHandleTypes() == 0) {
+                logger.error("Requested import type not available! ${extProperties.compatibleHandleTypes()}")
                 return
             }
 
-            val extMemoryImageInfo = VkExternalMemoryImageCreateInfoKHR.calloc()
-                .sType(VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO_KHR)
+            val extMemoryImageInfo = VkExternalMemoryImageCreateInfoNV.calloc()
+                .sType(VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO_NV)
                 .pNext(0)
                 .handleTypes(handleType)
 
-            val dedicatedAllocationCreateInfo = VkMemoryDedicatedAllocateInfoKHR.calloc()
-                .sType(VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO_KHR)
+            val dedicatedAllocationCreateInfo = VkDedicatedAllocationImageCreateInfoNV.calloc()
+                .sType(VK_STRUCTURE_TYPE_DEDICATED_ALLOCATION_IMAGE_CREATE_INFO_NV)
                 .pNext(0)
+                .dedicatedAllocation(false)
 
-            if (extProperties.externalMemoryProperties().externalMemoryFeatures() and VK_EXTERNAL_MEMORY_FEATURE_DEDICATED_ONLY_BIT_KHR != 0) {
+            if (extProperties.externalMemoryFeatures() and VK_EXTERNAL_MEMORY_FEATURE_DEDICATED_ONLY_BIT_NV != 0) {
                 logger.info("Platform requires dedicated allocation")
 
                 extMemoryImageInfo.pNext(dedicatedAllocationCreateInfo.address())
+                dedicatedAllocationCreateInfo.dedicatedAllocation(true)
             }
 
             val t = VulkanTexture(device, hololensCommandPool, queue,
@@ -271,8 +316,8 @@ class Hololens: TrackerInput, Display, Hubable {
                         logger.debug("Got memory types ${memoryTypeIndex.joinToString(", ")}")
                     }
 
-                    val importMemoryInfo = VkImportMemoryWin32HandleInfoKHR.calloc()
-                        .sType(VK_STRUCTURE_TYPE_IMPORT_MEMORY_WIN32_HANDLE_INFO_KHR)
+                    val importMemoryInfo = VkImportMemoryWin32HandleInfoNV.calloc()
+                        .sType(VK_STRUCTURE_TYPE_IMPORT_MEMORY_WIN32_HANDLE_INFO_NV)
                         .pNext(0)
                         .handleType(handleType)
                         .handle(d3dSharedHandle)
@@ -283,12 +328,12 @@ class Hololens: TrackerInput, Display, Hubable {
                         .allocationSize(memoryRequirements.size())
                         .memoryTypeIndex(memoryTypeIndex.first())
 
-                    val dedicatedAllocationInfo = VkMemoryDedicatedAllocateInfoKHR.calloc()
-                        .sType(VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO_KHR)
+                    val dedicatedAllocationInfo = VkDedicatedAllocationMemoryAllocateInfoNV.calloc()
+                        .sType(VK_STRUCTURE_TYPE_DEDICATED_ALLOCATION_MEMORY_ALLOCATE_INFO_NV)
                         .pNext(0)
 
-                    if (extProperties.externalMemoryProperties().externalMemoryFeatures() and VK_EXTERNAL_MEMORY_FEATURE_DEDICATED_ONLY_BIT_KHR != 0) {
-                        logger.debug("Using VK_KHR_dedicated_allocation")
+                    if (extProperties.externalMemoryFeatures() and VK_EXTERNAL_MEMORY_FEATURE_DEDICATED_ONLY_BIT_NV != 0) {
+                        logger.debug("Using VK_NV_dedicated_allocation")
                         dedicatedAllocationInfo.image(allocatedImage)
                         importMemoryInfo.pNext(dedicatedAllocationInfo.address())
                     }
@@ -311,13 +356,7 @@ class Hololens: TrackerInput, Display, Hubable {
                 this
             }.endCommandBuffer(device, hololensCommandPool,
                 queue, flush = true, dealloc = true)
-
-            zmqSocket.send("NopeTT")
-            checkSocketResponse(zmqSocket.recv())
         }
-
-        zmqSocket.send("GiefTT")
-        checkSocketResponse(zmqSocket.recv())
 
         if(commandBuffer == null) {
             commandBuffer = VulkanCommandBuffer(device, null, false)
@@ -396,35 +435,24 @@ class Hololens: TrackerInput, Display, Hubable {
                 this
             }
 
-            // TODO: Actually use keyed mutex, currently leads to crash
             commandBuffer?.commandBuffer?.endCommandBuffer(device, hololensCommandPool, queue,
                 flush = false, dealloc = false, submitInfoPNext = null)
         }
 
-//        val mem = memAllocLong(1).put(0, memoryHandle)
-//        val acqKeys = memAllocLong(1).put(0, 1)
-//        val releaseKeys = memAllocLong(1).put(0, 1)
-//        val timeout = memAllocInt(1).put(0, 1)
+        memoryHandleBuffer.put(0, memoryHandle)
 
-//        val keyedMutex = VkWin32KeyedMutexAcquireReleaseInfoNV.calloc()
-//            .sType(VK_STRUCTURE_TYPE_WIN32_KEYED_MUTEX_ACQUIRE_RELEASE_INFO_NV)
-//            .pNext(NULL)
-//            .acquireCount(1)
-//            .pAcquireSyncs(mem)
-//            .pAcquireSyncs(acqKeys)
-//            .pAcquireTimeoutMilliseconds(timeout)
-//            .releaseCount(1)
-//            .pReleaseKeys(releaseKeys)
+        val keyedMutex = VkWin32KeyedMutexAcquireReleaseInfoNV.calloc()
+            .sType(VK_STRUCTURE_TYPE_WIN32_KEYED_MUTEX_ACQUIRE_RELEASE_INFO_NV)
+            .pNext(0)
+            .acquireCount(1)
+            .pAcquireSyncs(memoryHandleBuffer)
+            .pAcquireKeys(acqKeys)
+            .pAcquireTimeoutMilliseconds(acquireTimeout)
+            .releaseCount(1)
+            .pReleaseKeys(releaseKeys)
+            .pReleaseSyncs(memoryHandleBuffer)
 
-        commandBuffer?.commandBuffer?.submit(queue, null)
-
-        zmqSocket.send("NopeTT")
-        checkSocketResponse(zmqSocket.recv())
-
-//        memFree(mem)
-//        memFree(acqKeys)
-//        memFree(releaseKeys)
-//        memFree(timeout)
+        commandBuffer?.commandBuffer?.submit(queue, submitInfoPNext = keyedMutex)
     }
 
     private fun checkSocketResponse(response: ByteArray) {
@@ -443,14 +471,16 @@ class Hololens: TrackerInput, Display, Hubable {
     }
 
     override fun getVulkanInstanceExtensions(): List<String> {
-        return listOf("VK_KHR_external_memory_capabilities",
+        return listOf("VK_NV_external_memory_capabilities",
+            "VK_KHR_external_memory_capabilities",
             "VK_KHR_get_physical_device_properties2")
     }
 
     override fun getVulkanDeviceExtensions(physicalDevice: VkPhysicalDevice): List<String> {
-        return listOf("VK_KHR_dedicated_allocation",
-            "VK_KHR_external_memory",
-            "VK_KHR_external_memory_win32")
+        return listOf("VK_NV_dedicated_allocation",
+            "VK_NV_external_memory",
+            "VK_NV_external_memory_win32",
+            "VK_NV_win32_keyed_mutex")
     }
 
     override fun getWorkingDisplay(): Display? {

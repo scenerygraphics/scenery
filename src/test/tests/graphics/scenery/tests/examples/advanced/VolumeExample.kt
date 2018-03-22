@@ -3,6 +3,7 @@ package graphics.scenery.tests.examples.advanced
 import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
+import graphics.scenery.controls.Hololens
 import graphics.scenery.controls.TrackedStereoGlasses
 import graphics.scenery.volumes.Volume
 import org.junit.Test
@@ -15,16 +16,17 @@ import kotlin.concurrent.thread
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class VolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
-    var hmd: TrackedStereoGlasses? = null
+class VolumeExample: SceneryBase("Volume Rendering example", 2560, 720) {
+    var hmd: Hololens = Hololens()
 
     override fun init() {
+        hub.add(SceneryElement.HMDInput, hmd)
         renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
         hub.add(SceneryElement.Renderer, renderer!!)
 
         val cam: Camera = DetachedHeadCamera(hmd)
         with(cam) {
-            position = GLVector(0.0f, 0.5f, 5.0f)
+            position = GLVector(0.0f, 0.5f, 0.5f)
             perspectiveCamera(50.0f, 1.0f*windowWidth, 1.0f*windowHeight)
             active = true
 
@@ -42,9 +44,9 @@ class VolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
         val volume = Volume()
         volume.name = "volume"
         volume.colormap = "jet"
-        volume.position = GLVector(0.0f, 0.0f, -3.5f)
+        volume.position = GLVector(0.0f, 0.0f, 0.0f)
         volume.rotation = volume.rotation.rotateByEuler(0.05f, 0.05f, 0.05f)
-        volume.scale = GLVector(2.0f, 2.0f, 2.0f)
+        volume.scale = GLVector(0.05f, 0.05f, 0.05f)
         scene.addChild(volume)
 
         val lights = (0 until 3).map {
@@ -79,10 +81,10 @@ class VolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
 
             logger.info("Got volume!")
 
-            while(true) {
-                volume.rotation = volume.rotation.rotateByAngleY(0.01f)
-                Thread.sleep(5)
-            }
+//            while(true) {
+//                volume.rotation = volume.rotation.rotateByAngleY(0.01f)
+//                Thread.sleep(5)
+//            }
         }
 
     }
