@@ -123,44 +123,55 @@ open class VulkanTexture(val device: VulkanDevice,
         gt = genericTexture
     }
 
-    fun createImage(width: Int, height: Int, depth: Int, format: Int, usage: Int, tiling: Int, memoryFlags: Int, mipLevels: Int): VulkanImage {
-        val extent = VkExtent3D.calloc().set(width, height, depth)
-        val imageInfo = VkImageCreateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO)
-            .pNext(NULL)
-            .imageType(if (depth == 1) {
-                VK_IMAGE_TYPE_2D
-            } else {
-                VK_IMAGE_TYPE_3D
-            })
-            .extent(extent)
-            .mipLevels(mipLevels)
-            .arrayLayers(1)
-            .format(format)
-            .tiling(tiling)
-            .initialLayout(if(depth == 1) {VK_IMAGE_LAYOUT_PREINITIALIZED} else { VK_IMAGE_LAYOUT_UNDEFINED })
-            .usage(usage)
-            .sharingMode(VK_SHARING_MODE_EXCLUSIVE)
-            .samples(VK_SAMPLE_COUNT_1_BIT)
-            .flags(VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT)
+    fun createImage(width: Int, height: Int, depth: Int, format: Int,
+                    usage: Int, tiling: Int, memoryFlags: Int, mipLevels: Int,
+                    customAllocator: ((VkMemoryRequirements, Long) -> Long)? = null, imageCreateInfo: VkImageCreateInfo? = null): VulkanImage {
+        val imageInfo = if(imageCreateInfo != null) {
+            imageCreateInfo
+        } else {
+            val i = VkImageCreateInfo.calloc()
+                .sType(VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO)
+                .imageType(if (depth == 1) {
+                    VK_IMAGE_TYPE_2D
+                } else {
+                    VK_IMAGE_TYPE_3D
+                })
+                .mipLevels(mipLevels)
+                .arrayLayers(1)
+                .format(format)
+                .tiling(tiling)
+                .initialLayout(if(depth == 1) {VK_IMAGE_LAYOUT_PREINITIALIZED} else { VK_IMAGE_LAYOUT_UNDEFINED })
+                .usage(usage)
+                .sharingMode(VK_SHARING_MODE_EXCLUSIVE)
+                .samples(VK_SAMPLE_COUNT_1_BIT)
+                .flags(VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT)
 
-        val reqs = VkMemoryRequirements.calloc()
+            i.extent().set(width, height, depth)
+            i
+        }
+
         val image = VU.getLong("create staging image",
             { vkCreateImage(device.vulkanDevice, imageInfo, null, this) }, {})
 
+        val reqs = VkMemoryRequirements.calloc()
         vkGetImageMemoryRequirements(device.vulkanDevice, image, reqs)
-
         val memorySize = reqs.size()
 
-        val allocInfo = VkMemoryAllocateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO)
-            .pNext(NULL)
-            .allocationSize(memorySize)
-            .memoryTypeIndex(device.getMemoryType(reqs.memoryTypeBits(), memoryFlags).second)
+        val memory = if(customAllocator == null) {
+            val allocInfo = VkMemoryAllocateInfo.calloc()
+                .sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO)
+                .pNext(NULL)
+                .allocationSize(memorySize)
+                .memoryTypeIndex(device.getMemoryType(reqs.memoryTypeBits(), memoryFlags).first())
 
-        val memory = VU.getLong("allocate image staging memory",
-            { vkAllocateMemory(device.vulkanDevice, allocInfo, null, this) },
-            { imageInfo.free(); allocInfo.free(); reqs.free(); extent.free() })
+            VU.getLong("allocate image staging memory",
+                { vkAllocateMemory(device.vulkanDevice, allocInfo, null, this) },
+                { imageInfo.free(); allocInfo.free() })
+        } else {
+            customAllocator.invoke(reqs, image)
+        }
+
+        reqs.free()
 
         vkBindImageMemory(device.vulkanDevice, image, memory, 0)
 
@@ -721,6 +732,15 @@ open class VulkanTexture(val device: VulkanDevice,
                 } else if(oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
                     barrier.srcAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
                         .dstAccessMask(VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT)
+                } else if(oldLayout == KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR && newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
+                    barrier.srcAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
+                        .dstAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
+                } else if(oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL && newLayout == KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
+                    barrier.srcAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
+                        .dstAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
+                } else if(oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) {
+                    barrier.srcAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
+                        .dstAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
                 } else {
                     logger.error("Unsupported layout transition: $oldLayout -> $newLayout")
                 }

@@ -8,6 +8,7 @@ import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.system.NativeResource
+import org.lwjgl.system.Pointer
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.EXTDebugReport.VK_ERROR_VALIDATION_FAILED_EXT
 import org.lwjgl.vulkan.KHRDisplaySwapchain.VK_ERROR_INCOMPATIBLE_DISPLAY_KHR
@@ -18,6 +19,7 @@ import org.lwjgl.vulkan.KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
 import org.lwjgl.vulkan.KHRSwapchain.VK_SUBOPTIMAL_KHR
 import org.lwjgl.vulkan.VK10.*
 import org.slf4j.LoggerFactory
+import java.math.BigInteger
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.util.*
@@ -34,39 +36,48 @@ fun Long.toHexString(): String {
     return String.format("0x%X", this)
 }
 
+fun BigInteger.toHexString(): String {
+    return "0x${this.toString(16)}"
+}
+
 fun VkCommandBuffer.endCommandBuffer() {
     if(vkEndCommandBuffer(this) != VK_SUCCESS) {
         throw AssertionError("Failed to end command buffer $this")
     }
 }
 
-fun VkCommandBuffer.endCommandBuffer(device: VulkanDevice, commandPool: Long, queue: VkQueue?, flush: Boolean = true, dealloc: Boolean = false) {
+fun VkCommandBuffer.endCommandBuffer(device: VulkanDevice, commandPool: Long, queue: VkQueue?, flush: Boolean = true, dealloc: Boolean = false, submitInfoPNext: Pointer? = null) {
+    if (this.address() == NULL) {
+        return
+    }
+
+    if (vkEndCommandBuffer(this) != VK_SUCCESS) {
+        throw AssertionError("Failed to end command buffer $this")
+    }
+
+    if (flush && queue != null) {
+        this.submit(queue, submitInfoPNext)
+    }
+
+    if (dealloc) {
+        vkFreeCommandBuffers(device.vulkanDevice, commandPool, this)
+    }
+}
+
+fun VkCommandBuffer.submit(queue: VkQueue, submitInfoPNext: Pointer? = null) {
     stackPush().use { stack ->
-        if (this.address() == NULL) {
-            return
-        }
+        val submitInfo = VkSubmitInfo.callocStack(1, stack)
+        val commandBuffers = stack.callocPointer(1).put(0, this)
 
-        if (vkEndCommandBuffer(this) != VK_SUCCESS) {
-            throw AssertionError("Failed to end command buffer $this")
-        }
+        VU.run("endCommandBuffer", {
+            submitInfo
+                .sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
+                .pCommandBuffers(commandBuffers)
+                .pNext(submitInfoPNext?.address() ?: NULL)
 
-        if (flush && queue != null) {
-            val submitInfo = VkSubmitInfo.calloc(1)
-            val commandBuffers = stack.callocPointer(1).put(0, this)
-
-            VU.run("endCommandBuffer", {
-                submitInfo
-                    .sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
-                    .pCommandBuffers(commandBuffers)
-
-                vkQueueSubmit(queue, submitInfo, VK_NULL_HANDLE)
-                vkQueueWaitIdle(queue)
-            }, { submitInfo.free() })
-        }
-
-        if (dealloc) {
-            vkFreeCommandBuffers(device.vulkanDevice, commandPool, this)
-        }
+            vkQueueSubmit(queue, submitInfo, VK_NULL_HANDLE)
+            vkQueueWaitIdle(queue)
+        }, { })
     }
 }
 

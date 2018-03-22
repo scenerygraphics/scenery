@@ -56,7 +56,7 @@ class VulkanBuffer(val device: VulkanDevice, val size: Long, val usage: Int, val
             .sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO)
             .pNext(NULL)
             .allocationSize(size)
-            .memoryTypeIndex(device.getMemoryType(reqs.memoryTypeBits(), requestedMemoryProperties).second)
+            .memoryTypeIndex(device.getMemoryType(reqs.memoryTypeBits(), requestedMemoryProperties).first())
 
 
         vkAllocateMemory(device.vulkanDevice, allocInfo, null, memory)
