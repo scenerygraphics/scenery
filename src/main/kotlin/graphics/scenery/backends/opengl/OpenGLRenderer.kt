@@ -12,7 +12,6 @@ import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.utils.*
 import javafx.application.Platform
 import org.lwjgl.system.MemoryUtil
-import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.FileNotFoundException
 import java.lang.reflect.Field
@@ -1680,7 +1679,7 @@ class OpenGLRenderer(hub: Hub,
                 return
             }
 
-            if (encoder == null || encoder?.frameWidth != window.width || encoder?.frameHeight != window.height) {
+            if (recordMovie && (encoder == null || encoder?.frameWidth != window.width || encoder?.frameHeight != window.height)) {
                 encoder = H264Encoder(window.width, window.height, "$applicationName - ${SimpleDateFormat("yyyy-MM-dd_HH.mm.ss").format(Date())}.mp4")
             }
 

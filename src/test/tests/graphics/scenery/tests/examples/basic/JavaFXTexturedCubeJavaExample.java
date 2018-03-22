@@ -4,6 +4,7 @@ import cleargl.GLVector;
 import com.sun.javafx.application.PlatformImpl;
 import graphics.scenery.*;
 import graphics.scenery.backends.Renderer;
+import graphics.scenery.utils.Numerics;
 import graphics.scenery.utils.SceneryPanel;
 import javafx.application.Platform;
 import javafx.geometry.HPos;
@@ -118,10 +119,10 @@ public class JavaFXTexturedCubeJavaExample {
             PointLight[] lights = new PointLight[2];
 
             for (int i = 0; i < lights.length; i++) {
-                lights[i] = new PointLight();
+                lights[i] = new PointLight(5.0f);
                 lights[i].setPosition(new GLVector(2.0f * i, 2.0f * i, 2.0f * i));
-                lights[i].setEmissionColor(new GLVector(1.0f, 0.0f, 1.0f));
-                lights[i].setIntensity(500.2f * (i + 1));
+                lights[i].setEmissionColor(Numerics.randomVectorFromRange(3, 0.2f, 0.8f));
+                lights[i].setIntensity(10.2f * (i + 1));
                 getScene().addChild(lights[i]);
             }
 

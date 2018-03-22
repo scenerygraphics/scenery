@@ -4,20 +4,18 @@ import cleargl.GLVector
 import com.sun.javafx.application.PlatformImpl
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
+import graphics.scenery.utils.Numerics
 import graphics.scenery.utils.SceneryPanel
 import javafx.application.Platform
 import javafx.beans.property.SimpleDoubleProperty
 import javafx.event.EventHandler
-import javafx.geometry.HPos
-import javafx.geometry.Insets
-import javafx.geometry.VPos
 import javafx.scene.Scene
-import javafx.scene.control.Label
 import javafx.scene.image.Image
 import javafx.scene.image.ImageView
-import javafx.scene.layout.*
-import javafx.scene.paint.Color
-import javafx.scene.text.TextAlignment
+import javafx.scene.layout.ColumnConstraints
+import javafx.scene.layout.GridPane
+import javafx.scene.layout.Pane
+import javafx.scene.layout.RowConstraints
 import javafx.stage.Stage
 import org.junit.Test
 import java.util.concurrent.CountDownLatch
@@ -110,13 +108,13 @@ class JavaFXGridPaneExample : SceneryBase("JavaFXGridPaneExample", windowWidth =
         }
 
         val lights = (0..2).map {
-            PointLight()
+            PointLight(radius = 5.0f)
         }
 
         lights.mapIndexed { i, light ->
             light.position = GLVector(2.0f * i, 2.0f * i, 2.0f * i)
-            light.emissionColor = GLVector(1.0f, 0.0f, 1.0f)
-            light.intensity = 500.2f * (i + 1)
+            light.emissionColor = Numerics.randomVectorFromRange(3, 0.2f, 0.8f)
+            light.intensity = 10.2f * (i + 1)
             scene.addChild(light)
         }
 
