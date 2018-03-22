@@ -120,22 +120,48 @@ class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysicalDevic
         logger.debug("Created logical Vulkan device on ${deviceData.vendor} ${deviceData.name}")
     }
 
-    fun getMemoryType(typeBits: Int, flags: Int): Pair<Boolean, Int> {
+    fun getMemoryType(typeBits: Int, flags: Int): List<Int> {
         var bits = typeBits
+        val types = ArrayList<Int>(5)
 
         for (i in 0 until memoryProperties.memoryTypeCount()) {
             if (bits and 1 == 1) {
                 if ((memoryProperties.memoryTypes(i).propertyFlags() and flags) == flags) {
-                    return true.to(i)
+                    types.add(i)
                 }
             }
 
             bits = bits shr 1
         }
 
-        logger.warn("Memory type $flags not found for device $this (${vulkanDevice.address().toHexString()}")
+        if(types.isEmpty()) {
+            logger.warn("Memory type $flags not found for device $this (${vulkanDevice.address().toHexString()}")
+        }
 
-        return false.to(0)
+        return types
+    }
+
+    fun createCommandPool(queueNodeIndex: Int): Long {
+        return stackPush().use { stack ->
+            val cmdPoolInfo = VkCommandPoolCreateInfo.callocStack(stack)
+                .sType(VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO)
+                .queueFamilyIndex(queueNodeIndex)
+                .flags(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT)
+
+            val pCmdPool = stack.callocLong(1)
+            val err = vkCreateCommandPool(vulkanDevice, cmdPoolInfo, null, pCmdPool)
+            val commandPool = pCmdPool.get(0)
+
+            if (err != VK_SUCCESS) {
+                throw AssertionError("Failed to create command pool: " + VU.translate(err))
+            }
+
+            commandPool
+        }
+    }
+
+    fun destroyCommandPool(commandPool: Long) {
+        vkDestroyCommandPool(vulkanDevice, commandPool, null)
     }
 
     override fun toString(): String {

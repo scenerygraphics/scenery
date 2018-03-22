@@ -266,14 +266,16 @@ open class SceneryBase(var applicationName: String,
         }
     }
 
-    protected fun getProcessID(): Int {
-        return Integer.parseInt(ManagementFactory.getRuntimeMXBean().name.split("@".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()[0])
-    }
-
     /**
      * Sets the shouldClose flag on renderer, causing it to shut down and thereby ending the main loop.
      */
     fun close() {
         renderer?.shouldClose = true
+    }
+
+    companion object {
+        fun getProcessID(): Int {
+            return Integer.parseInt(ManagementFactory.getRuntimeMXBean().name.split("@".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()[0])
+        }
     }
 }
