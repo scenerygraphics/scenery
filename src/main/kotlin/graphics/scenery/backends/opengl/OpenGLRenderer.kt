@@ -909,8 +909,10 @@ class OpenGLRenderer(hub: Hub,
 //        val lights = sceneObjects.filter { it is PointLight }
 
         val lightUbo = OpenGLUBO(backingBuffer = buffers["LightParameters"]!!)
-        lightUbo.add("ViewMatrix", { cam.view })
-        lightUbo.add("InverseViewMatrix", { cam.view.inverse })
+        lightUbo.add("ViewMatrix0", { cam.getTransformationForEye(0) })
+        lightUbo.add("ViewMatrix1", { cam.getTransformationForEye(1) })
+        lightUbo.add("InverseViewMatrix0", { cam.getTransformationForEye(0).inverse })
+        lightUbo.add("InverseViewMatrix1", { cam.getTransformationForEye(1).inverse })
         lightUbo.add("ProjectionMatrix", { cam.projection })
         lightUbo.add("InverseProjectionMatrix", { cam.projection.inverse })
         lightUbo.add("CamPosition", { cam.position })
