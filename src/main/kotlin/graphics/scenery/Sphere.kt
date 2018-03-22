@@ -53,55 +53,55 @@ open class Sphere(val radius: Float, val segments: Int) : Node("sphere"), HasGeo
 
                 when {
                     i == 0 -> {
-                        vbuffer.addAll(v00)
-                        vbuffer.addAll(v11)
                         vbuffer.addAll(v10)
+                        vbuffer.addAll(v11)
+                        vbuffer.addAll(v00)
 
-                        nbuffer.addAll(n00)
-                        nbuffer.addAll(n11)
                         nbuffer.addAll(n10)
+                        nbuffer.addAll(n11)
+                        nbuffer.addAll(n00)
 
-                        tbuffer.addAll(uv00)
-                        tbuffer.addAll(uv11)
                         tbuffer.addAll(uv10)
+                        tbuffer.addAll(uv11)
+                        tbuffer.addAll(uv00)
                     }
                     i + 1 == segments -> {
-                        vbuffer.addAll(v11)
-                        vbuffer.addAll(v00)
                         vbuffer.addAll(v01)
+                        vbuffer.addAll(v00)
+                        vbuffer.addAll(v11)
 
-                        nbuffer.addAll(n11)
-                        nbuffer.addAll(n00)
                         nbuffer.addAll(n01)
+                        nbuffer.addAll(n00)
+                        nbuffer.addAll(n11)
 
-                        tbuffer.addAll(uv11)
-                        tbuffer.addAll(uv00)
                         tbuffer.addAll(uv01)
+                        tbuffer.addAll(uv00)
+                        tbuffer.addAll(uv11)
                     }
                     else -> {
+                        vbuffer.addAll(v10)
+                        vbuffer.addAll(v01)
                         vbuffer.addAll(v00)
-                        vbuffer.addAll(v01)
-                        vbuffer.addAll(v10)
 
+                        nbuffer.addAll(n10)
+                        nbuffer.addAll(n01)
                         nbuffer.addAll(n00)
-                        nbuffer.addAll(n01)
-                        nbuffer.addAll(n10)
 
+                        tbuffer.addAll(uv10)
+                        tbuffer.addAll(uv01)
                         tbuffer.addAll(uv00)
-                        tbuffer.addAll(uv01)
-                        tbuffer.addAll(uv10)
 
-                        vbuffer.addAll(v01)
-                        vbuffer.addAll(v11)
                         vbuffer.addAll(v10)
+                        vbuffer.addAll(v11)
+                        vbuffer.addAll(v01)
 
-                        nbuffer.addAll(n01)
-                        nbuffer.addAll(n11)
                         nbuffer.addAll(n10)
+                        nbuffer.addAll(n11)
+                        nbuffer.addAll(n01)
 
-                        tbuffer.addAll(uv01)
-                        tbuffer.addAll(uv11)
                         tbuffer.addAll(uv10)
+                        tbuffer.addAll(uv11)
+                        tbuffer.addAll(uv01)
                     }
                 }
             }
