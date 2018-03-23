@@ -16,7 +16,7 @@ class TexturedCubeExample : SceneryBase("TexturedCubeExample") {
     val hmd = Hololens()
     override fun init() {
         hub.add(SceneryElement.HMDInput, hmd)
-        renderer = Renderer.createRenderer(hub, applicationName, scene, 512, 512)
+        renderer = Renderer.createRenderer(hub, applicationName, scene, 2560, 720)
         hub.add(SceneryElement.Renderer, renderer!!)
 
         val boxmaterial = Material()
@@ -26,7 +26,7 @@ class TexturedCubeExample : SceneryBase("TexturedCubeExample") {
             specular = GLVector(1.0f, 1.0f, 1.0f)
             roughness = 0.3f
             metallic = 1.0f
-            textures.put("diffuse", TexturedCubeExample::class.java.getResource("textures/helix.png").file)
+            //textures.put("diffuse", TexturedCubeExample::class.java.getResource("textures/helix.png").file)
         }
 
         val box = Box(GLVector(0.2f, 0.2f, 0.2f))
