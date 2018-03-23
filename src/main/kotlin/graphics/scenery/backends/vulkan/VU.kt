@@ -64,7 +64,7 @@ fun VkCommandBuffer.endCommandBuffer(device: VulkanDevice, commandPool: Long, qu
     }
 }
 
-fun VkCommandBuffer.submit(queue: VkQueue, submitInfoPNext: Pointer? = null) {
+fun VkCommandBuffer.submit(queue: VkQueue, submitInfoPNext: Pointer? = null, block: Boolean = true) {
     stackPush().use { stack ->
         val submitInfo = VkSubmitInfo.callocStack(1, stack)
         val commandBuffers = stack.callocPointer(1).put(0, this)
@@ -76,7 +76,7 @@ fun VkCommandBuffer.submit(queue: VkQueue, submitInfoPNext: Pointer? = null) {
                 .pNext(submitInfoPNext?.address() ?: NULL)
 
             vkQueueSubmit(queue, submitInfo, VK_NULL_HANDLE)
-            vkQueueWaitIdle(queue)
+            if(block) { vkQueueWaitIdle(queue) }
         }, { })
     }
 }

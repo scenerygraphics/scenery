@@ -45,7 +45,7 @@ class Hololens: TrackerInput, Display, Hubable {
     // BGR is native surface format and saves unnecessary conversions
     private val textureFormat = VK_FORMAT_B8G8R8A8_SRGB
 
-    private val zmqContext = ZContext()
+    private val zmqContext = ZContext(4)
     private val zmqSocket = zmqContext.createSocket(ZMQ.REQ)
 
     private var commandBuffer: VulkanCommandBuffer? = null
