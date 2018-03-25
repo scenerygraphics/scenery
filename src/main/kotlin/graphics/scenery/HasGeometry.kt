@@ -576,7 +576,7 @@ interface HasGeometry : Serializable {
         }
         // If no match was found, return this
         if (off == 0)
-            return ArrayList(0)
+            return arrayListOf(this)
 
         // Add remaining segment
         if (!limited || list.size < limit) {
