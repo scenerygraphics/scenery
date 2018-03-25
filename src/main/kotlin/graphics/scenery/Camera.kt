@@ -118,7 +118,7 @@ open class Camera : Node("Camera") {
      * @return GLVector - [v] transformed into world space.
      */
     fun viewToWorld(v: GLVector): GLVector =
-        this.view.mult(if(v.dimension == 3) {
+        this.view.inverse.mult(if(v.dimension == 3) {
             GLVector(*v.toFloatArray(), 1.0f)
         } else {
             v
