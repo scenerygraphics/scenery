@@ -183,6 +183,7 @@ open class SceneryBase(var applicationName: String,
                 accumulator += frameTime
 
                 while(accumulator >= timeStep) {
+                    inputHandler?.window?.pollEvents()
                     // evolve state
                     t += timeStep
                     accumulator -= timeStep
@@ -190,11 +191,9 @@ open class SceneryBase(var applicationName: String,
                     stats.addTimed("Scene.Update", updateFunction)
                 }
 
-                inputHandler?.window?.pollEvents()
-
                 val alpha = accumulator/timeStep
 
-                scene.activeObserver?.deltaT = alpha
+                scene.activeObserver?.deltaT = frameTime/100.0f
             }
 
             if (renderer?.managesRenderLoop != false) {
@@ -250,7 +249,7 @@ open class SceneryBase(var applicationName: String,
         inputHandler.addKeyBinding("toggle_control_mode", keybinding)
     }
 
-    protected fun millisecondTime(): Float = System.nanoTime() / 10e6f
+    protected fun millisecondTime(): Float = System.nanoTime() / 10e5f
 
     protected fun getDemoFilesPath(): String {
         val demoDir = System.getenv("SCENERY_DEMO_FILES")
