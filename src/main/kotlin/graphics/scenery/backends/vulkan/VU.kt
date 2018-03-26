@@ -76,7 +76,6 @@ fun VkCommandBuffer.submit(queue: VkQueue, submitInfoPNext: Pointer? = null, blo
                 .pNext(submitInfoPNext?.address() ?: NULL)
 
             vkQueueSubmit(queue, submitInfo, VK_NULL_HANDLE)
-            if(block) { vkQueueWaitIdle(queue) }
         }, { })
     }
 }
