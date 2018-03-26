@@ -175,7 +175,7 @@ interface HasGeometry : Serializable {
      * @param[filename] The filename to read from.
      * @param[useMTL] Whether a accompanying MTL file shall be used, defaults to true.
      */
-    fun readFromOBJ(filename: String, useMTL: Boolean = true) {
+    fun readFromOBJ(filename: String, useMTL: Boolean = true, flipNormals: Boolean = false) {
         // FIXME: Kotlin bug, revert to LazyLogger as soon as https://youtrack.jetbrains.com/issue/KT-19690 is fixed.
         // val logger by LazyLogger()
         val logger = LoggerFactory.getLogger(this.javaClass.simpleName)
@@ -192,6 +192,7 @@ interface HasGeometry : Serializable {
         var faceCount = 0
 
         var materials = HashMap<String, Material>()
+        val normalSign = if(flipNormals) { -1.0f } else { 1.0f }
 
         /**
          * Recalculates normals, assuming CCW winding order.
@@ -214,7 +215,7 @@ interface HasGeometry : Serializable {
                 val a = v2 - v1
                 val b = v3 - v1
 
-                val n = a.cross(b).normalized
+                val n = a.cross(b).normalized * normalSign
 
                 normalBuffer.put(n.x())
                 normalBuffer.put(n.y())
@@ -349,9 +350,9 @@ interface HasGeometry : Serializable {
 
                         // normal coords are specified as vn x y z
                             'n' -> {
-                                tmpN.add(elements[1].toFloat())
-                                tmpN.add(elements[2].toFloat())
-                                tmpN.add(elements[3].toFloat())
+                                tmpN.add(elements[1].toFloat() * normalSign)
+                                tmpN.add(elements[2].toFloat() * normalSign)
+                                tmpN.add(elements[3].toFloat() * normalSign)
                             }
 
                         // UV coords maybe vt t1 t2 0.0 or vt t1 t2
@@ -807,7 +808,7 @@ interface HasGeometry : Serializable {
         var i = 0
         val normals = ArrayList<Float>()
 
-        while (i < vertices.limit()) {
+        while (i < vertices.limit() - 1) {
             val v1 = GLVector(vertices[i], vertices[i + 1], vertices[i + 2])
             i += 3
 
