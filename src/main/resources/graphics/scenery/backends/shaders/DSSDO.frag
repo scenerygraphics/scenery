@@ -1,5 +1,6 @@
 #version 450 core
 #extension GL_ARB_separate_shader_objects: enable
+#extension GL_EXT_control_flow_attributes : enable
 
 // DSSDO method adapted from DSSDO RenderMonkey example, https://github.com/kayru/dssdo
 // MIT License, Copyright (c) 2011 Yuriy O'Donnell
@@ -40,10 +41,7 @@ layout(set = 2, binding = 0, std140) uniform ShaderParameters {
 	int displayHeight;
 	float ssaoRadius;
 	int ssaoSamples;
-    float IntensityScale;
-    float Epsilon;
-    float BiasDistance;
-    float Contrast;
+    float maxDistance;
 };
 
 vec3 worldFromDepth(float depth, vec2 texcoord) {
@@ -153,6 +151,11 @@ const vec3 points[] =
 const int numSamples = 32;
 
 void main() {
+    if(ssaoSamples == 0) {
+        FragColor = vec4(0.0);
+        return;
+    }
+
     vec2 textureCoord = gl_FragCoord.xy/vec2(displayWidth, displayHeight);
     ivec2 ssC = ivec2(gl_FragCoord.xy);
 
@@ -164,6 +167,7 @@ void main() {
 
     float dist = distance(FragPos, CamPosition);
     float radius = ssaoRadius / dist;
+    float maxInvDistance = 1.0f / maxDistance;
 
     float attenuationAngleThreshold = 0.1;
 
@@ -178,24 +182,22 @@ void main() {
 
     const vec4 sh2_weight = vec4(sh2_weight_l1, sh2_weight_l0)/ssaoSamples;
 
-    if(ssaoSamples > 0) {
-        for (int i = 0; i < ssaoSamples; ++i) {
-            vec2 offset = reflect(points[i].xy, noise.xy).xy * radius;
-            vec2 texcoord = textureCoord + offset;
+    for (int i = 0; i < ssaoSamples; ++i) {
+        vec2 offset = reflect(points[i].xy, noise.xy).xy * radius;
+        vec2 texcoord = textureCoord + offset;
 
-            vec3 pos = worldFromDepth(texture(InputZBuffer, texcoord).r, texcoord);
-            vec3 center_to_pos = pos - FragPos;
+        vec3 pos = worldFromDepth(texture(InputZBuffer, texcoord).r, texcoord);
+        vec3 center_to_pos = pos - FragPos;
 
-            float dist = length(center_to_pos);
-            vec3 center_to_pos_normalized = center_to_pos/dist;
+        float dist = length(center_to_pos);
+        vec3 center_to_pos_normalized = center_to_pos/dist;
 
-            float attenuation = 1 - clamp(dist * 1.0/(4*ssaoRadius), 0.0, 1.0);
-            float dp = dot(N, center_to_pos_normalized);
+        float attenuation = 1 - clamp(dist * maxInvDistance, 0.0, 1.0);
+        float dp = dot(N, center_to_pos_normalized);
 
-            attenuation = attenuation * attenuation * step(attenuationAngleThreshold, dp);
+        attenuation = attenuation * attenuation * step(attenuationAngleThreshold, dp);
 
-            occlusion += attenuation * sh2_weight * vec4(center_to_pos_normalized, 1.0);
-        }
+        occlusion += attenuation * sh2_weight * vec4(center_to_pos_normalized, 1.0);
     }
 
     FragColor = occlusion;
