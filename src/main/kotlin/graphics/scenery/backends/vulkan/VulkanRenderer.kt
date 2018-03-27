@@ -77,7 +77,8 @@ open class VulkanRenderer(hub: Hub,
         var signalSemaphore: LongBuffer = memAllocLong(1),
         var waitSemaphore: LongBuffer = memAllocLong(1),
         var commandBuffers: PointerBuffer = memAllocPointer(1),
-        var waitStages: IntBuffer = memAllocInt(1)
+        var waitStages: IntBuffer = memAllocInt(1),
+        var submitInfo: VkSubmitInfo = VkSubmitInfo.calloc()
     )
 
     enum class VertexDataKinds {
@@ -1554,7 +1555,7 @@ open class VulkanRenderer(hub: Hub,
 
     private fun submitFrame(queue: VkQueue, pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer, present: PresentHelpers) {
         val stats = hub?.get(SceneryElement.Statistics) as? Statistics
-        val submitInfo = VkSubmitInfo.calloc()
+        present.submitInfo
             .sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
             .pNext(NULL)
             .waitSemaphoreCount(1)
@@ -1564,7 +1565,7 @@ open class VulkanRenderer(hub: Hub,
             .pSignalSemaphores(present.signalSemaphore)
 
         // Submit to the graphics queue
-        VU.run("Submit viewport render queue", { vkQueueSubmit(queue, submitInfo, commandBuffer.getFence()) })
+        VU.run("Submit viewport render queue", { vkQueueSubmit(queue, present.submitInfo, commandBuffer.getFence()) })
 
         val startPresent = System.nanoTime()
         commandBuffer.submitted = true
@@ -1697,9 +1698,7 @@ open class VulkanRenderer(hub: Hub,
         }
 
         val presentDuration = System.nanoTime() - startPresent
-        stats?.add("Renderer.present", presentDuration)
-
-        submitInfo.free()
+        stats?.add("Renderer.viewportSubmitAndPresent", presentDuration)
     }
 
     /**
