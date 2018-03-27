@@ -263,7 +263,7 @@ void main()
 //        float L1 = NdotL * (A + B * s / t) / PI;
         float L1 = NdotL / PI * (A + B * m * ab.x * ab.y);
 
-        float lightOcclusion = 1.0 - clamp(dot(vec4(-L, 1.0), ambientOcclusion), 0.0, 1.0);
+        float lightOcclusion = 1.0 - clamp(dot(vec4(-L, 1.0), 2.0*ambientOcclusion), 0.0, 1.0);
         vec3 inputColor = intensity * emissionColor.rgb * Albedo.rgb * lightOcclusion;
 
 
@@ -296,7 +296,9 @@ void main()
             lighting += diffuse * lightAttenuation;
         } if(debugLights == 5) {
             lighting += ambientOcclusion.rgb;
-        } else {
+        } if(debugLights == 6) {
+            lighting += vec3(lightOcclusion);
+        }else {
             lighting += (diffuse + specular) * lightAttenuation;
         }
     }
