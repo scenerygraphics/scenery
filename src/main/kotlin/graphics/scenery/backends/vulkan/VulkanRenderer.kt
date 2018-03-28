@@ -274,6 +274,7 @@ open class VulkanRenderer(hub: Hub,
     override var shouldClose = false
     private var toggleFullscreen = false
     override var managesRenderLoop = false
+    override var lastFrameTime = System.nanoTime() * 1.0f
 
     private var screenshotRequested = false
     var screenshotBuffer: VulkanBuffer? = null

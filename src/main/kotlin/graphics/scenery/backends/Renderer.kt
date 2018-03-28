@@ -42,6 +42,8 @@ abstract class Renderer : Hubable {
 
     abstract val managesRenderLoop: Boolean
 
+    abstract var lastFrameTime: Float
+
     abstract var renderConfigFile: String
 
     /**
