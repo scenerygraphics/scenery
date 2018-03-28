@@ -61,7 +61,7 @@ open class SceneryBase(var applicationName: String,
     var timeStep = 0.01f
 
     private var accumulator = 0.0f
-    private var currentTime = millisecondTime()
+    private var currentTime = System.nanoTime() * 1.0f
     private var t = 0.0f
 
     /**
@@ -173,8 +173,8 @@ open class SceneryBase(var applicationName: String,
             // for details about the interpolation code, see
             // https://gafferongames.com/post/fix_your_timestep/
             if(master || masterAddress == null) {
-                val newTime = millisecondTime()
-                frameTime = newTime - currentTime
+                val newTime = System.nanoTime() * 1.0f
+                frameTime = (newTime - currentTime)/1e6f
                 if(frameTime > 250.0f) {
                     frameTime = 250.0f
                 }
@@ -193,7 +193,11 @@ open class SceneryBase(var applicationName: String,
 
                 val alpha = accumulator/timeStep
 
-                scene.activeObserver?.deltaT = frameTime/100.0f
+                if(renderer?.managesRenderLoop == false) {
+                    scene.activeObserver?.deltaT = frameTime / 100.0f
+                } else {
+                    scene.activeObserver?.deltaT = (renderer?.lastFrameTime ?: 1.0f) / 100.0f
+                }
             }
 
             if (renderer?.managesRenderLoop != false) {
@@ -249,22 +253,6 @@ open class SceneryBase(var applicationName: String,
         inputHandler.addKeyBinding("toggle_control_mode", keybinding)
     }
 
-    protected fun millisecondTime(): Float = System.nanoTime() / 10e5f
-
-    protected fun getDemoFilesPath(): String {
-        val demoDir = System.getenv("SCENERY_DEMO_FILES")
-
-        if (demoDir == null) {
-            logger.warn("This example needs additional model files, see https://github.com/scenerygraphics/scenery#examples")
-            logger.warn("Download the model files mentioned there and set the environment variable SCENERY_DEMO_FILES to the")
-            logger.warn("directory where you have put these files.")
-
-            return ""
-        } else {
-            return demoDir
-        }
-    }
-
     /**
      * Sets the shouldClose flag on renderer, causing it to shut down and thereby ending the main loop.
      */
@@ -273,8 +261,24 @@ open class SceneryBase(var applicationName: String,
     }
 
     companion object {
+        val logger by LazyLogger()
+
         fun getProcessID(): Int {
             return Integer.parseInt(ManagementFactory.getRuntimeMXBean().name.split("@".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()[0])
+        }
+
+        fun getDemoFilesPath(): String {
+            val demoDir = System.getenv("SCENERY_DEMO_FILES")
+
+            return if (demoDir == null) {
+                logger.warn("This example needs additional model files, see https://github.com/scenerygraphics/scenery#examples")
+                logger.warn("Download the model files mentioned there and set the environment variable SCENERY_DEMO_FILES to the")
+                logger.warn("directory where you have put these files.")
+
+                ""
+            } else {
+                demoDir
+            }
         }
     }
 }
