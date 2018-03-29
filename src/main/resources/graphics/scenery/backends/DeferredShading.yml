@@ -125,7 +125,7 @@ renderpasses:
       - "FullscreenQuad.vert.spv"
       - "HDR.frag.spv"
     inputs:
-      - HDRBuffer
+      - HDRBuffer.Color
     output: FXAABuffer
     parameters:
       TonemappingOperator: 0

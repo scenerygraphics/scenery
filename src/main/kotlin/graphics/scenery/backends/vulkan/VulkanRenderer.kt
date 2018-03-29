@@ -609,6 +609,7 @@ open class VulkanRenderer(hub: Hub,
             board.metadata.put("VulkanRenderer", VulkanObjectState())
             initializeNode(board)
         } else {
+            logger.debug("Updating text board geometry...")
             updateNodeGeometry(board)
         }
 
@@ -1989,7 +1990,7 @@ open class VulkanRenderer(hub: Hub,
 
         stagingBuffer.copyFrom(stridedBuffer)
 
-        val vertexBuffer = if(state.vertexBuffers.containsKey("vertex+index") && state.vertexBuffers["vertex+index"]?.size == fullAllocationBytes) {
+        val vertexBuffer = if(state.vertexBuffers.containsKey("vertex+index") && state.vertexBuffers["vertex+index"]!!.size >= fullAllocationBytes) {
             logger.debug("Reusing existing vertex+index buffer for {} update", node.name)
             state.vertexBuffers["vertex+index"]!!
         } else {

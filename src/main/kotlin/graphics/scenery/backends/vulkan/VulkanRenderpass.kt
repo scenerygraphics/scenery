@@ -22,7 +22,7 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderConfig,
+open class VulkanRenderpass(val name: String, var config: RenderConfigReader.RenderConfig,
                        val device: VulkanDevice,
                        val descriptorPool: Long,
                        val pipelineCache: Long,
@@ -137,14 +137,28 @@ open class VulkanRenderpass(val name: String, config: RenderConfigReader.RenderC
     fun initializeInputAttachmentDescriptorSetLayouts() {
         var input = 0
         inputs.entries.reversed().forEach { inputFramebuffer ->
+            // we need to discern here whether the entire framebuffer is the input, or
+            // only a part of it (indicated by a dot in the name)
+            val descriptorNum = if(inputFramebuffer.key.contains(".")) {
+                1
+            } else {
+                inputFramebuffer.value.attachments.count()
+            }
+
             // create descriptor set layout that matches the render target
             val dsl = VU.createDescriptorSetLayout(device,
-                descriptorNum = inputFramebuffer.value.attachments.count(),
+                descriptorNum = descriptorNum,
                 descriptorCount = 1,
                 type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
             )
 
-            val ds = inputFramebuffer.value.outputDescriptorSet
+            val ds = if(inputFramebuffer.key.contains(".")) {
+                VU.createRenderTargetDescriptorSet(device, descriptorPool, dsl,
+                    config.rendertargets!![inputFramebuffer.key.substringBefore(".")]!!,
+                    inputFramebuffer.value, inputFramebuffer.key.substringAfter("."))
+            } else {
+                inputFramebuffer.value.outputDescriptorSet
+            }
 
             logger.debug("${this.name}: Creating input descriptor set for ${inputFramebuffer.key}, input-${this.name}-$input")
             descriptorSetLayouts.put("input-${this.name}-$input", dsl)?.let { oldDSL -> vkDestroyDescriptorSetLayout(device.vulkanDevice, oldDSL, null) }
