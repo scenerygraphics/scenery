@@ -182,7 +182,7 @@ void main() {
 
     const vec4 sh2_weight = vec4(sh2_weight_l1, sh2_weight_l0)/ssaoSamples;
 
-    for (int i = 0; i < ssaoSamples; ++i) {
+    [[unroll]] for (int i = 0; i < ssaoSamples; ++i) {
         vec2 offset = reflect(points[i].xy, noise.xy).xy * radius;
         vec2 texcoord = textureCoord + offset;
 
