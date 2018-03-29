@@ -113,7 +113,7 @@
 
         <slf4j.version>1.7.25</slf4j.version>
         <lwjgl.version>3.1.6</lwjgl.version>
-        <spirvcrossj.version>0.4.0-SNAPSHOT</spirvcrossj.version>
+        <spirvcrossj.version>0.4.0</spirvcrossj.version>
         <jvrpn.version>1.1.0</jvrpn.version>
 
         <license.licenseName>lgpl_v3</license.licenseName>
