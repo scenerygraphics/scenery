@@ -1284,7 +1284,6 @@ class OpenGLRenderer(hub: Hub,
         lastFrameTime = (System.nanoTime() - currentTime)/1e6f
         currentTime = newTime * 1.0f
 
-        logger.info("Lft=$lastFrameTime")
         val stats = hub?.get(SceneryElement.Statistics) as? Statistics
         hub?.getWorkingHMD()?.update()
 
