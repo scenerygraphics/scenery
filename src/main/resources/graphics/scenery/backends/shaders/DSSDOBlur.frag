@@ -78,7 +78,7 @@ void main() {
     float total_weight = 1.0;
     float discard_threshold = 0.85;
 
-    for(int i = 0; i < 9; i++) {
+    [[unroll]] for(int i = 0; i < 9; i++) {
         if(dot(normal[i], normal[4]) < discard_threshold) {
             total_weight -= weights[i];
         } else {
