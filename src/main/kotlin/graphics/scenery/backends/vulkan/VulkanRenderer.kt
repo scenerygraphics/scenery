@@ -4,7 +4,6 @@ import cleargl.GLMatrix
 import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.*
-import graphics.scenery.fonts.SDFFontAtlas
 import graphics.scenery.spirvcrossj.Loader
 import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.utils.*
@@ -288,8 +287,6 @@ open class VulkanRenderer(hub: Hub,
 
     protected var commandPools = CommandPools()
     protected val renderpasses = Collections.synchronizedMap(LinkedHashMap<String, VulkanRenderpass>())
-    /** Cache for [SDFFontAtlas]es used for font rendering */
-    protected var fontAtlas = HashMap<String, SDFFontAtlas>()
 
     protected var validation = java.lang.Boolean.parseBoolean(System.getProperty("scenery.VulkanRenderer.EnableValidations", "false"))
     protected val strictValidation = java.lang.Boolean.parseBoolean(System.getProperty("scenery.VulkanRenderer.StrictValidation", "false"))
@@ -582,67 +579,11 @@ open class VulkanRenderer(hub: Hub,
                 logger.debug("Initializing object '${node.name}'")
                 node.metadata.put("VulkanRenderer", VulkanObjectState())
 
-                if (node is TextBoard) {
-                    updateTextBoard(node)
-                } else {
-                    initializeNode(node)
-                }
+                initializeNode(node)
             }
 
         scene.initialized = true
         logger.info("Scene initialization complete.")
-    }
-
-    protected fun updateTextBoard(board: TextBoard) {
-        logger.debug("Updating font board ... ${board.name}")
-        val atlas = fontAtlas.getOrPut(board.fontFamily,
-            { SDFFontAtlas(this.hub!!, board.fontFamily, maxDistance = settings.get("sdf.MaxDistance")) })
-        val m = atlas.createMeshForString(board.text)
-
-        board.vertices = m.vertices
-        board.normals = m.normals
-        board.indices = m.indices
-        board.texcoords = m.texcoords
-        board.atlasSize = GLVector(atlas.atlasWidth.toFloat(), atlas.atlasHeight.toFloat(), 0.0f, 0.0f)
-
-        if (!board.initialized) {
-            board.metadata.put("VulkanRenderer", VulkanObjectState())
-            initializeNode(board)
-        } else {
-            logger.debug("Updating text board geometry...")
-            updateNodeGeometry(board)
-        }
-
-        board.rendererMetadata()?.let { s ->
-            val texture = textureCache.getOrPut("sdf-${board.fontFamily}", {
-                val t = VulkanTexture(device,
-                    commandPools.Standard, queue,
-                    atlas.atlasWidth, atlas.atlasHeight, 1,
-                    format = VK_FORMAT_R8_UNORM,
-                    mipLevels = 1)
-
-                t.copyFrom(atlas.getAtlas())
-                t
-            })
-
-            s.textures.put("ambient", texture)
-            s.textures.put("diffuse", texture)
-
-            arrayOf("ambient", "diffuse", "specular", "normal", "alphamask", "displacement").forEach {
-                if (!s.textures.containsKey(it)) {
-                    s.textures.putIfAbsent(it, textureCache["DefaultTexture"]!!)
-                    s.defaultTexturesFor.add(it)
-                }
-            }
-
-            s.texturesToDescriptorSet(device, descriptorSetLayouts["ObjectTextures"]!!,
-                descriptorPool,
-                targetBinding = 0)
-
-            board.dirty = false
-            board.initialized = true
-            logger.debug("Update complete")
-        }
     }
 
     fun Boolean.toInt(): Int {
@@ -1349,14 +1290,16 @@ open class VulkanRenderer(hub: Hub,
                 }
             }
             .map { rt ->
-                logger.debug("Creating output descriptor set for $")
-                // create descriptor set layout that matches the render target
-                descriptorSetLayouts.put("outputs-${rt.first}",
-                    VU.createDescriptorSetLayout(device,
-                        descriptorNum = rt.second.count(),
-                        descriptorCount = 1,
-                        type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
-                    ))
+                if(!descriptorSetLayouts.containsKey("outputs-${rt.first}")) {
+                    logger.debug("Creating output descriptor set for ${rt.first}")
+                    // create descriptor set layout that matches the render target
+                    descriptorSetLayouts.put("outputs-${rt.first}",
+                        VU.createDescriptorSetLayout(device,
+                            descriptorNum = rt.second.count(),
+                            descriptorCount = 1,
+                            type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
+                        ))
+                }
             }
 
         config.createRenderpassFlow().map { passName ->
@@ -1995,7 +1938,6 @@ open class VulkanRenderer(hub: Hub,
             state.vertexBuffers["vertex+index"]!!
         } else {
             logger.debug("Creating new vertex+index buffer for {} with {} bytes", node.name, fullAllocationBytes)
-            state.vertexBuffers["vertex+index"]?.close()
             VulkanBuffer(device,
                 fullAllocationBytes,
                 VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or VK_BUFFER_USAGE_INDEX_BUFFER_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT,
@@ -2003,8 +1945,12 @@ open class VulkanRenderer(hub: Hub,
                 wantAligned = false)
         }
 
+        logger.debug("Using VulkanBuffer {} for vertex+index storage", vertexBuffer.vulkanBuffer.toHexString())
+
         with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
             val copyRegion = VkBufferCopy.calloc(1)
+                .srcOffset(0)
+                .dstOffset(0)
                 .size(fullAllocationBytes * 1L)
 
             vkCmdCopyBuffer(this,
@@ -2016,7 +1962,10 @@ open class VulkanRenderer(hub: Hub,
             this.endCommandBuffer(device, commandPools.Standard, queue, flush = true, dealloc = true)
         }
 
-        state.vertexBuffers.put("vertex+index", vertexBuffer)
+        state.vertexBuffers.put("vertex+index", vertexBuffer)?.run {
+            // check if vertex buffer has been replaced, if yes, close the old one
+            if(this != vertexBuffer) { close() }
+        }
         state.indexOffset = vertexAllocationBytes
         state.indexCount = n.indices.remaining()
 
@@ -2228,14 +2177,18 @@ open class VulkanRenderer(hub: Hub,
             // texturing of a given node have changed, as these might change pipelines or descriptor sets, leading
             // to the original command buffer becoming obsolete.
             it.rendererMetadata()?.let { metadata ->
+                if (!((pass.passConfig.renderOpaque && it.material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) ||
+                        (pass.passConfig.renderTransparent && !it.material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent))) {
+                    renderOrderList.add(it)
+                } else {
+                    return@let
+                }
+
                 if (it.dirty) {
-                    logger.trace("Force command buffer re-recording, as geometry for ${it.name} has been updated")
-                    if (it is TextBoard) {
-                        updateTextBoard(it)
-                    } else {
-                        updateNodeGeometry(it)
-                        it.dirty = false
-                    }
+                    logger.debug("Force command buffer re-recording, as geometry for {} has been updated", it.name)
+
+                    updateNodeGeometry(it)
+                    it.dirty = false
 
                     rerecordingCauses.add(it.name)
                     forceRerecording = true
@@ -2259,11 +2212,6 @@ open class VulkanRenderer(hub: Hub,
                     rerecordingCauses.add(it.name)
                     forceRerecording = true
                 }
-
-                if (!((pass.passConfig.renderOpaque && it.material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) ||
-                    (pass.passConfig.renderTransparent && !it.material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent))) {
-                    renderOrderList.add(it)
-                }
             }
         }
 
@@ -2286,7 +2234,7 @@ open class VulkanRenderer(hub: Hub,
             return@runBlocking
         }
 
-        logger.debug("Recording scene command buffer $commandBuffer...")
+        logger.debug("Recording scene command buffer $commandBuffer for pass ${pass.name}...")
 
         // initialize command buffer recording, reset it if already existent, otherwise allocate it.
         if (commandBuffer.commandBuffer == null) {
@@ -2449,7 +2397,7 @@ open class VulkanRenderer(hub: Hub,
                     return@drawLoop
                 }
 
-                logger.debug("Rendering ${node.name}...")
+                logger.debug("Rendering ${node.name}, vertex+index buffer=${s.vertexBuffers["vertex+index"]!!.vulkanBuffer.toHexString()}...")
                 if(rerecordingCauses.contains(node.name)) {
                     logger.debug("Using pipeline ${pass.getActivePipeline(node)} for re-recording")
                 }

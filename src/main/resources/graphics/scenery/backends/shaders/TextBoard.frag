@@ -69,6 +69,6 @@ void main() {
         rgb = vec3(fontColor.rgb);
         rgb = mix(rgb, backgroundColor.rgb, 1.0-pattern);
 
-        FragColor = vec4(rgb, 1.0);
+        FragColor = vec4(rgb, pattern);
     }
 }
