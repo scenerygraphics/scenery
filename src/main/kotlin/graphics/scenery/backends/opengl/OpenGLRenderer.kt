@@ -6,7 +6,6 @@ import com.jogamp.opengl.util.FPSAnimator
 import com.jogamp.opengl.util.awt.AWTGLReadBufferUtil
 import graphics.scenery.*
 import graphics.scenery.backends.*
-import graphics.scenery.fonts.SDFFontAtlas
 import graphics.scenery.spirvcrossj.Loader
 import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.utils.*
@@ -80,9 +79,6 @@ class OpenGLRenderer(hub: Hub,
 
     /** Cache of [Node]s, needed e.g. for fullscreen quad rendering */
     private var nodeStore = ConcurrentHashMap<String, Node>()
-
-    /** Cache for [SDFFontAtlas]es used for font rendering */
-    private var fontAtlas = HashMap<String, SDFFontAtlas>()
 
     /** [Settings] for the renderer */
     override var settings: Settings = Settings()
@@ -939,45 +935,6 @@ class OpenGLRenderer(hub: Hub,
         buffers["ShaderPropertyBuffer"]!!.copyFromStagingBuffer()
     }
 
-    /**
-     * Updates a [TextBoard], in case it's fontFamily or contents have changed.
-     *
-     * If a SDFFontAtlas has already been created for the given fontFamily, this will be used, and
-     * cached as well. Else, a new one will be created.
-     *
-     * @param[board] The [TextBoard] instance.
-     */
-    private fun updateTextBoard(board: TextBoard) {
-        val atlas = fontAtlas.getOrPut(board.fontFamily, { SDFFontAtlas(this.hub!!, board.fontFamily, maxDistance = settings.get<Int>("sdf.MaxDistance")) })
-        val m = atlas.createMeshForString(board.text)
-
-        board.vertices = m.vertices
-        board.normals = m.normals
-        board.indices = m.indices
-        board.texcoords = m.texcoords
-
-        board.metadata.remove("OpenGLRenderer")
-        board.metadata.put("OpenGLRenderer", OpenGLObjectState())
-        board.atlasSize = GLVector(atlas.atlasWidth.toFloat(), atlas.atlasHeight.toFloat(), 0.0f, 0.0f)
-        initializeNode(board)
-
-        val s = getOpenGLObjectStateFromNode(board)
-        val texture = textureCache.getOrPut("sdf-${board.fontFamily}", {
-            val t = GLTexture(gl, GLTypeEnum.UnsignedByte, 1,
-                atlas.atlasWidth,
-                atlas.atlasHeight,
-                1,
-                true,
-                1)
-
-            t.setClamp(false, false)
-            t.copyFrom(atlas.getAtlas(),
-                0,
-                true)
-            t
-        })
-        s.textures.put("diffuse", texture)
-    }
 
     /**
      * Update a [Node]'s geometry, if needed and run it's preDraw() routine.
@@ -988,10 +945,6 @@ class OpenGLRenderer(hub: Hub,
         if (n is HasGeometry) {
             if (n.dirty) {
                 if (n.lock.tryLock()) {
-                    if (n is TextBoard) {
-                        updateTextBoard(n)
-                    }
-
                     if (n.vertices.remaining() > 0 && n.normals.remaining() > 0) {
                         updateVertices(n)
                         updateNormals(n)
@@ -2389,10 +2342,13 @@ class OpenGLRenderer(hub: Hub,
         gl.glBindVertexArray(s.mVertexArrayObject[0])
         gl.glBindBuffer(GL4.GL_ELEMENT_ARRAY_BUFFER, s.mIndexBuffer[0])
 
-        gl.glBufferSubData(GL4.GL_ELEMENT_ARRAY_BUFFER,
-            0,
+        gl.glBufferData(GL4.GL_ELEMENT_ARRAY_BUFFER,
             (pIndexBuffer.remaining() * (Integer.SIZE / java.lang.Byte.SIZE)).toLong(),
-            pIndexBuffer)
+            pIndexBuffer,
+            if (s.isDynamic)
+                GL4.GL_DYNAMIC_DRAW
+            else
+                GL4.GL_DYNAMIC_DRAW)
 
         gl.glBindVertexArray(0)
         gl.glBindBuffer(GL4.GL_ELEMENT_ARRAY_BUFFER, 0)

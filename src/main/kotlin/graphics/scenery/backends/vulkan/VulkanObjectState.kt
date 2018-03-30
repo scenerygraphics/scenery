@@ -85,7 +85,7 @@ open class VulkanObjectState : NodeMetadata {
         wd.free()
         d.forEach { it.free() }
 
-        logger.trace("Creating texture descriptor $descriptorSet set with 1 bindings, DSL=$descriptorSetLayout")
+        logger.debug("Creating texture descriptor {} set with 1 bindings, DSL={}", descriptorSet.toHexString(), descriptorSetLayout.toHexString())
         this.textureDescriptorSet = descriptorSet
         return descriptorSet
     }

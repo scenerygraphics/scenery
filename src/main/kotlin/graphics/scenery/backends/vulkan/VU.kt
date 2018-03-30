@@ -5,9 +5,7 @@ import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.PointerBuffer
 import org.lwjgl.system.MemoryStack.stackPush
-import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.*
-import org.lwjgl.system.NativeResource
 import org.lwjgl.system.Pointer
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.EXTDebugReport.VK_ERROR_VALIDATION_FAILED_EXT
@@ -22,7 +20,6 @@ import org.slf4j.LoggerFactory
 import java.math.BigInteger
 import java.nio.IntBuffer
 import java.nio.LongBuffer
-import java.util.*
 
 /**
  * VU - Vulkan Utils
@@ -533,7 +530,6 @@ class VU {
                                              rt: Map<String, RenderConfigReader.AttachmentConfig>,
                                              target: VulkanFramebuffer, onlyFor: String? = null): Long {
 
-            logger.info("Creating RT DS for $onlyFor")
             return stackPush().use { stack ->
                 val pDescriptorSetLayout = stack.callocLong(1).put(0, descriptorSetLayout)
 
