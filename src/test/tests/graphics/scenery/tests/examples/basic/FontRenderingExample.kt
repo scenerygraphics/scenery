@@ -16,29 +16,12 @@ class FontRenderingExample: SceneryBase("FontRenderingExample", windowWidth = 12
         renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
         hub.add(SceneryElement.Renderer, renderer!!)
 
-        var lights = (0..5).map {
-            PointLight()
-        }
-
-        lights.mapIndexed { i, light ->
-            light.position = GLVector(5.0f + i*2.0f, 5.0f, 5.0f)
-            light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
-            light.intensity = 1000.0f
-            light.quadratic = 0.001f
-            light.linear = 0.0f
-            scene.addChild(light)
-        }
-
-        val hullbox = Box(GLVector(40.0f, 40.0f, 40.0f), insideNormals = true)
-        hullbox.position = GLVector(0.1f, 0.1f, 0.1f)
-        val hullboxM = Material()
-        hullboxM.ambient = GLVector(1.0f, 1.0f, 1.0f)
-        hullboxM.diffuse = GLVector(1.0f, 1.0f, 1.0f)
-        hullboxM.specular = GLVector(1.0f, 1.0f, 1.0f)
-        hullboxM.doubleSided = true
-        hullbox.material = hullboxM
-
-        scene.addChild(hullbox)
+        val light = PointLight(radius = 20.0f)
+        light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
+        light.intensity = 1000.0f
+        light.quadratic = 0.001f
+        light.linear = 0.0f
+        scene.addChild(light)
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
@@ -49,13 +32,20 @@ class FontRenderingExample: SceneryBase("FontRenderingExample", windowWidth = 12
             scene.addChild(this)
         }
 
+        val box = Box(GLVector(10.0f, 10.0f, 10.0f), insideNormals = true)
+        box.material.diffuse = GLVector(1.0f, 1.0f, 1.0f)
+        box.material.doubleSided = true
+        box.material.cullingMode = Material.CullingMode.Front
+        scene.addChild(box)
+
         val board = TextBoard()
         board.text = "hello world"
         board.name = "TextBoard"
-        board.transparent = 0
-        board.fontColor = GLVector(100.0f, 100.0f, 100.0f, 1.0f)
-        board.backgroundColor = GLVector(0.0f, 0.0f, 0.0f, 1.0f)
-        board.position = GLVector(0.0f, 0.0f, 0.0f)
+        board.transparent = 1
+        board.fontColor = GLVector(0.0f, 0.0f, 0.0f)
+        board.backgroundColor = GLVector(100.0f, 100.0f, 0.0f)
+        board.position = GLVector(-4.0f, 0.0f, -4.9f)
+        board.scale = GLVector(2.0f, 2.0f, 2.0f)
 
         scene.addChild(board)
 
@@ -64,7 +54,6 @@ class FontRenderingExample: SceneryBase("FontRenderingExample", windowWidth = 12
 
             val text = arrayOf(
                 "this is scenery.",
-                "with sdf font rendering.",
                 "hello world."
             )
 

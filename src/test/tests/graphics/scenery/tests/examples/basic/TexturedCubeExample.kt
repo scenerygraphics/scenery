@@ -3,7 +3,6 @@ package graphics.scenery.tests.examples.basic
 import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.controls.Hololens
 import org.junit.Test
 import kotlin.concurrent.thread
 
@@ -13,10 +12,8 @@ import kotlin.concurrent.thread
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class TexturedCubeExample : SceneryBase("TexturedCubeExample") {
-    val hmd = Hololens()
     override fun init() {
-        hub.add(SceneryElement.HMDInput, hmd)
-        renderer = Renderer.createRenderer(hub, applicationName, scene, 2560, 720)
+        renderer = Renderer.createRenderer(hub, applicationName, scene, 512, 512)
         hub.add(SceneryElement.Renderer, renderer!!)
 
         val boxmaterial = Material()
@@ -31,7 +28,6 @@ class TexturedCubeExample : SceneryBase("TexturedCubeExample") {
 
         val box = Box(GLVector(0.2f, 0.2f, 0.2f))
         box.name = "le box du win"
-        box.metadata["rotate"] = true
 
         with(box) {
             box.material = boxmaterial
@@ -44,9 +40,9 @@ class TexturedCubeExample : SceneryBase("TexturedCubeExample") {
         light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
         scene.addChild(light)
 
-        val cam: Camera = DetachedHeadCamera(hmd)
+        val cam: Camera = DetachedHeadCamera()
         with(cam) {
-            position = GLVector(0.0f, 0.0f, 1.0f)
+            position = GLVector(0.0f, 0.0f, 5.0f)
             perspectiveCamera(50.0f, 512.0f, 512.0f)
             active = true
 
@@ -55,10 +51,8 @@ class TexturedCubeExample : SceneryBase("TexturedCubeExample") {
 
         thread {
             while (true) {
-                if(box.metadata["rotate"] == true ?: true) {
-                    box.rotation.rotateByAngleY(0.01f)
-                    box.needsUpdate = true
-                }
+                box.rotation.rotateByAngleY(0.01f)
+                box.needsUpdate = true
 
                 Thread.sleep(20)
             }

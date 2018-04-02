@@ -35,6 +35,7 @@ class VertexUpdateExample : SceneryBase("VertexUpdateExample") {
             material.diffuse = GLVector(1.0f, 1.0f, 1.0f)
             material.specular = GLVector(1.0f, 1.0f, 1.0f)
             material.doubleSided = true
+            material.cullingMode = Material.CullingMode.None
 
             position = GLVector(0.0f, 0.0f, 0.0f)
             material = material
@@ -43,7 +44,7 @@ class VertexUpdateExample : SceneryBase("VertexUpdateExample") {
         }
 
         val lights = (0..2).map {
-            PointLight()
+            PointLight(radius = 10.0f)
         }.mapIndexed { i, light ->
             light.position = GLVector(2.0f * i, 2.0f * i, 2.0f * i)
             light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
