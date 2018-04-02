@@ -10,8 +10,7 @@
 #define PI 3.14159265359
 
 layout(set = 3, binding = 0) uniform sampler2D InputNormalsMaterial;
-layout(set = 3, binding = 1) uniform sampler2D InputDiffuseAlbedo;
-layout(set = 3, binding = 2) uniform sampler2D InputZBuffer;
+layout(set = 4, binding = 0) uniform sampler2D InputZBuffer;
 
 layout(location = 0) out vec4 FragColor;
 layout(location = 0) in vec2 textureCoord;
@@ -67,27 +66,6 @@ float noise1D(float x) {
     float f = fract(x);
     float u = f * f * (3.0 - 2.0 * f);
     return mix(hash(i), hash(i + 1.0), u);
-}
-
-float noise2D(vec2 x) {
-    vec2 i = floor(x);
-    vec2 f = fract(x);
-
-	// Four corners in 2D of a tile
-	float a = hash(i);
-    float b = hash(i + vec2(1.0, 0.0));
-    float c = hash(i + vec2(0.0, 1.0));
-    float d = hash(i + vec2(1.0, 1.0));
-
-    // Simple 2D lerp using smoothstep envelope between the values.
-	// return vec3(mix(mix(a, b, smoothstep(0.0, 1.0, f.x)),
-	//			mix(c, d, smoothstep(0.0, 1.0, f.x)),
-	//			smoothstep(0.0, 1.0, f.y)));
-
-	// Same code, with the clamps in smoothstep and common subexpressions
-	// optimized away.
-    vec2 u = f * f * (3.0 - 2.0 * f);
-	return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
 }
 
 vec2 OctWrap( vec2 v )
@@ -157,7 +135,6 @@ void main() {
     }
 
     vec2 textureCoord = gl_FragCoord.xy/vec2(displayWidth, displayHeight);
-    ivec2 ssC = ivec2(gl_FragCoord.xy);
 
 	vec3 N = DecodeOctaH(texture(InputNormalsMaterial, textureCoord).rg);
 	float Depth = texture(InputZBuffer, textureCoord).r;
@@ -171,8 +148,8 @@ void main() {
 
     float attenuationAngleThreshold = 0.1;
 
-    float key = 3 * ssC.x ^ ssC.y + ssC.x * ssC.y;
-    vec3 noise = clamp(vec3(noise1D(key), noise1D(key), noise1D(key)), 0.0, 1.0);
+    float key = 3 * (int(gl_FragCoord.x) ^ int(gl_FragCoord.y)) + gl_FragCoord.x * gl_FragCoord.y;
+    vec3 noise = vec3(noise1D(key), noise1D(key/2.0), noise1D(key/3.0));
 
     const float fudge_factor_l0 = 2.0;
     const float fudge_factor_l1 = 10.0;

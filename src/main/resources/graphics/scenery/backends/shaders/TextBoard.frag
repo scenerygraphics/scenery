@@ -23,8 +23,17 @@ layout(set = 4, binding = 0) uniform ShaderProperties {
 layout(location = 0) out vec4 FragColor;
 
 float aastep (float threshold , float value) {
-  float afwidth = 0.7 * length ( vec2(dFdx(value), dFdy(value)));
+  float afwidth = 0.5 * length ( vec2(dFdx(value), dFdy(value)));
   return smoothstep (threshold-afwidth, threshold+afwidth, value );
+}
+
+float contour(in float d, in float w) {
+    // smoothstep(lower edge0, upper edge1, x)
+    return smoothstep(0.5 - w, 0.5 + w, d);
+}
+
+float samp(in vec2 uv, float w) {
+    return contour(texture(ObjectTextures[1], uv).a, w);
 }
 
 void main() {
@@ -32,7 +41,9 @@ void main() {
     // see https://github.com/OpenGLInsights/OpenGLInsightsCode/tree/master/Chapter%2012%202D%20Shape%20Rendering%20by%20Distance%20Fields/demo
 
     vec3 rgb = vec3(0.0f, 0.0f, 0.0f);
+    float pattern = 0.0;
 
+    if(false) {
     float pattern = 0.0f;
     float texw = atlasSize.x;
     float texh = atlasSize.y;
@@ -62,6 +73,18 @@ void main() {
     float D = mix( D0_1.x , D0_1.y , uvlerp.x);
 
     pattern = aastep(0.5, D);
+    } else {
+        float dist = texture(ObjectTextures[1], Vertex.TexCoord).r;
+        float width = fwidth(dist);
+        pattern = contour(dist, width);
+
+        const float dscale = 0.554;
+        vec2 deltaUV = dscale * (dFdx(Vertex.TexCoord) + dFdy(Vertex.TexCoord));
+        vec4 box = vec4(Vertex.TexCoord - deltaUV, Vertex.TexCoord + deltaUV);
+
+        float alphaSum = samp(box.xy, width) + samp(box.zw, width) + samp(box.xw, width) + samp(box.zy, width);
+        pattern = (pattern + 0.5 * alphaSum)/3.0;
+    }
 
     if(transparent == 1) {
         FragColor = vec4(fontColor.rgb, pattern);

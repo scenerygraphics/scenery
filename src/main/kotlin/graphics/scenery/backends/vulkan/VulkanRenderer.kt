@@ -938,7 +938,7 @@ open class VulkanRenderer(hub: Hub,
                     val gt = node.material.transferTextures[texture.substringAfter("fromBuffer:")]
 
                     val vkTexture = if (texture.startsWith("fromBuffer:") && gt != null) {
-                        val miplevels = if (generateMipmaps) {
+                        val miplevels = if (generateMipmaps && gt.mipmap) {
                             1 + Math.floor(Math.log(Math.max(gt.dimensions.x() * 1.0, gt.dimensions.y() * 1.0)) / Math.log(2.0)).toInt()
                         } else {
                             1
