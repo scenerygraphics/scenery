@@ -208,7 +208,7 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
 
         val scaledImage = BufferedImage((texWidth*scale).toInt(), (texHeight*scale).toInt(), BufferedImage.TYPE_BYTE_GRAY)
         val at = AffineTransform.getScaleInstance(scale, scale)
-        val scaleOp = AffineTransformOp(at, AffineTransformOp.TYPE_BILINEAR)
+        val scaleOp = AffineTransformOp(at, AffineTransformOp.TYPE_BICUBIC)
         scaleOp.filter(bi, scaledImage)
 
         val b = BufferUtils.allocateByteAndPut((scaledImage.raster.dataBuffer as DataBufferByte).data)

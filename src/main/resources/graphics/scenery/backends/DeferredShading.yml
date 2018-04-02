@@ -54,14 +54,15 @@ renderpasses:
     parameters:
       Global.displayWidth: 0
       Global.displayHeight: 0
-      ssaoRadius: 0.27
+      ssaoRadius: 0.5
       ssaoSamples: 16
-      maxDistance: 0.63
+      maxDistance: 0.2
     shaders:
       - "FullscreenQuad.vert.spv"
       - "DSSDO.frag.spv"
     inputs:
-      - GeometryBuffer
+      - GeometryBuffer.NormalsMaterial
+      - GeometryBuffer.ZBuffer
     output: DSSDOTemp1
   DSSDOBlurV:
     type: quad

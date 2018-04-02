@@ -67,6 +67,7 @@ class TextBoard(font: String = "SourceSansPro-Regular.ttf", override var isBillb
         material.blending.destinationAlphaBlendFactor = Blending.BlendFactor.Zero
         material.blending.colorBlending = Blending.BlendOp.add
         material.blending.alphaBlending = Blending.BlendOp.add
+        material.cullingMode = Material.CullingMode.None
 
         atlas = updateAtlas(fontFamily)
         updateBoard(atlas, text)
@@ -94,7 +95,8 @@ class TextBoard(font: String = "SourceSansPro-Regular.ttf", override var isBillb
             GLVector(atlasSize.x(), atlasSize.y(), 1.0f),
             channels = 1, contents = atlas.getAtlas(),
             repeatS = false, repeatT = false,
-            normalized = true)
+            normalized = true,
+            mipmap = false)
 
         dirty = true
     }
