@@ -19,34 +19,18 @@ import kotlin.math.floor
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class SponzaExample : SceneryBase("SponzaExample", windowWidth = 1280, windowHeight = 720) {
-    private var hmd: Hololens = Hololens()
-
     override fun init() {
-        hub.add(SceneryElement.HMDInput, hmd!!)
-
         renderer = Renderer.createRenderer(hub, applicationName,
             scene,
             windowWidth,
             windowHeight)
         hub.add(SceneryElement.Renderer, renderer!!)
 
-        val cam: Camera = DetachedHeadCamera(hmd)
+        val cam: Camera = DetachedHeadCamera()
         with(cam) {
             cam.position = GLVector(0.0f, 1.0f, 0.0f)
             cam.perspectiveCamera(50.0f, windowWidth.toFloat(), windowHeight.toFloat())
             cam.active = true
-            scene.addChild(this)
-        }
-
-        val transparentBox = Box(GLVector(2.0f, 2.0f, 2.0f))
-        with(transparentBox) {
-            position = GLVector(1.5f, 1.0f, -4.0f)
-            material.blending.transparent = true
-            material.blending.opacity = 0.8f
-            material.blending.colorBlending = Blending.BlendOp.add
-            material.blending.alphaBlending = Blending.BlendOp.add
-            material.diffuse = GLVector(0.9f, 0.1f, 0.1f)
-            name = "transparent box"
             scene.addChild(this)
         }
 
@@ -80,6 +64,15 @@ class SponzaExample : SceneryBase("SponzaExample", windowWidth = 1280, windowHei
 
             scene.addChild(this)
         }
+
+        val desc = TextBoard()
+        desc.text = "sponza"
+        desc.fontFamily = "RobotoSlab-Regular.ttf"
+        desc.position = GLVector(-2.0f, -0.1f, -4.0f)
+        desc.fontColor = GLVector(0.0f, 0.0f, 0.0f)
+        desc.backgroundColor = GLVector(0.1f, 0.1f, 0.1f)
+        desc.transparent = 0
+        scene.addChild(desc)
 
         thread {
             var ticks = 0L
