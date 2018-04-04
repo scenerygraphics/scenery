@@ -47,9 +47,9 @@ class Hololens: TrackerInput, Display, Hubable {
     private val zmqContext = ZContext(4)
     private val zmqSocket = zmqContext.createSocket(ZMQ.REQ)
 
-    private var commandBuffer: VulkanCommandBuffer? = null
+    private var commandBuffers: MutableList<VulkanCommandBuffer?> = mutableListOf()
     private var hololensCommandPool = -1L
-    private var d3dImages: List<Pair<VulkanTexture.VulkanImage, Long>?>? = emptyList()
+    private var d3dImages: List<Pair<VulkanTexture.VulkanImage, Long>?> = emptyList()
     private var currentImageIndex: Int = 0
 
     private val acqKeys = memAllocLong(1).put(0, 0)
@@ -380,9 +380,17 @@ class Hololens: TrackerInput, Display, Hubable {
             logger.info("Hololens right projection: $rightProjection")
         }
 
-        if(d3dImages == null) {
+        if(d3dImages.size == 0) {
+            logger.info("Trying to register shared handles")
             zmqSocket.send("RegPid${SceneryBase.getProcessID()}/3")
-            val handles = zmqSocket.recvStr().split("/").map { BigInteger(it, 16).toLong() }
+            val reply = zmqSocket.recvStr()
+
+            if(reply.startsWith("NotReady")) {
+                return
+            }
+
+            logger.info("Received handles: $reply")
+            val handles = reply.split("/").filter { it.isNotEmpty() }.map { BigInteger(it, 16).toLong() }
 
             d3dImages = handles.mapNotNull { handle ->
                 getSharedHandleVulkanTexture(handle,
@@ -394,23 +402,27 @@ class Hololens: TrackerInput, Display, Hubable {
                         hololensCommandPool)
             }
 
-            if(d3dImages?.size == 0) {
+            commandBuffers = d3dImages.map { VulkanCommandBuffer(device, null, false) }.toMutableList()
+
+            logger.info("Registered ${d3dImages.size} shared handles")
+
+            if(d3dImages.size == 0 || commandBuffers.size == 0) {
                 logger.error("Did not get any Vulkan render targets back!")
                 return
             }
         }
 
-        if(commandBuffer == null) {
-            commandBuffer = VulkanCommandBuffer(device, null, false)
-        }
-
         // return if we can't get a current image
-        val currentImage = d3dImages?.get(currentImageIndex) ?: return
+        val currentImage = d3dImages.get(currentImageIndex) ?: return
+        var currentCommandBuffer = commandBuffers.get(currentImageIndex)
 
         // blit into D3D image
-        if(commandBuffer!!.commandBuffer == null) {
-            currentImageIndex = currentImageIndex++ % (d3dImages?.size ?: 1)
-            commandBuffer!!.commandBuffer = with(VU.newCommandBuffer(device, hololensCommandPool, autostart = true)) {
+        if(currentCommandBuffer == null) {
+            commandBuffers[currentImageIndex] = VulkanCommandBuffer(device, null, false)
+            currentCommandBuffer = commandBuffers.get(currentImageIndex)
+            currentImageIndex = currentImageIndex++ % d3dImages.size
+
+            currentCommandBuffer!!.commandBuffer = with(VU.newCommandBuffer(device, hololensCommandPool, autostart = true)) {
                 MemoryStack.stackPush().use { stack ->
                     logger.debug("Blitting image of size ${width}x$height")
                     val imageBlit = VkImageBlit.callocStack(1, stack)
@@ -481,7 +493,7 @@ class Hololens: TrackerInput, Display, Hubable {
                 this
             }
 
-            commandBuffer?.commandBuffer?.endCommandBuffer(device, hololensCommandPool, queue,
+            currentCommandBuffer.commandBuffer?.endCommandBuffer(device, hololensCommandPool, queue,
                 flush = false, dealloc = false, submitInfoPNext = null)
         }
 
@@ -498,7 +510,7 @@ class Hololens: TrackerInput, Display, Hubable {
             .pReleaseKeys(releaseKeys)
             .pReleaseSyncs(memoryHandleBuffer)
 
-        commandBuffer?.commandBuffer?.submit(queue, submitInfoPNext = keyedMutex)
+        currentCommandBuffer.commandBuffer?.submit(queue, submitInfoPNext = keyedMutex)
     }
 
     /**
