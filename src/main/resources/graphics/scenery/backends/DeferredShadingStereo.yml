@@ -21,6 +21,14 @@ rendertargets:
     Occlusion:
       size: 0.5, 0.5
       format: RGBA_UInt8
+  DSSDOTemp1:
+    Occlusion:
+      size: 0.5, 0.5
+      format: RGBA_UInt8
+  DSSDOTemp2:
+    Occlusion:
+      size: 0.5, 0.5
+      format: RGBA_UInt8
   HDRBuffer:
     Color:
       size: 1.0, 1.0
@@ -61,17 +69,41 @@ renderpasses:
     parameters:
       Global.displayWidth: 0
       Global.displayHeight: 0
-      ssaoRadius: 0.27
-      ssaoSamples: 0
-      IntensityScale: 1.0
-      Epsilon: 0.001
-      BiasDistance: 0.0001
-      Contrast: 1.0
+      ssaoRadius: 0.5
+      ssaoSamples: 16
+      maxDistance: 0.2
     shaders:
       - "FullscreenQuad.vert.spv"
       - "DSSDO.frag.spv"
     inputs:
-      - GeometryBuffer
+      - GeometryBuffer.NormalsMaterial
+      - GeometryBuffer.ZBuffer
+    output: DSSDOTemp1
+  DSSDOBlurV:
+    type: quad
+    parameters:
+      Global.displayWidth: 0
+      Global.displayHeight: 0
+      Direction: 0.0, 1.0
+    shaders:
+      - "FullscreenQuad.vert.spv"
+      - "DSSDOBlur.frag.spv"
+    inputs:
+      - GeometryBuffer.NormalsMaterial
+      - DSSDOTemp1
+    output: DSSDOTemp2
+  DSSDOBlurH:
+    type: quad
+    parameters:
+      Global.displayWidth: 0
+      Global.displayHeight: 0
+      Direction: 1.0, 0.0
+    shaders:
+      - "FullscreenQuad.vert.spv"
+      - "DSSDOBlur.frag.spv"
+    inputs:
+      - GeometryBuffer.NormalsMaterial
+      - DSSDOTemp2
     output: DSSDOBuffer
   DeferredLightingLeft:
     type: lights
@@ -151,7 +183,7 @@ renderpasses:
       - "FullscreenQuad.vert.spv"
       - "HDR.frag.spv"
     inputs:
-      - HDRBuffer
+      - HDRBuffer.Color
     output: FXAABuffer
     parameters:
       TonemappingOperator: 0
