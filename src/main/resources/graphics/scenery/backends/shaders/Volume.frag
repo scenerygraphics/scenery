@@ -1,10 +1,8 @@
 #version 450 core
 #extension GL_ARB_separate_shader_objects: enable
+#extension GL_EXT_control_flow_attributes : enable
 
-layout(set = 5, binding = 0) uniform sampler2D InputNormalsMaterial;
-layout(set = 5, binding = 1) uniform sampler2D InputDiffuseAlbedo;
-layout(set = 5, binding = 2) uniform sampler2D InputZBuffer;
-layout(set = 6, binding = 0) uniform sampler2D InputColor;
+layout(set = 5, binding = 0) uniform sampler2D InputZBuffer;
 
 layout(location = 0) in VertexData {
     vec2 textureCoord;
@@ -230,7 +228,7 @@ void main()
     if (alpha_blending <= 0.f){
       gl_FragDepth = 0.0;
       // nop alpha blending
-      for(int i = 0; i < maxsteps; ++i, pos += vecstep) {
+      [[unroll]] for(int i = 0; i < maxsteps; ++i, pos += vecstep) {
         float volume_sample = texture(VolumeTextures, pos.xyz).r;
         maxp = max(maxp,volume_sample);
       }
