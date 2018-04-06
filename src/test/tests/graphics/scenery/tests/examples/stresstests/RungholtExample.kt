@@ -4,7 +4,7 @@ import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.OpenVRHMD
-import graphics.scenery.utils.Numerics
+import graphics.scenery.numerics.Random
 import org.junit.Test
 import kotlin.concurrent.thread
 
@@ -51,9 +51,9 @@ class RungholtExample : SceneryBase("RungholtExample", windowWidth = 1280, windo
         }
 
         lights.map {
-            it.emissionColor = Numerics.randomVectorFromRange(3, 0.0f, 1.0f)
+            it.emissionColor = Random.randomVectorFromRange(3, 0.0f, 1.0f)
             it.parent?.material?.diffuse = it.emissionColor
-            it.intensity = Numerics.randomFromRange(0.1f, 10f)
+            it.intensity = Random.randomFromRange(0.1f, 10f)
             it.linear = 1.2f
             it.quadratic = 0.2f
 

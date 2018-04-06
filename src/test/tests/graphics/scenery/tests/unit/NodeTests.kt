@@ -9,7 +9,7 @@ import org.junit.Test
 import graphics.scenery.Node
 import graphics.scenery.Scene
 import graphics.scenery.utils.LazyLogger
-import graphics.scenery.utils.Numerics
+import graphics.scenery.numerics.Random
 import java.util.concurrent.ThreadLocalRandom
 
 /**
@@ -70,9 +70,9 @@ class NodeTests {
             }
 
             val n = Node("Sibling#$it/$currentLevel/$maxLevels")
-            n.position = Numerics.randomVectorFromRange(3, -100.0f, 100.0f)
-            n.scale = Numerics.randomVectorFromRange(3, 0.1f, 10.0f)
-            n.rotation = Numerics.randomQuaternion()
+            n.position = Random.randomVectorFromRange(3, -100.0f, 100.0f)
+            n.scale = Random.randomVectorFromRange(3, 0.1f, 10.0f)
+            n.rotation = Random.randomQuaternion()
 
             toNode.addChild(n)
             totalNodes++
@@ -220,7 +220,7 @@ class NodeTests {
         assert(node.needsUpdate)
         assert(node.needsUpdateWorld)
 
-        node.position = Numerics.randomVectorFromRange(3, -100.0f, 100.0f)
+        node.position = Random.randomVectorFromRange(3, -100.0f, 100.0f)
         assert(node.needsUpdate)
         assert(node.needsUpdateWorld)
 
@@ -242,7 +242,7 @@ class NodeTests {
         assert(node.needsUpdate)
         assert(node.needsUpdateWorld)
 
-        node.scale = Numerics.randomVectorFromRange(3, 0.0f, 1.0f)
+        node.scale = Random.randomVectorFromRange(3, 0.0f, 1.0f)
         assert(node.needsUpdate)
         assert(node.needsUpdateWorld)
 
@@ -264,7 +264,7 @@ class NodeTests {
         assert(node.needsUpdate)
         assert(node.needsUpdateWorld)
 
-        node.rotation = Numerics.randomQuaternion()
+        node.rotation = Random.randomQuaternion()
         assert(node.needsUpdate)
         assert(node.needsUpdateWorld)
 

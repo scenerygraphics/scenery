@@ -3,7 +3,7 @@ package graphics.scenery.tests.examples.advanced
 import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.utils.Numerics
+import graphics.scenery.numerics.Random
 import org.junit.Test
 import kotlin.concurrent.thread
 
@@ -55,7 +55,7 @@ class MultiBoxInstancedExample : SceneryBase("MultiBoxInstancedExample") {
             val j: Double = (it / boundaryWidth).rem(boundaryHeight)
             val i: Double = it / (boundaryWidth * boundaryHeight)
 
-            val jitter = Numerics.randomVectorFromRange(3, -0.1f, 0.1f)
+            val jitter = Random.randomVectorFromRange(3, -0.1f, 0.1f)
 
             inst.position = GLVector(Math.floor(i).toFloat(), Math.floor(j).toFloat(), Math.floor(k).toFloat()) + jitter
             inst.needsUpdate = true
@@ -69,9 +69,9 @@ class MultiBoxInstancedExample : SceneryBase("MultiBoxInstancedExample") {
         val lights = (0..20).map {
             PointLight()
         }.map {
-            it.position = Numerics.randomVectorFromRange(3, -600.0f, 600.0f)
-            it.emissionColor = Numerics.randomVectorFromRange(3, 0.1f, 0.9f)
-            it.intensity = Numerics.randomFromRange(5.0f, 150.0f)
+            it.position = Random.randomVectorFromRange(3, -600.0f, 600.0f)
+            it.emissionColor = Random.randomVectorFromRange(3, 0.1f, 0.9f)
+            it.intensity = Random.randomFromRange(5.0f, 150.0f)
             it.linear = 0.1f
             it.quadratic = 0.8f
 

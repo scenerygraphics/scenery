@@ -1,4 +1,4 @@
-package graphics.scenery.utils
+package graphics.scenery.numerics
 
 import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
@@ -8,7 +8,7 @@ import com.jogamp.opengl.math.Quaternion
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class Numerics {
+class Random {
     companion object {
         @JvmStatic
         fun randomFromRange(min: Float, max: Float): Float = (max - min)*Math.random().toFloat() + min

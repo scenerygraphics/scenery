@@ -4,7 +4,7 @@ import cleargl.GLVector
 import com.sun.javafx.application.PlatformImpl
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.utils.Numerics
+import graphics.scenery.numerics.Random
 import graphics.scenery.utils.SceneryPanel
 import javafx.application.Platform
 import javafx.beans.property.SimpleDoubleProperty
@@ -113,7 +113,7 @@ class JavaFXGridPaneExample : SceneryBase("JavaFXGridPaneExample", windowWidth =
 
         lights.mapIndexed { i, light ->
             light.position = GLVector(2.0f * i, 2.0f * i, 2.0f * i)
-            light.emissionColor = Numerics.randomVectorFromRange(3, 0.2f, 0.8f)
+            light.emissionColor = Random.randomVectorFromRange(3, 0.2f, 0.8f)
             light.intensity = 10.2f * (i + 1)
             scene.addChild(light)
         }
