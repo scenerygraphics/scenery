@@ -17,7 +17,7 @@ import kotlin.concurrent.thread
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class VolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
+class ProceduralVolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
     override fun init() {
         renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
         hub.add(SceneryElement.Renderer, renderer!!)
