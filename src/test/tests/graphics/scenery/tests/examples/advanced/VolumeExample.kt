@@ -1,14 +1,15 @@
 package graphics.scenery.tests.examples.advanced
 
 import cleargl.GLVector
+import coremem.enums.NativeTypeEnum
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.controls.Hololens
-import graphics.scenery.controls.TrackedStereoGlasses
+import graphics.scenery.numerics.Random
+import graphics.scenery.utils.RingBuffer
 import graphics.scenery.volumes.Volume
 import org.junit.Test
-import java.io.File
-import java.nio.file.Paths
+import org.lwjgl.system.MemoryUtil.memAlloc
+import java.nio.ByteBuffer
 import kotlin.concurrent.thread
 
 /**
@@ -16,18 +17,14 @@ import kotlin.concurrent.thread
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class VolumeExample: SceneryBase("Volume Rendering example", 2560, 720) {
-//    var hmd: Hololens = Hololens()
-    var hmd = null
-
+class VolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
     override fun init() {
-//        hub.add(SceneryElement.HMDInput, hmd)
         renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
         hub.add(SceneryElement.Renderer, renderer!!)
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
-            position = GLVector(0.0f, 0.5f, 0.5f)
+            position = GLVector(0.0f, 0.5f, 5.0f)
             perspectiveCamera(50.0f, 1.0f*windowWidth, 1.0f*windowHeight)
             active = true
 
@@ -40,14 +37,14 @@ class VolumeExample: SceneryBase("Volume Rendering example", 2560, 720) {
         shell.material.diffuse = GLVector(0.2f, 0.2f, 0.2f)
         shell.material.specular = GLVector.getNullVector(3)
         shell.material.ambient = GLVector.getNullVector(3)
+        shell.position = GLVector(0.0f, 4.0f, 0.0f)
         scene.addChild(shell)
 
         val volume = Volume()
         volume.name = "volume"
-        volume.colormap = "jet"
-        volume.position = GLVector(0.0f, 0.0f, 0.0f)
-        volume.rotation = volume.rotation.rotateByEuler(0.05f, 0.05f, 0.05f)
-        volume.scale = GLVector(0.05f, 0.05f, 0.05f)
+        volume.colormap = "plasma"
+        volume.trangemin = 0.0f
+        volume.trangemax = 255.0f
         scene.addChild(volume)
 
         val lights = (0 until 3).map {
@@ -57,37 +54,44 @@ class VolumeExample: SceneryBase("Volume Rendering example", 2560, 720) {
         lights.mapIndexed { i, light ->
             light.position = GLVector(2.0f * i - 4.0f,  i - 1.0f, 0.0f)
             light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
-            light.intensity = 150.0f
+            light.intensity = 50.0f
             scene.addChild(light)
         }
 
-        val files: List<File> = File(getDemoFilesPath() + "/volumes/box-iso/").listFiles().toList()
+        thread {
+            while(!scene.initialized) { Thread.sleep(200) }
 
-        val volumes = files.filter { it.isFile }.map { it.absolutePath }.sorted()
-        logger.info("Got ${volumes.size} volumes: ${volumes.joinToString(", ")}")
+            val volumeSize = 64L
+            val volumeBuffer = RingBuffer<ByteBuffer>(2, { memAlloc((volumeSize*volumeSize*volumeSize).toInt()) })
 
-        var currentVolume = 0
-        fun nextVolume(): String {
-            val v = volumes[currentVolume % (volumes.size)]
-            currentVolume++
+            val seed = Random.randomFromRange(0.0f, 133333337.0f).toLong()
+            var shift = GLVector.getNullVector(3)
+            val shiftDelta = Random.randomVectorFromRange(3, -0.5f, 0.5f)
 
-            return v
+            while(true) {
+                val currentBuffer = volumeBuffer.get()
+
+                Volume.generateProceduralVolume(volumeSize, 0.95f, seed = seed,
+                    intoBuffer = currentBuffer, shift = shift)
+
+                volume.readFromBuffer(
+                    "procedural-cloud-${shift.hashCode()}", currentBuffer,
+                    volumeSize, volumeSize, volumeSize, 1.0f, 1.0f, 1.0f,
+                    dataType = NativeTypeEnum.UnsignedByte, bytesPerVoxel = 1)
+
+                shift = shift + shiftDelta
+
+                Thread.sleep(20)
+            }
         }
 
         thread {
-            while(!scene.initialized || volumes.isEmpty()) { Thread.sleep(200) }
+            while(true) {
+                volume.rotation = volume.rotation.rotateByAngleY(0.005f)
 
-            val v = nextVolume()
-            volume.readFrom(Paths.get(v), replace = true)
-
-            logger.info("Got volume!")
-
-//            while(true) {
-//                volume.rotation = volume.rotation.rotateByAngleY(0.01f)
-//                Thread.sleep(5)
-//            }
+                Thread.sleep(15)
+            }
         }
-
     }
 
     override fun inputSetup() {
