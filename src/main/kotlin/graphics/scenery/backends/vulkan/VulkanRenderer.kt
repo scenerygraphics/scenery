@@ -1975,19 +1975,6 @@ open class VulkanRenderer(hub: Hub,
         return state
     }
 
-    fun <A, B>List<A>.mapParallel(f: suspend (A) -> B): List<B> = runBlocking {
-        map { async(CommonPool) { f(it) } }.map { it.await() }
-    }
-
-    fun <A, B>List<A>.forEachParallel(f: suspend (A) -> B) = runBlocking {
-        map { async(CommonPool) { f(it) } }.forEach { it.await() }
-    }
-
-    fun <A, B>List<A>.forEachIndexedParallel(f: suspend (Int, A) -> B) = runBlocking {
-        val index = AtomicInteger(0)
-        map { async(CommonPool) { f(index.getAndIncrement(), it) } }.forEach { it.await() }
-    }
-
     private fun updateInstanceBuffer(device: VulkanDevice, parentNode: Node, state: VulkanObjectState): VulkanObjectState {
         logger.trace("Updating instance buffer for ${parentNode.name}")
 

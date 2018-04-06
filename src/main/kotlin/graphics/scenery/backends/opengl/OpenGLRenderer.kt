@@ -1949,32 +1949,6 @@ class OpenGLRenderer(hub: Hub,
     }
 
     /**
-     * Parallel forEach implementation for HashMaps.
-     *
-     * @param[maxThreads] Maximum number of parallel threads
-     * @param[action] Lambda containing the action to be executed for each key, value pair.
-     */
-    @Suppress("unused")
-    fun <K, V> HashMap<K, V>.forEachParallel(maxThreads: Int = 5, action: ((K, V) -> Unit)) {
-        val iterator = this.asSequence().iterator()
-        var threadCount = 0
-
-        while (iterator.hasNext()) {
-            val current = iterator.next()
-
-            thread {
-                threadCount++
-                while (threadCount > maxThreads) {
-                    Thread.sleep(50)
-                }
-
-                action.invoke(current.key, current.value)
-                threadCount--
-            }
-        }
-    }
-
-    /**
      * Initializes a default set of textures that the renderer can fall back to and provide a non-intrusive
      * hint to the user that a texture could not be loaded.
      */
