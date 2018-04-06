@@ -4,7 +4,7 @@ import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.TrackedStereoGlasses
-import graphics.scenery.utils.Numerics
+import graphics.scenery.numerics.Random
 import org.junit.Test
 import javax.swing.JFileChooser
 import javax.swing.filechooser.FileNameExtensionFilter
@@ -58,7 +58,7 @@ class LocalisationExample : SceneryBase("Localisation Microscopy Rendering examp
         val datasets = files.mapIndexed { i, file ->
             val dataset = PointCloud()
             dataset.readFromPALM(file)
-            dataset.material.diffuse = channelColors.getOrElse(i, { Numerics.randomVectorFromRange(3, 0.1f, 0.9f) })
+            dataset.material.diffuse = channelColors.getOrElse(i, { Random.randomVectorFromRange(3, 0.1f, 0.9f) })
             dataset.centerOn(dataset.position)
             dataset.fitInto(10.0f)
             scene.addChild(dataset)

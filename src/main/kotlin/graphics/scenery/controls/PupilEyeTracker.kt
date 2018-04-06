@@ -11,7 +11,7 @@ import graphics.scenery.Camera
 import graphics.scenery.Node
 import graphics.scenery.backends.Display
 import graphics.scenery.utils.LazyLogger
-import graphics.scenery.utils.Numerics
+import graphics.scenery.numerics.Random
 import kotlinx.coroutines.experimental.Job
 import kotlinx.coroutines.experimental.launch
 import kotlinx.coroutines.experimental.runBlocking
@@ -380,9 +380,9 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
         }
 
         val DefaultWorldSpaceCalibrationPointGenerator = { _: Camera, _: Int, _: Int ->
-            val v = GLVector(Numerics.randomFromRange(-4.0f, 4.0f),
-                Numerics.randomFromRange(-4.0f, 4.0f),
-                Numerics.randomFromRange(0.0f, -3.0f))
+            val v = GLVector(Random.randomFromRange(-4.0f, 4.0f),
+                Random.randomFromRange(-4.0f, 4.0f),
+                Random.randomFromRange(0.0f, -3.0f))
             v to v
         }
     }

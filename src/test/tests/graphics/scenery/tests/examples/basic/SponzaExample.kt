@@ -2,15 +2,10 @@ package graphics.scenery.tests.examples.basic
 
 import cleargl.GLVector
 import graphics.scenery.*
-import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.Renderer
-import graphics.scenery.controls.Hololens
-import graphics.scenery.controls.OpenVRHMD
-import graphics.scenery.controls.TrackedStereoGlasses
-import graphics.scenery.utils.Numerics
+import graphics.scenery.numerics.Random
 import org.junit.Test
 import kotlin.concurrent.thread
-import kotlin.math.floor
 
 /**
  * Demo loading the Sponza Model, demonstrating multiple moving lights
@@ -38,16 +33,16 @@ class SponzaExample : SceneryBase("SponzaExample", windowWidth = 1280, windowHei
             Box(GLVector(0.1f, 0.1f, 0.1f))
         }.map {
             it.position = GLVector(
-                Numerics.randomFromRange(-6.0f, 6.0f),
-                Numerics.randomFromRange(0.1f, 1.2f),
-                Numerics.randomFromRange(-10.0f, 10.0f)
+                Random.randomFromRange(-6.0f, 6.0f),
+                Random.randomFromRange(0.1f, 1.2f),
+                Random.randomFromRange(-10.0f, 10.0f)
             )
 
-            it.material.diffuse = Numerics.randomVectorFromRange(3, 0.1f, 0.9f)
+            it.material.diffuse = Random.randomVectorFromRange(3, 0.1f, 0.9f)
 
-            val light = PointLight(radius = Numerics.randomFromRange(0.5f, 5.0f))
+            val light = PointLight(radius = Random.randomFromRange(0.5f, 5.0f))
             light.emissionColor = it.material.diffuse
-            light.intensity = Numerics.randomFromRange(1.0f, 2.0f)
+            light.intensity = Random.randomFromRange(1.0f, 2.0f)
 
             it.addChild(light)
 

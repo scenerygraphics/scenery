@@ -3,7 +3,7 @@ package graphics.scenery.tests.examples.basic
 import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.utils.Numerics
+import graphics.scenery.numerics.Random
 import org.junit.Test
 import org.scijava.ui.behaviour.ClickBehaviour
 import kotlin.concurrent.thread
@@ -43,10 +43,10 @@ class BoxedProteinExample : SceneryBase("BoxedProteinExample", windowWidth = 128
         }
 
         lights.map {
-            it.position = Numerics.randomVectorFromRange(3, -600.0f, 600.0f)
-            it.emissionColor = Numerics.randomVectorFromRange(3, 0.0f, 1.0f)
+            it.position = Random.randomVectorFromRange(3, -600.0f, 600.0f)
+            it.emissionColor = Random.randomVectorFromRange(3, 0.0f, 1.0f)
             it.parent?.material?.diffuse = it.emissionColor
-            it.intensity = Numerics.randomFromRange(0.01f, 100f)
+            it.intensity = Random.randomFromRange(0.01f, 100f)
             it.quadratic = 0.0f
 
             scene.addChild(it)

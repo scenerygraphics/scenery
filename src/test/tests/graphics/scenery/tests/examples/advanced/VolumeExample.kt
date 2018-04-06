@@ -17,14 +17,15 @@ import kotlin.concurrent.thread
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class VolumeExample: SceneryBase("Volume Rendering example", 2560, 720) {
-    var hmd: Hololens = Hololens()
+//    var hmd: Hololens = Hololens()
+    var hmd = null
 
     override fun init() {
-        hub.add(SceneryElement.HMDInput, hmd)
+//        hub.add(SceneryElement.HMDInput, hmd)
         renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
         hub.add(SceneryElement.Renderer, renderer!!)
 
-        val cam: Camera = DetachedHeadCamera(hmd)
+        val cam: Camera = DetachedHeadCamera()
         with(cam) {
             position = GLVector(0.0f, 0.5f, 0.5f)
             perspectiveCamera(50.0f, 1.0f*windowWidth, 1.0f*windowHeight)

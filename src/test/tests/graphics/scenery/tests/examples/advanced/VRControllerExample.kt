@@ -5,7 +5,7 @@ import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedDeviceType
-import graphics.scenery.utils.Numerics
+import graphics.scenery.numerics.Random
 import org.junit.Test
 
 /**
@@ -56,8 +56,8 @@ class VRControllerExample : SceneryBase(VRControllerExample::class.java.simpleNa
 
         (0..10).map {
             val light = PointLight(radius = 10.0f)
-            light.emissionColor = Numerics.randomVectorFromRange(3, 0.0f, 1.0f)
-            light.position = Numerics.randomVectorFromRange(3, -5.0f, 5.0f)
+            light.emissionColor = Random.randomVectorFromRange(3, 0.0f, 1.0f)
+            light.position = Random.randomVectorFromRange(3, -5.0f, 5.0f)
             light.intensity = 100.0f
 
             light

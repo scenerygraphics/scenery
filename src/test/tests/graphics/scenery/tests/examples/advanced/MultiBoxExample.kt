@@ -3,7 +3,7 @@ package graphics.scenery.tests.examples.advanced
 import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.utils.Numerics
+import graphics.scenery.numerics.Random
 import org.junit.Test
 import kotlin.concurrent.thread
 
@@ -50,9 +50,9 @@ class MultiBoxExample : SceneryBase("MultiBoxExample") {
         val lights = (0..10).map {
             PointLight()
         }.map {
-            it.position = Numerics.randomVectorFromRange(3, -600.0f, 600.0f)
+            it.position = Random.randomVectorFromRange(3, -600.0f, 600.0f)
             it.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
-            it.intensity = Numerics.randomFromRange(0.01f, 1000f)
+            it.intensity = Random.randomFromRange(0.01f, 1000f)
             it.linear = 0.1f;
             it.quadratic = 0.1f;
 
