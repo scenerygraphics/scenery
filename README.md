@@ -58,8 +58,13 @@ If a gamepad is connected (such as a PlayStation 3 or 4 controller), the hats ca
 All keybindings are also listed in the [InputHandler class](./src/main/kotlin/graphics/scenery/controls/InputHandler.kt#L198).
 
 ## Selecting a renderer
+On Windows and Linux, scenery defaults to using the high-performance Vulkan renderer, while on macOS, it'll default to the OpenGL renderer.
 
-scenery defaults to using the OpenGL 4.1 renderer, which works on Linux, OS X and Windows. If you want to use the Vulkan renderer, which is supported on Linux and Windows, set the system property `scenery.Renderer=VulkanRenderer`. If you want to use Vulkan validation layers, or select a different graphics card than the primary one, please consult the [VulkanRenderer README](./src/main/kotlin/graphics/scenery/backends/vulkan/README.md).
+If you would like to override this, set the system property `scenery.Renderer` to either `VulkanRenderer` or `OpenGLRenderer`. 
+
+If you want to use Vulkan validation layers, or select a different graphics card than the primary one, please consult the [VulkanRenderer README](./src/main/kotlin/graphics/scenery/backends/vulkan/README.md).
+
+scenery has been tested with MoltenVK on macOS, but there are some major issues remaining before Vulkan can also be used on macOS.
 
 ## Building
 
@@ -72,6 +77,8 @@ git clone https://github.com/scenerygraphics/scenery
 Then, change to the newly created `scenery` directory, and run `mvn clean install` to build and install both packages into your local Maven repository.
 
 Alternatively, scenery's Maven project can be imported into IntelliJ or Eclipse. Please note that Eclipse needs the [Kotlin plugin from JetBrains](https://github.com/JetBrains/kotlin-eclipse) to work correctly.
+
+If you want to compile the provided shader files offline on your own, please make sure you have the [latest Vulkan SDK from LunarG](https://vulkan.lunarg.com) installed. At least version 1.1.70 is required.
 
 ## Using _scenery_ in a project
 
@@ -94,7 +101,7 @@ Add scenery and ClearGL to your project's `pom.xml`:
   <dependency>
     <groupId>net.clearvolume</groupId>
     <artifactId>cleargl</artifactId>
-    <version>2.1.3</version>
+    <version>2.1.4</version>
   </dependency>
 </dependencies>
 ```
@@ -105,7 +112,7 @@ Add scenery and ClearGL to your project's `build.gradle`:
 
 ```groovy
 compile group: 'graphics.scenery', name: 'scenery', version: '0.3.0-SNAPSHOT'
-compile group: 'net.clearvolume', name: 'cleargl', version: '2.1.3'
+compile group: 'net.clearvolume', name: 'cleargl', version: '2.1.4'
 ```
 
 ### Logging
