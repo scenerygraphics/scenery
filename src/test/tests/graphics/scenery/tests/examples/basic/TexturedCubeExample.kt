@@ -23,10 +23,10 @@ class TexturedCubeExample : SceneryBase("TexturedCubeExample") {
             specular = GLVector(1.0f, 1.0f, 1.0f)
             roughness = 0.3f
             metallic = 1.0f
-            //textures.put("diffuse", TexturedCubeExample::class.java.getResource("textures/helix.png").file)
+            textures.put("diffuse", TexturedCubeExample::class.java.getResource("textures/helix.png").file)
         }
 
-        val box = Box(GLVector(0.2f, 0.2f, 0.2f))
+        val box = Box(GLVector(1.0f, 1.0f, 1.0f))
         box.name = "le box du win"
 
         with(box) {
