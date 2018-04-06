@@ -182,8 +182,9 @@ open class SceneryBase(var applicationName: String,
                 currentTime = newTime
                 accumulator += frameTime
 
+                inputHandler?.window?.pollEvents()
+
                 while(accumulator >= timeStep) {
-                    inputHandler?.window?.pollEvents()
                     // evolve state
                     t += timeStep
                     accumulator -= timeStep
