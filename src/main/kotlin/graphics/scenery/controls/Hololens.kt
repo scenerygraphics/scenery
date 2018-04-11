@@ -47,7 +47,8 @@ class Hololens: TrackerInput, Display, Hubable {
     private val zmqContext = ZContext(4)
     private val zmqSocket = zmqContext.createSocket(ZMQ.REQ)
 
-    private var commandBuffers: MutableList<VulkanCommandBuffer?> = mutableListOf()
+    data class CommandBufferWithStatus(val commandBuffer: VulkanCommandBuffer, var current: Boolean = false)
+    private var commandBuffers: MutableList<CommandBufferWithStatus> = mutableListOf()
     private var hololensCommandPool = -1L
     private var d3dImages: List<Pair<VulkanTexture.VulkanImage, Long>?> = emptyList()
     private var currentImageIndex: Int = 0
@@ -380,7 +381,7 @@ class Hololens: TrackerInput, Display, Hubable {
             logger.info("Hololens right projection: $rightProjection")
         }
 
-        if(d3dImages.size == 0) {
+        if(d3dImages.isEmpty()) {
             logger.info("Trying to register shared handles")
             zmqSocket.send("RegPid${SceneryBase.getProcessID()}/3")
             val reply = zmqSocket.recvStr()
@@ -402,29 +403,28 @@ class Hololens: TrackerInput, Display, Hubable {
                         hololensCommandPool)
             }
 
-            commandBuffers = d3dImages.map { VulkanCommandBuffer(device, null, false) }.toMutableList()
+            commandBuffers = d3dImages.map { CommandBufferWithStatus(VulkanCommandBuffer(device, null, false), false) }.toMutableList()
 
             logger.info("Registered ${d3dImages.size} shared handles")
 
-            if(d3dImages.size == 0 || commandBuffers.size == 0) {
+            if(d3dImages.isEmpty() || commandBuffers.size == 0) {
                 logger.error("Did not get any Vulkan render targets back!")
                 return
             }
         }
 
         // return if we can't get a current image
-        val currentImage = d3dImages.get(currentImageIndex) ?: return
-        var currentCommandBuffer = commandBuffers.get(currentImageIndex)
+        val currentImage = d3dImages[currentImageIndex] ?: return
+        var currentCommandBuffer = commandBuffers[currentImageIndex]
 
         // blit into D3D image
-        if(currentCommandBuffer == null) {
-            commandBuffers[currentImageIndex] = VulkanCommandBuffer(device, null, false)
-            currentCommandBuffer = commandBuffers.get(currentImageIndex)
-            currentImageIndex = currentImageIndex++ % d3dImages.size
+        if(!currentCommandBuffer.current) {
+            logger.info("Recording command buffer for image index $currentImageIndex")
+            currentCommandBuffer = commandBuffers[currentImageIndex]
 
-            currentCommandBuffer!!.commandBuffer = with(VU.newCommandBuffer(device, hololensCommandPool, autostart = true)) {
+            currentCommandBuffer.commandBuffer.commandBuffer = with(VU.newCommandBuffer(device, hololensCommandPool, autostart = true)) {
                 MemoryStack.stackPush().use { stack ->
-                    logger.debug("Blitting image of size ${width}x$height")
+                    logger.info("Blitting image of size ${width}x$height")
                     val imageBlit = VkImageBlit.callocStack(1, stack)
                     val type = VK_IMAGE_ASPECT_COLOR_BIT
 
@@ -493,8 +493,9 @@ class Hololens: TrackerInput, Display, Hubable {
                 this
             }
 
-            currentCommandBuffer.commandBuffer?.endCommandBuffer(device, hololensCommandPool, queue,
+            currentCommandBuffer.commandBuffer.commandBuffer?.endCommandBuffer(device, hololensCommandPool, queue,
                 flush = false, dealloc = false, submitInfoPNext = null)
+            currentCommandBuffer.current = true
         }
 
         memoryHandleBuffer.put(0, currentImage.second)
@@ -510,7 +511,8 @@ class Hololens: TrackerInput, Display, Hubable {
             .pReleaseKeys(releaseKeys)
             .pReleaseSyncs(memoryHandleBuffer)
 
-        currentCommandBuffer.commandBuffer?.submit(queue, submitInfoPNext = keyedMutex)
+        currentCommandBuffer.commandBuffer.commandBuffer?.submit(queue, submitInfoPNext = keyedMutex)
+        currentImageIndex = (currentImageIndex+1) % d3dImages.size
     }
 
     /**
