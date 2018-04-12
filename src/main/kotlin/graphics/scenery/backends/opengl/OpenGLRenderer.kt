@@ -469,6 +469,7 @@ class OpenGLRenderer(hub: Hub,
 
             config.rendertargets?.filter { it.key == passConfig.output }?.map { rt ->
                 logger.info("Creating render framebuffer ${rt.key} for pass $passName")
+                // TODO: Take [AttachmentConfig.size] into consideration -- also needs to set image size in shader properties correctly
                 width = (supersamplingFactor * windowWidth).toInt()
                 height = (supersamplingFactor * windowHeight).toInt()
 
