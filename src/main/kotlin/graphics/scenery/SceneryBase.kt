@@ -2,7 +2,6 @@ package graphics.scenery
 
 import cleargl.ClearGLDefaultEventListener
 import cleargl.GLVector
-import com.sun.jna.Native
 import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.opengl.OpenGLRenderer
 import graphics.scenery.controls.InputHandler
@@ -16,6 +15,7 @@ import graphics.scenery.utils.Renderdoc
 import graphics.scenery.utils.Statistics
 import org.scijava.ui.behaviour.ClickBehaviour
 import java.lang.management.ManagementFactory
+import java.util.*
 import kotlin.concurrent.thread
 
 /**
@@ -63,7 +63,7 @@ open class SceneryBase(var applicationName: String,
     var timeStep = 0.01f
 
     private var accumulator = 0.0f
-    private var currentTime = System.nanoTime() * 1.0f
+    private var currentTime = System.nanoTime()
     private var t = 0.0f
 
     /**
@@ -171,17 +171,27 @@ open class SceneryBase(var applicationName: String,
         }
 
         var frameTime = 0.0f
+        var lastFrameTime = 0.0f
+        val frameTimes = ArrayDeque<Float>(16)
+        val frameTimeKeepCount = 16
 
         while (renderer?.shouldClose == false) {
             if(renderer?.managesRenderLoop == false) {
                 hub.getWorkingHMD()?.update()
             }
 
+            if (renderer?.managesRenderLoop != false) {
+                Thread.sleep(2)
+            } else {
+                stats.addTimed("render", { renderer?.render() ?: 0.0f })
+            }
+
             // only run loop if we are either in standalone mode, or master
             // for details about the interpolation code, see
             // https://gafferongames.com/post/fix_your_timestep/
             if(master || masterAddress == null) {
-                val newTime = System.nanoTime() * 1.0f
+                val newTime = System.nanoTime()
+                lastFrameTime = frameTime
                 frameTime = (newTime - currentTime)/1e6f
                 if(frameTime > 250.0f) {
                     frameTime = 250.0f
@@ -202,17 +212,17 @@ open class SceneryBase(var applicationName: String,
 
                 val alpha = accumulator/timeStep
 
-                if(renderer?.managesRenderLoop == false) {
-                    scene.activeObserver?.deltaT = frameTime / 100.0f
-                } else {
-                    scene.activeObserver?.deltaT = (renderer?.lastFrameTime ?: 1.0f) / 100.0f
+                if(frameTimes.size > frameTimeKeepCount) {
+                    frameTimes.removeLast()
                 }
-            }
 
-            if (renderer?.managesRenderLoop != false) {
-                Thread.sleep(2)
-            } else {
-                stats.addTimed("render", { renderer?.render() ?: 0.0f })
+                if(renderer?.managesRenderLoop == false) {
+                    frameTimes.push((alpha * frameTime / 100.0f) + (1.0f - alpha)*(lastFrameTime/100.0f))
+                    scene.activeObserver?.deltaT = frameTimes.average().toFloat()
+                } else {
+                    frameTimes.push((renderer?.lastFrameTime ?: 1.0f) / 100.0f)
+                    scene.activeObserver?.deltaT = frameTimes.average().toFloat()
+                }
             }
 
             if (statsRequested && ticks % 100L == 0L) {
