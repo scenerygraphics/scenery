@@ -1,6 +1,9 @@
 package graphics.scenery.backends.opengl
 
 import cleargl.*
+import com.jogamp.nativewindow.WindowClosingProtocol
+import com.jogamp.newt.event.WindowAdapter
+import com.jogamp.newt.event.WindowEvent
 import com.jogamp.opengl.*
 import com.jogamp.opengl.util.FPSAnimator
 import com.jogamp.opengl.util.awt.AWTGLReadBufferUtil
@@ -348,8 +351,18 @@ class OpenGLRenderer(hub: Hub,
                     window.width = w
                     window.height = h
 
+                    val windowAdapter = object: WindowAdapter() {
+                        override fun windowDestroyNotify(e: WindowEvent?) {
+                            shouldClose = true
+                            cglWindow?.close()
+                        }
+                    }
+
+                    this.addWindowListener(windowAdapter)
+
                     this.setFPS(300)
                     this.start()
+                    this.setDefaultCloseOperation(WindowClosingProtocol.WindowClosingMode.DO_NOTHING_ON_CLOSE)
 
                     this.isVisible = true
                 }
@@ -620,9 +633,7 @@ class OpenGLRenderer(hub: Hub,
     }
 
     override fun dispose(pDrawable: GLAutoDrawable) {
-        pDrawable.animator?.stop()
-
-        this.shouldClose = true
+        cglWindow?.stop()
     }
 
     /**
