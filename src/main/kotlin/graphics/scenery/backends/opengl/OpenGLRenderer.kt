@@ -124,7 +124,7 @@ class OpenGLRenderer(hub: Hub,
     /** heartbeat timer */
     private var heartbeatTimer = Timer()
     override var lastFrameTime = System.nanoTime() * 1.0f
-    private var currentTime = System.nanoTime() * 1.0f
+    private var currentTime = System.nanoTime()
 
     var initialized = false
         private set
@@ -1247,7 +1247,7 @@ class OpenGLRenderer(hub: Hub,
     override fun render() {
         val newTime = System.nanoTime()
         lastFrameTime = (System.nanoTime() - currentTime)/1e6f
-        currentTime = newTime * 1.0f
+        currentTime = newTime
 
         val stats = hub?.get(SceneryElement.Statistics) as? Statistics
         hub?.getWorkingHMD()?.update()
