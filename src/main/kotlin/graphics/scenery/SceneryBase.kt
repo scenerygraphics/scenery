@@ -2,6 +2,7 @@ package graphics.scenery
 
 import cleargl.ClearGLDefaultEventListener
 import cleargl.GLVector
+import com.sun.jna.Native
 import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.opengl.OpenGLRenderer
 import graphics.scenery.controls.InputHandler
@@ -11,6 +12,7 @@ import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.repl.REPL
 import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.Renderdoc
 import graphics.scenery.utils.Statistics
 import org.scijava.ui.behaviour.ClickBehaviour
 import java.lang.management.ManagementFactory
@@ -90,6 +92,12 @@ open class SceneryBase(var applicationName: String,
     open fun main() {
         hub.addApplication(this)
         logger.info("Started application as PID ${getProcessID()}")
+
+        val renderdoc = if(System.getProperty("scenery.AttachRenderdoc")?.toBoolean() == true) {
+            Renderdoc()
+        } else {
+            null
+        }
 
         val master = System.getProperty("scenery.master")?.toBoolean() ?: false
         val masterAddress = System.getProperty("scenery.MasterNode")
@@ -219,6 +227,7 @@ open class SceneryBase(var applicationName: String,
 
         inputHandler?.close()
         renderer?.close()
+        renderdoc?.close()
     }
 
     fun setupCameraModeSwitching(keybinding: String = "C") {
