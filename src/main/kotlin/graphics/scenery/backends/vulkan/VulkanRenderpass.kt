@@ -188,10 +188,10 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                     entry.value
                 }
 
-                val settingsKey = if(entry.key.startsWith("Global")) {
-                    "Renderer.${entry.key.substringAfter("Global.")}"
-                } else {
-                    "Renderer.$name.${entry.key}"
+                val settingsKey = when {
+                    entry.key.startsWith("Global") -> "Renderer.${entry.key.substringAfter("Global.")}"
+                    entry.key.startsWith("Pass") -> "Renderer.$name.${entry.key.substringAfter("Pass.")}"
+                    else -> "Renderer.$name.${entry.key}"
                 }
 
                 if(!entry.key.startsWith("Global")) {

@@ -22,7 +22,7 @@ class OpenGLRenderpass(var passName: String = "", var passConfig: RenderConfigRe
     var UBOs = ConcurrentHashMap<String, OpenGLUBO>()
 
     data class Rect2D(var width: Int = 0, var height: Int = 0, var offsetX: Int = 0, var offsetY: Int = 0)
-    data class Viewport(var area: Rect2D = Rect2D(), var minDepth: Float = 0.0f, var maxDepth: Float = 1.0f)
+    data class Viewport(var area: Rect2D = Rect2D(), var minDepth: Float = -1.0f, var maxDepth: Float = 1.0f)
     data class ClearValue(var clearColor: GLVector = GLVector(0.0f, 0.0f, 0.0f, 1.0f), var clearDepth: Float = 0.0f)
 
     data class OpenGLMetadata(
@@ -50,10 +50,10 @@ class OpenGLRenderpass(var passName: String = "", var passConfig: RenderConfigRe
                     entry.value
                 }
 
-                val settingsKey = if (entry.key.startsWith("Global")) {
-                    "Renderer.${entry.key.substringAfter("Global.")}"
-                } else {
-                    "Renderer.$passName.${entry.key}"
+                val settingsKey = when {
+                    entry.key.startsWith("Global") -> "Renderer.${entry.key.substringAfter("Global.")}"
+                    entry.key.startsWith("Pass") -> "Renderer.$passName.${entry.key.substringAfter("Pass.")}"
+                    else -> "Renderer.$passName.${entry.key}"
                 }
 
                 if (!entry.key.startsWith("Global")) {
