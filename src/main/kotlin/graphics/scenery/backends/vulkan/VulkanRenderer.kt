@@ -1515,7 +1515,8 @@ open class VulkanRenderer(hub: Hub,
         val startPresent = System.nanoTime()
         commandBuffer.submitted = true
         swapchain!!.present(ph.signalSemaphore)
-        commandBuffer.waitForFence()
+        // TODO: Figure out whether this waitForFence call is strictly necessary -- actually, the next renderloop iteration should wait for it.
+        // commandBuffer.waitForFence()
 
         swapchain!!.postPresent(pass.getReadPosition())
 
