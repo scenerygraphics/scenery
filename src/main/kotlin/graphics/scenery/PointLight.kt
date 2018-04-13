@@ -12,7 +12,7 @@ import cleargl.GLVector
  * @constructor Creates a PointLight with default settings, e.g. white emission color.
  */
 class PointLight(radius: Float = 0.5f) : Mesh("PointLight") {
-    private var proxySphere = Sphere(radius, 10)
+    private var proxySphere = Sphere(radius * 1.1f, 10)
     /** The intensity of the point light. Bound to [0.0, 1.0] if using non-HDR rendering. */
     @ShaderProperty var intensity: Float = 0.5f
 
@@ -26,7 +26,7 @@ class PointLight(radius: Float = 0.5f) : Mesh("PointLight") {
             if(value != lightRadius) {
                 logger.info("Resetting light radius")
                 field = value
-                proxySphere = Sphere(value, 10)
+                proxySphere = Sphere(value * 1.1f, 10)
                 this.vertices = proxySphere.vertices
                 this.normals = proxySphere.normals
                 this.texcoords = proxySphere.texcoords
@@ -46,7 +46,12 @@ class PointLight(radius: Float = 0.5f) : Mesh("PointLight") {
 
     @Suppress("unused") // will be serialised into ShaderProperty buffer
     @ShaderProperty val worldPosition
-        get() = this.world.mult(GLVector(position.x(), position.y(), position.z(), 1.0f))
+        get(): GLVector =
+            if(this.parent != null && this.parent !is Scene) {
+                this.world.mult(GLVector(position.x(), position.y(), position.z(), 1.0f))
+            } else {
+                GLVector(position.x(), position.y(), position.z(), 1.0f)
+            }
 
     @Suppress("unused") // will be serialised into ShaderProperty buffer
     @ShaderProperty var debugMode = 0
@@ -66,7 +71,7 @@ class PointLight(radius: Float = 0.5f) : Mesh("PointLight") {
         material.blending.sourceAlphaBlendFactor = Blending.BlendFactor.One
         material.blending.destinationAlphaBlendFactor = Blending.BlendFactor.One
         material.blending.alphaBlending = Blending.BlendOp.add
-        material.cullingMode = Material.CullingMode.None
+        material.cullingMode = Material.CullingMode.Front
         material.depthTest = Material.DepthTest.Greater
     }
 }
