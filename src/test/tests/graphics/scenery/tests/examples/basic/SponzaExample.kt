@@ -5,6 +5,7 @@ import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
 import org.junit.Test
+import org.scijava.ui.behaviour.ClickBehaviour
 import kotlin.concurrent.thread
 
 /**
@@ -14,6 +15,8 @@ import kotlin.concurrent.thread
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class SponzaExample : SceneryBase("SponzaExample", windowWidth = 1280, windowHeight = 720) {
+    private var movingLights = true
+
     override fun init() {
         renderer = Renderer.createRenderer(hub, applicationName,
             scene,
@@ -71,18 +74,21 @@ class SponzaExample : SceneryBase("SponzaExample", windowWidth = 1280, windowHei
         thread {
             var ticks = 0L
             while (true) {
-                lights.mapIndexed { i, light ->
-                    val phi = (Math.PI * 2.0f * ticks / 1000.0f) % (Math.PI * 2.0f)
+                if(movingLights) {
+                    lights.mapIndexed { i, light ->
+                        val phi = (Math.PI * 2.0f * ticks / 1000.0f) % (Math.PI * 2.0f)
 
-                    light.position = GLVector(
-                        light.position.x(),
-                        5.0f * Math.cos(phi + (i * 0.5f)).toFloat() + 5.2f,
-                        light.position.z())
+                        light.position = GLVector(
+                            light.position.x(),
+                            5.0f * Math.cos(phi + (i * 0.5f)).toFloat() + 5.2f,
+                            light.position.z())
 
-                    light.children.forEach { it.needsUpdateWorld = true }
+                        light.children.forEach { it.needsUpdateWorld = true }
+                    }
+
+                    ticks++
                 }
 
-                ticks++
                 Thread.sleep(15)
             }
         }
@@ -90,6 +96,9 @@ class SponzaExample : SceneryBase("SponzaExample", windowWidth = 1280, windowHei
 
     override fun inputSetup() {
         setupCameraModeSwitching(keybinding = "C")
+
+        inputHandler?.addBehaviour("toggle_light_movement", ClickBehaviour { x, y -> movingLights = !movingLights })
+        inputHandler?.addKeyBinding("toggle_light_movement", "T")
     }
 
     @Test override fun main() {
