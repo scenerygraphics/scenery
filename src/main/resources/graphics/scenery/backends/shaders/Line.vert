@@ -33,16 +33,16 @@ struct Light {
 const int MAX_NUM_LIGHTS = 1024;
 
 layout(set = 1, binding = 0) uniform LightParameters {
-    mat4 ViewMatrix;
+    mat4 ViewMatrices[2];
+    mat4 InverseViewMatrices[2];
+    mat4 ProjectionMatrix;
+    mat4 InverseProjectionMatrix;
     vec3 CamPosition;
-    int numLights;
-	Light lights[MAX_NUM_LIGHTS];
 };
 
 layout(set = 2, binding = 0) uniform Matrices {
 	mat4 ModelMatrix;
 	mat4 NormalMatrix;
-	mat4 ProjectionMatrix;
 	int isBillboard;
 } ubo;
 
@@ -65,11 +65,8 @@ void main()
 	mat4 nMVP;
 	mat4 projectionMatrix;
 
-    mat4 headToEye = vrParameters.headShift;
-	headToEye[3][0] -= currentEye.eye * vrParameters.IPD;
-
-    mv = (vrParameters.stereoEnabled ^ 1) * ViewMatrix * ubo.ModelMatrix + (vrParameters.stereoEnabled * headToEye * ViewMatrix * ubo.ModelMatrix);
-	projectionMatrix = (vrParameters.stereoEnabled ^ 1) * ubo.ProjectionMatrix + vrParameters.stereoEnabled * vrParameters.projectionMatrices[currentEye.eye];
+    mv = (vrParameters.stereoEnabled ^ 1) * ViewMatrices[0] * ubo.ModelMatrix + (vrParameters.stereoEnabled * ViewMatrices[currentEye.eye] * ubo.ModelMatrix);
+	projectionMatrix = (vrParameters.stereoEnabled ^ 1) * ProjectionMatrix + vrParameters.stereoEnabled * vrParameters.projectionMatrices[currentEye.eye];
 
 	nMVP = projectionMatrix*mv;
 
@@ -80,7 +77,7 @@ void main()
 	gl_Position = nMVP * vec4(vertexPosition, 1.0);
 	Vertex.Position = gl_Position;
 
-   Vertex.Color = lineColor;
+    Vertex.Color = lineColor;
 
 //   if(gl_VertexID < capLength) {
    if(0 < capLength) {

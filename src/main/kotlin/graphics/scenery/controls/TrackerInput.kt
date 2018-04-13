@@ -3,6 +3,9 @@ package graphics.scenery.controls
 import cleargl.GLMatrix
 import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
+import graphics.scenery.Camera
+import graphics.scenery.Mesh
+import graphics.scenery.Node
 
 /**
  * Generic interface for head-mounted displays (HMDs)
@@ -19,6 +22,7 @@ enum class TrackedDeviceType {
 }
 
 class TrackedDevice(val type: TrackedDeviceType, var name: String, var pose: GLMatrix, var timestamp: Long) {
+    var metadata: Any? = null
     var orientation = Quaternion()
         get(): Quaternion {
 //            val pose = pose.floatArray
@@ -75,6 +79,13 @@ interface TrackerInput {
     fun getPose(): GLMatrix
 
     /**
+     * Returns the HMD pose
+     *
+     * @return HMD pose as GLMatrix
+     */
+    fun getPoseForEye(eye: Int): GLMatrix
+
+    /**
      * Check whether the HMD is initialized and working
      *
      * @return True if HMD is initialiased correctly and working properly
@@ -87,4 +98,8 @@ interface TrackerInput {
     fun update()
 
     fun getWorkingTracker(): TrackerInput?
+
+    fun loadModelForMesh(type: TrackedDeviceType = TrackedDeviceType.Controller, mesh: Mesh): Mesh
+
+    fun attachToNode(type: TrackedDeviceType, index: Int, node: Node, camera: Camera? = null)
 }

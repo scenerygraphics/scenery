@@ -3,7 +3,7 @@ package graphics.scenery.tests.examples.advanced
 import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.utils.Numerics
+import graphics.scenery.numerics.Random
 import org.junit.Test
 import kotlin.math.floor
 
@@ -42,12 +42,12 @@ class PBLExample: SceneryBase("PBLExample", windowWidth = 1280, windowHeight = 7
         val lights = (0 until 8).map {
             val l = PointLight(radius = 20.0f)
             l.position = GLVector(
-                Numerics.randomFromRange(-rowSize/2.0f, rowSize/2.0f),
-                Numerics.randomFromRange(-rowSize/2.0f, rowSize/2.0f),
-                Numerics.randomFromRange(1.0f, 5.0f)
+                Random.randomFromRange(-rowSize/2.0f, rowSize/2.0f),
+                Random.randomFromRange(-rowSize/2.0f, rowSize/2.0f),
+                Random.randomFromRange(1.0f, 5.0f)
             )
-            l.emissionColor = Numerics.randomVectorFromRange(3, 0.8f, 1.0f)
-            l.intensity = Numerics.randomFromRange(10.0f, 75.0f)
+            l.emissionColor = Random.randomVectorFromRange(3, 0.8f, 1.0f)
+            l.intensity = Random.randomFromRange(10.0f, 75.0f)
 
             lightbox.addChild(l)
             l

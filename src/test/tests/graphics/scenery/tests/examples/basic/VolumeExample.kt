@@ -1,4 +1,4 @@
-package graphics.scenery.tests.examples.advanced
+package graphics.scenery.tests.examples.basic
 
 import cleargl.GLVector
 import graphics.scenery.*
@@ -11,7 +11,7 @@ import java.nio.file.Paths
 import kotlin.concurrent.thread
 
 /**
- * <Description>
+ * Standard volume rendering example, with a volume loaded from a file.
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */

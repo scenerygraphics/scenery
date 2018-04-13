@@ -11,6 +11,7 @@ import java.sql.Timestamp
 import java.util.*
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.locks.ReentrantLock
+import kotlin.collections.ArrayList
 import kotlin.properties.Delegates
 import kotlin.reflect.KMutableProperty1
 import kotlin.reflect.KProperty
@@ -31,6 +32,9 @@ import kotlin.reflect.jvm.isAccessible
 open class Node(open var name: String = "Node") : Renderable, Serializable {
     protected val logger by LazyLogger()
 
+    /** Unique ID of the Node */
+    var uuid: UUID = UUID.randomUUID()
+        private set
     /** Hash map used for storing metadata for the Node. [DeferredLightingRenderer] uses
      * it to e.g. store [OpenGLObjectState]. */
     @Transient var metadata: HashMap<String, Any> = HashMap()
@@ -74,7 +78,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
     open var useClassDerivedShader = false
 
     /** Node update routine, called before updateWorld */
-    open var update: (() -> Unit)? = null
+    open var update: ArrayList<() -> Unit> = ArrayList()
 
     /** World transform matrix. Will create inverse [iworld] upon modification. */
     override var world: GLMatrix by Delegates.observable(GLMatrix.getIdentity()) { property, old, new -> propertyChanged(property, old, new) }
@@ -127,6 +131,8 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
     /** Modification timestamp of the node. */
     var modifiedAt: Long = 0
 
+    /** Stores whether the [model] matrix needs an update. */
+    var wantsComposeModel = true
     /** Stores whether the [model] matrix needs an update. */
     var needsUpdate = true
     /** Stores whether the [world] matrix needs an update. */
@@ -225,9 +231,9 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
      * @param[force] Force update irrespective of [needsUpdate] state.
      */
     @Synchronized fun updateWorld(recursive: Boolean, force: Boolean = false) {
-        update?.invoke()
+        update.forEach { it.invoke() }
 
-        if (needsUpdate or force) {
+        if ((needsUpdate or force) && wantsComposeModel) {
             this.composeModel()
 
             needsUpdate = false
@@ -268,27 +274,6 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
             model.scale(this.scale.x(), this.scale.y(), this.scale.z())
         }
     }
-
-    /**
-     * This method composes the Node's [modelView] matrix.
-     */
-    fun composeModelView() {
-        modelView.copyFrom(model)
-        modelView.mult(this.view)
-    }
-
-    /**
-     * This method composes the Node's [mvp] matrix. It runs
-     * [composeModel] and [composeModelView] first.
-     */
-    fun composeMVP() {
-        composeModel()
-        composeModelView()
-
-        mvp.copyFrom(modelView)
-        mvp.mult(projection)
-    }
-
 
     fun generateBoundingBox(): FloatArray {
         if (this is HasGeometry) {

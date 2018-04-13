@@ -5,9 +5,8 @@ import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.PointerBuffer
 import org.lwjgl.system.MemoryStack.stackPush
-import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.*
-import org.lwjgl.system.NativeResource
+import org.lwjgl.system.Pointer
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.EXTDebugReport.VK_ERROR_VALIDATION_FAILED_EXT
 import org.lwjgl.vulkan.KHRDisplaySwapchain.VK_ERROR_INCOMPATIBLE_DISPLAY_KHR
@@ -18,9 +17,9 @@ import org.lwjgl.vulkan.KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
 import org.lwjgl.vulkan.KHRSwapchain.VK_SUBOPTIMAL_KHR
 import org.lwjgl.vulkan.VK10.*
 import org.slf4j.LoggerFactory
+import java.math.BigInteger
 import java.nio.IntBuffer
 import java.nio.LongBuffer
-import java.util.*
 
 /**
  * VU - Vulkan Utils
@@ -34,39 +33,48 @@ fun Long.toHexString(): String {
     return String.format("0x%X", this)
 }
 
+fun BigInteger.toHexString(): String {
+    return "0x${this.toString(16)}"
+}
+
 fun VkCommandBuffer.endCommandBuffer() {
     if(vkEndCommandBuffer(this) != VK_SUCCESS) {
         throw AssertionError("Failed to end command buffer $this")
     }
 }
 
-fun VkCommandBuffer.endCommandBuffer(device: VulkanDevice, commandPool: Long, queue: VkQueue?, flush: Boolean = true, dealloc: Boolean = false) {
+fun VkCommandBuffer.endCommandBuffer(device: VulkanDevice, commandPool: Long, queue: VkQueue?, flush: Boolean = true, dealloc: Boolean = false, submitInfoPNext: Pointer? = null) {
+    if (this.address() == NULL) {
+        return
+    }
+
+    if (vkEndCommandBuffer(this) != VK_SUCCESS) {
+        throw AssertionError("Failed to end command buffer $this")
+    }
+
+    if (flush && queue != null) {
+        this.submit(queue, submitInfoPNext)
+    }
+
+    if (dealloc) {
+        vkFreeCommandBuffers(device.vulkanDevice, commandPool, this)
+    }
+}
+
+fun VkCommandBuffer.submit(queue: VkQueue, submitInfoPNext: Pointer? = null, block: Boolean = true) {
     stackPush().use { stack ->
-        if (this.address() == NULL) {
-            return
-        }
+        val submitInfo = VkSubmitInfo.callocStack(1, stack)
+        val commandBuffers = stack.callocPointer(1).put(0, this)
 
-        if (vkEndCommandBuffer(this) != VK_SUCCESS) {
-            throw AssertionError("Failed to end command buffer $this")
-        }
+        VU.run("endCommandBuffer", {
+            submitInfo
+                .sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
+                .pCommandBuffers(commandBuffers)
+                .pNext(submitInfoPNext?.address() ?: NULL)
 
-        if (flush && queue != null) {
-            val submitInfo = VkSubmitInfo.calloc(1)
-            val commandBuffers = stack.callocPointer(1).put(0, this)
-
-            VU.run("endCommandBuffer", {
-                submitInfo
-                    .sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
-                    .pCommandBuffers(commandBuffers)
-
-                vkQueueSubmit(queue, submitInfo, VK_NULL_HANDLE)
-                vkQueueWaitIdle(queue)
-            }, { submitInfo.free() })
-        }
-
-        if (dealloc) {
-            vkFreeCommandBuffers(device.vulkanDevice, commandPool, this)
-        }
+            vkQueueSubmit(queue, submitInfo, VK_NULL_HANDLE)
+            vkQueueWaitIdle(queue)
+        }, { })
     }
 }
 
@@ -520,7 +528,7 @@ class VU {
 
         fun createRenderTargetDescriptorSet(device: VulkanDevice, descriptorPool: Long, descriptorSetLayout: Long,
                                              rt: Map<String, RenderConfigReader.AttachmentConfig>,
-                                             target: VulkanFramebuffer): Long {
+                                             target: VulkanFramebuffer, onlyFor: String? = null): Long {
 
             return stackPush().use { stack ->
                 val pDescriptorSetLayout = stack.callocLong(1).put(0, descriptorSetLayout)
@@ -534,28 +542,53 @@ class VU {
                 val descriptorSet = getLong("createDescriptorSet",
                     { vkAllocateDescriptorSets(device.vulkanDevice, allocInfo, this) }, {})
 
-                val writeDescriptorSet = VkWriteDescriptorSet.callocStack(rt.size, stack)
+                val descriptorWrites = if(onlyFor == null) {
+                    val writeDescriptorSet = VkWriteDescriptorSet.callocStack(rt.size, stack)
 
-                rt.entries.forEachIndexed { i, entry ->
-                    val attachment = target.attachments[entry.key]!!
-                    val d = VkDescriptorImageInfo.callocStack(1, stack)
+                    rt.entries.forEachIndexed { i, entry ->
+                        val attachment = target.attachments[entry.key]!!
+                        val d = VkDescriptorImageInfo.callocStack(1, stack)
 
-                    d
-                        .imageView(attachment.imageView.get(0))
-                        .sampler(target.framebufferSampler.get(0))
-                        .imageLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+                        d
+                            .imageView(attachment.imageView.get(0))
+                            .sampler(target.framebufferSampler.get(0))
+                            .imageLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
 
-                    writeDescriptorSet[i]
-                        .sType(VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET)
-                        .pNext(NULL)
-                        .dstSet(descriptorSet)
-                        .dstBinding(i)
-                        .dstArrayElement(0)
-                        .pImageInfo(d)
-                        .descriptorType(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+                        writeDescriptorSet[i]
+                            .sType(VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET)
+                            .pNext(NULL)
+                            .dstSet(descriptorSet)
+                            .dstBinding(i)
+                            .dstArrayElement(0)
+                            .pImageInfo(d)
+                            .descriptorType(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+                    }
+                    writeDescriptorSet
+                } else {
+                    val writeDescriptorSet = VkWriteDescriptorSet.callocStack(1, stack)
+
+                    rt.entries.first { it.key == onlyFor }.apply {
+                        val attachment = target.attachments[this.key]!!
+                        val d = VkDescriptorImageInfo.callocStack(1, stack)
+
+                        d
+                            .imageView(attachment.imageView.get(0))
+                            .sampler(target.framebufferSampler.get(0))
+                            .imageLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+
+                        writeDescriptorSet[0]
+                            .sType(VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET)
+                            .pNext(NULL)
+                            .dstSet(descriptorSet)
+                            .dstBinding(0)
+                            .dstArrayElement(0)
+                            .pImageInfo(d)
+                            .descriptorType(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+                    }
+                    writeDescriptorSet
                 }
 
-                vkUpdateDescriptorSets(device.vulkanDevice, writeDescriptorSet, null)
+                vkUpdateDescriptorSets(device.vulkanDevice, descriptorWrites, null)
 
                 logger.debug("Creating framebuffer attachment descriptor $descriptorSet set with ${rt.size} bindings, DSL=$descriptorSetLayout")
                 descriptorSet

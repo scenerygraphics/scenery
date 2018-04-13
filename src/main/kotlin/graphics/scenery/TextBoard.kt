@@ -1,6 +1,7 @@
 package graphics.scenery
 
 import cleargl.GLVector
+import graphics.scenery.fonts.SDFFontAtlas
 
 /**
  * TextBoard is a possibly billboarded display of a string of text,
@@ -17,8 +18,12 @@ class TextBoard(font: String = "SourceSansPro-Regular.ttf", override var isBillb
     /** The text displayed on this font board */
     var text: String = ""
         set(value) {
-            dirty = true
-            field = value
+            if(value != field) {
+                field = value
+                updateBoard(atlas, value)
+
+                dirty = true
+            }
         }
 
     /** The font family of this font board. If reset, this will set the [dirty] flag,
@@ -27,10 +32,15 @@ class TextBoard(font: String = "SourceSansPro-Regular.ttf", override var isBillb
      * If the name contains a dot (e.g. as in "Helvetica.ttf"), scenery will attempt to load
      * the font as a file from the class path.
      */
-    var fontFamily: String = "SourceSansPro-Regular.ttf"
+    var fontFamily: String = font
         set(value) {
-            dirty = true
-            field = value
+            if(value != field) {
+                field = value
+                atlas = updateAtlas(value)
+                updateBoard(atlas, text)
+
+                dirty = true
+            }
         }
 
     /** The [ShaderProperty] storing whether the font board should be renderer transparently. */
@@ -43,6 +53,9 @@ class TextBoard(font: String = "SourceSansPro-Regular.ttf", override var isBillb
      * used only if [transparent] is 0. */
     @ShaderProperty var backgroundColor: GLVector = GLVector(1.0f, 1.0f, 1.0f, 1.0f)
 
+    /** Temporary storage for the current atlas */
+    private var atlas: SDFFontAtlas
+
     init {
         name = "TextBoard"
         fontFamily = font
@@ -54,10 +67,46 @@ class TextBoard(font: String = "SourceSansPro-Regular.ttf", override var isBillb
         material.blending.destinationAlphaBlendFactor = Blending.BlendFactor.Zero
         material.blending.colorBlending = Blending.BlendOp.add
         material.blending.alphaBlending = Blending.BlendOp.add
+        material.cullingMode = Material.CullingMode.None
+
+        atlas = updateAtlas(fontFamily)
+        updateBoard(atlas, text)
+    }
+
+    private fun updateAtlas(newFontFamily: String): SDFFontAtlas {
+        logger.debug("Updating SDF font atlas for {}, new font: {}", name, fontFamily)
+        return sdfCache.getOrPut(newFontFamily,
+            { SDFFontAtlas(Hub.getDefaultHub(), newFontFamily,
+                maxDistance = Hub.getDefaultHub().get<Settings>(SceneryElement.Settings)!!.get("sdf.MaxDistance")) })
+    }
+
+    private fun updateBoard(a: SDFFontAtlas, newText: String) {
+        logger.debug("Updating mesh for text board {} to '{}'...", name, newText)
+        val m = a.createMeshForString(newText)
+
+        vertices = m.vertices
+        normals = m.normals
+        indices = m.indices
+        texcoords = m.texcoords
+        atlasSize = GLVector(atlas.atlasWidth.toFloat(), atlas.atlasHeight.toFloat(), 0.0f, 0.0f)
+
+        material.textures["diffuse"] = "fromBuffer:diffuse"
+        material.transferTextures["diffuse"] = GenericTexture("diffuse",
+            GLVector(atlasSize.x(), atlasSize.y(), 1.0f),
+            channels = 1, contents = atlas.getAtlas(),
+            repeatS = false, repeatT = false,
+            normalized = true,
+            mipmap = false)
+
+        dirty = true
     }
 
     /** Stringify the font board. Returns [fontFamily] used as well as the [text]. */
     override fun toString(): String {
         return "TextBoard ($fontFamily): $text"
+    }
+
+    companion object {
+        val sdfCache = HashMap<String, SDFFontAtlas>()
     }
 }

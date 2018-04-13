@@ -3,14 +3,10 @@ package graphics.scenery.controls
 import cleargl.GLMatrix
 import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
-import graphics.scenery.Hub
-import graphics.scenery.Hubable
-import graphics.scenery.Mesh
+import graphics.scenery.*
 import graphics.scenery.backends.Display
 import graphics.scenery.backends.vulkan.VulkanDevice
-import graphics.scenery.backends.vulkan.toHexString
 import graphics.scenery.utils.LazyLogger
-import org.lwjgl.PointerBuffer
 import org.lwjgl.openvr.*
 import org.lwjgl.openvr.VR.*
 import org.lwjgl.openvr.VRCompositor.*
@@ -19,6 +15,13 @@ import org.lwjgl.openvr.VRSystem.*
 import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
+import org.scijava.ui.behaviour.Behaviour
+import org.scijava.ui.behaviour.BehaviourMap
+import org.scijava.ui.behaviour.InputTriggerMap
+import org.scijava.ui.behaviour.MouseAndKeyHandler
+import org.scijava.ui.behaviour.io.InputTriggerConfig
+import java.awt.Component
+import java.awt.event.KeyEvent
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.nio.LongBuffer
@@ -26,6 +29,7 @@ import java.nio.charset.Charset
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
+import kotlin.math.absoluteValue
 
 /**
  * TrackerInput implementation of OpenVR
@@ -36,6 +40,7 @@ import java.util.concurrent.TimeUnit
  * @constructor Creates a new OpenVR HMD instance, using the compositor if requested
  */
 open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = true) : TrackerInput, Display, Hubable {
+
     /** slf4j logger instance */
     protected val logger by LazyLogger()
     /** The Hub to use for communication */
@@ -86,8 +91,15 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
     @Volatile protected var readyForSubmission: Boolean = false
         private set
 
+    protected val inputHandler = MouseAndKeyHandler()
+    protected val config: InputTriggerConfig = InputTriggerConfig()
+    protected val inputMap = InputTriggerMap()
+    protected val behaviourMap = BehaviourMap()
 
     init {
+        inputHandler.setBehaviourMap(behaviourMap)
+        inputHandler.setInputMap(inputMap)
+
         error.put(0, -1)
 
         try {
@@ -255,12 +267,11 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
         if (eyeTransformCache[eye] == null) {
             val transform = HmdMatrix34.calloc()
             VRSystem_GetEyeToHeadTransform(eye, transform)
-            eyeTransformCache[eye] = transform.toGLMatrix().invert()
+            eyeTransformCache[eye] = transform.toGLMatrix().invert().transpose()
 
             logger.trace("Head-to-eye #$eye: " + eyeTransformCache[eye].toString())
         }
 
-//        logger.info("eye: ${eyeTransformCache[eye]!!}")
         return eyeTransformCache[eye]!!
     }
 
@@ -411,6 +422,26 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
                     TrackedDevice(type, deviceName, GLMatrix.getIdentity(), timestamp = System.nanoTime())
                 })
 
+                if(type == TrackedDeviceType.Controller) {
+                    if(trackedDevices["$type-$device"]!!.metadata !is VRControllerState) {
+                        trackedDevices["$type-$device"]!!.metadata = VRControllerState.calloc()
+                    }
+
+                    val state = trackedDevices["$type-$device"]!!.metadata as VRControllerState
+                    VRSystem_GetControllerState(device, state)
+
+                    when {
+                        (state.rAxis(0).x() > 0.8f && state.rAxis(0).y().absoluteValue < 0.5f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) -> OpenVRButton.Right.toKeyEvent()
+                        (state.rAxis(0).x() < -0.8f && state.rAxis(0).y().absoluteValue < 0.5f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) -> OpenVRButton.Left.toKeyEvent()
+                        (state.rAxis(0).y() > 0.8f && state.rAxis(0).x().absoluteValue < 0.5f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) -> OpenVRButton.Up.toKeyEvent()
+                        (state.rAxis(0).y() < -0.8f && state.rAxis(0).x().absoluteValue < 0.5f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) -> OpenVRButton.Down.toKeyEvent()
+                        else -> null
+                    }?.let { event ->
+                        inputHandler.keyPressed(event)
+                        inputHandler.keyReleased(event)
+                    }
+                }
+
                 val pose = hmdTrackedDevicePoses.get(device).mDeviceToAbsoluteTracking()
 
                 trackedDevices["$type-$device"]!!.pose = pose.toGLMatrix()
@@ -422,7 +453,55 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
             }
         }
 
+        val event = VREvent.calloc()
+        while(VRSystem_PollNextEvent(event)) {
+            if(event.eventType() == EVREventType_VREvent_ButtonUnpress) {
+                val button = event.data().controller().button()
+
+                OpenVRButton.values().find { it.internalId == button }?.let {
+                    inputHandler.keyPressed(it.toKeyEvent())
+                }
+
+                logger.debug("Button $button pressed")
+            }
+
+            if(event.eventType() == EVREventType_VREvent_MouseMove) {
+                val x = event.data().mouse().x()
+                val y = event.data().mouse().y()
+                val down = event.data().mouse().button()
+
+                logger.debug("Touchpad moved $x $y, down=$down")
+            }
+        }
+        event.free()
+
         readyForSubmission = true
+    }
+
+    enum class OpenVRButton(val internalId: Int) {
+        Left(EVRButtonId_k_EButton_DPad_Left),
+        Right(EVRButtonId_k_EButton_DPad_Right),
+        Up(EVRButtonId_k_EButton_DPad_Up),
+        Down(EVRButtonId_k_EButton_DPad_Down),
+        Menu(EVRButtonId_k_EButton_ApplicationMenu),
+        Side(EVRButtonId_k_EButton_Grip)
+    }
+
+    data class AWTKey(val code: Int, val char: Char)
+
+    private fun OpenVRButton.toKeyEvent(): KeyEvent {
+        return KeyEvent(object: Component() {}, KeyEvent.KEY_PRESSED, 1, 0, this.toAWTKeyCode().code, this.toAWTKeyCode().char)
+    }
+
+    private fun OpenVRButton.toAWTKeyCode(): AWTKey {
+        return when(this) {
+            OpenVRHMD.OpenVRButton.Left -> AWTKey(KeyEvent.VK_A, KeyEvent.CHAR_UNDEFINED)
+            OpenVRHMD.OpenVRButton.Right -> AWTKey(KeyEvent.VK_D, KeyEvent.CHAR_UNDEFINED)
+            OpenVRHMD.OpenVRButton.Up -> AWTKey(KeyEvent.VK_W, KeyEvent.CHAR_UNDEFINED)
+            OpenVRHMD.OpenVRButton.Down -> AWTKey(KeyEvent.VK_S, KeyEvent.CHAR_UNDEFINED)
+            OpenVRHMD.OpenVRButton.Menu -> AWTKey(KeyEvent.VK_M, 'M')
+            OpenVRHMD.OpenVRButton.Side -> AWTKey(KeyEvent.VK_S, 'S')
+        }
     }
 
     /**
@@ -601,6 +680,13 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
         return this.trackedDevices.values.firstOrNull { it.type == TrackedDeviceType.HMD }?.pose ?: GLMatrix.getIdentity()
     }
 
+    override fun getPoseForEye(eye: Int): GLMatrix {
+        val p = this.getPose()
+        p.mult(getHeadToEyeTransform(eye))
+
+        return p
+    }
+
     /**
      * Returns the HMD pose
      *
@@ -608,7 +694,7 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
      * @return HMD pose as GLMatrix
      */
     fun getPose(type: TrackedDeviceType): List<TrackedDevice> {
-        return this.trackedDevices.values.filter { it.type == type }.toList()
+        return this.trackedDevices.values.filter { it.type == type }
     }
 
     /**
@@ -640,25 +726,113 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
         return GLMatrix(m)
     }
 
-    fun loadModelForMesh(modelName: String, node: Mesh) {
-        val pathBuffer = memAlloc(1024)
-        val pathArray = ByteArray(pathBuffer.capacity())
-        val error = memAllocInt(1)
+    override fun loadModelForMesh(type: TrackedDeviceType, mesh: Mesh): Mesh {
+        val modelName = when(type) {
+            TrackedDeviceType.HMD -> "generic_hmd"
+            TrackedDeviceType.Controller -> "vr_controller_vive_1_5"
+            TrackedDeviceType.BaseStation -> "lh_basestation_vive"
+            TrackedDeviceType.Generic -> "generic_tracker"
 
-        VRRenderModels_GetRenderModelOriginalPath(modelName, pathBuffer, error)
-        pathBuffer.get(pathArray)
-        val path = String(pathArray, Charset.defaultCharset())
-
-        logger.info("Loading model for $modelName from $path")
-
-        val modelPath = path.replace('\\', '/')
-
-        node.name = modelPath.substringAfterLast('/')
-
-        when {
-            modelPath.toLowerCase().endsWith("stl") -> node.readFromSTL(modelPath)
-            modelPath.toLowerCase().endsWith("obj") -> node.readFromOBJ(modelPath, true)
-            else -> logger.warn("Unknown model format: $modelPath for $modelName")
+            else -> {
+                logger.warn("No model available for $type")
+                return mesh
+            }
         }
+
+        stackPush().use { stack ->
+            val pathBuffer = stack.calloc(1024)
+            val error = stack.callocInt(1)
+
+            val l = VRRenderModels_GetRenderModelOriginalPath(modelName, pathBuffer, error)
+            val pathArray = ByteArray(l-1)
+            pathBuffer.get(pathArray, 0, l-1)
+            val path = String(pathArray, Charset.forName("UTF-8"))
+
+            logger.info("Loading model for $modelName from $path")
+
+            val modelPath = path.replace('\\', '/')
+
+            mesh.name = modelPath.substringAfterLast('/')
+
+            when {
+                mesh.name.toLowerCase().endsWith("stl") -> mesh.readFromSTL(modelPath)
+                mesh.name.toLowerCase().endsWith("obj") -> mesh.readFromOBJ(modelPath, true)
+                else -> logger.warn("Unknown model format: $modelPath for $modelName")
+            }
+
+            return mesh
+        }
+    }
+
+    override fun attachToNode(type: TrackedDeviceType, index: Int, node: Node, camera: Camera?) {
+        if(type != TrackedDeviceType.Controller) {
+            logger.warn("No idea how to attach device type $type to a node, sorry.")
+            return
+        }
+
+        logger.info("Adding child $node to $camera")
+        camera?.addChild(node)
+
+        node.update.add {
+            this.getPose(TrackedDeviceType.Controller).getOrNull(index)?.let { controller ->
+
+                node.wantsComposeModel = false
+                node.model.setIdentity()
+                node.model.mult(controller.pose.invert())
+
+//                logger.info("Updating pose of $controller, ${node.model}")
+
+                node.needsUpdate = false
+                node.needsUpdateWorld = true
+            }
+        }
+    }
+
+    /**
+     * Adds a behaviour to the map of behaviours, making them available for key bindings
+     *
+     * @param[behaviourName] The name of the behaviour
+     * @param[behaviour] The behaviour to add.
+     */
+    fun addBehaviour(behaviourName: String, behaviour: Behaviour) {
+        behaviourMap.put(behaviourName, behaviour)
+    }
+
+    /**
+     * Removes a behaviour from the map of behaviours.
+     *
+     * @param[behaviourName] The name of the behaviour to remove.
+     */
+    fun removeBehaviour(behaviourName: String) {
+        behaviourMap.remove(behaviourName)
+    }
+
+    /**
+     * Adds a key binding for a given behaviour
+     *
+     * @param[behaviourName] The behaviour to add a key binding for
+     * @param[keys] Which keys should trigger this behaviour?
+     */
+    fun addKeyBinding(behaviourName: String, keys: String) {
+        config.inputTriggerAdder(inputMap, "all").put(behaviourName, keys)
+    }
+
+    /**
+     * Removes a key binding for a given behaviour
+     *
+     * @param[behaviourName] The behaviour to remove the key binding for.
+     */
+    @Suppress("unused")
+    fun removeKeyBinding(behaviourName: String) {
+        config.inputTriggerAdder(inputMap, "all").put(behaviourName)
+    }
+
+    /**
+     * Returns the behaviour with the given name, if it exists. Otherwise null is returned.
+     *
+     * @param[behaviourName] The name of the behaviour
+     */
+    fun getBehaviour(behaviourName: String): Behaviour? {
+        return behaviourMap.get(behaviourName)
     }
 }

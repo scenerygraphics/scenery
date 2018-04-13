@@ -4,7 +4,7 @@ import cleargl.GLMatrix
 import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.utils.Numerics
+import graphics.scenery.numerics.Random
 import org.junit.Test
 import org.scijava.ui.behaviour.ClickBehaviour
 import kotlin.concurrent.thread
@@ -48,9 +48,9 @@ class ArcballExample : SceneryBase("ArcballExample") {
         val lights = (0..2).map {
             PointLight()
         }.map { light ->
-            light.position = Numerics.randomVectorFromRange(3, -5.0f, 5.0f)
+            light.position = Random.randomVectorFromRange(3, -5.0f, 5.0f)
             light.emissionColor = GLVector(1.0f, 0.0f, 1.0f)
-            light.intensity = Numerics.randomFromRange(50.0f, 150.0f)
+            light.intensity = Random.randomFromRange(50.0f, 150.0f)
             light
         }
 

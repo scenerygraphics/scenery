@@ -2,14 +2,11 @@ package graphics.scenery.tests.examples.basic
 
 import cleargl.GLVector
 import graphics.scenery.*
-import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.Renderer
-import graphics.scenery.controls.OpenVRHMD
-import graphics.scenery.controls.TrackedStereoGlasses
-import graphics.scenery.utils.Numerics
+import graphics.scenery.numerics.Random
 import org.junit.Test
+import org.scijava.ui.behaviour.ClickBehaviour
 import kotlin.concurrent.thread
-import kotlin.math.floor
 
 /**
  * Demo loading the Sponza Model, demonstrating multiple moving lights
@@ -18,18 +15,16 @@ import kotlin.math.floor
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class SponzaExample : SceneryBase("SponzaExample", windowWidth = 1280, windowHeight = 720) {
-    private var hmd: OpenVRHMD? = null//OpenVRHMD(false, true)
+    private var movingLights = true
 
     override fun init() {
-//        hub.add(SceneryElement.HMDInput, hmd!!)
-
         renderer = Renderer.createRenderer(hub, applicationName,
             scene,
             windowWidth,
             windowHeight)
         hub.add(SceneryElement.Renderer, renderer!!)
 
-        val cam: Camera = DetachedHeadCamera(hmd)
+        val cam: Camera = DetachedHeadCamera()
         with(cam) {
             cam.position = GLVector(0.0f, 1.0f, 0.0f)
             cam.perspectiveCamera(50.0f, windowWidth.toFloat(), windowHeight.toFloat())
@@ -37,32 +32,20 @@ class SponzaExample : SceneryBase("SponzaExample", windowWidth = 1280, windowHei
             scene.addChild(this)
         }
 
-        val transparentBox = Box(GLVector(2.0f, 2.0f, 2.0f))
-        with(transparentBox) {
-            position = GLVector(1.5f, 1.0f, -4.0f)
-            material.blending.transparent = true
-            material.blending.opacity = 0.8f
-            material.blending.colorBlending = Blending.BlendOp.add
-            material.blending.alphaBlending = Blending.BlendOp.add
-            material.diffuse = GLVector(0.9f, 0.1f, 0.1f)
-            name = "transparent box"
-            scene.addChild(this)
-        }
-
         val lights = (0 until 128).map {
             Box(GLVector(0.1f, 0.1f, 0.1f))
         }.map {
             it.position = GLVector(
-                Numerics.randomFromRange(-6.0f, 6.0f),
-                Numerics.randomFromRange(0.1f, 1.2f),
-                Numerics.randomFromRange(-10.0f, 10.0f)
+                Random.randomFromRange(-6.0f, 6.0f),
+                Random.randomFromRange(0.1f, 1.2f),
+                Random.randomFromRange(-10.0f, 10.0f)
             )
 
-            it.material.diffuse = Numerics.randomVectorFromRange(3, 0.1f, 0.9f)
+            it.material.diffuse = Random.randomVectorFromRange(3, 0.1f, 0.9f)
 
-            val light = PointLight(radius = Numerics.randomFromRange(0.5f, 5.0f))
+            val light = PointLight(radius = Random.randomFromRange(0.5f, 5.0f))
             light.emissionColor = it.material.diffuse
-            light.intensity = Numerics.randomFromRange(1.0f, 2.0f)
+            light.intensity = Random.randomFromRange(1.0f, 2.0f)
 
             it.addChild(light)
 
@@ -80,21 +63,32 @@ class SponzaExample : SceneryBase("SponzaExample", windowWidth = 1280, windowHei
             scene.addChild(this)
         }
 
+        val desc = TextBoard(font = "RobotoSlabLight.ttf")
+        desc.text = "sponza"
+        desc.position = GLVector(-2.0f, -0.1f, -4.0f)
+        desc.fontColor = GLVector(0.0f, 0.0f, 0.0f)
+        desc.backgroundColor = GLVector(0.1f, 0.1f, 0.1f)
+        desc.transparent = 0
+        scene.addChild(desc)
+
         thread {
             var ticks = 0L
             while (true) {
-                lights.mapIndexed { i, light ->
-                    val phi = (Math.PI * 2.0f * ticks / 1000.0f) % (Math.PI * 2.0f)
+                if(movingLights) {
+                    lights.mapIndexed { i, light ->
+                        val phi = (Math.PI * 2.0f * ticks / 1000.0f) % (Math.PI * 2.0f)
 
-                    light.position = GLVector(
-                        light.position.x(),
-                        5.0f * Math.cos(phi + (i * 0.5f)).toFloat() + 5.2f,
-                        light.position.z())
+                        light.position = GLVector(
+                            light.position.x(),
+                            5.0f * Math.cos(phi + (i * 0.5f)).toFloat() + 5.2f,
+                            light.position.z())
 
-                    light.children.forEach { it.needsUpdateWorld = true }
+                        light.children.forEach { it.needsUpdateWorld = true }
+                    }
+
+                    ticks++
                 }
 
-                ticks++
                 Thread.sleep(15)
             }
         }
@@ -102,6 +96,9 @@ class SponzaExample : SceneryBase("SponzaExample", windowWidth = 1280, windowHei
 
     override fun inputSetup() {
         setupCameraModeSwitching(keybinding = "C")
+
+        inputHandler?.addBehaviour("toggle_light_movement", ClickBehaviour { x, y -> movingLights = !movingLights })
+        inputHandler?.addKeyBinding("toggle_light_movement", "T")
     }
 
     @Test override fun main() {

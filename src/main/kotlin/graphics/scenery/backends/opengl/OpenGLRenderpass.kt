@@ -50,10 +50,10 @@ class OpenGLRenderpass(var passName: String = "", var passConfig: RenderConfigRe
                     entry.value
                 }
 
-                val settingsKey = if (entry.key.startsWith("Global")) {
-                    "Renderer.${entry.key.substringAfter("Global.")}"
-                } else {
-                    "Renderer.$passName.${entry.key}"
+                val settingsKey = when {
+                    entry.key.startsWith("Global") -> "Renderer.${entry.key.substringAfter("Global.")}"
+                    entry.key.startsWith("Pass") -> "Renderer.$passName.${entry.key.substringAfter("Pass.")}"
+                    else -> "Renderer.$passName.${entry.key}"
                 }
 
                 if (!entry.key.startsWith("Global")) {

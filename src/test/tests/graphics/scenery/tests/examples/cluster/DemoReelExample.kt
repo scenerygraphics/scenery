@@ -72,7 +72,7 @@ class DemoReelExample: SceneryBase("Demo Reel") {
 
         tetrahedron.mapIndexed { i, position ->
             lights[i].position = position * 50.0f
-            lights[i].emissionColor = GLVector(1.0f, 0.5f,0.3f) //Numerics.randomVectorFromRange(3, 0.2f, 0.8f)
+            lights[i].emissionColor = GLVector(1.0f, 0.5f,0.3f) //Random.randomVectorFromRange(3, 0.2f, 0.8f)
             lights[i].intensity = 200.2f
             lights[i].linear = 0.0f
             lights[i].quadratic = 0.7f
