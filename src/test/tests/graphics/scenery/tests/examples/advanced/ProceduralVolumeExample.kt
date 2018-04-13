@@ -81,7 +81,7 @@ class ProceduralVolumeExample: SceneryBase("Volume Rendering example", 1280, 720
 
                 shift = shift + shiftDelta
 
-                Thread.sleep(20)
+                Thread.sleep(200)
             }
         }
 
