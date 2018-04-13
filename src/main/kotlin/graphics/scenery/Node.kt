@@ -32,6 +32,9 @@ import kotlin.reflect.jvm.isAccessible
 open class Node(open var name: String = "Node") : Renderable, Serializable {
     protected val logger by LazyLogger()
 
+    /** Unique ID of the Node */
+    var uuid: UUID = UUID.randomUUID()
+        private set
     /** Hash map used for storing metadata for the Node. [DeferredLightingRenderer] uses
      * it to e.g. store [OpenGLObjectState]. */
     @Transient var metadata: HashMap<String, Any> = HashMap()
