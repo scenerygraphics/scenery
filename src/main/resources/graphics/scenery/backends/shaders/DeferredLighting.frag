@@ -251,7 +251,7 @@ void main()
         float roughness = MaterialParams.r * PI /2.0;
 
         float LdotV = max(dot(L, V), 0.0);
-        float NdotL = abs(dot(L, N));
+        float NdotL = max(dot(L, N), 0.0);
         float NdotV = max(dot(N, V), 0.0);
 
 //        float s = LdotV - NdotL * NdotV;
