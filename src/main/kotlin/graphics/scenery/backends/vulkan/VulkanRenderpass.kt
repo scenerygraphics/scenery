@@ -251,8 +251,8 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
 
     fun getShaderPropertyOrder(node: Node): Map<String, Int> {
         // this creates a shader property UBO for items marked @ShaderProperty in node
-        logger.debug("specs: ${this.pipelines["preferred-${node.name}"]!!.descriptorSpecs}")
-        val shaderPropertiesSpec = this.pipelines["preferred-${node.name}"]!!.descriptorSpecs.filter { it.key == "ShaderProperties" }.map { it.value.members }
+        logger.debug("specs: ${this.pipelines["preferred-${node.uuid}"]!!.descriptorSpecs}")
+        val shaderPropertiesSpec = this.pipelines["preferred-${node.uuid}"]!!.descriptorSpecs.filter { it.key == "ShaderProperties" }.map { it.value.members }
 
         if(shaderPropertiesSpec.count() == 0) {
             logger.debug("Warning: Shader file uses no declared shader properties, despite the class declaring them.")
@@ -419,7 +419,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
     fun getReadPosition() = commandBufferBacking.currentReadPosition - 1
 
     fun getActivePipeline(forNode: Node): VulkanPipeline {
-        return pipelines.getOrDefault("preferred-${forNode.name}", getDefaultPipeline())
+        return pipelines.getOrDefault("preferred-${forNode.uuid}", getDefaultPipeline())
     }
 
     fun getDefaultPipeline(): VulkanPipeline {
