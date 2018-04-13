@@ -816,7 +816,7 @@ open class VulkanRenderer(hub: Hub,
 
                     logger.debug("Shaders are: ${shaders.joinToString(", ")}")
 
-                    pass.value.initializePipeline("preferred-${node.name}",
+                    pass.value.initializePipeline("preferred-${node.uuid}",
                         shaders.map { VulkanShaderModule.getFromCacheOrCreate(device, "main", node.javaClass, "shaders/" + it) },
 
                         settings = { pipeline ->
