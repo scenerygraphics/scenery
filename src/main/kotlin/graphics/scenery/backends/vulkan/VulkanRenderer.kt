@@ -1707,7 +1707,6 @@ open class VulkanRenderer(hub: Hub,
         var waitSemaphore = semaphores[StandardSemaphores.PresentComplete]!![0]
 
         flow.take(flow.size - 1).forEachIndexed { i, t ->
-            val start = System.nanoTime()
             logger.trace("Running pass {}", t)
             val target = renderpasses[t]!!
             val commandBuffer = target.commandBuffer
@@ -1723,11 +1722,15 @@ open class VulkanRenderer(hub: Hub,
                 stats?.add("Renderer.$t.gpuTiming", timing[1] - timing[0])
             }
 
+            val start = System.nanoTime()
+
             when (target.passConfig.type) {
                 RenderConfigReader.RenderpassType.geometry -> recordSceneRenderCommands(device, target, commandBuffer, sceneObjects, { it !is PointLight })
                 RenderConfigReader.RenderpassType.lights -> recordSceneRenderCommands(device, target, commandBuffer, sceneObjects, { it is PointLight })
                 RenderConfigReader.RenderpassType.quad -> recordPostprocessRenderCommands(device, target, commandBuffer)
             }
+
+            stats?.add("VulkanRenderer.$t.recordCmdBuffer", System.nanoTime() - start)
 
             target.updateShaderParameters()
 
@@ -1750,7 +1753,6 @@ open class VulkanRenderer(hub: Hub,
             firstWaitSemaphore.put(0, target.semaphore)
             waitSemaphore = target.semaphore
 
-            stats?.add("VulkanRenderer.$t.recordCmdBuffer", System.nanoTime() - start)
         }
 
         si.free()
@@ -1759,16 +1761,25 @@ open class VulkanRenderer(hub: Hub,
         val viewportCommandBuffer = viewportPass.commandBuffer
         logger.trace("Running viewport pass {}", renderpasses.keys.last())
 
+        val start = System.nanoTime()
+
         when (viewportPass.passConfig.type) {
             RenderConfigReader.RenderpassType.geometry -> recordSceneRenderCommands(device, viewportPass, viewportCommandBuffer, sceneObjects, { it !is PointLight })
             RenderConfigReader.RenderpassType.lights -> recordSceneRenderCommands(device, viewportPass, viewportCommandBuffer, sceneObjects, { it is PointLight })
             RenderConfigReader.RenderpassType.quad -> recordPostprocessRenderCommands(device, viewportPass, viewportCommandBuffer)
         }
 
+        stats?.add("VulkanRenderer.${viewportPass.name}.recordCmdBuffer", System.nanoTime() - start)
+
         if(viewportCommandBuffer.submitted) {
             viewportCommandBuffer.waitForFence()
             viewportCommandBuffer.submitted = false
             viewportCommandBuffer.resetFence()
+
+            val timing = intArrayOf(0,0)
+            VU.run("getting query pool results", { vkGetQueryPoolResults(device.vulkanDevice, timestampQueryPool, 2*(flow.size-1), 2, timing, 0, VK_FLAGS_NONE)})
+
+            stats?.add("Renderer.${viewportPass.name}.gpuTiming", timing[1] - timing[0])
         }
 
         viewportPass.updateShaderParameters()
