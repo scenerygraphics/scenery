@@ -2,6 +2,7 @@ package graphics.scenery.utils
 
 import graphics.scenery.Hub
 import graphics.scenery.Hubable
+import kotlinx.coroutines.experimental.async
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedDeque
@@ -42,17 +43,19 @@ class Statistics(override var hub: Hub?) : Hubable {
     protected var stats = ConcurrentHashMap<String, StatisticData>()
 
     fun add(name: String, value: Float, isTime: Boolean = true) {
-        if (stats.containsKey(name)) {
-            if (stats.get(name)!!.data.size >= dataSize) {
-                stats.get(name)!!.data.pop()
+        async {
+            if (stats.containsKey(name)) {
+                if (stats.get(name)!!.data.size >= dataSize) {
+                    stats.get(name)!!.data.removeLast()
+                }
+
+                stats.get(name)!!.data.push(value)
+            } else {
+                val d = StatisticData(isTime)
+                d.data.push(value)
+
+                stats.put(name, d)
             }
-
-            stats.get(name)!!.data.add(value)
-        } else {
-            val d = StatisticData(isTime)
-            d.data.add(value)
-
-            stats.put(name, d)
         }
     }
 
