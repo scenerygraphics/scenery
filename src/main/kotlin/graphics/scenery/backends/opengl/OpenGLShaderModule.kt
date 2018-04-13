@@ -107,7 +107,9 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, clazz: Class<*>, shad
             messages = messages or EShMessages.EShMsgVulkanRules
             messages = messages or EShMessages.EShMsgSpvRules
 
-            val shaderCode = arrayOf(codeResource.readText())
+            val code = codeResource.readText()
+            val extensionEnd = code.indexOf("\n", code.findLastAnyOf(listOf("#extension", "#versions"))?.first ?: 0)
+            val shaderCode = arrayOf(code.substring(0, extensionEnd) + "\n#define OPENGL\n" + code.substring(extensionEnd))
             shader.setStrings(shaderCode, shaderCode.size)
             shader.setAutoMapBindings(true)
 

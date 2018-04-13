@@ -68,8 +68,8 @@ void main()
     Vertex.TexCoord = vertexTexCoord;
 
     vec4 pos = mv*vec4(vertexPosition, 1.0);
-    float near = 0.05;
-    pos.z = min(pos.z, -near - 0.0001);
+//    float near = 0.05;
+//    pos.z = min(pos.z, -near - 0.0001);
 
 	gl_Position = projectionMatrix * pos;
 }
