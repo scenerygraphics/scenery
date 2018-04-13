@@ -1,12 +1,14 @@
 package graphics.scenery.backends.opengl
 
 import cleargl.*
+import com.jogamp.nativewindow.WindowClosingProtocol
+import com.jogamp.newt.event.WindowAdapter
+import com.jogamp.newt.event.WindowEvent
 import com.jogamp.opengl.*
 import com.jogamp.opengl.util.FPSAnimator
 import com.jogamp.opengl.util.awt.AWTGLReadBufferUtil
 import graphics.scenery.*
 import graphics.scenery.backends.*
-import graphics.scenery.fonts.SDFFontAtlas
 import graphics.scenery.spirvcrossj.Loader
 import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.utils.*
@@ -59,7 +61,7 @@ class OpenGLRenderer(hub: Hub,
                      width: Int,
                      height: Int,
                      override var embedIn: SceneryPanel? = null,
-                     renderConfigFile: String = System.getProperty("scenery.Renderer.Config", "DeferredShading.yml")) : Renderer(), Hubable, ClearGLEventListener {
+                     renderConfigFile: String) : Renderer(), Hubable, ClearGLEventListener {
     /** slf4j logger */
     private val logger by LazyLogger()
     /** [GL4] instance handed over, coming from [ClearGLDefaultEventListener]*/
@@ -80,9 +82,6 @@ class OpenGLRenderer(hub: Hub,
 
     /** Cache of [Node]s, needed e.g. for fullscreen quad rendering */
     private var nodeStore = ConcurrentHashMap<String, Node>()
-
-    /** Cache for [SDFFontAtlas]es used for font rendering */
-    private var fontAtlas = HashMap<String, SDFFontAtlas>()
 
     /** [Settings] for the renderer */
     override var settings: Settings = Settings()
@@ -124,6 +123,8 @@ class OpenGLRenderer(hub: Hub,
 
     /** heartbeat timer */
     private var heartbeatTimer = Timer()
+    override var lastFrameTime = System.nanoTime() * 1.0f
+    private var currentTime = System.nanoTime()
 
     var initialized = false
         private set
@@ -350,8 +351,18 @@ class OpenGLRenderer(hub: Hub,
                     window.width = w
                     window.height = h
 
+                    val windowAdapter = object: WindowAdapter() {
+                        override fun windowDestroyNotify(e: WindowEvent?) {
+                            shouldClose = true
+                            cglWindow?.close()
+                        }
+                    }
+
+                    this.addWindowListener(windowAdapter)
+
                     this.setFPS(300)
                     this.start()
+                    this.setDefaultCloseOperation(WindowClosingProtocol.WindowClosingMode.DO_NOTHING_ON_CLOSE)
 
                     this.isVisible = true
                 }
@@ -458,6 +469,7 @@ class OpenGLRenderer(hub: Hub,
 
             config.rendertargets?.filter { it.key == passConfig.output }?.map { rt ->
                 logger.info("Creating render framebuffer ${rt.key} for pass $passName")
+                // TODO: Take [AttachmentConfig.size] into consideration -- also needs to set image size in shader properties correctly
                 width = (supersamplingFactor * windowWidth).toInt()
                 height = (supersamplingFactor * windowHeight).toInt()
 
@@ -569,8 +581,13 @@ class OpenGLRenderer(hub: Hub,
                     val m = OpenGLShaderModule.getFromCacheOrCreate(gl, "main", Renderer::class.java, "shaders/" + it)
                     modules.put(m.shaderType, m)
                 } else {
-                    logger.warn("Shader not found: shaders/$it")
-                    return null
+                    if(Renderer::class.java.getResource("shaders/" + it.substringBeforeLast(".spv")) != null && baseClass !is Renderer) {
+                        val m = OpenGLShaderModule.getFromCacheOrCreate(gl, "main", Renderer::class.java, "shaders/" + it)
+                        modules.put(m.shaderType, m)
+                    } else {
+                        logger.warn("Shader not found: shaders/$it")
+                        return null
+                    }
                 }
             }
         }
@@ -622,9 +639,7 @@ class OpenGLRenderer(hub: Hub,
     }
 
     override fun dispose(pDrawable: GLAutoDrawable) {
-        pDrawable.animator?.stop()
-
-        this.shouldClose = true
+        cglWindow?.stop()
     }
 
     /**
@@ -909,8 +924,10 @@ class OpenGLRenderer(hub: Hub,
 //        val lights = sceneObjects.filter { it is PointLight }
 
         val lightUbo = OpenGLUBO(backingBuffer = buffers["LightParameters"]!!)
-        lightUbo.add("ViewMatrix", { cam.view })
-        lightUbo.add("InverseViewMatrix", { cam.view.inverse })
+        lightUbo.add("ViewMatrix0", { cam.getTransformationForEye(0) })
+        lightUbo.add("ViewMatrix1", { cam.getTransformationForEye(1) })
+        lightUbo.add("InverseViewMatrix0", { cam.getTransformationForEye(0).inverse })
+        lightUbo.add("InverseViewMatrix1", { cam.getTransformationForEye(1).inverse })
         lightUbo.add("ProjectionMatrix", { cam.projection })
         lightUbo.add("InverseProjectionMatrix", { cam.projection.inverse })
         lightUbo.add("CamPosition", { cam.position })
@@ -935,45 +952,6 @@ class OpenGLRenderer(hub: Hub,
         buffers["ShaderPropertyBuffer"]!!.copyFromStagingBuffer()
     }
 
-    /**
-     * Updates a [TextBoard], in case it's fontFamily or contents have changed.
-     *
-     * If a SDFFontAtlas has already been created for the given fontFamily, this will be used, and
-     * cached as well. Else, a new one will be created.
-     *
-     * @param[board] The [TextBoard] instance.
-     */
-    private fun updateTextBoard(board: TextBoard) {
-        val atlas = fontAtlas.getOrPut(board.fontFamily, { SDFFontAtlas(this.hub!!, board.fontFamily, maxDistance = settings.get<Int>("sdf.MaxDistance")) })
-        val m = atlas.createMeshForString(board.text)
-
-        board.vertices = m.vertices
-        board.normals = m.normals
-        board.indices = m.indices
-        board.texcoords = m.texcoords
-
-        board.metadata.remove("OpenGLRenderer")
-        board.metadata.put("OpenGLRenderer", OpenGLObjectState())
-        board.atlasSize = GLVector(atlas.atlasWidth.toFloat(), atlas.atlasHeight.toFloat(), 0.0f, 0.0f)
-        initializeNode(board)
-
-        val s = getOpenGLObjectStateFromNode(board)
-        val texture = textureCache.getOrPut("sdf-${board.fontFamily}", {
-            val t = GLTexture(gl, GLTypeEnum.UnsignedByte, 1,
-                atlas.atlasWidth,
-                atlas.atlasHeight,
-                1,
-                true,
-                1)
-
-            t.setClamp(false, false)
-            t.copyFrom(atlas.getAtlas(),
-                0,
-                true)
-            t
-        })
-        s.textures.put("diffuse", texture)
-    }
 
     /**
      * Update a [Node]'s geometry, if needed and run it's preDraw() routine.
@@ -984,10 +962,6 @@ class OpenGLRenderer(hub: Hub,
         if (n is HasGeometry) {
             if (n.dirty) {
                 if (n.lock.tryLock()) {
-                    if (n is TextBoard) {
-                        updateTextBoard(n)
-                    }
-
                     if (n.vertices.remaining() > 0 && n.normals.remaining() > 0) {
                         updateVertices(n)
                         updateNormals(n)
@@ -1276,6 +1250,10 @@ class OpenGLRenderer(hub: Hub,
      *    compositor.
      */
     override fun render() {
+        val newTime = System.nanoTime()
+        lastFrameTime = (System.nanoTime() - currentTime)/1e6f
+        currentTime = newTime
+
         val stats = hub?.get(SceneryElement.Statistics) as? Statistics
         hub?.getWorkingHMD()?.update()
 
@@ -1988,32 +1966,6 @@ class OpenGLRenderer(hub: Hub,
     }
 
     /**
-     * Parallel forEach implementation for HashMaps.
-     *
-     * @param[maxThreads] Maximum number of parallel threads
-     * @param[action] Lambda containing the action to be executed for each key, value pair.
-     */
-    @Suppress("unused")
-    fun <K, V> HashMap<K, V>.forEachParallel(maxThreads: Int = 5, action: ((K, V) -> Unit)) {
-        val iterator = this.asSequence().iterator()
-        var threadCount = 0
-
-        while (iterator.hasNext()) {
-            val current = iterator.next()
-
-            thread {
-                threadCount++
-                while (threadCount > maxThreads) {
-                    Thread.sleep(50)
-                }
-
-                action.invoke(current.key, current.value)
-                threadCount--
-            }
-        }
-    }
-
-    /**
      * Initializes a default set of textures that the renderer can fall back to and provide a non-intrusive
      * hint to the user that a texture could not be loaded.
      */
@@ -2065,7 +2017,7 @@ class OpenGLRenderer(hub: Hub,
                                 dimensions.x().toInt(),
                                 dimensions.y().toInt(),
                                 dimensions.z().toInt() ?: 1,
-                                dimensions.z().toInt() == 1,
+                                true,
                                 miplevels)
 
                             if (generateMipmaps) {
@@ -2381,10 +2333,13 @@ class OpenGLRenderer(hub: Hub,
         gl.glBindVertexArray(s.mVertexArrayObject[0])
         gl.glBindBuffer(GL4.GL_ELEMENT_ARRAY_BUFFER, s.mIndexBuffer[0])
 
-        gl.glBufferSubData(GL4.GL_ELEMENT_ARRAY_BUFFER,
-            0,
+        gl.glBufferData(GL4.GL_ELEMENT_ARRAY_BUFFER,
             (pIndexBuffer.remaining() * (Integer.SIZE / java.lang.Byte.SIZE)).toLong(),
-            pIndexBuffer)
+            pIndexBuffer,
+            if (s.isDynamic)
+                GL4.GL_DYNAMIC_DRAW
+            else
+                GL4.GL_DYNAMIC_DRAW)
 
         gl.glBindVertexArray(0)
         gl.glBindBuffer(GL4.GL_ELEMENT_ARRAY_BUFFER, 0)

@@ -1,5 +1,6 @@
 #version 450 core
 #extension GL_ARB_separate_shader_objects: enable
+#extension GL_EXT_control_flow_attributes : enable
 
 // DSSDO method adapted from DSSDO RenderMonkey example, https://github.com/kayru/dssdo
 // MIT License, Copyright (c) 2011 Yuriy O'Donnell
@@ -9,8 +10,7 @@
 #define PI 3.14159265359
 
 layout(set = 3, binding = 0) uniform sampler2D InputNormalsMaterial;
-layout(set = 3, binding = 1) uniform sampler2D InputDiffuseAlbedo;
-layout(set = 3, binding = 2) uniform sampler2D InputZBuffer;
+layout(set = 4, binding = 0) uniform sampler2D InputZBuffer;
 
 layout(location = 0) out vec4 FragColor;
 layout(location = 0) in vec2 textureCoord;
@@ -24,8 +24,8 @@ layout(set = 0, binding = 0) uniform VRParameters {
 } vrParameters;
 
 layout(set = 1, binding = 0) uniform LightParameters {
-    mat4 ViewMatrix;
-    mat4 InverseViewMatrix;
+    mat4 ViewMatrices[2];
+    mat4 InverseViewMatrices[2];
     mat4 ProjectionMatrix;
     mat4 InverseProjectionMatrix;
     vec3 CamPosition;
@@ -40,23 +40,20 @@ layout(set = 2, binding = 0, std140) uniform ShaderParameters {
 	int displayHeight;
 	float ssaoRadius;
 	int ssaoSamples;
-    float IntensityScale;
-    float Epsilon;
-    float BiasDistance;
-    float Contrast;
+    float maxDistance;
 };
 
 vec3 worldFromDepth(float depth, vec2 texcoord) {
     vec2 uv = (vrParameters.stereoEnabled ^ 1) * texcoord + vrParameters.stereoEnabled * vec2((texcoord.x - 0.5 * currentEye.eye) * 2.0, texcoord.y);
 
-    mat4 invHeadToEye = vrParameters.headShift;
-    invHeadToEye[3][0] -= currentEye.eye * vrParameters.IPD;
-    invHeadToEye = inverse(invHeadToEye);
-
 	mat4 invProjection = (vrParameters.stereoEnabled ^ 1) * InverseProjectionMatrix + vrParameters.stereoEnabled * vrParameters.inverseProjectionMatrices[currentEye.eye];
-	mat4 invView = (vrParameters.stereoEnabled ^ 1) * InverseViewMatrix + vrParameters.stereoEnabled * (InverseViewMatrix * invHeadToEye);
+	mat4 invView = (vrParameters.stereoEnabled ^ 1) * InverseViewMatrices[0] + vrParameters.stereoEnabled * (InverseViewMatrices[currentEye.eye]);
 
+#ifndef OPENGL
     vec4 clipSpacePosition = vec4(uv * 2.0 - 1.0, depth, 1.0);
+#else
+    vec4 clipSpacePosition = vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
+#endif
     vec4 viewSpacePosition = invProjection * clipSpacePosition;
 
     viewSpacePosition /= viewSpacePosition.w;
@@ -73,27 +70,6 @@ float noise1D(float x) {
     float f = fract(x);
     float u = f * f * (3.0 - 2.0 * f);
     return mix(hash(i), hash(i + 1.0), u);
-}
-
-float noise2D(vec2 x) {
-    vec2 i = floor(x);
-    vec2 f = fract(x);
-
-	// Four corners in 2D of a tile
-	float a = hash(i);
-    float b = hash(i + vec2(1.0, 0.0));
-    float c = hash(i + vec2(0.0, 1.0));
-    float d = hash(i + vec2(1.0, 1.0));
-
-    // Simple 2D lerp using smoothstep envelope between the values.
-	// return vec3(mix(mix(a, b, smoothstep(0.0, 1.0, f.x)),
-	//			mix(c, d, smoothstep(0.0, 1.0, f.x)),
-	//			smoothstep(0.0, 1.0, f.y)));
-
-	// Same code, with the clamps in smoothstep and common subexpressions
-	// optimized away.
-    vec2 u = f * f * (3.0 - 2.0 * f);
-	return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
 }
 
 vec2 OctWrap( vec2 v )
@@ -157,8 +133,12 @@ const vec3 points[] =
 const int numSamples = 32;
 
 void main() {
+    if(ssaoSamples == 0) {
+        FragColor = vec4(0.0);
+        return;
+    }
+
     vec2 textureCoord = gl_FragCoord.xy/vec2(displayWidth, displayHeight);
-    ivec2 ssC = ivec2(gl_FragCoord.xy);
 
 	vec3 N = DecodeOctaH(texture(InputNormalsMaterial, textureCoord).rg);
 	float Depth = texture(InputZBuffer, textureCoord).r;
@@ -168,11 +148,12 @@ void main() {
 
     float dist = distance(FragPos, CamPosition);
     float radius = ssaoRadius / dist;
+    float maxInvDistance = 1.0f / maxDistance;
 
     float attenuationAngleThreshold = 0.1;
 
-    float key = 3 * ssC.x ^ ssC.y + ssC.x * ssC.y;
-    vec3 noise = clamp(vec3(noise1D(key), noise1D(key), noise1D(key)), 0.0, 1.0);
+    float key = 3 * (int(gl_FragCoord.x) ^ int(gl_FragCoord.y)) + gl_FragCoord.x * gl_FragCoord.y;
+    vec3 noise = vec3(noise1D(key), noise1D(key/2.0), noise1D(key/3.0));
 
     const float fudge_factor_l0 = 2.0;
     const float fudge_factor_l1 = 10.0;
@@ -182,24 +163,22 @@ void main() {
 
     const vec4 sh2_weight = vec4(sh2_weight_l1, sh2_weight_l0)/ssaoSamples;
 
-    if(ssaoSamples > 0) {
-        for (int i = 0; i < ssaoSamples; ++i) {
-            vec2 offset = reflect(points[i].xy, noise.xy).xy * radius;
-            vec2 texcoord = textureCoord + offset;
+    [[unroll]] for (int i = 0; i < ssaoSamples; ++i) {
+        vec2 offset = reflect(points[i].xy, noise.xy).xy * radius;
+        vec2 texcoord = textureCoord + offset;
 
-            vec3 pos = worldFromDepth(texture(InputZBuffer, texcoord).r, texcoord);
-            vec3 center_to_pos = pos - FragPos;
+        vec3 pos = worldFromDepth(texture(InputZBuffer, texcoord).r, texcoord);
+        vec3 center_to_pos = pos - FragPos;
 
-            float dist = length(center_to_pos);
-            vec3 center_to_pos_normalized = center_to_pos/dist;
+        float dist = length(center_to_pos);
+        vec3 center_to_pos_normalized = center_to_pos/dist;
 
-            float attenuation = 1 - clamp(dist * 1.0/(4*ssaoRadius), 0.0, 1.0);
-            float dp = dot(N, center_to_pos_normalized);
+        float attenuation = 1 - clamp(dist * maxInvDistance, 0.0, 1.0);
+        float dp = dot(N, center_to_pos_normalized);
 
-            attenuation = attenuation * attenuation * step(attenuationAngleThreshold, dp);
+        attenuation = attenuation * attenuation * step(attenuationAngleThreshold, dp);
 
-            occlusion += attenuation * sh2_weight * vec4(center_to_pos_normalized, 1.0);
-        }
+        occlusion += attenuation * sh2_weight * vec4(center_to_pos_normalized, 1.0);
     }
 
     FragColor = occlusion;

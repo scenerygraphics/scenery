@@ -5,7 +5,7 @@ import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedDeviceType
-import graphics.scenery.utils.Numerics
+import graphics.scenery.numerics.Random
 import org.junit.Test
 
 /**
@@ -45,33 +45,20 @@ class VRControllerExample : SceneryBase(VRControllerExample::class.java.simpleNa
             obj
         }
 
-        val controllers = (0..1).map { Mesh() }
-        controllers.forEachIndexed { i, controller ->
-            controller.name = "default"
+        val controllers = (0..1).map {
+            val c = Mesh()
+            c.name = "default"
+            hmd!!.loadModelForMesh(TrackedDeviceType.Controller, c)
+            hmd!!.attachToNode(TrackedDeviceType.Controller, it, c, cam)
 
-            controller.update = {
-                hmd!!.getPose(TrackedDeviceType.Controller).getOrNull(i)?.let {
-                    if (controller.name == "default") {
-                        hmd!!.loadModelForMesh(it.name, controller)
-                    }
-
-                    controller.model.setIdentity()
-                    controller.model.translate(cam.position)
-                    controller.model.mult(it.pose)
-                    controller.needsUpdate = false
-                    controller.needsUpdateWorld = true
-                }
-            }
-
-            scene.addChild(controller)
+            c
         }
 
         (0..10).map {
-            val light = PointLight()
-            light.emissionColor = Numerics.randomVectorFromRange(3, 0.0f, 1.0f)
-            light.position = Numerics.randomVectorFromRange(3, -5.0f, 5.0f)
+            val light = PointLight(radius = 10.0f)
+            light.emissionColor = Random.randomVectorFromRange(3, 0.0f, 1.0f)
+            light.position = Random.randomVectorFromRange(3, -5.0f, 5.0f)
             light.intensity = 100.0f
-            light.quadratic = 0.001f
 
             light
         }.forEach { scene.addChild(it) }

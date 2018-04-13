@@ -3,8 +3,7 @@ package graphics.scenery.controls
 import cleargl.GLMatrix
 import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
-import graphics.scenery.Hub
-import graphics.scenery.Hubable
+import graphics.scenery.*
 import graphics.scenery.backends.Display
 import graphics.scenery.backends.vulkan.VulkanDevice
 import graphics.scenery.utils.LazyLogger
@@ -18,6 +17,7 @@ import org.lwjgl.vulkan.VkQueue
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class TrackedStereoGlasses(var address: String = "device@localhost:5500", var screenConfig: String = "CAVEExample.yml") : Display, TrackerInput, Hubable {
+
     private val logger by LazyLogger()
     override var hub: Hub? = null
 
@@ -186,6 +186,18 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
     }
 
     /**
+     * Returns the HMD pose per eye
+     *
+     * @return HMD pose as GLMatrix
+     */
+    override fun getPoseForEye(eye: Int): GLMatrix {
+        val p = this.getPose()
+        p.mult(getHeadToEyeTransform(eye))
+
+        return p
+    }
+
+    /**
      * Check whether the HMD is initialized and working
      *
      * @return True if HMD is initialised correctly and working properly
@@ -240,5 +252,13 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
         }
 
         return shift
+    }
+
+    override fun loadModelForMesh(type: TrackedDeviceType, mesh: Mesh): Mesh {
+        TODO("not implemented")
+    }
+
+    override fun attachToNode(type: TrackedDeviceType, index: Int, node: Node, camera: Camera?) {
+        TODO("not implemented")
     }
 }

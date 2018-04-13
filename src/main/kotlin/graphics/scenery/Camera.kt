@@ -97,6 +97,13 @@ open class Camera : Node("Camera") {
         return r * tr
     }
 
+    open fun getTransformationForEye(eye: Int): GLMatrix {
+        val tr = GLMatrix.getTranslation(this.position * (-1.0f)).transpose()
+        val r = GLMatrix.fromQuaternion(this.rotation)
+
+        return r * tr
+    }
+
     infix operator fun GLMatrix.times(rhs: GLMatrix): GLMatrix {
         val m = this.clone()
         m.mult(rhs)

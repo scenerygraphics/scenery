@@ -1,10 +1,8 @@
 #version 450 core
 #extension GL_ARB_separate_shader_objects: enable
+#extension GL_EXT_control_flow_attributes : enable
 
-layout(set = 5, binding = 0) uniform sampler2D InputNormalsMaterial;
-layout(set = 5, binding = 1) uniform sampler2D InputDiffuseAlbedo;
-layout(set = 5, binding = 2) uniform sampler2D InputZBuffer;
-layout(set = 6, binding = 0) uniform sampler2D InputColor;
+layout(set = 5, binding = 0) uniform sampler2D InputZBuffer;
 
 layout(location = 0) in VertexData {
     vec2 textureCoord;
@@ -37,8 +35,8 @@ layout(set = 0, binding = 0) uniform VRParameters {
 } vrParameters;
 
 layout(set = 1, binding = 0) uniform LightParameters {
-    mat4 ViewMatrix;
-    mat4 InverseViewMatrix;
+    mat4 ViewMatrices[2];
+    mat4 InverseViewMatrices[2];
     mat4 ProjectionMatrix;
     mat4 InverseProjectionMatrix;
     vec3 CamPosition;
@@ -125,14 +123,14 @@ vec3 posFromDepth(vec2 textureCoord) {
 vec3 viewFromDepth(float depth, vec2 texcoord) {
     vec2 uv = (vrParameters.stereoEnabled ^ 1) * texcoord + vrParameters.stereoEnabled * vec2((texcoord.x - 0.5 * currentEye.eye) * 2.0, texcoord.y);
 
-    mat4 invHeadToEye = vrParameters.headShift;
-    invHeadToEye[3][0] -= currentEye.eye * vrParameters.IPD;
-    invHeadToEye = inverse(invHeadToEye);
-
 	mat4 invProjection = (vrParameters.stereoEnabled ^ 1) * InverseProjectionMatrix + vrParameters.stereoEnabled * vrParameters.inverseProjectionMatrices[currentEye.eye];
-	mat4 invView = (vrParameters.stereoEnabled ^ 1) * InverseViewMatrix + vrParameters.stereoEnabled * (InverseViewMatrix * invHeadToEye);
+	mat4 invView = (vrParameters.stereoEnabled ^ 1) * InverseViewMatrices[0] + vrParameters.stereoEnabled * InverseViewMatrices[currentEye.eye];
 
+#ifndef OPENGL
     vec4 clipSpacePosition = vec4(uv * 2.0 - 1.0, depth, 1.0);
+#else
+    vec4 clipSpacePosition = vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
+#endif
     vec4 viewSpacePosition = invProjection * clipSpacePosition;
 
     viewSpacePosition /= viewSpacePosition.w;
@@ -142,12 +140,8 @@ vec3 viewFromDepth(float depth, vec2 texcoord) {
 vec3 worldFromDepth(float depth, vec2 texcoord) {
     vec2 uv = (vrParameters.stereoEnabled ^ 1) * texcoord + vrParameters.stereoEnabled * vec2((texcoord.x - 0.5 * currentEye.eye) * 2.0, texcoord.y);
 
-    mat4 invHeadToEye = vrParameters.headShift;
-    invHeadToEye[3][0] -= currentEye.eye * vrParameters.IPD;
-    invHeadToEye = inverse(invHeadToEye);
-
 	mat4 invProjection = (vrParameters.stereoEnabled ^ 1) * InverseProjectionMatrix + vrParameters.stereoEnabled * vrParameters.inverseProjectionMatrices[currentEye.eye];
-	mat4 invView = (vrParameters.stereoEnabled ^ 1) * InverseViewMatrix + vrParameters.stereoEnabled * (InverseViewMatrix * invHeadToEye);
+	mat4 invView = (vrParameters.stereoEnabled ^ 1) * InverseViewMatrices[0] + vrParameters.stereoEnabled * InverseViewMatrices[currentEye.eye];
 
     vec4 clipSpacePosition = vec4(uv * 2.0 - 1.0, depth, 1.0);
     vec4 viewSpacePosition = invProjection * clipSpacePosition;
@@ -238,7 +232,7 @@ void main()
     if (alpha_blending <= 0.f){
       gl_FragDepth = 0.0;
       // nop alpha blending
-      for(int i = 0; i < maxsteps; ++i, pos += vecstep) {
+      [[unroll]] for(int i = 0; i < maxsteps; ++i, pos += vecstep) {
         float volume_sample = texture(VolumeTextures, pos.xyz).r;
         maxp = max(maxp,volume_sample);
       }

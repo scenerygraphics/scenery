@@ -4,6 +4,10 @@ import cleargl.GLTypeEnum
 import cleargl.GLVector
 import coremem.enums.NativeTypeEnum
 import graphics.scenery.*
+import graphics.scenery.numerics.OpenSimplexNoise
+import graphics.scenery.numerics.Random
+import graphics.scenery.utils.forEachAsync
+import graphics.scenery.utils.forEachParallel
 import io.scif.SCIFIO
 import io.scif.util.FormatTools
 import org.lwjgl.system.MemoryUtil.memAlloc
@@ -15,6 +19,8 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.concurrent.thread
+import kotlin.math.abs
+import kotlin.math.sqrt
 import kotlin.streams.toList
 
 
@@ -465,7 +471,7 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
             1, descriptor.dataType.toGLType(), descriptor.data, false, false, normalized = false)
 
 //        if (this.lock.tryLock()) {
-            logger.info("Adding texture")
+            logger.debug("$name: Assigning volume texture")
             this.material.transferTextures.put("volume", gtv)?.let {
                 if (replace) {
 //                    memFree(it.contents)
@@ -495,6 +501,43 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
                 throw AssertionError(e)
             }
 
+        }
+
+        fun generateProceduralVolume(size: Long, radius: Float = 0.0f,
+                                     seed: Long = Random.randomFromRange(0.0f, 133333337.0f).toLong(),
+                                     shift: GLVector = GLVector.getNullVector(3),
+                                     intoBuffer: ByteBuffer? = null): ByteBuffer {
+            val byteSize = (size*size*size).toInt()
+            val f = 3.0f / size
+            val center = size / 2.0f + 0.5f
+            val noise = OpenSimplexNoise(seed)
+
+            val buffer = intoBuffer ?: memAlloc(byteSize)
+
+            (0 until byteSize).chunked(byteSize/4).forEachParallel { subList ->
+                subList.forEach {
+                    val x = it.rem(size)
+                    val y = (it / size).rem(size)
+                    val z = it / (size * size)
+
+                    val dx = center - x
+                    val dy = center - y
+                    val dz = center - z
+
+                    val offset = abs(noise.random3D((x + shift.x()) * f, (y + shift.y()) * f, (z + shift.z()) * f))
+                    val d = sqrt(dx * dx + dy * dy + dz * dz) / size
+
+                    val result = if(radius > Math.ulp(1.0f)) {
+                        if(d - offset < radius) { ((d-offset)*255).toByte() } else { 0.toByte() }
+                    } else {
+                        ((d - offset) * 255).toByte()
+                    }
+
+                    buffer.put(it, result)
+                }
+            }
+
+            return buffer
         }
     }
 }

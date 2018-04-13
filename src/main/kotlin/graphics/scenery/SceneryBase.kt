@@ -11,9 +11,11 @@ import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.repl.REPL
 import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.Renderdoc
 import graphics.scenery.utils.Statistics
 import org.scijava.ui.behaviour.ClickBehaviour
 import java.lang.management.ManagementFactory
+import java.util.*
 import kotlin.concurrent.thread
 
 /**
@@ -61,7 +63,7 @@ open class SceneryBase(var applicationName: String,
     var timeStep = 0.01f
 
     private var accumulator = 0.0f
-    private var currentTime = millisecondTime()
+    private var currentTime = System.nanoTime()
     private var t = 0.0f
 
     /**
@@ -90,6 +92,12 @@ open class SceneryBase(var applicationName: String,
     open fun main() {
         hub.addApplication(this)
         logger.info("Started application as PID ${getProcessID()}")
+
+        val renderdoc = if(System.getProperty("scenery.AttachRenderdoc")?.toBoolean() == true) {
+            Renderdoc()
+        } else {
+            null
+        }
 
         val master = System.getProperty("scenery.master")?.toBoolean() ?: false
         val masterAddress = System.getProperty("scenery.MasterNode")
@@ -163,24 +171,36 @@ open class SceneryBase(var applicationName: String,
         }
 
         var frameTime = 0.0f
+        var lastFrameTime = 0.0f
+        val frameTimes = ArrayDeque<Float>(16)
+        val frameTimeKeepCount = 16
 
         while (renderer?.shouldClose == false) {
             if(renderer?.managesRenderLoop == false) {
                 hub.getWorkingHMD()?.update()
             }
 
+            if (renderer?.managesRenderLoop != false) {
+                Thread.sleep(2)
+            } else {
+                stats.addTimed("render", { renderer?.render() ?: 0.0f })
+            }
+
             // only run loop if we are either in standalone mode, or master
             // for details about the interpolation code, see
             // https://gafferongames.com/post/fix_your_timestep/
             if(master || masterAddress == null) {
-                val newTime = millisecondTime()
-                frameTime = newTime - currentTime
+                val newTime = System.nanoTime()
+                lastFrameTime = frameTime
+                frameTime = (newTime - currentTime)/1e6f
                 if(frameTime > 250.0f) {
                     frameTime = 250.0f
                 }
 
                 currentTime = newTime
                 accumulator += frameTime
+
+                inputHandler?.window?.pollEvents()
 
                 while(accumulator >= timeStep) {
                     // evolve state
@@ -190,17 +210,19 @@ open class SceneryBase(var applicationName: String,
                     stats.addTimed("Scene.Update", updateFunction)
                 }
 
-                inputHandler?.window?.pollEvents()
-
                 val alpha = accumulator/timeStep
 
-                scene.activeObserver?.deltaT = alpha
-            }
+                if(frameTimes.size > frameTimeKeepCount) {
+                    frameTimes.removeLast()
+                }
 
-            if (renderer?.managesRenderLoop != false) {
-                Thread.sleep(2)
-            } else {
-                stats.addTimed("render", { renderer?.render() ?: 0.0f })
+                if(renderer?.managesRenderLoop == false) {
+                    frameTimes.push((alpha * frameTime / 100.0f) + (1.0f - alpha)*(lastFrameTime/100.0f))
+                    scene.activeObserver?.deltaT = frameTimes.average().toFloat()
+                } else {
+                    frameTimes.push((renderer?.lastFrameTime ?: 1.0f) / 100.0f)
+                    scene.activeObserver?.deltaT = frameTimes.average().toFloat()
+                }
             }
 
             if (statsRequested && ticks % 100L == 0L) {
@@ -215,6 +237,7 @@ open class SceneryBase(var applicationName: String,
 
         inputHandler?.close()
         renderer?.close()
+        renderdoc?.close()
     }
 
     fun setupCameraModeSwitching(keybinding: String = "C") {
@@ -250,30 +273,32 @@ open class SceneryBase(var applicationName: String,
         inputHandler.addKeyBinding("toggle_control_mode", keybinding)
     }
 
-    protected fun millisecondTime(): Float = System.nanoTime() / 10e6f
-
-    protected fun getDemoFilesPath(): String {
-        val demoDir = System.getenv("SCENERY_DEMO_FILES")
-
-        if (demoDir == null) {
-            logger.warn("This example needs additional model files, see https://github.com/scenerygraphics/scenery#examples")
-            logger.warn("Download the model files mentioned there and set the environment variable SCENERY_DEMO_FILES to the")
-            logger.warn("directory where you have put these files.")
-
-            return ""
-        } else {
-            return demoDir
-        }
-    }
-
-    protected fun getProcessID(): Int {
-        return Integer.parseInt(ManagementFactory.getRuntimeMXBean().name.split("@".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()[0])
-    }
-
     /**
      * Sets the shouldClose flag on renderer, causing it to shut down and thereby ending the main loop.
      */
     fun close() {
         renderer?.shouldClose = true
+    }
+
+    companion object {
+        val logger by LazyLogger()
+
+        fun getProcessID(): Int {
+            return Integer.parseInt(ManagementFactory.getRuntimeMXBean().name.split("@".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()[0])
+        }
+
+        fun getDemoFilesPath(): String {
+            val demoDir = System.getenv("SCENERY_DEMO_FILES")
+
+            return if (demoDir == null) {
+                logger.warn("This example needs additional model files, see https://github.com/scenerygraphics/scenery#examples")
+                logger.warn("Download the model files mentioned there and set the environment variable SCENERY_DEMO_FILES to the")
+                logger.warn("directory where you have put these files.")
+
+                ""
+            } else {
+                demoDir
+            }
+        }
     }
 }

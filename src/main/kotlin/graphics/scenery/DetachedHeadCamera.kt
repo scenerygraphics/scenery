@@ -53,6 +53,14 @@ class DetachedHeadCamera(@Transient var tracker: TrackerInput? = null) : Camera(
         return tracker?.getWorkingTracker()?.getPose()?.times(tr) ?: GLMatrix.fromQuaternion(rotation) * tr
     }
 
+    override fun getTransformationForEye(eye: Int): GLMatrix {
+        val tr = GLMatrix.getTranslation(this.position * (-1.0f)).transpose()
+//        val r = GLMatrix.fromQuaternion(this.rotation)
+//        val hr = GLMatrix.fromQuaternion(this.headOrientation)
+
+        return tracker?.getWorkingTracker()?.getPoseForEye(eye)?.times(tr) ?: GLMatrix.fromQuaternion(rotation) * tr
+    }
+
     override fun getTransformation(preRotation: Quaternion): GLMatrix {
         val tr = GLMatrix.getTranslation(this.position * (-1.0f) + this.headPosition).transpose()
         val r = GLMatrix.fromQuaternion(preRotation.mult(this.rotation))

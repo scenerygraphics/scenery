@@ -36,8 +36,8 @@ layout(set = 0, binding = 0) uniform VRParameters {
 } vrParameters;
 
 layout(set = 1, binding = 0) uniform LightParameters {
-    mat4 ViewMatrix;
-    mat4 InverseViewMatrix;
+    mat4 ViewMatrices[2];
+    mat4 InverseViewMatrices[2];
     mat4 ProjectionMatrix;
     mat4 InverseProjectionMatrix;
     vec3 CamPosition;
@@ -135,14 +135,14 @@ vec3 DecodeOctaH( vec2 encN )
 vec3 worldFromDepth(float depth, vec2 texcoord) {
     vec2 uv = (vrParameters.stereoEnabled ^ 1) * texcoord + vrParameters.stereoEnabled * vec2((texcoord.x - 0.5 * currentEye.eye) * 2.0, texcoord.y);
 
-    mat4 invHeadToEye = vrParameters.headShift;
-    invHeadToEye[3][0] -= currentEye.eye * vrParameters.IPD;
-    invHeadToEye = inverse(invHeadToEye);
-
 	mat4 invProjection = (vrParameters.stereoEnabled ^ 1) * InverseProjectionMatrix + vrParameters.stereoEnabled * vrParameters.inverseProjectionMatrices[currentEye.eye];
-	mat4 invView = (vrParameters.stereoEnabled ^ 1) * InverseViewMatrix + vrParameters.stereoEnabled * (InverseViewMatrix * invHeadToEye);
+	mat4 invView = (vrParameters.stereoEnabled ^ 1) * InverseViewMatrices[0] + vrParameters.stereoEnabled * (InverseViewMatrices[currentEye.eye] );
 
+#ifndef OPENGL
     vec4 clipSpacePosition = vec4(uv * 2.0 - 1.0, depth, 1.0);
+#else
+    vec4 clipSpacePosition = vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
+#endif
     vec4 viewSpacePosition = invProjection * clipSpacePosition;
 
     viewSpacePosition /= viewSpacePosition.w;
@@ -217,7 +217,7 @@ void main()
     float lightAttenuation = pow(clamp(1.0 - pow(distance/lightRadius, 4.0), 0.0, 1.0), 2.0) / (distance * distance + 1.0);
 
 	if(debugLights == 1) {
-        FragColor = vec4(Albedo.rgb, 1.0);
+        FragColor = vec4(distance, distance, distance, 1.0);
         return;
 	}
 
@@ -251,7 +251,7 @@ void main()
         float roughness = MaterialParams.r * PI /2.0;
 
         float LdotV = max(dot(L, V), 0.0);
-        float NdotL = abs(dot(L, N));
+        float NdotL = max(dot(L, N), 0.0);
         float NdotV = max(dot(N, V), 0.0);
 
 //        float s = LdotV - NdotL * NdotV;
@@ -267,7 +267,7 @@ void main()
 //        float L1 = NdotL * (A + B * s / t) / PI;
         float L1 = NdotL / PI * (A + B * m * ab.x * ab.y);
 
-        float lightOcclusion = 1.0 - clamp(dot(vec4(-L, 1.0), ambientOcclusion), 0.0, 1.0);
+        float lightOcclusion = 1.0 - clamp(dot(vec4(-L, 1.0), 2.0*ambientOcclusion), 0.0, 1.0);
         vec3 inputColor = intensity * emissionColor.rgb * Albedo.rgb * lightOcclusion;
 
 
@@ -300,7 +300,9 @@ void main()
             lighting += diffuse * lightAttenuation;
         } if(debugLights == 5) {
             lighting += ambientOcclusion.rgb;
-        } else {
+        } if(debugLights == 6) {
+            lighting += vec3(lightOcclusion);
+        }else {
             lighting += (diffuse + specular) * lightAttenuation;
         }
     }

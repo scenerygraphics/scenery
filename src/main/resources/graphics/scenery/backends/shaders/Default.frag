@@ -31,7 +31,10 @@ struct Light {
 const int MAX_NUM_LIGHTS = 1024;
 
 layout(set = 1, binding = 0) uniform LightParameters {
-    mat4 ViewMatrix;
+    mat4 ViewMatrices[2];
+    mat4 InverseViewMatrices[2];
+    mat4 ProjectionMatrix;
+    mat4 InverseProjectionMatrix;
     vec3 CamPosition;
     int numLights;
 	Light lights[MAX_NUM_LIGHTS];
@@ -40,7 +43,6 @@ layout(set = 1, binding = 0) uniform LightParameters {
 layout(set = 2, binding = 0) uniform Matrices {
 	mat4 ModelMatrix;
 	mat4 NormalMatrix;
-	mat4 ProjectionMatrix;
 	int isBillboard;
 } ubo;
 
