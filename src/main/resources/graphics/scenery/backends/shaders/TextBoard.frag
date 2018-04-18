@@ -36,11 +36,19 @@ float samp(in vec2 uv, float w) {
     return contour(texture(ObjectTextures[1], uv).a, w);
 }
 
+vec3 blendMultiply(vec3 lhs, vec3 rhs) {
+    return lhs*rhs;
+}
+
+vec3 blendMultiply(vec3 lhs, vec3 rhs, float opacity) {
+    return (blendMultiply(lhs, rhs) * opacity + lhs * (1.0 - opacity));
+}
+
 void main() {
     // Bilinear SDF interpolation by Stefan Gustavson, OpenGL Insights, 2011
     // see https://github.com/OpenGLInsights/OpenGLInsightsCode/tree/master/Chapter%2012%202D%20Shape%20Rendering%20by%20Distance%20Fields/demo
 
-    vec3 rgb = vec3(0.0f, 0.0f, 0.0f);
+    vec3 rgb = vec3(1.0f, 1.0f, 1.0f);
     float pattern = 0.0;
 
     if(false) {
@@ -89,9 +97,9 @@ void main() {
     if(transparent == 1) {
         FragColor = vec4(fontColor.rgb, pattern);
     } else {
-        rgb = vec3(fontColor.rgb);
-        rgb = mix(rgb, backgroundColor.rgb, 1.0-pattern);
+        float a = smoothstep(0.1, 0.9, pattern);
+        rgb = mix(backgroundColor.rgb, fontColor.rgb, a);
 
-        FragColor = vec4(rgb, pattern);
+        FragColor = vec4(rgb, 1.0);
     }
 }

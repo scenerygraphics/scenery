@@ -96,7 +96,7 @@ class TextBoard(font: String = "SourceSansPro-Regular.ttf", override var isBillb
             channels = 1, contents = atlas.getAtlas(),
             repeatS = false, repeatT = false,
             normalized = true,
-            mipmap = false)
+            mipmap = true)
 
         dirty = true
     }
