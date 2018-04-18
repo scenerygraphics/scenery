@@ -39,10 +39,11 @@ void main()
     }
 
     // sample 4-neighborhood of current texture coord
-    vec3 sampleNW = textureOffset(InputColor, textureCoord, ivec2(-1, 1)).rgb;
-    vec3 sampleNE = textureOffset(InputColor, textureCoord, ivec2(1, 1)).rgb;
-    vec3 sampleSW = textureOffset(InputColor, textureCoord, ivec2(-1, -1)).rgb;
-    vec3 sampleSE = textureOffset(InputColor, textureCoord, ivec2(1, -1)).rgb;
+    vec2 texelStep = vec2(1.0/float(params.displayWidth), 1.0/float(params.displayHeight));
+    vec3 sampleNW = texture(InputColor, textureCoord * vec2(-1.0, -1.0)*texelStep).rgb;
+    vec3 sampleNE = texture(InputColor, textureCoord * vec2(1.0, -1.0)*texelStep).rgb;
+    vec3 sampleSW = texture(InputColor, textureCoord * vec2(1.0, -1.0)*texelStep).rgb;
+    vec3 sampleSE = texture(InputColor, textureCoord * vec2(1.0, 1.0)*texelStep).rgb;
 
     // convert all samples to luma representation
     const vec3 rgbToLuma = vec3(0.299, 0.587, 0.114);
@@ -69,7 +70,6 @@ void main()
     float minSamplingDirectionFactor = 1.0 / (min(abs(sampleDirection.x), abs(sampleDirection.y)) + sampleDirectionReduced);
 
     // clamp samples to maximum distance, adjust to current texel size
-    vec2 texelStep = vec2(1.0/float(params.displayWidth), 1.0/float(params.displayHeight));
     sampleDirection = clamp(sampleDirection * minSamplingDirectionFactor,
         vec2(-params.maxSpan, -params.maxSpan),
         vec2(params.maxSpan, params.maxSpan)) * texelStep;
@@ -79,8 +79,8 @@ void main()
 
     vec3 twoTab = (samplePositive + sampleNegative) * 0.5;
 
-    vec3 sampleNegativeOuter = texture(InputColor, textureCoord + sampleDirection * (0.0/3.0 - 0.5)).rgb;
-    vec3 samplePositiveOuter = texture(InputColor, textureCoord + sampleDirection * (3.0/3.0 - 0.5)).rgb;
+    vec3 sampleNegativeOuter = texture(InputColor, textureCoord + sampleDirection * (-0.5)).rgb;
+    vec3 samplePositiveOuter = texture(InputColor, textureCoord + sampleDirection * 0.5).rgb;
 
     vec3 fourTab = (samplePositiveOuter + sampleNegativeOuter) * 0.25 + twoTab * 0.5;
 
