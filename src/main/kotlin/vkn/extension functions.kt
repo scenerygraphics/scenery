@@ -358,8 +358,9 @@ inline infix fun VkDevice.freeMemory(memory: VkDeviceMemory) {
     VK10.nvkFreeMemory(this, memory, NULL)
 }
 
-inline fun VkDevice.getBufferMemoryRequirements(buffer: VkBuffer, memoryRequirements: VkMemoryRequirements) {
+inline fun VkDevice.getBufferMemoryRequirements(buffer: VkBuffer, memoryRequirements: VkMemoryRequirements = vk.MemoryRequirements { }): VkMemoryRequirements {
     VK10.nvkGetBufferMemoryRequirements(this, buffer, memoryRequirements.adr)
+    return memoryRequirements
 }
 
 inline fun VkDevice.getImageMemoryRequirements(buffer: VkBuffer, memoryRequirements: VkMemoryRequirements) {

@@ -1,12 +1,14 @@
 package graphics.scenery.backends.vulkan
 
 import glfw_.appBuffer
+import graphics.scenery.backends.vulkan.VU.createDescriptorSetLayout
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
 import vkn.*
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 
 class VulkanDevice(
     val instance: VkInstance,
@@ -17,75 +19,75 @@ class VulkanDevice(
 
     val logger by LazyLogger()
     val memoryProperties = VkPhysicalDeviceMemoryProperties.calloc()
-    val vulkanDevice: VkDevice
-    val queueIndices: QueueIndices
+    lateinit var vulkanDevice: VkDevice
+    lateinit var queueIndices: QueueIndices
     val extensions = ArrayList<String>()
 
     data class DeviceData(val vendor: String, val name: String, val driverVersion: String, val apiVersion: String, val type: VkPhysicalDeviceType)
     data class QueueIndices(val presentQueue: Int, val graphicsQueue: Int, val computeQueue: Int)
 
-    init {
-
-        val queueProps = physicalDevice.queueFamilyProperties
-
-        var graphicsQueueFamilyIndex = 0
-        var computeQueueFamilyIndex = 0
-        val presentQueueFamilyIndex = 0
-        var index = 0
-
-        while (index < queueProps.size) {
-            if (queueProps[index].queueFlags has VkQueueFlag.GRAPHICS_BIT)
-                graphicsQueueFamilyIndex = index
-
-            if (queueProps[index].queueFlags has VkQueueFlag.COMPUTE_BIT)
-                computeQueueFamilyIndex = index
-
-            index++
-        }
-
-        val queueCreateInfo = vk.DeviceQueueCreateInfo(1) {
-            queueFamilyIndex = graphicsQueueFamilyIndex
-            queuePriorities = appBuffer.floatBufferOf(0f)
-        }
-
-        val extensionsRequested = extensionsQuery(physicalDevice)
-        logger.debug("Requested extensions: ${extensionsRequested.joinToString()} ${extensionsRequested.size}")
-
-        // allocate enough pointers for required extensions, plus the swapchain extension
-        val extensions = arrayListOf(KHRSwapchain.VK_KHR_SWAPCHAIN_EXTENSION_NAME)
-        extensions += extensionsRequested
-
-        if (validationLayers.isNotEmpty())
-            logger.warn("Enabled Vulkan API validations. Expect degraded performance.")
-
-        val enabledFeatures = vk.PhysicalDeviceFeatures {
-            samplerAnisotropy = true
-            largePoints = true
-        }
-
-        val deviceCreateInfo = vk.DeviceCreateInfo {
-            this.queueCreateInfos = queueCreateInfo
-            enabledExtensionNames = extensions
-            enabledLayerNames = validationLayers
-            this.enabledFeatures = enabledFeatures
-        }
-
-        logger.debug("Creating device...")
-        vulkanDevice = physicalDevice createDevice deviceCreateInfo
-        logger.debug("Device successfully created.")
-
-        physicalDevice getMemoryProperties memoryProperties
-
-        VulkanRenderer.DeviceAndGraphicsQueueFamily(vulkanDevice,
-            graphicsQueueFamilyIndex, computeQueueFamilyIndex, presentQueueFamilyIndex, memoryProperties)
-
-        queueIndices = QueueIndices(
-            presentQueue = presentQueueFamilyIndex,
-            computeQueue = computeQueueFamilyIndex,
-            graphicsQueue = graphicsQueueFamilyIndex)
-
-        logger.debug("Created logical Vulkan device on ${deviceData.vendor} ${deviceData.name}")
-    }
+//    init {
+//
+//        val queueProps = physicalDevice.queueFamilyProperties
+//
+//        var graphicsQueueFamilyIndex = 0
+//        var computeQueueFamilyIndex = 0
+//        val presentQueueFamilyIndex = 0
+//        var index = 0
+//
+//        while (index < queueProps.size) {
+//            if (queueProps[index].queueFlags has VkQueueFlag.GRAPHICS_BIT)
+//                graphicsQueueFamilyIndex = index
+//
+//            if (queueProps[index].queueFlags has VkQueueFlag.COMPUTE_BIT)
+//                computeQueueFamilyIndex = index
+//
+//            index++
+//        }
+//
+//        val queueCreateInfo = vk.DeviceQueueCreateInfo(1) {
+//            queueFamilyIndex = graphicsQueueFamilyIndex
+//            queuePriorities = appBuffer.floatBufferOf(0f)
+//        }
+//
+//        val extensionsRequested = extensionsQuery(physicalDevice)
+//        logger.debug("Requested extensions: ${extensionsRequested.joinToString()} ${extensionsRequested.size}")
+//
+//        // allocate enough pointers for required extensions, plus the swapchain extension
+//        val extensions = arrayListOf(KHRSwapchain.VK_KHR_SWAPCHAIN_EXTENSION_NAME)
+//        extensions += extensionsRequested
+//
+//        if (validationLayers.isNotEmpty())
+//            logger.warn("Enabled Vulkan API validations. Expect degraded performance.")
+//
+//        val enabledFeatures = vk.PhysicalDeviceFeatures {
+//            samplerAnisotropy = true
+//            largePoints = true
+//        }
+//
+//        val deviceCreateInfo = vk.DeviceCreateInfo {
+//            this.queueCreateInfos = queueCreateInfo
+//            enabledExtensionNames = extensions
+//            enabledLayerNames = validationLayers
+//            this.enabledFeatures = enabledFeatures
+//        }
+//
+//        logger.debug("Creating device...")
+//        vulkanDevice = physicalDevice createDevice deviceCreateInfo
+//        logger.debug("Device successfully created.")
+//
+//        physicalDevice getMemoryProperties memoryProperties
+//
+//        VulkanRenderer.DeviceAndGraphicsQueueFamily(vulkanDevice,
+//            graphicsQueueFamilyIndex, computeQueueFamilyIndex, presentQueueFamilyIndex, memoryProperties)
+//
+//        queueIndices = QueueIndices(
+//            presentQueue = presentQueueFamilyIndex,
+//            computeQueue = computeQueueFamilyIndex,
+//            graphicsQueue = graphicsQueueFamilyIndex)
+//
+//        logger.debug("Created logical Vulkan device on ${deviceData.vendor} ${deviceData.name}")
+//    }
 
     fun getMemoryType(typeBits: Int, flags: Int): List<Int> {
         var bits = typeBits
@@ -137,28 +139,96 @@ class VulkanDevice(
 
         // We need to tell the API the number of max. requested descriptors per type
         val typeCounts = vk.DescriptorPoolSize(4)
-            .at(0) {
-                type = VkDescriptorType.COMBINED_IMAGE_SAMPLER
-                descriptorCount = MAX_TEXTURES
-            }
-            .at(1) {
-                type = VkDescriptorType.UNIFORM_BUFFER_DYNAMIC
-                descriptorCount = MAX_UBOS
-            }.at(2) {
-                type = VkDescriptorType.INPUT_ATTACHMENT
-                descriptorCount = MAX_INPUT_ATTACHMENTS
-            }.at(3) {
-                type = VkDescriptorType.UNIFORM_BUFFER
-                descriptorCount = MAX_UBOS
-            }
-
-        // Create the global descriptor pool
-        // All descriptors used in this example are allocated from this pool
+//            .at(0) {
+//                type = VkDescriptorType.COMBINED_IMAGE_SAMPLER
+//                descriptorCount = MAX_TEXTURES
+//            }
+//            .at(1) {
+//                type = VkDescriptorType.UNIFORM_BUFFER_DYNAMIC
+//                descriptorCount = MAX_UBOS
+//            }.at(2) {
+//                type = VkDescriptorType.INPUT_ATTACHMENT
+//                descriptorCount = MAX_INPUT_ATTACHMENTS
+//            }.at(3) {
+//                type = VkDescriptorType.UNIFORM_BUFFER
+//                descriptorCount = MAX_UBOS
+//            }
+//
+//        // Create the global descriptor pool
+//        // All descriptors used in this example are allocated from this pool
         return vulkanDevice createDescriptorPool vk.DescriptorPoolCreateInfo {
             poolSizes = typeCounts
             maxSets = MAX_TEXTURES + MAX_UBOS + MAX_INPUT_ATTACHMENTS + MAX_UBOS // Set the max. number of sets that can be requested
             flags = VkDescriptorPoolCreate.FREE_DESCRIPTOR_SET_BIT.i
         }
+    }
+
+    fun prepareDefaultDescriptorSetLayouts(): ConcurrentHashMap<String, Long> {
+
+        val m = ConcurrentHashMap<String, Long>()
+
+//        with(vulkanDevice) {
+//
+//            m["Matrices"] = createDescriptorSetLayout(
+//                listOf(VkDescriptorType.UNIFORM_BUFFER_DYNAMIC to 1),
+//                0, // TODO parametrize
+//                VkShaderStage.ALL.i)
+//
+//            m["MaterialProperties"] = createDescriptorSetLayout(
+//                listOf(VkDescriptorType.UNIFORM_BUFFER_DYNAMIC to 1),
+//                0,
+//                VkShaderStage.ALL.i)
+//
+//            m["LightParameters"] = createDescriptorSetLayout(
+//                listOf(VkDescriptorType.UNIFORM_BUFFER_DYNAMIC to 1),
+//                0,
+//                VkShaderStage.ALL.i)
+//
+//            m["ObjectTextures"] = createDescriptorSetLayout(
+//                    listOf(
+//                        VkDescriptorType.COMBINED_IMAGE_SAMPLER to 6,
+//                        VkDescriptorType.COMBINED_IMAGE_SAMPLER to 1),
+//                    0,
+//                    VkShaderStage.ALL.i)
+//
+//            m["VRParameters"] = createDescriptorSetLayout(
+//                listOf(VkDescriptorType.UNIFORM_BUFFER_DYNAMIC to 1),
+//                0,
+//                VkShaderStage.ALL.i)
+//        }
+        return m
+    }
+
+    infix fun prepareDefaultBuffers(bufferStorage: ConcurrentHashMap<String, VulkanBuffer>) {
+
+//        logger.debug("Creating buffers")
+//
+//        bufferStorage["UBOBuffer"] = VulkanBuffer(this,
+//            512 * 1024 * 10,
+//            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+//            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+//            wantAligned = true)
+//        logger.debug("Created UBO buffer")
+//
+//        bufferStorage.put("LightParametersBuffer", VulkanBuffer(this,
+//            512 * 1024 * 10,
+//            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+//            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+//            wantAligned = true))
+//        logger.debug("Created light buffer")
+//
+//        bufferStorage.put("VRParametersBuffer", VulkanBuffer(this,
+//            256 * 10,
+//            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+//            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+//            wantAligned = true))
+//        logger.debug("Created VRP buffer")
+//
+//        this            1024 * 1024,
+//            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+//            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+//            wantAligned = true))
+//        logger.debug("Created all buffers")
     }
 
     infix fun getQueue(queueFamilyIndex: Int): VkQueue {

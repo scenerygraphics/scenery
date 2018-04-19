@@ -109,7 +109,7 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
 
         val allocation = VkMemoryAllocateInfo.calloc()
             .allocationSize(requirements.size())
-            .memoryTypeIndex(device.getMemoryType(requirements.memoryTypeBits(), VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT).first())
+            .memoryTypeIndex(device.getMemoryType(requirements.memoryTypeBits(), VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)[0])
             .sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO)
             .pNext(NULL)
 

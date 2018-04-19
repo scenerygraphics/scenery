@@ -298,7 +298,7 @@ open class VulkanRenderer(hub: Hub,
 
     // Create static Vulkan resources
     protected var queue: VkQueue
-    protected var descriptorPool: Long
+    protected var descriptorPool: VkDescriptorPool
 
     protected var swapchain: Swapchain? = null
     protected var ph = PresentHelpers()
@@ -471,9 +471,9 @@ open class VulkanRenderer(hub: Hub,
         descriptorPool = device.createDescriptorPool()
         logger.debug("Created descriptor pool")
 
-        descriptorSetLayouts = prepareDefaultDescriptorSetLayouts(device)
+        descriptorSetLayouts = device.prepareDefaultDescriptorSetLayouts()
         logger.debug("Prepared default DSLs")
-        prepareDefaultBuffers(device, buffers)
+        device prepareDefaultBuffers buffers
         logger.debug("Prepared default buffers")
 
         prepareDescriptorSets(device, descriptorPool)
@@ -1004,44 +1004,6 @@ open class VulkanRenderer(hub: Hub,
         return s
     }
 
-    protected fun prepareDefaultDescriptorSetLayouts(device: VulkanDevice): ConcurrentHashMap<String, Long> {
-        val m = ConcurrentHashMap<String, Long>()
-
-        m.put("Matrices", VU.createDescriptorSetLayout(
-            device,
-            listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1)),
-            0,
-            VK_SHADER_STAGE_ALL))
-
-        m.put("MaterialProperties", VU.createDescriptorSetLayout(
-            device,
-            listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1)),
-            0,
-            VK_SHADER_STAGE_ALL))
-
-        m.put("LightParameters", VU.createDescriptorSetLayout(
-            device,
-            listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1)),
-            0,
-            VK_SHADER_STAGE_ALL))
-
-        m.put("ObjectTextures", VU.createDescriptorSetLayout(
-            device,
-            listOf(
-                Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 6),
-                Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1)),
-            0,
-            VK_SHADER_STAGE_ALL))
-
-        m.put("VRParameters", VU.createDescriptorSetLayout(
-            device,
-            listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1)),
-            0,
-            VK_SHADER_STAGE_ALL))
-
-        return m
-    }
-
     protected fun prepareDescriptorSets(device: VulkanDevice, descriptorPool: Long) {
         this.descriptorSets.put("Matrices",
             VU.createDescriptorSetDynamic(device, descriptorPool,
@@ -1531,8 +1493,8 @@ open class VulkanRenderer(hub: Hub,
             if (screenshotBuffer == null || screenshotBuffer?.size != imageByteSize) {
                 logger.info("Reallocating screenshot buffer")
                 screenshotBuffer = VulkanBuffer(device, imageByteSize,
-                    VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+                    VkBufferUsage.TRANSFER_DST_BIT.i,
+                    VkMemoryProperty.HOST_VISIBLE_BIT.i,
                     wantAligned = true)
             }
 
@@ -2051,38 +2013,6 @@ open class VulkanRenderer(hub: Hub,
         state.instanceCount = parentNode.instances.size
 
         return state
-    }
-
-    private fun prepareDefaultBuffers(device: VulkanDevice, bufferStorage: ConcurrentHashMap<String, VulkanBuffer>) {
-        logger.debug("Creating buffers")
-
-        bufferStorage.put("UBOBuffer", VulkanBuffer(device,
-            512 * 1024 * 10,
-            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-            wantAligned = true))
-        logger.debug("Created UBO buffer")
-
-        bufferStorage.put("LightParametersBuffer", VulkanBuffer(device,
-            512 * 1024 * 10,
-            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-            wantAligned = true))
-        logger.debug("Created light buffer")
-
-        bufferStorage.put("VRParametersBuffer", VulkanBuffer(device,
-            256 * 10,
-            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-            wantAligned = true))
-        logger.debug("Created VRP buffer")
-
-        bufferStorage.put("ShaderPropertyBuffer", VulkanBuffer(device,
-            1024 * 1024,
-            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-            wantAligned = true))
-        logger.debug("Created all buffers")
     }
 
     private fun Node.rendererMetadata(): VulkanObjectState? {
