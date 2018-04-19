@@ -2228,6 +2228,24 @@ open class VulkanRenderer(hub: Hub,
 
             pass.vulkanMetadata.renderLists.put(commandBuffer, renderOrderList.toTypedArray())
             pass.vulkanMetadata.renderLists.keys.forEach { it.stale = true }
+
+            // if we are in a VR pass, invalidate passes for both eyes to prevent one of them housing stale data
+            if(renderConfig.stereoEnabled && (pass.name.contains("Left") || pass.name.contains("Right"))) {
+                val passLeft = if(pass.name.contains("Left")) {
+                    pass.name
+                } else {
+                    pass.name.substringBefore("Right") + "Left"
+                }
+
+                val passRight = if(pass.name.contains("Right")) {
+                    pass.name
+                } else {
+                    pass.name.substringBefore("Left") + "Right"
+                }
+
+                renderpasses[passLeft]?.vulkanMetadata?.renderLists?.keys?.forEach { it.stale = true }
+                renderpasses[passRight]?.vulkanMetadata?.renderLists?.keys?.forEach { it.stale = true }
+            }
         }
 
         // If the command buffer is not stale, though, we keep the cached one and return. This
