@@ -29,8 +29,7 @@ class Hub(val name: String = "default") {
      * @param[obj] The [Hubable] object.
      */
     fun add(type: SceneryElement, obj: Hubable) {
-        elements.put(type, obj)
-
+        elements[type] = obj
         obj.hub = this
     }
 

@@ -15,6 +15,7 @@ import org.lwjgl.system.MemoryUtil.memFree
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.KHRSwapchain.VK_ERROR_OUT_OF_DATE_KHR
 import org.lwjgl.vulkan.KHRSwapchain.vkAcquireNextImageKHR
+import vkn.VkCommandPool
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 
@@ -25,7 +26,7 @@ import java.nio.LongBuffer
  */
 open class VulkanSwapchain(open val device: VulkanDevice,
                            open val queue: VkQueue,
-                           open val commandPool: Long,
+                           open val commandPool: VkCommandPool,
                            @Suppress("unused") open val renderConfig: RenderConfigReader.RenderConfig,
                            open val useSRGB: Boolean = true) : Swapchain {
 

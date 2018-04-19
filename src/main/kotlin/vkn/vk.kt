@@ -62,6 +62,17 @@ object vk {
         return res
     }
 
+    inline fun DescriptorBufferInfo(block: VkDescriptorBufferInfo.() -> Unit): VkDescriptorBufferInfo {
+        val res = VkDescriptorBufferInfo.create(ptr.advance(VkDescriptorBufferInfo.SIZEOF))
+        res.block()
+        return res
+    }
+    inline fun DescriptorBufferInfo(capacity: Int, block: VkDescriptorBufferInfo.() -> Unit): VkDescriptorBufferInfo.Buffer {
+        val res = VkDescriptorBufferInfo.create(ptr.advance(VkDescriptorBufferInfo.SIZEOF * capacity), capacity)
+        res[0].block()
+        return res
+    }
+
     inline fun DescriptorPoolCreateInfo(block: VkDescriptorPoolCreateInfo.() -> Unit): VkDescriptorPoolCreateInfo {
         val res = VkDescriptorPoolCreateInfo.create(ptr.advance(VkDescriptorPoolCreateInfo.SIZEOF))
         res.type = VkStructureType.DESCRIPTOR_POOL_CREATE_INFO
@@ -263,6 +274,17 @@ object vk {
         val res = VkPipelineViewportStateCreateInfo.create(ptr.advance(VkPipelineViewportStateCreateInfo.SIZEOF))
         res.type = VkStructureType.PIPELINE_VIEWPORT_STATE_CREATE_INFO
         res.block()
+        return res
+    }
+
+    inline fun PushConstantRange(block: VkPushConstantRange.() -> Unit): VkPushConstantRange {
+        val res = VkPushConstantRange.create(ptr.advance(VkPushConstantRange.SIZEOF))
+        res.block()
+        return res
+    }
+    inline fun PushConstantRange(capacity: Int, block: VkPushConstantRange.() -> Unit): VkPushConstantRange.Buffer {
+        val res = VkPushConstantRange.create(ptr.advance(VkPushConstantRange.SIZEOF * capacity), capacity)
+        res[0].block()
         return res
     }
 

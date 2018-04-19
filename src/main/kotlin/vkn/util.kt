@@ -12,9 +12,10 @@ import org.lwjgl.PointerBuffer
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.NULL
 import org.lwjgl.system.Pointer
+import org.lwjgl.system.Struct
+import org.lwjgl.system.StructBuffer
 import org.lwjgl.vulkan.*
 import uno.kotlin.buffers.indices
-import uno.kotlin.buffers.lastIndex
 import java.nio.ByteBuffer
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
@@ -123,8 +124,6 @@ inline fun vkDestroySemaphores(device: VkDevice, semaphores: VkSemaphorePtr) {
 }
 
 
-
-
 inline fun vkDestroyBuffer(device: VkDevice, buffer: VkBuffer) = VK10.nvkDestroyBuffer(device, buffer, NULL)
 
 
@@ -226,7 +225,13 @@ inline fun VkVertexInputAttributeDescription.Buffer.at(index: Int, block: VkVert
     get(index).block()
     return this
 }
+
 inline fun VkDescriptorPoolSize.Buffer.at(index: Int, block: VkDescriptorPoolSize.() -> Unit): VkDescriptorPoolSize.Buffer {
     get(index).block()
     return this
+}
+
+
+operator fun <T : Struct, SELF : StructBuffer<T, SELF>> StructBuffer<T, SELF>.set(index: Int, value: T) {
+    put(index, value)
 }

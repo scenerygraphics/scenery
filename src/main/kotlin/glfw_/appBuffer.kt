@@ -114,6 +114,13 @@ object appBuffer {
         return res
     }
 
+    inline fun longBufferOf(longs: Collection<Long>): LongBuffer {
+        val res = longBuffer(longs.size)
+        for(i in longs.indices)
+            res[i] = longs.elementAt(i)
+        return res
+    }
+
     inline fun intBufferOf(int: Int): IntBuffer {
         val res = intBuffer(1)
         res[0] = int

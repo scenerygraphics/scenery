@@ -16,34 +16,31 @@ class TexturedCubeExample : SceneryBase("TexturedCubeExample") {
         renderer = Renderer.createRenderer(hub, applicationName, scene, 512, 512)
         hub.add(SceneryElement.Renderer, renderer!!)
 
-        val boxmaterial = Material()
-        with(boxmaterial) {
-            ambient = GLVector(1.0f, 0.0f, 0.0f)
-            diffuse = GLVector(0.0f, 1.0f, 0.0f)
-            specular = GLVector(1.0f, 1.0f, 1.0f)
+        val boxmaterial = Material().apply {
+            ambient = GLVector(1f, 0f, 0f)
+            diffuse = GLVector(0f, 1f, 0f)
+            specular = GLVector(1f, 1f, 1f)
             roughness = 0.3f
-            metallic = 1.0f
-            textures.put("diffuse", TexturedCubeExample::class.java.getResource("textures/helix.png").file)
+            metallic = 1f
+            textures["diffuse"] = TexturedCubeExample::class.java.getResource("textures/helix.png").file
         }
 
-        val box = Box(GLVector(1.0f, 1.0f, 1.0f))
-        box.name = "le box du win"
-
-        with(box) {
-            box.material = boxmaterial
+        val box = Box(GLVector(1f, 1f, 1f)).apply {
+            name = "le box du win"
+            material = boxmaterial
             scene.addChild(this)
         }
 
-        val light = PointLight(radius = 15.0f)
-        light.position = GLVector(0.0f, 0.0f, 2.0f)
-        light.intensity = 100.0f
-        light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
+        val light = PointLight(radius = 15f).apply {
+            position = GLVector(0f, 0f, 2f)
+            intensity = 100f
+            emissionColor = GLVector(1f, 1f, 1f)
+        }
         scene.addChild(light)
 
-        val cam: Camera = DetachedHeadCamera()
-        with(cam) {
-            position = GLVector(0.0f, 0.0f, 5.0f)
-            perspectiveCamera(50.0f, 512.0f, 512.0f)
+        val cam: Camera = DetachedHeadCamera().apply {
+            position = GLVector(0f, 0f, 5f)
+            perspectiveCamera(50f, 512f, 512f)
             active = true
 
             scene.addChild(this)
@@ -59,7 +56,8 @@ class TexturedCubeExample : SceneryBase("TexturedCubeExample") {
         }
     }
 
-    @Test override fun main() {
+    @Test
+    override fun main() {
         super.main()
     }
 }

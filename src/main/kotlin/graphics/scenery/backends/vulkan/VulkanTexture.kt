@@ -9,6 +9,7 @@ import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkImageCreateInfo
 import vkn.VkBufferUsage
+import vkn.VkCommandPool
 import vkn.VkMemoryProperty
 import java.awt.Color
 import java.awt.color.ColorSpace
@@ -31,7 +32,7 @@ import kotlin.streams.toList
  * @author Ulrik Günther <hello@ulrik.is>
  */
 open class VulkanTexture(val device: VulkanDevice,
-                         val commandPool: Long, val queue: VkQueue,
+                         val commandPool: VkCommandPool, val queue: VkQueue,
                          val width: Int, val height: Int, val depth: Int = 1,
                          val format: Int = VK_FORMAT_R8G8B8_SRGB, var mipLevels: Int = 1,
                          val minFilterLinear: Boolean = true, val maxFilterLinear: Boolean = true) : AutoCloseable {
@@ -114,7 +115,7 @@ open class VulkanTexture(val device: VulkanDevice,
 
     @Suppress("USELESS_ELVIS", "UNNECESSARY_SAFE_CALL")
     constructor(device: VulkanDevice,
-                commandPool: Long, queue: VkQueue,
+                commandPool: VkCommandPool, queue: VkQueue,
                 genericTexture: GenericTexture, mipLevels: Int = 1,
                 minFilterLinear: Boolean = true, maxFilterLinear: Boolean = true) : this(device,
         commandPool,
@@ -488,7 +489,7 @@ open class VulkanTexture(val device: VulkanDevice,
             DataBuffer.TYPE_BYTE)
 
         fun loadFromFile(device: VulkanDevice,
-                         commandPool: Long, queue: VkQueue,
+                         commandPool: VkCommandPool, queue: VkQueue,
                          filename: String,
                          linearMin: Boolean, linearMax: Boolean,
                          generateMipmaps: Boolean = true): VulkanTexture? {
@@ -518,7 +519,7 @@ open class VulkanTexture(val device: VulkanDevice,
         }
 
         fun loadFromFile(device: VulkanDevice,
-                         commandPool: Long, queue: VkQueue,
+                         commandPool: VkCommandPool, queue: VkQueue,
                          stream: InputStream, type: String,
                          linearMin: Boolean, linearMax: Boolean,
                          generateMipmaps: Boolean = true): VulkanTexture? {

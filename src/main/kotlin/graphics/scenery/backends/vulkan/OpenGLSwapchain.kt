@@ -29,6 +29,7 @@ import org.lwjgl.system.Platform
 import org.lwjgl.vulkan.VK10
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkQueue
+import vkn.VkCommandPool
 import java.lang.UnsupportedOperationException
 import java.nio.LongBuffer
 
@@ -39,7 +40,7 @@ import java.nio.LongBuffer
  */
 class OpenGLSwapchain(val device: VulkanDevice,
                       val queue: VkQueue,
-                      val commandPool: Long,
+                      val commandPool: VkCommandPool,
                       val renderConfig: RenderConfigReader.RenderConfig,
                       val useSRGB: Boolean = true,
                       val useFramelock: Boolean = false,

@@ -23,6 +23,7 @@ import javafx.scene.control.Label
 import javafx.scene.layout.*
 import javafx.scene.paint.Color
 import javafx.scene.text.TextAlignment
+import vkn.VkCommandPool
 import java.util.concurrent.locks.ReentrantLock
 
 
@@ -33,7 +34,7 @@ import java.util.concurrent.locks.ReentrantLock
  */
 class FXSwapchain(device: VulkanDevice,
                   queue: VkQueue,
-                  commandPool: Long,
+                  commandPool: VkCommandPool,
                   renderConfig: RenderConfigReader.RenderConfig,
                   useSRGB: Boolean = true,
                   @Suppress("unused") val useFramelock: Boolean = false,

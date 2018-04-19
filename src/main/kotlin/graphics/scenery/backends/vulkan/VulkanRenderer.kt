@@ -6,6 +6,7 @@ import glfw_.appBuffer
 import glfw_.glfw
 import graphics.scenery.*
 import graphics.scenery.backends.*
+import graphics.scenery.backends.vulkan.VU.createDescriptorSetDynamic
 import graphics.scenery.spirvcrossj.Loader
 import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.utils.*
@@ -71,11 +72,11 @@ open class VulkanRenderer(hub: Hub,
 
     // helper classes
     data class PresentHelpers(
-        var signalSemaphore: LongBuffer = memAllocLong(1),
-        var waitSemaphore: LongBuffer = memAllocLong(1),
-        var commandBuffers: PointerBuffer = memAllocPointer(1),
-        var waitStages: IntBuffer = memAllocInt(1),
-        var submitInfo: VkSubmitInfo = VkSubmitInfo.calloc()
+        val signalSemaphore: LongBuffer = memAllocLong(1),
+        val waitSemaphore: LongBuffer = memAllocLong(1),
+        val commandBuffers: PointerBuffer = memAllocPointer(1),
+        val waitStages: IntBuffer = memAllocInt(1),
+        val submitInfo: VkSubmitInfo = VkSubmitInfo.calloc()
     )
 
     enum class VertexDataKinds {
@@ -98,9 +99,9 @@ open class VulkanRenderer(hub: Hub,
     )
 
     data class CommandPools(
-        var Standard: Long = -1L,
-        var Render: Long = -1L,
-        var Compute: Long = -1L
+        var Standard: VkCommandPool = -1L,
+        var Render: VkCommandPool = -1L,
+        var Compute: VkCommandPool = -1L
     )
 
     data class DeviceAndGraphicsQueueFamily(
@@ -111,10 +112,7 @@ open class VulkanRenderer(hub: Hub,
         val memoryProperties: VkPhysicalDeviceMemoryProperties? = null
     )
 
-    class Pipeline {
-        internal var pipeline: Long = 0
-        internal var layout: Long = 0
-    }
+    class Pipeline(internal var pipeline: VkPipeline = NULL, internal var layout: VkPipelineLayout = NULL)
 
     sealed class DescriptorSet(val id: Long = 0L, val name: String = "") {
         object None : DescriptorSet(0L)
@@ -476,8 +474,8 @@ open class VulkanRenderer(hub: Hub,
         device prepareDefaultBuffers buffers
         logger.debug("Prepared default buffers")
 
-        prepareDescriptorSets(device, descriptorPool)
-        prepareDefaultTextures(device)
+        prepareDescriptorSets(descriptorPool)
+        prepareDefaultTextures()
 
         heartbeatTimer.scheduleAtFixedRate(object : TimerTask() {
             override fun run() {
@@ -500,34 +498,26 @@ open class VulkanRenderer(hub: Hub,
                         stats.add("GPU mem", it.get("AvailableDedicatedVideoMemory"), isTime = false)
                     }
 
-                    if (settings.get<Boolean>("Renderer.PrintGPUStats")) {
+                    if (settings.get("Renderer.PrintGPUStats")) {
                         logger.info(it.utilisationToString())
                         logger.info(it.memoryUtilisationToString())
                     }
                 }
 
-                val validationsEnabled = if (validation) {
-                    " - VALIDATIONS ENABLED"
-                } else {
-                    ""
-                }
+                val validationsEnabled = if (validation) " - VALIDATIONS ENABLED" else ""
 
                 window.setTitle("$applicationName [${this@VulkanRenderer.javaClass.simpleName}, ${this@VulkanRenderer.renderConfig.name}] $validationsEnabled - $fps fps")
             }
         }, 0, 1000)
 
         // Info struct to create a semaphore
-        semaphoreCreateInfo = VkSemaphoreCreateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO)
-            .pNext(NULL)
-            .flags(0)
+        semaphoreCreateInfo = cVkSemaphoreCreateInfo { flags = 0 }
 
         lastTime = System.nanoTime()
-        time = 0.0f
+        time = 0f
 
-        if (System.getProperty("scenery.RunFullscreen", "false").toBoolean()) {
+        if (System.getProperty("scenery.RunFullscreen", "false").toBoolean())  // TODO nullability
             toggleFullscreen = true
-        }
     }
 
     // source: http://stackoverflow.com/questions/34697828/parallel-operations-on-kotlin-collections
@@ -649,12 +639,12 @@ open class VulkanRenderer(hub: Hub,
         }
 
         val matricesDescriptorSet =
-            VU.createDescriptorSetDynamic(device, descriptorPool,
+            device.vulkanDevice.createDescriptorSetDynamic(descriptorPool,
                 descriptorSetLayouts["Matrices"]!!, 1,
                 buffers["UBOBuffer"]!!)
 
         val materialPropertiesDescriptorSet =
-            VU.createDescriptorSetDynamic(device, descriptorPool,
+            device.vulkanDevice.createDescriptorSetDynamic(descriptorPool,
                 descriptorSetLayouts["MaterialProperties"]!!, 1,
                 buffers["UBOBuffer"]!!)
 
@@ -776,7 +766,7 @@ open class VulkanRenderer(hub: Hub,
                         dsl = pass.value.initializeShaderPropertyDescriptorSetLayout()
                     }
 
-                val descriptorSet = VU.createDescriptorSetDynamic(device, descriptorPool, dsl,
+                val descriptorSet = device.vulkanDevice.createDescriptorSetDynamic(descriptorPool, dsl,
                     1, buffers["ShaderPropertyBuffer"]!!)
 
                 s.requiredDescriptorSets.put("ShaderProperties", descriptorSet)
@@ -1004,26 +994,26 @@ open class VulkanRenderer(hub: Hub,
         return s
     }
 
-    protected fun prepareDescriptorSets(device: VulkanDevice, descriptorPool: Long) {
-        this.descriptorSets.put("Matrices",
-            VU.createDescriptorSetDynamic(device, descriptorPool,
+    protected fun prepareDescriptorSets(descriptorPool: VkDescriptorPool) {
+
+        with(device.vulkanDevice) {
+
+            descriptorSets["Matrices"] = createDescriptorSetDynamic(descriptorPool,
                 descriptorSetLayouts["Matrices"]!!, 1,
-                buffers["UBOBuffer"]!!))
+                buffers["UBOBuffer"]!!)
 
-        this.descriptorSets.put("MaterialProperties",
-            VU.createDescriptorSetDynamic(device, descriptorPool,
+            descriptorSets["MaterialProperties"] = createDescriptorSetDynamic(descriptorPool,
                 descriptorSetLayouts["MaterialProperties"]!!, 1,
-                buffers["UBOBuffer"]!!))
+                buffers["UBOBuffer"]!!)
 
-        this.descriptorSets.put("LightParameters",
-            VU.createDescriptorSetDynamic(device, descriptorPool,
+            descriptorSets["LightParameters"] = createDescriptorSetDynamic(descriptorPool,
                 descriptorSetLayouts["LightParameters"]!!, 1,
-                buffers["LightParametersBuffer"]!!))
+                buffers["LightParametersBuffer"]!!)
 
-        this.descriptorSets.put("VRParameters",
-            VU.createDescriptorSetDynamic(device, descriptorPool,
+            descriptorSets["VRParameters"] = createDescriptorSetDynamic(descriptorPool,
                 descriptorSetLayouts["VRParameters"]!!, 1,
-                buffers["VRParametersBuffer"]!!))
+                buffers["VRParametersBuffer"]!!)
+        }
     }
 
     protected fun prepareStandardVertexDescriptors(): ConcurrentHashMap<VertexDataKinds, VertexDescription> {
@@ -1206,11 +1196,10 @@ open class VulkanRenderer(hub: Hub,
         return VertexDescription(inputState, newAttributeDesc, newBindingDesc)
     }
 
-    protected fun prepareDefaultTextures(device: VulkanDevice) {
-        val t = VulkanTexture.loadFromFile(device, commandPools.Standard, queue,
-            Renderer::class.java.getResourceAsStream("DefaultTexture.png"), "png", true, true)
-
-        textureCache.put("DefaultTexture", t!!)
+    protected fun prepareDefaultTextures() {
+        val stream = Renderer::class.java.getResourceAsStream("DefaultTexture.png")
+        val t = VulkanTexture.loadFromFile(device, commandPools.Standard, queue, stream, "png", true, true)!!
+        textureCache["DefaultTexture"] = t
     }
 
     protected fun prepareRenderpassesFromConfig(config: RenderConfigReader.RenderConfig, windowWidth: Int, windowHeight: Int) {

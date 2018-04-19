@@ -4,7 +4,6 @@ import glfw_.appBuffer
 import glm_.BYTES
 import glm_.bool
 import glm_.i
-import glm_.set
 import glm_.vec2.Vec2
 import glm_.vec2.Vec2i
 import glm_.vec3.Vec3i
@@ -1535,13 +1534,17 @@ inline var VkGraphicsPipelineCreateInfo.basePipelineIndex
 //    VkPipeline                         basePipelineHandle;
 //    int32_t                            basePipelineIndex;
 //} VkComputePipelineCreateInfo;
-//
-//typedef struct VkPushConstantRange {
-//    VkShaderStageFlags    stageFlags;
-//    uint32_t              offset;
-//    uint32_t              size;
-//} VkPushConstantRange;
-//
+
+inline var VkPushConstantRange.stageFlags: VkShaderStageFlags
+    get() = VkPushConstantRange.nstageFlags(adr)
+    set(value) = VkPushConstantRange.nstageFlags(adr, value)
+inline var VkPushConstantRange.offset: Int
+    get() = VkPushConstantRange.noffset(adr)
+    set(value) = VkPushConstantRange.noffset(adr, value)
+inline var VkPushConstantRange.size: Int
+    get() = VkPushConstantRange.nsize(adr)
+    set(value) = VkPushConstantRange.nsize(adr, value)
+
 
 inline var VkPipelineLayoutCreateInfo.type: VkStructureType
     get() = VkStructureType of VkPipelineLayoutCreateInfo.nsType(adr)

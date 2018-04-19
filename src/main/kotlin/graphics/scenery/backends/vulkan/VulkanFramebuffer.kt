@@ -7,6 +7,7 @@ import org.lwjgl.vulkan.VK10.*
 import java.nio.LongBuffer
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.system.Struct
+import vkn.VkCommandPool
 
 /**
  *
@@ -14,7 +15,7 @@ import org.lwjgl.system.Struct
  * @author Ulrik Günther @ulrik.is>
  */
 open class VulkanFramebuffer(protected val device: VulkanDevice,
-                        protected var commandPool: Long,
+                        protected var commandPool: VkCommandPool,
                         var width: Int,
                         var height: Int,
                         val commandBuffer: VkCommandBuffer,
