@@ -1,121 +1,88 @@
 package graphics.scenery.backends.vulkan
 
+import glfw_.appBuffer
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.system.MemoryStack.stackPush
-import org.lwjgl.system.MemoryUtil
-import org.lwjgl.system.MemoryUtil.memUTF8
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
-import java.util.ArrayList
+import vkn.*
+import java.util.*
 
-class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysicalDevice, val deviceData: DeviceData, extensionsQuery: (VkPhysicalDevice) -> Array<String> = { arrayOf() }, validationLayers: Array<String> = arrayOf()) {
+class VulkanDevice(
+    val instance: VkInstance,
+    val physicalDevice: VkPhysicalDevice,
+    val deviceData: DeviceData,
+    extensionsQuery: (VkPhysicalDevice) -> Array<String> = { arrayOf() },
+    validationLayers: Collection<String> = listOf()) {
 
     val logger by LazyLogger()
-    val memoryProperties: VkPhysicalDeviceMemoryProperties
+    val memoryProperties = VkPhysicalDeviceMemoryProperties.calloc()
     val vulkanDevice: VkDevice
     val queueIndices: QueueIndices
     val extensions = ArrayList<String>()
 
-    enum class DeviceType { Unknown, Other, IntegratedGPU, DiscreteGPU, VirtualGPU, CPU }
-    data class DeviceData(val vendor: String, val name: String, val driverVersion: String, val apiVersion: String, val type: DeviceType)
+    data class DeviceData(val vendor: String, val name: String, val driverVersion: String, val apiVersion: String, val type: VkPhysicalDeviceType)
     data class QueueIndices(val presentQueue: Int, val graphicsQueue: Int, val computeQueue: Int)
 
     init {
-        val result = stackPush().use { stack ->
-            val pQueueFamilyPropertyCount = stack.callocInt(1)
-            vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, pQueueFamilyPropertyCount, null)
-            val queueCount = pQueueFamilyPropertyCount.get(0)
-            val queueProps = VkQueueFamilyProperties.callocStack(queueCount, stack)
-            vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, pQueueFamilyPropertyCount, queueProps)
 
-            var graphicsQueueFamilyIndex = 0
-            var computeQueueFamilyIndex = 0
-            val presentQueueFamilyIndex = 0
-            var index = 0
+        val queueProps = physicalDevice.queueFamilyProperties
 
-            while (index < queueCount) {
-                if (queueProps.get(index).queueFlags() and VK_QUEUE_GRAPHICS_BIT != 0) {
-                    graphicsQueueFamilyIndex = index
-                }
+        var graphicsQueueFamilyIndex = 0
+        var computeQueueFamilyIndex = 0
+        val presentQueueFamilyIndex = 0
+        var index = 0
 
-                if (queueProps.get(index).queueFlags() and VK_QUEUE_COMPUTE_BIT != 0) {
-                    computeQueueFamilyIndex = index
-                }
+        while (index < queueProps.size) {
+            if (queueProps[index].queueFlags has VkQueueFlag.GRAPHICS_BIT)
+                graphicsQueueFamilyIndex = index
 
-                index++
-            }
+            if (queueProps[index].queueFlags has VkQueueFlag.COMPUTE_BIT)
+                computeQueueFamilyIndex = index
 
-            val pQueuePriorities = stack.callocFloat(1).put(0, 0.0f)
-            val queueCreateInfo = VkDeviceQueueCreateInfo.callocStack(1, stack)
-                .sType(VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO)
-                .queueFamilyIndex(graphicsQueueFamilyIndex)
-                .pQueuePriorities(pQueuePriorities)
-
-            val extensionsRequested = extensionsQuery.invoke(physicalDevice)
-            logger.debug("Requested extensions: ${extensionsRequested.joinToString(", ")} ${extensionsRequested.size}")
-            val utf8Exts = extensionsRequested.map { stack.UTF8(it) }
-
-            // allocate enough pointers for required extensions, plus the swapchain extension
-            val extensions = stack.callocPointer(1 + extensionsRequested.size)
-            extensions.put(stack.UTF8(KHRSwapchain.VK_KHR_SWAPCHAIN_EXTENSION_NAME))
-            utf8Exts.forEach { extensions.put(it) }
-            extensions.flip()
-
-            if(validationLayers.isNotEmpty()) {
-                logger.warn("Enabled Vulkan API validations. Expect degraded performance.")
-            }
-
-            val ppEnabledLayerNames = stack.callocPointer(validationLayers.size)
-            var i = 0
-            while (i < validationLayers.size) {
-                ppEnabledLayerNames.put(memUTF8(validationLayers[i]))
-                i++
-            }
-            ppEnabledLayerNames.flip()
-
-            val enabledFeatures = VkPhysicalDeviceFeatures.callocStack(stack)
-                .samplerAnisotropy(true)
-                .largePoints(true)
-
-            val deviceCreateInfo = VkDeviceCreateInfo.callocStack(stack)
-                .sType(VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO)
-                .pNext(MemoryUtil.NULL)
-                .pQueueCreateInfos(queueCreateInfo)
-                .ppEnabledExtensionNames(extensions)
-                .ppEnabledLayerNames(ppEnabledLayerNames)
-                .pEnabledFeatures(enabledFeatures)
-
-            logger.debug("Creating device...")
-            val pDevice = stack.callocPointer(1)
-            val err = vkCreateDevice(physicalDevice, deviceCreateInfo, null, pDevice)
-            val device = pDevice.get(0)
-
-            if (err != VK_SUCCESS) {
-                throw AssertionError("Failed to create device: " + VU.translate(err))
-            }
-            logger.debug("Device successfully created.")
-
-            val memoryProperties = VkPhysicalDeviceMemoryProperties.calloc()
-            vkGetPhysicalDeviceMemoryProperties(physicalDevice, memoryProperties)
-
-            VulkanRenderer.DeviceAndGraphicsQueueFamily(VkDevice(device, physicalDevice, deviceCreateInfo),
-                graphicsQueueFamilyIndex, computeQueueFamilyIndex, presentQueueFamilyIndex, memoryProperties)
-
-            Triple(VkDevice(device, physicalDevice, deviceCreateInfo),
-                QueueIndices(
-                    presentQueue = presentQueueFamilyIndex,
-                    computeQueue = computeQueueFamilyIndex,
-                    graphicsQueue = graphicsQueueFamilyIndex),
-                memoryProperties
-            )
+            index++
         }
 
-        vulkanDevice = result.first
-        queueIndices = result.second
-        memoryProperties = result.third
+        val queueCreateInfo = vk.DeviceQueueCreateInfo(1) {
+            queueFamilyIndex = graphicsQueueFamilyIndex
+            queuePriorities = appBuffer.floatBufferOf(0f)
+        }
 
-        extensions.addAll(extensionsQuery.invoke(physicalDevice))
-        extensions.add(KHRSwapchain.VK_KHR_SWAPCHAIN_EXTENSION_NAME)
+        val extensionsRequested = extensionsQuery(physicalDevice)
+        logger.debug("Requested extensions: ${extensionsRequested.joinToString()} ${extensionsRequested.size}")
+
+        // allocate enough pointers for required extensions, plus the swapchain extension
+        val extensions = arrayListOf(KHRSwapchain.VK_KHR_SWAPCHAIN_EXTENSION_NAME)
+        extensions += extensionsRequested
+
+        if (validationLayers.isNotEmpty())
+            logger.warn("Enabled Vulkan API validations. Expect degraded performance.")
+
+        val enabledFeatures = vk.PhysicalDeviceFeatures {
+            samplerAnisotropy = true
+            largePoints = true
+        }
+
+        val deviceCreateInfo = vk.DeviceCreateInfo {
+            this.queueCreateInfos = queueCreateInfo
+            enabledExtensionNames = extensions
+            enabledLayerNames = validationLayers
+            this.enabledFeatures = enabledFeatures
+        }
+
+        logger.debug("Creating device...")
+        vulkanDevice = physicalDevice createDevice deviceCreateInfo
+        logger.debug("Device successfully created.")
+
+        physicalDevice getMemoryProperties memoryProperties
+
+        VulkanRenderer.DeviceAndGraphicsQueueFamily(vulkanDevice,
+            graphicsQueueFamilyIndex, computeQueueFamilyIndex, presentQueueFamilyIndex, memoryProperties)
+
+        queueIndices = QueueIndices(
+            presentQueue = presentQueueFamilyIndex,
+            computeQueue = computeQueueFamilyIndex,
+            graphicsQueue = graphicsQueueFamilyIndex)
 
         logger.debug("Created logical Vulkan device on ${deviceData.vendor} ${deviceData.name}")
     }
@@ -134,14 +101,14 @@ class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysicalDevic
             bits = bits shr 1
         }
 
-        if(types.isEmpty()) {
+        if (types.isEmpty()) {
             logger.warn("Memory type $flags not found for device $this (${vulkanDevice.address().toHexString()}")
         }
 
         return types
     }
 
-    fun createCommandPool(queueNodeIndex: Int): Long {
+    infix fun createCommandPool(queueNodeIndex: Int): Long {
         return stackPush().use { stack ->
             val cmdPoolInfo = VkCommandPoolCreateInfo.callocStack(stack)
                 .sType(VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO)
@@ -158,6 +125,44 @@ class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysicalDevic
 
             commandPool
         }
+    }
+
+    // helper vars
+    private var MAX_TEXTURES = 2048 * 16
+    private var MAX_UBOS = 2048
+    private var MAX_INPUT_ATTACHMENTS = 32
+    // end helper vars
+
+    fun createDescriptorPool(): VkDescriptorPool {
+
+        // We need to tell the API the number of max. requested descriptors per type
+        val typeCounts = vk.DescriptorPoolSize(4)
+            .at(0) {
+                type = VkDescriptorType.COMBINED_IMAGE_SAMPLER
+                descriptorCount = MAX_TEXTURES
+            }
+            .at(1) {
+                type = VkDescriptorType.UNIFORM_BUFFER_DYNAMIC
+                descriptorCount = MAX_UBOS
+            }.at(2) {
+                type = VkDescriptorType.INPUT_ATTACHMENT
+                descriptorCount = MAX_INPUT_ATTACHMENTS
+            }.at(3) {
+                type = VkDescriptorType.UNIFORM_BUFFER
+                descriptorCount = MAX_UBOS
+            }
+
+        // Create the global descriptor pool
+        // All descriptors used in this example are allocated from this pool
+        return vulkanDevice createDescriptorPool vk.DescriptorPoolCreateInfo {
+            poolSizes = typeCounts
+            maxSets = MAX_TEXTURES + MAX_UBOS + MAX_INPUT_ATTACHMENTS + MAX_UBOS // Set the max. number of sets that can be requested
+            flags = VkDescriptorPoolCreate.FREE_DESCRIPTOR_SET_BIT.i
+        }
+    }
+
+    infix fun getQueue(queueFamilyIndex: Int): VkQueue {
+        return vulkanDevice.getQueue(queueFamilyIndex, 0)
     }
 
     fun destroyCommandPool(commandPool: Long) {
@@ -180,94 +185,47 @@ class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysicalDevic
     companion object {
         val logger by LazyLogger()
 
-        private fun toDeviceType(vkDeviceType: Int): DeviceType {
-            return when(vkDeviceType) {
-                0 -> DeviceType.Other
-                1 -> DeviceType.IntegratedGPU
-                2 -> DeviceType.DiscreteGPU
-                3 -> DeviceType.VirtualGPU
-                4 -> DeviceType.CPU
-                else -> DeviceType.Unknown
+        @JvmStatic
+        fun fromPhysicalDevice(instance: VkInstance, physicalDeviceFilter: (Int, DeviceData) -> Boolean,
+                               additionalExtensions: (VkPhysicalDevice) -> Array<String> = { arrayOf() },
+                               validationLayers: Collection<String> = listOf()): VulkanDevice {
+
+            val physicalDevices = instance.enumeratePhysicalDevices()
+
+            var devicePreference = 0
+
+            logger.info("Physical devices: ")
+            val properties = vk.PhysicalDeviceProperties()
+            val deviceList = ArrayList<DeviceData>(10)
+
+            for (i in physicalDevices.indices) {
+
+                val device = physicalDevices[i]
+
+                device getProperties properties
+
+                val deviceData = DeviceData(
+                    vendor = properties.vendorName,
+                    name = properties.deviceName,
+                    driverVersion = properties.driverVersionString,
+                    apiVersion = properties.apiVersionString,
+                    type = properties.deviceType)
+
+                if (physicalDeviceFilter(i, deviceData))
+                    devicePreference = i
+
+                deviceList += deviceData
             }
-        }
 
-        private fun vendorToString(vendor: Int): String =
-            when(vendor) {
-                0x1002 -> "AMD"
-                0x10DE -> "Nvidia"
-                0x8086 -> "Intel"
-                else -> "(Unknown vendor)"
+            deviceList.forEachIndexed { i, device ->
+                val selected = if (devicePreference == i) "(selected)" else ""
+                logger.info("  $i: ${device.vendor} ${device.name} (${device.type}, driver version ${device.driverVersion}, Vulkan API ${device.apiVersion}) $selected")
             }
 
-        private fun decodeDriverVersion(version: Int) =
-            Triple(
-                version and 0xFFC00000.toInt() shr 22,
-                version and 0x003FF000 shr 12,
-                version and 0x00000FFF
-            )
+            val selectedDevice = physicalDevices[devicePreference]
+            val selectedDeviceData = deviceList[devicePreference]
 
-        private fun driverVersionToString(version: Int) =
-            decodeDriverVersion(version).toList().joinToString(".")
-
-        @JvmStatic fun fromPhysicalDevice(instance: VkInstance, physicalDeviceFilter: (Int, DeviceData) -> Boolean,
-                                          additionalExtensions: (VkPhysicalDevice) -> Array<String> = { arrayOf() },
-                                          validationLayers: Array<String> = arrayOf()): VulkanDevice {
-            return stackPush().use { stack ->
-
-                val physicalDeviceCount = VU.getInt("Enumerate physical devices",
-                    { vkEnumeratePhysicalDevices(instance, this, null)} )
-
-                if (physicalDeviceCount < 1) {
-                    throw AssertionError("No Vulkan-compatible devices found!")
-                }
-
-                val physicalDevices = VU.getPointers("Getting Vulkan physical devices", physicalDeviceCount,
-                    { vkEnumeratePhysicalDevices(instance, intArrayOf(physicalDeviceCount), this) })
-
-                var devicePreference = 0
-
-                logger.info("Physical devices: ")
-                val properties: VkPhysicalDeviceProperties = VkPhysicalDeviceProperties.callocStack(stack)
-                val deviceList = ArrayList<DeviceData>(10)
-
-                for (i in 0 until physicalDeviceCount) {
-                    val device = VkPhysicalDevice(physicalDevices.get(i), instance)
-
-                    vkGetPhysicalDeviceProperties(device, properties)
-
-                    val deviceData = DeviceData(
-                        vendor = vendorToString(properties.vendorID()),
-                        name = properties.deviceNameString(),
-                        driverVersion = driverVersionToString(properties.driverVersion()),
-                        apiVersion = driverVersionToString(properties.apiVersion()),
-                        type = toDeviceType(properties.deviceType()))
-
-                    if(physicalDeviceFilter.invoke(i, deviceData)) {
-                        devicePreference = i
-                    }
-
-                    deviceList.add(deviceData)
-                }
-
-                deviceList.forEachIndexed { i, device ->
-                    val selected = if (devicePreference == i) {
-                        "(selected)"
-                    } else {
-                        ""
-                    }
-
-                    logger.info("  $i: ${device.vendor} ${device.name} (${device.type}, driver version ${device.driverVersion}, Vulkan API ${device.apiVersion}) $selected")
-                }
-
-                val selectedDevice = physicalDevices.get(devicePreference)
-                val selectedDeviceData = deviceList[devicePreference]
-
-                val physicalDevice = VkPhysicalDevice(selectedDevice, instance)
-
-                physicalDevices.free()
-
-                VulkanDevice(instance, physicalDevice, selectedDeviceData, additionalExtensions, validationLayers)
-            }
+            return VulkanDevice(instance, selectedDevice, selectedDeviceData, additionalExtensions, validationLayers)
         }
     }
 }

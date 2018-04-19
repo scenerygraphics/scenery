@@ -1,5 +1,6 @@
 package graphics.scenery.backends.vulkan
 
+import glfw_.glfw
 import graphics.scenery.Hub
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.SceneryWindow
@@ -27,6 +28,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
                            open val commandPool: Long,
                            @Suppress("unused") open val renderConfig: RenderConfigReader.RenderConfig,
                            open val useSRGB: Boolean = true) : Swapchain {
+
     protected val logger by LazyLogger()
 
     override var handle: Long = 0L
@@ -50,8 +52,11 @@ open class VulkanSwapchain(open val device: VulkanDevice,
     data class ColorFormatAndSpace(var colorFormat: Int = 0, var colorSpace: Int = 0)
 
     override fun createWindow(win: SceneryWindow, swapchainRecreator: VulkanRenderer.SwapchainRecreator): SceneryWindow {
-        glfwDefaultWindowHints()
-        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API)
+
+        glfw.windowHint {
+            default()
+            api = "none"
+        }
 
         window = SceneryWindow.GLFWWindow(glfwCreateWindow(win.width, win.height, "scenery", MemoryUtil.NULL, MemoryUtil.NULL)).apply {
             width = win.width
@@ -59,8 +64,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
 
             glfwSetWindowPos(window, 100, 100)
 
-            surface = VU.getLong("glfwCreateWindowSurface",
-                { GLFWVulkan.glfwCreateWindowSurface(device.instance, window, null, this) }, {})
+            surface = glfw.createWindowSurface(window, device.instance)
 
             // Handle canvas resize
             windowSizeCallback = object : GLFWWindowSizeCallback() {
@@ -84,7 +88,6 @@ open class VulkanSwapchain(open val device: VulkanDevice,
             glfwSetWindowSizeCallback(window, windowSizeCallback)
             glfwShowWindow(window)
         }
-
         return window
     }
 
