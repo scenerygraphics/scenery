@@ -1,14 +1,12 @@
 package graphics.scenery.backends.vulkan
 
+import glfw_.appBuffer
 import graphics.scenery.backends.vulkan.VU.setImageLayout
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.system.MemoryUtil.NULL
-import org.lwjgl.system.MemoryUtil.memAllocLong
-import org.lwjgl.system.Struct
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
 import vkn.*
-import java.nio.LongBuffer
 import java.util.*
 
 /**
@@ -181,28 +179,27 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
 
         val att = createAttachment(format, VkImageUsage.COLOR_ATTACHMENT_BIT)
 
-        val (loadOp, stencilLoadOp) = if (!shouldClear) {
-            VK_ATTACHMENT_LOAD_OP_LOAD to VK_ATTACHMENT_LOAD_OP_LOAD
-        } else {
-            VK_ATTACHMENT_LOAD_OP_CLEAR to VK_ATTACHMENT_LOAD_OP_DONT_CARE
+        val (loadOp, stencilLoadOp) = when {
+            !shouldClear -> VkAttachmentLoadOp.LOAD to VkAttachmentLoadOp.LOAD
+            else -> VkAttachmentLoadOp.CLEAR to VkAttachmentLoadOp.DONT_CARE
         }
 
-        val initialImageLayout = if (!shouldClear) {
-            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-        } else {
-            VK_IMAGE_LAYOUT_UNDEFINED
+        val initialImageLayout = when {
+            !shouldClear -> VkImageLayout.COLOR_ATTACHMENT_OPTIMAL
+            else -> VkImageLayout.UNDEFINED
         }
 
-        att.desc.samples(VK_SAMPLE_COUNT_1_BIT)
-            .loadOp(loadOp)
-            .storeOp(VK_ATTACHMENT_STORE_OP_STORE)
-            .stencilLoadOp(stencilLoadOp)
-            .stencilStoreOp(VK_ATTACHMENT_STORE_OP_DONT_CARE)
-            .initialLayout(initialImageLayout)
-            .finalLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-            .format(format.i)
-
-        attachments.put(name, att)
+        att.desc.apply {
+            samples = VkSampleCount.`1_BIT`
+            this.loadOp = loadOp
+            storeOp = VkAttachmentStoreOp.STORE
+            this.stencilLoadOp = stencilLoadOp
+            stencilStoreOp = VkAttachmentStoreOp.DONT_CARE
+            initialLayout = initialImageLayout
+            finalLayout = VkImageLayout.SHADER_READ_ONLY_OPTIMAL
+            this.format = format
+        }
+        attachments[name] = att
 
         return this
     }
@@ -218,28 +215,27 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
 
         val att = createAttachment(format, VkImageUsage.COLOR_ATTACHMENT_BIT)
 
-        val (loadOp, stencilLoadOp) = if (!shouldClear) {
-            VK_ATTACHMENT_LOAD_OP_LOAD to VK_ATTACHMENT_LOAD_OP_LOAD
-        } else {
-            VK_ATTACHMENT_LOAD_OP_CLEAR to VK_ATTACHMENT_LOAD_OP_DONT_CARE
+        val (loadOp, stencilLoadOp) = when {
+            !shouldClear -> VkAttachmentLoadOp.LOAD to VkAttachmentLoadOp.LOAD
+            else -> VkAttachmentLoadOp.CLEAR to VkAttachmentLoadOp.DONT_CARE
         }
 
-        val initialImageLayout = if (!shouldClear) {
-            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-        } else {
-            VK_IMAGE_LAYOUT_UNDEFINED
+        val initialImageLayout = when {
+            !shouldClear -> VkImageLayout.COLOR_ATTACHMENT_OPTIMAL
+            else -> VkImageLayout.UNDEFINED
         }
 
-        att.desc.samples(VK_SAMPLE_COUNT_1_BIT)
-            .loadOp(loadOp)
-            .storeOp(VK_ATTACHMENT_STORE_OP_STORE)
-            .stencilLoadOp(stencilLoadOp)
-            .stencilStoreOp(VK_ATTACHMENT_STORE_OP_DONT_CARE)
-            .initialLayout(initialImageLayout)
-            .finalLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-            .format(format.i)
-
-        attachments.put(name, att)
+        att.desc.apply {
+            samples = VkSampleCount.`1_BIT`
+            this.loadOp = loadOp
+            storeOp = VkAttachmentStoreOp.STORE
+            this.stencilLoadOp = stencilLoadOp
+            stencilStoreOp = VkAttachmentStoreOp.DONT_CARE
+            initialLayout = initialImageLayout
+            finalLayout = VkImageLayout.SHADER_READ_ONLY_OPTIMAL
+            this.format = format
+        }
+        attachments[name] = att
 
         return this
     }
@@ -255,38 +251,36 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
 
         val att = createAttachment(format, VkImageUsage.COLOR_ATTACHMENT_BIT)
 
-        val (loadOp, stencilLoadOp) = if (!shouldClear) {
-            VK_ATTACHMENT_LOAD_OP_LOAD to VK_ATTACHMENT_LOAD_OP_LOAD
-        } else {
-            VK_ATTACHMENT_LOAD_OP_CLEAR to VK_ATTACHMENT_LOAD_OP_DONT_CARE
+        val (loadOp, stencilLoadOp) = when {
+            !shouldClear -> VkAttachmentLoadOp.LOAD to VkAttachmentLoadOp.LOAD
+            else -> VkAttachmentLoadOp.CLEAR to VkAttachmentLoadOp.DONT_CARE
         }
 
-        val initialImageLayout = if (!shouldClear) {
-            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-        } else {
-            VK_IMAGE_LAYOUT_UNDEFINED
+        val initialImageLayout = when {
+            !shouldClear -> VkImageLayout.COLOR_ATTACHMENT_OPTIMAL
+            else -> VkImageLayout.UNDEFINED
         }
 
-        att.desc.samples(VK_SAMPLE_COUNT_1_BIT)
-            .loadOp(loadOp)
-            .storeOp(VK_ATTACHMENT_STORE_OP_STORE)
-            .stencilLoadOp(stencilLoadOp)
-            .stencilStoreOp(VK_ATTACHMENT_STORE_OP_DONT_CARE)
-            .initialLayout(initialImageLayout)
-            .finalLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-            .format(format.i)
-
-        attachments.put(name, att)
+        att.desc.apply {
+            samples = VkSampleCount.`1_BIT`
+            this.loadOp = loadOp
+            storeOp = VkAttachmentStoreOp.STORE
+            this.stencilLoadOp = stencilLoadOp
+            stencilStoreOp = VkAttachmentStoreOp.DONT_CARE
+            initialLayout = initialImageLayout
+            finalLayout = VkImageLayout.SHADER_READ_ONLY_OPTIMAL
+            this.format = format
+        }
+        attachments[name] = att
 
         return this
     }
 
     fun addUnsignedByteRGBABuffer(name: String, channelDepth: Int): VulkanFramebuffer {
         val format = when (channelDepth) {
-            8 -> if (sRGB) {
-                VkFormat.R8G8B8A8_SRGB
-            } else {
-                VkFormat.R8G8B8A8_UNORM
+            8 -> when {
+                sRGB -> VkFormat.R8G8B8A8_SRGB
+                else -> VkFormat.R8G8B8A8_UNORM
             }
             16 -> VkFormat.R16G16B16A16_UNORM
             else -> {
@@ -296,28 +290,27 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
 
         val att = createAttachment(format, VkImageUsage.COLOR_ATTACHMENT_BIT)
 
-        val (loadOp, stencilLoadOp) = if (!shouldClear) {
-            VK_ATTACHMENT_LOAD_OP_LOAD to VK_ATTACHMENT_LOAD_OP_LOAD
-        } else {
-            VK_ATTACHMENT_LOAD_OP_CLEAR to VK_ATTACHMENT_LOAD_OP_DONT_CARE
+        val (loadOp, stencilLoadOp) = when {
+            !shouldClear -> VkAttachmentLoadOp.LOAD to VkAttachmentLoadOp.LOAD
+            else -> VkAttachmentLoadOp.CLEAR to VkAttachmentLoadOp.DONT_CARE
         }
 
-        val initialImageLayout = if (!shouldClear) {
-            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-        } else {
-            VK_IMAGE_LAYOUT_UNDEFINED
+        val initialImageLayout = when {
+            !shouldClear -> VkImageLayout.COLOR_ATTACHMENT_OPTIMAL
+            else -> VkImageLayout.UNDEFINED
         }
 
-        att.desc.samples(VK_SAMPLE_COUNT_1_BIT)
-            .loadOp(loadOp)
-            .storeOp(VK_ATTACHMENT_STORE_OP_STORE)
-            .stencilLoadOp(stencilLoadOp)
-            .stencilStoreOp(VK_ATTACHMENT_STORE_OP_DONT_CARE)
-            .initialLayout(initialImageLayout)
-            .finalLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-            .format(format.i)
-
-        attachments.put(name, att)
+        att.desc.apply {
+            samples = VkSampleCount.`1_BIT`
+            this.loadOp = loadOp
+            storeOp = VkAttachmentStoreOp.STORE
+            this.stencilLoadOp = stencilLoadOp
+            stencilStoreOp = VkAttachmentStoreOp.DONT_CARE
+            initialLayout = initialImageLayout
+            finalLayout = VkImageLayout.SHADER_READ_ONLY_OPTIMAL
+            this.format = format
+        }
+        attachments[name] = att
 
         return this
     }
@@ -333,28 +326,27 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
 
         val att = createAttachment(format, VkImageUsage.COLOR_ATTACHMENT_BIT)
 
-        val (loadOp, stencilLoadOp) = if (!shouldClear) {
-            VK_ATTACHMENT_LOAD_OP_LOAD to VK_ATTACHMENT_LOAD_OP_LOAD
-        } else {
-            VK_ATTACHMENT_LOAD_OP_CLEAR to VK_ATTACHMENT_LOAD_OP_DONT_CARE
+        val (loadOp, stencilLoadOp) = when {
+            !shouldClear -> VkAttachmentLoadOp.LOAD to VkAttachmentLoadOp.LOAD
+            else -> VkAttachmentLoadOp.CLEAR to VkAttachmentLoadOp.DONT_CARE
         }
 
-        val initialImageLayout = if (!shouldClear) {
-            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-        } else {
-            VK_IMAGE_LAYOUT_UNDEFINED
+        val initialImageLayout = when {
+            !shouldClear -> VkImageLayout.COLOR_ATTACHMENT_OPTIMAL
+            else -> VkImageLayout.UNDEFINED
         }
 
-        att.desc.samples(VK_SAMPLE_COUNT_1_BIT)
-            .loadOp(loadOp)
-            .storeOp(VK_ATTACHMENT_STORE_OP_STORE)
-            .stencilLoadOp(stencilLoadOp)
-            .stencilStoreOp(VK_ATTACHMENT_STORE_OP_DONT_CARE)
-            .initialLayout(initialImageLayout)
-            .finalLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-            .format(format.i)
-
-        attachments.put(name, att)
+        att.desc.apply {
+            samples = VkSampleCount.`1_BIT`
+            this.loadOp = loadOp
+            storeOp = VkAttachmentStoreOp.STORE
+            this.stencilLoadOp = stencilLoadOp
+            stencilStoreOp = VkAttachmentStoreOp.DONT_CARE
+            initialLayout = initialImageLayout
+            finalLayout = VkImageLayout.SHADER_READ_ONLY_OPTIMAL
+            this.format = format
+        }
+        attachments[name] = att
 
         return this
     }
@@ -373,26 +365,26 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
 
         val att = createAttachment(bestSupportedFormat, VkImageUsage.DEPTH_STENCIL_ATTACHMENT_BIT)
 
-        val (loadOp, stencilLoadOp) = if (!shouldClear) {
-            VK_ATTACHMENT_LOAD_OP_DONT_CARE to VK_ATTACHMENT_LOAD_OP_LOAD
-        } else {
-            VK_ATTACHMENT_LOAD_OP_CLEAR to VK_ATTACHMENT_LOAD_OP_CLEAR
+        val (loadOp, stencilLoadOp) = when {
+            !shouldClear -> VkAttachmentLoadOp.DONT_CARE to VkAttachmentLoadOp.LOAD
+            else -> VkAttachmentLoadOp.CLEAR to VkAttachmentLoadOp.CLEAR
         }
 
-        val initialImageLayout = VK_IMAGE_LAYOUT_UNDEFINED
+        val initialImageLayout = VkImageLayout.UNDEFINED
 
-        att.desc.samples(VK_SAMPLE_COUNT_1_BIT)
-            .loadOp(loadOp)
-            .storeOp(VK_ATTACHMENT_STORE_OP_STORE)
-            .stencilLoadOp(stencilLoadOp)
-            .stencilStoreOp(VK_ATTACHMENT_STORE_OP_STORE)
-            .initialLayout(initialImageLayout)
-            .finalLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-            .format(bestSupportedFormat.i)
-
+        att.desc.apply {
+            samples = VkSampleCount.`1_BIT`
+            this.loadOp = loadOp
+            storeOp = VkAttachmentStoreOp.STORE
+            this.stencilLoadOp = stencilLoadOp
+            stencilStoreOp = VkAttachmentStoreOp.STORE
+            initialLayout = initialImageLayout
+            finalLayout = VkImageLayout.SHADER_READ_ONLY_OPTIMAL
+            this.format = bestSupportedFormat
+        }
         att.type = VkFramebufferAttachment.DEPTH
 
-        attachments.put(name, att)
+        attachments[name] = att
 
         return this
     }
@@ -405,99 +397,83 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
         att.type = VkFramebufferAttachment.COLOR
         att.fromSwapchain = true
 
-        val (loadOp, stencilLoadOp) = if (!shouldClear) {
-            VK_ATTACHMENT_LOAD_OP_LOAD to VK_ATTACHMENT_LOAD_OP_LOAD
-        } else {
-            VK_ATTACHMENT_LOAD_OP_CLEAR to VK_ATTACHMENT_LOAD_OP_DONT_CARE
+        val (loadOp, stencilLoadOp) = when {
+            !shouldClear -> VkAttachmentLoadOp.LOAD to VkAttachmentLoadOp.LOAD
+            else -> VkAttachmentLoadOp.CLEAR to VkAttachmentLoadOp.DONT_CARE
         }
 
-        val initialImageLayout = VK_IMAGE_LAYOUT_UNDEFINED
+        val initialImageLayout = VkImageLayout.UNDEFINED
 
-        att.desc
-            .samples(VK_SAMPLE_COUNT_1_BIT)
-            .loadOp(loadOp)
-            .storeOp(VK_ATTACHMENT_STORE_OP_STORE)
-            .stencilLoadOp(stencilLoadOp)
-            .stencilStoreOp(VK_ATTACHMENT_STORE_OP_DONT_CARE)
-            .initialLayout(initialImageLayout)
-            .finalLayout(KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
-            .format(if (sRGB) {
-                VK_FORMAT_B8G8R8A8_SRGB
-            } else {
-                VK_FORMAT_B8G8R8A8_UNORM
-            })
-
-        attachments.put(name, att)
+        att.desc.apply {
+            samples = VkSampleCount.`1_BIT`
+            this.loadOp = loadOp
+            storeOp = VkAttachmentStoreOp.STORE
+            this.stencilLoadOp = stencilLoadOp
+            stencilStoreOp = VkAttachmentStoreOp.DONT_CARE
+            initialLayout = initialImageLayout
+            finalLayout = VkImageLayout.PRESENT_SRC_KHR
+            format = when {
+                sRGB -> VkFormat.B8G8R8A8_SRGB
+                else -> VkFormat.B8G8R8A8_UNORM
+            }
+        }
+        attachments[name] = att
 
         return this
     }
 
     protected fun getAttachmentDescBuffer(): VkAttachmentDescription.Buffer {
-        val descriptionBuffer = VkAttachmentDescription.calloc(attachments.size)
-        attachments.values.forEach { descriptionBuffer.put(it.desc) }
-
-        return descriptionBuffer.flip()
-    }
-
-    protected fun getAttachmentImageViews(): LongBuffer {
-        val ivBuffer = memAllocLong(attachments.size)
-        attachments.values.forEach { ivBuffer.put(it.imageView) }
-
-        ivBuffer.flip()
-
-        return ivBuffer
+        val descriptionBuffer = vk.AttachmentDescription(attachments.size)
+        for (i in 0 until attachments.size)
+            descriptionBuffer[i] = attachments.values.elementAt(i).desc
+        return descriptionBuffer
     }
 
     fun createRenderpassAndFramebuffer() {
-        val colorDescs = VkAttachmentReference.calloc(attachments.filter { it.value.type == VkFramebufferAttachment.COLOR }.size)
+
+        val colorDescs = vk.AttachmentReference(attachments.filter { it.value.type == VkFramebufferAttachment.COLOR }.size)
 
         attachments.values.filter { it.type == VkFramebufferAttachment.COLOR }.forEachIndexed { i, _ ->
-            colorDescs[i]
-                .attachment(i)
-                .layout(VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
+            colorDescs[i].apply {
+                attachment = i
+                layout = VkImageLayout.COLOR_ATTACHMENT_OPTIMAL
+            }
         }
 
-        val depthDescs: VkAttachmentReference? = if (attachments.any { it.value.type == VkFramebufferAttachment.DEPTH }) {
-            VkAttachmentReference.calloc()
-                .attachment(colorDescs.limit())
-                .layout(VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
-        } else {
-            null
-        }
+        val depthDescs: VkAttachmentReference? = vk.AttachmentReference {
+            attachment = colorDescs.limit()
+            layout = VkImageLayout.DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+        }.takeIf { attachments.any { it.value.type == VkFramebufferAttachment.DEPTH } }
 
 
         logger.trace("Subpass for has ${colorDescs.remaining()} color attachments")
 
-        val subpass = VkSubpassDescription.calloc(1)
-            .pColorAttachments(colorDescs)
-            .colorAttachmentCount(colorDescs.remaining())
-            .pDepthStencilAttachment(depthDescs)
-            .pipelineBindPoint(VK_PIPELINE_BIND_POINT_GRAPHICS)
-            .pInputAttachments(null)
-            .pPreserveAttachments(null)
-            .pResolveAttachments(null)
-            .flags(0)
+        val subpass = vk.SubpassDescription(1) {
+            colorAttachments = colorDescs
+            colorAttachmentCount = colorDescs.remaining()
+            depthStencilAttachment = depthDescs
+            pipelineBindPoint = VkPipelineBindPoint.GRAPHICS
+        }
 
-        val dependencyChain = VkSubpassDependency.calloc(2)
-
-        dependencyChain[0]
-            .srcSubpass(VK_SUBPASS_EXTERNAL)
-            .dstSubpass(0)
-            .srcStageMask(VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT)
-            .dstStageMask(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
-            .srcAccessMask(VK_ACCESS_MEMORY_READ_BIT)
-            .dstAccessMask(VK_ACCESS_COLOR_ATTACHMENT_READ_BIT or VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
-            .dependencyFlags(VK_DEPENDENCY_BY_REGION_BIT)
-
-        dependencyChain[1]
-            .srcSubpass(0)
-            .dstSubpass(VK_SUBPASS_EXTERNAL)
-            .srcStageMask(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
-            .dstStageMask(VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT)
-            .srcAccessMask(VK_ACCESS_COLOR_ATTACHMENT_READ_BIT or VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
-            .dstAccessMask(VK_ACCESS_MEMORY_READ_BIT)
-            .dependencyFlags(VK_DEPENDENCY_BY_REGION_BIT)
-
+        val dependencyChain = vk.SubpassDependency(2)
+            .at(0) {
+                srcSubpass = VK_SUBPASS_EXTERNAL
+                dstSubpass = 0
+                srcStageMask = VkPipelineStage.BOTTOM_OF_PIPE_BIT.i
+                dstStageMask = VkPipelineStage.COLOR_ATTACHMENT_OUTPUT_BIT.i
+                srcAccessMask = VkAccess.MEMORY_READ_BIT.i
+                dstAccessMask = VkAccess.COLOR_ATTACHMENT_READ_BIT or VkAccess.COLOR_ATTACHMENT_WRITE_BIT
+                dependencyFlags = VkDependency.BY_REGION_BIT.i
+            }
+            .at(1) {
+                srcSubpass = 0
+                dstSubpass = VK_SUBPASS_EXTERNAL
+                srcStageMask = VkPipelineStage.COLOR_ATTACHMENT_OUTPUT_BIT.i
+                dstStageMask = VkPipelineStage.BOTTOM_OF_PIPE_BIT.i
+                srcAccessMask = VkAccess.COLOR_ATTACHMENT_READ_BIT or VkAccess.COLOR_ATTACHMENT_WRITE_BIT
+                dstAccessMask = VkAccess.MEMORY_READ_BIT.i
+                dependencyFlags = VkDependency.BY_REGION_BIT.i
+            }
         val attachmentDescs = getAttachmentDescBuffer()
         val renderPassInfo = VkRenderPassCreateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO)
@@ -510,71 +486,44 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
 
         logger.trace("Created renderpass $renderPass")
 
-        val attachmentImageViews = getAttachmentImageViews()
-        val fbinfo = VkFramebufferCreateInfo.calloc()
-            .default()
-            .renderPass(renderPass)
-            .pAttachments(attachmentImageViews)
-            .width(width)
-            .height(height)
-            .layers(1)
-
+        val fbinfo = vk.FramebufferCreateInfo {
+            renderPass = this@VulkanFramebuffer.renderPass
+            attachments = appBuffer.longBufferOf(this@VulkanFramebuffer.attachments.values.map { it.imageView })
+            width = this@VulkanFramebuffer.width
+            height = this@VulkanFramebuffer.height
+            layers = 1
+        }
         framebuffer = device createFramebuffer fbinfo
 
-        val samplerCreateInfo = VkSamplerCreateInfo.calloc()
-            .default()
-            .magFilter(VK_FILTER_LINEAR)
-            .minFilter(VK_FILTER_LINEAR)
-            .mipmapMode(VK_SAMPLER_MIPMAP_MODE_LINEAR)
-            .addressModeU(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE)
-            .addressModeV(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE)
-            .addressModeW(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE)
-            .mipLodBias(0.0f)
-            .maxAnisotropy(1.0f)
-            .minLod(0.0f)
-            .maxLod(1.0f)
-            .borderColor(VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE)
-
+        val samplerCreateInfo = vk.SamplerCreateInfo {
+            magFilter = VkFilter.LINEAR
+            minFilter = VkFilter.LINEAR
+            mipmapMode = VkSamplerMipmapMode.LINEAR
+            addressModeU = VkSamplerAddressMode.CLAMP_TO_EDGE
+            addressModeV = VkSamplerAddressMode.CLAMP_TO_EDGE
+            addressModeW = VkSamplerAddressMode.CLAMP_TO_EDGE
+            mipLodBias = 0f
+            maxAnisotropy = 1f
+            minLod = 0f
+            maxLod = 1f
+            borderColor = VkBorderColor.FLOAT_OPAQUE_WHITE
+        }
         framebufferSampler = device.vulkanDevice createSampler samplerCreateInfo
 
-        renderPassInfo.free()
-        samplerCreateInfo.free()
-        subpass.free()
-        colorDescs.free()
-        depthDescs?.free()
-        dependencyChain.free()
-
         initialized = true
-    }
-
-    fun <T : Struct> T.default(): T {
-        if (this is VkSamplerCreateInfo) {
-            this.sType(VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO).pNext(NULL)
-        } else if (this is VkFramebufferCreateInfo) {
-            this.sType(VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO).pNext(NULL)
-        }
-
-        return this
     }
 
     override fun toString(): String {
         return "VulkanFramebuffer"
     }
 
-    val id: Int
-        get() {
-            if (initialized) {
-                return 0
-            } else {
-                return -1
-            }
-        }
+    val id: Int get() = if (initialized) 0 else -1
 
     private fun getBestDepthFormat(preferredFormat: VkFormat): List<VkFormat> {
         // this iterates through the list of possible (though not all required formats)
         // and returns the first one that is possible to use as a depth buffer on the
         // given physical device.
-        val props = VkFormatProperties.calloc()
+        val props = vk.FormatProperties { }
         val format = arrayOf(
             preferredFormat,
             VkFormat.D32_SFLOAT,
@@ -583,20 +532,17 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
             VkFormat.D16_UNORM_S8_UINT,
             VkFormat.D16_UNORM
         ).filter {
-            vkGetPhysicalDeviceFormatProperties(device.physicalDevice, it.i, props)
+            device.physicalDevice.getFormatProperties(it, props)
 
-            props.optimalTilingFeatures() and VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT > 0
+            props.optimalTilingFeatures has VkFormatFeature.DEPTH_STENCIL_ATTACHMENT_BIT
         }
 
         logger.debug("Using $format as depth format.")
 
-        props.free()
         return format
     }
 
     fun colorAttachmentCount() = attachments.count { it.value.type == VkFramebufferAttachment.COLOR }
-
-    fun depthAttachmentCount() = attachments.count { it.value.type == VkFramebufferAttachment.DEPTH }
 
     override fun close() {
         if (initialized) {

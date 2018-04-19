@@ -491,7 +491,12 @@ inline infix fun VkPhysicalDevice.getFeatures(features: VkPhysicalDeviceFeatures
 }
 
 inline infix fun VkPhysicalDevice.getFormatProperties(format: VkFormat): VkFormatProperties {
-    return vk.getPhysicalDeviceFormatProperties(this, format)
+    return getFormatProperties(format, vk.FormatProperties { })
+}
+
+inline fun VkPhysicalDevice.getFormatProperties(format: VkFormat, formatProperties: VkFormatProperties): VkFormatProperties {
+    VK10.nvkGetPhysicalDeviceFormatProperties(this, format.i, formatProperties.adr)
+    return formatProperties
 }
 
 inline val VkPhysicalDevice.memoryProperties: VkPhysicalDeviceMemoryProperties

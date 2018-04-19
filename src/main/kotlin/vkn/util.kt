@@ -221,12 +221,17 @@ private fun IntVec.toByteBuffer(): ByteBuffer {
 }
 
 
-inline fun VkVertexInputAttributeDescription.Buffer.at(index: Int, block: VkVertexInputAttributeDescription.() -> Unit): VkVertexInputAttributeDescription.Buffer {
+inline fun VkDescriptorPoolSize.Buffer.at(index: Int, block: VkDescriptorPoolSize.() -> Unit): VkDescriptorPoolSize.Buffer {
     get(index).block()
     return this
 }
 
-inline fun VkDescriptorPoolSize.Buffer.at(index: Int, block: VkDescriptorPoolSize.() -> Unit): VkDescriptorPoolSize.Buffer {
+inline fun VkSubpassDependency.Buffer.at(index: Int, block: VkSubpassDependency.() -> Unit): VkSubpassDependency.Buffer {
+    get(index).block()
+    return this
+}
+
+inline fun VkVertexInputAttributeDescription.Buffer.at(index: Int, block: VkVertexInputAttributeDescription.() -> Unit): VkVertexInputAttributeDescription.Buffer {
     get(index).block()
     return this
 }
