@@ -19,6 +19,7 @@ import org.lwjgl.vulkan.NVWin32KeyedMutex.VK_STRUCTURE_TYPE_WIN32_KEYED_MUTEX_AC
 import org.lwjgl.vulkan.VK10.*
 import org.zeromq.ZContext
 import org.zeromq.ZMQ
+import vkn.VkCommandPool
 import java.math.BigInteger
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -49,7 +50,7 @@ class Hololens: TrackerInput, Display, Hubable {
 
     data class CommandBufferWithStatus(val commandBuffer: VulkanCommandBuffer, var current: Boolean = false)
     private var commandBuffers: MutableList<CommandBufferWithStatus> = mutableListOf()
-    private var hololensCommandPool = -1L
+    private var hololensCommandPool: VkCommandPool = -1L
     private var d3dImages: List<Pair<VulkanTexture.VulkanImage, Long>?> = emptyList()
     private var currentImageIndex: Int = 0
 

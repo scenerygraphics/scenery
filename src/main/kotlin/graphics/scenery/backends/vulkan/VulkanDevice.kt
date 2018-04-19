@@ -3,7 +3,6 @@ package graphics.scenery.backends.vulkan
 import glfw_.appBuffer
 import graphics.scenery.backends.vulkan.VU.createDescriptorSetLayout
 import graphics.scenery.utils.LazyLogger
-import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
 import vkn.*
@@ -95,38 +94,27 @@ class VulkanDevice(
 
         for (i in 0 until memoryProperties.memoryTypeCount()) {
             if (bits and 1 == 1) {
-                if ((memoryProperties.memoryTypes(i).propertyFlags() and flags) == flags) {
-                    types.add(i)
-                }
+                if ((memoryProperties.memoryTypes(i).propertyFlags and flags) == flags)
+                    types += i
             }
 
             bits = bits shr 1
         }
 
-        if (types.isEmpty()) {
+        if (types.isEmpty())
             logger.warn("Memory type $flags not found for device $this (${vulkanDevice.address().toHexString()}")
-        }
 
         return types
     }
 
     infix fun createCommandPool(queueNodeIndex: Int): VkCommandPool {
-        return stackPush().use { stack ->
-            val cmdPoolInfo = VkCommandPoolCreateInfo.callocStack(stack)
-                .sType(VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO)
-                .queueFamilyIndex(queueNodeIndex)
-                .flags(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT)
 
-            val pCmdPool = stack.callocLong(1)
-            val err = vkCreateCommandPool(vulkanDevice, cmdPoolInfo, null, pCmdPool)
-            val commandPool = pCmdPool.get(0)
-
-            if (err != VK_SUCCESS) {
-                throw AssertionError("Failed to create command pool: " + VU.translate(err))
-            }
-
-            commandPool
+        val cmdPoolInfo = vk.CommandPoolCreateInfo {
+            queueFamilyIndex = queueNodeIndex
+            flags = VkCommandPoolCreate.RESET_COMMAND_BUFFER_BIT.i
         }
+
+        return vulkanDevice createCommandPool cmdPoolInfo
     }
 
     // helper vars
@@ -220,22 +208,16 @@ class VulkanDevice(
         logger.debug("Created all buffers")
     }
 
-    infix fun getQueue(queueFamilyIndex: Int): VkQueue {
-        return vulkanDevice.getQueue(queueFamilyIndex, 0)
-    }
+    infix fun getQueue(queueFamilyIndex: Int): VkQueue = vulkanDevice getQueue queueFamilyIndex
 
-    fun destroyCommandPool(commandPool: VkCommandPool) {
-        vkDestroyCommandPool(vulkanDevice, commandPool, null)
-    }
+    fun destroyCommandPool(commandPool: VkCommandPool) = vulkanDevice destroyCommandPool commandPool
 
-    override fun toString(): String {
-        return "${deviceData.vendor} ${deviceData.name}"
-    }
+    override fun toString(): String = "${deviceData.vendor} ${deviceData.name}"
 
     fun close() {
         logger.debug("Closing device ${deviceData.vendor} ${deviceData.name}...")
-        vkDeviceWaitIdle(vulkanDevice)
-        vkDestroyDevice(vulkanDevice, null)
+        vulkanDevice.waitIdle()
+        vulkanDevice.destroy()
         logger.debug("Device closed.")
 
         memoryProperties.free()

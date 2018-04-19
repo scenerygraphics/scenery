@@ -331,6 +331,10 @@ inline infix fun VkDevice.destroyShaderModules(shaderModules: VkPipelineShaderSt
         VK10.nvkDestroyShaderModule(this, i.module, NULL)
 }
 
+inline fun VkDevice.destroy() {
+    VK10.nvkDestroyDevice(this, NULL)
+}
+
 inline infix fun VkDevice.destroyShaderModules(shaderModules: Iterable<VkShaderModule>) {
     for (i in shaderModules)
         VK10.nvkDestroyShaderModule(this, i, NULL)
