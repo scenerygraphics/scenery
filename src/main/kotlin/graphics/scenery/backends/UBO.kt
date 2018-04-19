@@ -18,6 +18,8 @@ open class UBO {
     protected var members = LinkedHashMap<String, () -> Any>()
     protected var memberOffsets = HashMap<String, Int>()
     protected val logger by LazyLogger()
+    var hash: Int = 0
+        private set
 
     protected var sizeCached = -1
 
@@ -145,11 +147,16 @@ open class UBO {
 
             val (size, alignment) = getSizeAndAlignment(value)
 
-            logger.trace("Populating {} of type {} size={} alignment={}", it.key, value.javaClass.simpleName, size, alignment)
+            if(logger.isTraceEnabled) {
+                logger.trace("Populating {} of type {} size={} alignment={}", it.key, value.javaClass.simpleName, size, alignment)
+            }
 
             if(memberOffsets[it.key] != null) {
                 // position in buffer is known, use it
-                logger.trace("{} goes to {}", it.key, memberOffsets[it.key]!!)
+                if(logger.isTraceEnabled) {
+                    logger.trace("{} goes to {}", it.key, memberOffsets[it.key]!!)
+                }
+
                 pos = (originalPos + memberOffsets[it.key]!!)
                 data.position(pos)
             } else {
@@ -226,6 +233,14 @@ open class UBO {
 
     fun members(): String {
         return members.keys.joinToString(", ")
+    }
+
+    fun getMembersHash(): Int {
+        return members.hashCode()
+    }
+
+    fun updateHash() {
+        hash = members.hashCode()
     }
 
     fun get(name: String): (() -> Any)? {
