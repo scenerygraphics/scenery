@@ -84,7 +84,7 @@ open class SelectCommand(private val name: String,
             }
 
             if (debugRaycast) {
-                logger.info(matches.map { "${it.node.name} at distance ${it.distance}" }.joinToString(", "))
+                logger.info(matches.map { "${it.node.name} at distance ${it.distance}" }.joinToString())
 
                 val m = Material()
                 m.diffuse = GLVector(1.0f, 0.0f, 0.0f)

@@ -298,7 +298,7 @@ class Hololens: TrackerInput, Display, Hubable {
                 if(memoryTypeIndex.isEmpty()) {
                     logger.error("Could not find suitable memory type")
                 } else {
-                    logger.debug("Got memory types ${memoryTypeIndex.joinToString(", ")}")
+                    logger.debug("Got memory types ${memoryTypeIndex.joinToString()}")
                 }
 
                 val importMemoryInfo = VkImportMemoryWin32HandleInfoNV.calloc()

@@ -225,7 +225,7 @@ open class UBO {
     }
 
     fun members(): String {
-        return members.keys.joinToString(", ")
+        return members.keys.joinToString()
     }
 
     fun get(name: String): (() -> Any)? {

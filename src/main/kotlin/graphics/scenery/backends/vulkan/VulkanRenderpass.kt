@@ -115,20 +115,21 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         with(device.vulkanDevice) {
 
             val lightParameters = createDescriptorSetLayout(
-                listOf(Pair(VkDescriptorType.UNIFORM_BUFFER_DYNAMIC, 1)),
+                listOf(VkDescriptorType.UNIFORM_BUFFER_DYNAMIC to 1),
                 binding = 0, shaderStages = VK_SHADER_STAGE_ALL)
 
             descriptorSetLayouts.put("LightParameters", lightParameters)
 
             val dslObjectTextures = createDescriptorSetLayout(
-                listOf(Pair(VkDescriptorType.COMBINED_IMAGE_SAMPLER, 6),
-                    Pair(VkDescriptorType.COMBINED_IMAGE_SAMPLER, 1)),
+                listOf(
+                    VkDescriptorType.COMBINED_IMAGE_SAMPLER to 6,
+                    VkDescriptorType.COMBINED_IMAGE_SAMPLER to 1),
                 binding = 0, shaderStages = VK_SHADER_STAGE_ALL)
 
             descriptorSetLayouts.put("ObjectTextures", dslObjectTextures)
 
             val dslVRParameters = createDescriptorSetLayout(
-                listOf(Pair(VkDescriptorType.UNIFORM_BUFFER_DYNAMIC, 1)),
+                listOf(VkDescriptorType.UNIFORM_BUFFER_DYNAMIC to 1),
                 binding = 0, shaderStages = VK_SHADER_STAGE_ALL)
 
             descriptorSetLayouts.put("VRParameters", dslVRParameters)
@@ -211,7 +212,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
 //            val dsl = VU.createDescriptorSetLayout(device,
 //                VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, 1)
             val dsl = device.vulkanDevice.createDescriptorSetLayout(
-                listOf(Pair(VkDescriptorType.UNIFORM_BUFFER, 1)),
+                listOf(VkDescriptorType.UNIFORM_BUFFER to 1),
                 0, VK_SHADER_STAGE_ALL)
 
             val ds = VU.createDescriptorSet(device, descriptorPool, dsl,
@@ -235,7 +236,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         val dsl = if (!alreadyCreated) {
             // create descriptor set layout
             val dsl = device.vulkanDevice.createDescriptorSetLayout(
-                listOf(Pair(VkDescriptorType.UNIFORM_BUFFER_DYNAMIC, 1)),
+                listOf(VkDescriptorType.UNIFORM_BUFFER_DYNAMIC to 1),
                 binding = 0, shaderStages = VK_SHADER_STAGE_ALL)
 
             logger.debug("Created Shader Property DSL ${dsl.toHexString()} for $name")
@@ -297,7 +298,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
 
         p.addShaderStages(shaders)
 
-        logger.debug("${descriptorSetLayouts.count()} DSLs are available: ${descriptorSetLayouts.keys.joinToString(", ")}")
+        logger.debug("${descriptorSetLayouts.count()} DSLs are available: ${descriptorSetLayouts.keys.joinToString()}")
 
         val blendMasks = VkPipelineColorBlendAttachmentState.calloc(framebuffer.colorAttachmentCount())
         (0 until framebuffer.colorAttachmentCount()).forEach {
