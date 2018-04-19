@@ -527,7 +527,7 @@ class VU {
         }
 
         fun createRenderTargetDescriptorSet(device: VulkanDevice, descriptorPool: Long, descriptorSetLayout: Long,
-                                             rt: Map<String, RenderConfigReader.AttachmentConfig>,
+                                             rt: Map<String, RenderConfigReader.TargetFormat>,
                                              target: VulkanFramebuffer, onlyFor: String? = null): Long {
 
             return stackPush().use { stack ->

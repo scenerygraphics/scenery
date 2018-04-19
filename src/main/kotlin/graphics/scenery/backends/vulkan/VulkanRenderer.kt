@@ -1277,8 +1277,8 @@ open class VulkanRenderer(hub: Hub,
             .flatMap { rp ->
                 rp.value.inputs!!
             }
-            .mapNotNull {
-                renderConfig.rendertargets?.let { rts ->
+            .map {
+                renderConfig.rendertargets.let { rts ->
                     val name = if (it.contains(".")) {
                         it.substringBefore(".")
                     } else {
@@ -1294,7 +1294,7 @@ open class VulkanRenderer(hub: Hub,
                     // create descriptor set layout that matches the render target
                     descriptorSetLayouts.put("outputs-${rt.first}",
                         VU.createDescriptorSetLayout(device,
-                            descriptorNum = rt.second.count(),
+                            descriptorNum = rt.second.attachments.count(),
                             descriptorCount = 1,
                             type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
                         ))
@@ -1310,12 +1310,15 @@ open class VulkanRenderer(hub: Hub,
 
             // create framebuffer
             with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
-                config.rendertargets?.filter { it.key == passConfig.output }?.map { rt ->
+                config.rendertargets.filter { it.key == passConfig.output }.map { rt ->
                     logger.info("Creating render framebuffer ${rt.key} for pass $passName")
 
                     // TODO: Take [AttachmentConfig.size] into consideration -- also needs to set image size in shader properties correctly
-                    width = (settings.get<Float>("Renderer.SupersamplingFactor") * windowWidth).toInt()
-                    height = (settings.get<Float>("Renderer.SupersamplingFactor") * windowHeight).toInt()
+                    width = (settings.get<Float>("Renderer.SupersamplingFactor") * windowWidth * rt.value.size.first).toInt()
+                    height = (settings.get<Float>("Renderer.SupersamplingFactor") * windowHeight * rt.value.size.second).toInt()
+
+                    settings.set("Renderer.$passName.displayWidth", width)
+                    settings.set("Renderer.$passName.displayHeight", height)
 
                     if (framebuffers.containsKey(rt.key)) {
                         logger.info("Reusing already created framebuffer")
@@ -1328,10 +1331,10 @@ open class VulkanRenderer(hub: Hub,
                             shouldClear = !passConfig.blitInputs,
                             sRGB = renderConfig.sRGB)
 
-                        rt.value.forEach { att ->
-                            logger.info(" + attachment ${att.key}, ${att.value.format.name}")
+                        rt.value.attachments.forEach { att ->
+                            logger.info(" + attachment ${att.key}, ${att.value.name}")
 
-                            when (att.value.format) {
+                            when (att.value) {
                                 RenderConfigReader.TargetFormat.RGBA_Float32 -> framebuffer.addFloatRGBABuffer(att.key, 32)
                                 RenderConfigReader.TargetFormat.RGBA_Float16 -> framebuffer.addFloatRGBABuffer(att.key, 16)
 
@@ -1355,7 +1358,7 @@ open class VulkanRenderer(hub: Hub,
 
                         framebuffer.createRenderpassAndFramebuffer()
                         framebuffer.outputDescriptorSet = VU.createRenderTargetDescriptorSet(device,
-                            descriptorPool, descriptorSetLayouts["outputs-${rt.key}"]!!, rt.value, framebuffer)
+                            descriptorPool, descriptorSetLayouts["outputs-${rt.key}"]!!, rt.value.attachments, framebuffer)
 
                         pass.output.put(rt.key, framebuffer)
                         framebuffers.put(rt.key, framebuffer)
