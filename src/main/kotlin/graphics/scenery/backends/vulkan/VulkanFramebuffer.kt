@@ -65,7 +65,7 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
 
     var attachments = LinkedHashMap<String, VulkanFramebufferAttachment>()
 
-    protected fun createAttachment(format: Int, usage: Int): VulkanFramebufferAttachment {
+    protected fun createAttachment(format: Int, usage: Int, attachmentWidth: Int = width, attachmentHeight: Int = height): VulkanFramebufferAttachment {
         val a = VulkanFramebufferAttachment()
         var aspectMask: Int = 0
         var imageLayout: Int = 0
@@ -83,8 +83,8 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
         }
 
         val imageExtent = VkExtent3D.calloc()
-            .width(width)
-            .height(height)
+            .width(attachmentWidth)
+            .height(attachmentHeight)
             .depth(1)
 
         val image = VkImageCreateInfo.calloc()
@@ -150,227 +150,8 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
         return a
     }
 
-    fun addFloatBuffer(name: String, channelDepth: Int): VulkanFramebuffer {
-        val format: Int = when(channelDepth) {
-            16 -> VK_FORMAT_R16_SFLOAT
-            32 -> VK_FORMAT_R32_SFLOAT
-            else -> { logger.warn("Unsupported channel depth $channelDepth, using 16 bit."); VK_FORMAT_R16_SFLOAT }
-        }
-
-        val att = createAttachment(format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
-
-        val (loadOp, stencilLoadOp) = if(!shouldClear) {
-            VK_ATTACHMENT_LOAD_OP_LOAD to VK_ATTACHMENT_LOAD_OP_LOAD
-        } else {
-            VK_ATTACHMENT_LOAD_OP_CLEAR to VK_ATTACHMENT_LOAD_OP_DONT_CARE
-        }
-
-        val initialImageLayout = if(!shouldClear) {
-            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-        } else {
-            VK_IMAGE_LAYOUT_UNDEFINED
-        }
-
-        att.desc.samples(VK_SAMPLE_COUNT_1_BIT)
-            .loadOp(loadOp)
-            .storeOp(VK_ATTACHMENT_STORE_OP_STORE)
-            .stencilLoadOp(stencilLoadOp)
-            .stencilStoreOp(VK_ATTACHMENT_STORE_OP_DONT_CARE)
-            .initialLayout(initialImageLayout)
-            .finalLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-            .format(format)
-
-        attachments.put(name, att)
-
-        return this
-    }
-
-    fun addFloatRGBuffer(name: String, channelDepth: Int): VulkanFramebuffer {
-        val format: Int = when(channelDepth) {
-            16 -> VK_FORMAT_R16G16_SFLOAT
-            32 -> VK_FORMAT_R32G32_SFLOAT
-            else -> { logger.warn("Unsupported channel depth $channelDepth, using 16 bit."); VK_FORMAT_R16G16_SFLOAT }
-        }
-
-        val att = createAttachment(format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
-
-        val (loadOp, stencilLoadOp) = if(!shouldClear) {
-            VK_ATTACHMENT_LOAD_OP_LOAD to VK_ATTACHMENT_LOAD_OP_LOAD
-        } else {
-            VK_ATTACHMENT_LOAD_OP_CLEAR to VK_ATTACHMENT_LOAD_OP_DONT_CARE
-        }
-
-        val initialImageLayout = if(!shouldClear) {
-            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-        } else {
-            VK_IMAGE_LAYOUT_UNDEFINED
-        }
-
-        att.desc.samples(VK_SAMPLE_COUNT_1_BIT)
-            .loadOp(loadOp)
-            .storeOp(VK_ATTACHMENT_STORE_OP_STORE)
-            .stencilLoadOp(stencilLoadOp)
-            .stencilStoreOp(VK_ATTACHMENT_STORE_OP_DONT_CARE)
-            .initialLayout(initialImageLayout)
-            .finalLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-            .format(format)
-
-        attachments.put(name, att)
-
-        return this
-    }
-
-    fun addFloatRGBBuffer(name: String, channelDepth: Int): VulkanFramebuffer {
-        val format: Int = when(channelDepth) {
-            16 -> VK_FORMAT_R16G16B16_SFLOAT
-            32 -> VK_FORMAT_R32G32B32_SFLOAT
-            else -> { logger.warn("Unsupported channel depth $channelDepth, using 16 bit."); VK_FORMAT_R16G16B16A16_SFLOAT }
-        }
-
-        val att = createAttachment(format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
-
-        val (loadOp, stencilLoadOp) = if(!shouldClear) {
-            VK_ATTACHMENT_LOAD_OP_LOAD to VK_ATTACHMENT_LOAD_OP_LOAD
-        } else {
-            VK_ATTACHMENT_LOAD_OP_CLEAR to VK_ATTACHMENT_LOAD_OP_DONT_CARE
-        }
-
-        val initialImageLayout = if(!shouldClear) {
-            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-        } else {
-            VK_IMAGE_LAYOUT_UNDEFINED
-        }
-
-        att.desc.samples(VK_SAMPLE_COUNT_1_BIT)
-            .loadOp(loadOp)
-            .storeOp(VK_ATTACHMENT_STORE_OP_STORE)
-            .stencilLoadOp(stencilLoadOp)
-            .stencilStoreOp(VK_ATTACHMENT_STORE_OP_DONT_CARE)
-            .initialLayout(initialImageLayout)
-            .finalLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-            .format(format)
-
-        attachments.put(name, att)
-
-        return this
-    }
-
-    fun addFloatRGBABuffer(name: String, channelDepth: Int): VulkanFramebuffer {
-        val format: Int = when(channelDepth) {
-            16 -> VK_FORMAT_R16G16B16A16_SFLOAT
-            32 -> VK_FORMAT_R32G32B32A32_SFLOAT
-            else -> { logger.warn("Unsupported channel depth $channelDepth, using 16 bit."); VK_FORMAT_R16G16B16A16_SFLOAT }
-        }
-
-        val att = createAttachment(format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
-
-        val (loadOp, stencilLoadOp) = if(!shouldClear) {
-            VK_ATTACHMENT_LOAD_OP_LOAD to VK_ATTACHMENT_LOAD_OP_LOAD
-        } else {
-            VK_ATTACHMENT_LOAD_OP_CLEAR to VK_ATTACHMENT_LOAD_OP_DONT_CARE
-        }
-
-        val initialImageLayout = if(!shouldClear) {
-            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-        } else {
-            VK_IMAGE_LAYOUT_UNDEFINED
-        }
-
-        att.desc.samples(VK_SAMPLE_COUNT_1_BIT)
-            .loadOp(loadOp)
-            .storeOp(VK_ATTACHMENT_STORE_OP_STORE)
-            .stencilLoadOp(stencilLoadOp)
-            .stencilStoreOp(VK_ATTACHMENT_STORE_OP_DONT_CARE)
-            .initialLayout(initialImageLayout)
-            .finalLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-            .format(format)
-
-        attachments.put(name, att)
-
-        return this
-    }
-
-    fun addUnsignedByteRGBABuffer(name: String, channelDepth: Int): VulkanFramebuffer {
-        val format: Int = when(channelDepth) {
-            8 -> if(sRGB) { VK_FORMAT_R8G8B8A8_SRGB } else { VK_FORMAT_R8G8B8A8_UNORM }
-            16 -> VK_FORMAT_R16G16B16A16_UNORM
-            else -> { logger.warn("Unsupported channel depth $channelDepth, using 16 bit."); VK_FORMAT_R16G16B16A16_UINT }
-        }
-
-        val att = createAttachment(format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
-
-        val (loadOp, stencilLoadOp) = if(!shouldClear) {
-            VK_ATTACHMENT_LOAD_OP_LOAD to VK_ATTACHMENT_LOAD_OP_LOAD
-        } else {
-            VK_ATTACHMENT_LOAD_OP_CLEAR to VK_ATTACHMENT_LOAD_OP_DONT_CARE
-        }
-
-        val initialImageLayout = if(!shouldClear) {
-            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-        } else {
-            VK_IMAGE_LAYOUT_UNDEFINED
-        }
-
-        att.desc.samples(VK_SAMPLE_COUNT_1_BIT)
-            .loadOp(loadOp)
-            .storeOp(VK_ATTACHMENT_STORE_OP_STORE)
-            .stencilLoadOp(stencilLoadOp)
-            .stencilStoreOp(VK_ATTACHMENT_STORE_OP_DONT_CARE)
-            .initialLayout(initialImageLayout)
-            .finalLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-            .format(format)
-
-        attachments.put(name, att)
-
-        return this
-    }
-
-    fun addUnsignedByteRBuffer(name: String, channelDepth: Int): VulkanFramebuffer {
-        val format: Int = when(channelDepth) {
-            8 -> VK_FORMAT_R8_UNORM
-            16 -> VK_FORMAT_R16_UNORM
-            else -> { logger.warn("Unsupported channel depth $channelDepth, using 16 bit."); VK_FORMAT_R16_UNORM }
-        }
-
-        val att = createAttachment(format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
-
-        val (loadOp, stencilLoadOp) = if(!shouldClear) {
-            VK_ATTACHMENT_LOAD_OP_LOAD to VK_ATTACHMENT_LOAD_OP_LOAD
-        } else {
-            VK_ATTACHMENT_LOAD_OP_CLEAR to VK_ATTACHMENT_LOAD_OP_DONT_CARE
-        }
-
-        val initialImageLayout = if(!shouldClear) {
-            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-        } else {
-            VK_IMAGE_LAYOUT_UNDEFINED
-        }
-
-        att.desc.samples(VK_SAMPLE_COUNT_1_BIT)
-            .loadOp(loadOp)
-            .storeOp(VK_ATTACHMENT_STORE_OP_STORE)
-            .stencilLoadOp(stencilLoadOp)
-            .stencilStoreOp(VK_ATTACHMENT_STORE_OP_DONT_CARE)
-            .initialLayout(initialImageLayout)
-            .finalLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-            .format(format)
-
-        attachments.put(name, att)
-
-        return this
-    }
-
-    fun addDepthBuffer(name: String, depth: Int): VulkanFramebuffer {
-        val format: Int = when(depth) {
-            16 -> VK_FORMAT_D16_UNORM
-            24 -> VK_FORMAT_D24_UNORM_S8_UINT
-            32 -> VK_FORMAT_D32_SFLOAT
-            else -> { logger.warn("Unsupported channel depth $depth, using 32 bit."); VK_FORMAT_D32_SFLOAT }
-        }
-
-        val bestSupportedFormat = getBestDepthFormat(format).first()
-
-        val att = createAttachment(bestSupportedFormat, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
+    private fun createAndAddDepthStencilAttachmentInternal(name: String, format: Int, attachmentWidth: Int, attachmentHeight: Int) {
+        val att = createAttachment(format, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, attachmentWidth, attachmentHeight)
 
         val (loadOp, stencilLoadOp) = if(!shouldClear) {
             VK_ATTACHMENT_LOAD_OP_DONT_CARE to VK_ATTACHMENT_LOAD_OP_LOAD
@@ -387,11 +168,123 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
             .stencilStoreOp(VK_ATTACHMENT_STORE_OP_STORE)
             .initialLayout(initialImageLayout)
             .finalLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-            .format(bestSupportedFormat)
+            .format(format)
 
         att.type = VulkanFramebufferType.DEPTH_ATTACHMENT
 
         attachments.put(name, att)
+    }
+
+    private fun createAndAddColorAttachmentInternal(name: String, format: Int, attachmentWidth: Int, attachmentHeight: Int) {
+        val att = createAttachment(format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, attachmentWidth, attachmentHeight)
+
+        val (loadOp, stencilLoadOp) = if(!shouldClear) {
+            VK_ATTACHMENT_LOAD_OP_LOAD to VK_ATTACHMENT_LOAD_OP_LOAD
+        } else {
+            VK_ATTACHMENT_LOAD_OP_CLEAR to VK_ATTACHMENT_LOAD_OP_DONT_CARE
+        }
+
+        val initialImageLayout = if(!shouldClear) {
+            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+        } else {
+            VK_IMAGE_LAYOUT_UNDEFINED
+        }
+
+        att.desc.samples(VK_SAMPLE_COUNT_1_BIT)
+            .loadOp(loadOp)
+            .storeOp(VK_ATTACHMENT_STORE_OP_STORE)
+            .stencilLoadOp(stencilLoadOp)
+            .stencilStoreOp(VK_ATTACHMENT_STORE_OP_DONT_CARE)
+            .initialLayout(initialImageLayout)
+            .finalLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+            .format(format)
+
+        attachments.put(name, att)
+    }
+
+    fun addFloatBuffer(name: String, channelDepth: Int, attachmentWidth: Int = width, attachmentHeight: Int = height): VulkanFramebuffer {
+        val format: Int = when(channelDepth) {
+            16 -> VK_FORMAT_R16_SFLOAT
+            32 -> VK_FORMAT_R32_SFLOAT
+            else -> { logger.warn("Unsupported channel depth $channelDepth, using 16 bit."); VK_FORMAT_R16_SFLOAT }
+        }
+
+        createAndAddColorAttachmentInternal(name, format, attachmentWidth, attachmentHeight)
+
+        return this
+    }
+
+    fun addFloatRGBuffer(name: String, channelDepth: Int, attachmentWidth: Int = width, attachmentHeight: Int = height): VulkanFramebuffer {
+        val format: Int = when(channelDepth) {
+            16 -> VK_FORMAT_R16G16_SFLOAT
+            32 -> VK_FORMAT_R32G32_SFLOAT
+            else -> { logger.warn("Unsupported channel depth $channelDepth, using 16 bit."); VK_FORMAT_R16G16_SFLOAT }
+        }
+
+        createAndAddColorAttachmentInternal(name, format, attachmentWidth, attachmentHeight)
+
+        return this
+    }
+
+    fun addFloatRGBBuffer(name: String, channelDepth: Int, attachmentWidth: Int = width, attachmentHeight: Int = height): VulkanFramebuffer {
+        val format: Int = when(channelDepth) {
+            16 -> VK_FORMAT_R16G16B16_SFLOAT
+            32 -> VK_FORMAT_R32G32B32_SFLOAT
+            else -> { logger.warn("Unsupported channel depth $channelDepth, using 16 bit."); VK_FORMAT_R16G16B16A16_SFLOAT }
+        }
+
+        createAndAddColorAttachmentInternal(name, format, attachmentWidth, attachmentHeight)
+
+        return this
+    }
+
+    fun addFloatRGBABuffer(name: String, channelDepth: Int, attachmentWidth: Int = width, attachmentHeight: Int = height): VulkanFramebuffer {
+        val format: Int = when(channelDepth) {
+            16 -> VK_FORMAT_R16G16B16A16_SFLOAT
+            32 -> VK_FORMAT_R32G32B32A32_SFLOAT
+            else -> { logger.warn("Unsupported channel depth $channelDepth, using 16 bit."); VK_FORMAT_R16G16B16A16_SFLOAT }
+        }
+
+        createAndAddColorAttachmentInternal(name, format, attachmentWidth, attachmentHeight)
+
+        return this
+    }
+
+    fun addUnsignedByteRGBABuffer(name: String, channelDepth: Int, attachmentWidth: Int = width, attachmentHeight: Int = height): VulkanFramebuffer {
+        val format: Int = when(channelDepth) {
+            8 -> if(sRGB) { VK_FORMAT_R8G8B8A8_SRGB } else { VK_FORMAT_R8G8B8A8_UNORM }
+            16 -> VK_FORMAT_R16G16B16A16_UNORM
+            else -> { logger.warn("Unsupported channel depth $channelDepth, using 16 bit."); VK_FORMAT_R16G16B16A16_UINT }
+        }
+
+        createAndAddColorAttachmentInternal(name, format, attachmentWidth, attachmentHeight)
+
+        return this
+    }
+
+    fun addUnsignedByteRBuffer(name: String, channelDepth: Int, attachmentWidth: Int = width, attachmentHeight: Int = height): VulkanFramebuffer {
+        val format: Int = when(channelDepth) {
+            8 -> VK_FORMAT_R8_UNORM
+            16 -> VK_FORMAT_R16_UNORM
+            else -> { logger.warn("Unsupported channel depth $channelDepth, using 16 bit."); VK_FORMAT_R16_UNORM }
+        }
+
+        createAndAddColorAttachmentInternal(name, format, attachmentWidth, attachmentHeight)
+
+        return this
+    }
+
+    fun addDepthBuffer(name: String, depth: Int, attachmentWidth: Int = width, attachmentHeight: Int = height): VulkanFramebuffer {
+        val format: Int = when(depth) {
+            16 -> VK_FORMAT_D16_UNORM
+            24 -> VK_FORMAT_D24_UNORM_S8_UINT
+            32 -> VK_FORMAT_D32_SFLOAT
+            else -> { logger.warn("Unsupported channel depth $depth, using 32 bit."); VK_FORMAT_D32_SFLOAT }
+        }
+
+        val bestSupportedFormat = getBestDepthFormat(format).first()
+
+        createAndAddDepthStencilAttachmentInternal(name, bestSupportedFormat, attachmentWidth, attachmentHeight)
 
         return this
     }
