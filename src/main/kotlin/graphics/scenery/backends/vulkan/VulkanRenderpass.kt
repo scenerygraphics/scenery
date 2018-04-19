@@ -154,7 +154,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
 
             val ds = if(inputFramebuffer.key.contains(".")) {
                 VU.createRenderTargetDescriptorSet(device, descriptorPool, dsl,
-                    config.rendertargets!![inputFramebuffer.key.substringBefore(".")]!!,
+                    config.rendertargets[inputFramebuffer.key.substringBefore(".")]!!.attachments,
                     inputFramebuffer.value, inputFramebuffer.key.substringAfter("."))
             } else {
                 inputFramebuffer.value.outputDescriptorSet
@@ -194,7 +194,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                     else -> "Renderer.$name.${entry.key}"
                 }
 
-                if(!entry.key.startsWith("Global")) {
+                if(!entry.key.startsWith("Global.") && !entry.key.startsWith("Pass.")) {
                     settings.set(settingsKey, value)
                 }
 

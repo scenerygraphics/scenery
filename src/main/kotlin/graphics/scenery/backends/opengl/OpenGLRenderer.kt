@@ -467,11 +467,13 @@ class OpenGLRenderer(hub: Hub,
             var width = windowWidth
             var height = windowHeight
 
-            config.rendertargets?.filter { it.key == passConfig.output }?.map { rt ->
+            config.rendertargets.filter { it.key == passConfig.output }.map { rt ->
                 logger.info("Creating render framebuffer ${rt.key} for pass $passName")
-                // TODO: Take [AttachmentConfig.size] into consideration -- also needs to set image size in shader properties correctly
-                width = (supersamplingFactor * windowWidth).toInt()
-                height = (supersamplingFactor * windowHeight).toInt()
+                width = (supersamplingFactor * windowWidth * rt.value.size.first).toInt()
+                height = (supersamplingFactor * windowHeight * rt.value.size.second).toInt()
+
+                settings.set("Renderer.$passName.displayWidth", width)
+                settings.set("Renderer.$passName.displayHeight", height)
 
                 if (framebuffers.containsKey(rt.key)) {
                     logger.info("Reusing already created framebuffer")
@@ -479,10 +481,10 @@ class OpenGLRenderer(hub: Hub,
                 } else {
                     val framebuffer = GLFramebuffer(gl, width, height)
 
-                    rt.value.forEach { att ->
-                        logger.info(" + attachment ${att.key}, ${att.value.format.name}")
+                    rt.value.attachments.forEach { att ->
+                        logger.info(" + attachment ${att.key}, ${att.value.name}")
 
-                        when (att.value.format) {
+                        when (att.value) {
                             RenderConfigReader.TargetFormat.RGBA_Float32 -> framebuffer.addFloatRGBABuffer(gl, att.key, 32)
                             RenderConfigReader.TargetFormat.RGBA_Float16 -> framebuffer.addFloatRGBABuffer(gl, att.key, 16)
 
@@ -1474,7 +1476,7 @@ class OpenGLRenderer(hub: Hub,
 
                     var unit = 0
                     pass.inputs.keys.reversed().forEach { name ->
-                        renderConfig.rendertargets?.get(name.substringBefore("."))?.forEach {
+                        renderConfig.rendertargets.get(name.substringBefore("."))?.attachments?.forEach {
                             shader.getUniform("Input" + it.key).setInt(unit)
                             unit++
                         }
@@ -1578,7 +1580,7 @@ class OpenGLRenderer(hub: Hub,
 
                     var unit = 0
                     pass.inputs.keys.reversed().forEach { name ->
-                        renderConfig.rendertargets?.get(name.substringBefore("."))?.forEach {
+                        renderConfig.rendertargets.get(name.substringBefore("."))?.attachments?.forEach {
                             shader.getUniform("Input" + it.key).setInt(unit)
                             unit++
                         }
