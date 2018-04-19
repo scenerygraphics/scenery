@@ -4,6 +4,9 @@ import graphics.scenery.Node
 import graphics.scenery.backends.UBO
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.VK10.*
+import vkn.VkBuffer
+import vkn.VkDeviceMemory
+import vkn.VkDeviceSize
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.IntBuffer
@@ -21,9 +24,9 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
     private var ownedBackingBuffer: VulkanBuffer? = null
 
     class UBODescriptor {
-        internal var memory: Long = 0
-        internal var allocationSize: Long = 0
-        internal var buffer: Long = 0
+        internal var memory: VkDeviceMemory = 0
+        internal var allocationSize: VkDeviceSize = 0
+        internal var buffer: VkBuffer = 0
         internal var offset: Long = 0
         internal var range: Long = 0
     }
