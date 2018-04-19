@@ -284,6 +284,10 @@ inline infix fun VkDevice.destroyFences(fences: ArrayList<VkFence>) {
         VK10.nvkDestroyFence(this, fence, NULL)
 }
 
+inline infix fun VkDevice.destroyFramebuffer(framebuffer: VkFramebuffer) {
+    VK10.nvkDestroyFramebuffer(this, framebuffer, NULL)
+}
+
 inline infix fun VkDevice.destroyFramebuffers(framebuffers: Iterable<VkFramebuffer>) {
     for (i in framebuffers)
         VK10.nvkDestroyFramebuffer(this, i, NULL)
@@ -362,13 +366,22 @@ inline infix fun VkDevice.freeMemory(memory: VkDeviceMemory) {
     VK10.nvkFreeMemory(this, memory, NULL)
 }
 
-inline fun VkDevice.getBufferMemoryRequirements(buffer: VkBuffer, memoryRequirements: VkMemoryRequirements = vk.MemoryRequirements { }): VkMemoryRequirements {
+inline infix fun VkDevice.getBufferMemoryRequirements(buffer: VkBuffer): VkMemoryRequirements {
+    return getBufferMemoryRequirements(buffer, vk.MemoryRequirements { })
+}
+
+inline fun VkDevice.getBufferMemoryRequirements(buffer: VkBuffer, memoryRequirements: VkMemoryRequirements): VkMemoryRequirements {
     VK10.nvkGetBufferMemoryRequirements(this, buffer, memoryRequirements.adr)
     return memoryRequirements
 }
 
-inline fun VkDevice.getImageMemoryRequirements(buffer: VkBuffer, memoryRequirements: VkMemoryRequirements) {
+inline infix fun VkDevice.getImageMemoryRequirements(buffer: VkBuffer): VkMemoryRequirements {
+    return getImageMemoryRequirements(buffer, vk.MemoryRequirements { })
+}
+
+inline fun VkDevice.getImageMemoryRequirements(buffer: VkBuffer, memoryRequirements: VkMemoryRequirements): VkMemoryRequirements {
     VK10.nvkGetImageMemoryRequirements(this, buffer, memoryRequirements.adr)
+    return memoryRequirements
 }
 
 inline fun VkDevice.mapMemory(memory: Long, offset: Long, size: Long, flags: Int, data: Long) {

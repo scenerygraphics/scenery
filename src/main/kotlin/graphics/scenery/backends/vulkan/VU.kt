@@ -338,7 +338,8 @@ object VU {
         }
     }
 
-    fun setImageLayout(commandBuffer: VkCommandBuffer, image: Long, aspectMask: Int, oldImageLayout: Int, newImageLayout: Int) {
+    fun setImageLayout(commandBuffer: VkCommandBuffer, image: VkImage, aspectMask: Int, oldImageLayout: VkImageLayout,
+                       newImageLayout: VkImageLayout) {
         stackPush().use { stack ->
             val range = VkImageSubresourceRange.callocStack(stack)
                 .aspectMask(aspectMask)
@@ -346,7 +347,7 @@ object VU {
                 .levelCount(1)
                 .layerCount(1)
 
-            setImageLayout(commandBuffer, image, oldImageLayout, newImageLayout, range)
+            setImageLayout(commandBuffer, image, oldImageLayout.i, newImageLayout.i, range)
         }
     }
 
@@ -536,8 +537,8 @@ object VU {
                     val d = VkDescriptorImageInfo.callocStack(1, stack)
 
                     d
-                        .imageView(attachment.imageView.get(0))
-                        .sampler(target.framebufferSampler.get(0))
+                        .imageView(attachment.imageView)
+                        .sampler(target.framebufferSampler)
                         .imageLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
 
                     writeDescriptorSet[i]
@@ -558,8 +559,8 @@ object VU {
                     val d = VkDescriptorImageInfo.callocStack(1, stack)
 
                     d
-                        .imageView(attachment.imageView.get(0))
-                        .sampler(target.framebufferSampler.get(0))
+                        .imageView(attachment.imageView)
+                        .sampler(target.framebufferSampler)
                         .imageLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
 
                     writeDescriptorSet[0]

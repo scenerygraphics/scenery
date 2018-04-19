@@ -208,6 +208,8 @@ class VulkanDevice(
         logger.debug("Created all buffers")
     }
 
+    infix fun createFramebuffer(info: VkFramebufferCreateInfo): VkFramebuffer = vulkanDevice createFramebuffer info
+
     infix fun getQueue(queueFamilyIndex: Int): VkQueue = vulkanDevice getQueue queueFamilyIndex
 
     fun destroyCommandPool(commandPool: VkCommandPool) = vulkanDevice destroyCommandPool commandPool

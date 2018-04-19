@@ -16,6 +16,8 @@ import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.KHRSwapchain.VK_ERROR_OUT_OF_DATE_KHR
 import org.lwjgl.vulkan.KHRSwapchain.vkAcquireNextImageKHR
 import vkn.VkCommandPool
+import vkn.VkImageLayout
+import vkn.VkImageUsage
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 
@@ -214,8 +216,8 @@ open class VulkanSwapchain(open val device: VulkanDevice,
 
                     VU.setImageLayout(this, images[i],
                         aspectMask = VK10.VK_IMAGE_ASPECT_COLOR_BIT,
-                        oldImageLayout = VK10.VK_IMAGE_LAYOUT_UNDEFINED,
-                        newImageLayout = KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
+                        oldImageLayout = VkImageLayout.UNDEFINED,
+                        newImageLayout = VkImageLayout.PRESENT_SRC_KHR)
                     colorAttachmentView.image(images[i])
 
                     imageViews[i] = VU.getLong("create image view",

@@ -942,19 +942,19 @@ inline var VkComponentMapping.a: VkComponentSwizzle
     set(value) = VkComponentMapping.na(adr, value.i)
 
 
-var VkImageSubresourceRange.aspectMask: VkImageAspectFlags
+inline var VkImageSubresourceRange.aspectMask: VkImageAspectFlags
     get() = VkImageSubresourceRange.naspectMask(adr)
     set(value) = VkImageSubresourceRange.naspectMask(adr, value)
-var VkImageSubresourceRange.baseMipLevel
+inline var VkImageSubresourceRange.baseMipLevel
     get() = VkImageSubresourceRange.nbaseMipLevel(adr)
     set(value) = VkImageSubresourceRange.nbaseMipLevel(adr, value)
-var VkImageSubresourceRange.levelCount
+inline var VkImageSubresourceRange.levelCount
     get() = VkImageSubresourceRange.nlevelCount(adr)
     set(value) = VkImageSubresourceRange.nlevelCount(adr, value)
-var VkImageSubresourceRange.baseArrayLayer
+inline var VkImageSubresourceRange.baseArrayLayer
     get() = VkImageSubresourceRange.nbaseArrayLayer(adr)
     set(value) = VkImageSubresourceRange.nbaseArrayLayer(adr, value)
-var VkImageSubresourceRange.layerCount
+inline var VkImageSubresourceRange.layerCount
     get() = VkImageSubresourceRange.nlayerCount(adr)
     set(value) = VkImageSubresourceRange.nlayerCount(adr, value)
 

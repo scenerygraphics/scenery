@@ -13,6 +13,7 @@ import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
+import vkn.VkDescriptorSet
 import vkn.VkDescriptorType
 import java.nio.IntBuffer
 import java.nio.LongBuffer
@@ -154,7 +155,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                 type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
             )
 
-            val ds = if (inputFramebuffer.key.contains(".")) {
+            val ds: VkDescriptorSet = if (inputFramebuffer.key.contains(".")) {
                 VU.createRenderTargetDescriptorSet(device, descriptorPool, dsl,
                     config.rendertargets!![inputFramebuffer.key.substringBefore(".")]!!,
                     inputFramebuffer.value, inputFramebuffer.key.substringAfter("."))
@@ -353,7 +354,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                 p.rasterizationState.cullMode(VK_CULL_MODE_FRONT_BIT)
                 p.rasterizationState.frontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
 
-                p.createPipelines(this, framebuffer.renderPass.get(0),
+                p.createPipelines(this, framebuffer.renderPass,
                     vertexDescriptors[VulkanRenderer.VertexDataKinds.None]!!.state,
                     descriptorSetLayouts = reqDescriptorLayouts,
                     onlyForTopology = GeometryType.TRIANGLES)
@@ -361,7 +362,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
 
             RenderConfigReader.RenderpassType.geometry,
             RenderConfigReader.RenderpassType.lights -> {
-                p.createPipelines(this, framebuffer.renderPass.get(0),
+                p.createPipelines(this, framebuffer.renderPass,
                     vertexInputType.state,
                     descriptorSetLayouts = reqDescriptorLayouts)
             }

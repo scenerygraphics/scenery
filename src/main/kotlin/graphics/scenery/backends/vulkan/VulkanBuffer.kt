@@ -34,7 +34,7 @@ class VulkanBuffer(val device: VulkanDevice, val size: VkDeviceSize, val usage: 
             size = this@VulkanBuffer.size
         }
         vulkanBuffer = device.vulkanDevice createBuffer bufferInfo
-        val reqs = device.vulkanDevice.getBufferMemoryRequirements(vulkanBuffer)
+        val reqs = device.vulkanDevice getBufferMemoryRequirements vulkanBuffer
 
         val size = when {
             wantAligned -> when {
