@@ -22,7 +22,7 @@ fun RenderConfigReader.RenderConfig.getOutputOfPass(passname: String): String? {
 }
 
 fun RenderConfigReader.RenderConfig.getInputsOfTarget(targetName: String): Set<String> {
-    rendertargets?.let { rts ->
+    rendertargets.let { rts ->
         return rts.filter {
             it.key == renderpasses.filter { it.value.output == targetName }.keys.first()
         }.keys
@@ -89,12 +89,13 @@ class RenderConfigReader {
         var sRGB: Boolean = false,
         var description: String?,
         var stereoEnabled: Boolean = false,
-        var rendertargets: Map<String, Map<String, AttachmentConfig>>?,
+        var rendertargets: Map<String, RendertargetConfig> = emptyMap(),
         var renderpasses: Map<String, RenderpassConfig>)
 
-    data class AttachmentConfig(
-        @JsonDeserialize(using = FloatPairDeserializer::class) var size: Pair<Float, Float>,
-        var format: TargetFormat)
+    data class RendertargetConfig(
+        @JsonDeserialize(using = FloatPairDeserializer::class) var size: Pair<Float, Float> = Pair(1.0f, 1.0f),
+        val attachments: Map<String, TargetFormat> = emptyMap()
+    )
 
     data class RenderpassConfig(
         var type: RenderpassType,

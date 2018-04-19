@@ -4,42 +4,32 @@ stereoEnabled: true
 
 rendertargets:
   GeometryBuffer:
-    NormalsMaterial:
-      size: 1.0, 1.0
-      format: RGBA_Float16
-    DiffuseAlbedo:
-      size: 1.0, 1.0
-      format: RGBA_UInt8
-    ZBuffer:
-      size: 1.0, 1.0
-      format: Depth32
+    attachments:
+      NormalsMaterial: RGBA_Float16
+      DiffuseAlbedo: RGBA_UInt8
+      ZBuffer: Depth32
   ForwardBuffer:
-    Color:
-      size: 1.0, 1.0
-      format: RGBA_Float32
+    attachments:
+      Color: RGBA_Float32
   DSSDOBuffer:
-    Occlusion:
-      size: 0.5, 0.5
-      format: RGBA_UInt8
+    size: 0.5, 0.5
+    attachments:
+      Occlusion: RGBA_UInt8
   DSSDOTemp1:
-    Occlusion:
-      size: 0.5, 0.5
-      format: RGBA_UInt8
+    size: 0.5, 0.5
+    attachments:
+      Occlusion: RGBA_UInt8
   DSSDOTemp2:
-    Occlusion:
-      size: 0.5, 0.5
-      format: RGBA_UInt8
+    size: 0.5, 0.5
+    attachments:
+      Occlusion: RGBA_UInt8
   HDRBuffer:
-    Color:
-      size: 1.0, 1.0
-      format: RGBA_Float32
-    Depth:
-      size: 1.0, 1.0
-      format: Depth32
+    attachments:
+      Color: RGBA_Float32
+      Depth: Depth32
   FXAABuffer:
-    Color:
-      size: 1.0, 1.0
-      format: RGBA_UInt8
+    attachments:
+      Color: RGBA_UInt8
 
 renderpasses:
   leftEye:
@@ -67,8 +57,8 @@ renderpasses:
   DSSDO:
     type: quad
     parameters:
-      Global.displayWidth: 0
-      Global.displayHeight: 0
+      Pass.displayWidth: 0
+      Pass.displayHeight: 0
       ssaoRadius: 0.5
       ssaoSamples: 16
       maxDistance: 0.2
@@ -82,8 +72,8 @@ renderpasses:
   DSSDOBlurV:
     type: quad
     parameters:
-      Global.displayWidth: 0
-      Global.displayHeight: 0
+      Pass.displayWidth: 0
+      Pass.displayHeight: 0
       Direction: 0.0, 1.0
     shaders:
       - "FullscreenQuad.vert.spv"
@@ -95,8 +85,8 @@ renderpasses:
   DSSDOBlurH:
     type: quad
     parameters:
-      Global.displayWidth: 0
-      Global.displayHeight: 0
+      Pass.displayWidth: 0
+      Pass.displayHeight: 0
       Direction: 1.0, 0.0
     shaders:
       - "FullscreenQuad.vert.spv"
