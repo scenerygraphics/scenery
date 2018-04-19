@@ -340,7 +340,7 @@ class Hololens: TrackerInput, Display, Hubable {
                 commandBuffer = this)
 
             this
-        }.endCommandBuffer(device, commandPool,
+        }.end(device, commandPool,
             queue, flush = true, dealloc = true)
 
         return img to memoryHandle
@@ -494,7 +494,7 @@ class Hololens: TrackerInput, Display, Hubable {
                 this
             }
 
-            currentCommandBuffer.commandBuffer.commandBuffer?.endCommandBuffer(device, hololensCommandPool, queue,
+            currentCommandBuffer.commandBuffer.commandBuffer?.end(device, hololensCommandPool, queue,
                 flush = false, dealloc = false, submitInfoPNext = null)
             currentCommandBuffer.current = true
         }

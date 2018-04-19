@@ -88,11 +88,11 @@ class VulkanDevice(
         logger.debug("Created logical Vulkan device on ${deviceData.vendor} ${deviceData.name}")
     }
 
-    fun getMemoryType(typeBits: Int, flags: Int): List<Int> {
+    fun getMemoryType(typeBits: Int, flags: VkMemoryPropertyFlags): List<Int> {
         var bits = typeBits
         val types = ArrayList<Int>(5)
 
-        for (i in 0 until memoryProperties.memoryTypeCount()) {
+        for (i in 0 until memoryProperties.memoryTypeCount) {
             if (bits and 1 == 1) {
                 if ((memoryProperties.memoryTypes(i).propertyFlags and flags) == flags)
                     types += i
@@ -102,7 +102,7 @@ class VulkanDevice(
         }
 
         if (types.isEmpty())
-            logger.warn("Memory type $flags not found for device $this (${vulkanDevice.address().toHexString()}")
+            logger.warn("Memory type $flags not found for device $this (${vulkanDevice.adr.toHexString()}")
 
         return types
     }
@@ -151,7 +151,7 @@ class VulkanDevice(
         }
     }
 
-    fun prepareDefaultDescriptorSetLayouts(): ConcurrentHashMap<String, Long> {
+    fun prepareDefaultDescriptorSetLayouts(): ConcurrentHashMap<String, VkDescriptorSetLayout> {
 
         val m = ConcurrentHashMap<String, Long>()
 

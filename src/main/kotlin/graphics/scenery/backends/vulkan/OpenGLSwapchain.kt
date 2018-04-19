@@ -155,7 +155,7 @@ class OpenGLSwapchain(val device: VulkanDevice,
 
                 val view = t.createImageView(image, format)
 
-                this.endCommandBuffer(device, commandPool, queue, flush = true, dealloc = true)
+                this.end(device, commandPool, queue, flush = true, dealloc = true)
                 Pair(image.image, view)
             }
         }

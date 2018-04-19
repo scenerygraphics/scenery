@@ -260,7 +260,7 @@ open class VulkanTexture(val device: VulkanDevice,
                     }
                 }
 
-                this.endCommandBuffer(device, commandPool, queue, flush = true, dealloc = true)
+                this.end(device, commandPool, queue, flush = true, dealloc = true)
                 buffer?.close()
             }
         } else {
@@ -290,7 +290,7 @@ open class VulkanTexture(val device: VulkanDevice,
                     srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
                     dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT)
 
-                this.endCommandBuffer(device, commandPool, queue, flush = true, dealloc = true)
+                this.end(device, commandPool, queue, flush = true, dealloc = true)
             }
 
             val imageBlit = VkImageBlit.calloc(1)
@@ -365,7 +365,7 @@ open class VulkanTexture(val device: VulkanDevice,
                     mipTargetRange.free()
                 }
 
-                this@mipmapCreation.endCommandBuffer(device, commandPool, queue, flush = true, dealloc = true)
+                this@mipmapCreation.end(device, commandPool, queue, flush = true, dealloc = true)
             }
 
             imageBlit.free()

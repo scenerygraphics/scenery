@@ -1,5 +1,6 @@
 package graphics.scenery.backends.vulkan
 
+import graphics.scenery.backends.vulkan.VU.setImageLayout
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.system.MemoryUtil.NULL
 import org.lwjgl.system.MemoryUtil.memAllocLong
@@ -58,6 +59,7 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
     var attachments = LinkedHashMap<String, VulkanFramebufferAttachment>()
 
     protected fun createAttachment(format: VkFormat, usage: VkImageUsage): VulkanFramebufferAttachment {
+
         val att = VulkanFramebufferAttachment()
         var aspectMask: VkImageAspectFlags = 0
         var imageLayout = VkImageLayout.UNDEFINED
@@ -74,68 +76,61 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
             imageLayout = VkImageLayout.SHADER_READ_ONLY_OPTIMAL
         }
 
-        val imageExtent = VkExtent3D.calloc()
-            .width(width)
-            .height(height)
-            .depth(1)
+        val imageExtent = vk.Extent3D {
+            width = this@VulkanFramebuffer.width
+            height = this@VulkanFramebuffer.height
+            depth = 1
+        }
 
-        val image = VkImageCreateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO)
-            .pNext(NULL)
-            .imageType(VK_IMAGE_TYPE_2D)
-            .format(att.format.i)
-            .extent(imageExtent)
-            .mipLevels(1)
-            .arrayLayers(1)
-            .samples(VK_SAMPLE_COUNT_1_BIT)
-            .tiling(VK_IMAGE_TILING_OPTIMAL)
-            .usage(usage or VkImageUsage.SAMPLED_BIT or VkImageUsage.TRANSFER_SRC_BIT or VkImageUsage.TRANSFER_DST_BIT)
-
+        val image = vk.ImageCreateInfo {
+            imageType = VkImageType.`2D`
+            this.format = att.format
+            extent = imageExtent
+            mipLevels = 1
+            arrayLayers = 1
+            samples = VkSampleCount.`1_BIT`
+            tiling = VkImageTiling.OPTIMAL
+            this.usage = usage or VkImageUsage.SAMPLED_BIT or VkImageUsage.TRANSFER_SRC_BIT or VkImageUsage.TRANSFER_DST_BIT
+        }
 
         att.image = device.vulkanDevice createImage image
 
-        val requirements = VkMemoryRequirements.calloc()
-        vkGetImageMemoryRequirements(device.vulkanDevice, att.image, requirements)
+        val requirements = device.vulkanDevice getImageMemoryRequirements att.image
 
-        val allocation = VkMemoryAllocateInfo.calloc()
-            .allocationSize(requirements.size())
-            .memoryTypeIndex(device.getMemoryType(requirements.memoryTypeBits(), VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)[0])
-            .sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO)
-            .pNext(NULL)
+        val allocation = vk.MemoryAllocateInfo {
+            allocationSize = requirements.size
+            memoryTypeIndex(device.getMemoryType(requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)[0]) // TODO bug
+        }
 
         att.memory = device.vulkanDevice allocateMemory allocation
-        vkBindImageMemory(device.vulkanDevice, att.image, att.memory, 0)
+        device.vulkanDevice.bindImageMemory(att.image, att.memory)
 
-        requirements.free()
-        allocation.free()
-
-        VU.setImageLayout(
-            commandBuffer,
+        commandBuffer.setImageLayout(
             att.image,
             aspectMask,
             VkImageLayout.UNDEFINED,
-            if (usage == VkImageUsage.COLOR_ATTACHMENT_BIT) VkImageLayout.SHADER_READ_ONLY_OPTIMAL
-            else imageLayout
+            when (usage) {
+                VkImageUsage.COLOR_ATTACHMENT_BIT -> VkImageLayout.SHADER_READ_ONLY_OPTIMAL
+                else -> imageLayout
+            }
         )
 
-        val subresourceRange = VkImageSubresourceRange.calloc()
-            .aspectMask(aspectMask)
-            .baseMipLevel(0)
-            .levelCount(1)
-            .baseArrayLayer(0)
-            .layerCount(1)
+        val subresourceRange = vk.ImageSubresourceRange {
+            this.aspectMask = aspectMask
+            baseMipLevel = 0
+            levelCount = 1
+            baseArrayLayer = 0
+            layerCount = 1
+        }
 
-        val iv = VkImageViewCreateInfo.calloc()
-            .viewType(VK_IMAGE_VIEW_TYPE_2D)
-            .format(format.i)
-            .subresourceRange(subresourceRange)
-            .image(att.image)
-            .sType(VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO)
-            .pNext(NULL)
+        val iv = vk.ImageViewCreateInfo {
+            viewType = VkImageViewType.`2D`
+            this.format = format
+            this.subresourceRange = subresourceRange
+            this.image = att.image
+        }
 
         att.imageView = device.vulkanDevice createImageView iv
-        iv.free()
-        subresourceRange.free()
 
         return att
     }
@@ -151,28 +146,26 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
 
         val att = createAttachment(format, VkImageUsage.COLOR_ATTACHMENT_BIT)
 
-        val (loadOp, stencilLoadOp) = if (!shouldClear) {
-            VK_ATTACHMENT_LOAD_OP_LOAD to VK_ATTACHMENT_LOAD_OP_LOAD
-        } else {
-            VK_ATTACHMENT_LOAD_OP_CLEAR to VK_ATTACHMENT_LOAD_OP_DONT_CARE
+        val (loadOp, stencilLoadOp) = when {
+            !shouldClear -> VkAttachmentLoadOp.LOAD to VkAttachmentLoadOp.LOAD
+            else -> VkAttachmentLoadOp.CLEAR to VkAttachmentLoadOp.DONT_CARE
+        }
+        val initialImageLayout = when {
+            !shouldClear -> VkImageLayout.COLOR_ATTACHMENT_OPTIMAL
+            else -> VkImageLayout.UNDEFINED
         }
 
-        val initialImageLayout = if (!shouldClear) {
-            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-        } else {
-            VK_IMAGE_LAYOUT_UNDEFINED
+        att.desc.apply {
+            samples = VkSampleCount.`1_BIT`
+            this.loadOp = loadOp
+            storeOp = VkAttachmentStoreOp.STORE
+            this.stencilLoadOp = stencilLoadOp
+            stencilStoreOp = VkAttachmentStoreOp.DONT_CARE
+            initialLayout = initialImageLayout
+            finalLayout = VkImageLayout.SHADER_READ_ONLY_OPTIMAL
+            this.format = format
         }
-
-        att.desc.samples(VK_SAMPLE_COUNT_1_BIT)
-            .loadOp(loadOp)
-            .storeOp(VK_ATTACHMENT_STORE_OP_STORE)
-            .stencilLoadOp(stencilLoadOp)
-            .stencilStoreOp(VK_ATTACHMENT_STORE_OP_DONT_CARE)
-            .initialLayout(initialImageLayout)
-            .finalLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-            .format(format.i)
-
-        attachments.put(name, att)
+        attachments[name] = att
 
         return this
     }

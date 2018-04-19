@@ -67,6 +67,7 @@ object vk {
         res.block()
         return res
     }
+
     inline fun DescriptorBufferInfo(capacity: Int, block: VkDescriptorBufferInfo.() -> Unit): VkDescriptorBufferInfo.Buffer {
         val res = VkDescriptorBufferInfo.create(ptr.advance(VkDescriptorBufferInfo.SIZEOF * capacity), capacity)
         res[0].block()
@@ -155,6 +156,14 @@ object vk {
         val res = VkImageMemoryBarrier.create(ptr.advance(VkImageMemoryBarrier.SIZEOF))
         res.type = VkStructureType.IMAGE_MEMORY_BARRIER
         res.block()
+        return res
+    }
+
+    inline fun ImageMemoryBarrier(capacity: Int, block: VkImageMemoryBarrier.() -> Unit): VkImageMemoryBarrier.Buffer {
+        val res = VkImageMemoryBarrier.create(ptr.advance(VkImageMemoryBarrier.SIZEOF * capacity), capacity)
+        for (i in res)
+            i.type = VkStructureType.IMAGE_MEMORY_BARRIER
+        res[0].block()
         return res
     }
 
@@ -282,6 +291,7 @@ object vk {
         res.block()
         return res
     }
+
     inline fun PushConstantRange(capacity: Int, block: VkPushConstantRange.() -> Unit): VkPushConstantRange.Buffer {
         val res = VkPushConstantRange.create(ptr.advance(VkPushConstantRange.SIZEOF * capacity), capacity)
         res[0].block()
@@ -392,6 +402,8 @@ object vk {
     inline fun Extent2D(block: VkExtent2D.() -> Unit): VkExtent2D = VkExtent2D.create(ptr.advance(VkExtent2D.SIZEOF)).also(block)
 
     inline fun FormatProperties(block: VkFormatProperties.() -> Unit): VkFormatProperties = VkFormatProperties.create(ptr.advance(VkFormatProperties.SIZEOF)).also(block)
+
+    inline fun ImageSubresourceRange(block: VkImageSubresourceRange.() -> Unit): VkImageSubresourceRange = VkImageSubresourceRange.create(ptr.advance(VkImageSubresourceRange.SIZEOF)).also(block)
 
 
     inline fun MemoryRequirements(block: VkMemoryRequirements.() -> Unit): VkMemoryRequirements = VkMemoryRequirements.create(ptr.advance(VkMemoryRequirements.SIZEOF)).also(block)

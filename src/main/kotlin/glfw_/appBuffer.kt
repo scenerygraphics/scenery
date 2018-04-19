@@ -2,7 +2,7 @@ package glfw_
 
 import glm_.BYTES
 import glm_.L
-import glm_.i
+import glm_.pow
 import glm_.set
 import org.lwjgl.PointerBuffer
 import org.lwjgl.system.MemoryUtil
@@ -15,7 +15,7 @@ import java.util.concurrent.atomic.AtomicLong
 
 object appBuffer {
 
-    val SIZE = Math.pow(2.0, 16.0).i  // 65536 TODO infix glm
+    val SIZE = 2 pow 16  // 65536
 
     var buffer = bufferBig(SIZE)
     var address = MemoryUtil.memAddress(buffer)
@@ -44,7 +44,7 @@ object appBuffer {
             return MemoryUtil.memPointerBuffer(ptr.advance(size), 1)
         }
 
-    inline fun pointerBufferOf(pointer: Pointer) = pointerBuffer(1).apply { put(0, pointer.adr) }
+    inline fun pointerBufferOf(pointer: Pointer) = pointerBuffer(1).apply { put(0, pointer) }
     inline fun pointerBuffer(capacity: Int): PointerBuffer {
         val size = Pointer.POINTER_SIZE * capacity
         return MemoryUtil.memPointerBuffer(ptr.advance(size), capacity)
@@ -116,7 +116,7 @@ object appBuffer {
 
     inline fun longBufferOf(longs: Collection<Long>): LongBuffer {
         val res = longBuffer(longs.size)
-        for(i in longs.indices)
+        for (i in longs.indices)
             res[i] = longs.elementAt(i)
         return res
     }
@@ -162,10 +162,11 @@ object appBuffer {
     inline fun intBuffer(size: Int): IntBuffer = MemoryUtil.memIntBuffer(ptr.advance(Int.BYTES * size), size)
     inline fun intBuffer(size: Int, block: (Int) -> Int): IntBuffer {
         val res = intBuffer(size)
-        for(i in res.indices)
+        for (i in res.indices)
             res[i] = block(i)
         return res
     }
+
     inline fun floatBuffer(size: Int): FloatBuffer = MemoryUtil.memFloatBuffer(ptr.advance(Float.BYTES * size), size)
     inline fun longBuffer(size: Int): LongBuffer = MemoryUtil.memLongBuffer(ptr.advance(Long.BYTES * size), size)
 
@@ -176,6 +177,8 @@ object appBuffer {
 
     fun next() = MemoryUtil.memGetByte(ptr.get())
     fun printNext() = println("@${ptr.get() - address}: ${next()}")
+    val remaining get() = SIZE - consumed
+    val consumed get() = ptr.get() - address
 }
 
 inline fun AtomicLong.advance(int: Int) = getAndAdd(int.L)

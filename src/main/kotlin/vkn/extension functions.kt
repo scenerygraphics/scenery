@@ -16,6 +16,10 @@ inline infix fun VkCommandBuffer.begin(beginInfo: VkCommandBufferBeginInfo) {
     VK_CHECK_RESULT(VK10.nvkBeginCommandBuffer(this, beginInfo.adr))
 }
 
+inline fun VkCommandBuffer.begin(flags: VkCommandBufferUsageFlags = VkCommandBufferUsage.SIMULTANEOUS_USE_BIT.i) {
+    begin(vk.CommandBufferBeginInfo { this.flags = flags })
+}
+
 inline fun VkCommandBuffer.beginRenderPass(renderPassBegin: VkRenderPassBeginInfo, contents: VkSubpassContents) {
     VK10.nvkCmdBeginRenderPass(this, renderPassBegin.adr, contents.i)
 }
@@ -373,6 +377,21 @@ inline infix fun VkDevice.getBufferMemoryRequirements(buffer: VkBuffer): VkMemor
 inline fun VkDevice.getBufferMemoryRequirements(buffer: VkBuffer, memoryRequirements: VkMemoryRequirements): VkMemoryRequirements {
     VK10.nvkGetBufferMemoryRequirements(this, buffer, memoryRequirements.adr)
     return memoryRequirements
+}
+
+inline infix fun VkDevice.getCommandBuffer(commandPool: VkCommandPool): VkCommandBuffer {
+    return getCommandBuffer(commandPool, VkCommandBufferLevel.PRIMARY)
+}
+
+inline fun VkDevice.getCommandBuffer(commandPool: VkCommandPool, level: VkCommandBufferLevel): VkCommandBuffer {
+
+    val cmdBufAllocateInfo = vk.CommandBufferAllocateInfo {
+        this.commandPool = commandPool
+        this.level = level
+        commandBufferCount = 1
+    }
+
+    return allocateCommandBuffer(cmdBufAllocateInfo)
 }
 
 inline infix fun VkDevice.getImageMemoryRequirements(buffer: VkBuffer): VkMemoryRequirements {

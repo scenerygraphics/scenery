@@ -4,6 +4,9 @@ import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
 import graphics.scenery.NodeMetadata
 import graphics.scenery.utils.LazyLogger
+import vkn.VkDescriptorPool
+import vkn.VkDescriptorSet
+import vkn.VkDescriptorSetLayout
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
@@ -41,8 +44,9 @@ open class VulkanObjectState : NodeMetadata {
 
     var textureDescriptorSet: Long = -1L
 
-    fun texturesToDescriptorSet(device: VulkanDevice, descriptorSetLayout: Long, descriptorPool: Long, targetBinding: Int = 0): Long {
-        val descriptorSet = if(textureDescriptorSet == -1L) {
+    fun texturesToDescriptorSet(device: VulkanDevice, descriptorSetLayout: VkDescriptorSetLayout, descriptorPool: VkDescriptorPool,
+                                targetBinding: Int = 0): VkDescriptorSet {
+        val descriptorSet: VkDescriptorSet = if(textureDescriptorSet == -1L) {
             val pDescriptorSetLayout = memAllocLong(1)
             pDescriptorSetLayout.put(0, descriptorSetLayout)
 

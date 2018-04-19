@@ -13,7 +13,8 @@ import org.lwjgl.vulkan.EXTDebugReport.VK_ERROR_VALIDATION_FAILED_EXT
 import org.lwjgl.vulkan.KHRDisplaySwapchain.VK_ERROR_INCOMPATIBLE_DISPLAY_KHR
 import org.lwjgl.vulkan.KHRSurface.VK_ERROR_NATIVE_WINDOW_IN_USE_KHR
 import org.lwjgl.vulkan.KHRSurface.VK_ERROR_SURFACE_LOST_KHR
-import org.lwjgl.vulkan.KHRSwapchain.*
+import org.lwjgl.vulkan.KHRSwapchain.VK_ERROR_OUT_OF_DATE_KHR
+import org.lwjgl.vulkan.KHRSwapchain.VK_SUBOPTIMAL_KHR
 import org.lwjgl.vulkan.VK10.*
 import org.slf4j.LoggerFactory
 import vkn.*
@@ -43,39 +44,28 @@ fun VkCommandBuffer.endCommandBuffer() {
     }
 }
 
-fun VkCommandBuffer.endCommandBuffer(device: VulkanDevice, commandPool: VkCommandPool, queue: VkQueue?, flush: Boolean = true, dealloc: Boolean = false, submitInfoPNext: Pointer? = null) {
-    if (this.address() == NULL) {
+fun VkCommandBuffer.end(device: VulkanDevice, commandPool: VkCommandPool, queue: VkQueue?, flush: Boolean = true, dealloc: Boolean = false, submitInfoPNext: Pointer? = null) {
+    if (adr == NULL)
         return
-    }
 
-    if (vkEndCommandBuffer(this) != VK_SUCCESS) {
-        throw AssertionError("Failed to end command buffer $this")
-    }
+    end()
 
-    if (flush && queue != null) {
-        this.submit(queue, submitInfoPNext)
-    }
+    if (flush && queue != null)
+        submit(queue, submitInfoPNext)
 
-    if (dealloc) {
-        vkFreeCommandBuffers(device.vulkanDevice, commandPool, this)
-    }
+    if (dealloc)
+        device.vulkanDevice.freeCommandBuffer(commandPool, this)
 }
 
 fun VkCommandBuffer.submit(queue: VkQueue, submitInfoPNext: Pointer? = null, block: Boolean = true) {
-    stackPush().use { stack ->
-        val submitInfo = VkSubmitInfo.callocStack(1, stack)
-        val commandBuffers = stack.callocPointer(1).put(0, this)
 
-        VU.run("endCommandBuffer", {
-            submitInfo
-                .sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
-                .pCommandBuffers(commandBuffers)
-                .pNext(submitInfoPNext?.address() ?: NULL)
-
-            vkQueueSubmit(queue, submitInfo, VK_NULL_HANDLE)
-            vkQueueWaitIdle(queue)
-        }, { })
+    val submitInfo = vk.SubmitInfo {
+        commandBuffers = appBuffer.pointerBufferOf(this@submit)
+        next = submitInfoPNext?.adr ?: NULL
     }
+
+    queue submit submitInfo
+    queue.waitIdle()
 }
 
 fun Blending.BlendFactor.toVulkan() = when (this) {
@@ -278,107 +268,70 @@ object VU {
         }
     }
 
-    fun setImageLayout(commandBuffer: VkCommandBuffer, image: Long, oldImageLayout: Int, newImageLayout: Int, range: VkImageSubresourceRange) {
-        stackPush().use { stack ->
-            val imageMemoryBarrier = VkImageMemoryBarrier.callocStack(1, stack)
-                .sType(VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER)
-                .pNext(NULL)
-                .oldLayout(oldImageLayout)
-                .newLayout(newImageLayout)
-                .image(image)
-                .subresourceRange(range)
-                .srcAccessMask(when (oldImageLayout) {
-                    VK_IMAGE_LAYOUT_PREINITIALIZED -> VK_ACCESS_HOST_WRITE_BIT
-                    VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL -> VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
-                    VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL -> VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT
-                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL -> VK_ACCESS_TRANSFER_READ_BIT
-                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL -> VK_ACCESS_TRANSFER_WRITE_BIT
-                    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL -> VK_ACCESS_SHADER_READ_BIT
+    fun VkCommandBuffer.setImageLayout(image: VkImage, oldImageLayout: VkImageLayout, newImageLayout: VkImageLayout, range: VkImageSubresourceRange) {
 
-                    VK_IMAGE_LAYOUT_UNDEFINED -> 0
-                    else -> 0
-                })
+        val imageMemoryBarrier = vk.ImageMemoryBarrier {
+            oldLayout = oldImageLayout
+            newLayout = newImageLayout
+            this.image = image
+            subresourceRange = range
+            srcAccessMask = oldImageLayout.accessMask
 
             when (newImageLayout) {
-                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL -> imageMemoryBarrier.dstAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
-                VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL -> {
-                    imageMemoryBarrier.srcAccessMask(imageMemoryBarrier.srcAccessMask() or VK_ACCESS_TRANSFER_READ_BIT)
-                        .dstAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
+                VkImageLayout.TRANSFER_DST_OPTIMAL -> dstAccessMask = VkAccess.TRANSFER_WRITE_BIT.i
+                VkImageLayout.TRANSFER_SRC_OPTIMAL -> {
+                    srcAccessMask = srcAccessMask or VkAccess.TRANSFER_READ_BIT
+                    dstAccessMask = VkAccess.TRANSFER_READ_BIT.i
                 }
-                VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL -> {
-                    imageMemoryBarrier.srcAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
-                    imageMemoryBarrier.dstAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
+                VkImageLayout.COLOR_ATTACHMENT_OPTIMAL -> {
+                    srcAccessMask = VkAccess.TRANSFER_READ_BIT.i
+                    dstAccessMask = VkAccess.COLOR_ATTACHMENT_WRITE_BIT.i
                 }
-                VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL -> {
-                    imageMemoryBarrier.dstAccessMask(imageMemoryBarrier.dstAccessMask() or VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT)
+                VkImageLayout.DEPTH_STENCIL_ATTACHMENT_OPTIMAL -> dstAccessMask = dstAccessMask or VkAccess.DEPTH_STENCIL_ATTACHMENT_WRITE_BIT
+                VkImageLayout.SHADER_READ_ONLY_OPTIMAL -> {
+                    if (srcAccessMask == 0)
+                        dstAccessMask = VkAccess.HOST_WRITE_BIT or VkAccess.TRANSFER_WRITE_BIT
+                    dstAccessMask = VkAccess.SHADER_READ_BIT.i
                 }
-                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL -> {
-                    if (imageMemoryBarrier.srcAccessMask() == 0) {
-                        imageMemoryBarrier.dstAccessMask(VK_ACCESS_HOST_WRITE_BIT or VK_ACCESS_TRANSFER_WRITE_BIT)
-                    }
-
-                    imageMemoryBarrier.dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
-                }
-                VK_IMAGE_LAYOUT_PRESENT_SRC_KHR -> {
-                    imageMemoryBarrier.dstAccessMask(imageMemoryBarrier.dstAccessMask() or VK_ACCESS_MEMORY_READ_BIT)
-                }
+                VkImageLayout.PRESENT_SRC_KHR -> dstAccessMask = dstAccessMask or VkAccess.MEMORY_READ_BIT
             }
-
-            val srcStageFlags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
-            val dstStageFlags = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
-
-            vkCmdPipelineBarrier(commandBuffer,
-                srcStageFlags,
-                dstStageFlags,
-                0,
-                null,
-                null,
-                imageMemoryBarrier
-            )
         }
+
+        val srcStageFlags = VkPipelineStage.COLOR_ATTACHMENT_OUTPUT_BIT.i
+        val dstStageFlags = VkPipelineStage.FRAGMENT_SHADER_BIT.i
+
+        pipelineBarrier(
+            srcStageFlags, dstStageFlags,
+            0, null, null,
+            imageMemoryBarrier)
     }
 
-    fun setImageLayout(commandBuffer: VkCommandBuffer, image: VkImage, aspectMask: Int, oldImageLayout: VkImageLayout,
-                       newImageLayout: VkImageLayout) {
-        stackPush().use { stack ->
-            val range = VkImageSubresourceRange.callocStack(stack)
-                .aspectMask(aspectMask)
-                .baseMipLevel(0)
-                .levelCount(1)
-                .layerCount(1)
+    fun VkCommandBuffer.setImageLayout(image: VkImage, aspectMask: Int, oldImageLayout: VkImageLayout, newImageLayout: VkImageLayout) {
 
-            setImageLayout(commandBuffer, image, oldImageLayout.i, newImageLayout.i, range)
+        val range = vk.ImageSubresourceRange {
+            this.aspectMask = aspectMask
+            baseMipLevel = 0
+            levelCount = 1
+            layerCount = 1
         }
+
+        setImageLayout(image, oldImageLayout, newImageLayout, range)
     }
 
-    fun createDeviceQueue(device: VulkanDevice, queueFamilyIndex: Int): VkQueue {
-        val queue = getPointer("Getting device queue for queueFamilyIndex=$queueFamilyIndex",
-            { vkGetDeviceQueue(device.vulkanDevice, queueFamilyIndex, 0, this); VK_SUCCESS }, {})
+    fun VkDevice.newCommandBuffer(commandPool: VkCommandPool, level: VkCommandBufferLevel = VkCommandBufferLevel.PRIMARY, autostart: Boolean = false): VkCommandBuffer {
+        val cmdBuf = getCommandBuffer(commandPool, level)
 
-        return VkQueue(queue, device.vulkanDevice)
-    }
+        if (autostart)
+            cmdBuf.begin()
 
-    fun newCommandBuffer(device: VulkanDevice, commandPool: Long, level: Int = VK_COMMAND_BUFFER_LEVEL_PRIMARY): VkCommandBuffer {
-        return stackPush().use { stack ->
-            val cmdBufAllocateInfo = VkCommandBufferAllocateInfo.callocStack(stack)
-                .sType(VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO)
-                .commandPool(commandPool)
-                .level(level)
-                .commandBufferCount(1)
-
-            val commandBuffer = getPointer("Creating command buffer",
-                { vkAllocateCommandBuffers(device.vulkanDevice, cmdBufAllocateInfo, this) }, {})
-
-            VkCommandBuffer(commandBuffer, device.vulkanDevice)
-        }
+        return cmdBuf
     }
 
     fun newCommandBuffer(device: VulkanDevice, commandPool: VkCommandPool, level: Int = VK_COMMAND_BUFFER_LEVEL_PRIMARY, autostart: Boolean = false): VkCommandBuffer {
-        val cmdBuf = newCommandBuffer(device, commandPool, level)
+        val cmdBuf = device.vulkanDevice.getCommandBuffer(commandPool, VkCommandBufferLevel of level)
 
-        if (autostart) {
-            beginCommandBuffer(cmdBuf)
-        }
+        if (autostart)
+            cmdBuf.begin()
 
         return cmdBuf
     }

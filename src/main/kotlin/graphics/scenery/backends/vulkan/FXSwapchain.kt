@@ -277,7 +277,7 @@ class FXSwapchain(device: VulkanDevice,
                 KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
                 commandBuffer = this)
 
-            this.endCommandBuffer(device, commandPool, queue,
+            this.end(device, commandPool, queue,
                 flush = true, dealloc = true)
         }
 

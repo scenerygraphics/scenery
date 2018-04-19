@@ -13,8 +13,10 @@ import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
+import vkn.VkDescriptorPool
 import vkn.VkDescriptorSet
 import vkn.VkDescriptorType
+import vkn.VkPipelineCache
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.util.*
@@ -27,8 +29,8 @@ import java.util.concurrent.ConcurrentHashMap
  */
 open class VulkanRenderpass(val name: String, var config: RenderConfigReader.RenderConfig,
                             val device: VulkanDevice,
-                            val descriptorPool: Long,
-                            val pipelineCache: Long,
+                            val descriptorPool:  VkDescriptorPool,
+                            val pipelineCache: VkPipelineCache,
                             val vertexDescriptors: ConcurrentHashMap<VulkanRenderer.VertexDataKinds, VulkanRenderer.VertexDescription>) : AutoCloseable {
 
     protected val logger by LazyLogger()

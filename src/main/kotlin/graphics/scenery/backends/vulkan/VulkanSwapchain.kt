@@ -4,10 +4,10 @@ import glfw_.glfw
 import graphics.scenery.Hub
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.SceneryWindow
+import graphics.scenery.backends.vulkan.VU.setImageLayout
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.SceneryPanel
 import org.lwjgl.glfw.GLFW.*
-import org.lwjgl.glfw.GLFWVulkan
 import org.lwjgl.glfw.GLFWWindowSizeCallback
 import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil
@@ -17,7 +17,6 @@ import org.lwjgl.vulkan.KHRSwapchain.VK_ERROR_OUT_OF_DATE_KHR
 import org.lwjgl.vulkan.KHRSwapchain.vkAcquireNextImageKHR
 import vkn.VkCommandPool
 import vkn.VkImageLayout
-import vkn.VkImageUsage
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 
@@ -214,7 +213,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
                 for (i in 0 until imageCount.get(0)) {
                     images[i] = swapchainImages.get(i)
 
-                    VU.setImageLayout(this, images[i],
+                    setImageLayout(images[i],
                         aspectMask = VK10.VK_IMAGE_ASPECT_COLOR_BIT,
                         oldImageLayout = VkImageLayout.UNDEFINED,
                         newImageLayout = VkImageLayout.PRESENT_SRC_KHR)
@@ -224,7 +223,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
                         { VK10.vkCreateImageView(device.vulkanDevice, colorAttachmentView, null, this) }, {})
                 }
 
-                this.endCommandBuffer(device, commandPool, queue,
+                this.end(device, commandPool, queue,
                     flush = true, dealloc = true)
             }
 

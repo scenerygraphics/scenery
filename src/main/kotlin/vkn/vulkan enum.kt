@@ -639,6 +639,16 @@ enum class VkImageLayout(val i: Int) {
     DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL_KHR(1000117000),
     DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL_KHR(1000117001);
 
+    val accessMask: VkAccessFlags get() = when (this) {
+        PREINITIALIZED -> VkAccess.HOST_WRITE_BIT.i
+        COLOR_ATTACHMENT_OPTIMAL -> VkAccess.COLOR_ATTACHMENT_WRITE_BIT.i
+        DEPTH_STENCIL_ATTACHMENT_OPTIMAL -> VkAccess.DEPTH_STENCIL_ATTACHMENT_WRITE_BIT.i
+        TRANSFER_SRC_OPTIMAL -> VkAccess.TRANSFER_READ_BIT.i
+        TRANSFER_DST_OPTIMAL -> VkAccess.TRANSFER_WRITE_BIT.i
+        SHADER_READ_ONLY_OPTIMAL -> VkAccess.SHADER_READ_BIT.i
+        else -> 0
+    }
+
     companion object {
         inline infix fun of(i: Int) = values().first { it.i == i }
     }
@@ -1479,6 +1489,8 @@ enum class VkAccess(val i: Int) {
         infix fun of(i: Int) = values().first { it.i == i }
     }
 }
+
+inline infix fun Int.or(f: VkAccess) = or(f.i)
 
 typealias VkAccessFlags = VkFlags
 

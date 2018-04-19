@@ -7,6 +7,7 @@ import glfw_.glfw
 import graphics.scenery.*
 import graphics.scenery.backends.*
 import graphics.scenery.backends.vulkan.VU.createDescriptorSetDynamic
+import graphics.scenery.backends.vulkan.VU.newCommandBuffer
 import graphics.scenery.spirvcrossj.Loader
 import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.utils.*
@@ -131,31 +132,21 @@ open class VulkanRenderer(hub: Hub,
             if (lock.tryLock()) {
                 logger.info("Recreating Swapchain at frame $frames")
                 // create new swapchain with changed surface parameters
-                vkQueueWaitIdle(queue)
+                queue.waitIdle()
 
-                with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
-                    // Create the swapchain (this will also add a memory barrier to initialize the framebuffer images)
+                val cmdBuf = device.vulkanDevice.newCommandBuffer(commandPools.Standard, autostart = true)
+                // Create the swapchain (this will also add a memory barrier to initialize the framebuffer images)
 
-                    swapchain?.create(oldSwapchain = swapchain)
+                swapchain?.create(oldSwapchain = swapchain)
 
-                    this.endCommandBuffer(device, commandPools.Standard, queue, flush = true, dealloc = true)
+                cmdBuf.end(device, commandPools.Standard, queue, flush = true, dealloc = true)
 
-                    this
-                }
-
-                val pipelineCacheInfo = VkPipelineCacheCreateInfo.calloc()
-                    .sType(VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO)
-                    .pNext(NULL)
-                    .flags(VK_FLAGS_NONE)
-
+                // TODO why this lambda?
                 val refreshResolutionDependentResources = {
-                    if (pipelineCache != -1L) {
-                        vkDestroyPipelineCache(device.vulkanDevice, pipelineCache, null)
-                    }
+                    if (pipelineCache != NULL)
+                        device.vulkanDevice destroyPipelineCache pipelineCache
 
-                    pipelineCache = VU.getLong("create pipeline cache",
-                        { vkCreatePipelineCache(device.vulkanDevice, pipelineCacheInfo, null, this) },
-                        { pipelineCacheInfo.free() })
+                    pipelineCache = device.vulkanDevice createPipelineCache vk.PipelineCacheCreateInfo { }
 
                     renderpasses.values.forEach { it.close() }
                     renderpasses.clear()
@@ -304,13 +295,13 @@ open class VulkanRenderer(hub: Hub,
     final override var window: SceneryWindow = SceneryWindow.UninitializedWindow()
 
     protected val swapchainRecreator: SwapchainRecreator
-    protected var pipelineCache: Long = -1L
+    protected var pipelineCache: VkPipelineCache = NULL
     protected var vertexDescriptors = ConcurrentHashMap<VertexDataKinds, VertexDescription>()
     protected var sceneUBOs = ArrayList<Node>()
     protected var semaphores = ConcurrentHashMap<StandardSemaphores, Array<Long>>()
     protected var buffers = ConcurrentHashMap<String, VulkanBuffer>()
     protected var textureCache = ConcurrentHashMap<String, VulkanTexture>()
-    protected var descriptorSetLayouts = ConcurrentHashMap<String, Long>()
+    protected var descriptorSetLayouts = ConcurrentHashMap<String, VkDescriptorSetLayout>()
     protected var descriptorSets = ConcurrentHashMap<String, Long>()
 
     protected var lastTime = System.nanoTime()
@@ -1213,7 +1204,7 @@ open class VulkanRenderer(hub: Hub,
             .filter { it.key.startsWith("outputs-") }
             .map {
                 logger.debug("Marking RT DSL ${it.value.toHexString()} for deletion")
-                vkDestroyDescriptorSetLayout(device.vulkanDevice, it.value, null)
+                device.vulkanDevice destroyDescriptorSetLayout it.value
                 it.key
             }
             .map {
@@ -1239,12 +1230,11 @@ open class VulkanRenderer(hub: Hub,
                 if (!descriptorSetLayouts.containsKey("outputs-${rt.first}")) {
                     logger.debug("Creating output descriptor set for ${rt.first}")
                     // create descriptor set layout that matches the render target
-                    descriptorSetLayouts.put("outputs-${rt.first}",
-                        VU.createDescriptorSetLayout(device,
-                            descriptorNum = rt.second.count(),
-                            descriptorCount = 1,
-                            type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
-                        ))
+                    descriptorSetLayouts["outputs-${rt.first}"] = VU.createDescriptorSetLayout(device,
+                        descriptorNum = rt.second.count(),
+                        descriptorCount = 1,
+                        type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
+                    )
                 }
             }
 
@@ -1377,7 +1367,7 @@ open class VulkanRenderer(hub: Hub,
                 pass.semaphore = VU.getLong("vkCreateSemaphore",
                     { vkCreateSemaphore(device.vulkanDevice, semaphoreCreateInfo, null, this) }, {})
 
-                this.endCommandBuffer(device, commandPools.Standard, this@VulkanRenderer.queue, flush = true)
+                this.end(device, commandPools.Standard, this@VulkanRenderer.queue, flush = true)
             }
 
             renderpasses.put(passName, pass)
@@ -1533,7 +1523,7 @@ open class VulkanRenderer(hub: Hub,
                         VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
                         commandBuffer = this)
 
-                    this.endCommandBuffer(device, commandPools.Render, queue,
+                    this.end(device, commandPools.Render, queue,
                         flush = true, dealloc = true)
                 }
 
@@ -1902,7 +1892,7 @@ open class VulkanRenderer(hub: Hub,
                 copyRegion)
 
             copyRegion.free()
-            this.endCommandBuffer(device, commandPools.Standard, queue, flush = true, dealloc = true)
+            this.end(device, commandPools.Standard, queue, flush = true, dealloc = true)
         }
 
         state.vertexBuffers.put("vertex+index", vertexBuffer)?.run {
@@ -1996,7 +1986,7 @@ open class VulkanRenderer(hub: Hub,
                 copyRegion)
 
             copyRegion.free()
-            this.endCommandBuffer(device, commandPools.Standard, queue, flush = true, dealloc = true)
+            this.end(device, commandPools.Standard, queue, flush = true, dealloc = true)
         }
 
         state.instanceCount = parentNode.instances.size
