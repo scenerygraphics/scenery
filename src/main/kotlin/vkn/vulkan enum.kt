@@ -568,6 +568,8 @@ enum class VkFormat(val i: Int) {
     G16_B16R16_2PLANE_422_UNORM_KHR(1000156032),
     G16_B16_R16_3PLANE_444_UNORM_KHR(1000156033);
 
+    infix operator fun plus(i: Int) = of(this.i + i)
+
     companion object {
         inline infix fun of(i: Int) = values().first { it.i == i }
     }

@@ -405,6 +405,8 @@ object vk {
 
     inline fun FormatProperties(block: VkFormatProperties.() -> Unit): VkFormatProperties = VkFormatProperties.create(ptr.advance(VkFormatProperties.SIZEOF)).also(block)
 
+    inline fun ImageBlit(block: VkImageBlit.() -> Unit): VkImageBlit = VkImageBlit.create(ptr.advance(VkImageBlit.SIZEOF)).also(block)
+
     inline fun ImageCopy(block: VkImageCopy.() -> Unit): VkImageCopy = VkImageCopy.create(ptr.advance(VkImageCopy.SIZEOF)).also(block)
 
     inline fun ImageSubresourceRange(block: VkImageSubresourceRange.() -> Unit): VkImageSubresourceRange = VkImageSubresourceRange.create(ptr.advance(VkImageSubresourceRange.SIZEOF)).also(block)
@@ -458,7 +460,23 @@ object vk {
         Full Constructors
      */
 
-    inline fun fVertexInputAttributeDescription(binding: Int, location: Int, format: VkFormat, offset: Int): VkVertexInputAttributeDescription {
+
+    inline fun ImageSubresourceRange(
+        aspectMask: VkImageAspectFlags,
+        baseMipLevel: Int,
+        levelCount: Int,
+        baseArrayLayer: Int,
+        layerCount: Int): VkImageSubresourceRange {
+        return ImageSubresourceRange {
+            this.aspectMask = aspectMask
+            this.baseMipLevel = baseMipLevel
+            this.levelCount = levelCount
+            this.baseArrayLayer = baseArrayLayer
+            this.layerCount = layerCount
+        }
+    }
+
+    inline fun VertexInputAttributeDescription(binding: Int, location: Int, format: VkFormat, offset: Int): VkVertexInputAttributeDescription {
         return VertexInputAttributeDescription {
             this.location = location
             this.binding = binding
@@ -467,8 +485,7 @@ object vk {
         }
     }
 
-
-    inline fun fVertexInputBindingDescription(binding: Int, stride: Int, inputRate: VkVertexInputRate): VkVertexInputBindingDescription {
+    inline fun VertexInputBindingDescription(binding: Int, stride: Int, inputRate: VkVertexInputRate): VkVertexInputBindingDescription {
         return vk.VertexInputBindingDescription {
             this.binding = binding
             this.stride = stride

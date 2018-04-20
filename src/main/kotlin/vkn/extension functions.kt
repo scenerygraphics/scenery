@@ -46,6 +46,10 @@ inline fun VkCommandBuffer.bindVertexBuffer(firstBinding: Int, buffer: VkBuffer)
     VK10.nvkCmdBindVertexBuffers(this, firstBinding, 1, pBuffer, pOffset)
 }
 
+inline fun VkCommandBuffer.blitImage(srcImage: VkImage, srcImageLayout: VkImageLayout, dstImage: VkImage, dstImageLayout: VkImageLayout, region: VkImageBlit, filter: VkFilter) {
+    VK10.nvkCmdBlitImage(this, srcImage, srcImageLayout.i, dstImage, dstImageLayout.i, 1, region.adr, filter.i)
+}
+
 inline fun VkCommandBuffer.copyBuffer(srcBuffer: VkBuffer, dstBuffer: VkBuffer, regions: VkBufferCopy.Buffer) {
     VK10.nvkCmdCopyBuffer(this, srcBuffer, dstBuffer, regions.remaining(), regions.adr)
 }

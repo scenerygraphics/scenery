@@ -921,7 +921,7 @@ inline var VkImageCreateInfo.initialLayout: VkImageLayout
 //    VkDeviceSize    depthPitch;
 //} VkSubresourceLayout;
 
-inline fun VkComponentMapping.set(r: VkComponentSwizzle, g: VkComponentSwizzle, b: VkComponentSwizzle, a: VkComponentSwizzle) {
+inline operator fun VkComponentMapping.invoke(r: VkComponentSwizzle, g: VkComponentSwizzle, b: VkComponentSwizzle, a: VkComponentSwizzle) {
     this.r = r
     this.g = g
     this.b = b
@@ -945,13 +945,13 @@ inline var VkComponentMapping.a: VkComponentSwizzle
 inline var VkImageSubresourceRange.aspectMask: VkImageAspectFlags
     get() = VkImageSubresourceRange.naspectMask(adr)
     set(value) = VkImageSubresourceRange.naspectMask(adr, value)
-inline var VkImageSubresourceRange.baseMipLevel
+inline var VkImageSubresourceRange.baseMipLevel: Int
     get() = VkImageSubresourceRange.nbaseMipLevel(adr)
     set(value) = VkImageSubresourceRange.nbaseMipLevel(adr, value)
-inline var VkImageSubresourceRange.levelCount
+inline var VkImageSubresourceRange.levelCount: Int
     get() = VkImageSubresourceRange.nlevelCount(adr)
     set(value) = VkImageSubresourceRange.nlevelCount(adr, value)
-inline var VkImageSubresourceRange.baseArrayLayer
+inline var VkImageSubresourceRange.baseArrayLayer: Int
     get() = VkImageSubresourceRange.nbaseArrayLayer(adr)
     set(value) = VkImageSubresourceRange.nbaseArrayLayer(adr, value)
 inline var VkImageSubresourceRange.layerCount
@@ -2044,12 +2044,18 @@ inline var VkImageCopy.extent: VkExtent3D
     set(value) = VkImageCopy.nextent(adr, value)
 
 
-//typedef struct VkImageBlit {
-//    VkImageSubresourceLayers    srcSubresource;
-//    VkOffset3D                  srcOffsets[2];
-//    VkImageSubresourceLayers    dstSubresource;
-//    VkOffset3D                  dstOffsets[2];
-//} VkImageBlit;
+inline var VkImageBlit.srcSubresource: VkImageSubresourceLayers
+    get() = VkImageBlit.nsrcSubresource(adr)
+    set(value) = VkImageBlit.nsrcSubresource(adr, value)
+inline var VkImageBlit.srcOffsets: VkOffset3D.Buffer
+    get() = VkImageBlit.nsrcOffsets(adr)
+    set(value) = VkImageBlit.nsrcOffsets(adr, value)
+inline var VkImageBlit.dstSubresource: VkImageSubresourceLayers
+    get() = VkImageBlit.ndstSubresource(adr)
+    set(value) = VkImageBlit.ndstSubresource(adr, value)
+inline var VkImageBlit.dstOffsets: VkOffset3D.Buffer
+    get() = VkImageBlit.ndstOffsets(adr)
+    set(value) = VkImageBlit.ndstOffsets(adr, value)
 
 
 inline var VkBufferImageCopy.bufferOffset: VkDeviceSize
