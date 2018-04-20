@@ -90,7 +90,8 @@ class RenderConfigReader {
         var description: String?,
         var stereoEnabled: Boolean = false,
         var rendertargets: Map<String, RendertargetConfig> = emptyMap(),
-        var renderpasses: Map<String, RenderpassConfig>)
+        var renderpasses: Map<String, RenderpassConfig>,
+        var qualitySettings: Map<RenderingQuality, Map<String, Any>> = emptyMap())
 
     data class RendertargetConfig(
         @JsonDeserialize(using = FloatPairDeserializer::class) var size: Pair<Float, Float> = Pair(1.0f, 1.0f),
@@ -122,6 +123,8 @@ class RenderConfigReader {
         var depthClearValue: Float = 1.0f,
         @JsonDeserialize(using = VREyeDeserializer::class) var eye: Int = -1
     )
+
+    enum class RenderingQuality { Low, Medium, High, Ultra }
 
     enum class RenderpassType { geometry, quad, lights }
 

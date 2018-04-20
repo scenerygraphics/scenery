@@ -2915,4 +2915,23 @@ open class VulkanRenderer(hub: Hub,
     fun switchFullscreen() {
         hub?.let { hub -> swapchain?.toggleFullscreen(hub, swapchainRecreator) }
     }
+
+    /**
+     * Sets the rendering quality, if the loaded renderer config file supports it.
+     *
+     * @param[quality] The [RenderConfigReader.RenderingQuality] to be set.
+     */
+    override fun setRenderingQuality(quality: RenderConfigReader.RenderingQuality) {
+        if(renderConfig.qualitySettings.isNotEmpty()) {
+            logger.info("Setting rendering quality to $quality")
+            renderConfig.qualitySettings.get(quality)?.forEach { setting ->
+                val key = "Renderer.${setting.key}"
+
+                logger.debug("Setting $key: ${settings.get<Any>(key)} -> ${setting.value}")
+                settings.set(key, setting.value)
+            }
+        } else {
+            logger.warn("The current renderer config, $renderConfigFile, does not support setting quality options.")
+        }
+    }
 }
