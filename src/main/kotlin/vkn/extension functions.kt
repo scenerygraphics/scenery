@@ -334,17 +334,22 @@ inline fun VkDevice.destroySemaphores(vararg semaphores: VkSemaphore) {
         VK10.nvkDestroySemaphore(this, semaphore, NULL)
 }
 
-inline infix fun VkDevice.destroyShaderModules(shaderModules: VkPipelineShaderStageCreateInfo.Buffer) {
-    for (i in shaderModules)
-        VK10.nvkDestroyShaderModule(this, i.module, NULL)
-}
 
 inline fun VkDevice.destroy() {
     VK10.nvkDestroyDevice(this, NULL)
 }
 
-inline infix fun VkDevice.destroyShaderModules(shaderModules: Iterable<VkShaderModule>) {
-    for (i in shaderModules)
+inline infix fun VkDevice.destroyShaderModule(shaderModule: VkShaderModule) {
+    VK10.nvkDestroyShaderModule(this, shaderModule, NULL)
+}
+
+inline infix fun VkDevice.destroyShaderModules(infos: VkPipelineShaderStageCreateInfo.Buffer) {
+    for (i in infos)
+        VK10.nvkDestroyShaderModule(this, i.module, NULL)
+}
+
+inline infix fun VkDevice.destroyShaderModules(modules: Iterable<VkShaderModule>) {
+    for (i in modules)
         VK10.nvkDestroyShaderModule(this, i, NULL)
 }
 

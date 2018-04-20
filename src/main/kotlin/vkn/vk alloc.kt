@@ -66,6 +66,12 @@ inline fun cVkPipelineRasterizationStateCreateInfo(block: VkPipelineRasterizatio
     res.block()
     return res
 }
+inline fun cVkPipelineShaderStageCreateInfo(block: VkPipelineShaderStageCreateInfo.() -> Unit): VkPipelineShaderStageCreateInfo {
+    val res = VkPipelineShaderStageCreateInfo.calloc()
+    res.type = VkStructureType.PIPELINE_SHADER_STAGE_CREATE_INFO
+    res.block()
+    return res
+}
 
 inline fun cVkPipelineVertexInputStateCreateInfo(block: VkPipelineVertexInputStateCreateInfo.() -> Unit): VkPipelineVertexInputStateCreateInfo {
     val res = VkPipelineVertexInputStateCreateInfo.calloc()

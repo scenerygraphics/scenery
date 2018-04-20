@@ -8,8 +8,7 @@ import graphics.scenery.utils.LazyLogger
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkPipelineShaderStageCreateInfo
-import org.lwjgl.vulkan.VkShaderModuleCreateInfo
-import org.slf4j.LoggerFactory
+import vkn.*
 import java.io.InputStream
 import java.nio.ByteBuffer
 import java.nio.charset.Charset
@@ -52,9 +51,9 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, claz
     private data class ShaderSignature(val device: VulkanDevice, val clazz: Class<*>, val shaderCodePath: String)
 
     private fun ShaderPackage.isSourceNewer(): Boolean {
-        return if(code != null) {
+        return if (code != null) {
             val codeDate = Date(baseClass.getResource(codePath).openConnection().lastModified)
-            val spirvDate = if(spirv != null) {
+            val spirvDate = if (spirv != null) {
                 Date(baseClass.getResource(spirvPath).openConnection().lastModified + 500)
             } else {
                 Date(0)
@@ -68,11 +67,11 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, claz
 
     private fun safeFindBaseClass(classes: Array<Class<*>>, path: String): Class<*>? {
         val streams = classes.map { clazz ->
-            clazz.to(clazz.getResourceAsStream(path))
+            clazz to clazz.getResourceAsStream(path)
         }.filter { it.second != null }
 
-        if(streams.isEmpty()) {
-            if(classes.contains(Renderer::class.java)) {
+        if (streams.isEmpty()) {
+            if (classes.contains(Renderer::class.java)) {
                 logger.warn("Shader path $path not found within given classes, falling back to default.")
             } else {
                 logger.debug("Shader path $path not found within given classes, falling back to default.")
@@ -81,7 +80,7 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, claz
             return streams.first().first
         }
 
-        if(Renderer::class.java.getResourceAsStream(path) == null) {
+        if (Renderer::class.java.getResourceAsStream(path) == null) {
             logger.debug("Shader path $path not found in class path.")
             return null
         } else {
@@ -96,17 +95,17 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, claz
 
         logger.debug("Creating VulkanShaderModule $entryPoint, $shaderCodePath")
 
-        if(shaderCodePath.endsWith(".spv")) {
+        if (shaderCodePath.endsWith(".spv")) {
             spirvPath = shaderCodePath
             codePath = shaderCodePath.substringBeforeLast(".spv")
         } else {
-            spirvPath = shaderCodePath + ".spv"
+            spirvPath = "$shaderCodePath.spv"
             codePath = shaderCodePath
         }
 
         val baseClass = arrayOf(spirvPath, codePath).mapNotNull { safeFindBaseClass(arrayOf(clazz), it) }
 
-        if(baseClass.isEmpty()) {
+        if (baseClass.isEmpty()) {
             throw ShaderCompilationException("Shader files for $shaderCodePath not found.")
         }
 
@@ -119,10 +118,10 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, claz
 
         val code: ByteBuffer
 
-        val spirv = if(shaderPackage.spirv != null && !shaderPackage.isSourceNewer()) {
+        val spirv = if (shaderPackage.spirv != null && !shaderPackage.isSourceNewer()) {
             code = BufferUtils.allocateByteAndPut(shaderPackage.spirv!!.readBytes())
             code.toSPIRVBytecode()
-        } else if(shaderPackage.code != null && shaderPackage.isSourceNewer()) {
+        } else if (shaderPackage.code != null && shaderPackage.isSourceNewer()) {
             logger.info("Compiling ${shaderPackage.codePath} to SPIR-V...")
             // code needs to be compiled first
             val program = TProgram()
@@ -134,22 +133,22 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, claz
                 "tesc" -> EShLanguage.EShLangTessControl
                 "tese" -> EShLanguage.EShLangTessEvaluation
                 "comp" -> EShLanguage.EShLangCompute
-                else -> { logger.warn("Unknown shader extension ." + shaderPackage.codePath.substringAfterLast(".")); 0 }
+                else -> {
+                    logger.warn("Unknown shader extension ." + shaderPackage.codePath.substringAfterLast(".")); 0
+                }
             }
 
 
             val shader = TShader(shaderType)
 
-            var messages = EShMessages.EShMsgDefault
-            messages = messages or EShMessages.EShMsgVulkanRules
-            messages = messages or EShMessages.EShMsgSpvRules
+            val messages = EShMessages.EShMsgDefault or EShMessages.EShMsgVulkanRules or EShMessages.EShMsgSpvRules
 
             val shaderCode = arrayOf(shaderPackage.code!!.readBytes().toString(Charset.forName("UTF-8")))
             shader.setStrings(shaderCode, shaderCode.size)
             shader.setAutoMapBindings(true)
 
             val compileFail = !shader.parse(defaultResources, 450, false, messages)
-            if(compileFail) {
+            if (compileFail) {
                 logger.error("Error in shader compilation of ${shaderPackage.codePath} for ${clazz.simpleName}: ${shader.infoLog}")
             }
 
@@ -157,7 +156,7 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, claz
 
             val linkFail = !program.link(EShMessages.EShMsgDefault) || !program.mapIO()
 
-            if(!linkFail && !compileFail) {
+            if (!linkFail && !compileFail) {
                 val tmp = IntVec()
                 libspirvcrossj.glslangToSpv(program.getIntermediate(shaderType), tmp)
 
@@ -176,7 +175,7 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, claz
 
         val uniformBuffers = compiler.shaderResources.uniformBuffers
 
-        for(i in 0 until uniformBuffers.size()) {
+        for (i in 0 until uniformBuffers.size()) {
             val res = uniformBuffers.get(i.toInt())
             logger.debug("${res.name}, set=${compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet)}, binding=${compiler.getDecoration(res.id, Decoration.DecorationBinding)}")
 
@@ -185,15 +184,15 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, claz
 
             // record all members of the UBO struct, order by index, and store them to UBOSpec.members
             // for further use
-            members.putAll((0..activeRanges.size()-1).map {
+            members.putAll((0 until activeRanges.size()).map {
                 val range = activeRanges.get(it.toInt())
                 val name = compiler.getMemberName(res.baseTypeId, range.index)
 
-                name.to(UBOMemberSpec(
+                name to UBOMemberSpec(
                     compiler.getMemberName(res.baseTypeId, range.index),
                     range.index,
                     range.offset,
-                    range.range))
+                    range.range)
             }.sortedBy { it.second.index })
 
             val ubo = UBOSpec(res.name,
@@ -203,9 +202,8 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, claz
 
             // only add the UBO spec if it doesn't already exist, and has more than 0 members
             // SPIRV UBOs may have 0 members, if they are not used in the actual shader code
-            if(!uboSpecs.contains(res.name) && ubo.members.size > 0) {
-                uboSpecs.put(res.name, ubo)
-            }
+            if (!uboSpecs.contains(res.name) && ubo.members.size > 0)
+                uboSpecs[res.name] = ubo
         }
 
         /* Updated version:
@@ -232,63 +230,54 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, claz
             val res = compiler.shaderResources.sampledImages.get(samplerId.toInt())
             val setId = compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet)
 
-            val name = if(res.name.startsWith("Input")) {
-                if(!inputSets.contains(setId)) {
-                    inputSets.add(setId)
-                }
+            val name = if (res.name.startsWith("Input")) {
+                if (!inputSets.contains(setId))
+                    inputSets += setId
 
-                "Inputs-${inputSets.size-1}"
+                "Inputs-${inputSets.size - 1}"
             } else {
                 res.name
             }
 
-            if(uboSpecs.containsKey(name)) {
+            if (uboSpecs.containsKey(name)) {
                 logger.debug("Adding inputs member ${res.name}/$name")
                 uboSpecs[name]!!.members.put(res.name, UBOMemberSpec(res.name, uboSpecs[name]!!.members.size.toLong(), 0L, 0L))
                 uboSpecs[name]!!.binding = minOf(uboSpecs[name]!!.binding, compiler.getDecoration(res.id, Decoration.DecorationBinding))
             } else {
                 logger.debug("Adding inputs UBO, ${res.name}/$name")
-                uboSpecs.put(name, UBOSpec(name,
+                uboSpecs[name] = UBOSpec(name,
                     set = setId,
                     binding = compiler.getDecoration(res.id, Decoration.DecorationBinding),
-                    members = LinkedHashMap()))
+                    members = LinkedHashMap())
 
-                if(name.startsWith("Inputs")) {
-                    uboSpecs[name]!!.members.put(res.name, UBOMemberSpec(res.name, 0L, 0L, 0L))
-                }
+                if (name.startsWith("Inputs"))
+                    uboSpecs[name]!!.members[res.name] = UBOMemberSpec(res.name, 0L, 0L, 0L)
             }
         }
 
         val inputs = compiler.shaderResources.stageInputs
-        if(inputs.size() > 0) {
+        if (inputs.size() > 0) {
             for (i in 0 until inputs.size()) {
                 logger.debug("$shaderCodePath: ${inputs.get(i.toInt()).name}")
             }
         }
 
-        val moduleCreateInfo = VkShaderModuleCreateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO)
-            .pNext(NULL)
-            .pCode(code)
-            .flags(0)
+        val moduleCreateInfo = vk.ShaderModuleCreateInfo { this.code = code }
 
-        this.shaderModule = VU.getLong("Creating shader module",
-            { vkCreateShaderModule(device.vulkanDevice, moduleCreateInfo, null, this) },
-            { moduleCreateInfo.free(); })
+        shaderModule = device.vulkanDevice createShaderModule moduleCreateInfo
 
-        this.shader = VkPipelineShaderStageCreateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO)
-            .stage(getStageFromFilename(shaderCodePath))
-            .module(this.shaderModule)
-            .pName(memUTF8(entryPoint))
-            .pNext(NULL)
+        shader = cVkPipelineShaderStageCreateInfo {
+            stage = getStageFromFilename(shaderCodePath)
+            module = shaderModule
+            name = entryPoint
+        }
     }
 
     private fun IntVec.toByteBuffer(): ByteBuffer {
-        val buf = BufferUtils.allocateByte(this.size().toInt()*4)
+        val buf = BufferUtils.allocateByte(this.size().toInt() * 4)
         val ib = buf.asIntBuffer()
 
-        for (i in 0..this.size()-1) {
+        for (i in 0 until this.size()) {
             ib.put(this[i.toInt()].toInt())
         }
 
@@ -299,44 +288,39 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, claz
         val bytecode = IntVec()
         val ib = this.asIntBuffer()
 
-        while(ib.hasRemaining()) {
-            bytecode.pushBack(1L*ib.get())
+        while (ib.hasRemaining()) {
+            bytecode.pushBack(1L * ib.get())
         }
 
         return bytecode
     }
 
-    protected fun getStageFromFilename(shaderCodePath: String): Int {
-        val ending = if(shaderCodePath.substringAfterLast(".").startsWith("spv")) {
+    protected fun getStageFromFilename(shaderCodePath: String): VkShaderStage {
+        val ending = if (shaderCodePath.substringAfterLast(".").startsWith("spv")) {
             shaderCodePath.substringBeforeLast(".").substringAfterLast(".")
         } else {
             shaderCodePath.substringAfterLast(".")
         }
 
-        val type = when(ending) {
-           "vert" -> VK_SHADER_STAGE_VERTEX_BIT
-           "geom" -> VK_SHADER_STAGE_GEOMETRY_BIT
-           "tesc" -> VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT
-           "tese" -> VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT
-           "frag" -> VK_SHADER_STAGE_FRAGMENT_BIT
-           "comp" -> VK_SHADER_STAGE_COMPUTE_BIT
+        return when (ending) {
+            "vert" -> VkShaderStage.VERTEX_BIT
+            "geom" -> VkShaderStage.GEOMETRY_BIT
+            "tesc" -> VkShaderStage.TESSELLATION_CONTROL_BIT
+            "tese" -> VkShaderStage.TESSELLATION_EVALUATION_BIT
+            "frag" -> VkShaderStage.FRAGMENT_BIT
+            "comp" -> VkShaderStage.COMPUTE_BIT
             else -> {
                 logger.error("Unknown shader type: $ending for $shaderCodePath")
-                -1
+                throw Error() // TODO handle
             }
-        }
-
-        logger.trace("$shaderCodePath has type $type")
-
-        return type
+        }.also { logger.trace("$shaderCodePath has type $it") }
     }
 
     fun close() {
-        if(!deallocated) {
-            vkDestroyShaderModule(device.vulkanDevice, shader.module(), null)
-            shaderModuleCache.remove(signature.hashCode())
+        if (!deallocated) {
+            device.vulkanDevice destroyShaderModule shader.module
+            shaderModuleCache -= signature.hashCode()
 
-            memFree(shader.pName())
             shader.free()
 
             deallocated = true
@@ -359,7 +343,7 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, claz
         fun getFromCacheOrCreate(device: VulkanDevice, entryPoint: String, clazz: Class<*>, shaderCodePath: String): VulkanShaderModule {
             val signature = ShaderSignature(device, clazz, shaderCodePath).hashCode()
 
-            return if(shaderModuleCache.containsKey(signature)) {
+            return if (shaderModuleCache.containsKey(signature)) {
                 shaderModuleCache[signature]!!
             } else {
                 val module = VulkanShaderModule(device, entryPoint, clazz, shaderCodePath)
