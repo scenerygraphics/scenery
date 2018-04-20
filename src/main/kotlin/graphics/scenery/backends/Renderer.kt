@@ -61,7 +61,7 @@ abstract class Renderer : Hubable {
 
             if(RenderConfigReader::class.java.getResource(nonStereoConfig) != null) {
                 renderConfigFile = nonStereoConfig
-                settings.set("vr.Active", false)
+                settings["vr.Active"] = false
             } else {
                 logger.warn("Non-stereo configuration for $renderConfigFile ($nonStereoConfig) not found.")
             }
@@ -70,7 +70,7 @@ abstract class Renderer : Hubable {
 
             if(RenderConfigReader::class.java.getResource(stereoConfig) != null) {
                 renderConfigFile = stereoConfig
-                settings.set("vr.Active", true)
+                settings["vr.Active"] = true
             } else {
                 logger.warn("Stereo VR configuration for $renderConfigFile ($stereoConfig) not found.")
             }
@@ -87,16 +87,16 @@ abstract class Renderer : Hubable {
      * @return Default [Settings] values.
      */
     fun loadDefaultRendererSettings(settings: Settings): Settings {
-        settings.set("wantsFullscreen", false)
-        settings.set("isFullscreen", false)
+        settings["wantsFullscreen"] = false
+        settings["isFullscreen"] = false
 
-        settings.set("vr.Active", false)
-        settings.set("vr.IPD", 0.05f)
+        settings["vr.Active"] = false
+        settings["vr.IPD"] = 0.05f
 
-        settings.set("sdf.MaxDistance", 12)
+        settings["sdf.MaxDistance"] = 12
 
-        settings.set("Renderer.PrintGPUStats", false)
-        settings.set("Renderer.SupersamplingFactor", System.getProperty("scenery.Renderer.SupersamplingFactor")?.toFloat() ?: 1.0f)
+        settings["Renderer.PrintGPUStats"] = false
+        settings["Renderer.SupersamplingFactor"] = System.getProperty("scenery.Renderer.SupersamplingFactor")?.toFloat() ?: 1f
 
         return settings
     }

@@ -14,6 +14,12 @@ fun cVkDescriptorBufferInfo(capacity: Int): VkDescriptorBufferInfo.Buffer = VkDe
 //fun VbApplicationInfo(block: VkApplicationInfo.() -> Unit): VkApplicationInfo = VkApplicationInfo.create(ptr.advance(VkApplicationInfo.SIZEOF)).also(block)
 
 
+inline fun cVkDescriptorSetLayoutCreateInfo(block: VkDescriptorSetLayoutCreateInfo.() -> Unit): VkDescriptorSetLayoutCreateInfo {
+    val res = VkDescriptorSetLayoutCreateInfo.calloc()
+    res.type = VkStructureType.DESCRIPTOR_SET_LAYOUT_CREATE_INFO
+    res.block()
+    return res
+}
 inline fun cVkPipelineColorBlendAttachmentState(capacity: Int, block: VkPipelineColorBlendAttachmentState.() -> Unit): VkPipelineColorBlendAttachmentState.Buffer {
     val res = VkPipelineColorBlendAttachmentState.calloc(capacity)
     res[0].block()

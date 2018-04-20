@@ -13,10 +13,7 @@ import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
-import vkn.VkDescriptorPool
-import vkn.VkDescriptorSet
-import vkn.VkDescriptorType
-import vkn.VkPipelineCache
+import vkn.*
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.util.*
@@ -29,7 +26,7 @@ import java.util.concurrent.ConcurrentHashMap
  */
 open class VulkanRenderpass(val name: String, var config: RenderConfigReader.RenderConfig,
                             val device: VulkanDevice,
-                            val descriptorPool:  VkDescriptorPool,
+                            val descriptorPool: VkDescriptorPool,
                             val pipelineCache: VkPipelineCache,
                             val vertexDescriptors: ConcurrentHashMap<VulkanRenderer.VertexDataKinds, VulkanRenderer.VertexDescription>) : AutoCloseable {
 
@@ -40,21 +37,17 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
 
     var pipelines = ConcurrentHashMap<String, VulkanPipeline>()
     var UBOs = ConcurrentHashMap<String, VulkanUBO>()
-    var descriptorSets = ConcurrentHashMap<String, Long>()
-    var descriptorSetLayouts = LinkedHashMap<String, Long>()
+    var descriptorSets = ConcurrentHashMap<String, VkDescriptorSet>()
+    var descriptorSetLayouts = LinkedHashMap<String, VkDescriptorSetLayout>()
 
-    var waitSemaphores = memAllocLong(1)
+    var waitSemaphore: VkSemaphore = NULL
     var waitStages = memAllocInt(1)
     var signalSemaphores = memAllocLong(1)
     var submitCommandBuffers = memAllocPointer(1)
 
     var commandBuffer: VulkanCommandBuffer
-        get() {
-            return commandBufferBacking.get()
-        }
-        set(b) {
-            commandBufferBacking.put(b)
-        }
+        get() = commandBufferBacking.get()
+        set(value) = commandBufferBacking.put(value)
 
     private var commandBufferBacking = RingBuffer(size = 3,
         default = { VulkanCommandBuffer(device, null, true) })
@@ -78,7 +71,8 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
 
     private var currentPosition = 0
 
-    class VulkanMetadata(var descriptorSets: LongBuffer = memAllocLong(10),
+    // TODO consider moveing to an empty constructor
+    class VulkanMetadata(var descriptorSets: VkDescriptorSetBuffer = memAllocLong(10),
                          var vertexBufferOffsets: LongBuffer = memAllocLong(4),
                          var scissor: VkRect2D.Buffer = VkRect2D.calloc(1),
                          var viewport: VkViewport.Buffer = VkViewport.calloc(1),
@@ -102,7 +96,6 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
             memFree(uboOffsets)
             memFree(eye)
         }
-
     }
 
     var vulkanMetadata = VulkanMetadata()
@@ -117,25 +110,28 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
 
         with(device.vulkanDevice) {
 
+            val binding = 0 // TODO parametrize
+            val shaderStages = VkShaderStage.ALL.i
+
             val lightParameters = createDescriptorSetLayout(
                 listOf(VkDescriptorType.UNIFORM_BUFFER_DYNAMIC to 1),
-                binding = 0, shaderStages = VK_SHADER_STAGE_ALL)
+                binding, shaderStages)
 
-            descriptorSetLayouts.put("LightParameters", lightParameters)
+            descriptorSetLayouts["LightParameters"] = lightParameters
 
             val dslObjectTextures = createDescriptorSetLayout(
                 listOf(
                     VkDescriptorType.COMBINED_IMAGE_SAMPLER to 6,
                     VkDescriptorType.COMBINED_IMAGE_SAMPLER to 1),
-                binding = 0, shaderStages = VK_SHADER_STAGE_ALL)
+                binding, shaderStages)
 
-            descriptorSetLayouts.put("ObjectTextures", dslObjectTextures)
+            descriptorSetLayouts["ObjectTextures"] = dslObjectTextures
 
             val dslVRParameters = createDescriptorSetLayout(
                 listOf(VkDescriptorType.UNIFORM_BUFFER_DYNAMIC to 1),
-                binding = 0, shaderStages = VK_SHADER_STAGE_ALL)
+                binding, shaderStages)
 
-            descriptorSetLayouts.put("VRParameters", dslVRParameters)
+            descriptorSetLayouts["VRParameters"] = dslVRParameters
         }
     }
 
@@ -144,30 +140,29 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         inputs.entries.reversed().forEach { inputFramebuffer ->
             // we need to discern here whether the entire framebuffer is the input, or
             // only a part of it (indicated by a dot in the name)
-            val descriptorNum = if (inputFramebuffer.key.contains(".")) {
-                1
-            } else {
-                inputFramebuffer.value.attachments.count()
+            val descriptorNum = when {
+                inputFramebuffer.key.contains(".") -> 1
+                else -> inputFramebuffer.value.attachments.count()
             }
 
             // create descriptor set layout that matches the render target
             val dsl = VU.createDescriptorSetLayout(device,
                 descriptorNum = descriptorNum,
                 descriptorCount = 1,
-                type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
+                type = VkDescriptorType.COMBINED_IMAGE_SAMPLER
             )
 
-            val ds: VkDescriptorSet = if (inputFramebuffer.key.contains(".")) {
-                VU.createRenderTargetDescriptorSet(device, descriptorPool, dsl,
-                    config.rendertargets!![inputFramebuffer.key.substringBefore(".")]!!,
-                    inputFramebuffer.value, inputFramebuffer.key.substringAfter("."))
-            } else {
-                inputFramebuffer.value.outputDescriptorSet
+            val ds: VkDescriptorSet = when {
+                inputFramebuffer.key.contains(".") ->
+                    VU.createRenderTargetDescriptorSet(device, descriptorPool, dsl,
+                        config.rendertargets!![inputFramebuffer.key.substringBefore(".")]!!,
+                        inputFramebuffer.value, inputFramebuffer.key.substringAfter("."))
+                else -> inputFramebuffer.value.outputDescriptorSet
             }
 
-            logger.debug("${this.name}: Creating input descriptor set for ${inputFramebuffer.key}, input-${this.name}-$input")
-            descriptorSetLayouts.put("input-${this.name}-$input", dsl)?.let { oldDSL -> vkDestroyDescriptorSetLayout(device.vulkanDevice, oldDSL, null) }
-            descriptorSets.put("input-${this.name}-$input", ds)
+            logger.debug("$name: Creating input descriptor set for ${inputFramebuffer.key}, input-$name-$input")
+            descriptorSetLayouts.put("input-$name-$input", dsl)?.let { oldDSL -> device.vulkanDevice destroyDescriptorSetLayout oldDSL }
+            descriptorSets["input-$name-$input"] = ds
             input++
         }
     }
@@ -184,13 +179,13 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
             params.forEach { entry ->
                 // Entry could be created in Java, so we check for both Java and Kotlin strings
                 @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
-                val value = if (entry.value is String || entry.value is java.lang.String) {
-                    val s = entry.value as String
-                    GLVector(*(s.split(",").map { it.trim().trimStart().toFloat() }.toFloatArray()))
-                } else if (entry.value is Double) {
-                    (entry.value as Double).toFloat()
-                } else {
-                    entry.value
+                val value = when {
+                    entry.value is String || entry.value is java.lang.String -> {
+                        val s = entry.value as String
+                        GLVector(*(s.split(",").map { it.trim().trimStart().toFloat() }.toFloatArray()))
+                    }
+                    entry.value is Double -> (entry.value as Double).toFloat()
+                    else -> entry.value
                 }
 
                 val settingsKey = when {
@@ -199,11 +194,10 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                     else -> "Renderer.$name.${entry.key}"
                 }
 
-                if (!entry.key.startsWith("Global")) {
-                    settings.set(settingsKey, value)
-                }
+                if (!entry.key.startsWith("Global"))
+                    settings[settingsKey] = value
 
-                ubo.add(entry.key, { settings.get(settingsKey) })
+                ubo.add(entry.key, { settings[settingsKey] })
             }
 
             logger.debug("Members are: ${ubo.members()}")
@@ -442,14 +436,13 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         (1..commandBufferBacking.size).forEach { commandBufferBacking.get().close() }
         commandBufferBacking.reset()
 
-        if (semaphore != -1L) {
+        if (semaphore != NULL) {
             vkDestroySemaphore(device.vulkanDevice, semaphore, null)
-            memFree(waitSemaphores)
             memFree(signalSemaphores)
             memFree(waitStages)
             memFree(submitCommandBuffers)
 
-            semaphore = -1L
+            semaphore = NULL
         }
     }
 }

@@ -7,7 +7,7 @@ import java.util.*
  */
 open class RingBuffer<T: Any>(var size: Int, default: ((Int) -> T)? = null) {
 
-    protected var backingStore: ArrayList<T> = ArrayList(size)
+    protected val backingStore: ArrayList<T> = ArrayList(size)
     var currentReadPosition = 0
         protected set
     var currentWritePosition = 0
@@ -15,17 +15,17 @@ open class RingBuffer<T: Any>(var size: Int, default: ((Int) -> T)? = null) {
 
     init {
         default?.let {
-            (0..size - 1).map { element ->
-                put(default.invoke(element))
+            (0 until size).map { element ->
+                put(default(element))
             }
         }
     }
 
     fun put(element: T) {
-        if(backingStore.size <= size) {
-            backingStore.add(element)
-        } else {
-            currentWritePosition = currentWritePosition.rem(backingStore.size)
+        if(backingStore.size <= size)
+            backingStore += element
+        else {
+            currentWritePosition %= backingStore.size
             backingStore[currentWritePosition] = element
         }
 
@@ -33,7 +33,7 @@ open class RingBuffer<T: Any>(var size: Int, default: ((Int) -> T)? = null) {
     }
 
     fun get(): T {
-        currentReadPosition = currentReadPosition.rem(backingStore.size)
+        currentReadPosition %= backingStore.size
         val element = backingStore[currentReadPosition]
 
         currentReadPosition++

@@ -6,8 +6,6 @@ import graphics.scenery.utils.LazyLogger
 import org.lwjgl.system.MemoryUtil.NULL
 import org.lwjgl.system.MemoryUtil.memFree
 import org.lwjgl.vulkan.*
-import org.lwjgl.vulkan.VK10.vkDestroyPipeline
-import org.lwjgl.vulkan.VK10.vkDestroyPipelineLayout
 import uno.buffer.intBufferOf
 import vkn.*
 import java.nio.IntBuffer
@@ -166,25 +164,9 @@ class VulkanPipeline(val device: VulkanDevice, val pipelineCache: VkPipelineCach
     }
 
     fun getPipelineForGeometryType(type: GeometryType): VulkanRenderer.Pipeline {
-        return when {
-            pipeline.containsKey(type) -> pipeline[type]!!
-            else -> {
-                logger.error("Pipeline $this does not contain a fitting pipeline for $type, return triangle pipeline")
-                this.pipeline[GeometryType.TRIANGLES]!!
-            }
-        }
-    }
-
-    fun GeometryType.asVulkanTopology(): VkPrimitiveTopology {
-        return when (this) {
-            GeometryType.TRIANGLE_FAN -> VkPrimitiveTopology.TRIANGLE_FAN
-            GeometryType.TRIANGLES -> VkPrimitiveTopology.TRIANGLE_LIST
-            GeometryType.LINE -> VkPrimitiveTopology.LINE_LIST
-            GeometryType.POINTS -> VkPrimitiveTopology.POINT_LIST
-            GeometryType.LINES_ADJACENCY -> VkPrimitiveTopology.LINE_LIST_WITH_ADJACENCY
-            GeometryType.LINE_STRIP_ADJACENCY -> VkPrimitiveTopology.LINE_STRIP_WITH_ADJACENCY
-            GeometryType.POLYGON -> VkPrimitiveTopology.TRIANGLE_LIST
-            GeometryType.TRIANGLE_STRIP -> VkPrimitiveTopology.TRIANGLE_STRIP
+        return pipeline.getOrElse(type) {
+            logger.error("Pipeline $this does not contain a fitting pipeline for $type, return triangle pipeline")
+            pipeline[GeometryType.TRIANGLES]!!
         }
     }
 

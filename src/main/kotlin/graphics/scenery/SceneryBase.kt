@@ -112,7 +112,7 @@ open class SceneryBase(var applicationName: String,
         hub.add(SceneryElement.Statistics, stats)
         hub.add(SceneryElement.Settings, settings)
 
-        settings.set("System.PID", getProcessID())
+        settings["System.PID"] = getProcessID()
 
         if (wantREPL) {
             repl = REPL(scene, stats, hub)

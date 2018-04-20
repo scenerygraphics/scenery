@@ -151,8 +151,8 @@ open class VulkanRenderer(hub: Hub,
                     renderpasses.values.forEach { it.close() }
                     renderpasses.clear()
 
-                    settings.set("Renderer.displayWidth", window.width)
-                    settings.set("Renderer.displayHeight", window.height)
+                    settings["Renderer.displayWidth"] = window.width
+                    settings["Renderer.displayHeight"] = window.height
 
                     prepareRenderpassesFromConfig(renderConfig, window.width, window.height)
 
@@ -489,7 +489,7 @@ open class VulkanRenderer(hub: Hub,
                         stats.add("GPU mem", it.get("AvailableDedicatedVideoMemory"), isTime = false)
                     }
 
-                    if (settings.get("Renderer.PrintGPUStats")) {
+                    if (settings["Renderer.PrintGPUStats"]) {
                         logger.info(it.utilisationToString())
                         logger.info(it.memoryUtilisationToString())
                     }
@@ -1233,7 +1233,7 @@ open class VulkanRenderer(hub: Hub,
                     descriptorSetLayouts["outputs-${rt.first}"] = VU.createDescriptorSetLayout(device,
                         descriptorNum = rt.second.count(),
                         descriptorCount = 1,
-                        type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
+                        type = VkDescriptorType.COMBINED_IMAGE_SAMPLER
                     )
                 }
             }
@@ -1677,7 +1677,7 @@ open class VulkanRenderer(hub: Hub,
 
             target.submitCommandBuffers.put(0, commandBuffer.commandBuffer!!)
             target.signalSemaphores.put(0, target.semaphore)
-            target.waitSemaphores.put(0, waitSemaphore)
+            target.waitSemaphore = waitSemaphore
             target.waitStages.put(0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
 
             si.sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
@@ -1686,7 +1686,7 @@ open class VulkanRenderer(hub: Hub,
                 .pWaitDstStageMask(target.waitStages)
                 .pCommandBuffers(target.submitCommandBuffers)
                 .pSignalSemaphores(target.signalSemaphores)
-                .pWaitSemaphores(target.waitSemaphores)
+                .pWaitSemaphores(appBuffer.longBufferOf(target.waitSemaphore))
 
             VU.run("Submit pass $t render queue", { vkQueueSubmit(queue, si, commandBuffer.getFence()) })
 
@@ -2491,7 +2491,7 @@ open class VulkanRenderer(hub: Hub,
     }
 
     private fun Display.wantsVR(): Display? {
-        if (settings.get<Boolean>("vr.Active")) {
+        if (settings.get("vr.Active")) { // TODO again, plain
             return this@wantsVR
         } else {
             return null
@@ -2653,8 +2653,8 @@ open class VulkanRenderer(hub: Hub,
         settings.getAllSettings().forEach {
             if (it.toLowerCase().contains("debug")) {
                 try {
-                    val property = settings.get<Int>(it).toggle()
-                    settings.set(it, property)
+                    val property: Int = settings[it]
+                    settings[it] = property.toggle()
 
                 } catch (e: Exception) {
                     logger.warn("$it is a property that is not togglable.")

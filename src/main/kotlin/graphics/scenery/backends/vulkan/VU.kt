@@ -347,29 +347,27 @@ object VU {
         }
     }
 
-    fun createDescriptorSetLayout(device: VulkanDevice, type: Int = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, binding: Int = 0, descriptorNum: Int = 1, descriptorCount: Int = 1, shaderStages: Int = VK_SHADER_STAGE_ALL): Long {
-        return stackPush().use { stack ->
-            val layoutBinding = VkDescriptorSetLayoutBinding.callocStack(descriptorNum, stack)
-            (binding until descriptorNum).forEach { i ->
-                layoutBinding[i]
-                    .binding(i)
-                    .descriptorType(type)
-                    .descriptorCount(descriptorCount)
-                    .stageFlags(shaderStages)
-                    .pImmutableSamplers(null)
+    fun createDescriptorSetLayout(
+        device: VulkanDevice,
+        type: VkDescriptorType = VkDescriptorType.UNIFORM_BUFFER_DYNAMIC,
+        binding: Int = 0,
+        descriptorNum: Int = 1,
+        descriptorCount: Int = 1,
+        shaderStages: VkShaderStageFlags = VkShaderStage.ALL.i): VkDescriptorSetLayout {
+
+        val layoutBinding = vk.DescriptorSetLayoutBinding(descriptorNum)
+        (binding until descriptorNum).forEach { i ->
+            layoutBinding[i].apply {
+                this.binding = i
+                descriptorType = type
+                this.descriptorCount = descriptorCount
+                stageFlags = shaderStages
+                immutableSamplers = null
             }
+        }
 
-            val descriptorLayout = VkDescriptorSetLayoutCreateInfo.callocStack(stack)
-                .sType(VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO)
-                .pNext(NULL)
-                .pBindings(layoutBinding)
-
-            val descriptorSetLayout = getLong("vkCreateDescriptorSetLayout",
-                { vkCreateDescriptorSetLayout(device.vulkanDevice, descriptorLayout, null, this) }, {})
-
-            logger.debug("Created DSL ${descriptorSetLayout.toHexString()} with $descriptorNum descriptors with $descriptorCount elements.")
-
-            descriptorSetLayout
+        return device.vulkanDevice.createDescriptorSetLayout(cVkDescriptorSetLayoutCreateInfo { bindings = layoutBinding }).also {
+            logger.debug("Created DSL ${it.toHexString()} with $descriptorNum descriptors with $descriptorCount elements.")
         }
     }
 

@@ -56,11 +56,10 @@ class OpenGLRenderpass(var passName: String = "", var passConfig: RenderConfigRe
                     else -> "Renderer.$passName.${entry.key}"
                 }
 
-                if (!entry.key.startsWith("Global")) {
-                    settings.set(settingsKey, value)
-                }
+                if (!entry.key.startsWith("Global"))
+                    settings[settingsKey] = value
 
-                ubo.add(entry.key, { settings.get(settingsKey) })
+                ubo.add(entry.key, { settings[settingsKey] })
             }
 
             ubo.setOffsetFromBackingBuffer()

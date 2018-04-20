@@ -20,7 +20,7 @@ open class Settings(override var hub: Hub? = null) : Hubable {
      * @param[name] The name of the setting
      * @return The setting as type T
      */
-    fun <T> get(name: String): T {
+    operator fun <T> get(name: String): T {
         if(!settingsStore.containsKey(name)) {
             logger.warn("WARNING: Settings don't contain '$name'")
         }
@@ -33,6 +33,8 @@ open class Settings(override var hub: Hub? = null) : Hubable {
      * @param[name] Name of the setting to fetch.
      * @param[type] Class of the setting to fetch.
      * @return The setting, if found.
+     *
+     * TODO this seems redundant, ::get shall be already java compatible.. maybe you meant to make ::get inlined reified
      */
     fun <T> getProperty(name: String): T{
         if(!settingsStore.containsKey(name)) {
@@ -48,7 +50,7 @@ open class Settings(override var hub: Hub? = null) : Hubable {
      * @param[name] Name of the setting.
      * @param[contents] Contents of the setting, can be anything.
      */
-    fun set(name: String, contents: Any): Any {
+    operator fun set(name: String, contents: Any): Any {
         // protect against type change
         if(settingsStore.containsKey(name)) {
             val type: Class<*> = settingsStore.get(name)!!.javaClass

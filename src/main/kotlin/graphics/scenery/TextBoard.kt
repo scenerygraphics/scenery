@@ -77,7 +77,7 @@ class TextBoard(font: String = "SourceSansPro-Regular.ttf", override var isBillb
         logger.debug("Updating SDF font atlas for {}, new font: {}", name, fontFamily)
         return sdfCache.getOrPut(newFontFamily,
             { SDFFontAtlas(Hub.getDefaultHub(), newFontFamily,
-                maxDistance = Hub.getDefaultHub().get<Settings>(SceneryElement.Settings)!!.get("sdf.MaxDistance")) })
+                maxDistance = Hub.getDefaultHub().get<Settings>(SceneryElement.Settings)!!["sdf.MaxDistance"]) })
     }
 
     private fun updateBoard(a: SDFFontAtlas, newText: String) {

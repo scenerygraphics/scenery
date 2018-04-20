@@ -27,7 +27,7 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
             windowWidth, windowHeight, renderConfigFile = "DeferredShadingStereo.yml")
         hub.add(SceneryElement.Renderer, renderer!!)
 
-        settings.set("vr.Active", true)
+        settings["vr.Active"] = true
         val cam: Camera = DetachedHeadCamera(hmd)
         with(cam) {
             position = GLVector(0.0f, 0.2f, 5.0f)

@@ -80,6 +80,7 @@ typealias VkShaderModule = Long
 typealias VkSurfaceKHR = Long
 typealias VkSwapchainKHR = Long
 
+typealias VkDescriptorSetBuffer = LongBuffer
 typealias VkSemaphorePtr = LongBuffer
 typealias VkSwapchainKHRptr = LongBuffer
 typealias VkResultPtr = IntBuffer
