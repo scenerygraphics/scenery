@@ -456,7 +456,7 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
         }
 
         val dependencyChain = vk.SubpassDependency(2)
-            .at(0) {
+            .appyAt(0) {
                 srcSubpass = VK_SUBPASS_EXTERNAL
                 dstSubpass = 0
                 srcStageMask = VkPipelineStage.BOTTOM_OF_PIPE_BIT.i
@@ -465,7 +465,7 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
                 dstAccessMask = VkAccess.COLOR_ATTACHMENT_READ_BIT or VkAccess.COLOR_ATTACHMENT_WRITE_BIT
                 dependencyFlags = VkDependency.BY_REGION_BIT.i
             }
-            .at(1) {
+            .appyAt(1) {
                 srcSubpass = 0
                 dstSubpass = VK_SUBPASS_EXTERNAL
                 srcStageMask = VkPipelineStage.COLOR_ATTACHMENT_OUTPUT_BIT.i

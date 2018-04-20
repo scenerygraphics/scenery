@@ -68,43 +68,43 @@ fun VkCommandBuffer.submit(queue: VkQueue, submitInfoPNext: Pointer? = null, blo
     queue.waitIdle()
 }
 
-fun Blending.BlendFactor.toVulkan() = when (this) {
-    Blending.BlendFactor.Zero -> VK_BLEND_FACTOR_ZERO
-    Blending.BlendFactor.One -> VK_BLEND_FACTOR_ONE
+fun Blending.BlendFactor.toVulkan(): VkBlendFactor = when (this) {
+    Blending.BlendFactor.Zero -> VkBlendFactor.ZERO
+    Blending.BlendFactor.One -> VkBlendFactor.ONE
 
-    Blending.BlendFactor.SrcAlpha -> VK_BLEND_FACTOR_SRC_ALPHA
-    Blending.BlendFactor.OneMinusSrcAlpha -> VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA
+    Blending.BlendFactor.SrcAlpha -> VkBlendFactor.SRC_ALPHA
+    Blending.BlendFactor.OneMinusSrcAlpha -> VkBlendFactor.ONE_MINUS_SRC_ALPHA
 
-    Blending.BlendFactor.SrcColor -> VK_BLEND_FACTOR_SRC_COLOR
-    Blending.BlendFactor.OneMinusSrcColor -> VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR
+    Blending.BlendFactor.SrcColor -> VkBlendFactor.SRC_COLOR
+    Blending.BlendFactor.OneMinusSrcColor -> VkBlendFactor.ONE_MINUS_SRC_COLOR
 
-    Blending.BlendFactor.DstColor -> VK_BLEND_FACTOR_DST_COLOR
-    Blending.BlendFactor.OneMinusDstColor -> VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR
+    Blending.BlendFactor.DstColor -> VkBlendFactor.DST_COLOR
+    Blending.BlendFactor.OneMinusDstColor -> VkBlendFactor.ONE_MINUS_DST_COLOR
 
-    Blending.BlendFactor.DstAlpha -> VK_BLEND_FACTOR_DST_ALPHA
-    Blending.BlendFactor.OneMinusDstAlpha -> VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA
+    Blending.BlendFactor.DstAlpha -> VkBlendFactor.DST_ALPHA
+    Blending.BlendFactor.OneMinusDstAlpha -> VkBlendFactor.ONE_MINUS_DST_ALPHA
 
-    Blending.BlendFactor.ConstantColor -> VK_BLEND_FACTOR_CONSTANT_COLOR
-    Blending.BlendFactor.OneMinusConstantColor -> VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_COLOR
+    Blending.BlendFactor.ConstantColor -> VkBlendFactor.CONSTANT_COLOR
+    Blending.BlendFactor.OneMinusConstantColor -> VkBlendFactor.ONE_MINUS_CONSTANT_COLOR
 
-    Blending.BlendFactor.ConstantAlpha -> VK_BLEND_FACTOR_CONSTANT_ALPHA
-    Blending.BlendFactor.OneMinusConstantAlpha -> VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_ALPHA
+    Blending.BlendFactor.ConstantAlpha -> VkBlendFactor.CONSTANT_ALPHA
+    Blending.BlendFactor.OneMinusConstantAlpha -> VkBlendFactor.ONE_MINUS_CONSTANT_ALPHA
 
-    Blending.BlendFactor.Src1Color -> VK_BLEND_FACTOR_SRC1_COLOR
-    Blending.BlendFactor.OneMinusSrc1Color -> VK_BLEND_FACTOR_ONE_MINUS_SRC1_COLOR
+    Blending.BlendFactor.Src1Color -> VkBlendFactor.SRC1_COLOR
+    Blending.BlendFactor.OneMinusSrc1Color -> VkBlendFactor.ONE_MINUS_SRC1_COLOR
 
-    Blending.BlendFactor.Src1Alpha -> VK_BLEND_FACTOR_SRC1_ALPHA
-    Blending.BlendFactor.OneMinusSrc1Alpha -> VK_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA
+    Blending.BlendFactor.Src1Alpha -> VkBlendFactor.SRC1_ALPHA
+    Blending.BlendFactor.OneMinusSrc1Alpha -> VkBlendFactor.ONE_MINUS_SRC1_ALPHA
 
-    Blending.BlendFactor.SrcAlphaSaturate -> VK_BLEND_FACTOR_SRC_ALPHA_SATURATE
+    Blending.BlendFactor.SrcAlphaSaturate -> VkBlendFactor.SRC_ALPHA_SATURATE
 }
 
-fun Blending.BlendOp.toVulkan() = when (this) {
-    Blending.BlendOp.add -> VK_BLEND_OP_ADD
-    Blending.BlendOp.subtract -> VK_BLEND_OP_SUBTRACT
-    Blending.BlendOp.min -> VK_BLEND_OP_MIN
-    Blending.BlendOp.max -> VK_BLEND_OP_MAX
-    Blending.BlendOp.reverse_subtract -> VK_BLEND_OP_REVERSE_SUBTRACT
+fun Blending.BlendOp.toVulkan(): VkBlendOp = when (this) {
+    Blending.BlendOp.add -> VkBlendOp.ADD
+    Blending.BlendOp.subtract -> VkBlendOp.SUBTRACT
+    Blending.BlendOp.min -> VkBlendOp.MIN
+    Blending.BlendOp.max -> VkBlendOp.MAX
+    Blending.BlendOp.reverse_subtract -> VkBlendOp.REVERSE_SUBTRACT
 }
 
 object VU {

@@ -83,7 +83,7 @@ class VulkanPipeline(val device: VulkanDevice, val pipelineCache: VkPipelineCach
     }
 
     fun createPipelines(renderpass: VulkanRenderpass, vulkanRenderpass: VkRenderPass, vi: VkPipelineVertexInputStateCreateInfo,
-                        descriptorSetLayouts: List<Long>, onlyForTopology: GeometryType? = null) {
+                        descriptorSetLayouts: List<VkDescriptorSetLayout>, onlyForTopology: GeometryType? = null) {
 
         val pushConstantRanges = vk.PushConstantRange(1) {
             offset = 0
@@ -132,9 +132,8 @@ class VulkanPipeline(val device: VulkanDevice, val pipelineCache: VkPipelineCach
         if (onlyForTopology == null) {
             // create pipelines for other topologies as well
             GeometryType.values().forEach { topology ->
-                if (topology == GeometryType.TRIANGLES) {
+                if (topology == GeometryType.TRIANGLES)
                     return@forEach
-                }
 
                 inputAssemblyState.apply {
                     this.topology = topology.asVulkanTopology()

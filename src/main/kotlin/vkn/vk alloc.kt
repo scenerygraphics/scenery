@@ -20,8 +20,11 @@ inline fun cVkDescriptorSetLayoutCreateInfo(block: VkDescriptorSetLayoutCreateIn
     res.block()
     return res
 }
+inline fun cVkPipelineColorBlendAttachmentState(capacity: Int): VkPipelineColorBlendAttachmentState.Buffer {
+    return VkPipelineColorBlendAttachmentState.calloc(capacity)
+}
 inline fun cVkPipelineColorBlendAttachmentState(capacity: Int, block: VkPipelineColorBlendAttachmentState.() -> Unit): VkPipelineColorBlendAttachmentState.Buffer {
-    val res = VkPipelineColorBlendAttachmentState.calloc(capacity)
+    val res = cVkPipelineColorBlendAttachmentState(capacity)
     res[0].block()
     return res
 }

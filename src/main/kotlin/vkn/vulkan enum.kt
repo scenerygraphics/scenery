@@ -1406,6 +1406,8 @@ enum class VkColorComponent(val i: Int) {
     }
 }
 
+infix fun VkColorComponent.or(f: VkColorComponent): VkColorComponentFlags = i or f.i
+infix fun Int.or(f: VkColorComponent): VkColorComponentFlags = or(f.i)
 
 typealias VkColorComponentFlags = VkFlags
 typealias VkPipelineDynamicStateCreateFlags = VkFlags

@@ -829,12 +829,12 @@ open class VulkanRenderer(hub: Hub,
                                         @Suppress("SENSELESS_COMPARISON")
                                         if (state != null) {
                                             state.blendEnable(true)
-                                                .colorBlendOp(colorBlending.toVulkan())
-                                                .srcColorBlendFactor(sourceColorBlendFactor.toVulkan())
-                                                .dstColorBlendFactor(destinationColorBlendFactor.toVulkan())
-                                                .alphaBlendOp(alphaBlending.toVulkan())
-                                                .srcAlphaBlendFactor(sourceAlphaBlendFactor.toVulkan())
-                                                .dstAlphaBlendFactor(destinationAlphaBlendFactor.toVulkan())
+                                                .colorBlendOp(colorBlending.toVulkan().i)
+                                                .srcColorBlendFactor(sourceColorBlendFactor.toVulkan().i)
+                                                .dstColorBlendFactor(destinationColorBlendFactor.toVulkan().i)
+                                                .alphaBlendOp(alphaBlending.toVulkan().i)
+                                                .srcAlphaBlendFactor(sourceAlphaBlendFactor.toVulkan().i)
+                                                .dstAlphaBlendFactor(destinationAlphaBlendFactor.toVulkan().i)
                                                 .colorWriteMask(VK_COLOR_COMPONENT_R_BIT or VK_COLOR_COMPONENT_G_BIT or VK_COLOR_COMPONENT_B_BIT or VK_COLOR_COMPONENT_A_BIT)
                                         }
                                     }
@@ -1024,7 +1024,7 @@ open class VulkanRenderer(hub: Hub,
                 VertexDataKinds.PositionNormal -> {
                     stride = 3 + 3
                     attributeDesc = VkVertexInputAttributeDescription.calloc(2)
-                        .at(1) {
+                        .appyAt(1) {
                             binding = 0
                             location = 1
                             format = VkFormat.R32G32B32_SFLOAT
@@ -1035,13 +1035,13 @@ open class VulkanRenderer(hub: Hub,
                 VertexDataKinds.PositionNormalTexcoord -> {
                     stride = 3 + 3 + 2
                     attributeDesc = VkVertexInputAttributeDescription.calloc(3)
-                        .at(1) {
+                        .appyAt(1) {
                             binding = 0
                             location = 1
                             format = VkFormat.R32G32B32_SFLOAT
                             offset = 3 * 4
                         }
-                        .at(2) {
+                        .appyAt(2) {
                             binding = 0
                             location = 2
                             format = VkFormat.R32G32_SFLOAT
@@ -1052,7 +1052,7 @@ open class VulkanRenderer(hub: Hub,
                 VertexDataKinds.PositionTexcoords -> {
                     stride = 3 + 2
                     attributeDesc = VkVertexInputAttributeDescription.calloc(2)
-                        .at(1) {
+                        .appyAt(1) {
                             binding = 0
                             location = 1
                             format = VkFormat.R32G32_SFLOAT
@@ -1061,7 +1061,7 @@ open class VulkanRenderer(hub: Hub,
                 }
             }
 
-            attributeDesc?.at(0) {
+            attributeDesc?.appyAt(0) {
                 binding = 0
                 location = 0
                 format = VkFormat.R32G32B32_SFLOAT
@@ -1675,17 +1675,17 @@ open class VulkanRenderer(hub: Hub,
 
             target.updateShaderParameters()
 
-            target.submitCommandBuffers.put(0, commandBuffer.commandBuffer!!)
-            target.signalSemaphores.put(0, target.semaphore)
+            target.submitCommandBuffers = commandBuffer.commandBuffer!!
+            target.signalSemaphore = target.semaphore
             target.waitSemaphore = waitSemaphore
-            target.waitStages.put(0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
+            target.waitStage = VkPipelineStage.COLOR_ATTACHMENT_OUTPUT_BIT.i
 
             si.sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
                 .pNext(NULL)
                 .waitSemaphoreCount(1)
-                .pWaitDstStageMask(target.waitStages)
-                .pCommandBuffers(target.submitCommandBuffers)
-                .pSignalSemaphores(target.signalSemaphores)
+                .pWaitDstStageMask(appBuffer.intBufferOf(target.waitStage))
+                .pCommandBuffers(appBuffer.pointerBufferOf(target.submitCommandBuffers))
+                .pSignalSemaphores(appBuffer.longBufferOf(target.signalSemaphore))
                 .pWaitSemaphores(appBuffer.longBufferOf(target.waitSemaphore))
 
             VU.run("Submit pass $t render queue", { vkQueueSubmit(queue, si, commandBuffer.getFence()) })

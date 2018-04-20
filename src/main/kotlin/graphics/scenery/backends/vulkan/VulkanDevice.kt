@@ -4,7 +4,6 @@ import glfw_.appBuffer
 import graphics.scenery.backends.vulkan.VU.createDescriptorSetLayout
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.vulkan.*
-import org.lwjgl.vulkan.VK10.*
 import vkn.*
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
@@ -127,17 +126,17 @@ class VulkanDevice(
 
         // We need to tell the API the number of max. requested descriptors per type
         val typeCounts = vk.DescriptorPoolSize(4)
-            .at(0) {
+            .appyAt(0) {
                 type = VkDescriptorType.COMBINED_IMAGE_SAMPLER
                 descriptorCount = MAX_TEXTURES
             }
-            .at(1) {
+            .appyAt(1) {
                 type = VkDescriptorType.UNIFORM_BUFFER_DYNAMIC
                 descriptorCount = MAX_UBOS
-            }.at(2) {
+            }.appyAt(2) {
                 type = VkDescriptorType.INPUT_ATTACHMENT
                 descriptorCount = MAX_INPUT_ATTACHMENTS
-            }.at(3) {
+            }.appyAt(3) {
                 type = VkDescriptorType.UNIFORM_BUFFER
                 descriptorCount = MAX_UBOS
             }

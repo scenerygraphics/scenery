@@ -222,22 +222,24 @@ private fun IntVec.toByteBuffer(): ByteBuffer {
 }
 
 
-inline fun VkDescriptorPoolSize.Buffer.at(index: Int, block: VkDescriptorPoolSize.() -> Unit): VkDescriptorPoolSize.Buffer {
+inline fun VkDescriptorPoolSize.Buffer.appyAt(index: Int, block: VkDescriptorPoolSize.() -> Unit): VkDescriptorPoolSize.Buffer {
     get(index).block()
     return this
 }
 
-inline fun VkSubpassDependency.Buffer.at(index: Int, block: VkSubpassDependency.() -> Unit): VkSubpassDependency.Buffer {
+inline fun VkSubpassDependency.Buffer.appyAt(index: Int, block: VkSubpassDependency.() -> Unit): VkSubpassDependency.Buffer {
     get(index).block()
     return this
 }
 
-inline fun VkVertexInputAttributeDescription.Buffer.at(index: Int, block: VkVertexInputAttributeDescription.() -> Unit): VkVertexInputAttributeDescription.Buffer {
+inline fun VkVertexInputAttributeDescription.Buffer.appyAt(index: Int, block: VkVertexInputAttributeDescription.() -> Unit): VkVertexInputAttributeDescription.Buffer {
     get(index).block()
     return this
 }
-
 
 operator fun <T : Struct, SELF : StructBuffer<T, SELF>> StructBuffer<T, SELF>.set(index: Int, value: T) {
     put(index, value)
 }
+
+inline fun <T, C : Iterable<T>> C.applyOnEach(action: T.() -> Unit): C = onEach(action)
+
