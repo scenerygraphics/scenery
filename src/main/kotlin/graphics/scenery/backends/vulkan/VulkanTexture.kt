@@ -9,8 +9,6 @@ import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
 import vkn.*
-import org.lwjgl.vulkan.VkImageCreateInfo
-import vkn.*
 import java.awt.Color
 import java.awt.color.ColorSpace
 import java.awt.geom.AffineTransform

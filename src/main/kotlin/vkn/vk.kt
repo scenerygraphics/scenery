@@ -387,10 +387,8 @@ object vk {
     inline fun AttachmentReference(capacity: Int, block: VkAttachmentReference.() -> Unit): VkAttachmentReference.Buffer = AttachmentReference(capacity).also { it[0].block() }
 
     inline fun BufferCopy(capacity: Int): VkBufferCopy.Buffer = VkBufferCopy.create(ptr.advance(VkBufferCopy.SIZEOF * capacity), capacity)
-
-    inline fun BufferImageCopy(capacity: Int): VkBufferImageCopy.Buffer = VkBufferImageCopy.create(ptr.advance(VkBufferImageCopy.SIZEOF * capacity), capacity)
-    inline fun BufferImageCopy(capacity: Int, block: VkBufferImageCopy.() -> Unit): VkBufferImageCopy.Buffer = BufferImageCopy(capacity).also { it[0].block() }
     inline fun BufferImageCopy(block: VkBufferImageCopy.() -> Unit): VkBufferImageCopy = VkBufferImageCopy.create(ptr.advance(VkBufferImageCopy.SIZEOF)).also(block)
+    inline fun BufferImageCopy(capacity: Int, block: VkBufferImageCopy.() -> Unit): VkBufferImageCopy.Buffer = VkBufferImageCopy.create(ptr.advance(VkBufferImageCopy.SIZEOF * capacity), capacity).also { it[0].block() }
 
     inline fun ClearValue(capacity: Int): VkClearValue.Buffer = VkClearValue.create(ptr.advance(VkClearValue.SIZEOF * capacity), capacity)
 
