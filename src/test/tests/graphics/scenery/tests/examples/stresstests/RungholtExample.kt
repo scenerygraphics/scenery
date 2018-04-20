@@ -62,7 +62,7 @@ class RungholtExample : SceneryBase("RungholtExample", windowWidth = 1280, windo
 
         val rungholtMesh = Mesh()
         with(rungholtMesh) {
-            readFromOBJ(getDemoFilesPath() + "/rungholt.obj", useMTL = true)
+            readFromOBJ(getDemoFilesPath() + "/rungholt.obj", importMaterials = true)
             position = GLVector(0.0f, 0.0f, 0.0f)
             scale = GLVector(1.0f, 1.0f, 1.0f)
             updateWorld(true, true)
