@@ -87,6 +87,9 @@ typealias VkResultPtr = IntBuffer
 typealias VkSamplerPtr = LongBuffer
 typealias VkImageViewPtr = LongBuffer
 
+typealias VkImageArray = LongArray
+typealias VkImageViewArray = LongArray
+
 
 object LongArrayList {
     operator fun ArrayList<Long>.set(index: Int, long: LongBuffer) {

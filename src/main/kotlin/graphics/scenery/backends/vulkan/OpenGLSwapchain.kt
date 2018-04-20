@@ -26,10 +26,10 @@ import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.NULL
 import org.lwjgl.system.MemoryUtil.memAllocInt
 import org.lwjgl.system.Platform
-import org.lwjgl.vulkan.VK10
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkQueue
 import vkn.VkCommandPool
+import vkn.VkFormat
 import java.lang.UnsupportedOperationException
 import java.nio.LongBuffer
 
@@ -51,7 +51,7 @@ class OpenGLSwapchain(val device: VulkanDevice,
     override var images: LongArray? = null
     override var imageViews: LongArray? = null
 
-    override var format: Int = 0
+    override var format: VkFormat = VkFormat.UNDEFINED
 
     lateinit var window: SceneryWindow.GLFWWindow
 
@@ -125,10 +125,9 @@ class OpenGLSwapchain(val device: VulkanDevice,
             throw UnsupportedOperationException("NV_draw_vulkan_image not supported. Please use standard Vulkan swapchain.")
         }
 
-        format = if (useSRGB) {
-            VK10.VK_FORMAT_B8G8R8A8_SRGB
-        } else {
-            VK10.VK_FORMAT_B8G8R8A8_UNORM
+        format = when {
+            useSRGB -> VkFormat.B8G8R8A8_SRGB
+            else -> VkFormat.B8G8R8A8_UNORM
         }
 
         if (window.width <= 0 || window.height <= 0) {

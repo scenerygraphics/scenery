@@ -7,6 +7,7 @@ import org.lwjgl.vulkan.VkDevice
 import org.lwjgl.vulkan.VkInstance
 import org.lwjgl.vulkan.VkPhysicalDevice
 import org.lwjgl.vulkan.VkQueue
+import vkn.VkFormat
 
 /**
  * <Description>
@@ -56,7 +57,7 @@ interface Display {
      * @param[queueFamilyIndex] Queue family index
      * @param[image] The Vulkan texture image to be presented to the compositor
      */
-    fun submitToCompositorVulkan(width: Int, height: Int, format: Int,
+    fun submitToCompositorVulkan(width: Int, height: Int, format: VkFormat,
                                  instance: VkInstance, device: VulkanDevice,
                                  queue: VkQueue,
                                  image: Long)

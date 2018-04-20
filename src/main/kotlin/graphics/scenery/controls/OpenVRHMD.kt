@@ -20,6 +20,7 @@ import org.scijava.ui.behaviour.BehaviourMap
 import org.scijava.ui.behaviour.InputTriggerMap
 import org.scijava.ui.behaviour.MouseAndKeyHandler
 import org.scijava.ui.behaviour.io.InputTriggerConfig
+import vkn.VkFormat
 import java.awt.Component
 import java.awt.event.KeyEvent
 import java.nio.FloatBuffer
@@ -555,7 +556,7 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
         }
     }
 
-    override fun submitToCompositorVulkan(width: Int, height: Int, format: Int,
+    override fun submitToCompositorVulkan(width: Int, height: Int, format: VkFormat,
                                           instance: VkInstance, device: VulkanDevice,
                                           queue: VkQueue, image: Long) {
         stackPush().use { stack ->
@@ -568,7 +569,7 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
                 .m_nQueueFamilyIndex(device.queueIndices.graphicsQueue)
                 .m_nWidth(width)
                 .m_nHeight(height)
-                .m_nFormat(format)
+                .m_nFormat(format.i)
                 .m_nSampleCount(1)
 
             val texture = Texture.callocStack(stack)

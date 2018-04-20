@@ -3,6 +3,7 @@ package graphics.scenery.backends.vulkan
 import graphics.scenery.Hub
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.utils.SceneryPanel
+import vkn.VkFormat
 import java.nio.LongBuffer
 
 /**
@@ -15,7 +16,7 @@ interface Swapchain : AutoCloseable {
     var images: LongArray?
     var imageViews: LongArray?
 
-    var format: Int
+    var format: VkFormat
 
     fun createWindow(win: SceneryWindow, swapchainRecreator: VulkanRenderer.SwapchainRecreator): SceneryWindow
     fun create(oldSwapchain: Swapchain?): Swapchain

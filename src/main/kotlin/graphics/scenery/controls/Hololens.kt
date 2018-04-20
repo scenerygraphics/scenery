@@ -20,6 +20,7 @@ import org.lwjgl.vulkan.VK10.*
 import org.zeromq.ZContext
 import org.zeromq.ZMQ
 import vkn.VkCommandPool
+import vkn.VkFormat
 import java.math.BigInteger
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -43,7 +44,7 @@ class Hololens: TrackerInput, Display, Hubable {
         GLMatrix.getIdentity().translate(-0.033f, 0.0f, 0.0f),
         GLMatrix.getIdentity().translate(0.033f, 0.0f, 0.0f))
     // BGR is native surface format and saves unnecessary conversions
-    private val textureFormat = VK_FORMAT_B8G8R8A8_SRGB
+    private val textureFormat = VkFormat.B8G8R8A8_SRGB
 
     private val zmqContext = ZContext(4)
     private val zmqSocket = zmqContext.createSocket(ZMQ.REQ)
@@ -207,7 +208,7 @@ class Hololens: TrackerInput, Display, Hubable {
      * @param[queue] The Vulkan command queue to use.
      * @param[commandPool] The Vulkan command pool to use.
      */
-    private fun getSharedHandleVulkanTexture(sharedHandleAddress: Long, width: Int, height: Int, format: Int, device: VulkanDevice, queue: VkQueue, commandPool: Long): Pair<VulkanTexture.VulkanImage, Long>? {
+    private fun getSharedHandleVulkanTexture(sharedHandleAddress: Long, width: Int, height: Int, format: VkFormat, device: VulkanDevice, queue: VkQueue, commandPool: Long): Pair<VulkanTexture.VulkanImage, Long>? {
         logger.info("Registered D3D shared texture handle as ${sharedHandleAddress.toHexString()}/${sharedHandleAddress.toString(16)}")
 
         // VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_IMAGE_BIT_NV does not seem to work here
@@ -216,7 +217,7 @@ class Hololens: TrackerInput, Display, Hubable {
 
         val formatSupported = vkGetPhysicalDeviceExternalImageFormatPropertiesNV(
             device.physicalDevice,
-            textureFormat,
+            textureFormat.i,
             VK_IMAGE_TYPE_2D,
             VK_IMAGE_TILING_OPTIMAL,
             VK_IMAGE_USAGE_TRANSFER_DST_BIT or VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
@@ -274,7 +275,7 @@ class Hololens: TrackerInput, Display, Hubable {
             .sType(VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO)
             .pNext(extMemoryImageInfo.address())
             .imageType(VK_IMAGE_TYPE_2D)
-            .format(format)
+            .format(format.i)
             .mipLevels(1)
             .arrayLayers(1)
             .samples(VK_SAMPLE_COUNT_1_BIT)
@@ -288,7 +289,7 @@ class Hololens: TrackerInput, Display, Hubable {
 
         var memoryHandle: Long = -1L
         val img = t.createImage(hololensDisplaySize.x().toInt(), hololensDisplaySize.y().toInt(), 1,
-            VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT,
+            VkFormat.R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT,
             VK_IMAGE_TILING_OPTIMAL, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 1,
             imageCreateInfo = imageCreateInfo,
             customAllocator = { memoryRequirements, allocatedImage ->
@@ -357,7 +358,7 @@ class Hololens: TrackerInput, Display, Hubable {
      * @param[queue] Vulkan queue
      * @param[image] The Vulkan texture image to be presented to the compositor
      */
-    override fun submitToCompositorVulkan(width: Int, height: Int, format: Int, instance: VkInstance, device: VulkanDevice, queue: VkQueue, image: Long) {
+    override fun submitToCompositorVulkan(width: Int, height: Int, format: VkFormat, instance: VkInstance, device: VulkanDevice, queue: VkQueue, image: Long) {
         if(hololensCommandPool == -1L) {
             hololensCommandPool = device.createCommandPool(device.queueIndices.graphicsQueue)
         }
