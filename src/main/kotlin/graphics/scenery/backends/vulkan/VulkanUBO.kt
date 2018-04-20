@@ -3,10 +3,8 @@ package graphics.scenery.backends.vulkan
 import graphics.scenery.Node
 import graphics.scenery.backends.UBO
 import org.lwjgl.system.MemoryUtil.*
-import org.lwjgl.vulkan.VK10.*
 import vkn.*
 import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import java.nio.IntBuffer
 
 /**
@@ -14,7 +12,7 @@ import java.nio.IntBuffer
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? = null): AutoCloseable, UBO() {
+open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? = null) : AutoCloseable, UBO() {
     var descriptor: UBODescriptor? = null
     var offsets: IntBuffer = memAllocInt(1).put(0, 0)
     var requiredOffsetCount = 0
@@ -22,25 +20,22 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
     private var ownedBackingBuffer: VulkanBuffer? = null
 
     class UBODescriptor {
-        internal var memory: VkDeviceMemory = 0
-        internal var allocationSize: VkDeviceSize = 0
-        internal var buffer: VkBuffer = 0
-        internal var offset: Long = 0
-        internal var range: Long = 0
+        internal var memory: VkDeviceMemory = NULL
+        internal var allocationSize: VkDeviceSize = 0L
+        internal var buffer: VkBuffer = NULL
+        internal var offset: VkDeviceSize = 0L
+        internal var range: VkDeviceSize = 0L
     }
 
     fun copy(data: ByteBuffer, offset: Long = 0) {
-        val dest = memAllocPointer(1)
 
-        VU.run("Mapping buffer memory/vkMapMemory", { vkMapMemory(device.vulkanDevice, descriptor!!.memory, offset, descriptor!!.allocationSize* 1L, 0, dest) })
-        memCopy(memAddress(data), dest.get(0), data.remaining().toLong())
-
-        vkUnmapMemory(device.vulkanDevice, descriptor!!.memory)
-        memFree(dest)
+        device.vulkanDevice.mappingMemory(descriptor!!.memory, offset, descriptor!!.allocationSize * 1L, 0) { dest ->
+            memCopy(memAddress(data), dest, data.remaining().toLong())
+        }
     }
 
     fun populate(offset: Long = 0L) {
-        val data = if(backingBuffer == null) {
+        val data = if (backingBuffer == null) {
             memAlloc(getSize())
         } else {
             backingBuffer!!.stagingBuffer
@@ -48,7 +43,7 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
 
         super.populate(data, offset, elements = null)
 
-        if(backingBuffer == null) {
+        if (backingBuffer == null) {
             data.flip()
             copy(data, offset = offset)
             memFree(data)
@@ -66,48 +61,50 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
     }
 
     fun createUniformBuffer(): UBODescriptor {
-        if(backingBuffer == null) {
+        if (backingBuffer == null) {
             ownedBackingBuffer = VulkanBuffer(device,
-                this.getSize() * 1L,
+                getSize() * 1L,
                 VkBufferUsage.UNIFORM_BUFFER_BIT.i,
                 VkMemoryProperty.HOST_VISIBLE_BIT.i,
                 wantAligned = true)
 
             ownedBackingBuffer?.let { buffer ->
-                this.descriptor = UBODescriptor()
-                this.descriptor!!.memory = buffer.memory
-                this.descriptor!!.allocationSize = buffer.size
-                this.descriptor!!.buffer = buffer.vulkanBuffer
-                this.descriptor!!.offset = 0L
-                this.descriptor!!.range = this.getSize() * 1L
+                descriptor = UBODescriptor().apply {
+                    memory = buffer.memory
+                    allocationSize = buffer.size
+                    this.buffer = buffer.vulkanBuffer
+                    offset = 0L
+                    range = getSize() * 1L
+                }
             }
         } else {
-            if(this.descriptor == null) {
-                this.descriptor = UBODescriptor()
+            if (descriptor == null)
+                descriptor = UBODescriptor()
+            descriptor!!.apply {
+                memory = backingBuffer!!.memory
+                allocationSize = backingBuffer!!.size
+                buffer = backingBuffer!!.vulkanBuffer
+                offset = 0L
+                range = getSize() * 1L
             }
-            this.descriptor!!.memory = backingBuffer!!.memory
-            this.descriptor!!.allocationSize = backingBuffer!!.size
-            this.descriptor!!.buffer = backingBuffer!!.vulkanBuffer
-            this.descriptor!!.offset = 0L
-            this.descriptor!!.range = this.getSize() * 1L
         }
-
-        return this.descriptor!!
+        return descriptor!!
     }
 
     @Suppress("unused")
     fun updateBackingBuffer(newBackingBuffer: VulkanBuffer) {
         backingBuffer = newBackingBuffer
 
-        if(this.descriptor == null) {
-            this.descriptor = UBODescriptor()
-        }
+        if (descriptor == null)
+            descriptor = UBODescriptor()
 
-        this.descriptor!!.memory = backingBuffer!!.memory
-        this.descriptor!!.allocationSize = backingBuffer!!.size
-        this.descriptor!!.buffer = backingBuffer!!.vulkanBuffer
-        this.descriptor!!.offset = 0L
-        this.descriptor!!.range = this.getSize() * 1L
+        descriptor!!.apply {
+            memory = backingBuffer!!.memory
+            allocationSize = backingBuffer!!.size
+            buffer = backingBuffer!!.vulkanBuffer
+            offset = 0L
+            range = getSize() * 1L
+        }
     }
 
     @Suppress("unused")
@@ -117,7 +114,7 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
 
     override fun close() {
         logger.trace("Closing UBO $this ...")
-        if(backingBuffer == null) {
+        if (backingBuffer == null) {
             ownedBackingBuffer?.let {
                 logger.trace("Destroying self-owned buffer of $this/$it  ${it.memory.toHexString()})...")
                 it.close()
