@@ -3,6 +3,7 @@ package graphics.scenery
 import cleargl.GLVector
 import gnu.trove.map.hash.THashMap
 import gnu.trove.set.hash.TLinkedHashSet
+import graphics.scenery.utils.LazyLogger
 import org.lwjgl.system.MemoryUtil.memAlloc
 import org.slf4j.LoggerFactory
 import java.io.BufferedInputStream
@@ -170,16 +171,33 @@ interface HasGeometry : Serializable {
     }
 
     /**
+     * Read the [Node]'s geometry from an OBJ file, including materials
+     *
+     * @param[filename] The filename to read from.
+     */
+    fun readFromOBJ(filename: String) {
+        readFromOBJ(filename, importMaterials = true, flipNormals = false)
+    }
+
+    /**
+     * Read the [Node]'s geometry from an OBJ file, and choose whether the OBJ-defined materials shall be imported.
+     *
+     * @param[filename] The filename to read from.
+     * @param[importMaterials] Whether a accompanying MTL file shall be used, defaults to true.
+     */
+    fun readFromOBJ(filename: String, importMaterials: Boolean) {
+        readFromOBJ(filename, importMaterials, flipNormals = false)
+    }
+
+    /**
      * Read the [Node]'s geometry from an OBJ file, possible including materials
      *
      * @param[filename] The filename to read from.
-     * @param[useMTL] Whether a accompanying MTL file shall be used, defaults to true.
+     * @param[importMaterials] Whether a accompanying MTL file shall be used, defaults to true.
+     * @param[flipNormals] Whether to flip the normals after reading them.
      */
-    fun readFromOBJ(filename: String, useMTL: Boolean = true, flipNormals: Boolean = false) {
-        // FIXME: Kotlin bug, revert to LazyLogger as soon as https://youtrack.jetbrains.com/issue/KT-19690 is fixed.
-        // val logger by LazyLogger()
-        val logger = LoggerFactory.getLogger(this.javaClass.simpleName)
-
+    fun readFromOBJ(filename: String, importMaterials: Boolean = true, flipNormals: Boolean = false) {
+        val logger by LazyLogger()
 
         var name: String = ""
 
@@ -325,13 +343,13 @@ interface HasGeometry : Serializable {
             if (tokens.isNotEmpty()) {
                 when (tokens[0]) {
                     'm' -> {
-                        if (useMTL) {
+                        if (importMaterials) {
                             materials = readFromMTL(filename.substringBeforeLast("/") + "/" + tokens.substringAfter(" ").trim().trimEnd())
                         }
                     }
 
                     'u' -> {
-                        if (targetObject is Node && useMTL) {
+                        if (targetObject is Node && importMaterials) {
                             (targetObject as Node).material = materials[tokens.substringAfter(" ").trim().trimEnd()]!!
                         }
                     }
@@ -475,7 +493,7 @@ interface HasGeometry : Serializable {
                             val child = Mesh()
                             child.name = tokens.substringAfter(" ").trim().trimEnd()
                             name = tokens.substringAfter(" ").trim().trimEnd()
-                            if (!useMTL) {
+                            if (!importMaterials) {
                                 child.material = Material()
                             }
 
@@ -488,7 +506,7 @@ interface HasGeometry : Serializable {
                             val child = PointCloud()
                             child.name = tokens.substringAfter(" ").trim().trimEnd()
                             name = tokens.substringAfter(" ").trim().trimEnd()
-                            if (!useMTL) {
+                            if (!importMaterials) {
                                 child.material = Material()
                             }
 
