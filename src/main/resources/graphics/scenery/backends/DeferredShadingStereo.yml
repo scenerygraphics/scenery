@@ -198,3 +198,17 @@ renderpasses:
     inputs:
       - FXAABuffer
     output: Viewport
+
+qualitySettings:
+  Low:
+    DSSDO.ssaoSamples: 0
+    FXAA.activateFXAA: 0
+  Medium:
+    DSSDO.ssaoSamples: 4
+    FXAA.activateFXAA: 1
+  High:
+    DSSDO.ssaoSamples: 16
+    FXAA.activateFXAA: 1
+  Ultra:
+    DSSDO.ssaoSamples: 16
+    FXAA.activateFXAA: 1

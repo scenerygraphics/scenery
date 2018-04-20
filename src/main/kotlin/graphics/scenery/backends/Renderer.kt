@@ -40,6 +40,13 @@ abstract class Renderer : Hubable {
 
     abstract fun reshape(newWidth: Int, newHeight: Int)
 
+    /**
+     * Sets the rendering quality, if the loaded renderer config file supports it.
+     *
+     * @param[quality] The [RenderConfigReader.RenderingQuality] to be set.
+     */
+    abstract fun setRenderingQuality(quality: RenderConfigReader.RenderingQuality)
+
     abstract val managesRenderLoop: Boolean
 
     abstract var lastFrameTime: Float

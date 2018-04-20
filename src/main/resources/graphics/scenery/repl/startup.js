@@ -1,5 +1,6 @@
 // standard library
 importPackage(Packages.graphics.scenery);
+importPackage(Packages.graphics.scenery.backends);
 importPackage(Packages.graphics.scenery.controls);
 importPackage(Packages.graphics.scenery.net);
 importPackage(Packages.graphics.scenery.fonts);
