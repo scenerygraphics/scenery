@@ -23,8 +23,10 @@ import javafx.scene.control.Label
 import javafx.scene.layout.*
 import javafx.scene.paint.Color
 import javafx.scene.text.TextAlignment
+import vkn.VkBufferUsage
 import vkn.VkCommandPool
 import vkn.VkImageLayout
+import vkn.VkMemoryProperty
 import java.util.concurrent.locks.ReentrantLock
 
 
@@ -221,8 +223,8 @@ class FXSwapchain(device: VulkanDevice,
         imageBuffer = MemoryUtil.memAlloc(imageByteSize.toInt())
         sharingBuffer = VulkanBuffer(device,
             imageByteSize,
-            VK10.VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-            VK10.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK10.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            VkBufferUsage.TRANSFER_DST_BIT.i,
+            VkMemoryProperty.HOST_VISIBLE_BIT or VkMemoryProperty.HOST_COHERENT_BIT,
             wantAligned = true)
 
         imagePanel?.prefWidth = window.width.toDouble()

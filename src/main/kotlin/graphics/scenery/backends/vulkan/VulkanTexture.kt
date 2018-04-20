@@ -184,14 +184,14 @@ open class VulkanTexture(val device: VulkanDevice,
                 transitionLayout(stagingImage.image,
                     VkImageLayout.PREINITIALIZED,
                     VkImageLayout.TRANSFER_SRC_OPTIMAL, mipLevels,
-                    srcStage = VK_PIPELINE_STAGE_HOST_BIT,
-                    dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                    srcStage = VkPipelineStage.HOST_BIT.i,
+                    dstStage = VkPipelineStage.TRANSFER_BIT.i,
                     commandBuffer = cmdBuf)
                 transitionLayout(image!!.image,
                     VkImageLayout.PREINITIALIZED,
                     VkImageLayout.TRANSFER_DST_OPTIMAL, mipLevels,
-                    srcStage = VK_PIPELINE_STAGE_HOST_BIT,
-                    dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                    srcStage = VkPipelineStage.HOST_BIT.i,
+                    dstStage = VkPipelineStage.TRANSFER_BIT.i,
                     commandBuffer = cmdBuf)
 
                 image!!.copyFrom(cmdBuf, stagingImage)
@@ -199,69 +199,69 @@ open class VulkanTexture(val device: VulkanDevice,
                 transitionLayout(image!!.image,
                     VkImageLayout.TRANSFER_DST_OPTIMAL,
                     VkImageLayout.SHADER_READ_ONLY_OPTIMAL, mipLevels,
-                    srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                    dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                    srcStage = VkPipelineStage.TRANSFER_BIT.i,
+                    dstStage = VkPipelineStage.FRAGMENT_SHADER_BIT.i,
                     commandBuffer = cmdBuf)
+
             } else {
+
                 buffer = VulkanBuffer(device,
                     data.capacity().toLong(),
                     VkBufferUsage.TRANSFER_SRC_BIT.i,
                     VkMemoryProperty.HOST_VISIBLE_BIT or VkMemoryProperty.HOST_COHERENT_BIT,
                     wantAligned = false)
 
-                buffer?.let { buffer ->
-                    buffer.copyFrom(data)
+                buffer.copyFrom(data)
 
-                    transitionLayout(image!!.image,
-                        VkImageLayout.UNDEFINED,
-                        VkImageLayout.TRANSFER_DST_OPTIMAL, mipLevels,
-                        srcStage = VK_PIPELINE_STAGE_HOST_BIT,
-                        dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                        commandBuffer = cmdBuf)
+                transitionLayout(image!!.image,
+                    VkImageLayout.UNDEFINED,
+                    VkImageLayout.TRANSFER_DST_OPTIMAL, mipLevels,
+                    srcStage = VkPipelineStage.HOST_BIT.i,
+                    dstStage = VkPipelineStage.TRANSFER_BIT.i,
+                    commandBuffer = cmdBuf)
 
-                    image!!.copyFrom(cmdBuf, buffer)
+                image!!.copyFrom(cmdBuf, buffer)
 
-                    transitionLayout(image!!.image,
-                        VkImageLayout.TRANSFER_DST_OPTIMAL,
-                        VkImageLayout.SHADER_READ_ONLY_OPTIMAL, mipLevels,
-                        srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                        dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                        commandBuffer = cmdBuf)
-                }
+                transitionLayout(image!!.image,
+                    VkImageLayout.TRANSFER_DST_OPTIMAL,
+                    VkImageLayout.SHADER_READ_ONLY_OPTIMAL, mipLevels,
+                    srcStage = VkPipelineStage.TRANSFER_BIT.i,
+                    dstStage = VkPipelineStage.FRAGMENT_SHADER_BIT.i,
+                    commandBuffer = cmdBuf)
             }
 
             cmdBuf.end(device, commandPool, queue, flush = true, dealloc = true)
             buffer?.close()
 
         } else {
+
             val buffer = VulkanBuffer(device,
                 data.limit().toLong(),
-                VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+                VkBufferUsage.TRANSFER_SRC_BIT.i,
+                VkMemoryProperty.HOST_VISIBLE_BIT.i,
                 wantAligned = false)
 
-            with(VU.newCommandBuffer(device, commandPool, autostart = true)) {
-                if (image == null) {
-                    image = createImage(width, height, depth,
-                        format, VkImageUsage.TRANSFER_DST_BIT or VkImageUsage.SAMPLED_BIT or VkImageUsage.TRANSFER_SRC_BIT,
-                        VkImageTiling.OPTIMAL, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                        mipLevels)
-                }
-
-                buffer.copyFrom(data)
-
-                transitionLayout(image!!.image, VkImageLayout.UNDEFINED,
-                    VkImageLayout.TRANSFER_DST_OPTIMAL, 1, commandBuffer = this,
-                    srcStage = VK_PIPELINE_STAGE_HOST_BIT,
-                    dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT)
-                image!!.copyFrom(this, buffer)
-                transitionLayout(image!!.image, VkImageLayout.TRANSFER_DST_OPTIMAL,
-                    VkImageLayout.TRANSFER_SRC_OPTIMAL, 1, commandBuffer = this,
-                    srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                    dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT)
-
-                this.end(device, commandPool, queue, flush = true, dealloc = true)
+            val cmdBuff = VU.newCommandBuffer(device, commandPool, autostart = true)
+            if (image == null) {
+                image = createImage(width, height, depth,
+                    format, VkImageUsage.TRANSFER_DST_BIT or VkImageUsage.SAMPLED_BIT or VkImageUsage.TRANSFER_SRC_BIT,
+                    VkImageTiling.OPTIMAL, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                    mipLevels)
             }
+
+            buffer.copyFrom(data)
+
+            transitionLayout(image!!.image, VkImageLayout.UNDEFINED,
+                VkImageLayout.TRANSFER_DST_OPTIMAL, 1, commandBuffer = cmdBuff,
+                srcStage = VkPipelineStage.HOST_BIT.i,
+                dstStage = VkPipelineStage.TRANSFER_BIT.i)
+            image!!.copyFrom(cmdBuff, buffer)
+            transitionLayout(image!!.image, VkImageLayout.TRANSFER_DST_OPTIMAL,
+                VkImageLayout.TRANSFER_SRC_OPTIMAL, 1, commandBuffer = cmdBuff,
+                srcStage = VkPipelineStage.TRANSFER_BIT.i,
+                dstStage = VkPipelineStage.TRANSFER_BIT.i)
+
+            cmdBuff.end(device, commandPool, queue, flush = true, dealloc = true)
 
             val imageBlit = VkImageBlit.calloc(1)
             with(VU.newCommandBuffer(device, commandPool, autostart = true)) mipmapCreation@{
@@ -299,8 +299,8 @@ open class VulkanTexture(val device: VulkanDevice,
                             VkImageLayout.SHADER_READ_ONLY_OPTIMAL,
                             VkImageLayout.TRANSFER_SRC_OPTIMAL,
                             subresourceRange = mipSourceRange,
-                            srcStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                            dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                            srcStage = VkPipelineStage.FRAGMENT_SHADER_BIT.i,
+                            dstStage = VkPipelineStage.TRANSFER_BIT.i,
                             commandBuffer = this@mipmapCreation)
                     }
 
@@ -308,8 +308,8 @@ open class VulkanTexture(val device: VulkanDevice,
                         VkImageLayout.UNDEFINED,
                         VkImageLayout.TRANSFER_DST_OPTIMAL,
                         subresourceRange = mipTargetRange,
-                        srcStage = VK_PIPELINE_STAGE_HOST_BIT,
-                        dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                        srcStage = VkPipelineStage.HOST_BIT.i,
+                        dstStage = VkPipelineStage.TRANSFER_BIT.i,
                         commandBuffer = this@mipmapCreation)
 
                     vkCmdBlitImage(this@mipmapCreation,
@@ -320,15 +320,15 @@ open class VulkanTexture(val device: VulkanDevice,
                     transitionLayout(image!!.image,
                         VkImageLayout.TRANSFER_SRC_OPTIMAL,
                         VkImageLayout.SHADER_READ_ONLY_OPTIMAL, subresourceRange = mipSourceRange,
-                        srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                        dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                        srcStage = VkPipelineStage.TRANSFER_BIT.i,
+                        dstStage = VkPipelineStage.FRAGMENT_SHADER_BIT.i,
                         commandBuffer = this@mipmapCreation)
 
                     transitionLayout(image!!.image,
                         VkImageLayout.TRANSFER_DST_OPTIMAL,
                         VkImageLayout.SHADER_READ_ONLY_OPTIMAL, subresourceRange = mipTargetRange,
-                        srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                        dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                        srcStage = VkPipelineStage.TRANSFER_BIT.i,
+                        dstStage = VkPipelineStage.FRAGMENT_SHADER_BIT.i,
                         commandBuffer = this@mipmapCreation)
 
                     mipSourceRange.free()
@@ -658,7 +658,8 @@ open class VulkanTexture(val device: VulkanDevice,
 
         fun transitionLayout(image: VkImage, oldLayout: VkImageLayout, newLayout: VkImageLayout, mipLevels: Int = 1,
                              subresourceRange: VkImageSubresourceRange? = null,
-                             srcStage: Int = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, dstStage: Int = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                             srcStage: VkPipelineStageFlags = VkPipelineStage.TOP_OF_PIPE_BIT.i,
+                             dstStage: VkPipelineStageFlags = VkPipelineStage.TOP_OF_PIPE_BIT.i,
                              commandBuffer: VkCommandBuffer) {
 
             val barrier = vk.ImageMemoryBarrier {

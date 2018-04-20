@@ -190,7 +190,7 @@ class VulkanDevice(
 
         logger.debug("Creating buffers")
 
-        val usage = VkBufferUsage.UNIFORM_BUFFER_BIT.i
+        val usage: VkBufferUsageFlags = VkBufferUsage.UNIFORM_BUFFER_BIT.i
         val properties = VkMemoryProperty.HOST_VISIBLE_BIT or VkMemoryProperty.HOST_COHERENT_BIT
         val aligned = true
 

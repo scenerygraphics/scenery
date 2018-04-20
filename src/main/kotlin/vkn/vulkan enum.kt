@@ -1331,6 +1331,8 @@ enum class VkBufferUsage(val i: Int) {
     }
 }
 
+infix fun Int.or(f: VkBufferUsage): VkBufferCreateFlags = or(f.i)
+
 typealias VkBufferUsageFlags = VkFlags
 typealias VkBufferViewCreateFlags = VkFlags
 typealias VkImageViewCreateFlags = VkFlags

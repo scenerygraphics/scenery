@@ -1860,8 +1860,8 @@ open class VulkanRenderer(hub: Hub,
 
         val stagingBuffer = VulkanBuffer(device,
             fullAllocationBytes * 1L,
-            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+            VkBufferUsage.TRANSFER_SRC_BIT.i,
+            VkMemoryProperty.HOST_VISIBLE_BIT.i,
             wantAligned = false)
 
         stagingBuffer.copyFrom(stridedBuffer)
@@ -1873,8 +1873,8 @@ open class VulkanRenderer(hub: Hub,
             logger.debug("Creating new vertex+index buffer for {} with {} bytes", node.name, fullAllocationBytes)
             VulkanBuffer(device,
                 fullAllocationBytes,
-                VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or VK_BUFFER_USAGE_INDEX_BUFFER_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                VkBufferUsage.VERTEX_BUFFER_BIT or VkBufferUsage.INDEX_BUFFER_BIT or VkBufferUsage.TRANSFER_DST_BIT,
+                VkMemoryProperty.DEVICE_LOCAL_BIT.i,
                 wantAligned = false)
         }
 
@@ -1930,8 +1930,8 @@ open class VulkanRenderer(hub: Hub,
             logger.info("Creating new staging buffer")
             val buffer = VulkanBuffer(device,
                 instanceBufferSize * 1L,
-                VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+                VkBufferUsage.TRANSFER_SRC_BIT.i,
+                VkMemoryProperty.HOST_VISIBLE_BIT.i,
                 wantAligned = true)
 
             state.vertexBuffers.put("instanceStaging", buffer)
