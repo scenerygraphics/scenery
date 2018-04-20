@@ -4,7 +4,7 @@ import glfw_.appBuffer
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.PointerBuffer
 import org.lwjgl.system.MemoryUtil.*
-import org.lwjgl.vulkan.VK10.*
+import org.lwjgl.vulkan.VK10.vkMapMemory
 import vkn.*
 import java.nio.ByteBuffer
 
@@ -92,17 +92,15 @@ class VulkanBuffer(val device: VulkanDevice, val size: VkDeviceSize, val usage: 
     }
 
     fun copyFrom(data: ByteBuffer) {
-        val dest = appBuffer.pointer
-        device.vulkanDevice.mapMemory(memory, 0, size, 0, dest)
-        memCopy(memAddress(data), memGetAddress(dest), data.remaining().toLong())
-        device.vulkanDevice unmapMemory memory
+        device.vulkanDevice.mappingMemory(memory, 0, size) { dest ->
+            memCopy(memAddress(data), dest, data.remaining().toLong())
+        }
     }
 
     fun copyTo(dest: ByteBuffer) {
-        val src = appBuffer.pointer
-        device.vulkanDevice.mapMemory(memory, 0, size, 0, src)
-        memCopy(memGetAddress(src), memAddress(dest), dest.remaining().toLong())
-        device.vulkanDevice unmapMemory memory
+        device.vulkanDevice.mappingMemory(memory, 0, size) { src ->
+            memCopy(src, memAddress(dest), dest.remaining().toLong())
+        }
     }
 
     // TODO

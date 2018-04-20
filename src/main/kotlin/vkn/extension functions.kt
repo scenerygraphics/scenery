@@ -2,6 +2,7 @@ package vkn
 
 import glfw_.appBuffer
 import glm_.i
+import org.lwjgl.PointerBuffer
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.system.Pointer
 import org.lwjgl.vulkan.*
@@ -57,6 +58,10 @@ inline fun VkCommandBuffer.copyBufferToImage(srcBuffer: VkBuffer, dstImage: VkIm
 inline fun VkCommandBuffer.copyBufferToImage(srcBuffer: VkBuffer, dstImage: VkImage, dstImageLayout: VkImageLayout,
                                              region: VkBufferImageCopy.Buffer) {
     VK10.nvkCmdCopyBufferToImage(this, srcBuffer, dstImage, dstImageLayout.i, region.remaining(), region.adr)
+}
+
+inline fun VkCommandBuffer.copyImage(srcImage: VkImage, srcImageLayout: VkImageLayout, dstImage: VkImage, dstImageLayout: VkImageLayout, region: VkImageCopy) {
+    VK10.nvkCmdCopyImage(this, srcImage, srcImageLayout.i, dstImage, dstImageLayout.i, 1, region.adr)
 }
 
 inline fun VkCommandBuffer.drawIndexed(indexCount: Int, instanceCount: Int, firstIndex: Int, vertexOffset: Int, firstInstance: Int) {
@@ -413,8 +418,19 @@ inline fun VkDevice.getImageMemoryRequirements(buffer: VkBuffer, memoryRequireme
     return memoryRequirements
 }
 
-inline fun VkDevice.mapMemory(memory: Long, offset: Long, size: Long, flags: Int, data: Long) {
+inline fun VkDevice.mappingMemory(memory: Long, offset: Long, size: Long, flags: VkMemoryMapFlags = 0, block: (Long) -> Unit) {
+    val data = appBuffer.pointer
     VK_CHECK_RESULT(VK10.nvkMapMemory(this, memory, offset, size, flags, data))
+    block(memGetAddress(data))
+    VK10.vkUnmapMemory(this, memory)
+}
+
+inline fun VkDevice.mapMemory(memory: Long, offset: Long, size: Long, flags: VkMemoryMapFlags, data: Long) {
+    VK_CHECK_RESULT(VK10.nvkMapMemory(this, memory, offset, size, flags, data))
+}
+
+inline fun VkDevice.mapMemory(memory: Long, offset: Long, size: Long, flags: VkMemoryMapFlags, data: PointerBuffer) {
+    VK_CHECK_RESULT(VK10.nvkMapMemory(this, memory, offset, size, flags, memAddress(data)))
 }
 
 inline infix fun VkDevice.getQueue(queueFamilyIndex: Int): VkQueue {

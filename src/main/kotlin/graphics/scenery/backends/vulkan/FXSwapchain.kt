@@ -24,6 +24,7 @@ import javafx.scene.layout.*
 import javafx.scene.paint.Color
 import javafx.scene.text.TextAlignment
 import vkn.VkCommandPool
+import vkn.VkImageLayout
 import java.util.concurrent.locks.ReentrantLock
 
 
@@ -263,8 +264,8 @@ class FXSwapchain(device: VulkanDevice,
             val transferImage = images!![image]
 
             VulkanTexture.transitionLayout(transferImage,
-                KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                VK10.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                VkImageLayout.PRESENT_SRC_KHR,
+                VkImageLayout.TRANSFER_SRC_OPTIMAL,
                 commandBuffer = this)
 
             VK10.vkCmdCopyImageToBuffer(this, transferImage,
@@ -273,8 +274,8 @@ class FXSwapchain(device: VulkanDevice,
                 regions)
 
             VulkanTexture.transitionLayout(transferImage,
-                VK10.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                VkImageLayout.TRANSFER_SRC_OPTIMAL,
+                VkImageLayout.PRESENT_SRC_KHR,
                 commandBuffer = this)
 
             this.end(device, commandPool, queue,

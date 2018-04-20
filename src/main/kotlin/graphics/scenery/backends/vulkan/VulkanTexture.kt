@@ -3,10 +3,12 @@ package graphics.scenery.backends.vulkan
 import cleargl.GLTypeEnum
 import cleargl.TGAReader
 import graphics.scenery.GenericTexture
+import graphics.scenery.backends.vulkan.VU.newCommandBuffer
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
+import vkn.*
 import org.lwjgl.vulkan.VkImageCreateInfo
 import vkn.*
 import java.awt.Color
@@ -47,66 +49,54 @@ open class VulkanTexture(val device: VulkanDevice,
 
 
         fun copyFrom(commandBuffer: VkCommandBuffer, buffer: VulkanBuffer) {
-            with(commandBuffer) {
-                val bufferImageCopy = VkBufferImageCopy.calloc(1)
 
-                bufferImageCopy.imageSubresource()
-                    .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
-                    .mipLevel(0)
-                    .baseArrayLayer(0)
-                    .layerCount(1)
-
-                bufferImageCopy.imageExtent().set(width, height, depth)
-                bufferImageCopy.imageOffset().set(0, 0, 0)
-
-                vkCmdCopyBufferToImage(this,
-                    buffer.vulkanBuffer,
-                    this@VulkanImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                    bufferImageCopy)
-
-                bufferImageCopy.free()
+            val bufferImageCopy = vk.BufferImageCopy(1) {
+                imageSubresource.apply {
+                    aspectMask = VkImageAspect.COLOR_BIT.i
+                    mipLevel = 0
+                    baseArrayLayer = 0
+                    layerCount = 1
+                }
+                imageExtent.set(width, height, depth)
+//                    imageOffset.set(0, 0, 0) // TODO useless
             }
+            commandBuffer.copyBufferToImage(buffer.vulkanBuffer, this@VulkanImage.image, VkImageLayout.TRANSFER_DST_OPTIMAL, bufferImageCopy)
         }
 
         fun copyFrom(commandBuffer: VkCommandBuffer, image: VulkanImage) {
-            with(commandBuffer) {
-                val subresource = VkImageSubresourceLayers.calloc()
-                    .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
-                    .baseArrayLayer(0)
-                    .mipLevel(0)
-                    .layerCount(1)
 
-                val region = VkImageCopy.calloc(1)
-                    .srcSubresource(subresource)
-                    .dstSubresource(subresource)
-
-                region.srcOffset().set(0, 0, 0)
-                region.dstOffset().set(0, 0, 0)
-                region.extent().set(width, height, depth)
-
-                vkCmdCopyImage(this,
-                    image.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                    this@VulkanImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                    region)
-
-                subresource.free()
-                region.free()
+            val subresource = vk.ImageSubresourceLayers {
+                aspectMask = VkImageAspect.COLOR_BIT.i
+                baseArrayLayer = 0
+                mipLevel = 0
+                layerCount = 1
             }
+            val region = vk.ImageCopy {
+                srcSubresource = subresource
+                dstSubresource = subresource
+//                srcOffset.set(0, 0, 0) TODO useless
+//                dstOffset.set(0, 0, 0)
+                extent.set(width, height, depth)
+            }
+            commandBuffer.copyImage(
+                image.image, VkImageLayout.TRANSFER_SRC_OPTIMAL,
+                this@VulkanImage.image, VkImageLayout.TRANSFER_DST_OPTIMAL,
+                region)
         }
     }
 
     init {
         stagingImage = if (depth == 1) {
             createImage(width, height, depth,
-                format, VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-                VK_IMAGE_TILING_LINEAR,
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
+                format, VkImageUsage.TRANSFER_SRC_BIT.i,
+                VkImageTiling.LINEAR,
+                VkMemoryProperty.HOST_VISIBLE_BIT or VkMemoryProperty.HOST_CACHED_BIT,
                 mipLevels = 1)
         } else {
             createImage(16, 16, 1,
-                format, VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-                VK_IMAGE_TILING_LINEAR,
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
+                format, VkImageUsage.TRANSFER_SRC_BIT.i,
+                VkImageTiling.LINEAR,
+                VkMemoryProperty.HOST_VISIBLE_BIT or VkMemoryProperty.HOST_CACHED_BIT,
                 mipLevels = 1)
         }
     }
@@ -126,61 +116,46 @@ open class VulkanTexture(val device: VulkanDevice,
         gt = genericTexture
     }
 
-    fun createImage(width: Int, height: Int, depth: Int, format: VkFormat,
-                    usage: Int, tiling: Int, memoryFlags: Int, mipLevels: Int,
-                    customAllocator: ((VkMemoryRequirements, Long) -> Long)? = null, imageCreateInfo: VkImageCreateInfo? = null): VulkanImage {
-        val imageInfo = if (imageCreateInfo != null) {
-            imageCreateInfo
-        } else {
-            val i = VkImageCreateInfo.calloc()
-                .sType(VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO)
-                .imageType(if (depth == 1) {
-                    VK_IMAGE_TYPE_2D
-                } else {
-                    VK_IMAGE_TYPE_3D
-                })
-                .mipLevels(mipLevels)
-                .arrayLayers(1)
-                .format(format.i)
-                .tiling(tiling)
-                .initialLayout(if (depth == 1) {
-                    VK_IMAGE_LAYOUT_PREINITIALIZED
-                } else {
-                    VK_IMAGE_LAYOUT_UNDEFINED
-                })
-                .usage(usage)
-                .sharingMode(VK_SHARING_MODE_EXCLUSIVE)
-                .samples(VK_SAMPLE_COUNT_1_BIT)
-                .flags(VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT)
+    fun createImage(width: Int, height: Int, depth: Int,
+                    format: VkFormat, usage: VkImageUsageFlags,
+                    tiling: VkImageTiling, memoryFlags: VkMemoryPropertyFlags, mipLevels: Int,
+                    customAllocator: ((VkMemoryRequirements, VkImage) -> VkDeviceMemory)? = null,
+                    imageCreateInfo: VkImageCreateInfo? = null): VulkanImage {
 
-            i.extent().set(width, height, depth)
-            i
+        val imageInfo = imageCreateInfo ?: vk.ImageCreateInfo {
+            imageType = when (depth) {
+                1 -> VkImageType.`2D`
+                else -> VkImageType.`3D`
+            }
+            this.mipLevels = mipLevels
+            arrayLayers = 1
+            this.format = format
+            this.tiling = tiling
+            initialLayout = when (depth) {
+                1 -> VkImageLayout.PREINITIALIZED
+                else -> VkImageLayout.UNDEFINED
+            }
+            this.usage = usage
+            sharingMode = VkSharingMode.EXCLUSIVE
+            samples = VkSampleCount.`1_BIT`
+            flags = VkImageCreate.MUTABLE_FORMAT_BIT.i
+            extent.set(width, height, depth)
         }
 
-        val image = VU.getLong("create staging image",
-            { vkCreateImage(device.vulkanDevice, imageInfo, null, this) }, {})
+        val image = device.vulkanDevice createImage imageInfo
 
-        val reqs = VkMemoryRequirements.calloc()
-        vkGetImageMemoryRequirements(device.vulkanDevice, image, reqs)
-        val memorySize = reqs.size()
+        val reqs = device.vulkanDevice getImageMemoryRequirements image
+        val memorySize = reqs.size
 
-        val memory = if (customAllocator == null) {
-            val allocInfo = VkMemoryAllocateInfo.calloc()
-                .sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO)
-                .pNext(NULL)
-                .allocationSize(memorySize)
-                .memoryTypeIndex(device.getMemoryType(reqs.memoryTypeBits(), memoryFlags)[0])
-
-            VU.getLong("allocate image staging memory",
-                { vkAllocateMemory(device.vulkanDevice, allocInfo, null, this) },
-                { imageInfo.free(); allocInfo.free() })
-        } else {
-            customAllocator.invoke(reqs, image)
+        val memory = customAllocator?.invoke(reqs, image) ?: run {
+            val allocInfo = vk.MemoryAllocateInfo {
+                allocationSize = memorySize
+                memoryTypeIndex(device.getMemoryType(reqs.memoryTypeBits(), memoryFlags)[0]) // TODO BUG
+            }
+            device.vulkanDevice allocateMemory allocInfo
         }
 
-        reqs.free()
-
-        vkBindImageMemory(device.vulkanDevice, image, memory, 0)
+        device.vulkanDevice.bindImageMemory(image, memory)
 
         return VulkanImage(image, memory, memorySize)
     }
@@ -194,73 +169,72 @@ open class VulkanTexture(val device: VulkanDevice,
 
         if (mipLevels == 1) {
             var buffer: VulkanBuffer? = null
-            with(VU.newCommandBuffer(device, commandPool, autostart = true)) {
-                if (image == null) {
-                    image = createImage(width, height, depth,
-                        format, VK_IMAGE_USAGE_TRANSFER_DST_BIT or VK_IMAGE_USAGE_SAMPLED_BIT,
-                        VK_IMAGE_TILING_OPTIMAL, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                        mipLevels)
+            val cmdBuf = device.vulkanDevice.newCommandBuffer(commandPool, autostart = true)
+            if (image == null) {
+                image = createImage(width, height, depth,
+                    format, VkImageUsage.TRANSFER_DST_BIT or VkImageUsage.SAMPLED_BIT,
+                    VkImageTiling.OPTIMAL, VkMemoryProperty.DEVICE_LOCAL_BIT.i,
+                    mipLevels)
+            }
+
+            if (depth == 1) {
+
+                device.vulkanDevice.mappingMemory(stagingImage.memory, 0, data.remaining() * 1L) { dest ->
+                    memCopy(memAddress(data), dest, data.remaining().toLong())
                 }
 
-                if (depth == 1) {
-                    val dest = memAllocPointer(1)
-                    vkMapMemory(device.vulkanDevice, stagingImage.memory, 0, data.remaining() * 1L, 0, dest)
-                    memCopy(memAddress(data), dest.get(0), data.remaining().toLong())
-                    vkUnmapMemory(device.vulkanDevice, stagingImage.memory)
-                    memFree(dest)
+                transitionLayout(stagingImage.image,
+                    VkImageLayout.PREINITIALIZED,
+                    VkImageLayout.TRANSFER_SRC_OPTIMAL, mipLevels,
+                    srcStage = VK_PIPELINE_STAGE_HOST_BIT,
+                    dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                    commandBuffer = cmdBuf)
+                transitionLayout(image!!.image,
+                    VkImageLayout.PREINITIALIZED,
+                    VkImageLayout.TRANSFER_DST_OPTIMAL, mipLevels,
+                    srcStage = VK_PIPELINE_STAGE_HOST_BIT,
+                    dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                    commandBuffer = cmdBuf)
 
-                    transitionLayout(stagingImage.image,
-                        VK_IMAGE_LAYOUT_PREINITIALIZED,
-                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, mipLevels,
+                image!!.copyFrom(cmdBuf, stagingImage)
+
+                transitionLayout(image!!.image,
+                    VkImageLayout.TRANSFER_DST_OPTIMAL,
+                    VkImageLayout.SHADER_READ_ONLY_OPTIMAL, mipLevels,
+                    srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                    dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                    commandBuffer = cmdBuf)
+            } else {
+                buffer = VulkanBuffer(device,
+                    data.capacity().toLong(),
+                    VkBufferUsage.TRANSFER_SRC_BIT.i,
+                    VkMemoryProperty.HOST_VISIBLE_BIT or VkMemoryProperty.HOST_COHERENT_BIT,
+                    wantAligned = false)
+
+                buffer?.let { buffer ->
+                    buffer.copyFrom(data)
+
+                    transitionLayout(image!!.image,
+                        VkImageLayout.UNDEFINED,
+                        VkImageLayout.TRANSFER_DST_OPTIMAL, mipLevels,
                         srcStage = VK_PIPELINE_STAGE_HOST_BIT,
                         dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                        commandBuffer = this)
-                    transitionLayout(image!!.image,
-                        VK_IMAGE_LAYOUT_PREINITIALIZED,
-                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevels,
-                        srcStage = VK_PIPELINE_STAGE_HOST_BIT,
-                        dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                        commandBuffer = this)
+                        commandBuffer = cmdBuf)
 
-                    image!!.copyFrom(this, stagingImage)
+                    image!!.copyFrom(cmdBuf, buffer)
 
                     transitionLayout(image!!.image,
-                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, mipLevels,
+                        VkImageLayout.TRANSFER_DST_OPTIMAL,
+                        VkImageLayout.SHADER_READ_ONLY_OPTIMAL, mipLevels,
                         srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
                         dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                        commandBuffer = this)
-                } else {
-                    buffer = VulkanBuffer(device,
-                        data.capacity().toLong(),
-                        VkBufferUsage.TRANSFER_SRC_BIT.i,
-                        VkMemoryProperty.HOST_VISIBLE_BIT or VkMemoryProperty.HOST_COHERENT_BIT,
-                        wantAligned = false)
-
-                    buffer?.let { buffer ->
-                        buffer.copyFrom(data)
-
-                        transitionLayout(image!!.image,
-                            VK_IMAGE_LAYOUT_UNDEFINED,
-                            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevels,
-                            srcStage = VK_PIPELINE_STAGE_HOST_BIT,
-                            dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                            commandBuffer = this)
-
-                        image!!.copyFrom(this, buffer)
-
-                        transitionLayout(image!!.image,
-                            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, mipLevels,
-                            srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                            dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                            commandBuffer = this)
-                    }
+                        commandBuffer = cmdBuf)
                 }
-
-                this.end(device, commandPool, queue, flush = true, dealloc = true)
-                buffer?.close()
             }
+
+            cmdBuf.end(device, commandPool, queue, flush = true, dealloc = true)
+            buffer?.close()
+
         } else {
             val buffer = VulkanBuffer(device,
                 data.limit().toLong(),
@@ -271,20 +245,20 @@ open class VulkanTexture(val device: VulkanDevice,
             with(VU.newCommandBuffer(device, commandPool, autostart = true)) {
                 if (image == null) {
                     image = createImage(width, height, depth,
-                        format, VK_IMAGE_USAGE_TRANSFER_DST_BIT or VK_IMAGE_USAGE_SAMPLED_BIT or VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-                        VK_IMAGE_TILING_OPTIMAL, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                        format, VkImageUsage.TRANSFER_DST_BIT or VkImageUsage.SAMPLED_BIT or VkImageUsage.TRANSFER_SRC_BIT,
+                        VkImageTiling.OPTIMAL, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                         mipLevels)
                 }
 
                 buffer.copyFrom(data)
 
-                transitionLayout(image!!.image, VK_IMAGE_LAYOUT_UNDEFINED,
-                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, commandBuffer = this,
+                transitionLayout(image!!.image, VkImageLayout.UNDEFINED,
+                    VkImageLayout.TRANSFER_DST_OPTIMAL, 1, commandBuffer = this,
                     srcStage = VK_PIPELINE_STAGE_HOST_BIT,
                     dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT)
                 image!!.copyFrom(this, buffer)
-                transitionLayout(image!!.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, 1, commandBuffer = this,
+                transitionLayout(image!!.image, VkImageLayout.TRANSFER_DST_OPTIMAL,
+                    VkImageLayout.TRANSFER_SRC_OPTIMAL, 1, commandBuffer = this,
                     srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
                     dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT)
 
@@ -324,8 +298,8 @@ open class VulkanTexture(val device: VulkanDevice,
 
                     if (mipLevel > 1) {
                         transitionLayout(image!!.image,
-                            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                            VkImageLayout.SHADER_READ_ONLY_OPTIMAL,
+                            VkImageLayout.TRANSFER_SRC_OPTIMAL,
                             subresourceRange = mipSourceRange,
                             srcStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                             dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
@@ -333,8 +307,8 @@ open class VulkanTexture(val device: VulkanDevice,
                     }
 
                     transitionLayout(image!!.image,
-                        VK_IMAGE_LAYOUT_UNDEFINED,
-                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                        VkImageLayout.UNDEFINED,
+                        VkImageLayout.TRANSFER_DST_OPTIMAL,
                         subresourceRange = mipTargetRange,
                         srcStage = VK_PIPELINE_STAGE_HOST_BIT,
                         dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
@@ -346,15 +320,15 @@ open class VulkanTexture(val device: VulkanDevice,
                         imageBlit, VK_FILTER_LINEAR)
 
                     transitionLayout(image!!.image,
-                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, subresourceRange = mipSourceRange,
+                        VkImageLayout.TRANSFER_SRC_OPTIMAL,
+                        VkImageLayout.SHADER_READ_ONLY_OPTIMAL, subresourceRange = mipSourceRange,
                         srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
                         dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                         commandBuffer = this@mipmapCreation)
 
                     transitionLayout(image!!.image,
-                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, subresourceRange = mipTargetRange,
+                        VkImageLayout.TRANSFER_DST_OPTIMAL,
+                        VkImageLayout.SHADER_READ_ONLY_OPTIMAL, subresourceRange = mipTargetRange,
                         srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
                         dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                         commandBuffer = this@mipmapCreation)
@@ -370,12 +344,10 @@ open class VulkanTexture(val device: VulkanDevice,
             buffer.close()
         }
 
-        if (image!!.sampler == -1L) {
+        if (image!!.sampler == NULL)
             image!!.sampler = createSampler()
-        }
-        if (image!!.view == -1L) {
+        if (image!!.view == NULL)
             image!!.view = createImageView(image!!, format)
-        }
     }
 
     fun createImageView(image: VulkanImage, format: VkFormat): Long {
@@ -686,116 +658,102 @@ open class VulkanTexture(val device: VulkanDevice,
             return newImage
         }
 
-        fun transitionLayout(image: VkImage, oldLayout: Int, newLayout: Int, mipLevels: Int = 1,
+        fun transitionLayout(image: VkImage, oldLayout: VkImageLayout, newLayout: VkImageLayout, mipLevels: Int = 1,
                              subresourceRange: VkImageSubresourceRange? = null,
                              srcStage: Int = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, dstStage: Int = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
                              commandBuffer: VkCommandBuffer) {
 
-            with(commandBuffer) {
-                val barrier = VkImageMemoryBarrier.calloc(1)
-                    .sType(VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER)
-                    .pNext(NULL)
-                    .oldLayout(oldLayout)
-                    .newLayout(newLayout)
-                    .srcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-                    .dstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-                    .image(image)
+            val barrier = vk.ImageMemoryBarrier {
+                this.oldLayout = oldLayout
+                this.newLayout = newLayout
+                srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED
+                dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED
+                this.image = image
 
-                if (subresourceRange == null) {
-                    barrier.subresourceRange()
-                        .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
-                        .baseMipLevel(0)
-                        .levelCount(mipLevels)
-                        .baseArrayLayer(0)
-                        .layerCount(1)
-                } else {
-                    barrier.subresourceRange(subresourceRange)
+                if (subresourceRange == null)
+                    this.subresourceRange.apply {
+                        aspectMask = VkImageAspect.COLOR_BIT.i
+                        baseMipLevel = 0
+                        levelCount = mipLevels
+                        baseArrayLayer = 0
+                        layerCount = 1
+                    } else {
+                    this.subresourceRange = subresourceRange
                 }
 
-                if (oldLayout == VK_IMAGE_LAYOUT_PREINITIALIZED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
-                    barrier
-                        .srcAccessMask(VK_ACCESS_HOST_WRITE_BIT)
-                        .dstAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
-                } else if (oldLayout == VK_IMAGE_LAYOUT_PREINITIALIZED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
-                    barrier
-                        .srcAccessMask(VK_ACCESS_HOST_WRITE_BIT)
-                        .dstAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
-                } else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
-                    barrier
-                        .srcAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
-                        .dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
-                } else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
-                    barrier
-                        .srcAccessMask(0)
-                        .dstAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
-                } else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
-                    barrier.srcAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
-                    barrier.dstAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
-                } else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
-                    barrier
-                        .srcAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
-                        .dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
-                } else if (oldLayout == KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR && newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
-                    barrier
-                        .srcAccessMask(VK_ACCESS_MEMORY_READ_BIT)
-                        .dstAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
-                } else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL && newLayout == KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
-                    barrier
-                        .srcAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
-                        .dstAccessMask(VK_ACCESS_MEMORY_READ_BIT)
-                } else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
-                    barrier
-                        .srcAccessMask(0)
-                        .dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
-                } else if (oldLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
-                    barrier.srcAccessMask(VK_ACCESS_SHADER_READ_BIT)
-                        .dstAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
-                } else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
-                    barrier.srcAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
-                        .dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
-                } else if (oldLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
-                    barrier.srcAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
-                        .dstAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
-                } else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) {
-                    barrier.srcAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
-                        .dstAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
-                } else if (oldLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
-                    barrier.srcAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
-                        .dstAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
-                } else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) {
-                    barrier.srcAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
-                        .dstAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
-                } else if (oldLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
-                    barrier.srcAccessMask(VK_ACCESS_INPUT_ATTACHMENT_READ_BIT)
-                        .dstAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
-                } else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
-                    barrier.srcAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
-                        .dstAccessMask(VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT)
-                } else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
-                    barrier.srcAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
-                        .dstAccessMask(VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT)
-                } else if (oldLayout == KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR && newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
-                    barrier.srcAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
-                        .dstAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
-                } else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL && newLayout == KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
-                    barrier.srcAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
-                        .dstAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
-                } else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) {
-                    barrier.srcAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
-                        .dstAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
+                if (oldLayout == VkImageLayout.PREINITIALIZED && newLayout == VkImageLayout.TRANSFER_SRC_OPTIMAL) {
+                    srcAccessMask = VkAccess.HOST_WRITE_BIT.i
+                    dstAccessMask = VkAccess.TRANSFER_READ_BIT.i
+                } else if (oldLayout == VkImageLayout.PREINITIALIZED && newLayout == VkImageLayout.TRANSFER_DST_OPTIMAL) {
+                    srcAccessMask = VkAccess.HOST_WRITE_BIT.i
+                    dstAccessMask = VkAccess.TRANSFER_WRITE_BIT.i
+                } else if (oldLayout == VkImageLayout.TRANSFER_DST_OPTIMAL && newLayout == VkImageLayout.SHADER_READ_ONLY_OPTIMAL) {
+                    srcAccessMask = VkAccess.TRANSFER_WRITE_BIT.i
+                    dstAccessMask = VkAccess.SHADER_READ_BIT.i
+                } else if (oldLayout == VkImageLayout.UNDEFINED && newLayout == VkImageLayout.TRANSFER_DST_OPTIMAL) {
+                    srcAccessMask = 0
+                    dstAccessMask = VkAccess.TRANSFER_WRITE_BIT.i
+                } else if (oldLayout == VkImageLayout.TRANSFER_DST_OPTIMAL && newLayout == VkImageLayout.TRANSFER_SRC_OPTIMAL) {
+                    srcAccessMask = VkAccess.TRANSFER_WRITE_BIT.i
+                    dstAccessMask = VkAccess.TRANSFER_READ_BIT.i
+                } else if (oldLayout == VkImageLayout.TRANSFER_SRC_OPTIMAL && newLayout == VkImageLayout.SHADER_READ_ONLY_OPTIMAL) {
+                    srcAccessMask = VkAccess.TRANSFER_READ_BIT.i
+                    dstAccessMask = VkAccess.SHADER_READ_BIT.i
+                } else if (oldLayout == VkImageLayout.PRESENT_SRC_KHR && newLayout == VkImageLayout.TRANSFER_SRC_OPTIMAL) {
+                    srcAccessMask = VkAccess.MEMORY_READ_BIT.i
+                    dstAccessMask = VkAccess.TRANSFER_READ_BIT.i
+                } else if (oldLayout == VkImageLayout.TRANSFER_SRC_OPTIMAL && newLayout == VkImageLayout.PRESENT_SRC_KHR) {
+                    srcAccessMask = VkAccess.TRANSFER_READ_BIT.i
+                    dstAccessMask = VkAccess.MEMORY_READ_BIT.i
+                } else if (oldLayout == VkImageLayout.UNDEFINED && newLayout == VkImageLayout.SHADER_READ_ONLY_OPTIMAL) {
+                    srcAccessMask = 0
+                    dstAccessMask = VkAccess.SHADER_READ_BIT.i
+                } else if (oldLayout == VkImageLayout.SHADER_READ_ONLY_OPTIMAL && newLayout == VkImageLayout.TRANSFER_SRC_OPTIMAL) {
+                    srcAccessMask = VkAccess.SHADER_READ_BIT.i
+                    dstAccessMask = VkAccess.TRANSFER_READ_BIT.i
+                } else if (oldLayout == VkImageLayout.TRANSFER_SRC_OPTIMAL && newLayout == VkImageLayout.SHADER_READ_ONLY_OPTIMAL) {
+                    srcAccessMask = VkAccess.TRANSFER_READ_BIT.i
+                    dstAccessMask = VkAccess.SHADER_READ_BIT.i
+                } else if (oldLayout == VkImageLayout.COLOR_ATTACHMENT_OPTIMAL && newLayout == VkImageLayout.TRANSFER_DST_OPTIMAL) {
+                    srcAccessMask = VkAccess.COLOR_ATTACHMENT_WRITE_BIT.i
+                    dstAccessMask = VkAccess.TRANSFER_WRITE_BIT.i
+                } else if (oldLayout == VkImageLayout.TRANSFER_DST_OPTIMAL && newLayout == VkImageLayout.COLOR_ATTACHMENT_OPTIMAL) {
+                    srcAccessMask = VkAccess.TRANSFER_WRITE_BIT.i
+                    dstAccessMask = VkAccess.COLOR_ATTACHMENT_WRITE_BIT.i
+                } else if (oldLayout == VkImageLayout.COLOR_ATTACHMENT_OPTIMAL && newLayout == VkImageLayout.TRANSFER_SRC_OPTIMAL) {
+                    srcAccessMask = VkAccess.COLOR_ATTACHMENT_WRITE_BIT.i
+                    dstAccessMask = VkAccess.TRANSFER_READ_BIT.i
+                } else if (oldLayout == VkImageLayout.TRANSFER_SRC_OPTIMAL && newLayout == VkImageLayout.COLOR_ATTACHMENT_OPTIMAL) {
+                    srcAccessMask = VkAccess.TRANSFER_READ_BIT.i
+                    dstAccessMask = VkAccess.COLOR_ATTACHMENT_WRITE_BIT.i
+                } else if (oldLayout == VkImageLayout.SHADER_READ_ONLY_OPTIMAL && newLayout == VkImageLayout.TRANSFER_DST_OPTIMAL) {
+                    srcAccessMask = VkAccess.INPUT_ATTACHMENT_READ_BIT.i
+                    dstAccessMask = VkAccess.TRANSFER_WRITE_BIT.i
+                } else if (oldLayout == VkImageLayout.TRANSFER_DST_OPTIMAL && newLayout == VkImageLayout.DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
+                    srcAccessMask = VkAccess.TRANSFER_WRITE_BIT.i
+                    dstAccessMask = VkAccess.DEPTH_STENCIL_ATTACHMENT_WRITE_BIT.i
+                } else if (oldLayout == VkImageLayout.TRANSFER_SRC_OPTIMAL && newLayout == VkImageLayout.DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
+                    srcAccessMask = VkAccess.TRANSFER_READ_BIT.i
+                    dstAccessMask = VkAccess.DEPTH_STENCIL_ATTACHMENT_WRITE_BIT.i
+                } else if (oldLayout == VkImageLayout.PRESENT_SRC_KHR && newLayout == VkImageLayout.TRANSFER_SRC_OPTIMAL) {
+                    srcAccessMask = VkAccess.COLOR_ATTACHMENT_WRITE_BIT.i
+                    dstAccessMask = VkAccess.TRANSFER_READ_BIT.i
+                } else if (oldLayout == VkImageLayout.TRANSFER_SRC_OPTIMAL && newLayout == VkImageLayout.PRESENT_SRC_KHR) {
+                    srcAccessMask = VkAccess.TRANSFER_READ_BIT.i
+                    dstAccessMask = VkAccess.COLOR_ATTACHMENT_WRITE_BIT.i
+                } else if (oldLayout == VkImageLayout.UNDEFINED && newLayout == VkImageLayout.COLOR_ATTACHMENT_OPTIMAL) {
+                    srcAccessMask = VkAccess.TRANSFER_WRITE_BIT.i
+                    dstAccessMask = VkAccess.COLOR_ATTACHMENT_WRITE_BIT.i
                 } else {
                     logger.error("Unsupported layout transition: $oldLayout -> $newLayout")
                 }
-
-                logger.trace("Transition: {} -> {} with srcAccessMark={}, dstAccessMask={}, srcStage={}, dstStage={}", oldLayout, newLayout, barrier.srcAccessMask(), barrier.dstAccessMask(), srcStage, dstStage)
-
-                vkCmdPipelineBarrier(this,
-                    srcStage,
-                    dstStage,
-                    0, null, null, barrier)
-
-                barrier.free()
             }
+            logger.trace("Transition: {} -> {} with srcAccessMark={}, dstAccessMask={}, srcStage={}, dstStage={}", oldLayout, newLayout, barrier.srcAccessMask(), barrier.dstAccessMask(), srcStage, dstStage)
+
+            commandBuffer.pipelineBarrier(
+                srcStage,
+                dstStage,
+                0, null, null, barrier)
         }
 
         private fun GenericTexture.toVulkanFormat(): VkFormat {
@@ -889,9 +847,9 @@ open class VulkanTexture(val device: VulkanDevice,
                 it.view = NULL
             }
 
-            if (it.image != NULL) {
+            if (it.image != -1L) {
                 vkDestroyImage(device.vulkanDevice, it.image, null)
-                it.image = NULL
+                it.image = -1L
             }
 
             if (it.sampler != NULL) {
@@ -899,20 +857,20 @@ open class VulkanTexture(val device: VulkanDevice,
                 it.sampler = NULL
             }
 
-            if (it.memory != NULL) {
+            if (it.memory != -1L) {
                 vkFreeMemory(device.vulkanDevice, it.memory, null)
-                it.memory = NULL
+                it.memory = -1L
             }
         }
 
-        if (stagingImage.image != NULL) {
+        if (stagingImage.image != -1L) {
             vkDestroyImage(device.vulkanDevice, stagingImage.image, null)
-            stagingImage.image = NULL
+            stagingImage.image = -1L
         }
 
-        if (stagingImage.memory != NULL) {
+        if (stagingImage.memory != -1L) {
             vkFreeMemory(device.vulkanDevice, stagingImage.memory, null)
-            stagingImage.memory = NULL
+            stagingImage.memory = -1L
         }
     }
 

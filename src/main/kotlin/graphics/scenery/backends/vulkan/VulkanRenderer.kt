@@ -1509,8 +1509,8 @@ open class VulkanRenderer(hub: Hub,
                     val image = swapchain!!.images!![pass.getReadPosition()]
 
                     VulkanTexture.transitionLayout(image,
-                        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                        VkImageLayout.PRESENT_SRC_KHR,
+                        VkImageLayout.TRANSFER_SRC_OPTIMAL,
                         commandBuffer = this)
 
                     vkCmdCopyImageToBuffer(this, image,
@@ -1519,8 +1519,8 @@ open class VulkanRenderer(hub: Hub,
                         regions)
 
                     VulkanTexture.transitionLayout(image,
-                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                        VkImageLayout.TRANSFER_SRC_OPTIMAL,
+                        VkImageLayout.PRESENT_SRC_KHR,
                         commandBuffer = this)
 
                     this.end(device, commandPools.Render, queue,
@@ -2131,18 +2131,18 @@ open class VulkanRenderer(hub: Hub,
                             }
 
                             val outputAspectSrcType = when (outputAttachment.type) {
-                                VulkanFramebuffer.VkFramebufferAttachment.COLOR -> VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-                                VulkanFramebuffer.VkFramebufferAttachment.DEPTH -> VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+                                VulkanFramebuffer.VkFramebufferAttachment.COLOR -> VkImageLayout.SHADER_READ_ONLY_OPTIMAL
+                                VulkanFramebuffer.VkFramebufferAttachment.DEPTH -> VkImageLayout.SHADER_READ_ONLY_OPTIMAL
                             }
 
                             val outputAspectDstType = when (outputAttachment.type) {
-                                VulkanFramebuffer.VkFramebufferAttachment.COLOR -> VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-                                VulkanFramebuffer.VkFramebufferAttachment.DEPTH -> VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+                                VulkanFramebuffer.VkFramebufferAttachment.COLOR -> VkImageLayout.COLOR_ATTACHMENT_OPTIMAL
+                                VulkanFramebuffer.VkFramebufferAttachment.DEPTH -> VkImageLayout.DEPTH_STENCIL_ATTACHMENT_OPTIMAL
                             }
 
                             val inputAspectType = when (inputAttachment.type) {
-                                VulkanFramebuffer.VkFramebufferAttachment.COLOR -> VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-                                VulkanFramebuffer.VkFramebufferAttachment.DEPTH -> VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+                                VulkanFramebuffer.VkFramebufferAttachment.COLOR -> VkImageLayout.SHADER_READ_ONLY_OPTIMAL
+                                VulkanFramebuffer.VkFramebufferAttachment.DEPTH -> VkImageLayout.SHADER_READ_ONLY_OPTIMAL
                             }
 
                             val outputDstStage = when (outputAttachment.type) {
@@ -2175,8 +2175,8 @@ open class VulkanRenderer(hub: Hub,
 
                             // transition source attachment
                             VulkanTexture.transitionLayout(inputAttachment.image,
-                                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                                VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                VkImageLayout.SHADER_READ_ONLY_OPTIMAL,
+                                VkImageLayout.TRANSFER_SRC_OPTIMAL,
                                 subresourceRange = subresourceRange,
                                 commandBuffer = transitionBuffer,
                                 srcStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
@@ -2186,7 +2186,7 @@ open class VulkanRenderer(hub: Hub,
                             // transition destination attachment
                             VulkanTexture.transitionLayout(outputAttachment.image,
                                 inputAspectType,
-                                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                VkImageLayout.TRANSFER_DST_OPTIMAL,
                                 subresourceRange = subresourceRange,
                                 commandBuffer = transitionBuffer,
                                 srcStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
@@ -2201,7 +2201,7 @@ open class VulkanRenderer(hub: Hub,
 
                             // transition destination attachment back to attachment
                             VulkanTexture.transitionLayout(outputAttachment.image,
-                                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                VkImageLayout.TRANSFER_DST_OPTIMAL,
                                 outputAspectDstType,
                                 subresourceRange = subresourceRange,
                                 commandBuffer = transitionBuffer,
@@ -2211,7 +2211,7 @@ open class VulkanRenderer(hub: Hub,
 
                             // transition source attachment back to shader read-only
                             VulkanTexture.transitionLayout(inputAttachment.image,
-                                VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                VkImageLayout.TRANSFER_SRC_OPTIMAL,
                                 outputAspectSrcType,
                                 subresourceRange = subresourceRange,
                                 commandBuffer = transitionBuffer,

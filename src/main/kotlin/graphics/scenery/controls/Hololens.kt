@@ -19,8 +19,7 @@ import org.lwjgl.vulkan.NVWin32KeyedMutex.VK_STRUCTURE_TYPE_WIN32_KEYED_MUTEX_AC
 import org.lwjgl.vulkan.VK10.*
 import org.zeromq.ZContext
 import org.zeromq.ZMQ
-import vkn.VkCommandPool
-import vkn.VkFormat
+import vkn.*
 import java.math.BigInteger
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -287,10 +286,10 @@ class Hololens: TrackerInput, Display, Hubable {
 
         imageCreateInfo.extent().set(hololensDisplaySize.x().toInt(), hololensDisplaySize.y().toInt(), 1)
 
-        var memoryHandle: Long = -1L
+        var memoryHandle: VkDeviceMemory = -1L
         val img = t.createImage(hololensDisplaySize.x().toInt(), hololensDisplaySize.y().toInt(), 1,
-            VkFormat.R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT,
-            VK_IMAGE_TILING_OPTIMAL, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 1,
+            VkFormat.R8G8B8A8_UNORM, VkImageUsage.SAMPLED_BIT.i,
+            VkImageTiling.OPTIMAL, VkMemoryProperty.DEVICE_LOCAL_BIT.i, 1,
             imageCreateInfo = imageCreateInfo,
             customAllocator = { memoryRequirements, allocatedImage ->
                 logger.debug("Using custom image allocation for external handle ...")
@@ -335,7 +334,7 @@ class Hololens: TrackerInput, Display, Hubable {
 
         with(VU.newCommandBuffer(device, commandPool, autostart = true)) {
             VulkanTexture.transitionLayout(img.image,
-                VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1,
+                VkImageLayout.UNDEFINED, VkImageLayout.COLOR_ATTACHMENT_OPTIMAL, 1,
                 srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
                 dstStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                 commandBuffer = this)
@@ -447,8 +446,8 @@ class Hololens: TrackerInput, Display, Hubable {
 
                     // transition source attachment
                     VulkanTexture.transitionLayout(image,
-                        KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                        VkImageLayout.PRESENT_SRC_KHR,
+                        VkImageLayout.TRANSFER_SRC_OPTIMAL,
                         subresourceRange = subresourceRange,
                         commandBuffer = this,
                         srcStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
@@ -457,8 +456,8 @@ class Hololens: TrackerInput, Display, Hubable {
 
                     // transition destination attachment
                     VulkanTexture.transitionLayout(currentImage.first.image,
-                        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                        VkImageLayout.COLOR_ATTACHMENT_OPTIMAL,
+                        VkImageLayout.TRANSFER_DST_OPTIMAL,
                         subresourceRange = subresourceRange,
                         commandBuffer = this,
                         srcStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
@@ -473,8 +472,8 @@ class Hololens: TrackerInput, Display, Hubable {
 
                     // transition destination attachment back to attachment
                     VulkanTexture.transitionLayout(currentImage.first.image,
-                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                        VkImageLayout.TRANSFER_DST_OPTIMAL,
+                        VkImageLayout.COLOR_ATTACHMENT_OPTIMAL,
                         subresourceRange = subresourceRange,
                         commandBuffer = this,
                         srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
@@ -483,8 +482,8 @@ class Hololens: TrackerInput, Display, Hubable {
 
                     // transition source attachment back to shader read-only
                     VulkanTexture.transitionLayout(image,
-                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                        KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                        VkImageLayout.TRANSFER_SRC_OPTIMAL,
+                        VkImageLayout.PRESENT_SRC_KHR,
                         subresourceRange = subresourceRange,
                         commandBuffer = this,
                         srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,

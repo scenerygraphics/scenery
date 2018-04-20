@@ -2026,14 +2026,24 @@ inline var VkImageSubresourceLayers.layerCount: Int
     get() = VkImageSubresourceLayers.nlayerCount(adr)
     set(value) = VkImageSubresourceLayers.nlayerCount(adr, value)
 
-//typedef struct VkImageCopy {
-//    VkImageSubresourceLayers    srcSubresource;
-//    VkOffset3D                  srcOffset;
-//    VkImageSubresourceLayers    dstSubresource;
-//    VkOffset3D                  dstOffset;
-//    VkExtent3D                  extent;
-//} VkImageCopy;
-//
+
+inline var VkImageCopy.srcSubresource: VkImageSubresourceLayers
+    get() = VkImageCopy.nsrcSubresource(adr)
+    set(value) = VkImageCopy.nsrcSubresource(adr, value)
+inline var VkImageCopy.srcOffset: VkOffset3D
+    get() = VkImageCopy.nsrcOffset(adr)
+    set(value) = VkImageCopy.nsrcOffset(adr, value)
+inline var VkImageCopy.dstSubresource: VkImageSubresourceLayers
+    get() = VkImageCopy.ndstSubresource(adr)
+    set(value) = VkImageCopy.ndstSubresource(adr, value)
+inline var VkImageCopy.dstOffset: VkOffset3D
+    get() = VkImageCopy.ndstOffset(adr)
+    set(value) = VkImageCopy.ndstOffset(adr, value)
+inline var VkImageCopy.extent: VkExtent3D
+    get() = VkImageCopy.nextent(adr)
+    set(value) = VkImageCopy.nextent(adr, value)
+
+
 //typedef struct VkImageBlit {
 //    VkImageSubresourceLayers    srcSubresource;
 //    VkOffset3D                  srcOffsets[2];
