@@ -8,10 +8,7 @@ import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkImageCreateInfo
-import vkn.VkBufferUsage
-import vkn.VkCommandPool
-import vkn.VkFormat
-import vkn.VkMemoryProperty
+import vkn.*
 import java.awt.Color
 import java.awt.color.ColorSpace
 import java.awt.geom.AffineTransform
@@ -43,10 +40,10 @@ open class VulkanTexture(val device: VulkanDevice,
     private var stagingImage: VulkanImage
     private var gt: GenericTexture? = null
 
-    inner class VulkanImage(var image: Long = -1L, var memory: Long = -1L, val maxSize: Long = -1L) {
+    inner class VulkanImage(var image: VkImage = -1L, var memory: VkDeviceMemory = -1L, val maxSize: VkDeviceSize = -1L) {
 
-        var sampler: Long = -1L
-        var view: Long = -1L
+        var sampler: VkSampler = NULL
+        var view: VkImageView = NULL
 
 
         fun copyFrom(commandBuffer: VkCommandBuffer, buffer: VulkanBuffer) {
@@ -689,7 +686,7 @@ open class VulkanTexture(val device: VulkanDevice,
             return newImage
         }
 
-        fun transitionLayout(image: Long, oldLayout: Int, newLayout: Int, mipLevels: Int = 1,
+        fun transitionLayout(image: VkImage, oldLayout: Int, newLayout: Int, mipLevels: Int = 1,
                              subresourceRange: VkImageSubresourceRange? = null,
                              srcStage: Int = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, dstStage: Int = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
                              commandBuffer: VkCommandBuffer) {
@@ -887,35 +884,35 @@ open class VulkanTexture(val device: VulkanDevice,
 
     override fun close() {
         image?.let {
-            if (it.view != -1L) {
+            if (it.view != NULL) {
                 vkDestroyImageView(device.vulkanDevice, it.view, null)
-                it.view = -1L
+                it.view = NULL
             }
 
-            if (it.image != -1L) {
+            if (it.image != NULL) {
                 vkDestroyImage(device.vulkanDevice, it.image, null)
-                it.image = -1L
+                it.image = NULL
             }
 
-            if (it.sampler != -1L) {
+            if (it.sampler != NULL) {
                 vkDestroySampler(device.vulkanDevice, it.sampler, null)
-                it.sampler = -1L
+                it.sampler = NULL
             }
 
-            if (it.memory != -1L) {
+            if (it.memory != NULL) {
                 vkFreeMemory(device.vulkanDevice, it.memory, null)
-                it.memory = -1L
+                it.memory = NULL
             }
         }
 
-        if (stagingImage.image != -1L) {
+        if (stagingImage.image != NULL) {
             vkDestroyImage(device.vulkanDevice, stagingImage.image, null)
-            stagingImage.image = -1L
+            stagingImage.image = NULL
         }
 
-        if (stagingImage.memory != -1L) {
+        if (stagingImage.memory != NULL) {
             vkFreeMemory(device.vulkanDevice, stagingImage.memory, null)
-            stagingImage.memory = -1L
+            stagingImage.memory = NULL
         }
     }
 

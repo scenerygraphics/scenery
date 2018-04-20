@@ -50,6 +50,11 @@ inline fun VkCommandBuffer.copyBuffer(srcBuffer: VkBuffer, dstBuffer: VkBuffer, 
 }
 
 inline fun VkCommandBuffer.copyBufferToImage(srcBuffer: VkBuffer, dstImage: VkImage, dstImageLayout: VkImageLayout,
+                                             region: VkBufferImageCopy) {
+    VK10.nvkCmdCopyBufferToImage(this, srcBuffer, dstImage, dstImageLayout.i, 1, region.adr)
+}
+
+inline fun VkCommandBuffer.copyBufferToImage(srcBuffer: VkBuffer, dstImage: VkImage, dstImageLayout: VkImageLayout,
                                              region: VkBufferImageCopy.Buffer) {
     VK10.nvkCmdCopyBufferToImage(this, srcBuffer, dstImage, dstImageLayout.i, region.remaining(), region.adr)
 }
