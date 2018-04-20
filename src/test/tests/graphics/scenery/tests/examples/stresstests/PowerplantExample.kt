@@ -58,7 +58,7 @@ class PowerplantExample : SceneryBase("PowerplantExample", windowWidth = 1280, w
 
         val plant = Mesh()
         with(plant) {
-            readFromOBJ(getDemoFilesPath() + "/powerplant.obj", useMTL = true)
+            readFromOBJ(getDemoFilesPath() + "/powerplant.obj", importMaterials = true)
             position = GLVector(0.0f, 0.0f, 0.0f)
             scale = GLVector(0.001f, 0.001f, 0.001f)
             material = Material()

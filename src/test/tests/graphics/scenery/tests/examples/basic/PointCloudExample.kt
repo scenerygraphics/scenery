@@ -60,7 +60,7 @@ class PointCloudExample : SceneryBase("PointCloudExample") {
 
         val pointCloud = PointCloud(radius=0.025f)
         with(pointCloud) {
-            readFromOBJ( TexturedCubeExample::class.java.getResource("models/sphere.obj").file, useMTL = false)
+            readFromOBJ( TexturedCubeExample::class.java.getResource("models/sphere.obj").file, importMaterials = false)
             position = GLVector(0.0f, 0.0f, 0.0f)
             name = "Sphere Mesh"
             material = pcmaterial
