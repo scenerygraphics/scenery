@@ -101,7 +101,7 @@ object appBuffer {
         return res
     }
 
-    inline fun longBufferOf(long: Long): LongBuffer {
+    infix inline fun longBufferOf(long: Long): LongBuffer {
         val res = longBuffer(1)
         res[0] = long
         return res

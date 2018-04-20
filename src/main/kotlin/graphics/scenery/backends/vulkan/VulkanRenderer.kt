@@ -961,10 +961,10 @@ open class VulkanRenderer(hub: Hub,
                     }
 
                     // add new texture to texture list and cache, and close old texture
-                    s.textures.put(type, vkTexture!!)
-                    textureCache.put(texture, vkTexture)
+                    s.textures[type] = vkTexture!!
+                    textureCache[texture] = vkTexture
                 } else {
-                    s.textures.put(type, textureCache[texture]!!)
+                    s.textures[type] = textureCache[texture]!!
                 }
             }
 
