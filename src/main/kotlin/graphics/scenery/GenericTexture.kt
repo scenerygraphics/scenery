@@ -10,7 +10,7 @@ import java.nio.ByteBuffer
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-data class GenericTexture(
+data class GenericTexture @JvmOverloads constructor(
     /** Name of the texture, might e.g. be "diffuse" */
     var name: String,
     /** Dimensions of the texture in pixels */
