@@ -1,5 +1,6 @@
 package graphics.scenery.utils
 
+import com.sun.jna.Library
 import com.sun.jna.Native
 import com.sun.jna.ptr.PointerByReference
 import com.sun.jna.win32.StdCallLibrary
@@ -11,7 +12,7 @@ import com.sun.jna.win32.StdCallLibrary
  * @author Ulrik Guenther <hello@ulrik.is>
  */
 
-interface RenderdocLibrary : StdCallLibrary {
+interface RenderdocLibrary : Library {
     fun RENDERDOC_GetAPI(version: Int, out: PointerByReference): Int
 
     companion object {
