@@ -14,14 +14,12 @@ import graphics.scenery.utils.*
 import kotlinx.coroutines.experimental.Deferred
 import kotlinx.coroutines.experimental.async
 import kotlinx.coroutines.experimental.runBlocking
-import org.lwjgl.PointerBuffer
 import org.lwjgl.system.Configuration
 import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.system.jemalloc.JEmalloc.*
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.EXTDebugReport.*
-import org.lwjgl.vulkan.KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
 import org.lwjgl.vulkan.VK10.*
 import vkn.*
 import java.awt.image.BufferedImage
@@ -29,7 +27,6 @@ import java.awt.image.DataBufferByte
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.text.SimpleDateFormat
 import java.util.*
@@ -73,10 +70,10 @@ open class VulkanRenderer(hub: Hub,
 
     // helper classes
     data class PresentHelpers(
-        val signalSemaphore: LongBuffer = memAllocLong(1),
-        val waitSemaphore: LongBuffer = memAllocLong(1),
-        val commandBuffers: PointerBuffer = memAllocPointer(1),
-        val waitStages: IntBuffer = memAllocInt(1),
+        var signalSemaphore: VkSemaphore = NULL,
+        var waitSemaphore: VkSemaphore = NULL,
+        var commandBuffer: VkCommandBuffer? = null,
+        var waitStage: VkPipelineStageFlags = 0,
         val submitInfo: VkSubmitInfo = VkSubmitInfo.calloc()
     )
 
@@ -100,9 +97,9 @@ open class VulkanRenderer(hub: Hub,
     )
 
     data class CommandPools(
-        var Standard: VkCommandPool = -1L,
-        var Render: VkCommandPool = -1L,
-        var Compute: VkCommandPool = -1L
+        var Standard: VkCommandPool = NULL,
+        var Render: VkCommandPool = NULL,
+        var Compute: VkCommandPool = NULL
     )
 
     data class DeviceAndGraphicsQueueFamily(
@@ -115,10 +112,11 @@ open class VulkanRenderer(hub: Hub,
 
     class Pipeline(internal var pipeline: VkPipeline = NULL, internal var layout: VkPipelineLayout = NULL)
 
-    sealed class DescriptorSet(val id: Long = 0L, val name: String = "") {
-        object None : DescriptorSet(0L)
-        data class Set(val setId: Long, val setName: String = "") : DescriptorSet(setId, setName)
-        data class DynamicSet(val setId: Long, val offset: Int, val setName: String = "") : DescriptorSet(setId, setName)
+    sealed class DescriptorSet(val id: VkDescriptorSet = NULL, val name: String = "") {
+        object None : DescriptorSet()
+        data class Set(val setId: VkDescriptorSet, val setName: String = "") : DescriptorSet(setId, setName)
+        // TODO consider VkDeviceSize (~Long) for offset
+        data class DynamicSet(val setId: VkDescriptorSet, val offset: Int, val setName: String = "") : DescriptorSet(setId, setName)
     }
 
     private val lateResizeInitializers = ConcurrentHashMap<Node, () -> Any>()
@@ -156,7 +154,7 @@ open class VulkanRenderer(hub: Hub,
 
                     prepareRenderpassesFromConfig(renderConfig, window.width, window.height)
 
-                    semaphores.forEach { it.value.forEach { semaphore -> vkDestroySemaphore(device.vulkanDevice, semaphore, null) } }
+                    semaphores.forEach { it.value.forEach { semaphore -> device.vulkanDevice destroySemaphore semaphore } }
                     semaphores = prepareStandardSemaphores(device)
 
                     // Create render command buffers
@@ -1246,129 +1244,129 @@ open class VulkanRenderer(hub: Hub,
             var height = windowHeight
 
             // create framebuffer
-            with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
-                config.rendertargets?.filter { it.key == passConfig.output }?.map { rt ->
-                    logger.info("Creating render framebuffer ${rt.key} for pass $passName")
+            val cmdBuf = device.vulkanDevice.newCommandBuffer(commandPools.Standard, autostart = true)
 
-                    // TODO: Take [AttachmentConfig.size] into consideration -- also needs to set image size in shader properties correctly
-                    width = (settings.get<Float>("Renderer.SupersamplingFactor") * windowWidth).toInt()
-                    height = (settings.get<Float>("Renderer.SupersamplingFactor") * windowHeight).toInt()
+            config.rendertargets?.filter { it.key == passConfig.output }?.map { rt ->
+                logger.info("Creating render framebuffer ${rt.key} for pass $passName")
 
-                    if (framebuffers.containsKey(rt.key)) {
-                        logger.info("Reusing already created framebuffer")
-                        pass.output.put(rt.key, framebuffers[rt.key]!!)
-                    } else {
+                // TODO: Take [AttachmentConfig.size] into consideration -- also needs to set image size in shader properties correctly
+                width = (settings.get<Float>("Renderer.SupersamplingFactor") * windowWidth).toInt()
+                height = (settings.get<Float>("Renderer.SupersamplingFactor") * windowHeight).toInt()
 
-                        // create framebuffer -- don't clear it, if blitting is needed
-                        val framebuffer = VulkanFramebuffer(device, commandPools.Standard,
-                            width, height, this,
-                            shouldClear = !passConfig.blitInputs,
-                            sRGB = renderConfig.sRGB)
-
-                        rt.value.forEach { att ->
-                            logger.info(" + attachment ${att.key}, ${att.value.format.name}")
-
-                            when (att.value.format) {
-                                RenderConfigReader.TargetFormat.RGBA_Float32 -> framebuffer.addFloatRGBABuffer(att.key, 32)
-                                RenderConfigReader.TargetFormat.RGBA_Float16 -> framebuffer.addFloatRGBABuffer(att.key, 16)
-
-                                RenderConfigReader.TargetFormat.RGB_Float32 -> framebuffer.addFloatRGBBuffer(att.key, 32)
-                                RenderConfigReader.TargetFormat.RGB_Float16 -> framebuffer.addFloatRGBBuffer(att.key, 16)
-
-                                RenderConfigReader.TargetFormat.RG_Float32 -> framebuffer.addFloatRGBuffer(att.key, 32)
-                                RenderConfigReader.TargetFormat.RG_Float16 -> framebuffer.addFloatRGBuffer(att.key, 16)
-
-                                RenderConfigReader.TargetFormat.RGBA_UInt16 -> framebuffer.addUnsignedByteRGBABuffer(att.key, 16)
-                                RenderConfigReader.TargetFormat.RGBA_UInt8 -> framebuffer.addUnsignedByteRGBABuffer(att.key, 8)
-                                RenderConfigReader.TargetFormat.R_UInt16 -> framebuffer.addUnsignedByteRBuffer(att.key, 16)
-                                RenderConfigReader.TargetFormat.R_UInt8 -> framebuffer.addUnsignedByteRBuffer(att.key, 8)
-
-                                RenderConfigReader.TargetFormat.Depth32 -> framebuffer.addDepthBuffer(att.key, 32)
-                                RenderConfigReader.TargetFormat.Depth24 -> framebuffer.addDepthBuffer(att.key, 24)
-                                RenderConfigReader.TargetFormat.R_Float16 -> framebuffer.addFloatBuffer(att.key, 16)
-                            }
-
-                        }
-
-                        framebuffer.createRenderpassAndFramebuffer()
-                        framebuffer.outputDescriptorSet = VU.createRenderTargetDescriptorSet(device,
-                            descriptorPool, descriptorSetLayouts["outputs-${rt.key}"]!!, rt.value, framebuffer)
-
-                        pass.output.put(rt.key, framebuffer)
-                        framebuffers.put(rt.key, framebuffer)
-                    }
-                }
-
-                pass.commandBufferCount = swapchain!!.images!!.size
-
-                if (passConfig.output == "Viewport") {
-                    // create viewport renderpass with swapchain image-derived framebuffer
-                    pass.isViewportRenderpass = true
-                    width = windowWidth
-                    height = windowHeight
-
-                    swapchain!!.images!!.forEachIndexed { i, _ ->
-                        val fb = VulkanFramebuffer(device, commandPools.Standard,
-                            width, height, this@with, sRGB = renderConfig.sRGB)
-
-                        fb.addSwapchainAttachment("swapchain-$i", swapchain!!, i)
-                        fb.addDepthBuffer("swapchain-$i-depth", 32)
-                        fb.createRenderpassAndFramebuffer()
-
-                        pass.output.put("Viewport-$i", fb)
-                    }
-                }
-
-                pass.vulkanMetadata.clearValues?.free()
-                if (!passConfig.blitInputs) {
-                    pass.vulkanMetadata.clearValues = VkClearValue.calloc(pass.output.values.first().attachments.count())
-                    pass.vulkanMetadata.clearValues?.let { clearValues ->
-
-                        pass.output.values.first().attachments.values.forEachIndexed { i, att ->
-                            when (att.type) {
-                                VulkanFramebuffer.VkFramebufferAttachment.COLOR -> {
-                                    clearValues[i].color().float32().put(pass.passConfig.clearColor.toFloatArray())
-                                }
-                                VulkanFramebuffer.VkFramebufferAttachment.DEPTH -> {
-                                    clearValues[i].depthStencil().set(pass.passConfig.depthClearValue, 0)
-                                }
-                            }
-                        }
-                    }
+                if (framebuffers.containsKey(rt.key)) {
+                    logger.info("Reusing already created framebuffer")
+                    pass.output.put(rt.key, framebuffers[rt.key]!!)
                 } else {
-                    pass.vulkanMetadata.clearValues = null
+
+                    // create framebuffer -- don't clear it, if blitting is needed
+                    val framebuffer = VulkanFramebuffer(device, commandPools.Standard,
+                        width, height, cmdBuf,
+                        shouldClear = !passConfig.blitInputs,
+                        sRGB = renderConfig.sRGB)
+
+                    rt.value.forEach { att ->
+                        logger.info(" + attachment ${att.key}, ${att.value.format.name}")
+
+                        when (att.value.format) {
+                            RenderConfigReader.TargetFormat.RGBA_Float32 -> framebuffer.addFloatRGBABuffer(att.key, 32)
+                            RenderConfigReader.TargetFormat.RGBA_Float16 -> framebuffer.addFloatRGBABuffer(att.key, 16)
+
+                            RenderConfigReader.TargetFormat.RGB_Float32 -> framebuffer.addFloatRGBBuffer(att.key, 32)
+                            RenderConfigReader.TargetFormat.RGB_Float16 -> framebuffer.addFloatRGBBuffer(att.key, 16)
+
+                            RenderConfigReader.TargetFormat.RG_Float32 -> framebuffer.addFloatRGBuffer(att.key, 32)
+                            RenderConfigReader.TargetFormat.RG_Float16 -> framebuffer.addFloatRGBuffer(att.key, 16)
+
+                            RenderConfigReader.TargetFormat.RGBA_UInt16 -> framebuffer.addUnsignedByteRGBABuffer(att.key, 16)
+                            RenderConfigReader.TargetFormat.RGBA_UInt8 -> framebuffer.addUnsignedByteRGBABuffer(att.key, 8)
+                            RenderConfigReader.TargetFormat.R_UInt16 -> framebuffer.addUnsignedByteRBuffer(att.key, 16)
+                            RenderConfigReader.TargetFormat.R_UInt8 -> framebuffer.addUnsignedByteRBuffer(att.key, 8)
+
+                            RenderConfigReader.TargetFormat.Depth32 -> framebuffer.addDepthBuffer(att.key, 32)
+                            RenderConfigReader.TargetFormat.Depth24 -> framebuffer.addDepthBuffer(att.key, 24)
+                            RenderConfigReader.TargetFormat.R_Float16 -> framebuffer.addFloatBuffer(att.key, 16)
+                        }
+
+                    }
+
+                    framebuffer.createRenderpassAndFramebuffer()
+                    framebuffer.outputDescriptorSet = VU.createRenderTargetDescriptorSet(device,
+                        descriptorPool, descriptorSetLayouts["outputs-${rt.key}"]!!, rt.value, framebuffer)
+
+                    pass.output.put(rt.key, framebuffer)
+                    framebuffers.put(rt.key, framebuffer)
                 }
-
-                pass.vulkanMetadata.renderArea.extent().set(
-                    (pass.passConfig.viewportSize.first * width).toInt(),
-                    (pass.passConfig.viewportSize.second * height).toInt())
-                pass.vulkanMetadata.renderArea.offset().set(
-                    (pass.passConfig.viewportOffset.first * width).toInt(),
-                    (pass.passConfig.viewportOffset.second * height).toInt())
-                logger.debug("Render area for $passName: ${pass.vulkanMetadata.renderArea.extent().width()}x${pass.vulkanMetadata.renderArea.extent().height()}")
-
-                pass.vulkanMetadata.viewport[0].set(
-                    (pass.passConfig.viewportOffset.first * width),
-                    (pass.passConfig.viewportOffset.second * height),
-                    (pass.passConfig.viewportSize.first * width),
-                    (pass.passConfig.viewportSize.second * height),
-                    0.0f, 1.0f)
-
-                pass.vulkanMetadata.scissor[0].extent().set(
-                    (pass.passConfig.viewportSize.first * width).toInt(),
-                    (pass.passConfig.viewportSize.second * height).toInt())
-
-                pass.vulkanMetadata.scissor[0].offset().set(
-                    (pass.passConfig.viewportOffset.first * width).toInt(),
-                    (pass.passConfig.viewportOffset.second * height).toInt())
-
-                pass.vulkanMetadata.eye.put(0, pass.passConfig.eye)
-
-                pass.semaphore = VU.getLong("vkCreateSemaphore",
-                    { vkCreateSemaphore(device.vulkanDevice, semaphoreCreateInfo, null, this) }, {})
-
-                this.end(device, commandPools.Standard, this@VulkanRenderer.queue, flush = true)
             }
+
+            pass.commandBufferCount = swapchain!!.images!!.size
+
+            if (passConfig.output == "Viewport") {
+                // create viewport renderpass with swapchain image-derived framebuffer
+                pass.isViewportRenderpass = true
+                width = windowWidth
+                height = windowHeight
+
+                swapchain!!.images!!.forEachIndexed { i, _ ->
+                    val fb = VulkanFramebuffer(device, commandPools.Standard,
+                        width, height, cmdBuf, sRGB = renderConfig.sRGB)
+
+                    fb.addSwapchainAttachment("swapchain-$i", swapchain!!, i)
+                    fb.addDepthBuffer("swapchain-$i-depth", 32)
+                    fb.createRenderpassAndFramebuffer()
+
+                    pass.output.put("Viewport-$i", fb)
+                }
+            }
+
+            pass.vulkanMetadata.clearValues?.free()
+            if (!passConfig.blitInputs) {
+                pass.vulkanMetadata.clearValues = VkClearValue.calloc(pass.output.values.first().attachments.count())
+                pass.vulkanMetadata.clearValues?.let { clearValues ->
+
+                    pass.output.values.first().attachments.values.forEachIndexed { i, att ->
+                        when (att.type) {
+                            VulkanFramebuffer.VkFramebufferAttachment.COLOR -> {
+                                clearValues[i].color().float32().put(pass.passConfig.clearColor.toFloatArray())
+                            }
+                            VulkanFramebuffer.VkFramebufferAttachment.DEPTH -> {
+                                clearValues[i].depthStencil().set(pass.passConfig.depthClearValue, 0)
+                            }
+                        }
+                    }
+                }
+            } else {
+                pass.vulkanMetadata.clearValues = null
+            }
+
+            pass.vulkanMetadata.renderArea.extent().set(
+                (pass.passConfig.viewportSize.first * width).toInt(),
+                (pass.passConfig.viewportSize.second * height).toInt())
+            pass.vulkanMetadata.renderArea.offset().set(
+                (pass.passConfig.viewportOffset.first * width).toInt(),
+                (pass.passConfig.viewportOffset.second * height).toInt())
+            logger.debug("Render area for $passName: ${pass.vulkanMetadata.renderArea.extent().width()}x${pass.vulkanMetadata.renderArea.extent().height()}")
+
+            pass.vulkanMetadata.viewport[0].set(
+                (pass.passConfig.viewportOffset.first * width),
+                (pass.passConfig.viewportOffset.second * height),
+                (pass.passConfig.viewportSize.first * width),
+                (pass.passConfig.viewportSize.second * height),
+                0.0f, 1.0f)
+
+            pass.vulkanMetadata.scissor[0].extent().set(
+                (pass.passConfig.viewportSize.first * width).toInt(),
+                (pass.passConfig.viewportSize.second * height).toInt())
+
+            pass.vulkanMetadata.scissor[0].offset().set(
+                (pass.passConfig.viewportOffset.first * width).toInt(),
+                (pass.passConfig.viewportOffset.second * height).toInt())
+
+            pass.vulkanMetadata.eye.put(0, pass.passConfig.eye)
+
+            pass.semaphore = VU.getLong("vkCreateSemaphore",
+                { vkCreateSemaphore(device.vulkanDevice, semaphoreCreateInfo, null, this) }, {})
+
+            cmdBuf.end(device, commandPools.Standard, this@VulkanRenderer.queue, flush = true)
 
             renderpasses.put(passName, pass)
         }
@@ -1441,10 +1439,10 @@ open class VulkanRenderer(hub: Hub,
             .sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
             .pNext(NULL)
             .waitSemaphoreCount(1)
-            .pWaitSemaphores(present.waitSemaphore)
-            .pWaitDstStageMask(present.waitStages)
-            .pCommandBuffers(present.commandBuffers)
-            .pSignalSemaphores(present.signalSemaphore)
+            .pWaitSemaphores(appBuffer longBufferOf present.waitSemaphore)
+            .pWaitDstStageMask(appBuffer intBufferOf present.waitStage)
+            .pCommandBuffers(appBuffer pointerBufferOf present.commandBuffer!!)
+            .pSignalSemaphores(appBuffer longBufferOf present.signalSemaphore)
 
         // Submit to the graphics queue
         VU.run("Submit viewport render queue", { vkQueueSubmit(queue, present.submitInfo, commandBuffer.getFence()) })
@@ -1725,10 +1723,10 @@ open class VulkanRenderer(hub: Hub,
 
         viewportPass.updateShaderParameters()
 
-        ph.commandBuffers.put(0, viewportCommandBuffer.commandBuffer!!)
-        ph.waitStages.put(0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
-        ph.signalSemaphore.put(0, semaphores[StandardSemaphores.RenderComplete]!![0])
-        ph.waitSemaphore.put(0, firstWaitSemaphore.get(0))
+        ph.commandBuffer = viewportCommandBuffer.commandBuffer
+        ph.waitStage = VkPipelineStage.COLOR_ATTACHMENT_OUTPUT_BIT.i
+        ph.signalSemaphore = semaphores[StandardSemaphores.RenderComplete]!![0]
+        ph.waitSemaphore = firstWaitSemaphore[0]
 
         submitFrame(queue, viewportPass, viewportCommandBuffer, ph)
 
@@ -2696,10 +2694,6 @@ open class VulkanRenderer(hub: Hub,
         vkDestroyDescriptorPool(device.vulkanDevice, descriptorPool, null)
 
         logger.debug("Closing command buffers...")
-        ph.commandBuffers.free()
-        memFree(ph.signalSemaphore)
-        memFree(ph.waitSemaphore)
-        memFree(ph.waitStages)
 
         if (timestampQueryPool != -1L) {
             logger.debug("Closing query pools...")

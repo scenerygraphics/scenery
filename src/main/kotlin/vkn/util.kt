@@ -81,11 +81,11 @@ typealias VkSurfaceKHR = Long
 typealias VkSwapchainKHR = Long
 
 typealias VkDescriptorSetBuffer = LongBuffer
-typealias VkSemaphorePtr = LongBuffer
-typealias VkSwapchainKHRptr = LongBuffer
-typealias VkResultPtr = IntBuffer
-typealias VkSamplerPtr = LongBuffer
-typealias VkImageViewPtr = LongBuffer
+typealias VkSemaphoreBuffer = LongBuffer
+typealias VkSwapchainKhrBuffer = LongBuffer
+typealias VkResultBuffer = IntBuffer
+typealias VkSamplerBuffer = LongBuffer
+typealias VkImageViewBuffer = LongBuffer
 
 typealias VkImageArray = LongArray
 typealias VkImageViewArray = LongArray
@@ -122,7 +122,7 @@ object VkPhysicalDeviceArrayList {
 }
 
 
-inline fun vkDestroySemaphores(device: VkDevice, semaphores: VkSemaphorePtr) {
+inline fun vkDestroySemaphores(device: VkDevice, semaphores: VkSemaphoreBuffer) {
     for (i in 0 until semaphores.remaining())
         VK10.nvkDestroySemaphore(device, semaphores[i], NULL)
 }

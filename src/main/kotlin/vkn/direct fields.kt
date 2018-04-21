@@ -1643,7 +1643,7 @@ inline var VkDescriptorSetLayoutBinding.descriptorCount
 inline var VkDescriptorSetLayoutBinding.stageFlags: VkShaderStageFlags
     get() = VkDescriptorSetLayoutBinding.nstageFlags(adr)
     set(value) = VkDescriptorSetLayoutBinding.nstageFlags(adr, value)
-inline var VkDescriptorSetLayoutBinding.immutableSamplers: VkSamplerPtr?
+inline var VkDescriptorSetLayoutBinding.immutableSamplers: VkSamplerBuffer?
     get() = VkDescriptorSetLayoutBinding.npImmutableSamplers(adr)
     set(value) = VkDescriptorSetLayoutBinding.npImmutableSamplers(adr, value)
 
@@ -1788,7 +1788,7 @@ inline var VkFramebufferCreateInfo.renderPass: VkRenderPass
     get() = VkFramebufferCreateInfo.nrenderPass(adr)
     set(value) = VkFramebufferCreateInfo.nrenderPass(adr, value)
 //inline val VkFramebufferCreateInfo.attachmentCount get() = attachmentCount()
-inline var VkFramebufferCreateInfo.attachments: VkImageViewPtr?
+inline var VkFramebufferCreateInfo.attachments: VkImageViewBuffer?
     get() = VkFramebufferCreateInfo.npAttachments(adr)
     set(value) = VkFramebufferCreateInfo.npAttachments(adr, value)
 inline var VkFramebufferCreateInfo.width
@@ -3357,19 +3357,19 @@ inline var VkPresentInfoKHR.next
     get() = VkPresentInfoKHR.npNext(adr)
     set(value) = VkPresentInfoKHR.npNext(adr, value)
 //inline val VkPresentInfoKHR.waitSemaphoreCount get() = VkPresentInfoKHR.nwaitSemaphoreCount(adr)
-inline var VkPresentInfoKHR.waitSemaphores: VkSemaphorePtr?
+inline var VkPresentInfoKHR.waitSemaphores: VkSemaphoreBuffer?
     get() = VkPresentInfoKHR.npWaitSemaphores(adr)
     set(value) = VkPresentInfoKHR.npWaitSemaphores(adr, value)
 inline var VkPresentInfoKHR.swapchainCount: Int
     get() = VkPresentInfoKHR.nswapchainCount(adr)
     set(value) = VkPresentInfoKHR.nswapchainCount(adr, value)
-inline var VkPresentInfoKHR.swapchains: VkSwapchainKHRptr
+inline var VkPresentInfoKHR.swapchains: VkSwapchainKhrBuffer
     get() = VkPresentInfoKHR.npSwapchains(adr)
     set(value) = VkPresentInfoKHR.npSwapchains(adr, value)
 inline var VkPresentInfoKHR.imageIndices: IntBuffer
     get() = VkPresentInfoKHR.npImageIndices(adr)
     set(value) = VkPresentInfoKHR.npImageIndices(adr, value)
-inline var VkPresentInfoKHR.results: VkResultPtr?
+inline var VkPresentInfoKHR.results: VkResultBuffer?
     get() = VkPresentInfoKHR.npResults(adr)
     set(value) = VkPresentInfoKHR.npResults(adr, value)
 
