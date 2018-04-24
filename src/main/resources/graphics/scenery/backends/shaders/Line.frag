@@ -1,16 +1,13 @@
 #version 450 core
 
-in VertexData {
+layout(location = 0) in VertexData {
     vec3 Position;
     vec3 Normal;
-    vec2 TexCoord;
-    vec3 FragPosition;
     vec4 Color;
 } Vertex;
 
-layout(location = 0) out vec3 Position;
-layout(location = 1) out vec2 Normal;
-layout(location = 2) out vec4 DiffuseAlbedo;
+layout(location = 0) out vec4 NormalsMaterial;
+layout(location = 1) out vec4 DiffuseAlbedo;
 
 const float PI = 3.14159265358979323846264;
 const int NUM_OBJECT_TEXTURES = 6;
@@ -19,7 +16,8 @@ struct MaterialInfo {
     vec3 Ka;
     vec3 Kd;
     vec3 Ks;
-    float Shininess;
+    float Roughness;
+    float Metallic;
     float Opacity;
 };
 
@@ -113,26 +111,9 @@ vec2 EncodeOctaH( vec3 n )
 }
 
 void main() {
-    Position = Vertex.FragPosition;
-    DiffuseAlbedo.rgb = vec3(0.0f, 0.0f, 0.0f);
-
     DiffuseAlbedo.rgb = Vertex.Color.rgb;
     DiffuseAlbedo.a = 0.0f;
-/*
-Normals are encoded as Octahedron Normal Vectors, or Spherical Normal Vectors, which saves on storage as well as read/write processing of one
-component. If using Spherical Encoding, do not forget to use spherical decode function in DeferredLighting shader.
-*/
-    vec2 EncodedNormal = EncodeOctaH(Vertex.Normal);
-//    vec3 NormalizedNormal = normalize(VertexIn.Normal);
-//    vec2 EncodedNormal = EncodeSpherical(NormalizedNormal);
 
-
-    if((materialType & MATERIAL_HAS_NORMAL) == MATERIAL_HAS_NORMAL) {
-//        vec3 normal = texture(ObjectTextures[3], VertexIn.TexCoord).rgb*(255.0/127.0) - (128.0/127.0);
-//        normal = TBN(normalize(VertexIn.Normal), -VertexIn.FragPosition, VertexIn.TexCoord)*normal;
-
-        Normal = EncodedNormal;
-    } else {
-        Normal = EncodedNormal;
-    }
+    NormalsMaterial.rg = EncodeOctaH(Vertex.Normal);
+    NormalsMaterial.ba = vec2(Material.Roughness, Material.Metallic);
 }
