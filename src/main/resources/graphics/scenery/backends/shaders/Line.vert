@@ -8,11 +8,8 @@ layout(location = 2) in vec2 vertexTexCoord;
 layout(location = 0) out VertexDataIn {
     vec4 Position;
     vec3 Normal;
-    vec2 TexCoord;
-    vec3 FragPosition;
     vec4 Color;
 } Vertex;
-
 
 layout(set = 0, binding = 0) uniform VRParameters {
     mat4 projectionMatrices[2];
@@ -20,15 +17,6 @@ layout(set = 0, binding = 0) uniform VRParameters {
     float IPD;
     int stereoEnabled;
 } vrParameters;
-
-struct Light {
-	float Linear;
-	float Quadratic;
-	float Intensity;
-	float Radius;
-	vec4 Position;
-  	vec4 Color;
-};
 
 const int MAX_NUM_LIGHTS = 1024;
 
@@ -71,11 +59,9 @@ void main()
 	nMVP = projectionMatrix*mv;
 
     Vertex.Normal = mat3(ubo.NormalMatrix) * normalize(vertexNormal);
-    Vertex.TexCoord = vertexTexCoord;
-    Vertex.FragPosition = vec3(ubo.ModelMatrix * vec4(vertexPosition, 1.0));
 
-	gl_Position = nMVP * vec4(vertexPosition, 1.0);
-	Vertex.Position = gl_Position;
+	Vertex.Position = nMVP * vec4(vertexPosition, 1.0);
+	gl_Position = Vertex.Position;
 
     Vertex.Color = lineColor;
 

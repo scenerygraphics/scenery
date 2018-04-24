@@ -3,6 +3,7 @@ package graphics.scenery.tests.examples.basic
 import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
+import graphics.scenery.numerics.Random
 import org.junit.Test
 import kotlin.concurrent.thread
 
@@ -23,10 +24,9 @@ class LineExample : SceneryBase("LineExample") {
         hub.add(SceneryElement.Renderer, renderer!!)
 
         val hull = Box(GLVector(50.0f, 50.0f, 50.0f), insideNormals = true)
-        val hullmaterial = Material()
-        hullmaterial.diffuse = GLVector(0.2f, 0.2f, 0.2f)
-        hullmaterial.doubleSided = true
-        hull.material = hullmaterial
+        hull.material.diffuse = GLVector(0.2f, 0.2f, 0.2f)
+        hull.material.doubleSided = true
+        hull.material.cullingMode = Material.CullingMode.Front
         scene.addChild(hull)
 
         val linematerial = Material()
@@ -42,17 +42,10 @@ class LineExample : SceneryBase("LineExample") {
 
         scene.addChild(line)
 
-        val colors = arrayOf(
-            GLVector(1.0f, 0.0f, 0.0f),
-            GLVector(0.0f, 1.0f, 0.0f),
-            GLVector(0.0f, 0.0f, 1.0f)
-        )
-
         val lights = (0..2).map {
-            val l = PointLight()
+            val l = PointLight(radius = 100.0f)
             l.intensity = 400.0f
-            l.quadratic = 0.2f
-            l.emissionColor = colors[it]
+            l.emissionColor = Random.randomVectorFromRange(3, 0.2f, 0.8f)
 
             scene.addChild(l)
             l
@@ -66,20 +59,25 @@ class LineExample : SceneryBase("LineExample") {
         scene.addChild(cam)
 
         thread {
-            var t = 0
-            while(true) {
-                if(lineAnimating) {
+            while (true) {
+                val t = runtime/100
+                if (lineAnimating) {
                     line.addPoint(GLVector(10.0f * Math.random().toFloat() - 5.0f, 10.0f * Math.random().toFloat() - 5.0f, 10.0f * Math.random().toFloat() - 5.0f))
-                    line.edgeWidth = 0.03f * Math.sin(t * Math.PI / 50).toFloat() + 0.004f
+                    line.edgeWidth = 0.03f * Math.sin(t * Math.PI / 50).toFloat() + 0.03f
                 }
 
                 Thread.sleep(100)
+            }
+        }
 
+        thread {
+            while(true) {
+                val t = runtime/100
                 lights.forEachIndexed { i, pointLight ->
-                    pointLight.position = GLVector(0.0f, 15.0f*Math.sin(2*i*Math.PI/3.0f+t*Math.PI/50).toFloat(), -15.0f*Math.cos(2*i*Math.PI/3.0f+t*Math.PI/50).toFloat())
+                    pointLight.position = GLVector(0.0f, 5.0f*Math.sin(2*i*Math.PI/3.0f+t*Math.PI/50).toFloat(), -5.0f*Math.cos(2*i*Math.PI/3.0f+t*Math.PI/50).toFloat())
                 }
 
-                t++
+                Thread.sleep(20)
             }
         }
     }
