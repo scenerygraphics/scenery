@@ -9,16 +9,14 @@ import java.util.*
  * This class can render bounding boxes for any node, use it in the [REPL]
  * e.g. by:
  * ```
- * bb = new BoundingBox();
+ * bb = new BoundingGrid();
  * bb.node = scene.find("ObjectName");
- * scene.addChild(bb);
  * ```
  * Programmatic usage in the same way is possible of course ;)
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-open class BoundingBox : Mesh() {
-    var boundingCoords = floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
+open class BoundingGrid : Mesh("Bounding Grid") {
     var labels = HashMap<String, TextBoard>()
 
     @ShaderProperty
@@ -47,14 +45,12 @@ open class BoundingBox : Mesh() {
 
     fun updateFromNode() {
         node?.let { node ->
-            var bb: FloatArray = node.boundingBoxCoords
-
-            val min = GLVector(bb[0], bb[2], bb[4], 0.0f)
-            val max = GLVector(bb[1], bb[3], bb[5], 0.0f)
+            val min = node.boundingBox?.min ?: return
+            val max = node.boundingBox?.max ?: return
 
             val b = Box(max - min)
 
-            logger.debug("Bounding box of $node is ${bb.joinToString(", ")}")
+            logger.debug("Bounding box of $node is ${node.boundingBox}")
 
             val center = (max - min)*0.5f
 
@@ -63,12 +59,14 @@ open class BoundingBox : Mesh() {
             this.texcoords = b.texcoords
             this.indices = b.indices
 
-            this.boundingCoords = bb
-            this.boundingBoxCoords = b.boundingBoxCoords
-            this.position = GLVector(bb[0], bb[2], bb[4]) + center
+            this.boundingBox = b.boundingBox
+            this.position = node.boundingBox!!.min + center
 
-            bb = this.boundingBoxCoords
-            labels["origin"]?.position = GLVector(bb[0], bb[2], bb[4])
+            labels["origin"]?.position = this.boundingBox!!.min
+
+            val bb = arrayListOf<Float>()
+            bb.addAll(this.boundingBox!!.min.toFloatArray().toList())
+            bb.addAll(this.boundingBox!!.max.toFloatArray().toList())
 
             labels["x"]?.position = GLVector(bb[1], bb[2], bb[4])
             labels["y"]?.position = GLVector(bb[0], bb[3], bb[4])
@@ -78,19 +76,20 @@ open class BoundingBox : Mesh() {
             this.needsUpdate = true
             this.needsUpdateWorld = true
 
-            name = "Bounding Box of ${node.name}"
+            name = "Bounding Grid of ${node.name}"
         }
     }
 
     init {
-        name = "Bounding Box"
-        this.material = ShaderMaterial(arrayListOf("DefaultDeferred.vert", "BoundingBox.frag"))
+        this.material = ShaderMaterial(arrayListOf("DefaultForward.vert", "BoundingGrid.frag"))
+        this.material.blending.setOverlayBlending()
+        this.material.blending.opacity = 0.8f
 
         labels = hashMapOf(
-            "origin".to(TextBoard()),
-            "x".to(TextBoard()),
-            "y".to(TextBoard()),
-            "z".to(TextBoard())
+            "origin" to TextBoard(),
+            "x" to TextBoard(),
+            "y" to TextBoard(),
+            "z" to TextBoard()
         )
 
         labels.forEach { s, fontBoard ->
@@ -105,7 +104,7 @@ open class BoundingBox : Mesh() {
 
     /** Stringify the bounding box */
     override fun toString(): String {
-        return "Bounding Box of ${node?.name}, coords: ${boundingCoords.joinToString(", ")}"
+        return "Bounding Box of ${node?.name}, coords: ${boundingBox?.min}/${boundingBox?.max}"
     }
 
     override fun preDraw() {

@@ -55,35 +55,8 @@ layout(location = 0) out vec4 FragColor;
 void main()
 {
     vec3 diffuse = Material.Kd;
-    float specular = Material.Metallic;
+    float specular = Material.Shininess;
     vec3 normal;
 
-	if((materialType & MATERIAL_HAS_AMBIENT) == MATERIAL_HAS_AMBIENT) {
-            //gAlbedoSpec.rgb = texture(ObjectTextures[0], VertexIn.TexCoord).rgb;
-        }
-
-        if((materialType & MATERIAL_HAS_DIFFUSE) == MATERIAL_HAS_DIFFUSE) {
-            diffuse = texture(ObjectTextures[1], Vertex.TexCoord).rgb;
-        }
-
-        if((materialType & MATERIAL_HAS_SPECULAR) == MATERIAL_HAS_SPECULAR) {
-            specular = texture(ObjectTextures[2], Vertex.TexCoord).r;
-        }
-
-        if((materialType & MATERIAL_HAS_ALPHAMASK) == MATERIAL_HAS_ALPHAMASK) {
-            if(texture(ObjectTextures[4], Vertex.TexCoord).r < 0.1f) {
-                discard;
-            }
-        }
-
-        if((materialType & MATERIAL_HAS_NORMAL) == MATERIAL_HAS_NORMAL) {
-    //        vec3 normal = texture(ObjectTextures[3], VertexIn.TexCoord).rgb*(255.0/127.0) - (128.0/127.0);
-    //        normal = TBN(normalize(VertexIn.Normal), -VertexIn.FragPosition, VertexIn.TexCoord)*normal;
-
-            normal = normalize(Vertex.Normal);
-        } else {
-            normal = normalize(Vertex.Normal);
-        }
-
-     FragColor = vec4(diffuse, Material.Opacity);
+    FragColor = vec4(diffuse, Material.Opacity);
 }
