@@ -76,14 +76,17 @@ open class BoundingGrid : Mesh("Bounding Grid") {
             this.needsUpdate = true
             this.needsUpdateWorld = true
 
+            this.dirty = true
+
             name = "Bounding Grid of ${node.name}"
         }
     }
 
     init {
         this.material = ShaderMaterial(arrayListOf("DefaultForward.vert", "BoundingGrid.frag"))
-        this.material.blending.setOverlayBlending()
+        this.material.blending.transparent = true
         this.material.blending.opacity = 0.8f
+        this.material.blending.setOverlayBlending()
 
         labels = hashMapOf(
             "origin" to TextBoard(),
@@ -97,6 +100,7 @@ open class BoundingGrid : Mesh("Bounding Grid") {
             fontBoard.fontColor = GLVector(1.0f, 1.0f, 1.0f)
             fontBoard.backgroundColor = GLVector(0.2f, 0.2f, 0.2f)
             fontBoard.transparent = 0
+            fontBoard.scale = GLVector(0.2f, 0.2f, 0.2f)
 
             this.addChild(fontBoard)
         }

@@ -25,9 +25,13 @@ open class Box @JvmOverloads constructor(val sizes: GLVector = GLVector(1.0f, 1.
         val side = 1.0f
         val side2 = side / 2.0f
 
-        boundingBox = OrientedBoundingBox(-side2*sizes.x(), side2*sizes.x(),
-            -side2*sizes.y(), side2*sizes.y(),
-            -side2*sizes.z(), side2*sizes.z())
+        boundingBox = OrientedBoundingBox(
+            -side2 * sizes.x(),
+            -side2 * sizes.y(),
+            -side2 * sizes.z(),
+            side2 * sizes.x(),
+            side2 * sizes.y(),
+            side2 * sizes.z())
 
         vertices = BufferUtils.allocateFloatAndPut(floatArrayOf(
             // Front

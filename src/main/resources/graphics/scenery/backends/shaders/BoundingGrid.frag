@@ -1,14 +1,6 @@
 #version 450 core
 #extension GL_ARB_separate_shader_objects: enable
 
-//layout(set = 5, binding = 0) uniform sampler2D InputHDRColor;
-//layout(set = 5, binding = 1) uniform sampler2D InputDepth;
-
-//layout(set = 1, binding = 0, std140) uniform ShaderParameters {
-//	float Gamma;
-//	float Exposure;
-//} hdrParams;
-
 const float PI = 3.14159265358979323846264;
 const int NUM_OBJECT_TEXTURES = 6;
 
@@ -48,15 +40,36 @@ layout(set = 3, binding = 0) uniform MaterialProperties {
     MaterialInfo Material;
 };
 
-layout(set = 4, binding = 0) uniform sampler2D ObjectTextures[NUM_OBJECT_TEXTURES];
+layout(set = 4, binding = 0) uniform ShaderProperties {
+    int numLines;
+    float lineWidth;
+    int ticksOnly;
+    vec3 gridColor;
+};
 
 layout(location = 0) out vec4 FragColor;
 
 void main()
 {
-    vec3 diffuse = Material.Kd;
-    float specular = Material.Shininess;
-    vec3 normal;
+    // draw screen-spaced antialiased grid lines, inspired by
+    // http://madebyevan.com/shaders/grid - here we scale the incoming
+    // coords by the numLines factor. For correct AA, the fwidth argument
+    // also has to be scaled by that factor.
+    vec2 coord = Vertex.TexCoord;
+    vec2 grid = abs(fract(coord*numLines - 0.5) - 0.5) / fwidth(coord*numLines);
+    // line width is determined by the minimum gradient, for thicker lines, we
+    // divide by lineWidth, lowering the gradient slope.
+    float line = min(grid.x, grid.y)/lineWidth;
 
-    FragColor = vec4(diffuse, Material.Opacity);
+    // if only ticks should be display, this'll discard the interior
+    // of the bounding box quad completely, apart from the ticks.
+    if(ticksOnly > 0) {
+        if(coord.x > 0.02 && coord.x < 0.98 && coord.y > 0.02 && coord.y < 0.98) {
+            discard;
+        }
+    }
+
+    // mix together line colors and black background.
+    // everything apart from the lines should be transparent.
+    FragColor = mix(vec4(0.0), vec4(gridColor, Material.Opacity), 1.0 - min(line, 1.0));
 }
