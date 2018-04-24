@@ -12,6 +12,7 @@ import java.util.*
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.collections.ArrayList
+import kotlin.math.abs
 import kotlin.properties.Delegates
 import kotlin.reflect.KMutableProperty1
 import kotlin.reflect.KProperty
@@ -78,7 +79,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
     open var useClassDerivedShader = false
 
     /** Node update routine, called before updateWorld */
-    open var update: ArrayList<() -> Unit> = ArrayList()
+    var update: ArrayList<() -> Unit> = ArrayList()
 
     /** World transform matrix. Will create inverse [iworld] upon modification. */
     override var world: GLMatrix by Delegates.observable(GLMatrix.getIdentity()) { property, old, new -> propertyChanged(property, old, new) }
@@ -385,6 +386,40 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
         }
 
         return this.scale
+    }
+
+    /**
+     * Checks whether two node's bounding boxes do intersect using a simple bounding sphere test.
+     */
+    fun intersects(other: Node): Boolean {
+        val ownMin = worldPosition(GLVector(boundingBoxCoords[0], boundingBoxCoords[2], boundingBoxCoords[4]))
+        val ownMax = worldPosition(GLVector(boundingBoxCoords[1], boundingBoxCoords[3], boundingBoxCoords[5]))
+
+        val otherMin = other.worldPosition(GLVector(other.boundingBoxCoords[0], other.boundingBoxCoords[2], other.boundingBoxCoords[4]))
+        val otherMax = other.worldPosition(GLVector(other.boundingBoxCoords[1], other.boundingBoxCoords[3], other.boundingBoxCoords[5]))
+
+        val radius = listOf((ownMax.x()-ownMin.x()), ownMax.y()-ownMin.y(), ownMax.z()-ownMin.z()).map { abs(it) }.max()!!
+        val radiusOther = listOf(otherMax.x()-otherMin.x(), otherMax.y()-otherMin.y(), otherMax.z()-otherMin.z()).map { abs(it) }.max()!!
+
+        val distance = (worldPosition() - other.worldPosition()).magnitude()
+
+        logger.info("r1=$radius, r2=$radiusOther, dist=$distance")
+
+        return (radius + radiusOther) > distance
+    }
+
+    /**
+     * Returns the [Node]'s world position
+     *
+     * @returns The position in world space
+     */
+    fun worldPosition(v: GLVector? = null): GLVector {
+        val target = v ?: position
+        return if(parent is Scene) {
+            target.clone()
+        } else {
+            world.mult(GLVector(target.x(), target.y(), target.z(), 1.0f)).xyz()
+        }
     }
 
     companion object NodeHelpers {
