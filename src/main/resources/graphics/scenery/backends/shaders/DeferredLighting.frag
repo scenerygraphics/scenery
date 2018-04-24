@@ -302,7 +302,9 @@ void main()
             lighting += ambientOcclusion.rgb;
         } if(debugLights == 6) {
             lighting += vec3(lightOcclusion);
-        }else {
+        } if(debugLights == 7) {
+            lighting = N;
+        } else {
             lighting += (diffuse + specular) * lightAttenuation;
         }
     }

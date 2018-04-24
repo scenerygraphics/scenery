@@ -63,7 +63,7 @@ class SponzaExample : SceneryBase("SponzaExample", windowWidth = 1280, windowHei
             scene.addChild(this)
         }
 
-        val desc = TextBoard(font = "RobotoSlabLight.ttf")
+        val desc = TextBoard()
         desc.text = "sponza"
         desc.position = GLVector(-2.0f, -0.1f, -4.0f)
         desc.fontColor = GLVector(0.0f, 0.0f, 0.0f)
