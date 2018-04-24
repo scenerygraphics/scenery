@@ -399,9 +399,6 @@ class OpenGLRenderer(hub: Hub,
         buffers.put("ShaderPropertyBuffer", OpenGLBuffer(gl, 10 * 1024 * 1024))
         buffers.put("ShaderParametersBuffer", OpenGLBuffer(gl, 128 * 1024))
 
-        settings.set("Renderer.displayWidth", window.width)
-        settings.set("Renderer.displayHeight", window.height)
-
         prepareDefaultTextures()
 
         renderpasses = prepareRenderpasses(renderConfig, window.width, window.height)
@@ -460,6 +457,9 @@ class OpenGLRenderer(hub: Hub,
             settings.get<Float>("Renderer.SupersamplingFactor")
         }
 
+        settings.set("Renderer.displayWidth", windowWidth)
+        settings.set("Renderer.displayHeight", windowHeight)
+
         flow.map { passName ->
             val passConfig = config.renderpasses[passName]!!
             val pass = OpenGLRenderpass(passName, passConfig)
@@ -468,9 +468,9 @@ class OpenGLRenderer(hub: Hub,
             var height = windowHeight
 
             config.rendertargets.filter { it.key == passConfig.output }.map { rt ->
-                logger.info("Creating render framebuffer ${rt.key} for pass $passName")
                 width = (supersamplingFactor * windowWidth * rt.value.size.first).toInt()
                 height = (supersamplingFactor * windowHeight * rt.value.size.second).toInt()
+                logger.info("Creating render framebuffer ${rt.key} for pass $passName (${width}x$height)")
 
                 settings.set("Renderer.$passName.displayWidth", width)
                 settings.set("Renderer.$passName.displayHeight", height)
@@ -612,6 +612,10 @@ class OpenGLRenderer(hub: Hub,
         if (mustRecreateFramebuffers) {
             renderpasses = prepareRenderpasses(renderConfig, window.width, window.height)
             flow = renderConfig.createRenderpassFlow()
+
+            scene.findObserver()?.let { cam ->
+                cam.perspectiveCamera(cam.fov, window.width.toFloat(), window.height.toFloat(), cam.nearPlaneDistance, cam.farPlaneDistance)
+            }
 
             mustRecreateFramebuffers = false
         }
@@ -2094,6 +2098,7 @@ class OpenGLRenderer(hub: Hub,
                 window.width = newWidth
                 window.height = newHeight
 
+                logger.debug("Resizing window to ${newWidth}x$newHeight")
                 mustRecreateFramebuffers = true
             }
         }, WINDOW_RESIZE_TIMEOUT)

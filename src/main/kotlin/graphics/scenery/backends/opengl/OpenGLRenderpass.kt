@@ -56,7 +56,7 @@ class OpenGLRenderpass(var passName: String = "", var passConfig: RenderConfigRe
                     else -> "Renderer.$passName.${entry.key}"
                 }
 
-                if (!entry.key.startsWith("Global")) {
+                if (!entry.key.startsWith("Global") && !entry.key.startsWith("Pass.")) {
                     settings.set(settingsKey, value)
                 }
 
