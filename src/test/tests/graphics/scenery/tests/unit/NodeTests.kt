@@ -3,7 +3,7 @@ package graphics.scenery.tests.unit
 import cleargl.GLMatrix
 import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
-import graphics.scenery.BufferUtils
+import graphics.scenery.BufferUtils.BufferUtils.allocateFloatAndPut
 import graphics.scenery.Mesh
 import org.junit.Test
 import graphics.scenery.Node
@@ -146,17 +146,21 @@ class NodeTests {
     @Test
     fun testBoundingBoxGeneration() {
         val m = Mesh()
-        m.vertices = BufferUtils.allocateFloatAndPut(
+        m.vertices = allocateFloatAndPut(
             floatArrayOf(-1.0f, -1.0f, -1.0f,
                 1.0f, 1.0f, 1.0f))
 
-        val expectedResult = floatArrayOf(-1.0f, 1.0f, -1.0f, 1.0f, -1.0f, 1.0f)
+        val expectedMin = floatArrayOf(-1.0f, 1.0f, -1.0f)
+        val expectedMax = floatArrayOf(1.0f, -1.0f, 1.0f)
+
         val expectedPosition = m.vertices.position()
         val expectedLimit = m.vertices.limit()
 
         assert(m.vertices.position() == expectedPosition)
         assert(m.vertices.limit() == expectedLimit)
-        assert(m.generateBoundingBox() contentEquals expectedResult)
+        m.generateBoundingBox()
+        assert(m.boundingBox!!.min.toFloatArray() contentEquals expectedMin)
+        assert(m.boundingBox!!.max.toFloatArray() contentEquals expectedMax)
     }
 
     /**
@@ -165,7 +169,7 @@ class NodeTests {
     @Test
     fun testCentering() {
         val m = Mesh()
-        m.vertices = BufferUtils.allocateFloatAndPut(
+        m.vertices = allocateFloatAndPut(
             floatArrayOf(-1.0f, -1.0f, -1.0f,
                 1.0f, 1.0f, 1.0f))
         m.generateBoundingBox()
@@ -182,7 +186,7 @@ class NodeTests {
     @Test
     fun testFitting() {
         val m = Mesh()
-        m.vertices = BufferUtils.allocateFloatAndPut(
+        m.vertices = allocateFloatAndPut(
             floatArrayOf(-1.0f, -2.0f, -4.0f,
                 1.0f, 2.0f, 4.0f))
         m.generateBoundingBox()

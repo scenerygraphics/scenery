@@ -68,6 +68,11 @@ class IntersectionExample: SceneryBase("IntersectionExample") {
         }
     }
 
+    override fun inputSetup() {
+        super.inputSetup()
+        setupCameraModeSwitching()
+    }
+
     @Test
     override fun main() {
         super.main()
