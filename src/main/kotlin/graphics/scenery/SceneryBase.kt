@@ -59,6 +59,8 @@ open class SceneryBase(var applicationName: String,
 
     var running: Boolean = false
         protected set
+    var runtime: Float = 0.0f
+        protected set
 
     var timeStep = 0.01f
 
@@ -138,6 +140,7 @@ open class SceneryBase(var applicationName: String,
         inputSetup()
 
         running = true
+        val startTime = System.nanoTime()
 
         if (!master && masterAddress != null) {
             thread {
@@ -176,6 +179,9 @@ open class SceneryBase(var applicationName: String,
         val frameTimeKeepCount = 16
 
         while (renderer?.shouldClose == false) {
+            runtime = (System.nanoTime() - startTime) / 1000000f
+            settings.set("System.Runtime", runtime)
+
             if(renderer?.managesRenderLoop == false) {
                 hub.getWorkingHMD()?.update()
             }
