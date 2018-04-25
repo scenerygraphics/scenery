@@ -55,6 +55,8 @@ open class Settings(override var hub: Hub? = null) : Hubable {
             if(type == contents.javaClass) {
                 settingsStore[name] = contents
             } else {
+                logger.warn("Casting $name from ${type.simpleName} to ${contents.javaClass.simpleName}. Are you sure about this?")
+
                 if(settingsStore[name] is Float && contents is Double) {
                     settingsStore[name] = contents.toFloat()
                 } else if(settingsStore[name] is Int && contents is Float) {
