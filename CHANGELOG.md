@@ -1,5 +1,13 @@
 # CHANGELOG
 
+# scenery-0.3.0 to scenery-0.3.1
+
+## Fixes
+
+* `OpenGLRenderer`: fixes an issue where volume/geometry intersections where incorrect due to wrong depth reconstruction in OpenGL
+* `OpenGLRenderer`/`VulkanRenderer`: fixes an issue where the setting `Renderer.SupersamplingFactor` was not correctly taken into consideration when creating render targets
+* `OpenGLRenderer`: fixes an issue where `Volume` appeared to be blank, due to unsigned int volumetric data being sampled linearly, which is unsupported on some platforms (e.g. Nvidia GT750M, AMD Radeon R9 M370X)
+
 # scenery-0.2.3-1 to scenery-0.3.0
 
 ## Additions and changes
