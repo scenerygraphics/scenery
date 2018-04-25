@@ -26,10 +26,10 @@ open class BoundingGrid : Mesh("Bounding Grid") {
     var numLines: Int = 10
 
     @ShaderProperty
-    var lineWidth: Float = 1.0f
+    var lineWidth: Float = 1.2f
 
     @ShaderProperty
-    var ticksOnly: Int = 0
+    var ticksOnly: Int = 1
 
     var node: Node? = null
         set(value) {
@@ -98,8 +98,8 @@ open class BoundingGrid : Mesh("Bounding Grid") {
         labels.forEach { s, fontBoard ->
             fontBoard.text = s
             fontBoard.fontColor = GLVector(1.0f, 1.0f, 1.0f)
-            fontBoard.backgroundColor = GLVector(0.2f, 0.2f, 0.2f)
-            fontBoard.transparent = 0
+            fontBoard.backgroundColor = GLVector(0.0f, 0.0f, 0.0f)
+            fontBoard.transparent = 1
             fontBoard.scale = GLVector(0.2f, 0.2f, 0.2f)
 
             this.addChild(fontBoard)
