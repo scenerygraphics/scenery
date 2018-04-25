@@ -40,10 +40,10 @@ void main()
 
     // sample 4-neighborhood of current texture coord
     vec2 texelStep = vec2(1.0/float(params.displayWidth), 1.0/float(params.displayHeight));
-    vec3 sampleNW = texture(InputColor, textureCoord * vec2(-1.0, -1.0)*texelStep).rgb;
-    vec3 sampleNE = texture(InputColor, textureCoord * vec2(1.0, -1.0)*texelStep).rgb;
-    vec3 sampleSW = texture(InputColor, textureCoord * vec2(1.0, -1.0)*texelStep).rgb;
-    vec3 sampleSE = texture(InputColor, textureCoord * vec2(1.0, 1.0)*texelStep).rgb;
+    vec3 sampleNW = texture(InputColor, textureCoord + vec2(-1.0, -1.0)*texelStep).rgb;
+    vec3 sampleNE = texture(InputColor, textureCoord + vec2(1.0, -1.0)*texelStep).rgb;
+    vec3 sampleSW = texture(InputColor, textureCoord + vec2(1.0, -1.0)*texelStep).rgb;
+    vec3 sampleSE = texture(InputColor, textureCoord + vec2(1.0, 1.0)*texelStep).rgb;
 
     // convert all samples to luma representation
     const vec3 rgbToLuma = vec3(0.299, 0.587, 0.114);
