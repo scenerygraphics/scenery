@@ -39,6 +39,11 @@ class VolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
         shell.material.ambient = GLVector.getNullVector(3)
         scene.addChild(shell)
 
+        val s = Icosphere(0.5f, 3)
+        s.position = GLVector(2.0f, -1.0f, -2.0f)
+        s.material.diffuse = GLVector(0.0f, 0.0f, 0.0f)
+        scene.addChild(s)
+
         val volume = Volume()
         volume.name = "volume"
         volume.colormap = "jet"
@@ -80,7 +85,7 @@ class VolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
             logger.info("Got volume!")
 
             while(true) {
-                volume.rotation = volume.rotation.rotateByAngleY(0.01f)
+                volume.rotation = volume.rotation.rotateByAngleY(0.003f)
                 Thread.sleep(5)
             }
         }
