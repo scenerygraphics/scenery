@@ -162,8 +162,8 @@ open class VulkanRenderer(hub: Hub,
                     renderpasses.values.forEach { it.close() }
                     renderpasses.clear()
 
-                    settings.set("Renderer.displayWidth", window.width)
-                    settings.set("Renderer.displayHeight", window.height)
+                    settings.set("Renderer.displayWidth", (window.width * settings.get<Float>("Renderer.SupersamplingFactor")).toInt())
+                    settings.set("Renderer.displayHeight", (window.height * settings.get<Float>("Renderer.SupersamplingFactor")).toInt())
 
                     prepareRenderpassesFromConfig(renderConfig, window.width, window.height)
 
