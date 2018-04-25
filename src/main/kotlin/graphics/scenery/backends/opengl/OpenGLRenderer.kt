@@ -457,8 +457,8 @@ class OpenGLRenderer(hub: Hub,
             settings.get<Float>("Renderer.SupersamplingFactor")
         }
 
-        settings.set("Renderer.displayWidth", windowWidth)
-        settings.set("Renderer.displayHeight", windowHeight)
+        settings.set("Renderer.displayWidth", (windowWidth * supersamplingFactor).toInt())
+        settings.set("Renderer.displayHeight", (windowHeight * supersamplingFactor).toInt())
 
         flow.map { passName ->
             val passConfig = config.renderpasses[passName]!!
