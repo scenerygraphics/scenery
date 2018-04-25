@@ -2032,7 +2032,7 @@ class OpenGLRenderer(hub: Hub,
                                 dimensions.x().toInt(),
                                 dimensions.y().toInt(),
                                 dimensions.z().toInt() ?: 1,
-                                true,
+                                dimensions.z().toInt() <= 1,
                                 miplevels)
 
                             if (generateMipmaps) {
