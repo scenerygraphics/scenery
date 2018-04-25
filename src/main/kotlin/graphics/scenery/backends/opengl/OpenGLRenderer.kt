@@ -28,7 +28,6 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import javax.imageio.ImageIO
 import kotlin.collections.LinkedHashMap
-import kotlin.concurrent.thread
 import kotlin.concurrent.withLock
 import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.memberProperties
@@ -457,8 +456,12 @@ class OpenGLRenderer(hub: Hub,
             settings.get<Float>("Renderer.SupersamplingFactor")
         }
 
-        settings.set("Renderer.displayWidth", windowWidth)
-        settings.set("Renderer.displayHeight", windowHeight)
+        scene.findObserver()?.let { cam ->
+            cam.perspectiveCamera(cam.fov, windowWidth * supersamplingFactor, windowHeight * supersamplingFactor, cam.nearPlaneDistance, cam.farPlaneDistance)
+        }
+
+        settings.set("Renderer.displayWidth", (windowWidth * supersamplingFactor).toInt())
+        settings.set("Renderer.displayHeight", (windowHeight * supersamplingFactor).toInt())
 
         flow.map { passName ->
             val passConfig = config.renderpasses[passName]!!
@@ -511,6 +514,13 @@ class OpenGLRenderer(hub: Hub,
             }
 
             if(passConfig.output == "Viewport") {
+                width = (supersamplingFactor * windowWidth).toInt()
+                height = (supersamplingFactor * windowHeight).toInt()
+                logger.info("Creating render framebuffer Viewport for pass $passName (${width}x$height)")
+
+                settings.set("Renderer.$passName.displayWidth", width)
+                settings.set("Renderer.$passName.displayHeight", height)
+
                 val framebuffer = GLFramebuffer(gl, width, height)
                 framebuffer.addUnsignedByteRGBABuffer(gl, "Viewport", 8)
 
@@ -613,9 +623,6 @@ class OpenGLRenderer(hub: Hub,
             renderpasses = prepareRenderpasses(renderConfig, window.width, window.height)
             flow = renderConfig.createRenderpassFlow()
 
-            scene.findObserver()?.let { cam ->
-                cam.perspectiveCamera(cam.fov, window.width.toFloat(), window.height.toFloat(), cam.nearPlaneDistance, cam.farPlaneDistance)
-            }
 
             mustRecreateFramebuffers = false
         }
@@ -1646,7 +1653,9 @@ class OpenGLRenderer(hub: Hub,
         gl.glBindFramebuffer(GL4.GL_DRAW_FRAMEBUFFER, 0)
 
         blitFramebuffers(viewportPass.output.values.first(), null,
-            OpenGLRenderpass.Rect2D(window.width, window.height, 0, 0),
+            OpenGLRenderpass.Rect2D(
+                settings.get<Int>("Renderer.${viewportPass.passName}.displayWidth"),
+                settings.get<Int>("Renderer.${viewportPass.passName}.displayHeight"), 0, 0),
             OpenGLRenderpass.Rect2D(window.width, window.height, 0, 0))
 
         // submit to OpenVR if attached
