@@ -168,7 +168,11 @@ void main()
     const float depth = texture(InputZBuffer, Vertex.textureCoord).r;
     // front and back:
     const vec4 front = vec4(u,v,0.0f,1.f);
+#ifndef OPENGL
     const vec4 back = vec4(u,v,min(1.0f, depth),1.f);
+#else
+    const vec4 back = vec4(u,v,min(1.0f, depth*2.0 - 1.0),1.f);
+#endif
 
     // calculate eye ray in world space
     vec4 orig0, orig;
@@ -209,7 +213,11 @@ void main()
     vec4 startNDC = Vertex.MVP * vec4(orig.xyz + tnear * direc.xyz, 1.0);
     startNDC *= 1.0/startNDC.w;
 
+#ifndef OPENGL
     float currentSceneDepth = texture(InputZBuffer, Vertex.textureCoord).r;
+#else
+    float currentSceneDepth = texture(InputZBuffer, Vertex.textureCoord).r * 2.0 - 1.0;
+#endif
 
     if(startNDC.z > currentSceneDepth) {
     // for debugging, green = occluded by existing scene geometry
