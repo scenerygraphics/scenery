@@ -962,7 +962,7 @@ open class VulkanRenderer(hub: Hub,
                         val start = System.nanoTime()
 
                         val t = if(texture.contains("jar!")) {
-                            val f = texture.substringAfterLast(File.separatorChar)
+                            val f = texture.substringAfterLast("/")
                             val stream = node.javaClass.getResourceAsStream(f)
 
                             if(stream == null) {
