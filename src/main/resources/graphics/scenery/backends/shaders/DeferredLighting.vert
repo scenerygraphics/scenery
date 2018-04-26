@@ -6,10 +6,9 @@ layout(location = 1) in vec3 vertexNormal;
 layout(location = 2) in vec2 vertexTexCoord;
 
 layout(location = 0) out VertexData {
-    vec3 Position;
+    vec3 FragPosition;
     vec3 Normal;
     vec2 TexCoord;
-    vec3 FragPosition;
 } Vertex;
 
 layout(set = 2, binding = 0) uniform Matrices {
