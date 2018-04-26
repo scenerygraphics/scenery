@@ -91,7 +91,7 @@ class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysicalDevic
             val device = pDevice.get(0)
 
             if (err != VK_SUCCESS) {
-                throw AssertionError("Failed to create device: " + VU.translate(err))
+                throw RuntimeException("Failed to create device: " + VU.translate(err))
             }
             logger.debug("Device successfully created.")
 
@@ -153,7 +153,7 @@ class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysicalDevic
             val commandPool = pCmdPool.get(0)
 
             if (err != VK_SUCCESS) {
-                throw AssertionError("Failed to create command pool: " + VU.translate(err))
+                throw RuntimeException("Failed to create command pool: " + VU.translate(err))
             }
 
             commandPool
@@ -218,7 +218,7 @@ class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysicalDevic
                     { vkEnumeratePhysicalDevices(instance, this, null)} )
 
                 if (physicalDeviceCount < 1) {
-                    throw AssertionError("No Vulkan-compatible devices found!")
+                    throw RuntimeException("No Vulkan-compatible devices found!")
                 }
 
                 val physicalDevices = VU.getPointers("Getting Vulkan physical devices", physicalDeviceCount,

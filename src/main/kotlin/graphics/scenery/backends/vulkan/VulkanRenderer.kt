@@ -398,11 +398,11 @@ open class VulkanRenderer(hub: Hub,
             throw RuntimeException("Failed to initialize GLFW")
         }
         if (!glfwVulkanSupported()) {
-            throw AssertionError("Failed to find Vulkan loader. Do you have the most recent graphics drivers installed?")
+            throw RuntimeException("Failed to find Vulkan loader. Is Vulkan supported by your GPU and do you have the most recent graphics drivers installed?")
         }
 
         /* Look for instance extensions */
-        val requiredExtensions = glfwGetRequiredInstanceExtensions() ?: throw AssertionError("Failed to find list of required Vulkan extensions")
+        val requiredExtensions = glfwGetRequiredInstanceExtensions() ?: throw RuntimeException("Failed to find list of required Vulkan extensions")
 
         // Create the Vulkan instance
         instance = createInstance(requiredExtensions)
@@ -1863,17 +1863,19 @@ open class VulkanRenderer(hub: Hub,
             .flags(flags)
 
         val pCallback = memAllocLong(1)
-        try {
+
+        return try {
             val err = vkCreateDebugReportCallbackEXT(instance, dbgCreateInfo, null, pCallback)
             val callbackHandle = pCallback.get(0)
             memFree(pCallback)
             dbgCreateInfo.free()
             if (err != VK_SUCCESS) {
-                throw AssertionError("Failed to create VkInstance: " + VU.translate(err))
+                throw RuntimeException("Failed to create VkInstance: " + VU.translate(err))
             }
-            return callbackHandle
+
+            callbackHandle
         } catch(e: NullPointerException) {
-            return -1
+            -1
         }
     }
 
