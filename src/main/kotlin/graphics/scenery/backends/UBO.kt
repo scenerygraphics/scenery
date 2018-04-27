@@ -7,6 +7,7 @@ import graphics.scenery.utils.LazyLogger
 import java.nio.ByteBuffer
 import java.util.*
 import kotlin.collections.LinkedHashMap
+import kotlin.math.max
 
 /**
  * UBO base class, providing API-independent functionality for OpenGL and Vulkan.
@@ -140,6 +141,7 @@ open class UBO {
         }
 
         val originalPos = data.position()
+        var endPos = originalPos
 
         (elements ?: members).forEach {
             var pos = data.position()
@@ -216,7 +218,10 @@ open class UBO {
             }
 
             data.position(pos + size)
+            endPos = max(pos + size, endPos)
         }
+
+        data.position(endPos)
 
         sizeCached = data.position() - originalPos
     }

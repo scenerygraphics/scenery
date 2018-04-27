@@ -116,15 +116,11 @@ public class JavaFXTexturedCubeJavaExample {
             box.setMaterial(boxmaterial);
             getScene().addChild(box);
 
-            PointLight[] lights = new PointLight[2];
-
-            for (int i = 0; i < lights.length; i++) {
-                lights[i] = new PointLight(5.0f);
-                lights[i].setPosition(new GLVector(2.0f * i, 2.0f * i, 2.0f * i));
-                lights[i].setEmissionColor(Random.randomVectorFromRange(3, 0.2f, 0.8f));
-                lights[i].setIntensity(10.2f * (i + 1));
-                getScene().addChild(lights[i]);
-            }
+            PointLight light = new PointLight(15.0f);
+            light.setPosition(new GLVector(0.0f, 0.0f, 2.0f));
+            light.setIntensity(100.0f);
+            light.setEmissionColor(new GLVector(1.0f, 1.0f, 1.0f));
+            getScene().addChild(light);
 
             Camera cam = new DetachedHeadCamera();
             cam.setPosition(new GLVector(0.0f, 0.0f, 5.0f));

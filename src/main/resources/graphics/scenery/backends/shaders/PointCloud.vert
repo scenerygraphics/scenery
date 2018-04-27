@@ -14,6 +14,7 @@ layout(location = 0) out VertexData {
 
 layout(set = 0, binding = 0) uniform VRParameters {
     mat4 projectionMatrices[2];
+    mat4 inverseProjectionMatrices[2];
     mat4 headShift;
     float IPD;
     int stereoEnabled;
