@@ -24,6 +24,7 @@ import java.nio.IntBuffer
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import javax.imageio.ImageIO
@@ -125,8 +126,7 @@ class OpenGLRenderer(hub: Hub,
     override var lastFrameTime = System.nanoTime() * 1.0f
     private var currentTime = System.nanoTime()
 
-    var initialized = false
-        private set
+    final override var initialized = false
 
     private var pboBuffers: Array<ByteBuffer?> = arrayOf(null, null)
     private var pboBufferAvailable = arrayOf(true, true)
@@ -256,7 +256,7 @@ class OpenGLRenderer(hub: Hub,
     }
 
     internal val buffers = HashMap<String, OpenGLBuffer>()
-    internal val sceneUBOs = ArrayList<Node>()
+    internal val sceneUBOs = CopyOnWriteArrayList<Node>()
 
     internal val resizeHandler = ResizeHandler()
 
@@ -841,7 +841,7 @@ class OpenGLRenderer(hub: Hub,
      * Initializes the [Scene] with the [OpenGLRenderer], to be called
      * before [render].
      */
-    override fun initializeScene() {
+    @Synchronized override fun initializeScene() {
         scene.discover(scene, { it is HasGeometry })
             .forEach { it ->
                 it.metadata.put("OpenGLRenderer", OpenGLObjectState())
@@ -1262,7 +1262,11 @@ class OpenGLRenderer(hub: Hub,
      * 7) The resulting image is drawn to the screen, or -- if a HMD is present -- submitted to the OpenVR
      *    compositor.
      */
-    override fun render() {
+    @Synchronized override fun render() {
+        if(!initialized) {
+            return
+        }
+
         val newTime = System.nanoTime()
         lastFrameTime = (System.nanoTime() - currentTime)/1e6f
         currentTime = newTime
@@ -1801,7 +1805,7 @@ class OpenGLRenderer(hub: Hub,
      * @param[node]: The [Node] to initialise.
      * @return True if the initialisation went alright, False if it failed.
      */
-    fun initializeNode(node: Node): Boolean {
+    @Synchronized fun initializeNode(node: Node): Boolean {
         if(!node.lock.tryLock(2, TimeUnit.MILLISECONDS)) {
             return false
         }

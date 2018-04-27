@@ -59,25 +59,18 @@ class LocalisationExample : SceneryBase("Localisation Microscopy Rendering examp
             val dataset = PointCloud()
             dataset.readFromPALM(file)
             dataset.material.diffuse = channelColors.getOrElse(i, { Random.randomVectorFromRange(3, 0.1f, 0.9f) })
-            dataset.centerOn(dataset.position)
-            dataset.fitInto(10.0f)
+//            dataset.centerOn(dataset.position)
+            dataset.fitInto(20.0f)
             scene.addChild(dataset)
 
             dataset
         }
 
-        val lights = (0..3).map {
-            PointLight()
-        }
+        val light = PointLight(radius = 40.0f)
+        light.intensity = 500.0f
+        light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
+        scene.addChild(light)
 
-        lights.mapIndexed { i, light ->
-            light.position = GLVector(4.0f * i, 4.0f * i, 4.0f)
-            light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
-            light.intensity = 50.2f
-            light.linear = 1.8f
-            light.quadratic = 0.7f
-            scene.addChild(light)
-        }
 
     }
 
