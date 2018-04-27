@@ -124,6 +124,11 @@ open class SceneryBase(var applicationName: String,
         // initialize renderer, etc first in init, then setup key bindings
         init()
 
+        // wait for renderer
+        while(renderer?.initialized == false) {
+            Thread.sleep(100)
+        }
+
         renderer?.let {
             repl?.addAccessibleObject(it)
 
