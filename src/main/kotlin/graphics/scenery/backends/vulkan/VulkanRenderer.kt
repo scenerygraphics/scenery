@@ -273,6 +273,7 @@ open class VulkanRenderer(hub: Hub,
     private var toggleFullscreen = false
     override var managesRenderLoop = false
     override var lastFrameTime = System.nanoTime() * 1.0f
+    final override var initialized = false
 
     private var screenshotRequested = false
     var screenshotBuffer: VulkanBuffer? = null
@@ -531,6 +532,8 @@ open class VulkanRenderer(hub: Hub,
         if(System.getProperty("scenery.RunFullscreen","false").toBoolean()) {
             toggleFullscreen = true
         }
+
+        initialized = true
     }
 
     // source: http://stackoverflow.com/questions/34697828/parallel-operations-on-kotlin-collections
