@@ -28,6 +28,9 @@ abstract class Renderer : Hubable {
 
     abstract var shouldClose: Boolean
 
+    abstract var initialized: Boolean
+        protected set
+
     abstract var settings: Settings
 
     abstract var window: SceneryWindow
