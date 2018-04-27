@@ -6,6 +6,7 @@ import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import org.junit.Test
 import java.nio.ByteBuffer
+import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 
 /**
@@ -34,7 +35,7 @@ class ProceduralTextureExample : SceneryBase("ProceduralTextureExample") {
         }
 
         val lights = (0..2).map {
-            PointLight()
+            PointLight(radius = 15.0f)
         }
 
         lights.mapIndexed { i, light ->
@@ -56,12 +57,12 @@ class ProceduralTextureExample : SceneryBase("ProceduralTextureExample") {
         thread {
             val imageSizeX = 256
             val imageSizeY = 256
-            val imageChannels = 4
+            val imageChannels = 3
             val textureBuffer = BufferUtils.allocateByte(imageSizeX * imageSizeY * imageChannels)
             var ticks = 0L
 
             while(true) {
-                if(box.lock.tryLock()) {
+                if(box.lock.tryLock(2, TimeUnit.MILLISECONDS)) {
                     box.rotation.rotateByAngleY(0.01f)
                     box.needsUpdate = true
 
@@ -80,7 +81,7 @@ class ProceduralTextureExample : SceneryBase("ProceduralTextureExample") {
 
                     box.lock.unlock()
                 } else {
-                    logger.info("unsuccessful lock")
+                    logger.debug("unsuccessful lock")
                 }
 
                 Thread.sleep(50)
