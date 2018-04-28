@@ -41,6 +41,8 @@ class BloodCellsExample : SceneryBase("BloodCellsExample", windowWidth = 1280, w
         hull.material.diffuse = GLVector(1.0f, 1.0f, 1.0f)
         hull.material.specular = GLVector(0.0f, 0.0f, 0.0f)
         hull.material.doubleSided = true
+        hull.material.cullingMode = Material.CullingMode.Front
+        hull.name = "hull"
 
         scene.addChild(hull)
 

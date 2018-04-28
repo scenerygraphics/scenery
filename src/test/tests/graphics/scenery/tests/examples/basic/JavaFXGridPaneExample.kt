@@ -107,16 +107,11 @@ class JavaFXGridPaneExample : SceneryBase("JavaFXGridPaneExample", windowWidth =
             scene.addChild(this)
         }
 
-        val lights = (0..2).map {
-            PointLight(radius = 5.0f)
-        }
-
-        lights.mapIndexed { i, light ->
-            light.position = GLVector(2.0f * i, 2.0f * i, 2.0f * i)
-            light.emissionColor = Random.randomVectorFromRange(3, 0.2f, 0.8f)
-            light.intensity = 10.2f * (i + 1)
-            scene.addChild(light)
-        }
+        val light = PointLight(radius = 15.0f)
+        light.position = GLVector(0.0f, 0.0f, 2.0f)
+        light.intensity = 100.0f
+        light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
+        scene.addChild(light)
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {

@@ -37,7 +37,7 @@ class PowerplantExample : SceneryBase("PowerplantExample", windowWidth = 1280, w
         }
 
         val lights = (0..lightCount).map {
-            PointLight()
+            PointLight(radius = Random.randomFromRange(5.0f, 100.0f))
         }
 
         boxes.mapIndexed { i, box ->
@@ -50,8 +50,6 @@ class PowerplantExample : SceneryBase("PowerplantExample", windowWidth = 1280, w
             it.emissionColor = Random.randomVectorFromRange(3, 0.0f, 1.0f)
             it.parent?.material?.diffuse = it.emissionColor
             it.intensity = Random.randomFromRange(0.01f, 10f)
-            it.linear = 0.01f
-            it.quadratic = 0.01f
 
             scene.addChild(it)
         }

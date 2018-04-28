@@ -16,7 +16,7 @@ import kotlin.concurrent.thread
  */
 class BoxedProteinExample : SceneryBase("BoxedProteinExample", windowWidth = 1280, windowHeight = 720) {
     override fun init() {
-        val lightCount = 8
+        val lightCount = 64
 
         renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
         hub.add(SceneryElement.Renderer, renderer!!)
@@ -28,12 +28,12 @@ class BoxedProteinExample : SceneryBase("BoxedProteinExample", windowWidth = 128
 
         scene.addChild(cam)
 
-        val boxes = (0..lightCount).map {
+        val boxes = (0 until lightCount).map {
             Box(GLVector(0.5f, 0.5f, 0.5f))
         }
 
-        val lights = (0..lightCount).map {
-            PointLight()
+        val lights = (0 until lightCount).map {
+            PointLight(radius = 500.0f)
         }
 
         boxes.mapIndexed { i, box ->
@@ -47,7 +47,6 @@ class BoxedProteinExample : SceneryBase("BoxedProteinExample", windowWidth = 128
             it.emissionColor = Random.randomVectorFromRange(3, 0.0f, 1.0f)
             it.parent?.material?.diffuse = it.emissionColor
             it.intensity = Random.randomFromRange(0.01f, 100f)
-            it.quadratic = 0.0f
 
             scene.addChild(it)
         }

@@ -45,7 +45,7 @@ class BileExample: SceneryBase("Bile Canaliculi example") {
         scene.addChild(shell)
 
         val lights = (0..4).map {
-            PointLight()
+            PointLight(radius = 200.0f)
         }
 
         val tetrahedron = listOf(
@@ -58,8 +58,6 @@ class BileExample: SceneryBase("Bile Canaliculi example") {
             lights[i].position = position * 50.0f
             lights[i].emissionColor = GLVector(1.0f, 0.5f,0.3f)//Random.randomVectorFromRange(3, 0.2f, 0.8f)
             lights[i].intensity = 200.2f
-            lights[i].linear = 0.0f
-            lights[i].quadratic = 0.7f
             scene.addChild(lights[i])
         }
 
