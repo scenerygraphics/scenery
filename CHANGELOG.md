@@ -1,5 +1,11 @@
 # CHANGELOG
 
+# scenery-0.3.1 to scenery-0.3.2
+
+## Additions and changes
+
+## Fixes
+
 # scenery-0.3.0 to scenery-0.3.1
 
 ## Additions and changes
