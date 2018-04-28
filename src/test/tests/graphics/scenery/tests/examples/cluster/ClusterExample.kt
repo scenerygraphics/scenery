@@ -73,15 +73,12 @@ class ClusterExample: SceneryBase("Clustered Volume Rendering example") {
         }
 
         val lights = (0..3).map {
-            PointLight()
+            PointLight(radius = 20.0f)
         }
 
         lights.mapIndexed { i, light ->
             light.position = GLVector(4.0f * i, 4.0f * i, 4.0f)
             light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
-            light.intensity = 200.2f*(i+1)
-            light.linear = 1.8f
-            light.quadratic = 0.7f
             scene.addChild(light)
         }
 

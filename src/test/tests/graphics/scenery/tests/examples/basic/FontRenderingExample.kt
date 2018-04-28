@@ -19,8 +19,6 @@ class FontRenderingExample: SceneryBase("FontRenderingExample", windowWidth = 12
         val light = PointLight(radius = 20.0f)
         light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
         light.intensity = 1000.0f
-        light.quadratic = 0.001f
-        light.linear = 0.0f
         scene.addChild(light)
 
         val cam: Camera = DetachedHeadCamera()

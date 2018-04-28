@@ -41,7 +41,7 @@ class RungholtExample : SceneryBase("RungholtExample", windowWidth = 1280, windo
         }
 
         val lights = (0..lightCount).map {
-            PointLight()
+            PointLight(radius = 5.0f)
         }
 
         boxes.mapIndexed { i, box ->
@@ -54,8 +54,6 @@ class RungholtExample : SceneryBase("RungholtExample", windowWidth = 1280, windo
             it.emissionColor = Random.randomVectorFromRange(3, 0.0f, 1.0f)
             it.parent?.material?.diffuse = it.emissionColor
             it.intensity = Random.randomFromRange(0.1f, 10f)
-            it.linear = 1.2f
-            it.quadratic = 0.2f
 
             scene.addChild(it)
         }

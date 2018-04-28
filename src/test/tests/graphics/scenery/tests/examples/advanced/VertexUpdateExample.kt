@@ -38,7 +38,6 @@ class VertexUpdateExample : SceneryBase("VertexUpdateExample") {
             material.cullingMode = Material.CullingMode.None
 
             position = GLVector(0.0f, 0.0f, 0.0f)
-            material = material
 
             scene.addChild(this)
         }
