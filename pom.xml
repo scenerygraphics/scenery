@@ -504,6 +504,13 @@
             <version>3.4.1-1.4</version>
         </dependency>
 
+        <dependency>
+            <groupId>org.reflections</groupId>
+            <artifactId>reflections</artifactId>
+            <version>0.9.11</version>
+            <scope>test</scope>
+        </dependency>
+
     </dependencies>
 
     <repositories>
