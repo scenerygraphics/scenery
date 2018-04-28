@@ -2,11 +2,20 @@
 
 # scenery-0.3.0 to scenery-0.3.1
 
+## Additions and changes
+
+* `Renderer`: fall back to OpenGL in case Vulkan cannot be initialiased
+
 ## Fixes
 
 * `OpenGLRenderer`: fixes an issue where volume/geometry intersections where incorrect due to wrong depth reconstruction in OpenGL
 * `OpenGLRenderer`/`VulkanRenderer`: fixes an issue where the setting `Renderer.SupersamplingFactor` was not correctly taken into consideration when creating render targets
 * `OpenGLRenderer`: fixes an issue where `Volume` appeared to be blank, due to unsigned int volumetric data being sampled linearly, which is unsupported on some platforms (e.g. Nvidia GT750M, AMD Radeon R9 M370X)
+* `VulkanTexture`: converts RGB textures to RGBA, as RGB formats are not widely supported (#152, thanks for the report to @maarzt)
+* `UBO`: fixes an issue that could cause incorrect UBO serialisation and adds unit tests to prevent such issues from reoccuring
+* `Line`: fixes incorrect vertex in/outs in line shader
+* fix lighting in examples: LocalisationExample, TexturedCubeJavaExample, JavaFXTexturedCubeExample, JavaFXTexturedCubeJavaExample
+
 
 # scenery-0.2.3-1 to scenery-0.3.0
 
