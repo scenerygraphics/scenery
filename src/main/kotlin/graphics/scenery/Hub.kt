@@ -103,5 +103,9 @@ class Hub(val name: String = "default") {
         fun getDefaultHub(): Hub {
             return hubs["default"]!!
         }
+
+        internal fun cleanHubs() {
+            hubs.clear()
+        }
     }
 }
