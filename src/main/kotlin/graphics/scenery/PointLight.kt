@@ -11,10 +11,10 @@ import cleargl.GLVector
  * @author Ulrik Günther <hello@ulrik.is>
  * @constructor Creates a PointLight with default settings, e.g. white emission color.
  */
-class PointLight(radius: Float = 0.5f) : Mesh("PointLight") {
+class PointLight(radius: Float = 5.0f) : Mesh("PointLight") {
     private var proxySphere = Sphere(radius * 1.1f, 10)
     /** The intensity of the point light. Bound to [0.0, 1.0] if using non-HDR rendering. */
-    @ShaderProperty var intensity: Float = 0.5f
+    @ShaderProperty var intensity: Float = 100.0f
 
     /** The emission color of the point light. Setting it will also affect the accompanying Box' color. */
     @ShaderProperty var emissionColor: GLVector = GLVector(1.0f, 1.0f, 1.0f)
@@ -37,12 +37,6 @@ class PointLight(radius: Float = 0.5f) : Mesh("PointLight") {
 
     /** Node name of the Point Light */
     override var name = "PointLight"
-
-    /** Linear falloff of the light. */
-    var linear: Float = 10.5f
-
-    /** Quadratic falloff of the light. */
-    var quadratic: Float = 2.7f
 
     @Suppress("unused") // will be serialised into ShaderProperty buffer
     @ShaderProperty val worldPosition
