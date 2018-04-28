@@ -389,11 +389,13 @@ open class VulkanRenderer(hub: Hub,
         }
 
         // explicitly create VK, to make GLFW pick up MoltenVK on OS X
-        try {
-            Configuration.VULKAN_EXPLICIT_INIT.set(true)
-            VK.create()
-        } catch(e: IllegalStateException) {
-            logger.warn("IllegalStateException during Vulkan initialisation")
+        if(ExtractsNatives.getPlatform() == ExtractsNatives.Platform.MACOS) {
+            try {
+                Configuration.VULKAN_EXPLICIT_INIT.set(true)
+                VK.create()
+            } catch (e: IllegalStateException) {
+                logger.warn("IllegalStateException during Vulkan initialisation")
+            }
         }
 
         if (!glfwInit()) {
@@ -448,19 +450,30 @@ open class VulkanRenderer(hub: Hub,
 
         swapchainRecreator = SwapchainRecreator()
 
-        swapchain = if (wantsOpenGLSwapchain) {
-            logger.info("Using OpenGL-based swapchain")
-            OpenGLSwapchain(
-                device, queue, commandPools.Standard,
-                renderConfig = renderConfig, useSRGB = renderConfig.sRGB,
-                useFramelock = System.getProperty("scenery.Renderer.Framelock", "false").toBoolean())
-        } else {
-            if(System.getProperty("scenery.Renderer.UseJavaFX", "false").toBoolean() || embedIn != null) {
+        swapchain = when {
+            wantsOpenGLSwapchain -> {
+                logger.info("Using OpenGL-based swapchain")
+                OpenGLSwapchain(
+                    device, queue, commandPools.Standard,
+                    renderConfig = renderConfig, useSRGB = renderConfig.sRGB,
+                    useFramelock = System.getProperty("scenery.Renderer.Framelock", "false").toBoolean())
+            }
+
+            (System.getProperty("scenery.Renderer.Headless", "false").toBoolean()) -> {
+                logger.info("Vulkan running in headless mode.")
+                HeadlessSwapchain(
+                    device, queue, commandPools.Standard,
+                    renderConfig = renderConfig, useSRGB = renderConfig.sRGB)
+            }
+
+            (System.getProperty("scenery.Renderer.UseJavaFX", "false").toBoolean() || embedIn != null) -> {
                 logger.info("Using JavaFX-based swapchain")
                 FXSwapchain(
                     device, queue, commandPools.Standard,
                     renderConfig = renderConfig, useSRGB = renderConfig.sRGB)
-            } else {
+            }
+
+            else -> {
                 VulkanSwapchain(
                     device, queue, commandPools.Standard,
                     renderConfig = renderConfig, useSRGB = renderConfig.sRGB)
