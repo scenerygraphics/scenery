@@ -276,6 +276,7 @@ open class VulkanRenderer(hub: Hub,
     final override var initialized = false
 
     private var screenshotRequested = false
+    private var screenshotFilename = ""
     var screenshotBuffer: VulkanBuffer? = null
     var imageBuffer: ByteBuffer? = null
     var encoder: H264Encoder? = null
@@ -1615,7 +1616,11 @@ open class VulkanRenderer(hub: Hub,
                 thread {
                     imageBuffer?.let { ib ->
                         try {
-                            val file = File(System.getProperty("user.home"), "Desktop" + File.separator + "$applicationName - ${SimpleDateFormat("yyyy-MM-dd HH.mm.ss").format(Date())}.png")
+                            val file = if(screenshotFilename == "") {
+                                File(System.getProperty("user.home"), "Desktop" + File.separator + "$applicationName - ${SimpleDateFormat("yyyy-MM-dd HH.mm.ss").format(Date())}.png")
+                            } else {
+                                File(screenshotFilename)
+                            }
                             ib.rewind()
 
                             val imageArray = ByteArray(ib.remaining())
@@ -2797,8 +2802,9 @@ open class VulkanRenderer(hub: Hub,
     }
 
     @Suppress("UNUSED")
-    override fun screenshot() {
+    override fun screenshot(filename: String) {
         screenshotRequested = true
+        screenshotFilename = filename
     }
 
     fun Int.toggle(): Int {
