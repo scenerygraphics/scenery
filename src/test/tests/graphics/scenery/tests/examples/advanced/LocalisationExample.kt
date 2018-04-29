@@ -1,13 +1,18 @@
 package graphics.scenery.tests.examples.advanced
 
 import cleargl.GLVector
+import com.sun.javafx.application.PlatformImpl
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.TrackedStereoGlasses
 import graphics.scenery.numerics.Random
+import javafx.application.Platform
 import org.junit.Test
-import javax.swing.JFileChooser
-import javax.swing.filechooser.FileNameExtensionFilter
+import java.util.concurrent.CountDownLatch
+import javafx.stage.Stage
+import javafx.stage.FileChooser
+
+
 
 /**
  * Example to load localisation microscopy files.
@@ -19,6 +24,23 @@ class LocalisationExample : SceneryBase("Localisation Microscopy Rendering examp
     var hmd: TrackedStereoGlasses? = null
 
     override fun init() {
+        val latch = CountDownLatch(1)
+        val files = ArrayList<String>()
+        PlatformImpl.startup {  }
+
+        Platform.runLater {
+            val chooser = FileChooser()
+            chooser.title = "Open File"
+            chooser.extensionFilters.addAll(FileChooser.ExtensionFilter("CSV/TSV files", "*.txt", "*.csv", "*.tsv", "*.xls"))
+            val file = chooser.showOpenMultipleDialog(Stage())
+
+            if(file != null) {
+                files.addAll(file.map { it.absolutePath })
+            }
+            latch.countDown()
+        }
+
+        latch.await()
         renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
         hub.add(SceneryElement.Renderer, renderer!!)
 
@@ -33,20 +55,15 @@ class LocalisationExample : SceneryBase("Localisation Microscopy Rendering examp
 
         val shell = Box(GLVector(20.0f, 20.0f, 20.0f), insideNormals = true)
         shell.material.doubleSided = true
-        shell.material.diffuse = GLVector(0.1f, 0.1f, 0.1f)
+        shell.material.cullingMode = Material.CullingMode.Front
+        shell.material.diffuse = GLVector(0.9f, 0.9f, 0.9f)
         shell.material.specular = GLVector.getNullVector(3)
         shell.material.ambient = GLVector.getNullVector(3)
         scene.addChild(shell)
 
-        val files = if(System.getProperty("datasets") == null) {
-            val chooser = JFileChooser()
-            chooser.isMultiSelectionEnabled = true
-            chooser.fileFilter = FileNameExtensionFilter("CSV/TSV files", "txt", "csv", "tsv", "xls")
-            chooser.showOpenDialog(null)
-
-            chooser.selectedFiles.map { it.absolutePath }.toList()
-        } else {
-            System.getProperty("datasets").split(";").toList()
+        if(System.getProperty("datasets") != null) {
+            files.clear()
+            files.addAll(System.getProperty("datasets").split(";").toList())
         }
 
         // channel colors for red, green, blue
@@ -60,7 +77,7 @@ class LocalisationExample : SceneryBase("Localisation Microscopy Rendering examp
             dataset.readFromPALM(file)
             dataset.material.diffuse = channelColors.getOrElse(i, { Random.randomVectorFromRange(3, 0.1f, 0.9f) })
 //            dataset.centerOn(dataset.position)
-            dataset.fitInto(20.0f)
+            dataset.fitInto(10.0f)
             scene.addChild(dataset)
 
             dataset
