@@ -39,14 +39,15 @@ public class JavaFXTexturedCubeJavaExample {
 
             CountDownLatch latch = new CountDownLatch(1);
             final SceneryPanel[] imagePanel = {null};
+            final Stage[] stage = {null};
 
             PlatformImpl.startup(() -> {
             });
 
             Platform.runLater(() -> {
 
-                Stage stage = new Stage();
-                stage.setTitle(getApplicationName());
+                stage[0] = new Stage();
+                stage[0].setTitle(getApplicationName());
 
                 StackPane stackPane = new StackPane();
                 stackPane.setBackground(
@@ -82,13 +83,13 @@ public class JavaFXTexturedCubeJavaExample {
                 stackPane.getChildren().addAll(pane);
 
                 Scene scene = new Scene(stackPane);
-                stage.setScene(scene);
-                stage.setOnCloseRequest(event -> {
+                stage[0].setScene(scene);
+                stage[0].setOnCloseRequest(event -> {
                     getRenderer().setShouldClose(true);
 
                     Platform.runLater(Platform::exit);
                 });
-                stage.show();
+                stage[0].show();
 
                 latch.countDown();
             });
@@ -139,6 +140,19 @@ public class JavaFXTexturedCubeJavaExample {
                         e.printStackTrace();
                     }
                 }
+            }).start();
+
+
+            new Thread(() -> {
+                while(!getRenderer().getShouldClose()) {
+                    try {
+                        Thread.sleep(200);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+
+                Platform.runLater(() -> stage[0].close());
             }).start();
         }
     }

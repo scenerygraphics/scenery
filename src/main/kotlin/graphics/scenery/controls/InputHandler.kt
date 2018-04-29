@@ -88,6 +88,10 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
                 logger.error("Uninitialized windows cannot have input handlers.")
                 handler = null
             }
+
+            is SceneryWindow.HeadlessWindow -> {
+                handler = null
+            }
         }
 
         this.scene = scene
