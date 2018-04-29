@@ -4,6 +4,7 @@ import graphics.scenery.Hub
 import graphics.scenery.SceneryBase
 import graphics.scenery.SceneryElement
 import graphics.scenery.backends.Renderer
+import graphics.scenery.utils.ExtractsNatives
 import graphics.scenery.utils.LazyLogger
 import org.junit.Test
 import org.lwjgl.glfw.GLFW.glfwTerminate
@@ -13,6 +14,7 @@ import java.nio.file.Paths
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.Executors
+import java.util.concurrent.Future
 
 /**
  * Experimental test runner that saves screenshots of all discovered tests.
@@ -29,11 +31,14 @@ class RunAllExamples {
         val blacklist = listOf("LocalisationExample",
             "TexturedCubeJavaApplication",
             "JavaFXTexturedCubeApplication",
+            "JavaFXTexturedCubeExample",
+            "JavaFXGridPaneExample",
             "XwingLiverExample",
             "VRControllerExample",
             "EyeTrackingExample",
             "ARExample",
-            "SponzaExample")
+            "SponzaExample",
+            "BoxedProteinExample")
 
         // find all basic and advanced examples, exclude blacklist
         val examples = reflections
@@ -41,7 +46,12 @@ class RunAllExamples {
             .filter { !it.canonicalName.contains("stresstests") && !it.canonicalName.contains("cluster") }
             .filter { !blacklist.contains(it.simpleName) }
 
-        val renderers = listOf("VulkanRenderer", "OpenGLRenderer")
+        val renderers = when(ExtractsNatives.getPlatform()) {
+            ExtractsNatives.Platform.WINDOWS -> listOf("VulkanRenderer", "OpenGLRenderer")
+            ExtractsNatives.Platform.LINUX -> listOf("VulkanRenderer", "OpenGLRenderer")
+            ExtractsNatives.Platform.MACOS -> listOf("OpenGLRenderer")
+            ExtractsNatives.Platform.UNKNOWN -> { logger.error("Don't know what to do on this platform, sorry."); return }
+        }
 
         val directoryName = "RAE-${SimpleDateFormat("yyyy-MM-dd_HH.mm.ss").format(Date())}"
         Files.createDirectory(Paths.get(directoryName))
@@ -53,20 +63,22 @@ class RunAllExamples {
             val rendererDirectory = "$directoryName/$renderer"
             Files.createDirectory(Paths.get(rendererDirectory))
 
-            examples.sortedBy { Math.random() }.forEach { example ->
-                logger.info("Running ${example.simpleName} with $renderer...")
+            examples.shuffled().forEachIndexed { i, example ->
+                logger.info("Running ${example.simpleName} with $renderer ($i/${examples.size}) ...")
 
                 if(!example.simpleName.contains("JavaFX")) {
-                    System.setProperty("scenery.Renderer.Headless", "true")
+                    System.setProperty("scenery.Headless", "true")
                 }
 
                 val instance = example.getConstructor().newInstance()
+                val future: Future<*>
 
                 try {
                     val exampleRunnable = Runnable {
                         instance.main()
                     }
-                    executor.execute(exampleRunnable)
+
+                    future = executor.submit(exampleRunnable)
 
                     while (!instance.running || !instance.sceneInitialized()) {
                         Thread.sleep(200)
@@ -76,17 +88,26 @@ class RunAllExamples {
                     (instance.hub.get(SceneryElement.Renderer) as Renderer).screenshot("$rendererDirectory/${example.simpleName}.png")
                     Thread.sleep(2000)
 
+                    logger.info("Sending close to ${example.simpleName}")
                     instance.close()
 
+                    while (instance.running) {
+                        Thread.sleep(200)
+                    }
+
+                    future.get()
                 } catch(e: ThreadDeath) {
                     logger.info("JOGL threw ThreadDeath")
                 }
 
-                while (instance.running) {
-                    Thread.sleep(200)
-                }
-
                 Hub.cleanHubs()
+
+                if(renderer == "VulkanRenderer") {
+                    glfwTerminate()
+                }
+                logger.info("${example.simpleName} closed ($renderer ran ${i+1}/${examples.size} so far).")
+
+                Thread.sleep(5000)
             }
         }
     }
