@@ -87,10 +87,6 @@ class RunAllExamples {
                 }
 
                 Hub.cleanHubs()
-
-                if(renderer == "VulkanRenderer") {
-                    glfwTerminate()
-                }
             }
         }
     }
