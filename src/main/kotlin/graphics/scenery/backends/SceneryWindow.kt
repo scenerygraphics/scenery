@@ -15,6 +15,7 @@ sealed class SceneryWindow {
     class GLFWWindow(var window: Long): SceneryWindow()
     class ClearGLWindow(var window: cleargl.ClearGLWindow): SceneryWindow()
     class JavaFXStage(var panel: SceneryPanel): SceneryWindow()
+    class HeadlessWindow(): SceneryWindow()
 
     var shouldClose = false
 
@@ -30,6 +31,7 @@ sealed class SceneryWindow {
             is JavaFXStage -> {
                 Platform.runLater { (panel.scene.window as Stage).title = title }
             }
+            is HeadlessWindow -> {}
         }
     }
 

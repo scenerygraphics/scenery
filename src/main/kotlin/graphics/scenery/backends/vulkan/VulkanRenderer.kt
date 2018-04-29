@@ -276,6 +276,7 @@ open class VulkanRenderer(hub: Hub,
     final override var initialized = false
 
     private var screenshotRequested = false
+    private var screenshotFilename = ""
     var screenshotBuffer: VulkanBuffer? = null
     var imageBuffer: ByteBuffer? = null
     var encoder: H264Encoder? = null
@@ -388,11 +389,13 @@ open class VulkanRenderer(hub: Hub,
         }
 
         // explicitly create VK, to make GLFW pick up MoltenVK on OS X
-        try {
-            Configuration.VULKAN_EXPLICIT_INIT.set(true)
-            VK.create()
-        } catch(e: IllegalStateException) {
-            logger.warn("IllegalStateException during Vulkan initialisation")
+        if(ExtractsNatives.getPlatform() == ExtractsNatives.Platform.MACOS) {
+            try {
+                Configuration.VULKAN_EXPLICIT_INIT.set(true)
+                VK.create()
+            } catch (e: IllegalStateException) {
+                logger.warn("IllegalStateException during Vulkan initialisation")
+            }
         }
 
         if (!glfwInit()) {
@@ -447,19 +450,30 @@ open class VulkanRenderer(hub: Hub,
 
         swapchainRecreator = SwapchainRecreator()
 
-        swapchain = if (wantsOpenGLSwapchain) {
-            logger.info("Using OpenGL-based swapchain")
-            OpenGLSwapchain(
-                device, queue, commandPools.Standard,
-                renderConfig = renderConfig, useSRGB = renderConfig.sRGB,
-                useFramelock = System.getProperty("scenery.Renderer.Framelock", "false").toBoolean())
-        } else {
-            if(System.getProperty("scenery.Renderer.UseJavaFX", "false").toBoolean() || embedIn != null) {
+        swapchain = when {
+            wantsOpenGLSwapchain -> {
+                logger.info("Using OpenGL-based swapchain")
+                OpenGLSwapchain(
+                    device, queue, commandPools.Standard,
+                    renderConfig = renderConfig, useSRGB = renderConfig.sRGB,
+                    useFramelock = System.getProperty("scenery.Renderer.Framelock", "false").toBoolean())
+            }
+
+            (System.getProperty("scenery.Headless", "false").toBoolean()) -> {
+                logger.info("Vulkan running in headless mode.")
+                HeadlessSwapchain(
+                    device, queue, commandPools.Standard,
+                    renderConfig = renderConfig, useSRGB = renderConfig.sRGB)
+            }
+
+            (System.getProperty("scenery.Renderer.UseJavaFX", "false").toBoolean() || embedIn != null) -> {
                 logger.info("Using JavaFX-based swapchain")
                 FXSwapchain(
                     device, queue, commandPools.Standard,
                     renderConfig = renderConfig, useSRGB = renderConfig.sRGB)
-            } else {
+            }
+
+            else -> {
                 VulkanSwapchain(
                     device, queue, commandPools.Standard,
                     renderConfig = renderConfig, useSRGB = renderConfig.sRGB)
@@ -1552,12 +1566,14 @@ open class VulkanRenderer(hub: Hub,
             }
 
             // finish encoding if a resize was performed
-            if(encoder != null && (encoder?.frameWidth != window.width || encoder?.frameHeight != window.height)) {
-                encoder?.finish()
-            }
+            if(recordMovie) {
+                if (encoder != null && (encoder?.frameWidth != window.width || encoder?.frameHeight != window.height)) {
+                    encoder?.finish()
+                }
 
-            if(encoder == null || encoder?.frameWidth != window.width || encoder?.frameHeight != window.height) {
-                encoder = H264Encoder(window.width, window.height, "$applicationName - ${SimpleDateFormat("yyyy-MM-dd_HH.mm.ss").format(Date())}.mp4")
+                if (encoder == null || encoder?.frameWidth != window.width || encoder?.frameHeight != window.height) {
+                    encoder = H264Encoder(window.width, window.height, "$applicationName - ${SimpleDateFormat("yyyy-MM-dd_HH.mm.ss").format(Date())}.mp4")
+                }
             }
 
             screenshotBuffer?.let { sb ->
@@ -1615,7 +1631,11 @@ open class VulkanRenderer(hub: Hub,
                 thread {
                     imageBuffer?.let { ib ->
                         try {
-                            val file = File(System.getProperty("user.home"), "Desktop" + File.separator + "$applicationName - ${SimpleDateFormat("yyyy-MM-dd HH.mm.ss").format(Date())}.png")
+                            val file = if(screenshotFilename == "") {
+                                File(System.getProperty("user.home"), "Desktop" + File.separator + "$applicationName - ${SimpleDateFormat("yyyy-MM-dd HH.mm.ss").format(Date())}.png")
+                            } else {
+                                File(screenshotFilename)
+                            }
                             ib.rewind()
 
                             val imageArray = ByteArray(ib.remaining())
@@ -2797,8 +2817,9 @@ open class VulkanRenderer(hub: Hub,
     }
 
     @Suppress("UNUSED")
-    override fun screenshot() {
+    override fun screenshot(filename: String) {
         screenshotRequested = true
+        screenshotFilename = filename
     }
 
     fun Int.toggle(): Int {

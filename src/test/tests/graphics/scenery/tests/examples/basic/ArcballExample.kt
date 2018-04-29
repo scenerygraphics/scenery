@@ -23,9 +23,9 @@ class ArcballExample : SceneryBase("ArcballExample") {
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
+            position = GLVector(0.0f, 0.0f, 2.5f)
             perspectiveCamera(70.0f, windowWidth.toFloat(), windowHeight.toFloat())
 
-            position = GLVector(0.0f, 0.0f, 2.5f)
             targeted = true
             target = GLVector(0.0f, 0.0f, 0.0f)
             active = true

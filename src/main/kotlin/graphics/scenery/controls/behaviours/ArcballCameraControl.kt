@@ -50,7 +50,7 @@ open class ArcballCameraControl(private val name: String, private val n: () -> C
         set(value) {
             field = value
 
-            node?.let { node -> node.position = target + node.forward * value * (-1.0f) }
+            node?.let { node -> node.position = target + node.forward * value * (1.0f) }
         }
 
     /** multiplier for zooming in and out */
