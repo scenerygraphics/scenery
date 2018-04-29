@@ -158,6 +158,8 @@ class HeadlessSwapchain(device: VulkanDevice,
             VulkanTexture.transitionLayout(transferImage,
                 KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
                 VK10.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                srcStage = VK10.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                dstStage = VK10.VK_PIPELINE_STAGE_TRANSFER_BIT,
                 commandBuffer = this)
 
             VK10.vkCmdCopyImageToBuffer(this, transferImage,
@@ -168,6 +170,8 @@ class HeadlessSwapchain(device: VulkanDevice,
             VulkanTexture.transitionLayout(transferImage,
                 VK10.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                 KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                srcStage = VK10.VK_PIPELINE_STAGE_TRANSFER_BIT,
+                dstStage = VK10.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                 commandBuffer = this)
 
             this.endCommandBuffer(device, commandPool, queue,
