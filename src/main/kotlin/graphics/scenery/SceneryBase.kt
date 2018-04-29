@@ -137,7 +137,9 @@ open class SceneryBase(var applicationName: String,
         }
 
         repl?.start()
-        repl?.showConsoleWindow()
+        if(!System.getProperty("scenery.Headless", "false").toBoolean()) {
+            repl?.showConsoleWindow()
+        }
 
         val statsRequested = java.lang.Boolean.parseBoolean(System.getProperty("scenery.PrintStatistics", "false"))
 
