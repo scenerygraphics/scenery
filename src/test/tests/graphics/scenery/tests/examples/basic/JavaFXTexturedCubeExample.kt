@@ -34,8 +34,8 @@ class JavaFXTexturedCubeExample : SceneryBase("JavaFXTexturedCubeExample", windo
         PlatformImpl.startup { }
 
         Platform.runLater {
-            stage = Stage()
-            stage?.title = applicationName
+            val s = Stage()
+            s.title = applicationName
 
             val stackPane = StackPane()
             stackPane.backgroundProperty()
@@ -78,16 +78,18 @@ class JavaFXTexturedCubeExample : SceneryBase("JavaFXTexturedCubeExample", windo
             stackPane.children.addAll(pane)
 
             val scene = Scene(stackPane)
-            stage?.scene = scene
-            stage?.onCloseRequest = EventHandler {
+            s.scene = scene
+            s.onCloseRequest = EventHandler {
                 renderer?.shouldClose = true
 
                 Platform.runLater { Platform.exit() }
             }
 
-            stage?.show()
+            s.show()
 
             latch.countDown()
+
+            stage = s
         }
 
         latch.await()
