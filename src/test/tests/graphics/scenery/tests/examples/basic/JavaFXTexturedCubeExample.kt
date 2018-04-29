@@ -29,12 +29,13 @@ class JavaFXTexturedCubeExample : SceneryBase("JavaFXTexturedCubeExample", windo
     override fun init() {
         val latch = CountDownLatch(1)
         var imagePanel: SceneryPanel? = null
+        var stage: Stage? = null
 
         PlatformImpl.startup { }
 
         Platform.runLater {
-            val stage = Stage()
-            stage.title = applicationName
+            stage = Stage()
+            stage?.title = applicationName
 
             val stackPane = StackPane()
             stackPane.backgroundProperty()
@@ -77,14 +78,14 @@ class JavaFXTexturedCubeExample : SceneryBase("JavaFXTexturedCubeExample", windo
             stackPane.children.addAll(pane)
 
             val scene = Scene(stackPane)
-            stage.scene = scene
-            stage.onCloseRequest = EventHandler {
+            stage?.scene = scene
+            stage?.onCloseRequest = EventHandler {
                 renderer?.shouldClose = true
 
                 Platform.runLater { Platform.exit() }
             }
 
-            stage.show()
+            stage?.show()
 
             latch.countDown()
         }
@@ -131,6 +132,16 @@ class JavaFXTexturedCubeExample : SceneryBase("JavaFXTexturedCubeExample", windo
                 box.needsUpdate = true
 
                 Thread.sleep(20)
+            }
+        }
+
+        thread {
+            while(renderer?.shouldClose == false ?: true) {
+                Thread.sleep(200)
+            }
+
+            Platform.runLater {
+                stage?.close()
             }
         }
     }

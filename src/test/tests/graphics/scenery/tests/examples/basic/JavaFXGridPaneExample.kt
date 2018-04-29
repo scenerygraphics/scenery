@@ -33,6 +33,7 @@ class JavaFXGridPaneExample : SceneryBase("JavaFXGridPaneExample", windowWidth =
         val latch = CountDownLatch(1)
         val imagePanel = SceneryPanel(windowWidth, windowHeight)
         val pane = GridPane()
+        var stage: Stage? = null
 
         val initialWidth = SimpleDoubleProperty()
         val initialHeight = SimpleDoubleProperty()
@@ -40,9 +41,8 @@ class JavaFXGridPaneExample : SceneryBase("JavaFXGridPaneExample", windowWidth =
         PlatformImpl.startup { }
 
         Platform.runLater {
-            val stage = Stage()
-            stage.title = applicationName
-
+            stage = Stage()
+            stage?.title = applicationName
 
             pane.add(imagePanel, 0, 0 )
 
@@ -71,13 +71,13 @@ class JavaFXGridPaneExample : SceneryBase("JavaFXGridPaneExample", windowWidth =
             pane.add( p, 1, 1)
 
             val scene = Scene(pane, windowWidth.toDouble(), windowHeight.toDouble())
-            stage.scene = scene
-            stage.onCloseRequest = EventHandler {
+            stage?.scene = scene
+            stage?.onCloseRequest = EventHandler {
                 renderer?.shouldClose = true
 
                 Platform.runLater { Platform.exit() }
             }
-            stage.show()
+            stage?.show()
 
 
             latch.countDown()
@@ -128,6 +128,16 @@ class JavaFXGridPaneExample : SceneryBase("JavaFXGridPaneExample", windowWidth =
                 box.needsUpdate = true
 
                 Thread.sleep(20)
+            }
+        }
+
+        thread {
+            while(renderer?.shouldClose == false ?: true) {
+                Thread.sleep(200)
+            }
+
+            Platform.runLater {
+                stage?.close()
             }
         }
     }
