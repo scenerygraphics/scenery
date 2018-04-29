@@ -70,8 +70,8 @@ class MultiBoxInstancedExample : SceneryBase("MultiBoxInstancedExample") {
             PointLight(radius = 450.0f)
         }.map {
             it.position = Random.randomVectorFromRange(3, -600.0f, 600.0f)
-            it.emissionColor = Random.randomVectorFromRange(3, 0.1f, 0.9f)
-            it.intensity = Random.randomFromRange(50.0f, 1000.0f)
+            it.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
+            it.intensity = Random.randomFromRange(50.0f, 2000.0f)
 
             scene.addChild(it)
             it
