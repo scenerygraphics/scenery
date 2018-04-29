@@ -459,7 +459,7 @@ open class VulkanRenderer(hub: Hub,
                     useFramelock = System.getProperty("scenery.Renderer.Framelock", "false").toBoolean())
             }
 
-            (System.getProperty("scenery.Renderer.Headless", "false").toBoolean()) -> {
+            (System.getProperty("scenery.Headless", "false").toBoolean()) -> {
                 logger.info("Vulkan running in headless mode.")
                 HeadlessSwapchain(
                     device, queue, commandPools.Standard,
@@ -1566,12 +1566,14 @@ open class VulkanRenderer(hub: Hub,
             }
 
             // finish encoding if a resize was performed
-            if(encoder != null && (encoder?.frameWidth != window.width || encoder?.frameHeight != window.height)) {
-                encoder?.finish()
-            }
+            if(recordMovie) {
+                if (encoder != null && (encoder?.frameWidth != window.width || encoder?.frameHeight != window.height)) {
+                    encoder?.finish()
+                }
 
-            if(encoder == null || encoder?.frameWidth != window.width || encoder?.frameHeight != window.height) {
-                encoder = H264Encoder(window.width, window.height, "$applicationName - ${SimpleDateFormat("yyyy-MM-dd_HH.mm.ss").format(Date())}.mp4")
+                if (encoder == null || encoder?.frameWidth != window.width || encoder?.frameHeight != window.height) {
+                    encoder = H264Encoder(window.width, window.height, "$applicationName - ${SimpleDateFormat("yyyy-MM-dd_HH.mm.ss").format(Date())}.mp4")
+                }
             }
 
             screenshotBuffer?.let { sb ->
