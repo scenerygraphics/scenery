@@ -41,8 +41,8 @@ class JavaFXGridPaneExample : SceneryBase("JavaFXGridPaneExample", windowWidth =
         PlatformImpl.startup { }
 
         Platform.runLater {
-            stage = Stage()
-            stage?.title = applicationName
+            val s = Stage()
+            s.title = applicationName
 
             pane.add(imagePanel, 0, 0 )
 
@@ -71,17 +71,17 @@ class JavaFXGridPaneExample : SceneryBase("JavaFXGridPaneExample", windowWidth =
             pane.add( p, 1, 1)
 
             val scene = Scene(pane, windowWidth.toDouble(), windowHeight.toDouble())
-            stage?.scene = scene
-            stage?.onCloseRequest = EventHandler {
+            s.scene = scene
+            s.onCloseRequest = EventHandler {
                 renderer?.shouldClose = true
 
                 Platform.runLater { Platform.exit() }
             }
-            stage?.show()
+            s.show()
 
 
             latch.countDown()
-
+            stage = s
         }
 
         latch.await()
