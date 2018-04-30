@@ -800,16 +800,10 @@ interface HasGeometry : Serializable {
         val end = System.nanoTime()
         logger.info("Read ${vbuffer.size} vertices/${nbuffer.size} normals of model $name in ${(end - start) / 1e6} ms")
 
-        vertices = ByteBuffer.allocateDirect(vbuffer.size * 4).asFloatBuffer()
-        normals = ByteBuffer.allocateDirect(nbuffer.size * 4).asFloatBuffer()
-        texcoords = ByteBuffer.allocateDirect(0).asFloatBuffer()
-        indices = ByteBuffer.allocateDirect(0).asIntBuffer()
-
-        vertices.put(vbuffer.toFloatArray())
-        normals.put(nbuffer.toFloatArray())
-
-        vertices.flip()
-        normals.flip()
+        vertices = BufferUtils.allocateFloatAndPut(vbuffer.toFloatArray())
+        normals = BufferUtils.allocateFloatAndPut(nbuffer.toFloatArray())
+        texcoords = BufferUtils.allocateFloat(0)
+        indices = BufferUtils.allocateInt(0)
 
         if (this is Mesh) {
             logger.info("Bounding box of $name is ${boundingBox.joinToString(",")}")
