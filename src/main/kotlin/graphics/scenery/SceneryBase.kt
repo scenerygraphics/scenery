@@ -95,6 +95,7 @@ open class SceneryBase(var applicationName: String,
         hub.addApplication(this)
         logger.info("Started application as PID ${getProcessID()}")
 
+        val headless = System.getProperty("scenery.Headless", "false").toBoolean()
         val renderdoc = if(System.getProperty("scenery.AttachRenderdoc")?.toBoolean() == true) {
             Renderdoc()
         } else {
@@ -116,7 +117,7 @@ open class SceneryBase(var applicationName: String,
 
         settings.set("System.PID", getProcessID())
 
-        if (wantREPL) {
+        if (wantREPL && !headless) {
             repl = REPL(scene, stats, hub)
             repl?.addAccessibleObject(settings)
         }
@@ -136,6 +137,7 @@ open class SceneryBase(var applicationName: String,
             inputHandler?.useDefaultBindings(System.getProperty("user.home") + "/.$applicationName.bindings")
         }
 
+        // start & show REPL -- note: REPL will only exist if not running in headless mode
         repl?.start()
         repl?.showConsoleWindow()
 
