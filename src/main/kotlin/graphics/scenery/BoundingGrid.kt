@@ -45,12 +45,12 @@ open class BoundingGrid : Mesh("Bounding Grid") {
 
     fun updateFromNode() {
         node?.let { node ->
-            val min = node.boundingBox?.min ?: return
-            val max = node.boundingBox?.max ?: return
+            val min = node.getMaximumBoundingBox().min
+            val max = node.getMaximumBoundingBox().max
 
             val b = Box(max - min)
 
-            logger.debug("Bounding box of $node is ${node.boundingBox}")
+            logger.debug("Bounding box of $node is ${node.getMaximumBoundingBox()}")
 
             val center = (max - min)*0.5f
 
@@ -60,17 +60,14 @@ open class BoundingGrid : Mesh("Bounding Grid") {
             this.indices = b.indices
 
             this.boundingBox = b.boundingBox
-            this.position = node.boundingBox!!.min + center
+            this.position = node.getMaximumBoundingBox().min + center
 
-            labels["origin"]?.position = this.boundingBox!!.min
 
-            val bb = arrayListOf<Float>()
-            bb.addAll(this.boundingBox!!.min.toFloatArray().toList())
-            bb.addAll(this.boundingBox!!.max.toFloatArray().toList())
-
-            labels["x"]?.position = GLVector(bb[1], bb[2], bb[4])
-            labels["y"]?.position = GLVector(bb[0], bb[3], bb[4])
-            labels["z"]?.position = GLVector(bb[0], bb[2], bb[5])
+            // label coordinates are relative to the bounding box
+            labels["0"]?.position = boundingBox!!.min - GLVector(0.1f, 0.0f, 0.0f)
+            labels["x"]?.position = GLVector(2.0f * boundingBox!!.max.x() + 0.1f, 0.01f, 0.01f) - center
+            labels["y"]?.position = GLVector(-0.1f, 2.0f * boundingBox!!.max.y(), 0.01f) - center
+            labels["z"]?.position = GLVector(-0.1f, 0.01f, 2.0f * boundingBox!!.max.z()) - center
 
             node.addChild(this)
             this.needsUpdate = true
@@ -83,13 +80,15 @@ open class BoundingGrid : Mesh("Bounding Grid") {
     }
 
     init {
-        this.material = ShaderMaterial(arrayListOf("DefaultForward.vert", "BoundingGrid.frag"))
-        this.material.blending.transparent = true
-        this.material.blending.opacity = 0.8f
-        this.material.blending.setOverlayBlending()
+        material = ShaderMaterial(arrayListOf("DefaultForward.vert", "BoundingGrid.frag"))
+        material.blending.transparent = true
+        material.blending.opacity = 0.8f
+        material.blending.setOverlayBlending()
+        material.cullingMode = Material.CullingMode.Front
+
 
         labels = hashMapOf(
-            "origin" to TextBoard(),
+            "0" to TextBoard(),
             "x" to TextBoard(),
             "y" to TextBoard(),
             "z" to TextBoard()
@@ -100,7 +99,7 @@ open class BoundingGrid : Mesh("Bounding Grid") {
             fontBoard.fontColor = GLVector(1.0f, 1.0f, 1.0f)
             fontBoard.backgroundColor = GLVector(0.0f, 0.0f, 0.0f)
             fontBoard.transparent = 1
-            fontBoard.scale = GLVector(0.2f, 0.2f, 0.2f)
+            fontBoard.scale = GLVector(0.3f, 0.3f, 0.3f)
 
             this.addChild(fontBoard)
         }
