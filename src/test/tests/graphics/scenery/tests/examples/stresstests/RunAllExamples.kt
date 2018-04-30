@@ -38,7 +38,7 @@ class RunAllExamples {
             "EyeTrackingExample",
             "ARExample",
             "SponzaExample",
-            "BoxedProteinExample")
+            "ReadModelExample")
 
         // find all basic and advanced examples, exclude blacklist
         val examples = reflections
