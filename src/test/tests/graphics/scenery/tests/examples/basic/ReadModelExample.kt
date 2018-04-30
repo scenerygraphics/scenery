@@ -10,6 +10,7 @@ import javafx.stage.FileChooser
 import javafx.stage.Stage
 import org.junit.Test
 import java.util.concurrent.CountDownLatch
+import kotlin.concurrent.thread
 
 /**
  * Example for loading OBJ and STL files.
@@ -53,12 +54,15 @@ class ReadModelExample : SceneryBase("ReadModelExample", 1280, 720) {
 
         val lights = (0 until 4).map { PointLight(radius = 50.0f) }
 
+        val m = Mesh()
         if(files.isNotEmpty()) {
-            val m = Mesh()
             m.readFrom(files.first())
-            m.fitInto(10.0f, scaleUp = false)
+            m.fitInto(6.0f, scaleUp = false)
 
             scene.addChild(m)
+
+            val bg = BoundingGrid()
+            bg.node = m
         }
 
         tetrahedron.mapIndexed { i, position ->
@@ -77,6 +81,13 @@ class ReadModelExample : SceneryBase("ReadModelExample", 1280, 720) {
             scene.addChild(this)
         }
 
+        thread {
+            while(!m.initialized) {
+                Thread.sleep(200)
+            }
+
+            m.putAbove(GLVector(0.0f, -0.3f, 0.0f))
+        }
     }
 
     override fun inputSetup() {
