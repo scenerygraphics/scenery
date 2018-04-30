@@ -58,6 +58,7 @@ open class PointCloud(var radius: Float=0.1f, override var name: String = "Point
 
         logger.info("PointCloud: Reading ${count/3} locations from $filename...")
 
+        val boundingBoxCoords = floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
         Files.lines(FileSystems.getDefault().getPath(filename)).forEach {
             val arr = it.split("\t")
             if (!arr[0].startsWith("\"")) {
@@ -65,13 +66,13 @@ open class PointCloud(var radius: Float=0.1f, override var name: String = "Point
                 this.vertices.put(arr[2].toFloat())
                 this.vertices.put(arr[3].toFloat())
 
-                this.boundingBoxCoords[0] = minOf(arr[1].toFloat(), boundingBoxCoords[0])
-                this.boundingBoxCoords[2] = minOf(arr[2].toFloat(), boundingBoxCoords[2])
-                this.boundingBoxCoords[4] = minOf(arr[3].toFloat(), boundingBoxCoords[4])
+                boundingBoxCoords[0] = minOf(arr[1].toFloat(), boundingBoxCoords[0])
+                boundingBoxCoords[2] = minOf(arr[2].toFloat(), boundingBoxCoords[2])
+                boundingBoxCoords[4] = minOf(arr[3].toFloat(), boundingBoxCoords[4])
 
-                this.boundingBoxCoords[1] = maxOf(arr[1].toFloat(), boundingBoxCoords[1])
-                this.boundingBoxCoords[3] = maxOf(arr[2].toFloat(), boundingBoxCoords[3])
-                this.boundingBoxCoords[5] = maxOf(arr[3].toFloat(), boundingBoxCoords[5])
+                boundingBoxCoords[1] = maxOf(arr[1].toFloat(), boundingBoxCoords[1])
+                boundingBoxCoords[3] = maxOf(arr[2].toFloat(), boundingBoxCoords[3])
+                boundingBoxCoords[5] = maxOf(arr[3].toFloat(), boundingBoxCoords[5])
 
                 this.normals.put(arr[1].toFloat())
                 this.normals.put(arr[2].toFloat())

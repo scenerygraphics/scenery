@@ -497,7 +497,7 @@ interface HasGeometry : Serializable {
                                 child.material = Material()
                             }
 
-                            (targetObject as Mesh?)?.boundingBoxCoords = boundingBox.clone()
+                            (targetObject as Mesh?)?.boundingBox = OrientedBoundingBox(boundingBox)
                             boundingBox = floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
 
                             this.addChild(child)
@@ -510,7 +510,7 @@ interface HasGeometry : Serializable {
                                 child.material = Material()
                             }
 
-                            (targetObject as PointCloud?)?.boundingBoxCoords = boundingBox.clone()
+                            (targetObject as PointCloud?)?.boundingBox = OrientedBoundingBox(boundingBox)
                             boundingBox = floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
 
                             this.addChild(child)
@@ -550,9 +550,9 @@ interface HasGeometry : Serializable {
         indexCount += targetObject.indices.limit()
 
         if (this is Mesh) {
-           (targetObject as Mesh?)?.boundingBoxCoords = boundingBox.clone()
+           (targetObject as Mesh?)?.boundingBox = OrientedBoundingBox(boundingBox)
         } else if (this is PointCloud) {
-           (targetObject as PointCloud?)?.boundingBoxCoords = boundingBox.clone()
+           (targetObject as PointCloud?)?.boundingBox = OrientedBoundingBox(boundingBox)
         }
 
         logger.info("Read ${vertexCount / vertexSize}/${normalCount / vertexSize}/${uvCount / texcoordSize}/$indexCount v/n/uv/i of model $name in ${(end - start) / 1e6} ms")
@@ -813,7 +813,7 @@ interface HasGeometry : Serializable {
 
         if (this is Mesh) {
             logger.info("Bounding box of $name is ${boundingBox.joinToString(",")}")
-            this.boundingBoxCoords = boundingBox
+            this.boundingBox = OrientedBoundingBox(boundingBox)
         }
     }
 

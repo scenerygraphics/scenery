@@ -3,20 +3,18 @@ package graphics.scenery
 import cleargl.GLMatrix
 import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
-import com.sun.prism.ps.Shader
 import graphics.scenery.utils.LazyLogger
 import java.io.Serializable
-import java.lang.reflect.Field
 import java.sql.Timestamp
 import java.util.*
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.collections.ArrayList
+import kotlin.math.max
+import kotlin.math.min
 import kotlin.properties.Delegates
-import kotlin.reflect.KMutableProperty1
 import kotlin.reflect.KProperty
 import kotlin.reflect.KProperty1
-import kotlin.reflect.full.declaredMemberProperties
 import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.jvm.isAccessible
@@ -40,7 +38,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
     @Transient var metadata: HashMap<String, Any> = HashMap()
 
     /** Material of the Node */
-    @Transient override var material: Material = Material.DefaultMaterial()
+    @Transient final override var material: Material = Material.DefaultMaterial()
     /** Initialisation flag. */
     override var initialized: Boolean = false
     /** Whether the Node is dirty and needs updating. */
@@ -60,8 +58,8 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
     /** The Node's lock. */
     override var lock: ReentrantLock = ReentrantLock()
 
-    /** bounding box coordinates **/
-    var boundingBoxCoords: FloatArray = floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
+    /** bounding box **/
+    var boundingBox: OrientedBoundingBox? = null
 
     /**
      * Initialisation function for the Node.
@@ -78,7 +76,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
     open var useClassDerivedShader = false
 
     /** Node update routine, called before updateWorld */
-    open var update: ArrayList<() -> Unit> = ArrayList()
+    var update: ArrayList<() -> Unit> = ArrayList()
 
     /** World transform matrix. Will create inverse [iworld] upon modification. */
     override var world: GLMatrix by Delegates.observable(GLMatrix.getIdentity()) { property, old, new -> propertyChanged(property, old, new) }
@@ -141,6 +139,28 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
     var discoveryBarrier = false
 
     val instances = CopyOnWriteArrayList<Node>()
+
+    data class BoundingSphere(val origin: GLVector, val radius: Float)
+
+    inner class OrientedBoundingBox(val min: GLVector, val max: GLVector) {
+        constructor(xMin: Float, yMin: Float, zMin: Float, xMax: Float, yMax: Float, zMax: Float) : this(GLVector(xMin, yMin, zMin), GLVector(xMax, yMax, zMax))
+        constructor(boundingBox: FloatArray) : this(GLVector(boundingBox[0], boundingBox[2], boundingBox[4]), GLVector(boundingBox[1], boundingBox[3], boundingBox[5]))
+
+        fun getBoundingSphere(): BoundingSphere {
+            val worldMin = worldPosition(min)
+            val worldMax = worldPosition(max)
+
+            val origin = (worldMin + worldMax) * 0.5f
+
+            val radius = (worldMax - origin).magnitude()
+
+            return BoundingSphere(origin, radius)
+        }
+
+        fun intersects(other: OrientedBoundingBox): Boolean {
+            return other.getBoundingSphere().radius + getBoundingSphere().radius > (other.getBoundingSphere().origin - getBoundingSphere().origin).magnitude()
+        }
+    }
 
     @Suppress("UNUSED_PARAMETER")
     protected fun <R> propertyChanged(property: KProperty<*>, old: R, new: R) {
@@ -275,20 +295,18 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
         }
     }
 
-    fun generateBoundingBox(): FloatArray {
+    fun generateBoundingBox(): OrientedBoundingBox? {
         if (this is HasGeometry) {
-            val position = vertices.position()
-            val limit = vertices.limit()
+            val vertexBufferView = vertices.asReadOnlyBuffer()
+            val boundingBoxCoords = floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
 
-            vertices.position(0)
-
-            if (vertices.capacity() == 0) {
-                logger.warn("$name: Zero vertices currently, returning empty bounding box")
-                boundingBoxCoords = floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
+            if (vertexBufferView.capacity() == 0) {
+                logger.warn("$name: Zero vertices currently, returning null bounding box")
+                boundingBox = null
             } else {
 
                 val vertex = floatArrayOf(0.0f, 0.0f, 0.0f)
-                vertices.get(vertex)
+                vertexBufferView.get(vertex)
 
                 boundingBoxCoords[0] = vertex[0]
                 boundingBoxCoords[1] = vertex[0]
@@ -299,8 +317,8 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
                 boundingBoxCoords[4] = vertex[2]
                 boundingBoxCoords[5] = vertex[2]
 
-                while(vertices.hasRemaining()) {
-                    vertices.get(vertex)
+                while(vertexBufferView.hasRemaining()) {
+                    vertexBufferView.get(vertex)
 
                     boundingBoxCoords[0] = minOf(boundingBoxCoords[0], vertex[0])
                     boundingBoxCoords[2] = minOf(boundingBoxCoords[2], vertex[1])
@@ -312,16 +330,16 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
                 }
 
                 logger.debug("$name: Calculated bounding box with ${boundingBoxCoords.joinToString(", ")}")
+                return OrientedBoundingBox(GLVector(boundingBoxCoords[0], boundingBoxCoords[2], boundingBoxCoords[4]),
+                    GLVector(boundingBoxCoords[1], boundingBoxCoords[3], boundingBoxCoords[5]))
             }
-
-            vertices.position(position)
-            vertices.limit(limit)
         } else {
             logger.warn("$name: Assuming 3rd party BB generation")
             // assume bounding box was created somehow
+            boundingBox = null
         }
 
-        return boundingBoxCoords
+        return null
     }
 
     private val shaderPropertyFieldCache = HashMap<String, KProperty1<Node, *>>()
@@ -359,32 +377,98 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
      * @return GLVector - the center offset calculcated for the [Node].
      */
     fun centerOn(position: GLVector): GLVector {
-        val min = GLMatrix.getScaling(this.scale).mult(GLVector(this.boundingBoxCoords[0], this.boundingBoxCoords[2], this.boundingBoxCoords[4], 1.0f))
-        val max = GLMatrix.getScaling(this.scale).mult(GLVector(this.boundingBoxCoords[1], this.boundingBoxCoords[3], this.boundingBoxCoords[5], 1.0f))
+        val min = getMaximumBoundingBox().min.xyzw()
+        val max = getMaximumBoundingBox().max.xyzw()
 
         val center = (max - min) * 0.5f
-        this.position = position - center
+        this.position = position - (getMaximumBoundingBox().min + center)
 
         return center
+    }
+
+    fun putAbove(position: GLVector): GLVector {
+        val center = centerOn(position)
+
+        val diffY = center.y() + position.y()
+        val diff = GLVector(0.0f, diffY, 0.0f)
+        this.position = this.position + diff
+
+        return diff
     }
 
     /**
      * Fits the [Node] within a box of the given dimension.
      *
      * @param[sideLength] - The size of the box to fit the [Node] uniformly into.
+     * @param[scaleUp] - Whether the model should only be scaled down, or also up.
      * @return GLVector - containing the applied scaling
      */
-    fun fitInto(sideLength: Float): GLVector {
-        val min = GLVector(this.boundingBoxCoords[0], this.boundingBoxCoords[2], this.boundingBoxCoords[4], 1.0f)
-        val max = GLVector(this.boundingBoxCoords[1], this.boundingBoxCoords[3], this.boundingBoxCoords[5], 1.0f)
+    fun fitInto(sideLength: Float, scaleUp: Boolean = false): GLVector {
+        val min = getMaximumBoundingBox().min.xyzw() ?: return GLVector.getNullVector(3)
+        val max = getMaximumBoundingBox().max.xyzw() ?: return GLVector.getNullVector(3)
 
         (max - min).toFloatArray().max()?.let { maxDimension ->
             val scaling = sideLength/maxDimension
 
-            this.scale = GLVector(scaling, scaling, scaling)
+            if((scaleUp && scaling > 1.0f) || scaling <= 1.0f) {
+                this.scale = GLVector(scaling, scaling, scaling)
+            } else {
+                this.scale = GLVector(1.0f, 1.0f, 1.0f)
+            }
         }
 
         return this.scale
+    }
+
+    private fun expand(lhs: OrientedBoundingBox, rhs: OrientedBoundingBox): OrientedBoundingBox {
+        return OrientedBoundingBox(
+            min(lhs.min.x(), rhs.min.x()),
+            min(lhs.min.y(), rhs.min.y()),
+            min(lhs.min.z(), rhs.min.z()),
+            max(lhs.max.x(), rhs.max.x()),
+            max(lhs.max.y(), rhs.max.y()),
+            max(lhs.max.z(), rhs.max.z()))
+    }
+
+    fun getMaximumBoundingBox(): OrientedBoundingBox {
+        if(boundingBox == null) {
+            return OrientedBoundingBox(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
+        }
+
+        if(children.none { it !is BoundingGrid }) {
+            return OrientedBoundingBox(world.mult(boundingBox!!.min.xyzw()), world.mult(boundingBox!!.max.xyzw()))
+        }
+
+        return children
+            .filter { it !is BoundingGrid  }.map { it.getMaximumBoundingBox() }
+            .fold(boundingBox!!, { lhs, rhs -> expand(lhs, rhs) })
+    }
+
+    /**
+     * Checks whether two node's bounding boxes do intersect using a simple bounding sphere test.
+     */
+    fun intersects(other: Node): Boolean {
+        boundingBox?.let { ownOBB ->
+            other.boundingBox?.let { otherOBB ->
+                return ownOBB.intersects(otherOBB)
+            }
+        }
+
+        return false
+    }
+
+    /**
+     * Returns the [Node]'s world position
+     *
+     * @returns The position in world space
+     */
+    fun worldPosition(v: GLVector? = null): GLVector {
+        val target = v ?: position
+        return if(parent is Scene && v == null) {
+            target.clone()
+        } else {
+            world.mult(GLVector(target.x(), target.y(), target.z(), 1.0f)).xyz()
+        }
     }
 
     companion object NodeHelpers {

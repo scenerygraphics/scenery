@@ -5,7 +5,6 @@ import graphics.scenery.*
 import org.scijava.ui.behaviour.ClickBehaviour
 import graphics.scenery.backends.Renderer
 import graphics.scenery.utils.LazyLogger
-import org.slf4j.LoggerFactory
 import kotlin.reflect.KProperty
 
 /**
@@ -13,12 +12,12 @@ import kotlin.reflect.KProperty
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-open class SelectCommand(private val name: String,
-                         private val renderer: Renderer,
-                         private val scene: Scene,
-                         private val camera: () -> Camera?,
-                         private var debugRaycast: Boolean = false,
-                         private var action: ((List<SelectResult>) -> Any) = {}) : ClickBehaviour {
+open class SelectCommand @JvmOverloads constructor(private val name: String,
+                                                   private val renderer: Renderer,
+                                                   private val scene: Scene,
+                                                   private val camera: () -> Camera?,
+                                                   private var debugRaycast: Boolean = false,
+                                                   private var action: ((List<SelectResult>) -> Any) = {}) : ClickBehaviour {
     protected val logger by LazyLogger()
 
     val cam: Camera? by CameraDelegate()
@@ -106,8 +105,8 @@ open class SelectCommand(private val name: String,
 
     // code adapted from zachamarz, http://gamedev.stackexchange.com/a/18459
     fun intersectAABB(node: Node, origin: GLVector, dir: GLVector): Pair<Boolean, Float> {
-            val bbmin = GLVector(node.boundingBoxCoords[0], node.boundingBoxCoords[2], node.boundingBoxCoords[4], 1.0f)
-            val bbmax = GLVector(node.boundingBoxCoords[1], node.boundingBoxCoords[3], node.boundingBoxCoords[5], 1.0f)
+            val bbmin = node.boundingBox?.min?.xyzw() ?: return false to 0.0f
+            val bbmax = node.boundingBox?.max?.xyzw() ?: return false to 0.0f
 
             val min = node.world.mult(bbmin)
             val max = node.world.mult(bbmax)
@@ -116,7 +115,7 @@ open class SelectCommand(private val name: String,
             if(origin.x() > min.x() && origin.x() < max.x()
                 && origin.y() > min.y() && origin.y() < max.y()
                 && origin.z() > min.z() && origin.z() < max.z()) {
-                return false.to(0.0f)
+                return false to 0.0f
             }
 
             val invDir = GLVector(1 / dir.x(), 1 / dir.y(), 1 / dir.z())
@@ -133,15 +132,15 @@ open class SelectCommand(private val name: String,
 
             // we are in front of the AABB
             if (tmax < 0) {
-                return false.to(tmax)
+                return false to tmax
             }
 
             // we have missed the AABB
             if (tmin > tmax) {
-                return false.to(tmax)
+                return false to tmax
             }
 
             // we have a match!
-            return true.to(tmin)
+            return true to tmin
     }
 }
