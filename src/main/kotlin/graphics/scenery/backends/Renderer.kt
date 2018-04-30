@@ -39,6 +39,10 @@ abstract class Renderer : Hubable {
 
     abstract fun close()
 
+    fun screenshot() {
+        screenshot("")
+    }
+
     abstract fun screenshot(filename: String = "")
 
     abstract fun reshape(newWidth: Int, newHeight: Int)

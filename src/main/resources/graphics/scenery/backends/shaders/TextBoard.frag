@@ -50,53 +50,55 @@ void main() {
 
     vec3 rgb = vec3(1.0f, 1.0f, 1.0f);
     float pattern = 0.0;
+    float alphaSum = 0.0;
 
-    if(false) {
-    float pattern = 0.0f;
-    float texw = atlasSize.x;
-    float texh = atlasSize.y;
+//        float pattern = 0.0f;
+//        float texw = atlasSize.x;
+//        float texh = atlasSize.y;
+//
+//        float oneu = 1.0f/texw;
+//        float onev = 1.0f/texh;
+//
+//        vec2 uv = Vertex.TexCoord * vec2 ( texw , texh ) ; // Scale to texture rect coords
+//        vec2 uv00 = floor ( uv - vec2 (0.5) ); // Lower left of lower left texel
+//        vec2 uvlerp = uv - uv00 - vec2 (0.5) ; // Texel - local blends [0 ,1]
+//
+//        // Perform explicit texture interpolation of distance value D.
+//        // If hardware interpolation is OK , use D = texture2D ( disttex , st).
+//        // Center st00 on lower left texel and rescale to [0 ,1] for lookup
+//        vec2 st00 = ( uv00 + vec2 (0.5) ) * vec2 ( oneu , onev );
+//        // Sample distance D from the centers of the four closest texels
+//        float aascale = 1.0;
+//        float D00 = texture( ObjectTextures[1], st00 ).r ;
+//        float D10 = texture( ObjectTextures[1], st00 + vec2 (aascale*oneu , 0.0) ).r;
+//        float D01 = texture( ObjectTextures[1], st00 + vec2 (0.0 , aascale*onev ) ).r;
+//        float D11 = texture( ObjectTextures[1], st00 + vec2 (aascale*oneu, aascale*onev ) ).r;
+//
+//        vec2 D00_10 = vec2 ( D00 , D10 );
+//        vec2 D01_11 = vec2 ( D01 , D11 );
+//
+//        vec2 D0_1 = mix ( D00_10 , D01_11 , uvlerp.y);
+//        float D = mix( D0_1.x , D0_1.y , uvlerp.x);
+//
+//        pattern = aastep(0.5, D);
+    float dist = texture(ObjectTextures[1], Vertex.TexCoord).r;
+    float width = fwidth(dist);
+    pattern = contour(dist, width);
 
-    float oneu = 1.0f/texw;
-    float onev = 1.0f/texh;
+    const float dscale = 0.554;
+    vec2 deltaUV = dscale * (dFdx(Vertex.TexCoord) + dFdy(Vertex.TexCoord));
+    vec4 box = vec4(Vertex.TexCoord - deltaUV, Vertex.TexCoord + deltaUV);
 
-    vec2 uv = Vertex.TexCoord * vec2 ( texw , texh ) ; // Scale to texture rect coords
-    vec2 uv00 = floor ( uv - vec2 (0.5) ); // Lower left of lower left texel
-    vec2 uvlerp = uv - uv00 - vec2 (0.5) ; // Texel - local blends [0 ,1]
-
-    // Perform explicit texture interpolation of distance value D.
-    // If hardware interpolation is OK , use D = texture2D ( disttex , st).
-    // Center st00 on lower left texel and rescale to [0 ,1] for lookup
-    vec2 st00 = ( uv00 + vec2 (0.5) ) * vec2 ( oneu , onev );
-    // Sample distance D from the centers of the four closest texels
-    float aascale = 1.0;
-    float D00 = texture( ObjectTextures[1], st00 ).r ;
-    float D10 = texture( ObjectTextures[1], st00 + vec2 (aascale*oneu , 0.0) ).r;
-    float D01 = texture( ObjectTextures[1], st00 + vec2 (0.0 , aascale*onev ) ).r;
-    float D11 = texture( ObjectTextures[1], st00 + vec2 (aascale*oneu, aascale*onev ) ).r;
-
-    vec2 D00_10 = vec2 ( D00 , D10 );
-    vec2 D01_11 = vec2 ( D01 , D11 );
-
-    vec2 D0_1 = mix ( D00_10 , D01_11 , uvlerp.y);
-    float D = mix( D0_1.x , D0_1.y , uvlerp.x);
-
-    pattern = aastep(0.5, D);
-    } else {
-        float dist = texture(ObjectTextures[1], Vertex.TexCoord).r;
-        float width = fwidth(dist);
-        pattern = contour(dist, width);
-
-        const float dscale = 0.554;
-        vec2 deltaUV = dscale * (dFdx(Vertex.TexCoord) + dFdy(Vertex.TexCoord));
-        vec4 box = vec4(Vertex.TexCoord - deltaUV, Vertex.TexCoord + deltaUV);
-
-        float alphaSum = samp(box.xy, width) + samp(box.zw, width) + samp(box.xw, width) + samp(box.zy, width);
-        pattern = (pattern + 0.5 * alphaSum)/3.0;
-    }
+    alphaSum = samp(box.xy, width) + samp(box.zw, width) + samp(box.xw, width) + samp(box.zy, width);
 
     if(transparent == 1) {
-        FragColor = vec4(fontColor.rgb, pattern);
+        // pre-multiplied alpha is very important here to not get artifacts.
+        pattern = pattern * alphaSum/4.0;
+        FragColor = vec4(mix(vec3(0.0f), fontColor.rgb, pattern), pattern);
     } else {
+        // we use a slightly different sampling here to get larger contours
+        // that end up at the same width as in the transparent case.
+        pattern = (pattern + 0.5 * alphaSum)/3.0;
         float a = smoothstep(0.1, 0.9, pattern);
         rgb = mix(backgroundColor.rgb, fontColor.rgb, a);
 

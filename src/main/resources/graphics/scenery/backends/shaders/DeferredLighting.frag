@@ -175,9 +175,9 @@ vec2 alphabeta(float NdotL, float NdotV) {
     vec2 ab = vec2(0.0);
 
     if(abs(NdotL) > abs(NdotV)) {
-        ab = vec2(sqrt(max(0.0, 1 - NdotV)), sqrt(max(0.0, 1 - NdotL) / abs(NdotL)));
+        ab = vec2(sqrt(max(0.0, 1 - NdotV)), sqrt(max(0.0, 1 - NdotL) / max(abs(NdotL), 0.0000001)));
     } else {
-        ab = vec2(sqrt(max(0.0, 1 - NdotL)), sqrt(max(0.0, 1 - NdotV) / abs(NdotV)));
+        ab = vec2(sqrt(max(0.0, 1 - NdotL)), sqrt(max(0.0, 1 - NdotV) / max(abs(NdotV), 0.0000001)));
     }
 
     return ab;

@@ -3,13 +3,14 @@ package graphics.scenery.tests.unit
 import cleargl.GLMatrix
 import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
-import graphics.scenery.BufferUtils
+import graphics.scenery.BufferUtils.BufferUtils.allocateFloatAndPut
 import graphics.scenery.Mesh
-import org.junit.Test
 import graphics.scenery.Node
 import graphics.scenery.Scene
-import graphics.scenery.utils.LazyLogger
 import graphics.scenery.numerics.Random
+import graphics.scenery.utils.LazyLogger
+import org.junit.Assert.*
+import org.junit.Test
 import java.util.concurrent.ThreadLocalRandom
 
 /**
@@ -146,17 +147,31 @@ class NodeTests {
     @Test
     fun testBoundingBoxGeneration() {
         val m = Mesh()
-        m.vertices = BufferUtils.allocateFloatAndPut(
-            floatArrayOf(-1.0f, -1.0f, -1.0f,
-                1.0f, 1.0f, 1.0f))
 
-        val expectedResult = floatArrayOf(-1.0f, 1.0f, -1.0f, 1.0f, -1.0f, 1.0f)
+        val expectedMin = GLVector(-1.0f, -2.0f, -3.0f)
+        val expectedMax = GLVector(4.0f, 5.0f, 6.0f)
+
+        m.vertices = allocateFloatAndPut(
+            floatArrayOf(
+                *expectedMin.toFloatArray(),
+                *expectedMax.toFloatArray()))
+
         val expectedPosition = m.vertices.position()
         val expectedLimit = m.vertices.limit()
 
-        assert(m.vertices.position() == expectedPosition)
-        assert(m.vertices.limit() == expectedLimit)
-        assert(m.generateBoundingBox() contentEquals expectedResult)
+        assertEquals("Vertex buffer position", expectedPosition, m.vertices.position())
+        assertEquals("Vertex buffer limit", expectedLimit, m.vertices.limit())
+
+        m.boundingBox = m.generateBoundingBox()
+
+        assertNotNull("Bounding box should not be null", m.boundingBox)
+
+        assertArrayEquals("Bounding Box minimum",
+            expectedMin.toFloatArray().toTypedArray(),
+            m.boundingBox!!.min.toFloatArray().toTypedArray())
+        assertArrayEquals("Bounding Box maximum",
+            expectedMax.toFloatArray().toTypedArray(),
+            m.boundingBox!!.max.toFloatArray().toTypedArray())
     }
 
     /**
@@ -165,15 +180,18 @@ class NodeTests {
     @Test
     fun testCentering() {
         val m = Mesh()
-        m.vertices = BufferUtils.allocateFloatAndPut(
+        m.vertices = allocateFloatAndPut(
             floatArrayOf(-1.0f, -1.0f, -1.0f,
                 1.0f, 1.0f, 1.0f))
-        m.generateBoundingBox()
+        m.boundingBox = m.generateBoundingBox()
 
         val expectedCenter = GLVector(1.0f, 1.0f, 1.0f, 0.0f)
         val center = m.centerOn(GLVector(0.0f, 0.0f, 0.0f))
         logger.info("Centering on $center, expected=$expectedCenter")
-        assert(center.toFloatArray() contentEquals  expectedCenter.toFloatArray())
+
+        assertArrayEquals("Centering on $center",
+            expectedCenter.toFloatArray().toTypedArray(),
+            center.toFloatArray().toTypedArray())
     }
 
     /**
@@ -182,16 +200,18 @@ class NodeTests {
     @Test
     fun testFitting() {
         val m = Mesh()
-        m.vertices = BufferUtils.allocateFloatAndPut(
+        m.vertices = allocateFloatAndPut(
             floatArrayOf(-1.0f, -2.0f, -4.0f,
                 1.0f, 2.0f, 4.0f))
-        m.generateBoundingBox()
+        m.boundingBox = m.generateBoundingBox()
         val scaling = m.fitInto(0.5f)
         val expectedScaling = GLVector(0.0625f, 0.0625f, 0.0625f)
 
         logger.info("Applied scaling: $scaling, expected=$expectedScaling")
 
-        assert(scaling.toFloatArray() contentEquals expectedScaling.toFloatArray())
+        assertArrayEquals("Fitting into box size of side length 0.5f",
+            expectedScaling.toFloatArray().toTypedArray(),
+            scaling.toFloatArray().toTypedArray())
     }
 
     /**

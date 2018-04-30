@@ -24,7 +24,8 @@ struct MaterialInfo {
     vec3 Ka;
     vec3 Kd;
     vec3 Ks;
-    float Shininess;
+    float Roughness;
+    float Metallic;
     float Opacity;
 };
 
@@ -54,7 +55,7 @@ layout(location = 0) out vec4 FragColor;
 void main()
 {
     vec3 diffuse = Material.Kd;
-    float specular = Material.Shininess;
+    float specular = Material.Metallic;
     vec3 normal;
 
 	if((materialType & MATERIAL_HAS_AMBIENT) == MATERIAL_HAS_AMBIENT) {

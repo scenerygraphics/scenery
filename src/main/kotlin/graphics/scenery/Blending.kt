@@ -47,5 +47,14 @@ data class Blending(
 
         SrcAlphaSaturate
     }
+
+    fun setOverlayBlending() {
+        sourceColorBlendFactor = Blending.BlendFactor.One
+        destinationColorBlendFactor = Blending.BlendFactor.OneMinusSrcAlpha
+        sourceAlphaBlendFactor = Blending.BlendFactor.One
+        destinationAlphaBlendFactor = Blending.BlendFactor.Zero
+        colorBlending = Blending.BlendOp.add
+        alphaBlending = Blending.BlendOp.add
+    }
 }
 
