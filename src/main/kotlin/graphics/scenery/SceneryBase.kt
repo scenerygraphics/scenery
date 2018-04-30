@@ -139,7 +139,9 @@ open class SceneryBase(var applicationName: String,
 
         // start & show REPL -- note: REPL will only exist if not running in headless mode
         repl?.start()
-        repl?.showConsoleWindow()
+        if(!System.getProperty("scenery.Headless", "false").toBoolean()) {
+            repl?.showConsoleWindow()
+        }
 
         val statsRequested = java.lang.Boolean.parseBoolean(System.getProperty("scenery.PrintStatistics", "false"))
 
@@ -251,6 +253,7 @@ open class SceneryBase(var applicationName: String,
         inputHandler?.close()
         renderer?.close()
         renderdoc?.close()
+        running = false
     }
 
     fun setupCameraModeSwitching(keybinding: String = "C") {
@@ -291,6 +294,13 @@ open class SceneryBase(var applicationName: String,
      */
     fun close() {
         renderer?.shouldClose = true
+    }
+
+    /**
+     * Returns whether the current scene is done initialising.
+     */
+    fun sceneInitialized(): Boolean {
+        return scene.initialized
     }
 
     companion object {

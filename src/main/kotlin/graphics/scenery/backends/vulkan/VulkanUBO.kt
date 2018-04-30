@@ -39,18 +39,16 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
     }
 
     fun populate(offset: Long = 0L) {
-        val data = if(backingBuffer == null) {
-            memAlloc(getSize())
-        } else {
-            backingBuffer!!.stagingBuffer
-        }
-
-        super.populate(data, offset, elements = null)
-
         if(backingBuffer == null) {
+            val data = memAlloc(getSize())
+
+            super.populate(data, offset, elements = null)
+
             data.flip()
             copy(data, offset = offset)
             memFree(data)
+        } else {
+            super.populate(backingBuffer!!.stagingBuffer, offset, elements = null)
         }
     }
 

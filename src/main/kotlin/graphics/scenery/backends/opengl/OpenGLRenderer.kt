@@ -101,6 +101,9 @@ class OpenGLRenderer(hub: Hub,
     /** Flag set when a screenshot is requested */
     private var screenshotRequested = false
 
+    /** Path of the file where to store the screenshot */
+    private var screenshotFilename = ""
+
     /** H264 movie encoder */
     private var encoder: H264Encoder? = null
     /** Flag set when a movie recording is requested */
@@ -1276,7 +1279,9 @@ class OpenGLRenderer(hub: Hub,
 
         if (shouldClose) {
             try {
+                logger.info("Closing window")
                 joglDrawable?.animator?.stop()
+                cglWindow?.close()
             } catch(e: ThreadDeath) {
                 logger.debug("Caught JOGL ThreadDeath, ignoring.")
             }
@@ -1751,7 +1756,11 @@ class OpenGLRenderer(hub: Hub,
             try {
                 val readBufferUtil = AWTGLReadBufferUtil(joglDrawable!!.glProfile, false)
                 val image = readBufferUtil.readPixelsToBufferedImage(gl, true)
-                val file = File(System.getProperty("user.home"), "Desktop" + File.separator + "$applicationName - ${SimpleDateFormat("yyyy-MM-dd HH.mm.ss").format(Date())}.png")
+                val file = if(screenshotFilename == "") {
+                    File(System.getProperty("user.home"), "Desktop" + File.separator + "$applicationName - ${SimpleDateFormat("yyyy-MM-dd HH.mm.ss").format(Date())}.png")
+                } else {
+                    File(screenshotFilename)
+                }
 
                 ImageIO.write(image, "png", file)
                 logger.info("Screenshot saved to ${file.absolutePath}")
@@ -2427,8 +2436,9 @@ class OpenGLRenderer(hub: Hub,
         gl.glBindVertexArray(0)
     }
 
-    override fun screenshot() {
+    override fun screenshot(filename: String) {
         screenshotRequested = true
+        screenshotFilename = filename
     }
 
     fun recordMovie() {

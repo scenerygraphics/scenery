@@ -127,6 +127,10 @@ class VU {
 
             if (result != VK_SUCCESS && result !in allowedResults) {
                 LoggerFactory.getLogger("VulkanRenderer").error("Call to $name failed: ${translate(result)}")
+
+                if(result < 0) {
+                    throw RuntimeException("Call to $name failed: ${translate(result)}")
+                }
             }
 
             if(result in allowedResults) {
@@ -139,6 +143,10 @@ class VU {
 
             if (result != VK_SUCCESS) {
                 LoggerFactory.getLogger("VulkanRenderer").error("Call to $name failed: ${translate(result)}")
+
+                if(result < 0) {
+                    throw RuntimeException("Call to $name failed: ${translate(result)}")
+                }
             }
 
             cleanup.invoke()
@@ -151,6 +159,10 @@ class VU {
 
                 if (result != VK_SUCCESS) {
                     LoggerFactory.getLogger("VulkanRenderer").error("Call to $name failed: ${translate(result)}")
+
+                    if(result < 0) {
+                        throw RuntimeException("Call to $name failed: ${translate(result)}")
+                    }
                 }
 
                 val ret = receiver.get(0)
@@ -165,6 +177,10 @@ class VU {
 
             if (result != VK_SUCCESS) {
                 LoggerFactory.getLogger("VulkanRenderer").error("Call to $name failed: ${translate(result)}")
+
+                if(result < 0) {
+                    throw RuntimeException("Call to $name failed: ${translate(result)}")
+                }
             }
 
             return receiver
@@ -178,6 +194,10 @@ class VU {
                 if (result != VK_SUCCESS) {
                     LoggerFactory.getLogger("VulkanRenderer").error("Call to $name failed: ${translate(result)}")
                     cleanup.invoke(receiver)
+
+                    if(result < 0) {
+                        throw RuntimeException("Call to $name failed: ${translate(result)}")
+                    }
                 }
 
                 val ret = receiver.get(0)
@@ -194,6 +214,10 @@ class VU {
                 if (result != VK_SUCCESS) {
                     LoggerFactory.getLogger("VulkanRenderer").error("Call to $name failed: ${translate(result)}")
                     cleanup.invoke(receiver)
+
+                    if(result < 0) {
+                        throw RuntimeException("Call to $name failed: ${translate(result)}")
+                    }
                 }
 
                 cleanup.invoke(receiver)
@@ -207,6 +231,10 @@ class VU {
 
                 if (result != VK_SUCCESS) {
                     LoggerFactory.getLogger("VulkanRenderer").error("Call to $name failed: ${translate(result)}")
+
+                    if(result < 0) {
+                        throw RuntimeException("Call to $name failed: ${translate(result)}")
+                    }
                 }
 
                 cleanup.invoke(receiver)
@@ -221,6 +249,10 @@ class VU {
 
             if(result != VK_SUCCESS) {
                 LoggerFactory.getLogger("VulkanRenderer").error("Call to $name failed: ${translate(result)}")
+
+                if(result < 0) {
+                    throw RuntimeException("Call to $name failed: ${translate(result)}")
+                }
             }
 
             return receiver
@@ -233,6 +265,10 @@ class VU {
             if(result != VK_SUCCESS) {
                 LoggerFactory.getLogger("VulkanRenderer").error("Call to $name failed: ${translate(result)}")
                 cleanup.invoke(receiver)
+
+                if(result < 0) {
+                    throw RuntimeException("Call to $name failed: ${translate(result)}")
+                }
             }
 
             cleanup.invoke(receiver)
