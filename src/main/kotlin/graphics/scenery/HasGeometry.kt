@@ -85,12 +85,8 @@ interface HasGeometry : Serializable {
 
         val f = File(filename)
         if (!f.exists()) {
-            logger.error("Could not read materials from $filename, file does not exist.")
+            logger.warn("Could not read materials from $filename, file does not exist.")
 
-            vertices = ByteBuffer.allocateDirect(0).asFloatBuffer()
-            normals = ByteBuffer.allocateDirect(0).asFloatBuffer()
-            texcoords = ByteBuffer.allocateDirect(0).asFloatBuffer()
-            indices = ByteBuffer.allocateDirect(0).asIntBuffer()
             return materials
         }
 
@@ -344,13 +340,15 @@ interface HasGeometry : Serializable {
                 when (tokens[0]) {
                     'm' -> {
                         if (importMaterials) {
-                            materials = readFromMTL(filename.substringBeforeLast("/") + "/" + tokens.substringAfter(" ").trim().trimEnd())
+                            materials = readFromMTL(filename.replace("\\", "/").substringBeforeLast("/") + "/" + tokens.substringAfter(" ").trim().trimEnd())
                         }
                     }
 
                     'u' -> {
                         if (targetObject is Node && importMaterials) {
-                            (targetObject as Node).material = materials[tokens.substringAfter(" ").trim().trimEnd()]!!
+                            materials[tokens.substringAfter(" ").trim().trimEnd()]?.let {
+                                (targetObject as Node).material = it
+                            }
                         }
                     }
 
