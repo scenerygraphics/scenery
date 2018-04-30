@@ -12,7 +12,7 @@ import graphics.scenery.repl.REPL;
 public class TexturedCubeJavaExample {
     @Test
     public void testExample() throws Exception {
-        TexturedCubeJavaApplication viewer = new TexturedCubeJavaApplication( "scenery - TexturedCubeExample", 800, 600 );
+        TexturedCubeJavaApplication viewer = new TexturedCubeJavaApplication( "scenery - TexturedCubeExample", 512, 512);
         viewer.main();
     }
 
@@ -23,7 +23,7 @@ public class TexturedCubeJavaExample {
 
         public void init() {
 
-            setRenderer( Renderer.createRenderer(getHub(), getApplicationName(), getScene(), 512, 512));
+            setRenderer( Renderer.createRenderer(getHub(), getApplicationName(), getScene(), getWindowWidth(), getWindowHeight()));
             getHub().add(SceneryElement.Renderer, getRenderer());
 
             Material boxmaterial = new Material();
@@ -38,17 +38,11 @@ public class TexturedCubeJavaExample {
 
             getScene().addChild(box);
 
-            PointLight[] lights = new PointLight[2];
-
-            for( int i = 0; i < lights.length; i++ ) {
-                lights[i] = new PointLight();
-                lights[i].setPosition( new GLVector(2.0f * i, 2.0f * i, 2.0f * i) );
-                lights[i].setEmissionColor( new GLVector(1.0f, 0.0f, 1.0f) );
-                lights[i].setIntensity( 100.2f*(i+1) );
-                lights[i].setLinear(0.0f);
-                lights[i].setQuadratic(0.5f);
-                getScene().addChild( lights[i] );
-            }
+            PointLight light = new PointLight(15.0f);
+            light.setPosition(new GLVector(0.0f, 0.0f, 2.0f));
+            light.setIntensity(100.0f);
+            light.setEmissionColor(new GLVector(1.0f, 1.0f, 1.0f));
+            getScene().addChild(light);
 
             Camera cam = new DetachedHeadCamera();
             cam.setPosition( new GLVector(0.0f, 0.0f, 5.0f) );
@@ -71,14 +65,7 @@ public class TexturedCubeJavaExample {
                 }
             };
             rotator.start();
-
-            setRepl(new REPL(getScene(), getRenderer()));
-            getRepl().start();
-            getRepl().showConsoleWindow();
-
         }
-
-
     }
 
 }

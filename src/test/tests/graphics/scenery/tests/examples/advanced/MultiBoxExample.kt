@@ -47,14 +47,12 @@ class MultiBoxExample : SceneryBase("MultiBoxExample") {
 
         scene.addChild(m)
 
-        val lights = (0..10).map {
-            PointLight()
+        val lights = (0..20).map {
+            PointLight(radius = 450.0f)
         }.map {
             it.position = Random.randomVectorFromRange(3, -600.0f, 600.0f)
             it.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
-            it.intensity = Random.randomFromRange(0.01f, 1000f)
-            it.linear = 0.1f;
-            it.quadratic = 0.1f;
+            it.intensity = Random.randomFromRange(50.0f, 1000f)
 
             scene.addChild(it)
             it
@@ -68,6 +66,7 @@ class MultiBoxExample : SceneryBase("MultiBoxExample") {
             material.diffuse = GLVector(0.4f, 0.4f, 0.4f)
             material.specular = GLVector(0.0f, 0.0f, 0.0f)
             material.doubleSided = true
+            material.cullingMode = Material.CullingMode.Front
 
             scene.addChild(this)
         }

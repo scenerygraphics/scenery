@@ -217,7 +217,7 @@ void main()
     float lightAttenuation = pow(clamp(1.0 - pow(distance/lightRadius, 4.0), 0.0, 1.0), 2.0) / (distance * distance + 1.0);
 
 	if(debugLights == 1) {
-        FragColor = vec4(distance, distance, distance, 1.0);
+        FragColor = vec4(N, 1.0);
         return;
 	}
 
@@ -303,7 +303,7 @@ void main()
         } if(debugLights == 6) {
             lighting += vec3(lightOcclusion);
         } if(debugLights == 7) {
-            lighting = N;
+            lighting = vec3(distance);
         } else {
             lighting += (diffuse + specular) * lightAttenuation;
         }

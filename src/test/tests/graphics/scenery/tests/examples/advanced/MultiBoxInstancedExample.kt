@@ -67,13 +67,11 @@ class MultiBoxInstancedExample : SceneryBase("MultiBoxInstancedExample") {
         }
 
         val lights = (0..20).map {
-            PointLight()
+            PointLight(radius = 450.0f)
         }.map {
             it.position = Random.randomVectorFromRange(3, -600.0f, 600.0f)
-            it.emissionColor = Random.randomVectorFromRange(3, 0.1f, 0.9f)
-            it.intensity = Random.randomFromRange(5.0f, 150.0f)
-            it.linear = 0.1f
-            it.quadratic = 0.8f
+            it.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
+            it.intensity = Random.randomFromRange(50.0f, 2000.0f)
 
             scene.addChild(it)
             it

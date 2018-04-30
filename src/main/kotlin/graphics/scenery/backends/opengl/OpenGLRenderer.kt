@@ -24,6 +24,7 @@ import java.nio.IntBuffer
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import javax.imageio.ImageIO
@@ -100,6 +101,9 @@ class OpenGLRenderer(hub: Hub,
     /** Flag set when a screenshot is requested */
     private var screenshotRequested = false
 
+    /** Path of the file where to store the screenshot */
+    private var screenshotFilename = ""
+
     /** H264 movie encoder */
     private var encoder: H264Encoder? = null
     /** Flag set when a movie recording is requested */
@@ -125,8 +129,7 @@ class OpenGLRenderer(hub: Hub,
     override var lastFrameTime = System.nanoTime() * 1.0f
     private var currentTime = System.nanoTime()
 
-    var initialized = false
-        private set
+    final override var initialized = false
 
     private var pboBuffers: Array<ByteBuffer?> = arrayOf(null, null)
     private var pboBufferAvailable = arrayOf(true, true)
@@ -256,7 +259,7 @@ class OpenGLRenderer(hub: Hub,
     }
 
     internal val buffers = HashMap<String, OpenGLBuffer>()
-    internal val sceneUBOs = ArrayList<Node>()
+    internal val sceneUBOs = CopyOnWriteArrayList<Node>()
 
     internal val resizeHandler = ResizeHandler()
 
@@ -841,7 +844,7 @@ class OpenGLRenderer(hub: Hub,
      * Initializes the [Scene] with the [OpenGLRenderer], to be called
      * before [render].
      */
-    override fun initializeScene() {
+    @Synchronized override fun initializeScene() {
         scene.discover(scene, { it is HasGeometry })
             .forEach { it ->
                 it.metadata.put("OpenGLRenderer", OpenGLObjectState())
@@ -1262,7 +1265,11 @@ class OpenGLRenderer(hub: Hub,
      * 7) The resulting image is drawn to the screen, or -- if a HMD is present -- submitted to the OpenVR
      *    compositor.
      */
-    override fun render() {
+    @Synchronized override fun render() {
+        if(!initialized) {
+            return
+        }
+
         val newTime = System.nanoTime()
         lastFrameTime = (System.nanoTime() - currentTime)/1e6f
         currentTime = newTime
@@ -1272,7 +1279,9 @@ class OpenGLRenderer(hub: Hub,
 
         if (shouldClose) {
             try {
+                logger.info("Closing window")
                 joglDrawable?.animator?.stop()
+                cglWindow?.close()
             } catch(e: ThreadDeath) {
                 logger.debug("Caught JOGL ThreadDeath, ignoring.")
             }
@@ -1747,7 +1756,11 @@ class OpenGLRenderer(hub: Hub,
             try {
                 val readBufferUtil = AWTGLReadBufferUtil(joglDrawable!!.glProfile, false)
                 val image = readBufferUtil.readPixelsToBufferedImage(gl, true)
-                val file = File(System.getProperty("user.home"), "Desktop" + File.separator + "$applicationName - ${SimpleDateFormat("yyyy-MM-dd HH.mm.ss").format(Date())}.png")
+                val file = if(screenshotFilename == "") {
+                    File(System.getProperty("user.home"), "Desktop" + File.separator + "$applicationName - ${SimpleDateFormat("yyyy-MM-dd HH.mm.ss").format(Date())}.png")
+                } else {
+                    File(screenshotFilename)
+                }
 
                 ImageIO.write(image, "png", file)
                 logger.info("Screenshot saved to ${file.absolutePath}")
@@ -1801,7 +1814,7 @@ class OpenGLRenderer(hub: Hub,
      * @param[node]: The [Node] to initialise.
      * @return True if the initialisation went alright, False if it failed.
      */
-    fun initializeNode(node: Node): Boolean {
+    @Synchronized fun initializeNode(node: Node): Boolean {
         if(!node.lock.tryLock(2, TimeUnit.MILLISECONDS)) {
             return false
         }
@@ -2423,8 +2436,9 @@ class OpenGLRenderer(hub: Hub,
         gl.glBindVertexArray(0)
     }
 
-    override fun screenshot() {
+    override fun screenshot(filename: String) {
         screenshotRequested = true
+        screenshotFilename = filename
     }
 
     fun recordMovie() {

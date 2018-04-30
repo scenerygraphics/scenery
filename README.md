@@ -1,7 +1,7 @@
 [![scenery logo](./artwork/logo-light-small.png)](./artwork/logo-light.png)
 
 ---
-__Hello, this is the master branch, where development happens and stuff breaks.__ If you require a stable version of scenery, please check out the [latest stable version of this repository, version 0.3.0](https://github.com/scenerygraphics/scenery/tree/scenery-0.3.0).
+__Hello, this is the master branch, where development happens and stuff breaks.__ If you require a stable version of scenery, please check out the [latest stable version of this repository, version 0.3.1](https://github.com/scenerygraphics/scenery/tree/scenery-0.3.1).
 
 ---
 
@@ -94,7 +94,7 @@ Add scenery and ClearGL to your project's `pom.xml`:
   <dependency>
     <groupId>graphics.scenery</groupId>
     <artifactId>scenery</artifactId>
-    <version>0.3.1-SNAPSHOT</version>
+    <version>0.3.1</version>
   </dependency>
 
   <dependency>
@@ -110,7 +110,7 @@ Add scenery and ClearGL to your project's `pom.xml`:
 Add scenery and ClearGL to your project's `build.gradle`:
 
 ```groovy
-compile group: 'graphics.scenery', name: 'scenery', version: '0.3.1-SNAPSHOT'
+compile group: 'graphics.scenery', name: 'scenery', version: '0.3.1'
 compile group: 'net.clearvolume', name: 'cleargl', version: '2.1.5'
 ```
 
@@ -136,6 +136,7 @@ scenery has been tested with a number of different systems and GPUs. If you have
 | AMD Radeon R9 M370X (Strato Pro) | ⬜ | ⬜ | ⬜ | ⬜ | ✅ |
 | AMD FirePro W9100 (Hawaii XT) | ✅ | ✅ | ⬜ | ⬜ | ⬜ |
 | Intel HD Graphics 4400 (Haswell) | ⛔ | ⬜ | ✅ | ✅ | ⬜ |
+| Intel HD Graphics 5500 (Broadwell) | ⬜ | ⬜ | ✅ | ⬜ | ⬜ |
 | Nvidia Geforce Titan X (Maxwell) | ✅ | ✅ | ✅ | ✅ | ⬜	 |
 | Nvidia Titan Xp (Pascal) | ✅ | ✅ | ⬜ | ⬜	 | ⬜	 |
 | Nvidia Geforce 1080 Ti (Pascal) | ✅ | ✅ | ✅ | ✅| ⬜	 |

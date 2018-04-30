@@ -279,13 +279,13 @@ open class VulkanSwapchain(open val device: VulkanDevice,
 
             // Generate error if could not find both a graphics and a present queue
             if (graphicsQueueNodeIndex == Integer.MAX_VALUE) {
-                throw AssertionError("No graphics queue found")
+                throw RuntimeException("No graphics queue found")
             }
             if (presentQueueNodeIndex == Integer.MAX_VALUE) {
-                throw AssertionError("No presentation queue found")
+                throw RuntimeException("No presentation queue found")
             }
             if (graphicsQueueNodeIndex != presentQueueNodeIndex) {
-                throw AssertionError("Presentation queue != graphics queue")
+                throw RuntimeException("Presentation queue != graphics queue")
             }
 
             presentQueue = VkQueue(VU.getPointer("Get present queue",

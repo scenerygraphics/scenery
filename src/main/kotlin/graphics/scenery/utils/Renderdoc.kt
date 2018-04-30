@@ -12,11 +12,19 @@ import com.sun.jna.win32.StdCallLibrary
  * @author Ulrik Guenther <hello@ulrik.is>
  */
 
-interface RenderdocLibrary : Library {
+interface RenderdocWindowsLibrary : StdCallLibrary {
     fun RENDERDOC_GetAPI(version: Int, out: PointerByReference): Int
 
     companion object {
-        val instance = Native.loadLibrary("renderdoc", RenderdocLibrary::class.java) as RenderdocLibrary
+        val instance = Native.loadLibrary("renderdoc", RenderdocWindowsLibrary::class.java) as RenderdocWindowsLibrary
+    }
+}
+
+interface RenderdocLinuxLibrary : Library {
+    fun RENDERDOC_GetAPI(version: Int, out: PointerByReference): Int
+
+    companion object {
+        val instance = Native.loadLibrary("renderdoc", RenderdocLinuxLibrary::class.java) as RenderdocLinuxLibrary
     }
 }
 
@@ -24,25 +32,40 @@ enum class RenderdocVersion(val versionNumber: Int) {
     eRENDERDOC_API_Version_1_0_0(10000),    // RENDERDOC_API_1_0_0 = 1 00 00
     eRENDERDOC_API_Version_1_0_1(10001),    // RENDERDOC_API_1_0_1 = 1 00 01
     eRENDERDOC_API_Version_1_0_2(10002),    // RENDERDOC_API_1_0_2 = 1 00 02
-    eRENDERDOC_API_Version_1_1_0( 10100),    // RENDERDOC_API_1_1_0 = 1 01 00
+    eRENDERDOC_API_Version_1_1_0(10100),    // RENDERDOC_API_1_1_0 = 1 01 00
     eRENDERDOC_API_Version_1_1_1(10101),    // RENDERDOC_API_1_1_1 = 1 01 01
 }
 
-class Renderdoc: AutoCloseable {
+class Renderdoc : AutoCloseable {
     private val logger by LazyLogger()
 
     init {
         logger.info("Initialising Renderdoc")
 
         val p = PointerByReference()
-        val ret = RenderdocLibrary.instance.RENDERDOC_GetAPI(RenderdocVersion.eRENDERDOC_API_Version_1_1_1.versionNumber, p)
+        when (ExtractsNatives.getPlatform()) {
+            ExtractsNatives.Platform.WINDOWS -> {
+                val ret = RenderdocWindowsLibrary.instance.RENDERDOC_GetAPI(RenderdocVersion.eRENDERDOC_API_Version_1_1_1.versionNumber, p)
 
-        if(ret != 1) {
-            logger.error("Renderdoc attachment failed, return code=$ret")
-        } else {
-            renderdocAttached = true
+                if (ret != 1) {
+                    logger.error("Renderdoc attachment failed, return code=$ret")
+                } else {
+                    renderdocAttached = true
+                }
+            }
+
+            ExtractsNatives.Platform.LINUX -> {
+                val ret = RenderdocLinuxLibrary.instance.RENDERDOC_GetAPI(RenderdocVersion.eRENDERDOC_API_Version_1_1_1.versionNumber, p)
+
+                if (ret != 1) {
+                    logger.error("Renderdoc attachment failed, return code=$ret")
+                } else {
+                    renderdocAttached = true
+                }
+            }
+
+            else -> logger.warn("Renderdoc is not supported on this platform, sorry.")
         }
-
     }
 
     override fun close() {

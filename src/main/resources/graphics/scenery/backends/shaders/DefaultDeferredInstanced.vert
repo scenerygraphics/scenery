@@ -53,7 +53,7 @@ mat4 mv;
 	mat4 nMVP;
 	mat4 projectionMatrix;
 
-    mv = (vrParameters.stereoEnabled ^ 1) * ViewMatrices[0] * ubo.ModelMatrix + (vrParameters.stereoEnabled * ViewMatrices[currentEye.eye] * ubo.ModelMatrix);
+    mv = (vrParameters.stereoEnabled ^ 1) * ViewMatrices[0] * iModelMatrix + (vrParameters.stereoEnabled * ViewMatrices[currentEye.eye] * iModelMatrix);
 	projectionMatrix = (vrParameters.stereoEnabled ^ 1) * ProjectionMatrix + vrParameters.stereoEnabled * vrParameters.projectionMatrices[currentEye.eye];
 
 	if(ubo.isBillboard > 0) {
@@ -72,7 +72,8 @@ mat4 mv;
 
 	nMVP = projectionMatrix*mv;
 
-    Vertex.Normal = mat3(ubo.NormalMatrix) * normalize(vertexNormal);
+    mat4 normalMatrix = transpose(inverse(iModelMatrix));
+    Vertex.Normal = mat3(normalMatrix) * normalize(vertexNormal);
     Vertex.TexCoord = vertexTexCoord;
     Vertex.FragPosition = vec3(iModelMatrix * vec4(vertexPosition, 1.0));
 

@@ -23,14 +23,19 @@ class ArcballExample : SceneryBase("ArcballExample") {
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
+            position = GLVector(0.0f, 0.0f, 2.5f)
             perspectiveCamera(70.0f, windowWidth.toFloat(), windowHeight.toFloat())
 
-            position = GLVector(0.0f, 0.0f, 2.5f)
-            view = GLMatrix().setCamera(cam.position, cam.position + cam.forward, cam.up)
+            targeted = true
+            target = GLVector(0.0f, 0.0f, 0.0f)
             active = true
 
             scene.addChild(this)
         }
+
+        val camlight = PointLight(3.0f)
+        camlight.intensity = 100.0f
+        cam.addChild(camlight)
 
         val box = Box(GLVector(1.0f, 1.0f, 1.0f))
 
@@ -46,11 +51,11 @@ class ArcballExample : SceneryBase("ArcballExample") {
         }
 
         val lights = (0..2).map {
-            PointLight()
+            PointLight(radius = 15.0f)
         }.map { light ->
-            light.position = Random.randomVectorFromRange(3, -5.0f, 5.0f)
-            light.emissionColor = GLVector(1.0f, 0.0f, 1.0f)
-            light.intensity = Random.randomFromRange(50.0f, 150.0f)
+            light.position = Random.randomVectorFromRange(3, -3.0f, 3.0f)
+            light.emissionColor = Random.randomVectorFromRange(3, 0.2f, 0.8f)
+            light.intensity = Random.randomFromRange(250.0f, 500.0f)
             light
         }
 
