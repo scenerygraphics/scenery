@@ -33,6 +33,7 @@ class JavaFXGridPaneExample : SceneryBase("JavaFXGridPaneExample", windowWidth =
         val latch = CountDownLatch(1)
         val imagePanel = SceneryPanel(windowWidth, windowHeight)
         val pane = GridPane()
+        var stage: Stage? = null
 
         val initialWidth = SimpleDoubleProperty()
         val initialHeight = SimpleDoubleProperty()
@@ -40,9 +41,8 @@ class JavaFXGridPaneExample : SceneryBase("JavaFXGridPaneExample", windowWidth =
         PlatformImpl.startup { }
 
         Platform.runLater {
-            val stage = Stage()
-            stage.title = applicationName
-
+            val s = Stage()
+            s.title = applicationName
 
             pane.add(imagePanel, 0, 0 )
 
@@ -71,17 +71,17 @@ class JavaFXGridPaneExample : SceneryBase("JavaFXGridPaneExample", windowWidth =
             pane.add( p, 1, 1)
 
             val scene = Scene(pane, windowWidth.toDouble(), windowHeight.toDouble())
-            stage.scene = scene
-            stage.onCloseRequest = EventHandler {
+            s.scene = scene
+            s.onCloseRequest = EventHandler {
                 renderer?.shouldClose = true
 
                 Platform.runLater { Platform.exit() }
             }
-            stage.show()
+            s.show()
 
 
             latch.countDown()
-
+            stage = s
         }
 
         latch.await()
@@ -107,16 +107,11 @@ class JavaFXGridPaneExample : SceneryBase("JavaFXGridPaneExample", windowWidth =
             scene.addChild(this)
         }
 
-        val lights = (0..2).map {
-            PointLight(radius = 5.0f)
-        }
-
-        lights.mapIndexed { i, light ->
-            light.position = GLVector(2.0f * i, 2.0f * i, 2.0f * i)
-            light.emissionColor = Random.randomVectorFromRange(3, 0.2f, 0.8f)
-            light.intensity = 10.2f * (i + 1)
-            scene.addChild(light)
-        }
+        val light = PointLight(radius = 15.0f)
+        light.position = GLVector(0.0f, 0.0f, 2.0f)
+        light.intensity = 100.0f
+        light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
+        scene.addChild(light)
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
@@ -133,6 +128,16 @@ class JavaFXGridPaneExample : SceneryBase("JavaFXGridPaneExample", windowWidth =
                 box.needsUpdate = true
 
                 Thread.sleep(20)
+            }
+        }
+
+        thread {
+            while(renderer?.shouldClose == false ?: true) {
+                Thread.sleep(200)
+            }
+
+            Platform.runLater {
+                stage?.close()
             }
         }
     }

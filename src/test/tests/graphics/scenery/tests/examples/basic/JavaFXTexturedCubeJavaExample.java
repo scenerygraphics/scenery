@@ -39,14 +39,15 @@ public class JavaFXTexturedCubeJavaExample {
 
             CountDownLatch latch = new CountDownLatch(1);
             final SceneryPanel[] imagePanel = {null};
+            final Stage[] stage = {null};
 
             PlatformImpl.startup(() -> {
             });
 
             Platform.runLater(() -> {
 
-                Stage stage = new Stage();
-                stage.setTitle(getApplicationName());
+                stage[0] = new Stage();
+                stage[0].setTitle(getApplicationName());
 
                 StackPane stackPane = new StackPane();
                 stackPane.setBackground(
@@ -82,13 +83,13 @@ public class JavaFXTexturedCubeJavaExample {
                 stackPane.getChildren().addAll(pane);
 
                 Scene scene = new Scene(stackPane);
-                stage.setScene(scene);
-                stage.setOnCloseRequest(event -> {
+                stage[0].setScene(scene);
+                stage[0].setOnCloseRequest(event -> {
                     getRenderer().setShouldClose(true);
 
                     Platform.runLater(Platform::exit);
                 });
-                stage.show();
+                stage[0].show();
 
                 latch.countDown();
             });
@@ -116,15 +117,11 @@ public class JavaFXTexturedCubeJavaExample {
             box.setMaterial(boxmaterial);
             getScene().addChild(box);
 
-            PointLight[] lights = new PointLight[2];
-
-            for (int i = 0; i < lights.length; i++) {
-                lights[i] = new PointLight(5.0f);
-                lights[i].setPosition(new GLVector(2.0f * i, 2.0f * i, 2.0f * i));
-                lights[i].setEmissionColor(Random.randomVectorFromRange(3, 0.2f, 0.8f));
-                lights[i].setIntensity(10.2f * (i + 1));
-                getScene().addChild(lights[i]);
-            }
+            PointLight light = new PointLight(15.0f);
+            light.setPosition(new GLVector(0.0f, 0.0f, 2.0f));
+            light.setIntensity(100.0f);
+            light.setEmissionColor(new GLVector(1.0f, 1.0f, 1.0f));
+            getScene().addChild(light);
 
             Camera cam = new DetachedHeadCamera();
             cam.setPosition(new GLVector(0.0f, 0.0f, 5.0f));
@@ -143,6 +140,19 @@ public class JavaFXTexturedCubeJavaExample {
                         e.printStackTrace();
                     }
                 }
+            }).start();
+
+
+            new Thread(() -> {
+                while(!getRenderer().getShouldClose()) {
+                    try {
+                        Thread.sleep(200);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+
+                Platform.runLater(() -> stage[0].close());
             }).start();
         }
     }

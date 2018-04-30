@@ -15,13 +15,6 @@ layout(location = 0) out VertexData {
     vec4 Color;
 } Vertex;
 
-layout(set = 0, binding = 0) uniform VRParameters {
-    mat4 projectionMatrices[2];
-    mat4 headShift;
-    float IPD;
-    int stereoEnabled;
-} vrParameters;
-
 layout(set = 1, binding = 0) uniform LightParameters {
     mat4 ViewMatrices[2];
     mat4 InverseViewMatrices[2];
@@ -30,11 +23,6 @@ layout(set = 1, binding = 0) uniform LightParameters {
     vec3 CamPosition;
 };
 
-layout(set = 2, binding = 0) uniform Matrices {
-	mat4 ModelMatrix;
-	mat4 NormalMatrix;
-	int isBillboard;
-} ubo;
 
 layout(set = 4, binding = 0) uniform ShaderProperties {
     vec4 startColor;

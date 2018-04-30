@@ -185,6 +185,45 @@ open class VulkanTexture(val device: VulkanDevice,
             return
         }
 
+        val deallocate: Boolean
+        val sourceBuffer = if(gt != null) {
+            if(gt!!.channels == 3) {
+                logger.debug("Loading RGB texture, padding channels to 4 to fit RGBA")
+                val pixelByteSize = when(gt!!.type) {
+                    GLTypeEnum.Byte -> 1
+                    GLTypeEnum.UnsignedByte -> 1
+                    GLTypeEnum.Short -> 2
+                    GLTypeEnum.UnsignedShort -> 2
+                    GLTypeEnum.Int -> 4
+                    GLTypeEnum.UnsignedInt -> 4
+                    GLTypeEnum.Float -> 4
+                    GLTypeEnum.Double -> 8
+                }
+
+                val storage = memAlloc(data.remaining()/3 * 4)
+                val view = data.duplicate()
+                val tmp = ByteArray(pixelByteSize * 3)
+                val alpha = (0 until pixelByteSize).map { 255.toByte() }.toByteArray()
+
+                // pad buffer to 4 channels
+                while(view.hasRemaining()) {
+                    view.get(tmp, 0, 3)
+                    storage.put(tmp)
+                    storage.put(alpha)
+                }
+
+                storage.flip()
+                deallocate = true
+                storage
+            } else {
+                deallocate = false
+                data
+            }
+        } else {
+            deallocate = false
+            data
+        }
+
         if (mipLevels == 1) {
             var buffer: VulkanBuffer? = null
             with(VU.newCommandBuffer(device, commandPool, autostart = true)) {
@@ -197,8 +236,8 @@ open class VulkanTexture(val device: VulkanDevice,
 
                 if(depth == 1) {
                     val dest = memAllocPointer(1)
-                    vkMapMemory(device.vulkanDevice, stagingImage.memory, 0, data.remaining() * 1L, 0, dest)
-                    memCopy(memAddress(data), dest.get(0), data.remaining().toLong())
+                    vkMapMemory(device.vulkanDevice, stagingImage.memory, 0, sourceBuffer.remaining() * 1L, 0, dest)
+                    memCopy(memAddress(sourceBuffer), dest.get(0), sourceBuffer.remaining().toLong())
                     vkUnmapMemory(device.vulkanDevice, stagingImage.memory)
                     memFree(dest)
 
@@ -225,13 +264,13 @@ open class VulkanTexture(val device: VulkanDevice,
                         commandBuffer = this)
                 } else {
                     buffer = VulkanBuffer(device,
-                        data.capacity().toLong(),
+                        sourceBuffer.capacity().toLong(),
                         VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                         wantAligned = false)
 
                     buffer?.let { buffer ->
-                        buffer.copyFrom(data)
+                        buffer.copyFrom(sourceBuffer)
 
                         transitionLayout(image!!.image,
                             VK_IMAGE_LAYOUT_UNDEFINED,
@@ -256,7 +295,7 @@ open class VulkanTexture(val device: VulkanDevice,
             }
         } else {
             val buffer = VulkanBuffer(device,
-                data.limit().toLong(),
+                sourceBuffer.limit().toLong(),
                 VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
                 wantAligned = false)
@@ -269,7 +308,7 @@ open class VulkanTexture(val device: VulkanDevice,
                         mipLevels)
                 }
 
-                buffer.copyFrom(data)
+                buffer.copyFrom(sourceBuffer)
 
                 transitionLayout(image!!.image, VK_IMAGE_LAYOUT_UNDEFINED,
                     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, commandBuffer = this,
@@ -361,6 +400,11 @@ open class VulkanTexture(val device: VulkanDevice,
 
             imageBlit.free()
             buffer.close()
+        }
+
+        // deallocate in case we moved pixels around
+        if(deallocate) {
+            memFree(sourceBuffer)
         }
 
         if(image!!.sampler == -1L) {
@@ -761,7 +805,7 @@ open class VulkanTexture(val device: VulkanDevice,
                 GLTypeEnum.Byte -> when(this.channels) {
                     1 -> VK_FORMAT_R8_SNORM
                     2 -> VK_FORMAT_R8G8_SNORM
-                    3 -> VK_FORMAT_R8G8B8_SNORM
+                    3 -> VK_FORMAT_R8G8B8A8_SNORM
                     4 -> VK_FORMAT_R8G8B8A8_SNORM
 
                     else -> { logger.warn("Unknown texture type: $type, with $channels channels, falling back to default"); VK_FORMAT_R8G8B8A8_UNORM }
@@ -770,7 +814,7 @@ open class VulkanTexture(val device: VulkanDevice,
                 GLTypeEnum.UnsignedByte -> when(this.channels) {
                     1 -> VK_FORMAT_R8_UNORM
                     2 -> VK_FORMAT_R8G8_UNORM
-                    3 -> VK_FORMAT_R8G8B8_UNORM
+                    3 -> VK_FORMAT_R8G8B8A8_UNORM
                     4 -> VK_FORMAT_R8G8B8A8_UNORM
 
                     else -> { logger.warn("Unknown texture type: $type, with $channels channels, falling back to default"); VK_FORMAT_R8G8B8A8_UNORM }
@@ -779,7 +823,7 @@ open class VulkanTexture(val device: VulkanDevice,
                 GLTypeEnum.Short ->  when(this.channels) {
                     1 -> VK_FORMAT_R16_SNORM
                     2 -> VK_FORMAT_R16G16_SNORM
-                    3 -> VK_FORMAT_R16G16B16_SNORM
+                    3 -> VK_FORMAT_R16G16B16A16_SNORM
                     4 -> VK_FORMAT_R16G16B16A16_SNORM
 
                     else -> { logger.warn("Unknown texture type: $type, with $channels channels, falling back to default"); VK_FORMAT_R8G8B8A8_UNORM }
@@ -788,7 +832,7 @@ open class VulkanTexture(val device: VulkanDevice,
                 GLTypeEnum.UnsignedShort -> when(this.channels) {
                     1 -> VK_FORMAT_R16_UNORM
                     2 -> VK_FORMAT_R16G16_UNORM
-                    3 -> VK_FORMAT_R16G16B16_UNORM
+                    3 -> VK_FORMAT_R16G16B16A16_UNORM
                     4 -> VK_FORMAT_R16G16B16A16_UNORM
 
                     else -> { logger.warn("Unknown texture type: $type, with $channels channels, falling back to default"); VK_FORMAT_R8G8B8A8_UNORM }
@@ -797,7 +841,7 @@ open class VulkanTexture(val device: VulkanDevice,
                 GLTypeEnum.Int ->  when(this.channels) {
                     1 -> VK_FORMAT_R32_SINT
                     2 -> VK_FORMAT_R32G32_SINT
-                    3 -> VK_FORMAT_R32G32B32_SINT
+                    3 -> VK_FORMAT_R32G32B32A32_SINT
                     4 -> VK_FORMAT_R32G32B32A32_SINT
 
                     else -> { logger.warn("Unknown texture type: $type, with $channels channels, falling back to default"); VK_FORMAT_R8G8B8A8_UNORM }
@@ -806,7 +850,7 @@ open class VulkanTexture(val device: VulkanDevice,
                 GLTypeEnum.UnsignedInt ->  when(this.channels) {
                     1 -> VK_FORMAT_R32_UINT
                     2 -> VK_FORMAT_R32G32_UINT
-                    3 -> VK_FORMAT_R32G32B32_UINT
+                    3 -> VK_FORMAT_R32G32B32A32_UINT
                     4 -> VK_FORMAT_R32G32B32A32_UINT
 
                     else -> { logger.warn("Unknown texture type: $type, with $channels channels, falling back to default"); VK_FORMAT_R8G8B8A8_UNORM }
@@ -815,7 +859,7 @@ open class VulkanTexture(val device: VulkanDevice,
                 GLTypeEnum.Float ->  when(this.channels) {
                     1 -> VK_FORMAT_R32_SFLOAT
                     2 -> VK_FORMAT_R32G32_SFLOAT
-                    3 -> VK_FORMAT_R32G32B32_SFLOAT
+                    3 -> VK_FORMAT_R32G32B32A32_SFLOAT
                     4 -> VK_FORMAT_R32G32B32A32_SFLOAT
 
                     else -> { logger.warn("Unknown texture type: $type, with $channels channels, falling back to default"); VK_FORMAT_R8G8B8A8_UNORM }

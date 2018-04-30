@@ -273,8 +273,10 @@ open class VulkanRenderer(hub: Hub,
     private var toggleFullscreen = false
     override var managesRenderLoop = false
     override var lastFrameTime = System.nanoTime() * 1.0f
+    final override var initialized = false
 
     private var screenshotRequested = false
+    private var screenshotFilename = ""
     var screenshotBuffer: VulkanBuffer? = null
     var imageBuffer: ByteBuffer? = null
     var encoder: H264Encoder? = null
@@ -387,22 +389,24 @@ open class VulkanRenderer(hub: Hub,
         }
 
         // explicitly create VK, to make GLFW pick up MoltenVK on OS X
-        try {
-            Configuration.VULKAN_EXPLICIT_INIT.set(true)
-            VK.create()
-        } catch(e: IllegalStateException) {
-            logger.warn("IllegalStateException during Vulkan initialisation")
+        if(ExtractsNatives.getPlatform() == ExtractsNatives.Platform.MACOS) {
+            try {
+                Configuration.VULKAN_EXPLICIT_INIT.set(true)
+                VK.create()
+            } catch (e: IllegalStateException) {
+                logger.warn("IllegalStateException during Vulkan initialisation")
+            }
         }
 
         if (!glfwInit()) {
             throw RuntimeException("Failed to initialize GLFW")
         }
         if (!glfwVulkanSupported()) {
-            throw AssertionError("Failed to find Vulkan loader. Do you have the most recent graphics drivers installed?")
+            throw RuntimeException("Failed to find Vulkan loader. Is Vulkan supported by your GPU and do you have the most recent graphics drivers installed?")
         }
 
         /* Look for instance extensions */
-        val requiredExtensions = glfwGetRequiredInstanceExtensions() ?: throw AssertionError("Failed to find list of required Vulkan extensions")
+        val requiredExtensions = glfwGetRequiredInstanceExtensions() ?: throw RuntimeException("Failed to find list of required Vulkan extensions")
 
         // Create the Vulkan instance
         instance = createInstance(requiredExtensions)
@@ -446,19 +450,30 @@ open class VulkanRenderer(hub: Hub,
 
         swapchainRecreator = SwapchainRecreator()
 
-        swapchain = if (wantsOpenGLSwapchain) {
-            logger.info("Using OpenGL-based swapchain")
-            OpenGLSwapchain(
-                device, queue, commandPools.Standard,
-                renderConfig = renderConfig, useSRGB = renderConfig.sRGB,
-                useFramelock = System.getProperty("scenery.Renderer.Framelock", "false").toBoolean())
-        } else {
-            if(System.getProperty("scenery.Renderer.UseJavaFX", "false").toBoolean() || embedIn != null) {
+        swapchain = when {
+            wantsOpenGLSwapchain -> {
+                logger.info("Using OpenGL-based swapchain")
+                OpenGLSwapchain(
+                    device, queue, commandPools.Standard,
+                    renderConfig = renderConfig, useSRGB = renderConfig.sRGB,
+                    useFramelock = System.getProperty("scenery.Renderer.Framelock", "false").toBoolean())
+            }
+
+            (System.getProperty("scenery.Headless", "false").toBoolean()) -> {
+                logger.info("Vulkan running in headless mode.")
+                HeadlessSwapchain(
+                    device, queue, commandPools.Standard,
+                    renderConfig = renderConfig, useSRGB = renderConfig.sRGB)
+            }
+
+            (System.getProperty("scenery.Renderer.UseJavaFX", "false").toBoolean() || embedIn != null) -> {
                 logger.info("Using JavaFX-based swapchain")
                 FXSwapchain(
                     device, queue, commandPools.Standard,
                     renderConfig = renderConfig, useSRGB = renderConfig.sRGB)
-            } else {
+            }
+
+            else -> {
                 VulkanSwapchain(
                     device, queue, commandPools.Standard,
                     renderConfig = renderConfig, useSRGB = renderConfig.sRGB)
@@ -531,6 +546,8 @@ open class VulkanRenderer(hub: Hub,
         if(System.getProperty("scenery.RunFullscreen","false").toBoolean()) {
             toggleFullscreen = true
         }
+
+        initialized = true
     }
 
     // source: http://stackoverflow.com/questions/34697828/parallel-operations-on-kotlin-collections
@@ -962,7 +979,7 @@ open class VulkanRenderer(hub: Hub,
                         val start = System.nanoTime()
 
                         val t = if(texture.contains("jar!")) {
-                            val f = texture.substringAfterLast(File.separatorChar)
+                            val f = texture.substringAfterLast("/")
                             val stream = node.javaClass.getResourceAsStream(f)
 
                             if(stream == null) {
@@ -1549,12 +1566,14 @@ open class VulkanRenderer(hub: Hub,
             }
 
             // finish encoding if a resize was performed
-            if(encoder != null && (encoder?.frameWidth != window.width || encoder?.frameHeight != window.height)) {
-                encoder?.finish()
-            }
+            if(recordMovie) {
+                if (encoder != null && (encoder?.frameWidth != window.width || encoder?.frameHeight != window.height)) {
+                    encoder?.finish()
+                }
 
-            if(encoder == null || encoder?.frameWidth != window.width || encoder?.frameHeight != window.height) {
-                encoder = H264Encoder(window.width, window.height, "$applicationName - ${SimpleDateFormat("yyyy-MM-dd_HH.mm.ss").format(Date())}.mp4")
+                if (encoder == null || encoder?.frameWidth != window.width || encoder?.frameHeight != window.height) {
+                    encoder = H264Encoder(window.width, window.height, "$applicationName - ${SimpleDateFormat("yyyy-MM-dd_HH.mm.ss").format(Date())}.mp4")
+                }
             }
 
             screenshotBuffer?.let { sb ->
@@ -1612,7 +1631,11 @@ open class VulkanRenderer(hub: Hub,
                 thread {
                     imageBuffer?.let { ib ->
                         try {
-                            val file = File(System.getProperty("user.home"), "Desktop" + File.separator + "$applicationName - ${SimpleDateFormat("yyyy-MM-dd HH.mm.ss").format(Date())}.png")
+                            val file = if(screenshotFilename == "") {
+                                File(System.getProperty("user.home"), "Desktop" + File.separator + "$applicationName - ${SimpleDateFormat("yyyy-MM-dd HH.mm.ss").format(Date())}.png")
+                            } else {
+                                File(screenshotFilename)
+                            }
                             ib.rewind()
 
                             val imageArray = ByteArray(ib.remaining())
@@ -1863,17 +1886,19 @@ open class VulkanRenderer(hub: Hub,
             .flags(flags)
 
         val pCallback = memAllocLong(1)
-        try {
+
+        return try {
             val err = vkCreateDebugReportCallbackEXT(instance, dbgCreateInfo, null, pCallback)
             val callbackHandle = pCallback.get(0)
             memFree(pCallback)
             dbgCreateInfo.free()
             if (err != VK_SUCCESS) {
-                throw AssertionError("Failed to create VkInstance: " + VU.translate(err))
+                throw RuntimeException("Failed to create VkInstance: " + VU.translate(err))
             }
-            return callbackHandle
+
+            callbackHandle
         } catch(e: NullPointerException) {
-            return -1
+            -1
         }
     }
 
@@ -2792,8 +2817,9 @@ open class VulkanRenderer(hub: Hub,
     }
 
     @Suppress("UNUSED")
-    override fun screenshot() {
+    override fun screenshot(filename: String) {
         screenshotRequested = true
+        screenshotFilename = filename
     }
 
     fun Int.toggle(): Int {

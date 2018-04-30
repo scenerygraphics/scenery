@@ -10,7 +10,7 @@
 
     <groupId>graphics.scenery</groupId>
     <artifactId>scenery</artifactId>
-    <version>0.3.1-SNAPSHOT</version>
+    <version>0.3.2-SNAPSHOT</version>
     <inceptionYear>2016</inceptionYear>
     <licenses>
         <license>
@@ -76,7 +76,7 @@
     <scm>
         <connection>scm:git:git://github.com/scenerygraphics/scenery</connection>
         <developerConnection>scm:git:git@github.com:scenerygraphics/scenery</developerConnection>
-        <tag>scenery-0.3.0</tag>
+        <tag>scenery-0.3.1</tag>
         <url>http://scenery.graphics</url>
     </scm>
 
@@ -105,7 +105,7 @@
         <scijava-common.version>2.69.0</scijava-common.version>
         <scijava.jvm.version>1.8</scijava.jvm.version>
         <javac.target>1.8</javac.target>
-        <kotlin.version>1.2.40</kotlin.version>
+        <kotlin.version>1.2.41</kotlin.version>
         <kotlin.compiler.jvmTarget>1.8</kotlin.compiler.jvmTarget>
         <kotlin.compiler.incremental>true</kotlin.compiler.incremental>
         <dokka.version>0.9.16</dokka.version>
@@ -502,6 +502,13 @@
             <groupId>org.bytedeco.javacpp-presets</groupId>
             <artifactId>ffmpeg-platform</artifactId>
             <version>3.4.1-1.4</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.reflections</groupId>
+            <artifactId>reflections</artifactId>
+            <version>0.9.11</version>
+            <scope>test</scope>
         </dependency>
 
     </dependencies>

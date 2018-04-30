@@ -57,6 +57,7 @@ class PointCloudExample : SceneryBase("PointCloudExample") {
         pcmaterial.diffuse = GLVector(1.0f, 1.0f, 0.0f)
         pcmaterial.specular = GLVector(1.0f, 1.0f, 1.0f)
         pcmaterial.doubleSided = true
+        pcmaterial.cullingMode = Material.CullingMode.None
 
         val pointCloud = PointCloud(radius=0.025f)
         with(pointCloud) {

@@ -28,6 +28,9 @@ abstract class Renderer : Hubable {
 
     abstract var shouldClose: Boolean
 
+    abstract var initialized: Boolean
+        protected set
+
     abstract var settings: Settings
 
     abstract var window: SceneryWindow
@@ -36,7 +39,7 @@ abstract class Renderer : Hubable {
 
     abstract fun close()
 
-    abstract fun screenshot()
+    abstract fun screenshot(filename: String = "")
 
     abstract fun reshape(newWidth: Int, newHeight: Int)
 
@@ -109,6 +112,8 @@ abstract class Renderer : Hubable {
     }
 
     companion object {
+        val logger by LazyLogger()
+
         @JvmOverloads @JvmStatic fun createRenderer(hub: Hub, applicationName: String, scene: Scene, windowWidth: Int, windowHeight: Int, embedIn: SceneryPanel? = null, renderConfigFile: String? = null): Renderer {
             var preference = System.getProperty("scenery.Renderer", null)
             val config = renderConfigFile ?: System.getProperty("scenery.Renderer.Config", "DeferredShading.yml")
@@ -125,7 +130,12 @@ abstract class Renderer : Hubable {
             }
 
             return if (preference == "VulkanRenderer") {
-                VulkanRenderer(hub, applicationName, scene, windowWidth, windowHeight, embedIn, config)
+                try {
+                    VulkanRenderer(hub, applicationName, scene, windowWidth, windowHeight, embedIn, config)
+                } catch (e: Exception) {
+                    logger.warn("Vulkan unavailable (${e.cause}, ${e.message}), falling back to OpenGL.")
+                    OpenGLRenderer(hub, applicationName, scene, windowWidth, windowHeight, embedIn, config)
+                }
             } else {
                 OpenGLRenderer(hub, applicationName, scene, windowWidth, windowHeight, embedIn, config)
             }
