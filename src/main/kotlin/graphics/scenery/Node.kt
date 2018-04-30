@@ -3,23 +3,18 @@ package graphics.scenery
 import cleargl.GLMatrix
 import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
-import com.sun.prism.ps.Shader
 import graphics.scenery.utils.LazyLogger
 import java.io.Serializable
-import java.lang.reflect.Field
 import java.sql.Timestamp
 import java.util.*
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.collections.ArrayList
-import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.properties.Delegates
-import kotlin.reflect.KMutableProperty1
 import kotlin.reflect.KProperty
 import kotlin.reflect.KProperty1
-import kotlin.reflect.full.declaredMemberProperties
 import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.jvm.isAccessible
@@ -415,7 +410,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
         (max - min).toFloatArray().max()?.let { maxDimension ->
             val scaling = sideLength/maxDimension
 
-            if((scaleUp && scaling > 1.0f || scaling <= 1.0f) ) {
+            if((scaleUp && scaling > 1.0f) || scaling <= 1.0f) {
                 this.scale = GLVector(scaling, scaling, scaling)
             } else {
                 this.scale = GLVector(1.0f, 1.0f, 1.0f)
