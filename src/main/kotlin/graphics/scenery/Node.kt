@@ -372,16 +372,21 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
      * Fits the [Node] within a box of the given dimension.
      *
      * @param[sideLength] - The size of the box to fit the [Node] uniformly into.
+     * @param[scaleUp] - Whether the model should only be scaled down, or also up.
      * @return GLVector - containing the applied scaling
      */
-    fun fitInto(sideLength: Float): GLVector {
+    fun fitInto(sideLength: Float, scaleUp: Boolean = false): GLVector {
         val min = GLVector(this.boundingBoxCoords[0], this.boundingBoxCoords[2], this.boundingBoxCoords[4], 1.0f)
         val max = GLVector(this.boundingBoxCoords[1], this.boundingBoxCoords[3], this.boundingBoxCoords[5], 1.0f)
 
         (max - min).toFloatArray().max()?.let { maxDimension ->
             val scaling = sideLength/maxDimension
 
-            this.scale = GLVector(scaling, scaling, scaling)
+            if(scaleUp && scaling > 1.0f) {
+                this.scale = GLVector(scaling, scaling, scaling)
+            } else {
+                this.scale = GLVector(1.0f, 1.0f, 1.0f)
+            }
         }
 
         return this.scale
