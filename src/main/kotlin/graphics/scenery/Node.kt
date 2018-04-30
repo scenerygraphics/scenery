@@ -13,6 +13,8 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.collections.ArrayList
 import kotlin.math.abs
+import kotlin.math.max
+import kotlin.math.min
 import kotlin.properties.Delegates
 import kotlin.reflect.KMutableProperty1
 import kotlin.reflect.KProperty
@@ -380,13 +382,23 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
      * @return GLVector - the center offset calculcated for the [Node].
      */
     fun centerOn(position: GLVector): GLVector {
-        val min = GLMatrix.getScaling(this.scale).mult(boundingBox?.min?.xyzw()) ?: return GLVector.getNullVector(3)
-        val max = GLMatrix.getScaling(this.scale).mult(boundingBox?.max?.xyzw()) ?: return GLVector.getNullVector(3)
+        val min = getMaximumBoundingBox().min.xyzw()
+        val max = getMaximumBoundingBox().max.xyzw()
 
         val center = (max - min) * 0.5f
-        this.position = position - center
+        this.position = position - (getMaximumBoundingBox().min + center)
 
         return center
+    }
+
+    fun putAbove(position: GLVector): GLVector {
+        val center = centerOn(position)
+
+        val diffY = center.y() + position.y()
+        val diff = GLVector(0.0f, diffY, 0.0f)
+        this.position = this.position + diff
+
+        return diff
     }
 
     /**
@@ -397,13 +409,13 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
      * @return GLVector - containing the applied scaling
      */
     fun fitInto(sideLength: Float, scaleUp: Boolean = false): GLVector {
-        val min = boundingBox?.min?.xyzw() ?: return GLVector.getNullVector(3)
-        val max = boundingBox?.max?.xyzw() ?: return GLVector.getNullVector(3)
+        val min = getMaximumBoundingBox().min.xyzw() ?: return GLVector.getNullVector(3)
+        val max = getMaximumBoundingBox().max.xyzw() ?: return GLVector.getNullVector(3)
 
         (max - min).toFloatArray().max()?.let { maxDimension ->
             val scaling = sideLength/maxDimension
 
-            if(scaleUp && scaling > 1.0f) {
+            if((scaleUp && scaling > 1.0f || scaling <= 1.0f) ) {
                 this.scale = GLVector(scaling, scaling, scaling)
             } else {
                 this.scale = GLVector(1.0f, 1.0f, 1.0f)
@@ -411,6 +423,30 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
         }
 
         return this.scale
+    }
+
+    private fun expand(lhs: OrientedBoundingBox, rhs: OrientedBoundingBox): OrientedBoundingBox {
+        return OrientedBoundingBox(
+            min(lhs.min.x(), rhs.min.x()),
+            min(lhs.min.y(), rhs.min.y()),
+            min(lhs.min.z(), rhs.min.z()),
+            max(lhs.max.x(), rhs.max.x()),
+            max(lhs.max.y(), rhs.max.y()),
+            max(lhs.max.z(), rhs.max.z()))
+    }
+
+    fun getMaximumBoundingBox(): OrientedBoundingBox {
+        if(boundingBox == null) {
+            return OrientedBoundingBox(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
+        }
+
+        if(children.none { it !is BoundingGrid }) {
+            return OrientedBoundingBox(world.mult(boundingBox!!.min.xyzw()), world.mult(boundingBox!!.max.xyzw()))
+        }
+
+        return children
+            .filter { it !is BoundingGrid  }.map { it.getMaximumBoundingBox() }
+            .fold(boundingBox!!, { lhs, rhs -> expand(lhs, rhs) })
     }
 
     /**
