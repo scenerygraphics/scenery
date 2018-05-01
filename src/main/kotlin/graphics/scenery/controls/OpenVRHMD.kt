@@ -96,6 +96,11 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
     protected val inputMap = InputTriggerMap()
     protected val behaviourMap = BehaviourMap()
 
+    var manufacturer: String = ""
+        private set
+    var trackingSystemName: String = ""
+        private set
+
     init {
         inputHandler.setBehaviourMap(behaviourMap)
         inputHandler.setInputMap(inputMap)
@@ -137,6 +142,12 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
 
                 eyeTransformCache.add(null)
                 eyeTransformCache.add(null)
+
+                manufacturer = getStringProperty(k_unTrackedDeviceIndex_Hmd, ETrackedDeviceProperty_Prop_ManufacturerName_String)
+                trackingSystemName = getStringProperty(k_unTrackedDeviceIndex_Hmd, ETrackedDeviceProperty_Prop_TrackingSystemName_String)
+                val driverVersion = getStringProperty(k_unTrackedDeviceIndex_Hmd, ETrackedDeviceProperty_Prop_DriverVersion_String)
+
+                logger.info("Initialized device $manufacturer $trackingSystemName $driverVersion")
             }
 
         } catch(e: UnsatisfiedLinkError) {
@@ -267,7 +278,17 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
         if (eyeTransformCache[eye] == null) {
             val transform = HmdMatrix34.calloc()
             VRSystem_GetEyeToHeadTransform(eye, transform)
-            eyeTransformCache[eye] = transform.toGLMatrix().invert().transpose()
+
+            // Windows Mixed Reality headsets handle transforms slightly different:
+            // the general device pose contains the pose of the left eye, while then the eye-to-head
+            // pose contains the identity for the left eye, and the full IPD/shift transformation for
+            // the right eye. The developers claim this is for reprojection to work correctly. See also
+            // https://github.com/LibreVR/Revive/issues/893
+            if(manufacturer.contains("WindowsMR")) {
+                eyeTransformCache[eye] = transform.toGLMatrix().invert()
+            } else {
+                eyeTransformCache[eye] = transform.toGLMatrix().invert().transpose()
+            }
 
             logger.trace("Head-to-eye #$eye: " + eyeTransformCache[eye].toString())
         }
@@ -410,7 +431,7 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
                 }
 
                 trackedDevices.computeIfAbsent("$type-$device", {
-                    val nameBuf = memAlloc(1024)
+                    val nameBuf = memCalloc(1024)
                     val err = memAllocInt(1)
 
                     VRSystem_GetStringTrackedDeviceProperty(device, ETrackedDeviceProperty_Prop_RenderModelName_String, nameBuf, err)
@@ -658,6 +679,16 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
                 return extensions
             }
         }
+    }
+
+    private fun getStringProperty(deviceIndex: Int, property: Int): String {
+        val buffer = memCalloc(1024)
+
+        VRSystem_GetStringTrackedDeviceProperty(deviceIndex, property, buffer, null)
+        val propertyArray = ByteArray(1024)
+        buffer.get(propertyArray)
+
+        return String(propertyArray, Charset.defaultCharset())
     }
 
     /**
