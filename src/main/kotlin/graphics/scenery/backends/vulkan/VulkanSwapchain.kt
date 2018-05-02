@@ -16,6 +16,7 @@ import org.lwjgl.vulkan.KHRSwapchain.VK_ERROR_OUT_OF_DATE_KHR
 import org.lwjgl.vulkan.KHRSwapchain.vkAcquireNextImageKHR
 import java.nio.IntBuffer
 import java.nio.LongBuffer
+import java.util.*
 
 /**
  * GLFW-based default Vulkan Swapchain and window.
@@ -46,6 +47,8 @@ open class VulkanSwapchain(open val device: VulkanDevice,
 
     var lastResize = -1L
     private val WINDOW_RESIZE_TIMEOUT = 200 * 10e6
+
+    private val retiredSwapchains: Queue<Pair<VulkanDevice, Long>> = ArrayDeque()
 
     data class ColorFormatAndSpace(var colorFormat: Int = 0, var colorSpace: Int = 0)
 
@@ -171,7 +174,8 @@ open class VulkanSwapchain(open val device: VulkanDevice,
             // Note: destroying the swapchain also cleans up all its associated presentable images once the platform is done with them.
             if (oldSwapchain is VulkanSwapchain && oldHandle != null && oldHandle != VK10.VK_NULL_HANDLE) {
                 // TODO: Figure out why deleting a retired swapchain crashes on Nvidia
-                KHRSwapchain.vkDestroySwapchainKHR(device.vulkanDevice, oldHandle, null)
+//                KHRSwapchain.vkDestroySwapchainKHR(device.vulkanDevice, oldHandle, null)
+                retiredSwapchains.add(device to oldHandle)
             }
 
             val imageCount = VU.getInts("Getting swapchain images", 1,
@@ -350,6 +354,11 @@ open class VulkanSwapchain(open val device: VulkanDevice,
     }
 
     override fun postPresent(image: Int) {
+        while(retiredSwapchains.isNotEmpty()) {
+            retiredSwapchains.poll()?.let {
+                KHRSwapchain.vkDestroySwapchainKHR(it.first.vulkanDevice, it.second, null)
+            }
+        }
     }
 
     override fun next(timeout: Long, waitForSemaphore: Long): Boolean {

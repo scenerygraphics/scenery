@@ -165,7 +165,9 @@ void main()
     const float u = Vertex.textureCoord.s*2.0 - 1.0;
     const float v = Vertex.textureCoord.t*2.0 - 1.0;
 
-    const float depth = texture(InputZBuffer, Vertex.textureCoord).r;
+    vec2 depthUV = (vrParameters.stereoEnabled ^ 1) * Vertex.textureCoord + vrParameters.stereoEnabled * vec2((Vertex.textureCoord.x/2.0 + currentEye.eye * 0.5), Vertex.textureCoord.y);
+//    vec2 depthUV = Vertex.textureCoord;
+    const float depth = texture(InputZBuffer, depthUV).r;
     // front and back:
     const vec4 front = vec4(u,v,0.0f,1.f);
 #ifndef OPENGL
@@ -193,11 +195,10 @@ void main()
     // find intersection with box
     const Intersection inter = intersectBox(orig, direc, boxMin, boxMax);
 
-    if (!inter.hit || inter.tfar <= 0)
-    {
-    FragColor = vec4(0.0f, 0.0f, 0.0f, 0.0f);
-    gl_FragDepth = texture(InputZBuffer, Vertex.textureCoord).r;
-    return;
+    if (!inter.hit || inter.tfar <= 0) {
+        FragColor = vec4(0.0f, 0.0f, 0.0f, 0.0f);
+        gl_FragDepth = texture(InputZBuffer, depthUV).r;
+        return;
     }
 
     const float tnear = max(inter.tnear, 0.0f);
@@ -214,16 +215,16 @@ void main()
     startNDC *= 1.0/startNDC.w;
 
 #ifndef OPENGL
-    float currentSceneDepth = texture(InputZBuffer, Vertex.textureCoord).r;
+    float currentSceneDepth = texture(InputZBuffer, depthUV).r;
 #else
-    float currentSceneDepth = texture(InputZBuffer, Vertex.textureCoord).r * 2.0 - 1.0;
+    float currentSceneDepth = texture(InputZBuffer, depthUV).r * 2.0 - 1.0;
 #endif
 
     if(startNDC.z > currentSceneDepth) {
-    // for debugging, green = occluded by existing scene geometry
-    // FragColor = vec4(0.0, 1.0, 0.0, 1.0);
-    gl_FragDepth = currentSceneDepth;
-    discard;
+        // for debugging, green = occluded by existing scene geometry
+        // FragColor = vec4(0.0, 1.0, 0.0, 1.0);
+        gl_FragDepth = currentSceneDepth;
+        discard;
     }
 
     vec3 origin = pos;
