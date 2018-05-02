@@ -126,7 +126,7 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
                 initialized = false
             } else {
                 initialized = true
-                logger.info("OpenVR: Initialized.")
+                logger.info("OpenVR library: Initialized.")
 
                 hmdDisplayFreq = ETrackedDeviceProperty_Prop_DisplayFrequency_Float
 
@@ -136,7 +136,6 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
                     initCompositor()
                 }
 
-                logger.info("Recommended render target size is ${getRenderTargetSize()}")
                 eyeProjectionCache.add(null)
                 eyeProjectionCache.add(null)
 
@@ -147,7 +146,7 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
                 trackingSystemName = getStringProperty(k_unTrackedDeviceIndex_Hmd, ETrackedDeviceProperty_Prop_TrackingSystemName_String)
                 val driverVersion = getStringProperty(k_unTrackedDeviceIndex_Hmd, ETrackedDeviceProperty_Prop_DriverVersion_String)
 
-                logger.info("Initialized device $manufacturer $trackingSystemName $driverVersion")
+                logger.info("Initialized device $manufacturer $trackingSystemName $driverVersion with render target size ${getRenderTargetSize().x()}x${getRenderTargetSize().y()}")
             }
 
         } catch(e: UnsatisfiedLinkError) {
@@ -652,13 +651,13 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
             val buffer = stack.calloc(1024)
             val count = VRCompositor_GetVulkanInstanceExtensionsRequired(buffer)
 
-            logger.info("Querying required vulkan instance extensions...")
+            logger.debug("Querying required vulkan instance extensions...")
             return if (count == 0) {
                 listOf()
             } else {
                 val extensions = VRCompositor_GetVulkanInstanceExtensionsRequired(count).split(" ")
 
-                logger.info("Vulkan required instance extensions are: ${extensions.joinToString(", ")}")
+                logger.debug("Vulkan required instance extensions are: ${extensions.joinToString(", ")}")
                 return extensions
             }
         }
@@ -669,13 +668,13 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
             val buffer = stack.calloc(1024)
             val count = VRCompositor_GetVulkanDeviceExtensionsRequired(physicalDevice.address(), buffer)
 
-            logger.info("Querying required vulkan device extensions...")
+            logger.debug("Querying required vulkan device extensions...")
             return if (count == 0) {
                 listOf()
             } else {
                 val extensions = VRCompositor_GetVulkanDeviceExtensionsRequired(physicalDevice.address(), count).split(" ")
 
-                logger.info("Vulkan required device extensions are: ${extensions.joinToString(", ")}")
+                logger.debug("Vulkan required device extensions are: ${extensions.joinToString(", ")}")
                 return extensions
             }
         }
