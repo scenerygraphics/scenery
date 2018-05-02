@@ -285,12 +285,12 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
             // the right eye. The developers claim this is for reprojection to work correctly. See also
             // https://github.com/LibreVR/Revive/issues/893
             if(manufacturer.contains("WindowsMR")) {
-                eyeTransformCache[eye] = transform.toGLMatrix().invert()
+                eyeTransformCache[eye] = transform.toGLMatrix()
             } else {
-                eyeTransformCache[eye] = transform.toGLMatrix().invert().transpose()
+                eyeTransformCache[eye] = transform.toGLMatrix()
             }
 
-            logger.trace("Head-to-eye #$eye: " + eyeTransformCache[eye].toString())
+            logger.trace("Head-to-eye #{}: {}", eye, eyeTransformCache[eye].toString())
         }
 
         return eyeTransformCache[eye]!!
@@ -713,9 +713,11 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
 
     override fun getPoseForEye(eye: Int): GLMatrix {
         val p = this.getPose()
-        p.mult(getHeadToEyeTransform(eye))
+        val e = this.getHeadToEyeTransform(eye).inverse
 
-        return p
+        e.mult(p)
+
+        return e
     }
 
     /**
