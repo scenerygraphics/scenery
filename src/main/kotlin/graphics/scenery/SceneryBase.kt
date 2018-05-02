@@ -13,6 +13,7 @@ import graphics.scenery.repl.REPL
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.Renderdoc
 import graphics.scenery.utils.Statistics
+import org.scijava.Context
 import org.scijava.ui.behaviour.ClickBehaviour
 import java.lang.management.ManagementFactory
 import java.util.*
@@ -31,10 +32,11 @@ import kotlin.concurrent.thread
  * @author Ulrik Günther <hello@ulrik.is>
  */
 
-open class SceneryBase(var applicationName: String,
+open class SceneryBase @JvmOverloads constructor(var applicationName: String,
                        var windowWidth: Int = 1024,
                        var windowHeight: Int = 1024,
-                       val wantREPL: Boolean = true) {
+                       val wantREPL: Boolean = true,
+                       val scijavaContext: Context? = null) {
 
     /** The scene used by the renderer in the application */
     protected val scene: Scene = Scene()
@@ -118,7 +120,7 @@ open class SceneryBase(var applicationName: String,
         settings.set("System.PID", getProcessID())
 
         if (wantREPL && !headless) {
-            repl = REPL(scene, stats, hub)
+            repl = REPL(scijavaContext, scene, stats, hub)
             repl?.addAccessibleObject(settings)
         }
 
