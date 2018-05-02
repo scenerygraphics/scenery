@@ -844,8 +844,10 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
      * @param[behaviourName] The behaviour to add a key binding for
      * @param[keys] Which keys should trigger this behaviour?
      */
-    fun addKeyBinding(behaviourName: String, keys: String) {
-        config.inputTriggerAdder(inputMap, "all").put(behaviourName, keys)
+    fun addKeyBinding(behaviourName: String, vararg keys: String) {
+        keys.forEach { key ->
+            config.inputTriggerAdder(inputMap, "all").put(behaviourName, key)
+        }
     }
 
     /**
