@@ -166,8 +166,15 @@ class VRPNTrackerInput(trackerAddress: String = "device@locahost:5500") : Tracke
         TODO("not implemented")
     }
 
-    override fun attachToNode(type: TrackedDeviceType, index: Int, node: Node, camera: Camera?) {
+    override fun loadModelForMesh(device: TrackedDevice, mesh: Mesh): Mesh {
+        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    }
+
+    override fun attachToNode(device: TrackedDevice, node: Node, camera: Camera?) {
         TODO("not implemented")
     }
 
+    override fun getTrackedDevices(ofType: TrackedDeviceType): Map<String, TrackedDevice> {
+        TODO("Not implemented yet")
+    }
 }

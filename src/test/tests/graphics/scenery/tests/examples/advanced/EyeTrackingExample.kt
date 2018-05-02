@@ -57,13 +57,17 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
         stageLight.position = GLVector(0.0f, 4.0f, 0.0f)
         scene.addChild(stageLight)
 
-        val controllers = (0..1).map {
-            val c = Mesh()
-            c.name = "default"
-            hmd.loadModelForMesh(TrackedDeviceType.Controller, c)
-            hmd.attachToNode(TrackedDeviceType.Controller, it, c, cam)
+        thread {
+            while(!running) {
+                Thread.sleep(200)
+            }
 
-            c
+            hmd.getTrackedDevices(TrackedDeviceType.Controller).forEach { _, device ->
+                val c = Mesh()
+                c.name = device.name
+                hmd.loadModelForMesh(device, c)
+                hmd.attachToNode(device, c, cam)
+            }
         }
     }
 

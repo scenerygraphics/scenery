@@ -126,7 +126,7 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
                 initialized = false
             } else {
                 initialized = true
-                logger.info("OpenVR: Initialized.")
+                logger.info("OpenVR library: Initialized.")
 
                 hmdDisplayFreq = ETrackedDeviceProperty_Prop_DisplayFrequency_Float
 
@@ -136,7 +136,6 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
                     initCompositor()
                 }
 
-                logger.info("Recommended render target size is ${getRenderTargetSize()}")
                 eyeProjectionCache.add(null)
                 eyeProjectionCache.add(null)
 
@@ -147,7 +146,7 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
                 trackingSystemName = getStringProperty(k_unTrackedDeviceIndex_Hmd, ETrackedDeviceProperty_Prop_TrackingSystemName_String)
                 val driverVersion = getStringProperty(k_unTrackedDeviceIndex_Hmd, ETrackedDeviceProperty_Prop_DriverVersion_String)
 
-                logger.info("Initialized device $manufacturer $trackingSystemName $driverVersion")
+                logger.info("Initialized device $manufacturer $trackingSystemName $driverVersion with render target size ${getRenderTargetSize().x()}x${getRenderTargetSize().y()}")
             }
 
         } catch(e: UnsatisfiedLinkError) {
@@ -285,12 +284,12 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
             // the right eye. The developers claim this is for reprojection to work correctly. See also
             // https://github.com/LibreVR/Revive/issues/893
             if(manufacturer.contains("WindowsMR")) {
-                eyeTransformCache[eye] = transform.toGLMatrix().invert()
+                eyeTransformCache[eye] = transform.toGLMatrix()
             } else {
-                eyeTransformCache[eye] = transform.toGLMatrix().invert().transpose()
+                eyeTransformCache[eye] = transform.toGLMatrix()
             }
 
-            logger.trace("Head-to-eye #$eye: " + eyeTransformCache[eye].toString())
+            logger.trace("Head-to-eye #{}: {}", eye, eyeTransformCache[eye].toString())
         }
 
         return eyeTransformCache[eye]!!
@@ -652,13 +651,13 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
             val buffer = stack.calloc(1024)
             val count = VRCompositor_GetVulkanInstanceExtensionsRequired(buffer)
 
-            logger.info("Querying required vulkan instance extensions...")
+            logger.debug("Querying required vulkan instance extensions...")
             return if (count == 0) {
                 listOf()
             } else {
                 val extensions = VRCompositor_GetVulkanInstanceExtensionsRequired(count).split(" ")
 
-                logger.info("Vulkan required instance extensions are: ${extensions.joinToString(", ")}")
+                logger.debug("Vulkan required instance extensions are: ${extensions.joinToString(", ")}")
                 return extensions
             }
         }
@@ -669,13 +668,13 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
             val buffer = stack.calloc(1024)
             val count = VRCompositor_GetVulkanDeviceExtensionsRequired(physicalDevice.address(), buffer)
 
-            logger.info("Querying required vulkan device extensions...")
+            logger.debug("Querying required vulkan device extensions...")
             return if (count == 0) {
                 listOf()
             } else {
                 val extensions = VRCompositor_GetVulkanDeviceExtensionsRequired(physicalDevice.address(), count).split(" ")
 
-                logger.info("Vulkan required device extensions are: ${extensions.joinToString(", ")}")
+                logger.debug("Vulkan required device extensions are: ${extensions.joinToString(", ")}")
                 return extensions
             }
         }
@@ -713,9 +712,11 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
 
     override fun getPoseForEye(eye: Int): GLMatrix {
         val p = this.getPose()
-        p.mult(getHeadToEyeTransform(eye))
+        val e = this.getHeadToEyeTransform(eye).inverse
 
-        return p
+        e.mult(p)
+
+        return e
     }
 
     /**
@@ -757,18 +758,8 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
         return GLMatrix(m)
     }
 
-    override fun loadModelForMesh(type: TrackedDeviceType, mesh: Mesh): Mesh {
-        val modelName = when(type) {
-            TrackedDeviceType.HMD -> "generic_hmd"
-            TrackedDeviceType.Controller -> "vr_controller_vive_1_5"
-            TrackedDeviceType.BaseStation -> "lh_basestation_vive"
-            TrackedDeviceType.Generic -> "generic_tracker"
-
-            else -> {
-                logger.warn("No model available for $type")
-                return mesh
-            }
-        }
+    override fun loadModelForMesh(device: TrackedDevice, mesh: Mesh): Mesh {
+        val modelName = device.name
 
         stackPush().use { stack ->
             val pathBuffer = stack.calloc(1024)
@@ -795,9 +786,57 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
         }
     }
 
-    override fun attachToNode(type: TrackedDeviceType, index: Int, node: Node, camera: Camera?) {
-        if(type != TrackedDeviceType.Controller) {
-            logger.warn("No idea how to attach device type $type to a node, sorry.")
+    override fun loadModelForMesh(type: TrackedDeviceType, mesh: Mesh): Mesh {
+        var modelName = when(type) {
+            TrackedDeviceType.HMD -> "generic_hmd"
+            TrackedDeviceType.Controller -> "vr_controller_vive_1_5"
+            TrackedDeviceType.BaseStation -> "lh_basestation_vive"
+            TrackedDeviceType.Generic -> "generic_tracker"
+
+            else -> {
+                logger.warn("No model available for $type")
+                return mesh
+            }
+        }
+
+        stackPush().use { stack ->
+            val pathBuffer = stack.calloc(1024)
+            val error = stack.callocInt(1)
+
+            // let's see if we can get the actual render model, and not just a guess
+            trackedDevices.filter { it.key.contains(type.toString()) }.entries.firstOrNull()?.let {
+                modelName = it.value.name
+                logger.debug("Found better model for $type, setting model name to $modelName")
+            }
+
+            val l = VRRenderModels_GetRenderModelOriginalPath(modelName, pathBuffer, error)
+            val pathArray = ByteArray(l-1)
+            pathBuffer.get(pathArray, 0, l-1)
+            val path = String(pathArray, Charset.forName("UTF-8"))
+
+            logger.info("Loading model for $modelName from $path")
+
+            val modelPath = path.replace('\\', '/')
+
+            mesh.name = modelPath.substringAfterLast('/')
+
+            when {
+                mesh.name.toLowerCase().endsWith("stl") -> mesh.readFromSTL(modelPath)
+                mesh.name.toLowerCase().endsWith("obj") -> mesh.readFromOBJ(modelPath, true)
+                else -> logger.warn("Unknown model format: $modelPath for $modelName")
+            }
+
+            return mesh
+        }
+    }
+
+    override fun getTrackedDevices(ofType: TrackedDeviceType): Map<String, TrackedDevice> {
+        return trackedDevices.filter { it.value.type == ofType }
+    }
+
+    override fun attachToNode(device: TrackedDevice, node: Node, camera: Camera?) {
+        if(device.type != TrackedDeviceType.Controller) {
+            logger.warn("No idea how to attach device type ${device.type} to a node, sorry.")
             return
         }
 
@@ -805,7 +844,7 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
         camera?.addChild(node)
 
         node.update.add {
-            this.getPose(TrackedDeviceType.Controller).getOrNull(index)?.let { controller ->
+            this.getPose(TrackedDeviceType.Controller).firstOrNull { it.name == device.name }?.let { controller ->
 
                 node.wantsComposeModel = false
                 node.model.setIdentity()
