@@ -3,6 +3,7 @@ package graphics.scenery
 import cleargl.GLMatrix
 import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
+import graphics.scenery.backends.Renderer
 import graphics.scenery.utils.LazyLogger
 import java.io.Serializable
 import java.sql.Timestamp
@@ -236,6 +237,10 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
      * Routine to call if the node has special requirements for drawing.
      */
     open fun draw() {
+
+    }
+
+    internal open fun preUpdate(renderer: Renderer, hub: Hub) {
 
     }
 

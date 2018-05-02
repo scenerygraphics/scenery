@@ -100,8 +100,6 @@ class RunAllExamples {
                     logger.info("JOGL threw ThreadDeath")
                 }
 
-                Hub.cleanHubs()
-
                 if(renderer == "VulkanRenderer") {
                     glfwTerminate()
                 }
