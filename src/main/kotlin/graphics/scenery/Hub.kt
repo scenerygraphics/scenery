@@ -14,14 +14,6 @@ class Hub(val name: String = "default") {
     /** Hash map storage for all the [SceneryElements] and their instances */
     val elements: ConcurrentHashMap<SceneryElement, Any> = ConcurrentHashMap()
 
-    init {
-        if(getHub(name) != null) {
-            throw IllegalStateException("Can't have multiple default hubs")
-        }
-
-        addHub(name, this)
-    }
-
     /**
      * Adds a given [SceneryElement] to the Hub.
      *
@@ -85,27 +77,6 @@ class Hub(val name: String = "default") {
             return this.get(SceneryElement.HMDInput) as Display
         } else {
             return null
-        }
-    }
-
-    companion object {
-        private val hubs = ConcurrentHashMap<String, Hub>()
-
-        fun addHub(name: String, hub: Hub): Hub {
-            hubs[name] = hub
-            return hub
-        }
-
-        fun getHub(name: String): Hub? {
-            return hubs[name]
-        }
-
-        fun getDefaultHub(): Hub {
-            return hubs["default"]!!
-        }
-
-        internal fun cleanHubs() {
-            hubs.clear()
         }
     }
 }
