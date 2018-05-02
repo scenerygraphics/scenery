@@ -99,7 +99,9 @@ interface TrackerInput {
 
     fun getWorkingTracker(): TrackerInput?
 
+    fun loadModelForMesh(device: TrackedDevice, mesh: Mesh): Mesh
     fun loadModelForMesh(type: TrackedDeviceType = TrackedDeviceType.Controller, mesh: Mesh): Mesh
 
-    fun attachToNode(type: TrackedDeviceType, index: Int, node: Node, camera: Camera? = null)
+    fun attachToNode(device: TrackedDevice, node: Node, camera: Camera? = null)
+    fun getTrackedDevices(ofType: TrackedDeviceType): Map<String, TrackedDevice>
 }
