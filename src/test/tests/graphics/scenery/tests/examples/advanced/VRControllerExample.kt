@@ -7,6 +7,7 @@ import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.numerics.Random
 import org.junit.Test
+import kotlin.concurrent.thread
 
 /**
  * <Description>
@@ -45,20 +46,11 @@ class VRControllerExample : SceneryBase(VRControllerExample::class.java.simpleNa
             obj
         }
 
-        val controllers = (0..1).map {
-            val c = Mesh()
-            c.name = "default"
-            hmd!!.loadModelForMesh(TrackedDeviceType.Controller, c)
-            hmd!!.attachToNode(TrackedDeviceType.Controller, it, c, cam)
-
-            c
-        }
-
         (0..10).map {
-            val light = PointLight(radius = 10.0f)
+            val light = PointLight(radius = 15.0f)
             light.emissionColor = Random.randomVectorFromRange(3, 0.0f, 1.0f)
             light.position = Random.randomVectorFromRange(3, -5.0f, 5.0f)
-            light.intensity = 100.0f
+            light.intensity = 500.0f
 
             light
         }.forEach { scene.addChild(it) }
@@ -69,9 +61,23 @@ class VRControllerExample : SceneryBase(VRControllerExample::class.java.simpleNa
         hullboxMaterial.diffuse = GLVector(0.4f, 0.4f, 0.4f)
         hullboxMaterial.specular = GLVector(0.0f, 0.0f, 0.0f)
         hullboxMaterial.doubleSided = true
+        hullboxMaterial.cullingMode = Material.CullingMode.Front
         hullbox.material = hullboxMaterial
 
         scene.addChild(hullbox)
+
+        thread {
+            while(!running) {
+                Thread.sleep(200)
+            }
+
+            hmd?.getTrackedDevices(TrackedDeviceType.Controller)?.forEach { _, device ->
+                val c = Mesh()
+                c.name = device.name
+                hmd?.loadModelForMesh(device, c)
+                hmd?.attachToNode(device, c, cam)
+            }
+        }
     }
 
     @Test override fun main() {
