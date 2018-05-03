@@ -450,11 +450,13 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
                     val state = trackedDevices["$type-$device"]!!.metadata as VRControllerState
                     VRSystem_GetControllerState(device, state)
 
+                    val role = VRSystem_GetControllerRoleForTrackedDeviceIndex(device)
+
                     when {
-                        (state.rAxis(0).x() > 0.8f && state.rAxis(0).y().absoluteValue < 0.5f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) -> OpenVRButton.Right.toKeyEvent()
-                        (state.rAxis(0).x() < -0.8f && state.rAxis(0).y().absoluteValue < 0.5f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) -> OpenVRButton.Left.toKeyEvent()
-                        (state.rAxis(0).y() > 0.8f && state.rAxis(0).x().absoluteValue < 0.5f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) -> OpenVRButton.Up.toKeyEvent()
-                        (state.rAxis(0).y() < -0.8f && state.rAxis(0).x().absoluteValue < 0.5f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) -> OpenVRButton.Down.toKeyEvent()
+                        (state.rAxis(0).x() > 0.5f && state.rAxis(0).y().absoluteValue < 0.5f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) -> OpenVRButton.Right.toKeyEvent(role)
+                        (state.rAxis(0).x() < -0.5f && state.rAxis(0).y().absoluteValue < 0.5f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) -> OpenVRButton.Left.toKeyEvent(role)
+                        (state.rAxis(0).y() > 0.5f && state.rAxis(0).x().absoluteValue < 0.5f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) -> OpenVRButton.Up.toKeyEvent(role)
+                        (state.rAxis(0).y() < -0.5f && state.rAxis(0).x().absoluteValue < 0.5f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) -> OpenVRButton.Down.toKeyEvent(role)
                         else -> null
                     }?.let { event ->
                         inputHandler.keyPressed(event)
@@ -477,9 +479,10 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
         while(VRSystem_PollNextEvent(event)) {
             if(event.eventType() == EVREventType_VREvent_ButtonUnpress) {
                 val button = event.data().controller().button()
+                val role = VRSystem_GetControllerRoleForTrackedDeviceIndex(event.trackedDeviceIndex())
 
                 OpenVRButton.values().find { it.internalId == button }?.let {
-                    inputHandler.keyPressed(it.toKeyEvent())
+                    inputHandler.keyPressed(it.toKeyEvent(role))
                 }
 
                 logger.debug("Button $button pressed")
@@ -509,18 +512,26 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
 
     data class AWTKey(val code: Int, val char: Char)
 
-    private fun OpenVRButton.toKeyEvent(): KeyEvent {
-        return KeyEvent(object: Component() {}, KeyEvent.KEY_PRESSED, 1, 0, this.toAWTKeyCode().code, this.toAWTKeyCode().char)
+    private fun OpenVRButton.toKeyEvent(role: Int): KeyEvent {
+        return KeyEvent(object: Component() {}, KeyEvent.KEY_PRESSED, 1, 0, this.toAWTKeyCode(role).code, this.toAWTKeyCode(role).char)
     }
 
-    private fun OpenVRButton.toAWTKeyCode(): AWTKey {
-        return when(this) {
-            OpenVRHMD.OpenVRButton.Left -> AWTKey(KeyEvent.VK_A, KeyEvent.CHAR_UNDEFINED)
-            OpenVRHMD.OpenVRButton.Right -> AWTKey(KeyEvent.VK_D, KeyEvent.CHAR_UNDEFINED)
-            OpenVRHMD.OpenVRButton.Up -> AWTKey(KeyEvent.VK_W, KeyEvent.CHAR_UNDEFINED)
-            OpenVRHMD.OpenVRButton.Down -> AWTKey(KeyEvent.VK_S, KeyEvent.CHAR_UNDEFINED)
-            OpenVRHMD.OpenVRButton.Menu -> AWTKey(KeyEvent.VK_M, 'M')
-            OpenVRHMD.OpenVRButton.Side -> AWTKey(KeyEvent.VK_S, 'S')
+    private fun OpenVRButton.toAWTKeyCode(role: Int = 0): AWTKey {
+        return when {
+            this == OpenVRHMD.OpenVRButton.Left && role == ETrackedControllerRole_TrackedControllerRole_LeftHand -> AWTKey(KeyEvent.VK_H, KeyEvent.CHAR_UNDEFINED)
+            this == OpenVRHMD.OpenVRButton.Right && role == ETrackedControllerRole_TrackedControllerRole_LeftHand -> AWTKey(KeyEvent.VK_L, KeyEvent.CHAR_UNDEFINED)
+            this == OpenVRHMD.OpenVRButton.Up  && role == ETrackedControllerRole_TrackedControllerRole_LeftHand -> AWTKey(KeyEvent.VK_K, KeyEvent.CHAR_UNDEFINED)
+            this == OpenVRHMD.OpenVRButton.Down && role == ETrackedControllerRole_TrackedControllerRole_LeftHand -> AWTKey(KeyEvent.VK_J, KeyEvent.CHAR_UNDEFINED)
+
+            this == OpenVRHMD.OpenVRButton.Left && role == ETrackedControllerRole_TrackedControllerRole_RightHand -> AWTKey(KeyEvent.VK_A, KeyEvent.CHAR_UNDEFINED)
+            this == OpenVRHMD.OpenVRButton.Right && role == ETrackedControllerRole_TrackedControllerRole_RightHand -> AWTKey(KeyEvent.VK_D, KeyEvent.CHAR_UNDEFINED)
+            this == OpenVRHMD.OpenVRButton.Up  && role == ETrackedControllerRole_TrackedControllerRole_RightHand -> AWTKey(KeyEvent.VK_W, KeyEvent.CHAR_UNDEFINED)
+            this == OpenVRHMD.OpenVRButton.Down && role == ETrackedControllerRole_TrackedControllerRole_RightHand -> AWTKey(KeyEvent.VK_S, KeyEvent.CHAR_UNDEFINED)
+
+            this == OpenVRHMD.OpenVRButton.Menu -> AWTKey(KeyEvent.VK_M, KeyEvent.CHAR_UNDEFINED)
+            this == OpenVRHMD.OpenVRButton.Side -> AWTKey(KeyEvent.VK_S, KeyEvent.CHAR_UNDEFINED)
+
+            else -> AWTKey(KeyEvent.VK_ESCAPE, KeyEvent.CHAR_UNDEFINED)
         }
     }
 
