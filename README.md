@@ -94,13 +94,13 @@ Add scenery and ClearGL to your project's `pom.xml`:
   <dependency>
     <groupId>graphics.scenery</groupId>
     <artifactId>scenery</artifactId>
-    <version>0.3.1</version>
+    <version>0.4.0-SNAPSHOT</version>
   </dependency>
 
   <dependency>
     <groupId>net.clearvolume</groupId>
     <artifactId>cleargl</artifactId>
-    <version>2.1.5</version>
+    <version>2.1.6</version>
   </dependency>
 </dependencies>
 ```
@@ -110,8 +110,8 @@ Add scenery and ClearGL to your project's `pom.xml`:
 Add scenery and ClearGL to your project's `build.gradle`:
 
 ```groovy
-compile group: 'graphics.scenery', name: 'scenery', version: '0.3.1'
-compile group: 'net.clearvolume', name: 'cleargl', version: '2.1.5'
+compile group: 'graphics.scenery', name: 'scenery', version: '0.4.0-SNAPSHOT'
+compile group: 'net.clearvolume', name: 'cleargl', version: '2.1.6'
 ```
 
 ### Logging
