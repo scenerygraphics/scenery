@@ -220,9 +220,9 @@ void main()
     float currentSceneDepth = texture(InputZBuffer, depthUV).r * 2.0 - 1.0;
 #endif
 
-    if(startNDC.z > currentSceneDepth) {
+    if(startNDC.z > currentSceneDepth && tnear > 0.0f) {
         // for debugging, green = occluded by existing scene geometry
-        // FragColor = vec4(0.0, 1.0, 0.0, 1.0);
+        FragColor = vec4(0.0, 0.0, 0.0, 0.0);
         gl_FragDepth = currentSceneDepth;
         discard;
     }
@@ -270,11 +270,11 @@ void main()
 
     // FIXME: this is a workaround for grey lines appearing at borders
     alphaVal = alphaVal<0.01?0.0f:alphaVal;
+    if(alphaVal < 0.01) {
+        colVal = 0.01;
+    }
 
     // Mapping to transfer function range and gamma correction:
-    vec4 color = texture(ObjectTextures[3], vec2(colVal, 0.5f));
-    color.w = alphaVal;
-
-    FragColor = color;
+    FragColor = vec4(texture(ObjectTextures[3], vec2(colVal, 0.5f)).rgb * alphaVal, alphaVal);
 }
 
