@@ -12,6 +12,7 @@ import net.java.games.input.Component
 import org.lwjgl.glfw.GLFW.*
 import org.scijava.ui.behaviour.Behaviour
 import org.scijava.ui.behaviour.BehaviourMap
+import org.scijava.ui.behaviour.InputTrigger
 import org.scijava.ui.behaviour.InputTriggerMap
 import org.scijava.ui.behaviour.io.InputTriggerConfig
 import org.scijava.ui.behaviour.io.yaml.YamlConfigIO
@@ -130,6 +131,15 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
         keys.forEach { key ->
             config.inputTriggerAdder(inputMap, "all").put(behaviourName, key)
         }
+    }
+
+    /**
+     * Returns all the currently set key bindings
+     *
+     * @return Map of all currently configured key bindings.
+     */
+    fun getAllBindings(): Map<InputTrigger, Set<String>> {
+        return inputMap.allBindings
     }
 
     /**
