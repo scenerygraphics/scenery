@@ -10,7 +10,7 @@
 
     <groupId>graphics.scenery</groupId>
     <artifactId>scenery</artifactId>
-    <version>0.3.2-SNAPSHOT</version>
+    <version>0.3.2-pd</version>
     <inceptionYear>2016</inceptionYear>
     <licenses>
         <license>
