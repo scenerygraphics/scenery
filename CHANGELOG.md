@@ -1,10 +1,46 @@
 # CHANGELOG
 
-# scenery-0.3.1 to scenery-0.3.2
+# scenery-0.3.1 to scenery-0.4.0
 
-## Additions and changes
+## Additions and Changes
+
+* adds support for [Windows Mixed Reality](https://www.microsoft.com/en-us/windows/windows-mixed-reality) VR headsets
+* VulkanRenderer: Support for headless rendering
+* InputHandler: getAllBindings() added to query all current key bindings 
+* OpenVRHMD: Add determination of controller handedness
+* Allow SceneryBase and REPL to consume an existing SciJava context
+* OpenVR: adds loading of controller etc. models originating from custom OpenVR drivers such as WMR
+* OpenVR: rework eye pose model to support the different coord frames used by the HTC Vive and WMR headsets
+* improves attaching VR controllers to nodes
+* InputHandler/OpenVRHMD: Support adding multiple key bindings at once 
+* HasGeometry: Emit warning if MTL file referred by an OBJ is not found, but do not fail
+* introduces BoundingGrid class to show grids around existing nodes
+* introduces Node::getMaximumBoundingBox() to get the maximum bounding box of the node and all children
+* introduces Node intersections via bounding spheres
+* Renderer: Add screenshot() (without parameters) for push-button functionality
+* added ReadModelExample to load STL and OBJ models of the user's choice, remove BoxedProteinExample
+* Node: add scaleUp parameter to fitInto(), to let the user set whether the Node should only be down, or also upscaled  
+* introduces an experimental test runner for boosting reproducibility (RunAllExamples)
+* VU: Throw RuntimeExceptions in case Vulkan commands return result codes < 1, indicating an error
+* Update all examples to use the new, radius-based lighting model
 
 ## Fixes
+
+* update GPU compatibility table for Broadwell and Haswell GPUs and fix wrong architecture for GeForce 750M
+* ArcBallCameraControl: Fixed a sign error
+* fixes and issue where Volume rendering in VR could be incorrect due to the volume being culled too early
+* OpenVR: load best possible models for given device type, and adjust interfaces to support that — before, only the HTC Vive type controller modes were loaded
+* VulkanSwapchain: Lazily deallocate old swapchains to prevent deallocation of a in-use swapchain
+* HasGeometry: Use correct byte order when reading binary STL files
+* fixes a mistake in the FXAA shader that caused incorrect sampling leading to no AA at all
+* improves font rendering with transparent background
+* VulkanRenderer: don't create H264Encoder unless really requested
+* FXSwapchain/HeadlessSwapchain: Use correct src/dstStages for layout transitions
+
+## Dependency updates
+
+* bumps ClearGL to 2.1.6
+* bumps Kotlin to 1.2.41
 
 # scenery-0.3.0 to scenery-0.3.1
 
