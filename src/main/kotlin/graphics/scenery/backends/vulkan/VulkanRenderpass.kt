@@ -113,7 +113,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
 
         val lightParameters = VU.createDescriptorSetLayout(
             device,
-            listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1)),
+            listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1)),
             binding = 0, shaderStages = VK_SHADER_STAGE_ALL)
 
         descriptorSetLayouts.put("LightParameters", lightParameters)
@@ -128,7 +128,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
 
         val dslVRParameters = VU.createDescriptorSetLayout(
             device,
-            listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1)),
+            listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1)),
             binding = 0, shaderStages = VK_SHADER_STAGE_ALL)
 
         descriptorSetLayouts.put("VRParameters", dslVRParameters)
@@ -373,9 +373,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
 
     private fun initializeDescriptorSetLayoutForSpec(spec: VulkanShaderModule.UBOSpec): Long {
         val contents = when {
-            spec.name == "LightParameters" ||
             spec.name == "Matrices" ||
-            spec.name == "VRParameters" ||
             spec.name == "MaterialProperties" -> listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1))
 
             spec.name == "ObjectTextures" -> listOf(Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 6),
