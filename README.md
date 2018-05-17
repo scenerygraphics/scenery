@@ -1,7 +1,7 @@
 [![scenery logo](./artwork/logo-light-small.png)](./artwork/logo-light.png)
 
 ---
-__Hello, this is the master branch, where development happens and stuff breaks.__ If you require a stable version of scenery, please check out the [latest stable version of this repository, version 0.3.1](https://github.com/scenerygraphics/scenery/tree/scenery-0.3.1).
+__Hello, this is the master branch, where development happens and stuff breaks.__ If you require a stable version of scenery, please check out the [latest stable version of this repository, version 0.4.0](https://github.com/scenerygraphics/scenery/tree/scenery-0.4.0).
 
 ---
 
@@ -94,13 +94,13 @@ Add scenery and ClearGL to your project's `pom.xml`:
   <dependency>
     <groupId>graphics.scenery</groupId>
     <artifactId>scenery</artifactId>
-    <version>0.3.1</version>
+    <version>0.4.1-SNAPSHOT</version>
   </dependency>
 
   <dependency>
     <groupId>net.clearvolume</groupId>
     <artifactId>cleargl</artifactId>
-    <version>2.1.5</version>
+    <version>2.1.6</version>
   </dependency>
 </dependencies>
 ```
@@ -110,8 +110,8 @@ Add scenery and ClearGL to your project's `pom.xml`:
 Add scenery and ClearGL to your project's `build.gradle`:
 
 ```groovy
-compile group: 'graphics.scenery', name: 'scenery', version: '0.3.1'
-compile group: 'net.clearvolume', name: 'cleargl', version: '2.1.5'
+compile group: 'graphics.scenery', name: 'scenery', version: '0.4.1-SNAPSHOT'
+compile group: 'net.clearvolume', name: 'cleargl', version: '2.1.6'
 ```
 
 ### Logging
@@ -127,23 +127,25 @@ scenery has been tested with a number of different systems and GPUs. If you have
 ✅ Works
 ⛔ Does not work
 ⬜ Untested
+🚫 Unsupported configuration (e.g. no driver support)
 
 | GPU | Windows, OpenGL | Windows, Vulkan | Linux, OpenGL | Linux, Vulkan | Mac OS X, OpenGL |
 |:--|:--|:--|:--|:--|:--|
 | AMD Radeon R5 M230 (Caicos Pro) | ⛔ | ✅ | ⬜ | ⬜ | ⬜ |
 | AMD Radeon R9 390 (Hawaii Pro) | ✅ | ✅ | ⬜ | ⬜ | ⬜ |
-| AMD Radeon R9 Nano (Fiji XT) | ⛔ | ⛔ | ⬜ | ⬜ | ⬜ |
+| AMD Radeon R9 Nano (Fiji XT) | ✅ | ✅ | ⬜ | ⬜ | ⬜ |
 | AMD Radeon R9 M370X (Strato Pro) | ⬜ | ⬜ | ⬜ | ⬜ | ✅ |
 | AMD FirePro W9100 (Hawaii XT) | ✅ | ✅ | ⬜ | ⬜ | ⬜ |
-| Intel HD Graphics 4400 (Haswell) | ⛔ | ⬜ | ✅ | ✅ | ⬜ |
-| Intel HD Graphics 5500 (Broadwell) | ⬜ | ⬜ | ✅ | ⬜ | ⬜ |
+| Intel HD Graphics 4400 (Haswell) | ✅ | 🚫 | ✅ | ✅ | ⬜ |
+| Intel HD Graphics 5500 (Broadwell) | ⬜ | 🚫 | ✅ | ⬜ | ⬜ |
 | Nvidia Geforce Titan X (Maxwell) | ✅ | ✅ | ✅ | ✅ | ⬜	 |
 | Nvidia Titan Xp (Pascal) | ✅ | ✅ | ⬜ | ⬜	 | ⬜	 |
 | Nvidia Geforce 1080 Ti (Pascal) | ✅ | ✅ | ✅ | ✅| ⬜	 |
 | Nvidia Geforce 1070 (Pascal) | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Nvidia Geforce 960 (Maxwell) | ✅ | ✅ | ⬜ | ⬜ | ⬜ |
 | Nvidia Quadro K6000 (Kepler) | ✅ | ✅ | ⬜ | ⬜ | ⬜ |
-| Nvidia Geforce 750M (Maxwell) | ✅  | ✅  | ⬜ | ⬜ | ✅  |
+| Nvidia Quadro P5000 (Pascal) | ⬜ | ⬜ | ✅ | ⬜ | ⬜ |
+| Nvidia Geforce 750M (Kepler) | ✅  | ✅  | ⬜ | ⬜ | ✅  |
 | Nvidia Geforce 650M (Kepler) | ⬜  | ⬜  | ⬜ | ⬜ | ✅  |
 
 Please also note that Nvidia's Vulkan drivers before version 382.33 have a bug that prevents scenery's Vulkan renderer from working correctly.

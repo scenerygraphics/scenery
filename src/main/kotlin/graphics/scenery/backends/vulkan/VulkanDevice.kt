@@ -6,7 +6,8 @@ import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.memUTF8
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
-import java.util.ArrayList
+import java.util.*
+
 
 class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysicalDevice, val deviceData: DeviceData, extensionsQuery: (VkPhysicalDevice) -> Array<String> = { arrayOf() }, validationLayers: Array<String> = arrayOf()) {
 
@@ -180,6 +181,24 @@ class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysicalDevic
     companion object {
         val logger by LazyLogger()
 
+        data class DeviceWorkaround(val filter: (DeviceData) -> Boolean, val description: String, val workaround: (DeviceData) -> Any)
+
+
+        val deviceWorkarounds = listOf(
+            DeviceWorkaround(
+                { it.vendor == "Nvidia" && it.driverVersion.substringBefore(".").toInt() >= 396 },
+                "Nvidia 396.xx series drivers are unsupported due to crashing bugs in the driver") {
+                if(System.getenv("__GL_NextGenCompiler") == null) {
+                    logger.warn("The graphics driver version you are using (${it.driverVersion}) contains a bug that prevents scenery's Vulkan renderer from functioning correctly.")
+                    logger.warn("Please set the environment variable __GL_NextGenCompiler to 0 and restart the application to work around this issue.")
+                    logger.warn("For this session, scenery will fall back to the OpenGL renderer in 20 seconds.")
+                    Thread.sleep(20000)
+
+                    throw RuntimeException("Bug in graphics driver, falling back to OpenGL")
+                }
+            }
+        )
+
         private fun toDeviceType(vkDeviceType: Int): DeviceType {
             return when(vkDeviceType) {
                 0 -> DeviceType.Other
@@ -261,6 +280,17 @@ class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysicalDevic
 
                 val selectedDevice = physicalDevices.get(devicePreference)
                 val selectedDeviceData = deviceList[devicePreference]
+
+                if(System.getProperty("scenery.DisableDeviceWorkarounds", "false")?.toBoolean() != true) {
+                    deviceWorkarounds.forEach {
+                        if (it.filter.invoke(selectedDeviceData)) {
+                            logger.warn("Workaround activated: ${it.description}")
+                            it.workaround.invoke(selectedDeviceData)
+                        }
+                    }
+                } else {
+                    logger.warn("Device-specific workarounds disabled upon request, expect weird things to happen.")
+                }
 
                 val physicalDevice = VkPhysicalDevice(selectedDevice, instance)
 
