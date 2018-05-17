@@ -66,7 +66,7 @@ fun VkCommandBuffer.submit(queue: VkQueue, submitInfoPNext: Pointer? = null, blo
         val submitInfo = VkSubmitInfo.callocStack(1, stack)
         val commandBuffers = stack.callocPointer(1).put(0, this)
 
-        VU.run("endCommandBuffer", {
+        VU.run("VkCommandBuffer.submit", {
             submitInfo
                 .sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
                 .pCommandBuffers(commandBuffers)

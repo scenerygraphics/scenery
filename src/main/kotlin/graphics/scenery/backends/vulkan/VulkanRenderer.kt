@@ -317,6 +317,7 @@ open class VulkanRenderer(hub: Hub,
     protected var sceneUBOs = ArrayList<Node>()
     protected var semaphores = ConcurrentHashMap<StandardSemaphores, Array<Long>>()
     protected var buffers = ConcurrentHashMap<String, VulkanBuffer>()
+    protected var UBOs = ConcurrentHashMap<String, VulkanUBO>()
     protected var textureCache = ConcurrentHashMap<String, VulkanTexture>()
     protected var descriptorSetLayouts = ConcurrentHashMap<String, Long>()
     protected var descriptorSets = ConcurrentHashMap<String, Long>()
@@ -1042,7 +1043,7 @@ open class VulkanRenderer(hub: Hub,
 
         m.put("LightParameters", VU.createDescriptorSetLayout(
             device,
-            listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1)),
+            listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1)),
             0,
             VK_SHADER_STAGE_ALL))
 
@@ -1056,7 +1057,7 @@ open class VulkanRenderer(hub: Hub,
 
         m.put("VRParameters", VU.createDescriptorSetLayout(
             device,
-            listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1)),
+            listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1)),
             0,
             VK_SHADER_STAGE_ALL))
 
@@ -1074,15 +1075,42 @@ open class VulkanRenderer(hub: Hub,
                 descriptorSetLayouts["MaterialProperties"]!!, 1,
                 buffers["UBOBuffer"]!!))
 
+        val lightUbo = VulkanUBO(device)
+        lightUbo.add("ViewMatrix0", { GLMatrix.getIdentity() })
+        lightUbo.add("ViewMatrix1", { GLMatrix.getIdentity() })
+        lightUbo.add("InverseViewMatrix0", { GLMatrix.getIdentity() })
+        lightUbo.add("InverseViewMatrix1", { GLMatrix.getIdentity() })
+        lightUbo.add("ProjectionMatrix", { GLMatrix.getIdentity() })
+        lightUbo.add("InverseProjectionMatrix", { GLMatrix.getIdentity() })
+        lightUbo.add("CamPosition", { GLVector.getNullVector(3) })
+        lightUbo.createUniformBuffer()
+        lightUbo.populate()
+
+        UBOs.put("LightParameters", lightUbo)
+
         this.descriptorSets.put("LightParameters",
-            VU.createDescriptorSetDynamic(device, descriptorPool,
+            VU.createDescriptorSet(device, descriptorPool,
                 descriptorSetLayouts["LightParameters"]!!, 1,
-                buffers["LightParametersBuffer"]!!))
+                lightUbo.descriptor!!))
+
+        val vrUbo = VulkanUBO(device)
+
+        vrUbo.add("projection0", { GLMatrix.getIdentity() } )
+        vrUbo.add("projection1", { GLMatrix.getIdentity() } )
+        vrUbo.add("inverseProjection0", { GLMatrix.getIdentity() } )
+        vrUbo.add("inverseProjection1", { GLMatrix.getIdentity() } )
+        vrUbo.add("headShift", { GLMatrix.getIdentity() })
+        vrUbo.add("IPD", { 0.0f })
+        vrUbo.add("stereoEnabled", { 0 })
+        vrUbo.createUniformBuffer()
+        vrUbo.populate()
+
+        UBOs.put("VRParameters", vrUbo)
 
         this.descriptorSets.put("VRParameters",
-            VU.createDescriptorSetDynamic(device, descriptorPool,
+            VU.createDescriptorSet(device, descriptorPool,
                 descriptorSetLayouts["VRParameters"]!!, 1,
-                buffers["VRParametersBuffer"]!!))
+                vrUbo.descriptor!!))
     }
 
     protected fun prepareStandardVertexDescriptors(): ConcurrentHashMap<VertexDataKinds, VertexDescription> {
@@ -1839,7 +1867,7 @@ open class VulkanRenderer(hub: Hub,
                 .sType(VK_STRUCTURE_TYPE_APPLICATION_INFO)
                 .pApplicationName(stack.UTF8(applicationName))
                 .pEngineName(stack.UTF8("scenery"))
-                .apiVersion(VK_MAKE_VERSION(1, 0, 54))
+                .apiVersion(VK_MAKE_VERSION(1, 0, 73))
 
             val additionalExts: List<String> = hub?.getWorkingHMDDisplay()?.getVulkanInstanceExtensions() ?: listOf()
             val utf8Exts = additionalExts.map { stack.UTF8(it) }
@@ -1987,20 +2015,20 @@ open class VulkanRenderer(hub: Hub,
 
         logger.debug("Using VulkanBuffer {} for vertex+index storage", vertexBuffer.vulkanBuffer.toHexString())
 
-        with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
-            val copyRegion = VkBufferCopy.calloc(1)
-                .srcOffset(0)
-                .dstOffset(0)
-                .size(fullAllocationBytes * 1L)
+        val copyRegion = VkBufferCopy.calloc(1)
+            .srcOffset(0)
+            .dstOffset(0)
+            .size(fullAllocationBytes * 1L)
 
+        with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
             vkCmdCopyBuffer(this,
                 stagingBuffer.vulkanBuffer,
                 vertexBuffer.vulkanBuffer,
                 copyRegion)
-
-            copyRegion.free()
             this.endCommandBuffer(device, commandPools.Standard, queue, flush = true, dealloc = true)
         }
+
+        copyRegion.free()
 
         state.vertexBuffers.put("vertex+index", vertexBuffer)?.run {
             // check if vertex buffer has been replaced, if yes, close the old one
@@ -2173,7 +2201,7 @@ open class VulkanRenderer(hub: Hub,
     private fun recordSceneRenderCommands(device: VulkanDevice, pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer, sceneObjects: Deferred<List<Node>>, customNodeFilter: ((Node) -> Boolean)? = null) = runBlocking {
         val target = pass.getOutput()
 
-        logger.trace("Creating scene command buffer for {}/{} ({} attachments)", pass.name, target, target.attachments.count())
+        logger.trace("Initialising recording of scene command buffer for {}/{} ({} attachments)", pass.name, target, target.attachments.count())
 
         pass.vulkanMetadata.renderPassBeginInfo
             .sType(VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO)
@@ -2292,7 +2320,7 @@ open class VulkanRenderer(hub: Hub,
         // command buffer cannot be null here anymore, otherwise this is clearly in error
         with(commandBuffer.commandBuffer!!) {
 
-            vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+            vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
                 timestampQueryPool, 2*renderpasses.values.indexOf(pass))
 
             if(pass.passConfig.blitInputs) {
@@ -2471,11 +2499,11 @@ open class VulkanRenderer(hub: Hub,
                 val sets = specs.map { (name, _) ->
                     when {
                         name == "VRParameters" -> {
-                            DescriptorSet.DynamicSet(descriptorSets["VRParameters"]!!, offset = 0, setName = "VRParameters")
+                            DescriptorSet.Set(descriptorSets["VRParameters"]!!, setName = "VRParameters")
                         }
 
                         name == "LightParameters" -> {
-                            DescriptorSet.DynamicSet(descriptorSets["LightParameters"]!!, offset = 0, setName = "LightParameters")
+                            DescriptorSet.Set(descriptorSets["LightParameters"]!!, setName = "LightParameters")
                         }
 
                         name == "ObjectTextures" -> {
@@ -2539,7 +2567,7 @@ open class VulkanRenderer(hub: Hub,
 
             vkCmdEndRenderPass(this)
 
-            vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+            vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
                 timestampQueryPool, 2*renderpasses.values.indexOf(pass)+1)
 
             // finish command buffer recording by marking this buffer non-stale
@@ -2576,7 +2604,7 @@ open class VulkanRenderer(hub: Hub,
         // commandBuffer is expected to be non-null here, otherwise this is in error
         with(commandBuffer.commandBuffer!!) {
 
-            vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+            vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
                 timestampQueryPool, 2*renderpasses.values.indexOf(pass))
             vkCmdBeginRenderPass(this, pass.vulkanMetadata.renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE)
 
@@ -2611,7 +2639,7 @@ open class VulkanRenderer(hub: Hub,
             vkCmdDraw(this, 3, 1, 0, 0)
 
             vkCmdEndRenderPass(this)
-            vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+            vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
                 timestampQueryPool, 2*renderpasses.values.indexOf(pass)+1)
 
             commandBuffer.stale = false
@@ -2634,15 +2662,7 @@ open class VulkanRenderer(hub: Hub,
                 requiredDynamicOffsets += 3
 
                 "Matrices"
-            } else if (name.startsWith("LightParameters")) {
-                logger.debug("Adding dynamic offset for LightParameters")
-                this.uboOffsets.put(0)
-                this.uboOffsets.put(0)
-                requiredDynamicOffsets++
-
-                name
             }
-
             else {
                 name
             }
@@ -2704,9 +2724,7 @@ open class VulkanRenderer(hub: Hub,
         cam.updateWorld(true, false)
 
         buffers["VRParametersBuffer"]!!.reset()
-        val vrUbo = VulkanUBO(device, backingBuffer = buffers["VRParametersBuffer"]!!)
-
-        vrUbo.createUniformBuffer()
+        val vrUbo = UBOs["VRParameters"]!!
         vrUbo.add("projection0", { (hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance)
             ?: cam.projection).applyVulkanCoordinateSystem() } )
         vrUbo.add("projection1", { (hmd?.getEyeProjection(1, cam.nearPlaneDistance, cam.farPlaneDistance)
@@ -2718,10 +2736,7 @@ open class VulkanRenderer(hub: Hub,
         vrUbo.add("headShift", { hmd?.getHeadToEyeTransform(0) ?: GLMatrix.getIdentity() })
         vrUbo.add("IPD", { hmd?.getIPD() ?: 0.05f })
         vrUbo.add("stereoEnabled", { renderConfig.stereoEnabled.toInt() })
-
         vrUbo.populate()
-        vrUbo.close()
-        buffers["VRParametersBuffer"]!!.copyFromStagingBuffer()
 
         buffers["UBOBuffer"]!!.reset()
         buffers["ShaderPropertyBuffer"]!!.reset()
@@ -2738,12 +2753,6 @@ open class VulkanRenderer(hub: Hub,
 
                 node.updateWorld(true, false)
 
-//                if (ubo.offsets.capacity() < 3) {
-//                    memFree(ubo.offsets)
-//                    ubo.offsets = memAllocInt(3)
-//                }
-//
-//                (0..2).forEach { ubo.offsets.put(it, 0) }
                 ubo.offsets.limit(1)
 
                 var bufferOffset = ubo.backingBuffer!!.advance()
@@ -2777,11 +2786,7 @@ open class VulkanRenderer(hub: Hub,
 
         buffers["UBOBuffer"]!!.copyFromStagingBuffer()
 
-        buffers["LightParametersBuffer"]!!.reset()
-
-        // val lights = sceneObjects.await().filter { node -> node is PointLight }
-
-        val lightUbo = VulkanUBO(device, backingBuffer = buffers["LightParametersBuffer"]!!)
+        val lightUbo = UBOs["LightParameters"]!!
         lightUbo.add("ViewMatrix0", { cam.getTransformationForEye(0) })
         lightUbo.add("ViewMatrix1", { cam.getTransformationForEye(1) })
         lightUbo.add("InverseViewMatrix0", { cam.getTransformationForEye(0).inverse })
@@ -2789,28 +2794,8 @@ open class VulkanRenderer(hub: Hub,
         lightUbo.add("ProjectionMatrix", { cam.projection.applyVulkanCoordinateSystem() })
         lightUbo.add("InverseProjectionMatrix", { cam.projection.applyVulkanCoordinateSystem().inverse })
         lightUbo.add("CamPosition", { cam.position })
-        /*lightUbo.add("numLights", { lights.size })
-
-        lights.forEachIndexed { i, light ->
-            val l = light as PointLight
-            l.updateWorld(true, false)
-
-            lightUbo.add("Linear-$i", { l.linear })
-            lightUbo.add("Quadratic-$i", { l.quadratic })
-            lightUbo.add("Intensity-$i", { l.intensity })
-            lightUbo.add("Radius-$i",
-                { ((-l.linear + Math.sqrt(l.linear * l.linear - 4 * l.quadratic * (1.0 - (256.0f / 5.0) * l.intensity)))/(2 * l.quadratic)).toFloat() })
-            lightUbo.add("Position-$i", { l.position })
-            lightUbo.add("Color-$i", { l.emissionColor })
-            lightUbo.add("filler-$i", { 0.0f })
-        }*/
-
-        lightUbo.createUniformBuffer()
         lightUbo.populate()
-        lightUbo.close()
 
-
-        buffers["LightParametersBuffer"]!!.copyFromStagingBuffer()
         buffers["ShaderPropertyBuffer"]!!.copyFromStagingBuffer()
 
         cam.lock.unlock()
