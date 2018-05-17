@@ -1839,7 +1839,7 @@ open class VulkanRenderer(hub: Hub,
                 .sType(VK_STRUCTURE_TYPE_APPLICATION_INFO)
                 .pApplicationName(stack.UTF8(applicationName))
                 .pEngineName(stack.UTF8("scenery"))
-                .apiVersion(VK_MAKE_VERSION(1, 0, 54))
+                .apiVersion(VK_MAKE_VERSION(1, 0, 73))
 
             val additionalExts: List<String> = hub?.getWorkingHMDDisplay()?.getVulkanInstanceExtensions() ?: listOf()
             val utf8Exts = additionalExts.map { stack.UTF8(it) }
