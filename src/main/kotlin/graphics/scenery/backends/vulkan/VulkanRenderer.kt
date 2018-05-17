@@ -1987,20 +1987,20 @@ open class VulkanRenderer(hub: Hub,
 
         logger.debug("Using VulkanBuffer {} for vertex+index storage", vertexBuffer.vulkanBuffer.toHexString())
 
-        with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
-            val copyRegion = VkBufferCopy.calloc(1)
-                .srcOffset(0)
-                .dstOffset(0)
-                .size(fullAllocationBytes * 1L)
+        val copyRegion = VkBufferCopy.calloc(1)
+            .srcOffset(0)
+            .dstOffset(0)
+            .size(fullAllocationBytes * 1L)
 
+        with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
             vkCmdCopyBuffer(this,
                 stagingBuffer.vulkanBuffer,
                 vertexBuffer.vulkanBuffer,
                 copyRegion)
-
-            copyRegion.free()
             this.endCommandBuffer(device, commandPools.Standard, queue, flush = true, dealloc = true)
         }
+
+        copyRegion.free()
 
         state.vertexBuffers.put("vertex+index", vertexBuffer)?.run {
             // check if vertex buffer has been replaced, if yes, close the old one
