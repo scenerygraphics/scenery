@@ -2173,7 +2173,7 @@ open class VulkanRenderer(hub: Hub,
     private fun recordSceneRenderCommands(device: VulkanDevice, pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer, sceneObjects: Deferred<List<Node>>, customNodeFilter: ((Node) -> Boolean)? = null) = runBlocking {
         val target = pass.getOutput()
 
-        logger.trace("Creating scene command buffer for {}/{} ({} attachments)", pass.name, target, target.attachments.count())
+        logger.trace("Initialising recording of scene command buffer for {}/{} ({} attachments)", pass.name, target, target.attachments.count())
 
         pass.vulkanMetadata.renderPassBeginInfo
             .sType(VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO)
@@ -2292,7 +2292,7 @@ open class VulkanRenderer(hub: Hub,
         // command buffer cannot be null here anymore, otherwise this is clearly in error
         with(commandBuffer.commandBuffer!!) {
 
-            vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+            vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
                 timestampQueryPool, 2*renderpasses.values.indexOf(pass))
 
             if(pass.passConfig.blitInputs) {
@@ -2539,7 +2539,7 @@ open class VulkanRenderer(hub: Hub,
 
             vkCmdEndRenderPass(this)
 
-            vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+            vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
                 timestampQueryPool, 2*renderpasses.values.indexOf(pass)+1)
 
             // finish command buffer recording by marking this buffer non-stale
@@ -2576,7 +2576,7 @@ open class VulkanRenderer(hub: Hub,
         // commandBuffer is expected to be non-null here, otherwise this is in error
         with(commandBuffer.commandBuffer!!) {
 
-            vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+            vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
                 timestampQueryPool, 2*renderpasses.values.indexOf(pass))
             vkCmdBeginRenderPass(this, pass.vulkanMetadata.renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE)
 
@@ -2611,7 +2611,7 @@ open class VulkanRenderer(hub: Hub,
             vkCmdDraw(this, 3, 1, 0, 0)
 
             vkCmdEndRenderPass(this)
-            vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+            vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
                 timestampQueryPool, 2*renderpasses.values.indexOf(pass)+1)
 
             commandBuffer.stale = false
