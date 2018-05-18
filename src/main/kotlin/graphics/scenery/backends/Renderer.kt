@@ -133,15 +133,19 @@ abstract class Renderer : Hubable {
                 else -> preference
             }
 
-            return if (preference == "VulkanRenderer") {
-                try {
-                    VulkanRenderer(hub, applicationName, scene, windowWidth, windowHeight, embedIn, config)
-                } catch (e: Exception) {
-                    logger.warn("Vulkan unavailable (${e.cause}, ${e.message}), falling back to OpenGL.")
+            try {
+                return if (preference == "VulkanRenderer") {
+                    try {
+                        VulkanRenderer(hub, applicationName, scene, windowWidth, windowHeight, embedIn, config)
+                    } catch (e: Exception) {
+                        logger.warn("Vulkan unavailable (${e.cause}, ${e.message}), falling back to OpenGL.")
+                        OpenGLRenderer(hub, applicationName, scene, windowWidth, windowHeight, embedIn, config)
+                    }
+                } else {
                     OpenGLRenderer(hub, applicationName, scene, windowWidth, windowHeight, embedIn, config)
                 }
-            } else {
-                OpenGLRenderer(hub, applicationName, scene, windowWidth, windowHeight, embedIn, config)
+            } catch (e: Exception){
+                logger.error("Unable to create renderer. Do you have the latest graphics card drivers installed?")
             }
         }
     }
