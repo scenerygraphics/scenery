@@ -45,7 +45,7 @@ renderpasses:
       Pass.displayWidth: 0
       Pass.displayHeight: 0
       ssaoRadius: 0.5
-      ssaoSamples: 16
+      ssaoSamples: 0
       maxDistance: 0.2
     shaders:
       - "FullscreenQuad.vert.spv"
