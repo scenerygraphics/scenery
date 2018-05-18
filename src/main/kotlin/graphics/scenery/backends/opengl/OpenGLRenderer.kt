@@ -2053,7 +2053,19 @@ class OpenGLRenderer(hub: Hub,
                             }
 
                             t.setClamp(!repeatS, !repeatT)
-                            t.copyFrom(contents)
+
+                            val unpackAlignment = intArrayOf(0)
+                            gl.glGetIntegerv(GL4.GL_UNPACK_ALIGNMENT, unpackAlignment, 0)
+
+                            // textures might have very uneven dimensions, so we adjust GL_UNPACK_ALIGNMENT here correspondingly
+                            // in case the byte count of the texture is not divisible by it.
+                            if(contents.remaining() % unpackAlignment[0] == 0) {
+                                t.copyFrom(contents)
+                            } else {
+                                gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, 1)
+                                t.copyFrom(contents)
+                                gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, unpackAlignment[0])
+                            }
 
                             s.textures.put(type, t)
                             textureCache.put(texture, t)
