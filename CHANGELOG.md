@@ -1,5 +1,22 @@
 # CHANGELOG
 
+# scenery-0.4.0 to scenery-0.4.1
+
+## Additions and Changes
+
+* Volume: use pre-multiplied alpha when rendering volumes
+* Volume: lazily deallocate out-of-use volumes
+* REPL: generate JVM overloads for constructor
+* Renderer: better error messages in case no renderer could be constructed
+* VulkanRenderer: use regular UBOs for LightParameters and VRParameters
+* VulkanDevice: introduce device/driver-specific workarounds and warnings
+* DSSDO: Use zero samples for the moment (algorithm will be changed to HBAO or SAO in an upcoming release)
+
+## Fixes
+
+* Volume: improved check for near plane before discarding rays
+* OpenGLRenderer: when loading textures, adjust GL_UNPACK_ALIGNMENT if texture would need to be padded
+
 # scenery-0.3.1 to scenery-0.4.0
 
 ## Additions and Changes
