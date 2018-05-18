@@ -297,6 +297,11 @@ class OpenGLRenderer(hub: Hub,
 
         if (embedIn != null) {
             val profile = GLProfile.getMaxProgrammableCore(true)
+
+            if(!profile.isGL4) {
+                throw UnsupportedOperationException("Could not create OpenGL 4 context, perhaps you need a graphics driver update?")
+            }
+
             val caps = GLCapabilities(profile)
             caps.hardwareAccelerated = true
             caps.doubleBuffered = true

@@ -17,9 +17,7 @@ import org.lwjgl.glfw.GLFWVulkan.glfwVulkanSupported
 import org.lwjgl.system.Configuration
 import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil.*
-import org.lwjgl.system.jemalloc.JEmalloc.je_calloc
-import org.lwjgl.system.jemalloc.JEmalloc.je_free
-import org.lwjgl.system.jemalloc.JEmalloc.je_malloc
+import org.lwjgl.system.jemalloc.JEmalloc.*
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.EXTDebugReport.*
 import org.lwjgl.vulkan.KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
@@ -403,7 +401,7 @@ open class VulkanRenderer(hub: Hub,
             throw RuntimeException("Failed to initialize GLFW")
         }
         if (!glfwVulkanSupported()) {
-            throw RuntimeException("Failed to find Vulkan loader. Is Vulkan supported by your GPU and do you have the most recent graphics drivers installed?")
+            throw UnsupportedOperationException("Failed to find Vulkan loader. Is Vulkan supported by your GPU and do you have the most recent graphics drivers installed?")
         }
 
         /* Look for instance extensions */
