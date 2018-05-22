@@ -1943,7 +1943,7 @@ class OpenGLRenderer(hub: Hub,
                     renderpasses.filter {
                         (it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry || it.value.passConfig.type == RenderConfigReader.RenderpassType.lights)
                             && it.value.passConfig.renderTransparent == node.material.blending.transparent
-                    }.entries.first().value.defaultShader
+                    }.entries.firstOrNull()?.value?.defaultShader
                 }
 
                 logger.debug("Shader properties are: ${shader?.getShaderPropertyOrder()}")
