@@ -3,12 +3,10 @@ description: Forward Shading Pipeline, with HDR postprocessing
 
 rendertargets:
   HDR:
-    HDRBuffer:
-      size: 1.0, 1.0
-      format: RGBA_Float32
-    ZBuffer:
-      size: 1.0, 1.0
-      format: Depth32
+    size: 1.0, 1.0
+    attachments:
+      HDRBuffer: RGBA_Float32
+      ZBuffer: Depth32
 
 renderpasses:
   Scene:
