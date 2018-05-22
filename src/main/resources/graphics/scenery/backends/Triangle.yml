@@ -1,0 +1,10 @@
+name: Triangle Demo Pipeline
+description: Demo pipeline, drawing just a triangle, independent of scene content
+
+renderpasses:
+  Triangle:
+    type: quad
+    shaders:
+      - "TriangleDemo.vert.spv"
+      - "TriangleDemo.frag.spv"
+    output: Viewport
