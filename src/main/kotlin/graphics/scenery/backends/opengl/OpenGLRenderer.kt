@@ -1799,7 +1799,7 @@ class OpenGLRenderer(hub: Hub,
             quad = nodeStore[quadName]!!
         }
 
-        drawNode(quad)
+        drawNode(quad, count = 3)
         program.gl.glBindTexture(GL4.GL_TEXTURE_2D, 0)
     }
 
@@ -2397,7 +2397,7 @@ class OpenGLRenderer(hub: Hub,
      * @param[node] The node to be drawn.
      * @param[offset] offset in the array or index buffer.
      */
-    fun drawNode(node: Node, offset: Int = 0) {
+    fun drawNode(node: Node, offset: Int = 0, count: Int? = null) {
         val s = getOpenGLObjectStateFromNode(node)
 
         if (s.mStoredIndexCount == 0 && s.mStoredPrimitiveCount == 0 || node.material.needsTextureReload) {
@@ -2410,13 +2410,13 @@ class OpenGLRenderer(hub: Hub,
             gl.glBindBuffer(GL4.GL_ELEMENT_ARRAY_BUFFER,
                 s.mIndexBuffer[0])
             gl.glDrawElements((node as HasGeometry).geometryType.toOpenGLType(),
-                s.mStoredIndexCount,
+                count ?: s.mStoredIndexCount,
                 GL4.GL_UNSIGNED_INT,
                 offset.toLong())
 
             gl.glBindBuffer(GL4.GL_ELEMENT_ARRAY_BUFFER, 0)
         } else {
-            gl.glDrawArrays((node as HasGeometry).geometryType.toOpenGLType(), offset, s.mStoredPrimitiveCount)
+            gl.glDrawArrays((node as HasGeometry).geometryType.toOpenGLType(), offset, count ?: s.mStoredPrimitiveCount)
         }
 
         gl.glUseProgram(0)
