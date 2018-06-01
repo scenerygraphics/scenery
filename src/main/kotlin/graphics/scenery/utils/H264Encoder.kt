@@ -256,7 +256,7 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, f
             }
         }
 
-        logger.info("Encoded frame $frameNum")
+        logger.trace("Encoded frame $frameNum")
 
         frameNum++
     }
