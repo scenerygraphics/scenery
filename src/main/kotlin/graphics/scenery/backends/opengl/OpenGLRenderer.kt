@@ -1725,10 +1725,7 @@ class OpenGLRenderer(hub: Hub,
             }
 
             gl.glBindBuffer(GL4.GL_PIXEL_PACK_BUFFER, pbos[updateIndex])
-
-            gl.glReadBuffer(GL4.GL_FRONT)
             gl.glReadPixels(0, 0, window.width, window.height, GL4.GL_BGRA, GL4.GL_UNSIGNED_BYTE, 0)
-
             gl.glGetBufferSubData(GL4.GL_PIXEL_PACK_BUFFER, 0,
                 4L * window.width * window.height, pboBuffers[updateIndex])
 
