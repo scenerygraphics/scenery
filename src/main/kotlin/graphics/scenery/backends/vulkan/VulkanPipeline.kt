@@ -87,6 +87,7 @@ class VulkanPipeline(val device: VulkanDevice, val pipelineCache: Long? = null):
             this.shaderStages.add(it)
 
             it.uboSpecs.forEach { uboName, ubo ->
+//                descriptorSpecs[uboName]?.members?.putAll(ubo.members) ?: descriptorSpecs.put(uboName, ubo)
                 if(descriptorSpecs.containsKey(uboName)) {
                     descriptorSpecs[uboName]!!.members.putAll(ubo.members)
                 } else {
@@ -95,6 +96,8 @@ class VulkanPipeline(val device: VulkanDevice, val pipelineCache: Long? = null):
             }
 
             it.pushConstantSpecs.forEach { name, pushConstant ->
+//                pushConstantSpecs[name]?.members?.putAll(pushConstant.members) ?: pushConstantSpecs.put(name, pushConstant)
+                logger.info("Adding PC $name")
                 if(pushConstantSpecs.containsKey(name)) {
                     pushConstantSpecs[name]!!.members.putAll(pushConstant.members)
                 } else {
@@ -115,7 +118,7 @@ class VulkanPipeline(val device: VulkanDevice, val pipelineCache: Long? = null):
                 val offset = p.value.members.map { it.value.offset }.min() ?: 0L
                 val size = p.value.members.map { it.value.range }.sum() ?: 0L
 
-                logger.debug("PCR: id $i offset=$offset size=$size")
+                logger.debug("Push constant: id $i name=${p.key} offset=$offset size=$size")
 
                 pcr.get(i)
                     .offset(offset.toInt())

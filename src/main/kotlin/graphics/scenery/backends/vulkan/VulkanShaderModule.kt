@@ -229,6 +229,13 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, claz
                     range.range
                 )
             }.sortedBy { it.second.index })
+
+            val pcs = PushConstantSpec(res.name,
+                members = members)
+
+            if(!pushConstantSpecs.contains(res.name) && pcs.members.size > 0) {
+                pushConstantSpecs.put(res.name, pcs)
+            }
         }
 
         /* Updated version:
