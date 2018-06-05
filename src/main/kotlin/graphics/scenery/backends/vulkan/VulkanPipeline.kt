@@ -18,6 +18,7 @@ class VulkanPipeline(val device: VulkanDevice, val pipelineCache: Long? = null):
 
     var pipeline = HashMap<GeometryType, VulkanRenderer.Pipeline>()
     var descriptorSpecs = LinkedHashMap<String, VulkanShaderModule.UBOSpec>()
+    var pushConstantSpecs = LinkedHashMap<String, VulkanShaderModule.PushConstantSpec>()
 
     val inputAssemblyState: VkPipelineInputAssemblyStateCreateInfo = VkPipelineInputAssemblyStateCreateInfo.calloc()
         .sType(VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO)
@@ -92,6 +93,14 @@ class VulkanPipeline(val device: VulkanDevice, val pipelineCache: Long? = null):
                     descriptorSpecs.put(uboName, ubo)
                 }
             }
+
+            it.pushConstantSpecs.forEach { name, pushConstant ->
+                if(pushConstantSpecs.containsKey(name)) {
+                    pushConstantSpecs[name]!!.members.putAll(pushConstant.members)
+                } else {
+                    pushConstantSpecs.put(name, pushConstant)
+                }
+            }
         }
     }
 
@@ -100,12 +109,24 @@ class VulkanPipeline(val device: VulkanDevice, val pipelineCache: Long? = null):
         val setLayouts = memAllocLong(descriptorSetLayouts.size).put(descriptorSetLayouts.toLongArray())
         setLayouts.flip()
 
-//        descriptorSetLayouts.forEachIndexed { i, layout -> setLayouts.put(i, layout) }
+        val pushConstantRanges = if(pushConstantSpecs.size > 0) {
+            val pcr = VkPushConstantRange.calloc(pushConstantSpecs.size)
+            pushConstantSpecs.entries.forEachIndexed { i, p ->
+                val offset = p.value.members.map { it.value.offset }.min() ?: 0L
+                val size = p.value.members.map { it.value.range }.sum() ?: 0L
 
-        val pushConstantRanges = VkPushConstantRange.calloc(1)
-            .offset(0)
-            .size(4)
-            .stageFlags(VK_SHADER_STAGE_ALL)
+                logger.debug("PCR: id $i offset=$offset size=$size")
+
+                pcr.get(i)
+                    .offset(offset.toInt())
+                    .size(size.toInt())
+                    .stageFlags(VK_SHADER_STAGE_ALL)
+            }
+
+            pcr
+        } else {
+            null
+        }
 
         val pPipelineLayoutCreateInfo = VkPipelineLayoutCreateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO)
@@ -115,7 +136,7 @@ class VulkanPipeline(val device: VulkanDevice, val pipelineCache: Long? = null):
 
         val layout = VU.getLong("vkCreatePipelineLayout",
             { vkCreatePipelineLayout(device.vulkanDevice, pPipelineLayoutCreateInfo, null, this) },
-            { pushConstantRanges.free(); pPipelineLayoutCreateInfo.free(); memFree(setLayouts); })
+            { pushConstantRanges?.free(); pPipelineLayoutCreateInfo.free(); memFree(setLayouts); })
 
         val stages = VkPipelineShaderStageCreateInfo.calloc(shaderStages.size)
         shaderStages.forEachIndexed { i, shaderStage ->
