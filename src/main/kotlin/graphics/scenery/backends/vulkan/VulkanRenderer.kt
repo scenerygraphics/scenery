@@ -2472,8 +2472,9 @@ open class VulkanRenderer(hub: Hub,
                 if(rerecordingCauses.contains(node.name)) {
                     logger.debug("Using pipeline ${pass.getActivePipeline(node)} for re-recording")
                 }
-                val pipeline = pass.getActivePipeline(node).getPipelineForGeometryType((node as HasGeometry).geometryType)
-                val specs = pass.getActivePipeline(node).orderedDescriptorSpecs()
+                val p = pass.getActivePipeline(node)
+                val pipeline = p.getPipelineForGeometryType((node as HasGeometry).geometryType)
+                val specs = p.orderedDescriptorSpecs()
 
                 logger.trace("node {} has: {} / pipeline needs: {}", node.name, s.UBOs.keys.joinToString(", "), specs.joinToString { it.key })
 
@@ -2553,7 +2554,9 @@ open class VulkanRenderer(hub: Hub,
                 }
                 vkCmdBindVertexBuffers(this, 0, pass.vulkanMetadata.vertexBuffers, pass.vulkanMetadata.vertexBufferOffsets)
 
-                vkCmdPushConstants(this, pipeline.layout, VK_SHADER_STAGE_ALL, 0, pass.vulkanMetadata.eye)
+                if(p.pushConstantSpecs.containsKey("currentEye")) {
+                    vkCmdPushConstants(this, pipeline.layout, VK_SHADER_STAGE_ALL, 0, pass.vulkanMetadata.eye)
+                }
 
                 logger.debug("${pass.name}: now drawing {}, {} DS bound, {} textures, {} vertices, {} indices, {} instances", node.name, pass.vulkanMetadata.descriptorSets.limit(), s.textures.count(), s.vertexCount, s.indexCount, s.instanceCount)
 
@@ -2636,6 +2639,10 @@ open class VulkanRenderer(hub: Hub,
             if(pass.vulkanMetadata.descriptorSets.limit() > 0) {
                 vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_GRAPHICS,
                     vulkanPipeline.layout, 0, pass.vulkanMetadata.descriptorSets, pass.vulkanMetadata.uboOffsets)
+            }
+
+            if(pipeline.pushConstantSpecs.containsKey("currentEye")) {
+                vkCmdPushConstants(this, vulkanPipeline.layout, VK_SHADER_STAGE_ALL, 0, pass.vulkanMetadata.eye)
             }
 
             vkCmdDraw(this, 3, 1, 0, 0)
