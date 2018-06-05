@@ -1,3 +1,4 @@
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/1fca4e0377214cb39072e4be19d7294c)](https://app.codacy.com/app/skalarproduktraum/scenery?utm_source=github.com&utm_medium=referral&utm_content=scenerygraphics/scenery&utm_campaign=badger)
 [![scenery logo](./artwork/logo-light-small.png)](./artwork/logo-light.png)
 
 ----
