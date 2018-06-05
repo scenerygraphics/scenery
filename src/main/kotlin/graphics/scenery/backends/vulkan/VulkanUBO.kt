@@ -17,6 +17,8 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
     var descriptor: UBODescriptor? = null
     var offsets: IntBuffer = memAllocInt(1).put(0, 0)
     var requiredOffsetCount = 0
+    var closed = false
+        private set
 
     private var ownedBackingBuffer: VulkanBuffer? = null
 
@@ -113,6 +115,10 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
     }
 
     override fun close() {
+        if(closed) {
+            return
+        }
+
         logger.trace("Closing UBO $this ...")
         if(backingBuffer == null) {
             ownedBackingBuffer?.let {
@@ -122,5 +128,6 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
         }
 
         memFree(offsets)
+        closed = true
     }
 }
