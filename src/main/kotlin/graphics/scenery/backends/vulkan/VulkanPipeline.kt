@@ -87,21 +87,11 @@ class VulkanPipeline(val device: VulkanDevice, val pipelineCache: Long? = null):
             this.shaderStages.add(it)
 
             it.uboSpecs.forEach { uboName, ubo ->
-//                descriptorSpecs[uboName]?.members?.putAll(ubo.members) ?: descriptorSpecs.put(uboName, ubo)
-                if(descriptorSpecs.containsKey(uboName)) {
-                    descriptorSpecs[uboName]!!.members.putAll(ubo.members)
-                } else {
-                    descriptorSpecs.put(uboName, ubo)
-                }
+                descriptorSpecs[uboName]?.members?.putAll(ubo.members) ?: descriptorSpecs.put(uboName, ubo)
             }
 
             it.pushConstantSpecs.forEach { name, pushConstant ->
-//                pushConstantSpecs[name]?.members?.putAll(pushConstant.members) ?: pushConstantSpecs.put(name, pushConstant)
-                if(pushConstantSpecs.containsKey(name)) {
-                    pushConstantSpecs[name]!!.members.putAll(pushConstant.members)
-                } else {
-                    pushConstantSpecs.put(name, pushConstant)
-                }
+                pushConstantSpecs[name]?.members?.putAll(pushConstant.members) ?: pushConstantSpecs.put(name, pushConstant)
             }
         }
     }
@@ -210,15 +200,13 @@ class VulkanPipeline(val device: VulkanDevice, val pipelineCache: Long? = null):
     }
 
     fun getPipelineForGeometryType(type: GeometryType): VulkanRenderer.Pipeline {
-        if(this.pipeline.containsKey(type)) {
-            return this.pipeline.get(type)!!
-        } else {
+        return pipeline.getOrElse(type, {
             logger.error("Pipeline $this does not contain a fitting pipeline for $type, return triangle pipeline")
-            return this.pipeline[GeometryType.TRIANGLES]!!
-        }
+            pipeline.getOrElse(GeometryType.TRIANGLES, { throw IllegalStateException("Default triangle pipeline not present for $this") })
+        })
     }
 
-    fun GeometryType.asVulkanTopology(): Int {
+    private fun GeometryType.asVulkanTopology(): Int {
         return when(this) {
             GeometryType.TRIANGLE_FAN -> VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN
             GeometryType.TRIANGLES -> VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
