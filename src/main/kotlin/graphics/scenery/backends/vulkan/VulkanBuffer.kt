@@ -161,6 +161,10 @@ class VulkanBuffer(val device: VulkanDevice, val size: Long, val usage: Int, val
     }
 
     override fun close() {
+        if(memory == -1L || vulkanBuffer == -1L) {
+            return
+        }
+
         logger.trace("Closing buffer $this ...")
 
         if(mapped) {
@@ -169,14 +173,10 @@ class VulkanBuffer(val device: VulkanDevice, val size: Long, val usage: Int, val
 
         memFree(stagingBuffer)
 
-        if(memory != -1L) {
-            vkFreeMemory(device.vulkanDevice, memory, null)
-            memory = -1L
-        }
+        vkFreeMemory(device.vulkanDevice, memory, null)
+        memory = -1L
 
-        if(vulkanBuffer != -1L) {
-            vkDestroyBuffer(device.vulkanDevice, vulkanBuffer, null)
-            vulkanBuffer = -1L
-        }
+        vkDestroyBuffer(device.vulkanDevice, vulkanBuffer, null)
+        vulkanBuffer = -1L
     }
 }
