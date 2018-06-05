@@ -91,9 +91,9 @@ open class VulkanRenderer(hub: Hub,
     }
 
     data class VertexDescription(
-        var state: VkPipelineVertexInputStateCreateInfo,
-        var attributeDescription: VkVertexInputAttributeDescription.Buffer?,
-        var bindingDescription: VkVertexInputBindingDescription.Buffer?
+        val state: VkPipelineVertexInputStateCreateInfo,
+        val attributeDescription: VkVertexInputAttributeDescription.Buffer?,
+        val bindingDescription: VkVertexInputBindingDescription.Buffer?
     )
 
     data class CommandPools(
@@ -936,6 +936,7 @@ open class VulkanRenderer(hub: Hub,
 
     protected fun loadTexturesForNode(node: Node, s: VulkanObjectState): VulkanObjectState {
         val stats = hub?.get(SceneryElement.Statistics) as Statistics?
+        val defaultTexture = textureCache["DefaultTexture"] ?: throw IllegalStateException("Default fallback texture does not exist.")
 
         if (node.lock.tryLock()) {
             node.material.textures.forEach {
@@ -952,7 +953,7 @@ open class VulkanRenderer(hub: Hub,
 
                     val gt = node.material.transferTextures[texture.substringAfter("fromBuffer:")]
 
-                    val vkTexture = if (texture.startsWith("fromBuffer:") && gt != null) {
+                    val vkTexture: VulkanTexture = if (texture.startsWith("fromBuffer:") && gt != null) {
                         val miplevels = if (generateMipmaps && gt.mipmap) {
                             1 + Math.floor(Math.log(Math.max(gt.dimensions.x() * 1.0, gt.dimensions.y() * 1.0)) / Math.log(2.0)).toInt()
                         } else {
@@ -960,7 +961,7 @@ open class VulkanRenderer(hub: Hub,
                         }
 
                         val existingTexture = s.textures[type]
-                        val t = if (existingTexture != null && existingTexture.device == device
+                        val t: VulkanTexture = if (existingTexture != null && existingTexture.device == device
                             && existingTexture.width == gt.dimensions.x().toInt()
                             && existingTexture.height == gt.dimensions.y().toInt()
                             && existingTexture.depth == gt.dimensions.z().toInt()
@@ -983,7 +984,7 @@ open class VulkanRenderer(hub: Hub,
 
                             if(stream == null) {
                                 logger.error("Not found: $f for $node")
-                                textureCache["DefaultTexture"]
+                                defaultTexture
                             } else {
                                 VulkanTexture.loadFromFile(device,
                                     commandPools.Standard, queue, stream, texture.substringAfterLast("."), true, generateMipmaps)
@@ -1000,16 +1001,16 @@ open class VulkanRenderer(hub: Hub,
                     }
 
                     // add new texture to texture list and cache, and close old texture
-                    s.textures.put(type, vkTexture!!)
-                    textureCache.put(texture, vkTexture)
+                    s.textures[type] = vkTexture
+                    textureCache[texture] = vkTexture
                 } else {
-                    s.textures.put(type, textureCache[texture]!!)
+                    s.textures[type] = textureCache[texture]!!
                 }
             }
 
             arrayOf("ambient", "diffuse", "specular", "normal", "alphamask", "displacement").forEach {
                 if (!s.textures.containsKey(it)) {
-                    s.textures.putIfAbsent(it, textureCache["DefaultTexture"]!!)
+                    s.textures.putIfAbsent(it, defaultTexture)
                     s.defaultTexturesFor.add(it)
                 }
             }
@@ -1089,7 +1090,7 @@ open class VulkanRenderer(hub: Hub,
         this.descriptorSets.put("LightParameters",
             VU.createDescriptorSet(device, descriptorPool,
                 descriptorSetLayouts["LightParameters"]!!, 1,
-                lightUbo.descriptor!!))
+                lightUbo.descriptor))
 
         val vrUbo = VulkanUBO(device)
 
@@ -1108,7 +1109,7 @@ open class VulkanRenderer(hub: Hub,
         this.descriptorSets.put("VRParameters",
             VU.createDescriptorSet(device, descriptorPool,
                 descriptorSetLayouts["VRParameters"]!!, 1,
-                vrUbo.descriptor!!))
+                vrUbo.descriptor))
     }
 
     protected fun prepareStandardVertexDescriptors(): ConcurrentHashMap<VertexDataKinds, VertexDescription> {
@@ -1230,8 +1231,8 @@ open class VulkanRenderer(hub: Hub,
             return template
         }
 
-        val attributeDescs = template.attributeDescription!!
-        val bindingDescs = template.bindingDescription!!
+        val attributeDescs = template.attributeDescription
+        val bindingDescs = template.bindingDescription
 
         val formatsAndAttributeSizes = node.instancedProperties.getFormatsAndRequiredAttributeSize()
         val newAttributesNeeded = formatsAndAttributeSizes.map { it.elementCount }.sum()
@@ -1242,7 +1243,7 @@ open class VulkanRenderer(hub: Hub,
         var position: Int
         var offset = 0
 
-        (0..attributeDescs.capacity() - 1).forEach { i ->
+        for(i in 0 until attributeDescs.capacity()) {
             newAttributeDesc[i].set(attributeDescs[i])
             offset += newAttributeDesc[i].offset()
             logger.debug("location(${newAttributeDesc[i].location()})")
@@ -1257,14 +1258,14 @@ open class VulkanRenderer(hub: Hub,
             val attribInfo = it.first
             val property = it.second
 
-            (0..attribInfo.elementCount - 1).forEach {
+            for(i in (0 until attribInfo.elementCount)) {
                 newAttributeDesc[position]
                     .binding(1)
                     .location(position)
                     .format(attribInfo.format)
                     .offset(offset)
 
-                logger.debug("location($position, $it/${attribInfo.elementCount}) for ${property.first}, type: ${property.second.invoke().javaClass.simpleName}")
+                logger.debug("location($position, $i/${attribInfo.elementCount}) for ${property.first}, type: ${property.second.invoke().javaClass.simpleName}")
                 logger.debug("   .format(${attribInfo.format})")
                 logger.debug("   .offset($offset)")
 
@@ -1295,7 +1296,7 @@ open class VulkanRenderer(hub: Hub,
         val t = VulkanTexture.loadFromFile(device, commandPools.Standard, queue,
             Renderer::class.java.getResourceAsStream("DefaultTexture.png"), "png", true, true)
 
-        textureCache.put("DefaultTexture", t!!)
+        textureCache.put("DefaultTexture", t)
     }
 
     protected fun prepareRenderpassesFromConfig(config: RenderConfigReader.RenderConfig, windowWidth: Int, windowHeight: Int) {

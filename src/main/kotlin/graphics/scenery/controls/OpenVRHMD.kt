@@ -264,7 +264,7 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
             eyeProjectionCache[eye] = projection.toGLMatrix().transpose()
         }
 
-        return eyeProjectionCache[eye]!!
+        return eyeProjectionCache[eye] ?: throw IllegalStateException("No cached projection for eye $eye found.")
     }
 
     /**
@@ -292,7 +292,7 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
             logger.trace("Head-to-eye #{}: {}", eye, eyeTransformCache[eye].toString())
         }
 
-        return eyeTransformCache[eye]!!
+        return eyeTransformCache[eye] ?: throw IllegalStateException("No cached eye transform for eye $eye found.")
     }
 
     /**
@@ -429,7 +429,7 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
                     continue
                 }
 
-                trackedDevices.computeIfAbsent("$type-$device", {
+                val d = trackedDevices.computeIfAbsent("$type-$device", {
                     val nameBuf = memCalloc(1024)
                     val err = memAllocInt(1)
 
@@ -443,11 +443,11 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
                 })
 
                 if(type == TrackedDeviceType.Controller) {
-                    if(trackedDevices["$type-$device"]!!.metadata !is VRControllerState) {
-                        trackedDevices["$type-$device"]!!.metadata = VRControllerState.calloc()
+                    if (d.metadata !is VRControllerState) {
+                        d.metadata = VRControllerState.calloc()
                     }
 
-                    val state = trackedDevices["$type-$device"]!!.metadata as VRControllerState
+                    val state = d.metadata as VRControllerState
                     VRSystem_GetControllerState(device, state)
 
                     val role = VRSystem_GetControllerRoleForTrackedDeviceIndex(device)
@@ -466,11 +466,11 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
 
                 val pose = hmdTrackedDevicePoses.get(device).mDeviceToAbsoluteTracking()
 
-                trackedDevices["$type-$device"]!!.pose = pose.toGLMatrix()
-                trackedDevices["$type-$device"]!!.timestamp = System.nanoTime()
+                d.pose = pose.toGLMatrix()
+                d.timestamp = System.nanoTime()
 
                 if (type == TrackedDeviceType.HMD) {
-                    trackedDevices["$type-$device"]!!.pose.invert()
+                    d.pose.invert()
                 }
             }
         }
