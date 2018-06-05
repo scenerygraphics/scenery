@@ -184,19 +184,19 @@ class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysicalDevic
         data class DeviceWorkaround(val filter: (DeviceData) -> Boolean, val description: String, val workaround: (DeviceData) -> Any)
 
 
-        val deviceWorkarounds = listOf(
-            DeviceWorkaround(
-                { it.vendor == "Nvidia" && it.driverVersion.substringBefore(".").toInt() >= 396 },
-                "Nvidia 396.xx series drivers are unsupported due to crashing bugs in the driver") {
-                if(System.getenv("__GL_NextGenCompiler") == null) {
-                    logger.warn("The graphics driver version you are using (${it.driverVersion}) contains a bug that prevents scenery's Vulkan renderer from functioning correctly.")
-                    logger.warn("Please set the environment variable __GL_NextGenCompiler to 0 and restart the application to work around this issue.")
-                    logger.warn("For this session, scenery will fall back to the OpenGL renderer in 20 seconds.")
-                    Thread.sleep(20000)
-
-                    throw RuntimeException("Bug in graphics driver, falling back to OpenGL")
-                }
-            }
+        val deviceWorkarounds: List<DeviceWorkaround> = listOf(
+//            DeviceWorkaround(
+//                { it.vendor == "Nvidia" && it.driverVersion.substringBefore(".").toInt() >= 396 },
+//                "Nvidia 396.xx series drivers are unsupported due to crashing bugs in the driver") {
+//                if(System.getenv("__GL_NextGenCompiler") == null) {
+//                    logger.warn("The graphics driver version you are using (${it.driverVersion}) contains a bug that prevents scenery's Vulkan renderer from functioning correctly.")
+//                    logger.warn("Please set the environment variable __GL_NextGenCompiler to 0 and restart the application to work around this issue.")
+//                    logger.warn("For this session, scenery will fall back to the OpenGL renderer in 20 seconds.")
+//                    Thread.sleep(20000)
+//
+//                    throw RuntimeException("Bug in graphics driver, falling back to OpenGL")
+//                }
+//            }
         )
 
         private fun toDeviceType(vkDeviceType: Int): DeviceType {
