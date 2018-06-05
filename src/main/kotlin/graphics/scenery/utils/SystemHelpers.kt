@@ -3,6 +3,8 @@ package graphics.scenery.utils
 import java.util.*
 import java.util.ConcurrentModificationException
 import java.lang.reflect.InvocationTargetException
+import java.net.URI
+import java.nio.file.*
 
 
 class SystemHelpers {
@@ -123,6 +125,42 @@ class SystemHelpers {
             }
 
             logger.debug("Set environment variable <" + key + "> to <" + value + ">. Sanity Check: " + System.getenv(key))
+        }
+
+        /**
+         * Returns a [Path] from a given string, safely checking whether it's on a file or a jar,
+         * or whatever filesystem.
+         *
+         * @param[path] The file to return a [Path] for.
+         * @return The [Path] for [path]
+         */
+        fun getPathFromString(path: String): Path {
+            // replace backslash occurences with forward slashes for URI not to stumble
+            return getPath(URI.create(path.replace("\\", "/")))
+        }
+
+        /**
+         * Returns a [Path] from a given [URI], safely checking whether it's on a file or a jar,
+         * or whatever filesystem.
+         *
+         * @param[path] The URI to return a [Path] for.
+         * @return The [Path] for [path]
+         */
+        fun getPath(path: URI): Path {
+            return try {
+                Paths.get(path)
+            } catch (e: FileSystemNotFoundException) {
+                val env: Map<String, Any> = emptyMap()
+                try {
+                    val fs = FileSystems.newFileSystem(path, env)
+
+                    fs.provider().getPath(path)
+                } catch(pnfe: ProviderNotFoundException) {
+                    FileSystems.getDefault().getPath(path.toString())
+                }
+            } catch (e : IllegalArgumentException) {
+                FileSystems.getDefault().getPath(path.toString().substring(1))
+            }
         }
     }
 }

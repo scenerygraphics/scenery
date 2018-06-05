@@ -4,18 +4,22 @@ import cleargl.GLVector
 import gnu.trove.map.hash.THashMap
 import gnu.trove.set.hash.TLinkedHashSet
 import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.SystemHelpers
 import org.lwjgl.system.MemoryUtil.memAlloc
 import org.slf4j.LoggerFactory
 import java.io.BufferedInputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.Serializable
+import java.net.URI
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.nio.file.FileSystems
 import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.Paths
 import java.util.*
 
 /**
@@ -83,14 +87,14 @@ interface HasGeometry : Serializable {
 
         val materials = HashMap<String, Material>()
 
-        val f = File(filename)
-        if (!f.exists()) {
-            logger.warn("Could not read materials from $filename, file does not exist.")
+        val p = SystemHelpers.getPathFromString(filename)
+        if (!Files.exists(p)) {
+            logger.error("Could not read from $filename, file does not exist.")
 
             return materials
         }
 
-        val lines = Files.lines(FileSystems.getDefault().getPath(filename))
+        val lines = Files.lines(p)
         var currentMaterial: Material? = Material()
 
         logger.info("Importing materials from MTL file $filename")
@@ -245,15 +249,15 @@ interface HasGeometry : Serializable {
             }
         }
 
-        val f = File(filename)
-        if (!f.exists()) {
+        val p = SystemHelpers.getPathFromString(filename)
+        if (!Files.exists(p)) {
             logger.error("Could not read from $filename, file does not exist.")
 
             return
         }
 
         val start = System.nanoTime()
-        var lines = Files.lines(FileSystems.getDefault().getPath(filename))
+        var lines = Files.lines(p)
 
         var count = 0
 
@@ -324,7 +328,7 @@ interface HasGeometry : Serializable {
         val tmpN = ArrayList<Float>(vertexCountMap.values.sum() * vertexSize)
         val tmpUV = ArrayList<Float>(vertexCountMap.values.sum() * texcoordSize)
 
-        lines = Files.lines(FileSystems.getDefault().getPath(filename))
+        lines = Files.lines(p)
 
         val vertex = floatArrayOf(0.0f, 0.0f, 0.0f)
         val vertices = ArrayList<Int>(5)
@@ -629,15 +633,15 @@ interface HasGeometry : Serializable {
 
         var boundingBox: FloatArray = floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
 
-        val f = File(filename)
-        if (!f.exists()) {
+        val p = SystemHelpers.getPathFromString(filename)
+        if (!Files.exists(p)) {
             logger.error("Could not read from $filename, file does not exist.")
 
             return
         }
 
         val start = System.nanoTime()
-        val lines = Files.lines(FileSystems.getDefault().getPath(filename))
+        val lines = Files.lines(p)
 
         // This lambda is used in case the STL file is stored in ASCII format
         val readFromAscii = {
@@ -689,7 +693,7 @@ interface HasGeometry : Serializable {
         val readFromBinary = {
             logger.info("Importing geometry from binary STL file $filename")
 
-            val fis = FileInputStream(filename)
+            val fis = Files.newInputStream(p)
             val bis = BufferedInputStream(fis)
             val headerB: ByteArray = ByteArray(80)
             val sizeB: ByteArray = ByteArray(4)
@@ -755,7 +759,7 @@ interface HasGeometry : Serializable {
         }
 
         val arr: CharArray = CharArray(6)
-        f.reader().read(arr, 0, 6)
+        File(p.toUri()).reader().read(arr, 0, 6)
 
         // If the STL file starts with the string "solid", is must be a ASCII STL file,
         // otherwise it's assumed to be binary.
