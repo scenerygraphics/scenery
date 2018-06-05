@@ -97,7 +97,6 @@ class VulkanPipeline(val device: VulkanDevice, val pipelineCache: Long? = null):
 
             it.pushConstantSpecs.forEach { name, pushConstant ->
 //                pushConstantSpecs[name]?.members?.putAll(pushConstant.members) ?: pushConstantSpecs.put(name, pushConstant)
-                logger.info("Adding PC $name")
                 if(pushConstantSpecs.containsKey(name)) {
                     pushConstantSpecs[name]!!.members.putAll(pushConstant.members)
                 } else {
