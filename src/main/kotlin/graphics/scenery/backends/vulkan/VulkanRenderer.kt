@@ -2547,16 +2547,16 @@ open class VulkanRenderer(hub: Hub,
                 pass.vulkanMetadata.uboOffsets.put(sets.filter { it is DescriptorSet.DynamicSet }.map { (it as DescriptorSet.DynamicSet).offset }.toIntArray())
                 pass.vulkanMetadata.uboOffsets.flip()
 
+                if(p.pushConstantSpecs.containsKey("currentEye")) {
+                    vkCmdPushConstants(this, pipeline.layout, VK_SHADER_STAGE_ALL, 0, pass.vulkanMetadata.eye)
+                }
+
                 vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline)
                 if(pass.vulkanMetadata.descriptorSets.limit() > 0) {
                     vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_GRAPHICS,
                         pipeline.layout, 0, pass.vulkanMetadata.descriptorSets, pass.vulkanMetadata.uboOffsets)
                 }
                 vkCmdBindVertexBuffers(this, 0, pass.vulkanMetadata.vertexBuffers, pass.vulkanMetadata.vertexBufferOffsets)
-
-                if(p.pushConstantSpecs.containsKey("currentEye")) {
-                    vkCmdPushConstants(this, pipeline.layout, VK_SHADER_STAGE_ALL, 0, pass.vulkanMetadata.eye)
-                }
 
                 logger.debug("${pass.name}: now drawing {}, {} DS bound, {} textures, {} vertices, {} indices, {} instances", node.name, pass.vulkanMetadata.descriptorSets.limit(), s.textures.count(), s.vertexCount, s.indexCount, s.instanceCount)
 
@@ -2635,14 +2635,14 @@ open class VulkanRenderer(hub: Hub,
             // set the required descriptor sets for this render pass
             pass.vulkanMetadata.setRequiredDescriptorSetsPostprocess(pass, pipeline)
 
+            if(pipeline.pushConstantSpecs.containsKey("currentEye")) {
+                vkCmdPushConstants(this, vulkanPipeline.layout, VK_SHADER_STAGE_ALL, 0, pass.vulkanMetadata.eye)
+            }
+
             vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkanPipeline.pipeline)
             if(pass.vulkanMetadata.descriptorSets.limit() > 0) {
                 vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_GRAPHICS,
                     vulkanPipeline.layout, 0, pass.vulkanMetadata.descriptorSets, pass.vulkanMetadata.uboOffsets)
-            }
-
-            if(pipeline.pushConstantSpecs.containsKey("currentEye")) {
-                vkCmdPushConstants(this, vulkanPipeline.layout, VK_SHADER_STAGE_ALL, 0, pass.vulkanMetadata.eye)
             }
 
             vkCmdDraw(this, 3, 1, 0, 0)
