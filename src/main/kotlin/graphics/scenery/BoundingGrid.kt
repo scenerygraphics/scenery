@@ -62,20 +62,21 @@ open class BoundingGrid : Mesh("Bounding Grid") {
             this.boundingBox = b.boundingBox
             this.position = node.getMaximumBoundingBox().min + center
 
+            boundingBox?.let { bb ->
+                // label coordinates are relative to the bounding box
+                labels["0"]?.position = bb.min - GLVector(0.1f, 0.0f, 0.0f)
+                labels["x"]?.position = GLVector(2.0f * bb.max.x() + 0.1f, 0.01f, 0.01f) - center
+                labels["y"]?.position = GLVector(-0.1f, 2.0f * bb.max.y(), 0.01f) - center
+                labels["z"]?.position = GLVector(-0.1f, 0.01f, 2.0f * bb.max.z()) - center
 
-            // label coordinates are relative to the bounding box
-            labels["0"]?.position = boundingBox!!.min - GLVector(0.1f, 0.0f, 0.0f)
-            labels["x"]?.position = GLVector(2.0f * boundingBox!!.max.x() + 0.1f, 0.01f, 0.01f) - center
-            labels["y"]?.position = GLVector(-0.1f, 2.0f * boundingBox!!.max.y(), 0.01f) - center
-            labels["z"]?.position = GLVector(-0.1f, 0.01f, 2.0f * boundingBox!!.max.z()) - center
+                node.addChild(this)
+                this.needsUpdate = true
+                this.needsUpdateWorld = true
 
-            node.addChild(this)
-            this.needsUpdate = true
-            this.needsUpdateWorld = true
+                this.dirty = true
 
-            this.dirty = true
-
-            name = "Bounding Grid of ${node.name}"
+                name = "Bounding Grid of ${node.name}"
+            } ?: logger.error("Bounding box of $b is null")
         }
     }
 

@@ -185,11 +185,13 @@ open class VulkanTexture(val device: VulkanDevice,
             return
         }
 
-        val deallocate: Boolean
-        val sourceBuffer = if(gt != null) {
-            if(gt!!.channels == 3) {
+        var deallocate: Boolean = false
+        var sourceBuffer = data
+
+        gt?.let { gt ->
+            if(gt.channels == 3) {
                 logger.debug("Loading RGB texture, padding channels to 4 to fit RGBA")
-                val pixelByteSize = when(gt!!.type) {
+                val pixelByteSize = when(gt.type) {
                     GLTypeEnum.Byte -> 1
                     GLTypeEnum.UnsignedByte -> 1
                     GLTypeEnum.Short -> 2
@@ -214,14 +216,11 @@ open class VulkanTexture(val device: VulkanDevice,
 
                 storage.flip()
                 deallocate = true
-                storage
+                sourceBuffer = storage
             } else {
                 deallocate = false
-                data
+                sourceBuffer = data
             }
-        } else {
-            deallocate = false
-            data
         }
 
         if (mipLevels == 1) {
@@ -496,25 +495,25 @@ open class VulkanTexture(val device: VulkanDevice,
                          commandPool: Long, queue: VkQueue,
                          filename: String,
                          linearMin: Boolean, linearMax: Boolean,
-                         generateMipmaps: Boolean = true): VulkanTexture? {
+                         generateMipmaps: Boolean = true): VulkanTexture {
             val stream = FileInputStream(filename)
             val type = filename.substringAfterLast('.')
 
 
             logger.debug("Loading${if(generateMipmaps) { " mipmapped" } else { "" }} texture from $filename")
 
-            if(type == "raw") {
+            return if(type == "raw") {
                 val path = Paths.get(filename)
                 val infoFile = path.resolveSibling(path.fileName.toString().substringBeforeLast(".") + ".info")
                 val dimensions = Files.lines(infoFile).toList().first().split(",").map { it.toLong() }.toLongArray()
 
-                return loadFromFileRaw(device,
-                    commandPool, queue,
-                    stream, type, dimensions)
+                loadFromFileRaw(device,
+                        commandPool, queue,
+                        stream, type, dimensions)
             } else {
-                return loadFromFile(device,
-                    commandPool, queue,
-                    stream, type, linearMin, linearMax, generateMipmaps)
+                loadFromFile(device,
+                        commandPool, queue,
+                        stream, type, linearMin, linearMax, generateMipmaps)
             }
         }
 
@@ -522,8 +521,8 @@ open class VulkanTexture(val device: VulkanDevice,
                          commandPool: Long, queue: VkQueue,
                          stream: InputStream, type: String,
                          linearMin: Boolean, linearMax: Boolean,
-                         generateMipmaps: Boolean = true): VulkanTexture? {
-            val bi: BufferedImage
+                         generateMipmaps: Boolean = true): VulkanTexture {
+            var bi: BufferedImage
             val flippedImage: BufferedImage
             val imageData: ByteBuffer
             val pixels: IntArray
@@ -543,7 +542,8 @@ open class VulkanTexture(val device: VulkanDevice,
                     bi.setRGB(0, 0, width, height, pixels, 0, width)
                 } catch (e: Exception) {
                     logger.error("Could not read image from TGA. ${e.message}")
-                    return null
+                    bi = BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB)
+                    bi.setRGB(0, 0, 1, 1, intArrayOf(255, 0, 0), 0, 1)
                 }
 
             } else {
@@ -554,7 +554,8 @@ open class VulkanTexture(val device: VulkanDevice,
 
                 } catch (e: Exception) {
                     logger.error("Could not read image: ${e.message}")
-                    return null
+                    bi = BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB)
+                    bi.setRGB(0, 0, 1, 1, intArrayOf(255, 0, 0), 0, 1)
                 }
 
             }
@@ -604,7 +605,7 @@ open class VulkanTexture(val device: VulkanDevice,
         @Suppress("UNUSED_PARAMETER")
         fun loadFromFileRaw(device: VulkanDevice,
                             commandPool: Long, queue: VkQueue,
-                            stream: InputStream, type: String, dimensions: LongArray): VulkanTexture? {
+                            stream: InputStream, type: String, dimensions: LongArray): VulkanTexture {
             val imageData: ByteBuffer = ByteBuffer.allocateDirect((2 * dimensions[0] * dimensions[1] * dimensions[2]).toInt())
             val buffer = ByteArray(1024*1024)
 

@@ -274,8 +274,10 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, claz
 
             if(uboSpecs.containsKey(name)) {
                 logger.debug("Adding inputs member ${res.name}/$name")
-                uboSpecs[name]!!.members.put(res.name, UBOMemberSpec(res.name, uboSpecs[name]!!.members.size.toLong(), 0L, 0L))
-                uboSpecs[name]!!.binding = minOf(uboSpecs[name]!!.binding, compiler.getDecoration(res.id, Decoration.DecorationBinding))
+                uboSpecs.get(name)?.let { spec ->
+                    spec.members.put(res.name, UBOMemberSpec(res.name, spec.members.size.toLong(), 0L, 0L))
+                    spec.binding = minOf(spec.binding, compiler.getDecoration(res.id, Decoration.DecorationBinding))
+                }
             } else {
                 logger.debug("Adding inputs UBO, ${res.name}/$name")
                 uboSpecs.put(name, UBOSpec(name,
@@ -284,7 +286,7 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, claz
                     members = LinkedHashMap()))
 
                 if(name.startsWith("Inputs")) {
-                    uboSpecs[name]!!.members.put(res.name, UBOMemberSpec(res.name, 0L, 0L, 0L))
+                    uboSpecs[name]?.members?.put(res.name, UBOMemberSpec(res.name, 0L, 0L, 0L))
                 }
             }
         }
