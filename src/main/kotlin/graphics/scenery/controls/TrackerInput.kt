@@ -7,12 +7,11 @@ import graphics.scenery.Camera
 import graphics.scenery.Mesh
 import graphics.scenery.Node
 
-/**
- * Generic interface for head-mounted displays (HMDs)
- *
- * @author Ulrik Günther <hello@ulrik.is>
- */
 
+/**
+ * Enum class for the types of devices that can be tracked.
+ * Includes HMDs, controllers, base stations, generic devices, and invalid ones for the moment.
+ */
 enum class TrackedDeviceType {
     Invalid,
     HMD,
@@ -21,6 +20,14 @@ enum class TrackedDeviceType {
     Generic
 }
 
+/**
+ * Class for tracked devices and querying information about them.
+ *
+ * @property[type] The [TrackedDeviceType] of the device.
+ * @property[name] A name for the device.
+ * @property[pose] The current pose of the device.
+ * @property[timestamp] The latest timestamp with respect to the pose.
+ */
 class TrackedDevice(val type: TrackedDeviceType, var name: String, var pose: GLMatrix, var timestamp: Long) {
     var metadata: Any? = null
     var orientation = Quaternion()
@@ -49,6 +56,11 @@ class TrackedDevice(val type: TrackedDeviceType, var name: String, var pose: GLM
         }
 }
 
+/**
+ * Generic interface for head-mounted displays (HMDs) providing tracker input.
+ *
+ * @author Ulrik Günther <hello@ulrik.is>
+ */
 interface TrackerInput {
     /**
      * Returns the orientation of the HMD
@@ -79,8 +91,9 @@ interface TrackerInput {
     fun getPose(): GLMatrix
 
     /**
-     * Returns the HMD pose
+     * Returns the HMD pose for a given eye.
      *
+     * @param[eye] The eye to return the pose for.
      * @return HMD pose as GLMatrix
      */
     fun getPoseForEye(eye: Int): GLMatrix
@@ -97,11 +110,43 @@ interface TrackerInput {
      */
     fun update()
 
+    /**
+     * Check whether there is a working TrackerInput for this device.
+     *
+     * @returns the [TrackerInput] if that is the case, null otherwise.
+     */
     fun getWorkingTracker(): TrackerInput?
 
+    /**
+     * Loads a model representing the [TrackedDevice].
+     *
+     * @param[device] The device to load the model for.
+     * @param[mesh] The [Mesh] to attach the model data to.
+     */
     fun loadModelForMesh(device: TrackedDevice, mesh: Mesh): Mesh
+
+    /**
+     * Loads a model representing a kind of [TrackedDeviceType].
+     *
+     * @param[type] The device type to load the model for, by default [TrackedDeviceType.Controller].
+     * @param[mesh] The [Mesh] to attach the model data to.
+     */
     fun loadModelForMesh(type: TrackedDeviceType = TrackedDeviceType.Controller, mesh: Mesh): Mesh
 
+    /**
+     * Attaches a given [TrackedDevice] to a scene graph [Node], camera-relative in case [camera] is non-null.
+     *
+     * @param[device] The [TrackedDevice] to use.
+     * @param[node] The node which should take tracking data from [device].
+     * @param[camera] A camera, in case the node should also be added as a child to the camera.
+     */
     fun attachToNode(device: TrackedDevice, node: Node, camera: Camera? = null)
+
+    /**
+     * Returns all tracked devices a given type.
+     *
+     * @param[ofType] The [TrackedDeviceType] of the devices to return.
+     * @return A [Map] of device name to [TrackedDevice]
+     */
     fun getTrackedDevices(ofType: TrackedDeviceType): Map<String, TrackedDevice>
 }
