@@ -64,30 +64,32 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
     }
 
     fun createUniformBuffer(): UBODescriptor {
-        if(backingBuffer == null) {
-            ownedBackingBuffer = VulkanBuffer(device,
-                this.getSize() * 1L,
-                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-                wantAligned = true)
+        backingBuffer?.let { buffer ->
+            descriptor.memory = buffer.memory
+            descriptor.allocationSize = buffer.size
+            descriptor.buffer = buffer.vulkanBuffer
+            descriptor.offset = 0L
+            descriptor.range = this.getSize() * 1L
 
-            ownedBackingBuffer?.let { buffer ->
-                descriptor = UBODescriptor()
-                descriptor.memory = buffer.memory
-                descriptor.allocationSize = buffer.size
-                descriptor.buffer = buffer.vulkanBuffer
-                descriptor.offset = 0L
-                descriptor.range = this.getSize() * 1L
-            }
-        } else {
-            descriptor.memory = backingBuffer!!.memory
-            descriptor.allocationSize = backingBuffer!!.size
-            descriptor.buffer = backingBuffer!!.vulkanBuffer
+            return descriptor
+        }
+
+        ownedBackingBuffer = VulkanBuffer(device,
+            this.getSize() * 1L,
+            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+            wantAligned = true)
+
+        ownedBackingBuffer?.let { buffer ->
+            descriptor = UBODescriptor()
+            descriptor.memory = buffer.memory
+            descriptor.allocationSize = buffer.size
+            descriptor.buffer = buffer.vulkanBuffer
             descriptor.offset = 0L
             descriptor.range = this.getSize() * 1L
         }
 
-        return this.descriptor
+        return descriptor
     }
 
     @Suppress("unused")
