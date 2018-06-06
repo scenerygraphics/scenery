@@ -214,7 +214,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                 0, VK_SHADER_STAGE_ALL)
 
             val ds = VU.createDescriptorSet(device, descriptorPool, dsl,
-            1, ubo.descriptor!!, type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+            1, ubo.descriptor, type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
 
             // populate descriptor set
             ubo.populate()
@@ -242,7 +242,9 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
             descriptorSetLayouts.putIfAbsent("ShaderProperties-$name", dsl)
             dsl
         } else {
-            descriptorSetLayouts.get("ShaderProperties-$name")!!
+            descriptorSetLayouts.getOrElse("ShaderProperties-$name", {
+                throw IllegalStateException("ShaderProperties-$name does not exist in descriptor set layouts for $this.")
+            })
         }
 
         // returns a ordered list of the members of the ShaderProperties struct

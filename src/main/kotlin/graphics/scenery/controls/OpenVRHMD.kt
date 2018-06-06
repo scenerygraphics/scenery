@@ -186,6 +186,11 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
         VR_ShutdownInternal()
     }
 
+    /**
+     * Check whether there is a working TrackerInput for this device.
+     *
+     * @returns the [TrackerInput] if that is the case, null otherwise.
+     */
     override fun getWorkingTracker(): TrackerInput? {
         return if(initialized) {
             this
@@ -194,6 +199,11 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
         }
     }
 
+    /**
+     * Returns a [Display] instance, if working currently
+     *
+     * @return Either a [Display] instance, or null.
+     */
     override fun getWorkingDisplay(): Display? {
         return if(initialized) {
             this
@@ -264,7 +274,7 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
             eyeProjectionCache[eye] = projection.toGLMatrix().transpose()
         }
 
-        return eyeProjectionCache[eye]!!
+        return eyeProjectionCache[eye] ?: throw IllegalStateException("No cached projection for eye $eye found.")
     }
 
     /**
@@ -292,7 +302,7 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
             logger.trace("Head-to-eye #{}: {}", eye, eyeTransformCache[eye].toString())
         }
 
-        return eyeTransformCache[eye]!!
+        return eyeTransformCache[eye] ?: throw IllegalStateException("No cached eye transform for eye $eye found.")
     }
 
     /**
@@ -429,7 +439,7 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
                     continue
                 }
 
-                trackedDevices.computeIfAbsent("$type-$device", {
+                val d = trackedDevices.computeIfAbsent("$type-$device", {
                     val nameBuf = memCalloc(1024)
                     val err = memAllocInt(1)
 
@@ -443,34 +453,36 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
                 })
 
                 if(type == TrackedDeviceType.Controller) {
-                    if(trackedDevices["$type-$device"]!!.metadata !is VRControllerState) {
-                        trackedDevices["$type-$device"]!!.metadata = VRControllerState.calloc()
+                    if (d.metadata !is VRControllerState) {
+                        d.metadata = VRControllerState.calloc()
                     }
 
-                    val state = trackedDevices["$type-$device"]!!.metadata as VRControllerState
-                    VRSystem_GetControllerState(device, state)
+                    val state = d.metadata as? VRControllerState
+                    if(state != null) {
+                        VRSystem_GetControllerState(device, state)
 
-                    val role = VRSystem_GetControllerRoleForTrackedDeviceIndex(device)
+                        val role = VRSystem_GetControllerRoleForTrackedDeviceIndex(device)
 
-                    when {
-                        (state.rAxis(0).x() > 0.5f && state.rAxis(0).y().absoluteValue < 0.5f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) -> OpenVRButton.Right.toKeyEvent(role)
-                        (state.rAxis(0).x() < -0.5f && state.rAxis(0).y().absoluteValue < 0.5f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) -> OpenVRButton.Left.toKeyEvent(role)
-                        (state.rAxis(0).y() > 0.5f && state.rAxis(0).x().absoluteValue < 0.5f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) -> OpenVRButton.Up.toKeyEvent(role)
-                        (state.rAxis(0).y() < -0.5f && state.rAxis(0).x().absoluteValue < 0.5f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) -> OpenVRButton.Down.toKeyEvent(role)
-                        else -> null
-                    }?.let { event ->
-                        inputHandler.keyPressed(event)
-                        inputHandler.keyReleased(event)
+                        when {
+                            (state.rAxis(0).x() > 0.5f && state.rAxis(0).y().absoluteValue < 0.5f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) -> OpenVRButton.Right.toKeyEvent(role)
+                            (state.rAxis(0).x() < -0.5f && state.rAxis(0).y().absoluteValue < 0.5f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) -> OpenVRButton.Left.toKeyEvent(role)
+                            (state.rAxis(0).y() > 0.5f && state.rAxis(0).x().absoluteValue < 0.5f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) -> OpenVRButton.Up.toKeyEvent(role)
+                            (state.rAxis(0).y() < -0.5f && state.rAxis(0).x().absoluteValue < 0.5f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) -> OpenVRButton.Down.toKeyEvent(role)
+                            else -> null
+                        }?.let { event ->
+                            inputHandler.keyPressed(event)
+                            inputHandler.keyReleased(event)
+                        }
                     }
                 }
 
                 val pose = hmdTrackedDevicePoses.get(device).mDeviceToAbsoluteTracking()
 
-                trackedDevices["$type-$device"]!!.pose = pose.toGLMatrix()
-                trackedDevices["$type-$device"]!!.timestamp = System.nanoTime()
+                d.pose = pose.toGLMatrix()
+                d.timestamp = System.nanoTime()
 
                 if (type == TrackedDeviceType.HMD) {
-                    trackedDevices["$type-$device"]!!.pose.invert()
+                    d.pose.invert()
                 }
             }
         }
@@ -657,6 +669,11 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
         }
     }
 
+    /**
+     * Returns a [List] of Vulkan instance extensions required by the device.
+     *
+     * @return [List] of strings containing the required instance extensions
+     */
     override fun getVulkanInstanceExtensions(): List<String> {
         stackPush().use { stack ->
             val buffer = stack.calloc(1024)
@@ -674,6 +691,11 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
         }
     }
 
+    /**
+     * Returns a [List] of Vulkan device extensions required by the device.
+     *
+     * @return [List] of strings containing the required device extensions
+     */
     override fun getVulkanDeviceExtensions(physicalDevice: VkPhysicalDevice): List<String> {
         stackPush().use { stack ->
             val buffer = stack.calloc(1024)
@@ -721,6 +743,12 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
         return this.trackedDevices.values.firstOrNull { it.type == TrackedDeviceType.HMD }?.pose ?: GLMatrix.getIdentity()
     }
 
+    /**
+     * Returns the HMD pose for a given eye.
+     *
+     * @param[eye] The eye to return the pose for.
+     * @return HMD pose as GLMatrix
+     */
     override fun getPoseForEye(eye: Int): GLMatrix {
         val p = this.getPose()
         val e = this.getHeadToEyeTransform(eye).inverse
@@ -769,6 +797,12 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
         return GLMatrix(m)
     }
 
+    /**
+     * Loads a model representing the [TrackedDevice].
+     *
+     * @param[device] The device to load the model for.
+     * @param[mesh] The [Mesh] to attach the model data to.
+     */
     override fun loadModelForMesh(device: TrackedDevice, mesh: Mesh): Mesh {
         val modelName = device.name
 
@@ -797,6 +831,12 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
         }
     }
 
+    /**
+     * Loads a model representing a kind of [TrackedDeviceType].
+     *
+     * @param[type] The device type to load the model for, by default [TrackedDeviceType.Controller].
+     * @param[mesh] The [Mesh] to attach the model data to.
+     */
     override fun loadModelForMesh(type: TrackedDeviceType, mesh: Mesh): Mesh {
         var modelName = when(type) {
             TrackedDeviceType.HMD -> "generic_hmd"
@@ -841,10 +881,23 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
         }
     }
 
+    /**
+     * Returns all tracked devices a given type.
+     *
+     * @param[ofType] The [TrackedDeviceType] of the devices to return.
+     * @return A [Map] of device name to [TrackedDevice]
+     */
     override fun getTrackedDevices(ofType: TrackedDeviceType): Map<String, TrackedDevice> {
         return trackedDevices.filter { it.value.type == ofType }
     }
 
+    /**
+     * Attaches a given [TrackedDevice] to a scene graph [Node], camera-relative in case [camera] is non-null.
+     *
+     * @param[device] The [TrackedDevice] to use.
+     * @param[node] The node which should take tracking data from [device].
+     * @param[camera] A camera, in case the node should also be added as a child to the camera.
+     */
     override fun attachToNode(device: TrackedDevice, node: Node, camera: Camera?) {
         if(device.type != TrackedDeviceType.Controller) {
             logger.warn("No idea how to attach device type ${device.type} to a node, sorry.")

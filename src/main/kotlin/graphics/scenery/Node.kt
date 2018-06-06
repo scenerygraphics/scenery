@@ -140,8 +140,18 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
 
     val instances = CopyOnWriteArrayList<Node>()
 
+    /**
+     * Bounding sphere class, a bounding sphere is defined by an origin and a radius,
+     * to enclose all of the Node's geometry.
+     */
     data class BoundingSphere(val origin: GLVector, val radius: Float)
 
+    /**
+     * Oriented bounding box class to perform easy intersection tests.
+     *
+     * @property[min] The x/y/z minima for the bounding box.
+     * @property[max] The x/y/z maxima for the bounding box.
+     */
     inner class OrientedBoundingBox(val min: GLVector, val max: GLVector) {
         constructor(xMin: Float, yMin: Float, zMin: Float, xMax: Float, yMax: Float, zMax: Float) : this(GLVector(xMin, yMin, zMin), GLVector(xMax, yMax, zMax))
         constructor(boundingBox: FloatArray) : this(GLVector(boundingBox[0], boundingBox[2], boundingBox[4]), GLVector(boundingBox[1], boundingBox[3], boundingBox[5]))
