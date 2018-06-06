@@ -457,20 +457,22 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
                         d.metadata = VRControllerState.calloc()
                     }
 
-                    val state = d.metadata as VRControllerState
-                    VRSystem_GetControllerState(device, state)
+                    val state = d.metadata as? VRControllerState
+                    if(state != null) {
+                        VRSystem_GetControllerState(device, state)
 
-                    val role = VRSystem_GetControllerRoleForTrackedDeviceIndex(device)
+                        val role = VRSystem_GetControllerRoleForTrackedDeviceIndex(device)
 
-                    when {
-                        (state.rAxis(0).x() > 0.5f && state.rAxis(0).y().absoluteValue < 0.5f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) -> OpenVRButton.Right.toKeyEvent(role)
-                        (state.rAxis(0).x() < -0.5f && state.rAxis(0).y().absoluteValue < 0.5f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) -> OpenVRButton.Left.toKeyEvent(role)
-                        (state.rAxis(0).y() > 0.5f && state.rAxis(0).x().absoluteValue < 0.5f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) -> OpenVRButton.Up.toKeyEvent(role)
-                        (state.rAxis(0).y() < -0.5f && state.rAxis(0).x().absoluteValue < 0.5f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) -> OpenVRButton.Down.toKeyEvent(role)
-                        else -> null
-                    }?.let { event ->
-                        inputHandler.keyPressed(event)
-                        inputHandler.keyReleased(event)
+                        when {
+                            (state.rAxis(0).x() > 0.5f && state.rAxis(0).y().absoluteValue < 0.5f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) -> OpenVRButton.Right.toKeyEvent(role)
+                            (state.rAxis(0).x() < -0.5f && state.rAxis(0).y().absoluteValue < 0.5f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) -> OpenVRButton.Left.toKeyEvent(role)
+                            (state.rAxis(0).y() > 0.5f && state.rAxis(0).x().absoluteValue < 0.5f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) -> OpenVRButton.Up.toKeyEvent(role)
+                            (state.rAxis(0).y() < -0.5f && state.rAxis(0).x().absoluteValue < 0.5f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) -> OpenVRButton.Down.toKeyEvent(role)
+                            else -> null
+                        }?.let { event ->
+                            inputHandler.keyPressed(event)
+                            inputHandler.keyReleased(event)
+                        }
                     }
                 }
 
