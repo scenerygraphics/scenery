@@ -17,8 +17,29 @@ class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysicalDevic
     val queueIndices: QueueIndices
     val extensions = ArrayList<String>()
 
+    /**
+     * Enum class for GPU device types. Can be unknown, other, integrated, discrete, virtual or CPU.
+     */
     enum class DeviceType { Unknown, Other, IntegratedGPU, DiscreteGPU, VirtualGPU, CPU }
+
+    /**
+     * Class to store device-specific metadata.
+     *
+     * @property[vendor] The vendor name of the device.
+     * @property[name] The name of the device.
+     * @property[driverVersion] The driver version as represented as string.
+     * @property[apiVersion] The Vulkan API version supported by the device, represented as string.
+     * @property[type] The [DeviceType] of the GPU.
+     */
     data class DeviceData(val vendor: String, val name: String, val driverVersion: String, val apiVersion: String, val type: DeviceType)
+
+    /**
+     * Data class to store device-specific queue indices.
+     *
+     * @property[presentQueue] The index of the present queue
+     * @property[graphicsQueue] The index of the graphics queue
+     * @property[computeQueue] The index of the compute queue
+     */
     data class QueueIndices(val presentQueue: Int, val graphicsQueue: Int, val computeQueue: Int)
 
     init {
@@ -181,6 +202,13 @@ class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysicalDevic
     companion object {
         val logger by LazyLogger()
 
+        /**
+         * Data class for defining device/driver-specific workarounds.
+         *
+         * @property[filter] A lambda to define the condition to trigger this workaround, must return a boolean.
+         * @property[description] A string description of the cause and effects of the workaround
+         * @property[workaround] A lambda that will be executed if this [DeviceWorkaround] is triggered.
+         */
         data class DeviceWorkaround(val filter: (DeviceData) -> Boolean, val description: String, val workaround: (DeviceData) -> Any)
 
 

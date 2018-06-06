@@ -14,7 +14,9 @@ import java.nio.file.Paths
 import java.util.*
 
 /**
- * Created by ulrik on 10/19/2016.
+ * Class to ingest rendering configuration files.
+ *
+ * @author Ulrik Guenther <hello@ulrik.is>
  */
 
 fun RenderConfigReader.RenderConfig.getOutputOfPass(passname: String): String? {
@@ -58,6 +60,9 @@ fun RenderConfigReader.RenderConfig.createRenderpassFlow(): List<String> {
 
 class RenderConfigReader {
 
+    /**
+     * Deserialiser for pairs of floats, separated by commas.
+     */
     class FloatPairDeserializer : JsonDeserializer<Pair<Float, Float>>() {
         override fun deserialize(p: JsonParser, ctxt: DeserializationContext?): Pair<Float, Float> {
             val pair = p.text.split(",").map { it.trim().trimStart().toFloat() }
@@ -66,6 +71,9 @@ class RenderConfigReader {
         }
     }
 
+    /**
+     * Deserialiser for vectors of various lengths, separated by commas.
+     */
     class VectorDeserializer : JsonDeserializer<GLVector>() {
         override fun deserialize(p: JsonParser, ctxt: DeserializationContext?): GLVector {
             val floats = p.text.split(",").map { it.trim().trimStart().toFloat() }.toFloatArray()
@@ -74,6 +82,9 @@ class RenderConfigReader {
         }
     }
 
+    /**
+     * Eye description deserialiser, turns "LeftEye" to 0, "RightEye" to 1
+     */
     class VREyeDeserializer : JsonDeserializer<Int>() {
         override fun deserialize(p: JsonParser, ctxt: DeserializationContext?): Int {
             return when(p.text.trim().trimEnd()) {
