@@ -145,6 +145,7 @@ scenery has been tested with a number of different systems and GPUs. If you have
 | Nvidia Geforce 960 (Maxwell) | ✅ | ✅ | ⬜ | ⬜ | ⬜ |
 | Nvidia Quadro K6000 (Kepler) | ✅ | ✅ | ⬜ | ⬜ | ⬜ |
 | Nvidia Quadro P5000 (Pascal) | ⬜ | ⬜ | ✅ | ⬜ | ⬜ |
+| Nvidia Geforce 960M (Maxwell) | ⬜ | ⬜ | ✅ | ✅ | ⬜ |
 | Nvidia Geforce 750M (Kepler) | ✅  | ✅  | ⬜ | ⬜ | ✅  |
 | Nvidia Geforce 650M (Kepler) | ⬜  | ⬜  | ⬜ | ⬜ | ✅  |
 
