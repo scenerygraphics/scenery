@@ -111,7 +111,7 @@ vec2 EncodeOctaH( vec3 n )
 }
 
 void main() {
-    DiffuseAlbedo.rgb = Vertex.Color.rgb;
+    DiffuseAlbedo.rgb = Material.Kd;
     DiffuseAlbedo.a = 0.0f;
 
     NormalsMaterial.rg = EncodeOctaH(Vertex.Normal);

@@ -40,12 +40,14 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, claz
     var shader: VkPipelineShaderStageCreateInfo
     var shaderModule: Long
     var uboSpecs = LinkedHashMap<String, UBOSpec>()
+    var pushConstantSpecs = LinkedHashMap<String, PushConstantSpec>()
     private var shaderPackage: ShaderPackage
     private var deallocated: Boolean = false
     private var signature: ShaderSignature
 
     data class UBOMemberSpec(val name: String, val index: Long, val offset: Long, val range: Long)
     data class UBOSpec(val name: String, var set: Long, var binding: Long, val members: LinkedHashMap<String, UBOMemberSpec>)
+    data class PushConstantSpec(val name: String, val members: LinkedHashMap<String, UBOMemberSpec>)
 
     data class ShaderPackage(val baseClass: Class<*>, val spirvPath: String, val codePath: String, val spirv: InputStream?, val code: InputStream?)
 
@@ -175,6 +177,7 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, claz
         val compiler = CompilerGLSL(spirv)
 
         val uniformBuffers = compiler.shaderResources.uniformBuffers
+        val pushConstants = compiler.shaderResources.pushConstantBuffers
 
         for(i in 0 until uniformBuffers.size()) {
             val res = uniformBuffers.get(i.toInt())
@@ -185,15 +188,15 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, claz
 
             // record all members of the UBO struct, order by index, and store them to UBOSpec.members
             // for further use
-            members.putAll((0..activeRanges.size()-1).map {
+            members.putAll((0 until activeRanges.size()).map {
                 val range = activeRanges.get(it.toInt())
                 val name = compiler.getMemberName(res.baseTypeId, range.index)
 
-                name.to(UBOMemberSpec(
+                name to UBOMemberSpec(
                     compiler.getMemberName(res.baseTypeId, range.index),
                     range.index,
                     range.offset,
-                    range.range))
+                    range.range)
             }.sortedBy { it.second.index })
 
             val ubo = UBOSpec(res.name,
@@ -205,6 +208,33 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, claz
             // SPIRV UBOs may have 0 members, if they are not used in the actual shader code
             if(!uboSpecs.contains(res.name) && ubo.members.size > 0) {
                 uboSpecs.put(res.name, ubo)
+            }
+        }
+
+        for(i in 0 until pushConstants.size()) {
+            val res = pushConstants.get(i.toInt())
+            val activeRanges = compiler.getActiveBufferRanges(res.id)
+            val members = LinkedHashMap<String, UBOMemberSpec>()
+
+            logger.debug("Push constant: ${res.name}, id=${compiler.getDecoration(res.id, Decoration.DecorationConstant)}")
+
+            members.putAll((0 until activeRanges.size()).map {
+                val range = activeRanges.get(it.toInt())
+                val name = compiler.getMemberName(res.baseTypeId, range.index)
+
+                name to UBOMemberSpec(
+                    compiler.getMemberName(res.baseTypeId, range.index),
+                    range.index,
+                    range.offset,
+                    range.range
+                )
+            }.sortedBy { it.second.index })
+
+            val pcs = PushConstantSpec(res.name,
+                members = members)
+
+            if(!pushConstantSpecs.contains(res.name) && pcs.members.size > 0) {
+                pushConstantSpecs.put(res.name, pcs)
             }
         }
 
@@ -244,8 +274,10 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, claz
 
             if(uboSpecs.containsKey(name)) {
                 logger.debug("Adding inputs member ${res.name}/$name")
-                uboSpecs[name]!!.members.put(res.name, UBOMemberSpec(res.name, uboSpecs[name]!!.members.size.toLong(), 0L, 0L))
-                uboSpecs[name]!!.binding = minOf(uboSpecs[name]!!.binding, compiler.getDecoration(res.id, Decoration.DecorationBinding))
+                uboSpecs.get(name)?.let { spec ->
+                    spec.members.put(res.name, UBOMemberSpec(res.name, spec.members.size.toLong(), 0L, 0L))
+                    spec.binding = minOf(spec.binding, compiler.getDecoration(res.id, Decoration.DecorationBinding))
+                }
             } else {
                 logger.debug("Adding inputs UBO, ${res.name}/$name")
                 uboSpecs.put(name, UBOSpec(name,
@@ -254,7 +286,7 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, claz
                     members = LinkedHashMap()))
 
                 if(name.startsWith("Inputs")) {
-                    uboSpecs[name]!!.members.put(res.name, UBOMemberSpec(res.name, 0L, 0L, 0L))
+                    uboSpecs[name]?.members?.put(res.name, UBOMemberSpec(res.name, 0L, 0L, 0L))
                 }
             }
         }

@@ -70,10 +70,10 @@ abstract class Renderer : Hubable {
         logger.info("Toggling VR!")
         val isStereo = renderConfigFile.substringBeforeLast(".").indexOf("Stereo") != -1
 
-        if(isStereo) {
+        if (isStereo) {
             val nonStereoConfig = renderConfigFile.substringBeforeLast("Stereo") + ".yml"
 
-            if(RenderConfigReader::class.java.getResource(nonStereoConfig) != null) {
+            if (RenderConfigReader::class.java.getResource(nonStereoConfig) != null) {
                 renderConfigFile = nonStereoConfig
                 settings.set("vr.Active", false)
             } else {
@@ -82,7 +82,7 @@ abstract class Renderer : Hubable {
         } else {
             val stereoConfig = renderConfigFile.substringBeforeLast(".") + "Stereo.yml"
 
-            if(RenderConfigReader::class.java.getResource(stereoConfig) != null) {
+            if (RenderConfigReader::class.java.getResource(stereoConfig) != null) {
                 renderConfigFile = stereoConfig
                 settings.set("vr.Active", true)
             } else {
@@ -110,7 +110,8 @@ abstract class Renderer : Hubable {
         settings.set("sdf.MaxDistance", 12)
 
         settings.set("Renderer.PrintGPUStats", false)
-        settings.set("Renderer.SupersamplingFactor", System.getProperty("scenery.Renderer.SupersamplingFactor")?.toFloat() ?: 1.0f)
+        settings.set("Renderer.SupersamplingFactor", System.getProperty("scenery.Renderer.SupersamplingFactor")?.toFloat()
+            ?: 1.0f)
 
         return settings
     }
@@ -118,7 +119,9 @@ abstract class Renderer : Hubable {
     companion object {
         val logger by LazyLogger()
 
-        @JvmOverloads @JvmStatic fun createRenderer(hub: Hub, applicationName: String, scene: Scene, windowWidth: Int, windowHeight: Int, embedIn: SceneryPanel? = null, renderConfigFile: String? = null): Renderer {
+        @JvmOverloads
+        @JvmStatic
+        fun createRenderer(hub: Hub, applicationName: String, scene: Scene, windowWidth: Int, windowHeight: Int, embedIn: SceneryPanel? = null, renderConfigFile: String? = null): Renderer {
             var preference = System.getProperty("scenery.Renderer", null)
             val config = renderConfigFile ?: System.getProperty("scenery.Renderer.Config", "DeferredShading.yml")
 
@@ -133,15 +136,20 @@ abstract class Renderer : Hubable {
                 else -> preference
             }
 
-            return if (preference == "VulkanRenderer") {
-                try {
-                    VulkanRenderer(hub, applicationName, scene, windowWidth, windowHeight, embedIn, config)
-                } catch (e: Exception) {
-                    logger.warn("Vulkan unavailable (${e.cause}, ${e.message}), falling back to OpenGL.")
+            return try {
+                if (preference == "VulkanRenderer") {
+                    try {
+                        VulkanRenderer(hub, applicationName, scene, windowWidth, windowHeight, embedIn, config)
+                    } catch (e: Exception) {
+                        logger.warn("Vulkan unavailable (${e.cause}, ${e.message}), falling back to OpenGL.")
+                        OpenGLRenderer(hub, applicationName, scene, windowWidth, windowHeight, embedIn, config)
+                    }
+                } else {
                     OpenGLRenderer(hub, applicationName, scene, windowWidth, windowHeight, embedIn, config)
                 }
-            } else {
-                OpenGLRenderer(hub, applicationName, scene, windowWidth, windowHeight, embedIn, config)
+            } catch (e: Exception) {
+                logger.error("Could not instantiate renderer. Is your graphics card working properly and do you have the most recent drivers installed?")
+                throw e
             }
         }
     }

@@ -18,6 +18,7 @@ class VulkanPipeline(val device: VulkanDevice, val pipelineCache: Long? = null):
 
     var pipeline = HashMap<GeometryType, VulkanRenderer.Pipeline>()
     var descriptorSpecs = LinkedHashMap<String, VulkanShaderModule.UBOSpec>()
+    var pushConstantSpecs = LinkedHashMap<String, VulkanShaderModule.PushConstantSpec>()
 
     val inputAssemblyState: VkPipelineInputAssemblyStateCreateInfo = VkPipelineInputAssemblyStateCreateInfo.calloc()
         .sType(VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO)
@@ -86,11 +87,11 @@ class VulkanPipeline(val device: VulkanDevice, val pipelineCache: Long? = null):
             this.shaderStages.add(it)
 
             it.uboSpecs.forEach { uboName, ubo ->
-                if(descriptorSpecs.containsKey(uboName)) {
-                    descriptorSpecs[uboName]!!.members.putAll(ubo.members)
-                } else {
-                    descriptorSpecs.put(uboName, ubo)
-                }
+                descriptorSpecs[uboName]?.members?.putAll(ubo.members) ?: descriptorSpecs.put(uboName, ubo)
+            }
+
+            it.pushConstantSpecs.forEach { name, pushConstant ->
+                pushConstantSpecs[name]?.members?.putAll(pushConstant.members) ?: pushConstantSpecs.put(name, pushConstant)
             }
         }
     }
@@ -100,12 +101,24 @@ class VulkanPipeline(val device: VulkanDevice, val pipelineCache: Long? = null):
         val setLayouts = memAllocLong(descriptorSetLayouts.size).put(descriptorSetLayouts.toLongArray())
         setLayouts.flip()
 
-//        descriptorSetLayouts.forEachIndexed { i, layout -> setLayouts.put(i, layout) }
+        val pushConstantRanges = if(pushConstantSpecs.size > 0) {
+            val pcr = VkPushConstantRange.calloc(pushConstantSpecs.size)
+            pushConstantSpecs.entries.forEachIndexed { i, p ->
+                val offset = p.value.members.map { it.value.offset }.min() ?: 0L
+                val size = p.value.members.map { it.value.range }.sum() ?: 0L
 
-        val pushConstantRanges = VkPushConstantRange.calloc(1)
-            .offset(0)
-            .size(4)
-            .stageFlags(VK_SHADER_STAGE_ALL)
+                logger.debug("Push constant: id $i name=${p.key} offset=$offset size=$size")
+
+                pcr.get(i)
+                    .offset(offset.toInt())
+                    .size(size.toInt())
+                    .stageFlags(VK_SHADER_STAGE_ALL)
+            }
+
+            pcr
+        } else {
+            null
+        }
 
         val pPipelineLayoutCreateInfo = VkPipelineLayoutCreateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO)
@@ -115,7 +128,7 @@ class VulkanPipeline(val device: VulkanDevice, val pipelineCache: Long? = null):
 
         val layout = VU.getLong("vkCreatePipelineLayout",
             { vkCreatePipelineLayout(device.vulkanDevice, pPipelineLayoutCreateInfo, null, this) },
-            { pushConstantRanges.free(); pPipelineLayoutCreateInfo.free(); memFree(setLayouts); })
+            { pushConstantRanges?.free(); pPipelineLayoutCreateInfo.free(); memFree(setLayouts); })
 
         val stages = VkPipelineShaderStageCreateInfo.calloc(shaderStages.size)
         shaderStages.forEachIndexed { i, shaderStage ->
@@ -187,15 +200,13 @@ class VulkanPipeline(val device: VulkanDevice, val pipelineCache: Long? = null):
     }
 
     fun getPipelineForGeometryType(type: GeometryType): VulkanRenderer.Pipeline {
-        if(this.pipeline.containsKey(type)) {
-            return this.pipeline.get(type)!!
-        } else {
+        return pipeline.getOrElse(type, {
             logger.error("Pipeline $this does not contain a fitting pipeline for $type, return triangle pipeline")
-            return this.pipeline[GeometryType.TRIANGLES]!!
-        }
+            pipeline.getOrElse(GeometryType.TRIANGLES, { throw IllegalStateException("Default triangle pipeline not present for $this") })
+        })
     }
 
-    fun GeometryType.asVulkanTopology(): Int {
+    private fun GeometryType.asVulkanTopology(): Int {
         return when(this) {
             GeometryType.TRIANGLE_FAN -> VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN
             GeometryType.TRIANGLES -> VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST

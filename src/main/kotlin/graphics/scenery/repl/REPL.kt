@@ -13,7 +13,7 @@ import java.util.*
  * @property[addAccessibleObject] A list of objects that should be accessible right away in the REPL
  * @constructor Returns a REPL, equipped with a window for input/output.
  */
-class REPL(scijavaContext: Context? = null, vararg accessibleObjects: Any) {
+class REPL @JvmOverloads constructor(scijavaContext: Context? = null, vararg accessibleObjects: Any) {
 
     /** SciJava context for the REPL */
     protected var context: Context

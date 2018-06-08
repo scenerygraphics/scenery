@@ -35,7 +35,5 @@ script:
   - mvn test
 
 # deploy on success, but only if we are on master
-# then, ping the SciView repository for a rebuild
 after_success:
     - test $TRAVIS_PULL_REQUEST == "false" && test $TRAVIS_BRANCH == "master" && mvn deploy --settings settings.xml
-    - test $TRAVIS_PULL_REQUEST == "false" && test $TRAVIS_BRANCH == "master" && test $TRAVIS_OS_NAME == "linux" && ./ping_repository.sh scenerygraphics/SciView $SCIVIEW_API_TOKEN

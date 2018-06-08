@@ -5,9 +5,7 @@ import org.bytedeco.javacpp.DoublePointer
 import org.bytedeco.javacpp.avcodec.*
 import org.bytedeco.javacpp.avformat.*
 import org.bytedeco.javacpp.avutil.*
-import org.bytedeco.javacpp.presets.avutil
 import org.bytedeco.javacpp.swscale
-import java.io.File
 import java.net.InetAddress
 import java.nio.ByteBuffer
 
@@ -199,8 +197,13 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, f
     }
 
     protected var scalingContext: swscale.SwsContext? = null
+    protected var frameEncodingFailure = 0
 
     fun encodeFrame(data: ByteBuffer?) {
+        if(frameEncodingFailure != 0) {
+            return
+        }
+
         if(scalingContext == null) {
             scalingContext = swscale.sws_getContext(
                 frameWidth, frameHeight, AV_PIX_FMT_BGRA,
@@ -233,11 +236,13 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, f
         while(ret >= 0) {
             ret = avcodec_receive_packet(codecContext, packet)
 
-            if(ret == -11 /* AVERROR_EAGAIN */|| ret == AVERROR_EOF) {
+            if(ret == -11 /* AVERROR_EAGAIN */|| ret == AVERROR_EOF || ret == -35 /* also AVERROR_EAGAIN -.- */) {
                 frameNum++
                 return
             } else if(ret < 0){
-                logger.error("Error encoding frame $frameNum: ${ffmpegErrorString(ret)}")
+                logger.error("Error encoding frame $frameNum: ${ffmpegErrorString(ret)} ($ret)")
+                frameEncodingFailure = ret
+                return
             }
 
             packet.stream_index(0)
@@ -251,7 +256,7 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, f
             }
         }
 
-        logger.info("Encoded frame $frameNum")
+        logger.trace("Encoded frame $frameNum")
 
         frameNum++
     }
@@ -267,9 +272,9 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, f
     }
 
     private fun ffmpegErrorString(returnCode: Int): String {
-        val buffer = ByteArray(1024)
+        val buffer = ByteArray(1024, { _ -> 0 })
         av_make_error_string(buffer, buffer.size*1L, returnCode)
 
-        return String(buffer)
+        return String(buffer, 0, buffer.indexOfFirst { it == 0.toByte() })
     }
 }

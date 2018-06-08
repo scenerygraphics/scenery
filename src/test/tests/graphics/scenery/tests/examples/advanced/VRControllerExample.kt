@@ -60,7 +60,6 @@ class VRControllerExample : SceneryBase(VRControllerExample::class.java.simpleNa
         hullboxMaterial.ambient = GLVector(0.6f, 0.6f, 0.6f)
         hullboxMaterial.diffuse = GLVector(0.4f, 0.4f, 0.4f)
         hullboxMaterial.specular = GLVector(0.0f, 0.0f, 0.0f)
-        hullboxMaterial.doubleSided = true
         hullboxMaterial.cullingMode = Material.CullingMode.Front
         hullbox.material = hullboxMaterial
 

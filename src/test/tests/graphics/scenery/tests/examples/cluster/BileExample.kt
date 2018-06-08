@@ -38,7 +38,7 @@ class BileExample: SceneryBase("Bile Canaliculi example") {
         }
 
         val shell = Box(GLVector(120.0f, 120.0f, 120.0f), insideNormals = true)
-        shell.material.doubleSided = true
+        shell.material.cullingMode = Material.CullingMode.Front
         shell.material.diffuse = GLVector(0.0f, 0.0f, 0.0f)
         shell.material.specular = GLVector.getNullVector(3)
         shell.material.ambient = GLVector.getNullVector(3)

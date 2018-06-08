@@ -80,10 +80,25 @@ interface Display {
      */
     fun update()
 
+    /**
+     * Returns a [List] of Vulkan instance extensions required by the device.
+     *
+     * @return [List] of strings containing the required instance extensions
+     */
     fun getVulkanInstanceExtensions(): List<String>
 
+    /**
+     * Returns a [List] of Vulkan device extensions required by the device.
+     *
+     * @return [List] of strings containing the required device extensions
+     */
     fun getVulkanDeviceExtensions(physicalDevice: VkPhysicalDevice): List<String>
 
+    /**
+     * Returns a [Display] instance, if working currently
+     *
+     * @return Either a [Display] instance, or null.
+     */
     fun getWorkingDisplay(): Display?
 
     /**
