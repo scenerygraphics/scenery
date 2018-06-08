@@ -65,7 +65,6 @@ class MultiBoxExample : SceneryBase("MultiBoxExample") {
             material.ambient = GLVector(0.6f, 0.6f, 0.6f)
             material.diffuse = GLVector(0.4f, 0.4f, 0.4f)
             material.specular = GLVector(0.0f, 0.0f, 0.0f)
-            material.doubleSided = true
             material.cullingMode = Material.CullingMode.Front
 
             scene.addChild(this)

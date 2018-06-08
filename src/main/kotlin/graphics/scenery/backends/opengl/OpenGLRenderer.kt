@@ -1441,10 +1441,7 @@ class OpenGLRenderer(hub: Hub,
                         return@renderLoop
                     }
 
-                    if (n.material.doubleSided) {
-                        gl.glDisable(GL4.GL_CULL_FACE)
-                    }
-
+                    gl.glEnable(GL4.GL_CULL_FACE)
                     when(n.material.cullingMode) {
                         Material.CullingMode.None -> gl.glDisable(GL4.GL_CULL_FACE)
                         Material.CullingMode.Front -> gl.glCullFace(GL4.GL_FRONT)
