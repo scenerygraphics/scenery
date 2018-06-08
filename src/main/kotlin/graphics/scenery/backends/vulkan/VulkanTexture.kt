@@ -4,21 +4,23 @@ import cleargl.GLTypeEnum
 import cleargl.TGAReader
 import graphics.scenery.GenericTexture
 import graphics.scenery.utils.LazyLogger
+import org.lwjgl.system.MemoryUtil.*
+import org.lwjgl.vulkan.*
+import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkImageCreateInfo
 import java.awt.Color
 import java.awt.color.ColorSpace
 import java.awt.geom.AffineTransform
 import java.awt.image.*
+import java.io.BufferedInputStream
+import java.io.FileInputStream
+import java.io.InputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import java.util.*
-import javax.imageio.ImageIO
-import org.lwjgl.system.MemoryUtil.*
-import org.lwjgl.vulkan.*
-import org.lwjgl.vulkan.VK10.*
-import java.io.*
 import java.nio.file.Files
 import java.nio.file.Paths
+import java.util.*
+import javax.imageio.ImageIO
 import kotlin.streams.toList
 
 /**
@@ -325,7 +327,7 @@ open class VulkanTexture(val device: VulkanDevice,
             val imageBlit = VkImageBlit.calloc(1)
             with(VU.newCommandBuffer(device, commandPool, autostart = true)) mipmapCreation@ {
 
-                (1..mipLevels).forEach { mipLevel ->
+                for(mipLevel in 1..mipLevels) {
                     imageBlit.srcSubresource().set(VK_IMAGE_ASPECT_COLOR_BIT, mipLevel - 1, 0, 1)
                     imageBlit.srcOffsets(1).set(width shr (mipLevel - 1), height shr (mipLevel - 1), 1)
 
@@ -333,7 +335,7 @@ open class VulkanTexture(val device: VulkanDevice,
                     val dstHeight = height shr mipLevel
 
                     if(dstWidth < 2 || dstHeight < 2) {
-                        return@forEach
+                        break
                     }
 
                     imageBlit.dstSubresource().set(VK_IMAGE_ASPECT_COLOR_BIT, mipLevel, 0, 1)

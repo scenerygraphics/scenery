@@ -41,10 +41,10 @@ open class Sphere(val radius: Float, val segments: Int) : Node("sphere"), HasGeo
                 val v11 = vertexOnSphere(radius, theta1, phi1)
                 val v10 = vertexOnSphere(radius, theta1, phi0)
 
-                val n00 = GLVector(*v00.toFloatArray()).normalize().toFloatArray().toTypedArray()
-                val n01 = GLVector(*v01.toFloatArray()).normalize().toFloatArray().toTypedArray()
-                val n11 = GLVector(*v11.toFloatArray()).normalize().toFloatArray().toTypedArray()
-                val n10 = GLVector(*v10.toFloatArray()).normalize().toFloatArray().toTypedArray()
+                val n00 = GLVector(v00[0], v00[1], v00[2]).normalize().toFloatArray().toTypedArray()
+                val n01 = GLVector(v01[0], v01[1], v01[2]).normalize().toFloatArray().toTypedArray()
+                val n11 = GLVector(v11[0], v11[1], v11[2]).normalize().toFloatArray().toTypedArray()
+                val n10 = GLVector(v10[0], v10[1], v10[2]).normalize().toFloatArray().toTypedArray()
 
                 val uv00 = uvOnSphere(n00)
                 val uv01 = uvOnSphere(n01)
