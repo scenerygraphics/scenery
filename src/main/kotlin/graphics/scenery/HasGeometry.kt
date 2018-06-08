@@ -9,17 +9,12 @@ import org.lwjgl.system.MemoryUtil.memAlloc
 import org.slf4j.LoggerFactory
 import java.io.BufferedInputStream
 import java.io.File
-import java.io.FileInputStream
 import java.io.Serializable
-import java.net.URI
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
-import java.nio.file.FileSystems
 import java.nio.file.Files
-import java.nio.file.Path
-import java.nio.file.Paths
 import java.util.*
 
 /**
@@ -685,7 +680,9 @@ interface HasGeometry : Serializable {
                     }
                     "facet" -> tokens.drop(2).forEach { nbuffer.add(it.toFloat()) }
                     "outer" -> {
-                        (1..2).forEach { ((nbuffer.size - 3)..(nbuffer.size - 1)).forEach { nbuffer.add(nbuffer[it]) } }
+                        for(it in 1..2) {
+                            ((nbuffer.size - 3)..(nbuffer.size - 1)).forEach { nbuffer.add(nbuffer[it]) }
+                        }
                     }
                     "end" -> {
                     }
@@ -801,7 +798,7 @@ interface HasGeometry : Serializable {
 
                 val n = a.cross(b).normalized
 
-                (1..3).forEach {
+                for (v in 1..3) {
                     nbuffer.add(n.x())
                     nbuffer.add(n.y())
                     nbuffer.add(n.z())
