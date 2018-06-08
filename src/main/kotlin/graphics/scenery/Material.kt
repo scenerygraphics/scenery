@@ -1,7 +1,7 @@
 package graphics.scenery
 
 import cleargl.GLVector
-import graphics.scenery.backends.RenderConfigReader
+import graphics.scenery.Material.CullingMode.*
 import java.io.Serializable
 import java.util.concurrent.ConcurrentHashMap
 
@@ -12,8 +12,16 @@ import java.util.concurrent.ConcurrentHashMap
  */
 open class Material : Serializable {
 
+    /**
+     * Culling Mode enum, to determine which faces are culling when assuming CCW order
+     * [Front] - front faces culled
+     * [Back] - back faces culled
+     * [FrontAndBack] - all faces culled
+     * [None] - no faces culled
+     */
     enum class CullingMode { None, Front, Back, FrontAndBack }
 
+    /** Depth test enum, determines which operation on the depth buffer values results in a pass. */
     enum class DepthTest { Less, Greater, LessEqual, GreaterEqual, Always, Never, Equal }
 
     /** Name of the material. */
@@ -26,7 +34,7 @@ open class Material : Serializable {
     var ambient: GLVector = GLVector(0.5f, 0.5f, 0.5f)
     /** Specular exponent */
     var roughness: Float = 1.0f
-
+    /** Metallicity, 0.0 is non-metal, 1.0 is full metal */
     var metallic: Float = 0.0f
 
     /** Blending settings for this material. See [Blending]. */
@@ -40,11 +48,10 @@ open class Material : Serializable {
      * stores the data and settings of the texture, a renderer will consume them later. */
     @Volatile var transferTextures: ConcurrentHashMap<String, GenericTexture> = ConcurrentHashMap()
 
-    /** Set whether the material is double-sided */
-    var doubleSided: Boolean = false
-
+    /** Culling mode of the material. @see[CullingMode] */
     var cullingMode: CullingMode = CullingMode.Back
 
+    /** depth testing mode for this material */
     var depthTest: DepthTest = DepthTest.LessEqual
 
     /** Flag to check whether the [transferTextures] need reloading */

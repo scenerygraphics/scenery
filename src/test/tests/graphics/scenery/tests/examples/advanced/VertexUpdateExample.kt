@@ -34,7 +34,6 @@ class VertexUpdateExample : SceneryBase("VertexUpdateExample") {
             material.ambient = GLVector(1.0f, 1.0f, 1.0f)
             material.diffuse = GLVector(1.0f, 1.0f, 1.0f)
             material.specular = GLVector(1.0f, 1.0f, 1.0f)
-            material.doubleSided = true
             material.cullingMode = Material.CullingMode.None
 
             position = GLVector(0.0f, 0.0f, 0.0f)

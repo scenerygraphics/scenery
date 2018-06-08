@@ -25,20 +25,20 @@ class LineExample : SceneryBase("LineExample") {
 
         val hull = Box(GLVector(50.0f, 50.0f, 50.0f), insideNormals = true)
         hull.material.diffuse = GLVector(0.2f, 0.2f, 0.2f)
-        hull.material.doubleSided = true
         hull.material.cullingMode = Material.CullingMode.Front
         scene.addChild(hull)
-
-        val linematerial = Material()
-        linematerial.ambient = GLVector(1.0f, 0.0f, 0.0f)
-        linematerial.diffuse = GLVector(0.0f, 1.0f, 0.0f)
-        linematerial.specular = GLVector(1.0f, 1.0f, 1.0f)
 
         val line = Line()
         line.addPoint(GLVector(-1.0f, -1.0f, -1.0f))
         line.addPoint(GLVector(2.0f, 0.0f, 2.0f))
-        line.material = linematerial
+        line.addPoint(GLVector(0.0f, 0.0f, 0.0f))
+
+        line.material.ambient = GLVector(1.0f, 0.0f, 0.0f)
+        line.material.diffuse = GLVector(0.0f, 1.0f, 0.0f)
+        line.material.specular = GLVector(1.0f, 1.0f, 1.0f)
+
         line.position = GLVector(0.0f, 0.0f, 0.0f)
+        line.edgeWidth = 0.02f
 
         scene.addChild(line)
 

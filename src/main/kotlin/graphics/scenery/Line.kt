@@ -3,9 +3,6 @@ package graphics.scenery
 import cleargl.GLVector
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
-import java.util.*
-import java.util.concurrent.CopyOnWriteArrayList
-import kotlin.reflect.KProperty
 
 /**
  * Class for creating 3D lines, derived from [Node] and using [HasGeometry]
@@ -60,6 +57,8 @@ class Line(var capacity: Int = 50) : Node("Line"), HasGeometry {
         vertices.limit(0)
         normals.limit(0)
         texcoords.limit(0)
+
+        material.cullingMode = Material.CullingMode.Front
     }
 
     /**

@@ -47,7 +47,6 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
         lightbox.material.diffuse = GLVector(1.0f, 1.0f, 1.0f)
         lightbox.material.roughness = 1.0f
         lightbox.material.metallic = 0.0f
-        lightbox.material.doubleSided = true
         lightbox.material.cullingMode = Material.CullingMode.Front
 
         scene.addChild(lightbox)

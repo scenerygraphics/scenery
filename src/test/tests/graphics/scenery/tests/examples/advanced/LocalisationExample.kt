@@ -7,10 +7,10 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.TrackedStereoGlasses
 import graphics.scenery.numerics.Random
 import javafx.application.Platform
+import javafx.stage.FileChooser
+import javafx.stage.Stage
 import org.junit.Test
 import java.util.concurrent.CountDownLatch
-import javafx.stage.Stage
-import javafx.stage.FileChooser
 
 
 
@@ -54,7 +54,6 @@ class LocalisationExample : SceneryBase("Localisation Microscopy Rendering examp
         }
 
         val shell = Box(GLVector(20.0f, 20.0f, 20.0f), insideNormals = true)
-        shell.material.doubleSided = true
         shell.material.cullingMode = Material.CullingMode.Front
         shell.material.diffuse = GLVector(0.9f, 0.9f, 0.9f)
         shell.material.specular = GLVector.getNullVector(3)

@@ -765,7 +765,7 @@ open class VulkanRenderer(hub: Hub,
 
     private fun initializeCustomShadersForNode(node: Node, addInitializer: Boolean = true): Boolean {
 
-        if(!(node.material.blending.transparent || node.useClassDerivedShader || node.material.doubleSided || node.material is ShaderMaterial)) {
+        if(!(node.material.blending.transparent || node.useClassDerivedShader || node.material is ShaderMaterial)) {
             logger.debug("Using default renderpass material for ${node.name}")
             return false
         }
@@ -836,11 +836,6 @@ open class VulkanRenderer(hub: Hub,
                         shaders.map { VulkanShaderModule.getFromCacheOrCreate(device, "main", node.javaClass, "shaders/" + it) },
 
                         settings = { pipeline ->
-                            if (node.material.doubleSided) {
-                                logger.debug("Pipeline for ${node.name} will be double-sided, backface culling disabled.")
-                                pipeline.rasterizationState.cullMode(VK_CULL_MODE_NONE)
-                            }
-
                             when(node.material.cullingMode) {
                                 Material.CullingMode.None -> pipeline.rasterizationState.cullMode(VK_CULL_MODE_NONE)
                                 Material.CullingMode.Front -> pipeline.rasterizationState.cullMode(VK_CULL_MODE_FRONT_BIT)
