@@ -79,7 +79,7 @@ class TextBoard(font: String = "SourceSansPro-Regular.ttf", override var isBillb
 
         sdfCache.getOrPut(fontFamily,
             { SDFFontAtlas(hub, fontFamily,
-                maxDistance = hub.get<Settings>(SceneryElement.Settings)!!.get("sdf.MaxDistance")) }).apply {
+                maxDistance = hub.get<Settings>(SceneryElement.Settings)?.get("sdf.MaxDistance") ?: 12) }).apply {
 
 
             logger.debug("Updating mesh for text board {} to '{}'...", name, text)
