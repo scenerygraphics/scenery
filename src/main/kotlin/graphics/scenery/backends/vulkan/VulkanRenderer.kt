@@ -2839,7 +2839,11 @@ open class VulkanRenderer(hub: Hub,
         }
     }
 
+    /**
+     * Closes the current instance of [VulkanRenderer].
+     */
     override fun close() {
+        shouldClose = true
         logger.info("Renderer teardown started.")
         vkQueueWaitIdle(queue)
 

@@ -11,7 +11,7 @@ import java.util.concurrent.ConcurrentHashMap
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class Hub(val name: String = "default") {
-    /** Hash map storage for all the [SceneryElements] and their instances */
+    /** Hash map storage for all the [SceneryElement] and their instances */
     val elements: ConcurrentHashMap<SceneryElement, Any> = ConcurrentHashMap()
 
     /**
@@ -21,17 +21,27 @@ class Hub(val name: String = "default") {
      * @param[obj] The [Hubable] object.
      */
     fun add(type: SceneryElement, obj: Hubable) {
-        elements.put(type, obj)
+        elements[type] = obj
 
         obj.hub = this
     }
 
+    /**
+     * Adds a given [SceneryBase] instance to this Hub.
+     *
+     * @param[application] The [SceneryBase] instance to add to this Hub.
+     */
     fun addApplication(application: SceneryBase) {
-        elements.put(SceneryElement.Application, application)
+        elements[SceneryElement.Application] = application
     }
 
+    /**
+     * Returns a the basic application [SceneryBase] instance if contained in this Hub.
+     *
+     * @return [SceneryBase] instance, or null if not found.
+     */
     fun getApplication(): SceneryBase? {
-        return elements.get(SceneryElement.Application) as? SceneryBase
+        return elements[SceneryElement.Application] as? SceneryBase
     }
 
     /**
@@ -41,14 +51,20 @@ class Hub(val name: String = "default") {
      * @return The instance of [SceneryElement] currently registered.
      */
     fun get(type: SceneryElement): Any? {
-        return elements.get(type)
+        return elements[type]
     }
 
+    /**
+     * Query the Hub for a given type of [SceneryElement]
+     *
+     * @param[type] [SceneryElement] type.
+     * @return The instance of [SceneryElement] currently registered.
+     */
     fun <T: Hubable> get(type: SceneryElement): T? {
-        if(elements.containsKey(type)) {
-            return elements.get(type) as T
+        return if(elements.containsKey(type)) {
+            elements[type] as? T
         } else {
-            return null
+            null
         }
     }
 
@@ -62,21 +78,44 @@ class Hub(val name: String = "default") {
         return elements.containsKey(type)
     }
 
+    /**
+     * Returns a [TrackerInput] instance in case this Hub contains a [TrackerInput], which is working.
+     *
+     * @return A [TrackerInput] instance, or null if not found or not working.
+     */
     fun getWorkingHMD(): TrackerInput? {
-        if (this.has(SceneryElement.HMDInput)
+        return if (this.has(SceneryElement.HMDInput)
             && (this.get(SceneryElement.HMDInput) as TrackerInput).initializedAndWorking()) {
-            return this.get(SceneryElement.HMDInput) as TrackerInput
+            this.get(SceneryElement.HMDInput) as? TrackerInput
         } else {
-            return null
+            null
         }
     }
 
+    /**
+     * Returns a [Display] in case this Hub contains an [SceneryElement.HMDInput] that can also
+     * act as [Display] and is working.
+     *
+     * @return [Display] instance if found in the Hub, otherwise null.
+     */
     fun getWorkingHMDDisplay(): Display? {
-        if (this.has(SceneryElement.HMDInput)
+        return if (this.has(SceneryElement.HMDInput)
             && (this.get(SceneryElement.HMDInput) as Display).initializedAndWorking()) {
-            return this.get(SceneryElement.HMDInput) as Display
+            this.get(SceneryElement.HMDInput) as? Display
         } else {
-            return null
+            null
+        }
+    }
+
+    /**
+     * Returns a string representation of the contents of this Hub.
+     *
+     * @return String representation of all the elements of the Hub, one per line.
+     */
+    fun elementsAsString(): String {
+        println(elements.entries.size)
+        return elements.entries.joinToString("\n") {
+            " * ${it.key}=${it.value}"
         }
     }
 }
