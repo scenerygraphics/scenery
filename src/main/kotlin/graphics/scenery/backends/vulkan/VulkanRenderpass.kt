@@ -1,9 +1,6 @@
 package graphics.scenery.backends.vulkan
 
 import cleargl.GLVector
-import org.lwjgl.system.MemoryUtil
-import org.lwjgl.vulkan.*
-import org.lwjgl.vulkan.VK10.*
 import graphics.scenery.GeometryType
 import graphics.scenery.Node
 import graphics.scenery.Settings
@@ -11,7 +8,10 @@ import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.Renderer
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.RingBuffer
+import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.*
+import org.lwjgl.vulkan.*
+import org.lwjgl.vulkan.VK10.*
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.util.*
@@ -381,7 +381,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
             spec.name == "ObjectTextures" -> listOf(Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 6),
                 Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1))
 
-            spec.name.startsWith("Input") -> (0..spec.members.size-1).map { Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1) }.toList()
+            spec.name.startsWith("Input") -> (0 until spec.members.size).map { Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1) }.toList()
 
             spec.name == "ShaderParameters" && (passConfig.type == RenderConfigReader.RenderpassType.geometry || passConfig.type == RenderConfigReader.RenderpassType.lights) -> listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1))
             spec.name == "ShaderParameters" && passConfig.type == RenderConfigReader.RenderpassType.quad -> listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1))
@@ -435,7 +435,10 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
 
         vulkanMetadata.close()
 
-        (1..commandBufferBacking.size).forEach { commandBufferBacking.get().close() }
+        for(i in 1..commandBufferBacking.size) {
+            commandBufferBacking.get().close()
+        }
+
         commandBufferBacking.reset()
 
         if(semaphore != -1L) {

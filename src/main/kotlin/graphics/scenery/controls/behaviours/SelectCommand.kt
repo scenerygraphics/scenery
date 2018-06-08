@@ -2,9 +2,9 @@ package graphics.scenery.controls.behaviours
 
 import cleargl.GLVector
 import graphics.scenery.*
-import org.scijava.ui.behaviour.ClickBehaviour
 import graphics.scenery.backends.Renderer
 import graphics.scenery.utils.LazyLogger
+import org.scijava.ui.behaviour.ClickBehaviour
 import kotlin.reflect.KProperty
 
 /**
@@ -62,7 +62,7 @@ open class SelectCommand @JvmOverloads constructor(private val name: String,
                 indicatorMaterial.specular = GLVector(1.0f, 0.2f, 0.2f)
                 indicatorMaterial.ambient = GLVector(0.0f, 0.0f, 0.0f)
 
-                (5..50).forEach {
+                for(it in 5..50) {
                     val s = Sphere(0.2f, 20)
                     s.material = indicatorMaterial
                     s.position = worldPos + worldDir * it.toFloat() * 5.0f

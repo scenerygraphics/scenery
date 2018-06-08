@@ -10,14 +10,12 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import graphics.scenery.utils.LazyLogger
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.*
 
 /**
- * <Description>
+ * Screen config class, for configuration and use of projection screen geometry and transformations.
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
