@@ -2523,6 +2523,7 @@ class OpenGLRenderer(hub: Hub,
     }
 
     override fun close() {
+        shouldClose = true
         libspirvcrossj.finalizeProcess()
 
         encoder?.let {
