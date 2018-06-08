@@ -83,7 +83,7 @@ class MultiBoxInstancedExample : SceneryBase("MultiBoxInstancedExample") {
         hullbox.material.ambient = GLVector(0.6f, 0.6f, 0.6f)
         hullbox.material.diffuse = GLVector(0.4f, 0.4f, 0.4f)
         hullbox.material.specular = GLVector(0.0f, 0.0f, 0.0f)
-        hullbox.material.doubleSided = true
+        hullbox.material.cullingMode = Material.CullingMode.Front
 
         scene.addChild(hullbox)
 

@@ -10,7 +10,7 @@
 
     <groupId>graphics.scenery</groupId>
     <artifactId>scenery</artifactId>
-    <version>0.3.2-SNAPSHOT</version>
+    <version>0.4.2-SNAPSHOT</version>
     <inceptionYear>2016</inceptionYear>
     <licenses>
         <license>
@@ -76,7 +76,7 @@
     <scm>
         <connection>scm:git:git://github.com/scenerygraphics/scenery</connection>
         <developerConnection>scm:git:git@github.com:scenerygraphics/scenery</developerConnection>
-        <tag>scenery-0.3.1</tag>
+        <tag>scenery-0.4.1</tag>
         <url>http://scenery.graphics</url>
     </scm>
 
@@ -113,7 +113,7 @@
 
         <slf4j.version>1.7.25</slf4j.version>
         <lwjgl.version>3.1.6</lwjgl.version>
-        <spirvcrossj.version>0.4.0</spirvcrossj.version>
+        <spirvcrossj.version>0.4.1</spirvcrossj.version>
         <jvrpn.version>1.1.0</jvrpn.version>
 
         <license.licenseName>lgpl_v3</license.licenseName>
@@ -229,7 +229,7 @@
         <dependency>
             <groupId>org.jetbrains.kotlinx</groupId>
             <artifactId>kotlinx-coroutines-core</artifactId>
-            <version>0.21.2</version>
+            <version>0.22.5</version>
         </dependency>
 
         <dependency>
@@ -501,7 +501,7 @@
         <dependency>
             <groupId>org.bytedeco.javacpp-presets</groupId>
             <artifactId>ffmpeg-platform</artifactId>
-            <version>3.4.1-1.4</version>
+            <version>3.4.2-1.4.1</version>
         </dependency>
 
         <dependency>

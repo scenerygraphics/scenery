@@ -297,6 +297,11 @@ class OpenGLRenderer(hub: Hub,
 
         if (embedIn != null) {
             val profile = GLProfile.getMaxProgrammableCore(true)
+
+            if(!profile.isGL4) {
+                throw UnsupportedOperationException("Could not create OpenGL 4 context, perhaps you need a graphics driver update?")
+            }
+
             val caps = GLCapabilities(profile)
             caps.hardwareAccelerated = true
             caps.doubleBuffered = true
@@ -1437,10 +1442,7 @@ class OpenGLRenderer(hub: Hub,
                         return@renderLoop
                     }
 
-                    if (n.material.doubleSided) {
-                        gl.glDisable(GL4.GL_CULL_FACE)
-                    }
-
+                    gl.glEnable(GL4.GL_CULL_FACE)
                     when(n.material.cullingMode) {
                         Material.CullingMode.None -> gl.glDisable(GL4.GL_CULL_FACE)
                         Material.CullingMode.Front -> gl.glCullFace(GL4.GL_FRONT)
@@ -1683,7 +1685,7 @@ class OpenGLRenderer(hub: Hub,
             }
 
             if (recordMovie && (encoder == null || encoder?.frameWidth != window.width || encoder?.frameHeight != window.height)) {
-                encoder = H264Encoder(window.width, window.height, "$applicationName - ${SimpleDateFormat("yyyy-MM-dd_HH.mm.ss").format(Date())}.mp4")
+                encoder = H264Encoder(window.width, window.height, System.getProperty("user.home") + File.separator + "Desktop" + File.separator + "$applicationName - ${SimpleDateFormat("yyyy-MM-dd_HH.mm.ss").format(Date())}.mp4")
             }
 
             readIndex = (readIndex + 1) % 2
@@ -1721,10 +1723,7 @@ class OpenGLRenderer(hub: Hub,
             }
 
             gl.glBindBuffer(GL4.GL_PIXEL_PACK_BUFFER, pbos[updateIndex])
-
-            gl.glReadBuffer(GL4.GL_FRONT)
             gl.glReadPixels(0, 0, window.width, window.height, GL4.GL_BGRA, GL4.GL_UNSIGNED_BYTE, 0)
-
             gl.glGetBufferSubData(GL4.GL_PIXEL_PACK_BUFFER, 0,
                 4L * window.width * window.height, pboBuffers[updateIndex])
 
@@ -1795,7 +1794,7 @@ class OpenGLRenderer(hub: Hub,
             quad = nodeStore[quadName]!!
         }
 
-        drawNode(quad)
+        drawNode(quad, count = 3)
         program.gl.glBindTexture(GL4.GL_TEXTURE_2D, 0)
     }
 
@@ -1939,7 +1938,7 @@ class OpenGLRenderer(hub: Hub,
                     renderpasses.filter {
                         (it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry || it.value.passConfig.type == RenderConfigReader.RenderpassType.lights)
                             && it.value.passConfig.renderTransparent == node.material.blending.transparent
-                    }.entries.first().value.defaultShader
+                    }.entries.firstOrNull()?.value?.defaultShader
                 }
 
                 logger.debug("Shader properties are: ${shader?.getShaderPropertyOrder()}")
@@ -2054,7 +2053,19 @@ class OpenGLRenderer(hub: Hub,
                             }
 
                             t.setClamp(!repeatS, !repeatT)
-                            t.copyFrom(contents)
+
+                            val unpackAlignment = intArrayOf(0)
+                            gl.glGetIntegerv(GL4.GL_UNPACK_ALIGNMENT, unpackAlignment, 0)
+
+                            // textures might have very uneven dimensions, so we adjust GL_UNPACK_ALIGNMENT here correspondingly
+                            // in case the byte count of the texture is not divisible by it.
+                            if(contents.remaining() % unpackAlignment[0] == 0 && dimensions.x().toInt() % unpackAlignment[0] == 0) {
+                                t.copyFrom(contents)
+                            } else {
+                                gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, 1)
+                                t.copyFrom(contents)
+                                gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, unpackAlignment[0])
+                            }
 
                             s.textures.put(type, t)
                             textureCache.put(texture, t)
@@ -2381,7 +2392,7 @@ class OpenGLRenderer(hub: Hub,
      * @param[node] The node to be drawn.
      * @param[offset] offset in the array or index buffer.
      */
-    fun drawNode(node: Node, offset: Int = 0) {
+    fun drawNode(node: Node, offset: Int = 0, count: Int? = null) {
         val s = getOpenGLObjectStateFromNode(node)
 
         if (s.mStoredIndexCount == 0 && s.mStoredPrimitiveCount == 0 || node.material.needsTextureReload) {
@@ -2394,13 +2405,13 @@ class OpenGLRenderer(hub: Hub,
             gl.glBindBuffer(GL4.GL_ELEMENT_ARRAY_BUFFER,
                 s.mIndexBuffer[0])
             gl.glDrawElements((node as HasGeometry).geometryType.toOpenGLType(),
-                s.mStoredIndexCount,
+                count ?: s.mStoredIndexCount,
                 GL4.GL_UNSIGNED_INT,
                 offset.toLong())
 
             gl.glBindBuffer(GL4.GL_ELEMENT_ARRAY_BUFFER, 0)
         } else {
-            gl.glDrawArrays((node as HasGeometry).geometryType.toOpenGLType(), offset, s.mStoredPrimitiveCount)
+            gl.glDrawArrays((node as HasGeometry).geometryType.toOpenGLType(), offset, count ?: s.mStoredPrimitiveCount)
         }
 
         gl.glUseProgram(0)

@@ -3,9 +3,6 @@ package graphics.scenery
 import cleargl.GLVector
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
-import java.util.*
-import java.util.concurrent.CopyOnWriteArrayList
-import kotlin.reflect.KProperty
 
 /**
  * Class for creating 3D lines, derived from [Node] and using [HasGeometry]
@@ -48,9 +45,10 @@ class Line(var capacity: Int = 50) : Node("Line"), HasGeometry {
     @ShaderProperty
     var capLength = 1
 
-    /** (Private) shader property to keep track of the current number of vertices. Consumed by the renderer. */
+    /** Shader property to keep track of the current number of vertices. Consumed by the renderer. */
     @ShaderProperty
-    private var vertexCount: Int = 0
+    var vertexCount: Int = 0
+        private set
 
     /** Shader property for the line's edge width. Consumed by the renderer. */
     @ShaderProperty
@@ -60,6 +58,8 @@ class Line(var capacity: Int = 50) : Node("Line"), HasGeometry {
         vertices.limit(0)
         normals.limit(0)
         texcoords.limit(0)
+
+        material.cullingMode = Material.CullingMode.Front
     }
 
     /**

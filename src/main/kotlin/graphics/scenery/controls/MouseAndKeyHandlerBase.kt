@@ -22,10 +22,10 @@ import kotlin.concurrent.thread
 open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
     protected val logger by LazyLogger()
     /** ui-behaviour input trigger map */
-    protected var inputTriggerMap: InputTriggerMap? = null
+    protected lateinit var inputTriggerMap: InputTriggerMap
 
     /** ui-behaviour behaviour map */
-    protected var behaviours: BehaviourMap? = null
+    protected lateinit var behaviours: BehaviourMap
 
     /** expected modifier count */
     protected var inputMapExpectedModCount: Int = 0
@@ -161,10 +161,10 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
             val event: Event = Event()
 
             while (true) {
-                controller?.let {
-                    controller!!.poll()
+                controller?.let { c ->
+                    c.poll()
 
-                    queue = controller!!.eventQueue
+                    queue = c.eventQueue
 
                     while (queue.getNextEvent(event)) {
                         controllerEvent(event)
@@ -227,8 +227,8 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
      * [.updateInternalMaps] to rebuild the internal behaviour lists.
      */
     @Synchronized protected fun update() {
-        val imc = inputTriggerMap!!.modCount()
-        val bmc = behaviours!!.modCount()
+        val imc = inputTriggerMap.modCount()
+        val bmc = behaviours.modCount()
 
         if (imc != inputMapExpectedModCount || bmc != behaviourMapExpectedModCount) {
             inputMapExpectedModCount = imc
@@ -249,11 +249,11 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
         buttonClicks.clear()
         keyClicks.clear()
 
-        for ((buttons, value) in inputTriggerMap!!.allBindings) {
+        for ((buttons, value) in inputTriggerMap.allBindings) {
             val behaviourKeys = value ?: continue
 
             for (behaviourKey in behaviourKeys) {
-                val behaviour = behaviours!!.get(behaviourKey) ?: continue
+                val behaviour = behaviours.get(behaviourKey) ?: continue
 
                 if (behaviour is DragBehaviour) {
                     val dragEntry = BehaviourEntry(buttons, behaviour)

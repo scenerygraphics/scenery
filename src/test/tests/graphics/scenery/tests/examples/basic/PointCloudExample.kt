@@ -21,10 +21,8 @@ class PointCloudExample : SceneryBase("PointCloudExample") {
         hub.add(SceneryElement.Renderer, renderer!!)
 
         val hull = Box(GLVector(50.0f, 50.0f, 50.0f), insideNormals = true)
-        val hullmaterial = Material()
-        hullmaterial.diffuse = GLVector(0.2f, 0.2f, 0.2f)
-        hullmaterial.doubleSided = true
-        hull.material = hullmaterial
+        hull.material.diffuse = GLVector(0.2f, 0.2f, 0.2f)
+        hull.material.cullingMode = Material.CullingMode.Front
         scene.addChild(hull)
 
 
@@ -56,7 +54,6 @@ class PointCloudExample : SceneryBase("PointCloudExample") {
         pcmaterial.ambient = GLVector(1.0f, 1.0f, 1.0f)
         pcmaterial.diffuse = GLVector(1.0f, 1.0f, 0.0f)
         pcmaterial.specular = GLVector(1.0f, 1.0f, 1.0f)
-        pcmaterial.doubleSided = true
         pcmaterial.cullingMode = Material.CullingMode.None
 
         val pointCloud = PointCloud(radius=0.025f)

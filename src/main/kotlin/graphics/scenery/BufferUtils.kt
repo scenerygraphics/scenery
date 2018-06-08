@@ -3,11 +3,15 @@ package graphics.scenery
 import java.nio.*
 
 /**
- * <Description>
+ * Buffer utilities class
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class BufferUtils {
+
+    /**
+     * Buffer utilities companion class, for allocating various kinds of buffers and filling them in one go.
+     */
     companion object BufferUtils {
         val SIZE_FLOAT = 4
         val SIZE_INT = 4

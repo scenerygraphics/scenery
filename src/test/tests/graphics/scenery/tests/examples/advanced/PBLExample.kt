@@ -35,7 +35,6 @@ class PBLExample: SceneryBase("PBLExample", windowWidth = 1280, windowHeight = 7
         lightbox.material.diffuse = GLVector(0.1f, 0.1f, 0.1f)
         lightbox.material.roughness = 1.0f
         lightbox.material.metallic = 0.0f
-        lightbox.material.doubleSided = true
         lightbox.material.cullingMode = Material.CullingMode.None
         scene.addChild(lightbox)
 

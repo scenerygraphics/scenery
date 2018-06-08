@@ -10,6 +10,7 @@ import graphics.scenery.utils.forEachAsync
 import graphics.scenery.utils.forEachParallel
 import io.scif.SCIFIO
 import io.scif.util.FormatTools
+import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.memAlloc
 import sun.misc.Unsafe
 import java.io.FileInputStream
@@ -17,6 +18,7 @@ import java.nio.ByteBuffer
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.concurrent.thread
 import kotlin.math.abs
@@ -145,7 +147,14 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         this.vertexSize = 3
         this.texcoordSize = 2
 
-        this.material.blending.transparent = true
+        material.blending.transparent = true
+        material.blending.sourceColorBlendFactor = Blending.BlendFactor.One
+        material.blending.destinationColorBlendFactor = Blending.BlendFactor.OneMinusSrcAlpha
+        material.blending.sourceAlphaBlendFactor = Blending.BlendFactor.One
+        material.blending.destinationAlphaBlendFactor = Blending.BlendFactor.OneMinusSrcAlpha
+        material.blending.colorBlending = Blending.BlendOp.add
+        material.blending.alphaBlending = Blending.BlendOp.add
+
         this.useClassDerivedShader = true
         this.material.cullingMode = Material.CullingMode.None
 
@@ -362,7 +371,7 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         return id
     }
 
-    fun readFromRaw(file: Path, replace: Boolean = false): String {
+    fun readFromRaw(file: Path, replace: Boolean = false, autorange: Boolean = true, cache: Boolean = true): String {
         val infoFile = file.resolveSibling("stacks" + ".info")
 
         val lines = Files.lines(infoFile).toList()
@@ -389,7 +398,7 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
 
         val id = file.fileName.toString()
 
-        val vol = if (volumes.containsKey(id)) {
+        val vol = if (volumes.containsKey(id) && cache) {
             logger.info("Getting $id from cache")
             volumes.get(id)!!
         } else {
@@ -417,20 +426,25 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
                 NativeTypeEnum.UnsignedShort, 2, data = imageData
             )
 
-            thread {
-                val histogram = Histogram<Int>(65536)
-                val buf = imageData.asShortBuffer()
-                while (buf.hasRemaining()) {
-                    histogram.add(buf.get().toInt() + Short.MAX_VALUE + 1)
+            if(autorange) {
+                thread {
+                    val histogram = Histogram<Int>(65536)
+                    val buf = imageData.asShortBuffer()
+                    while (buf.hasRemaining()) {
+                        histogram.add(buf.get().toInt() + Short.MAX_VALUE + 1)
+                    }
+
+                    logger.info("Min/max of $id: ${histogram.min()}/${histogram.max()} in ${histogram.bins.size} bins")
+
+                    this.trangemin = histogram.min().toFloat()
+                    this.trangemax = histogram.max().toFloat()
                 }
-
-                logger.info("Min/max of $id: ${histogram.min()}/${histogram.max()} in ${histogram.bins.size} bins")
-
-                this.trangemin = histogram.min().toFloat()
-                this.trangemax = histogram.max().toFloat()
             }
 
-            volumes.put(id, descriptor)
+            if(cache) {
+                volumes.put(id, descriptor)
+            }
+
             descriptor
         }
 
@@ -465,7 +479,13 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         this.material.textures.put("normal", colormaps.values.first())
     }
 
+    private val deallocations = ArrayDeque<ByteBuffer>()
+
     private fun assignVolumeTexture(dimensions: LongArray, descriptor: VolumeDescriptor, replace: Boolean) {
+        while(deallocations.size > 20) {
+            MemoryUtil.memFree(deallocations.pollLast())
+        }
+
         val dim = GLVector(dimensions[0].toFloat(), dimensions[1].toFloat(), dimensions[2].toFloat())
         val gtv = GenericTexture("volume", dim,
             1, descriptor.dataType.toGLType(), descriptor.data, false, false, normalized = false)
@@ -474,7 +494,7 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
             logger.debug("$name: Assigning volume texture")
             this.material.transferTextures.put("volume", gtv)?.let {
                 if (replace) {
-//                    memFree(it.contents)
+                    deallocations.add(it.contents)
                 }
             }
             this.material.textures.put("3D-volume", "fromBuffer:volume")

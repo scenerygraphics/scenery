@@ -6,7 +6,8 @@ import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.memUTF8
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
-import java.util.ArrayList
+import java.util.*
+
 
 class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysicalDevice, val deviceData: DeviceData, extensionsQuery: (VkPhysicalDevice) -> Array<String> = { arrayOf() }, validationLayers: Array<String> = arrayOf()) {
 
@@ -16,8 +17,29 @@ class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysicalDevic
     val queueIndices: QueueIndices
     val extensions = ArrayList<String>()
 
+    /**
+     * Enum class for GPU device types. Can be unknown, other, integrated, discrete, virtual or CPU.
+     */
     enum class DeviceType { Unknown, Other, IntegratedGPU, DiscreteGPU, VirtualGPU, CPU }
+
+    /**
+     * Class to store device-specific metadata.
+     *
+     * @property[vendor] The vendor name of the device.
+     * @property[name] The name of the device.
+     * @property[driverVersion] The driver version as represented as string.
+     * @property[apiVersion] The Vulkan API version supported by the device, represented as string.
+     * @property[type] The [DeviceType] of the GPU.
+     */
     data class DeviceData(val vendor: String, val name: String, val driverVersion: String, val apiVersion: String, val type: DeviceType)
+
+    /**
+     * Data class to store device-specific queue indices.
+     *
+     * @property[presentQueue] The index of the present queue
+     * @property[graphicsQueue] The index of the graphics queue
+     * @property[computeQueue] The index of the compute queue
+     */
     data class QueueIndices(val presentQueue: Int, val graphicsQueue: Int, val computeQueue: Int)
 
     init {
@@ -180,6 +202,31 @@ class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysicalDevic
     companion object {
         val logger by LazyLogger()
 
+        /**
+         * Data class for defining device/driver-specific workarounds.
+         *
+         * @property[filter] A lambda to define the condition to trigger this workaround, must return a boolean.
+         * @property[description] A string description of the cause and effects of the workaround
+         * @property[workaround] A lambda that will be executed if this [DeviceWorkaround] is triggered.
+         */
+        data class DeviceWorkaround(val filter: (DeviceData) -> Boolean, val description: String, val workaround: (DeviceData) -> Any)
+
+
+        val deviceWorkarounds: List<DeviceWorkaround> = listOf(
+//            DeviceWorkaround(
+//                { it.vendor == "Nvidia" && it.driverVersion.substringBefore(".").toInt() >= 396 },
+//                "Nvidia 396.xx series drivers are unsupported due to crashing bugs in the driver") {
+//                if(System.getenv("__GL_NextGenCompiler") == null) {
+//                    logger.warn("The graphics driver version you are using (${it.driverVersion}) contains a bug that prevents scenery's Vulkan renderer from functioning correctly.")
+//                    logger.warn("Please set the environment variable __GL_NextGenCompiler to 0 and restart the application to work around this issue.")
+//                    logger.warn("For this session, scenery will fall back to the OpenGL renderer in 20 seconds.")
+//                    Thread.sleep(20000)
+//
+//                    throw RuntimeException("Bug in graphics driver, falling back to OpenGL")
+//                }
+//            }
+        )
+
         private fun toDeviceType(vkDeviceType: Int): DeviceType {
             return when(vkDeviceType) {
                 0 -> DeviceType.Other
@@ -261,6 +308,17 @@ class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysicalDevic
 
                 val selectedDevice = physicalDevices.get(devicePreference)
                 val selectedDeviceData = deviceList[devicePreference]
+
+                if(System.getProperty("scenery.DisableDeviceWorkarounds", "false")?.toBoolean() != true) {
+                    deviceWorkarounds.forEach {
+                        if (it.filter.invoke(selectedDeviceData)) {
+                            logger.warn("Workaround activated: ${it.description}")
+                            it.workaround.invoke(selectedDeviceData)
+                        }
+                    }
+                } else {
+                    logger.warn("Device-specific workarounds disabled upon request, expect weird things to happen.")
+                }
 
                 val physicalDevice = VkPhysicalDevice(selectedDevice, instance)
 

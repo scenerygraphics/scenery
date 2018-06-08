@@ -32,7 +32,6 @@ class FontRenderingExample: SceneryBase("FontRenderingExample", windowWidth = 12
 
         val box = Box(GLVector(10.0f, 10.0f, 10.0f), insideNormals = true)
         box.material.diffuse = GLVector(1.0f, 1.0f, 1.0f)
-        box.material.doubleSided = true
         box.material.cullingMode = Material.CullingMode.Front
         scene.addChild(box)
 

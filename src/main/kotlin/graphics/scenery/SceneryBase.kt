@@ -259,17 +259,20 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
     }
 
     fun setupCameraModeSwitching(keybinding: String = "C") {
-        val target = GLVector.getNullVector(3)
+        val windowWidth = renderer?.window?.width ?: 512
+        val windowHeight = renderer?.window?.height ?: 512
+
+        val target = scene.findObserver()?.target ?: GLVector.getNullVector(3)
         val inputHandler = (hub.get(SceneryElement.Input) as InputHandler)
-        val targetArcball = ArcballCameraControl("mouse_control", { scene.findObserver() }, renderer!!.window.width, renderer!!.window.height, target)
-        val fpsControl = FPSCameraControl("mouse_control", { scene.findObserver() }, renderer!!.window.width, renderer!!.window.height)
+        val targetArcball = ArcballCameraControl("mouse_control", { scene.findObserver() }, windowWidth, windowHeight, target)
+        val fpsControl = FPSCameraControl("mouse_control", { scene.findObserver() }, windowWidth, windowHeight)
 
         val toggleControlMode = object : ClickBehaviour {
             var currentMode = "fps"
 
             override fun click(x: Int, y: Int) {
                 if (currentMode.startsWith("fps")) {
-                    targetArcball.target = GLVector(0.0f, 0.0f, 0.0f)
+                    targetArcball.target = scene.findObserver()?.target ?: return
 
                     inputHandler.addBehaviour("mouse_control", targetArcball)
                     inputHandler.addBehaviour("scroll_arcball", targetArcball)
