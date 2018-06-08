@@ -680,8 +680,8 @@ interface HasGeometry : Serializable {
                     }
                     "facet" -> tokens.drop(2).forEach { nbuffer.add(it.toFloat()) }
                     "outer" -> {
-                        for(it in 1..2) {
-                            ((nbuffer.size - 3)..(nbuffer.size - 1)).forEach { nbuffer.add(nbuffer[it]) }
+                        for(i in 1..2) {
+                            for(it in (nbuffer.size - 3)..(nbuffer.size - 1)) { nbuffer.add(nbuffer[it]) }
                         }
                     }
                     "end" -> {
