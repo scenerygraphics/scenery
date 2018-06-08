@@ -153,8 +153,8 @@ class NodeTests {
 
         m.vertices = allocateFloatAndPut(
             floatArrayOf(
-                *expectedMin.toFloatArray(),
-                *expectedMax.toFloatArray()))
+                expectedMin[0], expectedMin[1], expectedMin[2],
+                expectedMax[0], expectedMax[1], expectedMax[2]))
 
         val expectedPosition = m.vertices.position()
         val expectedLimit = m.vertices.limit()

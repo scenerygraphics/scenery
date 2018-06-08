@@ -119,7 +119,7 @@ open class Camera : Node("Camera") {
      */
     fun viewToWorld(v: GLVector): GLVector =
         this.view.inverse.mult(if(v.dimension == 3) {
-            GLVector(*v.toFloatArray(), 1.0f)
+            GLVector(v.x(), v.y(), v.z(), 1.0f)
         } else {
             v
         })
@@ -134,9 +134,9 @@ open class Camera : Node("Camera") {
      */
     fun viewportToWorld(v: GLVector): GLVector {
         var clipSpace = projection.inverse.mult(when (v.dimension) {
-            1 -> GLVector(*v.toFloatArray(), 1.0f, nearPlaneDistance + 0.01f, 1.0f)
-            2 -> GLVector(*v.toFloatArray(), nearPlaneDistance + 0.01f, 1.0f)
-            3 -> GLVector(*v.toFloatArray(), 1.0f)
+            1 -> GLVector(v.x(), 1.0f, nearPlaneDistance + 0.01f, 1.0f)
+            2 -> GLVector(v.x(), v.y(), nearPlaneDistance + 0.01f, 1.0f)
+            3 -> GLVector(v.x(), v.y(), v.z(), 1.0f)
             else -> v
         })
 

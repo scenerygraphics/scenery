@@ -178,12 +178,12 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
         val glyphsPerLine: Int = texWidth/charSize
         val lines: Int = mapSize/glyphsPerLine
 
-        (0..lines).forEach { line ->
+        for(line in 0..lines) {
             val minGlyphIndex = 0 + glyphsPerLine*line
             val maxGlyphIndex = if(glyphsPerLine*(line+1) - 1 >= mapSize) mapSize - 1 else glyphsPerLine*(line+1) - 1
 
             (0 until charSize).forEach {
-                (minGlyphIndex..maxGlyphIndex).forEach { glyph ->
+                for(glyph in minGlyphIndex..maxGlyphIndex) {
                     val char = charset.toList()[glyph].toChar()
                     val charBuffer = map[charset.toList()[glyph].toChar()]!!
                     val glyphWidth = fontMap[char]!!.first
