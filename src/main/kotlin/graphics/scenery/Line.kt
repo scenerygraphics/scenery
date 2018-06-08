@@ -45,9 +45,10 @@ class Line(var capacity: Int = 50) : Node("Line"), HasGeometry {
     @ShaderProperty
     var capLength = 1
 
-    /** (Private) shader property to keep track of the current number of vertices. Consumed by the renderer. */
+    /** Shader property to keep track of the current number of vertices. Consumed by the renderer. */
     @ShaderProperty
-    private var vertexCount: Int = 0
+    var vertexCount: Int = 0
+        private set
 
     /** Shader property for the line's edge width. Consumed by the renderer. */
     @ShaderProperty
