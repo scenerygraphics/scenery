@@ -1,10 +1,9 @@
 package graphics.scenery.utils
 
-import java.util.*
-import java.util.ConcurrentModificationException
 import java.lang.reflect.InvocationTargetException
 import java.net.URI
 import java.nio.file.*
+import java.util.*
 
 
 class SystemHelpers {
@@ -159,7 +158,17 @@ class SystemHelpers {
                     FileSystems.getDefault().getPath(path.toString())
                 }
             } catch (e : IllegalArgumentException) {
-                FileSystems.getDefault().getPath(path.toString().substring(1))
+                // handle the case when no scheme is given
+                when(ExtractsNatives.getPlatform()) {
+                    // on macOS and Linux, we'll just use the default file system and hand over the scheme-less path
+                    ExtractsNatives.Platform.MACOS,
+                    ExtractsNatives.Platform.LINUX -> FileSystems.getDefault().getPath(path.toString())
+                    // on Windows, a leading slash is added, which we remove
+                    ExtractsNatives.Platform.WINDOWS -> FileSystems.getDefault().getPath(path.toString().substring(1))
+                    else -> {
+                        throw IllegalStateException("Don't know how to sanitize path $path on unknown platform.")
+                    }
+                }
             }
         }
     }
