@@ -9,6 +9,7 @@ import java.sql.Timestamp
 import java.util.*
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.locks.ReentrantLock
+import java.util.function.Consumer
 import kotlin.collections.ArrayList
 import kotlin.math.max
 import kotlin.math.min
@@ -479,6 +480,28 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
         } else {
             world.mult(GLVector(target.x(), target.y(), target.z(), 1.0f)).xyz()
         }
+    }
+
+    /**
+     *  Runs an operation recursively on the node itself and all child nodes.
+     *
+     *  @param[func] A lambda accepting a [Node], representing this node and its potential children.
+     */
+    fun runRecursive(func: (Node) -> Unit) {
+        func.invoke(this)
+
+        children.forEach { it.runRecursive(func) }
+    }
+
+    /**
+     *  Runs an operation recursively on the node itself and all child nodes.
+     *
+     *  @param[func] A Java [Consumer] accepting a [Node], representing this node and its potential children.
+     */
+    fun runRecursive(func: Consumer<Node>) {
+        func.accept(this)
+
+        children.forEach { it.runRecursive(func) }
     }
 
     companion object NodeHelpers {
