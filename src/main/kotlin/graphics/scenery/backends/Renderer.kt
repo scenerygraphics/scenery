@@ -15,6 +15,7 @@ import graphics.scenery.utils.SceneryPanel
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
+@Suppress("unused")
 abstract class Renderer : Hubable {
     /**
      * Initializes scene and contents
@@ -26,25 +27,47 @@ abstract class Renderer : Hubable {
      */
     abstract fun render()
 
+    /** Signals whether the current renderer should stop working and close all open windows. */
     abstract var shouldClose: Boolean
 
+    /** Signals whether the renderer is done initialiasing and can start with scene initialisation and rendering. */
     abstract var initialized: Boolean
         protected set
 
+    /** [Settings] instance the renderer is using. */
     abstract var settings: Settings
 
+    /** [SceneryWindow] the renderer is drawing to. */
     abstract var window: SceneryWindow
 
+    /** A [SceneryPanel] the renderer might be embedded in. */
     abstract var embedIn: SceneryPanel?
 
+    /**
+     * Method to close the renderer.
+     */
     abstract fun close()
 
+    /**
+     * Takes a screenshot, and saves it to the users's desktop directory.
+     */
     fun screenshot() {
         screenshot("")
     }
 
+    /**
+     * Takes a screenshot, and saves it as [filename].
+     *
+     * @param[filename] The filename where to save the screenshot.
+     */
     abstract fun screenshot(filename: String = "")
 
+    /**
+     * Reshapes the window to the given sizes.
+     *
+     * @param[newWidth] The new width of the window.
+     * @param[newHeight] The new height of the window.
+     */
     abstract fun reshape(newWidth: Int, newHeight: Int)
 
     /**
@@ -54,10 +77,16 @@ abstract class Renderer : Hubable {
      */
     abstract fun setRenderingQuality(quality: RenderConfigReader.RenderingQuality)
 
+    /**
+     * Whether the renderer manages it's own main loop. If false, [graphics.scenery.SceneryBase] will take
+     * care of the rendering loop inside its main loop.
+     */
     abstract val managesRenderLoop: Boolean
 
+    /** Total time taken for the last frame (in milliseconds). */
     abstract var lastFrameTime: Float
 
+    /** The file to read the [RenderConfigReader.RenderConfig] from. */
     abstract var renderConfigFile: String
 
     /**
@@ -116,9 +145,29 @@ abstract class Renderer : Hubable {
         return settings
     }
 
+    /**
+     * Factory methods for creating renderers.
+     */
     companion object {
         val logger by LazyLogger()
 
+        /**
+         * Creates a new [Renderer] instance, based on what is available on the current platform, or set via
+         * the scenery.Renderer system property.
+         *
+         * On Linux and Windows, [VulkanRenderer]will be created by default.
+         * On macOS, [OpenGLRenderer] will be created by default.
+         *
+         * @param[hub] The [Hub] to use.
+         * @param[applicationName] Application name, mainly used for the title bar if shown.
+         * @param[scene] The initial [Scene] the renderer should display.
+         * @param[windowWidth] Window width for the renderer window.
+         * @param[windowHeight] Window height for the renderer window.
+         * @param[embedIn] A [SceneryWindow] to embed the renderer in, can e.g. be a JavaFX window.
+         * @param[renderConfigFile] A YAML file with the render path configuration from which a [RenderConfigReader.RenderConfig] will be created.
+         *
+         * @return A new [Renderer] instance.
+         */
         @JvmOverloads
         @JvmStatic
         fun createRenderer(hub: Hub, applicationName: String, scene: Scene, windowWidth: Int, windowHeight: Int, embedIn: SceneryPanel? = null, renderConfigFile: String? = null): Renderer {

@@ -15,6 +15,7 @@ import graphics.scenery.utils.Renderdoc
 import graphics.scenery.utils.Statistics
 import org.scijava.Context
 import org.scijava.ui.behaviour.ClickBehaviour
+import java.lang.Boolean.parseBoolean
 import java.lang.management.ManagementFactory
 import java.util.*
 import kotlin.concurrent.thread
@@ -23,9 +24,11 @@ import kotlin.concurrent.thread
  * Base class to use scenery with, keeping the needed boilerplate
  * to a minimum. Inherit from this class for a quick start.
  *
- * @property[applicationName] Name of the application, do not use special chars
- * @property[windowWidth] Window width of the application window
- * @property[windowHeight] Window height of the application window
+ * @property[applicationName] Name of the application, do not use special chars.
+ * @property[windowWidth] Window width of the application window.
+ * @property[windowHeight] Window height of the application window.
+ * @property[wantREPL] Whether this application should automatically start and display a [REPL].
+ * @property[scijavaContext] A potential pre-existing SciJava context, or null.
  *
  * @constructor Creates a new SceneryBase
  *
@@ -52,23 +55,29 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
     protected var settings: Settings = Settings()
     /** ui-behaviour input handler */
     protected var inputHandler: InputHandler? = null
-
+    /** [Statistics] object to collect runtime stats on various routines. */
     protected var stats: Statistics = Statistics(hub)
 
+    /** Logger for this application, will be instantiated upon first use. */
     protected val logger by LazyLogger()
 
+    /** An optional update function to call during the main loop. */
     var updateFunction: () -> Any = {}
 
+    /** Flag to indicate whether this instance is currently running. */
     var running: Boolean = false
         protected set
+    /** Total runtime of this instance. */
     var runtime: Float = 0.0f
         protected set
 
+    /** Time step for the main loop */
     var timeStep = 0.01f
 
     private var accumulator = 0.0f
     private var currentTime = System.nanoTime()
     private var t = 0.0f
+    private var shouldClose: Boolean = false
 
     /**
      * the init function of [SceneryBase], override this in your subclass,
@@ -78,6 +87,9 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
 
     }
 
+    /**
+     * Function to contain any custom input setup.
+     */
     open fun inputSetup() {
 
     }
@@ -97,7 +109,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         hub.addApplication(this)
         logger.info("Started application as PID ${getProcessID()}")
 
-        val headless = System.getProperty("scenery.Headless", "false").toBoolean()
+        val headless = parseBoolean(System.getProperty("scenery.Headless", "false"))
         val renderdoc = if(System.getProperty("scenery.AttachRenderdoc")?.toBoolean() == true) {
             Renderdoc()
         } else {
@@ -132,16 +144,11 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             Thread.sleep(100)
         }
 
-        renderer?.let {
-            repl?.addAccessibleObject(it)
-
-            inputHandler = InputHandler(scene, it, hub)
-            inputHandler?.useDefaultBindings(System.getProperty("user.home") + "/.$applicationName.bindings")
-        }
+        loadInputHandler(renderer)
 
         // start & show REPL -- note: REPL will only exist if not running in headless mode
         repl?.start()
-        if(!System.getProperty("scenery.Headless", "false").toBoolean()) {
+        if(!parseBoolean(System.getProperty("scenery.Headless", "false"))) {
             repl?.showConsoleWindow()
         }
 
@@ -185,11 +192,11 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         }
 
         var frameTime = 0.0f
-        var lastFrameTime = 0.0f
+        var lastFrameTime: Float
         val frameTimes = ArrayDeque<Float>(16)
         val frameTimeKeepCount = 16
 
-        while (renderer?.shouldClose == false) {
+        while (!shouldClose) {
             runtime = (System.nanoTime() - startTime) / 1000000f
             settings.set("System.Runtime", runtime)
 
@@ -258,6 +265,11 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         running = false
     }
 
+    /**
+     * Sets up switching between [ArcballCameraControl] and [FPSCameraControl].
+     *
+     * @param[keybinding] The key to trigger the switching.
+     */
     fun setupCameraModeSwitching(keybinding: String = "C") {
         val windowWidth = renderer?.window?.width ?: 512
         val windowHeight = renderer?.window?.height ?: 512
@@ -298,6 +310,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
      * Sets the shouldClose flag on renderer, causing it to shut down and thereby ending the main loop.
      */
     fun close() {
+        shouldClose = true
         renderer?.shouldClose = true
     }
 
@@ -308,13 +321,40 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         return scene.initialized
     }
 
-    companion object {
-        val logger by LazyLogger()
+    /**
+     * Loads a new [InputHandler] for the given [Renderer]. If running headless,
+     * [renderer] can also be null.
+     *
+     * @param[renderer] A [Renderer] instance or null.
+     */
+    fun loadInputHandler(renderer: Renderer?) {
+        renderer?.let {
+            repl?.addAccessibleObject(it)
 
+            inputHandler = InputHandler(scene, it, hub)
+            inputHandler?.useDefaultBindings(System.getProperty("user.home") + "/.$applicationName.bindings")
+        }
+    }
+
+    companion object {
+        private val logger by LazyLogger()
+
+        /**
+         * Returns the process ID we are running under.
+         *
+         * @return The process ID as integer.
+         */
         fun getProcessID(): Int {
             return Integer.parseInt(ManagementFactory.getRuntimeMXBean().name.split("@".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()[0])
         }
 
+        /**
+         * Returns the path set defined by the environment variable SCENERY_DEMO_FILES.
+         * Should only be used in examples that require the additional model files and will
+         * emit a warning in case the variable is not set.
+         *
+         * @return String containing the path set in SCENERY_DEMO_FILES.
+         */
         fun getDemoFilesPath(): String {
             val demoDir = System.getenv("SCENERY_DEMO_FILES")
 

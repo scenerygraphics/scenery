@@ -982,6 +982,7 @@ class OpenGLRenderer(hub: Hub,
     private fun preDrawAndUpdateGeometryForNode(n: Node) {
         if (n is HasGeometry) {
             if (n.dirty) {
+                n.preUpdate(this, hub!!)
                 if (n.lock.tryLock()) {
                     if (n.vertices.remaining() > 0 && n.normals.remaining() > 0) {
                         updateVertices(n)
@@ -2522,6 +2523,7 @@ class OpenGLRenderer(hub: Hub,
     }
 
     override fun close() {
+        shouldClose = true
         libspirvcrossj.finalizeProcess()
 
         encoder?.let {

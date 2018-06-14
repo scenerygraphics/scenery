@@ -1,6 +1,7 @@
 package graphics.scenery
 
 import cleargl.GLVector
+import graphics.scenery.backends.Renderer
 import graphics.scenery.fonts.SDFFontAtlas
 
 /**
@@ -20,8 +21,8 @@ class TextBoard(font: String = "SourceSansPro-Regular.ttf", override var isBillb
         set(value) {
             if(value != field) {
                 field = value
-                updateBoard(atlas, value)
 
+                needsPreUpdate = true
                 dirty = true
             }
         }
@@ -36,9 +37,8 @@ class TextBoard(font: String = "SourceSansPro-Regular.ttf", override var isBillb
         set(value) {
             if(value != field) {
                 field = value
-                atlas = updateAtlas(value)
-                updateBoard(atlas, text)
 
+                needsPreUpdate = true
                 dirty = true
             }
         }
@@ -53,8 +53,8 @@ class TextBoard(font: String = "SourceSansPro-Regular.ttf", override var isBillb
      * used only if [transparent] is 0. */
     @ShaderProperty var backgroundColor: GLVector = GLVector(1.0f, 1.0f, 1.0f, 1.0f)
 
-    /** Temporary storage for the current atlas */
-    private var atlas: SDFFontAtlas
+    /** Flag to indicate whether the update routine should be called by the renderer */
+    private var needsPreUpdate = true
 
     init {
         name = "TextBoard"
@@ -69,36 +69,39 @@ class TextBoard(font: String = "SourceSansPro-Regular.ttf", override var isBillb
         material.blending.alphaBlending = Blending.BlendOp.add
         material.cullingMode = Material.CullingMode.None
 
-        atlas = updateAtlas(fontFamily)
-        updateBoard(atlas, text)
+        needsPreUpdate = true
     }
 
-    private fun updateAtlas(newFontFamily: String): SDFFontAtlas {
-        logger.debug("Updating SDF font atlas for {}, new font: {}", name, fontFamily)
-        return sdfCache.getOrPut(newFontFamily,
-            { SDFFontAtlas(Hub.getDefaultHub(), newFontFamily,
-                maxDistance = Hub.getDefaultHub().get<Settings>(SceneryElement.Settings)!!.get("sdf.MaxDistance")) })
-    }
+    override fun preUpdate(renderer: Renderer, hub: Hub) {
+        if(!needsPreUpdate) {
+            return
+        }
 
-    private fun updateBoard(a: SDFFontAtlas, newText: String) {
-        logger.debug("Updating mesh for text board {} to '{}'...", name, newText)
-        val m = a.createMeshForString(newText)
+        sdfCache.getOrPut(fontFamily,
+            { SDFFontAtlas(hub, fontFamily,
+                maxDistance = hub.get<Settings>(SceneryElement.Settings)?.get("sdf.MaxDistance") ?: 12) }).apply {
 
-        vertices = m.vertices
-        normals = m.normals
-        indices = m.indices
-        texcoords = m.texcoords
-        atlasSize = GLVector(atlas.atlasWidth.toFloat(), atlas.atlasHeight.toFloat(), 0.0f, 0.0f)
 
-        material.textures["diffuse"] = "fromBuffer:diffuse"
-        material.transferTextures["diffuse"] = GenericTexture("diffuse",
-            GLVector(atlasSize.x(), atlasSize.y(), 1.0f),
-            channels = 1, contents = atlas.getAtlas(),
-            repeatS = false, repeatT = false,
-            normalized = true,
-            mipmap = true)
+            logger.debug("Updating mesh for text board {} to '{}'...", name, text)
+            val m = this.createMeshForString(text)
 
-        dirty = true
+            vertices = m.vertices
+            normals = m.normals
+            indices = m.indices
+            texcoords = m.texcoords
+            atlasSize = GLVector(this.atlasWidth.toFloat(), this.atlasHeight.toFloat(), 0.0f, 0.0f)
+
+            material.textures["diffuse"] = "fromBuffer:diffuse"
+            material.transferTextures["diffuse"] = GenericTexture("diffuse",
+                GLVector(atlasSize.x(), atlasSize.y(), 1.0f),
+                channels = 1, contents = this.getAtlas(),
+                repeatS = false, repeatT = false,
+                normalized = true,
+                mipmap = true)
+
+            material.needsTextureReload = true
+            needsPreUpdate = false
+        }
     }
 
     /** Stringify the font board. Returns [fontFamily] used as well as the [text]. */

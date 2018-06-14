@@ -2236,6 +2236,7 @@ open class VulkanRenderer(hub: Hub,
                 if (it.dirty) {
                     logger.debug("Force command buffer re-recording, as geometry for {} has been updated", it.name)
 
+                    it.preUpdate(this@VulkanRenderer, hub!!)
                     updateNodeGeometry(it)
                     it.dirty = false
 
@@ -2838,7 +2839,11 @@ open class VulkanRenderer(hub: Hub,
         }
     }
 
+    /**
+     * Closes the current instance of [VulkanRenderer].
+     */
     override fun close() {
+        shouldClose = true
         logger.info("Renderer teardown started.")
         vkQueueWaitIdle(queue)
 
