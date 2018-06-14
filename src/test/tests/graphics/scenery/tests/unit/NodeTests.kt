@@ -4,6 +4,7 @@ import cleargl.GLMatrix
 import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.BufferUtils.BufferUtils.allocateFloatAndPut
+import graphics.scenery.Material
 import graphics.scenery.Mesh
 import graphics.scenery.Node
 import graphics.scenery.Scene
@@ -12,6 +13,7 @@ import graphics.scenery.utils.LazyLogger
 import org.junit.Assert.*
 import org.junit.Test
 import java.util.concurrent.ThreadLocalRandom
+import java.util.function.Consumer
 
 /**
  * Tests for functions of [Node]
@@ -292,5 +294,55 @@ class NodeTests {
 
         assert(!node.needsUpdate)
         assert(!node.needsUpdateWorld)
+    }
+
+    /**
+     * Tests running recursive operations on Nodes
+     */
+    @Test
+    fun testNodeRecursion() {
+        val parent = Node()
+        val child1 = Node()
+        val child2 = Node()
+        val grandchild = Node()
+
+        val myShinyNewMaterial = Material()
+
+        parent.addChild(child1)
+        parent.addChild(child2)
+
+        child1.addChild(grandchild)
+
+        parent.runRecursive({ it.material = myShinyNewMaterial })
+
+        assertEquals("Material of parent should be $myShinyNewMaterial", myShinyNewMaterial, parent.material)
+        assertEquals("Material of child1 should be $myShinyNewMaterial", myShinyNewMaterial, child1.material)
+        assertEquals("Material of child2 should be $myShinyNewMaterial", myShinyNewMaterial, child2.material)
+        assertEquals("Material of grandchild should be $myShinyNewMaterial", myShinyNewMaterial, grandchild.material)
+    }
+
+    /**
+     * Tests running recursive operations on Nodes
+     */
+    @Test
+    fun testNodeRecursionJavaConsumer() {
+        val parent = Node()
+        val child1 = Node()
+        val child2 = Node()
+        val grandchild = Node()
+
+        val myShinyNewMaterial = Material()
+
+        parent.addChild(child1)
+        parent.addChild(child2)
+
+        child1.addChild(grandchild)
+
+        parent.runRecursive(Consumer { it.material = myShinyNewMaterial })
+
+        assertEquals("Material of parent should be $myShinyNewMaterial", myShinyNewMaterial, parent.material)
+        assertEquals("Material of child1 should be $myShinyNewMaterial", myShinyNewMaterial, child1.material)
+        assertEquals("Material of child2 should be $myShinyNewMaterial", myShinyNewMaterial, child2.material)
+        assertEquals("Material of grandchild should be $myShinyNewMaterial", myShinyNewMaterial, grandchild.material)
     }
 }
