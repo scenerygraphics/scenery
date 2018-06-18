@@ -102,7 +102,7 @@
     </distributionManagement>
 
     <properties>
-        <scijava-common.version>2.69.0</scijava-common.version>
+        <scijava-common.version>2.74.2</scijava-common.version>
         <scijava.jvm.version>1.8</scijava.jvm.version>
         <javac.target>1.8</javac.target>
         <kotlin.version>1.2.50</kotlin.version>
