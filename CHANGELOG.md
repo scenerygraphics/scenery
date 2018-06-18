@@ -1,5 +1,40 @@
 # CHANGELOG
 
+# scenery-0.4.1 to scenery-0.4.2
+
+## Additions and Changes
+
+* Remove `Material.doubleSided`, use the more flexible `Material.cullingMode` as a replacement (breaking change)
+* Hub/SceneryBase: No more global hub storage to support multiple windows, etc.
+* Node: Add `Node.runRecursive()` to run recursive operations on nodes from both Java and Kotlin
+* Renderer/SceneryBase: decouples renderer from applications state, working towards #106
+* Line: make vertexCount public get/private set
+* Update SPIRV version of shaders, now compiled with Vulkan SDK 1.1.73 version of glslang
+* OpenGLRenderer: In embedded configurations (such as JavaFX), use GL_BACK_BUFFER for reading
+* adds Triangle.yml demo pipeline configuration, to be used as minimum working example for hardware compatibility
+
+## Fixes
+
+* Correct image flipping when rendering to a JavaFX SceneryPanel from OpenGL (#181)
+* introduces codacy for code style checking, and fixes a few of the issues it found
+* TextBoard: use default value of 12, in case sdf.maxDistance cannot be determined from Settings
+* Line: Use Line.material's colors in the shader instead of ignoring it
+* SystemHelpers: handle Linux/macOS path construction better
+* VulkanRenderer: Bind `currentEye` push constants only if required by shader and improve push constant support in general
+* VulkanBuffer/VulkanUBO: Guard better against double-closing
+* H264Encoder: handle errors returned from ffmpeg better
+* SceneryBase: Don't ignore custom arcball targets in setupCameraModeSwitching() (#173)
+* OpenGLRenderer: Take image width into consideration when checking memory alignment. (#172)
+
+## Dependency updates
+
+* bumps dokka to 0.9.17
+* bumps scijava-common to 2.74.2
+* bumps pom-scijava to 22.3.0
+* bumps Kotlin to 1.2.50
+* bumps spirvcrossj to 0.4.1
+* bumps javacpp/ffmpeg to 3.4.2-1.4.1
+
 # scenery-0.4.0 to scenery-0.4.1
 
 ## Additions and Changes
