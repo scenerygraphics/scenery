@@ -239,7 +239,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
         }
     }
 
-    private fun getColorFormatAndSpace(): ColorFormatAndSpace {
+    protected fun getColorFormatAndSpace(): ColorFormatAndSpace {
         return stackPush().use { stack ->
             val queueFamilyPropertyCount = stack.callocInt(1)
             VK10.vkGetPhysicalDeviceQueueFamilyProperties(device.physicalDevice, queueFamilyPropertyCount, null)

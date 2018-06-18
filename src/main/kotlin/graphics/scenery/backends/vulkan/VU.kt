@@ -43,7 +43,7 @@ fun VkCommandBuffer.endCommandBuffer() {
     }
 }
 
-fun VkCommandBuffer.endCommandBuffer(device: VulkanDevice, commandPool: Long, queue: VkQueue?, flush: Boolean = true, dealloc: Boolean = false, submitInfoPNext: Pointer? = null) {
+fun VkCommandBuffer.endCommandBuffer(device: VulkanDevice, commandPool: Long, queue: VkQueue?, flush: Boolean = true, dealloc: Boolean = false, submitInfoPNext: Pointer? = null, signalSemaphores: LongBuffer? = null, waitSemaphores: LongBuffer? = null) {
     if (this.address() == NULL) {
         return
     }
@@ -53,7 +53,7 @@ fun VkCommandBuffer.endCommandBuffer(device: VulkanDevice, commandPool: Long, qu
     }
 
     if (flush && queue != null) {
-        this.submit(queue, submitInfoPNext)
+        this.submit(queue, submitInfoPNext, waitSemaphores = waitSemaphores, signalSemaphores = signalSemaphores)
     }
 
     if (dealloc) {
@@ -61,7 +61,7 @@ fun VkCommandBuffer.endCommandBuffer(device: VulkanDevice, commandPool: Long, qu
     }
 }
 
-fun VkCommandBuffer.submit(queue: VkQueue, submitInfoPNext: Pointer? = null, block: Boolean = true) {
+fun VkCommandBuffer.submit(queue: VkQueue, submitInfoPNext: Pointer? = null, signalSemaphores: LongBuffer? = null, waitSemaphores: LongBuffer? = null, block: Boolean = true) {
     stackPush().use { stack ->
         val submitInfo = VkSubmitInfo.callocStack(1, stack)
         val commandBuffers = stack.callocPointer(1).put(0, this)
@@ -70,7 +70,15 @@ fun VkCommandBuffer.submit(queue: VkQueue, submitInfoPNext: Pointer? = null, blo
             submitInfo
                 .sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
                 .pCommandBuffers(commandBuffers)
+                .pSignalSemaphores(signalSemaphores)
                 .pNext(submitInfoPNext?.address() ?: NULL)
+
+            if(waitSemaphores?.remaining() ?: 0 > 0) {
+                println("Will wait on ${waitSemaphores?.remaining()} semaphores")
+                submitInfo
+                    .waitSemaphoreCount(waitSemaphores?.remaining() ?: 0)
+                    .pWaitSemaphores(waitSemaphores)
+            }
 
             vkQueueSubmit(queue, submitInfo, VK_NULL_HANDLE)
             vkQueueWaitIdle(queue)

@@ -23,6 +23,8 @@ import javafx.scene.control.Label
 import javafx.scene.layout.*
 import javafx.scene.paint.Color
 import javafx.scene.text.TextAlignment
+import org.lwjgl.system.MemoryStack.stackPush
+import org.lwjgl.vulkan.VK10.*
 import java.util.concurrent.locks.ReentrantLock
 
 
@@ -186,34 +188,38 @@ class FXSwapchain(device: VulkanDevice,
         return window
     }
 
+
     override fun create(oldSwapchain: Swapchain?): Swapchain {
         if (glfwOffscreenWindow != -1L) {
             MemoryUtil.memFree(imageBuffer)
             sharingBuffer.close()
-
-            // we have to get rid of the old swapchain, as we have already constructed a new surface
-            if (oldSwapchain is FXSwapchain && oldSwapchain.handle != VK10.VK_NULL_HANDLE) {
-                KHRSwapchain.vkDestroySwapchainKHR(device.vulkanDevice, oldSwapchain.handle, null)
-            }
-
-            KHRSurface.vkDestroySurfaceKHR(device.instance, surface, null)
-            glfwDestroyWindow(glfwOffscreenWindow)
         }
 
-        // create off-screen, undecorated GLFW window
-        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API)
-        glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE)
-        glfwWindowHint(GLFW_DECORATED, GLFW_FALSE)
+        val format = if(useSRGB) {
+            VK_FORMAT_B8G8R8A8_SRGB
+        } else {
+            VK_FORMAT_B8G8R8A8_UNORM
+        }
+        presentQueue = VU.createDeviceQueue(device, device.queueIndices.graphicsQueue)
 
-        glfwOffscreenWindow = glfwCreateWindow(window.width, window.height, "scenery", MemoryUtil.NULL, MemoryUtil.NULL)
-        val w = intArrayOf(1)
-        val h = intArrayOf(1)
-        glfwGetWindowSize(glfwOffscreenWindow, w, h)
+        val textureImages = (0..3).map {
+            val t = VulkanTexture(device, commandPool, queue, window.width, window.height, 1,
+                format, 1)
+            val image = t.createImage(window.width, window.height, 1, format,
+                VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT or VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+                VK_IMAGE_TILING_OPTIMAL, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 1)
+            t to image
+        }
 
-        surface = VU.getLong("glfwCreateWindowSurface",
-            { GLFWVulkan.glfwCreateWindowSurface(vulkanInstance, glfwOffscreenWindow, null, this) }, {})
+        images = textureImages.map {
+            it.second.image
+        }.toLongArray()
 
-        super.create(null)
+        imageViews = textureImages.map {
+            it.first.createImageView(it.second, format)
+        }.toLongArray()
+
+        logger.info("Created ${images?.size} swapchain images")
 
         val imageByteSize = window.width * window.height * 4L
         imageBuffer = MemoryUtil.memAlloc(imageByteSize.toInt())
@@ -232,12 +238,34 @@ class FXSwapchain(device: VulkanDevice,
         return this
     }
 
+    var currentImage = 0
+    override fun next(timeout: Long, waitForSemaphore: Long): Boolean {
+        stackPush().use { stack ->
+            vkQueueWaitIdle(presentQueue)
+
+            val signal = stack.callocLong(1)
+            signal.put(0, waitForSemaphore)
+
+            with(VU.newCommandBuffer(device, commandPool, autostart = true)) {
+                this.endCommandBuffer(device, commandPool, presentQueue, signalSemaphores = signal,
+                    flush = true, dealloc = true)
+            }
+
+            currentImage = currentImage++ % (images?.size ?: 1)
+        }
+
+        return false
+    }
+
     override fun present(waitForSemaphores: LongBuffer?) {
         if (vulkanSwapchainRecreator.mustRecreate) {
             return
         }
 
-        super.present(waitForSemaphores)
+        with(VU.newCommandBuffer(device, commandPool, autostart = true)) {
+            this.endCommandBuffer(device, commandPool, presentQueue, waitSemaphores = waitForSemaphores,
+                flush = true, dealloc = true)
+        }
     }
 
     override fun postPresent(image: Int) {
