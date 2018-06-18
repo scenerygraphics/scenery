@@ -765,7 +765,7 @@ open class VulkanRenderer(hub: Hub,
 
     private fun initializeCustomShadersForNode(node: Node, addInitializer: Boolean = true): Boolean {
 
-        if(!(node.material.blending.transparent || node.useClassDerivedShader || node.material is ShaderMaterial)) {
+        if(!(node.material.blending.transparent || node.useClassDerivedShader || node.material is ShaderMaterial || node.material.cullingMode != Material.CullingMode.Back)) {
             logger.debug("Using default renderpass material for ${node.name}")
             return false
         }
