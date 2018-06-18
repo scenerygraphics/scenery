@@ -1,10 +1,5 @@
 [![scenery logo](./artwork/logo-light-small.png)](./artwork/logo-light.png)
 
-----
-__Hello, this is the master branch, where development happens and stuff breaks.__ If you require a stable version of scenery, please check out the [latest stable version of this repository, version 0.4.1](https://github.com/scenerygraphics/scenery/tree/scenery-0.4.1).
-----
-
-
 [![Travis Build Status](https://travis-ci.org/scenerygraphics/scenery.svg?branch=master)](https://travis-ci.org/scenerygraphics/scenery) [![Appveyor Build status](https://ci.appveyor.com/api/projects/status/vysiatrptqas4cfy?svg=true)](https://ci.appveyor.com/project/skalarproduktraum/scenery) [![Codacy Badge](https://api.codacy.com/project/badge/Grade/3940e961b2fc41b5a6d17e2b4fff333b)](https://www.codacy.com/app/skalarproduktraum/scenery)  [![Join the chat at https://gitter.im/ClearVolume/ClearVolume](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/ClearVolume/ClearVolume?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge) [![DOI](https://zenodo.org/badge/49890276.svg)](https://zenodo.org/badge/latestdoi/49890276)
 
 # scenery  // flexible scenegraphing and rendering for scientific visualisation
@@ -94,7 +89,7 @@ Add scenery and ClearGL to your project's `pom.xml`:
   <dependency>
     <groupId>graphics.scenery</groupId>
     <artifactId>scenery</artifactId>
-    <version>0.4.2-SNAPSHOT</version>
+    <version>0.4.2</version>
   </dependency>
 
   <dependency>
@@ -110,7 +105,7 @@ Add scenery and ClearGL to your project's `pom.xml`:
 Add scenery and ClearGL to your project's `build.gradle`:
 
 ```groovy
-compile group: 'graphics.scenery', name: 'scenery', version: '0.4.2-SNAPSHOT'
+compile group: 'graphics.scenery', name: 'scenery', version: '0.4.2'
 compile group: 'net.clearvolume', name: 'cleargl', version: '2.1.6'
 ```
 
