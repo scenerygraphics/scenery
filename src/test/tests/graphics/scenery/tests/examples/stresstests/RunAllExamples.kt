@@ -38,7 +38,8 @@ class RunAllExamples {
             "EyeTrackingExample",
             "ARExample",
             "SponzaExample",
-            "ReadModelExample")
+            "ReadModelExample",
+            "ProceduralVolumeExample")
 
         // find all basic and advanced examples, exclude blacklist
         val examples = reflections
@@ -100,9 +101,6 @@ class RunAllExamples {
                     logger.info("JOGL threw ThreadDeath")
                 }
 
-                if(renderer == "VulkanRenderer") {
-                    glfwTerminate()
-                }
                 logger.info("${example.simpleName} closed ($renderer ran ${i+1}/${examples.size} so far).")
 
                 Thread.sleep(5000)
