@@ -3,7 +3,6 @@ package graphics.scenery.backends.vulkan
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.SceneryWindow
 import org.lwjgl.glfw.GLFW.*
-import org.lwjgl.glfw.GLFWVulkan
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.vulkan.*
 import java.nio.ByteBuffer
@@ -239,12 +238,12 @@ class FXSwapchain(device: VulkanDevice,
     }
 
     var currentImage = 0
-    override fun next(timeout: Long, waitForSemaphore: Long): Boolean {
+    override fun next(timeout: Long, signalSemaphore: Long): Boolean {
         stackPush().use { stack ->
             vkQueueWaitIdle(presentQueue)
 
             val signal = stack.callocLong(1)
-            signal.put(0, waitForSemaphore)
+            signal.put(0, signalSemaphore)
 
             with(VU.newCommandBuffer(device, commandPool, autostart = true)) {
                 this.endCommandBuffer(device, commandPool, presentQueue, signalSemaphores = signal,
@@ -258,13 +257,19 @@ class FXSwapchain(device: VulkanDevice,
     }
 
     override fun present(waitForSemaphores: LongBuffer?) {
-        if (vulkanSwapchainRecreator.mustRecreate) {
-            return
-        }
+        stackPush().use { stack ->
+            if (vulkanSwapchainRecreator.mustRecreate) {
+                return
+            }
 
-        with(VU.newCommandBuffer(device, commandPool, autostart = true)) {
-            this.endCommandBuffer(device, commandPool, presentQueue, waitSemaphores = waitForSemaphores,
-                flush = true, dealloc = true)
+            val mask = stack.callocInt(1)
+            mask.put(0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
+
+            with(VU.newCommandBuffer(device, commandPool, autostart = true)) {
+                this.endCommandBuffer(device, commandPool, presentQueue,
+                    waitSemaphores = waitForSemaphores, waitDstStageMask = mask,
+                    flush = true, dealloc = true)
+            }
         }
     }
 

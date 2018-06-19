@@ -304,8 +304,8 @@ class OpenGLSwapchain(val device: VulkanDevice,
     override fun postPresent(image: Int) {
     }
 
-    override fun next(timeout: Long, waitForSemaphore: Long): Boolean {
-        NVDrawVulkanImage.glSignalVkSemaphoreNV(waitForSemaphore)
+    override fun next(timeout: Long, signalSemaphore: Long): Boolean {
+        NVDrawVulkanImage.glSignalVkSemaphoreNV(signalSemaphore)
         return false
     }
 
