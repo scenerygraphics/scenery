@@ -3,13 +3,13 @@ package graphics.scenery.backends.vulkan
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.SceneryWindow
 import org.lwjgl.glfw.GLFW.*
-import org.lwjgl.glfw.GLFWVulkan
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.vulkan.*
 import java.nio.ByteBuffer
 import java.nio.LongBuffer
 import graphics.scenery.Hub
 import graphics.scenery.utils.SceneryPanel
+import org.lwjgl.system.MemoryStack
 
 
 /**
@@ -17,23 +17,23 @@ import graphics.scenery.utils.SceneryPanel
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class HeadlessSwapchain(device: VulkanDevice,
+open class HeadlessSwapchain(device: VulkanDevice,
                         queue: VkQueue,
                         commandPool: Long,
                         renderConfig: RenderConfigReader.RenderConfig,
                         useSRGB: Boolean = true,
                         @Suppress("unused") val useFramelock: Boolean = false,
                         @Suppress("unused") val bufferCount: Int = 2) : VulkanSwapchain(device, queue, commandPool, renderConfig, useSRGB) {
-    lateinit var sharingBuffer: VulkanBuffer
-    lateinit var imageBuffer: ByteBuffer
+    protected var initialized = false
+    protected lateinit var sharingBuffer: VulkanBuffer
+    protected lateinit var imageBuffer: ByteBuffer
 
-    private var glfwOffscreenWindow: Long = -1L
-    private var imagePanel: SceneryPanel? = null
+    protected var imagePanel: SceneryPanel? = null
 
-    lateinit var vulkanInstance: VkInstance
-    lateinit var vulkanSwapchainRecreator: VulkanRenderer.SwapchainRecreator
+    protected lateinit var vulkanInstance: VkInstance
+    protected lateinit var vulkanSwapchainRecreator: VulkanRenderer.SwapchainRecreator
 
-    private val WINDOW_RESIZE_TIMEOUT = 400 * 10e6
+    protected val WINDOW_RESIZE_TIMEOUT = 400 * 10e6
 
     inner class ResizeHandler {
         @Volatile
@@ -67,7 +67,7 @@ class HeadlessSwapchain(device: VulkanDevice,
         }
     }
 
-    var resizeHandler = ResizeHandler()
+    protected var resizeHandler = ResizeHandler()
 
     override fun createWindow(win: SceneryWindow, swapchainRecreator: VulkanRenderer.SwapchainRecreator): SceneryWindow {
         vulkanInstance = device.instance
@@ -81,33 +81,36 @@ class HeadlessSwapchain(device: VulkanDevice,
     }
 
     override fun create(oldSwapchain: Swapchain?): Swapchain {
-        if (glfwOffscreenWindow != -1L) {
+        if (oldSwapchain != null && initialized) {
             MemoryUtil.memFree(imageBuffer)
             sharingBuffer.close()
-
-            // we have to get rid of the old swapchain, as we have already constructed a new surface
-            if (oldSwapchain is FXSwapchain && oldSwapchain.handle != VK10.VK_NULL_HANDLE) {
-                KHRSwapchain.vkDestroySwapchainKHR(device.vulkanDevice, oldSwapchain.handle, null)
-            }
-
-            KHRSurface.vkDestroySurfaceKHR(device.instance, surface, null)
-            glfwDestroyWindow(glfwOffscreenWindow)
         }
 
-        // create off-screen, undecorated GLFW window
-        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API)
-        glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE)
-        glfwWindowHint(GLFW_DECORATED, GLFW_FALSE)
+        val format = if(useSRGB) {
+            VK10.VK_FORMAT_B8G8R8A8_SRGB
+        } else {
+            VK10.VK_FORMAT_B8G8R8A8_UNORM
+        }
+        presentQueue = VU.createDeviceQueue(device, device.queueIndices.graphicsQueue)
 
-        glfwOffscreenWindow = glfwCreateWindow(window.width, window.height, "scenery", MemoryUtil.NULL, MemoryUtil.NULL)
-        val w = intArrayOf(1)
-        val h = intArrayOf(1)
-        glfwGetWindowSize(glfwOffscreenWindow, w, h)
+        val textureImages = (0 until bufferCount).map {
+            val t = VulkanTexture(device, commandPool, queue, window.width, window.height, 1,
+                format, 1)
+            val image = t.createImage(window.width, window.height, 1, format,
+                VK10.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT or VK10.VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+                VK10.VK_IMAGE_TILING_OPTIMAL, VK10.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 1)
+            t to image
+        }
 
-        surface = VU.getLong("glfwCreateWindowSurface",
-            { GLFWVulkan.glfwCreateWindowSurface(vulkanInstance, glfwOffscreenWindow, null, this) }, {})
+        images = textureImages.map {
+            it.second.image
+        }.toLongArray()
 
-        super.create(null)
+        imageViews = textureImages.map {
+            it.first.createImageView(it.second, format)
+        }.toLongArray()
+
+        logger.info("Created ${images?.size} swapchain images")
 
         val imageByteSize = window.width * window.height * 4L
         imageBuffer = MemoryUtil.memAlloc(imageByteSize.toInt())
@@ -123,15 +126,45 @@ class HeadlessSwapchain(device: VulkanDevice,
         resizeHandler.lastWidth = window.width
         resizeHandler.lastHeight = window.height
 
+        initialized = true
+
         return this
     }
 
-    override fun present(waitForSemaphores: LongBuffer?) {
-        if (vulkanSwapchainRecreator.mustRecreate) {
-            return
+    var currentImage = 0
+    override fun next(timeout: Long, signalSemaphore: Long): Boolean {
+        MemoryStack.stackPush().use { stack ->
+            VK10.vkQueueWaitIdle(presentQueue)
+
+            val signal = stack.callocLong(1)
+            signal.put(0, signalSemaphore)
+
+            with(VU.newCommandBuffer(device, commandPool, autostart = true)) {
+                this.endCommandBuffer(device, commandPool, presentQueue, signalSemaphores = signal,
+                    flush = true, dealloc = true)
+            }
+
+            currentImage = currentImage++ % (images?.size ?: 1)
         }
 
-        super.present(waitForSemaphores)
+        return false
+    }
+
+    override fun present(waitForSemaphores: LongBuffer?) {
+        MemoryStack.stackPush().use { stack ->
+            if (vulkanSwapchainRecreator.mustRecreate) {
+                return
+            }
+
+            val mask = stack.callocInt(1)
+            mask.put(0, VK10.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
+
+            with(VU.newCommandBuffer(device, commandPool, autostart = true)) {
+                this.endCommandBuffer(device, commandPool, presentQueue,
+                    waitSemaphores = waitForSemaphores, waitDstStageMask = mask,
+                    flush = true, dealloc = true)
+            }
+        }
     }
 
     override fun postPresent(image: Int) {
@@ -205,7 +238,5 @@ class HeadlessSwapchain(device: VulkanDevice,
         MemoryUtil.memFree(imageBuffer)
 
         sharingBuffer.close()
-
-        glfwDestroyWindow(glfwOffscreenWindow)
     }
 }
