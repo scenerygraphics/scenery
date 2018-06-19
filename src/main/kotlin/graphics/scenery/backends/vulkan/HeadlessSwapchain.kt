@@ -144,7 +144,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
                     flush = true, dealloc = true)
             }
 
-            currentImage = currentImage++ % (images?.size ?: 1)
+            currentImage = ++currentImage % (images?.size ?: 1)
         }
 
         return false
