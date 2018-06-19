@@ -22,28 +22,46 @@ import java.nio.IntBuffer
 import java.nio.LongBuffer
 
 /**
- * VU - Vulkan Utils
+ * Returns a given Long as hex-formatted string.
  *
- * A collection of convenience methods for various Vulkan-related tasks
- *
- * @author Ulrik Guenther <hello@ulrik.is>
+ * @returns The long value as hex string.
  */
-
 fun Long.toHexString(): String {
     return String.format("0x%X", this)
 }
 
+/**
+ * Returns a given BigInteger as hex-formatted string.
+ *
+ * @returns The BigInteger value as hex string.
+ */
 fun BigInteger.toHexString(): String {
     return "0x${this.toString(16)}"
 }
 
+/**
+ * Ends the recording of a command buffer.
+ */
 fun VkCommandBuffer.endCommandBuffer() {
     if(vkEndCommandBuffer(this) != VK_SUCCESS) {
         throw AssertionError("Failed to end command buffer $this")
     }
 }
 
-fun VkCommandBuffer.endCommandBuffer(device: VulkanDevice, commandPool: Long, queue: VkQueue?, flush: Boolean = true, dealloc: Boolean = false, submitInfoPNext: Pointer? = null) {
+/**
+ * Ends the recording of a command buffer on the given [device] using [commandPool] on the queue [queue].
+ * If [flush] is set, ending the command buffer will trigger submission. If [dealloc] is set, the command buffer
+ * will be deallocated after running it.
+ *
+ * [submitInfoPNext], [signalSemaphores], [waitSemaphores] and [waitDstStageMask] can be used to further fine-grain
+ * the submission process.
+ */
+fun VkCommandBuffer.endCommandBuffer(device: VulkanDevice, commandPool: Long,
+                                     queue: VkQueue?, flush: Boolean = true,
+                                     dealloc: Boolean = false,
+                                     submitInfoPNext: Pointer? = null,
+                                     signalSemaphores: LongBuffer? = null, waitSemaphores: LongBuffer? = null,
+                                     waitDstStageMask: IntBuffer? = null) {
     if (this.address() == NULL) {
         return
     }
@@ -53,7 +71,7 @@ fun VkCommandBuffer.endCommandBuffer(device: VulkanDevice, commandPool: Long, qu
     }
 
     if (flush && queue != null) {
-        this.submit(queue, submitInfoPNext)
+        this.submit(queue, submitInfoPNext, waitSemaphores = waitSemaphores, signalSemaphores = signalSemaphores, waitDstStageMask = waitDstStageMask)
     }
 
     if (dealloc) {
@@ -61,7 +79,16 @@ fun VkCommandBuffer.endCommandBuffer(device: VulkanDevice, commandPool: Long, qu
     }
 }
 
-fun VkCommandBuffer.submit(queue: VkQueue, submitInfoPNext: Pointer? = null, block: Boolean = true) {
+/**
+ * Submits the given command buffer to the queue [queue].
+ *
+ * [submitInfoPNext], [signalSemaphores], [waitSemaphores] and [waitDstStageMask] can be used to further fine-grain
+ * the submission process.
+ */
+fun VkCommandBuffer.submit(queue: VkQueue, submitInfoPNext: Pointer? = null,
+                           signalSemaphores: LongBuffer? = null, waitSemaphores: LongBuffer? = null,
+                           waitDstStageMask: IntBuffer? = null,
+                           block: Boolean = true) {
     stackPush().use { stack ->
         val submitInfo = VkSubmitInfo.callocStack(1, stack)
         val commandBuffers = stack.callocPointer(1).put(0, this)
@@ -70,7 +97,15 @@ fun VkCommandBuffer.submit(queue: VkQueue, submitInfoPNext: Pointer? = null, blo
             submitInfo
                 .sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
                 .pCommandBuffers(commandBuffers)
+                .pSignalSemaphores(signalSemaphores)
                 .pNext(submitInfoPNext?.address() ?: NULL)
+
+            if(waitSemaphores?.remaining() ?: 0 > 0 && waitSemaphores != null && waitDstStageMask != null) {
+                submitInfo
+                    .waitSemaphoreCount(waitSemaphores.remaining())
+                    .pWaitSemaphores(waitSemaphores)
+                    .pWaitDstStageMask(waitDstStageMask)
+            }
 
             vkQueueSubmit(queue, submitInfo, VK_NULL_HANDLE)
             vkQueueWaitIdle(queue)
@@ -78,6 +113,9 @@ fun VkCommandBuffer.submit(queue: VkQueue, submitInfoPNext: Pointer? = null, blo
     }
 }
 
+/**
+ * Converts a [Blending.BlendFactor] to a Vulkan-internal integer-based descriptor.
+ */
 fun Blending.BlendFactor.toVulkan() = when (this) {
     Blending.BlendFactor.Zero -> VK_BLEND_FACTOR_ZERO
     Blending.BlendFactor.One -> VK_BLEND_FACTOR_ONE
@@ -109,6 +147,9 @@ fun Blending.BlendFactor.toVulkan() = when (this) {
     Blending.BlendFactor.SrcAlphaSaturate -> VK_BLEND_FACTOR_SRC_ALPHA_SATURATE
 }
 
+/**
+ * Converts a [Blending.BlendOp] to a Vulkan-intenal integer-based descriptor.
+ */
 fun Blending.BlendOp.toVulkan() = when (this) {
     Blending.BlendOp.add -> VK_BLEND_OP_ADD
     Blending.BlendOp.subtract -> VK_BLEND_OP_SUBTRACT
@@ -117,11 +158,25 @@ fun Blending.BlendOp.toVulkan() = when (this) {
     Blending.BlendOp.reverse_subtract -> VK_BLEND_OP_REVERSE_SUBTRACT
 }
 
+/**
+ * VU - Vulkan Utils
+ *
+ * A collection of convenience methods for various Vulkan-related tasks
+ *
+ * @author Ulrik Guenther <hello@ulrik.is>
+ */
 class VU {
 
+    /**
+     * Companion object for [VU] to access methods statically.
+     */
     companion object VU {
         private val logger by LazyLogger()
 
+        /**
+         * Runs a lambda [function] containing a Vulkan call, and checks it for errors. Allowed error codes
+         * can be set in [allowedResults], for debugging, the call may be given a [name].
+         */
         inline fun run(name: String, function: () -> Int, allowedResults: List<Int> = emptyList()) {
             val result = function.invoke()
 
@@ -129,7 +184,7 @@ class VU {
                 LoggerFactory.getLogger("VulkanRenderer").error("Call to $name failed: ${translate(result)}")
 
                 if(result < 0) {
-                    throw RuntimeException("Call to $name failed: ${translate(result)}")
+                   throw RuntimeException("Call to $name failed: ${translate(result)}")
                 }
             }
 
@@ -138,6 +193,10 @@ class VU {
             }
         }
 
+        /**
+         * Runs a lambda [function] containing a Vulkan call, and checks it for errors. After the call, [cleanup] is run.
+         * For debugging, the call may be given a [name].
+         */
         inline fun run(name: String, function: () -> Int, cleanup: () -> Any) {
             val result = function.invoke()
 
@@ -152,6 +211,11 @@ class VU {
             cleanup.invoke()
         }
 
+        /**
+         * Runs a lambda [function] containing a Vulkan call, and checks it for errors. The Vulkan call will return
+         * an int, which is in turn returned by this function.
+         * For debugging, the call may be given a [name].
+         */
         inline fun getInt(name: String, function: IntBuffer.() -> Int): Int {
             return stackPush().use { stack ->
                 val receiver = stack.callocInt(2)
@@ -171,6 +235,11 @@ class VU {
             }
         }
 
+        /**
+         * Runs a lambda [function] containing a Vulkan call, and checks it for errors. The Vulkan call will return
+         * an [IntBuffer], containing [count] elements, which is in turn returned by this function.
+         * For debugging, the call may be given a [name].
+         */
         inline fun getInts(name: String, count: Int, function: IntBuffer.() -> Int): IntBuffer {
             val receiver = memAllocInt(count)
             val result = function.invoke(receiver)
@@ -186,6 +255,11 @@ class VU {
             return receiver
         }
 
+        /**
+         * Runs a lambda [function] containing a Vulkan call, and checks it for errors. The Vulkan call will return
+         * a long, which is in turn returned by this function. After the function has been run, [cleanup] is called.
+         * For debugging, the call may be given a [name].
+         */
         inline fun getLong(name: String, function: LongBuffer.() -> Int, cleanup: LongBuffer.() -> Any): Long {
             return stackPush().use { stack ->
                 val receiver = stack.callocLong(1)
@@ -207,6 +281,12 @@ class VU {
             }
         }
 
+        /**
+         * Runs a lambda [function] containing a Vulkan call, and checks it for errors. The Vulkan call will return
+         * an [LongBuffer], containing [count] elements, which is in turn returned by this function. After running the
+         * function, [cleanup] is called.
+         * For debugging, the call may be given a [name].
+         */
         inline fun getLongs(name: String, count: Int, function: LongBuffer.() -> Int, cleanup: LongBuffer.() -> Any): LongBuffer {
                 val receiver = memAllocLong(count)
                 val result = function.invoke(receiver)
@@ -224,6 +304,11 @@ class VU {
             return receiver
         }
 
+        /**
+         * Runs a lambda [function] containing a Vulkan call, and checks it for errors. The Vulkan call will return
+         * a pointer, which is in turn returned by this function as a long. After running the function, [cleanup] is called.
+         * For debugging, the call may be given a [name].
+         */
         inline fun getPointer(name: String, function: PointerBuffer.() -> Int, cleanup: PointerBuffer.() -> Any): Long {
             return stackPush().use { stack ->
                 val receiver = stack.callocPointer(1)
@@ -243,6 +328,11 @@ class VU {
             }
         }
 
+        /**
+         * Runs a lambda [function] containing a Vulkan call, and checks it for errors. The Vulkan call will return
+         * a [PointerBuffer], containing [count] elements, which is in turn returned by this function.
+         * For debugging, the call may be given a [name].
+         */
         inline fun getPointers(name: String, count: Int, function: PointerBuffer.() -> Int): PointerBuffer {
             val receiver = memAllocPointer(count)
             val result = function.invoke(receiver)
@@ -258,6 +348,12 @@ class VU {
             return receiver
         }
 
+        /**
+         * Runs a lambda [function] containing a Vulkan call, and checks it for errors. The Vulkan call will return
+         * a [PointerBuffer], containing [count] elements, which is in turn returned by this function. After running
+         * the function, [cleanup] is run.
+         * For debugging, the call may be given a [name].
+         */
         inline fun getPointers(name: String, count: Int, function: PointerBuffer.() -> Int, cleanup: PointerBuffer.() -> Any): PointerBuffer {
             val receiver = memAllocPointer(count)
             val result = function.invoke(receiver)
@@ -277,10 +373,7 @@ class VU {
         }
 
         /**
-         * Translates a Vulkan `VkResult` value to a String describing the result.
-
-         * @param result the `VkResult` value
-         * @return the result description
+         * Translates a Vulkan `VkResult` value given as [result] to a String describing the result.
          */
         fun translate(result: Int): String {
             when (result) {
@@ -315,6 +408,10 @@ class VU {
             }
         }
 
+        /**
+         * Transforms a Vulkan [image] from the old image layout [oldImageLayout] to the new [newImageLayout], taking into account the
+         * [VkImageSubresourceRange] given in [range]. This function can only be run within a [commandBuffer].
+         */
         fun setImageLayout(commandBuffer: VkCommandBuffer, image: Long, oldImageLayout: Int, newImageLayout: Int, range: VkImageSubresourceRange) {
             stackPush().use { stack ->
                 val imageMemoryBarrier = VkImageMemoryBarrier.callocStack(1, stack)
@@ -375,6 +472,11 @@ class VU {
             }
         }
 
+        /**
+         * Transforms a Vulkan [image] from the old image layout [oldImageLayout] to the new [newImageLayout], the
+         * [VkImageSubresourceRange] is constructed based on the image size, and only uses the base MIP level and array layer.
+         * This function can only be run within a [commandBuffer].
+         */
         fun setImageLayout(commandBuffer: VkCommandBuffer, image: Long, aspectMask: Int, oldImageLayout: Int, newImageLayout: Int) {
             stackPush().use { stack ->
                 val range = VkImageSubresourceRange.callocStack(stack)
@@ -387,6 +489,9 @@ class VU {
             }
         }
 
+        /**
+         * Creates a new Vulkan queue on [device] with the queue family index [queueFamilyIndex] and returns the queue.
+         */
         fun createDeviceQueue(device: VulkanDevice, queueFamilyIndex: Int): VkQueue {
             val queue = getPointer("Getting device queue for queueFamilyIndex=$queueFamilyIndex",
                 { vkGetDeviceQueue(device.vulkanDevice, queueFamilyIndex, 0, this); VK_SUCCESS }, {})
@@ -394,6 +499,10 @@ class VU {
             return VkQueue(queue, device.vulkanDevice)
         }
 
+        /**
+         * Creates and returns a new command buffer on [device], associated with [commandPool]. By default, it'll be a primary
+         * command buffer, that can be changed by setting [level] to [VK_COMMAND_BUFFER_LEVEL_SECONDARY].
+         */
         fun newCommandBuffer(device: VulkanDevice, commandPool: Long, level: Int = VK_COMMAND_BUFFER_LEVEL_PRIMARY): VkCommandBuffer {
             return stackPush().use { stack ->
                 val cmdBufAllocateInfo = VkCommandBufferAllocateInfo.callocStack(stack)
@@ -409,6 +518,11 @@ class VU {
             }
         }
 
+        /**
+         * Creates and returns a new command buffer on [device], associated with [commandPool]. By default, it'll be a primary
+         * command buffer, that can be changed by setting [level] to [VK_COMMAND_BUFFER_LEVEL_SECONDARY]. If recording should
+         * be started automatically, set [autostart] to true.
+         */
         fun newCommandBuffer(device: VulkanDevice, commandPool: Long, level: Int = VK_COMMAND_BUFFER_LEVEL_PRIMARY, autostart: Boolean = false): VkCommandBuffer {
             val cmdBuf = newCommandBuffer(device, commandPool, level)
 
@@ -419,6 +533,10 @@ class VU {
             return cmdBuf
         }
 
+        /**
+         * Starts recording of [commandBuffer]. Usually called from [newCommandBuffer]. Additional [flags] may be set,
+         * e.g. for creating resettable or simultaneous use buffer.
+         */
         fun beginCommandBuffer(commandBuffer: VkCommandBuffer, flags: Int = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT) {
             stackPush().use { stack ->
                 val cmdBufInfo = VkCommandBufferBeginInfo.callocStack(stack)
@@ -430,6 +548,11 @@ class VU {
             }
         }
 
+        /**
+         * Creates and returns a new descriptor set layout on [device] with one member of [type], which is by default a
+         * dynamic uniform buffer. The [binding] and number of descriptors ([descriptorNum], [descriptorCount]) can be
+         * customized,  as well as the shader stages to which the DSL should be visible ([shaderStages]).
+         */
         fun createDescriptorSetLayout(device: VulkanDevice, type: Int = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, binding: Int = 0, descriptorNum: Int = 1, descriptorCount: Int = 1, shaderStages: Int = VK_SHADER_STAGE_ALL): Long {
             return stackPush().use { stack ->
                 val layoutBinding = VkDescriptorSetLayoutBinding.callocStack(descriptorNum, stack)
@@ -456,6 +579,11 @@ class VU {
             }
         }
 
+        /**
+         * Creates and returns a new descriptor set layout on [device] with the members declared in [types], which is
+         * a [List] of a Pair of a type, associated with a count (e.g. Dynamic UBO to 1). The base binding can be set with [binding].
+         * The shader stages to which the DSL should be visible can be set via [shaderStages].
+         */
         fun createDescriptorSetLayout(device: VulkanDevice, types: List<Pair<Int, Int>>, binding: Int = 0, shaderStages: Int): Long {
             return stackPush().use { stack ->
                 val layoutBinding = VkDescriptorSetLayoutBinding.callocStack(types.size, stack)
@@ -483,6 +611,11 @@ class VU {
             }
         }
 
+        /**
+         * Creates and returns a dynamic descriptor set allocated on [device] from the pool [descriptorPool], conforming
+         * to the existing descriptor set layout [descriptorSetLayout]. The number of bindings ([bindingCount]) and the
+         * associated [buffer] have to be given.
+         */
         fun createDescriptorSetDynamic(device: VulkanDevice, descriptorPool: Long, descriptorSetLayout: Long,
                                        bindingCount: Int, buffer: VulkanBuffer): Long {
             logger.debug("Creating dynamic descriptor set with $bindingCount bindings, DSL=${descriptorSetLayout.toHexString()}")
@@ -523,6 +656,11 @@ class VU {
             }
         }
 
+        /**
+         * Creates and returns a new descriptor set, allocated on [device] from [descriptorPool], conforming to existing
+         * [descriptorSetLayout], a [bindingCount] needs to be given as well an an [ubo] to back the descriptor set.
+         * The default [type] is [VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER].
+         */
         fun createDescriptorSet(device: VulkanDevice, descriptorPool: Long, descriptorSetLayout: Long, bindingCount: Int,
                                 ubo: VulkanUBO.UBODescriptor, type: Int = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER): Long {
             logger.debug("Creating descriptor set with ${bindingCount} bindings, DSL=$descriptorSetLayout")
@@ -562,6 +700,12 @@ class VU {
             }
         }
 
+        /**
+         * Creates and returns a new descriptor set for a framebuffer given as [target]. The set will be allocated on [device],
+         * from [descriptorPool], and conforms to an existing descriptor set layout [descriptorSetLayout]. Additional
+         * metadata about the framebuffer needs to be given via [rt], and a subset of the framebuffer can be selected
+         * by setting [onlyFor] to the respective name of the attachment.
+         */
         fun createRenderTargetDescriptorSet(device: VulkanDevice, descriptorPool: Long, descriptorSetLayout: Long,
                                              rt: Map<String, RenderConfigReader.TargetFormat>,
                                              target: VulkanFramebuffer, onlyFor: String? = null): Long {

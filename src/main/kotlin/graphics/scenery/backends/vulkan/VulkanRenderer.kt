@@ -1526,7 +1526,7 @@ open class VulkanRenderer(hub: Hub,
 
     private fun beginFrame() {
         swapchainRecreator.mustRecreate = swapchain!!.next(timeout = UINT64_MAX,
-            waitForSemaphore = semaphores[StandardSemaphores.PresentComplete]!![0])
+            signalSemaphore = semaphores[StandardSemaphores.PresentComplete]!![0])
     }
 
     fun recordMovie() {
