@@ -351,9 +351,7 @@ class OpenGLRenderer(hub: Hub,
                 w,
                 h, this).apply {
 
-                if (embedIn != null) {
-
-                } else {
+                if(embedIn == null) {
                     window = SceneryWindow.ClearGLWindow(this)
                     window.width = w
                     window.height = h

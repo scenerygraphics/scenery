@@ -48,10 +48,6 @@ class GamepadCameraControl(private val name: String,
     /** Threshold below which the behaviour will not trigger */
     private val threshold = 0.1f
 
-    init {
-
-    }
-
     constructor(name: String, axis: List<Component.Identifier.Axis>, n: Supplier<Camera?>, w: Int, h: Int) : this(name, axis, { n.get() }, w, h)
 
     /**

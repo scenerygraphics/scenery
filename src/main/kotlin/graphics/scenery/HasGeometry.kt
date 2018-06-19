@@ -489,10 +489,6 @@ interface HasGeometry : Serializable {
                         uvCount += targetObject.texcoords.limit()
                         indexCount += targetObject.indices.limit()
 
-                        if (this is Node) {
-
-                        }
-
                         // add new child mesh
                         if (this is Mesh) {
                             val child = Mesh()

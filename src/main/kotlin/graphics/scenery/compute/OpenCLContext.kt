@@ -167,8 +167,6 @@ class OpenCLContext(override var hub: Hub?, val devicePreference: String = Syste
                         getSizeof(arg),
                         Pointer.to(arrayOf(arg).toByteArray()))
             }
-            else {
-            }
         }
     }
 

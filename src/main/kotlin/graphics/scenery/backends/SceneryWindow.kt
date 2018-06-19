@@ -15,7 +15,7 @@ sealed class SceneryWindow {
     class GLFWWindow(var window: Long): SceneryWindow()
     class ClearGLWindow(var window: cleargl.ClearGLWindow): SceneryWindow()
     class JavaFXStage(var panel: SceneryPanel): SceneryWindow()
-    class HeadlessWindow(): SceneryWindow()
+    class HeadlessWindow : SceneryWindow()
 
     var shouldClose = false
 

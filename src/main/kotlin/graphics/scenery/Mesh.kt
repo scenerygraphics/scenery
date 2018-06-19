@@ -27,9 +27,4 @@ open class Mesh(override var name: String = "Mesh") : Node(name), HasGeometry {
     override var texcoordSize = 2;
     /** Geometry type of the Mesh. Also see [HasGeometry] and [GeometryType] */
     override var geometryType = GeometryType.TRIANGLES
-
-    init {
-    }
-
-
 }
