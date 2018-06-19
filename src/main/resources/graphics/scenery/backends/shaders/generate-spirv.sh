@@ -14,7 +14,7 @@ while getopts ":vO" opt; do
             echo "Optimisations activated, use with care."
             if hash spirv-opt 2>/dev/null; then
                 OPTIMISE=true
-                SPIRV_OPT=`which spirv-opt`
+                SPIRV_OPT=$(which spirv-opt)
             else
                 echo "Warning: spirv-opt not found, optimisations disabled."
                 OPTIMISE=false
@@ -24,7 +24,7 @@ while getopts ":vO" opt; do
 done
 
 
-files=`eval "$LS_CMD"`
+files=$(eval "$LS_CMD")
 for i in $files; do
     echo -n "# $i GLSL -> SPIR-V"
 
