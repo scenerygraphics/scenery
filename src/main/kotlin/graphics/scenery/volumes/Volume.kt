@@ -4,9 +4,9 @@ import cleargl.GLTypeEnum
 import cleargl.GLVector
 import coremem.enums.NativeTypeEnum
 import graphics.scenery.*
+import graphics.scenery.backends.vulkan.toHexString
 import graphics.scenery.numerics.OpenSimplexNoise
 import graphics.scenery.numerics.Random
-import graphics.scenery.utils.forEachAsync
 import graphics.scenery.utils.forEachParallel
 import io.scif.SCIFIO
 import io.scif.util.FormatTools
@@ -25,16 +25,15 @@ import kotlin.math.abs
 import kotlin.math.sqrt
 import kotlin.streams.toList
 
-
-
-
 /**
- * Volume Rendering Node for scenery
+ * Volume Rendering Node for scenery.
+ * If [autosetProperties] is true, the node will automatically determine
+ * the volumes' transfer function range.
  *
  * @author Ulrik Günther <hello@ulrik.is>
  * @author Martin Weigert <mweigert@mpi-cbg.de>
  */
-class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
+open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
     data class VolumeDescriptor(val path: Path?,
                                 val width: Long,
                                 val height: Long,
@@ -42,22 +41,6 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
                                 val dataType: NativeTypeEnum,
                                 val bytesPerVoxel: Int,
                                 val data: ByteBuffer)
-
-    data class VolumeRenderingParameters(
-        val boundingBox: FloatArray = floatArrayOf(-1.0f, 1.0f, -1.0f, 1.0f, -1.0f, 1.0f),
-        val gamma: Float = 2.2f,
-        val alpha: Float = -1.0f,
-        val brightness: Float = 1.0f,
-        val maxSteps: Int = 128,
-        val dithering: Float = 0.0f,
-        val transferFunction: TransferFunction = TransferFunction()
-    )
-
-    data class TransferFunction(
-        var min: Float = 0.0f,
-        var max: Float = 1.0f,
-        var function: FloatArray = floatArrayOf()
-    )
 
     class Histogram<T : Comparable<T>>(histogramSize: Int) {
         val bins: HashMap<T, Long> = HashMap(histogramSize)
@@ -72,30 +55,50 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
 
     val boxwidth = 1.0f
 
+    /** Transfer function minimum */
     @ShaderProperty var trangemin = 0.00f
+    /** Transfer function maximum */
     @ShaderProperty var trangemax = 1.0f
 
+    /** Bounding box minimum in x direction */
     @ShaderProperty var boxMin_x = -boxwidth
+    /** Bounding box minimum in y direction */
     @ShaderProperty var boxMin_y = -boxwidth
+    /** Bounding box minimum in z direction */
     @ShaderProperty var boxMin_z = -boxwidth
 
+    /** Bounding box maximum in x direction */
     @ShaderProperty var boxMax_x = boxwidth
+    /** Bounding box maximum in y direction */
     @ShaderProperty var boxMax_y = boxwidth
+    /** Bounding box maximum in z direction */
     @ShaderProperty var boxMax_z = boxwidth
 
+    /** Maximum steps to take along a single ray through the volume */
     @ShaderProperty var maxsteps = 128
+    /** Alpha blending factor */
     @ShaderProperty var alpha_blending = 0.06f
+    /** Gamma exponent */
     @ShaderProperty var gamma = 1.0f
 
+    /** Volume size in voxels along x direction */
     @ShaderProperty var sizeX = 256
+    /** Volume size in voxels along y direction */
     @ShaderProperty var sizeY = 256
+    /** Volume size in voxels along z direction */
     @ShaderProperty var sizeZ = 256
+
+    /** Voxel size in x direction */
     @ShaderProperty var voxelSizeX = 1.0f
+    /** Voxel size in y direction */
     @ShaderProperty var voxelSizeY = 1.0f
+    /** Voxel size in z direction */
     @ShaderProperty var voxelSizeZ = 1.0f
 
+    /** Stores the available colormaps for transfer functions */
     var colormaps = HashMap<String, String>()
 
+    /** The active colormap, setting this will automatically update the color map texture */
     var colormap: String = "viridis"
         set(name) {
             colormaps.get(name)?.let { cm ->
@@ -105,8 +108,10 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
             }
         }
 
-    @Transient val volumes = ConcurrentHashMap<String, VolumeDescriptor>()
+    /** Temporary storage for volume data */
+    @Transient protected val volumes = ConcurrentHashMap<String, VolumeDescriptor>()
 
+    /** Stores the current volume's name. Can be set to the path of a new volume */
     var currentVolume: String = ""
         set(value) {
             field = value
@@ -114,8 +119,6 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
                 readFromRaw(Paths.get(field), true)
             }
         }
-
-    val parameters = VolumeRenderingParameters()
 
     init {
         // fake geometry
@@ -167,6 +170,10 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         assignEmptyVolumeTexture()
     }
 
+    /**
+     * Preloads all volumes found in the path indicated by [file].
+     * The folder is assumed to contain a `stacks.info` file containing volume metadata.
+     */
     fun preloadRawFromPath(file: Path) {
         val id = file.fileName.toString()
 
@@ -231,10 +238,16 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         }
     }
 
-    fun readFromBuffer(id: String, buffer: ByteBuffer,
+    /**
+     * Reads volumetric data from a [buffer]. The volume will be given the name [id], and the
+     * [buffer] is assumed to contain [x]*[y]*[z]*[bytesPerVoxel] bytes and be of the type
+     * [dataType]. For anisotropic volumes, [voxelX], [voxelY] and [voxelZ] can be set appropriately.
+     */
+    @JvmOverloads fun readFromBuffer(id: String, buffer: ByteBuffer,
                        x: Long, y: Long, z: Long,
                        voxelX: Float, voxelY: Float, voxelZ: Float,
-                       dataType: NativeTypeEnum = NativeTypeEnum.UnsignedInt, bytesPerVoxel: Int = 2) {
+                       dataType: NativeTypeEnum = NativeTypeEnum.UnsignedInt, bytesPerVoxel: Int = 2,
+                       allowDeallocation: Boolean = false) {
         if (autosetProperties) {
             voxelSizeX = voxelX
             voxelSizeY = voxelY
@@ -259,7 +272,7 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         }
 
         if (vol != null) {
-            assignVolumeTexture( longArrayOf( x, y, z ), vol, true)
+            assignVolumeTexture( longArrayOf( x, y, z ), vol, allowDeallocation)
         }
     }
 
@@ -276,6 +289,10 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         return bytes
     }
 
+    /**
+     * Reads volumetric data from a [file] using scifio, and if [replace] is true, will
+     * replace the current volumes' buffer and mark it for deallocation.
+     */
     fun readFrom(file: Path, replace: Boolean = false): String {
         if(file.normalize().toString().endsWith("raw")) {
             return readFromRaw(file, replace)
@@ -371,6 +388,13 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         return id
     }
 
+    /**
+     * Reads raw volumetric data from a [file]. If [autorange] is set, the transfer function range
+     * will be determined automatically, if [cache] is true, the volume's data will be stored in [volumes] for
+     * future use. If [replace] is set, the current volumes' buffer will be replace and marked for deallocation.
+     *
+     * Returns the new volumes' id.
+     */
     fun readFromRaw(file: Path, replace: Boolean = false, autorange: Boolean = true, cache: Boolean = true): String {
         val infoFile = file.resolveSibling("stacks" + ".info")
 
@@ -472,10 +496,10 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         val emptyBuffer = BufferUtils.allocateByteAndPut(byteArrayOf(0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
                                                                      0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0))
         val dim = GLVector(2.0f, 2.0f, 2.0f)
-        val gtv = GenericTexture("volume", dim, 1, GLTypeEnum.UnsignedByte, emptyBuffer, false, false, normalized = false)
+        val gtv = GenericTexture("empty-volume", dim, 1, GLTypeEnum.UnsignedByte, emptyBuffer, false, false, normalized = false)
 
-        this.material.transferTextures.put("volume", gtv)
-        this.material.textures.put("3D-volume", "fromBuffer:volume")
+        this.material.transferTextures.put("empty-volume", gtv)
+        this.material.textures.put("3D-volume", "fromBuffer:empty-volume")
         this.material.textures.put("normal", colormaps.values.first())
     }
 
@@ -483,17 +507,19 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
 
     private fun assignVolumeTexture(dimensions: LongArray, descriptor: VolumeDescriptor, replace: Boolean) {
         while(deallocations.size > 20) {
-            MemoryUtil.memFree(deallocations.pollLast())
+            val last = deallocations.pollLast()
+            logger.info("deallocating $last from ${deallocations.map { it.hashCode() }.joinToString(", ")}")
+            logger.info("Address is ${MemoryUtil.memAddress(last).toHexString()}")
         }
 
         val dim = GLVector(dimensions[0].toFloat(), dimensions[1].toFloat(), dimensions[2].toFloat())
         val gtv = GenericTexture("volume", dim,
             1, descriptor.dataType.toGLType(), descriptor.data, false, false, normalized = false)
 
-//        if (this.lock.tryLock()) {
+        if (this.lock.tryLock()) {
             logger.debug("$name: Assigning volume texture")
             this.material.transferTextures.put("volume", gtv)?.let {
-                if (replace) {
+                if (replace && it.name != "empty-volume" && !deallocations.contains(it.contents)) {
                     deallocations.add(it.contents)
                 }
             }
@@ -501,10 +527,13 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
             this.material.textures.put("normal", colormaps[colormap]!!)
             this.material.needsTextureReload = true
 
-//            this.lock.unlock()
-//        }
+            this.lock.unlock()
+        }
     }
 
+    /**
+     * Volume node companion object for static functions.
+     */
     companion object {
         val scifio: SCIFIO = SCIFIO()
         val UNSAFE: Unsafe
@@ -523,6 +552,15 @@ class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
 
         }
 
+        /**
+         * Generates a procedural volume based on the open simplex noise algorithm, with [size]^3 voxels.
+         * [radius] sets the blob radius, while [shift] can be used to move through the continuous noise
+         * volume, essentially offsetting the volume by the value given. [intoBuffer] can be used to
+         * funnel the data into a pre-existing buffer, otherwise one will be allocated. [seed] can be
+         * used to choose a seed for the PRNG.
+         *
+         * Returns the newly-allocated [ByteBuffer], or the one given in [intoBuffer], set to position 0.
+         */
         fun generateProceduralVolume(size: Long, radius: Float = 0.0f,
                                      seed: Long = Random.randomFromRange(0.0f, 133333337.0f).toLong(),
                                      shift: GLVector = GLVector.getNullVector(3),
