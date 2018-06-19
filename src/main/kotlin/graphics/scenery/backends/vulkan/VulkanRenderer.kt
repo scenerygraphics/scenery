@@ -1526,8 +1526,7 @@ open class VulkanRenderer(hub: Hub,
 
     private fun beginFrame() {
         swapchainRecreator.mustRecreate = swapchain!!.next(timeout = UINT64_MAX,
-            waitForSemaphore = semaphores[StandardSemaphores.PresentComplete]!![0])
-        logger.info("Beginning frame with ${semaphores[StandardSemaphores.PresentComplete]!![0].toHexString()}")
+            signalSemaphore = semaphores[StandardSemaphores.PresentComplete]!![0])
     }
 
     fun recordMovie() {
@@ -1798,7 +1797,6 @@ open class VulkanRenderer(hub: Hub,
                 .pWaitSemaphores(target.waitSemaphores)
 
             VU.run("Submit pass $t render queue", { vkQueueSubmit(queue, si, commandBuffer.getFence() )})
-            logger.info("Pass $t will wait on ${target.waitSemaphores.get(0).toHexString()} and signal ${target.signalSemaphores.get(0).toHexString()}")
 
             commandBuffer.submitted = true
             firstWaitSemaphore.put(0, target.semaphore)
@@ -1839,8 +1837,6 @@ open class VulkanRenderer(hub: Hub,
         ph.waitStages.put(0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
         ph.signalSemaphore.put(0, semaphores[StandardSemaphores.RenderComplete]!![0])
         ph.waitSemaphore.put(0, firstWaitSemaphore.get(0))
-
-        logger.info("Frame will wait on ${firstWaitSemaphore.get(0).toHexString()} and signal ${semaphores[StandardSemaphores.RenderComplete]!![0].toHexString()}")
 
         submitFrame(queue, viewportPass, viewportCommandBuffer, ph)
 

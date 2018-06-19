@@ -21,7 +21,7 @@ interface Swapchain : AutoCloseable {
     fun create(oldSwapchain: Swapchain?): Swapchain
     fun present(waitForSemaphores: LongBuffer? = null)
     fun postPresent(image: Int)
-    fun next(timeout: Long = -1L, waitForSemaphore: Long = 0L): Boolean
+    fun next(timeout: Long = -1L, signalSemaphore: Long = 0L): Boolean
     override fun close()
     fun toggleFullscreen(hub: Hub, swapchainRecreator: VulkanRenderer.SwapchainRecreator)
     fun embedIn(panel: SceneryPanel?)

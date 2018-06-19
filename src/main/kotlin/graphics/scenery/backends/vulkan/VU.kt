@@ -43,7 +43,12 @@ fun VkCommandBuffer.endCommandBuffer() {
     }
 }
 
-fun VkCommandBuffer.endCommandBuffer(device: VulkanDevice, commandPool: Long, queue: VkQueue?, flush: Boolean = true, dealloc: Boolean = false, submitInfoPNext: Pointer? = null, signalSemaphores: LongBuffer? = null, waitSemaphores: LongBuffer? = null) {
+fun VkCommandBuffer.endCommandBuffer(device: VulkanDevice, commandPool: Long,
+                                     queue: VkQueue?, flush: Boolean = true,
+                                     dealloc: Boolean = false,
+                                     submitInfoPNext: Pointer? = null,
+                                     signalSemaphores: LongBuffer? = null, waitSemaphores: LongBuffer? = null,
+                                     waitDstStageMask: IntBuffer? = null) {
     if (this.address() == NULL) {
         return
     }
@@ -53,7 +58,7 @@ fun VkCommandBuffer.endCommandBuffer(device: VulkanDevice, commandPool: Long, qu
     }
 
     if (flush && queue != null) {
-        this.submit(queue, submitInfoPNext, waitSemaphores = waitSemaphores, signalSemaphores = signalSemaphores)
+        this.submit(queue, submitInfoPNext, waitSemaphores = waitSemaphores, signalSemaphores = signalSemaphores, waitDstStageMask = waitDstStageMask)
     }
 
     if (dealloc) {
@@ -61,7 +66,10 @@ fun VkCommandBuffer.endCommandBuffer(device: VulkanDevice, commandPool: Long, qu
     }
 }
 
-fun VkCommandBuffer.submit(queue: VkQueue, submitInfoPNext: Pointer? = null, signalSemaphores: LongBuffer? = null, waitSemaphores: LongBuffer? = null, block: Boolean = true) {
+fun VkCommandBuffer.submit(queue: VkQueue, submitInfoPNext: Pointer? = null,
+                           signalSemaphores: LongBuffer? = null, waitSemaphores: LongBuffer? = null,
+                           waitDstStageMask: IntBuffer? = null,
+                           block: Boolean = true) {
     stackPush().use { stack ->
         val submitInfo = VkSubmitInfo.callocStack(1, stack)
         val commandBuffers = stack.callocPointer(1).put(0, this)
@@ -73,11 +81,11 @@ fun VkCommandBuffer.submit(queue: VkQueue, submitInfoPNext: Pointer? = null, sig
                 .pSignalSemaphores(signalSemaphores)
                 .pNext(submitInfoPNext?.address() ?: NULL)
 
-            if(waitSemaphores?.remaining() ?: 0 > 0) {
-                println("Will wait on ${waitSemaphores?.remaining()} semaphores")
+            if(waitSemaphores?.remaining() ?: 0 > 0 && waitSemaphores != null && waitDstStageMask != null) {
                 submitInfo
-                    .waitSemaphoreCount(waitSemaphores?.remaining() ?: 0)
+                    .waitSemaphoreCount(waitSemaphores.remaining())
                     .pWaitSemaphores(waitSemaphores)
+                    .pWaitDstStageMask(waitDstStageMask)
             }
 
             vkQueueSubmit(queue, submitInfo, VK_NULL_HANDLE)
@@ -137,7 +145,7 @@ class VU {
                 LoggerFactory.getLogger("VulkanRenderer").error("Call to $name failed: ${translate(result)}")
 
                 if(result < 0) {
-                    throw RuntimeException("Call to $name failed: ${translate(result)}")
+                   throw RuntimeException("Call to $name failed: ${translate(result)}")
                 }
             }
 
