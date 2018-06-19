@@ -128,7 +128,7 @@ open class Scene : Node("RootNode") {
                     }
 
                     if (useDiscoveryBarriers && v.discoveryBarrier) {
-
+                        logger.trace("Hit discovery barrier, not recursing deeper.")
                     } else {
                         discover(v, f)
                     }

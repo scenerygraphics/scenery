@@ -14,11 +14,7 @@ import java.util.concurrent.ConcurrentHashMap
  * @constructor Creates an empty OpenGLObjectState, with [OpenGLRenderer] as
  *  default consumers.
  */
-class OpenGLObjectState
-/**
- * Default constructor, adding the [OpenGLRenderer]
- * to the list of consumers.
- */() : NodeMetadata {
+class OpenGLObjectState : NodeMetadata {
     data class OpenGLBufferBinding(var buffer: ByteBuffer? = null, var offset: Long = 0L, var name: String, var binding: Int = 0)
     /** List of consumers of this metadata, e.g. [OpenGLRenderer] */
     override val consumers: MutableList<String> = ArrayList<String>()
