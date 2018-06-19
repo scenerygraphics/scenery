@@ -23,7 +23,7 @@ cache:
 before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then /usr/libexec/java_home -V; fi
 
-install: false
+install: true
 
 script: 
   - mvn clean package
