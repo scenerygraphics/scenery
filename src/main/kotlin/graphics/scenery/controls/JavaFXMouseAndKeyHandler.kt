@@ -317,7 +317,7 @@ open class JavaFXMouseAndKeyHandler(protected var hub: Hub?, protected var panel
         } else if (e.code != KeyCode.ALT &&
             e.code != KeyCode.CONTROL &&
             e.code != KeyCode.ALT_GRAPH) {
-            val inserted = pressedKeys.add(e.code.impl_getCode())
+            val inserted = pressedKeys.add(e.code.code())
 
             /*
 			 * Create mask and deal with double-click on keys.
@@ -327,11 +327,11 @@ open class JavaFXMouseAndKeyHandler(protected var hub: Hub?, protected var panel
             var doubleClick = false
             if (inserted) {
                 // double-click on keys.
-                val lastPressTime = keyPressTimes.get(e.code.impl_getCode())
+                val lastPressTime = keyPressTimes.get(e.code.code())
                 if (lastPressTime.toInt() != -1 && System.nanoTime() - lastPressTime < DOUBLE_CLICK_INTERVAL)
                     doubleClick = true
 
-                keyPressTimes.put(e.code.impl_getCode(), System.nanoTime())
+                keyPressTimes.put(e.code.code(), System.nanoTime())
             }
             val doubleClickMask = mask or InputTrigger.DOUBLE_CLICK_MASK
 
@@ -368,11 +368,19 @@ open class JavaFXMouseAndKeyHandler(protected var hub: Hub?, protected var panel
         } else if (e.code != KeyCode.ALT &&
             e.code != KeyCode.CONTROL &&
             e.code != KeyCode.ALT_GRAPH) {
-            pressedKeys.remove(e.code.impl_getCode())
+            pressedKeys.remove(e.code.code())
 
             for (drag in activeKeyDrags)
                 drag.behaviour.end(mouseX, mouseY)
             activeKeyDrags.clear()
+        }
+    }
+
+    private fun KeyCode.code(): Int {
+        return try {
+            KeyCode::class.java.getDeclaredMethod("impl_getCode").invoke(this) as Int
+        } catch (e: NoSuchMethodException) {
+            KeyCode::class.java.getDeclaredMethod("getCode").invoke(this) as Int
         }
     }
 }
