@@ -39,24 +39,27 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
         memFree(dest)
     }
 
-    fun populate(offset: Long = 0L) {
+    fun populate(offset: Long = 0L): Boolean {
+        val updated: Boolean
         if(backingBuffer == null) {
             val data = memAlloc(getSize())
 
-            super.populate(data, offset, elements = null)
+            updated = super.populate(data, offset, elements = null)
 
             data.flip()
             copy(data, offset = offset)
             memFree(data)
         } else {
-            super.populate(backingBuffer!!.stagingBuffer, offset, elements = null)
+            updated = super.populate(backingBuffer!!.stagingBuffer, offset, elements = null)
         }
+
+        return updated
     }
 
-    fun populateParallel(bufferView: ByteBuffer, offset: Long, elements: LinkedHashMap<String, () -> Any>) {
+    fun populateParallel(bufferView: ByteBuffer, offset: Long, elements: LinkedHashMap<String, () -> Any>): Boolean {
         bufferView.position(0)
         bufferView.limit(bufferView.capacity())
-        super.populate(bufferView, offset, elements)
+        return super.populate(bufferView, offset, elements)
     }
 
     fun fromInstance(node: Node) {
