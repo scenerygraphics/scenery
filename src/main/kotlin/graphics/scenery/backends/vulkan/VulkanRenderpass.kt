@@ -201,8 +201,10 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                 ubo.add(entry.key, { settings.get(settingsKey) })
             }
 
-            logger.debug("Members are: ${ubo.members()}")
-            logger.debug("Allocating VulkanUBO memory now, space needed: ${ubo.getSize()}")
+            if(logger.isDebugEnabled) {
+                logger.debug("Members are: {}", ubo.membersAndContent())
+                logger.debug("Allocating VulkanUBO memory now, space needed: {}", ubo.getSize())
+            }
 
             ubo.createUniformBuffer()
 

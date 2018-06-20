@@ -20,6 +20,7 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
     private var closed = false
 
     private var ownedBackingBuffer: VulkanBuffer? = null
+    private var stagingMemory: ByteBuffer? = null
 
     class UBODescriptor {
         internal var memory: Long = 0
@@ -42,13 +43,13 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
     fun populate(offset: Long = 0L): Boolean {
         val updated: Boolean
         if(backingBuffer == null) {
-            val data = memAlloc(getSize())
+            val data = stagingMemory ?: memAlloc(getSize())
+            stagingMemory = data
 
             updated = super.populate(data, offset, elements = null)
 
             data.flip()
             copy(data, offset = offset)
-            memFree(data)
         } else {
             updated = super.populate(backingBuffer!!.stagingBuffer, offset, elements = null)
         }
@@ -122,6 +123,10 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
                 logger.trace("Destroying self-owned buffer of $this/$it  ${it.memory.toHexString()})...")
                 it.close()
             }
+        }
+
+        stagingMemory?.let {
+            memFree(it)
         }
 
         memFree(offsets)

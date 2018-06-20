@@ -1746,10 +1746,10 @@ open class VulkanRenderer(hub: Hub,
         updateInstanceBuffers(sceneObjects)
         stats?.add("Renderer.updateInstanceBuffers", System.nanoTime() - startInstanceUpdate)
 
-//        if(!ubosUpdated) {
-//            logger.info("UBOs have not been updated, returning")
-//            return
-//        }
+        if(!ubosUpdated) {
+            logger.info("UBOs have not been updated, returning")
+            return
+        }
 
         beginFrame()
 

@@ -144,13 +144,14 @@ open class UBO {
         val originalPos = data.position()
         var endPos = originalPos
 
-//        val oldHash = hash
-        if(hash == getMembersHash(data) && sizeCached > 0 && elements == null) {
+        val oldHash = hash
+        if(sizeCached > 0 && oldHash == getMembersHash(data.duplicate().position(originalPos + sizeCached)) && elements == null) {
             data.position(originalPos + sizeCached)
-//            logger.trace("UBO members of $this have not changed, returning ($hash vs. ${getMembersHash(data)}, buffer $originalPos -> ${data.position()})")
-//            logger.trace("UBO members of {} have not changed, {} vs {}", this, hash, getMembersHash(data))
+            logger.info("UBO members of {} have not changed, {} vs {}", this, hash, getMembersHash(data))
             return false
         }
+
+        logger.info("Hash changed $oldHash -> ${getMembersHash(data)}")
 
         (elements ?: members).forEach {
             var pos = data.position()
@@ -235,8 +236,7 @@ open class UBO {
         sizeCached = data.position() - originalPos
         updateHash(data)
 
-//        logger.info("UBO $this updated, $oldHash -> $hash, buffer: $originalPos - $endPos")
-//        logger.trace("UBO {} updated, {} -> {}", this, oldHash, hash)
+        logger.info("UBO {} updated, {} -> {}", this, oldHash, hash)
 
         return true
     }
@@ -253,6 +253,10 @@ open class UBO {
 
     fun members(): String {
         return members.keys.joinToString(", ")
+    }
+
+    fun membersAndContent(): String {
+        return members.entries.joinToString { "${it.key} -> ${it.value.invoke()}, " }
     }
 
     protected fun getMembersHash(buffer: ByteBuffer): Int {
