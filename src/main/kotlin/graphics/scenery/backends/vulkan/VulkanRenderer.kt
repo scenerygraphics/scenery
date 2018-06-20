@@ -1750,6 +1750,8 @@ open class VulkanRenderer(hub: Hub,
 
         if(!ubosUpdated && pushMode && frames > 0) {
             logger.debug("UBOs have not been updated, returning")
+            Thread.sleep(5)
+
             return
         }
 
