@@ -135,13 +135,21 @@ open class UBO {
         return totalSize
     }
 
-    fun populate(data: ByteBuffer, offset: Long = -1L, elements: (LinkedHashMap<String, () -> Any>)? = null) {
+    fun populate(data: ByteBuffer, offset: Long = -1L, elements: (LinkedHashMap<String, () -> Any>)? = null): Boolean {
+
         if(offset != -1L) {
             data.position(offset.toInt())
         }
 
         val originalPos = data.position()
         var endPos = originalPos
+
+        val oldHash = hash
+        if(hash == getMembersHash() && sizeCached > 0 && elements == null) {
+            data.position(originalPos + sizeCached)
+            logger.info("UBO members of $this have not changed, returning ($hash vs. ${getMembersHash()}, buffer $originalPos -> ${data.position()})")
+            return false
+        }
 
         (elements ?: members).forEach {
             var pos = data.position()
@@ -224,6 +232,11 @@ open class UBO {
         data.position(endPos)
 
         sizeCached = data.position() - originalPos
+        updateHash()
+
+        logger.info("UBO $this updated, $oldHash -> $hash, buffer: $originalPos - $endPos")
+
+        return true
     }
 
     fun add(name: String, value: () -> Any, offset: Int? = null) {
