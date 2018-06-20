@@ -14,16 +14,18 @@ class OpenGLUBO(val backingBuffer: OpenGLRenderer.OpenGLBuffer? = null) : UBO() 
     var binding = 0
 
     @Suppress("UNUSED_PARAMETER")
-    fun populate(offset: Long = 0) {
+    fun populate(offset: Long = 0): Boolean {
         backingBuffer?.let { data ->
-            super.populate(data.buffer, -1L, elements = null)
+            return super.populate(data.buffer, -1L, elements = null)
         }
+
+        return false
     }
 
-    fun populateParallel(bufferView: ByteBuffer, offset: Long, elements: LinkedHashMap<String, () -> Any>) {
+    fun populateParallel(bufferView: ByteBuffer, offset: Long, elements: LinkedHashMap<String, () -> Any>): Boolean {
         bufferView.position(0)
         bufferView.limit(bufferView.capacity())
-        super.populate(bufferView, offset, elements)
+        return super.populate(bufferView, offset, elements)
     }
 
     fun fromInstance(node: Node) {
