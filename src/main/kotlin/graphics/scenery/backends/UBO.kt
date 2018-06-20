@@ -12,27 +12,38 @@ import kotlin.collections.LinkedHashMap
 import kotlin.math.max
 
 /**
- * UBO base class, providing API-independent functionality for OpenGL and Vulkan.
+ * UBO base class, providing API-independent uniform buffer serialisation
+ * functionality for both OpenGL and Vulkan.
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
 open class UBO {
+    /** Name of this UBO */
     var name = ""
+
     protected var members = LinkedHashMap<String, () -> Any>()
     protected var memberOffsets = HashMap<String, Int>()
     protected val logger by LazyLogger()
+
+    /** Hash value of all the members, gets updated by [populate()] */
     var hash: Int = 0
         private set
+
+    /** Optional flag to indicate finished initialisation */
     var initialized: Boolean = false
 
     protected var sizeCached = -1
 
     companion object {
-        var alignments = TIntObjectHashMap<Pair<Int, Int>>()
+        /** Cache for alignment data inside buffers */
+        internal var alignments = TIntObjectHashMap<Pair<Int, Int>>()
     }
 
+    /**
+     * Returns the size of [element] inside an uniform buffer.
+     */
     @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
-    fun sizeOf(element: Any): Int {
+    protected fun sizeOf(element: Any): Int {
         return when(element) {
             is GLVector -> element.toFloatArray().size
             is GLMatrix -> element.floatArray.size
@@ -45,8 +56,11 @@ open class UBO {
         }
     }
 
+    /**
+     * Translates an object to an integer ID for more efficient storage in [alignments].
+     */
     @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
-    fun Any.objectId(): Int {
+    protected fun Any.objectId(): Int {
         return when(this) {
             is GLVector -> 0
             is GLMatrix -> 1
@@ -59,6 +73,10 @@ open class UBO {
         }
     }
 
+    /**
+     * Returns the size occupied and alignment required for [element] inside a uniform buffer.
+     * Pair layout is <size, alignment>.
+     */
     fun getSizeAndAlignment(element: Any): Pair<Int, Int> {
         // pack object id and size into one integer
         val key = (element.objectId() shl 16) or (sizeOf(element) and 0xffff)
@@ -110,6 +128,9 @@ open class UBO {
         }
     }
 
+    /**
+     * Returns the total size in bytes required to store the contents of this UBO in a uniform buffer.
+     */
     fun getSize(): Int {
         val totalSize = if(sizeCached == -1) {
             val size = members.map {
@@ -137,6 +158,15 @@ open class UBO {
         return totalSize
     }
 
+    /**
+     * Populates the [ByteBuffer] [data] with the members of this UBO, subject to the determined
+     * sizes and alignments. A buffer [offset] can be given, as well as a list of [elements] that
+     * would override the UBO's members. This routine checks if an actual buffer update is required,
+     * and if not, will just set the buffer to the cached position. Otherwise it will serialise all
+     * the members into [data].
+     *
+     * Returns true if [data] has been updated, and false if not.
+     */
     fun populate(data: ByteBuffer, offset: Long = -1L, elements: (LinkedHashMap<String, () -> Any>)? = null): Boolean {
         // no need to look further
         if(members.size == 0) {
@@ -153,16 +183,21 @@ open class UBO {
         val oldHash = hash
 
         if(sizeCached > 0) {
+            // the members hash is also based on the memory address of the buffer, which is calculated at the
+            // end of the routine and therefore dependent on the final buffer position.
             val newHash = getMembersHash(data.duplicate().order(ByteOrder.LITTLE_ENDIAN).position(originalPos + sizeCached) as ByteBuffer)
             if(oldHash == newHash && elements == null) {
                 data.position(originalPos + sizeCached)
                 logger.trace("UBO members of {} have not changed, {} vs {}", this, hash, getMembersHash(data))
+
+                // indicates the buffer will not be updated, but only forwarded to the cached position
                 return false
             }
         }
 
         logger.info("Hash changed $oldHash -> ${getMembersHash(data)}, $sizeCached, $elements")
 
+        // iterate over members, or over elements, if given
         (elements ?: members).forEach {
             var pos = data.position()
             val value = it.value.invoke()
@@ -248,9 +283,19 @@ open class UBO {
 
         logger.trace("UBO {} updated, {} -> {}", this, oldHash, hash)
 
+        // indicates the buffer has been updated
         return true
     }
 
+    /**
+     * Adds a member with [name] to this UBO. [value] is given as a lambda
+     * that will return the actual value when invoked. An optional [offset] can be
+     * given, otherwise it will be calculated automatically.
+     *
+     * Invalidates the UBO's hash if no previous member is associated with [name],
+     * or if a previous member already bears [name], but has another type than the
+     * invocation of [value].
+     */
     fun add(name: String, value: () -> Any, offset: Int? = null) {
         val previous = members.put(name, value)
 
@@ -264,31 +309,57 @@ open class UBO {
         }
     }
 
+    /**
+     * Returns the members of the UBO as string.
+     */
     fun members(): String {
         return members.keys.joinToString(", ")
     }
 
+    /**
+     * Returns the members of the UBO and their values as string.
+     */
     fun membersAndContent(): String {
         return members.entries.joinToString { "${it.key} -> ${it.value.invoke()}, " }
     }
 
+    /**
+     * Returns the number of members of this UBO.
+     */
     fun memberCount(): Int {
         return members.size
     }
 
-    fun perMemberHashes(): String {
+    /**
+     * For debugging purposes. Returns the hashes of all members as string.
+     */
+    @Suppress("unused")
+    internal fun perMemberHashes(): String {
         return members.map { "${it.key} -> ${it.key.hashCode()} ${it.value.invoke().hashCode()}" }.joinToString("\n")
     }
 
+    /**
+     * Returns the hash value of all current members.
+     *
+     * Takes into consideration the member's name and _invoked_ value, as well as the
+     * buffer's memory address to discern buffer switches the UBO is oblivious to.
+     */
     protected fun getMembersHash(buffer: ByteBuffer): Int {
         return members.map { (it.key.hashCode() xor it.value.invoke().hashCode()).toLong() }
             .fold(31L) { acc, value -> acc + (value xor (value.ushr(32)))}.toInt() + MemoryUtil.memAddress(buffer).hashCode()
     }
 
+    /**
+     * Updates the currently stored member hash.
+     */
     protected fun updateHash(buffer: ByteBuffer) {
         hash = getMembersHash(buffer)
     }
 
+    /**
+     * Returns the lambda associated with member of [name], or null
+     * if it does not exist.
+     */
     fun get(name: String): (() -> Any)? {
         return members[name]
     }
