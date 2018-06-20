@@ -30,6 +30,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import javax.imageio.ImageIO
 import kotlin.collections.LinkedHashMap
 import kotlin.concurrent.withLock
+import kotlin.properties.Delegates
 import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.memberProperties
 
@@ -94,6 +95,9 @@ class OpenGLRenderer(hub: Hub,
 
     /** Shader Property cache */
     private var shaderPropertyCache = HashMap<Class<*>, List<Field>>()
+
+    /** UBO cache */
+    private var uboCache = ConcurrentHashMap<String, OpenGLUBO>()
 
     /** JOGL Drawable */
     private var joglDrawable: GLAutoDrawable? = null
@@ -872,9 +876,20 @@ class OpenGLRenderer(hub: Hub,
         }
     }
 
-    @Synchronized fun updateDefaultUBOs() {
+    @Synchronized fun updateDefaultUBOs(): Boolean {
+        // sticky boolean
+        var updated: Boolean by Delegates.vetoable(false) { _, old, new ->
+            when {
+                old && new -> true
+                !old && new -> true
+                old && !new -> true
+                !old && !new -> false
+                else -> false
+            }
+        }
+
         // find observer, if none, return
-        val cam = scene.findObserver() ?: return
+        val cam = scene.findObserver() ?: return false
 
         val hmd = hub?.getWorkingHMDDisplay()?.wantsVR()
 
@@ -882,7 +897,7 @@ class OpenGLRenderer(hub: Hub,
         cam.updateWorld(true, false)
 
         buffers["VRParameters"]!!.reset()
-        val vrUbo = OpenGLUBO(backingBuffer = buffers["VRParameters"]!!)
+        val vrUbo = uboCache.computeIfAbsent("VRParameters") { OpenGLUBO(backingBuffer = buffers["VRParameters"]!!) }
 
         vrUbo.add("projection0", {
             (hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance)
@@ -904,7 +919,7 @@ class OpenGLRenderer(hub: Hub,
         vrUbo.add("IPD", { hmd?.getIPD() ?: 0.05f })
         vrUbo.add("stereoEnabled", { renderConfig.stereoEnabled.toInt() })
 
-        vrUbo.populate()
+        updated = vrUbo.populate()
         buffers["VRParameters"]!!.copyFromStagingBuffer()
 
         buffers["UBOBuffer"]!!.reset()
@@ -925,19 +940,19 @@ class OpenGLRenderer(hub: Hub,
                 var bufferOffset = ubo.backingBuffer!!.advance()
                 ubo.offset = bufferOffset
                 node.view.copyFrom(cam.view)
-                ubo.populate(offset = bufferOffset.toLong())
+                updated = ubo.populate(offset = bufferOffset.toLong())
 
                 val materialUbo = (node.metadata["OpenGLRenderer"]!! as OpenGLObjectState).UBOs["MaterialProperties"]!!
                 bufferOffset = ubo.backingBuffer.advance()
                 materialUbo.offset = bufferOffset
 
-                materialUbo.populate(offset = bufferOffset.toLong())
+                updated = materialUbo.populate(offset = bufferOffset.toLong())
 
                 if (s.UBOs.containsKey("ShaderProperties")) {
                     val propertyUbo = s.UBOs["ShaderProperties"]!!
                     // TODO: Correct buffer advancement
                     val offset = propertyUbo.backingBuffer!!.advance()
-                    propertyUbo.populate(offset = offset.toLong())
+                    updated = propertyUbo.populate(offset = offset.toLong())
                     propertyUbo.offset = offset
                 }
             }
@@ -948,7 +963,8 @@ class OpenGLRenderer(hub: Hub,
 
 //        val lights = sceneObjects.filter { it is PointLight }
 
-        val lightUbo = OpenGLUBO(backingBuffer = buffers["LightParameters"]!!)
+        val lightUbo = uboCache.computeIfAbsent("LightParameters") { OpenGLUBO(backingBuffer = buffers["LightParameters"]!!) }
+
         lightUbo.add("ViewMatrix0", { cam.getTransformationForEye(0) })
         lightUbo.add("ViewMatrix1", { cam.getTransformationForEye(1) })
         lightUbo.add("InverseViewMatrix0", { cam.getTransformationForEye(0).inverse })
@@ -971,10 +987,12 @@ class OpenGLRenderer(hub: Hub,
 //            lightUbo.add("filler-$i", { 0.0f })
 //        }
 
-        lightUbo.populate()
+        updated = lightUbo.populate()
 
         buffers["LightParameters"]!!.copyFromStagingBuffer()
         buffers["ShaderPropertyBuffer"]!!.copyFromStagingBuffer()
+
+        return updated
     }
 
 
@@ -1312,12 +1330,19 @@ class OpenGLRenderer(hub: Hub,
             }, useDiscoveryBarriers = true)
 
         val startUboUpdate = System.nanoTime()
-        updateDefaultUBOs()
+        val updated = updateDefaultUBOs()
         stats?.add("OpenGLRenderer.updateUBOs", System.nanoTime() - startUboUpdate)
 
         val startInstanceUpdate = System.nanoTime()
         updateInstanceBuffers(sceneObjects)
         stats?.add("OpenGLRenderer.updateInstanceBuffers", System.nanoTime() - startInstanceUpdate)
+
+        if(!updated && pushMode) {
+            logger.debug("UBOs have not been updated, returning")
+            Thread.sleep(5)
+
+            return
+        }
 
         buffers["ShaderParametersBuffer"]?.let { shaderParametersBuffer ->
             shaderParametersBuffer.reset()
