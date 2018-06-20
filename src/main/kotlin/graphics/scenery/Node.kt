@@ -35,8 +35,8 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
     /** Unique ID of the Node */
     var uuid: UUID = UUID.randomUUID()
         private set
-    /** Hash map used for storing metadata for the Node. [DeferredLightingRenderer] uses
-     * it to e.g. store [OpenGLObjectState]. */
+    /** Hash map used for storing metadata for the Node. [Renderer] implementations use
+     * it to e.g. store renderer-specific state. */
     @Transient var metadata: HashMap<String, Any> = HashMap()
 
     /** Material of the Node */
@@ -73,9 +73,11 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
     }
 
     /** Name of the Node's type */
-    open var nodeType = "Node"
-    /** Should the Node's class name be used to derive a GLSL shader file name for a [GLProgram]? */
-    open var useClassDerivedShader = false
+    var nodeType = "Node"
+        protected set
+    /** Should the Node's class name be used to derive a GLSL shader file name for a shader program. */
+    var useClassDerivedShader = false
+        protected set
 
     /** Node update routine, called before updateWorld */
     var update: ArrayList<() -> Unit> = ArrayList()
@@ -99,7 +101,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
     /** Inverse [projection] transform matrix. */
     override var iprojection: GLMatrix by Delegates.observable(GLMatrix.getIdentity()) { property, old, new -> propertyChanged(property, old, new) }
 
-    /** ModelView matrix. Will create inverse [imodelview] upon modification. */
+    /** ModelView matrix. Will create inverse [imodelView] upon modification. */
     override var modelView: GLMatrix by Delegates.observable(GLMatrix.getIdentity()) { property, old, new -> propertyChanged(property, old, new) }
     /** Inverse [modelView] transform matrix. */
     override var imodelView: GLMatrix by Delegates.observable(GLMatrix.getIdentity()) { property, old, new -> propertyChanged(property, old, new) }
@@ -183,15 +185,10 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
     }
 
     init {
-        this.createdAt = (Timestamp(Date().time).time).toLong()
-        this.model = GLMatrix.getIdentity()
-        this.imodel = GLMatrix.getIdentity()
+        createdAt = (Timestamp(Date().time).time)
 
-        this.modelView = GLMatrix.getIdentity()
-        this.imodelView = GLMatrix.getIdentity()
-
-        this.children = CopyOnWriteArrayList<Node>()
-        this.linkedNodes = CopyOnWriteArrayList<Node>()
+        children = CopyOnWriteArrayList()
+        linkedNodes = CopyOnWriteArrayList()
         // null should be the signal to use the default shader
     }
 
@@ -513,7 +510,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
         /**
          * Depth-first search for elements in a Scene.
          *
-         * @param[s] The Scene to search in
+         * @param[origin] The [Node] to start the search at.
          * @param[func] A lambda taking a [Node] and returning a Boolean for matching.
          * @return A list of [Node]s that match [func].
          */

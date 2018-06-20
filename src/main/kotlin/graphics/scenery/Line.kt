@@ -25,10 +25,6 @@ class Line(var capacity: Int = 50) : Node("Line"), HasGeometry {
     /** Index buffer */
     override var indices: IntBuffer = IntBuffer.wrap(intArrayOf())
 
-    /** Defines whether a class-name derived shader shall be used by the renderer, default true */
-    override var useClassDerivedShader = true
-
-
     /** Shader property for the line's starting segment color. Consumed by the renderer. */
     @ShaderProperty
     var startColor = GLVector(0.0f, 1.0f, 0.0f, 1.0f)
@@ -55,6 +51,7 @@ class Line(var capacity: Int = 50) : Node("Line"), HasGeometry {
     var edgeWidth = 2.0f
 
     init {
+        useClassDerivedShader = true
         vertices.limit(0)
         normals.limit(0)
         texcoords.limit(0)
