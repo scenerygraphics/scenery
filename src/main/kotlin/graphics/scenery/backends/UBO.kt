@@ -151,10 +151,14 @@ open class UBO {
         var endPos = originalPos
 
         val oldHash = hash
-        if(sizeCached > 0 && oldHash == getMembersHash(data.duplicate().order(ByteOrder.LITTLE_ENDIAN).position(originalPos + sizeCached)) && elements == null) {
-            data.position(originalPos + sizeCached)
-            logger.trace("UBO members of {} have not changed, {} vs {}", this, hash, getMembersHash(data))
-            return false
+
+        if(sizeCached > 0) {
+            val newHash = getMembersHash(data.duplicate().order(ByteOrder.LITTLE_ENDIAN).position(originalPos + sizeCached) as ByteBuffer)
+            if(oldHash == newHash && elements == null) {
+                data.position(originalPos + sizeCached)
+                logger.trace("UBO members of {} have not changed, {} vs {}", this, hash, getMembersHash(data))
+                return false
+            }
         }
 
         logger.info("Hash changed $oldHash -> ${getMembersHash(data)}, $sizeCached, $elements")
