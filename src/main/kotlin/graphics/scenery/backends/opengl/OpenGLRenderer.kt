@@ -109,6 +109,12 @@ class OpenGLRenderer(hub: Hub,
     /** Flag set when a movie recording is requested */
     private var recordMovie = false
 
+    /**
+     * Activate or deactivate push-based rendering mode (render only on scene changes
+     * or input events). Push mode is activated if [pushMode] is true.
+     */
+    override var pushMode: Boolean = false
+
     /** Eyes of the stereo render targets */
     var eyes = (0..0)
 

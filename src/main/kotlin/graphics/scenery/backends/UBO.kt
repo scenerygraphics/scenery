@@ -6,6 +6,7 @@ import gnu.trove.map.hash.TIntObjectHashMap
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.system.MemoryUtil
 import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.util.*
 import kotlin.collections.LinkedHashMap
 import kotlin.math.max
@@ -22,6 +23,7 @@ open class UBO {
     protected val logger by LazyLogger()
     var hash: Int = 0
         private set
+    var initialized: Boolean = false
 
     protected var sizeCached = -1
 
@@ -136,6 +138,10 @@ open class UBO {
     }
 
     fun populate(data: ByteBuffer, offset: Long = -1L, elements: (LinkedHashMap<String, () -> Any>)? = null): Boolean {
+        // no need to look further
+        if(members.size == 0) {
+            return false
+        }
 
         if(offset != -1L) {
             data.position(offset.toInt())
@@ -145,13 +151,13 @@ open class UBO {
         var endPos = originalPos
 
         val oldHash = hash
-        if(sizeCached > 0 && oldHash == getMembersHash(data.duplicate().position(originalPos + sizeCached)) && elements == null) {
+        if(sizeCached > 0 && oldHash == getMembersHash(data.duplicate().order(ByteOrder.LITTLE_ENDIAN).position(originalPos + sizeCached)) && elements == null) {
             data.position(originalPos + sizeCached)
-            logger.info("UBO members of {} have not changed, {} vs {}", this, hash, getMembersHash(data))
+            logger.trace("UBO members of {} have not changed, {} vs {}", this, hash, getMembersHash(data))
             return false
         }
 
-        logger.info("Hash changed $oldHash -> ${getMembersHash(data)}")
+        logger.info("Hash changed $oldHash -> ${getMembersHash(data)}, $sizeCached, $elements")
 
         (elements ?: members).forEach {
             var pos = data.position()
@@ -236,19 +242,22 @@ open class UBO {
         sizeCached = data.position() - originalPos
         updateHash(data)
 
-        logger.info("UBO {} updated, {} -> {}", this, oldHash, hash)
+        logger.trace("UBO {} updated, {} -> {}", this, oldHash, hash)
 
         return true
     }
 
     fun add(name: String, value: () -> Any, offset: Int? = null) {
-        members.put(name, value)
+        val previous = members.put(name, value)
 
         offset?.let {
             memberOffsets.put(name, offset)
         }
 
-        sizeCached = -1
+        if(previous == null || previous.invoke().javaClass != value.invoke().javaClass) {
+            // invalidate sizes
+            sizeCached = -1
+        }
     }
 
     fun members(): String {
@@ -259,12 +268,21 @@ open class UBO {
         return members.entries.joinToString { "${it.key} -> ${it.value.invoke()}, " }
     }
 
+    fun memberCount(): Int {
+        return members.size
+    }
+
+    fun perMemberHashes(): String {
+        return members.map { "${it.key} -> ${it.key.hashCode()} ${it.value.invoke().hashCode()}" }.joinToString("\n")
+    }
+
     protected fun getMembersHash(buffer: ByteBuffer): Int {
-        return members.hashCode() + MemoryUtil.memAddress(buffer).hashCode()
+        return members.map { (it.key.hashCode() xor it.value.invoke().hashCode()).toLong() }
+            .fold(31L) { acc, value -> acc + (value xor (value.ushr(32)))}.toInt() + MemoryUtil.memAddress(buffer).hashCode()
     }
 
     protected fun updateHash(buffer: ByteBuffer) {
-        hash = members.hashCode() + MemoryUtil.memAddress(buffer).hashCode()
+        hash = getMembersHash(buffer)
     }
 
     fun get(name: String): (() -> Any)? {
