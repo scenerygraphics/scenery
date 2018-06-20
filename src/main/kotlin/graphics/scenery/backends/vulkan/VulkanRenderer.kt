@@ -40,6 +40,7 @@ import java.util.concurrent.locks.ReentrantLock
 import javax.imageio.ImageIO
 import kotlin.concurrent.thread
 import kotlin.concurrent.withLock
+import kotlin.properties.Delegates
 import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.memberProperties
 
@@ -279,6 +280,7 @@ open class VulkanRenderer(hub: Hub,
     var imageBuffer: ByteBuffer? = null
     var encoder: H264Encoder? = null
     var recordMovie: Boolean = false
+    override var pushMode: Boolean = false
 
     private var firstWaitSemaphore: LongBuffer = memAllocLong(1)
 
@@ -1746,8 +1748,8 @@ open class VulkanRenderer(hub: Hub,
         updateInstanceBuffers(sceneObjects)
         stats?.add("Renderer.updateInstanceBuffers", System.nanoTime() - startInstanceUpdate)
 
-        if(!ubosUpdated) {
-            logger.info("UBOs have not been updated, returning")
+        if(!ubosUpdated && pushMode && frames > 0) {
+            logger.debug("UBOs have not been updated, returning")
             return
         }
 
@@ -2725,7 +2727,16 @@ open class VulkanRenderer(hub: Hub,
     private fun updateDefaultUBOs(device: VulkanDevice): Boolean = runBlocking {
         // find observer, if none, return
         val cam = scene.findObserver() ?: return@runBlocking false
-        var updated: Boolean
+        // sticky boolean
+        var updated: Boolean by Delegates.vetoable(false) { _, old, new ->
+            when {
+                old && new -> true
+                !old && new -> true
+                old && !new -> true
+                !old && !new -> false
+                else -> false
+            }
+        }
 
         if (!cam.lock.tryLock()) {
             return@runBlocking false
@@ -2738,17 +2749,29 @@ open class VulkanRenderer(hub: Hub,
 
         buffers["VRParametersBuffer"]!!.reset()
         val vrUbo = UBOs["VRParameters"]!!
-        vrUbo.add("projection0", { (hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance)
-            ?: cam.projection).applyVulkanCoordinateSystem() } )
-        vrUbo.add("projection1", { (hmd?.getEyeProjection(1, cam.nearPlaneDistance, cam.farPlaneDistance)
-            ?: cam.projection).applyVulkanCoordinateSystem() } )
-        vrUbo.add("inverseProjection0", { (hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance)
-            ?: cam.projection).applyVulkanCoordinateSystem().inverse } )
-        vrUbo.add("inverseProjection1", { (hmd?.getEyeProjection(1, cam.nearPlaneDistance, cam.farPlaneDistance)
-            ?: cam.projection).applyVulkanCoordinateSystem().inverse } )
-        vrUbo.add("headShift", { hmd?.getHeadToEyeTransform(0) ?: GLMatrix.getIdentity() })
-        vrUbo.add("IPD", { hmd?.getIPD() ?: 0.05f })
-        vrUbo.add("stereoEnabled", { renderConfig.stereoEnabled.toInt() })
+        if(!vrUbo.initialized) {
+            vrUbo.add("projection0", {
+                (hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance)
+                    ?: cam.projection).applyVulkanCoordinateSystem()
+            })
+            vrUbo.add("projection1", {
+                (hmd?.getEyeProjection(1, cam.nearPlaneDistance, cam.farPlaneDistance)
+                    ?: cam.projection).applyVulkanCoordinateSystem()
+            })
+            vrUbo.add("inverseProjection0", {
+                (hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance)
+                    ?: cam.projection).applyVulkanCoordinateSystem().inverse
+            })
+            vrUbo.add("inverseProjection1", {
+                (hmd?.getEyeProjection(1, cam.nearPlaneDistance, cam.farPlaneDistance)
+                    ?: cam.projection).applyVulkanCoordinateSystem().inverse
+            })
+            vrUbo.add("headShift", { hmd?.getHeadToEyeTransform(0) ?: GLMatrix.getIdentity() })
+            vrUbo.add("IPD", { hmd?.getIPD() ?: 0.05f })
+            vrUbo.add("stereoEnabled", { renderConfig.stereoEnabled.toInt() })
+
+            vrUbo.initialized = true
+        }
         updated = vrUbo.populate()
 
         buffers["UBOBuffer"]!!.reset()
@@ -2785,7 +2808,7 @@ open class VulkanRenderer(hub: Hub,
 
                 updated = materialUbo.populate(offset = bufferOffset.toLong())
 
-                s.UBOs.filter { it.key.contains("ShaderProperties") }.forEach {
+                s.UBOs.filter { it.key.contains("ShaderProperties") && it.value.second.memberCount() > 0 }.forEach {
 //                if(s.requiredDescriptorSets.keys.any { it.contains("ShaderProperties") }) {
                     val propertyUbo = it.value.second
                     // TODO: Correct buffer advancement
@@ -2807,6 +2830,7 @@ open class VulkanRenderer(hub: Hub,
         lightUbo.add("ProjectionMatrix", { cam.projection.applyVulkanCoordinateSystem() })
         lightUbo.add("InverseProjectionMatrix", { cam.projection.applyVulkanCoordinateSystem().inverse })
         lightUbo.add("CamPosition", { cam.position })
+
         updated = lightUbo.populate()
 
         buffers["ShaderPropertyBuffer"]!!.copyFromStagingBuffer()

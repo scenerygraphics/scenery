@@ -129,15 +129,15 @@ class UBOTests {
 
         verifyData(v = defaultVector)
 
-        logger.info("Testing 10 hashed runs ...")
+        logger.info("+ Testing 10 hashed runs and checking buffer is not being updated ...")
         for(i in 0..10) {
             storage.flip()
-            ubo.populate(storage)
+            assertEquals(false, ubo.populate(storage))
 
             verifyData(v = defaultVector)
         }
 
-        logger.info("Modifying UBO and repopulating ...")
+        logger.info("+ Modifying UBO and repopulating ...")
         val newVector = defaultVector + Random.randomVectorFromRange(3, -1.0f, 1.0f)
         ubo.add("member2", { newVector })
         storage.flip()
