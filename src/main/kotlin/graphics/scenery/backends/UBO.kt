@@ -25,7 +25,6 @@ open class UBO {
     protected var sizeCached = -1
 
     companion object {
-//        var alignments: Table<Class<*>, Int, Pair<Int, Int>> = HashBasedTable.create<Class<*>, Int, Pair<Int, Int>>()
         var alignments = TIntObjectHashMap<Pair<Int, Int>>()
     }
 
@@ -144,10 +143,11 @@ open class UBO {
         val originalPos = data.position()
         var endPos = originalPos
 
-        val oldHash = hash
-        if(hash == getMembersHash() && sizeCached > 0 && elements == null) {
+//        val oldHash = hash
+        if(hash == getMembersHash(data) && sizeCached > 0 && elements == null) {
             data.position(originalPos + sizeCached)
-            logger.info("UBO members of $this have not changed, returning ($hash vs. ${getMembersHash()}, buffer $originalPos -> ${data.position()})")
+//            logger.trace("UBO members of $this have not changed, returning ($hash vs. ${getMembersHash(data)}, buffer $originalPos -> ${data.position()})")
+//            logger.trace("UBO members of {} have not changed, {} vs {}", this, hash, getMembersHash(data))
             return false
         }
 
@@ -232,9 +232,10 @@ open class UBO {
         data.position(endPos)
 
         sizeCached = data.position() - originalPos
-        updateHash()
+        updateHash(data)
 
-        logger.info("UBO $this updated, $oldHash -> $hash, buffer: $originalPos - $endPos")
+//        logger.info("UBO $this updated, $oldHash -> $hash, buffer: $originalPos - $endPos")
+//        logger.trace("UBO {} updated, {} -> {}", this, oldHash, hash)
 
         return true
     }
@@ -253,12 +254,12 @@ open class UBO {
         return members.keys.joinToString(", ")
     }
 
-    fun getMembersHash(): Int {
-        return members.hashCode()
+    protected fun getMembersHash(buffer: ByteBuffer): Int {
+        return members.hashCode() + buffer.hashCode()
     }
 
-    fun updateHash() {
-        hash = members.hashCode()
+    protected fun updateHash(buffer: ByteBuffer) {
+        hash = members.hashCode() + buffer.hashCode()
     }
 
     fun get(name: String): (() -> Any)? {
