@@ -4,6 +4,7 @@ import cleargl.GLMatrix
 import cleargl.GLVector
 import gnu.trove.map.hash.TIntObjectHashMap
 import graphics.scenery.utils.LazyLogger
+import org.lwjgl.system.MemoryUtil
 import java.nio.ByteBuffer
 import java.util.*
 import kotlin.collections.LinkedHashMap
@@ -255,11 +256,11 @@ open class UBO {
     }
 
     protected fun getMembersHash(buffer: ByteBuffer): Int {
-        return members.hashCode() + buffer.hashCode()
+        return members.hashCode() + MemoryUtil.memAddress(buffer).hashCode()
     }
 
     protected fun updateHash(buffer: ByteBuffer) {
-        hash = members.hashCode() + buffer.hashCode()
+        hash = members.hashCode() + MemoryUtil.memAddress(buffer).hashCode()
     }
 
     fun get(name: String): (() -> Any)? {
