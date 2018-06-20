@@ -1739,12 +1739,17 @@ open class VulkanRenderer(hub: Hub,
         }
 
         val startUboUpdate = System.nanoTime()
-        updateDefaultUBOs(device)
+        val ubosUpdated = updateDefaultUBOs(device)
         stats?.add("Renderer.updateUBOs", System.nanoTime() - startUboUpdate)
 
         val startInstanceUpdate = System.nanoTime()
         updateInstanceBuffers(sceneObjects)
         stats?.add("Renderer.updateInstanceBuffers", System.nanoTime() - startInstanceUpdate)
+
+//        if(!ubosUpdated) {
+//            logger.info("UBOs have not been updated, returning")
+//            return
+//        }
 
         beginFrame()
 
@@ -1754,6 +1759,7 @@ open class VulkanRenderer(hub: Hub,
         val si = VkSubmitInfo.calloc()
 
         var waitSemaphore = semaphores[StandardSemaphores.PresentComplete]!![0]
+
 
         flow.take(flow.size - 1).forEachIndexed { i, t ->
             logger.trace("Running pass {}", t)
@@ -2716,12 +2722,13 @@ open class VulkanRenderer(hub: Hub,
         }
     }
 
-    private fun updateDefaultUBOs(device: VulkanDevice) = runBlocking {
+    private fun updateDefaultUBOs(device: VulkanDevice): Boolean = runBlocking {
         // find observer, if none, return
-        val cam = scene.findObserver() ?: return@runBlocking
+        val cam = scene.findObserver() ?: return@runBlocking false
+        var updated: Boolean
 
         if (!cam.lock.tryLock()) {
-            return@runBlocking
+            return@runBlocking false
         }
 
         val hmd = hub?.getWorkingHMDDisplay()?.wantsVR()
@@ -2742,7 +2749,7 @@ open class VulkanRenderer(hub: Hub,
         vrUbo.add("headShift", { hmd?.getHeadToEyeTransform(0) ?: GLMatrix.getIdentity() })
         vrUbo.add("IPD", { hmd?.getIPD() ?: 0.05f })
         vrUbo.add("stereoEnabled", { renderConfig.stereoEnabled.toInt() })
-        vrUbo.populate()
+        updated = vrUbo.populate()
 
         buffers["UBOBuffer"]!!.reset()
         buffers["ShaderPropertyBuffer"]!!.reset()
@@ -2769,21 +2776,21 @@ open class VulkanRenderer(hub: Hub,
 
                 node.view.copyFrom(cam.view)
 
-                ubo.populate(offset = bufferOffset.toLong())
+                updated = ubo.populate(offset = bufferOffset.toLong())
 
                 val materialUbo = s.UBOs["MaterialProperties"]!!.second
                 bufferOffset = ubo.backingBuffer!!.advance()
                 materialUbo.offsets.put(0, bufferOffset)
                 materialUbo.offsets.limit(1)
 
-                materialUbo.populate(offset = bufferOffset.toLong())
+                updated = materialUbo.populate(offset = bufferOffset.toLong())
 
                 s.UBOs.filter { it.key.contains("ShaderProperties") }.forEach {
 //                if(s.requiredDescriptorSets.keys.any { it.contains("ShaderProperties") }) {
                     val propertyUbo = it.value.second
                     // TODO: Correct buffer advancement
                     val offset = propertyUbo.backingBuffer!!.advance()
-                    propertyUbo.populate(offset = offset.toLong())
+                    updated = propertyUbo.populate(offset = offset.toLong())
                     propertyUbo.offsets.put(0, offset)
                     propertyUbo.offsets.limit(1)
                 }
@@ -2800,11 +2807,13 @@ open class VulkanRenderer(hub: Hub,
         lightUbo.add("ProjectionMatrix", { cam.projection.applyVulkanCoordinateSystem() })
         lightUbo.add("InverseProjectionMatrix", { cam.projection.applyVulkanCoordinateSystem().inverse })
         lightUbo.add("CamPosition", { cam.position })
-        lightUbo.populate()
+        updated = lightUbo.populate()
 
         buffers["ShaderPropertyBuffer"]!!.copyFromStagingBuffer()
 
         cam.lock.unlock()
+
+        return@runBlocking updated
     }
 
     @Suppress("UNUSED")
