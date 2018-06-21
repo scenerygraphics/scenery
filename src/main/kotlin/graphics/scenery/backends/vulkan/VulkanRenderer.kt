@@ -59,6 +59,7 @@ import kotlin.reflect.full.memberProperties
  * @author Ulrik Günther <hello@ulrik.is>
  */
 
+@Suppress("RedundantCompanionReference")
 open class VulkanRenderer(hub: Hub,
                           applicationName: String,
                           scene: Scene,
@@ -457,17 +458,17 @@ open class VulkanRenderer(hub: Hub,
                 OpenGLSwapchain(
                     device, queue, commandPools.Standard,
                     renderConfig = renderConfig, useSRGB = renderConfig.sRGB,
-                    useFramelock = System.getProperty("scenery.Renderer.Framelock", "false").toBoolean())
+                    useFramelock = System.getProperty("scenery.Renderer.Framelock", "false")?.toBoolean() ?: false)
             }
 
-            (System.getProperty("scenery.Headless", "false").toBoolean()) -> {
+            (System.getProperty("scenery.Headless", "false")?.toBoolean() ?: false) -> {
                 logger.info("Vulkan running in headless mode.")
                 HeadlessSwapchain(
                     device, queue, commandPools.Standard,
                     renderConfig = renderConfig, useSRGB = renderConfig.sRGB)
             }
 
-            (System.getProperty("scenery.Renderer.UseJavaFX", "false").toBoolean() || embedIn != null) -> {
+            (System.getProperty("scenery.Renderer.UseJavaFX", "false")?.toBoolean() ?: false || embedIn != null) -> {
                 logger.info("Using JavaFX-based swapchain")
                 FXSwapchain(
                     device, queue, commandPools.Standard,
@@ -544,7 +545,7 @@ open class VulkanRenderer(hub: Hub,
         lastTime = System.nanoTime()
         time = 0.0f
 
-        if(System.getProperty("scenery.RunFullscreen","false").toBoolean()) {
+        if(System.getProperty("scenery.RunFullscreen","false")?.toBoolean() == true) {
             toggleFullscreen = true
         }
 
@@ -1531,6 +1532,7 @@ open class VulkanRenderer(hub: Hub,
             signalSemaphore = semaphores[StandardSemaphores.PresentComplete]!![0])
     }
 
+    @Suppress("unused")
     fun recordMovie() {
         if(recordMovie) {
             encoder?.finish()
@@ -2727,6 +2729,7 @@ open class VulkanRenderer(hub: Hub,
     }
 
     private fun updateDefaultUBOs(device: VulkanDevice): Boolean = runBlocking {
+        logger.trace("Updating default UBOs for {}", device)
         // find observer, if none, return
         val cam = scene.findObserver() ?: return@runBlocking false
         // sticky boolean
@@ -2751,29 +2754,26 @@ open class VulkanRenderer(hub: Hub,
 
         buffers["VRParametersBuffer"]!!.reset()
         val vrUbo = UBOs["VRParameters"]!!
-        if(!vrUbo.initialized) {
-            vrUbo.add("projection0", {
-                (hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance)
-                    ?: cam.projection).applyVulkanCoordinateSystem()
-            })
-            vrUbo.add("projection1", {
-                (hmd?.getEyeProjection(1, cam.nearPlaneDistance, cam.farPlaneDistance)
-                    ?: cam.projection).applyVulkanCoordinateSystem()
-            })
-            vrUbo.add("inverseProjection0", {
-                (hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance)
-                    ?: cam.projection).applyVulkanCoordinateSystem().inverse
-            })
-            vrUbo.add("inverseProjection1", {
-                (hmd?.getEyeProjection(1, cam.nearPlaneDistance, cam.farPlaneDistance)
-                    ?: cam.projection).applyVulkanCoordinateSystem().inverse
-            })
-            vrUbo.add("headShift", { hmd?.getHeadToEyeTransform(0) ?: GLMatrix.getIdentity() })
-            vrUbo.add("IPD", { hmd?.getIPD() ?: 0.05f })
-            vrUbo.add("stereoEnabled", { renderConfig.stereoEnabled.toInt() })
+        vrUbo.add("projection0", {
+            (hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance)
+                ?: cam.projection).applyVulkanCoordinateSystem()
+        })
+        vrUbo.add("projection1", {
+            (hmd?.getEyeProjection(1, cam.nearPlaneDistance, cam.farPlaneDistance)
+                ?: cam.projection).applyVulkanCoordinateSystem()
+        })
+        vrUbo.add("inverseProjection0", {
+            (hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance)
+                ?: cam.projection).applyVulkanCoordinateSystem().inverse
+        })
+        vrUbo.add("inverseProjection1", {
+            (hmd?.getEyeProjection(1, cam.nearPlaneDistance, cam.farPlaneDistance)
+                ?: cam.projection).applyVulkanCoordinateSystem().inverse
+        })
+        vrUbo.add("headShift", { hmd?.getHeadToEyeTransform(0) ?: GLMatrix.getIdentity() })
+        vrUbo.add("IPD", { hmd?.getIPD() ?: 0.05f })
+        vrUbo.add("stereoEnabled", { renderConfig.stereoEnabled.toInt() })
 
-            vrUbo.initialized = true
-        }
         updated = vrUbo.populate()
 
         buffers["UBOBuffer"]!!.reset()
