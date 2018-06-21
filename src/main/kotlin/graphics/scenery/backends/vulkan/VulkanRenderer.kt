@@ -59,7 +59,6 @@ import kotlin.reflect.full.memberProperties
  * @author Ulrik Günther <hello@ulrik.is>
  */
 
-@Suppress("RedundantCompanionReference")
 open class VulkanRenderer(hub: Hub,
                           applicationName: String,
                           scene: Scene,
