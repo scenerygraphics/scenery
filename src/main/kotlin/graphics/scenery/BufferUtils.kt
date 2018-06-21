@@ -12,7 +12,7 @@ class BufferUtils {
     /**
      * Buffer utilities companion class, for allocating various kinds of buffers and filling them in one go.
      */
-    companion object BufferUtils {
+    companion object {
         private const val SIZE_FLOAT = java.lang.Float.BYTES
         private const val SIZE_INT = java.lang.Integer.BYTES
 

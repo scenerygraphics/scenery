@@ -3,7 +3,7 @@ package graphics.scenery.tests.unit
 import cleargl.GLMatrix
 import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
-import graphics.scenery.BufferUtils.BufferUtils.allocateFloatAndPut
+import graphics.scenery.BufferUtils
 import graphics.scenery.Material
 import graphics.scenery.Mesh
 import graphics.scenery.Node
@@ -138,7 +138,7 @@ class NodeTests {
         val discoveredNodes = scene.discover(scene, { node -> node.visible })
         duration = (System.nanoTime() - start)/10e6
 
-        assert(totalNodes == discoveredNodes.size, { "$totalNodes nodes created, but only ${discoveredNodes.size} nodes discovered."})
+        assert(totalNodes == discoveredNodes.size) { "$totalNodes nodes created, but only ${discoveredNodes.size} nodes discovered."}
 
         logger.info("Scene discovery for $totalNodes took $duration ms, discovered ${discoveredNodes.size} nodes")
     }
@@ -153,7 +153,7 @@ class NodeTests {
         val expectedMin = GLVector(-1.0f, -2.0f, -3.0f)
         val expectedMax = GLVector(4.0f, 5.0f, 6.0f)
 
-        m.vertices = allocateFloatAndPut(
+        m.vertices = BufferUtils.allocateFloatAndPut(
             floatArrayOf(
                 expectedMin[0], expectedMin[1], expectedMin[2],
                 expectedMax[0], expectedMax[1], expectedMax[2]))
@@ -182,7 +182,7 @@ class NodeTests {
     @Test
     fun testCentering() {
         val m = Mesh()
-        m.vertices = allocateFloatAndPut(
+        m.vertices = BufferUtils.allocateFloatAndPut(
             floatArrayOf(-1.0f, -1.0f, -1.0f,
                 1.0f, 1.0f, 1.0f))
         m.boundingBox = m.generateBoundingBox()
@@ -202,7 +202,7 @@ class NodeTests {
     @Test
     fun testFitting() {
         val m = Mesh()
-        m.vertices = allocateFloatAndPut(
+        m.vertices = BufferUtils.allocateFloatAndPut(
             floatArrayOf(-1.0f, -2.0f, -4.0f,
                 1.0f, 2.0f, 4.0f))
         m.boundingBox = m.generateBoundingBox()
@@ -313,7 +313,7 @@ class NodeTests {
 
         child1.addChild(grandchild)
 
-        parent.runRecursive({ it.material = myShinyNewMaterial })
+        parent.runRecursive { it.material = myShinyNewMaterial }
 
         assertEquals("Material of parent should be $myShinyNewMaterial", myShinyNewMaterial, parent.material)
         assertEquals("Material of child1 should be $myShinyNewMaterial", myShinyNewMaterial, child1.material)
