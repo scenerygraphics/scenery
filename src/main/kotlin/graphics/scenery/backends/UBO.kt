@@ -188,14 +188,12 @@ open class UBO {
             val newHash = getMembersHash(data.duplicate().order(ByteOrder.LITTLE_ENDIAN).position(originalPos + sizeCached) as ByteBuffer)
             if(oldHash == newHash && elements == null) {
                 data.position(originalPos + sizeCached)
-                logger.trace("UBO members of {} have not changed, {} vs {}", this, hash, getMembersHash(data))
+                logger.trace("UBO members of {} have not changed, {} vs {}", this, hash, newHash)
 
                 // indicates the buffer will not be updated, but only forwarded to the cached position
                 return false
             }
         }
-
-        logger.info("Hash changed $oldHash -> ${getMembersHash(data)}, $sizeCached, $elements")
 
         // iterate over members, or over elements, if given
         (elements ?: members).forEach {

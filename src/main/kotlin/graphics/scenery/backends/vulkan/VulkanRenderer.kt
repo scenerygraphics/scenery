@@ -1796,12 +1796,10 @@ open class VulkanRenderer(hub: Hub,
 
         // return if neither UBOs were updated, nor the scene was modified
         if (pushMode && !ubosUpdated && !forceRerecording && totalFrames > 3) {
-            logger.debug("UBOs have not been updated, returning ($pushMode, $ubosUpdated, $forceRerecording, $totalFrames)")
+            logger.trace("UBOs have not been updated, returning ({}, {}, {}, {})", pushMode, ubosUpdated, forceRerecording, totalFrames)
             Thread.sleep(2)
 
             return@runBlocking
-        } else {
-            logger.debug("UBOs updated, continueing rendering")
         }
 
         beginFrame()
@@ -2547,7 +2545,7 @@ open class VulkanRenderer(hub: Hub,
 
                 val requiredSets = sets.filter { it !is DescriptorSet.None }.map { it.id }.toLongArray()
                 if(pass.vulkanMetadata.descriptorSets.capacity() < requiredSets.size) {
-                    logger.info("Reallocating descriptor set storage")
+                    logger.debug("Reallocating descriptor set storage")
                     memFree(pass.vulkanMetadata.descriptorSets)
                     pass.vulkanMetadata.descriptorSets = memAllocLong(requiredSets.size)
                 }
@@ -2734,7 +2732,7 @@ open class VulkanRenderer(hub: Hub,
 
 
     private fun updateDefaultUBOs(device: VulkanDevice): Boolean = runBlocking {
-        logger.debug("Updating default UBOs for {}", device)
+        logger.trace("Updating default UBOs for {}", device)
         // find observer, if none, return
         val cam = scene.findObserver() ?: return@runBlocking false
         // sticky boolean
