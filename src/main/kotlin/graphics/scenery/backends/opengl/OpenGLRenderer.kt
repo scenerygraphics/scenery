@@ -92,27 +92,13 @@ open class OpenGLRenderer(hub: Hub,
     /** The hub used for communication between the components */
     final override var hub: Hub? = null
 
-    /** Texture cache */
     private var textureCache = HashMap<String, GLTexture>()
-
-    /** Shader Property cache */
     private var shaderPropertyCache = HashMap<Class<*>, List<Field>>()
-
-    /** UBO cache */
     private var uboCache = ConcurrentHashMap<String, OpenGLUBO>()
-
-    /** JOGL Drawable */
     private var joglDrawable: GLAutoDrawable? = null
-
-    /** Flag set when a screenshot is requested */
     private var screenshotRequested = false
-
-    /** Path of the file where to store the screenshot */
     private var screenshotFilename = ""
-
-    /** H264 movie encoder */
     private var encoder: H264Encoder? = null
-    /** Flag set when a movie recording is requested */
     private var recordMovie = false
 
     /**
@@ -121,13 +107,8 @@ open class OpenGLRenderer(hub: Hub,
      */
     override var pushMode: Boolean = false
 
-    /** time since last resizing */
     private var lastResizeTimer = Timer()
-
-    /** Flag to indicate whether framebuffers have to be recreated */
     @Volatile private var mustRecreateFramebuffers = false
-
-    /** GPU stats object */
     private var gpuStats: GPUStats? = null
 
     /** heartbeat timer */
@@ -585,7 +566,10 @@ open class OpenGLRenderer(hub: Hub,
 
                 passes.filter {
                     it.value.output.keys.contains(targetName)
-                }.forEach { pass.value.inputs[inputTarget] = it.value.output[targetName]!! }
+                }.forEach {
+                    val output = it.value.output[targetName] ?: throw IllegalStateException("Output for $targetName not found in configuration")
+                    pass.value.inputs[inputTarget] = output
+                }
             }
 
             with(pass.value) {
@@ -876,6 +860,10 @@ open class OpenGLRenderer(hub: Hub,
         }
     }
 
+    private fun findBuffer(name: String): OpenGLBuffer {
+        return buffers[name] ?: throw IllegalStateException("Required buffer $name not found")
+    }
+
     @Synchronized protected fun updateDefaultUBOs(): Boolean {
         // sticky boolean
         var updated: Boolean by StickyBoolean(initial = false)
@@ -889,7 +877,9 @@ open class OpenGLRenderer(hub: Hub,
         cam.updateWorld(true, false)
 
         buffers["VRParameters"]!!.reset()
-        val vrUbo = uboCache.computeIfAbsent("VRParameters") { OpenGLUBO(backingBuffer = buffers["VRParameters"]!!) }
+        val vrUbo = uboCache.computeIfAbsent("VRParameters") {
+            OpenGLUBO(backingBuffer = findBuffer("VRParameters"))
+        }
 
         vrUbo.add("projection0", {
             (hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance)
@@ -955,7 +945,9 @@ open class OpenGLRenderer(hub: Hub,
 
 //        val lights = sceneObjects.filter { it is PointLight }
 
-        val lightUbo = uboCache.computeIfAbsent("LightParameters") { OpenGLUBO(backingBuffer = buffers["LightParameters"]!!) }
+        val lightUbo = uboCache.computeIfAbsent("LightParameters") {
+            OpenGLUBO(backingBuffer = findBuffer("LightParameters"))
+        }
 
         lightUbo.add("ViewMatrix0", { cam.getTransformationForEye(0) })
         lightUbo.add("ViewMatrix1", { cam.getTransformationForEye(1) })
