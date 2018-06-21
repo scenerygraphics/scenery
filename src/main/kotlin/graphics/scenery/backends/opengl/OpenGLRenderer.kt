@@ -13,6 +13,8 @@ import graphics.scenery.spirvcrossj.Loader
 import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.utils.*
 import javafx.application.Platform
+import kotlinx.coroutines.experimental.async
+import kotlinx.coroutines.experimental.runBlocking
 import org.lwjgl.system.MemoryUtil
 import java.io.File
 import java.io.FileNotFoundException
@@ -979,6 +981,15 @@ open class OpenGLRenderer(hub: Hub,
 
         updated = lightUbo.populate()
 
+        buffers["ShaderParametersBuffer"]?.let { shaderParametersBuffer ->
+            shaderParametersBuffer.reset()
+            renderpasses.forEach { name, pass ->
+                logger.trace("Updating shader parameters for {}", name)
+                updated = pass.updateShaderParameters()
+            }
+            shaderParametersBuffer.copyFromStagingBuffer()
+        }
+
         buffers["LightParameters"]!!.copyFromStagingBuffer()
         buffers["ShaderPropertyBuffer"]!!.copyFromStagingBuffer()
 
@@ -1260,6 +1271,7 @@ open class OpenGLRenderer(hub: Hub,
         return state
     }
 
+    protected var previousSceneObjects: Array<Node> = emptyArray()
     /**
      * Renders the [Scene].
      *
@@ -1283,9 +1295,9 @@ open class OpenGLRenderer(hub: Hub,
      * 7) The resulting image is drawn to the screen, or -- if a HMD is present -- submitted to the OpenVR
      *    compositor.
      */
-    @Synchronized override fun render() {
+    @Synchronized override fun render() = runBlocking {
         if(!initialized) {
-            return
+            return@runBlocking
         }
 
         val newTime = System.nanoTime()
@@ -1303,44 +1315,42 @@ open class OpenGLRenderer(hub: Hub,
             } catch(e: ThreadDeath) {
                 logger.debug("Caught JOGL ThreadDeath, ignoring.")
             }
-            return
+            return@runBlocking
         }
 
         val running = hub?.getApplication()?.running ?: true
 
         if (scene.children.count() == 0 || renderpasses.isEmpty() || mustRecreateFramebuffers || !running) {
             Thread.sleep(200)
-            return
+            return@runBlocking
         }
 
-        val sceneObjects = scene.discover(scene, { n ->
+        val sceneObjects = async {
+            scene.discover(scene, { n ->
                 n is HasGeometry
                     && n.visible
                     && n.instanceOf == null
             }, useDiscoveryBarriers = true)
+        }
 
         val startUboUpdate = System.nanoTime()
         val updated = updateDefaultUBOs()
         stats?.add("OpenGLRenderer.updateUBOs", System.nanoTime() - startUboUpdate)
 
+        val actualSceneObjects = sceneObjects.await().toTypedArray()
+        val sceneUpdated = actualSceneObjects.contentDeepEquals(previousSceneObjects)
+
+        previousSceneObjects = actualSceneObjects
+
         val startInstanceUpdate = System.nanoTime()
-        updateInstanceBuffers(sceneObjects)
+        updateInstanceBuffers(sceneObjects.await())
         stats?.add("OpenGLRenderer.updateInstanceBuffers", System.nanoTime() - startInstanceUpdate)
 
-        if(pushMode && !updated) {
+        if(pushMode && !updated && !sceneUpdated) {
             logger.debug("UBOs have not been updated, returning")
             Thread.sleep(2)
 
-            return
-        }
-
-        buffers["ShaderParametersBuffer"]?.let { shaderParametersBuffer ->
-            shaderParametersBuffer.reset()
-            renderpasses.forEach { name, pass ->
-                logger.trace("Updating shader parameters for {}", name)
-                pass.updateShaderParameters()
-            }
-            shaderParametersBuffer.copyFromStagingBuffer()
+            return@runBlocking
         }
 
         flow.forEach { t ->
@@ -1443,9 +1453,9 @@ open class OpenGLRenderer(hub: Hub,
                 }
 
                 val actualObjects = if(pass.passConfig.type == RenderConfigReader.RenderpassType.geometry) {
-                    sceneObjects.filter { it !is PointLight }
+                    actualSceneObjects.filter { it !is PointLight }
                 } else {
-                    sceneObjects.filter { it is PointLight }
+                    actualSceneObjects.filter { it is PointLight }
                 }
 
                 actualObjects.forEach renderLoop@ { n ->
@@ -1700,7 +1710,7 @@ open class OpenGLRenderer(hub: Hub,
                 encoder?.finish()
 
                 encoder = null
-                return
+                return@runBlocking
             }
 
             if (recordMovie && (encoder == null || encoder?.frameWidth != window.width || encoder?.frameHeight != window.height)) {
