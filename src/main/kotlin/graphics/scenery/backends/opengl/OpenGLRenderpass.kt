@@ -5,6 +5,7 @@ import cleargl.GLVector
 import graphics.scenery.Settings
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.StickyBoolean
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -70,13 +71,17 @@ class OpenGLRenderpass(var passName: String = "", var passConfig: RenderConfigRe
         }
     }
 
-    fun updateShaderParameters() {
+    fun updateShaderParameters(): Boolean {
+        var updated: Boolean by StickyBoolean(false)
+
         logger.trace("Updating shader parameters for ${this.passName}")
         UBOs.forEach { uboName, ubo ->
             if(uboName.startsWith("ShaderParameters-")) {
                 ubo.setOffsetFromBackingBuffer()
-                ubo.populate()
+                updated = ubo.populate()
             }
         }
+
+        return updated
     }
 }
