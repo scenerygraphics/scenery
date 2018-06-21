@@ -13,15 +13,22 @@ import java.nio.IntBuffer
  * @author Ulrik Günther <hello@ulrik.is>
  */
 open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? = null): AutoCloseable, UBO() {
+    /** [UBODescriptor] for this UBO, containing size, memory pointer, etc. */
     var descriptor = UBODescriptor()
         private set
+    /** Offsets for this UBO, with respect to the backing buffer. */
     var offsets: IntBuffer = memAllocInt(1).put(0, 0)
+    /** The number of required offsets for this UBO. */
     var requiredOffsetCount = 0
     private var closed = false
 
     private var ownedBackingBuffer: VulkanBuffer? = null
     private var stagingMemory: ByteBuffer? = null
 
+    /**
+     * UBO descriptor class, wrapping memory pointers,
+     * allocation sizes, offsets and ranges for the backing buffer.
+     */
     class UBODescriptor {
         internal var memory: Long = 0
         internal var allocationSize: Long = 0
@@ -30,7 +37,7 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
         internal var range: Long = 0
     }
 
-    fun copy(data: ByteBuffer, offset: Long = 0) {
+    protected fun copy(data: ByteBuffer, offset: Long = 0) {
         val dest = memAllocPointer(1)
 
         VU.run("Mapping buffer memory/vkMapMemory", { vkMapMemory(device.vulkanDevice, descriptor.memory, offset, descriptor.allocationSize* 1L, 0, dest) })
@@ -40,6 +47,14 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
         memFree(dest)
     }
 
+    /**
+     * Populates the [backingBuffer] with the members of this UBO, subject to the determined
+     * sizes and alignments. A buffer [offset] can be given. This routine checks via it's super
+     * if an actual buffer update is required, and if not, will just set the buffer to the
+     * cached position. Otherwise it will serialise all the members into [backingBuffer].
+     *
+     * Returns true if [backingBuffer] has been updated, and false if not.
+     */
     fun populate(offset: Long = 0L): Boolean {
         val updated: Boolean
         if(backingBuffer == null) {
@@ -57,16 +72,31 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
         return updated
     }
 
+    /**
+     * Populates the [bufferView] with the members of this UBO, subject to the determined
+     * sizes and alignments in a parallelized manner. A buffer [offset] can be given, as well as
+     * a list of [elements], overriding the UBO's members. This routine checks via it's super
+     * if an actual buffer update is required, and if not, will just set the buffer to the
+     * cached position. Otherwise it will serialise all the members into [bufferView].
+     *
+     * Returns true if [bufferView] has been updated, and false if not.
+     */
     fun populateParallel(bufferView: ByteBuffer, offset: Long, elements: LinkedHashMap<String, () -> Any>): Boolean {
         bufferView.position(0)
         bufferView.limit(bufferView.capacity())
         return super.populate(bufferView, offset, elements)
     }
 
+    /**
+     * Creates this UBO's members from the instancedProperties of [node].
+     */
     fun fromInstance(node: Node) {
         node.instancedProperties.forEach { members.putIfAbsent(it.key, it.value) }
     }
 
+    /**
+     * Creates a [UBODescriptor] for this UBO and returns it.
+     */
     fun createUniformBuffer(): UBODescriptor {
         backingBuffer?.let { buffer ->
             descriptor.memory = buffer.memory
@@ -96,6 +126,10 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
         return descriptor
     }
 
+    /**
+     * Updates this buffer to use a new [backingBuffer] buffer,
+     * given as [newBackingBuffer].
+     */
     @Suppress("unused")
     fun updateBackingBuffer(newBackingBuffer: VulkanBuffer) {
         descriptor.memory = newBackingBuffer.memory
@@ -107,11 +141,18 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
         backingBuffer = newBackingBuffer
     }
 
+    /**
+     * Copies the backing buffer's staging buffer content to the actual backing buffer,
+     * used for RAM -> GPU copies.
+     */
     @Suppress("unused")
     fun copyFromStagingBuffer() {
         backingBuffer?.copyFromStagingBuffer()
     }
 
+    /**
+     * Closes this UBO, freeing staging memory and closing any self-owned backing buffers.
+     */
     override fun close() {
         if(closed) {
             return
