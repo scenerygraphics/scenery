@@ -266,6 +266,7 @@ open class VulkanRenderer(hub: Hub,
     private var firstWaitSemaphore: LongBuffer = memAllocLong(1)
 
     var scene: Scene = Scene()
+    protected var sceneArray: Array<Node> = emptyArray()
 
     protected var commandPools = CommandPools()
     protected val renderpasses = Collections.synchronizedMap(LinkedHashMap<String, VulkanRenderpass>())
@@ -1792,6 +1793,13 @@ open class VulkanRenderer(hub: Hub,
                     }
                 }
             }
+
+            val newSceneArray = sceneObjects.getCompleted().toTypedArray()
+            if(!newSceneArray.contentDeepEquals(sceneArray)) {
+                forceRerecording = true
+            }
+
+            sceneArray = newSceneArray
         }
 
         // return if neither UBOs were updated, nor the scene was modified
