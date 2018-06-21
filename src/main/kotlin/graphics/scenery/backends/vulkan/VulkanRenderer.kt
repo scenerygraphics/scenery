@@ -40,7 +40,6 @@ import java.util.concurrent.locks.ReentrantLock
 import javax.imageio.ImageIO
 import kotlin.concurrent.thread
 import kotlin.concurrent.withLock
-import kotlin.properties.Delegates
 import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.memberProperties
 
@@ -1797,10 +1796,12 @@ open class VulkanRenderer(hub: Hub,
 
         // return if neither UBOs were updated, nor the scene was modified
         if (pushMode && !ubosUpdated && !forceRerecording && totalFrames > 3) {
-            logger.debug("UBOs have not been updated, returning")
+            logger.debug("UBOs have not been updated, returning ($pushMode, $ubosUpdated, $forceRerecording, $totalFrames)")
             Thread.sleep(2)
 
             return@runBlocking
+        } else {
+            logger.debug("UBOs updated, continueing rendering")
         }
 
         beginFrame()
@@ -2731,20 +2732,13 @@ open class VulkanRenderer(hub: Hub,
         }
     }
 
+
     private fun updateDefaultUBOs(device: VulkanDevice): Boolean = runBlocking {
-        logger.trace("Updating default UBOs for {}", device)
+        logger.debug("Updating default UBOs for {}", device)
         // find observer, if none, return
         val cam = scene.findObserver() ?: return@runBlocking false
         // sticky boolean
-        var updated: Boolean by Delegates.vetoable(false) { _, old, new ->
-            when {
-                old && new -> true
-                !old && new -> true
-                old && !new -> true
-                !old && !new -> false
-                else -> false
-            }
-        }
+        var updated: Boolean by StickyBoolean(initial = false)
 
         if (!cam.lock.tryLock()) {
             return@runBlocking false

@@ -876,17 +876,9 @@ class OpenGLRenderer(hub: Hub,
         }
     }
 
-    @Synchronized fun updateDefaultUBOs(): Boolean {
+    @Synchronized protected fun updateDefaultUBOs(): Boolean {
         // sticky boolean
-        var updated: Boolean by Delegates.vetoable(false) { _, old, new ->
-            when {
-                old && new -> true
-                !old && new -> true
-                old && !new -> true
-                !old && !new -> false
-                else -> false
-            }
-        }
+        var updated: Boolean by StickyBoolean(initial = false)
 
         // find observer, if none, return
         val cam = scene.findObserver() ?: return false
