@@ -1701,7 +1701,7 @@ open class VulkanRenderer(hub: Hub,
     /**
      * This function renders the scene
      */
-    override fun render() {
+    override fun render() = runBlocking {
         pollEvents()
 
         val stats = hub?.get(SceneryElement.Statistics) as? Statistics
@@ -1718,7 +1718,7 @@ open class VulkanRenderer(hub: Hub,
             initializeScene()
 
             Thread.sleep(200)
-            return
+            return@runBlocking
         }
 
         if (toggleFullscreen) {
@@ -1726,17 +1726,17 @@ open class VulkanRenderer(hub: Hub,
 
             switchFullscreen()
             toggleFullscreen = false
-            return
+            return@runBlocking
         }
 
         if (window.shouldClose) {
             shouldClose = true
             // stop all
             vkDeviceWaitIdle(device.vulkanDevice)
-            return
+            return@runBlocking
         }
 
-        if(renderDelay > 0) {
+        if (renderDelay > 0) {
             logger.warn("Delaying next frame for $renderDelay ms, as one or more validation error have occured in the previous frame.")
             Thread.sleep(renderDelay)
         }
@@ -1749,11 +1749,67 @@ open class VulkanRenderer(hub: Hub,
         updateInstanceBuffers(sceneObjects)
         stats?.add("Renderer.updateInstanceBuffers", System.nanoTime() - startInstanceUpdate)
 
-        if(!ubosUpdated && pushMode && frames > 0) {
-            logger.debug("UBOs have not been updated, returning")
-            Thread.sleep(5)
+        // flag set to true if command buffer re-recording is necessary,
+        // e.g. because of scene or pipeline changes
+        var forceRerecording = false
+        val rerecordingCauses = ArrayList<String>(20)
 
-            return
+        // here we discover the objects in the scene that could be relevant for the scene
+        if (renderpasses.filter { it.value.passConfig.type != RenderConfigReader.RenderpassType.quad }.any()) {
+            sceneObjects.await().forEach {
+                // if a node is not initialized yet, it'll be initialized here and it's UBO updated
+                // in the next round
+                if (it.rendererMetadata() == null) {
+                    logger.debug("${it.name} is not initialized, doing that now")
+                    it.metadata.put("VulkanRenderer", VulkanObjectState())
+                    initializeNode(it)
+
+                    return@forEach
+                }
+
+                // the current command buffer will be forced to be re-recorded if either geometry, blending or
+                // texturing of a given node have changed, as these might change pipelines or descriptor sets, leading
+                // to the original command buffer becoming obsolete.
+                it.rendererMetadata()?.let { metadata ->
+                    if (it.dirty) {
+                        logger.debug("Force command buffer re-recording, as geometry for {} has been updated", it.name)
+
+                        it.preUpdate(this@VulkanRenderer, hub!!)
+                        updateNodeGeometry(it)
+                        it.dirty = false
+
+                        rerecordingCauses.add(it.name)
+                        forceRerecording = true
+                    }
+
+                    if (it.material.needsTextureReload) {
+                        logger.trace("Force command buffer re-recording, as reloading textures for ${it.name}")
+                        loadTexturesForNode(it, metadata)
+
+                        it.material.needsTextureReload = false
+
+                        rerecordingCauses.add(it.name)
+                        forceRerecording = true
+                    }
+
+                    if (it.material.blending.hashCode() != metadata.blendingHashCode) {
+                        logger.trace("Force command buffer re-recording, as blending options for ${it.name} have changed")
+                        initializeCustomShadersForNode(it)
+                        metadata.blendingHashCode = it.material.blending.hashCode()
+
+                        rerecordingCauses.add(it.name)
+                        forceRerecording = true
+                    }
+                }
+            }
+        }
+
+        // return if neither UBOs were updated, nor the scene was modified
+        if (pushMode && !ubosUpdated && !forceRerecording && totalFrames > 3) {
+            logger.debug("UBOs have not been updated, returning")
+            Thread.sleep(2)
+
+            return@runBlocking
         }
 
         beginFrame()
@@ -1785,8 +1841,8 @@ open class VulkanRenderer(hub: Hub,
             val start = System.nanoTime()
 
             when (target.passConfig.type) {
-                RenderConfigReader.RenderpassType.geometry -> recordSceneRenderCommands(device, target, commandBuffer, sceneObjects, { it !is PointLight })
-                RenderConfigReader.RenderpassType.lights -> recordSceneRenderCommands(device, target, commandBuffer, sceneObjects, { it is PointLight })
+                RenderConfigReader.RenderpassType.geometry -> recordSceneRenderCommands(device, target, commandBuffer, sceneObjects, { it !is PointLight }, forceRerecording)
+                RenderConfigReader.RenderpassType.lights -> recordSceneRenderCommands(device, target, commandBuffer, sceneObjects, { it is PointLight }, forceRerecording)
                 RenderConfigReader.RenderpassType.quad -> recordPostprocessRenderCommands(device, target, commandBuffer)
             }
 
@@ -1824,7 +1880,7 @@ open class VulkanRenderer(hub: Hub,
         val start = System.nanoTime()
 
         when (viewportPass.passConfig.type) {
-            RenderConfigReader.RenderpassType.geometry -> recordSceneRenderCommands(device, viewportPass, viewportCommandBuffer, sceneObjects, { it !is PointLight })
+            RenderConfigReader.RenderpassType.geometry -> recordSceneRenderCommands(device, viewportPass, viewportCommandBuffer, sceneObjects, { it !is PointLight }, forceRerecording)
             RenderConfigReader.RenderpassType.lights -> recordSceneRenderCommands(device, viewportPass, viewportCommandBuffer, sceneObjects, { it is PointLight })
             RenderConfigReader.RenderpassType.quad -> recordPostprocessRenderCommands(device, viewportPass, viewportCommandBuffer)
         }
@@ -2203,7 +2259,9 @@ open class VulkanRenderer(hub: Hub,
         return this.metadata["VulkanRenderer"] as? VulkanObjectState
     }
 
-    private fun recordSceneRenderCommands(device: VulkanDevice, pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer, sceneObjects: Deferred<List<Node>>, customNodeFilter: ((Node) -> Boolean)? = null) = runBlocking {
+    private fun recordSceneRenderCommands(device: VulkanDevice, pass: VulkanRenderpass,
+                                          commandBuffer: VulkanCommandBuffer, sceneObjects: Deferred<List<Node>>,
+                                          customNodeFilter: ((Node) -> Boolean)? = null, forceRerecording: Boolean = false) = runBlocking {
         val target = pass.getOutput()
 
         logger.trace("Initialising recording of scene command buffer for {}/{} ({} attachments)", pass.name, target, target.attachments.count())
@@ -2217,66 +2275,23 @@ open class VulkanRenderer(hub: Hub,
             .pClearValues(pass.vulkanMetadata.clearValues)
 
         val renderOrderList = ArrayList<Node>(pass.vulkanMetadata.renderLists[commandBuffer]?.size ?: 512)
-        var forceRerecording = false
-        val rerecordingCauses = ArrayList<String>(20)
 
         // here we discover all the nodes which are relevant for this pass,
-        // e.g. which have the same transparency settings as the pass
+        // e.g. which have the same transparency settings as the pass,
+        // and filter according to any custom filters applicable to this pass
+        // (e.g. to discern geometry from lighting passes)
         sceneObjects.await().filter { customNodeFilter?.invoke(it) ?: true }.forEach {
-            // if a node is not initialized yet, it'll be initialized here and it's UBO updated
-            // in the next round
-            if(it.rendererMetadata() == null) {
-                logger.debug("${it.name} is not initialized, doing that now")
-                it.metadata.put("VulkanRenderer", VulkanObjectState())
-                initializeNode(it)
-
-                return@forEach
-            }
-
-            // the current command buffer will be forced to be re-recorded if either geometry, blending or
-            // texturing of a given node have changed, as these might change pipelines or descriptor sets, leading
-            // to the original command buffer becoming obsolete.
-            it.rendererMetadata()?.let { metadata ->
+            it.rendererMetadata()?.let { _ ->
                 if (!((pass.passConfig.renderOpaque && it.material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) ||
                         (pass.passConfig.renderTransparent && !it.material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent))) {
                     renderOrderList.add(it)
                 } else {
                     return@let
                 }
-
-                if (it.dirty) {
-                    logger.debug("Force command buffer re-recording, as geometry for {} has been updated", it.name)
-
-                    it.preUpdate(this@VulkanRenderer, hub!!)
-                    updateNodeGeometry(it)
-                    it.dirty = false
-
-                    rerecordingCauses.add(it.name)
-                    forceRerecording = true
-                }
-
-                if (it.material.needsTextureReload) {
-                    logger.trace("Force command buffer re-recording, as reloading textures for ${it.name}")
-                    loadTexturesForNode(it, metadata)
-
-                    it.material.needsTextureReload = false
-
-                    rerecordingCauses.add(it.name)
-                    forceRerecording = true
-                }
-
-                if(it.material.blending.hashCode() != metadata.blendingHashCode) {
-                    logger.trace("Force command buffer re-recording, as blending options for ${it.name} have changed")
-                    initializeCustomShadersForNode(it)
-                    metadata.blendingHashCode = it.material.blending.hashCode()
-
-                    rerecordingCauses.add(it.name)
-                    forceRerecording = true
-                }
             }
         }
 
-        // if the pass' metadata does not contain a commond buffer,
+        // if the pass' metadata does not contain a command buffer,
         // OR the cached command buffer does not contain the same nodes in the same order,
         // OR re-recording is forced due to node changes, the buffer will be re-recorded.
         // Furthermore, all sibling command buffers for this pass will be marked stale, thus
@@ -2477,9 +2492,9 @@ open class VulkanRenderer(hub: Hub,
                 }
 
                 logger.debug("Rendering ${node.name}, vertex+index buffer=${s.vertexBuffers["vertex+index"]!!.vulkanBuffer.toHexString()}...")
-                if(rerecordingCauses.contains(node.name)) {
-                    logger.debug("Using pipeline ${pass.getActivePipeline(node)} for re-recording")
-                }
+//                if(rerecordingCauses.contains(node.name)) {
+//                    logger.debug("Using pipeline ${pass.getActivePipeline(node)} for re-recording")
+//                }
                 val p = pass.getActivePipeline(node)
                 val pipeline = p.getPipelineForGeometryType((node as HasGeometry).geometryType)
                 val specs = p.orderedDescriptorSpecs()
