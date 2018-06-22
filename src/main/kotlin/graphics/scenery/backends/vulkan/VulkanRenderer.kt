@@ -1462,9 +1462,6 @@ open class VulkanRenderer(hub: Hub,
 
                 pass.vulkanMetadata.eye.put(0, pass.passConfig.eye)
 
-                pass.semaphore = VU.getLong("vkCreateSemaphore",
-                    { vkCreateSemaphore(device.vulkanDevice, semaphoreCreateInfo, null, this) }, {})
-
                 this.endCommandBuffer(device, commandPools.Standard, this@VulkanRenderer.queue, flush = true)
             }
 
