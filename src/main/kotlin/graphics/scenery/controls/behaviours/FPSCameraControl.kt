@@ -1,6 +1,5 @@
 package graphics.scenery.controls.behaviours
 
-import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.Camera
 import org.scijava.ui.behaviour.DragBehaviour
@@ -18,20 +17,20 @@ import kotlin.reflect.KProperty
  * @constructor Creates a new FPSCameraControl behaviour
  */
 open class FPSCameraControl(private val name: String, private val n: () -> Camera?, private val w: Int, private val h: Int) : DragBehaviour {
-    /** default mouse x position in window */
     private var lastX = w / 2
-    /** default mouse y position in window */
     private var lastY = h / 2
-    /** whether this is the first entering event */
     private var firstEntered = true
 
-    private var node: Camera? by CameraDelegate()
+    /** The [graphics.scenery.Node] this behaviour class controls */
+    protected var node: Camera? by CameraDelegate()
 
     inner class CameraDelegate {
+        /** Returns the [graphics.scenery.Node] resulting from the evaluation of [n] */
         operator fun getValue(thisRef: Any?, property: KProperty<*>): Camera? {
             return n.invoke()
         }
 
+        /** Setting the value is not supported */
         operator fun setValue(thisRef: Any?, property: KProperty<*>, value: Camera?) {
             throw UnsupportedOperationException()
         }
@@ -41,37 +40,11 @@ open class FPSCameraControl(private val name: String, private val n: () -> Camer
         node?.targeted = false
     }
 
-    constructor(name: String, n: Supplier<Camera?>, w: Int, h: Int) : this(name, { n.get() }, w, h)
-
     /**
-     * This extension function creates yaw/pitch angles from
-     * a given GLVector.
-     *
-     * @return A Pair consisting of the yaw and pitch angles
+     * FPS-style camera control, supplying a Camera via a Java [Supplier] lambda.
      */
-    protected fun GLVector.toYawPitch(): Pair<Float, Float> {
-        val dx = this.x()
-        val dy = this.y()
-        val dz = this.z()
-        var yaw: Float = 0.0f
-        val pitch: Float
-
-        if (Math.abs(dx) < 0.000001f) {
-            if (dx < 0.0f) {
-                yaw = 1.5f * Math.PI.toFloat()
-            } else {
-                yaw = 0.5f * Math.PI.toFloat()
-            }
-
-            yaw -= Math.atan((1.0 * dz) / (1.0 * dx)).toFloat()
-        } else if (dz < 0) {
-            yaw = Math.PI.toFloat()
-        }
-
-        pitch = Math.atan(Math.sqrt(1.0*dx*dx + 1.0*dy*dy)/dz).toFloat()
-
-        return Pair((-yaw * 180.0f / Math.PI.toFloat()), pitch)
-    }
+    @Suppress("unused")
+    constructor(name: String, n: Supplier<Camera?>, w: Int, h: Int) : this(name, { n.get() }, w, h)
 
     /**
      * This function is called upon mouse down and initialises the camera control
@@ -107,7 +80,7 @@ open class FPSCameraControl(private val name: String, private val n: () -> Camer
      * @param[y] y position in window
      */
     @Synchronized override fun drag(x: Int, y: Int) {
-        if(!(node?.lock?.tryLock() ?: false)) {
+        if(node?.lock?.tryLock() != true) {
             return
         }
 
