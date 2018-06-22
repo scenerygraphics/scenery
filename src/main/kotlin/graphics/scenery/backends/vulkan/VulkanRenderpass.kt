@@ -18,7 +18,10 @@ import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Class to encapsulate Vulkan Renderpasses
+ * Class to encapsulate a Vulkan renderpass with [name] and associated [RenderConfigReader.RenderConfig] [config].
+ * The renderpass will be created on [device], with descriptors being allocated from [descriptorPool].
+ * A [pipelineCache] can be used for performance gains. The available vertex descriptors need to be handed
+ * over in [vertexDescriptors].
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
@@ -30,19 +33,45 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
 
     protected val logger by LazyLogger()
 
+    /** [VulkanFramebuffer] inputs of this render pass */
     val inputs = ConcurrentHashMap<String, VulkanFramebuffer>()
+    /** [VulkanFramebuffer] outputs of this render pass */
     val output = ConcurrentHashMap<String, VulkanFramebuffer>()
 
+    /** The pipelines this renderpass contains */
     var pipelines = ConcurrentHashMap<String, VulkanPipeline>()
+        protected set
+    /** The UBOs this renderpass contains, e.g. for storage of shader parameters */
     var UBOs = ConcurrentHashMap<String, VulkanUBO>()
+        protected set
+    /** Descriptor sets needed */
     var descriptorSets = ConcurrentHashMap<String, Long>()
+        protected set
+    /** Descriptor set layouts needed */
     var descriptorSetLayouts = LinkedHashMap<String, Long>()
+        protected set
 
+    /** Semaphores this renderpass is going to wait on when executed */
     var waitSemaphores = memAllocLong(1)
+        protected set
+    /** Stages this renderpass will wait for when executed */
     var waitStages = memAllocInt(1)
+        protected set
+    /** Semaphores this renderpass is going to signal after finishing execution */
     var signalSemaphores = memAllocLong(1)
+        protected set
+    /** Pointers to command buffers associated with running this renderpass */
     var submitCommandBuffers = memAllocPointer(1)
+        protected set
 
+    /**
+     * The command buffer associated with this render pass. Command buffers
+     * are usually multi-buffered, their backing store is contained in the [RingBuffer]
+     * [commandBufferBacking]. When requesting this command buffer, the ring buffer
+     * will hop forward one, such that the next request will return the next command buffer
+     * in the ring buffer, and so on. Be sure to only request a command buffer once, then
+     * store the result and use this.
+     * */
     var commandBuffer: VulkanCommandBuffer
         get() {
             return commandBufferBacking.get()
@@ -55,11 +84,18 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
     private var commandBufferBacking = RingBuffer(size = 3,
         default = { VulkanCommandBuffer(device, null, true) })
 
+    /** This renderpasses' semaphore */
     var semaphore = -1L
+        protected set
 
+    /** This renderpasses' [RenderConfigReader.RenderpassConfig]. */
     var passConfig: RenderConfigReader.RenderpassConfig = config.renderpasses.get(name)!!
+        protected set
 
+    /** Whether this renderpass will render to the viewport or to a [VulkanFramebuffer] */
     var isViewportRenderpass = false
+
+    /** The number of command buffers to keep in the [RingBuffer] [commandBufferBacking]. */
     var commandBufferCount = 3
         set(count) {
             // clean up old backing
@@ -74,6 +110,9 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
 
     private var currentPosition = 0
 
+    /**
+     * Vulkan metadata class, keeping information about viewports, scissor areas, etc.
+     */
     class VulkanMetadata(var descriptorSets: LongBuffer = memAllocLong(10),
                               var vertexBufferOffsets: LongBuffer = memAllocLong(4),
                               var scissor: VkRect2D.Buffer = VkRect2D.calloc(1),
@@ -86,6 +125,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                               var eye: IntBuffer = memAllocInt(1),
                               var renderLists: HashMap<VulkanCommandBuffer, Array<Node>> = HashMap()): AutoCloseable {
 
+        /** Close this metadata instance, and frees all members */
         override fun close() {
             memFree(descriptorSets)
             memFree(vertexBufferOffsets)
@@ -101,9 +141,18 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
 
     }
 
+    /** [VulkanMetadata] for this renderpass */
     var vulkanMetadata = VulkanMetadata()
+        protected set
 
     init {
+        val semaphoreCreateInfo = VkSemaphoreCreateInfo.calloc()
+            .sType(VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO)
+            .pNext(NULL)
+            .flags(0)
+
+        semaphore = VU.getLong("vkCreateSemaphore",
+            { vkCreateSemaphore(device.vulkanDevice, semaphoreCreateInfo, null, this) }, {})
 
         val default = VU.createDescriptorSetLayout(device,
             descriptorNum = 3,
@@ -134,6 +183,9 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         descriptorSetLayouts.put("VRParameters", dslVRParameters)
     }
 
+    /**
+     * Initialises descriptor set layouts coming for the passes' [inputs].
+     */
     fun initializeInputAttachmentDescriptorSetLayouts() {
         var input = 0
         inputs.entries.reversed().forEach { inputFramebuffer ->
@@ -167,6 +219,9 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         }
     }
 
+    /**
+     * Initialiases descriptor set layours associated with this passes' shader parameters.
+     */
     fun initializeShaderParameterDescriptorSetLayouts(settings: Settings) {
         // renderpasses might have parameters set up in their YAML config. These get translated to
         // descriptor layouts, UBOs and descriptor sets
@@ -201,8 +256,10 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                 ubo.add(entry.key, { settings.get(settingsKey) })
             }
 
-            logger.debug("Members are: ${ubo.members()}")
-            logger.debug("Allocating VulkanUBO memory now, space needed: ${ubo.getSize()}")
+            if(logger.isDebugEnabled) {
+                logger.debug("Members are: {}", ubo.membersAndContent())
+                logger.debug("Allocating VulkanUBO memory now, space needed: {}", ubo.getSize())
+            }
 
             ubo.createUniformBuffer()
 
@@ -227,6 +284,9 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         }
     }
 
+    /**
+     * Initialiases descriptor set layouts for [graphics.scenery.ShaderProperty]s.
+     */
     fun initializeShaderPropertyDescriptorSetLayout(): Long {
         // this creates a shader property UBO for items marked @ShaderProperty in node
         val alreadyCreated = descriptorSetLayouts.containsKey("ShaderProperties-$name")
@@ -242,15 +302,18 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
             descriptorSetLayouts.putIfAbsent("ShaderProperties-$name", dsl)
             dsl
         } else {
-            descriptorSetLayouts.getOrElse("ShaderProperties-$name", {
+            descriptorSetLayouts.getOrElse("ShaderProperties-$name") {
                 throw IllegalStateException("ShaderProperties-$name does not exist in descriptor set layouts for $this.")
-            })
+            }
         }
 
         // returns a ordered list of the members of the ShaderProperties struct
         return dsl
     }
 
+    /**
+     * Returns the order of shader properties as a map for a given [node] as required by the shader file.
+     */
     fun getShaderPropertyOrder(node: Node): Map<String, Int> {
         // this creates a shader property UBO for items marked @ShaderProperty in node
         logger.debug("specs: ${this.pipelines["preferred-${node.uuid}"]!!.descriptorSpecs}")
@@ -268,6 +331,9 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
             .toMap()
     }
 
+    /**
+     * Updates all shader parameters.
+     */
     fun updateShaderParameters() {
         UBOs.forEach { uboName, ubo ->
             if(uboName.startsWith("ShaderParameters-")) {
@@ -276,6 +342,9 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         }
     }
 
+    /**
+     * Updates all shader properties.
+     */
     fun updateShaderProperties() {
         UBOs.forEach { uboName, ubo ->
             if(uboName.startsWith("ShaderProperties-")) {
@@ -284,10 +353,17 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         }
     }
 
+    /**
+     * Initialiases the default [VulkanPipeline] for this renderpass.
+     */
     fun initializeDefaultPipeline() {
-        initializePipeline("default", passConfig.shaders.map { VulkanShaderModule.getFromCacheOrCreate(device, "main", Renderer::class.java, "shaders/" + it) })
+        initializePipeline("default", passConfig.shaders.map { VulkanShaderModule.getFromCacheOrCreate(device, "main", Renderer::class.java, "shaders/$it") })
     }
 
+    /**
+     * Initialiases a custom [VulkanPipeline] with [pipelineName], built out of the [shaders] for a specific [vertexInputType].
+     * The pipeline settings are customizable using the lambda [settings].
+     */
     fun initializePipeline(pipelineName: String = "default", shaders: List<VulkanShaderModule>,
                            vertexInputType: VulkanRenderer.VertexDescription = vertexDescriptors.get(VulkanRenderer.VertexDataKinds.PositionNormalTexcoord)!!,
                            settings: (VulkanPipeline) -> Any = {}) {
@@ -403,6 +479,9 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         return dsl
     }
 
+    /**
+     * Returns the default output [VulkanFramebuffer] of this renderpass.
+     */
     fun getOutput(): VulkanFramebuffer {
         val fb = if(isViewportRenderpass) {
             val pos = currentPosition
@@ -416,16 +495,30 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         return fb
     }
 
+    /**
+     * Returns the [commandBufferBacking]'s current read position. Used e.g.
+     * to determine the most currently rendered swapchain image for a viewport pass.
+     */
     fun getReadPosition() = commandBufferBacking.currentReadPosition - 1
 
+    /**
+     * Returns the active [VulkanPipeline] for [forNode], if it has a preferred pipeline,
+     * or the default one if not.
+     */
     fun getActivePipeline(forNode: Node): VulkanPipeline {
         return pipelines.getOrDefault("preferred-${forNode.uuid}", getDefaultPipeline())
     }
 
+    /**
+     * Returns this renderpasses' default pipeline.
+     */
     fun getDefaultPipeline(): VulkanPipeline {
         return pipelines["default"]!!
     }
 
+    /**
+     * Closes this renderpass and deallocates its resources.
+     */
     override fun close() {
         logger.debug("Closing renderpass $name...")
         output.forEach { it.value.close() }

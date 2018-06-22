@@ -355,7 +355,7 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, clazz: Class<*>, shad
         private data class ShaderSignature(val gl: GL4, val clazz: Class<*>, val shaderCodePath: String)
         private val shaderModuleCache = ConcurrentHashMap<ShaderSignature, OpenGLShaderModule>()
 
-        fun getFromCacheOrCreate(gl: GL4, entryPoint: String, clazz: Class<*>, shaderCodePath: String): OpenGLShaderModule {
+        @JvmStatic fun getFromCacheOrCreate(gl: GL4, entryPoint: String, clazz: Class<*>, shaderCodePath: String): OpenGLShaderModule {
             val signature = ShaderSignature(gl, clazz, shaderCodePath)
 
             return if(shaderModuleCache.containsKey(signature)) {

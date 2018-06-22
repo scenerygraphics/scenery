@@ -78,6 +78,12 @@ abstract class Renderer : Hubable {
     abstract fun setRenderingQuality(quality: RenderConfigReader.RenderingQuality)
 
     /**
+     * Activate or deactivate push-based rendering mode (render only on scene changes
+     * or input events). Push mode is activated if [pushMode] is true.
+     */
+    abstract var pushMode: Boolean
+
+    /**
      * Whether the renderer manages it's own main loop. If false, [graphics.scenery.SceneryBase] will take
      * care of the rendering loop inside its main loop.
      */
