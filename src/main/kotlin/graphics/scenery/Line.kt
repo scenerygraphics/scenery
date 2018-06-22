@@ -56,7 +56,7 @@ class Line(var capacity: Int = 50) : Node("Line"), HasGeometry {
         normals.limit(0)
         texcoords.limit(0)
 
-        material.cullingMode = Material.CullingMode.Front
+        material.cullingMode = Material.CullingMode.None
     }
 
     /**
