@@ -3,6 +3,7 @@ package graphics.scenery.controls.behaviours
 import cleargl.GLVector
 import graphics.scenery.Camera
 import net.java.games.input.Component
+import java.util.function.Supplier
 import kotlin.reflect.KProperty
 
 /**
@@ -44,6 +45,12 @@ open class GamepadCameraControl(private val name: String,
 
     /** Threshold below which the behaviour will not trigger */
     var threshold = 0.1f
+
+    /**
+     * Gamepad camera control, supplying a Camera via a Java [Supplier] lambda.
+     */
+    @Suppress("unused")
+    constructor(name: String, axis: List<Component.Identifier.Axis>, n: Supplier<Camera?>, w: Int, h: Int) : this(name, axis, { n.get() }, w, h)
 
     /**
      * This function is trigger upon arrival of an axis event that
