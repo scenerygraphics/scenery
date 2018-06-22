@@ -1,5 +1,38 @@
 # CHANGELOG
 
+# scenery-0.4.2 to scenery-0.5.0
+
+## Additions and Changes
+
+* Renderer: introduces push rendering mode that only renders an image if the scene is changed or an input event happens. Activate by setting Renderer's pushMode property to true
+* SDFFontAtlas: Add support for serialisation to and from file, greatly improving load times
+* VulkanRenderer: does not allocate window surfaces in headless mode anymore
+* VulkanRenderer: Refactor FXSwapchain and HeadlessSwapchain, let FXSwapchain inherit from HeadlessSwapchain
+* BoundingGrid: allow for removal from Node by setting `BoundingGrid.node = null`
+* the default movement speed has been changed to 0.5m/s, the fast movement speed to 1.0m/s
+* The following classes have had their documentation improved: BufferUtils, Camera, FPSCameraControl, FXSwapchain, GPUStats, GamepadCameraControl, GamepadMovementControl, HeadlessSwapchain, LazyLogger, MovementCommand, OpenGLRenderer, OpenGLShaderProgram, OpenGLUBO, ParallelHelpers, ProceduralNoise, RenderConfigReader, Renderdoc, RingBuffer, Scene, SceneryWindow, ScreenConfig, Settings, Statistics, Swapchain, UBO, VU, Volume, VolumeEffector, SlicingVolumeEffector, VulkanBuffer, VulkanRenderpass, VulkanUBO
+* The following classes have been refactored and/or cleaned up: FPSCameraControl, GamepadCameraControl, GamepadMovementControl, MovementCommand, RenderConfigReader, Scene, Settings, VulkanBuffer, VulkanRenderpass
+* added @JvmStatic annotations to companion objects where applicable for better Java compatibility
+* introduces StickyBoolean class for Booleans that stay true™
+* POM: Move ClearGL version to property
+* POM: Inherit scijava component versions from parent POM
+* update SPIRV generator script
+* Renderer: Throw RuntimeException in case renderer initialisation fails completely.
+* RunAllExamples: Don't terminate GLFW after every run
+* Rename Swapchain.next()'s waitForSemaphore to signalSemaphore (which is correct), add correct waitDstStageMask for FXSwapchain.present()
+
+## Fixes
+
+* Line: Don't cull to produce consistent results between OpenGL and Vulkan (#186)
+* VulkanTexture: Print requested allocation size in debug mode in case allocation fails
+* Volume: prevent unwanted volume deallocation
+* JavaFXMouseAndKeyHandler: Improve Java9/10 compatibility by introducing method to bridge between KeyCode.impl_getCode() and KeyCode.getCode()
+* VulkanRenderer: Don't ignore a material's CullingMode
+
+## Dependency updates
+
+* bumps ClearGL to 2.2.0
+
 # scenery-0.4.1 to scenery-0.4.2
 
 ## Additions and Changes
