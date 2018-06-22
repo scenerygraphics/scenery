@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package graphics.scenery.utils
 
 import kotlinx.coroutines.experimental.CommonPool
@@ -10,20 +12,42 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 
+/**
+ * Maps the function [f] asynchronously on [this], returning the resultant list.
+ *
+ * Works via Kotlin Coroutines.
+ */
 fun <A, B>Iterable<A>.mapAsync(f: suspend (A) -> B): List<B> = runBlocking {
     map { async(CommonPool) { f(it) } }.map { it.await() }
 }
 
+/**
+ * Runs the function [f] asynchronously on [this].
+ *
+ * Works via Kotlin Coroutines.
+ */
 fun <A, B>Iterable<A>.forEachAsync(f: suspend (A) -> B) = runBlocking {
     map { async(CommonPool) { f(it) } }.forEach { it.await() }
 }
 
+/**
+ * Runs the function [f] indexed asynchronously on [this].
+ *
+ * Works via Kotlin Coroutines.
+ */
 fun <A, B>Iterable<A>.forEachIndexedAsync(f: suspend (Int, A) -> B) = runBlocking {
     val index = AtomicInteger(0)
     map { async(CommonPool) { f(index.getAndIncrement(), it) } }.forEach { it.await() }
 }
 
-// by Holger Brandl, https://stackoverflow.com/a/35638609
+/**
+ * Maps the function [transform] asynchronously on [this], returning the resultant list.
+ * An optional [ExecutorService] may be given via [exec], the number of threads can be limited
+ * by setting [numThreads], default number is (availableCores - 2).
+ *
+ * Works via Executor Services.
+ * by Holger Brandl, https://stackoverflow.com/a/35638609
+ */
 fun <T, R> Iterable<T>.mapParallel(
     numThreads: Int = Runtime.getRuntime().availableProcessors() - 2,
     exec: ExecutorService = Executors.newFixedThreadPool(numThreads),
@@ -43,7 +67,14 @@ fun <T, R> Iterable<T>.mapParallel(
     return ArrayList<R>(destination)
 }
 
-// derived from Holger Brandl's answer at https://stackoverflow.com/a/35638609
+/**
+ * Runs the function [transform] asynchronously on [this], returning the resultant list.
+ * An optional [ExecutorService] may be given via [exec], the number of threads can be limited
+ * by setting [numThreads], default number is (availableCores - 2).
+ *
+ * Works via Executor Services.
+ * derived from Holger Brandl's solution for map, https://stackoverflow.com/a/35638609
+ */
 fun <T, R> Iterable<T>.forEachParallel(
     numThreads: Int = Runtime.getRuntime().availableProcessors() - 2,
     exec: ExecutorService = Executors.newFixedThreadPool(numThreads),
