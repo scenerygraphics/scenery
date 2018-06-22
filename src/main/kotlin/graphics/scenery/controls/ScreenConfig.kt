@@ -96,7 +96,7 @@ class ScreenConfig {
     companion object {
         private val logger by LazyLogger()
 
-        fun getScreen(config: Config): SingleScreenConfig? {
+        @JvmStatic fun getScreen(config: Config): SingleScreenConfig? {
             for ((_, screen) in config.screens) {
                 if (screen.match.type == ScreenMatcherType.hostname) {
                     if (getHostname().toLowerCase() == screen.match.value) {
@@ -120,7 +120,7 @@ class ScreenConfig {
             proc.inputStream.use({ stream -> Scanner(stream).useDelimiter("\\A").use({ s -> return if (s.hasNext()) s.next() else "" }) })
         }
 
-        fun loadFromFile(path: String): ScreenConfig.Config {
+        @JvmStatic fun loadFromFile(path: String): ScreenConfig.Config {
             val mapper = ObjectMapper(YAMLFactory())
             mapper.registerModule(KotlinModule())
 

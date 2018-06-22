@@ -64,6 +64,6 @@ open class Material : Serializable {
          *
          * @return Material with default properties
          */
-        fun DefaultMaterial(): Material = Material()
+        @JvmStatic fun DefaultMaterial(): Material = Material()
     }
 }
