@@ -170,7 +170,7 @@ class VU {
     /**
      * Companion object for [VU] to access methods statically.
      */
-    companion object VU {
+    companion object {
         private val logger by LazyLogger()
 
         /**

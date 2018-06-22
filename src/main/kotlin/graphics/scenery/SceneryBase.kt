@@ -344,7 +344,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
          *
          * @return The process ID as integer.
          */
-        fun getProcessID(): Int {
+        @JvmStatic fun getProcessID(): Int {
             return Integer.parseInt(ManagementFactory.getRuntimeMXBean().name.split("@".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()[0])
         }
 
@@ -355,7 +355,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
          *
          * @return String containing the path set in SCENERY_DEMO_FILES.
          */
-        fun getDemoFilesPath(): String {
+        @JvmStatic fun getDemoFilesPath(): String {
             val demoDir = System.getenv("SCENERY_DEMO_FILES")
 
             return if (demoDir == null) {

@@ -561,7 +561,7 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
          *
          * Returns the newly-allocated [ByteBuffer], or the one given in [intoBuffer], set to position 0.
          */
-        fun generateProceduralVolume(size: Long, radius: Float = 0.0f,
+        @JvmStatic fun generateProceduralVolume(size: Long, radius: Float = 0.0f,
                                      seed: Long = Random.randomFromRange(0.0f, 133333337.0f).toLong(),
                                      shift: GLVector = GLVector.getNullVector(3),
                                      intoBuffer: ByteBuffer? = null): ByteBuffer {

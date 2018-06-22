@@ -13,23 +13,48 @@ class OpenGLUBO(val backingBuffer: OpenGLRenderer.OpenGLBuffer? = null) : UBO() 
     var offset = 0
     var binding = 0
 
+    /**
+     * Populates the [backingBuffer] with the members of this UBO, subject to the determined
+     * sizes and alignments. A buffer [offset] can be given. This routine checks via it's super
+     * if an actual buffer update is required, and if not, will just set the buffer to the
+     * cached position. Otherwise it will serialise all the members into [backingBuffer].
+     *
+     * Returns true if [backingBuffer] has been updated, and false if not.
+     */
     @Suppress("UNUSED_PARAMETER")
-    fun populate(offset: Long = 0) {
+    fun populate(offset: Long = 0): Boolean {
         backingBuffer?.let { data ->
-            super.populate(data.buffer, -1L, elements = null)
+            return super.populate(data.buffer, -1L, elements = null)
         }
+
+        return false
     }
 
-    fun populateParallel(bufferView: ByteBuffer, offset: Long, elements: LinkedHashMap<String, () -> Any>) {
+    /**
+     * Populates the [bufferView] with the members of this UBO, subject to the determined
+     * sizes and alignments in a parallelized manner. A buffer [offset] can be given, as well as
+     * a list of [elements], overriding the UBO's members. This routine checks via it's super
+     * if an actual buffer update is required, and if not, will just set the buffer to the
+     * cached position. Otherwise it will serialise all the members into [bufferView].
+     *
+     * Returns true if [bufferView] has been updated, and false if not.
+     */
+    fun populateParallel(bufferView: ByteBuffer, offset: Long, elements: LinkedHashMap<String, () -> Any>): Boolean {
         bufferView.position(0)
         bufferView.limit(bufferView.capacity())
-        super.populate(bufferView, offset, elements)
+        return super.populate(bufferView, offset, elements)
     }
 
+    /**
+     * Creates this UBO's members from the instancedProperties of [node].
+     */
     fun fromInstance(node: Node) {
         node.instancedProperties.forEach { members.putIfAbsent(it.key, it.value) }
     }
 
+    /**
+     * Sets the [offset] of this UBO to the one from the [backingBuffer].
+     */
     fun setOffsetFromBackingBuffer() {
         backingBuffer?.let {
             offset = it.advance()
