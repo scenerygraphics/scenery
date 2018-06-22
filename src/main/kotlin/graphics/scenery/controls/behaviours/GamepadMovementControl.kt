@@ -1,7 +1,7 @@
 package graphics.scenery.controls.behaviours
 
-import net.java.games.input.Component
 import graphics.scenery.Camera
+import net.java.games.input.Component
 import kotlin.reflect.KProperty
 
 /**
@@ -12,21 +12,23 @@ import kotlin.reflect.KProperty
  * @property[axis] List of axis that are assigned to this behaviour
  * @property[cam] The camera to control
  */
-class GamepadMovementControl(private val name: String,
+open class GamepadMovementControl(private val name: String,
                              override val axis: List<Component.Identifier>,
                              private val camera: () -> Camera?) : GamepadBehaviour {
     /** Speed multiplier for camera movement */
-    protected val speedMultiplier = 0.8f
+    var speedMultiplier = 0.8f
     /** Threshold below which the behaviour does not trigger */
-    protected val threshold = 0.05f
+    var threshold = 0.05f
 
     private val cam: Camera? by CameraDelegate()
 
-    inner class CameraDelegate {
+    protected inner class CameraDelegate {
+        /** Returns the [graphics.scenery.Camera] resulting from the evaluation of [camera] */
         operator fun getValue(thisRef: Any?, property: KProperty<*>): Camera? {
             return camera.invoke()
         }
 
+        /** Setting the value is not supported */
         operator fun setValue(thisRef: Any?, property: KProperty<*>, value: Camera?) {
             throw UnsupportedOperationException()
         }
