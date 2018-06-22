@@ -17,68 +17,40 @@ import java.util.*
  * @author Ulrik Günther <hello@ulrik.is>
  */
 open class BoundingGrid : Mesh("Bounding Grid") {
-    var labels = HashMap<String, TextBoard>()
+    protected var labels = HashMap<String, TextBoard>()
 
+    /** Grid color for the bounding grid. */
     @ShaderProperty
     var gridColor: GLVector = GLVector(1.0f, 1.0f, 1.0f)
 
+    /** Number of lines per grid axis. */
     @ShaderProperty
     var numLines: Int = 10
 
+    /** Line width for the grid. */
     @ShaderProperty
     var lineWidth: Float = 1.2f
 
+    /** Whether to show only the ticks on the grid, or show the full grid. */
     @ShaderProperty
     var ticksOnly: Int = 1
 
+    /** The [Node] this bounding grid is attached to. Set to null to remove. */
     var node: Node? = null
         set(value) {
-            field = value
+            if(value == null) {
+                field?.removeChild(this)
+                field?.updateWorld(true)
 
-            value?.let {
+                field = value
+            } else {
+                field = value
                 updateFromNode()
                 value.addChild(this)
 
                 value.updateWorld(true)
             }
         }
-
-    fun updateFromNode() {
-        node?.let { node ->
-            val min = node.getMaximumBoundingBox().min
-            val max = node.getMaximumBoundingBox().max
-
-            val b = Box(max - min)
-
-            logger.debug("Bounding box of $node is ${node.getMaximumBoundingBox()}")
-
-            val center = (max - min)*0.5f
-
-            this.vertices = b.vertices
-            this.normals = b.normals
-            this.texcoords = b.texcoords
-            this.indices = b.indices
-
-            this.boundingBox = b.boundingBox
-            this.position = node.getMaximumBoundingBox().min + center
-
-            boundingBox?.let { bb ->
-                // label coordinates are relative to the bounding box
-                labels["0"]?.position = bb.min - GLVector(0.1f, 0.0f, 0.0f)
-                labels["x"]?.position = GLVector(2.0f * bb.max.x() + 0.1f, 0.01f, 0.01f) - center
-                labels["y"]?.position = GLVector(-0.1f, 2.0f * bb.max.y(), 0.01f) - center
-                labels["z"]?.position = GLVector(-0.1f, 0.01f, 2.0f * bb.max.z()) - center
-
-                node.addChild(this)
-                this.needsUpdate = true
-                this.needsUpdateWorld = true
-
-                this.dirty = true
-
-                name = "Bounding Grid of ${node.name}"
-            } ?: logger.error("Bounding box of $b is null")
-        }
-    }
 
     init {
         material = ShaderMaterial(arrayListOf("DefaultForward.vert", "BoundingGrid.frag"))
@@ -106,11 +78,46 @@ open class BoundingGrid : Mesh("Bounding Grid") {
         }
     }
 
-    /** Stringify the bounding box */
-    override fun toString(): String {
-        return "Bounding Box of ${node?.name}, coords: ${boundingBox?.min}/${boundingBox?.max}"
+    protected fun updateFromNode() {
+        node?.let { node ->
+            val min = node.getMaximumBoundingBox().min
+            val max = node.getMaximumBoundingBox().max
+
+            val b = Box(max - min)
+
+            logger.debug("Bounding box of $node is ${node.getMaximumBoundingBox()}")
+
+            val center = (max - min)*0.5f
+
+            this.vertices = b.vertices
+            this.normals = b.normals
+            this.texcoords = b.texcoords
+            this.indices = b.indices
+
+            this.boundingBox = b.boundingBox
+            this.position = node.getMaximumBoundingBox().min + center
+
+            boundingBox?.let { bb ->
+                // label coordinates are relative to the bounding box
+                labels["0"]?.position = bb.min - GLVector(0.1f, 0.0f, 0.0f)
+                labels["x"]?.position = GLVector(2.0f * bb.max.x() + 0.1f, 0.01f, 0.01f) - center
+                labels["y"]?.position = GLVector(-0.1f, 2.0f * bb.max.y(), 0.01f) - center
+                labels["z"]?.position = GLVector(-0.1f, 0.01f, 2.0f * bb.max.z()) - center
+
+                this.needsUpdate = true
+                this.needsUpdateWorld = true
+
+                this.dirty = true
+
+                name = "Bounding Grid of ${node.name}"
+            } ?: logger.error("Bounding box of $b is null")
+        }
     }
 
-    override fun preDraw() {
+    /**
+     * Returns this bounding box' coordinates and associated [Node] as String.
+     */
+    override fun toString(): String {
+        return "Bounding Box of ${node?.name}, coords: ${boundingBox?.min}/${boundingBox?.max}"
     }
 }
