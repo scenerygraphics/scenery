@@ -3,24 +3,35 @@ package graphics.scenery.utils
 import java.util.*
 
 /**
- * Created by ulrik on 1/8/2017.
+ * Ring buffer class. Creates a ring buffer of size [size], with all elements
+ * initialiased to a default value. Querying this ring buffer will return the current
+ * element of the buffer, and advance the read position. Setting it will store
+ * the element, and advance the write position. Running one of these two operations
+ * again will then affect the next element of the ring buffer.
  */
 open class RingBuffer<T: Any>(var size: Int, default: ((Int) -> T)? = null) {
 
     protected var backingStore: ArrayList<T> = ArrayList(size)
+
+    /** The current read position of the ring buffer */
     var currentReadPosition = 0
         protected set
+    /** The current write position of the ring buffer */
     var currentWritePosition = 0
         protected set
 
     init {
         default?.let {
-            (0..size - 1).map { element ->
+            for (element in 0 until size) {
                 put(default.invoke(element))
             }
         }
     }
 
+    /**
+     * Puts a new [element] into the ring buffer, advancing the
+     * write position.
+     */
     fun put(element: T) {
         if(backingStore.size <= size) {
             backingStore.add(element)
@@ -32,6 +43,10 @@ open class RingBuffer<T: Any>(var size: Int, default: ((Int) -> T)? = null) {
         currentWritePosition++
     }
 
+    /**
+     * Retrieves and returns the current element from the ring buffer, and advances
+     * the current read position.
+     */
     fun get(): T {
         currentReadPosition = currentReadPosition.rem(backingStore.size)
         val element = backingStore[currentReadPosition]
@@ -40,6 +55,9 @@ open class RingBuffer<T: Any>(var size: Int, default: ((Int) -> T)? = null) {
         return element
     }
 
+    /**
+     * Resets the ring buffer, and clears its backing store.
+     */
     fun reset() {
         currentReadPosition = 0
         currentWritePosition = 0
