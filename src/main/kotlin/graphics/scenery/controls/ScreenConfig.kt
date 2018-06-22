@@ -20,9 +20,12 @@ import java.util.*
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class ScreenConfig {
-    private val logger by LazyLogger()
-
+    /**
+     * Deserializer class for [GLVector] objects. Takes a string, splits it at "," and
+     * serializes the results into a new GLVector.
+     */
     class VectorDeserializer : JsonDeserializer<GLVector>() {
+        /** Runs the deserialization process with parser [p] and optional content [ctxt]. */
         override fun deserialize(p: JsonParser, ctxt: DeserializationContext?): GLVector {
             val floats = p.text.split(",").map { it.trim().trimStart().toFloat() }.toFloatArray()
 
@@ -30,6 +33,10 @@ class ScreenConfig {
         }
     }
 
+    /**
+     * Represents a screen configuration, potentially with multiple [screens] with a
+     * shared size of [screenWidth] x [screenHeight]. A [name] and [description] can be given.
+     */
     data class Config(
         var name: String,
         var description: String?,
@@ -40,21 +47,30 @@ class ScreenConfig {
     )
 
 
+    /** Represents a single screen in the configuration */
     class SingleScreenConfig(
+        /** How to match this screen (e.g. by host or IP) */
         var match: ScreenMatcher,
 
+        /** Lower left screen corner, in meters */
         @JsonDeserialize(using = VectorDeserializer::class)
         var lowerLeft: GLVector = GLVector(0.0f, 0.0f, 0.0f),
+
+        /** Lower right screen corner, in meters */
         @JsonDeserialize(using = VectorDeserializer::class)
         var lowerRight: GLVector = GLVector(0.0f, 0.0f, 0.0f),
+
+        /** Upper left screen corner, in meters */
         @JsonDeserialize(using = VectorDeserializer::class)
         var upperLeft: GLVector = GLVector(0.0f, 0.0f, 0.0f)
     ) {
         private var screenTransform: GLMatrix
 
+        /** Calculated width of the screen, in meters */
         var width = 0.0f
             private set
 
+        /** Calculated height of the screen, in meters */
         var height = 0.0f
             private set
 
@@ -82,29 +98,42 @@ class ScreenConfig {
             screenTransform.invert()
         }
 
+        /** Returns the frustum transform for this screen */
         fun getTransform(): GLMatrix = screenTransform
     }
 
+    /**
+     * Screen matcher class with [type] and [value].
+     */
     data class ScreenMatcher(
         var type: ScreenMatcherType,
         var value: String
     )
 
-    enum class ScreenMatcherType { property, hostname }
+    /** A screen matcher can be based on a system property or a hostname currently. */
+    enum class ScreenMatcherType { Property, Hostname }
 
 
+    /**
+     * ScreenConfig companion class for static functions
+     */
     companion object {
         private val logger by LazyLogger()
 
+        /**
+         * Matches a single screen to the [config] given.
+         *
+         * Returns a [SingleScreenConfig] if the screen could be matched, and null otherwise.
+         */
         @JvmStatic fun getScreen(config: Config): SingleScreenConfig? {
             for ((_, screen) in config.screens) {
-                if (screen.match.type == ScreenMatcherType.hostname) {
+                if (screen.match.type == ScreenMatcherType.Hostname) {
                     if (getHostname().toLowerCase() == screen.match.value) {
                         return screen
                     }
                 }
 
-                if (screen.match.type == ScreenMatcherType.property) {
+                if (screen.match.type == ScreenMatcherType.Property) {
                     if (System.getProperty("scenery.ScreenName") == screen.match.value) {
                         return screen
                     }
@@ -117,9 +146,14 @@ class ScreenConfig {
 
         private fun getHostname(): String {
             val proc = Runtime.getRuntime().exec("hostname")
-            proc.inputStream.use({ stream -> Scanner(stream).useDelimiter("\\A").use({ s -> return if (s.hasNext()) s.next() else "" }) })
+            proc.inputStream.use { stream -> Scanner(stream).useDelimiter("\\A").use { s -> return if (s.hasNext()) s.next() else "" } }
         }
 
+        /**
+         * Loads a [ScreenConfig.Config] from a [path] and returns it.
+         *
+         * If [path] cannot be found, a default configuration included with scenery will be loaded.
+         */
         @JvmStatic fun loadFromFile(path: String): ScreenConfig.Config {
             val mapper = ObjectMapper(YAMLFactory())
             mapper.registerModule(KotlinModule())
@@ -131,6 +165,7 @@ class ScreenConfig {
 
                 return if (!Files.exists(p)) {
                     stream = this::class.java.getResourceAsStream("CAVEExample.yml")
+                    logger.warn("Screen configuration not found at $path, returning default configuration.")
                     mapper.readValue(stream, ScreenConfig.Config::class.java)
                 } else {
                     Files.newBufferedReader(p).use {

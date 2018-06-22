@@ -6,28 +6,28 @@ screenHeight: 1600
 screens:
   front:
     match:
-      type: property
+      type: Property
       value: front
     lowerLeft: -1.92, 0.00, 1.92
     lowerRight: 1.92, 0.00, 1.92
     upperLeft: -1.92, 2.40, 1.92
   left:
       match:
-        type: property
+        type: Property
         value: left
       lowerLeft: -1.92, 0.00, -1.92
       lowerRight: -1.92, 0.00, 1.92
       upperLeft: -1.92, 2.40, -1.92
   right:
       match:
-        type: property
+        type: Property
         value: right
       lowerLeft: 1.92, 0.00, 1.92
       lowerRight: 1.92, 0.00, -1.92
       upperLeft: 1.92, 2.40, 1.92
   floor:
       match:
-        type: property
+        type: Property
         value: floor
       lowerLeft: -1.92, 0.00, -0.48
       lowerRight: 1.92, 0.00, -0.48
