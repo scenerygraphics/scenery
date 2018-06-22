@@ -6,16 +6,25 @@ import cleargl.GLShaderType
 import cleargl.GLUniform
 import com.jogamp.opengl.GL4
 import gnu.trove.map.hash.THashMap
-import gnu.trove.map.hash.TObjectIntHashMap
 import graphics.scenery.utils.LazyLogger
 
-class OpenGLShaderProgram(var gl: GL4, val modules: HashMap<GLShaderType, OpenGLShaderModule>) {
+/**
+ * Class to handle OpenGL shader programs, for a context [gl], consisting of [OpenGLShaderModule] [modules].
+ *
+ * @author Ulrik Guenther <hello@ulrik.is>
+ */
+open class OpenGLShaderProgram(var gl: GL4, val modules: HashMap<GLShaderType, OpenGLShaderModule>) {
     private val logger by LazyLogger()
 
+    /** The ClearGL program object */
     var program: GLProgram
+    /** UBO specifications defined by the compiled shader modules. */
     val uboSpecs = LinkedHashMap<String, OpenGLShaderModule.UBOSpec>()
     private val blockIndices = THashMap<String, Int>()
+
+    /** THe OpenGL-internal id of this shader program */
     var id: Int
+        protected set
 
     init {
         val shaders = HashMap<GLShaderType, GLShader>()
@@ -25,11 +34,11 @@ class OpenGLShaderProgram(var gl: GL4, val modules: HashMap<GLShaderType, OpenGL
                 if(uboSpecs.containsKey(uboName)) {
                     uboSpecs[uboName]!!.members.putAll(ubo.members)
                 } else {
-                    uboSpecs.put(uboName, ubo)
+                    uboSpecs[uboName] = ubo
                 }
             }
 
-            shaders.put(type, module.shader)
+            shaders[type] = module.shader
         }
 
         logger.debug("Creating shader program from ${modules.keys.joinToString(", ")}")
@@ -48,25 +57,39 @@ class OpenGLShaderProgram(var gl: GL4, val modules: HashMap<GLShaderType, OpenGL
         gl.glGetProgramiv(program.id, GL4.GL_LINK_STATUS, result, 0)
 
         id = if(result[0] != GL4.GL_TRUE) {
-            logger.error("An error occured during linking.")
+            logger.error("An error occurred during linking.")
             -1
         } else {
             program.id
         }
     }
 
+    /**
+     * Returns true if this shader program has an id > 0, which means
+     * linking was successful, and the program is ready for use.
+     */
     fun isValid(): Boolean {
         return id > 0
     }
 
+    /**
+     * Attaches this shader program for usage.
+     */
     fun use(gl: GL4) {
         program.use(gl)
     }
 
+    /**.
+     * Returns the [GLUniform] associated with [name].
+     */
     fun getUniform(name: String): GLUniform {
         return program.getUniform(name)
     }
 
+    /**
+     * Returns the [graphics.scenery.ShaderProperty]s of this program in the order required by
+     * the shader/the uniform buffer.
+     */
     fun getShaderPropertyOrder(): Map<String, Int> {
         // this creates a shader property UBO for items marked @ShaderProperty in node
         val shaderPropertiesSpec = uboSpecs.filter { it.key == "ShaderProperties" }.map { it.value.members }
@@ -83,9 +106,14 @@ class OpenGLShaderProgram(var gl: GL4, val modules: HashMap<GLShaderType, OpenGL
 //        val specs = shaderPropertiesSpec.map { it.members }.flatMap { it.entries }.map { it.key.to(it.value.offset) }
     }
 
+    /**
+     * Caches and returns the uniform block index associated with [name].
+     * This information needs to be cached, because especially on macOS, the OpenGL API
+     * call is horribly slow.
+     */
     fun getUniformBlockIndex(name: String): Int {
-        return blockIndices.getOrPut(name, {
+        return blockIndices.getOrPut(name) {
             gl.glGetUniformBlockIndex(program.id, name)
-        })
+        }
     }
 }
