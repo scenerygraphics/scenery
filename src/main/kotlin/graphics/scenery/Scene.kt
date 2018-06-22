@@ -2,14 +2,7 @@ package graphics.scenery
 
 import kotlinx.coroutines.experimental.*
 import kotlinx.coroutines.experimental.channels.Channel
-import kotlinx.coroutines.experimental.channels.consumeEach
-import kotlinx.coroutines.experimental.channels.map
-import kotlinx.coroutines.experimental.channels.toList
 import java.util.*
-import java.util.concurrent.CopyOnWriteArrayList
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.collections.ArrayList
 
@@ -25,13 +18,17 @@ open class Scene : Node("RootNode") {
     var activeObserver: Camera? = null
 
     internal var sceneSize: AtomicLong = AtomicLong(0L)
+
+    /** Temporary storage for lights */
     var lights = ArrayList<Node>()
+
     /**
      * Adds a [Node] to the Scene, at the position given by [parent]
      *
      * @param[n] The node to add.
      * @param[parent] The node to attach [n] to.
      */
+    @Suppress("unused")
     fun addNode(n: Node, parent: Node) {
         if (n.name == "RootNode") {
             throw IllegalStateException("Only one RootNode may exist per scenegraph. Please choose a different name.")
@@ -48,38 +45,16 @@ open class Scene : Node("RootNode") {
      * @return The [Camera] that is currently active.
      */
     fun findObserver(): Camera? {
-        if(activeObserver == null) {
+        return if(activeObserver == null) {
             val observers = discover(this, { n -> n.nodeType == "Camera" && (n as Camera?)?.active == true }, useDiscoveryBarriers = true)
 
             activeObserver = observers.firstOrNull() as Camera?
-            return activeObserver
+            activeObserver
         } else {
-            return activeObserver
+            activeObserver
         }
     }
 
-    fun <T, R> List<T>.parallelFor (
-        numThreads: Int = Runtime.getRuntime().availableProcessors() - 2,
-        exec: ExecutorService = Executors.newFixedThreadPool(numThreads),
-        transform: (T) -> R) {
-
-        // default size is just an inlined version of kotlin.collections.collectionSizeOrDefault
-
-        if(this.size < 4) {
-            this.forEach { transform(it) }
-        } else {
-            for (item in this) {
-                exec.submit { transform(item) }
-            }
-        }
-
-//        exec.shutdown()
-//        exec.awaitTermination(1, TimeUnit.DAYS)
-    }
-
-    fun <A, B>List<A>.pmap(f: suspend (A) -> B) = runBlocking {
-        map { async(CommonPool) { f(it) } }.forEach { it.await() }
-    }
     /**
      * Depth-first search for elements in a Scene.
      *
@@ -109,6 +84,10 @@ open class Scene : Node("RootNode") {
         return matched
     }
 
+    /**
+     * Discovers [Node]s in a Scene [s] via [func] in a parallel manner, optionally stopping at discovery barriers,
+     * if [useDiscoveryBarriers] is true.
+     */
     @Suppress("UNUSED_VARIABLE", "unused")
     fun discoverParallel(s: Scene, func: (Node) -> Boolean, useDiscoveryBarriers: Boolean = false) = runBlocking<List<Node>> {
         val visited = Collections.synchronizedSet(HashSet<Node>(sceneSize.toInt()))
@@ -148,6 +127,7 @@ open class Scene : Node("RootNode") {
     /**
      * Depth-first search routine for a Scene.
      */
+    @Suppress("unused")
     fun dfs(s: Scene) {
         val visited = HashSet<Node>()
         fun dfs(current: Node) {
@@ -165,18 +145,20 @@ open class Scene : Node("RootNode") {
      * @param[name] The name of the [Node] to find.
      * @return The first [Node] matching [name].
      */
-    fun find(name: String): Node {
-        var matches = discover(this, { n -> n.name == name })
+    @Suppress("unused")
+    fun find(name: String): Node? {
+        val matches = discover(this, { n -> n.name == name })
 
-        return matches.first()
+        return matches.firstOrNull()
     }
 
     /**
      * Find a [Node] by its class name.
      *
-     * @param[name] The class name of the [Node] to find.
+     * @param[className] The class name of the [Node] to find.
      * @return A list of Nodes with class name [name].
      */
+    @Suppress("unused")
     fun findByClassname(className: String): List<Node> {
         return this.discover(this, { n -> n.javaClass.simpleName.contains(className) })
     }
