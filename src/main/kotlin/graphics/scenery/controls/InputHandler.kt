@@ -16,8 +16,6 @@ import org.scijava.ui.behaviour.InputTrigger
 import org.scijava.ui.behaviour.InputTriggerMap
 import org.scijava.ui.behaviour.io.InputTriggerConfig
 import org.scijava.ui.behaviour.io.yaml.YamlConfigIO
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
 import java.io.FileNotFoundException
 import java.io.FileReader
 import java.io.Reader
@@ -97,7 +95,6 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
 
         this.scene = scene
         this.renderer = renderer
-        this.hub = hub
 
         hub?.add(SceneryElement.Input, this)
     }
@@ -138,6 +135,7 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
      *
      * @return Map of all currently configured key bindings.
      */
+    @Suppress("unused")
     fun getAllBindings(): Map<InputTrigger, Set<String>> {
         return inputMap.allBindings
     }
@@ -213,12 +211,12 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
         behaviourMap.put("move_up", MovementCommand("move_up", "up", { scene.findObserver() }))
         behaviourMap.put("move_down", MovementCommand("move_down", "down", { scene.findObserver() }))
 
-        behaviourMap.put("move_forward_fast", MovementCommand("move_forward", "forward", { scene.findObserver() }, 0.2f))
-        behaviourMap.put("move_back_fast", MovementCommand("move_back", "back", { scene.findObserver() }, 0.2f))
-        behaviourMap.put("move_left_fast", MovementCommand("move_left", "left", { scene.findObserver() }, 0.2f))
-        behaviourMap.put("move_right_fast", MovementCommand("move_right", "right", { scene.findObserver() }, 0.2f))
-        behaviourMap.put("move_up_fast", MovementCommand("move_up", "up", { scene.findObserver() }, 0.2f))
-        behaviourMap.put("move_down_fast", MovementCommand("move_down", "down", { scene.findObserver() }, 0.2f))
+        behaviourMap.put("move_forward_fast", MovementCommand("move_forward", "forward", { scene.findObserver() }, 1.0f))
+        behaviourMap.put("move_back_fast", MovementCommand("move_back", "back", { scene.findObserver() }, 1.0f))
+        behaviourMap.put("move_left_fast", MovementCommand("move_left", "left", { scene.findObserver() }, 1.0f))
+        behaviourMap.put("move_right_fast", MovementCommand("move_right", "right", { scene.findObserver() }, 1.0f))
+        behaviourMap.put("move_up_fast", MovementCommand("move_up", "up", { scene.findObserver() }, 1.0f))
+        behaviourMap.put("move_down_fast", MovementCommand("move_down", "down", { scene.findObserver() }, 1.0f))
 
         behaviourMap.put("toggle_debug", ToggleCommand("toggle_debug", renderer, "toggleDebug"))
         behaviourMap.put("toggle_fullscreen", ToggleCommand("toggle_fullscreen", renderer, "toggleFullscreen"))
@@ -272,6 +270,6 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
     }
 
     override fun close() {
-
+        logger.debug("Closing InputHandler")
     }
 }
