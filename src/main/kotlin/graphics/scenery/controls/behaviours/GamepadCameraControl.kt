@@ -3,7 +3,6 @@ package graphics.scenery.controls.behaviours
 import cleargl.GLVector
 import graphics.scenery.Camera
 import net.java.games.input.Component
-import java.util.function.Supplier
 import kotlin.reflect.KProperty
 
 /**
@@ -16,39 +15,35 @@ import kotlin.reflect.KProperty
  * @property[w] The window width
  * @property[h] The window height
  */
-class GamepadCameraControl(private val name: String,
+open class GamepadCameraControl(private val name: String,
                            override val axis: List<Component.Identifier.Axis>,
                            private val n: () -> Camera?, private val w: Int, private val h: Int) : GamepadBehaviour {
-    /** Last x position */
     private var lastX: Float = 0.0f
-    /** Last y position */
     private var lastY: Float = 0.0f
-    /** Is this the first event? */
-    private var firstEntered = true;
+    private var firstEntered = true
 
-    private var node: Camera? by CameraDelegate()
+    /** The [graphics.scenery.Node] this behaviour class controls */
+    protected var node: Camera? by CameraDelegate()
 
-    inner class CameraDelegate {
+    protected inner class CameraDelegate {
+        /** Returns the [graphics.scenery.Node] resulting from the evaluation of [n] */
         operator fun getValue(thisRef: Any?, property: KProperty<*>): Camera? {
             return n.invoke()
         }
 
+        /** Setting the value is not supported */
         operator fun setValue(thisRef: Any?, property: KProperty<*>, value: Camera?) {
             throw UnsupportedOperationException()
         }
     }
 
     /** Pitch angle calculated from the axis position */
-    private var pitch: Float = 0.0f;
+    private var pitch: Float = 0.0f
     /** Yaw angle calculated from the axis position */
-    private var yaw: Float = 0.0f;
+    private var yaw: Float = 0.0f
 
-    /** Multiplier of how big of a change the movement causes */
-    private val speedMultiplier = 0.01f
     /** Threshold below which the behaviour will not trigger */
-    private val threshold = 0.1f
-
-    constructor(name: String, axis: List<Component.Identifier.Axis>, n: Supplier<Camera?>, w: Int, h: Int) : this(name, axis, { n.get() }, w, h)
+    var threshold = 0.1f
 
     /**
      * This function is trigger upon arrival of an axis event that
@@ -65,8 +60,8 @@ class GamepadCameraControl(private val name: String,
             return
         }
 
-        var x: Float
-        var y: Float
+        val x: Float
+        val y: Float
 
         if(axis == this.axis.first()) {
             x = value
@@ -79,28 +74,26 @@ class GamepadCameraControl(private val name: String,
         if (firstEntered) {
             lastX = x
             lastY = y
-            firstEntered = false;
+            firstEntered = false
         }
 
-        var xoffset: Float = (x - lastX).toFloat();
-        var yoffset: Float = (lastY - y).toFloat();
+        var xoffset: Float = (x - lastX)
+        var yoffset: Float = (lastY - y)
 
         lastX = x
         lastY = y
 
-        xoffset *= 60f;
-        yoffset *= 60f;
+        xoffset *= 60f
+        yoffset *= 60f
 
-        yaw += xoffset;
-        pitch += yoffset;
-
-//        System.err.println("Yaw=$yaw, Pitch=$pitch, x=$x, y=$y")
+        yaw += xoffset
+        pitch += yoffset
 
         if (pitch > 89.0f) {
-            pitch = 89.0f;
+            pitch = 89.0f
         }
         if (pitch < -89.0f) {
-            pitch = -89.0f;
+            pitch = -89.0f
         }
 
         val forward = GLVector(
