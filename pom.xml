@@ -305,13 +305,11 @@
         <dependency>
             <groupId>org.scijava</groupId>
             <artifactId>script-editor</artifactId>
-            <version>0.1.5</version>
         </dependency>
 
         <dependency>
             <groupId>org.scijava</groupId>
             <artifactId>ui-behaviour</artifactId>
-            <version>1.7.1</version>
         </dependency>
 
         <dependency>
@@ -323,7 +321,6 @@
         <dependency>
             <groupId>org.scijava</groupId>
             <artifactId>scripting-javascript</artifactId>
-            <version>0.4.4</version>
         </dependency>
 
         <dependency>
