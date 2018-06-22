@@ -8,6 +8,7 @@ import graphics.scenery.Mesh
 import graphics.scenery.compute.OpenCLContext
 import graphics.scenery.utils.LazyLogger
 import org.jocl.cl_mem
+import sun.plugin.dom.exception.InvalidStateException
 import java.awt.Color
 import java.awt.Font
 import java.awt.Graphics2D
@@ -15,14 +16,13 @@ import java.awt.geom.AffineTransform
 import java.awt.image.AffineTransformOp
 import java.awt.image.BufferedImage
 import java.awt.image.DataBufferByte
-import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
+import java.io.*
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.nio.file.Files
+import java.nio.file.Paths
 import java.util.*
-
-
+import kotlin.collections.LinkedHashMap
 
 
 /**
@@ -39,7 +39,7 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
     /** default charset for the SDF font atlas, default is ASCII charset */
     var charset = (32..127)
     /** Hash map of the char linked to it's width and a byte buffer with the SDF of the char */
-    protected var fontMap = LinkedHashMap<Char, Pair<Float, ByteBuffer>>()
+    protected val fontMap = LinkedHashMap<Char, Pair<Float, ByteBuffer?>>()
     /** Font size for the SDF */
     protected var fontSize: Float = 0f
     /** Texcoord storage for each glyph */
@@ -53,6 +53,10 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
     /** Backing store for the font atlas, will finally have a size of atlasWidth*atlasHeight. */
     protected var fontAtlasBacking: ByteBuffer
 
+    protected val sdfCacheFormatVersion: Int = 1
+    protected val cacheDir = System.getProperty("user.home") + "/.scenery/sdf-cache"
+    protected val sdfFileName = "$cacheDir/SDFFontAtlas-$sdfCacheFormatVersion-$fontName.sdf"
+
     init {
         val ocl = OpenCLContext(hub)
         var input: cl_mem
@@ -60,44 +64,53 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
 
         fontSize = distanceFieldSize*0.65f
 
-        val font = if(fontName.contains(".")) {
-            val f = try {
-                Font
-                    .createFont(Font.TRUETYPE_FONT, this.javaClass.getResourceAsStream(fontName))
-                    .deriveFont(fontSize)
-            } catch(e: IOException) {
-                logger.warn("Could not create font from $fontName/${this.javaClass.getResource(fontName)}, falling back to default system font.")
-                Font("System", Font.PLAIN, fontSize.toInt())
+        try {
+            logger.debug("Trying to read SDF atlas from $sdfFileName ...")
+            readMetricsFromFile("$sdfFileName.metrics", fontMap, glyphTexcoords)
+            fontAtlasBacking = readAtlasFromFile(sdfFileName)
+        } catch (e: Exception) {
+            logger.debug("Cached atlas not found or not readable (because $e), creating anew, could take a little moment ...")
+            val font = if (fontName.contains(".")) {
+                val f = try {
+                    Font
+                        .createFont(Font.TRUETYPE_FONT, this.javaClass.getResourceAsStream(fontName))
+                        .deriveFont(fontSize)
+                } catch (e: IOException) {
+                    logger.warn("Could not create font from $fontName/${this.javaClass.getResource(fontName)}, falling back to default system font.")
+                    Font("System", Font.PLAIN, fontSize.toInt())
+                }
+
+                f
+            } else {
+                Font(fontName, Font.PLAIN, fontSize.toInt())
             }
 
-            f
-        } else {
-            Font(fontName, Font.PLAIN, fontSize.toInt())
-        }
+            charset.map {
+                val character = genCharImage(it.toChar(), font, distanceFieldSize)
 
-        charset.map {
-            val character =  genCharImage(it.toChar(), font, distanceFieldSize)
+                input = ocl.wrapInput(character.second)
+                val outputBuffer = ByteBuffer.allocate(1 * distanceFieldSize * distanceFieldSize)
+                output = ocl.wrapOutput(outputBuffer)
 
-            input = ocl.wrapInput(character.second)
-            val outputBuffer = ByteBuffer.allocate(1*distanceFieldSize*distanceFieldSize)
-            output = ocl.wrapOutput(outputBuffer)
-
-            ocl.loadKernel(OpenCLContext::class.java.getResource("DistanceTransform.cl"), "SignedDistanceTransformUnsignedByte")
+                ocl.loadKernel(OpenCLContext::class.java.getResource("DistanceTransform.cl"), "SignedDistanceTransformUnsignedByte")
                     .runKernel("SignedDistanceTransformUnsignedByte",
-                            distanceFieldSize*distanceFieldSize,
-                            input,
-                            output,
-                            distanceFieldSize,
-                            distanceFieldSize,
-                            maxDistance)
+                        distanceFieldSize * distanceFieldSize,
+                        input,
+                        output,
+                        distanceFieldSize,
+                        distanceFieldSize,
+                        maxDistance)
 
-            ocl.readBuffer(output, outputBuffer)
-            val buf = outputBuffer.duplicate()
-            buf.rewind()
-            fontMap.put(it.toChar(), Pair(character.first, buf))
+                ocl.readBuffer(output, outputBuffer)
+                val buf = outputBuffer.duplicate()
+                buf.rewind()
+                fontMap.put(it.toChar(), Pair(character.first, buf))
+            }
+
+            fontAtlasBacking = toFontAtlas(fontMap, distanceFieldSize)
+            dumpToFile(fontAtlasBacking)
+            dumpMetricsToFile(fontMap, glyphTexcoords)
         }
-
-        fontAtlasBacking = toFontAtlas(fontMap, distanceFieldSize)
     }
 
     /**
@@ -107,16 +120,93 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
      */
     fun dumpToFile(buf: ByteBuffer) {
         try {
-            val file = File(System.getProperty("user.home") + "/SDFFontAtlas-${System.currentTimeMillis()}-$fontName.raw")
+            Files.createDirectories(Paths.get(cacheDir))
+
+            val file = File("$cacheDir/SDFFontAtlas-$sdfCacheFormatVersion-$fontName.sdf")
             val channel = FileOutputStream(file, false).channel
-            buf.rewind()
             channel.write(buf)
             channel.close()
+
+            buf.flip()
         } catch (e: Exception) {
             logger.error("Unable to dump " + this.fontName)
             e.printStackTrace()
         }
 
+    }
+
+    /**
+     * Dumps font metrics given in [fontMap] to a file.
+     */
+    fun dumpMetricsToFile(fontMap: LinkedHashMap<Char, Pair<Float, ByteBuffer?>>, glyphTexCoordMap: HashMap<Char, GLVector>) {
+        val file = File("$sdfFileName.metrics")
+
+        val dump = "##$sdfCacheFormatVersion,$atlasWidth,$atlasHeight\n" + fontMap.entries.joinToString("\n") { entry ->
+            val uvs = glyphTexCoordMap[entry.key] ?: throw InvalidStateException("Could not find texture coordinates for ${entry.key}")
+
+            "${entry.key}->${entry.value.first},${uvs.toFloatArray().joinToString(",")}"
+        }
+
+        file.writeText(dump)
+    }
+
+    /**
+     * Reads a font atlas from a file given by [filename].
+     */
+    protected fun readAtlasFromFile(filename: String): ByteBuffer {
+        val file = File(filename)
+
+        if(file.length().toInt() != atlasWidth * atlasHeight) {
+            throw IllegalStateException("Atlas file size invalid (metadata states ${atlasWidth*atlasHeight} bytes, is ${file.length()} bytes)")
+        }
+
+        val buffer = BufferUtils.allocateByte(file.length().toInt())
+        val channel = FileInputStream(file).channel
+        channel.read(buffer)
+        channel.close()
+
+        buffer.flip()
+        logger.debug("Read atlas from file, ${buffer.position()}->${buffer.remaining()}")
+
+        return buffer
+    }
+
+    /**
+     * Reads font metrics from a file given by [filename].
+     */
+    protected fun readMetricsFromFile(filename: String, fontMap: LinkedHashMap<Char, Pair<Float, ByteBuffer?>>, glyphMap: HashMap<Char, GLVector>) {
+        val lines = File(filename).readLines()
+
+        lines.forEach { line ->
+            if(line.startsWith("##")) {
+                val info = line.substringAfter("##").split(",")
+                val version = info[0].toInt()
+
+                if(version != sdfCacheFormatVersion) {
+                    throw IllegalStateException("SDF cache format differs, expected: $sdfCacheFormatVersion, is: $version")
+                }
+
+                atlasWidth = info[1].toInt()
+                atlasHeight = info[2].toInt()
+
+
+            } else {
+                val tokens = line.split("->")
+                val char = tokens[0].first()
+
+                val coords = tokens[1].split(",")
+                val size = coords[0].toFloat()
+
+                val uv0 = coords[1].toFloat()
+                val uv1 = coords[2].toFloat()
+                val uv2 = coords[3].toFloat()
+                val uv3 = coords[4].toFloat()
+
+                glyphMap[char] = GLVector(uv0, uv1, uv2, uv3)
+
+                fontMap[char] = Pair(size, null)
+            }
+        }
     }
 
     /**
@@ -164,7 +254,7 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
      * @param[charSize] Pixel size of each glyph
      * @return A byte buffer containing the full font atlas texture
      */
-    protected fun toFontAtlas(map: AbstractMap<Char, Pair<Float, ByteBuffer>>, charSize: Int): ByteBuffer {
+    protected fun toFontAtlas(map: AbstractMap<Char, Pair<Float, ByteBuffer?>>, charSize: Int): ByteBuffer {
         var texWidth = 1
         val mapSize = map.size
 
@@ -194,7 +284,7 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
                             (line*charSize*1.0f)/texHeight,
                             (glyphIndexOnLine*charSize*1.0f+12.0f)/texWidth+(glyphWidth*charSize*1.0f)/(1.0f*texWidth),
                             (line*charSize*1.0f+charSize*1.0f)/texHeight))
-                    buffer.addAll(readLineFromBuffer(charSize, it, charBuffer.second).asIterable())
+                    buffer.addAll(readLineFromBuffer(charSize, it, charBuffer.second!!).asIterable())
                 }
             }
         }
