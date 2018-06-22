@@ -13,28 +13,31 @@ import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.*
 
+
 /**
- * Class to ingest rendering configuration files.
- *
- * @author Ulrik Guenther <hello@ulrik.is>
+ * Returns the output name of the pass with [passname] if it exists, otherwise null.
  */
-
+@Suppress("unused")
 fun RenderConfigReader.RenderConfig.getOutputOfPass(passname: String): String? {
-    return this.renderpasses.get(passname)?.output
+    return renderpasses[passname]?.output
 }
 
+/**
+ * Returns all inputs of [targetName], which may be an empty set.
+ */
+@Suppress("unused")
 fun RenderConfigReader.RenderConfig.getInputsOfTarget(targetName: String): Set<String> {
-    rendertargets.let { rts ->
-        return rts.filter {
-            it.key == renderpasses.filter { it.value.output == targetName }.keys.first()
-        }.keys
-    }
-
-    return setOf()
+    return rendertargets.filter {
+        it.key == renderpasses.filter { it.value.output == targetName }.keys.first()
+    }.keys
 }
 
+/**
+ * Creates a linear flow of renderpasses from the configuration, returning
+ * it as a [List] of Strings.
+ */
 fun RenderConfigReader.RenderConfig.createRenderpassFlow(): List<String> {
-    val passes = this.renderpasses
+    val passes = renderpasses
     val dag = ArrayList<String>()
 
     // find first
@@ -43,13 +46,8 @@ fun RenderConfigReader.RenderConfig.createRenderpassFlow(): List<String> {
     dag.add(start.key)
 
     while(inputs != null) {
-//        passes.filter { it.value.output == inputs!!.first().substringBefore(".") }.entries.forEach {
         passes.filter { inputs!!.map { it.substringBefore(".") }.contains(it.value.output) }.entries.forEach {
-            inputs = if (it.value.inputs == null) {
-                null
-            } else {
-                it.value.inputs!!
-            }
+            inputs = it.value.inputs
 
             dag.add(it.key.substringBefore("."))
         }
@@ -58,6 +56,11 @@ fun RenderConfigReader.RenderConfig.createRenderpassFlow(): List<String> {
     return dag.reversed().toSet().toList()
 }
 
+/**
+ * Class to ingest rendering configuration files.
+ *
+ * @author Ulrik Guenther <hello@ulrik.is>
+ */
 class RenderConfigReader {
 
     /**
@@ -95,6 +98,10 @@ class RenderConfigReader {
         }
     }
 
+    /**
+     * Render configuration top-level class, containing information about [rendertargets]
+     * and [renderpasses], as well as [qualitySettings].
+     */
     data class RenderConfig(
         var name: String,
         var sRGB: Boolean = false,
@@ -104,11 +111,17 @@ class RenderConfigReader {
         var renderpasses: Map<String, RenderpassConfig>,
         var qualitySettings: Map<RenderingQuality, Map<String, Any>> = emptyMap())
 
+    /**
+     * Configuration for a single render target, defining its [size] and [attachments].
+     */
     data class RendertargetConfig(
         @JsonDeserialize(using = FloatPairDeserializer::class) var size: Pair<Float, Float> = Pair(1.0f, 1.0f),
         val attachments: Map<String, TargetFormat> = emptyMap()
     )
 
+    /**
+     * Configuration for a single render pass
+     */
     data class RenderpassConfig(
         var type: RenderpassType,
         var blitInputs: Boolean = false,
@@ -135,12 +148,16 @@ class RenderConfigReader {
         @JsonDeserialize(using = VREyeDeserializer::class) var eye: Int = -1
     )
 
+    /** Rendering quality enums */
     enum class RenderingQuality { Low, Medium, High, Ultra }
 
+    /** Renderpass types */
     enum class RenderpassType { geometry, quad, lights }
 
+    /** Render ordering */
     enum class RenderOrder { DontCare, BackToFront, FrontToBack }
 
+    /** Rendertarget formats */
     enum class TargetFormat {
         RGBA_Float32,
         RGBA_Float16,
@@ -157,6 +174,9 @@ class RenderConfigReader {
         R_UInt8
     }
 
+    /**
+     * Loads a [RenderConfig] from a file given by [path].
+     */
     fun loadFromFile(path: String): RenderConfig {
         val mapper = ObjectMapper(YAMLFactory())
         mapper.registerModule(KotlinModule())
