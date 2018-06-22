@@ -9,10 +9,9 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-open class Settings(override var hub: Hub? = null) : Hubable {
-    /** Hash map storing all the settings */
+class Settings(override var hub: Hub? = null) : Hubable {
     private var settingsStore = ConcurrentHashMap<String, Any>()
-    protected val logger by LazyLogger()
+    private val logger by LazyLogger()
 
     /**
      * Query the settings store for a setting [name] and type T
@@ -24,21 +23,31 @@ open class Settings(override var hub: Hub? = null) : Hubable {
         if(!settingsStore.containsKey(name)) {
             logger.warn("WARNING: Settings don't contain '$name'")
         }
-        return settingsStore[name] as T
+
+        @Suppress("UNCHECKED_CAST")
+        val s = settingsStore[name] as? T
+        if(s != null) {
+            return s
+        } else {
+            throw IllegalStateException("Cast of $name failed.")
+        }
     }
 
     /**
-     * Compatibility function for Java, see [get].
-     *
-     * @param[name] Name of the setting to fetch.
-     * @param[type] Class of the setting to fetch.
-     * @return The setting, if found.
+     * Compatibility function for Java, see [get]. Returns the settings value for [name], if found.
      */
     fun <T> getProperty(name: String): T{
         if(!settingsStore.containsKey(name)) {
             logger.warn("WARNING: Settings don't contain '$name'")
         }
-        return settingsStore[name] as T
+
+        @Suppress("UNCHECKED_CAST")
+        val s = settingsStore[name] as? T
+        if(s != null) {
+            return s
+        } else {
+            throw IllegalStateException("Cast of $name failed.")
+        }
     }
 
     /**
@@ -49,40 +58,43 @@ open class Settings(override var hub: Hub? = null) : Hubable {
      * @param[contents] Contents of the setting, can be anything.
      */
     fun set(name: String, contents: Any): Any {
-        // protect against type change
-        if(settingsStore.containsKey(name)) {
-            val type: Class<*> = settingsStore.get(name)!!.javaClass
-            if(type == contents.javaClass) {
-                settingsStore[name] = contents
-            } else {
-                logger.warn("Casting $name from ${type.simpleName} to ${contents.javaClass.simpleName}. Are you sure about this?")
+        // protect against unintended type change
+        var current = settingsStore[name]
 
-                if(settingsStore[name] is Float && contents is Double) {
-                    settingsStore[name] = contents.toFloat()
-                } else if(settingsStore[name] is Int && contents is Float) {
-                    settingsStore[name] = contents.toInt()
-                } else if(settingsStore[name] is Int && contents is Double) {
-                    settingsStore[name] = contents.toInt()
-                }
-                else {
-                    logger.warn("Cannot cast $contents from ${contents.javaClass} to $type, $name will stay ${settingsStore[name]}")
-                }
+        if (current != null) {
+            val type: Class<*> = current.javaClass
+
+            if (type != contents.javaClass) {
+                logger.warn("Casting $name from ${type.simpleName} to ${contents.javaClass.simpleName}. Are you sure about this?")
             }
 
-            return settingsStore[name]!!
+            when {
+                type == contents.javaClass -> settingsStore[name] = contents
+                current is Float && contents is Double -> settingsStore[name] = contents.toFloat()
+                current is Int && contents is Float -> settingsStore[name] = contents.toInt()
+                current is Int && contents is Double -> settingsStore[name] = contents.toInt()
+                else -> {
+                    logger.warn("Will not cast $contents from ${contents.javaClass} to $type, $name will stay ${settingsStore[name]}")
+                    current = null
+                }
+            }
         } else {
-            settingsStore.put(name, contents)
-            return settingsStore[name]!!
+            settingsStore[name] = contents
         }
+
+        return current ?: contents
     }
 
     /**
-     * Lists all settings currently stored
+     * Lists all settings currently stored as String.
      */
     fun list(): String {
         return settingsStore.map { "${it.key}=${it.value} (${it.value.javaClass.simpleName})" }.sorted().joinToString("\n")
     }
 
+    /**
+     * Return the names of all settings as a [List] of Strings.
+     */
     fun getAllSettings(): List<String> {
         return settingsStore.keys().toList()
     }
