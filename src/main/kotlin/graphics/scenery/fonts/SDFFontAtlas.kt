@@ -8,7 +8,6 @@ import graphics.scenery.Mesh
 import graphics.scenery.compute.OpenCLContext
 import graphics.scenery.utils.LazyLogger
 import org.jocl.cl_mem
-import sun.plugin.dom.exception.InvalidStateException
 import java.awt.Color
 import java.awt.Font
 import java.awt.Graphics2D
@@ -58,10 +57,6 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
     protected val sdfFileName = "$cacheDir/SDFFontAtlas-$sdfCacheFormatVersion-$fontName.sdf"
 
     init {
-        val ocl = OpenCLContext(hub)
-        var input: cl_mem
-        var output: cl_mem
-
         fontSize = distanceFieldSize*0.65f
 
         try {
@@ -70,6 +65,11 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
             fontAtlasBacking = readAtlasFromFile(sdfFileName)
         } catch (e: Exception) {
             logger.debug("Cached atlas not found or not readable (because $e), creating anew, could take a little moment ...")
+
+            val ocl = OpenCLContext(hub)
+            var input: cl_mem
+            var output: cl_mem
+
             val font = if (fontName.contains(".")) {
                 val f = try {
                     Font
@@ -142,7 +142,7 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
         val file = File("$sdfFileName.metrics")
 
         val dump = "##$sdfCacheFormatVersion,$atlasWidth,$atlasHeight\n" + fontMap.entries.joinToString("\n") { entry ->
-            val uvs = glyphTexCoordMap[entry.key] ?: throw InvalidStateException("Could not find texture coordinates for ${entry.key}")
+            val uvs = glyphTexCoordMap[entry.key] ?: throw IllegalStateException("Could not find texture coordinates for ${entry.key}")
 
             "${entry.key}->${entry.value.first},${uvs.toFloatArray().joinToString(",")}"
         }
