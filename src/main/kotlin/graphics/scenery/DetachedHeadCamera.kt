@@ -16,7 +16,13 @@ import kotlin.reflect.KProperty
 
 class DetachedHeadCamera(@Transient var tracker: TrackerInput? = null) : Camera() {
 
+    /**
+     * Delegate class for getting a head rotation from a [TrackerInput].
+     */
     inner class HeadOrientationDelegate {
+        /**
+         * Returns the TrackerInput's orientation, or a unit Quaternion.
+         */
         operator fun getValue(thisRef: Any?, property: KProperty<*>): Quaternion {
             return tracker?.getWorkingTracker()?.getOrientation() ?: Quaternion(0.0f, 0.0f, 0.0f, 1.0f)
         }
@@ -26,7 +32,13 @@ class DetachedHeadCamera(@Transient var tracker: TrackerInput? = null) : Camera(
         }
     }
 
+    /**
+     * Delegate class for getting a head translation from a [TrackerInput].
+     */
     inner class HeadPositionDelegate : Serializable {
+        /**
+         * Returns the TrackerInput's translation, or a zero vector.
+         */
         operator fun getValue(thisRef: Any?, property: KProperty<*>): GLVector {
             return tracker?.getWorkingTracker()?.getPosition() ?: GLVector(0.0f, 0.0f, 0.0f)
         }
@@ -37,7 +49,6 @@ class DetachedHeadCamera(@Transient var tracker: TrackerInput? = null) : Camera(
     }
 
     /** Orientation of the user's head */
-//    val headOrientation: Quaternion by HeadOrientationDelegate()
     val headPosition: GLVector by HeadPositionDelegate()
 
     init {
@@ -45,6 +56,10 @@ class DetachedHeadCamera(@Transient var tracker: TrackerInput? = null) : Camera(
         this.name = "DetachedHeadCamera-${tracker ?: "0"}"
     }
 
+    /**
+     * Returns this camera's transformation matrix, taking an eventually existing [TrackerInput]
+     * into consideration as well.
+     */
     override fun getTransformation(): GLMatrix {
         val tr = GLMatrix.getTranslation(this.position * (-1.0f)).transpose()
 //        val r = GLMatrix.fromQuaternion(this.rotation)
@@ -53,6 +68,10 @@ class DetachedHeadCamera(@Transient var tracker: TrackerInput? = null) : Camera(
         return tracker?.getWorkingTracker()?.getPose()?.times(tr) ?: GLMatrix.fromQuaternion(rotation) * tr
     }
 
+    /**
+     * Returns this camera's transformation for eye with index [eye], taking an eventually existing [TrackerInput]
+     * into consideration as well.
+     */
     override fun getTransformationForEye(eye: Int): GLMatrix {
         val tr = GLMatrix.getTranslation(this.position * (-1.0f)).transpose()
 //        val r = GLMatrix.fromQuaternion(this.rotation)
@@ -61,11 +80,14 @@ class DetachedHeadCamera(@Transient var tracker: TrackerInput? = null) : Camera(
         return tracker?.getWorkingTracker()?.getPoseForEye(eye)?.times(tr) ?: GLMatrix.fromQuaternion(rotation) * tr
     }
 
+    /**
+     * Returns this camera's transformation matrix, including a
+     * [preRotation] that is applied before the camera's transformation.
+     */
     override fun getTransformation(preRotation: Quaternion): GLMatrix {
         val tr = GLMatrix.getTranslation(this.position * (-1.0f) + this.headPosition).transpose()
         val r = GLMatrix.fromQuaternion(preRotation.mult(this.rotation))
 
         return r * tr
     }
-
 }

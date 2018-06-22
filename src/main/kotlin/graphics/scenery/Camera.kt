@@ -83,6 +83,9 @@ open class Camera : Node("Camera") {
         )
     }
 
+    /**
+     * Returns this camera's transformation matrix.
+     */
     open fun getTransformation(): GLMatrix {
         val tr = GLMatrix.getTranslation(this.position * (-1.0f)).transpose()
         val r = GLMatrix.fromQuaternion(this.rotation)
@@ -90,6 +93,10 @@ open class Camera : Node("Camera") {
         return r * tr
     }
 
+    /**
+     * Returns this camera's transformation matrix, including a
+     * [preRotation] that is applied before the camera's transformation.
+     */
     open fun getTransformation(preRotation: Quaternion): GLMatrix {
         val tr = GLMatrix.getTranslation(this.position * (-1.0f)).transpose()
         val r = GLMatrix.fromQuaternion(preRotation.mult(this.rotation))
@@ -97,6 +104,9 @@ open class Camera : Node("Camera") {
         return r * tr
     }
 
+    /**
+     * Returns this camera's transformation for eye with index [eye].
+     */
     open fun getTransformationForEye(eye: Int): GLMatrix {
         val tr = GLMatrix.getTranslation(this.position * (-1.0f)).transpose()
         val r = GLMatrix.fromQuaternion(this.rotation)
@@ -104,6 +114,9 @@ open class Camera : Node("Camera") {
         return r * tr
     }
 
+    /**
+     * Multiplies this matrix with [GLMatrix] [rhs].
+     */
     infix operator fun GLMatrix.times(rhs: GLMatrix): GLMatrix {
         val m = this.clone()
         m.mult(rhs)
