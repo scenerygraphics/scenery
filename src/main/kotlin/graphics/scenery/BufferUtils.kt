@@ -19,15 +19,15 @@ class BufferUtils {
         /**
          * Allocates a new direct [FloatBuffer] with a capacity of [num] floats.
          */
-        fun allocateFloat(num: Int): FloatBuffer {
+        @JvmStatic fun allocateFloat(num: Int): FloatBuffer {
             return ByteBuffer.allocateDirect(SIZE_FLOAT * num).order(ByteOrder.nativeOrder()).asFloatBuffer()
         }
 
         /**
-         * Allocates a new direct [FloatBuffer] with a capacity of [num] floats, fill it with the members
+         * Allocates a new direct [FloatBuffer] with a capacity to fit [array], and fills it with the members
          * of [array] and returns the flipped buffer.
          */
-        fun allocateFloatAndPut(array: FloatArray): FloatBuffer {
+        @JvmStatic fun allocateFloatAndPut(array: FloatArray): FloatBuffer {
             val b = ByteBuffer.allocateDirect(SIZE_FLOAT * array.size).order(ByteOrder.nativeOrder()).asFloatBuffer()
             (b.put(array) as Buffer).flip()
 
@@ -37,15 +37,15 @@ class BufferUtils {
         /**
          * Allocates a new direct [IntBuffer] with a capacity of [num] ints.
          */
-        fun allocateInt(num: Int): IntBuffer {
+        @JvmStatic fun allocateInt(num: Int): IntBuffer {
             return ByteBuffer.allocateDirect(SIZE_INT * num).order(ByteOrder.nativeOrder()).asIntBuffer()
         }
 
         /**
-         * Allocates a new direct [IntBuffer] with a capacity of [num] ints, fill it with the members
+         * Allocates a new direct [IntBuffer] with a capacity to fit [array], and fills it with the members
          * of [array] and returns the flipped buffer.
          */
-        fun allocateIntAndPut(array: IntArray): IntBuffer {
+        @JvmStatic fun allocateIntAndPut(array: IntArray): IntBuffer {
             val b = ByteBuffer.allocateDirect(SIZE_INT * array.size).order(ByteOrder.nativeOrder()).asIntBuffer()
             (b.put(array) as Buffer).flip()
 
@@ -60,7 +60,7 @@ class BufferUtils {
         }
 
         /**
-         * Allocates a new direct [ByteBuffer] with a capacity of [num] bytes, fill it with the members
+         * Allocates a new direct [ByteBuffer] with a capacity to fit [array], and fills it with the members
          * of [array] and returns the flipped buffer.
          */
         fun allocateByteAndPut(array: ByteArray): ByteBuffer {
