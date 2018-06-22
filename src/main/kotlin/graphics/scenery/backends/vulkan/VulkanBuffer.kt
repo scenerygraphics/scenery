@@ -4,28 +4,41 @@ import graphics.scenery.utils.LazyLogger
 import org.lwjgl.PointerBuffer
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.*
-import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
+import org.lwjgl.vulkan.VkBufferCreateInfo
+import org.lwjgl.vulkan.VkMemoryAllocateInfo
+import org.lwjgl.vulkan.VkMemoryRequirements
 import java.nio.ByteBuffer
 
+/**
+ * Vulkan buffer class, creates a buffer residing on [device], with a [size] and a defined [usage].
+ * The buffer may have [requestedMemoryProperties].
+ *
+ * @param[wantAligned] - whether the buffer should be aligned
+ */
 class VulkanBuffer(val device: VulkanDevice, val size: Long, val usage: Int, val requestedMemoryProperties: Int, wantAligned: Boolean = true): AutoCloseable {
-    protected val logger by LazyLogger()
+    private val logger by LazyLogger()
     private var currentPosition = 0L
     private var currentPointer: PointerBuffer? = null
+
+    /** Buffer alignment, 256 bytes by default (Vulkan standard) */
     var alignment: Long = 256
         private set
+    /** Memory pointer */
     var memory: Long = -1L
         private set
+    /** Buffer to the Vulkan pointer struct */
     var vulkanBuffer: Long = -1L
         private set
-    var data: Long = -1L
-        private set
+    /** Final allocated size of the buffer, might be different from the requested size, due to alignment. */
     var allocatedSize: Long = 0
         private set
 
     private var mapped = false
 
+    /** Staging buffer, providing host memory */
     var stagingBuffer: ByteBuffer = memAlloc(size.toInt())
+        private set
 
     init {
         val memory = MemoryUtil.memAllocLong(1)
@@ -74,25 +87,12 @@ class VulkanBuffer(val device: VulkanDevice, val size: Long, val usage: Int, val
         MemoryUtil.memFree(memory)
     }
 
-    fun getPointerBuffer(size: Int): ByteBuffer {
-        if (currentPointer == null) {
-            this.map()
-        }
 
-        val buffer = memByteBuffer(currentPointer!!.get(0) + currentPosition, size)
-        currentPosition += size * 1L
-
-        return buffer
-    }
-
-    fun getCurrentOffset(): Int {
-        if (currentPosition.rem(alignment) != 0L) {
-            currentPosition += alignment - currentPosition.rem(alignment)
-            stagingBuffer.position(currentPosition.toInt())
-        }
-        return currentPosition.toInt()
-    }
-
+    /**
+     * Advances this buffer to the next possible aligned position,
+     * override the buffer's default alignment by setting [align] to
+     * the desired value. Returns the new position.
+     */
     fun advance(align: Long = this.alignment): Int {
         val pos = stagingBuffer.position()
         val rem = pos.rem(align)
@@ -105,12 +105,19 @@ class VulkanBuffer(val device: VulkanDevice, val size: Long, val usage: Int, val
         return stagingBuffer.position()
     }
 
+    /**
+     * Resets the staging buffer such that it can be again filled
+     * from the beginning.
+     */
     fun reset() {
         stagingBuffer.position(0)
         stagingBuffer.limit(size.toInt())
         currentPosition = 0L
     }
 
+    /**
+     * Copies data from the [ByteBuffer] [data] directly to the device memory.
+     */
     fun copyFrom(data: ByteBuffer) {
         val dest = memAllocPointer(1)
         vkMapMemory(device.vulkanDevice, memory, 0, size, 0, dest)
@@ -119,6 +126,9 @@ class VulkanBuffer(val device: VulkanDevice, val size: Long, val usage: Int, val
         memFree(dest)
     }
 
+    /**
+     * Copies the contents of the device buffer to [dest].
+     */
     fun copyTo(dest: ByteBuffer) {
         val src = memAllocPointer(1)
         vkMapMemory(device.vulkanDevice, memory, 0, size, 0, src)
@@ -127,6 +137,9 @@ class VulkanBuffer(val device: VulkanDevice, val size: Long, val usage: Int, val
         memFree(src)
     }
 
+    /**
+     * Maps this buffer
+     */
     fun map(): PointerBuffer {
         val dest = memAllocPointer(1)
         vkMapMemory(device.vulkanDevice, memory, 0, size, 0, dest)
@@ -136,6 +149,9 @@ class VulkanBuffer(val device: VulkanDevice, val size: Long, val usage: Int, val
         return dest
     }
 
+    /**
+     * Maps this buffer it wasn't mapped before, and rewinds it.
+     */
     fun mapIfUnmapped(): PointerBuffer {
         currentPointer?.let {
             if(mapped) {
@@ -146,20 +162,32 @@ class VulkanBuffer(val device: VulkanDevice, val size: Long, val usage: Int, val
         return map()
     }
 
+    /**
+     * Unmaps this buffer.
+     */
     fun unmap() {
         mapped = false
         vkUnmapMemory(device.vulkanDevice, memory)
     }
 
+    /**
+     * Copies data from the [stagingBuffer] to device memory.
+     */
     fun copyFromStagingBuffer() {
         stagingBuffer.flip()
         copyFrom(stagingBuffer)
     }
 
+    /**
+     * Returns true if this buffer is initialised correctly.
+     */
     fun initialized(): Boolean {
         return ((vulkanBuffer != -1L) && (memory != -1L))
     }
 
+    /**
+     * Closes this buffer, freeing all allocated resources on host and device.
+     */
     override fun close() {
         if(memory == -1L || vulkanBuffer == -1L) {
             return
