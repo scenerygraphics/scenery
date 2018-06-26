@@ -13,11 +13,11 @@ import org.scijava.ui.behaviour.InputTrigger
  * @author Ulrik Günther <hello@ulrik.is>
  */
 open class JavaFXMouseAndKeyHandler(protected var hub: Hub?, protected var panel: SceneryPanel) : MouseAndKeyHandlerBase(), EventHandler<javafx.event.Event> {
-    /** store os name */
     private var os = ""
-
-    /** scroll speed multiplier to combat OS idiosyncrasies */
     private var scrollSpeedMultiplier = 1.0f
+
+    /** Double-click interval, hardcoded here as needed only for keystrokes */
+    override val DOUBLE_CLICK_INTERVAL = 200
 
     init {
         os = if (System.getProperty("os.name").toLowerCase().indexOf("windows") != -1) {
