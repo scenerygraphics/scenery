@@ -127,7 +127,7 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
     protected val activeKeyDrags = ArrayList<BehaviourEntry<DragBehaviour>>()
 
     /** the windowing system's set double click interval */
-    protected val DOUBLE_CLICK_INTERVAL = getDoubleClickInterval()
+    protected open val DOUBLE_CLICK_INTERVAL = getDoubleClickInterval()
 
     init {
         java.util.logging.Logger.getLogger(ControllerEnvironment::class.java.name).parent.level = Level.SEVERE
@@ -190,13 +190,13 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
      *
      * @return The double click interval in ms
      */
-    internal fun getDoubleClickInterval(): Int {
+    internal open fun getDoubleClickInterval(): Int {
         val prop = Toolkit.getDefaultToolkit().getDesktopProperty("awt.multiClickInterval")
 
-        if (prop == null) {
-            return 200
+        return if (prop == null) {
+            200
         } else {
-            return prop as Int
+            prop as Int
         }
     }
 
