@@ -27,6 +27,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import javax.imageio.ImageIO
@@ -107,6 +108,8 @@ open class OpenGLRenderer(hub: Hub,
      * or input events). Push mode is activated if [pushMode] is true.
      */
     override var pushMode: Boolean = false
+
+    private var updateLatch: CountDownLatch? = null
 
     private var lastResizeTimer = Timer()
     @Volatile private var mustRecreateFramebuffers = false
@@ -1372,10 +1375,32 @@ open class OpenGLRenderer(hub: Hub,
         stats?.add("OpenGLRenderer.updateInstanceBuffers", System.nanoTime() - startInstanceUpdate)
 
         if(pushMode && !updated && !sceneUpdated) {
-            logger.debug("UBOs have not been updated, returning")
-            Thread.sleep(2)
+            if(updateLatch == null) {
+                updateLatch = CountDownLatch(2)
+            }
 
-            return@runBlocking
+            logger.trace("UBOs have not been updated, returning ({})", updateLatch?.count)
+
+            if(updateLatch?.count == 0L) {
+//                val animator = when {
+//                    cglWindow != null -> cglWindow?.glAutoDrawable?.animator
+//                    drawable != null -> drawable?.animator
+//                    else -> null
+//                } as? FPSAnimator
+//
+//                if(animator != null && animator.fps > 15) {
+//                    animator.stop()
+//                    animator.fps = 15
+//                    animator.start()
+//                }
+
+                Thread.sleep(15)
+                return@runBlocking
+            }
+        }
+
+        if(updated || sceneUpdated) {
+            updateLatch = null
         }
 
         flow.forEach { t ->
@@ -1825,6 +1850,8 @@ open class OpenGLRenderer(hub: Hub,
 
             screenshotRequested = false
         }
+
+        updateLatch?.countDown()
     }
 
     /**
