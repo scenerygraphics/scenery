@@ -236,7 +236,8 @@ open class OpenGLRenderer(hub: Hub,
          */
         fun resize(newSize: Int = (buffer.capacity() * 1.5f).roundToInt()): ByteBuffer {
             logger.debug("Resizing backing buffer of $this from ${buffer.capacity()} to $newSize")
-            MemoryUtil.memRealloc(buffer, newSize)
+
+            buffer = MemoryUtil.memRealloc(buffer, newSize) ?: throw RuntimeException("Could not resize buffer")
             size = buffer.capacity()
 
             return buffer
