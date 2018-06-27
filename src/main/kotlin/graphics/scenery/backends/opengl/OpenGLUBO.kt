@@ -24,6 +24,11 @@ class OpenGLUBO(val backingBuffer: OpenGLRenderer.OpenGLBuffer? = null) : UBO() 
     @Suppress("UNUSED_PARAMETER")
     fun populate(offset: Long = 0): Boolean {
         backingBuffer?.let { data ->
+            // check if we can fit this UBO, if not, resize it to 1.5x it's original size
+            if(sizeCached > -1 && data.remaining() < (sizeCached + data.alignment)) {
+                data.resize()
+            }
+
             return super.populate(data.buffer, -1L, elements = null)
         }
 
