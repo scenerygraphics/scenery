@@ -62,7 +62,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
     protected val logger by LazyLogger()
 
     /** An optional update function to call during the main loop. */
-    var updateFunction: () -> Any = {}
+    var updateFunction: (() -> Any)? = null
 
     /** Flag to indicate whether this instance is currently running. */
     var running: Boolean = false
@@ -205,7 +205,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             }
 
             if (renderer?.managesRenderLoop != false) {
-                Thread.sleep(2)
+                Thread.sleep(5)
             } else {
                 stats.addTimed("render", { renderer?.render() ?: 0.0f })
             }
@@ -231,7 +231,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
                     t += timeStep
                     accumulator -= timeStep
 
-                    stats.addTimed("Scene.Update", updateFunction)
+                    updateFunction?.let { update -> stats.addTimed("Scene.Update", update) }
                 }
 
                 val alpha = accumulator/timeStep
