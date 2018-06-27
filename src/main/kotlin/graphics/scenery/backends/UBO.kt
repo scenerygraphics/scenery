@@ -32,7 +32,9 @@ open class UBO {
     /** Optional flag to indicate finished initialisation */
     var initialized: Boolean = false
 
-    protected var sizeCached = -1
+    /** Cached size of the UBO, -1 if the UBO has not been populated yet. */
+    var sizeCached = -1
+        protected set
 
     companion object {
         /** Cache for alignment data inside buffers */

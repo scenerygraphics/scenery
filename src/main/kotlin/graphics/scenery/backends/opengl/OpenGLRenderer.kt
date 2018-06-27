@@ -27,11 +27,13 @@ import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import javax.imageio.ImageIO
 import kotlin.collections.LinkedHashMap
 import kotlin.concurrent.withLock
+import kotlin.math.roundToInt
 import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.memberProperties
 
@@ -106,6 +108,8 @@ open class OpenGLRenderer(hub: Hub,
      * or input events). Push mode is activated if [pushMode] is true.
      */
     override var pushMode: Boolean = false
+
+    private var updateLatch: CountDownLatch? = null
 
     private var lastResizeTimer = Timer()
     @Volatile private var mustRecreateFramebuffers = false
@@ -185,11 +189,19 @@ open class OpenGLRenderer(hub: Hub,
         }
     }
 
+    /**
+     * OpenGL Buffer class, creates a buffer associated with the context [gl] and size [size] in bytes.
+     *
+     * @author Ulrik Guenther <hello@ulrik.is>
+     */
     class OpenGLBuffer(var gl: GL4, var size: Int) {
+        /** Temporary buffer for data before it is sent to the GPU. */
         var buffer: ByteBuffer
             private set
+        /** OpenGL id of the buffer. */
         var id = intArrayOf(-1)
             private set
+        /** Required buffer offset alignment for uniform buffers, determined from [GL4.GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT] */
         var alignment = 256L
             private set
 
@@ -201,17 +213,12 @@ open class OpenGLRenderer(hub: Hub,
             gl.glGenBuffers(1, id, 0)
             buffer = MemoryUtil.memAlloc(maxOf(tmp[0], size))
 
-            val valBuf = MemoryUtil.memAlloc(maxOf(tmp[0], size))
-            while(valBuf.hasRemaining()) { valBuf.put(0xAF.toByte()) }
-            valBuf.flip()
-
             gl.glBindBuffer(GL4.GL_UNIFORM_BUFFER, id[0])
-            gl.glBufferData(GL4.GL_UNIFORM_BUFFER, size * 1L, valBuf, GL4.GL_DYNAMIC_DRAW)
+            gl.glBufferData(GL4.GL_UNIFORM_BUFFER, size * 1L, null, GL4.GL_DYNAMIC_DRAW)
             gl.glBindBuffer(GL4.GL_UNIFORM_BUFFER, 0)
-
-            MemoryUtil.memFree(valBuf)
         }
 
+        /** Copies the [buffer] from main memory to GPU memory. */
         fun copyFromStagingBuffer() {
             buffer.flip()
 
@@ -220,11 +227,40 @@ open class OpenGLRenderer(hub: Hub,
             gl.glBindBuffer(GL4.GL_UNIFORM_BUFFER, 0)
         }
 
+        /** Resets staging buffer position and limit */
         fun reset() {
             buffer.position(0)
             buffer.limit(size)
         }
 
+        /**
+         * Resizes the backing buffer to [newSize], which is 1.5x the original size by default,
+         * and returns the staging buffer.
+         */
+        fun resize(newSize: Int = (buffer.capacity() * 1.5f).roundToInt()): ByteBuffer {
+            logger.debug("Resizing backing buffer of $this from ${buffer.capacity()} to $newSize")
+
+            // resize main memory-backed buffer
+            buffer = MemoryUtil.memRealloc(buffer, newSize) ?: throw IllegalStateException("Could not resize buffer")
+            size = buffer.capacity()
+
+            // resize OpenGL buffer as well
+            gl.glBindBuffer(GL4.GL_UNIFORM_BUFFER, id[0])
+            gl.glBufferData(GL4.GL_UNIFORM_BUFFER, size * 1L, null, GL4.GL_DYNAMIC_DRAW)
+            gl.glBindBuffer(GL4.GL_UNIFORM_BUFFER, 0)
+
+            return buffer
+        }
+
+        /**
+         * Returns the [buffer]'s remaining bytes.
+         */
+        fun remaining() = buffer.remaining()
+
+        /**
+         * Advances the backing buffer for population, aligning it by [alignment], or any given value
+         * that overrides it (not recommended), returns the buffers new position.
+         */
         fun advance(align: Long = this.alignment): Int {
             val pos = buffer.position()
             val rem = pos.rem(align)
@@ -308,8 +344,8 @@ open class OpenGLRenderer(hub: Hub,
 
                     addGLEventListener(this@OpenGLRenderer)
 
-                    animator = FPSAnimator(this, 600)
-                    animator.setUpdateFPSFrames(600, null)
+                    animator = FPSAnimator(this, 60)
+                    animator.setUpdateFPSFrames(60, null)
                     animator.start()
 
                     embedIn?.let { panel ->
@@ -356,7 +392,7 @@ open class OpenGLRenderer(hub: Hub,
 
                     this.addWindowListener(windowAdapter)
 
-                    this.setFPS(300)
+                    this.setFPS(60)
                     this.start()
                     this.setDefaultCloseOperation(WindowClosingProtocol.WindowClosingMode.DO_NOTHING_ON_CLOSE)
 
@@ -1330,7 +1366,7 @@ open class OpenGLRenderer(hub: Hub,
         stats?.add("OpenGLRenderer.updateUBOs", System.nanoTime() - startUboUpdate)
 
         val actualSceneObjects = sceneObjects.await().toTypedArray()
-        val sceneUpdated = actualSceneObjects.contentDeepEquals(previousSceneObjects)
+        val sceneUpdated = !actualSceneObjects.contentDeepEquals(previousSceneObjects)
 
         previousSceneObjects = actualSceneObjects
 
@@ -1339,10 +1375,32 @@ open class OpenGLRenderer(hub: Hub,
         stats?.add("OpenGLRenderer.updateInstanceBuffers", System.nanoTime() - startInstanceUpdate)
 
         if(pushMode && !updated && !sceneUpdated) {
-            logger.debug("UBOs have not been updated, returning")
-            Thread.sleep(2)
+            if(updateLatch == null) {
+                updateLatch = CountDownLatch(2)
+            }
 
-            return@runBlocking
+            logger.trace("UBOs have not been updated, returning ({})", updateLatch?.count)
+
+            if(updateLatch?.count == 0L) {
+//                val animator = when {
+//                    cglWindow != null -> cglWindow?.glAutoDrawable?.animator
+//                    drawable != null -> drawable?.animator
+//                    else -> null
+//                } as? FPSAnimator
+//
+//                if(animator != null && animator.fps > 15) {
+//                    animator.stop()
+//                    animator.fps = 15
+//                    animator.start()
+//                }
+
+                Thread.sleep(15)
+                return@runBlocking
+            }
+        }
+
+        if(updated || sceneUpdated) {
+            updateLatch = null
         }
 
         flow.forEach { t ->
@@ -1792,6 +1850,8 @@ open class OpenGLRenderer(hub: Hub,
 
             screenshotRequested = false
         }
+
+        updateLatch?.countDown()
     }
 
     /**
