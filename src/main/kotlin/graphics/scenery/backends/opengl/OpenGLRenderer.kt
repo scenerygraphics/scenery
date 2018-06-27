@@ -334,8 +334,8 @@ open class OpenGLRenderer(hub: Hub,
 
                     addGLEventListener(this@OpenGLRenderer)
 
-                    animator = FPSAnimator(this, 600)
-                    animator.setUpdateFPSFrames(600, null)
+                    animator = FPSAnimator(this, 60)
+                    animator.setUpdateFPSFrames(60, null)
                     animator.start()
 
                     embedIn?.let { panel ->
@@ -1356,7 +1356,7 @@ open class OpenGLRenderer(hub: Hub,
         stats?.add("OpenGLRenderer.updateUBOs", System.nanoTime() - startUboUpdate)
 
         val actualSceneObjects = sceneObjects.await().toTypedArray()
-        val sceneUpdated = actualSceneObjects.contentDeepEquals(previousSceneObjects)
+        val sceneUpdated = !actualSceneObjects.contentDeepEquals(previousSceneObjects)
 
         previousSceneObjects = actualSceneObjects
 
