@@ -237,8 +237,14 @@ open class OpenGLRenderer(hub: Hub,
         fun resize(newSize: Int = (buffer.capacity() * 1.5f).roundToInt()): ByteBuffer {
             logger.debug("Resizing backing buffer of $this from ${buffer.capacity()} to $newSize")
 
+            // resize main memory-backed buffer
             buffer = MemoryUtil.memRealloc(buffer, newSize) ?: throw RuntimeException("Could not resize buffer")
             size = buffer.capacity()
+
+            // resize OpenGL buffer as well
+            gl.glBindBuffer(GL4.GL_UNIFORM_BUFFER, id[0])
+            gl.glBufferData(GL4.GL_UNIFORM_BUFFER, size * 1L, null, GL4.GL_DYNAMIC_DRAW)
+            gl.glBindBuffer(GL4.GL_UNIFORM_BUFFER, 0)
 
             return buffer
         }
