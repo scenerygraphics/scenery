@@ -973,6 +973,13 @@ open class OpenGLRenderer(hub: Hub,
                     updated = propertyUbo.populate(offset = offset.toLong())
                     propertyUbo.offset = offset
                 }
+
+                updated = if (node.material.needsTextureReload) {
+                    loadTexturesForNode(node, s)
+                    true
+                } else {
+                    false
+                }
             }
         }
 
@@ -1551,11 +1558,7 @@ open class OpenGLRenderer(hub: Hub,
                         return@renderLoop
                     }
 
-                    var s = getOpenGLObjectStateFromNode(n)
-
-                    if (n.material.needsTextureReload) {
-                        s = loadTexturesForNode(n, s)
-                    }
+                    val s = getOpenGLObjectStateFromNode(n)
 
                     if (n is Skybox) {
                         gl.glCullFace(GL4.GL_FRONT)
