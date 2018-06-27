@@ -241,7 +241,7 @@ open class OpenGLRenderer(hub: Hub,
             logger.debug("Resizing backing buffer of $this from ${buffer.capacity()} to $newSize")
 
             // resize main memory-backed buffer
-            buffer = MemoryUtil.memRealloc(buffer, newSize) ?: throw RuntimeException("Could not resize buffer")
+            buffer = MemoryUtil.memRealloc(buffer, newSize) ?: throw IllegalStateException("Could not resize buffer")
             size = buffer.capacity()
 
             // resize OpenGL buffer as well
