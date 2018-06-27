@@ -395,18 +395,23 @@ open class VulkanRenderer(hub: Hub,
             }
         }
 
-        if (!glfwInit()) {
-            throw RuntimeException("Failed to initialize GLFW")
-        }
-        if (!glfwVulkanSupported()) {
-            throw UnsupportedOperationException("Failed to find Vulkan loader. Is Vulkan supported by your GPU and do you have the most recent graphics drivers installed?")
-        }
-
-        /* Look for instance extensions */
-        val requiredExtensions = glfwGetRequiredInstanceExtensions() ?: throw RuntimeException("Failed to find list of required Vulkan extensions")
 
         // Create the Vulkan instance
-        instance = createInstance(requiredExtensions)
+        instance = if(embedIn != null) {
+            createInstance(null)
+        } else {
+            if (!glfwInit()) {
+                throw RuntimeException("Failed to initialize GLFW")
+            }
+            if (!glfwVulkanSupported()) {
+                throw UnsupportedOperationException("Failed to find Vulkan loader. Is Vulkan supported by your GPU and do you have the most recent graphics drivers installed?")
+            }
+
+            /* Look for instance extensions */
+            val requiredExtensions = glfwGetRequiredInstanceExtensions() ?: throw RuntimeException("Failed to find list of required Vulkan extensions")
+            createInstance(requiredExtensions)
+        }
+
         debugCallbackHandle = if(validation) {
             setupDebugging(instance,
                 VK_DEBUG_REPORT_ERROR_BIT_EXT or VK_DEBUG_REPORT_WARNING_BIT_EXT,
@@ -1917,7 +1922,7 @@ open class VulkanRenderer(hub: Hub,
         totalFrames++
     }
 
-    private fun createInstance(requiredExtensions: PointerBuffer): VkInstance {
+    private fun createInstance(requiredExtensions: PointerBuffer? = null): VkInstance {
         return stackPush().use { stack ->
             val appInfo = VkApplicationInfo.callocStack(stack)
                 .sType(VK_STRUCTURE_TYPE_APPLICATION_INFO)
@@ -1931,8 +1936,13 @@ open class VulkanRenderer(hub: Hub,
             logger.debug("HMD required instance exts: ${additionalExts.joinToString(", ")} ${additionalExts.size}")
 
             // allocate enough pointers for already pre-required extensions, plus HMD-required extensions, plus the debug extension
-            val enabledExtensionNames = stack.callocPointer(requiredExtensions.remaining() + additionalExts.size + 1)
-            enabledExtensionNames.put(requiredExtensions)
+            val size = requiredExtensions?.remaining() ?: 0
+            val enabledExtensionNames = stack.callocPointer(size + additionalExts.size + 1)
+
+            if(requiredExtensions != null) {
+                enabledExtensionNames.put(requiredExtensions)
+            }
+
             enabledExtensionNames.put(stack.UTF8(VK_EXT_DEBUG_REPORT_EXTENSION_NAME))
             utf8Exts.forEach { enabledExtensionNames.put(it) }
             enabledExtensionNames.flip()
