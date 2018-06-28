@@ -49,7 +49,7 @@ layout(set = 2, binding = 0) uniform Matrices {
 } ubo;
 
 layout(set = 3, binding = 0) uniform sampler2D ObjectTextures[NUM_OBJECT_TEXTURES];
-layout(set = 3, binding = 1) uniform usampler3D VolumeTextures;
+layout(set = 3, binding = 1) uniform sampler3D VolumeTextures;
 
 layout(set = 4, binding = 0) uniform ShaderProperties {
     float voxelSizeX;
@@ -69,6 +69,8 @@ layout(set = 4, binding = 0) uniform ShaderProperties {
     int maxsteps;
     float alpha_blending;
     float gamma;
+    int dataRangeMin;
+    int dataRangeMax;
 };
 
 layout(push_constant) uniform currentEye_t {
@@ -242,7 +244,7 @@ void main()
       gl_FragDepth = 0.0;
       // nop alpha blending
       [[unroll]] for(int i = 0; i < maxsteps; ++i, pos += vecstep) {
-        float volume_sample = texture(VolumeTextures, pos.xyz).r;
+        float volume_sample = texture(VolumeTextures, pos.xyz).r * dataRangeMax;
         maxp = max(maxp,volume_sample);
       }
 
@@ -252,7 +254,7 @@ void main()
       // alpha blending:
       float opacity = 1.0f;
       for(int i = 0; i < maxsteps; ++i, pos += vecstep) {
-           float volume_sample = texture(VolumeTextures, pos.xyz).r;
+           float volume_sample = texture(VolumeTextures, pos.xyz).r * dataRangeMax;
            newVal = clamp(ta*volume_sample + tb,0.f,1.f);
            colVal = max(colVal,opacity*newVal);
 
@@ -269,10 +271,10 @@ void main()
     alphaVal = clamp(colVal, 0.0, 1.0);
 
     // FIXME: this is a workaround for grey lines appearing at borders
-    alphaVal = alphaVal<0.01?0.0f:alphaVal;
-    if(alphaVal < 0.01) {
-        colVal = 0.01;
-    }
+//    alphaVal = alphaVal<0.01?0.0f:alphaVal;
+//    if(alphaVal < 0.01) {
+//        colVal = 0.01;
+//    }
 
     // Mapping to transfer function range and gamma correction:
     FragColor = vec4(texture(ObjectTextures[3], vec2(colVal, 0.5f)).rgb * alphaVal, alphaVal);

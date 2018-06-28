@@ -95,6 +95,9 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
     /** Voxel size in z direction */
     @ShaderProperty var voxelSizeZ = 1.0f
 
+    protected @ShaderProperty var dataRangeMin: Int = 0
+    protected @ShaderProperty var dataRangeMax: Int = 255
+
     /** Stores the available colormaps for transfer functions */
     var colormaps = HashMap<String, String>()
 
@@ -496,7 +499,7 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         val emptyBuffer = BufferUtils.allocateByteAndPut(byteArrayOf(0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
                                                                      0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0))
         val dim = GLVector(2.0f, 2.0f, 2.0f)
-        val gtv = GenericTexture("empty-volume", dim, 1, GLTypeEnum.UnsignedByte, emptyBuffer, false, false, normalized = false)
+        val gtv = GenericTexture("empty-volume", dim, 1, GLTypeEnum.UnsignedByte, emptyBuffer, false, false, normalized = true)
 
         this.material.transferTextures.put("empty-volume", gtv)
         this.material.textures.put("3D-volume", "fromBuffer:empty-volume")
@@ -512,9 +515,27 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
             logger.info("Address is ${MemoryUtil.memAddress(last).toHexString()}")
         }
 
+        val (min: Int, max: Int) = when(descriptor.dataType) {
+             NativeTypeEnum.Byte -> 0 to 255
+             NativeTypeEnum.UnsignedByte -> 0 to 255
+             NativeTypeEnum.Short -> 0 to 65536
+             NativeTypeEnum.UnsignedShort -> 0 to 65536
+             NativeTypeEnum.Int -> 0 to Integer.MAX_VALUE
+             NativeTypeEnum.UnsignedInt -> 0 to Integer.MAX_VALUE
+             NativeTypeEnum.HalfFloat -> 0 to 65536
+             NativeTypeEnum.Float -> 0 to 65536
+
+             NativeTypeEnum.Long,
+             NativeTypeEnum.UnsignedLong,
+             NativeTypeEnum.Double -> throw UnsupportedOperationException("64bit volumes are not supported")
+        }
+
+        dataRangeMin = min
+        dataRangeMax = max
+
         val dim = GLVector(dimensions[0].toFloat(), dimensions[1].toFloat(), dimensions[2].toFloat())
         val gtv = GenericTexture("volume", dim,
-            1, descriptor.dataType.toGLType(), descriptor.data, false, false, normalized = false)
+            1, descriptor.dataType.toGLType(), descriptor.data, false, false, normalized = true)
 
         if (this.lock.tryLock()) {
             logger.debug("$name: Assigning volume texture")
