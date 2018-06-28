@@ -499,7 +499,7 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         val emptyBuffer = BufferUtils.allocateByteAndPut(byteArrayOf(0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
                                                                      0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0))
         val dim = GLVector(2.0f, 2.0f, 2.0f)
-        val gtv = GenericTexture("empty-volume", dim, 1, GLTypeEnum.UnsignedByte, emptyBuffer, false, false, normalized = false)
+        val gtv = GenericTexture("empty-volume", dim, 1, GLTypeEnum.UnsignedByte, emptyBuffer, false, false, normalized = true)
 
         this.material.transferTextures.put("empty-volume", gtv)
         this.material.textures.put("3D-volume", "fromBuffer:empty-volume")
@@ -535,7 +535,7 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
 
         val dim = GLVector(dimensions[0].toFloat(), dimensions[1].toFloat(), dimensions[2].toFloat())
         val gtv = GenericTexture("volume", dim,
-            1, descriptor.dataType.toGLType(), descriptor.data, false, false, normalized = false)
+            1, descriptor.dataType.toGLType(), descriptor.data, false, false, normalized = true)
 
         if (this.lock.tryLock()) {
             logger.debug("$name: Assigning volume texture")
