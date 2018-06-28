@@ -63,6 +63,8 @@ layout(set = 4, binding = 0) uniform ShaderProperties {
     int maxsteps;
     float alpha_blending;
     float gamma;
+    int dataRangeMin;
+    int dataRangeMax;
 };
 
 layout(push_constant) uniform currentEye_t {

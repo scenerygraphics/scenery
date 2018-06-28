@@ -95,6 +95,9 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
     /** Voxel size in z direction */
     @ShaderProperty var voxelSizeZ = 1.0f
 
+    protected @ShaderProperty var dataRangeMin: Int = 0
+    protected @ShaderProperty var dataRangeMax: Int = 255
+
     /** Stores the available colormaps for transfer functions */
     var colormaps = HashMap<String, String>()
 
@@ -511,6 +514,24 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
             logger.info("deallocating $last from ${deallocations.map { it.hashCode() }.joinToString(", ")}")
             logger.info("Address is ${MemoryUtil.memAddress(last).toHexString()}")
         }
+
+        val (min: Int, max: Int) = when(descriptor.dataType) {
+             NativeTypeEnum.Byte -> 0 to 255
+             NativeTypeEnum.UnsignedByte -> 0 to 255
+             NativeTypeEnum.Short -> 0 to 65536
+             NativeTypeEnum.UnsignedShort -> 0 to 65536
+             NativeTypeEnum.Int -> 0 to Integer.MAX_VALUE
+             NativeTypeEnum.UnsignedInt -> 0 to Integer.MAX_VALUE
+             NativeTypeEnum.HalfFloat -> 0 to 65536
+             NativeTypeEnum.Float -> 0 to 65536
+
+             NativeTypeEnum.Long,
+             NativeTypeEnum.UnsignedLong,
+             NativeTypeEnum.Double -> throw UnsupportedOperationException("64bit volumes are not supported")
+        }
+
+        dataRangeMin = min
+        dataRangeMax = max
 
         val dim = GLVector(dimensions[0].toFloat(), dimensions[1].toFloat(), dimensions[2].toFloat())
         val gtv = GenericTexture("volume", dim,
