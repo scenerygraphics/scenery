@@ -63,6 +63,8 @@ layout(set = 4, binding = 0) uniform ShaderProperties {
     int maxsteps;
     float alpha_blending;
     float gamma;
+    int dataRangeMin;
+    int dataRangeMax;
 };
 
 layout(push_constant) uniform currentEye_t {
@@ -87,18 +89,18 @@ void main()
 	float Lmax = max3(L);
 
 	mat4 invScale = mat4(1.0);
-	invScale[0][0] = Lmax/L.x;
-	invScale[1][1] = Lmax/L.y;
-	invScale[2][2] = Lmax/L.z;
+	invScale[0][0] = 1.0/voxelSizeX;
+	invScale[1][1] = 1.0/voxelSizeY;
+	invScale[2][2] = 1.0/voxelSizeZ;
 
 	mat4 scale = mat4(1.0);
-	scale[0][0] = L.x/Lmax;
-	scale[1][1] = L.y/Lmax;
-	scale[2][2] = L.z/Lmax;
+	scale[0][0] = voxelSizeX;
+	scale[1][1] = voxelSizeY;
+	scale[2][2] = voxelSizeZ;
 
     Vertex.inverseProjection = (vrParameters.stereoEnabled ^ 1) * InverseProjectionMatrix + (vrParameters.stereoEnabled * vrParameters.inverseProjectionMatrices[currentEye.eye]);
     Vertex.inverseModelView = invScale * inverse(mv);
-    Vertex.MVP = projectionMatrix * mv;
+    Vertex.MVP = projectionMatrix * mv * scale;
 
     Vertex.textureCoord = vertexTexCoord;
     gl_Position = vec4(vertexPosition, 1.0f);
