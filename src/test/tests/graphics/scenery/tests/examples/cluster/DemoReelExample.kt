@@ -15,7 +15,7 @@ import java.nio.file.Paths
 import kotlin.concurrent.thread
 
 /**
- * <Description>
+ * Demo reel example to be run on a CAVE system.
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
@@ -160,15 +160,16 @@ class DemoReelExample: SceneryBase("Demo Reel") {
                             logger.info("Reading next volume for ${it.name} ...")
                             val start = System.currentTimeMillis()
 
-                            if(it.children[0] is Volume && volumes.containsKey(it.name)) {
-                                (it.children[0] as Volume).nextVolume(volumes[it.name]!!)
+                            val v = it.children[0]
+                            if(v is Volume && volumes.containsKey(it.name)) {
+                                v.nextVolume(volumes[it.name]!!)
 
                                 val time_to_read  = System.currentTimeMillis()-start
 
                                 if(it.name == "drosophila") {
                                     sleepDuration = Math.max(40,min_delay-time_to_read)
 
-                                    with(it.children[0] as Volume) {
+                                    with(v) {
                                         trangemin = 0.00f
                                         trangemax = .006f
                                         //trangemax = .0003f
@@ -183,7 +184,7 @@ class DemoReelExample: SceneryBase("Demo Reel") {
                                 if(it.name == "histone") {
                                     sleepDuration = Math.max(300,min_delay-time_to_read)
 
-                                    with(it.children[0] as Volume) {
+                                    with(v) {
                                         trangemin = 0.005f
                                         trangemax = 0.04f
                                         alpha_blending = 0.02f
@@ -215,6 +216,9 @@ class DemoReelExample: SceneryBase("Demo Reel") {
         }
     }
 
+    /**
+     * Returns all the RAW volumes stored in [path] as a list of strings.
+     */
     fun getVolumes(path: String): List<String> {
         val folder = File(path)
         val files = folder.listFiles()
@@ -225,6 +229,9 @@ class DemoReelExample: SceneryBase("Demo Reel") {
         return volumes
     }
 
+    /**
+     * Switches to the next volume, and returns its name.
+     */
     fun Volume.nextVolume(volumes: List<String>): String {
         var curr = if (volumes.indexOf(this.currentVolume) == -1) {
             0
@@ -243,19 +250,29 @@ class DemoReelExample: SceneryBase("Demo Reel") {
         return v
     }
 
+    /**
+     * Shows this [Node] and all children.
+     */
     fun Node.showAll() {
         this.children.map { visible = true }
         this.visible = true
     }
 
+    /**
+     * Hides this [Node] and all children.
+     */
     fun Node.hideAll() {
         this.children.map { visible = false }
         this.visible = false
     }
 
+    /**
+     * Standard input setup, plus additional key bindings to
+     * switch scenes.
+     */
     override fun inputSetup() {
         setupCameraModeSwitching(keybinding = "C")
-        val inputHandler = (hub.get(SceneryElement.Input) as InputHandler)
+        val inputHandler = (hub.get(SceneryElement.Input) as? InputHandler) ?: return
 
         val goto_scene_bile = ClickBehaviour { _, _ ->
             bileScene.showAll()
