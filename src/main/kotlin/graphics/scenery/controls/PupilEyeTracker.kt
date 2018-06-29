@@ -10,8 +10,8 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import graphics.scenery.Camera
 import graphics.scenery.Node
 import graphics.scenery.backends.Display
-import graphics.scenery.utils.LazyLogger
 import graphics.scenery.numerics.Random
+import graphics.scenery.utils.LazyLogger
 import kotlinx.coroutines.experimental.Job
 import kotlinx.coroutines.experimental.launch
 import kotlinx.coroutines.experimental.runBlocking
@@ -26,7 +26,16 @@ import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 
+/**
+ * Support class for Pupil Labs eye trackers -- pupil-labs.com
+ *
+ * [calibrationType] can be set to screen space or world space, and [host] is the host where
+ * the Pupil service is running on, and [port] its port.
+ *
+ * @author Ulrik Günther <hello@ulrik.is>
+ */
 class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "localhost", val port: Int = 50020) {
+    /** Shall we do a screen-space or world-space calibration? */
     enum class CalibrationType { ScreenSpace, WorldSpace}
 
     private val logger by LazyLogger()
@@ -44,6 +53,9 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
     var onGazeReceived: ((Gaze) -> Unit)? = null
     var gazeConfidenceThreshold = 0.9f
 
+    /**
+     * Stores gaze data, and retrieves various properties
+     */
     @JsonIgnoreProperties(ignoreUnknown = true)
     data class Gaze(var confidence: Float = 0.0f,
                     var timestamp: Float = 0.0f,
@@ -54,20 +66,34 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
                     var gaze_normals_3d: HashMap<Int, FloatArray>? = hashMapOf()) {
 
 
+        /** Returns the normalized gaze position. */
         fun normalizedPosition() = GLVector(*this.norm_pos)
+        /** Returns the point the user is gazing at. */
         fun gazePoint() = gaze_point_3d?.let { GLVector(*it) }
 
+        /** Returns the center of the left eye. */
+        @Suppress("unused")
         fun leftEyeCenter() = eye_centers_3d?.let { GLVector(*it.getOrDefault(0, floatArrayOf(0.0f, 0.0f, 0.0f))) }
+        /** Returns the center of the right eye. */
+        @Suppress("unused")
         fun rightEyeCenter() = eye_centers_3d?.let { GLVector(*it.getOrDefault(1, floatArrayOf(0.0f, 0.0f, 0.0f))) }
 
+        /** Returns the normal orientation of the left eye. */
+        @Suppress("unused")
         fun leftGazeNormal() = gaze_normals_3d?.let { GLVector(*it.getOrDefault(0, floatArrayOf(0.0f, 0.0f, 0.0f))) }
+        /** Returns the normal orientation of the right eye. */
+        @Suppress("unused")
         fun rightGazeNormal() = gaze_normals_3d?.let { GLVector(*it.getOrDefault(1, floatArrayOf(0.0f, 0.0f, 0.0f))) }
 
+        /**
+         * Compares two gaze data points with each other, returning true
+         * only if they match in all aspects.
+         */
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (javaClass != other?.javaClass) return false
 
-            other as Gaze
+            other as? Gaze ?: return false
 
             if (confidence != other.confidence) return false
             if (timestamp != other.timestamp) return false
@@ -79,6 +105,9 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
             return true
         }
 
+        /**
+         * Returns the hash code of this gaze data point.
+         */
         override fun hashCode(): Int {
             var result = confidence.hashCode()
             result = 31 * result + timestamp.hashCode()
@@ -94,6 +123,7 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
     private var currentPupilDatumLeft = HashMap<Any, Any>()
     private var currentPupilDatumRight = HashMap<Any, Any>()
 
+    /** Stores the current gaze data point. */
     var currentGaze: Gaze? = null
         private set
 
@@ -211,6 +241,10 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
         }
     }
 
+    /**
+     * Runs a gaze calibration, using [cam] as origin to display the calibration points.
+     * Requires a [hmd], and a [calibrationTarget] can be given to be moved around for gaze calibration.
+     */
     fun calibrate(cam: Camera, hmd: Display, generateReferenceData: Boolean = false, calibrationTarget: Node? = null): Boolean {
         subscribe("notify.calibration.successful")
         subscribe("notify.calibration.failed")
@@ -345,7 +379,12 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
         return false
     }
 
+    /**
+     * Utilities for eye tracking.
+     */
     companion object {
+        /** Point generator for circular calibration points. */
+        @Suppress("unused")
         val CircularScreenSpaceCalibrationPointGenerator = { cam: Camera, index: Int, referencePointCount: Int ->
             val origin = 0.5f
             val radius = 0.2f
@@ -357,6 +396,8 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
             v to cam.viewportToWorld(GLVector(v.x() * 2.0f - 1.0f, v.y() * 2.0f - 1.0f))
         }
 
+        /** Point generator for equidistributed calibration points. */
+        @Suppress("unused")
         val EquidistributedScreenSpaceCalibrationPointGenerator = { cam: Camera, index: Int, _: Int ->
             val points = arrayOf(
                 GLVector(0.0f, 0.5f),
@@ -379,6 +420,8 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
             v to cam.viewportToWorld(GLVector(v.x() * 2.0f - 1.0f, v.y() * 2.0f - 1.0f))
         }
 
+        /** Point generator for random world-space points. */
+        @Suppress("unused")
         val DefaultWorldSpaceCalibrationPointGenerator = { _: Camera, _: Int, _: Int ->
             val v = GLVector(Random.randomFromRange(-4.0f, 4.0f),
                 Random.randomFromRange(-4.0f, 4.0f),
