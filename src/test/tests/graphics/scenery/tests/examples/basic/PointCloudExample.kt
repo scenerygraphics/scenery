@@ -56,7 +56,7 @@ class PointCloudExample : SceneryBase("PointCloudExample") {
         pcmaterial.specular = GLVector(1.0f, 1.0f, 1.0f)
         pcmaterial.cullingMode = Material.CullingMode.None
 
-        val pointCloud = PointCloud(radius=0.025f)
+        val pointCloud = PointCloud(pointRadius = 0.025f)
         with(pointCloud) {
             readFromOBJ( TexturedCubeExample::class.java.getResource("models/sphere.obj").file, importMaterials = false)
             position = GLVector(0.0f, 0.0f, 0.0f)
