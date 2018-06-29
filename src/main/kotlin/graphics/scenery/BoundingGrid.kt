@@ -45,6 +45,7 @@ open class BoundingGrid : Mesh("Bounding Grid") {
                 field = value
             } else {
                 field = value
+                node?.removeChild(this)
                 updateFromNode()
                 value.addChild(this)
 
