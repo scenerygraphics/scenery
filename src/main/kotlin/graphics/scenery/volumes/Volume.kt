@@ -23,6 +23,8 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlin.concurrent.thread
 import kotlin.math.abs
 import kotlin.math.sqrt
+import kotlin.properties.Delegates
+import kotlin.reflect.KProperty
 import kotlin.streams.toList
 
 /**
@@ -82,21 +84,28 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
     @ShaderProperty var gamma = 1.0f
 
     /** Volume size in voxels along x direction */
-    @ShaderProperty var sizeX = 256
+    @ShaderProperty var sizeX by Delegates.observable(256) { property, old, new -> volumePropertyChanged(property, old, new) }
     /** Volume size in voxels along y direction */
-    @ShaderProperty var sizeY = 256
+    @ShaderProperty var sizeY by Delegates.observable(256) { property, old, new -> volumePropertyChanged(property, old, new) }
     /** Volume size in voxels along z direction */
-    @ShaderProperty var sizeZ = 256
+    @ShaderProperty var sizeZ by Delegates.observable(256) { property, old, new -> volumePropertyChanged(property, old, new) }
 
     /** Voxel size in x direction */
-    @ShaderProperty var voxelSizeX = 1.0f
+    @ShaderProperty var voxelSizeX by Delegates.observable(1.0f) { property, old, new -> volumePropertyChanged(property, old, new) }
     /** Voxel size in y direction */
-    @ShaderProperty var voxelSizeY = 1.0f
+    @ShaderProperty var voxelSizeY by Delegates.observable(1.0f) { property, old, new -> volumePropertyChanged(property, old, new) }
     /** Voxel size in z direction */
-    @ShaderProperty var voxelSizeZ = 1.0f
+    @ShaderProperty var voxelSizeZ by Delegates.observable(1.0f) { property, old, new -> volumePropertyChanged(property, old, new) }
 
     protected @ShaderProperty var dataRangeMin: Int = 0
     protected @ShaderProperty var dataRangeMax: Int = 255
+
+    /**
+     * Regenerates the [boundingBox] in case any relevant properties have changed.
+     */
+    protected fun <R> volumePropertyChanged(property: KProperty<*>, old: R, new: R) {
+        boundingBox = generateBoundingBox()
+    }
 
     /** Stores the available colormaps for transfer functions */
     var colormaps = HashMap<String, String>()
@@ -537,6 +546,8 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         val gtv = GenericTexture("volume", dim,
             1, descriptor.dataType.toGLType(), descriptor.data, false, false, normalized = true)
 
+        boundingBox = generateBoundingBox()
+
         if (this.lock.tryLock()) {
             logger.debug("$name: Assigning volume texture")
             this.material.transferTextures.put("volume", gtv)?.let {
@@ -550,6 +561,14 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
 
             this.lock.unlock()
         }
+    }
+
+    override fun generateBoundingBox(): OrientedBoundingBox? {
+        val slack = 0.02f
+        val min = GLVector(-1.0f * voxelSizeX - slack, -1.0f * voxelSizeY - slack, -1.0f * voxelSizeZ - slack)
+        val max = GLVector(1.0f * voxelSizeX + slack, 1.0f * voxelSizeY + slack, 1.0f * voxelSizeZ + slack)
+
+        return OrientedBoundingBox(min, max)
     }
 
     /**
