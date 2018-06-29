@@ -44,14 +44,21 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
                                 val bytesPerVoxel: Int,
                                 val data: ByteBuffer)
 
+    /**
+     * Histogram class.
+     */
     class Histogram<T : Comparable<T>>(histogramSize: Int) {
+        /** Bin storage for the histogram. */
         val bins: HashMap<T, Long> = HashMap(histogramSize)
 
+        /** Adds a new value, putting it in the corresponding bin. */
         fun add(value: T) {
-            bins.put(value, (bins.get(value) ?: 0L) + 1L)
+            bins[value] = (bins[value] ?: 0L) + 1L
         }
 
+        /** Returns the minimum value contained in the histogram. */
         fun min(): T = bins.keys.minBy { it } ?: (0 as T)
+        /** Returns the maximum value contained in the histogram. */
         fun max(): T = bins.keys.maxBy { it } ?: (0 as T)
     }
 
@@ -563,6 +570,10 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         }
     }
 
+    /**
+     * Creates this volume's [OrientedBoundingBox], giving a slight bit of slack
+     * around all edges.
+     */
     override fun generateBoundingBox(): OrientedBoundingBox? {
         val slack = 0.02f
         val min = GLVector(-1.0f * voxelSizeX - slack, -1.0f * voxelSizeY - slack, -1.0f * voxelSizeZ - slack)
