@@ -20,8 +20,10 @@ import java.util.*
 class SceneryPanel(var imageWidth: Int, var imageHeight: Int) : Pane() {
     private val logger by LazyLogger()
 
+    /** Delay between resize events before associated renderer swapchains are resized actually. */
     val RESIZE_DELAY_MS = 200L
 
+    /** Timer task to keep track of resize events. */
     inner class ResizeTimerTask(val width: Double, val height: Double) : TimerTask() {
         /**
          * The action to be performed by this timer task.
@@ -38,8 +40,10 @@ class SceneryPanel(var imageWidth: Int, var imageHeight: Int) : Pane() {
 
     }
 
-    var image: DirectWritableImage = DirectWritableImage(imageWidth, imageHeight)
-    var imageView: ImageView
+    /** The image displayed in the panel. Will be set by a renderer. */
+    protected var image: DirectWritableImage = DirectWritableImage(imageWidth, imageHeight)
+    internal var imageView: ImageView
+
     private var resizeTimer: Timer? = null
     private var latestImageSize = 0
     private var imageBuffer: ByteBuffer? = null
@@ -57,7 +61,7 @@ class SceneryPanel(var imageWidth: Int, var imageHeight: Int) : Pane() {
         children.add(imageView)
     }
 
-    fun update(buffer: ByteBuffer, id: Int = -1) {
+    internal fun update(buffer: ByteBuffer, id: Int = -1) {
         if(resizeTimer != null) {
             return
         }
@@ -68,6 +72,9 @@ class SceneryPanel(var imageWidth: Int, var imageHeight: Int) : Pane() {
         textureId = id
     }
 
+    /**
+     * Resizes the panel to [width] x [height].
+     */
     override fun resize(width: Double, height: Double) {
         if (this.width == width && this.height == height) {
             return
@@ -76,8 +83,6 @@ class SceneryPanel(var imageWidth: Int, var imageHeight: Int) : Pane() {
         if( !(width > 0 && height > 0 ) ) {
             return
         }
-
-
 
         this.width = width
         this.height = height
@@ -97,6 +102,8 @@ class SceneryPanel(var imageWidth: Int, var imageHeight: Int) : Pane() {
         resizeTimer?.schedule(ResizeTimerTask(width, height), RESIZE_DELAY_MS)
     }
 
+    /** Retuns the region rendered by this panel. */
+    @Suppress("OverridingDeprecatedMember")
     override fun impl_createPeer(): NGNode {
         return NGSceneryPanelRegion()
     }
