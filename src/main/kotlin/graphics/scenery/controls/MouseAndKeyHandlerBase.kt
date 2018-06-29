@@ -36,18 +36,10 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
     /** handle to the active controller */
     protected var controller: Controller? = null
 
-    /** handle to the active controller's polling thread */
     private var controllerThread: Thread? = null
-
-    /** hash map of the controller's components that are currently above [CONTROLLER_DOWN_THRESHOLD] */
     private var controllerAxisDown: ConcurrentHashMap<Component.Identifier, Float> = ConcurrentHashMap()
-
     private val gamepads = ArrayList<BehaviourEntry<GamepadBehaviour>>()
-
-    /** polling interval for the controller */
     private val CONTROLLER_HEARTBEAT = 5L
-
-    /** threshold over which an axis is considered down */
     private val CONTROLLER_DOWN_THRESHOLD = 0.95f
 
     /**
@@ -132,6 +124,7 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
     init {
         java.util.logging.Logger.getLogger(ControllerEnvironment::class.java.name).parent.level = Level.SEVERE
 
+        /** Returns the name of the DLL/so/dylib required by JInput on the given platform. */
         fun ExtractsNatives.Platform.getPlatformJinputLibraryName(): String {
             return when(this) {
                 WINDOWS -> "jinput-raw_64.dll"
@@ -158,7 +151,7 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
 
         controllerThread = thread {
             var queue: EventQueue
-            val event: Event = Event()
+            val event = Event()
 
             while (true) {
                 controller?.let { c ->
@@ -175,7 +168,7 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
                     for (it in controllerAxisDown) {
                         if (Math.abs(it.value) > 0.02f && gamepad.behaviour.axis.contains(it.key)) {
                             logger.trace("Triggering ${it.key} because axis is down (${it.value})")
-                            gamepad.behaviour.axisEvent(it.key, it.value.toFloat())
+                            gamepad.behaviour.axisEvent(it.key, it.value)
                         }
                     }
                 }
@@ -196,7 +189,7 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
         return if (prop == null) {
             200
         } else {
-            prop as Int
+            prop as? Int ?: 200
         }
     }
 
