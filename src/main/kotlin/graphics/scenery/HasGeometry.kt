@@ -6,7 +6,6 @@ import gnu.trove.set.hash.TLinkedHashSet
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.SystemHelpers
 import org.lwjgl.system.MemoryUtil.memAlloc
-import org.slf4j.LoggerFactory
 import java.io.BufferedInputStream
 import java.io.File
 import java.io.Serializable
@@ -40,14 +39,24 @@ interface HasGeometry : Serializable {
     /** Array of the indices to create an indexed mesh. Optional, but advisable to use to minimize the number of submitted vertices. */
     var indices: IntBuffer
 
+    /**
+     * Reads geometry from a file given by [filename]. The extension of [filename] will determine
+     * whether the file will be read by [readFromOBJ] or [readFromSTL].
+     *
+     * Materials will be automatically used, if present.
+     */
     fun readFrom(filename: String) {
         readFrom(filename, true)
     }
 
+    /**
+     * Reads geometry from a file given by [filename]. The extension of [filename] will determine
+     * whether the file will be read by [readFromOBJ] or [readFromSTL].
+     *
+     * Materials will be used, if present and [useMaterial] is true.
+     */
     fun readFrom(filename: String, useMaterial: Boolean = true) {
-        // FIXME: Kotlin bug, revert to LazyLogger as soon as https://youtrack.jetbrains.com/issue/KT-19690 is fixed.
-        // val logger by LazyLogger()
-        val logger = LoggerFactory.getLogger(this.javaClass.simpleName)
+        val logger by LazyLogger()
         val ext = filename.substringAfterLast(".").toLowerCase()
 
         when (ext) {
@@ -68,9 +77,7 @@ interface HasGeometry : Serializable {
      * @return A HashMap storing material name and [Material].
      */
     fun readFromMTL(filename: String): HashMap<String, Material> {
-        // FIXME: Kotlin bug, revert to LazyLogger as soon as https://youtrack.jetbrains.com/issue/KT-19690 is fixed.
-        // val logger by LazyLogger()
-        val logger = LoggerFactory.getLogger(this.javaClass.simpleName)
+        val logger by LazyLogger()
 
         val materials = HashMap<String, Material>()
 
@@ -142,14 +149,23 @@ interface HasGeometry : Serializable {
         return materials
     }
 
+    /**
+     * Hash set class extending [TLinkedHashSet], providing an additional index for all entries.
+     */
     class TIndexedHashSet<E : Any>(initialCapacity: Int) : TLinkedHashSet<E>(initialCapacity, 0.9f) {
         private val index: THashMap<E, Int> = THashMap(initialCapacity)
 
+        /**
+         * Adds [element] to the hash set. Returns true if the set was modified by the operation.
+         */
         override fun add(element: E): Boolean {
             index.putIfAbsent(element, size)
             return super.add(element)
         }
 
+        /**
+         * Returns the index in the set of the object [obj], or -1 if [obj] is not contained in the set.
+         */
         fun indexOf(obj: E): Int {
             index[obj]?.let { return it }
 
@@ -187,7 +203,7 @@ interface HasGeometry : Serializable {
     fun readFromOBJ(filename: String, importMaterials: Boolean = true, flipNormals: Boolean = false) {
         val logger by LazyLogger()
 
-        var name: String = ""
+        var name = ""
 
         var boundingBox: FloatArray
 
@@ -617,11 +633,9 @@ interface HasGeometry : Serializable {
      * @param[filename] The filename to read from.
      */
     fun readFromSTL(filename: String) {
-        // FIXME: Kotlin bug, revert to LazyLogger as soon as https://youtrack.jetbrains.com/issue/KT-19690 is fixed.
-        // val logger by LazyLogger()
-        val logger = LoggerFactory.getLogger(this.javaClass.simpleName)
+        val logger by LazyLogger()
 
-        var name: String = ""
+        var name = ""
         val vbuffer = ArrayList<Float>()
         val nbuffer = ArrayList<Float>()
 
@@ -691,9 +705,9 @@ interface HasGeometry : Serializable {
 
             val fis = Files.newInputStream(p)
             val bis = BufferedInputStream(fis)
-            val headerB: ByteArray = ByteArray(80)
-            val sizeB: ByteArray = ByteArray(4)
-            val buffer: ByteArray = ByteArray(12)
+            val headerB = ByteArray(80)
+            val sizeB = ByteArray(4)
+            val buffer = ByteArray(12)
             val size: Int
 
             bis.read(headerB, 0, 80)
@@ -754,7 +768,7 @@ interface HasGeometry : Serializable {
             fis.close()
         }
 
-        val arr: CharArray = CharArray(6)
+        val arr = CharArray(6)
         File(p.toUri()).reader().read(arr, 0, 6)
 
         // If the STL file starts with the string "solid", is must be a ASCII STL file,
