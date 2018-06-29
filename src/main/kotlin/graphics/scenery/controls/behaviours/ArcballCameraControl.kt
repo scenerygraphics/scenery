@@ -26,20 +26,21 @@ import kotlin.reflect.KProperty
  * @constructor Creates a new ArcballCameraControl behaviour
  */
 open class ArcballCameraControl(private val name: String, private val n: () -> Camera?, private val w: Int, private val h: Int, initialTarget: GLVector = GLVector(0.0f, 0.0f, 0.0f)) : DragBehaviour, ScrollBehaviour {
-    /** default mouse x position in window */
     private var lastX = w / 2
-    /** default mouse y position in window */
     private var lastY = h / 2
-    /** whether this is the first entering event */
     private var firstEntered = true
 
-    private var node: Camera? by CameraDelegate()
+    /** The [graphics.scenery.Node] this behaviour class controls */
+    protected var node: Camera? by CameraDelegate()
 
-    inner class CameraDelegate {
+    /** Camera delegate class, converting lambdas to Cameras. */
+    protected inner class CameraDelegate {
+        /** Returns the [graphics.scenery.Node] resulting from the evaluation of [n] */
         operator fun getValue(thisRef: Any?, property: KProperty<*>): Camera? {
             return n.invoke()
         }
 
+        /** Setting the value is not supported */
         operator fun setValue(thisRef: Any?, property: KProperty<*>, value: Camera?) {
             throw UnsupportedOperationException()
         }
@@ -69,6 +70,10 @@ open class ArcballCameraControl(private val name: String, private val n: () -> C
             node?.let { node -> distance = (value - node.position).magnitude() }
         }
 
+    /**
+     * Gamepad camera control, supplying a Camera via a Java [Supplier] lambda.
+     */
+    @Suppress("unused")
     constructor(name: String, n: Supplier<Camera?>, w: Int, h: Int, target: GLVector) : this(name, { n.get() }, w, h, target)
 
     /**
