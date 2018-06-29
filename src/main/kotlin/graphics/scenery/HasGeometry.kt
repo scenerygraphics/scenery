@@ -40,14 +40,6 @@ interface HasGeometry : Serializable {
     /** Array of the indices to create an indexed mesh. Optional, but advisable to use to minimize the number of submitted vertices. */
     var indices: IntBuffer
 
-    /**
-     * PreDraw function, to be called before the actual rendering, useful for
-     * per-timestep preparation.
-     */
-    fun preDraw() {
-
-    }
-
     fun readFrom(filename: String) {
         readFrom(filename, true)
     }

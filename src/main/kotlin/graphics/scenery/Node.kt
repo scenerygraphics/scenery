@@ -157,9 +157,19 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
      * @property[max] The x/y/z maxima for the bounding box.
      */
     inner class OrientedBoundingBox(val min: GLVector, val max: GLVector) {
+        /**
+         * Alternative [OrientedBoundingBox] constructor taking the [min] and [max] as a series of floats.
+         */
         constructor(xMin: Float, yMin: Float, zMin: Float, xMax: Float, yMax: Float, zMax: Float) : this(GLVector(xMin, yMin, zMin), GLVector(xMax, yMax, zMax))
+
+        /**
+         * Alternative [OrientedBoundingBox] constructor, taking a 6-element float array for [min] and [max].
+         */
         constructor(boundingBox: FloatArray) : this(GLVector(boundingBox[0], boundingBox[2], boundingBox[4]), GLVector(boundingBox[1], boundingBox[3], boundingBox[5]))
 
+        /**
+         * Returns the maximum bounding sphere of this bounding box.
+         */
         fun getBoundingSphere(): BoundingSphere {
             val worldMin = worldPosition(min)
             val worldMax = worldPosition(max)
@@ -171,8 +181,34 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
             return BoundingSphere(origin, radius)
         }
 
+        /**
+         * Checks this [OrientedBoundingBox] for intersection with [other], and returns
+         * true if the bounding boxes do intersect.
+         */
         fun intersects(other: OrientedBoundingBox): Boolean {
             return other.getBoundingSphere().radius + getBoundingSphere().radius > (other.getBoundingSphere().origin - getBoundingSphere().origin).magnitude()
+        }
+
+        /**
+         * Returns the hash code of this [OrientedBoundingBox], taking [min] and [max] into consideration.
+         */
+        override fun hashCode(): Int {
+            return min.hashCode() + max.hashCode()
+        }
+
+        /**
+         * Compares this bounding box to [other], returning true if they are equal.
+         */
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+
+            other as OrientedBoundingBox
+
+            if (min.hashCode() != other.min.hashCode()) return false
+            if (max.hashCode() != other.max.hashCode()) return false
+
+            return true
         }
     }
 
@@ -253,6 +289,14 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
     }
 
     /**
+     * PreDraw function, to be called before the actual rendering, useful for
+     * per-timestep preparation.
+     */
+    open fun preDraw() {
+
+    }
+
+    /**
      * Update the the [world] matrix of the [Node].
      *
      * This method will update the [model] and [world] matrices of the node,
@@ -308,7 +352,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
         }
     }
 
-    fun generateBoundingBox(): OrientedBoundingBox? {
+    open fun generateBoundingBox(): OrientedBoundingBox? {
         if (this is HasGeometry) {
             val vertexBufferView = vertices.asReadOnlyBuffer()
             val boundingBoxCoords = floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
@@ -514,6 +558,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
          * @param[func] A lambda taking a [Node] and returning a Boolean for matching.
          * @return A list of [Node]s that match [func].
          */
+        @Suppress("unused")
         fun discover(origin: Node, func: (Node) -> Boolean): ArrayList<Node> {
             val visited = HashSet<Node>()
             val matched = ArrayList<Node>()
