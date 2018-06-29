@@ -1659,6 +1659,7 @@ open class VulkanRenderer(hub: Hub,
                             val imageArray = ByteArray(ib.remaining())
                             ib.get(imageArray)
                             val shifted = ByteArray(imageArray.size)
+                            ib.flip()
 
                             // swizzle BGRA -> ABGR
                             for (i in 0 until shifted.size step 4) {
