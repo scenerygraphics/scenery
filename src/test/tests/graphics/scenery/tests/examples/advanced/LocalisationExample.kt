@@ -75,8 +75,7 @@ class LocalisationExample : SceneryBase("Localisation Microscopy Rendering examp
             val dataset = PointCloud()
             dataset.readFromPALM(file)
             dataset.material.diffuse = channelColors.getOrElse(i, { Random.randomVectorFromRange(3, 0.1f, 0.9f) })
-//            dataset.centerOn(dataset.position)
-            dataset.fitInto(10.0f)
+            dataset.fitInto(5.0f)
             scene.addChild(dataset)
 
             dataset
