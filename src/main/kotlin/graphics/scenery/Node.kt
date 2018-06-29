@@ -493,7 +493,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
         }
 
         if(children.none { it !is BoundingGrid }) {
-            return OrientedBoundingBox(world.mult(boundingBox!!.min.xyzw()), world.mult(boundingBox!!.max.xyzw()))
+            return OrientedBoundingBox(boundingBox!!.min, boundingBox!!.max)
         }
 
         return children
