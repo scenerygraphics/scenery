@@ -238,6 +238,9 @@ class OpenCLContext(override var hub: Hub?, devicePreference: String = System.ge
     }
 
 
+    /**
+     * Convenience utils for [OpenCLContext].
+     */
     companion object OpenCLUtils {
         /**
          * Convenience wrapper for OpenCL functions that query arrays and are usually
