@@ -14,6 +14,7 @@ import java.nio.ByteBuffer
  * @author Loic Royer <royerloic@gmail.com>, Ulrik Guenther <hello@ulrik.is>
  */
 class DirectWritableImage(pWidth: Int, pHeight: Int) : WritableImage(pWidth, pHeight) {
+    /** Method to store return the writeable platform image. */
     var getWritablePlatformImage: Method
     private var pixelBuffer: Field
     private var serial: Field
@@ -42,9 +43,8 @@ class DirectWritableImage(pWidth: Int, pHeight: Int) : WritableImage(pWidth, pHe
     fun replaceBuffer(pMemory: ContiguousMemoryInterface) {
         try {
             replaceImageBuffer(pMemory.byteBuffer, this)
-        } catch (e: Throwable) {
-            throw RuntimeException("Error while replacing internal buffer",
-                e)
+        } catch (e: NoSuchMethodException) {
+            throw IllegalStateException("Error while replacing internal buffer", e)
         }
 
     }
@@ -59,7 +59,7 @@ class DirectWritableImage(pWidth: Int, pHeight: Int) : WritableImage(pWidth, pHe
         try {
             writeToImageDirectly(pMemory.byteBuffer, this)
         } catch (e: Throwable) {
-            throw RuntimeException("Error while writting pixels", e)
+            throw IllegalStateException("Error while writting pixels", e)
         }
 
     }
@@ -76,6 +76,9 @@ class DirectWritableImage(pWidth: Int, pHeight: Int) : WritableImage(pWidth, pHe
         forceUpdate(writableImg, prismImg)
     }
 
+    /**
+     * Updates the image with the contents of [buffer].
+     */
     fun update(buffer: ByteBuffer) {
         writeToImageDirectly(buffer, this)
     }
@@ -86,7 +89,7 @@ class DirectWritableImage(pWidth: Int, pHeight: Int) : WritableImage(pWidth, pHe
         // Get the platform image
         val getWritablePlatformImage = javafx.scene.image.Image::class.java.getDeclaredMethod("getWritablePlatformImage")
         getWritablePlatformImage.isAccessible = true
-        val prismImg = getWritablePlatformImage(writableImg) as com.sun.prism.Image
+        val prismImg = getWritablePlatformImage(writableImg) as? com.sun.prism.Image ?: throw IllegalAccessException("Could not cast prismImg")
 
         // Replace the buffer
         val pixelBuffer = com.sun.prism.Image::class.java.getDeclaredField("pixelBuffer")
