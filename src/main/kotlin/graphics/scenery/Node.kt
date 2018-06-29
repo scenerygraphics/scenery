@@ -203,7 +203,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
             if (this === other) return true
             if (javaClass != other?.javaClass) return false
 
-            other as OrientedBoundingBox
+            other as? OrientedBoundingBox ?: return false
 
             if (min.hashCode() != other.min.hashCode()) return false
             if (max.hashCode() != other.max.hashCode()) return false
@@ -352,6 +352,11 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
         }
     }
 
+    /**
+     * Generates an [OrientedBoundingBox] for this [Node]. This will take
+     * geometry information into consideration if this Node implements [HasGeometry].
+     * In case a bounding box cannot be determined, the function will return null.
+     */
     open fun generateBoundingBox(): OrientedBoundingBox? {
         if (this is HasGeometry) {
             val vertexBufferView = vertices.asReadOnlyBuffer()
@@ -493,12 +498,12 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
         }
 
         if(children.none { it !is BoundingGrid }) {
-            return OrientedBoundingBox(boundingBox!!.min, boundingBox!!.max)
+            return OrientedBoundingBox(boundingBox?.min ?: GLVector(0.0f, 0.0f, 0.0f), boundingBox?.max ?: GLVector(0.0f, 0.0f, 0.0f))
         }
 
         return children
             .filter { it !is BoundingGrid  }.map { it.getMaximumBoundingBox() }
-            .fold(boundingBox!!, { lhs, rhs -> expand(lhs, rhs) })
+            .fold(boundingBox ?: OrientedBoundingBox(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f), { lhs, rhs -> expand(lhs, rhs) })
     }
 
     /**
