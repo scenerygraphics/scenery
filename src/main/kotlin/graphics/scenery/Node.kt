@@ -412,6 +412,10 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
     }
 
     private val shaderPropertyFieldCache = HashMap<String, KProperty1<Node, *>>()
+    /**
+     * Returns the [ShaderProperty] given by [name], if it exists and is declared by
+     * this class or a subclass inheriting from [Node].
+     */
     fun getShaderProperty(name: String): Any? {
         return if(shaderPropertyFieldCache.containsKey(name)) {
             shaderPropertyFieldCache[name]!!.get(this)
@@ -459,6 +463,10 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
         return center
     }
 
+    /**
+     * Taking this [Node]'s [boundingBox] into consideration, puts it above
+     * the [position] entirely.
+     */
     fun putAbove(position: GLVector): GLVector {
         val center = centerOn(position)
 
@@ -503,6 +511,9 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
             max(lhs.max.z(), rhs.max.z()))
     }
 
+    /**
+     * Returns the maximum [OrientedBoundingBox] of this [Node] and all its children.
+     */
     fun getMaximumBoundingBox(): OrientedBoundingBox {
         if(boundingBox == null) {
             return OrientedBoundingBox(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
