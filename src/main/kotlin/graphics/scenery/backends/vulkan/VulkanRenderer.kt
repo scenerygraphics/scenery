@@ -1761,6 +1761,8 @@ open class VulkanRenderer(hub: Hub,
                     return@forEach
                 }
 
+                it.preDraw()
+
                 // the current command buffer will be forced to be re-recorded if either geometry, blending or
                 // texturing of a given node have changed, as these might change pipelines or descriptor sets, leading
                 // to the original command buffer becoming obsolete.

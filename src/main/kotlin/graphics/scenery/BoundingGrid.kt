@@ -45,12 +45,16 @@ open class BoundingGrid : Mesh("Bounding Grid") {
                 field = value
             } else {
                 field = value
+                node?.removeChild(this)
                 updateFromNode()
                 value.addChild(this)
 
                 value.updateWorld(true)
             }
         }
+
+    /** Stores the hash of the [node]'s bounding box to keep an eye on it. */
+    protected var nodeBoundingBoxHash: Int = -1
 
     init {
         material = ShaderMaterial(arrayListOf("DefaultForward.vert", "BoundingGrid.frag"))
@@ -78,14 +82,26 @@ open class BoundingGrid : Mesh("Bounding Grid") {
         }
     }
 
+    override fun preDraw() {
+        super.preDraw()
+
+        if(node?.getMaximumBoundingBox()?.hashCode() != nodeBoundingBoxHash) {
+            logger.debug("Updating bounding box (${node?.getMaximumBoundingBox()?.hashCode()} vs $nodeBoundingBoxHash")
+            node = node
+        }
+    }
+
     protected fun updateFromNode() {
         node?.let { node ->
-            val min = node.getMaximumBoundingBox().min
-            val max = node.getMaximumBoundingBox().max
+            val maxBoundingBox = node.getMaximumBoundingBox()
+            nodeBoundingBoxHash = maxBoundingBox.hashCode()
+
+            val min = maxBoundingBox.min
+            val max = maxBoundingBox.max
 
             val b = Box(max - min)
 
-            logger.debug("Bounding box of $node is ${node.getMaximumBoundingBox()}")
+            logger.debug("Bounding box of $node is $maxBoundingBox")
 
             val center = (max - min)*0.5f
 
@@ -95,7 +111,7 @@ open class BoundingGrid : Mesh("Bounding Grid") {
             this.indices = b.indices
 
             this.boundingBox = b.boundingBox
-            this.position = node.getMaximumBoundingBox().min + center
+            this.position = maxBoundingBox.min + center
 
             boundingBox?.let { bb ->
                 // label coordinates are relative to the bounding box

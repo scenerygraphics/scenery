@@ -277,6 +277,7 @@ void main()
 //    }
 
     // Mapping to transfer function range and gamma correction:
+    colVal = pow(colVal, gamma);
     FragColor = vec4(texture(ObjectTextures[3], vec2(colVal, 0.5f)).rgb * alphaVal, alphaVal);
 }
 
