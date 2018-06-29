@@ -115,6 +115,9 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
     /** x/y/z scale of the Node. Setting will trigger [world] update. */
     override var scale: GLVector by Delegates.observable(GLVector(1.0f, 1.0f, 1.0f)) { property, old, new -> propertyChanged(property, old, new) }
 
+    /** Rendering scale, e.g. coming from physical units of the object. Setting will trigger [world] update. */
+    override var renderScale: Float by Delegates.observable(1.0f) { property, old, new -> propertyChanged(property, old, new) }
+
     /** Rotation of the Node. Setting will trigger [world] update. */
     override var rotation: Quaternion by Delegates.observable(Quaternion(0.0f, 0.0f, 0.0f, 1.0f)) { property, old, new -> propertyChanged(property, old, new) }
 
@@ -214,7 +217,10 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
 
     @Suppress("UNUSED_PARAMETER")
     protected fun <R> propertyChanged(property: KProperty<*>, old: R, new: R) {
-        if(property.name == "rotation" || property.name == "position" || property.name  == "scale") {
+        if(property.name == "rotation"
+            || property.name == "position"
+            || property.name  == "scale"
+            || property.name == "renderScale") {
             needsUpdate = true
             needsUpdateWorld = true
         }
@@ -348,6 +354,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
             model.setIdentity()
             model.translate(this.position.x(), this.position.y(), this.position.z())
             model.mult(this.rotation)
+            model.scale(this.renderScale, this.renderScale, this. renderScale)
             model.scale(this.scale.x(), this.scale.y(), this.scale.z())
         }
     }
