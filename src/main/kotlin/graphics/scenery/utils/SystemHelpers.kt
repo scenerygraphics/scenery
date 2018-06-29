@@ -5,7 +5,12 @@ import java.net.URI
 import java.nio.file.*
 import java.util.*
 
-
+/**
+ * System helpers class with various utilities for paths,
+ * environment variables, etc.
+ *
+ * @author Ulrik Günther <hello@ulrik.is>
+ */
 class SystemHelpers {
     companion object {
         val logger by LazyLogger()
