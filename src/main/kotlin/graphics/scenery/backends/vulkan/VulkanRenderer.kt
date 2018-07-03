@@ -549,6 +549,11 @@ open class VulkanRenderer(hub: Hub,
             toggleFullscreen = true
         }
 
+        val geometryPool = VulkanBufferPool(device)
+        val alloc0 = geometryPool.create(1024*10)
+        val alloc1 = geometryPool.create(1024*5)
+        val alloc2 = geometryPool.create(1024*2)
+
         initialized = true
     }
 
