@@ -51,7 +51,7 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
     private var calibrating = false
 
     var onGazeReceived: ((Gaze) -> Unit)? = null
-    var gazeConfidenceThreshold = 0.9f
+    var gazeConfidenceThreshold = 0.8f
 
     /**
      * Stores gaze data, and retrieves various properties
@@ -246,6 +246,8 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
      * Requires a [hmd], and a [calibrationTarget] can be given to be moved around for gaze calibration.
      */
     fun calibrate(cam: Camera, hmd: Display, generateReferenceData: Boolean = false, calibrationTarget: Node? = null): Boolean {
+        // Threshold for samples to ignore in the beginning
+        val eyeMovingSamples = 15
         subscribe("notify.calibration.successful")
         subscribe("notify.calibration.failed")
         subscribe("pupil.")
@@ -311,7 +313,7 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
         val referenceData = arrayListOf<HashMap<String, Serializable>>()
 
         if(generateReferenceData) {
-            val numReferencePoints = 15
+            val numReferencePoints = 8
             val samplesPerPoint = 120
 
             val (posKeyName, posGenerator: ((Camera, Int, Int) -> Pair<GLVector, GLVector>)) = when(calibrationType) {
@@ -343,8 +345,10 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
                         "id" to 1
                     )
 
-                    referenceData.add(datum0)
-                    referenceData.add(datum1)
+                    if(samplesPerPoint > eyeMovingSamples) {
+                        referenceData.add(datum0)
+                        referenceData.add(datum1)
+                    }
 
                     Thread.sleep(16)
                 }
@@ -392,7 +396,7 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
             val v = GLVector(
                 origin + radius * cos(2 * PI.toFloat() * index.toFloat()/referencePointCount),
                 origin + radius * sin(2 * PI.toFloat() * index.toFloat()/referencePointCount))
-            v to cam.viewportToWorld(GLVector(v.x() * 2.0f - 1.0f, v.y() * 2.0f - 1.0f))
+            v to cam.viewportToWorld(GLVector(v.x() * 2.0f - 1.0f, v.y() * 2.0f - 1.0f), offset = 0.05f)
         }
 
         /** Point generator for equidistributed calibration points. */
