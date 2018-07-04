@@ -391,8 +391,7 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
 
             val v = GLVector(
                 origin + radius * cos(2 * PI.toFloat() * index.toFloat()/referencePointCount),
-                origin + radius * sin(2 * PI.toFloat() * index.toFloat()/referencePointCount),
-                cam.nearPlaneDistance + 2.0f)
+                origin + radius * sin(2 * PI.toFloat() * index.toFloat()/referencePointCount))
             v to cam.viewportToWorld(GLVector(v.x() * 2.0f - 1.0f, v.y() * 2.0f - 1.0f))
         }
 
