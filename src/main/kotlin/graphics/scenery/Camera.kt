@@ -146,16 +146,18 @@ open class Camera : Node("Camera") {
      * @return GLVector - [v] transformed into world space.
      */
     @JvmOverloads fun viewportToWorld(v: GLVector, offset: Float = 0.01f): GLVector {
-        var clipSpace = projection.inverse.mult(when (v.dimension) {
+        val unproject = projection.clone()
+        unproject.mult(getTransformation())
+        unproject.invert()
+
+        val clipSpace = unproject.mult(when (v.dimension) {
             1 -> GLVector(v.x(), 1.0f, nearPlaneDistance + offset, 1.0f)
             2 -> GLVector(v.x(), v.y(), nearPlaneDistance + offset, 1.0f)
             3 -> GLVector(v.x(), v.y(), v.z(), 1.0f)
             else -> v
         })
 
-        clipSpace *= (1.0f / clipSpace.w())
-
-        return getTransformation().invert().mult(clipSpace).xyz()
+        return clipSpace.xyz() * (1.0f/clipSpace.w())
     }
 }
 
