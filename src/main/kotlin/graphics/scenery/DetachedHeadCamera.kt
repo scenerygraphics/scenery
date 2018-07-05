@@ -16,13 +16,16 @@ import kotlin.reflect.KProperty
  */
 
 class DetachedHeadCamera(@Transient var tracker: TrackerInput? = null) : Camera() {
-    override var projection: GLMatrix
-        get() = if(tracker is Display) {
+    override var projection: GLMatrix = GLMatrix.getIdentity()
+        get() = if(tracker != null && tracker is Display) {
             (tracker as? Display)?.getEyeProjection(0) ?: super.projection
         } else {
             super.projection
         }
-        set(value) {}
+        set(value) {
+            super.projection = value
+            field = value
+        }
 
     /**
      * Delegate class for getting a head rotation from a [TrackerInput].
