@@ -3,6 +3,7 @@ package graphics.scenery
 import cleargl.GLMatrix
 import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
+import graphics.scenery.backends.Display
 import graphics.scenery.controls.TrackerInput
 import java.io.Serializable
 import kotlin.reflect.KProperty
@@ -15,6 +16,13 @@ import kotlin.reflect.KProperty
  */
 
 class DetachedHeadCamera(@Transient var tracker: TrackerInput? = null) : Camera() {
+    override var projection: GLMatrix
+        get() = if(tracker is Display) {
+            (tracker as? Display)?.getEyeProjection(0) ?: super.projection
+        } else {
+            super.projection
+        }
+        set(value) {}
 
     /**
      * Delegate class for getting a head rotation from a [TrackerInput].
