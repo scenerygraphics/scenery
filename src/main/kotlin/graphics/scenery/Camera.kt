@@ -146,26 +146,19 @@ open class Camera : Node("Camera") {
      * @return GLVector - [v] transformed into world space.
      */
     @JvmOverloads fun viewportToWorld(vector: GLVector, offset: Float = 0.01f): GLVector {
-        val view = (target - position).normalize()
-        var h = view.cross(up).normalize()
-        var v = h.cross(view)
+        val p = when(vector.dimension) {
+            1 -> GLVector(vector.x() - 0.5f, -0.5f, offset, 1.0f)
+            2 -> GLVector(vector.x() - 0.5f, vector.y() - 0.5f, offset, 1.0f)
+            3 -> GLVector(vector.x() - 0.5f, vector.y() - 0.5f, vector.z(), 1.0f)
+            else -> vector.clone()
+        }
 
-        val aspect = 1.0f/projection.get(0, 0)
+        val transform = getTransformation().inverse
+        transform.mult(projection.inverse)
 
-        val fov = fov * Math.PI / 180.0f
-        val lengthV = Math.tan(fov / 2.0).toFloat() * nearPlaneDistance
-        val lengthH = lengthV * aspect
+        val v = transform.mult(p)
 
-        v *= lengthV
-        h *= lengthH
-
-        val posX = (vector.x() - 0.5f) * 2.0f
-        val posY = -1.0f * (vector.y() - 0.5f) * 2.0f
-
-        val worldPos = position + view * nearPlaneDistance + h * posX + v * posY
-        val worldDir = (worldPos - position).normalized
-
-        return worldPos + worldDir * (if(vector.dimension > 2 ) { vector.z() } else { offset })
+        return v.xyz() * (1.0f/v.w())
     }
 }
 
