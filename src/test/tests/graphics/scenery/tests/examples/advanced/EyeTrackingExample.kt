@@ -18,7 +18,7 @@ import kotlin.concurrent.thread
 class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280, windowHeight = 720) {
     val pupilTracker = PupilEyeTracker(calibrationType = PupilEyeTracker.CalibrationType.ScreenSpace)
     val hmd = OpenVRHMD(seated = false, useCompositor = true)
-    val referenceTarget = Icosphere(0.01f, 3)
+    val referenceTarget = Icosphere(0.005f, 3)
 
     override fun init() {
         hub.add(SceneryElement.HMDInput, hmd)
@@ -39,7 +39,7 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
 
         referenceTarget.material.roughness = 1.0f
         referenceTarget.material.metallic = 0.5f
-        referenceTarget.material.diffuse = GLVector(0.8f, 0.0f, 0.0f)
+        referenceTarget.material.diffuse = GLVector(0.8f, 0.8f, 0.8f)
         scene.addChild(referenceTarget)
 
         val lightbox = Box(GLVector(25.0f, 25.0f, 25.0f), insideNormals = true)
@@ -53,7 +53,7 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
         val stageLight = PointLight(radius = 35.0f)
         stageLight.name = "StageLight"
         stageLight.intensity = 100.0f
-        stageLight.position = GLVector(0.0f, 4.0f, 0.0f)
+        stageLight.position = GLVector(0.0f, 4.0f, 4.0f)
         scene.addChild(stageLight)
 
         thread {
@@ -97,6 +97,22 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
             thread {
                 val cam = scene.findObserver()
                 if (!pupilTracker.isCalibrated && cam != null) {
+                    pupilTracker.onCalibrationFailed = {
+                        for(i in (0..3)) {
+                            referenceTarget.material.diffuse = GLVector(0.0f, 1.0f, 0.0f)
+                            Thread.sleep(200)
+                            referenceTarget.material.diffuse = GLVector(0.8f, 0.8f, 0.8f)
+                        }
+                    }
+
+                    pupilTracker.onCalibrationSuccess = {
+                        for(i in (0..3)) {
+                            referenceTarget.material.diffuse = GLVector(0.0f, 1.0f, 0.0f)
+                            Thread.sleep(200)
+                            referenceTarget.material.diffuse = GLVector(0.8f, 0.8f, 0.8f)
+                        }
+                    }
+
                     logger.info("Starting eye tracker calibration")
                     pupilTracker.calibrate(cam, hmd,
                         generateReferenceData = true,
