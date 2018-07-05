@@ -51,6 +51,8 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
     private var calibrating = false
 
     var onGazeReceived: ((Gaze) -> Unit)? = null
+    var onCalibrationFailed: (() -> Unit)? = null
+    var onCalibrationSuccess: (() -> Unit)? = null
     var gazeConfidenceThreshold = 0.8f
 
     /**
@@ -188,6 +190,8 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
 
                                 "notify.calibration.failed" -> {
                                     logger.error("Calibration failed.")
+                                    onCalibrationFailed?.invoke()
+
                                     calibrating = false
                                 }
 
@@ -377,6 +381,8 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
             logger.info("Calibration succeeded, subscribing to gaze data")
             subscribe("gaze")
 
+            onCalibrationSuccess?.invoke()
+
             return true
         }
 
@@ -396,7 +402,7 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
             val v = GLVector(
                 origin + radius * cos(2 * PI.toFloat() * index.toFloat()/referencePointCount),
                 origin + radius * sin(2 * PI.toFloat() * index.toFloat()/referencePointCount))
-            v to cam.viewportToWorld(GLVector(v.x(), v.y()), offset = 2.0f)
+            v to cam.viewportToWorld(GLVector(v.x(), v.y()), offset = 0.5f)
         }
 
         /** Point generator for equidistributed calibration points. */
