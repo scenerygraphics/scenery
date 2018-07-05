@@ -313,7 +313,7 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
         val referenceData = arrayListOf<HashMap<String, Serializable>>()
 
         if(generateReferenceData) {
-            val numReferencePoints = 8
+            val numReferencePoints = 10
             val samplesPerPoint = 120
 
             val (posKeyName, posGenerator: ((Camera, Int, Int) -> Pair<GLVector, GLVector>)) = when(calibrationType) {
@@ -345,12 +345,12 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
                         "id" to 1
                     )
 
-                    if(samplesPerPoint > eyeMovingSamples) {
+                    if(it > eyeMovingSamples) {
                         referenceData.add(datum0)
                         referenceData.add(datum1)
                     }
 
-                    Thread.sleep(16)
+                    Thread.sleep(20)
                 }
             }
 
@@ -391,12 +391,12 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
         @Suppress("unused")
         val CircularScreenSpaceCalibrationPointGenerator = { cam: Camera, index: Int, referencePointCount: Int ->
             val origin = 0.5f
-            val radius = 0.2f
+            val radius = 0.25f
 
             val v = GLVector(
                 origin + radius * cos(2 * PI.toFloat() * index.toFloat()/referencePointCount),
                 origin + radius * sin(2 * PI.toFloat() * index.toFloat()/referencePointCount))
-            v to cam.viewportToWorld(GLVector(v.x() * 2.0f - 1.0f, v.y() * 2.0f - 1.0f), offset = 0.05f)
+            v to cam.viewportToWorld(GLVector(v.x(), v.y()), offset = 2.0f)
         }
 
         /** Point generator for equidistributed calibration points. */
