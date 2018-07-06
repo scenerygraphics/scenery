@@ -69,12 +69,17 @@ class VulkanBufferAllocation(val properties: VulkanBufferProperties,
                     left != null && right != null -> left.offset + left.size
                     left != null && right == null -> left.offset + left.size
                     left == null && right == null -> 0
-                    else -> throw IllegalStateException("Can't calculate free space for $left/$right")
+                    else -> throw IllegalStateException("Can't calculate offset space for $left/$right")
                 }
             }
 
             if(offset.rem(alignment) != 0) {
                 offset = offset + alignment - (offset.rem(alignment))
+            }
+
+            if(offset + size >= buffer.allocatedSize) {
+                logger.info("Allocation at $offset of $size would not fit buffer of size ${buffer.allocatedSize}")
+                return null
             }
 
             logger.info("New suballocation at $offset with $size bytes")
@@ -94,7 +99,7 @@ class VulkanSuballocation(var offset: Int, var size: Int, var buffer: VulkanBuff
 }
 
 const val basicBufferSize: Long = 1024*1024*32
-class VulkanBufferPool(val device: VulkanDevice, val usage: Int = VK10.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or VK10.VK_BUFFER_USAGE_INDEX_BUFFER_BIT or VK10.VK_BUFFER_USAGE_TRANSFER_DST_BIT) {
+class VulkanBufferPool(val device: VulkanDevice, val usage: Int = VK10.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or VK10.VK_BUFFER_USAGE_INDEX_BUFFER_BIT or VK10.VK_BUFFER_USAGE_TRANSFER_DST_BIT, val bufferSize: Long = basicBufferSize) {
 
     private val logger by LazyLogger()
     protected val backingStore = ArrayList<VulkanBufferAllocation>(10)
@@ -108,7 +113,7 @@ class VulkanBufferPool(val device: VulkanDevice, val usage: Int = VK10.VK_BUFFER
 
         return if(options.isEmpty()) {
             logger.info("Could not find space for allocation of $size, creating new buffer")
-            var bufferSize = basicBufferSize
+            var bufferSize = this.bufferSize
             while(bufferSize < size) {
                 bufferSize *= 2
             }
