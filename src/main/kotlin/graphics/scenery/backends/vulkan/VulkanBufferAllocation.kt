@@ -33,7 +33,7 @@ class VulkanBufferAllocation(val usage: VulkanBufferUsage,
 
     fun allocate(suballocation: VulkanSuballocation): VulkanSuballocation {
         suballocations.add(suballocation)
-        logger.info("Added suballocation at ${suballocation.offset} with size ${suballocation.size} (${suballocations.size} total allocations)")
+        logger.trace("Added suballocation at {} with size {} ({} total allocations)", suballocation.offset, suballocation.size, suballocations.size)
         return suballocation
     }
 
@@ -51,7 +51,7 @@ class VulkanBufferAllocation(val usage: VulkanBufferUsage,
 
     fun fit(size: Int): VulkanSuballocation? {
         suballocations.removeAll { s -> s.free  }
-        logger.info("Trying to fit $size with ${suballocations.size} pre-existing suballocs")
+        logger.trace("Trying to fit {} with {} pre-existing suballocs", size, suballocations.size)
 
         val candidates: MutableList<FreeSpace> = when (suballocations.size) {
             0 -> mutableListOf()
@@ -64,10 +64,12 @@ class VulkanBufferAllocation(val usage: VulkanBufferUsage,
         val spot = candidates.firstOrNull { it.getFreeSpace() > size && it.getFreeSpace() > alignment }
 
         if (spot == null) {
-            logger.info("Could not find space for suballocation of $size")
+            logger.trace("Could not find space for suballocation of {}", size)
             return null
         } else {
-            logger.info("Allocation candidates: ${candidates.filter{ it.getFreeSpace() >= size }.joinToString(", ") { "L=${it.left}/R=${it.right} free=${it.getFreeSpace()}" }}")
+            if(logger.isTraceEnabled) {
+                logger.trace("Allocation candidates: ${candidates.filter { it.getFreeSpace() >= size }.joinToString(", ") { "L=${it.left}/R=${it.right} free=${it.getFreeSpace()}" }}")
+            }
 
             var offset = with(spot) {
                 when {
@@ -84,11 +86,11 @@ class VulkanBufferAllocation(val usage: VulkanBufferUsage,
             }
 
             if(offset + size >= buffer.allocatedSize) {
-                logger.info("Allocation at $offset of $size would not fit buffer of size ${buffer.allocatedSize}")
+                logger.trace("Allocation at {} of {} would not fit buffer of size {}", offset, size, buffer.allocatedSize)
                 return null
             }
 
-            logger.info("New suballocation at $offset between ${spot.left} and ${spot.right} with $size bytes")
+            logger.trace("New suballocation at {} between {} and {} with {} bytes", offset, spot.left, spot.right, size)
             return VulkanSuballocation(offset, size, buffer)
         }
     }

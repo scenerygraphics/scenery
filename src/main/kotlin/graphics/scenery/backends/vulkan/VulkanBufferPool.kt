@@ -28,7 +28,7 @@ class VulkanBufferPool(val device: VulkanDevice,
         val options = backingStore.filter { it.usage == usage && it.fit(size) != null }
 
         return if(options.isEmpty()) {
-            logger.info("Could not find space for allocation of $size, creating new buffer")
+            logger.trace("Could not find space for allocation of {}, creating new buffer", size)
             var bufferSize = this.bufferSize
             while(bufferSize < size) {
                 bufferSize *= 2
@@ -37,13 +37,12 @@ class VulkanBufferPool(val device: VulkanDevice,
             val vb = VulkanBuffer(device, bufferSize, usage, VK10.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true)
             val alloc = VulkanBufferAllocation(usage, vb.allocatedSize, vb, vb.alignment.toInt())
             backingStore.add(alloc)
-            logger.info("Added new buffer of size $bufferSize to backing store")
+            logger.trace("Added new buffer of size {} to backing store", bufferSize)
 
             val suballocation = alloc.allocate(alloc.fit(size) ?: throw IllegalStateException("New allocation of ${vb.allocatedSize} cannot fit $size"))
 
             suballocation
         } else {
-            logger.info("Found free spot for allocation of $size, reserving...")
             val suballocation = options.first().fit(size) ?: throw IllegalStateException("Suballocation vanished")
             options.first().allocate(suballocation)
 
