@@ -34,6 +34,12 @@ class VulkanBufferPool(val device: VulkanDevice,
                 bufferSize *= 2
             }
 
+            // increase size for new backing store members in case we already have a few,
+            // to limit the number of necessary buffers
+            if(bufferSize == this.bufferSize && backingStore.size > 4) {
+                bufferSize *= 4
+            }
+
             val vb = VulkanBuffer(device, bufferSize, usage, VK10.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true)
             val alloc = VulkanBufferAllocation(usage, vb.allocatedSize, vb, vb.alignment.toInt())
             backingStore.add(alloc)
