@@ -2,114 +2,30 @@ package graphics.scenery.backends.vulkan
 
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.vulkan.VK10
-import java.nio.ByteBuffer
+import java.util.concurrent.CopyOnWriteArrayList
 
-typealias VulkanBufferProperties = Int
 
-inline fun <T, R> Iterable<T>.zipWithNextNullable(transform: (a: T?, b: T?) -> R): List<R> {
-    val iterator = iterator()
-    if (!iterator.hasNext()) return listOf(transform(null, null))
-    val result = mutableListOf<R>()
-    var current = iterator.next()
-    while (iterator.hasNext()) {
-        val next = iterator.next()
-        result.add(transform(current, next))
-        current = next
-    }
-    result.add(transform(current, null))
-    return result
-}
-
-class VulkanBufferAllocation(val properties: VulkanBufferProperties,
-                                  val size: Long,
-                                  val buffer: VulkanBuffer,
-                                  val alignment: Int,
-                                  val suballocations: ArrayList<VulkanSuballocation> = ArrayList<VulkanSuballocation>()) {
-    private val logger by LazyLogger()
-
-    fun allocate(suballocation: VulkanSuballocation): VulkanSuballocation {
-        suballocations.add(suballocation)
-        return suballocation
-    }
-
-    data class FreeSpace(val left: VulkanSuballocation?, val right: VulkanSuballocation?)
-
-    fun FreeSpace.getFreeSpace(): Int {
-        return when {
-            left == null && right != null -> right.offset
-            left != null && right != null -> right.offset - (left.offset + left.size)
-            left != null && right == null -> Int.MAX_VALUE
-            left == null && right == null -> Int.MAX_VALUE
-            else -> throw IllegalStateException("Can't calculate free space for $left/$right")
-        }
-    }
-
-    fun fit(size: Int): VulkanSuballocation? {
-        logger.info("Trying to fit $size with ${suballocations.size} pre-existing suballocs")
-
-        val candidates: MutableList<FreeSpace> = when (suballocations.size) {
-            0 -> mutableListOf()
-            1 -> mutableListOf(FreeSpace(null, suballocations.first()))
-            else -> mutableListOf()
-        }
-        candidates.addAll(suballocations.zipWithNextNullable { left, right -> FreeSpace(left, right) })
-        candidates.sortBy { it.getFreeSpace() - size }
-
-        val spot = candidates.filter { it.getFreeSpace() > 0 }.firstOrNull()
-
-        if (spot == null) {
-            logger.info("Could not find space for suballocation of $size")
-            return null
-        } else {
-            logger.info("Allocation candidates: ${candidates.joinToString(", ") { "${it.left}/${it.right} free=${it.getFreeSpace()}" }}")
-
-            var offset = with(spot) {
-                when {
-                    left == null && right != null -> right.offset + right.size
-                    left != null && right != null -> left.offset + left.size
-                    left != null && right == null -> left.offset + left.size
-                    left == null && right == null -> 0
-                    else -> throw IllegalStateException("Can't calculate offset space for $left/$right")
-                }
-            }
-
-            if(offset.rem(alignment) != 0) {
-                offset = offset + alignment - (offset.rem(alignment))
-            }
-
-            if(offset + size >= buffer.allocatedSize) {
-                logger.info("Allocation at $offset of $size would not fit buffer of size ${buffer.allocatedSize}")
-                return null
-            }
-
-            logger.info("New suballocation at $offset with $size bytes")
-            return VulkanSuballocation(offset, size, buffer)
-        }
-    }
-}
-
-class VulkanSuballocation(var offset: Int, var size: Int, var buffer: VulkanBuffer) {
-    fun getBuffer(): ByteBuffer {
-        val b = buffer.stagingBuffer.duplicate()
-        b.position(offset)
-        b.limit(offset + size)
-
-        return b
-    }
-}
-
+/** Default [VulkanBufferPool] backing store size. */
 const val basicBufferSize: Long = 1024*1024*32
-class VulkanBufferPool(val device: VulkanDevice, val usage: Int = VK10.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or VK10.VK_BUFFER_USAGE_INDEX_BUFFER_BIT or VK10.VK_BUFFER_USAGE_TRANSFER_DST_BIT, val bufferSize: Long = basicBufferSize) {
+
+/**
+ * Represents a pool of [VulkanBuffer]s, from which [VulkanSuballocation]s can be made.
+ * Each buffer pool resides on a [device] and has specific [usage] flags, e.g. for vertex
+ * or texture storage.
+ */
+class VulkanBufferPool(val device: VulkanDevice,
+                       val usage: Int = VK10.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or VK10.VK_BUFFER_USAGE_INDEX_BUFFER_BIT or VK10.VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                       val bufferSize: Long = basicBufferSize) {
 
     private val logger by LazyLogger()
-    protected val backingStore = ArrayList<VulkanBufferAllocation>(10)
+    protected val backingStore = CopyOnWriteArrayList<VulkanBufferAllocation>()
 
-    init {
-
-    }
-
-    fun create(size: Int): VulkanSuballocation {
-        val options = backingStore.filter { it.properties == usage && it.fit(size) != null }
+    /**
+     * Creates a new [VulkanSuballocation] of a given [size]. If the allocation cannot be made with
+     * the current set of buffers in [backingStore], a new buffer will be added.
+     */
+    @Synchronized fun create(size: Int): VulkanSuballocation {
+        val options = backingStore.filter { it.usage == usage && it.fit(size) != null }
 
         return if(options.isEmpty()) {
             logger.info("Could not find space for allocation of $size, creating new buffer")
@@ -133,6 +49,22 @@ class VulkanBufferPool(val device: VulkanDevice, val usage: Int = VK10.VK_BUFFER
 
             suballocation
         }
+    }
+
+    /**
+     * Creates a new [VulkanBuffer] of [size], backed by this [VulkanBufferPool].
+     */
+    fun createBuffer(size: Int): VulkanBuffer {
+        return VulkanBuffer.fromPool(this, size.toLong())
+    }
+
+    /**
+     * Returns a string representation of this pool.
+     */
+    override fun toString(): String {
+        return backingStore.mapIndexed { i, it ->
+            "Backing store buffer $i: $it"
+        }.joinToString("\n")
     }
 }
 

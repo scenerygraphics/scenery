@@ -13,11 +13,15 @@ import kotlin.math.roundToInt
 
 /**
  * Vulkan buffer class, creates a buffer residing on [device], with a [size] and a defined [usage].
- * The buffer may have [requestedMemoryProperties].
+ * The buffer may have [requestedMemoryProperties]. The buffer can be created with a [suballocation]
+ * from a [VulkanBufferPool] -- if created in this way it'll not manage its own memory, but leave that
+ * to the pool.
  *
  * @param[wantAligned] - whether the buffer should be aligned
  */
-class VulkanBuffer(val device: VulkanDevice, val size: Long, val usage: Int, val requestedMemoryProperties: Int, val wantAligned: Boolean = true): AutoCloseable {
+class VulkanBuffer(val device: VulkanDevice, val size: Long,
+                   val usage: Int, val requestedMemoryProperties: Int = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                   val wantAligned: Boolean = true, var suballocation: VulkanSuballocation? = null): AutoCloseable {
     private val logger by LazyLogger()
     private var currentPosition = 0L
     private var currentPointer: PointerBuffer? = null
@@ -34,6 +38,9 @@ class VulkanBuffer(val device: VulkanDevice, val size: Long, val usage: Int, val
     /** Final allocated size of the buffer, might be different from the requested size, due to alignment. */
     var allocatedSize: Long = 0
         private set
+    /** Buffer offset. */
+    var bufferOffset: Long = 0
+        private set
 
     private var mapped = false
 
@@ -42,12 +49,23 @@ class VulkanBuffer(val device: VulkanDevice, val size: Long, val usage: Int, val
         private set
 
     init {
-        val b = allocateVulkanBuffer(size, wantAligned)
+        if(suballocation == null) {
+            val b = allocateVulkanBuffer(size, wantAligned)
 
-        this.memory = b.memory
-        this.vulkanBuffer = b.buffer
-        this.allocatedSize = b.size
-        this.alignment = b.alignment
+            this.memory = b.memory
+            this.vulkanBuffer = b.buffer
+            this.allocatedSize = b.size
+            this.alignment = b.alignment
+        } else {
+            suballocation?.let { sa ->
+                this.memory = sa.buffer.memory
+                this.vulkanBuffer = sa.buffer.vulkanBuffer
+                this.allocatedSize = sa.size.toLong()
+                this.alignment = sa.buffer.alignment
+
+                this.bufferOffset = sa.offset.toLong()
+            }
+        }
     }
 
     private data class RawBuffer(val buffer: Long, val memory: Long, val size: Long, val alignment: Long)
@@ -148,7 +166,7 @@ class VulkanBuffer(val device: VulkanDevice, val size: Long, val usage: Int, val
      */
     fun copyFrom(data: ByteBuffer) {
         val dest = memAllocPointer(1)
-        vkMapMemory(device.vulkanDevice, memory, 0, size, 0, dest)
+        vkMapMemory(device.vulkanDevice, memory, bufferOffset, size, 0, dest)
         memCopy(memAddress(data), dest.get(0), data.remaining().toLong())
         vkUnmapMemory(device.vulkanDevice, memory)
         memFree(dest)
@@ -159,7 +177,7 @@ class VulkanBuffer(val device: VulkanDevice, val size: Long, val usage: Int, val
      */
     fun copyTo(dest: ByteBuffer) {
         val src = memAllocPointer(1)
-        vkMapMemory(device.vulkanDevice, memory, 0, size, 0, src)
+        vkMapMemory(device.vulkanDevice, memory, bufferOffset, size, 0, src)
         memCopy(src.get(0), memAddress(dest), dest.remaining().toLong())
         vkUnmapMemory(device.vulkanDevice, memory)
         memFree(src)
@@ -170,7 +188,7 @@ class VulkanBuffer(val device: VulkanDevice, val size: Long, val usage: Int, val
      */
     fun map(): PointerBuffer {
         val dest = memAllocPointer(1)
-        vkMapMemory(device.vulkanDevice, memory, 0, size, 0, dest)
+        vkMapMemory(device.vulkanDevice, memory, bufferOffset, size, 0, dest)
 
         currentPointer = dest
         mapped = true
@@ -233,6 +251,12 @@ class VulkanBuffer(val device: VulkanDevice, val size: Long, val usage: Int, val
             return
         }
 
+        if(suballocation != null) {
+            logger.debug("Marking suballocation as free")
+            suballocation?.free = true
+            return
+        }
+
         logger.trace("Closing buffer $this ...")
 
         if(mapped) {
@@ -246,5 +270,20 @@ class VulkanBuffer(val device: VulkanDevice, val size: Long, val usage: Int, val
 
         vkDestroyBuffer(device.vulkanDevice, vulkanBuffer, null)
         vulkanBuffer = -1L
+    }
+
+    /**
+     * Factory methods for [VulkanBuffer].
+     */
+    companion object {
+        /**
+         * Creates a new VulkanBuffer of [size] that has it's memory managed by a [VulkanBufferPool]
+         * given by [pool].
+         */
+        fun fromPool(pool: VulkanBufferPool, size: Long): VulkanBuffer {
+            val suballocation = pool.create(size.toInt())
+            return VulkanBuffer(pool.device, suballocation.size.toLong(),
+                usage = pool.usage, suballocation = suballocation)
+        }
     }
 }
