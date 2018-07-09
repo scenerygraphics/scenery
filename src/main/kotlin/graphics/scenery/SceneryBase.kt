@@ -74,10 +74,10 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
     /** Time step for the main loop */
     var timeStep = 0.01f
 
-    private var accumulator = 0.0f
-    private var currentTime = System.nanoTime()
-    private var t = 0.0f
-    private var shouldClose: Boolean = false
+    protected var accumulator = 0.0f
+    protected var currentTime = System.nanoTime()
+    protected var t = 0.0f
+    protected var shouldClose: Boolean = false
 
     /**
      * the init function of [SceneryBase], override this in your subclass,
