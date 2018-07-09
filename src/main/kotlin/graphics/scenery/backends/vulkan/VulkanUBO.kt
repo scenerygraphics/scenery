@@ -75,6 +75,7 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
             if(backingBuffer!!.stagingBuffer.remaining() < sizeRequired) {
                 logger.debug("Resizing $backingBuffer from ${backingBuffer?.size} to ${backingBuffer!!.size*1.5}")
                 backingBuffer!!.resize()
+                logger.debug("New capacity is ${backingBuffer!!.stagingBuffer.remaining()}")
             }
 
             updated = super.populate(backingBuffer!!.stagingBuffer, offset, elements = null)

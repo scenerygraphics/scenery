@@ -19,7 +19,7 @@ import kotlin.math.roundToInt
  *
  * @param[wantAligned] - whether the buffer should be aligned
  */
-class VulkanBuffer(val device: VulkanDevice, val size: Long,
+open class VulkanBuffer(val device: VulkanDevice, var size: Long,
                    val usage: Int, val requestedMemoryProperties: Int = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                    val wantAligned: Boolean = true, var suballocation: VulkanSuballocation? = null): AutoCloseable {
     private val logger by LazyLogger()
@@ -43,6 +43,7 @@ class VulkanBuffer(val device: VulkanDevice, val size: Long,
         private set
 
     private var mapped = false
+    private var bufferReallocNeeded: Boolean = false
 
     /** Staging buffer, providing host memory */
     var stagingBuffer: ByteBuffer = memAlloc(size.toInt())
@@ -120,18 +121,37 @@ class VulkanBuffer(val device: VulkanDevice, val size: Long,
      * Resizes the backing buffer to [newSize], which is 1.5x the original size by default,
      * and returns the staging buffer.
      */
-    fun resize(newSize: Int = (size * 1.5f).roundToInt()): ByteBuffer {
-        destroyVulkanBuffer()
-        stagingBuffer = MemoryUtil.memRealloc(stagingBuffer, newSize) ?: throw IllegalStateException("Could not resize buffer")
+    @Synchronized fun resize(newSize: Int = (size * 1.5f).roundToInt()): ByteBuffer {
+        if(mapped) {
+            unmap()
+        }
 
-        val b = allocateVulkanBuffer(newSize * 1L, wantAligned)
+        logger.debug("Before resize: ${stagingBuffer.remaining()} ${stagingBuffer.capacity()}")
+        stagingBuffer = MemoryUtil.memRealloc(stagingBuffer, newSize) ?: throw IllegalStateException("Could not resize buffer")
+        size = newSize.toLong()
+        bufferReallocNeeded = true
+
+        return stagingBuffer
+    }
+
+    /**
+     * Resizes the actual Vulkan buffer. Called upon copying the staging buffer to the Vulkan buffer.
+     */
+    @Synchronized protected fun resizeLazy() {
+        if(!bufferReallocNeeded) {
+            return
+        }
+        unmap()
+
+        destroyVulkanBuffer()
+        val b = allocateVulkanBuffer(stagingBuffer.capacity() * 1L, wantAligned)
 
         this.memory = b.memory
         this.vulkanBuffer = b.buffer
         this.allocatedSize = b.size
         this.alignment = b.alignment
 
-        return stagingBuffer
+        bufferReallocNeeded = false
     }
 
     /**
@@ -165,6 +185,8 @@ class VulkanBuffer(val device: VulkanDevice, val size: Long,
      * Copies data from the [ByteBuffer] [data] directly to the device memory.
      */
     fun copyFrom(data: ByteBuffer) {
+        resizeLazy()
+
         val dest = memAllocPointer(1)
         vkMapMemory(device.vulkanDevice, memory, bufferOffset, size, 0, dest)
         memCopy(memAddress(data), dest.get(0), data.remaining().toLong())
@@ -187,6 +209,8 @@ class VulkanBuffer(val device: VulkanDevice, val size: Long,
      * Maps this buffer
      */
     fun map(): PointerBuffer {
+        resizeLazy()
+
         val dest = memAllocPointer(1)
         vkMapMemory(device.vulkanDevice, memory, bufferOffset, size, 0, dest)
 
@@ -199,6 +223,8 @@ class VulkanBuffer(val device: VulkanDevice, val size: Long,
      * Maps this buffer it wasn't mapped before, and rewinds it.
      */
     fun mapIfUnmapped(): PointerBuffer {
+        resizeLazy()
+
         currentPointer?.let {
             if(mapped) {
                 return it.rewind()
@@ -220,6 +246,8 @@ class VulkanBuffer(val device: VulkanDevice, val size: Long,
      * Copies data from the [stagingBuffer] to device memory.
      */
     fun copyFromStagingBuffer() {
+        resizeLazy()
+
         stagingBuffer.flip()
         copyFrom(stagingBuffer)
     }
