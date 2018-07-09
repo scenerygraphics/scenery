@@ -2857,9 +2857,21 @@ open class VulkanRenderer(hub: Hub,
 
         buffers["ShaderPropertyBuffer"]!!.copyFromStagingBuffer()
 
+        updateDescriptorSets()
+
         cam.lock.unlock()
 
         return@runBlocking updated
+    }
+
+    fun updateDescriptorSets() {
+        getDescriptorCache()["Matrices"]?.let { ds ->
+            VU.updateDynamicDescriptorSetBuffer(device, ds, 1, buffers["UBOBuffer"]!!)
+        }
+
+        getDescriptorCache()["MaterialProperties"]?.let { ds ->
+            VU.updateDynamicDescriptorSetBuffer(device, ds, 1, buffers["UBOBuffer"]!!)
+        }
     }
 
     @Suppress("UNUSED")
