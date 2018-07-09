@@ -673,13 +673,13 @@ open class VulkanRenderer(hub: Hub,
             s = createVertexBuffers(device, node, s)
         }
 
-        val matricesDescriptorSet = VulkanObjectState.descriptorCache.getOrPut("Matrices") {
+        val matricesDescriptorSet = getDescriptorCache().getOrPut("Matrices") {
             VU.createDescriptorSetDynamic(device, descriptorPool,
                 descriptorSetLayouts["Matrices"]!!, 1,
                 buffers["UBOBuffer"]!!)
         }
 
-        val materialPropertiesDescriptorSet = VulkanObjectState.descriptorCache.getOrPut("MaterialProperties") {
+        val materialPropertiesDescriptorSet = getDescriptorCache().getOrPut("MaterialProperties") {
             VU.createDescriptorSetDynamic(device, descriptorPool,
                 descriptorSetLayouts["MaterialProperties"]!!, 1,
                 buffers["UBOBuffer"]!!)
@@ -2750,6 +2750,11 @@ open class VulkanRenderer(hub: Hub,
         }
     }
 
+    private fun getDescriptorCache(): ConcurrentHashMap<String, Long> {
+        return scene.metadata.getOrPut("DescriptorCache") {
+            ConcurrentHashMap<String, Long>()
+        } as? ConcurrentHashMap<String, Long> ?: throw IllegalStateException("Could not retrieve descriptor cache from scene")
+    }
 
     private fun updateDefaultUBOs(device: VulkanDevice): Boolean = runBlocking {
         logger.trace("Updating default UBOs for {}", device)

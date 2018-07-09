@@ -93,8 +93,6 @@ open class VulkanObjectState : NodeMetadata {
     companion object {
         protected val logger by LazyLogger()
 
-        val descriptorCache = ConcurrentHashMap<String, Long>()
-
         fun textureTypeToSlot(type: String): Int {
             return when (type) {
                 "ambient" -> 0
