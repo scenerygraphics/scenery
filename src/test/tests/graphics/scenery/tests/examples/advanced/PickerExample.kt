@@ -16,8 +16,8 @@ import kotlin.concurrent.thread
  */
 class PickerExample: SceneryBase("PickerExample", wantREPL = true) {
     override fun init() {
-        renderer = Renderer.createRenderer(hub, applicationName, scene, 512, 512)
-        hub.add(SceneryElement.Renderer, renderer!!)
+        renderer = hub.add(SceneryElement.Renderer,
+            Renderer.createRenderer(hub, applicationName, scene, 512, 512))
 
         for(i in 0 until 200) {
             val s = Sphere(Random.randomFromRange(0.04f, 0.2f), 10)
@@ -61,9 +61,11 @@ class PickerExample: SceneryBase("PickerExample", wantREPL = true) {
             }
         }
 
-        inputHandler?.addBehaviour("select", SelectCommand("select", renderer!!, scene,
-            { scene.findObserver() }, action = wiggle))
-        inputHandler?.addKeyBinding("select", "double-click button1")
+        renderer?.let { r ->
+            inputHandler?.addBehaviour("select", SelectCommand("select", r, scene,
+                { scene.findObserver() }, action = wiggle))
+            inputHandler?.addKeyBinding("select", "double-click button1")
+        }
     }
 
     @Test override fun main() {
