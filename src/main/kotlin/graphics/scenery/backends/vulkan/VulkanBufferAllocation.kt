@@ -53,14 +53,7 @@ class VulkanBufferAllocation(val usage: VulkanBufferUsage,
         }
     }
 
-    /**
-     * Tries to fit a new suballocation of [size] with the current suballocations. Returns
-     * a new possible suballocation if feasible, and null otherwise.
-     */
-    fun fit(size: Int): VulkanSuballocation? {
-        suballocations.removeAll { s -> s.free  }
-        logger.trace("Trying to fit {} with {} pre-existing suballocs", size, suballocations.size)
-
+    private fun findFreeSpaceCandidate(size: Int): FreeSpace? {
         val candidates: MutableList<FreeSpace> = when (suballocations.size) {
             0 -> mutableListOf()
             1 -> mutableListOf(FreeSpace(null, suballocations.first()))
@@ -69,15 +62,26 @@ class VulkanBufferAllocation(val usage: VulkanBufferUsage,
         candidates.addAll(suballocations.zipWithNextNullable { left, right -> FreeSpace(left, right) })
         candidates.sortBy { it.getFreeSpace() - size }
 
-        val spot = candidates.firstOrNull { it.getFreeSpace() > size && it.getFreeSpace() > alignment }
+        if (logger.isTraceEnabled) {
+            logger.trace("Allocation candidates: ${candidates.filter { it.getFreeSpace() >= size }.joinToString(", ") { "L=${it.left}/R=${it.right} free=${it.getFreeSpace()}" }}")
+        }
+
+        return candidates.firstOrNull { it.getFreeSpace() > size && it.getFreeSpace() > alignment }
+    }
+
+    /**
+     * Tries to fit a new suballocation of [size] with the current suballocations. Returns
+     * a new possible suballocation if feasible, and null otherwise.
+     */
+    fun fit(size: Int): VulkanSuballocation? {
+        suballocations.removeAll { s -> s.free  }
+        logger.trace("Trying to fit {} with {} pre-existing suballocs", size, suballocations.size)
+
+        val spot = findFreeSpaceCandidate(size)
 
         if (spot == null) {
             logger.trace("Could not find space for suballocation of {}", size)
             return null
-        }
-
-        if (logger.isTraceEnabled) {
-            logger.trace("Allocation candidates: ${candidates.filter { it.getFreeSpace() >= size }.joinToString(", ") { "L=${it.left}/R=${it.right} free=${it.getFreeSpace()}" }}")
         }
 
         var offset = when {
