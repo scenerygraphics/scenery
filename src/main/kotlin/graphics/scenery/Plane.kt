@@ -52,5 +52,7 @@ open class Plane(sizes: GLVector) : Mesh(), HasGeometry {
                 1.0f, 1.0f,
                 0.0f, 1.0f
         ))
+
+        boundingBox = generateBoundingBox()
     }
 }

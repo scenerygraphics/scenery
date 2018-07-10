@@ -17,7 +17,7 @@ open class SelectCommand @JvmOverloads constructor(private val name: String,
                                                    private val scene: Scene,
                                                    private val camera: () -> Camera?,
                                                    private var debugRaycast: Boolean = false,
-                                                   private var action: ((List<SelectResult>) -> Any) = {}) : ClickBehaviour {
+                                                   private var action: ((List<SelectResult>) -> Unit) = {}) : ClickBehaviour {
     protected val logger by LazyLogger()
 
     val cam: Camera? by CameraDelegate()
@@ -63,15 +63,15 @@ open class SelectCommand @JvmOverloads constructor(private val name: String,
                 indicatorMaterial.ambient = GLVector(0.0f, 0.0f, 0.0f)
 
                 for(it in 5..50) {
-                    val s = Sphere(0.2f, 20)
+                    val s = Box(GLVector(0.08f, 0.08f, 0.08f))
                     s.material = indicatorMaterial
-                    s.position = worldPos + worldDir * it.toFloat() * 5.0f
+                    s.position = worldPos + worldDir * it.toFloat()
                     scene.addChild(s)
                 }
             }
 
             val matches = scene.discover(scene, { node ->
-                node.visible
+                node.visible && node !is BoundingGrid
             }).map {
                 Pair(it, intersectAABB(it, worldPos, worldDir))
             }.filter {
@@ -83,7 +83,7 @@ open class SelectCommand @JvmOverloads constructor(private val name: String,
             }
 
             if (debugRaycast) {
-                logger.info(matches.map { "${it.node.name} at distance ${it.distance}" }.joinToString(", "))
+                logger.info(matches.joinToString(", ") { "${it.node.name} at distance ${it.distance}" })
 
                 val m = Material()
                 m.diffuse = GLVector(1.0f, 0.0f, 0.0f)
@@ -93,9 +93,6 @@ open class SelectCommand @JvmOverloads constructor(private val name: String,
 
                 matches.firstOrNull()?.let {
                     it.node.material = m
-                    it.node.initialized = false
-                    it.node.metadata.clear()
-                    it.node.dirty = true
                 }
             }
 
@@ -105,8 +102,8 @@ open class SelectCommand @JvmOverloads constructor(private val name: String,
 
     // code adapted from zachamarz, http://gamedev.stackexchange.com/a/18459
     fun intersectAABB(node: Node, origin: GLVector, dir: GLVector): Pair<Boolean, Float> {
-            val bbmin = node.boundingBox?.min?.xyzw() ?: return false to 0.0f
-            val bbmax = node.boundingBox?.max?.xyzw() ?: return false to 0.0f
+            val bbmin = node.getMaximumBoundingBox().min.xyzw()
+            val bbmax = node.getMaximumBoundingBox().max.xyzw()
 
             val min = node.world.mult(bbmin)
             val max = node.world.mult(bbmax)

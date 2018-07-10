@@ -112,6 +112,8 @@ class Line(var capacity: Int = 50) : Node("Line"), HasGeometry {
 
         dirty = true
         vertexCount = vertices.limit()/vertexSize
+
+        boundingBox = generateBoundingBox()
     }
 
     /**
