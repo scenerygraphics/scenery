@@ -1,5 +1,6 @@
 name: Deferred Shading
 description: Deferred Shading, with HDR postprocessing and FXAA
+sRGB: true
 
 rendertargets:
   GeometryBuffer:
@@ -120,7 +121,7 @@ renderpasses:
     output: FXAABuffer
     parameters:
       TonemappingOperator: 0
-      Gamma: 2.2
+      Gamma: 1.8
       Exposure: 10.0
       WhitePoint: 11.2
   FXAA:
