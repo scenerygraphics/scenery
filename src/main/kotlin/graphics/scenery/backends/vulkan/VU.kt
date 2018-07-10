@@ -657,6 +657,38 @@ class VU {
         }
 
         /**
+         * Updates a given _dynamic_ [descriptorSet] to use [buffer] from now on.
+         */
+        fun updateDynamicDescriptorSetBuffer(device: VulkanDevice, descriptorSet: Long,
+                                       bindingCount: Int, buffer: VulkanBuffer): Long {
+            logger.debug("Updating dynamic descriptor set with {} bindings to use buffer {}", bindingCount, buffer)
+
+            return stackPush().use { stack ->
+                val d = VkDescriptorBufferInfo.callocStack(1, stack)
+                    .buffer(buffer.vulkanBuffer)
+                    .range(2048)
+                    .offset(0L)
+
+                val writeDescriptorSet = VkWriteDescriptorSet.callocStack(bindingCount, stack)
+
+                (0 until bindingCount).forEach { i ->
+                    writeDescriptorSet[i]
+                        .sType(VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET)
+                        .pNext(NULL)
+                        .dstSet(descriptorSet)
+                        .dstBinding(i)
+                        .dstArrayElement(0)
+                        .pBufferInfo(d)
+                        .descriptorType(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC)
+                }
+
+                vkUpdateDescriptorSets(device.vulkanDevice, writeDescriptorSet, null)
+
+                descriptorSet
+            }
+        }
+
+        /**
          * Creates and returns a new descriptor set, allocated on [device] from [descriptorPool], conforming to existing
          * [descriptorSetLayout], a [bindingCount] needs to be given as well an an [ubo] to back the descriptor set.
          * The default [type] is [VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER].
