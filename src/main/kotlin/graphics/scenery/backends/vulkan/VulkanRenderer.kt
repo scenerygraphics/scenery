@@ -297,6 +297,7 @@ open class VulkanRenderer(hub: Hub,
     protected var pipelineCache: Long = -1L
     protected var vertexDescriptors = ConcurrentHashMap<VertexDataKinds, VertexDescription>()
     protected var sceneUBOs = ArrayList<Node>()
+    protected var geometryPool: VulkanBufferPool
     protected var semaphores = ConcurrentHashMap<StandardSemaphores, Array<Long>>()
     protected var buffers = ConcurrentHashMap<String, VulkanBuffer>()
     protected var UBOs = ConcurrentHashMap<String, VulkanUBO>()
@@ -549,6 +550,8 @@ open class VulkanRenderer(hub: Hub,
             toggleFullscreen = true
         }
 
+        geometryPool = VulkanBufferPool(device, usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or VK_BUFFER_USAGE_INDEX_BUFFER_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT)
+
         initialized = true
     }
 
@@ -621,7 +624,7 @@ open class VulkanRenderer(hub: Hub,
     }
 
     /**
-     *
+     * Initialises a given [node] with the metadata required by the [VulkanRenderer].
      */
     fun initializeNode(node: Node): Boolean {
         var s: VulkanObjectState
@@ -670,15 +673,17 @@ open class VulkanRenderer(hub: Hub,
             s = createVertexBuffers(device, node, s)
         }
 
-        val matricesDescriptorSet =
+        val matricesDescriptorSet = getDescriptorCache().getOrPut("Matrices") {
             VU.createDescriptorSetDynamic(device, descriptorPool,
                 descriptorSetLayouts["Matrices"]!!, 1,
                 buffers["UBOBuffer"]!!)
+        }
 
-        val materialPropertiesDescriptorSet =
+        val materialPropertiesDescriptorSet = getDescriptorCache().getOrPut("MaterialProperties") {
             VU.createDescriptorSetDynamic(device, descriptorPool,
                 descriptorSetLayouts["MaterialProperties"]!!, 1,
                 buffers["UBOBuffer"]!!)
+        }
 
         val matricesUbo = VulkanUBO(device, backingBuffer = buffers["UBOBuffer"])
         with(matricesUbo) {
@@ -733,7 +738,7 @@ open class VulkanRenderer(hub: Hub,
 
             requiredOffsetCount = 1
             createUniformBuffer()
-            s.UBOs.put("MaterialProperties", materialPropertiesDescriptorSet.to(this))
+            s.UBOs.put("MaterialProperties", materialPropertiesDescriptorSet to this)
         }
 
         s.initialized = true
@@ -2075,18 +2080,15 @@ open class VulkanRenderer(hub: Hub,
             state.vertexBuffers["vertex+index"]!!
         } else {
             logger.debug("Creating new vertex+index buffer for {} with {} bytes", node.name, fullAllocationBytes)
-            VulkanBuffer(device,
-                fullAllocationBytes,
-                VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or VK_BUFFER_USAGE_INDEX_BUFFER_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                wantAligned = false)
+            geometryPool.createBuffer(fullAllocationBytes.toInt())
         }
 
-        logger.debug("Using VulkanBuffer {} for vertex+index storage", vertexBuffer.vulkanBuffer.toHexString())
+        logger.debug("Using VulkanBuffer {} for vertex+index storage, offset={}", vertexBuffer.vulkanBuffer.toHexString(), vertexBuffer.bufferOffset)
 
+        logger.debug("Initiating copy with 0->${vertexBuffer.bufferOffset}, size=$fullAllocationBytes")
         val copyRegion = VkBufferCopy.calloc(1)
             .srcOffset(0)
-            .dstOffset(0)
+            .dstOffset(vertexBuffer.bufferOffset)
             .size(fullAllocationBytes * 1L)
 
         with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
@@ -2103,7 +2105,7 @@ open class VulkanRenderer(hub: Hub,
             // check if vertex buffer has been replaced, if yes, close the old one
             if(this != vertexBuffer) { close() }
         }
-        state.indexOffset = vertexAllocationBytes
+        state.indexOffset = vertexBuffer.bufferOffset + vertexAllocationBytes
         state.indexCount = n.indices.remaining()
 
         je_free(stridedBuffer)
@@ -2512,7 +2514,7 @@ open class VulkanRenderer(hub: Hub,
                 pass.vulkanMetadata.descriptorSets.rewind()
                 pass.vulkanMetadata.uboOffsets.rewind()
 
-                pass.vulkanMetadata.vertexBufferOffsets.put(0, 0)
+                pass.vulkanMetadata.vertexBufferOffsets.put(0, s.vertexBuffers["vertex+index"]!!.bufferOffset)
                 pass.vulkanMetadata.vertexBuffers.put(0, s.vertexBuffers["vertex+index"]!!.vulkanBuffer)
 
                 pass.vulkanMetadata.vertexBufferOffsets.limit(1)
@@ -2748,6 +2750,11 @@ open class VulkanRenderer(hub: Hub,
         }
     }
 
+    private fun getDescriptorCache(): ConcurrentHashMap<String, Long> {
+        return scene.metadata.getOrPut("DescriptorCache") {
+            ConcurrentHashMap<String, Long>()
+        } as? ConcurrentHashMap<String, Long> ?: throw IllegalStateException("Could not retrieve descriptor cache from scene")
+    }
 
     private fun updateDefaultUBOs(device: VulkanDevice): Boolean = runBlocking {
         logger.trace("Updating default UBOs for {}", device)
@@ -2850,9 +2857,21 @@ open class VulkanRenderer(hub: Hub,
 
         buffers["ShaderPropertyBuffer"]!!.copyFromStagingBuffer()
 
+        updateDescriptorSets()
+
         cam.lock.unlock()
 
         return@runBlocking updated
+    }
+
+    fun updateDescriptorSets() {
+        getDescriptorCache()["Matrices"]?.let { ds ->
+            VU.updateDynamicDescriptorSetBuffer(device, ds, 1, buffers["UBOBuffer"]!!)
+        }
+
+        getDescriptorCache()["MaterialProperties"]?.let { ds ->
+            VU.updateDynamicDescriptorSetBuffer(device, ds, 1, buffers["UBOBuffer"]!!)
+        }
     }
 
     @Suppress("UNUSED")

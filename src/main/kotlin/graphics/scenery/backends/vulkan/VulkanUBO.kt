@@ -57,7 +57,9 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
      */
     fun populate(offset: Long = 0L): Boolean {
         val updated: Boolean
-        if(backingBuffer == null) {
+        val buffer = backingBuffer
+
+        if(buffer == null) {
             val data = stagingMemory ?: memAlloc(getSize())
             stagingMemory = data
 
@@ -66,7 +68,18 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
             data.flip()
             copy(data, offset = offset)
         } else {
-            updated = super.populate(backingBuffer!!.stagingBuffer, offset, elements = null)
+            val sizeRequired = if(sizeCached <= 0) {
+                buffer.alignment
+            } else {
+                sizeCached + buffer.alignment
+            }
+
+            if(buffer.stagingBuffer.remaining() < sizeRequired) {
+                logger.debug("Resizing $buffer from ${buffer.size} to ${buffer.size*1.5}")
+                buffer.resize()
+            }
+
+            updated = super.populate(buffer.stagingBuffer, offset, elements = null)
         }
 
         return updated
