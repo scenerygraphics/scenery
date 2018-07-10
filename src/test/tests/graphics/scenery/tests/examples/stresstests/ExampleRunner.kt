@@ -21,7 +21,7 @@ import java.util.concurrent.Future
  *
  * @author Ulrik Guenther <hello@ulrik.is>
  */
-class RunAllExamples {
+class ExampleRunner {
     val logger by LazyLogger()
 
     @Test fun runAllExamples() {
@@ -37,9 +37,7 @@ class RunAllExamples {
             "VRControllerExample",
             "EyeTrackingExample",
             "ARExample",
-            "SponzaExample",
-            "ReadModelExample",
-            "ProceduralVolumeExample")
+            "ReadModelExample")
 
         // find all basic and advanced examples, exclude blacklist
         val examples = reflections
@@ -54,7 +52,7 @@ class RunAllExamples {
             ExtractsNatives.Platform.UNKNOWN -> { logger.error("Don't know what to do on this platform, sorry."); return }
         }
 
-        val directoryName = "RAE-${SimpleDateFormat("yyyy-MM-dd_HH.mm.ss").format(Date())}"
+        val directoryName = "ExampleRunner-${SimpleDateFormat("yyyy-MM-dd_HH.mm.ss").format(Date())}"
         Files.createDirectory(Paths.get(directoryName))
 
 
