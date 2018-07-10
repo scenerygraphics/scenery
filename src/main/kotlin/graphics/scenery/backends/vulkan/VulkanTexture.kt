@@ -24,7 +24,9 @@ import javax.imageio.ImageIO
 import kotlin.streams.toList
 
 /**
- * Vulkan Textures class. Provides static methods to load textures from files.
+ * Vulkan Texture class. Creates a texture on the [device], with [width]x[height]x[depth],
+ * of [format], with a given number of [mipLevels]. Filtering can be set via
+ * [minFilterLinear] and [maxFilterLinear].
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
@@ -35,16 +37,29 @@ open class VulkanTexture(val device: VulkanDevice,
                     val minFilterLinear: Boolean = true, val maxFilterLinear: Boolean = true) : AutoCloseable {
     protected val logger by LazyLogger()
 
+    /** The Vulkan image associated with this texture. */
     var image: VulkanImage? = null
+        protected set
+
     private var stagingImage: VulkanImage
     private var gt: GenericTexture? = null
 
+    /**
+     * Wrapper class for holding on to raw Vulkan [image]s backed by [memory].
+     */
     inner class VulkanImage(var image: Long = -1L, var memory: Long = -1L, val maxSize: Long = -1L) {
 
+        /** Raw Vulkan sampler. */
         var sampler: Long = -1L
+            internal set
+        /** Raw Vulkan view. */
         var view: Long = -1L
+            internal set
 
-
+        /**
+         * Copies the content of the image from [buffer]. This gets executed
+         * within a given [commandBuffer].
+         */
         fun copyFrom(commandBuffer: VkCommandBuffer, buffer: VulkanBuffer) {
             with(commandBuffer) {
                 val bufferImageCopy = VkBufferImageCopy.calloc(1)
@@ -67,6 +82,10 @@ open class VulkanTexture(val device: VulkanDevice,
             }
         }
 
+        /**
+         * Copies the content of the image from a given [VulkanImage], [image].
+         * This gets executed within a given [commandBuffer].
+         */
         fun copyFrom(commandBuffer: VkCommandBuffer, image: VulkanImage) {
             with(commandBuffer) {
                 val subresource = VkImageSubresourceLayers.calloc()
@@ -110,6 +129,9 @@ open class VulkanTexture(val device: VulkanDevice,
         }
     }
 
+    /**
+     * Alternative constructor to create a [VulkanTexture] from a [GenericTexture].
+     */
     @Suppress("USELESS_ELVIS", "UNNECESSARY_SAFE_CALL")
     constructor(device: VulkanDevice,
                 commandPool: Long, queue: VkQueue,
@@ -125,6 +147,11 @@ open class VulkanTexture(val device: VulkanDevice,
         gt = genericTexture
     }
 
+    /**
+     * Creates a Vulkan image of [format] with a given [width], [height], and [depth].
+     * [usage] and [memoryFlags] need to be given, as well as the [tiling] parameter and number of [mipLevels].
+     * A custom memory allocator may be used and given as [customAllocator].
+     */
     fun createImage(width: Int, height: Int, depth: Int, format: Int,
                     usage: Int, tiling: Int, memoryFlags: Int, mipLevels: Int,
                     customAllocator: ((VkMemoryRequirements, Long) -> Long)? = null, imageCreateInfo: VkImageCreateInfo? = null): VulkanImage {
@@ -181,13 +208,16 @@ open class VulkanTexture(val device: VulkanDevice,
     }
 
 
+    /**
+     * Copies the data for this texture from a [ByteBuffer], [data].
+     */
     fun copyFrom(data: ByteBuffer) {
         if(depth == 1 && data.remaining() > stagingImage.maxSize) {
             logger.warn("Allocated image size for $this (${stagingImage.maxSize}) less than copy source size ${data.remaining()}.")
             return
         }
 
-        var deallocate: Boolean = false
+        var deallocate = false
         var sourceBuffer = data
 
         gt?.let { gt ->
@@ -416,6 +446,9 @@ open class VulkanTexture(val device: VulkanDevice,
         }
     }
 
+    /**
+     * Creates a Vulkan image view with [format] for an [image].
+     */
     fun createImageView(image: VulkanImage, format: Int): Long {
         val subresourceRange = VkImageSubresourceRange.calloc().set(VK_IMAGE_ASPECT_COLOR_BIT, 0, mipLevels, 0, 1)
 
@@ -449,6 +482,9 @@ open class VulkanTexture(val device: VulkanDevice,
             { vi.free(); subresourceRange.free(); })
     }
 
+    /**
+     * Creates a default sampler for this texture.
+     */
     private fun createSampler(): Long {
         val samplerInfo = VkSamplerCreateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO)
@@ -473,7 +509,9 @@ open class VulkanTexture(val device: VulkanDevice,
     }
 
 
-
+    /**
+     * Utility methods for [VulkanTexture].
+     */
     companion object {
         private val logger by LazyLogger()
 
@@ -493,6 +531,9 @@ open class VulkanTexture(val device: VulkanDevice,
             ComponentColorModel.OPAQUE,
             DataBuffer.TYPE_BYTE)
 
+        /**
+         * Loads a texture from a file given by [filename], and allocates the [VulkanTexture] on [device].
+         */
         fun loadFromFile(device: VulkanDevice,
                          commandPool: Long, queue: VkQueue,
                          filename: String,
@@ -519,6 +560,9 @@ open class VulkanTexture(val device: VulkanDevice,
             }
         }
 
+        /**
+         * Loads a texture from a file given by a [stream], and allocates the [VulkanTexture] on [device].
+         */
         fun loadFromFile(device: VulkanDevice,
                          commandPool: Long, queue: VkQueue,
                          stream: InputStream, type: String,
@@ -604,6 +648,9 @@ open class VulkanTexture(val device: VulkanDevice,
             return tex
         }
 
+        /**
+         * Loads a texture from a raw file given by a [stream], and allocates the [VulkanTexture] on [device].
+         */
         @Suppress("UNUSED_PARAMETER")
         fun loadFromFileRaw(device: VulkanDevice,
                             commandPool: Long, queue: VkQueue,
@@ -630,7 +677,10 @@ open class VulkanTexture(val device: VulkanDevice,
             return tex
         }
 
-        fun bufferedImageToRGBABuffer(bufferedImage: BufferedImage): ByteBuffer {
+        /**
+         * Converts a buffered image to an RGBA byte buffer.
+         */
+        protected fun bufferedImageToRGBABuffer(bufferedImage: BufferedImage): ByteBuffer {
             val imageBuffer: ByteBuffer
             val raster: WritableRaster
             val texImage: BufferedImage
@@ -691,6 +741,9 @@ open class VulkanTexture(val device: VulkanDevice,
             return newImage
         }
 
+        /**
+         * Transitions Vulkan image layouts.
+         */
         fun transitionLayout(image: Long, oldLayout: Int, newLayout: Int, mipLevels: Int = 1,
                              subresourceRange: VkImageSubresourceRange? = null,
                              srcStage: Int = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, dstStage: Int = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
@@ -873,6 +926,10 @@ open class VulkanTexture(val device: VulkanDevice,
         }
     }
 
+    /**
+     * Deallocates and destroys this [VulkanTexture] instance, freeing all memory
+     * related to it.
+     */
     override fun close() {
         image?.let {
             if (it.view != -1L) {
