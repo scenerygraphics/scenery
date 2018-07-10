@@ -1838,11 +1838,11 @@ open class OpenGLRenderer(hub: Hub,
             try {
                 val readBufferUtil = AWTGLReadBufferUtil(joglDrawable!!.glProfile, false)
                 val image = readBufferUtil.readPixelsToBufferedImage(gl, true)
-                val file = if(screenshotFilename == "") {
+                val file = SystemHelpers.addFileCounter(if(screenshotFilename == "") {
                     File(System.getProperty("user.home"), "Desktop" + File.separator + "$applicationName - ${SimpleDateFormat("yyyy-MM-dd HH.mm.ss").format(Date())}.png")
                 } else {
                     File(screenshotFilename)
-                }
+                })
 
                 ImageIO.write(image, "png", file)
                 logger.info("Screenshot saved to ${file.absolutePath}")

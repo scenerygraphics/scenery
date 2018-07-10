@@ -1654,11 +1654,12 @@ open class VulkanRenderer(hub: Hub,
                 thread {
                     imageBuffer?.let { ib ->
                         try {
-                            val file = if(screenshotFilename == "") {
+                            val file = SystemHelpers.addFileCounter(if(screenshotFilename == "") {
                                 File(System.getProperty("user.home"), "Desktop" + File.separator + "$applicationName - ${SimpleDateFormat("yyyy-MM-dd HH.mm.ss").format(Date())}.png")
                             } else {
                                 File(screenshotFilename)
-                            }
+                            })
+                            file.createNewFile()
                             ib.rewind()
 
                             val imageArray = ByteArray(ib.remaining())
