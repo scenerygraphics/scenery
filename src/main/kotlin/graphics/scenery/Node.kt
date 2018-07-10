@@ -577,6 +577,55 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
         children.forEach { it.runRecursive(func) }
     }
 
+    /**
+     * Performs a intersection test with an axis-aligned bounding box of this [Node], where
+     * the test ray originates at [origin] and points into [dir].
+     *
+     * Returns a Pair of Boolean and Float, indicating whether an intersection is possible,
+     * and at which distance.
+     *
+     * Code adapted from zachamarz, http://gamedev.stackexchange.com/a/18459
+     */
+    fun intersectAABB(origin: GLVector, dir: GLVector): Pair<Boolean, Float> {
+        val bbmin = getMaximumBoundingBox().min.xyzw()
+        val bbmax = getMaximumBoundingBox().max.xyzw()
+
+        val min = world.mult(bbmin)
+        val max = world.mult(bbmax)
+
+        // skip if inside the bounding box
+        if(origin.x() > min.x() && origin.x() < max.x()
+            && origin.y() > min.y() && origin.y() < max.y()
+            && origin.z() > min.z() && origin.z() < max.z()) {
+            return false to 0.0f
+        }
+
+        val invDir = GLVector(1 / dir.x(), 1 / dir.y(), 1 / dir.z())
+
+        val t1 = (min.x() - origin.x()) * invDir.x()
+        val t2 = (max.x() - origin.x()) * invDir.x()
+        val t3 = (min.y() - origin.y()) * invDir.y()
+        val t4 = (max.y() - origin.y()) * invDir.y()
+        val t5 = (min.z() - origin.z()) * invDir.z()
+        val t6 = (max.z() - origin.z()) * invDir.z()
+
+        val tmin = Math.max(Math.max(Math.min(t1, t2), Math.min(t3, t4)), Math.min(t5, t6))
+        val tmax = Math.min(Math.min(Math.max(t1, t2), Math.max(t3, t4)), Math.max(t5, t6))
+
+        // we are in front of the AABB
+        if (tmax < 0) {
+            return false to tmax
+        }
+
+        // we have missed the AABB
+        if (tmin > tmax) {
+            return false to tmax
+        }
+
+        // we have a match!
+        return true to tmin
+    }
+
     companion object NodeHelpers {
         /**
          * Depth-first search for elements in a Scene.
