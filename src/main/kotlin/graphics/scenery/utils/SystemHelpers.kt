@@ -1,5 +1,6 @@
 package graphics.scenery.utils
 
+import java.io.File
 import java.lang.reflect.InvocationTargetException
 import java.net.URI
 import java.nio.file.*
@@ -175,6 +176,33 @@ class SystemHelpers {
                     }
                 }
             }
+        }
+
+        /**
+         * Adds a counter to the file given in [f], if it already exists, and
+         * returns the new file object.
+         */
+        fun addFileCounter(f: File): File {
+            var file = f
+            var c = 0
+
+            while(file.exists()) {
+                val ext = file.name.substringAfterLast(".")
+                var name = file.name.substringBeforeLast(".")
+
+                val counter = name.substringAfterLast("(").substringBeforeLast(")")
+                name = name.substringBeforeLast("(")
+
+                if(counter.toIntOrNull() != null) {
+                    c = counter.toInt()
+                }
+
+                val newName = "$name(${c+1})" + if(ext.isNotEmpty()) { ".$ext" } else { "" }
+
+                file = File(file.parent, newName)
+            }
+
+            return file
         }
     }
 }
