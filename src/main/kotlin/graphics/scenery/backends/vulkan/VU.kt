@@ -661,7 +661,7 @@ class VU {
          */
         fun updateDynamicDescriptorSetBuffer(device: VulkanDevice, descriptorSet: Long,
                                        bindingCount: Int, buffer: VulkanBuffer): Long {
-            logger.debug("Updating dynamic descriptor set with {} bindings to use buffer {}", bindingCount, buffer)
+            logger.trace("Updating dynamic descriptor set with {} bindings to use buffer {}", bindingCount, buffer)
 
             return stackPush().use { stack ->
                 val d = VkDescriptorBufferInfo.callocStack(1, stack)
