@@ -594,9 +594,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
         val max = world.mult(bbmax)
 
         // skip if inside the bounding box
-        if(origin.x() > min.x() && origin.x() < max.x()
-            && origin.y() > min.y() && origin.y() < max.y()
-            && origin.z() > min.z() && origin.z() < max.z()) {
+        if(origin.isInside(min, max)) {
             return false to 0.0f
         }
 
@@ -624,6 +622,12 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
 
         // we have a match!
         return true to tmin
+    }
+
+    private fun GLVector.isInside(min: GLVector, max: GLVector): Boolean {
+        return this.x() > min.x() && this.x() < max.x()
+            && this.y() > min.y() && this.y() < max.y()
+            && this.z() > min.z() && this.z() < max.z()
     }
 
     companion object NodeHelpers {
