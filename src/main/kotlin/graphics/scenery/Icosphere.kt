@@ -167,6 +167,8 @@ open class Icosphere(val radius: Float, val subdivisions: Int) : Node("Icosphere
         normals.flip()
         texcoords.flip()
         indices.flip()
+
+        boundingBox = generateBoundingBox()
     }
 
 }
