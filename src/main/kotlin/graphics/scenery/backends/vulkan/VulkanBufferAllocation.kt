@@ -31,12 +31,16 @@ class VulkanBufferAllocation(val usage: VulkanBufferUsage,
                              private val suballocations: ArrayList<VulkanSuballocation> = ArrayList<VulkanSuballocation>()) {
     private val logger by LazyLogger()
 
+    /**
+     * Adds a new [suballocation].
+     */
     fun allocate(suballocation: VulkanSuballocation): VulkanSuballocation {
         suballocations.add(suballocation)
         logger.trace("Added suballocation at {} with size {} ({} total allocations)", suballocation.offset, suballocation.size, suballocations.size)
         return suballocation
     }
 
+    /** Data class to contain free space regions between two [VulkanSuballocation]s */
     data class FreeSpace(val left: VulkanSuballocation?, val right: VulkanSuballocation?)
 
     private fun FreeSpace.getFreeSpace(): Int {
@@ -49,6 +53,10 @@ class VulkanBufferAllocation(val usage: VulkanBufferUsage,
         }
     }
 
+    /**
+     * Tries to fit a new suballocation of [size] with the current suballocations. Returns
+     * a new possible suballocation if feasible, and null otherwise.
+     */
     fun fit(size: Int): VulkanSuballocation? {
         suballocations.removeAll { s -> s.free  }
         logger.trace("Trying to fit {} with {} pre-existing suballocs", size, suballocations.size)
@@ -66,33 +74,33 @@ class VulkanBufferAllocation(val usage: VulkanBufferUsage,
         if (spot == null) {
             logger.trace("Could not find space for suballocation of {}", size)
             return null
-        } else {
-            if(logger.isTraceEnabled) {
-                logger.trace("Allocation candidates: ${candidates.filter { it.getFreeSpace() >= size }.joinToString(", ") { "L=${it.left}/R=${it.right} free=${it.getFreeSpace()}" }}")
-            }
-
-            var offset = with(spot) {
-                when {
-                    left == null && right != null -> right.offset + right.size
-                    left != null && right != null -> left.offset + left.size
-                    left != null && right == null -> left.offset + left.size
-                    left == null && right == null -> 0
-                    else -> throw IllegalStateException("Can't calculate offset space for $left/$right")
-                }
-            }
-
-            if(offset.rem(alignment) != 0) {
-                offset = offset + alignment - (offset.rem(alignment))
-            }
-
-            if(offset + size >= buffer.allocatedSize) {
-                logger.trace("Allocation at {} of {} would not fit buffer of size {}", offset, size, buffer.allocatedSize)
-                return null
-            }
-
-            logger.trace("New suballocation at {} between {} and {} with {} bytes", offset, spot.left, spot.right, size)
-            return VulkanSuballocation(offset, size, buffer)
         }
+
+        if (logger.isTraceEnabled) {
+            logger.trace("Allocation candidates: ${candidates.filter { it.getFreeSpace() >= size }.joinToString(", ") { "L=${it.left}/R=${it.right} free=${it.getFreeSpace()}" }}")
+        }
+
+        var offset = when {
+            spot.left == null && spot.right != null -> spot.right.offset + spot.right.size
+            spot.left != null && spot.right != null -> spot.left.offset + spot.left.size
+            spot.left != null && spot.right == null -> spot.left.offset + spot.left.size
+            spot.left == null && spot.right == null -> 0
+            else -> throw IllegalStateException("Can't calculate offset space for ${spot.left}/${spot.right}")
+        }
+
+        // shift offset in case it would be unaligned
+        if (offset.rem(alignment) != 0) {
+            offset = offset + alignment - (offset.rem(alignment))
+        }
+
+        // check if offset + size of the new suballocation would exceed the buffer size
+        if (offset + size >= buffer.allocatedSize) {
+            logger.trace("Allocation at {} of {} would not fit buffer of size {}", offset, size, buffer.allocatedSize)
+            return null
+        }
+
+        logger.trace("New suballocation at {} between {} and {} with {} bytes", offset, spot.left, spot.right, size)
+        return VulkanSuballocation(offset, size, buffer)
     }
 
     /** Returns a string representation of this allocation, along with its [suballocations]. */
