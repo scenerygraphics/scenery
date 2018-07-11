@@ -691,12 +691,6 @@
                             <goal>report</goal>
                         </goals>
                     </execution>
-                    <execution>
-                        <id>default-check</id>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                    </execution>
                 </executions>
             </plugin>
 
