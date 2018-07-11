@@ -410,7 +410,7 @@ class Hololens: TrackerInput, Display, Hubable {
 
             logger.info("Registered ${d3dImages.size} shared handles")
 
-            subscribe("transforms.ViewTransform")
+            subscribe("transforms.ViewTransforms")
 
             if(d3dImages.isEmpty() || commandBuffers.size == 0) {
                 logger.error("Did not get any Vulkan render targets back!")
@@ -571,10 +571,10 @@ class Hololens: TrackerInput, Display, Hubable {
                 try {
                     socket.connect("tcp://localhost:${defaultPort+1}")
                     socket.subscribe(topic)
-                    logger.debug("Subscribed to topic $topic")
+                    logger.info("Subscribed to topic $topic")
 
                     while (isActive) {
-                        poller.poll(10)
+                        poller.poll(1)
 
                         if(poller.isReadable(socket)) {
                             val msg = ZMsg.recvMsg(socket)
@@ -582,7 +582,6 @@ class Hololens: TrackerInput, Display, Hubable {
 
                             when(msgType) {
                                 "transforms.ViewTransforms" -> {
-                                    logger.debug("Receiving view transforms")
                                     val matrixData = msg.pop().data
                                     assert(matrixData.size == 128)
 
