@@ -69,21 +69,29 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
         /** Returns the normalized gaze position. */
         fun normalizedPosition() = GLVector(*this.norm_pos)
         /** Returns the point the user is gazing at. */
-        fun gazePoint() = gaze_point_3d?.let { GLVector(*it) }
+        fun gazePoint() = gaze_point_3d.toGLVector()
 
         /** Returns the center of the left eye. */
         @Suppress("unused")
-        fun leftEyeCenter() = eye_centers_3d?.let { GLVector(*it.getOrDefault(0, floatArrayOf(0.0f, 0.0f, 0.0f))) }
+        fun leftEyeCenter() = eye_centers_3d?.getOrDefault(0, floatArrayOf(0.0f, 0.0f, 0.0f)).toGLVector()
         /** Returns the center of the right eye. */
         @Suppress("unused")
-        fun rightEyeCenter() = eye_centers_3d?.let { GLVector(*it.getOrDefault(1, floatArrayOf(0.0f, 0.0f, 0.0f))) }
+        fun rightEyeCenter() = eye_centers_3d?.getOrDefault(1, floatArrayOf(0.0f, 0.0f, 0.0f)).toGLVector()
 
         /** Returns the normal orientation of the left eye. */
         @Suppress("unused")
-        fun leftGazeNormal() = gaze_normals_3d?.let { GLVector(*it.getOrDefault(0, floatArrayOf(0.0f, 0.0f, 0.0f))) }
+        fun leftGazeNormal() = gaze_normals_3d?.getOrDefault(0, floatArrayOf(0.0f, 0.0f, 0.0f)).toGLVector()
         /** Returns the normal orientation of the right eye. */
         @Suppress("unused")
-        fun rightGazeNormal() = gaze_normals_3d?.let { GLVector(*it.getOrDefault(1, floatArrayOf(0.0f, 0.0f, 0.0f))) }
+        fun rightGazeNormal() = gaze_normals_3d?.getOrDefault(1, floatArrayOf(0.0f, 0.0f, 0.0f)).toGLVector()
+
+        private fun FloatArray?.toGLVector(): GLVector {
+            return if(this != null) {
+                GLVector(this[0], this[1], this[2])
+            } else {
+                GLVector(0.0f, 0.0f, 0.0f)
+            }
+        }
 
         /**
          * Compares two gaze data points with each other, returning true
