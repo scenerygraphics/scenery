@@ -31,3 +31,4 @@ script:
 # deploy on success, but only if we are on master
 after_success:
     - test $TRAVIS_PULL_REQUEST == "false" && test $TRAVIS_BRANCH == "master" && mvn deploy --settings settings.xml
+    - bash <(curl -s https://codecov.io/bash)
