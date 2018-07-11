@@ -22,6 +22,7 @@ cache:
 
 before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then /usr/libexec/java_home -V; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then wget -O ~/codacy-coverage-reporter.jar https://github.com/codacy/codacy-coverage-reporter/releases/download/4.0.1/codacy-coverage-reporter-4.0.1-assembly.jar; fi
 
 install: true
 
@@ -31,3 +32,5 @@ script:
 # deploy on success, but only if we are on master
 after_success:
     - test $TRAVIS_PULL_REQUEST == "false" && test $TRAVIS_BRANCH == "master" && mvn deploy --settings settings.xml
+    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then mvn jacoco:report; fi
+    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then java -jar ~/codacy-coverage-reporter.jar report -l Kotlin -r target/site/jacoco/jacoco.xml; fi

@@ -8,13 +8,21 @@ import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
 import java.util.*
 
+/**
+ * Describes a Vulkan device attached to an [instance] and a [physicalDevice].
+ *
+ * @author Ulrik Guenther <hello@ulrik.is>
+ */
+open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysicalDevice, val deviceData: DeviceData, extensionsQuery: (VkPhysicalDevice) -> Array<String> = { arrayOf() }, validationLayers: Array<String> = arrayOf()) {
 
-class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysicalDevice, val deviceData: DeviceData, extensionsQuery: (VkPhysicalDevice) -> Array<String> = { arrayOf() }, validationLayers: Array<String> = arrayOf()) {
-
-    val logger by LazyLogger()
+    protected val logger by LazyLogger()
+    /** Stores available memory types on the device. */
     val memoryProperties: VkPhysicalDeviceMemoryProperties
+    /** Stores the Vulkan-internal device. */
     val vulkanDevice: VkDevice
+    /** Stores available queue indices. */
     val queueIndices: QueueIndices
+    /** Stores available extensions */
     val extensions = ArrayList<String>()
 
     /**
@@ -113,7 +121,7 @@ class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysicalDevic
             val device = pDevice.get(0)
 
             if (err != VK_SUCCESS) {
-                throw RuntimeException("Failed to create device: " + VU.translate(err))
+                throw IllegalStateException("Failed to create device: " + VU.translate(err))
             }
             logger.debug("Device successfully created.")
 
@@ -142,6 +150,11 @@ class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysicalDevic
         logger.debug("Created logical Vulkan device on ${deviceData.vendor} ${deviceData.name}")
     }
 
+    /**
+     * Returns the available memory types on this devices that
+     * bear [typeBits] and [flags]. May return an empty list in case
+     * the device does not support the given types and flags.
+     */
     fun getMemoryType(typeBits: Int, flags: Int): List<Int> {
         var bits = typeBits
         val types = ArrayList<Int>(5)
@@ -163,6 +176,9 @@ class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysicalDevic
         return types
     }
 
+    /**
+     * Creates a command pool with a given [queueNodeIndex] for this device.
+     */
     fun createCommandPool(queueNodeIndex: Int): Long {
         return stackPush().use { stack ->
             val cmdPoolInfo = VkCommandPoolCreateInfo.callocStack(stack)
@@ -175,21 +191,30 @@ class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysicalDevic
             val commandPool = pCmdPool.get(0)
 
             if (err != VK_SUCCESS) {
-                throw RuntimeException("Failed to create command pool: " + VU.translate(err))
+                throw IllegalStateException("Failed to create command pool: " + VU.translate(err))
             }
 
             commandPool
         }
     }
 
+    /**
+     * Destroys the command pool given by [commandPool].
+     */
     fun destroyCommandPool(commandPool: Long) {
         vkDestroyCommandPool(vulkanDevice, commandPool, null)
     }
 
+    /**
+     * Returns a string representation of this device.
+     */
     override fun toString(): String {
         return "${deviceData.vendor} ${deviceData.name}"
     }
 
+    /**
+     * Destroys this device, waiting for all operations to finish before.
+     */
     fun close() {
         logger.debug("Closing device ${deviceData.vendor} ${deviceData.name}...")
         vkDeviceWaitIdle(vulkanDevice)
@@ -199,6 +224,9 @@ class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysicalDevic
         memoryProperties.free()
     }
 
+    /**
+     * Utility functions for [VulkanDevice].
+     */
     companion object {
         val logger by LazyLogger()
 
@@ -256,20 +284,27 @@ class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysicalDevic
         private fun driverVersionToString(version: Int) =
             decodeDriverVersion(version).toList().joinToString(".")
 
+        /**
+         * Creates a [VulkanDevice] in a given [instance] from a physical device, requesting extensions
+         * given by [additionalExtensions]. The device selection is done in a fuzzy way by [physicalDeviceFilter],
+         * such that one can filter for certain vendors, e.g.
+         */
         @JvmStatic fun fromPhysicalDevice(instance: VkInstance, physicalDeviceFilter: (Int, DeviceData) -> Boolean,
                                           additionalExtensions: (VkPhysicalDevice) -> Array<String> = { arrayOf() },
                                           validationLayers: Array<String> = arrayOf()): VulkanDevice {
             return stackPush().use { stack ->
 
-                val physicalDeviceCount = VU.getInt("Enumerate physical devices",
-                    { vkEnumeratePhysicalDevices(instance, this, null)} )
-
-                if (physicalDeviceCount < 1) {
-                    throw RuntimeException("No Vulkan-compatible devices found!")
+                val physicalDeviceCount = VU.getInt("Enumerate physical devices") {
+                    vkEnumeratePhysicalDevices(instance, this, null)
                 }
 
-                val physicalDevices = VU.getPointers("Getting Vulkan physical devices", physicalDeviceCount,
-                    { vkEnumeratePhysicalDevices(instance, intArrayOf(physicalDeviceCount), this) })
+                if (physicalDeviceCount < 1) {
+                    throw IllegalStateException("No Vulkan-compatible devices found!")
+                }
+
+                val physicalDevices = VU.getPointers("Getting Vulkan physical devices", physicalDeviceCount) {
+                    vkEnumeratePhysicalDevices(instance, intArrayOf(physicalDeviceCount), this)
+                }
 
                 var devicePreference = 0
 

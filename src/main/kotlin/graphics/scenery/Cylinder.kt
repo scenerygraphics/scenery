@@ -70,6 +70,8 @@ class Cylinder(var radius: Float, var height: Float, var segments: Int) : Node("
         vertices = BufferUtils.allocateFloatAndPut(vbuffer.toFloatArray())
         normals = BufferUtils.allocateFloatAndPut(nbuffer.toFloatArray())
         texcoords = BufferUtils.allocateFloatAndPut(tbuffer.toFloatArray())
+
+        boundingBox = generateBoundingBox()
     }
 
 }

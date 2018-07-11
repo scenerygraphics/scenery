@@ -139,5 +139,7 @@ open class Box @JvmOverloads constructor(val sizes: GLVector = GLVector(1.0f, 1.
             1.0f, 1.0f,
             0.0f, 1.0f
         ))
+
+        boundingBox = generateBoundingBox()
     }
 }

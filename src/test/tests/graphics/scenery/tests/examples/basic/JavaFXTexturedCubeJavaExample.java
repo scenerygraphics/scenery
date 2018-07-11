@@ -4,7 +4,6 @@ import cleargl.GLVector;
 import com.sun.javafx.application.PlatformImpl;
 import graphics.scenery.*;
 import graphics.scenery.backends.Renderer;
-import graphics.scenery.numerics.Random;
 import graphics.scenery.utils.SceneryPanel;
 import javafx.application.Platform;
 import javafx.geometry.HPos;

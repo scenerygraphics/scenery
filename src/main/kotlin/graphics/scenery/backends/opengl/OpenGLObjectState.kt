@@ -1,6 +1,5 @@
 package graphics.scenery.backends.opengl
 
-import cleargl.GLProgram
 import cleargl.GLTexture
 import graphics.scenery.NodeMetadata
 import java.nio.ByteBuffer
@@ -15,9 +14,8 @@ import java.util.concurrent.ConcurrentHashMap
  *  default consumers.
  */
 class OpenGLObjectState : NodeMetadata {
-    data class OpenGLBufferBinding(var buffer: ByteBuffer? = null, var offset: Long = 0L, var name: String, var binding: Int = 0)
     /** List of consumers of this metadata, e.g. [OpenGLRenderer] */
-    override val consumers: MutableList<String> = ArrayList<String>()
+    override val consumers: MutableList<String> = ArrayList()
 
     /** IDs of buffers that may be additionally required. */
     val additionalBufferIds = Hashtable<String, Int>()
@@ -40,8 +38,6 @@ class OpenGLObjectState : NodeMetadata {
     var mStoredIndexCount = 0
     /** Number of stored vertex/normal/texcoord primitives. */
     var mStoredPrimitiveCount = 0
-    /** buffer bindings **/
-    var bufferBindings = ArrayList<OpenGLBufferBinding>()
     /** OpenGL UBOs **/
     var UBOs = LinkedHashMap<String, OpenGLUBO>()
     /** are we missing textures? **/

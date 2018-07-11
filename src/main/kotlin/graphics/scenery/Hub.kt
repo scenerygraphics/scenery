@@ -20,10 +20,12 @@ class Hub(val name: String = "default") {
      * @param[type] The type of [SceneryElement] to add.
      * @param[obj] The [Hubable] object.
      */
-    fun add(type: SceneryElement, obj: Hubable) {
+    fun <T: Hubable> add(type: SceneryElement, obj: T): T {
         elements[type] = obj
 
         obj.hub = this
+
+        return obj
     }
 
     /**
@@ -31,8 +33,9 @@ class Hub(val name: String = "default") {
      *
      * @param[application] The [SceneryBase] instance to add to this Hub.
      */
-    fun addApplication(application: SceneryBase) {
+    fun addApplication(application: SceneryBase): SceneryBase {
         elements[SceneryElement.Application] = application
+        return application
     }
 
     /**
@@ -112,6 +115,7 @@ class Hub(val name: String = "default") {
      *
      * @return String representation of all the elements of the Hub, one per line.
      */
+    @Suppress("unused")
     fun elementsAsString(): String {
         println(elements.entries.size)
         return elements.entries.joinToString("\n") {
