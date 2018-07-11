@@ -4,7 +4,6 @@ import cleargl.GLVector;
 import graphics.scenery.*;
 import graphics.scenery.backends.Renderer;
 import org.junit.Test;
-import graphics.scenery.repl.REPL;
 
 /**
  * Created by kharrington on 7/6/16.
