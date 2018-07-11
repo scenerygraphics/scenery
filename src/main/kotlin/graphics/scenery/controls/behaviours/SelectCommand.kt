@@ -8,32 +8,52 @@ import org.scijava.ui.behaviour.ClickBehaviour
 import kotlin.reflect.KProperty
 
 /**
- * Raycasting-based selection command
+ * Raycasting-based selection command. Needs to be attached to a [renderer], and given a
+ * [scene] to act upon, plus a lambda returning camera information ([camera]).
+ *
+ * The command returns all the selected objects sorted by distance to
+ * the lambda given in [action]. [ignoredObjects] can be set to classes the user does not want
+ * to select, by default this is only [BoundingGrid].
+ *
+ * If [debugRaycast] is true, a line will be drawn from the camera in the direction of
+ * the selection raycast.
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-open class SelectCommand @JvmOverloads constructor(private val name: String,
-                                                   private val renderer: Renderer,
-                                                   private val scene: Scene,
-                                                   private val camera: () -> Camera?,
-                                                   private var debugRaycast: Boolean = false,
-                                                   private var action: ((List<SelectResult>) -> Any) = {}) : ClickBehaviour {
+open class SelectCommand @JvmOverloads constructor(protected val name: String,
+                                                   protected val renderer: Renderer,
+                                                   protected val scene: Scene,
+                                                   protected val camera: () -> Camera?,
+                                                   protected var debugRaycast: Boolean = false,
+                                                   var ignoredObjects: List<Class<*>> = listOf<Class<*>>(BoundingGrid::class.java),
+                                                   protected var action: ((List<SelectResult>) -> Unit) = {}) : ClickBehaviour {
     protected val logger by LazyLogger()
 
-    val cam: Camera? by CameraDelegate()
+    protected val cam: Camera? by CameraDelegate()
 
-    inner class CameraDelegate {
+    /** Camera delegate class, converting lambdas to Cameras. */
+    protected inner class CameraDelegate {
+        /** Returns the [graphics.scenery.Camera] resulting from the evaluation of [camera] */
         operator fun getValue(thisRef: Any?, property: KProperty<*>): Camera? {
             return camera.invoke()
         }
 
+        /** Setting the value is not supported */
         operator fun setValue(thisRef: Any?, property: KProperty<*>, value: Camera?) {
             throw UnsupportedOperationException()
         }
     }
 
+    /**
+     * Data class for selection results, contains the [Node] as well as the distance
+     * from the observer to it.
+     */
     data class SelectResult(val node: Node, val distance: Float)
 
+    /**
+     * This is the action executed upon triggering this action, with [x] and [y] being
+     * the screen-space coordinates.
+     */
     override fun click(x: Int, y: Int) {
         cam?.let { cam ->
             val view = (cam.target - cam.position).normalize()
@@ -63,17 +83,17 @@ open class SelectCommand @JvmOverloads constructor(private val name: String,
                 indicatorMaterial.ambient = GLVector(0.0f, 0.0f, 0.0f)
 
                 for(it in 5..50) {
-                    val s = Sphere(0.2f, 20)
+                    val s = Box(GLVector(0.08f, 0.08f, 0.08f))
                     s.material = indicatorMaterial
-                    s.position = worldPos + worldDir * it.toFloat() * 5.0f
+                    s.position = worldPos + worldDir * it.toFloat()
                     scene.addChild(s)
                 }
             }
 
             val matches = scene.discover(scene, { node ->
-                node.visible
+                node.visible && !ignoredObjects.contains(node.javaClass)
             }).map {
-                Pair(it, intersectAABB(it, worldPos, worldDir))
+                Pair(it, it.intersectAABB(worldPos, worldDir))
             }.filter {
                 it.second.first && it.second.second > 0.0f
             }.map {
@@ -83,7 +103,7 @@ open class SelectCommand @JvmOverloads constructor(private val name: String,
             }
 
             if (debugRaycast) {
-                logger.info(matches.map { "${it.node.name} at distance ${it.distance}" }.joinToString(", "))
+                logger.info(matches.joinToString(", ") { "${it.node.name} at distance ${it.distance}" })
 
                 val m = Material()
                 m.diffuse = GLVector(1.0f, 0.0f, 0.0f)
@@ -93,54 +113,10 @@ open class SelectCommand @JvmOverloads constructor(private val name: String,
 
                 matches.firstOrNull()?.let {
                     it.node.material = m
-                    it.node.initialized = false
-                    it.node.metadata.clear()
-                    it.node.dirty = true
                 }
             }
 
             action.invoke(matches)
         }
-    }
-
-    // code adapted from zachamarz, http://gamedev.stackexchange.com/a/18459
-    fun intersectAABB(node: Node, origin: GLVector, dir: GLVector): Pair<Boolean, Float> {
-            val bbmin = node.boundingBox?.min?.xyzw() ?: return false to 0.0f
-            val bbmax = node.boundingBox?.max?.xyzw() ?: return false to 0.0f
-
-            val min = node.world.mult(bbmin)
-            val max = node.world.mult(bbmax)
-
-            // skip if inside the bounding box
-            if(origin.x() > min.x() && origin.x() < max.x()
-                && origin.y() > min.y() && origin.y() < max.y()
-                && origin.z() > min.z() && origin.z() < max.z()) {
-                return false to 0.0f
-            }
-
-            val invDir = GLVector(1 / dir.x(), 1 / dir.y(), 1 / dir.z())
-
-            val t1 = (min.x() - origin.x()) * invDir.x()
-            val t2 = (max.x() - origin.x()) * invDir.x()
-            val t3 = (min.y() - origin.y()) * invDir.y()
-            val t4 = (max.y() - origin.y()) * invDir.y()
-            val t5 = (min.z() - origin.z()) * invDir.z()
-            val t6 = (max.z() - origin.z()) * invDir.z()
-
-            val tmin = Math.max(Math.max(Math.min(t1, t2), Math.min(t3, t4)), Math.min(t5, t6))
-            val tmax = Math.min(Math.min(Math.max(t1, t2), Math.max(t3, t4)), Math.max(t5, t6))
-
-            // we are in front of the AABB
-            if (tmax < 0) {
-                return false to tmax
-            }
-
-            // we have missed the AABB
-            if (tmin > tmax) {
-                return false to tmax
-            }
-
-            // we have a match!
-            return true to tmin
     }
 }

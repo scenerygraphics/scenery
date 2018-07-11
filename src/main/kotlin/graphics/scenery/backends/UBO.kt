@@ -79,6 +79,7 @@ open class UBO {
      * Returns the size occupied and alignment required for [element] inside a uniform buffer.
      * Pair layout is <size, alignment>.
      */
+    @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
     fun getSizeAndAlignment(element: Any): Pair<Int, Int> {
         // pack object id and size into one integer
         val key = (element.objectId() shl 16) or (sizeOf(element) and 0xffff)
@@ -86,14 +87,11 @@ open class UBO {
         if(alignments.containsKey(key)) {
             return alignments.get(key)
         } else {
-            val sa = when (element.javaClass) {
-                GLMatrix::class.java -> {
-                    Pair((element as GLMatrix).floatArray.size * 4, 4 * 4)
-                }
+            val sa = when (element) {
+                is GLMatrix -> Pair(element.floatArray.size * 4, 4 * 4)
 
-                GLVector::class.java -> {
-                    val v = element as GLVector
-                    val size = v.toFloatArray().size
+                is GLVector -> {
+                    val size = element.toFloatArray().size
                     val alignment = when (size) {
                         2 -> 2
                         3 -> 4
@@ -103,20 +101,12 @@ open class UBO {
 
                     Pair(size * 4, alignment * 4)
                 }
-
-                java.lang.Float::class.java -> Pair(4, 4)
-                Float::class.java -> Pair(4, 4)
-
-                java.lang.Double::class.java -> Pair(8, 8)
-                Double::class.java -> Pair(8, 8)
-
-                Integer::class.java -> Pair(4, 4)
-                Int::class.java -> Pair(4, 4)
-
-                Short::class.java -> Pair(2, 2)
-
-                java.lang.Boolean::class.java -> Pair(4, 4)
-                Boolean::class.java -> Pair(4, 4)
+                is Float -> Pair(4, 4)
+                is Double -> Pair(8, 8)
+                is Integer -> Pair(4, 4)
+                is Int -> Pair(4, 4)
+                is Short -> Pair(2, 2)
+                is Boolean -> Pair(4, 4)
 
                 else -> {
                     logger.error("Unknown VulkanUBO member type: ${element.javaClass.simpleName}")
@@ -169,6 +159,7 @@ open class UBO {
      *
      * Returns true if [data] has been updated, and false if not.
      */
+    @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
     fun populate(data: ByteBuffer, offset: Long = -1L, elements: (LinkedHashMap<String, () -> Any>)? = null): Boolean {
         // no need to look further
         if(members.size == 0) {
@@ -208,13 +199,14 @@ open class UBO {
                 logger.trace("Populating {} of type {} size={} alignment={}", it.key, value.javaClass.simpleName, size, alignment)
             }
 
-            if(memberOffsets[it.key] != null) {
+            val memberOffset = memberOffsets[it.key]
+            if(memberOffset != null) {
                 // position in buffer is known, use it
                 if(logger.isTraceEnabled) {
-                    logger.trace("{} goes to {}", it.key, memberOffsets[it.key]!!)
+                    logger.trace("{} goes to {}", it.key, memberOffset)
                 }
 
-                pos = (originalPos + memberOffsets[it.key]!!)
+                pos = (originalPos + memberOffset)
                 data.position(pos)
             } else {
                 // position in buffer is not explicitly known, advance based on size
@@ -224,52 +216,15 @@ open class UBO {
                 }
             }
 
-            when(value.javaClass) {
-
-                GLMatrix::class.java -> {
-                    (value as GLMatrix).push(data)
-                }
-                GLVector::class.java -> {
-                    (value as GLVector).push(data)
-                }
-
-                java.lang.Float::class.java -> {
-                    data.asFloatBuffer().put(0, value as Float)
-                }
-                Float::class.java -> {
-                    data.asFloatBuffer().put(0, value as Float)
-                }
-
-                java.lang.Double::class.java -> {
-                    data.asDoubleBuffer().put(0, value as Double)
-                }
-                Double::class.java -> {
-                    data.asDoubleBuffer().put(0, value as Double)
-                }
-
-                Integer::class.java -> {
-                    data.asIntBuffer().put(0, value as Int)
-                }
-                Integer::class.java -> {
-                    data.asIntBuffer().put(0, value as Int)
-                }
-                Int::class.java -> {
-                    data.asIntBuffer().put(0, value as Int)
-                }
-
-                java.lang.Short::class.java -> {
-                    data.asShortBuffer().put(0, value as Short)
-                }
-                Short::class.java -> {
-                    data.asShortBuffer().put(0, value as Short)
-                }
-
-                java.lang.Boolean::class.java -> {
-                    data.asIntBuffer().put(0, value as Int)
-                }
-                Boolean::class.java -> {
-                    data.asIntBuffer().put(0, value as Int)
-                }
+            when (value) {
+                is GLMatrix -> value.push(data)
+                is GLVector -> value.push(data)
+                is Float -> data.asFloatBuffer().put(0, value)
+                is Double -> data.asDoubleBuffer().put(0, value)
+                is Integer -> data.asIntBuffer().put(0, value as Int)
+                is Int -> data.asIntBuffer().put(0, value)
+                is Short -> data.asShortBuffer().put(0, value)
+                is Boolean -> data.asIntBuffer().put(0, value as Int)
             }
 
             data.position(pos + size)

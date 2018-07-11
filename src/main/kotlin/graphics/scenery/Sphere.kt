@@ -110,6 +110,8 @@ open class Sphere(val radius: Float, val segments: Int) : Node("sphere"), HasGeo
         vertices = BufferUtils.allocateFloatAndPut(vbuffer.toFloatArray())
         normals = BufferUtils.allocateFloatAndPut(nbuffer.toFloatArray())
         texcoords = BufferUtils.allocateFloatAndPut(tbuffer.toFloatArray())
+
+        boundingBox = generateBoundingBox()
     }
 
     /**
