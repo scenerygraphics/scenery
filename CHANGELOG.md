@@ -1,5 +1,50 @@
 # CHANGELOG
 
+# scenery-0.5.0 to scenery-0.5.1
+
+## Additions and Changes: 
+
+* Introduces Renderable/Node.renderScale for global scales, such as coming from physical dimensions of volumes.
+* PointCloud: readFromPALM now automatically detects record separators
+* Volume: use volumetric data as normalised data, and hand data ranges to the shader, instead of using it as unnormalised data, which is not as well supported
+* JavaFXMouseAndKeyHandler: Don't rely on AWT for double-click intervals
+* UBO: Make cached size available as read-only
+* Camera: Add offset parameter to viewportToWorld to set world-space offset
+* DetachedHeadCamera: take HMD presence into account when returning projection matrix
+* VulkanRenderer: uses buffer pooling now, with vertex buffers allocated centrally, and then sub-allocated to scene objects (#199)
+* SceneryBase: Make `accumulator`, `currentTime`, `t`, and `shouldClose` protected instead of private
+* PupilEyeTracker: Discard first 15 samples from each calibration point to allow for eye movement, and use lower default threshold
+* EyeTrackingExample: Color reference target according to gaze confidence
+* RunAllExamples: Renamed to ExampleRunner
+* Added LotsOfSpheres stresstest
+* Added PickerExample to demonstrate object picking via SelectCommand
+* The following classes have had their documentation improved: 
+ArcballCameraControl, Blending, DemoReelExample, DirectWriteableImage, HasGeometry, MouseAndKeyHandlerBase, Node, OpenCLContext, PupilEyeTracker, Random, SceneryPanel, SelectCommand, SystemHelpers, Volume, VulkanCommandBuffer, VulkanObjectState, VulkanTexture, VulkanUBO
+
+
+## Fixes
+
+* fixes bounding grids for Volumes (#195)
+* VulkanRenderer: fixes an issue where the screenshot buffer would contain an old image
+* VulkanRenderer: Do not initialize GLFW unless explicitly needed — this also fixes some issues that occured running on X in conjunction with AWT or JavaFX
+* Volume: don't ignore gamma
+* Volume: apply correct scaling for anisotropic volumes
+* OpenGLRenderer: automatically resize UBO buffers if needed
+* SceneryBase: fix high CPU usage issue when running under JavaFX
+* OpenGLRenderer/VulkanRenderer: Prevent screenshots from being overwritten if taken in short succession (#193)
+
+## Dependency updates
+
+* bumps ClearGL to 2.2.1
+* bumps scijava parent POM to 22.4.0
+* bumps Kotlin to 1.2.51
+* bumps kotlinx-coroutines to 0.23.4
+
+## Continuous Integration
+
+* Appveyor: update Maven version to 3.5.4
+* Travis: collect coverage data via JaCoCo and upload to codacy
+
 # scenery-0.4.2 to scenery-0.5.0
 
 ## Additions and Changes
