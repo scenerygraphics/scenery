@@ -29,7 +29,7 @@ for i in $files; do
     echo -n "# $i GLSL -> SPIR-V"
 
     # check if ifdefs are needed in the file, if yes, skip
-    cat $i | grep '#ifdef\|#ifndef\|#else\|#endif' &>/dev/null
+    grep '#ifdef\|#ifndef\|#else\|#endif' $i &>/dev/null
     if [ $? == 0 ]; then
    	echo " (skipping because of preprocessor statements)"
 	rm -f $i.spv
