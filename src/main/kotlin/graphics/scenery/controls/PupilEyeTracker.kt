@@ -67,7 +67,7 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
 
 
         /** Returns the normalized gaze position. */
-        fun normalizedPosition() = GLVector(*this.norm_pos)
+        fun normalizedPosition() = this.norm_pos.toGLVector()
         /** Returns the point the user is gazing at. */
         fun gazePoint() = gaze_point_3d.toGLVector()
 
