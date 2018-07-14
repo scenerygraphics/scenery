@@ -100,6 +100,11 @@ open class JavaFXMouseAndKeyHandler(protected var hub: Hub?, protected var panel
             logger.warn("Windows key not supported")
         }
 
+        if(e is ScrollEvent && e.eventType == ScrollEvent.SCROLL) {
+            mask = mask or InputTrigger.SCROLL_MASK
+            mask = mask and (1 shl 10).inv()
+        }
+
         return mask
     }
 
@@ -223,8 +228,6 @@ open class JavaFXMouseAndKeyHandler(protected var hub: Hub?, protected var panel
         val y = e.y
         val wheelRotation = e.deltaX.to(e.deltaY)
         val isHorizontal = wheelRotation.second == 0.0
-
-        logger.info("It has been scrolled!")
 
         scrolls
             .filter { it.buttons.matches(mask, pressedKeys) }
