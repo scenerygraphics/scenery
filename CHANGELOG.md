@@ -1,5 +1,12 @@
 # CHANGELOG
 
+# scenery-0.5.1 to scenery-0.5.2
+
+## Fixes
+
+* JavaFXMouseAndKeyHandler: Fixes handling of double-click events
+* JavaFXMouseAndKeyHandler: Fixes handling of scrolling events
+
 # scenery-0.5.0 to scenery-0.5.1
 
 ## Additions and Changes: 
