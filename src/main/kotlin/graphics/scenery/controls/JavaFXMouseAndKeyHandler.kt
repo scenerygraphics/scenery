@@ -48,24 +48,23 @@ open class JavaFXMouseAndKeyHandler(protected var hub: Hub?, protected var panel
      * Handle JavaFX events
      */
     override fun handle(event: javafx.event.Event) {
-        if (event is KeyEvent) {
-            when (event.eventType) {
+        when (event) {
+            is KeyEvent -> when (event.eventType) {
                 KeyEvent.KEY_PRESSED -> keyPressed(event)
                 KeyEvent.KEY_RELEASED -> keyReleased(event)
             }
-        } else if (event is MouseEvent) {
-            when (event.eventType) {
+            is MouseEvent -> when (event.eventType) {
                 MouseEvent.MOUSE_PRESSED -> mousePressed(event)
-                MouseEvent.MOUSE_CLICKED -> mouseClicked(event)
+//                MouseEvent.MOUSE_CLICKED -> mouseClicked(event)
                 MouseEvent.MOUSE_MOVED -> mouseMoved(event)
                 MouseEvent.MOUSE_DRAGGED -> mouseDragged(event)
                 MouseEvent.MOUSE_RELEASED -> mouseReleased(event)
                 MouseEvent.MOUSE_ENTERED_TARGET -> mouseEntered(event)
                 MouseEvent.MOUSE_EXITED_TARGET -> mouseExited(event)
             }
-        } else if (event is ScrollEvent) {
-            when (event.eventType) {
+            is ScrollEvent -> when (event.eventType) {
                 ScrollEvent.ANY -> mouseWheelMoved(event)
+                ScrollEvent.SCROLL -> mouseWheelMoved(event)
             }
         }
 
@@ -99,6 +98,11 @@ open class JavaFXMouseAndKeyHandler(protected var hub: Hub?, protected var panel
 
         if (winPressed) {
             logger.warn("Windows key not supported")
+        }
+
+        if(e is ScrollEvent && e.eventType == ScrollEvent.SCROLL) {
+            mask = mask or InputTrigger.SCROLL_MASK
+            mask = mask and (1 shl 10).inv()
         }
 
         return mask
@@ -205,11 +209,10 @@ open class JavaFXMouseAndKeyHandler(protected var hub: Hub?, protected var panel
         val y = e.y
 
         val clickMask = mask and InputTrigger.DOUBLE_CLICK_MASK.inv()
-        for (click in buttonClicks) {
-            if (click.buttons.matches(mask, pressedKeys) || clickMask != mask && click.buttons.matches(clickMask, pressedKeys)) {
-                click.behaviour.click(x.toInt(), y.toInt())
-            }
-        }
+
+        buttonClicks
+            .filter { it.buttons.matches(mask, pressedKeys) || clickMask != mask && it.buttons.matches(clickMask, pressedKeys) }
+            .forEach { it.behaviour.click(x.toInt(), y.toInt()) }
     }
 
     /**
@@ -297,6 +300,11 @@ open class JavaFXMouseAndKeyHandler(protected var hub: Hub?, protected var panel
                 activeButtonDrags.add(drag)
             }
         }
+
+        val clickMask = mask and InputTrigger.DOUBLE_CLICK_MASK.inv()
+        buttonClicks
+            .filter { it.buttons.matches(mask, pressedKeys) || clickMask != mask && it.buttons.matches(clickMask, pressedKeys) }
+            .forEach { it.behaviour.click(x.toInt(), y.toInt()) }
     }
 
     /**
