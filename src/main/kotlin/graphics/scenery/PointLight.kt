@@ -5,7 +5,7 @@ import cleargl.GLVector
 /**
  * Point light class.
  *
- * Point lights have no extent, but carry a [linear] and [quadratic] falloff.
+ * Point lights have an extent given as [lightRadius].
  * They also have an optional [Box] to accompany them for easier visualisation.
  *
  * @author Ulrik Günther <hello@ulrik.is>

@@ -57,7 +57,7 @@ open class BoundingGrid : Mesh("Bounding Grid") {
     protected var nodeBoundingBoxHash: Int = -1
 
     init {
-        material = ShaderMaterial(arrayListOf("DefaultForward.vert", "BoundingGrid.frag"))
+        material = ShaderMaterial.fromFiles("DefaultForward.vert", "BoundingGrid.frag")
         material.blending.transparent = true
         material.blending.opacity = 0.8f
         material.blending.setOverlayBlending()

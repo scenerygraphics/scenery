@@ -75,9 +75,6 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
     /** Name of the Node's type */
     var nodeType = "Node"
         protected set
-    /** Should the Node's class name be used to derive a GLSL shader file name for a shader program. */
-    var useClassDerivedShader = false
-        protected set
 
     /** Node update routine, called before updateWorld */
     var update: ArrayList<() -> Unit> = ArrayList()
