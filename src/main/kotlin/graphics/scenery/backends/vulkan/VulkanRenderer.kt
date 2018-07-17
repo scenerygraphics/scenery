@@ -759,21 +759,9 @@ open class VulkanRenderer(hub: Hub,
         return true
     }
 
-    private fun Node.findExistingShaders(): List<String> {
-        val baseName = this.javaClass.simpleName
-        val base = if(this.javaClass.`package`.name.startsWith("graphics.scenery")) {
-            Renderer::class.java.to("shaders/")
-        } else {
-            this.javaClass.to("")
-        }
-
-        return listOf("$baseName.vert", "$baseName.geom", "$baseName.tesc", "$baseName.tese", "$baseName.frag")
-            .filter { base.first.getResource(base.second + it) != null }
-    }
-
     private fun initializeCustomShadersForNode(node: Node, addInitializer: Boolean = true): Boolean {
 
-        if(!(node.material.blending.transparent || node.useClassDerivedShader || node.material is ShaderMaterial || node.material.cullingMode != Material.CullingMode.Back)) {
+        if(!(node.material.blending.transparent || node.material is ShaderMaterial || node.material.cullingMode != Material.CullingMode.Back)) {
             logger.debug("Using default renderpass material for ${node.name}")
             return false
         }
@@ -787,7 +775,6 @@ open class VulkanRenderer(hub: Hub,
             lateResizeInitializers.remove(node)
         }
 
-        // TODO: Add check whether the node actually needs a custom shader
         node.rendererMetadata()?.let { s ->
 
 //            node.javaClass.kotlin.memberProperties.filter { it.findAnnotation<ShaderProperty>() != null }.forEach { logger.info("${node.name}.${it.name} is ShaderProperty!") }
@@ -821,29 +808,35 @@ open class VulkanRenderer(hub: Hub,
                             (node.material as ShaderMaterial).shaders
                         }
 
-                        node.useClassDerivedShader && pass.value.passConfig.renderTransparent == node.material.blending.transparent -> {
-                            logger.debug("Initializing classname-derived preferred pipeline for ${node.name}")
-                            val shaders = node.findExistingShaders()
-
-                            if(shaders.isEmpty()) {
-                                throw ShaderCompilationException("No shaders found for ${node.name}")
-                            }
-
-                            shaders
-                        }
+//                        pass.value.passConfig.renderTransparent == node.material.blending.transparent -> {
+//                            logger.debug("Initializing classname-derived preferred pipeline for ${node.name}")
+//                            val shaders = node.findExistingShaders()
+//
+//                            if(shaders.isEmpty()) {
+//                                throw ShaderCompilationException("No shaders found for ${node.name}")
+//                            }
+//
+//                            shaders
+//                        }
 
                         else -> {
                             logger.debug("Initializing pass-default shader preferred pipeline for ${node.name}")
-                            pass.value.passConfig.shaders
+                            Shaders.ShadersFromFiles(pass.value.passConfig.shaders.map { "shaders/$it" }.toTypedArray())
                         }
                     }
 
-                    logger.debug("Shaders are: ${shaders.joinToString(", ")}")
+                    logger.debug("Shaders are: ${shaders}")
+
+                    val shaderModules = Shaders.ShaderType.values().mapNotNull { type ->
+                        try {
+                            VulkanShaderModule.getFromCacheOrCreate(device, "main", shaders.get(Shaders.ShaderTarget.OpenGL, type))
+                        } catch (e: ShaderNotFoundException) {
+                            null
+                        }
+                    }
 
                     pass.value.initializePipeline("preferred-${node.uuid}",
-                        shaders.map { VulkanShaderModule.getFromCacheOrCreate(device, "main", node.javaClass, "shaders/$it") },
-
-                        settings = { pipeline ->
+                        shaderModules, settings = { pipeline ->
                             when(node.material.cullingMode) {
                                 Material.CullingMode.None -> pipeline.rasterizationState.cullMode(VK_CULL_MODE_NONE)
                                 Material.CullingMode.Front -> pipeline.rasterizationState.cullMode(VK_CULL_MODE_FRONT_BIT)
@@ -867,7 +860,7 @@ open class VulkanRenderer(hub: Hub,
                                     for (attachment in 0 until (blendStates?.capacity() ?: 0)) {
                                         val state = blendStates?.get(attachment)
 
-                                        @Suppress("SENSELESS_COMPARISON")
+                                        @Suppress("SENSELESS_COMPARISON", "IfThenToSafeAccess")
                                         if (state != null) {
                                             state.blendEnable(true)
                                                 .colorBlendOp(colorBlending.toVulkan())
@@ -1355,7 +1348,6 @@ open class VulkanRenderer(hub: Hub,
                 config.rendertargets.filter { it.key == passConfig.output }.map { rt ->
                     logger.info("Creating render framebuffer ${rt.key} for pass $passName")
 
-                    // TODO: Take [AttachmentConfig.size] into consideration -- also needs to set image size in shader properties correctly
                     width = (settings.get<Float>("Renderer.SupersamplingFactor") * windowWidth * rt.value.size.first).toInt()
                     height = (settings.get<Float>("Renderer.SupersamplingFactor") * windowHeight * rt.value.size.second).toInt()
 
@@ -2834,7 +2826,6 @@ open class VulkanRenderer(hub: Hub,
                 s.UBOs.filter { it.key.contains("ShaderProperties") && it.value.second.memberCount() > 0 }.forEach {
 //                if(s.requiredDescriptorSets.keys.any { it.contains("ShaderProperties") }) {
                     val propertyUbo = it.value.second
-                    // TODO: Correct buffer advancement
                     val offset = propertyUbo.backingBuffer!!.advance()
                     updated = propertyUbo.populate(offset = offset.toLong())
                     propertyUbo.offsets.put(0, offset)
@@ -2858,7 +2849,7 @@ open class VulkanRenderer(hub: Hub,
 
         buffers["ShaderPropertyBuffer"]!!.copyFromStagingBuffer()
 
-        updateDescriptorSets()
+//        updateDescriptorSets()
 
         cam.lock.unlock()
 
