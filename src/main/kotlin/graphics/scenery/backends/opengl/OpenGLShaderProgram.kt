@@ -6,7 +6,7 @@ import cleargl.GLShaderType
 import cleargl.GLUniform
 import com.jogamp.opengl.GL4
 import gnu.trove.map.hash.THashMap
-import graphics.scenery.backends.Shaders
+import graphics.scenery.backends.ShaderType
 import graphics.scenery.utils.LazyLogger
 
 /**
@@ -14,7 +14,7 @@ import graphics.scenery.utils.LazyLogger
  *
  * @author Ulrik Guenther <hello@ulrik.is>
  */
-open class OpenGLShaderProgram(var gl: GL4, val modules: HashMap<Shaders.ShaderType, OpenGLShaderModule>) {
+open class OpenGLShaderProgram(var gl: GL4, val modules: HashMap<ShaderType, OpenGLShaderModule>) {
     private val logger by LazyLogger()
 
     /** The ClearGL program object */
@@ -118,14 +118,14 @@ open class OpenGLShaderProgram(var gl: GL4, val modules: HashMap<Shaders.ShaderT
         }
     }
 
-    private fun Shaders.ShaderType.toClearGLShaderType(): GLShaderType {
+    private fun ShaderType.toClearGLShaderType(): GLShaderType {
         return when(this) {
-            Shaders.ShaderType.VertexShader -> GLShaderType.VertexShader
-            Shaders.ShaderType.FragmentShader -> GLShaderType.FragmentShader
-            Shaders.ShaderType.TessellationControlShader -> GLShaderType.TesselationControlShader
-            Shaders.ShaderType.TessellationEvaluationShader -> GLShaderType.TesselationEvaluationShader
-            Shaders.ShaderType.GeometryShader -> GLShaderType.GeometryShader
-            Shaders.ShaderType.ComputeShader -> GLShaderType.ComputeShader
+            ShaderType.VertexShader -> GLShaderType.VertexShader
+            ShaderType.FragmentShader -> GLShaderType.FragmentShader
+            ShaderType.TessellationControlShader -> GLShaderType.TesselationControlShader
+            ShaderType.TessellationEvaluationShader -> GLShaderType.TesselationEvaluationShader
+            ShaderType.GeometryShader -> GLShaderType.GeometryShader
+            ShaderType.ComputeShader -> GLShaderType.ComputeShader
         }
     }
 }

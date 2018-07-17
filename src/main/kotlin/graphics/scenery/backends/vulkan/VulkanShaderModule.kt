@@ -1,5 +1,7 @@
 package graphics.scenery.backends.vulkan
 
+import graphics.scenery.backends.ShaderPackage
+import graphics.scenery.backends.ShaderType
 import graphics.scenery.backends.Shaders
 import graphics.scenery.spirvcrossj.*
 import graphics.scenery.utils.LazyLogger
@@ -22,12 +24,12 @@ import kotlin.collections.LinkedHashMap
  *
  * @param[device] The Vulkan device to use (VkDevice)
  * @param[entryPoint] Customizable main entry point for the shader, usually "main"
- * @param[sp] A [Shaders.ShaderPackage] originating from the [Shaders] class.
+ * @param[sp] A [ShaderPackage] originating from the [Shaders] class.
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
 
-open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: Shaders.ShaderPackage) {
+open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: ShaderPackage) {
     protected val logger by LazyLogger()
     var shader: VkPipelineShaderStageCreateInfo
     var shaderModule: Long
@@ -40,7 +42,7 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: 
     data class UBOSpec(val name: String, var set: Long, var binding: Long, val members: LinkedHashMap<String, UBOMemberSpec>)
     data class PushConstantSpec(val name: String, val members: LinkedHashMap<String, UBOMemberSpec>)
 
-    private data class ShaderSignature(val device: VulkanDevice, val p: Shaders.ShaderPackage)
+    private data class ShaderSignature(val device: VulkanDevice, val p: ShaderPackage)
 
     init {
         signature = ShaderSignature(device, sp)
@@ -197,13 +199,13 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: 
             .pNext(NULL)
     }
 
-    protected fun Shaders.ShaderType.toVulkanShaderStage() = when(this) {
-        Shaders.ShaderType.VertexShader -> VK_SHADER_STAGE_VERTEX_BIT
-        Shaders.ShaderType.GeometryShader -> VK_SHADER_STAGE_GEOMETRY_BIT
-        Shaders.ShaderType.TessellationControlShader -> VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT
-        Shaders.ShaderType.TessellationEvaluationShader -> VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT
-        Shaders.ShaderType.FragmentShader -> VK_SHADER_STAGE_FRAGMENT_BIT
-        Shaders.ShaderType.ComputeShader -> VK_SHADER_STAGE_COMPUTE_BIT
+    protected fun ShaderType.toVulkanShaderStage() = when(this) {
+        ShaderType.VertexShader -> VK_SHADER_STAGE_VERTEX_BIT
+        ShaderType.GeometryShader -> VK_SHADER_STAGE_GEOMETRY_BIT
+        ShaderType.TessellationControlShader -> VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT
+        ShaderType.TessellationEvaluationShader -> VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT
+        ShaderType.FragmentShader -> VK_SHADER_STAGE_FRAGMENT_BIT
+        ShaderType.ComputeShader -> VK_SHADER_STAGE_COMPUTE_BIT
     }
 
     fun close() {
@@ -218,10 +220,18 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: 
         }
     }
 
+    /**
+     * Factory and cache methods for [VulkanShaderModule].
+     */
     companion object {
         private val shaderModuleCache = ConcurrentHashMap<Int, VulkanShaderModule>()
 
-        fun getFromCacheOrCreate(device: VulkanDevice, entryPoint: String, sp: Shaders.ShaderPackage): VulkanShaderModule {
+        /**
+         * Creates a new [VulkanShaderModule] or returns it from the cache.
+         * Must be given a [ShaderPackage] [sp], a [VulkanDevice] [device], and the name
+         * for the main [entryPoint].
+         */
+        fun getFromCacheOrCreate(device: VulkanDevice, entryPoint: String, sp: ShaderPackage): VulkanShaderModule {
             val signature = ShaderSignature(device, sp).hashCode()
 
             return if(shaderModuleCache.containsKey(signature)) {
@@ -234,6 +244,9 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: 
             }
         }
 
+        /**
+         * Clears the shader cache.
+         */
         fun clearCache() {
             shaderModuleCache.forEach { it.value.close() }
             shaderModuleCache.clear()
