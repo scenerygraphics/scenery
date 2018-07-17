@@ -7,6 +7,8 @@ import graphics.scenery.*
 import graphics.scenery.backends.Display
 import graphics.scenery.backends.vulkan.*
 import graphics.scenery.utils.LazyLogger
+import kotlinx.coroutines.experimental.Job
+import kotlinx.coroutines.experimental.launch
 import org.lwjgl.system.MemoryStack
 import org.lwjgl.system.MemoryUtil.memAllocInt
 import org.lwjgl.system.MemoryUtil.memAllocLong
@@ -19,6 +21,8 @@ import org.lwjgl.vulkan.NVWin32KeyedMutex.VK_STRUCTURE_TYPE_WIN32_KEYED_MUTEX_AC
 import org.lwjgl.vulkan.VK10.*
 import org.zeromq.ZContext
 import org.zeromq.ZMQ
+import org.zeromq.ZMsg
+import org.zeromq.ZPoller
 import java.math.BigInteger
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -44,8 +48,10 @@ class Hololens: TrackerInput, Display, Hubable {
     // BGR is native surface format and saves unnecessary conversions
     private val textureFormat = VK_FORMAT_B8G8R8A8_SRGB
 
+    private val defaultPort = 1339
     private val zmqContext = ZContext(4)
     private val zmqSocket = zmqContext.createSocket(ZMQ.REQ)
+    private val subscriberSockets = HashMap<String, Job>()
 
     data class CommandBufferWithStatus(val commandBuffer: VulkanCommandBuffer, var current: Boolean = false)
     private var commandBuffers: MutableList<CommandBufferWithStatus> = mutableListOf()
@@ -65,7 +71,7 @@ class Hololens: TrackerInput, Display, Hubable {
     private var poseRight: GLMatrix = GLMatrix.getIdentity()
 
     init {
-        zmqSocket.connect("tcp://localhost:1339")
+        zmqSocket.connect("tcp://localhost:$defaultPort")
     }
 
     /**
@@ -122,14 +128,7 @@ class Hololens: TrackerInput, Display, Hubable {
      * update state
      */
     override fun update() {
-        zmqSocket.send("ViewTransform")
-        val matrixData = zmqSocket.recv()
-        assert(matrixData.size == 128)
 
-        val b0 = ByteBuffer.wrap(matrixData).order(ByteOrder.LITTLE_ENDIAN).limit(16 * 4) as ByteBuffer
-        b0.asFloatBuffer().get(poseLeft.floatArray)
-
-        (b0.position(16 * 4).limit(16 * 8) as ByteBuffer).asFloatBuffer().get(poseRight.floatArray)
     }
 
     override fun getWorkingTracker(): TrackerInput? {
@@ -411,6 +410,8 @@ class Hololens: TrackerInput, Display, Hubable {
 
             logger.info("Registered ${d3dImages.size} shared handles")
 
+            subscribe("transforms.ViewTransforms")
+
             if(d3dImages.isEmpty() || commandBuffers.size == 0) {
                 logger.error("Did not get any Vulkan render targets back!")
                 return
@@ -557,5 +558,52 @@ class Hololens: TrackerInput, Display, Hubable {
 
     override fun getTrackedDevices(ofType: TrackedDeviceType): Map<String, TrackedDevice> {
         TODO("Not implemented yet")
+    }
+
+    private fun subscribe(topic: String) {
+        if(!subscriberSockets.containsKey(topic)) {
+
+            val job = launch {
+                val socket = zmqContext.createSocket(ZMQ.SUB)
+                val poller = ZPoller(zmqContext)
+                poller.register(socket, ZMQ.Poller.POLLIN)
+
+                try {
+                    socket.connect("tcp://localhost:${defaultPort+1}")
+                    socket.subscribe(topic)
+                    logger.info("Subscribed to topic $topic")
+
+                    while (isActive) {
+                        poller.poll(1)
+
+                        if(poller.isReadable(socket)) {
+                            val msg = ZMsg.recvMsg(socket)
+                            val msgType = msg.popString()
+
+                            when(msgType) {
+                                "transforms.ViewTransforms" -> {
+                                    val matrixData = msg.pop().data
+                                    assert(matrixData.size == 128)
+
+                                    val b0 = ByteBuffer.wrap(matrixData).order(ByteOrder.LITTLE_ENDIAN).limit(16 * 4) as ByteBuffer
+                                    b0.asFloatBuffer().get(poseLeft.floatArray)
+
+                                    (b0.position(16 * 4).limit(16 * 8) as ByteBuffer).asFloatBuffer().get(poseRight.floatArray)
+                                }
+                            }
+
+                            msg.destroy()
+                        }
+                    }
+                } finally {
+                    logger.debug("Closing topic socket for $topic")
+                    poller.unregister(socket)
+                    poller.close()
+                    socket.close()
+                }
+            }
+
+            subscriberSockets[topic] = job
+        }
     }
 }
