@@ -12,6 +12,6 @@ import cleargl.GLVector
  */
 open class Skybox : Box(GLVector(50.0f, 50.0f, 50.0f)) {
     init {
-        material = ShaderMaterial(arrayListOf("Skybox.vert", "DefaultDeferred.frag"))
+        material = ShaderMaterial.fromFiles("Skybox.vert", "DefaultDeferred.frag")
     }
 }

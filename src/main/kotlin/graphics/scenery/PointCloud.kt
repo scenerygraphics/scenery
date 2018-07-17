@@ -35,7 +35,7 @@ open class PointCloud(var pointRadius: Float = 0.1f, override var name: String =
     init {
         // we are going to use shader files whose name is derived from the class name.
         // -> PointCloud.vert, PointCloud.frag
-        useClassDerivedShader = true
+        material = ShaderMaterial.fromClass(this::class.java)
     }
 
     /**

@@ -57,7 +57,7 @@ class BloodCellsExample : SceneryBase("BloodCellsExample", windowWidth = 1280, w
 
         val erythrocyte = Mesh()
         erythrocyte.readFromOBJ(getDemoFilesPath() + "/erythrocyte_simplified.obj")
-        erythrocyte.material = ShaderMaterial(arrayListOf("DefaultDeferredInstanced.vert", "DefaultDeferred.frag"))
+        erythrocyte.material = ShaderMaterial.fromFiles("DefaultDeferredInstanced.vert", "DefaultDeferred.frag")
         erythrocyte.material.ambient = GLVector(0.1f, 0.0f, 0.0f)
         erythrocyte.material.diffuse = GLVector(0.9f, 0.0f, 0.02f)
         erythrocyte.material.specular = GLVector(0.05f, 0f, 0f)
@@ -71,7 +71,7 @@ class BloodCellsExample : SceneryBase("BloodCellsExample", windowWidth = 1280, w
         val leucocyte = Mesh()
         leucocyte.readFromOBJ(getDemoFilesPath() + "/leukocyte_simplified.obj")
         leucocyte.name = "leucocyte_Master"
-        leucocyte.material = ShaderMaterial(arrayListOf("DefaultDeferredInstanced.vert", "DefaultDeferred.frag"))
+        leucocyte.material = ShaderMaterial.fromFiles("DefaultDeferredInstanced.vert", "DefaultDeferred.frag")
         leucocyte.material.ambient = GLVector(0.1f, 0.0f, 0.0f)
         leucocyte.material.diffuse = GLVector(0.8f, 0.7f, 0.7f)
         leucocyte.material.specular = GLVector(0.05f, 0f, 0f)

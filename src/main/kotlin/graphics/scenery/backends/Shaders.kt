@@ -3,26 +3,35 @@ package graphics.scenery.backends
 import graphics.scenery.BufferUtils
 import graphics.scenery.spirvcrossj.*
 import graphics.scenery.utils.LazyLogger
+import sun.plugin.dom.exception.InvalidStateException
 import java.nio.ByteBuffer
 import java.util.*
 
-sealed class Shaders(val target: ShaderTarget) {
+sealed class Shaders() {
     val logger by LazyLogger()
     enum class SourceSPIRVPriority { SourcePriority, SPIRVPriority }
     enum class ShaderTarget { Vulkan, OpenGL }
 
     data class ShaderPackage(val baseClass: Class<*>,
+                             val type: ShaderType,
                              val spirvPath: String?,
                              val codePath: String?,
                              val spirv: ByteArray?,
                              val code: String?,
                              var priority: SourceSPIRVPriority) {
+        val logger by LazyLogger()
 
         init {
             val sourceNewer = if(code != null) {
                 val codeDate = Date(baseClass.getResource(codePath).openConnection().lastModified)
                 val spirvDate = if(spirv != null) {
-                    Date(baseClass.getResource(spirvPath).openConnection().lastModified + 500)
+                    logger.info("base: $baseClass path=$spirvPath")
+                    val res = baseClass.getResource(spirvPath)
+                    if(res == null) {
+                        Date(0)
+                    } else {
+                        Date(res.openConnection().lastModified + 500)
+                    }
                 } else {
                     Date(0)
                 }
@@ -37,6 +46,26 @@ sealed class Shaders(val target: ShaderTarget) {
             } else {
                 SourceSPIRVPriority.SPIRVPriority
             }
+        }
+
+        fun getSPIRVBytecode(): IntVec? {
+            val bytecode = IntVec()
+
+            if(spirv == null) {
+                return null
+            }
+
+            val buffer = BufferUtils.allocateByteAndPut(spirv).asIntBuffer()
+
+            while(buffer.hasRemaining()) {
+                bytecode.pushBack(1L*buffer.get())
+            }
+
+            return bytecode
+        }
+
+        fun toShortString(): String {
+            return "${this.codePath}/${this.spirvPath}/${this.type}"
         }
     }
 
@@ -58,18 +87,17 @@ sealed class Shaders(val target: ShaderTarget) {
         Shaders.ShaderType.ComputeShader -> ".comp"
     }
 
-    abstract class ShaderFactory(target: ShaderTarget) : Shaders(target) {
-        abstract fun construct(type: ShaderType): ShaderPackage
-        override fun get(type: ShaderType): ShaderPackage {
-            return construct(type)
+    abstract class ShaderFactory : Shaders() {
+        abstract fun construct(target: ShaderTarget, type: ShaderType): ShaderPackage
+        override fun get(target: ShaderTarget, type: ShaderType): ShaderPackage {
+            return construct(target, type)
         }
     }
 
-    open class ShadersFromFiles(target: ShaderTarget,
-                           val shaders: Array<String>,
-                           val clazz: Class<*> = Renderer::class.java) : Shaders(target) {
-        override fun get(type: ShaderType): ShaderPackage {
-            val shaderCodePath = shaders.find { it.endsWith(type.toExtension()) } ?: throw ShaderNotFoundException("Could not locate $type from ${shaders.joinToString(", ")}")
+    open class ShadersFromFiles(val shaders: Array<String>,
+                           val clazz: Class<*> = Renderer::class.java) : Shaders() {
+        override fun get(target: ShaderTarget, type: ShaderType): ShaderPackage {
+            val shaderCodePath = shaders.find { it.endsWith(type.toExtension()) || it.endsWith(type.toExtension() + ".spv") } ?: throw ShaderNotFoundException("Could not locate $type from ${shaders.joinToString(", ")}")
             val spirvPath: String
             val codePath: String
 
@@ -81,26 +109,30 @@ sealed class Shaders(val target: ShaderTarget) {
                 codePath = shaderCodePath
             }
 
-            val baseClass = arrayOf(spirvPath, codePath).mapNotNull { safeFindBaseClass(arrayOf(clazz), it) }
+            val baseClass = arrayOf(spirvPath, codePath).mapNotNull { safeFindBaseClass(arrayOf(clazz, Renderer::class.java), it) }
 
             if(baseClass.isEmpty()) {
                 throw ShaderCompilationException("Shader files for $shaderCodePath not found.")
             }
 
             val base = baseClass.first()
+
+            val spirvFromFile: ByteArray? = base.getResourceAsStream(spirvPath)?.readBytes()
+            val codeFromFile: String? = base.getResourceAsStream(codePath)?.bufferedReader().use { it?.readText() }
+
             val shaderPackage = ShaderPackage(base,
+                type,
                 spirvPath,
                 codePath,
-                base.getResourceAsStream(spirvPath)?.readBytes(),
-                base.getResourceAsStream(codePath)?.readBytes()?.contentToString(),
+                spirvFromFile,
+                codeFromFile,
                 SourceSPIRVPriority.SourcePriority)
 
-            val code: ByteBuffer
             val sourceCode: String
 
             val spirv = if(shaderPackage.spirv != null && shaderPackage.priority == SourceSPIRVPriority.SPIRVPriority) {
-                code = BufferUtils.allocateByteAndPut(shaderPackage.spirv)
-                val bytecode = code.toSPIRVBytecode()
+                val bytecode = shaderPackage.getSPIRVBytecode() ?: throw IllegalStateException("SPIRV bytecode not found")
+                logger.info("Using SPIRV version, ${bytecode.size()} opcodes")
                 val compiler = CompilerGLSL(bytecode)
 
                 val options = CompilerGLSL.Options()
@@ -175,14 +207,20 @@ sealed class Shaders(val target: ShaderTarget) {
                 throw ShaderCompilationException("Neither code nor compiled SPIRV file found for $shaderCodePath")
             }
 
-            return ShaderPackage(base, spirvPath, codePath, spirv.toByteArray(), sourceCode, shaderPackage.priority)
+            return ShaderPackage(base,
+                type,
+                spirvPath,
+                codePath,
+                spirv.toByteArray(),
+                sourceCode,
+                shaderPackage.priority)
         }
     }
 
-    class ShadersFromClassName(target: ShaderTarget, clazz: Class<*>):
-        ShadersFromFiles(target, arrayOf(".vert", ".geom", ".tese", ".tesc", ".frag", ".comp").map { "${clazz.simpleName}$it" }.toTypedArray())
+    class ShadersFromClassName(clazz: Class<*>):
+        ShadersFromFiles(arrayOf(".vert", ".geom", ".tese", ".tesc", ".frag", ".comp").map { "${clazz.simpleName}$it" }.toTypedArray())
 
-    abstract fun get(type: ShaderType): ShaderPackage
+    abstract fun get(target: ShaderTarget, type: ShaderType): ShaderPackage
 
     protected fun safeFindBaseClass(classes: Array<Class<*>>, path: String): Class<*>? {
         val streams = classes.map { clazz ->
@@ -207,7 +245,7 @@ sealed class Shaders(val target: ShaderTarget) {
         }
     }
 
-    protected fun ByteBuffer.toSPIRVBytecode(): IntVec {
+    fun ByteBuffer.toSPIRVBytecode(): IntVec {
         val bytecode = IntVec()
         val ib = this.asIntBuffer()
 
