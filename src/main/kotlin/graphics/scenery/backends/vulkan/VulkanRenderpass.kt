@@ -5,7 +5,8 @@ import graphics.scenery.GeometryType
 import graphics.scenery.Node
 import graphics.scenery.Settings
 import graphics.scenery.backends.RenderConfigReader
-import graphics.scenery.backends.Renderer
+import graphics.scenery.backends.ShaderNotFoundException
+import graphics.scenery.backends.Shaders
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.RingBuffer
 import org.lwjgl.system.MemoryUtil
@@ -357,7 +358,20 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
      * Initialiases the default [VulkanPipeline] for this renderpass.
      */
     fun initializeDefaultPipeline() {
-        initializePipeline("default", passConfig.shaders.map { VulkanShaderModule.getFromCacheOrCreate(device, "main", Renderer::class.java, "shaders/$it") })
+        val shaders = Shaders.ShadersFromFiles(passConfig.shaders.map { "shaders/$it" }.toTypedArray())
+        logger.info("shaders: $shaders")
+        val shaderModules = Shaders.ShaderType.values().mapNotNull { type ->
+            try {
+                VulkanShaderModule.getFromCacheOrCreate(device, "main", shaders.get(Shaders.ShaderTarget.Vulkan, type))
+            } catch (e: ShaderNotFoundException) {
+                logger.info("Shader not found: $type")
+                null
+            }
+        }
+
+        logger.info("ShaderModules: $shaderModules")
+
+        initializePipeline("default", shaderModules)
     }
 
     /**

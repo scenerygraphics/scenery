@@ -6,6 +6,7 @@ import graphics.scenery.utils.LazyLogger
 import sun.plugin.dom.exception.InvalidStateException
 import java.nio.ByteBuffer
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 
 sealed class Shaders() {
     val logger by LazyLogger()
@@ -109,10 +110,15 @@ sealed class Shaders() {
                 codePath = shaderCodePath
             }
 
-            val baseClass = arrayOf(spirvPath, codePath).mapNotNull { safeFindBaseClass(arrayOf(clazz, Renderer::class.java), it) }
+            val cached = cache[spirvPath to codePath]
+            if(cached != null) {
+                return cached
+            }
+
+            val baseClass = arrayOf(spirvPath, codePath).mapNotNull { safeFindBaseClass(arrayOf(clazz), it) }
 
             if(baseClass.isEmpty()) {
-                throw ShaderCompilationException("Shader files for $shaderCodePath not found.")
+                throw ShaderCompilationException("Shader files for $shaderCodePath ($spirvPath, $codePath) not found.")
             }
 
             val base = baseClass.first()
@@ -207,13 +213,20 @@ sealed class Shaders() {
                 throw ShaderCompilationException("Neither code nor compiled SPIRV file found for $shaderCodePath")
             }
 
-            return ShaderPackage(base,
+            val p = ShaderPackage(base,
                 type,
                 spirvPath,
                 codePath,
                 spirv.toByteArray(),
                 sourceCode,
                 shaderPackage.priority)
+
+            cache[spirvPath to codePath] = p
+            return p
+        }
+
+        companion object {
+            protected val cache = ConcurrentHashMap<Pair<String, String>, ShaderPackage>()
         }
     }
 
@@ -238,7 +251,7 @@ sealed class Shaders() {
         }
 
         return if(Renderer::class.java.getResourceAsStream(path) == null) {
-            logger.debug("Shader path $path not found in class path.")
+            logger.warn("Shader path $path not found in class path of Renderer.")
             null
         } else {
             Renderer::class.java
