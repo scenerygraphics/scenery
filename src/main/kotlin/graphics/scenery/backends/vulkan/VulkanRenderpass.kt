@@ -6,6 +6,7 @@ import graphics.scenery.Node
 import graphics.scenery.Settings
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.ShaderNotFoundException
+import graphics.scenery.backends.ShaderType
 import graphics.scenery.backends.Shaders
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.RingBuffer
@@ -360,7 +361,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
     fun initializeDefaultPipeline() {
         val shaders = Shaders.ShadersFromFiles(passConfig.shaders.map { "shaders/$it" }.toTypedArray())
         logger.info("shaders: $shaders")
-        val shaderModules = Shaders.ShaderType.values().mapNotNull { type ->
+        val shaderModules = ShaderType.values().mapNotNull { type ->
             try {
                 VulkanShaderModule.getFromCacheOrCreate(device, "main", shaders.get(Shaders.ShaderTarget.Vulkan, type))
             } catch (e: ShaderNotFoundException) {

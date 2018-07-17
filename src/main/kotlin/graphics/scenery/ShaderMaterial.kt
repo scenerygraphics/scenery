@@ -10,15 +10,15 @@ import graphics.scenery.backends.Shaders
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class ShaderMaterial(var shaders: Shaders) : Material() {
+    /** Factory functions for ShaderMaterial */
     companion object {
-//        fun fromFiles(files: Array<String>): ShaderMaterial {
-//            return ShaderMaterial(Shaders.ShadersFromFiles(files))
-//        }
 
+        /** Creates a new file-based ShaderMaterial from a list of [files]. */
         fun fromFiles(vararg files: String): ShaderMaterial {
             return ShaderMaterial(Shaders.ShadersFromFiles(files.toList().toTypedArray()))
         }
 
+        /** Creates a new file-based ShaderMaterial the simpleName of the class [clazz]. */
         fun fromClass(clazz: Class<*>): ShaderMaterial {
             return ShaderMaterial(Shaders.ShadersFromClassName(clazz))
         }

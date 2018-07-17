@@ -827,7 +827,7 @@ open class VulkanRenderer(hub: Hub,
 
                     logger.debug("Shaders are: ${shaders}")
 
-                    val shaderModules = Shaders.ShaderType.values().mapNotNull { type ->
+                    val shaderModules = ShaderType.values().mapNotNull { type ->
                         try {
                             VulkanShaderModule.getFromCacheOrCreate(device, "main", shaders.get(Shaders.ShaderTarget.OpenGL, type))
                         } catch (e: ShaderNotFoundException) {

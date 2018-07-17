@@ -3,100 +3,51 @@ package graphics.scenery.backends
 import graphics.scenery.BufferUtils
 import graphics.scenery.spirvcrossj.*
 import graphics.scenery.utils.LazyLogger
-import sun.plugin.dom.exception.InvalidStateException
 import java.nio.ByteBuffer
-import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
-sealed class Shaders() {
+/**
+ * Shaders handling class.
+ *
+ * @author Ulrik Guenther <hello@ulrik.is>
+ */
+sealed class Shaders {
     val logger by LazyLogger()
-    enum class SourceSPIRVPriority { SourcePriority, SPIRVPriority }
+
+    /**
+     * Enum to indicate whether a shader will target Vulkan or OpenGL.
+     */
     enum class ShaderTarget { Vulkan, OpenGL }
 
-    data class ShaderPackage(val baseClass: Class<*>,
-                             val type: ShaderType,
-                             val spirvPath: String?,
-                             val codePath: String?,
-                             val spirv: ByteArray?,
-                             val code: String?,
-                             var priority: SourceSPIRVPriority) {
-        val logger by LazyLogger()
-
-        init {
-            val sourceNewer = if(code != null) {
-                val codeDate = Date(baseClass.getResource(codePath).openConnection().lastModified)
-                val spirvDate = if(spirv != null) {
-                    logger.info("base: $baseClass path=$spirvPath")
-                    val res = baseClass.getResource(spirvPath)
-                    if(res == null) {
-                        Date(0)
-                    } else {
-                        Date(res.openConnection().lastModified + 500)
-                    }
-                } else {
-                    Date(0)
-                }
-
-                codeDate.after(spirvDate)
-            } else {
-                false
-            }
-
-            priority = if(sourceNewer) {
-                SourceSPIRVPriority.SourcePriority
-            } else {
-                SourceSPIRVPriority.SPIRVPriority
-            }
-        }
-
-        fun getSPIRVBytecode(): IntVec? {
-            val bytecode = IntVec()
-
-            if(spirv == null) {
-                return null
-            }
-
-            val buffer = BufferUtils.allocateByteAndPut(spirv).asIntBuffer()
-
-            while(buffer.hasRemaining()) {
-                bytecode.pushBack(1L*buffer.get())
-            }
-
-            return bytecode
-        }
-
-        fun toShortString(): String {
-            return "${this.codePath}/${this.spirvPath}/${this.type}"
-        }
-    }
-
-    enum class ShaderType {
-        VertexShader,
-        TessellationControlShader,
-        TessellationEvaluationShader,
-        GeometryShader,
-        FragmentShader,
-        ComputeShader
-    }
-
-    fun ShaderType.toExtension(): String = when(this) {
-        Shaders.ShaderType.VertexShader -> ".vert"
-        Shaders.ShaderType.TessellationControlShader -> ".tesc"
-        Shaders.ShaderType.TessellationEvaluationShader -> ".tese"
-        Shaders.ShaderType.GeometryShader -> ".geom"
-        Shaders.ShaderType.FragmentShader -> ".frag"
-        Shaders.ShaderType.ComputeShader -> ".comp"
-    }
-
+    /**
+     * Abstract base class for custom shader factories.
+     */
     abstract class ShaderFactory : Shaders() {
+        /**
+         * Invoked by [get] to actually construct a [ShaderPackage].
+         */
         abstract fun construct(target: ShaderTarget, type: ShaderType): ShaderPackage
+
+        /**
+         * Returns a [ShaderPackage] targeting [target] (OpenGL or Vulkan), containing
+         * a shader of [type].
+         */
         override fun get(target: ShaderTarget, type: ShaderType): ShaderPackage {
             return construct(target, type)
         }
     }
 
+    /**
+     * Base class for producing a shader provider that is backed by files given in
+     * [shaders], which are assumed to be relative to a class [clazz].
+     */
     open class ShadersFromFiles(val shaders: Array<String>,
                            val clazz: Class<*> = Renderer::class.java) : Shaders() {
+
+        /**
+         * Returns a [ShaderPackage] targeting [target] (OpenGL or Vulkan), containing
+         * a shader of [type].
+         */
         override fun get(target: ShaderTarget, type: ShaderType): ShaderPackage {
             val shaderCodePath = shaders.find { it.endsWith(type.toExtension()) || it.endsWith(type.toExtension() + ".spv") } ?: throw ShaderNotFoundException("Could not locate $type from ${shaders.joinToString(", ")}")
             val spirvPath: String
@@ -225,16 +176,33 @@ sealed class Shaders() {
             return p
         }
 
+        /**
+         * Companion object providing a cache for preventing repeated compilations.
+         */
         companion object {
             protected val cache = ConcurrentHashMap<Pair<String, String>, ShaderPackage>()
         }
     }
 
+    /**
+     * Shader provider for deriving a [ShadersFromFiles] provider just by using
+     * the simpleName of [clazz].
+     */
     class ShadersFromClassName(clazz: Class<*>):
         ShadersFromFiles(arrayOf(".vert", ".geom", ".tese", ".tesc", ".frag", ".comp").map { "${clazz.simpleName}$it" }.toTypedArray())
 
+    /**
+     * Abstract functions all shader providers will have to implement, for returning
+     * a [ShaderPackage] containing both source code and SPIRV, targeting [target],
+     * and being of [ShaderType] [type].
+     */
     abstract fun get(target: ShaderTarget, type: ShaderType): ShaderPackage
 
+    /**
+     * Finds the base class for a resource given by [path], and falls back to
+     * [Renderer] in case it is not found before. Returns null if the file cannot
+     * be located.
+     */
     protected fun safeFindBaseClass(classes: Array<Class<*>>, path: String): Class<*>? {
         val streams = classes.map { clazz ->
             clazz to clazz.getResourceAsStream(path)
@@ -258,17 +226,9 @@ sealed class Shaders() {
         }
     }
 
-    fun ByteBuffer.toSPIRVBytecode(): IntVec {
-        val bytecode = IntVec()
-        val ib = this.asIntBuffer()
-
-        while(ib.hasRemaining()) {
-            bytecode.pushBack(1L*ib.get())
-        }
-
-        return bytecode
-    }
-
+    /**
+     * Converts an glslang-compatible IntVec to a [ByteBuffer].
+     */
     protected fun IntVec.toByteBuffer(): ByteBuffer {
         val buf = BufferUtils.allocateByte(this.size().toInt()*4)
         val ib = buf.asIntBuffer()
@@ -280,6 +240,9 @@ sealed class Shaders() {
         return buf
     }
 
+    /**
+     * Converts an glslang-compatible IntVec to a [ByteArray].
+     */
     protected fun IntVec.toByteArray(): ByteArray {
         val buf = this.toByteBuffer()
         val array = ByteArray(buf.capacity())

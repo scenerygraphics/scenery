@@ -3,7 +3,8 @@ package graphics.scenery.backends.opengl
 import cleargl.GLShader
 import cleargl.GLShaderType
 import com.jogamp.opengl.GL4
-import graphics.scenery.backends.Shaders
+import graphics.scenery.backends.ShaderPackage
+import graphics.scenery.backends.ShaderType
 import graphics.scenery.spirvcrossj.*
 import graphics.scenery.utils.LazyLogger
 import java.util.concurrent.ConcurrentHashMap
@@ -15,12 +16,12 @@ import kotlin.collections.LinkedHashMap
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-open class OpenGLShaderModule(gl: GL4, entryPoint: String, sp: Shaders.ShaderPackage) {
+open class OpenGLShaderModule(gl: GL4, entryPoint: String, sp: ShaderPackage) {
     protected val logger by LazyLogger()
 
     var shader: GLShader
         private set
-    var shaderType: Shaders.ShaderType
+    var shaderType: ShaderType
         private set
     var uboSpecs = LinkedHashMap<String, UBOSpec>()
 
@@ -204,26 +205,36 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, sp: Shaders.ShaderPac
         }
     }
 
-    private fun toClearGLShaderType(type: Shaders.ShaderType): GLShaderType {
+    private fun toClearGLShaderType(type: ShaderType): GLShaderType {
         return when(type) {
-            Shaders.ShaderType.VertexShader -> GLShaderType.VertexShader
-            Shaders.ShaderType.FragmentShader -> GLShaderType.FragmentShader
-            Shaders.ShaderType.TessellationControlShader -> GLShaderType.TesselationControlShader
-            Shaders.ShaderType.TessellationEvaluationShader -> GLShaderType.TesselationEvaluationShader
-            Shaders.ShaderType.GeometryShader -> GLShaderType.GeometryShader
-            Shaders.ShaderType.ComputeShader -> GLShaderType.ComputeShader
+            ShaderType.VertexShader -> GLShaderType.VertexShader
+            ShaderType.FragmentShader -> GLShaderType.FragmentShader
+            ShaderType.TessellationControlShader -> GLShaderType.TesselationControlShader
+            ShaderType.TessellationEvaluationShader -> GLShaderType.TesselationEvaluationShader
+            ShaderType.GeometryShader -> GLShaderType.GeometryShader
+            ShaderType.ComputeShader -> GLShaderType.ComputeShader
         }
     }
 
+    /**
+     * Returns a string representation of this module.
+     */
     override fun toString(): String {
         return "$shader: $shaderType with UBOs ${uboSpecs.keys.joinToString(", ") }}"
     }
 
+    /**
+     * Factory methods and cache.
+     */
     companion object {
-        private data class ShaderSignature(val gl: GL4, val p: Shaders.ShaderPackage)
+        private data class ShaderSignature(val gl: GL4, val p: ShaderPackage)
         private val shaderModuleCache = ConcurrentHashMap<ShaderSignature, OpenGLShaderModule>()
 
-        @JvmStatic fun getFromCacheOrCreate(gl: GL4, entryPoint: String, sp: Shaders.ShaderPackage): OpenGLShaderModule {
+        /**
+         * Creates a new [OpenGLShaderModule] or returns it from the cache.
+         * Must be given a [ShaderPackage] [sp], a [gl], and the name for the main [entryPoint].
+         */
+        @JvmStatic fun getFromCacheOrCreate(gl: GL4, entryPoint: String, sp: ShaderPackage): OpenGLShaderModule {
             val signature = ShaderSignature(gl, sp)
 
             return if(shaderModuleCache.containsKey(signature)) {

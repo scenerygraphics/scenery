@@ -619,9 +619,9 @@ open class OpenGLRenderer(hub: Hub,
 
     protected fun prepareShaderProgram(shaders: Shaders): OpenGLShaderProgram? {
 
-        val modules = HashMap<Shaders.ShaderType, OpenGLShaderModule>()
+        val modules = HashMap<ShaderType, OpenGLShaderModule>()
 
-        Shaders.ShaderType.values().forEach { type ->
+        ShaderType.values().forEach { type ->
             try {
                 val m = OpenGLShaderModule.getFromCacheOrCreate(gl, "main", shaders.get(Shaders.ShaderTarget.OpenGL, type))
                 modules[m.shaderType] = m
