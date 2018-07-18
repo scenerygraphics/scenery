@@ -1,6 +1,7 @@
 package graphics.scenery
 
 import cleargl.GLVector
+import graphics.scenery.backends.ShaderType
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 
@@ -51,7 +52,7 @@ class Line(var capacity: Int = 50) : Node("Line"), HasGeometry {
     var edgeWidth = 2.0f
 
     init {
-        material = ShaderMaterial.fromClass(this::class.java)
+        material = ShaderMaterial.fromClass(this::class.java, listOf(ShaderType.VertexShader, ShaderType.GeometryShader, ShaderType.FragmentShader))
         vertices.limit(0)
         normals.limit(0)
         texcoords.limit(0)
