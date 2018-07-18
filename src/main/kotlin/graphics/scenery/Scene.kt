@@ -3,6 +3,7 @@ package graphics.scenery
 import kotlinx.coroutines.experimental.*
 import kotlinx.coroutines.experimental.channels.Channel
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.collections.ArrayList
 
@@ -21,6 +22,11 @@ open class Scene : Node("RootNode") {
 
     /** Temporary storage for lights */
     var lights = ArrayList<Node>()
+
+    /** Callbacks to be called when a child is added to the scene */
+    var onChildrenAdded = ConcurrentHashMap<String, (Node, Node) -> Unit>()
+    /** Callbacks to be called when a child is removed from the scene */
+    var onChildrenRemoved = ConcurrentHashMap<String, (Node, Node) -> Unit>()
 
     /**
      * Adds a [Node] to the Scene, at the position given by [parent]
