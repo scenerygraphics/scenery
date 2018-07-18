@@ -1737,6 +1737,10 @@ open class VulkanRenderer(hub: Hub,
         val ubosUpdated = updateDefaultUBOs(device)
         stats?.add("Renderer.updateUBOs", System.nanoTime() - startUboUpdate)
 
+        if(ubosUpdated) {
+            async { scene.onNodePropertiesChanged.forEach { it.value.invoke() } }
+        }
+
         val startInstanceUpdate = System.nanoTime()
         updateInstanceBuffers(sceneObjects)
         stats?.add("Renderer.updateInstanceBuffers", System.nanoTime() - startInstanceUpdate)
