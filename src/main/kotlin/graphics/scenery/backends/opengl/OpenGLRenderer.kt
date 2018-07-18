@@ -939,6 +939,7 @@ open class OpenGLRenderer(hub: Hub,
 
         sceneUBOs.forEach { node ->
             node.lock.withLock {
+                var nodeUpdated: Boolean by StickyBoolean(initial = false)
                 if (!node.metadata.containsKey(this.javaClass.simpleName)) {
                     return@withLock
                 }
@@ -952,13 +953,13 @@ open class OpenGLRenderer(hub: Hub,
                 var bufferOffset = ubo.backingBuffer!!.advance()
                 ubo.offset = bufferOffset
                 node.view.copyFrom(cam.view)
-                updated = ubo.populate(offset = bufferOffset.toLong())
+                nodeUpdated = ubo.populate(offset = bufferOffset.toLong())
 
                 val materialUbo = (node.metadata["OpenGLRenderer"]!! as OpenGLObjectState).UBOs["MaterialProperties"]!!
                 bufferOffset = ubo.backingBuffer.advance()
                 materialUbo.offset = bufferOffset
 
-                updated = materialUbo.populate(offset = bufferOffset.toLong())
+                nodeUpdated = materialUbo.populate(offset = bufferOffset.toLong())
 
                 if (s.UBOs.containsKey("ShaderProperties")) {
                     val propertyUbo = s.UBOs["ShaderProperties"]!!
@@ -968,12 +969,18 @@ open class OpenGLRenderer(hub: Hub,
                     propertyUbo.offset = offset
                 }
 
-                updated = if (node.material.needsTextureReload) {
+                nodeUpdated = if (node.material.needsTextureReload) {
                     loadTexturesForNode(node, s)
                     true
                 } else {
                     false
                 }
+
+                if(nodeUpdated) {
+                    async { node.getScene()?.onNodePropertiesChanged?.forEach { it.value.invoke(node) } }
+                }
+
+                updated = nodeUpdated
             }
         }
 
@@ -1365,10 +1372,6 @@ open class OpenGLRenderer(hub: Hub,
         val startUboUpdate = System.nanoTime()
         val updated = updateDefaultUBOs()
         stats?.add("OpenGLRenderer.updateUBOs", System.nanoTime() - startUboUpdate)
-
-        if(updated) {
-            async { scene.onNodePropertiesChanged.forEach { it.value.invoke() } }
-        }
 
         val actualSceneObjects = sceneObjects.await().toTypedArray()
         val sceneUpdated = !actualSceneObjects.contentDeepEquals(previousSceneObjects)
