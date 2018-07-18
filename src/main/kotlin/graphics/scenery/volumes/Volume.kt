@@ -177,7 +177,7 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         material.blending.colorBlending = Blending.BlendOp.add
         material.blending.alphaBlending = Blending.BlendOp.add
 
-        this.useClassDerivedShader = true
+        material = ShaderMaterial.fromClass(this::class.java)
         this.material.cullingMode = Material.CullingMode.None
 
         colormaps.put("grays", this.javaClass.getResource("colormap-grays.png").file)

@@ -582,7 +582,8 @@ open class OpenGLRenderer(hub: Hub,
                 (pass.passConfig.viewportOffset.second * height).toInt())
 
             pass.openglMetadata.eye = pass.passConfig.eye
-            pass.defaultShader = prepareShaderProgram(Renderer::class.java, pass.passConfig.shaders.toTypedArray())
+            pass.defaultShader = prepareShaderProgram(
+                Shaders.ShadersFromFiles(pass.passConfig.shaders.map { "shaders/$it" }.toTypedArray()))
 
             pass.initializeShaderParameters(settings, buffers["ShaderParametersBuffer"]!!)
 
@@ -616,26 +617,19 @@ open class OpenGLRenderer(hub: Hub,
         return passes
     }
 
-    protected fun prepareShaderProgram(baseClass: Class<*>, shaders: Array<String>): OpenGLShaderProgram? {
+    protected fun prepareShaderProgram(shaders: Shaders): OpenGLShaderProgram? {
 
-        val modules = HashMap<GLShaderType, OpenGLShaderModule>()
+        val modules = HashMap<ShaderType, OpenGLShaderModule>()
 
-        shaders.forEach {
-            if (baseClass.getResource("shaders/$it") != null) {
-                val m = OpenGLShaderModule.getFromCacheOrCreate(gl, "main", baseClass, "shaders/$it")
+        ShaderType.values().forEach { type ->
+            try {
+                val m = OpenGLShaderModule.getFromCacheOrCreate(gl, "main", shaders.get(Shaders.ShaderTarget.OpenGL, type))
                 modules[m.shaderType] = m
-            } else {
-                if(Renderer::class.java.getResource("shaders/$it") != null && baseClass !is Renderer) {
-                    val m = OpenGLShaderModule.getFromCacheOrCreate(gl, "main", Renderer::class.java, "shaders/$it")
-                    modules[m.shaderType] = m
+            } catch (e: ShaderNotFoundException) {
+                if(shaders is Shaders.ShadersFromFiles) {
+                    logger.info("Could not locate shader for $shaders, type=$type, ${shaders.shaders.joinToString(",")}")
                 } else {
-                    if(Renderer::class.java.getResource("shaders/" + it.substringBeforeLast(".spv")) != null && baseClass !is Renderer) {
-                        val m = OpenGLShaderModule.getFromCacheOrCreate(gl, "main", Renderer::class.java, "shaders/$it")
-                        modules[m.shaderType] = m
-                    } else {
-                        logger.warn("Shader not found: shaders/$it")
-                        return null
-                    }
+                    logger.info("Could not locate shader for $shaders, type=$type.")
                 }
             }
         }
@@ -1936,30 +1930,11 @@ open class OpenGLRenderer(hub: Hub,
         gl.glGenBuffers(1, s.mIndexBuffer, 0)
 
         when {
-            node.useClassDerivedShader -> {
-                val javaClass = node.javaClass.simpleName
-                val className = javaClass.substring(javaClass.indexOf(".") + 1)
-
-                val shaders = arrayOf(".vert", ".geom", ".tese", ".tesc", ".frag", ".comp")
-                    .map { "$className$it" }
-                    .filter {
-                        Renderer::class.java.getResource("shaders/$it") != null
-                    }
-
-                try {
-                    s.shader = prepareShaderProgram(Renderer::class.java, shaders.toTypedArray())
-                } catch (e: ShaderCompilationException) {
-                    logger.warn("Shader compilation for node ${node.name} with shaders $shaders failed, falling back to default shaders.")
-                    logger.warn("Shader compiler error was: ${e.message}")
-                    s.shader = null
-                }
-            }
-
             node.material is ShaderMaterial -> {
-                val shaders = (node.material as ShaderMaterial).shaders.toTypedArray()
+                val shaders = (node.material as ShaderMaterial).shaders
 
                 try {
-                    s.shader = prepareShaderProgram(node.javaClass, shaders)
+                    s.shader = prepareShaderProgram(shaders)
                 } catch (e: ShaderCompilationException) {
                     logger.warn("Shader compilation for node ${node.name} with shaders $shaders failed, falling back to default shaders.")
                     logger.warn("Shader compiler error was: ${e.message}")
@@ -2016,7 +1991,7 @@ open class OpenGLRenderer(hub: Hub,
             with(shaderPropertyUBO) {
                 name = "ShaderProperties"
 
-                val shader = if (node.useClassDerivedShader || node.material is ShaderMaterial) {
+                val shader = if (node.material is ShaderMaterial) {
                     s.shader
                 } else {
                     renderpasses.filter {

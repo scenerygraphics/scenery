@@ -59,7 +59,7 @@ class TextBoard(font: String = "SourceSansPro-Regular.ttf", override var isBillb
     init {
         name = "TextBoard"
         fontFamily = font
-        material = ShaderMaterial(arrayListOf("DefaultForward.vert", "TextBoard.frag"))
+        material = ShaderMaterial.fromFiles("DefaultForward.vert", "TextBoard.frag")
         material.blending.transparent = true
         material.blending.sourceColorBlendFactor = Blending.BlendFactor.One
         material.blending.destinationColorBlendFactor = Blending.BlendFactor.OneMinusSrcAlpha
