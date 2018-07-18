@@ -1737,10 +1737,6 @@ open class VulkanRenderer(hub: Hub,
         val ubosUpdated = updateDefaultUBOs(device)
         stats?.add("Renderer.updateUBOs", System.nanoTime() - startUboUpdate)
 
-        if(ubosUpdated) {
-            async { scene.onNodePropertiesChanged.forEach { it.value.invoke() } }
-        }
-
         val startInstanceUpdate = System.nanoTime()
         updateInstanceBuffers(sceneObjects)
         stats?.add("Renderer.updateInstanceBuffers", System.nanoTime() - startInstanceUpdate)
@@ -2798,6 +2794,8 @@ open class VulkanRenderer(hub: Hub,
 
         sceneUBOs.forEach { node ->
             node.lock.withLock {
+                var nodeUpdated: Boolean by StickyBoolean(initial = false)
+
                 if (!node.metadata.containsKey("VulkanRenderer") || node.instanceOf != null) {
                     return@withLock
                 }
@@ -2818,23 +2816,29 @@ open class VulkanRenderer(hub: Hub,
 
                 node.view.copyFrom(cam.view)
 
-                updated = ubo.populate(offset = bufferOffset.toLong())
+                nodeUpdated = ubo.populate(offset = bufferOffset.toLong())
 
                 val materialUbo = s.UBOs["MaterialProperties"]!!.second
                 bufferOffset = ubo.backingBuffer!!.advance()
                 materialUbo.offsets.put(0, bufferOffset)
                 materialUbo.offsets.limit(1)
 
-                updated = materialUbo.populate(offset = bufferOffset.toLong())
+                nodeUpdated = materialUbo.populate(offset = bufferOffset.toLong())
 
                 s.UBOs.filter { it.key.contains("ShaderProperties") && it.value.second.memberCount() > 0 }.forEach {
 //                if(s.requiredDescriptorSets.keys.any { it.contains("ShaderProperties") }) {
                     val propertyUbo = it.value.second
                     val offset = propertyUbo.backingBuffer!!.advance()
-                    updated = propertyUbo.populate(offset = offset.toLong())
+                    nodeUpdated = propertyUbo.populate(offset = offset.toLong())
                     propertyUbo.offsets.put(0, offset)
                     propertyUbo.offsets.limit(1)
                 }
+
+                if(nodeUpdated) {
+                    async { node.getScene()?.onNodePropertiesChanged?.forEach { it.value.invoke(node) } }
+                }
+
+                updated = nodeUpdated
             }
         }
 

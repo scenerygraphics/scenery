@@ -28,7 +28,7 @@ open class Scene : Node("RootNode") {
     /** Callbacks to be called when a child is removed from the scene */
     var onChildrenRemoved = ConcurrentHashMap<String, (Node, Node) -> Unit>()
     /** Callbacks to be called when a child is removed from the scene */
-    var onNodePropertiesChanged = ConcurrentHashMap<String, () -> Unit>()
+    var onNodePropertiesChanged = ConcurrentHashMap<String, (Node) -> Unit>()
 
     /**
      * Adds a [Node] to the Scene, at the position given by [parent]
