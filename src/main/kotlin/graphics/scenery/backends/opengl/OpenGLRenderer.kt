@@ -1366,6 +1366,10 @@ open class OpenGLRenderer(hub: Hub,
         val updated = updateDefaultUBOs()
         stats?.add("OpenGLRenderer.updateUBOs", System.nanoTime() - startUboUpdate)
 
+        if(updated) {
+            async { scene.onNodePropertiesChanged.forEach { it.value.invoke() } }
+        }
+
         val actualSceneObjects = sceneObjects.await().toTypedArray()
         val sceneUpdated = !actualSceneObjects.contentDeepEquals(previousSceneObjects)
 
