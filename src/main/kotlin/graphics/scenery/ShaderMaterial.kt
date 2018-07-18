@@ -1,5 +1,6 @@
 package graphics.scenery
 
+import graphics.scenery.backends.ShaderType
 import graphics.scenery.backends.Shaders
 
 /**
@@ -19,8 +20,8 @@ class ShaderMaterial(var shaders: Shaders) : Material() {
         }
 
         /** Creates a new file-based ShaderMaterial the simpleName of the class [clazz]. */
-        fun fromClass(clazz: Class<*>): ShaderMaterial {
-            return ShaderMaterial(Shaders.ShadersFromClassName(clazz))
+        @JvmOverloads fun fromClass(clazz: Class<*>, types: List<ShaderType> = listOf(ShaderType.VertexShader, ShaderType.FragmentShader)): ShaderMaterial {
+            return ShaderMaterial(Shaders.ShadersFromClassName(clazz, types))
         }
     }
 }
