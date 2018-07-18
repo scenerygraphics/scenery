@@ -439,7 +439,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
      * Will return null in case the Node is not attached to a [Scene] yet.
      */
     fun getScene(): Scene? {
-        var p: Node? = this.parent
+        var p: Node? = this
         while(p !is Scene && p != null) {
             p = p.parent
         }
