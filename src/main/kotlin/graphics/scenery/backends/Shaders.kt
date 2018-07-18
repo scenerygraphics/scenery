@@ -189,7 +189,7 @@ sealed class Shaders {
      * Shader provider for deriving a [ShadersFromFiles] provider just by using
      * the simpleName of [clazz].
      */
-    class ShadersFromClassName(clazz: Class<*>, shaderTypes: List<ShaderType> = listOf(ShaderType.VertexShader, ShaderType.FragmentShader)):
+    class ShadersFromClassName @JvmOverloads constructor(clazz: Class<*>, shaderTypes: List<ShaderType> = listOf(ShaderType.VertexShader, ShaderType.FragmentShader)):
         ShadersFromFiles(
             shaderTypes
                 .map { it.toExtension() }.toTypedArray()
