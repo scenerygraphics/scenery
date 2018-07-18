@@ -22,10 +22,10 @@ import kotlin.reflect.KProperty
  * @property[node] The node this behaviour controls
  * @property[w] Window width
  * @property[h] Window height
- * @property[target] Vector with the look-at target of the arcball
+ * @property[target] [GLVector]-supplying with the look-at target of the arcball
  * @constructor Creates a new ArcballCameraControl behaviour
  */
-open class ArcballCameraControl(private val name: String, private val n: () -> Camera?, private val w: Int, private val h: Int, initialTarget: GLVector = GLVector(0.0f, 0.0f, 0.0f)) : DragBehaviour, ScrollBehaviour {
+open class ArcballCameraControl(private val name: String, private val n: () -> Camera?, private val w: Int, private val h: Int, var target: () -> GLVector) : DragBehaviour, ScrollBehaviour {
     private var lastX = w / 2
     private var lastY = h / 2
     private var firstEntered = true
@@ -51,7 +51,7 @@ open class ArcballCameraControl(private val name: String, private val n: () -> C
         set(value) {
             field = value
 
-            node?.let { node -> node.position = target + node.forward * value * (-1.0f) }
+            node?.let { node -> node.position = target.invoke() + node.forward * value * (-1.0f) }
         }
 
     /** multiplier for zooming in and out */
@@ -62,19 +62,26 @@ open class ArcballCameraControl(private val name: String, private val n: () -> C
     var minimumDistance = 0.0001f
     /** maximum distance value to target */
     var maximumDistance = Float.MAX_VALUE
-    /** target of the camera */
-    var target: GLVector = initialTarget
-        set(value) {
-            field = value
-
-            node?.let { node -> distance = (value - node.position).magnitude() }
-        }
 
     /**
-     * Gamepad camera control, supplying a Camera via a Java [Supplier] lambda.
+     * Arcball camera control, supplying a Camera via a Java [Supplier] lambda.
      */
     @Suppress("unused")
-    constructor(name: String, n: Supplier<Camera?>, w: Int, h: Int, target: GLVector) : this(name, { n.get() }, w, h, target)
+    constructor(name: String, n: Supplier<Camera?>, w: Int, h: Int, target: Supplier<GLVector>) : this(name, { n.get() }, w, h, { target.get() })
+
+    /**
+     * Arcball camera control, supplying a Camera via a Java [Supplier] lambda.
+     * In this version, [target] is a static [GLVector].
+     */
+    @Suppress("unused")
+    constructor(name: String, n: () -> Camera?, w: Int, h: Int, target: GLVector) : this(name, n, w, h, { target })
+
+    /**
+     * Arcball camera control, supplying a Camera via a Java [Supplier] lambda.
+     * In this version, [target] is a static [GLVector].
+     */
+    @Suppress("unused")
+    constructor(name: String, n: Supplier<Camera?>, w: Int, h: Int, target: GLVector) : this(name, { n.get() }, w, h, { target })
 
     /**
      * This function is called upon mouse down and initialises the camera control
@@ -91,7 +98,7 @@ open class ArcballCameraControl(private val name: String, private val n: () -> C
         }
 
         node?.targeted = true
-        node?.target = target
+        node?.target = target.invoke()
     }
 
     /**
@@ -133,8 +140,10 @@ open class ArcballCameraControl(private val name: String, private val n: () -> C
             val yawQ = Quaternion().setFromEuler(0.0f, frameYaw, 0.0f)
             val pitchQ = Quaternion().setFromEuler(framePitch, 0.0f, 0.0f)
 
+            distance = (target.invoke() - node.position).magnitude()
+            node.target = target.invoke()
             node.rotation = pitchQ.mult(node.rotation).mult(yawQ).normalize()
-            node.position = target + node.forward * distance * (-1.0f)
+            node.position = target.invoke() + node.forward * distance * (-1.0f)
 
             node.lock.unlock()
         }
@@ -160,7 +169,7 @@ open class ArcballCameraControl(private val name: String, private val n: () -> C
         if (distance >= maximumDistance) distance = maximumDistance
         if (distance <= minimumDistance) distance = minimumDistance
 
-        node?.let { node -> node.position = target + node.forward * distance * (-1.0f) }
+        node?.let { node -> node.position = target.invoke() + node.forward * distance * (-1.0f) }
     }
 
 }
