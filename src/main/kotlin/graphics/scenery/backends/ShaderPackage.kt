@@ -25,7 +25,7 @@ data class ShaderPackage(val baseClass: Class<*>,
         val sourceNewer = if(code != null) {
             val codeDate = Date(baseClass.getResource(codePath).openConnection().lastModified)
             val spirvDate = if(spirv != null) {
-                logger.info("base: $baseClass path=$spirvPath")
+                logger.debug("base class for path=$spirvPath=$baseClass")
                 val res = baseClass.getResource(spirvPath)
                 if(res == null) {
                     Date(0)

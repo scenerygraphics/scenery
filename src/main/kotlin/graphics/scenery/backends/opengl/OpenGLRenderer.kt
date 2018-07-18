@@ -627,9 +627,9 @@ open class OpenGLRenderer(hub: Hub,
                 modules[m.shaderType] = m
             } catch (e: ShaderNotFoundException) {
                 if(shaders is Shaders.ShadersFromFiles) {
-                    logger.info("Could not locate shader for $shaders, type=$type, ${shaders.shaders.joinToString(",")}")
+                    logger.debug("Could not locate shader for $shaders, type=$type, ${shaders.shaders.joinToString(",")} - this is normal if there are no errors reported")
                 } else {
-                    logger.info("Could not locate shader for $shaders, type=$type.")
+                    logger.debug("Could not locate shader for $shaders, type=$type - this is normal if there are no errors reported")
                 }
             }
         }

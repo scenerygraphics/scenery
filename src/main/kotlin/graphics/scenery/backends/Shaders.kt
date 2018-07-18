@@ -90,7 +90,7 @@ sealed class Shaders {
 
             val spirv = if(shaderPackage.spirv != null && shaderPackage.priority == SourceSPIRVPriority.SPIRVPriority) {
                 val bytecode = shaderPackage.getSPIRVBytecode() ?: throw IllegalStateException("SPIRV bytecode not found")
-                logger.info("Using SPIRV version, ${bytecode.size()} opcodes")
+                logger.debug("Using SPIRV version, ${bytecode.size()} opcodes")
                 val compiler = CompilerGLSL(bytecode)
 
                 val options = CompilerGLSL.Options()
@@ -111,7 +111,7 @@ sealed class Shaders {
 
                 bytecode
             } else if(shaderPackage.code != null && shaderPackage.priority == SourceSPIRVPriority.SourcePriority) {
-                logger.info("Compiling ${shaderPackage.codePath} to SPIR-V...")
+                logger.debug("Compiling ${shaderPackage.codePath} to SPIR-V...")
                 // code needs to be compiled first
                 sourceCode = shaderPackage.code
                 val program = TProgram()
