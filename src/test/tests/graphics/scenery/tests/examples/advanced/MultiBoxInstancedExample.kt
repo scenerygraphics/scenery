@@ -40,7 +40,7 @@ class MultiBoxInstancedExample : SceneryBase("MultiBoxInstancedExample") {
 
         b.instanceMaster = true
         b.instancedProperties.put("ModelMatrix", { b.model })
-        b.material = ShaderMaterial(arrayListOf("DefaultDeferredInstanced.vert", "DefaultDeferred.frag"))
+        b.material = ShaderMaterial.fromFiles("DefaultDeferredInstanced.vert", "DefaultDeferred.frag")
         scene.addChild(b)
 
         (0 until (boundaryWidth * boundaryHeight * boundaryHeight).toInt()).map {

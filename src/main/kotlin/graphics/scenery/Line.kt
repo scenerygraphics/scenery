@@ -51,7 +51,7 @@ class Line(var capacity: Int = 50) : Node("Line"), HasGeometry {
     var edgeWidth = 2.0f
 
     init {
-        useClassDerivedShader = true
+        material = ShaderMaterial.fromClass(this::class.java)
         vertices.limit(0)
         normals.limit(0)
         texcoords.limit(0)
