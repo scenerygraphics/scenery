@@ -73,14 +73,15 @@ sealed class Shaders {
             }
 
             val base = baseClass.first()
+            val pathPrefix = base.second
 
-            val spirvFromFile: ByteArray? = base.getResourceAsStream(spirvPath)?.readBytes()
-            val codeFromFile: String? = base.getResourceAsStream(codePath)?.bufferedReader().use { it?.readText() }
+            val spirvFromFile: ByteArray? = base.first.getResourceAsStream("$pathPrefix$spirvPath")?.readBytes()
+            val codeFromFile: String? = base.first.getResourceAsStream("$pathPrefix$codePath")?.bufferedReader().use { it?.readText() }
 
-            val shaderPackage = ShaderPackage(base,
+            val shaderPackage = ShaderPackage(base.first,
                 type,
-                spirvPath,
-                codePath,
+                "$pathPrefix$spirvPath",
+                "$pathPrefix$codePath",
                 spirvFromFile,
                 codeFromFile,
                 SourceSPIRVPriority.SourcePriority)
@@ -164,10 +165,10 @@ sealed class Shaders {
                 throw ShaderCompilationException("Neither code nor compiled SPIRV file found for $shaderCodePath")
             }
 
-            val p = ShaderPackage(base,
+            val p = ShaderPackage(base.first,
                 type,
-                spirvPath,
-                codePath,
+                shaderPackage.spirvPath,
+                shaderPackage.codePath,
                 spirv.toByteArray(),
                 sourceCode,
                 shaderPackage.priority)
@@ -188,8 +189,11 @@ sealed class Shaders {
      * Shader provider for deriving a [ShadersFromFiles] provider just by using
      * the simpleName of [clazz].
      */
-    class ShadersFromClassName(clazz: Class<*>):
-        ShadersFromFiles(arrayOf(".vert", ".geom", ".tese", ".tesc", ".frag", ".comp").map { "${clazz.simpleName}$it" }.toTypedArray())
+    class ShadersFromClassName(clazz: Class<*>, shaderTypes: List<ShaderType> = listOf(ShaderType.VertexShader, ShaderType.FragmentShader)):
+        ShadersFromFiles(
+            shaderTypes
+                .map { it.toExtension() }.toTypedArray()
+                .map { "${clazz.simpleName}$it" }.toTypedArray())
 
     /**
      * Abstract functions all shader providers will have to implement, for returning
@@ -201,28 +205,41 @@ sealed class Shaders {
     /**
      * Finds the base class for a resource given by [path], and falls back to
      * [Renderer] in case it is not found before. Returns null if the file cannot
-     * be located.
+     * be located. The function also falls back to looking into a subdirectory "shaders/",
+     * if the files cannot be located within the normal neighborhood of the resources in [classes].
      */
-    protected fun safeFindBaseClass(classes: Array<Class<*>>, path: String): Class<*>? {
+    protected fun safeFindBaseClass(classes: Array<Class<*>>, path: String): Pair<Class<*>, String>? {
         val streams = classes.map { clazz ->
             clazz to clazz.getResourceAsStream(path)
-        }.filter { it.second != null }
+        }.filter { it.second != null }.toMutableList()
+
+        var pathPrefix = ""
+        if(streams.isEmpty()) {
+            pathPrefix = "shaders/"
+        }
+
+        streams.addAll(classes.map { clazz ->
+            clazz to clazz.getResourceAsStream("$pathPrefix$path")
+        }.filter { it.second != null })
 
         if(streams.isEmpty()) {
-            if(classes.contains(Renderer::class.java)) {
+            if(classes.contains(Renderer::class.java) && !path.endsWith(".spv")) {
                 logger.warn("Shader path $path not found within given classes, falling back to default.")
             } else {
                 logger.debug("Shader path $path not found within given classes, falling back to default.")
             }
         } else {
-            return streams.first().first
+            return streams.first().first to pathPrefix
         }
 
         return if(Renderer::class.java.getResourceAsStream(path) == null) {
-            logger.warn("Shader path $path not found in class path of Renderer.")
+            if(!path.endsWith(".spv")) {
+                logger.warn("Shader path $path not found in class path of Renderer.")
+            }
+
             null
         } else {
-            Renderer::class.java
+            Renderer::class.java to pathPrefix
         }
     }
 
