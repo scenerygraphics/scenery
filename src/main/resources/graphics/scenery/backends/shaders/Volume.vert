@@ -95,14 +95,14 @@ void main()
 	float Lmax = max3(L);
 
 	mat4 invScale = mat4(1.0);
-	invScale[0][0] = 1.0/voxelSizeX;
-	invScale[1][1] = 1.0/voxelSizeY;
-	invScale[2][2] = 1.0/voxelSizeZ;
+	invScale[0][0] = 2.0/voxelSizeX;
+	invScale[1][1] = 2.0/voxelSizeY;
+	invScale[2][2] = 2.0/voxelSizeZ;
 
 	mat4 scale = mat4(1.0);
-	scale[0][0] = voxelSizeX;
-	scale[1][1] = voxelSizeY;
-	scale[2][2] = voxelSizeZ;
+	scale[0][0] = 0.5*voxelSizeX;
+	scale[1][1] = 0.5*voxelSizeY;
+	scale[2][2] = 0.5*voxelSizeZ;
 
     Vertex.inverseProjection = (vrParameters.stereoEnabled ^ 1) * InverseProjectionMatrix + (vrParameters.stereoEnabled * vrParameters.inverseProjectionMatrices[currentEye.eye]);
     Vertex.inverseModelView = invScale * inverse(mv);
