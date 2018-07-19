@@ -2494,7 +2494,7 @@ open class VulkanRenderer(hub: Hub,
                     return@drawLoop
                 }
 
-                logger.debug("Rendering ${node.name}, vertex+index buffer=${s.vertexBuffers["vertex+index"]!!.vulkanBuffer.toHexString()}...")
+                logger.trace("{} - Rendering {}, vertex+index buffer={}...", pass.name, node.name, s.vertexBuffers["vertex+index"]!!.vulkanBuffer.toHexString())
 //                if(rerecordingCauses.contains(node.name)) {
 //                    logger.debug("Using pipeline ${pass.getActivePipeline(node)} for re-recording")
 //                }
