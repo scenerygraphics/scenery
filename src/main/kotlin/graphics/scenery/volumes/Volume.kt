@@ -169,6 +169,9 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         this.vertexSize = 3
         this.texcoordSize = 2
 
+        material = ShaderMaterial.fromClass(Volume::class.java)
+
+        material.cullingMode = Material.CullingMode.None
         material.blending.transparent = true
         material.blending.sourceColorBlendFactor = Blending.BlendFactor.One
         material.blending.destinationColorBlendFactor = Blending.BlendFactor.OneMinusSrcAlpha
@@ -176,9 +179,6 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         material.blending.destinationAlphaBlendFactor = Blending.BlendFactor.OneMinusSrcAlpha
         material.blending.colorBlending = Blending.BlendOp.add
         material.blending.alphaBlending = Blending.BlendOp.add
-
-        material = ShaderMaterial.fromClass(this::class.java)
-        this.material.cullingMode = Material.CullingMode.None
 
         colormaps.put("grays", this.javaClass.getResource("colormap-grays.png").file)
         colormaps.put("hot", this.javaClass.getResource("colormap-hot.png").file)
