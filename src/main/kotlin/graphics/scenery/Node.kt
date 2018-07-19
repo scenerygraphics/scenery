@@ -5,6 +5,7 @@ import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.backends.Renderer
 import graphics.scenery.utils.LazyLogger
+import kotlinx.coroutines.experimental.async
 import java.io.Serializable
 import java.sql.Timestamp
 import java.util.*
@@ -241,6 +242,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
         this.children.add(child)
 
         this.getScene()?.sceneSize?.incrementAndGet()
+        async {  this@Node.getScene()?.onChildrenAdded?.forEach { it.value.invoke(this@Node, child) } }
 
         if(child is PointLight) {
             this.getScene()?.lights?.add(child)
@@ -254,6 +256,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
      */
     fun removeChild(child: Node): Boolean {
         this.getScene()?.sceneSize?.decrementAndGet()
+        async { this@Node.getScene()?.onChildrenRemoved?.forEach { it.value.invoke(this@Node, child) } }
 
         if(child is PointLight) {
             this.getScene()?.lights?.remove(child)
@@ -436,7 +439,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
      * Will return null in case the Node is not attached to a [Scene] yet.
      */
     fun getScene(): Scene? {
-        var p: Node? = this.parent
+        var p: Node? = this
         while(p !is Scene && p != null) {
             p = p.parent
         }
