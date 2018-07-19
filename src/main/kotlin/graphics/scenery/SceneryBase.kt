@@ -284,7 +284,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
 
             override fun click(x: Int, y: Int) {
                 if (currentMode.startsWith("fps")) {
-                    targetArcball.target = scene.findObserver()?.target ?: return
+                    targetArcball.target = { target }
 
                     inputHandler.addBehaviour("mouse_control", targetArcball)
                     inputHandler.addBehaviour("scroll_arcball", targetArcball)
