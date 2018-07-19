@@ -71,6 +71,7 @@ layout(set = 4, binding = 0) uniform ShaderProperties {
     float gamma;
     int dataRangeMin;
     int dataRangeMax;
+    vec3 offset;
 };
 
 layout(push_constant) uniform currentEye_t {

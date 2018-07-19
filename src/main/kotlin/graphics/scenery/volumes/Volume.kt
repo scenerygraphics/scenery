@@ -107,6 +107,9 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
     protected @ShaderProperty var dataRangeMin: Int = 0
     protected @ShaderProperty var dataRangeMax: Int = 255
 
+    /** Volume offset to adjust origin */
+    @ShaderProperty var offset = GLVector(1.0f, 1.0f, 1.0f)
+
     /**
      * Regenerates the [boundingBox] in case any relevant properties have changed.
      */

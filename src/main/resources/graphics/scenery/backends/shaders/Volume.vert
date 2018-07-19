@@ -65,6 +65,7 @@ layout(set = 4, binding = 0) uniform ShaderProperties {
     float gamma;
     int dataRangeMin;
     int dataRangeMax;
+    vec3 offset;
 };
 
 layout(push_constant) uniform currentEye_t {
@@ -81,7 +82,12 @@ void main()
 	mat4 nMVP;
 	mat4 projectionMatrix;
 
-    mv = (vrParameters.stereoEnabled ^ 1) * ViewMatrices[0] * ubo.ModelMatrix + (vrParameters.stereoEnabled * ViewMatrices[currentEye.eye] * ubo.ModelMatrix);
+	mat4 translate = mat4(1.0f);
+	translate[3][0] = offset.x;
+	translate[3][1] = offset.y;
+	translate[3][2] = offset.z;
+
+    mv = (vrParameters.stereoEnabled ^ 1) * ViewMatrices[0] * ubo.ModelMatrix * translate + (vrParameters.stereoEnabled * ViewMatrices[currentEye.eye] * ubo.ModelMatrix * translate);
 	projectionMatrix = (vrParameters.stereoEnabled ^ 1) * ProjectionMatrix + vrParameters.stereoEnabled * vrParameters.projectionMatrices[currentEye.eye];
 
 	vec3 L = vec3(sizeX, sizeY, sizeZ) * vec3(voxelSizeX, voxelSizeY, voxelSizeZ);
