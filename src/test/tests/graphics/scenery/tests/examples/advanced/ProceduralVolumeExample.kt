@@ -42,11 +42,9 @@ class ProceduralVolumeExample: SceneryBase("Volume Rendering example", 1280, 720
         shell.position = GLVector(0.0f, 4.0f, 0.0f)
         scene.addChild(shell)
 
-        val volume = Volume()
+        val volume = Volume(false)
         volume.name = "volume"
         volume.colormap = "plasma"
-//        volume.trangemin = 0.0f
-//        volume.trangemax = 255.0f
         scene.addChild(volume)
 
         val lights = (0 until 3).map {

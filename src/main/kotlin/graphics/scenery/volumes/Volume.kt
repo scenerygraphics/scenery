@@ -35,6 +35,7 @@ import kotlin.streams.toList
  * @author Ulrik Günther <hello@ulrik.is>
  * @author Martin Weigert <mweigert@mpi-cbg.de>
  */
+@Suppress("unused")
 open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
     data class VolumeDescriptor(val path: Path?,
                                 val width: Long,
@@ -66,6 +67,15 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
 
     /** Whether to allow setting the transfer range or not */
     var lockTransferRange = false
+
+    /**
+     *  The rendering method used in the shader, can be
+     *
+     *  0 -- Local Maximum Intensity Projection
+     *  1 -- Maximum Intensity Projection
+     *  2 -- Full volume rendering
+     */
+    @ShaderProperty var renderingMethod: Int = 0
 
     /** Transfer function minimum */
     @ShaderProperty var trangemin = 0.00f
@@ -100,7 +110,7 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
     /** Maximum steps to take along a single ray through the volume */
     @ShaderProperty var maxsteps = 128
     /** Alpha blending factor */
-    @ShaderProperty var alpha_blending = 0.06f
+    @ShaderProperty var alphaBlending = 0.06f
     /** Gamma exponent */
     @ShaderProperty var gamma = 1.0f
 
@@ -232,8 +242,8 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
 
         logger.debug("setting voxelsize to $voxelSizeX x $voxelSizeY x $voxelSizeZ")
         logger.debug("setting min max to ${this.trangemin}, ${this.trangemax} ")
-        logger.debug("setting alpha blending to ${this.alpha_blending}")
-        logger.debug("setting dim to ${sizeX}, ${sizeY}, ${sizeZ}")
+        logger.debug("setting alpha blending to ${this.alphaBlending}")
+        logger.debug("setting dim to $sizeX, $sizeY, $sizeZ")
 
 
         if (volumes.containsKey(id)) {
@@ -449,9 +459,9 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         sizeZ = dimensions[2].toInt()
 
         logger.debug("setting voxelsize to $voxelSizeX x $voxelSizeY x $voxelSizeZ")
-        logger.debug("setting min max to ${this.trangemin}, ${this.trangemax} ")
-        logger.debug("setting alpha blending to ${this.alpha_blending}")
-        logger.debug("setting dim to ${sizeX}, ${sizeY}, ${sizeZ}")
+        logger.debug("setting min max to $trangemin, $trangemax ")
+        logger.debug("setting alpha blending to $alphaBlending")
+        logger.debug("setting dim to $sizeX, $sizeY, $sizeZ")
 
         val id = file.fileName.toString()
 
@@ -584,6 +594,16 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
             this.material.needsTextureReload = true
 
             this.lock.unlock()
+        }
+    }
+
+    fun setTransfer(min: Float, max: Float, lock: Boolean = true) {
+        lockTransferRange = false
+        trangemin = min
+        trangemax = max
+
+        if(lock) {
+            lockTransferRange = true
         }
     }
 
