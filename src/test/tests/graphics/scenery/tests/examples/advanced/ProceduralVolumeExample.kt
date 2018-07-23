@@ -13,11 +13,14 @@ import java.nio.ByteBuffer
 import kotlin.concurrent.thread
 
 /**
- * <Description>
+ * Example that renders procedurally generated volumes.
+ * [bitsPerVoxel] can be set to 8 or 16, to generate Byte or UnsignedShort volumes.
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class ProceduralVolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
+    val bitsPerVoxel = 16
+
     override fun init() {
         renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
         hub.add(SceneryElement.Renderer, renderer!!)
@@ -42,8 +45,8 @@ class ProceduralVolumeExample: SceneryBase("Volume Rendering example", 1280, 720
         val volume = Volume()
         volume.name = "volume"
         volume.colormap = "plasma"
-        volume.trangemin = 0.0f
-        volume.trangemax = 255.0f
+//        volume.trangemin = 0.0f
+//        volume.trangemax = 255.0f
         scene.addChild(volume)
 
         val lights = (0 until 3).map {
@@ -61,22 +64,28 @@ class ProceduralVolumeExample: SceneryBase("Volume Rendering example", 1280, 720
             while(!scene.initialized) { Thread.sleep(200) }
 
             val volumeSize = 64L
-            val volumeBuffer = RingBuffer<ByteBuffer>(2, { memAlloc((volumeSize*volumeSize*volumeSize).toInt()) })
+            val volumeBuffer = RingBuffer<ByteBuffer>(2) { memAlloc((volumeSize*volumeSize*volumeSize*bitsPerVoxel/8).toInt()) }
 
             val seed = Random.randomFromRange(0.0f, 133333337.0f).toLong()
             var shift = GLVector.getNullVector(3)
             val shiftDelta = Random.randomVectorFromRange(3, -0.5f, 0.5f)
 
+            val dataType = if(bitsPerVoxel == 8) {
+                NativeTypeEnum.UnsignedByte
+            } else {
+                NativeTypeEnum.UnsignedShort
+            }
+
             while(true) {
                 val currentBuffer = volumeBuffer.get()
 
                 Volume.generateProceduralVolume(volumeSize, 0.95f, seed = seed,
-                    intoBuffer = currentBuffer, shift = shift)
+                    intoBuffer = currentBuffer, shift = shift, use16bit = bitsPerVoxel > 8)
 
                 volume.readFromBuffer(
                     "procedural-cloud-${shift.hashCode()}", currentBuffer,
                     volumeSize, volumeSize, volumeSize, 1.0f, 1.0f, 1.0f,
-                    dataType = NativeTypeEnum.UnsignedByte, bytesPerVoxel = 1)
+                    dataType = dataType, bytesPerVoxel = bitsPerVoxel/8)
 
                 shift = shift + shiftDelta
 
