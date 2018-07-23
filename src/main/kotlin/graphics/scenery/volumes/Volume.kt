@@ -64,10 +64,24 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
 
     val boxwidth = 1.0f
 
+    /** Whether to allow setting the transfer range or not */
+    var lockTransferRange = false
+
     /** Transfer function minimum */
     @ShaderProperty var trangemin = 0.00f
+        set(value) {
+            if(!lockTransferRange) {
+                field = value
+            }
+        }
+
     /** Transfer function maximum */
     @ShaderProperty var trangemax = 1.0f
+        set(value) {
+            if(!lockTransferRange) {
+                field = value
+            }
+        }
 
     /** Bounding box minimum in x direction */
     @ShaderProperty var boxMin_x = -boxwidth
@@ -104,8 +118,8 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
     /** Voxel size in z direction */
     @ShaderProperty var voxelSizeZ by Delegates.observable(1.0f) { property, old, new -> volumePropertyChanged(property, old, new) }
 
-    protected @ShaderProperty var dataRangeMin: Int = 0
-    protected @ShaderProperty var dataRangeMax: Int = 255
+    @ShaderProperty protected var dataRangeMin: Int = 0
+    @ShaderProperty protected var dataRangeMax: Int = 255
 
     /**
      * Regenerates the [boundingBox] in case any relevant properties have changed.
@@ -538,8 +552,8 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
              NativeTypeEnum.UnsignedShort -> 0 to 65536
              NativeTypeEnum.Int -> 0 to Integer.MAX_VALUE
              NativeTypeEnum.UnsignedInt -> 0 to Integer.MAX_VALUE
-             NativeTypeEnum.HalfFloat -> 0 to 65536
-             NativeTypeEnum.Float -> 0 to 65536
+             NativeTypeEnum.HalfFloat -> 0 to Float.MAX_VALUE.toInt()
+             NativeTypeEnum.Float -> 0 to Float.MAX_VALUE.toInt()
 
              NativeTypeEnum.Long,
              NativeTypeEnum.UnsignedLong,
@@ -548,6 +562,9 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
 
         dataRangeMin = min
         dataRangeMax = max
+
+        trangemin = min.toFloat()
+        trangemax = max.toFloat()
 
         val dim = GLVector(dimensions[0].toFloat(), dimensions[1].toFloat(), dimensions[2].toFloat())
         val gtv = GenericTexture("volume", dim,
@@ -571,7 +588,7 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
     }
 
     /**
-     * Creates this volume's [OrientedBoundingBox], giving a slight bit of slack
+     * Creates this volume's [Node.OrientedBoundingBox], giving a slight bit of slack
      * around all edges.
      */
     override fun generateBoundingBox(): OrientedBoundingBox? {
@@ -615,15 +632,20 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         @JvmStatic fun generateProceduralVolume(size: Long, radius: Float = 0.0f,
                                      seed: Long = Random.randomFromRange(0.0f, 133333337.0f).toLong(),
                                      shift: GLVector = GLVector.getNullVector(3),
-                                     intoBuffer: ByteBuffer? = null): ByteBuffer {
-            val byteSize = (size*size*size).toInt()
+                                     intoBuffer: ByteBuffer? = null, use16bit: Boolean = false): ByteBuffer {
             val f = 3.0f / size
             val center = size / 2.0f + 0.5f
             val noise = OpenSimplexNoise(seed)
+            val (range, bytesPerVoxel) = if(use16bit) {
+                65535 to 2
+            } else {
+                255 to 1
+            }
+            val byteSize = (size*size*size*bytesPerVoxel).toInt()
 
-            val buffer = intoBuffer ?: memAlloc(byteSize)
+            val buffer = intoBuffer ?: memAlloc(byteSize * bytesPerVoxel)
 
-            (0 until byteSize).chunked(byteSize/4).forEachParallel { subList ->
+            (0 until byteSize/bytesPerVoxel).chunked(byteSize/4).forEachParallel { subList ->
                 subList.forEach {
                     val x = it.rem(size)
                     val y = (it / size).rem(size)
@@ -637,12 +659,16 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
                     val d = sqrt(dx * dx + dy * dy + dz * dz) / size
 
                     val result = if(radius > Math.ulp(1.0f)) {
-                        if(d - offset < radius) { ((d-offset)*255).toByte() } else { 0.toByte() }
+                        if(d - offset < radius) { ((d-offset)*range).toShort() } else { 0 }
                     } else {
-                        ((d - offset) * 255).toByte()
+                        ((d - offset) * range).toShort()
                     }
 
-                    buffer.put(it, result)
+                    if(use16bit) {
+                        buffer.asShortBuffer().put(it, result)
+                    } else {
+                        buffer.put(it, result.toByte())
+                    }
                 }
             }
 
