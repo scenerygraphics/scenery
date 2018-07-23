@@ -67,10 +67,11 @@ layout(set = 4, binding = 0) uniform ShaderProperties {
     float boxMax_y;
     float boxMax_z;
     int maxsteps;
-    float alpha_blending;
+    float alphaBlending;
     float gamma;
     int dataRangeMin;
     int dataRangeMax;
+    int renderingMethod;
 };
 
 layout(push_constant) uniform currentEye_t {
@@ -240,44 +241,67 @@ void main()
     float alphaVal = 0.0;
     float newVal = 0.0;
 
-    if (alpha_blending <= 0.f){
-      gl_FragDepth = 0.0;
-      // nop alpha blending
-      [[unroll]] for(int i = 0; i < maxsteps; ++i, pos += vecstep) {
-        float volume_sample = texture(VolumeTextures, pos.xyz).r * dataRangeMax;
-        maxp = max(maxp,volume_sample);
-      }
+    if(renderingMethod == 0) {
+          // alpha blending:
+          float opacity = 1.0f;
+          for(int i = 0; i < maxsteps; ++i, pos += vecstep) {
+               float volumeSample = texture(VolumeTextures, pos.xyz).r * dataRangeMax;
+               newVal = clamp(ta*volumeSample + tb,0.f,1.f);
+               colVal = max(colVal,opacity*newVal);
 
-      colVal = clamp(pow(ta*maxp + tb,gamma),0.f,1.f);
-    }
-    else{
-      // alpha blending:
-      float opacity = 1.0f;
-      for(int i = 0; i < maxsteps; ++i, pos += vecstep) {
-           float volume_sample = texture(VolumeTextures, pos.xyz).r * dataRangeMax;
-           newVal = clamp(ta*volume_sample + tb,0.f,1.f);
-           colVal = max(colVal,opacity*newVal);
+               opacity  *= (1.f-alphaBlending*clamp(newVal,0.f,1.f));
 
-           opacity  *= (1.f-alpha_blending*clamp(newVal,0.f,1.f));
+               if (opacity<=0.02f) {
+                    break;
+               }
+          }
 
-           if (opacity<=0.02f) {
+        gl_FragDepth = 0.0;
+
+        alphaVal = clamp(colVal, 0.0, 1.0);
+
+        // Mapping to transfer function range and gamma correction:
+        colVal = pow(colVal, gamma);
+        FragColor = vec4(texture(ObjectTextures[3], vec2(colVal, 0.5f)).rgb * alphaVal, alphaVal);
+    } else if(renderingMethod == 1) {
+        gl_FragDepth = 0.0;
+        // nop alpha blending
+        [[unroll]] for(int i = 0; i < maxsteps; ++i, pos += vecstep) {
+          float volumeSample = texture(VolumeTextures, pos.xyz).r * dataRangeMax;
+          maxp = max(maxp,volumeSample);
+        }
+
+        colVal = clamp(pow(ta*maxp + tb,gamma),0.f,1.f);
+
+        gl_FragDepth = 0.0;
+
+        alphaVal = clamp(colVal, 0.0, 1.0);
+
+        // Mapping to transfer function range and gamma correction:
+        colVal = pow(colVal, gamma);
+        FragColor = vec4(texture(ObjectTextures[3], vec2(colVal, 0.5f)).rgb * alphaVal, alphaVal);
+    } else {
+        vec3 color = vec3(0.0f);
+        float alpha = 0.0f;
+        for(int i = 0; i < maxsteps; ++i, pos += vecstep) {
+            float volumeSample = texture(VolumeTextures, pos.xyz).r * dataRangeMax;
+            volumeSample = clamp(ta*volumeSample + tb,0.f,1.f);
+
+            vec4 transfer = texture(ObjectTextures[3], vec2(volumeSample, 0.5f)).rgba;
+            vec3 newColor = transfer.rgb;
+            float newAlpha = 1.0f - transfer.a;
+
+            color = newColor + (1.0f - alpha) * color;
+            alpha = newAlpha + (1.0f - alpha) * alpha;
+
+            if(alpha > 1.0) {
                 break;
-           }
-      }
+            }
+        }
+
+        gl_FragDepth = 0.0;
+
+        FragColor = vec4(color*alpha, alpha);
     }
-
-    gl_FragDepth = 0.0;
-
-    alphaVal = clamp(colVal, 0.0, 1.0);
-
-    // FIXME: this is a workaround for grey lines appearing at borders
-//    alphaVal = alphaVal<0.01?0.0f:alphaVal;
-//    if(alphaVal < 0.01) {
-//        colVal = 0.01;
-//    }
-
-    // Mapping to transfer function range and gamma correction:
-    colVal = pow(colVal, gamma);
-    FragColor = vec4(texture(ObjectTextures[3], vec2(colVal, 0.5f)).rgb * alphaVal, alphaVal);
 }
 
