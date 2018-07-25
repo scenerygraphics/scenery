@@ -154,6 +154,29 @@ vec3 worldFromDepth(float depth, vec2 texcoord) {
     return world.xyz;
 }
 
+// McGuire Noise -- https://www.shadertoy.com/view/4dS3Wd
+float hash(float n) { return fract(sin(n) * 1e4); }
+float hash(vec2 p) { return fract(1e4 * sin(17.0 * p.x + p.y * 0.1) * (0.1 + abs(sin(p.y * 13.0 + p.x)))); }
+
+float noise1D(float x) {
+    float i = floor(x);
+    float f = fract(x);
+    float u = f * f * (3.0 - 2.0 * f);
+    return mix(hash(i), hash(i + 1.0), u);
+}
+
+// sample a value from the color lookup table, stored in the
+// normal texture array.
+vec4 sampleLUT(float coord) {
+    return texture(ObjectTextures[3], vec2(coord, 0.5f));
+}
+
+// sample a value from the transfer function texture, stored in the
+// diffuse texture array.
+float sampleTF(float coord) {
+    return texture(ObjectTextures[1], vec2(coord, 0.5f)).r;
+}
+
 void main()
 {
     // convert range bounds to linear map:
@@ -241,11 +264,18 @@ void main()
     float alphaVal = 0.0;
     float newVal = 0.0;
 
+    vec4 lightPos = (inverse(ubo.ModelMatrix)*vec4(0.0, 1.0, 1.0,1.0));
+
+    int shadowSteps = 16;
+    vec3 lightVector = (pos - lightPos.xyz)/shadowSteps;
+    float shadowDist = 0.0f;
+    float shadowDensity = 0.005f;
+
     if(renderingMethod == 0) {
           // alpha blending:
           float opacity = 1.0f;
           for(int i = 0; i < maxsteps; ++i, pos += vecstep) {
-               float volumeSample = texture(VolumeTextures, pos.xyz).r * dataRangeMax;
+               float volumeSample = sampleTF(texture(VolumeTextures, pos.xyz).r) * dataRangeMax;
                newVal = clamp(ta*volumeSample + tb,0.f,1.f);
                colVal = max(colVal,opacity*newVal);
 
@@ -262,12 +292,12 @@ void main()
 
         // Mapping to transfer function range and gamma correction:
         colVal = pow(colVal, gamma);
-        FragColor = vec4(texture(ObjectTextures[3], vec2(colVal, 0.5f)).rgb * alphaVal, alphaVal);
+        FragColor = vec4(sampleLUT(colVal).rgb * alphaVal, alphaVal);
     } else if(renderingMethod == 1) {
         gl_FragDepth = 0.0;
         // nop alpha blending
         [[unroll]] for(int i = 0; i < maxsteps; ++i, pos += vecstep) {
-          float volumeSample = texture(VolumeTextures, pos.xyz).r * dataRangeMax;
+          float volumeSample = sampleTF(texture(VolumeTextures, pos.xyz).r) * dataRangeMax;
           maxp = max(maxp,volumeSample);
         }
 
@@ -279,20 +309,38 @@ void main()
 
         // Mapping to transfer function range and gamma correction:
         colVal = pow(colVal, gamma);
-        FragColor = vec4(texture(ObjectTextures[3], vec2(colVal, 0.5f)).rgb * alphaVal, alphaVal);
+        FragColor = vec4(sampleLUT(colVal).rgb * alphaVal, alphaVal);
     } else {
         vec3 color = vec3(0.0f);
         float alpha = 0.0f;
-        for(int i = 0; i < maxsteps; ++i, pos += vecstep) {
-            float volumeSample = texture(VolumeTextures, pos.xyz).r * dataRangeMax;
+
+        // jitter
+        float jitter = noise1D(pos.x + (u + v));
+        pos += jitter * 0.001f;
+
+        for(int i = 0; i < maxsteps; ++i, pos += vecstep + jitter*0.001f) {
+            float rawSample = texture(VolumeTextures, pos.xyz).r;
+            float volumeSample = rawSample * dataRangeMax;
             volumeSample = clamp(ta*volumeSample + tb,0.f,1.f);
 
-            vec4 transfer = texture(ObjectTextures[3], vec2(volumeSample, 0.5f)).rgba;
-            vec3 newColor = transfer.rgb;
-            float newAlpha = 1.0f - transfer.a;
+            vec3 lpos = pos;
 
-            color = newColor + (1.0f - alpha) * color;
-            alpha = newAlpha + (1.0f - alpha) * alpha;
+            if(volumeSample > 0.0f) {
+                for(int s = 0; s < shadowSteps; s++) {
+                    lpos += lightVector;
+                    float attenuation = 1.0f/pow(length(pos - lightPos.xyz),2.0f);
+                    shadowDist += sampleTF(texture(VolumeTextures, lpos.xyz).r)/attenuation;
+                }
+            }
+
+            float shadowing = exp(-shadowDist * shadowDensity);
+
+            vec4 transfer = sampleLUT(volumeSample);
+            vec3 newColor = transfer.rgb * shadowing;
+            float newAlpha = sampleTF(rawSample);
+
+            color += (1.0f - alpha) * newColor * newAlpha;
+            alpha += (1.0f - alpha) * newAlpha;
 
             if(alpha > 1.0) {
                 break;
