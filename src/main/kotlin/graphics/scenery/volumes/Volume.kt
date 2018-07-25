@@ -73,9 +73,9 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
      *
      *  0 -- Local Maximum Intensity Projection
      *  1 -- Maximum Intensity Projection
-     *  2 -- Full volume rendering
+     *  2 -- Alpha compositing
      */
-    @ShaderProperty var renderingMethod: Int = 0
+    @ShaderProperty var renderingMethod: Int = 2
 
     /** Transfer function minimum */
     @ShaderProperty var trangemin = 0.00f
@@ -130,6 +130,9 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
 
     @ShaderProperty protected var dataRangeMin: Int = 0
     @ShaderProperty protected var dataRangeMax: Int = 255
+
+    /** The transfer function to use for the volume. Flat by default. */
+    var transferFunction: TransferFunction = TransferFunction.ramp(0.0f)
 
     /**
      * Regenerates the [boundingBox] in case any relevant properties have changed.
@@ -518,6 +521,18 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         assignVolumeTexture(dimensions.toLongArray(), vol, replace)
 
         return id
+    }
+
+    override fun preDraw() {
+        if(transferFunction.stale) {
+            logger.debug("Transfer function is stale, updating")
+            material.transferTextures["transferFunction"] = GenericTexture(
+                "transferFunction", GLVector(transferFunction.textureSize.toFloat(), transferFunction.textureHeight.toFloat(), 1.0f),
+                channels = 1, type = GLTypeEnum.Float, contents = transferFunction.serialise())
+
+            material.textures["diffuse"] = "fromBuffer:transferFunction"
+            material.needsTextureReload = true
+        }
     }
 
     private fun NativeTypeEnum.toGLType() =
