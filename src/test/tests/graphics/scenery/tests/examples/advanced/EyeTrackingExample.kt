@@ -18,7 +18,7 @@ import kotlin.concurrent.thread
 class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280, windowHeight = 720) {
     val pupilTracker = PupilEyeTracker(calibrationType = PupilEyeTracker.CalibrationType.ScreenSpace)
     val hmd = OpenVRHMD(seated = false, useCompositor = true)
-    val referenceTarget = Icosphere(0.005f, 3)
+    val referenceTarget = Box(GLVector(0.01f, 0.01f, 0.01f))
 
     override fun init() {
         hub.add(SceneryElement.HMDInput, hmd)
@@ -98,18 +98,20 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
                 val cam = scene.findObserver()
                 if (!pupilTracker.isCalibrated && cam != null) {
                     pupilTracker.onCalibrationFailed = {
-                        for(i in (0..3)) {
-                            referenceTarget.material.diffuse = GLVector(0.0f, 1.0f, 0.0f)
-                            Thread.sleep(200)
+                        for(i in 0 until 2) {
+                            referenceTarget.material.diffuse = GLVector(1.0f, 0.0f, 0.0f)
+                            Thread.sleep(300)
                             referenceTarget.material.diffuse = GLVector(0.8f, 0.8f, 0.8f)
+                            Thread.sleep(300)
                         }
                     }
 
                     pupilTracker.onCalibrationSuccess = {
-                        for(i in (0..3)) {
+                        for(i in 0 until 20) {
                             referenceTarget.material.diffuse = GLVector(0.0f, 1.0f, 0.0f)
-                            Thread.sleep(200)
+                            Thread.sleep(100)
                             referenceTarget.material.diffuse = GLVector(0.8f, 0.8f, 0.8f)
+                            Thread.sleep(30)
                         }
                     }
 
@@ -120,7 +122,11 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
 
                     pupilTracker.onGazeReceived = when (pupilTracker.calibrationType) {
                         PupilEyeTracker.CalibrationType.ScreenSpace -> { gaze ->
-                            referenceTarget.position = cam.viewportToWorld(GLVector(gaze.normalizedPosition().x() * 2.0f - 1.0f, gaze.normalizedPosition().y() * 2.0f - 1.0f))
+                            referenceTarget.position = cam.viewportToWorld(
+                                GLVector(
+                                    gaze.normalizedPosition().x() * 2.0f - 1.0f,
+                                    gaze.normalizedPosition().y() * 2.0f - 1.0f),
+                                offset = 0.5f)
 
                             when {
                                 gaze.confidence < 0.85f -> referenceTarget.material.diffuse = GLVector(0.8f, 0.0f, 0.0f)
