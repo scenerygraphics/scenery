@@ -325,7 +325,7 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
         val referenceData = arrayListOf<HashMap<String, Serializable>>()
 
         if(generateReferenceData) {
-            val numReferencePoints = 10
+            val numReferencePoints = 8
             val samplesPerPoint = 120
 
             val (posKeyName, posGenerator: ((Camera, Int, Int) -> Pair<GLVector, GLVector>)) = when(calibrationType) {
@@ -333,14 +333,21 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
                 CalibrationType.WorldSpace -> "mm_pos" to PupilEyeTracker.DefaultWorldSpaceCalibrationPointGenerator
             }
 
-            val positionList = (0 until numReferencePoints).map {
+            val positionList = (0 until numReferencePoints).shuffled().map {
                 posGenerator.invoke(cam, it, numReferencePoints)
             }
 
             positionList.map { normalizedScreenPos ->
                 logger.info("Subject looking at ${normalizedScreenPos.first}/${normalizedScreenPos.second}")
+                val position = normalizedScreenPos.second.clone()
 
-                calibrationTarget?.position = normalizedScreenPos.second
+                calibrationTarget?.position = position
+
+                if(normalizedScreenPos.first.x() == 0.5f && normalizedScreenPos.first.y() == 0.5f) {
+                    calibrationTarget?.material?.diffuse = GLVector(1.0f, 1.0f, 0.0f)
+                } else {
+                    calibrationTarget?.material?.diffuse = GLVector(1.0f, 1.0f, 1.0f)
+                }
 
                 (0 until samplesPerPoint).forEach {
                     val timestamp = getPupilTimestamp()
@@ -405,12 +412,16 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
         @Suppress("unused")
         val CircularScreenSpaceCalibrationPointGenerator = { cam: Camera, index: Int, referencePointCount: Int ->
             val origin = 0.5f
-            val radius = 0.25f
+            val radius = 0.07f
 
-            val v = GLVector(
-                origin + radius * cos(2 * PI.toFloat() * index.toFloat()/referencePointCount),
-                origin + radius * sin(2 * PI.toFloat() * index.toFloat()/referencePointCount))
-            v to cam.viewportToWorld(GLVector(v.x(), v.y()), offset = 0.5f)
+            val v = if(index == 0) {
+                GLVector(origin, origin)
+            } else {
+                GLVector(
+                    origin + radius * cos(2 * PI.toFloat() * index.toFloat()/referencePointCount),
+                    origin + radius * sin(2 * PI.toFloat() * index.toFloat()/referencePointCount))
+            }
+            v to cam.viewportToWorld(GLVector(v.x()*2.0f-1.0f, v.y()*2.0f-1.0f), offset = 0.5f)
         }
 
         /** Point generator for equidistributed calibration points. */
