@@ -138,27 +138,24 @@ open class Camera : Node("Camera") {
         })
 
     /**
-     * Transforms a 2D/3D vector from NDC coordinates to world coordinates.
+     * Transforms a 2D/3D [vector] from NDC coordinates to world coordinates.
      * If the vector is 2D, [nearPlaneDistance] is assumed for the Z value, otherwise
      * the Z value from the vector is taken.
-     *
-     * @param v - The vector to be transformed into world space.
-     * @return GLVector - [v] transformed into world space.
      */
     @JvmOverloads fun viewportToWorld(vector: GLVector, offset: Float = 0.01f): GLVector {
-        val p = when(vector.dimension) {
-            1 -> GLVector(vector.x() - 0.5f, -0.5f, offset, 1.0f)
-            2 -> GLVector(vector.x() - 0.5f, vector.y() - 0.5f, offset, 1.0f)
-            3 -> GLVector(vector.x() - 0.5f, vector.y() - 0.5f, vector.z(), 1.0f)
-            else -> vector.clone()
-        }
+        val unproject = projection.clone()
+        unproject.mult(getTransformation())
+        unproject.invert()
 
-        val transform = getTransformation().inverse
-        transform.mult(projection.inverse)
+        var clipSpace = unproject.mult(when (vector.dimension) {
+            1 -> GLVector(vector.x(), 1.0f, nearPlaneDistance + offset, 1.0f)
+            2 -> GLVector(vector.x(), vector.y(), nearPlaneDistance + offset, 1.0f)
+            3 -> GLVector(vector.x(), vector.y(), vector.z(), 1.0f)
+            else -> vector
+        })
 
-        val v = transform.mult(p)
-
-        return v.xyz() * (1.0f/v.w())
+        clipSpace = clipSpace.times(1.0f/clipSpace.w())
+        return clipSpace.xyz()
     }
 }
 
