@@ -13,6 +13,11 @@ import com.jogamp.opengl.math.Quaternion
  */
 open class Camera : Node("Camera") {
 
+    /** Enum class for camera projection types */
+    enum class ProjectionType {
+        Undefined, Perspective, Orthographic
+    }
+
     /** Is the camera targeted? */
     var targeted = false
     /** Is this camera active? Setting one camera active will deactivate the others */
@@ -34,6 +39,12 @@ open class Camera : Node("Camera") {
     var farPlaneDistance = 1000.0f
     /** delta T from the renderer */
     var deltaT = 0.0f
+    /** Projection the camera uses */
+    var projectionType: ProjectionType = ProjectionType.Undefined
+    /** Width of the projection */
+    var width: Float = 0.0f
+    /** Height of the projection */
+    var height: Float = 0.0f
 
     /** View matrix of the camera. Setting the view matrix will re-set the forward
      *  vector of the camera according to the given matrix.
@@ -66,14 +77,38 @@ open class Camera : Node("Camera") {
         this.nodeType = "Camera"
     }
 
-    /** Create a perspective projection camera
-     *
-     *
+    /**
+     * Returns the current aspect ratio
+     */
+    fun aspectRatio(): Float {
+        if(projectionType == ProjectionType.Undefined) {
+            logger.warn("Querying aspect ratio but projection type is undefined")
+            return 1.0f
+        }
+
+        if(width < 0.0001f || height < 0.0001f) {
+            logger.warn("Width or height too small, returning 1.0f")
+        }
+
+        val scaleWidth = if(this is DetachedHeadCamera && this.tracker != null) {
+            0.5f
+        } else {
+            1.0f
+        }
+
+        return (width*scaleWidth)/height
+    }
+
+    /**
+     * Create a perspective projection camera
      */
     fun perspectiveCamera(fov: Float, width: Float, height: Float, nearPlaneLocation: Float = 0.1f, farPlaneLocation: Float = 1000.0f) {
         this.nearPlaneDistance = nearPlaneLocation
         this.farPlaneDistance = farPlaneLocation
         this.fov = fov
+
+        this.width = width
+        this.height = height
 
         this.projection = GLMatrix().setPerspectiveProjectionMatrix(
             this.fov / 180.0f * Math.PI.toFloat(),
@@ -81,6 +116,8 @@ open class Camera : Node("Camera") {
             this.nearPlaneDistance,
             this.farPlaneDistance
         )
+
+        this.projectionType = ProjectionType.Perspective
     }
 
     /**
