@@ -111,7 +111,7 @@
         <dokka.version>0.9.17</dokka.version>
         <dokka.skip>true</dokka.skip>
 
-        <cleargl.version>2.2.1</cleargl.version>
+        <cleargl.version>2.2.2-SNAPSHOT</cleargl.version>
         <slf4j.version>1.7.25</slf4j.version>
         <lwjgl.version>3.1.6</lwjgl.version>
         <spirvcrossj.version>0.4.1</spirvcrossj.version>
