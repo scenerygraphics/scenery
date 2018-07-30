@@ -3,6 +3,7 @@ package graphics.scenery.backends.vulkan
 import cleargl.GLTypeEnum
 import cleargl.TGAReader
 import graphics.scenery.GenericTexture
+import graphics.scenery.TextureExtents
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
@@ -60,7 +61,7 @@ open class VulkanTexture(val device: VulkanDevice,
          * Copies the content of the image from [buffer]. This gets executed
          * within a given [commandBuffer].
          */
-        fun copyFrom(commandBuffer: VkCommandBuffer, buffer: VulkanBuffer) {
+        fun copyFrom(commandBuffer: VkCommandBuffer, buffer: VulkanBuffer, extents: TextureExtents? = null) {
             with(commandBuffer) {
                 val bufferImageCopy = VkBufferImageCopy.calloc(1)
 
@@ -70,8 +71,13 @@ open class VulkanTexture(val device: VulkanDevice,
                     .baseArrayLayer(0)
                     .layerCount(1)
 
-                bufferImageCopy.imageExtent().set(width, height, depth)
-                bufferImageCopy.imageOffset().set(0, 0, 0)
+                if(extents != null) {
+                    bufferImageCopy.imageExtent().set(extents.w, extents.h, extents.d)
+                    bufferImageCopy.imageOffset().set(extents.x, extents.y, extents.z)
+                } else {
+                    bufferImageCopy.imageExtent().set(width, height, depth)
+                    bufferImageCopy.imageOffset().set(0, 0, 0)
+                }
 
                 vkCmdCopyBufferToImage(this,
                     buffer.vulkanBuffer,
@@ -86,7 +92,7 @@ open class VulkanTexture(val device: VulkanDevice,
          * Copies the content of the image from a given [VulkanImage], [image].
          * This gets executed within a given [commandBuffer].
          */
-        fun copyFrom(commandBuffer: VkCommandBuffer, image: VulkanImage) {
+        fun copyFrom(commandBuffer: VkCommandBuffer, image: VulkanImage, extents: TextureExtents? = null) {
             with(commandBuffer) {
                 val subresource = VkImageSubresourceLayers.calloc()
                     .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
@@ -98,9 +104,15 @@ open class VulkanTexture(val device: VulkanDevice,
                     .srcSubresource(subresource)
                     .dstSubresource(subresource)
 
-                region.srcOffset().set(0, 0, 0)
-                region.dstOffset().set(0, 0, 0)
-                region.extent().set(width, height, depth)
+                if(extents != null) {
+                    region.srcOffset().set(extents.x, extents.y, extents.z)
+                    region.dstOffset().set(extents.x, extents.y, extents.z)
+                    region.extent().set(extents.w, extents.h, extents.d)
+                } else {
+                    region.srcOffset().set(0, 0, 0)
+                    region.dstOffset().set(0, 0, 0)
+                    region.extent().set(width, height, depth)
+                }
 
                 vkCmdCopyImage(this,
                     image.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
@@ -310,7 +322,7 @@ open class VulkanTexture(val device: VulkanDevice,
                             dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
                             commandBuffer = this)
 
-                        image!!.copyFrom(this, buffer)
+                        image!!.copyFrom(this, buffer, gt?.extents)
 
                         transitionLayout(image!!.image,
                             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,

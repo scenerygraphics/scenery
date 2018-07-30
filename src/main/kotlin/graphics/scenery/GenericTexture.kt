@@ -10,6 +10,10 @@ import java.nio.ByteBuffer
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
+
+/** Data class for encapsulating partial transfers */
+data class TextureExtents(val x: Int, val y: Int, val z: Int, val w: Int, val h: Int, val d: Int)
+
 data class GenericTexture @JvmOverloads constructor(
     /** Name of the texture, might e.g. be "diffuse" */
     var name: String,
@@ -25,8 +29,11 @@ data class GenericTexture @JvmOverloads constructor(
     var repeatS: Boolean = true,
     /** Shall the texture be repeated on the V/T coordinate? */
     var repeatT: Boolean = true,
+    /** Shall the texture be repeated on the W/U coordinate? */
+    var repeatU: Boolean = true,
     /** Should the texture data be interpreted as normalized? Default is true, non-normalisation is better for volume data, though */
     var normalized: Boolean = true,
     /** Should mipmaps be generated? */
-    var mipmap: Boolean = true
+    var mipmap: Boolean = true,
+    var extents: TextureExtents? = null
 ) : Serializable

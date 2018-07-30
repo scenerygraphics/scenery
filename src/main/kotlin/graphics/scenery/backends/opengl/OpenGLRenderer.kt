@@ -2090,7 +2090,7 @@ open class OpenGLRenderer(hub: Hub,
                     val generateMipmaps = (type == "ambient" || type == "diffuse" || type == "specular")
                     if (texture.startsWith("fromBuffer:")) {
                         node.material.transferTextures[texture.substringAfter("fromBuffer:")]?.let {
-                            (_, dimensions, channels, type1, contents, repeatS, repeatT, normalized) ->
+                            (_, dimensions, channels, type1, contents, repeatS, repeatT, repeatU, normalized, mipmap, extents) ->
 
                             logger.debug("Dims of $texture: $dimensions, mipmaps=$generateMipmaps")
 
@@ -2126,10 +2126,18 @@ open class OpenGLRenderer(hub: Hub,
                             // textures might have very uneven dimensions, so we adjust GL_UNPACK_ALIGNMENT here correspondingly
                             // in case the byte count of the texture is not divisible by it.
                             if(contents.remaining() % unpackAlignment[0] == 0 && dimensions.x().toInt() % unpackAlignment[0] == 0) {
-                                t.copyFrom(contents)
+                                if(extents != null) {
+                                    t.copyFrom(contents, extents.w, extents.h, extents.d, extents.x, extents.y, extents.z, true)
+                                } else {
+                                    t.copyFrom(contents)
+                                }
                             } else {
                                 gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, 1)
-                                t.copyFrom(contents)
+                                if(extents != null) {
+                                    t.copyFrom(contents, extents.w, extents.h, extents.d, extents.x, extents.y, extents.z, true)
+                                } else {
+                                    t.copyFrom(contents)
+                                }
                                 gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, unpackAlignment[0])
                             }
 
