@@ -13,6 +13,7 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.locks.ReentrantLock
 import java.util.function.Consumer
 import kotlin.collections.ArrayList
+import kotlin.collections.HashMap
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.properties.Delegates
@@ -418,7 +419,14 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
      */
     fun getShaderProperty(name: String): Any? {
         return if(shaderPropertyFieldCache.containsKey(name)) {
-            shaderPropertyFieldCache[name]!!.get(this)
+            val field = shaderPropertyFieldCache[name]!!
+            val value = field.get(this)
+
+            if(value is HashMap<*, *>) {
+                value.get(name)
+            } else {
+                shaderPropertyFieldCache[name]!!.get(this)
+            }
         } else {
             val field = this.javaClass.kotlin.memberProperties.find { it.name == name && it.findAnnotation<ShaderProperty>() != null}
 
@@ -429,7 +437,23 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
 
                 field.get(this)
             } else {
-                null
+                this.javaClass.kotlin.memberProperties.filter { it.findAnnotation<ShaderProperty>() != null }.forEach { logger.info("${it.name} ${it.get(this)?.javaClass}")}
+                val mappedProperties = this.javaClass.kotlin.memberProperties.firstOrNull { it.findAnnotation<ShaderProperty>() != null && it.get(this) is HashMap<*, *> && it.name == "shaderProperties" }
+
+                if(mappedProperties == null) {
+                    logger.warn("Could not find shader property '$name' in class properties or properties map!")
+                    null
+                } else {
+                    mappedProperties.isAccessible = true
+
+                    val map = mappedProperties.get(this) as? HashMap<String, Any>
+                    if(map == null) {
+                        null
+                    } else {
+                        shaderPropertyFieldCache.put(name, mappedProperties)
+                        map.get(name)
+                    }
+                }
             }
         }
     }
