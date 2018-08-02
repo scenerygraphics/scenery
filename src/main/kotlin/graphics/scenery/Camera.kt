@@ -13,6 +13,11 @@ import com.jogamp.opengl.math.Quaternion
  */
 open class Camera : Node("Camera") {
 
+    /** Enum class for camera projection types */
+    enum class ProjectionType {
+        Undefined, Perspective, Orthographic
+    }
+
     /** Is the camera targeted? */
     var targeted = false
     /** Is this camera active? Setting one camera active will deactivate the others */
@@ -34,6 +39,12 @@ open class Camera : Node("Camera") {
     var farPlaneDistance = 1000.0f
     /** delta T from the renderer */
     var deltaT = 0.0f
+    /** Projection the camera uses */
+    var projectionType: ProjectionType = ProjectionType.Undefined
+    /** Width of the projection */
+    var width: Float = 0.0f
+    /** Height of the projection */
+    var height: Float = 0.0f
 
     /** View matrix of the camera. Setting the view matrix will re-set the forward
      *  vector of the camera according to the given matrix.
@@ -66,14 +77,38 @@ open class Camera : Node("Camera") {
         this.nodeType = "Camera"
     }
 
-    /** Create a perspective projection camera
-     *
-     *
+    /**
+     * Returns the current aspect ratio
+     */
+    fun aspectRatio(): Float {
+        if(projectionType == ProjectionType.Undefined) {
+            logger.warn("Querying aspect ratio but projection type is undefined")
+            return 1.0f
+        }
+
+        if(width < 0.0001f || height < 0.0001f) {
+            logger.warn("Width or height too small, returning 1.0f")
+        }
+
+        val scaleWidth = if(this is DetachedHeadCamera && this.tracker != null) {
+            0.5f
+        } else {
+            1.0f
+        }
+
+        return (width*scaleWidth)/height
+    }
+
+    /**
+     * Create a perspective projection camera
      */
     fun perspectiveCamera(fov: Float, width: Float, height: Float, nearPlaneLocation: Float = 0.1f, farPlaneLocation: Float = 1000.0f) {
         this.nearPlaneDistance = nearPlaneLocation
         this.farPlaneDistance = farPlaneLocation
         this.fov = fov
+
+        this.width = width
+        this.height = height
 
         this.projection = GLMatrix().setPerspectiveProjectionMatrix(
             this.fov / 180.0f * Math.PI.toFloat(),
@@ -81,6 +116,8 @@ open class Camera : Node("Camera") {
             this.nearPlaneDistance,
             this.farPlaneDistance
         )
+
+        this.projectionType = ProjectionType.Perspective
     }
 
     /**
@@ -138,26 +175,24 @@ open class Camera : Node("Camera") {
         })
 
     /**
-     * Transforms a 2D/3D vector from NDC coordinates to world coordinates.
+     * Transforms a 2D/3D [vector] from NDC coordinates to world coordinates.
      * If the vector is 2D, [nearPlaneDistance] is assumed for the Z value, otherwise
      * the Z value from the vector is taken.
-     *
-     * @param v - The vector to be transformed into world space.
-     * @return GLVector - [v] transformed into world space.
      */
-    @JvmOverloads fun viewportToWorld(v: GLVector, offset: Float = 0.01f): GLVector {
+    @JvmOverloads fun viewportToWorld(vector: GLVector, offset: Float = 0.01f): GLVector {
         val unproject = projection.clone()
         unproject.mult(getTransformation())
         unproject.invert()
 
-        val clipSpace = unproject.mult(when (v.dimension) {
-            1 -> GLVector(v.x(), 1.0f, nearPlaneDistance + offset, 1.0f)
-            2 -> GLVector(v.x(), v.y(), nearPlaneDistance + offset, 1.0f)
-            3 -> GLVector(v.x(), v.y(), v.z(), 1.0f)
-            else -> v
+        var clipSpace = unproject.mult(when (vector.dimension) {
+            1 -> GLVector(vector.x(), 1.0f, nearPlaneDistance + offset, 1.0f)
+            2 -> GLVector(vector.x(), vector.y(), nearPlaneDistance + offset, 1.0f)
+            3 -> GLVector(vector.x(), vector.y(), vector.z(), 1.0f)
+            else -> vector
         })
 
-        return clipSpace.xyz() * (1.0f/clipSpace.w())
+        clipSpace = clipSpace.times(1.0f/clipSpace.w())
+        return clipSpace.xyz()
     }
 }
 
