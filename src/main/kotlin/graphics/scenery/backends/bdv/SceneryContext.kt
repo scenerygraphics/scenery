@@ -12,12 +12,12 @@ import java.util.function.BiFunction
  * @author Tobias Pietzsch <pietzsch@mpi-cbg.de>
  */
 class SceneryContext : GpuContext {
-    override fun use(shader: Shader?) {
+    override fun use(shader: Shader) {
         val f = BiFunction { i: Int, j: Int -> 4 }
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
-    override fun getUniformSetter(shader: Shader?): SetUniforms {
+    override fun getUniformSetter(shader: Shader): SetUniforms {
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
@@ -25,7 +25,7 @@ class SceneryContext : GpuContext {
      * @param pbo Pbo to bind
      * @return id of previously bound pbo
      */
-    override fun bindPbo(pbo: Pbo?): Int {
+    override fun bindPbo(pbo: Pbo): Int {
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
@@ -41,7 +41,7 @@ class SceneryContext : GpuContext {
      * @param texture texture to bind
      * @return id of previously bound texture
      */
-    override fun bindTexture(texture: Texture?): Int {
+    override fun bindTexture(texture: Texture): Int {
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
@@ -49,7 +49,7 @@ class SceneryContext : GpuContext {
      * @param texture texture to bind
      * @param unit texture unit to bind to
      */
-    override fun bindTexture(texture: Texture?, unit: Int) {
+    override fun bindTexture(texture: Texture, unit: Int) {
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
@@ -62,23 +62,23 @@ class SceneryContext : GpuContext {
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
-    override fun map(pbo: Pbo?): Buffer {
+    override fun map(pbo: Pbo): Buffer {
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
-    override fun unmap(pbo: Pbo?) {
+    override fun unmap(pbo: Pbo) {
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
-    override fun delete(texture: Texture?) {
+    override fun delete(texture: Texture) {
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
-    override fun texSubImage3D(pbo: Pbo?, texture: Texture3D?, xoffset: Int, yoffset: Int, zoffset: Int, width: Int, height: Int, depth: Int, pixels_buffer_offset: Long) {
+    override fun texSubImage3D(pbo: Pbo, texture: Texture3D, xoffset: Int, yoffset: Int, zoffset: Int, width: Int, height: Int, depth: Int, pixels_buffer_offset: Long) {
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
-    override fun texSubImage3D(texture: Texture3D?, xoffset: Int, yoffset: Int, zoffset: Int, width: Int, height: Int, depth: Int, pixels: Buffer?) {
+    override fun texSubImage3D(texture: Texture3D, xoffset: Int, yoffset: Int, zoffset: Int, width: Int, height: Int, depth: Int, pixels: Buffer?) {
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 }
