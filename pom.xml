@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.scijava</groupId>
         <artifactId>pom-scijava</artifactId>
-        <version>23.0.0</version>
+        <version>23.1.1</version>
     </parent>
 
     <groupId>graphics.scenery</groupId>
@@ -102,10 +102,9 @@
     </distributionManagement>
 
     <properties>
-        <scijava-common.version>2.74.2</scijava-common.version>
         <scijava.jvm.version>1.8</scijava.jvm.version>
         <javac.target>1.8</javac.target>
-        <kotlin.version>1.2.51</kotlin.version>
+        <kotlin.version>1.2.60</kotlin.version>
         <kotlin.compiler.jvmTarget>1.8</kotlin.compiler.jvmTarget>
         <kotlin.compiler.incremental>true</kotlin.compiler.incremental>
         <dokka.version>0.9.17</dokka.version>
