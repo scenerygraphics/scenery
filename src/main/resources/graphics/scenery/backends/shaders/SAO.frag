@@ -33,8 +33,8 @@ layout(push_constant) uniform currentEye_t {
 layout(set = 2, binding = 0, std140) uniform ShaderParameters {
 	int displayWidth;
 	int displayHeight;
-	float ssaoRadius;
-	int ssaoSamples;
+	float occlusionRadius;
+	int occlusionSamples;
     float IntensityScale;
     float Epsilon;
     float BiasDistance;
@@ -69,8 +69,8 @@ vec3 viewFromDepth(float depth, vec2 texcoord) {
 }
 
 vec3 tapLocation(int index, float angle) {
-    float alpha = float(index + 0.5) * (1.0 / ssaoSamples);
-    float a = alpha * ROTATIONS[ssaoSamples - 1] * 2 * PI + angle;
+    float alpha = float(index + 0.5) * (1.0 / occlusionSamples);
+    float a = alpha * ROTATIONS[occlusionSamples - 1] * 2 * PI + angle;
 
     return vec3(cos(a), sin(a), alpha);
 }
@@ -95,7 +95,7 @@ float sampleSAO(ivec2 ssC, vec3 C, vec3 N, float radius, float randomAngle, int 
     float vdotv = dot(v, v);
     float vdotN = dot(v, N) - BiasDistance;
 
-    float f = max(ssaoRadius * ssaoRadius - vdotv, 0.0);
+    float f = max(occlusionRadius * occlusionRadius - vdotv, 0.0);
     return f * f * f * max(0.0, (vdotN - BiasDistance) / (vdotv + Epsilon));
 }
 
@@ -165,23 +165,23 @@ void main() {
 
     float projScale = -displayHeight/(2.0 * tan(50.0 * 0.5));
     float randomAngle = (3 * ssC.x ^ ssC.y + ssC.x * ssC.y) * 10.0;
-    float scaledDiskRadius = -projScale * ssaoRadius / viewSpaceFragPos.z;
-    float intensityScaleDivR6 = IntensityScale / pow(ssaoRadius, 6.0);
+    float scaledDiskRadius = -projScale * occlusionRadius / viewSpaceFragPos.z;
+    float intensityScaleDivR6 = IntensityScale / pow(occlusionRadius, 6.0);
 
     float ambientOcclusion = 0.0f;
 
-    if(ssaoSamples > 0) {
+    if(occlusionSamples > 0) {
         //Alchemy SSAO
         float A = 0.0f;
 
-        for (int i = 0; i < ssaoSamples; ++i) {
+        for (int i = 0; i < occlusionSamples; ++i) {
             A += sampleSAO(ssC, viewSpaceFragPos, (ViewMatrix * vec4(N, 1.0)).xyz, scaledDiskRadius, randomAngle, i);
         }
 
 //        A /= ssaoRadius * ssaoRadius * ssaoRadius;
 //        A = pow(max(0, 1 - 2.0 * IntensityScale * A / ssaoSamples), Contrast);
 //        A = (pow(A, 0.2) + 1.2 * A * A * A * A) / 2.2;
-        A = max(0.0, 1.0 - A * intensityScaleDivR6 * (5.0/ssaoSamples));
+        A = max(0.0, 1.0 - A * intensityScaleDivR6 * (5.0/occlusionSamples));
         ambientOcclusion = A;
     }
 
