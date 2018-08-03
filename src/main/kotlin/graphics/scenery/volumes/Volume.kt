@@ -67,6 +67,9 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
     /** Whether to allow setting the transfer range or not */
     var lockTransferRange = false
 
+    /** Flexible [ShaderProperty] storage */
+    @ShaderProperty var shaderProperties = hashMapOf<String, Any>()
+
     /** Transfer function minimum */
     @ShaderProperty var trangemin = 0.00f
         set(value) {
