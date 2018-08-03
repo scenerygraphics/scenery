@@ -44,6 +44,23 @@ layout(set = 2, binding = 0, std140) uniform ShaderParameters {
     int algorithm;
 };
 
+vec3 viewFromDepth(float depth, vec2 texcoord) {
+    vec2 uv = (vrParameters.stereoEnabled ^ 1) * texcoord + vrParameters.stereoEnabled * vec2((texcoord.x - 0.5 * currentEye.eye) * 2.0, texcoord.y);
+
+	mat4 invProjection = (vrParameters.stereoEnabled ^ 1) * InverseProjectionMatrix + vrParameters.stereoEnabled * vrParameters.inverseProjectionMatrices[currentEye.eye];
+	mat4 invView = (vrParameters.stereoEnabled ^ 1) * InverseViewMatrices[0] + vrParameters.stereoEnabled * (InverseViewMatrices[currentEye.eye]);
+
+#ifndef OPENGL
+    vec4 clipSpacePosition = vec4(uv * 2.0 - 1.0, depth, 1.0);
+#else
+    vec4 clipSpacePosition = vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
+#endif
+    vec4 viewSpacePosition = invProjection * clipSpacePosition;
+
+    viewSpacePosition /= viewSpacePosition.w;
+    return viewSpacePosition.xyz;
+}
+
 vec3 worldFromDepth(float depth, vec2 texcoord) {
     vec2 uv = (vrParameters.stereoEnabled ^ 1) * texcoord + vrParameters.stereoEnabled * vec2((texcoord.x - 0.5 * currentEye.eye) * 2.0, texcoord.y);
 
@@ -95,43 +112,24 @@ vec3 DecodeOctaH( vec2 encN )
     return n;
 }
 
-const vec3 points[] =
-	{
-		vec3(-0.134, 0.044, -0.825),
-		vec3(0.045, -0.431, -0.529),
-		vec3(-0.537, 0.195, -0.371),
-		vec3(0.525, -0.397, 0.713),
-		vec3(0.895, 0.302, 0.139),
-		vec3(-0.613, -0.408, -0.141),
-		vec3(0.307, 0.822, 0.169),
-		vec3(-0.819, 0.037, -0.388),
-		vec3(0.376, 0.009, 0.193),
-		vec3(-0.006, -0.103, -0.035),
-		vec3(0.098, 0.393, 0.019),
-		vec3(0.542, -0.218, -0.593),
-		vec3(0.526, -0.183, 0.424),
-		vec3(-0.529, -0.178, 0.684),
-		vec3(0.066, -0.657, -0.570),
-		vec3(-0.214, 0.288, 0.188),
-		vec3(-0.689, -0.222, -0.192),
-		vec3(-0.008, -0.212, -0.721),
-		vec3(0.053, -0.863, 0.054),
-		vec3(0.639, -0.558, 0.289),
-		vec3(-0.255, 0.958, 0.099),
-		vec3(-0.488, 0.473, -0.381),
-		vec3(-0.592, -0.332, 0.137),
-		vec3(0.080, 0.756, -0.494),
-		vec3(-0.638, 0.319, 0.686),
-		vec3(-0.663, 0.230, -0.634),
-		vec3(0.235, -0.547, 0.664),
-		vec3(0.164, -0.710, 0.086),
-		vec3(-0.009, 0.493, -0.038),
-		vec3(-0.322, 0.147, -0.105),
-		vec3(-0.554, -0.725, 0.289),
-		vec3(0.534, 0.157, -0.250),
-};
-
-const int numSamples = 32;
+const vec2 poisson16[] = vec2[](
+		vec2( -0.94201624,  -0.39906216 ),
+		vec2(  0.94558609,  -0.76890725 ),
+		vec2( -0.094184101, -0.92938870 ),
+		vec2(  0.34495938,   0.29387760 ),
+		vec2( -0.91588581,   0.45771432 ),
+		vec2( -0.81544232,  -0.87912464 ),
+		vec2( -0.38277543,   0.27676845 ),
+		vec2(  0.97484398,   0.75648379 ),
+		vec2(  0.44323325,  -0.97511554 ),
+		vec2(  0.53742981,  -0.47373420 ),
+		vec2( -0.26496911,  -0.41893023 ),
+		vec2(  0.79197514,   0.19090188 ),
+		vec2( -0.24188840,   0.99706507 ),
+		vec2( -0.81409955,   0.91437590 ),
+		vec2(  0.19984126,   0.78641367 ),
+		vec2(  0.14383161,  -0.14100790 )
+);
 
 void main() {
     if(occlusionSamples == 0) {
@@ -146,44 +144,61 @@ void main() {
 	vec3 N = DecodeOctaH(texture(InputNormalsMaterial, textureCoordSubpixelShifted).rg);
 	float Depth = texture(InputZBuffer, textureCoord).r;
     vec3 FragPos = worldFromDepth(Depth, textureCoord);
+    vec2 filterRadius = vec2(occlusionRadius*25.0/displayWidth, occlusionRadius*25.0/displayHeight);
 
-    vec4 occlusion = vec4(0.0f);
+    float ambientOcclusion = 0.0f;
 
-    float dist = distance(CamPosition, FragPos);
-    float radius = occlusionRadius / dist;
-    float maxInvDistance = 1.0f / maxDistance;
+    // vanilla SSAO
+    if(algorithm == 0) {
+        [[unroll]] for (int i = 0; i < occlusionSamples;  ++i) {
+            // sample at an offset specified by the current Poisson-Disk sample and scale it by a radius (has to be in Texture-Space)
+            vec2 sampleTexCoord = textureCoord + (poisson16[i] * filterRadius);
+            float sampleDepth = texture(InputZBuffer, sampleTexCoord).r;
+            vec3 samplePos = worldFromDepth(sampleDepth, textureCoord);
 
-    float attenuationAngleThreshold = 0.1;
+            vec3 sampleDir = normalize(samplePos - FragPos);
 
-    float key = 3 * (int(gl_FragCoord.x) ^ int(gl_FragCoord.y)) + gl_FragCoord.x * gl_FragCoord.y;
-    vec3 noise = vec3(noise1D(key), noise1D(key/2.0), noise1D(key/3.0))/16.0;
+            float NdotS = max(dot(N, sampleDir), 0.0);
+            float VPdistSP = distance(FragPos, samplePos);
 
-    const float fudge_factor_l0 = 2.0;
-    const float fudge_factor_l1 = 10.0;
+            float a = 1.0 - smoothstep(maxDistance, maxDistance * 2, VPdistSP);
 
-    const float sh2_weight_l0 = fudge_factor_l0 * 0.28209;
-    const vec3 sh2_weight_l1 = vec3(fudge_factor_l1 * 0.48860);
+            ambientOcclusion += a * NdotS;
+        }
 
-    const vec4 sh2_weight = vec4(sh2_weight_l1, sh2_weight_l0)/occlusionSamples;
-
-    [[unroll]] for (int i = 0; i < occlusionSamples; ++i) {
-        vec2 offset = reflect(points[i].xy, noise.xy).xy * radius;
-        vec2 texcoord = textureCoord + offset;
-
-        vec3 pos = worldFromDepth(texture(InputZBuffer, texcoord).r, texcoord);
-        vec3 center_to_pos = pos - FragPos;
-
-        float dist = length(center_to_pos);
-        vec3 center_to_pos_normalized = center_to_pos/dist;
-
-        float attenuation = 1 - clamp(dist * maxInvDistance, 0.0, 1.0);
-        float dp = dot(N, center_to_pos_normalized);
-
-        attenuation = attenuation * attenuation * step(attenuationAngleThreshold, dp);
-
-        occlusion += attenuation * sh2_weight * vec4(center_to_pos_normalized, 1.0);
+        ambientOcclusion /= float(occlusionSamples);
     }
-    occlusion.r -= 0.03;
 
-    FragColor = occlusion;
+    //Alchemy SSAO algorithm
+    else if (algorithm == 1) {
+        float A = 0.0f;
+        float BiasDistance = 0.0f;
+        float Epsilon = 0.0f;
+        float IntensityScale = 0.0f;
+        float Contrast = 0.0f;
+
+        vec3 viewSpacePos = viewFromDepth(Depth, textureCoord);
+
+        [[unroll]] for (int i = 0; i < occlusionSamples;  ++i) {
+            vec2 sampleTexCoord = textureCoord + (poisson16[i] * (filterRadius));
+            float sampleDepth = texture(InputZBuffer, sampleTexCoord).r;
+            vec3 samplePos = worldFromDepth(sampleDepth, textureCoord);
+            vec3 sampleDir = samplePos - FragPos;
+
+            float NdotV = max(dot(N, sampleDir), 0);
+            float VdotV = max(dot(sampleDir, sampleDir), 0);
+            float temp = max(0, NdotV + viewSpacePos.z*BiasDistance);
+            temp /= (VdotV + Epsilon);
+            A+=temp;
+         }
+
+         A /= occlusionSamples;
+         A *= (2*IntensityScale);
+         A = max(0, 1 - A);
+         A = pow(A, Contrast);
+         ambientOcclusion = 1 - A;
+
+    }
+
+    FragColor = vec4(0.0, 0.0, 0.0, ambientOcclusion);
 }
