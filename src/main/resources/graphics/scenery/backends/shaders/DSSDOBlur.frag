@@ -52,7 +52,7 @@ void main() {
     vec3 normal[9];
     vec4 res = vec4(0.0);
 
-    const float weights[9] =
+    float weights[9] =
     {
         0.013519569015984728,
         0.047662179108871855,
@@ -81,9 +81,12 @@ void main() {
     [[unroll]] for(int i = 0; i < 9; i++) {
         if(dot(normal[i], normal[4]) < discard_threshold) {
             total_weight -= weights[i];
-        } else {
-            res += texture(InputOcclusion, textureCoord + indices[i]*step) * weights[i];
+            weights[i] = 0;
         }
+    }
+
+    [[unroll]] for(int i = 0; i < 9; i++) {
+        res += texture(InputOcclusion, textureCoord + indices[i]*step) * weights[i];
     }
 
     FragColor = res/total_weight;
