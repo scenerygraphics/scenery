@@ -600,7 +600,7 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
 
     override fun submitToCompositorVulkan(width: Int, height: Int, format: Int,
                                           instance: VkInstance, device: VulkanDevice,
-                                          queue: VkQueue, image: Long) {
+                                          queue: VkQueue, image: Long, depthImage: Long?) {
         stackPush().use { stack ->
             val textureData = VRVulkanTextureData.callocStack(stack)
                 .m_nImage(image)

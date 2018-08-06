@@ -55,12 +55,14 @@ open class VulkanSwapchain(open val device: VulkanDevice,
     override fun createWindow(win: SceneryWindow, swapchainRecreator: VulkanRenderer.SwapchainRecreator): SceneryWindow {
         glfwDefaultWindowHints()
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API)
+        glfwWindowHint(GLFW_DECORATED, GLFW_FALSE)
 
         window = SceneryWindow.GLFWWindow(glfwCreateWindow(win.width, win.height, "scenery", MemoryUtil.NULL, MemoryUtil.NULL)).apply {
             width = win.width
             height = win.height
 
             glfwSetWindowPos(window, 100, 100)
+            glfwSetWindowSize(window, width, height)
 
             surface = VU.getLong("glfwCreateWindowSurface",
                 { GLFWVulkan.glfwCreateWindowSurface(device.instance, window, null, this) }, {})
@@ -131,6 +133,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
             val currentHeight = surfCaps.currentExtent().height()
 
             if (currentWidth > 0 && currentHeight > 0) {
+                logger.info("Resetting window size to $currentWidth / $currentHeight")
                 window.width = currentWidth
                 window.height = currentHeight
             } else {

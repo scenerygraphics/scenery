@@ -361,10 +361,10 @@ open class VulkanRenderer(hub: Hub,
 
         val hmd = hub.getWorkingHMDDisplay()
         if (hmd != null) {
-            logger.info("Setting window dimensions to bounds from HMD")
             val bounds = hmd.getRenderTargetSize()
             window.width = bounds.x().toInt() * 2
             window.height = bounds.y().toInt()
+            logger.info("Setting window dimensions to bounds from HMD (${window.width}/${window.height})")
         } else {
             window.width = windowWidth
             window.height = windowHeight
@@ -1557,11 +1557,22 @@ open class VulkanRenderer(hub: Hub,
 
         // submit to OpenVR if attached
         if(hub?.getWorkingHMDDisplay()?.hasCompositor() == true) {
-            hub?.getWorkingHMDDisplay()?.wantsVR()?.submitToCompositorVulkan(
-                window.width, window.height,
-                swapchain!!.format,
-                instance, device, queue,
-                swapchain!!.images!![pass.getReadPosition()])
+            if(hub?.getWorkingHMDDisplay()?.compositorNeedsDepth() == true) {
+                val depthImage = renderpasses.values
+                    .findLast { it.getOutput().attachments.any { it.value.type == VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT } }?.getOutput()?.attachments?.values?.find { it.type == VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT }?.image
+                hub?.getWorkingHMDDisplay()?.wantsVR()?.submitToCompositorVulkan(
+                    window.width, window.height,
+                    swapchain!!.format,
+                    instance, device, queue,
+                    swapchain!!.images!![pass.getReadPosition()],
+                    depthImage)
+            } else {
+                hub?.getWorkingHMDDisplay()?.wantsVR()?.submitToCompositorVulkan(
+                    window.width, window.height,
+                    swapchain!!.format,
+                    instance, device, queue,
+                    swapchain!!.images!![pass.getReadPosition()])
+            }
         }
 
         if (recordMovie || screenshotRequested) {

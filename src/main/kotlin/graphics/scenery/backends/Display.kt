@@ -37,6 +37,13 @@ interface Display {
     fun hasCompositor(): Boolean
 
     /**
+     * Returns true in case the compositor needs depth information as well
+     */
+    fun compositorNeedsDepth(): Boolean {
+        return false
+    }
+
+    /**
      * Submit OpenGL texture IDs to the compositor. The texture is assumed to have the left eye in the
      * left half, right eye in the right half.
      *
@@ -59,7 +66,8 @@ interface Display {
     fun submitToCompositorVulkan(width: Int, height: Int, format: Int,
                                  instance: VkInstance, device: VulkanDevice,
                                  queue: VkQueue,
-                                 image: Long)
+                                 image: Long,
+                                 depthImage: Long? = null)
 
     /**
      * Returns the optimal render target size for the HMD as 2D vector

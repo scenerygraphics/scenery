@@ -47,6 +47,7 @@ class Hololens: TrackerInput, Display, Hubable {
         GLMatrix.getIdentity().translate(0.033f, 0.0f, 0.0f))
     // BGR is native surface format and saves unnecessary conversions
     private val textureFormat = VK_FORMAT_B8G8R8A8_SRGB
+    private val depthFormat = VK_FORMAT_D32_SFLOAT
 
     private val defaultPort = 1339
     private val zmqContext = ZContext(4)
@@ -56,12 +57,12 @@ class Hololens: TrackerInput, Display, Hubable {
     data class CommandBufferWithStatus(val commandBuffer: VulkanCommandBuffer, var current: Boolean = false)
     private var commandBuffers: MutableList<CommandBufferWithStatus> = mutableListOf()
     private var hololensCommandPool = -1L
-    private var d3dImages: List<Pair<VulkanTexture.VulkanImage, Long>?> = emptyList()
+    private var d3dImages: List<Triple<VulkanTexture.VulkanImage, Char, Long>?> = emptyList()
     private var currentImageIndex: Int = 0
 
     private val acqKeys = memAllocLong(1).put(0, 0)
     private val releaseKeys = memAllocLong(1).put(0, 0)
-    private val memoryHandleBuffer = memAllocLong(1)
+    private val memoryHandleBuffer = memAllocLong(2)
     private val acquireTimeout = memAllocInt(1).put(0, 1)
 
     private var leftProjection: GLMatrix? = null
@@ -209,7 +210,7 @@ class Hololens: TrackerInput, Display, Hubable {
      * @param[queue] The Vulkan command queue to use.
      * @param[commandPool] The Vulkan command pool to use.
      */
-    private fun getSharedHandleVulkanTexture(sharedHandleAddress: Long, width: Int, height: Int, format: Int, device: VulkanDevice, queue: VkQueue, commandPool: Long): Pair<VulkanTexture.VulkanImage, Long>? {
+    private fun getSharedHandleVulkanTexture(sharedHandleAddress: Long, width: Int, height: Int, type: Char, device: VulkanDevice, queue: VkQueue, commandPool: Long): Triple<VulkanTexture.VulkanImage, Char, Long>? {
         logger.info("Registered D3D shared texture handle as ${sharedHandleAddress.toHexString()}/${sharedHandleAddress.toString(16)}")
 
         // VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_IMAGE_BIT_NV does not seem to work here
@@ -267,6 +268,8 @@ class Hololens: TrackerInput, Display, Hubable {
             extMemoryImageInfo.pNext(dedicatedAllocationCreateInfo.address())
             dedicatedAllocationCreateInfo.dedicatedAllocation(true)
         }
+
+        val format = toVulkanFormat(type)
 
         val t = VulkanTexture(device, commandPool, queue,
             width, height, 1,
@@ -345,9 +348,20 @@ class Hololens: TrackerInput, Display, Hubable {
         }.endCommandBuffer(device, commandPool,
             queue, flush = true, dealloc = true)
 
-        return img to memoryHandle
+        return Triple(img, type, memoryHandle)
     }
 
+    private fun toVulkanFormat(type: Char): Int {
+        return when(type) {
+            'C' -> textureFormat
+            'D' -> depthFormat
+            else -> throw UnsupportedOperationException("Don't know what to do with texture type $type")
+        }
+    }
+
+    override fun compositorNeedsDepth(): Boolean {
+        return true
+    }
     /**
      * Submit a Vulkan texture handle to the compositor
      *
@@ -359,7 +373,7 @@ class Hololens: TrackerInput, Display, Hubable {
      * @param[queue] Vulkan queue
      * @param[image] The Vulkan texture image to be presented to the compositor
      */
-    override fun submitToCompositorVulkan(width: Int, height: Int, format: Int, instance: VkInstance, device: VulkanDevice, queue: VkQueue, image: Long) {
+    override fun submitToCompositorVulkan(width: Int, height: Int, format: Int, instance: VkInstance, device: VulkanDevice, queue: VkQueue, image: Long, depthImage: Long?) {
         if(hololensCommandPool == -1L) {
             hololensCommandPool = device.createCommandPool(device.queueIndices.graphicsQueue)
         }
@@ -394,21 +408,21 @@ class Hololens: TrackerInput, Display, Hubable {
             }
 
             logger.info("Received handles: $reply")
-            val handles = reply.split("/").filter { it.isNotEmpty() }.map { BigInteger(it, 16).toLong() }
+            val handles = reply.split("/").filter { it.isNotEmpty() }.map { it[0] to BigInteger(it.substring(1), 16).toLong() }
 
             d3dImages = handles.mapNotNull { handle ->
-                getSharedHandleVulkanTexture(handle,
+                getSharedHandleVulkanTexture(handle.second,
                         hololensDisplaySize.x().toInt(),
                         hololensDisplaySize.y().toInt(),
-                        textureFormat,
+                        handle.first,
                         device,
                         queue,
                         hololensCommandPool)
             }
 
-            commandBuffers = d3dImages.map { CommandBufferWithStatus(VulkanCommandBuffer(device, null, false), false) }.toMutableList()
+            commandBuffers = d3dImages.filter { it?.second == 'C' }.map { CommandBufferWithStatus(VulkanCommandBuffer(device, null, false), false) }.toMutableList()
 
-            logger.info("Registered ${d3dImages.size} shared handles")
+            logger.info("Registered ${d3dImages.size} shared handles with ${commandBuffers.size} command buffers")
 
             subscribe("transforms.ViewTransforms")
 
@@ -419,13 +433,14 @@ class Hololens: TrackerInput, Display, Hubable {
         }
 
         // return if we can't get a current image
-        val currentImage = d3dImages[currentImageIndex] ?: return
-        var currentCommandBuffer = commandBuffers[currentImageIndex]
+        val currentColorImage = d3dImages[currentImageIndex] ?: return
+        val currentDepthImage = d3dImages[currentImageIndex+1] ?: return
+        var currentCommandBuffer = commandBuffers[currentImageIndex % commandBuffers.size]
 
         // blit into D3D image
         if(!currentCommandBuffer.current) {
             logger.info("Recording command buffer for image index $currentImageIndex")
-            currentCommandBuffer = commandBuffers[currentImageIndex]
+            currentCommandBuffer = commandBuffers[currentImageIndex % commandBuffers.size]
 
             currentCommandBuffer.commandBuffer.commandBuffer = with(VU.newCommandBuffer(device, hololensCommandPool, autostart = true)) {
                 MemoryStack.stackPush().use { stack ->
@@ -448,7 +463,7 @@ class Hololens: TrackerInput, Display, Hubable {
                         .baseArrayLayer(0)
                         .layerCount(1)
 
-                    // transition source attachment
+                    // transition source color attachment
                     VulkanTexture.transitionLayout(image,
                         KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
                         VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
@@ -458,8 +473,8 @@ class Hololens: TrackerInput, Display, Hubable {
                         dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT
                     )
 
-                    // transition destination attachment
-                    VulkanTexture.transitionLayout(currentImage.first.image,
+                    // transition destination color attachment
+                    VulkanTexture.transitionLayout(currentColorImage.first.image,
                         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                         subresourceRange = subresourceRange,
@@ -470,12 +485,12 @@ class Hololens: TrackerInput, Display, Hubable {
 
                     vkCmdBlitImage(this@with,
                         image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                        currentImage.first.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                        currentColorImage.first.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                         imageBlit, VK_FILTER_NEAREST
                     )
 
-                    // transition destination attachment back to attachment
-                    VulkanTexture.transitionLayout(currentImage.first.image,
+                    // transition destination color attachment back to attachment
+                    VulkanTexture.transitionLayout(currentColorImage.first.image,
                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                         subresourceRange = subresourceRange,
@@ -484,7 +499,7 @@ class Hololens: TrackerInput, Display, Hubable {
                         dstStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
                     )
 
-                    // transition source attachment back to shader read-only
+                    // transition source color attachment back to shader read-only
                     VulkanTexture.transitionLayout(image,
                         VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                         KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
@@ -493,6 +508,58 @@ class Hololens: TrackerInput, Display, Hubable {
                         srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
                         dstStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
                     )
+
+                    // depth blitting
+                    if(depthImage == null) {
+                        throw IllegalStateException("Depth image must not be null!")
+                    }
+
+                    // transition source color attachment
+                    VulkanTexture.transitionLayout(depthImage,
+                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                        subresourceRange = subresourceRange,
+                        commandBuffer = this,
+                        srcStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                        dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT
+                    )
+
+                    // transition destination color attachment
+                    VulkanTexture.transitionLayout(currentDepthImage.first.image,
+                        VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                        subresourceRange = subresourceRange,
+                        commandBuffer = this,
+                        srcStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                        dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT
+                    )
+
+                    vkCmdBlitImage(this@with,
+                        image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                        currentColorImage.first.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                        imageBlit, VK_FILTER_NEAREST
+                    )
+
+                    // transition destination color attachment back to attachment
+                    VulkanTexture.transitionLayout(currentColorImage.first.image,
+                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                        VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                        subresourceRange = subresourceRange,
+                        commandBuffer = this,
+                        srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                        dstStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+                    )
+
+                    // transition source color attachment back to shader read-only
+                    VulkanTexture.transitionLayout(depthImage,
+                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                        subresourceRange = subresourceRange,
+                        commandBuffer = this,
+                        srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                        dstStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+                    )
+
                 }
 
                 this
@@ -503,21 +570,22 @@ class Hololens: TrackerInput, Display, Hubable {
             currentCommandBuffer.current = true
         }
 
-        memoryHandleBuffer.put(0, currentImage.second)
+        memoryHandleBuffer.put(0, currentColorImage.third)
+        memoryHandleBuffer.put(1, currentDepthImage.third)
 
         val keyedMutex = VkWin32KeyedMutexAcquireReleaseInfoNV.calloc()
             .sType(VK_STRUCTURE_TYPE_WIN32_KEYED_MUTEX_ACQUIRE_RELEASE_INFO_NV)
             .pNext(0)
-            .acquireCount(1)
+            .acquireCount(2)
             .pAcquireSyncs(memoryHandleBuffer)
             .pAcquireKeys(acqKeys)
             .pAcquireTimeoutMilliseconds(acquireTimeout)
-            .releaseCount(1)
+            .releaseCount(2)
             .pReleaseKeys(releaseKeys)
             .pReleaseSyncs(memoryHandleBuffer)
 
         currentCommandBuffer.commandBuffer.commandBuffer?.submit(queue, submitInfoPNext = keyedMutex)
-        currentImageIndex = (currentImageIndex+1) % d3dImages.size
+        currentImageIndex = (currentImageIndex+2) % d3dImages.size
     }
 
     /**
