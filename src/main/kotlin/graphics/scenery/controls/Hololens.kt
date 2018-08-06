@@ -268,7 +268,7 @@ class Hololens: TrackerInput, Display, Hubable {
             dedicatedAllocationCreateInfo.dedicatedAllocation(true)
         }
 
-        val t = VulkanTexture(device, commandPool, queue,
+        val t = VulkanTexture(device, VulkanRenderer.CommandPools(commandPool, commandPool, commandPool, commandPool), queue, queue,
             width, height, 1,
             format, 1, true, true)
 

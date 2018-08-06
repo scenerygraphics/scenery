@@ -61,7 +61,8 @@ fun VkCommandBuffer.endCommandBuffer(device: VulkanDevice, commandPool: Long,
                                      dealloc: Boolean = false,
                                      submitInfoPNext: Pointer? = null,
                                      signalSemaphores: LongBuffer? = null, waitSemaphores: LongBuffer? = null,
-                                     waitDstStageMask: IntBuffer? = null) {
+                                     waitDstStageMask: IntBuffer? = null,
+                                     block: Boolean = true) {
     if (this.address() == NULL) {
         return
     }
@@ -71,7 +72,7 @@ fun VkCommandBuffer.endCommandBuffer(device: VulkanDevice, commandPool: Long,
     }
 
     if (flush && queue != null) {
-        this.submit(queue, submitInfoPNext, waitSemaphores = waitSemaphores, signalSemaphores = signalSemaphores, waitDstStageMask = waitDstStageMask)
+        this.submit(queue, submitInfoPNext, waitSemaphores = waitSemaphores, signalSemaphores = signalSemaphores, waitDstStageMask = waitDstStageMask, block = block)
     }
 
     if (dealloc) {
@@ -107,8 +108,12 @@ fun VkCommandBuffer.submit(queue: VkQueue, submitInfoPNext: Pointer? = null,
                     .pWaitDstStageMask(waitDstStageMask)
             }
 
-            vkQueueSubmit(queue, submitInfo, VK_NULL_HANDLE)
-            vkQueueWaitIdle(queue)
+            if(block) {
+                vkQueueSubmit(queue, submitInfo, VK_NULL_HANDLE)
+                vkQueueWaitIdle(queue)
+            } else {
+                vkQueueSubmit(queue, submitInfo, VK_NULL_HANDLE)
+            }
         }, { })
     }
 }
