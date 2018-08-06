@@ -39,7 +39,7 @@ import java.nio.LongBuffer
  */
 class OpenGLSwapchain(val device: VulkanDevice,
                       val queue: VkQueue,
-                      val commandPool: Long,
+                      val commandPools: VulkanRenderer.CommandPools,
                       val renderConfig: RenderConfigReader.RenderConfig,
                       val useSRGB: Boolean = true,
                       val useFramelock: Boolean = false,
@@ -138,8 +138,8 @@ class OpenGLSwapchain(val device: VulkanDevice,
         }
 
         val imgs = (0..bufferCount - 1).map {
-            with(VU.newCommandBuffer(device, commandPool, autostart = true)) {
-                val t = VulkanTexture(device, commandPool, queue,
+            with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
+                val t = VulkanTexture(device, commandPools, queue, queue,
                     window.width, window.height, 1, format, 1)
 
                 val image = t.createImage(window.width, window.height, 1,
@@ -154,7 +154,7 @@ class OpenGLSwapchain(val device: VulkanDevice,
 
                 val view = t.createImageView(image, format)
 
-                this.endCommandBuffer(device, commandPool, queue, flush = true, dealloc = true)
+                this.endCommandBuffer(device, commandPools.Standard, queue, flush = true, dealloc = true)
                 Pair(image.image, view)
             }
         }

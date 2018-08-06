@@ -100,7 +100,8 @@ open class VulkanRenderer(hub: Hub,
     data class CommandPools(
         var Standard: Long = -1L,
         var Render: Long = -1L,
-        var Compute: Long = -1L
+        var Compute: Long = -1L,
+        var Transfer: Long = -1L
     )
 
     data class DeviceAndGraphicsQueueFamily(
@@ -108,6 +109,7 @@ open class VulkanRenderer(hub: Hub,
         val graphicsQueue: Int = 0,
         val computeQueue: Int = 0,
         val presentQueue: Int = 0,
+        val transferQueue: Int = 0,
         val memoryProperties: VkPhysicalDeviceMemoryProperties? = null
     )
 
@@ -286,6 +288,7 @@ open class VulkanRenderer(hub: Hub,
 
     // Create static Vulkan resources
     protected var queue: VkQueue
+    protected var transferQueue: VkQueue
     protected var descriptorPool: Long
 
     protected var swapchain: Swapchain? = null
@@ -444,10 +447,14 @@ open class VulkanRenderer(hub: Hub,
         }
 
         queue = VU.createDeviceQueue(device, device.queueIndices.graphicsQueue)
+        logger.info("Creating transfer queue with ${device.queueIndices.transferQueue} (vs ${device.queueIndices.graphicsQueue})")
+        transferQueue = VU.createDeviceQueue(device, device.queueIndices.transferQueue)
+
         with(commandPools) {
             Render = device.createCommandPool(device.queueIndices.graphicsQueue)
             Standard = device.createCommandPool(device.queueIndices.graphicsQueue)
-            Compute = device.createCommandPool(device.queueIndices.graphicsQueue)
+            Compute = device.createCommandPool(device.queueIndices.computeQueue)
+            Transfer = device.createCommandPool(device.queueIndices.transferQueue)
         }
         logger.debug("Creating command pools done")
 
@@ -457,7 +464,7 @@ open class VulkanRenderer(hub: Hub,
             wantsOpenGLSwapchain -> {
                 logger.info("Using OpenGL-based swapchain")
                 OpenGLSwapchain(
-                    device, queue, commandPools.Standard,
+                    device, queue, commandPools,
                     renderConfig = renderConfig, useSRGB = renderConfig.sRGB,
                     useFramelock = System.getProperty("scenery.Renderer.Framelock", "false")?.toBoolean() ?: false)
             }
@@ -465,20 +472,20 @@ open class VulkanRenderer(hub: Hub,
             (System.getProperty("scenery.Headless", "false")?.toBoolean() ?: false) -> {
                 logger.info("Vulkan running in headless mode.")
                 HeadlessSwapchain(
-                    device, queue, commandPools.Standard,
+                    device, queue, commandPools,
                     renderConfig = renderConfig, useSRGB = renderConfig.sRGB)
             }
 
             (System.getProperty("scenery.Renderer.UseJavaFX", "false")?.toBoolean() ?: false || embedIn != null) -> {
                 logger.info("Using JavaFX-based swapchain")
                 FXSwapchain(
-                    device, queue, commandPools.Standard,
+                    device, queue, commandPools,
                     renderConfig = renderConfig, useSRGB = renderConfig.sRGB)
             }
 
             else -> {
                 VulkanSwapchain(
-                    device, queue, commandPools.Standard,
+                    device, queue, commandPools,
                     renderConfig = renderConfig, useSRGB = renderConfig.sRGB)
             }
         }.apply {
@@ -965,7 +972,7 @@ open class VulkanRenderer(hub: Hub,
                             existingTexture
                         } else {
                             VulkanTexture(device,
-                                commandPools.Standard, queue, gt, miplevels)
+                                commandPools, queue, transferQueue, gt, miplevels)
                         }
 
                         t.copyFrom(gt.contents)
@@ -983,11 +990,11 @@ open class VulkanRenderer(hub: Hub,
                                 defaultTexture
                             } else {
                                 VulkanTexture.loadFromFile(device,
-                                    commandPools.Standard, queue, stream, texture.substringAfterLast("."), true, generateMipmaps)
+                                    commandPools, queue, transferQueue, stream, texture.substringAfterLast("."), true, generateMipmaps)
                             }
                         } else {
                             VulkanTexture.loadFromFile(device,
-                                commandPools.Standard, queue, texture, true, generateMipmaps)
+                                commandPools, queue, transferQueue, texture, true, generateMipmaps)
                         }
 
                         val duration = System.nanoTime() - start * 1.0f
@@ -1285,7 +1292,7 @@ open class VulkanRenderer(hub: Hub,
     }
 
     protected fun prepareDefaultTextures(device: VulkanDevice) {
-        val t = VulkanTexture.loadFromFile(device, commandPools.Standard, queue,
+        val t = VulkanTexture.loadFromFile(device, commandPools, queue, transferQueue,
             Renderer::class.java.getResourceAsStream("DefaultTexture.png"), "png", true, true)
 
         textureCache["DefaultTexture"] = t
@@ -1470,7 +1477,7 @@ open class VulkanRenderer(hub: Hub,
             renderpasses.put(passName, pass)
         }
 
-        // connect inputs with each other
+        // connect inputs with each othe
         renderpasses.forEach { pass ->
             val passConfig = config.renderpasses[pass.key]!!
 
