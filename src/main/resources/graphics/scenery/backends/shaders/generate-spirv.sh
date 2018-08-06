@@ -28,16 +28,16 @@ files=$(eval "$LS_CMD")
 for i in $files; do
     echo -n "# $i GLSL -> SPIR-V"
 
+    # compile to SPV with Vulkan semantics
+    glslangValidator --aml -V $i -o $i.spv.tmp | $POST_CMD
+
     # check if ifdefs are needed in the file, if yes, skip
     grep '#ifdef\|#ifndef\|#else\|#endif' $i &>/dev/null
     if [ $? == 0 ]; then
    	echo " (skipping because of preprocessor statements)"
-	rm -f $i.spv
+	rm -f $i.spv $i.spv.tmp
 	continue
     fi
-
-    # compile to SPV with Vulkan semantics
-    glslangValidator --aml -V $i -o $i.spv.tmp | $POST_CMD
 
     # optimise, if spirv-opt was found
     if $OPTIMISE; then
