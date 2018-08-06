@@ -1806,7 +1806,7 @@ open class VulkanRenderer(hub: Hub,
         }
 
         // return if neither UBOs were updated, nor the scene was modified
-        if (pushMode && !ubosUpdated && !forceRerecording && totalFrames > 3) {
+        if (pushMode && !ubosUpdated && !forceRerecording && !screenshotRequested && totalFrames > 3) {
             logger.trace("UBOs have not been updated, returning ({}, {}, {}, {})", pushMode, ubosUpdated, forceRerecording, totalFrames)
             Thread.sleep(2)
 

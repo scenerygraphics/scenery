@@ -45,9 +45,10 @@ renderpasses:
     parameters:
       Pass.displayWidth: 0
       Pass.displayHeight: 0
-      ssaoRadius: 0.5
-      ssaoSamples: 0
-      maxDistance: 0.2
+      occlusionRadius: 0.2
+      occlusionSamples: 16
+      maxDistance: 1.0
+      algorithm: 0
     shaders:
       - "FullscreenQuad.vert.spv"
       - "DSSDO.frag.spv"
@@ -145,14 +146,14 @@ renderpasses:
 
 qualitySettings:
   Low:
-    DSSDO.ssaoSamples: 0
+    DSSDO.occlusionSamples: 0
     FXAA.activateFXAA: 0
   Medium:
-    DSSDO.ssaoSamples: 4
+    DSSDO.occlusionSamples: 4
     FXAA.activateFXAA: 1
   High:
-    DSSDO.ssaoSamples: 16
+    DSSDO.occlusionSamples: 16
     FXAA.activateFXAA: 1
   Ultra:
-    DSSDO.ssaoSamples: 16
+    DSSDO.occlusionSamples: 16
     FXAA.activateFXAA: 1
