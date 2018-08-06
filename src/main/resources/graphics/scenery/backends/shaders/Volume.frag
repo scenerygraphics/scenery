@@ -8,6 +8,7 @@ layout(location = 0) in VertexData {
     vec2 textureCoord;
     mat4 inverseProjection;
     mat4 inverseModelView;
+    mat4 modelView;
     mat4 MVP;
 } Vertex;
 
@@ -264,12 +265,12 @@ void main()
     float alphaVal = 0.0;
     float newVal = 0.0;
 
-    vec4 lightPos = (inverse(ubo.ModelMatrix)*vec4(0.0, 1.0, 1.0,1.0));
+    vec3 lightPos = 0.5 * (1.0 + (ubo.ModelMatrix * vec4(0.0, 0.5, -3.0, 1.0)).xyz);
 
-    int shadowSteps = 16;
+    int shadowSteps = 8;
     vec3 lightVector = (pos - lightPos.xyz)/shadowSteps;
     float shadowDist = 0.0f;
-    float shadowDensity = 0.005f;
+    float shadowDensity = 0.05f;
 
     if(renderingMethod == 0) {
           // alpha blending:
@@ -314,35 +315,49 @@ void main()
         vec3 color = vec3(0.0f);
         float alpha = 0.0f;
 
-        // jitter
-        float jitter = noise1D(pos.x + (u + v));
-        pos += jitter * 0.001f;
-
-        for(int i = 0; i < maxsteps; ++i, pos += vecstep + jitter*0.001f) {
+        for(int i = 0; i < maxsteps; ++i, pos += vecstep + noise1D(pos.x + (u + v))*0.001f) {
             float rawSample = texture(VolumeTextures, pos.xyz).r;
             float volumeSample = rawSample * dataRangeMax;
             volumeSample = clamp(ta*volumeSample + tb,0.f,1.f);
 
             vec3 lpos = pos;
 
-            if(volumeSample > 0.0f) {
+            if(volumeSample > 0.001f) {
                 for(int s = 0; s < shadowSteps; s++) {
+                    vec3 outsideUnitVolume = floor( 0.5 + ( abs( 0.5 - lpos ) ) );
+                    float outside = outsideUnitVolume.x + outsideUnitVolume.y + outsideUnitVolume.z;
+
                     lpos += lightVector;
-                    float attenuation = 1.0f/pow(length(pos - lightPos.xyz),2.0f);
-                    shadowDist += sampleTF(texture(VolumeTextures, lpos.xyz).r)/attenuation;
+
+                    float lightDist = length(pos - lightPos.xyz);
+                    float attenuation = (1.0 - pow(clamp(1.0 - pow(lightDist/2.0, 4.0), 0.0, 1.0), 2.0) / (lightDist * lightDist + 1.0));
+//                    float attenuation = 1.0f/pow(length(pos - lightPos.xyz),2.0f);
+                    shadowDist += sampleTF(texture(VolumeTextures, clamp(lpos.xyz, 0.0, 1.0)).r)/attenuation;
+
+                    if(outside>= 1.0f) {
+                        break;
+                    }
                 }
             }
 
             float shadowing = exp(-shadowDist * shadowDensity);
 
             vec4 transfer = sampleLUT(volumeSample);
-            vec3 newColor = transfer.rgb * shadowing;
-            float newAlpha = sampleTF(rawSample);
+            vec3 newColor;
+            float newAlpha;
+
+            if(pos.y > 0.0) {
+                newColor = transfer.rgb * shadowing;
+                newAlpha = sampleTF(rawSample);
+            } else {
+                newColor = vec3(shadowing);
+                newAlpha = 0.05;
+            }
 
             color += (1.0f - alpha) * newColor * newAlpha;
             alpha += (1.0f - alpha) * newAlpha;
 
-            if(alpha > 1.0) {
+            if(alpha >= 1.0) {
                 break;
             }
         }
