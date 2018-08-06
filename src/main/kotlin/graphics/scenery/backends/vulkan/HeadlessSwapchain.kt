@@ -19,11 +19,11 @@ import org.lwjgl.system.MemoryStack
  */
 open class HeadlessSwapchain(device: VulkanDevice,
                         queue: VkQueue,
-                        commandPool: Long,
+                        commandPools: VulkanRenderer.CommandPools,
                         renderConfig: RenderConfigReader.RenderConfig,
                         useSRGB: Boolean = true,
                         @Suppress("unused") val useFramelock: Boolean = false,
-                        @Suppress("unused") val bufferCount: Int = 2) : VulkanSwapchain(device, queue, commandPool, renderConfig, useSRGB) {
+                        @Suppress("unused") val bufferCount: Int = 2) : VulkanSwapchain(device, queue, commandPools, renderConfig, useSRGB) {
     protected var initialized = false
     protected lateinit var sharingBuffer: VulkanBuffer
     protected lateinit var imageBuffer: ByteBuffer
@@ -94,7 +94,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
         presentQueue = VU.createDeviceQueue(device, device.queueIndices.graphicsQueue)
 
         val textureImages = (0 until bufferCount).map {
-            val t = VulkanTexture(device, commandPool, queue, window.width, window.height, 1,
+            val t = VulkanTexture(device, commandPools, queue, queue, window.width, window.height, 1,
                 format, 1)
             val image = t.createImage(window.width, window.height, 1, format,
                 VK10.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT or VK10.VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
@@ -139,8 +139,8 @@ open class HeadlessSwapchain(device: VulkanDevice,
             val signal = stack.callocLong(1)
             signal.put(0, signalSemaphore)
 
-            with(VU.newCommandBuffer(device, commandPool, autostart = true)) {
-                this.endCommandBuffer(device, commandPool, presentQueue, signalSemaphores = signal,
+            with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
+                this.endCommandBuffer(device, commandPools.Standard, presentQueue, signalSemaphores = signal,
                     flush = true, dealloc = true)
             }
 
@@ -159,8 +159,8 @@ open class HeadlessSwapchain(device: VulkanDevice,
             val mask = stack.callocInt(1)
             mask.put(0, VK10.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
 
-            with(VU.newCommandBuffer(device, commandPool, autostart = true)) {
-                this.endCommandBuffer(device, commandPool, presentQueue,
+            with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
+                this.endCommandBuffer(device, commandPools.Standard, presentQueue,
                     waitSemaphores = waitForSemaphores, waitDstStageMask = mask,
                     flush = true, dealloc = true)
             }
@@ -172,7 +172,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
             return
         }
 
-        with(VU.newCommandBuffer(device, commandPool, autostart = true)) {
+        with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
             val subresource = VkImageSubresourceLayers.calloc()
                 .aspectMask(VK10.VK_IMAGE_ASPECT_COLOR_BIT)
                 .mipLevel(0)
@@ -207,7 +207,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
                 dstStage = VK10.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                 commandBuffer = this)
 
-            this.endCommandBuffer(device, commandPool, queue,
+            this.endCommandBuffer(device, commandPools.Standard, queue,
                 flush = true, dealloc = true)
         }
 

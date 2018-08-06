@@ -48,7 +48,7 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
      * @property[graphicsQueue] The index of the graphics queue
      * @property[computeQueue] The index of the compute queue
      */
-    data class QueueIndices(val presentQueue: Int, val graphicsQueue: Int, val computeQueue: Int)
+    data class QueueIndices(val presentQueue: Int, val transferQueue: Int, val graphicsQueue: Int, val computeQueue: Int)
 
     init {
         val result = stackPush().use { stack ->
@@ -59,6 +59,7 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
             vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, pQueueFamilyPropertyCount, queueProps)
 
             var graphicsQueueFamilyIndex = 0
+            var transferQueueFamilyIndex = 0
             var computeQueueFamilyIndex = 0
             val presentQueueFamilyIndex = 0
             var index = 0
@@ -66,6 +67,10 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
             while (index < queueCount) {
                 if (queueProps.get(index).queueFlags() and VK_QUEUE_GRAPHICS_BIT != 0) {
                     graphicsQueueFamilyIndex = index
+                }
+
+                if (queueProps.get(index).queueFlags() and VK_QUEUE_TRANSFER_BIT != 0) {
+                    transferQueueFamilyIndex = index
                 }
 
                 if (queueProps.get(index).queueFlags() and VK_QUEUE_COMPUTE_BIT != 0) {
@@ -76,9 +81,18 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
             }
 
             val pQueuePriorities = stack.callocFloat(1).put(0, 0.0f)
-            val queueCreateInfo = VkDeviceQueueCreateInfo.callocStack(1, stack)
+            val queueCreateInfo = VkDeviceQueueCreateInfo.callocStack(3, stack)
+            queueCreateInfo[0]
                 .sType(VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO)
                 .queueFamilyIndex(graphicsQueueFamilyIndex)
+                .pQueuePriorities(pQueuePriorities)
+            queueCreateInfo[1]
+                .sType(VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO)
+                .queueFamilyIndex(computeQueueFamilyIndex)
+                .pQueuePriorities(pQueuePriorities)
+            queueCreateInfo[2]
+                .sType(VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO)
+                .queueFamilyIndex(transferQueueFamilyIndex)
                 .pQueuePriorities(pQueuePriorities)
 
             val extensionsRequested = extensionsQuery.invoke(physicalDevice)
@@ -129,11 +143,12 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
             vkGetPhysicalDeviceMemoryProperties(physicalDevice, memoryProperties)
 
             VulkanRenderer.DeviceAndGraphicsQueueFamily(VkDevice(device, physicalDevice, deviceCreateInfo),
-                graphicsQueueFamilyIndex, computeQueueFamilyIndex, presentQueueFamilyIndex, memoryProperties)
+                graphicsQueueFamilyIndex, computeQueueFamilyIndex, presentQueueFamilyIndex, transferQueueFamilyIndex, memoryProperties)
 
             Triple(VkDevice(device, physicalDevice, deviceCreateInfo),
                 QueueIndices(
                     presentQueue = presentQueueFamilyIndex,
+                    transferQueue = transferQueueFamilyIndex,
                     computeQueue = computeQueueFamilyIndex,
                     graphicsQueue = graphicsQueueFamilyIndex),
                 memoryProperties

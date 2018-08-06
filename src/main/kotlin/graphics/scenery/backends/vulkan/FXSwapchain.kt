@@ -30,11 +30,11 @@ import java.util.concurrent.locks.ReentrantLock
  */
 class FXSwapchain(device: VulkanDevice,
                   queue: VkQueue,
-                  commandPool: Long,
+                  commandPools: VulkanRenderer.CommandPools,
                   renderConfig: RenderConfigReader.RenderConfig,
                   useSRGB: Boolean = true,
                   useFramelock: Boolean = false,
-                  bufferCount: Int = 2) : HeadlessSwapchain(device, queue, commandPool, renderConfig, useSRGB, useFramelock, bufferCount) {
+                  bufferCount: Int = 2) : HeadlessSwapchain(device, queue, commandPools, renderConfig, useSRGB, useFramelock, bufferCount) {
     var lock = ReentrantLock()
 
     protected lateinit var stage: Stage
