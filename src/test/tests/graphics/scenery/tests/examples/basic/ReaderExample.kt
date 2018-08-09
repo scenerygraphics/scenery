@@ -5,10 +5,12 @@ import com.sun.javafx.application.PlatformImpl
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
+import graphics.scenery.volumes.Volume
 import javafx.application.Platform
 import javafx.stage.FileChooser
 import javafx.stage.Stage
 import org.junit.Test
+import java.nio.file.Paths
 import java.util.concurrent.CountDownLatch
 import kotlin.concurrent.thread
 
@@ -17,7 +19,7 @@ import kotlin.concurrent.thread
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class ReadModelExample : SceneryBase("ReadModelExample", 1280, 720) {
+class ReaderExample : SceneryBase("ReaderExample", 1280, 720) {
     override fun init() {
         val latch = CountDownLatch(1)
         val files = ArrayList<String>()
@@ -28,6 +30,7 @@ class ReadModelExample : SceneryBase("ReadModelExample", 1280, 720) {
             chooser.title = "Open File"
             chooser.extensionFilters.add(FileChooser.ExtensionFilter("OBJ 3D models", "*.obj"))
             chooser.extensionFilters.add(FileChooser.ExtensionFilter("STL 3D models", "*.stl"))
+            chooser.extensionFilters.add(FileChooser.ExtensionFilter("Volume files", "*.tif", "*.tiff", "*.raw"))
             val file = chooser.showOpenDialog(Stage())
 
             if(file != null) {
@@ -54,16 +57,38 @@ class ReadModelExample : SceneryBase("ReadModelExample", 1280, 720) {
 
         val lights = (0 until 4).map { PointLight(radius = 50.0f) }
 
-        val m = Mesh()
-        if(files.isNotEmpty()) {
-            m.readFrom(files.first())
-            m.fitInto(6.0f, scaleUp = false)
+        val n: Node = if(files.isNotEmpty()) {
+            when {
+                files.first().endsWith(".tiff") || files.first().endsWith(".tif") -> {
+                    val v = Volume()
+                    v.readFrom(Paths.get(files.first()))
 
-            scene.addChild(m)
+                    v
+                }
+                files.first().endsWith(".raw") -> {
+                    val v = Volume()
+                    v.readFromRaw(Paths.get(files.first()))
 
-            val bg = BoundingGrid()
-            bg.node = m
+                    v
+                }
+
+                else -> {
+                    val m = Mesh()
+                    m.readFrom(files.first())
+
+                    m
+                }
+            }
+        } else {
+            throw IllegalStateException("No file selected")
         }
+
+        n.fitInto(6.0f, scaleUp = false)
+
+        scene.addChild(n)
+
+        val bg = BoundingGrid()
+        bg.node = n
 
         tetrahedron.mapIndexed { i, position ->
             lights[i].position = position * 5.0f
@@ -82,11 +107,11 @@ class ReadModelExample : SceneryBase("ReadModelExample", 1280, 720) {
         }
 
         thread {
-            while(!m.initialized) {
+            while(!n.initialized) {
                 Thread.sleep(200)
             }
 
-            m.putAbove(GLVector(0.0f, -0.3f, 0.0f))
+            n.putAbove(GLVector(0.0f, -0.3f, 0.0f))
         }
     }
 
