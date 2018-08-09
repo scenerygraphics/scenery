@@ -131,6 +131,12 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
     @ShaderProperty protected var dataRangeMin: Int = 0
     @ShaderProperty protected var dataRangeMax: Int = 255
 
+    @ShaderProperty var kernelSize: Float = 0.0001f
+    @ShaderProperty var maxOcclusionDistance: Float = 0.0001f
+    @ShaderProperty var occlusionSteps: Int = 4
+
+    @ShaderProperty var time: Float = System.nanoTime().toFloat()
+
     /** The transfer function to use for the volume. Flat by default. */
     var transferFunction: TransferFunction = TransferFunction.ramp(0.0f)
 
@@ -532,6 +538,8 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
 
             material.textures["diffuse"] = "fromBuffer:transferFunction"
             material.needsTextureReload = true
+
+            time = System.nanoTime().toFloat()
         }
     }
 
