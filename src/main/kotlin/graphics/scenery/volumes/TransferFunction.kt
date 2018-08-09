@@ -38,8 +38,11 @@ open class TransferFunction(val name: String = "") {
      * Adds a new control point for position [value], with [factor].
      */
     fun addControlPoint(value: Float, factor: Float): ControlPoint {
-        val cp = ControlPoint(value, factor)
-        controlPoints.removeIf { abs(it.value - value) < 0.001f }
+        val v = min(max(value, 0.0f), 1.0f)
+        val f = min(max(factor, 0.0f), 1.0f)
+
+        val cp = ControlPoint(v, f)
+        controlPoints.removeIf { abs(it.value - v) < 0.001f }
         controlPoints.add(cp)
         stale = true
 
@@ -132,9 +135,22 @@ open class TransferFunction(val name: String = "") {
         return buffer.duplicate().order(ByteOrder.LITTLE_ENDIAN)
     }
 
+    /**
+     * Returns a string representation of the transfer function.
+     */
+    override fun toString(): String {
+        return "TransferFunction: ${controlPoints.sortedBy { it.value }.joinToString { "@${it.value}: alpha=${it.factor}" }}"
+    }
+
     companion object {
         /** Returns a flat transfer function that transfers all values */
-        @JvmStatic fun flat(): TransferFunction = TransferFunction("Flat")
+        @JvmStatic @JvmOverloads fun flat(factor: Float = 1.0f): TransferFunction {
+            val tf = TransferFunction("Flat")
+            tf.addControlPoint(0.0f, factor)
+            tf.addControlPoint(1.0f, factor)
+
+            return tf
+        }
 
         /** Returns a ramp transfer function, transferring nothing before [offset] (0.0f by default), and everything at the top. */
         @JvmStatic @JvmOverloads fun ramp(offset: Float = 0.0f): TransferFunction {
