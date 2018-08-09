@@ -112,8 +112,9 @@ class SceneryPanel(var imageWidth: Int, var imageHeight: Int) : Pane() {
         override fun renderContent(g: Graphics) {
 
             logger.trace(" w x h : {} {} panel w x h : {} {} buffer sizes {} vs {}", imageWidth, imageHeight, width, height, latestImageSize, this@SceneryPanel.width*this@SceneryPanel.height*4)
-            if (latestImageSize == this@SceneryPanel.width.toInt() * this@SceneryPanel.height.toInt() * 4 && imageBuffer != null) {
-                val t = g.resourceFactory.getCachedTexture(image.getWritablePlatformImage(image) as com.sun.prism.Image, Texture.WrapMode.CLAMP_TO_EDGE)
+            val t = g.resourceFactory.getCachedTexture(image.getWritablePlatformImage(image) as com.sun.prism.Image, Texture.WrapMode.CLAMP_TO_EDGE)
+
+            if (latestImageSize == this@SceneryPanel.width.toInt() * this@SceneryPanel.height.toInt() * 4 && imageBuffer != null && !t.isLocked) {
                 t.lock()
 
                 g.clearQuad(0.0f, 0.0f, width.toFloat(), height.toFloat())
