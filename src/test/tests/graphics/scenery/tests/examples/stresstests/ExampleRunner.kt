@@ -37,7 +37,7 @@ class ExampleRunner {
             "VRControllerExample",
             "EyeTrackingExample",
             "ARExample",
-            "ReadModelExample")
+            "ReaderExample")
 
         // find all basic and advanced examples, exclude blacklist
         val examples = reflections
