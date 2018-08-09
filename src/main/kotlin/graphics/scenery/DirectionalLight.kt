@@ -11,57 +11,60 @@ import cleargl.GLVector
  * @author Ulrik Günther <hello@ulrik.is>
  * @constructor Creates a PointLight with default settings, e.g. white emission color.
  */
-class PointLight(radius: Float = 5.0f) : Light("PointLight") {
-    private var proxySphere = Sphere(radius * 1.1f, 10)
+class DirectionalLight(var direction: GLVector = GLVector(0.0f, 1.0f, 0.0f)) : Light("DirectionalLight") {
     /** The intensity of the point light. Bound to [0.0, 1.0] if using non-HDR rendering. */
     @ShaderProperty
-    override var intensity: Float = 100.0f
+    override var intensity: Float = 1.0f
 
     /** The emission color of the point light. Setting it will also affect the accompanying Box' color. */
     @ShaderProperty
     override var emissionColor: GLVector = GLVector(1.0f, 1.0f, 1.0f)
 
     @ShaderProperty
-    override val lightType: LightType = LightType.PointLight
+    override val lightType: LightType = LightType.DirectionalLight
 
     /** Maximum radius in world units */
-    @Suppress("unused") // will be serialised into ShaderProperty buffer
-    @ShaderProperty var lightRadius: Float = radius
-        set(value) {
-            if(value != lightRadius) {
-                logger.info("Resetting light radius")
-                field = value
-                proxySphere = Sphere(value * 1.1f, 10)
-                this.vertices = proxySphere.vertices
-                this.normals = proxySphere.normals
-                this.texcoords = proxySphere.texcoords
-
-                this.dirty = true
-            }
-        }
+    @ShaderProperty private var lightRadius: Float = 1.0f
 
     /** Node name of the Point Light */
     override var name = "PointLight"
 
     @Suppress("unused") // will be serialised into ShaderProperty buffer
     @ShaderProperty val worldPosition
-        get(): GLVector =
-            if(this.parent != null && this.parent !is Scene) {
-                this.world.mult(GLVector(position.x(), position.y(), position.z(), 1.0f))
-            } else {
-                GLVector(position.x(), position.y(), position.z(), 1.0f)
-            }
+        get() = direction
 
     @Suppress("unused") // will be serialised into ShaderProperty buffer
     @ShaderProperty var debugMode = 0
 
     init {
-        this.vertices = proxySphere.vertices
-        this.normals = proxySphere.normals
-        this.texcoords = proxySphere.texcoords
-        this.geometryType = proxySphere.geometryType
-        this.vertexSize = proxySphere.vertexSize
-        this.texcoordSize = proxySphere.texcoordSize
+        // fake geometry
+        this.vertices = BufferUtils.allocateFloatAndPut(
+            floatArrayOf(
+                -1.0f, -1.0f, 0.0f,
+                1.0f, -1.0f, 0.0f,
+                1.0f, 1.0f, 0.0f,
+                -1.0f, 1.0f, 0.0f))
+
+        this.normals = BufferUtils.allocateFloatAndPut(
+            floatArrayOf(
+                1.0f, 0.0f, 0.0f,
+                0.0f, 1.0f, 0.0f,
+                0.0f, 0.0f, 1.0f,
+                0.0f, 0.0f, 1.0f))
+
+        this.texcoords = BufferUtils.allocateFloatAndPut(
+            floatArrayOf(
+                0.0f, 0.0f,
+                1.0f, 0.0f,
+                1.0f, 1.0f,
+                0.0f, 1.0f))
+
+        this.indices = BufferUtils.allocateIntAndPut(
+            intArrayOf(0, 1, 2, 0, 2, 3))
+
+        this.geometryType = GeometryType.TRIANGLES
+        this.vertexSize = 3
+        this.texcoordSize = 2
 
         material.blending.transparent = true
         material.blending.colorBlending = Blending.BlendOp.add

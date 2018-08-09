@@ -33,6 +33,15 @@ layout(set = 1, binding = 0) uniform LightParameters {
     vec3 CamPosition;
 };
 
+layout(set = 5, binding = 0, std140) uniform ShaderProperties {
+    float intensity;
+    float lightRadius;
+    int debugMode;
+    vec3 worldPosition;
+    vec3 emissionColor;
+    int lightType;
+};
+
 layout(push_constant) uniform currentEye_t {
     int eye;
 } currentEye;
@@ -70,5 +79,10 @@ void main()
 //    float near = 0.05;
 //    pos.z = min(pos.z, -near - 0.0001);
 
-	gl_Position = projectionMatrix * pos;
+    if(lightType == 0) {
+	    gl_Position = projectionMatrix * pos;
+	} else {
+	    Vertex.TexCoord = vertexTexCoord;
+	    gl_Position = vec4(vertexPosition, 1.0);
+	}
 }

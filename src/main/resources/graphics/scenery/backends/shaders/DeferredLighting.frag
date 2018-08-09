@@ -53,6 +53,7 @@ layout(set = 5, binding = 0, std140) uniform ShaderProperties {
     int debugMode;
     vec3 worldPosition;
     vec3 emissionColor;
+    int lightType;
 };
 
 layout(set = 6, binding = 0, std140) uniform ShaderParameters {
@@ -207,14 +208,22 @@ void main()
 
 	vec3 lighting = vec3(0.0);
 
-    vec3 L = (worldPosition.xyz - FragPos.xyz);
-    float distance = length(L);
-    L = normalize(L);
-
+    vec3 L;
     vec3 V = normalize(cameraPosition - FragPos);
     vec3 H = normalize(L + V);
 
-    float lightAttenuation = pow(clamp(1.0 - pow(distance/lightRadius, 4.0), 0.0, 1.0), 2.0) / (distance * distance + 1.0);
+    float lightAttenuation = 0.0;
+
+    if(lightType == 0) {
+        L = (worldPosition.xyz - FragPos.xyz);
+        float distance = length(L);
+        L = normalize(L);
+
+        lightAttenuation = pow(clamp(1.0 - pow(distance/lightRadius, 4.0), 0.0, 1.0), 2.0) / (distance * distance + 1.0);
+    } else {
+        L = normalize(worldPosition.xyz);
+        lightAttenuation = 1.0;
+    }
 
 	if(debugLights == 1) {
         FragColor = vec4(N, 1.0);
@@ -235,7 +244,7 @@ void main()
         float NdotR = max(0.0, dot(R, V));
         float NdotH = max(0.0, dot(N, H));
 
-        vec3 diffuse = NdotL * intensity * Albedo.rgb * emissionColor.rgb * ambientOcclusion.rgb;
+        vec3 diffuse = NdotL * intensity * Albedo.rgb * emissionColor.rgb * ambientOcclusion.a;
 
         if(NdotL > 0.0) {
             specular = pow(NdotH, (1.0-Specular)*4.0) * Albedo.rgb * emissionColor.rgb * intensity;
@@ -267,7 +276,7 @@ void main()
 //        float L1 = NdotL * (A + B * s / t) / PI;
         float L1 = NdotL / PI * (A + B * m * ab.x * ab.y);
 
-        float lightOcclusion = 1.0 - clamp(dot(vec4(L, 1.0), 1.0*ambientOcclusion), 0.0, 1.0);
+        float lightOcclusion = ambientOcclusion.a;
         vec3 inputColor = intensity * emissionColor.rgb * Albedo.rgb * lightOcclusion;
 
 
@@ -302,8 +311,6 @@ void main()
             lighting += ambientOcclusion.rgb;
         } if(debugLights == 6) {
             lighting += vec3(lightOcclusion);
-        } if(debugLights == 7) {
-            lighting = vec3(distance);
         } else {
             lighting += (diffuse + specular) * lightAttenuation;
         }

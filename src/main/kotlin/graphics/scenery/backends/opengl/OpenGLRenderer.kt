@@ -1511,9 +1511,9 @@ open class OpenGLRenderer(hub: Hub,
                 }
 
                 val actualObjects = if(pass.passConfig.type == RenderConfigReader.RenderpassType.geometry) {
-                    actualSceneObjects.filter { it !is PointLight }
+                    actualSceneObjects.filter { it !is Light }
                 } else {
-                    actualSceneObjects.filter { it is PointLight }
+                    actualSceneObjects.filter { it is Light }
                 }
 
                 actualObjects.forEach renderLoop@ { n ->
