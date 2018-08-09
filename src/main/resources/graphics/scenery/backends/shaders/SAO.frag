@@ -4,10 +4,9 @@
 #define PI 3.14159265359
 
 layout(set = 3, binding = 0) uniform sampler2D InputNormalsMaterial;
-layout(set = 3, binding = 1) uniform sampler2D InputDiffuseAlbedo;
-layout(set = 3, binding = 2) uniform sampler2D InputZBuffer;
+layout(set = 4, binding = 0) uniform sampler2D InputZBuffer;
 
-layout(location = 0) out float FragColor;
+layout(location = 0) out vec4 FragColor;
 layout(location = 0) in vec2 textureCoord;
 
 layout(set = 0, binding = 0) uniform VRParameters {
@@ -19,8 +18,8 @@ layout(set = 0, binding = 0) uniform VRParameters {
 } vrParameters;
 
 layout(set = 1, binding = 0) uniform LightParameters {
-    mat4 ViewMatrix;
-    mat4 InverseViewMatrix;
+    mat4 ViewMatrices[2];
+    mat4 InverseViewMatrices[2];
     mat4 ProjectionMatrix;
     mat4 InverseProjectionMatrix;
     vec3 CamPosition;
@@ -35,42 +34,55 @@ layout(set = 2, binding = 0, std140) uniform ShaderParameters {
 	int displayHeight;
 	float occlusionRadius;
 	int occlusionSamples;
-    float IntensityScale;
-    float Epsilon;
-    float BiasDistance;
-    float Contrast;
+    float maxDistance;
+    int algorithm;
 };
 
-const int ROTATIONS[] = {
-    1, 1, 2, 3, 2, 5, 2, 3, 2,
-    3, 3, 5, 5, 3, 4, 7, 5, 5, 7,
-    9, 8, 5, 5, 7, 7, 7, 8, 5, 8,
-    11, 12, 7, 10, 13, 8, 11, 8, 7, 14,
-    11, 11, 13, 12, 13, 19, 17, 13, 11, 18,
-    19, 11, 11, 14, 17, 21, 15, 16, 17, 18,
-    13, 17, 11, 17, 19, 18, 25, 18, 19, 19,
-    29, 21, 19, 27, 31, 29, 21, 18, 17, 29,
-    31, 31, 23, 18, 25, 26, 25, 23, 19, 34,
-    19, 27, 21, 25, 39, 29, 17, 21, 27
-};
+const float IntensityScale = 1.0;
+const float Epsilon = 0.01;
+const float BiasDistance = 0.001;
+const float Contrast = 1.0;
 
 vec3 viewFromDepth(float depth, vec2 texcoord) {
-    mat4 invHeadToEye = vrParameters.headShift;
-    invHeadToEye[0][3] += currentEye.eye * vrParameters.IPD;
+    vec2 uv = (vrParameters.stereoEnabled ^ 1) * texcoord + vrParameters.stereoEnabled * vec2((texcoord.x - 0.5 * currentEye.eye) * 2.0, texcoord.y);
 
 	mat4 invProjection = (vrParameters.stereoEnabled ^ 1) * InverseProjectionMatrix + vrParameters.stereoEnabled * vrParameters.inverseProjectionMatrices[currentEye.eye];
-	mat4 invView = (vrParameters.stereoEnabled ^ 1) * InverseViewMatrix + vrParameters.stereoEnabled * InverseViewMatrix * invHeadToEye;
+	mat4 invView = (vrParameters.stereoEnabled ^ 1) * InverseViewMatrices[0] + vrParameters.stereoEnabled * (InverseViewMatrices[currentEye.eye]);
 
-    vec4 clipSpacePosition = vec4(texcoord * 2.0 - 1.0, depth, 1.0);
+#ifndef OPENGL
+    vec4 clipSpacePosition = vec4(uv * 2.0 - 1.0, depth, 1.0);
+#else
+    vec4 clipSpacePosition = vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
+#endif
     vec4 viewSpacePosition = invProjection * clipSpacePosition;
 
-//    viewSpacePosition /= viewSpacePosition.w;
-    return viewSpacePosition.xyz/viewSpacePosition.w;
+    viewSpacePosition /= viewSpacePosition.w;
+    return viewSpacePosition.xyz;
 }
+
+vec3 worldFromDepth(float depth, vec2 texcoord) {
+    vec2 uv = (vrParameters.stereoEnabled ^ 1) * texcoord + vrParameters.stereoEnabled * vec2((texcoord.x - 0.5 * currentEye.eye) * 2.0, texcoord.y);
+
+	mat4 invProjection = (vrParameters.stereoEnabled ^ 1) * InverseProjectionMatrix + vrParameters.stereoEnabled * vrParameters.inverseProjectionMatrices[currentEye.eye];
+	mat4 invView = (vrParameters.stereoEnabled ^ 1) * InverseViewMatrices[0] + vrParameters.stereoEnabled * (InverseViewMatrices[currentEye.eye]);
+
+#ifndef OPENGL
+    vec4 clipSpacePosition = vec4(uv * 2.0 - 1.0, depth, 1.0);
+#else
+    vec4 clipSpacePosition = vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
+#endif
+    vec4 viewSpacePosition = invProjection * clipSpacePosition;
+
+    viewSpacePosition /= viewSpacePosition.w;
+    vec4 world = invView * viewSpacePosition;
+    return world.xyz;
+}
+
+const int NUM_SPIRAL_TURNS = 7;
 
 vec3 tapLocation(int index, float angle) {
     float alpha = float(index + 0.5) * (1.0 / occlusionSamples);
-    float a = alpha * ROTATIONS[occlusionSamples - 1] * 2 * PI + angle;
+    float a = alpha * NUM_SPIRAL_TURNS * 6.28 + angle;
 
     return vec3(cos(a), sin(a), alpha);
 }
@@ -79,9 +91,9 @@ vec3 getOffsetPosition(ivec2 ssC, vec2 unitOffset, float ssR) {
     ivec2 ssP = ivec2(ssR * unitOffset) + ssC;
 
     vec3 P = vec3(0.0);
-    P.z = texelFetch(InputZBuffer, ssP, 0).r;
+    P.z = texture(InputZBuffer, ssP/vec2(displayWidth, displayHeight)).r;
 
-    P = viewFromDepth(P.z, (vec2(ssP) + vec2(0.5))/vec2(displayWidth, displayHeight));
+    P = viewFromDepth(P.z, vec2(ssP)/vec2(displayWidth, displayHeight));
     return P;
 }
 
@@ -93,43 +105,10 @@ float sampleSAO(ivec2 ssC, vec3 C, vec3 N, float radius, float randomAngle, int 
     vec3 v = Q - C;
 
     float vdotv = dot(v, v);
-    float vdotN = dot(v, N) - BiasDistance;
+    float vdotN = dot(v, N);
 
     float f = max(occlusionRadius * occlusionRadius - vdotv, 0.0);
     return f * f * f * max(0.0, (vdotN - BiasDistance) / (vdotv + Epsilon));
-}
-
-// McGuire Noise -- https://www.shadertoy.com/view/4dS3Wd
-float hash(float n) { return fract(sin(n) * 1e4); }
-float hash(vec2 p) { return fract(1e4 * sin(17.0 * p.x + p.y * 0.1) * (0.1 + abs(sin(p.y * 13.0 + p.x)))); }
-
-float noise(float x) {
-    float i = floor(x);
-    float f = fract(x);
-    float u = f * f * (3.0 - 2.0 * f);
-    return mix(hash(i), hash(i + 1.0), u);
-}
-
-
-float noise(vec2 x) {
-    vec2 i = floor(x);
-    vec2 f = fract(x);
-
-	// Four corners in 2D of a tile
-	float a = hash(i);
-    float b = hash(i + vec2(1.0, 0.0));
-    float c = hash(i + vec2(0.0, 1.0));
-    float d = hash(i + vec2(1.0, 1.0));
-
-    // Simple 2D lerp using smoothstep envelope between the values.
-	// return vec3(mix(mix(a, b, smoothstep(0.0, 1.0, f.x)),
-	//			mix(c, d, smoothstep(0.0, 1.0, f.x)),
-	//			smoothstep(0.0, 1.0, f.y)));
-
-	// Same code, with the clamps in smoothstep and common subexpressions
-	// optimized away.
-    vec2 u = f * f * (3.0 - 2.0 * f);
-	return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
 }
 
 vec2 OctWrap( vec2 v )
@@ -156,12 +135,14 @@ vec3 DecodeOctaH( vec2 encN )
 
 void main() {
     vec2 textureCoord = gl_FragCoord.xy/vec2(displayWidth, displayHeight);
+    textureCoord = (vrParameters.stereoEnabled ^ 1) * textureCoord + vrParameters.stereoEnabled * vec2((textureCoord.x - 0.5 * currentEye.eye) * 2.0, textureCoord.y);
     ivec2 ssC = ivec2(gl_FragCoord.xy);
 
-	vec3 N = DecodeOctaH(texture(InputNormalsMaterial, textureCoord).rg);
+    mat4 view = (vrParameters.stereoEnabled ^ 1) * ViewMatrices[0] + (vrParameters.stereoEnabled * ViewMatrices[currentEye.eye]);
+
 	float Depth = texture(InputZBuffer, textureCoord).r;
     vec3 viewSpaceFragPos = viewFromDepth(Depth, textureCoord);
-    vec3 viewSpaceCamPos = (ViewMatrix * vec4(CamPosition, 1.0)).xyz;
+	vec3 N = normalize(cross(dFdy(viewSpaceFragPos), dFdx(viewSpaceFragPos)));
 
     float projScale = -displayHeight/(2.0 * tan(50.0 * 0.5));
     float randomAngle = (3 * ssC.x ^ ssC.y + ssC.x * ssC.y) * 10.0;
@@ -175,15 +156,12 @@ void main() {
         float A = 0.0f;
 
         for (int i = 0; i < occlusionSamples; ++i) {
-            A += sampleSAO(ssC, viewSpaceFragPos, (ViewMatrix * vec4(N, 1.0)).xyz, scaledDiskRadius, randomAngle, i);
+            A += sampleSAO(ssC, viewSpaceFragPos, N, scaledDiskRadius, randomAngle, i);
         }
 
-//        A /= ssaoRadius * ssaoRadius * ssaoRadius;
-//        A = pow(max(0, 1 - 2.0 * IntensityScale * A / ssaoSamples), Contrast);
-//        A = (pow(A, 0.2) + 1.2 * A * A * A * A) / 2.2;
         A = max(0.0, 1.0 - A * intensityScaleDivR6 * (5.0/occlusionSamples));
         ambientOcclusion = A;
     }
 
-    FragColor = ambientOcclusion;
+    FragColor = vec4(ambientOcclusion);
 }
