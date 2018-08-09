@@ -26,6 +26,7 @@ import org.zeromq.ZPoller
 import java.math.BigInteger
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.util.*
 
 /**
  * Hololens HMD class
@@ -67,6 +68,8 @@ class Hololens: TrackerInput, Display, Hubable {
     private var leftProjection: GLMatrix? = null
     private var rightProjection: GLMatrix? = null
 
+    private var poseLeftDeque = ArrayDeque<GLMatrix>(3)
+    private var poseRightDeque = ArrayDeque<GLMatrix>(3)
     private var poseLeft: GLMatrix = GLMatrix.getIdentity()
     private var poseRight: GLMatrix = GLMatrix.getIdentity()
 
@@ -128,7 +131,10 @@ class Hololens: TrackerInput, Display, Hubable {
      * update state
      */
     override fun update() {
-
+        if(poseLeftDeque.isNotEmpty() && poseRightDeque.isNotEmpty()) {
+            poseLeft = poseLeftDeque.pop()
+            poseRight = poseRightDeque.pop()
+        }
     }
 
     override fun getWorkingTracker(): TrackerInput? {
@@ -585,10 +591,16 @@ class Hololens: TrackerInput, Display, Hubable {
                                     val matrixData = msg.pop().data
                                     assert(matrixData.size == 128)
 
-                                    val b0 = ByteBuffer.wrap(matrixData).order(ByteOrder.LITTLE_ENDIAN).limit(16 * 4) as ByteBuffer
-                                    b0.asFloatBuffer().get(poseLeft.floatArray)
+                                    val pl = FloatArray(16)
+                                    val pr = FloatArray(16)
 
-                                    (b0.position(16 * 4).limit(16 * 8) as ByteBuffer).asFloatBuffer().get(poseRight.floatArray)
+                                    val b0 = ByteBuffer.wrap(matrixData).order(ByteOrder.LITTLE_ENDIAN).limit(16 * 4) as ByteBuffer
+                                    b0.asFloatBuffer().get(pl)
+
+                                    (b0.position(16 * 4).limit(16 * 8) as ByteBuffer).asFloatBuffer().get(pr)
+
+                                    poseLeftDeque.push(GLMatrix(pl))
+                                    poseRightDeque.push(GLMatrix(pr))
                                 }
                             }
 
