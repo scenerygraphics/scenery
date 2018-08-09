@@ -972,7 +972,7 @@ open class VulkanRenderer(hub: Hub,
                             existingTexture
                         } else {
                             VulkanTexture(device,
-                                commandPools, queue, transferQueue, gt, miplevels)
+                                commandPools, queue, queue, gt, miplevels)
                         }
 
                         t.copyFrom(gt.contents)
@@ -990,11 +990,11 @@ open class VulkanRenderer(hub: Hub,
                                 defaultTexture
                             } else {
                                 VulkanTexture.loadFromFile(device,
-                                    commandPools, queue, transferQueue, stream, texture.substringAfterLast("."), true, generateMipmaps)
+                                    commandPools, queue, queue, stream, texture.substringAfterLast("."), true, generateMipmaps)
                             }
                         } else {
                             VulkanTexture.loadFromFile(device,
-                                commandPools, queue, transferQueue, texture, true, generateMipmaps)
+                                commandPools, queue, queue, texture, true, generateMipmaps)
                         }
 
                         val duration = System.nanoTime() - start * 1.0f
@@ -1292,7 +1292,7 @@ open class VulkanRenderer(hub: Hub,
     }
 
     protected fun prepareDefaultTextures(device: VulkanDevice) {
-        val t = VulkanTexture.loadFromFile(device, commandPools, queue, transferQueue,
+        val t = VulkanTexture.loadFromFile(device, commandPools, queue, queue,
             Renderer::class.java.getResourceAsStream("DefaultTexture.png"), "png", true, true)
 
         textureCache["DefaultTexture"] = t

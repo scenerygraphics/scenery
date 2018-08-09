@@ -275,7 +275,7 @@ open class VulkanTexture(val device: VulkanDevice,
 
         if (mipLevels == 1) {
             var buffer: VulkanBuffer? = null
-            with(VU.newCommandBuffer(device, commandPools.Transfer, autostart = true)) {
+            with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
                 if (depth == 1) {
                     val dest = memAllocPointer(1)
                     vkMapMemory(device.vulkanDevice, stagingImage.memory, 0, sourceBuffer.remaining() * 1L, 0, dest)
@@ -332,7 +332,7 @@ open class VulkanTexture(val device: VulkanDevice,
                     }
                 }
 
-                this.endCommandBuffer(device, commandPools.Transfer, transferQueue, flush = true, dealloc = true, block = false)
+                this.endCommandBuffer(device, commandPools.Standard, transferQueue, flush = true, dealloc = true, block = true)
                 buffer?.close()
             }
         } else {
@@ -342,7 +342,7 @@ open class VulkanTexture(val device: VulkanDevice,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
                 wantAligned = false)
 
-            with(VU.newCommandBuffer(device, commandPools.Transfer, autostart = true)) {
+            with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
 
                 buffer.copyFrom(sourceBuffer)
 
@@ -356,7 +356,7 @@ open class VulkanTexture(val device: VulkanDevice,
                     srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
                     dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT)
 
-                this.endCommandBuffer(device, commandPools.Transfer, transferQueue, flush = true, dealloc = true, block = false)
+                this.endCommandBuffer(device, commandPools.Standard, transferQueue, flush = true, dealloc = true, block = true)
             }
 
             val imageBlit = VkImageBlit.calloc(1)
