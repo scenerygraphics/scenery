@@ -45,6 +45,7 @@ class ProceduralVolumeExample: SceneryBase("Volume Rendering example", 1280, 720
 
         val volume = Volume(false)
         volume.name = "volume"
+        volume.position = GLVector(0.0f, 0.2f, 0.0f)
         volume.colormap = "plasma"
         with(volume.transferFunction) {
             addControlPoint(0.0f, 0.0f)
@@ -54,7 +55,6 @@ class ProceduralVolumeExample: SceneryBase("Volume Rendering example", 1280, 720
             addControlPoint(1.0f, 0.0f)
         }
 
-        volume.metadata["rotating"] = true
         volume.metadata["animating"] = true
         scene.addChild(volume)
 
@@ -89,7 +89,7 @@ class ProceduralVolumeExample: SceneryBase("Volume Rendering example", 1280, 720
                 if(volume.metadata["animating"] == true) {
                     val currentBuffer = volumeBuffer.get()
 
-                    Volume.generateProceduralVolume(volumeSize, 0.45f, seed = seed,
+                    Volume.generateProceduralVolume(volumeSize, 0.35f, seed = seed,
                         intoBuffer = currentBuffer, shift = shift, use16bit = bitsPerVoxel > 8)
 
                     volume.readFromBuffer(
@@ -101,18 +101,6 @@ class ProceduralVolumeExample: SceneryBase("Volume Rendering example", 1280, 720
                 }
 
                 Thread.sleep(200)
-            }
-        }
-
-        thread {
-            while(!scene.initialized) { Thread.sleep(200) }
-
-            while(running) {
-                if(volume.metadata["rotating"] == true) {
-                    volume.rotation = volume.rotation.rotateByAngleY(0.005f)
-                }
-
-                Thread.sleep(15)
             }
         }
     }
