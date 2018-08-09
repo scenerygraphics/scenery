@@ -73,6 +73,10 @@ layout(set = 4, binding = 0) uniform ShaderProperties {
     int dataRangeMin;
     int dataRangeMax;
     int renderingMethod;
+    float kernelSize;
+    int occlusionSteps;
+    float maxOcclusionDistance;
+    float time;
 };
 
 layout(push_constant) uniform currentEye_t {
@@ -155,16 +159,38 @@ vec3 worldFromDepth(float depth, vec2 texcoord) {
     return world.xyz;
 }
 
-// McGuire Noise -- https://www.shadertoy.com/view/4dS3Wd
-float hash(float n) { return fract(sin(n) * 1e4); }
-float hash(vec2 p) { return fract(1e4 * sin(17.0 * p.x + p.y * 0.1) * (0.1 + abs(sin(p.y * 13.0 + p.x)))); }
-
-float noise1D(float x) {
-    float i = floor(x);
-    float f = fract(x);
-    float u = f * f * (3.0 - 2.0 * f);
-    return mix(hash(i), hash(i + 1.0), u);
+uint hash( uint x ) {
+    x += ( x << 10u );
+    x ^= ( x >>  6u );
+    x += ( x <<  3u );
+    x ^= ( x >> 11u );
+    x += ( x << 15u );
+    return x;
 }
+
+// Compound versions of the hashing algorithm I whipped together.
+uint hash( uvec2 v ) { return hash( v.x ^ hash(v.y)                         ); }
+uint hash( uvec3 v ) { return hash( v.x ^ hash(v.y) ^ hash(v.z)             ); }
+uint hash( uvec4 v ) { return hash( v.x ^ hash(v.y) ^ hash(v.z) ^ hash(v.w) ); }
+
+// Construct a float with half-open range [0:1] using low 23 bits.
+// All zeroes yields 0.0, all ones yields the next smallest representable value below 1.0.
+float floatConstruct( uint m ) {
+    const uint ieeeMantissa = 0x007FFFFFu; // binary32 mantissa bitmask
+    const uint ieeeOne      = 0x3F800000u; // 1.0 in IEEE binary32
+
+    m &= ieeeMantissa;                     // Keep only mantissa bits (fractional part)
+    m |= ieeeOne;                          // Add fractional part to 1.0
+
+    float  f = uintBitsToFloat( m );       // Range [1:2]
+    return f - 1.0;                        // Range [0:1]
+}
+
+// Pseudo-random value in half-open range [0:1].
+float random( float x ) { return floatConstruct(hash(floatBitsToUint(x))); }
+float random( vec2  v ) { return floatConstruct(hash(floatBitsToUint(v))); }
+float random( vec3  v ) { return floatConstruct(hash(floatBitsToUint(v))); }
+float random( vec4  v ) { return floatConstruct(hash(floatBitsToUint(v))); }
 
 // sample a value from the color lookup table, stored in the
 // normal texture array.
@@ -177,6 +203,36 @@ vec4 sampleLUT(float coord) {
 float sampleTF(float coord) {
     return texture(ObjectTextures[1], vec2(coord, 0.5f)).r;
 }
+
+vec3 getGradient(sampler3D volume, vec3 uvw, float kernelSize) {
+    const vec3 offset = vec3(kernelSize)/textureSize(volume, 0);
+
+    float v = sampleTF(texture(volume, uvw).r);
+    float v0 = sampleTF(texture(volume, uvw + vec3(offset.x, 0.0, 0.0)).r);
+    float v1 = sampleTF(texture(volume, uvw + vec3(0.0, offset.y, 0.0)).r);
+    float v2 = sampleTF(texture(volume, uvw + vec3(0.0, 0.0, offset.z)).r);
+
+    return vec3(v - v0, v - v1, v - v2);
+}
+
+const vec2 poisson16[] = vec2[](
+		vec2( -0.94201624,  -0.39906216 ),
+		vec2(  0.94558609,  -0.76890725 ),
+		vec2( -0.094184101, -0.92938870 ),
+		vec2(  0.34495938,   0.29387760 ),
+		vec2( -0.91588581,   0.45771432 ),
+		vec2( -0.81544232,  -0.87912464 ),
+		vec2( -0.38277543,   0.27676845 ),
+		vec2(  0.97484398,   0.75648379 ),
+		vec2(  0.44323325,  -0.97511554 ),
+		vec2(  0.53742981,  -0.47373420 ),
+		vec2( -0.26496911,  -0.41893023 ),
+		vec2(  0.79197514,   0.19090188 ),
+		vec2( -0.24188840,   0.99706507 ),
+		vec2( -0.81409955,   0.91437590 ),
+		vec2(  0.19984126,   0.78641367 ),
+		vec2(  0.14383161,  -0.14100790 )
+);
 
 void main()
 {
@@ -265,12 +321,10 @@ void main()
     float alphaVal = 0.0;
     float newVal = 0.0;
 
-    vec3 lightPos = 0.5 * (1.0 + (ubo.ModelMatrix * vec4(0.0, 0.5, -3.0, 1.0)).xyz);
+    vec3 lightPos = vec4(0.0, 3.5, -3.0, 1.0).xyz - vec3(0.5);
 
-    int shadowSteps = 8;
-    vec3 lightVector = (pos - lightPos.xyz)/shadowSteps;
     float shadowDist = 0.0f;
-    float shadowDensity = 0.05f;
+    float shadowDensity = 0.1f;
 
     if(renderingMethod == 0) {
           // alpha blending:
@@ -314,47 +368,44 @@ void main()
     } else {
         vec3 color = vec3(0.0f);
         float alpha = 0.0f;
+        pos += vec3(random(vec3(Vertex.textureCoord.s, Vertex.textureCoord.t, time)))/10000.0f;
 
-        for(int i = 0; i < maxsteps; ++i, pos += vecstep + noise1D(pos.x + (u + v))*0.001f) {
+        for(int i = 0; i < maxsteps; ++i, pos += vecstep) {
             float rawSample = texture(VolumeTextures, pos.xyz).r;
             float volumeSample = rawSample * dataRangeMax;
             volumeSample = clamp(ta*volumeSample + tb,0.f,1.f);
 
-            vec3 lpos = pos;
+            if(volumeSample > 0.01f && occlusionSteps > 0) {
+                [[unroll]] for(int s = 0; s < occlusionSteps; s++) {
+                    vec3 lpos = pos + vec3(poisson16[s], poisson16[s].x/2.0) * kernelSize;
+                    vec3 N = normalize(cross(normalize(lpos), getGradient(VolumeTextures, lpos, 1.0)));
+                    vec3 sampleDir = normalize(lpos - pos);
 
-            if(volumeSample > 0.001f) {
-                for(int s = 0; s < shadowSteps; s++) {
-                    vec3 outsideUnitVolume = floor( 0.5 + ( abs( 0.5 - lpos ) ) );
-                    float outside = outsideUnitVolume.x + outsideUnitVolume.y + outsideUnitVolume.z;
+                    float NdotS = max(dot(N, sampleDir), 0.0);
+                    float dist = distance(pos, lpos);
 
-                    lpos += lightVector;
+                    float a = smoothstep(maxOcclusionDistance, maxOcclusionDistance*2.0, dist);
 
-                    float lightDist = length(pos - lightPos.xyz);
-                    float attenuation = (1.0 - pow(clamp(1.0 - pow(lightDist/2.0, 4.0), 0.0, 1.0), 2.0) / (lightDist * lightDist + 1.0));
-//                    float attenuation = 1.0f/pow(length(pos - lightPos.xyz),2.0f);
-                    shadowDist += sampleTF(texture(VolumeTextures, clamp(lpos.xyz, 0.0, 1.0)).r)/attenuation;
-
-                    if(outside>= 1.0f) {
-                        break;
-                    }
+                    shadowDist += a * NdotS/occlusionSteps;
                 }
             }
 
-            float shadowing = exp(-shadowDist * shadowDensity);
+            float shadowing = shadowDist;
 
-            vec4 transfer = sampleLUT(volumeSample);
+            vec4 transfer = sampleLUT(volumeSample) * (1.0 - shadowing);
+//            vec4 transfer = vec4(getGradient(VolumeTextures, pos, 1.0), 1.0);
             vec3 newColor;
             float newAlpha;
 
-            if(pos.y > 0.0) {
-                newColor = transfer.rgb * shadowing;
+//            if(pos.x > 0.0) {
+                newColor = transfer.rgb;
                 newAlpha = sampleTF(rawSample);
-            } else {
-                newColor = vec3(shadowing);
-                newAlpha = 0.05;
-            }
+//            } else {
+//                newColor = vec3(shadowing);
+//                newAlpha = 0.05;
+//            }
 
-            color += (1.0f - alpha) * newColor * newAlpha;
+            color += (1.0f - alpha) * newColor;
             alpha += (1.0f - alpha) * newAlpha;
 
             if(alpha >= 1.0) {
@@ -363,8 +414,7 @@ void main()
         }
 
         gl_FragDepth = 0.0;
-
-        FragColor = vec4(color*alpha, alpha);
+        FragColor = vec4(color*alpha/maxsteps, alpha);
     }
 }
 
