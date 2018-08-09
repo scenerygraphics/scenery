@@ -595,7 +595,7 @@ open class VulkanRenderer(hub: Hub,
     override fun initializeScene() {
         logger.info("Scene initialization started.")
 
-        this.scene.discover(this.scene, { it is HasGeometry && it !is PointLight })
+        this.scene.discover(this.scene, { it is HasGeometry && it !is Light })
 //            .parallelMap(numThreads = System.getProperty("scenery.MaxInitThreads", "1").toInt()) { node ->
             .map { node ->
                 // skip initialization for nodes that are only instance slaves
@@ -1849,8 +1849,8 @@ open class VulkanRenderer(hub: Hub,
             val start = System.nanoTime()
 
             when (target.passConfig.type) {
-                RenderConfigReader.RenderpassType.geometry -> recordSceneRenderCommands(device, target, commandBuffer, sceneObjects, { it !is PointLight }, forceRerecording)
-                RenderConfigReader.RenderpassType.lights -> recordSceneRenderCommands(device, target, commandBuffer, sceneObjects, { it is PointLight }, forceRerecording)
+                RenderConfigReader.RenderpassType.geometry -> recordSceneRenderCommands(device, target, commandBuffer, sceneObjects, { it !is Light }, forceRerecording)
+                RenderConfigReader.RenderpassType.lights -> recordSceneRenderCommands(device, target, commandBuffer, sceneObjects, { it is Light }, forceRerecording)
                 RenderConfigReader.RenderpassType.quad -> recordPostprocessRenderCommands(device, target, commandBuffer)
             }
 
@@ -1888,8 +1888,8 @@ open class VulkanRenderer(hub: Hub,
         val start = System.nanoTime()
 
         when (viewportPass.passConfig.type) {
-            RenderConfigReader.RenderpassType.geometry -> recordSceneRenderCommands(device, viewportPass, viewportCommandBuffer, sceneObjects, { it !is PointLight }, forceRerecording)
-            RenderConfigReader.RenderpassType.lights -> recordSceneRenderCommands(device, viewportPass, viewportCommandBuffer, sceneObjects, { it is PointLight })
+            RenderConfigReader.RenderpassType.geometry -> recordSceneRenderCommands(device, viewportPass, viewportCommandBuffer, sceneObjects, { it !is Light }, forceRerecording)
+            RenderConfigReader.RenderpassType.lights -> recordSceneRenderCommands(device, viewportPass, viewportCommandBuffer, sceneObjects, { it is Light })
             RenderConfigReader.RenderpassType.quad -> recordPostprocessRenderCommands(device, viewportPass, viewportCommandBuffer)
         }
 
