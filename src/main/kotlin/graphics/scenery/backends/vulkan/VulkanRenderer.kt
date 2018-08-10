@@ -364,7 +364,7 @@ open class VulkanRenderer(hub: Hub,
 
         val hmd = hub.getWorkingHMDDisplay()
         if (hmd != null) {
-            logger.info("Setting window dimensions to bounds from HMD")
+            logger.debug("Setting window dimensions to bounds from HMD")
             val bounds = hmd.getRenderTargetSize()
             window.width = bounds.x().toInt() * 2
             window.height = bounds.y().toInt()
@@ -447,7 +447,7 @@ open class VulkanRenderer(hub: Hub,
         }
 
         queue = VU.createDeviceQueue(device, device.queueIndices.graphicsQueue)
-        logger.info("Creating transfer queue with ${device.queueIndices.transferQueue} (vs ${device.queueIndices.graphicsQueue})")
+        logger.debug("Creating transfer queue with ${device.queueIndices.transferQueue} (vs ${device.queueIndices.graphicsQueue})")
         transferQueue = VU.createDeviceQueue(device, device.queueIndices.transferQueue)
 
         with(commandPools) {
@@ -1575,7 +1575,7 @@ open class VulkanRenderer(hub: Hub,
                 // default image format is 32bit BGRA
                 val imageByteSize = window.width * window.height * 4L
             if(screenshotBuffer == null || screenshotBuffer?.size != imageByteSize) {
-                logger.info("Reallocating screenshot buffer")
+                logger.debug("Reallocating screenshot buffer")
                 screenshotBuffer = VulkanBuffer(device, imageByteSize,
                     VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
@@ -1583,7 +1583,7 @@ open class VulkanRenderer(hub: Hub,
             }
 
             if(imageBuffer == null || imageBuffer?.capacity() != imageByteSize.toInt()) {
-                logger.info("Reallocating image buffer")
+                logger.debug("Reallocating image buffer")
                 imageBuffer = memAlloc(imageByteSize.toInt())
             }
 
@@ -2131,7 +2131,7 @@ open class VulkanRenderer(hub: Hub,
         val stagingBuffer = if(state.vertexBuffers.containsKey("instanceStaging") && state.vertexBuffers["instanceStaging"]!!.size >= instanceBufferSize) {
             state.vertexBuffers["instanceStaging"]!!
         } else {
-            logger.info("Creating new staging buffer")
+            logger.debug("Creating new staging buffer")
             val buffer = VulkanBuffer(device,
                 instanceBufferSize * 1L,
                 VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
