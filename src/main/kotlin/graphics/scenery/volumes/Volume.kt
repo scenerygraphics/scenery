@@ -147,17 +147,46 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         boundingBox = generateBoundingBox()
     }
 
+    /**
+     * Color map class to contain lookup tables.
+     * These can be file-based ([ColormapFile]), or buffer-based ([ColormapBuffer]).
+     */
+    sealed class Colormap {
+        /**
+         * File-based color map.
+         */
+        class ColormapFile(val filename: String) : Colormap()
+
+        /**
+         * Buffer-based color map.
+         */
+        class ColormapBuffer(val texture: GenericTexture) : Colormap()
+    }
+
     /** Stores the available colormaps for transfer functions */
-    var colormaps = HashMap<String, String>()
+    var colormaps = HashMap<String, Colormap>()
 
     /** The active colormap, setting this will automatically update the color map texture */
     var colormap: String = "viridis"
         set(name) {
-            colormaps.get(name)?.let { cm ->
+            colormaps[name]?.let { cm ->
                 field = name
-                this@Volume.material.textures.put("normal", cm)
+                when (cm) {
+                    is Colormap.ColormapFile -> {
+                        this@Volume.material.textures["normal"] = cm.filename
+                    }
+
+                    is Colormap.ColormapBuffer -> {
+                        this@Volume.material.transferTextures["colormap"] = cm.texture
+                        this@Volume.material.textures["normal"] = "fromBuffer:colormap"
+                    }
+                }
+
                 this@Volume.material.needsTextureReload = true
+                return
             }
+
+            logger.error("Could not find colormap '$name'.")
         }
 
     /** Temporary storage for volume data */
@@ -213,11 +242,11 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         material.blending.colorBlending = Blending.BlendOp.add
         material.blending.alphaBlending = Blending.BlendOp.add
 
-        colormaps.put("grays", this.javaClass.getResource("colormap-grays.png").file)
-        colormaps.put("hot", this.javaClass.getResource("colormap-hot.png").file)
-        colormaps.put("jet", this.javaClass.getResource("colormap-jet.png").file)
-        colormaps.put("plasma", this.javaClass.getResource("colormap-plasma.png").file)
-        colormaps.put("viridis", this.javaClass.getResource("colormap-viridis.png").file)
+        colormaps["grays"] = Colormap.ColormapFile(javaClass.getResource("colormap-grays.png").file)
+        colormaps["hot"] = Colormap.ColormapFile(javaClass.getResource("colormap-hot.png").file)
+        colormaps["jet"] = Colormap.ColormapFile(javaClass.getResource("colormap-jet.png").file)
+        colormaps["plasma"] = Colormap.ColormapFile(javaClass.getResource("colormap-plasma.png").file)
+        colormaps["viridis"] = Colormap.ColormapFile(javaClass.getResource("colormap-viridis.png").file)
 
         assignEmptyVolumeTexture()
     }
@@ -564,9 +593,10 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         val dim = GLVector(2.0f, 2.0f, 2.0f)
         val gtv = GenericTexture("empty-volume", dim, 1, GLTypeEnum.UnsignedByte, emptyBuffer, false, false, normalized = true)
 
-        this.material.transferTextures.put("empty-volume", gtv)
-        this.material.textures.put("3D-volume", "fromBuffer:empty-volume")
-        this.material.textures.put("normal", colormaps.values.first())
+        material.transferTextures.put("empty-volume", gtv)
+        material.textures.put("3D-volume", "fromBuffer:empty-volume")
+
+        colormap = "viridis"
     }
 
     private val deallocations = ArrayDeque<ByteBuffer>()
@@ -613,7 +643,6 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
                 }
             }
             this.material.textures.put("3D-volume", "fromBuffer:volume")
-            this.material.textures.put("normal", colormaps[colormap]!!)
             this.material.needsTextureReload = true
 
             this.lock.unlock()
