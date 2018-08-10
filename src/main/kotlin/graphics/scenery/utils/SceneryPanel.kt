@@ -115,19 +115,11 @@ class SceneryPanel(var imageWidth: Int, var imageHeight: Int) : Pane() {
 
             if (latestImageSize == this@SceneryPanel.width.toInt() * this@SceneryPanel.height.toInt() * 4 && imageBuffer != null) {
                 val t = g.resourceFactory.getCachedTexture(image.getWritablePlatformImage(image) as com.sun.prism.Image, Texture.WrapMode.CLAMP_TO_EDGE)
-                if(t.isLocked) {
-                    return
-                }
-                t.lock()
-
-//                g.clearQuad(0.0f, 0.0f, width.toFloat(), height.toFloat())
                 if(imageView.scaleY < 0.0f) {
                     g.drawTexture(t, 0.0f, 0.0f, width.toFloat(), height.toFloat(), 0.0f, height.toFloat(), width.toFloat(), 0.0f)
                 } else {
                     g.drawTexture(t, 0.0f, 0.0f, width.toFloat(), height.toFloat())
                 }
-                
-                t.unlock()
            }
         }
     }
