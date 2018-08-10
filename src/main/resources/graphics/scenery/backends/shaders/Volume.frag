@@ -352,7 +352,7 @@ void main()
     // Maximum Intensity Projection
     else if(renderingMethod == 1) {
         gl_FragDepth = 0.0;
-        [[unroll]] for(int i = 0; i < maxsteps; ++i, pos += vecstep) {
+        /*[[unroll]]*/ for(int i = 0; i < maxsteps; ++i, pos += vecstep) {
           float volumeSample = sampleTF(texture(VolumeTextures, pos.xyz).r) * dataRangeMax;
           maxp = max(maxp,volumeSample);
         }
@@ -377,7 +377,7 @@ void main()
             volumeSample = clamp(ta*volumeSample + tb,0.f,1.f);
 
             if(volumeSample > 0.01f && occlusionSteps > 0) {
-                [[unroll]] for(int s = 0; s < occlusionSteps; s++) {
+                /*[[unroll]]*/ for(int s = 0; s < occlusionSteps; s++) {
                     vec3 lpos = pos + vec3(poisson16[s], poisson16[s].x/2.0) * kernelSize;
                     vec3 N = normalize(cross(normalize(lpos), getGradient(VolumeTextures, lpos, 1.0)));
                     vec3 sampleDir = normalize(lpos - pos);
@@ -393,7 +393,7 @@ void main()
 
             float shadowing = shadowDist;
 
-            vec4 transfer = sampleLUT(volumeSample) * (1.0 - shadowing);
+            vec4 transfer = sampleLUT(volumeSample);// * (1.0 - shadowing);
 //            vec4 transfer = vec4(getGradient(VolumeTextures, pos, 1.0), 1.0);
             vec3 newColor;
             float newAlpha;
