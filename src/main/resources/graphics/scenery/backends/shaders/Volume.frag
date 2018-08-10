@@ -309,6 +309,7 @@ void main()
         gl_FragDepth = currentSceneDepth;
         discard;
     }
+    gl_FragDepth = startNDC.z;
 
     vec3 origin = pos;
 
@@ -341,8 +342,6 @@ void main()
               }
          }
 
-        gl_FragDepth = 0.0;
-
         alphaVal = clamp(colVal, 0.0, 1.0);
 
         // Mapping to transfer function range and gamma correction:
@@ -351,15 +350,12 @@ void main()
     }
     // Maximum Intensity Projection
     else if(renderingMethod == 1) {
-        gl_FragDepth = 0.0;
         /*[[unroll]]*/ for(int i = 0; i < maxsteps; ++i, pos += vecstep) {
           float volumeSample = sampleTF(texture(VolumeTextures, pos.xyz).r) * dataRangeMax;
           maxp = max(maxp,volumeSample);
         }
 
         colVal = clamp(pow(ta*maxp + tb,gamma),0.f,1.f);
-
-        gl_FragDepth = 0.0;
 
         alphaVal = sampleTF(clamp(colVal, 0.0, 1.0));
 
@@ -414,7 +410,6 @@ void main()
             }
         }
 
-        gl_FragDepth = 0.0;
         FragColor = vec4(color*alpha/maxsteps, alpha);
     }
 }
