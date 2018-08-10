@@ -94,7 +94,7 @@ class SceneryContext(val node: Volume) : GpuContext {
     }
 
     override fun getUniformSetter(shader: Shader): SetUniforms {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        return SceneryUniformSetter()
     }
 
     /**
