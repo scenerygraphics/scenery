@@ -326,20 +326,20 @@ void main()
     float shadowDist = 0.0f;
     float shadowDensity = 0.1f;
 
+    // Local Maximum Intensity Projection
     if(renderingMethod == 0) {
-          // alpha blending:
-          float opacity = 1.0f;
-          for(int i = 0; i < maxsteps; ++i, pos += vecstep) {
-               float volumeSample = sampleTF(texture(VolumeTextures, pos.xyz).r) * dataRangeMax;
-               newVal = clamp(ta*volumeSample + tb,0.f,1.f);
-               colVal = max(colVal,opacity*newVal);
+         float opacity = 1.0f;
+         for(int i = 0; i < maxsteps; ++i, pos += vecstep) {
+              float volumeSample = texture(VolumeTextures, pos.xyz).r * dataRangeMax;
+              newVal = clamp(ta*volumeSample + tb,0.f,1.f);
+              colVal = max(colVal,opacity*newVal);
 
-               opacity  *= (1.f-alphaBlending*clamp(newVal,0.f,1.f));
+              opacity  *= (1.0 - alphaBlending * sampleTF(clamp(newVal,0.f,1.f)));
 
-               if (opacity<=0.02f) {
-                    break;
-               }
-          }
+              if (opacity <= 0.02f) {
+                   break;
+              }
+         }
 
         gl_FragDepth = 0.0;
 
@@ -348,9 +348,10 @@ void main()
         // Mapping to transfer function range and gamma correction:
         colVal = pow(colVal, gamma);
         FragColor = vec4(sampleLUT(colVal).rgb * alphaVal, alphaVal);
-    } else if(renderingMethod == 1) {
+    }
+    // Maximum Intensity Projection
+    else if(renderingMethod == 1) {
         gl_FragDepth = 0.0;
-        // nop alpha blending
         [[unroll]] for(int i = 0; i < maxsteps; ++i, pos += vecstep) {
           float volumeSample = sampleTF(texture(VolumeTextures, pos.xyz).r) * dataRangeMax;
           maxp = max(maxp,volumeSample);
@@ -360,7 +361,7 @@ void main()
 
         gl_FragDepth = 0.0;
 
-        alphaVal = clamp(colVal, 0.0, 1.0);
+        alphaVal = sampleTF(clamp(colVal, 0.0, 1.0));
 
         // Mapping to transfer function range and gamma correction:
         colVal = pow(colVal, gamma);
@@ -399,7 +400,7 @@ void main()
 
 //            if(pos.x > 0.0) {
                 newColor = transfer.rgb;
-                newAlpha = sampleTF(rawSample);
+                newAlpha = sampleTF(volumeSample);
 //            } else {
 //                newColor = vec3(shadowing);
 //                newAlpha = 0.05;
