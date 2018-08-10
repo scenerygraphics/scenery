@@ -244,7 +244,7 @@ void main()
         float NdotR = max(0.0, dot(R, V));
         float NdotH = max(0.0, dot(N, H));
 
-        vec3 diffuse = NdotL * intensity * Albedo.rgb * emissionColor.rgb * ambientOcclusion.a;
+        vec3 diffuse = NdotL * intensity * Albedo.rgb * emissionColor.rgb * (1.0f - ambientOcclusion.a);
 
         if(NdotL > 0.0) {
             specular = pow(NdotH, (1.0-Specular)*4.0) * Albedo.rgb * emissionColor.rgb * intensity;
@@ -276,7 +276,7 @@ void main()
 //        float L1 = NdotL * (A + B * s / t) / PI;
         float L1 = NdotL / PI * (A + B * m * ab.x * ab.y);
 
-        float lightOcclusion = ambientOcclusion.a;
+        float lightOcclusion = (1.0 - ambientOcclusion.a);
         vec3 inputColor = intensity * emissionColor.rgb * Albedo.rgb * lightOcclusion;
 
 

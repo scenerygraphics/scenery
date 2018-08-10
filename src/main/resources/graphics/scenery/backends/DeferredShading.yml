@@ -46,12 +46,12 @@ renderpasses:
       Pass.displayWidth: 0
       Pass.displayHeight: 0
       occlusionRadius: 1.0
-      occlusionSamples: 16
+      occlusionSamples: 0
       maxDistance: 1.0
-      algorithm: 1
+      algorithm: 0
     shaders:
       - "FullscreenQuad.vert.spv"
-      - "SAO.frag.spv"
+      - "SSAO.frag.spv"
     inputs:
       - GeometryBuffer.NormalsMaterial
       - GeometryBuffer.ZBuffer
