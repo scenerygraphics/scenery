@@ -306,10 +306,12 @@ void main()
 
     if(startNDC.z > currentSceneDepth && tnear > 0.0f) {
         // for debugging, green = occluded by existing scene geometry
+        // otherwise, we just put a transparent black
         FragColor = vec4(0.0, 0.0, 0.0, 0.0);
         gl_FragDepth = currentSceneDepth;
-        discard;
+        return;
     }
+
     gl_FragDepth = startNDC.z;
 
     vec3 origin = pos;
