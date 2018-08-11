@@ -61,7 +61,7 @@ layout(set = 4, binding = 0) uniform ShaderProperties {
     float boxMax_x;
     float boxMax_y;
     float boxMax_z;
-    int maxsteps;
+    float stepSize;
     float alpha_blending;
     float gamma;
     int dataRangeMin;
