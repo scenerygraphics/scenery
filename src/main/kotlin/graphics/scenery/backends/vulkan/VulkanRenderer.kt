@@ -438,7 +438,8 @@ open class VulkanRenderer(hub: Hub,
         device = VulkanDevice.fromPhysicalDevice(instance,
             physicalDeviceFilter = { _, device -> device.name.contains(System.getProperty("scenery.Renderer.Device", "DOES_NOT_EXIST"))},
             additionalExtensions = { physicalDevice -> hub.getWorkingHMDDisplay()?.getVulkanDeviceExtensions(physicalDevice)?.toTypedArray() ?: arrayOf() },
-            validationLayers = requestedValidationLayers)
+            validationLayers = requestedValidationLayers,
+            headless = embedIn != null)
 
         logger.debug("Device creation done")
 

@@ -13,7 +13,7 @@ import java.util.*
  *
  * @author Ulrik Guenther <hello@ulrik.is>
  */
-open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysicalDevice, val deviceData: DeviceData, extensionsQuery: (VkPhysicalDevice) -> Array<String> = { arrayOf() }, validationLayers: Array<String> = arrayOf()) {
+open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysicalDevice, val deviceData: DeviceData, extensionsQuery: (VkPhysicalDevice) -> Array<String> = { arrayOf() }, validationLayers: Array<String> = arrayOf(), headless: Boolean = false) {
 
     protected val logger by LazyLogger()
     /** Stores available memory types on the device. */
@@ -100,8 +100,15 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
             val utf8Exts = extensionsRequested.map { stack.UTF8(it) }
 
             // allocate enough pointers for required extensions, plus the swapchain extension
-            val extensions = stack.callocPointer(1 + extensionsRequested.size)
-            extensions.put(stack.UTF8(KHRSwapchain.VK_KHR_SWAPCHAIN_EXTENSION_NAME))
+            // if we are not running in headless mode
+            val extensions = if(!headless) {
+                val e = stack.callocPointer(1 + extensionsRequested.size)
+                e.put(stack.UTF8(KHRSwapchain.VK_KHR_SWAPCHAIN_EXTENSION_NAME))
+                e
+            } else {
+                stack.callocPointer(extensionsRequested.size)
+            }
+
             utf8Exts.forEach { extensions.put(it) }
             extensions.flip()
 
@@ -306,7 +313,8 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
          */
         @JvmStatic fun fromPhysicalDevice(instance: VkInstance, physicalDeviceFilter: (Int, DeviceData) -> Boolean,
                                           additionalExtensions: (VkPhysicalDevice) -> Array<String> = { arrayOf() },
-                                          validationLayers: Array<String> = arrayOf()): VulkanDevice {
+                                          validationLayers: Array<String> = arrayOf(),
+                                          headless: Boolean = false): VulkanDevice {
             return stackPush().use { stack ->
 
                 val physicalDeviceCount = VU.getInt("Enumerate physical devices") {
@@ -374,7 +382,7 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
 
                 physicalDevices.free()
 
-                VulkanDevice(instance, physicalDevice, selectedDeviceData, additionalExtensions, validationLayers)
+                VulkanDevice(instance, physicalDevice, selectedDeviceData, additionalExtensions, validationLayers, headless)
             }
         }
     }
