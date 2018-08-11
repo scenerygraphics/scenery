@@ -82,7 +82,7 @@ class NodeSubscriber(override var hub: Hub?, val address: String = "udp://localh
                                 node.boxMax_y = o.boxMax_y
                                 node.boxMax_z = o.boxMax_z
 
-                                node.maxsteps = o.maxsteps
+                                node.stepSize = o.stepSize
                                 node.alphaBlending = o.alphaBlending
                                 node.gamma = o.gamma
 

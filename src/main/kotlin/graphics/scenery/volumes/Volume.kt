@@ -108,7 +108,7 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
     @ShaderProperty var boxMax_z = boxwidth
 
     /** Maximum steps to take along a single ray through the volume */
-    @ShaderProperty var maxsteps = 128
+    @ShaderProperty var stepSize = 0.01f
     /** Alpha blending factor */
     @ShaderProperty var alphaBlending = 0.06f
     /** Gamma exponent */
@@ -131,14 +131,14 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
     @ShaderProperty protected var dataRangeMin: Int = 0
     @ShaderProperty protected var dataRangeMax: Int = 255
 
-    @ShaderProperty var kernelSize: Float = 0.0001f
-    @ShaderProperty var maxOcclusionDistance: Float = 0.0001f
+    @ShaderProperty var kernelSize: Float = 0.01f
+    @ShaderProperty var maxOcclusionDistance: Float = 0.01f
     @ShaderProperty var occlusionSteps: Int = 4
 
     @ShaderProperty var time: Float = System.nanoTime().toFloat()
 
     /** The transfer function to use for the volume. Flat by default. */
-    var transferFunction: TransferFunction = TransferFunction.ramp(0.0f)
+    var transferFunction: TransferFunction = TransferFunction.flat(0.5f)
 
     /**
      * Regenerates the [boundingBox] in case any relevant properties have changed.
@@ -424,17 +424,17 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
 
             val start = System.nanoTime()
 
-            if(reader.openPlane(0, 0).imageMetadata.isLittleEndian) {
+//            if(reader.openPlane(0, 0).imageMetadata.isLittleEndian) {
                 logger.info("Volume is little endian")
                 (0 until reader.getPlaneCount(0)).forEach { plane ->
                     imageData.put(reader.openPlane(0, plane).bytes)
                 }
-            } else {
-                logger.info("Volume is big endian")
-                (0 until reader.getPlaneCount(0)).forEach { plane ->
-                    imageData.put(swapEndianUnsafe(reader.openPlane(0, plane).bytes))
-                }
-            }
+//            } else {
+//                logger.info("Volume is big endian")
+//                (0 until reader.getPlaneCount(0)).forEach { plane ->
+//                    imageData.put(swapEndianUnsafe(reader.openPlane(0, plane).bytes))
+//                }
+//            }
 
             val duration = (System.nanoTime() - start) / 10e5
             logger.info("Reading took $duration ms")

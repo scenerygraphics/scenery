@@ -67,7 +67,7 @@ layout(set = 4, binding = 0) uniform ShaderProperties {
     float boxMax_x;
     float boxMax_y;
     float boxMax_z;
-    int maxsteps;
+    float stepSize;
     float alphaBlending;
     float gamma;
     int dataRangeMin;
@@ -83,7 +83,8 @@ layout(push_constant) uniform currentEye_t {
     int eye;
 } currentEye;
 
-float PI_r = 0.3183098;
+const float PI_r = 0.3183098;
+const int inverseBaseSamplingRate = 128;
 
 struct Ray {
     vec3 Origin;
@@ -278,7 +279,7 @@ void main()
     // find intersection with box
     const Intersection inter = intersectBox(orig, direc, boxMin, boxMax);
 
-    if (!inter.hit || inter.tfar <= 0) {
+    if (!inter.hit || inter.tfar <= 0.0) {
         FragColor = vec4(0.0f, 0.0f, 0.0f, 0.0f);
         gl_FragDepth = texture(InputZBuffer, depthUV).r;
         return;
@@ -287,7 +288,7 @@ void main()
     const float tnear = max(inter.tnear, 0.0f);
     const float tfar = min(inter.tfar, length(direc0 - orig0));
 
-    const float tstep = abs(tnear-tfar)/(maxsteps);
+    const float tstep = stepSize;
 
     // precompute vectors:
     const vec3 vecstep = 0.5 * tstep * direc.xyz;
@@ -327,30 +328,32 @@ void main()
     float shadowDist = 0.0f;
     float shadowDensity = 0.1f;
 
+    const int steps = min(int(ceil(abs(tfar - tnear)/tstep)), 1024);
+
     // Local Maximum Intensity Projection
     if(renderingMethod == 0) {
          float opacity = 1.0f;
-         for(int i = 0; i < maxsteps; ++i, pos += vecstep) {
+         for(int i = 0; i <= steps; i++, pos += vecstep) {
               float volumeSample = texture(VolumeTextures, pos.xyz).r * dataRangeMax;
-              newVal = clamp(ta*volumeSample + tb,0.f,1.f);
-              colVal = max(colVal,opacity*newVal);
+              newVal = clamp(ta * volumeSample + tb,0.f,1.f);
+              colVal = max(colVal, opacity*newVal);
 
-              opacity  *= (1.0 - alphaBlending * sampleTF(clamp(newVal,0.f,1.f)));
+              opacity *= (1.0 - alphaBlending * sampleTF(clamp(newVal,0.f,1.f)));
 
               if (opacity <= 0.02f) {
-                   break;
+                break;
               }
          }
 
-        alphaVal = clamp(colVal, 0.0, 1.0);
+         alphaVal = clamp(colVal, 0.0, 1.0);
 
-        // Mapping to transfer function range and gamma correction:
-        colVal = pow(colVal, gamma);
-        FragColor = vec4(sampleLUT(colVal).rgb * alphaVal, alphaVal);
+         // Mapping to transfer function range and gamma correction:
+         colVal = pow(colVal, gamma);
+         FragColor = vec4(sampleLUT(colVal).rgb * alphaVal, alphaVal);
     }
     // Maximum Intensity Projection
     else if(renderingMethod == 1) {
-        /*[[unroll]]*/ for(int i = 0; i < maxsteps; ++i, pos += vecstep) {
+         for(int i = 0; i <= steps; i++, pos += vecstep) {
           float volumeSample = sampleTF(texture(VolumeTextures, pos.xyz).r) * dataRangeMax;
           maxp = max(maxp,volumeSample);
         }
@@ -367,15 +370,20 @@ void main()
         float alpha = 0.0f;
         pos += vec3(random(vec3(Vertex.textureCoord.s, Vertex.textureCoord.t, time)))/10000.0f;
 
-        for(int i = 0; i < maxsteps; ++i, pos += vecstep) {
+         for(int i = 0; i <= steps; i++, pos += vecstep) {
             float rawSample = texture(VolumeTextures, pos.xyz).r;
             float volumeSample = rawSample * dataRangeMax;
-            volumeSample = clamp(ta*volumeSample + tb,0.f,1.f);
+            volumeSample = clamp(ta * volumeSample + tb,0.f,1.f);
 
-            if(volumeSample > 0.01f && occlusionSteps > 0) {
-                /*[[unroll]]*/ for(int s = 0; s < occlusionSteps; s++) {
-                    vec3 lpos = pos + vec3(poisson16[s], poisson16[s].x/2.0) * kernelSize;
-                    vec3 N = normalize(cross(normalize(lpos), getGradient(VolumeTextures, lpos, 1.0)));
+            float newAlpha;
+            newAlpha = sampleTF(volumeSample);
+
+            int osteps = min(occlusionSteps, 16);
+
+            if(newAlpha > 0.0f && osteps > 0) {
+                [[unroll]] for(int s = 0; s < osteps; s++) {
+                    vec3 lpos = pos + vec3(poisson16[s], (poisson16[s].x + poisson16[s].y)/2.0) * kernelSize;
+                    vec3 N = normalize(cross(normalize(lpos), normalize(getGradient(VolumeTextures, lpos, 1.0))));
                     vec3 sampleDir = normalize(lpos - pos);
 
                     float NdotS = max(dot(N, sampleDir), 0.0);
@@ -387,22 +395,15 @@ void main()
                 }
             }
 
-            float shadowing = shadowDist;
+            float shadowing = clamp(shadowDist, 0.0, 1.0);
 
-            vec4 transfer = sampleLUT(volumeSample);// * (1.0 - shadowing);
-//            vec4 transfer = vec4(getGradient(VolumeTextures, pos, 1.0), 1.0);
+            vec4 transfer = sampleLUT(volumeSample) * (1.0 - shadowing);
             vec3 newColor;
-            float newAlpha;
 
-//            if(pos.x > 0.0) {
-                newColor = transfer.rgb;
-                newAlpha = sampleTF(volumeSample);
-//            } else {
-//                newColor = vec3(shadowing);
-//                newAlpha = 0.05;
-//            }
+            newColor = transfer.rgb;
+            newAlpha = sampleTF(volumeSample);
 
-            color += (1.0f - alpha) * newColor;
+            color += (1.0f - alpha) * newColor * newAlpha;
             alpha += (1.0f - alpha) * newAlpha;
 
             if(alpha >= 1.0) {
@@ -410,7 +411,9 @@ void main()
             }
         }
 
-        FragColor = vec4(color*alpha/maxsteps, alpha);
+        // alpha correction
+        alpha = 1.0 - pow(1.0 - alpha, stepSize * inverseBaseSamplingRate);
+        FragColor = vec4(pow(color, vec3(gamma))*alpha, alpha);
     }
 }
 
