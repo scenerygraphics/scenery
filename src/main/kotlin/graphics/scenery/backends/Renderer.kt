@@ -34,6 +34,10 @@ abstract class Renderer : Hubable {
     abstract var initialized: Boolean
         protected set
 
+    /** Signals whether a first image has been drawn. */
+    abstract var firstImageReady: Boolean
+        protected set
+
     /** [Settings] instance the renderer is using. */
     abstract var settings: Settings
 
