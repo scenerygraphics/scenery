@@ -121,6 +121,8 @@ open class OpenGLRenderer(hub: Hub,
     private var currentTime = System.nanoTime()
 
     override var initialized = false
+    override var firstImageReady: Boolean = false
+        protected set
 
     private var pboBuffers: Array<ByteBuffer?> = arrayOf(null, null)
     @Volatile private var pbos: IntArray = intArrayOf(0, 0)
@@ -1856,6 +1858,7 @@ open class OpenGLRenderer(hub: Hub,
         }
 
         updateLatch?.countDown()
+        firstImageReady = true
     }
 
     /**

@@ -256,6 +256,8 @@ open class VulkanRenderer(hub: Hub,
     override var managesRenderLoop = false
     override var lastFrameTime = System.nanoTime() * 1.0f
     final override var initialized = false
+    override var firstImageReady: Boolean = false
+        protected set
 
     private var screenshotRequested = false
     private var screenshotFilename = ""
@@ -1696,6 +1698,8 @@ open class VulkanRenderer(hub: Hub,
 
         val presentDuration = System.nanoTime() - startPresent
         stats?.add("Renderer.viewportSubmitAndPresent", presentDuration)
+
+        firstImageReady = true
     }
 
     /**
