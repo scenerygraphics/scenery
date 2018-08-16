@@ -99,6 +99,7 @@ open class OpenGLRenderer(hub: Hub,
     private var uboCache = ConcurrentHashMap<String, OpenGLUBO>()
     private var joglDrawable: GLAutoDrawable? = null
     private var screenshotRequested = false
+    private var screenshotOverwriteExisting = false
     private var screenshotFilename = ""
     private var encoder: H264Encoder? = null
     private var recordMovie = false
@@ -1845,7 +1846,7 @@ open class OpenGLRenderer(hub: Hub,
                     File(System.getProperty("user.home"), "Desktop" + File.separator + "$applicationName - ${SimpleDateFormat("yyyy-MM-dd HH.mm.ss").format(Date())}.png")
                 } else {
                     File(screenshotFilename)
-                })
+                }, screenshotOverwriteExisting)
 
                 ImageIO.write(image, "png", file)
                 logger.info("Screenshot saved to ${file.absolutePath}")
@@ -1854,6 +1855,7 @@ open class OpenGLRenderer(hub: Hub,
                 e.printStackTrace()
             }
 
+            screenshotOverwriteExisting = false
             screenshotRequested = false
         }
 
@@ -2516,8 +2518,9 @@ open class OpenGLRenderer(hub: Hub,
         gl.glBindVertexArray(0)
     }
 
-    override fun screenshot(filename: String) {
+    override fun screenshot(filename: String, overwrite: Boolean) {
         screenshotRequested = true
+        screenshotOverwriteExisting = overwrite
         screenshotFilename = filename
     }
 
