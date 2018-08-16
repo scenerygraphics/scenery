@@ -20,10 +20,10 @@ class DirectionalLight(var direction: GLVector = GLVector(0.0f, 1.0f, 0.0f)) : L
     @ShaderProperty
     override var emissionColor: GLVector = GLVector(1.0f, 1.0f, 1.0f)
 
+    /** Type of the light, can be DirectionalLight or PointLight */
     @ShaderProperty
     override val lightType: LightType = LightType.DirectionalLight
 
-    /** Maximum radius in world units */
     @ShaderProperty private var lightRadius: Float = 1.0f
 
     /** Node name of the Point Light */
