@@ -649,6 +649,10 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         }
     }
 
+    /**
+     * Sets the volume's transfer function range to [min] and [max].
+     * Optionally, the range can be locked by setting [lock].
+     */
     fun setTransfer(min: Float, max: Float, lock: Boolean = true) {
         lockTransferRange = false
         trangemin = min

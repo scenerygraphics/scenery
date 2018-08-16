@@ -83,6 +83,23 @@ open class TransferFunction(val name: String = "") {
     }
 
     /**
+     * Finds extremal control points in a list of [points], with [left] given
+     * as option to indicate whether the control point is on the left or right
+     * end of the interval.
+     */
+    protected fun findExtremalControlPoint(points: Iterable<ControlPoint>, left: Boolean): ControlPoint {
+        val pos = if(left) { 0.0f } else { 1.0f }
+        val candidate = points.firstOrNull { abs(it.value - pos) < 0.00001f }
+
+        return when {
+            candidate == null && left -> ControlPoint(0.0f, 1.0f)
+            candidate == null && !left -> ControlPoint(1.0f, 1.0f)
+            candidate != null -> candidate
+            else -> throw IllegalStateException("This should not happen")
+        }
+    }
+
+    /**
      * Serialises the transfer function into a texture for evaluation
      * in the shader.
      */
@@ -94,18 +111,6 @@ open class TransferFunction(val name: String = "") {
         val points = controlPoints.sortedBy { it.value }
         val tmp = FloatArray(textureSize)
 
-        fun findExtremalControlPoint(left: Boolean): ControlPoint {
-            val pos = if(left) { 0.0f } else { 1.0f }
-            val candidate = points.firstOrNull { abs(it.value - pos) < 0.00001f }
-
-            return when {
-                candidate == null && left -> ControlPoint(0.0f, 1.0f)
-                candidate == null && !left -> ControlPoint(1.0f, 1.0f)
-                candidate != null -> candidate
-                else -> throw IllegalStateException("This should not happen")
-            }
-        }
-
         for(coord in 0 until textureSize) {
             if(points.isEmpty()) {
                 tmp[coord] = 1.0f
@@ -113,8 +118,8 @@ open class TransferFunction(val name: String = "") {
             }
 
             val pos = coord.toFloat()/(textureSize-1)
-            val left = points.reversed().firstOrNull { it.value <= pos } ?: findExtremalControlPoint(true)
-            val right = points.firstOrNull { it.value >= pos } ?: findExtremalControlPoint(false)
+            val left = points.reversed().firstOrNull { it.value <= pos } ?: findExtremalControlPoint(points, true)
+            val right = points.firstOrNull { it.value >= pos } ?: findExtremalControlPoint(points, false)
 
             var current = if(left == right) {
                 left.factor
