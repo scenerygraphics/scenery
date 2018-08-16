@@ -64,7 +64,7 @@ abstract class Renderer : Hubable {
      *
      * @param[filename] The filename where to save the screenshot.
      */
-    abstract fun screenshot(filename: String = "")
+    abstract fun screenshot(filename: String = "", overwrite: Boolean = false)
 
     /**
      * Reshapes the window to the given sizes.

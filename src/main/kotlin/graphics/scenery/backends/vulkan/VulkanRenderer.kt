@@ -260,6 +260,7 @@ open class VulkanRenderer(hub: Hub,
         protected set
 
     private var screenshotRequested = false
+    private var screenshotOverwriteExisting = false
     private var screenshotFilename = ""
     var screenshotBuffer: VulkanBuffer? = null
     var imageBuffer: ByteBuffer? = null
@@ -1660,7 +1661,7 @@ open class VulkanRenderer(hub: Hub,
                                 File(System.getProperty("user.home"), "Desktop" + File.separator + "$applicationName - ${SimpleDateFormat("yyyy-MM-dd HH.mm.ss").format(Date())}.png")
                             } else {
                                 File(screenshotFilename)
-                            })
+                            }, screenshotOverwriteExisting)
                             file.createNewFile()
                             ib.rewind()
 
@@ -1692,6 +1693,7 @@ open class VulkanRenderer(hub: Hub,
                     }
                 }
 
+                screenshotOverwriteExisting = false
                 screenshotRequested = false
             }
         }
@@ -2887,8 +2889,9 @@ open class VulkanRenderer(hub: Hub,
     }
 
     @Suppress("UNUSED")
-    override fun screenshot(filename: String) {
+    override fun screenshot(filename: String, overwrite: Boolean) {
         screenshotRequested = true
+        screenshotOverwriteExisting = overwrite
         screenshotFilename = filename
     }
 
