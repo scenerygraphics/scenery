@@ -141,7 +141,7 @@ open class VulkanRenderer(hub: Hub,
 
                     swapchain?.create(oldSwapchain = swapchain)
 
-                    this.endCommandBuffer(device, commandPools.Standard, queue, flush = true, dealloc = true)
+                    endCommandBuffer(this@VulkanRenderer.device, commandPools.Standard, queue, flush = true, dealloc = true)
 
                     this
                 }
@@ -1371,7 +1371,7 @@ open class VulkanRenderer(hub: Hub,
                     } else {
 
                         // create framebuffer -- don't clear it, if blitting is needed
-                        val framebuffer = VulkanFramebuffer(device, commandPools.Standard,
+                        val framebuffer = VulkanFramebuffer(this@VulkanRenderer.device, commandPools.Standard,
                             width, height, this,
                             shouldClear = !passConfig.blitInputs,
                             sRGB = renderConfig.sRGB)
@@ -1402,7 +1402,7 @@ open class VulkanRenderer(hub: Hub,
                         }
 
                         framebuffer.createRenderpassAndFramebuffer()
-                        framebuffer.outputDescriptorSet = VU.createRenderTargetDescriptorSet(device,
+                        framebuffer.outputDescriptorSet = VU.createRenderTargetDescriptorSet(this@VulkanRenderer.device,
                             descriptorPool, descriptorSetLayouts["outputs-${rt.key}"]!!, rt.value.attachments, framebuffer)
 
                         pass.output[rt.key] = framebuffer
@@ -1419,7 +1419,7 @@ open class VulkanRenderer(hub: Hub,
                     height = windowHeight
 
                     swapchain!!.images!!.forEachIndexed { i, _ ->
-                        val fb = VulkanFramebuffer(device, commandPools.Standard,
+                        val fb = VulkanFramebuffer(this@VulkanRenderer.device, commandPools.Standard,
                             width, height, this@with, sRGB = renderConfig.sRGB)
 
                         fb.addSwapchainAttachment("swapchain-$i", swapchain!!, i)
@@ -1475,7 +1475,7 @@ open class VulkanRenderer(hub: Hub,
 
                 pass.vulkanMetadata.eye.put(0, pass.passConfig.eye)
 
-                this.endCommandBuffer(device, commandPools.Standard, this@VulkanRenderer.queue, flush = true)
+                endCommandBuffer(this@VulkanRenderer.device, commandPools.Standard, this@VulkanRenderer.queue, flush = true)
             }
 
             renderpasses.put(passName, pass)
@@ -1634,7 +1634,7 @@ open class VulkanRenderer(hub: Hub,
                         VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
                         commandBuffer = this)
 
-                    this.endCommandBuffer(device, commandPools.Render, queue,
+                    endCommandBuffer(this@VulkanRenderer.device, commandPools.Render, queue,
                         flush = true, dealloc = true)
                 }
 
