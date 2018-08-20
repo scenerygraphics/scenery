@@ -4,7 +4,8 @@
 #define PI 3.14159265359
 
 layout(set = 3, binding = 0) uniform sampler2D InputNormalsMaterial;
-layout(set = 4, binding = 0) uniform sampler2D InputZBuffer;
+layout(set = 3, binding = 1) uniform sampler2D InputDiffuseAlbedo;
+layout(set = 3, binding = 2) uniform sampler2D InputZBuffer;
 
 layout(location = 0) out vec4 FragColor;
 layout(location = 0) in VertexData {
@@ -253,6 +254,11 @@ float sampleHBAO(vec2 origin, vec2 direction, float jitter, vec2 maxScreenCoords
 }
 
 void main() {
+    if(occlusionSamples == 0) {
+        FragColor = vec4(0.0);
+        return;
+    }
+
     vec2 screenSize = vec2(displayWidth, displayHeight);
     vec2 textureCoord = gl_FragCoord.xy/screenSize;
     textureCoord = (vrParameters.stereoEnabled ^ 1) * textureCoord + vrParameters.stereoEnabled * vec2((textureCoord.x - 0.5 * currentEye.eye) * 2.0, textureCoord.y);
@@ -285,14 +291,12 @@ void main() {
     float ambientOcclusion = 0.0f;
     float A = 0.0f;
 
-    if(occlusionSamples > 0) {
-        for (uint i = 0; i < occlusionSamples; ++i) {
-            vec2 sampleDir = Rotate(sampleDirections[i].xy, rotationX, rotationY);
-            A += sampleHBAO(textureCoord, sampleDir, randomFactors.z, screenSize,
-                projectedRadii, stepsPerRay, centerViewPos, centerNormal, frustumDiff);
-        }
+    for (uint i = 0; i < occlusionSamples; ++i) {
+        vec2 sampleDir = Rotate(sampleDirections[i].xy, rotationX, rotationY);
+        A += sampleHBAO(textureCoord, sampleDir, randomFactors.z, screenSize,
+            projectedRadii, stepsPerRay, centerViewPos, centerNormal, frustumDiff);
     }
 
-    ambientOcclusion = 1.0 - clamp(strengthPerRay * A, 0.0, 1.0);
+    ambientOcclusion = clamp(strengthPerRay * A, 0.0, 1.0);
     FragColor = vec4(ambientOcclusion);
 }
