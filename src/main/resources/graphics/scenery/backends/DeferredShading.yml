@@ -50,11 +50,10 @@ renderpasses:
       maxDistance: 1.0
       algorithm: 0
     shaders:
-      - "FullscreenQuad.vert.spv"
-      - "SSAO.frag.spv"
+      - "FullscreenQuadFrustum.vert.spv"
+      - "HBAO.frag.spv"
     inputs:
-      - GeometryBuffer.NormalsMaterial
-      - GeometryBuffer.ZBuffer
+      - GeometryBuffer
     output: DSSDOTemp1
   DSSDOBlurV:
     type: quad
