@@ -173,7 +173,7 @@ class DemoReelExample: SceneryBase("Demo Reel") {
                                         trangemin = 0.00f
                                         trangemax = .006f
                                         //trangemax = .0003f
-                                        alpha_blending = 0.05f
+                                        alphaBlending = 0.05f
                                         scale = GLVector(1.0f, 1.0f, 1.0f)
                                         voxelSizeX = 1.0f
                                         voxelSizeY = 5.0f
@@ -187,7 +187,7 @@ class DemoReelExample: SceneryBase("Demo Reel") {
                                     with(v) {
                                         trangemin = 0.005f
                                         trangemax = 0.04f
-                                        alpha_blending = 0.02f
+                                        alphaBlending = 0.02f
                                         scale = GLVector(1.0f, 1.0f, 1.0f)
                                         voxelSizeX = 1.0f
                                         voxelSizeY = 1.0f
@@ -290,7 +290,7 @@ class DemoReelExample: SceneryBase("Demo Reel") {
             with(histoneScene.children[0] as Volume) {
                 trangemin = 0.005f
                 trangemax = 0.04f
-                alpha_blending = 0.02f
+                alphaBlending = 0.02f
                 scale = GLVector(1.0f, 1.0f, 1.0f)
                 voxelSizeX = 1.0f
                 voxelSizeY = 1.0f
@@ -310,7 +310,7 @@ class DemoReelExample: SceneryBase("Demo Reel") {
                 trangemin = 0.00f
                 //trangemax = .006f
                 trangemax = .0003f
-                alpha_blending = 0.05f
+                alphaBlending = 0.05f
                 scale = GLVector(1.0f, 1.0f, 1.0f)
                 voxelSizeX = 1.0f
                 voxelSizeY = 5.0f

@@ -54,6 +54,7 @@ open class UBO {
             is Int, is Integer -> 4
             is Short, is java.lang.Short  -> 2
             is Boolean, is java.lang.Boolean -> 4
+            is Enum<*> -> 4
             else -> { logger.error("Don't know how to determine size of $element"); 0 }
         }
     }
@@ -71,6 +72,7 @@ open class UBO {
             is Int, is Integer -> 4
             is Short, is java.lang.Short  -> 5
             is Boolean, is java.lang.Boolean -> 6
+            is Enum<*> -> 7
             else -> { logger.error("Don't know how to determine object ID of $this/${this.javaClass.simpleName}"); -1 }
         }
     }
@@ -107,6 +109,7 @@ open class UBO {
                 is Int -> Pair(4, 4)
                 is Short -> Pair(2, 2)
                 is Boolean -> Pair(4, 4)
+                is Enum<*> -> Pair(4, 4)
 
                 else -> {
                     logger.error("Unknown VulkanUBO member type: ${element.javaClass.simpleName}")
@@ -225,6 +228,7 @@ open class UBO {
                 is Int -> data.asIntBuffer().put(0, value)
                 is Short -> data.asShortBuffer().put(0, value)
                 is Boolean -> data.asIntBuffer().put(0, value as Int)
+                is Enum<*> -> data.asIntBuffer().put(0, value.ordinal)
             }
 
             data.position(pos + size)

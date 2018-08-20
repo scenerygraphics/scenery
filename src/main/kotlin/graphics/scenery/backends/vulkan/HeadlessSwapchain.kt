@@ -140,7 +140,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
             signal.put(0, signalSemaphore)
 
             with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
-                this.endCommandBuffer(device, commandPools.Standard, presentQueue, signalSemaphores = signal,
+                endCommandBuffer(this@HeadlessSwapchain.device, commandPools.Standard, presentQueue, signalSemaphores = signal,
                     flush = true, dealloc = true)
             }
 
@@ -160,7 +160,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
             mask.put(0, VK10.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
 
             with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
-                this.endCommandBuffer(device, commandPools.Standard, presentQueue,
+                endCommandBuffer(this@HeadlessSwapchain.device, commandPools.Standard, presentQueue,
                     waitSemaphores = waitForSemaphores, waitDstStageMask = mask,
                     flush = true, dealloc = true)
             }
@@ -207,7 +207,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
                 dstStage = VK10.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                 commandBuffer = this)
 
-            this.endCommandBuffer(device, commandPools.Standard, queue,
+            endCommandBuffer(this@HeadlessSwapchain.device, commandPools.Standard, queue,
                 flush = true, dealloc = true)
         }
 

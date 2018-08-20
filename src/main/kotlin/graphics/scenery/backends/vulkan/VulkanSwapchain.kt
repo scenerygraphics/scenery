@@ -219,10 +219,10 @@ open class VulkanSwapchain(open val device: VulkanDevice,
                     colorAttachmentView.image(images[i])
 
                     imageViews[i] = VU.getLong("create image view",
-                        { VK10.vkCreateImageView(device.vulkanDevice, colorAttachmentView, null, this) }, {})
+                        { VK10.vkCreateImageView(this@VulkanSwapchain.device.vulkanDevice, colorAttachmentView, null, this) }, {})
                 }
 
-                this.endCommandBuffer(device, commandPools.Standard, queue,
+                endCommandBuffer(this@VulkanSwapchain.device, commandPools.Standard, queue,
                     flush = true, dealloc = true)
             }
 

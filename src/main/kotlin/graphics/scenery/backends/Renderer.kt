@@ -34,6 +34,10 @@ abstract class Renderer : Hubable {
     abstract var initialized: Boolean
         protected set
 
+    /** Signals whether a first image has been drawn. */
+    abstract var firstImageReady: Boolean
+        protected set
+
     /** [Settings] instance the renderer is using. */
     abstract var settings: Settings
 
@@ -60,7 +64,7 @@ abstract class Renderer : Hubable {
      *
      * @param[filename] The filename where to save the screenshot.
      */
-    abstract fun screenshot(filename: String = "")
+    abstract fun screenshot(filename: String = "", overwrite: Boolean = false)
 
     /**
      * Reshapes the window to the given sizes.

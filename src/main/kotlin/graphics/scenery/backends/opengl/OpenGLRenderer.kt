@@ -99,6 +99,7 @@ open class OpenGLRenderer(hub: Hub,
     private var uboCache = ConcurrentHashMap<String, OpenGLUBO>()
     private var joglDrawable: GLAutoDrawable? = null
     private var screenshotRequested = false
+    private var screenshotOverwriteExisting = false
     private var screenshotFilename = ""
     private var encoder: H264Encoder? = null
     private var recordMovie = false
@@ -121,6 +122,8 @@ open class OpenGLRenderer(hub: Hub,
     private var currentTime = System.nanoTime()
 
     override var initialized = false
+    override var firstImageReady: Boolean = false
+        protected set
 
     private var pboBuffers: Array<ByteBuffer?> = arrayOf(null, null)
     @Volatile private var pbos: IntArray = intArrayOf(0, 0)
@@ -1511,9 +1514,9 @@ open class OpenGLRenderer(hub: Hub,
                 }
 
                 val actualObjects = if(pass.passConfig.type == RenderConfigReader.RenderpassType.geometry) {
-                    actualSceneObjects.filter { it !is PointLight }
+                    actualSceneObjects.filter { it !is Light }
                 } else {
-                    actualSceneObjects.filter { it is PointLight }
+                    actualSceneObjects.filter { it is Light }
                 }
 
                 actualObjects.forEach renderLoop@ { n ->
@@ -1843,7 +1846,7 @@ open class OpenGLRenderer(hub: Hub,
                     File(System.getProperty("user.home"), "Desktop" + File.separator + "$applicationName - ${SimpleDateFormat("yyyy-MM-dd HH.mm.ss").format(Date())}.png")
                 } else {
                     File(screenshotFilename)
-                })
+                }, screenshotOverwriteExisting)
 
                 ImageIO.write(image, "png", file)
                 logger.info("Screenshot saved to ${file.absolutePath}")
@@ -1852,10 +1855,12 @@ open class OpenGLRenderer(hub: Hub,
                 e.printStackTrace()
             }
 
+            screenshotOverwriteExisting = false
             screenshotRequested = false
         }
 
         updateLatch?.countDown()
+        firstImageReady = true
     }
 
     /**
@@ -2513,8 +2518,9 @@ open class OpenGLRenderer(hub: Hub,
         gl.glBindVertexArray(0)
     }
 
-    override fun screenshot(filename: String) {
+    override fun screenshot(filename: String, overwrite: Boolean) {
         screenshotRequested = true
+        screenshotOverwriteExisting = overwrite
         screenshotFilename = filename
     }
 

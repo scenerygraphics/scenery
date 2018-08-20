@@ -53,6 +53,7 @@ layout(set = 5, binding = 0, std140) uniform ShaderProperties {
     int debugMode;
     vec3 worldPosition;
     vec3 emissionColor;
+    int lightType;
 };
 
 layout(set = 6, binding = 0, std140) uniform ShaderParameters {
@@ -207,14 +208,19 @@ void main()
 
 	vec3 lighting = vec3(0.0);
 
-    vec3 L = (worldPosition.xyz - FragPos.xyz);
-    float distance = length(L);
-    L = normalize(L);
+    vec3 L;
+    float lightAttenuation = 0.0;
 
-    vec3 V = normalize(cameraPosition - FragPos);
-    vec3 H = normalize(L + V);
+    if(lightType == 0) {
+        L = (worldPosition.xyz - FragPos.xyz);
+        float distance = length(L);
+        L = normalize(L);
 
-    float lightAttenuation = pow(clamp(1.0 - pow(distance/lightRadius, 4.0), 0.0, 1.0), 2.0) / (distance * distance + 1.0);
+        lightAttenuation = pow(clamp(1.0 - pow(distance/lightRadius, 4.0), 0.0, 1.0), 2.0) / (distance * distance + 1.0);
+    } else {
+        L = normalize(worldPosition.xyz);
+        lightAttenuation = 1.0;
+    }
 
 	if(debugLights == 1) {
         FragColor = vec4(N, 1.0);
@@ -226,6 +232,9 @@ void main()
 	    return;
 	}
 
+    vec3 V = normalize(cameraPosition - FragPos);
+    vec3 H = normalize(L + V);
+
     if(reflectanceModel == 1) {
         // Diffuse
         float NdotL = max(0.0, dot(N, L));
@@ -235,7 +244,7 @@ void main()
         float NdotR = max(0.0, dot(R, V));
         float NdotH = max(0.0, dot(N, H));
 
-        vec3 diffuse = NdotL * intensity * Albedo.rgb * emissionColor.rgb * ambientOcclusion.rgb;
+        vec3 diffuse = NdotL * intensity * Albedo.rgb * emissionColor.rgb * (1.0f - ambientOcclusion.a);
 
         if(NdotL > 0.0) {
             specular = pow(NdotH, (1.0-Specular)*4.0) * Albedo.rgb * emissionColor.rgb * intensity;
@@ -243,19 +252,17 @@ void main()
 
         lighting += (diffuse + specular) * lightAttenuation;
     }
+
     // Oren-Nayar model for diffuse and Cook-Torrance for Specular
     else if(reflectanceModel == 0) {
         vec3 diffuse = vec3(0.0);
         vec3 specular = vec3(0.0);
 
-        float roughness = MaterialParams.r * PI /2.0;
+        float roughness = MaterialParams.r * PI / 2.0;
 
         float LdotV = max(dot(L, V), 0.0);
         float NdotL = max(dot(L, N), 0.0);
         float NdotV = max(dot(N, V), 0.0);
-
-//        float s = LdotV - NdotL * NdotV;
-//        float t = max(mix(1.0, max(NdotL, NdotV), step(0.0, s)), 0.0001);
 
         float sigma2 = roughness * roughness;
         float A = 1.0 - sigma2 / (2.0 * (sigma2 + 0.33));
@@ -264,12 +271,10 @@ void main()
         vec2 ab = alphabeta(NdotL, NdotV);
         float m = max(0, CosPhi(NdotL, L) * CosPhi(NdotV, V) + SinPhi(NdotL, L) * CosPhi(NdotV, V));
 
-//        float L1 = NdotL * (A + B * s / t) / PI;
         float L1 = NdotL / PI * (A + B * m * ab.x * ab.y);
 
-        float lightOcclusion = 1.0 - clamp(dot(vec4(L, 1.0), 1.0*ambientOcclusion), 0.0, 1.0);
+        float lightOcclusion = 1.0 - ambientOcclusion.a;
         vec3 inputColor = intensity * emissionColor.rgb * Albedo.rgb * lightOcclusion;
-
 
         diffuse = inputColor * L1;
 
@@ -284,7 +289,7 @@ void main()
             float G = GeometrySmith(N, V, L, roughness);
             vec3 F = FresnelSchlick(max(dot(H, V), 0.0), F0);
 
-            vec3 BRDF = (NDF * G * F)/max(4.0 * abs(dot(N, V)) * abs(dot(N, L)), 0.001);
+            vec3 BRDF = (NDF * G * F)/max(4.0 * abs(NdotL) * abs(NdotV), 0.001);
 
             vec3 kS = F;
             vec3 kD = (vec3(1.0) - kS);
@@ -295,17 +300,19 @@ void main()
         }
 
         if(debugLights == 3) {
-            lighting += specular * lightAttenuation;
+            lighting = specular * lightAttenuation;
         } if(debugLights == 4) {
-            lighting += diffuse * lightAttenuation;
+            lighting = diffuse * lightAttenuation;
         } if(debugLights == 5) {
-            lighting += ambientOcclusion.rgb;
+            lighting = ambientOcclusion.rgb;
         } if(debugLights == 6) {
-            lighting += vec3(lightOcclusion);
+            lighting = vec3(lightOcclusion);
         } if(debugLights == 7) {
-            lighting = vec3(distance);
+            lighting = Albedo.rgb;
+        } if(debugLights == 8) {
+            lighting = vec3(MaterialParams.rg, 0.0);
         } else {
-            lighting += (diffuse + specular) * lightAttenuation;
+            lighting = (diffuse + specular) * lightAttenuation;
         }
     }
 

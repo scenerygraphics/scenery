@@ -10,7 +10,8 @@
 #define PI 3.14159265359
 
 layout(set = 3, binding = 0) uniform sampler2D InputNormalsMaterial;
-layout(set = 4, binding = 0) uniform sampler2D InputZBuffer;
+layout(set = 3, binding = 1) uniform sampler2D InputDiffuseAlbedo;
+layout(set = 3, binding = 2) uniform sampler2D InputZBuffer;
 
 layout(location = 0) out vec4 FragColor;
 layout(location = 0) in vec2 textureCoord;
@@ -172,17 +173,19 @@ void main() {
     //Alchemy SSAO algorithm
     else if (algorithm == 1) {
         float A = 0.0f;
-        float BiasDistance = 0.0f;
-        float Epsilon = 0.0f;
-        float IntensityScale = 0.0f;
-        float Contrast = 0.0f;
+
+        // Parameters from McGuire's paper
+        float BiasDistance = 0.0001f;
+        float Epsilon = 0.0001f;
+        float IntensityScale = 0.2f;
+        float Contrast = 1.0f;
 
         vec3 viewSpacePos = viewFromDepth(Depth, textureCoord);
 
         [[unroll]] for (int i = 0; i < occlusionSamples;  ++i) {
             vec2 sampleTexCoord = textureCoord + (poisson16[i] * (filterRadius));
             float sampleDepth = texture(InputZBuffer, sampleTexCoord).r;
-            vec3 samplePos = worldFromDepth(sampleDepth, textureCoord);
+            vec3 samplePos = worldFromDepth(sampleDepth, sampleTexCoord);
             vec3 sampleDir = samplePos - FragPos;
 
             float NdotV = max(dot(N, sampleDir), 0);
@@ -196,9 +199,9 @@ void main() {
          A *= (2*IntensityScale);
          A = max(0, 1 - A);
          A = pow(A, Contrast);
-         ambientOcclusion = 1 - A;
+         ambientOcclusion = A;
 
     }
 
-    FragColor = vec4(0.0, 0.0, 0.0, ambientOcclusion);
+    FragColor = vec4(ambientOcclusion);
 }

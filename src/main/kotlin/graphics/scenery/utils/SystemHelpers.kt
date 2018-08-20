@@ -182,9 +182,13 @@ class SystemHelpers {
          * Adds a counter to the file given in [f], if it already exists, and
          * returns the new file object.
          */
-        fun addFileCounter(f: File): File {
+        fun addFileCounter(f: File, overwrite: Boolean): File {
             var file = f
             var c = 0
+
+            if(overwrite) {
+                return file
+            }
 
             while(file.exists()) {
                 val ext = file.name.substringAfterLast(".")

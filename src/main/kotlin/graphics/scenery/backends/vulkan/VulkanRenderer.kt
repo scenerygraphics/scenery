@@ -141,7 +141,7 @@ open class VulkanRenderer(hub: Hub,
 
                     swapchain?.create(oldSwapchain = swapchain)
 
-                    this.endCommandBuffer(device, commandPools.Standard, queue, flush = true, dealloc = true)
+                    endCommandBuffer(this@VulkanRenderer.device, commandPools.Standard, queue, flush = true, dealloc = true)
 
                     this
                 }
@@ -256,8 +256,11 @@ open class VulkanRenderer(hub: Hub,
     override var managesRenderLoop = false
     override var lastFrameTime = System.nanoTime() * 1.0f
     final override var initialized = false
+    override var firstImageReady: Boolean = false
+        protected set
 
     private var screenshotRequested = false
+    private var screenshotOverwriteExisting = false
     private var screenshotFilename = ""
     var screenshotBuffer: VulkanBuffer? = null
     var imageBuffer: ByteBuffer? = null
@@ -364,7 +367,7 @@ open class VulkanRenderer(hub: Hub,
 
         val hmd = hub.getWorkingHMDDisplay()
         if (hmd != null) {
-            logger.info("Setting window dimensions to bounds from HMD")
+            logger.debug("Setting window dimensions to bounds from HMD")
             val bounds = hmd.getRenderTargetSize()
             window.width = bounds.x().toInt() * 2
             window.height = bounds.y().toInt()
@@ -438,7 +441,8 @@ open class VulkanRenderer(hub: Hub,
         device = VulkanDevice.fromPhysicalDevice(instance,
             physicalDeviceFilter = { _, device -> device.name.contains(System.getProperty("scenery.Renderer.Device", "DOES_NOT_EXIST"))},
             additionalExtensions = { physicalDevice -> hub.getWorkingHMDDisplay()?.getVulkanDeviceExtensions(physicalDevice)?.toTypedArray() ?: arrayOf() },
-            validationLayers = requestedValidationLayers)
+            validationLayers = requestedValidationLayers,
+            headless = embedIn != null)
 
         logger.debug("Device creation done")
 
@@ -447,7 +451,7 @@ open class VulkanRenderer(hub: Hub,
         }
 
         queue = VU.createDeviceQueue(device, device.queueIndices.graphicsQueue)
-        logger.info("Creating transfer queue with ${device.queueIndices.transferQueue} (vs ${device.queueIndices.graphicsQueue})")
+        logger.debug("Creating transfer queue with ${device.queueIndices.transferQueue} (vs ${device.queueIndices.graphicsQueue})")
         transferQueue = VU.createDeviceQueue(device, device.queueIndices.transferQueue)
 
         with(commandPools) {
@@ -595,7 +599,7 @@ open class VulkanRenderer(hub: Hub,
     override fun initializeScene() {
         logger.info("Scene initialization started.")
 
-        this.scene.discover(this.scene, { it is HasGeometry && it !is PointLight })
+        this.scene.discover(this.scene, { it is HasGeometry && it !is Light })
 //            .parallelMap(numThreads = System.getProperty("scenery.MaxInitThreads", "1").toInt()) { node ->
             .map { node ->
                 // skip initialization for nodes that are only instance slaves
@@ -972,7 +976,7 @@ open class VulkanRenderer(hub: Hub,
                             existingTexture
                         } else {
                             VulkanTexture(device,
-                                commandPools, queue, transferQueue, gt, miplevels)
+                                commandPools, queue, queue, gt, miplevels)
                         }
 
                         t.copyFrom(gt.contents)
@@ -990,11 +994,11 @@ open class VulkanRenderer(hub: Hub,
                                 defaultTexture
                             } else {
                                 VulkanTexture.loadFromFile(device,
-                                    commandPools, queue, transferQueue, stream, texture.substringAfterLast("."), true, generateMipmaps)
+                                    commandPools, queue, queue, stream, texture.substringAfterLast("."), true, generateMipmaps)
                             }
                         } else {
                             VulkanTexture.loadFromFile(device,
-                                commandPools, queue, transferQueue, texture, true, generateMipmaps)
+                                commandPools, queue, queue, texture, true, generateMipmaps)
                         }
 
                         val duration = System.nanoTime() - start * 1.0f
@@ -1292,7 +1296,7 @@ open class VulkanRenderer(hub: Hub,
     }
 
     protected fun prepareDefaultTextures(device: VulkanDevice) {
-        val t = VulkanTexture.loadFromFile(device, commandPools, queue, transferQueue,
+        val t = VulkanTexture.loadFromFile(device, commandPools, queue, queue,
             Renderer::class.java.getResourceAsStream("DefaultTexture.png"), "png", true, true)
 
         textureCache["DefaultTexture"] = t
@@ -1367,7 +1371,7 @@ open class VulkanRenderer(hub: Hub,
                     } else {
 
                         // create framebuffer -- don't clear it, if blitting is needed
-                        val framebuffer = VulkanFramebuffer(device, commandPools.Standard,
+                        val framebuffer = VulkanFramebuffer(this@VulkanRenderer.device, commandPools.Standard,
                             width, height, this,
                             shouldClear = !passConfig.blitInputs,
                             sRGB = renderConfig.sRGB)
@@ -1398,7 +1402,7 @@ open class VulkanRenderer(hub: Hub,
                         }
 
                         framebuffer.createRenderpassAndFramebuffer()
-                        framebuffer.outputDescriptorSet = VU.createRenderTargetDescriptorSet(device,
+                        framebuffer.outputDescriptorSet = VU.createRenderTargetDescriptorSet(this@VulkanRenderer.device,
                             descriptorPool, descriptorSetLayouts["outputs-${rt.key}"]!!, rt.value.attachments, framebuffer)
 
                         pass.output[rt.key] = framebuffer
@@ -1415,7 +1419,7 @@ open class VulkanRenderer(hub: Hub,
                     height = windowHeight
 
                     swapchain!!.images!!.forEachIndexed { i, _ ->
-                        val fb = VulkanFramebuffer(device, commandPools.Standard,
+                        val fb = VulkanFramebuffer(this@VulkanRenderer.device, commandPools.Standard,
                             width, height, this@with, sRGB = renderConfig.sRGB)
 
                         fb.addSwapchainAttachment("swapchain-$i", swapchain!!, i)
@@ -1471,7 +1475,7 @@ open class VulkanRenderer(hub: Hub,
 
                 pass.vulkanMetadata.eye.put(0, pass.passConfig.eye)
 
-                this.endCommandBuffer(device, commandPools.Standard, this@VulkanRenderer.queue, flush = true)
+                endCommandBuffer(this@VulkanRenderer.device, commandPools.Standard, this@VulkanRenderer.queue, flush = true)
             }
 
             renderpasses.put(passName, pass)
@@ -1575,7 +1579,7 @@ open class VulkanRenderer(hub: Hub,
                 // default image format is 32bit BGRA
                 val imageByteSize = window.width * window.height * 4L
             if(screenshotBuffer == null || screenshotBuffer?.size != imageByteSize) {
-                logger.info("Reallocating screenshot buffer")
+                logger.debug("Reallocating screenshot buffer")
                 screenshotBuffer = VulkanBuffer(device, imageByteSize,
                     VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
@@ -1583,7 +1587,7 @@ open class VulkanRenderer(hub: Hub,
             }
 
             if(imageBuffer == null || imageBuffer?.capacity() != imageByteSize.toInt()) {
-                logger.info("Reallocating image buffer")
+                logger.debug("Reallocating image buffer")
                 imageBuffer = memAlloc(imageByteSize.toInt())
             }
 
@@ -1630,7 +1634,7 @@ open class VulkanRenderer(hub: Hub,
                         VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
                         commandBuffer = this)
 
-                    this.endCommandBuffer(device, commandPools.Render, queue,
+                    endCommandBuffer(this@VulkanRenderer.device, commandPools.Render, queue,
                         flush = true, dealloc = true)
                 }
 
@@ -1657,7 +1661,7 @@ open class VulkanRenderer(hub: Hub,
                                 File(System.getProperty("user.home"), "Desktop" + File.separator + "$applicationName - ${SimpleDateFormat("yyyy-MM-dd HH.mm.ss").format(Date())}.png")
                             } else {
                                 File(screenshotFilename)
-                            })
+                            }, screenshotOverwriteExisting)
                             file.createNewFile()
                             ib.rewind()
 
@@ -1689,12 +1693,15 @@ open class VulkanRenderer(hub: Hub,
                     }
                 }
 
+                screenshotOverwriteExisting = false
                 screenshotRequested = false
             }
         }
 
         val presentDuration = System.nanoTime() - startPresent
         stats?.add("Renderer.viewportSubmitAndPresent", presentDuration)
+
+        firstImageReady = true
     }
 
     /**
@@ -1849,8 +1856,8 @@ open class VulkanRenderer(hub: Hub,
             val start = System.nanoTime()
 
             when (target.passConfig.type) {
-                RenderConfigReader.RenderpassType.geometry -> recordSceneRenderCommands(device, target, commandBuffer, sceneObjects, { it !is PointLight }, forceRerecording)
-                RenderConfigReader.RenderpassType.lights -> recordSceneRenderCommands(device, target, commandBuffer, sceneObjects, { it is PointLight }, forceRerecording)
+                RenderConfigReader.RenderpassType.geometry -> recordSceneRenderCommands(device, target, commandBuffer, sceneObjects, { it !is Light }, forceRerecording)
+                RenderConfigReader.RenderpassType.lights -> recordSceneRenderCommands(device, target, commandBuffer, sceneObjects, { it is Light }, forceRerecording)
                 RenderConfigReader.RenderpassType.quad -> recordPostprocessRenderCommands(device, target, commandBuffer)
             }
 
@@ -1888,8 +1895,8 @@ open class VulkanRenderer(hub: Hub,
         val start = System.nanoTime()
 
         when (viewportPass.passConfig.type) {
-            RenderConfigReader.RenderpassType.geometry -> recordSceneRenderCommands(device, viewportPass, viewportCommandBuffer, sceneObjects, { it !is PointLight }, forceRerecording)
-            RenderConfigReader.RenderpassType.lights -> recordSceneRenderCommands(device, viewportPass, viewportCommandBuffer, sceneObjects, { it is PointLight })
+            RenderConfigReader.RenderpassType.geometry -> recordSceneRenderCommands(device, viewportPass, viewportCommandBuffer, sceneObjects, { it !is Light }, forceRerecording)
+            RenderConfigReader.RenderpassType.lights -> recordSceneRenderCommands(device, viewportPass, viewportCommandBuffer, sceneObjects, { it is Light })
             RenderConfigReader.RenderpassType.quad -> recordPostprocessRenderCommands(device, viewportPass, viewportCommandBuffer)
         }
 
@@ -2131,7 +2138,7 @@ open class VulkanRenderer(hub: Hub,
         val stagingBuffer = if(state.vertexBuffers.containsKey("instanceStaging") && state.vertexBuffers["instanceStaging"]!!.size >= instanceBufferSize) {
             state.vertexBuffers["instanceStaging"]!!
         } else {
-            logger.info("Creating new staging buffer")
+            logger.debug("Creating new staging buffer")
             val buffer = VulkanBuffer(device,
                 instanceBufferSize * 1L,
                 VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
@@ -2882,8 +2889,9 @@ open class VulkanRenderer(hub: Hub,
     }
 
     @Suppress("UNUSED")
-    override fun screenshot(filename: String) {
+    override fun screenshot(filename: String, overwrite: Boolean) {
         screenshotRequested = true
+        screenshotOverwriteExisting = overwrite
         screenshotFilename = filename
     }
 
