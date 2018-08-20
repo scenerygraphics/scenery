@@ -35,6 +35,7 @@ import kotlin.streams.toList
  * @author Ulrik Günther <hello@ulrik.is>
  * @author Martin Weigert <mweigert@mpi-cbg.de>
  */
+@Suppress("unused")
 open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
     data class VolumeDescriptor(val path: Path?,
                                 val width: Long,
@@ -67,6 +68,15 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
     /** Whether to allow setting the transfer range or not */
     var lockTransferRange = false
 
+    /**
+     *  The rendering method used in the shader, can be
+     *
+     *  0 -- Local Maximum Intensity Projection
+     *  1 -- Maximum Intensity Projection
+     *  2 -- Alpha compositing
+     */
+    @ShaderProperty var renderingMethod: Int = 2
+
     /** Transfer function minimum */
     @ShaderProperty var trangemin = 0.00f
         set(value) {
@@ -98,9 +108,9 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
     @ShaderProperty var boxMax_z = boxwidth
 
     /** Maximum steps to take along a single ray through the volume */
-    @ShaderProperty var maxsteps = 128
+    @ShaderProperty var stepSize = 0.01f
     /** Alpha blending factor */
-    @ShaderProperty var alpha_blending = 0.06f
+    @ShaderProperty var alphaBlending = 0.06f
     /** Gamma exponent */
     @ShaderProperty var gamma = 1.0f
 
@@ -121,6 +131,15 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
     @ShaderProperty protected var dataRangeMin: Int = 0
     @ShaderProperty protected var dataRangeMax: Int = 255
 
+    @ShaderProperty var kernelSize: Float = 0.01f
+    @ShaderProperty var maxOcclusionDistance: Float = 0.01f
+    @ShaderProperty var occlusionSteps: Int = 4
+
+    @ShaderProperty var time: Float = System.nanoTime().toFloat()
+
+    /** The transfer function to use for the volume. Flat by default. */
+    var transferFunction: TransferFunction = TransferFunction.flat(0.5f)
+
     /**
      * Regenerates the [boundingBox] in case any relevant properties have changed.
      */
@@ -128,17 +147,46 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         boundingBox = generateBoundingBox()
     }
 
+    /**
+     * Color map class to contain lookup tables.
+     * These can be file-based ([ColormapFile]), or buffer-based ([ColormapBuffer]).
+     */
+    sealed class Colormap {
+        /**
+         * File-based color map.
+         */
+        class ColormapFile(val filename: String) : Colormap()
+
+        /**
+         * Buffer-based color map.
+         */
+        class ColormapBuffer(val texture: GenericTexture) : Colormap()
+    }
+
     /** Stores the available colormaps for transfer functions */
-    var colormaps = HashMap<String, String>()
+    var colormaps = HashMap<String, Colormap>()
 
     /** The active colormap, setting this will automatically update the color map texture */
     var colormap: String = "viridis"
         set(name) {
-            colormaps.get(name)?.let { cm ->
+            colormaps[name]?.let { cm ->
                 field = name
-                this@Volume.material.textures.put("normal", cm)
+                when (cm) {
+                    is Colormap.ColormapFile -> {
+                        this@Volume.material.textures["normal"] = cm.filename
+                    }
+
+                    is Colormap.ColormapBuffer -> {
+                        this@Volume.material.transferTextures["colormap"] = cm.texture
+                        this@Volume.material.textures["normal"] = "fromBuffer:colormap"
+                    }
+                }
+
                 this@Volume.material.needsTextureReload = true
+                return
             }
+
+            logger.error("Could not find colormap '$name'.")
         }
 
     /** Temporary storage for volume data */
@@ -194,11 +242,11 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         material.blending.colorBlending = Blending.BlendOp.add
         material.blending.alphaBlending = Blending.BlendOp.add
 
-        colormaps.put("grays", this.javaClass.getResource("colormap-grays.png").file)
-        colormaps.put("hot", this.javaClass.getResource("colormap-hot.png").file)
-        colormaps.put("jet", this.javaClass.getResource("colormap-jet.png").file)
-        colormaps.put("plasma", this.javaClass.getResource("colormap-plasma.png").file)
-        colormaps.put("viridis", this.javaClass.getResource("colormap-viridis.png").file)
+        colormaps["grays"] = Colormap.ColormapFile(javaClass.getResource("colormap-grays.png").file)
+        colormaps["hot"] = Colormap.ColormapFile(javaClass.getResource("colormap-hot.png").file)
+        colormaps["jet"] = Colormap.ColormapFile(javaClass.getResource("colormap-jet.png").file)
+        colormaps["plasma"] = Colormap.ColormapFile(javaClass.getResource("colormap-plasma.png").file)
+        colormaps["viridis"] = Colormap.ColormapFile(javaClass.getResource("colormap-viridis.png").file)
 
         assignEmptyVolumeTexture()
     }
@@ -232,8 +280,8 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
 
         logger.debug("setting voxelsize to $voxelSizeX x $voxelSizeY x $voxelSizeZ")
         logger.debug("setting min max to ${this.trangemin}, ${this.trangemax} ")
-        logger.debug("setting alpha blending to ${this.alpha_blending}")
-        logger.debug("setting dim to ${sizeX}, ${sizeY}, ${sizeZ}")
+        logger.debug("setting alpha blending to ${this.alphaBlending}")
+        logger.debug("setting dim to $sizeX, $sizeY, $sizeZ")
 
 
         if (volumes.containsKey(id)) {
@@ -376,17 +424,17 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
 
             val start = System.nanoTime()
 
-            if(reader.openPlane(0, 0).imageMetadata.isLittleEndian) {
+//            if(reader.openPlane(0, 0).imageMetadata.isLittleEndian) {
                 logger.info("Volume is little endian")
                 (0 until reader.getPlaneCount(0)).forEach { plane ->
                     imageData.put(reader.openPlane(0, plane).bytes)
                 }
-            } else {
-                logger.info("Volume is big endian")
-                (0 until reader.getPlaneCount(0)).forEach { plane ->
-                    imageData.put(swapEndianUnsafe(reader.openPlane(0, plane).bytes))
-                }
-            }
+//            } else {
+//                logger.info("Volume is big endian")
+//                (0 until reader.getPlaneCount(0)).forEach { plane ->
+//                    imageData.put(swapEndianUnsafe(reader.openPlane(0, plane).bytes))
+//                }
+//            }
 
             val duration = (System.nanoTime() - start) / 10e5
             logger.info("Reading took $duration ms")
@@ -449,9 +497,9 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         sizeZ = dimensions[2].toInt()
 
         logger.debug("setting voxelsize to $voxelSizeX x $voxelSizeY x $voxelSizeZ")
-        logger.debug("setting min max to ${this.trangemin}, ${this.trangemax} ")
-        logger.debug("setting alpha blending to ${this.alpha_blending}")
-        logger.debug("setting dim to ${sizeX}, ${sizeY}, ${sizeZ}")
+        logger.debug("setting min max to $trangemin, $trangemax ")
+        logger.debug("setting alpha blending to $alphaBlending")
+        logger.debug("setting dim to $sizeX, $sizeY, $sizeZ")
 
         val id = file.fileName.toString()
 
@@ -510,6 +558,20 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         return id
     }
 
+    override fun preDraw() {
+        if(transferFunction.stale) {
+            logger.debug("Transfer function is stale, updating")
+            material.transferTextures["transferFunction"] = GenericTexture(
+                "transferFunction", GLVector(transferFunction.textureSize.toFloat(), transferFunction.textureHeight.toFloat(), 1.0f),
+                channels = 1, type = GLTypeEnum.Float, contents = transferFunction.serialise())
+
+            material.textures["diffuse"] = "fromBuffer:transferFunction"
+            material.needsTextureReload = true
+
+            time = System.nanoTime().toFloat()
+        }
+    }
+
     private fun NativeTypeEnum.toGLType() =
         when (this) {
             NativeTypeEnum.UnsignedInt -> GLTypeEnum.UnsignedInt
@@ -531,9 +593,10 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         val dim = GLVector(2.0f, 2.0f, 2.0f)
         val gtv = GenericTexture("empty-volume", dim, 1, GLTypeEnum.UnsignedByte, emptyBuffer, false, false, normalized = true)
 
-        this.material.transferTextures.put("empty-volume", gtv)
-        this.material.textures.put("3D-volume", "fromBuffer:empty-volume")
-        this.material.textures.put("normal", colormaps.values.first())
+        material.transferTextures.put("empty-volume", gtv)
+        material.textures.put("3D-volume", "fromBuffer:empty-volume")
+
+        colormap = "viridis"
     }
 
     private val deallocations = ArrayDeque<ByteBuffer>()
@@ -580,10 +643,23 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
                 }
             }
             this.material.textures.put("3D-volume", "fromBuffer:volume")
-            this.material.textures.put("normal", colormaps[colormap]!!)
             this.material.needsTextureReload = true
 
             this.lock.unlock()
+        }
+    }
+
+    /**
+     * Sets the volume's transfer function range to [min] and [max].
+     * Optionally, the range can be locked by setting [lock].
+     */
+    fun setTransfer(min: Float, max: Float, lock: Boolean = true) {
+        lockTransferRange = false
+        trangemin = min
+        trangemax = max
+
+        if(lock) {
+            lockTransferRange = true
         }
     }
 

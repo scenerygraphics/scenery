@@ -9,6 +9,7 @@ import graphics.scenery.utils.RingBuffer
 import graphics.scenery.volumes.Volume
 import org.junit.Test
 import org.lwjgl.system.MemoryUtil.memAlloc
+import org.scijava.ui.behaviour.ClickBehaviour
 import java.nio.ByteBuffer
 import kotlin.concurrent.thread
 
@@ -19,7 +20,7 @@ import kotlin.concurrent.thread
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class ProceduralVolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
-    val bitsPerVoxel = 16
+    val bitsPerVoxel = 8
 
     override fun init() {
         renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
@@ -42,11 +43,19 @@ class ProceduralVolumeExample: SceneryBase("Volume Rendering example", 1280, 720
         shell.position = GLVector(0.0f, 4.0f, 0.0f)
         scene.addChild(shell)
 
-        val volume = Volume()
+        val volume = Volume(false)
         volume.name = "volume"
+        volume.position = GLVector(0.0f, 0.2f, 0.0f)
         volume.colormap = "plasma"
-//        volume.trangemin = 0.0f
-//        volume.trangemax = 255.0f
+        with(volume.transferFunction) {
+            addControlPoint(0.0f, 0.0f)
+            addControlPoint(0.2f, 0.0f)
+            addControlPoint(0.4f, 0.2f)
+            addControlPoint(0.8f, 0.2f)
+            addControlPoint(1.0f, 0.0f)
+        }
+
+        volume.metadata["animating"] = true
         scene.addChild(volume)
 
         val lights = (0 until 3).map {
@@ -63,12 +72,12 @@ class ProceduralVolumeExample: SceneryBase("Volume Rendering example", 1280, 720
         thread {
             while(!scene.initialized) { Thread.sleep(200) }
 
-            val volumeSize = 64L
+            val volumeSize = 128L
             val volumeBuffer = RingBuffer<ByteBuffer>(2) { memAlloc((volumeSize*volumeSize*volumeSize*bitsPerVoxel/8).toInt()) }
 
             val seed = Random.randomFromRange(0.0f, 133333337.0f).toLong()
             var shift = GLVector.getNullVector(3)
-            val shiftDelta = Random.randomVectorFromRange(3, -0.5f, 0.5f)
+            val shiftDelta = Random.randomVectorFromRange(3, -1.5f, 1.5f)
 
             val dataType = if(bitsPerVoxel == 8) {
                 NativeTypeEnum.UnsignedByte
@@ -76,34 +85,43 @@ class ProceduralVolumeExample: SceneryBase("Volume Rendering example", 1280, 720
                 NativeTypeEnum.UnsignedShort
             }
 
-            while(true) {
-                val currentBuffer = volumeBuffer.get()
+            while(running) {
+                if(volume.metadata["animating"] == true) {
+                    val currentBuffer = volumeBuffer.get()
 
-                Volume.generateProceduralVolume(volumeSize, 0.95f, seed = seed,
-                    intoBuffer = currentBuffer, shift = shift, use16bit = bitsPerVoxel > 8)
+                    Volume.generateProceduralVolume(volumeSize, 0.35f, seed = seed,
+                        intoBuffer = currentBuffer, shift = shift, use16bit = bitsPerVoxel > 8)
 
-                volume.readFromBuffer(
-                    "procedural-cloud-${shift.hashCode()}", currentBuffer,
-                    volumeSize, volumeSize, volumeSize, 1.0f, 1.0f, 1.0f,
-                    dataType = dataType, bytesPerVoxel = bitsPerVoxel/8)
+                    volume.readFromBuffer(
+                        "procedural-cloud-${shift.hashCode()}", currentBuffer,
+                        volumeSize, volumeSize, volumeSize, 1.0f, 1.0f, 1.0f,
+                        dataType = dataType, bytesPerVoxel = bitsPerVoxel / 8)
 
-                shift = shift + shiftDelta
+                    shift = shift + shiftDelta
+                }
 
                 Thread.sleep(200)
-            }
-        }
-
-        thread {
-            while(true) {
-                volume.rotation = volume.rotation.rotateByAngleY(0.005f)
-
-                Thread.sleep(15)
             }
         }
     }
 
     override fun inputSetup() {
         setupCameraModeSwitching()
+
+        val toggleRenderingMode = object : ClickBehaviour {
+            var modes = hashMapOf(0 to "Local MIP", 1 to "MIP", 2 to "Alpha Compositing")
+            var currentMode = (scene.find("volume") as? Volume)?.renderingMethod ?: 0
+
+            override fun click(x: Int, y: Int) {
+                currentMode = (currentMode + 1) % modes.size
+
+                (scene.find("volume") as? Volume)?.renderingMethod = currentMode
+                logger.info("Switched volume rendering mode to ${modes[currentMode]} (${(scene.find("volume") as? Volume)?.renderingMethod})")
+            }
+        }
+
+        inputHandler?.addBehaviour("toggle_rendering_mode", toggleRenderingMode)
+        inputHandler?.addKeyBinding("toggle_rendering_mode", "M")
     }
 
     @Test override fun main() {

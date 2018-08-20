@@ -3,6 +3,7 @@ package graphics.scenery.backends.vulkan
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil
+import org.lwjgl.system.MemoryUtil.NULL
 import org.lwjgl.system.MemoryUtil.memUTF8
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
@@ -13,7 +14,7 @@ import java.util.*
  *
  * @author Ulrik Guenther <hello@ulrik.is>
  */
-open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysicalDevice, val deviceData: DeviceData, extensionsQuery: (VkPhysicalDevice) -> Array<String> = { arrayOf() }, validationLayers: Array<String> = arrayOf()) {
+open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysicalDevice, val deviceData: DeviceData, extensionsQuery: (VkPhysicalDevice) -> Array<String> = { arrayOf() }, validationLayers: Array<String> = arrayOf(), headless: Boolean = false) {
 
     protected val logger by LazyLogger()
     /** Stores available memory types on the device. */
@@ -80,28 +81,51 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
                 index++
             }
 
-            val pQueuePriorities = stack.callocFloat(1).put(0, 0.0f)
-            val queueCreateInfo = VkDeviceQueueCreateInfo.callocStack(3, stack)
-            queueCreateInfo[0]
-                .sType(VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO)
-                .queueFamilyIndex(graphicsQueueFamilyIndex)
-                .pQueuePriorities(pQueuePriorities)
-            queueCreateInfo[1]
-                .sType(VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO)
-                .queueFamilyIndex(computeQueueFamilyIndex)
-                .pQueuePriorities(pQueuePriorities)
-            queueCreateInfo[2]
-                .sType(VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO)
-                .queueFamilyIndex(transferQueueFamilyIndex)
-                .pQueuePriorities(pQueuePriorities)
+            val requiredFamilies = listOf(
+                graphicsQueueFamilyIndex,
+                transferQueueFamilyIndex,
+                computeQueueFamilyIndex)
+                .groupBy { it }
+
+            logger.info("Creating ${requiredFamilies.size} distinct queue groups")
+
+            /**
+             * Adjusts the queue count of a [VkDeviceQueueCreateInfo] struct to [num].
+             */
+            fun VkDeviceQueueCreateInfo.queueCount(num: Int): VkDeviceQueueCreateInfo {
+                VkDeviceQueueCreateInfo.nqueueCount(this.address(), num)
+                return this
+            }
+
+            val queueCreateInfo = VkDeviceQueueCreateInfo.callocStack(requiredFamilies.size, stack)
+
+            requiredFamilies.entries.forEachIndexed { i, (familyIndex, group) ->
+                logger.debug("Adding queue with familyIndex=$familyIndex, size=${group.size}")
+
+                val pQueuePriorities = stack.callocFloat(group.size)
+                for(pr in 0 until group.size) { pQueuePriorities.put(pr, 1.0f) }
+
+                queueCreateInfo[i]
+                    .sType(VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO)
+                    .queueFamilyIndex(familyIndex)
+                    .pQueuePriorities(pQueuePriorities)
+                    .queueCount(group.size)
+            }
 
             val extensionsRequested = extensionsQuery.invoke(physicalDevice)
             logger.debug("Requested extensions: ${extensionsRequested.joinToString(", ")} ${extensionsRequested.size}")
             val utf8Exts = extensionsRequested.map { stack.UTF8(it) }
 
             // allocate enough pointers for required extensions, plus the swapchain extension
-            val extensions = stack.callocPointer(1 + extensionsRequested.size)
-            extensions.put(stack.UTF8(KHRSwapchain.VK_KHR_SWAPCHAIN_EXTENSION_NAME))
+            // if we are not running in headless mode
+            val extensions = if(!headless) {
+                val e = stack.callocPointer(1 + extensionsRequested.size)
+                e.put(stack.UTF8(KHRSwapchain.VK_KHR_SWAPCHAIN_EXTENSION_NAME))
+                e
+            } else {
+                stack.callocPointer(extensionsRequested.size)
+            }
+
             utf8Exts.forEach { extensions.put(it) }
             extensions.flip()
 
@@ -306,7 +330,8 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
          */
         @JvmStatic fun fromPhysicalDevice(instance: VkInstance, physicalDeviceFilter: (Int, DeviceData) -> Boolean,
                                           additionalExtensions: (VkPhysicalDevice) -> Array<String> = { arrayOf() },
-                                          validationLayers: Array<String> = arrayOf()): VulkanDevice {
+                                          validationLayers: Array<String> = arrayOf(),
+                                          headless: Boolean = false): VulkanDevice {
             return stackPush().use { stack ->
 
                 val physicalDeviceCount = VU.getInt("Enumerate physical devices") {
@@ -374,7 +399,7 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
 
                 physicalDevices.free()
 
-                VulkanDevice(instance, physicalDevice, selectedDeviceData, additionalExtensions, validationLayers)
+                VulkanDevice(instance, physicalDevice, selectedDeviceData, additionalExtensions, validationLayers, headless)
             }
         }
     }
