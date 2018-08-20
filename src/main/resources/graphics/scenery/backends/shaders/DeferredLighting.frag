@@ -209,9 +209,6 @@ void main()
 	vec3 lighting = vec3(0.0);
 
     vec3 L;
-    vec3 V = normalize(cameraPosition - FragPos);
-    vec3 H = normalize(L + V);
-
     float lightAttenuation = 0.0;
 
     if(lightType == 0) {
@@ -235,6 +232,9 @@ void main()
 	    return;
 	}
 
+    vec3 V = normalize(cameraPosition - FragPos);
+    vec3 H = normalize(L + V);
+
     if(reflectanceModel == 1) {
         // Diffuse
         float NdotL = max(0.0, dot(N, L));
@@ -252,19 +252,17 @@ void main()
 
         lighting += (diffuse + specular) * lightAttenuation;
     }
+
     // Oren-Nayar model for diffuse and Cook-Torrance for Specular
     else if(reflectanceModel == 0) {
         vec3 diffuse = vec3(0.0);
         vec3 specular = vec3(0.0);
 
-        float roughness = MaterialParams.r * PI /2.0;
+        float roughness = MaterialParams.r * PI / 2.0;
 
         float LdotV = max(dot(L, V), 0.0);
         float NdotL = max(dot(L, N), 0.0);
         float NdotV = max(dot(N, V), 0.0);
-
-//        float s = LdotV - NdotL * NdotV;
-//        float t = max(mix(1.0, max(NdotL, NdotV), step(0.0, s)), 0.0001);
 
         float sigma2 = roughness * roughness;
         float A = 1.0 - sigma2 / (2.0 * (sigma2 + 0.33));
@@ -273,12 +271,10 @@ void main()
         vec2 ab = alphabeta(NdotL, NdotV);
         float m = max(0, CosPhi(NdotL, L) * CosPhi(NdotV, V) + SinPhi(NdotL, L) * CosPhi(NdotV, V));
 
-//        float L1 = NdotL * (A + B * s / t) / PI;
         float L1 = NdotL / PI * (A + B * m * ab.x * ab.y);
 
-        float lightOcclusion = (1.0 - ambientOcclusion.a);
+        float lightOcclusion = 1.0 - ambientOcclusion.a;
         vec3 inputColor = intensity * emissionColor.rgb * Albedo.rgb * lightOcclusion;
-
 
         diffuse = inputColor * L1;
 
@@ -293,7 +289,7 @@ void main()
             float G = GeometrySmith(N, V, L, roughness);
             vec3 F = FresnelSchlick(max(dot(H, V), 0.0), F0);
 
-            vec3 BRDF = (NDF * G * F)/max(4.0 * abs(dot(N, V)) * abs(dot(N, L)), 0.001);
+            vec3 BRDF = (NDF * G * F)/max(4.0 * abs(NdotL) * abs(NdotV), 0.001);
 
             vec3 kS = F;
             vec3 kD = (vec3(1.0) - kS);
@@ -304,15 +300,19 @@ void main()
         }
 
         if(debugLights == 3) {
-            lighting += specular * lightAttenuation;
+            lighting = specular * lightAttenuation;
         } if(debugLights == 4) {
-            lighting += diffuse * lightAttenuation;
+            lighting = diffuse * lightAttenuation;
         } if(debugLights == 5) {
-            lighting += ambientOcclusion.rgb;
+            lighting = ambientOcclusion.rgb;
         } if(debugLights == 6) {
-            lighting += vec3(lightOcclusion);
+            lighting = vec3(lightOcclusion);
+        } if(debugLights == 7) {
+            lighting = Albedo.rgb;
+        } if(debugLights == 8) {
+            lighting = vec3(MaterialParams.rg, 0.0);
         } else {
-            lighting += (diffuse + specular) * lightAttenuation;
+            lighting = (diffuse + specular) * lightAttenuation;
         }
     }
 
