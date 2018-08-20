@@ -89,6 +89,9 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
 
             logger.info("Creating ${requiredFamilies.size} distinct queue groups")
 
+            /**
+             * Adjusts the queue count of a [VkDeviceQueueCreateInfo] struct to [num].
+             */
             fun VkDeviceQueueCreateInfo.queueCount(num: Int): VkDeviceQueueCreateInfo {
                 VkDeviceQueueCreateInfo.nqueueCount(this.address(), num)
                 return this
