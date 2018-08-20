@@ -3,6 +3,7 @@ package graphics.scenery.backends.vulkan
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil
+import org.lwjgl.system.MemoryUtil.NULL
 import org.lwjgl.system.MemoryUtil.memUTF8
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
@@ -80,20 +81,33 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
                 index++
             }
 
-            val pQueuePriorities = stack.callocFloat(1).put(0, 0.0f)
-            val queueCreateInfo = VkDeviceQueueCreateInfo.callocStack(3, stack)
-            queueCreateInfo[0]
-                .sType(VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO)
-                .queueFamilyIndex(graphicsQueueFamilyIndex)
-                .pQueuePriorities(pQueuePriorities)
-            queueCreateInfo[1]
-                .sType(VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO)
-                .queueFamilyIndex(computeQueueFamilyIndex)
-                .pQueuePriorities(pQueuePriorities)
-            queueCreateInfo[2]
-                .sType(VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO)
-                .queueFamilyIndex(transferQueueFamilyIndex)
-                .pQueuePriorities(pQueuePriorities)
+            val requiredFamilies = listOf(
+                graphicsQueueFamilyIndex,
+                transferQueueFamilyIndex,
+                computeQueueFamilyIndex)
+                .groupBy { it }
+
+            logger.info("Creating ${requiredFamilies.size} distinct queue groups")
+
+            fun VkDeviceQueueCreateInfo.queueCount(num: Int): VkDeviceQueueCreateInfo {
+                VkDeviceQueueCreateInfo.nqueueCount(this.address(), num)
+                return this
+            }
+
+            val queueCreateInfo = VkDeviceQueueCreateInfo.callocStack(requiredFamilies.size, stack)
+
+            requiredFamilies.entries.forEachIndexed { i, (familyIndex, group) ->
+                logger.debug("Adding queue with familyIndex=$familyIndex, size=${group.size}")
+
+                val pQueuePriorities = stack.callocFloat(group.size)
+                for(pr in 0 until group.size) { pQueuePriorities.put(pr, 1.0f) }
+
+                queueCreateInfo[i]
+                    .sType(VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO)
+                    .queueFamilyIndex(familyIndex)
+                    .pQueuePriorities(pQueuePriorities)
+                    .queueCount(group.size)
+            }
 
             val extensionsRequested = extensionsQuery.invoke(physicalDevice)
             logger.debug("Requested extensions: ${extensionsRequested.joinToString(", ")} ${extensionsRequested.size}")
