@@ -44,7 +44,7 @@ layout(set = 2, binding = 0, std140) uniform ShaderParameters {
     int algorithm;
 };
 
-const float strengthPerRay = 0.1875;
+const float strengthPerRay = 0.01875;
 const uint numRays = 8;
 const uint maxStepsPerRay = 5;
 const float halfSampleRadius = 0.25;
@@ -103,24 +103,6 @@ vec3 viewFromDepth(float depth, vec2 texcoord) {
     return viewSpacePosition.xyz;
 }
 
-vec3 worldFromDepth(float depth, vec2 texcoord) {
-    vec2 uv = (vrParameters.stereoEnabled ^ 1) * texcoord + vrParameters.stereoEnabled * vec2((texcoord.x - 0.5 * currentEye.eye) * 2.0, texcoord.y);
-
-	mat4 invProjection = (vrParameters.stereoEnabled ^ 1) * InverseProjectionMatrix + vrParameters.stereoEnabled * vrParameters.inverseProjectionMatrices[currentEye.eye];
-	mat4 invView = (vrParameters.stereoEnabled ^ 1) * InverseViewMatrices[0] + vrParameters.stereoEnabled * (InverseViewMatrices[currentEye.eye]);
-
-#ifndef OPENGL
-    vec4 clipSpacePosition = vec4(uv * 2.0 - 1.0, depth, 1.0);
-#else
-    vec4 clipSpacePosition = vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
-#endif
-    vec4 viewSpacePosition = invProjection * clipSpacePosition;
-
-    viewSpacePosition /= viewSpacePosition.w;
-    vec4 world = invView * viewSpacePosition;
-    return world.xyz;
-}
-
 vec2 OctWrap( vec2 v )
 {
     vec2 ret;
@@ -156,34 +138,28 @@ vec2 Rotate(vec2 v, vec2 rotationX, vec2 rotationY) {
     rotated.x = dot(expanded.xyz, rotationX.xyy);
     rotated.y = dot(expanded.xyz, rotationY.xyy);
 
-    return rotated;
+    return normalize(rotated);
 }
 
 vec2 snapToTexel(vec2 uv, vec2 maxScreenCoords) {
     return round(uv * maxScreenCoords) / maxScreenCoords;
 }
 
-float DepthToViewZ(float depth) {
-	mat4 projectionMatrix = (vrParameters.stereoEnabled ^ 1) * ProjectionMatrix + vrParameters.stereoEnabled * vrParameters.projectionMatrices[currentEye.eye];
-    return projectionMatrix[3][2] / (depth - projectionMatrix[2][2]);
-}
-
 /**
     sampleOcclusionOnRay - samples HBAO occlusion along a given ray
 
     [uv] - center coordinate of the kernel.
-    [frustumVector] - Frustum vector of the sample point.
     [centerViewPos] - The view-space position of the center point.
     [centerNormal] - The normal at the center point.
     [tangent] - Tangent vector in the sampling direction at the center point.
     [topOcclusion] - The maximum cos(angle) found sofar, will be updated when new
         occluding sample has been found.
 */
-float sampleOcclusionOnRay(vec2 uv, vec3 frustumVector, vec3 centerViewPos,
+float sampleOcclusionOnRay(vec2 uv, vec3 centerViewPos,
     vec3 centerNormal, vec3 tangent, inout float topOcclusion) {
 
     float sampleDepth = texture(InputZBuffer, uv).r;
-    vec3 sampleViewPos = frustumVector * DepthToViewZ(sampleDepth);
+    vec3 sampleViewPos = viewFromDepth(sampleDepth, uv);
 
     vec3 horizonVector = sampleViewPos - centerViewPos;
     float horizonVectorLength = length(horizonVector);
@@ -199,11 +175,9 @@ float sampleOcclusionOnRay(vec2 uv, vec3 frustumVector, vec3 centerViewPos,
     float diff = max(occlusion - topOcclusion, 0.0);
     topOcclusion = max(occlusion, topOcclusion);
 
-    float distanceFactor = clamp(horizonVectorLength / fallOff, 0.0, 1.0);
-    distanceFactor = 1.0 - distanceFactor * distanceFactor;
+    float distanceFactor = 1.0 - clamp(horizonVectorLength / fallOff, 0.0, 1.0);
 
     return diff * distanceFactor;
-
 }
 
 /**
@@ -217,17 +191,13 @@ float sampleOcclusionOnRay(vec2 uv, vec3 frustumVector, vec3 centerViewPos,
     [numStepsPerRay] - Steps to take per single ray.
     [centerViewPos] - View-space position of the center point.
     [centerNormal] - Normal of the center point.
-    [frustumDiff] - Differences of the frustum vectors, horizontally and vertically,
-        for frustum vector interpolation.
 */
 float sampleHBAO(vec2 origin, vec2 direction, float jitter, vec2 maxScreenCoords,
-    vec2 projectedRadii, uint numStepsPerRay, vec3 centerViewPos, vec3 centerNormal,
-    vec2 frustumDiff) {
+    vec2 projectedRadii, uint numStepsPerRay, vec3 centerViewPos, vec3 centerNormal) {
 
-    vec2 texelSizedStep = direction / vec2(displayWidth, displayHeight);
+    vec2 texelSizedStep = direction / maxScreenCoords;
     direction *= projectedRadii;
 
-//    vec3 tangent = GetViewPosition(origin + texelSizedStep, frustumDiff) - centerViewPos;
     float depth = texture(InputZBuffer, origin + texelSizedStep).r;
     vec3 tangent = viewFromDepth(depth, origin + texelSizedStep) - centerViewPos;
     tangent -= dot(centerNormal, tangent) * centerNormal;
@@ -237,17 +207,12 @@ float sampleHBAO(vec2 origin, vec2 direction, float jitter, vec2 maxScreenCoords
     vec2 jitteredOffset = mix(texelSizedStep, stepUV, jitter);
     vec2 uv = snapToTexel(origin + jitteredOffset, maxScreenCoords);
 
-    vec3 frustumVector = vec3(Vertex.frustumVectors[3].xy + uv * frustumDiff, 1.0f);
-    vec2 frustumVectorStep = stepUV * frustumDiff;
-
     float topOcclusion = bias;
     float occlusion = 0.0f;
 
     for(uint step = 0; step < numStepsPerRay; ++step) {
-        occlusion += sampleOcclusionOnRay(uv, frustumVector, centerViewPos, centerNormal, tangent, topOcclusion);
-
+        occlusion += sampleOcclusionOnRay(uv, centerViewPos, centerNormal, tangent, topOcclusion);
         uv += stepUV;
-        frustumVector.xy += frustumVectorStep.xy;
     }
 
     return occlusion;
@@ -267,36 +232,32 @@ void main() {
 
 	float centerDepth = texture(InputZBuffer, textureCoord).r;
     vec3 centerViewPos = viewFromDepth(centerDepth, textureCoord);
-	vec3 centerNormal = DecodeOctaH(texture(InputNormalsMaterial, textureCoord).rg);
+	vec3 centerNormal = (Vertex.viewMatrix * vec4(DecodeOctaH(texture(InputNormalsMaterial, textureCoord).rg), 1.0)).xyz;
 
 	vec3 randomFactors = vec3(random(textureCoord.xy), random(textureCoord.yx), 0.0);
 	vec2 rotationX = normalize(randomFactors.xy - vec2(0.5f));
 	vec2 rotationY = rotationX.yx * vec2(-1.0f, 1.0f);
 
-	vec2 frustumDiff = vec2(Vertex.frustumVectors[2].x - Vertex.frustumVectors[3].x,
-	    Vertex.frustumVectors[0].y - Vertex.frustumVectors[3].y);
-
-	mat4 projectionMatrix = (vrParameters.stereoEnabled ^ 1) * ProjectionMatrix + vrParameters.stereoEnabled * vrParameters.projectionMatrices[currentEye.eye];
-	float w = centerViewPos.z * projectionMatrix[2][3] + projectionMatrix[3][3];
-	vec2 projectedRadii = halfSampleRadius * vec2(projectionMatrix[1][1], projectionMatrix[2][2]) / w;
-	float screenRadius = projectedRadii.x * displayWidth;
-
-	if(screenRadius < 1.0) {
-	    FragColor = vec4(1.0);
-	    return;
-	}
-
-	uint stepsPerRay = min(maxStepsPerRay, uint(screenRadius));
+	mat4 projectionMatrix = Vertex.projectionMatrix;
+	float w = centerViewPos.z * projectionMatrix[3][2] - projectionMatrix[3][3];
+	vec2 projectedRadii = halfSampleRadius * vec2(-projectionMatrix[1][1], -projectionMatrix[2][2]) / w;
 
     float ambientOcclusion = 0.0f;
     float A = 0.0f;
 
-    for (uint i = 0; i < occlusionSamples; ++i) {
-        vec2 sampleDir = Rotate(sampleDirections[i].xy, rotationX, rotationY);
-        A += sampleHBAO(textureCoord, sampleDir, randomFactors.z, screenSize,
-            projectedRadii, stepsPerRay, centerViewPos, centerNormal, frustumDiff);
+    if(projectedRadii.x * screenSize.x < 1.0) {
+        FragColor = vec4(0.0);
+        return;
     }
 
-    ambientOcclusion = clamp(strengthPerRay * A, 0.0, 1.0);
+    uint samples = min(occlusionSamples, 32);
+
+    for (uint i = 0; i < samples; ++i) {
+        vec2 sampleDir = sampleDirections[i].xy;
+        A += sampleHBAO(textureCoord, sampleDir, randomFactors.y, screenSize,
+            projectedRadii, maxStepsPerRay, centerViewPos, centerNormal);
+    }
+
+    ambientOcclusion = clamp(strengthPerRay * A, 0.0f, 1.0f);
     FragColor = vec4(ambientOcclusion);
 }

@@ -46,7 +46,7 @@ renderpasses:
       Pass.displayWidth: 0
       Pass.displayHeight: 0
       occlusionRadius: 1.0
-      occlusionSamples: 0
+      occlusionSamples: 16
       maxDistance: 1.0
       algorithm: 0
     shaders:
@@ -65,7 +65,7 @@ renderpasses:
       - "FullscreenQuad.vert.spv"
       - "DSSDOBlur.frag.spv"
     inputs:
-      - GeometryBuffer.NormalsMaterial
+      - GeometryBuffer
       - DSSDOTemp1
     output: DSSDOTemp2
   DSSDOBlurH:
@@ -78,7 +78,7 @@ renderpasses:
       - "FullscreenQuad.vert.spv"
       - "DSSDOBlur.frag.spv"
     inputs:
-      - GeometryBuffer.NormalsMaterial
+      - GeometryBuffer
       - DSSDOTemp2
     output: DSSDOBuffer
   DeferredLighting:
