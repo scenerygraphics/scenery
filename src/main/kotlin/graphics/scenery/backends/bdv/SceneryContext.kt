@@ -5,11 +5,14 @@ import cleargl.GLTypeEnum
 import cleargl.GLVector
 import graphics.scenery.GenericTexture
 import graphics.scenery.TextureExtents
+import graphics.scenery.utils.LazyLogger
 import graphics.scenery.volumes.Volume
+import org.lwjgl.system.MemoryUtil
 import tpietzsch.backend.*
 import tpietzsch.shadergen.Shader
 import java.nio.Buffer
 import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.nio.FloatBuffer
 
 /**
@@ -19,6 +22,10 @@ import java.nio.FloatBuffer
  * @author Tobias Pietzsch <pietzsch@mpi-cbg.de>
  */
 class SceneryContext(val node: Volume) : GpuContext {
+    private val logger by LazyLogger()
+
+    private val pboBackingStore = HashMap<Pbo, ByteBuffer>()
+    private val factory = VolumeShaderFactory()
 
     inner class SceneryUniformSetter: SetUniforms {
         private var modified: Boolean = false
@@ -79,6 +86,19 @@ class SceneryContext(val node: Volume) : GpuContext {
             modified = true
         }
 
+        override fun setUniformMatrix3f(name: String, transpose: Boolean, value: FloatBuffer) {
+            val array = FloatArray(value.remaining())
+            value.get(array)
+
+            val m = GLMatrix(array)
+            if(transpose) {
+                m.transpose()
+            }
+
+            node.shaderProperties[name] = m
+            modified = true
+        }
+
         override fun setUniformMatrix4f(name: String, transpose: Boolean, value: FloatBuffer) {
             val array = FloatArray(value.remaining())
             value.get(array)
@@ -94,7 +114,7 @@ class SceneryContext(val node: Volume) : GpuContext {
     }
 
     override fun use(shader: Shader) {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+
     }
 
     override fun getUniformSetter(shader: Shader): SetUniforms {
@@ -143,11 +163,14 @@ class SceneryContext(val node: Volume) : GpuContext {
     }
 
     override fun map(pbo: Pbo): Buffer {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        logger.info("Mapping $pbo...")
+        return pboBackingStore.computeIfAbsent(pbo) {
+            MemoryUtil.memAlloc(pbo.sizeInBytes)
+        }
     }
 
     override fun unmap(pbo: Pbo) {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        logger.info("Unmapping $pbo...")
     }
 
     override fun delete(texture: Texture) {
@@ -155,14 +178,31 @@ class SceneryContext(val node: Volume) : GpuContext {
     }
 
     override fun texSubImage3D(pbo: Pbo, texture: Texture3D, xoffset: Int, yoffset: Int, zoffset: Int, width: Int, height: Int, depth: Int, pixels_buffer_offset: Long) {
-        // what is this for? no data = erase?
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        val tmpStorage = (map(pbo) as ByteBuffer).duplicate().order(ByteOrder.LITTLE_ENDIAN)
+        tmpStorage.position(pixels_buffer_offset.toInt())
+
+        val channels = 1
+        val format = GLTypeEnum.UnsignedShort
+
+        node.material.transferTextures.put("subimage3D",
+            GenericTexture("subimage3D",
+                GLVector(width.toFloat(), height.toFloat(), depth.toFloat()),
+                channels,
+                format,
+                tmpStorage,
+                false,
+                false,
+                false,
+                true,
+                false,
+                TextureExtents(xoffset, yoffset, zoffset, width, height, depth)))
     }
 
-    override fun texSubImage3D(texture: Texture3D, xoffset: Int, yoffset: Int, zoffset: Int, width: Int, height: Int, depth: Int, pixels: Buffer?) {
+    override fun texSubImage3D(texture: Texture3D, xoffset: Int, yoffset: Int, zoffset: Int, width: Int, height: Int, depth: Int, pixels: Buffer) {
         if(pixels is ByteBuffer) {
-            val channels = 4
-            val format = GLTypeEnum.UnsignedByte
+            // TODO: add support for different data types
+            val channels = 1
+            val format = GLTypeEnum.UnsignedShort
 
             node.material.transferTextures.put("subimage3D",
                 GenericTexture("subimage3D",
