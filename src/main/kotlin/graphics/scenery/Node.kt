@@ -422,10 +422,10 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
             val field = shaderPropertyFieldCache[name]!!
             val value = field.get(this)
 
-            if(value is HashMap<*, *>) {
-                value.get(name)
-            } else {
+            if(value !is HashMap<*, *>) {
                 shaderPropertyFieldCache[name]!!.get(this)
+            } else {
+                value.get(name)
             }
         } else {
             val field = this.javaClass.kotlin.memberProperties.find { it.name == name && it.findAnnotation<ShaderProperty>() != null}
