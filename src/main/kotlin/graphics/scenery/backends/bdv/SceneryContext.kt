@@ -1,11 +1,15 @@
 package graphics.scenery.backends.bdv
 
 import cleargl.GLMatrix
+import cleargl.GLTypeEnum
 import cleargl.GLVector
+import graphics.scenery.GenericTexture
+import graphics.scenery.TextureExtents
 import graphics.scenery.volumes.Volume
 import tpietzsch.backend.*
 import tpietzsch.shadergen.Shader
 import java.nio.Buffer
+import java.nio.ByteBuffer
 import java.nio.FloatBuffer
 
 /**
@@ -151,10 +155,27 @@ class SceneryContext(val node: Volume) : GpuContext {
     }
 
     override fun texSubImage3D(pbo: Pbo, texture: Texture3D, xoffset: Int, yoffset: Int, zoffset: Int, width: Int, height: Int, depth: Int, pixels_buffer_offset: Long) {
+        // what is this for? no data = erase?
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
     override fun texSubImage3D(texture: Texture3D, xoffset: Int, yoffset: Int, zoffset: Int, width: Int, height: Int, depth: Int, pixels: Buffer?) {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        if(pixels is ByteBuffer) {
+            val channels = 4
+            val format = GLTypeEnum.UnsignedByte
+
+            node.material.transferTextures.put("subimage3D",
+                GenericTexture("subimage3D",
+                    GLVector(width.toFloat(), height.toFloat(), depth.toFloat()),
+                    channels,
+                    format,
+                    pixels,
+                    false,
+                    false,
+                    false,
+                    true,
+                    false,
+                    TextureExtents(xoffset, yoffset, zoffset, width, height, depth)))
+        }
     }
 }
