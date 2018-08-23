@@ -54,7 +54,7 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
     init {
 
         when(window) {
-            is SceneryWindow.ClearGLWindow -> {
+            is SceneryWindow.ClearGLWindow  -> {
                 // create Mouse & Keyboard Handler
                 handler = JOGLMouseAndKeyHandler(hub)
                 handler.setInputMap(inputMap)
@@ -62,6 +62,17 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
 
                 window.window.addKeyListener(handler)
                 window.window.addMouseListener(handler)
+            }
+
+            is SceneryWindow.JOGLDrawable -> {
+                // create Mouse & Keyboard Handler
+                handler = JOGLMouseAndKeyHandler(hub)
+                handler.setInputMap(inputMap)
+                handler.setBehaviourMap(behaviourMap)
+
+                // TODO: Add listeners in appropriate place
+                // window.drawable.addKeyListener(handler)
+                // window.drawable.addMouseListener(handler)
             }
 
             is SceneryWindow.GLFWWindow -> {

@@ -64,8 +64,8 @@ open class VulkanRenderer(hub: Hub,
                           scene: Scene,
                           windowWidth: Int,
                           windowHeight: Int,
-                          override final var embedIn: SceneryPanel? = null,
-                          renderConfigFile: String) : Renderer(), AutoCloseable {
+                          renderConfigFile: String,
+                          override final var embedIn: SceneryPanel? = null) : Renderer(), AutoCloseable {
 
     protected val logger by LazyLogger()
 
