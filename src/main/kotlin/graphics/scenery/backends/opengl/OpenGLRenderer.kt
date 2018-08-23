@@ -1382,7 +1382,7 @@ open class OpenGLRenderer(hub: Hub,
         updateInstanceBuffers(sceneObjects.await())
         stats?.add("OpenGLRenderer.updateInstanceBuffers", System.nanoTime() - startInstanceUpdate)
 
-        if(pushMode && !updated && !sceneUpdated) {
+        if(pushMode && !updated && !sceneUpdated && !screenshotRequested) {
             if(updateLatch == null) {
                 updateLatch = CountDownLatch(2)
             }
@@ -1407,7 +1407,7 @@ open class OpenGLRenderer(hub: Hub,
             }
         }
 
-        if(updated || sceneUpdated) {
+        if(updated || sceneUpdated || screenshotRequested) {
             updateLatch = null
         }
 
