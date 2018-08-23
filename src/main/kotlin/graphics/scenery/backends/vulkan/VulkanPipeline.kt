@@ -7,6 +7,7 @@ import graphics.scenery.GeometryType
 import graphics.scenery.utils.LazyLogger
 import java.nio.IntBuffer
 import java.util.*
+import kotlin.collections.LinkedHashMap
 
 /**
  * Vulkan Pipeline class.

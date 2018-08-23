@@ -1497,7 +1497,6 @@ open class VulkanRenderer(hub: Hub,
             }
 
             with(pass.value) {
-                initializeInputAttachmentDescriptorSetLayouts()
                 initializeShaderParameterDescriptorSetLayouts(settings)
 
                 initializeDefaultPipeline()
@@ -2681,6 +2680,7 @@ open class VulkanRenderer(hub: Hub,
 
             vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkanPipeline.pipeline)
             if(pass.vulkanMetadata.descriptorSets.limit() > 0) {
+                logger.debug("Binding ${pass.vulkanMetadata.descriptorSets.limit()} descriptor sets with ${pass.vulkanMetadata.uboOffsets.limit()} required offsets")
                 vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_GRAPHICS,
                     vulkanPipeline.layout, 0, pass.vulkanMetadata.descriptorSets, pass.vulkanMetadata.uboOffsets)
             }
@@ -2700,10 +2700,11 @@ open class VulkanRenderer(hub: Hub,
         var requiredDynamicOffsets = 0
         logger.debug("Ubo position: ${this.uboOffsets.position()}")
 
-        pipeline.descriptorSpecs.entries.sortedBy { it.value.set }.forEachIndexed { i, (name, _) ->
+        pipeline.descriptorSpecs.entries.sortedBy { it.value.set }.forEachIndexed { i, (name, spec) ->
+            logger.debug("Looking at $name, set=${spec.set}, binding=${spec.binding}...")
             val dsName = when {
                 name.startsWith("ShaderParameters") -> "ShaderParameters-${pass.name}"
-                name.startsWith("Inputs") -> "input-${pass.name}-${name.substringAfter("-")}"
+                name.startsWith("Inputs") -> "input-${pass.name}-${spec.set}"
                 name.startsWith("Matrices") -> {
                     val offsets = sceneUBOs.first().rendererMetadata()!!.UBOs["Matrices"]!!.second.offsets
                     this.uboOffsets.put(offsets)
