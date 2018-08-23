@@ -11,16 +11,16 @@ rendertargets:
   ForwardBuffer:
     attachments:
       Color: RGBA_Float32
-  DSSDOBuffer:
+  AOBuffer:
     size: 1.0, 1.0
     attachments:
       Occlusion: RGBA_UInt8
-  DSSDOTemp1:
-    size: 0.5, 0.5
+  AOTemp1:
+    size: 1.0, 1.0
     attachments:
       Occlusion: RGBA_UInt8
-  DSSDOTemp2:
-    size: 0.5, 0.5
+  AOTemp2:
+    size: 1.0, 1.0
     attachments:
       Occlusion: RGBA_UInt8
   HDRBuffer:
@@ -40,7 +40,7 @@ renderpasses:
       - "DefaultDeferred.vert.spv"
       - "DefaultDeferred.frag.spv"
     output: GeometryBuffer
-  DSSDO:
+  AO:
     type: quad
     parameters:
       Pass.displayWidth: 0
@@ -48,39 +48,42 @@ renderpasses:
       occlusionRadius: 1.0
       occlusionSamples: 16
       maxDistance: 1.0
+      bias: 0.1
       algorithm: 0
     shaders:
       - "FullscreenQuadFrustum.vert.spv"
       - "HBAO.frag.spv"
     inputs:
       - GeometryBuffer
-    output: DSSDOTemp1
-  DSSDOBlurV:
-    type: quad
-    parameters:
-      Pass.displayWidth: 0
-      Pass.displayHeight: 0
-      Direction: 0.0, 1.0
-    shaders:
-      - "FullscreenQuad.vert.spv"
-      - "DSSDOBlur.frag.spv"
-    inputs:
-      - GeometryBuffer
-      - DSSDOTemp1
-    output: DSSDOTemp2
-  DSSDOBlurH:
+    output: AOTemp1
+  AOBlurV:
     type: quad
     parameters:
       Pass.displayWidth: 0
       Pass.displayHeight: 0
       Direction: 1.0, 0.0
+      Sharpness: 40.0
     shaders:
       - "FullscreenQuad.vert.spv"
-      - "DSSDOBlur.frag.spv"
+      - "HBAOBlur.frag.spv"
     inputs:
-      - GeometryBuffer
-      - DSSDOTemp2
-    output: DSSDOBuffer
+      - GeometryBuffer.ZBuffer
+      - AOTemp1
+    output: AOTemp2
+  AOBlurH:
+    type: quad
+    parameters:
+      Pass.displayWidth: 0
+      Pass.displayHeight: 0
+      Direction: 0.0, 1.0
+      Sharpness: 40.0
+    shaders:
+      - "FullscreenQuad.vert.spv"
+      - "HBAOBlur.frag.spv"
+    inputs:
+      - GeometryBuffer.ZBuffer
+      - AOTemp2
+    output: AOBuffer
   DeferredLighting:
     type: lights
     renderTransparent: true
@@ -92,7 +95,7 @@ renderpasses:
       - "DeferredLighting.frag.spv"
     inputs:
       - GeometryBuffer
-      - DSSDOBuffer
+      - AOBuffer
     output: ForwardBuffer
     parameters:
       debugLights: 0
@@ -145,14 +148,14 @@ renderpasses:
 
 qualitySettings:
   Low:
-    DSSDO.occlusionSamples: 0
+    AO.occlusionSamples: 0
     FXAA.activateFXAA: 0
   Medium:
-    DSSDO.occlusionSamples: 4
+    AO.occlusionSamples: 4
     FXAA.activateFXAA: 1
   High:
-    DSSDO.occlusionSamples: 16
+    AO.occlusionSamples: 16
     FXAA.activateFXAA: 1
   Ultra:
-    DSSDO.occlusionSamples: 16
+    AO.occlusionSamples: 16
     FXAA.activateFXAA: 1
