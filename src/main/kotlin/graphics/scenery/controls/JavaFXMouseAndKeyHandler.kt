@@ -1,6 +1,7 @@
 package graphics.scenery.controls
 
 import graphics.scenery.Hub
+import graphics.scenery.utils.ExtractsNatives
 import graphics.scenery.utils.SceneryPanel
 import javafx.event.EventHandler
 import javafx.scene.input.*
@@ -30,10 +31,10 @@ open class JavaFXMouseAndKeyHandler(protected var hub: Hub?, protected var panel
             "unknown"
         }
 
-        scrollSpeedMultiplier = if (os == "mac") {
-            1.0f
-        } else {
-            10.0f
+        scrollSpeedMultiplier = when(os) {
+            "mac" -> 1.0f
+            "windows" -> 1.0f
+            else -> 3.0f
         }
         
         val stage = panel.scene.window as Stage
@@ -226,7 +227,14 @@ open class JavaFXMouseAndKeyHandler(protected var hub: Hub?, protected var panel
         val mask = getMask(e)
         val x = e.x
         val y = e.y
-        val wheelRotation = e.deltaX.to(e.deltaY)
+
+        // branching needed here, as JavaFX on Windows interprets
+        // shift+scroll as horizontal scroll, which we do not want
+        val wheelRotation = if(shiftPressed && os == "windows") {
+            e.deltaY to e.deltaX
+        } else {
+            e.deltaX to e.deltaY
+        }
         val isHorizontal = wheelRotation.second == 0.0
 
         scrolls

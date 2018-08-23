@@ -25,7 +25,7 @@ import java.util.*
  */
 open class VulkanSwapchain(open val device: VulkanDevice,
                            open val queue: VkQueue,
-                           open val commandPool: Long,
+                           open val commandPools: VulkanRenderer.CommandPools,
                            @Suppress("unused") open val renderConfig: RenderConfigReader.RenderConfig,
                            open val useSRGB: Boolean = true) : Swapchain {
     protected val logger by LazyLogger()
@@ -208,7 +208,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
                 .baseArrayLayer(0)
                 .layerCount(1)
 
-            with(VU.newCommandBuffer(device, commandPool, autostart = true)) {
+            with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
                 for (i in 0 until imageCount.get(0)) {
                     images[i] = swapchainImages.get(i)
 
@@ -219,10 +219,10 @@ open class VulkanSwapchain(open val device: VulkanDevice,
                     colorAttachmentView.image(images[i])
 
                     imageViews[i] = VU.getLong("create image view",
-                        { VK10.vkCreateImageView(device.vulkanDevice, colorAttachmentView, null, this) }, {})
+                        { VK10.vkCreateImageView(this@VulkanSwapchain.device.vulkanDevice, colorAttachmentView, null, this) }, {})
                 }
 
-                this.endCommandBuffer(device, commandPool, queue,
+                endCommandBuffer(this@VulkanSwapchain.device, commandPools.Standard, queue,
                     flush = true, dealloc = true)
             }
 

@@ -9,6 +9,7 @@ layout(location = 0) out VertexData {
     vec2 textureCoord;
     mat4 inverseProjection;
     mat4 inverseModelView;
+    mat4 modelView;
     mat4 MVP;
 } Vertex;
 
@@ -60,11 +61,12 @@ layout(set = 4, binding = 0) uniform ShaderProperties {
     float boxMax_x;
     float boxMax_y;
     float boxMax_z;
-    int maxsteps;
+    float stepSize;
     float alpha_blending;
     float gamma;
     int dataRangeMin;
     int dataRangeMax;
+    int renderingMethod;
 };
 
 layout(push_constant) uniform currentEye_t {
@@ -101,6 +103,8 @@ void main()
     Vertex.inverseProjection = (vrParameters.stereoEnabled ^ 1) * InverseProjectionMatrix + (vrParameters.stereoEnabled * vrParameters.inverseProjectionMatrices[currentEye.eye]);
     Vertex.inverseModelView = invScale * inverse(mv);
     Vertex.MVP = projectionMatrix * mv * scale;
+
+    Vertex.modelView = mv * scale;
 
     Vertex.textureCoord = vertexTexCoord;
     gl_Position = vec4(vertexPosition, 1.0f);

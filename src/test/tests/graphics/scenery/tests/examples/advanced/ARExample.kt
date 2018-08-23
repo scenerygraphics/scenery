@@ -1,31 +1,37 @@
 package graphics.scenery.tests.examples.advanced
 
 import cleargl.GLVector
+import coremem.enums.NativeTypeEnum
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.Hololens
+import graphics.scenery.numerics.Random
+import graphics.scenery.utils.RingBuffer
 import graphics.scenery.volumes.Volume
 import org.junit.Test
-import java.io.File
-import java.nio.file.Paths
+import org.lwjgl.system.MemoryUtil.memAlloc
+import java.nio.ByteBuffer
 import kotlin.concurrent.thread
 
 /**
- * Standard volume rendering example, rendered on [Hololens].
+ * Example that renders procedurally generated volumes on a [Hololens].
+ * [bitsPerVoxel] can be set to 8 or 16, to generate Byte or UnsignedShort volumes.
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class ARExample: SceneryBase("AR Volume Rendering example", 2560, 720) {
-    var hmd: Hololens = Hololens()
+class ARExample: SceneryBase("AR Volume Rendering example", 1280, 720) {
+    val hololens = Hololens()
+    val bitsPerVoxel = 16
 
     override fun init() {
-        hub.add(SceneryElement.HMDInput, hmd)
+        hub.add(SceneryElement.HMDInput, hololens)
         renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
+        renderer?.toggleVR()
         hub.add(SceneryElement.Renderer, renderer!!)
 
-        val cam: Camera = DetachedHeadCamera(hmd)
+        val cam: Camera = DetachedHeadCamera(hololens)
         with(cam) {
-            position = GLVector(0.0f, 0.5f, 2.5f)
+            position = GLVector(-0.2f, 0.0f, 1.0f)
             perspectiveCamera(50.0f, 1.0f*windowWidth, 1.0f*windowHeight)
             active = true
 
@@ -34,9 +40,8 @@ class ARExample: SceneryBase("AR Volume Rendering example", 2560, 720) {
 
         val volume = Volume()
         volume.name = "volume"
-        volume.colormap = "jet"
-        volume.position = GLVector(0.0f, 0.8f, -1.0f)
-        volume.scale = GLVector(0.1f, 0.1f, 0.1f)
+        volume.colormap = "plasma"
+        volume.scale = GLVector(0.02f, 0.02f, 0.02f)
         scene.addChild(volume)
 
         val lights = (0 until 3).map {
@@ -46,37 +51,50 @@ class ARExample: SceneryBase("AR Volume Rendering example", 2560, 720) {
         lights.mapIndexed { i, light ->
             light.position = GLVector(2.0f * i - 4.0f,  i - 1.0f, 0.0f)
             light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
-            light.intensity = 150.0f
+            light.intensity = 50.0f
             scene.addChild(light)
         }
 
-        val files: List<File> = File(getDemoFilesPath() + "/volumes/box-iso/").listFiles().toList()
-
-        val volumes = files.filter { it.isFile }.map { it.absolutePath }.sorted()
-        logger.info("Got ${volumes.size} volumes: ${volumes.joinToString(", ")}")
-
-        var currentVolume = 0
-        fun nextVolume(): String {
-            val v = volumes[currentVolume % (volumes.size)]
-            currentVolume++
-
-            return v
-        }
-
         thread {
-            while(!scene.initialized || volumes.isEmpty()) { Thread.sleep(200) }
+            while(!scene.initialized) { Thread.sleep(200) }
 
-            val v = nextVolume()
-            volume.readFrom(Paths.get(v), replace = true)
+            val volumeSize = 64L
+            val volumeBuffer = RingBuffer<ByteBuffer>(2) { memAlloc((volumeSize*volumeSize*volumeSize*bitsPerVoxel/8).toInt()) }
 
-            logger.info("Got volume!")
+            val seed = Random.randomFromRange(0.0f, 133333337.0f).toLong()
+            var shift = GLVector.getNullVector(3)
+            val shiftDelta = Random.randomVectorFromRange(3, -0.5f, 0.5f)
+
+            val dataType = if(bitsPerVoxel == 8) {
+                NativeTypeEnum.UnsignedByte
+            } else {
+                NativeTypeEnum.UnsignedShort
+            }
 
             while(true) {
-                volume.rotation = volume.rotation.rotateByAngleY(0.01f)
-                Thread.sleep(5)
+                val currentBuffer = volumeBuffer.get()
+
+                Volume.generateProceduralVolume(volumeSize, 0.95f, seed = seed,
+                    intoBuffer = currentBuffer, shift = shift, use16bit = bitsPerVoxel > 8)
+
+                volume.readFromBuffer(
+                    "procedural-cloud-${shift.hashCode()}", currentBuffer,
+                    volumeSize, volumeSize, volumeSize, 1.0f, 1.0f, 1.0f,
+                    dataType = dataType, bytesPerVoxel = bitsPerVoxel/8)
+
+                shift = shift + shiftDelta
+
+                Thread.sleep(200)
             }
         }
 
+        thread {
+            while(true) {
+//                volume.rotation = volume.rotation.rotateByAngleY(0.005f)
+
+                Thread.sleep(15)
+            }
+        }
     }
 
     override fun inputSetup() {
