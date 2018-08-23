@@ -1,5 +1,6 @@
 package graphics.scenery.backends
 
+import com.jogamp.opengl.GLAutoDrawable
 import graphics.scenery.Hub
 import graphics.scenery.Hubable
 import graphics.scenery.Scene
@@ -174,13 +175,14 @@ abstract class Renderer : Hubable {
          * @param[windowWidth] Window width for the renderer window.
          * @param[windowHeight] Window height for the renderer window.
          * @param[embedIn] A [SceneryWindow] to embed the renderer in, can e.g. be a JavaFX window.
+         * @param[embedInDrawable] A [GLAutoDrawable] to embed the renderer in. [embedIn] and [embedInDrawable] are mutually exclusive.
          * @param[renderConfigFile] A YAML file with the render path configuration from which a [RenderConfigReader.RenderConfig] will be created.
          *
          * @return A new [Renderer] instance.
          */
         @JvmOverloads
         @JvmStatic
-        fun createRenderer(hub: Hub, applicationName: String, scene: Scene, windowWidth: Int, windowHeight: Int, embedIn: SceneryPanel? = null, renderConfigFile: String? = null): Renderer {
+        fun createRenderer(hub: Hub, applicationName: String, scene: Scene, windowWidth: Int, windowHeight: Int, embedIn: SceneryPanel? = null, embedInDrawable: GLAutoDrawable? = null, renderConfigFile: String? = null): Renderer {
             var preference = System.getProperty("scenery.Renderer", null)
             val config = renderConfigFile ?: System.getProperty("scenery.Renderer.Config", "DeferredShading.yml")
 
@@ -196,15 +198,15 @@ abstract class Renderer : Hubable {
             }
 
             return try {
-                if (preference == "VulkanRenderer") {
+                if (preference == "VulkanRenderer" && embedInDrawable == null) {
                     try {
-                        VulkanRenderer(hub, applicationName, scene, windowWidth, windowHeight, embedIn, config)
+                        VulkanRenderer(hub, applicationName, scene, windowWidth, windowHeight, config, embedIn)
                     } catch (e: Exception) {
                         logger.warn("Vulkan unavailable (${e.cause}, ${e.message}), falling back to OpenGL.")
-                        OpenGLRenderer(hub, applicationName, scene, windowWidth, windowHeight, embedIn, config)
+                        OpenGLRenderer(hub, applicationName, scene, windowWidth, windowHeight, config, embedIn, embedInDrawable)
                     }
                 } else {
-                    OpenGLRenderer(hub, applicationName, scene, windowWidth, windowHeight, embedIn, config)
+                    OpenGLRenderer(hub, applicationName, scene, windowWidth, windowHeight, config, embedIn)
                 }
             } catch (e: Exception) {
                 logger.error("Could not instantiate renderer. Is your graphics card working properly and do you have the most recent drivers installed?")

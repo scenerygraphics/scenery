@@ -65,8 +65,9 @@ open class OpenGLRenderer(hub: Hub,
                           scene: Scene,
                           width: Int,
                           height: Int,
+                          renderConfigFile: String,
                           final override var embedIn: SceneryPanel? = null,
-                          renderConfigFile: String) : Renderer(), Hubable, ClearGLEventListener {
+                          var embedInDrawable: GLAutoDrawable? = null) : Renderer(), Hubable, ClearGLEventListener {
     /** slf4j logger */
     private val logger by LazyLogger()
     /** [GL4] instance handed over, coming from [ClearGLDefaultEventListener]*/
@@ -78,7 +79,7 @@ open class OpenGLRenderer(hub: Hub,
     /** separately stored ClearGLWindow */
     var cglWindow: ClearGLWindow? = null
     /** drawble for offscreen rendering */
-    var drawable: GLOffscreenAutoDrawable? = null
+    var drawable: GLAutoDrawable? = null
     /** Whether the renderer manages its own event loop, which is the case for this one. */
     override var managesRenderLoop = true
 
@@ -186,7 +187,9 @@ open class OpenGLRenderer(hub: Hub,
             window.width = lastWidth
             window.height = lastHeight
 
-            drawable?.setSurfaceSize(window.width, window.height)
+            if(drawable is GLOffscreenAutoDrawable) {
+                (drawable as? GLOffscreenAutoDrawable)?.setSurfaceSize(window.width, window.height)
+            }
 
             lastResize = -1L
         }
@@ -323,54 +326,64 @@ open class OpenGLRenderer(hub: Hub,
             this.window.height = hmd.getRenderTargetSize().y().toInt()
         }
 
-        if (embedIn != null) {
-            val profile = GLProfile.getMaxProgrammableCore(true)
+        if (embedIn != null || embedInDrawable != null) {
+            if (embedIn != null && embedInDrawable == null) {
+                val profile = GLProfile.getMaxProgrammableCore(true)
 
-            if(!profile.isGL4) {
-                throw UnsupportedOperationException("Could not create OpenGL 4 context, perhaps you need a graphics driver update?")
+                if (!profile.isGL4) {
+                    throw UnsupportedOperationException("Could not create OpenGL 4 context, perhaps you need a graphics driver update?")
+                }
+
+                val caps = GLCapabilities(profile)
+                caps.hardwareAccelerated = true
+                caps.doubleBuffered = true
+                caps.isOnscreen = false
+                caps.isPBuffer = true
+                caps.redBits = 8
+                caps.greenBits = 8
+                caps.blueBits = 8
+                caps.alphaBits = 8
+
+                val factory = GLDrawableFactory.getFactory(profile)
+                drawable = factory.createOffscreenAutoDrawable(factory.defaultDevice, caps,
+                    DefaultGLCapabilitiesChooser(), window.width, window.height)
+            } else {
+                drawable = embedInDrawable
             }
 
-            val caps = GLCapabilities(profile)
-            caps.hardwareAccelerated = true
-            caps.doubleBuffered = true
-            caps.isOnscreen = false
-            caps.isPBuffer = true
-            caps.redBits = 8
-            caps.greenBits = 8
-            caps.blueBits = 8
-            caps.alphaBits = 8
+            drawable?.apply {
 
-            val factory = GLDrawableFactory.getFactory(profile)
-            drawable = factory.createOffscreenAutoDrawable(factory.defaultDevice, caps,
-                DefaultGLCapabilitiesChooser(), window.width, window.height)
-                .apply {
+                addGLEventListener(this@OpenGLRenderer)
 
-                    addGLEventListener(this@OpenGLRenderer)
+                animator = FPSAnimator(this, 60)
+                animator.setUpdateFPSFrames(60, null)
+                animator.start()
 
-                    animator = FPSAnimator(this, 60)
-                    animator.setUpdateFPSFrames(60, null)
-                    animator.start()
+                embedIn?.let { panel ->
+                    panel.imageView.scaleY = -1.0
 
-                    embedIn?.let { panel ->
-                        panel.imageView.scaleY = -1.0
-
-                        panel.widthProperty()?.addListener { _, _, newWidth ->
-                            resizeHandler.lastWidth = newWidth.toInt()
-                        }
-
-                        panel.heightProperty()?.addListener { _, _, newHeight ->
-                            resizeHandler.lastHeight = newHeight.toInt()
-                        }
+                    panel.widthProperty()?.addListener { _, _, newWidth ->
+                        resizeHandler.lastWidth = newWidth.toInt()
                     }
 
-                    window = SceneryWindow.JavaFXStage(embedIn!!)
-                    window.width = width
-                    window.height = height
+                    panel.heightProperty()?.addListener { _, _, newHeight ->
+                        resizeHandler.lastHeight = newHeight.toInt()
+                    }
 
-                    resizeHandler.lastWidth = window.width
-                    resizeHandler.lastHeight = window.height
-
+                    window = SceneryWindow.JavaFXStage(panel)
                 }
+
+                embedInDrawable?.let { glAutoDrawable ->
+                    window = SceneryWindow.JOGLDrawable(glAutoDrawable)
+                }
+
+                window.width = width
+                window.height = height
+
+                resizeHandler.lastWidth = window.width
+                resizeHandler.lastHeight = window.height
+
+            }
         } else {
             val w = this.window.width
             val h = this.window.height

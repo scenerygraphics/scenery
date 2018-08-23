@@ -1,5 +1,6 @@
 package graphics.scenery.backends
 
+import com.jogamp.opengl.GLAutoDrawable
 import graphics.scenery.utils.SceneryPanel
 import javafx.application.Platform
 import javafx.stage.Stage
@@ -17,6 +18,8 @@ sealed class SceneryWindow {
     class GLFWWindow(var window: Long): SceneryWindow()
     /** ClearGL (JOGL) window, with [window] being the reference to a [cleargl.ClearGLWindow]. */
     class ClearGLWindow(var window: cleargl.ClearGLWindow): SceneryWindow()
+    /** JOGL GLAutoDrawable, with [drawable] being the reference to a [GLAutoDrawable]. */
+    class JOGLDrawable(var drawable: GLAutoDrawable): SceneryWindow()
     /** JavaFX window or stage, with [panel] being the [SceneryPanel] scenery will render to. */
     class JavaFXStage(var panel: SceneryPanel): SceneryWindow()
     /** Headless window with no chrome whatsoever. */
