@@ -8,6 +8,7 @@ layout(location = 0) in VertexData {
     vec2 textureCoord;
     mat4 inverseProjection;
     mat4 inverseModelView;
+    mat4 modelView;
     mat4 MVP;
 } Vertex;
 
@@ -66,18 +67,24 @@ layout(set = 4, binding = 0) uniform ShaderProperties {
     float boxMax_x;
     float boxMax_y;
     float boxMax_z;
-    int maxsteps;
-    float alpha_blending;
+    float stepSize;
+    float alphaBlending;
     float gamma;
     int dataRangeMin;
     int dataRangeMax;
+    int renderingMethod;
+    float kernelSize;
+    int occlusionSteps;
+    float maxOcclusionDistance;
+    float time;
 };
 
 layout(push_constant) uniform currentEye_t {
     int eye;
 } currentEye;
 
-float PI_r = 0.3183098;
+const float PI_r = 0.3183098;
+const int inverseBaseSamplingRate = 128;
 
 struct Ray {
     vec3 Origin;
@@ -153,6 +160,81 @@ vec3 worldFromDepth(float depth, vec2 texcoord) {
     return world.xyz;
 }
 
+uint hash( uint x ) {
+    x += ( x << 10u );
+    x ^= ( x >>  6u );
+    x += ( x <<  3u );
+    x ^= ( x >> 11u );
+    x += ( x << 15u );
+    return x;
+}
+
+// Compound versions of the hashing algorithm I whipped together.
+uint hash( uvec2 v ) { return hash( v.x ^ hash(v.y)                         ); }
+uint hash( uvec3 v ) { return hash( v.x ^ hash(v.y) ^ hash(v.z)             ); }
+uint hash( uvec4 v ) { return hash( v.x ^ hash(v.y) ^ hash(v.z) ^ hash(v.w) ); }
+
+// Construct a float with half-open range [0:1] using low 23 bits.
+// All zeroes yields 0.0, all ones yields the next smallest representable value below 1.0.
+float floatConstruct( uint m ) {
+    const uint ieeeMantissa = 0x007FFFFFu; // binary32 mantissa bitmask
+    const uint ieeeOne      = 0x3F800000u; // 1.0 in IEEE binary32
+
+    m &= ieeeMantissa;                     // Keep only mantissa bits (fractional part)
+    m |= ieeeOne;                          // Add fractional part to 1.0
+
+    float  f = uintBitsToFloat( m );       // Range [1:2]
+    return f - 1.0;                        // Range [0:1]
+}
+
+// Pseudo-random value in half-open range [0:1].
+float random( float x ) { return floatConstruct(hash(floatBitsToUint(x))); }
+float random( vec2  v ) { return floatConstruct(hash(floatBitsToUint(v))); }
+float random( vec3  v ) { return floatConstruct(hash(floatBitsToUint(v))); }
+float random( vec4  v ) { return floatConstruct(hash(floatBitsToUint(v))); }
+
+// sample a value from the color lookup table, stored in the
+// normal texture array.
+vec4 sampleLUT(float coord) {
+    return texture(ObjectTextures[3], vec2(coord, 0.5f));
+}
+
+// sample a value from the transfer function texture, stored in the
+// diffuse texture array.
+float sampleTF(float coord) {
+    return texture(ObjectTextures[1], vec2(coord, 0.5f)).r;
+}
+
+vec3 getGradient(sampler3D volume, vec3 uvw, float kernelSize) {
+    const vec3 offset = vec3(kernelSize)/textureSize(volume, 0);
+
+    float v = sampleTF(texture(volume, uvw).r);
+    float v0 = sampleTF(texture(volume, uvw + vec3(offset.x, 0.0, 0.0)).r);
+    float v1 = sampleTF(texture(volume, uvw + vec3(0.0, offset.y, 0.0)).r);
+    float v2 = sampleTF(texture(volume, uvw + vec3(0.0, 0.0, offset.z)).r);
+
+    return vec3(v - v0, v - v1, v - v2);
+}
+
+const vec2 poisson16[] = vec2[](
+		vec2( -0.94201624,  -0.39906216 ),
+		vec2(  0.94558609,  -0.76890725 ),
+		vec2( -0.094184101, -0.92938870 ),
+		vec2(  0.34495938,   0.29387760 ),
+		vec2( -0.91588581,   0.45771432 ),
+		vec2( -0.81544232,  -0.87912464 ),
+		vec2( -0.38277543,   0.27676845 ),
+		vec2(  0.97484398,   0.75648379 ),
+		vec2(  0.44323325,  -0.97511554 ),
+		vec2(  0.53742981,  -0.47373420 ),
+		vec2( -0.26496911,  -0.41893023 ),
+		vec2(  0.79197514,   0.19090188 ),
+		vec2( -0.24188840,   0.99706507 ),
+		vec2( -0.81409955,   0.91437590 ),
+		vec2(  0.19984126,   0.78641367 ),
+		vec2(  0.14383161,  -0.14100790 )
+);
+
 void main()
 {
     // convert range bounds to linear map:
@@ -197,7 +279,7 @@ void main()
     // find intersection with box
     const Intersection inter = intersectBox(orig, direc, boxMin, boxMax);
 
-    if (!inter.hit || inter.tfar <= 0) {
+    if (!inter.hit || inter.tfar <= 0.0) {
         FragColor = vec4(0.0f, 0.0f, 0.0f, 0.0f);
         gl_FragDepth = texture(InputZBuffer, depthUV).r;
         return;
@@ -206,7 +288,7 @@ void main()
     const float tnear = max(inter.tnear, 0.0f);
     const float tfar = min(inter.tfar, length(direc0 - orig0));
 
-    const float tstep = abs(tnear-tfar)/(maxsteps);
+    const float tstep = stepSize;
 
     // precompute vectors:
     const vec3 vecstep = 0.5 * tstep * direc.xyz;
@@ -224,10 +306,13 @@ void main()
 
     if(startNDC.z > currentSceneDepth && tnear > 0.0f) {
         // for debugging, green = occluded by existing scene geometry
+        // otherwise, we just put a transparent black
         FragColor = vec4(0.0, 0.0, 0.0, 0.0);
         gl_FragDepth = currentSceneDepth;
-        discard;
+        return;
     }
+
+    gl_FragDepth = startNDC.z;
 
     vec3 origin = pos;
 
@@ -240,44 +325,97 @@ void main()
     float alphaVal = 0.0;
     float newVal = 0.0;
 
-    if (alpha_blending <= 0.f){
-      gl_FragDepth = 0.0;
-      // nop alpha blending
-      [[unroll]] for(int i = 0; i < maxsteps; ++i, pos += vecstep) {
-        float volume_sample = texture(VolumeTextures, pos.xyz).r * dataRangeMax;
-        maxp = max(maxp,volume_sample);
-      }
+    vec3 lightPos = vec4(0.0, 3.5, -3.0, 1.0).xyz - vec3(0.5);
 
-      colVal = clamp(pow(ta*maxp + tb,gamma),0.f,1.f);
-    }
-    else{
-      // alpha blending:
-      float opacity = 1.0f;
-      for(int i = 0; i < maxsteps; ++i, pos += vecstep) {
-           float volume_sample = texture(VolumeTextures, pos.xyz).r * dataRangeMax;
-           newVal = clamp(ta*volume_sample + tb,0.f,1.f);
-           colVal = max(colVal,opacity*newVal);
+    float shadowDist = 0.0f;
+    float shadowDensity = 0.1f;
 
-           opacity  *= (1.f-alpha_blending*clamp(newVal,0.f,1.f));
+    const int steps = min(int(ceil(abs(tfar - tnear)/tstep)), 1024);
 
-           if (opacity<=0.02f) {
+    // Local Maximum Intensity Projection
+    if(renderingMethod == 0) {
+         float opacity = 1.0f;
+         for(int i = 0; i <= steps; i++, pos += vecstep) {
+              float volumeSample = texture(VolumeTextures, pos.xyz).r * dataRangeMax;
+              newVal = clamp(ta * volumeSample + tb,0.f,1.f);
+              colVal = max(colVal, opacity*newVal);
+
+              opacity *= (1.0 - alphaBlending * sampleTF(clamp(newVal,0.f,1.f)));
+
+              if (opacity <= 0.02f) {
                 break;
-           }
-      }
+              }
+         }
+
+         alphaVal = clamp(colVal, 0.0, 1.0);
+
+         // Mapping to transfer function range and gamma correction:
+         colVal = pow(colVal, gamma);
+         FragColor = vec4(sampleLUT(colVal).rgb * alphaVal, alphaVal);
     }
+    // Maximum Intensity Projection
+    else if(renderingMethod == 1) {
+         for(int i = 0; i <= steps; i++, pos += vecstep) {
+          float volumeSample = sampleTF(texture(VolumeTextures, pos.xyz).r) * dataRangeMax;
+          maxp = max(maxp,volumeSample);
+        }
 
-    gl_FragDepth = 0.0;
+        colVal = clamp(pow(ta*maxp + tb,gamma),0.f,1.f);
 
-    alphaVal = clamp(colVal, 0.0, 1.0);
+        alphaVal = sampleTF(clamp(colVal, 0.0, 1.0));
 
-    // FIXME: this is a workaround for grey lines appearing at borders
-//    alphaVal = alphaVal<0.01?0.0f:alphaVal;
-//    if(alphaVal < 0.01) {
-//        colVal = 0.01;
-//    }
+        // Mapping to transfer function range and gamma correction:
+        colVal = pow(colVal, gamma);
+        FragColor = vec4(sampleLUT(colVal).rgb * alphaVal, alphaVal);
+    } else {
+        vec3 color = vec3(0.0f);
+        float alpha = 0.0f;
+        pos += vec3(random(vec3(Vertex.textureCoord.s, Vertex.textureCoord.t, time)))/10000.0f;
 
-    // Mapping to transfer function range and gamma correction:
-    colVal = pow(colVal, gamma);
-    FragColor = vec4(texture(ObjectTextures[3], vec2(colVal, 0.5f)).rgb * alphaVal, alphaVal);
+         for(int i = 0; i <= steps; i++, pos += vecstep) {
+            float rawSample = texture(VolumeTextures, pos.xyz).r;
+            float volumeSample = rawSample * dataRangeMax;
+            volumeSample = clamp(ta * volumeSample + tb,0.f,1.f);
+
+            float newAlpha;
+            newAlpha = sampleTF(volumeSample);
+
+            int osteps = min(occlusionSteps, 16);
+
+            if(newAlpha > 0.0f && osteps > 0) {
+                [[unroll]] for(int s = 0; s < osteps; s++) {
+                    vec3 lpos = pos + vec3(poisson16[s], (poisson16[s].x + poisson16[s].y)/2.0) * kernelSize;
+                    vec3 N = normalize(cross(normalize(lpos), normalize(getGradient(VolumeTextures, lpos, 1.0))));
+                    vec3 sampleDir = normalize(lpos - pos);
+
+                    float NdotS = max(dot(N, sampleDir), 0.0);
+                    float dist = distance(pos, lpos);
+
+                    float a = smoothstep(maxOcclusionDistance, maxOcclusionDistance*2.0, dist);
+
+                    shadowDist += a * NdotS/occlusionSteps;
+                }
+            }
+
+            float shadowing = clamp(shadowDist, 0.0, 1.0);
+
+            vec4 transfer = sampleLUT(volumeSample) * (1.0 - shadowing);
+            vec3 newColor;
+
+            newColor = transfer.rgb;
+            newAlpha = sampleTF(volumeSample);
+
+            color += (1.0f - alpha) * newColor * newAlpha;
+            alpha += (1.0f - alpha) * newAlpha;
+
+            if(alpha >= 1.0) {
+                break;
+            }
+        }
+
+        // alpha correction
+        alpha = 1.0 - pow(1.0 - alpha, stepSize * inverseBaseSamplingRate);
+        FragColor = vec4(pow(color, vec3(gamma))*alpha, alpha);
+    }
 }
 

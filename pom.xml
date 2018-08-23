@@ -104,7 +104,7 @@
     <properties>
         <scijava.jvm.version>1.8</scijava.jvm.version>
         <javac.target>1.8</javac.target>
-        <kotlin.version>1.2.60</kotlin.version>
+        <kotlin.version>1.2.61</kotlin.version>
         <kotlin.compiler.jvmTarget>1.8</kotlin.compiler.jvmTarget>
         <kotlin.compiler.incremental>true</kotlin.compiler.incremental>
         <dokka.version>0.9.17</dokka.version>
@@ -112,7 +112,7 @@
 
         <cleargl.version>2.2.2-SNAPSHOT</cleargl.version>
         <slf4j.version>1.7.25</slf4j.version>
-        <lwjgl.version>3.1.6</lwjgl.version>
+        <lwjgl.version>3.2.0</lwjgl.version>
         <spirvcrossj.version>0.4.1</spirvcrossj.version>
         <jvrpn.version>1.1.0</jvrpn.version>
 

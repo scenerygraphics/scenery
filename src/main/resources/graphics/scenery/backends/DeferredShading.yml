@@ -12,7 +12,7 @@ rendertargets:
     attachments:
       Color: RGBA_Float32
   DSSDOBuffer:
-    size: 0.5, 0.5
+    size: 1.0, 1.0
     attachments:
       Occlusion: RGBA_UInt8
   DSSDOTemp1:
@@ -45,16 +45,15 @@ renderpasses:
     parameters:
       Pass.displayWidth: 0
       Pass.displayHeight: 0
-      occlusionRadius: 0.2
-      occlusionSamples: 16
+      occlusionRadius: 1.0
+      occlusionSamples: 0
       maxDistance: 1.0
       algorithm: 0
     shaders:
-      - "FullscreenQuad.vert.spv"
-      - "DSSDO.frag.spv"
+      - "FullscreenQuadFrustum.vert.spv"
+      - "HBAO.frag.spv"
     inputs:
-      - GeometryBuffer.NormalsMaterial
-      - GeometryBuffer.ZBuffer
+      - GeometryBuffer
     output: DSSDOTemp1
   DSSDOBlurV:
     type: quad
