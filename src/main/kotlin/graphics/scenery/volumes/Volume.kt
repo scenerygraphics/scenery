@@ -245,11 +245,11 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         material.blending.colorBlending = Blending.BlendOp.add
         material.blending.alphaBlending = Blending.BlendOp.add
 
-        colormaps["grays"] = Colormap.ColormapFile(javaClass.getResource("colormap-grays.png").file)
-        colormaps["hot"] = Colormap.ColormapFile(javaClass.getResource("colormap-hot.png").file)
-        colormaps["jet"] = Colormap.ColormapFile(javaClass.getResource("colormap-jet.png").file)
-        colormaps["plasma"] = Colormap.ColormapFile(javaClass.getResource("colormap-plasma.png").file)
-        colormaps["viridis"] = Colormap.ColormapFile(javaClass.getResource("colormap-viridis.png").file)
+        colormaps["grays"] = Colormap.ColormapFile(Volume::class.java.getResource("colormap-grays.png").file)
+        colormaps["hot"] = Colormap.ColormapFile(Volume::class.java.getResource("colormap-hot.png").file)
+        colormaps["jet"] = Colormap.ColormapFile(Volume::class.java.getResource("colormap-jet.png").file)
+        colormaps["plasma"] = Colormap.ColormapFile(Volume::class.java.getResource("colormap-plasma.png").file)
+        colormaps["viridis"] = Colormap.ColormapFile(Volume::class.java.getResource("colormap-viridis.png").file)
 
         assignEmptyVolumeTexture()
     }
@@ -575,7 +575,7 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         }
     }
 
-    private fun NativeTypeEnum.toGLType() =
+    protected fun NativeTypeEnum.toGLType() =
         when (this) {
             NativeTypeEnum.UnsignedInt -> GLTypeEnum.UnsignedInt
             NativeTypeEnum.Byte -> GLTypeEnum.Byte
@@ -590,7 +590,7 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
             NativeTypeEnum.Double -> TODO()
         }
 
-    private fun assignEmptyVolumeTexture() {
+    protected fun assignEmptyVolumeTexture() {
         val emptyBuffer = BufferUtils.allocateByteAndPut(byteArrayOf(0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
                                                                      0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0))
         val dim = GLVector(2.0f, 2.0f, 2.0f)
@@ -604,7 +604,7 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
 
     private val deallocations = ArrayDeque<ByteBuffer>()
 
-    private fun assignVolumeTexture(dimensions: LongArray, descriptor: VolumeDescriptor, replace: Boolean) {
+    protected fun assignVolumeTexture(dimensions: LongArray, descriptor: VolumeDescriptor, replace: Boolean) {
         while(deallocations.size > 20) {
             val last = deallocations.pollLast()
             logger.info("deallocating $last from ${deallocations.map { it.hashCode() }.joinToString(", ")}")
