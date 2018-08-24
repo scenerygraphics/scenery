@@ -1,4 +1,4 @@
-package graphics.scenery.backends.bdv
+package graphics.scenery.volumes.bdv
 
 import cleargl.GLMatrix
 import cleargl.GLTypeEnum
@@ -27,7 +27,7 @@ class SceneryContext(val node: Volume) : GpuContext {
     private val logger by LazyLogger()
 
     private val pboBackingStore = HashMap<StagingBuffer, ByteBuffer>()
-    private val factory = VolumeShaderFactory()
+    val factory = VolumeShaderFactory()
 
     inner class SceneryUniformSetter: SetUniforms {
         private var modified: Boolean = false
@@ -121,7 +121,7 @@ class SceneryContext(val node: Volume) : GpuContext {
                 ShaderType.VertexShader to shader,
                 ShaderType.FragmentShader to shader))
 
-        node.material = ShaderMaterial(factory)
+//        node.material = ShaderMaterial(factory)
     }
 
     override fun getUniformSetter(shader: Shader): SetUniforms {
