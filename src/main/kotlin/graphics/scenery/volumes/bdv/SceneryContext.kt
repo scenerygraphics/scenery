@@ -4,7 +4,9 @@ import cleargl.GLMatrix
 import cleargl.GLTypeEnum
 import cleargl.GLVector
 import graphics.scenery.GenericTexture
+import graphics.scenery.ShaderMaterial
 import graphics.scenery.TextureExtents
+import graphics.scenery.backends.ShaderType
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.volumes.Volume
 import org.lwjgl.system.MemoryUtil
@@ -24,7 +26,7 @@ import java.nio.FloatBuffer
 class SceneryContext(val node: Volume) : GpuContext {
     private val logger by LazyLogger()
 
-    private val pboBackingStore = HashMap<Pbo, ByteBuffer>()
+    private val pboBackingStore = HashMap<StagingBuffer, ByteBuffer>()
     private val factory = VolumeShaderFactory()
 
     inner class SceneryUniformSetter: SetUniforms {
@@ -114,7 +116,12 @@ class SceneryContext(val node: Volume) : GpuContext {
     }
 
     override fun use(shader: Shader) {
+        factory.updateShaders(
+            hashMapOf(
+                ShaderType.VertexShader to shader,
+                ShaderType.FragmentShader to shader))
 
+        node.material = ShaderMaterial(factory)
     }
 
     override fun getUniformSetter(shader: Shader): SetUniforms {
@@ -122,19 +129,21 @@ class SceneryContext(val node: Volume) : GpuContext {
     }
 
     /**
-     * @param pbo Pbo to bind
+     * @param pbo StagingBuffer to bind
      * @return id of previously bound pbo
      */
-    override fun bindPbo(pbo: Pbo): Int {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    override fun bindStagingBuffer(pbo: StagingBuffer): Int {
+        logger.info("Binding PBO $pbo")
+        return 0
     }
 
     /**
      * @param id pbo id to bind
      * @return id of previously bound pbo
      */
-    override fun bindPboId(id: Int): Int {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    override fun bindStagingBufferId(id: Int): Int {
+        logger.info("Binding PBO $id")
+        return id
     }
 
     /**
@@ -142,7 +151,8 @@ class SceneryContext(val node: Volume) : GpuContext {
      * @return id of previously bound texture
      */
     override fun bindTexture(texture: Texture): Int {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        logger.info("Binding texture $texture")
+        return 0
     }
 
     /**
@@ -150,7 +160,7 @@ class SceneryContext(val node: Volume) : GpuContext {
      * @param unit texture unit to bind to
      */
     override fun bindTexture(texture: Texture, unit: Int) {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        logger.info("Binding texture $texture to unit $unit")
     }
 
     /**
@@ -159,25 +169,26 @@ class SceneryContext(val node: Volume) : GpuContext {
      * @return id of previously bound texture
      */
     override fun bindTextureId(id: Int, numTexDimensions: Int): Int {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        logger.info("Binding texture with id $id and dimensions=$numTexDimensions")
+        return 0
     }
 
-    override fun map(pbo: Pbo): Buffer {
+    override fun map(pbo: StagingBuffer): Buffer {
         logger.info("Mapping $pbo...")
         return pboBackingStore.computeIfAbsent(pbo) {
             MemoryUtil.memAlloc(pbo.sizeInBytes)
         }
     }
 
-    override fun unmap(pbo: Pbo) {
+    override fun unmap(pbo: StagingBuffer) {
         logger.info("Unmapping $pbo...")
     }
 
     override fun delete(texture: Texture) {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        logger.info("Deleting texture")
     }
 
-    override fun texSubImage3D(pbo: Pbo, texture: Texture3D, xoffset: Int, yoffset: Int, zoffset: Int, width: Int, height: Int, depth: Int, pixels_buffer_offset: Long) {
+    override fun texSubImage3D(pbo: StagingBuffer, texture: Texture3D, xoffset: Int, yoffset: Int, zoffset: Int, width: Int, height: Int, depth: Int, pixels_buffer_offset: Long) {
         val tmpStorage = (map(pbo) as ByteBuffer).duplicate().order(ByteOrder.LITTLE_ENDIAN)
         tmpStorage.position(pixels_buffer_offset.toInt())
 
