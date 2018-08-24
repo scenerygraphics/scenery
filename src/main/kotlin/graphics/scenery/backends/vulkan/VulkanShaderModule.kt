@@ -39,7 +39,8 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: 
     private var signature: ShaderSignature
 
     data class UBOMemberSpec(val name: String, val index: Long, val offset: Long, val range: Long)
-    data class UBOSpec(val name: String, var set: Long, var binding: Long, val members: LinkedHashMap<String, UBOMemberSpec>)
+    data class UBOSpec(val name: String, var set: Long, var binding: Long, val type: UBOSpecType, val members: LinkedHashMap<String, UBOMemberSpec>)
+    enum class UBOSpecType { UniformBuffer, SampledImage, SampledImage3D }
     data class PushConstantSpec(val name: String, val members: LinkedHashMap<String, UBOMemberSpec>)
 
     private data class ShaderSignature(val device: VulkanDevice, val p: ShaderPackage)
@@ -81,6 +82,7 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: 
             val ubo = UBOSpec(res.name,
                 set = compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet),
                 binding = compiler.getDecoration(res.id, Decoration.DecorationBinding),
+                type = UBOSpecType.UniformBuffer,
                 members = members)
 
             // only add the UBO spec if it doesn't already exist, and has more than 0 members
@@ -162,6 +164,7 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: 
                 uboSpecs.put(name, UBOSpec(name,
                     set = setId,
                     binding = compiler.getDecoration(res.id, Decoration.DecorationBinding),
+                    type = UBOSpecType.SampledImage,
                     members = LinkedHashMap()))
 
                 if(name.startsWith("Inputs")) {
