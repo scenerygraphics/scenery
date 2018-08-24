@@ -437,7 +437,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
 
                 field.get(this)
             } else {
-                this.javaClass.kotlin.memberProperties.filter { it.findAnnotation<ShaderProperty>() != null }.forEach { logger.info("${it.name} ${it.get(this)?.javaClass}")}
+                this.javaClass.kotlin.memberProperties.filter { it.findAnnotation<ShaderProperty>() != null }.forEach { it.isAccessible = true; logger.debug("ShaderProperty of $name: ${it.name} ${it.get(this)?.javaClass}")}
                 val mappedProperties = this.javaClass.kotlin.memberProperties.firstOrNull { it.findAnnotation<ShaderProperty>() != null && it.get(this) is HashMap<*, *> && it.name == "shaderProperties" }
 
                 if(mappedProperties == null) {
