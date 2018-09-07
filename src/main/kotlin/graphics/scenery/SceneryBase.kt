@@ -138,6 +138,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
 
         // initialize renderer, etc first in init, then setup key bindings
         init()
+        running = true
 
         // wait for renderer
         while(renderer?.initialized == false) {
@@ -157,7 +158,6 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         // setup additional key bindings, if requested by the user
         inputSetup()
 
-        running = true
         val startTime = System.nanoTime()
 
         if (!master && masterAddress != null) {
