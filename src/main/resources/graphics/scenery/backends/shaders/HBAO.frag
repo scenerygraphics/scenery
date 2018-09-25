@@ -101,6 +101,24 @@ vec3 viewFromDepth(float depth, vec2 texcoord) {
     return viewSpacePosition.xyz;
 }
 
+vec3 worldFromDepth(float depth, vec2 texcoord) {
+    vec2 uv = (vrParameters.stereoEnabled ^ 1) * texcoord + vrParameters.stereoEnabled * vec2((texcoord.x - 0.5 * currentEye.eye) * 2.0, texcoord.y);
+
+	mat4 invProjection = (vrParameters.stereoEnabled ^ 1) * InverseProjectionMatrix + vrParameters.stereoEnabled * vrParameters.inverseProjectionMatrices[currentEye.eye];
+	mat4 invView = (vrParameters.stereoEnabled ^ 1) * InverseViewMatrices[0] + vrParameters.stereoEnabled * (InverseViewMatrices[currentEye.eye] );
+
+#ifndef OPENGL
+    vec4 clipSpacePosition = vec4(uv * 2.0 - 1.0, depth, 1.0);
+#else
+    vec4 clipSpacePosition = vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
+#endif
+    vec4 viewSpacePosition = invProjection * clipSpacePosition;
+
+    viewSpacePosition /= viewSpacePosition.w;
+    vec4 world = invView * viewSpacePosition;
+    return world.xyz;
+}
+
 vec2 OctWrap( vec2 v )
 {
     vec2 ret;
@@ -180,7 +198,7 @@ float ComputeCoarseAO(vec2 FullResUV, float RadiusPixels, vec4 Rand, vec3 ViewPo
     {
       vec2 SnappedUV = round(RayPixels * Direction) * invRes + FullResUV;
       float d = texture(InputZBuffer, SnappedUV).r;
-      vec3 S = viewFromDepth(d, SnappedUV);
+      vec3 S = worldFromDepth(d, SnappedUV);
 
       RayPixels += StepSizePixels;
 
@@ -213,18 +231,19 @@ void main()
   textureCoord = (vrParameters.stereoEnabled ^ 1) * textureCoord + vrParameters.stereoEnabled * vec2((textureCoord.x - 0.5 * currentEye.eye) * 2.0, textureCoord.y);
 
   float depth = texture(InputZBuffer, textureCoord).r;
-  vec3 ViewPosition = viewFromDepth(depth, textureCoord);
-
+  vec3 ViewPosition = worldFromDepth(depth, textureCoord);
   // Reconstruct view-space normal from nearest neighbors
-  vec3 ViewNormal = -(Vertex.viewMatrix * vec4(DecodeOctaH(texture(InputNormalsMaterial, textureCoord).rg), 1.0)).xyz;
+//  vec3 ViewNormal = -(Vertex.viewMatrix * vec4(DecodeOctaH(texture(InputNormalsMaterial, textureCoord).rg), 1.0)).xyz;
+  vec3 ViewNormal = DecodeOctaH(texture(InputNormalsMaterial, textureCoord).rg);
   mat4 projectionMatrix = Vertex.projectionMatrix;
   float fov = atan(1.0f/projectionMatrix[1][1]);
   float projScale = displayHeight / (tan(fov * 0.5f) * 2.0f);
   float radiusToScreen = occlusionRadius * 0.5f * projScale;
 
   // Compute projection of disk of radius control.R into screen space
-  float RadiusPixels = radiusToScreen / (ViewPosition.z);
 
+  float RadiusPixels = radiusToScreen / (ViewPosition.z);
+//  RadiusPixels = 50.0f;
   // Get jitter vector for the current full-res pixel
   vec4 Rand = GetJitter();
 
