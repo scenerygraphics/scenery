@@ -314,8 +314,6 @@ void main()
         } else {
             lighting = (diffuse + specular) * lightAttenuation;
         }
-
-        lighting = ambientOcclusion.rgb;
     }
 
     FragColor = vec4(lighting, 1.0);
