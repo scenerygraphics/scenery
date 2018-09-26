@@ -41,7 +41,9 @@ layout(set = 2, binding = 0, std140) uniform ShaderParameters {
 	int displayHeight;
 	float occlusionRadius;
 	int occlusionSamples;
+	float occlusionExponent;
     float maxDistance;
+    float bias;
     int algorithm;
 };
 
@@ -134,7 +136,7 @@ const vec2 poisson16[] = vec2[](
 
 void main() {
     if(occlusionSamples == 0) {
-        FragColor = vec4(0.0);
+        FragColor = vec4(1.0);
         return;
     }
 
@@ -168,6 +170,7 @@ void main() {
         }
 
         ambientOcclusion /= float(occlusionSamples);
+        ambientOcclusion = pow(ambientOcclusion, occlusionExponent);
     }
 
     //Alchemy SSAO algorithm
@@ -200,8 +203,7 @@ void main() {
          A = max(0, 1 - A);
          A = pow(A, Contrast);
          ambientOcclusion = A;
-
     }
 
-    FragColor = vec4(ambientOcclusion);
+    FragColor = vec4(1.0 - ambientOcclusion);
 }
