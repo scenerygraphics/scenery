@@ -208,21 +208,22 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
             )
 
             val ds = if(inputFramebuffer.key.contains(".")) {
+                val targetName = inputFramebuffer.key.substringBefore(".")
+                val attachmentName = inputFramebuffer.key.substringAfter(".")
+
+                val rendertarget = config.rendertargets[targetName] ?: throw IllegalStateException("Rendertargets do not contain required target ${inputFramebuffer.key}")
+
                 VU.createRenderTargetDescriptorSet(device, descriptorPool, dsl,
-                    config.rendertargets[inputFramebuffer.key.substringBefore(".")]!!.attachments,
-                    inputFramebuffer.value, inputFramebuffer.key.substringAfter("."))
+                    rendertarget.attachments,
+                    inputFramebuffer.value, attachmentName)
             } else {
                 inputFramebuffer.value.outputDescriptorSet
             }
 
-//            shaderModules.flatMap { it.uboSpecs.entries }.forEach {
-//                logger.info("${it.key} ${it.value.members.count()} ${it.value.members.keys.joinToString(", ")}")
-//            }
-
             val searchKeys = if(inputFramebuffer.key.contains(".")) {
                 listOf(inputFramebuffer.key.substringAfter("."))
             } else {
-                config.rendertargets[inputFramebuffer.key]!!.attachments.keys
+                config.rendertargets[inputFramebuffer.key]?.attachments?.keys ?: throw IllegalStateException("Rendertargets do not contain required target ${inputFramebuffer.key}")
             }
 
             logger.debug("Search keys for input attachments: ${searchKeys.joinToString(",")}")
