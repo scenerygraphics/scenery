@@ -128,6 +128,8 @@ open class VulkanRenderer(hub: Hub,
 
     inner class SwapchainRecreator {
         var mustRecreate = true
+        var afterRecreateHook: (SwapchainRecreator) -> Unit = {}
+
         private val lock = ReentrantLock()
 
         @Synchronized fun recreate() {
@@ -200,6 +202,8 @@ open class VulkanRenderer(hub: Hub,
 
                 totalFrames = 0
                 mustRecreate = false
+
+                afterRecreateHook.invoke(this)
 
                 lock.unlock()
             }
@@ -3026,13 +3030,37 @@ open class VulkanRenderer(hub: Hub,
      * @param[quality] The [RenderConfigReader.RenderingQuality] to be set.
      */
     override fun setRenderingQuality(quality: RenderConfigReader.RenderingQuality) {
+        fun setConfigSetting(key: String, value: Any) {
+            val setting = "Renderer.$key"
+
+            logger.debug("Setting $setting: ${settings.get<Any>(setting)} -> $value")
+            settings.set(setting, value)
+        }
+
         if(renderConfig.qualitySettings.isNotEmpty()) {
             logger.info("Setting rendering quality to $quality")
-            renderConfig.qualitySettings[quality]?.forEach { setting ->
-                val key = "Renderer.${setting.key}"
 
-                logger.debug("Setting $key: ${settings.get<Any>(key)} -> ${setting.value}")
-                settings.set(key, setting.value)
+            renderConfig.qualitySettings[quality]?.forEach { setting ->
+                if(setting.key.endsWith(".shaders") && setting.value is List<*>) {
+                    val pass = setting.key.substringBeforeLast(".shaders")
+                    val shaders = setting.value as? List<String> ?: return@forEach
+
+                    renderConfig.renderpasses[pass]?.shaders = shaders
+
+                    @Suppress("SENSELESS_COMPARISON")
+                    if(swapchainRecreator != null) {
+                        swapchainRecreator.mustRecreate = true
+                        swapchainRecreator.afterRecreateHook = { swapchainRecreator ->
+                            renderConfig.qualitySettings[quality]?.filter { !it.key.endsWith(".shaders") }?.forEach {
+                                setConfigSetting(it.key, it.value)
+                            }
+
+                            swapchainRecreator.afterRecreateHook = {}
+                        }
+                    }
+                } else {
+                    setConfigSetting(setting.key, setting.value)
+                }
             }
         } else {
             logger.warn("The current renderer config, $renderConfigFile, does not support setting quality options.")

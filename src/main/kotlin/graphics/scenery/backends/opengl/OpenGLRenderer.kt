@@ -114,6 +114,7 @@ open class OpenGLRenderer(hub: Hub,
 
     private var lastResizeTimer = Timer()
     @Volatile private var mustRecreateFramebuffers = false
+    private var framebufferRecreateHook: () -> Unit = {}
     private var gpuStats: GPUStats? = null
 
     /** heartbeat timer */
@@ -655,6 +656,8 @@ open class OpenGLRenderer(hub: Hub,
         if (mustRecreateFramebuffers) {
             renderpasses = prepareRenderpasses(renderConfig, window.width, window.height)
             flow = renderConfig.createRenderpassFlow()
+
+            framebufferRecreateHook.invoke()
 
 
             mustRecreateFramebuffers = false
@@ -2581,13 +2584,33 @@ open class OpenGLRenderer(hub: Hub,
      * @param[quality] The [RenderConfigReader.RenderingQuality] to be set.
      */
     override fun setRenderingQuality(quality: RenderConfigReader.RenderingQuality) {
+        fun setConfigSetting(key: String, value: Any) {
+            val setting = "Renderer.$key"
+
+            logger.debug("Setting $setting: ${settings.get<Any>(setting)} -> $value")
+            settings.set(setting, value)
+        }
+
         if(renderConfig.qualitySettings.isNotEmpty()) {
             logger.info("Setting rendering quality to $quality")
             renderConfig.qualitySettings[quality]?.forEach { setting ->
-                val key = "Renderer.${setting.key}"
+                if(setting.key.endsWith(".shaders") && setting.value is List<*>) {
+                    val pass = setting.key.substringBeforeLast(".shaders")
+                    val shaders = setting.value as? List<String> ?: return@forEach
 
-                logger.debug("Setting $key: ${settings.get<Any>(key)} -> ${setting.value}")
-                settings.set(key, setting.value)
+                    renderConfig.renderpasses[pass]?.shaders = shaders
+
+                    mustRecreateFramebuffers = true
+                    framebufferRecreateHook = {
+                        renderConfig.qualitySettings[quality]?.filter { !it.key.endsWith(".shaders") }?.forEach {
+                            setConfigSetting(it.key, it.value)
+                        }
+
+                        framebufferRecreateHook = {}
+                    }
+                } else {
+                    setConfigSetting(setting.key, setting.value)
+                }
             }
         } else {
             logger.warn("The current renderer config, $renderConfigFile, does not support setting quality options.")
