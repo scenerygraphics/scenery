@@ -128,6 +128,8 @@ open class VulkanRenderer(hub: Hub,
 
     inner class SwapchainRecreator {
         var mustRecreate = true
+        var afterRecreateHook: (SwapchainRecreator) -> Unit = {}
+
         private val lock = ReentrantLock()
 
         @Synchronized fun recreate() {
@@ -200,6 +202,8 @@ open class VulkanRenderer(hub: Hub,
 
                 totalFrames = 0
                 mustRecreate = false
+
+                afterRecreateHook.invoke(this)
 
                 lock.unlock()
             }
@@ -1499,7 +1503,6 @@ open class VulkanRenderer(hub: Hub,
             }
 
             with(pass.value) {
-                initializeInputAttachmentDescriptorSetLayouts()
                 initializeShaderParameterDescriptorSetLayouts(settings)
 
                 initializeDefaultPipeline()
@@ -2683,6 +2686,7 @@ open class VulkanRenderer(hub: Hub,
 
             vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkanPipeline.pipeline)
             if(pass.vulkanMetadata.descriptorSets.limit() > 0) {
+                logger.debug("Binding ${pass.vulkanMetadata.descriptorSets.limit()} descriptor sets with ${pass.vulkanMetadata.uboOffsets.limit()} required offsets")
                 vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_GRAPHICS,
                     vulkanPipeline.layout, 0, pass.vulkanMetadata.descriptorSets, pass.vulkanMetadata.uboOffsets)
             }
@@ -2702,10 +2706,11 @@ open class VulkanRenderer(hub: Hub,
         var requiredDynamicOffsets = 0
         logger.debug("Ubo position: ${this.uboOffsets.position()}")
 
-        pipeline.descriptorSpecs.entries.sortedBy { it.value.set }.forEachIndexed { i, (name, _) ->
+        pipeline.descriptorSpecs.entries.sortedBy { it.value.set }.forEachIndexed { i, (name, spec) ->
+            logger.debug("Looking at $name, set=${spec.set}, binding=${spec.binding}...")
             val dsName = when {
                 name.startsWith("ShaderParameters") -> "ShaderParameters-${pass.name}"
-                name.startsWith("Inputs") -> "input-${pass.name}-${name.substringAfter("-")}"
+                name.startsWith("Inputs") -> "input-${pass.name}-${spec.set}"
                 name.startsWith("Matrices") -> {
                     val offsets = sceneUBOs.first().rendererMetadata()!!.UBOs["Matrices"]!!.second.offsets
                     this.uboOffsets.put(offsets)
@@ -3027,13 +3032,37 @@ open class VulkanRenderer(hub: Hub,
      * @param[quality] The [RenderConfigReader.RenderingQuality] to be set.
      */
     override fun setRenderingQuality(quality: RenderConfigReader.RenderingQuality) {
+        fun setConfigSetting(key: String, value: Any) {
+            val setting = "Renderer.$key"
+
+            logger.debug("Setting $setting: ${settings.get<Any>(setting)} -> $value")
+            settings.set(setting, value)
+        }
+
         if(renderConfig.qualitySettings.isNotEmpty()) {
             logger.info("Setting rendering quality to $quality")
-            renderConfig.qualitySettings[quality]?.forEach { setting ->
-                val key = "Renderer.${setting.key}"
 
-                logger.debug("Setting $key: ${settings.get<Any>(key)} -> ${setting.value}")
-                settings.set(key, setting.value)
+            renderConfig.qualitySettings[quality]?.forEach { setting ->
+                if(setting.key.endsWith(".shaders") && setting.value is List<*>) {
+                    val pass = setting.key.substringBeforeLast(".shaders")
+                    val shaders = setting.value as? List<String> ?: return@forEach
+
+                    renderConfig.renderpasses[pass]?.shaders = shaders
+
+                    @Suppress("SENSELESS_COMPARISON")
+                    if(swapchainRecreator != null) {
+                        swapchainRecreator.mustRecreate = true
+                        swapchainRecreator.afterRecreateHook = { swapchainRecreator ->
+                            renderConfig.qualitySettings[quality]?.filter { !it.key.endsWith(".shaders") }?.forEach {
+                                setConfigSetting(it.key, it.value)
+                            }
+
+                            swapchainRecreator.afterRecreateHook = {}
+                        }
+                    }
+                } else {
+                    setConfigSetting(setting.key, setting.value)
+                }
             }
         } else {
             logger.warn("The current renderer config, $renderConfigFile, does not support setting quality options.")
