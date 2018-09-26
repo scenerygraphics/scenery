@@ -190,7 +190,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
      */
     fun initializeInputAttachmentDescriptorSetLayouts(shaderModules: List<VulkanShaderModule>) {
         var input = 0
-        logger.info("$name: Have inputs ${inputs.keys.joinToString(", ")}")
+        logger.debug("Renderpass $name has inputs ${inputs.keys.joinToString(", ")}")
         inputs.entries.reversed().forEach { inputFramebuffer ->
             // we need to discern here whether the entire framebuffer is the input, or
             // only a part of it (indicated by a dot in the name)
@@ -215,9 +215,9 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                 inputFramebuffer.value.outputDescriptorSet
             }
 
-            shaderModules.flatMap { it.uboSpecs.entries }.forEach {
-                logger.info("${it.key} ${it.value.members.count()} ${it.value.members.keys.joinToString(", ")}")
-            }
+//            shaderModules.flatMap { it.uboSpecs.entries }.forEach {
+//                logger.info("${it.key} ${it.value.members.count()} ${it.value.members.keys.joinToString(", ")}")
+//            }
 
             val searchKeys = if(inputFramebuffer.key.contains(".")) {
                 listOf(inputFramebuffer.key.substringAfter("."))
@@ -225,7 +225,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                 config.rendertargets[inputFramebuffer.key]!!.attachments.keys
             }
 
-            logger.info("Search keys: ${searchKeys.joinToString(",")}")
+            logger.debug("Search keys for input attachments: ${searchKeys.joinToString(",")}")
 
             val spec = shaderModules.flatMap { it.uboSpecs.entries }.firstOrNull { entry ->
                 entry.component2().members.count() == descriptorNum
@@ -241,7 +241,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                 descriptorSets.put(inputKey, ds)
                 input++
             } else {
-                logger.warn("Shader for ${inputFramebuffer.key} does not use inputs")
+                logger.warn("$name: Shader does not use input of ${inputFramebuffer.key}")
             }
         }
     }
