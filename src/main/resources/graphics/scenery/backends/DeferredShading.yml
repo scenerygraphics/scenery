@@ -153,12 +153,24 @@ qualitySettings:
   Low:
     AO.occlusionSamples: 0
     FXAA.activateFXAA: 0
+    AO.shaders:
+      - "FullscreenQuadFrustum.vert.spv"
+      - "SSAO.frag.spv"
   Medium:
+    AO.occlusionSamples: 8
+    FXAA.activateFXAA: 1
+    AO.shaders:
+      - "FullscreenQuadFrustum.vert.spv"
+      - "SSAO.frag.spv"
+  High:
     AO.occlusionSamples: 4
     FXAA.activateFXAA: 1
-  High:
-    AO.occlusionSamples: 16
-    FXAA.activateFXAA: 1
+    AO.shaders:
+      - "FullscreenQuadFrustum.vert.spv"
+      - "HBAO.frag.spv"
   Ultra:
-    AO.occlusionSamples: 16
+    AO.occlusionSamples: 8
     FXAA.activateFXAA: 1
+    AO.shaders:
+      - "FullscreenQuadFrustum.vert.spv"
+      - "HBAO.frag.spv"
