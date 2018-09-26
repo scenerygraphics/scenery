@@ -10,7 +10,7 @@
 
     <groupId>graphics.scenery</groupId>
     <artifactId>scenery</artifactId>
-    <version>0.6.0-SNAPSHOT</version>
+    <version>0.6.0-beta-2-SNAPSHOT</version>
     <inceptionYear>2016</inceptionYear>
     <licenses>
         <license>
@@ -76,7 +76,7 @@
     <scm>
         <connection>scm:git:git://github.com/scenerygraphics/scenery</connection>
         <developerConnection>scm:git:git@github.com:scenerygraphics/scenery</developerConnection>
-        <tag>scenery-0.5.2</tag>
+        <tag>scenery-0.6.0-beta-1</tag>
         <url>http://scenery.graphics</url>
     </scm>
 
