@@ -494,7 +494,9 @@ open class VulkanRenderer(hub: Hub,
             else -> {
                 VulkanSwapchain(
                     device, queue, commandPools,
-                    renderConfig = renderConfig, useSRGB = renderConfig.sRGB)
+                    renderConfig = renderConfig, useSRGB = renderConfig.sRGB,
+                    vsync = settings.get("Renderer.ForceVsync"),
+                    undecorated = settings.get("Renderer.ForceUndecoratedWindow"))
             }
         }.apply {
             embedIn(embedIn)

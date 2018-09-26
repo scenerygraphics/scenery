@@ -51,6 +51,17 @@ class Settings(override var hub: Hub? = null) : Hubable {
     }
 
     /**
+     * Add or a setting in the store only if it does not exist yet.
+     * Will only allow replacement if types of existing and new setting match.
+     *
+     * @param[name] Name of the setting.
+     * @param[contents] Contents of the setting, can be anything.
+     */
+    fun setIfUnset(name: String, contents: Any): Any {
+        return settingsStore[name] ?: set(name, contents)
+    }
+
+    /**
      * Add or replace a setting in the store. Will only allow replacement
      * if types of existing and new setting match.
      *

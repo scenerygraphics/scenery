@@ -27,7 +27,9 @@ open class VulkanSwapchain(open val device: VulkanDevice,
                            open val queue: VkQueue,
                            open val commandPools: VulkanRenderer.CommandPools,
                            @Suppress("unused") open val renderConfig: RenderConfigReader.RenderConfig,
-                           open val useSRGB: Boolean = true) : Swapchain {
+                           open val useSRGB: Boolean = true,
+                           open val vsync: Boolean = false,
+                           open val undecorated: Boolean = false) : Swapchain {
     protected val logger by LazyLogger()
 
     override var handle: Long = 0L
@@ -55,6 +57,10 @@ open class VulkanSwapchain(open val device: VulkanDevice,
     override fun createWindow(win: SceneryWindow, swapchainRecreator: VulkanRenderer.SwapchainRecreator): SceneryWindow {
         glfwDefaultWindowHints()
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API)
+
+        if(undecorated) {
+            glfwWindowHint(GLFW_DECORATED, GLFW_FALSE)
+        }
 
         window = SceneryWindow.GLFWWindow(glfwCreateWindow(win.width, win.height, "scenery", MemoryUtil.NULL, MemoryUtil.NULL)).apply {
             width = win.width
@@ -108,12 +114,16 @@ open class VulkanSwapchain(open val device: VulkanDevice,
             val presentModes = VU.getInts("Getting present modes", presentModeCount.get(0),
                 { KHRSurface.vkGetPhysicalDeviceSurfacePresentModesKHR(device.physicalDevice, surface, presentModeCount, this) })
 
-            // Try to use mailbox mode. Low latency and non-tearing
-            var swapchainPresentMode = KHRSurface.VK_PRESENT_MODE_FIFO_KHR
+            // use fifo mode (aka, vsynced) if requested,
+            // otherwise, use mailbox mode and present the most recently generated frame.
+            var swapchainPresentMode = if(vsync) {
+                KHRSurface.VK_PRESENT_MODE_FIFO_KHR
+            } else {
+                KHRSurface.VK_PRESENT_MODE_MAILBOX_KHR
+            }
 
             for (i in 0 until presentModeCount.get(0)) {
-                if (presentModes.get(i) == KHRSurface.VK_PRESENT_MODE_MAILBOX_KHR) {
-                    swapchainPresentMode = KHRSurface.VK_PRESENT_MODE_MAILBOX_KHR
+                if (presentModes.get(i) == swapchainPresentMode) {
                     break
                 }
                 if (swapchainPresentMode != KHRSurface.VK_PRESENT_MODE_MAILBOX_KHR && presentModes.get(i) == KHRSurface.VK_PRESENT_MODE_IMMEDIATE_KHR) {

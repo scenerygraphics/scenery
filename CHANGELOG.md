@@ -1,5 +1,60 @@
 # CHANGELOG
 
+# scenery-0.6.0 to scenery-0.6.0-beta-1
+
+## Fixes
+
+* Renderer: Don't overwrite user-defined settings
+* Fix normalisation bug in DeferredLighting.frag
+* Volume: write depth correctly
+* SceneryPanel: Remove unnecessary texture locking, improving stuttering
+* JavaFXMouseAndKeyHandler: Handle shift-scroll correctly on Windows
+* Renderer: Save screenshots even if push mode is active. Fixes #213.
+* Line: add geometry shader to expected shaders
+
+
+## Additions and Changes
+
+* __Breaking change__: This Release changes the way shaders are handled by Nodes. It removes Node.useClassDerivedShader and replaces it with a unified and more flexible system that also allows for shader factories. See Shaders and ShaderFactory (#203)
+* Volume: Add local ambient occlusion
+* Volume: allow for different rendering methods (maximum projection, local maximum projection, and alpha blending)
+* Volume : adds customizable transfer functions
+* Volume: adds alpha blending rendering mode in addition to max projection and local max projection
+* SceneryBase: Set running flag to true directly after initialisation
+* VulkanRenderer: Add options to force Vsync and undecorated windows
+* Settings: add setIfUnset()
+* VulkanDevice: Improve queue creation for multiple queues
+* Renderer: Add option to overwrite existing screenshots. Closes #213.
+* Renderer: add firstImageReady property to indicate first image has been rendered
+* VulkanRenderer: Don't request swapchain extensions if running headless
+* Volume: do not discard fragments that don't need a raycast
+* Volume: use stepSize instead of maxsteps as parameter, and improve local occlusion
+* Volume: Introduce Colormap class, which can be backed by a file or a buffer
+* ReaderExample: support reading of volume files (renamed from ReadModelExample)
+* Hololens: Cache view matrices
+* Preliminary support for directional lights
+* PupilEyeTracker: improves eye tracking calibration routine
+* EyeTrackingExample: Improve feedback on failed/successful calibration
+* Camera: store projection type, and viewport sizes, add aspectRatio() function
+* VulkanRenderer: Preparations for support of asynchronous texture uploads
+* SPIRV: compile shaders, even if they have preprocessor defs, to check their validity (generated SPIRV is deleted afterwards)
+* ArcballCameraControl: Support varying/moving targets
+* Node: Introduce callbacks for Node added, Node removed, Node properties updated
+* Scene: Support handing the Node in onNodePropertiesChanged
+* VulkanBufferAllocation: Add slack to allocations, and keep suballocations sorted by offset
+* ShaderMaterial: allow to specify expected shader types for fromClass()
+* Shaders: Provide JVM constructor overloads for ShadersFromClassName()
+* VulkanBufferAllocation: Add slack to allocations, and keep suballocations sorted by offset
+* Hololens: Subscribe to view transforms via SUB socket, not via REQREP any more
+* The following classes have had their documentation improved: DirectionalLight, Light, ShaderFactory, Shaders, VulkanFramebuffer, VulkanDevice
+
+
+## Dependency updates
+
+* bumps Kotlin to 1.2.61
+* bumps lwjgl to 3.2.0
+* bumps scijava parent POM to 23.1.1
+
 # scenery-0.5.1 to scenery-0.5.2
 
 ## Fixes
