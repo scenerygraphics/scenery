@@ -188,8 +188,9 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
     /**
      * Initialises descriptor set layouts coming for the passes' [inputs].
      */
-    fun initializeInputAttachmentDescriptorSetLayouts() {
+    fun initializeInputAttachmentDescriptorSetLayouts(shaderModules: List<VulkanShaderModule>) {
         var input = 0
+        logger.debug("Renderpass $name has inputs ${inputs.keys.joinToString(", ")}")
         inputs.entries.reversed().forEach { inputFramebuffer ->
             // we need to discern here whether the entire framebuffer is the input, or
             // only a part of it (indicated by a dot in the name)
@@ -207,17 +208,42 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
             )
 
             val ds = if(inputFramebuffer.key.contains(".")) {
+                val targetName = inputFramebuffer.key.substringBefore(".")
+                val attachmentName = inputFramebuffer.key.substringAfter(".")
+
+                val rendertarget = config.rendertargets[targetName] ?: throw IllegalStateException("Rendertargets do not contain required target ${inputFramebuffer.key}")
+
                 VU.createRenderTargetDescriptorSet(device, descriptorPool, dsl,
-                    config.rendertargets[inputFramebuffer.key.substringBefore(".")]!!.attachments,
-                    inputFramebuffer.value, inputFramebuffer.key.substringAfter("."))
+                    rendertarget.attachments,
+                    inputFramebuffer.value, attachmentName)
             } else {
                 inputFramebuffer.value.outputDescriptorSet
             }
 
-            logger.debug("${this.name}: Creating input descriptor set for ${inputFramebuffer.key}, input-${this.name}-$input")
-            descriptorSetLayouts.put("input-${this.name}-$input", dsl)?.let { oldDSL -> vkDestroyDescriptorSetLayout(device.vulkanDevice, oldDSL, null) }
-            descriptorSets.put("input-${this.name}-$input", ds)
-            input++
+            val searchKeys = if(inputFramebuffer.key.contains(".")) {
+                listOf(inputFramebuffer.key.substringAfter("."))
+            } else {
+                config.rendertargets[inputFramebuffer.key]?.attachments?.keys ?: throw IllegalStateException("Rendertargets do not contain required target ${inputFramebuffer.key}")
+            }
+
+            logger.debug("Search keys for input attachments: ${searchKeys.joinToString(",")}")
+
+            val spec = shaderModules.flatMap { it.uboSpecs.entries }.firstOrNull { entry ->
+                entry.component2().members.count() == descriptorNum
+                && entry.component1().startsWith("Inputs")
+                && searchKeys.map { entry.component2().members.containsKey("Input$it") }.all { it == true }
+            }
+
+            if(spec != null) {
+                val inputKey = "input-${this.name}-${spec.value.set}"
+
+                logger.debug("${this.name}: Creating input descriptor set for ${inputFramebuffer.key}, $inputKey")
+                descriptorSetLayouts.put(inputKey, dsl)?.let { oldDSL -> vkDestroyDescriptorSetLayout(device.vulkanDevice, oldDSL, null) }
+                descriptorSets.put(inputKey, ds)
+                input++
+            } else {
+                logger.warn("$name: Shader does not use input of ${inputFramebuffer.key}")
+            }
         }
     }
 
@@ -369,6 +395,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
             }
         }
 
+        initializeInputAttachmentDescriptorSetLayouts(shaderModules)
         initializePipeline("default", shaderModules)
     }
 
