@@ -12,7 +12,7 @@ rendertargets:
     attachments:
       Color: RGBA_Float32
   AOBuffer:
-    size: 1.0, 1.0
+    size: 0.5, 0.5
     attachments:
       Occlusion: RGBA_UInt8
   AOTemp1:
@@ -46,7 +46,8 @@ renderpasses:
       Pass.displayWidth: 0
       Pass.displayHeight: 0
       occlusionRadius: 1.0
-      occlusionSamples: 16
+      occlusionSamples: 4
+      occlusionExponent: 2.0
       maxDistance: 1.0
       bias: 0.1
       algorithm: 0
@@ -63,6 +64,7 @@ renderpasses:
       Pass.displayHeight: 0
       Direction: 1.0, 0.0
       Sharpness: 40.0
+      KernelRadius: 8
     shaders:
       - "FullscreenQuad.vert.spv"
       - "HBAOBlur.frag.spv"
@@ -77,6 +79,7 @@ renderpasses:
       Pass.displayHeight: 0
       Direction: 0.0, 1.0
       Sharpness: 40.0
+      KernelRadius: 8
     shaders:
       - "FullscreenQuad.vert.spv"
       - "HBAOBlur.frag.spv"

@@ -40,14 +40,13 @@ layout(set = 2, binding = 0, std140) uniform ShaderParameters {
 	int displayHeight;
 	float occlusionRadius;
 	int occlusionSamples;
+	float occlusionExponent;
     float maxDistance;
     float bias;
     int algorithm;
 };
 
 const int NUM_STEPS = 4;
-
-const float aoContrast = 1.0f;
 
 const vec2 sampleDirections[] = vec2[](
     vec2(0.0988498, 0.229627),
@@ -83,23 +82,6 @@ const vec2 sampleDirections[] = vec2[](
     vec2(-0.918509, 0.395399),
     vec2(-0.369895, 0.929074)
 );
-
-vec3 viewFromDepth(float depth, vec2 texcoord) {
-    vec2 uv = (vrParameters.stereoEnabled ^ 1) * texcoord + vrParameters.stereoEnabled * vec2((texcoord.x - 0.5 * currentEye.eye) * 2.0, texcoord.y);
-
-	mat4 invProjection = (vrParameters.stereoEnabled ^ 1) * InverseProjectionMatrix + vrParameters.stereoEnabled * vrParameters.inverseProjectionMatrices[currentEye.eye];
-	mat4 invView = (vrParameters.stereoEnabled ^ 1) * InverseViewMatrices[0] + vrParameters.stereoEnabled * (InverseViewMatrices[currentEye.eye]);
-
-#ifndef OPENGL
-    vec4 clipSpacePosition = vec4(uv * 2.0 - 1.0, depth, 1.0);
-#else
-    vec4 clipSpacePosition = vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
-#endif
-    vec4 viewSpacePosition = invProjection * clipSpacePosition;
-
-    viewSpacePosition /= viewSpacePosition.w;
-    return viewSpacePosition.xyz;
-}
 
 vec3 worldFromDepth(float depth, vec2 texcoord) {
     vec2 uv = (vrParameters.stereoEnabled ^ 1) * texcoord + vrParameters.stereoEnabled * vec2((texcoord.x - 0.5 * currentEye.eye) * 2.0, texcoord.y);
@@ -171,8 +153,7 @@ float ComputeAO(vec3 P, vec3 N, vec3 S)
   float VdotV = dot(V, V);
   float NdotV = dot(N, V) * 1.0/sqrt(VdotV);
 
-  // Use saturate(x) instead of max(x,0.f) because that is faster on Kepler
-  return clamp(NdotV - bias,0,1) * clamp(Falloff(VdotV),0,1);
+  return clamp(NdotV - bias, 0.0, 1.0) * clamp(Falloff(VdotV), 0.0, 1.0);
 }
 
 float ComputeCoarseAO(vec2 FullResUV, float RadiusPixels, vec4 Rand, vec3 ViewPosition, vec3 ViewNormal, vec2 invRes)
@@ -207,47 +188,42 @@ float ComputeCoarseAO(vec2 FullResUV, float RadiusPixels, vec4 Rand, vec3 ViewPo
   }
 
   AO *= aoStrength / (occlusionSamples * NUM_STEPS);
-  return clamp(1.0f - AO * 2.0f , 0.0f, 1.0f);
+  return clamp(1.0 - AO * 2.0f, 0.0f, 1.0f);
 }
 
-vec4 GetJitter()
-{
-  // (cos(Alpha),sin(Alpha),rand1,rand2)
-//  return vec4(random(gl_FragCoord.xy));
+vec4 GetJitter() {
   uint index = uint(floor(random(gl_FragCoord.xy) * 31));
   return vec4(sampleDirections[index].xy, random(gl_FragCoord.xy), 0.0);
 }
 
 
-void main()
-{
+void main() {
   if(occlusionSamples == 0) {
-    FragColor = vec4(0.0);
+    FragColor = vec4(1.0);
     return;
   }
 
   vec2 invRes = vec2(1.0f, 1.0f) / vec2(displayWidth, displayHeight);
   vec2 textureCoord = gl_FragCoord.xy * invRes;
   textureCoord = (vrParameters.stereoEnabled ^ 1) * textureCoord + vrParameters.stereoEnabled * vec2((textureCoord.x - 0.5 * currentEye.eye) * 2.0, textureCoord.y);
+  mat4 projectionMatrix = Vertex.projectionMatrix;
 
   float depth = texture(InputZBuffer, textureCoord).r;
+  float near = projectionMatrix[2][3]/(projectionMatrix[2][2] - 1.0);
+  float far = projectionMatrix[2][3]/(projectionMatrix[2][2] + 1.0);
+  float z = 2.0 * depth - 1.0;
+  float linearDepth = (2 * near * far)/(far + near - z * (far - near));
+
   vec3 ViewPosition = worldFromDepth(depth, textureCoord);
-  // Reconstruct view-space normal from nearest neighbors
-//  vec3 ViewNormal = -(Vertex.viewMatrix * vec4(DecodeOctaH(texture(InputNormalsMaterial, textureCoord).rg), 1.0)).xyz;
   vec3 ViewNormal = DecodeOctaH(texture(InputNormalsMaterial, textureCoord).rg);
-  mat4 projectionMatrix = Vertex.projectionMatrix;
-  float fov = atan(1.0f/projectionMatrix[1][1]);
+
+  float fov = atan(1.0f/projectionMatrix[1][1]) * 2.0f;
   float projScale = displayHeight / (tan(fov * 0.5f) * 2.0f);
   float radiusToScreen = occlusionRadius * 0.5f * projScale;
+  float RadiusPixels = radiusToScreen / (linearDepth);
 
-  // Compute projection of disk of radius control.R into screen space
-
-  float RadiusPixels = radiusToScreen / (ViewPosition.z);
-//  RadiusPixels = 50.0f;
-  // Get jitter vector for the current full-res pixel
   vec4 Rand = GetJitter();
-
   float AO = ComputeCoarseAO(textureCoord, RadiusPixels, Rand, ViewPosition, ViewNormal, invRes);
 
-  FragColor = vec4(pow(AO, aoContrast));
+  FragColor = vec4(pow(AO, occlusionExponent));
 }

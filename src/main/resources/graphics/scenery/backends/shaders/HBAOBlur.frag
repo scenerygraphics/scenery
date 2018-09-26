@@ -40,16 +40,15 @@ layout(set = 0, binding = 0, std140) uniform ShaderParameters {
 	int displayHeight;
 	vec2 Direction;
 	float Sharpness;
+	int KernelRadius;
 };
-
-const float KERNEL_RADIUS = 3.0f;
 
 vec4 BlurFunction(vec2 uv, float r, vec4 center_c, float center_d, inout float w_total)
 {
   vec4  c = texture( InputOcclusion, uv );
   float d = texture( InputZBuffer, uv).x;
 
-  const float BlurSigma = float(KERNEL_RADIUS) * 0.5;
+  const float BlurSigma = float(KernelRadius) * 0.5;
   const float BlurFalloff = 1.0 / (2.0*BlurSigma*BlurSigma);
 
   float ddiff = (d - center_d) * Sharpness;
@@ -60,7 +59,7 @@ vec4 BlurFunction(vec2 uv, float r, vec4 center_c, float center_d, inout float w
 }
 
 void main() {
-  const vec2 texCoord = gl_FragCoord.xy/vec2(displayWidth, displayHeight);
+  const vec2 texCoord = textureCoord;
   vec4  center_c = texture( InputOcclusion, texCoord );
   float center_d = texture( InputZBuffer, texCoord ).x;
 
@@ -69,13 +68,13 @@ void main() {
 
   vec2 invDir = Direction / vec2(displayWidth, displayHeight);
 
-  [[unroll]] for (float r = 1; r <= KERNEL_RADIUS; ++r)
+  [[unroll]] for (float r = 1; r <= KernelRadius; ++r)
   {
     vec2 uv = texCoord + invDir * r;
     c_total += BlurFunction(uv, r, center_c, center_d, w_total);
   }
 
-  [[unroll]] for (float r = 1; r <= KERNEL_RADIUS; ++r)
+  [[unroll]] for (float r = 1; r <= KernelRadius; ++r)
   {
     vec2 uv = texCoord - invDir * r;
     c_total += BlurFunction(uv, r, center_c, center_d, w_total);
