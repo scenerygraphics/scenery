@@ -194,5 +194,38 @@ open class Camera : Node("Camera") {
         clipSpace = clipSpace.times(1.0f/clipSpace.w())
         return clipSpace.xyz()
     }
+
+    /**
+     * Returns the list of objects (as [Scene.RaycastResult]) under the screen space position
+     * indicated by [x] and [y], sorted by their distance to the observer.
+     */
+    @JvmOverloads fun getNodesForScreenSpacePosition(x: Int, y: Int,
+                                                       ignoredObjects: List<Class<*>> = emptyList(),
+                                                       debug: Boolean = false): List<Scene.RaycastResult> {
+        val view = (target - position).normalize()
+        var h = view.cross(up).normalize()
+        var v = h.cross(view)
+
+        val fov = fov * Math.PI / 180.0f
+        val lengthV = Math.tan(fov / 2.0).toFloat() * nearPlaneDistance
+        val lengthH = lengthV * (width / height)
+
+        v *= lengthV
+        h *= lengthH
+
+        val posX = (x - width / 2.0f) / (width / 2.0f)
+        val posY = -1.0f * (y - height / 2.0f) / (height / 2.0f)
+
+        val worldPos = position + view * nearPlaneDistance + h * posX + v * posY
+        val worldDir = (worldPos - position).normalized
+
+        val scene = getScene()
+        if(scene == null) {
+            logger.warn("No scene found for $this, returning empty list for raycast.")
+            return emptyList()
+        }
+
+        return scene.raycast(worldPos, worldDir, ignoredObjects, debug)
+    }
 }
 
