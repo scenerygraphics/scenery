@@ -91,6 +91,14 @@ interface HasGeometry : Serializable {
         val lines = Files.lines(p)
         var currentMaterial: Material? = Material()
 
+        fun addTexture(material: Material?, slot: String, file: String) {
+            if(material == null) {
+                logger.warn("No current material, but trying to set texture $slot to $file. Broken material file?")
+            } else {
+                material.textures[slot] = file
+            }
+        }
+
         logger.info("Importing materials from MTL file $filename")
         // The MTL file is read line-by-line and tokenized, based on spaces.
         // The first non-whitespace token encountered will be evaluated as command to
@@ -118,27 +126,27 @@ interface HasGeometry : Serializable {
                     }
                     "map_Ka" -> {
                         val mapfile = filename.substringBeforeLast("/") + "/" + tokens[1].replace('\\', '/')
-                        currentMaterial?.textures?.put("ambient", mapfile) ?: logger.warn("No current material, but trying to set property map_Ka. Broken material file?")
+                        addTexture(currentMaterial, "ambient", mapfile)
                     }
                     "map_Ks" -> {
                         val mapfile = filename.substringBeforeLast("/") + "/" + tokens[1].replace('\\', '/')
-                        currentMaterial?.textures?.put("specular", mapfile) ?: logger.warn("No current material, but trying to set property map_Ks. Broken material file?")
+                        addTexture(currentMaterial, "specular", mapfile)
                     }
                     "map_Kd" -> {
                         val mapfile = filename.substringBeforeLast("/") + "/" + tokens[1].replace('\\', '/')
-                        currentMaterial?.textures?.put("diffuse", mapfile) ?: logger.warn("No current material, but trying to set property map_Kd. Broken material file?")
+                        addTexture(currentMaterial, "diffuse", mapfile)
                     }
                     "map_d" -> {
                         val mapfile = filename.substringBeforeLast("/") + "/" + tokens[1].replace('\\', '/')
-                        currentMaterial?.textures?.put("alphamask", mapfile) ?: logger.warn("No current material, but trying to set property map_d. Broken material file?")
+                        addTexture(currentMaterial, "alphamask", mapfile)
                     }
                     "disp" -> {
                         val mapfile = filename.substringBeforeLast("/") + "/" + tokens[1].replace('\\', '/')
-                        currentMaterial?.textures?.put("displacement", mapfile) ?: logger.warn("No current material, but trying to set property disp. Broken material file?")
+                        addTexture(currentMaterial, "displacement", mapfile)
                     }
                     "map_bump", "bump" -> {
                         val mapfile = filename.substringBeforeLast("/") + "/" + tokens[1].replace('\\', '/')
-                        currentMaterial?.textures?.put("normal", mapfile) ?: logger.warn("No current material, but trying to set property map_bump. Broken material file?")
+                        addTexture(currentMaterial, "normal", mapfile)
                     }
                     "Tf" -> {
                     }
