@@ -4,6 +4,7 @@ import graphics.scenery.Hub
 import graphics.scenery.Hubable
 import graphics.scenery.Scene
 import graphics.scenery.SceneryElement
+import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.controls.behaviours.*
@@ -223,6 +224,7 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
         behaviourMap.put("toggle_ssao", ToggleCommand("toggle_ssao", renderer, "toggleSSAO"))
         behaviourMap.put("toggle_hdr", ToggleCommand("toggle_hdr", renderer, "toggleHDR"))
         behaviourMap.put("screenshot", ToggleCommand("screenshot", renderer, "screenshot"))
+        behaviourMap.put("set_rendering_quality", EnumAdvanceCommand("set_rendering_quality", RenderConfigReader.RenderingQuality.values(), renderer, "setRenderingQuality"))
         behaviourMap.put("record_movie", ToggleCommand("record_movie", renderer, "recordMovie"))
 
 
@@ -253,7 +255,8 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
         adder.put("move_up", "SPACE")
         adder.put("move_down", "shift SPACE")
 
-        adder.put("toggle_debug", "Q")
+        adder.put("set_rendering_quality", "Q")
+        adder.put("toggle_debug", "shift Q")
         adder.put("toggle_fullscreen", "F")
         adder.put("toggle_ssao", "O")
         adder.put("toggle_hdr", "H")
