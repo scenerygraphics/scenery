@@ -1,5 +1,6 @@
 package graphics.scenery
 
+import cleargl.GLVector
 import kotlinx.coroutines.experimental.*
 import kotlinx.coroutines.experimental.channels.Channel
 import java.util.*
@@ -169,5 +170,63 @@ open class Scene : Node("RootNode") {
     @Suppress("unused")
     fun findByClassname(className: String): List<Node> {
         return this.discover(this, { n -> n.javaClass.simpleName.contains(className) })
+    }
+
+    /**
+     * Data class for selection results, contains the [Node] as well as the distance
+     * from the observer to it.
+     */
+    data class RaycastResult(val node: Node, val distance: Float)
+
+    /**
+     * Performs a raycast to discover objects in this [Scene] that would be intersected
+     * by a ray originating from [position], shot in [direction]. This method can
+     * be given a list of classes as [ignoredObjects], which will then be ignored for
+     * the raycast. If [debug] is true, a set of spheres is placed along the cast ray.
+     */
+    @JvmOverloads fun raycast(position: GLVector, direction: GLVector,
+                              ignoredObjects: List<Class<*>>,
+                              debug: Boolean = false): List<RaycastResult> {
+        if (debug) {
+            val indicatorMaterial = Material()
+            indicatorMaterial.diffuse = GLVector(1.0f, 0.2f, 0.2f)
+            indicatorMaterial.specular = GLVector(1.0f, 0.2f, 0.2f)
+            indicatorMaterial.ambient = GLVector(0.0f, 0.0f, 0.0f)
+
+            for(it in 5..50) {
+                val s = Box(GLVector(0.08f, 0.08f, 0.08f))
+                s.material = indicatorMaterial
+                s.position = position + direction * it.toFloat()
+                this.addChild(s)
+            }
+        }
+
+        val matches = this.discover(this, { node ->
+            node.visible && !ignoredObjects.contains(node.javaClass)
+        }).map {
+            Pair(it, it.intersectAABB(position, direction))
+        }.filter {
+            it.second.first && it.second.second > 0.0f
+        }.map {
+            RaycastResult(it.first, it.second.second)
+        }.sortedBy {
+            it.distance
+        }
+
+        if (debug) {
+            logger.info(matches.joinToString(", ") { "${it.node.name} at distance ${it.distance}" })
+
+            val m = Material()
+            m.diffuse = GLVector(1.0f, 0.0f, 0.0f)
+            m.specular = GLVector(0.0f, 0.0f, 0.0f)
+            m.ambient = GLVector(0.0f, 0.0f, 0.0f)
+            m.needsTextureReload = true
+
+            matches.firstOrNull()?.let {
+                it.node.material = m
+            }
+        }
+
+        return matches
     }
 }
