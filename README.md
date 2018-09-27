@@ -48,12 +48,11 @@ If a gamepad is connected (such as a PlayStation 3 or 4 controller), the hats ca
 ### Rendering
 | Key | Action |
 | --- | --- |
-| `K`, `L` | Increase/decrease exposure for HDR rendering |
-| `Shift`-`K`, `Shift-L` | Increase/decrease gamma for HDR rendering |
 | `F` | Toggle fullscreen |
-| `Q` | Toggle deferred shading buffer debug view |
-| `O` | Toggle SSAO (Screen-space ambient occlusion |
+| `Q` | Toggle rendering quality (low, medium, high, ultra), if supported by the current rendering pipeline |
+| `Shift`-`Q` | Toggle buffer debug view |
 | `P` | Save screenshot to Desktop as PNG |
+| `Shift`-`P` | Record a H264-encoded video to the Desktop |
 
 All keybindings are also listed in the [InputHandler class](./src/main/kotlin/graphics/scenery/controls/InputHandler.kt#L198).
 
