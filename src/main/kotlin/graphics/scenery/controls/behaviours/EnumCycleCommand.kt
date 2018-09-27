@@ -15,10 +15,10 @@ import java.lang.reflect.InvocationTargetException
  * @property[receiver] The receiving object.
  * @property[method] The name of the single-parameter method to invoke.
  */
-class EnumAdvanceCommand<T: Enum<*>>(private val name: String,
-                            private val values: Array<T>,
-                            private val receiver: Any,
-                            private val method: String) : ClickBehaviour {
+class EnumCycleCommand<T: Enum<*>>(private val name: String,
+                                   private val values: Array<T>,
+                                   private val receiver: Any,
+                                   private val method: String) : ClickBehaviour {
 
     private val logger by LazyLogger()
     private var currentIndex = 0
