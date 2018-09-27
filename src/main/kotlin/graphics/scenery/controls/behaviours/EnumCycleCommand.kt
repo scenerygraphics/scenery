@@ -7,7 +7,9 @@ import java.lang.reflect.InvocationTargetException
 /**
  * Enum advance command class. Enables to call a single-parameter method with a successive list of
  * enum [values] by the press of a button. The value used for calling is incremented with each call
- * and wrapped upon arriving at the end of the list.
+ * and wrapped upon arriving at the end of the list. The [method] called should provide the user some
+ * feedback about the change made, as this command does not (although a debug message is emitted,
+ * containing the receiver, method, and current value).
  *
  * @author Ulrik Günther <hello@ulrik.is>
  * @property[name] The name of the behaviour.
@@ -16,7 +18,7 @@ import java.lang.reflect.InvocationTargetException
  * @property[method] The name of the single-parameter method to invoke.
  */
 class EnumCycleCommand<T: Enum<*>>(private val name: String,
-                                   private val values: Array<T>,
+                                   private val enumClass: Class<T>,
                                    private val receiver: Any,
                                    private val method: String) : ClickBehaviour {
 
@@ -31,6 +33,7 @@ class EnumCycleCommand<T: Enum<*>>(private val name: String,
      * @param[y] y position in window (unused)
      */
     override fun click(x: Int, y: Int) {
+        val values = enumClass.enumConstants
         if(values.isEmpty()) {
             return
         }

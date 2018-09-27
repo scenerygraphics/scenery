@@ -224,7 +224,7 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
         behaviourMap.put("toggle_ssao", ToggleCommand("toggle_ssao", renderer, "toggleSSAO"))
         behaviourMap.put("toggle_hdr", ToggleCommand("toggle_hdr", renderer, "toggleHDR"))
         behaviourMap.put("screenshot", ToggleCommand("screenshot", renderer, "screenshot"))
-        behaviourMap.put("set_rendering_quality", EnumCycleCommand("set_rendering_quality", RenderConfigReader.RenderingQuality.values(), renderer, "setRenderingQuality"))
+        behaviourMap.put("set_rendering_quality", EnumCycleCommand("set_rendering_quality", RenderConfigReader.RenderingQuality::class.java, renderer, "setRenderingQuality"))
         behaviourMap.put("record_movie", ToggleCommand("record_movie", renderer, "recordMovie"))
 
 
