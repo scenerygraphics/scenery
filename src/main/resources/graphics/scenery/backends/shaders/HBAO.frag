@@ -7,7 +7,7 @@ layout(set = 3, binding = 0) uniform sampler2D InputNormalsMaterial;
 layout(set = 3, binding = 1) uniform sampler2D InputDiffuseAlbedo;
 layout(set = 3, binding = 2) uniform sampler2D InputZBuffer;
 
-layout(location = 0) out vec4 FragColor;
+layout(location = 0) out float FragColor;
 layout(location = 0) in VertexData {
     vec2 textureCoord;
     mat4 projectionMatrix;
@@ -199,7 +199,7 @@ vec4 GetJitter() {
 
 void main() {
   if(occlusionSamples == 0) {
-    FragColor = vec4(1.0);
+    FragColor = 1.0;
     return;
   }
 
@@ -225,5 +225,5 @@ void main() {
   vec4 Rand = GetJitter();
   float AO = ComputeCoarseAO(textureCoord, RadiusPixels, Rand, ViewPosition, ViewNormal, invRes);
 
-  FragColor = vec4(pow(AO, occlusionExponent));
+  FragColor = pow(AO, occlusionExponent);
 }
