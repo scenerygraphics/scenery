@@ -3010,10 +3010,13 @@ open class VulkanRenderer(hub: Hub,
 
         swapchain?.close()
 
+        logger.debug("Closing renderpasses...")
         renderpasses.forEach { _, vulkanRenderpass -> vulkanRenderpass.close() }
 
+        logger.debug("Clearing shader module cache...")
         VulkanShaderModule.clearCache()
 
+        logger.debug("Closing command pools...")
         with(commandPools) {
             device.destroyCommandPool(Render)
             device.destroyCommandPool(Compute)
@@ -3028,6 +3031,7 @@ open class VulkanRenderer(hub: Hub,
 
         debugCallback.free()
 
+        logger.debug("Closing device $device...")
         device.close()
 
         logger.debug("Closing instance...")
