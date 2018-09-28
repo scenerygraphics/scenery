@@ -452,6 +452,9 @@ open class VulkanSwapchain(open val device: VulkanDevice,
         MemoryUtil.memFree(swapchainPointer)
 
         windowSizeCallback.close()
-        (window as SceneryWindow.GLFWWindow?)?.let { window -> glfwDestroyWindow(window.window) }
+        (window as SceneryWindow.GLFWWindow?)?.let { window ->
+            glfwDestroyWindow(window.window)
+            glfwTerminate()
+        }
     }
 }

@@ -515,7 +515,9 @@ open class VulkanRenderer(hub: Hub,
         logger.debug("Prepared default buffers")
 
         prepareDescriptorSets(device, descriptorPool)
+        logger.debug("Prepared default descriptor sets")
         prepareDefaultTextures(device)
+        logger.debug("Prepared default textures")
 
         heartbeatTimer.scheduleAtFixedRate(object : TimerTask() {
             override fun run() {
@@ -570,6 +572,7 @@ open class VulkanRenderer(hub: Hub,
         geometryPool = VulkanBufferPool(device, usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or VK_BUFFER_USAGE_INDEX_BUFFER_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT)
 
         initialized = true
+        logger.info("Renderer initialisation complete.")
     }
 
     // source: http://stackoverflow.com/questions/34697828/parallel-operations-on-kotlin-collections
@@ -937,6 +940,7 @@ open class VulkanRenderer(hub: Hub,
         }
 
         lateResizeInitializers.remove(node)
+        node.initialized = false
 
         node.rendererMetadata()?.UBOs?.forEach { it.value.second.close() }
 
@@ -945,6 +949,8 @@ open class VulkanRenderer(hub: Hub,
                 it.value.close()
             }
         }
+
+        node.metadata.remove("VulkanRenderer")
     }
 
     protected fun loadTexturesForNode(node: Node, s: VulkanObjectState): VulkanObjectState {
@@ -1714,6 +1720,11 @@ open class VulkanRenderer(hub: Hub,
      */
     override fun render() = runBlocking {
         pollEvents()
+
+        if(shouldClose) {
+            closeInternal()
+            return@runBlocking
+        }
 
         val stats = hub?.get(SceneryElement.Statistics) as? Statistics
         val sceneObjects = async {
@@ -2771,6 +2782,10 @@ open class VulkanRenderer(hub: Hub,
     }
 
     private fun updateDefaultUBOs(device: VulkanDevice): Boolean = runBlocking {
+        if(shouldClose) {
+            return@runBlocking false
+        }
+
         logger.trace("Updating default UBOs for {}", device)
         // find observer, if none, return
         val cam = scene.findObserver() ?: return@runBlocking false
@@ -2933,6 +2948,15 @@ open class VulkanRenderer(hub: Hub,
      */
     override fun close() {
         shouldClose = true
+    }
+
+    fun closeInternal() {
+        if(!initialized) {
+            return
+        }
+
+        initialized = false
+
         logger.info("Renderer teardown started.")
         vkQueueWaitIdle(queue)
 
@@ -2946,6 +2970,8 @@ open class VulkanRenderer(hub: Hub,
         scene.discover(scene, { _ -> true }).forEach {
             destroyNode(it)
         }
+        scene.metadata.remove("DescriptorCache")
+        scene.initialized = false
 
         logger.debug("Closing buffers...")
         buffers.forEach { _, vulkanBuffer -> vulkanBuffer.close() }
