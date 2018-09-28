@@ -1313,6 +1313,11 @@ open class OpenGLRenderer(hub: Hub,
         return state
     }
 
+    protected fun destroyNode(node: Node) {
+        node.metadata.remove("OpenGLRenderer")
+        node.initialized = false
+    }
+
     protected var previousSceneObjects: Array<Node> = emptyArray()
     /**
      * Renders the [Scene].
@@ -1352,6 +1357,13 @@ open class OpenGLRenderer(hub: Hub,
         if (shouldClose) {
             try {
                 logger.info("Closing window")
+
+                scene.discover(scene, { _ -> true }).forEach {
+                    destroyNode(it)
+                }
+
+                scene.initialized = false
+
                 joglDrawable?.animator?.stop()
                 cglWindow?.close()
             } catch(e: ThreadDeath) {
