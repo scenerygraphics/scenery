@@ -370,6 +370,20 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
     }
 
     fun replaceRenderer(rendererPreference: String) {
+        val requestedRenderer = when (rendererPreference) {
+            "OpenGLRenderer" -> "OpenGLRenderer"
+            "VulkanRenderer" -> "VulkanRenderer"
+            else -> {
+                logger.warn("Unknown renderer '$rendererPreference', falling back to Vulkan.")
+                "VulkanRenderer"
+            }
+        }
+
+        if(requestedRenderer == renderer?.javaClass?.simpleName) {
+            logger.info("Not replacing renderer, because already running the same.")
+            return
+        }
+
         registerNewRenderer = NewRendererParameters(
             rendererPreference, hub, applicationName,
             renderer?.window?.width ?: 512, renderer?.window?.height ?: 512,
