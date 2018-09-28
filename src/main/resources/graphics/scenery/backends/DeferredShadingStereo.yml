@@ -12,18 +12,18 @@ rendertargets:
   ForwardBuffer:
     attachments:
       Color: RGBA_Float32
-  DSSDOBuffer:
+  AOBuffer:
     size: 0.5, 0.5
     attachments:
-      Occlusion: RGBA_UInt8
-  DSSDOTemp1:
-    size: 0.5, 0.5
+      Occlusion: R_UInt8
+  AOTemp1:
+    size: 1.0, 1.0
     attachments:
-      Occlusion: RGBA_UInt8
-  DSSDOTemp2:
-    size: 0.5, 0.5
+      Occlusion: R_UInt8
+  AOTemp2:
+    size: 1.0, 1.0
     attachments:
-      Occlusion: RGBA_UInt8
+      Occlusion: R_UInt8
   HDRBuffer:
     attachments:
       Color: RGBA_Float32
@@ -55,47 +55,53 @@ renderpasses:
     viewportSize: 0.5, 1.0
     viewportOffset: 0.5, 0.0
     eye: RightEye
-  DSSDO:
+  AO:
     type: quad
     parameters:
       Pass.displayWidth: 0
       Pass.displayHeight: 0
-      occlusionRadius: 0.5
-      occlusionSamples: 0
-      maxDistance: 0.2
+      occlusionRadius: 1.0
+      occlusionSamples: 4
+      occlusionExponent: 2.0
+      maxDistance: 1.0
+      bias: 0.1
+      algorithm: 0
     shaders:
-      - "FullscreenQuad.vert.spv"
-      - "DSSDO.frag.spv"
+    - "FullscreenQuadFrustum.vert.spv"
+    - "HBAO.frag.spv"
     inputs:
-      - GeometryBuffer.NormalsMaterial
-      - GeometryBuffer.ZBuffer
-    output: DSSDOTemp1
-  DSSDOBlurV:
-    type: quad
-    parameters:
-      Pass.displayWidth: 0
-      Pass.displayHeight: 0
-      Direction: 0.0, 1.0
-    shaders:
-      - "FullscreenQuad.vert.spv"
-      - "DSSDOBlur.frag.spv"
-    inputs:
-      - GeometryBuffer.NormalsMaterial
-      - DSSDOTemp1
-    output: DSSDOTemp2
-  DSSDOBlurH:
+    - GeometryBuffer
+    output: AOTemp1
+  AOBlurV:
     type: quad
     parameters:
       Pass.displayWidth: 0
       Pass.displayHeight: 0
       Direction: 1.0, 0.0
+      Sharpness: 40.0
+      KernelRadius: 8
     shaders:
-      - "FullscreenQuad.vert.spv"
-      - "DSSDOBlur.frag.spv"
+    - "FullscreenQuad.vert.spv"
+    - "HBAOBlur.frag.spv"
     inputs:
-      - GeometryBuffer.NormalsMaterial
-      - DSSDOTemp2
-    output: DSSDOBuffer
+    - GeometryBuffer.ZBuffer
+    - AOTemp1
+    output: AOTemp2
+  AOBlurH:
+    type: quad
+    parameters:
+      Pass.displayWidth: 0
+      Pass.displayHeight: 0
+      Direction: 0.0, 1.0
+      Sharpness: 40.0
+      KernelRadius: 8
+    shaders:
+    - "FullscreenQuad.vert.spv"
+    - "HBAOBlur.frag.spv"
+    inputs:
+    - GeometryBuffer.ZBuffer
+    - AOTemp2
+    output: AOBuffer
   DeferredLightingLeft:
     type: lights
     renderTransparent: true
@@ -107,7 +113,7 @@ renderpasses:
       - "DeferredLighting.frag.spv"
     inputs:
       - GeometryBuffer
-      - DSSDOBuffer
+      - AOBuffer
     output: ForwardBuffer
     viewportSize: 0.5, 1.0
     viewportOffset: 0.0, 0.0
@@ -128,7 +134,7 @@ renderpasses:
       - "DeferredLighting.frag.spv"
     inputs:
       - GeometryBuffer
-      - DSSDOBuffer
+      - AOBuffer
     output: ForwardBuffer
     viewportSize: 0.5, 1.0
     viewportOffset: 0.5, 0.0
@@ -202,14 +208,26 @@ renderpasses:
 
 qualitySettings:
   Low:
-    DSSDO.occlusionSamples: 0
+    AO.occlusionSamples: 0
     FXAA.activateFXAA: 0
+    AO.shaders:
+    - "FullscreenQuadFrustum.vert.spv"
+    - "SSAO.frag.spv"
   Medium:
-    DSSDO.occlusionSamples: 4
+    AO.occlusionSamples: 8
     FXAA.activateFXAA: 1
+    AO.shaders:
+    - "FullscreenQuadFrustum.vert.spv"
+    - "SSAO.frag.spv"
   High:
-    DSSDO.occlusionSamples: 16
+    AO.occlusionSamples: 4
     FXAA.activateFXAA: 1
+    AO.shaders:
+    - "FullscreenQuadFrustum.vert.spv"
+    - "HBAO.frag.spv"
   Ultra:
-    DSSDO.occlusionSamples: 16
+    AO.occlusionSamples: 8
     FXAA.activateFXAA: 1
+    AO.shaders:
+    - "FullscreenQuadFrustum.vert.spv"
+    - "HBAO.frag.spv"

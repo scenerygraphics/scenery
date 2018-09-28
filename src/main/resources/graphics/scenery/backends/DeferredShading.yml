@@ -14,15 +14,15 @@ rendertargets:
   AOBuffer:
     size: 0.5, 0.5
     attachments:
-      Occlusion: RGBA_UInt8
+      Occlusion: R_UInt8
   AOTemp1:
     size: 1.0, 1.0
     attachments:
-      Occlusion: RGBA_UInt8
+      Occlusion: R_UInt8
   AOTemp2:
     size: 1.0, 1.0
     attachments:
-      Occlusion: RGBA_UInt8
+      Occlusion: R_UInt8
   HDRBuffer:
     attachments:
       Color: RGBA_Float32
