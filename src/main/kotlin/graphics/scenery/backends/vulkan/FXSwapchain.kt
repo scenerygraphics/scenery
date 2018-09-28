@@ -171,19 +171,14 @@ class FXSwapchain(device: VulkanDevice,
 
     override fun embedIn(panel: SceneryPanel?) {
         imagePanel = panel
+        imagePanel?.imageView?.scaleY = 1.0
     }
 
     override fun close() {
-        KHRSwapchain.vkDestroySwapchainKHR(device.vulkanDevice, handle, null)
-        KHRSurface.vkDestroySurfaceKHR(device.instance, surface, null)
-
-        presentInfo.free()
-
         MemoryUtil.memFree(swapchainImage)
         MemoryUtil.memFree(swapchainPointer)
         MemoryUtil.memFree(imageBuffer)
 
         sharingBuffer.close()
-
     }
 }
