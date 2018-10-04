@@ -5,7 +5,10 @@ import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.*
 import graphics.scenery.backends.Display
+import graphics.scenery.backends.vulkan.VU
 import graphics.scenery.backends.vulkan.VulkanDevice
+import graphics.scenery.backends.vulkan.VulkanTexture
+import graphics.scenery.backends.vulkan.endCommandBuffer
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.openvr.*
 import org.lwjgl.openvr.VR.*
@@ -15,6 +18,7 @@ import org.lwjgl.openvr.VRSystem.*
 import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
+import org.lwjgl.vulkan.VK10.VK_IMAGE_ASPECT_COLOR_BIT
 import org.scijava.ui.behaviour.Behaviour
 import org.scijava.ui.behaviour.BehaviourMap
 import org.scijava.ui.behaviour.InputTriggerMap
@@ -100,6 +104,8 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
         private set
     var trackingSystemName: String = ""
         private set
+
+    private var commandPool = -1L
 
     init {
         inputHandler.setBehaviourMap(behaviourMap)
@@ -625,6 +631,33 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
 
             readyForSubmission = false
 
+            if(commandPool == -1L) {
+                commandPool = device.createCommandPool(device.queueIndices.graphicsQueue)
+            }
+
+            val subresourceRange = VkImageSubresourceRange.callocStack(stack)
+                .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
+                .baseMipLevel(0)
+                .levelCount(1)
+                .baseArrayLayer(0)
+                .layerCount(1)
+
+            // transition input texture to VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            // as expected by SteamVR.
+            with(VU.newCommandBuffer(device, commandPool, autostart = true)) {
+                // transition source attachment
+                VulkanTexture.transitionLayout(image,
+                    KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                    VK10.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                    subresourceRange = subresourceRange,
+                    commandBuffer = this,
+                    srcStage = VK10.VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                    dstStage = VK10.VK_PIPELINE_STAGE_TRANSFER_BIT
+                )
+
+                endCommandBuffer(device, commandPool, queue, true, true)
+            }
+
             logger.trace("Submitting left...")
             val boundsLeft = VRTextureBounds.callocStack(stack).set(0.0f, 0.0f, 0.5f, 1.0f)
             val errorLeft = VRCompositor_Submit(EVREye_Eye_Left, texture, boundsLeft, 0)
@@ -636,6 +669,21 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
             if (errorLeft != EVRCompositorError_VRCompositorError_None
                 || errorRight != EVRCompositorError_VRCompositorError_None) {
                 logger.error("Compositor error: ${translateError(errorLeft)} ($errorLeft)/${translateError(errorRight)} ($errorRight)")
+            }
+
+            // transition texture back to VK_IMAGE_LAYOUT_PRESENT_SRC_KHR.
+            with(VU.newCommandBuffer(device, commandPool, autostart = true)) {
+                // transition source attachment
+                VulkanTexture.transitionLayout(image,
+                    VK10.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                    KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                    subresourceRange = subresourceRange,
+                    commandBuffer = this,
+                    srcStage = VK10.VK_PIPELINE_STAGE_TRANSFER_BIT,
+                    dstStage = VK10.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+                )
+
+                endCommandBuffer(device, commandPool, queue, true, true)
             }
         }
     }
