@@ -344,7 +344,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
      */
     fun close() {
         shouldClose = true
-        renderer?.shouldClose = true
+        renderer?.close()
     }
 
     /**
