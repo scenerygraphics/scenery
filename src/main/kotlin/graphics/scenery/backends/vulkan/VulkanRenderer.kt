@@ -869,6 +869,7 @@ open class VulkanRenderer(hub: Hub,
                         }
                     }
 
+                    pass.value.initializeInputAttachmentDescriptorSetLayouts(shaderModules)
                     pass.value.initializePipeline("preferred-${node.uuid}",
                         shaderModules, settings = { pipeline ->
                             when(node.material.cullingMode) {
