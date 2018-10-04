@@ -1,6 +1,34 @@
 # CHANGELOG
 
-# scenery-0.6.0 to scenery-0.6.0-beta-1
+# scenery-0.6.0-beta-1 to scenery-0.6.0
+
+## Fixes
+
+* VulkanRenderer: Do not fail if a descriptor set is not found, but emit strong error message and continue rendering
+* VulkanRenderer: Fix incorrect initialisation of input descriptor sets in case the default shader does not consume the pass' inputs
+* OpenVRHMD: Transition Vulkan input texture to layout required by OpenVR
+* FXSwapchain: Force correct image flipping in SceneryPanels and remove KHRSwapchain remnants not needed anymore due to HeadlessSwapchain
+* REPL: Add backends to REPL startup script, fix issue with object location there, and add SceneryBase object to REPL accessible objects
+* HasGeometry: Refactor material import code for MTL files to prevent output of false positive errors
+
+## Additions and Changes
+
+* adds HBAO as new default AO option, and SSAO as a faster, lower quality option
+* Adds support for on-the-fly renderer switching, closes #106.
+* SceneryBase: Use canonical way to close renderer 
+* VulkanRenderer: Support filtering of event types for strict validation, by setting `scenery.VulkanRenderer.StrictValidation` to a list of event types (e.g. '10,6')
+* Renderer: Update rendering pipelines with single-component render targets for AO
+* Move raycasting code from SelectCommand to Scene.raycast() and Camera.getNodesForScreenSpacePosition()
+* Add EnumCycleCommand for shifting through enums
+* adds the capability to change shaders as part of rendering quality options
+* VulkanRenderer: improves the construction of a pass' input descriptor sets
+* VulkanRenderpass: Improve consistency checks on rendertargets
+
+## Dependency Updates
+
+* bumps Kotlin to 1.2.71
+
+# scenery-0.5.1 to scenery-0.6.0-beta-1
 
 ## Fixes
 

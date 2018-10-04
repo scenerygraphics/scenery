@@ -4,11 +4,6 @@
 
 # scenery  // flexible scenegraphing and rendering for scientific visualisation
 
-----
-__Hello, this is the master branch, where development happens and stuff breaks.__ If you require a stable version of scenery, please check out the [latest stable version of this repository, version 0.5.2](https://github.com/scenerygraphics/scenery/tree/scenery-0.5.2).
-
------
-
 
 ![Blood Cells Example](https://ulrik.is/scenery-bloodcells.gif)
 
@@ -94,7 +89,7 @@ Add scenery and ClearGL to your project's `pom.xml`:
   <dependency>
     <groupId>graphics.scenery</groupId>
     <artifactId>scenery</artifactId>
-    <version>0.6.0-beta-1</version>
+    <version>0.6.0</version>
   </dependency>
 
   <dependency>
@@ -110,7 +105,7 @@ Add scenery and ClearGL to your project's `pom.xml`:
 Add scenery and ClearGL to your project's `build.gradle`:
 
 ```groovy
-compile group: 'graphics.scenery', name: 'scenery', version: '0.6.0-beta-1'
+compile group: 'graphics.scenery', name: 'scenery', version: '0.6.0'
 compile group: 'net.clearvolume', name: 'cleargl', version: '2.2.1'
 ```
 
