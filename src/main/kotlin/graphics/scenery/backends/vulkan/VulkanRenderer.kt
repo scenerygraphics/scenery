@@ -122,6 +122,16 @@ open class VulkanRenderer(hub: Hub,
         object None: DescriptorSet(0L)
         data class Set(val setId: Long, val setName: String = "") : DescriptorSet(setId, setName)
         data class DynamicSet(val setId: Long, val offset: Int, val setName: String = "") : DescriptorSet(setId, setName)
+
+        companion object {
+            fun setOrNull(id: Long?, setName: String): DescriptorSet? {
+                return if(id == null) {
+                    null
+                } else {
+                    DescriptorSet.Set(id, setName)
+                }
+            }
+        }
     }
 
     private val lateResizeInitializers = ConcurrentHashMap<Node, () -> Any>()
@@ -2566,26 +2576,26 @@ open class VulkanRenderer(hub: Hub,
                     pass.vulkanMetadata.vertexBuffers.put(1, s.vertexBuffers["instance"]!!.vulkanBuffer)
                 }
 
-                val sets = specs.map { (name, _) ->
-                    when {
+                val sets = specs.mapNotNull { (name, _) ->
+                    val ds = when {
                         name == "VRParameters" -> {
-                            DescriptorSet.Set(descriptorSets["VRParameters"]!!, setName = "VRParameters")
+                            DescriptorSet.setOrNull(descriptorSets["VRParameters"], setName = "VRParameters")
                         }
 
                         name == "LightParameters" -> {
-                            DescriptorSet.Set(descriptorSets["LightParameters"]!!, setName = "LightParameters")
+                            DescriptorSet.setOrNull(descriptorSets["LightParameters"], setName = "LightParameters")
                         }
 
                         name == "ObjectTextures" -> {
-                            DescriptorSet.Set(s.textureDescriptorSet, setName = "ObjectTextures")
+                            DescriptorSet.setOrNull(s.textureDescriptorSet, setName = "ObjectTextures")
                         }
 
                         name.startsWith("Inputs") -> {
-                            DescriptorSet.Set(pass.descriptorSets["input-${pass.name}-${name.substringAfter("-")}"]!!, setName = "Inputs")
+                            DescriptorSet.setOrNull(pass.descriptorSets["input-${pass.name}-${name.substringAfter("-")}"], setName = "Inputs")
                         }
 
                         name == "ShaderParameters" -> {
-                            DescriptorSet.Set(pass.descriptorSets["ShaderParameters-${pass.name}"]!!, setName = "ShaderParameters")
+                            DescriptorSet.setOrNull(pass.descriptorSets["ShaderParameters-${pass.name}"], setName = "ShaderParameters")
                         }
 
                         else -> {
@@ -2598,6 +2608,13 @@ open class VulkanRenderer(hub: Hub,
                             }
                         }
                     }
+
+                    if(ds == null) {
+                        logger.error("Internal consistency error for node ${node.name}: Descriptor set $name not found in renderpass, skipping node for rendering.")
+                        return@drawLoop
+                    }
+
+                    ds
                 }
                 logger.debug("${node.name} requires DS ${specs.joinToString { "${it.key}, " }}")
 
