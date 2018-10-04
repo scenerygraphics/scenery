@@ -474,11 +474,11 @@ open class OpenGLRenderer(hub: Hub,
     }
 
     fun prepareRenderpasses(config: RenderConfigReader.RenderConfig, windowWidth: Int, windowHeight: Int): LinkedHashMap<String, OpenGLRenderpass> {
-        if(config.sRGB) {
-            gl.glEnable(GL4.GL_FRAMEBUFFER_SRGB)
-        } else {
-            gl.glDisable(GL4.GL_FRAMEBUFFER_SRGB)
-        }
+//        if(config.sRGB) {
+//            gl.glEnable(GL4.GL_FRAMEBUFFER_SRGB)
+//        } else {
+//            gl.glDisable(GL4.GL_FRAMEBUFFER_SRGB)
+//        }
 
         buffers["ShaderParametersBuffer"]!!.reset()
 
