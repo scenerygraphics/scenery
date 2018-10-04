@@ -219,14 +219,15 @@ open class VulkanRenderer(hub: Hub,
             }
 
             when {
-                flags and VK_DEBUG_REPORT_ERROR_BIT_EXT == VK_DEBUG_REPORT_ERROR_BIT_EXT -> logger.error("!! $obj Validation$dbg: " + getString(pMessage))
-                flags and VK_DEBUG_REPORT_WARNING_BIT_EXT == VK_DEBUG_REPORT_WARNING_BIT_EXT -> logger.warn("!! $obj Validation$dbg: " + getString(pMessage))
-                flags and VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT == VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT -> logger.error("!! $obj Validation (performance)$dbg: " + getString(pMessage))
-                flags and VK_DEBUG_REPORT_INFORMATION_BIT_EXT == VK_DEBUG_REPORT_INFORMATION_BIT_EXT -> logger.info("!! $obj Validation$dbg: " + getString(pMessage))
-                else -> logger.info("!! $obj Validation (unknown message type)$dbg: " + getString(pMessage))
+                flags and VK_DEBUG_REPORT_ERROR_BIT_EXT == VK_DEBUG_REPORT_ERROR_BIT_EXT -> logger.error("!! $obj($objectType) Validation$dbg: " + getString(pMessage))
+                flags and VK_DEBUG_REPORT_WARNING_BIT_EXT == VK_DEBUG_REPORT_WARNING_BIT_EXT -> logger.warn("!! $obj($objectType) Validation$dbg: " + getString(pMessage))
+                flags and VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT == VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT -> logger.error("!! $obj($objectType) Validation (performance)$dbg: " + getString(pMessage))
+                flags and VK_DEBUG_REPORT_INFORMATION_BIT_EXT == VK_DEBUG_REPORT_INFORMATION_BIT_EXT -> logger.info("!! $obj($objectType) Validation$dbg: " + getString(pMessage))
+                else -> logger.info("!! $obj($objectType) Validation (unknown message type)$dbg: " + getString(pMessage))
             }
 
-            if(strictValidation) {
+            if(strictValidation.first && strictValidation.second.isEmpty() ||
+                strictValidation.first && strictValidation.second.contains(objectType)) {
                 // set 15s of delay until the next frame is rendered if a validation error happens
                 renderDelay = 1500L
 
@@ -240,7 +241,7 @@ open class VulkanRenderer(hub: Hub,
 
             // if strict validation is enabled, the application will quit after a
             // validation error has been encountered
-            return if(strictValidation) {
+            return if(strictValidation.first) {
                 VK_FALSE
             } else {
                 VK_FALSE
@@ -281,7 +282,7 @@ open class VulkanRenderer(hub: Hub,
     protected val renderpasses = Collections.synchronizedMap(LinkedHashMap<String, VulkanRenderpass>())
 
     protected var validation = java.lang.Boolean.parseBoolean(System.getProperty("scenery.VulkanRenderer.EnableValidations", "false"))
-    protected val strictValidation = java.lang.Boolean.parseBoolean(System.getProperty("scenery.VulkanRenderer.StrictValidation", "false"))
+    protected val strictValidation = getStrictValidation()
     protected val wantsOpenGLSwapchain = java.lang.Boolean.parseBoolean(System.getProperty("scenery.VulkanRenderer.UseOpenGLSwapchain", "false"))
     protected val defaultValidationLayers = arrayOf("VK_LAYER_LUNARG_standard_validation")
 
@@ -361,6 +362,19 @@ open class VulkanRenderer(hub: Hub,
         private const val MATERIAL_HAS_SPECULAR = 0x0004
         private const val MATERIAL_HAS_NORMAL = 0x0008
         private const val MATERIAL_HAS_ALPHAMASK = 0x0010
+
+        fun getStrictValidation(): Pair<Boolean, List<Int>> {
+            val strict = System.getProperty("scenery.VulkanRenderer.StrictValidation")
+            val separated = strict?.split(",")?.asSequence()?.mapNotNull { it.toIntOrNull() }?.toList()
+
+            return when {
+                strict == null -> false to emptyList()
+                strict == "true" -> true to emptyList()
+                strict == "false" -> false to emptyList()
+                separated != null && separated.count() > 0 -> true to separated
+                else -> false to emptyList()
+            }
+        }
     }
 
     init {
