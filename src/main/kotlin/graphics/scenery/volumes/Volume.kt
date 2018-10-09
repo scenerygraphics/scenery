@@ -75,7 +75,7 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
      *  1 -- Maximum Intensity Projection
      *  2 -- Alpha compositing
      */
-    @ShaderProperty var renderingMethod: Int = 2
+    @ShaderProperty var renderingMethod: Int = 0
 
     /** Transfer function minimum */
     @ShaderProperty var trangemin = 0.00f
