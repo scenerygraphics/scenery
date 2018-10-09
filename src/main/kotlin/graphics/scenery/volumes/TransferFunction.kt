@@ -158,11 +158,11 @@ open class TransferFunction(val name: String = "") {
         }
 
         /** Returns a ramp transfer function, transferring nothing before [offset] (0.0f by default), and everything at the top. */
-        @JvmStatic @JvmOverloads fun ramp(offset: Float = 0.0f): TransferFunction {
+        @JvmStatic @JvmOverloads fun ramp(offset: Float = 0.0f, rampMax: Float = 1.0f): TransferFunction {
             val tf = TransferFunction()
             tf.addControlPoint(0.0f, 0.0f)
             tf.addControlPoint(offset, 0.0f)
-            tf.addControlPoint(1.0f, 1.0f)
+            tf.addControlPoint(1.0f, rampMax)
 
             return tf
         }
