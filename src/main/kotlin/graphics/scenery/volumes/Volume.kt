@@ -110,7 +110,7 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
     /** Maximum steps to take along a single ray through the volume */
     @ShaderProperty var stepSize = 0.01f
     /** Alpha blending factor */
-    @ShaderProperty var alphaBlending = 0.06f
+    @ShaderProperty var alphaBlending = 1.0f
     /** Gamma exponent */
     @ShaderProperty var gamma = 1.0f
 
@@ -138,7 +138,7 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
     @ShaderProperty var time: Float = System.nanoTime().toFloat()
 
     /** The transfer function to use for the volume. Flat by default. */
-    var transferFunction: TransferFunction = TransferFunction.flat(0.5f)
+    var transferFunction: TransferFunction = TransferFunction.flat(1.0f)
 
     /**
      * Regenerates the [boundingBox] in case any relevant properties have changed.
