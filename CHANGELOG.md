@@ -1,5 +1,17 @@
 # CHANGELOG
 
+# scenery-0.6.0 to scenery-0.6.1
+
+## Fixes
+
+* REPL: Fix typo in `startup.js` launch script that caused `graphics.scenery.volumes` not getting imported
+* Volume: Fix normalisation for the different rendering modes
+
+## Additions and Changes
+
+* TransferFunction: add rampMax parameter to ramp factory function to set a maximum value to ramp to
+* Volume: Make local maximum intensity projection (LMIP) the default rendering methods due to performance issues with alpha blending
+
 # scenery-0.6.0-beta-1 to scenery-0.6.0
 
 ## Fixes
