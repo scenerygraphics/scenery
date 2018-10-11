@@ -341,9 +341,10 @@ open class OpenGLRenderer(hub: Hub,
             caps.blueBits = 8
             caps.alphaBits = 8
 
+
             val factory = GLDrawableFactory.getFactory(profile)
             drawable = factory.createOffscreenAutoDrawable(factory.defaultDevice, caps,
-                DefaultGLCapabilitiesChooser(), window.width, window.height)
+                DefaultGLCapabilitiesChooser(), embedIn!!.width.toInt(), embedIn!!.height.toInt())
                 .apply {
 
                     addGLEventListener(this@OpenGLRenderer)
@@ -365,8 +366,8 @@ open class OpenGLRenderer(hub: Hub,
                     }
 
                     window = SceneryWindow.JavaFXStage(embedIn!!)
-                    window.width = width
-                    window.height = height
+                    window.width = embedIn!!.width.toInt()
+                    window.height = embedIn!!.height.toInt()
 
                     resizeHandler.lastWidth = window.width
                     resizeHandler.lastHeight = window.height
@@ -1380,6 +1381,10 @@ open class OpenGLRenderer(hub: Hub,
 
         val running = hub?.getApplication()?.running ?: true
 
+        embedIn?.let {
+            resizeHandler.queryResize()
+        }
+
         if (scene.children.count() == 0 || renderpasses.isEmpty() || mustRecreateFramebuffers || !running) {
             Thread.sleep(200)
             return@runBlocking
@@ -1852,10 +1857,6 @@ open class OpenGLRenderer(hub: Hub,
             }
 
             gl.glBindBuffer(GL4.GL_PIXEL_PACK_BUFFER, 0)
-
-            embedIn?.let {
-                resizeHandler.queryResize()
-            }
         }
 
 
