@@ -120,7 +120,9 @@ class SceneryPanel(var imageWidth: Int, var imageHeight: Int) : Pane() {
                 } else {
                     g.drawTexture(t, 0.0f, 0.0f, width.toFloat(), height.toFloat())
                 }
-           }
+            } else {
+                logger.debug("Not rendering, size mismatch ${this@SceneryPanel.width}x${this@SceneryPanel.height}")
+            }
         }
     }
 
