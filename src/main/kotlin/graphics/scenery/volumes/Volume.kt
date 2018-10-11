@@ -20,6 +20,7 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 import kotlin.math.abs
 import kotlin.math.sqrt
@@ -604,8 +605,8 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
     private fun assignVolumeTexture(dimensions: LongArray, descriptor: VolumeDescriptor, replace: Boolean) {
         while(deallocations.size > 20) {
             val last = deallocations.pollLast()
-            logger.info("deallocating $last from ${deallocations.map { it.hashCode() }.joinToString(", ")}")
-            logger.info("Address is ${MemoryUtil.memAddress(last).toHexString()}")
+            logger.debug("Time series: deallocating $last from ${deallocations.map { it.hashCode() }.joinToString(", ")}")
+            logger.trace("Address is ${MemoryUtil.memAddress(last).toHexString()}")
         }
 
         val (min: Int, max: Int) = when(descriptor.dataType) {
@@ -635,7 +636,7 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
 
         boundingBox = generateBoundingBox()
 
-        if (this.lock.tryLock()) {
+        if (this.lock.tryLock(100, TimeUnit.MILLISECONDS)) {
             logger.debug("$name: Assigning volume texture")
             this.material.transferTextures.put("volume", gtv)?.let {
                 if (replace && it.name != "empty-volume" && !deallocations.contains(it.contents)) {
@@ -646,6 +647,8 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
             this.material.needsTextureReload = true
 
             this.lock.unlock()
+        } else {
+            logger.error("Failed to lock Volume $name, lock state: $lock")
         }
     }
 
