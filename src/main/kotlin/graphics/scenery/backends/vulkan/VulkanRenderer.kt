@@ -1554,13 +1554,23 @@ open class VulkanRenderer(hub: Hub,
         return map
     }
 
-    private fun pollEvents() {
+    /**
+     * Polls for window events and triggers swapchain recreation if necessary.
+     * Returns true if the swapchain has been recreated, or false if not.
+     */
+    private fun pollEvents(): Boolean {
         window.pollEvents()
+
+        (swapchain as? HeadlessSwapchain)?.queryResize()
 
         if (swapchainRecreator.mustRecreate) {
             swapchainRecreator.recreate()
             frames = 0
+
+            return true
         }
+
+        return false
     }
 
     private fun beginFrame() {
@@ -1744,7 +1754,7 @@ open class VulkanRenderer(hub: Hub,
      * This function renders the scene
      */
     override fun render() = runBlocking {
-        pollEvents()
+        val swapchainChanged = pollEvents()
 
         if(shouldClose) {
             closeInternal()
@@ -1787,6 +1797,7 @@ open class VulkanRenderer(hub: Hub,
             logger.warn("Delaying next frame for $renderDelay ms, as one or more validation error have occured in the previous frame.")
             Thread.sleep(renderDelay)
         }
+
 
         val startUboUpdate = System.nanoTime()
         val ubosUpdated = updateDefaultUBOs(device)
@@ -1860,9 +1871,10 @@ open class VulkanRenderer(hub: Hub,
             sceneArray = newSceneArray
         }
 
+        val presentedFrames = swapchain?.presentedFrames() ?: 0
         // return if neither UBOs were updated, nor the scene was modified
-        if (pushMode && !ubosUpdated && !forceRerecording && !screenshotRequested && totalFrames > 3) {
-            logger.trace("UBOs have not been updated, returning ({}, {}, {}, {})", pushMode, ubosUpdated, forceRerecording, totalFrames)
+        if (pushMode && !swapchainChanged && !ubosUpdated && !forceRerecording && !screenshotRequested && totalFrames > 3 && presentedFrames > 3) {
+            logger.trace("UBOs have not been updated, returning (pushMode={}, swapchainChanged={}, ubosUpdated={}, forceRerecording={}, screenshotRequested={})", pushMode, swapchainChanged, ubosUpdated, forceRerecording, totalFrames)
             Thread.sleep(2)
 
             return@runBlocking

@@ -19,6 +19,7 @@ import javafx.scene.control.Label
 import javafx.scene.layout.*
 import javafx.scene.paint.Color
 import javafx.scene.text.TextAlignment
+import javafx.stage.Window
 import java.util.concurrent.locks.ReentrantLock
 
 
@@ -37,8 +38,12 @@ class FXSwapchain(device: VulkanDevice,
                   bufferCount: Int = 2) : HeadlessSwapchain(device, queue, commandPools, renderConfig, useSRGB, useFramelock, bufferCount) {
     var lock = ReentrantLock()
 
-    protected lateinit var stage: Stage
+    protected lateinit var stage: Window
 
+    /**
+     * Creates a window for this swapchain, and initialiases [win] as [SceneryWindow.JavaFXStage].
+     * In this case, only a proxy window is used, without any actual window creation.
+     */
     override fun createWindow(win: SceneryWindow, swapchainRecreator: VulkanRenderer.SwapchainRecreator): SceneryWindow {
         vulkanInstance = device.instance
         vulkanSwapchainRecreator = swapchainRecreator
@@ -47,8 +52,8 @@ class FXSwapchain(device: VulkanDevice,
         val lCountDownLatch = CountDownLatch(1)
         Platform.runLater {
             if (imagePanel == null) {
-                stage = Stage()
-                stage.title = "FXSwapchain"
+                val s = Stage()
+                s.title = "FXSwapchain"
 
                 val lStackPane = StackPane()
                 lStackPane.backgroundProperty()
@@ -102,35 +107,38 @@ class FXSwapchain(device: VulkanDevice,
                 lStackPane.children.addAll(pane)
 
                 val scene = Scene(lStackPane)
-                stage.scene = scene
-                stage.show()
+                s.scene = scene
+                s.show()
+
+                window.width = win.width
+                window.height = win.height
+
+                stage = s
             } else {
                 imagePanel?.let {
                     window = SceneryWindow.JavaFXStage(it)
+                    window.width = it.width.toInt()
+                    window.height = it.height.toInt()
 
-                    stage = it.scene.window as Stage
+                    stage = it.scene.window
+
+                    it.widthProperty().addListener { _, _, newWidth ->
+                        resizeHandler.lastWidth = newWidth.toInt()
+                    }
+
+                    it.heightProperty().addListener { _, _, newHeight ->
+                        resizeHandler.lastHeight = newHeight.toInt()
+                    }
+
+                    it.minWidth = 100.0
+                    it.minHeight = 100.0
+                    it.prefWidth = window.width.toDouble()
+                    it.prefHeight = window.height.toDouble()
                 }
             }
 
-            window.width = win.width
-            window.height = win.height
-
-            resizeHandler.lastWidth = win.width
-            resizeHandler.lastHeight = win.height
-
-            imagePanel?.widthProperty()?.addListener { _, _, newWidth ->
-                resizeHandler.lastWidth = newWidth.toInt()
-            }
-
-            imagePanel?.heightProperty()?.addListener { _, _, newHeight ->
-                resizeHandler.lastHeight = newHeight.toInt()
-            }
-
-            imagePanel?.minWidth = 100.0
-            imagePanel?.minHeight = 100.0
-            imagePanel?.prefWidth = win.width.toDouble()
-            imagePanel?.prefHeight = win.height.toDouble()
-
+            resizeHandler.lastWidth = window.width
+            resizeHandler.lastHeight = window.height
 
             lCountDownLatch.countDown()
 
@@ -142,6 +150,17 @@ class FXSwapchain(device: VulkanDevice,
         return window
     }
 
+    /**
+     * Creates a new swapchain, potentially recycling or deallocating [oldSwapchain].
+     */
+    override fun create(oldSwapchain: Swapchain?): Swapchain {
+        imagePanel?.displayedFrames = 0
+        return super.create(oldSwapchain)
+    }
+
+    /**
+     * Post-present routine, copies the rendered image into the imageView of the [SceneryPanel].
+     */
     override fun postPresent(image: Int) {
         super.postPresent(image)
 
@@ -150,6 +169,7 @@ class FXSwapchain(device: VulkanDevice,
                 val imageByteSize = window.width * window.height * 4
                 val buffer = sharingBuffer.mapIfUnmapped().getByteBuffer(imageByteSize)
 
+                logger.trace("Updating with {}x{}", window.width, window.height)
                 imagePanel?.update(buffer)
 
                 lock.unlock()
@@ -159,9 +179,16 @@ class FXSwapchain(device: VulkanDevice,
         resizeHandler.queryResize()
     }
 
+    /**
+     * Toggles fullscreen.
+     */
     override fun toggleFullscreen(hub: Hub, swapchainRecreator: VulkanRenderer.SwapchainRecreator) {
         PlatformImpl.runLater {
-            stage.isFullScreen = !stage.isFullScreen
+            val s = stage
+            if(s is Stage) {
+                s.isFullScreen = !s.isFullScreen
+            }
+
             window.isFullscreen = !window.isFullscreen
 
             resizeHandler.lastWidth = window.width
@@ -169,11 +196,24 @@ class FXSwapchain(device: VulkanDevice,
         }
     }
 
+    /**
+     * Embeds the swapchain into a [SceneryPanel].
+     */
     override fun embedIn(panel: SceneryPanel?) {
         imagePanel = panel
         imagePanel?.imageView?.scaleY = 1.0
     }
 
+    /**
+     * Returns the number of frames presented with the current swapchain.
+     */
+    override fun presentedFrames(): Long {
+        return imagePanel?.displayedFrames ?: 0
+    }
+
+    /**
+     * Closes the swapchain, deallocating all resources.
+     */
     override fun close() {
         MemoryUtil.memFree(swapchainImage)
         MemoryUtil.memFree(swapchainPointer)
