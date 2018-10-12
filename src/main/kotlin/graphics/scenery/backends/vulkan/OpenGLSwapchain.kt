@@ -49,6 +49,7 @@ class OpenGLSwapchain(val device: VulkanDevice,
     override var handle: Long = 0L
     override var images: LongArray? = null
     override var imageViews: LongArray? = null
+    protected var presentedFrames = 0L
 
     override var format: Int = 0
 
@@ -110,6 +111,7 @@ class OpenGLSwapchain(val device: VulkanDevice,
     }
 
     override fun create(oldSwapchain: Swapchain?): Swapchain {
+        presentedFrames = 0
         glfwMakeContextCurrent(window.window)
         GL.createCapabilities()
 
@@ -299,6 +301,7 @@ class OpenGLSwapchain(val device: VulkanDevice,
         }
 
         glfwSwapBuffers(window.window)
+        presentedFrames++
     }
 
     override fun postPresent(image: Int) {
@@ -355,6 +358,10 @@ class OpenGLSwapchain(val device: VulkanDevice,
 
     override fun embedIn(panel: SceneryPanel?) {
         logger.error("Embedding is not supported with the OpenGL-based swapchain. Use FXSwapchain instead.")
+    }
+
+    override fun presentedFrames(): Long {
+        return presentedFrames
     }
 
     override fun close() {
