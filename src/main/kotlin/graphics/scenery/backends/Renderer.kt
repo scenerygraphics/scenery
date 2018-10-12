@@ -9,6 +9,7 @@ import graphics.scenery.backends.vulkan.VulkanRenderer
 import graphics.scenery.utils.ExtractsNatives
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.SceneryPanel
+import org.slf4j.LoggerFactory
 
 /**
  * Renderer interface. Defines the minimal set of functions a renderer has to implement.
@@ -203,6 +204,10 @@ abstract class Renderer : Hubable {
                         VulkanRenderer(hub, applicationName, scene, windowWidth, windowHeight, embedIn, config)
                     } catch (e: Exception) {
                         logger.warn("Vulkan unavailable (${e.cause}, ${e.message}), falling back to OpenGL.")
+                        logger.debug("Full exception: $e")
+                        if(logger.isDebugEnabled) {
+                            e.printStackTrace()
+                        }
                         OpenGLRenderer(hub, applicationName, scene, windowWidth, windowHeight, embedIn, config)
                     }
                 } else {
