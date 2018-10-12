@@ -17,7 +17,6 @@ import org.lwjgl.glfw.GLFWNativeX11.glfwGetX11Display
 import org.lwjgl.glfw.GLFWVulkan
 import org.lwjgl.glfw.GLFWWindowSizeCallback
 import org.lwjgl.opengl.GL
-import org.lwjgl.opengl.GL11.*
 import org.lwjgl.opengl.GL30.*
 import org.lwjgl.opengl.GLXNVSwapGroup
 import org.lwjgl.opengl.NVDrawVulkanImage
@@ -34,6 +33,7 @@ import java.nio.LongBuffer
 
 /**
  * GLFW-based OpenGL swapchain and window, using Nvidia's NV_draw_vulkan_image GL extension.
+ * The swapchain will reside on [device] and submit to [queue]. All other parameters are not used.
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
@@ -46,22 +46,38 @@ class OpenGLSwapchain(val device: VulkanDevice,
                       val bufferCount: Int = 2) : Swapchain {
     private val logger by LazyLogger()
 
+    /** Swapchain handle. */
     override var handle: Long = 0L
+    /** Array for rendered images. */
     override var images: LongArray? = null
+    /** Array for image views. */
     override var imageViews: LongArray? = null
+    /** Number of frames presented with this swapchain. */
+    protected var presentedFrames = 0L
 
+    /** Color format of the images. */
     override var format: Int = 0
 
+    /** Window instance to use. */
     lateinit var window: SceneryWindow.GLFWWindow
 
+    /** List of supported OpenGL extensions. */
     val supportedExtensions = ArrayList<String>()
 
+    /** Window surface to use. */
     var surface: Long = 0
+    /** Window size callback to use. */
     lateinit var windowSizeCallback: GLFWWindowSizeCallback
 
+    /** Time of the last resize event in ns. */
     var lastResize = -1L
     private val WINDOW_RESIZE_TIMEOUT = 200 * 10e6
 
+    /**
+     * Creates a window for this swapchain, and initialiases [win] as [SceneryWindow.GLFWWindow].
+     * Needs to be handed a [VulkanRenderer.SwapchainRecreator].
+     * Returns the initialised [SceneryWindow].
+     */
     override fun createWindow(win: SceneryWindow, swapchainRecreator: VulkanRenderer.SwapchainRecreator): SceneryWindow {
         glfwDefaultWindowHints()
 
@@ -109,7 +125,13 @@ class OpenGLSwapchain(val device: VulkanDevice,
         return window
     }
 
+    /**
+     * Creates a new swapchain and returns it, potentially recycling or deallocating [oldSwapchain].
+     * In the special case of the [OpenGLSwapchain], an OpenGL context is created and checked for the
+     * GL_NV_draw_vulkan_image extension, which it requires.
+     */
     override fun create(oldSwapchain: Swapchain?): Swapchain {
+        presentedFrames = 0
         glfwMakeContextCurrent(window.window)
         GL.createCapabilities()
 
@@ -137,7 +159,7 @@ class OpenGLSwapchain(val device: VulkanDevice,
             window.height = 1200
         }
 
-        val imgs = (0..bufferCount - 1).map {
+        val imgs = (0 until bufferCount).map {
             with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
                 val t = VulkanTexture(this@OpenGLSwapchain.device, commandPools, queue, queue,
                     window.width, window.height, 1, format, 1)
@@ -176,6 +198,10 @@ class OpenGLSwapchain(val device: VulkanDevice,
         return this
     }
 
+    /**
+     * Enables frame-locking for this swapchain, locking buffer swap events to other screens/machines.
+     * Works only if the WGL_NV_swap_group (Windows) or GLX_NV_swap_group extension is supported.
+     */
     fun enableFramelock(): Boolean {
         if (!supportedExtensions.contains("WGL_NV_swap_group") && !supportedExtensions.contains("GLX_NV_swap_group")) {
             logger.warn("Framelock requested, but not supported on this hardware.")
@@ -238,6 +264,9 @@ class OpenGLSwapchain(val device: VulkanDevice,
         }
     }
 
+    /**
+     * Disables frame-lock for this swapchain.
+     */
     @Suppress("unused")
     fun disableFramelock() {
         if (!supportedExtensions.contains("WGL_NV_swap_group")) {
@@ -266,6 +295,10 @@ class OpenGLSwapchain(val device: VulkanDevice,
 
     }
 
+    /**
+     * Presents the currently rendered image, drawing the Vulkan image into the current
+     * OpenGL context.
+     */
     override fun present(waitForSemaphores: LongBuffer?) {
         glDisable(GL_DEPTH_TEST)
 
@@ -299,16 +332,26 @@ class OpenGLSwapchain(val device: VulkanDevice,
         }
 
         glfwSwapBuffers(window.window)
+        presentedFrames++
     }
 
+    /**
+     * Post-present routine, does nothing in this case.
+     */
     override fun postPresent(image: Int) {
     }
 
+    /**
+     * Proceeds to the next swapchain image.
+     */
     override fun next(timeout: Long, signalSemaphore: Long): Boolean {
         NVDrawVulkanImage.glSignalVkSemaphoreNV(signalSemaphore)
         return false
     }
 
+    /**
+     * Toggles fullscreen.
+     */
     override fun toggleFullscreen(hub: Hub, swapchainRecreator: VulkanRenderer.SwapchainRecreator) {
         if (window.isFullscreen) {
             glfwSetWindowMonitor(window.window,
@@ -353,10 +396,23 @@ class OpenGLSwapchain(val device: VulkanDevice,
         }
     }
 
+    /**
+     * Embeds the swapchain into a [SceneryPanel]. Not supported by [OpenGLSwapchain], see [FXSwapchain] instead.
+     */
     override fun embedIn(panel: SceneryPanel?) {
         logger.error("Embedding is not supported with the OpenGL-based swapchain. Use FXSwapchain instead.")
     }
 
+    /**
+     * Returns the number of presented frames.
+     */
+    override fun presentedFrames(): Long {
+        return presentedFrames
+    }
+
+    /**
+     * Closes the swapchain, freeing all of its resources.
+     */
     override fun close() {
         imageViews?.forEach { vkDestroyImageView(device.vulkanDevice, it, null) }
         images?.forEach { vkDestroyImage(device.vulkanDevice, it, null) }
