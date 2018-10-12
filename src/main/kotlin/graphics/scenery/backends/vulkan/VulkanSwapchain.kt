@@ -35,6 +35,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
     override var handle: Long = 0L
     override var images: LongArray? = null
     override var imageViews: LongArray? = null
+    protected var presentedFrames: Long = 0
 
     override var format: Int = 0
 
@@ -98,6 +99,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
     }
 
     override fun create(oldSwapchain: Swapchain?): Swapchain {
+        presentedFrames = 0
         return stackPush().use { stack ->
             val colorFormatAndSpace = getColorFormatAndSpace()
             val oldHandle = oldSwapchain?.handle
@@ -361,6 +363,8 @@ open class VulkanSwapchain(open val device: VulkanDevice,
         VU.run("Presenting swapchain image",
             { KHRSwapchain.vkQueuePresentKHR(presentQueue, presentInfo) },
             allowedResults = listOf(VK_ERROR_OUT_OF_DATE_KHR))
+
+        presentedFrames++
     }
 
     override fun postPresent(image: Int) {
@@ -441,6 +445,10 @@ open class VulkanSwapchain(open val device: VulkanDevice,
         }
 
         logger.error("Embedding is not supported with the default Vulkan swapchain. Use FXSwapchain instead.")
+    }
+
+    override fun presentedFrames(): Long {
+        return presentedFrames
     }
 
     override fun close() {

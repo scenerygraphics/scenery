@@ -33,7 +33,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
     protected lateinit var vulkanInstance: VkInstance
     protected lateinit var vulkanSwapchainRecreator: VulkanRenderer.SwapchainRecreator
 
-    protected val WINDOW_RESIZE_TIMEOUT = 400 * 10e6
+    protected val WINDOW_RESIZE_TIMEOUT = 600 * 10e5
 
     inner class ResizeHandler {
         @Volatile
@@ -50,6 +50,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
             }
 
             if (lastResize > 0L && lastResize + WINDOW_RESIZE_TIMEOUT < System.nanoTime()) {
+                logger.debug("Not resizing, before timeout")
                 lastResize = System.nanoTime()
                 return
             }
@@ -58,6 +59,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
                 return
             }
 
+            logger.debug("Resizing swapchain ${window.width}x${window.height} -> ${lastWidth}x$lastHeight")
             window.width = lastWidth
             window.height = lastHeight
 
@@ -81,6 +83,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
     }
 
     override fun create(oldSwapchain: Swapchain?): Swapchain {
+        presentedFrames = 0
         if (oldSwapchain != null && initialized) {
             MemoryUtil.memFree(imageBuffer)
             sharingBuffer.close()
@@ -165,6 +168,8 @@ open class HeadlessSwapchain(device: VulkanDevice,
                     flush = true, dealloc = true)
             }
         }
+
+        presentedFrames++
     }
 
     override fun postPresent(image: Int) {
@@ -213,6 +218,10 @@ open class HeadlessSwapchain(device: VulkanDevice,
 
         VK10.vkQueueWaitIdle(queue)
 
+        resizeHandler.queryResize()
+    }
+
+    fun queryResize() {
         resizeHandler.queryResize()
     }
 
