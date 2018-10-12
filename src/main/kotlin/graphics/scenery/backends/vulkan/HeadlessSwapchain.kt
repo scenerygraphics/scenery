@@ -2,7 +2,6 @@ package graphics.scenery.backends.vulkan
 
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.SceneryWindow
-import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.vulkan.*
 import java.nio.ByteBuffer
@@ -35,12 +34,26 @@ open class HeadlessSwapchain(device: VulkanDevice,
 
     protected val WINDOW_RESIZE_TIMEOUT = 600 * 10e5
 
+    /** State variable for the current swapchain image. */
+    protected var currentImage = 0
+
+    /**
+     * Special resize handler for HeadlessSwapchain, as resize events
+     * here are externally triggered, outside of the regular event loop.
+     */
     inner class ResizeHandler {
+        /** Timestamp of the last resize */
         @Volatile
         var lastResize = -1L
+        /** Last reported width */
         var lastWidth = 0
+        /** Last reported height */
         var lastHeight = 0
 
+        /**
+         * Checks whether a resize is necessary and sets the [VulkanRenderer.SwapchainRecreator.mustRecreate]
+         * flag if necessary.
+         */
         @Synchronized
         fun queryResize() {
             if (lastWidth <= 0 || lastHeight <= 0) {
@@ -71,6 +84,10 @@ open class HeadlessSwapchain(device: VulkanDevice,
 
     protected var resizeHandler = ResizeHandler()
 
+    /**
+     * Creates a window for this swapchain, and initialiases [win] as [SceneryWindow.HeadlessWindow].
+     * In this case, only a proxy window is used, without any actual window creation.
+     */
     override fun createWindow(win: SceneryWindow, swapchainRecreator: VulkanRenderer.SwapchainRecreator): SceneryWindow {
         vulkanInstance = device.instance
         vulkanSwapchainRecreator = swapchainRecreator
@@ -82,6 +99,9 @@ open class HeadlessSwapchain(device: VulkanDevice,
         return window
     }
 
+    /**
+     * Creates a new swapchain and returns it, potentially recycling or deallocating [oldSwapchain].
+     */
     override fun create(oldSwapchain: Swapchain?): Swapchain {
         presentedFrames = 0
         if (oldSwapchain != null && initialized) {
@@ -134,7 +154,11 @@ open class HeadlessSwapchain(device: VulkanDevice,
         return this
     }
 
-    var currentImage = 0
+    /**
+     * Will signal [signalSemaphore] that the next image is ready for being written to for presenting,
+     * optionally waiting for a [timeout] before failing. Returns true if the swapchain needs to be
+     * recreated and false if not.
+     */
     override fun next(timeout: Long, signalSemaphore: Long): Boolean {
         MemoryStack.stackPush().use { stack ->
             VK10.vkQueueWaitIdle(presentQueue)
@@ -153,6 +177,9 @@ open class HeadlessSwapchain(device: VulkanDevice,
         return false
     }
 
+    /**
+     * Presents the current image.
+     */
     override fun present(waitForSemaphores: LongBuffer?) {
         MemoryStack.stackPush().use { stack ->
             if (vulkanSwapchainRecreator.mustRecreate) {
@@ -172,6 +199,9 @@ open class HeadlessSwapchain(device: VulkanDevice,
         presentedFrames++
     }
 
+    /**
+     * Post-present routine, will copy the rendered image into the [images] array.
+     */
     override fun postPresent(image: Int) {
         if (vulkanSwapchainRecreator.mustRecreate && sharingBuffer.initialized()) {
             return
@@ -221,10 +251,17 @@ open class HeadlessSwapchain(device: VulkanDevice,
         resizeHandler.queryResize()
     }
 
+    /**
+     * Queries the resize handler for changes, setting the
+     * [VulkanRenderer.SwapchainRecreator.mustRecreate] if necessary.
+     */
     fun queryResize() {
         resizeHandler.queryResize()
     }
 
+    /**
+     * Toggles fullscreen.
+     */
     override fun toggleFullscreen(hub: Hub, swapchainRecreator: VulkanRenderer.SwapchainRecreator) {
         window.isFullscreen = !window.isFullscreen
 
@@ -232,10 +269,16 @@ open class HeadlessSwapchain(device: VulkanDevice,
         resizeHandler.lastHeight = window.height
     }
 
+    /**
+     * Embeds the swapchain into a [SceneryPanel].
+     */
     override fun embedIn(panel: SceneryPanel?) {
         imagePanel = panel
     }
 
+    /**
+     * Closes the swapchain, deallocating all resources.
+     */
     override fun close() {
         KHRSwapchain.vkDestroySwapchainKHR(device.vulkanDevice, handle, null)
         KHRSurface.vkDestroySurfaceKHR(device.instance, surface, null)

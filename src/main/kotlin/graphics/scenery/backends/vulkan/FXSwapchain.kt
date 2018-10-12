@@ -40,6 +40,10 @@ class FXSwapchain(device: VulkanDevice,
 
     protected lateinit var stage: Window
 
+    /**
+     * Creates a window for this swapchain, and initialiases [win] as [SceneryWindow.JavaFXStage].
+     * In this case, only a proxy window is used, without any actual window creation.
+     */
     override fun createWindow(win: SceneryWindow, swapchainRecreator: VulkanRenderer.SwapchainRecreator): SceneryWindow {
         vulkanInstance = device.instance
         vulkanSwapchainRecreator = swapchainRecreator
@@ -146,11 +150,17 @@ class FXSwapchain(device: VulkanDevice,
         return window
     }
 
+    /**
+     * Creates a new swapchain, potentially recycling or deallocating [oldSwapchain].
+     */
     override fun create(oldSwapchain: Swapchain?): Swapchain {
         imagePanel?.displayedFrames = 0
         return super.create(oldSwapchain)
     }
 
+    /**
+     * Post-present routine, copies the rendered image into the imageView of the [SceneryPanel].
+     */
     override fun postPresent(image: Int) {
         super.postPresent(image)
 
@@ -159,7 +169,7 @@ class FXSwapchain(device: VulkanDevice,
                 val imageByteSize = window.width * window.height * 4
                 val buffer = sharingBuffer.mapIfUnmapped().getByteBuffer(imageByteSize)
 
-                logger.info("Updating with ${window.width}x${window.height}")
+                logger.trace("Updating with {}x{}", window.width, window.height)
                 imagePanel?.update(buffer)
 
                 lock.unlock()
@@ -169,6 +179,9 @@ class FXSwapchain(device: VulkanDevice,
         resizeHandler.queryResize()
     }
 
+    /**
+     * Toggles fullscreen.
+     */
     override fun toggleFullscreen(hub: Hub, swapchainRecreator: VulkanRenderer.SwapchainRecreator) {
         PlatformImpl.runLater {
             val s = stage
@@ -183,15 +196,24 @@ class FXSwapchain(device: VulkanDevice,
         }
     }
 
+    /**
+     * Embeds the swapchain into a [SceneryPanel].
+     */
     override fun embedIn(panel: SceneryPanel?) {
         imagePanel = panel
         imagePanel?.imageView?.scaleY = 1.0
     }
 
+    /**
+     * Returns the number of frames presented with the current swapchain.
+     */
     override fun presentedFrames(): Long {
         return imagePanel?.displayedFrames ?: 0
     }
 
+    /**
+     * Closes the swapchain, deallocating all resources.
+     */
     override fun close() {
         MemoryUtil.memFree(swapchainImage)
         MemoryUtil.memFree(swapchainPointer)
