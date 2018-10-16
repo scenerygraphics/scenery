@@ -5,6 +5,7 @@
 ## Fixes
 
 * Volume: circumvent race condition when updating volumes with improved locking code
+* VulkanRenderer/OpenGLRenderer: initialize spirvcrossj statically (once-per-process)
 
 ## Additions and Changes
 
