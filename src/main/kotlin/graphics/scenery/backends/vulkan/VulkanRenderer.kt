@@ -373,6 +373,18 @@ open class VulkanRenderer(hub: Hub,
         private const val MATERIAL_HAS_NORMAL = 0x0008
         private const val MATERIAL_HAS_ALPHAMASK = 0x0010
 
+        init {
+            Loader.loadNatives()
+            libspirvcrossj.initializeProcess()
+
+            Runtime.getRuntime().addShutdownHook(object: Thread() {
+                override fun run() {
+                    logger.debug("Finalizing libspirvcrossj")
+                    libspirvcrossj.finalizeProcess()
+                }
+            })
+        }
+
         fun getStrictValidation(): Pair<Boolean, List<Int>> {
             val strict = System.getProperty("scenery.VulkanRenderer.StrictValidation")
             val separated = strict?.split(",")?.asSequence()?.mapNotNull { it.toIntOrNull() }?.toList()
@@ -389,9 +401,6 @@ open class VulkanRenderer(hub: Hub,
 
     init {
         this.hub = hub
-
-        Loader.loadNatives()
-        libspirvcrossj.initializeProcess()
 
         val hmd = hub.getWorkingHMDDisplay()
         if (hmd != null) {
@@ -3080,9 +3089,6 @@ open class VulkanRenderer(hub: Hub,
 
         logger.debug("Closing instance...")
         vkDestroyInstance(instance, null)
-
-        logger.debug("Finalizing spirvcrossj process...")
-        libspirvcrossj.finalizeProcess()
 
         logger.info("Renderer teardown complete.")
     }
