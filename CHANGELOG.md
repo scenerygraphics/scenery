@@ -1,5 +1,24 @@
 # CHANGELOG
 
+# scenery-0.6.1 to scenery-0.6.2
+
+## Fixes
+
+* Volume: circumvent race condition when updating volumes with improved locking code
+
+## Additions and Changes
+
+* POM: Add Sonatype repository before ImageJ Maven
+* VulkanRenderer: revamps JavaFX swapchain handling to enable embedding in JFXPanels
+* VulkanSwapchain/HeadlessSwapchain/JavaFXSwapchain/OpenGLSwapchain: record the number of images presented with this swapchain
+* Renderer: Output exception name in case Vulkan cannot be initialiased, and full stack trace if debug logging is enabled
+* VulkanRenderer/OpenGLRenderer: Determine renderer window size depending on size of embedded component
+* JavaFXMouseAndKeyHandler: Attach event handlers to JavaFX `Scene`, and not to `Stage`
+
+## Dependency update
+
+* bumps spirvcrossj to 0.4.2
+
 # scenery-0.6.0 to scenery-0.6.1
 
 ## Fixes
