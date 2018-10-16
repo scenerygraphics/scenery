@@ -290,6 +290,18 @@ open class OpenGLRenderer(hub: Hub,
         private const val MATERIAL_HAS_SPECULAR = 0x0004
         private const val MATERIAL_HAS_NORMAL = 0x0008
         private const val MATERIAL_HAS_ALPHAMASK = 0x0010
+
+        init {
+            Loader.loadNatives()
+            libspirvcrossj.initializeProcess()
+
+            Runtime.getRuntime().addShutdownHook(object: Thread() {
+                override fun run() {
+                    logger.debug("Finalizing libspirvcrossj")
+                    libspirvcrossj.finalizeProcess()
+                }
+            })
+        }
     }
 
     /**
@@ -298,9 +310,6 @@ open class OpenGLRenderer(hub: Hub,
      *
      */
     init {
-
-        Loader.loadNatives()
-        libspirvcrossj.initializeProcess()
 
         logger.info("Initializing OpenGL Renderer...")
         this.hub = hub
@@ -2641,7 +2650,6 @@ open class OpenGLRenderer(hub: Hub,
      */
     override fun close() {
         shouldClose = true
-        libspirvcrossj.finalizeProcess()
 
         encoder?.finish()
     }
