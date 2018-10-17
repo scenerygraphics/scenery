@@ -281,20 +281,14 @@
         <dependency>
             <groupId>net.java.jinput</groupId>
             <artifactId>jinput</artifactId>
-            <version>2.0.7</version>
+            <version>2.0.9</version>
         </dependency>
 
         <dependency>
             <groupId>net.java.jinput</groupId>
-            <artifactId>jinput-platform</artifactId>
-            <version>2.0.7</version>
-            <type>pom</type>
-        </dependency>
-
-        <dependency>
-            <groupId>net.java.jutils</groupId>
-            <artifactId>jutils</artifactId>
-            <version>1.0.0</version>
+            <artifactId>jinput</artifactId>
+            <version>2.0.9</version>
+            <classifier>natives-all</classifier>
         </dependency>
 
         <dependency>
