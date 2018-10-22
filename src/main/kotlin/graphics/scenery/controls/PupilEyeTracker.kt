@@ -170,7 +170,7 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
     private fun subscribe(topic: String) {
         if(!subscriberSockets.containsKey(topic)) {
 
-            val job = launch {
+            val job = GlobalScope.launch {
                 val socket = zmqContext.createSocket(ZMQ.SUB)
                 val poller = ZPoller(zmqContext)
                 poller.register(socket, ZMQ.Poller.POLLIN)

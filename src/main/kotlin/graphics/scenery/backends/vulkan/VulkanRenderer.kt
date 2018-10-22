@@ -2922,7 +2922,7 @@ open class VulkanRenderer(hub: Hub,
                 }
 
                 if(nodeUpdated) {
-                    GlobalScope.async { node.getScene()?.onNodePropertiesChanged?.forEach { it.value.invoke(node) } }
+                    GlobalScope.launch { node.getScene()?.onNodePropertiesChanged?.forEach { it.value.invoke(node) } }
                 }
 
                 updated = nodeUpdated
