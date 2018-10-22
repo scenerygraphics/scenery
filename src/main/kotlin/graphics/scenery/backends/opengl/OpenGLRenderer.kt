@@ -13,8 +13,7 @@ import graphics.scenery.spirvcrossj.Loader
 import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.utils.*
 import javafx.application.Platform
-import kotlinx.coroutines.experimental.async
-import kotlinx.coroutines.experimental.runBlocking
+import kotlinx.coroutines.*
 import org.lwjgl.system.MemoryUtil
 import java.io.File
 import java.io.FileNotFoundException
@@ -999,7 +998,7 @@ open class OpenGLRenderer(hub: Hub,
                 }
 
                 if(nodeUpdated) {
-                    async { node.getScene()?.onNodePropertiesChanged?.forEach { it.value.invoke(node) } }
+                    GlobalScope.async { node.getScene()?.onNodePropertiesChanged?.forEach { it.value.invoke(node) } }
                 }
 
                 updated = nodeUpdated

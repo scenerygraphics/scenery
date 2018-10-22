@@ -12,7 +12,7 @@ interface RenderdocWindowsLibrary : StdCallLibrary {
     fun RENDERDOC_GetAPI(version: Int, out: PointerByReference): Int
 
     companion object {
-        val instance = Native.loadLibrary("renderdoc", RenderdocWindowsLibrary::class.java) as? RenderdocWindowsLibrary
+        val instance = Native.loadLibrary("renderdoc", RenderdocWindowsLibrary::class.java)
             ?: throw IllegalStateException("Could not match interfaces to Renderdoc library (renderdoc.dll)")
     }
 }
@@ -24,7 +24,7 @@ interface RenderdocLinuxLibrary : Library {
     fun RENDERDOC_GetAPI(version: Int, out: PointerByReference): Int
 
     companion object {
-        val instance = Native.loadLibrary("renderdoc", RenderdocLinuxLibrary::class.java) as? RenderdocLinuxLibrary
+        val instance = Native.loadLibrary("renderdoc", RenderdocLinuxLibrary::class.java)
             ?: throw IllegalStateException("Could not match interfaces to Renderdoc library (librenderdoc.so)")
     }
 }
