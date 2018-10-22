@@ -138,7 +138,7 @@ class JavaFXTexturedCubeExample : SceneryBase("JavaFXTexturedCubeExample", windo
         }
 
         thread {
-            while(renderer?.shouldClose == false ?: true) {
+            while(renderer?.shouldClose == false) {
                 Thread.sleep(200)
             }
 

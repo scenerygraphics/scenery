@@ -21,6 +21,7 @@ package graphics.scenery.numerics
  *
  *   @param[seed] Seed to use
  */
+@Suppress("UNUSED_VALUE")
 class OpenSimplexNoise(seed: Long = 0L): ProceduralNoise {
     private val STRETCH_CONSTANT_2D = -0.211324865405187    //(1/Math.sqrt(2+1)-1)/2;
     private val SQUISH_CONSTANT_2D = 0.366025403784439      //(Math.sqrt(2+1)-1)/2;
