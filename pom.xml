@@ -542,9 +542,6 @@
         <plugins>
             <plugin>
                 <artifactId>kotlin-maven-plugin</artifactId>
-                <configuration>
-                    <experimentalCoroutines>enable</experimentalCoroutines>
-                </configuration>
                 <groupId>org.jetbrains.kotlin</groupId>
                 <version>${kotlin.version}</version>
                 <executions>
