@@ -7,9 +7,7 @@ import graphics.scenery.backends.*
 import graphics.scenery.spirvcrossj.Loader
 import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.utils.*
-import kotlinx.coroutines.experimental.Deferred
-import kotlinx.coroutines.experimental.async
-import kotlinx.coroutines.experimental.runBlocking
+import kotlinx.coroutines.*
 import org.lwjgl.PointerBuffer
 import org.lwjgl.glfw.GLFW.glfwInit
 import org.lwjgl.glfw.GLFWVulkan.glfwGetRequiredInstanceExtensions
@@ -1771,7 +1769,7 @@ open class VulkanRenderer(hub: Hub,
         }
 
         val stats = hub?.get(SceneryElement.Statistics) as? Statistics
-        val sceneObjects = async {
+        val sceneObjects = GlobalScope.async {
             scene.discover(scene, { n ->
                 n is HasGeometry
                     && n.visible
@@ -2924,7 +2922,7 @@ open class VulkanRenderer(hub: Hub,
                 }
 
                 if(nodeUpdated) {
-                    async { node.getScene()?.onNodePropertiesChanged?.forEach { it.value.invoke(node) } }
+                    GlobalScope.async { node.getScene()?.onNodePropertiesChanged?.forEach { it.value.invoke(node) } }
                 }
 
                 updated = nodeUpdated
