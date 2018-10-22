@@ -13,6 +13,7 @@ import graphics.scenery.backends.Display
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.LazyLogger
 import kotlinx.coroutines.experimental.Job
+import kotlinx.coroutines.experimental.isActive
 import kotlinx.coroutines.experimental.launch
 import kotlinx.coroutines.experimental.runBlocking
 import org.msgpack.jackson.dataformat.MessagePackFactory

@@ -8,6 +8,7 @@ import graphics.scenery.backends.Display
 import graphics.scenery.backends.vulkan.*
 import graphics.scenery.utils.LazyLogger
 import kotlinx.coroutines.experimental.Job
+import kotlinx.coroutines.experimental.isActive
 import kotlinx.coroutines.experimental.launch
 import org.lwjgl.system.MemoryStack
 import org.lwjgl.system.MemoryUtil.memAllocInt
