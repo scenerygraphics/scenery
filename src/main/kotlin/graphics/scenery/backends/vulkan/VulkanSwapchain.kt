@@ -124,6 +124,22 @@ open class VulkanSwapchain(open val device: VulkanDevice,
     }
 
     /**
+     * Finds the best supported presentation mode, given the supported modes in [presentModes].
+     * The preferred mode can be selected via [preferredMode]. Returns the preferred mode, or
+     * VK_PRESENT_MODE_FIFO, if the preferred one is not supported.
+     */
+    private fun findBestPresentMode(presentModes: IntBuffer, count: Int, preferredMode: Int): Int {
+        val modes = IntArray(count)
+        presentModes.get(modes)
+
+        return if(modes.contains(preferredMode)) {
+            preferredMode
+        } else {
+            KHRSurface.VK_PRESENT_MODE_FIFO_KHR
+        }
+    }
+
+    /**
      * Creates a new swapchain and returns it, potentially recycling or deallocating [oldSwapchain].
      */
     override fun create(oldSwapchain: Swapchain?): Swapchain {
@@ -146,20 +162,15 @@ open class VulkanSwapchain(open val device: VulkanDevice,
 
             // use fifo mode (aka, vsynced) if requested,
             // otherwise, use mailbox mode and present the most recently generated frame.
-            var swapchainPresentMode = if(vsync) {
+            val preferredSwapchainPresentMode = if(vsync) {
                 KHRSurface.VK_PRESENT_MODE_FIFO_KHR
             } else {
-                KHRSurface.VK_PRESENT_MODE_MAILBOX_KHR
+                KHRSurface.VK_PRESENT_MODE_IMMEDIATE_KHR
             }
 
-            for (i in 0 until presentModeCount.get(0)) {
-                if (presentModes.get(i) == swapchainPresentMode) {
-                    break
-                }
-                if (swapchainPresentMode != KHRSurface.VK_PRESENT_MODE_MAILBOX_KHR && presentModes.get(i) == KHRSurface.VK_PRESENT_MODE_IMMEDIATE_KHR) {
-                    swapchainPresentMode = KHRSurface.VK_PRESENT_MODE_IMMEDIATE_KHR
-                }
-            }
+            val swapchainPresentMode = findBestPresentMode(presentModes,
+                presentModeCount.get(0),
+                preferredSwapchainPresentMode)
 
             // Determine the number of images
             var desiredNumberOfSwapchainImages = surfCaps.minImageCount() + 1
