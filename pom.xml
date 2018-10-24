@@ -502,6 +502,25 @@
             <scope>test</scope>
         </dependency>
 
+        <dependency>
+            <groupId>com.github.kotlin-graphics</groupId>
+            <artifactId>vkk</artifactId>
+            <version>c77f8098ad</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.github.kotlin-graphics</groupId>
+            <artifactId>glm</artifactId>
+            <version>f63d840cde</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.github.kotlin-graphics</groupId>
+            <artifactId>kool</artifactId>
+            <version>94484351fb</version>
+        </dependency>
+
+
     </dependencies>
 
     <repositories>
@@ -524,6 +543,10 @@
         <repository>
             <id>clearvolume</id>
             <url>http://dl.bintray.com/clearvolume/ClearVolume</url>
+        </repository>
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
         </repository>
     </repositories>
 

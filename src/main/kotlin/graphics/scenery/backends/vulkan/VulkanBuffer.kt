@@ -1,13 +1,16 @@
 package graphics.scenery.backends.vulkan
 
+import glm_.L
 import graphics.scenery.utils.LazyLogger
+import kool.Adr
+import kool.cap
+import kool.pos
 import org.lwjgl.PointerBuffer
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkBufferCreateInfo
-import org.lwjgl.vulkan.VkMemoryAllocateInfo
-import org.lwjgl.vulkan.VkMemoryRequirements
+import vkk.*
 import java.nio.ByteBuffer
 import kotlin.math.roundToInt
 
@@ -19,38 +22,44 @@ import kotlin.math.roundToInt
  *
  * @param[wantAligned] - whether the buffer should be aligned
  */
-open class VulkanBuffer(val device: VulkanDevice, var size: Long,
-                   val usage: Int, val requestedMemoryProperties: Int = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                   val wantAligned: Boolean = true, var suballocation: VulkanSuballocation? = null): AutoCloseable {
+open class VulkanBuffer(val device: VulkanDevice,
+                        var size: VkDeviceSize,
+                        val usage: VkBufferUsageFlags,
+                        val requestedMemoryProperties: VkMemoryPropertyFlags = VkMemoryProperty.DEVICE_LOCAL_BIT.i,
+                        val wantAligned: Boolean = true,
+                        var suballocation: VulkanSuballocation? = null) : AutoCloseable {
+
     private val logger by LazyLogger()
     private var currentPosition = 0L
-    private var currentPointer: PointerBuffer? = null
+    private var currentAddress: Adr = NULL
 
     /** Buffer alignment, 256 bytes by default (Vulkan standard) */
-    var alignment: Long = 256
+    var alignment = VkDeviceSize(256)
         private set
     /** Memory pointer */
-    var memory: Long = -1L
+    var memory = VkDeviceMemory(NULL)
         private set
     /** Buffer to the Vulkan pointer struct */
-    var vulkanBuffer: Long = -1L
+    var vulkanBuffer = VkBuffer(NULL)
         private set
     /** Final allocated size of the buffer, might be different from the requested size, due to alignment. */
-    var allocatedSize: Long = 0
+    var allocatedSize = VkDeviceSize(0)
         private set
     /** Buffer offset. */
-    var bufferOffset: Long = 0
+    var bufferOffset = VkDeviceSize(0)
         private set
 
     private var mapped = false
     private var bufferReallocNeeded: Boolean = false
 
     /** Staging buffer, providing host memory */
-    var stagingBuffer: ByteBuffer = memAlloc(size.toInt())
+    var stagingBuffer: ByteBuffer = memAlloc(size.i)
         private set
 
+    val vkDev get() = device.vulkanDevice
+
     init {
-        if(suballocation == null) {
+        if (suballocation == null) {
             val b = allocateVulkanBuffer(size, wantAligned)
 
             this.memory = b.memory
@@ -61,74 +70,57 @@ open class VulkanBuffer(val device: VulkanDevice, var size: Long,
             suballocation?.let { sa ->
                 this.memory = sa.buffer.memory
                 this.vulkanBuffer = sa.buffer.vulkanBuffer
-                this.allocatedSize = sa.size.toLong()
+                this.allocatedSize = VkDeviceSize(sa.size.L)
                 this.alignment = sa.buffer.alignment
 
-                this.bufferOffset = sa.offset.toLong()
+                this.bufferOffset = VkDeviceSize(sa.offset.L)
             }
         }
     }
 
-    private data class RawBuffer(val buffer: Long, val memory: Long, val size: Long, val alignment: Long)
+    private data class RawBuffer(val buffer: VkBuffer, val memory: VkDeviceMemory, val size: VkDeviceSize, val alignment: VkDeviceSize)
 
-    private fun allocateVulkanBuffer(size: Long, wantAligned: Boolean): RawBuffer {
-        val memory = MemoryUtil.memAllocLong(1)
-        val memTypeIndex = MemoryUtil.memAllocInt(1)
+    private fun allocateVulkanBuffer(size: VkDeviceSize, wantAligned: Boolean): RawBuffer {
 
-        val reqs = VkMemoryRequirements.calloc()
-        val bufferInfo = VkBufferCreateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO)
-            .pNext(NULL)
-            .usage(usage)
-            .size(size)
+        val bufferInfo = vk.BufferCreateInfo {
+            usage = this@VulkanBuffer.usage
+            this.size = size
+        }
+        val buffer = vkDev createBuffer bufferInfo
+        val reqs = vkDev getBufferMemoryRequirements buffer
 
-        val buffer = VU.getLong("Creating buffer",
-            { vkCreateBuffer(device.vulkanDevice, bufferInfo, null, this) }, {})
-        vkGetBufferMemoryRequirements(device.vulkanDevice, buffer, reqs)
-
-        val actualSize = if (wantAligned) {
-            if (reqs.size().rem(reqs.alignment()) == 0L) {
-                reqs.size()
-            } else {
-                reqs.size() + reqs.alignment() - (reqs.size().rem(reqs.alignment()))
+        val actualSize = when {
+            wantAligned -> when (reqs.size % reqs.alignment) {
+                VkDeviceSize(0L) -> reqs.size
+                else -> reqs.size + reqs.alignment - (reqs.size % reqs.alignment)
             }
-        } else {
-            reqs.size()
+            else -> reqs.size
         }
 
-        val allocInfo = VkMemoryAllocateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO)
-            .pNext(NULL)
-            .allocationSize(actualSize)
-            .memoryTypeIndex(device.getMemoryType(reqs.memoryTypeBits(), requestedMemoryProperties).first())
+        val allocInfo = vk.MemoryAllocateInfo {
+            allocationSize = actualSize
+            memoryTypeIndex = device.getMemoryType(reqs.memoryTypeBits(), requestedMemoryProperties).first()
+        }
 
+        val memory = vkDev allocateMemory allocInfo
+        vkDev.bindBufferMemory(buffer, memory)
 
-        VU.run("Allocating memory", { vkAllocateMemory(device.vulkanDevice, allocInfo, null, memory) })
-        VU.run("Binding buffer memory", { vkBindBufferMemory(device.vulkanDevice, buffer, memory.get(0), 0) })
-
-        val r = RawBuffer(buffer, memory.get(0), actualSize, reqs.alignment())
-
-        bufferInfo.free()
-        reqs.free()
-        allocInfo.free()
-        MemoryUtil.memFree(memTypeIndex)
-        MemoryUtil.memFree(memory)
-
-        return r
+        return RawBuffer(buffer, memory, actualSize, reqs.alignment)
     }
 
     /**
      * Resizes the backing buffer to [newSize], which is 1.5x the original size by default,
      * and returns the staging buffer.
      */
-    @Synchronized fun resize(newSize: Int = (size * 1.5f).roundToInt()): ByteBuffer {
-        if(mapped) {
+    @Synchronized
+    fun resize(newSize: Int = (size.L * 1.5f).roundToInt()): ByteBuffer {
+        if (mapped) {
             unmap()
         }
 
         logger.debug("Before resize: ${stagingBuffer.remaining()} ${stagingBuffer.capacity()}")
         stagingBuffer = MemoryUtil.memRealloc(stagingBuffer, newSize) ?: throw IllegalStateException("Could not resize buffer")
-        size = newSize.toLong()
+        size = VkDeviceSize(newSize.L)
         bufferReallocNeeded = true
 
         return stagingBuffer
@@ -137,14 +129,15 @@ open class VulkanBuffer(val device: VulkanDevice, var size: Long,
     /**
      * Resizes the actual Vulkan buffer. Called upon copying the staging buffer to the Vulkan buffer.
      */
-    @Synchronized protected fun resizeLazy() {
-        if(!bufferReallocNeeded) {
+    @Synchronized
+    protected fun resizeLazy() {
+        if (!bufferReallocNeeded) {
             return
         }
         unmap()
 
         destroyVulkanBuffer()
-        val b = allocateVulkanBuffer(stagingBuffer.capacity() * 1L, wantAligned)
+        val b = allocateVulkanBuffer(VkDeviceSize(stagingBuffer.cap.L), wantAligned)
 
         this.memory = b.memory
         this.vulkanBuffer = b.buffer
@@ -159,16 +152,16 @@ open class VulkanBuffer(val device: VulkanDevice, var size: Long,
      * override the buffer's default alignment by setting [align] to
      * the desired value. Returns the new position.
      */
-    fun advance(align: Long = this.alignment): Int {
-        val pos = stagingBuffer.position()
-        val rem = pos.rem(align)
+    fun advance(align: VkDeviceSize = this.alignment): VkDeviceSize {
+        val pos = stagingBuffer.pos
+        val rem = pos % align
 
-        if(rem != 0L) {
-            val newpos = pos + align.toInt() - rem.toInt()
-            stagingBuffer.position(newpos)
+        if (rem.i != 0) {
+            val newpos = pos + align.i - rem.i
+            stagingBuffer.pos = newpos
         }
 
-        return stagingBuffer.position()
+        return VkDeviceSize(stagingBuffer.pos.L)
     }
 
     /**
@@ -176,8 +169,8 @@ open class VulkanBuffer(val device: VulkanDevice, var size: Long,
      * from the beginning.
      */
     fun reset() {
-        stagingBuffer.position(0)
-        stagingBuffer.limit(size.toInt())
+        stagingBuffer.pos = 0
+        stagingBuffer.lim = size.i
         currentPosition = 0L
     }
 
@@ -187,49 +180,41 @@ open class VulkanBuffer(val device: VulkanDevice, var size: Long,
     fun copyFrom(data: ByteBuffer) {
         resizeLazy()
 
-        val dest = memAllocPointer(1)
-        vkMapMemory(device.vulkanDevice, memory, bufferOffset, size, 0, dest)
-        memCopy(memAddress(data), dest.get(0), data.remaining().toLong())
-        vkUnmapMemory(device.vulkanDevice, memory)
-        memFree(dest)
+        vkDev.mappingMemory(memory, bufferOffset, size) { dest ->
+            data copyTo dest
+        }
     }
 
     /**
      * Copies the contents of the device buffer to [dest].
      */
     fun copyTo(dest: ByteBuffer) {
-        val src = memAllocPointer(1)
-        vkMapMemory(device.vulkanDevice, memory, bufferOffset, size, 0, src)
-        memCopy(src.get(0), memAddress(dest), dest.remaining().toLong())
-        vkUnmapMemory(device.vulkanDevice, memory)
-        memFree(src)
+        vkDev.mappingMemory(memory, bufferOffset, size) { src ->
+            dest copyFrom src
+        }
     }
 
     /**
      * Maps this buffer
      */
-    fun map(): PointerBuffer {
+    fun map(): Adr {
         resizeLazy()
 
-        val dest = memAllocPointer(1)
-        vkMapMemory(device.vulkanDevice, memory, bufferOffset, size, 0, dest)
+        val adr = vkDev.mapMemory(memory, bufferOffset, size)
 
-        currentPointer = dest
+        currentAddress = adr
         mapped = true
-        return dest
+        return adr
     }
 
     /**
      * Maps this buffer it wasn't mapped before, and rewinds it.
      */
-    fun mapIfUnmapped(): PointerBuffer {
+    fun mapIfUnmapped(): Adr {
         resizeLazy()
 
-        currentPointer?.let {
-            if(mapped) {
-                return it.rewind()
-            }
-        }
+        if (currentAddress != NULL && mapped)
+            return currentAddress
 
         return map()
     }
@@ -239,7 +224,7 @@ open class VulkanBuffer(val device: VulkanDevice, var size: Long,
      */
     fun unmap() {
         mapped = false
-        vkUnmapMemory(device.vulkanDevice, memory)
+        vkDev unmapMemory memory
     }
 
     /**
@@ -256,30 +241,30 @@ open class VulkanBuffer(val device: VulkanDevice, var size: Long,
      * Returns true if this buffer is initialised correctly.
      */
     fun initialized(): Boolean {
-        return ((vulkanBuffer != -1L) && (memory != -1L))
+        return vulkanBuffer.L != NULL && memory.L != NULL
     }
 
     private fun destroyVulkanBuffer() {
-        if(memory == -1L || vulkanBuffer == -1L) {
+        if (memory.L == NULL || vulkanBuffer.L == NULL) {
             return
         }
 
-        vkFreeMemory(device.vulkanDevice, memory, null)
-        memory = -1L
+        vkDev freeMemory memory
+        memory = VkDeviceMemory(NULL)
 
-        vkDestroyBuffer(device.vulkanDevice, vulkanBuffer, null)
-        vulkanBuffer = -1L
+        vkDev destroyBuffer vulkanBuffer
+        vulkanBuffer = VkBuffer(NULL)
     }
 
     /**
      * Closes this buffer, freeing all allocated resources on host and device.
      */
     override fun close() {
-        if(memory == -1L || vulkanBuffer == -1L) {
+        if (memory.L == NULL || vulkanBuffer.L == NULL) {
             return
         }
 
-        if(suballocation != null) {
+        if (suballocation != null) {
             logger.debug("Marking suballocation as free")
             suballocation?.free = true
             return
@@ -287,17 +272,17 @@ open class VulkanBuffer(val device: VulkanDevice, var size: Long,
 
         logger.trace("Closing buffer $this ...")
 
-        if(mapped) {
+        if (mapped) {
             unmap()
         }
 
         memFree(stagingBuffer)
 
-        vkFreeMemory(device.vulkanDevice, memory, null)
-        memory = -1L
+        vkDev freeMemory memory
+        memory = VkDeviceMemory(NULL)
 
-        vkDestroyBuffer(device.vulkanDevice, vulkanBuffer, null)
-        vulkanBuffer = -1L
+        vkDev destroyBuffer vulkanBuffer
+        vulkanBuffer = VkBuffer(NULL)
     }
 
     /**
@@ -308,9 +293,9 @@ open class VulkanBuffer(val device: VulkanDevice, var size: Long,
          * Creates a new VulkanBuffer of [size] that has it's memory managed by a [VulkanBufferPool]
          * given by [pool].
          */
-        fun fromPool(pool: VulkanBufferPool, size: Long): VulkanBuffer {
-            val suballocation = pool.create(size.toInt())
-            return VulkanBuffer(pool.device, suballocation.size.toLong(),
+        fun fromPool(pool: VulkanBufferPool, size: VkDeviceSize): VulkanBuffer {
+            val suballocation = pool.create(size)
+            return VulkanBuffer(pool.device, VkDeviceSize(suballocation.size.L),
                 usage = pool.usage, suballocation = suballocation)
         }
     }

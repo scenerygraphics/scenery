@@ -9,6 +9,9 @@ import java.nio.LongBuffer
 import graphics.scenery.Hub
 import graphics.scenery.utils.SceneryPanel
 import org.lwjgl.system.MemoryStack
+import vkk.VkBufferUsage
+import vkk.VkDeviceSize
+import vkk.VkMemoryProperty
 
 
 /**
@@ -135,12 +138,12 @@ open class HeadlessSwapchain(device: VulkanDevice,
 
         logger.info("Created ${images?.size} swapchain images")
 
-        val imageByteSize = window.width * window.height * 4L
-        imageBuffer = MemoryUtil.memAlloc(imageByteSize.toInt())
+        val imageByteSize = VkDeviceSize(window.width * window.height * 4L)
+        imageBuffer = MemoryUtil.memAlloc(imageByteSize.i)
         sharingBuffer = VulkanBuffer(device,
             imageByteSize,
-            VK10.VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-            VK10.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK10.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            VkBufferUsage.TRANSFER_DST_BIT.i,
+            VkMemoryProperty.HOST_VISIBLE_BIT or VkMemoryProperty.HOST_COHERENT_BIT,
             wantAligned = true)
 
         imagePanel?.prefWidth = window.width.toDouble()
@@ -232,7 +235,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
 
             VK10.vkCmdCopyImageToBuffer(this, transferImage,
                 VK10.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                sharingBuffer.vulkanBuffer,
+                sharingBuffer.vulkanBuffer.L,
                 regions)
 
             VulkanTexture.transitionLayout(transferImage,

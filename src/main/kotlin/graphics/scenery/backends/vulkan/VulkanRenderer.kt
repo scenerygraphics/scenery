@@ -2,11 +2,13 @@ package graphics.scenery.backends.vulkan
 
 import cleargl.GLMatrix
 import cleargl.GLVector
+import glm_.L
 import graphics.scenery.*
 import graphics.scenery.backends.*
 import graphics.scenery.spirvcrossj.Loader
 import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.utils.*
+import kool.cap
 import kotlinx.coroutines.*
 import org.lwjgl.PointerBuffer
 import org.lwjgl.glfw.GLFW.glfwInit
@@ -20,6 +22,9 @@ import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.EXTDebugReport.*
 import org.lwjgl.vulkan.KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
 import org.lwjgl.vulkan.VK10.*
+import vkk.VkBufferUsage
+import vkk.VkDeviceSize
+import vkk.VkMemoryProperty
 import java.awt.image.BufferedImage
 import java.awt.image.DataBufferByte
 import java.io.File
@@ -117,13 +122,13 @@ open class VulkanRenderer(hub: Hub,
     }
 
     sealed class DescriptorSet(val id: Long = 0L, val name: String = "") {
-        object None: DescriptorSet(0L)
+        object None : DescriptorSet(0L)
         data class Set(val setId: Long, val setName: String = "") : DescriptorSet(setId, setName)
         data class DynamicSet(val setId: Long, val offset: Int, val setName: String = "") : DescriptorSet(setId, setName)
 
         companion object {
             fun setOrNull(id: Long?, setName: String): DescriptorSet? {
-                return if(id == null) {
+                return if (id == null) {
                     null
                 } else {
                     DescriptorSet.Set(id, setName)
@@ -140,8 +145,9 @@ open class VulkanRenderer(hub: Hub,
 
         private val lock = ReentrantLock()
 
-        @Synchronized fun recreate() {
-            if(lock.tryLock()) {
+        @Synchronized
+        fun recreate() {
+            if (lock.tryLock()) {
                 logger.info("Recreating Swapchain at frame $frames")
                 // create new swapchain with changed surface parameters
                 vkQueueWaitIdle(queue)
@@ -234,7 +240,7 @@ open class VulkanRenderer(hub: Hub,
                 else -> logger.info("!! $obj($objectType) Validation (unknown message type)$dbg: " + getString(pMessage))
             }
 
-            if(strictValidation.first && strictValidation.second.isEmpty() ||
+            if (strictValidation.first && strictValidation.second.isEmpty() ||
                 strictValidation.first && strictValidation.second.contains(objectType)) {
                 // set 15s of delay until the next frame is rendered if a validation error happens
                 renderDelay = 1500L
@@ -249,7 +255,7 @@ open class VulkanRenderer(hub: Hub,
 
             // if strict validation is enabled, the application will quit after a
             // validation error has been encountered
-            return if(strictValidation.first) {
+            return if (strictValidation.first) {
                 VK_FALSE
             } else {
                 VK_FALSE
@@ -258,7 +264,6 @@ open class VulkanRenderer(hub: Hub,
     }
 
     // helper classes end
-
 
 
     final override var hub: Hub? = null
@@ -338,10 +343,10 @@ open class VulkanRenderer(hub: Hub,
 
     private val vulkanProjectionFix =
         GLMatrix(floatArrayOf(
-            1.0f,  0.0f, 0.0f, 0.0f,
+            1.0f, 0.0f, 0.0f, 0.0f,
             0.0f, -1.0f, 0.0f, 0.0f,
-            0.0f,  0.0f, 0.5f, 0.0f,
-            0.0f,  0.0f, 0.5f, 1.0f))
+            0.0f, 0.0f, 0.5f, 0.0f,
+            0.0f, 0.0f, 0.5f, 1.0f))
 
     final override var renderConfigFile: String = ""
         set(config) {
@@ -375,7 +380,7 @@ open class VulkanRenderer(hub: Hub,
             Loader.loadNatives()
             libspirvcrossj.initializeProcess()
 
-            Runtime.getRuntime().addShutdownHook(object: Thread() {
+            Runtime.getRuntime().addShutdownHook(object : Thread() {
                 override fun run() {
                     logger.debug("Finalizing libspirvcrossj")
                     libspirvcrossj.finalizeProcess()
@@ -422,13 +427,13 @@ open class VulkanRenderer(hub: Hub,
 
         logger.info("Loaded ${renderConfig.name} (${renderConfig.description ?: "no description"})")
 
-        if((System.getenv("ENABLE_VULKAN_RENDERDOC_CAPTURE")?.toInt() == 1  || Renderdoc.renderdocAttached)&& validation) {
+        if ((System.getenv("ENABLE_VULKAN_RENDERDOC_CAPTURE")?.toInt() == 1 || Renderdoc.renderdocAttached) && validation) {
             logger.warn("Validation Layers requested, but Renderdoc capture and Validation Layers are mutually incompatible. Disabling validations layers.")
             validation = false
         }
 
         // explicitly create VK, to make GLFW pick up MoltenVK on OS X
-        if(ExtractsNatives.getPlatform() == ExtractsNatives.Platform.MACOS) {
+        if (ExtractsNatives.getPlatform() == ExtractsNatives.Platform.MACOS) {
             try {
                 Configuration.VULKAN_EXPLICIT_INIT.set(true)
                 VK.create()
@@ -439,7 +444,7 @@ open class VulkanRenderer(hub: Hub,
 
 
         // Create the Vulkan instance
-        instance = if(embedIn != null) {
+        instance = if (embedIn != null) {
             createInstance(null)
         } else {
             if (!glfwInit()) {
@@ -450,11 +455,12 @@ open class VulkanRenderer(hub: Hub,
             }
 
             /* Look for instance extensions */
-            val requiredExtensions = glfwGetRequiredInstanceExtensions() ?: throw RuntimeException("Failed to find list of required Vulkan extensions")
+            val requiredExtensions = glfwGetRequiredInstanceExtensions()
+                ?: throw RuntimeException("Failed to find list of required Vulkan extensions")
             createInstance(requiredExtensions)
         }
 
-        debugCallbackHandle = if(validation) {
+        debugCallbackHandle = if (validation) {
             setupDebugging(instance,
                 VK_DEBUG_REPORT_ERROR_BIT_EXT or VK_DEBUG_REPORT_WARNING_BIT_EXT,
                 debugCallback)
@@ -462,8 +468,8 @@ open class VulkanRenderer(hub: Hub,
             -1L
         }
 
-        val requestedValidationLayers = if(validation) {
-            if(wantsOpenGLSwapchain) {
+        val requestedValidationLayers = if (validation) {
+            if (wantsOpenGLSwapchain) {
                 logger.warn("Requested OpenGL swapchain, validation layers disabled.")
                 emptyArray()
             } else {
@@ -474,14 +480,16 @@ open class VulkanRenderer(hub: Hub,
         }
 
         device = VulkanDevice.fromPhysicalDevice(instance,
-            physicalDeviceFilter = { _, device -> device.name.contains(System.getProperty("scenery.Renderer.Device", "DOES_NOT_EXIST"))},
-            additionalExtensions = { physicalDevice -> hub.getWorkingHMDDisplay()?.getVulkanDeviceExtensions(physicalDevice)?.toTypedArray() ?: arrayOf() },
+            physicalDeviceFilter = { _, device -> device.name.contains(System.getProperty("scenery.Renderer.Device", "DOES_NOT_EXIST")) },
+            additionalExtensions = { physicalDevice ->
+                hub.getWorkingHMDDisplay()?.getVulkanDeviceExtensions(physicalDevice)?.toTypedArray() ?: arrayOf()
+            },
             validationLayers = requestedValidationLayers,
             headless = embedIn != null)
 
         logger.debug("Device creation done")
 
-        if(device.deviceData.vendor.toLowerCase().contains("nvidia") && ExtractsNatives.getPlatform() == ExtractsNatives.Platform.WINDOWS) {
+        if (device.deviceData.vendor.toLowerCase().contains("nvidia") && ExtractsNatives.getPlatform() == ExtractsNatives.Platform.WINDOWS) {
             gpuStats = NvidiaGPUStats()
         }
 
@@ -596,7 +604,7 @@ open class VulkanRenderer(hub: Hub,
         lastTime = System.nanoTime()
         time = 0.0f
 
-        if(System.getProperty("scenery.RunFullscreen","false")?.toBoolean() == true) {
+        if (System.getProperty("scenery.RunFullscreen", "false")?.toBoolean() == true) {
             toggleFullscreen = true
         }
 
@@ -643,7 +651,7 @@ open class VulkanRenderer(hub: Hub,
 //            .parallelMap(numThreads = System.getProperty("scenery.MaxInitThreads", "1").toInt()) { node ->
             .map { node ->
                 // skip initialization for nodes that are only instance slaves
-                if(node.instanceOf != null) {
+                if (node.instanceOf != null) {
                     node.initialized = true
                     return@map
                 }
@@ -783,8 +791,8 @@ open class VulkanRenderer(hub: Hub,
             add("Ka", { node.material.ambient })
             add("Kd", { node.material.diffuse })
             add("Ks", { node.material.specular })
-            add("Roughness", { node.material.roughness})
-            add("Metallic", { node.material.metallic})
+            add("Roughness", { node.material.roughness })
+            add("Metallic", { node.material.metallic })
             add("Opacity", { node.material.blending.opacity })
 
             requiredOffsetCount = 1
@@ -812,23 +820,23 @@ open class VulkanRenderer(hub: Hub,
 
     private fun initializeCustomShadersForNode(node: Node, addInitializer: Boolean = true): Boolean {
 
-        if(!(node.material.blending.transparent || node.material is ShaderMaterial || node.material.cullingMode != Material.CullingMode.Back)) {
+        if (!(node.material.blending.transparent || node.material is ShaderMaterial || node.material.cullingMode != Material.CullingMode.Back)) {
             logger.debug("Using default renderpass material for ${node.name}")
             return false
         }
 
-        if(node.instanceOf != null) {
+        if (node.instanceOf != null) {
             logger.debug("${node.name} is instance slave, not initializing custom shaders")
             return false
         }
 
-        if(addInitializer) {
+        if (addInitializer) {
             lateResizeInitializers.remove(node)
         }
 
         node.rendererMetadata()?.let { s ->
 
-//            node.javaClass.kotlin.memberProperties.filter { it.findAnnotation<ShaderProperty>() != null }.forEach { logger.info("${node.name}.${it.name} is ShaderProperty!") }
+            //            node.javaClass.kotlin.memberProperties.filter { it.findAnnotation<ShaderProperty>() != null }.forEach { logger.info("${node.name}.${it.name} is ShaderProperty!") }
             val needsShaderPropertyUBO = if (node.javaClass.kotlin.memberProperties.filter { it.findAnnotation<ShaderProperty>() != null }.count() > 0) {
                 var dsl = 0L
 
@@ -889,44 +897,44 @@ open class VulkanRenderer(hub: Hub,
                     pass.value.initializeInputAttachmentDescriptorSetLayouts(shaderModules)
                     pass.value.initializePipeline("preferred-${node.uuid}",
                         shaderModules, settings = { pipeline ->
-                            when(node.material.cullingMode) {
-                                Material.CullingMode.None -> pipeline.rasterizationState.cullMode(VK_CULL_MODE_NONE)
-                                Material.CullingMode.Front -> pipeline.rasterizationState.cullMode(VK_CULL_MODE_FRONT_BIT)
-                                Material.CullingMode.Back -> pipeline.rasterizationState.cullMode(VK_CULL_MODE_BACK_BIT)
-                                Material.CullingMode.FrontAndBack -> pipeline.rasterizationState.cullMode(VK_CULL_MODE_FRONT_AND_BACK)
-                            }
+                        when (node.material.cullingMode) {
+                            Material.CullingMode.None -> pipeline.rasterizationState.cullMode(VK_CULL_MODE_NONE)
+                            Material.CullingMode.Front -> pipeline.rasterizationState.cullMode(VK_CULL_MODE_FRONT_BIT)
+                            Material.CullingMode.Back -> pipeline.rasterizationState.cullMode(VK_CULL_MODE_BACK_BIT)
+                            Material.CullingMode.FrontAndBack -> pipeline.rasterizationState.cullMode(VK_CULL_MODE_FRONT_AND_BACK)
+                        }
 
-                            when(node.material.depthTest) {
-                                Material.DepthTest.Equal -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_EQUAL)
-                                Material.DepthTest.Less -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_LESS)
-                                Material.DepthTest.Greater -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_GREATER)
-                                Material.DepthTest.LessEqual -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_LESS_OR_EQUAL)
-                                Material.DepthTest.GreaterEqual -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_GREATER_OR_EQUAL)
-                                Material.DepthTest.Always -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_ALWAYS)
-                                Material.DepthTest.Never -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_NEVER)
-                            }
+                        when (node.material.depthTest) {
+                            Material.DepthTest.Equal -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_EQUAL)
+                            Material.DepthTest.Less -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_LESS)
+                            Material.DepthTest.Greater -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_GREATER)
+                            Material.DepthTest.LessEqual -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_LESS_OR_EQUAL)
+                            Material.DepthTest.GreaterEqual -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_GREATER_OR_EQUAL)
+                            Material.DepthTest.Always -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_ALWAYS)
+                            Material.DepthTest.Never -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_NEVER)
+                        }
 
-                            if(node.material.blending.transparent) {
-                                with(node.material.blending) {
-                                    val blendStates = pipeline.colorBlendState.pAttachments()
-                                    for (attachment in 0 until (blendStates?.capacity() ?: 0)) {
-                                        val state = blendStates?.get(attachment)
+                        if (node.material.blending.transparent) {
+                            with(node.material.blending) {
+                                val blendStates = pipeline.colorBlendState.pAttachments()
+                                for (attachment in 0 until (blendStates?.capacity() ?: 0)) {
+                                    val state = blendStates?.get(attachment)
 
-                                        @Suppress("SENSELESS_COMPARISON", "IfThenToSafeAccess")
-                                        if (state != null) {
-                                            state.blendEnable(true)
-                                                .colorBlendOp(colorBlending.toVulkan())
-                                                .srcColorBlendFactor(sourceColorBlendFactor.toVulkan())
-                                                .dstColorBlendFactor(destinationColorBlendFactor.toVulkan())
-                                                .alphaBlendOp(alphaBlending.toVulkan())
-                                                .srcAlphaBlendFactor(sourceAlphaBlendFactor.toVulkan())
-                                                .dstAlphaBlendFactor(destinationAlphaBlendFactor.toVulkan())
-                                                .colorWriteMask(VK_COLOR_COMPONENT_R_BIT or VK_COLOR_COMPONENT_G_BIT or VK_COLOR_COMPONENT_B_BIT or VK_COLOR_COMPONENT_A_BIT)
-                                        }
+                                    @Suppress("SENSELESS_COMPARISON", "IfThenToSafeAccess")
+                                    if (state != null) {
+                                        state.blendEnable(true)
+                                            .colorBlendOp(colorBlending.toVulkan())
+                                            .srcColorBlendFactor(sourceColorBlendFactor.toVulkan())
+                                            .dstColorBlendFactor(destinationColorBlendFactor.toVulkan())
+                                            .alphaBlendOp(alphaBlending.toVulkan())
+                                            .srcAlphaBlendFactor(sourceAlphaBlendFactor.toVulkan())
+                                            .dstAlphaBlendFactor(destinationAlphaBlendFactor.toVulkan())
+                                            .colorWriteMask(VK_COLOR_COMPONENT_R_BIT or VK_COLOR_COMPONENT_G_BIT or VK_COLOR_COMPONENT_B_BIT or VK_COLOR_COMPONENT_A_BIT)
                                     }
                                 }
                             }
-                        },
+                        }
+                    },
                         vertexInputType = s.vertexDescription!!)
                 }
 
@@ -936,26 +944,26 @@ open class VulkanRenderer(hub: Hub,
                     (it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry || it.value.passConfig.type == RenderConfigReader.RenderpassType.lights) &&
                         it.value.passConfig.renderTransparent == node.material.blending.transparent
                 }.forEach { pass ->
-                        logger.debug("Initializing shader properties for ${node.name} in pass ${pass.key}")
-                        val order = pass.value.getShaderPropertyOrder(node)
+                    logger.debug("Initializing shader properties for ${node.name} in pass ${pass.key}")
+                    val order = pass.value.getShaderPropertyOrder(node)
 
-                        val shaderPropertyUbo = VulkanUBO(device, backingBuffer = buffers["ShaderPropertyBuffer"])
-                        with(shaderPropertyUbo) {
-                            name = "ShaderProperties"
+                    val shaderPropertyUbo = VulkanUBO(device, backingBuffer = buffers["ShaderPropertyBuffer"])
+                    with(shaderPropertyUbo) {
+                        name = "ShaderProperties"
 
-                            order.forEach { name, offset ->
-                                add(name, { node.getShaderProperty(name)!! }, offset)
-                            }
-
-                            requiredOffsetCount = 1
-                            this.createUniformBuffer()
-                            s.UBOs.put("${pass.key}-ShaderProperties", s.requiredDescriptorSets["ShaderProperties"]!! to this)
+                        order.forEach { name, offset ->
+                            add(name, { node.getShaderProperty(name)!! }, offset)
                         }
+
+                        requiredOffsetCount = 1
+                        this.createUniformBuffer()
+                        s.UBOs.put("${pass.key}-ShaderProperties", s.requiredDescriptorSets["ShaderProperties"]!! to this)
                     }
+                }
 
             }
 
-            if(addInitializer) {
+            if (addInitializer) {
                 lateResizeInitializers[node] = { initializeCustomShadersForNode(node, addInitializer = false) }
             }
 
@@ -987,11 +995,11 @@ open class VulkanRenderer(hub: Hub,
 
     protected fun loadTexturesForNode(node: Node, s: VulkanObjectState): VulkanObjectState {
         val stats = hub?.get(SceneryElement.Statistics) as Statistics?
-        val defaultTexture = textureCache["DefaultTexture"] ?: throw IllegalStateException("Default fallback texture does not exist.")
+        val defaultTexture = textureCache["DefaultTexture"]
+            ?: throw IllegalStateException("Default fallback texture does not exist.")
 
         if (node.lock.tryLock()) {
-            node.material.textures.forEach {
-                type, texture ->
+            node.material.textures.forEach { type, texture ->
 
                 val slot = VulkanObjectState.textureTypeToSlot(type)
 
@@ -1029,11 +1037,11 @@ open class VulkanRenderer(hub: Hub,
                     } else {
                         val start = System.nanoTime()
 
-                        val t = if(texture.contains("jar!")) {
+                        val t = if (texture.contains("jar!")) {
                             val f = texture.substringAfterLast("/")
                             val stream = node.javaClass.getResourceAsStream(f)
 
-                            if(stream == null) {
+                            if (stream == null) {
                                 logger.error("Not found: $f for $node")
                                 defaultTexture
                             } else {
@@ -1116,12 +1124,12 @@ open class VulkanRenderer(hub: Hub,
 
     protected fun prepareDescriptorSets(device: VulkanDevice, descriptorPool: Long) {
         this.descriptorSets["Matrices"] = VU.createDescriptorSetDynamic(device, descriptorPool,
-                descriptorSetLayouts["Matrices"]!!, 1,
-                buffers["UBOBuffer"]!!)
+            descriptorSetLayouts["Matrices"]!!, 1,
+            buffers["UBOBuffer"]!!)
 
         this.descriptorSets["MaterialProperties"] = VU.createDescriptorSetDynamic(device, descriptorPool,
-                descriptorSetLayouts["MaterialProperties"]!!, 1,
-                buffers["UBOBuffer"]!!)
+            descriptorSetLayouts["MaterialProperties"]!!, 1,
+            buffers["UBOBuffer"]!!)
 
         val lightUbo = VulkanUBO(device)
         lightUbo.add("ViewMatrix0", { GLMatrix.getIdentity() })
@@ -1137,15 +1145,15 @@ open class VulkanRenderer(hub: Hub,
         UBOs["LightParameters"] = lightUbo
 
         this.descriptorSets["LightParameters"] = VU.createDescriptorSet(device, descriptorPool,
-                descriptorSetLayouts["LightParameters"]!!, 1,
-                lightUbo.descriptor)
+            descriptorSetLayouts["LightParameters"]!!, 1,
+            lightUbo.descriptor)
 
         val vrUbo = VulkanUBO(device)
 
-        vrUbo.add("projection0", { GLMatrix.getIdentity() } )
-        vrUbo.add("projection1", { GLMatrix.getIdentity() } )
-        vrUbo.add("inverseProjection0", { GLMatrix.getIdentity() } )
-        vrUbo.add("inverseProjection1", { GLMatrix.getIdentity() } )
+        vrUbo.add("projection0", { GLMatrix.getIdentity() })
+        vrUbo.add("projection1", { GLMatrix.getIdentity() })
+        vrUbo.add("inverseProjection0", { GLMatrix.getIdentity() })
+        vrUbo.add("inverseProjection1", { GLMatrix.getIdentity() })
         vrUbo.add("headShift", { GLMatrix.getIdentity() })
         vrUbo.add("IPD", { 0.0f })
         vrUbo.add("stereoEnabled", { 0 })
@@ -1155,8 +1163,8 @@ open class VulkanRenderer(hub: Hub,
         UBOs["VRParameters"] = vrUbo
 
         this.descriptorSets["VRParameters"] = VU.createDescriptorSet(device, descriptorPool,
-                descriptorSetLayouts["VRParameters"]!!, 1,
-                vrUbo.descriptor)
+            descriptorSetLayouts["VRParameters"]!!, 1,
+            vrUbo.descriptor)
     }
 
     protected fun prepareStandardVertexDescriptors(): ConcurrentHashMap<VertexDataKinds, VertexDescription> {
@@ -1213,7 +1221,7 @@ open class VulkanRenderer(hub: Hub,
             }
 
             attributeDesc?.let {
-                if(it.capacity() > 0) {
+                if (it.capacity() > 0) {
                     it.get(0).binding(0).location(0).format(VK_FORMAT_R32G32B32_SFLOAT).offset(0)
                 }
             }
@@ -1274,7 +1282,7 @@ open class VulkanRenderer(hub: Hub,
     protected fun vertexDescriptionFromInstancedNode(node: Node, template: VertexDescription): VertexDescription {
         logger.debug("Creating instanced vertex description for ${node.name}")
 
-        if(template.attributeDescription == null || template.bindingDescription == null) {
+        if (template.attributeDescription == null || template.bindingDescription == null) {
             return template
         }
 
@@ -1290,7 +1298,7 @@ open class VulkanRenderer(hub: Hub,
         var position: Int
         var offset = 0
 
-        for(i in 0 until attributeDescs.capacity()) {
+        for (i in 0 until attributeDescs.capacity()) {
             newAttributeDesc[i].set(attributeDescs[i])
             offset += newAttributeDesc[i].offset()
             logger.debug("location(${newAttributeDesc[i].location()})")
@@ -1305,7 +1313,7 @@ open class VulkanRenderer(hub: Hub,
             val attribInfo = it.first
             val property = it.second
 
-            for(i in (0 until attribInfo.elementCount)) {
+            for (i in (0 until attribInfo.elementCount)) {
                 newAttributeDesc[position]
                     .binding(1)
                     .location(position)
@@ -1380,7 +1388,7 @@ open class VulkanRenderer(hub: Hub,
                 }
             }
             .map { rt ->
-                if(!descriptorSetLayouts.containsKey("outputs-${rt.first}")) {
+                if (!descriptorSetLayouts.containsKey("outputs-${rt.first}")) {
                     logger.debug("Creating output descriptor set for ${rt.first}")
                     // create descriptor set layout that matches the render target
                     descriptorSetLayouts["outputs-${rt.first}"] = VU.createDescriptorSetLayout(device,
@@ -1475,7 +1483,7 @@ open class VulkanRenderer(hub: Hub,
                 }
 
                 pass.vulkanMetadata.clearValues?.free()
-                if(!passConfig.blitInputs) {
+                if (!passConfig.blitInputs) {
                     pass.vulkanMetadata.clearValues = VkClearValue.calloc(pass.output.values.first().attachments.count())
                     pass.vulkanMetadata.clearValues?.let { clearValues ->
 
@@ -1530,7 +1538,7 @@ open class VulkanRenderer(hub: Hub,
             val passConfig = config.renderpasses[pass.key]!!
 
             passConfig.inputs?.forEach { inputTarget ->
-                val targetName = if(inputTarget.contains(".")) {
+                val targetName = if (inputTarget.contains(".")) {
                     inputTarget.substringBefore(".")
                 } else {
                     inputTarget
@@ -1587,7 +1595,7 @@ open class VulkanRenderer(hub: Hub,
 
     @Suppress("unused")
     fun recordMovie() {
-        if(recordMovie) {
+        if (recordMovie) {
             encoder?.finish()
             encoder = null
 
@@ -1620,7 +1628,7 @@ open class VulkanRenderer(hub: Hub,
         swapchain!!.postPresent(pass.getReadPosition())
 
         // submit to OpenVR if attached
-        if(hub?.getWorkingHMDDisplay()?.hasCompositor() == true) {
+        if (hub?.getWorkingHMDDisplay()?.hasCompositor() == true) {
             hub?.getWorkingHMDDisplay()?.wantsVR()?.submitToCompositorVulkan(
                 window.width, window.height,
                 swapchain!!.format,
@@ -1629,9 +1637,9 @@ open class VulkanRenderer(hub: Hub,
         }
 
         if (recordMovie || screenshotRequested) {
-                // default image format is 32bit BGRA
-                val imageByteSize = window.width * window.height * 4L
-            if(screenshotBuffer == null || screenshotBuffer?.size != imageByteSize) {
+            // default image format is 32bit BGRA
+            val imageByteSize = VkDeviceSize(window.width * window.height * 4L)
+            if (screenshotBuffer == null || screenshotBuffer?.size?.L != imageByteSize.L) {
                 logger.debug("Reallocating screenshot buffer")
                 screenshotBuffer = VulkanBuffer(device, imageByteSize,
                     VK_BUFFER_USAGE_TRANSFER_DST_BIT,
@@ -1639,13 +1647,13 @@ open class VulkanRenderer(hub: Hub,
                     wantAligned = true)
             }
 
-            if(imageBuffer == null || imageBuffer?.capacity() != imageByteSize.toInt()) {
+            if (imageBuffer == null || imageBuffer?.cap != imageByteSize.i) {
                 logger.debug("Reallocating image buffer")
-                imageBuffer = memAlloc(imageByteSize.toInt())
+                imageBuffer = memAlloc(imageByteSize.i)
             }
 
             // finish encoding if a resize was performed
-            if(recordMovie) {
+            if (recordMovie) {
                 if (encoder != null && (encoder?.frameWidth != window.width || encoder?.frameHeight != window.height)) {
                     encoder?.finish()
                 }
@@ -1679,7 +1687,7 @@ open class VulkanRenderer(hub: Hub,
 
                     vkCmdCopyImageToBuffer(this, image,
                         VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                        sb.vulkanBuffer,
+                        sb.vulkanBuffer.L,
                         regions)
 
                     VulkanTexture.transitionLayout(image,
@@ -1691,26 +1699,26 @@ open class VulkanRenderer(hub: Hub,
                         flush = true, dealloc = true)
                 }
 
-                if(screenshotRequested) {
+                if (screenshotRequested) {
                     sb.copyTo(imageBuffer!!)
                 }
 
-                if(recordMovie) {
-                    encoder?.encodeFrame(sb.mapIfUnmapped().getByteBuffer(imageByteSize.toInt()))
+                if (recordMovie) {
+                    encoder?.encodeFrame(memByteBuffer(sb.mapIfUnmapped(), imageByteSize.i))
                 }
 
-                if(screenshotRequested && !recordMovie) {
+                if (screenshotRequested && !recordMovie) {
                     sb.close()
                     screenshotBuffer = null
                 }
             }
 
-            if(screenshotRequested) {
+            if (screenshotRequested) {
                 // reorder bytes for screenshot in a separate thread
                 thread {
                     imageBuffer?.let { ib ->
                         try {
-                            val file = SystemHelpers.addFileCounter(if(screenshotFilename == "") {
+                            val file = SystemHelpers.addFileCounter(if (screenshotFilename == "") {
                                 File(System.getProperty("user.home"), "Desktop" + File.separator + "$applicationName - ${SimpleDateFormat("yyyy-MM-dd HH.mm.ss").format(Date())}.png")
                             } else {
                                 File(screenshotFilename)
@@ -1763,7 +1771,7 @@ open class VulkanRenderer(hub: Hub,
     override fun render() = runBlocking {
         val swapchainChanged = pollEvents()
 
-        if(shouldClose) {
+        if (shouldClose) {
             closeInternal()
             return@runBlocking
         }
@@ -1871,7 +1879,7 @@ open class VulkanRenderer(hub: Hub,
             }
 
             val newSceneArray = sceneObjects.getCompleted().toTypedArray()
-            if(!newSceneArray.contentDeepEquals(sceneArray)) {
+            if (!newSceneArray.contentDeepEquals(sceneArray)) {
                 forceRerecording = true
             }
 
@@ -1907,8 +1915,8 @@ open class VulkanRenderer(hub: Hub,
                 commandBuffer.submitted = false
                 commandBuffer.resetFence()
 
-                val timing = intArrayOf(0,0)
-                VU.run("getting query pool results", { vkGetQueryPoolResults(device.vulkanDevice, timestampQueryPool, 2*i, 2, timing, 0, VK_FLAGS_NONE)})
+                val timing = intArrayOf(0, 0)
+                VU.run("getting query pool results", { vkGetQueryPoolResults(device.vulkanDevice, timestampQueryPool, 2 * i, 2, timing, 0, VK_FLAGS_NONE) })
 
                 stats?.add("Renderer.$t.gpuTiming", timing[1] - timing[0])
             }
@@ -1938,7 +1946,7 @@ open class VulkanRenderer(hub: Hub,
                 .pSignalSemaphores(target.signalSemaphores)
                 .pWaitSemaphores(target.waitSemaphores)
 
-            VU.run("Submit pass $t render queue", { vkQueueSubmit(queue, si, commandBuffer.getFence() )})
+            VU.run("Submit pass $t render queue", { vkQueueSubmit(queue, si, commandBuffer.getFence()) })
 
             commandBuffer.submitted = true
             firstWaitSemaphore.put(0, target.semaphore)
@@ -1962,13 +1970,13 @@ open class VulkanRenderer(hub: Hub,
 
         stats?.add("VulkanRenderer.${viewportPass.name}.recordCmdBuffer", System.nanoTime() - start)
 
-        if(viewportCommandBuffer.submitted) {
+        if (viewportCommandBuffer.submitted) {
             viewportCommandBuffer.waitForFence()
             viewportCommandBuffer.submitted = false
             viewportCommandBuffer.resetFence()
 
-            val timing = intArrayOf(0,0)
-            VU.run("getting query pool results", { vkGetQueryPoolResults(device.vulkanDevice, timestampQueryPool, 2*(flow.size-1), 2, timing, 0, VK_FLAGS_NONE)})
+            val timing = intArrayOf(0, 0)
+            VU.run("getting query pool results", { vkGetQueryPoolResults(device.vulkanDevice, timestampQueryPool, 2 * (flow.size - 1), 2, timing, 0, VK_FLAGS_NONE) })
 
             stats?.add("Renderer.${viewportPass.name}.gpuTiming", timing[1] - timing[0])
         }
@@ -2014,7 +2022,7 @@ open class VulkanRenderer(hub: Hub,
             val size = requiredExtensions?.remaining() ?: 0
             val enabledExtensionNames = stack.callocPointer(size + additionalExts.size + 1)
 
-            if(requiredExtensions != null) {
+            if (requiredExtensions != null) {
                 enabledExtensionNames.put(requiredExtensions)
             }
 
@@ -2022,7 +2030,7 @@ open class VulkanRenderer(hub: Hub,
             utf8Exts.forEach { enabledExtensionNames.put(it) }
             enabledExtensionNames.flip()
 
-            val enabledLayerNames = if(!wantsOpenGLSwapchain && validation) {
+            val enabledLayerNames = if (!wantsOpenGLSwapchain && validation) {
                 val pointers = stack.callocPointer(defaultValidationLayers.size)
                 defaultValidationLayers.forEach { pointers.put(stack.UTF8(it)) }
                 pointers
@@ -2066,7 +2074,7 @@ open class VulkanRenderer(hub: Hub,
             }
 
             callbackHandle
-        } catch(e: NullPointerException) {
+        } catch (e: NullPointerException) {
             -1
         }
     }
@@ -2077,7 +2085,7 @@ open class VulkanRenderer(hub: Hub,
         if (n.texcoords.remaining() == 0 && node.instanceMaster) {
             val buffer = je_calloc(1, 4L * n.vertices.remaining() / n.vertexSize * n.texcoordSize)
 
-            if(buffer == null) {
+            if (buffer == null) {
                 logger.error("Could not allocate texcoords buffer with ${4L * n.vertices.remaining() / n.vertexSize * n.texcoordSize} bytes for ${node.name}")
                 return state
             } else {
@@ -2091,7 +2099,7 @@ open class VulkanRenderer(hub: Hub,
 
         val stridedBuffer = je_malloc(fullAllocationBytes)
 
-        if(stridedBuffer == null) {
+        if (stridedBuffer == null) {
             logger.error("Allocation failed, skipping vertex buffer creation for ${node.name}.")
             return state
         }
@@ -2135,33 +2143,33 @@ open class VulkanRenderer(hub: Hub,
         n.indices.flip()
 
         val stagingBuffer = VulkanBuffer(device,
-            fullAllocationBytes * 1L,
-            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+            VkDeviceSize(fullAllocationBytes),
+            VkBufferUsage.TRANSFER_SRC_BIT.i,
+            VkMemoryProperty.HOST_VISIBLE_BIT.i,
             wantAligned = false)
 
         stagingBuffer.copyFrom(stridedBuffer)
 
-        val vertexBuffer = if(state.vertexBuffers.containsKey("vertex+index") && state.vertexBuffers["vertex+index"]!!.size >= fullAllocationBytes) {
+        val vertexBuffer = if (state.vertexBuffers.containsKey("vertex+index") && state.vertexBuffers["vertex+index"]!!.size.L >= fullAllocationBytes) {
             logger.debug("Reusing existing vertex+index buffer for {} update", node.name)
             state.vertexBuffers["vertex+index"]!!
         } else {
             logger.debug("Creating new vertex+index buffer for {} with {} bytes", node.name, fullAllocationBytes)
-            geometryPool.createBuffer(fullAllocationBytes.toInt())
+            geometryPool.createBuffer(VkDeviceSize(fullAllocationBytes))
         }
 
-        logger.debug("Using VulkanBuffer {} for vertex+index storage, offset={}", vertexBuffer.vulkanBuffer.toHexString(), vertexBuffer.bufferOffset)
+        logger.debug("Using VulkanBuffer {} for vertex+index storage, offset={}", vertexBuffer.vulkanBuffer.asHexString, vertexBuffer.bufferOffset)
 
         logger.debug("Initiating copy with 0->${vertexBuffer.bufferOffset}, size=$fullAllocationBytes")
         val copyRegion = VkBufferCopy.calloc(1)
             .srcOffset(0)
-            .dstOffset(vertexBuffer.bufferOffset)
-            .size(fullAllocationBytes * 1L)
+            .dstOffset(vertexBuffer.bufferOffset.L)
+            .size(fullAllocationBytes)
 
         with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
             vkCmdCopyBuffer(this,
-                stagingBuffer.vulkanBuffer,
-                vertexBuffer.vulkanBuffer,
+                stagingBuffer.vulkanBuffer.L,
+                vertexBuffer.vulkanBuffer.L,
                 copyRegion)
             this.endCommandBuffer(device, commandPools.Standard, queue, flush = true, dealloc = true)
         }
@@ -2170,9 +2178,11 @@ open class VulkanRenderer(hub: Hub,
 
         state.vertexBuffers.put("vertex+index", vertexBuffer)?.run {
             // check if vertex buffer has been replaced, if yes, close the old one
-            if(this != vertexBuffer) { close() }
+            if (this != vertexBuffer) {
+                close()
+            }
         }
-        state.indexOffset = vertexBuffer.bufferOffset + vertexAllocationBytes
+        state.indexOffset = vertexBuffer.bufferOffset.L + vertexAllocationBytes
         state.indexCount = n.indices.remaining()
 
         je_free(stridedBuffer)
@@ -2193,14 +2203,14 @@ open class VulkanRenderer(hub: Hub,
         val ubo = VulkanUBO(device)
         ubo.fromInstance(parentNode.instances.first())
 
-        val instanceBufferSize = ubo.getSize() * parentNode.instances.size
+        val instanceBufferSize = VkDeviceSize(ubo.getSize() * parentNode.instances.size.L)
 
-        val stagingBuffer = if(state.vertexBuffers.containsKey("instanceStaging") && state.vertexBuffers["instanceStaging"]!!.size >= instanceBufferSize) {
+        val stagingBuffer = if (state.vertexBuffers.containsKey("instanceStaging") && state.vertexBuffers["instanceStaging"]!!.size.L >= instanceBufferSize.L) {
             state.vertexBuffers["instanceStaging"]!!
         } else {
             logger.debug("Creating new staging buffer")
             val buffer = VulkanBuffer(device,
-                instanceBufferSize * 1L,
+                instanceBufferSize,
                 VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
                 wantAligned = true)
@@ -2218,26 +2228,27 @@ open class VulkanRenderer(hub: Hub,
             node.needsUpdateWorld = true
             node.updateWorld(true, false)
 
-            node.metadata.getOrPut("instanceBufferView", {
+            node.metadata.getOrPut("instanceBufferView") {
                 stagingBuffer.stagingBuffer.duplicate().order(ByteOrder.LITTLE_ENDIAN)
-            }).run {
-                val buffer = this as? ByteBuffer?: return@run
+            }.run {
+                val buffer = this as? ByteBuffer ?: return@run
 
-                ubo.populateParallel(buffer, offset = index.getAndIncrement() * ubo.getSize()*1L, elements = node.instancedProperties)
+                ubo.populateParallel(buffer, offset = index.getAndIncrement() * ubo.getSize() * 1L, elements = node.instancedProperties)
             }
         }
 
         stagingBuffer.stagingBuffer.position(parentNode.instances.size * ubo.getSize())
         stagingBuffer.copyFromStagingBuffer()
 
-        val instanceBuffer = if (state.vertexBuffers.containsKey("instance") && state.vertexBuffers["instance"]!!.size >= instanceBufferSize) {
+        val instanceBuffer = if (state.vertexBuffers.containsKey("instance") && state.vertexBuffers["instance"]!!.size.L >= instanceBufferSize.L) {
             state.vertexBuffers["instance"]!!
         } else {
-            logger.debug("Instance buffer for ${parentNode.name} needs to be reallocated due to insufficient size ($instanceBufferSize vs ${state.vertexBuffers["instance"]?.size ?: "<not allocated yet>"})")
+            logger.debug("Instance buffer for ${parentNode.name} needs to be reallocated due to insufficient size ($instanceBufferSize vs ${state.vertexBuffers["instance"]?.size
+                ?: "<not allocated yet>"})")
             state.vertexBuffers["instance"]?.close()
 
             val buffer = VulkanBuffer(device,
-                instanceBufferSize * 1L,
+                instanceBufferSize,
                 VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                 wantAligned = true)
@@ -2248,11 +2259,11 @@ open class VulkanRenderer(hub: Hub,
 
         with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
             val copyRegion = VkBufferCopy.calloc(1)
-                .size(instanceBufferSize * 1L)
+                .size(instanceBufferSize.L)
 
             vkCmdCopyBuffer(this,
-                stagingBuffer.vulkanBuffer,
-                instanceBuffer.vulkanBuffer,
+                stagingBuffer.vulkanBuffer.L,
+                instanceBuffer.vulkanBuffer.L,
                 copyRegion)
 
             copyRegion.free()
@@ -2303,32 +2314,19 @@ open class VulkanRenderer(hub: Hub,
     private fun prepareDefaultBuffers(device: VulkanDevice, bufferStorage: ConcurrentHashMap<String, VulkanBuffer>) {
         logger.debug("Creating buffers")
 
-        bufferStorage["UBOBuffer"] = VulkanBuffer(device,
-            512 * 1024 * 10,
-            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-            wantAligned = true)
+        val usage = VkBufferUsage.UNIFORM_BUFFER_BIT.i
+        val memProp = VkMemoryProperty.HOST_VISIBLE_BIT or VkMemoryProperty.HOST_COHERENT_BIT
+        val aligned = true
+        bufferStorage["UBOBuffer"] = VulkanBuffer(device, VkDeviceSize(512 * 1024 * 10), usage, memProp, aligned)
         logger.debug("Created UBO buffer")
 
-        bufferStorage["LightParametersBuffer"] = VulkanBuffer(device,
-            512 * 1024 * 10,
-            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-            wantAligned = true)
+        bufferStorage["LightParametersBuffer"] = VulkanBuffer(device, VkDeviceSize(512 * 1024 * 10), usage, memProp, aligned)
         logger.debug("Created light buffer")
 
-        bufferStorage["VRParametersBuffer"] = VulkanBuffer(device,
-            256 * 10,
-            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-            wantAligned = true)
+        bufferStorage["VRParametersBuffer"] = VulkanBuffer(device, VkDeviceSize(256 * 10), usage, memProp, aligned)
         logger.debug("Created VRP buffer")
 
-        bufferStorage["ShaderPropertyBuffer"] = VulkanBuffer(device,
-            1024 * 1024,
-            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-            wantAligned = true)
+        bufferStorage["ShaderPropertyBuffer"] = VulkanBuffer(device, VkDeviceSize(1024 * 1024), usage, memProp, aligned)
         logger.debug("Created all buffers")
     }
 
@@ -2373,7 +2371,7 @@ open class VulkanRenderer(hub: Hub,
         // OR re-recording is forced due to node changes, the buffer will be re-recorded.
         // Furthermore, all sibling command buffers for this pass will be marked stale, thus
         // also forcing their re-recording.
-        if(!pass.vulkanMetadata.renderLists.containsKey(commandBuffer)
+        if (!pass.vulkanMetadata.renderLists.containsKey(commandBuffer)
             || !renderOrderList.toTypedArray().contentDeepEquals(pass.vulkanMetadata.renderLists[commandBuffer]!!)
             || forceRerecording) {
 
@@ -2381,14 +2379,14 @@ open class VulkanRenderer(hub: Hub,
             pass.vulkanMetadata.renderLists.keys.forEach { it.stale = true }
 
             // if we are in a VR pass, invalidate passes for both eyes to prevent one of them housing stale data
-            if(renderConfig.stereoEnabled && (pass.name.contains("Left") || pass.name.contains("Right"))) {
-                val passLeft = if(pass.name.contains("Left")) {
+            if (renderConfig.stereoEnabled && (pass.name.contains("Left") || pass.name.contains("Right"))) {
+                val passLeft = if (pass.name.contains("Left")) {
                     pass.name
                 } else {
                     pass.name.substringBefore("Right") + "Left"
                 }
 
-                val passRight = if(pass.name.contains("Right")) {
+                val passRight = if (pass.name.contains("Right")) {
                     pass.name
                 } else {
                     pass.name.substringBefore("Left") + "Right"
@@ -2401,7 +2399,7 @@ open class VulkanRenderer(hub: Hub,
 
         // If the command buffer is not stale, though, we keep the cached one and return. This
         // can buy quite a bit of performance.
-        if(!commandBuffer.stale && commandBuffer.commandBuffer != null) {
+        if (!commandBuffer.stale && commandBuffer.commandBuffer != null) {
             return@runBlocking
         }
 
@@ -2419,49 +2417,49 @@ open class VulkanRenderer(hub: Hub,
         with(commandBuffer.commandBuffer!!) {
 
             vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-                timestampQueryPool, 2*renderpasses.values.indexOf(pass))
+                timestampQueryPool, 2 * renderpasses.values.indexOf(pass))
 
-            if(pass.passConfig.blitInputs) {
+            if (pass.passConfig.blitInputs) {
                 stackPush().use { stack ->
                     val imageBlit = VkImageBlit.callocStack(1, stack)
 
-                    for((name, input) in pass.inputs) {
-                        val attachmentList = if(name.contains(".")) {
+                    for ((name, input) in pass.inputs) {
+                        val attachmentList = if (name.contains(".")) {
                             input.attachments.filter { it.key == name.substringAfter(".") }
                         } else {
                             input.attachments
                         }
 
-                        for((_, inputAttachment) in attachmentList) {
+                        for ((_, inputAttachment) in attachmentList) {
 
-                            val type = when(inputAttachment.type) {
+                            val type = when (inputAttachment.type) {
                                 VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> VK_IMAGE_ASPECT_COLOR_BIT
                                 VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> VK_IMAGE_ASPECT_DEPTH_BIT
                             }
 
                             // return to use() if no output with the correct attachment type is found
                             val outputAttachment = pass.getOutput().attachments.values.find { it.type == inputAttachment.type }
-                            if(outputAttachment == null) {
+                            if (outputAttachment == null) {
                                 logger.warn("Didn't find matching attachment for $name of type ${inputAttachment.type}")
                                 return@use
                             }
 
-                            val outputAspectSrcType = when(outputAttachment.type) {
+                            val outputAspectSrcType = when (outputAttachment.type) {
                                 VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
                                 VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
                             }
 
-                            val outputAspectDstType = when(outputAttachment.type) {
+                            val outputAspectDstType = when (outputAttachment.type) {
                                 VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
                                 VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
                             }
 
-                            val inputAspectType = when(inputAttachment.type) {
+                            val inputAspectType = when (inputAttachment.type) {
                                 VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
                                 VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
                             }
 
-                            val outputDstStage = when(outputAttachment.type) {
+                            val outputDstStage = when (outputAttachment.type) {
                                 VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
                                 VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT
                             }
@@ -2549,26 +2547,26 @@ open class VulkanRenderer(hub: Hub,
             pass.vulkanMetadata.uboOffsets.limit(16)
             (0 until pass.vulkanMetadata.uboOffsets.limit()).forEach { pass.vulkanMetadata.uboOffsets.put(it, 0) }
 
-            renderOrderList.forEach drawLoop@ { node ->
+            renderOrderList.forEach drawLoop@{ node ->
                 val s = node.rendererMetadata()!!
 
                 // instanced nodes will not be drawn directly, but only the master node.
                 // nodes with no vertices will also not be drawn.
-                if(node.instanceOf != null || s.vertexCount == 0) {
+                if (node.instanceOf != null || s.vertexCount == 0) {
                     return@drawLoop
                 }
 
                 // return if we are on a opaque pass, but the node requires transparency.
-                if(pass.passConfig.renderOpaque && node.material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) {
+                if (pass.passConfig.renderOpaque && node.material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) {
                     return@drawLoop
                 }
 
                 // return if we are on a transparency pass, but the node is only opaque.
-                if(pass.passConfig.renderTransparent && !node.material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) {
+                if (pass.passConfig.renderTransparent && !node.material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) {
                     return@drawLoop
                 }
 
-                logger.trace("{} - Rendering {}, vertex+index buffer={}...", pass.name, node.name, s.vertexBuffers["vertex+index"]!!.vulkanBuffer.toHexString())
+                logger.trace("{} - Rendering {}, vertex+index buffer={}...", pass.name, node.name, s.vertexBuffers["vertex+index"]!!.vulkanBuffer.asHexString)
 //                if(rerecordingCauses.contains(node.name)) {
 //                    logger.debug("Using pipeline ${pass.getActivePipeline(node)} for re-recording")
 //                }
@@ -2581,18 +2579,18 @@ open class VulkanRenderer(hub: Hub,
                 pass.vulkanMetadata.descriptorSets.rewind()
                 pass.vulkanMetadata.uboOffsets.rewind()
 
-                pass.vulkanMetadata.vertexBufferOffsets.put(0, s.vertexBuffers["vertex+index"]!!.bufferOffset)
-                pass.vulkanMetadata.vertexBuffers.put(0, s.vertexBuffers["vertex+index"]!!.vulkanBuffer)
+                pass.vulkanMetadata.vertexBufferOffsets.put(0, s.vertexBuffers["vertex+index"]!!.bufferOffset.L)
+                pass.vulkanMetadata.vertexBuffers.put(0, s.vertexBuffers["vertex+index"]!!.vulkanBuffer.L)
 
                 pass.vulkanMetadata.vertexBufferOffsets.limit(1)
                 pass.vulkanMetadata.vertexBuffers.limit(1)
 
-                if(node.instanceMaster) {
+                if (node.instanceMaster) {
                     pass.vulkanMetadata.vertexBuffers.limit(2)
                     pass.vulkanMetadata.vertexBufferOffsets.limit(2)
 
                     pass.vulkanMetadata.vertexBufferOffsets.put(1, 0)
-                    pass.vulkanMetadata.vertexBuffers.put(1, s.vertexBuffers["instance"]!!.vulkanBuffer)
+                    pass.vulkanMetadata.vertexBuffers.put(1, s.vertexBuffers["instance"]!!.vulkanBuffer.L)
                 }
 
                 val sets = specs.mapNotNull { (name, _) ->
@@ -2620,15 +2618,15 @@ open class VulkanRenderer(hub: Hub,
                         else -> {
                             when {
                                 s.UBOs.containsKey(name)
-                                    -> DescriptorSet.DynamicSet(s.UBOs[name]!!.first, offset = s.UBOs[name]!!.second.offsets.get(0), setName = name)
+                                -> DescriptorSet.DynamicSet(s.UBOs[name]!!.first, offset = s.UBOs[name]!!.second.offsets.get(0), setName = name)
                                 s.UBOs.containsKey("${pass.name}-$name")
-                                    -> DescriptorSet.DynamicSet(s.UBOs["${pass.name}-$name"]!!.first, offset = s.UBOs["${pass.name}-$name"]!!.second.offsets.get(0), setName = name)
+                                -> DescriptorSet.DynamicSet(s.UBOs["${pass.name}-$name"]!!.first, offset = s.UBOs["${pass.name}-$name"]!!.second.offsets.get(0), setName = name)
                                 else -> DescriptorSet.None
                             }
                         }
                     }
 
-                    if(ds == null) {
+                    if (ds == null) {
                         logger.error("Internal consistency error for node ${node.name}: Descriptor set $name not found in renderpass, skipping node for rendering.")
                         return@drawLoop
                     }
@@ -2638,7 +2636,7 @@ open class VulkanRenderer(hub: Hub,
                 logger.debug("${node.name} requires DS ${specs.joinToString { "${it.key}, " }}")
 
                 val requiredSets = sets.filter { it !is DescriptorSet.None }.map { it.id }.toLongArray()
-                if(pass.vulkanMetadata.descriptorSets.capacity() < requiredSets.size) {
+                if (pass.vulkanMetadata.descriptorSets.capacity() < requiredSets.size) {
                     logger.debug("Reallocating descriptor set storage")
                     memFree(pass.vulkanMetadata.descriptorSets)
                     pass.vulkanMetadata.descriptorSets = memAllocLong(requiredSets.size)
@@ -2654,12 +2652,12 @@ open class VulkanRenderer(hub: Hub,
                 pass.vulkanMetadata.uboOffsets.put(sets.filter { it is DescriptorSet.DynamicSet }.map { (it as DescriptorSet.DynamicSet).offset }.toIntArray())
                 pass.vulkanMetadata.uboOffsets.flip()
 
-                if(p.pushConstantSpecs.containsKey("currentEye")) {
+                if (p.pushConstantSpecs.containsKey("currentEye")) {
                     vkCmdPushConstants(this, pipeline.layout, VK_SHADER_STAGE_ALL, 0, pass.vulkanMetadata.eye)
                 }
 
                 vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline)
-                if(pass.vulkanMetadata.descriptorSets.limit() > 0) {
+                if (pass.vulkanMetadata.descriptorSets.limit() > 0) {
                     vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_GRAPHICS,
                         pipeline.layout, 0, pass.vulkanMetadata.descriptorSets, pass.vulkanMetadata.uboOffsets)
                 }
@@ -2678,7 +2676,7 @@ open class VulkanRenderer(hub: Hub,
             vkCmdEndRenderPass(this)
 
             vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-                timestampQueryPool, 2*renderpasses.values.indexOf(pass)+1)
+                timestampQueryPool, 2 * renderpasses.values.indexOf(pass) + 1)
 
             // finish command buffer recording by marking this buffer non-stale
             commandBuffer.stale = false
@@ -2699,7 +2697,7 @@ open class VulkanRenderer(hub: Hub,
             .renderArea(pass.vulkanMetadata.renderArea)
             .pClearValues(pass.vulkanMetadata.clearValues)
 
-        if(!commandBuffer.stale) {
+        if (!commandBuffer.stale) {
             return
         }
 
@@ -2715,7 +2713,7 @@ open class VulkanRenderer(hub: Hub,
         with(commandBuffer.commandBuffer!!) {
 
             vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-                timestampQueryPool, 2*renderpasses.values.indexOf(pass))
+                timestampQueryPool, 2 * renderpasses.values.indexOf(pass))
             vkCmdBeginRenderPass(this, pass.vulkanMetadata.renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE)
 
             vkCmdSetViewport(this, 0, pass.vulkanMetadata.viewport)
@@ -2742,12 +2740,12 @@ open class VulkanRenderer(hub: Hub,
             // set the required descriptor sets for this render pass
             pass.vulkanMetadata.setRequiredDescriptorSetsPostprocess(pass, pipeline)
 
-            if(pipeline.pushConstantSpecs.containsKey("currentEye")) {
+            if (pipeline.pushConstantSpecs.containsKey("currentEye")) {
                 vkCmdPushConstants(this, vulkanPipeline.layout, VK_SHADER_STAGE_ALL, 0, pass.vulkanMetadata.eye)
             }
 
             vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkanPipeline.pipeline)
-            if(pass.vulkanMetadata.descriptorSets.limit() > 0) {
+            if (pass.vulkanMetadata.descriptorSets.limit() > 0) {
                 logger.debug("Binding ${pass.vulkanMetadata.descriptorSets.limit()} descriptor sets with ${pass.vulkanMetadata.uboOffsets.limit()} required offsets")
                 vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_GRAPHICS,
                     vulkanPipeline.layout, 0, pass.vulkanMetadata.descriptorSets, pass.vulkanMetadata.uboOffsets)
@@ -2757,7 +2755,7 @@ open class VulkanRenderer(hub: Hub,
 
             vkCmdEndRenderPass(this)
             vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-                timestampQueryPool, 2*renderpasses.values.indexOf(pass)+1)
+                timestampQueryPool, 2 * renderpasses.values.indexOf(pass) + 1)
 
             commandBuffer.stale = false
             this.endCommandBuffer()
@@ -2829,11 +2827,12 @@ open class VulkanRenderer(hub: Hub,
     private fun getDescriptorCache(): ConcurrentHashMap<String, Long> {
         return scene.metadata.getOrPut("DescriptorCache") {
             ConcurrentHashMap<String, Long>()
-        } as? ConcurrentHashMap<String, Long> ?: throw IllegalStateException("Could not retrieve descriptor cache from scene")
+        } as? ConcurrentHashMap<String, Long>
+            ?: throw IllegalStateException("Could not retrieve descriptor cache from scene")
     }
 
     private fun updateDefaultUBOs(device: VulkanDevice): Boolean = runBlocking {
-        if(shouldClose) {
+        if (shouldClose) {
             return@runBlocking false
         }
 
@@ -2896,32 +2895,32 @@ open class VulkanRenderer(hub: Hub,
                 ubo.offsets.limit(1)
 
                 var bufferOffset = ubo.backingBuffer!!.advance()
-                ubo.offsets.put(0, bufferOffset)
+                ubo.offsets.put(0, bufferOffset.i)
                 ubo.offsets.limit(1)
 
 //                node.projection.copyFrom(cam.projection.applyVulkanCoordinateSystem())
 
                 node.view.copyFrom(cam.view)
 
-                nodeUpdated = ubo.populate(offset = bufferOffset.toLong())
+                nodeUpdated = ubo.populate(offset = bufferOffset)
 
                 val materialUbo = s.UBOs["MaterialProperties"]!!.second
                 bufferOffset = ubo.backingBuffer!!.advance()
-                materialUbo.offsets.put(0, bufferOffset)
+                materialUbo.offsets.put(0, bufferOffset.i)
                 materialUbo.offsets.limit(1)
 
-                nodeUpdated = materialUbo.populate(offset = bufferOffset.toLong())
+                nodeUpdated = materialUbo.populate(offset = bufferOffset)
 
                 s.UBOs.filter { it.key.contains("ShaderProperties") && it.value.second.memberCount() > 0 }.forEach {
-//                if(s.requiredDescriptorSets.keys.any { it.contains("ShaderProperties") }) {
+                    //                if(s.requiredDescriptorSets.keys.any { it.contains("ShaderProperties") }) {
                     val propertyUbo = it.value.second
                     val offset = propertyUbo.backingBuffer!!.advance()
-                    nodeUpdated = propertyUbo.populate(offset = offset.toLong())
-                    propertyUbo.offsets.put(0, offset)
+                    nodeUpdated = propertyUbo.populate(offset = offset)
+                    propertyUbo.offsets.put(0, offset.i)
                     propertyUbo.offsets.limit(1)
                 }
 
-                if(nodeUpdated) {
+                if (nodeUpdated) {
                     GlobalScope.launch { node.getScene()?.onNodePropertiesChanged?.forEach { it.value.invoke(node) } }
                 }
 
@@ -2987,7 +2986,7 @@ open class VulkanRenderer(hub: Hub,
                     val property = settings.get<Int>(it).toggle()
                     settings.set(it, property)
 
-                } catch(e: Exception) {
+                } catch (e: Exception) {
                     logger.warn("$it is a property that is not togglable.")
                 }
             }
@@ -3002,7 +3001,7 @@ open class VulkanRenderer(hub: Hub,
     }
 
     fun closeInternal() {
-        if(!initialized) {
+        if (!initialized) {
             return
         }
 
@@ -3047,7 +3046,7 @@ open class VulkanRenderer(hub: Hub,
         memFree(ph.waitSemaphore)
         memFree(ph.waitStages)
 
-        if(timestampQueryPool != -1L) {
+        if (timestampQueryPool != -1L) {
             logger.debug("Closing query pools...")
             vkDestroyQueryPool(device.vulkanDevice, timestampQueryPool, null)
         }
@@ -3117,18 +3116,18 @@ open class VulkanRenderer(hub: Hub,
             settings.set(setting, value)
         }
 
-        if(renderConfig.qualitySettings.isNotEmpty()) {
+        if (renderConfig.qualitySettings.isNotEmpty()) {
             logger.info("Setting rendering quality to $quality")
 
             renderConfig.qualitySettings[quality]?.forEach { setting ->
-                if(setting.key.endsWith(".shaders") && setting.value is List<*>) {
+                if (setting.key.endsWith(".shaders") && setting.value is List<*>) {
                     val pass = setting.key.substringBeforeLast(".shaders")
                     val shaders = setting.value as? List<String> ?: return@forEach
 
                     renderConfig.renderpasses[pass]?.shaders = shaders
 
                     @Suppress("SENSELESS_COMPARISON")
-                    if(swapchainRecreator != null) {
+                    if (swapchainRecreator != null) {
                         swapchainRecreator.mustRecreate = true
                         swapchainRecreator.afterRecreateHook = { swapchainRecreator ->
                             renderConfig.qualitySettings[quality]?.filter { !it.key.endsWith(".shaders") }?.forEach {

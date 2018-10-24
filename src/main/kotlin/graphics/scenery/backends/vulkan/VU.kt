@@ -3,6 +3,7 @@ package graphics.scenery.backends.vulkan
 import graphics.scenery.Blending
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.utils.LazyLogger
+import kool.stak
 import org.lwjgl.PointerBuffer
 import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil.*
@@ -638,7 +639,7 @@ class VU {
                     { vkAllocateDescriptorSets(device.vulkanDevice, allocInfo, this) }, {})
 
                 val d = VkDescriptorBufferInfo.callocStack(1, stack)
-                    .buffer(buffer.vulkanBuffer)
+                    .buffer(buffer.vulkanBuffer.L)
                     .range(2048)
                     .offset(0L)
 
@@ -670,7 +671,7 @@ class VU {
 
             return stackPush().use { stack ->
                 val d = VkDescriptorBufferInfo.callocStack(1, stack)
-                    .buffer(buffer.vulkanBuffer)
+                    .buffer(buffer.vulkanBuffer.L)
                     .range(2048)
                     .offset(0L)
 
@@ -701,7 +702,7 @@ class VU {
         fun createDescriptorSet(device: VulkanDevice, descriptorPool: Long, descriptorSetLayout: Long, bindingCount: Int,
                                 ubo: VulkanUBO.UBODescriptor, type: Int = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER): Long {
             logger.debug("Creating descriptor set with ${bindingCount} bindings, DSL=$descriptorSetLayout")
-            return stackPush().use { stack ->
+            return stak { stack ->
                 val pDescriptorSetLayout = stack.callocLong(1).put(0, descriptorSetLayout)
 
                 val allocInfo = VkDescriptorSetAllocateInfo.callocStack(stack)
@@ -715,7 +716,7 @@ class VU {
 
                 val d =
                     VkDescriptorBufferInfo.callocStack(1, stack)
-                        .buffer(ubo.buffer)
+                        .buffer(ubo.buffer.L)
                         .range(ubo.range)
                         .offset(ubo.offset)
 

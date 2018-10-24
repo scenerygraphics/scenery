@@ -2,12 +2,15 @@ package graphics.scenery.backends.vulkan
 
 import cleargl.GLTypeEnum
 import cleargl.TGAReader
+import glm_.L
 import graphics.scenery.GenericTexture
 import graphics.scenery.utils.LazyLogger
+import kool.cap
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkImageCreateInfo
+import vkk.VkDeviceSize
 import java.awt.Color
 import java.awt.color.ColorSpace
 import java.awt.geom.AffineTransform
@@ -76,7 +79,7 @@ open class VulkanTexture(val device: VulkanDevice,
                 bufferImageCopy.imageOffset().set(0, 0, 0)
 
                 vkCmdCopyBufferToImage(this,
-                    buffer.vulkanBuffer,
+                    buffer.vulkanBuffer.L,
                     this@VulkanImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                     bufferImageCopy)
 
@@ -306,7 +309,7 @@ open class VulkanTexture(val device: VulkanDevice,
                         commandBuffer = this)
                 } else {
                     buffer = VulkanBuffer(this@VulkanTexture.device,
-                        sourceBuffer.capacity().toLong(),
+                        VkDeviceSize( sourceBuffer.cap.L),
                         VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                         wantAligned = false)
@@ -337,7 +340,7 @@ open class VulkanTexture(val device: VulkanDevice,
             }
         } else {
             val buffer = VulkanBuffer(device,
-                sourceBuffer.limit().toLong(),
+                VkDeviceSize(sourceBuffer.lim.L),
                 VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
                 wantAligned = false)
