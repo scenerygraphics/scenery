@@ -15,10 +15,10 @@ inline fun <T, R> Iterable<T>.zipWithNextNullable(transform: (a: T?, b: T?) -> R
     var current = iterator.next()
     while (iterator.hasNext()) {
         val next = iterator.next()
-        result.add(transform(current, next))
+        result += transform(current, next)
         current = next
     }
-    result.add(transform(current, null))
+    result += transform(current, null)
     return result
 }
 
@@ -69,7 +69,7 @@ class VulkanBufferAllocation(val usage: VulkanBufferUsage,
         candidates.sortBy { (it.getFreeSpace() - size).L }
 
         if (logger.isTraceEnabled) {
-            logger.trace("Allocation candidates: ${candidates.filter { it.getFreeSpace().L >= size.L }.joinToString(", ") { "L=${it.left}/R=${it.right} free=${it.getFreeSpace()}" }}")
+            logger.trace("Allocation candidates: ${candidates.filter { it.getFreeSpace().L >= size.L }.joinToString() { "L=${it.left}/R=${it.right} free=${it.getFreeSpace()}" }}")
         }
 
         return candidates.firstOrNull { it.getFreeSpace().L > size.L && it.getFreeSpace().L > alignment.L }

@@ -4,6 +4,7 @@ import glm_.L
 import graphics.scenery.utils.LazyLogger
 import kool.Adr
 import kool.cap
+import kool.free
 import kool.pos
 import org.lwjgl.PointerBuffer
 import org.lwjgl.system.MemoryUtil
@@ -276,7 +277,7 @@ open class VulkanBuffer(val device: VulkanDevice,
             unmap()
         }
 
-        memFree(stagingBuffer)
+        stagingBuffer.free()
 
         vkDev freeMemory memory
         memory = VkDeviceMemory(NULL)

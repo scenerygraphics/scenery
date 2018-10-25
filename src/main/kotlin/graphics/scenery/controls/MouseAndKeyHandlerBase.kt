@@ -135,7 +135,7 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
         }
 
         try {
-            logger.debug("Native JARs for JInput: ${getNativeJars("jinput-platform").joinToString(", ")}")
+            logger.debug("Native JARs for JInput: ${getNativeJars("jinput-platform").joinToString()}")
             extractLibrariesFromJar(getNativeJars("jinput-platform", hint = ExtractsNatives.getPlatform().getPlatformJinputLibraryName()))
 
             ControllerEnvironment.getDefaultEnvironment().controllers.forEach {

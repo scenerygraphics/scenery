@@ -195,7 +195,7 @@ class VU {
             }
 
             if(result in allowedResults) {
-                LoggerFactory.getLogger("VulkanRenderer").debug("Call to $name did not result in error because return code(s) ${allowedResults.joinToString(", ")} were explicitly tolerated.")
+                LoggerFactory.getLogger("VulkanRenderer").debug("Call to $name did not result in error because return code(s) ${allowedResults.joinToString()} were explicitly tolerated.")
             }
         }
 

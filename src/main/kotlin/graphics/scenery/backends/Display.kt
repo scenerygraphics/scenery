@@ -92,7 +92,7 @@ interface Display {
      *
      * @return [List] of strings containing the required device extensions
      */
-    fun getVulkanDeviceExtensions(physicalDevice: VkPhysicalDevice): List<String>
+    fun getVulkanDeviceExtensions(physicalDevice: VkPhysicalDevice): ArrayList<String>
 
     /**
      * Returns a [Display] instance, if working currently

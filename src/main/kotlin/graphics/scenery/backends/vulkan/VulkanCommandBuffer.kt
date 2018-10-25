@@ -4,6 +4,7 @@ import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkCommandBuffer
 import org.lwjgl.vulkan.VkFenceCreateInfo
+import vkk.*
 import java.nio.LongBuffer
 
 /**
@@ -18,7 +19,8 @@ class VulkanCommandBuffer(val device: VulkanDevice, var commandBuffer: VkCommand
     var stale: Boolean = true
 
     private var fenceInitialized: Boolean = false
-    private var fence: LongBuffer = memAllocLong(1)
+    var fence = VkFence(NULL)
+        private set
 
     /** Whether this command buffer has already been submitted to a queue. */
     var submitted = false
@@ -29,19 +31,13 @@ class VulkanCommandBuffer(val device: VulkanDevice, var commandBuffer: VkCommand
         }
     }
 
+    val vkDev get() = device.vulkanDevice
+
     /**
      * Adds a fence to this command buffer for synchronisation.
      */
     fun addFence() {
-        val fc = VkFenceCreateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_FENCE_CREATE_INFO)
-            .pNext(NULL)
-
-        val f = VU.getLong("Creating fence",
-            { vkCreateFence(device.vulkanDevice, fc, null, this) },
-            { fc.free() })
-
-        fence.put(0, f)
+        fence = vkDev createFence vk.FenceCreateInfo()
         fenceInitialized = true
     }
 
@@ -50,41 +46,23 @@ class VulkanCommandBuffer(val device: VulkanDevice, var commandBuffer: VkCommand
      * waiting for [timeout] milliseconds.
      */
     fun waitForFence(timeout: Long? = null) {
-        if(fenced && fenceInitialized) {
-            VU.getLong("Waiting for fence",
-                { vkWaitForFences(device.vulkanDevice, fence, true, timeout ?: -1L) }, {})
-        }
+        if(fenced && fenceInitialized)
+            vkDev.waitForFence(fence, true, timeout ?: -1L)
     }
 
     /**
      * Resets this command buffer's fence.
      */
     fun resetFence() {
-        if(fenced && fenceInitialized) {
-            VU.getLong("Resetting fence",
-                { vkResetFences(device.vulkanDevice, fence) }, {})
-        }
-    }
-
-    /**
-     * Returns a reference to the fence, or null if the command buffer is not [fenced].
-     */
-    fun getFence(): Long {
-        return if(fenced) {
-            fence.get(0)
-        } else {
-            return NULL
-        }
+        if(fenced && fenceInitialized)
+            vkDev resetFence fence
     }
 
     /**
      * Closes and deallocates this command buffer.
      */
     override fun close() {
-        if(fenced && fenceInitialized) {
-            vkDestroyFence(device.vulkanDevice, fence.get(0), null)
-        }
-
-        memFree(fence)
+        if(fenced && fenceInitialized)
+            vkDev destroyFence fence
     }
 }

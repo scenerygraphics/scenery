@@ -194,7 +194,7 @@ open class VulkanRenderer(hub: Hub,
                         cam.perspectiveCamera(cam.fov, window.width.toFloat(), window.height.toFloat(), cam.nearPlaneDistance, cam.farPlaneDistance)
                     }
 
-                    logger.debug("Calling late resize initializers for ${lateResizeInitializers.keys.joinToString(", ")}")
+                    logger.debug("Calling late resize initializers for ${lateResizeInitializers.keys.joinToString()}")
                     lateResizeInitializers.map { it.value.invoke() }
 
                     if (timestampQueryPool != -1L) {
@@ -297,7 +297,7 @@ open class VulkanRenderer(hub: Hub,
     protected var validation = java.lang.Boolean.parseBoolean(System.getProperty("scenery.VulkanRenderer.EnableValidations", "false"))
     protected val strictValidation = getStrictValidation()
     protected val wantsOpenGLSwapchain = java.lang.Boolean.parseBoolean(System.getProperty("scenery.VulkanRenderer.UseOpenGLSwapchain", "false"))
-    protected val defaultValidationLayers = arrayOf("VK_LAYER_LUNARG_standard_validation")
+    protected val defaultValidationLayers = arrayListOf("VK_LAYER_LUNARG_standard_validation")
 
     protected var instance: VkInstance
     protected var device: VulkanDevice
@@ -471,18 +471,18 @@ open class VulkanRenderer(hub: Hub,
         val requestedValidationLayers = if (validation) {
             if (wantsOpenGLSwapchain) {
                 logger.warn("Requested OpenGL swapchain, validation layers disabled.")
-                emptyArray()
+                arrayListOf()
             } else {
                 defaultValidationLayers
             }
         } else {
-            emptyArray()
+            arrayListOf()
         }
 
         device = VulkanDevice.fromPhysicalDevice(instance,
             physicalDeviceFilter = { _, device -> device.name.contains(System.getProperty("scenery.Renderer.Device", "DOES_NOT_EXIST")) },
             additionalExtensions = { physicalDevice ->
-                hub.getWorkingHMDDisplay()?.getVulkanDeviceExtensions(physicalDevice)?.toTypedArray() ?: arrayOf()
+                hub.getWorkingHMDDisplay()?.getVulkanDeviceExtensions(physicalDevice) ?: arrayListOf()
             },
             validationLayers = requestedValidationLayers,
             headless = embedIn != null)
@@ -1359,7 +1359,7 @@ open class VulkanRenderer(hub: Hub,
         val framebuffers = ConcurrentHashMap<String, VulkanFramebuffer>()
 
         flow = renderConfig.createRenderpassFlow()
-        logger.debug("Renderpasses to be run: ${flow.joinToString(", ")}")
+        logger.debug("Renderpasses to be run: ${flow.joinToString()}")
 
         descriptorSetLayouts
             .filter { it.key.startsWith("outputs-") }
@@ -1617,7 +1617,7 @@ open class VulkanRenderer(hub: Hub,
             .pSignalSemaphores(present.signalSemaphore)
 
         // Submit to the graphics queue
-        VU.run("Submit viewport render queue", { vkQueueSubmit(queue, present.submitInfo, commandBuffer.getFence()) })
+        VU.run("Submit viewport render queue", { vkQueueSubmit(queue, present.submitInfo, commandBuffer.fence.L) })
 
         val startPresent = System.nanoTime()
         commandBuffer.submitted = true
@@ -1946,7 +1946,7 @@ open class VulkanRenderer(hub: Hub,
                 .pSignalSemaphores(target.signalSemaphores)
                 .pWaitSemaphores(target.waitSemaphores)
 
-            VU.run("Submit pass $t render queue", { vkQueueSubmit(queue, si, commandBuffer.getFence()) })
+            VU.run("Submit pass $t render queue", { vkQueueSubmit(queue, si, commandBuffer.fence.L) })
 
             commandBuffer.submitted = true
             firstWaitSemaphore.put(0, target.semaphore)
@@ -2016,7 +2016,7 @@ open class VulkanRenderer(hub: Hub,
             val additionalExts: List<String> = hub?.getWorkingHMDDisplay()?.getVulkanInstanceExtensions() ?: listOf()
             val utf8Exts = additionalExts.map { stack.UTF8(it) }
 
-            logger.debug("HMD required instance exts: ${additionalExts.joinToString(", ")} ${additionalExts.size}")
+            logger.debug("HMD required instance exts: ${additionalExts.joinToString()} ${additionalExts.size}")
 
             // allocate enough pointers for already pre-required extensions, plus HMD-required extensions, plus the debug extension
             val size = requiredExtensions?.remaining() ?: 0
@@ -2574,7 +2574,7 @@ open class VulkanRenderer(hub: Hub,
                 val pipeline = p.getPipelineForGeometryType((node as HasGeometry).geometryType)
                 val specs = p.orderedDescriptorSpecs()
 
-                logger.trace("node {} has: {} / pipeline needs: {}", node.name, s.UBOs.keys.joinToString(", "), specs.joinToString { it.key })
+                logger.trace("node {} has: {} / pipeline needs: {}", node.name, s.UBOs.keys.joinToString(), specs.joinToString { it.key })
 
                 pass.vulkanMetadata.descriptorSets.rewind()
                 pass.vulkanMetadata.uboOffsets.rewind()
@@ -2733,8 +2733,8 @@ open class VulkanRenderer(hub: Hub,
             (0..15).forEach { pass.vulkanMetadata.uboOffsets.put(it, 0) }
 
             if (logger.isDebugEnabled) {
-                logger.debug("${pass.name}: descriptor sets are {}", pass.descriptorSets.keys.joinToString(", "))
-                logger.debug("pipeline provides {}", pipeline.descriptorSpecs.keys.joinToString(", "))
+                logger.debug("${pass.name}: descriptor sets are {}", pass.descriptorSets.keys.joinToString())
+                logger.debug("pipeline provides {}", pipeline.descriptorSpecs.keys.joinToString())
             }
 
             // set the required descriptor sets for this render pass

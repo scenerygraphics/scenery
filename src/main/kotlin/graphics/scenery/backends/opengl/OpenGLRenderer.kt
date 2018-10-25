@@ -434,7 +434,7 @@ open class OpenGLRenderer(hub: Hub,
         val numExtensionsBuffer = IntBuffer.allocate(1)
         gl.glGetIntegerv(GL4.GL_NUM_EXTENSIONS, numExtensionsBuffer)
         val extensions = (0 until numExtensionsBuffer[0]).map { gl.glGetStringi(GL4.GL_EXTENSIONS, it) }
-        logger.debug("Available OpenGL extensions: ${extensions.joinToString(", ")}")
+        logger.debug("Available OpenGL extensions: ${extensions.joinToString()}")
 
         settings.set("ssao.FilterRadius", GLVector(5.0f / width, 5.0f / height))
 
@@ -2499,7 +2499,7 @@ open class OpenGLRenderer(hub: Hub,
         if (s.mStoredIndexCount == 0 && s.mStoredPrimitiveCount == 0 || node.material.needsTextureReload) {
             return
         }
-        logger.trace("Drawing {} with {}, {} primitives, {} indices", node.name, s.shader?.modules?.entries?.joinToString(", "), s.mStoredPrimitiveCount, s.mStoredIndexCount)
+        logger.trace("Drawing {} with {}, {} primitives, {} indices", node.name, s.shader?.modules?.entries?.joinToString(), s.mStoredPrimitiveCount, s.mStoredIndexCount)
         gl.glBindVertexArray(s.mVertexArrayObject[0])
 
         if (s.mStoredIndexCount > 0) {

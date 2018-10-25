@@ -306,7 +306,7 @@ class Hololens: TrackerInput, Display, Hubable {
                 if(memoryTypeIndex.isEmpty()) {
                     logger.error("Could not find suitable memory type")
                 } else {
-                    logger.debug("Got memory types ${memoryTypeIndex.joinToString(", ")}")
+                    logger.debug("Got memory types ${memoryTypeIndex.joinToString()}")
                 }
 
                 val importMemoryInfo = VkImportMemoryWin32HandleInfoNV.calloc()
@@ -540,8 +540,8 @@ class Hololens: TrackerInput, Display, Hubable {
             "VK_KHR_get_physical_device_properties2")
     }
 
-    override fun getVulkanDeviceExtensions(physicalDevice: VkPhysicalDevice): List<String> {
-        return listOf("VK_NV_dedicated_allocation",
+    override fun getVulkanDeviceExtensions(physicalDevice: VkPhysicalDevice): ArrayList<String> {
+        return arrayListOf("VK_NV_dedicated_allocation",
             "VK_NV_external_memory",
             "VK_NV_external_memory_win32",
             "VK_NV_win32_keyed_mutex")

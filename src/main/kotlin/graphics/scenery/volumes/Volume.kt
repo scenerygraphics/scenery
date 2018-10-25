@@ -605,7 +605,7 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
     private fun assignVolumeTexture(dimensions: LongArray, descriptor: VolumeDescriptor, replace: Boolean) {
         while(deallocations.size > 20) {
             val last = deallocations.pollLast()
-            logger.debug("Time series: deallocating $last from ${deallocations.map { it.hashCode() }.joinToString(", ")}")
+            logger.debug("Time series: deallocating $last from ${deallocations.map { it.hashCode() }.joinToString()}")
             logger.trace("Address is ${MemoryUtil.memAddress(last).toHexString()}")
         }
 

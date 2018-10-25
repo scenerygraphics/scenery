@@ -65,7 +65,7 @@ class VolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
         val files: List<File> = File(getDemoFilesPath() + "/volumes/box-iso/").listFiles().toList()
 
         val volumes = files.filter { it.isFile }.map { it.absolutePath }.sorted()
-        logger.info("Got ${volumes.size} volumes: ${volumes.joinToString(", ")}")
+        logger.info("Got ${volumes.size} volumes: ${volumes.joinToString()}")
 
         var currentVolume = 0
         fun nextVolume(): String {

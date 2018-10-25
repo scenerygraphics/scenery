@@ -272,7 +272,7 @@ open class UBO {
      * Returns the members of the UBO as string.
      */
     fun members(): String {
-        return members.keys.joinToString(", ")
+        return members.keys.joinToString()
     }
 
     /**

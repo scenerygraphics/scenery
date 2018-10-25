@@ -227,7 +227,7 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
         }
     }
 
-    override fun getVulkanDeviceExtensions(physicalDevice: VkPhysicalDevice): List<String> = emptyList()
+    override fun getVulkanDeviceExtensions(physicalDevice: VkPhysicalDevice): ArrayList<String> = arrayListOf()
 
     override fun getWorkingDisplay(): Display? {
         if(initializedAndWorking()) {

@@ -49,7 +49,7 @@ sealed class Shaders {
          * a shader of [type].
          */
         override fun get(target: ShaderTarget, type: ShaderType): ShaderPackage {
-            val shaderCodePath = shaders.find { it.endsWith(type.toExtension()) || it.endsWith(type.toExtension() + ".spv") } ?: throw ShaderNotFoundException("Could not locate $type from ${shaders.joinToString(", ")}")
+            val shaderCodePath = shaders.find { it.endsWith(type.toExtension()) || it.endsWith(type.toExtension() + ".spv") } ?: throw ShaderNotFoundException("Could not locate $type from ${shaders.joinToString()}")
             val spirvPath: String
             val codePath: String
 

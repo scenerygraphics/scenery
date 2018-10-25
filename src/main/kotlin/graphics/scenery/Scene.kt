@@ -214,7 +214,7 @@ open class Scene : Node("RootNode") {
         }
 
         if (debug) {
-            logger.info(matches.joinToString(", ") { "${it.node.name} at distance ${it.distance}" })
+            logger.info(matches.joinToString() { "${it.node.name} at distance ${it.distance}" })
 
             val m = Material()
             m.diffuse = GLVector(1.0f, 0.0f, 0.0f)

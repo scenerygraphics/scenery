@@ -190,7 +190,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
      */
     fun initializeInputAttachmentDescriptorSetLayouts(shaderModules: List<VulkanShaderModule>) {
         var input = 0
-        logger.debug("Renderpass $name has inputs ${inputs.keys.joinToString(", ")}")
+        logger.debug("Renderpass $name has inputs ${inputs.keys.joinToString()}")
         inputs.entries.reversed().forEach { inputFramebuffer ->
             // we need to discern here whether the entire framebuffer is the input, or
             // only a part of it (indicated by a dot in the name)
@@ -414,7 +414,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
 
         p.addShaderStages(shaders)
 
-        logger.debug("${descriptorSetLayouts.count()} DSLs are available: ${descriptorSetLayouts.keys.joinToString(", ")}")
+        logger.debug("${descriptorSetLayouts.count()} DSLs are available: ${descriptorSetLayouts.keys.joinToString()}")
 
         val blendMasks = VkPipelineColorBlendAttachmentState.calloc(framebuffer.colorAttachmentCount())
         (0 until framebuffer.colorAttachmentCount()).forEach {

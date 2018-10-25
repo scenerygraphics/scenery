@@ -1,24 +1,29 @@
 package graphics.scenery.backends.vulkan
 
+import glm_.set
 import graphics.scenery.utils.LazyLogger
+import org.lwjgl.system.MemoryStack.stackGet
 import org.lwjgl.system.MemoryStack.stackPush
-import org.lwjgl.system.MemoryUtil
-import org.lwjgl.system.MemoryUtil.NULL
-import org.lwjgl.system.MemoryUtil.memUTF8
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
-import java.util.*
+import vkk.*
+import kotlin.collections.ArrayList
 
 /**
  * Describes a Vulkan device attached to an [instance] and a [physicalDevice].
  *
  * @author Ulrik Guenther <hello@ulrik.is>
  */
-open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysicalDevice, val deviceData: DeviceData, extensionsQuery: (VkPhysicalDevice) -> Array<String> = { arrayOf() }, validationLayers: Array<String> = arrayOf(), headless: Boolean = false) {
+open class VulkanDevice(val instance: VkInstance,
+                        val physicalDevice: VkPhysicalDevice,
+                        val deviceData: DeviceData,
+                        extensionsQuery: (VkPhysicalDevice) -> ArrayList<String> = { arrayListOf() },
+                        validationLayers: ArrayList<String> = arrayListOf(),
+                        headless: Boolean = false) {
 
     protected val logger by LazyLogger()
     /** Stores available memory types on the device. */
-    val memoryProperties: VkPhysicalDeviceMemoryProperties
+    val memoryProperties = VkPhysicalDeviceMemoryProperties.calloc()
     /** Stores the Vulkan-internal device. */
     val vulkanDevice: VkDevice
     /** Stores available queue indices. */
@@ -52,139 +57,98 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
     data class QueueIndices(val presentQueue: Int, val transferQueue: Int, val graphicsQueue: Int, val computeQueue: Int)
 
     init {
-        val result = stackPush().use { stack ->
-            val pQueueFamilyPropertyCount = stack.callocInt(1)
-            vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, pQueueFamilyPropertyCount, null)
-            val queueCount = pQueueFamilyPropertyCount.get(0)
-            val queueProps = VkQueueFamilyProperties.callocStack(queueCount, stack)
-            vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, pQueueFamilyPropertyCount, queueProps)
 
-            var graphicsQueueFamilyIndex = 0
-            var transferQueueFamilyIndex = 0
-            var computeQueueFamilyIndex = 0
-            val presentQueueFamilyIndex = 0
-            var index = 0
+        val queueProps = physicalDevice.queueFamilyProperties
 
-            while (index < queueCount) {
-                if (queueProps.get(index).queueFlags() and VK_QUEUE_GRAPHICS_BIT != 0) {
+        var graphicsQueueFamilyIndex = 0
+        var transferQueueFamilyIndex = 0
+        var computeQueueFamilyIndex = 0
+        val presentQueueFamilyIndex = 0
+
+        for (index in queueProps.indices)
+            queueProps[index].apply {
+                if (queueFlags has VkQueueFlag.GRAPHICS_BIT)
                     graphicsQueueFamilyIndex = index
-                }
 
-                if (queueProps.get(index).queueFlags() and VK_QUEUE_TRANSFER_BIT != 0) {
+                if (queueFlags has VkQueueFlag.TRANSFER_BIT)
                     transferQueueFamilyIndex = index
-                }
 
-                if (queueProps.get(index).queueFlags() and VK_QUEUE_COMPUTE_BIT != 0) {
+                if (queueFlags has VkQueueFlag.COMPUTE_BIT)
                     computeQueueFamilyIndex = index
-                }
-
-                index++
             }
 
-            val requiredFamilies = listOf(
-                graphicsQueueFamilyIndex,
-                transferQueueFamilyIndex,
-                computeQueueFamilyIndex)
-                .groupBy { it }
+        val requiredFamilies = listOf(
+            graphicsQueueFamilyIndex,
+            transferQueueFamilyIndex,
+            computeQueueFamilyIndex)
+            .groupBy { it }
 
-            logger.info("Creating ${requiredFamilies.size} distinct queue groups")
+        logger.info("Creating ${requiredFamilies.size} distinct queue groups")
 
-            /**
-             * Adjusts the queue count of a [VkDeviceQueueCreateInfo] struct to [num].
-             */
-            fun VkDeviceQueueCreateInfo.queueCount(num: Int): VkDeviceQueueCreateInfo {
-                VkDeviceQueueCreateInfo.nqueueCount(this.address(), num)
-                return this
-            }
-
-            val queueCreateInfo = VkDeviceQueueCreateInfo.callocStack(requiredFamilies.size, stack)
-
-            requiredFamilies.entries.forEachIndexed { i, (familyIndex, group) ->
-                logger.debug("Adding queue with familyIndex=$familyIndex, size=${group.size}")
-
-                val pQueuePriorities = stack.callocFloat(group.size)
-                for(pr in 0 until group.size) { pQueuePriorities.put(pr, 1.0f) }
-
-                queueCreateInfo[i]
-                    .sType(VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO)
-                    .queueFamilyIndex(familyIndex)
-                    .pQueuePriorities(pQueuePriorities)
-                    .queueCount(group.size)
-            }
-
-            val extensionsRequested = extensionsQuery.invoke(physicalDevice)
-            logger.debug("Requested extensions: ${extensionsRequested.joinToString(", ")} ${extensionsRequested.size}")
-            val utf8Exts = extensionsRequested.map { stack.UTF8(it) }
-
-            // allocate enough pointers for required extensions, plus the swapchain extension
-            // if we are not running in headless mode
-            val extensions = if(!headless) {
-                val e = stack.callocPointer(1 + extensionsRequested.size)
-                e.put(stack.UTF8(KHRSwapchain.VK_KHR_SWAPCHAIN_EXTENSION_NAME))
-                e
-            } else {
-                stack.callocPointer(extensionsRequested.size)
-            }
-
-            utf8Exts.forEach { extensions.put(it) }
-            extensions.flip()
-
-            if(validationLayers.isNotEmpty()) {
-                logger.warn("Enabled Vulkan API validations. Expect degraded performance.")
-            }
-
-            val ppEnabledLayerNames = stack.callocPointer(validationLayers.size)
-            var i = 0
-            while (i < validationLayers.size) {
-                ppEnabledLayerNames.put(memUTF8(validationLayers[i]))
-                i++
-            }
-            ppEnabledLayerNames.flip()
-
-            val enabledFeatures = VkPhysicalDeviceFeatures.callocStack(stack)
-                .samplerAnisotropy(true)
-                .largePoints(true)
-
-            val deviceCreateInfo = VkDeviceCreateInfo.callocStack(stack)
-                .sType(VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO)
-                .pNext(MemoryUtil.NULL)
-                .pQueueCreateInfos(queueCreateInfo)
-                .ppEnabledExtensionNames(extensions)
-                .ppEnabledLayerNames(ppEnabledLayerNames)
-                .pEnabledFeatures(enabledFeatures)
-
-            logger.debug("Creating device...")
-            val pDevice = stack.callocPointer(1)
-            val err = vkCreateDevice(physicalDevice, deviceCreateInfo, null, pDevice)
-            val device = pDevice.get(0)
-
-            if (err != VK_SUCCESS) {
-                throw IllegalStateException("Failed to create device: " + VU.translate(err))
-            }
-            logger.debug("Device successfully created.")
-
-            val memoryProperties = VkPhysicalDeviceMemoryProperties.calloc()
-            vkGetPhysicalDeviceMemoryProperties(physicalDevice, memoryProperties)
-
-            VulkanRenderer.DeviceAndGraphicsQueueFamily(VkDevice(device, physicalDevice, deviceCreateInfo),
-                graphicsQueueFamilyIndex, computeQueueFamilyIndex, presentQueueFamilyIndex, transferQueueFamilyIndex, memoryProperties)
-
-            Triple(VkDevice(device, physicalDevice, deviceCreateInfo),
-                QueueIndices(
-                    presentQueue = presentQueueFamilyIndex,
-                    transferQueue = transferQueueFamilyIndex,
-                    computeQueue = computeQueueFamilyIndex,
-                    graphicsQueue = graphicsQueueFamilyIndex),
-                memoryProperties
-            )
+        /**
+         * Adjusts the queue count of a [VkDeviceQueueCreateInfo] struct to [num].
+         */
+        fun VkDeviceQueueCreateInfo.queueCount(num: Int): VkDeviceQueueCreateInfo {
+            VkDeviceQueueCreateInfo.nqueueCount(this.address(), num)
+            return this
         }
 
-        vulkanDevice = result.first
-        queueIndices = result.second
-        memoryProperties = result.third
+        val queueInfos = vk.DeviceQueueCreateInfo(requiredFamilies.size)
 
-        extensions.addAll(extensionsQuery.invoke(physicalDevice))
-        extensions.add(KHRSwapchain.VK_KHR_SWAPCHAIN_EXTENSION_NAME)
+        requiredFamilies.entries.forEachIndexed { i, (familyIndex, group) ->
+            logger.debug("Adding queue with familyIndex=$familyIndex, size=${group.size}")
+
+            val pQueuePriorities = stackGet().callocFloat(group.size)
+            for (pr in 0 until group.size) {
+                pQueuePriorities[pr] = 1f
+            }
+
+            queueInfos[i].apply {
+                queueFamilyIndex = familyIndex
+                queuePriorities = pQueuePriorities
+            }
+        }
+
+        val extensionsRequested = extensionsQuery(physicalDevice)
+        logger.debug("Requested extensions: ${extensionsRequested.joinToString()} ${extensionsRequested.size}")
+
+        // if we are not running in headless mode, add swapchain extension
+        if (!headless)
+            extensionsRequested += KHRSwapchain.VK_KHR_SWAPCHAIN_EXTENSION_NAME
+
+        if (validationLayers.isNotEmpty()) {
+            logger.warn("Enabled Vulkan API validations. Expect degraded performance.")
+        }
+
+        val features = vk.PhysicalDeviceFeatures {
+            samplerAnisotropy =true
+            largePoints =true
+        }
+        val deviceCreateInfo = vk.DeviceCreateInfo {
+            queueCreateInfos = queueInfos
+            enabledExtensionNames = extensionsRequested
+            enabledLayerNames = validationLayers
+            enabledFeatures = features
+        }
+        logger.debug("Creating device...")
+        val (device, err) = physicalDevice createDevice deviceCreateInfo
+        vulkanDevice = device
+
+        if (err != SUCCESS) {
+            throw IllegalStateException("Failed to create device: ${err.description}")
+        }
+        logger.debug("Device successfully created.")
+
+        vkGetPhysicalDeviceMemoryProperties(physicalDevice, memoryProperties)
+
+        queueIndices = QueueIndices(
+                presentQueue = presentQueueFamilyIndex,
+                transferQueue = transferQueueFamilyIndex,
+                computeQueue = computeQueueFamilyIndex,
+                graphicsQueue = graphicsQueueFamilyIndex)
+
+        extensions += extensionsQuery(physicalDevice)
+        extensions += KHRSwapchain.VK_KHR_SWAPCHAIN_EXTENSION_NAME
 
         logger.debug("Created logical Vulkan device on ${deviceData.vendor} ${deviceData.name}")
     }
@@ -208,7 +172,7 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
             bits = bits shr 1
         }
 
-        if(types.isEmpty()) {
+        if (types.isEmpty()) {
             logger.warn("Memory type $flags not found for device $this (${vulkanDevice.address().toHexString()}")
         }
 
@@ -295,7 +259,7 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
         )
 
         private fun toDeviceType(vkDeviceType: Int): DeviceType {
-            return when(vkDeviceType) {
+            return when (vkDeviceType) {
                 0 -> DeviceType.Other
                 1 -> DeviceType.IntegratedGPU
                 2 -> DeviceType.DiscreteGPU
@@ -306,7 +270,7 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
         }
 
         private fun vendorToString(vendor: Int): String =
-            when(vendor) {
+            when (vendor) {
                 0x1002 -> "AMD"
                 0x10DE -> "Nvidia"
                 0x8086 -> "Intel"
@@ -328,10 +292,11 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
          * given by [additionalExtensions]. The device selection is done in a fuzzy way by [physicalDeviceFilter],
          * such that one can filter for certain vendors, e.g.
          */
-        @JvmStatic fun fromPhysicalDevice(instance: VkInstance, physicalDeviceFilter: (Int, DeviceData) -> Boolean,
-                                          additionalExtensions: (VkPhysicalDevice) -> Array<String> = { arrayOf() },
-                                          validationLayers: Array<String> = arrayOf(),
-                                          headless: Boolean = false): VulkanDevice {
+        @JvmStatic
+        fun fromPhysicalDevice(instance: VkInstance, physicalDeviceFilter: (Int, DeviceData) -> Boolean,
+                               additionalExtensions: (VkPhysicalDevice) -> ArrayList<String> = { arrayListOf() },
+                               validationLayers: ArrayList<String> = arrayListOf(),
+                               headless: Boolean = false): VulkanDevice {
             return stackPush().use { stack ->
 
                 val physicalDeviceCount = VU.getInt("Enumerate physical devices") {
@@ -364,7 +329,7 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
                         apiVersion = driverVersionToString(properties.apiVersion()),
                         type = toDeviceType(properties.deviceType()))
 
-                    if(physicalDeviceFilter.invoke(i, deviceData)) {
+                    if (physicalDeviceFilter.invoke(i, deviceData)) {
                         devicePreference = i
                     }
 
@@ -384,7 +349,7 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
                 val selectedDevice = physicalDevices.get(devicePreference)
                 val selectedDeviceData = deviceList[devicePreference]
 
-                if(System.getProperty("scenery.DisableDeviceWorkarounds", "false")?.toBoolean() != true) {
+                if (System.getProperty("scenery.DisableDeviceWorkarounds", "false")?.toBoolean() != true) {
                     deviceWorkarounds.forEach {
                         if (it.filter.invoke(selectedDeviceData)) {
                             logger.warn("Workaround activated: ${it.description}")

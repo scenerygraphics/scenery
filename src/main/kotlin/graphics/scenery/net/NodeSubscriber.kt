@@ -54,7 +54,7 @@ class NodeSubscriber(override var hub: Hub?, val address: String = "udp://localh
                 duration = (System.nanoTime() - start)
                 val payload = subscriber.recv()
 
-//                logger.info("Have: ${nodes.keys.joinToString(", ")}, payload: ${payload != null}")
+//                logger.info("Have: ${nodes.keys.joinToString()}, payload: ${payload != null}")
 
                 if (payload != null) {
                     nodes[id]?.let { node ->
