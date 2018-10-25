@@ -1,6 +1,7 @@
 package graphics.scenery.backends.vulkan
 
 import glm_.set
+import glm_.toHexString
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.system.MemoryStack.stackGet
 import org.lwjgl.system.MemoryStack.stackPush
@@ -31,11 +32,6 @@ open class VulkanDevice(val instance: VkInstance,
     val extensions = ArrayList<String>()
 
     /**
-     * Enum class for GPU device types. Can be unknown, other, integrated, discrete, virtual or CPU.
-     */
-    enum class DeviceType { Unknown, Other, IntegratedGPU, DiscreteGPU, VirtualGPU, CPU }
-
-    /**
      * Class to store device-specific metadata.
      *
      * @property[vendor] The vendor name of the device.
@@ -44,7 +40,7 @@ open class VulkanDevice(val instance: VkInstance,
      * @property[apiVersion] The Vulkan API version supported by the device, represented as string.
      * @property[type] The [DeviceType] of the GPU.
      */
-    data class DeviceData(val vendor: String, val name: String, val driverVersion: String, val apiVersion: String, val type: DeviceType)
+    data class DeviceData(val vendor: String, val name: String, val driverVersion: String, val apiVersion: String, val type: VkPhysicalDeviceType)
 
     /**
      * Data class to store device-specific queue indices.
@@ -161,10 +157,10 @@ open class VulkanDevice(val instance: VkInstance,
         var bits = typeBits
         val types = ArrayList<Int>(5)
 
-        for (i in 0 until memoryProperties.memoryTypeCount()) {
+        for (i in 0 until memoryProperties.memoryTypeCount) {
             if (bits and 1 == 1) {
-                if ((memoryProperties.memoryTypes(i).propertyFlags() and flags) == flags) {
-                    types.add(i)
+                if (memoryProperties.memoryTypes[i].propertyFlags and flags == flags) {
+                    types += i
                 }
             }
 
@@ -172,7 +168,7 @@ open class VulkanDevice(val instance: VkInstance,
         }
 
         if (types.isEmpty()) {
-            logger.warn("Memory type $flags not found for device $this (${vulkanDevice.address().toHexString()}")
+            logger.warn("Memory type $flags not found for device $this (${vulkanDevice.adr.toHexString}")
         }
 
         return types
@@ -203,8 +199,8 @@ open class VulkanDevice(val instance: VkInstance,
      */
     fun close() {
         logger.debug("Closing device ${deviceData.vendor} ${deviceData.name}...")
-        vkDeviceWaitIdle(vulkanDevice)
-        vkDestroyDevice(vulkanDevice, null)
+        vulkanDevice.waitIdle()
+        vulkanDevice.destroy()
         logger.debug("Device closed.")
 
         memoryProperties.free()
@@ -240,17 +236,6 @@ open class VulkanDevice(val instance: VkInstance,
 //                }
 //            }
         )
-
-        private fun toDeviceType(vkDeviceType: Int): DeviceType {
-            return when (vkDeviceType) {
-                0 -> DeviceType.Other
-                1 -> DeviceType.IntegratedGPU
-                2 -> DeviceType.DiscreteGPU
-                3 -> DeviceType.VirtualGPU
-                4 -> DeviceType.CPU
-                else -> DeviceType.Unknown
-            }
-        }
 
         private fun vendorToString(vendor: Int): String =
             when (vendor) {
@@ -310,7 +295,7 @@ open class VulkanDevice(val instance: VkInstance,
                         name = properties.deviceNameString(),
                         driverVersion = driverVersionToString(properties.driverVersion()),
                         apiVersion = driverVersionToString(properties.apiVersion()),
-                        type = toDeviceType(properties.deviceType()))
+                        type = properties.deviceType)
 
                     if (physicalDeviceFilter.invoke(i, deviceData)) {
                         devicePreference = i
