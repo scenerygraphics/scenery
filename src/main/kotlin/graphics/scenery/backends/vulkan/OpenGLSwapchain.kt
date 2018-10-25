@@ -160,7 +160,7 @@ class OpenGLSwapchain(val device: VulkanDevice,
         }
 
         val imgs = (0 until bufferCount).map {
-            with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
+            with(VU.newCommandBuffer(device, commandPools.Standard.L, autostart = true)) {
                 val t = VulkanTexture(this@OpenGLSwapchain.device, commandPools, queue, queue,
                     window.width, window.height, 1, format, 1)
 
@@ -176,7 +176,7 @@ class OpenGLSwapchain(val device: VulkanDevice,
 
                 val view = t.createImageView(image, format)
 
-                endCommandBuffer(this@OpenGLSwapchain.device, commandPools.Standard, queue, flush = true, dealloc = true)
+                endCommandBuffer(this@OpenGLSwapchain.device, commandPools.Standard.L, queue, flush = true, dealloc = true)
                 Pair(image.image, view)
             }
         }

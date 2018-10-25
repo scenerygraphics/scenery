@@ -22,9 +22,7 @@ import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.EXTDebugReport.*
 import org.lwjgl.vulkan.KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
 import org.lwjgl.vulkan.VK10.*
-import vkk.VkBufferUsage
-import vkk.VkDeviceSize
-import vkk.VkMemoryProperty
+import vkk.*
 import java.awt.image.BufferedImage
 import java.awt.image.DataBufferByte
 import java.io.File
@@ -101,10 +99,10 @@ open class VulkanRenderer(hub: Hub,
     )
 
     data class CommandPools(
-        var Standard: Long = -1L,
-        var Render: Long = -1L,
-        var Compute: Long = -1L,
-        var Transfer: Long = -1L
+        var Standard: VkCommandPool = VkCommandPool(NULL),
+        var Render: VkCommandPool = VkCommandPool(NULL),
+        var Compute: VkCommandPool = VkCommandPool(NULL),
+        var Transfer: VkCommandPool = VkCommandPool(NULL)
     )
 
     data class DeviceAndGraphicsQueueFamily(
@@ -152,12 +150,12 @@ open class VulkanRenderer(hub: Hub,
                 // create new swapchain with changed surface parameters
                 vkQueueWaitIdle(queue)
 
-                with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
+                with(VU.newCommandBuffer(device, commandPools.Standard.L, autostart = true)) {
                     // Create the swapchain (this will also add a memory barrier to initialize the framebuffer images)
 
                     swapchain?.create(oldSwapchain = swapchain)
 
-                    endCommandBuffer(this@VulkanRenderer.device, commandPools.Standard, queue, flush = true, dealloc = true)
+                    endCommandBuffer(this@VulkanRenderer.device, commandPools.Standard.L, queue, flush = true, dealloc = true)
 
                     this
                 }
@@ -188,7 +186,7 @@ open class VulkanRenderer(hub: Hub,
                     semaphores = prepareStandardSemaphores(device)
 
                     // Create render command buffers
-                    vkResetCommandPool(device.vulkanDevice, commandPools.Render, VK_FLAGS_NONE)
+                    vkResetCommandPool(device.vulkanDevice, commandPools.Render.L, VK_FLAGS_NONE)
 
                     scene.findObserver()?.let { cam ->
                         cam.perspectiveCamera(cam.fov, window.width.toFloat(), window.height.toFloat(), cam.nearPlaneDistance, cam.farPlaneDistance)
@@ -401,6 +399,8 @@ open class VulkanRenderer(hub: Hub,
             }
         }
     }
+
+    val vkDev get() = device.vulkanDevice
 
     init {
         this.hub = hub
@@ -1407,7 +1407,7 @@ open class VulkanRenderer(hub: Hub,
             var height = windowHeight
 
             // create framebuffer
-            with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
+            with(VU.newCommandBuffer(device, commandPools.Standard.L, autostart = true)) {
                 config.rendertargets.filter { it.key == passConfig.output }.map { rt ->
                     logger.info("Creating render framebuffer ${rt.key} for pass $passName")
 
@@ -1423,7 +1423,7 @@ open class VulkanRenderer(hub: Hub,
                     } else {
 
                         // create framebuffer -- don't clear it, if blitting is needed
-                        val framebuffer = VulkanFramebuffer(this@VulkanRenderer.device, commandPools.Standard,
+                        val framebuffer = VulkanFramebuffer(this@VulkanRenderer.device, commandPools.Standard.L,
                             width, height, this,
                             shouldClear = !passConfig.blitInputs,
                             sRGB = renderConfig.sRGB)
@@ -1471,7 +1471,7 @@ open class VulkanRenderer(hub: Hub,
                     height = windowHeight
 
                     swapchain!!.images!!.forEachIndexed { i, _ ->
-                        val fb = VulkanFramebuffer(this@VulkanRenderer.device, commandPools.Standard,
+                        val fb = VulkanFramebuffer(this@VulkanRenderer.device, commandPools.Standard.L,
                             width, height, this@with, sRGB = renderConfig.sRGB)
 
                         fb.addSwapchainAttachment("swapchain-$i", swapchain!!, i)
@@ -1527,7 +1527,7 @@ open class VulkanRenderer(hub: Hub,
 
                 pass.vulkanMetadata.eye.put(0, pass.passConfig.eye)
 
-                endCommandBuffer(this@VulkanRenderer.device, commandPools.Standard, this@VulkanRenderer.queue, flush = true)
+                endCommandBuffer(this@VulkanRenderer.device, commandPools.Standard.L, this@VulkanRenderer.queue, flush = true)
             }
 
             renderpasses.put(passName, pass)
@@ -1664,7 +1664,7 @@ open class VulkanRenderer(hub: Hub,
             }
 
             screenshotBuffer?.let { sb ->
-                with(VU.newCommandBuffer(device, commandPools.Render, autostart = true)) {
+                with(VU.newCommandBuffer(device, commandPools.Render.L, autostart = true)) {
                     val subresource = VkImageSubresourceLayers.calloc()
                         .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
                         .mipLevel(0)
@@ -1695,7 +1695,7 @@ open class VulkanRenderer(hub: Hub,
                         VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
                         commandBuffer = this)
 
-                    endCommandBuffer(this@VulkanRenderer.device, commandPools.Render, queue,
+                    endCommandBuffer(this@VulkanRenderer.device, commandPools.Render.L, queue,
                         flush = true, dealloc = true)
                 }
 
@@ -2166,12 +2166,12 @@ open class VulkanRenderer(hub: Hub,
             .dstOffset(vertexBuffer.bufferOffset.L)
             .size(fullAllocationBytes)
 
-        with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
+        with(VU.newCommandBuffer(device, commandPools.Standard.L, autostart = true)) {
             vkCmdCopyBuffer(this,
                 stagingBuffer.vulkanBuffer.L,
                 vertexBuffer.vulkanBuffer.L,
                 copyRegion)
-            this.endCommandBuffer(device, commandPools.Standard, queue, flush = true, dealloc = true)
+            this.endCommandBuffer(device, commandPools.Standard.L, queue, flush = true, dealloc = true)
         }
 
         copyRegion.free()
@@ -2257,7 +2257,7 @@ open class VulkanRenderer(hub: Hub,
             buffer
         }
 
-        with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
+        with(VU.newCommandBuffer(device, commandPools.Standard.L, autostart = true)) {
             val copyRegion = VkBufferCopy.calloc(1)
                 .size(instanceBufferSize.L)
 
@@ -2267,7 +2267,7 @@ open class VulkanRenderer(hub: Hub,
                 copyRegion)
 
             copyRegion.free()
-            this.endCommandBuffer(device, commandPools.Standard, queue, flush = true, dealloc = true)
+            this.endCommandBuffer(device, commandPools.Standard.L, queue, flush = true, dealloc = true)
         }
 
         state.instanceCount = parentNode.instances.size
@@ -2407,7 +2407,7 @@ open class VulkanRenderer(hub: Hub,
 
         // initialize command buffer recording, reset it if already existent, otherwise allocate it.
         if (commandBuffer.commandBuffer == null) {
-            commandBuffer.commandBuffer = VU.newCommandBuffer(device, commandPools.Render, autostart = true)
+            commandBuffer.commandBuffer = VU.newCommandBuffer(device, commandPools.Render.L, autostart = true)
         } else {
             vkResetCommandBuffer(commandBuffer.commandBuffer!!, VK_FLAGS_NONE)
             VU.beginCommandBuffer(commandBuffer.commandBuffer!!)
@@ -2703,7 +2703,7 @@ open class VulkanRenderer(hub: Hub,
 
         // start command buffer recording
         if (commandBuffer.commandBuffer == null) {
-            commandBuffer.commandBuffer = VU.newCommandBuffer(device, commandPools.Render, autostart = true)
+            commandBuffer.commandBuffer = VU.newCommandBuffer(device, commandPools.Render.L, autostart = true)
         } else {
             vkResetCommandBuffer(commandBuffer.commandBuffer!!, VK_FLAGS_NONE)
             VU.beginCommandBuffer(commandBuffer.commandBuffer!!)
@@ -3067,10 +3067,10 @@ open class VulkanRenderer(hub: Hub,
         VulkanShaderModule.clearCache()
 
         logger.debug("Closing command pools...")
-        with(commandPools) {
-            device.destroyCommandPool(Render)
-            device.destroyCommandPool(Compute)
-            device.destroyCommandPool(Standard)
+        vkDev.apply {
+            destroyCommandPool(commandPools.Render)
+            destroyCommandPool(commandPools.Compute)
+            destroyCommandPool(commandPools.Standard)
         }
 
         vkDestroyPipelineCache(device.vulkanDevice, pipelineCache, null)

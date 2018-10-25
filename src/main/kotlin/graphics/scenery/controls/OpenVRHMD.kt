@@ -633,7 +633,7 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
             readyForSubmission = false
 
             if(commandPool == -1L) {
-                commandPool = device.createCommandPool(device.queueIndices.graphicsQueue)
+                commandPool = device.createCommandPool(device.queueIndices.graphicsQueue).L
             }
 
             val subresourceRange = VkImageSubresourceRange.callocStack(stack)

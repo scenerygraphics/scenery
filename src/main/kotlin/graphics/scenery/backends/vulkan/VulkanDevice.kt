@@ -1,13 +1,13 @@
 package graphics.scenery.backends.vulkan
 
 import glm_.set
+import glm_.toHexString
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.system.MemoryStack.stackGet
 import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
 import vkk.*
-import kotlin.collections.ArrayList
 
 /**
  * Describes a Vulkan device attached to an [instance] and a [physicalDevice].
@@ -121,8 +121,8 @@ open class VulkanDevice(val instance: VkInstance,
         }
 
         val features = vk.PhysicalDeviceFeatures {
-            samplerAnisotropy =true
-            largePoints =true
+            samplerAnisotropy = true
+            largePoints = true
         }
         val deviceCreateInfo = vk.DeviceCreateInfo {
             queueCreateInfos = queueInfos
@@ -142,10 +142,10 @@ open class VulkanDevice(val instance: VkInstance,
         vkGetPhysicalDeviceMemoryProperties(physicalDevice, memoryProperties)
 
         queueIndices = QueueIndices(
-                presentQueue = presentQueueFamilyIndex,
-                transferQueue = transferQueueFamilyIndex,
-                computeQueue = computeQueueFamilyIndex,
-                graphicsQueue = graphicsQueueFamilyIndex)
+            presentQueue = presentQueueFamilyIndex,
+            transferQueue = transferQueueFamilyIndex,
+            computeQueue = computeQueueFamilyIndex,
+            graphicsQueue = graphicsQueueFamilyIndex)
 
         extensions += extensionsQuery(physicalDevice)
         extensions += KHRSwapchain.VK_KHR_SWAPCHAIN_EXTENSION_NAME
@@ -162,10 +162,10 @@ open class VulkanDevice(val instance: VkInstance,
         var bits = typeBits
         val types = ArrayList<Int>(5)
 
-        for (i in 0 until memoryProperties.memoryTypeCount()) {
-            if (bits and 1 == 1) {
-                if ((memoryProperties.memoryTypes(i).propertyFlags() and flags) == flags) {
-                    types.add(i)
+        for (i in 0 until memoryProperties.memoryTypeCount) {
+            if (bits == 1) {
+                if (memoryProperties.memoryTypes[i].propertyFlags == flags) {
+                    types += i
                 }
             }
 
@@ -173,7 +173,7 @@ open class VulkanDevice(val instance: VkInstance,
         }
 
         if (types.isEmpty()) {
-            logger.warn("Memory type $flags not found for device $this (${vulkanDevice.address().toHexString()}")
+            logger.warn("Memory type $flags not found for device $this (${vulkanDevice.adr.toHexString}")
         }
 
         return types
@@ -182,30 +182,13 @@ open class VulkanDevice(val instance: VkInstance,
     /**
      * Creates a command pool with a given [queueNodeIndex] for this device.
      */
-    fun createCommandPool(queueNodeIndex: Int): Long {
-        return stackPush().use { stack ->
-            val cmdPoolInfo = VkCommandPoolCreateInfo.callocStack(stack)
-                .sType(VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO)
-                .queueFamilyIndex(queueNodeIndex)
-                .flags(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT)
-
-            val pCmdPool = stack.callocLong(1)
-            val err = vkCreateCommandPool(vulkanDevice, cmdPoolInfo, null, pCmdPool)
-            val commandPool = pCmdPool.get(0)
-
-            if (err != VK_SUCCESS) {
-                throw IllegalStateException("Failed to create command pool: " + VU.translate(err))
-            }
-
-            commandPool
+    fun createCommandPool(queueNodeIndex: Int): VkCommandPool {
+        val cmdPoolInfo = vk.CommandPoolCreateInfo {
+            queueFamilyIndex = queueNodeIndex
+            flags = VkCommandPoolCreate.RESET_COMMAND_BUFFER_BIT.i
         }
-    }
 
-    /**
-     * Destroys the command pool given by [commandPool].
-     */
-    fun destroyCommandPool(commandPool: Long) {
-        vkDestroyCommandPool(vulkanDevice, commandPool, null)
+        return vulkanDevice createCommandPool cmdPoolInfo
     }
 
     /**

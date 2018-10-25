@@ -22,6 +22,7 @@ import org.zeromq.ZContext
 import org.zeromq.ZMQ
 import org.zeromq.ZMsg
 import org.zeromq.ZPoller
+import vkk.VkCommandPool
 import java.math.BigInteger
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -273,7 +274,8 @@ class Hololens: TrackerInput, Display, Hubable {
             dedicatedAllocationCreateInfo.dedicatedAllocation(true)
         }
 
-        val t = VulkanTexture(device, VulkanRenderer.CommandPools(commandPool, commandPool, commandPool, commandPool), queue, queue,
+        val pool = VkCommandPool(commandPool)
+        val t = VulkanTexture(device, VulkanRenderer.CommandPools(pool, pool, pool, pool), queue, queue,
             width, height, 1,
             format, 1, true, true)
 
@@ -366,7 +368,7 @@ class Hololens: TrackerInput, Display, Hubable {
      */
     override fun submitToCompositorVulkan(width: Int, height: Int, format: Int, instance: VkInstance, device: VulkanDevice, queue: VkQueue, image: Long) {
         if(hololensCommandPool == -1L) {
-            hololensCommandPool = device.createCommandPool(device.queueIndices.graphicsQueue)
+            hololensCommandPool = device.createCommandPool(device.queueIndices.graphicsQueue).L
         }
 
         if(leftProjection == null) {

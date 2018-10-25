@@ -169,8 +169,8 @@ open class HeadlessSwapchain(device: VulkanDevice,
             val signal = stack.callocLong(1)
             signal.put(0, signalSemaphore)
 
-            with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
-                endCommandBuffer(this@HeadlessSwapchain.device, commandPools.Standard, presentQueue, signalSemaphores = signal,
+            with(VU.newCommandBuffer(device, commandPools.Standard.L, autostart = true)) {
+                endCommandBuffer(this@HeadlessSwapchain.device, commandPools.Standard.L, presentQueue, signalSemaphores = signal,
                     flush = true, dealloc = true)
             }
 
@@ -192,8 +192,8 @@ open class HeadlessSwapchain(device: VulkanDevice,
             val mask = stack.callocInt(1)
             mask.put(0, VK10.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
 
-            with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
-                endCommandBuffer(this@HeadlessSwapchain.device, commandPools.Standard, presentQueue,
+            with(VU.newCommandBuffer(device, commandPools.Standard.L, autostart = true)) {
+                endCommandBuffer(this@HeadlessSwapchain.device, commandPools.Standard.L, presentQueue,
                     waitSemaphores = waitForSemaphores, waitDstStageMask = mask,
                     flush = true, dealloc = true)
             }
@@ -210,7 +210,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
             return
         }
 
-        with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
+        with(VU.newCommandBuffer(device, commandPools.Standard.L, autostart = true)) {
             val subresource = VkImageSubresourceLayers.calloc()
                 .aspectMask(VK10.VK_IMAGE_ASPECT_COLOR_BIT)
                 .mipLevel(0)
@@ -245,7 +245,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
                 dstStage = VK10.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                 commandBuffer = this)
 
-            endCommandBuffer(this@HeadlessSwapchain.device, commandPools.Standard, queue,
+            endCommandBuffer(this@HeadlessSwapchain.device, commandPools.Standard.L, queue,
                 flush = true, dealloc = true)
         }
 
