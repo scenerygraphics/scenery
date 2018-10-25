@@ -1,7 +1,6 @@
 package graphics.scenery.backends.vulkan
 
 import glm_.set
-import glm_.toHexString
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.system.MemoryStack.stackGet
 import org.lwjgl.system.MemoryStack.stackPush
@@ -162,10 +161,10 @@ open class VulkanDevice(val instance: VkInstance,
         var bits = typeBits
         val types = ArrayList<Int>(5)
 
-        for (i in 0 until memoryProperties.memoryTypeCount) {
-            if (bits == 1) {
-                if (memoryProperties.memoryTypes[i].propertyFlags == flags) {
-                    types += i
+        for (i in 0 until memoryProperties.memoryTypeCount()) {
+            if (bits and 1 == 1) {
+                if ((memoryProperties.memoryTypes(i).propertyFlags() and flags) == flags) {
+                    types.add(i)
                 }
             }
 
@@ -173,7 +172,7 @@ open class VulkanDevice(val instance: VkInstance,
         }
 
         if (types.isEmpty()) {
-            logger.warn("Memory type $flags not found for device $this (${vulkanDevice.adr.toHexString}")
+            logger.warn("Memory type $flags not found for device $this (${vulkanDevice.address().toHexString()}")
         }
 
         return types
@@ -183,6 +182,7 @@ open class VulkanDevice(val instance: VkInstance,
      * Creates a command pool with a given [queueNodeIndex] for this device.
      */
     fun createCommandPool(queueNodeIndex: Int): VkCommandPool {
+
         val cmdPoolInfo = vk.CommandPoolCreateInfo {
             queueFamilyIndex = queueNodeIndex
             flags = VkCommandPoolCreate.RESET_COMMAND_BUFFER_BIT.i
