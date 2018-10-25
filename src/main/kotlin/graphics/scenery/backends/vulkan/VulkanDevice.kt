@@ -237,24 +237,6 @@ open class VulkanDevice(val instance: VkInstance,
 //            }
         )
 
-        private fun vendorToString(vendor: Int): String =
-            when (vendor) {
-                0x1002 -> "AMD"
-                0x10DE -> "Nvidia"
-                0x8086 -> "Intel"
-                else -> "(Unknown vendor)"
-            }
-
-        private fun decodeDriverVersion(version: Int) =
-            Triple(
-                version and 0xFFC00000.toInt() shr 22,
-                version and 0x003FF000 shr 12,
-                version and 0x00000FFF
-            )
-
-        private fun driverVersionToString(version: Int) =
-            decodeDriverVersion(version).toList().joinToString(".")
-
         /**
          * Creates a [VulkanDevice] in a given [instance] from a physical device, requesting extensions
          * given by [additionalExtensions]. The device selection is done in a fuzzy way by [physicalDeviceFilter],
@@ -291,10 +273,10 @@ open class VulkanDevice(val instance: VkInstance,
                     vkGetPhysicalDeviceProperties(device, properties)
 
                     val deviceData = DeviceData(
-                        vendor = vendorToString(properties.vendorID()),
+                        vendor = properties.vendor.toString(),
                         name = properties.deviceNameString(),
-                        driverVersion = driverVersionToString(properties.driverVersion()),
-                        apiVersion = driverVersionToString(properties.apiVersion()),
+                        driverVersion = properties.driverVersionString,
+                        apiVersion = properties.apiVersionString,
                         type = properties.deviceType)
 
                     if (physicalDeviceFilter.invoke(i, deviceData)) {
