@@ -12,8 +12,8 @@ import java.nio.LongBuffer
  */
 interface Swapchain : AutoCloseable {
     var handle: Long
-    var images: LongArray?
-    var imageViews: LongArray?
+    var images: LongArray
+    var imageViews: LongArray
 
     var format: Int
 
