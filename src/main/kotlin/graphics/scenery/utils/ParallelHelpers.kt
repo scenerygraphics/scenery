@@ -2,9 +2,7 @@
 
 package graphics.scenery.utils
 
-import kotlinx.coroutines.experimental.CommonPool
-import kotlinx.coroutines.experimental.async
-import kotlinx.coroutines.experimental.runBlocking
+import kotlinx.coroutines.*
 import java.util.*
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -18,7 +16,7 @@ import kotlin.concurrent.thread
  * Works via Kotlin Coroutines.
  */
 fun <A, B>Iterable<A>.mapAsync(f: suspend (A) -> B): List<B> = runBlocking {
-    map { async(CommonPool) { f(it) } }.map { it.await() }
+    map { async(Dispatchers.Default) { f(it) } }.map { it.await() }
 }
 
 /**
@@ -27,7 +25,7 @@ fun <A, B>Iterable<A>.mapAsync(f: suspend (A) -> B): List<B> = runBlocking {
  * Works via Kotlin Coroutines.
  */
 fun <A, B>Iterable<A>.forEachAsync(f: suspend (A) -> B) = runBlocking {
-    map { async(CommonPool) { f(it) } }.forEach { it.await() }
+    map { async(Dispatchers.Default) { f(it) } }.forEach { it.await() }
 }
 
 /**
@@ -37,7 +35,7 @@ fun <A, B>Iterable<A>.forEachAsync(f: suspend (A) -> B) = runBlocking {
  */
 fun <A, B>Iterable<A>.forEachIndexedAsync(f: suspend (Int, A) -> B) = runBlocking {
     val index = AtomicInteger(0)
-    map { async(CommonPool) { f(index.getAndIncrement(), it) } }.forEach { it.await() }
+    map { async(Dispatchers.Default) { f(index.getAndIncrement(), it) } }.forEach { it.await() }
 }
 
 /**

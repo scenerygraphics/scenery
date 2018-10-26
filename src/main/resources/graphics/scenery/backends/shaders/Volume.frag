@@ -340,9 +340,9 @@ void main()
               newVal = clamp(ta * volumeSample + tb,0.f,1.f);
               colVal = max(colVal, opacity*newVal);
 
-              opacity *= (1.0 - alphaBlending * sampleTF(clamp(newVal,0.f,1.f)));
+              opacity *= (1.0 - alphaBlending * sampleTF(clamp(newVal,0.f,1.f))/steps);
 
-              if (opacity <= 0.02f) {
+              if (opacity <= 0.0f) {
                 break;
               }
          }
@@ -350,23 +350,20 @@ void main()
          alphaVal = clamp(colVal, 0.0, 1.0);
 
          // Mapping to transfer function range and gamma correction:
-         colVal = pow(colVal, gamma);
-         FragColor = vec4(sampleLUT(colVal).rgb * alphaVal, alphaVal);
+         FragColor = vec4(pow(sampleLUT(colVal).rgb, vec3(gamma)) * alphaVal, alphaVal);
     }
     // Maximum Intensity Projection
     else if(renderingMethod == 1) {
          for(int i = 0; i <= steps; i++, pos += vecstep) {
-          float volumeSample = sampleTF(texture(VolumeTextures, pos.xyz).r) * dataRangeMax;
-          maxp = max(maxp,volumeSample);
+          float volumeSample = texture(VolumeTextures, pos.xyz).r * dataRangeMax;
+          float newVal = clamp(ta * volumeSample + tb,0.f,1.f);
+          colVal = max(colVal, newVal);
         }
 
-        colVal = clamp(pow(ta*maxp + tb,gamma),0.f,1.f);
-
-        alphaVal = sampleTF(clamp(colVal, 0.0, 1.0));
 
         // Mapping to transfer function range and gamma correction:
-        colVal = pow(colVal, gamma);
-        FragColor = vec4(sampleLUT(colVal).rgb * alphaVal, alphaVal);
+        alphaVal = sampleTF(clamp(colVal, 0.0, 1.0));
+        FragColor = vec4(pow(sampleLUT(colVal).rgb, vec3(gamma)) * alphaVal, alphaVal);
     } else {
         vec3 color = vec3(0.0f);
         float alpha = 0.0f;
@@ -403,7 +400,7 @@ void main()
             vec3 newColor;
 
             newColor = transfer.rgb;
-            newAlpha = sampleTF(volumeSample);
+            newAlpha = sampleTF(volumeSample)*stepSize;
 
             color += (1.0f - alpha) * newColor * newAlpha;
             alpha += (1.0f - alpha) * newAlpha;
@@ -414,7 +411,7 @@ void main()
         }
 
         // alpha correction
-        alpha = 1.0 - pow(1.0 - alpha, stepSize * inverseBaseSamplingRate);
+        alpha = 1.0 - pow(1.0 - alpha, stepSize)/steps;
         FragColor = vec4(pow(color, vec3(gamma))*alpha, alpha);
     }
 }

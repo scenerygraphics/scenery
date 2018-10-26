@@ -21,9 +21,9 @@ class SystemHelpers {
          * but works. Thanks to pushy and mangusbrother at https://stackoverflow.com/a/7201825
          *
          * @param[key] The name of the environment variable
-         * @param[value] The value of the environment variable
+         * @param[value] The value of the environment variable. Null to unset.
          */
-        fun <K, V> setEnvironmentVariable(key: String, value: String) {
+        fun <K, V> setEnvironmentVariable(key: String, value: String?) {
             try {
                 /// we obtain the actual environment
                 val processEnvironmentClass = Class.forName("java.lang.ProcessEnvironment")
@@ -31,6 +31,7 @@ class SystemHelpers {
                 val environmentAccessibility = theEnvironmentField.isAccessible
                 theEnvironmentField.isAccessible = true
 
+                @Suppress("unchecked_cast")
                 val env = theEnvironmentField.get(null) as MutableMap<Any, Any>
 
                 if (ExtractsNatives.getPlatform() == ExtractsNatives.Platform.WINDOWS) {
@@ -38,17 +39,19 @@ class SystemHelpers {
                     if (value == null) {
                         env.remove(key)
                     } else {
-                        env.put(key, value)
+                        env[key] = value
                     }
                 } else {
                     // This is triggered to work on openjdk 1.8.0_91
                     // The ProcessEnvironment$Variable is the key of the map
+                    @Suppress("unchecked_cast")
                     val variableClass = Class.forName("java.lang.ProcessEnvironment\$Variable") as Class<K>
                     val convertToVariable = variableClass.getMethod("valueOf", String::class.java)
                     val conversionVariableAccessibility = convertToVariable.isAccessible
                     convertToVariable.isAccessible = true
 
                     // The ProcessEnvironment$Value is the value fo the map
+                    @Suppress("unchecked_cast")
                     val valueClass = Class.forName("java.lang.ProcessEnvironment\$Value") as Class<V>
                     val convertToValue = valueClass.getMethod("valueOf", String::class.java)
                     val conversionValueAccessibility = convertToValue.isAccessible
@@ -59,7 +62,7 @@ class SystemHelpers {
                     } else {
                         // we place the new value inside the map after conversion so as to
                         // avoid class cast exceptions when rerunning this code
-                        env.put(convertToVariable.invoke(null, key), convertToValue.invoke(null, value))
+                        env[convertToVariable.invoke(null, key)] = convertToValue.invoke(null, value)
 
                         // reset accessibility to what they were
                         convertToValue.isAccessible = conversionValueAccessibility
@@ -74,12 +77,13 @@ class SystemHelpers {
                 val insensitiveAccessibility = theCaseInsensitiveEnvironmentField.isAccessible
                 theCaseInsensitiveEnvironmentField.isAccessible = true
                 // Not entirely sure if this needs to be casted to ProcessEnvironment$Variable and $Value as well
+                @Suppress("unchecked_cast")
                 val cienv = theCaseInsensitiveEnvironmentField.get(null) as MutableMap<String, String>
                 if (value == null) {
                     // remove if null
                     cienv.remove(key)
                 } else {
-                    cienv.put(key, value)
+                    cienv[key] = value
                 }
                 theCaseInsensitiveEnvironmentField.isAccessible = insensitiveAccessibility
             } catch (e: ClassNotFoundException) {
@@ -96,33 +100,34 @@ class SystemHelpers {
                 Collections::class.java.declaredClasses
                     // obtain the declared classes of type $UnmodifiableMap
                     .filter { c1 -> "java.util.Collections\$UnmodifiableMap" == c1.name }
-                    .map({ c1 ->
+                    .map { c1 ->
                         try {
                             c1.getDeclaredField("m")
                         } catch (e1: NoSuchFieldException) {
                             throw IllegalStateException("Failed setting environment variable <$key> to <$value> when locating in-class memory map of environment", e1)
                         }
-                    })
+                    }
                     .forEach { field ->
                         try {
-                            val fieldAccessibility = field.isAccessible()
-                            field.setAccessible(true)
+                            val fieldAccessibility = field.isAccessible
+                            field.isAccessible = true
                             // we obtain the environment
+                            @Suppress("unchecked_cast")
                             val map = field.get(env) as MutableMap<String, String>
                             if (value == null) {
                                 // remove if null
                                 map.remove(key)
                             } else {
-                                map.put(key, value)
+                                map[key] = value
                             }
                             // reset accessibility
-                            field.setAccessible(fieldAccessibility)
+                            field.isAccessible = fieldAccessibility
                         } catch (e1: ConcurrentModificationException) {
                             // This may happen if we keep backups of the environment before calling this method
                             // as the map that we kept as a backup may be picked up inside this block.
                             // So we simply skip this attempt and continue adjusting the other maps
                             // To avoid this one should always keep individual keys/value backups not the entire map
-                            logger.debug("Attempted to modify source map: " + field.getDeclaringClass() + "#" + field.getName(), e1)
+                            logger.debug("Attempted to modify source map: " + field.declaringClass + "#" + field.name, e1)
                         } catch (e1: IllegalAccessException) {
                             throw IllegalStateException("Failed setting environment variable <$key> to <$value>. Unable to access field!", e1)
                         }
@@ -140,7 +145,7 @@ class SystemHelpers {
          * @return The [Path] for [path]
          */
         fun getPathFromString(path: String): Path {
-            // replace backslash occurences with forward slashes for URI not to stumble
+            // replace backslash occurrences with forward slashes for URI not to stumble
             return getPath(URI.create(path.replace("\\", "/")))
         }
 

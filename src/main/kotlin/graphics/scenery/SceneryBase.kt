@@ -12,6 +12,7 @@ import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.repl.REPL
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.Renderdoc
+import graphics.scenery.utils.SceneryPanel
 import graphics.scenery.utils.Statistics
 import org.scijava.Context
 import org.scijava.ui.behaviour.ClickBehaviour
@@ -57,6 +58,12 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
     protected var inputHandler: InputHandler? = null
     /** [Statistics] object to collect runtime stats on various routines. */
     protected var stats: Statistics = Statistics(hub)
+
+    /** State variable for registering a new renderer */
+    data class NewRendererParameters(val rendererType: String, val hub: Hub,
+                                     val applicationName: String, val width: Int, val height: Int,
+                                     val scene: Scene, val embedIn: SceneryPanel?, val config: String)
+    protected var registerNewRenderer: NewRendererParameters? = null
 
     /** Logger for this application, will be instantiated upon first use. */
     protected val logger by LazyLogger()
@@ -138,6 +145,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
 
         // initialize renderer, etc first in init, then setup key bindings
         init()
+        running = true
 
         // wait for renderer
         while(renderer?.initialized == false) {
@@ -157,7 +165,6 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         // setup additional key bindings, if requested by the user
         inputSetup()
 
-        running = true
         val startTime = System.nanoTime()
 
         if (!master && masterAddress != null) {
@@ -207,7 +214,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             if (renderer?.managesRenderLoop != false) {
                 Thread.sleep(5)
             } else {
-                stats.addTimed("render", { renderer?.render() ?: 0.0f })
+                stats.addTimed("render") { renderer?.render() ?: 0.0f }
             }
 
             // only run loop if we are either in standalone mode, or master
@@ -255,6 +262,32 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
 
             stats.add("loop", frameTime)
             stats.add("ticks", ticks, isTime = false)
+
+            val r = registerNewRenderer
+            if(r != null) {
+                if(renderer?.managesRenderLoop == false) {
+                    renderer?.render()
+                }
+
+                when (r.rendererType) {
+                    "OpenGLRenderer" -> System.setProperty("scenery.Renderer", "OpenGLRenderer")
+                    else -> System.setProperty("scenery.Renderer", "VulkanRenderer")
+                }
+
+                val config = r.config
+                val embed = r.embedIn
+
+                val width = r.width
+                val height = r.height
+
+                val newRenderer = Renderer.createRenderer(hub, applicationName, scene, width, height, embed, config)
+                hub.add(SceneryElement.Renderer, newRenderer)
+                loadInputHandler(newRenderer)
+
+                renderer = newRenderer
+
+                registerNewRenderer = null
+            }
 
             ticks++
         }
@@ -311,7 +344,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
      */
     fun close() {
         shouldClose = true
-        renderer?.shouldClose = true
+        renderer?.close()
     }
 
     /**
@@ -334,6 +367,29 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             inputHandler = InputHandler(scene, it, hub)
             inputHandler?.useDefaultBindings(System.getProperty("user.home") + "/.$applicationName.bindings")
         }
+    }
+
+    fun replaceRenderer(rendererPreference: String) {
+        val requestedRenderer = when (rendererPreference) {
+            "OpenGLRenderer" -> "OpenGLRenderer"
+            "VulkanRenderer" -> "VulkanRenderer"
+            else -> {
+                logger.warn("Unknown renderer '$rendererPreference', falling back to Vulkan.")
+                "VulkanRenderer"
+            }
+        }
+
+        if(requestedRenderer == renderer?.javaClass?.simpleName) {
+            logger.info("Not replacing renderer, because already running the same.")
+            return
+        }
+
+        registerNewRenderer = NewRendererParameters(
+            rendererPreference, hub, applicationName,
+            renderer?.window?.width ?: 512, renderer?.window?.height ?: 512,
+            scene, renderer?.embedIn, renderer?.renderConfigFile ?: "DeferredShading.yml")
+
+        renderer?.close()
     }
 
     companion object {

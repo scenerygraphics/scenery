@@ -5,7 +5,7 @@ import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.backends.Renderer
 import graphics.scenery.utils.LazyLogger
-import kotlinx.coroutines.experimental.async
+import kotlinx.coroutines.*
 import java.io.Serializable
 import java.sql.Timestamp
 import java.util.*
@@ -243,7 +243,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
         this.children.add(child)
 
         this.getScene()?.sceneSize?.incrementAndGet()
-        async {  this@Node.getScene()?.onChildrenAdded?.forEach { it.value.invoke(this@Node, child) } }
+        GlobalScope.async {  this@Node.getScene()?.onChildrenAdded?.forEach { it.value.invoke(this@Node, child) } }
 
         if(child is PointLight) {
             this.getScene()?.lights?.add(child)
@@ -257,7 +257,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
      */
     fun removeChild(child: Node): Boolean {
         this.getScene()?.sceneSize?.decrementAndGet()
-        async { this@Node.getScene()?.onChildrenRemoved?.forEach { it.value.invoke(this@Node, child) } }
+        GlobalScope.async { this@Node.getScene()?.onChildrenRemoved?.forEach { it.value.invoke(this@Node, child) } }
 
         if(child is PointLight) {
             this.getScene()?.lights?.remove(child)

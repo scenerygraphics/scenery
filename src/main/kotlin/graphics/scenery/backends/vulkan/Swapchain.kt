@@ -12,8 +12,8 @@ import java.nio.LongBuffer
  */
 interface Swapchain : AutoCloseable {
     var handle: Long
-    var images: LongArray?
-    var imageViews: LongArray?
+    var images: LongArray
+    var imageViews: LongArray
 
     var format: Int
 
@@ -64,4 +64,9 @@ interface Swapchain : AutoCloseable {
      * Embeds this swapchain within [panel] (@see[SceneryPanel]).
      */
     fun embedIn(panel: SceneryPanel?)
+
+    /**
+     * Returns the number of presented frames for this swapchain instance.
+     */
+    fun presentedFrames(): Long
 }

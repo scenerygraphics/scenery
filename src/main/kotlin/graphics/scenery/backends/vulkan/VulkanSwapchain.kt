@@ -19,7 +19,11 @@ import java.nio.LongBuffer
 import java.util.*
 
 /**
- * GLFW-based default Vulkan Swapchain and window.
+ * GLFW-based default Vulkan Swapchain and window, residing on [device], associated with [queue].
+ * Needs to be given [commandPools] to allocate command buffers from. [useSRGB] determines whether
+ * the sRGB colorspace will be used, [vsync] determines whether vertical sync will be forced (swapping
+ * rendered images in sync with the screen's frequency). [undecorated] determines whether the created
+ * window will have the window system's default chrome or not.
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
@@ -27,34 +31,62 @@ open class VulkanSwapchain(open val device: VulkanDevice,
                            open val queue: VkQueue,
                            open val commandPools: VulkanRenderer.CommandPools,
                            @Suppress("unused") open val renderConfig: RenderConfigReader.RenderConfig,
-                           open val useSRGB: Boolean = true) : Swapchain {
+                           open val useSRGB: Boolean = true,
+                           open val vsync: Boolean = false,
+                           open val undecorated: Boolean = false) : Swapchain {
     protected val logger by LazyLogger()
 
+    /** Swapchain handle. */
     override var handle: Long = 0L
-    override var images: LongArray? = null
-    override var imageViews: LongArray? = null
+    /** Array for rendered images. */
+    override var images: LongArray = LongArray(0)
+    /** Array for image views. */
+    override var imageViews: LongArray = LongArray(0)
+    /** Number of frames presented with this swapchain. */
+    protected var presentedFrames: Long = 0
 
+    /** Color format for the swapchain images. */
     override var format: Int = 0
 
+    /** Swapchain image. */
     var swapchainImage: IntBuffer = MemoryUtil.memAllocInt(1)
+    /** Pointer to the current swapchain. */
     var swapchainPointer: LongBuffer = MemoryUtil.memAllocLong(1)
+    /** Present info, allocated only once and reused. */
     var presentInfo: VkPresentInfoKHR = VkPresentInfoKHR.calloc()
+    /** Vulkan queue used exclusively for presentation. */
     lateinit var presentQueue: VkQueue
 
+    /** Surface of the window to render into. */
     open var surface: Long = 0
+    /** [SceneryWindow] instance we are using. */
     lateinit var window: SceneryWindow
+    /** Callback to use upon window resizing. */
     lateinit var windowSizeCallback: GLFWWindowSizeCallback
 
+    /** Time in ns of the last resize event. */
     var lastResize = -1L
     private val WINDOW_RESIZE_TIMEOUT = 200 * 10e6
 
     private val retiredSwapchains: Queue<Pair<VulkanDevice, Long>> = ArrayDeque()
 
+    /**
+     * Data class for summarising [colorFormat] and [colorSpace] information.
+     */
     data class ColorFormatAndSpace(var colorFormat: Int = 0, var colorSpace: Int = 0)
 
+    /**
+     * Creates a window for this swapchain, and initialiases [win] as [SceneryWindow.GLFWWindow].
+     * Needs to be handed a [VulkanRenderer.SwapchainRecreator].
+     * Returns the initialised [SceneryWindow].
+     */
     override fun createWindow(win: SceneryWindow, swapchainRecreator: VulkanRenderer.SwapchainRecreator): SceneryWindow {
         glfwDefaultWindowHints()
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API)
+
+        if(undecorated) {
+            glfwWindowHint(GLFW_DECORATED, GLFW_FALSE)
+        }
 
         window = SceneryWindow.GLFWWindow(glfwCreateWindow(win.width, win.height, "scenery", MemoryUtil.NULL, MemoryUtil.NULL)).apply {
             width = win.width
@@ -91,7 +123,27 @@ open class VulkanSwapchain(open val device: VulkanDevice,
         return window
     }
 
+    /**
+     * Finds the best supported presentation mode, given the supported modes in [presentModes].
+     * The preferred mode can be selected via [preferredMode]. Returns the preferred mode, or
+     * VK_PRESENT_MODE_FIFO, if the preferred one is not supported.
+     */
+    private fun findBestPresentMode(presentModes: IntBuffer, count: Int, preferredMode: Int): Int {
+        val modes = IntArray(count)
+        presentModes.get(modes)
+
+        return if(modes.contains(preferredMode)) {
+            preferredMode
+        } else {
+            KHRSurface.VK_PRESENT_MODE_FIFO_KHR
+        }
+    }
+
+    /**
+     * Creates a new swapchain and returns it, potentially recycling or deallocating [oldSwapchain].
+     */
     override fun create(oldSwapchain: Swapchain?): Swapchain {
+        presentedFrames = 0
         return stackPush().use { stack ->
             val colorFormatAndSpace = getColorFormatAndSpace()
             val oldHandle = oldSwapchain?.handle
@@ -102,24 +154,23 @@ open class VulkanSwapchain(open val device: VulkanDevice,
             VU.run("Getting surface capabilities",
                 { KHRSurface.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device.physicalDevice, surface, surfCaps) })
 
-            val presentModeCount = VU.getInts("Getting present mode count", 1,
-                { KHRSurface.vkGetPhysicalDeviceSurfacePresentModesKHR(device.physicalDevice, surface, this, null) })
+            val presentModeCount = VU.getInts("Getting present mode count", 1
+            ) { KHRSurface.vkGetPhysicalDeviceSurfacePresentModesKHR(device.physicalDevice, surface, this, null) }
 
-            val presentModes = VU.getInts("Getting present modes", presentModeCount.get(0),
-                { KHRSurface.vkGetPhysicalDeviceSurfacePresentModesKHR(device.physicalDevice, surface, presentModeCount, this) })
+            val presentModes = VU.getInts("Getting present modes", presentModeCount.get(0)
+            ) { KHRSurface.vkGetPhysicalDeviceSurfacePresentModesKHR(device.physicalDevice, surface, presentModeCount, this) }
 
-            // Try to use mailbox mode. Low latency and non-tearing
-            var swapchainPresentMode = KHRSurface.VK_PRESENT_MODE_FIFO_KHR
-
-            for (i in 0 until presentModeCount.get(0)) {
-                if (presentModes.get(i) == KHRSurface.VK_PRESENT_MODE_MAILBOX_KHR) {
-                    swapchainPresentMode = KHRSurface.VK_PRESENT_MODE_MAILBOX_KHR
-                    break
-                }
-                if (swapchainPresentMode != KHRSurface.VK_PRESENT_MODE_MAILBOX_KHR && presentModes.get(i) == KHRSurface.VK_PRESENT_MODE_IMMEDIATE_KHR) {
-                    swapchainPresentMode = KHRSurface.VK_PRESENT_MODE_IMMEDIATE_KHR
-                }
+            // use fifo mode (aka, vsynced) if requested,
+            // otherwise, use mailbox mode and present the most recently generated frame.
+            val preferredSwapchainPresentMode = if(vsync) {
+                KHRSurface.VK_PRESENT_MODE_FIFO_KHR
+            } else {
+                KHRSurface.VK_PRESENT_MODE_IMMEDIATE_KHR
             }
+
+            val swapchainPresentMode = findBestPresentMode(presentModes,
+                presentModeCount.get(0),
+                preferredSwapchainPresentMode)
 
             // Determine the number of images
             var desiredNumberOfSwapchainImages = surfCaps.minImageCount() + 1
@@ -239,6 +290,9 @@ open class VulkanSwapchain(open val device: VulkanDevice,
         }
     }
 
+    /**
+     * Returns the [ColorFormatAndSpace] supported by the [device].
+     */
     protected fun getColorFormatAndSpace(): ColorFormatAndSpace {
         return stackPush().use { stack ->
             val queueFamilyPropertyCount = stack.callocInt(1)
@@ -330,6 +384,9 @@ open class VulkanSwapchain(open val device: VulkanDevice,
         }
     }
 
+    /**
+     * Presents the current swapchain image on screen.
+     */
     override fun present(waitForSemaphores: LongBuffer?) {
         // Present the current buffer to the swap chain
         // This will display the image
@@ -351,8 +408,13 @@ open class VulkanSwapchain(open val device: VulkanDevice,
         VU.run("Presenting swapchain image",
             { KHRSwapchain.vkQueuePresentKHR(presentQueue, presentInfo) },
             allowedResults = listOf(VK_ERROR_OUT_OF_DATE_KHR))
+
+        presentedFrames++
     }
 
+    /**
+     * To be called after presenting, will deallocate retired swapchains.
+     */
     override fun postPresent(image: Int) {
         while(retiredSwapchains.isNotEmpty()) {
             retiredSwapchains.poll()?.let {
@@ -361,6 +423,9 @@ open class VulkanSwapchain(open val device: VulkanDevice,
         }
     }
 
+    /**
+     * Acquires the next swapchain image.
+     */
     override fun next(timeout: Long, signalSemaphore: Long): Boolean {
         // wait for the present queue to become idle - by doing this here
         // we avoid stalling the GPU and gain a few FPS
@@ -379,6 +444,9 @@ open class VulkanSwapchain(open val device: VulkanDevice,
         return false
     }
 
+    /**
+     * Changes the current window to fullscreen.
+     */
     override fun toggleFullscreen(hub: Hub, swapchainRecreator: VulkanRenderer.SwapchainRecreator) {
         (window as SceneryWindow.GLFWWindow?)?.let { window ->
             if (window.isFullscreen) {
@@ -425,6 +493,10 @@ open class VulkanSwapchain(open val device: VulkanDevice,
         }
     }
 
+    /**
+     * Embeds the swapchain into a [SceneryPanel]. Not supported by [VulkanSwapchain],
+     * see [FXSwapchain] instead.
+     */
     override fun embedIn(panel: SceneryPanel?) {
         if(panel == null) {
             return
@@ -433,6 +505,16 @@ open class VulkanSwapchain(open val device: VulkanDevice,
         logger.error("Embedding is not supported with the default Vulkan swapchain. Use FXSwapchain instead.")
     }
 
+    /**
+     * Returns the number of fully presented frames.
+     */
+    override fun presentedFrames(): Long {
+        return presentedFrames
+    }
+
+    /**
+     * Closes the swapchain, deallocating all of its resources.
+     */
     override fun close() {
         logger.debug("Closing swapchain $this")
         KHRSwapchain.vkDestroySwapchainKHR(device.vulkanDevice, handle, null)
@@ -442,6 +524,9 @@ open class VulkanSwapchain(open val device: VulkanDevice,
         MemoryUtil.memFree(swapchainPointer)
 
         windowSizeCallback.close()
-        (window as SceneryWindow.GLFWWindow?)?.let { window -> glfwDestroyWindow(window.window) }
+        (window as SceneryWindow.GLFWWindow?)?.let { window ->
+            glfwDestroyWindow(window.window)
+            glfwTerminate()
+        }
     }
 }

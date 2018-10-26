@@ -1,12 +1,14 @@
 // standard library
 importPackage(Packages.graphics.scenery);
 importPackage(Packages.graphics.scenery.backends);
+importPackage(Packages.graphics.scenery.backends.opengl);
+importPackage(Packages.graphics.scenery.backends.vulkan);
 importPackage(Packages.graphics.scenery.controls);
 importPackage(Packages.graphics.scenery.net);
 importPackage(Packages.graphics.scenery.fonts);
 importPackage(Packages.graphics.scenery.compute);
 importPackage(Packages.graphics.scenery.utils);
-importPackage(Packages.graphics.scenery.Volumes);
+importPackage(Packages.graphics.scenery.volumes);
 importPackage(Packages.cleargl);
 
 // for threading
@@ -16,7 +18,8 @@ var ObjectLocator = function(match) {
     var objectArray = object.getIndex().toArray();
 
     for(i = 0; i < objectArray.length; i++) {
-        if(objectArray[i].toString().indexOf(match) != -1) {
+        var name = objectArray[i].toString().split('\n')[0];
+        if(name.indexOf(match) != -1) {
             return objectArray[i];
         }
     }
@@ -55,6 +58,7 @@ var renderer = ObjectLocator("Renderer");
 var stats = ObjectLocator("Statistics");
 var hub = ObjectLocator("Hub");
 var settings = ObjectLocator("Settings");
+var base = hub.getApplication();
 
 // and say hello :-)
 print("\n\n");

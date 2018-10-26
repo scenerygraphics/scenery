@@ -49,7 +49,7 @@ class PickerExample: SceneryBase("PickerExample", wantREPL = true) {
     override fun inputSetup() {
         super.inputSetup()
 
-        val wiggle: (List<SelectCommand.SelectResult>) -> Unit = { result ->
+        val wiggle: (List<Scene.RaycastResult>) -> Unit = { result ->
             result.firstOrNull()?.let { nearest ->
                 val originalPosition = nearest.node.position.clone()
                 thread {

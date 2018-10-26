@@ -34,14 +34,14 @@ layout(push_constant) uniform currentEye_t {
 } currentEye;
 
 const vec4 frustumVectors[] = vec4[](
+    // top left
+    vec4(1.0, -1.0, 0.0, 1.0),
     // bottom left
     vec4(-1.0, -1.0, 0.0, 1.0),
     // bottom right
     vec4(-1.0, 1.0, 0.0, 1.0),
     // top right
-    vec4(1.0, 1.0, 0.0, 1.0),
-    // top left
-    vec4(1.0, -1.0, 0.0, 1.0)
+    vec4(1.0, 1.0, 0.0, 1.0)
 );
 
 void main()
@@ -54,11 +54,15 @@ void main()
 	for(uint i = 0; i < 4; ++i) {
 	    vec4 start = frustumVectors[i];
 	    start.z = -1.0f;
+	    start = inverseProjection * start;
+	    start /= start.w;
 
 	    vec4 end = frustumVectors[i];
 	    end.z = 1.0f;
+	    end = inverseProjection * end;
+	    end /= end.w;
 
-	    Vertex.frustumVectors[i] = inverseProjection * (start - end);
+	    Vertex.frustumVectors[i] = end - start;
 	    Vertex.frustumVectors[i].xyz /= Vertex.frustumVectors[i].z;
 	}
 

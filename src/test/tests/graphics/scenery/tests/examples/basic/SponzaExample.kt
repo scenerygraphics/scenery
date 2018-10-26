@@ -97,7 +97,7 @@ class SponzaExample : SceneryBase("SponzaExample", windowWidth = 1280, windowHei
     override fun inputSetup() {
         setupCameraModeSwitching(keybinding = "C")
 
-        inputHandler?.addBehaviour("toggle_light_movement", ClickBehaviour { x, y -> movingLights = !movingLights })
+        inputHandler?.addBehaviour("toggle_light_movement", ClickBehaviour { _, _ -> movingLights = !movingLights })
         inputHandler?.addKeyBinding("toggle_light_movement", "T")
     }
 

@@ -27,10 +27,10 @@ before_install:
 install: true
 
 script: 
-  - mvn clean package
+  - mvn -B clean package
 
 # deploy on success, but only if we are on master
 after_success:
-    - test $TRAVIS_PULL_REQUEST == "false" && test $TRAVIS_BRANCH == "master" && mvn deploy --settings settings.xml
-    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then mvn jacoco:report; fi
+    - test $TRAVIS_PULL_REQUEST == "false" && test $TRAVIS_BRANCH == "master" && mvn -B deploy --settings settings.xml
+    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then mvn -B jacoco:report; fi
     - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then java -jar ~/codacy-coverage-reporter.jar report -l Kotlin -r target/site/jacoco/jacoco.xml; fi

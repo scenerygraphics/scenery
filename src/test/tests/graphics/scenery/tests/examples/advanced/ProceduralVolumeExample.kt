@@ -50,8 +50,8 @@ class ProceduralVolumeExample: SceneryBase("Volume Rendering example", 1280, 720
         with(volume.transferFunction) {
             addControlPoint(0.0f, 0.0f)
             addControlPoint(0.2f, 0.0f)
-            addControlPoint(0.4f, 0.2f)
-            addControlPoint(0.8f, 0.2f)
+            addControlPoint(0.4f, 1.0f)
+            addControlPoint(0.8f, 1.0f)
             addControlPoint(1.0f, 0.0f)
         }
 

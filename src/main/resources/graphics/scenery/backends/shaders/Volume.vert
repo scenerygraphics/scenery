@@ -62,11 +62,15 @@ layout(set = 4, binding = 0) uniform ShaderProperties {
     float boxMax_y;
     float boxMax_z;
     float stepSize;
-    float alpha_blending;
+    float alphaBlending;
     float gamma;
     int dataRangeMin;
     int dataRangeMax;
     int renderingMethod;
+    float kernelSize;
+    int occlusionSteps;
+    float maxOcclusionDistance;
+    float time;
 };
 
 layout(push_constant) uniform currentEye_t {
