@@ -149,7 +149,7 @@ open class VulkanRenderer(hub: Hub,
                 with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
                     // Create the swapchain (this will also add a memory barrier to initialize the framebuffer images)
 
-                    swapchain?.create(oldSwapchain = swapchain)
+                    swapchain.create(oldSwapchain = swapchain)
 
                     endCommandBuffer(this@VulkanRenderer.device, commandPools.Standard, queue, flush = true, dealloc = true)
 
@@ -307,7 +307,7 @@ open class VulkanRenderer(hub: Hub,
     protected var transferQueue: VkQueue
     protected var descriptorPool: Long
 
-    protected var swapchain: Swapchain? = null
+    protected var swapchain: Swapchain
     protected var ph = PresentHelpers()
 
     final override var window: SceneryWindow = SceneryWindow.UninitializedWindow()
@@ -1454,7 +1454,7 @@ open class VulkanRenderer(hub: Hub,
                     }
                 }
 
-                pass.commandBufferCount = swapchain!!.images!!.size
+                pass.commandBufferCount = swapchain.images.size
 
                 if (passConfig.output == "Viewport") {
                     // create viewport renderpass with swapchain image-derived framebuffer
@@ -1462,11 +1462,11 @@ open class VulkanRenderer(hub: Hub,
                     width = windowWidth
                     height = windowHeight
 
-                    swapchain!!.images!!.forEachIndexed { i, _ ->
+                    swapchain.images.forEachIndexed { i, _ ->
                         val fb = VulkanFramebuffer(this@VulkanRenderer.device, commandPools.Standard,
                             width, height, this@with, sRGB = renderConfig.sRGB)
 
-                        fb.addSwapchainAttachment("swapchain-$i", swapchain!!, i)
+                        fb.addSwapchainAttachment("swapchain-$i", swapchain, i)
                         fb.addDepthBuffer("swapchain-$i-depth", 32)
                         fb.createRenderpassAndFramebuffer()
 
@@ -1552,7 +1552,7 @@ open class VulkanRenderer(hub: Hub,
         val map = ConcurrentHashMap<StandardSemaphores, Array<Long>>()
 
         StandardSemaphores.values().forEach {
-            map[it] = swapchain!!.images!!.map {
+            map[it] = swapchain.images.map {
                 VU.getLong("Semaphore for $it",
                     { vkCreateSemaphore(device.vulkanDevice, semaphoreCreateInfo, null, this) }, {})
             }.toTypedArray()
@@ -1581,7 +1581,7 @@ open class VulkanRenderer(hub: Hub,
     }
 
     private fun beginFrame() {
-        swapchainRecreator.mustRecreate = swapchain!!.next(timeout = UINT64_MAX,
+        swapchainRecreator.mustRecreate = swapchain.next(timeout = UINT64_MAX,
             signalSemaphore = semaphores[StandardSemaphores.PresentComplete]!![0])
     }
 
@@ -1613,19 +1613,19 @@ open class VulkanRenderer(hub: Hub,
 
         val startPresent = System.nanoTime()
         commandBuffer.submitted = true
-        swapchain!!.present(ph.signalSemaphore)
+        swapchain.present(ph.signalSemaphore)
         // TODO: Figure out whether this waitForFence call is strictly necessary -- actually, the next renderloop iteration should wait for it.
         commandBuffer.waitForFence()
 
-        swapchain!!.postPresent(pass.getReadPosition())
+        swapchain.postPresent(pass.getReadPosition())
 
         // submit to OpenVR if attached
         if(hub?.getWorkingHMDDisplay()?.hasCompositor() == true) {
             hub?.getWorkingHMDDisplay()?.wantsVR()?.submitToCompositorVulkan(
                 window.width, window.height,
-                swapchain!!.format,
+                swapchain.format,
                 instance, device, queue,
-                swapchain!!.images!![pass.getReadPosition()])
+                swapchain.images[pass.getReadPosition()])
         }
 
         if (recordMovie || screenshotRequested) {
@@ -1670,7 +1670,7 @@ open class VulkanRenderer(hub: Hub,
                         .imageExtent(VkExtent3D.calloc().set(window.width, window.height, 1))
                         .imageSubresource(subresource)
 
-                    val image = swapchain!!.images!![pass.getReadPosition()]
+                    val image = swapchain.images[pass.getReadPosition()]
 
                     VulkanTexture.transitionLayout(image,
                         VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
@@ -1878,7 +1878,7 @@ open class VulkanRenderer(hub: Hub,
             sceneArray = newSceneArray
         }
 
-        val presentedFrames = swapchain?.presentedFrames() ?: 0
+        val presentedFrames = swapchain.presentedFrames()
         // return if neither UBOs were updated, nor the scene was modified
         if (pushMode && !swapchainChanged && !ubosUpdated && !forceRerecording && !screenshotRequested && totalFrames > 3 && presentedFrames > 3) {
             logger.trace("UBOs have not been updated, returning (pushMode={}, swapchainChanged={}, ubosUpdated={}, forceRerecording={}, screenshotRequested={})", pushMode, swapchainChanged, ubosUpdated, forceRerecording, totalFrames)
@@ -3059,7 +3059,7 @@ open class VulkanRenderer(hub: Hub,
 
         logger.debug("Closing swapchain...")
 
-        swapchain?.close()
+        swapchain.close()
 
         logger.debug("Closing renderpasses...")
         renderpasses.forEach { _, vulkanRenderpass -> vulkanRenderpass.close() }
@@ -3101,7 +3101,7 @@ open class VulkanRenderer(hub: Hub,
     }
 
     fun switchFullscreen() {
-        hub?.let { hub -> swapchain?.toggleFullscreen(hub, swapchainRecreator) }
+        hub?.let { hub -> swapchain.toggleFullscreen(hub, swapchainRecreator) }
     }
 
     /**

@@ -133,7 +133,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
             it.first.createImageView(it.second, format)
         }.toLongArray()
 
-        logger.info("Created ${images?.size} swapchain images")
+        logger.info("Created ${images.size} swapchain images")
 
         val imageByteSize = window.width * window.height * 4L
         imageBuffer = MemoryUtil.memAlloc(imageByteSize.toInt())
@@ -171,7 +171,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
                     flush = true, dealloc = true)
             }
 
-            currentImage = ++currentImage % (images?.size ?: 1)
+            currentImage = ++currentImage % images.size
         }
 
         return false
@@ -221,7 +221,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
                 .imageExtent(VkExtent3D.calloc().set(window.width, window.height, 1))
                 .imageSubresource(subresource)
 
-            val transferImage = images!![image]
+            val transferImage = images[image]
 
             VulkanTexture.transitionLayout(transferImage,
                 KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
