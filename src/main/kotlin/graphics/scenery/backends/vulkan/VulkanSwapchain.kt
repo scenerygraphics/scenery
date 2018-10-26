@@ -39,9 +39,9 @@ open class VulkanSwapchain(open val device: VulkanDevice,
     /** Swapchain handle. */
     override var handle: Long = 0L
     /** Array for rendered images. */
-    override var images: LongArray? = null
+    override var images: LongArray = LongArray(0)
     /** Array for image views. */
-    override var imageViews: LongArray? = null
+    override var imageViews: LongArray = LongArray(0)
     /** Number of frames presented with this swapchain. */
     protected var presentedFrames: Long = 0
 
