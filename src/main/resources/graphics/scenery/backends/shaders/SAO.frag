@@ -6,7 +6,7 @@
 layout(set = 3, binding = 0) uniform sampler2D InputNormalsMaterial;
 layout(set = 4, binding = 0) uniform sampler2D InputZBuffer;
 
-layout(location = 0) out vec4 FragColor;
+layout(location = 0) out float FragColor;
 layout(location = 0) in vec2 textureCoord;
 
 layout(set = 0, binding = 0) uniform VRParameters {
@@ -163,5 +163,5 @@ void main() {
         ambientOcclusion = A;
     }
 
-    FragColor = vec4(ambientOcclusion);
+    FragColor = ambientOcclusion;
 }

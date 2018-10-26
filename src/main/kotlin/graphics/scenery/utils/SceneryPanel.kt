@@ -43,6 +43,7 @@ class SceneryPanel(var imageWidth: Int, var imageHeight: Int) : Pane() {
     /** The image displayed in the panel. Will be set by a renderer. */
     protected var image: DirectWritableImage = DirectWritableImage(imageWidth, imageHeight)
     internal var imageView: ImageView
+    internal var displayedFrames = 0L
 
     private var resizeTimer: Timer? = null
     private var latestImageSize = 0
@@ -66,7 +67,7 @@ class SceneryPanel(var imageWidth: Int, var imageHeight: Int) : Pane() {
             return
         }
 
-        latestImageSize = buffer.capacity()
+        latestImageSize = buffer.remaining()
         image.update(buffer)
         imageBuffer = buffer
         textureId = id
@@ -120,7 +121,11 @@ class SceneryPanel(var imageWidth: Int, var imageHeight: Int) : Pane() {
                 } else {
                     g.drawTexture(t, 0.0f, 0.0f, width.toFloat(), height.toFloat())
                 }
-           }
+
+                displayedFrames++
+            } else {
+                logger.debug("Not rendering, size mismatch ${this@SceneryPanel.width}x${this@SceneryPanel.height}")
+            }
         }
     }
 

@@ -148,7 +148,7 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: 
                     inputSets.add(setId)
                 }
 
-                "Inputs-${inputSets.size-1}"
+                "Inputs-$setId"
             } else {
                 res.name
             }
@@ -160,7 +160,7 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: 
                     spec.binding = minOf(spec.binding, compiler.getDecoration(res.id, Decoration.DecorationBinding))
                 }
             } else {
-                logger.debug("Adding inputs UBO, ${res.name}/$name")
+                logger.debug("Adding inputs UBO, ${res.name}/$name, set=$setId")
                 uboSpecs.put(name, UBOSpec(name,
                     set = setId,
                     binding = compiler.getDecoration(res.id, Decoration.DecorationBinding),
@@ -200,6 +200,13 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: 
             .module(this.shaderModule)
             .pName(memUTF8(entryPoint))
             .pNext(NULL)
+
+        // re-sort UBO specs according to set and binding
+        val sortedSpecs = uboSpecs.entries
+            .sortedBy { it.value.set }
+            .map { it.key to it.value }
+        uboSpecs.clear()
+        sortedSpecs.forEach { uboSpecs[it.first] = it.second }
     }
 
     protected fun ShaderType.toVulkanShaderStage() = when(this) {

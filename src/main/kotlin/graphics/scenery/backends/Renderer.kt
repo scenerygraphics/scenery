@@ -10,6 +10,7 @@ import graphics.scenery.backends.vulkan.VulkanRenderer
 import graphics.scenery.utils.ExtractsNatives
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.SceneryPanel
+import org.slf4j.LoggerFactory
 
 /**
  * Renderer interface. Defines the minimal set of functions a renderer has to implement.
@@ -141,17 +142,19 @@ abstract class Renderer : Hubable {
      * @return Default [Settings] values.
      */
     fun loadDefaultRendererSettings(settings: Settings): Settings {
-        settings.set("wantsFullscreen", false)
-        settings.set("isFullscreen", false)
+        settings.setIfUnset("wantsFullscreen", false)
+        settings.setIfUnset("isFullscreen", false)
 
-        settings.set("vr.Active", false)
-        settings.set("vr.IPD", 0.05f)
+        settings.setIfUnset("vr.Active", false)
+        settings.setIfUnset("vr.IPD", 0.05f)
 
-        settings.set("sdf.MaxDistance", 12)
+        settings.setIfUnset("sdf.MaxDistance", 12)
 
-        settings.set("Renderer.PrintGPUStats", false)
-        settings.set("Renderer.SupersamplingFactor", System.getProperty("scenery.Renderer.SupersamplingFactor")?.toFloat()
+        settings.setIfUnset("Renderer.PrintGPUStats", false)
+        settings.setIfUnset("Renderer.SupersamplingFactor", System.getProperty("scenery.Renderer.SupersamplingFactor")?.toFloat()
             ?: 1.0f)
+        settings.setIfUnset("Renderer.ForceVsync", false)
+        settings.setIfUnset("Renderer.ForceUndecoratedWindow", false)
 
         return settings
     }
@@ -200,13 +203,17 @@ abstract class Renderer : Hubable {
             return try {
                 if (preference == "VulkanRenderer" && embedInDrawable == null) {
                     try {
-                        VulkanRenderer(hub, applicationName, scene, windowWidth, windowHeight, config, embedIn)
+                        VulkanRenderer(hub, applicationName, scene, windowWidth, windowHeight, embedIn, config)
                     } catch (e: Exception) {
                         logger.warn("Vulkan unavailable (${e.cause}, ${e.message}), falling back to OpenGL.")
+                        logger.debug("Full exception: $e")
+                        if(logger.isDebugEnabled) {
+                            e.printStackTrace()
+                        }
                         OpenGLRenderer(hub, applicationName, scene, windowWidth, windowHeight, config, embedIn, embedInDrawable)
                     }
                 } else {
-                    OpenGLRenderer(hub, applicationName, scene, windowWidth, windowHeight, config, embedIn)
+                    OpenGLRenderer(hub, applicationName, scene, windowWidth, windowHeight, config, embedIn, embedInDrawable)
                 }
             } catch (e: Exception) {
                 logger.error("Could not instantiate renderer. Is your graphics card working properly and do you have the most recent drivers installed?")

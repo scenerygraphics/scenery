@@ -7,9 +7,7 @@ import graphics.scenery.backends.*
 import graphics.scenery.spirvcrossj.Loader
 import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.utils.*
-import kotlinx.coroutines.experimental.Deferred
-import kotlinx.coroutines.experimental.async
-import kotlinx.coroutines.experimental.runBlocking
+import kotlinx.coroutines.*
 import org.lwjgl.PointerBuffer
 import org.lwjgl.glfw.GLFW.glfwInit
 import org.lwjgl.glfw.GLFWVulkan.glfwGetRequiredInstanceExtensions
@@ -64,8 +62,8 @@ open class VulkanRenderer(hub: Hub,
                           scene: Scene,
                           windowWidth: Int,
                           windowHeight: Int,
-                          renderConfigFile: String,
-                          override final var embedIn: SceneryPanel? = null) : Renderer(), AutoCloseable {
+                          final override var embedIn: SceneryPanel? = null,
+                          renderConfigFile: String) : Renderer(), AutoCloseable {
 
     protected val logger by LazyLogger()
 
@@ -122,12 +120,24 @@ open class VulkanRenderer(hub: Hub,
         object None: DescriptorSet(0L)
         data class Set(val setId: Long, val setName: String = "") : DescriptorSet(setId, setName)
         data class DynamicSet(val setId: Long, val offset: Int, val setName: String = "") : DescriptorSet(setId, setName)
+
+        companion object {
+            fun setOrNull(id: Long?, setName: String): DescriptorSet? {
+                return if(id == null) {
+                    null
+                } else {
+                    DescriptorSet.Set(id, setName)
+                }
+            }
+        }
     }
 
     private val lateResizeInitializers = ConcurrentHashMap<Node, () -> Any>()
 
     inner class SwapchainRecreator {
         var mustRecreate = true
+        var afterRecreateHook: (SwapchainRecreator) -> Unit = {}
+
         private val lock = ReentrantLock()
 
         @Synchronized fun recreate() {
@@ -139,7 +149,7 @@ open class VulkanRenderer(hub: Hub,
                 with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
                     // Create the swapchain (this will also add a memory barrier to initialize the framebuffer images)
 
-                    swapchain?.create(oldSwapchain = swapchain)
+                    swapchain.create(oldSwapchain = swapchain)
 
                     endCommandBuffer(this@VulkanRenderer.device, commandPools.Standard, queue, flush = true, dealloc = true)
 
@@ -201,6 +211,8 @@ open class VulkanRenderer(hub: Hub,
                 totalFrames = 0
                 mustRecreate = false
 
+                afterRecreateHook.invoke(this)
+
                 lock.unlock()
             }
         }
@@ -215,14 +227,15 @@ open class VulkanRenderer(hub: Hub,
             }
 
             when {
-                flags and VK_DEBUG_REPORT_ERROR_BIT_EXT == VK_DEBUG_REPORT_ERROR_BIT_EXT -> logger.error("!! $obj Validation$dbg: " + getString(pMessage))
-                flags and VK_DEBUG_REPORT_WARNING_BIT_EXT == VK_DEBUG_REPORT_WARNING_BIT_EXT -> logger.warn("!! $obj Validation$dbg: " + getString(pMessage))
-                flags and VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT == VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT -> logger.error("!! $obj Validation (performance)$dbg: " + getString(pMessage))
-                flags and VK_DEBUG_REPORT_INFORMATION_BIT_EXT == VK_DEBUG_REPORT_INFORMATION_BIT_EXT -> logger.info("!! $obj Validation$dbg: " + getString(pMessage))
-                else -> logger.info("!! $obj Validation (unknown message type)$dbg: " + getString(pMessage))
+                flags and VK_DEBUG_REPORT_ERROR_BIT_EXT == VK_DEBUG_REPORT_ERROR_BIT_EXT -> logger.error("!! $obj($objectType) Validation$dbg: " + getString(pMessage))
+                flags and VK_DEBUG_REPORT_WARNING_BIT_EXT == VK_DEBUG_REPORT_WARNING_BIT_EXT -> logger.warn("!! $obj($objectType) Validation$dbg: " + getString(pMessage))
+                flags and VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT == VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT -> logger.error("!! $obj($objectType) Validation (performance)$dbg: " + getString(pMessage))
+                flags and VK_DEBUG_REPORT_INFORMATION_BIT_EXT == VK_DEBUG_REPORT_INFORMATION_BIT_EXT -> logger.info("!! $obj($objectType) Validation$dbg: " + getString(pMessage))
+                else -> logger.info("!! $obj($objectType) Validation (unknown message type)$dbg: " + getString(pMessage))
             }
 
-            if(strictValidation) {
+            if(strictValidation.first && strictValidation.second.isEmpty() ||
+                strictValidation.first && strictValidation.second.contains(objectType)) {
                 // set 15s of delay until the next frame is rendered if a validation error happens
                 renderDelay = 1500L
 
@@ -236,7 +249,7 @@ open class VulkanRenderer(hub: Hub,
 
             // if strict validation is enabled, the application will quit after a
             // validation error has been encountered
-            return if(strictValidation) {
+            return if(strictValidation.first) {
                 VK_FALSE
             } else {
                 VK_FALSE
@@ -274,10 +287,10 @@ open class VulkanRenderer(hub: Hub,
     protected var sceneArray: Array<Node> = emptyArray()
 
     protected var commandPools = CommandPools()
-    protected val renderpasses = Collections.synchronizedMap(LinkedHashMap<String, VulkanRenderpass>())
+    protected val renderpasses: MutableMap<String, VulkanRenderpass> = Collections.synchronizedMap(LinkedHashMap<String, VulkanRenderpass>())
 
     protected var validation = java.lang.Boolean.parseBoolean(System.getProperty("scenery.VulkanRenderer.EnableValidations", "false"))
-    protected val strictValidation = java.lang.Boolean.parseBoolean(System.getProperty("scenery.VulkanRenderer.StrictValidation", "false"))
+    protected val strictValidation = getStrictValidation()
     protected val wantsOpenGLSwapchain = java.lang.Boolean.parseBoolean(System.getProperty("scenery.VulkanRenderer.UseOpenGLSwapchain", "false"))
     protected val defaultValidationLayers = arrayOf("VK_LAYER_LUNARG_standard_validation")
 
@@ -294,7 +307,7 @@ open class VulkanRenderer(hub: Hub,
     protected var transferQueue: VkQueue
     protected var descriptorPool: Long
 
-    protected var swapchain: Swapchain? = null
+    protected var swapchain: Swapchain
     protected var ph = PresentHelpers()
 
     final override var window: SceneryWindow = SceneryWindow.UninitializedWindow()
@@ -306,7 +319,7 @@ open class VulkanRenderer(hub: Hub,
     protected var geometryPool: VulkanBufferPool
     protected var semaphores = ConcurrentHashMap<StandardSemaphores, Array<Long>>()
     protected var buffers = ConcurrentHashMap<String, VulkanBuffer>()
-    protected var UBOs = ConcurrentHashMap<String, VulkanUBO>()
+    protected var defaultUBOs = ConcurrentHashMap<String, VulkanUBO>()
     protected var textureCache = ConcurrentHashMap<String, VulkanTexture>()
     protected var descriptorSetLayouts = ConcurrentHashMap<String, Long>()
     protected var descriptorSets = ConcurrentHashMap<String, Long>()
@@ -357,13 +370,35 @@ open class VulkanRenderer(hub: Hub,
         private const val MATERIAL_HAS_SPECULAR = 0x0004
         private const val MATERIAL_HAS_NORMAL = 0x0008
         private const val MATERIAL_HAS_ALPHAMASK = 0x0010
+
+        init {
+            Loader.loadNatives()
+            libspirvcrossj.initializeProcess()
+
+            Runtime.getRuntime().addShutdownHook(object: Thread() {
+                override fun run() {
+                    logger.debug("Finalizing libspirvcrossj")
+                    libspirvcrossj.finalizeProcess()
+                }
+            })
+        }
+
+        fun getStrictValidation(): Pair<Boolean, List<Int>> {
+            val strict = System.getProperty("scenery.VulkanRenderer.StrictValidation")
+            val separated = strict?.split(",")?.asSequence()?.mapNotNull { it.toIntOrNull() }?.toList()
+
+            return when {
+                strict == null -> false to emptyList()
+                strict == "true" -> true to emptyList()
+                strict == "false" -> false to emptyList()
+                separated != null && separated.count() > 0 -> true to separated
+                else -> false to emptyList()
+            }
+        }
     }
 
     init {
         this.hub = hub
-
-        Loader.loadNatives()
-        libspirvcrossj.initializeProcess()
 
         val hmd = hub.getWorkingHMDDisplay()
         if (hmd != null) {
@@ -490,7 +525,9 @@ open class VulkanRenderer(hub: Hub,
             else -> {
                 VulkanSwapchain(
                     device, queue, commandPools,
-                    renderConfig = renderConfig, useSRGB = renderConfig.sRGB)
+                    renderConfig = renderConfig, useSRGB = renderConfig.sRGB,
+                    vsync = settings.get("Renderer.ForceVsync"),
+                    undecorated = settings.get("Renderer.ForceUndecoratedWindow"))
             }
         }.apply {
             embedIn(embedIn)
@@ -509,7 +546,9 @@ open class VulkanRenderer(hub: Hub,
         logger.debug("Prepared default buffers")
 
         prepareDescriptorSets(device, descriptorPool)
+        logger.debug("Prepared default descriptor sets")
         prepareDefaultTextures(device)
+        logger.debug("Prepared default textures")
 
         heartbeatTimer.scheduleAtFixedRate(object : TimerTask() {
             override fun run() {
@@ -532,7 +571,7 @@ open class VulkanRenderer(hub: Hub,
                         stats.add("GPU mem", it.get("AvailableDedicatedVideoMemory"), isTime = false)
                     }
 
-                    if (settings.get<Boolean>("Renderer.PrintGPUStats")) {
+                    if (settings.get("Renderer.PrintGPUStats")) {
                         logger.info(it.utilisationToString())
                         logger.info(it.memoryUtilisationToString())
                     }
@@ -564,6 +603,7 @@ open class VulkanRenderer(hub: Hub,
         geometryPool = VulkanBufferPool(device, usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or VK_BUFFER_USAGE_INDEX_BUFFER_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT)
 
         initialized = true
+        logger.info("Renderer initialisation complete.")
     }
 
     // source: http://stackoverflow.com/questions/34697828/parallel-operations-on-kotlin-collections
@@ -836,7 +876,7 @@ open class VulkanRenderer(hub: Hub,
                         }
                     }
 
-                    logger.debug("Shaders are: ${shaders}")
+                    logger.debug("Shaders are: $shaders")
 
                     val shaderModules = ShaderType.values().mapNotNull { type ->
                         try {
@@ -846,6 +886,7 @@ open class VulkanRenderer(hub: Hub,
                         }
                     }
 
+                    pass.value.initializeInputAttachmentDescriptorSetLayouts(shaderModules)
                     pass.value.initializePipeline("preferred-${node.uuid}",
                         shaderModules, settings = { pipeline ->
                             when(node.material.cullingMode) {
@@ -931,6 +972,7 @@ open class VulkanRenderer(hub: Hub,
         }
 
         lateResizeInitializers.remove(node)
+        node.initialized = false
 
         node.rendererMetadata()?.UBOs?.forEach { it.value.second.close() }
 
@@ -939,6 +981,8 @@ open class VulkanRenderer(hub: Hub,
                 it.value.close()
             }
         }
+
+        node.metadata.remove("VulkanRenderer")
     }
 
     protected fun loadTexturesForNode(node: Node, s: VulkanObjectState): VulkanObjectState {
@@ -1090,7 +1134,7 @@ open class VulkanRenderer(hub: Hub,
         lightUbo.createUniformBuffer()
         lightUbo.populate()
 
-        UBOs["LightParameters"] = lightUbo
+        defaultUBOs["LightParameters"] = lightUbo
 
         this.descriptorSets["LightParameters"] = VU.createDescriptorSet(device, descriptorPool,
                 descriptorSetLayouts["LightParameters"]!!, 1,
@@ -1108,7 +1152,7 @@ open class VulkanRenderer(hub: Hub,
         vrUbo.createUniformBuffer()
         vrUbo.populate()
 
-        UBOs["VRParameters"] = vrUbo
+        defaultUBOs["VRParameters"] = vrUbo
 
         this.descriptorSets["VRParameters"] = VU.createDescriptorSet(device, descriptorPool,
                 descriptorSetLayouts["VRParameters"]!!, 1,
@@ -1410,7 +1454,7 @@ open class VulkanRenderer(hub: Hub,
                     }
                 }
 
-                pass.commandBufferCount = swapchain!!.images!!.size
+                pass.commandBufferCount = swapchain.images.size
 
                 if (passConfig.output == "Viewport") {
                     // create viewport renderpass with swapchain image-derived framebuffer
@@ -1418,11 +1462,11 @@ open class VulkanRenderer(hub: Hub,
                     width = windowWidth
                     height = windowHeight
 
-                    swapchain!!.images!!.forEachIndexed { i, _ ->
+                    swapchain.images.forEachIndexed { i, _ ->
                         val fb = VulkanFramebuffer(this@VulkanRenderer.device, commandPools.Standard,
                             width, height, this@with, sRGB = renderConfig.sRGB)
 
-                        fb.addSwapchainAttachment("swapchain-$i", swapchain!!, i)
+                        fb.addSwapchainAttachment("swapchain-$i", swapchain, i)
                         fb.addDepthBuffer("swapchain-$i-depth", 32)
                         fb.createRenderpassAndFramebuffer()
 
@@ -1497,7 +1541,6 @@ open class VulkanRenderer(hub: Hub,
             }
 
             with(pass.value) {
-                initializeInputAttachmentDescriptorSetLayouts()
                 initializeShaderParameterDescriptorSetLayouts(settings)
 
                 initializeDefaultPipeline()
@@ -1509,8 +1552,8 @@ open class VulkanRenderer(hub: Hub,
         val map = ConcurrentHashMap<StandardSemaphores, Array<Long>>()
 
         StandardSemaphores.values().forEach {
-            map[it] = swapchain!!.images!!.map {
-                VU.getLong("Semaphore for $it",
+            map[it] = swapchain.images.map { i ->
+                VU.getLong("Semaphore for $i",
                     { vkCreateSemaphore(device.vulkanDevice, semaphoreCreateInfo, null, this) }, {})
             }.toTypedArray()
         }
@@ -1518,17 +1561,27 @@ open class VulkanRenderer(hub: Hub,
         return map
     }
 
-    private fun pollEvents() {
+    /**
+     * Polls for window events and triggers swapchain recreation if necessary.
+     * Returns true if the swapchain has been recreated, or false if not.
+     */
+    private fun pollEvents(): Boolean {
         window.pollEvents()
+
+        (swapchain as? HeadlessSwapchain)?.queryResize()
 
         if (swapchainRecreator.mustRecreate) {
             swapchainRecreator.recreate()
             frames = 0
+
+            return true
         }
+
+        return false
     }
 
     private fun beginFrame() {
-        swapchainRecreator.mustRecreate = swapchain!!.next(timeout = UINT64_MAX,
+        swapchainRecreator.mustRecreate = swapchain.next(timeout = UINT64_MAX,
             signalSemaphore = semaphores[StandardSemaphores.PresentComplete]!![0])
     }
 
@@ -1560,19 +1613,19 @@ open class VulkanRenderer(hub: Hub,
 
         val startPresent = System.nanoTime()
         commandBuffer.submitted = true
-        swapchain!!.present(ph.signalSemaphore)
+        swapchain.present(ph.signalSemaphore)
         // TODO: Figure out whether this waitForFence call is strictly necessary -- actually, the next renderloop iteration should wait for it.
         commandBuffer.waitForFence()
 
-        swapchain!!.postPresent(pass.getReadPosition())
+        swapchain.postPresent(pass.getReadPosition())
 
         // submit to OpenVR if attached
         if(hub?.getWorkingHMDDisplay()?.hasCompositor() == true) {
             hub?.getWorkingHMDDisplay()?.wantsVR()?.submitToCompositorVulkan(
                 window.width, window.height,
-                swapchain!!.format,
+                swapchain.format,
                 instance, device, queue,
-                swapchain!!.images!![pass.getReadPosition()])
+                swapchain.images[pass.getReadPosition()])
         }
 
         if (recordMovie || screenshotRequested) {
@@ -1617,7 +1670,7 @@ open class VulkanRenderer(hub: Hub,
                         .imageExtent(VkExtent3D.calloc().set(window.width, window.height, 1))
                         .imageSubresource(subresource)
 
-                    val image = swapchain!!.images!![pass.getReadPosition()]
+                    val image = swapchain.images[pass.getReadPosition()]
 
                     VulkanTexture.transitionLayout(image,
                         VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
@@ -1708,10 +1761,15 @@ open class VulkanRenderer(hub: Hub,
      * This function renders the scene
      */
     override fun render() = runBlocking {
-        pollEvents()
+        val swapchainChanged = pollEvents()
+
+        if(shouldClose) {
+            closeInternal()
+            return@runBlocking
+        }
 
         val stats = hub?.get(SceneryElement.Statistics) as? Statistics
-        val sceneObjects = async {
+        val sceneObjects = GlobalScope.async {
             scene.discover(scene, { n ->
                 n is HasGeometry
                     && n.visible
@@ -1746,6 +1804,7 @@ open class VulkanRenderer(hub: Hub,
             logger.warn("Delaying next frame for $renderDelay ms, as one or more validation error have occured in the previous frame.")
             Thread.sleep(renderDelay)
         }
+
 
         val startUboUpdate = System.nanoTime()
         val ubosUpdated = updateDefaultUBOs(device)
@@ -1819,9 +1878,10 @@ open class VulkanRenderer(hub: Hub,
             sceneArray = newSceneArray
         }
 
+        val presentedFrames = swapchain.presentedFrames()
         // return if neither UBOs were updated, nor the scene was modified
-        if (pushMode && !ubosUpdated && !forceRerecording && !screenshotRequested && totalFrames > 3) {
-            logger.trace("UBOs have not been updated, returning ({}, {}, {}, {})", pushMode, ubosUpdated, forceRerecording, totalFrames)
+        if (pushMode && !swapchainChanged && !ubosUpdated && !forceRerecording && !screenshotRequested && totalFrames > 3 && presentedFrames > 3) {
+            logger.trace("UBOs have not been updated, returning (pushMode={}, swapchainChanged={}, ubosUpdated={}, forceRerecording={}, screenshotRequested={})", pushMode, swapchainChanged, ubosUpdated, forceRerecording, totalFrames)
             Thread.sleep(2)
 
             return@runBlocking
@@ -2158,9 +2218,9 @@ open class VulkanRenderer(hub: Hub,
             node.needsUpdateWorld = true
             node.updateWorld(true, false)
 
-            node.metadata.getOrPut("instanceBufferView", {
+            node.metadata.getOrPut("instanceBufferView") {
                 stagingBuffer.stagingBuffer.duplicate().order(ByteOrder.LITTLE_ENDIAN)
-            }).run {
+            }.run {
                 val buffer = this as? ByteBuffer?: return@run
 
                 ubo.populateParallel(buffer, offset = index.getAndIncrement() * ubo.getSize()*1L, elements = node.instancedProperties)
@@ -2297,11 +2357,11 @@ open class VulkanRenderer(hub: Hub,
         // e.g. which have the same transparency settings as the pass,
         // and filter according to any custom filters applicable to this pass
         // (e.g. to discern geometry from lighting passes)
-        sceneObjects.await().filter { customNodeFilter?.invoke(it) ?: true }.forEach {
-            it.rendererMetadata()?.let { _ ->
-                if (!((pass.passConfig.renderOpaque && it.material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) ||
-                        (pass.passConfig.renderTransparent && !it.material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent))) {
-                    renderOrderList.add(it)
+        sceneObjects.await().filter { customNodeFilter?.invoke(it) ?: true }.forEach { n ->
+            n.rendererMetadata()?.let {
+                if (!((pass.passConfig.renderOpaque && n.material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) ||
+                        (pass.passConfig.renderTransparent && !n.material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent))) {
+                    renderOrderList.add(n)
                 } else {
                     return@let
                 }
@@ -2535,26 +2595,26 @@ open class VulkanRenderer(hub: Hub,
                     pass.vulkanMetadata.vertexBuffers.put(1, s.vertexBuffers["instance"]!!.vulkanBuffer)
                 }
 
-                val sets = specs.map { (name, _) ->
-                    when {
+                val sets = specs.mapNotNull { (name, _) ->
+                    val ds = when {
                         name == "VRParameters" -> {
-                            DescriptorSet.Set(descriptorSets["VRParameters"]!!, setName = "VRParameters")
+                            DescriptorSet.setOrNull(descriptorSets["VRParameters"], setName = "VRParameters")
                         }
 
                         name == "LightParameters" -> {
-                            DescriptorSet.Set(descriptorSets["LightParameters"]!!, setName = "LightParameters")
+                            DescriptorSet.setOrNull(descriptorSets["LightParameters"], setName = "LightParameters")
                         }
 
                         name == "ObjectTextures" -> {
-                            DescriptorSet.Set(s.textureDescriptorSet, setName = "ObjectTextures")
+                            DescriptorSet.setOrNull(s.textureDescriptorSet, setName = "ObjectTextures")
                         }
 
                         name.startsWith("Inputs") -> {
-                            DescriptorSet.Set(pass.descriptorSets["input-${pass.name}-${name.substringAfter("-")}"]!!, setName = "Inputs")
+                            DescriptorSet.setOrNull(pass.descriptorSets["input-${pass.name}-${name.substringAfter("-")}"], setName = "Inputs")
                         }
 
                         name == "ShaderParameters" -> {
-                            DescriptorSet.Set(pass.descriptorSets["ShaderParameters-${pass.name}"]!!, setName = "ShaderParameters")
+                            DescriptorSet.setOrNull(pass.descriptorSets["ShaderParameters-${pass.name}"], setName = "ShaderParameters")
                         }
 
                         else -> {
@@ -2567,6 +2627,13 @@ open class VulkanRenderer(hub: Hub,
                             }
                         }
                     }
+
+                    if(ds == null) {
+                        logger.error("Internal consistency error for node ${node.name}: Descriptor set $name not found in renderpass, skipping node for rendering.")
+                        return@drawLoop
+                    }
+
+                    ds
                 }
                 logger.debug("${node.name} requires DS ${specs.joinToString { "${it.key}, " }}")
 
@@ -2681,6 +2748,7 @@ open class VulkanRenderer(hub: Hub,
 
             vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkanPipeline.pipeline)
             if(pass.vulkanMetadata.descriptorSets.limit() > 0) {
+                logger.debug("Binding ${pass.vulkanMetadata.descriptorSets.limit()} descriptor sets with ${pass.vulkanMetadata.uboOffsets.limit()} required offsets")
                 vkCmdBindDescriptorSets(this, VK_PIPELINE_BIND_POINT_GRAPHICS,
                     vulkanPipeline.layout, 0, pass.vulkanMetadata.descriptorSets, pass.vulkanMetadata.uboOffsets)
             }
@@ -2700,10 +2768,11 @@ open class VulkanRenderer(hub: Hub,
         var requiredDynamicOffsets = 0
         logger.debug("Ubo position: ${this.uboOffsets.position()}")
 
-        pipeline.descriptorSpecs.entries.sortedBy { it.value.set }.forEachIndexed { i, (name, _) ->
+        pipeline.descriptorSpecs.entries.sortedBy { it.value.set }.forEachIndexed { i, (name, spec) ->
+            logger.debug("Looking at $name, set=${spec.set}, binding=${spec.binding}...")
             val dsName = when {
                 name.startsWith("ShaderParameters") -> "ShaderParameters-${pass.name}"
-                name.startsWith("Inputs") -> "input-${pass.name}-${name.substringAfter("-")}"
+                name.startsWith("Inputs") -> "input-${pass.name}-${spec.set}"
                 name.startsWith("Matrices") -> {
                     val offsets = sceneUBOs.first().rendererMetadata()!!.UBOs["Matrices"]!!.second.offsets
                     this.uboOffsets.put(offsets)
@@ -2750,7 +2819,7 @@ open class VulkanRenderer(hub: Hub,
     }
 
     private fun Display.wantsVR(): Display? {
-        return if (settings.get<Boolean>("vr.Active")) {
+        return if (settings.get("vr.Active")) {
             this@wantsVR
         } else {
             null
@@ -2758,12 +2827,17 @@ open class VulkanRenderer(hub: Hub,
     }
 
     private fun getDescriptorCache(): ConcurrentHashMap<String, Long> {
+        @Suppress("UNCHECKED_CAST")
         return scene.metadata.getOrPut("DescriptorCache") {
             ConcurrentHashMap<String, Long>()
         } as? ConcurrentHashMap<String, Long> ?: throw IllegalStateException("Could not retrieve descriptor cache from scene")
     }
 
     private fun updateDefaultUBOs(device: VulkanDevice): Boolean = runBlocking {
+        if(shouldClose) {
+            return@runBlocking false
+        }
+
         logger.trace("Updating default UBOs for {}", device)
         // find observer, if none, return
         val cam = scene.findObserver() ?: return@runBlocking false
@@ -2780,7 +2854,7 @@ open class VulkanRenderer(hub: Hub,
         cam.updateWorld(true, false)
 
         buffers["VRParametersBuffer"]!!.reset()
-        val vrUbo = UBOs["VRParameters"]!!
+        val vrUbo = defaultUBOs["VRParameters"]!!
         vrUbo.add("projection0", {
             (hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance)
                 ?: cam.projection).applyVulkanCoordinateSystem()
@@ -2849,7 +2923,7 @@ open class VulkanRenderer(hub: Hub,
                 }
 
                 if(nodeUpdated) {
-                    async { node.getScene()?.onNodePropertiesChanged?.forEach { it.value.invoke(node) } }
+                    GlobalScope.launch { node.getScene()?.onNodePropertiesChanged?.forEach { it.value.invoke(node) } }
                 }
 
                 updated = nodeUpdated
@@ -2858,7 +2932,7 @@ open class VulkanRenderer(hub: Hub,
 
         buffers["UBOBuffer"]!!.copyFromStagingBuffer()
 
-        val lightUbo = UBOs["LightParameters"]!!
+        val lightUbo = defaultUBOs["LightParameters"]!!
         lightUbo.add("ViewMatrix0", { cam.getTransformationForEye(0) })
         lightUbo.add("ViewMatrix1", { cam.getTransformationForEye(1) })
         lightUbo.add("InverseViewMatrix0", { cam.getTransformationForEye(0).inverse })
@@ -2876,16 +2950,6 @@ open class VulkanRenderer(hub: Hub,
         cam.lock.unlock()
 
         return@runBlocking updated
-    }
-
-    fun updateDescriptorSets() {
-        getDescriptorCache()["Matrices"]?.let { ds ->
-            VU.updateDynamicDescriptorSetBuffer(device, ds, 1, buffers["UBOBuffer"]!!)
-        }
-
-        getDescriptorCache()["MaterialProperties"]?.let { ds ->
-            VU.updateDynamicDescriptorSetBuffer(device, ds, 1, buffers["UBOBuffer"]!!)
-        }
     }
 
     @Suppress("UNUSED")
@@ -2926,6 +2990,15 @@ open class VulkanRenderer(hub: Hub,
      */
     override fun close() {
         shouldClose = true
+    }
+
+    fun closeInternal() {
+        if(!initialized) {
+            return
+        }
+
+        initialized = false
+
         logger.info("Renderer teardown started.")
         vkQueueWaitIdle(queue)
 
@@ -2936,9 +3009,11 @@ open class VulkanRenderer(hub: Hub,
         }
 
         logger.debug("Closing nodes...")
-        scene.discover(scene, { _ -> true }).forEach {
+        scene.discover(scene, { true }).forEach {
             destroyNode(it)
         }
+        scene.metadata.remove("DescriptorCache")
+        scene.initialized = false
 
         logger.debug("Closing buffers...")
         buffers.forEach { _, vulkanBuffer -> vulkanBuffer.close() }
@@ -2975,12 +3050,15 @@ open class VulkanRenderer(hub: Hub,
 
         logger.debug("Closing swapchain...")
 
-        swapchain?.close()
+        swapchain.close()
 
+        logger.debug("Closing renderpasses...")
         renderpasses.forEach { _, vulkanRenderpass -> vulkanRenderpass.close() }
 
+        logger.debug("Clearing shader module cache...")
         VulkanShaderModule.clearCache()
 
+        logger.debug("Closing command pools...")
         with(commandPools) {
             device.destroyCommandPool(Render)
             device.destroyCommandPool(Compute)
@@ -2995,13 +3073,11 @@ open class VulkanRenderer(hub: Hub,
 
         debugCallback.free()
 
+        logger.debug("Closing device $device...")
         device.close()
 
         logger.debug("Closing instance...")
         vkDestroyInstance(instance, null)
-
-        logger.debug("Finalizing spirvcrossj process...")
-        libspirvcrossj.finalizeProcess()
 
         logger.info("Renderer teardown complete.")
     }
@@ -3016,7 +3092,7 @@ open class VulkanRenderer(hub: Hub,
     }
 
     fun switchFullscreen() {
-        hub?.let { hub -> swapchain?.toggleFullscreen(hub, swapchainRecreator) }
+        hub?.let { hub -> swapchain.toggleFullscreen(hub, swapchainRecreator) }
     }
 
     /**
@@ -3025,13 +3101,37 @@ open class VulkanRenderer(hub: Hub,
      * @param[quality] The [RenderConfigReader.RenderingQuality] to be set.
      */
     override fun setRenderingQuality(quality: RenderConfigReader.RenderingQuality) {
+        fun setConfigSetting(key: String, value: Any) {
+            val setting = "Renderer.$key"
+
+            logger.debug("Setting $setting: ${settings.get<Any>(setting)} -> $value")
+            settings.set(setting, value)
+        }
+
         if(renderConfig.qualitySettings.isNotEmpty()) {
             logger.info("Setting rendering quality to $quality")
-            renderConfig.qualitySettings[quality]?.forEach { setting ->
-                val key = "Renderer.${setting.key}"
 
-                logger.debug("Setting $key: ${settings.get<Any>(key)} -> ${setting.value}")
-                settings.set(key, setting.value)
+            renderConfig.qualitySettings[quality]?.forEach { setting ->
+                if(setting.key.endsWith(".shaders") && setting.value is List<*>) {
+                    val pass = setting.key.substringBeforeLast(".shaders")
+                    @Suppress("UNCHECKED_CAST") val shaders = setting.value as? List<String> ?: return@forEach
+
+                    renderConfig.renderpasses[pass]?.shaders = shaders
+
+                    @Suppress("SENSELESS_COMPARISON")
+                    if(swapchainRecreator != null) {
+                        swapchainRecreator.mustRecreate = true
+                        swapchainRecreator.afterRecreateHook = { swapchainRecreator ->
+                            renderConfig.qualitySettings[quality]?.filter { !it.key.endsWith(".shaders") }?.forEach {
+                                setConfigSetting(it.key, it.value)
+                            }
+
+                            swapchainRecreator.afterRecreateHook = {}
+                        }
+                    }
+                } else {
+                    setConfigSetting(setting.key, setting.value)
+                }
             }
         } else {
             logger.warn("The current renderer config, $renderConfigFile, does not support setting quality options.")

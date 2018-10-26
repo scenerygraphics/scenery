@@ -1,11 +1,9 @@
 package graphics.scenery.controls
 
 import graphics.scenery.Hub
-import graphics.scenery.utils.ExtractsNatives
 import graphics.scenery.utils.SceneryPanel
 import javafx.event.EventHandler
 import javafx.scene.input.*
-import javafx.stage.Stage
 import org.scijava.ui.behaviour.InputTrigger
 
 /**
@@ -37,12 +35,11 @@ open class JavaFXMouseAndKeyHandler(protected var hub: Hub?, protected var panel
             else -> 3.0f
         }
         
-        val stage = panel.scene.window as Stage
-
-        stage.addEventHandler(DragEvent.ANY, this)
-        stage.addEventHandler(MouseEvent.ANY, this)
-        stage.addEventHandler(KeyEvent.ANY, this)
-        stage.addEventHandler(ScrollEvent.ANY, this)
+        val scene = panel.scene
+        scene.addEventHandler(DragEvent.ANY, this)
+        scene.addEventHandler(MouseEvent.ANY, this)
+        scene.addEventHandler(KeyEvent.ANY, this)
+        scene.addEventHandler(ScrollEvent.ANY, this)
     }
 
     /**

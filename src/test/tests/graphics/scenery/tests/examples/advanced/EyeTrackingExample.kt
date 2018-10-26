@@ -136,7 +136,7 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
                         }
 
                         PupilEyeTracker.CalibrationType.WorldSpace -> { gaze ->
-                            referenceTarget.position = gaze.gazePoint() ?: GLVector.getNullVector(3)
+                            referenceTarget.position = gaze.gazePoint()
 
                             when {
                                 gaze.confidence < 0.85f -> referenceTarget.material.diffuse = GLVector(0.8f, 0.0f, 0.0f)

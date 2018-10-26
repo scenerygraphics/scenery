@@ -2,7 +2,10 @@ package graphics.scenery.utils
 
 import graphics.scenery.Hub
 import graphics.scenery.Hubable
-import kotlinx.coroutines.experimental.async
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.async
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedDeque
@@ -64,7 +67,7 @@ class Statistics(override var hub: Hub?) : Hubable {
      * Set [isTime] to true if the datum contains time information.
      */
     fun add(name: String, value: Float, isTime: Boolean = true) {
-        async {
+        GlobalScope.async {
             stats.computeIfAbsent(name) {
                 val d = StatisticData(isTime)
                 d.data.push(value)

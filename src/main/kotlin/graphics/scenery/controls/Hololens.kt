@@ -7,8 +7,7 @@ import graphics.scenery.*
 import graphics.scenery.backends.Display
 import graphics.scenery.backends.vulkan.*
 import graphics.scenery.utils.LazyLogger
-import kotlinx.coroutines.experimental.Job
-import kotlinx.coroutines.experimental.launch
+import kotlinx.coroutines.*
 import org.lwjgl.system.MemoryStack
 import org.lwjgl.system.MemoryUtil.memAllocInt
 import org.lwjgl.system.MemoryUtil.memAllocLong
@@ -569,7 +568,7 @@ class Hololens: TrackerInput, Display, Hubable {
     private fun subscribe(topic: String) {
         if(!subscriberSockets.containsKey(topic)) {
 
-            val job = launch {
+            val job = GlobalScope.launch {
                 val socket = zmqContext.createSocket(ZMQ.SUB)
                 val poller = ZPoller(zmqContext)
                 poller.register(socket, ZMQ.Poller.POLLIN)

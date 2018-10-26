@@ -10,6 +10,8 @@
 #define PI 3.14159265359
 
 layout(set = 1, binding = 0) uniform sampler2D InputNormalsMaterial;
+layout(set = 1, binding = 1) uniform sampler2D InputDiffuseAlbedo;
+layout(set = 1, binding = 2) uniform sampler2D InputZBuffer;
 layout(set = 2, binding = 0) uniform sampler2D InputOcclusion;
 
 layout(location = 0) out vec4 FragColor;
@@ -48,6 +50,9 @@ void main() {
     const ivec2 ssC = ivec2(gl_FragCoord.xy);
     const float indices[9] = {-4, -3, -2, -1, 0, +1, +2, +3, +4};
     const vec2 step = Direction/vec2(displayWidth, displayHeight).xy;
+
+//    FragColor = vec4(texture(InputOcclusion, textureCoord).rgb, 1.0);
+//    return;
 
     vec3 normal[9];
     vec4 res = vec4(0.0);

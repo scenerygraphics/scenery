@@ -132,7 +132,7 @@ class JavaFXGridPaneExample : SceneryBase("JavaFXGridPaneExample", windowWidth =
         }
 
         thread {
-            while(renderer?.shouldClose == false ?: true) {
+            while(renderer?.shouldClose == false) {
                 Thread.sleep(200)
             }
 

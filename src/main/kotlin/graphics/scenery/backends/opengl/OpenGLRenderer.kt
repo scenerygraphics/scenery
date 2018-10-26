@@ -13,8 +13,7 @@ import graphics.scenery.spirvcrossj.Loader
 import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.utils.*
 import javafx.application.Platform
-import kotlinx.coroutines.experimental.async
-import kotlinx.coroutines.experimental.runBlocking
+import kotlinx.coroutines.*
 import org.lwjgl.system.MemoryUtil
 import java.io.File
 import java.io.FileNotFoundException
@@ -115,6 +114,7 @@ open class OpenGLRenderer(hub: Hub,
 
     private var lastResizeTimer = Timer()
     @Volatile private var mustRecreateFramebuffers = false
+    private var framebufferRecreateHook: () -> Unit = {}
     private var gpuStats: GPUStats? = null
 
     /** heartbeat timer */
@@ -292,6 +292,18 @@ open class OpenGLRenderer(hub: Hub,
         private const val MATERIAL_HAS_SPECULAR = 0x0004
         private const val MATERIAL_HAS_NORMAL = 0x0008
         private const val MATERIAL_HAS_ALPHAMASK = 0x0010
+
+        init {
+            Loader.loadNatives()
+            libspirvcrossj.initializeProcess()
+
+            Runtime.getRuntime().addShutdownHook(object: Thread() {
+                override fun run() {
+                    logger.debug("Finalizing libspirvcrossj")
+                    libspirvcrossj.finalizeProcess()
+                }
+            })
+        }
     }
 
     /**
@@ -300,9 +312,6 @@ open class OpenGLRenderer(hub: Hub,
      *
      */
     init {
-
-        Loader.loadNatives()
-        libspirvcrossj.initializeProcess()
 
         logger.info("Initializing OpenGL Renderer...")
         this.hub = hub
@@ -486,6 +495,12 @@ open class OpenGLRenderer(hub: Hub,
     }
 
     fun prepareRenderpasses(config: RenderConfigReader.RenderConfig, windowWidth: Int, windowHeight: Int): LinkedHashMap<String, OpenGLRenderpass> {
+//        if(config.sRGB) {
+//            gl.glEnable(GL4.GL_FRAMEBUFFER_SRGB)
+//        } else {
+//            gl.glDisable(GL4.GL_FRAMEBUFFER_SRGB)
+//        }
+
         buffers["ShaderParametersBuffer"]!!.reset()
 
         val framebuffers = ConcurrentHashMap<String, GLFramebuffer>()
@@ -668,6 +683,8 @@ open class OpenGLRenderer(hub: Hub,
         if (mustRecreateFramebuffers) {
             renderpasses = prepareRenderpasses(renderConfig, window.width, window.height)
             flow = renderConfig.createRenderpassFlow()
+
+            framebufferRecreateHook.invoke()
 
 
             mustRecreateFramebuffers = false
@@ -993,7 +1010,7 @@ open class OpenGLRenderer(hub: Hub,
                 }
 
                 if(nodeUpdated) {
-                    async { node.getScene()?.onNodePropertiesChanged?.forEach { it.value.invoke(node) } }
+                    GlobalScope.launch { node.getScene()?.onNodePropertiesChanged?.forEach { it.value.invoke(node) } }
                 }
 
                 updated = nodeUpdated
@@ -1323,6 +1340,11 @@ open class OpenGLRenderer(hub: Hub,
         return state
     }
 
+    protected fun destroyNode(node: Node) {
+        node.metadata.remove("OpenGLRenderer")
+        node.initialized = false
+    }
+
     protected var previousSceneObjects: Array<Node> = emptyArray()
     /**
      * Renders the [Scene].
@@ -1362,6 +1384,13 @@ open class OpenGLRenderer(hub: Hub,
         if (shouldClose) {
             try {
                 logger.info("Closing window")
+
+                scene.discover(scene, { _ -> true }).forEach {
+                    destroyNode(it)
+                }
+
+                scene.initialized = false
+
                 joglDrawable?.animator?.stop()
                 cglWindow?.close()
             } catch(e: ThreadDeath) {
@@ -1371,6 +1400,10 @@ open class OpenGLRenderer(hub: Hub,
         }
 
         val running = hub?.getApplication()?.running ?: true
+
+        embedIn?.let {
+            resizeHandler.queryResize()
+        }
 
         if (scene.children.count() == 0 || renderpasses.isEmpty() || mustRecreateFramebuffers || !running) {
             Thread.sleep(200)
@@ -1844,10 +1877,6 @@ open class OpenGLRenderer(hub: Hub,
             }
 
             gl.glBindBuffer(GL4.GL_PIXEL_PACK_BUFFER, 0)
-
-            embedIn?.let {
-                resizeHandler.queryResize()
-            }
         }
 
 
@@ -2602,13 +2631,33 @@ open class OpenGLRenderer(hub: Hub,
      * @param[quality] The [RenderConfigReader.RenderingQuality] to be set.
      */
     override fun setRenderingQuality(quality: RenderConfigReader.RenderingQuality) {
+        fun setConfigSetting(key: String, value: Any) {
+            val setting = "Renderer.$key"
+
+            logger.debug("Setting $setting: ${settings.get<Any>(setting)} -> $value")
+            settings.set(setting, value)
+        }
+
         if(renderConfig.qualitySettings.isNotEmpty()) {
             logger.info("Setting rendering quality to $quality")
             renderConfig.qualitySettings[quality]?.forEach { setting ->
-                val key = "Renderer.${setting.key}"
+                if(setting.key.endsWith(".shaders") && setting.value is List<*>) {
+                    val pass = setting.key.substringBeforeLast(".shaders")
+                    val shaders = setting.value as? List<String> ?: return@forEach
 
-                logger.debug("Setting $key: ${settings.get<Any>(key)} -> ${setting.value}")
-                settings.set(key, setting.value)
+                    renderConfig.renderpasses[pass]?.shaders = shaders
+
+                    mustRecreateFramebuffers = true
+                    framebufferRecreateHook = {
+                        renderConfig.qualitySettings[quality]?.filter { !it.key.endsWith(".shaders") }?.forEach {
+                            setConfigSetting(it.key, it.value)
+                        }
+
+                        framebufferRecreateHook = {}
+                    }
+                } else {
+                    setConfigSetting(setting.key, setting.value)
+                }
             }
         } else {
             logger.warn("The current renderer config, $renderConfigFile, does not support setting quality options.")
@@ -2620,7 +2669,6 @@ open class OpenGLRenderer(hub: Hub,
      */
     override fun close() {
         shouldClose = true
-        libspirvcrossj.finalizeProcess()
 
         encoder?.finish()
     }

@@ -1,5 +1,120 @@
 # CHANGELOG
 
+# scenery-0.6.1 to scenery-0.6.2
+
+## Fixes
+
+* Volume: circumvent race condition when updating volumes with improved locking code
+* VulkanRenderer/OpenGLRenderer: initialize spirvcrossj statically (once-per-process)
+
+## Additions and Changes
+
+* POM: Add Sonatype repository before ImageJ Maven
+* VulkanRenderer: revamps JavaFX swapchain handling to enable embedding in JFXPanels
+* VulkanSwapchain/HeadlessSwapchain/JavaFXSwapchain/OpenGLSwapchain: record the number of images presented with this swapchain
+* Renderer: Output exception name in case Vulkan cannot be initialiased, and full stack trace if debug logging is enabled
+* VulkanRenderer/OpenGLRenderer: Determine renderer window size depending on size of embedded component
+* JavaFXMouseAndKeyHandler: Attach event handlers to JavaFX `Scene`, and not to `Stage`
+
+## Dependency update
+
+* bumps spirvcrossj to 0.4.2
+
+# scenery-0.6.0 to scenery-0.6.1
+
+## Fixes
+
+* REPL: Fix typo in `startup.js` launch script that caused `graphics.scenery.volumes` not getting imported
+* Volume: Fix normalisation for the different rendering modes
+
+## Additions and Changes
+
+* TransferFunction: add rampMax parameter to ramp factory function to set a maximum value to ramp to
+* Volume: Make local maximum intensity projection (LMIP) the default rendering methods due to performance issues with alpha blending
+
+# scenery-0.6.0-beta-1 to scenery-0.6.0
+
+## Fixes
+
+* VulkanRenderer: Do not fail if a descriptor set is not found, but emit strong error message and continue rendering
+* VulkanRenderer: Fix incorrect initialisation of input descriptor sets in case the default shader does not consume the pass' inputs
+* OpenVRHMD: Transition Vulkan input texture to layout required by OpenVR
+* FXSwapchain: Force correct image flipping in SceneryPanels and remove KHRSwapchain remnants not needed anymore due to HeadlessSwapchain
+* REPL: Add backends to REPL startup script, fix issue with object location there, and add SceneryBase object to REPL accessible objects
+* HasGeometry: Refactor material import code for MTL files to prevent output of false positive errors
+
+## Additions and Changes
+
+* adds HBAO as new default AO option, and SSAO as a faster, lower quality option
+* Adds support for on-the-fly renderer switching, closes #106.
+* SceneryBase: Use canonical way to close renderer 
+* VulkanRenderer: Support filtering of event types for strict validation, by setting `scenery.VulkanRenderer.StrictValidation` to a list of event types (e.g. '10,6')
+* Renderer: Update rendering pipelines with single-component render targets for AO
+* Move raycasting code from SelectCommand to Scene.raycast() and Camera.getNodesForScreenSpacePosition()
+* Add EnumCycleCommand for shifting through enums
+* adds the capability to change shaders as part of rendering quality options
+* VulkanRenderer: improves the construction of a pass' input descriptor sets
+* VulkanRenderpass: Improve consistency checks on rendertargets
+
+## Dependency Updates
+
+* bumps Kotlin to 1.2.71
+
+# scenery-0.5.1 to scenery-0.6.0-beta-1
+
+## Fixes
+
+* Renderer: Don't overwrite user-defined settings
+* Fix normalisation bug in DeferredLighting.frag
+* Volume: write depth correctly
+* SceneryPanel: Remove unnecessary texture locking, improving stuttering
+* JavaFXMouseAndKeyHandler: Handle shift-scroll correctly on Windows
+* Renderer: Save screenshots even if push mode is active. Fixes #213.
+* Line: add geometry shader to expected shaders
+
+
+## Additions and Changes
+
+* __Breaking change__: This Release changes the way shaders are handled by Nodes. It removes Node.useClassDerivedShader and replaces it with a unified and more flexible system that also allows for shader factories. See Shaders and ShaderFactory (#203)
+* Volume: Add local ambient occlusion
+* Volume: allow for different rendering methods (maximum projection, local maximum projection, and alpha blending)
+* Volume : adds customizable transfer functions
+* Volume: adds alpha blending rendering mode in addition to max projection and local max projection
+* SceneryBase: Set running flag to true directly after initialisation
+* VulkanRenderer: Add options to force Vsync and undecorated windows
+* Settings: add setIfUnset()
+* VulkanDevice: Improve queue creation for multiple queues
+* Renderer: Add option to overwrite existing screenshots. Closes #213.
+* Renderer: add firstImageReady property to indicate first image has been rendered
+* VulkanRenderer: Don't request swapchain extensions if running headless
+* Volume: do not discard fragments that don't need a raycast
+* Volume: use stepSize instead of maxsteps as parameter, and improve local occlusion
+* Volume: Introduce Colormap class, which can be backed by a file or a buffer
+* ReaderExample: support reading of volume files (renamed from ReadModelExample)
+* Hololens: Cache view matrices
+* Preliminary support for directional lights
+* PupilEyeTracker: improves eye tracking calibration routine
+* EyeTrackingExample: Improve feedback on failed/successful calibration
+* Camera: store projection type, and viewport sizes, add aspectRatio() function
+* VulkanRenderer: Preparations for support of asynchronous texture uploads
+* SPIRV: compile shaders, even if they have preprocessor defs, to check their validity (generated SPIRV is deleted afterwards)
+* ArcballCameraControl: Support varying/moving targets
+* Node: Introduce callbacks for Node added, Node removed, Node properties updated
+* Scene: Support handing the Node in onNodePropertiesChanged
+* VulkanBufferAllocation: Add slack to allocations, and keep suballocations sorted by offset
+* ShaderMaterial: allow to specify expected shader types for fromClass()
+* Shaders: Provide JVM constructor overloads for ShadersFromClassName()
+* VulkanBufferAllocation: Add slack to allocations, and keep suballocations sorted by offset
+* Hololens: Subscribe to view transforms via SUB socket, not via REQREP any more
+* The following classes have had their documentation improved: DirectionalLight, Light, ShaderFactory, Shaders, VulkanFramebuffer, VulkanDevice
+
+
+## Dependency updates
+
+* bumps Kotlin to 1.2.61
+* bumps lwjgl to 3.2.0
+* bumps scijava parent POM to 23.1.1
+
 # scenery-0.5.1 to scenery-0.5.2
 
 ## Fixes
