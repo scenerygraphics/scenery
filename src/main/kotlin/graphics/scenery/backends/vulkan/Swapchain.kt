@@ -3,6 +3,9 @@ package graphics.scenery.backends.vulkan
 import graphics.scenery.Hub
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.utils.SceneryPanel
+import vkk.VkImageArray
+import vkk.VkImageView
+import vkk.VkImageViewArray
 import java.nio.LongBuffer
 
 /**
@@ -11,9 +14,10 @@ import java.nio.LongBuffer
  * @author Ulrik Günther <hello@ulrik.is>
  */
 interface Swapchain : AutoCloseable {
+
     var handle: Long
-    var images: LongArray?
-    var imageViews: LongArray?
+    var images: VkImageArray?
+    var imageViews: VkImageViewArray?
 
     var format: Int
 

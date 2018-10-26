@@ -9,9 +9,7 @@ import java.nio.LongBuffer
 import graphics.scenery.Hub
 import graphics.scenery.utils.SceneryPanel
 import org.lwjgl.system.MemoryStack
-import vkk.VkBufferUsage
-import vkk.VkDeviceSize
-import vkk.VkMemoryProperty
+import vkk.*
 
 
 /**
@@ -128,13 +126,13 @@ open class HeadlessSwapchain(device: VulkanDevice,
             t to image
         }
 
-        images = textureImages.map {
+        images = VkImageArray( textureImages.map {
             it.second.image
-        }.toLongArray()
+        }.toLongArray())
 
-        imageViews = textureImages.map {
+        imageViews = VkImageViewArray( textureImages.map {
             it.first.createImageView(it.second, format)
-        }.toLongArray()
+        }.toLongArray())
 
         logger.info("Created ${images?.size} swapchain images")
 
@@ -226,19 +224,19 @@ open class HeadlessSwapchain(device: VulkanDevice,
 
             val transferImage = images!![image]
 
-            VulkanTexture.transitionLayout(transferImage,
+            VulkanTexture.transitionLayout(transferImage.L,
                 KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
                 VK10.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                 srcStage = VK10.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                 dstStage = VK10.VK_PIPELINE_STAGE_TRANSFER_BIT,
                 commandBuffer = this)
 
-            VK10.vkCmdCopyImageToBuffer(this, transferImage,
+            VK10.vkCmdCopyImageToBuffer(this, transferImage.L,
                 VK10.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                 sharingBuffer.vulkanBuffer.L,
                 regions)
 
-            VulkanTexture.transitionLayout(transferImage,
+            VulkanTexture.transitionLayout(transferImage.L,
                 VK10.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                 KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
                 srcStage = VK10.VK_PIPELINE_STAGE_TRANSFER_BIT,

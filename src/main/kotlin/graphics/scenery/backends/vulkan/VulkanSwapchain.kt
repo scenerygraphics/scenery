@@ -14,6 +14,10 @@ import org.lwjgl.system.MemoryUtil.memFree
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.KHRSwapchain.VK_ERROR_OUT_OF_DATE_KHR
 import org.lwjgl.vulkan.KHRSwapchain.vkAcquireNextImageKHR
+import vkk.VkImage
+import vkk.VkImageArray
+import vkk.VkImageLayout
+import vkk.VkImageViewArray
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.util.*
@@ -39,9 +43,9 @@ open class VulkanSwapchain(open val device: VulkanDevice,
     /** Swapchain handle. */
     override var handle: Long = 0L
     /** Array for rendered images. */
-    override var images: LongArray? = null
+    override var images: VkImageArray? = null
     /** Array for image views. */
-    override var imageViews: LongArray? = null
+    override var imageViews: VkImageViewArray? = null
     /** Number of frames presented with this swapchain. */
     protected var presentedFrames: Long = 0
 
@@ -237,7 +241,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
             val swapchainImages = VU.getLongs("Getting swapchain images", imageCount.get(0),
                 { KHRSwapchain.vkGetSwapchainImagesKHR(device.vulkanDevice, handle, imageCount, this) }, {})
 
-            val images = LongArray(imageCount.get(0))
+            val images = VkImageArray(LongArray(imageCount.get(0)))
             val imageViews = LongArray(imageCount.get(0))
             val colorAttachmentView = VkImageViewCreateInfo.callocStack(stack)
                 .sType(VK10.VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO)
@@ -261,13 +265,13 @@ open class VulkanSwapchain(open val device: VulkanDevice,
 
             with(VU.newCommandBuffer(device, commandPools.Standard.L, autostart = true)) {
                 for (i in 0 until imageCount.get(0)) {
-                    images[i] = swapchainImages.get(i)
+                    images[i] = VkImage(swapchainImages.get(i))
 
                     VU.setImageLayout(this, images[i],
                         aspectMask = VK10.VK_IMAGE_ASPECT_COLOR_BIT,
-                        oldImageLayout = VK10.VK_IMAGE_LAYOUT_UNDEFINED,
-                        newImageLayout = KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
-                    colorAttachmentView.image(images[i])
+                        oldImageLayout = VkImageLayout.UNDEFINED,
+                        newImageLayout = VkImageLayout.PRESENT_SRC_KHR)
+                    colorAttachmentView.image(images[i].L)
 
                     imageViews[i] = VU.getLong("create image view",
                         { VK10.vkCreateImageView(this@VulkanSwapchain.device.vulkanDevice, colorAttachmentView, null, this) }, {})
@@ -278,7 +282,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
             }
 
             this.images = images
-            this.imageViews = imageViews
+            this.imageViews = VkImageViewArray(imageViews)
             this.format = colorFormatAndSpace.colorFormat
 
             memFree(swapchainImages)

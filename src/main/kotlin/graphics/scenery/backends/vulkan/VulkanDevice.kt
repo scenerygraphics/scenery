@@ -103,7 +103,7 @@ open class VulkanDevice(val instance: VkInstance,
             }
         }
 
-        val extensionsRequested = extensionsQuery(physicalDevice)
+        val extensionsRequested = extensionsQuery.invoke(physicalDevice)
         logger.debug("Requested extensions: ${extensionsRequested.joinToString()} ${extensionsRequested.size}")
 
         // if we are not running in headless mode, add swapchain extension
@@ -141,7 +141,7 @@ open class VulkanDevice(val instance: VkInstance,
             computeQueue = computeQueueFamilyIndex,
             graphicsQueue = graphicsQueueFamilyIndex)
 
-        extensions += extensionsQuery(physicalDevice)
+        extensions += extensionsQuery.invoke(physicalDevice)
         extensions += KHRSwapchain.VK_KHR_SWAPCHAIN_EXTENSION_NAME
 
         logger.debug("Created logical Vulkan device on ${deviceData.vendor} ${deviceData.name}")
@@ -152,7 +152,7 @@ open class VulkanDevice(val instance: VkInstance,
      * bear [typeBits] and [flags]. May return an empty list in case
      * the device does not support the given types and flags.
      */
-    fun getMemoryType(typeBits: Int, flags: Int): List<Int> {
+    fun getMemoryType(typeBits: Int, flags: VkMemoryPropertyFlags): List<Int> {
         var bits = typeBits
         val types = ArrayList<Int>(5)
 

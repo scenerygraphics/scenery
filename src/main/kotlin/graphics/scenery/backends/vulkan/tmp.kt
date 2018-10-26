@@ -2,16 +2,19 @@ package graphics.scenery.backends.vulkan
 
 import glm_.L
 import glm_.i
-import kool.Ptr
-import kool.adr
-import kool.remSize
-import kool.stak
+import glm_.set
+import kool.*
+import org.lwjgl.system.CustomBuffer
+import org.lwjgl.system.MemoryStack
+import org.lwjgl.system.MemoryStack.stackGet
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.NULL
+import org.lwjgl.system.MemoryUtil.memCallocLong
 import org.lwjgl.system.Pointer
 import org.lwjgl.vulkan.*
 import vkk.*
 import java.nio.Buffer
+import java.nio.LongBuffer
 
 operator fun VkDeviceSize.rem(b: VkDeviceSize) = VkDeviceSize(L % b.L)
 val VkDeviceSize.i
@@ -35,6 +38,10 @@ val VkDeviceMemory.asHexString: String
     get() = "0x%X".format(L)
 val VkBuffer.asHexString: String
     get() = "0x%X".format(L)
+val VkDescriptorSetLayout.asHexString: String
+    get() = "0x%X".format(L)
+val VkDescriptorSet.asHexString: String
+    get() = "0x%X".format(L)
 
 fun vk.DeviceQueueCreateInfo(capacity: Int): VkDeviceQueueCreateInfo.Buffer =
     VkDeviceQueueCreateInfo.callocStack(capacity).apply {
@@ -50,7 +57,7 @@ infix fun VkPhysicalDevice.createDevice(createInfo: VkDeviceCreateInfo): Pair<Vk
     }
 
 val VkResult.description: String
-    get() = when(this) {
+    get() = when (this) {
         // Success Codes
         SUCCESS -> "Command successfully completed"
         NOT_READY -> "A fence or query has not yet completed"
@@ -82,3 +89,46 @@ val VkResult.description: String
         ERROR_FRAGMENTATION_EXT -> "A descriptor pool creation has failed due to fragmentation"
         else -> "Unknown VkResult type"
     }
+
+fun vk.AttachmentDescription(size: Int, init: (Int) -> VkAttachmentDescription): VkAttachmentDescription.Buffer {
+    val res = VkAttachmentDescription.callocStack(size)
+    for (i in res.indices)
+        res[i] = init(i)
+    return res
+}
+
+inline val <SELF : CustomBuffer<SELF>>CustomBuffer<SELF>.cap
+    get() = capacity()
+
+inline var <SELF : CustomBuffer<SELF>>CustomBuffer<SELF>.lim
+    get() = limit()
+    set(value) {
+        limit(value)
+    }
+
+inline val <SELF : CustomBuffer<SELF>>CustomBuffer<SELF>.rem
+    get() = remaining()
+
+inline val <SELF : CustomBuffer<SELF>>CustomBuffer<SELF>.indices: IntRange
+    get() = IntRange(0, lastIndex)
+
+inline val <SELF : CustomBuffer<SELF>>CustomBuffer<SELF>.lastIndex: Int
+    get() = cap - 1
+
+
+fun vk.ImageViewBuffer(size: Int, init: (Int) -> VkImageView) = VkImageViewBuffer(stackGet().LongBuffer(size) { init(it).L })
+fun VkImageViewBuffer.free() = buffer.free()
+
+fun LongBuffer(size: Int, init: (Int) -> Long): LongBuffer {
+    val res = memCallocLong(size)
+    for (i in 0 until size)
+        res[i] = init(i)
+    return res
+}
+
+fun MemoryStack.LongBuffer(size: Int, init: (Int) -> Long): LongBuffer {
+    val res = mallocLong(size)
+    for (i in 0 until size)
+        res[i] = init(i)
+    return res
+}

@@ -324,7 +324,7 @@ open class VulkanRenderer(hub: Hub,
     protected var buffers = ConcurrentHashMap<String, VulkanBuffer>()
     protected var UBOs = ConcurrentHashMap<String, VulkanUBO>()
     protected var textureCache = ConcurrentHashMap<String, VulkanTexture>()
-    protected var descriptorSetLayouts = ConcurrentHashMap<String, Long>()
+    protected var descriptorSetLayouts = ConcurrentHashMap<String, VkDescriptorSetLayout>()
     protected var descriptorSets = ConcurrentHashMap<String, Long>()
 
     protected var lastTime = System.nanoTime()
@@ -849,7 +849,7 @@ open class VulkanRenderer(hub: Hub,
                         dsl = pass.value.initializeShaderPropertyDescriptorSetLayout()
                     }
 
-                val descriptorSet = VU.createDescriptorSetDynamic(device, descriptorPool, dsl,
+                val descriptorSet = VU.createDescriptorSetDynamic(device, descriptorPool, VkDescriptorSetLayout(dsl),
                     1, buffers["ShaderPropertyBuffer"]!!)
 
                 s.requiredDescriptorSets["ShaderProperties"] = descriptorSet
@@ -1075,7 +1075,7 @@ open class VulkanRenderer(hub: Hub,
             }
 
             s.texturesToDescriptorSet(device, descriptorSetLayouts["ObjectTextures"]!!,
-                descriptorPool,
+                VkDescriptorPool(descriptorPool),
                 targetBinding = 0)
 
             node.lock.unlock()
@@ -1084,8 +1084,8 @@ open class VulkanRenderer(hub: Hub,
         return s
     }
 
-    protected fun prepareDefaultDescriptorSetLayouts(device: VulkanDevice): ConcurrentHashMap<String, Long> {
-        val m = ConcurrentHashMap<String, Long>()
+    protected fun prepareDefaultDescriptorSetLayouts(device: VulkanDevice): ConcurrentHashMap<String, VkDescriptorSetLayout> {
+        val m = ConcurrentHashMap<String, VkDescriptorSetLayout>()
 
         m["Matrices"] = VU.createDescriptorSetLayout(
             device,
@@ -1364,8 +1364,8 @@ open class VulkanRenderer(hub: Hub,
         descriptorSetLayouts
             .filter { it.key.startsWith("outputs-") }
             .map {
-                logger.debug("Marking RT DSL ${it.value.toHexString()} for deletion")
-                vkDestroyDescriptorSetLayout(device.vulkanDevice, it.value, null)
+                logger.debug("Marking RT DSL ${it.value.asHexString} for deletion")
+                vkDestroyDescriptorSetLayout(device.vulkanDevice, it.value.L, null)
                 it.key
             }
             .map {
@@ -1423,7 +1423,7 @@ open class VulkanRenderer(hub: Hub,
                     } else {
 
                         // create framebuffer -- don't clear it, if blitting is needed
-                        val framebuffer = VulkanFramebuffer(this@VulkanRenderer.device, commandPools.Standard.L,
+                        val framebuffer = VulkanFramebuffer(this@VulkanRenderer.device, commandPools.Standard,
                             width, height, this,
                             shouldClear = !passConfig.blitInputs,
                             sRGB = renderConfig.sRGB)
@@ -1454,8 +1454,8 @@ open class VulkanRenderer(hub: Hub,
                         }
 
                         framebuffer.createRenderpassAndFramebuffer()
-                        framebuffer.outputDescriptorSet = VU.createRenderTargetDescriptorSet(this@VulkanRenderer.device,
-                            descriptorPool, descriptorSetLayouts["outputs-${rt.key}"]!!, rt.value.attachments, framebuffer)
+                        framebuffer.outputDescriptorSet = VkDescriptorSet(VU.createRenderTargetDescriptorSet(this@VulkanRenderer.device,
+                            descriptorPool, descriptorSetLayouts["outputs-${rt.key}"]!!, rt.value.attachments, framebuffer))
 
                         pass.output[rt.key] = framebuffer
                         framebuffers.put(rt.key, framebuffer)
@@ -1471,7 +1471,7 @@ open class VulkanRenderer(hub: Hub,
                     height = windowHeight
 
                     swapchain!!.images!!.forEachIndexed { i, _ ->
-                        val fb = VulkanFramebuffer(this@VulkanRenderer.device, commandPools.Standard.L,
+                        val fb = VulkanFramebuffer(this@VulkanRenderer.device, commandPools.Standard,
                             width, height, this@with, sRGB = renderConfig.sRGB)
 
                         fb.addSwapchainAttachment("swapchain-$i", swapchain!!, i)
@@ -1633,7 +1633,7 @@ open class VulkanRenderer(hub: Hub,
                 window.width, window.height,
                 swapchain!!.format,
                 instance, device, queue,
-                swapchain!!.images!![pass.getReadPosition()])
+                swapchain!!.images!![pass.getReadPosition()].L)
         }
 
         if (recordMovie || screenshotRequested) {
@@ -1680,17 +1680,17 @@ open class VulkanRenderer(hub: Hub,
 
                     val image = swapchain!!.images!![pass.getReadPosition()]
 
-                    VulkanTexture.transitionLayout(image,
+                    VulkanTexture.transitionLayout(image.L,
                         VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
                         VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                         commandBuffer = this)
 
-                    vkCmdCopyImageToBuffer(this, image,
+                    vkCmdCopyImageToBuffer(this, image.L,
                         VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                         sb.vulkanBuffer.L,
                         regions)
 
-                    VulkanTexture.transitionLayout(image,
+                    VulkanTexture.transitionLayout(image.L,
                         VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                         VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
                         commandBuffer = this)
@@ -2344,8 +2344,8 @@ open class VulkanRenderer(hub: Hub,
         pass.vulkanMetadata.renderPassBeginInfo
             .sType(VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO)
             .pNext(NULL)
-            .renderPass(target.renderPass.get(0))
-            .framebuffer(target.framebuffer.get(0))
+            .renderPass(target.renderPass.L)
+            .framebuffer(target.framebuffer.L)
             .renderArea(pass.vulkanMetadata.renderArea)
             .pClearValues(pass.vulkanMetadata.clearValues)
 
@@ -2488,7 +2488,7 @@ open class VulkanRenderer(hub: Hub,
                                 .layerCount(1)
 
                             // transition source attachment
-                            VulkanTexture.transitionLayout(inputAttachment.image,
+                            VulkanTexture.transitionLayout(inputAttachment.image.L,
                                 VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                                 VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                                 subresourceRange = subresourceRange,
@@ -2498,7 +2498,7 @@ open class VulkanRenderer(hub: Hub,
                             )
 
                             // transition destination attachment
-                            VulkanTexture.transitionLayout(outputAttachment.image,
+                            VulkanTexture.transitionLayout(outputAttachment.image.L,
                                 inputAspectType,
                                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                                 subresourceRange = subresourceRange,
@@ -2508,13 +2508,13 @@ open class VulkanRenderer(hub: Hub,
                             )
 
                             vkCmdBlitImage(this@with,
-                                inputAttachment.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                                outputAttachment.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                inputAttachment.image.L, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                outputAttachment.image.L, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                                 imageBlit, VK_FILTER_NEAREST
                             )
 
                             // transition destination attachment back to attachment
-                            VulkanTexture.transitionLayout(outputAttachment.image,
+                            VulkanTexture.transitionLayout(outputAttachment.image.L,
                                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                                 outputAspectDstType,
                                 subresourceRange = subresourceRange,
@@ -2524,7 +2524,7 @@ open class VulkanRenderer(hub: Hub,
                             )
 
                             // transition source attachment back to shader read-only
-                            VulkanTexture.transitionLayout(inputAttachment.image,
+                            VulkanTexture.transitionLayout(inputAttachment.image.L,
                                 VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                                 outputAspectSrcType,
                                 subresourceRange = subresourceRange,
@@ -2604,7 +2604,7 @@ open class VulkanRenderer(hub: Hub,
                         }
 
                         name == "ObjectTextures" -> {
-                            DescriptorSet.setOrNull(s.textureDescriptorSet, setName = "ObjectTextures")
+                            DescriptorSet.setOrNull(s.textureDescriptorSet.L, setName = "ObjectTextures")
                         }
 
                         name.startsWith("Inputs") -> {
@@ -2692,8 +2692,8 @@ open class VulkanRenderer(hub: Hub,
         pass.vulkanMetadata.renderPassBeginInfo
             .sType(VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO)
             .pNext(NULL)
-            .renderPass(target.renderPass.get(0))
-            .framebuffer(target.framebuffer.get(0))
+            .renderPass(target.renderPass.L)
+            .framebuffer(target.framebuffer.L)
             .renderArea(pass.vulkanMetadata.renderArea)
             .pClearValues(pass.vulkanMetadata.clearValues)
 
@@ -3037,7 +3037,7 @@ open class VulkanRenderer(hub: Hub,
         }
 
         logger.debug("Closing descriptor sets and pools...")
-        descriptorSetLayouts.forEach { vkDestroyDescriptorSetLayout(device.vulkanDevice, it.value, null) }
+        descriptorSetLayouts.forEach { vkDestroyDescriptorSetLayout(device.vulkanDevice, it.value.L, null) }
         vkDestroyDescriptorPool(device.vulkanDevice, descriptorPool, null)
 
         logger.debug("Closing command buffers...")
