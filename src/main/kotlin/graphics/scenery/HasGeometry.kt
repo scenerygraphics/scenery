@@ -363,7 +363,7 @@ interface HasGeometry : Serializable {
                     'u' -> {
                         if (targetObject is Node && importMaterials) {
                             materials[tokens.substringAfter(" ").trim().trimEnd()]?.let {
-                                (targetObject as Node).material = it
+                                (targetObject as? Node)?.material = it
                             }
                         }
                     }
