@@ -1931,9 +1931,9 @@ open class VulkanRenderer(hub: Hub,
             val start = System.nanoTime()
 
             when (target.passConfig.type) {
-                RenderConfigReader.RenderpassType.geometry -> recordSceneRenderCommands(device, target, commandBuffer, sceneObjects, { it !is Light }, forceRerecording)
-                RenderConfigReader.RenderpassType.lights -> recordSceneRenderCommands(device, target, commandBuffer, sceneObjects, { it is Light }, forceRerecording)
-                RenderConfigReader.RenderpassType.quad -> recordPostprocessRenderCommands(device, target, commandBuffer)
+                RenderConfigReader.RenderpassType.geometry -> recordSceneRenderCommands(target, commandBuffer, sceneObjects, { it !is Light }, forceRerecording)
+                RenderConfigReader.RenderpassType.lights -> recordSceneRenderCommands(target, commandBuffer, sceneObjects, { it is Light }, forceRerecording)
+                RenderConfigReader.RenderpassType.quad -> recordPostprocessRenderCommands(target, commandBuffer)
             }
 
             stats?.add("VulkanRenderer.$t.recordCmdBuffer", System.nanoTime() - start)
@@ -1970,9 +1970,9 @@ open class VulkanRenderer(hub: Hub,
         val start = System.nanoTime()
 
         when (viewportPass.passConfig.type) {
-            RenderConfigReader.RenderpassType.geometry -> recordSceneRenderCommands(device, viewportPass, viewportCommandBuffer, sceneObjects, { it !is Light }, forceRerecording)
-            RenderConfigReader.RenderpassType.lights -> recordSceneRenderCommands(device, viewportPass, viewportCommandBuffer, sceneObjects, { it is Light })
-            RenderConfigReader.RenderpassType.quad -> recordPostprocessRenderCommands(device, viewportPass, viewportCommandBuffer)
+            RenderConfigReader.RenderpassType.geometry -> recordSceneRenderCommands(viewportPass, viewportCommandBuffer, sceneObjects, { it !is Light }, forceRerecording)
+            RenderConfigReader.RenderpassType.lights -> recordSceneRenderCommands(viewportPass, viewportCommandBuffer, sceneObjects, { it is Light })
+            RenderConfigReader.RenderpassType.quad -> recordPostprocessRenderCommands(viewportPass, viewportCommandBuffer)
         }
 
         stats?.add("VulkanRenderer.${viewportPass.name}.recordCmdBuffer", System.nanoTime() - start)
@@ -2160,9 +2160,10 @@ open class VulkanRenderer(hub: Hub,
 
         stagingBuffer.copyFrom(stridedBuffer)
 
-        val vertexBuffer = if(state.vertexBuffers.containsKey("vertex+index") && state.vertexBuffers["vertex+index"]!!.size >= fullAllocationBytes) {
+        val vertexIndexBuffer = state.vertexBuffers["vertex+index"]
+        val vertexBuffer = if(vertexIndexBuffer != null && vertexIndexBuffer.size >= fullAllocationBytes) {
             logger.debug("Reusing existing vertex+index buffer for {} update", node.name)
-            state.vertexBuffers["vertex+index"]!!
+            vertexIndexBuffer
         } else {
             logger.debug("Creating new vertex+index buffer for {} with {} bytes", node.name, fullAllocationBytes)
             geometryPool.createBuffer(fullAllocationBytes.toInt())
@@ -2213,8 +2214,9 @@ open class VulkanRenderer(hub: Hub,
 
         val instanceBufferSize = ubo.getSize() * parentNode.instances.size
 
-        val stagingBuffer = if(state.vertexBuffers.containsKey("instanceStaging") && state.vertexBuffers["instanceStaging"]!!.size >= instanceBufferSize) {
-            state.vertexBuffers["instanceStaging"]!!
+        val instanceStagingBuffer = state.vertexBuffers["instanceStaging"]
+        val stagingBuffer = if(instanceStagingBuffer != null && instanceStagingBuffer.size >= instanceBufferSize) {
+            instanceStagingBuffer
         } else {
             logger.debug("Creating new staging buffer")
             val buffer = VulkanBuffer(device,
@@ -2248,8 +2250,9 @@ open class VulkanRenderer(hub: Hub,
         stagingBuffer.stagingBuffer.position(parentNode.instances.size * ubo.getSize())
         stagingBuffer.copyFromStagingBuffer()
 
-        val instanceBuffer = if (state.vertexBuffers.containsKey("instance") && state.vertexBuffers["instance"]!!.size >= instanceBufferSize) {
-            state.vertexBuffers["instance"]!!
+        val existingInstanceBuffer = state.vertexBuffers["instance"]
+        val instanceBuffer = if (existingInstanceBuffer != null && existingInstanceBuffer.size >= instanceBufferSize) {
+            existingInstanceBuffer
         } else {
             logger.debug("Instance buffer for ${parentNode.name} needs to be reallocated due to insufficient size ($instanceBufferSize vs ${state.vertexBuffers["instance"]?.size ?: "<not allocated yet>"})")
             state.vertexBuffers["instance"]?.close()
@@ -2354,7 +2357,7 @@ open class VulkanRenderer(hub: Hub,
         return this.metadata["VulkanRenderer"] as? VulkanObjectState
     }
 
-    private fun recordSceneRenderCommands(device: VulkanDevice, pass: VulkanRenderpass,
+    private fun recordSceneRenderCommands(pass: VulkanRenderpass,
                                           commandBuffer: VulkanCommandBuffer, sceneObjects: Deferred<List<Node>>,
                                           customNodeFilter: ((Node) -> Boolean)? = null, forceRerecording: Boolean = false) = runBlocking {
         val target = pass.getOutput()
@@ -2425,16 +2428,8 @@ open class VulkanRenderer(hub: Hub,
 
         logger.debug("Recording scene command buffer $commandBuffer for pass ${pass.name}...")
 
-        // initialize command buffer recording, reset it if already existent, otherwise allocate it.
-        if (commandBuffer.commandBuffer == null) {
-            commandBuffer.commandBuffer = VU.newCommandBuffer(device, commandPools.Render, autostart = true)
-        } else {
-            vkResetCommandBuffer(commandBuffer.commandBuffer!!, VK_FLAGS_NONE)
-            VU.beginCommandBuffer(commandBuffer.commandBuffer!!)
-        }
-
         // command buffer cannot be null here anymore, otherwise this is clearly in error
-        with(commandBuffer.commandBuffer!!) {
+        with(commandBuffer.prepareAndStartRecording(commandPools.Render)) {
 
             vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
                 timestampQueryPool, 2*renderpasses.values.indexOf(pass))
@@ -2568,7 +2563,7 @@ open class VulkanRenderer(hub: Hub,
             (0 until pass.vulkanMetadata.uboOffsets.limit()).forEach { pass.vulkanMetadata.uboOffsets.put(it, 0) }
 
             renderOrderList.forEach drawLoop@ { node ->
-                val s = node.rendererMetadata()!!
+                val s = node.rendererMetadata() ?: return@drawLoop
 
                 // instanced nodes will not be drawn directly, but only the master node.
                 // nodes with no vertices will also not be drawn.
@@ -2586,7 +2581,15 @@ open class VulkanRenderer(hub: Hub,
                     return@drawLoop
                 }
 
-                logger.trace("{} - Rendering {}, vertex+index buffer={}...", pass.name, node.name, s.vertexBuffers["vertex+index"]!!.vulkanBuffer.toHexString())
+                val vertexIndexBuffer = s.vertexBuffers["vertex+index"]
+                val instanceBuffer = s.vertexBuffers["instance"]
+
+                if(vertexIndexBuffer == null) {
+                    logger.error("Vertex+Index buffer not initialiazed")
+                    return@drawLoop
+                }
+
+                logger.trace("{} - Rendering {}, vertex+index buffer={}...", pass.name, node.name, vertexIndexBuffer.vulkanBuffer.toHexString())
 //                if(rerecordingCauses.contains(node.name)) {
 //                    logger.debug("Using pipeline ${pass.getActivePipeline(node)} for re-recording")
 //                }
@@ -2599,18 +2602,18 @@ open class VulkanRenderer(hub: Hub,
                 pass.vulkanMetadata.descriptorSets.rewind()
                 pass.vulkanMetadata.uboOffsets.rewind()
 
-                pass.vulkanMetadata.vertexBufferOffsets.put(0, s.vertexBuffers["vertex+index"]!!.bufferOffset)
-                pass.vulkanMetadata.vertexBuffers.put(0, s.vertexBuffers["vertex+index"]!!.vulkanBuffer)
+                pass.vulkanMetadata.vertexBufferOffsets.put(0, vertexIndexBuffer.bufferOffset)
+                pass.vulkanMetadata.vertexBuffers.put(0, vertexIndexBuffer.vulkanBuffer)
 
                 pass.vulkanMetadata.vertexBufferOffsets.limit(1)
                 pass.vulkanMetadata.vertexBuffers.limit(1)
 
-                if(node.instanceMaster) {
+                if(node.instanceMaster && instanceBuffer != null) {
                     pass.vulkanMetadata.vertexBuffers.limit(2)
                     pass.vulkanMetadata.vertexBufferOffsets.limit(2)
 
                     pass.vulkanMetadata.vertexBufferOffsets.put(1, 0)
-                    pass.vulkanMetadata.vertexBuffers.put(1, s.vertexBuffers["instance"]!!.vulkanBuffer)
+                    pass.vulkanMetadata.vertexBuffers.put(1, instanceBuffer.vulkanBuffer)
                 }
 
                 val sets = specs.mapNotNull { (name, _) ->
@@ -2704,7 +2707,7 @@ open class VulkanRenderer(hub: Hub,
         }
     }
 
-    private fun recordPostprocessRenderCommands(device: VulkanDevice, pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer) {
+    private fun recordPostprocessRenderCommands(pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer) {
         val target = pass.getOutput()
 
         logger.trace("Creating postprocessing command buffer for {}/{} ({} attachments)", pass.name, target, target.attachments.count())
@@ -2721,16 +2724,8 @@ open class VulkanRenderer(hub: Hub,
             return
         }
 
-        // start command buffer recording
-        if (commandBuffer.commandBuffer == null) {
-            commandBuffer.commandBuffer = VU.newCommandBuffer(device, commandPools.Render, autostart = true)
-        } else {
-            vkResetCommandBuffer(commandBuffer.commandBuffer!!, VK_FLAGS_NONE)
-            VU.beginCommandBuffer(commandBuffer.commandBuffer!!)
-        }
-
-        // commandBuffer is expected to be non-null here, otherwise this is in error
-        with(commandBuffer.commandBuffer!!) {
+        // prepare command buffer and start recording
+        with(commandBuffer.prepareAndStartRecording(commandPools.Render)) {
 
             vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
                 timestampQueryPool, 2*renderpasses.values.indexOf(pass))
@@ -2784,10 +2779,10 @@ open class VulkanRenderer(hub: Hub,
 
     private fun VulkanRenderpass.VulkanMetadata.setRequiredDescriptorSetsPostprocess(pass: VulkanRenderpass, pipeline: VulkanPipeline): Int {
         var requiredDynamicOffsets = 0
-        logger.debug("Ubo position: ${this.uboOffsets.position()}")
+        logger.trace("Ubo position: {}", this.uboOffsets.position())
 
         pipeline.descriptorSpecs.entries.sortedBy { it.value.set }.forEachIndexed { i, (name, spec) ->
-            logger.debug("Looking at $name, set=${spec.set}, binding=${spec.binding}...")
+            logger.trace("Looking at {}, set={}, binding={}...", name, spec.set, spec.binding)
             val dsName = when {
                 name.startsWith("ShaderParameters") -> "ShaderParameters-${pass.name}"
                 name.startsWith("Inputs") -> "input-${pass.name}-${spec.set}"
@@ -2808,14 +2803,14 @@ open class VulkanRenderer(hub: Hub,
             }
 
             if (set != null) {
-                logger.debug("Adding DS#{} for {} to required pipeline DSs", i, dsName)
+                logger.trace("Adding DS#{} for {} to required pipeline DSs", i, dsName)
                 this.descriptorSets.put(i, set)
             } else {
                 logger.error("DS for {} not found!", dsName)
             }
         }
 
-        logger.debug("${pass.name}: Requires $requiredDynamicOffsets dynamic offsets")
+        logger.trace("{}: Requires {} dynamic offsets", pass.name, requiredDynamicOffsets)
         this.uboOffsets.flip()
 
         return requiredDynamicOffsets
