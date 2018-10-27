@@ -87,8 +87,8 @@ open class VulkanObjectState : NodeMetadata {
 
         textures.forEach { type, texture ->
             d[i]
-                .imageView(texture.image!!.view)
-                .sampler(texture.image!!.sampler)
+                .imageView(texture.image.view)
+                .sampler(texture.image.sampler)
                 .imageLayout(VK10.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
 
             wd[i]

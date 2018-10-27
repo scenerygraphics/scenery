@@ -38,9 +38,24 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: 
     private var deallocated: Boolean = false
     private var signature: ShaderSignature
 
+    /**
+     * Specification of UBO members, storing [name], [index] in the buffer, [offset] from the beginning,
+     * and size of the member as [range].
+     */
     data class UBOMemberSpec(val name: String, val index: Long, val offset: Long, val range: Long)
-    data class UBOSpec(val name: String, var set: Long, var binding: Long, val type: UBOSpecType, val members: LinkedHashMap<String, UBOMemberSpec>)
+
+    /** Types an UBO can have */
     enum class UBOSpecType { UniformBuffer, SampledImage, SampledImage3D }
+
+    /**
+     * Specification of an UBO, storing [name], descriptor [set], [binding], [type], and a set of [members].
+     */
+    data class UBOSpec(val name: String, var set: Long, var binding: Long, val type: UBOSpecType, val members: LinkedHashMap<String, UBOMemberSpec>)
+
+    /**
+     * Specification for push constants, containing [name] and [members].
+     */
+
     data class PushConstantSpec(val name: String, val members: LinkedHashMap<String, UBOMemberSpec>)
 
     private data class ShaderSignature(val device: VulkanDevice, val p: ShaderPackage)
@@ -218,6 +233,10 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: 
         ShaderType.ComputeShader -> VK_SHADER_STAGE_COMPUTE_BIT
     }
 
+    /**
+     * Closes this Vulkan shader module, deallocating all of it's resources.
+     * If the module has already been closed, no deallocation takes place.
+     */
     fun close() {
         if(!deallocated) {
             vkDestroyShaderModule(device.vulkanDevice, shader.module(), null)
@@ -244,13 +263,8 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: 
         fun getFromCacheOrCreate(device: VulkanDevice, entryPoint: String, sp: ShaderPackage): VulkanShaderModule {
             val signature = ShaderSignature(device, sp).hashCode()
 
-            return if(shaderModuleCache.containsKey(signature)) {
-                shaderModuleCache[signature]!!
-            } else {
-                val module = VulkanShaderModule(device, entryPoint, sp)
-                shaderModuleCache[signature] = module
-
-                module
+            return shaderModuleCache.getOrPut(signature) {
+                VulkanShaderModule(device, entryPoint, sp)
             }
         }
 
