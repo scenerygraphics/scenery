@@ -677,28 +677,49 @@ open class VulkanRenderer(hub: Hub,
     }
 
     /**
+     * Returns the material type flag for a Node, considering it's [Material]'s textures.
+     */
+    protected fun Node.materialTypeFromTextures(s: VulkanObjectState): Int {
+        var materialType = 0
+        if (material.textures.containsKey("ambient") && !s.defaultTexturesFor.contains("ambient")) {
+            materialType = materialType or MATERIAL_HAS_AMBIENT
+        }
+
+        if (material.textures.containsKey("diffuse") && !s.defaultTexturesFor.contains("diffuse")) {
+            materialType = materialType or MATERIAL_HAS_DIFFUSE
+        }
+
+        if (material.textures.containsKey("specular") && !s.defaultTexturesFor.contains("specular")) {
+            materialType = materialType or MATERIAL_HAS_SPECULAR
+        }
+
+        if (material.textures.containsKey("normal") && !s.defaultTexturesFor.contains("normal")) {
+            materialType = materialType or MATERIAL_HAS_NORMAL
+        }
+
+        if (material.textures.containsKey("alphamask") && !s.defaultTexturesFor.contains("alphamask")) {
+            materialType = materialType or MATERIAL_HAS_ALPHAMASK
+        }
+
+        return materialType
+    }
+
+    /**
      * Initialises a given [node] with the metadata required by the [VulkanRenderer].
      */
     fun initializeNode(node: Node): Boolean {
-        var s: VulkanObjectState
-
-        s = node.rendererMetadata()!!
+        var s: VulkanObjectState = node.rendererMetadata() ?: throw IllegalStateException("Node ${node.name} does not contain metadata object")
 
         if (s.initialized) return true
 
         logger.debug("Initializing ${node.name} (${(node as HasGeometry).vertices.remaining() / node.vertexSize} vertices/${node.indices.remaining()} indices)")
 
         // determine vertex input type
-        if (node.vertices.remaining() > 0 && node.normals.remaining() > 0 && node.texcoords.remaining() > 0) {
-            s.vertexInputType = VertexDataKinds.PositionNormalTexcoord
-        }
-
-        if (node.vertices.remaining() > 0 && node.normals.remaining() > 0 && node.texcoords.remaining() == 0) {
-            s.vertexInputType = VertexDataKinds.PositionNormal
-        }
-
-        if (node.vertices.remaining() > 0 && node.normals.remaining() == 0 && node.texcoords.remaining() > 0) {
-            s.vertexInputType = VertexDataKinds.PositionTexcoords
+        s.vertexInputType = when {
+            node.vertices.remaining() > 0 && node.normals.remaining() > 0 && node.texcoords.remaining() > 0 -> VertexDataKinds.PositionNormalTexcoord
+            node.vertices.remaining() > 0 && node.normals.remaining() > 0 && node.texcoords.remaining() == 0 -> VertexDataKinds.PositionNormal
+            node.vertices.remaining() > 0 && node.normals.remaining() == 0 && node.texcoords.remaining() > 0 -> VertexDataKinds.PositionTexcoords
+            else -> VertexDataKinds.PositionNormalTexcoord
         }
 
         // create custom vertex description if necessary, else use one of the defaults
@@ -711,20 +732,19 @@ open class VulkanRenderer(hub: Hub,
             vertexDescriptors[s.vertexInputType]!!
         }
 
-        if (node.instanceOf != null) {
-            val parentMetadata = node.instanceOf!!.rendererMetadata()!!
+        val instanceMaster = node.instanceOf
+        if (instanceMaster != null) {
+            val parentMetadata = instanceMaster.rendererMetadata() ?: throw IllegalStateException("Instance master lacks metadata")
 
             if (!parentMetadata.initialized) {
-                logger.debug("Instance parent ${node.instanceOf!!} is not initialized yet, initializing now...")
-                initializeNode(node.instanceOf!!)
+                logger.debug("Instance parent $instanceMaster is not initialized yet, initializing now...")
+                initializeNode(instanceMaster)
             }
 
             return true
         }
 
-        if (node.vertices.remaining() > 0) {
-            s = createVertexBuffers(device, node, s)
-        }
+        s = createVertexBuffers(device, node, s)
 
         val matricesDescriptorSet = getDescriptorCache().getOrPut("Matrices") {
             VU.createDescriptorSetDynamic(device, descriptorPool,
@@ -745,7 +765,6 @@ open class VulkanRenderer(hub: Hub,
             add("NormalMatrix", { node.world.inverse.transpose() })
             add("isBillboard", { node.isBillboard.toInt() })
 
-            requiredOffsetCount = 2
             createUniformBuffer()
             sceneUBOs.add(node)
 
@@ -754,34 +773,12 @@ open class VulkanRenderer(hub: Hub,
 
         loadTexturesForNode(node, s)
 
-        val materialUbo = VulkanUBO(device, backingBuffer = buffers["UBOBuffer"])
-        var materialType = 0
-
-        if (node.material.textures.containsKey("ambient") && !s.defaultTexturesFor.contains("ambient")) {
-            materialType = materialType or MATERIAL_HAS_AMBIENT
-        }
-
-        if (node.material.textures.containsKey("diffuse") && !s.defaultTexturesFor.contains("diffuse")) {
-            materialType = materialType or MATERIAL_HAS_DIFFUSE
-        }
-
-        if (node.material.textures.containsKey("specular") && !s.defaultTexturesFor.contains("specular")) {
-            materialType = materialType or MATERIAL_HAS_SPECULAR
-        }
-
-        if (node.material.textures.containsKey("normal") && !s.defaultTexturesFor.contains("normal")) {
-            materialType = materialType or MATERIAL_HAS_NORMAL
-        }
-
-        if (node.material.textures.containsKey("alphamask") && !s.defaultTexturesFor.contains("alphamask")) {
-            materialType = materialType or MATERIAL_HAS_ALPHAMASK
-        }
-
         s.blendingHashCode = node.material.blending.hashCode()
 
+        val materialUbo = VulkanUBO(device, backingBuffer = buffers["UBOBuffer"])
         with(materialUbo) {
             name = "MaterialProperties"
-            add("materialType", { materialType })
+            add("materialType", { node.materialTypeFromTextures(s) })
             add("Ka", { node.material.ambient })
             add("Kd", { node.material.diffuse })
             add("Ks", { node.material.specular })
@@ -789,7 +786,6 @@ open class VulkanRenderer(hub: Hub,
             add("Metallic", { node.material.metallic})
             add("Opacity", { node.material.blending.opacity })
 
-            requiredOffsetCount = 1
             createUniformBuffer()
             s.UBOs.put("MaterialProperties", materialPropertiesDescriptorSet to this)
         }
@@ -949,7 +945,6 @@ open class VulkanRenderer(hub: Hub,
                                 add(name, { node.getShaderProperty(name)!! }, offset)
                             }
 
-                            requiredOffsetCount = 1
                             this.createUniformBuffer()
                             s.UBOs.put("${pass.key}-ShaderProperties", s.requiredDescriptorSets["ShaderProperties"]!! to this)
                         }
@@ -2093,6 +2088,9 @@ open class VulkanRenderer(hub: Hub,
 
     private fun createVertexBuffers(device: VulkanDevice, node: Node, state: VulkanObjectState): VulkanObjectState {
         val n = node as HasGeometry
+        if(n.vertices.remaining() == 0) {
+            return state
+        }
 
         if (n.texcoords.remaining() == 0 && node.instanceMaster) {
             val buffer = je_calloc(1, 4L * n.vertices.remaining() / n.vertexSize * n.texcoordSize)
