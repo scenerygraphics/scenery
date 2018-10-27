@@ -218,22 +218,29 @@ open class VulkanRenderer(hub: Hub,
         }
     }
 
+    /** Debug callback to be used upon encountering validation messages or errors */
     var debugCallback = object : VkDebugReportCallbackEXT() {
         override operator fun invoke(flags: Int, objectType: Int, obj: Long, location: Long, messageCode: Int, pLayerPrefix: Long, pMessage: Long, pUserData: Long): Int {
-            val dbg = if (flags and VK_DEBUG_REPORT_DEBUG_BIT_EXT == 1) {
+            val dbg = if (flags and VK_DEBUG_REPORT_DEBUG_BIT_EXT == VK_DEBUG_REPORT_DEBUG_BIT_EXT) {
                 " (debug)"
             } else {
                 ""
             }
 
             when {
-                flags and VK_DEBUG_REPORT_ERROR_BIT_EXT == VK_DEBUG_REPORT_ERROR_BIT_EXT -> logger.error("!! $obj($objectType) Validation$dbg: " + getString(pMessage))
-                flags and VK_DEBUG_REPORT_WARNING_BIT_EXT == VK_DEBUG_REPORT_WARNING_BIT_EXT -> logger.warn("!! $obj($objectType) Validation$dbg: " + getString(pMessage))
-                flags and VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT == VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT -> logger.error("!! $obj($objectType) Validation (performance)$dbg: " + getString(pMessage))
-                flags and VK_DEBUG_REPORT_INFORMATION_BIT_EXT == VK_DEBUG_REPORT_INFORMATION_BIT_EXT -> logger.info("!! $obj($objectType) Validation$dbg: " + getString(pMessage))
-                else -> logger.info("!! $obj($objectType) Validation (unknown message type)$dbg: " + getString(pMessage))
+                flags and VK_DEBUG_REPORT_ERROR_BIT_EXT == VK_DEBUG_REPORT_ERROR_BIT_EXT ->
+                    logger.error("!! $obj($objectType) Validation$dbg: " + getString(pMessage))
+                flags and VK_DEBUG_REPORT_WARNING_BIT_EXT == VK_DEBUG_REPORT_WARNING_BIT_EXT ->
+                    logger.warn("!! $obj($objectType) Validation$dbg: " + getString(pMessage))
+                flags and VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT == VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT ->
+                    logger.error("!! $obj($objectType) Validation (performance)$dbg: " + getString(pMessage))
+                flags and VK_DEBUG_REPORT_INFORMATION_BIT_EXT == VK_DEBUG_REPORT_INFORMATION_BIT_EXT ->
+                    logger.info("!! $obj($objectType) Validation$dbg: " + getString(pMessage))
+                else ->
+                    logger.info("!! $obj($objectType) Validation (unknown message type)$dbg: " + getString(pMessage))
             }
 
+            // trigger exception and delay if strictValidation is activated in general, or only for specific object types
             if(strictValidation.first && strictValidation.second.isEmpty() ||
                 strictValidation.first && strictValidation.second.contains(objectType)) {
                 // set 15s of delay until the next frame is rendered if a validation error happens
@@ -247,13 +254,8 @@ open class VulkanRenderer(hub: Hub,
                 }
             }
 
-            // if strict validation is enabled, the application will quit after a
-            // validation error has been encountered
-            return if(strictValidation.first) {
-                VK_FALSE
-            } else {
-                VK_FALSE
-            }
+            // return false here, otherwise the application would quit upon encountering a validation error.
+            return VK_FALSE
         }
     }
 
