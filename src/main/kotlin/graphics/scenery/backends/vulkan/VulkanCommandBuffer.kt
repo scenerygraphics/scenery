@@ -88,6 +88,10 @@ class VulkanCommandBuffer(val device: VulkanDevice, var commandBuffer: VkCommand
         memFree(fence)
     }
 
+    /**
+     * Prepares this command buffer for recording, either initialising or
+     * resetting the associated Vulkan command buffer. Recording will take place in command pool [pool].
+     */
     fun prepareAndStartRecording(pool: Long): VkCommandBuffer {
         // start command buffer recording
         if (commandBuffer == null) {
