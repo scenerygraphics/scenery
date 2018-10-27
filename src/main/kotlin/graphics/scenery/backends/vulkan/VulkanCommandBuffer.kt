@@ -87,4 +87,18 @@ class VulkanCommandBuffer(val device: VulkanDevice, var commandBuffer: VkCommand
 
         memFree(fence)
     }
+
+    fun prepareAndStartRecording(pool: Long): VkCommandBuffer {
+        // start command buffer recording
+        if (commandBuffer == null) {
+            commandBuffer = VU.newCommandBuffer(device, pool, autostart = true)
+        }
+
+        val cmd = commandBuffer ?: throw IllegalStateException("Command buffer cannot be null for recording")
+
+        vkResetCommandBuffer(cmd, 0)
+        VU.beginCommandBuffer(cmd)
+
+        return cmd
+    }
 }
