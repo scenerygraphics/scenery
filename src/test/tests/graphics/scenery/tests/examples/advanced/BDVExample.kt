@@ -59,7 +59,7 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
         val ex1fp = SegmentTemplate(RenderStuff2::class.java, "render2.fp", Arrays.asList()).instantiate()
         val prog = DefaultShader(ex1vp.code, ex1fp.code)
         prog.getUniform4f("color1").set(1.0f, 0.5f, 1.0f, 1.0f)
-        prog.getUniform4f("color2").set(0.0f, 1.0f, 0.0f, 1.0f)
+        prog.getUniform4f("color2").set(0.8f, 1.0f, 0.0f, 1.0f)
         prog.getUniform4f("color3").set(0.2f, 0.2f, 0.2f, 1.0f)
 
         prog.use(volume.context)
