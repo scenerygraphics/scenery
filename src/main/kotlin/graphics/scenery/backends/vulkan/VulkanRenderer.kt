@@ -987,93 +987,111 @@ open class VulkanRenderer(hub: Hub,
         node.metadata.remove("VulkanRenderer")
     }
 
+    /**
+     * Returns true if the current VulkanTexture can be reused to store the information in the [GenericTexture]
+     * [other]. Returns false otherwise.
+     */
+    protected fun VulkanTexture.canBeReused(other: GenericTexture, miplevels: Int, device: VulkanDevice): Boolean {
+        return this.device == device &&
+            this.width == other.dimensions.x().toInt() &&
+            this.height == other.dimensions.y().toInt() &&
+            this.depth == other.dimensions.z().toInt() &&
+            this.mipLevels == miplevels
+
+    }
+
+    /**
+     * Loads a texture given as string in [texture] from the classpath of this Node. Emits an error and falls back
+     * to [fallback] in case the texture cannot be located.
+     */
+    protected fun Node.loadTextureFromJar(texture: String, generateMipmaps: Boolean, fallback: VulkanTexture): VulkanTexture {
+        val f = texture.substringAfterLast("/")
+        val stream = this@loadTextureFromJar.javaClass.getResourceAsStream(f)
+
+        return if (stream == null) {
+            logger.error("Not found: $f for ${this@loadTextureFromJar}")
+            fallback
+        } else {
+            VulkanTexture.loadFromFile(device,
+                commandPools, queue, queue, stream,
+                texture.substringAfterLast("."), true, generateMipmaps)
+        }
+    }
+
+    /**
+     * Loads or reloads the textures for [node], updating it's internal renderer state stored in [s].
+     */
     protected fun loadTexturesForNode(node: Node, s: VulkanObjectState): VulkanObjectState {
         val stats = hub?.get(SceneryElement.Statistics) as Statistics?
         val defaultTexture = textureCache["DefaultTexture"] ?: throw IllegalStateException("Default fallback texture does not exist.")
 
-        if (node.lock.tryLock()) {
-            node.material.textures.forEach {
-                type, texture ->
+        if (!node.lock.tryLock()) {
+            logger.warn("Failed to lock node ${node.name} for texture update")
+            return s
+        }
 
-                val slot = VulkanObjectState.textureTypeToSlot(type)
+        node.material.textures.forEach { type, texture ->
+            val slot = VulkanObjectState.textureTypeToSlot(type)
+            val generateMipmaps = (type == "ambient" || type == "diffuse" || type == "specular")
 
-                val generateMipmaps = (type == "ambient" || type == "diffuse" || type == "specular")
+            logger.debug("${node.name} will have $type texture from $texture in slot $slot")
 
-                logger.debug("${node.name} will have $type texture from $texture in slot $slot")
+            if (!textureCache.containsKey(texture) || node.material.needsTextureReload) {
+                logger.trace("Loading texture $texture for ${node.name}")
 
-                if (!textureCache.containsKey(texture) || node.material.needsTextureReload) {
-                    logger.trace("Loading texture $texture for ${node.name}")
+                val gt = node.material.transferTextures[texture.substringAfter("fromBuffer:")]
 
-                    val gt = node.material.transferTextures[texture.substringAfter("fromBuffer:")]
-
-                    val vkTexture: VulkanTexture = if (texture.startsWith("fromBuffer:") && gt != null) {
-                        val miplevels = if (generateMipmaps && gt.mipmap) {
-                            1 + Math.floor(Math.log(Math.max(gt.dimensions.x() * 1.0, gt.dimensions.y() * 1.0)) / Math.log(2.0)).toInt()
-                        } else {
-                            1
-                        }
-
-                        val existingTexture = s.textures[type]
-                        val t: VulkanTexture = if (existingTexture != null && existingTexture.device == device
-                            && existingTexture.width == gt.dimensions.x().toInt()
-                            && existingTexture.height == gt.dimensions.y().toInt()
-                            && existingTexture.depth == gt.dimensions.z().toInt()
-                            && existingTexture.mipLevels == miplevels) {
-                            existingTexture
-                        } else {
-                            VulkanTexture(device,
-                                commandPools, queue, queue, gt, miplevels)
-                        }
-
-                        t.copyFrom(gt.contents)
-
-                        t
+                val vkTexture: VulkanTexture = if (texture.startsWith("fromBuffer:") && gt != null) {
+                    val miplevels = if (generateMipmaps && gt.mipmap) {
+                        1 + Math.floor(Math.log(Math.max(gt.dimensions.x() * 1.0, gt.dimensions.y() * 1.0)) / Math.log(2.0)).toInt()
                     } else {
-                        val start = System.nanoTime()
-
-                        val t = if(texture.contains("jar!")) {
-                            val f = texture.substringAfterLast("/")
-                            val stream = node.javaClass.getResourceAsStream(f)
-
-                            if(stream == null) {
-                                logger.error("Not found: $f for $node")
-                                defaultTexture
-                            } else {
-                                VulkanTexture.loadFromFile(device,
-                                    commandPools, queue, queue, stream, texture.substringAfterLast("."), true, generateMipmaps)
-                            }
-                        } else {
-                            VulkanTexture.loadFromFile(device,
-                                commandPools, queue, queue, texture, true, generateMipmaps)
-                        }
-
-                        val duration = System.nanoTime() - start * 1.0f
-                        stats?.add("loadTexture", duration)
-
-                        t
+                        1
                     }
 
-                    // add new texture to texture list and cache, and close old texture
-                    s.textures[type] = vkTexture
-                    textureCache[texture] = vkTexture
+                    val existingTexture = s.textures[type]
+                    val t: VulkanTexture = if (existingTexture != null && existingTexture.canBeReused(gt, miplevels, device)) {
+                        existingTexture
+                    } else {
+                        VulkanTexture(device, commandPools, queue, queue, gt, miplevels)
+                    }
+
+                    t.copyFrom(gt.contents)
                 } else {
-                    s.textures[type] = textureCache[texture]!!
+                    val start = System.nanoTime()
+
+                    val t = if (texture.contains("jar!")) {
+                        node.loadTextureFromJar(texture, generateMipmaps, defaultTexture)
+                    } else {
+                        VulkanTexture.loadFromFile(device,
+                            commandPools, queue, queue, texture, true, generateMipmaps)
+                    }
+
+                    val duration = System.nanoTime() - start * 1.0f
+                    stats?.add("loadTexture", duration)
+
+                    t
                 }
+
+                // add new texture to texture list and cache, and close old texture
+                s.textures[type] = vkTexture
+                textureCache[texture] = vkTexture
+            } else {
+                s.textures[type] = textureCache[texture]!!
             }
-
-            arrayOf("ambient", "diffuse", "specular", "normal", "alphamask", "displacement").forEach {
-                if (!s.textures.containsKey(it)) {
-                    s.textures.putIfAbsent(it, defaultTexture)
-                    s.defaultTexturesFor.add(it)
-                }
-            }
-
-            s.texturesToDescriptorSet(device, descriptorSetLayouts["ObjectTextures"]!!,
-                descriptorPool,
-                targetBinding = 0)
-
-            node.lock.unlock()
         }
+
+        arrayOf("ambient", "diffuse", "specular", "normal", "alphamask", "displacement").forEach {
+            if (!s.textures.containsKey(it)) {
+                s.textures.putIfAbsent(it, defaultTexture)
+                s.defaultTexturesFor.add(it)
+            }
+        }
+
+        s.texturesToDescriptorSet(device, descriptorSetLayouts["ObjectTextures"]!!,
+            descriptorPool,
+            targetBinding = 0)
+
+        node.lock.unlock()
 
         return s
     }
