@@ -8,8 +8,7 @@ import org.lwjgl.system.CustomBuffer
 import org.lwjgl.system.MemoryStack
 import org.lwjgl.system.MemoryStack.stackGet
 import org.lwjgl.system.MemoryUtil
-import org.lwjgl.system.MemoryUtil.NULL
-import org.lwjgl.system.MemoryUtil.memCallocLong
+import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.system.Pointer
 import org.lwjgl.vulkan.*
 import vkk.*
@@ -132,3 +131,104 @@ fun MemoryStack.LongBuffer(size: Int, init: (Int) -> Long): LongBuffer {
         res[i] = init(i)
     return res
 }
+
+inline fun VkPipelineInputAssemblyStateCreateInfo(block: VkPipelineInputAssemblyStateCreateInfo.() -> Unit): VkPipelineInputAssemblyStateCreateInfo =
+    VkPipelineInputAssemblyStateCreateInfo.calloc().apply {
+        type = VkStructureType.PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO
+        block()
+    }
+
+fun VkPipelineInputAssemblyStateCreateInfo(topology: VkPrimitiveTopology,
+                                           flags: VkPipelineInputAssemblyStateCreateFlags = 0,
+                                           primitiveRestartEnable: Boolean = false): VkPipelineInputAssemblyStateCreateInfo =
+    VkPipelineInputAssemblyStateCreateInfo {
+        this.topology = topology
+        this.flags = flags
+        this.primitiveRestartEnable = primitiveRestartEnable
+    }
+
+inline fun VkPipelineRasterizationStateCreateInfo(block: VkPipelineRasterizationStateCreateInfo.() -> Unit): VkPipelineRasterizationStateCreateInfo =
+    VkPipelineRasterizationStateCreateInfo.calloc().apply {
+        type = VkStructureType.PIPELINE_RASTERIZATION_STATE_CREATE_INFO
+        block()
+    }
+
+fun VkPipelineColorBlendAttachmentState(): VkPipelineColorBlendAttachmentState = VkPipelineColorBlendAttachmentState.calloc()
+fun VkPipelineColorBlendAttachmentState(capacity: Int): VkPipelineColorBlendAttachmentState.Buffer = VkPipelineColorBlendAttachmentState.calloc(capacity)
+inline fun VkPipelineColorBlendAttachmentState(block: VkPipelineColorBlendAttachmentState.() -> Unit): VkPipelineColorBlendAttachmentState = VkPipelineColorBlendAttachmentState().also(block)
+
+inline fun VkPipelineViewportStateCreateInfo(block: VkPipelineViewportStateCreateInfo.() -> Unit): VkPipelineViewportStateCreateInfo =
+    VkPipelineViewportStateCreateInfo.calloc().apply {
+        type = VkStructureType.PIPELINE_VIEWPORT_STATE_CREATE_INFO
+        block()
+    }
+
+inline fun VkPipelineColorBlendStateCreateInfo(block: VkPipelineColorBlendStateCreateInfo.() -> Unit): VkPipelineColorBlendStateCreateInfo =
+    VkPipelineColorBlendStateCreateInfo.calloc().apply {
+        type = VkStructureType.PIPELINE_COLOR_BLEND_STATE_CREATE_INFO
+        block()
+    }
+
+fun VkPipelineDynamicStateCreateInfo(dynamicStates: Collection<VkDynamicState>, flags: VkPipelineDynamicStateCreateFlags = 0): VkPipelineDynamicStateCreateInfo =
+    VkPipelineDynamicStateCreateInfo {
+        this.dynamicStates = vkDynamicStateBufferOf(dynamicStates)
+        this.flags = flags
+    }
+
+fun VkPipelineDynamicStateCreateInfo(dynamicStates: VkDynamicStateBuffer, flags: VkPipelineDynamicStateCreateFlags = 0): VkPipelineDynamicStateCreateInfo =
+    VkPipelineDynamicStateCreateInfo {
+        this.dynamicStates = dynamicStates
+        this.flags = flags
+    }
+
+inline fun VkPipelineDynamicStateCreateInfo(block: VkPipelineDynamicStateCreateInfo.() -> Unit): VkPipelineDynamicStateCreateInfo =
+    VkPipelineDynamicStateCreateInfo.calloc().apply {
+        type = VkStructureType.PIPELINE_DYNAMIC_STATE_CREATE_INFO
+        block()
+    }
+
+fun vkDynamicStateBufferOf(dynamicStates: Collection<VkDynamicState>): VkDynamicStateBuffer {
+    val buffer = VkDynamicStateBuffer(dynamicStates.size)
+    for (i in dynamicStates.indices)
+        buffer[i] = dynamicStates.elementAt(i)
+    return buffer
+}
+
+fun vkDynamicStateBufferOf(vararg dynamicStates: VkDynamicState): VkDynamicStateBuffer {
+    val buffer = VkDynamicStateBuffer(dynamicStates.size)
+    for (i in dynamicStates.indices)
+        buffer[i] = dynamicStates.elementAt(i)
+    return buffer
+}
+
+fun VkDynamicStateBuffer(size: Int) = VkDynamicStateBuffer(memCallocInt(size))
+
+fun VkDynamicStateBuffer.free() = buffer.free()
+
+fun VkPipelineDepthStencilStateCreateInfo(): VkPipelineDepthStencilStateCreateInfo =
+    VkPipelineDepthStencilStateCreateInfo.calloc().apply { type = VkStructureType.PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO }
+
+inline fun VkPipelineDepthStencilStateCreateInfo(block: VkPipelineDepthStencilStateCreateInfo.() -> Unit): VkPipelineDepthStencilStateCreateInfo =
+    VkPipelineDepthStencilStateCreateInfo().also(block)
+
+inline fun VkPipelineMultisampleStateCreateInfo(block: VkPipelineMultisampleStateCreateInfo.() -> Unit): VkPipelineMultisampleStateCreateInfo =
+    VkPipelineMultisampleStateCreateInfo.calloc().apply {
+        type = VkStructureType.PIPELINE_MULTISAMPLE_STATE_CREATE_INFO
+        block()
+    }
+
+fun VkPipelineShaderStageCreateInfo(capacity: Int): VkPipelineShaderStageCreateInfo.Buffer =
+    VkPipelineShaderStageCreateInfo.calloc(capacity).also {
+        for (info in it)
+            info.type = VkStructureType.PIPELINE_SHADER_STAGE_CREATE_INFO
+    }
+
+inline class VkDescriptorSetLayoutBuffer(val buffer: LongBuffer)
+
+fun VkDescriptorSetLayoutBuffer(size: Int, init: (Int) -> VkDescriptorSetLayout) = VkDescriptorSetLayoutBuffer(LongBuffer(size) { init(it).L })
+
+//fun vkDescriptorSetLayoutBufferOf(collection: Collection<VkDescriptorSetLayout>) = VkDescriptorSetLayoutBuffer(collection.size) { collection.elementAt(it) }
+fun vkDescriptorSetLayoutBufferOf(collection: Collection<Long>) = VkDescriptorSetLayoutBuffer(collection.size) { VkDescriptorSetLayout(collection.elementAt(it)) }
+
+fun VkImageArray(size: Int, init: (Int) -> VkImage): VkImageArray = VkImageArray(LongArray(size){ init(it).L })
+

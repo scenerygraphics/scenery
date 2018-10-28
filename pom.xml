@@ -502,11 +502,11 @@
             <scope>test</scope>
         </dependency>
 
-        <dependency>
-            <groupId>com.github.kotlin-graphics</groupId>
-            <artifactId>vkk</artifactId>
-            <version>c77f8098ad</version>
-        </dependency>
+        <!--<dependency>-->
+            <!--<groupId>com.github.kotlin-graphics</groupId>-->
+            <!--<artifactId>vkk</artifactId>-->
+            <!--<version>c77f8098ad</version>-->
+        <!--</dependency>-->
 
         <dependency>
             <groupId>com.github.kotlin-graphics</groupId>

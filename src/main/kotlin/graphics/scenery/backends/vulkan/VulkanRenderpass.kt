@@ -469,17 +469,17 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                 p.rasterizationState.cullMode(VK_CULL_MODE_FRONT_BIT)
                 p.rasterizationState.frontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
 
-                p.createPipelines(this, framebuffer.renderPass.L,
+                p.createPipelines(this, framebuffer.renderPass,
                     vertexDescriptors[VulkanRenderer.VertexDataKinds.None]!!.state,
-                    descriptorSetLayouts = reqDescriptorLayouts,
+                    descriptorSetLayouts = vkDescriptorSetLayoutBufferOf(reqDescriptorLayouts),
                     onlyForTopology = GeometryType.TRIANGLES)
             }
 
             RenderConfigReader.RenderpassType.geometry,
             RenderConfigReader.RenderpassType.lights -> {
-                p.createPipelines(this, framebuffer.renderPass.L,
+                p.createPipelines(this, framebuffer.renderPass,
                     vertexInputType.state,
-                    descriptorSetLayouts = reqDescriptorLayouts)
+                    descriptorSetLayouts = vkDescriptorSetLayoutBufferOf(reqDescriptorLayouts))
             }
         }
 

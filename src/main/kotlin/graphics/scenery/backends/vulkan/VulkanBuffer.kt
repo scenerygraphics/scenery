@@ -6,11 +6,10 @@ import kool.Adr
 import kool.cap
 import kool.free
 import kool.pos
-import org.lwjgl.PointerBuffer
+import org.lwjgl.system.MemoryStack
 import org.lwjgl.system.MemoryUtil
-import org.lwjgl.system.MemoryUtil.*
-import org.lwjgl.vulkan.VK10.*
-import org.lwjgl.vulkan.VkBufferCreateInfo
+import org.lwjgl.system.MemoryUtil.NULL
+import org.lwjgl.system.MemoryUtil.memAlloc
 import vkk.*
 import java.nio.ByteBuffer
 import kotlin.math.roundToInt
@@ -105,6 +104,11 @@ open class VulkanBuffer(val device: VulkanDevice,
 
         val memory = vkDev allocateMemory allocInfo
         vkDev.bindBufferMemory(buffer, memory)
+
+        val stack = MemoryStack.stackGet()
+        val ptr = stack.pointer
+        val a = VkMemoryStack(stack)
+        stack.pointer = ptr
 
         return RawBuffer(buffer, memory, actualSize, reqs.alignment)
     }
