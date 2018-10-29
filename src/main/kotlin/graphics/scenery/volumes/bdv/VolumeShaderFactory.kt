@@ -7,6 +7,7 @@ class VolumeShaderFactory : Shaders.ShaderFactory() {
     val shaders = HashMap<ShaderType, Shader>()
 
     fun updateShaders(newShaders: HashMap<ShaderType, Shader>) {
+        logger.info("VolumeShaderFactory is updating")
         newShaders.forEach { shaders[it.key] = it.value }
     }
 
@@ -84,5 +85,9 @@ class VolumeShaderFactory : Shaders.ShaderFactory() {
 
         val finalCode = listOf(inouts.joinToString("\n"), convertedUniforms, converted).joinToString("\n")
         return finalCode
+    }
+
+    override fun toString(): String {
+        return "VolumeShaderFactory-managed shaders:\n" + shaders.map { "${it.key}\n============: ${it.value}" }.joinToString("\n")
     }
 }
