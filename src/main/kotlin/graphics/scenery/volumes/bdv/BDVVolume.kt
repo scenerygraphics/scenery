@@ -153,6 +153,7 @@ open class BDVVolume(bdvXMLFile: String = "", maxMemoryMB: Int = 1024) : Volume(
 
             prog = MultiVolumeShaderMip(numVolumes)
             prog?.setTextureCache(textureCache)
+            prog?.init(context)
         }
     }
 
@@ -194,6 +195,7 @@ open class BDVVolume(bdvXMLFile: String = "", maxMemoryMB: Int = 1024) : Volume(
     }
 
     override fun preDraw() {
+        logger.info("BDVVolume: preDraw")
         if (transferFunction.stale) {
             logger.debug("Transfer function is stale, updating")
             material.transferTextures["transferFunction"] = GenericTexture(
@@ -208,6 +210,7 @@ open class BDVVolume(bdvXMLFile: String = "", maxMemoryMB: Int = 1024) : Volume(
     }
 
     override fun preUpdate(renderer: Renderer, hub: Hub) {
+        logger.info("BDVVolume: preUpdate")
         if(stacks == null) {
             return
         }
