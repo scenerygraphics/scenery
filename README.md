@@ -131,6 +131,7 @@ scenery has been tested with a number of different systems and GPUs. If you have
 
 | GPU | Windows, OpenGL | Windows, Vulkan | Linux, OpenGL | Linux, Vulkan | Mac OS X, OpenGL |
 |:--|:--|:--|:--|:--|:--|
+| AMD Radeon HD 7850 (Pitcairn XT) | ✅ | ✅ | ⬜ | ⬜ | ⬜ |
 | AMD Radeon R5 M230 (Caicos Pro) | ⛔ | ✅ | ⬜ | ⬜ | ⬜ |
 | AMD Radeon R9 390 (Hawaii Pro) | ✅ | ✅ | ⬜ | ⬜ | ⬜ |
 | AMD Radeon R9 Nano (Fiji XT) | ✅ | ✅ | ⬜ | ⬜ | ⬜ |
