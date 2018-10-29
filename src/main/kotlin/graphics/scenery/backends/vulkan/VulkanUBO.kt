@@ -10,7 +10,7 @@ import org.lwjgl.vulkan.VK10.*
 import vkk.VkBuffer
 import vkk.VkDeviceMemory
 import vkk.VkDeviceSize
-import vkk.mappingMemory
+import vkk.mappedMemory
 import java.nio.ByteBuffer
 import java.nio.IntBuffer
 
@@ -47,7 +47,7 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
     }
 
     protected fun copy(data: ByteBuffer, offset: VkDeviceSize = VkDeviceSize(0)) {
-        vkDev.mappingMemory(descriptor.memory, offset, descriptor.allocationSize) { dest ->
+        vkDev.mappedMemory(descriptor.memory, offset, descriptor.allocationSize) { dest ->
             data copyTo dest
         }
     }

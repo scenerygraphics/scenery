@@ -1,5 +1,6 @@
 package graphics.scenery.backends.vulkan
 
+import glm_.i
 import graphics.scenery.GeometryType
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.system.MemoryUtil.*
@@ -14,7 +15,7 @@ import kotlin.collections.LinkedHashMap
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class VulkanPipeline(val device: VulkanDevice, val pipelineCache: Long? = null) : AutoCloseable {
+class VulkanPipeline(val device: VulkanDevice, val pipelineCache: VkPipelineCache = VkPipelineCache(NULL)) : AutoCloseable {
     private val logger by LazyLogger()
 
     var pipeline = HashMap<GeometryType, VulkanRenderer.Pipeline>()
@@ -61,6 +62,8 @@ class VulkanPipeline(val device: VulkanDevice, val pipelineCache: Long? = null) 
     }
     val shaderStages = ArrayList<VulkanShaderModule>(2)
 
+    val vkDev get() = device.vulkanDevice
+
     fun addShaderStages(shaderModules: List<VulkanShaderModule>) {
         shaderStages.clear()
 
@@ -81,132 +84,107 @@ class VulkanPipeline(val device: VulkanDevice, val pipelineCache: Long? = null) 
     fun createPipelines(renderpass: VulkanRenderpass, vulkanRenderpass: VkRenderPass, vi: VkPipelineVertexInputStateCreateInfo,
                         descriptorSetLayouts: VkDescriptorSetLayoutBuffer, onlyForTopology: GeometryType? = null) {
 
-        val pushConstantRanges = if (pushConstantSpecs.size > 0) {
-            val pcr = VkPushConstantRange.calloc(pushConstantSpecs.size)
+        val pushConstantRanges = vk.PushConstantRange(pushConstantSpecs.size).takeIf { pushConstantSpecs.isNotEmpty() }?.also { pcr ->
+
             pushConstantSpecs.entries.forEachIndexed { i, p ->
                 val offset = p.value.members.map { it.value.offset }.min() ?: 0L
                 val size = p.value.members.map { it.value.range }.sum()
 
                 logger.debug("Push constant: id $i name=${p.key} offset=$offset size=$size")
 
-                pcr.get(i)
-                    .offset(offset.toInt())
-                    .size(size.toInt())
-                    .stageFlags(VK_SHADER_STAGE_ALL)
+                pcr[i].also {
+                    it.offset = offset.i
+                    it.size = size.i
+                    it.stageFlags = VkShaderStage.ALL.i
+                }
             }
-
-            pcr
-        } else {
-            null
         }
 
-        val pPipelineLayoutCreateInfo = VkPipelineLayoutCreateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO)
-            .pNext(NULL)
-            .pSetLayouts(descriptorSetLayouts.buffer)
-            .pPushConstantRanges(pushConstantRanges)
+        val pipelineLayoutCreateInfo = vk.PipelineLayoutCreateInfo {
+            setLayouts = descriptorSetLayouts.buffer
+            this.pushConstantRanges = pushConstantRanges
+        }
+        val layout = vkDev createPipelineLayout pipelineLayoutCreateInfo
 
-        val layout = VU.getLong("vkCreatePipelineLayout",
-            { vkCreatePipelineLayout(device.vulkanDevice, pPipelineLayoutCreateInfo, null, this) },
-            { pushConstantRanges?.free(); pPipelineLayoutCreateInfo.free();  })
-
-        val stages = VkPipelineShaderStageCreateInfo.calloc(shaderStages.size)
+        val stages = vk.PipelineShaderStageCreateInfo(shaderStages.size)
         shaderStages.forEachIndexed { i, shaderStage ->
-            stages.put(i, shaderStage.shader)
+            stages[i] = shaderStage.shader
         }
 
-        val pipelineCreateInfo = VkGraphicsPipelineCreateInfo.calloc(1)
-            .sType(VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO)
-            .pNext(NULL)
-            .layout(layout)
-            .renderPass(vulkanRenderpass.L)
-            .pVertexInputState(vi)
-            .pInputAssemblyState(inputAssemblyState)
-            .pRasterizationState(rasterizationState)
-            .pColorBlendState(colorBlendState)
-            .pMultisampleState(multisampleState)
-            .pViewportState(viewportState)
-            .pDepthStencilState(depthStencilState)
-            .pStages(stages)
-            .pDynamicState(dynamicState)
-            .flags(VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT)
-            .subpass(0)
-
-        if (onlyForTopology != null) {
-            inputAssemblyState.topology(onlyForTopology.asVulkanTopology())
+        val pipelineCreateInfo = vk.GraphicsPipelineCreateInfo().also {
+            it.layout= layout
+            it.renderPass = vulkanRenderpass
+            it.vertexInputState = vi
+            it.inputAssemblyState = inputAssemblyState
+            it.rasterizationState = rasterizationState
+            it.colorBlendState = colorBlendState
+            it.multisampleState = multisampleState
+            it.viewportState = viewportState
+            it.depthStencilState = depthStencilState
+            it.stages = stages
+            it.dynamicState = dynamicState
+            it.flags = VkPipelineCreate.ALLOW_DERIVATIVES_BIT.i
+            it.subpass = 0
         }
+        onlyForTopology?.let { inputAssemblyState.topology = it.asVulkanTopology() }
 
-        val p = VU.getLong("vkCreateGraphicsPipelines for ${renderpass.name} ($vulkanRenderpass)",
-            {
-                vkCreateGraphicsPipelines(device.vulkanDevice, pipelineCache
-                    ?: VK_NULL_HANDLE, pipelineCreateInfo, null, this)
-            }, {})
+        val p = vkDev.createGraphicsPipelines(pipelineCache, pipelineCreateInfo)
 
         val vkp = VulkanRenderer.Pipeline()
         vkp.layout = layout
         vkp.pipeline = p
 
-        this.pipeline.put(GeometryType.TRIANGLES, vkp)
+        pipeline[GeometryType.TRIANGLES] = vkp
 //        descriptorSpecs.sortBy { spec -> spec.set }
 
         logger.debug("Pipeline needs descriptor sets ${descriptorSpecs.keys.joinToString()}")
 
         if (onlyForTopology == null) {
             // create pipelines for other topologies as well
-            GeometryType.values().forEach { topology ->
-                if (topology == GeometryType.TRIANGLES) {
-                    return@forEach
+            GeometryType.values().filter { it != GeometryType.TRIANGLES }.forEach { topology ->
+
+                inputAssemblyState.topology = topology.asVulkanTopology()
+
+                pipelineCreateInfo.apply {
+                    this.inputAssemblyState = inputAssemblyState
+                    basePipelineHandle = vkp.pipeline
+                    basePipelineIndex = -1
+                    flags = VkPipelineCreate.DERIVATIVE_BIT.i
                 }
-
-                inputAssemblyState.topology(topology.asVulkanTopology()).pNext(NULL)
-
-                pipelineCreateInfo
-                    .pInputAssemblyState(inputAssemblyState)
-                    .basePipelineHandle(vkp.pipeline)
-                    .basePipelineIndex(-1)
-                    .flags(VK_PIPELINE_CREATE_DERIVATIVE_BIT)
-
-                val derivativeP = VU.getLong("vkCreateGraphicsPipelines(derivative) for ${renderpass.name} ($vulkanRenderpass)",
-                    {
-                        vkCreateGraphicsPipelines(device.vulkanDevice, pipelineCache
-                            ?: VK_NULL_HANDLE, pipelineCreateInfo, null, this)
-                    }, {})
+                val derivativeP = vkDev.createGraphicsPipelines(pipelineCache, pipelineCreateInfo)
 
                 val derivativePipeline = VulkanRenderer.Pipeline()
                 derivativePipeline.layout = layout
                 derivativePipeline.pipeline = derivativeP
 
-                this.pipeline.put(topology, derivativePipeline)
+                pipeline[topology] = derivativePipeline
             }
         }
 
         logger.debug("Created $this for renderpass ${renderpass.name} ($vulkanRenderpass) with pipeline layout $layout (${if (onlyForTopology == null) {
-            "Derivatives:" + this.pipeline.keys.joinToString()
+            "Derivatives:" + pipeline.keys.joinToString()
         } else {
-            "no derivatives, only ${this.pipeline.keys.first()}"
+            "no derivatives, only ${pipeline.keys.first()}"
         }})")
-
-        pipelineCreateInfo.free()
-        stages.free()
     }
 
     fun getPipelineForGeometryType(type: GeometryType): VulkanRenderer.Pipeline {
-        return pipeline.getOrElse(type, {
+        return pipeline.getOrElse(type) {
             logger.error("Pipeline $this does not contain a fitting pipeline for $type, return triangle pipeline")
-            pipeline.getOrElse(GeometryType.TRIANGLES, { throw IllegalStateException("Default triangle pipeline not present for $this") })
-        })
+            pipeline.getOrElse(GeometryType.TRIANGLES) { throw IllegalStateException("Default triangle pipeline not present for $this") }
+        }
     }
 
-    private fun GeometryType.asVulkanTopology(): Int {
+    private fun GeometryType.asVulkanTopology(): VkPrimitiveTopology {
         return when (this) {
-            GeometryType.TRIANGLE_FAN -> VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN
-            GeometryType.TRIANGLES -> VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
-            GeometryType.LINE -> VK_PRIMITIVE_TOPOLOGY_LINE_LIST
-            GeometryType.POINTS -> VK_PRIMITIVE_TOPOLOGY_POINT_LIST
-            GeometryType.LINES_ADJACENCY -> VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY
-            GeometryType.LINE_STRIP_ADJACENCY -> VK_PRIMITIVE_TOPOLOGY_LINE_STRIP_WITH_ADJACENCY
-            GeometryType.POLYGON -> VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
-            GeometryType.TRIANGLE_STRIP -> VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP
+            GeometryType.TRIANGLE_FAN -> VkPrimitiveTopology.TRIANGLE_FAN
+            GeometryType.TRIANGLES -> VkPrimitiveTopology.TRIANGLE_LIST
+            GeometryType.LINE -> VkPrimitiveTopology.LINE_LIST
+            GeometryType.POINTS -> VkPrimitiveTopology.POINT_LIST
+            GeometryType.LINES_ADJACENCY -> VkPrimitiveTopology.LINE_LIST_WITH_ADJACENCY
+            GeometryType.LINE_STRIP_ADJACENCY -> VkPrimitiveTopology.LINE_STRIP_WITH_ADJACENCY
+            GeometryType.POLYGON -> VkPrimitiveTopology.TRIANGLE_LIST
+            GeometryType.TRIANGLE_STRIP -> VkPrimitiveTopology.TRIANGLE_STRIP
         }
     }
 
@@ -215,18 +193,18 @@ class VulkanPipeline(val device: VulkanDevice, val pipelineCache: Long? = null) 
     }
 
     override fun toString(): String {
-        return "VulkanPipeline (${pipeline.map { "${it.key.name} -> ${String.format("0x%X", it.value.pipeline)}" }.joinToString()})"
+        return "VulkanPipeline (${pipeline.map { "${it.key.name} -> ${String.format("0x%X", it.value.pipeline.L)}" }.joinToString()})"
     }
 
     override fun close() {
-        val removedLayouts = ArrayList<Long>()
+        val removedLayouts = ArrayList<VkPipelineLayout>()
 
         pipeline.forEach { _, pipeline ->
-            vkDestroyPipeline(device.vulkanDevice, pipeline.pipeline, null)
+            vkDev destroyPipeline pipeline.pipeline
 
-            if (!removedLayouts.contains(pipeline.layout)) {
-                vkDestroyPipelineLayout(device.vulkanDevice, pipeline.layout, null)
-                removedLayouts.add(pipeline.layout)
+            if (pipeline.layout !in removedLayouts) {
+                vkDev destroyPipelineLayout pipeline.layout
+                removedLayouts += pipeline.layout
             }
         }
 

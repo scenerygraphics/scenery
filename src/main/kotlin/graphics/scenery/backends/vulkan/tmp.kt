@@ -227,8 +227,8 @@ inline class VkDescriptorSetLayoutBuffer(val buffer: LongBuffer)
 
 fun VkDescriptorSetLayoutBuffer(size: Int, init: (Int) -> VkDescriptorSetLayout) = VkDescriptorSetLayoutBuffer(LongBuffer(size) { init(it).L })
 
-//fun vkDescriptorSetLayoutBufferOf(collection: Collection<VkDescriptorSetLayout>) = VkDescriptorSetLayoutBuffer(collection.size) { collection.elementAt(it) }
-fun vkDescriptorSetLayoutBufferOf(collection: Collection<Long>) = VkDescriptorSetLayoutBuffer(collection.size) { VkDescriptorSetLayout(collection.elementAt(it)) }
+//fun VkDescriptorSetLayoutBuffer(collection: Collection<VkDescriptorSetLayout>) = VkDescriptorSetLayoutBuffer(collection.size) { collection.elementAt(it) }
+fun VkDescriptorSetLayoutBuffer(collection: Collection<Long>) = VkDescriptorSetLayoutBuffer(collection.size) { VkDescriptorSetLayout(collection.elementAt(it)) }
 
 fun VkImageArray(size: Int, init: (Int) -> VkImage): VkImageArray = VkImageArray(LongArray(size){ init(it).L })
 

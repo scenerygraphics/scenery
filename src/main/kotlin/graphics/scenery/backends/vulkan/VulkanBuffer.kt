@@ -105,11 +105,6 @@ open class VulkanBuffer(val device: VulkanDevice,
         val memory = vkDev allocateMemory allocInfo
         vkDev.bindBufferMemory(buffer, memory)
 
-        val stack = MemoryStack.stackGet()
-        val ptr = stack.pointer
-        val a = VkMemoryStack(stack)
-        stack.pointer = ptr
-
         return RawBuffer(buffer, memory, actualSize, reqs.alignment)
     }
 
@@ -185,7 +180,7 @@ open class VulkanBuffer(val device: VulkanDevice,
     fun copyFrom(data: ByteBuffer) {
         resizeLazy()
 
-        vkDev.mappingMemory(memory, bufferOffset, size) { dest ->
+        vkDev.mappedMemory(memory, bufferOffset, size) { dest ->
             data copyTo dest
         }
     }
@@ -194,7 +189,7 @@ open class VulkanBuffer(val device: VulkanDevice,
      * Copies the contents of the device buffer to [dest].
      */
     fun copyTo(dest: ByteBuffer) {
-        vkDev.mappingMemory(memory, bufferOffset, size) { src ->
+        vkDev.mappedMemory(memory, bufferOffset, size) { src ->
             dest copyFrom src
         }
     }
