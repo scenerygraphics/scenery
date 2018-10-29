@@ -43,7 +43,7 @@ open class VulkanTexture(val device: VulkanDevice,
     protected val logger by LazyLogger()
 
     /** The Vulkan image associated with this texture. */
-    var image: VulkanImage? = null
+    var image: VulkanImage
         protected set
 
     private var stagingImage: VulkanImage
@@ -132,6 +132,11 @@ open class VulkanTexture(val device: VulkanDevice,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
                 mipLevels = 1)
         }
+
+        image = createImage(width, height, depth,
+            format, VK_IMAGE_USAGE_TRANSFER_DST_BIT or VK_IMAGE_USAGE_SAMPLED_BIT or VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+            VK_IMAGE_TILING_OPTIMAL, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+            mipLevels)
     }
 
     /**
@@ -217,25 +222,18 @@ open class VulkanTexture(val device: VulkanDevice,
     /**
      * Copies the data for this texture from a [ByteBuffer], [data].
      */
-    fun copyFrom(data: ByteBuffer) {
-        if (image == null) {
-            image = createImage(width, height, depth,
-                format, VK_IMAGE_USAGE_TRANSFER_DST_BIT or VK_IMAGE_USAGE_SAMPLED_BIT or VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-                VK_IMAGE_TILING_OPTIMAL, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                mipLevels)
+    fun copyFrom(data: ByteBuffer): VulkanTexture {
+        if (image.sampler == -1L) {
+            image.sampler = createSampler()
         }
 
-        if (image!!.sampler == -1L) {
-            image!!.sampler = createSampler()
-        }
-
-        if (image!!.view == -1L) {
-            image!!.view = createImageView(image!!, format)
+        if (image.view == -1L) {
+            image.view = createImageView(image, format)
         }
 
         if (depth == 1 && data.remaining() > stagingImage.maxSize) {
             logger.warn("Allocated image size for $this (${stagingImage.maxSize}) less than copy source size ${data.remaining()}.")
-            return
+            return this
         }
 
         var deallocate = false
@@ -292,16 +290,16 @@ open class VulkanTexture(val device: VulkanDevice,
                         srcStage = VK_PIPELINE_STAGE_HOST_BIT,
                         dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
                         commandBuffer = this)
-                    transitionLayout(image!!.image,
+                    transitionLayout(image.image,
                         VK_IMAGE_LAYOUT_PREINITIALIZED,
                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevels,
                         srcStage = VK_PIPELINE_STAGE_HOST_BIT,
                         dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
                         commandBuffer = this)
 
-                    image!!.copyFrom(this, stagingImage)
+                    image.copyFrom(this, stagingImage)
 
-                    transitionLayout(image!!.image,
+                    transitionLayout(image.image,
                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, mipLevels,
                         srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
@@ -317,16 +315,16 @@ open class VulkanTexture(val device: VulkanDevice,
                     buffer?.let { buffer ->
                         buffer.copyFrom(sourceBuffer)
 
-                        transitionLayout(image!!.image,
+                        transitionLayout(image.image,
                             VK_IMAGE_LAYOUT_UNDEFINED,
                             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevels,
                             srcStage = VK_PIPELINE_STAGE_HOST_BIT,
                             dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
                             commandBuffer = this)
 
-                        image!!.copyFrom(this, buffer)
+                        image.copyFrom(this, buffer)
 
-                        transitionLayout(image!!.image,
+                        transitionLayout(image.image,
                             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, mipLevels,
                             srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
@@ -349,12 +347,12 @@ open class VulkanTexture(val device: VulkanDevice,
 
                 buffer.copyFrom(sourceBuffer)
 
-                transitionLayout(image!!.image, VK_IMAGE_LAYOUT_UNDEFINED,
+                transitionLayout(image.image, VK_IMAGE_LAYOUT_UNDEFINED,
                     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, commandBuffer = this,
                     srcStage = VK_PIPELINE_STAGE_HOST_BIT,
                     dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT)
-                image!!.copyFrom(this, buffer)
-                transitionLayout(image!!.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                image.copyFrom(this, buffer)
+                transitionLayout(image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                     VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, 1, commandBuffer = this,
                     srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
                     dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT)
@@ -394,7 +392,7 @@ open class VulkanTexture(val device: VulkanDevice,
                         .levelCount(1)
 
                     if (mipLevel > 1) {
-                        transitionLayout(image!!.image,
+                        transitionLayout(image.image,
                             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                             VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                             subresourceRange = mipSourceRange,
@@ -403,7 +401,7 @@ open class VulkanTexture(val device: VulkanDevice,
                             commandBuffer = this@mipmapCreation)
                     }
 
-                    transitionLayout(image!!.image,
+                    transitionLayout(image.image,
                         VK_IMAGE_LAYOUT_UNDEFINED,
                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                         subresourceRange = mipTargetRange,
@@ -412,18 +410,18 @@ open class VulkanTexture(val device: VulkanDevice,
                         commandBuffer = this@mipmapCreation)
 
                     vkCmdBlitImage(this@mipmapCreation,
-                        image!!.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                        image!!.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                        image.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                        image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                         imageBlit, VK_FILTER_LINEAR)
 
-                    transitionLayout(image!!.image,
+                    transitionLayout(image.image,
                         VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, subresourceRange = mipSourceRange,
                         srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
                         dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                         commandBuffer = this@mipmapCreation)
 
-                    transitionLayout(image!!.image,
+                    transitionLayout(image.image,
                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, subresourceRange = mipTargetRange,
                         srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
@@ -445,6 +443,8 @@ open class VulkanTexture(val device: VulkanDevice,
         if (deallocate) {
             memFree(sourceBuffer)
         }
+
+        return this
     }
 
     /**
@@ -932,26 +932,24 @@ open class VulkanTexture(val device: VulkanDevice,
      * related to it.
      */
     override fun close() {
-        image?.let {
-            if (it.view != -1L) {
-                vkDestroyImageView(device.vulkanDevice, it.view, null)
-                it.view = -1L
-            }
+        if (image.view != -1L) {
+            vkDestroyImageView(device.vulkanDevice, image.view, null)
+            image.view = -1L
+        }
 
-            if (it.image != -1L) {
-                vkDestroyImage(device.vulkanDevice, it.image, null)
-                it.image = -1L
-            }
+        if (image.image != -1L) {
+            vkDestroyImage(device.vulkanDevice, image.image, null)
+            image.image = -1L
+        }
 
-            if (it.sampler != -1L) {
-                vkDestroySampler(device.vulkanDevice, it.sampler, null)
-                it.sampler = -1L
-            }
+        if (image.sampler != -1L) {
+            vkDestroySampler(device.vulkanDevice, image.sampler, null)
+            image.sampler = -1L
+        }
 
-            if (it.memory != -1L) {
-                vkFreeMemory(device.vulkanDevice, it.memory, null)
-                it.memory = -1L
-            }
+        if (image.memory != -1L) {
+            vkFreeMemory(device.vulkanDevice, image.memory, null)
+            image.memory = -1L
         }
 
         if (stagingImage.image != -1L) {

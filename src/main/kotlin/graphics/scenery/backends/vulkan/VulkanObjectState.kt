@@ -1,5 +1,7 @@
 package graphics.scenery.backends.vulkan
 
+import org.lwjgl.system.MemoryUtil.*
+import org.lwjgl.vulkan.*
 import graphics.scenery.NodeMetadata
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.system.MemoryUtil.NULL
@@ -82,16 +84,16 @@ open class VulkanObjectState : NodeMetadata {
         var i = 0
         textures.forEach { type, texture ->
             d[i].apply {
-                imageView = VkImageView(texture.image!!.view)
-                sampler = VkSampler(texture.image!!.sampler)
+                imageView = VkImageView(texture.image.view)
+                sampler = VkSampler(texture.image.sampler)
                 imageLayout = VkImageLayout.SHADER_READ_ONLY_OPTIMAL
             }
             wd[i].apply {
                 dstSet = textureDescriptorSet
                 dstBinding = targetBinding + if ("3D" in type) 1 else 0
                 dstArrayElement = textureTypeToSlot(type)
-                descriptorType = VkDescriptorType.COMBINED_IMAGE_SAMPLER
                 imageInfo_ = d[i]
+                descriptorType = VkDescriptorType.COMBINED_IMAGE_SAMPLER
             }
             i++
         }

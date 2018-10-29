@@ -732,7 +732,7 @@ class VU {
                         .pNext(NULL)
                         .dstSet(descriptorSet)
                         .dstBinding(i)
-                        .pBufferInfo(d as VkDescriptorBufferInfo.Buffer)
+                        .pBufferInfo(d)
                         .descriptorType(type)
                 }
 

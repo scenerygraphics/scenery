@@ -25,10 +25,7 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
         private set
     /** Offsets for this UBO, with respect to the backing buffer. */
     var offsets: IntBuffer = memAllocInt(1).put(0, 0)
-    /** The number of required offsets for this UBO. */
-    var requiredOffsetCount = 0
     private var closed = false
-
     private var ownedBackingBuffer: VulkanBuffer? = null
     private var stagingMemory: ByteBuffer? = null
 

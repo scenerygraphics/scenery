@@ -88,7 +88,7 @@ open class Scene : Node("RootNode") {
             }
         }
 
-        discover(s as Node, func)
+        discover(s, func)
 
         return matched
     }

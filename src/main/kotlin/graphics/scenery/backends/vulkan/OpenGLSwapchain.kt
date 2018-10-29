@@ -28,7 +28,9 @@ import org.lwjgl.system.Platform
 import org.lwjgl.vulkan.VK10
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkQueue
+import vkk.VkImage
 import vkk.VkImageArray
+import vkk.VkImageView
 import vkk.VkImageViewArray
 import java.lang.UnsupportedOperationException
 import java.nio.LongBuffer
@@ -51,9 +53,9 @@ class OpenGLSwapchain(val device: VulkanDevice,
     /** Swapchain handle. */
     override var handle: Long = 0L
     /** Array for rendered images. */
-    override var images: VkImageArray? = null
+    override var images = VkImageArray()
     /** Array for image views. */
-    override var imageViews: VkImageViewArray? = null
+    override var imageViews = VkImageViewArray()
     /** Number of frames presented with this swapchain. */
     protected var presentedFrames = 0L
 
@@ -308,29 +310,27 @@ class OpenGLSwapchain(val device: VulkanDevice,
 
         // note: glDrawVkImageNV expects the OpenGL screen space conventions,
         // so the Vulkan image's ST coordinates have to be flipped
-        images?.let { images ->
-            if (renderConfig.stereoEnabled) {
-                glDrawBuffer(GL_BACK_LEFT)
-                glClear(GL_COLOR_BUFFER_BIT)
-                glDisable(GL_DEPTH_TEST)
+        if (renderConfig.stereoEnabled) {
+            glDrawBuffer(GL_BACK_LEFT)
+            glClear(GL_COLOR_BUFFER_BIT)
+            glDisable(GL_DEPTH_TEST)
 
-                NVDrawVulkanImage.glDrawVkImageNV(images[0].L, 0,
-                    0.0f, 0.0f, window.width.toFloat(), window.height.toFloat(), 0.0f,
-                    0.0f, 1.0f, 0.5f, 0.0f)
+            NVDrawVulkanImage.glDrawVkImageNV(images[0].L, 0,
+                0.0f, 0.0f, window.width.toFloat(), window.height.toFloat(), 0.0f,
+                0.0f, 1.0f, 0.5f, 0.0f)
 
-                glDrawBuffer(GL_BACK_RIGHT)
-                glClear(GL_COLOR_BUFFER_BIT)
-                glDisable(GL_DEPTH_TEST)
+            glDrawBuffer(GL_BACK_RIGHT)
+            glClear(GL_COLOR_BUFFER_BIT)
+            glDisable(GL_DEPTH_TEST)
 
-                NVDrawVulkanImage.glDrawVkImageNV(images[0].L, 0,
-                    0.0f, 0.0f, window.width.toFloat(), window.height.toFloat(), 0.0f,
-                    0.5f, 1.0f, 1.0f, 0.0f)
-            } else {
-                glClear(GL_COLOR_BUFFER_BIT)
-                NVDrawVulkanImage.glDrawVkImageNV(images[0].L, 0,
-                    0.0f, 0.0f, window.width.toFloat(), window.height.toFloat(), 0.0f,
-                    0.0f, 1.0f, 1.0f, 0.0f)
-            }
+            NVDrawVulkanImage.glDrawVkImageNV(images[0].L, 0,
+                0.0f, 0.0f, window.width.toFloat(), window.height.toFloat(), 0.0f,
+                0.5f, 1.0f, 1.0f, 0.0f)
+        } else {
+            glClear(GL_COLOR_BUFFER_BIT)
+            NVDrawVulkanImage.glDrawVkImageNV(images[0].L, 0,
+                0.0f, 0.0f, window.width.toFloat(), window.height.toFloat(), 0.0f,
+                0.0f, 1.0f, 1.0f, 0.0f)
         }
 
         glfwSwapBuffers(window.window)
@@ -416,8 +416,8 @@ class OpenGLSwapchain(val device: VulkanDevice,
      * Closes the swapchain, freeing all of its resources.
      */
     override fun close() {
-        imageViews?.forEach { vkDestroyImageView(device.vulkanDevice, it.L, null) }
-        images?.forEach { vkDestroyImage(device.vulkanDevice, it.L, null) }
+        imageViews.forEach { vkDestroyImageView(device.vulkanDevice, it.L, null) }
+        images.forEach { vkDestroyImage(device.vulkanDevice, it.L, null) }
 
         windowSizeCallback.close()
         glfwDestroyWindow(window.window)

@@ -224,10 +224,10 @@ open class UBO {
                 is GLVector -> value.push(data)
                 is Float -> data.asFloatBuffer().put(0, value)
                 is Double -> data.asDoubleBuffer().put(0, value)
-                is Integer -> data.asIntBuffer().put(0, value as Int)
+                is Integer -> data.asIntBuffer().put(0, value.toInt())
                 is Int -> data.asIntBuffer().put(0, value)
                 is Short -> data.asShortBuffer().put(0, value)
-                is Boolean -> data.asIntBuffer().put(0, value as Int)
+                is Boolean -> data.asIntBuffer().put(0, value.toInt())
                 is Enum<*> -> data.asIntBuffer().put(0, value.ordinal)
             }
 
@@ -322,4 +322,9 @@ open class UBO {
     fun get(name: String): (() -> Any)? {
         return members[name]
     }
+
+    private fun Boolean.toInt(): Int {
+        return if(this) { 1 } else { 0 }
+    }
 }
+
