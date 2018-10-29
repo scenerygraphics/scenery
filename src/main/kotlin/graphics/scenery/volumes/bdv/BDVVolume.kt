@@ -1,13 +1,27 @@
 package graphics.scenery.volumes.bdv
 
+import bdv.spimdata.SpimDataMinimal
+import bdv.spimdata.XmlIoSpimDataMinimal
 import cleargl.GLTypeEnum
 import cleargl.GLVector
 import coremem.enums.NativeTypeEnum
 import graphics.scenery.*
+import graphics.scenery.backends.Renderer
 import graphics.scenery.volumes.Volume
+import net.imglib2.type.volatiles.VolatileUnsignedShortType
+import org.joml.Matrix4f
+import tpietzsch.backend.Texture
+import tpietzsch.cache.*
+import tpietzsch.example2.MultiVolumeShaderMip
+import tpietzsch.example2.VolumeBlocks
+import tpietzsch.multires.MultiResolutionStack3D
+import tpietzsch.multires.SpimDataStacks
 import java.nio.ByteBuffer
 import java.nio.file.Path
 import java.util.*
+import java.util.concurrent.ForkJoinPool
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.math.max
 
 /**
  * Volume Rendering Node for scenery.
@@ -18,7 +32,7 @@ import java.util.*
  * @author Martin Weigert <mweigert@mpi-cbg.de>
  */
 @Suppress("unused")
-open class BDVVolume : Volume(false) {
+open class BDVVolume(bdvXMLFile: String = "", maxMemoryMB: Int = 1024) : Volume(false) {
     data class VolumeDescriptor(val path: Path?,
                                 val width: Long,
                                 val height: Long,
@@ -55,6 +69,22 @@ open class BDVVolume : Volume(false) {
 
     var context = SceneryContext(this)
         protected set
+    var maxTimepoint: Int = 0
+    var textureCache: TextureCache? = null
+    var pboChain: PboChain? = null
+    var outOfCoreVolumes = ArrayList<VolumeBlocks>()
+    var stacks: SpimDataStacks? = null
+    private val cacheSpec = CacheSpec(Texture.InternalFormat.R16, intArrayOf(32, 32, 32))
+
+    private val aMultiResolutionStacks = ArrayList(Arrays.asList(
+        AtomicReference(),
+        AtomicReference(),
+        AtomicReference<MultiResolutionStack3D<VolatileUnsignedShortType>>()))
+
+    private val multiResolutionStacks = ArrayList(
+        Arrays.asList<MultiResolutionStack3D<VolatileUnsignedShortType>>(null, null, null))
+    var freezeRequiredBlocks = false
+    var prog: MultiVolumeShaderMip? = null
 
     init {
         // fake geometry
@@ -104,10 +134,67 @@ open class BDVVolume : Volume(false) {
         colormaps["viridis"] = Colormap.ColormapFile(Volume::class.java.getResource("colormap-viridis.png").file)
 
         assignEmptyVolumeTexture()
+
+        if(bdvXMLFile != "") {
+            val spimData: SpimDataMinimal = XmlIoSpimDataMinimal().load(bdvXMLFile)
+            stacks = SpimDataStacks(spimData)
+            maxTimepoint = spimData.sequenceDescription.timePoints.timePointsOrdered.size - 1
+
+            val cacheGridDimensions = TextureCache.findSuitableGridSize(cacheSpec, maxMemoryMB)
+            textureCache = TextureCache(cacheGridDimensions, cacheSpec)
+
+            pboChain = PboChain(5, 100, textureCache)
+
+            val numVolumes = 3
+
+            for(i in 0 until numVolumes) {
+                outOfCoreVolumes.add(VolumeBlocks(textureCache))
+            }
+
+            prog = MultiVolumeShaderMip(numVolumes)
+            prog?.setTextureCache(textureCache)
+        }
+    }
+
+    fun updateBlocks(context: SceneryContext) {
+        if(stacks == null) {
+            return
+        }
+
+        stacks?.cacheControl?.prepareNextFrame()
+
+        val cam = getScene()?.activeObserver ?: return
+        val viewProjection = cam.projection.clone()
+        viewProjection.mult(cam.getTransformation())
+
+
+        val vp = Matrix4f().set(viewProjection.floatArray)
+        prog?.setViewportSize(cam.width.toInt(), cam.height.toInt())
+        prog?.setProjectionViewMatrix(vp)
+        prog?.use(context)
+
+        val fillTasks = ArrayList<FillTask>()
+        for(i in 0 until outOfCoreVolumes.size) {
+            val volume = outOfCoreVolumes[i]
+            volume.init(multiResolutionStacks[i], cam.width.toInt(), vp)
+            fillTasks.addAll(volume.fillTasks)
+        }
+
+        ProcessFillTasks.parallel(textureCache, pboChain, context, forkJoinPool, fillTasks)
+
+        var repaint = false
+        for(i in 0 until outOfCoreVolumes.size) {
+            val volumeBlocks = outOfCoreVolumes[i]
+            val complete = volumeBlocks.makeLut()
+            if(!complete) {
+                repaint = true
+            }
+//            volumeBlocks.lookupTexture.upload(context)
+        }
     }
 
     override fun preDraw() {
-        if(transferFunction.stale) {
+        if (transferFunction.stale) {
             logger.debug("Transfer function is stale, updating")
             material.transferTextures["transferFunction"] = GenericTexture(
                 "transferFunction", GLVector(transferFunction.textureSize.toFloat(), transferFunction.textureHeight.toFloat(), 1.0f),
@@ -118,5 +205,28 @@ open class BDVVolume : Volume(false) {
 
             time = System.nanoTime().toFloat()
         }
+    }
+
+    override fun preUpdate(renderer: Renderer, hub: Hub) {
+        if(stacks == null) {
+            return
+        }
+
+        textureCache?.let {
+            context.bindTexture(it)
+        }
+
+        for(i in 0 until outOfCoreVolumes.size){
+            val stack = aMultiResolutionStacks[i].get() ?: return
+            multiResolutionStacks[i] = stack
+        }
+
+        if(!freezeRequiredBlocks) {
+            updateBlocks(context)
+        }
+    }
+
+    companion object {
+        val forkJoinPool: ForkJoinPool = ForkJoinPool(max(1, Runtime.getRuntime().availableProcessors()/2))
     }
 }

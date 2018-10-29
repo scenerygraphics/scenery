@@ -1,15 +1,17 @@
 package graphics.scenery.tests.examples.bdv
 
 import cleargl.GLVector
+import com.sun.javafx.application.PlatformImpl
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.Hololens
 import graphics.scenery.volumes.bdv.BDVVolume
+import javafx.application.Platform
+import javafx.stage.FileChooser
+import javafx.stage.Stage
 import org.junit.Test
-import tpietzsch.scenery.example0.RenderStuff2
-import tpietzsch.shadergen.DefaultShader
-import tpietzsch.shadergen.generate.SegmentTemplate
 import java.util.*
+import java.util.concurrent.CountDownLatch
 
 /**
  * Example that renders procedurally generated volumes on a [Hololens].
@@ -19,6 +21,28 @@ import java.util.*
  */
 class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
     override fun init() {
+        val latch = CountDownLatch(1)
+        val files = ArrayList<String>()
+        PlatformImpl.startup {  }
+
+        Platform.runLater {
+            val chooser = FileChooser()
+            chooser.title = "Open File"
+            chooser.extensionFilters.add(FileChooser.ExtensionFilter("BigDataViewer XML", "*.xml"))
+            val file = chooser.showOpenDialog(Stage())
+
+            if(file != null) {
+                files.add(file.absolutePath)
+            }
+            latch.countDown()
+        }
+
+        latch.await()
+
+        if(files.size == 0) {
+            throw IllegalStateException("You have to select a file, sorry.")
+        }
+
         renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
         hub.add(SceneryElement.Renderer, renderer!!)
 
@@ -31,7 +55,7 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
             scene.addChild(this)
         }
 
-        val volume = BDVVolume()
+        val volume = BDVVolume(files.first())
         volume.name = "volume"
         volume.colormap = "plasma"
         volume.scale = GLVector(0.02f, 0.02f, 0.02f)
@@ -47,16 +71,6 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
             light.intensity = 50.0f
             scene.addChild(light)
         }
-
-        val ex1vp = SegmentTemplate(RenderStuff2::class.java, "render.vp", Arrays.asList()).instantiate()
-        val ex1fp = SegmentTemplate(RenderStuff2::class.java, "render2.fp", Arrays.asList()).instantiate()
-        val prog = DefaultShader(ex1vp.code, ex1fp.code)
-        prog.getUniform4f("color1").set(1.0f, 0.5f, 1.0f, 1.0f)
-        prog.getUniform4f("color2").set(0.8f, 1.0f, 0.0f, 1.0f)
-        prog.getUniform4f("color3").set(0.2f, 0.2f, 0.2f, 1.0f)
-
-        prog.use(volume.context)
-        prog.setUniforms(volume.context)
     }
 
     override fun inputSetup() {
