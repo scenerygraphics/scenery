@@ -1,22 +1,15 @@
-package graphics.scenery.tests.examples.advanced
+package graphics.scenery.tests.examples.bdv
 
 import cleargl.GLVector
-import coremem.enums.NativeTypeEnum
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.Hololens
-import graphics.scenery.numerics.Random
-import graphics.scenery.utils.RingBuffer
-import graphics.scenery.volumes.Volume
 import graphics.scenery.volumes.bdv.BDVVolume
 import org.junit.Test
-import org.lwjgl.system.MemoryUtil.memAlloc
 import tpietzsch.scenery.example0.RenderStuff2
 import tpietzsch.shadergen.DefaultShader
 import tpietzsch.shadergen.generate.SegmentTemplate
-import java.nio.ByteBuffer
 import java.util.*
-import kotlin.concurrent.thread
 
 /**
  * Example that renders procedurally generated volumes on a [Hololens].
@@ -24,7 +17,7 @@ import kotlin.concurrent.thread
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
+class BDVSimpleExample: SceneryBase("BDV Rendering example", 1280, 720) {
     override fun init() {
         renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
         hub.add(SceneryElement.Renderer, renderer!!)
