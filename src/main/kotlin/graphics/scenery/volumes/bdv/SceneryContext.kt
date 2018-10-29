@@ -116,6 +116,7 @@ class SceneryContext(val node: Volume) : GpuContext {
     }
 
     override fun use(shader: Shader) {
+        logger.info("Shader factory updating")
         factory.updateShaders(
             hashMapOf(
                 ShaderType.VertexShader to shader,
@@ -189,6 +190,7 @@ class SceneryContext(val node: Volume) : GpuContext {
     }
 
     override fun texSubImage3D(pbo: StagingBuffer, texture: Texture3D, xoffset: Int, yoffset: Int, zoffset: Int, width: Int, height: Int, depth: Int, pixels_buffer_offset: Long) {
+        logger.info("Updating 3D texture from $texture: $xoffset $yoffset $zoffset $width $height $depth")
         val tmpStorage = (map(pbo) as ByteBuffer).duplicate().order(ByteOrder.LITTLE_ENDIAN)
         tmpStorage.position(pixels_buffer_offset.toInt())
 
@@ -210,6 +212,7 @@ class SceneryContext(val node: Volume) : GpuContext {
     }
 
     override fun texSubImage3D(texture: Texture3D, xoffset: Int, yoffset: Int, zoffset: Int, width: Int, height: Int, depth: Int, pixels: Buffer) {
+        logger.info("Updating 3D texture from $texture: $xoffset $yoffset $zoffset $width $height $depth")
         if(pixels is ByteBuffer) {
             // TODO: add support for different data types
             val channels = 1
