@@ -88,6 +88,15 @@ class VolumeShaderFactory : Shaders.ShaderFactory() {
     }
 
     override fun toString(): String {
-        return "VolumeShaderFactory-managed shaders:\n" + shaders.map { "${it.key}\n============: ${it.value}" }.joinToString("\n")
+        return "VolumeShaderFactory-managed shaders:\n" + shaders.map {
+            "${it.key}\n============: " + when(it.key) {
+                ShaderType.VertexShader -> convertToSceneryConventions(it.value.vertexShaderCode.toString())
+                ShaderType.TessellationControlShader -> it.value
+                ShaderType.TessellationEvaluationShader -> it.value
+                ShaderType.GeometryShader -> it.value
+                ShaderType.FragmentShader -> convertToSceneryConventions(it.value.fragmentShaderCode.toString())
+                ShaderType.ComputeShader -> it.value
+            }
+        }.joinToString("\n")
     }
 }
