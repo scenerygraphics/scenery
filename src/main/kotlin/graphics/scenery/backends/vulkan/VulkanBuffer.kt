@@ -103,7 +103,7 @@ open class VulkanBuffer(val device: VulkanDevice, var size: Long,
             .memoryTypeIndex(device.getMemoryType(reqs.memoryTypeBits(), requestedMemoryProperties).first())
 
 
-        VU.run("Allocating memory", { vkAllocateMemory(device.vulkanDevice, allocInfo, null, memory) })
+        VU.run("Allocating memory (size=$actualSize)", { vkAllocateMemory(device.vulkanDevice, allocInfo, null, memory) })
         VU.run("Binding buffer memory", { vkBindBufferMemory(device.vulkanDevice, buffer, memory.get(0), 0) })
 
         val r = RawBuffer(buffer, memory.get(0), actualSize, reqs.alignment())
