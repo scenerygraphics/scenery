@@ -2172,20 +2172,22 @@ open class OpenGLRenderer(hub: Hub,
 
                             // textures might have very uneven dimensions, so we adjust GL_UNPACK_ALIGNMENT here correspondingly
                             // in case the byte count of the texture is not divisible by it.
-                            if(contents.remaining() % unpackAlignment[0] == 0 && dimensions.x().toInt() % unpackAlignment[0] == 0) {
-                                if(extents != null) {
-                                    t.copyFrom(contents, extents.w, extents.h, extents.d, extents.x, extents.y, extents.z, true)
+                            if(contents != null) {
+                                if (contents.remaining() % unpackAlignment[0] == 0 && dimensions.x().toInt() % unpackAlignment[0] == 0) {
+                                    if (extents != null) {
+                                        t.copyFrom(contents, extents.w, extents.h, extents.d, extents.x, extents.y, extents.z, true)
+                                    } else {
+                                        t.copyFrom(contents)
+                                    }
                                 } else {
-                                    t.copyFrom(contents)
+                                    gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, 1)
+                                    if (extents != null) {
+                                        t.copyFrom(contents, extents.w, extents.h, extents.d, extents.x, extents.y, extents.z, true)
+                                    } else {
+                                        t.copyFrom(contents)
+                                    }
+                                    gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, unpackAlignment[0])
                                 }
-                            } else {
-                                gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, 1)
-                                if(extents != null) {
-                                    t.copyFrom(contents, extents.w, extents.h, extents.d, extents.x, extents.y, extents.z, true)
-                                } else {
-                                    t.copyFrom(contents)
-                                }
-                                gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, unpackAlignment[0])
                             }
 
                             s.textures[type] = t

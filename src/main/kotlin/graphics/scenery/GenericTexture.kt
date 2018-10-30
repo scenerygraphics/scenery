@@ -24,7 +24,7 @@ data class GenericTexture @JvmOverloads constructor(
     /** [NativeTypeEnum] declaring the data type stored in [contents] */
     var type: GLTypeEnum = GLTypeEnum.UnsignedByte,
     /** Byte contents of the texture */
-    @Transient var contents: ByteBuffer,
+    @Transient var contents: ByteBuffer?,
     /** Shall the texture be repeated on the U/S coordinate? */
     var repeatS: Boolean = true,
     /** Shall the texture be repeated on the V/T coordinate? */
