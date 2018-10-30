@@ -153,6 +153,32 @@ class SceneryContext(val node: Volume) : GpuContext {
      */
     override fun bindTexture(texture: Texture): Int {
         logger.info("Binding texture $texture")
+        if(node.material.textures.contains("3D-volume")) {
+            return 0
+        }
+
+        val (channels, type) = when(texture.texInternalFormat()) {
+            Texture.InternalFormat.R16 -> 1 to GLTypeEnum.UnsignedShort
+            Texture.InternalFormat.RGBA8UI -> 4 to GLTypeEnum.UnsignedByte
+            Texture.InternalFormat.UNKNOWN -> TODO()
+        }
+
+        val repeat = when(texture.texWrap()) {
+            Texture.Wrap.CLAMP_TO_EDGE -> false
+            Texture.Wrap.REPEAT -> true
+        }
+
+        node.material.transferTextures.put("textureCache",
+            GenericTexture("3D-volume",
+                GLVector(texture.texWidth().toFloat(), texture.texHeight().toFloat(), texture.texDepth().toFloat()),
+                channels,
+                type,
+                null,
+                repeat, repeat, repeat,
+                true,
+                false))
+
+        node.material.textures.put("3D-volume", "fromBuffer:textureCache")
         return 0
     }
 
