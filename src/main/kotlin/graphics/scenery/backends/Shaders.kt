@@ -62,7 +62,7 @@ sealed class Shaders {
                 codePath = shaderCodePath
             }
 
-            val cached = cache[spirvPath to codePath]
+            val cached = cache[ShaderPaths(spirvPath, codePath)]
             if (cached != null) {
                 return cached
             }
@@ -88,17 +88,22 @@ sealed class Shaders {
                 SourceSPIRVPriority.SourcePriority)
 
             val p = compile(shaderPackage, type, target, base.first)
-            cache[spirvPath to shaderCodePath] = p
+            cache.putIfAbsent(ShaderPaths(spirvPath, codePath), p)
 
             return p
         }
 
 
         /**
+         * Data class for storing pairs of paths to SPIRV and to code path files
+         */
+        data class ShaderPaths(val spirvPath: String, val codePath: String)
+
+        /**
          * Companion object providing a cache for preventing repeated compilations.
          */
         companion object {
-            protected val cache = ConcurrentHashMap<Pair<String, String>, ShaderPackage>()
+            protected val cache = ConcurrentHashMap<ShaderPaths, ShaderPackage>()
         }
     }
 
@@ -126,6 +131,7 @@ sealed class Shaders {
      * if the files cannot be located within the normal neighborhood of the resources in [classes].
      */
     protected fun safeFindBaseClass(classes: Array<Class<*>>, path: String): Pair<Class<*>, String>? {
+        logger.info("Looking for $path in ${classes.map { it.simpleName }.joinToString(", ")}")
         val streams = classes.map { clazz ->
             clazz to clazz.getResourceAsStream(path)
         }.filter { it.second != null }.toMutableList()
