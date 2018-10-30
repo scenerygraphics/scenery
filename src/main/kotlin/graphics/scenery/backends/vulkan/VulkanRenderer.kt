@@ -3,6 +3,8 @@ package graphics.scenery.backends.vulkan
 import cleargl.GLMatrix
 import cleargl.GLVector
 import glm_.L
+import glm_.i
+import glm_.set
 import graphics.scenery.*
 import graphics.scenery.backends.*
 import graphics.scenery.spirvcrossj.Loader
@@ -121,13 +123,13 @@ open class VulkanRenderer(hub: Hub,
 
     class Pipeline(var pipeline: VkPipeline = VkPipeline(NULL), var layout: VkPipelineLayout = VkPipelineLayout(NULL))
 
-    sealed class DescriptorSet(val id: Long = 0L, val name: String = "") {
-        object None : DescriptorSet(0L)
-        data class Set(val setId: Long, val setName: String = "") : DescriptorSet(setId, setName)
-        data class DynamicSet(val setId: Long, val offset: Int, val setName: String = "") : DescriptorSet(setId, setName)
+    sealed class DescriptorSet(val id: VkDescriptorSet = VkDescriptorSet(NULL), val name: String = "") {
+        object None : DescriptorSet()
+        data class Set(val setId: VkDescriptorSet, val setName: String = "") : DescriptorSet(setId, setName)
+        data class DynamicSet(val setId: VkDescriptorSet, val offset: Int, val setName: String = "") : DescriptorSet(setId, setName)
 
         companion object {
-            fun setOrNull(id: Long?, setName: String): DescriptorSet? {
+            fun setOrNull(id: VkDescriptorSet?, setName: String): DescriptorSet? {
                 return id?.let { DescriptorSet.Set(id, setName) }
             }
         }
@@ -292,7 +294,7 @@ open class VulkanRenderer(hub: Hub,
     // Create static Vulkan resources
     protected var queue: VkQueue
     protected var transferQueue: VkQueue
-    protected var descriptorPool: Long
+    protected var descriptorPool = VkDescriptorPool(NULL)
 
     protected var swapchain: Swapchain
     protected var ph = PresentHelpers()
@@ -309,7 +311,7 @@ open class VulkanRenderer(hub: Hub,
     protected var defaultUBOs = ConcurrentHashMap<String, VulkanUBO>()
     protected var textureCache = ConcurrentHashMap<String, VulkanTexture>()
     protected var descriptorSetLayouts = ConcurrentHashMap<String, VkDescriptorSetLayout>()
-    protected var descriptorSets = ConcurrentHashMap<String, Long>()
+    protected var descriptorSets = ConcurrentHashMap<String, VkDescriptorSet>()
 
     protected var lastTime = System.nanoTime()
     protected var time = 0.0f
@@ -466,9 +468,9 @@ open class VulkanRenderer(hub: Hub,
             gpuStats = NvidiaGPUStats()
         }
 
-        queue = VU.createDeviceQueue(device, device.queueIndices.graphicsQueue)
+        queue = vkDev getQueue device.queueIndices.graphicsQueue
         logger.debug("Creating transfer queue with ${device.queueIndices.transferQueue} (vs ${device.queueIndices.graphicsQueue})")
-        transferQueue = VU.createDeviceQueue(device, device.queueIndices.transferQueue)
+        transferQueue = vkDev getQueue device.queueIndices.transferQueue
 
         with(commandPools) {
             Render = device.createCommandPool(device.queueIndices.graphicsQueue)
@@ -518,15 +520,15 @@ open class VulkanRenderer(hub: Hub,
         logger.debug("Created swapchain")
         vertexDescriptors = prepareStandardVertexDescriptors()
         logger.debug("Created vertex descriptors")
-        descriptorPool = createDescriptorPool(device)
+        descriptorPool = createDescriptorPool()
         logger.debug("Created descriptor pool")
 
-        descriptorSetLayouts = prepareDefaultDescriptorSetLayouts(device)
+        descriptorSetLayouts = prepareDefaultDescriptorSetLayouts()
         logger.debug("Prepared default DSLs")
         prepareDefaultBuffers(device, buffers)
         logger.debug("Prepared default buffers")
 
-        prepareDescriptorSets(device, descriptorPool)
+        prepareDescriptorSets(descriptorPool)
         logger.debug("Prepared default descriptor sets")
         prepareDefaultTextures(device)
         logger.debug("Prepared default textures")
@@ -569,19 +571,16 @@ open class VulkanRenderer(hub: Hub,
         }, 0, 1000)
 
         // Info struct to create a semaphore
-        semaphoreCreateInfo = VkSemaphoreCreateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO)
-            .pNext(NULL)
-            .flags(0)
+        semaphoreCreateInfo = VkSemaphoreCreateInfo()
 
         lastTime = System.nanoTime()
-        time = 0.0f
+        time = 0f
 
         if (System.getProperty("scenery.RunFullscreen", "false")?.toBoolean() == true) {
             toggleFullscreen = true
         }
 
-        geometryPool = VulkanBufferPool(device, usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT or VK_BUFFER_USAGE_INDEX_BUFFER_BIT or VK_BUFFER_USAGE_TRANSFER_DST_BIT)
+        geometryPool = VulkanBufferPool(device, usage = VkBufferUsage.VERTEX_BUFFER_BIT or VkBufferUsage.INDEX_BUFFER_BIT or VkBufferUsage.TRANSFER_DST_BIT)
 
         initialized = true
         logger.info("Renderer initialisation complete.")
@@ -637,14 +636,6 @@ open class VulkanRenderer(hub: Hub,
 
         scene.initialized = true
         logger.info("Scene initialization complete.")
-    }
-
-    fun Boolean.toInt(): Int {
-        return if (this) {
-            1
-        } else {
-            0
-        }
     }
 
     fun updateNodeGeometry(node: Node) {
@@ -728,28 +719,28 @@ open class VulkanRenderer(hub: Hub,
         s = createVertexBuffers(device, node, s)
 
         val matricesDescriptorSet = getDescriptorCache().getOrPut("Matrices") {
-            VU.createDescriptorSetDynamic(device, descriptorPool,
+            VU.createDescriptorSetDynamic(vkDev, descriptorPool,
                 descriptorSetLayouts["Matrices"]!!, 1,
                 buffers["UBOBuffer"]!!)
-        }
+        }!!
 
         val materialPropertiesDescriptorSet = getDescriptorCache().getOrPut("MaterialProperties") {
-            VU.createDescriptorSetDynamic(device, descriptorPool,
+            VU.createDescriptorSetDynamic(vkDev, descriptorPool,
                 descriptorSetLayouts["MaterialProperties"]!!, 1,
                 buffers["UBOBuffer"]!!)
-        }
+        }!!
 
         val matricesUbo = VulkanUBO(device, backingBuffer = buffers["UBOBuffer"])
         with(matricesUbo) {
             name = "Matrices"
             add("ModelMatrix", { node.world })
             add("NormalMatrix", { node.world.inverse.transpose() })
-            add("isBillboard", { node.isBillboard.toInt() })
+            add("isBillboard", { node.isBillboard.i })
 
             createUniformBuffer()
             sceneUBOs.add(node)
 
-            s.UBOs.put(name, matricesDescriptorSet to this)
+            s.UBOs[name] = matricesDescriptorSet to this
         }
 
         loadTexturesForNode(node, s)
@@ -768,7 +759,7 @@ open class VulkanRenderer(hub: Hub,
             add("Opacity", { node.material.blending.opacity })
 
             createUniformBuffer()
-            s.UBOs.put("MaterialProperties", materialPropertiesDescriptorSet to this)
+            s.UBOs["MaterialProperties"] = materialPropertiesDescriptorSet to this
         }
 
         s.initialized = true
@@ -808,8 +799,8 @@ open class VulkanRenderer(hub: Hub,
         node.rendererMetadata()?.let { s ->
 
             //            node.javaClass.kotlin.memberProperties.filter { it.findAnnotation<ShaderProperty>() != null }.forEach { logger.info("${node.name}.${it.name} is ShaderProperty!") }
-            val needsShaderPropertyUBO = if (node.javaClass.kotlin.memberProperties.filter { it.findAnnotation<ShaderProperty>() != null }.count() > 0) {
-                var dsl = 0L
+            val needsShaderPropertyUBO = if (node.javaClass.kotlin.memberProperties.any { it.findAnnotation<ShaderProperty>() != null }) {
+                var dsl = VkDescriptorSetLayout(NULL)
 
                 renderpasses.filter {
                     (it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry || it.value.passConfig.type == RenderConfigReader.RenderpassType.lights)
@@ -820,7 +811,7 @@ open class VulkanRenderer(hub: Hub,
                         dsl = pass.value.initializeShaderPropertyDescriptorSetLayout()
                     }
 
-                val descriptorSet = VU.createDescriptorSetDynamic(device, descriptorPool, VkDescriptorSetLayout(dsl),
+                val descriptorSet = VU.createDescriptorSetDynamic(vkDev, descriptorPool, dsl,
                     1, buffers["ShaderPropertyBuffer"]!!)
 
                 s.requiredDescriptorSets["ShaderProperties"] = descriptorSet
@@ -868,39 +859,38 @@ open class VulkanRenderer(hub: Hub,
                     pass.value.initializeInputAttachmentDescriptorSetLayouts(shaderModules)
                     pass.value.initializePipeline("preferred-${node.uuid}",
                         shaderModules, settings = { pipeline ->
-                        when (node.material.cullingMode) {
-                            Material.CullingMode.None -> pipeline.rasterizationState.cullMode(VK_CULL_MODE_NONE)
-                            Material.CullingMode.Front -> pipeline.rasterizationState.cullMode(VK_CULL_MODE_FRONT_BIT)
-                            Material.CullingMode.Back -> pipeline.rasterizationState.cullMode(VK_CULL_MODE_BACK_BIT)
-                            Material.CullingMode.FrontAndBack -> pipeline.rasterizationState.cullMode(VK_CULL_MODE_FRONT_AND_BACK)
-                        }
+                        pipeline.rasterizationState.cullMode = when (node.material.cullingMode) {
+                            Material.CullingMode.None -> VkCullMode.NONE
+                            Material.CullingMode.Front -> VkCullMode.FRONT_BIT
+                            Material.CullingMode.Back -> VkCullMode.BACK_BIT
+                            Material.CullingMode.FrontAndBack -> VkCullMode.FRONT_AND_BACK
+                        }.i
 
-                        when (node.material.depthTest) {
-                            Material.DepthTest.Equal -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_EQUAL)
-                            Material.DepthTest.Less -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_LESS)
-                            Material.DepthTest.Greater -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_GREATER)
-                            Material.DepthTest.LessEqual -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_LESS_OR_EQUAL)
-                            Material.DepthTest.GreaterEqual -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_GREATER_OR_EQUAL)
-                            Material.DepthTest.Always -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_ALWAYS)
-                            Material.DepthTest.Never -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_NEVER)
+                        pipeline.depthStencilState.depthCompareOp = when (node.material.depthTest) {
+                            Material.DepthTest.Equal -> VkCompareOp.EQUAL
+                            Material.DepthTest.Less -> VkCompareOp.LESS
+                            Material.DepthTest.Greater -> VkCompareOp.GREATER
+                            Material.DepthTest.LessEqual -> VkCompareOp.LESS_OR_EQUAL
+                            Material.DepthTest.GreaterEqual -> VkCompareOp.GREATER_OR_EQUAL
+                            Material.DepthTest.Always -> VkCompareOp.ALWAYS
+                            Material.DepthTest.Never -> VkCompareOp.NEVER
                         }
 
                         if (node.material.blending.transparent) {
                             with(node.material.blending) {
-                                val blendStates = pipeline.colorBlendState.pAttachments()
-                                for (attachment in 0 until (blendStates?.capacity() ?: 0)) {
-                                    val state = blendStates?.get(attachment)
-
-                                    @Suppress("SENSELESS_COMPARISON", "IfThenToSafeAccess")
-                                    if (state != null) {
-                                        state.blendEnable(true)
-                                            .colorBlendOp(colorBlending.toVulkan())
-                                            .srcColorBlendFactor(sourceColorBlendFactor.toVulkan())
-                                            .dstColorBlendFactor(destinationColorBlendFactor.toVulkan())
-                                            .alphaBlendOp(alphaBlending.toVulkan())
-                                            .srcAlphaBlendFactor(sourceAlphaBlendFactor.toVulkan())
-                                            .dstAlphaBlendFactor(destinationAlphaBlendFactor.toVulkan())
-                                            .colorWriteMask(VK_COLOR_COMPONENT_R_BIT or VK_COLOR_COMPONENT_G_BIT or VK_COLOR_COMPONENT_B_BIT or VK_COLOR_COMPONENT_A_BIT)
+                                pipeline.colorBlendState.attachments?.let { blendStates ->
+                                    for (state in blendStates) {
+                                        @Suppress("SENSELESS_COMPARISON", "IfThenToSafeAccess")
+                                        state.apply {
+                                            blendEnable = true
+                                            colorBlendOp = colorBlending.toVulkan()
+                                            srcColorBlendFactor = sourceColorBlendFactor.toVulkan()
+                                            dstColorBlendFactor = destinationColorBlendFactor.toVulkan()
+                                            alphaBlendOp = alphaBlending.toVulkan()
+                                            srcAlphaBlendFactor = sourceAlphaBlendFactor.toVulkan()
+                                            dstAlphaBlendFactor = destinationAlphaBlendFactor.toVulkan()
+                                            colorWriteMask = VkColorComponent.R_BIT or VkColorComponent.G_BIT or VkColorComponent.B_BIT or VkColorComponent.A_BIT
+                                        }
                                     }
                                 }
                             }
@@ -927,7 +917,7 @@ open class VulkanRenderer(hub: Hub,
                         }
 
                         this.createUniformBuffer()
-                        s.UBOs.put("${pass.key}-ShaderProperties", s.requiredDescriptorSets["ShaderProperties"]!! to this)
+                        s.UBOs["${pass.key}-ShaderProperties"] = s.requiredDescriptorSets["ShaderProperties"]!! to this
                     }
                 }
 
@@ -1064,59 +1054,37 @@ open class VulkanRenderer(hub: Hub,
             }
         }
 
-        s.texturesToDescriptorSet(device, descriptorSetLayouts["ObjectTextures"]!!,
-            VkDescriptorPool(descriptorPool),
-            targetBinding = 0)
+        s.texturesToDescriptorSet(device, descriptorSetLayouts["ObjectTextures"]!!, descriptorPool, targetBinding = 0)
 
         node.lock.unlock()
 
         return s
     }
 
-    protected fun prepareDefaultDescriptorSetLayouts(device: VulkanDevice): ConcurrentHashMap<String, VkDescriptorSetLayout> {
+    protected fun prepareDefaultDescriptorSetLayouts(): ConcurrentHashMap<String, VkDescriptorSetLayout> {
         val m = ConcurrentHashMap<String, VkDescriptorSetLayout>()
 
-        m["Matrices"] = VU.createDescriptorSetLayout(
-            device,
-            listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1)),
-            0,
-            VK_SHADER_STAGE_ALL)
+        m["Matrices"] = VU.createDescriptorSetLayout(vkDev, listOf(VkDescriptorType.UNIFORM_BUFFER_DYNAMIC to 1))
 
-        m["MaterialProperties"] = VU.createDescriptorSetLayout(
-            device,
-            listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1)),
-            0,
-            VK_SHADER_STAGE_ALL)
+        m["MaterialProperties"] = VU.createDescriptorSetLayout(vkDev, listOf(VkDescriptorType.UNIFORM_BUFFER_DYNAMIC to 1))
 
-        m["LightParameters"] = VU.createDescriptorSetLayout(
-            device,
-            listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1)),
-            0,
-            VK_SHADER_STAGE_ALL)
+        m["LightParameters"] = VU.createDescriptorSetLayout(vkDev, listOf(VkDescriptorType.UNIFORM_BUFFER to 1))
 
-        m["ObjectTextures"] = VU.createDescriptorSetLayout(
-            device,
-            listOf(
-                Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 6),
-                Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1)),
-            0,
-            VK_SHADER_STAGE_ALL)
+        m["ObjectTextures"] = VU.createDescriptorSetLayout(vkDev, listOf(
+            VkDescriptorType.COMBINED_IMAGE_SAMPLER to 6,
+            VkDescriptorType.COMBINED_IMAGE_SAMPLER to 1))
 
-        m["VRParameters"] = VU.createDescriptorSetLayout(
-            device,
-            listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1)),
-            0,
-            VK_SHADER_STAGE_ALL)
+        m["VRParameters"] = VU.createDescriptorSetLayout(vkDev, listOf(VkDescriptorType.UNIFORM_BUFFER to 1))
 
         return m
     }
 
-    protected fun prepareDescriptorSets(device: VulkanDevice, descriptorPool: Long) {
-        this.descriptorSets["Matrices"] = VU.createDescriptorSetDynamic(device, descriptorPool,
+    protected fun prepareDescriptorSets(descriptorPool: VkDescriptorPool) {
+        descriptorSets["Matrices"] = VU.createDescriptorSetDynamic(vkDev, descriptorPool,
             descriptorSetLayouts["Matrices"]!!, 1,
             buffers["UBOBuffer"]!!)
 
-        this.descriptorSets["MaterialProperties"] = VU.createDescriptorSetDynamic(device, descriptorPool,
+        descriptorSets["MaterialProperties"] = VU.createDescriptorSetDynamic(vkDev, descriptorPool,
             descriptorSetLayouts["MaterialProperties"]!!, 1,
             buffers["UBOBuffer"]!!)
 
@@ -1133,9 +1101,9 @@ open class VulkanRenderer(hub: Hub,
 
         defaultUBOs["LightParameters"] = lightUbo
 
-        this.descriptorSets["LightParameters"] = VU.createDescriptorSet(device, descriptorPool,
+        this.descriptorSets["LightParameters"] = VkDescriptorSet(VU.createDescriptorSet(device, descriptorPool.L,
             descriptorSetLayouts["LightParameters"]!!, 1,
-            lightUbo.descriptor)
+            lightUbo.descriptor))
 
         val vrUbo = VulkanUBO(device)
 
@@ -1151,9 +1119,9 @@ open class VulkanRenderer(hub: Hub,
 
         defaultUBOs["VRParameters"] = vrUbo
 
-        this.descriptorSets["VRParameters"] = VU.createDescriptorSet(device, descriptorPool,
+        this.descriptorSets["VRParameters"] = VkDescriptorSet(VU.createDescriptorSet(device, descriptorPool.L,
             descriptorSetLayouts["VRParameters"]!!, 1,
-            vrUbo.descriptor)
+            vrUbo.descriptor))
     }
 
     protected fun prepareStandardVertexDescriptors(): ConcurrentHashMap<VertexDataKinds, VertexDescription> {
@@ -1390,136 +1358,140 @@ open class VulkanRenderer(hub: Hub,
 
         config.createRenderpassFlow().map { passName ->
             val passConfig = config.renderpasses[passName]!!
-            val pass = VulkanRenderpass(passName, config, device, descriptorPool, pipelineCache.L, vertexDescriptors)
+            val pass = VulkanRenderpass(passName, config, device, descriptorPool.L, pipelineCache.L, vertexDescriptors)
 
             var width = windowWidth
             var height = windowHeight
 
             // create framebuffer
-            with(VU.newCommandBuffer(device, commandPools.Standard.L, autostart = true)) {
-                config.rendertargets.filter { it.key == passConfig.output }.map { rt ->
-                    logger.info("Creating render framebuffer ${rt.key} for pass $passName")
+            vkDev.newCommandBuffer(commandPools.Standard)
+                .record {
+                    config.rendertargets.filter { it.key == passConfig.output }.map { rt ->
+                        logger.info("Creating render framebuffer ${rt.key} for pass $passName")
 
-                    width = (settings.get<Float>("Renderer.SupersamplingFactor") * windowWidth * rt.value.size.first).toInt()
-                    height = (settings.get<Float>("Renderer.SupersamplingFactor") * windowHeight * rt.value.size.second).toInt()
+                        width = (settings.get<Float>("Renderer.SupersamplingFactor") * windowWidth * rt.value.size.first).toInt()
+                        height = (settings.get<Float>("Renderer.SupersamplingFactor") * windowHeight * rt.value.size.second).toInt()
 
-                    settings.set("Renderer.$passName.displayWidth", width)
-                    settings.set("Renderer.$passName.displayHeight", height)
+                        settings.set("Renderer.$passName.displayWidth", width)
+                        settings.set("Renderer.$passName.displayHeight", height)
 
-                    if (framebuffers.containsKey(rt.key)) {
-                        logger.info("Reusing already created framebuffer")
-                        pass.output.put(rt.key, framebuffers[rt.key]!!)
-                    } else {
+                        if (framebuffers.containsKey(rt.key)) {
+                            logger.info("Reusing already created framebuffer")
+                            pass.output[rt.key] = framebuffers[rt.key]!!
+                        } else {
 
-                        // create framebuffer -- don't clear it, if blitting is needed
-                        val framebuffer = VulkanFramebuffer(this@VulkanRenderer.device, commandPools.Standard,
-                            width, height, this,
-                            shouldClear = !passConfig.blitInputs,
-                            sRGB = renderConfig.sRGB)
+                            // create framebuffer -- don't clear it, if blitting is needed
+                            val framebuffer = VulkanFramebuffer(this@VulkanRenderer.device, commandPools.Standard,
+                                width, height, this,
+                                shouldClear = !passConfig.blitInputs,
+                                sRGB = renderConfig.sRGB)
 
-                        rt.value.attachments.forEach { att ->
-                            logger.info(" + attachment ${att.key}, ${att.value.name}")
+                            rt.value.attachments.forEach { att ->
+                                logger.info(" + attachment ${att.key}, ${att.value.name}")
 
-                            when (att.value) {
-                                RenderConfigReader.TargetFormat.RGBA_Float32 -> framebuffer.addFloatRGBABuffer(att.key, 32)
-                                RenderConfigReader.TargetFormat.RGBA_Float16 -> framebuffer.addFloatRGBABuffer(att.key, 16)
+                                when (att.value) {
+                                    RenderConfigReader.TargetFormat.RGBA_Float32 -> framebuffer.addFloatRGBABuffer(att.key, 32)
+                                    RenderConfigReader.TargetFormat.RGBA_Float16 -> framebuffer.addFloatRGBABuffer(att.key, 16)
 
-                                RenderConfigReader.TargetFormat.RGB_Float32 -> framebuffer.addFloatRGBBuffer(att.key, 32)
-                                RenderConfigReader.TargetFormat.RGB_Float16 -> framebuffer.addFloatRGBBuffer(att.key, 16)
+                                    RenderConfigReader.TargetFormat.RGB_Float32 -> framebuffer.addFloatRGBBuffer(att.key, 32)
+                                    RenderConfigReader.TargetFormat.RGB_Float16 -> framebuffer.addFloatRGBBuffer(att.key, 16)
 
-                                RenderConfigReader.TargetFormat.RG_Float32 -> framebuffer.addFloatRGBuffer(att.key, 32)
-                                RenderConfigReader.TargetFormat.RG_Float16 -> framebuffer.addFloatRGBuffer(att.key, 16)
+                                    RenderConfigReader.TargetFormat.RG_Float32 -> framebuffer.addFloatRGBuffer(att.key, 32)
+                                    RenderConfigReader.TargetFormat.RG_Float16 -> framebuffer.addFloatRGBuffer(att.key, 16)
 
-                                RenderConfigReader.TargetFormat.RGBA_UInt16 -> framebuffer.addUnsignedByteRGBABuffer(att.key, 16)
-                                RenderConfigReader.TargetFormat.RGBA_UInt8 -> framebuffer.addUnsignedByteRGBABuffer(att.key, 8)
-                                RenderConfigReader.TargetFormat.R_UInt16 -> framebuffer.addUnsignedByteRBuffer(att.key, 16)
-                                RenderConfigReader.TargetFormat.R_UInt8 -> framebuffer.addUnsignedByteRBuffer(att.key, 8)
+                                    RenderConfigReader.TargetFormat.RGBA_UInt16 -> framebuffer.addUnsignedByteRGBABuffer(att.key, 16)
+                                    RenderConfigReader.TargetFormat.RGBA_UInt8 -> framebuffer.addUnsignedByteRGBABuffer(att.key, 8)
+                                    RenderConfigReader.TargetFormat.R_UInt16 -> framebuffer.addUnsignedByteRBuffer(att.key, 16)
+                                    RenderConfigReader.TargetFormat.R_UInt8 -> framebuffer.addUnsignedByteRBuffer(att.key, 8)
 
-                                RenderConfigReader.TargetFormat.Depth32 -> framebuffer.addDepthBuffer(att.key, 32)
-                                RenderConfigReader.TargetFormat.Depth24 -> framebuffer.addDepthBuffer(att.key, 24)
-                                RenderConfigReader.TargetFormat.R_Float16 -> framebuffer.addFloatBuffer(att.key, 16)
+                                    RenderConfigReader.TargetFormat.Depth32 -> framebuffer.addDepthBuffer(att.key, 32)
+                                    RenderConfigReader.TargetFormat.Depth24 -> framebuffer.addDepthBuffer(att.key, 24)
+                                    RenderConfigReader.TargetFormat.R_Float16 -> framebuffer.addFloatBuffer(att.key, 16)
+                                }
+
                             }
 
+                            framebuffer.createRenderpassAndFramebuffer()
+                            framebuffer.outputDescriptorSet = VkDescriptorSet(VU.createRenderTargetDescriptorSet(this@VulkanRenderer.device,
+                                descriptorPool.L, descriptorSetLayouts["outputs-${rt.key}"]!!, rt.value.attachments, framebuffer))
+
+                            pass.output[rt.key] = framebuffer
+                            framebuffers[rt.key] = framebuffer
                         }
-
-                        framebuffer.createRenderpassAndFramebuffer()
-                        framebuffer.outputDescriptorSet = VkDescriptorSet(VU.createRenderTargetDescriptorSet(this@VulkanRenderer.device,
-                            descriptorPool, descriptorSetLayouts["outputs-${rt.key}"]!!, rt.value.attachments, framebuffer))
-
-                        pass.output[rt.key] = framebuffer
-                        framebuffers.put(rt.key, framebuffer)
                     }
-                }
 
-                pass.commandBufferCount = swapchain.images.size
+                    pass.commandBufferCount = swapchain.images.size
 
-                if (passConfig.output == "Viewport") {
-                    // create viewport renderpass with swapchain image-derived framebuffer
-                    pass.isViewportRenderpass = true
-                    width = windowWidth
-                    height = windowHeight
+                    if (passConfig.output == "Viewport") {
+                        // create viewport renderpass with swapchain image-derived framebuffer
+                        pass.isViewportRenderpass = true
+                        width = windowWidth
+                        height = windowHeight
 
-                    swapchain.images.forEachIndexed { i, _ ->
-                        val fb = VulkanFramebuffer(this@VulkanRenderer.device, commandPools.Standard,
-                            width, height, this@with, sRGB = renderConfig.sRGB)
+                        for (i in swapchain.images.indices) {
+                            val fb = VulkanFramebuffer(this@VulkanRenderer.device, commandPools.Standard,
+                                width, height, this, sRGB = renderConfig.sRGB).apply {
 
-                        fb.addSwapchainAttachment("swapchain-$i", swapchain, i)
-                        fb.addDepthBuffer("swapchain-$i-depth", 32)
-                        fb.createRenderpassAndFramebuffer()
-
-                        pass.output["Viewport-$i"] = fb
+                                addSwapchainAttachment("swapchain-$i", swapchain, i)
+                                addDepthBuffer("swapchain-$i-depth", 32)
+                                createRenderpassAndFramebuffer()
+                            }
+                            pass.output["Viewport-$i"] = fb
+                        }
                     }
-                }
 
-                pass.vulkanMetadata.clearValues?.free()
-                if (!passConfig.blitInputs) {
-                    pass.vulkanMetadata.clearValues = VkClearValue.calloc(pass.output.values.first().attachments.count())
-                    pass.vulkanMetadata.clearValues?.let { clearValues ->
+                    pass.vulkanMetadata.clearValues?.free()
+                    pass.vulkanMetadata.clearValues = when {
+                        passConfig.blitInputs -> null
+                        else -> VkClearValue.calloc(pass.output.values.first().attachments.count()).also { clearValues ->
 
-                        pass.output.values.first().attachments.values.forEachIndexed { i, att ->
-                            when (att.type) {
-                                VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> {
-                                    clearValues[i].color().float32().put(pass.passConfig.clearColor.toFloatArray())
-                                }
-                                VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> {
-                                    clearValues[i].depthStencil().set(pass.passConfig.depthClearValue, 0)
+                            pass.output.values.first().attachments.values.forEachIndexed { i, att ->
+                                when (att.type) {
+                                    VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> {
+                                        clearValues[i].color().float32().put(pass.passConfig.clearColor.toFloatArray())
+                                    }
+                                    VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> {
+                                        clearValues[i].depthStencil().set(pass.passConfig.depthClearValue, 0)
+                                    }
                                 }
                             }
                         }
                     }
-                } else {
-                    pass.vulkanMetadata.clearValues = null
+
+                    pass.vulkanMetadata.apply {
+
+                        val cfg = pass.passConfig
+
+                        renderArea.apply {
+                            extent(
+                                cfg.viewportSize.first * width,
+                                cfg.viewportSize.second * height)
+                            offset(
+                                cfg.viewportOffset.first * width,
+                                cfg.viewportOffset.second * height)
+                            logger.debug("Render area for $passName: ${extent.width}x${extent.height}")
+                        }
+                        viewport[0].set(
+                            cfg.viewportOffset.first * width,
+                            cfg.viewportOffset.second * height,
+                            cfg.viewportSize.first * width,
+                            cfg.viewportSize.second * height,
+                            0f, 1f)
+
+                        scissor[0].extent(
+                            cfg.viewportSize.first * width,
+                            cfg.viewportSize.second * height)
+
+                        scissor[0].offset(
+                            cfg.viewportOffset.first * width,
+                            cfg.viewportOffset.second * height)
+
+                        eye[0] = pass.passConfig.eye
+                    }
                 }
+                .submit(queue)
 
-                pass.vulkanMetadata.renderArea.extent().set(
-                    (pass.passConfig.viewportSize.first * width).toInt(),
-                    (pass.passConfig.viewportSize.second * height).toInt())
-                pass.vulkanMetadata.renderArea.offset().set(
-                    (pass.passConfig.viewportOffset.first * width).toInt(),
-                    (pass.passConfig.viewportOffset.second * height).toInt())
-                logger.debug("Render area for $passName: ${pass.vulkanMetadata.renderArea.extent().width()}x${pass.vulkanMetadata.renderArea.extent().height()}")
-
-                pass.vulkanMetadata.viewport[0].set(
-                    (pass.passConfig.viewportOffset.first * width),
-                    (pass.passConfig.viewportOffset.second * height),
-                    (pass.passConfig.viewportSize.first * width),
-                    (pass.passConfig.viewportSize.second * height),
-                    0.0f, 1.0f)
-
-                pass.vulkanMetadata.scissor[0].extent().set(
-                    (pass.passConfig.viewportSize.first * width).toInt(),
-                    (pass.passConfig.viewportSize.second * height).toInt())
-
-                pass.vulkanMetadata.scissor[0].offset().set(
-                    (pass.passConfig.viewportOffset.first * width).toInt(),
-                    (pass.passConfig.viewportOffset.second * height).toInt())
-
-                pass.vulkanMetadata.eye.put(0, pass.passConfig.eye)
-
-                endCommandBuffer(this@VulkanRenderer.device, commandPools.Standard.L, this@VulkanRenderer.queue, flush = true)
-            }
-
-            renderpasses.put(passName, pass)
+            renderpasses[passName] = pass
         }
 
         // connect inputs with each othe
@@ -1527,14 +1499,9 @@ open class VulkanRenderer(hub: Hub,
             val passConfig = config.renderpasses[pass.key]!!
 
             passConfig.inputs?.forEach { inputTarget ->
-                val targetName = if (inputTarget.contains(".")) {
-                    inputTarget.substringBefore(".")
-                } else {
-                    inputTarget
-                }
-                renderpasses.filter {
-                    it.value.output.keys.contains(targetName)
-                }.forEach { pass.value.inputs[inputTarget] = it.value.output[targetName]!! }
+                val targetName = inputTarget.substringBefore(".")
+                renderpasses.filter { targetName in it.value.output.keys }
+                    .forEach { pass.value.inputs[inputTarget] = it.value.output[targetName]!! }
             }
 
             with(pass.value) {
@@ -1651,40 +1618,36 @@ open class VulkanRenderer(hub: Hub,
             }
 
             screenshotBuffer?.let { sb ->
-                with(VU.newCommandBuffer(device, commandPools.Render.L, autostart = true)) {
-                    val subresource = VkImageSubresourceLayers.calloc()
-                        .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
-                        .mipLevel(0)
-                        .baseArrayLayer(0)
-                        .layerCount(1)
+                vkDev.newCommandBuffer(commandPools.Render)
+                    .record {
+                        val subresource = vk.ImageSubresourceLayers {
+                            aspectMask = VkImageAspect.COLOR_BIT.i
+                            mipLevel = 0
+                            baseArrayLayer = 0
+                            layerCount = 1
+                        }
+                        val region = vk.BufferImageCopy {
+                            bufferRowLength = 0
+                            bufferImageHeight = 0
+                            imageOffset(0)
+                            imageExtent(window.width, window.height, 1)
+                            imageSubresource = subresource
+                        }
+                        val image = swapchain.images[pass.getReadPosition()]
 
-                    val regions = VkBufferImageCopy.calloc(1)
-                        .bufferRowLength(0)
-                        .bufferImageHeight(0)
-                        .imageOffset(VkOffset3D.calloc().set(0, 0, 0))
-                        .imageExtent(VkExtent3D.calloc().set(window.width, window.height, 1))
-                        .imageSubresource(subresource)
+                        VulkanTexture.transitionLayout(image.L,
+                            VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                            commandBuffer = this)
 
-                    val image = swapchain.images[pass.getReadPosition()]
+                        copyImageToBuffer(image, VkImageLayout.TRANSFER_SRC_OPTIMAL, sb.vulkanBuffer, region)
 
-                    VulkanTexture.transitionLayout(image.L,
-                        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                        commandBuffer = this)
-
-                    vkCmdCopyImageToBuffer(this, image.L,
-                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                        sb.vulkanBuffer.L,
-                        regions)
-
-                    VulkanTexture.transitionLayout(image.L,
-                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                        commandBuffer = this)
-
-                    endCommandBuffer(this@VulkanRenderer.device, commandPools.Render.L, queue,
-                        flush = true, dealloc = true)
-                }
+                        VulkanTexture.transitionLayout(image.L,
+                            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                            VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                            commandBuffer = this)
+                    }
+                    .submit(queue).deallocate()
 
                 if (screenshotRequested) {
                     sb.copyTo(imageBuffer!!)
@@ -2048,9 +2011,9 @@ open class VulkanRenderer(hub: Hub,
 
         val vertexAllocationBytes: Long = 4L * (n.vertices.remaining() + n.normals.remaining() + n.texcoords.remaining())
         val indexAllocationBytes: Long = 4L * n.indices.remaining()
-        val fullAllocationBytes: Long = vertexAllocationBytes + indexAllocationBytes
+        val fullAllocationBytes = VkDeviceSize(vertexAllocationBytes + indexAllocationBytes)
 
-        val stridedBuffer = je_malloc(fullAllocationBytes)
+        val stridedBuffer = je_malloc(fullAllocationBytes.L)
 
         if (stridedBuffer == null) {
             logger.error("Allocation failed, skipping vertex buffer creation for ${node.name}.")
@@ -2096,7 +2059,7 @@ open class VulkanRenderer(hub: Hub,
         n.indices.flip()
 
         val stagingBuffer = VulkanBuffer(device,
-            VkDeviceSize(fullAllocationBytes),
+            fullAllocationBytes,
             VkBufferUsage.TRANSFER_SRC_BIT.i,
             VkMemoryProperty.HOST_VISIBLE_BIT.i,
             wantAligned = false)
@@ -2104,31 +2067,26 @@ open class VulkanRenderer(hub: Hub,
         stagingBuffer.copyFrom(stridedBuffer)
 
         val vertexIndexBuffer = state.vertexBuffers["vertex+index"]
-        val vertexBuffer = if (vertexIndexBuffer != null && vertexIndexBuffer.size.L >= fullAllocationBytes) {
+        val vertexBuffer = if (vertexIndexBuffer != null && vertexIndexBuffer.size.L >= fullAllocationBytes.L) {
             logger.debug("Reusing existing vertex+index buffer for {} update", node.name)
             vertexIndexBuffer
         } else {
             logger.debug("Creating new vertex+index buffer for {} with {} bytes", node.name, fullAllocationBytes)
-            geometryPool.createBuffer(VkDeviceSize(fullAllocationBytes))
+            geometryPool.createBuffer(fullAllocationBytes)
         }
 
         logger.debug("Using VulkanBuffer {} for vertex+index storage, offset={}", vertexBuffer.vulkanBuffer.asHexString, vertexBuffer.bufferOffset)
 
-        logger.debug("Initiating copy with 0->${vertexBuffer.bufferOffset}, size=$fullAllocationBytes")
-        val copyRegion = VkBufferCopy.calloc(1)
-            .srcOffset(0)
-            .dstOffset(vertexBuffer.bufferOffset.L)
-            .size(fullAllocationBytes)
-
-        with(VU.newCommandBuffer(device, commandPools.Standard.L, autostart = true)) {
-            vkCmdCopyBuffer(this,
-                stagingBuffer.vulkanBuffer.L,
-                vertexBuffer.vulkanBuffer.L,
-                copyRegion)
-            this.endCommandBuffer(device, commandPools.Standard.L, queue, flush = true, dealloc = true)
+        logger.debug("Initiating copy with 0->${vertexBuffer.bufferOffset}, size=${fullAllocationBytes.L}")
+        val copyRegion = vk.BufferCopy {
+            dstOffset = vertexBuffer.bufferOffset
+            size = fullAllocationBytes
         }
-
-        copyRegion.free()
+        vkDev.newCommandBuffer(commandPools.Standard)
+            .record {
+                copyBuffer(stagingBuffer.vulkanBuffer, vertexBuffer.vulkanBuffer, copyRegion)
+            }
+            .submit(queue).deallocate()
 
         state.vertexBuffers.put("vertex+index", vertexBuffer)?.run {
             // check if vertex buffer has been replaced, if yes, close the old one
@@ -2213,58 +2171,35 @@ open class VulkanRenderer(hub: Hub,
             buffer
         }
 
-        with(VU.newCommandBuffer(device, commandPools.Standard.L, autostart = true)) {
-            val copyRegion = VkBufferCopy.calloc(1)
-                .size(instanceBufferSize.L)
-
-            vkCmdCopyBuffer(this,
-                stagingBuffer.vulkanBuffer.L,
-                instanceBuffer.vulkanBuffer.L,
-                copyRegion)
-
-            copyRegion.free()
-            this.endCommandBuffer(device, commandPools.Standard.L, queue, flush = true, dealloc = true)
-        }
+        vkDev.newCommandBuffer(commandPools.Standard)
+            .record {
+                val copyRegion = vk.BufferCopy { size = instanceBufferSize }
+                copyBuffer(stagingBuffer.vulkanBuffer, instanceBuffer.vulkanBuffer, copyRegion)
+            }
+            .submit(queue).deallocate()
 
         state.instanceCount = parentNode.instances.size
 
         return state
     }
 
-    private fun createDescriptorPool(device: VulkanDevice): Long {
-        return stackPush().use { stack ->
+    private fun createDescriptorPool(): VkDescriptorPool {
+
             // We need to tell the API the number of max. requested descriptors per type
-            val typeCounts = VkDescriptorPoolSize.callocStack(4, stack)
-            typeCounts[0]
-                .type(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
-                .descriptorCount(MAX_TEXTURES)
-
-            typeCounts[1]
-                .type(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC)
-                .descriptorCount(MAX_UBOS)
-
-            typeCounts[2]
-                .type(VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT)
-                .descriptorCount(MAX_INPUT_ATTACHMENTS)
-
-            typeCounts[3]
-                .type(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
-                .descriptorCount(MAX_UBOS)
+            val typeCounts = vk.DescriptorPoolSize(
+                VkDescriptorType.COMBINED_IMAGE_SAMPLER, MAX_TEXTURES,
+                VkDescriptorType.UNIFORM_BUFFER_DYNAMIC, MAX_UBOS,
+                VkDescriptorType.INPUT_ATTACHMENT, MAX_INPUT_ATTACHMENTS,
+                VkDescriptorType.UNIFORM_BUFFER, MAX_UBOS)
 
             // Create the global descriptor pool
             // All descriptors used in this example are allocated from this pool
-            val descriptorPoolInfo = VkDescriptorPoolCreateInfo.callocStack(stack)
-                .sType(VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO)
-                .pNext(NULL)
-                .pPoolSizes(typeCounts)
-                .maxSets(MAX_TEXTURES + MAX_UBOS + MAX_INPUT_ATTACHMENTS + MAX_UBOS)// Set the max. number of sets that can be requested
-                .flags(VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT)
-
-            val descriptorPool = VU.getLong("vkCreateDescriptorPool",
-                { vkCreateDescriptorPool(device.vulkanDevice, descriptorPoolInfo, null, this) }, {})
-
-            descriptorPool
-        }
+            val descriptorPoolInfo = vk.DescriptorPoolCreateInfo {
+                poolSizes = typeCounts
+                maxSets =MAX_TEXTURES + MAX_UBOS + MAX_INPUT_ATTACHMENTS + MAX_UBOS // Set the max. number of sets that can be requested
+                flags = VkDescriptorPoolCreate.FREE_DESCRIPTOR_SET_BIT.i
+            }
+            return vkDev createDescriptorPool descriptorPoolInfo
     }
 
     private fun prepareDefaultBuffers(device: VulkanDevice, bufferStorage: ConcurrentHashMap<String, VulkanBuffer>) {
@@ -2560,7 +2495,7 @@ open class VulkanRenderer(hub: Hub,
                         }
 
                         name == "ObjectTextures" -> {
-                            DescriptorSet.setOrNull(s.textureDescriptorSet.L, setName = "ObjectTextures")
+                            DescriptorSet.setOrNull(s.textureDescriptorSet, setName = "ObjectTextures")
                         }
 
                         name.startsWith("Inputs") -> {
@@ -2591,7 +2526,7 @@ open class VulkanRenderer(hub: Hub,
                 }
                 logger.debug("${node.name} requires DS ${specs.joinToString { "${it.key}, " }}")
 
-                val requiredSets = sets.filter { it !is DescriptorSet.None }.map { it.id }.toLongArray()
+                val requiredSets = sets.filter { it !is DescriptorSet.None }.map { it.id.L }.toLongArray()
                 if (pass.vulkanMetadata.descriptorSets.capacity() < requiredSets.size) {
                     logger.debug("Reallocating descriptor set storage")
                     memFree(pass.vulkanMetadata.descriptorSets)
@@ -2737,7 +2672,7 @@ open class VulkanRenderer(hub: Hub,
 
             if (set != null) {
                 logger.trace("Adding DS#{} for {} to required pipeline DSs", i, dsName)
-                this.descriptorSets.put(i, set)
+                this.descriptorSets.put(i, set.L)
             } else {
                 logger.error("DS for {} not found!", dsName)
             }
@@ -2772,11 +2707,11 @@ open class VulkanRenderer(hub: Hub,
         }
     }
 
-    private fun getDescriptorCache(): ConcurrentHashMap<String, Long> {
+    private fun getDescriptorCache(): ConcurrentHashMap<String, VkDescriptorSet> {
         @Suppress("UNCHECKED_CAST")
         return scene.metadata.getOrPut("DescriptorCache") {
-            ConcurrentHashMap<String, Long>()
-        } as? ConcurrentHashMap<String, Long>
+            ConcurrentHashMap<String, VkDescriptorSet>()
+        } as? ConcurrentHashMap<String, VkDescriptorSet>
             ?: throw IllegalStateException("Could not retrieve descriptor cache from scene")
     }
 
@@ -2820,7 +2755,7 @@ open class VulkanRenderer(hub: Hub,
         })
         vrUbo.add("headShift", { hmd?.getHeadToEyeTransform(0) ?: GLMatrix.getIdentity() })
         vrUbo.add("IPD", { hmd?.getIPD() ?: 0.05f })
-        vrUbo.add("stereoEnabled", { renderConfig.stereoEnabled.toInt() })
+        vrUbo.add("stereoEnabled", { renderConfig.stereoEnabled.i })
 
         updated = vrUbo.populate()
 
@@ -2977,7 +2912,7 @@ open class VulkanRenderer(hub: Hub,
 
         logger.debug("Closing descriptor sets and pools...")
         descriptorSetLayouts.forEach { vkDestroyDescriptorSetLayout(device.vulkanDevice, it.value.L, null) }
-        vkDestroyDescriptorPool(device.vulkanDevice, descriptorPool, null)
+        vkDestroyDescriptorPool(device.vulkanDevice, descriptorPool.L, null)
 
         logger.debug("Closing command buffers...")
         ph.commandBuffers.free()

@@ -5,10 +5,7 @@ import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.*
 import graphics.scenery.backends.Display
-import graphics.scenery.backends.vulkan.VU
-import graphics.scenery.backends.vulkan.VulkanDevice
-import graphics.scenery.backends.vulkan.VulkanTexture
-import graphics.scenery.backends.vulkan.endCommandBuffer
+import graphics.scenery.backends.vulkan.*
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.openvr.*
 import org.lwjgl.openvr.VR.*
@@ -24,16 +21,15 @@ import org.scijava.ui.behaviour.BehaviourMap
 import org.scijava.ui.behaviour.InputTriggerMap
 import org.scijava.ui.behaviour.MouseAndKeyHandler
 import org.scijava.ui.behaviour.io.InputTriggerConfig
+import vkk.`object`.VkCommandPool
 import java.awt.Component
 import java.awt.event.KeyEvent
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.nio.charset.Charset
-import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
-import kotlin.collections.ArrayList
 import kotlin.math.absoluteValue
 
 /**
@@ -52,8 +48,10 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
     override var hub: Hub? = null
 
     /** Has the HMD already been initialised? */
-    @Volatile protected var initialized = false
-    @Volatile protected var compositorInitialized = false
+    @Volatile
+    protected var initialized = false
+    @Volatile
+    protected var compositorInitialized = false
 
     /** OpenVR poses structure for all tracked device */
     protected var hmdTrackedDevicePoses: TrackedDevicePose.Buffer = TrackedDevicePose.calloc(k_unMaxTrackedDeviceCount)
@@ -93,7 +91,8 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
     /** disables submission in case of compositor errors */
     protected var disableSubmission: Boolean = false
 
-    @Volatile protected var readyForSubmission: Boolean = false
+    @Volatile
+    protected var readyForSubmission: Boolean = false
         private set
 
     protected val inputHandler = MouseAndKeyHandler()
@@ -156,7 +155,7 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
                 logger.info("Initialized device $manufacturer $trackingSystemName $driverVersion with render target size ${getRenderTargetSize().x()}x${getRenderTargetSize().y()}")
             }
 
-        } catch(e: UnsatisfiedLinkError) {
+        } catch (e: UnsatisfiedLinkError) {
             logger.error("OpenVR support library not found, skipping initialization.")
             logger.error(e.message + "\n" + e.stackTrace.joinToString("\n"))
             initialized = false
@@ -167,7 +166,7 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
      * Initialises the OpenVR compositor
      */
     fun initCompositor() {
-        if(!initialized) {
+        if (!initialized) {
             return
         }
 
@@ -199,7 +198,7 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
      * @returns the [TrackerInput] if that is the case, null otherwise.
      */
     override fun getWorkingTracker(): TrackerInput? {
-        return if(initialized) {
+        return if (initialized) {
             this
         } else {
             null
@@ -212,7 +211,7 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
      * @return Either a [Display] instance, or null.
      */
     override fun getWorkingDisplay(): Display? {
-        return if(initialized) {
+        return if (initialized) {
             this
         } else {
             null
@@ -234,10 +233,10 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
      * @return Render target size as 2D vector
      */
     final override fun getRenderTargetSize(): GLVector {
-            val x = memAllocInt(1)
-            val y = memAllocInt(1)
+        val x = memAllocInt(1)
+        val y = memAllocInt(1)
 
-            VRSystem_GetRecommendedRenderTargetSize(x, y)
+        VRSystem_GetRecommendedRenderTargetSize(x, y)
 
         val width = x.get(0).toFloat()
         val height = y.get(0).toFloat()
@@ -273,7 +272,8 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
      * @param[eye] The index of the eye
      * @return GLMatrix containing the per-eye projection matrix
      */
-    @Synchronized override fun getEyeProjection(eye: Int, nearPlane: Float, farPlane: Float): GLMatrix {
+    @Synchronized
+    override fun getEyeProjection(eye: Int, nearPlane: Float, farPlane: Float): GLMatrix {
         if (eyeProjectionCache[eye] == null) {
             val projection = HmdMatrix44.calloc()
             VRSystem_GetProjectionMatrix(eye, nearPlane, farPlane, projection)
@@ -290,7 +290,8 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
      * @param[eye] The eye index
      * @return GLMatrix containing the transform
      */
-    @Synchronized override fun getHeadToEyeTransform(eye: Int): GLMatrix {
+    @Synchronized
+    override fun getHeadToEyeTransform(eye: Int): GLMatrix {
         if (eyeTransformCache[eye] == null) {
             val transform = HmdMatrix34.calloc()
             VRSystem_GetEyeToHeadTransform(eye, transform)
@@ -300,7 +301,7 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
             // pose contains the identity for the left eye, and the full IPD/shift transformation for
             // the right eye. The developers claim this is for reprojection to work correctly. See also
             // https://github.com/LibreVR/Revive/issues/893
-            if(manufacturer.contains("WindowsMR")) {
+            if (manufacturer.contains("WindowsMR")) {
                 eyeTransformCache[eye] = transform.toGLMatrix()
             } else {
                 eyeTransformCache[eye] = transform.toGLMatrix()
@@ -380,7 +381,8 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
     /**
      * Queries the OpenVR runtime for updated poses and stores them
      */
-    @Synchronized override fun update() {
+    @Synchronized
+    override fun update() {
         if (!initialized) {
             return
         }
@@ -459,13 +461,13 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
                     TrackedDevice(type, deviceName, GLMatrix.getIdentity(), timestamp = System.nanoTime())
                 })
 
-                if(type == TrackedDeviceType.Controller) {
+                if (type == TrackedDeviceType.Controller) {
                     if (d.metadata !is VRControllerState) {
                         d.metadata = VRControllerState.calloc()
                     }
 
                     val state = d.metadata as? VRControllerState
-                    if(state != null) {
+                    if (state != null) {
                         VRSystem_GetControllerState(device, state)
 
                         val role = VRSystem_GetControllerRoleForTrackedDeviceIndex(device)
@@ -495,8 +497,8 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
         }
 
         val event = VREvent.calloc()
-        while(VRSystem_PollNextEvent(event)) {
-            if(event.eventType() == EVREventType_VREvent_ButtonUnpress) {
+        while (VRSystem_PollNextEvent(event)) {
+            if (event.eventType() == EVREventType_VREvent_ButtonUnpress) {
                 val button = event.data().controller().button()
                 val role = VRSystem_GetControllerRoleForTrackedDeviceIndex(event.trackedDeviceIndex())
 
@@ -507,7 +509,7 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
                 logger.debug("Button $button pressed")
             }
 
-            if(event.eventType() == EVREventType_VREvent_MouseMove) {
+            if (event.eventType() == EVREventType_VREvent_MouseMove) {
                 val x = event.data().mouse().x()
                 val y = event.data().mouse().y()
                 val down = event.data().mouse().button()
@@ -532,19 +534,19 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
     data class AWTKey(val code: Int, val char: Char)
 
     private fun OpenVRButton.toKeyEvent(role: Int): KeyEvent {
-        return KeyEvent(object: Component() {}, KeyEvent.KEY_PRESSED, 1, 0, this.toAWTKeyCode(role).code, this.toAWTKeyCode(role).char)
+        return KeyEvent(object : Component() {}, KeyEvent.KEY_PRESSED, 1, 0, this.toAWTKeyCode(role).code, this.toAWTKeyCode(role).char)
     }
 
     private fun OpenVRButton.toAWTKeyCode(role: Int = 0): AWTKey {
         return when {
             this == OpenVRHMD.OpenVRButton.Left && role == ETrackedControllerRole_TrackedControllerRole_LeftHand -> AWTKey(KeyEvent.VK_H, KeyEvent.CHAR_UNDEFINED)
             this == OpenVRHMD.OpenVRButton.Right && role == ETrackedControllerRole_TrackedControllerRole_LeftHand -> AWTKey(KeyEvent.VK_L, KeyEvent.CHAR_UNDEFINED)
-            this == OpenVRHMD.OpenVRButton.Up  && role == ETrackedControllerRole_TrackedControllerRole_LeftHand -> AWTKey(KeyEvent.VK_K, KeyEvent.CHAR_UNDEFINED)
+            this == OpenVRHMD.OpenVRButton.Up && role == ETrackedControllerRole_TrackedControllerRole_LeftHand -> AWTKey(KeyEvent.VK_K, KeyEvent.CHAR_UNDEFINED)
             this == OpenVRHMD.OpenVRButton.Down && role == ETrackedControllerRole_TrackedControllerRole_LeftHand -> AWTKey(KeyEvent.VK_J, KeyEvent.CHAR_UNDEFINED)
 
             this == OpenVRHMD.OpenVRButton.Left && role == ETrackedControllerRole_TrackedControllerRole_RightHand -> AWTKey(KeyEvent.VK_A, KeyEvent.CHAR_UNDEFINED)
             this == OpenVRHMD.OpenVRButton.Right && role == ETrackedControllerRole_TrackedControllerRole_RightHand -> AWTKey(KeyEvent.VK_D, KeyEvent.CHAR_UNDEFINED)
-            this == OpenVRHMD.OpenVRButton.Up  && role == ETrackedControllerRole_TrackedControllerRole_RightHand -> AWTKey(KeyEvent.VK_W, KeyEvent.CHAR_UNDEFINED)
+            this == OpenVRHMD.OpenVRButton.Up && role == ETrackedControllerRole_TrackedControllerRole_RightHand -> AWTKey(KeyEvent.VK_W, KeyEvent.CHAR_UNDEFINED)
             this == OpenVRHMD.OpenVRButton.Down && role == ETrackedControllerRole_TrackedControllerRole_RightHand -> AWTKey(KeyEvent.VK_S, KeyEvent.CHAR_UNDEFINED)
 
             this == OpenVRHMD.OpenVRButton.Menu -> AWTKey(KeyEvent.VK_M, KeyEvent.CHAR_UNDEFINED)
@@ -574,7 +576,8 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
      *
      * @param[textureId] OpenGL Texture ID of the left eye texture
      */
-    @Synchronized override fun submitToCompositor(textureId: Int) {
+    @Synchronized
+    override fun submitToCompositor(textureId: Int) {
         stackPush().use { stack ->
             try {
                 if (disableSubmission || !readyForSubmission) {
@@ -632,7 +635,7 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
 
             readyForSubmission = false
 
-            if(commandPool == -1L) {
+            if (commandPool == -1L) {
                 commandPool = device.createCommandPool(device.queueIndices.graphicsQueue).L
             }
 
@@ -645,19 +648,19 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
 
             // transition input texture to VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
             // as expected by SteamVR.
-            with(VU.newCommandBuffer(device, commandPool, autostart = true)) {
-                // transition source attachment
-                VulkanTexture.transitionLayout(image,
-                    KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                    VK10.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                    subresourceRange = subresourceRange,
-                    commandBuffer = this,
-                    srcStage = VK10.VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                    dstStage = VK10.VK_PIPELINE_STAGE_TRANSFER_BIT
-                )
-
-                endCommandBuffer(device, commandPool, queue, true, true)
-            }
+            device.vulkanDevice.newCommandBuffer(VkCommandPool(commandPool))
+                .record {
+                    // transition source attachment
+                    VulkanTexture.transitionLayout(image,
+                        KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                        VK10.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                        subresourceRange = subresourceRange,
+                        commandBuffer = this,
+                        srcStage = VK10.VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                        dstStage = VK10.VK_PIPELINE_STAGE_TRANSFER_BIT
+                    )
+                }
+                .submit(queue).deallocate()
 
             logger.trace("Submitting left...")
             val boundsLeft = VRTextureBounds.callocStack(stack).set(0.0f, 0.0f, 0.5f, 1.0f)
@@ -673,7 +676,8 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
             }
 
             // transition texture back to VK_IMAGE_LAYOUT_PRESENT_SRC_KHR.
-            with(VU.newCommandBuffer(device, commandPool, autostart = true)) {
+            device.vulkanDevice.newCommandBuffer(VkCommandPool(commandPool))
+                .record{
                 // transition source attachment
                 VulkanTexture.transitionLayout(image,
                     VK10.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
@@ -683,9 +687,8 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
                     srcStage = VK10.VK_PIPELINE_STAGE_TRANSFER_BIT,
                     dstStage = VK10.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
                 )
-
-                endCommandBuffer(device, commandPool, queue, true, true)
             }
+                .submit(queue).deallocate()
         }
     }
 
@@ -789,7 +792,8 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
      * @return HMD pose as GLMatrix
      */
     override fun getPose(): GLMatrix {
-        return this.trackedDevices.values.firstOrNull { it.type == TrackedDeviceType.HMD }?.pose ?: GLMatrix.getIdentity()
+        return this.trackedDevices.values.firstOrNull { it.type == TrackedDeviceType.HMD }?.pose
+            ?: GLMatrix.getIdentity()
     }
 
     /**
@@ -860,8 +864,8 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
             val error = stack.callocInt(1)
 
             val l = VRRenderModels_GetRenderModelOriginalPath(modelName, pathBuffer, error)
-            val pathArray = ByteArray(l-1)
-            pathBuffer.get(pathArray, 0, l-1)
+            val pathArray = ByteArray(l - 1)
+            pathBuffer.get(pathArray, 0, l - 1)
             val path = String(pathArray, Charset.forName("UTF-8"))
 
             logger.info("Loading model for $modelName from $path")
@@ -887,7 +891,7 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
      * @param[mesh] The [Mesh] to attach the model data to.
      */
     override fun loadModelForMesh(type: TrackedDeviceType, mesh: Mesh): Mesh {
-        var modelName = when(type) {
+        var modelName = when (type) {
             TrackedDeviceType.HMD -> "generic_hmd"
             TrackedDeviceType.Controller -> "vr_controller_vive_1_5"
             TrackedDeviceType.BaseStation -> "lh_basestation_vive"
@@ -910,8 +914,8 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
             }
 
             val l = VRRenderModels_GetRenderModelOriginalPath(modelName, pathBuffer, error)
-            val pathArray = ByteArray(l-1)
-            pathBuffer.get(pathArray, 0, l-1)
+            val pathArray = ByteArray(l - 1)
+            pathBuffer.get(pathArray, 0, l - 1)
             val path = String(pathArray, Charset.forName("UTF-8"))
 
             logger.info("Loading model for $modelName from $path")
@@ -948,7 +952,7 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
      * @param[camera] A camera, in case the node should also be added as a child to the camera.
      */
     override fun attachToNode(device: TrackedDevice, node: Node, camera: Camera?) {
-        if(device.type != TrackedDeviceType.Controller) {
+        if (device.type != TrackedDeviceType.Controller) {
             logger.warn("No idea how to attach device type ${device.type} to a node, sorry.")
             return
         }

@@ -5,12 +5,16 @@ import cleargl.TGAReader
 import glm_.L
 import graphics.scenery.GenericTexture
 import graphics.scenery.utils.LazyLogger
-import kool.cap
+import kool.free
+import kool.rem
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkImageCreateInfo
+import vkk.*
+import vkk.`object`.VkDeviceMemory
 import vkk.`object`.VkDeviceSize
+import vkk.`object`.VkImage
 import java.awt.Color
 import java.awt.color.ColorSpace
 import java.awt.geom.AffineTransform
@@ -36,10 +40,10 @@ import kotlin.streams.toList
  * @author Ulrik Günther <hello@ulrik.is>
  */
 open class VulkanTexture(val device: VulkanDevice,
-                    val commandPools: VulkanRenderer.CommandPools, val queue: VkQueue, val transferQueue: VkQueue,
-                    val width: Int, val height: Int, val depth: Int = 1,
-                    val format: Int = VK_FORMAT_R8G8B8_SRGB, var mipLevels: Int = 1,
-                    val minFilterLinear: Boolean = true, val maxFilterLinear: Boolean = true) : AutoCloseable {
+                         val commandPools: VulkanRenderer.CommandPools, val queue: VkQueue, val transferQueue: VkQueue,
+                         val width: Int, val height: Int, val depth: Int = 1,
+                         val format: Int = VK_FORMAT_R8G8B8_SRGB, var mipLevels: Int = 1,
+                         val minFilterLinear: Boolean = true, val maxFilterLinear: Boolean = true) : AutoCloseable {
     protected val logger by LazyLogger()
 
     /** The Vulkan image associated with this texture. */
@@ -48,6 +52,8 @@ open class VulkanTexture(val device: VulkanDevice,
 
     private var stagingImage: VulkanImage
     private var gt: GenericTexture? = null
+
+    val vkDev get() = device.vulkanDevice
 
     /**
      * Wrapper class for holding on to raw Vulkan [image]s backed by [memory].
@@ -119,7 +125,7 @@ open class VulkanTexture(val device: VulkanDevice,
     }
 
     init {
-        stagingImage = if(depth == 1) {
+        stagingImage = if (depth == 1) {
             createImage(width, height, depth,
                 format, VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
                 VK_IMAGE_TILING_LINEAR,
@@ -166,7 +172,7 @@ open class VulkanTexture(val device: VulkanDevice,
     fun createImage(width: Int, height: Int, depth: Int, format: Int,
                     usage: Int, tiling: Int, memoryFlags: Int, mipLevels: Int,
                     customAllocator: ((VkMemoryRequirements, Long) -> Long)? = null, imageCreateInfo: VkImageCreateInfo? = null): VulkanImage {
-        val imageInfo = if(imageCreateInfo != null) {
+        val imageInfo = if (imageCreateInfo != null) {
             imageCreateInfo
         } else {
             val i = VkImageCreateInfo.calloc()
@@ -180,7 +186,11 @@ open class VulkanTexture(val device: VulkanDevice,
                 .arrayLayers(1)
                 .format(format)
                 .tiling(tiling)
-                .initialLayout(if(depth == 1) {VK_IMAGE_LAYOUT_PREINITIALIZED} else { VK_IMAGE_LAYOUT_UNDEFINED })
+                .initialLayout(if (depth == 1) {
+                    VK_IMAGE_LAYOUT_PREINITIALIZED
+                } else {
+                    VK_IMAGE_LAYOUT_UNDEFINED
+                })
                 .usage(usage)
                 .sharingMode(VK_SHARING_MODE_EXCLUSIVE)
                 .samples(VK_SAMPLE_COUNT_1_BIT)
@@ -197,7 +207,7 @@ open class VulkanTexture(val device: VulkanDevice,
         vkGetImageMemoryRequirements(device.vulkanDevice, image, reqs)
         val memorySize = reqs.size()
 
-        val memory = if(customAllocator == null) {
+        val memory = if (customAllocator == null) {
             val allocInfo = VkMemoryAllocateInfo.calloc()
                 .sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO)
                 .pNext(NULL)
@@ -274,55 +284,28 @@ open class VulkanTexture(val device: VulkanDevice,
             }
         }
 
+        val sourceBufferSize = VkDeviceSize(sourceBuffer.rem.L)
         if (mipLevels == 1) {
-            var buffer: VulkanBuffer? = null
-            with(VU.newCommandBuffer(device, commandPools.Standard.L, autostart = true)) {
-                if (depth == 1) {
-                    val dest = memAllocPointer(1)
-                    vkMapMemory(device, stagingImage.memory, 0, sourceBuffer.remaining() * 1L, 0, dest)
-                    memCopy(memAddress(sourceBuffer), dest.get(0), sourceBuffer.remaining().toLong())
-                    vkUnmapMemory(device, stagingImage.memory)
-                    memFree(dest)
-
-                    transitionLayout(stagingImage.image,
-                        VK_IMAGE_LAYOUT_PREINITIALIZED,
-                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, mipLevels,
-                        srcStage = VK_PIPELINE_STAGE_HOST_BIT,
-                        dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                        commandBuffer = this)
-                    transitionLayout(image.image,
-                        VK_IMAGE_LAYOUT_PREINITIALIZED,
-                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevels,
-                        srcStage = VK_PIPELINE_STAGE_HOST_BIT,
-                        dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                        commandBuffer = this)
-
-                    image.copyFrom(this, stagingImage)
-
-                    transitionLayout(image.image,
-                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, mipLevels,
-                        srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                        dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                        commandBuffer = this)
-                } else {
-                    buffer = VulkanBuffer(this@VulkanTexture.device,
-                        VkDeviceSize(sourceBuffer.cap.L),
-                        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                        wantAligned = false)
-
-                    buffer?.let { buffer ->
-                        buffer.copyFrom(sourceBuffer)
-
+            vkDev.newCommandBuffer(commandPools.Standard)
+                .record {
+                    if (depth == 1) {
+                        device.mappedMemory(VkDeviceMemory(stagingImage.memory), VkDeviceSize(0), sourceBufferSize) { dest ->
+                            sourceBuffer copyTo dest
+                        }
+                        transitionLayout(stagingImage.image,
+                            VK_IMAGE_LAYOUT_PREINITIALIZED,
+                            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, mipLevels,
+                            srcStage = VK_PIPELINE_STAGE_HOST_BIT,
+                            dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                            commandBuffer = this)
                         transitionLayout(image.image,
-                            VK_IMAGE_LAYOUT_UNDEFINED,
+                            VK_IMAGE_LAYOUT_PREINITIALIZED,
                             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevels,
                             srcStage = VK_PIPELINE_STAGE_HOST_BIT,
                             dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
                             commandBuffer = this)
 
-                        image.copyFrom(this, buffer)
+                        image.copyFrom(this, stagingImage)
 
                         transitionLayout(image.image,
                             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
@@ -330,120 +313,138 @@ open class VulkanTexture(val device: VulkanDevice,
                             srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
                             dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                             commandBuffer = this)
+                    } else {
+                        VulkanBuffer(this@VulkanTexture.device,
+                            sourceBufferSize,
+                            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                            wantAligned = false).use { buf ->
+
+                            buf.copyFrom(sourceBuffer)
+
+                            transitionLayout(image.image,
+                                VK_IMAGE_LAYOUT_UNDEFINED,
+                                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevels,
+                                srcStage = VK_PIPELINE_STAGE_HOST_BIT,
+                                dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                commandBuffer = this)
+
+                            image.copyFrom(this, buf)
+
+                            transitionLayout(image.image,
+                                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, mipLevels,
+                                srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                                commandBuffer = this)
+                        }
                     }
                 }
-
-                endCommandBuffer(this@VulkanTexture.device, commandPools.Standard.L, transferQueue, flush = true, dealloc = true, block = true)
-                buffer?.close()
-            }
+                .submit(transferQueue, block = true).deallocate()
         } else {
             val buffer = VulkanBuffer(device,
-                VkDeviceSize(sourceBuffer.lim.L),
+                sourceBufferSize,
                 VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
                 wantAligned = false)
 
-            with(VU.newCommandBuffer(device, commandPools.Standard.L, autostart = true)) {
+            vkDev.newCommandBuffer(commandPools.Standard)
+                .record {
 
-                buffer.copyFrom(sourceBuffer)
+                    buffer.copyFrom(sourceBuffer)
 
-                transitionLayout(image.image, VK_IMAGE_LAYOUT_UNDEFINED,
-                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, commandBuffer = this,
-                    srcStage = VK_PIPELINE_STAGE_HOST_BIT,
-                    dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT)
-                image.copyFrom(this, buffer)
-                transitionLayout(image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, 1, commandBuffer = this,
-                    srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                    dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT)
-
-                endCommandBuffer(this@VulkanTexture.device, commandPools.Standard.L, transferQueue, flush = true, dealloc = true, block = true)
-            }
-
-            val imageBlit = VkImageBlit.calloc(1)
-            with(VU.newCommandBuffer(device, commandPools.Standard.L, autostart = true)) mipmapCreation@{
-
-                for (mipLevel in 1..mipLevels) {
-                    imageBlit.srcSubresource().set(VK_IMAGE_ASPECT_COLOR_BIT, mipLevel - 1, 0, 1)
-                    imageBlit.srcOffsets(1).set(width shr (mipLevel - 1), height shr (mipLevel - 1), 1)
-
-                    val dstWidth = width shr mipLevel
-                    val dstHeight = height shr mipLevel
-
-                    if (dstWidth < 2 || dstHeight < 2) {
-                        break
-                    }
-
-                    imageBlit.dstSubresource().set(VK_IMAGE_ASPECT_COLOR_BIT, mipLevel, 0, 1)
-                    imageBlit.dstOffsets(1).set(width shr (mipLevel), height shr (mipLevel), 1)
-
-                    val mipSourceRange = VkImageSubresourceRange.calloc()
-                        .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
-                        .baseArrayLayer(0)
-                        .layerCount(1)
-                        .baseMipLevel(mipLevel - 1)
-                        .levelCount(1)
-
-                    val mipTargetRange = VkImageSubresourceRange.calloc()
-                        .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
-                        .baseArrayLayer(0)
-                        .layerCount(1)
-                        .baseMipLevel(mipLevel)
-                        .levelCount(1)
-
-                    if (mipLevel > 1) {
-                        transitionLayout(image.image,
-                            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                            subresourceRange = mipSourceRange,
-                            srcStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                            dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                            commandBuffer = this@mipmapCreation)
-                    }
-
-                    transitionLayout(image.image,
-                        VK_IMAGE_LAYOUT_UNDEFINED,
-                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                        subresourceRange = mipTargetRange,
+                    transitionLayout(image.image, VK_IMAGE_LAYOUT_UNDEFINED,
+                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, commandBuffer = this,
                         srcStage = VK_PIPELINE_STAGE_HOST_BIT,
-                        dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                        commandBuffer = this@mipmapCreation)
-
-                    vkCmdBlitImage(this@mipmapCreation,
-                        image.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                        image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                        imageBlit, VK_FILTER_LINEAR)
-
-                    transitionLayout(image.image,
-                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, subresourceRange = mipSourceRange,
+                        dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT)
+                    image.copyFrom(this, buffer)
+                    transitionLayout(image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, 1, commandBuffer = this,
                         srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                        dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                        commandBuffer = this@mipmapCreation)
-
-                    transitionLayout(image.image,
-                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, subresourceRange = mipTargetRange,
-                        srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                        dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                        commandBuffer = this@mipmapCreation)
-
-                    mipSourceRange.free()
-                    mipTargetRange.free()
+                        dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT)
                 }
+                .submit(transferQueue, block = true)
+                .deallocate()
 
-                this@mipmapCreation.endCommandBuffer(this@VulkanTexture.device, commandPools.Standard.L, queue, flush = true, dealloc = true)
-            }
+            vkDev.newCommandBuffer(commandPools.Standard)
+                .record {
 
-            imageBlit.free()
+                    val imageBlit = vk.ImageBlit()
+                    for (mipLevel in 1..mipLevels) {
+                        imageBlit.srcSubresource.set(VkImageAspect.COLOR_BIT.i, mipLevel - 1, 0, 1)
+                        imageBlit.srcOffsets(1).set(width shr (mipLevel - 1), height shr (mipLevel - 1), 1)
+
+                        val dstWidth = width shr mipLevel
+                        val dstHeight = height shr mipLevel
+
+                        if (dstWidth < 2 || dstHeight < 2) {
+                            break
+                        }
+
+                        imageBlit.dstSubresource.set(VkImageAspect.COLOR_BIT.i, mipLevel, 0, 1)
+                        imageBlit.dstOffsets(1).set(width shr mipLevel, height shr mipLevel, 1)
+
+                        val mipSourceRange = vk.ImageSubresourceRange {
+                            aspectMask = VkImageAspect.COLOR_BIT.i
+                            baseArrayLayer = 0
+                            layerCount = 1
+                            baseMipLevel = mipLevel - 1
+                            levelCount = 1
+                        }
+                        val mipTargetRange = vk.ImageSubresourceRange {
+                            aspectMask = VkImageAspect.COLOR_BIT.i
+                            baseArrayLayer = 0
+                            layerCount = 1
+                            baseMipLevel = mipLevel
+                            levelCount = 1
+                        }
+                        if (mipLevel > 1) {
+                            transitionLayout(image.image,
+                                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                subresourceRange = mipSourceRange,
+                                srcStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                                dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                commandBuffer = this)
+                        }
+
+                        transitionLayout(image.image,
+                            VK_IMAGE_LAYOUT_UNDEFINED,
+                            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                            subresourceRange = mipTargetRange,
+                            srcStage = VK_PIPELINE_STAGE_HOST_BIT,
+                            dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                            commandBuffer = this)
+
+                        blitImage(
+                            VkImage(image.image), VkImageLayout.TRANSFER_SRC_OPTIMAL,
+                            VkImage(image.image), VkImageLayout.TRANSFER_DST_OPTIMAL,
+                            imageBlit, VkFilter.LINEAR)
+
+                        transitionLayout(image.image,
+                            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, subresourceRange = mipSourceRange,
+                            srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                            dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                            commandBuffer = this)
+
+                        transitionLayout(image.image,
+                            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, subresourceRange = mipTargetRange,
+                            srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                            dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                            commandBuffer = this)
+                    }
+                }
+                .submit(queue).deallocate()
+
             buffer.close()
         }
 
         // deallocate in case we moved pixels around
         if (deallocate) {
-            memFree(sourceBuffer)
+            sourceBuffer.free()
         }
-
         return this
     }
 
@@ -456,7 +457,7 @@ open class VulkanTexture(val device: VulkanDevice,
         var viewFormat = format
 
         gt?.let { genericTexture ->
-            if(!genericTexture.normalized && genericTexture.type != GLTypeEnum.Float) {
+            if (!genericTexture.normalized && genericTexture.type != GLTypeEnum.Float) {
                 logger.info("Shifting format to unsigned int")
                 viewFormat += 4
             }
@@ -474,8 +475,8 @@ open class VulkanTexture(val device: VulkanDevice,
             .format(viewFormat)
             .subresourceRange(subresourceRange)
 
-        if(depth > 1) {
-            vi.components(VkComponentMapping.calloc().set(VK_COMPONENT_SWIZZLE_R,VK_COMPONENT_SWIZZLE_R,VK_COMPONENT_SWIZZLE_R,VK_COMPONENT_SWIZZLE_R ))
+        if (depth > 1) {
+            vi.components(VkComponentMapping.calloc().set(VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R))
         }
 
         return VU.getLong("Creating image view",
@@ -490,17 +491,49 @@ open class VulkanTexture(val device: VulkanDevice,
         val samplerInfo = VkSamplerCreateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO)
             .pNext(NULL)
-            .magFilter(if(minFilterLinear && !(depth > 1)) { VK_FILTER_LINEAR } else { VK_FILTER_LINEAR })
-            .minFilter(if(maxFilterLinear && !(depth > 1)) { VK_FILTER_LINEAR } else { VK_FILTER_LINEAR })
-            .mipmapMode(if(depth == 1) { VK_SAMPLER_MIPMAP_MODE_LINEAR } else { VK_SAMPLER_MIPMAP_MODE_NEAREST })
-            .addressModeU(if(depth == 1) { VK_SAMPLER_ADDRESS_MODE_REPEAT } else { VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE })
-            .addressModeV(if(depth == 1) { VK_SAMPLER_ADDRESS_MODE_REPEAT } else { VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE })
-            .addressModeW(if(depth == 1) { VK_SAMPLER_ADDRESS_MODE_REPEAT } else { VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE })
+            .magFilter(if (minFilterLinear && !(depth > 1)) {
+                VK_FILTER_LINEAR
+            } else {
+                VK_FILTER_LINEAR
+            })
+            .minFilter(if (maxFilterLinear && !(depth > 1)) {
+                VK_FILTER_LINEAR
+            } else {
+                VK_FILTER_LINEAR
+            })
+            .mipmapMode(if (depth == 1) {
+                VK_SAMPLER_MIPMAP_MODE_LINEAR
+            } else {
+                VK_SAMPLER_MIPMAP_MODE_NEAREST
+            })
+            .addressModeU(if (depth == 1) {
+                VK_SAMPLER_ADDRESS_MODE_REPEAT
+            } else {
+                VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE
+            })
+            .addressModeV(if (depth == 1) {
+                VK_SAMPLER_ADDRESS_MODE_REPEAT
+            } else {
+                VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE
+            })
+            .addressModeW(if (depth == 1) {
+                VK_SAMPLER_ADDRESS_MODE_REPEAT
+            } else {
+                VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE
+            })
             .mipLodBias(0.0f)
             .anisotropyEnable(depth == 1)
-            .maxAnisotropy(if(depth == 1) { 8.0f } else { 1.0f })
+            .maxAnisotropy(if (depth == 1) {
+                8.0f
+            } else {
+                1.0f
+            })
             .minLod(0.0f)
-            .maxLod(if(depth == 1) {mipLevels * 1.0f} else { 0.0f })
+            .maxLod(if (depth == 1) {
+                mipLevels * 1.0f
+            } else {
+                0.0f
+            })
             .borderColor(VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE)
             .compareOp(VK_COMPARE_OP_NEVER)
 
@@ -536,7 +569,7 @@ open class VulkanTexture(val device: VulkanDevice,
          * Loads a texture from a file given by [filename], and allocates the [VulkanTexture] on [device].
          */
         fun loadFromFile(device: VulkanDevice,
-                         commandPools: VulkanRenderer.CommandPools , queue: VkQueue, transferQueue: VkQueue,
+                         commandPools: VulkanRenderer.CommandPools, queue: VkQueue, transferQueue: VkQueue,
                          filename: String,
                          linearMin: Boolean, linearMax: Boolean,
                          generateMipmaps: Boolean = true): VulkanTexture {
@@ -544,20 +577,24 @@ open class VulkanTexture(val device: VulkanDevice,
             val type = filename.substringAfterLast('.')
 
 
-            logger.debug("Loading${if(generateMipmaps) { " mipmapped" } else { "" }} texture from $filename")
+            logger.debug("Loading${if (generateMipmaps) {
+                " mipmapped"
+            } else {
+                ""
+            }} texture from $filename")
 
-            return if(type == "raw") {
+            return if (type == "raw") {
                 val path = Paths.get(filename)
                 val infoFile = path.resolveSibling(path.fileName.toString().substringBeforeLast(".") + ".info")
                 val dimensions = Files.lines(infoFile).toList().first().split(",").map { it.toLong() }.toLongArray()
 
                 loadFromFileRaw(device,
-                        commandPools, queue, transferQueue,
-                        stream, type, dimensions)
+                    commandPools, queue, transferQueue,
+                    stream, type, dimensions)
             } else {
                 loadFromFile(device,
-                        commandPools, queue, transferQueue,
-                        stream, type, linearMin, linearMax, generateMipmaps)
+                    commandPools, queue, transferQueue,
+                    stream, type, linearMin, linearMax, generateMipmaps)
             }
         }
 
@@ -627,7 +664,7 @@ open class VulkanTexture(val device: VulkanDevice,
                 levelsH++
             }
 
-            val mipmapLevels = if(generateMipmaps) {
+            val mipmapLevels = if (generateMipmaps) {
                 Math.max(levelsW, levelsH)
             } else {
                 1
@@ -657,10 +694,10 @@ open class VulkanTexture(val device: VulkanDevice,
                             commandPools: VulkanRenderer.CommandPools, queue: VkQueue, transferQueue: VkQueue,
                             stream: InputStream, type: String, dimensions: LongArray): VulkanTexture {
             val imageData: ByteBuffer = ByteBuffer.allocateDirect((2 * dimensions[0] * dimensions[1] * dimensions[2]).toInt())
-            val buffer = ByteArray(1024*1024)
+            val buffer = ByteArray(1024 * 1024)
 
             var bytesRead = stream.read(buffer)
-            while(bytesRead > -1) {
+            while (bytesRead > -1) {
                 imageData.put(buffer)
                 bytesRead = stream.read(buffer)
             }
@@ -794,52 +831,52 @@ open class VulkanTexture(val device: VulkanDevice,
                     barrier
                         .srcAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
                         .dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
-                } else if(oldLayout == KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR && newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
+                } else if (oldLayout == KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR && newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
                     barrier
                         .srcAccessMask(VK_ACCESS_MEMORY_READ_BIT)
                         .dstAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
-                } else if(oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL && newLayout == KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
+                } else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL && newLayout == KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
                     barrier
                         .srcAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
                         .dstAccessMask(VK_ACCESS_MEMORY_READ_BIT)
-                } else if(oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+                } else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
                     barrier
                         .srcAccessMask(0)
                         .dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
-                } else if(oldLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
+                } else if (oldLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
                     barrier.srcAccessMask(VK_ACCESS_SHADER_READ_BIT)
                         .dstAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
-                } else if(oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+                } else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
                     barrier.srcAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
                         .dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
-                } else if(oldLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+                } else if (oldLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
                     barrier.srcAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
                         .dstAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
-                } else if(oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) {
+                } else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) {
                     barrier.srcAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
                         .dstAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
-                } else if(oldLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
+                } else if (oldLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
                     barrier.srcAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
                         .dstAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
-                } else if(oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) {
+                } else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) {
                     barrier.srcAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
                         .dstAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
-                } else if(oldLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+                } else if (oldLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
                     barrier.srcAccessMask(VK_ACCESS_INPUT_ATTACHMENT_READ_BIT)
                         .dstAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
-                } else if(oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
+                } else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
                     barrier.srcAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
                         .dstAccessMask(VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT)
-                } else if(oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
+                } else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
                     barrier.srcAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
                         .dstAccessMask(VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT)
-                } else if(oldLayout == KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR && newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
+                } else if (oldLayout == KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR && newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
                     barrier.srcAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
                         .dstAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
-                } else if(oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL && newLayout == KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
+                } else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL && newLayout == KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
                     barrier.srcAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
                         .dstAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
-                } else if(oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) {
+                } else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) {
                     barrier.srcAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
                         .dstAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
                 } else {
@@ -858,68 +895,82 @@ open class VulkanTexture(val device: VulkanDevice,
         }
 
         private fun GenericTexture.toVulkanFormat(): Int {
-            return when(this.type) {
-                GLTypeEnum.Byte -> when(this.channels) {
+            return when (this.type) {
+                GLTypeEnum.Byte -> when (this.channels) {
                     1 -> VK_FORMAT_R8_SNORM
                     2 -> VK_FORMAT_R8G8_SNORM
                     3 -> VK_FORMAT_R8G8B8A8_SNORM
                     4 -> VK_FORMAT_R8G8B8A8_SNORM
 
-                    else -> { logger.warn("Unknown texture type: $type, with $channels channels, falling back to default"); VK_FORMAT_R8G8B8A8_UNORM }
+                    else -> {
+                        logger.warn("Unknown texture type: $type, with $channels channels, falling back to default"); VK_FORMAT_R8G8B8A8_UNORM
+                    }
                 }
 
-                GLTypeEnum.UnsignedByte -> when(this.channels) {
+                GLTypeEnum.UnsignedByte -> when (this.channels) {
                     1 -> VK_FORMAT_R8_UNORM
                     2 -> VK_FORMAT_R8G8_UNORM
                     3 -> VK_FORMAT_R8G8B8A8_UNORM
                     4 -> VK_FORMAT_R8G8B8A8_UNORM
 
-                    else -> { logger.warn("Unknown texture type: $type, with $channels channels, falling back to default"); VK_FORMAT_R8G8B8A8_UNORM }
+                    else -> {
+                        logger.warn("Unknown texture type: $type, with $channels channels, falling back to default"); VK_FORMAT_R8G8B8A8_UNORM
+                    }
                 }
 
-                GLTypeEnum.Short ->  when(this.channels) {
+                GLTypeEnum.Short -> when (this.channels) {
                     1 -> VK_FORMAT_R16_SNORM
                     2 -> VK_FORMAT_R16G16_SNORM
                     3 -> VK_FORMAT_R16G16B16A16_SNORM
                     4 -> VK_FORMAT_R16G16B16A16_SNORM
 
-                    else -> { logger.warn("Unknown texture type: $type, with $channels channels, falling back to default"); VK_FORMAT_R8G8B8A8_UNORM }
+                    else -> {
+                        logger.warn("Unknown texture type: $type, with $channels channels, falling back to default"); VK_FORMAT_R8G8B8A8_UNORM
+                    }
                 }
 
-                GLTypeEnum.UnsignedShort -> when(this.channels) {
+                GLTypeEnum.UnsignedShort -> when (this.channels) {
                     1 -> VK_FORMAT_R16_UNORM
                     2 -> VK_FORMAT_R16G16_UNORM
                     3 -> VK_FORMAT_R16G16B16A16_UNORM
                     4 -> VK_FORMAT_R16G16B16A16_UNORM
 
-                    else -> { logger.warn("Unknown texture type: $type, with $channels channels, falling back to default"); VK_FORMAT_R8G8B8A8_UNORM }
+                    else -> {
+                        logger.warn("Unknown texture type: $type, with $channels channels, falling back to default"); VK_FORMAT_R8G8B8A8_UNORM
+                    }
                 }
 
-                GLTypeEnum.Int ->  when(this.channels) {
+                GLTypeEnum.Int -> when (this.channels) {
                     1 -> VK_FORMAT_R32_SINT
                     2 -> VK_FORMAT_R32G32_SINT
                     3 -> VK_FORMAT_R32G32B32A32_SINT
                     4 -> VK_FORMAT_R32G32B32A32_SINT
 
-                    else -> { logger.warn("Unknown texture type: $type, with $channels channels, falling back to default"); VK_FORMAT_R8G8B8A8_UNORM }
+                    else -> {
+                        logger.warn("Unknown texture type: $type, with $channels channels, falling back to default"); VK_FORMAT_R8G8B8A8_UNORM
+                    }
                 }
 
-                GLTypeEnum.UnsignedInt ->  when(this.channels) {
+                GLTypeEnum.UnsignedInt -> when (this.channels) {
                     1 -> VK_FORMAT_R32_UINT
                     2 -> VK_FORMAT_R32G32_UINT
                     3 -> VK_FORMAT_R32G32B32A32_UINT
                     4 -> VK_FORMAT_R32G32B32A32_UINT
 
-                    else -> { logger.warn("Unknown texture type: $type, with $channels channels, falling back to default"); VK_FORMAT_R8G8B8A8_UNORM }
+                    else -> {
+                        logger.warn("Unknown texture type: $type, with $channels channels, falling back to default"); VK_FORMAT_R8G8B8A8_UNORM
+                    }
                 }
 
-                GLTypeEnum.Float ->  when(this.channels) {
+                GLTypeEnum.Float -> when (this.channels) {
                     1 -> VK_FORMAT_R32_SFLOAT
                     2 -> VK_FORMAT_R32G32_SFLOAT
                     3 -> VK_FORMAT_R32G32B32A32_SFLOAT
                     4 -> VK_FORMAT_R32G32B32A32_SFLOAT
 
-                    else -> { logger.warn("Unknown texture type: $type, with $channels channels, falling back to default"); VK_FORMAT_R8G8B8A8_UNORM }
+                    else -> {
+                        logger.warn("Unknown texture type: $type, with $channels channels, falling back to default"); VK_FORMAT_R8G8B8A8_UNORM
+                    }
                 }
 
                 GLTypeEnum.Double -> TODO("Double format textures are not supported")

@@ -36,7 +36,7 @@ open class VulkanObjectState : NodeMetadata {
     var vertexBuffers = ConcurrentHashMap<String, VulkanBuffer>()
 
     /** UBOs required by the [graphics.scenery.Node] this metadata object is attached to. */
-    var UBOs = LinkedHashMap<String, Pair<Long, VulkanUBO>>()
+    var UBOs = LinkedHashMap<String, Pair<VkDescriptorSet, VulkanUBO>>()
 
     /** [VulkanTexture]s used by the [graphics.scenery.Node] this metadata object is attached to. */
     var textures = ConcurrentHashMap<String, VulkanTexture>()
@@ -48,7 +48,7 @@ open class VulkanObjectState : NodeMetadata {
     var defaultTexturesFor = HashSet<String>()
 
     /** Descriptor sets required */
-    var requiredDescriptorSets = HashMap<String, Long>()
+    var requiredDescriptorSets = HashMap<String, VkDescriptorSet>()
 
     /** The vertex input type defining what are going to be inputs to the vertex shader. */
     var vertexInputType = VulkanRenderer.VertexDataKinds.PositionNormalTexcoord

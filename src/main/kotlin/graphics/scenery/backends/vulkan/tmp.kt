@@ -242,3 +242,5 @@ fun MemoryStack.reset() {
     val size = Configuration.STACK_SIZE.get(64) * 1024
     pointer = size
 }
+
+fun VkSemaphoreCreateInfo() = VkSemaphoreCreateInfo.calloc().apply { type = VkStructureType.SEMAPHORE_CREATE_INFO }

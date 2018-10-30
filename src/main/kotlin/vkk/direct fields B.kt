@@ -483,8 +483,13 @@ inline var VkClearValue.depthStencil: VkClearDepthStencilValue
     get() = VkClearValue.ndepthStencil(adr)
     set(value) = VkClearValue.ndepthStencil(adr, value)
 
+/** JVM custom  */
+fun VkClearValue.color(floats: FloatArray) = color(floats[0], floats[1], floats[2], floats[3])
+/** JVM custom  */
 fun VkClearValue.color(float: Float) = color(float, float, float, float)
+/** JVM custom  */
 fun VkClearValue.color(color_: Vec4) = color(color_.r, color_.g, color_.b, color_.a)
+/** JVM custom  */
 fun VkClearValue.color(r: Float, g: Float, b: Float, a: Float) {
     memPutFloat(adr, r)
     memPutFloat(adr + Float.BYTES, g)
@@ -492,7 +497,7 @@ fun VkClearValue.color(r: Float, g: Float, b: Float, a: Float) {
     memPutFloat(adr + Float.BYTES * 3, a)
 }
 
-
+/** JVM Custom */
 fun VkClearValue.depthStencil(depth: Float, stencil: Int) {
     memPutFloat(adr, depth)
     memPutInt(adr + Float.BYTES, stencil)

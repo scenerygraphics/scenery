@@ -1,5 +1,6 @@
 package graphics.scenery.backends.vulkan
 
+import glm_.L
 import graphics.scenery.Blending
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.utils.LazyLogger
@@ -19,9 +20,7 @@ import org.lwjgl.vulkan.VK10.*
 import org.slf4j.LoggerFactory
 import uno.kotlin.buffers.isNotEmpty
 import vkk.*
-import vkk.`object`.VkCommandPool
-import vkk.`object`.VkDescriptorSetLayout
-import vkk.`object`.VkImage
+import vkk.`object`.*
 import java.math.BigInteger
 import java.nio.IntBuffer
 import java.nio.LongBuffer
@@ -112,9 +111,9 @@ fun VkCommandBuffer.endCommandBuffer(device: VulkanDevice, commandPool: Long,
 }
 
 fun Pair<VkCommandBuffer, VkCommandPool>.submit(queue: VkQueue, submitInfoPNext: Pointer? = null,
-                           signalSemaphores: LongBuffer? = null, waitSemaphores: LongBuffer? = null,
-                           waitDstStageMask: IntBuffer? = null,
-                           block: Boolean = true): Pair<VkCommandBuffer, VkCommandPool> =
+                                                signalSemaphores: LongBuffer? = null, waitSemaphores: LongBuffer? = null,
+                                                waitDstStageMask: IntBuffer? = null,
+                                                block: Boolean = true): Pair<VkCommandBuffer, VkCommandPool> =
     apply { first.submit(queue, submitInfoPNext, signalSemaphores, waitSemaphores, waitDstStageMask, block) }
 
 /**
@@ -151,45 +150,45 @@ fun VkCommandBuffer.submit(queue: VkQueue, submitInfoPNext: Pointer? = null,
  * Converts a [Blending.BlendFactor] to a Vulkan-internal integer-based descriptor.
  */
 fun Blending.BlendFactor.toVulkan() = when (this) {
-    Blending.BlendFactor.Zero -> VK_BLEND_FACTOR_ZERO
-    Blending.BlendFactor.One -> VK_BLEND_FACTOR_ONE
+    Blending.BlendFactor.Zero -> VkBlendFactor.ZERO
+    Blending.BlendFactor.One -> VkBlendFactor.ONE
 
-    Blending.BlendFactor.SrcAlpha -> VK_BLEND_FACTOR_SRC_ALPHA
-    Blending.BlendFactor.OneMinusSrcAlpha -> VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA
+    Blending.BlendFactor.SrcAlpha -> VkBlendFactor.SRC_ALPHA
+    Blending.BlendFactor.OneMinusSrcAlpha -> VkBlendFactor.ONE_MINUS_SRC_ALPHA
 
-    Blending.BlendFactor.SrcColor -> VK_BLEND_FACTOR_SRC_COLOR
-    Blending.BlendFactor.OneMinusSrcColor -> VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR
+    Blending.BlendFactor.SrcColor -> VkBlendFactor.SRC_COLOR
+    Blending.BlendFactor.OneMinusSrcColor -> VkBlendFactor.ONE_MINUS_SRC_COLOR
 
-    Blending.BlendFactor.DstColor -> VK_BLEND_FACTOR_DST_COLOR
-    Blending.BlendFactor.OneMinusDstColor -> VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR
+    Blending.BlendFactor.DstColor -> VkBlendFactor.DST_COLOR
+    Blending.BlendFactor.OneMinusDstColor -> VkBlendFactor.ONE_MINUS_DST_COLOR
 
-    Blending.BlendFactor.DstAlpha -> VK_BLEND_FACTOR_DST_ALPHA
-    Blending.BlendFactor.OneMinusDstAlpha -> VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA
+    Blending.BlendFactor.DstAlpha -> VkBlendFactor.DST_ALPHA
+    Blending.BlendFactor.OneMinusDstAlpha -> VkBlendFactor.ONE_MINUS_DST_ALPHA
 
-    Blending.BlendFactor.ConstantColor -> VK_BLEND_FACTOR_CONSTANT_COLOR
-    Blending.BlendFactor.OneMinusConstantColor -> VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_COLOR
+    Blending.BlendFactor.ConstantColor -> VkBlendFactor.CONSTANT_COLOR
+    Blending.BlendFactor.OneMinusConstantColor -> VkBlendFactor.ONE_MINUS_CONSTANT_COLOR
 
-    Blending.BlendFactor.ConstantAlpha -> VK_BLEND_FACTOR_CONSTANT_ALPHA
-    Blending.BlendFactor.OneMinusConstantAlpha -> VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_ALPHA
+    Blending.BlendFactor.ConstantAlpha -> VkBlendFactor.CONSTANT_ALPHA
+    Blending.BlendFactor.OneMinusConstantAlpha -> VkBlendFactor.ONE_MINUS_CONSTANT_ALPHA
 
-    Blending.BlendFactor.Src1Color -> VK_BLEND_FACTOR_SRC1_COLOR
-    Blending.BlendFactor.OneMinusSrc1Color -> VK_BLEND_FACTOR_ONE_MINUS_SRC1_COLOR
+    Blending.BlendFactor.Src1Color -> VkBlendFactor.SRC1_COLOR
+    Blending.BlendFactor.OneMinusSrc1Color -> VkBlendFactor.ONE_MINUS_SRC1_COLOR
 
-    Blending.BlendFactor.Src1Alpha -> VK_BLEND_FACTOR_SRC1_ALPHA
-    Blending.BlendFactor.OneMinusSrc1Alpha -> VK_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA
+    Blending.BlendFactor.Src1Alpha -> VkBlendFactor.SRC1_ALPHA
+    Blending.BlendFactor.OneMinusSrc1Alpha -> VkBlendFactor.ONE_MINUS_SRC1_ALPHA
 
-    Blending.BlendFactor.SrcAlphaSaturate -> VK_BLEND_FACTOR_SRC_ALPHA_SATURATE
+    Blending.BlendFactor.SrcAlphaSaturate -> VkBlendFactor.SRC_ALPHA_SATURATE
 }
 
 /**
  * Converts a [Blending.BlendOp] to a Vulkan-intenal integer-based descriptor.
  */
 fun Blending.BlendOp.toVulkan() = when (this) {
-    Blending.BlendOp.add -> VK_BLEND_OP_ADD
-    Blending.BlendOp.subtract -> VK_BLEND_OP_SUBTRACT
-    Blending.BlendOp.min -> VK_BLEND_OP_MIN
-    Blending.BlendOp.max -> VK_BLEND_OP_MAX
-    Blending.BlendOp.reverse_subtract -> VK_BLEND_OP_REVERSE_SUBTRACT
+    Blending.BlendOp.add -> VkBlendOp.ADD
+    Blending.BlendOp.subtract -> VkBlendOp.SUBTRACT
+    Blending.BlendOp.min -> VkBlendOp.MIN
+    Blending.BlendOp.max -> VkBlendOp.MAX
+    Blending.BlendOp.reverse_subtract -> VkBlendOp.REVERSE_SUBTRACT
 }
 
 /**
@@ -614,80 +613,65 @@ class VU {
         }
 
         /**
-         * Creates and returns a new descriptor set layout on [device] with the members declared in [types], which is
+         * Creates and returns a new descriptor set layout on [vkDev] with the members declared in [types], which is
          * a [List] of a Pair of a type, associated with a count (e.g. Dynamic UBO to 1). The base binding can be set with [binding].
          * The shader stages to which the DSL should be visible can be set via [shaderStages].
          */
-        fun createDescriptorSetLayout(device: VulkanDevice, types: List<Pair<Int, Int>>, binding: Int = 0, shaderStages: Int): VkDescriptorSetLayout {
-            return stackPush().use { stack ->
-                val layoutBinding = VkDescriptorSetLayoutBinding.callocStack(types.size, stack)
+        fun createDescriptorSetLayout(vkDev: VkDevice, types: List<Pair<VkDescriptorType, Int>>, binding: Int = 0, shaderStages: VkShaderStageFlags = VkShaderStage.ALL.i): VkDescriptorSetLayout {
 
-                types.forEachIndexed { i, (type, count) ->
-                    layoutBinding[i]
-                        .binding(i + binding)
-                        .descriptorType(type)
-                        .descriptorCount(count)
-                        .stageFlags(shaderStages)
-                        .pImmutableSamplers(null)
+            val layoutBinding = vk.DescriptorSetLayoutBinding(types.size)
+
+            types.forEachIndexed { i, (type, count) ->
+                layoutBinding[i].apply {
+                    this.binding = i + binding
+                    descriptorType = type
+                    descriptorCount = count
+                    stageFlags = shaderStages
                 }
+            }
 
-                val descriptorLayout = VkDescriptorSetLayoutCreateInfo.callocStack(stack)
-                    .sType(VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO)
-                    .pNext(NULL)
-                    .pBindings(layoutBinding)
+            val descriptorLayout = vk.DescriptorSetLayoutCreateInfo { bindings = layoutBinding }
 
-                val descriptorSetLayout = getLong("vkCreateDescriptorSetLayout",
-                    { vkCreateDescriptorSetLayout(device.vulkanDevice, descriptorLayout, null, this) }, {})
-
-                logger.debug("Created DSL ${descriptorSetLayout.toHexString()} with ${types.size} descriptors.")
-
-                VkDescriptorSetLayout(descriptorSetLayout)
+            return vkDev.createDescriptorSetLayout(descriptorLayout).also {
+                logger.debug("Created DSL ${it.asHexString} with ${types.size} descriptors.")
             }
         }
 
         /**
-         * Creates and returns a dynamic descriptor set allocated on [device] from the pool [descriptorPool], conforming
+         * Creates and returns a dynamic descriptor set allocated on [vkDev] from the pool [descriptorPool], conforming
          * to the existing descriptor set layout [descriptorSetLayout]. The number of bindings ([bindingCount]) and the
          * associated [buffer] have to be given.
          */
-        fun createDescriptorSetDynamic(device: VulkanDevice, descriptorPool: Long, descriptorSetLayout: VkDescriptorSetLayout,
-                                       bindingCount: Int, buffer: VulkanBuffer): Long {
+        fun createDescriptorSetDynamic(vkDev: VkDevice, descriptorPool: VkDescriptorPool, descriptorSetLayout: VkDescriptorSetLayout,
+                                       bindingCount: Int, buffer: VulkanBuffer): VkDescriptorSet {
             logger.debug("Creating dynamic descriptor set with $bindingCount bindings, DSL=${descriptorSetLayout.asHexString}")
 
-            return stackPush().use { stack ->
-                val pDescriptorSetLayout = stack.callocLong(1).put(0, descriptorSetLayout.L)
+                val allocInfo = vk.DescriptorSetAllocateInfo {
+                    this.descriptorPool = descriptorPool
+                    setLayout = descriptorSetLayout
+                }
+                val descriptorSet = vkDev allocateDescriptorSets allocInfo
 
-                val allocInfo = VkDescriptorSetAllocateInfo.callocStack()
-                    .sType(VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO)
-                    .pNext(NULL)
-                    .descriptorPool(descriptorPool)
-                    .pSetLayouts(pDescriptorSetLayout)
-
-                val descriptorSet = getLong("createDescriptorSet",
-                    { vkAllocateDescriptorSets(device.vulkanDevice, allocInfo, this) }, {})
-
-                val d = VkDescriptorBufferInfo.callocStack(1, stack)
-                    .buffer(buffer.vulkanBuffer.L)
-                    .range(2048)
-                    .offset(0L)
-
-                val writeDescriptorSet = VkWriteDescriptorSet.callocStack(bindingCount, stack)
+                val d = vk.DescriptorBufferInfo {
+                    this.buffer = buffer.vulkanBuffer
+                    this.range = VkDeviceSize(2048)
+                    this.offset = VkDeviceSize(0)
+                }
+                val writeDescriptorSet = vk.WriteDescriptorSet(bindingCount)
 
                 (0 until bindingCount).forEach { i ->
-                    writeDescriptorSet[i]
-                        .sType(VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET)
-                        .pNext(NULL)
-                        .dstSet(descriptorSet)
-                        .dstBinding(i)
-                        .dstArrayElement(0)
-                        .pBufferInfo(d)
-                        .descriptorType(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC)
+                    writeDescriptorSet[i].apply {
+                        dstSet = descriptorSet
+                        dstBinding = i
+                        dstArrayElement =0
+                        bufferInfo_ = d
+                        descriptorType = VkDescriptorType.UNIFORM_BUFFER_DYNAMIC
+                    }
                 }
 
-                vkUpdateDescriptorSets(device.vulkanDevice, writeDescriptorSet, null)
+                vkDev updateDescriptorSets writeDescriptorSet
 
-                descriptorSet
-            }
+                return descriptorSet
         }
 
         /**
