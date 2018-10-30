@@ -146,6 +146,14 @@ open class VulkanTexture(val device: VulkanDevice,
             format, VK_IMAGE_USAGE_TRANSFER_DST_BIT or VK_IMAGE_USAGE_SAMPLED_BIT or VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
             VK_IMAGE_TILING_OPTIMAL, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
             mipLevels)
+
+        if (image.sampler == -1L) {
+            image.sampler = createSampler()
+        }
+
+        if (image.view == -1L) {
+            image.view = createImageView(image, format)
+        }
     }
 
     /**
@@ -232,14 +240,6 @@ open class VulkanTexture(val device: VulkanDevice,
      * Copies the data for this texture from a [ByteBuffer], [data].
      */
     fun copyFrom(data: ByteBuffer): VulkanTexture {
-        if (image.sampler == -1L) {
-            image.sampler = createSampler()
-        }
-
-        if (image.view == -1L) {
-            image.view = createImageView(image, format)
-        }
-
         if (depth == 1 && data.remaining() > stagingImage.maxSize) {
             logger.warn("Allocated image size for $this (${stagingImage.maxSize}) less than copy source size ${data.remaining()}.")
             return this

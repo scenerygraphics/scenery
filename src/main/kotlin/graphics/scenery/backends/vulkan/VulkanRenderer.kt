@@ -1051,7 +1051,11 @@ open class VulkanRenderer(hub: Hub,
                         VulkanTexture(device, commandPools, queue, queue, gt, miplevels)
                     }
 
-                    t.copyFrom(gt.contents)
+                    gt.contents?.let { contents ->
+                        t.copyFrom(contents)
+                    }
+
+                    t
                 } else {
                     val start = System.nanoTime()
 
