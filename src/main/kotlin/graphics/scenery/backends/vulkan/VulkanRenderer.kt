@@ -942,7 +942,8 @@ open class VulkanRenderer(hub: Hub,
                             name = "ShaderProperties"
 
                             order.forEach { name, offset ->
-                                add(name, { node.getShaderProperty(name)!! }, offset)
+                                // TODO: See whether returning 0 on non-found shader property has ill side effects
+                                add(name, { node.getShaderProperty(name) ?: 0 }, offset)
                             }
 
                             this.createUniformBuffer()
