@@ -5,8 +5,10 @@ import graphics.scenery.GeometryType
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
-import org.lwjgl.vulkan.VK10.*
 import vkk.*
+import vkk.`object`.VkPipelineCache
+import vkk.`object`.VkPipelineLayout
+import vkk.`object`.VkRenderPass
 import java.util.*
 import kotlin.collections.LinkedHashMap
 
@@ -130,9 +132,7 @@ class VulkanPipeline(val device: VulkanDevice, val pipelineCache: VkPipelineCach
 
         val p = vkDev.createGraphicsPipelines(pipelineCache, pipelineCreateInfo)
 
-        val vkp = VulkanRenderer.Pipeline()
-        vkp.layout = layout
-        vkp.pipeline = p
+        val vkp = VulkanRenderer.Pipeline(p, layout)
 
         pipeline[GeometryType.TRIANGLES] = vkp
 //        descriptorSpecs.sortBy { spec -> spec.set }
@@ -153,9 +153,7 @@ class VulkanPipeline(val device: VulkanDevice, val pipelineCache: VkPipelineCach
                 }
                 val derivativeP = vkDev.createGraphicsPipelines(pipelineCache, pipelineCreateInfo)
 
-                val derivativePipeline = VulkanRenderer.Pipeline()
-                derivativePipeline.layout = layout
-                derivativePipeline.pipeline = derivativeP
+                val derivativePipeline = VulkanRenderer.Pipeline(derivativeP, layout)
 
                 pipeline[topology] = derivativePipeline
             }
@@ -211,7 +209,7 @@ class VulkanPipeline(val device: VulkanDevice, val pipelineCache: VkPipelineCach
         inputAssemblyState.free()
         rasterizationState.free()
         depthStencilState.free()
-        colorBlendState.pAttachments()?.free()
+        colorBlendState.attachments?.free()
         colorBlendState.free()
         viewportState.free()
         dynamicState.free()

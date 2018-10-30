@@ -1,8 +1,7 @@
 package graphics.scenery.backends.vulkan
 
-import glm_.L
 import graphics.scenery.utils.LazyLogger
-import vkk.VkDeviceSize
+import vkk.`object`.VkDeviceSize
 
 typealias VulkanBufferUsage = Int
 /**

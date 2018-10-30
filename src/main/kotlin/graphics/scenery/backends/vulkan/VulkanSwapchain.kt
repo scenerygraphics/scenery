@@ -14,10 +14,11 @@ import org.lwjgl.system.MemoryUtil.memFree
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.KHRSwapchain.VK_ERROR_OUT_OF_DATE_KHR
 import org.lwjgl.vulkan.KHRSwapchain.vkAcquireNextImageKHR
-import vkk.VkImage
-import vkk.VkImageArray
 import vkk.VkImageLayout
-import vkk.VkImageViewArray
+import vkk.`object`.VkImage
+import vkk.`object`.VkImageArray
+import vkk.`object`.VkImageViewArray
+import vkk.createImageView
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.util.*
@@ -79,6 +80,8 @@ open class VulkanSwapchain(open val device: VulkanDevice,
      */
     data class ColorFormatAndSpace(var colorFormat: Int = 0, var colorSpace: Int = 0)
 
+    val vkDev get() = device.vulkanDevice
+
     /**
      * Creates a window for this swapchain, and initialiases [win] as [SceneryWindow.GLFWWindow].
      * Needs to be handed a [VulkanRenderer.SwapchainRecreator].
@@ -88,7 +91,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
         glfwDefaultWindowHints()
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API)
 
-        if(undecorated) {
+        if (undecorated) {
             glfwWindowHint(GLFW_DECORATED, GLFW_FALSE)
         }
 
@@ -136,7 +139,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
         val modes = IntArray(count)
         presentModes.get(modes)
 
-        return if(modes.contains(preferredMode)) {
+        return if (modes.contains(preferredMode)) {
             preferredMode
         } else {
             KHRSurface.VK_PRESENT_MODE_FIFO_KHR
@@ -166,7 +169,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
 
             // use fifo mode (aka, vsynced) if requested,
             // otherwise, use mailbox mode and present the most recently generated frame.
-            val preferredSwapchainPresentMode = if(vsync) {
+            val preferredSwapchainPresentMode = if (vsync) {
                 KHRSurface.VK_PRESENT_MODE_FIFO_KHR
             } else {
                 KHRSurface.VK_PRESENT_MODE_IMMEDIATE_KHR
@@ -263,23 +266,22 @@ open class VulkanSwapchain(open val device: VulkanDevice,
                 .baseArrayLayer(0)
                 .layerCount(1)
 
-            with(VU.newCommandBuffer(device, commandPools.Standard.L, autostart = true)) {
-                for (i in 0 until imageCount.get(0)) {
-                    images[i] = VkImage(swapchainImages.get(i))
+            vkDev.newCommandBuffer(commandPools.Standard)
+                .record {
+                    for (i in 0 until imageCount[0]) {
+                        images[i] = VkImage(swapchainImages[i])
 
-                    VU.setImageLayout(this, images[i],
-                        aspectMask = VK10.VK_IMAGE_ASPECT_COLOR_BIT,
-                        oldImageLayout = VkImageLayout.UNDEFINED,
-                        newImageLayout = VkImageLayout.PRESENT_SRC_KHR)
-                    colorAttachmentView.image(images[i].L)
+                        VU.setImageLayout(this, images[i],
+                            aspectMask = VK10.VK_IMAGE_ASPECT_COLOR_BIT,
+                            oldImageLayout = VkImageLayout.UNDEFINED,
+                            newImageLayout = VkImageLayout.PRESENT_SRC_KHR)
+                        colorAttachmentView.image(images[i].L)
 
-                    imageViews[i] = VU.getLong("create image view",
-                        { VK10.vkCreateImageView(this@VulkanSwapchain.device.vulkanDevice, colorAttachmentView, null, this) }, {})
+                        imageViews[i] = (vkDev createImageView colorAttachmentView).L
+                    }
                 }
-
-                endCommandBuffer(this@VulkanSwapchain.device, commandPools.Standard.L, queue,
-                    flush = true, dealloc = true)
-            }
+                .submit(queue)
+                .deallocate()
 
             this.images = images
             this.imageViews = VkImageViewArray(imageViews)
@@ -420,7 +422,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
      * To be called after presenting, will deallocate retired swapchains.
      */
     override fun postPresent(image: Int) {
-        while(retiredSwapchains.isNotEmpty()) {
+        while (retiredSwapchains.isNotEmpty()) {
             retiredSwapchains.poll()?.let {
                 KHRSwapchain.vkDestroySwapchainKHR(it.first.vulkanDevice, it.second, null)
             }
@@ -502,7 +504,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
      * see [FXSwapchain] instead.
      */
     override fun embedIn(panel: SceneryPanel?) {
-        if(panel == null) {
+        if (panel == null) {
             return
         }
 

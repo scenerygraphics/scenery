@@ -6,11 +6,13 @@ import kool.Adr
 import kool.cap
 import kool.free
 import kool.pos
-import org.lwjgl.system.MemoryStack
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.NULL
 import org.lwjgl.system.MemoryUtil.memAlloc
 import vkk.*
+import vkk.`object`.VkBuffer
+import vkk.`object`.VkDeviceMemory
+import vkk.`object`.VkDeviceSize
 import java.nio.ByteBuffer
 import kotlin.math.roundToInt
 

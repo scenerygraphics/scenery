@@ -7,9 +7,9 @@ import kool.free
 import kool.rem
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.VK10.*
-import vkk.VkBuffer
-import vkk.VkDeviceMemory
-import vkk.VkDeviceSize
+import vkk.`object`.VkBuffer
+import vkk.`object`.VkDeviceMemory
+import vkk.`object`.VkDeviceSize
 import vkk.mappedMemory
 import java.nio.ByteBuffer
 import java.nio.IntBuffer

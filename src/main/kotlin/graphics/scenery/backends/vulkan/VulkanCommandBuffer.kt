@@ -3,9 +3,8 @@ package graphics.scenery.backends.vulkan
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkCommandBuffer
-import org.lwjgl.vulkan.VkFenceCreateInfo
 import vkk.*
-import java.nio.LongBuffer
+import vkk.`object`.VkFence
 
 /**
  * Vulkan Command Buffer class. Wraps command buffer and fencing functionality.

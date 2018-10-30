@@ -10,6 +10,7 @@ import kool.Ptr
 import kool.stak
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
+import vkk.`object`.*
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 
@@ -428,10 +429,28 @@ inline var VkBufferImageCopy.imageSubresource: VkImageSubresourceLayers
 inline var VkBufferImageCopy.imageOffset: VkOffset3D
     get() = VkBufferImageCopy.nimageOffset(adr)
     set(value) = VkBufferImageCopy.nimageOffset(adr, value)
+/** JVM custom */
+fun VkBufferImageCopy.imageOffset(xyz: Int) = imageOffset(xyz, xyz, xyz)
+/** JVM custom */
+fun VkBufferImageCopy.imageOffset(x: Int, y: Int, z: Int) {
+    imageOffset.also {
+        it.x = x
+        it.y = y
+        it.z = z
+    }
+}
 inline var VkBufferImageCopy.imageExtent: VkExtent3D
     get() = VkBufferImageCopy.nimageExtent(adr)
     set(value) = VkBufferImageCopy.nimageExtent(adr, value)
 
+/** JVM custom */
+fun VkBufferImageCopy.imageExtent(width: Int, height: Int, depth: Int) {
+    imageExtent.also {
+        it.width = width
+        it.height = height
+        it.depth = depth
+    }
+}
 /** JVM custom */
 fun VkBufferImageCopy.imageExtent(extent: Vec2i, depth: Int) {
     imageExtent.apply {

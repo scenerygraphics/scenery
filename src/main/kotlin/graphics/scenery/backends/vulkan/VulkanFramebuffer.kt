@@ -1,13 +1,14 @@
 package graphics.scenery.backends.vulkan
 
+import glm_.size
 import graphics.scenery.utils.LazyLogger
+import kool.cap
 import org.lwjgl.system.MemoryUtil.NULL
-import org.lwjgl.system.Struct
 import org.lwjgl.vulkan.*
 import java.util.*
 import org.lwjgl.vulkan.VK10.*
 import vkk.*
-import java.util.*
+import vkk.`object`.*
 
 /**
  * Vulkan Framebuffer class. Creates a framebuffer on [device], associated with
@@ -369,8 +370,8 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
      */
     fun addSwapchainAttachment(name: String, swapchain: Swapchain, index: Int): VulkanFramebuffer {
         val att = VulkanFramebufferAttachment().apply {
-            image = swapchain.images!![index]
-            imageView = swapchain.imageViews!![index]
+            image = swapchain.images[index]
+            imageView = swapchain.imageViews[index]
             type = VulkanFramebufferType.COLOR_ATTACHMENT
             fromSwapchain = true
         }

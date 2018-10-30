@@ -28,11 +28,11 @@ import org.lwjgl.system.Platform
 import org.lwjgl.vulkan.VK10
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkQueue
-import vkk.VkImage
-import vkk.VkImageArray
-import vkk.VkImageView
-import vkk.VkImageViewArray
-import java.lang.UnsupportedOperationException
+import uno.glfw.glfw
+import vkk.`object`.VkImage
+import vkk.`object`.VkImageArray
+import vkk.`object`.VkImageView
+import vkk.`object`.VkImageViewArray
 import java.nio.LongBuffer
 
 /**
@@ -51,7 +51,7 @@ class OpenGLSwapchain(val device: VulkanDevice,
     private val logger by LazyLogger()
 
     /** Swapchain handle. */
-    override var handle: Long = 0L
+    override var handle: Long = 0L // TODO inline class?
     /** Array for rendered images. */
     override var images = VkImageArray()
     /** Array for image views. */
@@ -163,34 +163,33 @@ class OpenGLSwapchain(val device: VulkanDevice,
             window.height = 1200
         }
 
-        val imgs = (0 until bufferCount).map {
-            with(VU.newCommandBuffer(device, commandPools.Standard.L, autostart = true)) {
-                val t = VulkanTexture(this@OpenGLSwapchain.device, commandPools, queue, queue,
-                    window.width, window.height, 1, format, 1)
+        images = VkImageArray(bufferCount)
+        imageViews = VkImageViewArray(bufferCount)
 
-                val image = t.createImage(window.width, window.height, 1,
-                    format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT or VK_IMAGE_USAGE_SAMPLED_BIT,
-                    VK_IMAGE_TILING_OPTIMAL, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                    1)
+        for (i in 0 until bufferCount)
+            device.vulkanDevice.newCommandBuffer(commandPools.Standard)
+                .record {
+                    val t = VulkanTexture(this@OpenGLSwapchain.device, commandPools, queue, queue,
+                        window.width, window.height, 1, format, 1)
 
-                VulkanTexture.transitionLayout(image.image,
-                    VK_IMAGE_LAYOUT_UNDEFINED,
-                    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1,
-                    commandBuffer = this)
+                    val image = t.createImage(window.width, window.height, 1,
+                        format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT or VK_IMAGE_USAGE_SAMPLED_BIT,
+                        VK_IMAGE_TILING_OPTIMAL, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                        1)
 
-                val view = t.createImageView(image, format)
+                    VulkanTexture.transitionLayout(image.image,
+                        VK_IMAGE_LAYOUT_UNDEFINED,
+                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1,
+                        commandBuffer = this)
 
-                endCommandBuffer(this@OpenGLSwapchain.device, commandPools.Standard.L, queue, flush = true, dealloc = true)
-                Pair(image.image, view)
-            }
-        }
-
-        images = VkImageArray(imgs.map { it.first }.toLongArray())
-        imageViews = VkImageViewArray(imgs.map { it.second }.toLongArray())
+                    images[i] = VkImage(image.image)
+                    imageViews[i] = VkImageView(t.createImageView(image, format))
+                }
+                .submit(queue).deallocate()
 
         handle = -1L
 
-        glfwSwapInterval(0)
+        glfw.swapInterval = 0
         glfwShowWindow(window.window)
 
         glEnable(GL_FRAMEBUFFER_SRGB)

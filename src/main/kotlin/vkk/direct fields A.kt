@@ -14,6 +14,7 @@ import org.lwjgl.system.MemoryStack
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.system.Pointer
 import org.lwjgl.vulkan.*
+import vkk.`object`.*
 import java.nio.ByteBuffer
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
@@ -796,12 +797,17 @@ inline var VkImageSubresource.arrayLayer: Int
     get() = VkImageSubresource.narrayLayer(adr)
     set(value) = VkImageSubresource.narrayLayer(adr, value)
 
-//typedef struct VkOffset3D {
-//    int32_t    x;
-//    int32_t    y;
-//    int32_t    z;
-//} VkOffset3D;
-//
+
+inline var VkOffset3D.x: Int
+    get() = VkOffset3D.nx(adr)
+    set(value) = VkOffset3D.nx(adr, value)
+inline var VkOffset3D.y: Int
+    get() = VkOffset3D.ny(adr)
+    set(value) = VkOffset3D.ny(adr, value)
+inline var VkOffset3D.z: Int
+    get() = VkOffset3D.nz(adr)
+    set(value) = VkOffset3D.nz(adr, value)
+
 //typedef struct VkSparseImageMemoryBind {
 //    VkImageSubresource         subresource;
 //    VkOffset3D                 offset;

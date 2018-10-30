@@ -1,7 +1,6 @@
 package graphics.scenery.backends.vulkan
 
-import kool.pos
-import vkk.VkDeviceSize
+import vkk.`object`.VkDeviceSize
 import java.nio.ByteBuffer
 
 /**

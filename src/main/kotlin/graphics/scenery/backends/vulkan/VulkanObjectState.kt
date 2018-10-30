@@ -1,11 +1,10 @@
 package graphics.scenery.backends.vulkan
 
-import org.lwjgl.system.MemoryUtil.*
-import org.lwjgl.vulkan.*
 import graphics.scenery.NodeMetadata
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.system.MemoryUtil.NULL
 import vkk.*
+import vkk.`object`.*
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 

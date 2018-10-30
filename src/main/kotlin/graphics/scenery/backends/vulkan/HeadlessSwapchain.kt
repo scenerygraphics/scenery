@@ -1,15 +1,17 @@
 package graphics.scenery.backends.vulkan
 
+import graphics.scenery.Hub
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.SceneryWindow
-import org.lwjgl.system.MemoryUtil
-import org.lwjgl.vulkan.*
-import java.nio.ByteBuffer
-import java.nio.LongBuffer
-import graphics.scenery.Hub
 import graphics.scenery.utils.SceneryPanel
 import org.lwjgl.system.MemoryStack
+import org.lwjgl.system.MemoryUtil
+import org.lwjgl.vulkan.*
 import vkk.*
+import vkk.`object`.VkDeviceSize
+import vkk.`object`.VkImageViewArray
+import java.nio.ByteBuffer
+import java.nio.LongBuffer
 
 
 /**
@@ -18,12 +20,12 @@ import vkk.*
  * @author Ulrik Günther <hello@ulrik.is>
  */
 open class HeadlessSwapchain(device: VulkanDevice,
-                        queue: VkQueue,
-                        commandPools: VulkanRenderer.CommandPools,
-                        renderConfig: RenderConfigReader.RenderConfig,
-                        useSRGB: Boolean = true,
-                        @Suppress("unused") val useFramelock: Boolean = false,
-                        @Suppress("unused") val bufferCount: Int = 2) : VulkanSwapchain(device, queue, commandPools, renderConfig, useSRGB) {
+                             queue: VkQueue,
+                             commandPools: VulkanRenderer.CommandPools,
+                             renderConfig: RenderConfigReader.RenderConfig,
+                             useSRGB: Boolean = true,
+                             @Suppress("unused") val useFramelock: Boolean = false,
+                             @Suppress("unused") val bufferCount: Int = 2) : VulkanSwapchain(device, queue, commandPools, renderConfig, useSRGB) {
     protected var initialized = false
     protected lateinit var sharingBuffer: VulkanBuffer
     protected lateinit var imageBuffer: ByteBuffer
@@ -110,7 +112,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
             sharingBuffer.close()
         }
 
-        val format = if(useSRGB) {
+        val format = if (useSRGB) {
             VK10.VK_FORMAT_B8G8R8A8_SRGB
         } else {
             VK10.VK_FORMAT_B8G8R8A8_UNORM
@@ -126,11 +128,11 @@ open class HeadlessSwapchain(device: VulkanDevice,
             t to image
         }
 
-        images = VkImageArray( textureImages.map {
+        images = vkk.`object`.VkImageArray(textureImages.map {
             it.second.image
         }.toLongArray())
 
-        imageViews = VkImageViewArray( textureImages.map {
+        imageViews = VkImageViewArray(textureImages.map {
             it.first.createImageView(it.second, format)
         }.toLongArray())
 
@@ -167,10 +169,10 @@ open class HeadlessSwapchain(device: VulkanDevice,
             val signal = stack.callocLong(1)
             signal.put(0, signalSemaphore)
 
-            with(VU.newCommandBuffer(device, commandPools.Standard.L, autostart = true)) {
-                endCommandBuffer(this@HeadlessSwapchain.device, commandPools.Standard.L, presentQueue, signalSemaphores = signal,
-                    flush = true, dealloc = true)
-            }
+            device.vulkanDevice.newCommandBuffer(commandPools.Standard)
+                .record { }
+                .submit(presentQueue, signalSemaphores = signal)
+                .deallocate()
 
             currentImage = ++currentImage % images.size
         }
@@ -182,21 +184,19 @@ open class HeadlessSwapchain(device: VulkanDevice,
      * Presents the current image.
      */
     override fun present(waitForSemaphores: LongBuffer?) {
-        MemoryStack.stackPush().use { stack ->
-            if (vulkanSwapchainRecreator.mustRecreate) {
-                return
-            }
 
-            val mask = stack.callocInt(1)
-            mask.put(0, VK10.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
-
-            with(VU.newCommandBuffer(device, commandPools.Standard.L, autostart = true)) {
-                endCommandBuffer(this@HeadlessSwapchain.device, commandPools.Standard.L, presentQueue,
-                    waitSemaphores = waitForSemaphores, waitDstStageMask = mask,
-                    flush = true, dealloc = true)
-            }
+        if (vulkanSwapchainRecreator.mustRecreate) {
+            return
         }
 
+        MemoryStack.stackPush().use { stack ->
+            val mask = stack.ints(VkPipelineStage.COLOR_ATTACHMENT_OUTPUT_BIT.i)
+
+            vkDev.newCommandBuffer(commandPools.Standard)
+                .record {}
+                .submit(presentQueue, waitSemaphores = waitForSemaphores, waitDstStageMask = mask)
+                .deallocate()
+        }
         presentedFrames++
     }
 
@@ -208,46 +208,43 @@ open class HeadlessSwapchain(device: VulkanDevice,
             return
         }
 
-        with(VU.newCommandBuffer(device, commandPools.Standard.L, autostart = true)) {
-            val subresource = VkImageSubresourceLayers.calloc()
-                .aspectMask(VK10.VK_IMAGE_ASPECT_COLOR_BIT)
-                .mipLevel(0)
-                .baseArrayLayer(0)
-                .layerCount(1)
+        vkDev.newCommandBuffer(commandPools.Standard)
+            .record {
+                val subresource = vk.ImageSubresourceLayers {
+                    aspectMask = VkImageAspect.COLOR_BIT.i
+                    mipLevel = 0
+                    baseArrayLayer = 0
+                    layerCount = 1
+                }
+                val region = vk.BufferImageCopy {
+                    bufferRowLength = 0
+                    bufferImageHeight = 0
+                    imageOffset(0)
+                    imageExtent(window.width, window.height, 1)
+                    imageSubresource = subresource
+                }
+                val transferImage = images[image]
 
-            val regions = VkBufferImageCopy.calloc(1)
-                .bufferRowLength(0)
-                .bufferImageHeight(0)
-                .imageOffset(VkOffset3D.calloc().set(0, 0, 0))
-                .imageExtent(VkExtent3D.calloc().set(window.width, window.height, 1))
-                .imageSubresource(subresource)
+                VulkanTexture.transitionLayout(transferImage.L,
+                    KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                    VK10.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                    srcStage = VK10.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                    dstStage = VK10.VK_PIPELINE_STAGE_TRANSFER_BIT,
+                    commandBuffer = this)
 
-            val transferImage = images[image]
+                copyImageToBuffer(transferImage, VkImageLayout.TRANSFER_SRC_OPTIMAL, sharingBuffer.vulkanBuffer, region)
 
-            VulkanTexture.transitionLayout(transferImage.L,
-                KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                VK10.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                srcStage = VK10.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-                dstStage = VK10.VK_PIPELINE_STAGE_TRANSFER_BIT,
-                commandBuffer = this)
+                VulkanTexture.transitionLayout(transferImage.L,
+                    VK10.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                    KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                    srcStage = VK10.VK_PIPELINE_STAGE_TRANSFER_BIT,
+                    dstStage = VK10.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                    commandBuffer = this)
 
-            VK10.vkCmdCopyImageToBuffer(this, transferImage.L,
-                VK10.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                sharingBuffer.vulkanBuffer.L,
-                regions)
+            }
+            .submit(queue).deallocate()
 
-            VulkanTexture.transitionLayout(transferImage.L,
-                VK10.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                srcStage = VK10.VK_PIPELINE_STAGE_TRANSFER_BIT,
-                dstStage = VK10.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-                commandBuffer = this)
-
-            endCommandBuffer(this@HeadlessSwapchain.device, commandPools.Standard.L, queue,
-                flush = true, dealloc = true)
-        }
-
-        VK10.vkQueueWaitIdle(queue)
+        queue.waitIdle() // TODO set block to true above?
 
         resizeHandler.queryResize()
     }

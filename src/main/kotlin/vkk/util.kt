@@ -19,23 +19,19 @@ import org.lwjgl.system.Pointer
 import org.lwjgl.system.Struct
 import org.lwjgl.system.StructBuffer
 import org.lwjgl.vulkan.*
-import java.lang.annotation.ElementType
+import vkk.`object`.VkBuffer
+import vkk.`object`.VkSemaphoreBuffer
 import java.nio.Buffer
 import java.nio.ByteBuffer
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.nio.file.Files
 import java.nio.file.Path
-import javax.lang.model.element.*
 import kotlin.reflect.KProperty1
 import kotlin.reflect.KType
 import kotlin.reflect.full.declaredMemberProperties
 import kotlin.reflect.full.defaultType
 import kotlin.reflect.full.findAnnotation
-import javax.lang.model.type.TypeMirror
-import java.lang.annotation.RetentionPolicy
-
-
 
 
 //fun pointerBufferOf(vararg strings: String): PointerBuffer {
@@ -446,16 +442,6 @@ fun main(args: Array<String>) {
         list += annotated[i] ?: plain[plainIdx++]
     println(list)
 }
-
-typealias VkDebugReportCallbackType = (
-        flag: VkDebugReportFlagsEXT,
-        objType: VkDebugReportObjectType,
-        scrType: Long,
-        location: Long,
-        msgCode: Int,
-        layerPrefix: String,
-        msg: String,
-        userData: Any?) -> Boolean
 
 operator fun VkAttachmentReference.invoke(attachment: Int, layout: VkImageLayout): VkAttachmentReference {
     return attachment(attachment).layout(layout.i)

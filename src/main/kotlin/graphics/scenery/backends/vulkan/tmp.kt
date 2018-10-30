@@ -4,14 +4,12 @@ import glm_.L
 import glm_.i
 import glm_.set
 import kool.*
-import org.lwjgl.system.CustomBuffer
-import org.lwjgl.system.MemoryStack
+import org.lwjgl.system.*
 import org.lwjgl.system.MemoryStack.stackGet
-import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.*
-import org.lwjgl.system.Pointer
 import org.lwjgl.vulkan.*
 import vkk.*
+import vkk.`object`.*
 import java.nio.Buffer
 import java.nio.LongBuffer
 
@@ -230,5 +228,17 @@ fun VkDescriptorSetLayoutBuffer(size: Int, init: (Int) -> VkDescriptorSetLayout)
 //fun VkDescriptorSetLayoutBuffer(collection: Collection<VkDescriptorSetLayout>) = VkDescriptorSetLayoutBuffer(collection.size) { collection.elementAt(it) }
 fun VkDescriptorSetLayoutBuffer(collection: Collection<Long>) = VkDescriptorSetLayoutBuffer(collection.size) { VkDescriptorSetLayout(collection.elementAt(it)) }
 
-fun VkImageArray(size: Int, init: (Int) -> VkImage): VkImageArray = VkImageArray(LongArray(size){ init(it).L })
+fun VkImageArray(size: Int, init: (Int) -> VkImage): VkImageArray = VkImageArray(LongArray(size) { init(it).L })
 
+fun VkSubmitInfo() = VkSubmitInfo.calloc().apply { type = VkStructureType.SUBMIT_INFO }
+
+val VkQueryPool.isValid get() = L != NULL
+
+//fun VkDevice.destroyQueryPool(queryPool: VkQueryPool) = VK10.nvkDestroyQueryPool(this, queryPool.L, NULL) TODO infix
+
+infix fun VkDevice.createQueryPool(createInfo: VkQueryPoolCreateInfo): VkQueryPool = VkQueryPool(stak.longAddress { VK10.nvkCreateQueryPool(this, createInfo.adr, NULL, it) })
+
+fun MemoryStack.reset() {
+    val size = Configuration.STACK_SIZE.get(64) * 1024
+    pointer = size
+}

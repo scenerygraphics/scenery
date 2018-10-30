@@ -3,9 +3,8 @@ package graphics.scenery.backends.vulkan
 import graphics.scenery.Hub
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.utils.SceneryPanel
-import vkk.VkImageArray
-import vkk.VkImageView
-import vkk.VkImageViewArray
+import vkk.`object`.VkImageArray
+import vkk.`object`.VkImageViewArray
 import java.nio.LongBuffer
 
 /**

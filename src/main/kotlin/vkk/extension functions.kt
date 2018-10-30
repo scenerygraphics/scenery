@@ -1,16 +1,19 @@
 package vkk
 
-import glm_.*
+import glm_.BYTES
+import glm_.f
+import glm_.i
+import glm_.size
 import glm_.vec2.Vec2i
 import graphics.scenery.backends.vulkan.VkImageArray
+import graphics.scenery.backends.vulkan.rem
 import kool.Ptr
 import kool.stak
 import org.lwjgl.PointerBuffer
-import org.lwjgl.system.MemoryStack.stackGet
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.system.Pointer
-import org.lwjgl.system.Pointer.POINTER_SIZE
 import org.lwjgl.vulkan.*
+import vkk.`object`.*
 import java.nio.ByteBuffer
 import java.nio.FloatBuffer
 
@@ -64,6 +67,9 @@ fun VkCommandBuffer.copyBufferToImage(srcBuffer: VkBuffer, dstImage: VkImage, ds
 fun VkCommandBuffer.copyBufferToImage(srcBuffer: VkBuffer, dstImage: VkImage, dstImageLayout: VkImageLayout, region: VkBufferImageCopy.Buffer) = VK10.nvkCmdCopyBufferToImage(this, srcBuffer.L, dstImage.L, dstImageLayout.i, region.remaining(), region.adr)
 
 fun VkCommandBuffer.copyImage(srcImage: VkImage, srcImageLayout: VkImageLayout, dstImage: VkImage, dstImageLayout: VkImageLayout, region: VkImageCopy) = VK10.nvkCmdCopyImage(this, srcImage.L, srcImageLayout.i, dstImage.L, dstImageLayout.i, 1, region.adr)
+
+fun VkCommandBuffer.copyImageToBuffer(srcImage: VkImage, srcImageLayout: VkImageLayout, dstBuffer: VkBuffer, region: VkBufferImageCopy) = VK10.nvkCmdCopyImageToBuffer(this, srcImage.L, srcImageLayout.i, dstBuffer.L, 1, region.adr)
+fun VkCommandBuffer.copyImageToBuffer(srcImage: VkImage, srcImageLayout: VkImageLayout, dstBuffer: VkBuffer, regions: VkBufferImageCopy.Buffer) = VK10.nvkCmdCopyImageToBuffer(this, srcImage.L, srcImageLayout.i, dstBuffer.L, regions.rem, regions.adr)
 
 infix fun VkCommandBuffer.debugMarkerBegin(markerInfo: VkDebugMarkerMarkerInfoEXT) = EXTDebugMarker.nvkCmdDebugMarkerBeginEXT(this, markerInfo.adr)
 

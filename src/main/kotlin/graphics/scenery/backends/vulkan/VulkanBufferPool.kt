@@ -1,11 +1,9 @@
 package graphics.scenery.backends.vulkan
 
-import glm_.L
 import graphics.scenery.utils.LazyLogger
-import org.lwjgl.vulkan.VK10
 import java.util.concurrent.CopyOnWriteArrayList
-import graphics.scenery.backends.vulkan.times
 import vkk.*
+import vkk.`object`.VkDeviceSize
 
 
 /** Default [VulkanBufferPool] backing store size. */

@@ -7,6 +7,7 @@ import org.lwjgl.system.MemoryStack.stackGet
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.vkGetPhysicalDeviceMemoryProperties
 import vkk.*
+import vkk.`object`.VkCommandPool
 
 /**
  * Describes a Vulkan device attached to an [instance] and a [physicalDevice].

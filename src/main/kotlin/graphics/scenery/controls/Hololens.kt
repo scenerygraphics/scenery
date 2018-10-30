@@ -22,7 +22,7 @@ import org.zeromq.ZContext
 import org.zeromq.ZMQ
 import org.zeromq.ZMsg
 import org.zeromq.ZPoller
-import vkk.VkCommandPool
+import vkk.`object`.VkCommandPool
 import java.math.BigInteger
 import java.nio.ByteBuffer
 import java.nio.ByteOrder

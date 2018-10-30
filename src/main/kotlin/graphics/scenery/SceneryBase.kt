@@ -4,6 +4,7 @@ import cleargl.ClearGLDefaultEventListener
 import cleargl.GLVector
 import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.opengl.OpenGLRenderer
+import graphics.scenery.backends.vulkan.reset
 import graphics.scenery.controls.InputHandler
 import graphics.scenery.controls.behaviours.ArcballCameraControl
 import graphics.scenery.controls.behaviours.FPSCameraControl
@@ -14,6 +15,7 @@ import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.Renderdoc
 import graphics.scenery.utils.SceneryPanel
 import graphics.scenery.utils.Statistics
+import org.lwjgl.system.MemoryStack.stackGet
 import org.scijava.Context
 import org.scijava.ui.behaviour.ClickBehaviour
 import java.lang.Boolean.parseBoolean
@@ -290,6 +292,8 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             }
 
             ticks++
+
+            stackGet().reset()
         }
 
         inputHandler?.close()

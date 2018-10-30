@@ -1,4 +1,4 @@
-package vkk
+package vkk.`object`
 
 import glm_.i
 import glm_.set
@@ -7,6 +7,8 @@ import org.lwjgl.system.MemoryStack
 import org.lwjgl.system.MemoryUtil.NULL
 import org.lwjgl.system.MemoryUtil.memCopy
 import org.lwjgl.system.Pointer
+import vkk.VkDynamicState
+import vkk.adr
 import java.nio.ByteBuffer
 import java.nio.IntBuffer
 import java.nio.LongBuffer
@@ -157,8 +159,9 @@ inline class VkImageArray(val array: LongArray) : Iterable<VkImage> {
     }
 }
 
-fun initVkImageArray(size: Int, block: (Int) -> VkImage) = VkImageArray(LongArray(size) { block(it).L })
-fun vkImageArrayOf() = VkImageArray(LongArray(0))
+fun VkImageArray(size: Int, block: (Int) -> VkImage) = VkImageArray(LongArray(size) { block(it).L })
+fun VkImageArray(size: Int) = VkImageArray(LongArray(size))
+fun VkImageArray() = VkImageArray(LongArray(0))
 
 inline class VkImageViewArray(val array: LongArray) : Iterable<VkImageView> {
 
@@ -183,8 +186,9 @@ inline class VkImageViewArray(val array: LongArray) : Iterable<VkImageView> {
     }
 }
 
-fun initVkImageViewArray(size: Int, block: (Int) -> VkImageView) = VkImageViewArray(LongArray(size) { block(it).L })
-fun vkImageViewArrayOf() = VkImageViewArray(LongArray(0))
+fun VkImageViewArray(size: Int, block: (Int) -> VkImageView) = VkImageViewArray(LongArray(size) { block(it).L })
+fun VkImageViewArray(size: Int) = VkImageViewArray(LongArray(size))
+fun VkImageViewArray() = VkImageViewArray(LongArray(0))
 
 typealias VkSemaphoreArray = LongArray
 
@@ -198,16 +202,16 @@ inline class VkImageViewBuffer(val buffer: LongBuffer) {
 
 fun MemoryStack.vkImageViewBufferBig(size: Int) = VkImageViewBuffer(callocLong(size))
 fun MemoryStack.vkImageViewBufferOf(imageView: VkImageView): VkImageViewBuffer =
-        VkImageViewBuffer(longs(imageView.L))
+    VkImageViewBuffer(longs(imageView.L))
 
 fun MemoryStack.vkImageViewBufferOf(imageView0: VkImageView,
                                     imageView1: VkImageView): VkImageViewBuffer =
-        VkImageViewBuffer(longs(imageView0.L, imageView1.L))
+    VkImageViewBuffer(longs(imageView0.L, imageView1.L))
 
 fun MemoryStack.vkImageViewBufferOf(imageView0: VkImageView,
                                     imageView1: VkImageView,
                                     imageView2: VkImageView): VkImageViewBuffer =
-        VkImageViewBuffer(longs(imageView0.L, imageView1.L, imageView2.L))
+    VkImageViewBuffer(longs(imageView0.L, imageView1.L, imageView2.L))
 
 inline class VkDynamicStateBuffer(val buffer: IntBuffer) {
 
@@ -228,12 +232,12 @@ fun MemoryStack.vkDynamicStateBufferOf(dynamicState: VkDynamicState): VkDynamicS
 
 fun MemoryStack.vkDynamicStateBufferOf(dynamicState0: VkDynamicState,
                                        dynamicState1: VkDynamicState): VkDynamicStateBuffer =
-        VkDynamicStateBuffer(ints(dynamicState0.i, dynamicState1.i))
+    VkDynamicStateBuffer(ints(dynamicState0.i, dynamicState1.i))
 
 fun MemoryStack.vkDynamicStateBufferOf(dynamicState0: VkDynamicState,
                                        dynamicState1: VkDynamicState,
                                        dynamicState2: VkDynamicState): VkDynamicStateBuffer =
-        VkDynamicStateBuffer(ints(dynamicState0.i, dynamicState1.i, dynamicState2.i))
+    VkDynamicStateBuffer(ints(dynamicState0.i, dynamicState1.i, dynamicState2.i))
 
 
 

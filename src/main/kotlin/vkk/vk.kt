@@ -3,14 +3,12 @@ package vkk
 import glm_.*
 import glm_.vec2.Vec2i
 import kool.stak
-import org.lwjgl.system.MemoryStack.stackGet
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.system.Pointer
 import org.lwjgl.system.Struct
 import org.lwjgl.vulkan.*
-import org.lwjgl.vulkan.VK10.VK_QUEUE_FAMILY_IGNORED
-import vkk.VkPhysicalDeviceArrayList.resize
+import vkk.`object`.*
 import java.nio.ByteBuffer
 import java.nio.LongBuffer
 import kotlin.reflect.KMutableProperty0
@@ -295,7 +293,7 @@ object vk {
     inline fun SubpassDescription(block: VkSubpassDescription.() -> Unit): VkSubpassDescription = SubpassDescription().also(block)
 
     fun SubresourceLayout(): VkSubresourceLayout = VkSubresourceLayout.callocStack()
-    inline fun SubresourceLayout(capacity: Int): VkSubresourceLayout.Buffer = VkSubresourceLayout.callocStack(capacity)
+    fun SubresourceLayout(capacity: Int): VkSubresourceLayout.Buffer = VkSubresourceLayout.callocStack(capacity)
 
     fun SurfaceCapabilitiesKHR(): VkSurfaceCapabilitiesKHR = VkSurfaceCapabilitiesKHR.callocStack()
     inline fun SurfaceCapabilitiesKHR(block: VkSurfaceCapabilitiesKHR.() -> Unit): VkSurfaceCapabilitiesKHR = SurfaceCapabilitiesKHR().also(block)

@@ -510,6 +510,12 @@
 
         <dependency>
             <groupId>com.github.kotlin-graphics</groupId>
+            <artifactId>uno-sdk</artifactId>
+            <version>8bb70b7554c0a58e7f637d09320780b0d827ca0e</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.github.kotlin-graphics</groupId>
             <artifactId>glm</artifactId>
             <version>f63d840cde</version>
         </dependency>

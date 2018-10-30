@@ -9,12 +9,13 @@ import graphics.scenery.spirvcrossj.Loader
 import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.utils.*
 import kool.cap
+import kool.free
 import kotlinx.coroutines.*
 import org.lwjgl.PointerBuffer
 import org.lwjgl.glfw.GLFW.glfwInit
-import org.lwjgl.glfw.GLFWVulkan.glfwGetRequiredInstanceExtensions
 import org.lwjgl.glfw.GLFWVulkan.glfwVulkanSupported
 import org.lwjgl.system.Configuration
+import org.lwjgl.system.MemoryStack.stackGet
 import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.system.jemalloc.JEmalloc.*
@@ -22,7 +23,9 @@ import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.EXTDebugReport.*
 import org.lwjgl.vulkan.KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
 import org.lwjgl.vulkan.VK10.*
+import uno.glfw.glfw
 import vkk.*
+import vkk.`object`.*
 import java.awt.image.BufferedImage
 import java.awt.image.DataBufferByte
 import java.io.File
@@ -39,6 +42,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantLock
 import javax.imageio.ImageIO
+import kotlin.collections.ArrayList
 import kotlin.concurrent.thread
 import kotlin.concurrent.withLock
 import kotlin.reflect.full.findAnnotation
@@ -72,11 +76,11 @@ open class VulkanRenderer(hub: Hub,
 
     // helper classes
     data class PresentHelpers(
-        var signalSemaphore: LongBuffer = memAllocLong(1),
-        var waitSemaphore: LongBuffer = memAllocLong(1),
-        var commandBuffers: PointerBuffer = memAllocPointer(1),
+        var signalSemaphore: VkSemaphore = VkSemaphore(NULL),
+        var waitSemaphore: VkSemaphore = VkSemaphore(NULL),
+        var commandBuffers: PointerBuffer = memAllocPointer(1), // TODO check if really single
         var waitStages: IntBuffer = memAllocInt(1),
-        var submitInfo: VkSubmitInfo = VkSubmitInfo.calloc()
+        var submitInfo: VkSubmitInfo = VkSubmitInfo()
     )
 
     enum class VertexDataKinds {
@@ -115,10 +119,7 @@ open class VulkanRenderer(hub: Hub,
     )
 
 
-    class Pipeline {
-        internal var pipeline = VkPipeline(NULL)
-        internal var layout = VkPipelineLayout(NULL)
-    }
+    class Pipeline(var pipeline: VkPipeline = VkPipeline(NULL), var layout: VkPipelineLayout = VkPipelineLayout(NULL))
 
     sealed class DescriptorSet(val id: Long = 0L, val name: String = "") {
         object None : DescriptorSet(0L)
@@ -127,11 +128,7 @@ open class VulkanRenderer(hub: Hub,
 
         companion object {
             fun setOrNull(id: Long?, setName: String): DescriptorSet? {
-                return if (id == null) {
-                    null
-                } else {
-                    DescriptorSet.Set(id, setName)
-                }
+                return id?.let { DescriptorSet.Set(id, setName) }
             }
         }
     }
@@ -149,31 +146,18 @@ open class VulkanRenderer(hub: Hub,
             if (lock.tryLock()) {
                 logger.info("Recreating Swapchain at frame $frames")
                 // create new swapchain with changed surface parameters
-                vkQueueWaitIdle(queue)
+                queue.waitIdle()
 
-                with(VU.newCommandBuffer(device, commandPools.Standard.L, autostart = true)) {
-                    // Create the swapchain (this will also add a memory barrier to initialize the framebuffer images)
-
-                    swapchain.create(oldSwapchain = swapchain)
-
-                    endCommandBuffer(this@VulkanRenderer.device, commandPools.Standard.L, queue, flush = true, dealloc = true)
-
-                    this
-                }
-
-                val pipelineCacheInfo = VkPipelineCacheCreateInfo.calloc()
-                    .sType(VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO)
-                    .pNext(NULL)
-                    .flags(VK_FLAGS_NONE)
+                vkDev.newCommandBuffer(commandPools.Standard)
+                    .record { swapchain.create(oldSwapchain = swapchain) }
+                    .submit(queue)
+                    .deallocate()
 
                 val refreshResolutionDependentResources = {
-                    if (pipelineCache != -1L) {
-                        vkDestroyPipelineCache(device.vulkanDevice, pipelineCache, null)
-                    }
+                    if (pipelineCache.L != NULL)
+                        vkDev destroyPipelineCache pipelineCache
 
-                    pipelineCache = VU.getLong("create pipeline cache",
-                        { vkCreatePipelineCache(device.vulkanDevice, pipelineCacheInfo, null, this) },
-                        { pipelineCacheInfo.free() })
+                    pipelineCache = vkDev createPipelineCache vk.PipelineCacheCreateInfo()
 
                     renderpasses.values.forEach { it.close() }
                     renderpasses.clear()
@@ -183,11 +167,11 @@ open class VulkanRenderer(hub: Hub,
 
                     prepareRenderpassesFromConfig(renderConfig, window.width, window.height)
 
-                    semaphores.forEach { it.value.forEach { semaphore -> vkDestroySemaphore(device.vulkanDevice, semaphore, null) } }
+                    semaphores.forEach { it.value.forEach { semaphore -> vkDev destroySemaphore VkSemaphore(semaphore) } }
                     semaphores = prepareStandardSemaphores(device)
 
                     // Create render command buffers
-                    vkResetCommandPool(device.vulkanDevice, commandPools.Render.L, VK_FLAGS_NONE)
+                    vkDev resetCommandPool commandPools.Render
 
                     scene.findObserver()?.let { cam ->
                         cam.perspectiveCamera(cam.fov, window.width.toFloat(), window.height.toFloat(), cam.nearPlaneDistance, cam.farPlaneDistance)
@@ -196,19 +180,15 @@ open class VulkanRenderer(hub: Hub,
                     logger.debug("Calling late resize initializers for ${lateResizeInitializers.keys.joinToString()}")
                     lateResizeInitializers.map { it.value.invoke() }
 
-                    if (timestampQueryPool != -1L) {
-                        vkDestroyQueryPool(device.vulkanDevice, timestampQueryPool, null)
+                    if (timestampQueryPool.isValid) {
+                        vkDev.destroyQueryPool(timestampQueryPool) // TODO infix
                     }
 
-                    val queryPoolCreateInfo = VkQueryPoolCreateInfo.calloc()
-                        .sType(VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO)
-                        .pNext(NULL)
-                        .queryType(VK_QUERY_TYPE_TIMESTAMP)
-                        .queryCount(renderConfig.renderpasses.size * 2)
-
-                    timestampQueryPool = VU.getLong("Create timestamp query pool",
-                        { vkCreateQueryPool(device.vulkanDevice, queryPoolCreateInfo, null, this) },
-                        { queryPoolCreateInfo.free() })
+                    val queryPoolCreateInfo = vk.QueryPoolCreateInfo {
+                        queryType = VkQueryType.TIMESTAMP
+                        queryCount = renderConfig.renderpasses.size * 2
+                    }
+                    timestampQueryPool = vkDev createQueryPool queryPoolCreateInfo
                 }
 
                 refreshResolutionDependentResources.invoke()
@@ -225,6 +205,7 @@ open class VulkanRenderer(hub: Hub,
 
     /** Debug callback to be used upon encountering validation messages or errors */
     var debugCallback = object : VkDebugReportCallbackEXT() {
+
         override operator fun invoke(flags: Int, objectType: Int, obj: Long, location: Long, messageCode: Int, pLayerPrefix: Long, pMessage: Long, pUserData: Long): Int {
             val dbg = if (flags and VK_DEBUG_REPORT_DEBUG_BIT_EXT == VK_DEBUG_REPORT_DEBUG_BIT_EXT) {
                 " (debug)"
@@ -246,7 +227,7 @@ open class VulkanRenderer(hub: Hub,
             }
 
             // trigger exception and delay if strictValidation is activated in general, or only for specific object types
-            if(strictValidation.first && strictValidation.second.isEmpty() ||
+            if (strictValidation.first && strictValidation.second.isEmpty() ||
                 strictValidation.first && strictValidation.second.contains(objectType)) {
                 // set 15s of delay until the next frame is rendered if a validation error happens
                 renderDelay = 1500L
@@ -303,8 +284,8 @@ open class VulkanRenderer(hub: Hub,
     protected var instance: VkInstance
     protected var device: VulkanDevice
 
-    protected var debugCallbackHandle: Long
-    protected var timestampQueryPool: Long = -1L
+    protected var debugCallbackHandle = VkDebugReportCallback(NULL)
+    protected var timestampQueryPool = VkQueryPool(NULL)
 
     protected var semaphoreCreateInfo: VkSemaphoreCreateInfo
 
@@ -319,7 +300,7 @@ open class VulkanRenderer(hub: Hub,
     final override var window: SceneryWindow = SceneryWindow.UninitializedWindow()
 
     protected val swapchainRecreator: SwapchainRecreator
-    protected var pipelineCache: Long = -1L
+    protected var pipelineCache = VkPipelineCache(NULL)
     protected var vertexDescriptors = ConcurrentHashMap<VertexDataKinds, VertexDescription>()
     protected var sceneUBOs = ArrayList<Node>()
     protected var geometryPool: VulkanBufferPool
@@ -448,7 +429,7 @@ open class VulkanRenderer(hub: Hub,
 
         // Create the Vulkan instance
         instance = if (embedIn != null) {
-            createInstance(null)
+            createInstance()
         } else {
             if (!glfwInit()) {
                 throw RuntimeException("Failed to initialize GLFW")
@@ -458,29 +439,18 @@ open class VulkanRenderer(hub: Hub,
             }
 
             /* Look for instance extensions */
-            val requiredExtensions = glfwGetRequiredInstanceExtensions()
-                ?: throw RuntimeException("Failed to find list of required Vulkan extensions")
-            createInstance(requiredExtensions)
+            createInstance(glfw.requiredInstanceExtensions)
         }
 
-        debugCallbackHandle = if (validation) {
-            setupDebugging(instance,
-                VK_DEBUG_REPORT_ERROR_BIT_EXT or VK_DEBUG_REPORT_WARNING_BIT_EXT,
-                debugCallback)
-        } else {
-            -1L
-        }
+        if (validation)
+            debugCallbackHandle = setupDebugging(instance, VkDebugReport.ERROR_BIT_EXT or VkDebugReport.WARNING_BIT_EXT, debugCallback)
 
-        val requestedValidationLayers = if (validation) {
-            if (wantsOpenGLSwapchain) {
+        val requestedValidationLayers = arrayListOf<String>()
+        if (validation)
+            if (wantsOpenGLSwapchain)
                 logger.warn("Requested OpenGL swapchain, validation layers disabled.")
-                arrayListOf()
-            } else {
-                defaultValidationLayers
-            }
-        } else {
-            arrayListOf()
-        }
+            else
+                requestedValidationLayers += defaultValidationLayers
 
         device = VulkanDevice.fromPhysicalDevice(instance,
             physicalDeviceFilter = { _, device -> device.name.contains(System.getProperty("scenery.Renderer.Device", "DOES_NOT_EXIST")) },
@@ -717,7 +687,8 @@ open class VulkanRenderer(hub: Hub,
      * Initialises a given [node] with the metadata required by the [VulkanRenderer].
      */
     fun initializeNode(node: Node): Boolean {
-        var s: VulkanObjectState = node.rendererMetadata() ?: throw IllegalStateException("Node ${node.name} does not contain metadata object")
+        var s: VulkanObjectState = node.rendererMetadata()
+            ?: throw IllegalStateException("Node ${node.name} does not contain metadata object")
 
         if (s.initialized) return true
 
@@ -743,7 +714,8 @@ open class VulkanRenderer(hub: Hub,
 
         val instanceMaster = node.instanceOf
         if (instanceMaster != null) {
-            val parentMetadata = instanceMaster.rendererMetadata() ?: throw IllegalStateException("Instance master lacks metadata")
+            val parentMetadata = instanceMaster.rendererMetadata()
+                ?: throw IllegalStateException("Instance master lacks metadata")
 
             if (!parentMetadata.initialized) {
                 logger.debug("Instance parent $instanceMaster is not initialized yet, initializing now...")
@@ -954,10 +926,10 @@ open class VulkanRenderer(hub: Hub,
                             add(name, { node.getShaderProperty(name)!! }, offset)
                         }
 
-                            this.createUniformBuffer()
-                            s.UBOs.put("${pass.key}-ShaderProperties", s.requiredDescriptorSets["ShaderProperties"]!! to this)
-                        }
+                        this.createUniformBuffer()
+                        s.UBOs.put("${pass.key}-ShaderProperties", s.requiredDescriptorSets["ShaderProperties"]!! to this)
                     }
+                }
 
             }
 
@@ -1092,9 +1064,9 @@ open class VulkanRenderer(hub: Hub,
             }
         }
 
-            s.texturesToDescriptorSet(device, descriptorSetLayouts["ObjectTextures"]!!,
-                VkDescriptorPool(descriptorPool),
-                targetBinding = 0)
+        s.texturesToDescriptorSet(device, descriptorSetLayouts["ObjectTextures"]!!,
+            VkDescriptorPool(descriptorPool),
+            targetBinding = 0)
 
         node.lock.unlock()
 
@@ -1418,7 +1390,7 @@ open class VulkanRenderer(hub: Hub,
 
         config.createRenderpassFlow().map { passName ->
             val passConfig = config.renderpasses[passName]!!
-            val pass = VulkanRenderpass(passName, config, device, descriptorPool, pipelineCache, vertexDescriptors)
+            val pass = VulkanRenderpass(passName, config, device, descriptorPool, pipelineCache.L, vertexDescriptors)
 
             var width = windowWidth
             var height = windowHeight
@@ -1624,21 +1596,19 @@ open class VulkanRenderer(hub: Hub,
 
     private fun submitFrame(queue: VkQueue, pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer, present: PresentHelpers) {
         val stats = hub?.get(SceneryElement.Statistics) as? Statistics
-        present.submitInfo
-            .sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
-            .pNext(NULL)
-            .waitSemaphoreCount(1)
-            .pWaitSemaphores(present.waitSemaphore)
-            .pWaitDstStageMask(present.waitStages)
-            .pCommandBuffers(present.commandBuffers)
-            .pSignalSemaphores(present.signalSemaphore)
-
+        present.submitInfo.apply {
+            waitSemaphoreCount = 1
+            waitSemaphore = present.waitSemaphore
+            waitDstStageMask = present.waitStages
+            commandBuffers = present.commandBuffers
+            signalSemaphore = present.signalSemaphore
+        }
         // Submit to the graphics queue
         VU.run("Submit viewport render queue", { vkQueueSubmit(queue, present.submitInfo, commandBuffer.fence.L) })
 
         val startPresent = System.nanoTime()
         commandBuffer.submitted = true
-        swapchain.present(ph.signalSemaphore)
+        swapchain.present(stackGet().longs(ph.signalSemaphore.L))
         // TODO: Figure out whether this waitForFence call is strictly necessary -- actually, the next renderloop iteration should wait for it.
         commandBuffer.waitForFence()
 
@@ -1933,7 +1903,7 @@ open class VulkanRenderer(hub: Hub,
                 commandBuffer.resetFence()
 
                 val timing = intArrayOf(0, 0)
-                VU.run("getting query pool results", { vkGetQueryPoolResults(device.vulkanDevice, timestampQueryPool, 2 * i, 2, timing, 0, VK_FLAGS_NONE) })
+                VU.run("getting query pool results", { vkGetQueryPoolResults(device.vulkanDevice, timestampQueryPool.L, 2 * i, 2, timing, 0, VK_FLAGS_NONE) })
 
                 stats?.add("Renderer.$t.gpuTiming", timing[1] - timing[0])
             }
@@ -1993,7 +1963,7 @@ open class VulkanRenderer(hub: Hub,
             viewportCommandBuffer.resetFence()
 
             val timing = intArrayOf(0, 0)
-            VU.run("getting query pool results", { vkGetQueryPoolResults(device.vulkanDevice, timestampQueryPool, 2 * (flow.size - 1), 2, timing, 0, VK_FLAGS_NONE) })
+            VU.run("getting query pool results", { vkGetQueryPoolResults(device.vulkanDevice, timestampQueryPool.L, 2 * (flow.size - 1), 2, timing, 0, VK_FLAGS_NONE) })
 
             stats?.add("Renderer.${viewportPass.name}.gpuTiming", timing[1] - timing[0])
         }
@@ -2002,8 +1972,8 @@ open class VulkanRenderer(hub: Hub,
 
         ph.commandBuffers.put(0, viewportCommandBuffer.commandBuffer!!)
         ph.waitStages.put(0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
-        ph.signalSemaphore.put(0, semaphores[StandardSemaphores.RenderComplete]!![0])
-        ph.waitSemaphore.put(0, firstWaitSemaphore.get(0))
+        ph.signalSemaphore = VkSemaphore(semaphores[StandardSemaphores.RenderComplete]!![0])
+        ph.waitSemaphore = VkSemaphore(firstWaitSemaphore.get(0))
 
         submitFrame(queue, viewportPass, viewportCommandBuffer, ph)
 
@@ -2022,83 +1992,46 @@ open class VulkanRenderer(hub: Hub,
         totalFrames++
     }
 
-    private fun createInstance(requiredExtensions: PointerBuffer? = null): VkInstance {
-        return stackPush().use { stack ->
-            val appInfo = VkApplicationInfo.callocStack(stack)
-                .sType(VK_STRUCTURE_TYPE_APPLICATION_INFO)
-                .pApplicationName(stack.UTF8(applicationName))
-                .pEngineName(stack.UTF8("scenery"))
-                .apiVersion(VK_MAKE_VERSION(1, 0, 73))
+    private fun createInstance(requiredExtensions: ArrayList<String> = arrayListOf()): VkInstance {
 
-            val additionalExts: List<String> = hub?.getWorkingHMDDisplay()?.getVulkanInstanceExtensions() ?: listOf()
-            val utf8Exts = additionalExts.map { stack.UTF8(it) }
-
-            logger.debug("HMD required instance exts: ${additionalExts.joinToString()} ${additionalExts.size}")
-
-            // allocate enough pointers for already pre-required extensions, plus HMD-required extensions, plus the debug extension
-            val size = requiredExtensions?.remaining() ?: 0
-            val enabledExtensionNames = stack.callocPointer(size + additionalExts.size + 1)
-
-            if (requiredExtensions != null) {
-                enabledExtensionNames.put(requiredExtensions)
-            }
-
-            enabledExtensionNames.put(stack.UTF8(VK_EXT_DEBUG_REPORT_EXTENSION_NAME))
-            utf8Exts.forEach { enabledExtensionNames.put(it) }
-            enabledExtensionNames.flip()
-
-            val enabledLayerNames = if (!wantsOpenGLSwapchain && validation) {
-                val pointers = stack.callocPointer(defaultValidationLayers.size)
-                defaultValidationLayers.forEach { pointers.put(stack.UTF8(it)) }
-                pointers
-            } else {
-                stack.callocPointer(0)
-            }
-
-            enabledLayerNames.flip()
-
-            val createInfo = VkInstanceCreateInfo.callocStack(stack)
-                .sType(VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO)
-                .pNext(NULL)
-                .pApplicationInfo(appInfo)
-                .ppEnabledExtensionNames(enabledExtensionNames)
-                .ppEnabledLayerNames(enabledLayerNames)
-
-            val instance = VU.getPointer("Creating Vulkan instance",
-                { vkCreateInstance(createInfo, null, this) }, {})
-
-            VkInstance(instance, createInfo)
+        val appInfo = vk.ApplicationInfo {
+            this.applicationName = applicationName
+            engineName = "scenery"
+            apiVersion = VK_MAKE_VERSION(1, 0, 73)
         }
+        val additionalExts: List<String> = hub?.getWorkingHMDDisplay()?.getVulkanInstanceExtensions() ?: listOf()
+
+        logger.debug("HMD required instance exts: ${additionalExts.joinToString()} ${additionalExts.size}")
+
+        // allocate enough pointers for already pre-required extensions, plus HMD-required extensions, plus the debug extension
+        val enabledExtensionNames = requiredExtensions + VK_EXT_DEBUG_REPORT_EXTENSION_NAME
+
+        val enabledLayerNames = when {
+            !wantsOpenGLSwapchain && validation -> defaultValidationLayers
+            else -> arrayListOf()
+        }
+
+        val createInfo = vk.InstanceCreateInfo {
+            applicationInfo = appInfo
+            this.enabledExtensionNames = enabledExtensionNames
+            this.enabledLayerNames = enabledLayerNames
+        }
+        return vk.createInstance(createInfo)
     }
 
-    private fun setupDebugging(instance: VkInstance, flags: Int, callback: VkDebugReportCallbackEXT): Long {
-        val dbgCreateInfo = VkDebugReportCallbackCreateInfoEXT.calloc()
-            .sType(VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT)
-            .pNext(NULL)
-            .pfnCallback(callback)
-            .pUserData(NULL)
-            .flags(flags)
+    private fun setupDebugging(instance: VkInstance, flags: VkDebugReportFlagsEXT, callback: VkDebugReportCallbackEXT): VkDebugReportCallback {
 
-        val pCallback = memAllocLong(1)
-
-        return try {
-            val err = vkCreateDebugReportCallbackEXT(instance, dbgCreateInfo, null, pCallback)
-            val callbackHandle = pCallback.get(0)
-            memFree(pCallback)
-            dbgCreateInfo.free()
-            if (err != VK_SUCCESS) {
-                throw RuntimeException("Failed to create VkInstance: " + VU.translate(err))
-            }
-
-            callbackHandle
-        } catch (e: NullPointerException) {
-            -1
+        val dbgCreateInfo = vk.DebugReportCallbackCreateInfoEXT().also {
+            it.callback = callback
+            it.flags = flags
         }
+
+        return instance createDebugReportCallbackEXT dbgCreateInfo
     }
 
     private fun createVertexBuffers(device: VulkanDevice, node: Node, state: VulkanObjectState): VulkanObjectState {
         val n = node as HasGeometry
-        if(n.vertices.remaining() == 0) {
+        if (n.vertices.remaining() == 0) {
             return state
         }
 
@@ -2171,7 +2104,7 @@ open class VulkanRenderer(hub: Hub,
         stagingBuffer.copyFrom(stridedBuffer)
 
         val vertexIndexBuffer = state.vertexBuffers["vertex+index"]
-        val vertexBuffer = if(vertexIndexBuffer != null && vertexIndexBuffer.size >= fullAllocationBytes) {
+        val vertexBuffer = if (vertexIndexBuffer != null && vertexIndexBuffer.size.L >= fullAllocationBytes) {
             logger.debug("Reusing existing vertex+index buffer for {} update", node.name)
             vertexIndexBuffer
         } else {
@@ -2227,7 +2160,7 @@ open class VulkanRenderer(hub: Hub,
         val instanceBufferSize = VkDeviceSize(ubo.getSize() * parentNode.instances.size.L)
 
         val instanceStagingBuffer = state.vertexBuffers["instanceStaging"]
-        val stagingBuffer = if(instanceStagingBuffer != null && instanceStagingBuffer.size >= instanceBufferSize) {
+        val stagingBuffer = if (instanceStagingBuffer != null && instanceStagingBuffer.size.L >= instanceBufferSize.L) {
             instanceStagingBuffer
         } else {
             logger.debug("Creating new staging buffer")
@@ -2253,7 +2186,7 @@ open class VulkanRenderer(hub: Hub,
             node.metadata.getOrPut("instanceBufferView") {
                 stagingBuffer.stagingBuffer.duplicate().order(ByteOrder.LITTLE_ENDIAN)
             }.run {
-                val buffer = this as? ByteBuffer?: return@run
+                val buffer = this as? ByteBuffer ?: return@run
 
                 ubo.populateParallel(buffer, offset = index.getAndIncrement() * ubo.getSize() * 1L, elements = node.instancedProperties)
             }
@@ -2263,7 +2196,7 @@ open class VulkanRenderer(hub: Hub,
         stagingBuffer.copyFromStagingBuffer()
 
         val existingInstanceBuffer = state.vertexBuffers["instance"]
-        val instanceBuffer = if (existingInstanceBuffer != null && existingInstanceBuffer.size >= instanceBufferSize) {
+        val instanceBuffer = if (existingInstanceBuffer != null && existingInstanceBuffer.size.L >= instanceBufferSize.L) {
             existingInstanceBuffer
         } else {
             logger.debug("Instance buffer for ${parentNode.name} needs to be reallocated due to insufficient size ($instanceBufferSize vs ${state.vertexBuffers["instance"]?.size
@@ -2429,10 +2362,10 @@ open class VulkanRenderer(hub: Hub,
         logger.debug("Recording scene command buffer $commandBuffer for pass ${pass.name}...")
 
         // command buffer cannot be null here anymore, otherwise this is clearly in error
-        with(commandBuffer.prepareAndStartRecording(commandPools.Render)) {
+        with(commandBuffer.prepareAndStartRecording(commandPools.Render.L)) {
 
             vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-                timestampQueryPool, 2 * renderpasses.values.indexOf(pass))
+                timestampQueryPool.L, 2 * renderpasses.values.indexOf(pass))
 
             if (pass.passConfig.blitInputs) {
                 stackPush().use { stack ->
@@ -2562,7 +2495,7 @@ open class VulkanRenderer(hub: Hub,
             pass.vulkanMetadata.uboOffsets.limit(16)
             (0 until pass.vulkanMetadata.uboOffsets.limit()).forEach { pass.vulkanMetadata.uboOffsets.put(it, 0) }
 
-            renderOrderList.forEach drawLoop@ { node ->
+            renderOrderList.forEach drawLoop@{ node ->
                 val s = node.rendererMetadata() ?: return@drawLoop
 
                 // instanced nodes will not be drawn directly, but only the master node.
@@ -2584,12 +2517,12 @@ open class VulkanRenderer(hub: Hub,
                 val vertexIndexBuffer = s.vertexBuffers["vertex+index"]
                 val instanceBuffer = s.vertexBuffers["instance"]
 
-                if(vertexIndexBuffer == null) {
+                if (vertexIndexBuffer == null) {
                     logger.error("Vertex+Index buffer not initialiazed")
                     return@drawLoop
                 }
 
-                logger.trace("{} - Rendering {}, vertex+index buffer={}...", pass.name, node.name, vertexIndexBuffer.vulkanBuffer.toHexString())
+                logger.trace("{} - Rendering {}, vertex+index buffer={}...", pass.name, node.name, vertexIndexBuffer.vulkanBuffer.asHexString)
 //                if(rerecordingCauses.contains(node.name)) {
 //                    logger.debug("Using pipeline ${pass.getActivePipeline(node)} for re-recording")
 //                }
@@ -2602,18 +2535,18 @@ open class VulkanRenderer(hub: Hub,
                 pass.vulkanMetadata.descriptorSets.rewind()
                 pass.vulkanMetadata.uboOffsets.rewind()
 
-                pass.vulkanMetadata.vertexBufferOffsets.put(0, vertexIndexBuffer.bufferOffset)
-                pass.vulkanMetadata.vertexBuffers.put(0, vertexIndexBuffer.vulkanBuffer)
+                pass.vulkanMetadata.vertexBufferOffsets.put(0, vertexIndexBuffer.bufferOffset.L)
+                pass.vulkanMetadata.vertexBuffers.put(0, vertexIndexBuffer.vulkanBuffer.L)
 
                 pass.vulkanMetadata.vertexBufferOffsets.limit(1)
                 pass.vulkanMetadata.vertexBuffers.limit(1)
 
-                if(node.instanceMaster && instanceBuffer != null) {
+                if (node.instanceMaster && instanceBuffer != null) {
                     pass.vulkanMetadata.vertexBuffers.limit(2)
                     pass.vulkanMetadata.vertexBufferOffsets.limit(2)
 
                     pass.vulkanMetadata.vertexBufferOffsets.put(1, 0)
-                    pass.vulkanMetadata.vertexBuffers.put(1, instanceBuffer.vulkanBuffer)
+                    pass.vulkanMetadata.vertexBuffers.put(1, instanceBuffer.vulkanBuffer.L)
                 }
 
                 val sets = specs.mapNotNull { (name, _) ->
@@ -2699,7 +2632,7 @@ open class VulkanRenderer(hub: Hub,
             vkCmdEndRenderPass(this)
 
             vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-                timestampQueryPool, 2 * renderpasses.values.indexOf(pass) + 1)
+                timestampQueryPool.L, 2 * renderpasses.values.indexOf(pass) + 1)
 
             // finish command buffer recording by marking this buffer non-stale
             commandBuffer.stale = false
@@ -2725,10 +2658,10 @@ open class VulkanRenderer(hub: Hub,
         }
 
         // prepare command buffer and start recording
-        with(commandBuffer.prepareAndStartRecording(commandPools.Render)) {
+        with(commandBuffer.prepareAndStartRecording(commandPools.Render.L)) {
 
             vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-                timestampQueryPool, 2 * renderpasses.values.indexOf(pass))
+                timestampQueryPool.L, 2 * renderpasses.values.indexOf(pass))
             vkCmdBeginRenderPass(this, pass.vulkanMetadata.renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE)
 
             vkCmdSetViewport(this, 0, pass.vulkanMetadata.viewport)
@@ -2770,7 +2703,7 @@ open class VulkanRenderer(hub: Hub,
 
             vkCmdEndRenderPass(this)
             vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-                timestampQueryPool, 2 * renderpasses.values.indexOf(pass) + 1)
+                timestampQueryPool.L, 2 * renderpasses.values.indexOf(pass) + 1)
 
             commandBuffer.stale = false
             this.endCommandBuffer()
@@ -3048,13 +2981,11 @@ open class VulkanRenderer(hub: Hub,
 
         logger.debug("Closing command buffers...")
         ph.commandBuffers.free()
-        memFree(ph.signalSemaphore)
-        memFree(ph.waitSemaphore)
-        memFree(ph.waitStages)
+        ph.waitStages.free()
 
-        if (timestampQueryPool != -1L) {
+        if (timestampQueryPool.isValid) {
             logger.debug("Closing query pools...")
-            vkDestroyQueryPool(device.vulkanDevice, timestampQueryPool, null)
+            vkDestroyQueryPool(device.vulkanDevice, timestampQueryPool.L, null)
         }
 
         semaphores.forEach { it.value.forEach { semaphore -> vkDestroySemaphore(device.vulkanDevice, semaphore, null) } }
@@ -3079,10 +3010,10 @@ open class VulkanRenderer(hub: Hub,
             destroyCommandPool(commandPools.Standard)
         }
 
-        vkDestroyPipelineCache(device.vulkanDevice, pipelineCache, null)
+        vkDestroyPipelineCache(device.vulkanDevice, pipelineCache.L, null)
 
         if (validation) {
-            vkDestroyDebugReportCallbackEXT(instance, debugCallbackHandle, null)
+            instance destroyDebugReportCallbackEXT debugCallbackHandle
         }
 
         debugCallback.free()
