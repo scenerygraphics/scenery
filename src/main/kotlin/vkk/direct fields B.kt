@@ -1807,8 +1807,8 @@ inline var VkPresentInfoKHR.next: Ptr
     set(value) = VkPresentInfoKHR.npNext(adr, value)
 //inline val VkPresentInfoKHR.waitSemaphoreCount get() = VkPresentInfoKHR.nwaitSemaphoreCount(adr)
 inline var VkPresentInfoKHR.waitSemaphores: VkSemaphoreBuffer?
-    get() = VkPresentInfoKHR.npWaitSemaphores(adr)
-    set(value) = VkPresentInfoKHR.npWaitSemaphores(adr, value)
+    get() = VkPresentInfoKHR.npWaitSemaphores(adr)?.let(::VkSemaphoreBuffer)
+    set(value) = VkPresentInfoKHR.npWaitSemaphores(adr, value?.buffer)
 /** JVM custom */
 inline var VkPresentInfoKHR.waitSemaphore: VkSemaphore?
     get() = VkPresentInfoKHR.npWaitSemaphores(adr)?.let { VkSemaphore(it[0]) }

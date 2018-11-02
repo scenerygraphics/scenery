@@ -5,6 +5,8 @@ import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.utils.SceneryPanel
 import vkk.`object`.VkImageArray
 import vkk.`object`.VkImageViewArray
+import vkk.`object`.VkSemaphore
+import vkk.`object`.VkSemaphoreBuffer
 import java.nio.LongBuffer
 
 /**
@@ -35,7 +37,7 @@ interface Swapchain : AutoCloseable {
      * Present routine, to be called when the image should be presented to a window or a buffer.
      * Optionally will wait on the semaphores given in [waitForSemaphores].
      */
-    fun present(waitForSemaphores: LongBuffer? = null)
+    fun present(waitForSemaphores: VkSemaphoreBuffer? = null)
 
     /**
      * Post-present routine, e.g. for copying the rendered image or showing it in another window.
@@ -48,7 +50,7 @@ interface Swapchain : AutoCloseable {
      * optionally waiting for a [timeout] before failing. Returns true if the swapchain needs to be
      * recreated and false if not.
      */
-    fun next(timeout: Long = -1L, signalSemaphore: Long = 0L): Boolean
+    fun next(timeout: Long = -1L, signalSemaphore: VkSemaphore = VkSemaphore(0)): Boolean
 
     /**
      * Closes this swapchain.

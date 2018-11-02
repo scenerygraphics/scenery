@@ -7,6 +7,8 @@ import kool.free
 import kool.rem
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.VK10.*
+import vkk.VkBufferUsage
+import vkk.VkMemoryProperty
 import vkk.`object`.VkBuffer
 import vkk.`object`.VkDeviceMemory
 import vkk.`object`.VkDeviceSize
@@ -125,8 +127,8 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
 
         ownedBackingBuffer = VulkanBuffer(device,
             VkDeviceSize(this.getSize().L),
-            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+            VkBufferUsage.UNIFORM_BUFFER_BIT.i,
+            VkMemoryProperty.HOST_VISIBLE_BIT.i,
             wantAligned = true)
 
         ownedBackingBuffer?.let { buffer ->

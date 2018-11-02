@@ -12,8 +12,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.lwjgl.system.MemoryStack
-import org.lwjgl.system.MemoryUtil.memAllocInt
-import org.lwjgl.system.MemoryUtil.memAllocLong
+import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.NVDedicatedAllocation.VK_STRUCTURE_TYPE_DEDICATED_ALLOCATION_IMAGE_CREATE_INFO_NV
 import org.lwjgl.vulkan.NVDedicatedAllocation.VK_STRUCTURE_TYPE_DEDICATED_ALLOCATION_MEMORY_ALLOCATE_INFO_NV
@@ -26,7 +25,9 @@ import org.zeromq.ZContext
 import org.zeromq.ZMQ
 import org.zeromq.ZMsg
 import org.zeromq.ZPoller
+import vkk.VkImageLayout
 import vkk.`object`.VkCommandPool
+import vkk.`object`.VkImage
 import java.math.BigInteger
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -61,7 +62,7 @@ class Hololens : TrackerInput, Display, Hubable {
     data class CommandBufferWithStatus(val commandBuffer: VulkanCommandBuffer, var current: Boolean = false)
 
     private var commandBuffers: MutableList<CommandBufferWithStatus> = mutableListOf()
-    private var hololensCommandPool = -1L
+    private var hololensCommandPool = VkCommandPool(NULL)
     private var d3dImages: List<Pair<VulkanTexture.VulkanImage, Long>?> = emptyList()
     private var currentImageIndex: Int = 0
 
@@ -222,7 +223,7 @@ class Hololens : TrackerInput, Display, Hubable {
      * @param[queue] The Vulkan command queue to use.
      * @param[commandPool] The Vulkan command pool to use.
      */
-    private fun getSharedHandleVulkanTexture(sharedHandleAddress: Long, width: Int, height: Int, format: Int, device: VulkanDevice, queue: VkQueue, commandPool: Long): Pair<VulkanTexture.VulkanImage, Long>? {
+    private fun getSharedHandleVulkanTexture(sharedHandleAddress: Long, width: Int, height: Int, format: Int, device: VulkanDevice, queue: VkQueue, commandPool: VkCommandPool): Pair<VulkanTexture.VulkanImage, Long>? {
         logger.info("Registered D3D shared texture handle as ${sharedHandleAddress.toHexString()}/${sharedHandleAddress.toString(16)}")
 
         // VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_IMAGE_BIT_NV does not seem to work here
@@ -281,8 +282,7 @@ class Hololens : TrackerInput, Display, Hubable {
             dedicatedAllocationCreateInfo.dedicatedAllocation(true)
         }
 
-        val pool = VkCommandPool(commandPool)
-        val t = VulkanTexture(device, VulkanRenderer.CommandPools(pool, pool, pool, pool), queue, queue,
+        val t = VulkanTexture(device, VulkanRenderer.CommandPools(commandPool), queue, queue,
             width, height, 1,
             format, 1, true, true)
 
@@ -348,10 +348,10 @@ class Hololens : TrackerInput, Display, Hubable {
                 memoryHandle
             })
 
-        device.vulkanDevice.newCommandBuffer(VkCommandPool(commandPool))
+        device.vulkanDevice.newCommandBuffer(commandPool)
             .record {
                 VulkanTexture.transitionLayout(img.image,
-                    VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 1,
+                    VkImageLayout.UNDEFINED, VkImageLayout.COLOR_ATTACHMENT_OPTIMAL, 1,
                     srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
                     dstStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                     commandBuffer = this)
@@ -372,9 +372,9 @@ class Hololens : TrackerInput, Display, Hubable {
      * @param[queue] Vulkan queue
      * @param[image] The Vulkan texture image to be presented to the compositor
      */
-    override fun submitToCompositorVulkan(width: Int, height: Int, format: Int, instance: VkInstance, device: VulkanDevice, queue: VkQueue, image: Long) {
-        if (hololensCommandPool == -1L) {
-            hololensCommandPool = device.createCommandPool(device.queueIndices.graphicsQueue).L
+    override fun submitToCompositorVulkan(width: Int, height: Int, format: Int, instance: VkInstance, device: VulkanDevice, queue: VkQueue, image: VkImage) {
+        if (hololensCommandPool.isInvalid) {
+            hololensCommandPool = device.createCommandPool(device.queueIndices.graphicsQueue)
         }
 
         if (leftProjection == null) {
@@ -440,7 +440,7 @@ class Hololens : TrackerInput, Display, Hubable {
             logger.info("Recording command buffer for image index $currentImageIndex")
             currentCommandBuffer = commandBuffers[currentImageIndex]
 
-            currentCommandBuffer.commandBuffer.commandBuffer = with(VU.newCommandBuffer(device, hololensCommandPool, autostart = true)) {
+            currentCommandBuffer.commandBuffer.commandBuffer = with(VU.newCommandBuffer(device.vulkanDevice, hololensCommandPool, autostart = true)) {
                 MemoryStack.stackPush().use { stack ->
                     logger.info("Blitting image of size ${width}x$height")
                     val imageBlit = VkImageBlit.callocStack(1, stack)
@@ -463,8 +463,8 @@ class Hololens : TrackerInput, Display, Hubable {
 
                     // transition source attachment
                     VulkanTexture.transitionLayout(image,
-                        KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                        VkImageLayout.PRESENT_SRC_KHR,
+                        VkImageLayout.TRANSFER_SRC_OPTIMAL,
                         subresourceRange = subresourceRange,
                         commandBuffer = this,
                         srcStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
@@ -473,8 +473,8 @@ class Hololens : TrackerInput, Display, Hubable {
 
                     // transition destination attachment
                     VulkanTexture.transitionLayout(currentImage.first.image,
-                        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                        VkImageLayout.COLOR_ATTACHMENT_OPTIMAL,
+                        VkImageLayout.TRANSFER_DST_OPTIMAL,
                         subresourceRange = subresourceRange,
                         commandBuffer = this,
                         srcStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
@@ -482,15 +482,15 @@ class Hololens : TrackerInput, Display, Hubable {
                     )
 
                     vkCmdBlitImage(this@with,
-                        image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                        currentImage.first.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                        image.L, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                        currentImage.first.image.L, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                         imageBlit, VK_FILTER_NEAREST
                     )
 
                     // transition destination attachment back to attachment
                     VulkanTexture.transitionLayout(currentImage.first.image,
-                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                        VkImageLayout.TRANSFER_DST_OPTIMAL,
+                        VkImageLayout.COLOR_ATTACHMENT_OPTIMAL,
                         subresourceRange = subresourceRange,
                         commandBuffer = this,
                         srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
@@ -499,8 +499,8 @@ class Hololens : TrackerInput, Display, Hubable {
 
                     // transition source attachment back to shader read-only
                     VulkanTexture.transitionLayout(image,
-                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                        KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                        VkImageLayout.TRANSFER_SRC_OPTIMAL,
+                        VkImageLayout.PRESENT_SRC_KHR,
                         subresourceRange = subresourceRange,
                         commandBuffer = this,
                         srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
@@ -511,7 +511,7 @@ class Hololens : TrackerInput, Display, Hubable {
                 this
             }
 
-            currentCommandBuffer.commandBuffer.commandBuffer?.endCommandBuffer(device, hololensCommandPool, queue,
+            currentCommandBuffer.commandBuffer.commandBuffer?.endCommandBuffer(device, hololensCommandPool.L, queue,
                 flush = false, dealloc = false, submitInfoPNext = null)
             currentCommandBuffer.current = true
         }

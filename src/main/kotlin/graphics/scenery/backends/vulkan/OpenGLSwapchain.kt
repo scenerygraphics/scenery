@@ -29,10 +29,8 @@ import org.lwjgl.vulkan.VK10
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkQueue
 import uno.glfw.glfw
-import vkk.`object`.VkImage
-import vkk.`object`.VkImageArray
-import vkk.`object`.VkImageView
-import vkk.`object`.VkImageViewArray
+import vkk.VkImageLayout
+import vkk.`object`.*
 import java.nio.LongBuffer
 
 /**
@@ -178,11 +176,11 @@ class OpenGLSwapchain(val device: VulkanDevice,
                         1)
 
                     VulkanTexture.transitionLayout(image.image,
-                        VK_IMAGE_LAYOUT_UNDEFINED,
-                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1,
+                        VkImageLayout.UNDEFINED,
+                        VkImageLayout.SHADER_READ_ONLY_OPTIMAL, 1,
                         commandBuffer = this)
 
-                    images[i] = VkImage(image.image)
+                    images[i] = image.image
                     imageViews[i] = VkImageView(t.createImageView(image, format))
                 }
                 .submit(queue).deallocate()
@@ -302,10 +300,10 @@ class OpenGLSwapchain(val device: VulkanDevice,
      * Presents the currently rendered image, drawing the Vulkan image into the current
      * OpenGL context.
      */
-    override fun present(waitForSemaphores: LongBuffer?) {
+    override fun present(waitForSemaphores: VkSemaphoreBuffer?) {
         glDisable(GL_DEPTH_TEST)
 
-        waitForSemaphores?.let { NVDrawVulkanImage.glWaitVkSemaphoreNV(waitForSemaphores.get(0)) }
+        waitForSemaphores?.let { NVDrawVulkanImage.glWaitVkSemaphoreNV(waitForSemaphores[0].L) }
 
         // note: glDrawVkImageNV expects the OpenGL screen space conventions,
         // so the Vulkan image's ST coordinates have to be flipped
@@ -345,8 +343,8 @@ class OpenGLSwapchain(val device: VulkanDevice,
     /**
      * Proceeds to the next swapchain image.
      */
-    override fun next(timeout: Long, signalSemaphore: Long): Boolean {
-        NVDrawVulkanImage.glSignalVkSemaphoreNV(signalSemaphore)
+    override fun next(timeout: Long, signalSemaphore: VkSemaphore): Boolean {
+        NVDrawVulkanImage.glSignalVkSemaphoreNV(signalSemaphore.L)
         return false
     }
 

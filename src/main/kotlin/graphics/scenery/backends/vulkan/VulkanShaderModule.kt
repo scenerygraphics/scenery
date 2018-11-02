@@ -5,10 +5,13 @@ import graphics.scenery.backends.ShaderType
 import graphics.scenery.backends.Shaders
 import graphics.scenery.spirvcrossj.*
 import graphics.scenery.utils.LazyLogger
+import kool.toBuffer
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkPipelineShaderStageCreateInfo
 import org.lwjgl.vulkan.VkShaderModuleCreateInfo
+import vkk.code
+import vkk.vk
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.collections.LinkedHashMap
 
@@ -189,15 +192,9 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: 
             }
         }
 
-        val code = memAlloc(sp.spirv.size)
-        code.put(sp.spirv)
-        code.flip()
+        val code = sp.spirv.toBuffer()
 
-        val moduleCreateInfo = VkShaderModuleCreateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO)
-            .pNext(NULL)
-            .pCode(code)
-            .flags(0)
+        val moduleCreateInfo = vk.ShaderModuleCreateInfo { this.code = code }
 
         this.shaderModule = VU.getLong("Creating shader module",
             { vkCreateShaderModule(device.vulkanDevice, moduleCreateInfo, null, this) },

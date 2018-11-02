@@ -4,14 +4,13 @@ import graphics.scenery.Hub
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.utils.SceneryPanel
+import kool.stak
 import org.lwjgl.system.MemoryStack
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.vulkan.*
 import vkk.*
-import vkk.`object`.VkDeviceSize
-import vkk.`object`.VkImageViewArray
+import vkk.`object`.*
 import java.nio.ByteBuffer
-import java.nio.LongBuffer
 
 
 /**
@@ -128,9 +127,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
             t to image
         }
 
-        images = vkk.`object`.VkImageArray(textureImages.map {
-            it.second.image
-        }.toLongArray())
+        images = VkImageArray(textureImages.map { it.second.image })
 
         imageViews = VkImageViewArray(textureImages.map {
             it.first.createImageView(it.second, format)
@@ -162,12 +159,11 @@ open class HeadlessSwapchain(device: VulkanDevice,
      * optionally waiting for a [timeout] before failing. Returns true if the swapchain needs to be
      * recreated and false if not.
      */
-    override fun next(timeout: Long, signalSemaphore: Long): Boolean {
-        MemoryStack.stackPush().use { stack ->
+    override fun next(timeout: Long, signalSemaphore: VkSemaphore): Boolean {
+        stak {
             VK10.vkQueueWaitIdle(presentQueue)
 
-            val signal = stack.callocLong(1)
-            signal.put(0, signalSemaphore)
+            val signal = vkSemaphoreBufferOf(signalSemaphore)
 
             device.vulkanDevice.newCommandBuffer(commandPools.Standard)
                 .record { }
@@ -183,7 +179,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
     /**
      * Presents the current image.
      */
-    override fun present(waitForSemaphores: LongBuffer?) {
+    override fun present(waitForSemaphores: VkSemaphoreBuffer?) {
 
         if (vulkanSwapchainRecreator.mustRecreate) {
             return
@@ -225,18 +221,18 @@ open class HeadlessSwapchain(device: VulkanDevice,
                 }
                 val transferImage = images[image]
 
-                VulkanTexture.transitionLayout(transferImage.L,
-                    KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                    VK10.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                VulkanTexture.transitionLayout(transferImage,
+                    VkImageLayout.PRESENT_SRC_KHR,
+                    VkImageLayout.TRANSFER_SRC_OPTIMAL,
                     srcStage = VK10.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                     dstStage = VK10.VK_PIPELINE_STAGE_TRANSFER_BIT,
                     commandBuffer = this)
 
                 copyImageToBuffer(transferImage, VkImageLayout.TRANSFER_SRC_OPTIMAL, sharingBuffer.vulkanBuffer, region)
 
-                VulkanTexture.transitionLayout(transferImage.L,
-                    VK10.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                    KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                VulkanTexture.transitionLayout(transferImage,
+                    VkImageLayout.TRANSFER_SRC_OPTIMAL,
+                    VkImageLayout.PRESENT_SRC_KHR,
                     srcStage = VK10.VK_PIPELINE_STAGE_TRANSFER_BIT,
                     dstStage = VK10.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                     commandBuffer = this)

@@ -1,21 +1,18 @@
 package vkk
 
-import glm_.BYTES
-import glm_.f
-import glm_.i
-import glm_.size
+import glm_.*
 import glm_.vec2.Vec2i
 import graphics.scenery.backends.vulkan.VkImageArray
 import graphics.scenery.backends.vulkan.rem
-import kool.Ptr
-import kool.stak
+import kool.*
 import org.lwjgl.PointerBuffer
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.system.Pointer
 import org.lwjgl.vulkan.*
 import vkk.`object`.*
-import java.nio.ByteBuffer
-import java.nio.FloatBuffer
+import java.nio.Buffer
+import java.nio.IntBuffer
+import java.nio.LongBuffer
 
 
 // VkCommandBuffer =================================================================================================
@@ -25,6 +22,10 @@ infix fun VkCommandBuffer.begin(beginInfo: VkCommandBufferBeginInfo) = VK_CHECK_
 fun VkCommandBuffer.begin(flags: VkCommandBufferUsageFlags = VkCommandBufferUsage.SIMULTANEOUS_USE_BIT.i) = begin(vk.CommandBufferBeginInfo { this.flags = flags })
 
 fun VkCommandBuffer.beginRenderPass(renderPassBegin: VkRenderPassBeginInfo, contents: VkSubpassContents) = VK10.nvkCmdBeginRenderPass(this, renderPassBegin.adr, contents.i)
+
+fun VkCommandBuffer.bindDescriptorSets(pipelineBindPoint: VkPipelineBindPoint, layout: VkPipelineLayout, descriptorSets: VkDescriptorSetBuffer, dynamicOffsets: IntBuffer) {
+    VK10.nvkCmdBindDescriptorSets(this, pipelineBindPoint.i, layout.L, 0, descriptorSets.rem, descriptorSets.adr, dynamicOffsets.rem, dynamicOffsets.adr)
+}
 
 fun VkCommandBuffer.bindDescriptorSets(pipelineBindPoint: VkPipelineBindPoint, layout: VkPipelineLayout, descriptorSet: VkDescriptorSet, dynamicOffsets: Int? = null) = stak {
     val pDescriptorSets = it.nmalloc(1, Long.BYTES)
@@ -47,6 +48,10 @@ fun VkCommandBuffer.bindIndexBuffer(buffer: VkBuffer, offset: VkDeviceSize, inde
 fun VkCommandBuffer.bindPipeline(pipelineBindPoint: VkPipelineBindPoint, pipeline: VkPipeline) = VK10.vkCmdBindPipeline(this, pipelineBindPoint.i, pipeline.L)
 
 infix fun VkCommandBuffer.bindVertexBuffers(buffer: VkBuffer) = bindVertexBuffers(0, buffer)
+
+fun VkCommandBuffer.bindVertexBuffers(firstBinding: Int, buffer: LongBuffer, offset: LongBuffer) {
+    VK10.nvkCmdBindVertexBuffers(this, firstBinding, buffer.rem, buffer.adr, offset.adr)
+}
 
 fun VkCommandBuffer.bindVertexBuffers(firstBinding: Int, buffer: VkBuffer, offset: VkDeviceSize = VkDeviceSize(0)) = stak {
     val pBuffer = it.nmalloc(1, Long.BYTES)
@@ -127,9 +132,7 @@ fun VkCommandBuffer.pipelineBarrier(srcStageMask: VkPipelineStageFlags, dstStage
         if (bufferMemoryBarrier != null) 1 else 0, bufferMemoryBarrier?.adr ?: NULL,
         if (imageMemoryBarrier != null) 1 else 0, imageMemoryBarrier?.adr ?: NULL)
 
-fun VkCommandBuffer.pushConstants(layout: VkPipelineLayout, stageFlags: VkShaderStageFlags, offset: Int, values: FloatBuffer) = VK10.nvkCmdPushConstants(this, layout.L, stageFlags, offset, values.size, memAddress(values))
-
-fun VkCommandBuffer.pushConstants(layout: VkPipelineLayout, stageFlags: VkShaderStageFlags, offset: Int, values: ByteBuffer) = VK10.nvkCmdPushConstants(this, layout.L, stageFlags, offset, values.size, memAddress(values))
+fun VkCommandBuffer.pushConstants(layout: VkPipelineLayout, stageFlags: VkShaderStageFlags, offset: Int, values: Buffer) = VK10.nvkCmdPushConstants(this, layout.L, stageFlags, offset, values.remSize, values.adr)
 
 /** begin .. end */
 inline fun <R> VkCommandBuffer.record(beginInfo: VkCommandBufferBeginInfo, block: VkCommandBuffer.() -> R): R {
@@ -137,7 +140,7 @@ inline fun <R> VkCommandBuffer.record(beginInfo: VkCommandBufferBeginInfo, block
     return block().also { end() }
 }
 
-fun VkCommandBuffer.reset(flags: VkCommandBufferResetFlags) = VK_CHECK_RESULT(VK10.vkResetCommandBuffer(this, flags))
+fun VkCommandBuffer.reset(flags: VkCommandBufferResetFlags = 0) = VK_CHECK_RESULT(VK10.vkResetCommandBuffer(this, flags))
 
 fun VkCommandBuffer.setDepthBias(depthBiasConstantFactor: Float, depthBiasClamp: Float, depthBiasSlopeFactor: Float) = VK10.vkCmdSetDepthBias(this, depthBiasConstantFactor, depthBiasClamp, depthBiasSlopeFactor)
 
@@ -170,6 +173,9 @@ fun VkCommandBuffer.submit(queue: VkQueue, submitInfoPNext: Pointer? = null) {
     }
     queue.waitIdle()
 }
+
+fun VkCommandBuffer.writeTimestamp(pipelineStage: VkPipelineStageFlags, queryPool: VkQueryPool, query: Int) = VK10.vkCmdWriteTimestamp(this, pipelineStage, queryPool.L, query)
+
 
 //inline fun VkCommandBuffer.use(block: ()) {
 //    VK10.nvkCmdSetViewport(this, firstViewport, viewports.remaining(), viewports.adr)
@@ -251,10 +257,23 @@ infix fun VkDevice.debugMarkerSetObjectTag(tagInfo: VkDebugMarkerObjectTagInfoEX
 infix fun VkDevice.destroyBuffer(buffer: VkBuffer) = VK10.nvkDestroyBuffer(this, buffer.L, NULL)
 
 infix fun VkDevice.destroyCommandPool(commandPool: VkCommandPool) = VK10.nvkDestroyCommandPool(this, commandPool.L, NULL)
+fun VkDevice.destroyCommandPools(commandPool0: VkCommandPool, commandPool1: VkCommandPool) {
+    VK10.nvkDestroyCommandPool(this, commandPool0.L, NULL)
+    VK10.nvkDestroyCommandPool(this, commandPool1.L, NULL)
+}
+fun VkDevice.destroyCommandPools(commandPool0: VkCommandPool, commandPool1: VkCommandPool, commandPool2: VkCommandPool) {
+    VK10.nvkDestroyCommandPool(this, commandPool0.L, NULL)
+    VK10.nvkDestroyCommandPool(this, commandPool1.L, NULL)
+    VK10.nvkDestroyCommandPool(this, commandPool2.L, NULL)
+}
 
 infix fun VkDevice.destroyDescriptorPool(descriptorPool: VkDescriptorPool) = VK10.nvkDestroyDescriptorPool(this, descriptorPool.L, NULL)
 
 infix fun VkDevice.destroyDescriptorSetLayout(descriptorSetLayout: VkDescriptorSetLayout) = VK10.nvkDestroyDescriptorSetLayout(this, descriptorSetLayout.L, NULL)
+infix fun VkDevice.destroyDescriptorSetLayouts(descriptorSetLayouts: Collection<VkDescriptorSetLayout>) {
+    for (i in descriptorSetLayouts)
+        VK10.nvkDestroyDescriptorSetLayout(this, i.L, NULL)
+}
 
 infix fun VkDevice.destroyFence(fence: VkFence) = VK10.nvkDestroyFence(this, fence.L, NULL)
 
@@ -285,13 +304,18 @@ infix fun VkDevice.destroyPipelineCache(pipelineCache: VkPipelineCache) = VK10.n
 
 infix fun VkDevice.destroyPipelineLayout(pipelineLayout: VkPipelineLayout) = VK10.nvkDestroyPipelineLayout(this, pipelineLayout.L, NULL)
 
-fun VkDevice.destroyQueryPool(queryPool: VkQueryPool) = VK10.nvkDestroyQueryPool(this, queryPool.L, NULL)
+infix fun VkDevice.destroyQueryPool(queryPool: VkQueryPool) = VK10.nvkDestroyQueryPool(this, queryPool.L, NULL)
 
 infix fun VkDevice.destroyRenderPass(renderPass: VkRenderPass) = VK10.nvkDestroyRenderPass(this, renderPass.L, NULL)
 
 infix fun VkDevice.destroySampler(sampler: VkSampler) = VK10.nvkDestroySampler(this, sampler.L, NULL)
 
 infix fun VkDevice.destroySemaphore(semaphore: VkSemaphore) = VK10.nvkDestroySemaphore(this, semaphore.L, NULL)
+infix fun VkDevice.destroySemaphores(semaphores: VkSemaphoreArray) {
+    for (semaphore in semaphores.array)
+        VK10.nvkDestroySemaphore(this, semaphore, NULL)
+}
+
 fun VkDevice.destroySemaphores(semaphore0: VkSemaphore, semaphore1: VkSemaphore) {
     VK10.nvkDestroySemaphore(this, semaphore0.L, NULL)
     VK10.nvkDestroySemaphore(this, semaphore1.L, NULL)
@@ -369,6 +393,10 @@ fun VkDevice.getImageMemoryRequirements(image: VkImage, memoryRequirements: VkMe
 fun VkDevice.getImageSubresourceLayout(image: VkImage, subresource: VkImageSubresource): VkSubresourceLayout = vk.SubresourceLayout().also { VK10.nvkGetImageSubresourceLayout(this, image.L, subresource.adr, it.adr) }
 
 fun VkDevice.getImageSubresourceLayout(image: VkImage, subresource: VkImageSubresource, layout: VkSubresourceLayout): VkSubresourceLayout = layout.also { VK10.nvkGetImageSubresourceLayout(this, image.L, subresource.adr, it.adr) }
+
+fun VkDevice.getQueryPoolResults(queryPool: VkQueryPool, firstQuery: Int, queryCount: Int, data: IntBuffer, stride: VkDeviceSize = VkDeviceSize(0), flags: VkQueryResultFlags = 0) {
+    VK_CHECK_RESULT(VK10.nvkGetQueryPoolResults(this, queryPool.L, firstQuery, queryCount, data.size.L, data.adr, stride.L, flags))
+}
 
 inline fun VkDevice.mappedMemory(memory: VkDeviceMemory, offset: VkDeviceSize, size: VkDeviceSize, flags: VkMemoryMapFlags = 0, block: (Ptr) -> Unit) = stak.pointerAddress { data ->
     VK_CHECK_RESULT(VK10.nvkMapMemory(this, memory.L, offset.L, size.L, flags, data))

@@ -657,9 +657,9 @@ inline var VkSubmitInfo.next: Ptr
 inline var VkSubmitInfo.waitSemaphoreCount: Int
     get() = VkSubmitInfo.nwaitSemaphoreCount(adr)
     set(value) = VkSubmitInfo.nwaitSemaphoreCount(adr, value)
-inline var VkSubmitInfo.waitSemaphores: LongBuffer?
-    get() = VkSubmitInfo.npWaitSemaphores(adr)
-    set(value) = VkSubmitInfo.npWaitSemaphores(adr, value)
+inline var VkSubmitInfo.waitSemaphores: VkSemaphoreBuffer?
+    get() = VkSubmitInfo.npWaitSemaphores(adr)?.let(::VkSemaphoreBuffer)
+    set(value) = VkSubmitInfo.npWaitSemaphores(adr, value?.buffer)
 /** JVM custom */
 inline var VkSubmitInfo.waitSemaphore: VkSemaphore
     get() = VkSemaphore(VkSubmitInfo.npWaitSemaphores(adr)?.get(0) ?: NULL)
@@ -687,9 +687,9 @@ inline var VkSubmitInfo.commandBuffer: VkCommandBuffer?
         VkSubmitInfo.ncommandBufferCount(adr, if (value == null) 0 else 1)
     }
 //inline val VkSubmitInfo.signalSemaphoreCount get() = VkSubmitInfo.nsignalSemaphoreCount(address)
-inline var VkSubmitInfo.signalSemaphores: LongBuffer?
-    get() = VkSubmitInfo.npSignalSemaphores(adr)
-    set(value) = VkSubmitInfo.npSignalSemaphores(adr, value)
+inline var VkSubmitInfo.signalSemaphores: VkSemaphoreBuffer?
+    get() = VkSubmitInfo.npSignalSemaphores(adr)?.let(::VkSemaphoreBuffer)
+    set(value) = VkSubmitInfo.npSignalSemaphores(adr, value?.buffer)
 /** JVM custom */
 var VkSubmitInfo.signalSemaphore: VkSemaphore // TODO BUG, inline
     get() = VkSemaphore(VkSubmitInfo.npSignalSemaphores(adr)?.get(0) ?: NULL)

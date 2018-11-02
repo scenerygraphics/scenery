@@ -24,7 +24,7 @@ open class VulkanObjectState : NodeMetadata {
     /** Indicates whether the mesh is using indexed vertex storage. */
     var isIndexed = false
     /** Indicates the offset to the indices in the vertex buffer in bytes. */
-    var indexOffset = 0L
+    var indexOffset = VkDeviceSize(0)
     /** The number of indices stored. */
     var indexCount = 0
     /** The number of vertices stored. */

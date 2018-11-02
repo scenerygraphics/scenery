@@ -8,9 +8,11 @@ import org.lwjgl.system.*
 import org.lwjgl.system.MemoryStack.stackGet
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
+import uno.kotlin.buffers.lastIndex
 import vkk.*
 import vkk.`object`.*
 import java.nio.Buffer
+import java.nio.IntBuffer
 import java.nio.LongBuffer
 
 operator fun VkDeviceSize.rem(b: VkDeviceSize) = VkDeviceSize(L % b.L)
@@ -225,14 +227,14 @@ inline class VkDescriptorSetLayoutBuffer(val buffer: LongBuffer)
 
 fun VkDescriptorSetLayoutBuffer(size: Int, init: (Int) -> VkDescriptorSetLayout) = VkDescriptorSetLayoutBuffer(LongBuffer(size) { init(it).L })
 
-//fun VkDescriptorSetLayoutBuffer(collection: Collection<VkDescriptorSetLayout>) = VkDescriptorSetLayoutBuffer(collection.size) { collection.elementAt(it) }
-fun VkDescriptorSetLayoutBuffer(collection: Collection<Long>) = VkDescriptorSetLayoutBuffer(collection.size) { VkDescriptorSetLayout(collection.elementAt(it)) }
+fun VkDescriptorSetLayoutBuffer(collection: Collection<VkDescriptorSetLayout>) = VkDescriptorSetLayoutBuffer(collection.size) { collection.elementAt(it) }
 
 fun VkImageArray(size: Int, init: (Int) -> VkImage): VkImageArray = VkImageArray(LongArray(size) { init(it).L })
 
 fun VkSubmitInfo() = VkSubmitInfo.calloc().apply { type = VkStructureType.SUBMIT_INFO }
 
 val VkQueryPool.isValid get() = L != NULL
+val VkImage.isValid get() = L != NULL
 
 //fun VkDevice.destroyQueryPool(queryPool: VkQueryPool) = VK10.nvkDestroyQueryPool(this, queryPool.L, NULL) TODO infix
 
@@ -244,3 +246,32 @@ fun MemoryStack.reset() {
 }
 
 fun VkSemaphoreCreateInfo() = VkSemaphoreCreateInfo.calloc().apply { type = VkStructureType.SEMAPHORE_CREATE_INFO }
+
+fun VkPipelineVertexInputStateCreateInfo(): VkPipelineVertexInputStateCreateInfo = VkPipelineVertexInputStateCreateInfo.calloc().apply { type = VkStructureType.PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO }
+fun VkPipelineVertexInputStateCreateInfo(capacity: Int): VkPipelineVertexInputStateCreateInfo.Buffer = VkPipelineVertexInputStateCreateInfo.calloc(capacity).also {
+    for (i in it)
+        i.type = VkStructureType.PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO
+}
+
+fun VkVertexInputAttributeDescription(): VkVertexInputAttributeDescription = VkVertexInputAttributeDescription.calloc()
+fun VkVertexInputAttributeDescription(capacity: Int): VkVertexInputAttributeDescription.Buffer = VkVertexInputAttributeDescription.calloc(capacity)
+
+fun VkVertexInputBindingDescription(): VkVertexInputBindingDescription = VkVertexInputBindingDescription.calloc()
+fun VkVertexInputBindingDescription(capacity: Int): VkVertexInputBindingDescription.Buffer = VkVertexInputBindingDescription.calloc(capacity)
+
+fun VkDescriptorSetLayoutBinding(): VkDescriptorSetLayoutBinding = VkDescriptorSetLayoutBinding.calloc()
+fun VkDescriptorSetLayoutBinding(capacity: Int): VkDescriptorSetLayoutBinding.Buffer = VkDescriptorSetLayoutBinding.calloc(capacity)
+
+fun VkClearValue(capacity: Int): VkClearValue.Buffer = VkClearValue.calloc(capacity)
+
+fun VkRenderPassBeginInfo(): VkRenderPassBeginInfo = VkRenderPassBeginInfo.calloc().apply { type = VkStructureType.RENDER_PASS_BEGIN_INFO }
+//inline fun VkRenderPassBeginInfo(block: VkRenderPassBeginInfo.() -> Unit): VkRenderPassBeginInfo = RenderPassBeginInfo().also(block)
+
+fun VkRect2D(): VkRect2D = VkRect2D.calloc()
+fun VkViewport(): VkViewport = VkViewport.calloc()
+
+fun IntBuffer.fill(value: Int) = fill(0, lastIndex, value)
+fun IntBuffer.fill(begin: Int, end: Int, value: Int) {
+    for (i in begin .. end)
+        set(0, value)
+}

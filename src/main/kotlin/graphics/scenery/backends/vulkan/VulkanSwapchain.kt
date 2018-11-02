@@ -15,10 +15,9 @@ import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.KHRSwapchain.VK_ERROR_OUT_OF_DATE_KHR
 import org.lwjgl.vulkan.KHRSwapchain.vkAcquireNextImageKHR
 import vkk.VkImageLayout
-import vkk.`object`.VkImage
-import vkk.`object`.VkImageArray
-import vkk.`object`.VkImageViewArray
+import vkk.`object`.*
 import vkk.createImageView
+import vkk.waitSemaphores
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.util.*
@@ -393,7 +392,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
     /**
      * Presents the current swapchain image on screen.
      */
-    override fun present(waitForSemaphores: LongBuffer?) {
+    override fun present(waitForSemaphores: VkSemaphoreBuffer?) {
         // Present the current buffer to the swap chain
         // This will display the image
         swapchainPointer.put(0, handle)
@@ -407,7 +406,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
             .pImageIndices(swapchainImage)
             .pResults(null)
 
-        waitForSemaphores?.let { presentInfo.pWaitSemaphores(it) }
+        waitForSemaphores?.let { presentInfo.waitSemaphores = it }
 
         // here we accept the VK_ERROR_OUT_OF_DATE_KHR error code, which
         // seems to spuriously occur on Linux upon resizing.
@@ -432,13 +431,13 @@ open class VulkanSwapchain(open val device: VulkanDevice,
     /**
      * Acquires the next swapchain image.
      */
-    override fun next(timeout: Long, signalSemaphore: Long): Boolean {
+    override fun next(timeout: Long, signalSemaphore: VkSemaphore): Boolean {
         // wait for the present queue to become idle - by doing this here
         // we avoid stalling the GPU and gain a few FPS
         VK10.vkQueueWaitIdle(presentQueue)
 
         val err = vkAcquireNextImageKHR(device.vulkanDevice, handle, timeout,
-            signalSemaphore,
+            signalSemaphore.L,
             VK10.VK_NULL_HANDLE, swapchainImage)
 
         if (err == KHRSwapchain.VK_ERROR_OUT_OF_DATE_KHR || err == KHRSwapchain.VK_SUBOPTIMAL_KHR) {

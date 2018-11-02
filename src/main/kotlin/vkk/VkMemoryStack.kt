@@ -1283,8 +1283,8 @@ inline class VkMemoryStack(val stack: MemoryStack) {
             }
         }
 
-    fun createSemaphore(device: VkDevice, createInfo: VkSemaphoreCreateInfo, semaphore: VkSemaphoreBuffer): VkResult =
-        VkResult(VK10.nvkCreateSemaphore(device, createInfo.adr, NULL, memAddress(semaphore)))
+    fun createSemaphore(device: VkDevice, createInfo: VkSemaphoreCreateInfo, semaphores: VkSemaphoreBuffer): VkResult =
+        VkResult(VK10.nvkCreateSemaphore(device, createInfo.adr, NULL, semaphores.adr))
 
     fun createShaderModule(device: VkDevice, createInfo: VkShaderModuleCreateInfo, shaderModule: LongBuffer): VkResult =
         VkResult(VK10.nvkCreateShaderModule(device, createInfo.adr, NULL, memAddress(shaderModule)))

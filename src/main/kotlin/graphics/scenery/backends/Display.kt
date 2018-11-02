@@ -7,6 +7,7 @@ import org.lwjgl.vulkan.VkDevice
 import org.lwjgl.vulkan.VkInstance
 import org.lwjgl.vulkan.VkPhysicalDevice
 import org.lwjgl.vulkan.VkQueue
+import vkk.`object`.VkImage
 
 /**
  * <Description>
@@ -59,7 +60,7 @@ interface Display {
     fun submitToCompositorVulkan(width: Int, height: Int, format: Int,
                                  instance: VkInstance, device: VulkanDevice,
                                  queue: VkQueue,
-                                 image: Long)
+                                 image: VkImage)
 
     /**
      * Returns the optimal render target size for the HMD as 2D vector

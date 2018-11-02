@@ -1,6 +1,5 @@
 package graphics.scenery.backends.vulkan
 
-import glm_.L
 import graphics.scenery.Blending
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.utils.LazyLogger
@@ -90,7 +89,7 @@ fun VkCommandBuffer.endCommandBuffer(device: VulkanDevice, commandPool: Long,
                                      queue: VkQueue?, flush: Boolean = true,
                                      dealloc: Boolean = false,
                                      submitInfoPNext: Pointer? = null,
-                                     signalSemaphores: LongBuffer? = null, waitSemaphores: LongBuffer? = null,
+                                     signalSemaphores: VkSemaphoreBuffer? = null, waitSemaphores: VkSemaphoreBuffer? = null,
                                      waitDstStageMask: IntBuffer? = null,
                                      block: Boolean = true) {
     if (this.address() == NULL) {
@@ -111,7 +110,7 @@ fun VkCommandBuffer.endCommandBuffer(device: VulkanDevice, commandPool: Long,
 }
 
 fun Pair<VkCommandBuffer, VkCommandPool>.submit(queue: VkQueue, submitInfoPNext: Pointer? = null,
-                                                signalSemaphores: LongBuffer? = null, waitSemaphores: LongBuffer? = null,
+                                                signalSemaphores: VkSemaphoreBuffer? = null, waitSemaphores: VkSemaphoreBuffer? = null,
                                                 waitDstStageMask: IntBuffer? = null,
                                                 block: Boolean = true): Pair<VkCommandBuffer, VkCommandPool> =
     apply { first.submit(queue, submitInfoPNext, signalSemaphores, waitSemaphores, waitDstStageMask, block) }
@@ -123,7 +122,7 @@ fun Pair<VkCommandBuffer, VkCommandPool>.submit(queue: VkQueue, submitInfoPNext:
  * the submission process.
  */
 fun VkCommandBuffer.submit(queue: VkQueue, submitInfoPNext: Pointer? = null,
-                           signalSemaphores: LongBuffer? = null, waitSemaphores: LongBuffer? = null,
+                           signalSemaphores: VkSemaphoreBuffer? = null, waitSemaphores: VkSemaphoreBuffer? = null,
                            waitDstStageMask: IntBuffer? = null,
                            block: Boolean = true): VkCommandBuffer {
 
@@ -534,36 +533,23 @@ class VU {
 
         /**
          * Creates and returns a new command buffer on [device], associated with [commandPool]. By default, it'll be a primary
-         * command buffer, that can be changed by setting [level] to [VK_COMMAND_BUFFER_LEVEL_SECONDARY].
-         */
-        fun newCommandBuffer(device: VulkanDevice, commandPool: Long, level: Int = VK_COMMAND_BUFFER_LEVEL_PRIMARY): VkCommandBuffer {
-            return stackPush().use { stack ->
-                val cmdBufAllocateInfo = VkCommandBufferAllocateInfo.callocStack(stack)
-                    .sType(VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO)
-                    .commandPool(commandPool)
-                    .level(level)
-                    .commandBufferCount(1)
-
-                val commandBuffer = getPointer("Creating command buffer",
-                    { vkAllocateCommandBuffers(device.vulkanDevice, cmdBufAllocateInfo, this) }, {})
-
-                VkCommandBuffer(commandBuffer, device.vulkanDevice)
-            }
-        }
-
-        /**
-         * Creates and returns a new command buffer on [device], associated with [commandPool]. By default, it'll be a primary
          * command buffer, that can be changed by setting [level] to [VK_COMMAND_BUFFER_LEVEL_SECONDARY]. If recording should
          * be started automatically, set [autostart] to true.
          */
-        fun newCommandBuffer(device: VulkanDevice, commandPool: Long, level: Int = VK_COMMAND_BUFFER_LEVEL_PRIMARY, autostart: Boolean = false): VkCommandBuffer {
-            val cmdBuf = newCommandBuffer(device, commandPool, level)
+        fun newCommandBuffer(vkDev: VkDevice, commandPool: VkCommandPool, level: VkCommandBufferLevel = VkCommandBufferLevel.PRIMARY, autostart: Boolean = false): VkCommandBuffer {
+
+            val cmdBufAllocateInfo = vk.CommandBufferAllocateInfo().also {
+                it.commandPool = commandPool
+                it.level = level
+                it.commandBufferCount =1
+            }
+            val commandBuffer = vkDev allocateCommandBuffer cmdBufAllocateInfo
 
             if (autostart) {
-                beginCommandBuffer(cmdBuf)
+                beginCommandBuffer(commandBuffer)
             }
 
-            return cmdBuf
+            return commandBuffer
         }
 
         /**
@@ -586,29 +572,24 @@ class VU {
          * dynamic uniform buffer. The [binding] and number of descriptors ([descriptorNum], [descriptorCount]) can be
          * customized,  as well as the shader stages to which the DSL should be visible ([shaderStages]).
          */
-        fun createDescriptorSetLayout(device: VulkanDevice, type: Int = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, binding: Int = 0, descriptorNum: Int = 1, descriptorCount: Int = 1, shaderStages: Int = VK_SHADER_STAGE_ALL): VkDescriptorSetLayout {
-            return stackPush().use { stack ->
-                val layoutBinding = VkDescriptorSetLayoutBinding.callocStack(descriptorNum, stack)
-                (binding until descriptorNum).forEach { i ->
-                    layoutBinding[i]
-                        .binding(i)
-                        .descriptorType(type)
-                        .descriptorCount(descriptorCount)
-                        .stageFlags(shaderStages)
-                        .pImmutableSamplers(null)
+        fun createDescriptorSetLayout(vkDev: VkDevice, type: VkDescriptorType = VkDescriptorType.UNIFORM_BUFFER_DYNAMIC,
+                                      binding: Int = 0, descriptorNum: Int = 1, descriptorCount: Int = 1,
+                                      shaderStages: VkShaderStageFlags = VkShaderStage.ALL.i): VkDescriptorSetLayout {
+
+            val layoutBinding = vk.DescriptorSetLayoutBinding(descriptorNum)
+            (binding until descriptorNum).forEach { i ->
+                layoutBinding[i].apply {
+                    this.binding = i
+                    descriptorType = type
+                    this.descriptorCount = descriptorCount
+                    stageFlags = shaderStages
                 }
+            }
 
-                val descriptorLayout = VkDescriptorSetLayoutCreateInfo.callocStack(stack)
-                    .sType(VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO)
-                    .pNext(NULL)
-                    .pBindings(layoutBinding)
+            val descriptorLayout = vk.DescriptorSetLayoutCreateInfo(layoutBinding)
 
-                val descriptorSetLayout = getLong("vkCreateDescriptorSetLayout",
-                    { vkCreateDescriptorSetLayout(device.vulkanDevice, descriptorLayout, null, this) }, {})
-
-                logger.debug("Created DSL ${descriptorSetLayout.toHexString()} with $descriptorNum descriptors with $descriptorCount elements.")
-
-                VkDescriptorSetLayout(descriptorSetLayout)
+            return vkDev.createDescriptorSetLayout(descriptorLayout).also {
+                logger.debug("Created DSL ${it.asHexString} with $descriptorNum descriptors with $descriptorCount elements.")
             }
         }
 
@@ -646,32 +627,32 @@ class VU {
                                        bindingCount: Int, buffer: VulkanBuffer): VkDescriptorSet {
             logger.debug("Creating dynamic descriptor set with $bindingCount bindings, DSL=${descriptorSetLayout.asHexString}")
 
-                val allocInfo = vk.DescriptorSetAllocateInfo {
-                    this.descriptorPool = descriptorPool
-                    setLayout = descriptorSetLayout
+            val allocInfo = vk.DescriptorSetAllocateInfo {
+                this.descriptorPool = descriptorPool
+                setLayout = descriptorSetLayout
+            }
+            val descriptorSet = vkDev allocateDescriptorSets allocInfo
+
+            val d = vk.DescriptorBufferInfo {
+                this.buffer = buffer.vulkanBuffer
+                this.range = VkDeviceSize(2048)
+                this.offset = VkDeviceSize(0)
+            }
+            val writeDescriptorSet = vk.WriteDescriptorSet(bindingCount)
+
+            (0 until bindingCount).forEach { i ->
+                writeDescriptorSet[i].apply {
+                    dstSet = descriptorSet
+                    dstBinding = i
+                    dstArrayElement = 0
+                    bufferInfo_ = d
+                    descriptorType = VkDescriptorType.UNIFORM_BUFFER_DYNAMIC
                 }
-                val descriptorSet = vkDev allocateDescriptorSets allocInfo
+            }
 
-                val d = vk.DescriptorBufferInfo {
-                    this.buffer = buffer.vulkanBuffer
-                    this.range = VkDeviceSize(2048)
-                    this.offset = VkDeviceSize(0)
-                }
-                val writeDescriptorSet = vk.WriteDescriptorSet(bindingCount)
+            vkDev updateDescriptorSets writeDescriptorSet
 
-                (0 until bindingCount).forEach { i ->
-                    writeDescriptorSet[i].apply {
-                        dstSet = descriptorSet
-                        dstBinding = i
-                        dstArrayElement =0
-                        bufferInfo_ = d
-                        descriptorType = VkDescriptorType.UNIFORM_BUFFER_DYNAMIC
-                    }
-                }
-
-                vkDev updateDescriptorSets writeDescriptorSet
-
-                return descriptorSet
+            return descriptorSet
         }
 
         /**
@@ -711,7 +692,7 @@ class VU {
          * [descriptorSetLayout], a [bindingCount] needs to be given as well an an [ubo] to back the descriptor set.
          * The default [type] is [VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER].
          */
-        fun createDescriptorSet(device: VulkanDevice, descriptorPool: Long, descriptorSetLayout: VkDescriptorSetLayout, bindingCount: Int,
+        fun createDescriptorSet(device: VulkanDevice, descriptorPool: VkDescriptorPool, descriptorSetLayout: VkDescriptorSetLayout, bindingCount: Int,
                                 ubo: VulkanUBO.UBODescriptor, type: Int = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER): Long {
             logger.debug("Creating descriptor set with ${bindingCount} bindings, DSL=$descriptorSetLayout")
             return stak { stack ->
@@ -720,7 +701,7 @@ class VU {
                 val allocInfo = VkDescriptorSetAllocateInfo.callocStack(stack)
                     .sType(VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO)
                     .pNext(NULL)
-                    .descriptorPool(descriptorPool)
+                    .descriptorPool(descriptorPool.L)
                     .pSetLayouts(pDescriptorSetLayout)
 
                 val descriptorSet = getLong("createDescriptorSet",
@@ -756,7 +737,7 @@ class VU {
          * metadata about the framebuffer needs to be given via [rt], and a subset of the framebuffer can be selected
          * by setting [onlyFor] to the respective name of the attachment.
          */
-        fun createRenderTargetDescriptorSet(device: VulkanDevice, descriptorPool: Long, descriptorSetLayout: VkDescriptorSetLayout,
+        fun createRenderTargetDescriptorSet(device: VulkanDevice, descriptorPool: VkDescriptorPool, descriptorSetLayout: VkDescriptorSetLayout,
                                             rt: Map<String, RenderConfigReader.TargetFormat>,
                                             target: VulkanFramebuffer, onlyFor: String? = null): Long {
 
@@ -766,7 +747,7 @@ class VU {
                 val allocInfo = VkDescriptorSetAllocateInfo.callocStack(stack)
                     .sType(VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO)
                     .pNext(NULL)
-                    .descriptorPool(descriptorPool)
+                    .descriptorPool(descriptorPool.L)
                     .pSetLayouts(pDescriptorSetLayout)
 
                 val descriptorSet = getLong("createDescriptorSet",

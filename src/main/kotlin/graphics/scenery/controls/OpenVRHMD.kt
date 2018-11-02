@@ -21,7 +21,9 @@ import org.scijava.ui.behaviour.BehaviourMap
 import org.scijava.ui.behaviour.InputTriggerMap
 import org.scijava.ui.behaviour.MouseAndKeyHandler
 import org.scijava.ui.behaviour.io.InputTriggerConfig
+import vkk.VkImageLayout
 import vkk.`object`.VkCommandPool
+import vkk.`object`.VkImage
 import java.awt.Component
 import java.awt.event.KeyEvent
 import java.nio.FloatBuffer
@@ -610,10 +612,10 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
 
     override fun submitToCompositorVulkan(width: Int, height: Int, format: Int,
                                           instance: VkInstance, device: VulkanDevice,
-                                          queue: VkQueue, image: Long) {
+                                          queue: VkQueue, image: VkImage) {
         stackPush().use { stack ->
             val textureData = VRVulkanTextureData.callocStack(stack)
-                .m_nImage(image)
+                .m_nImage(image.L)
                 .m_pInstance(instance.address())
                 .m_pPhysicalDevice(device.physicalDevice.address())
                 .m_pDevice(device.vulkanDevice.address())
@@ -652,8 +654,8 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
                 .record {
                     // transition source attachment
                     VulkanTexture.transitionLayout(image,
-                        KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                        VK10.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                        VkImageLayout.PRESENT_SRC_KHR,
+                        VkImageLayout.TRANSFER_SRC_OPTIMAL,
                         subresourceRange = subresourceRange,
                         commandBuffer = this,
                         srcStage = VK10.VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
@@ -680,8 +682,8 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
                 .record{
                 // transition source attachment
                 VulkanTexture.transitionLayout(image,
-                    VK10.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                    KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                    VkImageLayout.TRANSFER_SRC_OPTIMAL,
+                    VkImageLayout.PRESENT_SRC_KHR,
                     subresourceRange = subresourceRange,
                     commandBuffer = this,
                     srcStage = VK10.VK_PIPELINE_STAGE_TRANSFER_BIT,

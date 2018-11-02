@@ -101,16 +101,6 @@ object VkPhysicalDeviceArrayList {
     }
 }
 
-
-fun vkDestroySemaphores(device: VkDevice, semaphores: VkSemaphoreBuffer) {
-    for (i in 0 until semaphores.remaining())
-        VK10.nvkDestroySemaphore(device, semaphores[i], NULL)
-}
-
-
-fun vkDestroyBuffer(device: VkDevice, buffer: VkBuffer) = VK10.nvkDestroyBuffer(device, buffer.L, NULL)
-
-
 inline val Pointer.adr get() = address()
 
 

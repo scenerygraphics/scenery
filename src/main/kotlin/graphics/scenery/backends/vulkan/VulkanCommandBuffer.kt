@@ -4,6 +4,7 @@ import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkCommandBuffer
 import vkk.*
+import vkk.`object`.VkCommandPool
 import vkk.`object`.VkFence
 
 /**
@@ -66,18 +67,34 @@ class VulkanCommandBuffer(val device: VulkanDevice, var commandBuffer: VkCommand
     }
 
     /**
+     * Prepares this command buffer for recording, either initialising or resetting the associated Vulkan command buffer.
+     */
+    fun prepare(pool: VkCommandPool): Pair<VkCommandBuffer, VkCommandPool> {
+        // start command buffer recording
+        if (commandBuffer == null) {
+            commandBuffer = VU.newCommandBuffer(vkDev, pool, autostart = true)
+        }
+
+        val cmd = commandBuffer ?: throw IllegalStateException("Command buffer cannot be null for recording") // TODO never null and always resetting
+
+        cmd.reset()
+
+        return cmd to pool
+    }
+
+    /**
      * Prepares this command buffer for recording, either initialising or
      * resetting the associated Vulkan command buffer. Recording will take place in command pool [pool].
      */
-    fun prepareAndStartRecording(pool: Long): VkCommandBuffer {
+    fun prepareAndStartRecording(pool: VkCommandPool): VkCommandBuffer {
         // start command buffer recording
         if (commandBuffer == null) {
-            commandBuffer = VU.newCommandBuffer(device, pool, autostart = true)
+            commandBuffer = VU.newCommandBuffer(vkDev, pool, autostart = true)
         }
 
         val cmd = commandBuffer ?: throw IllegalStateException("Command buffer cannot be null for recording")
 
-        vkResetCommandBuffer(cmd, 0)
+        cmd.reset()
         VU.beginCommandBuffer(cmd)
 
         return cmd

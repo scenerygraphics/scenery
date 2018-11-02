@@ -3,10 +3,15 @@ package vkk.`object`
 import glm_.i
 import glm_.set
 import kool.Ptr
+import kool.adr
+import kool.rem
 import org.lwjgl.system.MemoryStack
 import org.lwjgl.system.MemoryUtil.NULL
 import org.lwjgl.system.MemoryUtil.memCopy
 import org.lwjgl.system.Pointer
+import uno.buffer.longBufferOf
+import uno.kotlin.buffers.isEmpty
+import uno.kotlin.buffers.isNotEmpty
 import vkk.VkDynamicState
 import vkk.adr
 import java.nio.ByteBuffer
@@ -41,7 +46,11 @@ fun Pointer.isValid() = adr != NULL
 
 inline class VkBuffer(override val L: Long) : VkObject
 inline class VkBufferView(override val L: Long) : VkObject
-inline class VkCommandPool(override val L: Long) : VkObject
+inline class VkCommandPool(override val L: Long) : VkObject {
+    val isValid get() = L != NULL
+    val isInvalid get() = L == NULL
+}
+
 inline class VkDebugReportCallback(override val L: Long) : VkObject
 inline class VkDescriptorPool(override val L: Long) : VkObject
 inline class VkDescriptorSet(override val L: Long) : VkObject
@@ -67,7 +76,10 @@ inline class VkPipelineLayout(override val L: Long) : VkObject
 inline class VkQueryPool(override val L: Long) : VkObject
 inline class VkRenderPass(override val L: Long) : VkObject
 inline class VkSampler(override val L: Long) : VkObject
-inline class VkSemaphore(override val L: Long) : VkObject
+inline class VkSemaphore(override val L: Long) : VkObject {
+    val isValid get() = L != NULL
+    val isInvalid get() = L == NULL
+}
 inline class VkShaderModule(override val L: Long) : VkObject
 inline class VkSurface(override val L: Long) : VkObject // TODO -> KHR
 inline class VkSwapchainKHR(override val L: Long) : VkObject
@@ -76,7 +88,20 @@ typealias VkBufferBuffer = LongBuffer
 typealias VkDescriptorSetBuffer = LongBuffer
 typealias VkDeviceMemoryBuffer = LongBuffer
 typealias VkDeviceSizeBuffer = LongBuffer
-typealias VkSemaphoreBuffer = LongBuffer
+
+inline class VkSemaphoreBuffer(val buffer: LongBuffer) {
+    operator fun get(index: Int) = VkSemaphore(buffer[index])
+
+    fun isNotEmpty() = buffer.isNotEmpty()
+    fun isEmpty() = buffer.isEmpty()
+
+    val rem get() = buffer.rem
+    val adr get() = buffer.adr
+}
+
+fun vkSemaphoreBufferOf(semaphore: VkSemaphore) = VkSemaphoreBuffer(longBufferOf(semaphore.L))
+fun MemoryStack.vkSemaphoreBufferOf(semaphore: VkSemaphore) = VkSemaphoreBuffer(longs(semaphore.L))
+
 typealias VkSwapchainKhrBuffer = LongBuffer
 //typealias VkResultBuffer = IntBuffer
 typealias VkSamplerBuffer = LongBuffer
@@ -97,12 +122,12 @@ inline class VkFenceArray(val array: LongArray) : Iterable<VkFence> {
         private var index = 0
         override fun hasNext() = index < array.size
         override fun next() =
-                try {
-                    VkFence(array[index++])
-                } catch (e: ArrayIndexOutOfBoundsException) {
-                    index -= 1
-                    throw NoSuchElementException(e.message)
-                }
+            try {
+                VkFence(array[index++])
+            } catch (e: ArrayIndexOutOfBoundsException) {
+                index -= 1
+                throw NoSuchElementException(e.message)
+            }
     }
 }
 
@@ -124,12 +149,12 @@ inline class VkFramebufferArray(val array: LongArray) : Iterable<VkFramebuffer> 
         private var index = 0
         override fun hasNext() = index < array.size
         override fun next() =
-                try {
-                    VkFramebuffer(array[index++])
-                } catch (e: ArrayIndexOutOfBoundsException) {
-                    index -= 1
-                    throw NoSuchElementException(e.message)
-                }
+            try {
+                VkFramebuffer(array[index++])
+            } catch (e: ArrayIndexOutOfBoundsException) {
+                index -= 1
+                throw NoSuchElementException(e.message)
+            }
     }
 }
 
@@ -150,17 +175,18 @@ inline class VkImageArray(val array: LongArray) : Iterable<VkImage> {
         private var index = 0
         override fun hasNext() = index < array.size
         override fun next() =
-                try {
-                    VkImage(array[index++])
-                } catch (e: ArrayIndexOutOfBoundsException) {
-                    index -= 1
-                    throw NoSuchElementException(e.message)
-                }
+            try {
+                VkImage(array[index++])
+            } catch (e: ArrayIndexOutOfBoundsException) {
+                index -= 1
+                throw NoSuchElementException(e.message)
+            }
     }
 }
 
 fun VkImageArray(size: Int, block: (Int) -> VkImage) = VkImageArray(LongArray(size) { block(it).L })
 fun VkImageArray(size: Int) = VkImageArray(LongArray(size))
+fun VkImageArray(images: Collection<VkImage>) = VkImageArray(LongArray(images.size) { images.elementAt(it).L })
 fun VkImageArray() = VkImageArray(LongArray(0))
 
 inline class VkImageViewArray(val array: LongArray) : Iterable<VkImageView> {
@@ -177,12 +203,12 @@ inline class VkImageViewArray(val array: LongArray) : Iterable<VkImageView> {
         private var index = 0
         override fun hasNext() = index < array.size
         override fun next() =
-                try {
-                    VkImageView(array[index++])
-                } catch (e: ArrayIndexOutOfBoundsException) {
-                    index -= 1
-                    throw NoSuchElementException(e.message)
-                }
+            try {
+                VkImageView(array[index++])
+            } catch (e: ArrayIndexOutOfBoundsException) {
+                index -= 1
+                throw NoSuchElementException(e.message)
+            }
     }
 }
 
@@ -190,7 +216,12 @@ fun VkImageViewArray(size: Int, block: (Int) -> VkImageView) = VkImageViewArray(
 fun VkImageViewArray(size: Int) = VkImageViewArray(LongArray(size))
 fun VkImageViewArray() = VkImageViewArray(LongArray(0))
 
-typealias VkSemaphoreArray = LongArray
+inline class VkSemaphoreArray(val array: LongArray) {
+    operator fun get(index: Int) = VkSemaphore(array[index])
+}
+
+fun VkSemaphoreArray(size: Int, init: (Int) -> VkSemaphore) = VkSemaphoreArray(LongArray(size) { init(it).L })
+fun VkSemaphoreArray(semaphores: Collection<VkSemaphore>) = VkSemaphoreArray(semaphores.size) { semaphores.elementAt(it) }
 
 
 inline class VkImageViewBuffer(val buffer: LongBuffer) {

@@ -10,14 +10,13 @@ import graphics.scenery.backends.ShaderType
 import graphics.scenery.backends.Shaders
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.RingBuffer
+import kool.free
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
 import vkk.*
-import vkk.`object`.VkDescriptorSet
-import vkk.`object`.VkDescriptorSetLayout
-import vkk.`object`.VkPipelineCache
+import vkk.`object`.*
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.util.*
@@ -33,8 +32,8 @@ import java.util.concurrent.ConcurrentHashMap
  */
 open class VulkanRenderpass(val name: String, var config: RenderConfigReader.RenderConfig,
                             val device: VulkanDevice,
-                            val descriptorPool: Long,
-                            val pipelineCache: Long,
+                            val descriptorPool: VkDescriptorPool,
+                            val pipelineCache: VkPipelineCache,
                             val vertexDescriptors: ConcurrentHashMap<VulkanRenderer.VertexDataKinds, VulkanRenderer.VertexDescription>) : AutoCloseable {
 
     protected val logger by LazyLogger()
@@ -58,7 +57,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         protected set
 
     /** Semaphores this renderpass is going to wait on when executed */
-    var waitSemaphores = memAllocLong(1)
+    var waitSemaphores = memAllocLong(1) // TODO always one?
         protected set
     /** Stages this renderpass will wait for when executed */
     var waitStages = memAllocInt(1)
@@ -90,7 +89,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         default = { VulkanCommandBuffer(device, null, true) })
 
     /** This renderpasses' semaphore */
-    var semaphore = -1L
+    var semaphore = VkSemaphore(NULL)
         protected set
 
     /** This renderpasses' [RenderConfigReader.RenderpassConfig]. */
@@ -120,28 +119,28 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
      */
     class VulkanMetadata(var descriptorSets: LongBuffer = memAllocLong(10),
                          var vertexBufferOffsets: LongBuffer = memAllocLong(4),
-                         var scissor: VkRect2D.Buffer = VkRect2D.calloc(1),
-                         var viewport: VkViewport.Buffer = VkViewport.calloc(1),
+                         var scissor: VkRect2D = VkRect2D(),
+                         var viewport: VkViewport = VkViewport(),
                          var vertexBuffers: LongBuffer = memAllocLong(4),
                          var clearValues: VkClearValue.Buffer? = null,
                          var renderArea: VkRect2D = VkRect2D.calloc(),
-                         var renderPassBeginInfo: VkRenderPassBeginInfo = VkRenderPassBeginInfo.calloc(),
+                         var renderPassBeginInfo: VkRenderPassBeginInfo = VkRenderPassBeginInfo(),
                          var uboOffsets: IntBuffer = memAllocInt(16),
                          var eye: IntBuffer = memAllocInt(1),
                          var renderLists: HashMap<VulkanCommandBuffer, Array<Node>> = HashMap()) : AutoCloseable {
 
         /** Close this metadata instance, and frees all members */
         override fun close() {
-            memFree(descriptorSets)
-            memFree(vertexBufferOffsets)
+            descriptorSets.free()
+            vertexBufferOffsets.free()
             scissor.free()
             viewport.free()
-            memFree(vertexBuffers)
+            vertexBuffers.free()
             clearValues?.free()
             renderArea.free()
             renderPassBeginInfo.free()
-            memFree(uboOffsets)
-            memFree(eye)
+            uboOffsets.free()
+            eye.free()
         }
 
     }
@@ -153,15 +152,11 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
     val vkDev get() = device.vulkanDevice
 
     init {
-        val semaphoreCreateInfo = VkSemaphoreCreateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO)
-            .pNext(NULL)
-            .flags(0)
+        val semaphoreCreateInfo = vk.SemaphoreCreateInfo()
 
-        semaphore = VU.getLong("vkCreateSemaphore",
-            { vkCreateSemaphore(device.vulkanDevice, semaphoreCreateInfo, null, this) }, {})
+        semaphore = vkDev createSemaphore semaphoreCreateInfo
 
-        val default = VU.createDescriptorSetLayout(device,
+        val default = VU.createDescriptorSetLayout(vkDev,
             descriptorNum = 3,
             descriptorCount = 1)
 
@@ -198,11 +193,10 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
             }
 
             // create descriptor set layout that matches the render target
-            val dsl = VU.createDescriptorSetLayout(device,
+            val dsl = VU.createDescriptorSetLayout(vkDev,
                 descriptorNum = descriptorNum,
                 descriptorCount = 1,
-                type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
-            )
+                type = VkDescriptorType.COMBINED_IMAGE_SAMPLER)
 
             val ds = if (inputFramebuffer.key.contains(".")) {
                 val targetName = inputFramebuffer.key.substringBefore(".")
@@ -400,9 +394,9 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
     fun initializePipeline(pipelineName: String = "default", shaders: List<VulkanShaderModule>,
                            vertexInputType: VulkanRenderer.VertexDescription = vertexDescriptors.get(VulkanRenderer.VertexDataKinds.PositionNormalTexcoord)!!,
                            settings: (VulkanPipeline) -> Any = {}) {
-        val p = VulkanPipeline(device, VkPipelineCache(pipelineCache))
+        val p = VulkanPipeline(device, pipelineCache)
 
-        val reqDescriptorLayouts = ArrayList<Long>()
+        val reqDescriptorLayouts = ArrayList<VkDescriptorSetLayout>()
 
         val framebuffer = output.values.first()
 
@@ -430,15 +424,15 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         }
 
         p.colorBlendState.pAttachments()?.free()
-        p.colorBlendState
-            .sType(VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO)
-            .pNext(MemoryUtil.NULL)
-            .pAttachments(blendMasks)
-
-        p.depthStencilState
-            .depthTestEnable(passConfig.depthTestEnabled)
-            .depthWriteEnable(passConfig.depthWriteEnabled)
-
+        p.colorBlendState.apply {
+            type = VkStructureType.PIPELINE_COLOR_BLEND_STATE_CREATE_INFO
+            next = NULL
+            attachments = blendMasks
+        }
+        p.depthStencilState.apply {
+            depthTestEnable = passConfig.depthTestEnabled
+            depthWriteEnable = passConfig.depthWriteEnabled
+        }
         p.descriptorSpecs.entries
             .sortedBy { it.value.binding }
             .sortedBy { it.value.set }
@@ -446,7 +440,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                 logger.debug("${this.name}: Initialising DSL for $name at set=${spec.set} binding=${spec.binding}")
 
                 if (spec.binding == 0L) {
-                    reqDescriptorLayouts.add(initializeDescriptorSetLayoutForSpec(spec))
+                    reqDescriptorLayouts += initializeDescriptorSetLayoutForSpec(spec)
                 }
             }
 
@@ -456,7 +450,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
             logger.debug("DS are: ${p.descriptorSpecs.entries.sortedBy { it.value.binding }.sortedBy { it.value.set }.joinToString { "${it.key} (set=${it.value.set}, binding=${it.value.binding})" }}")
         }
 
-        logger.debug("Required DSLs: ${reqDescriptorLayouts.joinToString { it.toHexString() }}")
+        logger.debug("Required DSLs: ${reqDescriptorLayouts.joinToString { it.asHexString }}")
 
         when (passConfig.type) {
             RenderConfigReader.RenderpassType.quad -> {
@@ -482,7 +476,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         pipelines.put(pipelineName, p)?.close()
     }
 
-    private fun initializeDescriptorSetLayoutForSpec(spec: VulkanShaderModule.UBOSpec): Long {
+    private fun initializeDescriptorSetLayoutForSpec(spec: VulkanShaderModule.UBOSpec): VkDescriptorSetLayout {
         val contents = when {
             spec.name == "Matrices" || spec.name == "MaterialProperties" -> listOf(VkDescriptorType.UNIFORM_BUFFER_DYNAMIC to 1)
 
@@ -505,11 +499,9 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         val dsl = VU.createDescriptorSetLayout(vkDev, contents, spec.binding.toInt())
         // destroy descriptor set layout if there was a previously associated one,
         // and add the new one
-        descriptorSetLayouts.put(spec.name, dsl)?.let { dslOld ->
-            vkDestroyDescriptorSetLayout(device.vulkanDevice, dslOld.L, null)
-        }
+        descriptorSetLayouts.put(spec.name, dsl)?.let { dslOld -> vkDev destroyDescriptorSetLayout  dslOld }
 
-        return dsl.L
+        return dsl
     }
 
     /**
@@ -557,7 +549,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         output.forEach { it.value.close() }
         pipelines.forEach { it.value.close() }
         UBOs.forEach { it.value.close() }
-        descriptorSetLayouts.forEach { vkDestroyDescriptorSetLayout(device.vulkanDevice, it.value.L, null) }
+        vkDev destroyDescriptorSetLayouts descriptorSetLayouts.values
 
         vulkanMetadata.close()
 
@@ -567,14 +559,14 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
 
         commandBufferBacking.reset()
 
-        if (semaphore != -1L) {
-            vkDestroySemaphore(device.vulkanDevice, semaphore, null)
-            memFree(waitSemaphores)
-            memFree(signalSemaphores)
-            memFree(waitStages)
-            memFree(submitCommandBuffers)
+        if (semaphore.isValid) {
+            vkDev destroySemaphore semaphore
+            waitSemaphores.free()
+            signalSemaphores.free()
+            waitStages.free()
+            submitCommandBuffers.free()
 
-            semaphore = -1L
+            semaphore = VkSemaphore(NULL)
         }
     }
 }

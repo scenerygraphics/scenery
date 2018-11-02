@@ -10,6 +10,7 @@ import graphics.scenery.utils.LazyLogger
 import org.lwjgl.vulkan.VkInstance
 import org.lwjgl.vulkan.VkPhysicalDevice
 import org.lwjgl.vulkan.VkQueue
+import vkk.`object`.VkImage
 
 /**
  * Display/TrackerInput implementation for stereoscopic displays and tracked shutter glasses
@@ -129,7 +130,7 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
      * @param[queueFamilyIndex] Queue family index
      * @param[image] The Vulkan texture image to be presented to the compositor
      */
-    override fun submitToCompositorVulkan(width: Int, height: Int, format: Int, instance: VkInstance, device: VulkanDevice, queue: VkQueue, image: Long) {
+    override fun submitToCompositorVulkan(width: Int, height: Int, format: Int, instance: VkInstance, device: VulkanDevice, queue: VkQueue, image: VkImage) {
         logger.error("This Display implementation does not have a compositor. Incorrect configuration?")
     }
 
@@ -146,7 +147,7 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
      * @return HMD position as GLVector
      */
     override fun getPosition(): GLVector {
-        if(System.getProperty("scenery.FakeVRPN", "false").toBoolean()) {
+        if(System.getProperty("scenery.FakeVRPN", "false")?.toBoolean() == true) {
 //            val pos = GLVector(
 //                1.92f * Math.sin(System.nanoTime()/10e9 % (2.0*Math.PI)).toFloat(),
 //                1.5f,
