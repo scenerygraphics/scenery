@@ -12,7 +12,6 @@ import graphics.scenery.backends.*
 import graphics.scenery.spirvcrossj.Loader
 import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.utils.*
-import javafx.application.Platform
 import kotlinx.coroutines.*
 import org.lwjgl.system.MemoryUtil
 import java.io.File
@@ -125,8 +124,13 @@ open class OpenGLRenderer(hub: Hub,
     override var firstImageReady: Boolean = false
         protected set
 
-    private var pboBuffers: Array<ByteBuffer?> = arrayOf(null, null)
-    @Volatile private var pbos: IntArray = intArrayOf(0, 0)
+    protected var frames = 0L
+    var fps = 0
+        protected set
+    protected var framesPerSec = 0
+    val pboCount = 2
+    @Volatile private var pbos: IntArray = IntArray(pboCount) { 0 }
+    private var pboBuffers: Array<ByteBuffer?> = Array(pboCount) { null }
     private var readIndex = 0
     private var updateIndex = 1
 
@@ -179,9 +183,8 @@ open class OpenGLRenderer(hub: Hub,
             }
 
             mustRecreateFramebuffers = true
-            gl.glDeleteBuffers(2, pbos, 0)
-            pbos[0] = 0
-            pbos[1] = 0
+            gl.glDeleteBuffers(pboCount, pbos, 0)
+            pbos = IntArray(pboCount) { 0 }
 
             window.width = lastWidth
             window.height = lastHeight
@@ -456,6 +459,13 @@ open class OpenGLRenderer(hub: Hub,
 
         heartbeatTimer.scheduleAtFixedRate(object : TimerTask() {
             override fun run() {
+                fps = framesPerSec
+                framesPerSec = 0
+
+                if(!pushMode) {
+                    (hub?.get(SceneryElement.Statistics) as? Statistics)?.add("Renderer.fps", fps, false)
+                }
+
                 gpuStats?.let {
                     it.update(0)
 
@@ -674,7 +684,7 @@ open class OpenGLRenderer(hub: Hub,
 
             framebufferRecreateHook.invoke()
 
-
+            frames = 0
             mustRecreateFramebuffers = false
         }
 
@@ -1808,52 +1818,50 @@ open class OpenGLRenderer(hub: Hub,
                 encoder = H264Encoder(window.width, window.height, System.getProperty("user.home") + File.separator + "Desktop" + File.separator + "$applicationName - ${SimpleDateFormat("yyyy-MM-dd_HH.mm.ss").format(Date())}.mp4")
             }
 
-            readIndex = (readIndex + 1) % 2
-            updateIndex = (updateIndex + 1) % 2
+            readIndex = (readIndex + 1) % pboCount
+            updateIndex = (updateIndex + 1) % pboCount
 
-            if (pbos[0] == 0 || pbos[1] == 0 || mustRecreateFramebuffers) {
-                gl.glGenBuffers(2, pbos, 0)
+            if (pbos.any { it == 0 } || mustRecreateFramebuffers) {
+                gl.glGenBuffers(pboCount, pbos, 0)
 
-                gl.glBindBuffer(GL4.GL_PIXEL_PACK_BUFFER, pbos[0])
-                gl.glBufferData(GL4.GL_PIXEL_PACK_BUFFER, window.width * window.height * 4L, null, GL4.GL_STREAM_READ)
+                pbos.forEachIndexed { index, pbo ->
+                    gl.glBindBuffer(GL4.GL_PIXEL_PACK_BUFFER, pbos[index])
+                    gl.glBufferData(GL4.GL_PIXEL_PACK_BUFFER, window.width * window.height * 4L, null, GL4.GL_STREAM_READ)
 
-                gl.glBindBuffer(GL4.GL_PIXEL_PACK_BUFFER, pbos[1])
-                gl.glBufferData(GL4.GL_PIXEL_PACK_BUFFER, window.width * window.height * 4L, null, GL4.GL_STREAM_READ)
+                    if(pboBuffers[index] != null) {
+                        MemoryUtil.memFree(pboBuffers[index])
+                        pboBuffers[index] = null
+                    }
+                }
 
                 gl.glBindBuffer(GL4.GL_PIXEL_PACK_BUFFER, 0)
+            }
 
-                if(pboBuffers[0] != null) {
-                    MemoryUtil.memFree(pboBuffers[0])
+            pboBuffers.forEachIndexed { i, _ ->
+                if(pboBuffers[i] == null) {
+                    pboBuffers[i] = MemoryUtil.memAlloc(4 * window.width * window.height)
                 }
-
-                if(pboBuffers[1] != null) {
-                    MemoryUtil.memFree(pboBuffers[1])
-                }
-
-                pboBuffers[0] = null
-                pboBuffers[1] = null
             }
 
-            if(pboBuffers[0] == null) {
-                pboBuffers[0] = MemoryUtil.memAlloc(4*window.width*window.height)
+            val startUpdate = System.nanoTime()
+            if(frames < pboCount) {
+                gl.glBindBuffer(GL4.GL_PIXEL_PACK_BUFFER, pbos[updateIndex])
+                gl.glReadPixels(0, 0, window.width, window.height, GL4.GL_BGRA, GL4.GL_UNSIGNED_BYTE, 0)
+            } else {
+                gl.glBindBuffer(GL4.GL_PIXEL_PACK_BUFFER, pbos[updateIndex])
+
+                val readBuffer = gl.glMapBuffer(GL4.GL_PIXEL_PACK_BUFFER, GL4.GL_READ_ONLY)
+                MemoryUtil.memCopy(readBuffer, pboBuffers[readIndex]!!)
+                gl.glUnmapBuffer(GL4.GL_PIXEL_PACK_BUFFER)
+
+                gl.glReadPixels(0, 0, window.width, window.height, GL4.GL_BGRA, GL4.GL_UNSIGNED_BYTE, 0)
             }
 
-            if(pboBuffers[1] == null) {
-                pboBuffers[1] = MemoryUtil.memAlloc(4*window.width*window.height)
-            }
-
-            gl.glBindBuffer(GL4.GL_PIXEL_PACK_BUFFER, pbos[updateIndex])
-            gl.glReadPixels(0, 0, window.width, window.height, GL4.GL_BGRA, GL4.GL_UNSIGNED_BYTE, 0)
-            gl.glGetBufferSubData(GL4.GL_PIXEL_PACK_BUFFER, 0,
-                4L * window.width * window.height, pboBuffers[updateIndex])
-
-            if (!mustRecreateFramebuffers) {
+            if (!mustRecreateFramebuffers && frames > pboCount) {
                 embedIn?.let { embedPanel ->
-                    Platform.runLater {
-                        pboBuffers[readIndex]?.let {
-                            val id = viewportPass.output.values.first().getTextureId("Viewport")
-                            embedPanel.update(it, id = id)
-                        }
+                    pboBuffers[readIndex]?.let {
+                        val id = viewportPass.output.values.first().getTextureId("Viewport")
+                        embedPanel.update(it, id = id)
                     }
                 }
 
@@ -1863,6 +1871,8 @@ open class OpenGLRenderer(hub: Hub,
                     }
                 }
             }
+            val updateDuration = (System.nanoTime() - startUpdate)*1.0f
+            stats?.add("Renderer.updateEmbed", updateDuration, true)
 
             gl.glBindBuffer(GL4.GL_PIXEL_PACK_BUFFER, 0)
         }
@@ -1891,6 +1901,8 @@ open class OpenGLRenderer(hub: Hub,
 
         updateLatch?.countDown()
         firstImageReady = true
+        frames++
+        framesPerSec++
     }
 
     /**
