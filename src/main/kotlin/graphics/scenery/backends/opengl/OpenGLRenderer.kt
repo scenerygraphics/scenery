@@ -51,7 +51,7 @@ import kotlin.reflect.full.memberProperties
  * @param[scene] The [Scene] instance to initialize first.
  * @param[width] Horizontal window size.
  * @param[height] Vertical window size.
- * @param[embedIn] An optional [SceneryPanel] in which to embed the renderer instance.
+ * @param[embedIn] An optional [SceneryFXPanel] in which to embed the renderer instance.
  * @param[renderConfigFile] The file to create a [RenderConfigReader.RenderConfig] from.
  *
  * @author Ulrik Günther <hello@ulrik.is>
@@ -355,7 +355,7 @@ open class OpenGLRenderer(hub: Hub,
 
             val factory = GLDrawableFactory.getFactory(profile)
             drawable = factory.createOffscreenAutoDrawable(factory.defaultDevice, caps,
-                DefaultGLCapabilitiesChooser(), embedIn!!.width.toInt(), embedIn!!.height.toInt())
+                DefaultGLCapabilitiesChooser(), embedIn!!.panelWidth, embedIn!!.panelHeight)
                 .apply {
 
                     addGLEventListener(this@OpenGLRenderer)
@@ -365,20 +365,22 @@ open class OpenGLRenderer(hub: Hub,
                     animator.start()
 
                     embedIn?.let { panel ->
-                        panel.imageView.scaleY = -1.0
+                        panel.imageScaleY = -1.0f
 
-                        panel.widthProperty()?.addListener { _, _, newWidth ->
-                            resizeHandler.lastWidth = newWidth.toInt()
-                        }
+                        if(panel is SceneryFXPanel) {
+                            panel.widthProperty()?.addListener { _, _, newWidth ->
+                                resizeHandler.lastWidth = newWidth.toInt()
+                            }
 
-                        panel.heightProperty()?.addListener { _, _, newHeight ->
-                            resizeHandler.lastHeight = newHeight.toInt()
+                            panel.heightProperty()?.addListener { _, _, newHeight ->
+                                resizeHandler.lastHeight = newHeight.toInt()
+                            }
+
+                            window = SceneryWindow.JavaFXStage(panel)
+                            window.width = panel.panelWidth
+                            window.height = panel.panelHeight
                         }
                     }
-
-                    window = SceneryWindow.JavaFXStage(embedIn!!)
-                    window.width = embedIn!!.width.toInt()
-                    window.height = embedIn!!.height.toInt()
 
                     resizeHandler.lastWidth = window.width
                     resizeHandler.lastHeight = window.height

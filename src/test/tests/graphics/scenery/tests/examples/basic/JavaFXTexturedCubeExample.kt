@@ -4,7 +4,7 @@ import cleargl.GLVector
 import com.sun.javafx.application.PlatformImpl
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.utils.SceneryPanel
+import graphics.scenery.utils.SceneryFXPanel
 import javafx.application.Platform
 import javafx.event.EventHandler
 import javafx.geometry.HPos
@@ -28,7 +28,7 @@ import kotlin.concurrent.thread
 class JavaFXTexturedCubeExample : SceneryBase("JavaFXTexturedCubeExample", windowWidth = 512, windowHeight = 512) {
     override fun init() {
         val latch = CountDownLatch(1)
-        var imagePanel: SceneryPanel? = null
+        var imagePanel: SceneryFXPanel? = null
         var stage: Stage? = null
 
         PlatformImpl.startup { }
@@ -44,7 +44,7 @@ class JavaFXTexturedCubeExample : SceneryBase("JavaFXTexturedCubeExample", windo
             val pane = GridPane()
             val label = Label(applicationName)
 
-            imagePanel = SceneryPanel(windowWidth, windowHeight)
+            imagePanel = SceneryFXPanel(windowWidth, windowHeight)
 
             GridPane.setHgrow(imagePanel, Priority.ALWAYS)
             GridPane.setVgrow(imagePanel, Priority.ALWAYS)

@@ -10,10 +10,7 @@ import graphics.scenery.controls.behaviours.FPSCameraControl
 import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.repl.REPL
-import graphics.scenery.utils.LazyLogger
-import graphics.scenery.utils.Renderdoc
-import graphics.scenery.utils.SceneryPanel
-import graphics.scenery.utils.Statistics
+import graphics.scenery.utils.*
 import org.scijava.Context
 import org.scijava.ui.behaviour.ClickBehaviour
 import java.lang.Boolean.parseBoolean
