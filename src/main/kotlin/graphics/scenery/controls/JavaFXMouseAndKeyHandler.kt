@@ -1,7 +1,7 @@
 package graphics.scenery.controls
 
 import graphics.scenery.Hub
-import graphics.scenery.utils.SceneryPanel
+import graphics.scenery.utils.SceneryFXPanel
 import javafx.event.EventHandler
 import javafx.scene.input.*
 import org.scijava.ui.behaviour.InputTrigger
@@ -11,7 +11,7 @@ import org.scijava.ui.behaviour.InputTrigger
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-open class JavaFXMouseAndKeyHandler(protected var hub: Hub?, protected var panel: SceneryPanel) : MouseAndKeyHandlerBase(), EventHandler<javafx.event.Event> {
+open class JavaFXMouseAndKeyHandler(protected var hub: Hub?, protected var panel: SceneryFXPanel) : MouseAndKeyHandlerBase(), EventHandler<javafx.event.Event> {
     private var os = ""
     private var scrollSpeedMultiplier = 1.0f
 

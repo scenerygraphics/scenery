@@ -7,6 +7,7 @@ import org.lwjgl.vulkan.*
 import java.nio.ByteBuffer
 import java.nio.LongBuffer
 import graphics.scenery.Hub
+import graphics.scenery.utils.SceneryFXPanel
 import graphics.scenery.utils.SceneryPanel
 import org.lwjgl.system.MemoryStack
 
@@ -143,8 +144,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
             VK10.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK10.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
             wantAligned = true)
 
-        imagePanel?.prefWidth = window.width.toDouble()
-        imagePanel?.prefHeight = window.height.toDouble()
+        imagePanel?.setPreferredDimensions(window.width, window.height)
 
         resizeHandler.lastWidth = window.width
         resizeHandler.lastHeight = window.height

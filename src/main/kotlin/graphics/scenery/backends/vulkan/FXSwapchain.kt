@@ -8,6 +8,7 @@ import javafx.stage.Stage
 import java.util.concurrent.CountDownLatch
 import com.sun.javafx.application.PlatformImpl
 import graphics.scenery.Hub
+import graphics.scenery.utils.SceneryFXPanel
 import graphics.scenery.utils.SceneryPanel
 import javafx.application.Platform
 import javafx.event.EventHandler
@@ -50,9 +51,14 @@ class FXSwapchain(device: VulkanDevice,
 
         PlatformImpl.startup { }
         val lCountDownLatch = CountDownLatch(1)
+        var p: SceneryFXPanel? = null
+
         Platform.runLater {
             if (imagePanel == null) {
                 val s = Stage()
+                p = SceneryFXPanel(win.width, win.height)
+                window = SceneryWindow.JavaFXStage(p as SceneryFXPanel)
+
                 s.title = "FXSwapchain"
 
                 val lStackPane = StackPane()
@@ -64,15 +70,11 @@ class FXSwapchain(device: VulkanDevice,
                 val pane = GridPane()
                 val label = Label("Experimental JavaFX Swapchain - use with caution!")
 
-                imagePanel = SceneryPanel(win.width, win.height).apply {
-                    window = SceneryWindow.JavaFXStage(this)
-                }
+                GridPane.setHgrow(p, Priority.ALWAYS)
+                GridPane.setVgrow(p, Priority.ALWAYS)
 
-                GridPane.setHgrow(imagePanel, Priority.ALWAYS)
-                GridPane.setVgrow(imagePanel, Priority.ALWAYS)
-
-                GridPane.setFillHeight(imagePanel, true)
-                GridPane.setFillWidth(imagePanel, true)
+                GridPane.setFillHeight(p, true)
+                GridPane.setFillWidth(p, true)
 
                 GridPane.setHgrow(label, Priority.ALWAYS)
                 GridPane.setHalignment(label, HPos.CENTER)
@@ -113,9 +115,12 @@ class FXSwapchain(device: VulkanDevice,
                 window.width = win.width
                 window.height = win.height
 
+                imagePanel = p
                 stage = s
             } else {
                 imagePanel?.let {
+                    if(it !is SceneryFXPanel) return@let
+
                     window = SceneryWindow.JavaFXStage(it)
                     window.width = it.width.toInt()
                     window.height = it.height.toInt()
@@ -159,7 +164,7 @@ class FXSwapchain(device: VulkanDevice,
     }
 
     /**
-     * Post-present routine, copies the rendered image into the imageView of the [SceneryPanel].
+     * Post-present routine, copies the rendered image into the imageView of the [SceneryFXPanel].
      */
     override fun postPresent(image: Int) {
         super.postPresent(image)
@@ -201,7 +206,7 @@ class FXSwapchain(device: VulkanDevice,
      */
     override fun embedIn(panel: SceneryPanel?) {
         imagePanel = panel
-        imagePanel?.imageView?.scaleY = 1.0
+        imagePanel?.imageScaleY = 1.0f
     }
 
     /**

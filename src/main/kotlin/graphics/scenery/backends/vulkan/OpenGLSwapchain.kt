@@ -9,6 +9,7 @@ import graphics.scenery.Hub
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.SceneryFXPanel
 import graphics.scenery.utils.SceneryPanel
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.glfw.GLFWNativeGLX.glfwGetGLXWindow
@@ -395,7 +396,7 @@ class OpenGLSwapchain(val device: VulkanDevice,
     }
 
     /**
-     * Embeds the swapchain into a [SceneryPanel]. Not supported by [OpenGLSwapchain], see [FXSwapchain] instead.
+     * Embeds the swapchain into a [SceneryFXPanel]. Not supported by [OpenGLSwapchain], see [FXSwapchain] instead.
      */
     override fun embedIn(panel: SceneryPanel?) {
         logger.error("Embedding is not supported with the OpenGL-based swapchain. Use FXSwapchain instead.")

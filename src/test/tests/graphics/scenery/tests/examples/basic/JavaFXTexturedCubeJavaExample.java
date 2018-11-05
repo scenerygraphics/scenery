@@ -4,7 +4,7 @@ import cleargl.GLVector;
 import com.sun.javafx.application.PlatformImpl;
 import graphics.scenery.*;
 import graphics.scenery.backends.Renderer;
-import graphics.scenery.utils.SceneryPanel;
+import graphics.scenery.utils.SceneryFXPanel;
 import javafx.application.Platform;
 import javafx.geometry.HPos;
 import javafx.geometry.Insets;
@@ -37,7 +37,7 @@ public class JavaFXTexturedCubeJavaExample {
         public void init() {
 
             CountDownLatch latch = new CountDownLatch(1);
-            final SceneryPanel[] imagePanel = {null};
+            final SceneryFXPanel[] imagePanel = {null};
             final Stage[] stage = {null};
 
             PlatformImpl.startup(() -> {
@@ -55,7 +55,7 @@ public class JavaFXTexturedCubeJavaExample {
                 GridPane pane = new GridPane();
                 Label label = new Label(getApplicationName());
 
-                imagePanel[0] = new SceneryPanel(getWindowWidth(), getWindowHeight());
+                imagePanel[0] = new SceneryFXPanel(getWindowWidth(), getWindowHeight());
 
                 GridPane.setHgrow(imagePanel[0], Priority.ALWAYS);
                 GridPane.setVgrow(imagePanel[0], Priority.ALWAYS);
