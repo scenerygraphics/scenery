@@ -1,6 +1,7 @@
 package graphics.scenery.backends
 
 import graphics.scenery.utils.SceneryFXPanel
+import graphics.scenery.utils.SceneryJPanel
 import javafx.application.Platform
 import javafx.stage.Stage
 import org.lwjgl.glfw.GLFW.*
@@ -19,6 +20,8 @@ sealed class SceneryWindow {
     class ClearGLWindow(var window: cleargl.ClearGLWindow): SceneryWindow()
     /** JavaFX window or stage, with [panel] being the [SceneryFXPanel] scenery will render to. */
     class JavaFXStage(var panel: SceneryFXPanel): SceneryWindow()
+    /** Swing window with [panel] being the [SceneryJPanel] */
+    class SwingWindow(var panel: SceneryJPanel): SceneryWindow()
     /** Headless window with no chrome whatsoever. */
     class HeadlessWindow : SceneryWindow()
 
