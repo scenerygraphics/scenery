@@ -11,10 +11,7 @@ import graphics.scenery.controls.behaviours.*
 import graphics.scenery.utils.LazyLogger
 import net.java.games.input.Component
 import org.lwjgl.glfw.GLFW.*
-import org.scijava.ui.behaviour.Behaviour
-import org.scijava.ui.behaviour.BehaviourMap
-import org.scijava.ui.behaviour.InputTrigger
-import org.scijava.ui.behaviour.InputTriggerMap
+import org.scijava.ui.behaviour.*
 import org.scijava.ui.behaviour.io.InputTriggerConfig
 import org.scijava.ui.behaviour.io.yaml.YamlConfigIO
 import java.io.FileNotFoundException
@@ -82,6 +79,19 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
 
                 handler.setInputMap(inputMap)
                 handler.setBehaviourMap(behaviourMap)
+            }
+
+            is SceneryWindow.SwingWindow -> {
+                handler = SwingMouseAndKeyHandler()
+
+                handler.setInputMap(inputMap)
+                handler.setBehaviourMap(behaviourMap)
+
+                window.panel.addKeyListener(handler)
+                window.panel.addMouseListener(handler)
+                window.panel.addMouseMotionListener(handler)
+                window.panel.addMouseWheelListener(handler)
+                window.panel.addFocusListener(handler)
             }
 
             is SceneryWindow.UninitializedWindow -> {

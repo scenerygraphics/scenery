@@ -18,6 +18,8 @@ class SceneryFXPanel(var imageWidth: Int, var imageHeight: Int) : Pane(), Scener
 
     private val logger by LazyLogger()
 
+    override var refreshRate: Int = 60
+
     /** Delay between resize events before associated renderer swapchains are resized actually. */
     val RESIZE_DELAY_MS = 200L
 

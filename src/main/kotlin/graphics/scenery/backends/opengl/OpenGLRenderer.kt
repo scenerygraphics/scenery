@@ -14,6 +14,8 @@ import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.utils.*
 import kotlinx.coroutines.*
 import org.lwjgl.system.MemoryUtil
+import java.awt.event.ComponentAdapter
+import java.awt.event.ComponentEvent
 import java.io.File
 import java.io.FileNotFoundException
 import java.lang.reflect.Field
@@ -367,18 +369,36 @@ open class OpenGLRenderer(hub: Hub,
                     embedIn?.let { panel ->
                         panel.imageScaleY = -1.0f
 
-                        if(panel is SceneryFXPanel) {
-                            panel.widthProperty()?.addListener { _, _, newWidth ->
-                                resizeHandler.lastWidth = newWidth.toInt()
+                        when(panel) {
+                            is SceneryFXPanel -> {
+                                panel.widthProperty()?.addListener { _, _, newWidth ->
+                                    resizeHandler.lastWidth = newWidth.toInt()
+                                }
+
+                                panel.heightProperty()?.addListener { _, _, newHeight ->
+                                    resizeHandler.lastHeight = newHeight.toInt()
+                                }
+
+                                window = SceneryWindow.JavaFXStage(panel)
+                                window.width = panel.panelWidth
+                                window.height = panel.panelHeight
                             }
 
-                            panel.heightProperty()?.addListener { _, _, newHeight ->
-                                resizeHandler.lastHeight = newHeight.toInt()
-                            }
+                            is SceneryJPanel -> {
+                                window = SceneryWindow.SwingWindow(panel)
 
-                            window = SceneryWindow.JavaFXStage(panel)
-                            window.width = panel.panelWidth
-                            window.height = panel.panelHeight
+                                window.width = panel.panelWidth
+                                window.height = panel.panelHeight
+
+                                panel.addComponentListener(object: ComponentAdapter() {
+                                    override fun componentResized(e: ComponentEvent) {
+                                        super.componentResized(e)
+                                        logger.debug("SceneryJPanel component resized to ${e.component.width} ${e.component.height}")
+                                        resizeHandler.lastWidth = e.component.width
+                                        resizeHandler.lastHeight = e.component.height
+                                    }
+                                })
+                            }
                         }
                     }
 

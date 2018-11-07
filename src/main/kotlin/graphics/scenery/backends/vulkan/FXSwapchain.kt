@@ -9,6 +9,7 @@ import java.util.concurrent.CountDownLatch
 import com.sun.javafx.application.PlatformImpl
 import graphics.scenery.Hub
 import graphics.scenery.utils.SceneryFXPanel
+import graphics.scenery.utils.SceneryJPanel
 import graphics.scenery.utils.SceneryPanel
 import javafx.application.Platform
 import javafx.event.EventHandler
@@ -21,6 +22,8 @@ import javafx.scene.layout.*
 import javafx.scene.paint.Color
 import javafx.scene.text.TextAlignment
 import javafx.stage.Window
+import java.awt.event.ComponentAdapter
+import java.awt.event.ComponentEvent
 import java.util.concurrent.locks.ReentrantLock
 
 
@@ -119,26 +122,48 @@ class FXSwapchain(device: VulkanDevice,
                 stage = s
             } else {
                 imagePanel?.let {
-                    if(it !is SceneryFXPanel) return@let
+                    window = when(it) {
+                        is SceneryFXPanel -> {
 
-                    window = SceneryWindow.JavaFXStage(it)
-                    window.width = it.width.toInt()
-                    window.height = it.height.toInt()
+                            stage = it.scene.window
 
-                    stage = it.scene.window
+                            it.widthProperty().addListener { _, _, newWidth ->
+                                resizeHandler.lastWidth = newWidth.toInt()
+                            }
 
-                    it.widthProperty().addListener { _, _, newWidth ->
-                        resizeHandler.lastWidth = newWidth.toInt()
+                            it.heightProperty().addListener { _, _, newHeight ->
+                                resizeHandler.lastHeight = newHeight.toInt()
+                            }
+
+                            it.minWidth = 100.0
+                            it.minHeight = 100.0
+                            it.prefWidth = window.width.toDouble()
+                            it.prefHeight = window.height.toDouble()
+
+                            stage.onCloseRequest = EventHandler { window.shouldClose = true }
+
+                            SceneryWindow.JavaFXStage(it)
+                        }
+                        is SceneryJPanel -> {
+                            it.addComponentListener(object: ComponentAdapter() {
+                                override fun componentResized(e: ComponentEvent) {
+                                    super.componentResized(e)
+                                    logger.debug("SceneryJPanel component resized to ${e.component.width} ${e.component.height}")
+                                    resizeHandler.lastWidth = e.component.width
+                                    resizeHandler.lastHeight = e.component.height
+                                }
+                            })
+
+                            SceneryWindow.SwingWindow(it)
+                        }
+                        else -> {
+                            throw IllegalArgumentException("$it can't be ${it.javaClass.simpleName}")
+                        }
                     }
 
-                    it.heightProperty().addListener { _, _, newHeight ->
-                        resizeHandler.lastHeight = newHeight.toInt()
-                    }
+                    window.width = it.panelWidth
+                    window.height = it.panelHeight
 
-                    it.minWidth = 100.0
-                    it.minHeight = 100.0
-                    it.prefWidth = window.width.toDouble()
-                    it.prefHeight = window.height.toDouble()
                 }
             }
 
@@ -146,8 +171,6 @@ class FXSwapchain(device: VulkanDevice,
             resizeHandler.lastHeight = window.height
 
             lCountDownLatch.countDown()
-
-            stage.onCloseRequest = EventHandler { window.shouldClose = true }
         }
 
         lCountDownLatch.await()
