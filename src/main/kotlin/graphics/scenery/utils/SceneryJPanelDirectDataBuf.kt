@@ -14,7 +14,7 @@ import java.awt.image.DataBuffer
 
 
 
-class SceneryJPanel : JPanel(), SceneryPanel {
+class SceneryJPanelDirectDataBuf : JPanel(), SceneryPanel {
     private val logger by LazyLogger()
 
     override var panelWidth: Int
@@ -48,7 +48,7 @@ class SceneryJPanel : JPanel(), SceneryPanel {
         refreshTimer = Timer()
         refreshTimer.scheduleAtFixedRate(object: TimerTask() {
             override fun run() {
-                this@SceneryJPanel.repaint()
+                this@SceneryJPanelDirectDataBuf.repaint()
             }
         }, 0, (1.0f/fps * 1000).toLong() )
     }
@@ -89,21 +89,11 @@ class SceneryJPanel : JPanel(), SceneryPanel {
         if(image == null) {
             logger.info("Recreating image $currentWriteImage")
             // BGRA color model
-            val cs = ColorSpace.getInstance(ColorSpace.CS_sRGB)
-            val nBits = intArrayOf(8, 8, 8, 8)
-            val bOffs = intArrayOf(2, 1, 0, 3)
-            val colorModel = ComponentColorModel(cs, nBits, true, false,
-                Transparency.TRANSLUCENT,
-                DataBuffer.TYPE_BYTE)
-            val raster = Raster.createInterleavedRaster(DataBuffer.TYPE_BYTE,
-                panelWidth, panelHeight,
-                panelWidth * 4, 4,
-                bOffs, null)
 
-            image = BufferedImage(colorModel, raster, false, null)
+            val boff = intArrayOf(0, 1, 2, 3)
+            image = DirectBufferedImage.makeDirectImageRGBA(panelWidth, panelHeight, boff, buffer)
             images[currentWriteImage] = image
         }
-
 
         val address = MemoryUtil.memAddress(buffer)
         val p = Pointer(address)
