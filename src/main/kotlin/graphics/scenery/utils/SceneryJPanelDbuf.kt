@@ -1,6 +1,5 @@
 package graphics.scenery.utils
 
-import com.sun.jna.Pointer
 import org.lwjgl.system.MemoryUtil
 import java.awt.Graphics
 import java.awt.Point
@@ -14,7 +13,7 @@ import java.awt.image.DataBuffer
 
 
 
-class SceneryJPanel : JPanel(), SceneryPanel {
+class SceneryJPanelDbuf : JPanel(), SceneryPanel {
     private val logger by LazyLogger()
 
     override var panelWidth: Int
@@ -48,7 +47,7 @@ class SceneryJPanel : JPanel(), SceneryPanel {
         refreshTimer = Timer()
         refreshTimer.scheduleAtFixedRate(object: TimerTask() {
             override fun run() {
-                this@SceneryJPanel.repaint()
+                this@SceneryJPanelDbuf.repaint()
             }
         }, 0, (1.0f/fps * 1000).toLong() )
     }
@@ -63,14 +62,24 @@ class SceneryJPanel : JPanel(), SceneryPanel {
         var image = images[currentReadImage]
 
         if(image == null) {
-            return
+            logger.info("Recreating read image $currentReadImage")
+            // BGRA color model
+            val cs = ColorSpace.getInstance(ColorSpace.CS_sRGB)
+            val nBits = intArrayOf(8, 8, 8, 8)
+            val bOffs = intArrayOf(2, 1, 0, 3)
+            val colorModel = ComponentColorModel(cs, nBits, true, false,
+                Transparency.TRANSLUCENT,
+                DataBuffer.TYPE_BYTE)
+            val raster = Raster.createInterleavedRaster(DataBuffer.TYPE_BYTE,
+                panelWidth, panelHeight,
+                panelWidth * 4, 4,
+                bOffs, null)
+
+            image = BufferedImage(colorModel, raster, false, null)
+            images[currentReadImage] = image
         }
 
-        val start = System.nanoTime()
-//        g.drawImage(image, 0, 0, image.width, image.height, null)
-        g.drawImage(image, 0, 0, null)
-        val duration = (System.nanoTime() - start)/1_000_000
-        logger.info("Draw duration: $duration ms")
+        g.drawImage(image, 0, 0, image.width, image.height, null)
 
         currentReadImage = (currentReadImage+1) % images.size
     }
@@ -94,21 +103,32 @@ class SceneryJPanel : JPanel(), SceneryPanel {
             val bOffs = intArrayOf(2, 1, 0, 3)
             val colorModel = ComponentColorModel(cs, nBits, true, false,
                 Transparency.TRANSLUCENT,
-                DataBuffer.TYPE_BYTE)
-            val raster = Raster.createInterleavedRaster(DataBuffer.TYPE_BYTE,
-                panelWidth, panelHeight,
-                panelWidth * 4, 4,
-                bOffs, null)
+                DataBuffer.TYPE_INT)
+
+            val b = buffer.duplicate()
+
+            val dbuf = object : DataBuffer(DataBuffer.TYPE_BYTE, b.remaining()) {
+                override fun setElem(bank: Int, i: Int, `val`: Int) {
+                }
+
+                override fun getElem(bank: Int, i: Int): Int {
+                    return b.get(i).toInt()
+                }
+            }
+            val sm = colorModel.createCompatibleSampleModel(panelWidth, panelHeight)
+            val raster = Raster.createWritableRaster(sm, dbuf, Point())
 
             image = BufferedImage(colorModel, raster, false, null)
             images[currentWriteImage] = image
         }
 
+//        val data = (image.raster.dataBuffer as DataBufferByte).data
 
-        val address = MemoryUtil.memAddress(buffer)
-        val p = Pointer(address)
-        val arr = (image.raster.dataBuffer as DataBufferByte).data
-        p.read(0, arr, 0, buffer.remaining())
+//        if(buffer.remaining() == data.size) {
+//            buffer.duplicate().get(data)
+//        } else {
+//            logger.info("Not updating buffers, wrong buffer size: {} vs {}", buffer.remaining(), data.size)
+//        }
 
         currentWriteImage = (currentWriteImage+1) % images.size
         renderingReady = true
