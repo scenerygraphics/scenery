@@ -25,23 +25,30 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
         val files = ArrayList<String>()
         PlatformImpl.startup {  }
 
-        Platform.runLater {
-            val chooser = FileChooser()
-            chooser.title = "Open File"
-            chooser.extensionFilters.add(FileChooser.ExtensionFilter("BigDataViewer XML", "*.xml"))
-            val file = chooser.showOpenDialog(Stage())
+        val fileFromProperty = System.getProperty("bdvXML")
+        if(fileFromProperty != null) {
+            files.add(fileFromProperty)
+        } else {
+            Platform.runLater {
+                val chooser = FileChooser()
+                chooser.title = "Open File"
+                chooser.extensionFilters.add(FileChooser.ExtensionFilter("BigDataViewer XML", "*.xml"))
+                val file = chooser.showOpenDialog(Stage())
 
-            if(file != null) {
-                files.add(file.absolutePath)
+                if (file != null) {
+                    files.add(file.absolutePath)
+                }
+                latch.countDown()
             }
-            latch.countDown()
-        }
 
-        latch.await()
+            latch.await()
+        }
 
         if(files.size == 0) {
             throw IllegalStateException("You have to select a file, sorry.")
         }
+
+        logger.info("Loading BDV XML from ${files.first()}")
 
         renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
         hub.add(SceneryElement.Renderer, renderer!!)
