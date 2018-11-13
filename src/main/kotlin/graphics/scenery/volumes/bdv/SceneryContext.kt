@@ -89,8 +89,13 @@ class SceneryContext(val node: Volume) : GpuContext {
         }
 
         override fun setUniformMatrix3f(name: String, transpose: Boolean, value: FloatBuffer) {
-            val array = FloatArray(value.remaining())
-            value.get(array)
+            val matrix = value.duplicate()
+            if(matrix.position() == matrix.capacity()) {
+                matrix.flip()
+            }
+
+            val array = FloatArray(matrix.remaining())
+            matrix.get(array)
 
             val m = GLMatrix(array)
             if(transpose) {
@@ -102,8 +107,13 @@ class SceneryContext(val node: Volume) : GpuContext {
         }
 
         override fun setUniformMatrix4f(name: String, transpose: Boolean, value: FloatBuffer) {
-            val array = FloatArray(value.remaining())
-            value.get(array)
+            val matrix = value.duplicate()
+            if(matrix.position() == matrix.capacity()) {
+                matrix.flip()
+            }
+
+            val array = FloatArray(matrix.remaining())
+            matrix.get(array)
 
             val m = GLMatrix(array)
             if(transpose) {
@@ -152,20 +162,22 @@ class SceneryContext(val node: Volume) : GpuContext {
      * @return id of previously bound texture
      */
     override fun bindTexture(texture: Texture): Int {
-        logger.info("Binding texture $texture")
-        if(node.material.textures.contains("3D-volume")) {
-            return 0
-        }
+        logger.info("Binding texture $texture, lol")
+//        if(node.material.textures.contains("3D-volume")) {
+//            return 0
+//        }
 
         val (channels, type) = when(texture.texInternalFormat()) {
             Texture.InternalFormat.R16 -> 1 to GLTypeEnum.UnsignedShort
             Texture.InternalFormat.RGBA8UI -> 4 to GLTypeEnum.UnsignedByte
             Texture.InternalFormat.UNKNOWN -> TODO()
+            else -> throw UnsupportedOperationException("Unknown internal format ${texture.texInternalFormat()}")
         }
 
         val repeat = when(texture.texWrap()) {
             Texture.Wrap.CLAMP_TO_EDGE -> false
             Texture.Wrap.REPEAT -> true
+            else -> throw UnsupportedOperationException("Unknown wrapping mode: ${texture.texWrap()}")
         }
 
         node.material.transferTextures.put("textureCache",
@@ -179,6 +191,7 @@ class SceneryContext(val node: Volume) : GpuContext {
                 false))
 
         node.material.textures.put("3D-volume", "fromBuffer:textureCache")
+        node.material.needsTextureReload = true
         return 0
     }
 
@@ -186,7 +199,7 @@ class SceneryContext(val node: Volume) : GpuContext {
      * @param texture texture to bind
      * @param unit texture unit to bind to
      */
-    override fun bindTexture(texture: Texture, unit: Int) {
+    override fun bindTexture(texture: Texture?, unit: Int) {
         logger.info("Binding texture $texture to unit $unit")
     }
 
