@@ -162,7 +162,7 @@ class SceneryContext(val node: Volume) : GpuContext {
      * @return id of previously bound texture
      */
     override fun bindTexture(texture: Texture): Int {
-        logger.info("Binding texture $texture, lol")
+        logger.info("Binding texture $texture, w=${texture.texWidth()} h=${texture.texHeight()} d=${texture.texDepth()}")
 //        if(node.material.textures.contains("3D-volume")) {
 //            return 0
 //        }
@@ -229,15 +229,15 @@ class SceneryContext(val node: Volume) : GpuContext {
     }
 
     override fun texSubImage3D(pbo: StagingBuffer, texture: Texture3D, xoffset: Int, yoffset: Int, zoffset: Int, width: Int, height: Int, depth: Int, pixels_buffer_offset: Long) {
-        logger.info("Updating 3D texture from $texture: $xoffset $yoffset $zoffset $width $height $depth")
+        logger.info("Updating 3D texture via PBO from $texture: dx=$xoffset dy=$yoffset dz=$zoffset w=$width h=$height d=$depth")
         val tmpStorage = (map(pbo) as ByteBuffer).duplicate().order(ByteOrder.LITTLE_ENDIAN)
         tmpStorage.position(pixels_buffer_offset.toInt())
 
         val channels = 1
         val format = GLTypeEnum.UnsignedShort
 
-        node.material.transferTextures.put("subimage3D",
-            GenericTexture("subimage3D",
+        node.material.transferTextures.put("3D-volume",
+            GenericTexture("3D-volume",
                 GLVector(width.toFloat(), height.toFloat(), depth.toFloat()),
                 channels,
                 format,
@@ -248,17 +248,19 @@ class SceneryContext(val node: Volume) : GpuContext {
                 true,
                 false,
                 TextureExtents(xoffset, yoffset, zoffset, width, height, depth)))
+        node.material.textures["3D-volume"] = "fromBuffer:3D-volume"
+        node.material.needsTextureReload = true
     }
 
     override fun texSubImage3D(texture: Texture3D, xoffset: Int, yoffset: Int, zoffset: Int, width: Int, height: Int, depth: Int, pixels: Buffer) {
-        logger.info("Updating 3D texture from $texture: $xoffset $yoffset $zoffset $width $height $depth")
+        logger.info("Updating 3D texture via Texture3D from $texture: dx=$xoffset dy=$yoffset dz=$zoffset w=$width h=$height d=$depth")
         if(pixels is ByteBuffer) {
             // TODO: add support for different data types
             val channels = 1
             val format = GLTypeEnum.UnsignedShort
 
-            node.material.transferTextures.put("subimage3D",
-                GenericTexture("subimage3D",
+            node.material.transferTextures.put("3D-volume",
+                GenericTexture("3D-volume",
                     GLVector(width.toFloat(), height.toFloat(), depth.toFloat()),
                     channels,
                     format,
@@ -269,6 +271,8 @@ class SceneryContext(val node: Volume) : GpuContext {
                     true,
                     false,
                     TextureExtents(xoffset, yoffset, zoffset, width, height, depth)))
+            node.material.textures["3D-volume"] = "fromBuffer:3D-volume"
+            node.material.needsTextureReload = true
         }
     }
 }
