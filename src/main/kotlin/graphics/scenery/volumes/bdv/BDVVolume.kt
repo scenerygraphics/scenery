@@ -6,7 +6,6 @@ import cleargl.GLTypeEnum
 import cleargl.GLVector
 import coremem.enums.NativeTypeEnum
 import graphics.scenery.*
-import graphics.scenery.backends.Renderer
 import graphics.scenery.volumes.Volume
 import net.imglib2.type.volatiles.VolatileUnsignedShortType
 import org.joml.Matrix4f
@@ -76,6 +75,7 @@ open class BDVVolume(bdvXMLFile: String = "", maxMemoryMB: Int = 1024) : Volume(
     var stacks: SpimDataStacks? = null
     private val cacheSpec = CacheSpec(Texture.InternalFormat.R16, intArrayOf(32, 32, 32))
 
+    private var currentTimepoint = 0
     private val aMultiResolutionStacks = ArrayList(Arrays.asList(
         AtomicReference(),
         AtomicReference(),
@@ -138,6 +138,7 @@ open class BDVVolume(bdvXMLFile: String = "", maxMemoryMB: Int = 1024) : Volume(
         if(bdvXMLFile != "") {
             val spimData: SpimDataMinimal = XmlIoSpimDataMinimal().load(bdvXMLFile)
             stacks = SpimDataStacks(spimData)
+
             maxTimepoint = spimData.sequenceDescription.timePoints.timePointsOrdered.size - 1
 
             val cacheGridDimensions = TextureCache.findSuitableGridSize(cacheSpec, maxMemoryMB)
@@ -154,6 +155,10 @@ open class BDVVolume(bdvXMLFile: String = "", maxMemoryMB: Int = 1024) : Volume(
             prog = MultiVolumeShaderMip(numVolumes)
             prog?.setTextureCache(textureCache)
             prog?.init(context)
+
+            stacks?.let {
+                updateCurrentStack(it)
+            }
         }
     }
 
@@ -162,6 +167,7 @@ open class BDVVolume(bdvXMLFile: String = "", maxMemoryMB: Int = 1024) : Volume(
             return
         }
 
+        logger.info("Updating blocks")
         stacks?.cacheControl?.prepareNextFrame()
 
         val cam = getScene()?.activeObserver ?: return
@@ -169,9 +175,10 @@ open class BDVVolume(bdvXMLFile: String = "", maxMemoryMB: Int = 1024) : Volume(
         viewProjection.mult(cam.getTransformation())
 
 
-        val vp = Matrix4f().set(viewProjection.floatArray)
+        val vp = Matrix4f().set(viewProjection.floatArray.clone())
         prog?.setViewportSize(cam.width.toInt(), cam.height.toInt())
         prog?.setProjectionViewMatrix(vp)
+        logger.info("vp is $vp")
         prog?.use(context)
 
         val fillTasks = ArrayList<FillTask>()
@@ -195,6 +202,7 @@ open class BDVVolume(bdvXMLFile: String = "", maxMemoryMB: Int = 1024) : Volume(
     }
 
     override fun preDraw() {
+        logger.info("Predraw!")
         if (transferFunction.stale) {
             logger.debug("Transfer function is stale, updating")
             material.transferTextures["transferFunction"] = GenericTexture(
@@ -208,6 +216,7 @@ open class BDVVolume(bdvXMLFile: String = "", maxMemoryMB: Int = 1024) : Volume(
         }
 
         if(stacks == null) {
+            logger.info("Don't have stacks, returning")
             return
         }
 
@@ -216,12 +225,28 @@ open class BDVVolume(bdvXMLFile: String = "", maxMemoryMB: Int = 1024) : Volume(
         }
 
         for(i in 0 until outOfCoreVolumes.size){
-            val stack = aMultiResolutionStacks[i].get() ?: return
+            val stack = aMultiResolutionStacks[i].get()
+
+            if(stack == null) {
+                logger.warn("Stack $i is null")
+                continue
+            }
+
             multiResolutionStacks[i] = stack
         }
 
-        if(!freezeRequiredBlocks) {
+        if(freezeRequiredBlocks == false) {
             updateBlocks(context)
+        }
+    }
+
+    fun updateCurrentStack(stacks: SpimDataStacks) {
+        for (i in 0 until outOfCoreVolumes.size) {
+            aMultiResolutionStacks[i].set(
+                stacks.getStack(
+                    stacks.timepointId(currentTimepoint),
+                    stacks.setupId(i),
+                    true) as MultiResolutionStack3D<VolatileUnsignedShortType>)
         }
     }
 
