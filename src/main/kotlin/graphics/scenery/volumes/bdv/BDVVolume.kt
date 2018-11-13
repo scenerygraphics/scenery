@@ -178,7 +178,6 @@ open class BDVVolume(bdvXMLFile: String = "", maxMemoryMB: Int = 1024) : Volume(
         val vp = Matrix4f().set(viewProjection.floatArray.clone())
         prog?.setViewportSize(cam.width.toInt(), cam.height.toInt())
         prog?.setProjectionViewMatrix(vp)
-        logger.info("vp is $vp")
         prog?.use(context)
 
         val fillTasks = ArrayList<FillTask>()
