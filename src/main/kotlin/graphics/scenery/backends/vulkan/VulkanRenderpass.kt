@@ -446,15 +446,12 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
             .depthWriteEnable(passConfig.depthWriteEnabled)
 
         p.descriptorSpecs.entries
-            .sortedBy { it.value.binding }
-            .sortedBy { it.value.set }
-            .forEach { (name, spec) ->
-            logger.debug("${this.name}: Initialising DSL for $name at set=${spec.set} binding=${spec.binding}")
-
-            if(spec.binding == 0L) {
-                reqDescriptorLayouts.add(initializeDescriptorSetLayoutForSpec(spec))
+            .groupBy { it.value.set }
+            .toSortedMap()
+            .forEach { setId, group ->
+                logger.debug("${this.name}: Initialising DSL for set $setId with ${group.sortedBy { it.value.binding }.joinToString(", ") { "${it.value.name} (${it.value.set}/${it.value.binding})" }}")
+                reqDescriptorLayouts.add(initializeDescriptorSetLayoutForSpecs(setId, group.sortedBy { it.value.binding }))
             }
-        }
 
         settings.invoke(p)
 
@@ -488,30 +485,33 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         pipelines.put(pipelineName, p)?.close()
     }
 
-    private fun initializeDescriptorSetLayoutForSpec(spec: VulkanShaderModule.UBOSpec): Long {
-        val contents = when {
-            spec.name == "Matrices" ||
-            spec.name == "MaterialProperties" -> listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1))
+    private fun initializeDescriptorSetLayoutForSpecs(setId: Long, specs: List<MutableMap.MutableEntry<String, VulkanShaderModule.UBOSpec>>): Long {
+        val contents = specs.map { s ->
+            val spec = s.value
+            when {
+                spec.name == "Matrices" ->
+                    listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1))
+                spec.name == "MaterialProperties" ->
+                    listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1))
+                spec.name.startsWith("Input") ->
+                    spec.members.map { Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1) }.toList()
+                spec.name == "ShaderParameters" ->
+                    listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1))
+                spec.name == "ShaderProperties" ->
+                    listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1))
+                spec.type != VulkanShaderModule.UBOSpecType.UniformBuffer ->
+                    listOf(Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, spec.size))
+                else ->
+                    listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1))
+            }
+        }.flatten()
 
-            spec.name == "ObjectTextures" -> listOf(Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 6),
-                Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1))
+        logger.debug("Initialiasing DSL for ${specs.first().value.name}, set=$setId, type=${contents.first().first}")
 
-            spec.name.startsWith("Input") -> (0 until spec.members.size).map { Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1) }.toList()
-
-            spec.name == "ShaderParameters" && (passConfig.type == RenderConfigReader.RenderpassType.geometry || passConfig.type == RenderConfigReader.RenderpassType.lights) -> listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1))
-            spec.name == "ShaderParameters" && passConfig.type == RenderConfigReader.RenderpassType.quad -> listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1))
-
-            spec.name == "ShaderProperties" && (passConfig.type == RenderConfigReader.RenderpassType.geometry || passConfig.type == RenderConfigReader.RenderpassType.lights) -> listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1))
-
-            else -> listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1))
-        }
-
-        logger.debug("Initialiasing DSL for ${spec.name}, set=${spec.set}, binding=${spec.binding}, type=${contents.first().first}")
-
-        val dsl = VU.createDescriptorSetLayout(device, contents, spec.binding.toInt(), shaderStages = VK_SHADER_STAGE_ALL)
+        val dsl = VU.createDescriptorSetLayout(device, contents, 0, shaderStages = VK_SHADER_STAGE_ALL)
         // destroy descriptor set layout if there was a previously associated one,
         // and add the new one
-        descriptorSetLayouts.put(spec.name, dsl)?.let { dslOld ->
+        descriptorSetLayouts.put(specs.first().value.name, dsl)?.let { dslOld ->
             vkDestroyDescriptorSetLayout(device.vulkanDevice, dslOld, null)
         }
 
