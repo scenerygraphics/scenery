@@ -1,10 +1,7 @@
 package graphics.scenery.utils
 
 import com.sun.javafx.application.PlatformImpl
-import com.sun.javafx.sg.prism.NGNode
-import com.sun.javafx.sg.prism.NGRegion
-import com.sun.prism.Graphics
-import com.sun.prism.Texture
+import javafx.scene.CacheHint
 import javafx.scene.image.ImageView
 import javafx.scene.layout.Pane
 import java.nio.ByteBuffer
@@ -60,9 +57,15 @@ class SceneryPanel(var imageWidth: Int, var imageHeight: Int) : Pane() {
         minHeight = 1.0
 
         children.add(imageView)
+
+        isCache = true
+        imageView.isCache = true
     }
 
     internal fun update(buffer: ByteBuffer, id: Int = -1) {
+        cacheHint = CacheHint.SPEED
+        imageView.cacheHint = CacheHint.SPEED
+
         if(resizeTimer != null) {
             return
         }
@@ -71,6 +74,9 @@ class SceneryPanel(var imageWidth: Int, var imageHeight: Int) : Pane() {
         image.update(buffer)
         imageBuffer = buffer
         textureId = id
+
+//        cacheHint = CacheHint.QUALITY
+//        imageView.cacheHint = CacheHint.QUALITY
     }
 
     /**
@@ -103,18 +109,20 @@ class SceneryPanel(var imageWidth: Int, var imageHeight: Int) : Pane() {
         resizeTimer?.schedule(ResizeTimerTask(width, height), RESIZE_DELAY_MS)
     }
 
+    /*
     /** Retuns the region rendered by this panel. */
     @Suppress("OverridingDeprecatedMember")
     override fun impl_createPeer(): NGNode {
         return NGSceneryPanelRegion()
     }
-//
+
     private inner class NGSceneryPanelRegion: NGRegion() {
         override fun renderContent(g: Graphics) {
 
             logger.trace(" w x h : {} {} panel w x h : {} {} buffer sizes {} vs {}", imageWidth, imageHeight, width, height, latestImageSize, this@SceneryPanel.width*this@SceneryPanel.height*4)
 
             if (latestImageSize == this@SceneryPanel.width.toInt() * this@SceneryPanel.height.toInt() * 4 && imageBuffer != null) {
+                g.clear()
                 val t = g.resourceFactory.getCachedTexture(image.getWritablePlatformImage(image) as com.sun.prism.Image, Texture.WrapMode.CLAMP_TO_EDGE)
                 if(imageView.scaleY < 0.0f) {
                     g.drawTexture(t, 0.0f, 0.0f, width.toFloat(), height.toFloat(), 0.0f, height.toFloat(), width.toFloat(), 0.0f)
@@ -127,6 +135,6 @@ class SceneryPanel(var imageWidth: Int, var imageHeight: Int) : Pane() {
                 logger.debug("Not rendering, size mismatch ${this@SceneryPanel.width}x${this@SceneryPanel.height}")
             }
         }
-    }
+    }*/
 
 }
