@@ -328,7 +328,8 @@ open class VulkanRenderer(hub: Hub,
 
     protected var lastTime = System.nanoTime()
     protected var time = 0.0f
-    protected var fps = 0
+    var fps = 0
+        protected set
     protected var frames = 0
     protected var totalFrames = 0L
     protected var renderDelay = 0L
@@ -561,6 +562,10 @@ open class VulkanRenderer(hub: Hub,
 
                 fps = frames
                 frames = 0
+
+                if(!pushMode) {
+                    (hub.get(SceneryElement.Statistics) as? Statistics)?.add("Renderer.fps", fps, false)
+                }
 
                 gpuStats?.let {
                     it.update(0)
