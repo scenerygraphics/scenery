@@ -55,61 +55,71 @@ open class VulkanObjectState : NodeMetadata {
     var vertexDescription: VulkanRenderer.VertexDescription? = null
 
     /** Descriptor set for the textures this [graphics.scenery.Node] will be rendered with. */
-    var textureDescriptorSet: Long = -1L
+    var textureDescriptorSets =  ConcurrentHashMap<String, Long>()
         protected set
 
     /**
-     * Creates or updates the [textureDescriptorSet] describing the textures used.
-     * The set will reside on [device] and obey layout [descriptorSetLayout]. The set will be allocated from
-     * [descriptorPool] and refer a certain [targetBinding].
+     * Creates or updates the [textureDescriptorSets] describing the textures used. Will cover all the renderpasses
+     * given in [passes]. The set will reside on [device] and the descriptor set layout(s) determined from the renderpass.
+     * The set will be allocated from [descriptorPool] and refer a certain [targetBinding].
      */
-    fun texturesToDescriptorSet(device: VulkanDevice, descriptorSetLayout: Long, descriptorPool: Long, targetBinding: Int = 0): Long {
-        val descriptorSet = if(textureDescriptorSet == -1L) {
-            val pDescriptorSetLayout = memAllocLong(1)
-            pDescriptorSetLayout.put(0, descriptorSetLayout)
+    fun texturesToDescriptorSets(device: VulkanDevice, passes: Map<String, VulkanRenderpass>, descriptorPool: Long, targetBinding: Int = 0) {
+        passes.forEach { name, pass ->
+            val descriptorSetLayout = pass.descriptorSetLayouts["ObjectTextures"]
 
-            val allocInfo = VkDescriptorSetAllocateInfo.calloc()
-                .sType(VK10.VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO)
-                .pNext(NULL)
-                .descriptorPool(descriptorPool)
-                .pSetLayouts(pDescriptorSetLayout)
+            if(descriptorSetLayout == null) {
+                logger.warn("$this: Descriptor set for ObjectTextures not found for pass $name")
+                return@forEach
+            }
 
-            VU.getLong("vkAllocateDescriptorSets",
-                { VK10.vkAllocateDescriptorSets(device.vulkanDevice, allocInfo, this) },
-                { allocInfo.free(); memFree(pDescriptorSetLayout) })
-        } else {
-            textureDescriptorSet
+            val descriptorSet: Long = textureDescriptorSets.getOrPut(name) {
+                val pDescriptorSetLayout = memAllocLong(1)
+                pDescriptorSetLayout.put(0, descriptorSetLayout)
+
+                val allocInfo = VkDescriptorSetAllocateInfo.calloc()
+                    .sType(VK10.VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO)
+                    .pNext(NULL)
+                    .descriptorPool(descriptorPool)
+                    .pSetLayouts(pDescriptorSetLayout)
+
+                VU.getLong("vkAllocateDescriptorSets",
+                    { VK10.vkAllocateDescriptorSets(device.vulkanDevice, allocInfo, this) },
+                    { allocInfo.free(); memFree(pDescriptorSetLayout) })
+            }
+
+            val d = (1..textures.count()).map { VkDescriptorImageInfo.calloc(1) }.toTypedArray()
+            val wd = VkWriteDescriptorSet.calloc(textures.count())
+            var i = 0
+
+            textures.forEach { type, texture ->
+                d[i]
+                    .imageView(texture.image.view)
+                    .sampler(texture.image.sampler)
+                    .imageLayout(VK10.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+
+                wd[i]
+                    .sType(VK10.VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET)
+                    .pNext(NULL)
+                    .dstSet(descriptorSet)
+                    .dstBinding(if (type.contains("3D")) {
+                        targetBinding + 1
+                    } else {
+                        targetBinding
+                    })
+                    .dstArrayElement(textureTypeToSlot(type))
+                    .pImageInfo(d[i])
+                    .descriptorType(VK10.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+
+                i++
+            }
+
+            VK10.vkUpdateDescriptorSets(device.vulkanDevice, wd, null)
+            wd.free()
+            d.forEach { it.free() }
+
+            logger.debug("Creating texture descriptor {} set with 1 bindings, DSL={}", descriptorSet.toHexString(), descriptorSetLayout.toHexString())
+            textureDescriptorSets[name] = descriptorSet
         }
-
-        val d = (1..textures.count()).map { VkDescriptorImageInfo.calloc(1) }.toTypedArray()
-        val wd = VkWriteDescriptorSet.calloc(textures.count())
-        var i = 0
-
-        textures.forEach { type, texture ->
-            d[i]
-                .imageView(texture.image.view)
-                .sampler(texture.image.sampler)
-                .imageLayout(VK10.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-
-            wd[i]
-                .sType(VK10.VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET)
-                .pNext(NULL)
-                .dstSet(descriptorSet)
-                .dstBinding(if(type.contains("3D")) { targetBinding+1 } else { targetBinding })
-                .dstArrayElement(textureTypeToSlot(type))
-                .pImageInfo(d[i])
-                .descriptorType(VK10.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
-
-            i++
-        }
-
-        VK10.vkUpdateDescriptorSets(device.vulkanDevice, wd, null)
-        wd.free()
-        d.forEach { it.free() }
-
-        logger.debug("Creating texture descriptor {} set with 1 bindings, DSL={}", descriptorSet.toHexString(), descriptorSetLayout.toHexString())
-        this.textureDescriptorSet = descriptorSet
-        return descriptorSet
     }
 
     /**

@@ -771,6 +771,17 @@ open class VulkanRenderer(hub: Hub,
             s.UBOs.put(name, matricesDescriptorSet to this)
         }
 
+        try {
+            initializeCustomShadersForNode(node)
+        } catch (e: ShaderCompilationException) {
+            logger.error("Compilation of custom shader failed: ${e.message}")
+            logger.error("Node ${node.name} will use default shader for render pass.")
+
+            if (logger.isDebugEnabled) {
+                e.printStackTrace()
+            }
+        }
+
         loadTexturesForNode(node, s)
 
         s.blendingHashCode = node.material.blending.hashCode()
@@ -793,17 +804,6 @@ open class VulkanRenderer(hub: Hub,
         s.initialized = true
         node.initialized = true
         node.metadata["VulkanRenderer"] = s
-
-        try {
-            initializeCustomShadersForNode(node)
-        } catch (e: ShaderCompilationException) {
-            logger.error("Compilation of custom shader failed: ${e.message}")
-            logger.error("Node ${node.name} will use default shader for render pass.")
-
-            if (logger.isDebugEnabled) {
-                e.printStackTrace()
-            }
-        }
 
         return true
     }
@@ -1087,7 +1087,8 @@ open class VulkanRenderer(hub: Hub,
             }
         }
 
-        s.texturesToDescriptorSet(device, descriptorSetLayouts["ObjectTextures"]!!,
+        s.texturesToDescriptorSets(device,
+            renderpasses.filter { it.value.passConfig.type != RenderConfigReader.RenderpassType.quad },
             descriptorPool,
             targetBinding = 0)
 
@@ -1114,14 +1115,6 @@ open class VulkanRenderer(hub: Hub,
         m["LightParameters"] = VU.createDescriptorSetLayout(
             device,
             listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1)),
-            0,
-            VK_SHADER_STAGE_ALL)
-
-        m["ObjectTextures"] = VU.createDescriptorSetLayout(
-            device,
-            listOf(
-                Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 6),
-                Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1)),
             0,
             VK_SHADER_STAGE_ALL)
 
@@ -2632,7 +2625,7 @@ open class VulkanRenderer(hub: Hub,
                         }
 
                         name == "ObjectTextures" -> {
-                            DescriptorSet.setOrNull(s.textureDescriptorSet, setName = "ObjectTextures")
+                            DescriptorSet.setOrNull(s.textureDescriptorSets[pass.name], setName = "ObjectTextures")
                         }
 
                         name.startsWith("Inputs") -> {
