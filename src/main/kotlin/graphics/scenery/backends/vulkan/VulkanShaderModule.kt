@@ -45,12 +45,13 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: 
     data class UBOMemberSpec(val name: String, val index: Long, val offset: Long, val range: Long)
 
     /** Types an UBO can have */
-    enum class UBOSpecType { UniformBuffer, SampledImage, SampledImage3D }
+    enum class UBOSpecType { UniformBuffer, SampledImage1D, SampledImage2D, SampledImage3D }
 
     /**
      * Specification of an UBO, storing [name], descriptor [set], [binding], [type], and a set of [members].
+     * Can be an array, in that case, [size] > 1.
      */
-    data class UBOSpec(val name: String, var set: Long, var binding: Long, val type: UBOSpecType, val members: LinkedHashMap<String, UBOMemberSpec>)
+    data class UBOSpec(val name: String, var set: Long, var binding: Long, val type: UBOSpecType, val members: LinkedHashMap<String, UBOMemberSpec>, val size: Int = 1)
 
     /**
      * Specification for push constants, containing [name] and [members].
@@ -157,6 +158,16 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: 
         (0 until compiler.shaderResources.sampledImages.size()).forEach { samplerId ->
             val res = compiler.shaderResources.sampledImages.get(samplerId.toInt())
             val setId = compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet)
+            val type = compiler.getType(res.typeId)
+
+            val arraySize = if(type.array.size() > 0) {
+                type.array.get(0).toInt()
+            } else {
+                1
+            }
+
+            val samplerType = type.image.type
+            val samplerDim = type.image.dim
 
             val name = if(res.name.startsWith("Input")) {
                 if(!inputSets.contains(setId)) {
@@ -169,18 +180,24 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: 
             }
 
             if(uboSpecs.containsKey(name)) {
-                logger.debug("Adding inputs member ${res.name}/$name")
+                logger.debug("Adding inputs member ${res.name}/$name type=${type.basetype}, a=$arraySize, type=$samplerType, dim=$samplerDim")
                 uboSpecs[name]?.let { spec ->
                     spec.members[res.name] = UBOMemberSpec(res.name, spec.members.size.toLong(), 0L, 0L)
                     spec.binding = minOf(spec.binding, compiler.getDecoration(res.id, Decoration.DecorationBinding))
                 }
             } else {
-                logger.debug("Adding inputs UBO, ${res.name}/$name, set=$setId")
-                uboSpecs.put(name, UBOSpec(name,
+                logger.debug("Adding inputs UBO, ${res.name}/$name, set=$setId, type=${type.basetype}, a=$arraySize, type=$samplerType, dim=$samplerDim")
+                uboSpecs[name] = UBOSpec(name,
                     set = setId,
                     binding = compiler.getDecoration(res.id, Decoration.DecorationBinding),
-                    type = UBOSpecType.SampledImage,
-                    members = LinkedHashMap()))
+                    type = when(samplerDim) {
+                        0 -> UBOSpecType.SampledImage1D
+                        1 -> UBOSpecType.SampledImage2D
+                        2 -> UBOSpecType.SampledImage3D
+                        else -> throw IllegalArgumentException("samplerDim cannot be $samplerDim.")
+                    },
+                    members = LinkedHashMap(),
+                    size = arraySize)
 
                 if(name.startsWith("Inputs")) {
                     uboSpecs[name]?.members?.put(res.name, UBOMemberSpec(res.name, 0L, 0L, 0L))
