@@ -36,4 +36,12 @@ data class GenericTexture @JvmOverloads constructor(
     /** Should mipmaps be generated? */
     var mipmap: Boolean = true,
     var extents: TextureExtents? = null
-) : Serializable
+) : Serializable {
+    /** Companion object of [GenericTexture], containing mainly constant defines */
+    companion object {
+        /** The textures to be contained in the ObjectTextures texture array */
+        val objectTextures = listOf("ambient", "diffuse", "specular", "normal", "alphamask", "displacement")
+        /** The ObjectTextures that should be mipmapped */
+        val mipmappedObjectTextures = listOf("ambient", "diffuse", "specular")
+    }
+}
