@@ -598,7 +598,7 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         val gtv = GenericTexture("empty-volume", dim, 1, GLTypeEnum.UnsignedByte, emptyBuffer, false, false, normalized = true)
 
         material.transferTextures.put("empty-volume", gtv)
-        material.textures.put("3D-volume", "fromBuffer:empty-volume")
+        material.textures.put("VolumeTextures", "fromBuffer:empty-volume")
 
         colormap = "viridis"
     }
@@ -646,7 +646,7 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
                     deallocations.add(it.contents)
                 }
             }
-            this.material.textures.put("3D-volume", "fromBuffer:volume")
+            this.material.textures.put("VolumeTextures", "fromBuffer:volume")
             this.material.needsTextureReload = true
 
             this.lock.unlock()

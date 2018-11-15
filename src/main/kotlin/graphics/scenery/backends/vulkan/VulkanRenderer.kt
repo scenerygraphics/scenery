@@ -1034,7 +1034,7 @@ open class VulkanRenderer(hub: Hub,
 
         node.material.textures.forEach { type, texture ->
             val slot = VulkanObjectState.textureTypeToSlot(type)
-            val generateMipmaps = (type == "ambient" || type == "diffuse" || type == "specular")
+            val generateMipmaps = GenericTexture.mipmappedObjectTextures.contains(type)
 
             logger.debug("${node.name} will have $type texture from $texture in slot $slot")
 
@@ -1086,7 +1086,7 @@ open class VulkanRenderer(hub: Hub,
             }
         }
 
-        arrayOf("ambient", "diffuse", "specular", "normal", "alphamask", "displacement").forEach {
+        GenericTexture.objectTextures.forEach {
             if (!s.textures.containsKey(it)) {
                 s.textures.putIfAbsent(it, defaultTexture)
                 s.defaultTexturesFor.add(it)
@@ -1095,8 +1095,7 @@ open class VulkanRenderer(hub: Hub,
 
         s.texturesToDescriptorSets(device,
             renderpasses.filter { it.value.passConfig.type != RenderConfigReader.RenderpassType.quad },
-            descriptorPool,
-            targetBinding = 0)
+            descriptorPool)
 
         node.lock.unlock()
 
@@ -2630,10 +2629,6 @@ open class VulkanRenderer(hub: Hub,
                             DescriptorSet.setOrNull(descriptorSets["LightParameters"], setName = "LightParameters")
                         }
 
-                        name == "ObjectTextures" -> {
-                            DescriptorSet.setOrNull(s.textureDescriptorSets[pass.name], setName = "ObjectTextures")
-                        }
-
                         name.startsWith("Inputs") -> {
                             DescriptorSet.setOrNull(pass.descriptorSets["input-${pass.name}-${name.substringAfter("-")}"], setName = "Inputs")
                         }
@@ -2644,10 +2639,12 @@ open class VulkanRenderer(hub: Hub,
 
                         else -> {
                             when {
-                                s.UBOs.containsKey(name)
-                                    -> DescriptorSet.DynamicSet(s.UBOs[name]!!.first, offset = s.UBOs[name]!!.second.offsets.get(0), setName = name)
-                                s.UBOs.containsKey("${pass.name}-$name")
-                                    -> DescriptorSet.DynamicSet(s.UBOs["${pass.name}-$name"]!!.first, offset = s.UBOs["${pass.name}-$name"]!!.second.offsets.get(0), setName = name)
+                                s.UBOs.containsKey(name) ->
+                                    DescriptorSet.DynamicSet(s.UBOs[name]!!.first, offset = s.UBOs[name]!!.second.offsets.get(0), setName = name)
+                                s.UBOs.containsKey("${pass.name}-$name") ->
+                                    DescriptorSet.DynamicSet(s.UBOs["${pass.name}-$name"]!!.first, offset = s.UBOs["${pass.name}-$name"]!!.second.offsets.get(0), setName = name)
+                                s.getTextureDescriptorSet(pass.name, name) != null ->
+                                    DescriptorSet.setOrNull(s.getTextureDescriptorSet(pass.name, name), name)
                                 else -> DescriptorSet.None
                             }
                         }

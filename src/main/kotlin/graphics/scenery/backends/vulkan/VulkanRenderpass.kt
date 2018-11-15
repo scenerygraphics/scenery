@@ -371,17 +371,6 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
     }
 
     /**
-     * Updates all shader properties.
-     */
-    fun updateShaderProperties() {
-        UBOs.forEach { uboName, ubo ->
-            if(uboName.startsWith("ShaderProperties-")) {
-                ubo.populate()
-            }
-        }
-    }
-
-    /**
      * Initialiases the default [VulkanPipeline] for this renderpass.
      */
     fun initializeDefaultPipeline() {
