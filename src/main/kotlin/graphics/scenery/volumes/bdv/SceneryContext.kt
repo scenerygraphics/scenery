@@ -28,6 +28,7 @@ class SceneryContext(val node: Volume) : GpuContext {
 
     private val pboBackingStore = HashMap<StagingBuffer, ByteBuffer>()
     val factory = VolumeShaderFactory()
+    var currentlyBound: GenericTexture? = null
 
     inner class SceneryUniformSetter: SetUniforms {
         private var modified: Boolean = false
@@ -167,6 +168,11 @@ class SceneryContext(val node: Volume) : GpuContext {
 //            return 0
 //        }
 
+        if(node.material.transferTextures.get("textureCache") == currentlyBound) {
+            logger.info("Not rebinding, fitting cache already bound")
+            return 0
+        }
+
         val (channels, type) = when(texture.texInternalFormat()) {
             Texture.InternalFormat.R16 -> 1 to GLTypeEnum.UnsignedShort
             Texture.InternalFormat.RGBA8UI -> 4 to GLTypeEnum.UnsignedByte
@@ -180,15 +186,18 @@ class SceneryContext(val node: Volume) : GpuContext {
             else -> throw UnsupportedOperationException("Unknown wrapping mode: ${texture.texWrap()}")
         }
 
-        node.material.transferTextures.put("textureCache",
-            GenericTexture("3D-volume",
-                GLVector(texture.texWidth().toFloat(), texture.texHeight().toFloat(), texture.texDepth().toFloat()),
-                channels,
-                type,
-                null,
-                repeat, repeat, repeat,
-                true,
-                false))
+        val gt = GenericTexture("3D-volume",
+            GLVector(texture.texWidth().toFloat(), texture.texHeight().toFloat(), texture.texDepth().toFloat()),
+            channels,
+            type,
+            null,
+            repeat, repeat, repeat,
+            true,
+            false)
+
+        node.material.transferTextures.put("textureCache", gt)
+
+        currentlyBound = gt
 
         node.material.textures.put("3D-volume", "fromBuffer:textureCache")
         node.material.needsTextureReload = true
