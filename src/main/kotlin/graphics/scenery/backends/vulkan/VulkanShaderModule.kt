@@ -1,5 +1,6 @@
 package graphics.scenery.backends.vulkan
 
+import graphics.scenery.backends.ShaderConsistencyException
 import graphics.scenery.backends.ShaderPackage
 import graphics.scenery.backends.ShaderType
 import graphics.scenery.backends.Shaders
@@ -211,6 +212,15 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: 
                 logger.debug("${sp.toShortString()}: ${inputs.get(i.toInt()).name}")
             }
         }
+
+        // consistency check to not have the same set used multiple twice
+        uboSpecs.entries
+            .groupBy { it.value.set }
+            .forEach { set, specs ->
+                if(specs.size > 1) {
+                    throw ShaderConsistencyException("Shader package defines descriptor set $set multiple times (${specs.size} times, for UBOs ${specs.joinToString { it.key }}). This is not allowed. ")
+                }
+            }
 
         val code = memAlloc(sp.spirv.size)
         code.put(sp.spirv)
