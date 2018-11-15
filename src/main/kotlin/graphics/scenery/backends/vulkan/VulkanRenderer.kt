@@ -881,6 +881,12 @@ open class VulkanRenderer(hub: Hub,
                             VulkanShaderModule.getFromCacheOrCreate(device, "main", shaders.get(Shaders.ShaderTarget.Vulkan, type))
                         } catch (e: ShaderNotFoundException) {
                             null
+                        } catch (e: ShaderConsistencyException) {
+                            logger.warn("${e.message} - Falling back to default shader.")
+                            if(logger.isDebugEnabled) {
+                                e.printStackTrace()
+                            }
+                            return false
                         }
                     }
 
