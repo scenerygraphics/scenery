@@ -217,7 +217,7 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: 
         uboSpecs.entries
             .groupBy { it.value.set }
             .forEach { set, specs ->
-                if(specs.size > 1) {
+                if(specs.groupBy { it.value.binding }.any { it.value.size > 1 }) {
                     throw ShaderConsistencyException("Shader package defines descriptor set $set multiple times (${specs.size} times, for UBOs ${specs.joinToString { it.key }}). This is not allowed. ")
                 }
             }
