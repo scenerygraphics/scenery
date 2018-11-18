@@ -210,24 +210,25 @@ open class VulkanRenderer(hub: Hub,
     var debugCallback = object : VkDebugReportCallbackEXT() {
 
         override operator fun invoke(flags: Int, objectType: Int, obj: Long, location: Long, messageCode: Int, pLayerPrefix: Long, pMessage: Long, pUserData: Long): Int {
-            val dbg = if (flags and VK_DEBUG_REPORT_DEBUG_BIT_EXT == VK_DEBUG_REPORT_DEBUG_BIT_EXT) {
+            val dbg = if (flags and VkDebugReport.DEBUG_BIT_EXT == VkDebugReport.DEBUG_BIT_EXT.i) {
                 " (debug)"
             } else {
                 ""
             }
 
-            when {
-                flags and VK_DEBUG_REPORT_ERROR_BIT_EXT == VK_DEBUG_REPORT_ERROR_BIT_EXT ->
-                    logger.error("!! $obj($objectType) Validation$dbg: " + getString(pMessage))
-                flags and VK_DEBUG_REPORT_WARNING_BIT_EXT == VK_DEBUG_REPORT_WARNING_BIT_EXT ->
-                    logger.warn("!! $obj($objectType) Validation$dbg: " + getString(pMessage))
-                flags and VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT == VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT ->
-                    logger.error("!! $obj($objectType) Validation (performance)$dbg: " + getString(pMessage))
-                flags and VK_DEBUG_REPORT_INFORMATION_BIT_EXT == VK_DEBUG_REPORT_INFORMATION_BIT_EXT ->
-                    logger.info("!! $obj($objectType) Validation$dbg: " + getString(pMessage))
+            val message = when {
+                flags and VkDebugReport.ERROR_BIT_EXT == VkDebugReport.ERROR_BIT_EXT.i ->
+                    "$dbg: ${getString(pMessage)}"
+                flags and VkDebugReport.WARNING_BIT_EXT == VkDebugReport.WARNING_BIT_EXT.i ->
+                    "$dbg: ${getString(pMessage)}"
+                flags and VkDebugReport.PERFORMANCE_WARNING_BIT_EXT == VkDebugReport.PERFORMANCE_WARNING_BIT_EXT.i ->
+                    " (performance)$dbg: ${getString(pMessage)}"
+                flags and VkDebugReport.INFORMATION_BIT_EXT == VkDebugReport.INFORMATION_BIT_EXT.i ->
+                    "$dbg: ${getString(pMessage)}"
                 else ->
-                    logger.info("!! $obj($objectType) Validation (unknown message type)$dbg: " + getString(pMessage))
+                    " (unknown message type)$dbg: ${getString(pMessage)}"
             }
+            logger.info("!! $obj($objectType) Validation$message")
 
             // trigger exception and delay if strictValidation is activated in general, or only for specific object types
             if (strictValidation.first && strictValidation.second.isEmpty() ||
@@ -279,7 +280,7 @@ open class VulkanRenderer(hub: Hub,
     protected var commandPools = CommandPools()
     protected val renderpasses: MutableMap<String, VulkanRenderpass> = Collections.synchronizedMap(LinkedHashMap<String, VulkanRenderpass>())
 
-    protected var validation = java.lang.Boolean.parseBoolean(System.getProperty("scenery.VulkanRenderer.EnableValidations", "false"))
+    protected var validation = java.lang.Boolean.parseBoolean(System.getProperty("scenery.VulkanRenderer.EnableValidations", "true"))
     protected val strictValidation = getStrictValidation()
     protected val wantsOpenGLSwapchain = java.lang.Boolean.parseBoolean(System.getProperty("scenery.VulkanRenderer.UseOpenGLSwapchain", "false"))
     protected val defaultValidationLayers = arrayListOf("VK_LAYER_LUNARG_standard_validation")
@@ -1065,27 +1066,27 @@ open class VulkanRenderer(hub: Hub,
     protected fun prepareDefaultDescriptorSetLayouts(): ConcurrentHashMap<String, VkDescriptorSetLayout> {
         val m = ConcurrentHashMap<String, VkDescriptorSetLayout>()
 
-        m["Matrices"] = VU.createDescriptorSetLayout(vkDev, listOf(VkDescriptorType.UNIFORM_BUFFER_DYNAMIC to 1))
+        m["Matrices"] = vkDev.createDescriptorSetLayout(VkDescriptorType.UNIFORM_BUFFER_DYNAMIC to 1)
 
-        m["MaterialProperties"] = VU.createDescriptorSetLayout(vkDev, listOf(VkDescriptorType.UNIFORM_BUFFER_DYNAMIC to 1))
+        m["MaterialProperties"] = vkDev.createDescriptorSetLayout(VkDescriptorType.UNIFORM_BUFFER_DYNAMIC to 1)
 
-        m["LightParameters"] = VU.createDescriptorSetLayout(vkDev, listOf(VkDescriptorType.UNIFORM_BUFFER to 1))
+        m["LightParameters"] = vkDev.createDescriptorSetLayout(VkDescriptorType.UNIFORM_BUFFER to 1)
 
-        m["ObjectTextures"] = VU.createDescriptorSetLayout(vkDev, listOf(
+        m["ObjectTextures"] = vkDev.createDescriptorSetLayout(listOf(
             VkDescriptorType.COMBINED_IMAGE_SAMPLER to 6,
             VkDescriptorType.COMBINED_IMAGE_SAMPLER to 1))
 
-        m["VRParameters"] = VU.createDescriptorSetLayout(vkDev, listOf(VkDescriptorType.UNIFORM_BUFFER to 1))
+        m["VRParameters"] = vkDev.createDescriptorSetLayout(VkDescriptorType.UNIFORM_BUFFER to 1)
 
         return m
     }
 
     protected fun prepareDescriptorSets(descriptorPool: VkDescriptorPool) {
-        descriptorSets["Matrices"] = VU.createDescriptorSetDynamic(vkDev, descriptorPool,
+        descriptorSets["Matrices"] = vkDev.createDescriptorSetDynamic(descriptorPool,
             descriptorSetLayouts["Matrices"]!!, 1,
             buffers["UBOBuffer"]!!)
 
-        descriptorSets["MaterialProperties"] = VU.createDescriptorSetDynamic(vkDev, descriptorPool,
+        descriptorSets["MaterialProperties"] = vkDev.createDescriptorSetDynamic(descriptorPool,
             descriptorSetLayouts["MaterialProperties"]!!, 1,
             buffers["UBOBuffer"]!!)
 
@@ -1102,9 +1103,9 @@ open class VulkanRenderer(hub: Hub,
 
         defaultUBOs["LightParameters"] = lightUbo
 
-        this.descriptorSets["LightParameters"] = VkDescriptorSet(VU.createDescriptorSet(device, descriptorPool,
+        this.descriptorSets["LightParameters"] = VU.createDescriptorSet(vkDev, descriptorPool,
             descriptorSetLayouts["LightParameters"]!!, 1,
-            lightUbo.descriptor))
+            lightUbo.descriptor)
 
         val vrUbo = VulkanUBO(device)
 
@@ -1120,9 +1121,9 @@ open class VulkanRenderer(hub: Hub,
 
         defaultUBOs["VRParameters"] = vrUbo
 
-        this.descriptorSets["VRParameters"] = VkDescriptorSet(VU.createDescriptorSet(device, descriptorPool,
+        this.descriptorSets["VRParameters"] = VU.createDescriptorSet(vkDev, descriptorPool,
             descriptorSetLayouts["VRParameters"]!!, 1,
-            vrUbo.descriptor))
+            vrUbo.descriptor)
     }
 
     protected fun prepareStandardVertexDescriptors(): ConcurrentHashMap<VertexDataKinds, VertexDescription> {

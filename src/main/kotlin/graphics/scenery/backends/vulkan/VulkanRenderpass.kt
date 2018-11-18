@@ -289,14 +289,13 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
 //                VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, 1)
             val dsl = VU.createDescriptorSetLayout(vkDev, listOf(VkDescriptorType.UNIFORM_BUFFER to 1))
 
-            val ds = VU.createDescriptorSet(device, descriptorPool, dsl,
-                1, ubo.descriptor, type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+            val ds = VU.createDescriptorSet(vkDev, descriptorPool, dsl,1, ubo.descriptor)
 
             // populate descriptor set
             ubo.populate()
 
             UBOs["ShaderParameters-$name"] = ubo
-            descriptorSets["ShaderParameters-$name"] = VkDescriptorSet(ds)
+            descriptorSets["ShaderParameters-$name"] = ds
 
             logger.debug("Created DSL $dsl for $name, VulkanUBO has ${params.count()} members")
             descriptorSetLayouts.putIfAbsent("ShaderParameters-$name", dsl)

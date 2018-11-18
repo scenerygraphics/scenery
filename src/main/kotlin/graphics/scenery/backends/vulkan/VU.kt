@@ -2,8 +2,8 @@ package graphics.scenery.backends.vulkan
 
 import graphics.scenery.Blending
 import graphics.scenery.backends.RenderConfigReader
+import graphics.scenery.backends.vulkan.VulkanDevice.Companion.logger
 import graphics.scenery.utils.LazyLogger
-import kool.rem
 import kool.stak
 import org.lwjgl.PointerBuffer
 import org.lwjgl.system.MemoryStack.stackPush
@@ -17,7 +17,6 @@ import org.lwjgl.vulkan.KHRSurface.VK_ERROR_SURFACE_LOST_KHR
 import org.lwjgl.vulkan.KHRSwapchain.*
 import org.lwjgl.vulkan.VK10.*
 import org.slf4j.LoggerFactory
-import uno.kotlin.buffers.isNotEmpty
 import vkk.*
 import vkk.`object`.*
 import java.math.BigInteger
@@ -189,6 +188,30 @@ fun Blending.BlendOp.toVulkan() = when (this) {
     Blending.BlendOp.max -> VkBlendOp.MAX
     Blending.BlendOp.reverse_subtract -> VkBlendOp.REVERSE_SUBTRACT
 }
+
+/**
+ * Creates and returns a new descriptor set layout on [vkDev] with the members declared in [type], which is
+ * a [List] of a Pair of a type, associated with a count (e.g. Dynamic UBO to 1). The base binding can be set with [binding].
+ * The shader stages to which the DSL should be visible can be set via [shaderStages].
+ */
+fun VkDevice.createDescriptorSetLayout(type: Pair<VkDescriptorType, Int>, binding: Int = 0, shaderStages: VkShaderStageFlags = VkShaderStage.ALL.i): VkDescriptorSetLayout =
+    createDescriptorSetLayout(listOf(type), binding, shaderStages)
+/**
+ * Creates and returns a new descriptor set layout on [vkDev] with the members declared in [types], which is
+ * a [List] of a Pair of a type, associated with a count (e.g. Dynamic UBO to 1). The base binding can be set with [binding].
+ * The shader stages to which the DSL should be visible can be set via [shaderStages].
+ */
+fun VkDevice.createDescriptorSetLayout(types: List<Pair<VkDescriptorType, Int>>, binding: Int = 0, shaderStages: VkShaderStageFlags = VkShaderStage.ALL.i): VkDescriptorSetLayout =
+    VU.createDescriptorSetLayout(this, types, binding, shaderStages)
+
+/**
+ * Creates and returns a dynamic descriptor set allocated on [vkDev] from the pool [descriptorPool], conforming
+ * to the existing descriptor set layout [descriptorSetLayout]. The number of bindings ([bindingCount]) and the
+ * associated [buffer] have to be given.
+ */
+fun VkDevice.createDescriptorSetDynamic(descriptorPool: VkDescriptorPool, descriptorSetLayout: VkDescriptorSetLayout,
+                               bindingCount: Int, buffer: VulkanBuffer): VkDescriptorSet =
+    VU.createDescriptorSetDynamic(this, descriptorPool, descriptorSetLayout, bindingCount, buffer)
 
 /**
  * VU - Vulkan Utils
@@ -692,8 +715,8 @@ class VU {
          * [descriptorSetLayout], a [bindingCount] needs to be given as well an an [ubo] to back the descriptor set.
          * The default [type] is [VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER].
          */
-        fun createDescriptorSet(device: VulkanDevice, descriptorPool: VkDescriptorPool, descriptorSetLayout: VkDescriptorSetLayout, bindingCount: Int,
-                                ubo: VulkanUBO.UBODescriptor, type: Int = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER): Long {
+        fun createDescriptorSet(vkDev: VkDevice, descriptorPool: VkDescriptorPool, descriptorSetLayout: VkDescriptorSetLayout, bindingCount: Int,
+                                ubo: VulkanUBO.UBODescriptor, type: VkDescriptorType = VkDescriptorType.UNIFORM_BUFFER): VkDescriptorSet {
             logger.debug("Creating descriptor set with ${bindingCount} bindings, DSL=$descriptorSetLayout")
             return stak { stack ->
                 val pDescriptorSetLayout = stack.callocLong(1).put(0, descriptorSetLayout.L)
@@ -705,7 +728,7 @@ class VU {
                     .pSetLayouts(pDescriptorSetLayout)
 
                 val descriptorSet = getLong("createDescriptorSet",
-                    { vkAllocateDescriptorSets(device.vulkanDevice, allocInfo, this) }, {})
+                    { vkAllocateDescriptorSets(vkDev, allocInfo, this) }, {})
 
                 val d =
                     VkDescriptorBufferInfo.callocStack(1, stack)
@@ -722,12 +745,12 @@ class VU {
                         .dstSet(descriptorSet)
                         .dstBinding(i)
                         .pBufferInfo(d)
-                        .descriptorType(type)
+                        .descriptorType(type.i)
                 }
 
-                vkUpdateDescriptorSets(device.vulkanDevice, writeDescriptorSet, null)
+                vkUpdateDescriptorSets(vkDev, writeDescriptorSet, null)
 
-                descriptorSet
+                VkDescriptorSet(descriptorSet)
             }
         }
 
