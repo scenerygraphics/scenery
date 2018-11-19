@@ -253,7 +253,11 @@ open class BDVVolume(bdvXMLFile: String = "", maxMemoryMB: Int = 1024) : Volume(
         if(freezeRequiredBlocks == false) {
             updateBlocks(context)
         }
+
+        context.runDeferredBindings()
+        logger.info("After deferred bindings: ${material.textures.keys.joinToString(", ")}")
     }
+
 
     fun updateCurrentStack(stacks: SpimDataStacks) {
         logger.info("Updating current stack")
