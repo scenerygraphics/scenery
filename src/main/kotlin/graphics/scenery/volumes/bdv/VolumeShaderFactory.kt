@@ -107,7 +107,7 @@ open class VolumeShaderFactory : Shaders.ShaderFactory() {
         }
 
         val convertedSamplers = samplers.mapIndexed { i, sampler ->
-            "layout(set = 1, binding = $i) $sampler"
+            "layout(set = ${1 + i}, binding = 0) $sampler"
         }
 
         logger.info("Adding ${uniforms.size} to uniforms struct (${uniforms.joinToString(", ")})")
