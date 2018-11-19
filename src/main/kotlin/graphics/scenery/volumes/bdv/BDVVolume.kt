@@ -7,6 +7,9 @@ import cleargl.GLVector
 import coremem.enums.NativeTypeEnum
 import graphics.scenery.*
 import graphics.scenery.volumes.Volume
+import net.imglib2.display.ColorConverter
+import net.imglib2.display.RealARGBColorConverter
+import net.imglib2.type.numeric.RealType
 import net.imglib2.type.volatiles.VolatileUnsignedShortType
 import org.joml.Matrix4f
 import tpietzsch.backend.Texture
@@ -83,6 +86,10 @@ open class BDVVolume(bdvXMLFile: String = "", maxMemoryMB: Int = 1024) : Volume(
 
     private val multiResolutionStacks = ArrayList(
         Arrays.asList<MultiResolutionStack3D<VolatileUnsignedShortType>>(null, null, null))
+    private val convs = ArrayList<ColorConverter>(Arrays.asList<RealARGBColorConverter.Imp0<RealType<*>>>(
+        RealARGBColorConverter.Imp0(0.0, 1.0),
+        RealARGBColorConverter.Imp0(0.0, 1.0),
+        RealARGBColorConverter.Imp0(0.0, 1.0)))
     var freezeRequiredBlocks = false
     var prog: MultiVolumeShaderMip? = null
 
@@ -158,6 +165,7 @@ open class BDVVolume(bdvXMLFile: String = "", maxMemoryMB: Int = 1024) : Volume(
 
             stacks?.let {
                 updateCurrentStack(it)
+                updateBlocks(context)
             }
         }
     }
@@ -173,9 +181,8 @@ open class BDVVolume(bdvXMLFile: String = "", maxMemoryMB: Int = 1024) : Volume(
         val cam = getScene()?.activeObserver ?: return
         val viewProjection = cam.projection.clone()
         viewProjection.mult(cam.getTransformation())
-
-
         val vp = Matrix4f().set(viewProjection.floatArray.clone())
+
         prog?.setViewportSize(cam.width.toInt(), cam.height.toInt())
         prog?.setProjectionViewMatrix(vp)
         prog?.use(context)
@@ -196,8 +203,17 @@ open class BDVVolume(bdvXMLFile: String = "", maxMemoryMB: Int = 1024) : Volume(
             if(!complete) {
                 repaint = true
             }
-//            volumeBlocks.lookupTexture.upload(context)
+            context.bindTexture(volumeBlocks.lookupTexture)
         }
+
+        for (i in 0 until outOfCoreVolumes.size) {
+            prog?.setConverter(i, convs[i])
+            prog?.setVolume(i, outOfCoreVolumes[i])
+        }
+
+        prog?.setViewportSize(cam.width.toInt(), cam.height.toInt())
+        prog?.setProjectionViewMatrix(vp)
+        prog?.use(context)
     }
 
     override fun preDraw() {
@@ -240,6 +256,7 @@ open class BDVVolume(bdvXMLFile: String = "", maxMemoryMB: Int = 1024) : Volume(
     }
 
     fun updateCurrentStack(stacks: SpimDataStacks) {
+        logger.info("Updating current stack")
         for (i in 0 until outOfCoreVolumes.size) {
             aMultiResolutionStacks[i].set(
                 stacks.getStack(

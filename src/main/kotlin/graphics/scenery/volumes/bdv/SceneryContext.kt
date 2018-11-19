@@ -4,18 +4,19 @@ import cleargl.GLMatrix
 import cleargl.GLTypeEnum
 import cleargl.GLVector
 import graphics.scenery.GenericTexture
-import graphics.scenery.ShaderMaterial
 import graphics.scenery.TextureExtents
 import graphics.scenery.backends.ShaderType
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.volumes.Volume
 import org.lwjgl.system.MemoryUtil
 import tpietzsch.backend.*
+import tpietzsch.cache.TextureCache
 import tpietzsch.shadergen.Shader
 import java.nio.Buffer
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * <Description>
@@ -29,13 +30,25 @@ class SceneryContext(val node: Volume) : GpuContext {
     private val pboBackingStore = HashMap<StagingBuffer, ByteBuffer>()
     val factory = VolumeShaderFactory()
     var currentlyBound: GenericTexture? = null
+    var currentlyBoundLuts = ConcurrentHashMap<String, GenericTexture>()
+    var bindings = ConcurrentHashMap<Texture, Pair<Int, String?>>()
 
     inner class SceneryUniformSetter: SetUniforms {
         private var modified: Boolean = false
         override fun shouldSet(modified: Boolean): Boolean = modified
 
         override fun setUniform1i(name: String, v0: Int) {
-            node.shaderProperties[name] = v0
+            logger.debug("Binding 1i $name to $v0")
+            if(name.startsWith("volumeCache") || name.startsWith("lutSampler")) {
+                val binding = bindings.entries.find { it.value.first == v0 }
+                if(binding != null) {
+                    bindings[binding.key] = v0 to name
+                } else {
+                    logger.warn("Binding for $name slot $v0 not found.")
+                }
+            } else {
+                node.shaderProperties[name] = v0
+            }
             modified = true
         }
 
@@ -168,10 +181,6 @@ class SceneryContext(val node: Volume) : GpuContext {
 //            return 0
 //        }
 
-        if(node.material.transferTextures.get("textureCache") == currentlyBound) {
-            logger.info("Not rebinding, fitting cache already bound")
-            return 0
-        }
 
         val (channels, type) = when(texture.texInternalFormat()) {
             Texture.InternalFormat.R16 -> 1 to GLTypeEnum.UnsignedShort
@@ -186,21 +195,54 @@ class SceneryContext(val node: Volume) : GpuContext {
             else -> throw UnsupportedOperationException("Unknown wrapping mode: ${texture.texWrap()}")
         }
 
-        val gt = GenericTexture("3D-volume",
-            GLVector(texture.texWidth().toFloat(), texture.texHeight().toFloat(), texture.texDepth().toFloat()),
-            channels,
-            type,
-            null,
-            repeat, repeat, repeat,
-            true,
-            false)
+        if (texture is TextureCache) {
+            if(currentlyBound != null && node.material.transferTextures.get("volumeCache") == currentlyBound) {
+                logger.info("Not rebinding, fitting cache $currentlyBound already bound")
+                return 0
+            }
 
-        node.material.transferTextures.put("textureCache", gt)
+            val gt = GenericTexture("volumeCache",
+                GLVector(texture.texWidth().toFloat(), texture.texHeight().toFloat(), texture.texDepth().toFloat()),
+                channels,
+                type,
+                null,
+                repeat, repeat, repeat,
+                true,
+                false)
 
-        currentlyBound = gt
+            node.material.transferTextures.put("volumeCache", gt)
 
-        node.material.textures.put("3D-volume", "fromBuffer:textureCache")
-        node.material.needsTextureReload = true
+            currentlyBound = gt
+
+            node.material.textures.put("volumeCache", "fromBuffer:volumeCache")
+            node.material.needsTextureReload = true
+        } else {
+            val lutName = bindings[texture]?.second
+            if(lutName == null) {
+                logger.warn("Could not determine binding for $texture")
+                return -1
+            }
+
+            if(node.material.transferTextures.get(lutName) != null && node.material.transferTextures.get(lutName) == currentlyBoundLuts[lutName]) {
+                logger.info("Not rebinding, fitting LUT already bound")
+                return 0
+            }
+            val gt = GenericTexture(lutName,
+                GLVector(texture.texWidth().toFloat(), texture.texHeight().toFloat(), texture.texDepth().toFloat()),
+                channels,
+                type,
+                null,
+                repeat, repeat, repeat,
+                true,
+                false)
+
+            node.material.transferTextures.put(lutName, gt)
+
+            currentlyBoundLuts[lutName] = gt
+
+            node.material.textures.put(lutName, "fromBuffer:$lutName")
+            node.material.needsTextureReload = true
+        }
         return 0
     }
 
@@ -209,6 +251,10 @@ class SceneryContext(val node: Volume) : GpuContext {
      * @param unit texture unit to bind to
      */
     override fun bindTexture(texture: Texture?, unit: Int) {
+        if(texture != null) {
+            bindings[texture] = unit to null
+        }
+
         logger.info("Binding texture $texture to unit $unit")
     }
 
@@ -239,14 +285,26 @@ class SceneryContext(val node: Volume) : GpuContext {
 
     override fun texSubImage3D(pbo: StagingBuffer, texture: Texture3D, xoffset: Int, yoffset: Int, zoffset: Int, width: Int, height: Int, depth: Int, pixels_buffer_offset: Long) {
         logger.info("Updating 3D texture via PBO from $texture: dx=$xoffset dy=$yoffset dz=$zoffset w=$width h=$height d=$depth")
+        val tex = bindings.entries.find { it.key == texture }
+        if(tex == null) {
+            logger.warn("No binding found for $texture")
+            return
+        }
+        val texname = tex.value.second
+
+        if(texname == null) {
+            logger.warn("Binding not initialiased for $texture")
+            return
+        }
+
         val tmpStorage = (map(pbo) as ByteBuffer).duplicate().order(ByteOrder.LITTLE_ENDIAN)
         tmpStorage.position(pixels_buffer_offset.toInt())
 
         val channels = 1
         val format = GLTypeEnum.UnsignedShort
 
-        node.material.transferTextures.put("3D-volume",
-            GenericTexture("3D-volume",
+        node.material.transferTextures.put(texname,
+            GenericTexture(texname,
                 GLVector(width.toFloat(), height.toFloat(), depth.toFloat()),
                 channels,
                 format,
@@ -257,19 +315,31 @@ class SceneryContext(val node: Volume) : GpuContext {
                 true,
                 false,
                 TextureExtents(xoffset, yoffset, zoffset, width, height, depth)))
-        node.material.textures["3D-volume"] = "fromBuffer:3D-volume"
+        node.material.textures[texname] = "fromBuffer:$texname"
         node.material.needsTextureReload = true
     }
 
     override fun texSubImage3D(texture: Texture3D, xoffset: Int, yoffset: Int, zoffset: Int, width: Int, height: Int, depth: Int, pixels: Buffer) {
         logger.info("Updating 3D texture via Texture3D from $texture: dx=$xoffset dy=$yoffset dz=$zoffset w=$width h=$height d=$depth")
+        val tex = bindings.entries.find { it.key == texture }
+        if(tex == null) {
+            logger.warn("No binding found for $texture")
+            return
+        }
+        val texname = tex.value.second
+
+        if(texname == null) {
+            logger.warn("Binding not initialiased for $texture")
+            return
+        }
+
         if(pixels is ByteBuffer) {
             // TODO: add support for different data types
             val channels = 1
             val format = GLTypeEnum.UnsignedShort
 
-            node.material.transferTextures.put("3D-volume",
-                GenericTexture("3D-volume",
+            node.material.transferTextures.put(texname,
+                GenericTexture(texname,
                     GLVector(width.toFloat(), height.toFloat(), depth.toFloat()),
                     channels,
                     format,
@@ -280,7 +350,7 @@ class SceneryContext(val node: Volume) : GpuContext {
                     true,
                     false,
                     TextureExtents(xoffset, yoffset, zoffset, width, height, depth)))
-            node.material.textures["3D-volume"] = "fromBuffer:3D-volume"
+            node.material.textures[texname] = "fromBuffer:$texname"
             node.material.needsTextureReload = true
         }
     }
