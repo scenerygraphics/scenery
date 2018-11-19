@@ -8,6 +8,7 @@ import graphics.scenery.TextureExtents
 import graphics.scenery.backends.ShaderType
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.volumes.Volume
+import kotlinx.coroutines.defer
 import org.lwjgl.system.MemoryUtil
 import tpietzsch.backend.*
 import tpietzsch.cache.TextureCache
@@ -171,6 +172,7 @@ class SceneryContext(val node: Volume) : GpuContext {
         return id
     }
 
+
     /**
      * @param texture texture to bind
      * @return id of previously bound texture
@@ -218,32 +220,60 @@ class SceneryContext(val node: Volume) : GpuContext {
             node.material.needsTextureReload = true
         } else {
             val lutName = bindings[texture]?.second
+
+            val db = { lut: String ->
+                if (node.material.transferTextures.get(lut) != null
+                    && currentlyBoundLuts.get(lut) != null
+                    && node.material.transferTextures.get(lut) == currentlyBoundLuts[lut]) {
+                    logger.info("Not rebinding, fitting LUT already bound")
+                } else {
+                    val gt = GenericTexture(lut,
+                        GLVector(texture.texWidth().toFloat(), texture.texHeight().toFloat(), texture.texDepth().toFloat()),
+                        channels,
+                        type,
+                        null,
+                        repeat, repeat, repeat,
+                        true,
+                        false)
+
+                    node.material.transferTextures.put(lut, gt)
+
+                    currentlyBoundLuts[lut] = gt
+
+                    node.material.textures.put(lut, "fromBuffer:$lut")
+                    node.material.needsTextureReload = true
+                }
+            }
+
             if(lutName == null) {
-                logger.warn("Could not determine binding for $texture")
+                logger.warn("Could not determine binding for $texture, adding deferred binding")
+                deferredBindings.put(texture, db)
                 return -1
+            } else {
+                db.invoke(lutName)
             }
-
-            if(node.material.transferTextures.get(lutName) != null && node.material.transferTextures.get(lutName) == currentlyBoundLuts[lutName]) {
-                logger.info("Not rebinding, fitting LUT already bound")
-                return 0
-            }
-            val gt = GenericTexture(lutName,
-                GLVector(texture.texWidth().toFloat(), texture.texHeight().toFloat(), texture.texDepth().toFloat()),
-                channels,
-                type,
-                null,
-                repeat, repeat, repeat,
-                true,
-                false)
-
-            node.material.transferTextures.put(lutName, gt)
-
-            currentlyBoundLuts[lutName] = gt
-
-            node.material.textures.put(lutName, "fromBuffer:$lutName")
-            node.material.needsTextureReload = true
         }
         return 0
+    }
+
+    var deferredBindings = ConcurrentHashMap<Texture, (String) -> Unit>()
+
+    fun runDeferredBindings() {
+        logger.info("Running deferred bindings")
+        val removals = ArrayList<Texture>(deferredBindings.size)
+
+        deferredBindings.forEach { texture, func ->
+            val binding = bindings[texture]
+            val samplerName = binding?.second
+            if(binding != null && samplerName != null) {
+                func.invoke(samplerName)
+                removals.add(texture)
+            } else {
+                logger.error("Binding for $texture not found")
+            }
+        }
+
+        removals.forEach { deferredBindings.remove(it) }
     }
 
     /**
