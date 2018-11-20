@@ -149,7 +149,7 @@ class SceneryContext(val node: Volume) : GpuContext {
     }
 
     override fun use(shader: Shader) {
-        logger.info("Shader factory updating")
+//        logger.info("Shader factory updating")
         factory.updateShaders(
             hashMapOf(
                 ShaderType.VertexShader to shader,
@@ -186,7 +186,7 @@ class SceneryContext(val node: Volume) : GpuContext {
      * @return id of previously bound texture
      */
     override fun bindTexture(texture: Texture): Int {
-        logger.info("Binding texture $texture, w=${texture.texWidth()} h=${texture.texHeight()} d=${texture.texDepth()}")
+//        logger.info("Binding texture $texture, w=${texture.texWidth()} h=${texture.texHeight()} d=${texture.texDepth()}")
 //        if(node.material.textures.contains("3D-volume")) {
 //            return 0
 //        }
@@ -207,7 +207,7 @@ class SceneryContext(val node: Volume) : GpuContext {
 
         if (texture is TextureCache) {
             if(currentlyBound != null && node.material.transferTextures.get("volumeCache") == currentlyBound) {
-                logger.info("Not rebinding, fitting cache $currentlyBound already bound")
+//                logger.info("Not rebinding, fitting cache $currentlyBound already bound")
                 return 0
             }
 
@@ -233,7 +233,7 @@ class SceneryContext(val node: Volume) : GpuContext {
                 if (node.material.transferTextures.get(lut) != null
                     && currentlyBoundLuts.get(lut) != null
                     && node.material.transferTextures.get(lut) == currentlyBoundLuts[lut]) {
-                    logger.info("Not rebinding, fitting LUT already bound")
+//                    logger.info("Not rebinding, fitting LUT already bound")
                 } else {
                     val gt = GenericTexture(lut,
                         GLVector(texture.texWidth().toFloat(), texture.texHeight().toFloat(), texture.texDepth().toFloat()),
@@ -267,7 +267,6 @@ class SceneryContext(val node: Volume) : GpuContext {
     var deferredBindings = ConcurrentHashMap<Texture, (String) -> Unit>()
 
     fun runDeferredBindings() {
-        logger.info("Running deferred bindings")
         val removals = ArrayList<Texture>(deferredBindings.size)
 
         deferredBindings.forEach { texture, func ->
@@ -293,7 +292,7 @@ class SceneryContext(val node: Volume) : GpuContext {
             bindings[texture] = unit to null
         }
 
-        logger.info("Binding texture $texture to unit $unit")
+//        logger.info("Binding texture $texture to unit $unit")
     }
 
     /**
@@ -302,7 +301,7 @@ class SceneryContext(val node: Volume) : GpuContext {
      * @return id of previously bound texture
      */
     override fun bindTextureId(id: Int, numTexDimensions: Int): Int {
-        logger.info("Binding texture with id $id and dimensions=$numTexDimensions")
+//        logger.info("Binding texture with id $id and dimensions=$numTexDimensions")
         return 0
     }
 
