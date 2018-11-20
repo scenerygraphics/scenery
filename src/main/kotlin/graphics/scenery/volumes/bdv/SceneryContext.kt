@@ -8,7 +8,6 @@ import graphics.scenery.TextureExtents
 import graphics.scenery.backends.ShaderType
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.volumes.Volume
-import kotlinx.coroutines.defer
 import org.lwjgl.system.MemoryUtil
 import tpietzsch.backend.*
 import tpietzsch.cache.TextureCache
