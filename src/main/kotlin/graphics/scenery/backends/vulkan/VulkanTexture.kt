@@ -38,7 +38,7 @@ open class VulkanTexture(val device: VulkanDevice,
                     val width: Int, val height: Int, val depth: Int = 1,
                     val format: Int = VK_FORMAT_R8G8B8_SRGB, var mipLevels: Int = 1,
                     val minFilterLinear: Boolean = true, val maxFilterLinear: Boolean = true) : AutoCloseable {
-    protected val logger by LazyLogger()
+    //protected val logger by LazyLogger()
 
     /** The Vulkan image associated with this texture. */
     var image: VulkanImage
@@ -74,6 +74,7 @@ open class VulkanTexture(val device: VulkanDevice,
                     .layerCount(1)
 
                 if(extents != null) {
+                    logger.debug("Updating image $this with extents $extents")
                     bufferImageCopy.imageExtent().set(extents.w, extents.h, extents.d)
                     bufferImageCopy.imageOffset().set(extents.x, extents.y, extents.z)
                 } else {
@@ -523,7 +524,7 @@ open class VulkanTexture(val device: VulkanDevice,
      * Utility methods for [VulkanTexture].
      */
     companion object {
-        private val logger by LazyLogger()
+        @JvmStatic private val logger by LazyLogger()
 
         private val StandardAlphaColorModel = ComponentColorModel(
             ColorSpace.getInstance(ColorSpace.CS_sRGB),
