@@ -7,7 +7,6 @@ open class VolumeShaderFactory : Shaders.ShaderFactory() {
     val shaders = HashMap<ShaderType, Shader>()
 
     fun updateShaders(newShaders: HashMap<ShaderType, Shader>) {
-        logger.info("VolumeShaderFactory is updating")
         newShaders.forEach { shaders[it.key] = it.value }
     }
 
