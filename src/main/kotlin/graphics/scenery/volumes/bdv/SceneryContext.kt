@@ -246,7 +246,7 @@ class SceneryContext(val node: Volume) : GpuContext {
             }
 
             if(lutName == null) {
-                logger.warn("Could not determine binding for $texture, adding deferred binding")
+                logger.debug("Could not determine binding for $texture, adding deferred binding")
                 deferredBindings.put(texture, db)
                 return -1
             } else {
@@ -269,7 +269,7 @@ class SceneryContext(val node: Volume) : GpuContext {
                 func.invoke(samplerName)
                 removals.add(texture)
             } else {
-                logger.error("Binding for $texture not found")
+                logger.error("Binding for $texture not found, despite trying deferred binding.")
             }
         }
 
@@ -326,6 +326,8 @@ class SceneryContext(val node: Volume) : GpuContext {
             logger.warn("Binding not initialiased for $texture")
             return
         }
+
+        logger.info("3D texture name=$texname")
 
         val tmpStorage = (map(pbo) as ByteBuffer).duplicate().order(ByteOrder.LITTLE_ENDIAN)
         tmpStorage.position(pixels_buffer_offset.toInt())
