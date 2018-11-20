@@ -2,6 +2,8 @@ package graphics.scenery.volumes.bdv
 
 import bdv.spimdata.SpimDataMinimal
 import bdv.spimdata.XmlIoSpimDataMinimal
+import bdv.tools.brightness.ConverterSetup
+import bdv.tools.brightness.RealARGBColorConverterSetup
 import cleargl.GLTypeEnum
 import cleargl.GLVector
 import coremem.enums.NativeTypeEnum
@@ -9,6 +11,7 @@ import graphics.scenery.*
 import graphics.scenery.volumes.Volume
 import net.imglib2.display.ColorConverter
 import net.imglib2.display.RealARGBColorConverter
+import net.imglib2.type.numeric.ARGBType
 import net.imglib2.type.numeric.RealType
 import net.imglib2.type.volatiles.VolatileUnsignedShortType
 import org.joml.Matrix4f
@@ -167,6 +170,15 @@ open class BDVVolume(bdvXMLFile: String = "", maxMemoryMB: Int = 1024) : Volume(
                 updateCurrentStack(it)
                 updateBlocks(context)
             }
+
+            convs[0].color = ARGBType(0xff8888)
+            convs[1].color = ARGBType(0x88ff88)
+            convs[2].color = ARGBType(0x8888ff)
+
+            convs.forEach {
+                it.min = 962.0
+                it.max = 6201.0
+            }
         }
     }
 
@@ -175,7 +187,6 @@ open class BDVVolume(bdvXMLFile: String = "", maxMemoryMB: Int = 1024) : Volume(
             return
         }
 
-        logger.info("Updating blocks")
         stacks?.cacheControl?.prepareNextFrame()
 
         val cam = getScene()?.activeObserver ?: return
@@ -217,7 +228,6 @@ open class BDVVolume(bdvXMLFile: String = "", maxMemoryMB: Int = 1024) : Volume(
     }
 
     override fun preDraw() {
-        logger.info("Predraw!")
         if (transferFunction.stale) {
             logger.debug("Transfer function is stale, updating")
             material.transferTextures["transferFunction"] = GenericTexture(
@@ -255,7 +265,6 @@ open class BDVVolume(bdvXMLFile: String = "", maxMemoryMB: Int = 1024) : Volume(
         }
 
         context.runDeferredBindings()
-        logger.info("After deferred bindings: ${material.textures.keys.joinToString(", ")}")
     }
 
 
