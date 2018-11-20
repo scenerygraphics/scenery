@@ -98,7 +98,16 @@ class SceneryContext(val node: Volume) : GpuContext {
         }
 
         override fun setUniform3fv(name: String, count: Int, value: FloatArray) {
-            node.shaderProperties[name] = GLVector(*value)
+            // in UBOs, arrays of vectors need to be padded, such that they start on
+            // word boundaries, e.g. a 3-vector needs to start on byte 16.
+            val padded = ArrayList<Float>(4*count)
+            value.asSequence().windowed(3, 3).forEach {
+                padded.addAll(it)
+                padded.add(0.0f)
+            }
+
+            val paddedArray = padded.toFloatArray()
+            node.shaderProperties[name] = GLVector(*paddedArray)
             modified = true
         }
 
