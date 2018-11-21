@@ -4,6 +4,7 @@ import cleargl.GLTypeEnum
 import cleargl.TGAReader
 import graphics.scenery.GenericTexture
 import graphics.scenery.TextureExtents
+import graphics.scenery.TextureUpdate
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
@@ -63,7 +64,7 @@ open class VulkanTexture(val device: VulkanDevice,
          * Copies the content of the image from [buffer]. This gets executed
          * within a given [commandBuffer].
          */
-        fun copyFrom(commandBuffer: VkCommandBuffer, buffer: VulkanBuffer, extents: TextureExtents? = null) {
+        fun copyFrom(commandBuffer: VkCommandBuffer, buffer: VulkanBuffer, update: TextureUpdate? = null) {
             with(commandBuffer) {
                 val bufferImageCopy = VkBufferImageCopy.calloc(1)
 
@@ -73,10 +74,10 @@ open class VulkanTexture(val device: VulkanDevice,
                     .baseArrayLayer(0)
                     .layerCount(1)
 
-                if(extents != null) {
-                    logger.debug("Updating image $this with extents $extents")
-                    bufferImageCopy.imageExtent().set(extents.w, extents.h, extents.d)
-                    bufferImageCopy.imageOffset().set(extents.x, extents.y, extents.z)
+                if(update != null) {
+                    logger.debug("Updating texture ${this@VulkanTexture} with extents ${update.extents}")
+                    bufferImageCopy.imageExtent().set(update.extents.w, update.extents.h, update.extents.d)
+                    bufferImageCopy.imageOffset().set(update.extents.x, update.extents.y, update.extents.z)
                 } else {
                     bufferImageCopy.imageExtent().set(width, height, depth)
                     bufferImageCopy.imageOffset().set(0, 0, 0)
@@ -88,6 +89,11 @@ open class VulkanTexture(val device: VulkanDevice,
                     bufferImageCopy)
 
                 bufferImageCopy.free()
+            }
+
+            update?.let {
+                it.consumed = true
+                logger.debug("Consumed update $update")
             }
         }
 
@@ -316,14 +322,20 @@ open class VulkanTexture(val device: VulkanDevice,
                         dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                         commandBuffer = this)
                 } else {
+                    val genericTexture = gt
+                    val requiredCapacity = if(genericTexture != null && genericTexture.hasConsumableUpdates()) {
+                        genericTexture.updates.map { if(!it.consumed) { it.contents.remaining() } else { 0 } }.max()?.toLong() ?: 0
+                    } else {
+                        sourceBuffer.capacity().toLong()
+                    }
+
                     buffer = VulkanBuffer(this@VulkanTexture.device,
-                        sourceBuffer.capacity().toLong(),
+                        requiredCapacity,
                         VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                         wantAligned = false)
 
                     buffer?.let { buffer ->
-                        buffer.copyFrom(sourceBuffer)
 
                         transitionLayout(image.image,
                             VK_IMAGE_LAYOUT_UNDEFINED,
@@ -332,7 +344,16 @@ open class VulkanTexture(val device: VulkanDevice,
                             dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
                             commandBuffer = this)
 
-                        image.copyFrom(this, buffer, gt?.extents)
+                        if(genericTexture != null) {
+                            genericTexture.updates.forEach { update ->
+                                buffer.copyFrom(update.contents)
+                                image.copyFrom(this, buffer, update)
+                            }
+
+                            genericTexture.clearConsumedUpdates()
+                        } else {
+                            image.copyFrom(this, buffer)
+                        }
 
                         transitionLayout(image.image,
                             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
@@ -341,6 +362,7 @@ open class VulkanTexture(val device: VulkanDevice,
                             dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                             commandBuffer = this)
                     }
+
                 }
 
                 endCommandBuffer(this@VulkanTexture.device, commandPools.Standard, transferQueue, flush = true, dealloc = true, block = true)
@@ -465,6 +487,7 @@ open class VulkanTexture(val device: VulkanDevice,
 
         var viewFormat = format
 
+        logger.info("$this: GT=$gt")
         gt?.let { genericTexture ->
             if(!genericTexture.normalized && genericTexture.type != GLTypeEnum.Float) {
                 logger.info("Shifting format to unsigned int")

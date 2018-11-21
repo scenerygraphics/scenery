@@ -11,8 +11,11 @@ import java.nio.ByteBuffer
  * @author Ulrik Günther <hello@ulrik.is>
  */
 
-/** Data class for encapsulating partial transfers */
+/** Data class for encapsulating partial transfers. */
 data class TextureExtents(val x: Int, val y: Int, val z: Int, val w: Int, val h: Int, val d: Int)
+
+/** Update class for partial updates. */
+data class TextureUpdate(val extents: TextureExtents, val contents: ByteBuffer, var consumed: Boolean = false)
 
 data class GenericTexture @JvmOverloads constructor(
     /** Name of the texture, might e.g. be "diffuse" */
@@ -35,8 +38,17 @@ data class GenericTexture @JvmOverloads constructor(
     var normalized: Boolean = true,
     /** Should mipmaps be generated? */
     var mipmap: Boolean = true,
-    var extents: TextureExtents? = null
+    var updates: ArrayList<TextureUpdate> = ArrayList()
 ) : Serializable {
+    /** Returns true if the generic texture does have any non-consumed updates */
+    fun hasConsumableUpdates(): Boolean {
+        return updates.any { !it.consumed }
+    }
+
+    /** Clears all consumed updates */
+    fun clearConsumedUpdates() {
+        updates.removeIf { it.consumed }
+    }
     /** Companion object of [GenericTexture], containing mainly constant defines */
     companion object {
         /** The textures to be contained in the ObjectTextures texture array */

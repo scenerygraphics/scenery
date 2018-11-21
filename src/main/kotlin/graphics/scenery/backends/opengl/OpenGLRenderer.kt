@@ -2149,7 +2149,7 @@ open class OpenGLRenderer(hub: Hub,
                     val generateMipmaps = (type == "ambient" || type == "diffuse" || type == "specular")
                     if (texture.startsWith("fromBuffer:")) {
                         node.material.transferTextures[texture.substringAfter("fromBuffer:")]?.let {
-                            (_, dimensions, channels, type1, contents, repeatS, repeatT, repeatU, normalized, mipmap, extents) ->
+                            (_, dimensions, channels, type1, contents, repeatS, repeatT, repeatU, normalized, mipmap, updates) ->
 
                             logger.debug("Dims of $texture: $dimensions, mipmaps=$generateMipmaps")
 
@@ -2186,15 +2186,30 @@ open class OpenGLRenderer(hub: Hub,
                             // in case the byte count of the texture is not divisible by it.
                             if(contents != null) {
                                 if (contents.remaining() % unpackAlignment[0] == 0 && dimensions.x().toInt() % unpackAlignment[0] == 0) {
-                                    if (extents != null) {
-                                        t.copyFrom(contents, extents.w, extents.h, extents.d, extents.x, extents.y, extents.z, true)
+                                    if (updates.size > 1) {
+                                        updates.forEach { update ->
+                                            if(!update.consumed) {
+                                                t.copyFrom(update.contents,
+                                                    update.extents.w, update.extents.h, update.extents.d,
+                                                    update.extents.x, update.extents.y, update.extents.z, true)
+
+                                                update.consumed = true
+                                            }
+                                        }
                                     } else {
                                         t.copyFrom(contents)
                                     }
                                 } else {
                                     gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, 1)
-                                    if (extents != null) {
-                                        t.copyFrom(contents, extents.w, extents.h, extents.d, extents.x, extents.y, extents.z, true)
+                                    if (updates.size > 1) {
+                                        updates.forEach { update ->
+                                            if(!update.consumed) {
+                                                t.copyFrom(update.contents,
+                                                    update.extents.w, update.extents.h, update.extents.d,
+                                                    update.extents.x, update.extents.y, update.extents.z, true)
+                                                update.consumed = true
+                                            }
+                                        }
                                     } else {
                                         t.copyFrom(contents)
                                     }
