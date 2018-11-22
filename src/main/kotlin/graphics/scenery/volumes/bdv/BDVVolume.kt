@@ -143,8 +143,6 @@ open class BDVVolume(bdvXMLFile: String = "", maxMemoryMB: Int = 1024) : Volume(
         colormaps["plasma"] = Colormap.ColormapFile(Volume::class.java.getResource("colormap-plasma.png").file)
         colormaps["viridis"] = Colormap.ColormapFile(Volume::class.java.getResource("colormap-viridis.png").file)
 
-        assignEmptyVolumeTexture()
-
         if(bdvXMLFile != "") {
             val spimData: SpimDataMinimal = XmlIoSpimDataMinimal().load(bdvXMLFile)
             stacks = SpimDataStacks(spimData)
