@@ -476,6 +476,8 @@ open class VulkanTexture(val device: VulkanDevice,
             memFree(sourceBuffer)
         }
 
+        image.view = createImageView(image, format)
+
         return this
     }
 
@@ -487,10 +489,9 @@ open class VulkanTexture(val device: VulkanDevice,
 
         var viewFormat = format
 
-        logger.info("$this: GT=$gt")
         gt?.let { genericTexture ->
             if(!genericTexture.normalized && genericTexture.type != GLTypeEnum.Float) {
-                logger.info("Shifting format to unsigned int")
+                logger.debug("Shifting view format of $this to unsigned int (as requested per generic texture)")
                 viewFormat += 4
             }
         }
