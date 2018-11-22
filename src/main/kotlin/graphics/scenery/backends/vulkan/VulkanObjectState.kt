@@ -83,7 +83,7 @@ open class VulkanObjectState : NodeMetadata {
             }
 
             others?.forEach { texture ->
-                logger.info("Pass descriptor sets are ${pass.descriptorSetLayouts.keys.joinToString(",")}")
+                logger.trace("Pass descriptor sets are {}", pass.descriptorSetLayouts.keys.joinToString(","))
                 val dsl = pass.descriptorSetLayouts[texture.key]
                 if (dsl != null) {
                     textureDescriptorSets[passName to texture.key] = createOrUpdateTextureDescriptorSet(
