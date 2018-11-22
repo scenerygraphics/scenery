@@ -180,7 +180,7 @@ open class VulkanObjectState : NodeMetadata {
                 "alphamask" -> 4
                 "displacement" -> 5
                 "3D-volume" -> 0
-                else -> { logger.warn("Unknown texture type: $type"); 0 }
+                else -> { logger.trace("Don't know how to determine slot for: {}", type); 0 }
             }
         }
     }
