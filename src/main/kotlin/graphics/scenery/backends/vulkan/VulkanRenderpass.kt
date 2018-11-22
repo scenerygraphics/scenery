@@ -52,6 +52,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
     /** Descriptor set layouts needed */
     var descriptorSetLayouts = LinkedHashMap<String, Long>()
         protected set
+    protected var oldDescriptorSetLayouts = LinkedHashMap<String, Long>()
 
     /** Semaphores this renderpass is going to wait on when executed */
     var waitSemaphores = memAllocLong(1)
@@ -501,7 +502,8 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         // destroy descriptor set layout if there was a previously associated one,
         // and add the new one
         descriptorSetLayouts.put(specs.first().value.name, dsl)?.let { dslOld ->
-            vkDestroyDescriptorSetLayout(device.vulkanDevice, dslOld, null)
+            // TODO: Figure out whether they should actually be deleted, or just marked for garbage collection
+            oldDescriptorSetLayouts.put(specs.first().value.name, dslOld)
         }
 
         return dsl
@@ -553,6 +555,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         pipelines.forEach { it.value.close() }
         UBOs.forEach { it.value.close() }
         descriptorSetLayouts.forEach { vkDestroyDescriptorSetLayout(device.vulkanDevice, it.value, null) }
+        oldDescriptorSetLayouts.forEach { vkDestroyDescriptorSetLayout(device.vulkanDevice, it.value, null) }
 
         vulkanMetadata.close()
 
