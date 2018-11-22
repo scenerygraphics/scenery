@@ -49,6 +49,11 @@ data class GenericTexture @JvmOverloads constructor(
     fun clearConsumedUpdates() {
         updates.removeIf { it.consumed }
     }
+
+    /** Clears all updates */
+    fun clearUpdates() {
+        updates.clear()
+    }
     /** Companion object of [GenericTexture], containing mainly constant defines */
     companion object {
         /** The textures to be contained in the ObjectTextures texture array */

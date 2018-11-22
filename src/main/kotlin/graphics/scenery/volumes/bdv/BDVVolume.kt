@@ -215,6 +215,7 @@ open class BDVVolume(bdvXMLFile: String = "", maxMemoryMB: Int = 1024) : Volume(
                 repaint = true
             }
             context.bindTexture(volumeBlocks.lookupTexture)
+            volumeBlocks.lookupTexture.upload(context)
         }
 
         for (i in 0 until outOfCoreVolumes.size) {
