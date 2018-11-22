@@ -1047,7 +1047,6 @@ open class VulkanRenderer(hub: Hub,
                 logger.trace("Loading texture $texture for ${node.name}")
 
                 val gt = node.material.transferTextures[texture.substringAfter("fromBuffer:")]
-                logger.info("GT=$gt")
 
                 val vkTexture: VulkanTexture = if (texture.startsWith("fromBuffer:") && gt != null) {
                     val miplevels = if (generateMipmaps && gt.mipmap) {
