@@ -38,6 +38,11 @@ data class GenericTexture @JvmOverloads constructor(
     var normalized: Boolean = true,
     /** Should mipmaps be generated? */
     var mipmap: Boolean = true,
+    /** Linear or nearest neighbor filtering for scaling down. */
+    var minFilterLinear: Boolean = true,
+    /** Linear or nearest neighbor filtering for scaling up. */
+    var maxFilterLinear: Boolean = true,
+    /** List of [TextureUpdate]s for the currently active texture. */
     var updates: ArrayList<TextureUpdate> = ArrayList()
 ) : Serializable {
     /** Returns true if the generic texture does have any non-consumed updates */
@@ -54,6 +59,7 @@ data class GenericTexture @JvmOverloads constructor(
     fun clearUpdates() {
         updates.clear()
     }
+    
     /** Companion object of [GenericTexture], containing mainly constant defines */
     companion object {
         /** The textures to be contained in the ObjectTextures texture array */
