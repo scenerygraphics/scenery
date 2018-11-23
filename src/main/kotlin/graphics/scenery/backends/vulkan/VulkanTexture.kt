@@ -64,7 +64,7 @@ open class VulkanTexture(val device: VulkanDevice,
          * Copies the content of the image from [buffer]. This gets executed
          * within a given [commandBuffer].
          */
-        fun copyFrom(commandBuffer: VkCommandBuffer, buffer: VulkanBuffer, update: TextureUpdate? = null) {
+        fun copyFrom(commandBuffer: VkCommandBuffer, buffer: VulkanBuffer, update: TextureUpdate? = null, bufferOffset: Long = 0) {
             with(commandBuffer) {
                 val bufferImageCopy = VkBufferImageCopy.calloc(1)
 
@@ -73,9 +73,11 @@ open class VulkanTexture(val device: VulkanDevice,
                     .mipLevel(0)
                     .baseArrayLayer(0)
                     .layerCount(1)
+                bufferImageCopy.bufferOffset(bufferOffset)
 
                 if(update != null) {
-                    logger.debug("Updating texture ${this@VulkanTexture} with extents ${update.extents}")
+                    logger.info("Update Extent: ${update.extents.w}x${update.extents.h}x${update.extents.d}")
+                    logger.info("Update Content size: ${update.contents.remaining()}")
                     bufferImageCopy.imageExtent().set(update.extents.w, update.extents.h, update.extents.d)
                     bufferImageCopy.imageOffset().set(update.extents.x, update.extents.y, update.extents.z)
                 } else {
@@ -93,7 +95,6 @@ open class VulkanTexture(val device: VulkanDevice,
 
             update?.let {
                 it.consumed = true
-                logger.debug("Consumed update $update")
             }
         }
 
@@ -324,7 +325,7 @@ open class VulkanTexture(val device: VulkanDevice,
                 } else {
                     val genericTexture = gt
                     val requiredCapacity = if(genericTexture != null && genericTexture.hasConsumableUpdates()) {
-                        genericTexture.updates.map { if(!it.consumed) { it.contents.remaining() } else { 0 } }.max()?.toLong() ?: 0
+                        genericTexture.updates.map { if(!it.consumed) { it.contents.remaining() } else { 0 } }.sum().toLong()
                     } else {
                         sourceBuffer.capacity().toLong()
                     }
@@ -334,6 +335,8 @@ open class VulkanTexture(val device: VulkanDevice,
                         VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                         wantAligned = false)
+
+                    var offset = 0L
 
                     buffer?.let { buffer ->
 
@@ -346,8 +349,14 @@ open class VulkanTexture(val device: VulkanDevice,
 
                         if(genericTexture != null) {
                             genericTexture.updates.forEach { update ->
-                                buffer.copyFrom(update.contents)
-                                image.copyFrom(this, buffer, update)
+                                if(!update.consumed) {
+                                    val updateSize = update.contents.remaining()
+                                    logger.info("Update size: $updateSize")
+                                    buffer.copyFrom(update.contents, offset)
+                                    image.copyFrom(this, buffer, update, offset)
+
+                                    offset += updateSize
+                                }
                             }
 
                             genericTexture.clearConsumedUpdates()
@@ -489,12 +498,12 @@ open class VulkanTexture(val device: VulkanDevice,
 
         var viewFormat = format
 
-        gt?.let { genericTexture ->
-            if(!genericTexture.normalized && genericTexture.type != GLTypeEnum.Float) {
-                logger.debug("Shifting view format of $this to unsigned int (as requested per generic texture)")
-                viewFormat += 4
-            }
-        }
+//        gt?.let { genericTexture ->
+//            if(!genericTexture.normalized && genericTexture.type != GLTypeEnum.Float) {
+//                logger.debug("Shifting view format of $this to unsigned int (as requested per generic texture)")
+//                viewFormat += 4
+//            }
+//        }
 
         val vi = VkImageViewCreateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO)
@@ -508,8 +517,8 @@ open class VulkanTexture(val device: VulkanDevice,
             .format(viewFormat)
             .subresourceRange(subresourceRange)
 
-        if(depth > 1) {
-            vi.components(VkComponentMapping.calloc().set(VK_COMPONENT_SWIZZLE_R,VK_COMPONENT_SWIZZLE_R,VK_COMPONENT_SWIZZLE_R,VK_COMPONENT_SWIZZLE_R ))
+        if(gt?.channels == 1 && depth > 1) {
+            vi.components().set(VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R)
         }
 
         return VU.getLong("Creating image view",
@@ -892,7 +901,7 @@ open class VulkanTexture(val device: VulkanDevice,
         }
 
         private fun GenericTexture.toVulkanFormat(): Int {
-            return when(this.type) {
+            var format = when(this.type) {
                 GLTypeEnum.Byte -> when(this.channels) {
                     1 -> VK_FORMAT_R8_SNORM
                     2 -> VK_FORMAT_R8G8_SNORM
@@ -958,6 +967,12 @@ open class VulkanTexture(val device: VulkanDevice,
 
                 GLTypeEnum.Double -> TODO("Double format textures are not supported")
             }
+
+            if(!this.normalized && this.type != GLTypeEnum.Float && this.type != GLTypeEnum.Byte && this.type != GLTypeEnum.Int) {
+                format += 4
+            }
+
+            return format
         }
     }
 
