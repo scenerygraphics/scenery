@@ -221,7 +221,9 @@ class SceneryContext(val node: Volume) : GpuContext {
                 null,
                 repeat, repeat, repeat,
                 normalized,
-                false)
+                false,
+                minFilterLinear = true,
+                maxFilterLinear = true)
 
             node.material.transferTextures.put("volumeCache", gt)
 
@@ -245,7 +247,9 @@ class SceneryContext(val node: Volume) : GpuContext {
                         null,
                         repeat, repeat, repeat,
                         normalized,
-                        false)
+                        false,
+                        minFilterLinear = false,
+                        maxFilterLinear = false)
 
                     node.material.transferTextures.put(lut, gt)
 
