@@ -198,7 +198,7 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: 
 
         this.shaderModule = VU.getLong("Creating shader module",
             { vkCreateShaderModule(device.vulkanDevice, moduleCreateInfo, null, this) },
-            { moduleCreateInfo.free(); })
+            {  })
 
         this.shader = VkPipelineShaderStageCreateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO)
