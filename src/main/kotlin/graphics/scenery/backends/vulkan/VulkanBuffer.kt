@@ -184,11 +184,18 @@ open class VulkanBuffer(val device: VulkanDevice, var size: Long,
     /**
      * Copies data from the [ByteBuffer] [data] directly to the device memory.
      */
-    fun copyFrom(data: ByteBuffer) {
+    fun copyFrom(data: ByteBuffer, dstOffset: Long = 0) {
         resizeLazy()
 
         val dest = memAllocPointer(1)
-        vkMapMemory(device.vulkanDevice, memory, bufferOffset, size, 0, dest)
+
+        val dstSize = if(dstOffset > 0) {
+            size - dstOffset
+        } else {
+            size
+        }
+
+        vkMapMemory(device.vulkanDevice, memory, bufferOffset + dstOffset, dstSize, 0, dest)
         memCopy(memAddress(data), dest.get(0), data.remaining().toLong())
         vkUnmapMemory(device.vulkanDevice, memory)
         memFree(dest)
