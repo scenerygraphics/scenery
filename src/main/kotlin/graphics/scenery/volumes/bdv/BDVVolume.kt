@@ -2,10 +2,6 @@ package graphics.scenery.volumes.bdv
 
 import bdv.spimdata.SpimDataMinimal
 import bdv.spimdata.XmlIoSpimDataMinimal
-import bdv.tools.brightness.ConverterSetup
-import bdv.tools.brightness.RealARGBColorConverterSetup
-import cleargl.GLTypeEnum
-import cleargl.GLVector
 import coremem.enums.NativeTypeEnum
 import graphics.scenery.*
 import graphics.scenery.volumes.Volume
@@ -27,6 +23,7 @@ import java.util.*
 import java.util.concurrent.ForkJoinPool
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.max
+import kotlin.math.min
 
 /**
  * Volume Rendering Node for scenery.
@@ -37,7 +34,7 @@ import kotlin.math.max
  * @author Martin Weigert <mweigert@mpi-cbg.de>
  */
 @Suppress("unused")
-open class BDVVolume(bdvXMLFile: String = "", maxMemoryMB: Int = 1024) : Volume(false) {
+open class BDVVolume(bdvXMLFile: String = "", maxGPUMemoryMB: Int = 1024) : Volume(false) {
     data class VolumeDescriptor(val path: Path?,
                                 val width: Long,
                                 val height: Long,
@@ -149,7 +146,7 @@ open class BDVVolume(bdvXMLFile: String = "", maxMemoryMB: Int = 1024) : Volume(
 
             maxTimepoint = spimData.sequenceDescription.timePoints.timePointsOrdered.size - 1
 
-            val cacheGridDimensions = TextureCache.findSuitableGridSize(cacheSpec, maxMemoryMB)
+            val cacheGridDimensions = TextureCache.findSuitableGridSize(cacheSpec, maxGPUMemoryMB)
             textureCache = TextureCache(cacheGridDimensions, cacheSpec)
 
             pboChain = PboChain(5, 100, textureCache)
@@ -266,9 +263,23 @@ open class BDVVolume(bdvXMLFile: String = "", maxMemoryMB: Int = 1024) : Volume(
         context.runDeferredBindings()
     }
 
+    fun nextTimepoint() {
+        goToTimePoint(currentTimepoint + 1)
+    }
+
+    fun previousTimepoint() {
+        goToTimePoint(currentTimepoint - 1)
+    }
+
+    fun goToTimePoint(timepoint: Int) {
+        stacks?.let { s ->
+            currentTimepoint = min(max(timepoint, 0), maxTimepoint)
+            updateCurrentStack(s)
+        }
+    }
 
     fun updateCurrentStack(stacks: SpimDataStacks) {
-        logger.info("Updating current stack")
+        logger.info("Updating current stack, timepoint=$currentTimepoint")
         for (i in 0 until outOfCoreVolumes.size) {
             aMultiResolutionStacks[i].set(
                 stacks.getStack(

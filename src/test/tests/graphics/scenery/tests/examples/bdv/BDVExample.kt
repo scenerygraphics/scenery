@@ -11,6 +11,7 @@ import javafx.application.Platform
 import javafx.stage.FileChooser
 import javafx.stage.Stage
 import org.junit.Test
+import org.scijava.ui.behaviour.ClickBehaviour
 import java.util.*
 import java.util.concurrent.CountDownLatch
 
@@ -21,6 +22,7 @@ import java.util.concurrent.CountDownLatch
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
+    var volume: BDVVolume? = null
     override fun init() {
         val latch = CountDownLatch(1)
         val files = ArrayList<String>()
@@ -65,11 +67,13 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
             scene.addChild(this)
         }
 
-        val volume = BDVVolume(files.first())
-        volume.name = "volume"
-        volume.colormap = "plasma"
-        volume.scale = GLVector(0.02f, 0.02f, 0.02f)
-        scene.addChild(volume)
+        val v = BDVVolume(files.first(), maxGPUMemoryMB = 4096)
+        v.name = "volume"
+        v.colormap = "plasma"
+        v.scale = GLVector(0.02f, 0.02f, 0.02f)
+        scene.addChild(v)
+
+        volume = v
 
         val lights = (0 until 3).map {
             PointLight(radius = 15.0f)
@@ -85,6 +89,15 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
 
     override fun inputSetup() {
         setupCameraModeSwitching()
+
+        val nextTimePoint = ClickBehaviour { x, y -> volume?.nextTimepoint() }
+        val prevTimePoint = ClickBehaviour { x, y -> volume?.previousTimepoint() }
+
+        inputHandler?.addBehaviour("prev_timepoint", prevTimePoint)
+        inputHandler?.addKeyBinding("prev_timepoint", "J")
+
+        inputHandler?.addBehaviour("next_timepoint", nextTimePoint)
+        inputHandler?.addKeyBinding("next_timepoint", "K")
     }
 
     @Test override fun main() {
