@@ -190,7 +190,7 @@ open class BDVVolume(bdvXMLFile: String = "", maxMemoryMB: Int = 1024) : Volume(
         val cam = getScene()?.activeObserver ?: return
         val viewProjection = cam.projection.clone()
         viewProjection.mult(cam.getTransformation())
-        val vp = Matrix4f().set(viewProjection.floatArray.clone())
+        val vp = Matrix4f().set(viewProjection.floatArray)
 
         prog?.setViewportSize(cam.width.toInt(), cam.height.toInt())
         prog?.setProjectionViewMatrix(vp)
@@ -227,17 +227,17 @@ open class BDVVolume(bdvXMLFile: String = "", maxMemoryMB: Int = 1024) : Volume(
     }
 
     override fun preDraw() {
-        if (transferFunction.stale) {
-            logger.debug("Transfer function is stale, updating")
-            material.transferTextures["transferFunction"] = GenericTexture(
-                "transferFunction", GLVector(transferFunction.textureSize.toFloat(), transferFunction.textureHeight.toFloat(), 1.0f),
-                channels = 1, type = GLTypeEnum.Float, contents = transferFunction.serialise())
-
-            material.textures["diffuse"] = "fromBuffer:transferFunction"
-            material.needsTextureReload = true
-
-            time = System.nanoTime().toFloat()
-        }
+//        if (transferFunction.stale) {
+//            logger.debug("Transfer function is stale, updating")
+//            material.transferTextures["transferFunction"] = GenericTexture(
+//                "transferFunction", GLVector(transferFunction.textureSize.toFloat(), transferFunction.textureHeight.toFloat(), 1.0f),
+//                channels = 1, type = GLTypeEnum.Float, contents = transferFunction.serialise())
+//
+//            material.textures["diffuse"] = "fromBuffer:transferFunction"
+//            material.needsTextureReload = true
+//
+//            time = System.nanoTime().toFloat()
+//        }
 
         if(stacks == null) {
             logger.info("Don't have stacks, returning")
