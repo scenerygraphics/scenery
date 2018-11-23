@@ -211,6 +211,9 @@ fun VkPipelineDepthStencilStateCreateInfo(): VkPipelineDepthStencilStateCreateIn
 inline fun VkPipelineDepthStencilStateCreateInfo(block: VkPipelineDepthStencilStateCreateInfo.() -> Unit): VkPipelineDepthStencilStateCreateInfo =
     VkPipelineDepthStencilStateCreateInfo().also(block)
 
+fun VkPipelineShaderStageCreateInfo(): VkPipelineShaderStageCreateInfo =
+    VkPipelineShaderStageCreateInfo.calloc().apply { type = VkStructureType.PIPELINE_SHADER_STAGE_CREATE_INFO }
+
 inline fun VkPipelineMultisampleStateCreateInfo(block: VkPipelineMultisampleStateCreateInfo.() -> Unit): VkPipelineMultisampleStateCreateInfo =
     VkPipelineMultisampleStateCreateInfo.calloc().apply {
         type = VkStructureType.PIPELINE_MULTISAMPLE_STATE_CREATE_INFO

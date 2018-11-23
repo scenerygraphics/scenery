@@ -1169,6 +1169,10 @@ inline var VkPipelineShaderStageCreateInfo.module: VkShaderModule
 inline var VkPipelineShaderStageCreateInfo.name: String
     get() = VkPipelineShaderStageCreateInfo.npNameString(adr)
     set(value) = VkPipelineShaderStageCreateInfo.npName(adr, value.toUTF8stack())
+inline var VkPipelineShaderStageCreateInfo.pName: ByteBuffer
+    get() = VkPipelineShaderStageCreateInfo.npName(adr)
+    set(value) = VkPipelineShaderStageCreateInfo.npName(adr, value)
+
 inline var VkPipelineShaderStageCreateInfo.specializationInfo: VkSpecializationInfo?
     get() = VkPipelineShaderStageCreateInfo.npSpecializationInfo(adr)
     set(value) = VkPipelineShaderStageCreateInfo.npSpecializationInfo(adr, value)
