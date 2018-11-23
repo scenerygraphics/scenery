@@ -18,25 +18,6 @@ import java.nio.ByteBuffer
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 
-interface VkObject : Comparable<Long> {
-    val L: Long
-
-//    fun isInvalid(): Boolean = L == NULL
-//    fun isValid(): Boolean = L != NULL TODO BUG
-
-    infix operator fun plus(other: Long) = L + other
-    infix operator fun minus(other: Long) = L - other
-    infix operator fun times(other: Long) = L * other
-    infix operator fun div(other: Long) = L / other
-
-    override fun compareTo(other: Long): Int = L.compareTo(other)
-}
-
-infix operator fun Long.plus(other: VkObject) = plus(other.L)
-infix operator fun Long.minus(other: VkObject) = minus(other.L)
-infix operator fun Long.times(other: VkObject) = times(other.L)
-infix operator fun Long.div(other: VkObject) = div(other.L)
-
 fun bufferBig(size: VkDeviceSize): ByteBuffer = kool.bufferBig(size.L.i)
 
 fun memCopy(src: Ptr, dst: Ptr, bytes: VkDeviceSize) = memCopy(src, dst, bytes.L)
@@ -44,19 +25,47 @@ fun memCopy(src: Ptr, dst: Ptr, bytes: VkDeviceSize) = memCopy(src, dst, bytes.L
 fun Pointer.isInvalid() = adr == NULL
 fun Pointer.isValid() = adr != NULL
 
-inline class VkBuffer(override val L: Long) : VkObject
-inline class VkBufferView(override val L: Long) : VkObject
-inline class VkCommandPool(override val L: Long) : VkObject {
+inline class VkBuffer(val L: Long) {
     val isValid get() = L != NULL
     val isInvalid get() = L == NULL
 }
 
-inline class VkDebugReportCallback(override val L: Long) : VkObject
-inline class VkDescriptorPool(override val L: Long) : VkObject
-inline class VkDescriptorSet(override val L: Long) : VkObject
-inline class VkDescriptorSetLayout(override val L: Long) : VkObject
-inline class VkDeviceMemory(override val L: Long) : VkObject
-inline class VkDeviceSize(override val L: Long) : VkObject {
+inline class VkBufferView(val L: Long) {
+    val isValid get() = L != NULL
+    val isInvalid get() = L == NULL
+}
+
+inline class VkCommandPool(val L: Long) {
+    val isValid get() = L != NULL
+    val isInvalid get() = L == NULL
+}
+
+inline class VkDebugReportCallback(val L: Long) {
+    val isValid get() = L != NULL
+    val isInvalid get() = L == NULL
+}
+
+inline class VkDescriptorPool(val L: Long) {
+    val isValid get() = L != NULL
+    val isInvalid get() = L == NULL
+}
+
+inline class VkDescriptorSet(val L: Long) {
+    val isValid get() = L != NULL
+    val isInvalid get() = L == NULL
+}
+
+inline class VkDescriptorSetLayout(val L: Long) {
+    val isValid get() = L != NULL
+    val isInvalid get() = L == NULL
+}
+
+inline class VkDeviceMemory(val L: Long) {
+    val isValid get() = L != NULL
+    val isInvalid get() = L == NULL
+}
+
+inline class VkDeviceSize(val L: Long) {
 
     operator fun plus(size: VkDeviceSize) = VkDeviceSize(L + size.L)
     operator fun plus(size: Int) = VkDeviceSize(L + size)
@@ -65,24 +74,80 @@ inline class VkDeviceSize(override val L: Long) : VkObject {
     val isNotEmpty get() = L != 0L
 }
 
-inline class VkEvent(override val L: Long) : VkObject
-inline class VkFence(override val L: Long) : VkObject
-inline class VkFramebuffer(override val L: Long) : VkObject
-inline class VkImage(override val L: Long) : VkObject
-inline class VkImageView(override val L: Long) : VkObject
-inline class VkPipeline(override val L: Long) : VkObject
-inline class VkPipelineCache(override val L: Long) : VkObject
-inline class VkPipelineLayout(override val L: Long) : VkObject
-inline class VkQueryPool(override val L: Long) : VkObject
-inline class VkRenderPass(override val L: Long) : VkObject
-inline class VkSampler(override val L: Long) : VkObject
-inline class VkSemaphore(override val L: Long) : VkObject {
+inline class VkEvent(val L: Long) {
     val isValid get() = L != NULL
     val isInvalid get() = L == NULL
 }
-inline class VkShaderModule(override val L: Long) : VkObject
-inline class VkSurface(override val L: Long) : VkObject // TODO -> KHR
-inline class VkSwapchainKHR(override val L: Long) : VkObject
+
+inline class VkFence(val L: Long) {
+    val isValid get() = L != NULL
+    val isInvalid get() = L == NULL
+}
+
+inline class VkFramebuffer(val L: Long) {
+    val isValid get() = L != NULL
+    val isInvalid get() = L == NULL
+}
+
+inline class VkImage(val L: Long) {
+    val isValid get() = L != NULL
+    val isInvalid get() = L == NULL
+}
+
+inline class VkImageView(val L: Long) {
+    val isValid get() = L != NULL
+    val isInvalid get() = L == NULL
+}
+
+inline class VkPipeline(val L: Long) {
+    val isValid get() = L != NULL
+    val isInvalid get() = L == NULL
+}
+
+inline class VkPipelineCache(val L: Long) {
+    val isValid get() = L != NULL
+    val isInvalid get() = L == NULL
+}
+
+inline class VkPipelineLayout(val L: Long) {
+    val isValid get() = L != NULL
+    val isInvalid get() = L == NULL
+}
+
+inline class VkQueryPool(val L: Long) {
+    val isValid get() = L != NULL
+    val isInvalid get() = L == NULL
+}
+
+inline class VkRenderPass(val L: Long) {
+    val isValid get() = L != NULL
+    val isInvalid get() = L == NULL
+}
+
+inline class VkSampler(val L: Long) {
+    val isValid get() = L != NULL
+    val isInvalid get() = L == NULL
+}
+
+inline class VkSemaphore(val L: Long) {
+    val isValid get() = L != NULL
+    val isInvalid get() = L == NULL
+}
+
+inline class VkShaderModule(val L: Long) {
+    val isValid get() = L != NULL
+    val isInvalid get() = L == NULL
+}
+
+inline class VkSurface(val L: Long) { // TODO -> KHR
+    val isValid get() = L != NULL
+    val isInvalid get() = L == NULL
+}
+
+inline class VkSwapchainKHR(val L: Long) {
+    val isValid get() = L != NULL
+    val isInvalid get() = L == NULL
+}
 
 typealias VkBufferBuffer = LongBuffer
 typealias VkDescriptorSetBuffer = LongBuffer
@@ -214,6 +279,7 @@ inline class VkImageViewArray(val array: LongArray) : Iterable<VkImageView> {
 
 fun VkImageViewArray(size: Int, block: (Int) -> VkImageView) = VkImageViewArray(LongArray(size) { block(it).L })
 fun VkImageViewArray(size: Int) = VkImageViewArray(LongArray(size))
+fun VkImageViewArray(images: Collection<VkImageView>) = VkImageViewArray(LongArray(images.size) { images.elementAt(it).L })
 fun VkImageViewArray() = VkImageViewArray(LongArray(0))
 
 inline class VkSemaphoreArray(val array: LongArray) {

@@ -236,6 +236,8 @@ fun VkImageArray(size: Int, init: (Int) -> VkImage): VkImageArray = VkImageArray
 
 fun VkSubmitInfo() = VkSubmitInfo.calloc().apply { type = VkStructureType.SUBMIT_INFO }
 
+fun VkImageCreateInfo() = VkImageCreateInfo.calloc().apply { type = VkStructureType.IMAGE_CREATE_INFO }
+
 val VkQueryPool.isValid get() = L != NULL
 val VkImage.isValid get() = L != NULL
 

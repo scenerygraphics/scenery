@@ -29,7 +29,9 @@ import org.lwjgl.vulkan.VK10
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkQueue
 import uno.glfw.glfw
+import vkk.VkFormat
 import vkk.VkImageLayout
+import vkk.VkImageTiling
 import vkk.`object`.*
 import java.nio.LongBuffer
 
@@ -58,7 +60,7 @@ class OpenGLSwapchain(val device: VulkanDevice,
     protected var presentedFrames = 0L
 
     /** Color format of the images. */
-    override var format: Int = 0
+    override var format = VkFormat.UNDEFINED
 
     /** Window instance to use. */
     lateinit var window: SceneryWindow.GLFWWindow
@@ -149,9 +151,9 @@ class OpenGLSwapchain(val device: VulkanDevice,
         }
 
         format = if (useSRGB) {
-            VK10.VK_FORMAT_B8G8R8A8_SRGB
+            VkFormat.B8G8R8A8_SRGB
         } else {
-            VK10.VK_FORMAT_B8G8R8A8_UNORM
+            VkFormat.B8G8R8A8_UNORM
         }
 
         if (window.width <= 0 || window.height <= 0) {
@@ -172,7 +174,7 @@ class OpenGLSwapchain(val device: VulkanDevice,
 
                     val image = t.createImage(window.width, window.height, 1,
                         format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT or VK_IMAGE_USAGE_SAMPLED_BIT,
-                        VK_IMAGE_TILING_OPTIMAL, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                        VkImageTiling.OPTIMAL, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                         1)
 
                     VulkanTexture.transitionLayout(image.image,
@@ -181,7 +183,7 @@ class OpenGLSwapchain(val device: VulkanDevice,
                         commandBuffer = this)
 
                     images[i] = image.image
-                    imageViews[i] = VkImageView(t.createImageView(image, format))
+                    imageViews[i] = t.createImageView(image, format)
                 }
                 .submit(queue).deallocate()
 

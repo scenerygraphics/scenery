@@ -5,6 +5,7 @@ import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.SceneryPanel
+import kool.free
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.glfw.GLFWVulkan
 import org.lwjgl.glfw.GLFWWindowSizeCallback
@@ -14,10 +15,8 @@ import org.lwjgl.system.MemoryUtil.memFree
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.KHRSwapchain.VK_ERROR_OUT_OF_DATE_KHR
 import org.lwjgl.vulkan.KHRSwapchain.vkAcquireNextImageKHR
-import vkk.VkImageLayout
+import vkk.*
 import vkk.`object`.*
-import vkk.createImageView
-import vkk.waitSemaphores
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.util.*
@@ -50,7 +49,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
     protected var presentedFrames: Long = 0
 
     /** Color format for the swapchain images. */
-    override var format: Int = 0
+    override var format = VkFormat.UNDEFINED
 
     /** Swapchain image. */
     var swapchainImage: IntBuffer = MemoryUtil.memAllocInt(1)
@@ -77,7 +76,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
     /**
      * Data class for summarising [colorFormat] and [colorSpace] information.
      */
-    data class ColorFormatAndSpace(var colorFormat: Int = 0, var colorSpace: Int = 0)
+    data class ColorFormatAndSpace(var colorFormat: VkFormat = VkFormat.UNDEFINED, var colorSpace: VkColorSpace = VkColorSpace.SRGB_NONLINEAR_KHR)
 
     val vkDev get() = device.vulkanDevice
 
@@ -207,8 +206,8 @@ open class VulkanSwapchain(open val device: VulkanDevice,
                 .pNext(MemoryUtil.NULL)
                 .surface(surface)
                 .minImageCount(desiredNumberOfSwapchainImages)
-                .imageFormat(colorFormatAndSpace.colorFormat)
-                .imageColorSpace(colorFormatAndSpace.colorSpace)
+                .imageFormat(colorFormatAndSpace.colorFormat.i)
+                .imageColorSpace(colorFormatAndSpace.colorSpace.i)
                 .imageUsage(VK10.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT or VK10.VK_IMAGE_USAGE_TRANSFER_SRC_BIT)
                 .preTransform(preTransform)
                 .imageArrayLayers(1)
@@ -248,7 +247,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
             val colorAttachmentView = VkImageViewCreateInfo.callocStack(stack)
                 .sType(VK10.VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO)
                 .pNext(MemoryUtil.NULL)
-                .format(colorFormatAndSpace.colorFormat)
+                .format(colorFormatAndSpace.colorFormat.i)
                 .viewType(VK10.VK_IMAGE_VIEW_TYPE_2D)
                 .flags(0)
 
@@ -286,10 +285,10 @@ open class VulkanSwapchain(open val device: VulkanDevice,
             this.imageViews = VkImageViewArray(imageViews)
             this.format = colorFormatAndSpace.colorFormat
 
-            memFree(swapchainImages)
-            memFree(imageCount)
-            memFree(presentModeCount)
-            memFree(presentModes)
+            swapchainImages.free()
+            imageCount.free()
+            presentModeCount.free()
+            presentModes.free()
 
             this
         }
@@ -365,25 +364,25 @@ open class VulkanSwapchain(open val device: VulkanDevice,
 
             val colorFormat = if (formatCount.get(0) == 1 && surfFormats.get(0).format() == VK10.VK_FORMAT_UNDEFINED) {
                 if (useSRGB) {
-                    VK10.VK_FORMAT_B8G8R8A8_SRGB
+                    VkFormat.B8G8R8A8_SRGB
                 } else {
-                    VK10.VK_FORMAT_B8G8R8A8_UNORM
+                    VkFormat.B8G8R8A8_UNORM
                 }
             } else {
                 if (useSRGB) {
-                    VK10.VK_FORMAT_B8G8R8A8_SRGB
+                    VkFormat.B8G8R8A8_SRGB
                 } else {
-                    VK10.VK_FORMAT_B8G8R8A8_UNORM
+                    VkFormat.B8G8R8A8_UNORM
                 }
             }
 
             val colorSpace = if (useSRGB) {
-                KHRSurface.VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
+                VkColorSpace.SRGB_NONLINEAR_KHR
             } else {
-                surfFormats.get(0).colorSpace()
+                surfFormats.get(0).colorSpace
             }
 
-            memFree(formatCount)
+            formatCount.free()
 
             ColorFormatAndSpace(colorFormat, colorSpace)
         }
@@ -525,8 +524,8 @@ open class VulkanSwapchain(open val device: VulkanDevice,
         KHRSwapchain.vkDestroySwapchainKHR(device.vulkanDevice, handle, null)
 
         presentInfo.free()
-        MemoryUtil.memFree(swapchainImage)
-        MemoryUtil.memFree(swapchainPointer)
+        swapchainImage.free()
+        swapchainPointer.free()
 
         windowSizeCallback.close()
         (window as SceneryWindow.GLFWWindow?)?.let { window ->

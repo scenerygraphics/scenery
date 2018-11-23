@@ -1572,7 +1572,7 @@ open class VulkanRenderer(hub: Hub,
         if (hub?.getWorkingHMDDisplay()?.hasCompositor() == true) {
             hub?.getWorkingHMDDisplay()?.wantsVR()?.submitToCompositorVulkan(
                 window.width, window.height,
-                swapchain.format,
+                swapchain.format.i,
                 instance, device, queue,
                 swapchain.images[pass.getReadPosition()])
         }
@@ -1683,7 +1683,7 @@ open class VulkanRenderer(hub: Hub,
                             logger.error("Unable to take screenshot: ")
                             e.printStackTrace()
                         } finally {
-//                            memFree(ib)
+//                            ib.free()
                         }
                     }
                 }

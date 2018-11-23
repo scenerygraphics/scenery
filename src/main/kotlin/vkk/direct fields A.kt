@@ -1888,6 +1888,11 @@ inline var VkSamplerCreateInfo.minLod: Float
 inline var VkSamplerCreateInfo.maxLod: Float
     get() = VkSamplerCreateInfo.nmaxLod(adr)
     set(value) = VkSamplerCreateInfo.nmaxLod(adr, value)
+/** Custom JVM */
+fun VkSamplerCreateInfo.minMaxLod(min: Float, max: Float) {
+    minLod = min
+    maxLod = max
+}
 inline var VkSamplerCreateInfo.borderColor: VkBorderColor
     get() = VkBorderColor of VkSamplerCreateInfo.nborderColor(adr)
     set(value) = VkSamplerCreateInfo.nborderColor(adr, value.i)

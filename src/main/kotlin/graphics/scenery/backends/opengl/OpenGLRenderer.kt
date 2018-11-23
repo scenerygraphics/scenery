@@ -13,6 +13,7 @@ import graphics.scenery.spirvcrossj.Loader
 import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.utils.*
 import javafx.application.Platform
+import kool.free
 import kotlinx.coroutines.*
 import org.lwjgl.system.MemoryUtil
 import java.io.File
@@ -1822,13 +1823,9 @@ open class OpenGLRenderer(hub: Hub,
 
                 gl.glBindBuffer(GL4.GL_PIXEL_PACK_BUFFER, 0)
 
-                if(pboBuffers[0] != null) {
-                    MemoryUtil.memFree(pboBuffers[0])
-                }
+                pboBuffers[0]?.apply { free() }
 
-                if(pboBuffers[1] != null) {
-                    MemoryUtil.memFree(pboBuffers[1])
-                }
+                pboBuffers[1]?.apply { free() }
 
                 pboBuffers[0] = null
                 pboBuffers[1] = null

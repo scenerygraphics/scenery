@@ -213,6 +213,10 @@ object vk {
 
     fun ClearValue(capacity: Int): VkClearValue.Buffer = VkClearValue.callocStack(capacity)
 
+    fun ComponentMapping(): VkComponentMapping = VkComponentMapping.callocStack()
+    fun ComponentMapping(s: VkComponentSwizzle): VkComponentMapping = VkComponentMapping.callocStack().r(s.i).g(s.i).b(s.i).a(s.i)
+    fun ComponentMapping(r: VkComponentSwizzle, g: VkComponentSwizzle, b: VkComponentSwizzle, a: VkComponentSwizzle): VkComponentMapping = VkComponentMapping.callocStack().r(r.i).g(g.i).b(b.i).a(a.i)
+
     fun DescriptorBufferInfo(): VkDescriptorBufferInfo = VkDescriptorBufferInfo.callocStack()
     inline fun DescriptorBufferInfo(block: VkDescriptorBufferInfo.() -> Unit): VkDescriptorBufferInfo = DescriptorBufferInfo().also(block)
 

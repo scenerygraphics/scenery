@@ -185,7 +185,7 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
 
         stagingMemory?.free()
 
-        memFree(offsets)
+        offsets.free()
         closed = true
     }
 }

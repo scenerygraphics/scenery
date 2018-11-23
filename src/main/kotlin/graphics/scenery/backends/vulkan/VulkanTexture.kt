@@ -3,6 +3,8 @@ package graphics.scenery.backends.vulkan
 import cleargl.GLTypeEnum
 import cleargl.TGAReader
 import glm_.L
+import glm_.f
+import glm_.i
 import graphics.scenery.GenericTexture
 import graphics.scenery.utils.LazyLogger
 import kool.free
@@ -12,9 +14,7 @@ import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkImageCreateInfo
 import vkk.*
-import vkk.`object`.VkDeviceMemory
-import vkk.`object`.VkDeviceSize
-import vkk.`object`.VkImage
+import vkk.`object`.*
 import java.awt.Color
 import java.awt.color.ColorSpace
 import java.awt.geom.AffineTransform
@@ -42,7 +42,7 @@ import kotlin.streams.toList
 open class VulkanTexture(val device: VulkanDevice,
                          val commandPools: VulkanRenderer.CommandPools, val queue: VkQueue, val transferQueue: VkQueue,
                          val width: Int, val height: Int, val depth: Int = 1,
-                         val format: Int = VK_FORMAT_R8G8B8_SRGB, var mipLevels: Int = 1,
+                         val format: VkFormat = VkFormat.R8G8B8_SRGB, var mipLevels: Int = 1,
                          val minFilterLinear: Boolean = true, val maxFilterLinear: Boolean = true) : AutoCloseable {
     protected val logger by LazyLogger()
 
@@ -58,13 +58,15 @@ open class VulkanTexture(val device: VulkanDevice,
     /**
      * Wrapper class for holding on to raw Vulkan [image]s backed by [memory].
      */
-    inner class VulkanImage(var image: VkImage = VkImage(NULL), var memory: Long = -1L, val maxSize: Long = -1L) {
+    inner class VulkanImage(var image: VkImage = VkImage(NULL),
+                            var memory: VkDeviceMemory = VkDeviceMemory(NULL),
+                            val maxSize: VkDeviceSize = VkDeviceSize(0L)) {
 
         /** Raw Vulkan sampler. */
-        var sampler: Long = -1L
+        var sampler = VkSampler(NULL)
             internal set
         /** Raw Vulkan view. */
-        var view: Long = -1L
+        var view = VkImageView(NULL)
             internal set
 
         /**
@@ -72,22 +74,19 @@ open class VulkanTexture(val device: VulkanDevice,
          * within a given [commandBuffer].
          */
         fun copyFrom(commandBuffer: VkCommandBuffer, buffer: VulkanBuffer) {
-            with(commandBuffer) {
-                val bufferImageCopy = VkBufferImageCopy.calloc(1)
 
-                bufferImageCopy.imageSubresource()
-                    .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
-                    .mipLevel(0)
-                    .baseArrayLayer(0)
-                    .layerCount(1)
-
-                bufferImageCopy.imageExtent().set(width, height, depth)
-                bufferImageCopy.imageOffset().set(0, 0, 0)
-
-                copyBufferToImage(buffer.vulkanBuffer, this@VulkanImage.image, VkImageLayout.TRANSFER_DST_OPTIMAL, bufferImageCopy)
-
-                bufferImageCopy.free()
+            val bufferImageCopy = vk.BufferImageCopy {
+                imageSubresource.apply {
+                    aspectMask = VkImageAspect.COLOR_BIT.i
+                    mipLevel = 0
+                    baseArrayLayer = 0
+                    layerCount = 1
+                }
+                imageExtent.set(width, height, depth)
+                imageOffset.set(0, 0, 0)
             }
+            commandBuffer.copyBufferToImage(buffer.vulkanBuffer, this@VulkanImage.image,
+                VkImageLayout.TRANSFER_DST_OPTIMAL, bufferImageCopy)
         }
 
         /**
@@ -95,46 +94,42 @@ open class VulkanTexture(val device: VulkanDevice,
          * This gets executed within a given [commandBuffer].
          */
         fun copyFrom(commandBuffer: VkCommandBuffer, image: VulkanImage) {
-            with(commandBuffer) {
-                val subresource = VkImageSubresourceLayers.calloc()
-                    .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
-                    .baseArrayLayer(0)
-                    .mipLevel(0)
-                    .layerCount(1)
 
-                val region = vk.ImageCopy {
-                    srcSubresource = subresource
-                    dstSubresource = subresource
-                }
-                region.srcOffset().set(0, 0, 0)
-                region.dstOffset().set(0, 0, 0)
-                region.extent().set(width, height, depth)
-
-                copyImage(image.image, VkImageLayout.TRANSFER_SRC_OPTIMAL, this@VulkanImage.image, VkImageLayout.TRANSFER_DST_OPTIMAL, region)
-
-                subresource.free()
+            val subresource = vk.ImageSubresourceLayers {
+                aspectMask = VkImageAspect.COLOR_BIT.i
+                baseArrayLayer = 0
+                mipLevel = 0
+                layerCount = 1
             }
+            val region = vk.ImageCopy {
+                srcSubresource = subresource
+                dstSubresource = subresource
+                srcOffset.set(0, 0, 0)
+                dstOffset.set(0, 0, 0)
+                extent.set(width, height, depth)
+            }
+            commandBuffer.copyImage(image.image, VkImageLayout.TRANSFER_SRC_OPTIMAL, this@VulkanImage.image,
+                VkImageLayout.TRANSFER_DST_OPTIMAL, region)
         }
     }
 
     init {
-        stagingImage = if (depth == 1) {
-            createImage(width, height, depth,
-                format, VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-                VK_IMAGE_TILING_LINEAR,
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
+        stagingImage = when (depth) {
+            1 -> createImage(width, height, depth,
+                format, VkImageUsage.TRANSFER_SRC_BIT.i,
+                VkImageTiling.LINEAR,
+                VkMemoryProperty.HOST_VISIBLE_BIT or VkMemoryProperty.HOST_CACHED_BIT,
                 mipLevels = 1)
-        } else {
-            createImage(16, 16, 1,
-                format, VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-                VK_IMAGE_TILING_LINEAR,
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
+            else -> createImage(16, 16, 1,
+                format, VkImageUsage.TRANSFER_SRC_BIT.i,
+                VkImageTiling.LINEAR,
+                VkMemoryProperty.HOST_VISIBLE_BIT or VkMemoryProperty.HOST_CACHED_BIT,
                 mipLevels = 1)
         }
 
         image = createImage(width, height, depth,
-            format, VK_IMAGE_USAGE_TRANSFER_DST_BIT or VK_IMAGE_USAGE_SAMPLED_BIT or VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-            VK_IMAGE_TILING_OPTIMAL, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+            format, VkImageUsage.TRANSFER_DST_BIT or VkImageUsage.SAMPLED_BIT or VkImageUsage.TRANSFER_SRC_BIT,
+            VkImageTiling.OPTIMAL, VkMemoryProperty.DEVICE_LOCAL_BIT.i,
             mipLevels)
     }
 
@@ -149,9 +144,9 @@ open class VulkanTexture(val device: VulkanDevice,
         commandPools,
         queue,
         transferQueue,
-        genericTexture.dimensions.x().toInt(),
-        genericTexture.dimensions.y().toInt(),
-        genericTexture.dimensions.z()?.toInt() ?: 1,
+        genericTexture.dimensions.x().i,
+        genericTexture.dimensions.y().i,
+        genericTexture.dimensions.z()?.i ?: 1,
         genericTexture.toVulkanFormat(),
         mipLevels, minFilterLinear, maxFilterLinear) {
         gt = genericTexture
@@ -162,63 +157,44 @@ open class VulkanTexture(val device: VulkanDevice,
      * [usage] and [memoryFlags] need to be given, as well as the [tiling] parameter and number of [mipLevels].
      * A custom memory allocator may be used and given as [customAllocator].
      */
-    fun createImage(width: Int, height: Int, depth: Int, format: Int,
-                    usage: Int, tiling: Int, memoryFlags: Int, mipLevels: Int,
-                    customAllocator: ((VkMemoryRequirements, Long) -> Long)? = null, imageCreateInfo: VkImageCreateInfo? = null): VulkanImage {
-        val imageInfo = if (imageCreateInfo != null) {
-            imageCreateInfo
-        } else {
-            val i = VkImageCreateInfo.calloc()
-                .sType(VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO)
-                .imageType(if (depth == 1) {
-                    VK_IMAGE_TYPE_2D
-                } else {
-                    VK_IMAGE_TYPE_3D
-                })
-                .mipLevels(mipLevels)
-                .arrayLayers(1)
-                .format(format)
-                .tiling(tiling)
-                .initialLayout(if (depth == 1) {
-                    VK_IMAGE_LAYOUT_PREINITIALIZED
-                } else {
-                    VK_IMAGE_LAYOUT_UNDEFINED
-                })
-                .usage(usage)
-                .sharingMode(VK_SHARING_MODE_EXCLUSIVE)
-                .samples(VK_SAMPLE_COUNT_1_BIT)
-                .flags(VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT)
+    fun createImage(width: Int, height: Int, depth: Int, format: VkFormat,
+                    usage: VkImageUsageFlags, tiling: VkImageTiling, memoryFlags: VkMemoryPropertyFlags,
+                    mipLevels: Int, customAllocator: ((VkMemoryRequirements, VkImage) -> VkDeviceMemory)? = null,
+                    imageCreateInfo: VkImageCreateInfo? = null): VulkanImage {
+        val imageInfo = imageCreateInfo ?: VkImageCreateInfo().apply {
+            imageType = when (depth) {
+                1 -> VkImageType.`2D`
+                else -> VkImageType.`3D`
+            }
+            this.mipLevels = mipLevels
+            arrayLayers = 1
+            this.format = format
+            this.tiling = tiling
+            initialLayout = when (depth) {
+                1 -> VkImageLayout.PREINITIALIZED
+                else -> VkImageLayout.UNDEFINED
+            }
+            this.usage = usage
+            sharingMode = VkSharingMode.EXCLUSIVE
+            samples = VkSampleCount.`1_BIT`
+            flags = VkImageCreate.MUTABLE_FORMAT_BIT.i
 
-            i.extent().set(width, height, depth)
-            i
+            extent.set(width, height, depth)
         }
 
-        val image = VU.getLong("create staging image",
-            { vkCreateImage(device.vulkanDevice, imageInfo, null, this) }, {})
+        val image = vkDev createImage imageInfo
 
-        val reqs = VkMemoryRequirements.calloc()
-        vkGetImageMemoryRequirements(device.vulkanDevice, image, reqs)
-        val memorySize = reqs.size()
+        val reqs = vkDev getImageMemoryRequirements image
+        val memorySize = reqs.size
 
-        val memory = if (customAllocator == null) {
-            val allocInfo = VkMemoryAllocateInfo.calloc()
-                .sType(VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO)
-                .pNext(NULL)
-                .allocationSize(memorySize)
-                .memoryTypeIndex(device.getMemoryType(reqs.memoryTypeBits(), memoryFlags).first())
-
-            VU.getLong("allocate image staging memory of size $memorySize",
-                { vkAllocateMemory(device.vulkanDevice, allocInfo, null, this) },
-                { imageInfo.free(); allocInfo.free() })
-        } else {
-            customAllocator.invoke(reqs, image)
+        val memory = customAllocator?.invoke(reqs, image) ?: vkDev allocateMemory vk.MemoryAllocateInfo {
+            allocationSize = memorySize
+            memoryTypeIndex = device.getMemoryType(reqs.memoryTypeBits, memoryFlags).first()
         }
 
-        reqs.free()
+        vkDev.bindImageMemory(image, memory)
 
-        vkBindImageMemory(device.vulkanDevice, image, memory, 0)
-
-        return VulkanImage(VkImage(image), memory, memorySize)
+        return VulkanImage(image, memory, memorySize)
     }
 
 
@@ -226,16 +202,16 @@ open class VulkanTexture(val device: VulkanDevice,
      * Copies the data for this texture from a [ByteBuffer], [data].
      */
     fun copyFrom(data: ByteBuffer): VulkanTexture {
-        if (image.sampler == -1L) {
+        if (image.sampler.isInvalid) {
             image.sampler = createSampler()
         }
 
-        if (image.view == -1L) {
+        if (image.view.isInvalid) {
             image.view = createImageView(image, format)
         }
 
-        if (depth == 1 && data.remaining() > stagingImage.maxSize) {
-            logger.warn("Allocated image size for $this (${stagingImage.maxSize}) less than copy source size ${data.remaining()}.")
+        if (depth == 1 && data.remaining() > stagingImage.maxSize.L) {
+            logger.warn("Allocated image size for $this (${stagingImage.maxSize.L}) less than copy source size ${data.remaining()}.")
             return this
         }
 
@@ -282,20 +258,20 @@ open class VulkanTexture(val device: VulkanDevice,
             vkDev.newCommandBuffer(commandPools.Standard)
                 .record {
                     if (depth == 1) {
-                        device.mappedMemory(VkDeviceMemory(stagingImage.memory), VkDeviceSize(0), sourceBufferSize) { dest ->
+                        device.mappedMemory(stagingImage.memory, VkDeviceSize(0), sourceBufferSize) { dest ->
                             sourceBuffer copyTo dest
                         }
                         transitionLayout(stagingImage.image,
                             VkImageLayout.PREINITIALIZED,
                             VkImageLayout.TRANSFER_SRC_OPTIMAL, mipLevels,
-                            srcStage = VK_PIPELINE_STAGE_HOST_BIT,
-                            dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                            srcStage = VkPipelineStage.HOST_BIT.i,
+                            dstStage = VkPipelineStage.TRANSFER_BIT.i,
                             commandBuffer = this)
                         transitionLayout(image.image,
                             VkImageLayout.PREINITIALIZED,
                             VkImageLayout.TRANSFER_DST_OPTIMAL, mipLevels,
-                            srcStage = VK_PIPELINE_STAGE_HOST_BIT,
-                            dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                            srcStage = VkPipelineStage.HOST_BIT.i,
+                            dstStage = VkPipelineStage.TRANSFER_BIT.i,
                             commandBuffer = this)
 
                         image.copyFrom(this, stagingImage)
@@ -303,8 +279,8 @@ open class VulkanTexture(val device: VulkanDevice,
                         transitionLayout(image.image,
                             VkImageLayout.TRANSFER_DST_OPTIMAL,
                             VkImageLayout.SHADER_READ_ONLY_OPTIMAL, mipLevels,
-                            srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                            dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                            srcStage = VkPipelineStage.TRANSFER_BIT.i,
+                            dstStage = VkPipelineStage.FRAGMENT_SHADER_BIT.i,
                             commandBuffer = this)
                     } else {
                         VulkanBuffer(this@VulkanTexture.device,
@@ -318,8 +294,8 @@ open class VulkanTexture(val device: VulkanDevice,
                             transitionLayout(image.image,
                                 VkImageLayout.UNDEFINED,
                                 VkImageLayout.TRANSFER_DST_OPTIMAL, mipLevels,
-                                srcStage = VK_PIPELINE_STAGE_HOST_BIT,
-                                dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                srcStage = VkPipelineStage.HOST_BIT.i,
+                                dstStage = VkPipelineStage.TRANSFER_BIT.i,
                                 commandBuffer = this)
 
                             image.copyFrom(this, buf)
@@ -327,8 +303,8 @@ open class VulkanTexture(val device: VulkanDevice,
                             transitionLayout(image.image,
                                 VkImageLayout.TRANSFER_DST_OPTIMAL,
                                 VkImageLayout.SHADER_READ_ONLY_OPTIMAL, mipLevels,
-                                srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                                srcStage = VkPipelineStage.TRANSFER_BIT.i,
+                                dstStage = VkPipelineStage.FRAGMENT_SHADER_BIT.i,
                                 commandBuffer = this)
                         }
                     }
@@ -348,13 +324,13 @@ open class VulkanTexture(val device: VulkanDevice,
 
                     transitionLayout(image.image, VkImageLayout.UNDEFINED,
                         VkImageLayout.TRANSFER_DST_OPTIMAL, 1, commandBuffer = this,
-                        srcStage = VK_PIPELINE_STAGE_HOST_BIT,
-                        dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT)
+                        srcStage = VkPipelineStage.HOST_BIT.i,
+                        dstStage = VkPipelineStage.TRANSFER_BIT.i)
                     image.copyFrom(this, buffer)
                     transitionLayout(image.image, VkImageLayout.TRANSFER_DST_OPTIMAL,
                         VkImageLayout.TRANSFER_SRC_OPTIMAL, 1, commandBuffer = this,
-                        srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                        dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT)
+                        srcStage = VkPipelineStage.TRANSFER_BIT.i,
+                        dstStage = VkPipelineStage.TRANSFER_BIT.i)
                 }
                 .submit(transferQueue, block = true)
                 .deallocate()
@@ -396,8 +372,8 @@ open class VulkanTexture(val device: VulkanDevice,
                                 VkImageLayout.SHADER_READ_ONLY_OPTIMAL,
                                 VkImageLayout.TRANSFER_SRC_OPTIMAL,
                                 subresourceRange = mipSourceRange,
-                                srcStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                                dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                srcStage = VkPipelineStage.FRAGMENT_SHADER_BIT.i,
+                                dstStage = VkPipelineStage.TRANSFER_BIT.i,
                                 commandBuffer = this)
                         }
 
@@ -405,8 +381,8 @@ open class VulkanTexture(val device: VulkanDevice,
                             VkImageLayout.UNDEFINED,
                             VkImageLayout.TRANSFER_DST_OPTIMAL,
                             subresourceRange = mipTargetRange,
-                            srcStage = VK_PIPELINE_STAGE_HOST_BIT,
-                            dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                            srcStage = VkPipelineStage.HOST_BIT.i,
+                            dstStage = VkPipelineStage.TRANSFER_BIT.i,
                             commandBuffer = this)
 
                         blitImage(
@@ -417,15 +393,15 @@ open class VulkanTexture(val device: VulkanDevice,
                         transitionLayout(image.image,
                             VkImageLayout.TRANSFER_SRC_OPTIMAL,
                             VkImageLayout.SHADER_READ_ONLY_OPTIMAL, subresourceRange = mipSourceRange,
-                            srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                            dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                            srcStage = VkPipelineStage.TRANSFER_BIT.i,
+                            dstStage = VkPipelineStage.FRAGMENT_SHADER_BIT.i,
                             commandBuffer = this)
 
                         transitionLayout(image.image,
                             VkImageLayout.TRANSFER_DST_OPTIMAL,
                             VkImageLayout.SHADER_READ_ONLY_OPTIMAL, subresourceRange = mipTargetRange,
-                            srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                            dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                            srcStage = VkPipelineStage.TRANSFER_BIT.i,
+                            dstStage = VkPipelineStage.FRAGMENT_SHADER_BIT.i,
                             commandBuffer = this)
                     }
                 }
@@ -444,97 +420,71 @@ open class VulkanTexture(val device: VulkanDevice,
     /**
      * Creates a Vulkan image view with [format] for an [image].
      */
-    fun createImageView(image: VulkanImage, format: Int): Long {
-        val subresourceRange = VkImageSubresourceRange.calloc().set(VK_IMAGE_ASPECT_COLOR_BIT, 0, mipLevels, 0, 1)
+    fun createImageView(image: VulkanImage, format: VkFormat): VkImageView {
 
-        var viewFormat = format
+        val subresourceRange = vk.ImageSubresourceRange(VkImageAspect.COLOR_BIT.i, 0, mipLevels, 0, 1)
 
-        gt?.let { genericTexture ->
-            if (!genericTexture.normalized && genericTexture.type != GLTypeEnum.Float) {
+        val genericTexture = gt
+
+        val viewFormat = when {
+            genericTexture?.normalized == false && genericTexture.type != GLTypeEnum.Float -> {
                 logger.info("Shifting format to unsigned int")
-                viewFormat += 4
+                VkFormat of (format.i + 4)
             }
+            else -> format
         }
 
-        val vi = VkImageViewCreateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO)
-            .pNext(NULL)
-            .image(image.image.L)
-            .viewType(if (depth > 1) {
-                VK_IMAGE_VIEW_TYPE_3D
-            } else {
-                VK_IMAGE_VIEW_TYPE_2D
-            })
-            .format(viewFormat)
-            .subresourceRange(subresourceRange)
-
-        if (depth > 1) {
-            vi.components(VkComponentMapping.calloc().set(VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R))
+        val vi = vk.ImageViewCreateInfo {
+            this.image = image.image
+            viewType = when {
+                depth > 1 -> VkImageViewType.`3D`
+                else -> VkImageViewType.`2D`
+            }
+            this.format = viewFormat
+            this.subresourceRange = subresourceRange
+            if (depth > 1)
+                components = vk.ComponentMapping(VkComponentSwizzle.R)
         }
-
-        return VU.getLong("Creating image view",
-            { vkCreateImageView(device.vulkanDevice, vi, null, this) },
-            { vi.free(); subresourceRange.free(); })
+        return vkDev createImageView vi
     }
 
     /**
      * Creates a default sampler for this texture.
      */
-    private fun createSampler(): Long {
-        val samplerInfo = VkSamplerCreateInfo.calloc()
-            .sType(VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO)
-            .pNext(NULL)
-            .magFilter(if (minFilterLinear && !(depth > 1)) {
-                VK_FILTER_LINEAR
-            } else {
-                VK_FILTER_LINEAR
-            })
-            .minFilter(if (maxFilterLinear && !(depth > 1)) {
-                VK_FILTER_LINEAR
-            } else {
-                VK_FILTER_LINEAR
-            })
-            .mipmapMode(if (depth == 1) {
-                VK_SAMPLER_MIPMAP_MODE_LINEAR
-            } else {
-                VK_SAMPLER_MIPMAP_MODE_NEAREST
-            })
-            .addressModeU(if (depth == 1) {
-                VK_SAMPLER_ADDRESS_MODE_REPEAT
-            } else {
-                VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE
-            })
-            .addressModeV(if (depth == 1) {
-                VK_SAMPLER_ADDRESS_MODE_REPEAT
-            } else {
-                VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE
-            })
-            .addressModeW(if (depth == 1) {
-                VK_SAMPLER_ADDRESS_MODE_REPEAT
-            } else {
-                VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE
-            })
-            .mipLodBias(0.0f)
-            .anisotropyEnable(depth == 1)
-            .maxAnisotropy(if (depth == 1) {
-                8.0f
-            } else {
-                1.0f
-            })
-            .minLod(0.0f)
-            .maxLod(if (depth == 1) {
-                mipLevels * 1.0f
-            } else {
-                0.0f
-            })
-            .borderColor(VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE)
-            .compareOp(VK_COMPARE_OP_NEVER)
-
-        return VU.getLong("creating sampler",
-            { vkCreateSampler(device.vulkanDevice, samplerInfo, null, this) },
-            { samplerInfo.free() })
+    private fun createSampler(): VkSampler {
+        val samplerInfo = vk.SamplerCreateInfo {
+            magFilter = when {
+                minFilterLinear && depth <= 1 -> VkFilter.LINEAR
+                else -> VkFilter.LINEAR
+            }
+            minFilter = when {
+                maxFilterLinear && depth <= 1 -> VkFilter.LINEAR
+                else -> VkFilter.LINEAR
+            }
+            mipmapMode = when (depth) {
+                1 -> VkSamplerMipmapMode.LINEAR
+                else -> VkSamplerMipmapMode.NEAREST
+            }
+            addressModeUVW = when (depth) {
+                1 -> VkSamplerAddressMode.REPEAT
+                else -> VkSamplerAddressMode.CLAMP_TO_EDGE
+            }
+            mipLodBias = 0f
+            anisotropyEnable = depth == 1
+            maxAnisotropy = when (depth) {
+                1 -> 8f
+                else -> 1f
+            }
+            minLod = 0f
+            maxLod = when (depth) {
+                1 -> mipLevels.f
+                else -> 0f
+            }
+            borderColor = VkBorderColor.FLOAT_OPAQUE_WHITE
+            compareOp = VkCompareOp.NEVER
+        }
+        return vkDev createSampler samplerInfo
     }
-
 
     /**
      * Utility methods for [VulkanTexture].
@@ -668,13 +618,13 @@ open class VulkanTexture(val device: VulkanDevice,
                 commandPools, queue, transferQueue,
                 texWidth, texHeight, 1,
                 if (bi.colorModel.hasAlpha()) {
-                    VK_FORMAT_R8G8B8A8_SRGB
+                    VkFormat.R8G8B8A8_SRGB
                 } else {
-                    VK_FORMAT_R8G8B8A8_SRGB
+                    VkFormat.R8G8B8A8_SRGB
                 }, mipmapLevels, linearMin, linearMax)
 
             tex.copyFrom(imageData)
-            memFree(imageData)
+            imageData.free()
 
             return tex
         }
@@ -699,7 +649,7 @@ open class VulkanTexture(val device: VulkanDevice,
                 device,
                 commandPools, queue, transferQueue,
                 dimensions[0].toInt(), dimensions[1].toInt(), dimensions[2].toInt(),
-                VK_FORMAT_R16_UINT, 1, true, true)
+                VkFormat.R16_UINT, 1, true, true)
 
             tex.copyFrom(imageData)
 
@@ -742,12 +692,11 @@ open class VulkanTexture(val device: VulkanDevice,
 
             val data = (texImage.raster.dataBuffer as DataBufferByte).data
 
-            imageBuffer = memAlloc(data.size)
-            imageBuffer.order(ByteOrder.nativeOrder())
-            imageBuffer.put(data, 0, data.size)
-            imageBuffer.rewind()
-
-            return imageBuffer
+            return memAlloc(data.size).apply {
+                order(ByteOrder.nativeOrder())
+                put(data, 0, data.size)
+                rewind()
+            }
         }
 
         // the following three routines are from
@@ -765,10 +714,11 @@ open class VulkanTexture(val device: VulkanDevice,
             val newImage = BufferedImage(
                 image.width, image.height,
                 BufferedImage.TYPE_INT_ARGB)
-            val g = newImage.createGraphics()
-            g.transform(at)
-            g.drawImage(image, 0, 0, null)
-            g.dispose()
+            newImage.createGraphics().apply {
+                transform(at)
+                drawImage(image, 0, 0, null)
+                dispose()
+            }
             return newImage
         }
 
@@ -777,7 +727,8 @@ open class VulkanTexture(val device: VulkanDevice,
          */
         fun transitionLayout(image: VkImage, oldLayout: VkImageLayout, newLayout: VkImageLayout, mipLevels: Int = 1,
                              subresourceRange: VkImageSubresourceRange? = null,
-                             srcStage: Int = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, dstStage: Int = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                             srcStage: VkPipelineStageFlags = VkPipelineStage.TOP_OF_PIPE_BIT.i,
+                             dstStage: VkPipelineStageFlags = VkPipelineStage.TOP_OF_PIPE_BIT.i,
                              commandBuffer: VkCommandBuffer) {
 
             with(commandBuffer) {
@@ -887,82 +838,75 @@ open class VulkanTexture(val device: VulkanDevice,
             }
         }
 
-        private fun GenericTexture.toVulkanFormat(): Int {
-            return when (this.type) {
-                GLTypeEnum.Byte -> when (this.channels) {
-                    1 -> VK_FORMAT_R8_SNORM
-                    2 -> VK_FORMAT_R8G8_SNORM
-                    3 -> VK_FORMAT_R8G8B8A8_SNORM
-                    4 -> VK_FORMAT_R8G8B8A8_SNORM
-
-                    else -> {
-                        logger.warn("Unknown texture type: $type, with $channels channels, falling back to default"); VK_FORMAT_R8G8B8A8_UNORM
+        private fun GenericTexture.toVulkanFormat(): VkFormat {
+            return when (type) {
+                GLTypeEnum.Byte -> when (channels) {
+                    1 -> VkFormat.R8_SNORM
+                    2 -> VkFormat.R8G8_SNORM
+                    3 -> VkFormat.R8G8B8A8_SNORM
+                    4 -> VkFormat.R8G8B8A8_SNORM
+                    else -> VkFormat.R8G8B8A8_UNORM.also {
+                        logger.warn("Unknown texture type: $type, with $channels channels, falling back to default")
                     }
                 }
 
-                GLTypeEnum.UnsignedByte -> when (this.channels) {
-                    1 -> VK_FORMAT_R8_UNORM
-                    2 -> VK_FORMAT_R8G8_UNORM
-                    3 -> VK_FORMAT_R8G8B8A8_UNORM
-                    4 -> VK_FORMAT_R8G8B8A8_UNORM
-
-                    else -> {
-                        logger.warn("Unknown texture type: $type, with $channels channels, falling back to default"); VK_FORMAT_R8G8B8A8_UNORM
+                GLTypeEnum.UnsignedByte -> when (channels) {
+                    1 -> VkFormat.R8_UNORM
+                    2 -> VkFormat.R8G8_UNORM
+                    3 -> VkFormat.R8G8B8A8_UNORM
+                    4 -> VkFormat.R8G8B8A8_UNORM
+                    else -> VkFormat.R8G8B8A8_UNORM.also {
+                        logger.warn("Unknown texture type: $type, with $channels channels, falling back to default")
                     }
                 }
 
-                GLTypeEnum.Short -> when (this.channels) {
-                    1 -> VK_FORMAT_R16_SNORM
-                    2 -> VK_FORMAT_R16G16_SNORM
-                    3 -> VK_FORMAT_R16G16B16A16_SNORM
-                    4 -> VK_FORMAT_R16G16B16A16_SNORM
-
-                    else -> {
-                        logger.warn("Unknown texture type: $type, with $channels channels, falling back to default"); VK_FORMAT_R8G8B8A8_UNORM
+                GLTypeEnum.Short -> when (channels) {
+                    1 -> VkFormat.R16_SNORM
+                    2 -> VkFormat.R16G16_SNORM
+                    3 -> VkFormat.R16G16B16A16_SNORM
+                    4 -> VkFormat.R16G16B16A16_SNORM
+                    else -> VkFormat.R8G8B8A8_UNORM.also {
+                        logger.warn("Unknown texture type: $type, with $channels channels, falling back to default")
                     }
                 }
 
-                GLTypeEnum.UnsignedShort -> when (this.channels) {
-                    1 -> VK_FORMAT_R16_UNORM
-                    2 -> VK_FORMAT_R16G16_UNORM
-                    3 -> VK_FORMAT_R16G16B16A16_UNORM
-                    4 -> VK_FORMAT_R16G16B16A16_UNORM
-
-                    else -> {
-                        logger.warn("Unknown texture type: $type, with $channels channels, falling back to default"); VK_FORMAT_R8G8B8A8_UNORM
+                GLTypeEnum.UnsignedShort -> when (channels) {
+                    1 -> VkFormat.R16_UNORM
+                    2 -> VkFormat.R16G16_UNORM
+                    3 -> VkFormat.R16G16B16A16_UNORM
+                    4 -> VkFormat.R16G16B16A16_UNORM
+                    else -> VkFormat.R8G8B8A8_UNORM.also {
+                        logger.warn("Unknown texture type: $type, with $channels channels, falling back to default")
                     }
                 }
 
-                GLTypeEnum.Int -> when (this.channels) {
-                    1 -> VK_FORMAT_R32_SINT
-                    2 -> VK_FORMAT_R32G32_SINT
-                    3 -> VK_FORMAT_R32G32B32A32_SINT
-                    4 -> VK_FORMAT_R32G32B32A32_SINT
-
-                    else -> {
-                        logger.warn("Unknown texture type: $type, with $channels channels, falling back to default"); VK_FORMAT_R8G8B8A8_UNORM
+                GLTypeEnum.Int -> when (channels) {
+                    1 -> VkFormat.R32_SINT
+                    2 -> VkFormat.R32G32_SINT
+                    3 -> VkFormat.R32G32B32A32_SINT
+                    4 -> VkFormat.R32G32B32A32_SINT
+                    else -> VkFormat.R8G8B8A8_UNORM.also {
+                        logger.warn("Unknown texture type: $type, with $channels channels, falling back to default")
                     }
                 }
 
-                GLTypeEnum.UnsignedInt -> when (this.channels) {
-                    1 -> VK_FORMAT_R32_UINT
-                    2 -> VK_FORMAT_R32G32_UINT
-                    3 -> VK_FORMAT_R32G32B32A32_UINT
-                    4 -> VK_FORMAT_R32G32B32A32_UINT
-
-                    else -> {
-                        logger.warn("Unknown texture type: $type, with $channels channels, falling back to default"); VK_FORMAT_R8G8B8A8_UNORM
+                GLTypeEnum.UnsignedInt -> when (channels) {
+                    1 -> VkFormat.R32_UINT
+                    2 -> VkFormat.R32G32_UINT
+                    3 -> VkFormat.R32G32B32A32_UINT
+                    4 -> VkFormat.R32G32B32A32_UINT
+                    else -> VkFormat.R8G8B8A8_UNORM.also {
+                        logger.warn("Unknown texture type: $type, with $channels channels, falling back to default")
                     }
                 }
 
-                GLTypeEnum.Float -> when (this.channels) {
-                    1 -> VK_FORMAT_R32_SFLOAT
-                    2 -> VK_FORMAT_R32G32_SFLOAT
-                    3 -> VK_FORMAT_R32G32B32A32_SFLOAT
-                    4 -> VK_FORMAT_R32G32B32A32_SFLOAT
-
-                    else -> {
-                        logger.warn("Unknown texture type: $type, with $channels channels, falling back to default"); VK_FORMAT_R8G8B8A8_UNORM
+                GLTypeEnum.Float -> when (channels) {
+                    1 -> VkFormat.R32_SFLOAT
+                    2 -> VkFormat.R32G32_SFLOAT
+                    3 -> VkFormat.R32G32B32A32_SFLOAT
+                    4 -> VkFormat.R32G32B32A32_SFLOAT
+                    else -> VkFormat.R8G8B8A8_UNORM.also {
+                        logger.warn("Unknown texture type: $type, with $channels channels, falling back to default")
                     }
                 }
 
@@ -976,9 +920,9 @@ open class VulkanTexture(val device: VulkanDevice,
      * related to it.
      */
     override fun close() {
-        if (image.view != -1L) {
-            vkDestroyImageView(device.vulkanDevice, image.view, null)
-            image.view = -1L
+        if (image.view.isValid) {
+            vkDev destroyImageView image.view
+            image.view = VkImageView(NULL)
         }
 
         if (image.image.isValid) {
@@ -986,14 +930,14 @@ open class VulkanTexture(val device: VulkanDevice,
             image.image = VkImage(NULL)
         }
 
-        if (image.sampler != -1L) {
-            vkDestroySampler(device.vulkanDevice, image.sampler, null)
-            image.sampler = -1L
+        if (image.sampler.isValid) {
+            vkDev destroySampler image.sampler
+            image.sampler = VkSampler(NULL)
         }
 
-        if (image.memory != -1L) {
-            vkFreeMemory(device.vulkanDevice, image.memory, null)
-            image.memory = -1L
+        if (image.memory.isValid) {
+            vkDev freeMemory image.memory
+            image.memory = VkDeviceMemory(NULL)
         }
 
         if (stagingImage.image.isValid) {
@@ -1001,11 +945,9 @@ open class VulkanTexture(val device: VulkanDevice,
             stagingImage.image = VkImage(NULL)
         }
 
-        if (stagingImage.memory != -1L) {
-            vkFreeMemory(device.vulkanDevice, stagingImage.memory, null)
-            stagingImage.memory = -1L
+        if (stagingImage.memory.isValid) {
+            vkDev freeMemory stagingImage.memory
+            stagingImage.memory = VkDeviceMemory(NULL)
         }
     }
-
-
 }

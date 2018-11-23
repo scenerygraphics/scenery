@@ -1,9 +1,11 @@
 package graphics.scenery.backends.vulkan
 
+import glm_.d
 import graphics.scenery.Hub
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.utils.SceneryPanel
+import kool.free
 import kool.stak
 import org.lwjgl.system.MemoryStack
 import org.lwjgl.system.MemoryUtil
@@ -107,14 +109,14 @@ open class HeadlessSwapchain(device: VulkanDevice,
     override fun create(oldSwapchain: Swapchain?): Swapchain {
         presentedFrames = 0
         if (oldSwapchain != null && initialized) {
-            MemoryUtil.memFree(imageBuffer)
+            imageBuffer.free()
             sharingBuffer.close()
         }
 
         val format = if (useSRGB) {
-            VK10.VK_FORMAT_B8G8R8A8_SRGB
+            VkFormat.B8G8R8A8_SRGB
         } else {
-            VK10.VK_FORMAT_B8G8R8A8_UNORM
+            VkFormat.B8G8R8A8_UNORM
         }
         presentQueue = device.vulkanDevice getQueue device.queueIndices.graphicsQueue
 
@@ -123,7 +125,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
                 format, 1)
             val image = t.createImage(window.width, window.height, 1, format,
                 VK10.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT or VK10.VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-                VK10.VK_IMAGE_TILING_OPTIMAL, VK10.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 1)
+                VkImageTiling.OPTIMAL, VK10.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 1)
             t to image
         }
 
@@ -131,7 +133,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
 
         imageViews = VkImageViewArray(textureImages.map {
             it.first.createImageView(it.second, format)
-        }.toLongArray())
+        })
 
         logger.info("Created ${images.size} swapchain images")
 
@@ -143,8 +145,8 @@ open class HeadlessSwapchain(device: VulkanDevice,
             VkMemoryProperty.HOST_VISIBLE_BIT or VkMemoryProperty.HOST_COHERENT_BIT,
             wantAligned = true)
 
-        imagePanel?.prefWidth = window.width.toDouble()
-        imagePanel?.prefHeight = window.height.toDouble()
+        imagePanel?.prefWidth = window.width.d
+        imagePanel?.prefHeight = window.height.d
 
         resizeHandler.lastWidth = window.width
         resizeHandler.lastHeight = window.height
@@ -163,7 +165,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
         stak {
             VK10.vkQueueWaitIdle(presentQueue)
 
-            val signal = vkSemaphoreBufferOf(signalSemaphore)
+            val signal = it.vkSemaphoreBufferOf(signalSemaphore)
 
             device.vulkanDevice.newCommandBuffer(commandPools.Standard)
                 .record { }
@@ -279,9 +281,9 @@ open class HeadlessSwapchain(device: VulkanDevice,
 
         presentInfo.free()
 
-        MemoryUtil.memFree(swapchainImage)
-        MemoryUtil.memFree(swapchainPointer)
-        MemoryUtil.memFree(imageBuffer)
+        swapchainImage.free()
+        swapchainPointer.free()
+        imageBuffer.free()
 
         sharingBuffer.close()
     }

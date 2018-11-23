@@ -7,6 +7,7 @@ import graphics.scenery.*
 import graphics.scenery.backends.Display
 import graphics.scenery.backends.vulkan.*
 import graphics.scenery.utils.LazyLogger
+import kool.free
 import org.lwjgl.openvr.*
 import org.lwjgl.openvr.VR.*
 import org.lwjgl.openvr.VRCompositor.*
@@ -182,7 +183,7 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
 
         val err = memAllocInt(1)
         vsyncToPhotons = VRSystem_GetFloatTrackedDeviceProperty(k_unTrackedDeviceIndex_Hmd, ETrackedDeviceProperty_Prop_SecondsFromVsyncToPhotons_Float, err)
-        memFree(err)
+        err.free()
 
         compositorInitialized = true
     }
@@ -243,8 +244,8 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
         val width = x.get(0).toFloat()
         val height = y.get(0).toFloat()
 
-        memFree(x)
-        memFree(y)
+        x.free()
+        y.free()
 
         return GLVector(width, height)
     }

@@ -3,6 +3,7 @@ package graphics.scenery.backends.vulkan
 import graphics.scenery.Hub
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.utils.SceneryPanel
+import vkk.VkFormat
 import vkk.`object`.VkImageArray
 import vkk.`object`.VkImageViewArray
 import vkk.`object`.VkSemaphore
@@ -19,7 +20,7 @@ interface Swapchain : AutoCloseable {
     var images: VkImageArray
     var imageViews: VkImageViewArray
 
-    var format: Int
+    var format: VkFormat
 
     /**
      * Creates a window for this swapchain, and initialiases [win] to the appropriate window
