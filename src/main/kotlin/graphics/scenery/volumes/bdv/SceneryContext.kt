@@ -314,7 +314,7 @@ class SceneryContext(val node: Volume) : GpuContext {
     }
 
     override fun map(pbo: StagingBuffer): Buffer {
-        logger.info("Mapping $pbo...")
+        logger.info("Mapping $pbo... (${pboBackingStore.size} total)")
         return pboBackingStore.computeIfAbsent(pbo) {
             MemoryUtil.memAlloc(pbo.sizeInBytes)
         }
@@ -348,6 +348,11 @@ class SceneryContext(val node: Volume) : GpuContext {
         val tmpStorage = (map(pbo) as ByteBuffer).duplicate().order(ByteOrder.LITTLE_ENDIAN)
         tmpStorage.position(pixels_buffer_offset.toInt())
 
+        val tmp = MemoryUtil.memCalloc(width*height*depth*2)
+        tmpStorage.limit(tmpStorage.position() + width*height*depth*2)
+        tmp.put(tmpStorage)
+        tmp.flip()
+
         val gt = node.material.transferTextures[texname]
 
         if(tex.value.reallocate) {
@@ -363,7 +368,7 @@ class SceneryContext(val node: Volume) : GpuContext {
 
             val update = TextureUpdate(
                 TextureExtents(xoffset, yoffset, zoffset, width, height, depth),
-                tmpStorage)
+                tmp)
             gt.updates.add(update)
         } else {
             if (gt == null) {
@@ -373,7 +378,7 @@ class SceneryContext(val node: Volume) : GpuContext {
 
             val update = TextureUpdate(
                 TextureExtents(xoffset, yoffset, zoffset, width, height, depth),
-                tmpStorage)
+                tmp)
 
             gt.updates.add(update)
         }
@@ -397,6 +402,12 @@ class SceneryContext(val node: Volume) : GpuContext {
         }
 
         if(pixels is ByteBuffer) {
+            val p = pixels.duplicate().order(ByteOrder.LITTLE_ENDIAN)
+            val tmp = MemoryUtil.memCalloc(width*height*depth*4)
+            p.limit(p.position() + width*height*depth*4)
+            tmp.put(p)
+            tmp.flip()
+
             // TODO: add support for different data types
             val gt = node.material.transferTextures[texname]
 
@@ -413,7 +424,7 @@ class SceneryContext(val node: Volume) : GpuContext {
 
                 val update = TextureUpdate(
                     TextureExtents(xoffset, yoffset, zoffset, width, height, depth),
-                    pixels)
+                    tmp)
                 gt.updates.add(update)
             } else {
                 if (gt == null) {
@@ -423,7 +434,7 @@ class SceneryContext(val node: Volume) : GpuContext {
 
                 val update = TextureUpdate(
                     TextureExtents(xoffset, yoffset, zoffset, width, height, depth),
-                    pixels.duplicate().order(ByteOrder.LITTLE_ENDIAN))
+                    tmp)
 
                 gt.updates.add(update)
             }
