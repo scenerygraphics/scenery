@@ -1,6 +1,7 @@
 package graphics.scenery.tests.examples.bdv
 
 import cleargl.GLVector
+import com.jogamp.opengl.math.Quaternion
 import com.sun.javafx.application.PlatformImpl
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
@@ -55,9 +56,11 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
-            position = GLVector(-0.2f, 0.0f, 1.0f)
             perspectiveCamera(50.0f, 1.0f*windowWidth, 1.0f*windowHeight)
             active = true
+
+            position = GLVector(170.067406f, -138.45601f, -455.9538f)
+            rotation = Quaternion(-0.05395214f, 0.94574946f, -0.23843345f, 0.21400182f)
 
             scene.addChild(this)
         }
