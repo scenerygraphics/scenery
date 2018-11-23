@@ -2149,7 +2149,7 @@ open class OpenGLRenderer(hub: Hub,
                     val generateMipmaps = (type == "ambient" || type == "diffuse" || type == "specular")
                     if (texture.startsWith("fromBuffer:")) {
                         node.material.transferTextures[texture.substringAfter("fromBuffer:")]?.let {
-                            (_, dimensions, channels, type1, contents, repeatS, repeatT, repeatU, normalized, mipmap, updates) ->
+                            (_, dimensions, channels, type1, contents, repeatS, repeatT, repeatU, normalized, mipmap, minLinear, maxLinear, updates) ->
 
                             logger.debug("Dims of $texture: $dimensions, mipmaps=$generateMipmaps")
 

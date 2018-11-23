@@ -76,8 +76,6 @@ open class VulkanTexture(val device: VulkanDevice,
                 bufferImageCopy.bufferOffset(bufferOffset)
 
                 if(update != null) {
-                    logger.info("Update Extent: ${update.extents.w}x${update.extents.h}x${update.extents.d}")
-                    logger.info("Update Content size: ${update.contents.remaining()}")
                     bufferImageCopy.imageExtent().set(update.extents.w, update.extents.h, update.extents.d)
                     bufferImageCopy.imageOffset().set(update.extents.x, update.extents.y, update.extents.z)
                 } else {
@@ -170,8 +168,7 @@ open class VulkanTexture(val device: VulkanDevice,
     @Suppress("USELESS_ELVIS", "UNNECESSARY_SAFE_CALL")
     constructor(device: VulkanDevice,
                 commandPools: VulkanRenderer.CommandPools, queue: VkQueue, transferQueue: VkQueue,
-                genericTexture: GenericTexture, mipLevels: Int = 1,
-                minFilterLinear: Boolean = true, maxFilterLinear: Boolean = true) : this(device,
+                genericTexture: GenericTexture, mipLevels: Int = 1) : this(device,
         commandPools,
         queue,
         transferQueue,
@@ -179,7 +176,7 @@ open class VulkanTexture(val device: VulkanDevice,
         genericTexture.dimensions.y().toInt(),
         genericTexture.dimensions.z()?.toInt() ?: 1,
         genericTexture.toVulkanFormat(),
-        mipLevels, minFilterLinear, maxFilterLinear) {
+        mipLevels, genericTexture.minFilterLinear, genericTexture.maxFilterLinear) {
         gt = genericTexture
     }
 
@@ -351,7 +348,6 @@ open class VulkanTexture(val device: VulkanDevice,
                             genericTexture.updates.forEach { update ->
                                 if(!update.consumed) {
                                     val updateSize = update.contents.remaining()
-                                    logger.info("Update size: $updateSize")
                                     buffer.copyFrom(update.contents, offset)
                                     image.copyFrom(this, buffer, update, offset)
 
@@ -533,8 +529,8 @@ open class VulkanTexture(val device: VulkanDevice,
         val samplerInfo = VkSamplerCreateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO)
             .pNext(NULL)
-            .magFilter(if(minFilterLinear && !(depth > 1)) { VK_FILTER_LINEAR } else { VK_FILTER_LINEAR })
-            .minFilter(if(maxFilterLinear && !(depth > 1)) { VK_FILTER_LINEAR } else { VK_FILTER_LINEAR })
+            .magFilter(if(minFilterLinear) { VK_FILTER_LINEAR } else { VK_FILTER_NEAREST })
+            .minFilter(if(maxFilterLinear) { VK_FILTER_LINEAR } else { VK_FILTER_NEAREST })
             .mipmapMode(if(depth == 1) { VK_SAMPLER_MIPMAP_MODE_LINEAR } else { VK_SAMPLER_MIPMAP_MODE_NEAREST })
             .addressModeU(if(depth == 1) { VK_SAMPLER_ADDRESS_MODE_REPEAT } else { VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE })
             .addressModeV(if(depth == 1) { VK_SAMPLER_ADDRESS_MODE_REPEAT } else { VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE })
