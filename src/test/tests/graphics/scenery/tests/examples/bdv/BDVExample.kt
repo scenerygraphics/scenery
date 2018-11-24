@@ -67,7 +67,7 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
             scene.addChild(this)
         }
 
-        val v = BDVVolume(files.first(), maxGPUMemoryMB = 4096)
+        val v = BDVVolume(files.first(), maxGPUMemoryMB = 1024)
         v.name = "volume"
         v.colormap = "plasma"
         v.scale = GLVector(0.02f, 0.02f, 0.02f)
