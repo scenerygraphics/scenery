@@ -731,111 +731,117 @@ open class VulkanTexture(val device: VulkanDevice,
                              dstStage: VkPipelineStageFlags = VkPipelineStage.TOP_OF_PIPE_BIT.i,
                              commandBuffer: VkCommandBuffer) {
 
-            with(commandBuffer) {
-                val barrier = VkImageMemoryBarrier.calloc(1)
-                    .sType(VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER)
-                    .pNext(NULL)
-                    .oldLayout(oldLayout.i)
-                    .newLayout(newLayout.i)
-                    .srcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-                    .dstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
-                    .image(image.L)
+            val barrier = vk.ImageMemoryBarrier {
+                this.oldLayout = oldLayout
+                this.newLayout = newLayout
+                srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED
+                dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED
+                this.image = image
 
                 if (subresourceRange == null) {
-                    barrier.subresourceRange()
-                        .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
-                        .baseMipLevel(0)
-                        .levelCount(mipLevels)
-                        .baseArrayLayer(0)
-                        .layerCount(1)
+                    this.subresourceRange.apply {
+                        aspectMask = VkImageAspect.COLOR_BIT.i
+                        baseMipLevel = 0
+                        levelCount(mipLevels)
+                        baseArrayLayer(0)
+                        layerCount = 1
+                    }
                 } else {
-                    barrier.subresourceRange(subresourceRange)
+                    this.subresourceRange = subresourceRange
                 }
 
-                if (oldLayout == VkImageLayout.PREINITIALIZED && newLayout == VkImageLayout.TRANSFER_SRC_OPTIMAL) {
-                    barrier
-                        .srcAccessMask(VK_ACCESS_HOST_WRITE_BIT)
-                        .dstAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
-                } else if (oldLayout == VkImageLayout.PREINITIALIZED && newLayout == VkImageLayout.TRANSFER_DST_OPTIMAL) {
-                    barrier
-                        .srcAccessMask(VK_ACCESS_HOST_WRITE_BIT)
-                        .dstAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
-                } else if (oldLayout == VkImageLayout.TRANSFER_DST_OPTIMAL && newLayout == VkImageLayout.SHADER_READ_ONLY_OPTIMAL) {
-                    barrier
-                        .srcAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
-                        .dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
-                } else if (oldLayout == VkImageLayout.UNDEFINED && newLayout == VkImageLayout.TRANSFER_DST_OPTIMAL) {
-                    barrier
-                        .srcAccessMask(0)
-                        .dstAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
-                } else if (oldLayout == VkImageLayout.TRANSFER_DST_OPTIMAL && newLayout == VkImageLayout.TRANSFER_SRC_OPTIMAL) {
-                    barrier.srcAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
-                    barrier.dstAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
-                } else if (oldLayout == VkImageLayout.TRANSFER_SRC_OPTIMAL && newLayout == VkImageLayout.SHADER_READ_ONLY_OPTIMAL) {
-                    barrier
-                        .srcAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
-                        .dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
-                } else if (oldLayout == VkImageLayout.PRESENT_SRC_KHR && newLayout == VkImageLayout.TRANSFER_SRC_OPTIMAL) {
-                    barrier
-                        .srcAccessMask(VK_ACCESS_MEMORY_READ_BIT)
-                        .dstAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
-                } else if (oldLayout == VkImageLayout.TRANSFER_SRC_OPTIMAL && newLayout == VkImageLayout.PRESENT_SRC_KHR) {
-                    barrier
-                        .srcAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
-                        .dstAccessMask(VK_ACCESS_MEMORY_READ_BIT)
-                } else if (oldLayout == VkImageLayout.UNDEFINED && newLayout == VkImageLayout.SHADER_READ_ONLY_OPTIMAL) {
-                    barrier
-                        .srcAccessMask(0)
-                        .dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
-                } else if (oldLayout == VkImageLayout.SHADER_READ_ONLY_OPTIMAL && newLayout == VkImageLayout.TRANSFER_SRC_OPTIMAL) {
-                    barrier.srcAccessMask(VK_ACCESS_SHADER_READ_BIT)
-                        .dstAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
-                } else if (oldLayout == VkImageLayout.TRANSFER_SRC_OPTIMAL && newLayout == VkImageLayout.SHADER_READ_ONLY_OPTIMAL) {
-                    barrier.srcAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
-                        .dstAccessMask(VK_ACCESS_SHADER_READ_BIT)
-                } else if (oldLayout == VkImageLayout.COLOR_ATTACHMENT_OPTIMAL && newLayout == VkImageLayout.TRANSFER_DST_OPTIMAL) {
-                    barrier.srcAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
-                        .dstAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
-                } else if (oldLayout == VkImageLayout.TRANSFER_DST_OPTIMAL && newLayout == VkImageLayout.COLOR_ATTACHMENT_OPTIMAL) {
-                    barrier.srcAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
-                        .dstAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
-                } else if (oldLayout == VkImageLayout.COLOR_ATTACHMENT_OPTIMAL && newLayout == VkImageLayout.TRANSFER_SRC_OPTIMAL) {
-                    barrier.srcAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
-                        .dstAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
-                } else if (oldLayout == VkImageLayout.TRANSFER_SRC_OPTIMAL && newLayout == VkImageLayout.COLOR_ATTACHMENT_OPTIMAL) {
-                    barrier.srcAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
-                        .dstAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
-                } else if (oldLayout == VkImageLayout.SHADER_READ_ONLY_OPTIMAL && newLayout == VkImageLayout.TRANSFER_DST_OPTIMAL) {
-                    barrier.srcAccessMask(VK_ACCESS_INPUT_ATTACHMENT_READ_BIT)
-                        .dstAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
-                } else if (oldLayout == VkImageLayout.TRANSFER_DST_OPTIMAL && newLayout == VkImageLayout.DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
-                    barrier.srcAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
-                        .dstAccessMask(VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT)
-                } else if (oldLayout == VkImageLayout.TRANSFER_SRC_OPTIMAL && newLayout == VkImageLayout.DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
-                    barrier.srcAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
-                        .dstAccessMask(VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT)
-                } else if (oldLayout == VkImageLayout.PRESENT_SRC_KHR && newLayout == VkImageLayout.TRANSFER_SRC_OPTIMAL) {
-                    barrier.srcAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
-                        .dstAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
-                } else if (oldLayout == VkImageLayout.TRANSFER_SRC_OPTIMAL && newLayout == VkImageLayout.PRESENT_SRC_KHR) {
-                    barrier.srcAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
-                        .dstAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
-                } else if (oldLayout == VkImageLayout.UNDEFINED && newLayout == VkImageLayout.COLOR_ATTACHMENT_OPTIMAL) {
-                    barrier.srcAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
-                        .dstAccessMask(VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
-                } else {
-                    logger.error("Unsupported layout transition: $oldLayout -> $newLayout")
+                when {
+                    oldLayout == VkImageLayout.PREINITIALIZED && newLayout == VkImageLayout.TRANSFER_SRC_OPTIMAL -> {
+                        srcAccessMask = VkAccess.HOST_WRITE_BIT.i
+                        dstAccessMask = VkAccess.TRANSFER_READ_BIT.i
+                    }
+                    oldLayout == VkImageLayout.PREINITIALIZED && newLayout == VkImageLayout.TRANSFER_DST_OPTIMAL -> {
+                        srcAccessMask = VkAccess.HOST_WRITE_BIT.i
+                        dstAccessMask = VkAccess.TRANSFER_WRITE_BIT.i
+                    }
+                    oldLayout == VkImageLayout.TRANSFER_DST_OPTIMAL && newLayout == VkImageLayout.SHADER_READ_ONLY_OPTIMAL -> {
+                        srcAccessMask = VkAccess.TRANSFER_WRITE_BIT.i
+                        dstAccessMask = VkAccess.SHADER_READ_BIT.i
+                    }
+                    oldLayout == VkImageLayout.UNDEFINED && newLayout == VkImageLayout.TRANSFER_DST_OPTIMAL -> {
+                        srcAccessMask = 0
+                        dstAccessMask = VkAccess.TRANSFER_WRITE_BIT.i
+                    }
+                    oldLayout == VkImageLayout.TRANSFER_DST_OPTIMAL && newLayout == VkImageLayout.TRANSFER_SRC_OPTIMAL -> {
+                        srcAccessMask = VkAccess.TRANSFER_WRITE_BIT.i
+                        dstAccessMask = VkAccess.TRANSFER_READ_BIT.i
+                    }
+                    oldLayout == VkImageLayout.TRANSFER_SRC_OPTIMAL && newLayout == VkImageLayout.SHADER_READ_ONLY_OPTIMAL -> {
+                        srcAccessMask = VkAccess.TRANSFER_READ_BIT.i
+                        dstAccessMask = VkAccess.SHADER_READ_BIT.i
+                    }
+                    oldLayout == VkImageLayout.PRESENT_SRC_KHR && newLayout == VkImageLayout.TRANSFER_SRC_OPTIMAL -> {
+                        srcAccessMask = VkAccess.MEMORY_READ_BIT.i
+                        dstAccessMask = VkAccess.TRANSFER_READ_BIT.i
+                    }
+                    oldLayout == VkImageLayout.TRANSFER_SRC_OPTIMAL && newLayout == VkImageLayout.PRESENT_SRC_KHR -> {
+                        srcAccessMask = VkAccess.TRANSFER_READ_BIT.i
+                        dstAccessMask = VkAccess.MEMORY_READ_BIT.i
+                    }
+                    oldLayout == VkImageLayout.UNDEFINED && newLayout == VkImageLayout.SHADER_READ_ONLY_OPTIMAL -> {
+                        srcAccessMask = 0
+                        dstAccessMask = VkAccess.SHADER_READ_BIT.i
+                    }
+                    oldLayout == VkImageLayout.SHADER_READ_ONLY_OPTIMAL && newLayout == VkImageLayout.TRANSFER_SRC_OPTIMAL -> {
+                        srcAccessMask = VkAccess.SHADER_READ_BIT.i
+                        dstAccessMask = VkAccess.TRANSFER_READ_BIT.i
+                    }
+                    oldLayout == VkImageLayout.TRANSFER_SRC_OPTIMAL && newLayout == VkImageLayout.SHADER_READ_ONLY_OPTIMAL -> {
+                        srcAccessMask = VkAccess.TRANSFER_READ_BIT.i
+                        dstAccessMask = VkAccess.SHADER_READ_BIT.i
+                    }
+                    oldLayout == VkImageLayout.COLOR_ATTACHMENT_OPTIMAL && newLayout == VkImageLayout.TRANSFER_DST_OPTIMAL -> {
+                        srcAccessMask = VkAccess.COLOR_ATTACHMENT_WRITE_BIT.i
+                        dstAccessMask = VkAccess.TRANSFER_WRITE_BIT.i
+                    }
+                    oldLayout == VkImageLayout.TRANSFER_DST_OPTIMAL && newLayout == VkImageLayout.COLOR_ATTACHMENT_OPTIMAL -> {
+                        srcAccessMask = VkAccess.TRANSFER_WRITE_BIT.i
+                        dstAccessMask = VkAccess.COLOR_ATTACHMENT_WRITE_BIT.i
+                    }
+                    oldLayout == VkImageLayout.COLOR_ATTACHMENT_OPTIMAL && newLayout == VkImageLayout.TRANSFER_SRC_OPTIMAL -> {
+                        srcAccessMask = VkAccess.COLOR_ATTACHMENT_WRITE_BIT.i
+                        dstAccessMask = VkAccess.TRANSFER_READ_BIT.i
+                    }
+                    oldLayout == VkImageLayout.TRANSFER_SRC_OPTIMAL && newLayout == VkImageLayout.COLOR_ATTACHMENT_OPTIMAL -> {
+                        srcAccessMask = VkAccess.TRANSFER_READ_BIT.i
+                        dstAccessMask = VkAccess.COLOR_ATTACHMENT_WRITE_BIT.i
+                    }
+                    oldLayout == VkImageLayout.SHADER_READ_ONLY_OPTIMAL && newLayout == VkImageLayout.TRANSFER_DST_OPTIMAL -> {
+                        srcAccessMask = VkAccess.INPUT_ATTACHMENT_READ_BIT.i
+                        dstAccessMask = VkAccess.TRANSFER_WRITE_BIT.i
+                    }
+                    oldLayout == VkImageLayout.TRANSFER_DST_OPTIMAL && newLayout == VkImageLayout.DEPTH_STENCIL_ATTACHMENT_OPTIMAL -> {
+                        srcAccessMask = VkAccess.TRANSFER_WRITE_BIT.i
+                        dstAccessMask = VkAccess.DEPTH_STENCIL_ATTACHMENT_WRITE_BIT.i
+                    }
+                    oldLayout == VkImageLayout.TRANSFER_SRC_OPTIMAL && newLayout == VkImageLayout.DEPTH_STENCIL_ATTACHMENT_OPTIMAL -> {
+                        srcAccessMask = VkAccess.TRANSFER_READ_BIT.i
+                        dstAccessMask = VkAccess.DEPTH_STENCIL_ATTACHMENT_WRITE_BIT.i
+                    }
+                    oldLayout == VkImageLayout.PRESENT_SRC_KHR && newLayout == VkImageLayout.TRANSFER_SRC_OPTIMAL -> {
+                        srcAccessMask = VkAccess.COLOR_ATTACHMENT_WRITE_BIT.i
+                        dstAccessMask = VkAccess.TRANSFER_READ_BIT.i
+                    }
+                    oldLayout == VkImageLayout.TRANSFER_SRC_OPTIMAL && newLayout == VkImageLayout.PRESENT_SRC_KHR -> {
+                        srcAccessMask = VkAccess.TRANSFER_READ_BIT.i
+                        dstAccessMask = VkAccess.COLOR_ATTACHMENT_WRITE_BIT.i
+                    }
+                    oldLayout == VkImageLayout.UNDEFINED && newLayout == VkImageLayout.COLOR_ATTACHMENT_OPTIMAL -> {
+                        srcAccessMask = VkAccess.TRANSFER_WRITE_BIT.i
+                        dstAccessMask = VkAccess.COLOR_ATTACHMENT_WRITE_BIT.i
+                    }
+                    else -> logger.error("Unsupported layout transition: $oldLayout -> $newLayout")
                 }
-
-                logger.trace("Transition: {} -> {} with srcAccessMark={}, dstAccessMask={}, srcStage={}, dstStage={}", oldLayout, newLayout, barrier.srcAccessMask(), barrier.dstAccessMask(), srcStage, dstStage)
-
-                vkCmdPipelineBarrier(this,
-                    srcStage,
-                    dstStage,
-                    0, null, null, barrier)
-
-                barrier.free()
             }
+
+            logger.trace("Transition: {} -> {} with srcAccessMark={}, dstAccessMask={}, srcStage={}, dstStage={}", oldLayout, newLayout, barrier.srcAccessMask, barrier.dstAccessMask, srcStage, dstStage)
+
+            commandBuffer.pipelineBarrier(srcStage, dstStage, imageMemoryBarrier = barrier)
         }
 
         private fun GenericTexture.toVulkanFormat(): VkFormat {
