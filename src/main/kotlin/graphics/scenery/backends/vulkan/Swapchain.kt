@@ -4,10 +4,7 @@ import graphics.scenery.Hub
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.utils.SceneryPanel
 import vkk.VkFormat
-import vkk.`object`.VkImageArray
-import vkk.`object`.VkImageViewArray
-import vkk.`object`.VkSemaphore
-import vkk.`object`.VkSemaphoreBuffer
+import vkk.`object`.*
 import java.nio.LongBuffer
 
 /**
@@ -16,7 +13,7 @@ import java.nio.LongBuffer
  * @author Ulrik Günther <hello@ulrik.is>
  */
 interface Swapchain : AutoCloseable {
-    var handle: Long
+    var handle: VkSwapchainKHR
     var images: VkImageArray
     var imageViews: VkImageViewArray
 

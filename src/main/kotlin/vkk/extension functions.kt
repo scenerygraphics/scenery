@@ -188,6 +188,7 @@ fun VkCommandBuffer.writeTimestamp(pipelineStage: VkPipelineStageFlags, queryPoo
 // VkDevice ========================================================================================================
 
 fun VkDevice.acquireNextImageKHR(swapchain: VkSwapchainKHR, timeout: Long, semaphore: VkSemaphore, fence: VkFence = VkFence(NULL)): Int = stak.intAddress { VK_CHECK_RESULT(KHRSwapchain.nvkAcquireNextImageKHR(this, swapchain.L, timeout, semaphore.L, fence.L, it)) }
+fun VkDevice.acquireNextImageKHR(swapchain: VkSwapchainKHR, timeout: Long, semaphore: VkSemaphore, fence: VkFence = VkFence(NULL), block: (VkResult) -> Unit): Int = stak.intAddress { block(VkResult(KHRSwapchain.nvkAcquireNextImageKHR(this, swapchain.L, timeout, semaphore.L, fence.L, it))) }
 
 infix fun VkDevice.allocateCommandBuffer(allocateInfo: VkCommandBufferAllocateInfo): VkCommandBuffer = VkCommandBuffer(stak.pointerAddress { VK_CHECK_RESULT(VK10.nvkAllocateCommandBuffers(this, allocateInfo.adr, it)) }, this)
 
@@ -520,6 +521,7 @@ infix fun VkPhysicalDevice.getSurfacePresentModesKHR(surface: VkSurface): ArrayL
 // VkQueue =========================================================================================================
 
 infix fun VkQueue.presentKHR(presentInfo: VkPresentInfoKHR) = VK_CHECK_RESULT(KHRSwapchain.vkQueuePresentKHR(this, presentInfo))
+fun VkQueue.presentKHR(presentInfo: VkPresentInfoKHR, block: (VkResult) -> Unit) = block(VkResult(KHRSwapchain.vkQueuePresentKHR(this, presentInfo)))
 
 infix fun VkQueue.submit(submits: VkSubmitInfo) = VK_CHECK_RESULT(VK10.nvkQueueSubmit(this, 1, submits.adr, NULL))
 

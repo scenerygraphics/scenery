@@ -4,6 +4,7 @@ import glm_.L
 import graphics.scenery.Node
 import graphics.scenery.backends.UBO
 import kool.free
+import kool.pos
 import kool.rem
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.VK10.*
@@ -26,7 +27,7 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
     var descriptor = UBODescriptor()
         private set
     /** Offsets for this UBO, with respect to the backing buffer. */
-    var offsets: IntBuffer = memAllocInt(1).put(0, 0)
+    var offsets: IntBuffer = IntBuffer(1)
     private var closed = false
     private var ownedBackingBuffer: VulkanBuffer? = null
     private var stagingMemory: ByteBuffer? = null
@@ -40,9 +41,9 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
     class UBODescriptor {
         internal var memory = VkDeviceMemory(NULL)
         internal var allocationSize = VkDeviceSize(0)
-        internal var buffer = VkBuffer(0)
-        internal var offset: Long = 0
-        internal var range: Long = 0
+        internal var buffer = VkBuffer(NULL)
+        internal var offset = VkDeviceSize(0)
+        internal var range = VkDeviceSize(0)
     }
 
     protected fun copy(data: ByteBuffer, offset: VkDeviceSize = VkDeviceSize(0)) {
@@ -119,8 +120,8 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
             descriptor.memory = buffer.memory
             descriptor.allocationSize = buffer.size
             descriptor.buffer = buffer.vulkanBuffer
-            descriptor.offset = 0L
-            descriptor.range = this.getSize() * 1L
+            descriptor.offset = VkDeviceSize(0)
+            descriptor.range = VkDeviceSize(this.getSize().L)
 
             return descriptor
         }
@@ -136,8 +137,8 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
             descriptor.memory = buffer.memory
             descriptor.allocationSize = buffer.size
             descriptor.buffer = buffer.vulkanBuffer
-            descriptor.offset = 0L
-            descriptor.range = this.getSize() * 1L
+            descriptor.offset = VkDeviceSize(0)
+            descriptor.range = VkDeviceSize(this.getSize().L)
         }
 
         return descriptor
@@ -152,8 +153,8 @@ open class VulkanUBO(val device: VulkanDevice, var backingBuffer: VulkanBuffer? 
         descriptor.memory = newBackingBuffer.memory
         descriptor.allocationSize = newBackingBuffer.size
         descriptor.buffer = newBackingBuffer.vulkanBuffer
-        descriptor.offset = 0L
-        descriptor.range = this.getSize() * 1L
+        descriptor.offset = VkDeviceSize(0)
+        descriptor.range = VkDeviceSize(this.getSize().L)
 
         backingBuffer = newBackingBuffer
     }

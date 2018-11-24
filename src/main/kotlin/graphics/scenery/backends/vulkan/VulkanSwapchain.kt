@@ -1,16 +1,19 @@
 package graphics.scenery.backends.vulkan
 
+import glm_.set
 import graphics.scenery.Hub
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.SceneryPanel
 import kool.free
+import kool.rem
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.glfw.GLFWVulkan
 import org.lwjgl.glfw.GLFWWindowSizeCallback
 import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil
+import org.lwjgl.system.MemoryUtil.NULL
 import org.lwjgl.system.MemoryUtil.memFree
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.KHRSwapchain.VK_ERROR_OUT_OF_DATE_KHR
@@ -20,6 +23,7 @@ import vkk.`object`.*
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.util.*
+import kotlin.collections.ArrayList
 
 /**
  * GLFW-based default Vulkan Swapchain and window, residing on [device], associated with [queue].
@@ -40,7 +44,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
     protected val logger by LazyLogger()
 
     /** Swapchain handle. */
-    override var handle: Long = 0L
+    override var handle = VkSwapchainKHR(NULL)
     /** Array for rendered images. */
     override var images = VkImageArray()
     /** Array for image views. */
@@ -52,7 +56,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
     override var format = VkFormat.UNDEFINED
 
     /** Swapchain image. */
-    var swapchainImage: IntBuffer = MemoryUtil.memAllocInt(1)
+    var swapchainImage = 0
     /** Pointer to the current swapchain. */
     var swapchainPointer: LongBuffer = MemoryUtil.memAllocLong(1)
     /** Present info, allocated only once and reused. */
@@ -61,7 +65,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
     lateinit var presentQueue: VkQueue
 
     /** Surface of the window to render into. */
-    open var surface: Long = 0
+    open var surface = VkSurface(NULL)
     /** [SceneryWindow] instance we are using. */
     lateinit var window: SceneryWindow
     /** Callback to use upon window resizing. */
@@ -71,7 +75,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
     var lastResize = -1L
     private val WINDOW_RESIZE_TIMEOUT = 200 * 10e6
 
-    private val retiredSwapchains: Queue<Pair<VulkanDevice, Long>> = ArrayDeque()
+    private val retiredSwapchains: Queue<Pair<VulkanDevice, VkSwapchainKHR>> = ArrayDeque()
 
     /**
      * Data class for summarising [colorFormat] and [colorSpace] information.
@@ -79,6 +83,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
     data class ColorFormatAndSpace(var colorFormat: VkFormat = VkFormat.UNDEFINED, var colorSpace: VkColorSpace = VkColorSpace.SRGB_NONLINEAR_KHR)
 
     val vkDev get() = device.vulkanDevice
+    val phDev get() = device.physicalDevice
 
     /**
      * Creates a window for this swapchain, and initialiases [win] as [SceneryWindow.GLFWWindow].
@@ -99,8 +104,8 @@ open class VulkanSwapchain(open val device: VulkanDevice,
 
             glfwSetWindowPos(window, 100, 100)
 
-            surface = VU.getLong("glfwCreateWindowSurface",
-                { GLFWVulkan.glfwCreateWindowSurface(device.instance, window, null, this) }, {})
+            surface = VkSurface(VU.getLong("glfwCreateWindowSurface",
+                { GLFWVulkan.glfwCreateWindowSurface(device.instance, window, null, this) }, {}))
 
             // Handle canvas resize
             windowSizeCallback = object : GLFWWindowSizeCallback() {
@@ -133,14 +138,11 @@ open class VulkanSwapchain(open val device: VulkanDevice,
      * The preferred mode can be selected via [preferredMode]. Returns the preferred mode, or
      * VK_PRESENT_MODE_FIFO, if the preferred one is not supported.
      */
-    private fun findBestPresentMode(presentModes: IntBuffer, count: Int, preferredMode: Int): Int {
-        val modes = IntArray(count)
-        presentModes.get(modes)
-
-        return if (modes.contains(preferredMode)) {
+    private fun findBestPresentMode(presentModes: ArrayList<VkPresentMode>, preferredMode: VkPresentMode): VkPresentMode {
+        return if (preferredMode in presentModes) {
             preferredMode
         } else {
-            KHRSurface.VK_PRESENT_MODE_FIFO_KHR
+            VkPresentMode.FIFO_KHR
         }
     }
 
@@ -149,243 +151,195 @@ open class VulkanSwapchain(open val device: VulkanDevice,
      */
     override fun create(oldSwapchain: Swapchain?): Swapchain {
         presentedFrames = 0
-        return stackPush().use { stack ->
-            val colorFormatAndSpace = getColorFormatAndSpace()
-            val oldHandle = oldSwapchain?.handle
 
-            // Get physical device surface properties and formats
-            val surfCaps = VkSurfaceCapabilitiesKHR.callocStack(stack)
+        val colorFormatAndSpace = getColorFormatAndSpace()
+        val oldHandle = oldSwapchain?.handle
 
-            VU.run("Getting surface capabilities",
-                { KHRSurface.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device.physicalDevice, surface, surfCaps) })
+        // Get physical device surface properties and formats
+        val surfCaps = phDev getSurfaceCapabilitiesKHR surface
 
-            val presentModeCount = VU.getInts("Getting present mode count", 1
-            ) { KHRSurface.vkGetPhysicalDeviceSurfacePresentModesKHR(device.physicalDevice, surface, this, null) }
+        val presentModes = phDev getSurfacePresentModesKHR surface
 
-            val presentModes = VU.getInts("Getting present modes", presentModeCount.get(0)
-            ) { KHRSurface.vkGetPhysicalDeviceSurfacePresentModesKHR(device.physicalDevice, surface, presentModeCount, this) }
-
-            // use fifo mode (aka, vsynced) if requested,
-            // otherwise, use mailbox mode and present the most recently generated frame.
-            val preferredSwapchainPresentMode = if (vsync) {
-                KHRSurface.VK_PRESENT_MODE_FIFO_KHR
-            } else {
-                KHRSurface.VK_PRESENT_MODE_IMMEDIATE_KHR
-            }
-
-            val swapchainPresentMode = findBestPresentMode(presentModes,
-                presentModeCount.get(0),
-                preferredSwapchainPresentMode)
-
-            // Determine the number of images
-            var desiredNumberOfSwapchainImages = surfCaps.minImageCount() + 1
-            if (surfCaps.maxImageCount() in 1..(desiredNumberOfSwapchainImages - 1)) {
-                desiredNumberOfSwapchainImages = surfCaps.maxImageCount()
-            }
-
-            val currentWidth = surfCaps.currentExtent().width()
-            val currentHeight = surfCaps.currentExtent().height()
-
-            if (currentWidth > 0 && currentHeight > 0) {
-                window.width = currentWidth
-                window.height = currentHeight
-            } else {
-                // TODO: Better default values
-                window.width = 1920
-                window.height = 1200
-            }
-
-            val preTransform = if (surfCaps.supportedTransforms() and KHRSurface.VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR != 0) {
-                KHRSurface.VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR
-            } else {
-                surfCaps.currentTransform()
-            }
-
-            val swapchainCI = VkSwapchainCreateInfoKHR.callocStack(stack)
-                .sType(KHRSwapchain.VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR)
-                .pNext(MemoryUtil.NULL)
-                .surface(surface)
-                .minImageCount(desiredNumberOfSwapchainImages)
-                .imageFormat(colorFormatAndSpace.colorFormat.i)
-                .imageColorSpace(colorFormatAndSpace.colorSpace.i)
-                .imageUsage(VK10.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT or VK10.VK_IMAGE_USAGE_TRANSFER_SRC_BIT)
-                .preTransform(preTransform)
-                .imageArrayLayers(1)
-                .imageSharingMode(VK10.VK_SHARING_MODE_EXCLUSIVE)
-                .pQueueFamilyIndices(null)
-                .presentMode(swapchainPresentMode)
-                .clipped(true)
-                .compositeAlpha(KHRSurface.VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR)
-
-            if ((oldSwapchain is VulkanSwapchain || oldSwapchain is FXSwapchain) && oldHandle != null) {
-                swapchainCI.oldSwapchain(oldHandle)
-            }
-
-            swapchainCI.imageExtent().width(window.width).height(window.height)
-
-            handle = VU.getLong("Creating swapchain",
-                { KHRSwapchain.vkCreateSwapchainKHR(device.vulkanDevice, swapchainCI, null, this) }, {})
-
-            // If we just re-created an existing swapchain, we should destroy the old swapchain at this point.
-            // Note: destroying the swapchain also cleans up all its associated presentable images once the platform is done with them.
-            if (oldSwapchain is VulkanSwapchain && oldHandle != null && oldHandle != VK10.VK_NULL_HANDLE) {
-                // TODO: Figure out why deleting a retired swapchain crashes on Nvidia
-//                KHRSwapchain.vkDestroySwapchainKHR(device.vulkanDevice, oldHandle, null)
-                retiredSwapchains.add(device to oldHandle)
-            }
-
-            val imageCount = VU.getInts("Getting swapchain images", 1,
-                { KHRSwapchain.vkGetSwapchainImagesKHR(device.vulkanDevice, handle, this, null) })
-
-            logger.debug("Got ${imageCount.get(0)} swapchain images")
-
-            val swapchainImages = VU.getLongs("Getting swapchain images", imageCount.get(0),
-                { KHRSwapchain.vkGetSwapchainImagesKHR(device.vulkanDevice, handle, imageCount, this) }, {})
-
-            val images = VkImageArray(LongArray(imageCount.get(0)))
-            val imageViews = LongArray(imageCount.get(0))
-            val colorAttachmentView = VkImageViewCreateInfo.callocStack(stack)
-                .sType(VK10.VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO)
-                .pNext(MemoryUtil.NULL)
-                .format(colorFormatAndSpace.colorFormat.i)
-                .viewType(VK10.VK_IMAGE_VIEW_TYPE_2D)
-                .flags(0)
-
-            colorAttachmentView.components()
-                .r(VK10.VK_COMPONENT_SWIZZLE_R)
-                .g(VK10.VK_COMPONENT_SWIZZLE_G)
-                .b(VK10.VK_COMPONENT_SWIZZLE_B)
-                .a(VK10.VK_COMPONENT_SWIZZLE_A)
-
-            colorAttachmentView.subresourceRange()
-                .aspectMask(VK10.VK_IMAGE_ASPECT_COLOR_BIT)
-                .baseMipLevel(0)
-                .levelCount(1)
-                .baseArrayLayer(0)
-                .layerCount(1)
-
-            vkDev.newCommandBuffer(commandPools.Standard)
-                .record {
-                    for (i in 0 until imageCount[0]) {
-                        images[i] = VkImage(swapchainImages[i])
-
-                        VU.setImageLayout(this, images[i],
-                            aspectMask = VK10.VK_IMAGE_ASPECT_COLOR_BIT,
-                            oldImageLayout = VkImageLayout.UNDEFINED,
-                            newImageLayout = VkImageLayout.PRESENT_SRC_KHR)
-                        colorAttachmentView.image(images[i].L)
-
-                        imageViews[i] = (vkDev createImageView colorAttachmentView).L
-                    }
-                }
-                .submit(queue)
-                .deallocate()
-
-            this.images = images
-            this.imageViews = VkImageViewArray(imageViews)
-            this.format = colorFormatAndSpace.colorFormat
-
-            swapchainImages.free()
-            imageCount.free()
-            presentModeCount.free()
-            presentModes.free()
-
-            this
+        // use fifo mode (aka, vsynced) if requested,
+        // otherwise, use mailbox mode and present the most recently generated frame.
+        val preferredSwapchainPresentMode = when {
+            vsync -> VkPresentMode.FIFO_KHR
+            else -> VkPresentMode.IMMEDIATE_KHR
         }
+
+        val swapchainPresentMode = findBestPresentMode(presentModes, preferredSwapchainPresentMode)
+
+        // Determine the number of images
+        var desiredNumberOfSwapchainImages = surfCaps.minImageCount + 1
+        if (surfCaps.maxImageCount in 1 until desiredNumberOfSwapchainImages) {
+            desiredNumberOfSwapchainImages = surfCaps.maxImageCount
+        }
+
+        val currentWidth = surfCaps.currentExtent.width
+        val currentHeight = surfCaps.currentExtent.height
+
+        if (currentWidth > 0 && currentHeight > 0) {
+            window.width = currentWidth
+            window.height = currentHeight
+        } else {
+            // TODO: Better default values
+            window.width = 1920
+            window.height = 1200
+        }
+
+        val preTransform = if (surfCaps.supportedTransforms has VkSurfaceTransform.IDENTITY_BIT_KHR) {
+            VkSurfaceTransform.IDENTITY_BIT_KHR
+        } else {
+            surfCaps.currentTransform
+        }
+
+        val swapchainCI = vk.SwapchainCreateInfoKHR {
+            surface = this@VulkanSwapchain.surface
+            minImageCount = desiredNumberOfSwapchainImages
+            imageFormat = colorFormatAndSpace.colorFormat
+            imageColorSpace = colorFormatAndSpace.colorSpace
+            imageUsage = VkImageUsage.COLOR_ATTACHMENT_BIT or VkImageUsage.TRANSFER_SRC_BIT
+            this.preTransform = preTransform
+            imageArrayLayers = 1
+            imageSharingMode = VkSharingMode.EXCLUSIVE
+            presentMode = swapchainPresentMode
+            clipped = true
+            compositeAlpha = VkCompositeAlpha.OPAQUE_BIT_KHR
+            if (oldSwapchain is VulkanSwapchain || oldSwapchain is FXSwapchain) {
+                oldHandle?.let { this.oldSwapchain = oldHandle }
+            }
+            imageExtent.width(window.width).height(window.height)
+        }
+        handle = vkDev createSwapchainKHR swapchainCI
+
+        // If we just re-created an existing swapchain, we should destroy the old swapchain at this point.
+        // Note: destroying the swapchain also cleans up all its associated presentable images once the platform is done with them.
+        if (oldSwapchain is VulkanSwapchain && oldHandle?.isValid == true) {
+            // TODO: Figure out why deleting a retired swapchain crashes on Nvidia
+//                KHRSwapchain.vkDestroySwapchainKHR(device.vulkanDevice, oldHandle, null)
+            retiredSwapchains += device to oldHandle
+        }
+
+        val swapchainImages = vkDev getSwapchainImagesKHR handle
+
+        val images = VkImageArray(swapchainImages.size)
+        val imageViews = VkImageViewArray(swapchainImages.size)
+        val colorAttachmentView = vk.ImageViewCreateInfo {
+            format = colorFormatAndSpace.colorFormat
+            viewType = VkImageViewType.`2D`
+            components.apply {
+                r = VkComponentSwizzle.R
+                g = VkComponentSwizzle.G
+                b = VkComponentSwizzle.B
+                a = VkComponentSwizzle.A
+            }
+            subresourceRange.apply {
+                aspectMask = VkImageAspect.COLOR_BIT.i
+                baseMipLevel = 0
+                levelCount = 1
+                baseArrayLayer = 0
+                layerCount = 1
+            }
+        }
+
+        vkDev.newCommandBuffer(commandPools.Standard)
+            .record {
+                for (i in swapchainImages.indices) {
+                    images[i] = swapchainImages[i]
+
+                    setImageLayout(images[i],
+                        aspectMask = VkImageAspect.COLOR_BIT.i,
+                        oldImageLayout = VkImageLayout.UNDEFINED,
+                        newImageLayout = VkImageLayout.PRESENT_SRC_KHR)
+                    colorAttachmentView.image = images[i]
+
+                    imageViews[i] = vkDev createImageView colorAttachmentView
+                }
+            }
+            .submit(queue)
+            .deallocate()
+
+        this.images = images
+        this.imageViews = imageViews
+        this.format = colorFormatAndSpace.colorFormat
+
+        return this
     }
 
     /**
      * Returns the [ColorFormatAndSpace] supported by the [device].
      */
     protected fun getColorFormatAndSpace(): ColorFormatAndSpace {
-        return stackPush().use { stack ->
-            val queueFamilyPropertyCount = stack.callocInt(1)
-            VK10.vkGetPhysicalDeviceQueueFamilyProperties(device.physicalDevice, queueFamilyPropertyCount, null)
 
-            val queueCount = queueFamilyPropertyCount.get(0)
-            val queueProps = VkQueueFamilyProperties.callocStack(queueCount, stack)
-            VK10.vkGetPhysicalDeviceQueueFamilyProperties(device.physicalDevice, queueFamilyPropertyCount, queueProps)
+        val queueProps = phDev.queueFamilyProperties
 
-            // Iterate over each queue to learn whether it supports presenting:
-            val supportsPresent = (0 until queueCount).map {
-                VU.getInt("Physical device surface support",
-                    { KHRSurface.vkGetPhysicalDeviceSurfaceSupportKHR(device.physicalDevice, it, surface, this) })
-            }
+        // Iterate over each queue to learn whether it supports presenting:
+        val supportsPresent = phDev.getSurfaceSupportKHR(queueProps, surface)
 
-            // Search for a graphics and a present queue in the array of queue families, try to find one that supports both
-            var graphicsQueueNodeIndex = Integer.MAX_VALUE
-            var presentQueueNodeIndex = Integer.MAX_VALUE
+        // Search for a graphics and a present queue in the array of queue families, try to find one that supports both
+        var graphicsQueueNodeIndex = Integer.MAX_VALUE
+        var presentQueueNodeIndex = Integer.MAX_VALUE
 
-            for (i in 0 until queueCount) {
-                if (queueProps.get(i).queueFlags() and VK10.VK_QUEUE_GRAPHICS_BIT != 0) {
-                    if (graphicsQueueNodeIndex == Integer.MAX_VALUE) {
-                        graphicsQueueNodeIndex = i
-                    }
-                    if (supportsPresent[i] == VK10.VK_TRUE) {
-                        graphicsQueueNodeIndex = i
-                        presentQueueNodeIndex = i
-                        break
-                    }
+        for (i in queueProps.indices) {
+            if (queueProps[i].queueFlags has VkQueueFlag.GRAPHICS_BIT) {
+                if (graphicsQueueNodeIndex == Integer.MAX_VALUE) {
+                    graphicsQueueNodeIndex = i
+                }
+                if (supportsPresent[i]) {
+                    graphicsQueueNodeIndex = i
+                    presentQueueNodeIndex = i
+                    break
                 }
             }
-
-            if (presentQueueNodeIndex == Integer.MAX_VALUE) {
-                // If there's no queue that supports both present and graphics try to find a separate present queue
-                for (i in 0 until queueCount) {
-                    if (supportsPresent[i] == VK10.VK_TRUE) {
-                        presentQueueNodeIndex = i
-                        break
-                    }
-                }
-            }
-
-            // Generate error if could not find both a graphics and a present queue
-            if (graphicsQueueNodeIndex == Integer.MAX_VALUE) {
-                throw RuntimeException("No graphics queue found")
-            }
-            if (presentQueueNodeIndex == Integer.MAX_VALUE) {
-                throw RuntimeException("No presentation queue found")
-            }
-            if (graphicsQueueNodeIndex != presentQueueNodeIndex) {
-                throw RuntimeException("Presentation queue != graphics queue")
-            }
-
-            presentQueue = VkQueue(VU.getPointer("Get present queue",
-                { VK10.vkGetDeviceQueue(device.vulkanDevice, presentQueueNodeIndex, 0, this); VK10.VK_SUCCESS }, {}),
-                device.vulkanDevice)
-
-            // Get list of supported formats
-            val formatCount = VU.getInts("Getting supported surface formats", 1,
-                { KHRSurface.vkGetPhysicalDeviceSurfaceFormatsKHR(device.physicalDevice, surface, this, null) })
-
-            val surfFormats = VkSurfaceFormatKHR.callocStack(formatCount.get(0), stack)
-            VU.run("Query device physical surface formats",
-                { KHRSurface.vkGetPhysicalDeviceSurfaceFormatsKHR(device.physicalDevice, surface, formatCount, surfFormats) })
-
-            val colorFormat = if (formatCount.get(0) == 1 && surfFormats.get(0).format() == VK10.VK_FORMAT_UNDEFINED) {
-                if (useSRGB) {
-                    VkFormat.B8G8R8A8_SRGB
-                } else {
-                    VkFormat.B8G8R8A8_UNORM
-                }
-            } else {
-                if (useSRGB) {
-                    VkFormat.B8G8R8A8_SRGB
-                } else {
-                    VkFormat.B8G8R8A8_UNORM
-                }
-            }
-
-            val colorSpace = if (useSRGB) {
-                VkColorSpace.SRGB_NONLINEAR_KHR
-            } else {
-                surfFormats.get(0).colorSpace
-            }
-
-            formatCount.free()
-
-            ColorFormatAndSpace(colorFormat, colorSpace)
         }
+
+        if (presentQueueNodeIndex == Integer.MAX_VALUE) {
+            // If there's no queue that supports both present and graphics try to find a separate present queue
+            for (i in queueProps.indices) {
+                if (supportsPresent[i]) {
+                    presentQueueNodeIndex = i
+                    break
+                }
+            }
+        }
+
+        // Generate error if could not find both a graphics and a present queue
+        if (graphicsQueueNodeIndex == Integer.MAX_VALUE) {
+            throw RuntimeException("No graphics queue found")
+        }
+        if (presentQueueNodeIndex == Integer.MAX_VALUE) {
+            throw RuntimeException("No presentation queue found")
+        }
+        if (graphicsQueueNodeIndex != presentQueueNodeIndex) {
+            throw RuntimeException("Presentation queue != graphics queue")
+        }
+
+        presentQueue = vkDev.getQueue(presentQueueNodeIndex, 0)
+
+        // Get list of supported formats
+        val surfFormats = phDev getSurfaceFormatsKHR surface
+
+        val colorFormat = if (surfFormats.size == 1 && surfFormats[0].format == VkFormat.UNDEFINED) {
+            if (useSRGB) {
+                VkFormat.B8G8R8A8_SRGB
+            } else {
+                VkFormat.B8G8R8A8_UNORM
+            }
+        } else {
+            if (useSRGB) {
+                VkFormat.B8G8R8A8_SRGB
+            } else {
+                VkFormat.B8G8R8A8_UNORM
+            }
+        }
+
+        val colorSpace = if (useSRGB) {
+            VkColorSpace.SRGB_NONLINEAR_KHR
+        } else {
+            surfFormats[0].colorSpace
+        }
+
+        return ColorFormatAndSpace(colorFormat, colorSpace)
     }
 
     /**
@@ -394,24 +348,25 @@ open class VulkanSwapchain(open val device: VulkanDevice,
     override fun present(waitForSemaphores: VkSemaphoreBuffer?) {
         // Present the current buffer to the swap chain
         // This will display the image
-        swapchainPointer.put(0, handle)
+        swapchainPointer[0] = handle.L
 
         // Info struct to present the current swapchain image to the display
-        presentInfo
-            .sType(KHRSwapchain.VK_STRUCTURE_TYPE_PRESENT_INFO_KHR)
-            .pNext(MemoryUtil.NULL)
-            .swapchainCount(swapchainPointer.remaining())
-            .pSwapchains(swapchainPointer)
-            .pImageIndices(swapchainImage)
-            .pResults(null)
-
+        presentInfo.apply {
+            type = VkStructureType.PRESENT_INFO_KHR
+            next = NULL
+            swapchainCount = swapchainPointer.rem
+            swapchains = swapchainPointer
+            imageIndex = swapchainImage
+            results = null
+        }
         waitForSemaphores?.let { presentInfo.waitSemaphores = it }
 
         // here we accept the VK_ERROR_OUT_OF_DATE_KHR error code, which
         // seems to spuriously occur on Linux upon resizing.
-        VU.run("Presenting swapchain image",
-            { KHRSwapchain.vkQueuePresentKHR(presentQueue, presentInfo) },
-            allowedResults = listOf(VK_ERROR_OUT_OF_DATE_KHR))
+        presentQueue.presentKHR(presentInfo) {
+            if (it != SUCCESS && it != ERROR_OUT_OF_DATE_KHR)
+                throw Error()
+        }
 
         presentedFrames++
     }
@@ -422,7 +377,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
     override fun postPresent(image: Int) {
         while (retiredSwapchains.isNotEmpty()) {
             retiredSwapchains.poll()?.let {
-                KHRSwapchain.vkDestroySwapchainKHR(it.first.vulkanDevice, it.second, null)
+                it.first.vulkanDevice destroySwapchainKHR it.second
             }
         }
     }
@@ -433,19 +388,17 @@ open class VulkanSwapchain(open val device: VulkanDevice,
     override fun next(timeout: Long, signalSemaphore: VkSemaphore): Boolean {
         // wait for the present queue to become idle - by doing this here
         // we avoid stalling the GPU and gain a few FPS
-        VK10.vkQueueWaitIdle(presentQueue)
+        presentQueue.waitIdle()
 
-        val err = vkAcquireNextImageKHR(device.vulkanDevice, handle, timeout,
-            signalSemaphore.L,
-            VK10.VK_NULL_HANDLE, swapchainImage)
-
-        if (err == KHRSwapchain.VK_ERROR_OUT_OF_DATE_KHR || err == KHRSwapchain.VK_SUBOPTIMAL_KHR) {
-            return true
-        } else if (err != VK10.VK_SUCCESS) {
-            throw AssertionError("Failed to acquire next swapchain image: " + VU.translate(err))
+        var result = false
+        swapchainImage = vkDev.acquireNextImageKHR(handle, timeout, signalSemaphore) {
+            if (it == ERROR_OUT_OF_DATE_KHR || it == SUBOPTIMAL_KHR) {
+                result = true
+            } else if (it != SUCCESS) {
+                throw AssertionError("Failed to acquire next swapchain image: ${it.description}")
+            }
         }
-
-        return false
+        return result
     }
 
     /**
@@ -521,10 +474,9 @@ open class VulkanSwapchain(open val device: VulkanDevice,
      */
     override fun close() {
         logger.debug("Closing swapchain $this")
-        KHRSwapchain.vkDestroySwapchainKHR(device.vulkanDevice, handle, null)
+        KHRSwapchain.vkDestroySwapchainKHR(device.vulkanDevice, handle.L, null)
 
         presentInfo.free()
-        swapchainImage.free()
         swapchainPointer.free()
 
         windowSizeCallback.close()

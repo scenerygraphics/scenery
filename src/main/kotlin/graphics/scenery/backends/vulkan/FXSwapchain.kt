@@ -218,7 +218,6 @@ class FXSwapchain(device: VulkanDevice,
      * Closes the swapchain, deallocating all resources.
      */
     override fun close() {
-        swapchainImage.free()
         swapchainPointer.free()
         imageBuffer.free()
 

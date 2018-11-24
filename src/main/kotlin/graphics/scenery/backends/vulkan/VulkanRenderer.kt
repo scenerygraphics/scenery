@@ -155,46 +155,41 @@ open class VulkanRenderer(hub: Hub,
                     .submit(queue)
                     .deallocate()
 
-                val refreshResolutionDependentResources = {
-                    // TODO why?
-                    if (pipelineCache.L != NULL)
-                        vkDev destroyPipelineCache pipelineCache
+                if (pipelineCache.L != NULL)
+                    vkDev destroyPipelineCache pipelineCache
 
-                    pipelineCache = vkDev createPipelineCache vk.PipelineCacheCreateInfo()
+                pipelineCache = vkDev createPipelineCache vk.PipelineCacheCreateInfo()
 
-                    renderpasses.values.forEach { it.close() }
-                    renderpasses.clear()
+                renderpasses.values.forEach { it.close() }
+                renderpasses.clear()
 
-                    settings.set("Renderer.displayWidth", (window.width * settings.get<Float>("Renderer.SupersamplingFactor")).toInt())
-                    settings.set("Renderer.displayHeight", (window.height * settings.get<Float>("Renderer.SupersamplingFactor")).toInt())
+                settings.set("Renderer.displayWidth", (window.width * settings.get<Float>("Renderer.SupersamplingFactor")).toInt())
+                settings.set("Renderer.displayHeight", (window.height * settings.get<Float>("Renderer.SupersamplingFactor")).toInt())
 
-                    prepareRenderpassesFromConfig(renderConfig, window.width, window.height)
+                prepareRenderpassesFromConfig(renderConfig, window.width, window.height)
 
-                    semaphores.values.forEach { semaphores -> vkDev destroySemaphores semaphores }
-                    semaphores = prepareStandardSemaphores()
+                semaphores.values.forEach { semaphores -> vkDev destroySemaphores semaphores }
+                semaphores = prepareStandardSemaphores()
 
-                    // Create render command buffers
-                    vkDev resetCommandPool commandPools.Render
+                // Create render command buffers
+                vkDev resetCommandPool commandPools.Render
 
-                    scene.findObserver()?.let { cam ->
-                        cam.perspectiveCamera(cam.fov, window.width.toFloat(), window.height.toFloat(), cam.nearPlaneDistance, cam.farPlaneDistance)
-                    }
-
-                    logger.debug("Calling late resize initializers for ${lateResizeInitializers.keys.joinToString()}")
-                    lateResizeInitializers.map { it.value.invoke() }
-
-                    if (timestampQueryPool.isValid) {
-                        vkDev destroyQueryPool timestampQueryPool
-                    }
-
-                    val queryPoolCreateInfo = vk.QueryPoolCreateInfo {
-                        queryType = VkQueryType.TIMESTAMP
-                        queryCount = renderConfig.renderpasses.size * 2
-                    }
-                    timestampQueryPool = vkDev createQueryPool queryPoolCreateInfo
+                scene.findObserver()?.let { cam ->
+                    cam.perspectiveCamera(cam.fov, window.width.toFloat(), window.height.toFloat(), cam.nearPlaneDistance, cam.farPlaneDistance)
                 }
 
-                refreshResolutionDependentResources.invoke()
+                logger.debug("Calling late resize initializers for ${lateResizeInitializers.keys.joinToString()}")
+                lateResizeInitializers.map { it.value.invoke() }
+
+                if (timestampQueryPool.isValid) {
+                    vkDev destroyQueryPool timestampQueryPool
+                }
+
+                val queryPoolCreateInfo = vk.QueryPoolCreateInfo {
+                    queryType = VkQueryType.TIMESTAMP
+                    queryCount = renderConfig.renderpasses.size * 2
+                }
+                timestampQueryPool = vkDev createQueryPool queryPoolCreateInfo
 
                 totalFrames = 0
                 mustRecreate = false

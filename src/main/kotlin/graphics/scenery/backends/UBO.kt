@@ -127,7 +127,8 @@ open class UBO {
      * Returns the total size in bytes required to store the contents of this UBO in a uniform buffer.
      */
     fun getSize(): Int {
-        val totalSize = if(sizeCached == -1) {
+
+        return if(sizeCached == -1) {
             val size = members.map {
                 getSizeAndAlignment(it.value.invoke())
             }.fold(0) { current_position, (first, second) ->
@@ -149,8 +150,6 @@ open class UBO {
         } else {
             sizeCached
         }
-
-        return totalSize
     }
 
     /**

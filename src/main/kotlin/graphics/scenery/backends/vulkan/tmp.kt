@@ -238,9 +238,6 @@ fun VkSubmitInfo() = VkSubmitInfo.calloc().apply { type = VkStructureType.SUBMIT
 
 fun VkImageCreateInfo() = VkImageCreateInfo.calloc().apply { type = VkStructureType.IMAGE_CREATE_INFO }
 
-val VkQueryPool.isValid get() = L != NULL
-val VkImage.isValid get() = L != NULL
-
 //fun VkDevice.destroyQueryPool(queryPool: VkQueryPool) = VK10.nvkDestroyQueryPool(this, queryPool.L, NULL) TODO infix
 
 infix fun VkDevice.createQueryPool(createInfo: VkQueryPoolCreateInfo): VkQueryPool = VkQueryPool(stak.longAddress { VK10.nvkCreateQueryPool(this, createInfo.adr, NULL, it) })
@@ -275,8 +272,10 @@ fun VkRenderPassBeginInfo(): VkRenderPassBeginInfo = VkRenderPassBeginInfo.callo
 fun VkRect2D(): VkRect2D = VkRect2D.calloc()
 fun VkViewport(): VkViewport = VkViewport.calloc()
 
+fun IntBuffer(size: Int): IntBuffer = memCallocInt(size)
 fun IntBuffer.fill(value: Int) = fill(0, lastIndex, value)
 fun IntBuffer.fill(begin: Int, end: Int, value: Int) {
     for (i in begin .. end)
         set(0, value)
 }
+

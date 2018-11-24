@@ -51,7 +51,7 @@ class OpenGLSwapchain(val device: VulkanDevice,
     private val logger by LazyLogger()
 
     /** Swapchain handle. */
-    override var handle: Long = 0L // TODO inline class?
+    override var handle = VkSwapchainKHR(NULL)
     /** Array for rendered images. */
     override var images = VkImageArray()
     /** Array for image views. */
@@ -187,7 +187,7 @@ class OpenGLSwapchain(val device: VulkanDevice,
                 }
                 .submit(queue).deallocate()
 
-        handle = -1L
+        handle = VkSwapchainKHR(NULL)
 
         glfw.swapInterval = 0
         glfwShowWindow(window.window)

@@ -1910,6 +1910,8 @@ enum class VkSurfaceTransform(val i: Int) {
     }
 }
 
+infix fun Int.has(f: VkSurfaceTransform) = and(f.i) != 0
+
 typealias VkSurfaceTransformFlagsKHR = VkFlags
 
 enum class VkCompositeAlpha(val i: Int) {
