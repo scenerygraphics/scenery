@@ -1,0 +1,117 @@
+name: Deferred Shading Low End
+description: Deferred Shading, with HDR postprocessing, for low-end GPUs
+sRGB: true
+
+rendertargets:
+  GeometryBuffer:
+    attachments:
+      NormalsMaterial: RGBA_Float16
+      DiffuseAlbedo: RGBA_UInt8
+      ZBuffer: Depth32
+  ForwardBuffer:
+    attachments:
+      Color: RGBA_Float32
+  AOBuffer:
+    size: 0.5, 0.5
+    attachments:
+      Occlusion: R_UInt8
+  HDRBuffer:
+    attachments:
+      Color: RGBA_Float32
+      Depth: Depth32
+
+renderpasses:
+  Scene:
+    type: geometry
+    renderTransparent: false
+    renderOpaque: true
+    shaders:
+    - "DefaultDeferred.vert.spv"
+    - "DefaultDeferred.frag.spv"
+    output: GeometryBuffer
+  AO:
+    type: quad
+    parameters:
+      Pass.displayWidth: 0
+      Pass.displayHeight: 0
+      occlusionRadius: 1.0
+      occlusionSamples: 0
+      occlusionExponent: 2.0
+      maxDistance: 1.0
+      bias: 0.1
+      algorithm: 0
+    shaders:
+    - "FullscreenQuadFrustum.vert.spv"
+    - "HBAO.frag.spv"
+    inputs:
+    - GeometryBuffer
+    output: AOTemp1
+  DeferredLighting:
+    type: lights
+    renderTransparent: true
+    renderOpaque: false
+    depthWriteEnabled: false
+    depthTestEnabled: false
+    shaders:
+    - "DeferredLighting.vert.spv"
+    - "DeferredLighting.frag.spv"
+    inputs:
+    - GeometryBuffer
+    - AOBuffer
+    output: ForwardBuffer
+    parameters:
+      debugLights: 0
+      reflectanceModel: 0
+      Global.displayWidth: 0
+      Global.displayHeight: 0
+  ForwardShading:
+    type: geometry
+    renderTransparent: true
+    renderOpaque: false
+    blitInputs: true
+    shaders:
+    - "DefaultForward.vert.spv"
+    - "DefaultForward.frag.spv"
+    inputs:
+    - ForwardBuffer.Color
+    - GeometryBuffer.ZBuffer
+    output: HDRBuffer
+  HDR:
+    type: quad
+    shaders:
+    - "FullscreenQuad.vert.spv"
+    - "HDR.frag.spv"
+    inputs:
+    - HDRBuffer.Color
+    output: Viewport
+    parameters:
+      TonemappingOperator: 0
+      Gamma: 1.8
+      Exposure: 10.0
+      WhitePoint: 11.2
+
+qualitySettings:
+  Low:
+    AO.occlusionSamples: 0
+    FXAA.activateFXAA: 0
+    AO.shaders:
+    - "FullscreenQuadFrustum.vert.spv"
+    - "SSAO.frag.spv"
+  Medium:
+    AO.occlusionSamples: 8
+    FXAA.activateFXAA: 1
+    AO.shaders:
+    - "FullscreenQuadFrustum.vert.spv"
+    - "SSAO.frag.spv"
+  High:
+    AO.occlusionSamples: 4
+    FXAA.activateFXAA: 1
+    AO.shaders:
+    - "FullscreenQuadFrustum.vert.spv"
+    - "HBAO.frag.spv"
+  Ultra:
+    AO.occlusionSamples: 8
+    FXAA.activateFXAA: 1
+    AO.shaders:
+    - "FullscreenQuadFrustum.vert.spv"
+    - "HBAO.frag.spv"

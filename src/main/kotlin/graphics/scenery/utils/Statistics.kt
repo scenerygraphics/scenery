@@ -57,7 +57,7 @@ class Statistics(override var hub: Hub?) : Hubable {
         }
 
         /** Returns all the stats about [data] formatted as string */
-        override fun toString(): String = "${avg().inMillisecondsIfTime()}\tmin: ${min().inMillisecondsIfTime()}\tmax: ${max().inMillisecondsIfTime()}\tstd: ${stddev().inMillisecondsIfTime()}"
+        override fun toString(): String = "${avg().inMillisecondsIfTime()}/${min().inMillisecondsIfTime()}/${max().inMillisecondsIfTime()}/${stddev().inMillisecondsIfTime()}/${data.first.inMillisecondsIfTime()}"
     }
 
     protected var stats = ConcurrentHashMap<String, StatisticData>()
@@ -109,8 +109,9 @@ class Statistics(override var hub: Hub?) : Hubable {
 
     /** Returns all collected stats as string */
     override fun toString(): String {
-        return "Statistics:\n" + stats.toSortedMap().map {
-            "${it.key} - ${it.value}"
+        val longestKey: Int = stats.keys().asSequence().map { it.length }.max() ?: 1
+        return "Statistics - avg/min/max/stddev/last\n" + stats.toSortedMap().map {
+            String.format("%-${longestKey}s", it.key) + " - ${it.value}"
         }.joinToString("\n")
     }
 
