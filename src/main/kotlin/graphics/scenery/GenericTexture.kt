@@ -2,6 +2,7 @@ package graphics.scenery
 
 import cleargl.GLTypeEnum
 import cleargl.GLVector
+import org.lwjgl.system.MemoryUtil
 import java.io.Serializable
 import java.nio.ByteBuffer
 
@@ -15,7 +16,7 @@ import java.nio.ByteBuffer
 data class TextureExtents(val x: Int, val y: Int, val z: Int, val w: Int, val h: Int, val d: Int)
 
 /** Update class for partial updates. */
-data class TextureUpdate(val extents: TextureExtents, val contents: ByteBuffer, var consumed: Boolean = false)
+data class TextureUpdate(val extents: TextureExtents, val contents: ByteBuffer, var consumed: Boolean = false, var deallocate: Boolean = false)
 
 data class GenericTexture @JvmOverloads constructor(
     /** Name of the texture, might e.g. be "diffuse" */
@@ -52,6 +53,7 @@ data class GenericTexture @JvmOverloads constructor(
 
     /** Clears all consumed updates */
     fun clearConsumedUpdates() {
+        updates.forEach { if(it.consumed && it.deallocate) { MemoryUtil.memFree(it.contents) } }
         updates.removeIf { it.consumed }
     }
 
