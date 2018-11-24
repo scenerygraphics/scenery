@@ -372,7 +372,7 @@ class SceneryContext(val node: Volume) : GpuContext {
 
             val update = TextureUpdate(
                 TextureExtents(xoffset, yoffset, zoffset, width, height, depth),
-                tmp)
+                tmp, deallocate = true)
             gt.updates.add(update)
         } else {
             if (gt == null) {
@@ -382,7 +382,7 @@ class SceneryContext(val node: Volume) : GpuContext {
 
             val update = TextureUpdate(
                 TextureExtents(xoffset, yoffset, zoffset, width, height, depth),
-                tmp)
+                tmp, deallocate = true)
 
             gt.updates.add(update)
         }
@@ -428,7 +428,7 @@ class SceneryContext(val node: Volume) : GpuContext {
 
                 val update = TextureUpdate(
                     TextureExtents(xoffset, yoffset, zoffset, width, height, depth),
-                    tmp)
+                    tmp, deallocate = true)
                 gt.updates.add(update)
             } else {
                 if (gt == null) {
@@ -438,7 +438,7 @@ class SceneryContext(val node: Volume) : GpuContext {
 
                 val update = TextureUpdate(
                     TextureExtents(xoffset, yoffset, zoffset, width, height, depth),
-                    tmp)
+                    tmp, deallocate = true)
 
                 gt.updates.add(update)
             }
