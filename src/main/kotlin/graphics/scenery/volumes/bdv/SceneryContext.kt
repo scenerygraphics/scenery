@@ -318,18 +318,18 @@ class SceneryContext(val node: Volume) : GpuContext {
     }
 
     override fun map(pbo: StagingBuffer): Buffer {
-        logger.info("Mapping $pbo... (${pboBackingStore.size} total)")
+        logger.debug("Mapping $pbo... (${pboBackingStore.size} total)")
         return pboBackingStore.computeIfAbsent(pbo) {
             MemoryUtil.memAlloc(pbo.sizeInBytes)
         }
     }
 
     override fun unmap(pbo: StagingBuffer) {
-        logger.info("Unmapping $pbo...")
+        logger.debug("Unmapping $pbo...")
     }
 
     override fun delete(texture: Texture) {
-        logger.info("Marking $texture for reallocation")
+        logger.debug("Marking $texture for reallocation")
         bindings[texture]?.reallocate = true
     }
 
@@ -346,8 +346,6 @@ class SceneryContext(val node: Volume) : GpuContext {
             logger.warn("Binding not initialiased for $texture")
             return
         }
-
-        logger.info("3D texture name=$texname")
 
         val tmpStorage = (map(pbo) as ByteBuffer).duplicate().order(ByteOrder.LITTLE_ENDIAN)
         tmpStorage.position(pixels_buffer_offset.toInt())
