@@ -97,6 +97,40 @@ open class VulkanTexture(val device: VulkanDevice,
         }
 
         /**
+         * Copies the content of the image to [buffer] from a series of [updates]. This gets executed
+         * within a given [commandBuffer].
+         */
+        fun copyFrom(commandBuffer: VkCommandBuffer, buffer: VulkanBuffer, updates: List<TextureUpdate>, bufferOffset: Long = 0) {
+            with(commandBuffer) {
+                val bufferImageCopy = VkBufferImageCopy.calloc(1)
+                var offset = bufferOffset
+
+                updates.forEach { update ->
+                    val updateSize = update.contents.remaining()
+                    bufferImageCopy.imageSubresource()
+                        .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
+                        .mipLevel(0)
+                        .baseArrayLayer(0)
+                        .layerCount(1)
+                    bufferImageCopy.bufferOffset(offset)
+
+                    bufferImageCopy.imageExtent().set(update.extents.w, update.extents.h, update.extents.d)
+                    bufferImageCopy.imageOffset().set(update.extents.x, update.extents.y, update.extents.z)
+
+                    vkCmdCopyBufferToImage(this,
+                        buffer.vulkanBuffer,
+                        this@VulkanImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                        bufferImageCopy)
+
+                    offset += updateSize
+                    update.consumed = true
+                }
+
+                bufferImageCopy.free()
+            }
+        }
+
+        /**
          * Copies the content of the image from a given [VulkanImage], [image].
          * This gets executed within a given [commandBuffer].
          */
@@ -333,10 +367,7 @@ open class VulkanTexture(val device: VulkanDevice,
                         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                         wantAligned = false)
 
-                    var offset = 0L
-
                     buffer?.let { buffer ->
-
                         transitionLayout(image.image,
                             VK_IMAGE_LAYOUT_UNDEFINED,
                             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevels,
@@ -345,15 +376,11 @@ open class VulkanTexture(val device: VulkanDevice,
                             commandBuffer = this)
 
                         if(genericTexture != null) {
-                            genericTexture.updates.forEach { update ->
-                                if(!update.consumed) {
-                                    val updateSize = update.contents.remaining()
-                                    buffer.copyFrom(update.contents, offset)
-                                    image.copyFrom(this, buffer, update, offset)
+                            val updates = genericTexture.updates.filter { !it.consumed }
+                            val contents = updates.map { it.contents }
 
-                                    offset += updateSize
-                                }
-                            }
+                            buffer.copyFrom(contents)
+                            image.copyFrom(this, buffer, updates)
 
                             genericTexture.clearConsumedUpdates()
                         } else {
@@ -492,15 +519,6 @@ open class VulkanTexture(val device: VulkanDevice,
     fun createImageView(image: VulkanImage, format: Int): Long {
         val subresourceRange = VkImageSubresourceRange.calloc().set(VK_IMAGE_ASPECT_COLOR_BIT, 0, mipLevels, 0, 1)
 
-        var viewFormat = format
-
-//        gt?.let { genericTexture ->
-//            if(!genericTexture.normalized && genericTexture.type != GLTypeEnum.Float) {
-//                logger.debug("Shifting view format of $this to unsigned int (as requested per generic texture)")
-//                viewFormat += 4
-//            }
-//        }
-
         val vi = VkImageViewCreateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO)
             .pNext(NULL)
@@ -510,7 +528,7 @@ open class VulkanTexture(val device: VulkanDevice,
             } else {
                 VK_IMAGE_VIEW_TYPE_2D
             })
-            .format(viewFormat)
+            .format(format)
             .subresourceRange(subresourceRange)
 
         if(gt?.channels == 1 && depth > 1) {

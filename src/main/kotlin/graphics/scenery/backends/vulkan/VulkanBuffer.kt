@@ -2,6 +2,7 @@ package graphics.scenery.backends.vulkan
 
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.PointerBuffer
+import org.lwjgl.system.MemoryStack
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.VK10.*
@@ -199,6 +200,30 @@ open class VulkanBuffer(val device: VulkanDevice, var size: Long,
         memCopy(memAddress(data), dest.get(0), data.remaining().toLong())
         vkUnmapMemory(device.vulkanDevice, memory)
         memFree(dest)
+    }
+
+    fun copyFrom(chunks: List<ByteBuffer>, dstOffset: Long = 0) {
+        MemoryStack.stackPush().use { stack ->
+            resizeLazy()
+
+            val dest = stack.callocPointer(1)
+
+            val dstSize = if (dstOffset > 0) {
+                size - dstOffset
+            } else {
+                size
+            }
+
+            var currentOffset = 0
+
+            vkMapMemory(device.vulkanDevice, memory, bufferOffset + dstOffset, dstSize, 0, dest)
+            chunks.forEach { chunk ->
+                val chunkSize = chunk.remaining()
+                memCopy(memAddress(chunk), dest.get(0) + currentOffset, chunk.remaining().toLong())
+                currentOffset += chunkSize
+            }
+            vkUnmapMemory(device.vulkanDevice, memory)
+        }
     }
 
     /**
