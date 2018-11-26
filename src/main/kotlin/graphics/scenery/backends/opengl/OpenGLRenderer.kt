@@ -31,6 +31,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import javax.imageio.ImageIO
 import kotlin.collections.LinkedHashMap
 import kotlin.concurrent.withLock
+import kotlin.math.max
 import kotlin.math.roundToInt
 import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.memberProperties
@@ -751,7 +752,8 @@ open class OpenGLRenderer(hub: Hub,
             "displacement" -> 5
             "3D-volume" -> 6
             else -> {
-                logger.warn("Unknown texture type $type"); 10
+                logger.warn("Unknown ObjecTextures type $type")
+                0
             }
         }
     }
@@ -766,8 +768,8 @@ open class OpenGLRenderer(hub: Hub,
             "displacement" -> "ObjectTextures[5]"
             "3D-volume" -> "VolumeTextures"
             else -> {
-                logger.warn("Unknown texture type $type")
-                "ObjectTextures[0]"
+                logger.debug("Unknown texture type $type")
+                type
             }
         }
     }
@@ -1647,21 +1649,45 @@ open class OpenGLRenderer(hub: Hub,
                         }
                     }
 
-                    s.textures.forEach { type, glTexture ->
-                        val samplerIndex = textureTypeToUnit(pass, type)
+                    var maxSamplerIndex = 0
+                    val textures = s.textures.entries.groupBy { GenericTexture.objectTextures.contains(it.key) }
+                    val objectTextures = textures[true]
+                    val others = textures[false]
+
+                    objectTextures?.forEach { texture ->
+                        val samplerIndex = textureTypeToUnit(pass, texture.key)
+                        maxSamplerIndex = max(samplerIndex, maxSamplerIndex)
 
                         @Suppress("SENSELESS_COMPARISON")
-                        if (glTexture != null) {
+                        if (texture.value != null) {
                             gl.glActiveTexture(GL4.GL_TEXTURE0 + samplerIndex)
 
-                            val target = if (glTexture.depth > 1) {
+                            val target = if (texture.value.depth > 1) {
                                 GL4.GL_TEXTURE_3D
                             } else {
                                 GL4.GL_TEXTURE_2D
                             }
 
-                            gl.glBindTexture(target, glTexture.id)
-                            shader.getUniform(textureTypeToArrayName(type)).setInt(samplerIndex)
+                            gl.glBindTexture(target, texture.value.id)
+                            shader.getUniform(textureTypeToArrayName(texture.key)).setInt(samplerIndex)
+                        }
+                    }
+
+                    var samplerIndex = maxSamplerIndex
+                    others?.forEach { texture ->
+                        @Suppress("SENSELESS_COMPARISON")
+                        if(texture.value != null) {
+                            gl.glActiveTexture(GL4.GL_TEXTURE0 + samplerIndex)
+
+                            val target = if (texture.value.depth > 1) {
+                                GL4.GL_TEXTURE_3D
+                            } else {
+                                GL4.GL_TEXTURE_2D
+                            }
+
+                            gl.glBindTexture(target, texture.value.id)
+                            shader.getUniform(texture.key).setInt(samplerIndex)
+                            samplerIndex++
                         }
                     }
 
@@ -2068,7 +2094,7 @@ open class OpenGLRenderer(hub: Hub,
 
                 logger.debug("Shader properties are: ${shader?.getShaderPropertyOrder()}")
                 shader?.getShaderPropertyOrder()?.forEach { name, offset ->
-                    add(name, { node.getShaderProperty(name)!! }, offset)
+                    add(name, { node.getShaderProperty(name) ?: 0 }, offset)
                 }
             }
 
@@ -2132,6 +2158,17 @@ open class OpenGLRenderer(hub: Hub,
     }
 
     /**
+     * Returns true if the current [GLTexture] can be reused to store the information in the [GenericTexture]
+     * [other]. Returns false otherwise.
+     */
+    protected fun GLTexture.canBeReused(other: GenericTexture, miplevels: Int): Boolean {
+        return this.width == other.dimensions.x().toInt() &&
+            this.height == other.dimensions.y().toInt() &&
+            this.depth == other.dimensions.z().toInt() &&
+            this.nativeType == other.type
+    }
+
+    /**
      * Loads textures for a [Node]. The textures either come from a [Material.transferTextures] buffer,
      * or from a file. This is indicated by stating fromBuffer:bufferName in the textures hash map.
      *
@@ -2146,34 +2183,33 @@ open class OpenGLRenderer(hub: Hub,
                 if (!textureCache.containsKey(texture) || node.material.needsTextureReload) {
                     logger.debug("Loading texture $texture for ${node.name}")
 
-                    val generateMipmaps = (type == "ambient" || type == "diffuse" || type == "specular")
+                    val generateMipmaps = GenericTexture.mipmappedObjectTextures.contains(type)
                     if (texture.startsWith("fromBuffer:")) {
-                        node.material.transferTextures[texture.substringAfter("fromBuffer:")]?.let {
-                            (_, dimensions, channels, type1, contents, repeatS, repeatT, repeatU, normalized, mipmap, minLinear, maxLinear, updates) ->
+                        val gt = node.material.transferTextures[texture.substringAfter("fromBuffer:")]
+                        gt?.let { (_, dimensions, channels, type1, contents, repeatS, repeatT, repeatU, normalized, mipmap, minLinear, maxLinear, updates) ->
 
                             logger.debug("Dims of $texture: $dimensions, mipmaps=$generateMipmaps")
 
-                            val miplevels = if (generateMipmaps && dimensions.z().toInt() == 1) {
+                            val mm = generateMipmaps or mipmap
+                            val miplevels = if (mm && dimensions.z().toInt() == 1) {
                                 1 + Math.floor(Math.log(Math.max(dimensions.x() * 1.0, dimensions.y() * 1.0)) / Math.log(2.0)).toInt()
                             } else {
                                 1
                             }
 
-                            // TODO: Add support for more than one channel for volumes
-                            val channelCount = if (dimensions.z().toInt() == 1) {
-                                channels
+                            val existingTexture = s.textures[type]
+                            val t = if(existingTexture != null && existingTexture.canBeReused(gt, miplevels)) {
+                                existingTexture
                             } else {
-                                1
+                                GLTexture(gl, type1, channels,
+                                    dimensions.x().toInt(),
+                                    dimensions.y().toInt(),
+                                    dimensions.z().toInt() ?: 1,
+                                    minLinear,
+                                    miplevels, 32, normalized)
                             }
 
-                            val t = GLTexture(gl, type1, channelCount,
-                                dimensions.x().toInt(),
-                                dimensions.y().toInt(),
-                                dimensions.z().toInt() ?: 1,
-                                true,
-                                miplevels, 32, normalized)
-
-                            if (generateMipmaps) {
+                            if (mm) {
                                 t.updateMipMaps()
                             }
 
@@ -2184,37 +2220,30 @@ open class OpenGLRenderer(hub: Hub,
 
                             // textures might have very uneven dimensions, so we adjust GL_UNPACK_ALIGNMENT here correspondingly
                             // in case the byte count of the texture is not divisible by it.
-                            if(contents != null) {
+                            if (contents != null && !gt.hasConsumableUpdates()) {
                                 if (contents.remaining() % unpackAlignment[0] == 0 && dimensions.x().toInt() % unpackAlignment[0] == 0) {
-                                    if (updates.size > 1) {
-                                        updates.forEach { update ->
-                                            if(!update.consumed) {
-                                                t.copyFrom(update.contents,
-                                                    update.extents.w, update.extents.h, update.extents.d,
-                                                    update.extents.x, update.extents.y, update.extents.z, true)
-
-                                                update.consumed = true
-                                            }
-                                        }
-                                    } else {
-                                        t.copyFrom(contents)
-                                    }
+                                    t.copyFrom(contents)
                                 } else {
                                     gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, 1)
-                                    if (updates.size > 1) {
-                                        updates.forEach { update ->
-                                            if(!update.consumed) {
-                                                t.copyFrom(update.contents,
-                                                    update.extents.w, update.extents.h, update.extents.d,
-                                                    update.extents.x, update.extents.y, update.extents.z, true)
-                                                update.consumed = true
-                                            }
-                                        }
-                                    } else {
-                                        t.copyFrom(contents)
-                                    }
-                                    gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, unpackAlignment[0])
+
+                                    t.copyFrom(contents)
                                 }
+                                gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, unpackAlignment[0])
+                            }
+
+                            if (gt.hasConsumableUpdates()) {
+//                                gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, 1)
+                                updates.forEach { update ->
+                                    if (!update.consumed) {
+                                        t.copyFrom(update.contents,
+                                            update.extents.w, update.extents.h, update.extents.d,
+                                            update.extents.x, update.extents.y, update.extents.z, true)
+                                        update.consumed = true
+                                    }
+                                }
+
+                                gt.clearConsumedUpdates()
+//                                gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, unpackAlignment[0])
                             }
 
                             s.textures[type] = t
@@ -2545,7 +2574,7 @@ open class OpenGLRenderer(hub: Hub,
     fun drawNode(node: Node, offset: Int = 0, count: Int? = null) {
         val s = getOpenGLObjectStateFromNode(node)
 
-        if (s.mStoredIndexCount == 0 && s.mStoredPrimitiveCount == 0 || node.material.needsTextureReload) {
+        if (s.mStoredIndexCount == 0 && s.mStoredPrimitiveCount == 0) {
             return
         }
         logger.trace("Drawing {} with {}, {} primitives, {} indices", node.name, s.shader?.modules?.entries?.joinToString(", "), s.mStoredPrimitiveCount, s.mStoredIndexCount)
