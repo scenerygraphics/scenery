@@ -232,17 +232,9 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
 
         behaviourMap.put("toggle_debug", ToggleCommand("toggle_debug", renderer, "toggleDebug"))
         behaviourMap.put("toggle_fullscreen", ToggleCommand("toggle_fullscreen", renderer, "toggleFullscreen"))
-        behaviourMap.put("toggle_ssao", ToggleCommand("toggle_ssao", renderer, "toggleSSAO"))
-        behaviourMap.put("toggle_hdr", ToggleCommand("toggle_hdr", renderer, "toggleHDR"))
         behaviourMap.put("screenshot", ToggleCommand("screenshot", renderer, "screenshot"))
         behaviourMap.put("set_rendering_quality", EnumCycleCommand("set_rendering_quality", RenderConfigReader.RenderingQuality::class.java, renderer, "setRenderingQuality"))
         behaviourMap.put("record_movie", ToggleCommand("record_movie", renderer, "recordMovie"))
-
-
-        behaviourMap.put("increase_exposure", ToggleCommand("increase_exposure", renderer, "increaseExposure"))
-        behaviourMap.put("decrease_exposure", ToggleCommand("decrease_exposure", renderer, "decreaseExposure"))
-        behaviourMap.put("increase_gamma", ToggleCommand("increase_gamma", renderer, "increaseGamma"))
-        behaviourMap.put("decrease_gamma", ToggleCommand("decrease_gamma", renderer, "decreaseGamma"))
 
         behaviourMap.put("toggle_vr", ToggleCommand("toggle_vr", renderer, "toggleVR"))
 
@@ -269,13 +261,6 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
         adder.put("set_rendering_quality", "Q")
         adder.put("toggle_debug", "shift Q")
         adder.put("toggle_fullscreen", "F")
-        adder.put("toggle_ssao", "O")
-        adder.put("toggle_hdr", "H")
-
-        adder.put("increase_exposure", "K")
-        adder.put("decrease_exposure", "L")
-        adder.put("increase_gamma", "shift K")
-        adder.put("decrease_gamma", "shift L")
 
         adder.put("screenshot", "P")
         adder.put("record_movie", "shift P")
