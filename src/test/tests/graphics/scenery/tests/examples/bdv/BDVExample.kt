@@ -26,12 +26,12 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
     override fun init() {
         val latch = CountDownLatch(1)
         val files = ArrayList<String>()
-        PlatformImpl.startup {  }
 
         val fileFromProperty = System.getProperty("bdvXML")
         if(fileFromProperty != null) {
             files.add(fileFromProperty)
         } else {
+            PlatformImpl.startup {  }
             Platform.runLater {
                 val chooser = FileChooser()
                 chooser.title = "Open File"
