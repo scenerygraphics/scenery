@@ -225,7 +225,7 @@ open class SceneryContext(val node: Volume) : GpuContext {
      * @return id of previously bound pbo
      */
     override fun bindStagingBuffer(pbo: StagingBuffer): Int {
-        logger.info("Binding PBO $pbo")
+        logger.debug("Binding PBO $pbo")
         return 0
     }
 
@@ -234,7 +234,7 @@ open class SceneryContext(val node: Volume) : GpuContext {
      * @return id of previously bound pbo
      */
     override fun bindStagingBufferId(id: Int): Int {
-        logger.info("Binding PBO $id")
+        logger.debug("Binding PBO $id")
         return id
     }
 
@@ -397,7 +397,7 @@ open class SceneryContext(val node: Volume) : GpuContext {
      * set in addition.
      */
     override fun texSubImage3D(pbo: StagingBuffer, texture: Texture3D, xoffset: Int, yoffset: Int, zoffset: Int, width: Int, height: Int, depth: Int, pixels_buffer_offset: Long) {
-        logger.info("Updating 3D texture via PBO from $texture: dx=$xoffset dy=$yoffset dz=$zoffset w=$width h=$height d=$depth offset=$pixels_buffer_offset")
+        logger.debug("Updating 3D texture via PBO from $texture: dx=$xoffset dy=$yoffset dz=$zoffset w=$width h=$height d=$depth offset=$pixels_buffer_offset")
         val tex = bindings.entries.find { it.key == texture }
         if(tex == null) {
             logger.warn("No binding found for $texture")
@@ -458,7 +458,7 @@ open class SceneryContext(val node: Volume) : GpuContext {
      * [width], [height], and [depth].
      */
     override fun texSubImage3D(texture: Texture3D, xoffset: Int, yoffset: Int, zoffset: Int, width: Int, height: Int, depth: Int, pixels: Buffer) {
-        logger.info("Updating 3D texture via Texture3D from $texture: dx=$xoffset dy=$yoffset dz=$zoffset w=$width h=$height d=$depth")
+        logger.debug("Updating 3D texture via Texture3D from $texture: dx=$xoffset dy=$yoffset dz=$zoffset w=$width h=$height d=$depth")
         val tex = bindings.entries.find { it.key == texture }
         if(tex == null) {
             logger.warn("No binding found for $texture")
