@@ -432,7 +432,7 @@ open class VulkanTexture(val device: VulkanDevice,
             val imageBlit = VkImageBlit.calloc(1)
             with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) mipmapCreation@{
 
-                for (mipLevel in 1..mipLevels) {
+                for (mipLevel in 1 until mipLevels) {
                     imageBlit.srcSubresource().set(VK_IMAGE_ASPECT_COLOR_BIT, mipLevel - 1, 0, 1)
                     imageBlit.srcOffsets(1).set(width shr (mipLevel - 1), height shr (mipLevel - 1), 1)
 
@@ -690,7 +690,7 @@ open class VulkanTexture(val device: VulkanDevice,
             }
 
             val mipmapLevels = if(generateMipmaps) {
-                Math.max(levelsW, levelsH)
+                Math.min(levelsW, levelsH)
             } else {
                 1
             }
