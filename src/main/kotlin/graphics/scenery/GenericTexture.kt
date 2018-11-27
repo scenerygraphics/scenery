@@ -6,18 +6,17 @@ import org.lwjgl.system.MemoryUtil
 import java.io.Serializable
 import java.nio.ByteBuffer
 
-/**
- * Data class for storing renderer-agnostic textures
- *
- * @author Ulrik Günther <hello@ulrik.is>
- */
-
 /** Data class for encapsulating partial transfers. */
 data class TextureExtents(val x: Int, val y: Int, val z: Int, val w: Int, val h: Int, val d: Int)
 
 /** Update class for partial updates. */
 data class TextureUpdate(val extents: TextureExtents, val contents: ByteBuffer, var consumed: Boolean = false, var deallocate: Boolean = false)
 
+/**
+ * Data class for storing renderer-agnostic textures
+ *
+ * @author Ulrik Günther <hello@ulrik.is>
+ */
 data class GenericTexture @JvmOverloads constructor(
     /** Name of the texture, might e.g. be "diffuse" */
     var name: String,
@@ -25,7 +24,7 @@ data class GenericTexture @JvmOverloads constructor(
     var dimensions: GLVector,
     /** The texture's number of channels */
     var channels: Int = 4,
-    /** [NativeTypeEnum] declaring the data type stored in [contents] */
+    /** [GLTypeEnum] declaring the data type stored in [contents] */
     var type: GLTypeEnum = GLTypeEnum.UnsignedByte,
     /** Byte contents of the texture */
     @Transient var contents: ByteBuffer?,

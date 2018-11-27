@@ -1266,9 +1266,14 @@ open class VulkanRenderer(hub: Hub,
         return map
     }
 
+    /** Data class for encapsulation of shader vertex attributes */
     data class AttributeInfo(val format: Int, val elementByteSize: Int, val elementCount: Int)
 
-    fun HashMap<String, () -> Any>.getFormatsAndRequiredAttributeSize(): List<AttributeInfo> {
+    /**
+     * Calculates the formats and required sizes for the elements contained in this hash map when
+     * used as definition for vertex attributes in a shader.
+     */
+    protected fun HashMap<String, () -> Any>.getFormatsAndRequiredAttributeSize(): List<AttributeInfo> {
         return this.map {
             val value = it.value.invoke()
 

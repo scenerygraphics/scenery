@@ -3,9 +3,17 @@ package graphics.scenery.volumes.bdv
 import graphics.scenery.backends.*
 import tpietzsch.shadergen.Shader
 
+/**
+ * Factory class to generate BigDataViewer volume shaders and convert them to scenery's conventions.
+ *
+ * @author Ulrik Guenther <hello@ulrik.is>
+ */
 open class VolumeShaderFactory : Shaders.ShaderFactory() {
     val shaders = HashMap<ShaderType, Shader>()
 
+    /**
+     * Updates the current set of shaders with a new set given in [newShaders].
+     */
     fun updateShaders(newShaders: HashMap<ShaderType, Shader>) {
         newShaders.forEach { shaders[it.key] = it.value }
     }
@@ -40,6 +48,9 @@ open class VolumeShaderFactory : Shaders.ShaderFactory() {
         return sp
     }
 
+    /**
+     * Converts the [code] to scenery's conventions and returns it as String.
+     */
     protected fun convertToSceneryConventions(code: String): String {
         val uniforms = ArrayList<String>()
         val inputs = ArrayList<String>()
@@ -128,6 +139,9 @@ open class VolumeShaderFactory : Shaders.ShaderFactory() {
             converted).joinToString("\n")
     }
 
+    /**
+     * Returns a String representation of this factory.
+     */
     override fun toString(): String {
         return "VolumeShaderFactory-managed shaders:\n" + shaders.map {
             "${it.key}\n============: " + when(it.key) {
