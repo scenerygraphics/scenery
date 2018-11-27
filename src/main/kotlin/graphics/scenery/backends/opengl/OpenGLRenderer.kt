@@ -511,11 +511,11 @@ open class OpenGLRenderer(hub: Hub,
     }
 
     fun prepareRenderpasses(config: RenderConfigReader.RenderConfig, windowWidth: Int, windowHeight: Int): LinkedHashMap<String, OpenGLRenderpass> {
-//        if(config.sRGB) {
-//            gl.glEnable(GL4.GL_FRAMEBUFFER_SRGB)
-//        } else {
-//            gl.glDisable(GL4.GL_FRAMEBUFFER_SRGB)
-//        }
+        if(config.sRGB) {
+            gl.glEnable(GL4.GL_FRAMEBUFFER_SRGB)
+        } else {
+            gl.glDisable(GL4.GL_FRAMEBUFFER_SRGB)
+        }
 
         buffers["ShaderParametersBuffer"]!!.reset()
 
@@ -562,7 +562,7 @@ open class OpenGLRenderer(hub: Hub,
                     logger.info("Reusing already created framebuffer")
                     pass.output.put(rt.key, framebuffers[rt.key]!!)
                 } else {
-                    val framebuffer = GLFramebuffer(gl, width, height)
+                    val framebuffer = GLFramebuffer(gl, width, height, renderConfig.sRGB)
 
                     rt.value.attachments.forEach { att ->
                         logger.info(" + attachment ${att.key}, ${att.value.name}")
@@ -2215,7 +2215,7 @@ open class OpenGLRenderer(hub: Hub,
                                     dimensions.y().toInt(),
                                     dimensions.z().toInt() ?: 1,
                                     minLinear,
-                                    miplevels, 32, normalized)
+                                    miplevels, 32, normalized, renderConfig.sRGB)
                             }
 
                             if (mm) {
