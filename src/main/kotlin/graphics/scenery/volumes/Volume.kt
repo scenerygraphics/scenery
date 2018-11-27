@@ -634,19 +634,19 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         trangemax = max.toFloat()
 
         val dim = GLVector(dimensions[0].toFloat(), dimensions[1].toFloat(), dimensions[2].toFloat())
-        val gtv = GenericTexture("volume", dim,
+        val gtv = GenericTexture("VolumeTextures", dim,
             1, descriptor.dataType.toGLType(), descriptor.data, false, false, normalized = true)
 
         boundingBox = generateBoundingBox()
 
         if (this.lock.tryLock(100, TimeUnit.MILLISECONDS)) {
             logger.debug("$name: Assigning volume texture")
-            this.material.transferTextures.put("volume", gtv)?.let {
+            this.material.transferTextures.put("VolumeTextures", gtv)?.let {
                 if (replace && it.name != "empty-volume" && !deallocations.contains(it.contents)) {
                     deallocations.add(it.contents)
                 }
             }
-            this.material.textures.put("VolumeTextures", "fromBuffer:volume")
+            this.material.textures.put("VolumeTextures", "fromBuffer:VolumeTextures")
             this.material.needsTextureReload = true
 
             this.lock.unlock()
