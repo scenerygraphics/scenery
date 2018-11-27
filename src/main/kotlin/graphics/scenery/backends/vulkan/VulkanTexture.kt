@@ -376,13 +376,18 @@ open class VulkanTexture(val device: VulkanDevice,
                             commandBuffer = this)
 
                         if(genericTexture != null) {
-                            val updates = genericTexture.updates.filter { !it.consumed }
-                            val contents = updates.map { it.contents }
+                            if(genericTexture.hasConsumableUpdates()) {
+                                val updates = genericTexture.updates.filter { !it.consumed }
+                                val contents = updates.map { it.contents }
 
-                            buffer.copyFrom(contents)
-                            image.copyFrom(this, buffer, updates)
+                                buffer.copyFrom(contents)
+                                image.copyFrom(this, buffer, updates)
 
-                            genericTexture.clearConsumedUpdates()
+                                genericTexture.clearConsumedUpdates()
+                            } else {
+                                buffer.copyFrom(sourceBuffer)
+                                image.copyFrom(this, buffer)
+                            }
                         } else {
                             image.copyFrom(this, buffer)
                         }
