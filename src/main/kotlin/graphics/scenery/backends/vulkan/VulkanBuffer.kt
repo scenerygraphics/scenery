@@ -202,6 +202,10 @@ open class VulkanBuffer(val device: VulkanDevice, var size: Long,
         memFree(dest)
     }
 
+    /**
+     * Copies data into the Vulkan buffer from a list of [chunks]. A [dstOffset] can
+     * be given, defining the start position in the buffer.
+     */
     fun copyFrom(chunks: List<ByteBuffer>, dstOffset: Long = 0) {
         MemoryStack.stackPush().use { stack ->
             resizeLazy()
