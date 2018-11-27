@@ -116,6 +116,7 @@ open class OpenGLRenderer(hub: Hub,
     @Volatile private var mustRecreateFramebuffers = false
     private var framebufferRecreateHook: () -> Unit = {}
     private var gpuStats: GPUStats? = null
+    private var maxTextureUnits = 8
 
     /** heartbeat timer */
     private var heartbeatTimer = Timer()
@@ -446,6 +447,10 @@ open class OpenGLRenderer(hub: Hub,
         if (driverVersion.toLowerCase().indexOf("nvidia") != -1 && System.getProperty("os.name").toLowerCase().indexOf("windows") != -1) {
             gpuStats = NvidiaGPUStats()
         }
+
+        val tmp = IntArray(1)
+        gl.glGetIntegerv(GL4.GL_MAX_TEXTURE_IMAGE_UNITS, tmp, 0)
+        maxTextureUnits = tmp[0]
 
         val numExtensionsBuffer = IntBuffer.allocate(1)
         gl.glGetIntegerv(GL4.GL_NUM_EXTENSIONS, numExtensionsBuffer)
@@ -1649,6 +1654,7 @@ open class OpenGLRenderer(hub: Hub,
                         }
                     }
 
+                    val unboundSamplers = (unit until maxTextureUnits).toMutableList()
                     var maxSamplerIndex = 0
                     val textures = s.textures.entries.groupBy { GenericTexture.objectTextures.contains(it.key) }
                     val objectTextures = textures[true]
@@ -1670,6 +1676,7 @@ open class OpenGLRenderer(hub: Hub,
 
                             gl.glBindTexture(target, texture.value.id)
                             shader.getUniform(textureTypeToArrayName(texture.key)).setInt(samplerIndex)
+                            unboundSamplers.remove(samplerIndex)
                         }
                     }
 
@@ -1677,7 +1684,8 @@ open class OpenGLRenderer(hub: Hub,
                     others?.forEach { texture ->
                         @Suppress("SENSELESS_COMPARISON")
                         if(texture.value != null) {
-                            gl.glActiveTexture(GL4.GL_TEXTURE0 + samplerIndex)
+                            val minIndex = unboundSamplers.min() ?: maxSamplerIndex
+                            gl.glActiveTexture(GL4.GL_TEXTURE0 + minIndex)
 
                             val target = if (texture.value.depth > 1) {
                                 GL4.GL_TEXTURE_3D
@@ -1686,8 +1694,9 @@ open class OpenGLRenderer(hub: Hub,
                             }
 
                             gl.glBindTexture(target, texture.value.id)
-                            shader.getUniform(texture.key).setInt(samplerIndex)
+                            shader.getUniform(texture.key).setInt(minIndex)
                             samplerIndex++
+                            unboundSamplers.remove(minIndex)
                         }
                     }
 
