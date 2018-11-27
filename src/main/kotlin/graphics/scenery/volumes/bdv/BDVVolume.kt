@@ -2,7 +2,6 @@ package graphics.scenery.volumes.bdv
 
 import bdv.spimdata.SpimDataMinimal
 import bdv.spimdata.XmlIoSpimDataMinimal
-import coremem.enums.NativeTypeEnum
 import graphics.scenery.*
 import graphics.scenery.volumes.Volume
 import net.imglib2.display.ColorConverter
@@ -17,8 +16,6 @@ import tpietzsch.example2.MultiVolumeShaderMip
 import tpietzsch.example2.VolumeBlocks
 import tpietzsch.multires.MultiResolutionStack3D
 import tpietzsch.multires.SpimDataStacks
-import java.nio.ByteBuffer
-import java.nio.file.Path
 import java.util.*
 import java.util.concurrent.ForkJoinPool
 import java.util.concurrent.atomic.AtomicReference
@@ -26,41 +23,13 @@ import kotlin.math.max
 import kotlin.math.min
 
 /**
- * Volume Rendering Node for scenery.
- * If [autosetProperties] is true, the node will automatically determine
- * the volumes' transfer function range.
+ * BigDataViewer-backed out-of-core volume rendering [Node] for scenery.
  *
  * @author Ulrik Günther <hello@ulrik.is>
- * @author Martin Weigert <mweigert@mpi-cbg.de>
+ * @author Tobias Pietzsch <pietzsch@mpi-cbg.de>
  */
 @Suppress("unused")
 open class BDVVolume(bdvXMLFile: String = "", maxGPUMemoryMB: Int = 1024) : Volume(false) {
-    data class VolumeDescriptor(val path: Path?,
-                                val width: Long,
-                                val height: Long,
-                                val depth: Long,
-                                val dataType: NativeTypeEnum,
-                                val bytesPerVoxel: Int,
-                                val data: ByteBuffer)
-
-    /**
-     * Histogram class.
-     */
-    class Histogram<T : Comparable<T>>(histogramSize: Int) {
-        /** Bin storage for the histogram. */
-        val bins: HashMap<T, Long> = HashMap(histogramSize)
-
-        /** Adds a new value, putting it in the corresponding bin. */
-        fun add(value: T) {
-            bins[value] = (bins[value] ?: 0L) + 1L
-        }
-
-        /** Returns the minimum value contained in the histogram. */
-        fun min(): T = bins.keys.minBy { it } ?: (0 as T)
-        /** Returns the maximum value contained in the histogram. */
-        fun max(): T = bins.keys.maxBy { it } ?: (0 as T)
-    }
-
     /**
      *  The rendering method used in the shader, can be
      *
@@ -69,16 +38,26 @@ open class BDVVolume(bdvXMLFile: String = "", maxGPUMemoryMB: Int = 1024) : Volu
      *  2 -- Alpha compositing
      */
 
+    /** BDV shader context for this volume */
     var context = SceneryContext(this)
         protected set
     var maxTimepoint: Int = 0
-    var textureCache: TextureCache? = null
-    var pboChain: PboChain? = null
-    var outOfCoreVolumes = ArrayList<VolumeBlocks>()
-    var stacks: SpimDataStacks? = null
+        protected set
+    /** Texture cache. */
+    protected var textureCache: TextureCache? = null
+    /** PBO chain for temporary data storage. */
+    protected var pboChain: PboChain? = null
+    /** Set of [VolumeBlocks]. */
+    protected var outOfCoreVolumes = ArrayList<VolumeBlocks>()
+    /** Stacks loaded from a BigDataViewer XML file. */
+    protected var stacks: SpimDataStacks? = null
+    /** Cache specification. */
     private val cacheSpec = CacheSpec(Texture.InternalFormat.R16, intArrayOf(32, 32, 32))
 
-    private var currentTimepoint = 0
+    /** Current timepoint in the set of [stacks]. */
+    var currentTimepoint = 0
+        protected set
+
     private val aMultiResolutionStacks = ArrayList(Arrays.asList(
         AtomicReference(),
         AtomicReference(),
@@ -90,8 +69,11 @@ open class BDVVolume(bdvXMLFile: String = "", maxGPUMemoryMB: Int = 1024) : Volu
         RealARGBColorConverter.Imp0(0.0, 1.0),
         RealARGBColorConverter.Imp0(0.0, 1.0),
         RealARGBColorConverter.Imp0(0.0, 1.0)))
+    /** Whether to freeze the current set of blocks in-place. */
     var freezeRequiredBlocks = false
-    var prog: MultiVolumeShaderMip? = null
+
+    /** Backing shader program */
+    protected var prog: MultiVolumeShaderMip? = null
 
     init {
         // fake geometry
@@ -177,7 +159,11 @@ open class BDVVolume(bdvXMLFile: String = "", maxGPUMemoryMB: Int = 1024) : Volu
         }
     }
 
-    fun updateBlocks(context: SceneryContext) {
+    /**
+     * Updates the currently-used set of blocks using [context] to
+     * facilitate the updates on the GPU.
+     */
+    protected fun updateBlocks(context: SceneryContext) {
         if(stacks == null) {
             return
         }
@@ -223,19 +209,11 @@ open class BDVVolume(bdvXMLFile: String = "", maxGPUMemoryMB: Int = 1024) : Volu
         prog?.use(context)
     }
 
+    /**
+     * Pre-draw routine to be called by the rendered just before drawing.
+     * Updates texture cache and used blocks.
+     */
     override fun preDraw() {
-//        if (transferFunction.stale) {
-//            logger.debug("Transfer function is stale, updating")
-//            material.transferTextures["transferFunction"] = GenericTexture(
-//                "transferFunction", GLVector(transferFunction.textureSize.toFloat(), transferFunction.textureHeight.toFloat(), 1.0f),
-//                channels = 1, type = GLTypeEnum.Float, contents = transferFunction.serialise())
-//
-//            material.textures["diffuse"] = "fromBuffer:transferFunction"
-//            material.needsTextureReload = true
-//
-//            time = System.nanoTime().toFloat()
-//        }
-
         if(stacks == null) {
             logger.info("Don't have stacks, returning")
             return
@@ -263,22 +241,32 @@ open class BDVVolume(bdvXMLFile: String = "", maxGPUMemoryMB: Int = 1024) : Volu
         context.runDeferredBindings()
     }
 
-    fun nextTimepoint() {
-        goToTimePoint(currentTimepoint + 1)
+    /**
+     * Goes to the next available timepoint, returning the number of the updated timepoint.
+     */
+    fun nextTimepoint(): Int {
+        return goToTimePoint(currentTimepoint + 1)
     }
 
-    fun previousTimepoint() {
-        goToTimePoint(currentTimepoint - 1)
+    /** Goes to the previous available timepoint, returning the number of the updated timepoint. */
+    fun previousTimepoint(): Int {
+        return goToTimePoint(currentTimepoint - 1)
     }
 
-    fun goToTimePoint(timepoint: Int) {
+    /** Goes to the [timepoint] given, returning the number of the updated timepoint. */
+    fun goToTimePoint(timepoint: Int): Int {
         stacks?.let { s ->
             currentTimepoint = min(max(timepoint, 0), maxTimepoint)
             updateCurrentStack(s)
         }
+
+        return currentTimepoint
     }
 
-    fun updateCurrentStack(stacks: SpimDataStacks) {
+    /**
+     * Updates the current stack given a set of [stacks] to [currentTimepoint].
+     */
+    protected fun updateCurrentStack(stacks: SpimDataStacks) {
         logger.info("Updating current stack, timepoint=$currentTimepoint")
         for (i in 0 until outOfCoreVolumes.size) {
             aMultiResolutionStacks[i].set(
@@ -289,7 +277,9 @@ open class BDVVolume(bdvXMLFile: String = "", maxGPUMemoryMB: Int = 1024) : Volu
         }
     }
 
+    /** Companion object for BDVVolume */
     companion object {
-        val forkJoinPool: ForkJoinPool = ForkJoinPool(max(1, Runtime.getRuntime().availableProcessors()/2))
+        /** Static [ForkJoinPool] for fill task submission. */
+        protected val forkJoinPool: ForkJoinPool = ForkJoinPool(max(1, Runtime.getRuntime().availableProcessors()/2))
     }
 }
