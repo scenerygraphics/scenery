@@ -325,10 +325,11 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
         }
 
         if (needsUpdateWorld or force) {
-            if (this.parent == null || this.parent is Scene) {
+            val p = parent
+            if (p == null || p is Scene) {
                 world.copyFrom(model)
             } else {
-                world.copyFrom(parent!!.world)
+                world.copyFrom(p.world)
                 world.mult(this.model)
             }
         }
@@ -418,12 +419,12 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
      * this class or a subclass inheriting from [Node].
      */
     fun getShaderProperty(name: String): Any? {
-        return if(shaderPropertyFieldCache.containsKey(name)) {
-            val field = shaderPropertyFieldCache[name]!!
-            val value = field.get(this)
+        val f = shaderPropertyFieldCache[name]
+        return if(f != null) {
+            val value = f.get(this)
 
             if(value !is HashMap<*, *>) {
-                shaderPropertyFieldCache[name]!!.get(this)
+                f.get(this)
             } else {
                 value.get(name)
             }
