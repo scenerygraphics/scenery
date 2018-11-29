@@ -174,8 +174,16 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
 
         // start & show REPL -- note: REPL will only exist if not running in headless mode
         repl?.start()
-        if(!parseBoolean(System.getProperty("scenery.Headless", "false"))) {
-            repl?.showConsoleWindow()
+        thread {
+            val r = renderer ?: return@thread
+
+            while(!r.firstImageReady) {
+                Thread.sleep(100)
+            }
+
+            if (!parseBoolean(System.getProperty("scenery.Headless", "false"))) {
+                repl?.showConsoleWindow()
+            }
         }
 
         val statsRequested = java.lang.Boolean.parseBoolean(System.getProperty("scenery.PrintStatistics", "false"))
