@@ -2,6 +2,8 @@ package graphics.scenery
 
 import cleargl.ClearGLDefaultEventListener
 import cleargl.GLVector
+import com.sun.jna.Library
+import com.sun.jna.Native
 import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.opengl.OpenGLRenderer
 import graphics.scenery.controls.InputHandler
@@ -14,6 +16,7 @@ import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.Renderdoc
 import graphics.scenery.utils.SceneryPanel
 import graphics.scenery.utils.Statistics
+import org.lwjgl.system.Platform
 import org.scijava.Context
 import org.scijava.ui.behaviour.ClickBehaviour
 import java.lang.Boolean.parseBoolean
@@ -85,6 +88,21 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
     protected var currentTime = System.nanoTime()
     protected var t = 0.0f
     protected var shouldClose: Boolean = false
+
+    interface XLib: Library {
+        fun XInitThreads()
+
+        companion object {
+            val INSTANCE = Native.loadLibrary("X11", XLib::class.java) as XLib
+        }
+    }
+
+    init {
+        if(Platform.get() == Platform.LINUX) {
+            logger.debug("Running XInitThreads")
+            XLib.INSTANCE.XInitThreads()
+        }
+    }
 
     /**
      * the init function of [SceneryBase], override this in your subclass,
