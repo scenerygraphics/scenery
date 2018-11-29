@@ -100,6 +100,12 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
                 handler = null
             }
 
+            is SceneryWindow.AWTWindow -> {
+                handler = JOGLMouseAndKeyHandler(hub)
+                handler.setInputMap(inputMap)
+                handler.setBehaviourMap(behaviourMap)
+            }
+
             is SceneryWindow.HeadlessWindow -> {
                 handler = null
             }
