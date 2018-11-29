@@ -5,6 +5,8 @@ import graphics.scenery.utils.SceneryPanel
 import javafx.application.Platform
 import javafx.stage.Stage
 import org.lwjgl.glfw.GLFW.*
+import java.awt.Component
+import javax.swing.JFrame
 
 /**
  * Abstraction class for GLFW, ClearGL and JavaFX windows
@@ -22,6 +24,8 @@ sealed class SceneryWindow {
     class JOGLDrawable(var drawable: GLAutoDrawable): SceneryWindow()
     /** JavaFX window or stage, with [panel] being the [SceneryPanel] scenery will render to. */
     class JavaFXStage(var panel: SceneryPanel): SceneryWindow()
+    /** AWT window or stage, with [panel] being the [SceneryPanel] scenery will render to. */
+    class AWTWindow(var surface: Long, var component: Component): SceneryWindow()
     /** Headless window with no chrome whatsoever. */
     class HeadlessWindow : SceneryWindow()
 
@@ -48,6 +52,9 @@ sealed class SceneryWindow {
             is ClearGLWindow -> window.windowTitle = title
             is JavaFXStage -> {
                 Platform.runLater { (panel.scene.window as? Stage)?.title = title }
+            }
+            is AWTWindow -> {
+                (component as? JFrame)?.title = "AWT swapchain: $title"
             }
             is HeadlessWindow -> {}
         }

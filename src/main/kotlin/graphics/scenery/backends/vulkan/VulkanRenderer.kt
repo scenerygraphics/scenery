@@ -15,10 +15,14 @@ import org.lwjgl.glfw.GLFWVulkan.glfwVulkanSupported
 import org.lwjgl.system.Configuration
 import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil.*
+import org.lwjgl.system.Platform
 import org.lwjgl.system.jemalloc.JEmalloc.*
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.EXTDebugReport.*
 import org.lwjgl.vulkan.KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+import org.lwjgl.vulkan.KHRWin32Surface.VK_KHR_WIN32_SURFACE_EXTENSION_NAME
+import org.lwjgl.vulkan.KHRXlibSurface.VK_KHR_XLIB_SURFACE_EXTENSION_NAME
+import org.lwjgl.vulkan.MVKMacosSurface.VK_MVK_MACOS_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.VK10.*
 import java.awt.image.BufferedImage
 import java.awt.image.DataBufferByte
@@ -521,6 +525,13 @@ open class VulkanRenderer(hub: Hub,
             (System.getProperty("scenery.Renderer.UseJavaFX", "false")?.toBoolean() ?: false || embedIn != null) -> {
                 logger.info("Using JavaFX-based swapchain")
                 FXSwapchain(
+                    device, queue, commandPools,
+                    renderConfig = renderConfig, useSRGB = renderConfig.sRGB)
+            }
+
+            (System.getProperty("scenery.Renderer.UseAWT", "false")?.toBoolean() ?: false || embedIn != null) -> {
+                logger.info("Using AWT swapchain")
+                AWTSwapchain(
                     device, queue, commandPools,
                     renderConfig = renderConfig, useSRGB = renderConfig.sRGB)
             }
@@ -2044,13 +2055,21 @@ open class VulkanRenderer(hub: Hub,
 
             // allocate enough pointers for already pre-required extensions, plus HMD-required extensions, plus the debug extension
             val size = requiredExtensions?.remaining() ?: 0
-            val enabledExtensionNames = stack.callocPointer(size + additionalExts.size + 1)
+            val enabledExtensionNames = stack.callocPointer(size + additionalExts.size + 2)
 
             if(requiredExtensions != null) {
                 enabledExtensionNames.put(requiredExtensions)
             }
 
-            enabledExtensionNames.put(stack.UTF8(VK_EXT_DEBUG_REPORT_EXTENSION_NAME))
+            val platformSurfaceExtension = when {
+                Platform.get() === Platform.WINDOWS -> stack.UTF8(VK_KHR_WIN32_SURFACE_EXTENSION_NAME)
+                Platform.get() === Platform.LINUX -> stack.UTF8(VK_KHR_XLIB_SURFACE_EXTENSION_NAME)
+                Platform.get() === Platform.MACOSX -> stack.UTF8(VK_MVK_MACOS_SURFACE_EXTENSION_NAME)
+                else -> throw UnsupportedOperationException("Vulkan is not supported on ${Platform.get()}")
+            }
+
+            enabledExtensionNames.put(platformSurfaceExtension)
+            enabledExtensionNames.put(stack.UTF8(VK_KHR_XLIB_SURFACE_EXTENSION_NAME))
             utf8Exts.forEach { enabledExtensionNames.put(it) }
             enabledExtensionNames.flip()
 
