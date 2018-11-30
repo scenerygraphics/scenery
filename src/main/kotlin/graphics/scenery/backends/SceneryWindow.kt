@@ -2,6 +2,8 @@ package graphics.scenery.backends
 
 import com.jogamp.opengl.GLAutoDrawable
 import graphics.scenery.utils.SceneryPanel
+import graphics.scenery.utils.SceneryFXPanel
+import graphics.scenery.utils.SceneryJPanel
 import javafx.application.Platform
 import javafx.stage.Stage
 import org.lwjgl.glfw.GLFW.*
@@ -22,10 +24,12 @@ sealed class SceneryWindow {
     class ClearGLWindow(var window: cleargl.ClearGLWindow): SceneryWindow()
     /** JOGL GLAutoDrawable, with [drawable] being the reference to a [GLAutoDrawable]. */
     class JOGLDrawable(var drawable: GLAutoDrawable): SceneryWindow()
-    /** JavaFX window or stage, with [panel] being the [SceneryPanel] scenery will render to. */
-    class JavaFXStage(var panel: SceneryPanel): SceneryWindow()
     /** AWT window or stage, with [panel] being the [SceneryPanel] scenery will render to. */
     class AWTWindow(var surface: Long, var component: Component): SceneryWindow()
+    /** JavaFX window or stage, with [panel] being the [SceneryFXPanel] scenery will render to. */
+    class JavaFXStage(var panel: SceneryFXPanel): SceneryWindow()
+    /** Swing window with [panel] being the [SceneryJPanel] */
+    class SwingWindow(var panel: SceneryJPanel): SceneryWindow()
     /** Headless window with no chrome whatsoever. */
     class HeadlessWindow : SceneryWindow()
 

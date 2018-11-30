@@ -10,7 +10,6 @@ import graphics.scenery.backends.vulkan.VulkanRenderer
 import graphics.scenery.utils.ExtractsNatives
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.SceneryPanel
-import org.slf4j.LoggerFactory
 
 /**
  * Renderer interface. Defines the minimal set of functions a renderer has to implement.

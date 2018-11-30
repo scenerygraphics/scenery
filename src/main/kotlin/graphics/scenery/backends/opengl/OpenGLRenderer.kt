@@ -14,6 +14,8 @@ import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.utils.*
 import kotlinx.coroutines.*
 import org.lwjgl.system.MemoryUtil
+import java.awt.event.ComponentAdapter
+import java.awt.event.ComponentEvent
 import java.io.File
 import java.io.FileNotFoundException
 import java.lang.reflect.Field
@@ -52,7 +54,7 @@ import kotlin.reflect.full.memberProperties
  * @param[scene] The [Scene] instance to initialize first.
  * @param[width] Horizontal window size.
  * @param[height] Vertical window size.
- * @param[embedIn] An optional [SceneryPanel] in which to embed the renderer instance.
+ * @param[embedIn] An optional [SceneryFXPanel] in which to embed the renderer instance.
  * @param[renderConfigFile] The file to create a [RenderConfigReader.RenderConfig] from.
  *
  * @author Ulrik Günther <hello@ulrik.is>
@@ -373,26 +375,51 @@ open class OpenGLRenderer(hub: Hub,
                 animator.setUpdateFPSFrames(60, null)
                 animator.start()
 
-                embedIn?.let { panel ->
-                    panel.imageView.scaleY = -1.0
-
-                    panel.widthProperty()?.addListener { _, _, newWidth ->
-                        resizeHandler.lastWidth = newWidth.toInt()
-                    }
-
-                    panel.heightProperty()?.addListener { _, _, newHeight ->
-                        resizeHandler.lastHeight = newHeight.toInt()
-                    }
-
-                    window = SceneryWindow.JavaFXStage(panel)
-                }
-
                 embedInDrawable?.let { glAutoDrawable ->
                     window = SceneryWindow.JOGLDrawable(glAutoDrawable)
                 }
 
                 window.width = width
                 window.height = height
+
+                resizeHandler.lastWidth = window.width
+                resizeHandler.lastHeight = window.height
+
+                embedIn?.let { panel ->
+                    panel.imageScaleY = -1.0f
+
+                    when(panel) {
+                        is SceneryFXPanel -> {
+                            panel.widthProperty()?.addListener { _, _, newWidth ->
+                                resizeHandler.lastWidth = newWidth.toInt()
+                            }
+
+                            panel.heightProperty()?.addListener { _, _, newHeight ->
+                                resizeHandler.lastHeight = newHeight.toInt()
+                            }
+
+                            window = SceneryWindow.JavaFXStage(panel)
+                            window.width = panel.panelWidth
+                            window.height = panel.panelHeight
+                        }
+
+                        is SceneryJPanel -> {
+                            window = SceneryWindow.SwingWindow(panel)
+
+                            window.width = panel.panelWidth
+                            window.height = panel.panelHeight
+
+                            panel.addComponentListener(object: ComponentAdapter() {
+                                override fun componentResized(e: ComponentEvent) {
+                                    super.componentResized(e)
+                                    logger.debug("SceneryJPanel component resized to ${e.component.width} ${e.component.height}")
+                                    resizeHandler.lastWidth = e.component.width
+                                    resizeHandler.lastHeight = e.component.height
+                                }
+                            })
+                        }
+                    }
+                }
 
                 resizeHandler.lastWidth = window.width
                 resizeHandler.lastHeight = window.height
