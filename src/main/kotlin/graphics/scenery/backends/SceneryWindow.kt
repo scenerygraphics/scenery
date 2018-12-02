@@ -1,14 +1,13 @@
 package graphics.scenery.backends
 
 import com.jogamp.opengl.GLAutoDrawable
-import graphics.scenery.utils.SceneryPanel
 import graphics.scenery.utils.SceneryFXPanel
 import graphics.scenery.utils.SceneryJPanel
 import javafx.application.Platform
 import javafx.stage.Stage
 import org.lwjgl.glfw.GLFW.*
-import java.awt.Component
 import javax.swing.JFrame
+import javax.swing.SwingUtilities
 
 /**
  * Abstraction class for GLFW, ClearGL and JavaFX windows
@@ -24,8 +23,6 @@ sealed class SceneryWindow {
     class ClearGLWindow(var window: cleargl.ClearGLWindow): SceneryWindow()
     /** JOGL GLAutoDrawable, with [drawable] being the reference to a [GLAutoDrawable]. */
     class JOGLDrawable(var drawable: GLAutoDrawable): SceneryWindow()
-    /** AWT window or stage, with [panel] being the [SceneryPanel] scenery will render to. */
-    class AWTWindow(var surface: Long, var component: Component): SceneryWindow()
     /** JavaFX window or stage, with [panel] being the [SceneryFXPanel] scenery will render to. */
     class JavaFXStage(var panel: SceneryFXPanel): SceneryWindow()
     /** Swing window with [panel] being the [SceneryJPanel] */
@@ -57,8 +54,11 @@ sealed class SceneryWindow {
             is JavaFXStage -> {
                 Platform.runLater { (panel.scene.window as? Stage)?.title = title }
             }
-            is AWTWindow -> {
-                (component as? JFrame)?.title = "AWT swapchain: $title"
+            is SwingWindow -> {
+                val window = SwingUtilities.getWindowAncestor(panel)
+                if(window != null) {
+                    (window as? JFrame)?.title = title
+                }
             }
             is HeadlessWindow -> {}
         }
