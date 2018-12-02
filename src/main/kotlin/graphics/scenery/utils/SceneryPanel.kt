@@ -1,5 +1,6 @@
 package graphics.scenery.utils
 
+import graphics.scenery.backends.Renderer
 import java.nio.ByteBuffer
 
 interface SceneryPanel {

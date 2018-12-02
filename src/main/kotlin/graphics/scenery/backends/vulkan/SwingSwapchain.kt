@@ -1,15 +1,11 @@
 package graphics.scenery.backends.vulkan
 
-import com.sun.jna.Library
-import com.sun.jna.Native
 import graphics.scenery.Hub
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.SceneryJPanel
 import graphics.scenery.utils.SceneryPanel
-import org.lwjgl.glfw.GLFW.*
-import org.lwjgl.glfw.GLFWVulkan
-import org.lwjgl.glfw.GLFWWindowSizeCallback
 import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.memFree
@@ -19,6 +15,7 @@ import org.lwjgl.vulkan.KHRSwapchain.vkAcquireNextImageKHR
 import org.lwjgl.vulkan.awt.AWTVKCanvas
 import org.lwjgl.vulkan.awt.VKData
 import java.awt.BorderLayout
+import java.awt.Color
 import java.awt.Dimension
 import java.nio.IntBuffer
 import java.nio.LongBuffer
@@ -35,13 +32,13 @@ import javax.swing.SwingUtilities
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-open class AWTSwapchain(open val device: VulkanDevice,
-                           open val queue: VkQueue,
-                           open val commandPools: VulkanRenderer.CommandPools,
-                           @Suppress("unused") open val renderConfig: RenderConfigReader.RenderConfig,
-                           open val useSRGB: Boolean = true,
-                           open val vsync: Boolean = false,
-                           open val undecorated: Boolean = false) : Swapchain {
+open class SwingSwapchain(open val device: VulkanDevice,
+                          open val queue: VkQueue,
+                          open val commandPools: VulkanRenderer.CommandPools,
+                          @Suppress("unused") open val renderConfig: RenderConfigReader.RenderConfig,
+                          open val useSRGB: Boolean = true,
+                          open val vsync: Boolean = false,
+                          open val undecorated: Boolean = false) : Swapchain {
     protected val logger by LazyLogger()
 
     /** Swapchain handle. */
@@ -69,6 +66,7 @@ open class AWTSwapchain(open val device: VulkanDevice,
     open var surface: Long = 0
     /** [SceneryWindow] instance we are using. */
     lateinit var window: SceneryWindow
+    var sceneryPanel: SceneryPanel? = null
 
     /** Time in ns of the last resize event. */
     var lastResize = -1L
@@ -93,23 +91,39 @@ open class AWTSwapchain(open val device: VulkanDevice,
         data.instance = device.instance
         logger.info("Instance=${data.instance}")
 
-        val frame = JFrame("VulkanRenderer")
-        frame.defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
-        frame.layout = BorderLayout()
-        frame.preferredSize = Dimension(win.width, win.height)
-        frame.add(object : AWTVKCanvas(data) {
+        val p = sceneryPanel as? SceneryJPanel ?: throw IllegalArgumentException("Must have SwingWindow")
+
+        val canvas = object : AWTVKCanvas(data) {
             private val serialVersionUID = 1L
+            var initialized: Boolean = false
+                private set
             override fun initVK() {
                 logger.info("Surface set to $surface")
-                this@AWTSwapchain.surface = surface
+                this@SwingSwapchain.surface = surface
+                this.background = Color.BLACK
+                initialized = true
             }
 
             override fun paintVK() {}
-        }, BorderLayout.CENTER)
+        }
+
+        p.component = canvas
+        p.layout = BorderLayout()
+        p.add(canvas, BorderLayout.CENTER)
+        p.preferredSize = Dimension(win.width, win.height)
+
+        val frame = SwingUtilities.getAncestorOfClass(JFrame::class.java, p) as JFrame
+        logger.info("Frame: $frame")
+        frame.preferredSize = Dimension(win.width, win.height)
+        frame.layout = BorderLayout()
         frame.pack()
         frame.isVisible = true
 
-        window = SceneryWindow.AWTWindow(surface, frame)
+        while(!canvas.initialized) {
+            Thread.sleep(100)
+        }
+
+        window = SceneryWindow.SwingWindow(p)
         window.width = win.width
         window.height = win.height
 
@@ -222,8 +236,9 @@ open class AWTSwapchain(open val device: VulkanDevice,
                 retiredSwapchains.add(device to oldHandle)
             }
 
-            val imageCount = VU.getInts("Getting swapchain images", 1,
-                { KHRSwapchain.vkGetSwapchainImagesKHR(device.vulkanDevice, handle, this, null) })
+            val imageCount = VU.getInts("Getting swapchain images", 1) {
+                KHRSwapchain.vkGetSwapchainImagesKHR(device.vulkanDevice, handle, this, null)
+            }
 
             logger.debug("Got ${imageCount.get(0)} swapchain images")
 
@@ -263,10 +278,10 @@ open class AWTSwapchain(open val device: VulkanDevice,
                     colorAttachmentView.image(images[i])
 
                     imageViews[i] = VU.getLong("create image view",
-                        { VK10.vkCreateImageView(this@AWTSwapchain.device.vulkanDevice, colorAttachmentView, null, this) }, {})
+                        { VK10.vkCreateImageView(this@SwingSwapchain.device.vulkanDevice, colorAttachmentView, null, this) }, {})
                 }
 
-                endCommandBuffer(this@AWTSwapchain.device, commandPools.Standard, queue,
+                endCommandBuffer(this@SwingSwapchain.device, commandPools.Standard, queue,
                     flush = true, dealloc = true)
             }
 
@@ -297,8 +312,9 @@ open class AWTSwapchain(open val device: VulkanDevice,
 
             // Iterate over each queue to learn whether it supports presenting:
             val supportsPresent = (0 until queueCount).map {
-                VU.getInt("Physical device surface support",
-                    { KHRSurface.vkGetPhysicalDeviceSurfaceSupportKHR(device.physicalDevice, it, surface, this) })
+                VU.getInt("Physical device surface support") {
+                    KHRSurface.vkGetPhysicalDeviceSurfaceSupportKHR(device.physicalDevice, it, surface, this)
+                }
             }
 
             // Search for a graphics and a present queue in the array of queue families, try to find one that supports both
@@ -453,7 +469,7 @@ open class AWTSwapchain(open val device: VulkanDevice,
             return
         }
 
-        logger.error("Embedding is not supported with the default Vulkan swapchain. Use FXSwapchain instead.")
+        sceneryPanel = panel
     }
 
     /**

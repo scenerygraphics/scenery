@@ -19,7 +19,9 @@ import org.lwjgl.system.Platform
 import org.lwjgl.system.jemalloc.JEmalloc.*
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.EXTDebugReport.*
+import org.lwjgl.vulkan.KHRSurface.VK_KHR_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+import org.lwjgl.vulkan.KHRSwapchain.VK_KHR_SWAPCHAIN_EXTENSION_NAME
 import org.lwjgl.vulkan.KHRWin32Surface.VK_KHR_WIN32_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.KHRXlibSurface.VK_KHR_XLIB_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.MVKMacosSurface.VK_MVK_MACOS_SURFACE_EXTENSION_NAME
@@ -480,11 +482,13 @@ open class VulkanRenderer(hub: Hub,
             emptyArray()
         }
 
+        val headless = embedIn is SceneryFXPanel || System.getProperty("scenery.Headless", "false").toBoolean()
+
         device = VulkanDevice.fromPhysicalDevice(instance,
             physicalDeviceFilter = { _, device -> device.name.contains(System.getProperty("scenery.Renderer.Device", "DOES_NOT_EXIST"))},
             additionalExtensions = { physicalDevice -> hub.getWorkingHMDDisplay()?.getVulkanDeviceExtensions(physicalDevice)?.toTypedArray() ?: arrayOf() },
             validationLayers = requestedValidationLayers,
-            headless = embedIn != null)
+            headless = headless)
 
         logger.debug("Device creation done")
 
@@ -522,16 +526,16 @@ open class VulkanRenderer(hub: Hub,
                     renderConfig = renderConfig, useSRGB = renderConfig.sRGB)
             }
 
-            (System.getProperty("scenery.Renderer.UseJavaFX", "false")?.toBoolean() ?: false || embedIn != null) -> {
+            (System.getProperty("scenery.Renderer.UseJavaFX", "false")?.toBoolean() ?: false || embedIn is SceneryFXPanel) -> {
                 logger.info("Using JavaFX-based swapchain")
                 FXSwapchain(
                     device, queue, commandPools,
                     renderConfig = renderConfig, useSRGB = renderConfig.sRGB)
             }
 
-            (System.getProperty("scenery.Renderer.UseAWT", "false")?.toBoolean() ?: false || embedIn != null) -> {
+            (System.getProperty("scenery.Renderer.UseAWT", "false")?.toBoolean() ?: false || embedIn is SceneryJPanel) -> {
                 logger.info("Using AWT swapchain")
-                AWTSwapchain(
+                SwingSwapchain(
                     device, queue, commandPools,
                     renderConfig = renderConfig, useSRGB = renderConfig.sRGB)
             }
@@ -2069,7 +2073,7 @@ open class VulkanRenderer(hub: Hub,
             }
 
             enabledExtensionNames.put(platformSurfaceExtension)
-            enabledExtensionNames.put(stack.UTF8(VK_KHR_XLIB_SURFACE_EXTENSION_NAME))
+            enabledExtensionNames.put(stack.UTF8(VK_KHR_SURFACE_EXTENSION_NAME))
             utf8Exts.forEach { enabledExtensionNames.put(it) }
             enabledExtensionNames.flip()
 
