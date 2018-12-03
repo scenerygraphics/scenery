@@ -5,6 +5,8 @@ import com.jogamp.nativewindow.WindowClosingProtocol
 import com.jogamp.newt.event.WindowAdapter
 import com.jogamp.newt.event.WindowEvent
 import com.jogamp.opengl.*
+import com.jogamp.opengl.awt.GLCanvas
+import com.jogamp.opengl.awt.GLJPanel
 import com.jogamp.opengl.util.FPSAnimator
 import com.jogamp.opengl.util.awt.AWTGLReadBufferUtil
 import graphics.scenery.*
@@ -14,6 +16,8 @@ import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.utils.*
 import kotlinx.coroutines.*
 import org.lwjgl.system.MemoryUtil
+import java.awt.BorderLayout
+import java.awt.Dimension
 import java.awt.event.ComponentAdapter
 import java.awt.event.ComponentEvent
 import java.io.File
@@ -31,6 +35,8 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import javax.imageio.ImageIO
+import javax.swing.JFrame
+import javax.swing.SwingUtilities
 import kotlin.collections.LinkedHashMap
 import kotlin.concurrent.withLock
 import kotlin.math.max
@@ -360,9 +366,27 @@ open class OpenGLRenderer(hub: Hub,
                 caps.blueBits = 8
                 caps.alphaBits = 8
 
-                val factory = GLDrawableFactory.getFactory(profile)
-                drawable = factory.createOffscreenAutoDrawable(factory.defaultDevice, caps,
-                    DefaultGLCapabilitiesChooser(), window.width, window.height)
+                val panel = embedIn
+                drawable = if(panel is SceneryJPanel) {
+                    val canvas = GLJPanel(caps)
+                    panel.component = canvas
+                    panel.layout = BorderLayout()
+                    panel.add(canvas, BorderLayout.CENTER)
+                    panel.preferredSize = Dimension(width, height)
+
+                    val frame = SwingUtilities.getAncestorOfClass(JFrame::class.java, panel) as JFrame
+                    frame.preferredSize = Dimension(width, height)
+                    frame.layout = BorderLayout()
+                    frame.pack()
+                    frame.isVisible = true
+
+                    canvas
+                } else {
+                    val factory = GLDrawableFactory.getFactory(profile)
+
+                    factory.createOffscreenAutoDrawable(factory.defaultDevice, caps,
+                        DefaultGLCapabilitiesChooser(), window.width, window.height)
+                }
             } else {
                 drawable = embedInDrawable
             }
@@ -1880,7 +1904,7 @@ open class OpenGLRenderer(hub: Hub,
                 viewportPass.output.values.first().getTextureId("Viewport"))
         }
 
-        if(embedIn != null || recordMovie) {
+        if((embedIn != null && embedIn !is SceneryJPanel) || recordMovie) {
             if (shouldClose || mustRecreateFramebuffers) {
                 encoder?.finish()
 
