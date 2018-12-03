@@ -216,6 +216,9 @@ abstract class Renderer : Hubable {
                 }
             } catch (e: Exception) {
                 logger.error("Could not instantiate renderer. Is your graphics card working properly and do you have the most recent drivers installed?")
+                if(logger.isDebugEnabled) {
+                    e.printStackTrace()
+                }
                 throw RuntimeException("Could not instantiate renderer (${e.cause}, ${e.message})")
             }
         }
