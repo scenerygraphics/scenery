@@ -219,7 +219,7 @@ abstract class Renderer : Hubable {
                 if(logger.isDebugEnabled) {
                     e.printStackTrace()
                 }
-                throw RuntimeException("Could not instantiate renderer (${e.cause}, ${e.message})")
+                throw e
             }
         }
     }
