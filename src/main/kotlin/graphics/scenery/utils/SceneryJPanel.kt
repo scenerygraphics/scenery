@@ -1,5 +1,6 @@
 package graphics.scenery.utils
 
+import cleargl.ClearGLWindow
 import com.jogamp.opengl.awt.GLJPanel
 import com.sun.jna.Pointer
 import graphics.scenery.backends.Renderer
@@ -37,6 +38,7 @@ class SceneryJPanel : JPanel(), SceneryPanel {
     override var refreshRate = 60
 
     var component: Component? = null
+    var cglWindow: ClearGLWindow? = null
 
     override var displayedFrames: Long = 0L
 

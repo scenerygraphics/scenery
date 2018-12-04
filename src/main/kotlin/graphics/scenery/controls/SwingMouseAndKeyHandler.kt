@@ -29,24 +29,13 @@
  */
 package graphics.scenery.controls
 
-import java.awt.Component
-import java.awt.Toolkit
-import java.awt.event.FocusEvent
-import java.awt.event.FocusListener
-import java.awt.event.InputEvent
-import java.awt.event.KeyEvent
-import java.awt.event.KeyListener
-import java.awt.event.MouseEvent
-import java.awt.event.MouseListener
-import java.awt.event.MouseMotionListener
-import java.awt.event.MouseWheelEvent
-import java.awt.event.MouseWheelListener
-import java.util.ArrayList
-
-import org.scijava.ui.behaviour.KeyPressedManager.KeyPressedReceiver
-
 import gnu.trove.set.TIntSet
 import org.scijava.ui.behaviour.*
+import org.scijava.ui.behaviour.KeyPressedManager.KeyPressedReceiver
+import java.awt.Component
+import java.awt.Toolkit
+import java.awt.event.*
+import java.util.*
 
 class SwingMouseAndKeyHandler : MouseAndKeyHandlerBase(), KeyListener, MouseListener, MouseWheelListener, MouseMotionListener, FocusListener {
 
@@ -204,7 +193,7 @@ class SwingMouseAndKeyHandler : MouseAndKeyHandlerBase(), KeyListener, MouseList
 
 
     override fun mouseDragged(e: MouseEvent) {
-        //		System.out.println( "MouseAndKeyHandler.mouseDragged()" );
+        		System.out.println( "MouseAndKeyHandler.mouseDragged()" );
         //		System.out.println( e );
         update()
 
@@ -216,7 +205,7 @@ class SwingMouseAndKeyHandler : MouseAndKeyHandlerBase(), KeyListener, MouseList
     }
 
     override fun mouseMoved(e: MouseEvent) {
-        //		System.out.println( "MouseAndKeyHandler.mouseMoved()" );
+        		System.out.println( "MouseAndKeyHandler.mouseMoved()" );
         update()
 
         mouseX = e.x
@@ -227,7 +216,7 @@ class SwingMouseAndKeyHandler : MouseAndKeyHandlerBase(), KeyListener, MouseList
     }
 
     override fun mouseWheelMoved(e: MouseWheelEvent) {
-        //		System.out.println( "MouseAndKeyHandler.mouseWheelMoved()" );
+        		System.out.println( "MouseAndKeyHandler.mouseWheelMoved()" );
         //		System.out.println( e );
         update()
 

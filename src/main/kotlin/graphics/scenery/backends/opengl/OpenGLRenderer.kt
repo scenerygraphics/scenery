@@ -392,6 +392,7 @@ open class OpenGLRenderer(hub: Hub,
                     val canvas = ClearGLWindow("", width, height, null)
                     canvas.newtCanvasAWT.shallUseOffscreenLayer = true
                     panel.component = canvas.newtCanvasAWT
+                    panel.cglWindow = canvas
                     panel.layout = BorderLayout()
                     panel.add(canvas.newtCanvasAWT, BorderLayout.CENTER)
                     panel.preferredSize = Dimension(width, height)
