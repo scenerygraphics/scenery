@@ -5,8 +5,6 @@ import com.jogamp.nativewindow.WindowClosingProtocol
 import com.jogamp.newt.event.WindowAdapter
 import com.jogamp.newt.event.WindowEvent
 import com.jogamp.opengl.*
-import com.jogamp.opengl.awt.GLCanvas
-import com.jogamp.opengl.awt.GLJPanel
 import com.jogamp.opengl.util.FPSAnimator
 import com.jogamp.opengl.util.awt.AWTGLReadBufferUtil
 import graphics.scenery.*
@@ -14,7 +12,10 @@ import graphics.scenery.backends.*
 import graphics.scenery.spirvcrossj.Loader
 import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.utils.*
-import kotlinx.coroutines.*
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.lwjgl.system.MemoryUtil
 import java.awt.BorderLayout
 import java.awt.Dimension
@@ -197,8 +198,8 @@ open class OpenGLRenderer(hub: Hub,
             gl.glDeleteBuffers(pboCount, pbos, 0)
             pbos = IntArray(pboCount) { 0 }
 
-            window.width = lastWidth
-            window.height = lastHeight
+            lastWidth = window.width
+            lastHeight = window.height
 
             if(drawable is GLOffscreenAutoDrawable) {
                 (drawable as? GLOffscreenAutoDrawable)?.setSurfaceSize(window.width, window.height)
@@ -360,6 +361,7 @@ open class OpenGLRenderer(hub: Hub,
                 caps.hardwareAccelerated = true
                 caps.doubleBuffered = true
                 caps.isOnscreen = false
+                caps.numSamples = 1
                 caps.isPBuffer = true
                 caps.redBits = 8
                 caps.greenBits = 8
@@ -367,11 +369,31 @@ open class OpenGLRenderer(hub: Hub,
                 caps.alphaBits = 8
 
                 val panel = embedIn
-                drawable = if(panel is SceneryJPanel) {
-                    val canvas = GLJPanel(caps)
-                    panel.component = canvas
+                /* maybe better?
+                 var canvas: ClearGLWindow? = null
+                    SwingUtilities.invokeAndWait {
+                        canvas = ClearGLWindow("", width, height, this)
+                        canvas!!.newtCanvasAWT.shallUseOffscreenLayer = true
+                        panel.component = canvas!!.newtCanvasAWT
+                        panel.layout = BorderLayout()
+                        panel.add(canvas!!.newtCanvasAWT, BorderLayout.CENTER)
+                        panel.preferredSize = Dimension(width, height)
+
+                        val frame = SwingUtilities.getAncestorOfClass(JFrame::class.java, panel) as JFrame
+                        frame.preferredSize = Dimension(width, height)
+                        frame.layout = BorderLayout()
+                        frame.pack()
+                        frame.isVisible = true
+                    }
+
+                    canvas!!.glAutoDrawable
+                 */
+                drawable = if (panel is SceneryJPanel) {
+                    val canvas = ClearGLWindow("", width, height, null)
+                    canvas.newtCanvasAWT.shallUseOffscreenLayer = true
+                    panel.component = canvas.newtCanvasAWT
                     panel.layout = BorderLayout()
-                    panel.add(canvas, BorderLayout.CENTER)
+                    panel.add(canvas.newtCanvasAWT, BorderLayout.CENTER)
                     panel.preferredSize = Dimension(width, height)
 
                     val frame = SwingUtilities.getAncestorOfClass(JFrame::class.java, panel) as JFrame
@@ -380,7 +402,7 @@ open class OpenGLRenderer(hub: Hub,
                     frame.pack()
                     frame.isVisible = true
 
-                    canvas
+                    canvas.glAutoDrawable
                 } else {
                     val factory = GLDrawableFactory.getFactory(profile)
 
@@ -447,7 +469,6 @@ open class OpenGLRenderer(hub: Hub,
 
                 resizeHandler.lastWidth = window.width
                 resizeHandler.lastHeight = window.height
-
             }
         } else {
             val w = this.window.width
@@ -576,7 +597,7 @@ open class OpenGLRenderer(hub: Hub,
         val flow = renderConfig.createRenderpassFlow()
 
         val supersamplingFactor = if(settings.get<Float>("Renderer.SupersamplingFactor").toInt() == 1) {
-            if(cglWindow != null && ClearGLWindow.isRetina(cglWindow!!.gl)) {
+            if(cglWindow != null && ClearGLWindow.isRetina(cglWindow!!.gl) && embedIn !is SceneryJPanel) {
                 logger.debug("Setting Renderer.SupersamplingFactor to 0.5, as we are rendering on a retina display.")
                 settings.set("Renderer.SupersamplingFactor", 0.5f)
                 0.5f
@@ -748,6 +769,7 @@ open class OpenGLRenderer(hub: Hub,
         this.joglDrawable = pDrawable
 
         if (mustRecreateFramebuffers) {
+            logger.info("Recreating framebuffers (${window.width}x${window.height}")
             renderpasses = prepareRenderpasses(renderConfig, window.width, window.height)
             flow = renderConfig.createRenderpassFlow()
 
