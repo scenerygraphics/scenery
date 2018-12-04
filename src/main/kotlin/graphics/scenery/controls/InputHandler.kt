@@ -1,5 +1,6 @@
 package graphics.scenery.controls
 
+import com.jogamp.newt.awt.NewtCanvasAWT
 import graphics.scenery.Hub
 import graphics.scenery.Hubable
 import graphics.scenery.Scene
@@ -11,7 +12,10 @@ import graphics.scenery.controls.behaviours.*
 import graphics.scenery.utils.LazyLogger
 import net.java.games.input.Component
 import org.lwjgl.glfw.GLFW.*
-import org.scijava.ui.behaviour.*
+import org.scijava.ui.behaviour.Behaviour
+import org.scijava.ui.behaviour.BehaviourMap
+import org.scijava.ui.behaviour.InputTrigger
+import org.scijava.ui.behaviour.InputTriggerMap
 import org.scijava.ui.behaviour.io.InputTriggerConfig
 import org.scijava.ui.behaviour.io.yaml.YamlConfigIO
 import java.io.FileNotFoundException
@@ -93,16 +97,29 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
             }
 
             is SceneryWindow.SwingWindow -> {
-                handler = SwingMouseAndKeyHandler()
+                val component = window.panel.component
+                val cglWindow = window.panel.cglWindow
 
-                handler.setInputMap(inputMap)
-                handler.setBehaviourMap(behaviourMap)
+                if(component is NewtCanvasAWT && cglWindow != null) {
+                    handler = JOGLMouseAndKeyHandler(hub)
 
-                window.panel.addKeyListener(handler)
-                window.panel.addMouseListener(handler)
-                window.panel.addMouseMotionListener(handler)
-                window.panel.addMouseWheelListener(handler)
-                window.panel.addFocusListener(handler)
+                    handler.setInputMap(inputMap)
+                    handler.setBehaviourMap(behaviourMap)
+
+                    cglWindow.addKeyListener(handler)
+                    cglWindow.addMouseListener(handler)
+                } else {
+                    handler = SwingMouseAndKeyHandler()
+
+                    handler.setInputMap(inputMap)
+                    handler.setBehaviourMap(behaviourMap)
+
+                    window.panel.addKeyListener(handler)
+                    window.panel.addMouseListener(handler)
+                    window.panel.addMouseMotionListener(handler)
+                    window.panel.addMouseWheelListener(handler)
+                    window.panel.addFocusListener(handler)
+                }
             }
 
             is SceneryWindow.UninitializedWindow -> {
