@@ -12,6 +12,7 @@ import javafx.stage.FileChooser
 import javafx.stage.Stage
 import org.junit.Test
 import org.scijava.ui.behaviour.ClickBehaviour
+import tpietzsch.example2.VolumeViewerOptions
 import java.util.*
 import java.util.concurrent.CountDownLatch
 
@@ -67,7 +68,8 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
             scene.addChild(this)
         }
 
-        val v = BDVVolume(files.first(), maxGPUMemoryMB = 1024)
+        val options = VolumeViewerOptions()
+        val v = BDVVolume(files.first(), options)
         v.name = "volume"
         v.colormap = "plasma"
         v.scale = GLVector(0.02f, 0.02f, 0.02f)
