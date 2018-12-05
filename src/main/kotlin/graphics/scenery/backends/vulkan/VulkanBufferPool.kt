@@ -3,7 +3,7 @@ package graphics.scenery.backends.vulkan
 import graphics.scenery.utils.LazyLogger
 import java.util.concurrent.CopyOnWriteArrayList
 import vkk.*
-import vkk.`object`.VkDeviceSize
+import vkk.entities.VkDeviceSize
 
 
 /** Default [VulkanBufferPool] backing store size. */

@@ -3,12 +3,14 @@ package graphics.scenery.backends.vulkan
 import glm_.i
 import graphics.scenery.GeometryType
 import graphics.scenery.utils.LazyLogger
+import kool.set
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
 import vkk.*
-import vkk.`object`.VkPipelineCache
-import vkk.`object`.VkPipelineLayout
-import vkk.`object`.VkRenderPass
+import vkk.entities.VkDescriptorSetLayoutBuffer
+import vkk.entities.VkPipelineCache
+import vkk.entities.VkPipelineLayout
+import vkk.entities.VkRenderPass
 import java.util.*
 import kotlin.collections.LinkedHashMap
 

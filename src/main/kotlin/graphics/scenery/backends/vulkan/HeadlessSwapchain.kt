@@ -11,7 +11,7 @@ import org.lwjgl.system.MemoryStack
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.vulkan.*
 import vkk.*
-import vkk.`object`.*
+import vkk.entities.*
 import java.nio.ByteBuffer
 
 

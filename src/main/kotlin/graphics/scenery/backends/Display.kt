@@ -3,11 +3,11 @@ package graphics.scenery.backends
 import cleargl.GLMatrix
 import cleargl.GLVector
 import graphics.scenery.backends.vulkan.VulkanDevice
-import org.lwjgl.vulkan.VkDevice
 import org.lwjgl.vulkan.VkInstance
 import org.lwjgl.vulkan.VkPhysicalDevice
 import org.lwjgl.vulkan.VkQueue
-import vkk.`object`.VkImage
+import vkk.entities.VkImage
+
 
 /**
  * <Description>

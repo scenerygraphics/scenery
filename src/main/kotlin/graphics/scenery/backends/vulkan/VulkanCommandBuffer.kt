@@ -4,8 +4,8 @@ import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkCommandBuffer
 import vkk.*
-import vkk.`object`.VkCommandPool
-import vkk.`object`.VkFence
+import vkk.entities.VkCommandPool
+import vkk.entities.VkFence
 
 /**
  * Vulkan Command Buffer class. Wraps command buffer and fencing functionality.

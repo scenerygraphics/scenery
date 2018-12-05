@@ -4,7 +4,7 @@ import graphics.scenery.NodeMetadata
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.system.MemoryUtil.NULL
 import vkk.*
-import vkk.`object`.*
+import vkk.entities.*
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 

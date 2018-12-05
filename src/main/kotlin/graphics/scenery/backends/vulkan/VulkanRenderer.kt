@@ -4,14 +4,16 @@ import cleargl.GLMatrix
 import cleargl.GLVector
 import glm_.L
 import glm_.i
-import glm_.set
 import graphics.scenery.*
 import graphics.scenery.backends.*
 import graphics.scenery.spirvcrossj.Loader
 import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.utils.*
+import kool.ByteBuffer
 import kool.cap
 import kool.free
+import kool.lib.fill
+import kool.set
 import kotlinx.coroutines.*
 import org.lwjgl.PointerBuffer
 import org.lwjgl.glfw.GLFW.glfwInit
@@ -20,12 +22,12 @@ import org.lwjgl.system.Configuration
 import org.lwjgl.system.MemoryStack.stackGet
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
-import org.lwjgl.vulkan.EXTDebugReport.*
+import org.lwjgl.vulkan.EXTDebugReport.VK_EXT_DEBUG_REPORT_EXTENSION_NAME
 import org.lwjgl.vulkan.VK10.VK_FALSE
 import org.lwjgl.vulkan.VK10.VK_MAKE_VERSION
 import uno.glfw.glfw
 import vkk.*
-import vkk.`object`.*
+import vkk.entities.*
 import java.awt.image.BufferedImage
 import java.awt.image.DataBufferByte
 import java.io.File
@@ -1982,7 +1984,7 @@ open class VulkanRenderer(hub: Hub,
         }
 
         if (n.texcoords.remaining() == 0 && node.instanceMaster) {
-            val buffer = kool.bufferBig(4 * n.vertices.remaining() / n.vertexSize * n.texcoordSize)
+            val buffer = ByteBuffer(4 * n.vertices.remaining() / n.vertexSize * n.texcoordSize)
             n.texcoords = buffer.asFloatBuffer()
         }
 
@@ -1990,7 +1992,7 @@ open class VulkanRenderer(hub: Hub,
         val indexAllocationBytes: Long = 4L * n.indices.remaining()
         val fullAllocationBytes = VkDeviceSize(vertexAllocationBytes + indexAllocationBytes)
 
-        val stridedBuffer = kool.bufferBig(fullAllocationBytes.L.i)
+        val stridedBuffer = ByteBuffer(fullAllocationBytes.L.i)
 
         val fb = stridedBuffer.asFloatBuffer()
         val ib = stridedBuffer.asIntBuffer()
@@ -2564,7 +2566,7 @@ open class VulkanRenderer(hub: Hub,
             }
 
             // allocate more vertexBufferOffsets than needed, set limit lateron
-            meta.uboOffsets.position(0)
+            meta.uboOffsets.position(0) // TODO
             meta.uboOffsets.limit(16)
             meta.uboOffsets.fill(0)
 

@@ -1,18 +1,17 @@
 package graphics.scenery.backends.vulkan
 
 import glm_.L
+import glm_.i
 import graphics.scenery.utils.LazyLogger
-import kool.Adr
-import kool.cap
-import kool.free
-import kool.pos
+import kool.*
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.NULL
 import org.lwjgl.system.MemoryUtil.memAlloc
 import vkk.*
-import vkk.`object`.VkBuffer
-import vkk.`object`.VkDeviceMemory
-import vkk.`object`.VkDeviceSize
+import vkk.entities.rem
+import vkk.entities.VkBuffer
+import vkk.entities.VkDeviceMemory
+import vkk.entities.VkDeviceSize
 import java.nio.ByteBuffer
 import kotlin.math.roundToInt
 

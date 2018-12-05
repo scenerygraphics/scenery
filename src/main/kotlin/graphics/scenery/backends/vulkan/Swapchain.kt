@@ -3,9 +3,9 @@ package graphics.scenery.backends.vulkan
 import graphics.scenery.Hub
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.utils.SceneryPanel
-import vkk.VkFormat
-import vkk.`object`.*
-import java.nio.LongBuffer
+import org.lwjgl.system.MemoryUtil.NULL
+import vkk.*
+import vkk.entities.*
 
 /**
  * Swapchain interface for [VulkanRenderer].
@@ -48,7 +48,7 @@ interface Swapchain : AutoCloseable {
      * optionally waiting for a [timeout] before failing. Returns true if the swapchain needs to be
      * recreated and false if not.
      */
-    fun next(timeout: Long = -1L, signalSemaphore: VkSemaphore = VkSemaphore(0)): Boolean
+    fun next(timeout: Long = -1L, signalSemaphore: VkSemaphore = VkSemaphore(NULL)): Boolean
 
     /**
      * Closes this swapchain.

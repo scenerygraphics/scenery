@@ -1,6 +1,5 @@
 package graphics.scenery.backends.vulkan
 
-import glm_.set
 import graphics.scenery.Hub
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.SceneryWindow
@@ -8,22 +7,19 @@ import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.SceneryPanel
 import kool.free
 import kool.rem
+import kool.set
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.glfw.GLFWVulkan
 import org.lwjgl.glfw.GLFWWindowSizeCallback
-import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.NULL
-import org.lwjgl.system.MemoryUtil.memFree
-import org.lwjgl.vulkan.*
-import org.lwjgl.vulkan.KHRSwapchain.VK_ERROR_OUT_OF_DATE_KHR
-import org.lwjgl.vulkan.KHRSwapchain.vkAcquireNextImageKHR
+import org.lwjgl.vulkan.KHRSwapchain
+import org.lwjgl.vulkan.VkPresentInfoKHR
+import org.lwjgl.vulkan.VkQueue
 import vkk.*
-import vkk.`object`.*
-import java.nio.IntBuffer
+import vkk.entities.*
 import java.nio.LongBuffer
 import java.util.*
-import kotlin.collections.ArrayList
 
 /**
  * GLFW-based default Vulkan Swapchain and window, residing on [device], associated with [queue].

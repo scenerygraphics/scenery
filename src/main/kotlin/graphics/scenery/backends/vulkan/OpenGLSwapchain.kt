@@ -28,11 +28,12 @@ import org.lwjgl.system.Platform
 import org.lwjgl.vulkan.VK10
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkQueue
+import uno.glfw.VSync
 import uno.glfw.glfw
 import vkk.VkFormat
 import vkk.VkImageLayout
 import vkk.VkImageTiling
-import vkk.`object`.*
+import vkk.entities.*
 import java.nio.LongBuffer
 
 /**
@@ -189,7 +190,7 @@ class OpenGLSwapchain(val device: VulkanDevice,
 
         handle = VkSwapchainKHR(NULL)
 
-        glfw.swapInterval = 0
+        glfw.swapInterval = VSync.OFF
         glfwShowWindow(window.window)
 
         glEnable(GL_FRAMEBUFFER_SRGB)

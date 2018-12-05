@@ -11,12 +11,11 @@ import graphics.scenery.backends.Shaders
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.RingBuffer
 import kool.free
-import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
 import vkk.*
-import vkk.`object`.*
+import vkk.entities.*
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.util.*

@@ -10,7 +10,7 @@ import graphics.scenery.utils.LazyLogger
 import org.lwjgl.vulkan.VkInstance
 import org.lwjgl.vulkan.VkPhysicalDevice
 import org.lwjgl.vulkan.VkQueue
-import vkk.`object`.VkImage
+import vkk.entities.VkImage
 
 /**
  * Display/TrackerInput implementation for stereoscopic displays and tracked shutter glasses

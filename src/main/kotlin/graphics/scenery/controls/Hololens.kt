@@ -28,8 +28,8 @@ import org.zeromq.ZPoller
 import vkk.VkFormat
 import vkk.VkImageLayout
 import vkk.VkImageTiling
-import vkk.`object`.VkCommandPool
-import vkk.`object`.VkImage
+import vkk.entities.VkCommandPool
+import vkk.entities.VkImage
 import vkk.allocateMemory
 import java.math.BigInteger
 import java.nio.ByteBuffer

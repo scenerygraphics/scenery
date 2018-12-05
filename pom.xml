@@ -112,9 +112,10 @@
 
         <cleargl.version>2.2.1</cleargl.version>
         <slf4j.version>1.7.25</slf4j.version>
-        <lwjgl.version>3.2.0</lwjgl.version>
+        <lwjgl.version>3.2.1-SNAPSHOT</lwjgl.version>
         <spirvcrossj.version>0.4.2</spirvcrossj.version>
         <jvrpn.version>1.1.0</jvrpn.version>
+        <uno.version>a35ce3611be34bcc0ca790dd1af47adb0580c9ee</uno.version>
 
         <license.licenseName>lgpl_v3</license.licenseName>
         <license.copyrightOwners>the scenery development team</license.copyrightOwners>
@@ -502,28 +503,10 @@
             <scope>test</scope>
         </dependency>
 
-        <!--<dependency>-->
-            <!--<groupId>com.github.kotlin-graphics</groupId>-->
-            <!--<artifactId>vkk</artifactId>-->
-            <!--<version>c77f8098ad</version>-->
-        <!--</dependency>-->
-
         <dependency>
             <groupId>com.github.kotlin-graphics</groupId>
             <artifactId>uno-sdk</artifactId>
-            <version>8bb70b7554c0a58e7f637d09320780b0d827ca0e</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.github.kotlin-graphics</groupId>
-            <artifactId>glm</artifactId>
-            <version>f63d840cde</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.github.kotlin-graphics</groupId>
-            <artifactId>kool</artifactId>
-            <version>94484351fb</version>
+            <version>${uno.version}</version>
         </dependency>
 
 

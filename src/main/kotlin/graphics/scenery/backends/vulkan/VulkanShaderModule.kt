@@ -12,7 +12,7 @@ import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkPipelineShaderStageCreateInfo
 import org.lwjgl.vulkan.VkShaderModuleCreateInfo
 import vkk.*
-import vkk.`object`.VkShaderModule
+import vkk.entities.VkShaderModule
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.collections.LinkedHashMap
 

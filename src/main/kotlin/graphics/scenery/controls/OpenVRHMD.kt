@@ -23,8 +23,8 @@ import org.scijava.ui.behaviour.InputTriggerMap
 import org.scijava.ui.behaviour.MouseAndKeyHandler
 import org.scijava.ui.behaviour.io.InputTriggerConfig
 import vkk.VkImageLayout
-import vkk.`object`.VkCommandPool
-import vkk.`object`.VkImage
+import vkk.entities.VkCommandPool
+import vkk.entities.VkImage
 import java.awt.Component
 import java.awt.event.KeyEvent
 import java.nio.FloatBuffer

@@ -14,7 +14,7 @@ import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkImageCreateInfo
 import vkk.*
-import vkk.`object`.*
+import vkk.entities.*
 import java.awt.Color
 import java.awt.color.ColorSpace
 import java.awt.geom.AffineTransform

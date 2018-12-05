@@ -1,14 +1,15 @@
 package graphics.scenery.backends.vulkan
 
-import glm_.size
 import graphics.scenery.utils.LazyLogger
-import kool.cap
+import kool.lim
+import kool.rem
 import org.lwjgl.system.MemoryUtil.NULL
-import org.lwjgl.vulkan.*
-import java.util.*
-import org.lwjgl.vulkan.VK10.*
+import org.lwjgl.vulkan.VK10.VK_SUBPASS_EXTERNAL
+import org.lwjgl.vulkan.VkAttachmentDescription
+import org.lwjgl.vulkan.VkCommandBuffer
 import vkk.*
-import vkk.`object`.*
+import vkk.entities.*
+import java.util.*
 
 /**
  * Vulkan Framebuffer class. Creates a framebuffer on [device], associated with

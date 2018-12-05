@@ -1,13 +1,13 @@
 package graphics.scenery.backends.vulkan
 
-import glm_.set
-import glm_.toHexString
 import graphics.scenery.utils.LazyLogger
+import kool.adr
+import kool.set
 import org.lwjgl.system.MemoryStack.stackGet
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.vkGetPhysicalDeviceMemoryProperties
 import vkk.*
-import vkk.`object`.VkCommandPool
+import vkk.entities.VkCommandPool
 
 /**
  * Describes a Vulkan device attached to an [instance] and a [physicalDevice].
@@ -168,7 +168,7 @@ open class VulkanDevice(val instance: VkInstance,
         }
 
         if (types.isEmpty()) {
-            logger.warn("Memory type $flags not found for device $this (${vulkanDevice.adr.toHexString}")
+            logger.warn("Memory type $flags not found for device $this (${vulkanDevice.adr.toHexString()}")
         }
 
         return types

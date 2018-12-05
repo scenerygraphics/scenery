@@ -2,8 +2,8 @@ package graphics.scenery.backends.vulkan
 
 import graphics.scenery.Blending
 import graphics.scenery.backends.RenderConfigReader
-import graphics.scenery.backends.vulkan.VulkanDevice.Companion.logger
 import graphics.scenery.utils.LazyLogger
+import kool.adr
 import kool.stak
 import org.lwjgl.PointerBuffer
 import org.lwjgl.system.MemoryStack.stackPush
@@ -14,11 +14,12 @@ import org.lwjgl.vulkan.EXTDebugReport.VK_ERROR_VALIDATION_FAILED_EXT
 import org.lwjgl.vulkan.KHRDisplaySwapchain.VK_ERROR_INCOMPATIBLE_DISPLAY_KHR
 import org.lwjgl.vulkan.KHRSurface.VK_ERROR_NATIVE_WINDOW_IN_USE_KHR
 import org.lwjgl.vulkan.KHRSurface.VK_ERROR_SURFACE_LOST_KHR
-import org.lwjgl.vulkan.KHRSwapchain.*
+import org.lwjgl.vulkan.KHRSwapchain.VK_ERROR_OUT_OF_DATE_KHR
+import org.lwjgl.vulkan.KHRSwapchain.VK_SUBOPTIMAL_KHR
 import org.lwjgl.vulkan.VK10.*
 import org.slf4j.LoggerFactory
 import vkk.*
-import vkk.`object`.*
+import vkk.entities.*
 import java.math.BigInteger
 import java.nio.IntBuffer
 import java.nio.LongBuffer
