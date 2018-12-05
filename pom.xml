@@ -503,9 +503,9 @@
         </dependency>
 
         <dependency>
-            <groupId>org.scijava</groupId>
-            <artifactId>jogl-minimal</artifactId>
-            <version>1.0.3-SNAPSHOT</version>
+            <groupId>sc.fiji</groupId>
+            <artifactId>bigvolumeviewer</artifactId>
+            <version>0.1.1</version>
         </dependency>
 
         <dependency>
