@@ -1,24 +1,30 @@
 package graphics.scenery.volumes.bdv
 
+import bdv.BigDataViewer.initSetups
 import bdv.spimdata.SpimDataMinimal
 import bdv.spimdata.XmlIoSpimDataMinimal
+import bdv.tools.brightness.ConverterSetup
+import bdv.tools.brightness.SetupAssignments
+import bdv.viewer.DisplayMode
+import bdv.viewer.SourceAndConverter
+import bdv.viewer.VisibilityAndGrouping
+import bdv.viewer.state.SourceGroup
+import bdv.viewer.state.ViewerState
 import graphics.scenery.*
 import graphics.scenery.volumes.Volume
-import net.imglib2.display.ColorConverter
-import net.imglib2.display.RealARGBColorConverter
-import net.imglib2.type.numeric.ARGBType
-import net.imglib2.type.numeric.RealType
+import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.volatiles.VolatileUnsignedShortType
 import org.joml.Matrix4f
 import tpietzsch.backend.Texture
 import tpietzsch.cache.*
-import tpietzsch.example2.MultiVolumeShaderMip
+import tpietzsch.example2.MultiVolumeShaderMip9
 import tpietzsch.example2.VolumeBlocks
+import tpietzsch.example2.VolumeViewerOptions
 import tpietzsch.multires.MultiResolutionStack3D
+import tpietzsch.multires.ResolutionLevel3D
 import tpietzsch.multires.SpimDataStacks
 import java.util.*
 import java.util.concurrent.ForkJoinPool
-import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.max
 import kotlin.math.min
 
@@ -29,7 +35,7 @@ import kotlin.math.min
  * @author Tobias Pietzsch <pietzsch@mpi-cbg.de>
  */
 @Suppress("unused")
-open class BDVVolume(bdvXMLFile: String = "", maxGPUMemoryMB: Int = 1024) : Volume(false) {
+open class BDVVolume(bdvXMLFile: String = "", options: VolumeViewerOptions) : Volume(false) {
     /**
      *  The rendering method used in the shader, can be
      *
@@ -44,36 +50,37 @@ open class BDVVolume(bdvXMLFile: String = "", maxGPUMemoryMB: Int = 1024) : Volu
     var maxTimepoint: Int = 0
         protected set
     /** Texture cache. */
-    protected var textureCache: TextureCache? = null
+    protected var textureCache: TextureCache
     /** PBO chain for temporary data storage. */
-    protected var pboChain: PboChain? = null
+    protected var pboChain: PboChain
     /** Set of [VolumeBlocks]. */
     protected var outOfCoreVolumes = ArrayList<VolumeBlocks>()
     /** Stacks loaded from a BigDataViewer XML file. */
-    protected var stacks: SpimDataStacks? = null
+    protected var stacks: SpimDataStacks
+    protected var setupAssignments: SetupAssignments
+    val converterSetups = ArrayList<ConverterSetup>()
+    val renderConverters = ArrayList<ConverterSetup>()
     /** Cache specification. */
     private val cacheSpec = CacheSpec(Texture.InternalFormat.R16, intArrayOf(32, 32, 32))
 
     /** Current timepoint in the set of [stacks]. */
-    var currentTimepoint = 0
-        protected set
+    var currentTimepoint: Int
+        get() { return state.currentTimepoint }
+        set(value) {state.currentTimepoint = value}
 
-    private val aMultiResolutionStacks = ArrayList(Arrays.asList(
-        AtomicReference(),
-        AtomicReference(),
-        AtomicReference<MultiResolutionStack3D<VolatileUnsignedShortType>>()))
+    protected var state: ViewerState
+    protected var visibilityAndGrouping: VisibilityAndGrouping
+
+    private val renderStacks = ArrayList<MultiResolutionStack3D<VolatileUnsignedShortType>>()
 
     private val multiResolutionStacks = ArrayList(
         Arrays.asList<MultiResolutionStack3D<VolatileUnsignedShortType>>(null, null, null))
-    private val convs = ArrayList<ColorConverter>(Arrays.asList<RealARGBColorConverter.Imp0<RealType<*>>>(
-        RealARGBColorConverter.Imp0(0.0, 1.0),
-        RealARGBColorConverter.Imp0(0.0, 1.0),
-        RealARGBColorConverter.Imp0(0.0, 1.0)))
     /** Whether to freeze the current set of blocks in-place. */
     var freezeRequiredBlocks = false
 
     /** Backing shader program */
-    protected var prog: MultiVolumeShaderMip? = null
+    protected var prog = ArrayList<MultiVolumeShaderMip9>()
+    protected var progvol: MultiVolumeShaderMip9? = null
 
     init {
         // fake geometry
@@ -122,40 +129,81 @@ open class BDVVolume(bdvXMLFile: String = "", maxGPUMemoryMB: Int = 1024) : Volu
         colormaps["plasma"] = Colormap.ColormapFile(Volume::class.java.getResource("colormap-plasma.png").file)
         colormaps["viridis"] = Colormap.ColormapFile(Volume::class.java.getResource("colormap-viridis.png").file)
 
-        if(bdvXMLFile != "") {
-            val spimData: SpimDataMinimal = XmlIoSpimDataMinimal().load(bdvXMLFile)
-            stacks = SpimDataStacks(spimData)
+        if(bdvXMLFile == "") throw IllegalStateException("No file given, sorry")
 
-            maxTimepoint = spimData.sequenceDescription.timePoints.timePointsOrdered.size - 1
+        val spimData: SpimDataMinimal = XmlIoSpimDataMinimal().load(bdvXMLFile)
+        stacks = SpimDataStacks(spimData)
 
-            val cacheGridDimensions = TextureCache.findSuitableGridSize(cacheSpec, maxGPUMemoryMB)
-            textureCache = TextureCache(cacheGridDimensions, cacheSpec)
+        val sources = ArrayList<SourceAndConverter<*>>()
 
-            pboChain = PboChain(5, 100, textureCache)
+        initSetups(spimData, converterSetups, sources)
 
-            val numVolumes = 3
-
-            for(i in 0 until numVolumes) {
-                outOfCoreVolumes.add(VolumeBlocks(textureCache))
+        setupAssignments = SetupAssignments(converterSetups, 0.0, 65535.0)
+        if(setupAssignments.minMaxGroups.size > 0) {
+            val group = setupAssignments.minMaxGroups[0]
+            setupAssignments.converterSetups.forEach {
+                setupAssignments.moveSetupToGroup(it, group)
             }
+        }
+        maxTimepoint = spimData.sequenceDescription.timePoints.timePointsOrdered.size - 1
 
-            prog = MultiVolumeShaderMip(numVolumes)
-            prog?.setTextureCache(textureCache)
-            prog?.init(context)
+        val cacheGridDimensions = TextureCache.findSuitableGridSize(cacheSpec, options.values.maxCacheSizeInMB)
+        textureCache = TextureCache(cacheGridDimensions, cacheSpec)
 
-            stacks?.let {
-                updateCurrentStack(it)
-                updateBlocks(context)
-            }
+        pboChain = PboChain(5, 100, textureCache)
 
-            convs[0].color = ARGBType(0xff8888)
-            convs[1].color = ARGBType(0x88ff88)
-            convs[2].color = ARGBType(0x8888ff)
+        val opts = options.values
 
-            convs.forEach {
-                it.min = 962.0
-                it.max = 6201.0
-            }
+        val numGroups = opts.numSourceGroups
+        val groups = ArrayList<SourceGroup>(numGroups)
+        for (i in 0 until numGroups)
+            groups.add(SourceGroup("group " + Integer.toString(i + 1)))
+        val numTimepoints = stacks.numTimepoints
+        state = ViewerState(sources, groups, numTimepoints)
+        for (i in Math.min(numGroups, sources.size) - 1 downTo 0)
+            state.sourceGroups[i].addSource(i)
+
+        visibilityAndGrouping = VisibilityAndGrouping(state)
+        for (i in 0 until sources.size) {
+            visibilityAndGrouping.sources[i].isActive = true
+        }
+
+        state.displayMode = DisplayMode.FUSED
+
+        logger.info("sources=${sources.size} timepoints=${numTimepoints}, groups=${numGroups}, converterSetups=${converterSetups.size}")
+
+        if (!sources.isEmpty()) {
+            state.currentSource = 0
+        }
+
+        updateRenderState()
+        needAtLeastNumVolumes(renderStacks.size)
+        logger.info("renderStacks.size=${renderStacks.size}")
+
+        logger.info("Progs: ${prog.size}")
+        progvol = prog.get(renderStacks.size)
+        progvol?.setTextureCache(textureCache)
+        progvol?.init(context)
+
+        updateBlocks(context)
+
+//        convs[0].color = ARGBType(0xff8888)
+//        convs[1].color = ARGBType(0x88ff88)
+//        convs[2].color = ARGBType(0x8888ff)
+
+//        convs.forEach {
+//            it.min = 962.0
+//            it.max = 6201.0
+//        }
+    }
+
+    private fun needAtLeastNumVolumes(n: Int) {
+        while (outOfCoreVolumes.size < n) {
+            outOfCoreVolumes.add(VolumeBlocks(textureCache))
+
+            val progvol = MultiVolumeShaderMip9(outOfCoreVolumes.size, true, 1.0)
+            progvol.setTextureCache(textureCache)
+            prog.add(progvol)
         }
     }
 
@@ -164,32 +212,69 @@ open class BDVVolume(bdvXMLFile: String = "", maxGPUMemoryMB: Int = 1024) : Volu
      * facilitate the updates on the GPU.
      */
     protected fun updateBlocks(context: SceneryContext) {
-        if(stacks == null) {
-            return
-        }
-
-        stacks?.cacheControl?.prepareNextFrame()
+        stacks.cacheControl.prepareNextFrame()
 
         val cam = getScene()?.activeObserver ?: return
         val viewProjection = cam.projection.clone()
         viewProjection.mult(cam.getTransformation())
         val vp = Matrix4f().set(viewProjection.floatArray)
 
-        prog?.setViewportSize(cam.width.toInt(), cam.height.toInt())
-        prog?.setProjectionViewMatrix(vp)
-        prog?.use(context)
+        val progvol = prog.get(renderStacks.size)
+        var minWorldVoxelSize = Double.POSITIVE_INFINITY
+
+        renderStacks.forEachIndexed { i, it ->
+            progvol.setConverter(i, renderConverters.get(i))
+            progvol.setVolume(i, outOfCoreVolumes.get(i))
+            minWorldVoxelSize = min(minWorldVoxelSize, outOfCoreVolumes.get(i).baseLevelVoxelSizeInWorldCoordinates)
+        }
+
+//        progvol.setDepthTexture()
+        progvol.setEffectiveViewportSize(cam.width.toInt(), cam.height.toInt())
+        progvol.setProjectionViewMatrix(vp, minWorldVoxelSize)
+        progvol.use(context)
+
+        var numTasks = 0
+        val fillTasksPerVolume = ArrayList<VolumeAndTasks>()
+        for(i in 0 until outOfCoreVolumes.size) {
+            val stack = renderStacks[i]
+            val volume = outOfCoreVolumes[i]
+            volume.init(stack, cam.width.toInt(), vp)
+
+            val tasks = volume.fillTasks
+            numTasks += tasks.size
+            fillTasksPerVolume.add(VolumeAndTasks(tasks, volume, stack.resolutions().size - 1))
+        }
+
+        while(numTasks > textureCache.maxNumTiles) {
+           fillTasksPerVolume.sortedBy { it.numTasks() }
+               .reversed()
+               .forEach {
+               val baseLevel = it.volume.baseLevel
+               if(baseLevel < it.maxLevel) {
+                   numTasks -= it.numTasks()
+                   it.tasks.clear()
+                   it.tasks.addAll(it.volume.fillTasks)
+
+                   // TODO: Ask Tobi -- potentially solved
+                   return@forEach
+               }
+           }
+           break
+        }
 
         val fillTasks = ArrayList<FillTask>()
-        for(i in 0 until outOfCoreVolumes.size) {
-            val volume = outOfCoreVolumes[i]
-            volume.init(multiResolutionStacks[i], cam.width.toInt(), vp)
-            fillTasks.addAll(volume.fillTasks)
+        fillTasksPerVolume.forEach {
+            fillTasks.addAll(it.tasks)
+        }
+
+        if(fillTasks.size > textureCache!!.maxNumTiles) {
+            fillTasks.subList(textureCache!!.maxNumTiles, fillTasks.size).clear()
         }
 
         ProcessFillTasks.parallel(textureCache, pboChain, context, forkJoinPool, fillTasks)
 
         var repaint = false
-        for(i in 0 until outOfCoreVolumes.size) {
+        for(i in 0 until renderStacks.size) {
             val volumeBlocks = outOfCoreVolumes[i]
             val complete = volumeBlocks.makeLut()
             if(!complete) {
@@ -199,14 +284,18 @@ open class BDVVolume(bdvXMLFile: String = "", maxGPUMemoryMB: Int = 1024) : Volu
             volumeBlocks.lookupTexture.upload(context)
         }
 
-        for (i in 0 until outOfCoreVolumes.size) {
-            prog?.setConverter(i, convs[i])
-            prog?.setVolume(i, outOfCoreVolumes[i])
+        progvol.setEffectiveViewportSize(cam.width.toInt(), cam.height.toInt())
+        progvol.setProjectionViewMatrix(vp, minWorldVoxelSize)
+        progvol.use(context)
+    }
+
+    internal class VolumeAndTasks(tasks: List<FillTask>, val volume: VolumeBlocks, val maxLevel: Int) {
+        val tasks: ArrayList<FillTask> = ArrayList(tasks)
+
+        fun numTasks(): Int {
+            return tasks.size
         }
 
-        prog?.setViewportSize(cam.width.toInt(), cam.height.toInt())
-        prog?.setProjectionViewMatrix(vp)
-        prog?.use(context)
     }
 
     /**
@@ -214,25 +303,7 @@ open class BDVVolume(bdvXMLFile: String = "", maxGPUMemoryMB: Int = 1024) : Volu
      * Updates texture cache and used blocks.
      */
     override fun preDraw() {
-        if(stacks == null) {
-            logger.info("Don't have stacks, returning")
-            return
-        }
-
-        textureCache?.let {
-            context.bindTexture(it)
-        }
-
-        for(i in 0 until outOfCoreVolumes.size){
-            val stack = aMultiResolutionStacks[i].get()
-
-            if(stack == null) {
-                logger.warn("Stack $i is null")
-                continue
-            }
-
-            multiResolutionStacks[i] = stack
-        }
+        context.bindTexture(textureCache)
 
         if(freezeRequiredBlocks == false) {
             updateBlocks(context)
@@ -255,10 +326,7 @@ open class BDVVolume(bdvXMLFile: String = "", maxGPUMemoryMB: Int = 1024) : Volu
 
     /** Goes to the [timepoint] given, returning the number of the updated timepoint. */
     fun goToTimePoint(timepoint: Int): Int {
-        stacks?.let { s ->
-            currentTimepoint = min(max(timepoint, 0), maxTimepoint)
-            updateCurrentStack(s)
-        }
+        currentTimepoint = min(max(timepoint, 0), maxTimepoint)
 
         return currentTimepoint
     }
@@ -266,15 +334,43 @@ open class BDVVolume(bdvXMLFile: String = "", maxGPUMemoryMB: Int = 1024) : Volu
     /**
      * Updates the current stack given a set of [stacks] to [currentTimepoint].
      */
-    protected fun updateCurrentStack(stacks: SpimDataStacks) {
-        logger.info("Updating current stack, timepoint=$currentTimepoint")
-        for (i in 0 until outOfCoreVolumes.size) {
-            aMultiResolutionStacks[i].set(
-                stacks.getStack(
+    protected fun updateRenderState() {
+        val visibleSourceIndices: List<Int>
+        val currentTimepoint: Int
+
+        synchronized(state) {
+            visibleSourceIndices = state.visibleSourceIndices
+            currentTimepoint = state.currentTimepoint
+
+            logger.info("Visible: at t=$currentTimepoint: ${visibleSourceIndices.joinToString(", ")}")
+            renderStacks.clear()
+            renderConverters.clear()
+            for (i in visibleSourceIndices) {
+                val stack = stacks.getStack(
                     stacks.timepointId(currentTimepoint),
                     stacks.setupId(i),
-                    true) as MultiResolutionStack3D<VolatileUnsignedShortType>)
+                    true) as MultiResolutionStack3D<VolatileUnsignedShortType>
+                val sourceTransform = AffineTransform3D()
+                state.sources[i].spimSource.getSourceTransform(currentTimepoint, 0, sourceTransform)
+                val wrappedStack = object : MultiResolutionStack3D<VolatileUnsignedShortType> {
+                    override fun getType(): VolatileUnsignedShortType {
+                        return stack.type
+                    }
+
+                    override fun getSourceTransform(): AffineTransform3D {
+                        return sourceTransform
+                    }
+
+                    override fun resolutions(): List<ResolutionLevel3D<VolatileUnsignedShortType>> {
+                        return stack.resolutions()
+                    }
+                }
+                renderStacks.add(wrappedStack)
+                val converter = converterSetups[i]
+                renderConverters.add(converter)
+            }
         }
+//        renderData = VolumeViewerPanel.RenderData(pv, currentTimepoint, renderTransformWorldToScreen, dCam, dClipNear, dClipFar, screenWidth, screenHeight)
     }
 
     /** Companion object for BDVVolume */
