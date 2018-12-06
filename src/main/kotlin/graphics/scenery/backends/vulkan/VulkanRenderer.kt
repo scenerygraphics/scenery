@@ -493,7 +493,11 @@ open class VulkanRenderer(hub: Hub,
         logger.debug("Device creation done")
 
         if(device.deviceData.vendor.toLowerCase().contains("nvidia") && ExtractsNatives.getPlatform() == ExtractsNatives.Platform.WINDOWS) {
-            gpuStats = NvidiaGPUStats()
+            try {
+                gpuStats = NvidiaGPUStats()
+            } catch(e: NullPointerException) {
+                logger.warn("Could not initialize Nvidia GPU stats")
+            }
         }
 
         queue = VU.createDeviceQueue(device, device.queueIndices.graphicsQueue)
