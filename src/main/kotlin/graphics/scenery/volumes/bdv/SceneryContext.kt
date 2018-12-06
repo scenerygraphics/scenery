@@ -55,6 +55,7 @@ open class SceneryContext(val node: Volume) : GpuContext {
          * Sets the uniform with [name] to the Integer [v0].
          */
         override fun setUniform1i(name: String, v0: Int) {
+            logger.info("Adding binding for $name to $v0")
             if(name.startsWith("volumeCache") || name.startsWith("lutSampler")) {
                 val binding = bindings.entries.find { it.value.binding == v0 }
                 if(binding != null) {
@@ -243,6 +244,7 @@ open class SceneryContext(val node: Volume) : GpuContext {
      * @return id of previously bound texture
      */
     override fun bindTexture(texture: Texture): Int {
+        logger.info("Binding $texture and updating GT")
         val (channels, type, normalized) = when(texture.texInternalFormat()) {
             Texture.InternalFormat.R16 -> Triple(1, GLTypeEnum.UnsignedShort, true)
             Texture.InternalFormat.RGBA8UI -> Triple(4, GLTypeEnum.UnsignedByte, false)
@@ -261,6 +263,7 @@ open class SceneryContext(val node: Volume) : GpuContext {
                 return 0
             }
 
+            logger.info("Binding and updating cache $texture")
             val gt = GenericTexture("volumeCache",
                 GLVector(texture.texWidth().toFloat(), texture.texHeight().toFloat(), texture.texDepth().toFloat()),
                 channels,
@@ -280,6 +283,7 @@ open class SceneryContext(val node: Volume) : GpuContext {
             node.material.needsTextureReload = true
         } else {
             val lutName = bindings[texture]?.uniformName
+            logger.info("Binding and updating LUT $texture/$lutName")
 
             val db = { lut: String ->
                 if (node.material.transferTextures.get(lut) != null
@@ -323,14 +327,16 @@ open class SceneryContext(val node: Volume) : GpuContext {
     fun runDeferredBindings() {
         val removals = ArrayList<Texture>(deferredBindings.size)
 
+        logger.info("Running deferred bindings, got ${deferredBindings.size}")
         deferredBindings.forEach { texture, func ->
             val binding = bindings[texture]
             val samplerName = binding?.uniformName
             if(binding != null && samplerName != null) {
+                logger.info("Invoking deferred binding for $binding/$samplerName")
                 func.invoke(samplerName)
                 removals.add(texture)
             } else {
-                logger.error("Binding for $texture not found, despite trying deferred binding.")
+                logger.error("Binding for $texture not found, despite trying deferred binding. (binding=$binding/sampler=$samplerName)")
             }
         }
 
@@ -342,6 +348,7 @@ open class SceneryContext(val node: Volume) : GpuContext {
      * @param unit texture unit to bind to
      */
     override fun bindTexture(texture: Texture?, unit: Int) {
+        logger.info("Binding $texture to $unit")
         if(texture != null) {
             val binding = bindings[texture]
             if(binding != null) {
