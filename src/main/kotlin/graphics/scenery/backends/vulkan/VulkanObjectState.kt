@@ -58,6 +58,9 @@ open class VulkanObjectState : NodeMetadata {
     /** Descriptor set for the textures this [graphics.scenery.Node] will be rendered with. */
     protected var textureDescriptorSets =  ConcurrentHashMap<Pair<String, String>, Long>()
 
+    /** Time stamp of the last recreation of the texture descriptor sets */
+    protected var descriptorSetsRecreated: Long = 0
+
     /**
      * Creates or updates the [textureDescriptorSets] describing the textures used. Will cover all the renderpasses
      * given in [passes]. The set will reside on [device] and the descriptor set layout(s) determined from the renderpass.
@@ -65,6 +68,9 @@ open class VulkanObjectState : NodeMetadata {
      */
     fun texturesToDescriptorSets(device: VulkanDevice, passes: Map<String, VulkanRenderpass>, descriptorPool: Long) {
         passes.forEach { passName, pass ->
+            if(pass.recreated > descriptorSetsRecreated) {
+                textureDescriptorSets.clear()
+            }
             val textures = textures.entries.groupBy { GenericTexture.objectTextures.contains(it.key) }
             val objectTextures = textures[true]
             val others = textures[false]
@@ -111,9 +117,12 @@ open class VulkanObjectState : NodeMetadata {
                 .descriptorPool(descriptorPool)
                 .pSetLayouts(pDescriptorSetLayout)
 
+            descriptorSetsRecreated = System.nanoTime()
+
             VU.getLong("vkAllocateDescriptorSets",
                 { VK10.vkAllocateDescriptorSets(device.vulkanDevice, allocInfo, this) },
                 { allocInfo.free(); memFree(pDescriptorSetLayout) })
+
         }
 
         val d = (1..textures.count()).map { VkDescriptorImageInfo.calloc(1) }.toTypedArray()

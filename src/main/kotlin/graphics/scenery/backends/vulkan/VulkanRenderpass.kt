@@ -111,6 +111,10 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                 default = { VulkanCommandBuffer(device, null, true) })
         }
 
+    /** Timestamp of the renderpass recreation */
+    var recreated: Long = 0
+        protected set
+
     private var currentPosition = 0
 
     /**
@@ -184,6 +188,8 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
             binding = 0, shaderStages = VK_SHADER_STAGE_ALL)
 
         descriptorSetLayouts.put("VRParameters", dslVRParameters)
+
+        recreated = System.nanoTime()
     }
 
     /**
@@ -555,7 +561,9 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         pipelines.forEach { it.value.close() }
         UBOs.forEach { it.value.close() }
         descriptorSetLayouts.forEach { vkDestroyDescriptorSetLayout(device.vulkanDevice, it.value, null) }
+        descriptorSetLayouts.clear()
         oldDescriptorSetLayouts.forEach { vkDestroyDescriptorSetLayout(device.vulkanDevice, it.value, null) }
+        oldDescriptorSetLayouts.clear()
 
         vulkanMetadata.close()
 
