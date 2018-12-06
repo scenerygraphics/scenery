@@ -287,6 +287,7 @@ open class BDVVolume(bdvXMLFile: String = "", options: VolumeViewerOptions) : Vo
             minWorldVoxelSize = min(minWorldVoxelSize, outOfCoreVolumes.get(i).baseLevelVoxelSizeInWorldCoordinates)
         }
 
+        progvol.setViewportWidth(cam.width.toInt())
         progvol.setEffectiveViewportSize(cam.width.toInt(), cam.height.toInt())
         progvol.setProjectionViewMatrix(vp, minWorldVoxelSize)
         progvol.use(context)
