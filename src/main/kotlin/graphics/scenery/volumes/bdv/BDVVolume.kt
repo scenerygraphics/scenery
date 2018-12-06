@@ -181,7 +181,8 @@ open class BDVVolume(bdvXMLFile: String = "", options: VolumeViewerOptions) : Vo
         logger.info("renderStacks.size=${renderStacks.size}")
 
         logger.info("Progs: ${prog.size}")
-        progvol = prog.get(renderStacks.size)
+        // TODO: this might result in NULL program, is this intended?
+        progvol = prog.last()//get(renderStacks.size)
         progvol?.setTextureCache(textureCache)
         progvol?.init(context)
 
@@ -203,6 +204,7 @@ open class BDVVolume(bdvXMLFile: String = "", options: VolumeViewerOptions) : Vo
 
             val progvol = MultiVolumeShaderMip9(outOfCoreVolumes.size, true, 1.0)
             progvol.setTextureCache(textureCache)
+            progvol.setDepthTextureName("InputZBuffer")
             prog.add(progvol)
         }
     }
@@ -212,6 +214,7 @@ open class BDVVolume(bdvXMLFile: String = "", options: VolumeViewerOptions) : Vo
      * facilitate the updates on the GPU.
      */
     protected fun updateBlocks(context: SceneryContext) {
+        logger.info("Updating blocks")
         stacks.cacheControl.prepareNextFrame()
 
         val cam = getScene()?.activeObserver ?: return
@@ -219,18 +222,8 @@ open class BDVVolume(bdvXMLFile: String = "", options: VolumeViewerOptions) : Vo
         viewProjection.mult(cam.getTransformation())
         val vp = Matrix4f().set(viewProjection.floatArray)
 
-        val progvol = prog.get(renderStacks.size)
-        var minWorldVoxelSize = Double.POSITIVE_INFINITY
-
-        renderStacks.forEachIndexed { i, it ->
-            progvol.setConverter(i, renderConverters.get(i))
-            progvol.setVolume(i, outOfCoreVolumes.get(i))
-            minWorldVoxelSize = min(minWorldVoxelSize, outOfCoreVolumes.get(i).baseLevelVoxelSizeInWorldCoordinates)
-        }
-
-//        progvol.setDepthTexture()
-        progvol.setEffectiveViewportSize(cam.width.toInt(), cam.height.toInt())
-        progvol.setProjectionViewMatrix(vp, minWorldVoxelSize)
+        // TODO: original might result in NULL, is this intended?
+        val progvol = prog.last()//get(renderStacks.size)
         progvol.use(context)
 
         var numTasks = 0
@@ -275,18 +268,30 @@ open class BDVVolume(bdvXMLFile: String = "", options: VolumeViewerOptions) : Vo
 
         var repaint = false
         for(i in 0 until renderStacks.size) {
+            logger.info("Updating volume $i")
             val volumeBlocks = outOfCoreVolumes[i]
             val complete = volumeBlocks.makeLut()
             if(!complete) {
                 repaint = true
             }
+            logger.info("Binding ${volumeBlocks.lookupTexture}")
             context.bindTexture(volumeBlocks.lookupTexture)
             volumeBlocks.lookupTexture.upload(context)
+        }
+
+        var minWorldVoxelSize = Double.POSITIVE_INFINITY
+
+        renderStacks.forEachIndexed { i, it ->
+            progvol.setConverter(i, renderConverters.get(i))
+            progvol.setVolume(i, outOfCoreVolumes.get(i))
+            minWorldVoxelSize = min(minWorldVoxelSize, outOfCoreVolumes.get(i).baseLevelVoxelSizeInWorldCoordinates)
         }
 
         progvol.setEffectiveViewportSize(cam.width.toInt(), cam.height.toInt())
         progvol.setProjectionViewMatrix(vp, minWorldVoxelSize)
         progvol.use(context)
+        progvol.bindSamplers(context)
+        logger.info("Done updating blocks")
     }
 
     internal class VolumeAndTasks(tasks: List<FillTask>, val volume: VolumeBlocks, val maxLevel: Int) {
