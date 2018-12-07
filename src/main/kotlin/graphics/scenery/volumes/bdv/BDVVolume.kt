@@ -35,7 +35,7 @@ import kotlin.math.min
  * @author Tobias Pietzsch <pietzsch@mpi-cbg.de>
  */
 @Suppress("unused")
-open class BDVVolume(bdvXMLFile: String = "", options: VolumeViewerOptions) : Volume(false) {
+open class BDVVolume(bdvXMLFile: String = "", val options: VolumeViewerOptions) : Volume(false) {
     /**
      *  The rendering method used in the shader, can be
      *
@@ -82,6 +82,7 @@ open class BDVVolume(bdvXMLFile: String = "", options: VolumeViewerOptions) : Vo
     protected var prog = ArrayList<SceneryMultiVolumeShaderMip>()
     protected var progvol: SceneryMultiVolumeShaderMip? = null
     protected var renderStateUpdated = false
+    protected var cacheSizeUpdated = false
 
     init {
         // fake geometry
@@ -210,11 +211,37 @@ open class BDVVolume(bdvXMLFile: String = "", options: VolumeViewerOptions) : Vo
         }
     }
 
+    fun resizeCache(newSize: Int) {
+        logger.warn("Resizing cache is not stable yet, here be dragons!")
+        options.maxCacheSizeInMB(newSize)
+        cacheSizeUpdated = true
+        renderStateUpdated = true
+    }
+
+    private fun resizeCacheInternal() {
+        val cacheGridDimensions = TextureCache.findSuitableGridSize(cacheSpec, options.values.maxCacheSizeInMB)
+        textureCache = TextureCache(cacheGridDimensions, cacheSpec)
+        pboChain = PboChain(5, 100, textureCache)
+
+        context.clearBindings()
+//        progvol = prog.last()
+//        progvol?.setTextureCache(textureCache)
+//        progvol?.init(context)
+//        progvol?.use(context)
+
+        progvol?.bindSamplers(context)
+    }
+
     /**
      * Updates the currently-used set of blocks using [context] to
      * facilitate the updates on the GPU.
      */
     protected fun updateBlocks(context: SceneryContext) {
+        if(cacheSizeUpdated) {
+            resizeCacheInternal()
+            cacheSizeUpdated = false
+        }
+
         logger.debug("Updating blocks")
         stacks.cacheControl.prepareNextFrame()
 
@@ -261,8 +288,8 @@ open class BDVVolume(bdvXMLFile: String = "", options: VolumeViewerOptions) : Vo
             fillTasks.addAll(it.tasks)
         }
 
-        if(fillTasks.size > textureCache!!.maxNumTiles) {
-            fillTasks.subList(textureCache!!.maxNumTiles, fillTasks.size).clear()
+        if(fillTasks.size > textureCache.maxNumTiles) {
+            fillTasks.subList(textureCache.maxNumTiles, fillTasks.size).clear()
         }
 
         ProcessFillTasks.parallel(textureCache, pboChain, context, forkJoinPool, fillTasks)
