@@ -17,7 +17,7 @@ import net.imglib2.type.volatiles.VolatileUnsignedShortType
 import org.joml.Matrix4f
 import tpietzsch.backend.Texture
 import tpietzsch.cache.*
-import tpietzsch.example2.MultiVolumeShaderMip9
+import tpietzsch.example2.SceneryMultiVolumeShaderMip
 import tpietzsch.example2.VolumeBlocks
 import tpietzsch.example2.VolumeViewerOptions
 import tpietzsch.multires.MultiResolutionStack3D
@@ -79,8 +79,8 @@ open class BDVVolume(bdvXMLFile: String = "", options: VolumeViewerOptions) : Vo
     var freezeRequiredBlocks = false
 
     /** Backing shader program */
-    protected var prog = ArrayList<MultiVolumeShaderMip9>()
-    protected var progvol: MultiVolumeShaderMip9? = null
+    protected var prog = ArrayList<SceneryMultiVolumeShaderMip>()
+    protected var progvol: SceneryMultiVolumeShaderMip? = null
     protected var renderStateUpdated = false
 
     init {
@@ -203,7 +203,7 @@ open class BDVVolume(bdvXMLFile: String = "", options: VolumeViewerOptions) : Vo
         while (outOfCoreVolumes.size < n) {
             outOfCoreVolumes.add(VolumeBlocks(textureCache))
 
-            val progvol = MultiVolumeShaderMip9(outOfCoreVolumes.size, true, 1.0)
+            val progvol = SceneryMultiVolumeShaderMip(outOfCoreVolumes.size, true, 1.0)
             progvol.setTextureCache(textureCache)
             progvol.setDepthTextureName("InputZBuffer")
             prog.add(progvol)
