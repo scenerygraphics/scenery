@@ -28,7 +28,6 @@ open class VolumeShaderFactory : Shaders.ShaderFactory() {
             }
 
             val (code, uniforms) = convertToSceneryConventions(codeBefore)
-            logger.info("Adding uniforms ${uniforms.joinToString(", ")}")
 
             shaders[it.key] = Triple(it.value, code, uniforms)
         }
@@ -51,7 +50,9 @@ open class VolumeShaderFactory : Shaders.ShaderFactory() {
         }
 
         val unifiedUniforms = shaders.map { it.value.third }.flatten().toList()
-        logger.info("Final Uniforms for $type: ${unifiedUniforms.joinToString(", ")}")
+        if(logger.isTraceEnabled) {
+            logger.trace("Final Uniforms for $type: ${unifiedUniforms.joinToString(", ")}")
+        }
         val (code, uniforms) = convertToSceneryConventions(codeBefore, unifiedUniforms)
 
         shaders[type] = Triple(shader.first, code, uniforms)

@@ -81,6 +81,7 @@ open class BDVVolume(bdvXMLFile: String = "", options: VolumeViewerOptions) : Vo
     /** Backing shader program */
     protected var prog = ArrayList<MultiVolumeShaderMip9>()
     protected var progvol: MultiVolumeShaderMip9? = null
+    protected var renderStateUpdated = false
 
     init {
         // fake geometry
@@ -214,7 +215,7 @@ open class BDVVolume(bdvXMLFile: String = "", options: VolumeViewerOptions) : Vo
      * facilitate the updates on the GPU.
      */
     protected fun updateBlocks(context: SceneryContext) {
-        logger.info("Updating blocks")
+        logger.debug("Updating blocks")
         stacks.cacheControl.prepareNextFrame()
 
         val cam = getScene()?.activeObserver ?: return
@@ -228,7 +229,7 @@ open class BDVVolume(bdvXMLFile: String = "", options: VolumeViewerOptions) : Vo
 
         var numTasks = 0
         val fillTasksPerVolume = ArrayList<VolumeAndTasks>()
-        for(i in 0 until outOfCoreVolumes.size) {
+        for(i in 0 until renderStacks.size) {
             val stack = renderStacks[i]
             val volume = outOfCoreVolumes[i]
             volume.init(stack, cam.width.toInt(), vp)
@@ -268,13 +269,11 @@ open class BDVVolume(bdvXMLFile: String = "", options: VolumeViewerOptions) : Vo
 
         var repaint = false
         for(i in 0 until renderStacks.size) {
-            logger.info("Updating volume $i")
             val volumeBlocks = outOfCoreVolumes[i]
             val complete = volumeBlocks.makeLut()
             if(!complete) {
                 repaint = true
             }
-            logger.info("Binding ${volumeBlocks.lookupTexture}")
             context.bindTexture(volumeBlocks.lookupTexture)
             volumeBlocks.lookupTexture.upload(context)
         }
@@ -292,7 +291,7 @@ open class BDVVolume(bdvXMLFile: String = "", options: VolumeViewerOptions) : Vo
         progvol.setProjectionViewMatrix(vp, minWorldVoxelSize)
         progvol.use(context)
         progvol.bindSamplers(context)
-        logger.info("Done updating blocks")
+        logger.debug("Done updating blocks")
     }
 
     internal class VolumeAndTasks(tasks: List<FillTask>, val volume: VolumeBlocks, val maxLevel: Int) {
@@ -311,6 +310,12 @@ open class BDVVolume(bdvXMLFile: String = "", options: VolumeViewerOptions) : Vo
     override fun preDraw() {
         context.bindTexture(textureCache)
 
+        if(renderStateUpdated) {
+            updateRenderState()
+            needAtLeastNumVolumes(renderStacks.size)
+            renderStateUpdated = false
+        }
+
         if(freezeRequiredBlocks == false) {
             updateBlocks(context)
         }
@@ -322,19 +327,22 @@ open class BDVVolume(bdvXMLFile: String = "", options: VolumeViewerOptions) : Vo
      * Goes to the next available timepoint, returning the number of the updated timepoint.
      */
     fun nextTimepoint(): Int {
-        return goToTimePoint(currentTimepoint + 1)
+        return goToTimePoint(state.currentTimepoint + 1)
     }
 
     /** Goes to the previous available timepoint, returning the number of the updated timepoint. */
     fun previousTimepoint(): Int {
-        return goToTimePoint(currentTimepoint - 1)
+        return goToTimePoint(state.currentTimepoint - 1)
     }
 
     /** Goes to the [timepoint] given, returning the number of the updated timepoint. */
     fun goToTimePoint(timepoint: Int): Int {
-        currentTimepoint = min(max(timepoint, 0), maxTimepoint)
+        state.currentTimepoint = min(max(timepoint, 0), maxTimepoint)
+        logger.info("Going to timepoint ${state.currentTimepoint} of $maxTimepoint")
 
-        return currentTimepoint
+        renderStateUpdated = true
+
+        return state.currentTimepoint
     }
 
     /**
@@ -376,7 +384,6 @@ open class BDVVolume(bdvXMLFile: String = "", options: VolumeViewerOptions) : Vo
                 renderConverters.add(converter)
             }
         }
-//        renderData = VolumeViewerPanel.RenderData(pv, currentTimepoint, renderTransformWorldToScreen, dCam, dClipNear, dClipFar, screenWidth, screenHeight)
     }
 
     /** Companion object for BDVVolume */
