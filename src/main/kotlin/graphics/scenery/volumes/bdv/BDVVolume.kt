@@ -214,7 +214,7 @@ open class BDVVolume(bdvXMLFile: String = "", options: VolumeViewerOptions) : Vo
      * facilitate the updates on the GPU.
      */
     protected fun updateBlocks(context: SceneryContext) {
-        logger.info("Updating blocks")
+        logger.debug("Updating blocks")
         stacks.cacheControl.prepareNextFrame()
 
         val cam = getScene()?.activeObserver ?: return
@@ -268,13 +268,11 @@ open class BDVVolume(bdvXMLFile: String = "", options: VolumeViewerOptions) : Vo
 
         var repaint = false
         for(i in 0 until renderStacks.size) {
-            logger.info("Updating volume $i")
             val volumeBlocks = outOfCoreVolumes[i]
             val complete = volumeBlocks.makeLut()
             if(!complete) {
                 repaint = true
             }
-            logger.info("Binding ${volumeBlocks.lookupTexture}")
             context.bindTexture(volumeBlocks.lookupTexture)
             volumeBlocks.lookupTexture.upload(context)
         }
@@ -292,7 +290,7 @@ open class BDVVolume(bdvXMLFile: String = "", options: VolumeViewerOptions) : Vo
         progvol.setProjectionViewMatrix(vp, minWorldVoxelSize)
         progvol.use(context)
         progvol.bindSamplers(context)
-        logger.info("Done updating blocks")
+        logger.debug("Done updating blocks")
     }
 
     internal class VolumeAndTasks(tasks: List<FillTask>, val volume: VolumeBlocks, val maxLevel: Int) {
