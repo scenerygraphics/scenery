@@ -5,7 +5,6 @@ import com.jogamp.opengl.math.Quaternion
 import com.sun.javafx.application.PlatformImpl
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.controls.Hololens
 import graphics.scenery.volumes.bdv.BDVVolume
 import javafx.application.Platform
 import javafx.stage.FileChooser
@@ -15,15 +14,17 @@ import org.scijava.ui.behaviour.ClickBehaviour
 import tpietzsch.example2.VolumeViewerOptions
 import java.util.*
 import java.util.concurrent.CountDownLatch
+import kotlin.math.max
 
 /**
- * Example that renders procedurally generated volumes on a [Hololens].
- * [bitsPerVoxel] can be set to 8 or 16, to generate Byte or UnsignedShort volumes.
+ * BDV Rendering Example
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
     var volume: BDVVolume? = null
+    var currentCacheSize = 512
+
     override fun init() {
         val latch = CountDownLatch(1)
         val files = ArrayList<String>()
@@ -68,7 +69,7 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
             scene.addChild(this)
         }
 
-        val options = VolumeViewerOptions()
+        val options = VolumeViewerOptions().maxCacheSizeInMB(4096)
         val v = BDVVolume(files.first(), options)
         v.name = "volume"
         v.colormap = "plasma"
@@ -92,14 +93,30 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
     override fun inputSetup() {
         setupCameraModeSwitching()
 
-        val nextTimePoint = ClickBehaviour { x, y -> volume?.nextTimepoint() }
-        val prevTimePoint = ClickBehaviour { x, y -> volume?.previousTimepoint() }
+        val nextTimePoint = ClickBehaviour { _, _ -> volume?.nextTimepoint() }
+        val prevTimePoint = ClickBehaviour { _, _ -> volume?.previousTimepoint() }
+        val moreCache = ClickBehaviour { _, _ ->
+            currentCacheSize *= 2
+            logger.info("Enlarging cache size to $currentCacheSize MB")
+            volume?.resizeCache(currentCacheSize)
+        }
+        val lessCache = ClickBehaviour { _, _ ->
+            currentCacheSize = max(currentCacheSize / 2, 256)
+            logger.info("Cutting cache size to $currentCacheSize MB")
+            volume?.resizeCache(max(currentCacheSize / 2, 256))
+        }
 
         inputHandler?.addBehaviour("prev_timepoint", prevTimePoint)
         inputHandler?.addKeyBinding("prev_timepoint", "J")
 
         inputHandler?.addBehaviour("next_timepoint", nextTimePoint)
         inputHandler?.addKeyBinding("next_timepoint", "K")
+
+        inputHandler?.addBehaviour("more_cache", moreCache)
+        inputHandler?.addKeyBinding("more_cache", "9")
+
+        inputHandler?.addBehaviour("less_cache", lessCache)
+        inputHandler?.addKeyBinding("less_cache", "0")
     }
 
     @Test override fun main() {
