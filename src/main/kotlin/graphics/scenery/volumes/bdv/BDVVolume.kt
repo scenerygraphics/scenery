@@ -81,6 +81,7 @@ open class BDVVolume(bdvXMLFile: String = "", options: VolumeViewerOptions) : Vo
     /** Backing shader program */
     protected var prog = ArrayList<MultiVolumeShaderMip9>()
     protected var progvol: MultiVolumeShaderMip9? = null
+    protected var renderStateUpdated = false
 
     init {
         // fake geometry
@@ -309,6 +310,12 @@ open class BDVVolume(bdvXMLFile: String = "", options: VolumeViewerOptions) : Vo
     override fun preDraw() {
         context.bindTexture(textureCache)
 
+        if(renderStateUpdated) {
+            updateRenderState()
+            needAtLeastNumVolumes(renderStacks.size)
+            renderStateUpdated = false
+        }
+
         if(freezeRequiredBlocks == false) {
             updateBlocks(context)
         }
@@ -320,12 +327,12 @@ open class BDVVolume(bdvXMLFile: String = "", options: VolumeViewerOptions) : Vo
      * Goes to the next available timepoint, returning the number of the updated timepoint.
      */
     fun nextTimepoint(): Int {
-        return goToTimePoint(currentTimepoint + 1)
+        return goToTimePoint(state.currentTimepoint + 1)
     }
 
     /** Goes to the previous available timepoint, returning the number of the updated timepoint. */
     fun previousTimepoint(): Int {
-        return goToTimePoint(currentTimepoint - 1)
+        return goToTimePoint(state.currentTimepoint - 1)
     }
 
     /** Goes to the [timepoint] given, returning the number of the updated timepoint. */
@@ -333,8 +340,7 @@ open class BDVVolume(bdvXMLFile: String = "", options: VolumeViewerOptions) : Vo
         state.currentTimepoint = min(max(timepoint, 0), maxTimepoint)
         logger.info("Going to timepoint ${state.currentTimepoint} of $maxTimepoint")
 
-        updateRenderState()
-        needAtLeastNumVolumes(renderStacks.size)
+        renderStateUpdated = true
 
         return state.currentTimepoint
     }
@@ -378,7 +384,6 @@ open class BDVVolume(bdvXMLFile: String = "", options: VolumeViewerOptions) : Vo
                 renderConverters.add(converter)
             }
         }
-//        renderData = VolumeViewerPanel.RenderData(pv, currentTimepoint, renderTransformWorldToScreen, dCam, dClipNear, dClipFar, screenWidth, screenHeight)
     }
 
     /** Companion object for BDVVolume */
