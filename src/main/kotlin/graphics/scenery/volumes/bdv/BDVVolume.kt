@@ -228,7 +228,7 @@ open class BDVVolume(bdvXMLFile: String = "", options: VolumeViewerOptions) : Vo
 
         var numTasks = 0
         val fillTasksPerVolume = ArrayList<VolumeAndTasks>()
-        for(i in 0 until outOfCoreVolumes.size) {
+        for(i in 0 until renderStacks.size) {
             val stack = renderStacks[i]
             val volume = outOfCoreVolumes[i]
             volume.init(stack, cam.width.toInt(), vp)
@@ -330,9 +330,13 @@ open class BDVVolume(bdvXMLFile: String = "", options: VolumeViewerOptions) : Vo
 
     /** Goes to the [timepoint] given, returning the number of the updated timepoint. */
     fun goToTimePoint(timepoint: Int): Int {
-        currentTimepoint = min(max(timepoint, 0), maxTimepoint)
+        state.currentTimepoint = min(max(timepoint, 0), maxTimepoint)
+        logger.info("Going to timepoint ${state.currentTimepoint} of $maxTimepoint")
 
-        return currentTimepoint
+        updateRenderState()
+        needAtLeastNumVolumes(renderStacks.size)
+
+        return state.currentTimepoint
     }
 
     /**
