@@ -248,6 +248,7 @@ open class BDVVolume(bdvXMLFile: String = "", val options: VolumeViewerOptions) 
         val cam = getScene()?.activeObserver ?: return
         val viewProjection = cam.projection.clone()
         viewProjection.mult(cam.getTransformation())
+        viewProjection.mult(model.transpose())
         val vp = Matrix4f().set(viewProjection.floatArray)
 
         // TODO: original might result in NULL, is this intended?
@@ -259,7 +260,9 @@ open class BDVVolume(bdvXMLFile: String = "", val options: VolumeViewerOptions) 
         for(i in 0 until renderStacks.size) {
             val stack = renderStacks[i]
             val volume = outOfCoreVolumes[i]
-            volume.init(stack, cam.width.toInt(), vp)
+
+            val m = Matrix4f().set(world.clone().floatArray)
+            volume.initWithModel(stack, cam.width.toInt(), vp, m)
 
             val tasks = volume.fillTasks
             numTasks += tasks.size
