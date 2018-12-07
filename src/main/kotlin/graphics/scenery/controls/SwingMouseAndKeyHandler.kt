@@ -193,8 +193,8 @@ class SwingMouseAndKeyHandler : MouseAndKeyHandlerBase(), KeyListener, MouseList
 
 
     override fun mouseDragged(e: MouseEvent) {
-        		System.out.println( "MouseAndKeyHandler.mouseDragged()" );
-        //		System.out.println( e );
+        		logger.trace( "MouseAndKeyHandler.mouseDragged()" );
+        //		logger.trace( e );
         update()
 
         val x = e.x
@@ -205,7 +205,7 @@ class SwingMouseAndKeyHandler : MouseAndKeyHandlerBase(), KeyListener, MouseList
     }
 
     override fun mouseMoved(e: MouseEvent) {
-        		System.out.println( "MouseAndKeyHandler.mouseMoved()" );
+        		logger.trace( "MouseAndKeyHandler.mouseMoved()" );
         update()
 
         mouseX = e.x
@@ -216,8 +216,8 @@ class SwingMouseAndKeyHandler : MouseAndKeyHandlerBase(), KeyListener, MouseList
     }
 
     override fun mouseWheelMoved(e: MouseWheelEvent) {
-        		System.out.println( "MouseAndKeyHandler.mouseWheelMoved()" );
-        //		System.out.println( e );
+        		logger.trace( "MouseAndKeyHandler.mouseWheelMoved()" );
+        //		logger.trace( e );
         update()
 
         val mask = getMask(e)
@@ -243,8 +243,8 @@ class SwingMouseAndKeyHandler : MouseAndKeyHandlerBase(), KeyListener, MouseList
     }
 
     override fun mouseClicked(e: MouseEvent) {
-        //		System.out.println( "MouseAndKeyHandler.mouseClicked()" );
-        //		System.out.println( e );
+        logger.trace( "MouseAndKeyHandler.mouseClicked()" );
+        //		logger.trace( e );
         update()
 
         val mask = getMask(e)
@@ -260,8 +260,8 @@ class SwingMouseAndKeyHandler : MouseAndKeyHandlerBase(), KeyListener, MouseList
     }
 
     override fun mousePressed(e: MouseEvent) {
-        //		System.out.println( "MouseAndKeyHandler.mousePressed()" );
-        //		System.out.println( e );
+        logger.trace( "MouseAndKeyHandler.mousePressed()" )
+        //		logger.trace( e );
         update()
 
         val mask = getMask(e)
@@ -277,8 +277,8 @@ class SwingMouseAndKeyHandler : MouseAndKeyHandlerBase(), KeyListener, MouseList
     }
 
     override fun mouseReleased(e: MouseEvent) {
-        //		System.out.println( "MouseAndKeyHandler.mouseReleased()" );
-        //		System.out.println( e );
+        logger.trace( "MouseAndKeyHandler.mouseReleased()" )
+        //		logger.trace( e );
         update()
 
         val x = e.x
@@ -296,22 +296,22 @@ class SwingMouseAndKeyHandler : MouseAndKeyHandlerBase(), KeyListener, MouseList
     }
 
     override fun mouseEntered(e: MouseEvent) {
-        //		System.out.println( "MouseAndKeyHandler.mouseEntered()" );
+        logger.trace( "MouseAndKeyHandler.mouseEntered()" )
         update()
         if (keypressManager != null)
             keypressManager!!.activate(receiver)
     }
 
     override fun mouseExited(e: MouseEvent) {
-        //		System.out.println( "MouseAndKeyHandler.mouseExited()" );
+        logger.trace( "MouseAndKeyHandler.mouseExited()" )
         update()
         if (keypressManager != null)
             keypressManager!!.deactivate(receiver)
     }
 
     override fun keyPressed(e: KeyEvent) {
-        //		System.out.println( "MouseAndKeyHandler.keyPressed()" );
-        //		System.out.println( e );
+        logger.trace( "MouseAndKeyHandler.keyPressed()" )
+        //		logger.trace( e );
         update()
 
         if (e.keyCode != 0 &&
@@ -411,8 +411,8 @@ class SwingMouseAndKeyHandler : MouseAndKeyHandlerBase(), KeyListener, MouseList
     }
 
     override fun keyReleased(e: KeyEvent) {
-        //		System.out.println( "MouseAndKeyHandler.keyReleased()" );
-        //		System.out.println( e );
+        //		logger.trace( "MouseAndKeyHandler.keyReleased()" );
+        //		logger.trace( e );
         update()
 
         if (e.keyCode != 0 &&
@@ -436,18 +436,18 @@ class SwingMouseAndKeyHandler : MouseAndKeyHandlerBase(), KeyListener, MouseList
     }
 
     override fun keyTyped(e: KeyEvent) {
-        //		System.out.println( "MouseAndKeyHandler.keyTyped()" );
-        //		System.out.println( e );
+        //		logger.trace( "MouseAndKeyHandler.keyTyped()" );
+        //		logger.trace( e );
     }
 
     override fun focusGained(e: FocusEvent) {
-        //		System.out.println( "MouseAndKeyHandler.focusGained()" );
+        //		logger.trace( "MouseAndKeyHandler.focusGained()" );
         pressedKeys.clear()
         pressedKeys.addAll(globalKeys.pressedKeys())
     }
 
     override fun focusLost(e: FocusEvent) {
-        //		System.out.println( "MouseAndKeyHandler.focusLost()" );
+        //		logger.trace( "MouseAndKeyHandler.focusLost()" );
         pressedKeys.clear()
     }
 
