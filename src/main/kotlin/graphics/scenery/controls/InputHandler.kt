@@ -114,11 +114,12 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
                     handler.setInputMap(inputMap)
                     handler.setBehaviourMap(behaviourMap)
 
-                    window.panel.addKeyListener(handler)
-                    window.panel.addMouseListener(handler)
-                    window.panel.addMouseMotionListener(handler)
-                    window.panel.addMouseWheelListener(handler)
-                    window.panel.addFocusListener(handler)
+                    val ancestor = window.panel.component
+                    ancestor?.addKeyListener(handler)
+                    ancestor?.addMouseListener(handler)
+                    ancestor?.addMouseMotionListener(handler)
+                    ancestor?.addMouseWheelListener(handler)
+                    ancestor?.addFocusListener(handler)
                 }
             }
 
