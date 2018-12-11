@@ -4,6 +4,8 @@ import glm_.L
 import glm_.i
 import graphics.scenery.utils.LazyLogger
 import kool.*
+import org.lwjgl.PointerBuffer
+import org.lwjgl.system.MemoryStack
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.NULL
 import org.lwjgl.system.MemoryUtil.memAlloc
@@ -178,11 +180,45 @@ open class VulkanBuffer(val device: VulkanDevice,
     /**
      * Copies data from the [ByteBuffer] [data] directly to the device memory.
      */
-    fun copyFrom(data: ByteBuffer) {
+    fun copyFrom(data: ByteBuffer, dstOffset: Long = 0) {
         resizeLazy()
 
-        vkDev.mappedMemory(memory, bufferOffset, size) { dest ->
+        val dstSize = if(dstOffset > 0) {
+            size - dstOffset
+        } else {
+            size
+        }
+
+        vkDev.mappedMemory(memory, bufferOffset + dstOffset, dstSize) { dest ->
             data copyTo dest
+        }
+    }
+
+    /**
+     * Copies data into the Vulkan buffer from a list of [chunks]. A [dstOffset] can
+     * be given, defining the start position in the buffer.
+     */
+    fun copyFrom(chunks: List<ByteBuffer>, dstOffset: Long = 0) { // TODO
+        MemoryStack.stackPush().use { stack ->
+            resizeLazy()
+
+            val dest = stack.callocPointer(1)
+
+            val dstSize = if (dstOffset > 0) {
+                size - dstOffset
+            } else {
+                size
+            }
+
+            var currentOffset = 0
+
+            vkMapMemory(device.vulkanDevice, memory, bufferOffset + dstOffset, dstSize, 0, dest)
+            chunks.forEach { chunk ->
+                val chunkSize = chunk.remaining()
+                memCopy(memAddress(chunk), dest.get(0) + currentOffset, chunk.remaining().toLong())
+                currentOffset += chunkSize
+            }
+            vkUnmapMemory(device.vulkanDevice, memory)
         }
     }
 
@@ -261,7 +297,7 @@ open class VulkanBuffer(val device: VulkanDevice,
      * Closes this buffer, freeing all allocated resources on host and device.
      */
     override fun close() {
-        if (memory.L == NULL || vulkanBuffer.L == NULL) {
+        if (memory.L == NULL || vulkanBuffer.L == NULL) { // TODO
             return
         }
 

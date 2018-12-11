@@ -14,7 +14,7 @@ import kotlin.concurrent.thread
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class SponzaExample : SceneryBase("SponzaExample", windowWidth = 1280, windowHeight = 720) {
+class SponzaExample : SceneryBase("SponzaExample", windowWidth = 1920, windowHeight = 1080) {
     private var movingLights = true
 
     override fun init() {

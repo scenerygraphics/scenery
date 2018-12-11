@@ -2,7 +2,7 @@
 #extension GL_ARB_separate_shader_objects: enable
 #extension GL_EXT_control_flow_attributes : enable
 
-layout(set = 5, binding = 0) uniform sampler2D InputZBuffer;
+layout(set = 6, binding = 0) uniform sampler2D InputZBuffer;
 
 layout(location = 0) in VertexData {
     vec2 textureCoord;
@@ -50,9 +50,9 @@ layout(set = 2, binding = 0) uniform Matrices {
 } ubo;
 
 layout(set = 3, binding = 0) uniform sampler2D ObjectTextures[NUM_OBJECT_TEXTURES];
-layout(set = 3, binding = 1) uniform sampler3D VolumeTextures;
+layout(set = 4, binding = 0) uniform sampler3D VolumeTextures;
 
-layout(set = 4, binding = 0) uniform ShaderProperties {
+layout(set = 5, binding = 0) uniform ShaderProperties {
     float voxelSizeX;
     float voxelSizeY;
     float voxelSizeZ;

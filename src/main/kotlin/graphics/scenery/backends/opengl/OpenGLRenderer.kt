@@ -15,7 +15,15 @@ import graphics.scenery.utils.*
 import javafx.application.Platform
 import kool.free
 import kotlinx.coroutines.*
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.lwjgl.system.MemoryUtil
+import java.awt.BorderLayout
+import java.awt.Dimension
+import java.awt.event.ComponentAdapter
+import java.awt.event.ComponentEvent
 import java.io.File
 import java.io.FileNotFoundException
 import java.lang.reflect.Field
@@ -31,8 +39,11 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import javax.imageio.ImageIO
+import javax.swing.JFrame
+import javax.swing.SwingUtilities
 import kotlin.collections.LinkedHashMap
 import kotlin.concurrent.withLock
+import kotlin.math.max
 import kotlin.math.roundToInt
 import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.memberProperties
@@ -53,7 +64,7 @@ import kotlin.reflect.full.memberProperties
  * @param[scene] The [Scene] instance to initialize first.
  * @param[width] Horizontal window size.
  * @param[height] Vertical window size.
- * @param[embedIn] An optional [SceneryPanel] in which to embed the renderer instance.
+ * @param[embedIn] An optional [SceneryFXPanel] in which to embed the renderer instance.
  * @param[renderConfigFile] The file to create a [RenderConfigReader.RenderConfig] from.
  *
  * @author Ulrik Günther <hello@ulrik.is>
@@ -65,8 +76,9 @@ open class OpenGLRenderer(hub: Hub,
                           scene: Scene,
                           width: Int,
                           height: Int,
+                          renderConfigFile: String,
                           final override var embedIn: SceneryPanel? = null,
-                          renderConfigFile: String) : Renderer(), Hubable, ClearGLEventListener {
+                          var embedInDrawable: GLAutoDrawable? = null) : Renderer(), Hubable, ClearGLEventListener {
     /** slf4j logger */
     private val logger by LazyLogger()
     /** [GL4] instance handed over, coming from [ClearGLDefaultEventListener]*/
@@ -78,7 +90,7 @@ open class OpenGLRenderer(hub: Hub,
     /** separately stored ClearGLWindow */
     var cglWindow: ClearGLWindow? = null
     /** drawble for offscreen rendering */
-    var drawable: GLOffscreenAutoDrawable? = null
+    var drawable: GLAutoDrawable? = null
     /** Whether the renderer manages its own event loop, which is the case for this one. */
     override var managesRenderLoop = true
 
@@ -116,6 +128,7 @@ open class OpenGLRenderer(hub: Hub,
     @Volatile private var mustRecreateFramebuffers = false
     private var framebufferRecreateHook: () -> Unit = {}
     private var gpuStats: GPUStats? = null
+    private var maxTextureUnits = 8
 
     /** heartbeat timer */
     private var heartbeatTimer = Timer()
@@ -188,10 +201,12 @@ open class OpenGLRenderer(hub: Hub,
             gl.glDeleteBuffers(pboCount, pbos, 0)
             pbos = IntArray(pboCount) { 0 }
 
-            window.width = lastWidth
-            window.height = lastHeight
+            lastWidth = window.width
+            lastHeight = window.height
 
-            drawable?.setSurfaceSize(window.width, window.height)
+            if(drawable is GLOffscreenAutoDrawable) {
+                (drawable as? GLOffscreenAutoDrawable)?.setSurfaceSize(window.width, window.height)
+            }
 
             lastResize = -1L
         }
@@ -337,55 +352,127 @@ open class OpenGLRenderer(hub: Hub,
             this.window.height = hmd.getRenderTargetSize().y().toInt()
         }
 
-        if (embedIn != null) {
-            val profile = GLProfile.getMaxProgrammableCore(true)
+        if (embedIn != null || embedInDrawable != null) {
+            if (embedIn != null && embedInDrawable == null) {
+                val profile = GLProfile.getMaxProgrammableCore(true)
 
-            if(!profile.isGL4) {
-                throw UnsupportedOperationException("Could not create OpenGL 4 context, perhaps you need a graphics driver update?")
-            }
+                if (!profile.isGL4) {
+                    throw UnsupportedOperationException("Could not create OpenGL 4 context, perhaps you need a graphics driver update?")
+                }
 
-            val caps = GLCapabilities(profile)
-            caps.hardwareAccelerated = true
-            caps.doubleBuffered = true
-            caps.isOnscreen = false
-            caps.isPBuffer = true
-            caps.redBits = 8
-            caps.greenBits = 8
-            caps.blueBits = 8
-            caps.alphaBits = 8
+                val caps = GLCapabilities(profile)
+                caps.hardwareAccelerated = true
+                caps.doubleBuffered = true
+                caps.isOnscreen = false
+                caps.numSamples = 1
+                caps.isPBuffer = true
+                caps.redBits = 8
+                caps.greenBits = 8
+                caps.blueBits = 8
+                caps.alphaBits = 8
 
+                val panel = embedIn
+                /* maybe better?
+                 var canvas: ClearGLWindow? = null
+                    SwingUtilities.invokeAndWait {
+                        canvas = ClearGLWindow("", width, height, this)
+                        canvas!!.newtCanvasAWT.shallUseOffscreenLayer = true
+                        panel.component = canvas!!.newtCanvasAWT
+                        panel.layout = BorderLayout()
+                        panel.add(canvas!!.newtCanvasAWT, BorderLayout.CENTER)
+                        panel.preferredSize = Dimension(width, height)
 
-            val factory = GLDrawableFactory.getFactory(profile)
-            drawable = factory.createOffscreenAutoDrawable(factory.defaultDevice, caps,
-                DefaultGLCapabilitiesChooser(), embedIn!!.width.toInt(), embedIn!!.height.toInt())
-                .apply {
-
-                    addGLEventListener(this@OpenGLRenderer)
-
-                    animator = FPSAnimator(this, 60)
-                    animator.setUpdateFPSFrames(60, null)
-                    animator.start()
-
-                    embedIn?.let { panel ->
-                        panel.imageView.scaleY = -1.0
-
-                        panel.widthProperty()?.addListener { _, _, newWidth ->
-                            resizeHandler.lastWidth = newWidth.toInt()
-                        }
-
-                        panel.heightProperty()?.addListener { _, _, newHeight ->
-                            resizeHandler.lastHeight = newHeight.toInt()
-                        }
+                        val frame = SwingUtilities.getAncestorOfClass(JFrame::class.java, panel) as JFrame
+                        frame.preferredSize = Dimension(width, height)
+                        frame.layout = BorderLayout()
+                        frame.pack()
+                        frame.isVisible = true
                     }
 
-                    window = SceneryWindow.JavaFXStage(embedIn!!)
-                    window.width = embedIn!!.width.toInt()
-                    window.height = embedIn!!.height.toInt()
+                    canvas!!.glAutoDrawable
+                 */
+                drawable = if (panel is SceneryJPanel) {
+                    val canvas = ClearGLWindow("", width, height, null)
+                    canvas.newtCanvasAWT.shallUseOffscreenLayer = true
+                    panel.component = canvas.newtCanvasAWT
+                    panel.cglWindow = canvas
+                    panel.layout = BorderLayout()
+                    panel.add(canvas.newtCanvasAWT, BorderLayout.CENTER)
+                    panel.preferredSize = Dimension(width, height)
 
-                    resizeHandler.lastWidth = window.width
-                    resizeHandler.lastHeight = window.height
+                    val frame = SwingUtilities.getAncestorOfClass(JFrame::class.java, panel) as JFrame
+                    frame.preferredSize = Dimension(width, height)
+                    frame.pack()
 
+                    cglWindow = canvas
+                    canvas.glAutoDrawable
+                } else {
+                    val factory = GLDrawableFactory.getFactory(profile)
+
+                    factory.createOffscreenAutoDrawable(factory.defaultDevice, caps,
+                        DefaultGLCapabilitiesChooser(), window.width, window.height)
                 }
+            } else {
+                drawable = embedInDrawable
+            }
+
+            drawable?.apply {
+
+                addGLEventListener(this@OpenGLRenderer)
+
+                animator = FPSAnimator(this, 60)
+                animator.setUpdateFPSFrames(60, null)
+                animator.start()
+
+                embedInDrawable?.let { glAutoDrawable ->
+                    window = SceneryWindow.JOGLDrawable(glAutoDrawable)
+                }
+
+                window.width = width
+                window.height = height
+
+                resizeHandler.lastWidth = window.width
+                resizeHandler.lastHeight = window.height
+
+                embedIn?.let { panel ->
+                    panel.imageScaleY = -1.0f
+
+                    when(panel) {
+                        is SceneryFXPanel -> {
+                            panel.widthProperty()?.addListener { _, _, newWidth ->
+                                resizeHandler.lastWidth = newWidth.toInt()
+                            }
+
+                            panel.heightProperty()?.addListener { _, _, newHeight ->
+                                resizeHandler.lastHeight = newHeight.toInt()
+                            }
+
+                            window = SceneryWindow.JavaFXStage(panel)
+                            window.width = panel.panelWidth
+                            window.height = panel.panelHeight
+                        }
+
+                        is SceneryJPanel -> {
+                            window = SceneryWindow.SwingWindow(panel)
+
+                            window.width = panel.panelWidth
+                            window.height = panel.panelHeight
+
+                            panel.addComponentListener(object: ComponentAdapter() {
+                                override fun componentResized(e: ComponentEvent) {
+                                    super.componentResized(e)
+                                    logger.debug("SceneryJPanel component resized to ${e.component.width} ${e.component.height}")
+                                    resizeHandler.lastWidth = e.component.width
+                                    resizeHandler.lastHeight = e.component.height
+                                }
+                            })
+                        }
+                    }
+                }
+
+                resizeHandler.lastWidth = window.width
+                resizeHandler.lastHeight = window.height
+            }
         } else {
             val w = this.window.width
             val h = this.window.height
@@ -435,6 +522,10 @@ open class OpenGLRenderer(hub: Hub,
         if (driverVersion.toLowerCase().indexOf("nvidia") != -1 && System.getProperty("os.name").toLowerCase().indexOf("windows") != -1) {
             gpuStats = NvidiaGPUStats()
         }
+
+        val tmp = IntArray(1)
+        gl.glGetIntegerv(GL4.GL_MAX_TEXTURE_IMAGE_UNITS, tmp, 0)
+        maxTextureUnits = tmp[0]
 
         val numExtensionsBuffer = IntBuffer.allocate(1)
         gl.glGetIntegerv(GL4.GL_NUM_EXTENSIONS, numExtensionsBuffer)
@@ -495,11 +586,11 @@ open class OpenGLRenderer(hub: Hub,
     }
 
     fun prepareRenderpasses(config: RenderConfigReader.RenderConfig, windowWidth: Int, windowHeight: Int): LinkedHashMap<String, OpenGLRenderpass> {
-//        if(config.sRGB) {
-//            gl.glEnable(GL4.GL_FRAMEBUFFER_SRGB)
-//        } else {
-//            gl.glDisable(GL4.GL_FRAMEBUFFER_SRGB)
-//        }
+        if(config.sRGB) {
+            gl.glEnable(GL4.GL_FRAMEBUFFER_SRGB)
+        } else {
+            gl.glDisable(GL4.GL_FRAMEBUFFER_SRGB)
+        }
 
         buffers["ShaderParametersBuffer"]!!.reset()
 
@@ -546,7 +637,7 @@ open class OpenGLRenderer(hub: Hub,
                     logger.info("Reusing already created framebuffer")
                     pass.output.put(rt.key, framebuffers[rt.key]!!)
                 } else {
-                    val framebuffer = GLFramebuffer(gl, width, height)
+                    val framebuffer = GLFramebuffer(gl, width, height, renderConfig.sRGB)
 
                     rt.value.attachments.forEach { att ->
                         logger.info(" + attachment ${att.key}, ${att.value.name}")
@@ -681,6 +772,7 @@ open class OpenGLRenderer(hub: Hub,
         this.joglDrawable = pDrawable
 
         if (mustRecreateFramebuffers) {
+            logger.info("Recreating framebuffers (${window.width}x${window.height}")
             renderpasses = prepareRenderpasses(renderConfig, window.width, window.height)
             flow = renderConfig.createRenderpassFlow()
 
@@ -741,7 +833,8 @@ open class OpenGLRenderer(hub: Hub,
             "displacement" -> 5
             "3D-volume" -> 6
             else -> {
-                logger.warn("Unknown texture type $type"); 10
+                logger.warn("Unknown ObjecTextures type $type")
+                0
             }
         }
     }
@@ -756,8 +849,8 @@ open class OpenGLRenderer(hub: Hub,
             "displacement" -> "ObjectTextures[5]"
             "3D-volume" -> "VolumeTextures"
             else -> {
-                logger.warn("Unknown texture type $type")
-                "ObjectTextures[0]"
+                logger.debug("Unknown texture type $type")
+                type
             }
         }
     }
@@ -1637,21 +1730,49 @@ open class OpenGLRenderer(hub: Hub,
                         }
                     }
 
-                    s.textures.forEach { type, glTexture ->
-                        val samplerIndex = textureTypeToUnit(pass, type)
+                    val unboundSamplers = (unit until maxTextureUnits).toMutableList()
+                    var maxSamplerIndex = 0
+                    val textures = s.textures.entries.groupBy { GenericTexture.objectTextures.contains(it.key) }
+                    val objectTextures = textures[true]
+                    val others = textures[false]
+
+                    objectTextures?.forEach { texture ->
+                        val samplerIndex = textureTypeToUnit(pass, texture.key)
+                        maxSamplerIndex = max(samplerIndex, maxSamplerIndex)
 
                         @Suppress("SENSELESS_COMPARISON")
-                        if (glTexture != null) {
+                        if (texture.value != null) {
                             gl.glActiveTexture(GL4.GL_TEXTURE0 + samplerIndex)
 
-                            val target = if (glTexture.depth > 1) {
+                            val target = if (texture.value.depth > 1) {
                                 GL4.GL_TEXTURE_3D
                             } else {
                                 GL4.GL_TEXTURE_2D
                             }
 
-                            gl.glBindTexture(target, glTexture.id)
-                            shader.getUniform(textureTypeToArrayName(type)).setInt(samplerIndex)
+                            gl.glBindTexture(target, texture.value.id)
+                            shader.getUniform(textureTypeToArrayName(texture.key)).setInt(samplerIndex)
+                            unboundSamplers.remove(samplerIndex)
+                        }
+                    }
+
+                    var samplerIndex = maxSamplerIndex
+                    others?.forEach { texture ->
+                        @Suppress("SENSELESS_COMPARISON")
+                        if(texture.value != null) {
+                            val minIndex = unboundSamplers.min() ?: maxSamplerIndex
+                            gl.glActiveTexture(GL4.GL_TEXTURE0 + minIndex)
+
+                            val target = if (texture.value.depth > 1) {
+                                GL4.GL_TEXTURE_3D
+                            } else {
+                                GL4.GL_TEXTURE_2D
+                            }
+
+                            gl.glBindTexture(target, texture.value.id)
+                            shader.getUniform(texture.key).setInt(minIndex)
+                            samplerIndex++
+                            unboundSamplers.remove(minIndex)
                         }
                     }
 
@@ -1808,7 +1929,7 @@ open class OpenGLRenderer(hub: Hub,
                 viewportPass.output.values.first().getTextureId("Viewport"))
         }
 
-        if(embedIn != null || recordMovie) {
+        if((embedIn != null && embedIn !is SceneryJPanel) || recordMovie) {
             if (shouldClose || mustRecreateFramebuffers) {
                 encoder?.finish()
 
@@ -2058,7 +2179,7 @@ open class OpenGLRenderer(hub: Hub,
 
                 logger.debug("Shader properties are: ${shader?.getShaderPropertyOrder()}")
                 shader?.getShaderPropertyOrder()?.forEach { name, offset ->
-                    add(name, { node.getShaderProperty(name)!! }, offset)
+                    add(name, { node.getShaderProperty(name) ?: 0 }, offset)
                 }
             }
 
@@ -2122,6 +2243,17 @@ open class OpenGLRenderer(hub: Hub,
     }
 
     /**
+     * Returns true if the current [GLTexture] can be reused to store the information in the [GenericTexture]
+     * [other]. Returns false otherwise.
+     */
+    protected fun GLTexture.canBeReused(other: GenericTexture, miplevels: Int): Boolean {
+        return this.width == other.dimensions.x().toInt() &&
+            this.height == other.dimensions.y().toInt() &&
+            this.depth == other.dimensions.z().toInt() &&
+            this.nativeType == other.type
+    }
+
+    /**
      * Loads textures for a [Node]. The textures either come from a [Material.transferTextures] buffer,
      * or from a file. This is indicated by stating fromBuffer:bufferName in the textures hash map.
      *
@@ -2136,34 +2268,33 @@ open class OpenGLRenderer(hub: Hub,
                 if (!textureCache.containsKey(texture) || node.material.needsTextureReload) {
                     logger.debug("Loading texture $texture for ${node.name}")
 
-                    val generateMipmaps = (type == "ambient" || type == "diffuse" || type == "specular")
+                    val generateMipmaps = GenericTexture.mipmappedObjectTextures.contains(type)
                     if (texture.startsWith("fromBuffer:")) {
-                        node.material.transferTextures[texture.substringAfter("fromBuffer:")]?.let {
-                            (_, dimensions, channels, type1, contents, repeatS, repeatT, normalized) ->
+                        val gt = node.material.transferTextures[texture.substringAfter("fromBuffer:")]
+                        gt?.let { (_, dimensions, channels, type1, contents, repeatS, repeatT, repeatU, normalized, mipmap, minLinear, maxLinear, updates) ->
 
                             logger.debug("Dims of $texture: $dimensions, mipmaps=$generateMipmaps")
 
-                            val miplevels = if (generateMipmaps && dimensions.z().toInt() == 1) {
+                            val mm = generateMipmaps or mipmap
+                            val miplevels = if (mm && dimensions.z().toInt() == 1) {
                                 1 + Math.floor(Math.log(Math.max(dimensions.x() * 1.0, dimensions.y() * 1.0)) / Math.log(2.0)).toInt()
                             } else {
                                 1
                             }
 
-                            // TODO: Add support for more than one channel for volumes
-                            val channelCount = if (dimensions.z().toInt() == 1) {
-                                channels
+                            val existingTexture = s.textures[type]
+                            val t = if(existingTexture != null && existingTexture.canBeReused(gt, miplevels)) {
+                                existingTexture
                             } else {
-                                1
+                                GLTexture(gl, type1, channels,
+                                    dimensions.x().toInt(),
+                                    dimensions.y().toInt(),
+                                    dimensions.z().toInt() ?: 1,
+                                    minLinear,
+                                    miplevels, 32, normalized, renderConfig.sRGB)
                             }
 
-                            val t = GLTexture(gl, type1, channelCount,
-                                dimensions.x().toInt(),
-                                dimensions.y().toInt(),
-                                dimensions.z().toInt() ?: 1,
-                                true,
-                                miplevels, 32, normalized)
-
-                            if (generateMipmaps) {
+                            if (mm) {
                                 t.updateMipMaps()
                             }
 
@@ -2174,12 +2305,30 @@ open class OpenGLRenderer(hub: Hub,
 
                             // textures might have very uneven dimensions, so we adjust GL_UNPACK_ALIGNMENT here correspondingly
                             // in case the byte count of the texture is not divisible by it.
-                            if(contents.remaining() % unpackAlignment[0] == 0 && dimensions.x().toInt() % unpackAlignment[0] == 0) {
-                                t.copyFrom(contents)
-                            } else {
-                                gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, 1)
-                                t.copyFrom(contents)
+                            if (contents != null && !gt.hasConsumableUpdates()) {
+                                if (contents.remaining() % unpackAlignment[0] == 0 && dimensions.x().toInt() % unpackAlignment[0] == 0) {
+                                    t.copyFrom(contents)
+                                } else {
+                                    gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, 1)
+
+                                    t.copyFrom(contents)
+                                }
                                 gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, unpackAlignment[0])
+                            }
+
+                            if (gt.hasConsumableUpdates()) {
+//                                gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, 1)
+                                updates.forEach { update ->
+                                    if (!update.consumed) {
+                                        t.copyFrom(update.contents,
+                                            update.extents.w, update.extents.h, update.extents.d,
+                                            update.extents.x, update.extents.y, update.extents.z, true)
+                                        update.consumed = true
+                                    }
+                                }
+
+                                gt.clearConsumedUpdates()
+//                                gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, unpackAlignment[0])
                             }
 
                             s.textures[type] = t
@@ -2510,7 +2659,7 @@ open class OpenGLRenderer(hub: Hub,
     fun drawNode(node: Node, offset: Int = 0, count: Int? = null) {
         val s = getOpenGLObjectStateFromNode(node)
 
-        if (s.mStoredIndexCount == 0 && s.mStoredPrimitiveCount == 0 || node.material.needsTextureReload) {
+        if (s.mStoredIndexCount == 0 && s.mStoredPrimitiveCount == 0) {
             return
         }
         logger.trace("Drawing {} with {}, {} primitives, {} indices", node.name, s.shader?.modules?.entries?.joinToString(), s.mStoredPrimitiveCount, s.mStoredIndexCount)

@@ -4,6 +4,7 @@ import graphics.scenery.Hub
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.SceneryFXPanel
 import graphics.scenery.utils.SceneryPanel
 import kool.free
 import kool.rem

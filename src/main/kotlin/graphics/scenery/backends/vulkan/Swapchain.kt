@@ -2,6 +2,7 @@ package graphics.scenery.backends.vulkan
 
 import graphics.scenery.Hub
 import graphics.scenery.backends.SceneryWindow
+import graphics.scenery.utils.SceneryFXPanel
 import graphics.scenery.utils.SceneryPanel
 import org.lwjgl.system.MemoryUtil.NULL
 import vkk.*
@@ -63,7 +64,7 @@ interface Swapchain : AutoCloseable {
     fun toggleFullscreen(hub: Hub, swapchainRecreator: VulkanRenderer.SwapchainRecreator)
 
     /**
-     * Embeds this swapchain within [panel] (@see[SceneryPanel]).
+     * Embeds this swapchain within [panel] (@see[SceneryFXPanel]).
      */
     fun embedIn(panel: SceneryPanel?)
 
