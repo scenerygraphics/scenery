@@ -7,7 +7,6 @@ import graphics.scenery.utils.SceneryJPanel
 import org.junit.Test
 import java.awt.BorderLayout
 import javax.swing.JFrame
-import javax.swing.JPanel
 import kotlin.concurrent.thread
 
 /**
@@ -19,14 +18,10 @@ class SwingTexturedCubeExample : SceneryBase("SwingTexturedCubeExample", windowW
     override fun init() {
         val mainFrame = JFrame(applicationName)
         mainFrame.setSize(windowWidth, windowHeight)
-
-        val rl = BorderLayout(0, 0)
-        val panel = JPanel(rl)
+        mainFrame.layout = BorderLayout()
 
         val sceneryPanel = SceneryJPanel()
-        panel.add(sceneryPanel, BorderLayout.CENTER)
-        mainFrame.add(panel)
-
+        mainFrame.add(sceneryPanel, BorderLayout.CENTER)
         mainFrame.isVisible = true
 
         renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight, embedIn = sceneryPanel)

@@ -1,20 +1,10 @@
 package graphics.scenery.utils
 
 import cleargl.ClearGLWindow
-import com.jogamp.opengl.awt.GLJPanel
-import com.sun.jna.Pointer
-import graphics.scenery.backends.Renderer
-import graphics.scenery.backends.opengl.OpenGLRenderer
-import org.lwjgl.system.MemoryUtil
-import org.lwjgl.vulkan.awt.AWTVKCanvas
-import org.lwjgl.vulkan.awt.VKData
-import java.awt.*
-import java.awt.color.ColorSpace
-import java.awt.image.*
+import java.awt.Component
+import java.awt.image.BufferedImage
 import java.nio.ByteBuffer
-import java.util.*
 import javax.swing.JPanel
-import java.awt.image.DataBuffer
 
 
 
