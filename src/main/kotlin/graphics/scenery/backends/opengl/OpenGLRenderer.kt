@@ -399,10 +399,9 @@ open class OpenGLRenderer(hub: Hub,
 
                     val frame = SwingUtilities.getAncestorOfClass(JFrame::class.java, panel) as JFrame
                     frame.preferredSize = Dimension(width, height)
-                    frame.layout = BorderLayout()
                     frame.pack()
-                    frame.isVisible = true
 
+                    cglWindow = canvas
                     canvas.glAutoDrawable
                 } else {
                     val factory = GLDrawableFactory.getFactory(profile)
@@ -598,7 +597,7 @@ open class OpenGLRenderer(hub: Hub,
         val flow = renderConfig.createRenderpassFlow()
 
         val supersamplingFactor = if(settings.get<Float>("Renderer.SupersamplingFactor").toInt() == 1) {
-            if(cglWindow != null && ClearGLWindow.isRetina(cglWindow!!.gl) && embedIn !is SceneryJPanel) {
+            if(cglWindow != null && ClearGLWindow.isRetina(cglWindow!!.gl)) {
                 logger.debug("Setting Renderer.SupersamplingFactor to 0.5, as we are rendering on a retina display.")
                 settings.set("Renderer.SupersamplingFactor", 0.5f)
                 0.5f
