@@ -8,7 +8,9 @@ import java.nio.ByteBuffer
 import java.util.*
 
 /**
- * Created by ulrik on 6/30/2017.
+ * Panel for JavaFX scenery can be embedded into.
+ *
+ * WARNING: Experimental, results in bad rendering performance at the moment.
  *
  * @author Ulrik Günther <hello@ulrik.is>
  * @author Hongkee Moon <moon@mpi-cbg.de>
@@ -18,15 +20,18 @@ class SceneryFXPanel(var imageWidth: Int, var imageHeight: Int) : Pane(), Scener
 
     private val logger by LazyLogger()
 
+    /** Refresh rate */
     override var refreshRate: Int = 60
 
     /** Delay between resize events before associated renderer swapchains are resized actually. */
     val RESIZE_DELAY_MS = 200L
 
+    /** Width of the panel. */
     override var panelWidth
         get() = super.getWidth().toInt()
         set(w: Int) { super.setWidth(w.toDouble()) }
 
+    /** Height of the panel. */
     override var panelHeight
         get() = super.getHeight().toInt()
         set(w: Int) { super.setHeight(w.toDouble()) }
@@ -50,8 +55,11 @@ class SceneryFXPanel(var imageWidth: Int, var imageHeight: Int) : Pane(), Scener
 
     /** The image displayed in the panel. Will be set by a renderer. */
     protected var image: DirectWritableImage = DirectWritableImage(imageWidth, imageHeight)
+    /** Image view for [image]. */
     internal var imageView: ImageView
+    /** Displayed frames so far. */
     override var displayedFrames = 0L
+    /** Image scale in Y, default is 1.0f, aka no flipping. */
     override var imageScaleY = 1.0f
 
     private var resizeTimer: Timer? = null
@@ -74,6 +82,9 @@ class SceneryFXPanel(var imageWidth: Int, var imageHeight: Int) : Pane(), Scener
         imageView.isCache = true
     }
 
+    /**
+     * Updates the panel's backing buffer with [buffer].
+     * */
     override fun update(buffer: ByteBuffer, id: Int) {
         cacheHint = CacheHint.SPEED
         imageView.cacheHint = CacheHint.SPEED
@@ -121,37 +132,11 @@ class SceneryFXPanel(var imageWidth: Int, var imageHeight: Int) : Pane(), Scener
         resizeTimer?.schedule(ResizeTimerTask(width, height), RESIZE_DELAY_MS)
     }
 
+    /**
+     * Sets the preferred size of the window to [w]x[h].
+     */
     override fun setPreferredDimensions(w: Int, h: Int) {
         prefWidth = w.toDouble()
         prefHeight = h.toDouble()
     }
-
-    /*
-    /** Retuns the region rendered by this panel. */
-    @Suppress("OverridingDeprecatedMember")
-    override fun impl_createPeer(): NGNode {
-        return NGSceneryPanelRegion()
-    }
-
-    private inner class NGSceneryPanelRegion: NGRegion() {
-        override fun renderContent(g: Graphics) {
-
-            logger.trace(" w x h : {} {} panel w x h : {} {} buffer sizes {} vs {}", imageWidth, imageHeight, width, height, latestImageSize, this@SceneryFXPanel.width*this@SceneryFXPanel.height*4)
-
-            if (latestImageSize == this@SceneryFXPanel.width.toInt() * this@SceneryFXPanel.height.toInt() * 4 && imageBuffer != null) {
-                g.clear()
-                val t = g.resourceFactory.getCachedTexture(image.getWritablePlatformImage(image) as com.sun.prism.Image, Texture.WrapMode.CLAMP_TO_EDGE)
-                if(imageView.scaleY < 0.0f) {
-                    g.drawTexture(t, 0.0f, 0.0f, width.toFloat(), height.toFloat(), 0.0f, height.toFloat(), width.toFloat(), 0.0f)
-                } else {
-                    g.drawTexture(t, 0.0f, 0.0f, width.toFloat(), height.toFloat())
-                }
-
-                displayedFrames++
-            } else {
-                logger.debug("Not rendering, size mismatch ${this@SceneryFXPanel.width}x${this@SceneryFXPanel.height}")
-            }
-        }
-    }*/
-
 }

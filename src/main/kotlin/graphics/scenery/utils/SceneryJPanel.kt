@@ -1,51 +1,48 @@
 package graphics.scenery.utils
 
 import cleargl.ClearGLWindow
-import com.jogamp.opengl.awt.GLJPanel
-import com.sun.jna.Pointer
-import graphics.scenery.backends.Renderer
-import graphics.scenery.backends.opengl.OpenGLRenderer
-import org.lwjgl.system.MemoryUtil
-import org.lwjgl.vulkan.awt.AWTVKCanvas
-import org.lwjgl.vulkan.awt.VKData
-import java.awt.*
-import java.awt.color.ColorSpace
-import java.awt.image.*
+import java.awt.Component
 import java.nio.ByteBuffer
-import java.util.*
 import javax.swing.JPanel
-import java.awt.image.DataBuffer
 
-
-
+/**
+ * Swing panel scenery can be embedded into.
+ *
+ * @author Ulrik Guenther <hello@ulrik.is>
+ */
 class SceneryJPanel : JPanel(), SceneryPanel {
-    override fun update(buffer: ByteBuffer, id: Int) {
-    }
+    /** Refresh rate. */
+    override var refreshRate: Int = 60
+
+    /** Updates the backing buffer of the window. Does nothing for Swing. */
+    override fun update(buffer: ByteBuffer, id: Int) { }
 
     private val logger by LazyLogger()
 
+    /** Width of the panel. */
     override var panelWidth: Int
         get() = super.getWidth()
         set(value) {}
+
+    /** Height of the panel. */
     override var panelHeight: Int
         get() = super.getHeight()
         set(value) {}
 
-    protected var images =  Array<BufferedImage?>(2, { null })
-
-    protected var renderingReady = false
-
-    override var refreshRate = 60
-
+    /** Embedded component that receives the actual rendering, e.g. via a native surface. */
     var component: Component? = null
+
+    /** [ClearGLWindow] the [OpenGLRenderer] is rendering to. */
     var cglWindow: ClearGLWindow? = null
 
+    /** Displayed frames so far. */
     override var displayedFrames: Long = 0L
 
+    /** Image scale, no flipping needed here. */
     override var imageScaleY: Float = 1.0f
 
+    /** Sets the preferred dimensions of the panel. */
     override fun setPreferredDimensions(w: Int, h: Int) {
         logger.info("Preferred dimensions=$w,$h")
     }
-
 }
