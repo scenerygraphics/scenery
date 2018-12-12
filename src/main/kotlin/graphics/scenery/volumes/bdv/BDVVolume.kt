@@ -401,7 +401,7 @@ open class BDVVolume(bdvXMLFile: String = "", val options: VolumeViewerOptions) 
 
                     override fun getSourceTransform(): AffineTransform3D {
                         val w = AffineTransform3D()
-                        w.set(*world.floatArray.map { it.toDouble() }.toDoubleArray())
+                        w.set(*world.transposedFloatArray.map { it.toDouble() }.toDoubleArray())
                         return w.concatenate(sourceTransform)
                     }
 
