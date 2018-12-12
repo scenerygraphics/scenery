@@ -506,20 +506,8 @@
 
     <repositories>
         <repository>
-            <id>sonatype.public</id>
-            <url>http://oss.sonatype.org/content/groups/public</url>
-        </repository>
-        <repository>
             <id>imagej.public</id>
             <url>http://maven.imagej.net/content/groups/public</url>
-        </repository>
-        <repository>
-            <id>clearcontrol</id>
-            <url>http://dl.bintray.com/clearcontrol/ClearControl</url>
-        </repository>
-        <repository>
-            <id>clearvolume</id>
-            <url>http://dl.bintray.com/clearvolume/ClearVolume</url>
         </repository>
     </repositories>
 
