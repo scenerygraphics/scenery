@@ -476,10 +476,10 @@ open class VulkanRenderer(hub: Hub,
 
         logger.debug("Device creation done")
 
-        if(device.deviceData.vendor.toLowerCase().contains("nvidia") && ExtractsNatives.getPlatform() == ExtractsNatives.Platform.WINDOWS) {
+        if (device.deviceData.vendor.toLowerCase().contains("nvidia") && ExtractsNatives.getPlatform() == ExtractsNatives.Platform.WINDOWS) {
             try {
                 gpuStats = NvidiaGPUStats()
-            } catch(e: NullPointerException) {
+            } catch (e: NullPointerException) {
                 logger.warn("Could not initialize Nvidia GPU stats")
             }
         }
@@ -566,7 +566,7 @@ open class VulkanRenderer(hub: Hub,
                 fps = frames
                 frames = 0
 
-                if(!pushMode) {
+                if (!pushMode) {
                     (hub.get(SceneryElement.Statistics) as? Statistics)?.add("Renderer.fps", fps, false)
                 }
 
@@ -882,7 +882,7 @@ open class VulkanRenderer(hub: Hub,
                             null
                         } catch (e: ShaderConsistencyException) {
                             logger.warn("${e.message} - Falling back to default shader.")
-                            if(logger.isDebugEnabled) {
+                            if (logger.isDebugEnabled) {
                                 e.printStackTrace()
                             }
                             return false
@@ -945,10 +945,10 @@ open class VulkanRenderer(hub: Hub,
                     with(shaderPropertyUbo) {
                         name = "ShaderProperties"
 
-                            order.forEach { name, offset ->
-                                // TODO: See whether returning 0 on non-found shader property has ill side effects
-                                add(name, { node.getShaderProperty(name) ?: 0 }, offset)
-                            }
+                        order.forEach { name, offset ->
+                            // TODO: See whether returning 0 on non-found shader property has ill side effects
+                            add(name, { node.getShaderProperty(name) ?: 0 }, offset)
+                        }
 
                         this.createUniformBuffer()
                         s.UBOs["${pass.key}-ShaderProperties"] = s.requiredDescriptorSets["ShaderProperties"]!! to this
@@ -1060,7 +1060,7 @@ open class VulkanRenderer(hub: Hub,
                         t.copyFrom(contents)
                     }
 
-                    if(gt.hasConsumableUpdates()) {
+                    if (gt.hasConsumableUpdates()) {
                         t.copyFrom(ByteBuffer.allocate(0))
                     }
 
@@ -1113,12 +1113,8 @@ open class VulkanRenderer(hub: Hub,
         m["MaterialProperties"] = vkDev.createDescriptorSetLayout(VkDescriptorType.UNIFORM_BUFFER_DYNAMIC to 1)
 
         m["LightParameters"] = vkDev.createDescriptorSetLayout(VkDescriptorType.UNIFORM_BUFFER to 1)
-TOFIX
-        m["VRParameters"] = VU.createDescriptorSetLayout(
-            device,
-            listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1)),
-            0,
-            VK_SHADER_STAGE_ALL)
+
+        m["VRParameters"] = vkDev.createDescriptorSetLayout(VkDescriptorType.UNIFORM_BUFFER to 1)
 
         return m
     }
@@ -1992,42 +1988,23 @@ TOFIX
             engineName = "scenery"
             apiVersion = VK_MAKE_VERSION(1, 0, 73)
         }
-        val additionalExts: List<String> = hub?.getWorkingHMDDisplay()?.getVulkanInstanceExtensions() ?: listOf()
-
-        logger.debug("HMD required instance exts: ${additionalExts.joinToString()} ${additionalExts.size}")
-
-            // allocate enough pointers for already pre-required extensions, plus HMD-required extensions, plus the debug extension
-            mine
-        val enabledExtensionNames = requiredExtensions + VK_EXT_DEBUG_REPORT_EXTENSION_NAME
-            other
-        val size = requiredExtensions?.remaining() ?: 0
-        val enabledExtensionNames = stack.callocPointer(size + additionalExts.size + 2)
-
-        if(requiredExtensions != null) {
-            enabledExtensionNames.put(requiredExtensions)
+        hub?.getWorkingHMDDisplay()?.getVulkanInstanceExtensions()?.let {
+            requiredExtensions += it
+            logger.debug("HMD required instance exts: ${it.joinToString()} ${it.size}")
         }
 
-        val platformSurfaceExtension = when {
-            Platform.get() === Platform.WINDOWS -> stack.UTF8(VK_KHR_WIN32_SURFACE_EXTENSION_NAME)
-            Platform.get() === Platform.LINUX -> stack.UTF8(VK_KHR_XLIB_SURFACE_EXTENSION_NAME)
-            Platform.get() === Platform.MACOSX -> stack.UTF8(VK_MVK_MACOS_SURFACE_EXTENSION_NAME)
-            else -> throw UnsupportedOperationException("Vulkan is not supported on ${Platform.get()}")
-        }
+        requiredExtensions += VK_EXT_DEBUG_REPORT_EXTENSION_NAME
 
-        enabledExtensionNames.put(platformSurfaceExtension)
-        enabledExtensionNames.put(stack.UTF8(VK_KHR_SURFACE_EXTENSION_NAME))
-        utf8Exts.forEach { enabledExtensionNames.put(it) }
-        enabledExtensionNames.flip()
+        requiredExtensions += Platform.get().surfaceExtension
+            ?: throw UnsupportedOperationException("Vulkan is not supported on ${Platform.get()}")
 
-        val enabledLayerNames = when {
-            !wantsOpenGLSwapchain && validation -> defaultValidationLayers
-            else -> arrayListOf()
-        }
+        requiredExtensions += VK_KHR_SURFACE_EXTENSION_NAME
 
         val createInfo = vk.InstanceCreateInfo {
             applicationInfo = appInfo
-            this.enabledExtensionNames = enabledExtensionNames
-            this.enabledLayerNames = enabledLayerNames
+            enabledExtensionNames = requiredExtensions
+            if (!wantsOpenGLSwapchain && validation)
+                enabledLayerNames = defaultValidationLayers
         }
         return vk.createInstance(createInfo)
     }
@@ -2530,16 +2507,17 @@ TOFIX
                         name == "ShaderParameters" -> {
                             DescriptorSet.setOrNull(pass.descriptorSets["ShaderParameters-${pass.name}"], setName = "ShaderParameters")
                         }
-TOFIX
+
                         else -> {
                             when {
                                 s.UBOs.containsKey(name) ->
                                     DescriptorSet.DynamicSet(s.UBOs[name]!!.first, offset = s.UBOs[name]!!.second.offsets.get(0), setName = name)
                                 s.UBOs.containsKey("${pass.name}-$name") ->
                                     DescriptorSet.DynamicSet(s.UBOs["${pass.name}-$name"]!!.first, offset = s.UBOs["${pass.name}-$name"]!!.second.offsets.get(0), setName = name)
-                                s.getTextureDescriptorSet(pass.name, name) != null ->
-                                    DescriptorSet.setOrNull(s.getTextureDescriptorSet(pass.name, name), name)
-                                else -> DescriptorSet.None
+                                else -> when (val set = s.getTextureDescriptorSet(pass.name, name)) {
+                                    null -> DescriptorSet.None
+                                    else -> DescriptorSet.Set(set, name)
+                                }
                             }
                         }
                     }

@@ -166,7 +166,7 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: 
             val res = compiler.shaderResources.sampledImages.get(samplerId.toInt())
             val setId = compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet)
             val type = compiler.getType(res.typeId)
-TOFIX
+
             val arraySize = if(type.array.size() > 0) {
                 type.array.get(0).toInt()
             } else {

@@ -503,17 +503,17 @@
             <scope>test</scope>
         </dependency>
 
-        <dependency>
-            <groupId>sc.fiji</groupId>
-            <artifactId>bigvolumeviewer</artifactId>
-            <version>0.1.2-SNAPSHOT</version>
-        </dependency>
+        <!--<dependency>-->
+            <!--<groupId>sc.fiji</groupId>-->
+            <!--<artifactId>bigvolumeviewer</artifactId>-->
+            <!--<version>0.1.2-SNAPSHOT</version>-->
+        <!--</dependency>-->
 
-        <dependency>
-            <groupId>org.lwjgl</groupId>
-            <artifactId>lwjgl3-awt</artifactId>
-            <version>1.0.0-SNAPSHOT</version>
-        </dependency>
+        <!--<dependency>-->
+            <!--<groupId>org.lwjgl</groupId>-->
+            <!--<artifactId>lwjgl3-awt</artifactId>-->
+            <!--<version>1.0.0-SNAPSHOT</version>-->
+        <!--</dependency>-->
 
         <dependency>
             <groupId>com.github.kotlin-graphics</groupId>
@@ -521,6 +521,17 @@
             <version>${uno.version}</version>
         </dependency>
 
+        <dependency>
+            <groupId>com.github.LWJGLX</groupId>
+            <artifactId>lwjgl3-awt</artifactId>
+            <version>500770a6ac</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.github.skalarproduktraum</groupId>
+            <artifactId>jogl-minimal</artifactId>
+            <version>25f4063ea7</version>
+        </dependency>
 
     </dependencies>
 

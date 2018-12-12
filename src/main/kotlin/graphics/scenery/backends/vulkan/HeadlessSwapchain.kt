@@ -1,6 +1,5 @@
 package graphics.scenery.backends.vulkan
 
-import glm_.d
 import graphics.scenery.Hub
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.SceneryWindow
@@ -13,11 +12,6 @@ import org.lwjgl.vulkan.*
 import vkk.*
 import vkk.entities.*
 import java.nio.ByteBuffer
-import java.nio.LongBuffer
-import graphics.scenery.Hub
-import graphics.scenery.utils.SceneryFXPanel
-import graphics.scenery.utils.SceneryPanel
-import org.lwjgl.system.MemoryStack
 
 
 /**

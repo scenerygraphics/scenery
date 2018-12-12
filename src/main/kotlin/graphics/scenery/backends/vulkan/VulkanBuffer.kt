@@ -7,8 +7,7 @@ import kool.*
 import org.lwjgl.PointerBuffer
 import org.lwjgl.system.MemoryStack
 import org.lwjgl.system.MemoryUtil
-import org.lwjgl.system.MemoryUtil.NULL
-import org.lwjgl.system.MemoryUtil.memAlloc
+import org.lwjgl.system.MemoryUtil.*
 import vkk.*
 import vkk.entities.rem
 import vkk.entities.VkBuffer
@@ -180,10 +179,10 @@ open class VulkanBuffer(val device: VulkanDevice,
     /**
      * Copies data from the [ByteBuffer] [data] directly to the device memory.
      */
-    fun copyFrom(data: ByteBuffer, dstOffset: Long = 0) {
+    fun copyFrom(data: ByteBuffer, dstOffset: VkDeviceSize = VkDeviceSize(0)) {
         resizeLazy()
 
-        val dstSize = if(dstOffset > 0) {
+        val dstSize = if(dstOffset.L > 0) {
             size - dstOffset
         } else {
             size
@@ -198,27 +197,25 @@ open class VulkanBuffer(val device: VulkanDevice,
      * Copies data into the Vulkan buffer from a list of [chunks]. A [dstOffset] can
      * be given, defining the start position in the buffer.
      */
-    fun copyFrom(chunks: List<ByteBuffer>, dstOffset: Long = 0) { // TODO
+    fun copyFrom(chunks: List<ByteBuffer>, dstOffset: VkDeviceSize = VkDeviceSize(0)) {
         MemoryStack.stackPush().use { stack ->
             resizeLazy()
 
             val dest = stack.callocPointer(1)
 
-            val dstSize = if (dstOffset > 0) {
+            val dstSize = if (dstOffset.L > 0) {
                 size - dstOffset
             } else {
                 size
             }
 
-            var currentOffset = 0
-
-            vkMapMemory(device.vulkanDevice, memory, bufferOffset + dstOffset, dstSize, 0, dest)
-            chunks.forEach { chunk ->
-                val chunkSize = chunk.remaining()
-                memCopy(memAddress(chunk), dest.get(0) + currentOffset, chunk.remaining().toLong())
-                currentOffset += chunkSize
+            vkDev.mappedMemory(memory, bufferOffset + dstOffset, dstSize) { dest ->
+                var currentOffset = 0
+                chunks.forEach { chunk ->
+                    memCopy(chunk.adr, dest + currentOffset, chunk.remaining().L)
+                    currentOffset += chunk.remaining()
+                }
             }
-            vkUnmapMemory(device.vulkanDevice, memory)
         }
     }
 
@@ -297,7 +294,7 @@ open class VulkanBuffer(val device: VulkanDevice,
      * Closes this buffer, freeing all allocated resources on host and device.
      */
     override fun close() {
-        if (memory.L == NULL || vulkanBuffer.L == NULL) { // TODO
+        if (memory.isInvalid || vulkanBuffer.isInvalid) {
             return
         }
 

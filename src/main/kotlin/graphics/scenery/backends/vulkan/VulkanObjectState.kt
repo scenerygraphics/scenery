@@ -58,7 +58,7 @@ open class VulkanObjectState : NodeMetadata {
     var vertexDescription: VulkanRenderer.VertexDescription? = null
 
     /** Descriptor set for the textures this [graphics.scenery.Node] will be rendered with. */
-    protected var textureDescriptorSets =  ConcurrentHashMap<Pair<String, String>, VkDescriptorSet>()
+    protected var textureDescriptorSets = ConcurrentHashMap<Pair<String, String>, VkDescriptorSet>()
 
     /** Time stamp of the last recreation of the texture descriptor sets */
     protected var descriptorSetsRecreated: Long = 0
@@ -67,10 +67,10 @@ open class VulkanObjectState : NodeMetadata {
      * Creates or updates the [textureDescriptorSets] describing the textures used. Will cover all the renderpasses
      * given in [passes]. The set will reside on [device] and the descriptor set layout(s) determined from the renderpass.
      * The set will be allocated from [descriptorPool].
-     */  TOFIX
-    fun texturesToDescriptorSets(device: VulkanDevice, passes: Map<String, VulkanRenderpass>, descriptorPool: Long) {
+     */
+    fun texturesToDescriptorSets(device: VulkanDevice, passes: Map<String, VulkanRenderpass>, descriptorPool: VkDescriptorPool) {
         passes.forEach { passName, pass ->
-            if(pass.recreated > descriptorSetsRecreated) {
+            if (pass.recreated > descriptorSetsRecreated) {
                 textureDescriptorSets.clear()
             }
             val textures = textures.entries.groupBy { GenericTexture.objectTextures.contains(it.key) }
@@ -78,7 +78,7 @@ open class VulkanObjectState : NodeMetadata {
             val others = textures[false]
 
             val descriptorSetLayoutObjectTextures = pass.descriptorSetLayouts["ObjectTextures"]
-            if(descriptorSetLayoutObjectTextures != null && objectTextures != null) {
+            if (descriptorSetLayoutObjectTextures != null && objectTextures != null) {
                 textureDescriptorSets[passName to "ObjectTextures"] = createOrUpdateTextureDescriptorSet(
                     "ObjectTextures",
                     passName,
@@ -107,53 +107,39 @@ open class VulkanObjectState : NodeMetadata {
             }
         }
     }
-    TOFIX
-    private fun createOrUpdateTextureDescriptorSet(name: String, passName: String, textures: List<MutableMap.MutableEntry<String, VulkanTexture>>, descriptorSetLayout: Long, device: VulkanDevice, descriptorPool: Long): Long {
-        val descriptorSet: Long = textureDescriptorSets.getOrPut(passName to name) {
-            val pDescriptorSetLayout = memAllocLong(1)
-            pDescriptorSetLayout.put(0, descriptorSetLayout)
 
-            val allocInfo = VkDescriptorSetAllocateInfo.calloc()
-                .sType(VK10.VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO)
-                .pNext(NULL)
-                .descriptorPool(descriptorPool)
-                .pSetLayouts(pDescriptorSetLayout)
-
+    private fun createOrUpdateTextureDescriptorSet(name: String, passName: String, textures: List<MutableMap.MutableEntry<String, VulkanTexture>>,
+                                                   descriptorSetLayout: VkDescriptorSetLayout, device: VulkanDevice, descriptorPool: VkDescriptorPool): VkDescriptorSet {
+        val descriptorSet = textureDescriptorSets[passName to name] ?: run {
             descriptorSetsRecreated = System.nanoTime()
-
-            VU.getLong("vkAllocateDescriptorSets",
-                { VK10.vkAllocateDescriptorSets(device.vulkanDevice, allocInfo, this) },
-                { allocInfo.free(); memFree(pDescriptorSetLayout) })
-
+            val result = device.vulkanDevice allocateDescriptorSets vk.DescriptorSetAllocateInfo(descriptorPool, descriptorSetLayout)
+            textureDescriptorSets[passName to name] = result
+            result
         }
 
-        val d = (1..textures.count()).map { VkDescriptorImageInfo.calloc(1) }.toTypedArray()
-        val wd = VkWriteDescriptorSet.calloc(textures.count())
+        val d = (1..textures.count()).map { vk.DescriptorImageInfo() }.toTypedArray()
+        val wd = vk.WriteDescriptorSet(textures.count())
         var i = 0
 
         textures.forEach { texture ->
-            d[i]
-                .imageView(texture.value.image.view)
-                .sampler(texture.value.image.sampler)
-                .imageLayout(VK10.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-
-            wd[i]
-                .sType(VK10.VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET)
-                .pNext(NULL)
-                .dstSet(descriptorSet)
-                .dstBinding(0)
-                .dstArrayElement(i)
-                .pImageInfo(d[i])
-                .descriptorType(VK10.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
-
+            d[i].apply {
+                imageView = texture.value.image.view
+                sampler = texture.value.image.sampler
+                imageLayout = VkImageLayout.SHADER_READ_ONLY_OPTIMAL
+            }
+            wd[i].apply {
+                dstSet = descriptorSet
+                dstBinding = 0
+                dstArrayElement = i
+                imageInfo_ = d[i]
+                descriptorType = VkDescriptorType.COMBINED_IMAGE_SAMPLER
+            }
             i++
         }
 
-        VK10.vkUpdateDescriptorSets(device.vulkanDevice, wd, null)
-        wd.free()
-        d.forEach { it.free() }
+        device.vulkanDevice updateDescriptorSets wd
 
-        logger.debug("Creating texture descriptor for $name in pass $passName {} set with 1 bindings, DSL={}", descriptorSet.toHexString(), descriptorSetLayout.toHexString())
+        logger.debug("Creating texture descriptor for $name in pass $passName {} set with 1 bindings, DSL={}", descriptorSet.asHexString, descriptorSetLayout.asHexString)
         return descriptorSet
     }
 
@@ -161,15 +147,15 @@ open class VulkanObjectState : NodeMetadata {
      * Returns the descriptor set named [textureSet] containing referring to the textures needed in a given [passname].
      * If [textureSet] is not found for [passname], null is returned.
      */
-    fun getTextureDescriptorSet(passname: String, textureSet: String = ""): Long? {
-        val texture = if(textureSet == "") {
+    fun getTextureDescriptorSet(passname: String, textureSet: String = ""): VkDescriptorSet? {
+        val texture = if (textureSet == "") {
             "ObjectTextures"
         } else {
             textureSet
         }
 
         val set = textureDescriptorSets[passname to texture]
-        if(set == null) {
+        if (set == null) {
             logger.warn("$this: Could not find descriptor set for $passname and texture set $texture")
             logger.warn("DS are: ${textureDescriptorSets.keys().asSequence().joinToString { "${it.first} in ${it.second}" }}")
         }
@@ -196,7 +182,7 @@ open class VulkanObjectState : NodeMetadata {
                 "displacement" -> 5
                 "3D-volume" -> 0
                 else -> 0.also {
-                    logger.trace("Don't know how to determine slot for: $type")
+                    logger.trace("Don't know how to determine slot for: {}", type)
                 }
             }
         }
