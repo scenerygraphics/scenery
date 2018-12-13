@@ -248,8 +248,7 @@ open class BDVVolume(bdvXMLFile: String = "", val options: VolumeViewerOptions) 
         val cam = getScene()?.activeObserver ?: return
         val viewProjection = cam.projection.clone()
         viewProjection.mult(cam.getTransformation())
-        viewProjection.mult(model.transpose())
-        val vp = Matrix4f().set(viewProjection.floatArray)
+        val mvp = Matrix4f().set(viewProjection.floatArray)
 
         // TODO: original might result in NULL, is this intended?
         val progvol = prog.last()//get(renderStacks.size)
@@ -261,8 +260,7 @@ open class BDVVolume(bdvXMLFile: String = "", val options: VolumeViewerOptions) 
             val stack = renderStacks[i]
             val volume = outOfCoreVolumes[i]
 
-            val m = Matrix4f().set(world.clone().floatArray)
-            volume.initWithModel(stack, cam.width.toInt(), vp, m)
+            volume.init(stack, cam.width.toInt(), mvp)
 
             val tasks = volume.fillTasks
             numTasks += tasks.size
@@ -318,7 +316,7 @@ open class BDVVolume(bdvXMLFile: String = "", val options: VolumeViewerOptions) 
 
         progvol.setViewportWidth(cam.width.toInt())
         progvol.setEffectiveViewportSize(cam.width.toInt(), cam.height.toInt())
-        progvol.setProjectionViewMatrix(vp, minWorldVoxelSize)
+        progvol.setProjectionViewMatrix(mvp, minWorldVoxelSize)
         progvol.use(context)
         progvol.bindSamplers(context)
         logger.debug("Done updating blocks")
@@ -402,7 +400,9 @@ open class BDVVolume(bdvXMLFile: String = "", val options: VolumeViewerOptions) 
                     }
 
                     override fun getSourceTransform(): AffineTransform3D {
-                        return sourceTransform
+                        val w = AffineTransform3D()
+                        w.set(*world.transposedFloatArray.map { it.toDouble() }.toDoubleArray())
+                        return w.concatenate(sourceTransform)
                     }
 
                     override fun resolutions(): List<ResolutionLevel3D<VolatileUnsignedShortType>> {
