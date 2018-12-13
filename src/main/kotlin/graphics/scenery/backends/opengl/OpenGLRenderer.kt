@@ -1069,17 +1069,21 @@ open class OpenGLRenderer(hub: Hub,
 
                 val s = node.metadata[this.javaClass.simpleName] as OpenGLObjectState
 
-                val ubo = s.UBOs["Matrices"]!!
+                val ubo = s.UBOs["Matrices"]
+                if(ubo?.backingBuffer == null) {
+                    logger.warn("Matrices UBO for ${node.name} does not exist or does not have a backing buffer")
+                    return@forEach
+                }
 
                 node.updateWorld(true, false)
 
-                var bufferOffset = ubo.backingBuffer!!.advance()
+                var bufferOffset = ubo.advanceBackingBuffer()
                 ubo.offset = bufferOffset
                 node.view.copyFrom(cam.view)
                 nodeUpdated = ubo.populate(offset = bufferOffset.toLong())
 
                 val materialUbo = (node.metadata["OpenGLRenderer"]!! as OpenGLObjectState).UBOs["MaterialProperties"]!!
-                bufferOffset = ubo.backingBuffer.advance()
+                bufferOffset = ubo.advanceBackingBuffer()
                 materialUbo.offset = bufferOffset
 
                 nodeUpdated = materialUbo.populate(offset = bufferOffset.toLong())
@@ -1320,8 +1324,9 @@ open class OpenGLRenderer(hub: Hub,
 
         val instanceBufferSize = ubo.getSize() * parentNode.instances.size
 
-        val stagingBuffer = if(state.vertexBuffers.containsKey("instanceStaging") && state.vertexBuffers["instanceStaging"]!!.capacity() >= instanceBufferSize) {
-            state.vertexBuffers["instanceStaging"]!!
+        val existingStagingBuffer = state.vertexBuffers["instanceStaging"]
+        val stagingBuffer = if(existingStagingBuffer != null && existingStagingBuffer.capacity() >= instanceBufferSize) {
+            existingStagingBuffer
         } else {
             logger.debug("${parentNode.name}: Creating new staging buffer with capacity=$instanceBufferSize (${ubo.getSize()} x ${parentNode.instances.size})")
             val buffer = BufferUtils.allocateByte(instanceBufferSize)
@@ -1350,9 +1355,7 @@ open class OpenGLRenderer(hub: Hub,
         stagingBuffer.position(parentNode.instances.size * ubo.getSize())
         stagingBuffer.flip()
 
-        val instanceBuffer = if (state.additionalBufferIds.containsKey("instance")) {
-            state.additionalBufferIds["instance"]!!
-        } else {
+        val instanceBuffer = state.additionalBufferIds.getOrPut("instance") {
             logger.debug("Instance buffer for ${parentNode.name} needs to be reallocated due to insufficient size ($instanceBufferSize vs ${state.vertexBuffers["instance"]?.capacity() ?: "<not allocated yet>"})")
 
             val bufferArray = intArrayOf(0)
@@ -1808,8 +1811,14 @@ open class OpenGLRenderer(hub: Hub,
                         }
                     }
 
-                    arrayOf("VRParameters", "LightParameters").forEach { name ->
+                    arrayOf("VRParameters", "LightParameters").forEach uboBinding@ { name ->
                         if (shader.uboSpecs.containsKey(name) && shader.isValid()) {
+                            val buffer = buffers[name]
+                            if(buffer == null) {
+                                logger.warn("Buffer for $name not found")
+                                return@uboBinding
+                            }
+
                             val index = shader.getUniformBlockIndex(name)
 
                             if (index == -1) {
@@ -1817,8 +1826,8 @@ open class OpenGLRenderer(hub: Hub,
                             } else {
                                 gl.glUniformBlockBinding(shader.id, index, binding)
                                 gl.glBindBufferRange(GL4.GL_UNIFORM_BUFFER, binding,
-                                    buffers[name]!!.id[0],
-                                    0L, buffers[name]!!.buffer.remaining().toLong())
+                                    buffer.id[0],
+                                    0L, buffer.buffer.remaining().toLong())
 
 
                                 binding++
@@ -2046,15 +2055,13 @@ open class OpenGLRenderer(hub: Hub,
         val quad: Node
         val quadName = "fullscreenQuad-${program.id}"
 
-        if (!nodeStore.containsKey(quadName)) {
-            quad = Plane(GLVector(1.0f, 1.0f, 0.0f))
+        quad = nodeStore.getOrPut(quadName) {
+            val q = Plane(GLVector(1.0f, 1.0f, 0.0f))
 
-            quad.metadata["OpenGLRenderer"] = OpenGLObjectState()
-            initializeNode(quad)
+            q.metadata["OpenGLRenderer"] = OpenGLObjectState()
+            initializeNode(q)
 
-            nodeStore[quadName] = quad
-        } else {
-            quad = nodeStore[quadName]!!
+            q
         }
 
         drawNode(quad, count = 3)
@@ -2084,15 +2091,16 @@ open class OpenGLRenderer(hub: Hub,
 
         val s: OpenGLObjectState
 
-        if (node.instanceOf == null) {
+        val instanceOf = node.instanceOf
+        if (instanceOf == null) {
             s = node.metadata["OpenGLRenderer"] as OpenGLObjectState
         } else {
-            s = node.instanceOf!!.metadata["OpenGLRenderer"] as OpenGLObjectState
+            s = instanceOf.metadata["OpenGLRenderer"] as OpenGLObjectState
             node.metadata["OpenGLRenderer"] = s
 
             if (!s.initialized) {
                 logger.trace("Instance not yet initialized, doing now...")
-                initializeNode(node.instanceOf!!)
+                initializeNode(instanceOf)
             }
 
 //            if (!s.additionalBufferIds.containsKey("Model") || !s.additionalBufferIds.containsKey("ModelView") || !s.additionalBufferIds.containsKey("MVP")) {
