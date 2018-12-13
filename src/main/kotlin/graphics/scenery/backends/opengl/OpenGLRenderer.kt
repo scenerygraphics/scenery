@@ -1291,11 +1291,22 @@ open class OpenGLRenderer(hub: Hub,
         val instanceMasters = sceneObjects.filter { it.instanceMaster }
 
         instanceMasters.forEach { parent ->
-            updateInstanceBuffer(parent, parent.rendererMetadata()!!)
+            var metadata = parent.rendererMetadata()
+
+            if(metadata == null) {
+                initializeNode(parent)
+                metadata = parent.rendererMetadata()
+            }
+
+            updateInstanceBuffer(parent, metadata)
         }
     }
 
-    private fun updateInstanceBuffer(parentNode: Node, state: OpenGLObjectState): OpenGLObjectState {
+    private fun updateInstanceBuffer(parentNode: Node, state: OpenGLObjectState?): OpenGLObjectState {
+        if(state == null) {
+            throw IllegalStateException("Metadata for ${parentNode.name} is null at updateInstanceBuffer(${parentNode.name}). This is a bug.")
+        }
+
         logger.trace("Updating instance buffer for ${parentNode.name}")
 
         if (parentNode.instances.isEmpty()) {
