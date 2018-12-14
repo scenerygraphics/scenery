@@ -1748,6 +1748,7 @@ open class OpenGLRenderer(hub: Hub,
                     val others = textures[false]
 
                     objectTextures?.forEach { texture ->
+                        logger.info("Binding object texture ${texture.key}/${texture.value}")
                         val samplerIndex = textureTypeToUnit(pass, texture.key)
                         maxSamplerIndex = max(samplerIndex, maxSamplerIndex)
 
@@ -1770,6 +1771,7 @@ open class OpenGLRenderer(hub: Hub,
                     var samplerIndex = maxSamplerIndex
                     others?.forEach { texture ->
                         @Suppress("SENSELESS_COMPARISON")
+                        logger.info("Binding texture ${texture.key}/${texture.value}")
                         if(texture.value != null) {
                             val minIndex = unboundSamplers.min() ?: maxSamplerIndex
                             gl.glActiveTexture(GL4.GL_TEXTURE0 + minIndex)

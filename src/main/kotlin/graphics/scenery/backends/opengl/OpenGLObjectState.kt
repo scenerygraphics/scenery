@@ -55,10 +55,16 @@ class OpenGLObjectState : NodeMetadata {
         consumers.add("OpenGLRenderer")
     }
 
+    /**
+     * Returns the UBO given by [name] if it exists, otherwise null.
+     */
     fun getUBO(name: String): OpenGLUBO? {
         return UBOs[name]
     }
 
+    /**
+     * Returns the UBO given by [name] if it exists and has a backing buffer, otherwise null.
+     */
     fun getBackedUBO(name: String): Pair<OpenGLUBO, OpenGLRenderer.OpenGLBuffer>? {
         val ubo = UBOs[name]
         return if(ubo?.backingBuffer != null) {
