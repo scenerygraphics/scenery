@@ -188,7 +188,8 @@ open class BDVVolume(bdvXMLFile: String = "", val options: VolumeViewerOptions) 
         progvol?.setTextureCache(textureCache)
         progvol?.init(context)
 
-        updateBlocks(context)
+//        updateBlocks(context)
+        preDraw()
 
 //        convs[0].color = ARGBType(0xff8888)
 //        convs[1].color = ARGBType(0x88ff88)
