@@ -1748,7 +1748,6 @@ open class OpenGLRenderer(hub: Hub,
                     val others = textures[false]
 
                     objectTextures?.forEach { texture ->
-                        logger.info("Binding object texture ${texture.key}/${texture.value}")
                         val samplerIndex = textureTypeToUnit(pass, texture.key)
                         maxSamplerIndex = max(samplerIndex, maxSamplerIndex)
 
@@ -2309,7 +2308,7 @@ open class OpenGLRenderer(hub: Hub,
                                     dimensions.y().toInt(),
                                     dimensions.z().toInt() ?: 1,
                                     minLinear,
-                                    miplevels, 32, normalized, renderConfig.sRGB)
+                                    miplevels, 32, normalized, false)
                             }
 
                             if (mm) {
@@ -2335,7 +2334,7 @@ open class OpenGLRenderer(hub: Hub,
                             }
 
                             if (gt.hasConsumableUpdates()) {
-//                                gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, 1)
+                                gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, 1)
                                 updates.forEach { update ->
                                     if (!update.consumed) {
                                         t.copyFrom(update.contents,
@@ -2346,8 +2345,10 @@ open class OpenGLRenderer(hub: Hub,
                                 }
 
                                 gt.clearConsumedUpdates()
-//                                gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, unpackAlignment[0])
+                                gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, unpackAlignment[0])
                             }
+
+                            logger.info("Updated $type for ${node.name} ($t: ${t.width}x${t.height}x${t.depth}x${t.channels} iformat=${t.internalFormat} bpp=${t.bitsPerChannel} type=${t.type} nt=${t.nativeType} target=${t.textureTarget})")
 
                             s.textures[type] = t
                             textureCache.put(texture, t)
