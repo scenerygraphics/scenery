@@ -1,7 +1,6 @@
 package graphics.scenery.tests.examples.bdv
 
 import cleargl.GLVector
-import com.jogamp.opengl.math.Quaternion
 import com.sun.javafx.application.PlatformImpl
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
@@ -69,7 +68,7 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
             scene.addChild(this)
         }
 
-        val options = VolumeViewerOptions().maxCacheSizeInMB(4096)
+        val options = VolumeViewerOptions().maxCacheSizeInMB(1024)
         val v = BDVVolume(files.first(), options)
         v.name = "volume"
         v.colormap = "plasma"
