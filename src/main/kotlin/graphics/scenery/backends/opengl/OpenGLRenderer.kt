@@ -23,6 +23,7 @@ import java.awt.event.ComponentAdapter
 import java.awt.event.ComponentEvent
 import java.io.File
 import java.io.FileNotFoundException
+import java.io.FileOutputStream
 import java.lang.reflect.Field
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -1770,7 +1771,6 @@ open class OpenGLRenderer(hub: Hub,
                     var samplerIndex = maxSamplerIndex
                     others?.forEach { texture ->
                         @Suppress("SENSELESS_COMPARISON")
-                        logger.info("Binding texture ${texture.key}/${texture.value}")
                         if(texture.value != null) {
                             val minIndex = unboundSamplers.min() ?: maxSamplerIndex
                             gl.glActiveTexture(GL4.GL_TEXTURE0 + minIndex)
@@ -2270,6 +2270,25 @@ open class OpenGLRenderer(hub: Hub,
             this.nativeType == other.type
     }
 
+    private fun dumpTextureToFile(gl: GL4, name: String, texture: GLTexture) {
+        val filename = "${name}_${Date().toInstant().epochSecond}.raw"
+        val bytes = texture.width*texture.height*texture.depth*texture.channels*texture.bitsPerChannel/8
+        logger.info("Dumping $name to $filename ($bytes bytes)")
+        val buffer = MemoryUtil.memAlloc(bytes)
+        gl.glPixelStorei(GL4.GL_PACK_ALIGNMENT, 1)
+        texture.bind()
+        gl.glGetTexImage(texture.textureTarget, 0, texture.format, texture.type, buffer)
+        texture.unbind()
+
+        val stream = FileOutputStream(filename)
+        val outChannel = stream.channel
+        outChannel.write(buffer)
+        logger.info("Written $texture to $stream")
+        outChannel.close()
+        stream.close()
+        MemoryUtil.memFree(buffer)
+    }
+
     /**
      * Loads textures for a [Node]. The textures either come from a [Material.transferTextures] buffer,
      * or from a file. This is indicated by stating fromBuffer:bufferName in the textures hash map.
@@ -2347,8 +2366,6 @@ open class OpenGLRenderer(hub: Hub,
                                 gt.clearConsumedUpdates()
                                 gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, unpackAlignment[0])
                             }
-
-                            logger.info("Updated $type for ${node.name} ($t: ${t.width}x${t.height}x${t.depth}x${t.channels} iformat=${t.internalFormat} bpp=${t.bitsPerChannel} type=${t.type} nt=${t.nativeType} target=${t.textureTarget})")
 
                             s.textures[type] = t
                             textureCache.put(texture, t)
