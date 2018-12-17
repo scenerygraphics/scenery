@@ -2327,7 +2327,7 @@ open class OpenGLRenderer(hub: Hub,
                                     dimensions.y().toInt(),
                                     dimensions.z().toInt() ?: 1,
                                     minLinear,
-                                    miplevels, 32, normalized, false)
+                                    miplevels, 32, normalized, renderConfig.sRGB)
                             }
 
                             if (mm) {
