@@ -110,7 +110,7 @@
         <dokka.version>0.9.17</dokka.version>
         <dokka.skip>true</dokka.skip>
 
-        <cleargl.version>2.2.4-SNAPSHOT</cleargl.version>
+        <cleargl.version>2.2.4</cleargl.version>
         <slf4j.version>1.7.25</slf4j.version>
         <lwjgl.version>3.2.1</lwjgl.version>
         <spirvcrossj.version>0.5.0-1.1.85</spirvcrossj.version>
@@ -517,7 +517,7 @@
         <dependency>
             <groupId>org.lwjgl</groupId>
             <artifactId>lwjgl3-awt</artifactId>
-            <version>1.0.0-SNAPSHOT</version>
+            <version>0.1.1</version>
         </dependency>
     </dependencies>
 
