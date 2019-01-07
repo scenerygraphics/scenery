@@ -413,11 +413,11 @@
         <dependency>
             <groupId>sc.fiji</groupId>
             <artifactId>bigvolumeviewer</artifactId>
-            <version>0.1.2-SNAPSHOT</version>
+            <version>0.1.2</version>
         </dependency>
 
         <dependency>
-            <groupId>org.lwjgl</groupId>
+            <groupId>org.lwjglx</groupId>
             <artifactId>lwjgl3-awt</artifactId>
             <version>0.1.1</version>
         </dependency>
