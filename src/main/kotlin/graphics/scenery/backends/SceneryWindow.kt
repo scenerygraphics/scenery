@@ -1,9 +1,13 @@
 package graphics.scenery.backends
 
-import graphics.scenery.utils.SceneryPanel
+import com.jogamp.opengl.GLAutoDrawable
+import graphics.scenery.utils.SceneryFXPanel
+import graphics.scenery.utils.SceneryJPanel
 import javafx.application.Platform
 import javafx.stage.Stage
 import org.lwjgl.glfw.GLFW.*
+import javax.swing.JFrame
+import javax.swing.SwingUtilities
 
 /**
  * Abstraction class for GLFW, ClearGL and JavaFX windows
@@ -17,8 +21,12 @@ sealed class SceneryWindow {
     class GLFWWindow(var window: Long): SceneryWindow()
     /** ClearGL (JOGL) window, with [window] being the reference to a [cleargl.ClearGLWindow]. */
     class ClearGLWindow(var window: cleargl.ClearGLWindow): SceneryWindow()
-    /** JavaFX window or stage, with [panel] being the [SceneryPanel] scenery will render to. */
-    class JavaFXStage(var panel: SceneryPanel): SceneryWindow()
+    /** JOGL GLAutoDrawable, with [drawable] being the reference to a [GLAutoDrawable]. */
+    class JOGLDrawable(var drawable: GLAutoDrawable): SceneryWindow()
+    /** JavaFX window or stage, with [panel] being the [SceneryFXPanel] scenery will render to. */
+    class JavaFXStage(var panel: SceneryFXPanel): SceneryWindow()
+    /** Swing window with [panel] being the [SceneryJPanel] */
+    class SwingWindow(var panel: SceneryJPanel): SceneryWindow()
     /** Headless window with no chrome whatsoever. */
     class HeadlessWindow : SceneryWindow()
 
@@ -45,6 +53,12 @@ sealed class SceneryWindow {
             is ClearGLWindow -> window.windowTitle = title
             is JavaFXStage -> {
                 Platform.runLater { (panel.scene.window as? Stage)?.title = title }
+            }
+            is SwingWindow -> {
+                val window = SwingUtilities.getWindowAncestor(panel)
+                if(window != null) {
+                    (window as? JFrame)?.title = title
+                }
             }
             is HeadlessWindow -> {}
         }

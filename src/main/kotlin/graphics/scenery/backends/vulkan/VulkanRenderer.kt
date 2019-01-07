@@ -15,10 +15,16 @@ import org.lwjgl.glfw.GLFWVulkan.glfwVulkanSupported
 import org.lwjgl.system.Configuration
 import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil.*
+import org.lwjgl.system.Platform
 import org.lwjgl.system.jemalloc.JEmalloc.*
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.EXTDebugReport.*
+import org.lwjgl.vulkan.KHRSurface.VK_KHR_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+import org.lwjgl.vulkan.KHRSwapchain.VK_KHR_SWAPCHAIN_EXTENSION_NAME
+import org.lwjgl.vulkan.KHRWin32Surface.VK_KHR_WIN32_SURFACE_EXTENSION_NAME
+import org.lwjgl.vulkan.KHRXlibSurface.VK_KHR_XLIB_SURFACE_EXTENSION_NAME
+import org.lwjgl.vulkan.MVKMacosSurface.VK_MVK_MACOS_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.VK10.*
 import java.awt.image.BufferedImage
 import java.awt.image.DataBufferByte
@@ -476,16 +482,22 @@ open class VulkanRenderer(hub: Hub,
             emptyArray()
         }
 
+        val headless = embedIn is SceneryFXPanel || System.getProperty("scenery.Headless", "false").toBoolean()
+
         device = VulkanDevice.fromPhysicalDevice(instance,
             physicalDeviceFilter = { _, device -> device.name.contains(System.getProperty("scenery.Renderer.Device", "DOES_NOT_EXIST"))},
             additionalExtensions = { physicalDevice -> hub.getWorkingHMDDisplay()?.getVulkanDeviceExtensions(physicalDevice)?.toTypedArray() ?: arrayOf() },
             validationLayers = requestedValidationLayers,
-            headless = embedIn != null)
+            headless = headless)
 
         logger.debug("Device creation done")
 
         if(device.deviceData.vendor.toLowerCase().contains("nvidia") && ExtractsNatives.getPlatform() == ExtractsNatives.Platform.WINDOWS) {
-            gpuStats = NvidiaGPUStats()
+            try {
+                gpuStats = NvidiaGPUStats()
+            } catch(e: NullPointerException) {
+                logger.warn("Could not initialize Nvidia GPU stats")
+            }
         }
 
         queue = VU.createDeviceQueue(device, device.queueIndices.graphicsQueue)
@@ -518,9 +530,16 @@ open class VulkanRenderer(hub: Hub,
                     renderConfig = renderConfig, useSRGB = renderConfig.sRGB)
             }
 
-            (System.getProperty("scenery.Renderer.UseJavaFX", "false")?.toBoolean() ?: false || embedIn != null) -> {
+            (System.getProperty("scenery.Renderer.UseJavaFX", "false")?.toBoolean() ?: false || embedIn is SceneryFXPanel) -> {
                 logger.info("Using JavaFX-based swapchain")
                 FXSwapchain(
+                    device, queue, commandPools,
+                    renderConfig = renderConfig, useSRGB = renderConfig.sRGB)
+            }
+
+            (System.getProperty("scenery.Renderer.UseAWT", "false")?.toBoolean() ?: false || embedIn is SceneryJPanel) -> {
+                logger.info("Using AWT swapchain")
+                SwingSwapchain(
                     device, queue, commandPools,
                     renderConfig = renderConfig, useSRGB = renderConfig.sRGB)
             }
@@ -776,6 +795,17 @@ open class VulkanRenderer(hub: Hub,
             s.UBOs.put(name, matricesDescriptorSet to this)
         }
 
+        try {
+            initializeCustomShadersForNode(node)
+        } catch (e: ShaderCompilationException) {
+            logger.error("Compilation of custom shader failed: ${e.message}")
+            logger.error("Node ${node.name} will use default shader for render pass.")
+
+            if (logger.isDebugEnabled) {
+                e.printStackTrace()
+            }
+        }
+
         loadTexturesForNode(node, s)
 
         s.blendingHashCode = node.material.blending.hashCode()
@@ -798,17 +828,6 @@ open class VulkanRenderer(hub: Hub,
         s.initialized = true
         node.initialized = true
         node.metadata["VulkanRenderer"] = s
-
-        try {
-            initializeCustomShadersForNode(node)
-        } catch (e: ShaderCompilationException) {
-            logger.error("Compilation of custom shader failed: ${e.message}")
-            logger.error("Node ${node.name} will use default shader for render pass.")
-
-            if (logger.isDebugEnabled) {
-                e.printStackTrace()
-            }
-        }
 
         return true
     }
@@ -886,6 +905,12 @@ open class VulkanRenderer(hub: Hub,
                             VulkanShaderModule.getFromCacheOrCreate(device, "main", shaders.get(Shaders.ShaderTarget.Vulkan, type))
                         } catch (e: ShaderNotFoundException) {
                             null
+                        } catch (e: ShaderConsistencyException) {
+                            logger.warn("${e.message} - Falling back to default shader.")
+                            if(logger.isDebugEnabled) {
+                                e.printStackTrace()
+                            }
+                            return false
                         }
                     }
 
@@ -947,7 +972,8 @@ open class VulkanRenderer(hub: Hub,
                             name = "ShaderProperties"
 
                             order.forEach { name, offset ->
-                                add(name, { node.getShaderProperty(name)!! }, offset)
+                                // TODO: See whether returning 0 on non-found shader property has ill side effects
+                                add(name, { node.getShaderProperty(name) ?: 0 }, offset)
                             }
 
                             this.createUniformBuffer()
@@ -1032,7 +1058,7 @@ open class VulkanRenderer(hub: Hub,
 
         node.material.textures.forEach { type, texture ->
             val slot = VulkanObjectState.textureTypeToSlot(type)
-            val generateMipmaps = (type == "ambient" || type == "diffuse" || type == "specular")
+            val generateMipmaps = GenericTexture.mipmappedObjectTextures.contains(type)
 
             logger.debug("${node.name} will have $type texture from $texture in slot $slot")
 
@@ -1043,7 +1069,7 @@ open class VulkanRenderer(hub: Hub,
 
                 val vkTexture: VulkanTexture = if (texture.startsWith("fromBuffer:") && gt != null) {
                     val miplevels = if (generateMipmaps && gt.mipmap) {
-                        1 + Math.floor(Math.log(Math.max(gt.dimensions.x() * 1.0, gt.dimensions.y() * 1.0)) / Math.log(2.0)).toInt()
+                        Math.floor(Math.log(Math.min(gt.dimensions.x() * 1.0, gt.dimensions.y() * 1.0)) / Math.log(2.0)).toInt()
                     } else {
                         1
                     }
@@ -1055,7 +1081,15 @@ open class VulkanRenderer(hub: Hub,
                         VulkanTexture(device, commandPools, queue, queue, gt, miplevels)
                     }
 
-                    t.copyFrom(gt.contents)
+                    gt.contents?.let { contents ->
+                        t.copyFrom(contents)
+                    }
+
+                    if(gt.hasConsumableUpdates()) {
+                        t.copyFrom(ByteBuffer.allocate(0))
+                    }
+
+                    t
                 } else {
                     val start = System.nanoTime()
 
@@ -1080,16 +1114,16 @@ open class VulkanRenderer(hub: Hub,
             }
         }
 
-        arrayOf("ambient", "diffuse", "specular", "normal", "alphamask", "displacement").forEach {
+        GenericTexture.objectTextures.forEach {
             if (!s.textures.containsKey(it)) {
                 s.textures.putIfAbsent(it, defaultTexture)
                 s.defaultTexturesFor.add(it)
             }
         }
 
-        s.texturesToDescriptorSet(device, descriptorSetLayouts["ObjectTextures"]!!,
-            descriptorPool,
-            targetBinding = 0)
+        s.texturesToDescriptorSets(device,
+            renderpasses.filter { it.value.passConfig.type != RenderConfigReader.RenderpassType.quad },
+            descriptorPool)
 
         node.lock.unlock()
 
@@ -1114,14 +1148,6 @@ open class VulkanRenderer(hub: Hub,
         m["LightParameters"] = VU.createDescriptorSetLayout(
             device,
             listOf(Pair(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1)),
-            0,
-            VK_SHADER_STAGE_ALL)
-
-        m["ObjectTextures"] = VU.createDescriptorSetLayout(
-            device,
-            listOf(
-                Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 6),
-                Pair(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1)),
             0,
             VK_SHADER_STAGE_ALL)
 
@@ -1259,9 +1285,14 @@ open class VulkanRenderer(hub: Hub,
         return map
     }
 
+    /** Data class for encapsulation of shader vertex attributes */
     data class AttributeInfo(val format: Int, val elementByteSize: Int, val elementCount: Int)
 
-    fun HashMap<String, () -> Any>.getFormatsAndRequiredAttributeSize(): List<AttributeInfo> {
+    /**
+     * Calculates the formats and required sizes for the elements contained in this hash map when
+     * used as definition for vertex attributes in a shader.
+     */
+    protected fun HashMap<String, () -> Any>.getFormatsAndRequiredAttributeSize(): List<AttributeInfo> {
         return this.map {
             val value = it.value.invoke()
 
@@ -2032,13 +2063,21 @@ open class VulkanRenderer(hub: Hub,
 
             // allocate enough pointers for already pre-required extensions, plus HMD-required extensions, plus the debug extension
             val size = requiredExtensions?.remaining() ?: 0
-            val enabledExtensionNames = stack.callocPointer(size + additionalExts.size + 1)
+            val enabledExtensionNames = stack.callocPointer(size + additionalExts.size + 2)
 
             if(requiredExtensions != null) {
                 enabledExtensionNames.put(requiredExtensions)
             }
 
-            enabledExtensionNames.put(stack.UTF8(VK_EXT_DEBUG_REPORT_EXTENSION_NAME))
+            val platformSurfaceExtension = when {
+                Platform.get() === Platform.WINDOWS -> stack.UTF8(VK_KHR_WIN32_SURFACE_EXTENSION_NAME)
+                Platform.get() === Platform.LINUX -> stack.UTF8(VK_KHR_XLIB_SURFACE_EXTENSION_NAME)
+                Platform.get() === Platform.MACOSX -> stack.UTF8(VK_MVK_MACOS_SURFACE_EXTENSION_NAME)
+                else -> throw UnsupportedOperationException("Vulkan is not supported on ${Platform.get()}")
+            }
+
+            enabledExtensionNames.put(platformSurfaceExtension)
+            enabledExtensionNames.put(stack.UTF8(VK_KHR_SURFACE_EXTENSION_NAME))
             utf8Exts.forEach { enabledExtensionNames.put(it) }
             enabledExtensionNames.flip()
 
@@ -2631,10 +2670,6 @@ open class VulkanRenderer(hub: Hub,
                             DescriptorSet.setOrNull(descriptorSets["LightParameters"], setName = "LightParameters")
                         }
 
-                        name == "ObjectTextures" -> {
-                            DescriptorSet.setOrNull(s.textureDescriptorSet, setName = "ObjectTextures")
-                        }
-
                         name.startsWith("Inputs") -> {
                             DescriptorSet.setOrNull(pass.descriptorSets["input-${pass.name}-${name.substringAfter("-")}"], setName = "Inputs")
                         }
@@ -2645,10 +2680,12 @@ open class VulkanRenderer(hub: Hub,
 
                         else -> {
                             when {
-                                s.UBOs.containsKey(name)
-                                    -> DescriptorSet.DynamicSet(s.UBOs[name]!!.first, offset = s.UBOs[name]!!.second.offsets.get(0), setName = name)
-                                s.UBOs.containsKey("${pass.name}-$name")
-                                    -> DescriptorSet.DynamicSet(s.UBOs["${pass.name}-$name"]!!.first, offset = s.UBOs["${pass.name}-$name"]!!.second.offsets.get(0), setName = name)
+                                s.UBOs.containsKey(name) ->
+                                    DescriptorSet.DynamicSet(s.UBOs[name]!!.first, offset = s.UBOs[name]!!.second.offsets.get(0), setName = name)
+                                s.UBOs.containsKey("${pass.name}-$name") ->
+                                    DescriptorSet.DynamicSet(s.UBOs["${pass.name}-$name"]!!.first, offset = s.UBOs["${pass.name}-$name"]!!.second.offsets.get(0), setName = name)
+                                s.getTextureDescriptorSet(pass.name, name) != null ->
+                                    DescriptorSet.setOrNull(s.getTextureDescriptorSet(pass.name, name), name)
                                 else -> DescriptorSet.None
                             }
                         }

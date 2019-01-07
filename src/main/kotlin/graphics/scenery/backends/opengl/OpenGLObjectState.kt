@@ -2,6 +2,7 @@ package graphics.scenery.backends.opengl
 
 import cleargl.GLTexture
 import graphics.scenery.NodeMetadata
+import graphics.scenery.utils.LazyLogger
 import java.nio.ByteBuffer
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
@@ -14,6 +15,7 @@ import java.util.concurrent.ConcurrentHashMap
  *  default consumers.
  */
 class OpenGLObjectState : NodeMetadata {
+    private val logger by LazyLogger()
     /** List of consumers of this metadata, e.g. [OpenGLRenderer] */
     override val consumers: MutableList<String> = ArrayList()
 
@@ -51,5 +53,25 @@ class OpenGLObjectState : NodeMetadata {
 
     init {
         consumers.add("OpenGLRenderer")
+    }
+
+    /**
+     * Returns the UBO given by [name] if it exists, otherwise null.
+     */
+    fun getUBO(name: String): OpenGLUBO? {
+        return UBOs[name]
+    }
+
+    /**
+     * Returns the UBO given by [name] if it exists and has a backing buffer, otherwise null.
+     */
+    fun getBackedUBO(name: String): Pair<OpenGLUBO, OpenGLRenderer.OpenGLBuffer>? {
+        val ubo = UBOs[name]
+        return if(ubo?.backingBuffer != null) {
+            ubo to ubo.backingBuffer
+        } else {
+            logger.warn("UBO for $name has no backing buffer")
+            null
+        }
     }
 }

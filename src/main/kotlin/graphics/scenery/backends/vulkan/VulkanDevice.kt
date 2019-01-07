@@ -3,7 +3,6 @@ package graphics.scenery.backends.vulkan
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil
-import org.lwjgl.system.MemoryUtil.NULL
 import org.lwjgl.system.MemoryUtil.memUTF8
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
@@ -109,6 +108,7 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
                     .sType(VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO)
                     .queueFamilyIndex(familyIndex)
                     .pQueuePriorities(pQueuePriorities)
+                    // TODO: Check the queue size does not exceed the device's available queue count
                     .queueCount(group.size)
             }
 

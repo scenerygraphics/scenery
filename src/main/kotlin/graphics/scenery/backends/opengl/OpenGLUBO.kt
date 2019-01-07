@@ -71,4 +71,11 @@ class OpenGLUBO(val backingBuffer: OpenGLRenderer.OpenGLBuffer? = null) : UBO() 
             offset = it.advance()
         }
     }
+
+    fun advanceBackingBuffer(): Int {
+        if(backingBuffer == null) {
+            throw IllegalStateException("Tried to advance buffer that has no backing buffer")
+        }
+        return backingBuffer.advance()
+    }
 }
