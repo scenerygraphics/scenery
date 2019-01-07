@@ -258,6 +258,7 @@
             <artifactId>lwjgl-vulkan</artifactId>
             <version>${lwjgl.version}</version>
         </dependency>
+        <!-- Removed for the moment because of non-existent binaries for Linux and Windows
         <dependency>
             <groupId>org.lwjgl</groupId>
             <artifactId>lwjgl-vulkan</artifactId>
@@ -265,6 +266,7 @@
             <classifier>${lwjgl.natives}</classifier>
             <scope>runtime</scope>
         </dependency>
+        -->
         <dependency>
             <groupId>org.lwjgl</groupId>
             <artifactId>lwjgl-opengl</artifactId>
