@@ -11,7 +11,15 @@
     <groupId>graphics.scenery</groupId>
     <artifactId>scenery</artifactId>
     <version>0.6.3-SNAPSHOT</version>
+
+    <name>scenery</name>
+    <description>flexible scenegraphing and rendering for scientific visualisation</description>
+    <url>http://scenery.graphics</url>
     <inceptionYear>2016</inceptionYear>
+    <organization>
+        <name>scenery</name>
+        <url>http://scenery.graphics</url>
+    </organization>
     <licenses>
         <license>
             <name>GNU Lesser General Public License v3+</name>
@@ -19,15 +27,6 @@
             <distribution>repo</distribution>
         </license>
     </licenses>
-
-    <name>scenery</name>
-    <description>flexible scenegraphing and rendering for scientific visualisation</description>
-    <url>http://scenery.graphics</url>
-
-    <organization>
-        <name>scenery</name>
-        <url>http://scenery.graphics</url>
-    </organization>
 
     <developers>
         <developer>
@@ -45,7 +44,6 @@
             </roles>
         </developer>
     </developers>
-
     <contributors>
         <contributor>
             <name>Kyle Harrington</name>
@@ -79,17 +77,14 @@
         <tag>scenery-0.6.2</tag>
         <url>http://scenery.graphics</url>
     </scm>
-
     <issueManagement>
         <system>GitHub Issues</system>
         <url>https://github.com/scenerygraphics/scenery/issues</url>
     </issueManagement>
-
     <ciManagement>
         <system>Travis</system>
         <url>https://travis-ci.org/scenerygraphics/scenery/</url>
     </ciManagement>
-
     <distributionManagement>
         <snapshotRepository>
             <id>ossrh</id>
@@ -119,99 +114,6 @@
         <license.licenseName>lgpl_v3</license.licenseName>
         <license.copyrightOwners>the scenery development team</license.copyrightOwners>
     </properties>
-
-    <profiles>
-        <profile> 
-            <id>release</id>
-            <properties>
-                <dokka.skip>false</dokka.skip>
-            </properties>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-gpg-plugin</artifactId>
-                        <version>1.6</version>
-                        <executions>
-                            <execution>
-                                <id>sign-artifacts</id>
-                                <phase>verify</phase>
-                                <goals>
-                                    <goal>sign</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-        <profile>
-            <id>js</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.jetbrains.kotlin</groupId>
-                        <artifactId>kotlin-maven-plugin</artifactId>
-                        <version>${kotlin.version}</version>
-                        <executions>
-                            <execution>
-                                <goals>
-                                    <goal>js</goal>
-                                </goals>
-                                <configuration>
-                                    <outputFile>${project.build.outputDirectory}/${project.artifactId}.js</outputFile>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.sonatype.plugins</groupId>
-                        <artifactId>nexus-staging-maven-plugin</artifactId>
-                        <version>1.6.8</version>
-                        <extensions>true</extensions>
-                        <configuration>
-                            <serverId>ossrh</serverId>
-                            <nexusUrl>https://oss.sonatype.org/</nexusUrl>
-                            <autoReleaseAfterClose>false</autoReleaseAfterClose>
-                        </configuration>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-        <profile>
-            <id>lwjgl-natives-linux&gt;</id>
-            <activation>
-                <os>
-                    <family>unix</family>
-                </os>
-            </activation>
-            <properties>
-                <lwjgl.natives>natives-linux</lwjgl.natives>
-            </properties>
-        </profile>
-        <profile>
-            <id>lwjgl-natives-macos&gt;</id>
-            <activation>
-                <os>
-                    <family>mac</family>
-                </os>
-            </activation>
-            <properties>
-                <lwjgl.natives>natives-macos</lwjgl.natives>
-            </properties>
-        </profile>
-        <profile>
-            <id>lwjgl-natives-windows&gt;</id>
-            <activation>
-                <os>
-                    <family>windows</family>
-                </os>
-            </activation>
-            <properties>
-                <lwjgl.natives>natives-windows</lwjgl.natives>
-            </properties>
-        </profile>
-    </profiles>
 
     <dependencies>
         <dependency>
@@ -523,39 +425,18 @@
 
     <repositories>
         <repository>
-            <id>sonatype.public</id>
-            <url>http://oss.sonatype.org/content/groups/public</url>
-        </repository>
-        <repository>
             <id>imagej.public</id>
             <url>http://maven.imagej.net/content/groups/public</url>
         </repository>
-        <repository>
-            <id>clearcontrol</id>
-            <url>http://dl.bintray.com/clearcontrol/ClearControl</url>
-        </repository>
-        <repository>
-            <id>clearvolume</id>
-            <url>http://dl.bintray.com/clearvolume/ClearVolume</url>
-        </repository>
     </repositories>
-
-    <pluginRepositories>
-        <pluginRepository>
-            <id>jcenter</id>
-            <name>JCenter</name>
-            <url>https://jcenter.bintray.com/</url>
-        </pluginRepository>
-    </pluginRepositories>
 
     <build>
         <sourceDirectory>src/main/kotlin</sourceDirectory>
         <testSourceDirectory>src/test/tests</testSourceDirectory>
-
         <plugins>
             <plugin>
-                <artifactId>kotlin-maven-plugin</artifactId>
                 <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-maven-plugin</artifactId>
                 <version>${kotlin.version}</version>
                 <executions>
                     <execution>
@@ -695,4 +576,96 @@
         </plugins>
     </build>
 
+    <profiles>
+        <profile> 
+            <id>release</id>
+            <properties>
+                <dokka.skip>false</dokka.skip>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>1.6</version>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>js</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.jetbrains.kotlin</groupId>
+                        <artifactId>kotlin-maven-plugin</artifactId>
+                        <version>${kotlin.version}</version>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>js</goal>
+                                </goals>
+                                <configuration>
+                                    <outputFile>${project.build.outputDirectory}/${project.artifactId}.js</outputFile>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.sonatype.plugins</groupId>
+                        <artifactId>nexus-staging-maven-plugin</artifactId>
+                        <version>1.6.8</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <serverId>ossrh</serverId>
+                            <nexusUrl>https://oss.sonatype.org/</nexusUrl>
+                            <autoReleaseAfterClose>false</autoReleaseAfterClose>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>lwjgl-natives-linux&gt;</id>
+            <activation>
+                <os>
+                    <family>unix</family>
+                </os>
+            </activation>
+            <properties>
+                <lwjgl.natives>natives-linux</lwjgl.natives>
+            </properties>
+        </profile>
+        <profile>
+            <id>lwjgl-natives-macos&gt;</id>
+            <activation>
+                <os>
+                    <family>mac</family>
+                </os>
+            </activation>
+            <properties>
+                <lwjgl.natives>natives-macos</lwjgl.natives>
+            </properties>
+        </profile>
+        <profile>
+            <id>lwjgl-natives-windows&gt;</id>
+            <activation>
+                <os>
+                    <family>windows</family>
+                </os>
+            </activation>
+            <properties>
+                <lwjgl.natives>natives-windows</lwjgl.natives>
+            </properties>
+        </profile>
+    </profiles>
 </project>
