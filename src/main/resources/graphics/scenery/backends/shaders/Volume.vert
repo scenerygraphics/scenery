@@ -46,7 +46,7 @@ layout(set = 2, binding = 0) uniform Matrices {
 	int isBillboard;
 } ubo;
 
-layout(set = 4, binding = 0) uniform ShaderProperties {
+layout(set = 5, binding = 0) uniform ShaderProperties {
     float voxelSizeX;
     float voxelSizeY;
     float voxelSizeZ;

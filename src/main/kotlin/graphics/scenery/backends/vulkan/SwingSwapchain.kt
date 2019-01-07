@@ -4,20 +4,24 @@ import graphics.scenery.Hub
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.utils.LazyLogger
-import graphics.scenery.utils.SceneryFXPanel
+import graphics.scenery.utils.SceneryJPanel
 import graphics.scenery.utils.SceneryPanel
-import org.lwjgl.glfw.GLFW.*
-import org.lwjgl.glfw.GLFWVulkan
-import org.lwjgl.glfw.GLFWWindowSizeCallback
 import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.memFree
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.KHRSwapchain.VK_ERROR_OUT_OF_DATE_KHR
 import org.lwjgl.vulkan.KHRSwapchain.vkAcquireNextImageKHR
+import org.lwjgl.vulkan.awt.AWTVKCanvas
+import org.lwjgl.vulkan.awt.VKData
+import java.awt.BorderLayout
+import java.awt.Color
+import java.awt.Dimension
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.util.*
+import javax.swing.JFrame
+import javax.swing.SwingUtilities
 
 /**
  * GLFW-based default Vulkan Swapchain and window, residing on [device], associated with [queue].
@@ -28,13 +32,13 @@ import java.util.*
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-open class VulkanSwapchain(open val device: VulkanDevice,
-                           open val queue: VkQueue,
-                           open val commandPools: VulkanRenderer.CommandPools,
-                           @Suppress("unused") open val renderConfig: RenderConfigReader.RenderConfig,
-                           open val useSRGB: Boolean = true,
-                           open val vsync: Boolean = false,
-                           open val undecorated: Boolean = false) : Swapchain {
+open class SwingSwapchain(open val device: VulkanDevice,
+                          open val queue: VkQueue,
+                          open val commandPools: VulkanRenderer.CommandPools,
+                          @Suppress("unused") open val renderConfig: RenderConfigReader.RenderConfig,
+                          open val useSRGB: Boolean = true,
+                          open val vsync: Boolean = false,
+                          open val undecorated: Boolean = false) : Swapchain {
     protected val logger by LazyLogger()
 
     /** Swapchain handle. */
@@ -62,8 +66,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
     open var surface: Long = 0
     /** [SceneryWindow] instance we are using. */
     lateinit var window: SceneryWindow
-    /** Callback to use upon window resizing. */
-    lateinit var windowSizeCallback: GLFWWindowSizeCallback
+    var sceneryPanel: SceneryPanel? = null
 
     /** Time in ns of the last resize event. */
     var lastResize = -1L
@@ -76,50 +79,53 @@ open class VulkanSwapchain(open val device: VulkanDevice,
      */
     data class ColorFormatAndSpace(var colorFormat: Int = 0, var colorSpace: Int = 0)
 
+
+
     /**
      * Creates a window for this swapchain, and initialiases [win] as [SceneryWindow.GLFWWindow].
      * Needs to be handed a [VulkanRenderer.SwapchainRecreator].
      * Returns the initialised [SceneryWindow].
      */
     override fun createWindow(win: SceneryWindow, swapchainRecreator: VulkanRenderer.SwapchainRecreator): SceneryWindow {
-        glfwDefaultWindowHints()
-        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API)
+        val data = VKData()
+        data.instance = device.instance
+        logger.info("Instance=${data.instance}")
 
-        if(undecorated) {
-            glfwWindowHint(GLFW_DECORATED, GLFW_FALSE)
-        }
+        val p = sceneryPanel as? SceneryJPanel ?: throw IllegalArgumentException("Must have SwingWindow")
 
-        window = SceneryWindow.GLFWWindow(glfwCreateWindow(win.width, win.height, "scenery", MemoryUtil.NULL, MemoryUtil.NULL)).apply {
-            width = win.width
-            height = win.height
-
-            glfwSetWindowPos(window, 100, 100)
-
-            surface = VU.getLong("glfwCreateWindowSurface",
-                { GLFWVulkan.glfwCreateWindowSurface(device.instance, window, null, this) }, {})
-
-            // Handle canvas resize
-            windowSizeCallback = object : GLFWWindowSizeCallback() {
-                override operator fun invoke(glfwWindow: Long, w: Int, h: Int) {
-                    if (lastResize > 0L && lastResize + WINDOW_RESIZE_TIMEOUT < System.nanoTime()) {
-                        lastResize = System.nanoTime()
-                        return
-                    }
-
-                    if (width <= 0 || height <= 0)
-                        return
-
-                    width = w
-                    height = h
-
-                    swapchainRecreator.mustRecreate = true
-                    lastResize = -1L
-                }
+        val canvas = object : AWTVKCanvas(data) {
+            private val serialVersionUID = 1L
+            var initialized: Boolean = false
+                private set
+            override fun initVK() {
+                logger.info("Surface set to $surface")
+                this@SwingSwapchain.surface = surface
+                this.background = Color.BLACK
+                initialized = true
             }
 
-            glfwSetWindowSizeCallback(window, windowSizeCallback)
-            glfwShowWindow(window)
+            override fun paintVK() {}
         }
+
+        p.component = canvas
+        p.layout = BorderLayout()
+        p.add(canvas, BorderLayout.CENTER)
+        p.preferredSize = Dimension(win.width, win.height)
+
+        val frame = SwingUtilities.getAncestorOfClass(JFrame::class.java, p) as JFrame
+        logger.info("Frame: $frame")
+        frame.preferredSize = Dimension(win.width, win.height)
+        frame.layout = BorderLayout()
+        frame.pack()
+        frame.isVisible = true
+
+        while(!canvas.initialized) {
+            Thread.sleep(100)
+        }
+
+        window = SceneryWindow.SwingWindow(p)
+        window.width = win.width
+        window.height = win.height
 
         return window
     }
@@ -230,8 +236,9 @@ open class VulkanSwapchain(open val device: VulkanDevice,
                 retiredSwapchains.add(device to oldHandle)
             }
 
-            val imageCount = VU.getInts("Getting swapchain images", 1,
-                { KHRSwapchain.vkGetSwapchainImagesKHR(device.vulkanDevice, handle, this, null) })
+            val imageCount = VU.getInts("Getting swapchain images", 1) {
+                KHRSwapchain.vkGetSwapchainImagesKHR(device.vulkanDevice, handle, this, null)
+            }
 
             logger.debug("Got ${imageCount.get(0)} swapchain images")
 
@@ -271,10 +278,10 @@ open class VulkanSwapchain(open val device: VulkanDevice,
                     colorAttachmentView.image(images[i])
 
                     imageViews[i] = VU.getLong("create image view",
-                        { VK10.vkCreateImageView(this@VulkanSwapchain.device.vulkanDevice, colorAttachmentView, null, this) }, {})
+                        { VK10.vkCreateImageView(this@SwingSwapchain.device.vulkanDevice, colorAttachmentView, null, this) }, {})
                 }
 
-                endCommandBuffer(this@VulkanSwapchain.device, commandPools.Standard, queue,
+                endCommandBuffer(this@SwingSwapchain.device, commandPools.Standard, queue,
                     flush = true, dealloc = true)
             }
 
@@ -305,8 +312,9 @@ open class VulkanSwapchain(open val device: VulkanDevice,
 
             // Iterate over each queue to learn whether it supports presenting:
             val supportsPresent = (0 until queueCount).map {
-                VU.getInt("Physical device surface support",
-                    { KHRSurface.vkGetPhysicalDeviceSurfaceSupportKHR(device.physicalDevice, it, surface, this) })
+                VU.getInt("Physical device surface support") {
+                    KHRSurface.vkGetPhysicalDeviceSurfaceSupportKHR(device.physicalDevice, it, surface, this)
+                }
             }
 
             // Search for a graphics and a present queue in the array of queue families, try to find one that supports both
@@ -449,49 +457,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
      * Changes the current window to fullscreen.
      */
     override fun toggleFullscreen(hub: Hub, swapchainRecreator: VulkanRenderer.SwapchainRecreator) {
-        (window as SceneryWindow.GLFWWindow?)?.let { window ->
-            if (window.isFullscreen) {
-                glfwSetWindowMonitor(window.window,
-                    MemoryUtil.NULL,
-                    0, 0,
-                    window.width, window.height, GLFW_DONT_CARE)
-                glfwSetWindowPos(window.window, 100, 100)
-                glfwSetInputMode(window.window, GLFW_CURSOR, GLFW_CURSOR_NORMAL)
-
-                swapchainRecreator.mustRecreate = true
-                window.isFullscreen = false
-            } else {
-                val preferredMonitor = System.getProperty("scenery.FullscreenMonitor", "0").toInt()
-
-                val monitor = if (preferredMonitor == 0) {
-                    glfwGetPrimaryMonitor()
-                } else {
-                    val monitors = glfwGetMonitors()
-                    if (monitors != null && monitors.remaining() >= preferredMonitor) {
-                        monitors.get(preferredMonitor)
-                    } else {
-                        glfwGetPrimaryMonitor()
-                    }
-                }
-
-                val hmd = hub.getWorkingHMDDisplay()
-
-                if (hmd != null) {
-                    window.width = hmd.getRenderTargetSize().x().toInt() / 2
-                    window.height = hmd.getRenderTargetSize().y().toInt()
-                    logger.info("Set fullscreen window dimensions to ${window.width}x${window.height}")
-                }
-
-                glfwSetWindowMonitor(window.window,
-                    monitor,
-                    0, 0,
-                    window.width, window.height, GLFW_DONT_CARE)
-                glfwSetInputMode(window.window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN)
-
-                swapchainRecreator.mustRecreate = true
-                window.isFullscreen = true
-            }
-        }
+        // TODO: Add
     }
 
     /**
@@ -503,7 +469,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
             return
         }
 
-        logger.error("Embedding is not supported with the default Vulkan swapchain. Use FXSwapchain instead.")
+        sceneryPanel = panel
     }
 
     /**
@@ -523,11 +489,5 @@ open class VulkanSwapchain(open val device: VulkanDevice,
         presentInfo.free()
         MemoryUtil.memFree(swapchainImage)
         MemoryUtil.memFree(swapchainPointer)
-
-        windowSizeCallback.close()
-        (window as SceneryWindow.GLFWWindow?)?.let { window ->
-            glfwDestroyWindow(window.window)
-            glfwTerminate()
-        }
     }
 }

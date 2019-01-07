@@ -4,8 +4,7 @@ import cleargl.GLVector
 import com.sun.javafx.application.PlatformImpl
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.numerics.Random
-import graphics.scenery.utils.SceneryPanel
+import graphics.scenery.utils.SceneryFXPanel
 import javafx.application.Platform
 import javafx.beans.property.SimpleDoubleProperty
 import javafx.event.EventHandler
@@ -31,7 +30,7 @@ import kotlin.concurrent.thread
 class JavaFXGridPaneExample : SceneryBase("JavaFXGridPaneExample", windowWidth = 512, windowHeight = 512) {
     override fun init() {
         val latch = CountDownLatch(1)
-        val imagePanel = SceneryPanel(windowWidth, windowHeight)
+        val imagePanel = SceneryFXPanel(windowWidth, windowHeight)
         val pane = GridPane()
         var stage: Stage? = null
 

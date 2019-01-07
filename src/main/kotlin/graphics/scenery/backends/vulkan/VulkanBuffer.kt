@@ -2,6 +2,7 @@ package graphics.scenery.backends.vulkan
 
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.PointerBuffer
+import org.lwjgl.system.MemoryStack
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.VK10.*
@@ -103,7 +104,7 @@ open class VulkanBuffer(val device: VulkanDevice, var size: Long,
             .memoryTypeIndex(device.getMemoryType(reqs.memoryTypeBits(), requestedMemoryProperties).first())
 
 
-        VU.run("Allocating memory", { vkAllocateMemory(device.vulkanDevice, allocInfo, null, memory) })
+        VU.run("Allocating memory (size=$actualSize)", { vkAllocateMemory(device.vulkanDevice, allocInfo, null, memory) })
         VU.run("Binding buffer memory", { vkBindBufferMemory(device.vulkanDevice, buffer, memory.get(0), 0) })
 
         val r = RawBuffer(buffer, memory.get(0), actualSize, reqs.alignment())
@@ -184,14 +185,49 @@ open class VulkanBuffer(val device: VulkanDevice, var size: Long,
     /**
      * Copies data from the [ByteBuffer] [data] directly to the device memory.
      */
-    fun copyFrom(data: ByteBuffer) {
+    fun copyFrom(data: ByteBuffer, dstOffset: Long = 0) {
         resizeLazy()
 
         val dest = memAllocPointer(1)
-        vkMapMemory(device.vulkanDevice, memory, bufferOffset, size, 0, dest)
+
+        val dstSize = if(dstOffset > 0) {
+            size - dstOffset
+        } else {
+            size
+        }
+
+        vkMapMemory(device.vulkanDevice, memory, bufferOffset + dstOffset, dstSize, 0, dest)
         memCopy(memAddress(data), dest.get(0), data.remaining().toLong())
         vkUnmapMemory(device.vulkanDevice, memory)
         memFree(dest)
+    }
+
+    /**
+     * Copies data into the Vulkan buffer from a list of [chunks]. A [dstOffset] can
+     * be given, defining the start position in the buffer.
+     */
+    fun copyFrom(chunks: List<ByteBuffer>, dstOffset: Long = 0) {
+        MemoryStack.stackPush().use { stack ->
+            resizeLazy()
+
+            val dest = stack.callocPointer(1)
+
+            val dstSize = if (dstOffset > 0) {
+                size - dstOffset
+            } else {
+                size
+            }
+
+            var currentOffset = 0
+
+            vkMapMemory(device.vulkanDevice, memory, bufferOffset + dstOffset, dstSize, 0, dest)
+            chunks.forEach { chunk ->
+                val chunkSize = chunk.remaining()
+                memCopy(memAddress(chunk), dest.get(0) + currentOffset, chunk.remaining().toLong())
+                currentOffset += chunkSize
+            }
+            vkUnmapMemory(device.vulkanDevice, memory)
+        }
     }
 
     /**

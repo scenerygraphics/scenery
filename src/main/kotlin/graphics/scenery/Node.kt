@@ -13,6 +13,7 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.locks.ReentrantLock
 import java.util.function.Consumer
 import kotlin.collections.ArrayList
+import kotlin.collections.HashMap
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.properties.Delegates
@@ -324,10 +325,11 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
         }
 
         if (needsUpdateWorld or force) {
-            if (this.parent == null || this.parent is Scene) {
+            val p = parent
+            if (p == null || p is Scene) {
                 world.copyFrom(model)
             } else {
-                world.copyFrom(parent!!.world)
+                world.copyFrom(p.world)
                 world.mult(this.model)
             }
         }
@@ -414,22 +416,65 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
     private val shaderPropertyFieldCache = HashMap<String, KProperty1<Node, *>>()
     /**
      * Returns the [ShaderProperty] given by [name], if it exists and is declared by
-     * this class or a subclass inheriting from [Node].
+     * this class or a subclass inheriting from [Node]. Returns null if the [name] can
+     * neither be found as a property, or as member of the shaderProperties HashMap the Node
+     * might declare.
      */
     fun getShaderProperty(name: String): Any? {
-        return if(shaderPropertyFieldCache.containsKey(name)) {
-            shaderPropertyFieldCache[name]!!.get(this)
-        } else {
-            val field = this.javaClass.kotlin.memberProperties.find { it.name == name && it.findAnnotation<ShaderProperty>() != null}
+        // first, try to find the shader property in the cache, and either return it,
+        // or, if the member of the cache is the shaderProperties HashMap, return the member of it.
+        val f = shaderPropertyFieldCache[name]
+        if (f != null) {
+            val value = f.get(this)
 
-            if(field != null) {
-                field.isAccessible = true
-
-                shaderPropertyFieldCache.put(name, field)
-
-                field.get(this)
+            return if (value !is HashMap<*, *>) {
+                f.get(this)
             } else {
+                value.get(name)
+            }
+        }
+
+        // First fallthrough: In case the field is not in the cache, check all member properties
+        // containing the [ShaderProperty] annotation. If the property is found,
+        // cache it for performance reasons and return it.
+        val field = this.javaClass.kotlin.memberProperties.find { it.name == name && it.findAnnotation<ShaderProperty>() != null }
+
+        if (field != null) {
+            field.isAccessible = true
+
+            shaderPropertyFieldCache.put(name, field)
+
+            return field.get(this)
+        }
+
+        // Last fallthrough: If [name] cannot be found as a property, try to locate it in the
+        // shaderProperties HashMap and return it. If it cannot be found here either, return null.
+        this.javaClass.kotlin.memberProperties
+            .filter { it.findAnnotation<ShaderProperty>() != null }
+            .forEach {
+                it.isAccessible = true
+                if(logger.isTraceEnabled) {
+                    logger.trace("ShaderProperty of ${this@Node.name}: ${it.name} ${it.get(this)?.javaClass}")
+                }
+            }
+        val mappedProperties = this.javaClass.kotlin.memberProperties
+            .firstOrNull {
+                it.findAnnotation<ShaderProperty>() != null && it.get(this) is HashMap<*, *> && it.name == "shaderProperties"
+            }
+
+        return if (mappedProperties == null) {
+            logger.warn("Could not find shader property '$name' in class properties or properties map!")
+            null
+        } else {
+            mappedProperties.isAccessible = true
+
+            val map = mappedProperties.get(this) as? HashMap<String, Any>
+            if (map == null) {
+                logger.warn("$this: $name not found in shaderProperties hash map")
                 null
+            } else {
+                shaderPropertyFieldCache.put(name, mappedProperties)
+                map.get(name)
             }
         }
     }
