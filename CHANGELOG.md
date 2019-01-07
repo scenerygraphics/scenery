@@ -1,5 +1,54 @@
 # CHANGELOG
 
+# scenery-0.6.2 to scenery-0.7.0-beta-1
+
+## Additions and Changes
+
+* introduces preliminary support for rendering BigDataViewer volumetric datasets
+* ShaderProperty/Node: Add support to store shader properties in HashMap
+* OpenGLObjectState: add getUBO() and getBackedUBO() methods
+* OpenGLRenderer: Cut down on non-null asserted alls
+* VulkanRenderer/OpenGLRenderer: Support rendering to Swing windows via SceneryJPanel
+* VulkanRenderer: Add AWTSwapchain for drawing via lwjgl3-awt
+* SceneryBase: Only show REPL after renderer initialisation is complete
+* SceneryBase: Call XInitThreads on Linux when running X11
+* Renderer: Use ACES tonemapping operator for HDR rendering
+* OpenGLRenderer/VulkanRenderer: Add support for GenericTexture's incremental updates
+* VulkanShaderModule: Improve detection of inconsistencies
+* Renderer: Add `DeferredShadingLowEnd.yml` pipeline configuration for better performance on low-end GPUs
+* VulkanRenderer: Remove nullability of various members that do not require to be null
+* VulkanShaderModule: Store type of UBO
+* Camera: store projection type, and viewport sizes, add aspectRatio() function
+* PupilEyeTracker: Improve calibration routine
+* EyeTrackingExample: Improve feedback on failed/successful calibration
+* ProceduralVolumeExample: Support procedural generation of 16bit volumes
+
+## Fixes
+
+* OpenGLRenderer: Fix handling of sRGB textures and render targets
+* OpenGLRenderer: Ensure object metadata was created when updating instances
+* VulkanRenderer: Don't fail to initialize if NvidiaGPUStats fail for some reason
+* VulkanRenderer: Correctly determine number of necessary mipmap levels
+* VulkanRenderpass: Mark old DSLs for garbage collection and delete them only upon renderpass closure
+* Shaders: Use correct key for caching ShaderPackages
+
+## Dependency Updates
+
+* bumps jackson to 2.9.8
+* bumps ClearGL to 2.2.5
+* bumps SciJava Parent POM to 24.0.0
+* bumps lwjgl to 3.2.1
+* bumps Kotlin to 1.3.11
+* bumps spirvcrossj to 0.5.0-1.1.85
+* bumps coremem to 0.4.6
+* bumps kotlinx-coroutines to 1.0.0
+* bumps JInput to 2.0.9
+* bumps ffmpeg-platform to 4.0.2-1.4.3
+* bumps msgpack to 0.8.16
+* bumps Kryo to 4.0.2
+* bumps JOCL to 2.0.1
+* bumps jna to 4.5.2
+
 # scenery-0.6.1 to scenery-0.6.2
 
 ## Fixes
