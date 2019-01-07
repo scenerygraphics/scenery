@@ -110,6 +110,7 @@
         <lwjgl.version>3.2.1</lwjgl.version>
         <spirvcrossj.version>0.5.0-1.1.85</spirvcrossj.version>
         <jvrpn.version>1.1.0</jvrpn.version>
+        <jeromq.version>0.4.3</jeromq.version>
 
         <license.licenseName>lgpl_v3</license.licenseName>
         <license.copyrightOwners>the scenery development team</license.copyrightOwners>
@@ -359,7 +360,7 @@
         <dependency>
             <groupId>org.zeromq</groupId>
             <artifactId>jeromq</artifactId>
-            <version>0.4.3</version>
+            <version>${jeromq.version}</version>
         </dependency>
         <!-- ZeroMQ dependencies end -->
 
