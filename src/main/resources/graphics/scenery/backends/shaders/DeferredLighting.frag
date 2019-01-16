@@ -216,7 +216,8 @@ void main()
         float distance = length(L);
         L = normalize(L);
 
-        lightAttenuation = pow(clamp(1.0 - pow(distance/lightRadius, 4.0), 0.0, 1.0), 2.0) / (distance * distance + 1.0);
+        lightAttenuation = clamp(1.0 - distance*distance/(lightRadius*lightRadius), 0.0, 1.0);
+        lightAttenuation *= lightAttenuation;
     } else {
         L = normalize(worldPosition.xyz);
         lightAttenuation = 1.0;
@@ -235,29 +236,27 @@ void main()
     vec3 V = normalize(cameraPosition - FragPos);
     vec3 H = normalize(L + V);
 
+    vec3 specular = vec3(0.0f);
+    vec3 diffuse = vec3(0.0f);
+    float lightOcclusion = ambientOcclusion.a;
+
     if(reflectanceModel == 1) {
         // Diffuse
         float NdotL = max(0.0, dot(N, L));
-        vec3 specular = vec3(0.0f);
 
         vec3 R = reflect(-L, N);
         float NdotR = max(0.0, dot(R, V));
         float NdotH = max(0.0, dot(N, H));
 
-        vec3 diffuse = NdotL * intensity * Albedo.rgb * emissionColor.rgb * ambientOcclusion.a;
+        diffuse = NdotL * intensity * Albedo.rgb * emissionColor.rgb * lightOcclusion;
 
         if(NdotL > 0.0) {
             specular = pow(NdotH, (1.0-Specular)*4.0) * Albedo.rgb * emissionColor.rgb * intensity;
         }
-
-        lighting += (diffuse + specular) * lightAttenuation;
     }
 
     // Oren-Nayar model for diffuse and Cook-Torrance for Specular
     else if(reflectanceModel == 0) {
-        vec3 diffuse = vec3(0.0);
-        vec3 specular = vec3(0.0);
-
         float roughness = MaterialParams.r * PI / 2.0;
 
         float LdotV = max(dot(L, V), 0.0);
@@ -273,7 +272,6 @@ void main()
 
         float L1 = NdotL / PI * (A + B * m * ab.x * ab.y);
 
-        float lightOcclusion = ambientOcclusion.a;
         vec3 inputColor = intensity * emissionColor.rgb * Albedo.rgb * lightOcclusion;
 
         diffuse = inputColor * L1;
@@ -298,7 +296,9 @@ void main()
             vec3 radiance = intensity * emissionColor.rgb;
             specular = (kD * Albedo.rgb / PI + BRDF) * radiance * NdotL;
         }
+    }
 
+    if(debugLights > 0) {
         if(debugLights == 3) {
             lighting = specular * lightAttenuation;
         } if(debugLights == 4) {
@@ -311,9 +311,9 @@ void main()
             lighting = Albedo.rgb;
         } if(debugLights == 8) {
             lighting = vec3(MaterialParams.rg, 0.0);
-        } else {
-            lighting = (diffuse + specular) * lightAttenuation;
         }
+    } else {
+        lighting = (diffuse + specular) * lightAttenuation;
     }
 
     FragColor = vec4(lighting, 1.0);
