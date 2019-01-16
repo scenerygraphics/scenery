@@ -1670,6 +1670,8 @@ open class OpenGLRenderer(hub: Hub,
                     actualSceneObjects.filter { it is Light }
                 }
 
+                var currentShader: OpenGLShaderProgram? = null
+
                 actualObjects.forEach renderLoop@ { n ->
                     if (n.instanceOf != null) {
                         return@renderLoop
@@ -1728,7 +1730,11 @@ open class OpenGLRenderer(hub: Hub,
                         pass.defaultShader!!
                     }
 
-                    shader.use(gl)
+                    if(currentShader != shader) {
+                        shader.use(gl)
+                    }
+
+                    currentShader = shader
 
                     if (renderConfig.stereoEnabled) {
                         shader.getUniform("currentEye.eye").setInt(pass.openglMetadata.eye)
@@ -2714,8 +2720,8 @@ open class OpenGLRenderer(hub: Hub,
             gl.glDrawArrays((node as HasGeometry).geometryType.toOpenGLType(), offset, count ?: s.mStoredPrimitiveCount)
         }
 
-        gl.glUseProgram(0)
-        gl.glBindVertexArray(0)
+//        gl.glUseProgram(0)
+//        gl.glBindVertexArray(0)
     }
 
     /**
@@ -2743,8 +2749,8 @@ open class OpenGLRenderer(hub: Hub,
 
         }
 
-        gl.glUseProgram(0)
-        gl.glBindVertexArray(0)
+//        gl.glUseProgram(0)
+//        gl.glBindVertexArray(0)
     }
 
     override fun screenshot(filename: String, overwrite: Boolean) {
