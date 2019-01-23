@@ -130,35 +130,6 @@ class Arrow(var vector: GLVector) : Node("Arrow"), HasGeometry {
      * @param p     The vector containing the vertex data
      */
     fun addPoint(p: GLVector) {
-        if(vertices.limit() + 3 > vertices.capacity()) {
-            val newVertices = BufferUtils.allocateFloat(vertices.capacity() + 3*capacity)
-            vertices.position(0)
-            vertices.limit(vertices.capacity())
-            newVertices.put(vertices)
-            newVertices.limit(vertices.limit())
-
-            vertices = newVertices
-
-            val newNormals = BufferUtils.allocateFloat(vertices.capacity() + 3*capacity)
-            normals.position(0)
-            normals.limit(normals.capacity())
-            newNormals.put(normals)
-            newNormals.limit(normals.limit())
-
-            normals = newNormals
-
-
-            val newTexcoords = BufferUtils.allocateFloat(vertices.capacity() + 2*capacity)
-            texcoords.position(0)
-            texcoords.limit(texcoords.capacity())
-            newTexcoords.put(texcoords)
-            newTexcoords.limit(texcoords.limit())
-
-            texcoords = newTexcoords
-
-            capacity = vertices.capacity()/3
-        }
-
         vertices.position(vertices.limit())
         vertices.limit(vertices.limit() + 3)
         vertices.put(p.toFloatArray())
