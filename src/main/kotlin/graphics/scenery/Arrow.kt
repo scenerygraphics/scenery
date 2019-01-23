@@ -73,7 +73,6 @@ class Arrow(var vector: GLVector) : Node("Arrow"), HasGeometry {
 
     /**
      * Changes the shape of this arrow.
-	  * TODO: make this method public
      *
      * @param p     The vector defining the shape of the arrow
      */
@@ -83,7 +82,7 @@ class Arrow(var vector: GLVector) : Node("Arrow"), HasGeometry {
 
 		/** create the vector shape */
 		//shortcut to null vector...
-		var zeroGLvec = GLVector(0.0f,0.0f,0.0f)
+		val zeroGLvec = GLVector(0.0f,0.0f,0.0f)
 
 		//first of the two mandatory surrounding fake points that are never displayed
 		addPoint(zeroGLvec)
@@ -94,13 +93,13 @@ class Arrow(var vector: GLVector) : Node("Arrow"), HasGeometry {
 
 		//the first triangle:
 		//the shape of the triangle
-		var V = 0.1f * vector.magnitude()
+		val V = 0.1f * vector.magnitude()
 
 		//vector base is perpendicular to the input vector
 		var base = GLVector(-vector.y(), vector.x(), 0.0f)
 		var baseLen = base.magnitude()
 
-		if (baseLen == 0.f) {
+		if (baseLen == 0.0f) {
 			//vector must be parallel to the z-axis, draw another perpendicular base
 			base = GLVector(0.0f, 1.0f, 0.0f)
 			baseLen = 1.0f
@@ -125,10 +124,10 @@ class Arrow(var vector: GLVector) : Node("Arrow"), HasGeometry {
 
     /**
      * Adds a line point to the line.
-	  * TODO: make this method private
      *
      * @param p     The vector containing the vertex data
      */
+	 private
     fun addPoint(p: GLVector) {
         vertices.position(vertices.limit())
         vertices.limit(vertices.limit() + 3)
@@ -154,8 +153,8 @@ class Arrow(var vector: GLVector) : Node("Arrow"), HasGeometry {
 
     /**
      * Fully clears the line.
-	  * TODO: make this method private
      */
+	 private
     fun clearPoints() {
         vertices.clear()
         normals.clear()
