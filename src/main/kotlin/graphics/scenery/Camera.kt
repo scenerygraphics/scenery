@@ -3,6 +3,10 @@ package graphics.scenery
 import cleargl.GLMatrix
 import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
+import kotlin.math.PI
+import kotlin.math.atan
+import kotlin.math.cos
+import kotlin.math.tan
 
 /**
  * Camera class that may be targeted or oriented
@@ -45,6 +49,9 @@ open class Camera : Node("Camera") {
     var width: Float = 0.0f
     /** Height of the projection */
     var height: Float = 0.0f
+    /** View-space coordinate system e.g. for frustum culling */
+    var viewSpaceTripod: Camera.Tripod
+        protected set
 
     /** View matrix of the camera. Setting the view matrix will re-set the forward
      *  vector of the camera according to the given matrix.
@@ -55,6 +62,8 @@ open class Camera : Node("Camera") {
                 this.forward = GLVector(m.get(0, 2), m.get(1, 2), m.get(2, 2)).normalize() * -1.0f
                 this.right = GLVector(m.get(0, 0), m.get(1, 0), m.get(2, 0)).normalize()
                 this.up = GLVector(m.get(0, 1), m.get(1, 1), m.get(2, 1)).normalize()
+
+                this.viewSpaceTripod = cameraTripod()
 
                 if(!targeted) {
                     this.target = this.position + this.forward
@@ -70,12 +79,16 @@ open class Camera : Node("Camera") {
                 field = q
                 val m = GLMatrix.fromQuaternion(q)
                 this.forward = GLVector(m.get(0, 2), m.get(1, 2), m.get(2, 2)).normalize() * -1.0f
+                this.viewSpaceTripod = cameraTripod()
             }
         }
 
     init {
         this.nodeType = "Camera"
+        this.viewSpaceTripod = cameraTripod()
     }
+
+    data class Tripod(val x: GLVector, val y: GLVector, val z: GLVector)
 
     /**
      * Returns the current aspect ratio
@@ -226,6 +239,69 @@ open class Camera : Node("Camera") {
         }
 
         return scene.raycast(worldPos, worldDir, ignoredObjects, debug)
+    }
+
+    /**
+     * Returns true if this camera can see the given [node], which occurs when the node is
+     * in the camera's frustum.
+     */
+    fun canSee(node: Node): Boolean {
+        val bs = node.getMaximumBoundingBox().getBoundingSphere()
+        val sphereY = 1.0f/cos(PI/180.0f*fov)
+        val tanFov = tan(PI*(fov/180.0f)*0.5f).toFloat()
+        val angleX = atan(tanFov * aspectRatio())
+        val sphereX = 1.0f/cos(angleX)
+        val (x, y, z) = viewSpaceTripod
+
+        val v = bs.origin - position
+        var result = true
+
+        val az = v.times(z)
+        if(az > farPlaneDistance + bs.radius || az < nearPlaneDistance - bs.radius) {
+            node.material.diffuse = GLVector(0.5f, 0.0f, 0.0f)
+            return false
+        }
+
+        val ay = v.times(y)
+        val d = sphereY * bs.radius
+        val dzy = az * tanFov
+        if(ay > dzy + d || ay < -dzy - d) {
+            node.material.diffuse = GLVector(0.0f, 0.5f, 0.0f)
+            return false
+        }
+
+        val ax = v.times(x)
+        val dzx = az * tanFov * aspectRatio()
+        val dx = sphereX * bs.radius
+        if(ax > dzx + dx || ax < -dzx - dx) {
+            node.material.diffuse = GLVector(0.0f, 0.0f, 0.5f)
+            return false
+        }
+
+        if(az > farPlaneDistance - bs.radius || az < nearPlaneDistance + bs.radius) {
+            result = true
+        }
+
+        if(ay > az - d || ay < -az + d) {
+            result = true
+        }
+
+        if (ax > az - dx || ax < -az + dx) {
+            result = true
+        }
+
+        return result
+    }
+
+    /**
+     * Returns the view-space coordinate system of the camera as [Tripod].
+     */
+    fun cameraTripod(): Tripod {
+        val z = forward.clone()
+        val x = z.cross(up.clone()).normalized
+        val y = x.cross(z).normalized
+
+        return Tripod(x, y, z)
     }
 }
 
