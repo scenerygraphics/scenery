@@ -5,7 +5,8 @@ import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.backends.Renderer
 import graphics.scenery.utils.LazyLogger
-import kotlinx.coroutines.*
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.async
 import java.io.Serializable
 import java.sql.Timestamp
 import java.util.*
@@ -173,10 +174,14 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
          * Returns the maximum bounding sphere of this bounding box.
          */
         fun getBoundingSphere(): BoundingSphere {
+            if(needsUpdate || needsUpdateWorld) {
+                updateWorld(true, false)
+            }
+
             val worldMin = worldPosition(min)
             val worldMax = worldPosition(max)
 
-            val origin = (worldMin + worldMax) * 0.5f
+            val origin = worldMin + (worldMax - worldMin) * 0.5f
 
             val radius = (worldMax - origin).magnitude()
 
