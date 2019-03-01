@@ -49,9 +49,11 @@ open class Camera : Node("Camera") {
     var width: Float = 0.0f
     /** Height of the projection */
     var height: Float = 0.0f
-    /** View-space coordinate system e.g. for frustum culling */
+    /** View-space coordinate system e.g. for frustum culling. */
     var viewSpaceTripod: Camera.Tripod
         protected set
+    /** Disables culling for this camera. */
+    var disableCulling: Boolean = false
 
     /** View matrix of the camera. Setting the view matrix will re-set the forward
      *  vector of the camera according to the given matrix.
@@ -246,6 +248,10 @@ open class Camera : Node("Camera") {
      * in the camera's frustum.
      */
     fun canSee(node: Node): Boolean {
+        if(disableCulling) {
+            return true
+        }
+
         val bs = node.getMaximumBoundingBox().getBoundingSphere()
         val sphereY = 1.0f/cos(PI/180.0f*fov)
         val tanFov = tan(PI*(fov/180.0f)*0.5f).toFloat()
@@ -258,7 +264,6 @@ open class Camera : Node("Camera") {
 
         val az = v.times(z)
         if(az > farPlaneDistance + bs.radius || az < nearPlaneDistance - bs.radius) {
-            node.material.diffuse = GLVector(0.5f, 0.0f, 0.0f)
             return false
         }
 
@@ -266,7 +271,6 @@ open class Camera : Node("Camera") {
         val d = sphereY * bs.radius
         val dzy = az * tanFov
         if(ay > dzy + d || ay < -dzy - d) {
-            node.material.diffuse = GLVector(0.0f, 0.5f, 0.0f)
             return false
         }
 
@@ -274,7 +278,6 @@ open class Camera : Node("Camera") {
         val dzx = az * tanFov * aspectRatio()
         val dx = sphereX * bs.radius
         if(ax > dzx + dx || ax < -dzx - dx) {
-            node.material.diffuse = GLVector(0.0f, 0.0f, 0.5f)
             return false
         }
 
