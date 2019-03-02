@@ -90,6 +90,9 @@ open class Camera : Node("Camera") {
         this.viewSpaceTripod = cameraTripod()
     }
 
+    /**
+     * Class to contain local coordinate systems with [x], [y], and [z] axis.
+     */
     data class Tripod(val x: GLVector, val y: GLVector, val z: GLVector)
 
     /**
@@ -246,6 +249,18 @@ open class Camera : Node("Camera") {
     /**
      * Returns true if this camera can see the given [node], which occurs when the node is
      * in the camera's frustum.
+     *
+     * This method is based on the Radar Method from Game Programming Gems 5, with the code
+     * adapted from [lighthouse3d.com](http://www.lighthouse3d.com/tutorials/view-frustum-culling/radar-approach-testing-points/).
+     *
+     * In this method, a camera-local coordinate tripod is constructed, and candidate points are projected
+     * onto this tripod one after the other. For Z, the length of the vector has to be between the [nearPlaneDistance]
+     * and the [farPlaneDistance] for the point to be visible, for Y it has to fit into the height of the field of
+     * view at that point, and for X into its width. For the spheres we test here from [Node]'s [getMaximumBoundingBox],
+     * we add to the point the radius of the bounding sphere, and take stretching/skewing according to the [aspectRatio]
+     * into account.
+     *
+     * If a sphere is intersecting any boundary of the view frustum, the node is assumed to be visible.
      */
     fun canSee(node: Node): Boolean {
         if(disableCulling) {
@@ -262,11 +277,13 @@ open class Camera : Node("Camera") {
         val v = bs.origin - position
         var result = true
 
+        // check whether the sphere is within the Z bounds
         val az = v.times(z)
         if(az > farPlaneDistance + bs.radius || az < nearPlaneDistance - bs.radius) {
             return false
         }
 
+        // check whether the sphere is within the height of the frustum
         val ay = v.times(y)
         val d = sphereY * bs.radius
         val dzy = az * tanFov
@@ -274,6 +291,7 @@ open class Camera : Node("Camera") {
             return false
         }
 
+        // check whether the sphere is within the width of the frustum
         val ax = v.times(x)
         val dzx = az * tanFov * aspectRatio()
         val dx = sphereX * bs.radius
@@ -281,6 +299,7 @@ open class Camera : Node("Camera") {
             return false
         }
 
+        // check all the three cases where the sphere might be just barely intersecting.
         if(az > farPlaneDistance - bs.radius || az < nearPlaneDistance + bs.radius) {
             result = true
         }
