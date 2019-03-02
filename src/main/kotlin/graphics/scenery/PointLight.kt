@@ -35,6 +35,7 @@ class PointLight(radius: Float = 5.0f) : Light("PointLight") {
                 this.vertices = proxySphere.vertices
                 this.normals = proxySphere.normals
                 this.texcoords = proxySphere.texcoords
+                this.boundingBox = proxySphere.boundingBox
 
                 this.dirty = true
             }
@@ -62,6 +63,7 @@ class PointLight(radius: Float = 5.0f) : Light("PointLight") {
         this.geometryType = proxySphere.geometryType
         this.vertexSize = proxySphere.vertexSize
         this.texcoordSize = proxySphere.texcoordSize
+        this.boundingBox = proxySphere.boundingBox
 
         material.blending.transparent = true
         material.blending.colorBlending = Blending.BlendOp.add
