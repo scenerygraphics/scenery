@@ -1515,11 +1515,13 @@ open class OpenGLRenderer(hub: Hub,
             return@runBlocking
         }
 
+        val cam = scene.findObserver() ?: return@runBlocking
         val sceneObjects = async {
             scene.discover(scene, { n ->
                 n is HasGeometry
                     && n.visible
                     && n.instanceOf == null
+                    && cam.canSee(n)
             }, useDiscoveryBarriers = true)
         }
 
