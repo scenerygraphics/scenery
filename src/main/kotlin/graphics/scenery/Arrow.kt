@@ -65,10 +65,10 @@ class Arrow(var vector: GLVector) : Node("Arrow"), HasGeometry {
     var edgeWidth = 2.0f
 
     init {
-		material = ShaderMaterial.fromClass(Line::class.java, listOf(ShaderType.VertexShader, ShaderType.GeometryShader, ShaderType.FragmentShader))
-		material.cullingMode = Material.CullingMode.None
+        material = ShaderMaterial.fromClass(Line::class.java, listOf(ShaderType.VertexShader, ShaderType.GeometryShader, ShaderType.FragmentShader))
+        material.cullingMode = Material.CullingMode.None
 
-	 	reshape(vector)
+        reshape(vector)
     }
 
     //shortcut to null vector... to prevent from creating it anew with every call to reshape()
@@ -77,58 +77,53 @@ class Arrow(var vector: GLVector) : Node("Arrow"), HasGeometry {
     /**
      * Changes the shape of this arrow.
      *
-     * @param p     The vector defining the shape of the arrow
+     * @param p The vector defining the shape of the arrow
      */
     fun reshape(vector: GLVector) {
-		//init the data structures
-	 	clearPoints()
+        //init the data structures
+        clearPoints()
 
-		//first of the two mandatory surrounding fake points that are never displayed
-		addPoint(zeroGLvec)
+        /** create the vector shape */
+        //first of the two mandatory surrounding fake points that are never displayed
+        addPoint(zeroGLvec)
 
-		//the main "vertical" segment of the vector
-		addPoint(zeroGLvec)
-		addPoint(vector)
+        //the main "vertical" segment of the vector
+        addPoint(zeroGLvec)
+        addPoint(vector)
 
-		//the perpendicular base segment of the "arrow head" triangles
-		var base = zeroGLvec
-		if (vector.x() == 0.0f && vector.y() == 0.0f) {
-			//the input 'vector' must be parallel to the z-axis,
-			//we can use this particular 'base' then
-			base = GLVector(0.0f, 1.0f, 0.0f)
-		}
-		else {
-			//vector 'base' is perpendicular to the input 'vector'
-			base = GLVector(-vector.y(), vector.x(), 0.0f).normalize()
-		}
+        //the "horizontal" base segment of the "arrow head" triangles
+        var base = zeroGLvec
+        if (vector.x() == 0.0f && vector.y() == 0.0f) {
+            //the input 'vector' must be parallel to the z-axis,
+            //we can use this particular 'base' then
+            base = GLVector(0.0f, 1.0f, 0.0f)
+        }
+        else {
+            //vector 'base' is perpendicular to the input 'vector'
+            base = GLVector(-vector.y(), vector.x(), 0.0f).normalize()
+        }
 
-		//the width of the "arrow head" triangle
-		val V = 0.1f * vector.magnitude()
+        //the width of the "arrow head" triangle
+        val V = 0.1f * vector.magnitude()
 
-		//the first triangle:
-		base = base.times(V)
-		addPoint(vector.times(0.8f).plus(base))
-		addPoint(vector.times(0.8f).minus(base))
-		addPoint(vector)
-		//NB: the 0.8f defines the height (1-0.8) of the "arrow head" triangle
+        //the first triangle:
+        base = base.times(V)
+        addPoint(vector.times(0.8f).plus(base))
+        addPoint(vector.times(0.8f).minus(base))
+        addPoint(vector)
+        //NB: the 0.8f defines the height (1-0.8) of the "arrow head" triangle
 
-		//the second triangle:
-		base = base.cross(vector).normalize().times(V)
-		addPoint(vector.times(0.8f).plus(base))
-		addPoint(vector.times(0.8f).minus(base))
-		addPoint(vector)
+        //the second triangle:
+        base = base.cross(vector).normalize().times(V)
+        addPoint(vector.times(0.8f).plus(base))
+        addPoint(vector.times(0.8f).minus(base))
+        addPoint(vector)
 
-		//second of the two mandatory surrounding fake points that are never displayed
-		addPoint(vector)
-	 }
+        //second of the two mandatory surrounding fake points that are never displayed
+        addPoint(vector)
+    }
 
-    /**
-     * Adds a line point to the line.
-     *
-     * @param p     The vector containing the vertex data
-     */
-	 private
-    fun addPoint(p: GLVector) {
+    private fun addPoint(p: GLVector) {
         vertices.position(vertices.limit())
         vertices.limit(vertices.limit() + 3)
         vertices.put(p.toFloatArray())
@@ -151,11 +146,7 @@ class Arrow(var vector: GLVector) : Node("Arrow"), HasGeometry {
         boundingBox = generateBoundingBox()
     }
 
-    /**
-     * Fully clears the line.
-     */
-	 private
-    fun clearPoints() {
+    private fun clearPoints() {
         vertices.clear()
         normals.clear()
         texcoords.clear()
