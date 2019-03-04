@@ -65,7 +65,7 @@ class Arrow(var vector: GLVector) : Node("Arrow"), HasGeometry {
     var edgeWidth = 2.0f
 
     init {
-		material = ShaderMaterial.fromClass(this::class.java, listOf(ShaderType.VertexShader, ShaderType.GeometryShader, ShaderType.FragmentShader))
+		material = ShaderMaterial.fromClass(Line::class.java, listOf(ShaderType.VertexShader, ShaderType.GeometryShader, ShaderType.FragmentShader))
 		material.cullingMode = Material.CullingMode.None
 
 	 	reshape(vector)
