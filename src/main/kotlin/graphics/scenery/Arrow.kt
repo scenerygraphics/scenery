@@ -91,29 +91,30 @@ class Arrow(var vector: GLVector) : Node("Arrow"), HasGeometry {
 		addPoint(zeroGLvec)
 		addPoint(vector)
 
-		//the first triangle:
-		//the shape of the triangle
+		//the perpendicular base segment of the "arrow head" triangles
+		var base = zeroGLvec
+		if (vector.x() == 0.0f && vector.y() == 0.0f) {
+			//the input 'vector' must be parallel to the z-axis,
+			//we can use this particular 'base' then
+			base = GLVector(0.0f, 1.0f, 0.0f)
+		}
+		else {
+			//vector 'base' is perpendicular to the input 'vector'
+			base = GLVector(-vector.y(), vector.x(), 0.0f).normalize()
+		}
+
+		//the width of the "arrow head" triangle
 		val V = 0.1f * vector.magnitude()
 
-		//vector base is perpendicular to the input vector
-		var base = GLVector(-vector.y(), vector.x(), 0.0f)
-		var baseLen = base.magnitude()
-
-		if (baseLen == 0.0f) {
-			//vector must be parallel to the z-axis, draw another perpendicular base
-			base = GLVector(0.0f, 1.0f, 0.0f)
-			baseLen = 1.0f
-		}
-		base.timesAssign(GLVector(V/baseLen,3))
-
+		//the first triangle:
+		base = base.times(V)
 		addPoint(vector.times(0.8f).plus(base))
 		addPoint(vector.times(0.8f).minus(base))
 		addPoint(vector)
+		//NB: the 0.8f defines the height (1-0.8) of the "arrow head" triangle
 
 		//the second triangle:
-		base = base.cross(vector)
-		base.timesAssign(GLVector(V/base.magnitude(),3))
-
+		base = base.cross(vector).normalize().times(V)
 		addPoint(vector.times(0.8f).plus(base))
 		addPoint(vector.times(0.8f).minus(base))
 		addPoint(vector)
