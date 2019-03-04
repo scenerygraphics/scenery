@@ -71,6 +71,9 @@ class Arrow(var vector: GLVector) : Node("Arrow"), HasGeometry {
 	 	reshape(vector)
     }
 
+    //shortcut to null vector... to prevent from creating it anew with every call to reshape()
+    private val zeroGLvec = GLVector(0.0f,0.0f,0.0f)
+
     /**
      * Changes the shape of this arrow.
      *
@@ -79,10 +82,6 @@ class Arrow(var vector: GLVector) : Node("Arrow"), HasGeometry {
     fun reshape(vector: GLVector) {
 		//init the data structures
 	 	clearPoints()
-
-		/** create the vector shape */
-		//shortcut to null vector...
-		val zeroGLvec = GLVector(0.0f,0.0f,0.0f)
 
 		//first of the two mandatory surrounding fake points that are never displayed
 		addPoint(zeroGLvec)
