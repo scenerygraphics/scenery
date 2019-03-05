@@ -77,7 +77,7 @@ open class VulkanObjectState : NodeMetadata {
 
             val descriptorSetLayoutObjectTextures = pass.descriptorSetLayouts["ObjectTextures"]
             if(descriptorSetLayoutObjectTextures != null && objectTextures != null) {
-                textureDescriptorSets[passName to "ObjectTextures"] = createOrUpdateTextureDescriptorSet(
+                textureDescriptorSets[pass.passConfig.type.name to "ObjectTextures"] = createOrUpdateTextureDescriptorSet(
                     "ObjectTextures",
                     passName,
                     GenericTexture.objectTextures.map { ot -> objectTextures.first { it.key == ot } },
@@ -92,7 +92,7 @@ open class VulkanObjectState : NodeMetadata {
                 logger.trace("Pass descriptor sets are {}", pass.descriptorSetLayouts.keys.joinToString(","))
                 val dsl = pass.descriptorSetLayouts[texture.key]
                 if (dsl != null) {
-                    textureDescriptorSets[passName to texture.key] = createOrUpdateTextureDescriptorSet(
+                    textureDescriptorSets[pass.passConfig.type.name to texture.key] = createOrUpdateTextureDescriptorSet(
                         texture.key,
                         passName,
                         listOf(texture),

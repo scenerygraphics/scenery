@@ -2684,8 +2684,8 @@ open class VulkanRenderer(hub: Hub,
                                     DescriptorSet.DynamicSet(s.UBOs[name]!!.first, offset = s.UBOs[name]!!.second.offsets.get(0), setName = name)
                                 s.UBOs.containsKey("${pass.name}-$name") ->
                                     DescriptorSet.DynamicSet(s.UBOs["${pass.name}-$name"]!!.first, offset = s.UBOs["${pass.name}-$name"]!!.second.offsets.get(0), setName = name)
-                                s.getTextureDescriptorSet(pass.name, name) != null ->
-                                    DescriptorSet.setOrNull(s.getTextureDescriptorSet(pass.name, name), name)
+                                s.getTextureDescriptorSet(pass.passConfig.type.name, name) != null ->
+                                    DescriptorSet.setOrNull(s.getTextureDescriptorSet(pass.passConfig.type.name, name), name)
                                 else -> DescriptorSet.None
                             }
                         }
