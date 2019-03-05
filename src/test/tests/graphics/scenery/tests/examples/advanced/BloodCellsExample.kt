@@ -16,16 +16,11 @@ import kotlin.math.sin
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class BloodCellsExample : SceneryBase("BloodCellsExample", windowWidth = 1280, windowHeight = 720) {
-    private var ovr: OpenVRHMD? = null
-
     val leucocyteCount = 500
     val lightCount = 20
     val positionRange = 250.0f
 
     override fun init() {
-        ovr = OpenVRHMD(seated = false, useCompositor = true)
-        hub.add(SceneryElement.HMDInput, ovr!!)
-
         renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
         hub.add(SceneryElement.Renderer, renderer!!)
 
@@ -50,7 +45,7 @@ class BloodCellsExample : SceneryBase("BloodCellsExample", windowWidth = 1280, w
         lights.map {
             it.position = Random.randomVectorFromRange(3, -positionRange/2, positionRange/2)
             it.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
-            it.intensity = 3000.0f
+            it.intensity = 1.5f
 
             scene.addChild(it)
         }

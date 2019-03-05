@@ -29,8 +29,8 @@ class MultiBoxExample : SceneryBase("MultiBoxExample") {
         val boundaryHeight = 10.0
 
         val m = Mesh()
-        val boxes = (0..1000).map {
-            Box(GLVector(0.2f, 0.2f, 0.2f))
+        val boxes = (0 until 1000).map {
+            Box(GLVector(1.8f, 1.8f, 1.8f))
         }
 
         boxes.mapIndexed {
@@ -41,6 +41,7 @@ class MultiBoxExample : SceneryBase("MultiBoxExample") {
             val i: Double = s / (boundaryWidth * boundaryHeight)
 
             box.position = GLVector(Math.floor(i).toFloat() * 3.0f, Math.floor(j).toFloat() * 3.0f, Math.floor(k).toFloat() * 3.0f)
+            box.material.diffuse = GLVector(1.0f, 1.0f, 1.0f)
 
             m.addChild(box)
         }
@@ -50,9 +51,9 @@ class MultiBoxExample : SceneryBase("MultiBoxExample") {
         val lights = (0..20).map {
             PointLight(radius = 450.0f)
         }.map {
-            it.position = Random.randomVectorFromRange(3, -600.0f, 600.0f)
+            it.position = Random.randomVectorFromRange(3, -100.0f, 100.0f)
             it.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
-            it.intensity = Random.randomFromRange(50.0f, 1000f)
+            it.intensity = Random.randomFromRange(0.1f, 5.0f)
 
             scene.addChild(it)
             it
@@ -70,25 +71,8 @@ class MultiBoxExample : SceneryBase("MultiBoxExample") {
             scene.addChild(this)
         }
 
-        var ticks: Int = 0
-
         thread {
-            val step = 0.02f
-
             while (true) {
-                lights.mapIndexed {
-                    i, light ->
-                    val phi = Math.PI * 2.0f * ticks / 1500.0f
-
-                    light.position = GLVector(
-                        Math.exp(i.toDouble()).toFloat() * 10 * Math.sin(phi).toFloat() + Math.exp(i.toDouble()).toFloat(),
-                        step * ticks,
-                        Math.exp(i.toDouble()).toFloat() * 10 * Math.cos(phi).toFloat() + Math.exp(i.toDouble()).toFloat())
-
-                }
-
-                ticks++
-
                 m.rotation.rotateByEuler(0.001f, 0.001f, 0.0f)
                 m.needsUpdate = true
 
