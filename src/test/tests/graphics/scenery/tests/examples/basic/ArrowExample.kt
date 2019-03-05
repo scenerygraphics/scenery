@@ -25,11 +25,43 @@ class ArrowExample : SceneryBase("ArrowExample") {
         renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
         hub.add(SceneryElement.Renderer, renderer!!)
 
+        setupScene()
+        useScene()
+    }
+
+
+    private fun setupScene() {
+        //boundaries of our world
         val hull = Box(GLVector(50.0f, 50.0f, 50.0f), insideNormals = true)
         hull.material.diffuse = GLVector(0.2f, 0.2f, 0.2f)
         hull.material.cullingMode = Material.CullingMode.Front
         scene.addChild(hull)
 
+        //lights and camera
+        var pl = emptyArray<PointLight>()
+        for (i in 0..3)
+        {
+            val l = PointLight(radius = 200.0f)
+            l.intensity = 600.0f
+            l.emissionColor = GLVector(1.0f,3)
+
+            scene.addChild(l)
+            pl = pl.plus(l)
+        }
+        pl[0].position = GLVector(0f,10f,0f)
+        pl[1].position = GLVector(0f,-10f,0f)
+        pl[2].position = GLVector(-10f,0f,0f)
+        pl[3].position = GLVector(10f,0f,0f)
+
+        val cam: Camera = DetachedHeadCamera()
+        cam.position = GLVector(0.0f, 0.0f, 15.0f)
+        cam.perspectiveCamera(50.0f, windowWidth.toFloat(), windowHeight.toFloat())
+        cam.active = true
+        scene.addChild(cam)
+    }
+
+
+    private fun useScene() {
         //we shall have faint and bright vectors...
         val matBright = Material()
         matBright.diffuse  = GLVector(0.0f, 1.0f, 0.0f)
@@ -43,7 +75,6 @@ class ArrowExample : SceneryBase("ArrowExample") {
         matFaint.specular = GLVector(1.0f, 1.0f, 1.0f)
         matFaint.cullingMode = Material.CullingMode.None
 
-
         //... arranged along a circle
         val circleCentre = GLVector(0.0f,3)
         val circleRadius = 6.0f
@@ -52,7 +83,7 @@ class ArrowExample : SceneryBase("ArrowExample") {
 
 
         //create the circle of vectors
-        val al = arrayOfNulls<Arrow>(arrowsInCircle)
+        var al = emptyArray<Arrow>()
         var lastPos = GLVector(circleRadius,0f,0f)
         var currPos : GLVector
         for (i in 1..arrowsInCircle)
@@ -75,42 +106,19 @@ class ArrowExample : SceneryBase("ArrowExample") {
             // a.position = newBase
             // ========= this is how you create an Arrow =========
 
-            al[i-1] = a
+            al = al.plus(a)
 
             lastPos = currPos
         }
 
 
-        //create the scene: lights and camera
-        val pl = arrayOfNulls<PointLight>(4)
-        for (i in 1..pl.size)
-        {
-            val l = PointLight(radius = 200.0f)
-            l.intensity = 600.0f
-            l.emissionColor = GLVector(1.0f,3)
-
-            scene.addChild(l)
-            pl[i-1] = l
-        }
-        pl[0]!!.position = GLVector(0f,10f,0f)
-        pl[1]!!.position = GLVector(0f,-10f,0f)
-        pl[2]!!.position = GLVector(-10f,0f,0f)
-        pl[3]!!.position = GLVector(10f,0f,0f)
-
-        val cam: Camera = DetachedHeadCamera()
-        cam.position = GLVector(0.0f, 0.0f, 15.0f)
-        cam.perspectiveCamera(50.0f, windowWidth.toFloat(), windowHeight.toFloat())
-        cam.active = true
-        scene.addChild(cam)
-
-
-        //have some fun...
+        //finally, have some fun...
         thread {
             var i = 0
             while (true) {
-                al[i]!!.material = matFaint
+                al[i].material = matFaint
                 i = (i+1).rem(arrowsInCircle)
-                al[i]!!.material = matBright
+                al[i].material = matBright
 
                 Thread.sleep(150)
             }
