@@ -31,16 +31,17 @@ class MultiBoxInstancedExample : SceneryBase("MultiBoxInstancedExample") {
 
         val container = Mesh()
 
-        val b = Box(GLVector(0.2f, 0.2f, 0.2f))
-        b.material = Material()
-        b.material.diffuse = GLVector(1.0f, 1.0f, 1.0f)
-        b.material.ambient = GLVector(1.0f, 1.0f, 1.0f)
-        b.material.specular = GLVector(1.0f, 1.0f, 1.0f)
+        val b = Box(GLVector(0.7f, 0.7f, 0.7f))
         b.name = "boxmaster"
-
         b.instanceMaster = true
         b.instancedProperties.put("ModelMatrix", { b.model })
         b.material = ShaderMaterial.fromFiles("DefaultDeferredInstanced.vert", "DefaultDeferred.frag")
+        b.material.diffuse = GLVector(1.0f, 1.0f, 1.0f)
+        b.material.ambient = GLVector(1.0f, 1.0f, 1.0f)
+        b.material.specular = GLVector(1.0f, 1.0f, 1.0f)
+        b.material.metallic = 0.0f
+        b.material.roughness = 1.0f
+
         scene.addChild(b)
 
         (0 until (boundaryWidth * boundaryHeight * boundaryHeight).toInt()).map {
@@ -55,9 +56,7 @@ class MultiBoxInstancedExample : SceneryBase("MultiBoxInstancedExample") {
             val j: Double = (it / boundaryWidth).rem(boundaryHeight)
             val i: Double = it / (boundaryWidth * boundaryHeight)
 
-            val jitter = Random.randomVectorFromRange(3, -0.1f, 0.1f)
-
-            inst.position = GLVector(Math.floor(i).toFloat(), Math.floor(j).toFloat(), Math.floor(k).toFloat()) + jitter
+            inst.position = GLVector(Math.floor(i).toFloat(), Math.floor(j).toFloat(), Math.floor(k).toFloat())
             inst.needsUpdate = true
             inst.needsUpdateWorld = true
 
@@ -69,9 +68,9 @@ class MultiBoxInstancedExample : SceneryBase("MultiBoxInstancedExample") {
         val lights = (0..20).map {
             PointLight(radius = 450.0f)
         }.map {
-            it.position = Random.randomVectorFromRange(3, -600.0f, 600.0f)
+            it.position = Random.randomVectorFromRange(3, -100.0f, 100.0f)
             it.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
-            it.intensity = Random.randomFromRange(50.0f, 2000.0f)
+            it.intensity = Random.randomFromRange(0.1f, 5.0f)
 
             scene.addChild(it)
             it
@@ -87,24 +86,9 @@ class MultiBoxInstancedExample : SceneryBase("MultiBoxInstancedExample") {
 
         scene.addChild(hullbox)
 
-        var ticks: Int = 0
-
         thread {
             while (true) {
-                lights.mapIndexed {
-                    i, light ->
-                    val phi = Math.PI * 2.0f * ticks / 1500.0f
-
-                    light.position = GLVector(
-                        i.toFloat() * 10 * Math.sin(phi).toFloat() + Math.exp(i.toDouble()/10.0).toFloat(),
-                        i.toFloat()*5.0f - 100.0f,
-                        i.toFloat() * 10 * Math.cos(phi).toFloat() + Math.exp(i.toDouble()/10.0).toFloat())
-
-                }
-
-                ticks++
-
-                container.rotation.rotateByAngleY(0.001f)
+                container.rotation.rotateByEuler(0.001f, 0.001f, 0.0f)
                 container.needsUpdateWorld = true
                 container.needsUpdate = true
                 container.updateWorld(true, false)

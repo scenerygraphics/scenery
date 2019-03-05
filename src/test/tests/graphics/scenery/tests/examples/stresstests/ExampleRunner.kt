@@ -1,13 +1,11 @@
 package graphics.scenery.tests.examples.stresstests
 
-import graphics.scenery.Hub
 import graphics.scenery.SceneryBase
 import graphics.scenery.SceneryElement
 import graphics.scenery.backends.Renderer
 import graphics.scenery.utils.ExtractsNatives
 import graphics.scenery.utils.LazyLogger
 import org.junit.Test
-import org.lwjgl.glfw.GLFW.glfwTerminate
 import org.reflections.Reflections
 import java.nio.file.Files
 import java.nio.file.Paths
