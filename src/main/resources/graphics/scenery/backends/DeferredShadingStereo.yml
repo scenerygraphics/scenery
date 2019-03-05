@@ -185,7 +185,7 @@ renderpasses:
     parameters:
       TonemappingOperator: 0
       Gamma: 1.8
-      Exposure: 10.0
+      Exposure: 1.0
       WhitePoint: 11.2
   FXAA:
     type: quad
