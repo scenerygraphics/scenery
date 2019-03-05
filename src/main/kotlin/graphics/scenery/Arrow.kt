@@ -77,7 +77,7 @@ class Arrow(var vector: GLVector = GLVector(0f,3)) : Node("Arrow"), HasGeometry 
     /**
      * Changes the shape of this arrow.
      *
-     * @param p The vector defining the shape of the arrow
+     * @param vector The vector defining the shape of the arrow
      */
     fun reshape(vector: GLVector) {
         //init the data structures
@@ -92,29 +92,28 @@ class Arrow(var vector: GLVector = GLVector(0f,3)) : Node("Arrow"), HasGeometry 
         addPoint(vector)
 
         //the "horizontal" base segment of the "arrow head" triangles
-        var base = zeroGLvec
-        if (vector.x() == 0.0f && vector.y() == 0.0f) {
+        var base = if (vector.x() == 0.0f && vector.y() == 0.0f) {
             //the input 'vector' must be parallel to the z-axis,
             //we can use this particular 'base' then
-            base = GLVector(0.0f, 1.0f, 0.0f)
+            GLVector(0.0f, 1.0f, 0.0f)
         }
         else {
             //vector 'base' is perpendicular to the input 'vector'
-            base = GLVector(-vector.y(), vector.x(), 0.0f).normalize()
+            GLVector(-vector.y(), vector.x(), 0.0f).normalize()
         }
 
         //the width of the "arrow head" triangle
-        val V = 0.1f * vector.magnitude()
+        val v = 0.1f * vector.magnitude()
 
         //the first triangle:
-        base = base.times(V)
+        base = base.times(v)
         addPoint(vector.times(0.8f).plus(base))
         addPoint(vector.times(0.8f).minus(base))
         addPoint(vector)
         //NB: the 0.8f defines the height (1-0.8) of the "arrow head" triangle
 
         //the second triangle:
-        base = base.cross(vector).normalize().times(V)
+        base = base.cross(vector).normalize().times(v)
         addPoint(vector.times(0.8f).plus(base))
         addPoint(vector.times(0.8f).minus(base))
         addPoint(vector)
