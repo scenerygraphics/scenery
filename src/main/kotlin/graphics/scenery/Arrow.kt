@@ -23,7 +23,7 @@ import java.nio.IntBuffer
  *
  * @author Vladimir Ulman <ulman@mpi-cbg.de>
  */
-class Arrow(var vector: GLVector) : Node("Arrow"), HasGeometry {
+class Arrow(var vector: GLVector = GLVector(0f,3)) : Node("Arrow"), HasGeometry {
     /** Size of one vertex (e.g. 3 in 3D) */
     override val vertexSize: Int = 3
     /** Size of one texcoord (e.g. 2 in 3D) */
