@@ -64,15 +64,15 @@ class Arrow(var vector: GLVector) : Node("Arrow"), HasGeometry {
     @ShaderProperty
     var edgeWidth = 2.0f
 
+    //shortcut to null vector... to prevent from creating it anew with every call to reshape()
+    private val zeroGLvec = GLVector(0.0f, 0.0f, 0.0f)
+
     init {
         material = ShaderMaterial.fromClass(Line::class.java, listOf(ShaderType.VertexShader, ShaderType.GeometryShader, ShaderType.FragmentShader))
         material.cullingMode = Material.CullingMode.None
 
         reshape(vector)
     }
-
-    //shortcut to null vector... to prevent from creating it anew with every call to reshape()
-    private val zeroGLvec = GLVector(0.0f,0.0f,0.0f)
 
     /**
      * Changes the shape of this arrow.
