@@ -3,7 +3,6 @@ package graphics.scenery.tests.examples.basic
 import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.numerics.Random
 import org.junit.Test
 import kotlin.concurrent.thread
 import kotlin.math.PI
@@ -21,7 +20,6 @@ import kotlin.math.sin
  * @author Vladimir Ulman <ulman@mpi-cbg.de>
  */
 class ArrowExample : SceneryBase("ArrowExample") {
-    protected var lineAnimating = true
 
     override fun init() {
         renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
@@ -84,7 +82,7 @@ class ArrowExample : SceneryBase("ArrowExample") {
 
 
         //create the scene: lights and camera
-        var pl = arrayOfNulls<PointLight>(4)
+        val pl = arrayOfNulls<PointLight>(4)
         for (i in 1..pl.size)
         {
             val l = PointLight(radius = 200.0f)
@@ -111,7 +109,7 @@ class ArrowExample : SceneryBase("ArrowExample") {
             var i = 0
             while (true) {
                 al[i]!!.material = matFaint
-                i = (i+1).mod(arrowsInCircle)
+                i = (i+1).rem(arrowsInCircle)
                 al[i]!!.material = matBright
 
                 Thread.sleep(150)
