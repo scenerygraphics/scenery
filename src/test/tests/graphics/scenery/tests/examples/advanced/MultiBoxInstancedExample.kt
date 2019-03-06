@@ -33,7 +33,6 @@ class MultiBoxInstancedExample : SceneryBase("MultiBoxInstancedExample") {
 
         val b = Box(GLVector(0.7f, 0.7f, 0.7f))
         b.name = "boxmaster"
-        b.instanceMaster = true
         b.instancedProperties.put("ModelMatrix", { b.model })
         b.material = ShaderMaterial.fromFiles("DefaultDeferredInstanced.vert", "DefaultDeferred.frag")
         b.material.diffuse = GLVector(1.0f, 1.0f, 1.0f)
@@ -47,7 +46,6 @@ class MultiBoxInstancedExample : SceneryBase("MultiBoxInstancedExample") {
         (0 until (boundaryWidth * boundaryHeight * boundaryHeight).toInt()).map {
             val inst = Mesh()
             inst.name = "Box_$it"
-            inst.instanceOf = b
             inst.material = b.material
 
             inst.instancedProperties["ModelMatrix"] = { inst.world }
@@ -57,8 +55,6 @@ class MultiBoxInstancedExample : SceneryBase("MultiBoxInstancedExample") {
             val i: Double = it / (boundaryWidth * boundaryHeight)
 
             inst.position = GLVector(Math.floor(i).toFloat(), Math.floor(j).toFloat(), Math.floor(k).toFloat())
-            inst.needsUpdate = true
-            inst.needsUpdateWorld = true
 
             b.instances.add(inst)
             inst.parent = container
@@ -87,13 +83,24 @@ class MultiBoxInstancedExample : SceneryBase("MultiBoxInstancedExample") {
         scene.addChild(hullbox)
 
         thread {
+            while(!sceneInitialized()) {
+                Thread.sleep(200)
+            }
+
             while (true) {
                 container.rotation.rotateByEuler(0.001f, 0.001f, 0.0f)
                 container.needsUpdateWorld = true
                 container.needsUpdate = true
                 container.updateWorld(true, false)
 
-                Thread.sleep(10)
+                val inst = Mesh()
+                inst.instancedProperties["ModelMatrix"] = { inst.world }
+                inst.position = Random.randomVectorFromRange(3, -40.0f, 40.0f)
+                inst.parent = container
+                b.instances.add(inst)
+                b.instances.removeAt(kotlin.random.Random.nextInt(b.instances.size - 1))
+
+                Thread.sleep(200)
             }
         }
     }

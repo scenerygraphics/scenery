@@ -54,12 +54,8 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
             children.forEach { it.visible = v }
             field = v
         }
-    /** Is this Node an instance of another Node? */
-    var instanceOf: Node? = null
     /** instanced properties */
     var instancedProperties = LinkedHashMap<String, () -> Any>()
-    /** flag to set whether this node is an instance master */
-    var instanceMaster: Boolean = false
     /** The Node's lock. */
     override var lock: ReentrantLock = ReentrantLock()
 
