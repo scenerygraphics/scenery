@@ -21,7 +21,6 @@ import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.EXTDebugReport.*
 import org.lwjgl.vulkan.KHRSurface.VK_KHR_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
-import org.lwjgl.vulkan.KHRSwapchain.VK_KHR_SWAPCHAIN_EXTENSION_NAME
 import org.lwjgl.vulkan.KHRWin32Surface.VK_KHR_WIN32_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.KHRXlibSurface.VK_KHR_XLIB_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.MVKMacosSurface.VK_MVK_MACOS_SURFACE_EXTENSION_NAME
@@ -2247,16 +2246,20 @@ open class VulkanRenderer(hub: Hub,
     private fun updateInstanceBuffer(device: VulkanDevice, parentNode: Node, state: VulkanObjectState): VulkanObjectState {
         logger.trace("Updating instance buffer for ${parentNode.name}")
 
-        if (parentNode.instances.isEmpty()) {
+        // parentNode.instances is a CopyOnWrite array list, and here we keep a reference to the original.
+        // If it changes in the meantime, no problemo.
+        val instances = parentNode.instances
+
+        if (instances.isEmpty()) {
             logger.debug("$parentNode has no child instances attached, returning.")
             return state
         }
 
         // first we create a fake UBO to gauge the size of the needed properties
         val ubo = VulkanUBO(device)
-        ubo.fromInstance(parentNode.instances.first())
+        ubo.fromInstance(instances.first())
 
-        val instanceBufferSize = ubo.getSize() * parentNode.instances.size
+        val instanceBufferSize = ubo.getSize() * instances.size
 
         val instanceStagingBuffer = state.vertexBuffers["instanceStaging"]
         val stagingBuffer = if(instanceStagingBuffer != null && instanceStagingBuffer.size >= instanceBufferSize) {
@@ -2277,25 +2280,23 @@ open class VulkanRenderer(hub: Hub,
         ubo.createUniformBuffer()
 
         val index = AtomicInteger(0)
-        parentNode.instances.parallelStream().forEach { node ->
+        instances.parallelStream().forEach { node ->
             node.needsUpdate = true
             node.needsUpdateWorld = true
             node.updateWorld(true, false)
 
-            node.metadata.getOrPut("instanceBufferView") {
-                stagingBuffer.stagingBuffer.duplicate().order(ByteOrder.LITTLE_ENDIAN)
-            }.run {
-                val buffer = this as? ByteBuffer?: return@run
-
-                ubo.populateParallel(buffer, offset = index.getAndIncrement() * ubo.getSize()*1L, elements = node.instancedProperties)
+            stagingBuffer.stagingBuffer.duplicate().order(ByteOrder.LITTLE_ENDIAN).run {
+                ubo.populateParallel(this, offset = index.getAndIncrement() * ubo.getSize()*1L, elements = node.instancedProperties)
             }
         }
 
-        stagingBuffer.stagingBuffer.position(parentNode.instances.size * ubo.getSize())
+        stagingBuffer.stagingBuffer.position(instanceBufferSize)
         stagingBuffer.copyFromStagingBuffer()
 
         val existingInstanceBuffer = state.vertexBuffers["instance"]
-        val instanceBuffer = if (existingInstanceBuffer != null && existingInstanceBuffer.size >= instanceBufferSize) {
+        val instanceBuffer = if (existingInstanceBuffer != null
+            && existingInstanceBuffer.size >= instanceBufferSize
+            && existingInstanceBuffer.size < 1.5*instanceBufferSize) {
             existingInstanceBuffer
         } else {
             logger.debug("Instance buffer for ${parentNode.name} needs to be reallocated due to insufficient size ($instanceBufferSize vs ${state.vertexBuffers["instance"]?.size ?: "<not allocated yet>"})")
@@ -2324,7 +2325,7 @@ open class VulkanRenderer(hub: Hub,
             this.endCommandBuffer(device, commandPools.Standard, queue, flush = true, dealloc = true)
         }
 
-        state.instanceCount = parentNode.instances.size
+        state.instanceCount = instances.size
 
         return state
     }
