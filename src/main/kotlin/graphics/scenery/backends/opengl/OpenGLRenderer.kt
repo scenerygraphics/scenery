@@ -1312,21 +1312,26 @@ open class OpenGLRenderer(hub: Hub,
             throw IllegalStateException("Metadata for ${parentNode.name} is null at updateInstanceBuffer(${parentNode.name}). This is a bug.")
         }
 
+        // parentNode.instances is a CopyOnWrite array list, and here we keep a reference to the original.
+        // If it changes in the meantime, no problemo.
+        val instances = parentNode.instances
         logger.trace("Updating instance buffer for ${parentNode.name}")
 
-        if (parentNode.instances.isEmpty()) {
+        if (instances.isEmpty()) {
             logger.debug("$parentNode has no child instances attached, returning.")
             return state
         }
 
         // first we create a fake UBO to gauge the size of the needed properties
         val ubo = OpenGLUBO()
-        ubo.fromInstance(parentNode.instances.first())
+        ubo.fromInstance(instances.first())
 
-        val instanceBufferSize = ubo.getSize() * parentNode.instances.size
+        val instanceBufferSize = ubo.getSize() * instances.size
 
         val existingStagingBuffer = state.vertexBuffers["instanceStaging"]
-        val stagingBuffer = if(existingStagingBuffer != null && existingStagingBuffer.capacity() >= instanceBufferSize) {
+        val stagingBuffer = if(existingStagingBuffer != null
+            && existingStagingBuffer.capacity() >= instanceBufferSize
+            && existingStagingBuffer.capacity() < 1.5*instanceBufferSize) {
             existingStagingBuffer
         } else {
             logger.debug("${parentNode.name}: Creating new staging buffer with capacity=$instanceBufferSize (${ubo.getSize()} x ${parentNode.instances.size})")
@@ -1339,21 +1344,17 @@ open class OpenGLRenderer(hub: Hub,
         logger.trace("{}: Staging buffer position, {}, cap={}", parentNode.name, stagingBuffer.position(), stagingBuffer.capacity())
 
         val index = AtomicInteger(0)
-        parentNode.instances.parallelStream().forEach { node ->
+        instances.parallelStream().forEach { node ->
             node.needsUpdate = true
             node.needsUpdateWorld = true
             node.updateWorld(true, false)
 
-            node.metadata.getOrPut("instanceBufferView") {
-                stagingBuffer.duplicate().order(ByteOrder.LITTLE_ENDIAN)
-            }.run {
-                val buffer = this as? ByteBuffer?: return@run
-
-                ubo.populateParallel(buffer, offset = index.getAndIncrement() * ubo.getSize()*1L, elements = node.instancedProperties)
+            stagingBuffer.duplicate().order(ByteOrder.LITTLE_ENDIAN).run {
+                ubo.populateParallel(this, offset = index.getAndIncrement() * ubo.getSize()*1L, elements = node.instancedProperties)
             }
         }
 
-        stagingBuffer.position(parentNode.instances.size * ubo.getSize())
+        stagingBuffer.position(instanceBufferSize)
         stagingBuffer.flip()
 
         val instanceBuffer = state.additionalBufferIds.getOrPut("instance") {
