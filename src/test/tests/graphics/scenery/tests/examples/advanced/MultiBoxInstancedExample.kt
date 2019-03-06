@@ -100,7 +100,7 @@ class MultiBoxInstancedExample : SceneryBase("MultiBoxInstancedExample") {
                 b.instances.add(inst)
                 b.instances.removeAt(kotlin.random.Random.nextInt(b.instances.size - 1))
 
-                Thread.sleep(200)
+                Thread.sleep(20)
             }
         }
     }
