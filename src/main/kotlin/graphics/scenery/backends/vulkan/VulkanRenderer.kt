@@ -668,11 +668,6 @@ open class VulkanRenderer(hub: Hub,
 //            .parallelMap(numThreads = System.getProperty("scenery.MaxInitThreads", "1").toInt()) { node ->
             .map { node ->
                 // skip initialization for nodes that are only instance slaves
-                if(node.instanceOf != null) {
-                    node.initialized = true
-                    return@map
-                }
-
                 logger.debug("Initializing object '${node.name}'")
                 node.metadata["VulkanRenderer"] = VulkanObjectState()
 
@@ -746,25 +741,13 @@ open class VulkanRenderer(hub: Hub,
         }
 
         // create custom vertex description if necessary, else use one of the defaults
-        s.vertexDescription = if (node.instanceMaster) {
+        s.vertexDescription = if (node.instances.size > 0) {
             updateInstanceBuffer(device, node, s)
             // TODO: Rewrite shader in case it does not conform to coord/normal/texcoord vertex description
             s.vertexInputType = VertexDataKinds.PositionNormalTexcoord
             vertexDescriptionFromInstancedNode(node, vertexDescriptors[VertexDataKinds.PositionNormalTexcoord]!!)
         } else {
             vertexDescriptors[s.vertexInputType]!!
-        }
-
-        val instanceMaster = node.instanceOf
-        if (instanceMaster != null) {
-            val parentMetadata = instanceMaster.rendererMetadata() ?: throw IllegalStateException("Instance master lacks metadata")
-
-            if (!parentMetadata.initialized) {
-                logger.debug("Instance parent $instanceMaster is not initialized yet, initializing now...")
-                initializeNode(instanceMaster)
-            }
-
-            return true
         }
 
         s = createVertexBuffers(device, node, s)
@@ -835,11 +818,6 @@ open class VulkanRenderer(hub: Hub,
 
         if(!(node.material.blending.transparent || node.material is ShaderMaterial || node.material.cullingMode != Material.CullingMode.Back)) {
             logger.debug("Using default renderpass material for ${node.name}")
-            return false
-        }
-
-        if(node.instanceOf != null) {
-            logger.debug("${node.name} is instance slave, not initializing custom shaders")
             return false
         }
 
@@ -1823,7 +1801,6 @@ open class VulkanRenderer(hub: Hub,
             scene.discover(scene, { n ->
                 n is HasGeometry
                     && n.visible
-                    && n.instanceOf == null
             }, useDiscoveryBarriers = true)
         }
 
@@ -2135,7 +2112,7 @@ open class VulkanRenderer(hub: Hub,
             return state
         }
 
-        if (n.texcoords.remaining() == 0 && node.instanceMaster) {
+        if (n.texcoords.remaining() == 0 && node.instances.size > 0) {
             val buffer = je_calloc(1, 4L * n.vertices.remaining() / n.vertexSize * n.texcoordSize)
 
             if(buffer == null) {
@@ -2612,7 +2589,7 @@ open class VulkanRenderer(hub: Hub,
 
                 // instanced nodes will not be drawn directly, but only the master node.
                 // nodes with no vertices will also not be drawn.
-                if(node.instanceOf != null || s.vertexCount == 0) {
+                if(s.vertexCount == 0) {
                     return@drawLoop
                 }
 
@@ -2653,7 +2630,7 @@ open class VulkanRenderer(hub: Hub,
                 pass.vulkanMetadata.vertexBufferOffsets.limit(1)
                 pass.vulkanMetadata.vertexBuffers.limit(1)
 
-                if(node.instanceMaster && instanceBuffer != null) {
+                if(node.instances.size > 0 && instanceBuffer != null) {
                     pass.vulkanMetadata.vertexBuffers.limit(2)
                     pass.vulkanMetadata.vertexBufferOffsets.limit(2)
 
@@ -2860,7 +2837,7 @@ open class VulkanRenderer(hub: Hub,
     }
 
     private fun updateInstanceBuffers(sceneObjects: Deferred<List<Node>>) = runBlocking {
-        val instanceMasters = sceneObjects.await().filter { it.instanceMaster }
+        val instanceMasters = sceneObjects.await().filter { it.instances.size > 0 }
 
         instanceMasters.forEach { parent ->
             updateInstanceBuffer(device, parent, parent.rendererMetadata()!!)
@@ -2940,7 +2917,7 @@ open class VulkanRenderer(hub: Hub,
             node.lock.withLock {
                 var nodeUpdated: Boolean by StickyBoolean(initial = false)
 
-                if (!node.metadata.containsKey("VulkanRenderer") || node.instanceOf != null) {
+                if (!node.metadata.containsKey("VulkanRenderer")) {
                     return@withLock
                 }
 

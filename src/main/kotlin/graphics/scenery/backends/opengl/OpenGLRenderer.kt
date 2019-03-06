@@ -1293,7 +1293,7 @@ open class OpenGLRenderer(hub: Hub,
     }
 
     private fun updateInstanceBuffers(sceneObjects:List<Node>) {
-        val instanceMasters = sceneObjects.filter { it.instanceMaster }
+        val instanceMasters = sceneObjects.filter { it.instances.size > 0 }
 
         instanceMasters.forEach { parent ->
             var metadata = parent.rendererMetadata()
@@ -1521,7 +1521,6 @@ open class OpenGLRenderer(hub: Hub,
             scene.discover(scene, { n ->
                 n is HasGeometry
                     && n.visible
-                    && n.instanceOf == null
                     && cam.canSee(n)
             }, useDiscoveryBarriers = true)
         }
@@ -1676,10 +1675,6 @@ open class OpenGLRenderer(hub: Hub,
                 var currentShader: OpenGLShaderProgram? = null
 
                 actualObjects.forEach renderLoop@ { n ->
-                    if (n.instanceOf != null) {
-                        return@renderLoop
-                    }
-
                     if (pass.passConfig.renderOpaque && n.material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) {
                         return@renderLoop
                     }
@@ -1845,7 +1840,7 @@ open class OpenGLRenderer(hub: Hub,
                         }
                     }
 
-                    if(n.instanceMaster) {
+                    if(n.instances.size > 0) {
                         drawNodeInstanced(n)
                     } else {
                         drawNode(n)
@@ -2099,27 +2094,7 @@ open class OpenGLRenderer(hub: Hub,
             return false
         }
 
-        val s: OpenGLObjectState
-
-        val instanceOf = node.instanceOf
-        if (instanceOf == null) {
-            s = node.metadata["OpenGLRenderer"] as OpenGLObjectState
-        } else {
-            s = instanceOf.metadata["OpenGLRenderer"] as OpenGLObjectState
-            node.metadata["OpenGLRenderer"] = s
-
-            if (!s.initialized) {
-                logger.trace("Instance not yet initialized, doing now...")
-                initializeNode(instanceOf)
-            }
-
-//            if (!s.additionalBufferIds.containsKey("Model") || !s.additionalBufferIds.containsKey("ModelView") || !s.additionalBufferIds.containsKey("MVP")) {
-//                logger.trace("${node.name} triggered instance buffer creation")
-//                createInstanceBuffer(node.instanceOf!!)
-//                logger.trace("---")
-//            }
-            return true
-        }
+        val s = node.metadata["OpenGLRenderer"] as OpenGLObjectState
 
         if (s.initialized) {
             return true
