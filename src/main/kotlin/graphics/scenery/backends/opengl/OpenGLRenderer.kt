@@ -1335,7 +1335,7 @@ open class OpenGLRenderer(hub: Hub,
             existingStagingBuffer
         } else {
             logger.debug("${parentNode.name}: Creating new staging buffer with capacity=$instanceBufferSize (${ubo.getSize()} x ${parentNode.instances.size})")
-            val buffer = BufferUtils.allocateByte(instanceBufferSize)
+            val buffer = BufferUtils.allocateByte((1.2 * instanceBufferSize).toInt())
 
             state.vertexBuffers["instanceStaging"] = buffer
             buffer
@@ -1354,7 +1354,7 @@ open class OpenGLRenderer(hub: Hub,
             }
         }
 
-        stagingBuffer.position(instanceBufferSize)
+        stagingBuffer.position(stagingBuffer.limit())
         stagingBuffer.flip()
 
         val instanceBuffer = state.additionalBufferIds.getOrPut("instance") {
