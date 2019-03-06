@@ -377,8 +377,15 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
             val boundingBoxCoords = floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
 
             if (vertexBufferView.capacity() == 0) {
-                logger.warn("$name: Zero vertices currently, returning null bounding box")
-                boundingBox = null
+                boundingBox = if(!children.none()) {
+                    getMaximumBoundingBox()
+                } else {
+                    logger.warn("$name: Zero vertices currently, returning empty bounding box")
+                    OrientedBoundingBox(0.0f, 0.0f, 0.0f,
+                        0.0f, 0.0f, 0.0f)
+                }
+
+                return boundingBox
             } else {
 
                 val vertex = floatArrayOf(0.0f, 0.0f, 0.0f)
@@ -411,11 +418,8 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
             }
         } else {
             logger.warn("$name: Assuming 3rd party BB generation")
-            // assume bounding box was created somehow
-            boundingBox = null
+            return boundingBox
         }
-
-        return null
     }
 
     private val shaderPropertyFieldCache = HashMap<String, KProperty1<Node, *>>()
@@ -565,7 +569,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
      * Returns the maximum [OrientedBoundingBox] of this [Node] and all its children.
      */
     fun getMaximumBoundingBox(): OrientedBoundingBox {
-        if(boundingBox == null) {
+        if(boundingBox == null && children.size == 0) {
             return OrientedBoundingBox(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
         }
 
