@@ -2244,7 +2244,7 @@ open class VulkanRenderer(hub: Hub,
         } else {
             logger.debug("Creating new staging buffer")
             val buffer = VulkanBuffer(device,
-                instanceBufferSize * 1L,
+                (1.2 * instanceBufferSize).toLong(),
                 VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
                 wantAligned = true)
@@ -2267,7 +2267,7 @@ open class VulkanRenderer(hub: Hub,
             }
         }
 
-        stagingBuffer.stagingBuffer.position(instanceBufferSize)
+        stagingBuffer.stagingBuffer.position(stagingBuffer.stagingBuffer.limit())
         stagingBuffer.copyFromStagingBuffer()
 
         val existingInstanceBuffer = state.vertexBuffers["instance"]
