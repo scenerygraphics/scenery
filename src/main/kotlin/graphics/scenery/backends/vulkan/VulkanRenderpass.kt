@@ -285,7 +285,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                 }
 
                 if(!entry.key.startsWith("Global.") && !entry.key.startsWith("Pass.")) {
-                    settings.set(settingsKey, value)
+                    settings.setIfUnset(settingsKey, value)
                 }
 
                 ubo.add(entry.key, { settings.get(settingsKey) })
