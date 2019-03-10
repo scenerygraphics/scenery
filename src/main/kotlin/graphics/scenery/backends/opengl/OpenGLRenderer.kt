@@ -79,6 +79,7 @@ open class OpenGLRenderer(hub: Hub,
                           var embedInDrawable: GLAutoDrawable? = null) : Renderer(), Hubable, ClearGLEventListener {
     /** slf4j logger */
     private val logger by LazyLogger()
+    private val className = this.javaClass.simpleName
     /** [GL4] instance handed over, coming from [ClearGLDefaultEventListener]*/
     private lateinit var gl: GL4
     /** should the window close on next looping? */
@@ -765,7 +766,7 @@ open class OpenGLRenderer(hub: Hub,
     override fun display(pDrawable: GLAutoDrawable) {
         val fps = pDrawable.animator?.lastFPS ?: 0.0f
 
-        window.setTitle("$applicationName [${this@OpenGLRenderer.javaClass.simpleName}] - ${fps.toInt()} fps")
+        window.setTitle("$applicationName [${this@OpenGLRenderer.className}] - ${fps.toInt()} fps")
 
         this.joglDrawable = pDrawable
 
@@ -1035,25 +1036,25 @@ open class OpenGLRenderer(hub: Hub,
             OpenGLUBO(backingBuffer = findBuffer("VRParameters"))
         }
 
-        vrUbo.add("projection0", {
+        vrUbo.addIfMissing("projection0", {
             (hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance)
                 ?: cam.projection)
         })
-        vrUbo.add("projection1", {
+        vrUbo.addIfMissing("projection1", {
             (hmd?.getEyeProjection(1, cam.nearPlaneDistance, cam.farPlaneDistance)
                 ?: cam.projection)
         })
-        vrUbo.add("inverseProjection0", {
+        vrUbo.addIfMissing("inverseProjection0", {
             (hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance)
                 ?: cam.projection).inverse
         })
-        vrUbo.add("inverseProjection1", {
+        vrUbo.addIfMissing("inverseProjection1", {
             (hmd?.getEyeProjection(1, cam.nearPlaneDistance, cam.farPlaneDistance)
                 ?: cam.projection).inverse
         })
-        vrUbo.add("headShift", { hmd?.getHeadToEyeTransform(0) ?: GLMatrix.getIdentity() })
-        vrUbo.add("IPD", { hmd?.getIPD() ?: 0.05f })
-        vrUbo.add("stereoEnabled", { renderConfig.stereoEnabled.toInt() })
+        vrUbo.addIfMissing("headShift", { hmd?.getHeadToEyeTransform(0) ?: GLMatrix.getIdentity() })
+        vrUbo.addIfMissing("IPD", { hmd?.getIPD() ?: 0.05f })
+        vrUbo.addIfMissing("stereoEnabled", { renderConfig.stereoEnabled.toInt() })
 
         updated = vrUbo.populate()
         buffers["VRParameters"]!!.copyFromStagingBuffer()
@@ -1064,11 +1065,11 @@ open class OpenGLRenderer(hub: Hub,
         sceneUBOs.forEach { node ->
             node.lock.withLock {
                 var nodeUpdated: Boolean by StickyBoolean(initial = false)
-                if (!node.metadata.containsKey(this.javaClass.simpleName)) {
+                if (!node.metadata.containsKey(className)) {
                     return@withLock
                 }
 
-                val s = node.metadata[this.javaClass.simpleName] as OpenGLObjectState
+                val s = node.metadata[className] as OpenGLObjectState
 
                 val ubo = s.UBOs["Matrices"]
                 if(ubo?.backingBuffer == null) {
@@ -1104,7 +1105,7 @@ open class OpenGLRenderer(hub: Hub,
                     false
                 }
 
-                if(nodeUpdated) {
+                if(nodeUpdated && node.getScene()?.onNodePropertiesChanged?.isNotEmpty() == true) {
                     GlobalScope.launch { node.getScene()?.onNodePropertiesChanged?.forEach { it.value.invoke(node) } }
                 }
 
@@ -1121,13 +1122,13 @@ open class OpenGLRenderer(hub: Hub,
             OpenGLUBO(backingBuffer = findBuffer("LightParameters"))
         }
 
-        lightUbo.add("ViewMatrix0", { cam.getTransformationForEye(0) })
-        lightUbo.add("ViewMatrix1", { cam.getTransformationForEye(1) })
-        lightUbo.add("InverseViewMatrix0", { cam.getTransformationForEye(0).inverse })
-        lightUbo.add("InverseViewMatrix1", { cam.getTransformationForEye(1).inverse })
-        lightUbo.add("ProjectionMatrix", { cam.projection })
-        lightUbo.add("InverseProjectionMatrix", { cam.projection.inverse })
-        lightUbo.add("CamPosition", { cam.position })
+        lightUbo.addIfMissing("ViewMatrix0", { cam.getTransformationForEye(0) })
+        lightUbo.addIfMissing("ViewMatrix1", { cam.getTransformationForEye(1) })
+        lightUbo.addIfMissing("InverseViewMatrix0", { cam.getTransformationForEye(0).inverse })
+        lightUbo.addIfMissing("InverseViewMatrix1", { cam.getTransformationForEye(1).inverse })
+        lightUbo.addIfMissing("ProjectionMatrix", { cam.projection })
+        lightUbo.addIfMissing("InverseProjectionMatrix", { cam.projection.inverse })
+        lightUbo.addIfMissing("CamPosition", { cam.position })
 //        lightUbo.add("numLights", { lights.size })
 
 //        lights.forEachIndexed { i, light ->
@@ -1940,6 +1941,7 @@ open class OpenGLRenderer(hub: Hub,
         }
 
         logger.trace("Running viewport pass")
+        val startPass = System.nanoTime()
         val viewportPass = renderpasses[flow.last()]!!
         gl.glBindFramebuffer(GL4.GL_DRAW_FRAMEBUFFER, 0)
 
@@ -2047,6 +2049,8 @@ open class OpenGLRenderer(hub: Hub,
             screenshotOverwriteExisting = false
             screenshotRequested = false
         }
+
+        stats?.add("Renderer.${flow.last()}.renderTiming", System.nanoTime() - startPass)
 
         updateLatch?.countDown()
         firstImageReady = true
@@ -2213,23 +2217,20 @@ open class OpenGLRenderer(hub: Hub,
 
         s.initialized = true
         node.initialized = true
-        node.metadata[this.javaClass.simpleName] = s
+        node.metadata[className] = s
 
         s.initialized = true
         node.lock.unlock()
         return true
     }
 
+    private val defaultTextureNames = arrayOf("ambient", "diffuse", "specular", "normal", "alphamask", "displacement")
+
     private fun Node.materialToMaterialType(): Int {
         var materialType = 0
         val s = this.metadata["OpenGLRenderer"] as? OpenGLObjectState ?: return 0
 
-        s.defaultTexturesFor.clear()
-        arrayOf("ambient", "diffuse", "specular", "normal", "alphamask", "displacement").forEach {
-            if (!s.textures.containsKey(it)) {
-                s.defaultTexturesFor.add(it)
-            }
-        }
+
 
         if (this.material.textures.containsKey("ambient") && !s.defaultTexturesFor.contains("ambient")) {
             materialType = materialType or MATERIAL_HAS_AMBIENT
@@ -2403,6 +2404,15 @@ open class OpenGLRenderer(hub: Hub,
                     }
                 } else {
                     s.textures[type] = textureCache[texture]!!
+                }
+            }
+
+            // update default textures
+            // s.defaultTexturesFor = defaultTextureNames.mapNotNull { if(!s.textures.containsKey(it)) { it } else { null } }.toHashSet()
+            s.defaultTexturesFor.clear()
+            defaultTextureNames.forEach {
+                if (!s.textures.containsKey(it)) {
+                    s.defaultTexturesFor.add(it)
                 }
             }
 

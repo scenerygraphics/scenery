@@ -6,6 +6,7 @@ import graphics.scenery.utils.LazyLogger
 import java.nio.ByteBuffer
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.collections.HashSet
 
 /**
  * OpenGLObjectState stores the OpenGL metadata that is needed for rendering a node
