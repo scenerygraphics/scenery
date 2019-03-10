@@ -83,18 +83,15 @@ const vec2 sampleDirections[] = vec2[](
     vec2(-0.369895, 0.929074)
 );
 
-vec3 worldFromDepth(float depth, vec2 texcoord) {
-    vec2 uv = (vrParameters.stereoEnabled ^ 1) * texcoord + vrParameters.stereoEnabled * vec2((texcoord.x - 0.5 * currentEye.eye) * 2.0, texcoord.y);
-
-	mat4 invProjection = (vrParameters.stereoEnabled ^ 1) * InverseProjectionMatrix + vrParameters.stereoEnabled * vrParameters.inverseProjectionMatrices[currentEye.eye];
-	mat4 invView = (vrParameters.stereoEnabled ^ 1) * InverseViewMatrices[0] + vrParameters.stereoEnabled * (InverseViewMatrices[currentEye.eye] );
-
+vec3 worldFromDepth(float depth, vec2 texcoord, const mat4 invProjection, const mat4 invView) {
 #ifndef OPENGL
-    vec4 clipSpacePosition = vec4(uv * 2.0 - 1.0, depth, 1.0);
+    vec3 clipSpacePosition = vec3(texcoord * 2.0 - 1.0, depth);
 #else
-    vec4 clipSpacePosition = vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
+    vec3 clipSpacePosition = vec3(texcoord * 2.0 - 1.0, depth * 2.0 - 1.0);
 #endif
-    vec4 viewSpacePosition = invProjection * clipSpacePosition;
+    vec4 viewSpacePosition = vec4(vec2(invProjection[0][0], invProjection[1][1]) * clipSpacePosition.xy,
+                                       -1.0,
+                                       invProjection[2][3] * clipSpacePosition.z + invProjection[3][3]);
 
     viewSpacePosition /= viewSpacePosition.w;
     vec4 world = invView * viewSpacePosition;
@@ -156,7 +153,7 @@ float ComputeAO(vec3 P, vec3 N, vec3 S)
   return clamp(NdotV - bias, 0.0, 1.0) * clamp(Falloff(VdotV), 0.0, 1.0);
 }
 
-float ComputeCoarseAO(vec2 FullResUV, float RadiusPixels, vec4 Rand, vec3 ViewPosition, vec3 ViewNormal, vec2 invRes)
+float ComputeCoarseAO(vec2 FullResUV, float RadiusPixels, vec4 Rand, vec3 ViewPosition, vec3 ViewNormal, vec2 invRes, const mat4 invProjection, const mat4 invView)
 {
   const float aoStrength = 1.0f/(1.0f - bias);
   // Divide by NUM_STEPS+1 so that the farthest samples are not fully attenuated
@@ -179,7 +176,7 @@ float ComputeCoarseAO(vec2 FullResUV, float RadiusPixels, vec4 Rand, vec3 ViewPo
     {
       vec2 SnappedUV = round(RayPixels * Direction) * invRes + FullResUV;
       float d = texture(InputZBuffer, SnappedUV).r;
-      vec3 S = worldFromDepth(d, SnappedUV);
+      vec3 S = worldFromDepth(d, SnappedUV, invProjection, invView);
 
       RayPixels += StepSizePixels;
 
@@ -208,13 +205,16 @@ void main() {
   textureCoord = (vrParameters.stereoEnabled ^ 1) * textureCoord + vrParameters.stereoEnabled * vec2((textureCoord.x - 0.5 * currentEye.eye) * 2.0, textureCoord.y);
   mat4 projectionMatrix = Vertex.projectionMatrix;
 
+  mat4 invProjection = (vrParameters.stereoEnabled ^ 1) * InverseProjectionMatrix + vrParameters.stereoEnabled * vrParameters.inverseProjectionMatrices[currentEye.eye];
+  mat4 invView = (vrParameters.stereoEnabled ^ 1) * InverseViewMatrices[0] + vrParameters.stereoEnabled * (InverseViewMatrices[currentEye.eye] );
+
   float depth = texture(InputZBuffer, textureCoord).r;
   float near = projectionMatrix[2][3]/(projectionMatrix[2][2] - 1.0);
   float far = projectionMatrix[2][3]/(projectionMatrix[2][2] + 1.0);
   float z = 2.0 * depth - 1.0;
   float linearDepth = (2 * near * far)/(far + near - z * (far - near));
 
-  vec3 ViewPosition = worldFromDepth(depth, textureCoord);
+  vec3 ViewPosition = worldFromDepth(depth, textureCoord, invProjection, invView);
   vec3 ViewNormal = DecodeOctaH(texture(InputNormalsMaterial, textureCoord).rg);
 
   float fov = atan(1.0f/projectionMatrix[1][1]) * 2.0f;
@@ -223,7 +223,7 @@ void main() {
   float RadiusPixels = radiusToScreen / (linearDepth);
 
   vec4 Rand = GetJitter();
-  float AO = ComputeCoarseAO(textureCoord, RadiusPixels, Rand, ViewPosition, ViewNormal, invRes);
+  float AO = ComputeCoarseAO(textureCoord, RadiusPixels, Rand, ViewPosition, ViewNormal, invRes, invProjection, invView);
 
   FragColor = pow(AO, occlusionExponent);
 }
