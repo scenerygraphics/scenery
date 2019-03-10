@@ -503,6 +503,10 @@ open class OpenGLRenderer(hub: Hub,
                 }
             }
         }
+
+        while(!initialized) {
+            Thread.sleep(20)
+        }
     }
 
     override fun init(pDrawable: GLAutoDrawable) {
@@ -546,7 +550,6 @@ open class OpenGLRenderer(hub: Hub,
 //        gl.glEnable(GL4.GL_TEXTURE_GATHER)
         gl.glEnable(GL4.GL_PROGRAM_POINT_SIZE)
 
-        initialized = true
 
         heartbeatTimer.scheduleAtFixedRate(object : TimerTask() {
             override fun run() {
@@ -576,7 +579,7 @@ open class OpenGLRenderer(hub: Hub,
             }
         }, 0, 1000)
 
-        initializeScene()
+        initialized = true
     }
 
     private fun Node.rendererMetadata(): OpenGLObjectState? {
@@ -1477,6 +1480,11 @@ open class OpenGLRenderer(hub: Hub,
      */
     @Synchronized override fun render() = runBlocking {
         if(!initialized) {
+            return@runBlocking
+        }
+
+        if (scene.children.count() == 0 || !scene.initialized) {
+            initializeScene()
             return@runBlocking
         }
 
