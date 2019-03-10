@@ -1122,13 +1122,13 @@ open class OpenGLRenderer(hub: Hub,
             OpenGLUBO(backingBuffer = findBuffer("LightParameters"))
         }
 
-        lightUbo.addIfMissing("ViewMatrix0", { cam.getTransformationForEye(0) })
-        lightUbo.addIfMissing("ViewMatrix1", { cam.getTransformationForEye(1) })
-        lightUbo.addIfMissing("InverseViewMatrix0", { cam.getTransformationForEye(0).inverse })
-        lightUbo.addIfMissing("InverseViewMatrix1", { cam.getTransformationForEye(1).inverse })
-        lightUbo.addIfMissing("ProjectionMatrix", { cam.projection })
-        lightUbo.addIfMissing("InverseProjectionMatrix", { cam.projection.inverse })
-        lightUbo.addIfMissing("CamPosition", { cam.position })
+        lightUbo.add("ViewMatrix0", { cam.getTransformationForEye(0) })
+        lightUbo.add("ViewMatrix1", { cam.getTransformationForEye(1) })
+        lightUbo.add("InverseViewMatrix0", { cam.getTransformationForEye(0).inverse })
+        lightUbo.add("InverseViewMatrix1", { cam.getTransformationForEye(1).inverse })
+        lightUbo.add("ProjectionMatrix", { cam.projection })
+        lightUbo.add("InverseProjectionMatrix", { cam.projection.inverse })
+        lightUbo.add("CamPosition", { cam.position })
 //        lightUbo.add("numLights", { lights.size })
 
 //        lights.forEachIndexed { i, light ->
