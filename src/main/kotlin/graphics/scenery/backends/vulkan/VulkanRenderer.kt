@@ -2910,25 +2910,25 @@ open class VulkanRenderer(hub: Hub,
 
         buffers["VRParametersBuffer"]!!.reset()
         val vrUbo = defaultUBOs["VRParameters"]!!
-        vrUbo.add("projection0", {
+        vrUbo.addIfMissing("projection0", {
             (hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance)
                 ?: cam.projection).applyVulkanCoordinateSystem()
         })
-        vrUbo.add("projection1", {
+        vrUbo.addIfMissing("projection1", {
             (hmd?.getEyeProjection(1, cam.nearPlaneDistance, cam.farPlaneDistance)
                 ?: cam.projection).applyVulkanCoordinateSystem()
         })
-        vrUbo.add("inverseProjection0", {
+        vrUbo.addIfMissing("inverseProjection0", {
             (hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance)
                 ?: cam.projection).applyVulkanCoordinateSystem().inverse
         })
-        vrUbo.add("inverseProjection1", {
+        vrUbo.addIfMissing("inverseProjection1", {
             (hmd?.getEyeProjection(1, cam.nearPlaneDistance, cam.farPlaneDistance)
                 ?: cam.projection).applyVulkanCoordinateSystem().inverse
         })
-        vrUbo.add("headShift", { hmd?.getHeadToEyeTransform(0) ?: GLMatrix.getIdentity() })
-        vrUbo.add("IPD", { hmd?.getIPD() ?: 0.05f })
-        vrUbo.add("stereoEnabled", { renderConfig.stereoEnabled.toInt() })
+        vrUbo.addIfMissing("headShift", { hmd?.getHeadToEyeTransform(0) ?: GLMatrix.getIdentity() })
+        vrUbo.addIfMissing("IPD", { hmd?.getIPD() ?: 0.05f })
+        vrUbo.addIfMissing("stereoEnabled", { renderConfig.stereoEnabled.toInt() })
 
         updated = vrUbo.populate()
 
@@ -2977,7 +2977,7 @@ open class VulkanRenderer(hub: Hub,
                     propertyUbo.offsets.limit(1)
                 }
 
-                if(nodeUpdated) {
+                if(nodeUpdated && node.getScene()?.onNodePropertiesChanged?.isNotEmpty() == true) {
                     GlobalScope.launch { node.getScene()?.onNodePropertiesChanged?.forEach { it.value.invoke(node) } }
                 }
 
