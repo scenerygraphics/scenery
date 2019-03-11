@@ -36,3 +36,6 @@ log.txt
 
 # demo models
 models/
+
+# ExampleRunner logs
+ExampleRunner-*/

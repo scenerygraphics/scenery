@@ -75,7 +75,7 @@ class OpenGLRenderpass(var passName: String = "", var passConfig: RenderConfigRe
                 }
 
                 if (!entry.key.startsWith("Global") && !entry.key.startsWith("Pass.")) {
-                    settings.set(settingsKey, value)
+                    settings.setIfUnset(settingsKey, value)
                 }
 
                 ubo.add(entry.key, { settings.get(settingsKey) })

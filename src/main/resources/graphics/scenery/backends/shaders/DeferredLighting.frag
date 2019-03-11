@@ -43,6 +43,12 @@ layout(set = 1, binding = 0) uniform LightParameters {
     vec3 CamPosition;
 };
 
+layout(set = 2, binding = 0) uniform Matrices {
+	mat4 ModelMatrix;
+	mat4 NormalMatrix;
+	int isBillboard;
+} ubo;
+
 layout(push_constant) uniform currentEye_t {
     int eye;
 } currentEye;
@@ -133,22 +139,32 @@ vec3 DecodeOctaH( vec2 encN )
     return n;
 }
 
-vec3 worldFromDepth(float depth, vec2 texcoord) {
-    vec2 uv = (vrParameters.stereoEnabled ^ 1) * texcoord + vrParameters.stereoEnabled * vec2((texcoord.x - 0.5 * currentEye.eye) * 2.0, texcoord.y);
-
-	mat4 invProjection = (vrParameters.stereoEnabled ^ 1) * InverseProjectionMatrix + vrParameters.stereoEnabled * vrParameters.inverseProjectionMatrices[currentEye.eye];
-	mat4 invView = (vrParameters.stereoEnabled ^ 1) * InverseViewMatrices[0] + vrParameters.stereoEnabled * (InverseViewMatrices[currentEye.eye] );
-
+vec3 worldFromDepth(float depth, vec2 texcoord, const mat4 invProjection, const mat4 invView) {
 #ifndef OPENGL
-    vec4 clipSpacePosition = vec4(uv * 2.0 - 1.0, depth, 1.0);
+    vec3 clipSpacePosition = vec3(texcoord * 2.0 - 1.0, depth);
 #else
-    vec4 clipSpacePosition = vec4(uv * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
+    vec3 clipSpacePosition = vec3(texcoord * 2.0 - 1.0, depth * 2.0 - 1.0);
 #endif
-    vec4 viewSpacePosition = invProjection * clipSpacePosition;
+    vec4 viewSpacePosition = vec4(vec2(invProjection[0][0], invProjection[1][1]) * clipSpacePosition.xy,
+                                       -1.0,
+                                       invProjection[2][3] * clipSpacePosition.z + invProjection[3][3]);
 
     viewSpacePosition /= viewSpacePosition.w;
     vec4 world = invView * viewSpacePosition;
     return world.xyz;
+}
+
+vec3 viewFromDepth(float depth, vec2 texcoord, const mat4 invProjection) {
+#ifndef OPENGL
+    vec4 clipSpacePosition = vec4(texcoord * 2.0 - 1.0, depth, 1.0);
+#else
+    vec4 clipSpacePosition = vec4(texcoord * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
+#endif
+    vec4 viewSpacePosition = vec4(vec2(invProjection[0][0], invProjection[1][1]) * clipSpacePosition.xy,
+                                           -1.0,
+                                           invProjection[2][3] * clipSpacePosition.z + invProjection[3][3]);
+    viewSpacePosition /= viewSpacePosition.w;
+    return viewSpacePosition.xyz;
 }
 
 
@@ -184,10 +200,283 @@ vec2 alphabeta(float NdotL, float NdotV) {
     return ab;
 }
 
+#define Point2 vec2
+#define Point3 vec3
+#define Vector2 vec2
+#define Vector3 vec3
+#define Vector4 vec4
+#define float3 vec3
+#define float2 vec2
+#define Color3 vec3
+#define int2 ivec2
+
+float distanceSquared(vec2 a, vec2 b) { a -= b; return dot(a, a); }
+
+void swap(inout float lhs, inout float rhs) {
+	float tmp = lhs;
+	lhs = rhs;
+	rhs = tmp;
+}
+
+// Returns true if the ray hit something
+bool traceScreenSpaceRay1
+   (Point3          csOrigin,
+    Vector3         csDirection,
+    mat4x4          projectToPixelMatrix,
+    mat4            invProjection,
+    sampler2D       csZBuffer,
+    float2          csZBufferSize,
+    float           csZThickness,
+    const in bool   csZBufferIsHyperbolic,
+    float3          clipInfo,
+    float           nearPlaneZ,
+    float			stride,
+    float           jitterFraction,
+    float           maxSteps,
+    in float        maxRayTraceDistance,
+    out Point2      hitPixel,
+    out int         hitLayer,
+	out Point3		csHitPoint,
+    out Color3      debugColor
+    ) {
+    debugColor = Color3(0);
+    // Clip ray to a near plane in 3D (doesn't have to be *the* near plane, although that would be a good idea)
+    float rayLength = ((csOrigin.z + csDirection.z * maxRayTraceDistance) > nearPlaneZ) ?
+                        (nearPlaneZ - csOrigin.z) / csDirection.z :
+                        maxRayTraceDistance;
+	Point3 csEndPoint = csDirection * rayLength + csOrigin;
+
+    // Project into screen space
+    Vector4 H0 = projectToPixelMatrix * Vector4(csOrigin, 1.0);
+    Vector4 H1 = projectToPixelMatrix * Vector4(csEndPoint, 1.0);
+
+    // There are a lot of divisions by w that can be turned into multiplications
+    // at some minor precision loss...and we need to interpolate these 1/w values
+    // anyway.
+    //
+    // Because the caller was required to clip to the near plane,
+    // this homogeneous division (projecting from 4D to 2D) is guaranteed
+    // to succeed.
+    float k0 = 1.0 / H0.w;
+    float k1 = 1.0 / H1.w;
+
+    // Switch the original points to values that interpolate linearly in 2D
+    Point3 Q0 = csOrigin * k0;
+    Point3 Q1 = csEndPoint * k1;
+
+	// Screen-space endpoints
+    Point2 P0 = H0.xy * k0;
+    Point2 P1 = H1.xy * k1;
+
+    // [Optional clipping to frustum sides here]
+
+    // Initialize to off screen
+    hitPixel = Point2(-1.0, -1.0);
+    hitLayer = 0; // Only one layer
+
+    // If the line is degenerate, make it cover at least one pixel
+    // to avoid handling zero-pixel extent as a special case later
+    P1 += Vector2((distanceSquared(P0, P1) < 0.0001) ? 0.01 : 0.0);
+
+    Vector2 delta = P1 - P0;
+
+    // Permute so that the primary iteration is in x to reduce
+    // large branches later
+    bool permute = (abs(delta.x) < abs(delta.y));
+	if (permute) {
+		// More-vertical line. Create a permutation that swaps x and y in the output
+        // by directly swizzling the inputs.
+		delta = delta.yx;
+		P1 = P1.yx;
+		P0 = P0.yx;
+	}
+
+	// From now on, "x" is the primary iteration direction and "y" is the secondary one
+    float stepDirection = sign(delta.x);
+    float invdx = stepDirection / delta.x;
+    Vector2 dP = Vector2(stepDirection, invdx * delta.y);
+
+    // Track the derivatives of Q and k
+    Vector3 dQ = (Q1 - Q0) * invdx;
+    float   dk = (k1 - k0) * invdx;
+
+    // Because we test 1/2 a texel forward along the ray, on the very last iteration
+    // the interpolation can go past the end of the ray. Use these bounds to clamp it.
+    float zMin = min(csEndPoint.z, csOrigin.z);
+    float zMax = max(csEndPoint.z, csOrigin.z);
+
+    // Scale derivatives by the desired pixel stride
+	dP *= stride; dQ *= stride; dk *= stride;
+
+    // Offset the starting values by the jitter fraction
+	P0 += dP * jitterFraction; Q0 += dQ * jitterFraction; k0 += dk * jitterFraction;
+
+	// Slide P from P0 to P1, (now-homogeneous) Q from Q0 to Q1, and k from k0 to k1
+    Point3 Q = Q0;
+    float  k = k0;
+
+	// We track the ray depth at +/- 1/2 pixel to treat pixels as clip-space solid
+	// voxels. Because the depth at -1/2 for a given pixel will be the same as at
+	// +1/2 for the previous iteration, we actually only have to compute one value
+	// per iteration.
+	float prevZMaxEstimate = csOrigin.z;
+    float stepCount = 0.0;
+    float rayZMax = prevZMaxEstimate, rayZMin = prevZMaxEstimate;
+    float sceneZMax = rayZMax + 1e4;
+
+    // P1.x is never modified after this point, so pre-scale it by
+    // the step direction for a signed comparison
+    float end = P1.x * stepDirection;
+
+    // We only advance the z field of Q in the inner loop, since
+    // Q.xy is never used until after the loop terminates.
+
+    Point2 P;
+	for (P = P0;
+        ((P.x * stepDirection) <= end) &&
+        (stepCount < maxSteps) &&
+        ((rayZMax < sceneZMax - csZThickness) ||
+            (rayZMin > sceneZMax)) &&
+        (sceneZMax != 0.0);
+        P += dP, Q.z += dQ.z, k += dk, stepCount += 1.0) {
+
+        // The depth range that the ray covers within this loop
+        // iteration.  Assume that the ray is moving in increasing z
+        // and swap if backwards.  Because one end of the interval is
+        // shared between adjacent iterations, we track the previous
+        // value and then swap as needed to ensure correct ordering
+        rayZMin = prevZMaxEstimate;
+
+        // Compute the value at 1/2 step into the future
+        rayZMax = (dQ.z * 0.5 + Q.z) / (dk * 0.5 + k);
+        rayZMax = clamp(rayZMax, zMin, zMax);
+		prevZMaxEstimate = rayZMax;
+
+        // Since we don't know if the ray is stepping forward or backward in depth,
+        // maybe swap. Note that we preserve our original z "max" estimate first.
+        if (rayZMin > rayZMax) { swap(rayZMin, rayZMax); }
+
+        // Camera-space z of the background
+        hitPixel = permute ? P.yx : P;
+        sceneZMax = texelFetch(csZBuffer, int2(hitPixel), 0).r;
+
+        // This compiles away when csZBufferIsHyperbolic = false
+        // UNUSED
+        if (csZBufferIsHyperbolic) {
+//            sceneZMax = reconstructCSZ(sceneZMax, clipInfo);
+			sceneZMax = viewFromDepth(sceneZMax, hitPixel, invProjection).z;
+        }
+    } // pixel on ray
+
+    // Undo the last increment, which ran after the test variables
+    // were set up.
+    P -= dP; Q.z -= dQ.z; k -= dk; stepCount -= 1.0;
+
+    bool hit = (rayZMax >= sceneZMax - csZThickness) && (rayZMin <= sceneZMax);
+
+    // If using non-unit stride and we hit a depth surface...
+    if ((stride > 1) && hit) {
+        // Refine the hit point within the last large-stride step
+
+        // Retreat one whole stride step from the previous loop so that
+        // we can re-run that iteration at finer scale
+        P -= dP; Q.z -= dQ.z; k -= dk; stepCount -= 1.0;
+
+        // Take the derivatives back to single-pixel stride
+        float invStride = 1.0 / stride;
+        dP *= invStride; dQ.z *= invStride; dk *= invStride;
+
+        // For this test, we don't bother checking thickness or passing the end, since we KNOW there will
+        // be a hit point. As soon as
+        // the ray passes behind an object, call it a hit. Advance (stride + 1) steps to fully check this
+        // interval (we could skip the very first iteration, but then we'd need identical code to prime the loop)
+        float refinementStepCount = 0;
+
+        // This is the current sample point's z-value, taken back to camera space
+        prevZMaxEstimate = Q.z / k;
+        rayZMin = prevZMaxEstimate;
+
+        // Ensure that the FOR-loop test passes on the first iteration since we
+        // won't have a valid value of sceneZMax to test.
+        sceneZMax = rayZMin - 1e7;
+
+        for (;
+            (refinementStepCount <= stride*1.4) &&
+            (rayZMin > sceneZMax) && (sceneZMax != 0.0);
+            P += dP, Q.z += dQ.z, k += dk, refinementStepCount += 1.0) {
+
+            rayZMin = prevZMaxEstimate;
+
+            // Compute the ray camera-space Z value at 1/2 fine step (pixel) into the future
+            rayZMax = (dQ.z * 0.5 + Q.z) / (dk * 0.5 + k);
+            rayZMax = clamp(rayZMax, zMin, zMax);
+
+            prevZMaxEstimate = rayZMax;
+            rayZMin = min(rayZMax, rayZMin);
+
+            hitPixel = permute ? P.yx : P;
+            sceneZMax = texelFetch(csZBuffer, int2(hitPixel), 0).r;
+
+            if (csZBufferIsHyperbolic) {
+//                sceneZMax = reconstructCSZ(sceneZMax, clipInfo);
+                sceneZMax = viewFromDepth(sceneZMax, hitPixel, invProjection).z;
+            }
+        }
+
+        // Undo the last increment, which happened after the test variables were set up
+        Q.z -= dQ.z; refinementStepCount -= 1;
+
+        // Count the refinement steps as fractions of the original stride. Save a register
+        // by not retaining invStride until here
+        stepCount += refinementStepCount / stride;
+      //  debugColor = vec3(refinementStepCount / stride);
+    } // refinement
+
+    Q.xy += dQ.xy * stepCount;
+	csHitPoint = Q * (1.0 / k);
+
+    // Support debugging. This will compile away if debugColor is unused
+    if ((P.x * stepDirection) > end) {
+        // Hit the max ray distance -> blue
+        debugColor = vec3(0,0,1);
+    } else if (stepCount >= maxSteps) {
+        // Ran out of steps -> red
+        debugColor = vec3(1,0,0);
+    } else if (sceneZMax == 0.0) {
+        // Went off screen -> yellow
+        debugColor = vec3(1,1,0);
+    } else {
+        // Encountered a valid hit -> green
+        // ((rayZMax >= sceneZMax - csZThickness) && (rayZMin <= sceneZMax))
+        debugColor = vec3(0,1,0);
+    }
+
+    // Does the last point discovered represent a valid hit?
+    return hit;
+}
+
 
 void main()
 {
+	/*mat4 viewMatrix = (vrParameters.stereoEnabled ^ 1) * ViewMatrices[0] + (vrParameters.stereoEnabled * ViewMatrices[currentEye.eye]);
+    mat4 mv = viewMatrix * ubo.ModelMatrix;
+    float halfW = displayWidth/2.0f;
+    float halfH = displayHeight/2.0f;
+    mat4 toPixel = mat4(
+        halfW, 0.0f, 0.0f, halfW,
+        0, -halfH, 0.0f, halfH,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f);
+
+	mat4 projectionMatrix = (vrParameters.stereoEnabled ^ 1) * ProjectionMatrix + vrParameters.stereoEnabled * vrParameters.projectionMatrices[currentEye.eye];
+	mat4 mvp = projectionMatrix*mv;*/
+
     vec2 textureCoord = gl_FragCoord.xy/vec2(displayWidth, displayHeight);
+	vec2 uv = (vrParameters.stereoEnabled ^ 1) * textureCoord + vrParameters.stereoEnabled * vec2((textureCoord.x - 0.5 * currentEye.eye) * 2.0, textureCoord.y);
+
+    mat4 invProjection = (vrParameters.stereoEnabled ^ 1) * InverseProjectionMatrix + vrParameters.stereoEnabled * vrParameters.inverseProjectionMatrices[currentEye.eye];
+    mat4 invView = (vrParameters.stereoEnabled ^ 1) * InverseViewMatrices[0] + vrParameters.stereoEnabled * (InverseViewMatrices[currentEye.eye] );
+
 
 	vec3 N = DecodeOctaH(texture(InputNormalsMaterial, textureCoord).rg);
 
@@ -197,7 +486,7 @@ void main()
 
 	float Depth = texture(InputZBuffer, textureCoord).r;
 
-    vec3 FragPos = worldFromDepth(Depth, textureCoord);
+    vec3 FragPos = worldFromDepth(Depth, uv, invProjection, invView);
     vec4 ambientOcclusion = texture(InputOcclusion, textureCoord).rgba;
 
     mat4 headToEye = vrParameters.headShift;
@@ -223,15 +512,15 @@ void main()
         lightAttenuation = 1.0;
     }
 
-	if(debugLights == 1) {
-        FragColor = vec4(N, 1.0);
-        return;
-	}
-
-	if(debugLights == 2) {
-	    FragColor = vec4(FragPos, 1.0);
-	    return;
-	}
+//	if(debugLights == 1) {
+//        FragColor = vec4(N, 1.0);
+//        return;
+//	}
+//
+//	if(debugLights == 2) {
+//	    FragColor = vec4(FragPos, 1.0);
+//	    return;
+//	}
 
     vec3 V = normalize(cameraPosition - FragPos);
     vec3 H = normalize(L + V);
@@ -298,6 +587,8 @@ void main()
         }
     }
 
+
+
     if(debugLights > 0) {
         if(debugLights == 3) {
             lighting = specular * lightAttenuation;
@@ -315,6 +606,53 @@ void main()
     } else {
         lighting = (diffuse + specular) * lightAttenuation;
     }
+
+    // check if occluded
+    /*
+    vec4 lNDC  = mvp*vec4(worldPosition.xyz, 1.0);
+    lNDC = lNDC / lNDC.w;
+    float depthAtLight = lNDC.z;
+    vec2 texLight = lNDC.xy * 2.0 - vec2(1.0);
+    int maxShadowSteps = 8;
+    vec2 dir = textureCoord - texLight;
+    dir /= maxShadowSteps;
+    int intersects = 0;
+    */
+
+//    for(int i = 0; i < maxShadowSteps; i++) {
+//        float d = texture(InputZBuffer, textureCoord + i*dir).r;
+//        if(d < Depth) {
+//            intersects++;
+//        }
+//    }
+
+/*
+	vec2 hit;
+	vec3 point;
+	vec3 debugColor;
+	int layer;
+	vec3 vsPos = viewFromDepth(Depth, textureCoord);
+//	vsPos = vsPos/vsPos.w;
+
+	vec4 vsL = viewMatrix*vec4(L, 1.0f);
+	vsL = vsL/vsL.w;
+
+    bool intersect = traceScreenSpaceRay1(vsPos.xyz, -1.0f * vsL.xyz,
+        projectionMatrix, invProjection, InputZBuffer,
+        vec2(displayWidth, displayHeight),
+        0.1, true, vec3(0.0f), -0.1f, 1.0f, 3.0, 10.0, 20.0,
+        hit, layer, point, debugColor);
+
+	if(intersect) {
+        lighting *= 0.1;
+    }
+
+
+	if(debugLights == 1) {
+		lighting = vsPos.xyz;
+//		lighting = debugColor;
+	}
+	*/
 
     FragColor = vec4(lighting, 1.0);
     gl_FragDepth = Depth;
