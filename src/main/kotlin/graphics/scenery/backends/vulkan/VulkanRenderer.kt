@@ -21,7 +21,6 @@ import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.EXTDebugReport.*
 import org.lwjgl.vulkan.KHRSurface.VK_KHR_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.KHRSwapchain.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
-import org.lwjgl.vulkan.KHRSwapchain.VK_KHR_SWAPCHAIN_EXTENSION_NAME
 import org.lwjgl.vulkan.KHRWin32Surface.VK_KHR_WIN32_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.KHRXlibSurface.VK_KHR_XLIB_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.MVKMacosSurface.VK_MVK_MACOS_SURFACE_EXTENSION_NAME
@@ -669,11 +668,6 @@ open class VulkanRenderer(hub: Hub,
 //            .parallelMap(numThreads = System.getProperty("scenery.MaxInitThreads", "1").toInt()) { node ->
             .map { node ->
                 // skip initialization for nodes that are only instance slaves
-                if(node.instanceOf != null) {
-                    node.initialized = true
-                    return@map
-                }
-
                 logger.debug("Initializing object '${node.name}'")
                 node.metadata["VulkanRenderer"] = VulkanObjectState()
 
@@ -747,25 +741,13 @@ open class VulkanRenderer(hub: Hub,
         }
 
         // create custom vertex description if necessary, else use one of the defaults
-        s.vertexDescription = if (node.instanceMaster) {
+        s.vertexDescription = if (node.instances.size > 0) {
             updateInstanceBuffer(device, node, s)
             // TODO: Rewrite shader in case it does not conform to coord/normal/texcoord vertex description
             s.vertexInputType = VertexDataKinds.PositionNormalTexcoord
             vertexDescriptionFromInstancedNode(node, vertexDescriptors[VertexDataKinds.PositionNormalTexcoord]!!)
         } else {
             vertexDescriptors[s.vertexInputType]!!
-        }
-
-        val instanceMaster = node.instanceOf
-        if (instanceMaster != null) {
-            val parentMetadata = instanceMaster.rendererMetadata() ?: throw IllegalStateException("Instance master lacks metadata")
-
-            if (!parentMetadata.initialized) {
-                logger.debug("Instance parent $instanceMaster is not initialized yet, initializing now...")
-                initializeNode(instanceMaster)
-            }
-
-            return true
         }
 
         s = createVertexBuffers(device, node, s)
@@ -836,11 +818,6 @@ open class VulkanRenderer(hub: Hub,
 
         if(!(node.material.blending.transparent || node.material is ShaderMaterial || node.material.cullingMode != Material.CullingMode.Back)) {
             logger.debug("Using default renderpass material for ${node.name}")
-            return false
-        }
-
-        if(node.instanceOf != null) {
-            logger.debug("${node.name} is instance slave, not initializing custom shaders")
             return false
         }
 
@@ -1824,7 +1801,6 @@ open class VulkanRenderer(hub: Hub,
             scene.discover(scene, { n ->
                 n is HasGeometry
                     && n.visible
-                    && n.instanceOf == null
             }, useDiscoveryBarriers = true)
         }
 
@@ -2136,7 +2112,7 @@ open class VulkanRenderer(hub: Hub,
             return state
         }
 
-        if (n.texcoords.remaining() == 0 && node.instanceMaster) {
+        if (n.texcoords.remaining() == 0 && node.instances.size > 0) {
             val buffer = je_calloc(1, 4L * n.vertices.remaining() / n.vertexSize * n.texcoordSize)
 
             if(buffer == null) {
@@ -2247,16 +2223,20 @@ open class VulkanRenderer(hub: Hub,
     private fun updateInstanceBuffer(device: VulkanDevice, parentNode: Node, state: VulkanObjectState): VulkanObjectState {
         logger.trace("Updating instance buffer for ${parentNode.name}")
 
-        if (parentNode.instances.isEmpty()) {
+        // parentNode.instances is a CopyOnWrite array list, and here we keep a reference to the original.
+        // If it changes in the meantime, no problemo.
+        val instances = parentNode.instances
+
+        if (instances.isEmpty()) {
             logger.debug("$parentNode has no child instances attached, returning.")
             return state
         }
 
         // first we create a fake UBO to gauge the size of the needed properties
         val ubo = VulkanUBO(device)
-        ubo.fromInstance(parentNode.instances.first())
+        ubo.fromInstance(instances.first())
 
-        val instanceBufferSize = ubo.getSize() * parentNode.instances.size
+        val instanceBufferSize = ubo.getSize() * instances.size
 
         val instanceStagingBuffer = state.vertexBuffers["instanceStaging"]
         val stagingBuffer = if(instanceStagingBuffer != null && instanceStagingBuffer.size >= instanceBufferSize) {
@@ -2264,7 +2244,7 @@ open class VulkanRenderer(hub: Hub,
         } else {
             logger.debug("Creating new staging buffer")
             val buffer = VulkanBuffer(device,
-                instanceBufferSize * 1L,
+                (1.2 * instanceBufferSize).toLong(),
                 VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
                 wantAligned = true)
@@ -2277,25 +2257,23 @@ open class VulkanRenderer(hub: Hub,
         ubo.createUniformBuffer()
 
         val index = AtomicInteger(0)
-        parentNode.instances.parallelStream().forEach { node ->
+        instances.parallelStream().forEach { node ->
             node.needsUpdate = true
             node.needsUpdateWorld = true
             node.updateWorld(true, false)
 
-            node.metadata.getOrPut("instanceBufferView") {
-                stagingBuffer.stagingBuffer.duplicate().order(ByteOrder.LITTLE_ENDIAN)
-            }.run {
-                val buffer = this as? ByteBuffer?: return@run
-
-                ubo.populateParallel(buffer, offset = index.getAndIncrement() * ubo.getSize()*1L, elements = node.instancedProperties)
+            stagingBuffer.stagingBuffer.duplicate().order(ByteOrder.LITTLE_ENDIAN).run {
+                ubo.populateParallel(this, offset = index.getAndIncrement() * ubo.getSize()*1L, elements = node.instancedProperties)
             }
         }
 
-        stagingBuffer.stagingBuffer.position(parentNode.instances.size * ubo.getSize())
+        stagingBuffer.stagingBuffer.position(stagingBuffer.stagingBuffer.limit())
         stagingBuffer.copyFromStagingBuffer()
 
         val existingInstanceBuffer = state.vertexBuffers["instance"]
-        val instanceBuffer = if (existingInstanceBuffer != null && existingInstanceBuffer.size >= instanceBufferSize) {
+        val instanceBuffer = if (existingInstanceBuffer != null
+            && existingInstanceBuffer.size >= instanceBufferSize
+            && existingInstanceBuffer.size < 1.5*instanceBufferSize) {
             existingInstanceBuffer
         } else {
             logger.debug("Instance buffer for ${parentNode.name} needs to be reallocated due to insufficient size ($instanceBufferSize vs ${state.vertexBuffers["instance"]?.size ?: "<not allocated yet>"})")
@@ -2324,7 +2302,7 @@ open class VulkanRenderer(hub: Hub,
             this.endCommandBuffer(device, commandPools.Standard, queue, flush = true, dealloc = true)
         }
 
-        state.instanceCount = parentNode.instances.size
+        state.instanceCount = instances.size
 
         return state
     }
@@ -2611,7 +2589,7 @@ open class VulkanRenderer(hub: Hub,
 
                 // instanced nodes will not be drawn directly, but only the master node.
                 // nodes with no vertices will also not be drawn.
-                if(node.instanceOf != null || s.vertexCount == 0) {
+                if(s.vertexCount == 0) {
                     return@drawLoop
                 }
 
@@ -2652,7 +2630,7 @@ open class VulkanRenderer(hub: Hub,
                 pass.vulkanMetadata.vertexBufferOffsets.limit(1)
                 pass.vulkanMetadata.vertexBuffers.limit(1)
 
-                if(node.instanceMaster && instanceBuffer != null) {
+                if(node.instances.size > 0 && instanceBuffer != null) {
                     pass.vulkanMetadata.vertexBuffers.limit(2)
                     pass.vulkanMetadata.vertexBufferOffsets.limit(2)
 
@@ -2859,7 +2837,7 @@ open class VulkanRenderer(hub: Hub,
     }
 
     private fun updateInstanceBuffers(sceneObjects: Deferred<List<Node>>) = runBlocking {
-        val instanceMasters = sceneObjects.await().filter { it.instanceMaster }
+        val instanceMasters = sceneObjects.await().filter { it.instances.size > 0 }
 
         instanceMasters.forEach { parent ->
             updateInstanceBuffer(device, parent, parent.rendererMetadata()!!)
@@ -2939,7 +2917,7 @@ open class VulkanRenderer(hub: Hub,
             node.lock.withLock {
                 var nodeUpdated: Boolean by StickyBoolean(initial = false)
 
-                if (!node.metadata.containsKey("VulkanRenderer") || node.instanceOf != null) {
+                if (!node.metadata.containsKey("VulkanRenderer")) {
                     return@withLock
                 }
 

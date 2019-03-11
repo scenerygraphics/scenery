@@ -263,7 +263,8 @@ open class Camera : Node("Camera") {
      * If a sphere is intersecting any boundary of the view frustum, the node is assumed to be visible.
      */
     fun canSee(node: Node): Boolean {
-        if(disableCulling) {
+        // TODO: Figure out how to efficiently cull instances
+        if(disableCulling || node.instances.size > 0 ) {
             return true
         }
 

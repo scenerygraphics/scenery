@@ -3,7 +3,6 @@ package graphics.scenery.tests.examples.advanced
 import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
-import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.numerics.Random
 import org.junit.Test
 import kotlin.concurrent.thread
@@ -59,7 +58,6 @@ class BloodCellsExample : SceneryBase("BloodCellsExample", windowWidth = 1280, w
         erythrocyte.material.metallic = 0.01f
         erythrocyte.material.roughness = 0.9f
         erythrocyte.name = "Erythrocyte_Master"
-        erythrocyte.instanceMaster = true
         erythrocyte.instancedProperties.put("ModelMatrix", { erythrocyte.model })
         scene.addChild(erythrocyte)
 
@@ -72,7 +70,6 @@ class BloodCellsExample : SceneryBase("BloodCellsExample", windowWidth = 1280, w
         leucocyte.material.specular = GLVector(0.05f, 0f, 0f)
         leucocyte.material.metallic = 0.01f
         leucocyte.material.roughness = 0.5f
-        leucocyte.instanceMaster = true
         leucocyte.instancedProperties.put("ModelMatrix", { leucocyte.model })
         scene.addChild(leucocyte)
 
@@ -82,7 +79,6 @@ class BloodCellsExample : SceneryBase("BloodCellsExample", windowWidth = 1280, w
             .map {
                 val v = Mesh()
                 v.name = "leucocyte_$it"
-                v.instanceOf = leucocyte
                 v.instancedProperties.put("ModelMatrix", { v.world})
                 v
             }
@@ -110,7 +106,6 @@ class BloodCellsExample : SceneryBase("BloodCellsExample", windowWidth = 1280, w
             .map {
                 val v = Mesh()
                 v.name = "erythrocyte_$it"
-                v.instanceOf = erythrocyte
                 v.instancedProperties.put("ModelMatrix", { v.world })
 
                 v

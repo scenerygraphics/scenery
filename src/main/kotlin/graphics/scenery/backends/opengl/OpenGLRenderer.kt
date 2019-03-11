@@ -503,6 +503,10 @@ open class OpenGLRenderer(hub: Hub,
                 }
             }
         }
+
+        while(!initialized) {
+            Thread.sleep(20)
+        }
     }
 
     override fun init(pDrawable: GLAutoDrawable) {
@@ -546,7 +550,6 @@ open class OpenGLRenderer(hub: Hub,
 //        gl.glEnable(GL4.GL_TEXTURE_GATHER)
         gl.glEnable(GL4.GL_PROGRAM_POINT_SIZE)
 
-        initialized = true
 
         heartbeatTimer.scheduleAtFixedRate(object : TimerTask() {
             override fun run() {
@@ -576,7 +579,7 @@ open class OpenGLRenderer(hub: Hub,
             }
         }, 0, 1000)
 
-        initializeScene()
+        initialized = true
     }
 
     private fun Node.rendererMetadata(): OpenGLObjectState? {
@@ -1293,12 +1296,13 @@ open class OpenGLRenderer(hub: Hub,
     }
 
     private fun updateInstanceBuffers(sceneObjects:List<Node>) {
-        val instanceMasters = sceneObjects.filter { it.instanceMaster }
+        val instanceMasters = sceneObjects.filter { it.instances.size > 0 }
 
         instanceMasters.forEach { parent ->
             var metadata = parent.rendererMetadata()
 
             if(metadata == null) {
+                parent.metadata["OpenGLRenderer"] = OpenGLObjectState()
                 initializeNode(parent)
                 metadata = parent.rendererMetadata()
             }
@@ -1312,25 +1316,30 @@ open class OpenGLRenderer(hub: Hub,
             throw IllegalStateException("Metadata for ${parentNode.name} is null at updateInstanceBuffer(${parentNode.name}). This is a bug.")
         }
 
+        // parentNode.instances is a CopyOnWrite array list, and here we keep a reference to the original.
+        // If it changes in the meantime, no problemo.
+        val instances = parentNode.instances
         logger.trace("Updating instance buffer for ${parentNode.name}")
 
-        if (parentNode.instances.isEmpty()) {
+        if (instances.isEmpty()) {
             logger.debug("$parentNode has no child instances attached, returning.")
             return state
         }
 
         // first we create a fake UBO to gauge the size of the needed properties
         val ubo = OpenGLUBO()
-        ubo.fromInstance(parentNode.instances.first())
+        ubo.fromInstance(instances.first())
 
-        val instanceBufferSize = ubo.getSize() * parentNode.instances.size
+        val instanceBufferSize = ubo.getSize() * instances.size
 
         val existingStagingBuffer = state.vertexBuffers["instanceStaging"]
-        val stagingBuffer = if(existingStagingBuffer != null && existingStagingBuffer.capacity() >= instanceBufferSize) {
+        val stagingBuffer = if(existingStagingBuffer != null
+            && existingStagingBuffer.capacity() >= instanceBufferSize
+            && existingStagingBuffer.capacity() < 1.5*instanceBufferSize) {
             existingStagingBuffer
         } else {
             logger.debug("${parentNode.name}: Creating new staging buffer with capacity=$instanceBufferSize (${ubo.getSize()} x ${parentNode.instances.size})")
-            val buffer = BufferUtils.allocateByte(instanceBufferSize)
+            val buffer = BufferUtils.allocateByte((1.2 * instanceBufferSize).toInt())
 
             state.vertexBuffers["instanceStaging"] = buffer
             buffer
@@ -1339,21 +1348,17 @@ open class OpenGLRenderer(hub: Hub,
         logger.trace("{}: Staging buffer position, {}, cap={}", parentNode.name, stagingBuffer.position(), stagingBuffer.capacity())
 
         val index = AtomicInteger(0)
-        parentNode.instances.parallelStream().forEach { node ->
+        instances.parallelStream().forEach { node ->
             node.needsUpdate = true
             node.needsUpdateWorld = true
             node.updateWorld(true, false)
 
-            node.metadata.getOrPut("instanceBufferView") {
-                stagingBuffer.duplicate().order(ByteOrder.LITTLE_ENDIAN)
-            }.run {
-                val buffer = this as? ByteBuffer?: return@run
-
-                ubo.populateParallel(buffer, offset = index.getAndIncrement() * ubo.getSize()*1L, elements = node.instancedProperties)
+            stagingBuffer.duplicate().order(ByteOrder.LITTLE_ENDIAN).run {
+                ubo.populateParallel(this, offset = index.getAndIncrement() * ubo.getSize()*1L, elements = node.instancedProperties)
             }
         }
 
-        stagingBuffer.position(parentNode.instances.size * ubo.getSize())
+        stagingBuffer.position(stagingBuffer.limit())
         stagingBuffer.flip()
 
         val instanceBuffer = state.additionalBufferIds.getOrPut("instance") {
@@ -1479,6 +1484,11 @@ open class OpenGLRenderer(hub: Hub,
             return@runBlocking
         }
 
+        if (scene.children.count() == 0 || !scene.initialized) {
+            initializeScene()
+            return@runBlocking
+        }
+
         val newTime = System.nanoTime()
         lastFrameTime = (System.nanoTime() - currentTime)/1e6f
         currentTime = newTime
@@ -1520,7 +1530,6 @@ open class OpenGLRenderer(hub: Hub,
             scene.discover(scene, { n ->
                 n is HasGeometry
                     && n.visible
-                    && n.instanceOf == null
                     && cam.canSee(n)
             }, useDiscoveryBarriers = true)
         }
@@ -1675,10 +1684,6 @@ open class OpenGLRenderer(hub: Hub,
                 var currentShader: OpenGLShaderProgram? = null
 
                 actualObjects.forEach renderLoop@ { n ->
-                    if (n.instanceOf != null) {
-                        return@renderLoop
-                    }
-
                     if (pass.passConfig.renderOpaque && n.material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) {
                         return@renderLoop
                     }
@@ -1844,7 +1849,7 @@ open class OpenGLRenderer(hub: Hub,
                         }
                     }
 
-                    if(n.instanceMaster) {
+                    if(n.instances.size > 0) {
                         drawNodeInstanced(n)
                     } else {
                         drawNode(n)
@@ -2098,27 +2103,7 @@ open class OpenGLRenderer(hub: Hub,
             return false
         }
 
-        val s: OpenGLObjectState
-
-        val instanceOf = node.instanceOf
-        if (instanceOf == null) {
-            s = node.metadata["OpenGLRenderer"] as OpenGLObjectState
-        } else {
-            s = instanceOf.metadata["OpenGLRenderer"] as OpenGLObjectState
-            node.metadata["OpenGLRenderer"] = s
-
-            if (!s.initialized) {
-                logger.trace("Instance not yet initialized, doing now...")
-                initializeNode(instanceOf)
-            }
-
-//            if (!s.additionalBufferIds.containsKey("Model") || !s.additionalBufferIds.containsKey("ModelView") || !s.additionalBufferIds.containsKey("MVP")) {
-//                logger.trace("${node.name} triggered instance buffer creation")
-//                createInstanceBuffer(node.instanceOf!!)
-//                logger.trace("---")
-//            }
-            return true
-        }
+        val s = node.metadata["OpenGLRenderer"] as OpenGLObjectState
 
         if (s.initialized) {
             return true
