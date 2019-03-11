@@ -1069,7 +1069,11 @@ open class OpenGLRenderer(hub: Hub,
                     return@withLock
                 }
 
-                val s = node.metadata[className] as OpenGLObjectState
+                val s = node.metadata[className] as? OpenGLObjectState
+                if(s == null) {
+                    logger.warn("Could not get OpenGLObjectState for ${node.name}")
+                    return@forEach
+                }
 
                 val ubo = s.UBOs["Matrices"]
                 if(ubo?.backingBuffer == null) {
