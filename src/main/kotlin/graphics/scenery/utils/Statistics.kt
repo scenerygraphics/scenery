@@ -2,13 +2,13 @@ package graphics.scenery.utils
 
 import graphics.scenery.Hub
 import graphics.scenery.Hubable
-import kotlinx.coroutines.CoroutineStart
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.async
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.launch
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedDeque
+import java.util.concurrent.Executors
 
 /**
  * Statistics class, attached to a [hub].
@@ -18,6 +18,7 @@ import java.util.concurrent.ConcurrentLinkedDeque
 class Statistics(override var hub: Hub?) : Hubable {
     private val logger by LazyLogger()
     private val dataSize = 100
+    private val threadContext = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
 
     /**
      * Keeps statistical data, such as time points, and
@@ -67,7 +68,7 @@ class Statistics(override var hub: Hub?) : Hubable {
      * Set [isTime] to true if the datum contains time information.
      */
     fun add(name: String, value: Float, isTime: Boolean = true) {
-        GlobalScope.async {
+        GlobalScope.launch(threadContext) {
             stats.computeIfAbsent(name) {
                 val d = StatisticData(isTime)
                 d.data.push(value)

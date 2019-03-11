@@ -269,6 +269,15 @@ open class UBO {
     }
 
     /**
+     * Adds the member only if its missing.
+     */
+    fun addIfMissing(name: String, value: () -> Any, offset: Int? = null) {
+        if(!members.containsKey(name)) {
+            add(name, value, offset)
+        }
+    }
+
+    /**
      * Returns the members of the UBO as string.
      */
     fun members(): String {
