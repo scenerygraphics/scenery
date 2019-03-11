@@ -1302,6 +1302,7 @@ open class OpenGLRenderer(hub: Hub,
             var metadata = parent.rendererMetadata()
 
             if(metadata == null) {
+                parent.metadata["OpenGLRenderer"] = OpenGLObjectState()
                 initializeNode(parent)
                 metadata = parent.rendererMetadata()
             }
