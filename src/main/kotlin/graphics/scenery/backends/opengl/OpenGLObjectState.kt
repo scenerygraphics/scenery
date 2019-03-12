@@ -51,6 +51,8 @@ class OpenGLObjectState : NodeMetadata {
     var instanceCount: Int = 1
     /** buffer storage */
     var vertexBuffers = HashMap<String, ByteBuffer>()
+    /** Hash code for the currently used material */
+    var materialHash: Int = -1
 
     init {
         consumers.add("OpenGLRenderer")
