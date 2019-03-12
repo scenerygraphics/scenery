@@ -41,34 +41,43 @@ void main() {
     vec3 p1 = VertexIn[0].Position.xyz / VertexIn[0].Position.w;
     vec3 p2 = VertexIn[1].Position.xyz / VertexIn[1].Position.w;
 
-    vec2 v = normalize(p1.xy - p2.xy);
-    vec2 n = vec2(-v.y, v.x) * edgeWidth;
+    // tangent
+    vec2 t = normalize(p1.xy - p2.xy);
+    // binormal
+    vec2 n = vec2(-t.y, t.x) * edgeWidth;
 
     if ( p1.z < 0 || p2.z < 0 || p1.z > 1 || p2.z > 1 )  {
             return;
     }
 
-    gl_Position = vec4( p1.xy + 0.5*n, p1.z, 1.0);
+    vec4 a = vec4( p1.xy + 0.5*n, p1.z, 1.0);
+    vec4 b = vec4( p1.xy - 0.5*n, p1.z, 1.0);
+    vec4 c = vec4( p2.xy + 0.5*n, p2.z, 1.0);
+    vec4 d = vec4( p2.xy - 0.5*n, p2.z, 1.0);
+
+    vec3 N = normalize(cross(normalize(a.xyz-b.xyz), normalize(c.xyz)));
+
+    gl_Position = a;
     Vertex.Position = gl_Position.xyz;
-    Vertex.Normal = normalize(CamPosition);
+    Vertex.Normal = N;
     Vertex.Color = VertexIn[0].Color;
     EmitVertex();
 
-    gl_Position = vec4( p1.xy - 0.5*n, p1.z, 1.0);
+    gl_Position = b;
     Vertex.Position = gl_Position.xyz;
-    Vertex.Normal = normalize(CamPosition);
+    Vertex.Normal = N;
     Vertex.Color = VertexIn[0].Color;
     EmitVertex();
 
-    gl_Position = vec4( p2.xy + 0.5*n, p2.z, 1.0);
+    gl_Position = c;
     Vertex.Position = gl_Position.xyz;
-    Vertex.Normal = normalize(CamPosition);
+    Vertex.Normal = N;
     Vertex.Color = VertexIn[0].Color;
     EmitVertex();
 
-    gl_Position = vec4( p2.xy - 0.5*n, p2.z, 1.0);
+    gl_Position = d;
     Vertex.Position = gl_Position.xyz;
-    Vertex.Normal = normalize(CamPosition);
+    Vertex.Normal = N;
     Vertex.Color = VertexIn[0].Color;
     EmitVertex();
 

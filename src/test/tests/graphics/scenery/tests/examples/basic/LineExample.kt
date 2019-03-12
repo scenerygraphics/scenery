@@ -28,10 +28,10 @@ class LineExample : SceneryBase("LineExample") {
         hull.material.cullingMode = Material.CullingMode.Front
         scene.addChild(hull)
 
-        val line = Line()
-        line.addPoint(GLVector(-1.0f, -1.0f, -1.0f))
-        line.addPoint(GLVector(2.0f, 0.0f, 2.0f))
+        val line = Line(transparent = true)
+        line.addPoint(GLVector(-5.0f, -5.0f, -5.0f))
         line.addPoint(GLVector(0.0f, 0.0f, 0.0f))
+        line.addPoint(GLVector(5.0f, 5.0f, 5.0f))
 
         line.material.ambient = GLVector(1.0f, 0.0f, 0.0f)
         line.material.diffuse = GLVector(0.0f, 1.0f, 0.0f)
@@ -54,6 +54,7 @@ class LineExample : SceneryBase("LineExample") {
         val cam: Camera = DetachedHeadCamera()
         cam.position = GLVector(0.0f, 0.0f, 15.0f)
         cam.perspectiveCamera(50.0f, windowWidth.toFloat(), windowHeight.toFloat())
+        cam.target = GLVector(0.0f, 0.0f, 0.0f)
         cam.active = true
 
         scene.addChild(cam)
@@ -62,8 +63,8 @@ class LineExample : SceneryBase("LineExample") {
             while (true) {
                 val t = runtime/100
                 if (lineAnimating) {
-                    line.addPoint(GLVector(10.0f * Math.random().toFloat() - 5.0f, 10.0f * Math.random().toFloat() - 5.0f, 10.0f * Math.random().toFloat() - 5.0f))
-                    line.edgeWidth = 0.03f * Math.sin(t * Math.PI / 50).toFloat() + 0.03f
+                    line.addPoint(Random.randomVectorFromRange(3, -5.0f, 5.0f))
+                    line.edgeWidth = 0.01f * Math.sin(t * Math.PI / 50).toFloat() + 0.015f
                 }
 
                 Thread.sleep(100)
