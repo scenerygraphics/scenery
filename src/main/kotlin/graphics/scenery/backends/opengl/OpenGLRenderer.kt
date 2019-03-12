@@ -1112,6 +1112,14 @@ open class OpenGLRenderer(hub: Hub,
                     false
                 }
 
+                nodeUpdated = if(node.material.hashCode() != s.materialHash) {
+                    s.initialized = false
+                    initializeNode(node)
+                    true
+                } else {
+                    false
+                }
+
                 if(nodeUpdated && node.getScene()?.onNodePropertiesChanged?.isNotEmpty() == true) {
                     GlobalScope.launch { node.getScene()?.onNodePropertiesChanged?.forEach { it.value.invoke(node) } }
                 }
@@ -2151,6 +2159,8 @@ open class OpenGLRenderer(hub: Hub,
             }
 
         }
+
+        s.materialHash = node.material.hashCode()
 
         val matricesUbo = OpenGLUBO(backingBuffer = buffers["UBOBuffer"])
         with(matricesUbo) {
