@@ -10,7 +10,7 @@ import java.nio.IntBuffer
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class Line(var capacity: Int = 50) : Node("Line"), HasGeometry {
+class Line @JvmOverloads constructor(var capacity: Int = 50, transparent: Boolean = false) : Node("Line"), HasGeometry {
     /** Size of one vertex (e.g. 3 in 3D) */
     override val vertexSize: Int = 3
     /** Size of one texcoord (e.g. 2 in 3D) */
@@ -25,6 +25,13 @@ class Line(var capacity: Int = 50) : Node("Line"), HasGeometry {
     override var texcoords: FloatBuffer = BufferUtils.allocateFloat(2*capacity)
     /** Index buffer */
     override var indices: IntBuffer = IntBuffer.wrap(intArrayOf())
+
+    /** Whether the line should be rendered as transparent or not. */
+    var transparent: Boolean = transparent
+        set(value) {
+            field = value
+            activateTransparency(value)
+        }
 
     /** Shader property for the line's starting segment color. Consumed by the renderer. */
     @ShaderProperty
@@ -52,11 +59,47 @@ class Line(var capacity: Int = 50) : Node("Line"), HasGeometry {
     var edgeWidth = 2.0f
 
     init {
-        material = ShaderMaterial.fromClass(this::class.java, listOf(ShaderType.VertexShader, ShaderType.GeometryShader, ShaderType.FragmentShader))
+        activateTransparency(transparent)
+
         vertices.limit(0)
         normals.limit(0)
         texcoords.limit(0)
 
+        material.cullingMode = Material.CullingMode.None
+    }
+
+    protected fun activateTransparency(transparent: Boolean) {
+        logger.info("transparency changed to ${transparent}")
+
+        if(transparent) {
+            val newMaterial = ShaderMaterial.fromFiles(
+                "${this::class.java.simpleName}.vert",
+                "${this::class.java.simpleName}.geom",
+                "${this::class.java.simpleName}Forward.frag")
+
+            newMaterial.blending.opacity = 1.0f
+            newMaterial.blending.setOverlayBlending()
+            newMaterial.diffuse = material.diffuse
+            newMaterial.specular = material.specular
+            newMaterial.ambient = material.ambient
+            newMaterial.metallic = material.metallic
+            newMaterial.roughness = material.roughness
+
+            material = newMaterial
+        } else {
+            val newMaterial = ShaderMaterial.fromClass(this::class.java,
+                listOf(ShaderType.VertexShader, ShaderType.GeometryShader, ShaderType.FragmentShader))
+
+            newMaterial.diffuse = material.diffuse
+            newMaterial.specular = material.specular
+            newMaterial.ambient = material.ambient
+            newMaterial.metallic = material.metallic
+            newMaterial.roughness = material.roughness
+
+            material = newMaterial
+        }
+
+        material.blending.transparent = transparent
         material.cullingMode = Material.CullingMode.None
     }
 
