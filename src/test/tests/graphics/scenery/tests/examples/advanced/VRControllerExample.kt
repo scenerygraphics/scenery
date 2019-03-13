@@ -16,20 +16,21 @@ import kotlin.concurrent.thread
  */
 class VRControllerExample : SceneryBase(VRControllerExample::class.java.simpleName,
     windowWidth = 1920, windowHeight = 1200) {
-    private var hmd: OpenVRHMD? = null
+    private var hmd: OpenVRHMD = OpenVRHMD(useCompositor = true)
 
     override fun init() {
         hmd = OpenVRHMD(useCompositor = true)
 
-        if(hmd == null || hmd?.initializedAndWorking() == false) {
+        if(!hmd.initializedAndWorking()) {
             logger.error("This demo is intended to show the use of OpenVR controllers, but no OpenVR-compatible HMD could be initialized.")
             System.exit(1)
         }
 
-        hub.add(SceneryElement.HMDInput, hmd!!)
+        hub.add(SceneryElement.HMDInput, hmd)
 
         renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
         hub.add(SceneryElement.Renderer, renderer!!)
+        renderer?.toggleVR()
 
         val cam: Camera = DetachedHeadCamera(hmd)
         cam.position = GLVector(0.0f, 0.0f, 0.0f)
@@ -40,8 +41,8 @@ class VRControllerExample : SceneryBase(VRControllerExample::class.java.simpleNa
         scene.addChild(cam)
 
         val b = (0..10).map {
-            val obj = Box()
-            obj.position = GLVector(2.0f, -4.0f + (it + 1) * 2.0f, 2.0f)
+            val obj = Box(GLVector(0.1f, 0.1f, 0.1f))
+            obj.position = GLVector(-1.0f + (it + 1) * 0.2f, 1.0f, -0.5f)
             scene.addChild(obj)
             obj
         }
@@ -70,11 +71,11 @@ class VRControllerExample : SceneryBase(VRControllerExample::class.java.simpleNa
                 Thread.sleep(200)
             }
 
-            hmd?.getTrackedDevices(TrackedDeviceType.Controller)?.forEach { _, device ->
-                val c = Mesh()
-                c.name = device.name
-                hmd?.loadModelForMesh(device, c)
-                hmd?.attachToNode(device, c, cam)
+            hmd.events.onDeviceConnect.add { hmd, device, timestamp ->
+                if(device.type == TrackedDeviceType.Controller) {
+                    logger.info("Got device ${device.name} at $timestamp")
+                    device.model?.let { hmd.attachToNode(device, it, cam) }
+                }
             }
         }
     }

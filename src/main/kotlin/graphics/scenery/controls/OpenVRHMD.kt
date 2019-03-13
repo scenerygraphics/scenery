@@ -107,6 +107,8 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
 
     private var commandPool = -1L
 
+    override var events = TrackerInputEventHandlers()
+
     init {
         inputHandler.setBehaviourMap(behaviourMap)
         inputHandler.setInputMap(inputMap)
@@ -445,18 +447,27 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
                     continue
                 }
 
-                val d = trackedDevices.computeIfAbsent("$type-$device", {
-                    val nameBuf = memCalloc(1024)
-                    val err = memAllocInt(1)
+                val d = trackedDevices.computeIfAbsent("$type-$device") {
+                    val timestamp = System.nanoTime()
+                    val deviceName = "$type-$device"
+                    val deviceModelPath = getStringProperty(device, ETrackedDeviceProperty_Prop_RenderModelName_String)
+                    val td = TrackedDevice(type, deviceName, GLMatrix.getIdentity(), timestamp = timestamp)
+                    td.modelPath = deviceModelPath
 
-                    VRSystem_GetStringTrackedDeviceProperty(device, ETrackedDeviceProperty_Prop_RenderModelName_String, nameBuf, err)
+                    try {
+                        val c = Mesh()
+                        c.name = deviceName
+                        loadModelForMesh(td, c)
+                        td.model = c
+                    } catch(e: Exception) {
+                        logger.warn("Could not load model for $deviceName, device will not be visible in the scene.")
+                        td.model = null
+                    }
 
-                    val nameArray = ByteArray(1024)
-                    nameBuf.get(nameArray)
+                    events.onDeviceConnect.forEach { it.invoke(this, td, timestamp) }
 
-                    val deviceName = String(nameArray, Charset.defaultCharset())
-                    TrackedDevice(type, deviceName, GLMatrix.getIdentity(), timestamp = System.nanoTime())
-                })
+                    td
+                }
 
                 if(type == TrackedDeviceType.Controller) {
                     if (d.metadata !is VRControllerState) {
@@ -762,13 +773,19 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
     }
 
     private fun getStringProperty(deviceIndex: Int, property: Int): String {
-        val buffer = memCalloc(1024)
+        stackPush().use { stack ->
+            val buffer = stack.calloc(1024)
 
-        VRSystem_GetStringTrackedDeviceProperty(deviceIndex, property, buffer, null)
-        val propertyArray = ByteArray(1024)
-        buffer.get(propertyArray)
+            val size = VRSystem_GetStringTrackedDeviceProperty(deviceIndex, property, buffer, null)
+            if (size == 0) {
+                return ""
+            }
 
-        return String(propertyArray, Charset.defaultCharset())
+            val propertyArray = ByteArray(size - 1)
+            buffer.get(propertyArray, 0, size - 1)
+
+            return String(propertyArray, Charset.defaultCharset())
+        }
     }
 
     /**
@@ -852,7 +869,7 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
      * @param[mesh] The [Mesh] to attach the model data to.
      */
     override fun loadModelForMesh(device: TrackedDevice, mesh: Mesh): Mesh {
-        val modelName = device.name
+        val modelName = device.modelPath ?: device.name
 
         stackPush().use { stack ->
             val pathBuffer = stack.calloc(1024)
