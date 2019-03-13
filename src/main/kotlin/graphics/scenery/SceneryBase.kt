@@ -98,10 +98,8 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
     }
 
     init {
-        if(Platform.get() == Platform.LINUX) {
-            logger.debug("Running XInitThreads")
-            XLib.INSTANCE.XInitThreads()
-        }
+        // will only be called on Linux, and only if it hasn't been called before.
+        xinitThreads()
     }
 
     /**
@@ -420,6 +418,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
 
     companion object {
         private val logger by LazyLogger()
+        private var xinitThreadsCalled: Boolean = false
 
         /**
          * Returns the process ID we are running under.
@@ -448,6 +447,14 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
                 ""
             } else {
                 demoDir
+            }
+        }
+
+        @JvmStatic fun xinitThreads() {
+            if(Platform.get() == Platform.LINUX && xinitThreadsCalled == false) {
+                logger.debug("Running XInitThreads")
+                XLib.INSTANCE.XInitThreads()
+                xinitThreadsCalled = true
             }
         }
     }
