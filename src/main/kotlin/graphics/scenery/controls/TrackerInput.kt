@@ -54,6 +54,17 @@ class TrackedDevice(val type: TrackedDeviceType, var name: String, var pose: GLM
 
             return field
         }
+
+    var model: Node? = null
+    var modelPath: String? = null
+}
+
+typealias TrackerInputEventHandler = (TrackerInput, TrackedDevice, Long) -> Any
+class TrackerInputEventHandlers {
+    var onDeviceConnect = ArrayList<TrackerInputEventHandler>()
+        protected set
+    var onDeviceDisconnect = ArrayList<TrackerInputEventHandler>()
+        protected set
 }
 
 /**
@@ -62,6 +73,9 @@ class TrackedDevice(val type: TrackedDeviceType, var name: String, var pose: GLM
  * @author Ulrik Günther <hello@ulrik.is>
  */
 interface TrackerInput {
+    /** Event handler class */
+    var events: TrackerInputEventHandlers
+
     /**
      * Returns the orientation of the HMD
      *

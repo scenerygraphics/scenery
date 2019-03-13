@@ -46,6 +46,8 @@ class VRPNTrackerInput(trackerAddress: String = "device@locahost:5500") : Tracke
 
     var positionScaling: Float = 1.0f
 
+    override var events = TrackerInputEventHandlers()
+
     init {
         Loader.loadNatives()
 
