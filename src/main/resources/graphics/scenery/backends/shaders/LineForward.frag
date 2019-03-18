@@ -39,10 +39,12 @@ layout(set = 3, binding = 0) uniform MaterialProperties {
 };
 
 layout(set = 4, binding = 0) uniform ShaderProperties {
-    int numLines;
-    float lineWidth;
-    int ticksOnly;
-    vec3 gridColor;
+    vec4 startColor;
+    vec4 endColor;
+    vec4 lineColor;
+    int capLength;
+    int vertexCount;
+    float edgeWidth;
 };
 
 layout(location = 0) out vec4 FragColor;
