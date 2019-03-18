@@ -2888,25 +2888,25 @@ open class VulkanRenderer(hub: Hub,
 
         buffers["VRParametersBuffer"]!!.reset()
         val vrUbo = defaultUBOs["VRParameters"]!!
-        vrUbo.addIfMissing("projection0", {
+        vrUbo.add("projection0", {
             (hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance)
                 ?: cam.projection).applyVulkanCoordinateSystem()
         })
-        vrUbo.addIfMissing("projection1", {
+        vrUbo.add("projection1", {
             (hmd?.getEyeProjection(1, cam.nearPlaneDistance, cam.farPlaneDistance)
                 ?: cam.projection).applyVulkanCoordinateSystem()
         })
-        vrUbo.addIfMissing("inverseProjection0", {
+        vrUbo.add("inverseProjection0", {
             (hmd?.getEyeProjection(0, cam.nearPlaneDistance, cam.farPlaneDistance)
                 ?: cam.projection).applyVulkanCoordinateSystem().inverse
         })
-        vrUbo.addIfMissing("inverseProjection1", {
+        vrUbo.add("inverseProjection1", {
             (hmd?.getEyeProjection(1, cam.nearPlaneDistance, cam.farPlaneDistance)
                 ?: cam.projection).applyVulkanCoordinateSystem().inverse
         })
-        vrUbo.addIfMissing("headShift", { hmd?.getHeadToEyeTransform(0) ?: GLMatrix.getIdentity() })
-        vrUbo.addIfMissing("IPD", { hmd?.getIPD() ?: 0.05f })
-        vrUbo.addIfMissing("stereoEnabled", { renderConfig.stereoEnabled.toInt() })
+        vrUbo.add("headShift", { hmd?.getHeadToEyeTransform(0) ?: GLMatrix.getIdentity() })
+        vrUbo.add("IPD", { hmd?.getIPD() ?: 0.05f })
+        vrUbo.add("stereoEnabled", { renderConfig.stereoEnabled.toInt() })
 
         updated = vrUbo.populate()
 
