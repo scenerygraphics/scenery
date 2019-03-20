@@ -110,12 +110,9 @@ open class SwingSwapchain(open val device: VulkanDevice,
         p.component = canvas
         p.layout = BorderLayout()
         p.add(canvas, BorderLayout.CENTER)
-        p.preferredSize = Dimension(win.width, win.height)
 
         val frame = SwingUtilities.getAncestorOfClass(JFrame::class.java, p) as JFrame
         logger.info("Frame: $frame")
-        frame.preferredSize = Dimension(win.width, win.height)
-        frame.layout = BorderLayout()
         frame.isVisible = true
 
         while(!canvas.initialized) {
