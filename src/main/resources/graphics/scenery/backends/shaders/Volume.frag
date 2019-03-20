@@ -382,7 +382,7 @@ void main()
             if(newAlpha > 0.0f && osteps > 0) {
                 [[unroll]] for(int s = 0; s < osteps; s++) {
                     vec3 lpos = pos + vec3(poisson16[s], (poisson16[s].x + poisson16[s].y)/2.0) * kernelSize;
-                    vec3 N = normalize(cross(normalize(lpos), normalize(getGradient(VolumeTextures, lpos, 1.0))));
+                    vec3 N = normalize(getGradient(VolumeTextures, lpos, 1.0));
                     vec3 sampleDir = normalize(lpos - pos);
 
                     float NdotS = max(dot(N, sampleDir), 0.0);
@@ -397,13 +397,13 @@ void main()
             float shadowing = clamp(shadowDist, 0.0, 1.0);
 
             vec4 transfer = sampleLUT(volumeSample) * (1.0 - shadowing);
-            vec3 newColor;
+            vec3 newColor = transfer.rgb;
 
-            newColor = transfer.rgb;
-            newAlpha = sampleTF(volumeSample)*stepSize;
-
-            color += (1.0f - alpha) * newColor * newAlpha;
-            alpha += (1.0f - alpha) * newAlpha;
+            newAlpha = 1.0f - pow(1.0f - newAlpha, tstep * 150.0f);
+            color = color + (1.0f - alpha) * newColor * newAlpha;
+            alpha = alpha + (1.0f - alpha) * newAlpha;
+//            color = mix(color, newColor, newAlpha);
+//            alpha = mix(alpha, 1.0, newAlpha);
 
             if(alpha >= 1.0) {
                 break;
@@ -411,8 +411,9 @@ void main()
         }
 
         // alpha correction
-        alpha = 1.0 - pow(1.0 - alpha, stepSize)/steps;
-        FragColor = vec4(pow(color, vec3(gamma))*alpha, alpha);
+//        alpha = pow(alpha, stepSize);
+//        FragColor = vec4(pow(color, vec3(gamma))*alpha, alpha);
+        FragColor = vec4(color, alpha);
     }
 }
 
