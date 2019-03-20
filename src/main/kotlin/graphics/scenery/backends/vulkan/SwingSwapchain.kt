@@ -210,7 +210,8 @@ open class SwingSwapchain(open val device: VulkanDevice,
                 .minImageCount(desiredNumberOfSwapchainImages)
                 .imageFormat(colorFormatAndSpace.colorFormat)
                 .imageColorSpace(colorFormatAndSpace.colorSpace)
-                .imageUsage(VK10.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT or VK10.VK_IMAGE_USAGE_TRANSFER_SRC_BIT)
+                .imageUsage(VK10.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
+                    or VK10.VK_IMAGE_USAGE_TRANSFER_SRC_BIT)
                 .preTransform(preTransform)
                 .imageArrayLayers(1)
                 .imageSharingMode(VK10.VK_SHARING_MODE_EXCLUSIVE)
@@ -219,13 +220,13 @@ open class SwingSwapchain(open val device: VulkanDevice,
                 .clipped(true)
                 .compositeAlpha(KHRSurface.VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR)
 
-            if ((oldSwapchain is VulkanSwapchain || oldSwapchain is FXSwapchain) && oldHandle != null) {
+            if ((oldSwapchain is VulkanSwapchain || oldSwapchain is FXSwapchain || oldSwapchain is SwingSwapchain) && oldHandle != null) {
                 swapchainCI.oldSwapchain(oldHandle)
             }
 
             swapchainCI.imageExtent().width(window.width).height(window.height)
 
-            handle = VU.getLong("Creating swapchain",
+            handle = VU.getLong("Creating Swing swapchain with ${window.width}x${window.height}",
                 { KHRSwapchain.vkCreateSwapchainKHR(device.vulkanDevice, swapchainCI, null, this) }, {})
 
             // If we just re-created an existing swapchain, we should destroy the old swapchain at this point.
