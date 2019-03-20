@@ -116,7 +116,6 @@ open class SwingSwapchain(open val device: VulkanDevice,
         logger.info("Frame: $frame")
         frame.preferredSize = Dimension(win.width, win.height)
         frame.layout = BorderLayout()
-        frame.pack()
         frame.isVisible = true
 
         while(!canvas.initialized) {
@@ -487,6 +486,7 @@ open class SwingSwapchain(open val device: VulkanDevice,
         logger.debug("Closing swapchain $this")
         KHRSwapchain.vkDestroySwapchainKHR(device.vulkanDevice, handle, null)
 
+        (sceneryPanel as? SceneryJPanel)?.remove(0)
         presentInfo.free()
         MemoryUtil.memFree(swapchainImage)
         MemoryUtil.memFree(swapchainPointer)
