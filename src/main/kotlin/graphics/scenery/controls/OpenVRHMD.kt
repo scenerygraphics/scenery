@@ -662,7 +662,7 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
                     VK10.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                     subresourceRange = subresourceRange,
                     commandBuffer = this,
-                    srcStage = VK10.VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                    srcStage = VK10.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                     dstStage = VK10.VK_PIPELINE_STAGE_TRANSFER_BIT
                 )
 
@@ -677,6 +677,9 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
             val boundsRight = VRTextureBounds.callocStack(stack).set(0.5f, 0.0f, 1.0f, 1.0f)
             val errorRight = VRCompositor_Submit(EVREye_Eye_Right, texture, boundsRight, 0)
 
+            // NOTE: Here, an "unsupported texture type" error can be thrown if the required Vulkan
+            // device or instance extensions have not been loaded -- even if the texture has the correct
+            // format. The solution is to reinitialize the renderer then, in order to pick up these extensions.
             if (errorLeft != EVRCompositorError_VRCompositorError_None
                 || errorRight != EVRCompositorError_VRCompositorError_None) {
                 logger.error("Compositor error: ${translateError(errorLeft)} ($errorLeft)/${translateError(errorRight)} ($errorRight)")
