@@ -393,7 +393,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         }
     }
 
-    fun replaceRenderer(rendererPreference: String) {
+    @JvmOverloads fun replaceRenderer(rendererPreference: String, force: Boolean = false) {
         val requestedRenderer = when (rendererPreference) {
             "OpenGLRenderer" -> "OpenGLRenderer"
             "VulkanRenderer" -> "VulkanRenderer"
@@ -403,7 +403,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             }
         }
 
-        if(requestedRenderer == renderer?.javaClass?.simpleName) {
+        if(requestedRenderer == renderer?.javaClass?.simpleName && !force) {
             logger.info("Not replacing renderer, because already running the same.")
             return
         }
