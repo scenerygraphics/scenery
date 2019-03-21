@@ -16,7 +16,6 @@ import org.lwjgl.vulkan.awt.AWTVKCanvas
 import org.lwjgl.vulkan.awt.VKData
 import java.awt.BorderLayout
 import java.awt.Color
-import java.awt.Dimension
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.util.*
@@ -142,6 +141,11 @@ open class SwingSwapchain(open val device: VulkanDevice,
         }
     }
 
+    private fun Swapchain?.isRecycleable(): Boolean {
+        val handle = this?.handle
+        return this != null && (this is VulkanSwapchain || this is FXSwapchain || this is SwingSwapchain) && handle != null
+    }
+
     /**
      * Creates a new swapchain and returns it, potentially recycling or deallocating [oldSwapchain].
      */
@@ -216,8 +220,8 @@ open class SwingSwapchain(open val device: VulkanDevice,
                 .clipped(true)
                 .compositeAlpha(KHRSurface.VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR)
 
-            if ((oldSwapchain is VulkanSwapchain || oldSwapchain is FXSwapchain || oldSwapchain is SwingSwapchain) && oldHandle != null) {
-                swapchainCI.oldSwapchain(oldHandle)
+            if (oldSwapchain.isRecycleable() && oldSwapchain != null) {
+                swapchainCI.oldSwapchain(oldSwapchain.handle)
             }
 
             swapchainCI.imageExtent().width(window.width).height(window.height)
@@ -227,7 +231,7 @@ open class SwingSwapchain(open val device: VulkanDevice,
 
             // If we just re-created an existing swapchain, we should destroy the old swapchain at this point.
             // Note: destroying the swapchain also cleans up all its associated presentable images once the platform is done with them.
-            if (oldSwapchain is VulkanSwapchain && oldHandle != null && oldHandle != VK10.VK_NULL_HANDLE) {
+            if (oldSwapchain.isRecycleable() && oldHandle != null && oldHandle != VK10.VK_NULL_HANDLE) {
                 // TODO: Figure out why deleting a retired swapchain crashes on Nvidia
 //                KHRSwapchain.vkDestroySwapchainKHR(device.vulkanDevice, oldHandle, null)
                 retiredSwapchains.add(device to oldHandle)
