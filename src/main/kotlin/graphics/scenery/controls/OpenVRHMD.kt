@@ -460,7 +460,7 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
                         loadModelForMesh(td, c)
                         td.model = c
                     } catch(e: Exception) {
-                        logger.warn("Could not load model for $deviceName, device will not be visible in the scene.")
+                        logger.warn("Could not load model for $deviceName, device will not be visible in the scene. ($e)")
                         td.model = null
                     }
 
