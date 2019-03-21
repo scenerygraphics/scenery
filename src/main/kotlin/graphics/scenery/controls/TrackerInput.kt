@@ -60,9 +60,16 @@ class TrackedDevice(val type: TrackedDeviceType, var name: String, var pose: GLM
 }
 
 typealias TrackerInputEventHandler = (TrackerInput, TrackedDevice, Long) -> Any
+
+/**
+ * Contains event handlers in the form of lists of lambdas (see [TrackerInputEventHandler])
+ * for handling device connect/disconnect events.
+ */
 class TrackerInputEventHandlers {
+    /** List of handlers for connect events */
     var onDeviceConnect = ArrayList<TrackerInputEventHandler>()
         protected set
+    /** List of handlers for disconnect events */
     var onDeviceDisconnect = ArrayList<TrackerInputEventHandler>()
         protected set
 }
