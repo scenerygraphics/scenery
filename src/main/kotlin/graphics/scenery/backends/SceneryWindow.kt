@@ -43,26 +43,26 @@ sealed class SceneryWindow {
     var isFullscreen = false
         internal set
 
-    /**
-     * Sets the title of this window to [title].
-     */
-    fun setTitle(title: String) {
-        when(this) {
-            is UninitializedWindow -> {}
-            is GLFWWindow -> glfwSetWindowTitle(window, title)
-            is ClearGLWindow -> window.windowTitle = title
-            is JavaFXStage -> {
-                Platform.runLater { (panel.scene.window as? Stage)?.title = title }
-            }
-            is SwingWindow -> {
-                val window = SwingUtilities.getWindowAncestor(panel)
-                if(window != null) {
-                    (window as? JFrame)?.title = title
+    /** The window's title */
+    var title: String = ""
+        set(value) {
+            field = value
+            when(this) {
+                is UninitializedWindow -> {}
+                is GLFWWindow -> glfwSetWindowTitle(window, value)
+                is ClearGLWindow -> window.windowTitle = value
+                is JavaFXStage -> {
+                    Platform.runLater { (panel.scene.window as? Stage)?.title = value }
                 }
+                is SwingWindow -> {
+                    val window = SwingUtilities.getWindowAncestor(panel)
+                    if(window != null) {
+                        (window as? JFrame)?.title = value
+                    }
+                }
+                is HeadlessWindow -> {}
             }
-            is HeadlessWindow -> {}
         }
-    }
 
     /**
      * Poll events function, in case the window system requires event polling.
