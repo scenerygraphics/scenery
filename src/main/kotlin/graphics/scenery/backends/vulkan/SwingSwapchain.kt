@@ -16,6 +16,8 @@ import org.lwjgl.vulkan.awt.AWTVKCanvas
 import org.lwjgl.vulkan.awt.VKData
 import java.awt.BorderLayout
 import java.awt.Color
+import java.awt.event.ComponentEvent
+import java.awt.event.ComponentListener
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.util.*
@@ -88,7 +90,7 @@ open class SwingSwapchain(open val device: VulkanDevice,
     override fun createWindow(win: SceneryWindow, swapchainRecreator: VulkanRenderer.SwapchainRecreator): SceneryWindow {
         val data = VKData()
         data.instance = device.instance
-        logger.info("Instance=${data.instance}")
+        logger.debug("Vulkan Instance=${data.instance}")
 
         val p = sceneryPanel as? SceneryJPanel ?: throw IllegalArgumentException("Must have SwingWindow")
 
@@ -97,7 +99,7 @@ open class SwingSwapchain(open val device: VulkanDevice,
             var initialized: Boolean = false
                 private set
             override fun initVK() {
-                logger.info("Surface set to $surface")
+                logger.debug("Surface for canvas set to $surface")
                 this@SwingSwapchain.surface = surface
                 this.background = Color.BLACK
                 initialized = true
@@ -109,9 +111,31 @@ open class SwingSwapchain(open val device: VulkanDevice,
         p.component = canvas
         p.layout = BorderLayout()
         p.add(canvas, BorderLayout.CENTER)
+        p.addComponentListener(object : ComponentListener {
+            override fun componentResized(e: ComponentEvent) {
+                if(lastResize > 0L && lastResize + WINDOW_RESIZE_TIMEOUT < System.nanoTime()) {
+                    lastResize = System.nanoTime()
+                    return
+                }
+
+                if(e.component.width <= 0 || e.component.height <= 0) {
+                    return
+                }
+
+                window.width = e.component.width
+                window.height = e.component.height
+
+                logger.debug("Resizing panel to ${window.width}x${window.height}")
+                swapchainRecreator.mustRecreate = true
+                lastResize = -1L
+            }
+
+            override fun componentMoved(e: ComponentEvent) {}
+            override fun componentHidden(e: ComponentEvent) {}
+            override fun componentShown(e: ComponentEvent) {}
+        })
 
         val frame = SwingUtilities.getAncestorOfClass(JFrame::class.java, p) as JFrame
-        logger.info("Frame: $frame")
         frame.isVisible = true
 
         while(!canvas.initialized) {
