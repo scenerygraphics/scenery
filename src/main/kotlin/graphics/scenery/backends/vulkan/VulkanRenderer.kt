@@ -608,7 +608,9 @@ open class VulkanRenderer(hub: Hub,
                     ""
                 }
 
-                window.setTitle("$applicationName [${this@VulkanRenderer.javaClass.simpleName}, ${this@VulkanRenderer.renderConfig.name}] $validationsEnabled - $fps fps")
+                if(embedIn == null) {
+                    window.title = "$applicationName [${this@VulkanRenderer.javaClass.simpleName}, ${this@VulkanRenderer.renderConfig.name}] $validationsEnabled - $fps fps"
+                }
             }
         }, 0, 1000)
 
@@ -1626,6 +1628,10 @@ open class VulkanRenderer(hub: Hub,
     }
 
     private fun submitFrame(queue: VkQueue, pass: VulkanRenderpass, commandBuffer: VulkanCommandBuffer, present: PresentHelpers) {
+        if(swapchainRecreator.mustRecreate) {
+            return
+        }
+
         val stats = hub?.get(SceneryElement.Statistics) as? Statistics
         present.submitInfo
             .sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
@@ -1964,6 +1970,10 @@ open class VulkanRenderer(hub: Hub,
                 .pCommandBuffers(target.submitCommandBuffers)
                 .pSignalSemaphores(target.signalSemaphores)
                 .pWaitSemaphores(target.waitSemaphores)
+
+            if(swapchainRecreator.mustRecreate) {
+                return@runBlocking
+            }
 
             VU.run("Submit pass $t render queue", { vkQueueSubmit(queue, si, commandBuffer.getFence() )})
 
