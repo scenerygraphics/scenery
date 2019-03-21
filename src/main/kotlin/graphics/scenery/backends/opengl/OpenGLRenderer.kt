@@ -769,7 +769,9 @@ open class OpenGLRenderer(hub: Hub,
     override fun display(pDrawable: GLAutoDrawable) {
         val fps = pDrawable.animator?.lastFPS ?: 0.0f
 
-        window.setTitle("$applicationName [${this@OpenGLRenderer.className}] - ${fps.toInt()} fps")
+        if(embedIn == null) {
+            window.title = "$applicationName [${this@OpenGLRenderer.className}] - ${fps.toInt()} fps"
+        }
 
         this.joglDrawable = pDrawable
 
