@@ -30,6 +30,8 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
 
     private var rotation: Quaternion
 
+    override var events = TrackerInputEventHandlers()
+
     init {
         logger.info("My screen is ${ScreenConfig.getScreen(config)}")
         screen = ScreenConfig.getScreen(config)

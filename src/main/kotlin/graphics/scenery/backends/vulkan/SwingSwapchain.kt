@@ -16,7 +16,8 @@ import org.lwjgl.vulkan.awt.AWTVKCanvas
 import org.lwjgl.vulkan.awt.VKData
 import java.awt.BorderLayout
 import java.awt.Color
-import java.awt.Dimension
+import java.awt.event.ComponentEvent
+import java.awt.event.ComponentListener
 import java.nio.IntBuffer
 import java.nio.LongBuffer
 import java.util.*
@@ -89,7 +90,7 @@ open class SwingSwapchain(open val device: VulkanDevice,
     override fun createWindow(win: SceneryWindow, swapchainRecreator: VulkanRenderer.SwapchainRecreator): SceneryWindow {
         val data = VKData()
         data.instance = device.instance
-        logger.info("Instance=${data.instance}")
+        logger.debug("Vulkan Instance=${data.instance}")
 
         val p = sceneryPanel as? SceneryJPanel ?: throw IllegalArgumentException("Must have SwingWindow")
 
@@ -98,7 +99,7 @@ open class SwingSwapchain(open val device: VulkanDevice,
             var initialized: Boolean = false
                 private set
             override fun initVK() {
-                logger.info("Surface set to $surface")
+                logger.debug("Surface for canvas set to $surface")
                 this@SwingSwapchain.surface = surface
                 this.background = Color.BLACK
                 initialized = true
@@ -110,13 +111,31 @@ open class SwingSwapchain(open val device: VulkanDevice,
         p.component = canvas
         p.layout = BorderLayout()
         p.add(canvas, BorderLayout.CENTER)
-        p.preferredSize = Dimension(win.width, win.height)
+        p.addComponentListener(object : ComponentListener {
+            override fun componentResized(e: ComponentEvent) {
+                if(lastResize > 0L && lastResize + WINDOW_RESIZE_TIMEOUT < System.nanoTime()) {
+                    lastResize = System.nanoTime()
+                    return
+                }
+
+                if(e.component.width <= 0 || e.component.height <= 0) {
+                    return
+                }
+
+                window.width = e.component.width
+                window.height = e.component.height
+
+                logger.debug("Resizing panel to ${window.width}x${window.height}")
+                swapchainRecreator.mustRecreate = true
+                lastResize = -1L
+            }
+
+            override fun componentMoved(e: ComponentEvent) {}
+            override fun componentHidden(e: ComponentEvent) {}
+            override fun componentShown(e: ComponentEvent) {}
+        })
 
         val frame = SwingUtilities.getAncestorOfClass(JFrame::class.java, p) as JFrame
-        logger.info("Frame: $frame")
-        frame.preferredSize = Dimension(win.width, win.height)
-        frame.layout = BorderLayout()
-        frame.pack()
         frame.isVisible = true
 
         while(!canvas.initialized) {
@@ -144,6 +163,11 @@ open class SwingSwapchain(open val device: VulkanDevice,
         } else {
             KHRSurface.VK_PRESENT_MODE_FIFO_KHR
         }
+    }
+
+    private fun Swapchain?.isRecycleable(): Boolean {
+        val handle = this?.handle
+        return this != null && (this is VulkanSwapchain || this is FXSwapchain || this is SwingSwapchain) && handle != null
     }
 
     /**
@@ -210,7 +234,8 @@ open class SwingSwapchain(open val device: VulkanDevice,
                 .minImageCount(desiredNumberOfSwapchainImages)
                 .imageFormat(colorFormatAndSpace.colorFormat)
                 .imageColorSpace(colorFormatAndSpace.colorSpace)
-                .imageUsage(VK10.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT or VK10.VK_IMAGE_USAGE_TRANSFER_SRC_BIT)
+                .imageUsage(VK10.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
+                    or VK10.VK_IMAGE_USAGE_TRANSFER_SRC_BIT)
                 .preTransform(preTransform)
                 .imageArrayLayers(1)
                 .imageSharingMode(VK10.VK_SHARING_MODE_EXCLUSIVE)
@@ -219,18 +244,18 @@ open class SwingSwapchain(open val device: VulkanDevice,
                 .clipped(true)
                 .compositeAlpha(KHRSurface.VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR)
 
-            if ((oldSwapchain is VulkanSwapchain || oldSwapchain is FXSwapchain) && oldHandle != null) {
-                swapchainCI.oldSwapchain(oldHandle)
+            if (oldSwapchain.isRecycleable() && oldSwapchain != null) {
+                swapchainCI.oldSwapchain(oldSwapchain.handle)
             }
 
             swapchainCI.imageExtent().width(window.width).height(window.height)
 
-            handle = VU.getLong("Creating swapchain",
+            handle = VU.getLong("Creating Swing swapchain with ${window.width}x${window.height}",
                 { KHRSwapchain.vkCreateSwapchainKHR(device.vulkanDevice, swapchainCI, null, this) }, {})
 
             // If we just re-created an existing swapchain, we should destroy the old swapchain at this point.
             // Note: destroying the swapchain also cleans up all its associated presentable images once the platform is done with them.
-            if (oldSwapchain is VulkanSwapchain && oldHandle != null && oldHandle != VK10.VK_NULL_HANDLE) {
+            if (oldSwapchain.isRecycleable() && oldHandle != null && oldHandle != VK10.VK_NULL_HANDLE) {
                 // TODO: Figure out why deleting a retired swapchain crashes on Nvidia
 //                KHRSwapchain.vkDestroySwapchainKHR(device.vulkanDevice, oldHandle, null)
                 retiredSwapchains.add(device to oldHandle)
@@ -486,6 +511,7 @@ open class SwingSwapchain(open val device: VulkanDevice,
         logger.debug("Closing swapchain $this")
         KHRSwapchain.vkDestroySwapchainKHR(device.vulkanDevice, handle, null)
 
+        (sceneryPanel as? SceneryJPanel)?.remove(0)
         presentInfo.free()
         MemoryUtil.memFree(swapchainImage)
         MemoryUtil.memFree(swapchainPointer)

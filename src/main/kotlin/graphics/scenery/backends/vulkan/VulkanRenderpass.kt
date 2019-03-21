@@ -249,7 +249,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                 descriptorSets.put(inputKey, ds)
                 input++
             } else {
-                logger.warn("$name: Shader does not use input of ${inputFramebuffer.key}")
+                logger.debug("$name: Shader does not use input of ${inputFramebuffer.key}. Check if your shader should be doing that.")
             }
         }
     }

@@ -54,6 +54,24 @@ class TrackedDevice(val type: TrackedDeviceType, var name: String, var pose: GLM
 
             return field
         }
+
+    var model: Node? = null
+    var modelPath: String? = null
+}
+
+typealias TrackerInputEventHandler = (TrackerInput, TrackedDevice, Long) -> Any
+
+/**
+ * Contains event handlers in the form of lists of lambdas (see [TrackerInputEventHandler])
+ * for handling device connect/disconnect events.
+ */
+class TrackerInputEventHandlers {
+    /** List of handlers for connect events */
+    var onDeviceConnect = ArrayList<TrackerInputEventHandler>()
+        protected set
+    /** List of handlers for disconnect events */
+    var onDeviceDisconnect = ArrayList<TrackerInputEventHandler>()
+        protected set
 }
 
 /**
@@ -62,6 +80,9 @@ class TrackedDevice(val type: TrackedDeviceType, var name: String, var pose: GLM
  * @author Ulrik Günther <hello@ulrik.is>
  */
 interface TrackerInput {
+    /** Event handler class */
+    var events: TrackerInputEventHandlers
+
     /**
      * Returns the orientation of the HMD
      *

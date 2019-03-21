@@ -72,6 +72,8 @@ class Hololens: TrackerInput, Display, Hubable {
     private var poseLeft: GLMatrix = GLMatrix.getIdentity()
     private var poseRight: GLMatrix = GLMatrix.getIdentity()
 
+    override var events = TrackerInputEventHandlers()
+
     init {
         zmqSocket.connect("tcp://localhost:$defaultPort")
     }
