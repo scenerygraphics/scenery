@@ -79,7 +79,7 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
      *  1 -- Maximum Intensity Projection
      *  2 -- Alpha compositing
      */
-    @ShaderProperty var renderingMethod: Int = 0
+    @ShaderProperty var renderingMethod: Int = 2
 
     /** Transfer function minimum */
     @ShaderProperty var trangemin = 0.00f
@@ -137,7 +137,7 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
 
     @ShaderProperty var kernelSize: Float = 0.01f
     @ShaderProperty var maxOcclusionDistance: Float = 0.01f
-    @ShaderProperty var occlusionSteps: Int = 4
+    @ShaderProperty var occlusionSteps: Int = 0
 
     @ShaderProperty var time: Float = System.nanoTime().toFloat()
 
