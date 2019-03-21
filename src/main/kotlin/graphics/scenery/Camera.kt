@@ -3,6 +3,7 @@ package graphics.scenery
 import cleargl.GLMatrix
 import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
+import graphics.scenery.volumes.bdv.BDVVolume
 import kotlin.math.PI
 import kotlin.math.atan
 import kotlin.math.cos
@@ -264,7 +265,7 @@ open class Camera : Node("Camera") {
      */
     fun canSee(node: Node): Boolean {
         // TODO: Figure out how to efficiently cull instances
-        if(disableCulling || node.instances.size > 0 ) {
+        if(disableCulling || node.instances.size > 0 || node is BDVVolume) {
             return true
         }
 
