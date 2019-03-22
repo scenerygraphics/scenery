@@ -35,6 +35,7 @@
 * bumps SciJava parent POM to 25.0.0
 * bumps Kotlin to 1.3.21
 * bumps kotlinx-coroutines-core to 1.1.1
+* bumps dokka to 0.9.18
 
 # scenery-0.6.2 to scenery-0.7.0-beta-1
 
