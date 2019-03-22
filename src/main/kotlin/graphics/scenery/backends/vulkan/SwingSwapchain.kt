@@ -111,6 +111,20 @@ open class SwingSwapchain(open val device: VulkanDevice,
         p.component = canvas
         p.layout = BorderLayout()
         p.add(canvas, BorderLayout.CENTER)
+
+        val frame = SwingUtilities.getAncestorOfClass(JFrame::class.java, p) as JFrame
+        frame.isVisible = true
+
+        while(!canvas.initialized) {
+            Thread.sleep(100)
+        }
+
+        window = SceneryWindow.SwingWindow(p)
+        window.width = win.width
+        window.height = win.height
+
+        // the listener should only be initialized here, otherwise [window]
+        // might be uninitialized.
         p.addComponentListener(object : ComponentListener {
             override fun componentResized(e: ComponentEvent) {
                 if(lastResize > 0L && lastResize + WINDOW_RESIZE_TIMEOUT < System.nanoTime()) {
@@ -134,17 +148,6 @@ open class SwingSwapchain(open val device: VulkanDevice,
             override fun componentHidden(e: ComponentEvent) {}
             override fun componentShown(e: ComponentEvent) {}
         })
-
-        val frame = SwingUtilities.getAncestorOfClass(JFrame::class.java, p) as JFrame
-        frame.isVisible = true
-
-        while(!canvas.initialized) {
-            Thread.sleep(100)
-        }
-
-        window = SceneryWindow.SwingWindow(p)
-        window.width = win.width
-        window.height = win.height
 
         return window
     }
