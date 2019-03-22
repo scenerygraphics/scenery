@@ -1,5 +1,41 @@
 # CHANGELOG
 
+# scenery-0.7.0-beta-1 to scenery-0.7.0-beta-2
+
+## Additions and Changes
+
+* Camera: add frustum culling, add `canSee(Node)` function
+* adds Arrow class
+* adds LogbackUtils class for controlling logback log levels, e.g. in Fiji
+* Node: remove `instanceMaster` and `instanceOf` properties, this is now handled via `instances` and `parent` (BREAKING CHANGE)
+* Volume: in alpha blending mode, use 0 occlusion steps by default for performance reasons
+* Renderer: change window title only if not running in embedded mode
+* OpenVRHMD: log exception in case model loading fails
+* TrackerInput/OpenVRHMD/Hololens/TrackedStereoGlasses: add device connect/disconnect handlers
+* SceneryBase: add `force` flag to replaceRenderer()
+* ExampleRunner: run tests in stereo and non-stereo modes
+* Line: enable transparent rendering
+* VulkanRenderer/OpenGLRenderer: optimise UBO updates
+* DeferredLighting: optimize Z reconstruction
+* DeferredLighting: improve light falloff
+* OpenGLRenderer: initialise renderer synchronously
+* VulkanRenderer: create descriptor sets based on pass type, not name
+* OpenGLRenderer: limit state changes for shaders
+
+## Fixes
+
+* SwingSwapchain: add resize handlers
+* SwingSwapchain: don't impose preferred dimensions on SceneryJPanels
+* OpenGLRenderer/VulkanRenderer: fix wrong buffer size issues when adding new instances or removing old ones and using `CopyOnWriteArrayList` the way it is supposed to
+* OpenGLRenderer/VulkanRenderer: do not overwrite pre-existing settings
+* PointLight: calculate bounding boxes correctly
+
+## Dependency Updates
+
+* bumps SciJava parent POM to 25.0.0
+* bumps Kotlin to 1.3.21
+* bumps kotlinx-coroutines-core to 1.1.1
+
 # scenery-0.6.2 to scenery-0.7.0-beta-1
 
 ## Additions and Changes
@@ -65,7 +101,7 @@
 * VulkanRenderer/OpenGLRenderer: Determine renderer window size depending on size of embedded component
 * JavaFXMouseAndKeyHandler: Attach event handlers to JavaFX `Scene`, and not to `Stage`
 
-## Dependency update
+## Dependency Updates
 
 * bumps spirvcrossj to 0.4.2
 
