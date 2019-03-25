@@ -1068,6 +1068,7 @@ open class VulkanRenderer(hub: Hub,
                         t.copyFrom(ByteBuffer.allocate(0))
                     }
 
+                    t.createSampler(gt)
                     t
                 } else {
                     val start = System.nanoTime()

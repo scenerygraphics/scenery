@@ -548,16 +548,32 @@ open class VulkanTexture(val device: VulkanDevice,
     /**
      * Creates a default sampler for this texture.
      */
-    private fun createSampler(): Long {
+    fun createSampler(genericTexture: GenericTexture? = null): Long {
+        val t = genericTexture ?: gt
+
+        val (repeatS, repeatT, repeatU) = if(t != null) {
+            Triple(
+                if(t.repeatS) { VK_SAMPLER_ADDRESS_MODE_REPEAT } else { VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE },
+                if(t.repeatT) { VK_SAMPLER_ADDRESS_MODE_REPEAT } else { VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE },
+                if(t.repeatU) { VK_SAMPLER_ADDRESS_MODE_REPEAT } else { VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE }
+            )
+        } else {
+            if(depth == 1) {
+                Triple(VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_SAMPLER_ADDRESS_MODE_REPEAT)
+            } else {
+                Triple(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE)
+            }
+        }
+
         val samplerInfo = VkSamplerCreateInfo.calloc()
             .sType(VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO)
             .pNext(NULL)
             .magFilter(if(minFilterLinear) { VK_FILTER_LINEAR } else { VK_FILTER_NEAREST })
             .minFilter(if(maxFilterLinear) { VK_FILTER_LINEAR } else { VK_FILTER_NEAREST })
             .mipmapMode(if(depth == 1) { VK_SAMPLER_MIPMAP_MODE_LINEAR } else { VK_SAMPLER_MIPMAP_MODE_NEAREST })
-            .addressModeU(if(depth == 1) { VK_SAMPLER_ADDRESS_MODE_REPEAT } else { VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE })
-            .addressModeV(if(depth == 1) { VK_SAMPLER_ADDRESS_MODE_REPEAT } else { VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE })
-            .addressModeW(if(depth == 1) { VK_SAMPLER_ADDRESS_MODE_REPEAT } else { VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE })
+            .addressModeU(repeatS)
+            .addressModeV(repeatT)
+            .addressModeW(repeatU)
             .mipLodBias(0.0f)
             .anisotropyEnable(depth == 1)
             .maxAnisotropy(if(depth == 1) { 8.0f } else { 1.0f })
@@ -566,9 +582,12 @@ open class VulkanTexture(val device: VulkanDevice,
             .borderColor(VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE)
             .compareOp(VK_COMPARE_OP_NEVER)
 
-        return VU.getLong("creating sampler",
+        val sampler = VU.getLong("creating sampler",
             { vkCreateSampler(device.vulkanDevice, samplerInfo, null, this) },
             { samplerInfo.free() })
+
+        image.sampler = sampler
+        return sampler
     }
 
 
