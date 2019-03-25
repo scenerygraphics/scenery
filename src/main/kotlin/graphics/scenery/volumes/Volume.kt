@@ -37,7 +37,7 @@ import kotlin.streams.toList
  * @author Martin Weigert <mweigert@mpi-cbg.de>
  */
 @Suppress("unused")
-open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
+open class Volume : Mesh("Volume") {
     data class VolumeDescriptor(val path: Path?,
                                 val width: Long,
                                 val height: Long,
@@ -270,14 +270,6 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         val dimensions = lines.get(0).split(",").map { it.toLong() }.toTypedArray()
 
 
-        if (autosetProperties) {
-            trangemax = 0.03f
-            voxelSizeX = 1.0f
-            voxelSizeY = 1.0f
-            voxelSizeZ = 1.0f
-        }
-
-
         sizeX = dimensions[0].toInt()
         sizeY = dimensions[1].toInt()
         sizeZ = dimensions[2].toInt()
@@ -333,12 +325,6 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
                        voxelX: Float, voxelY: Float, voxelZ: Float,
                        dataType: NativeTypeEnum = NativeTypeEnum.UnsignedInt, bytesPerVoxel: Int = 2,
                        allowDeallocation: Boolean = false) {
-        if (autosetProperties) {
-            voxelSizeX = voxelX
-            voxelSizeY = voxelY
-            voxelSizeZ = voxelZ
-        }
-
         sizeX = x.toInt()
         sizeY = y.toInt()
         sizeZ = z.toInt()
@@ -384,12 +370,6 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         }
 
         val reader = scifio.initializer().initializeReader(file.normalize().toString())
-
-        if(autosetProperties) {
-            voxelSizeX = 1.0f
-            voxelSizeY = 1.0f
-            voxelSizeZ = 1.0f
-        }
 
         with(reader.openPlane(0, 0)) {
             sizeX = lengths[0].toInt()
@@ -489,13 +469,6 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
         val dimensions = lines.get(0).split(",").map { it.toLong() }.toTypedArray()
         logger.debug("setting dim to ${dimensions.joinToString()}")
 
-        if (autosetProperties) {
-            this.trangemax = 0.03f
-            voxelSizeX = 1.0f
-            voxelSizeY = 1.0f
-            voxelSizeZ = 1.0f
-        }
-
         sizeX = dimensions[0].toInt()
         sizeY = dimensions[1].toInt()
         sizeZ = dimensions[2].toInt()
@@ -567,7 +540,8 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
             logger.debug("Transfer function is stale, updating")
             material.transferTextures["transferFunction"] = GenericTexture(
                 "transferFunction", GLVector(transferFunction.textureSize.toFloat(), transferFunction.textureHeight.toFloat(), 1.0f),
-                channels = 1, type = GLTypeEnum.Float, contents = transferFunction.serialise())
+                channels = 1, type = GLTypeEnum.Float, contents = transferFunction.serialise(),
+                repeatS = false, repeatT = false, repeatU = false)
 
             material.textures["diffuse"] = "fromBuffer:transferFunction"
             material.needsTextureReload = true
@@ -670,13 +644,20 @@ open class Volume(var autosetProperties: Boolean = true) : Mesh("Volume") {
     }
 
     /**
-     * Creates this volume's [Node.OrientedBoundingBox], giving a slight bit of slack
-     * around all edges.
+     * Creates this volume's [Node.OrientedBoundingBox], giving 2cm slack around the edges.
+     * The volume's bounding box is calculated from voxel and physical size such that
+     * 1 pixel = 1mm in world units.
      */
     override fun generateBoundingBox(): OrientedBoundingBox? {
         val slack = 0.02f
-        val min = GLVector(-1.0f * voxelSizeX - slack, -1.0f * voxelSizeY - slack, -1.0f * voxelSizeZ - slack)
-        val max = GLVector(1.0f * voxelSizeX + slack, 1.0f * voxelSizeY + slack, 1.0f * voxelSizeZ + slack)
+        val min = GLVector(
+            -1.0f * sizeX * voxelSizeX * 0.001f - slack,
+            -1.0f * sizeY * voxelSizeY * 0.001f - slack,
+            -1.0f * sizeZ * voxelSizeZ * 0.001f - slack)
+        val max = GLVector(
+            1.0f * sizeX * voxelSizeX * 0.001f + slack,
+            1.0f * sizeY * voxelSizeY * 0.001f + slack,
+            1.0f * sizeZ * voxelSizeZ * 0.001f + slack)
 
         return OrientedBoundingBox(min, max)
     }

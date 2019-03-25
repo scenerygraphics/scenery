@@ -90,19 +90,18 @@ void main()
     mv = (vrParameters.stereoEnabled ^ 1) * ViewMatrices[0] * ubo.ModelMatrix + (vrParameters.stereoEnabled * ViewMatrices[currentEye.eye] * ubo.ModelMatrix);
 	projectionMatrix = (vrParameters.stereoEnabled ^ 1) * ProjectionMatrix + vrParameters.stereoEnabled * vrParameters.projectionMatrices[currentEye.eye];
 
-	vec3 L = vec3(sizeX, sizeY, sizeZ) * vec3(voxelSizeX, voxelSizeY, voxelSizeZ);
-
-	float Lmax = max3(L);
+    // volume is scaled in such a way that 1 pixel in volume units = 1mm in world units
+	vec3 L = vec3(sizeX, sizeY, sizeZ) * vec3(voxelSizeX, voxelSizeY, voxelSizeZ) * 0.001;
 
 	mat4 invScale = mat4(1.0);
-	invScale[0][0] = 1.0/voxelSizeX;
-	invScale[1][1] = 1.0/voxelSizeY;
-	invScale[2][2] = 1.0/voxelSizeZ;
+	invScale[0][0] = 1.0/L.x;
+	invScale[1][1] = 1.0/L.y;
+	invScale[2][2] = 1.0/L.z;
 
 	mat4 scale = mat4(1.0);
-	scale[0][0] = voxelSizeX;
-	scale[1][1] = voxelSizeY;
-	scale[2][2] = voxelSizeZ;
+	scale[0][0] = L.x;
+	scale[1][1] = L.y;
+	scale[2][2] = L.z;
 
     Vertex.inverseProjection = (vrParameters.stereoEnabled ^ 1) * InverseProjectionMatrix + (vrParameters.stereoEnabled * vrParameters.inverseProjectionMatrices[currentEye.eye]);
     Vertex.inverseModelView = invScale * inverse(mv);
