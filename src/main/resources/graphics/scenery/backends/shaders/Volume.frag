@@ -202,7 +202,7 @@ vec4 sampleLUT(float coord) {
 // sample a value from the transfer function texture, stored in the
 // diffuse texture array.
 float sampleTF(float coord) {
-    return texture(ObjectTextures[1], vec2(coord, 0.5f)).r;
+    return texture(ObjectTextures[1], vec2(coord+0.001f, 0.5f)).r;
 }
 
 vec3 getGradient(sampler3D volume, vec3 uvw, float kernelSize) {
@@ -347,7 +347,7 @@ void main()
               }
          }
 
-         alphaVal = clamp(colVal, 0.0, 1.0);
+         alphaVal = 1.0f - opacity;
 
          // Mapping to transfer function range and gamma correction:
          FragColor = vec4(pow(sampleLUT(colVal).rgb, vec3(gamma)) * alphaVal, alphaVal);
@@ -367,17 +367,16 @@ void main()
     } else {
         vec3 color = vec3(0.0f);
         float alpha = 0.0f;
+        int osteps = min(occlusionSteps, 16);
         pos += vec3(random(vec3(Vertex.textureCoord.s, Vertex.textureCoord.t, time)))/10000.0f;
 
          for(int i = 0; i <= steps; i++, pos += vecstep) {
             float rawSample = texture(VolumeTextures, pos.xyz).r;
             float volumeSample = rawSample * dataRangeMax;
+            float shadowing = 0.0f;
             volumeSample = clamp(ta * volumeSample + tb,0.f,1.f);
 
-            float newAlpha;
-            newAlpha = sampleTF(volumeSample);
-
-            int osteps = min(occlusionSteps, 16);
+            float newAlpha = sampleTF(volumeSample);
 
             if(newAlpha > 0.0f && osteps > 0) {
                 [[unroll]] for(int s = 0; s < osteps; s++) {
@@ -392,27 +391,21 @@ void main()
 
                     shadowDist += a * NdotS/occlusionSteps;
                 }
+
+                shadowing = clamp(shadowDist, 0.0, 1.0);
             }
 
-            float shadowing = clamp(shadowDist, 0.0, 1.0);
+            vec3 newColor = sampleLUT(volumeSample).rgb * (1.0 - shadowing);
 
-            vec4 transfer = sampleLUT(volumeSample) * (1.0 - shadowing);
-            vec3 newColor = transfer.rgb;
-
-            newAlpha = 1.0f - pow(1.0f - newAlpha, tstep * 150.0f);
             color = color + (1.0f - alpha) * newColor * newAlpha;
             alpha = alpha + (1.0f - alpha) * newAlpha;
-//            color = mix(color, newColor, newAlpha);
-//            alpha = mix(alpha, 1.0, newAlpha);
 
             if(alpha >= 1.0) {
                 break;
             }
         }
 
-        // alpha correction
-//        alpha = pow(alpha, stepSize);
-//        FragColor = vec4(pow(color, vec3(gamma))*alpha, alpha);
+        // color is alpha pre-multiplied alpha, so we just pass it along here
         FragColor = vec4(color, alpha);
     }
 }

@@ -35,7 +35,7 @@ import kotlin.math.min
  * @author Tobias Pietzsch <pietzsch@mpi-cbg.de>
  */
 @Suppress("unused")
-open class BDVVolume(bdvXMLFile: String = "", val options: VolumeViewerOptions) : Volume(false) {
+open class BDVVolume(bdvXMLFile: String = "", val options: VolumeViewerOptions) : Volume() {
     /**
      *  The rendering method used in the shader, can be
      *

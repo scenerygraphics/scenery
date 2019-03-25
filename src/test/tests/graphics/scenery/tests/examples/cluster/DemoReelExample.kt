@@ -83,13 +83,13 @@ class DemoReelExample: SceneryBase("Demo Reel") {
         volumes.put(histoneScene.name, getVolumes("M:/CAVE_DATA/histones-isonet/stacks/default/"))
         volumes.put(drosophilaScene.name, getVolumes("M:/CAVE_DATA/droso-royer-autopilot-transposed/"))
 
-        val histoneVolume = Volume(autosetProperties = false)
+        val histoneVolume = Volume()
         //histoneVolume.
         histoneScene.addChild(histoneVolume)
         histoneScene.visible = false
         scene.addChild(histoneScene)
 
-        val drosophilaVolume = Volume(autosetProperties = false)
+        val drosophilaVolume = Volume()
         drosophilaVolume.rotation.rotateByAngleX(1.57f)
         drosophilaScene.addChild(drosophilaVolume)
         drosophilaScene.visible = false
