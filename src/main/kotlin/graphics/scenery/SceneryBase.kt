@@ -22,6 +22,7 @@ import org.scijava.ui.behaviour.ClickBehaviour
 import java.lang.Boolean.parseBoolean
 import java.lang.management.ManagementFactory
 import java.util.*
+import java.util.concurrent.CountDownLatch
 import kotlin.concurrent.thread
 
 /**
@@ -65,7 +66,8 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
     /** State variable for registering a new renderer */
     data class NewRendererParameters(val rendererType: String, val hub: Hub,
                                      val applicationName: String, val width: Int, val height: Int,
-                                     val scene: Scene, val embedIn: SceneryPanel?, val config: String)
+                                     val scene: Scene, val embedIn: SceneryPanel?, val config: String,
+                                     val signal: CountDownLatch? = null)
     protected var registerNewRenderer: NewRendererParameters? = null
 
     /** Logger for this application, will be instantiated upon first use. */
@@ -310,6 +312,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
 
                 renderer = newRenderer
 
+                registerNewRenderer?.signal?.countDown()
                 registerNewRenderer = null
             }
 
@@ -393,7 +396,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         }
     }
 
-    @JvmOverloads fun replaceRenderer(rendererPreference: String, force: Boolean = false) {
+    @JvmOverloads fun replaceRenderer(rendererPreference: String, force: Boolean = false, wait: Boolean = false) {
         val requestedRenderer = when (rendererPreference) {
             "OpenGLRenderer" -> "OpenGLRenderer"
             "VulkanRenderer" -> "VulkanRenderer"
@@ -408,12 +411,25 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             return
         }
 
-        registerNewRenderer = NewRendererParameters(
+        val latch = if(wait) {
+            CountDownLatch(1)
+        } else {
+            null
+        }
+
+        val metadata = NewRendererParameters(
             rendererPreference, hub, applicationName,
             renderer?.window?.width ?: 512, renderer?.window?.height ?: 512,
-            scene, renderer?.embedIn, renderer?.renderConfigFile ?: "DeferredShading.yml")
+            scene, renderer?.embedIn, renderer?.renderConfigFile ?: "DeferredShading.yml",
+            latch)
+
+        registerNewRenderer = metadata
 
         renderer?.close()
+
+        if(wait) {
+            latch?.await()
+        }
     }
 
     companion object {
