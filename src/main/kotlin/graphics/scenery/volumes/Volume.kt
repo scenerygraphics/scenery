@@ -651,13 +651,13 @@ open class Volume : Mesh("Volume") {
     override fun generateBoundingBox(): OrientedBoundingBox? {
         val slack = 0.02f
         val min = GLVector(
-            -1.0f * sizeX * voxelSizeX * 0.001f - slack,
-            -1.0f * sizeY * voxelSizeY * 0.001f - slack,
-            -1.0f * sizeZ * voxelSizeZ * 0.001f - slack)
+            -0.5f * sizeX * voxelSizeX * 0.001f - slack,
+            -0.5f * sizeY * voxelSizeY * 0.001f - slack,
+            -0.5f * sizeZ * voxelSizeZ * 0.001f - slack)
         val max = GLVector(
-            1.0f * sizeX * voxelSizeX * 0.001f + slack,
-            1.0f * sizeY * voxelSizeY * 0.001f + slack,
-            1.0f * sizeZ * voxelSizeZ * 0.001f + slack)
+            1.5f * sizeX * voxelSizeX * 0.001f + slack,
+            1.5f * sizeY * voxelSizeY * 0.001f + slack,
+            1.5f * sizeZ * voxelSizeZ * 0.001f + slack)
 
         return OrientedBoundingBox(min, max)
     }

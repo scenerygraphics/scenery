@@ -87,11 +87,17 @@ void main()
 	mat4 nMVP;
 	mat4 projectionMatrix;
 
-    mv = (vrParameters.stereoEnabled ^ 1) * ViewMatrices[0] * ubo.ModelMatrix + (vrParameters.stereoEnabled * ViewMatrices[currentEye.eye] * ubo.ModelMatrix);
-	projectionMatrix = (vrParameters.stereoEnabled ^ 1) * ProjectionMatrix + vrParameters.stereoEnabled * vrParameters.projectionMatrices[currentEye.eye];
-
     // volume is scaled in such a way that 1 pixel in volume units = 1mm in world units
 	vec3 L = vec3(sizeX, sizeY, sizeZ) * vec3(voxelSizeX, voxelSizeY, voxelSizeZ) * 0.001;
+
+	mat4 center = transpose(mat4(1.0f, 0.0f, 0.0f, L.x/2.0f,
+	                   0.0f, 1.0f, 0.0f, L.y/2.0f,
+	                   0.0f, 0.0f, 1.0f, L.z/2.0f,
+	                   0.0f, 0.0f, 0.0f, 1.0f));
+
+    mv = (vrParameters.stereoEnabled ^ 1) * ViewMatrices[0] * ubo.ModelMatrix + (vrParameters.stereoEnabled * ViewMatrices[currentEye.eye] * ubo.ModelMatrix);
+    mv *= center;
+	projectionMatrix = (vrParameters.stereoEnabled ^ 1) * ProjectionMatrix + vrParameters.stereoEnabled * vrParameters.projectionMatrices[currentEye.eye];
 
 	mat4 invScale = mat4(1.0);
 	invScale[0][0] = 1.0/L.x;
