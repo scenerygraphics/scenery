@@ -1,5 +1,22 @@
 # CHANGELOG
 
+# scenery-0.7.0-beta-2 to scenery-0.7.0-beta-3
+
+## Additions and Changes
+
+* Volume: Use same coordinate system as meshes, and make 1 voxel equivalent to 0.001 world units (= 1mm)
+* Volume: Remove `autosetProperties` (BREAKING CHANGE)
+* SceneryBase: Allow replaceRenderer() to be blocking, set wait=true to use this
+
+## Fixes
+
+* VulkanRenderer: Take texture repeat settings into consideration and recreate samplers on update (#236)
+* Volume: Update outdated SPIRV binary shaders
+
+## Dependency Updates
+
+* bumps spirvcrossj to 0.5.2-1.1.101.0
+
 # scenery-0.7.0-beta-1 to scenery-0.7.0-beta-2
 
 ## Additions and Changes
