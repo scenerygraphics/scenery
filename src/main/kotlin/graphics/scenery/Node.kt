@@ -245,10 +245,6 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
 
         this.getScene()?.sceneSize?.incrementAndGet()
         GlobalScope.async {  this@Node.getScene()?.onChildrenAdded?.forEach { it.value.invoke(this@Node, child) } }
-
-        if(child is PointLight) {
-            this.getScene()?.lights?.add(child)
-        }
     }
 
     /**
@@ -259,10 +255,6 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
     fun removeChild(child: Node): Boolean {
         this.getScene()?.sceneSize?.decrementAndGet()
         GlobalScope.async { this@Node.getScene()?.onChildrenRemoved?.forEach { it.value.invoke(this@Node, child) } }
-
-        if(child is PointLight) {
-            this.getScene()?.lights?.remove(child)
-        }
 
         return this.children.remove(child)
     }
@@ -418,7 +410,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
         }
     }
 
-    private val shaderPropertyFieldCache = HashMap<String, KProperty1<Node, *>>()
+    @Transient private val shaderPropertyFieldCache = HashMap<String, KProperty1<Node, *>>()
     /**
      * Returns the [ShaderProperty] given by [name], if it exists and is declared by
      * this class or a subclass inheriting from [Node]. Returns null if the [name] can
