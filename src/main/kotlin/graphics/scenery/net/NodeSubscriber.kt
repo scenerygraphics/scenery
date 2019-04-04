@@ -50,13 +50,12 @@ class NodeSubscriber(override var hub: Hub?, val address: String = "udp://localh
                 start = System.nanoTime()
                 val id = subscriber.recvStr().toInt()
 
-//                logger.info("Received $id for deserializiation")
+                logger.debug("Received {} for deserializiation", id)
                 duration = (System.nanoTime() - start)
                 val payload = subscriber.recv()
 
-//                logger.info("Have: ${nodes.keys.joinToString(", ")}, payload: ${payload != null}")
-
                 if (payload != null) {
+                    logger.debug("payload is not null, node id={}, have={}", id, nodes.containsKey(id))
                     nodes[id]?.let { node ->
                         val bin = ByteArrayInputStream(payload)
                         val input = Input(bin)
@@ -94,6 +93,11 @@ class NodeSubscriber(override var hub: Hub?, val address: String = "udp://localh
                                 node.sizeY = o.sizeY
                                 node.sizeZ = o.sizeZ
                             }
+                        }
+
+                        if(o is PointLight && node is PointLight) {
+                            node.emissionColor = o.emissionColor
+                            node.lightRadius = o.lightRadius
                         }
 
                         input.close()
