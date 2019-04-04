@@ -14,10 +14,10 @@ rendertargets:
       Occlusion: R_UInt8
   ForwardBuffer:
     attachments:
-      Color: RGBA_Float32
+      Color: RGBA_Float16
   HDRBuffer:
     attachments:
-      Color: RGBA_Float32
+      Color: RGBA_Float16
 
 renderpasses:
   Scene:
