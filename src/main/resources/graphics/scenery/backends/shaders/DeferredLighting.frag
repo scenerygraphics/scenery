@@ -512,15 +512,15 @@ void main()
         lightAttenuation = 1.0;
     }
 
-//	if(debugLights == 1) {
-//        FragColor = vec4(N, 1.0);
-//        return;
-//	}
-//
-//	if(debugLights == 2) {
-//	    FragColor = vec4(FragPos, 1.0);
-//	    return;
-//	}
+	if(debugLights == 1) {
+        FragColor = vec4(N, 1.0);
+        return;
+	}
+
+	if(debugLights == 2) {
+	    FragColor = vec4(FragPos, 1.0);
+	    return;
+	}
 
     vec3 V = normalize(cameraPosition - FragPos);
     vec3 H = normalize(L + V);
