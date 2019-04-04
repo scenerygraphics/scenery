@@ -131,7 +131,7 @@ sealed class Shaders {
      * if the files cannot be located within the normal neighborhood of the resources in [classes].
      */
     protected fun safeFindBaseClass(classes: Array<Class<*>>, path: String): Pair<Class<*>, String>? {
-        logger.info("Looking for $path in ${classes.map { it.simpleName }.joinToString(", ")}")
+        logger.debug("Looking for $path in ${classes.map { it.simpleName }.joinToString(", ")}")
         val streams = classes.map { clazz ->
             clazz to clazz.getResourceAsStream(path)
         }.filter { it.second != null }.toMutableList()
