@@ -13,6 +13,28 @@ class Settings(override var hub: Hub? = null) : Hubable {
     private var settingsStore = ConcurrentHashMap<String, Any>()
     private val logger by LazyLogger()
 
+    init {
+        val properties = System.getProperties()
+        properties.forEach { p ->
+            val key = p.key as? String ?: return@forEach
+            val value = p.value as? String ?: return@forEach
+
+            if(!key.startsWith("scenery.")) {
+                return@forEach
+            }
+
+            val setting = when {
+                value.toLowerCase() == "false" || value.toLowerCase() == "true" -> value.toBoolean()
+                value.toFloatOrNull() != null -> value.toFloat()
+                value.toLongOrNull() != null -> value.toLong()
+                value.toIntOrNull() != null -> value.toInt()
+                else -> value
+            }
+
+            set(key.substringAfter("scenery."), setting)
+        }
+    }
+
     /**
      * Query the settings store for a setting [name] and type T
      *
