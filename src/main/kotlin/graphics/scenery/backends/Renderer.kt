@@ -152,7 +152,7 @@ abstract class Renderer : Hubable {
         settings.setIfUnset("Renderer.PrintGPUStats", false)
         settings.setIfUnset("Renderer.SupersamplingFactor", System.getProperty("scenery.Renderer.SupersamplingFactor")?.toFloat()
             ?: 1.0f)
-        settings.setIfUnset("Renderer.ForceVsync", false)
+        settings.setIfUnset("Renderer.DisableVsync", false)
         settings.setIfUnset("Renderer.ForceUndecoratedWindow", false)
 
         return settings
