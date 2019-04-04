@@ -547,7 +547,7 @@ open class VulkanRenderer(hub: Hub,
                 VulkanSwapchain(
                     device, queue, commandPools,
                     renderConfig = renderConfig, useSRGB = renderConfig.sRGB,
-                    vsync = settings.get("Renderer.ForceVsync"),
+                    vsync = !settings.get<Boolean>("Renderer.DisableVsync"),
                     undecorated = settings.get("Renderer.ForceUndecoratedWindow"))
             }
         }.apply {
