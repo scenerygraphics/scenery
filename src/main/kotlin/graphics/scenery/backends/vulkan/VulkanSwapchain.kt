@@ -129,13 +129,15 @@ open class VulkanSwapchain(open val device: VulkanDevice,
      * The preferred mode can be selected via [preferredMode]. Returns the preferred mode, or
      * VK_PRESENT_MODE_FIFO, if the preferred one is not supported.
      */
-    private fun findBestPresentMode(presentModes: IntBuffer, count: Int, preferredMode: Int): Int {
-        val modes = IntArray(count)
+    private fun findBestPresentMode(presentModes: IntBuffer, preferredMode: Int): Int {
+        val modes = IntArray(presentModes.capacity())
         presentModes.get(modes)
 
-        return if(modes.contains(preferredMode)) {
+        logger.debug("Available swapchain present modes: ${modes.joinToString(", ")}")
+        return if(modes.contains(preferredMode) || preferredMode == KHRSurface.VK_PRESENT_MODE_IMMEDIATE_KHR) {
             preferredMode
         } else {
+            // VK_PRESENT_MODE_FIFO_KHR is always guaranteed to be available
             KHRSurface.VK_PRESENT_MODE_FIFO_KHR
         }
     }
@@ -161,17 +163,21 @@ open class VulkanSwapchain(open val device: VulkanDevice,
             val presentModes = VU.getInts("Getting present modes", presentModeCount.get(0)
             ) { KHRSurface.vkGetPhysicalDeviceSurfacePresentModesKHR(device.physicalDevice, surface, presentModeCount, this) }
 
-            // use fifo mode (aka, vsynced) if requested,
-            // otherwise, use mailbox mode and present the most recently generated frame.
+            // we prefer to use mailbox mode, if it is supported. mailbox uses triple-buffering
+            // to avoid the latency issues fifo has. if the requested mode is not supported,
+            // we will fall back to fifo, which is always guaranteed to be supported.
+            // if vsync is not requested, we run in immediate mode, which may cause tearing,
+            // but runs at maximum fps.
             val preferredSwapchainPresentMode = if(vsync) {
                 KHRSurface.VK_PRESENT_MODE_FIFO_KHR
             } else {
-                KHRSurface.VK_PRESENT_MODE_IMMEDIATE_KHR
+                KHRSurface.VK_PRESENT_MODE_MAILBOX_KHR
             }
 
             val swapchainPresentMode = findBestPresentMode(presentModes,
-                presentModeCount.get(0),
                 preferredSwapchainPresentMode)
+
+            logger.debug("Selected present mode: $swapchainPresentMode")
 
             // Determine the number of images
             var desiredNumberOfSwapchainImages = surfCaps.minImageCount() + 1
