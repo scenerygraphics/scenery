@@ -21,9 +21,6 @@ open class Scene : Node("RootNode") {
 
     internal var sceneSize: AtomicLong = AtomicLong(0L)
 
-    /** Temporary storage for lights */
-    var lights = ArrayList<Node>()
-
     /** Callbacks to be called when a child is added to the scene */
     var onChildrenAdded = ConcurrentHashMap<String, (Node, Node) -> Unit>()
     /** Callbacks to be called when a child is removed from the scene */
