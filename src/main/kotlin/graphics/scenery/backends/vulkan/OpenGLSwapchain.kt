@@ -65,8 +65,6 @@ class OpenGLSwapchain(val device: VulkanDevice,
     /** List of supported OpenGL extensions. */
     val supportedExtensions = ArrayList<String>()
 
-    /** Window surface to use. */
-    var surface: Long = 0
     /** Window size callback to use. */
     lateinit var windowSizeCallback: GLFWWindowSizeCallback
 
@@ -87,7 +85,7 @@ class OpenGLSwapchain(val device: VulkanDevice,
         glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE)
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4)
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5)
-        glfwWindowHint(GLFW_SRGB_CAPABLE, GLFW_TRUE)
+        glfwWindowHint(GLFW_SRGB_CAPABLE, if(useSRGB) { GLFW_TRUE } else { GLFW_FALSE })
         glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE)
 
         glfwWindowHint(GLFW_STEREO, if (renderConfig.stereoEnabled) {
@@ -98,9 +96,6 @@ class OpenGLSwapchain(val device: VulkanDevice,
 
         window = SceneryWindow.GLFWWindow(glfwCreateWindow(win.width, win.height, "scenery", MemoryUtil.NULL, MemoryUtil.NULL)).apply {
             glfwSetWindowPos(window, 100, 100)
-
-            surface = VU.getLong("glfwCreateWindowSurface",
-                { GLFWVulkan.glfwCreateWindowSurface(device.instance, window, null, this) }, {})
 
             // Handle canvas resize
             windowSizeCallback = object : GLFWWindowSizeCallback() {
@@ -123,6 +118,9 @@ class OpenGLSwapchain(val device: VulkanDevice,
             glfwSetWindowSizeCallback(window, windowSizeCallback)
             glfwShowWindow(window)
         }
+        window.width = win.width
+        window.height = win.height
+
         return window
     }
 
@@ -312,7 +310,7 @@ class OpenGLSwapchain(val device: VulkanDevice,
             glClear(GL_COLOR_BUFFER_BIT)
             glDisable(GL_DEPTH_TEST)
 
-            NVDrawVulkanImage.glDrawVkImageNV(images[0], 0,
+            NVDrawVulkanImage.glDrawVkImageNV(images[presentedFrames.toInt() % bufferCount], 0,
                 0.0f, 0.0f, window.width.toFloat(), window.height.toFloat(), 0.0f,
                 0.0f, 1.0f, 0.5f, 0.0f)
 
@@ -320,12 +318,12 @@ class OpenGLSwapchain(val device: VulkanDevice,
             glClear(GL_COLOR_BUFFER_BIT)
             glDisable(GL_DEPTH_TEST)
 
-            NVDrawVulkanImage.glDrawVkImageNV(images[0], 0,
+            NVDrawVulkanImage.glDrawVkImageNV(images[presentedFrames.toInt() % bufferCount], 0,
                 0.0f, 0.0f, window.width.toFloat(), window.height.toFloat(), 0.0f,
                 0.5f, 1.0f, 1.0f, 0.0f)
         } else {
             glClear(GL_COLOR_BUFFER_BIT)
-            NVDrawVulkanImage.glDrawVkImageNV(images[0], 0,
+            NVDrawVulkanImage.glDrawVkImageNV(images[presentedFrames.toInt() % bufferCount], 0,
                 0.0f, 0.0f, window.width.toFloat(), window.height.toFloat(), 0.0f,
                 0.0f, 1.0f, 1.0f, 0.0f)
         }
@@ -399,7 +397,9 @@ class OpenGLSwapchain(val device: VulkanDevice,
      * Embeds the swapchain into a [SceneryFXPanel]. Not supported by [OpenGLSwapchain], see [FXSwapchain] instead.
      */
     override fun embedIn(panel: SceneryPanel?) {
-        logger.error("Embedding is not supported with the OpenGL-based swapchain. Use FXSwapchain instead.")
+        if(panel != null) {
+            logger.error("Embedding is not supported with the OpenGL-based swapchain. Use FXSwapchain instead.")
+        }
     }
 
     /**
