@@ -525,6 +525,10 @@ void main()
     vec3 V = normalize(cameraPosition - FragPos);
     vec3 H = normalize(L + V);
 
+    if(isnan(N.x)) {
+        N = L;
+    }
+
     vec3 specular = vec3(0.0f);
     vec3 diffuse = vec3(0.0f);
     float lightOcclusion = ambientOcclusion.a;
