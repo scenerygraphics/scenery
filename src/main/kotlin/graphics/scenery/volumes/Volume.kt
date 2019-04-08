@@ -259,7 +259,7 @@ open class Volume : Mesh("Volume") {
      * Preloads all volumes found in the path indicated by [file].
      * The folder is assumed to contain a `stacks.info` file containing volume metadata.
      */
-    fun preloadRawFromPath(file: Path) {
+    @JvmOverloads fun preloadRawFromPath(file: Path, dataType: NativeTypeEnum = NativeTypeEnum.UnsignedByte) {
         val id = file.fileName.toString()
 
         val infoFile = file.resolveSibling("stacks" + ".info")
@@ -308,10 +308,26 @@ open class Volume : Mesh("Volume") {
             val descriptor = VolumeDescriptor(
                 file,
                 dimensions[0], dimensions[1], dimensions[2],
-                NativeTypeEnum.UnsignedInt, 2, data = imageData
+                dataType, dataType.bytesPerVoxel(), data = imageData
             )
 
             volumes.put(id, descriptor)
+        }
+    }
+
+    private fun NativeTypeEnum.bytesPerVoxel(): Int {
+        return when(this) {
+            NativeTypeEnum.Byte -> 1
+            NativeTypeEnum.UnsignedByte -> 1
+            NativeTypeEnum.Short -> 2
+            NativeTypeEnum.UnsignedShort -> 2
+            NativeTypeEnum.Int -> 4
+            NativeTypeEnum.UnsignedInt -> 4
+            NativeTypeEnum.Long -> 8
+            NativeTypeEnum.UnsignedLong -> 8
+            NativeTypeEnum.HalfFloat -> 2
+            NativeTypeEnum.Float -> 4
+            NativeTypeEnum.Double -> 8
         }
     }
 
