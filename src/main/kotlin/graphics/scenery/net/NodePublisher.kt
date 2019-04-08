@@ -8,6 +8,7 @@ import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.*
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.Statistics
+import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
 import org.zeromq.ZContext
 import org.zeromq.ZMQ
@@ -28,6 +29,7 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://*:6666"
 
     init {
         publisher.bind(address)
+        kryo.isRegistrationRequired = false
 
         kryo.register(GLMatrix::class.java)
         kryo.register(GLVector::class.java)
@@ -37,6 +39,18 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://*:6666"
         kryo.register(Quaternion::class.java)
         kryo.register(Mesh::class.java)
         kryo.register(Volume::class.java)
+        kryo.register(Node.OrientedBoundingBox::class.java)
+        kryo.register(TransferFunction::class.java)
+        kryo.register(PointLight::class.java)
+        kryo.register(Light::class.java)
+        kryo.register(Sphere::class.java)
+        kryo.register(Box::class.java)
+        kryo.register(Icosphere::class.java)
+        kryo.register(Cylinder::class.java)
+        kryo.register(Arrow::class.java)
+        kryo.register(Line::class.java)
+        kryo.register(FloatArray::class.java)
+        kryo.register(GeometryType::class.java)
     }
 
     fun publish() {

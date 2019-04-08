@@ -29,6 +29,7 @@ class NodeSubscriber(override var hub: Hub?, val address: String = "udp://localh
     init {
         subscriber.connect(address)
         subscriber.subscribe(ZMQ.SUBSCRIPTION_ALL)
+        kryo.isRegistrationRequired = false
 
         kryo.register(GLMatrix::class.java)
         kryo.register(GLVector::class.java)
@@ -39,7 +40,7 @@ class NodeSubscriber(override var hub: Hub?, val address: String = "udp://localh
         kryo.register(Mesh::class.java)
         kryo.register(Volume::class.java)
 
-        kryo.instantiatorStrategy = StdInstantiatorStrategy()
+//        kryo.instantiatorStrategy = StdInstantiatorStrategy()
     }
 
     fun process() {
