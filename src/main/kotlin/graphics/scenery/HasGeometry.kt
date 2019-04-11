@@ -1,11 +1,13 @@
 package graphics.scenery
 
+import assimp.Importer
 import cleargl.GLVector
 import gnu.trove.map.hash.THashMap
 import gnu.trove.set.hash.TLinkedHashSet
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.SystemHelpers
 import org.lwjgl.system.MemoryUtil.memAlloc
+import org.lwjgl.system.MemoryUtil.memAllocFloat
 import java.io.BufferedInputStream
 import java.io.File
 import java.io.Serializable
@@ -59,6 +61,8 @@ interface HasGeometry : Serializable {
         val logger by LazyLogger()
         val ext = filename.substringAfterLast(".").toLowerCase()
 
+//        readFromAssimp(filename)
+//        return
         when (ext) {
             "obj" -> readFromOBJ(filename, useMaterial)
             "stl" -> readFromSTL(filename)
@@ -105,8 +109,10 @@ interface HasGeometry : Serializable {
         // set up the properties of the [Material], which include e.g. textures and colors.
         lines.forEach {
             line ->
-            val tokens = line.trim().trimEnd().split(" ").filter(String::isNotEmpty)
+            val lineWithoutComments = line.substringBeforeLast("#").trim().trimEnd()
+            val tokens = lineWithoutComments.split(" ").filter(String::isNotEmpty)
             if (tokens.isNotEmpty()) {
+                val lineAfterFirstToken = lineWithoutComments.substringAfter(tokens[0])
                 when (tokens[0]) {
                     "#" -> {
                     }
@@ -133,7 +139,12 @@ interface HasGeometry : Serializable {
                         addTexture(currentMaterial, "specular", mapfile)
                     }
                     "map_Kd" -> {
-                        val mapfile = filename.substringBeforeLast("/") + "/" + tokens[1].replace('\\', '/')
+                        val mapfile = if(lineAfterFirstToken.contains(" -o ") || lineAfterFirstToken.contains(" -s ")) {
+                            filename.substringBeforeLast("/") + "/" + lineAfterFirstToken.substringAfterLast(" ").replace('\\', '/')
+                        } else {
+                            filename.substringBeforeLast("/") + "/" + tokens[1].replace('\\', '/')
+                        }
+
                         addTexture(currentMaterial, "diffuse", mapfile)
                     }
                     "map_d" -> {
@@ -145,7 +156,12 @@ interface HasGeometry : Serializable {
                         addTexture(currentMaterial, "displacement", mapfile)
                     }
                     "map_bump", "bump" -> {
-                        val mapfile = filename.substringBeforeLast("/") + "/" + tokens[1].replace('\\', '/')
+                        val mapfile = if(lineAfterFirstToken.contains(" -bm ") || lineAfterFirstToken.contains(" -o ") || lineAfterFirstToken.contains(" -s ")) {
+                            filename.substringBeforeLast("/") + "/" + lineAfterFirstToken.substringAfterLast(" ").replace('\\', '/')
+                        } else {
+                            filename.substringBeforeLast("/") + "/" + tokens[1].replace('\\', '/')
+                        }
+
                         addTexture(currentMaterial, "normal", mapfile)
                     }
                     "Tf" -> {
@@ -576,6 +592,39 @@ interface HasGeometry : Serializable {
         }
 
         logger.info("Read ${vertexCount / vertexSize}/${normalCount / vertexSize}/${uvCount / texcoordSize}/$indexCount v/n/uv/i of model $name in ${(end - start) / 1e6} ms")
+    }
+
+    fun readFromAssimp(filename: String) {
+        val logger by LazyLogger()
+        logger.info("Reading from $filename")
+        val scene = Importer().readFile("file://$filename")
+        val thisMesh = this as? Mesh ?: return
+
+        scene?.meshes?.forEach { mesh ->
+            val currentMesh = Mesh()
+            currentMesh.vertices = memAllocFloat(mesh.numVertices * 3)
+            currentMesh.normals = memAllocFloat(mesh.numVertices * 3)
+            currentMesh.texcoords = memAllocFloat(mesh.numVertices * 2)
+
+            mesh.vertices.forEach { v ->
+                currentMesh.vertices.put(v.x)
+                currentMesh.vertices.put(v.y)
+                currentMesh.vertices.put(v.z)
+            }
+
+            mesh.normals.forEach { n ->
+                currentMesh.normals.put(n.x)
+                currentMesh.normals.put(n.y)
+                currentMesh.normals.put(n.z)
+            }
+
+            mesh.textureCoords.forEach { uv ->
+                currentMesh.texcoords.put(uv[0])
+                currentMesh.texcoords.put(uv[1])
+            }
+
+            thisMesh.children.add(currentMesh)
+        }
     }
 
     private fun toBufferIndex(obj: List<Number>, num: Int, vectorSize: Int, offset: Int): Int {
