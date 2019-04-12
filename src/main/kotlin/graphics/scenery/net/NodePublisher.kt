@@ -15,6 +15,7 @@ import org.zeromq.ZMQ
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Created by ulrik on 4/4/2017.
@@ -23,7 +24,7 @@ import java.util.*
 class NodePublisher(override var hub: Hub?, val address: String = "tcp://*:6666", val context: ZContext = ZContext(4)): Hubable {
     private val logger by LazyLogger()
 
-    var nodes: HashMap<Int, Node> = HashMap()
+    var nodes: ConcurrentHashMap<Int, Node> = ConcurrentHashMap()
     var publisher: ZMQ.Socket = context.createSocket(ZMQ.PUB)
     val kryo = Kryo()
 
