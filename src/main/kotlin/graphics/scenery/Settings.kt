@@ -41,34 +41,34 @@ class Settings(override var hub: Hub? = null) : Hubable {
      * @param[name] The name of the setting
      * @return The setting as type T
      */
-    fun <T> get(name: String): T {
+    fun <T> get(name: String, default: T? = null): T {
         if(!settingsStore.containsKey(name)) {
             logger.warn("WARNING: Settings don't contain '$name'")
         }
 
         @Suppress("UNCHECKED_CAST")
         val s = settingsStore[name] as? T
-        if(s != null) {
-            return s
+        return if(s != null) {
+            s
         } else {
-            throw IllegalStateException("Cast of $name failed.")
+            default ?: throw IllegalStateException("Cast of $name failed, the setting might not exist (current value: $s)")
         }
     }
 
     /**
      * Compatibility function for Java, see [get]. Returns the settings value for [name], if found.
      */
-    fun <T> getProperty(name: String): T{
+    @JvmOverloads fun <T> getProperty(name: String, default: T? = null): T{
         if(!settingsStore.containsKey(name)) {
             logger.warn("WARNING: Settings don't contain '$name'")
         }
 
         @Suppress("UNCHECKED_CAST")
         val s = settingsStore[name] as? T
-        if(s != null) {
-            return s
+        return if(s != null) {
+            s
         } else {
-            throw IllegalStateException("Cast of $name failed.")
+            default ?: throw IllegalStateException("Cast of $name failed, the setting might not exist (current value: $s)")
         }
     }
 
