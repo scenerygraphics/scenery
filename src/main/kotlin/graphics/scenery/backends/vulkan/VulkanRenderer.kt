@@ -1042,53 +1042,57 @@ open class VulkanRenderer(hub: Hub,
             logger.debug("${node.name} will have $type texture from $texture in slot $slot")
 
             if (!textureCache.containsKey(texture) || node.material.needsTextureReload) {
-                logger.trace("Loading texture $texture for ${node.name}")
+                try {
+                    logger.trace("Loading texture $texture for ${node.name}")
 
-                val gt = node.material.transferTextures[texture.substringAfter("fromBuffer:")]
+                    val gt = node.material.transferTextures[texture.substringAfter("fromBuffer:")]
 
-                val vkTexture: VulkanTexture = if (texture.startsWith("fromBuffer:") && gt != null) {
-                    val miplevels = if (generateMipmaps && gt.mipmap) {
-                        Math.floor(Math.log(Math.min(gt.dimensions.x() * 1.0, gt.dimensions.y() * 1.0)) / Math.log(2.0)).toInt()
+                    val vkTexture: VulkanTexture = if (texture.startsWith("fromBuffer:") && gt != null) {
+                        val miplevels = if (generateMipmaps && gt.mipmap) {
+                            Math.floor(Math.log(Math.min(gt.dimensions.x() * 1.0, gt.dimensions.y() * 1.0)) / Math.log(2.0)).toInt()
+                        } else {
+                            1
+                        }
+
+                        val existingTexture = s.textures[type]
+                        val t: VulkanTexture = if (existingTexture != null && existingTexture.canBeReused(gt, miplevels, device)) {
+                            existingTexture
+                        } else {
+                            VulkanTexture(device, commandPools, queue, queue, gt, miplevels)
+                        }
+
+                        gt.contents?.let { contents ->
+                            t.copyFrom(contents)
+                        }
+
+                        if (gt.hasConsumableUpdates()) {
+                            t.copyFrom(ByteBuffer.allocate(0))
+                        }
+
+                        t.createSampler(gt)
+                        t
                     } else {
-                        1
+                        val start = System.nanoTime()
+
+                        val t = if (texture.contains("jar!")) {
+                            node.loadTextureFromJar(texture, generateMipmaps, defaultTexture)
+                        } else {
+                            VulkanTexture.loadFromFile(device,
+                                commandPools, queue, queue, texture, true, generateMipmaps)
+                        }
+
+                        val duration = System.nanoTime() - start * 1.0f
+                        stats?.add("loadTexture", duration)
+
+                        t
                     }
 
-                    val existingTexture = s.textures[type]
-                    val t: VulkanTexture = if (existingTexture != null && existingTexture.canBeReused(gt, miplevels, device)) {
-                        existingTexture
-                    } else {
-                        VulkanTexture(device, commandPools, queue, queue, gt, miplevels)
-                    }
-
-                    gt.contents?.let { contents ->
-                        t.copyFrom(contents)
-                    }
-
-                    if(gt.hasConsumableUpdates()) {
-                        t.copyFrom(ByteBuffer.allocate(0))
-                    }
-
-                    t.createSampler(gt)
-                    t
-                } else {
-                    val start = System.nanoTime()
-
-                    val t = if (texture.contains("jar!")) {
-                        node.loadTextureFromJar(texture, generateMipmaps, defaultTexture)
-                    } else {
-                        VulkanTexture.loadFromFile(device,
-                            commandPools, queue, queue, texture, true, generateMipmaps)
-                    }
-
-                    val duration = System.nanoTime() - start * 1.0f
-                    stats?.add("loadTexture", duration)
-
-                    t
+                    // add new texture to texture list and cache, and close old texture
+                    s.textures[type] = vkTexture
+                    textureCache[texture] = vkTexture
+                } catch (e: Exception) {
+                    logger.warn("Could not load texture for ${node.name}: $e")
                 }
-
-                // add new texture to texture list and cache, and close old texture
-                s.textures[type] = vkTexture
-                textureCache[texture] = vkTexture
             } else {
                 s.textures[type] = textureCache[texture]!!
             }
