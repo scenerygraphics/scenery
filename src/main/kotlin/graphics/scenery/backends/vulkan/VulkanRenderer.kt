@@ -304,7 +304,7 @@ open class VulkanRenderer(hub: Hub,
     protected var instance: VkInstance
     protected var device: VulkanDevice
 
-    protected var debugCallbackHandle: Long
+    protected var debugCallbackHandle: Long = -1L
     protected var timestampQueryPool: Long = -1L
 
     protected var semaphoreCreateInfo: VkSemaphoreCreateInfo
@@ -3111,7 +3111,7 @@ open class VulkanRenderer(hub: Hub,
 
         vkDestroyPipelineCache(device.vulkanDevice, pipelineCache, null)
 
-        if (validation) {
+        if (validation && debugCallbackHandle != -1L) {
             vkDestroyDebugReportCallbackEXT(instance, debugCallbackHandle, null)
         }
 
