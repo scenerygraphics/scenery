@@ -154,16 +154,25 @@ class OpenGLSwapchain(val device: VulkanDevice,
         if (window.width <= 0 || window.height <= 0) {
             logger.warn("Received invalid window dimensions, resizing to sane values")
             // TODO: Better default values
-            window.width = 1920
-            window.height = 1200
+            window.width = 2560
+            window.height = 1600
         }
+
+        val windowWidth = if(renderConfig.stereoEnabled && window.width < 10000) {
+            window.width * 2
+        } else {
+            window.width
+        }
+
+        logger.info("Creating backing images with ${windowWidth}x${window.height}")
 
         val imgs = (0 until bufferCount).map {
             with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
-                val t = VulkanTexture(this@OpenGLSwapchain.device, commandPools, queue, queue,
-                    window.width, window.height, 1, format, 1)
 
-                val image = t.createImage(window.width, window.height, 1,
+                val t = VulkanTexture(this@OpenGLSwapchain.device, commandPools, queue, queue,
+                    windowWidth, window.height, 1, format, 1)
+
+                val image = t.createImage(windowWidth, window.height, 1,
                     format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT or VK_IMAGE_USAGE_SAMPLED_BIT,
                     VK_IMAGE_TILING_OPTIMAL, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                     1)
