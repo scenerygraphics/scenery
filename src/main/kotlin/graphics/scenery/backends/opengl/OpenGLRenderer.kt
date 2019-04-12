@@ -16,6 +16,7 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.withLock
 import org.lwjgl.system.MemoryUtil
 import java.awt.BorderLayout
 import java.awt.Dimension
@@ -1068,10 +1069,10 @@ open class OpenGLRenderer(hub: Hub,
         buffers["ShaderPropertyBuffer"]!!.reset()
 
         sceneUBOs.forEach { node ->
-            node.lock.withLock {
+            if(node.lock.tryLock()) {
                 var nodeUpdated: Boolean by StickyBoolean(initial = false)
                 if (!node.metadata.containsKey(className)) {
-                    return@withLock
+                    return@forEach
                 }
 
                 val s = node.metadata[className] as? OpenGLObjectState
@@ -1127,6 +1128,7 @@ open class OpenGLRenderer(hub: Hub,
                 }
 
                 updated = nodeUpdated
+                node.lock.unlock()
             }
         }
 
@@ -2117,7 +2119,7 @@ open class OpenGLRenderer(hub: Hub,
      * @return True if the initialisation went alright, False if it failed.
      */
     @Synchronized fun initializeNode(node: Node): Boolean {
-        if(!node.lock.tryLock(2, TimeUnit.MILLISECONDS)) {
+        if(!node.lock.tryLock()) {
             return false
         }
 
