@@ -1,6 +1,5 @@
 package graphics.scenery
 
-import assimp.Importer
 import cleargl.GLVector
 import gnu.trove.map.hash.THashMap
 import gnu.trove.set.hash.TLinkedHashSet
@@ -592,39 +591,6 @@ interface HasGeometry : Serializable {
         }
 
         logger.info("Read ${vertexCount / vertexSize}/${normalCount / vertexSize}/${uvCount / texcoordSize}/$indexCount v/n/uv/i of model $name in ${(end - start) / 1e6} ms")
-    }
-
-    fun readFromAssimp(filename: String) {
-        val logger by LazyLogger()
-        logger.info("Reading from $filename")
-        val scene = Importer().readFile("file://$filename")
-        val thisMesh = this as? Mesh ?: return
-
-        scene?.meshes?.forEach { mesh ->
-            val currentMesh = Mesh()
-            currentMesh.vertices = memAllocFloat(mesh.numVertices * 3)
-            currentMesh.normals = memAllocFloat(mesh.numVertices * 3)
-            currentMesh.texcoords = memAllocFloat(mesh.numVertices * 2)
-
-            mesh.vertices.forEach { v ->
-                currentMesh.vertices.put(v.x)
-                currentMesh.vertices.put(v.y)
-                currentMesh.vertices.put(v.z)
-            }
-
-            mesh.normals.forEach { n ->
-                currentMesh.normals.put(n.x)
-                currentMesh.normals.put(n.y)
-                currentMesh.normals.put(n.z)
-            }
-
-            mesh.textureCoords.forEach { uv ->
-                currentMesh.texcoords.put(uv[0])
-                currentMesh.texcoords.put(uv[1])
-            }
-
-            thisMesh.children.add(currentMesh)
-        }
     }
 
     private fun toBufferIndex(obj: List<Number>, num: Int, vectorSize: Int, offset: Int): Int {
