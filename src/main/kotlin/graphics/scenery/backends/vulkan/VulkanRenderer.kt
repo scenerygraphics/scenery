@@ -1436,10 +1436,10 @@ open class VulkanRenderer(hub: Hub,
             // create framebuffer
             with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
                 config.rendertargets.filter { it.key == passConfig.output }.map { rt ->
-                    logger.info("Creating render framebuffer ${rt.key} for pass $passName")
-
                     width = (settings.get<Float>("Renderer.SupersamplingFactor") * windowWidth * rt.value.size.first).toInt()
                     height = (settings.get<Float>("Renderer.SupersamplingFactor") * windowHeight * rt.value.size.second).toInt()
+
+                    logger.info("Creating render framebuffer ${rt.key} for pass $passName (${width}x${height})")
 
                     settings.set("Renderer.$passName.displayWidth", width)
                     settings.set("Renderer.$passName.displayHeight", height)
@@ -1494,7 +1494,12 @@ open class VulkanRenderer(hub: Hub,
                 if (passConfig.output == "Viewport") {
                     // create viewport renderpass with swapchain image-derived framebuffer
                     pass.isViewportRenderpass = true
-                    width = windowWidth
+                    width = if(renderConfig.stereoEnabled) {
+                        windowWidth// * 2
+                    } else {
+                        windowWidth
+                    }
+
                     height = windowHeight
 
                     swapchain.images.forEachIndexed { i, _ ->
@@ -2933,7 +2938,7 @@ open class VulkanRenderer(hub: Hub,
                 var nodeUpdated: Boolean by StickyBoolean(initial = false)
 
                 if (!node.metadata.containsKey("VulkanRenderer")) {
-                    return@withLock
+                    return@forEach
                 }
 
                 val s = node.rendererMetadata() ?: return@forEach
