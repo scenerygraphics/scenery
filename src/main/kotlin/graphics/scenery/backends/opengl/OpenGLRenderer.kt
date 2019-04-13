@@ -40,7 +40,6 @@ import javax.imageio.ImageIO
 import javax.swing.JFrame
 import javax.swing.SwingUtilities
 import kotlin.collections.LinkedHashMap
-import kotlin.concurrent.withLock
 import kotlin.math.max
 import kotlin.math.roundToInt
 import kotlin.reflect.full.findAnnotation
@@ -1068,10 +1067,10 @@ open class OpenGLRenderer(hub: Hub,
         buffers["ShaderPropertyBuffer"]!!.reset()
 
         sceneUBOs.forEach { node ->
-            node.lock.withLock {
+//            node.lock.withLock {
                 var nodeUpdated: Boolean by StickyBoolean(initial = false)
                 if (!node.metadata.containsKey(className)) {
-                    return@withLock
+                    return@forEach
                 }
 
                 val s = node.metadata[className] as? OpenGLObjectState
@@ -1127,7 +1126,7 @@ open class OpenGLRenderer(hub: Hub,
                 }
 
                 updated = nodeUpdated
-            }
+//            }
         }
 
         buffers["UBOBuffer"]!!.copyFromStagingBuffer()
@@ -2308,122 +2307,117 @@ open class OpenGLRenderer(hub: Hub,
      */
     @Suppress("USELESS_ELVIS")
     private fun loadTexturesForNode(node: Node, s: OpenGLObjectState): OpenGLObjectState {
-        if (node.lock.tryLock()) {
-            node.material.textures.forEach {
-                type, texture ->
-                if (!textureCache.containsKey(texture) || node.material.needsTextureReload) {
-                    logger.debug("Loading texture $texture for ${node.name}")
+        node.material.textures.forEach {
+            type, texture ->
+            if (!textureCache.containsKey(texture) || node.material.needsTextureReload) {
+                logger.debug("Loading texture $texture for ${node.name}")
 
-                    val generateMipmaps = GenericTexture.mipmappedObjectTextures.contains(type)
-                    if (texture.startsWith("fromBuffer:")) {
-                        val gt = node.material.transferTextures[texture.substringAfter("fromBuffer:")]
-                        gt?.let { (_, dimensions, channels, type1, contents, repeatS, repeatT, repeatU, normalized, mipmap, minLinear, maxLinear, updates) ->
+                val generateMipmaps = GenericTexture.mipmappedObjectTextures.contains(type)
+                if (texture.startsWith("fromBuffer:")) {
+                    val gt = node.material.transferTextures[texture.substringAfter("fromBuffer:")]
+                    gt?.let { (_, dimensions, channels, type1, contents, repeatS, repeatT, repeatU, normalized, mipmap, minLinear, maxLinear, updates) ->
 
-                            logger.debug("Dims of $texture: $dimensions, mipmaps=$generateMipmaps")
+                        logger.debug("Dims of $texture: $dimensions, mipmaps=$generateMipmaps")
 
-                            val mm = generateMipmaps or mipmap
-                            val miplevels = if (mm && dimensions.z().toInt() == 1) {
-                                1 + Math.floor(Math.log(Math.max(dimensions.x() * 1.0, dimensions.y() * 1.0)) / Math.log(2.0)).toInt()
-                            } else {
-                                1
-                            }
-
-                            val existingTexture = s.textures[type]
-                            val t = if(existingTexture != null && existingTexture.canBeReused(gt, miplevels)) {
-                                existingTexture
-                            } else {
-                                GLTexture(gl, type1, channels,
-                                    dimensions.x().toInt(),
-                                    dimensions.y().toInt(),
-                                    dimensions.z().toInt() ?: 1,
-                                    minLinear,
-                                    miplevels, 32, normalized, renderConfig.sRGB)
-                            }
-
-                            if (mm) {
-                                t.updateMipMaps()
-                            }
-
-                            t.setClamp(!repeatS, !repeatT)
-
-                            val unpackAlignment = intArrayOf(0)
-                            gl.glGetIntegerv(GL4.GL_UNPACK_ALIGNMENT, unpackAlignment, 0)
-
-                            // textures might have very uneven dimensions, so we adjust GL_UNPACK_ALIGNMENT here correspondingly
-                            // in case the byte count of the texture is not divisible by it.
-                            if (contents != null && !gt.hasConsumableUpdates()) {
-                                if (contents.remaining() % unpackAlignment[0] == 0 && dimensions.x().toInt() % unpackAlignment[0] == 0) {
-                                    t.copyFrom(contents)
-                                } else {
-                                    gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, 1)
-
-                                    t.copyFrom(contents)
-                                }
-                                gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, unpackAlignment[0])
-                            }
-
-                            if (gt.hasConsumableUpdates()) {
-                                gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, 1)
-                                updates.forEach { update ->
-                                    if (!update.consumed) {
-                                        t.copyFrom(update.contents,
-                                            update.extents.w, update.extents.h, update.extents.d,
-                                            update.extents.x, update.extents.y, update.extents.z, true)
-                                        update.consumed = true
-                                    }
-                                }
-
-                                gt.clearConsumedUpdates()
-                                gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, unpackAlignment[0])
-                            }
-
-                            s.textures[type] = t
-                            textureCache.put(texture, t)
-                        }
-                    } else {
-                        val glTexture = if(texture.contains("jar!")) {
-                            val f = texture.substringAfterLast("!")
-                            val stream = node.javaClass.getResourceAsStream(f)
-
-                            if(stream == null) {
-                                logger.error("Texture not found for $node: $f (from JAR)")
-                                textureCache["DefaultTexture"]!!
-                            } else {
-                                GLTexture.loadFromFile(gl, stream, texture.substringAfterLast("."), true, generateMipmaps, 8)
-                            }
+                        val mm = generateMipmaps or mipmap
+                        val miplevels = if (mm && dimensions.z().toInt() == 1) {
+                            1 + Math.floor(Math.log(Math.max(dimensions.x() * 1.0, dimensions.y() * 1.0)) / Math.log(2.0)).toInt()
                         } else {
-                            try {
-                                GLTexture.loadFromFile(gl, texture, true, generateMipmaps, 8)
-                            } catch(e: FileNotFoundException) {
-                                logger.error("Texture not found for $node: $texture")
-                                textureCache["DefaultTexture"]!!
-                            }
+                            1
                         }
 
-                        s.textures[type] = glTexture
-                        textureCache[texture] = glTexture
+                        val existingTexture = s.textures[type]
+                        val t = if(existingTexture != null && existingTexture.canBeReused(gt, miplevels)) {
+                            existingTexture
+                        } else {
+                            GLTexture(gl, type1, channels,
+                                dimensions.x().toInt(),
+                                dimensions.y().toInt(),
+                                dimensions.z().toInt() ?: 1,
+                                minLinear,
+                                miplevels, 32, normalized, renderConfig.sRGB)
+                        }
+
+                        if (mm) {
+                            t.updateMipMaps()
+                        }
+
+                        t.setClamp(!repeatS, !repeatT)
+
+                        val unpackAlignment = intArrayOf(0)
+                        gl.glGetIntegerv(GL4.GL_UNPACK_ALIGNMENT, unpackAlignment, 0)
+
+                        // textures might have very uneven dimensions, so we adjust GL_UNPACK_ALIGNMENT here correspondingly
+                        // in case the byte count of the texture is not divisible by it.
+                        if (contents != null && !gt.hasConsumableUpdates()) {
+                            if (contents.remaining() % unpackAlignment[0] == 0 && dimensions.x().toInt() % unpackAlignment[0] == 0) {
+                                t.copyFrom(contents)
+                            } else {
+                                gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, 1)
+
+                                t.copyFrom(contents)
+                            }
+                            gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, unpackAlignment[0])
+                        }
+
+                        if (gt.hasConsumableUpdates()) {
+                            gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, 1)
+                            updates.forEach { update ->
+                                if (!update.consumed) {
+                                    t.copyFrom(update.contents,
+                                        update.extents.w, update.extents.h, update.extents.d,
+                                        update.extents.x, update.extents.y, update.extents.z, true)
+                                    update.consumed = true
+                                }
+                            }
+
+                            gt.clearConsumedUpdates()
+                            gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, unpackAlignment[0])
+                        }
+
+                        s.textures[type] = t
+                        textureCache.put(texture, t)
                     }
                 } else {
-                    s.textures[type] = textureCache[texture]!!
-                }
-            }
+                    val glTexture = if(texture.contains("jar!")) {
+                        val f = texture.substringAfterLast("!")
+                        val stream = node.javaClass.getResourceAsStream(f)
 
-            // update default textures
-            // s.defaultTexturesFor = defaultTextureNames.mapNotNull { if(!s.textures.containsKey(it)) { it } else { null } }.toHashSet()
-            s.defaultTexturesFor.clear()
-            defaultTextureNames.forEach {
-                if (!s.textures.containsKey(it)) {
-                    s.defaultTexturesFor.add(it)
-                }
-            }
+                        if(stream == null) {
+                            logger.error("Texture not found for $node: $f (from JAR)")
+                            textureCache["DefaultTexture"]!!
+                        } else {
+                            GLTexture.loadFromFile(gl, stream, texture.substringAfterLast("."), true, generateMipmaps, 8)
+                        }
+                    } else {
+                        try {
+                            GLTexture.loadFromFile(gl, texture, true, generateMipmaps, 8)
+                        } catch(e: FileNotFoundException) {
+                            logger.error("Texture not found for $node: $texture")
+                            textureCache["DefaultTexture"]!!
+                        }
+                    }
 
-            node.material.needsTextureReload = false
-            s.initialized = true
-            node.lock.unlock()
-            return s
-        } else {
-            return s
+                    s.textures[type] = glTexture
+                    textureCache[texture] = glTexture
+                }
+            } else {
+                s.textures[type] = textureCache[texture]!!
+            }
         }
+
+        // update default textures
+        // s.defaultTexturesFor = defaultTextureNames.mapNotNull { if(!s.textures.containsKey(it)) { it } else { null } }.toHashSet()
+        s.defaultTexturesFor.clear()
+        defaultTextureNames.forEach {
+            if (!s.textures.containsKey(it)) {
+                s.defaultTexturesFor.add(it)
+            }
+        }
+
+        node.material.needsTextureReload = false
+        s.initialized = true
+        return s
     }
 
     /**
