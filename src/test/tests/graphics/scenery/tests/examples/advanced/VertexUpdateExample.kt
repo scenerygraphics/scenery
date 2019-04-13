@@ -51,6 +51,9 @@ class VertexUpdateExample : SceneryBase("VertexUpdateExample") {
             light
         }
 
+        var bb = BoundingGrid()
+        bb.node = sphere
+
         var ticks = 0
         thread {
             while(!scene.initialized) {
@@ -107,6 +110,7 @@ class VertexUpdateExample : SceneryBase("VertexUpdateExample") {
                 sphere.vertices = FloatBuffer.wrap(vbuffer.toFloatArray())
                 sphere.normals = FloatBuffer.wrap(nbuffer.toFloatArray())
                 sphere.recalculateNormals()
+                sphere.boundingBox = sphere.generateBoundingBox()
 
                 sphere.dirty = true
 
