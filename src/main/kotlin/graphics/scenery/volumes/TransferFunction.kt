@@ -5,6 +5,7 @@ import org.lwjgl.system.MemoryUtil
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.ArrayList
+import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -19,7 +20,7 @@ open class TransferFunction(val name: String = "") {
     data class ControlPoint(var value: Float, var factor: Float)
 
     /** Control point storage for the transfer function */
-    protected val controlPoints = ArrayList<ControlPoint>()
+    protected val controlPoints = CopyOnWriteArrayList<ControlPoint>()
 
     /** Size of the auxiliary texture. */
     val textureSize = 1024
@@ -28,7 +29,7 @@ open class TransferFunction(val name: String = "") {
     val textureHeight = 16
 
     /** The auxiliary texture where the interpolated transfer function will be stored. */
-    protected val buffer: ByteBuffer = MemoryUtil.memAlloc(textureSize * 4 * textureHeight)
+    @Transient protected val buffer: ByteBuffer = MemoryUtil.memCalloc(textureSize * 4 * textureHeight)
 
     /** Indicator whether the auxiliary texture needs to be reuploaded. */
     var stale = true
