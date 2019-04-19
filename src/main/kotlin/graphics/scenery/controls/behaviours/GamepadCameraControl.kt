@@ -1,6 +1,5 @@
 package graphics.scenery.controls.behaviours
 
-import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.Camera
 import graphics.scenery.utils.LazyLogger
@@ -66,6 +65,8 @@ open class GamepadCameraControl(private val name: String,
      */
     @Synchronized
     override fun axisEvent(axis: Component.Identifier, value: Float) {
+        val n = node ?: return
+
         if(Math.abs(value) < threshold) {
             return
         }
@@ -112,9 +113,11 @@ open class GamepadCameraControl(private val name: String,
 //                Math.sin(Math.toRadians(yaw.toDouble())).toFloat() * Math.cos(Math.toRadians(pitch.toDouble())).toFloat())
 
 //        node?.forward = forward.normalized
+        logger.trace("Pitch={} Yaw={}", pitch, yaw)
+
         val yawQ = Quaternion().setFromEuler(0.0f, yaw, 0.0f)
         val pitchQ = Quaternion().setFromEuler(pitch, 0.0f, 0.0f)
 
-        node?.rotation = pitchQ.mult(node!!.rotation).mult(yawQ).normalize()
+        n.rotation = pitchQ.mult(n.rotation).mult(yawQ).normalize()
     }
 }
