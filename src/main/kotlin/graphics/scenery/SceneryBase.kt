@@ -133,6 +133,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
     open fun main() {
         hub.addApplication(this)
         logger.info("Started application as PID ${getProcessID()}")
+        running = true
 
         val headless = parseBoolean(System.getProperty("scenery.Headless", "false"))
         val renderdoc = if(System.getProperty("scenery.AttachRenderdoc")?.toBoolean() == true) {
@@ -144,11 +145,36 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         val master = System.getProperty("scenery.master")?.toBoolean() ?: false
         val masterAddress = System.getProperty("scenery.MasterNode")
 
-        val publisher: NodePublisher? = if (master) {
-            logger.info("Listening on 0.0.0.0:6666")
-            NodePublisher(hub, "tcp://*:6666")
+        if (!master && masterAddress != null) {
+            thread {
+                logger.info("NodeSubscriber will connect to master at $masterAddress")
+                val subscriber = NodeSubscriber(hub, masterAddress)
+
+                hub.add(SceneryElement.NodeSubscriber, subscriber)
+                scene.discover(scene, { true }).forEachIndexed { index, node ->
+                    subscriber.nodes.put(index, node)
+                }
+
+                while (running) {
+                    subscriber.process()
+                    Thread.sleep(2)
+                }
+            }
         } else {
-            null
+            thread {
+                logger.info("NodePublisher listening on 0.0.0.0:6666")
+                val p = NodePublisher(hub, "tcp://*:6666")
+                hub.add(SceneryElement.NodePublisher, p)
+
+                scene.discover(scene, { true }).forEachIndexed { index, node ->
+                        p.nodes.put(index, node)
+                }
+
+                while (running) {
+                    p.publish()
+                    Thread.sleep(2)
+                }
+            }
         }
 
         hub.add(SceneryElement.Statistics, stats)
@@ -163,7 +189,6 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
 
         // initialize renderer, etc first in init, then setup key bindings
         init()
-        running = true
 
         // wait for renderer
         while(renderer?.initialized == false) {
@@ -193,36 +218,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
 
         val startTime = System.nanoTime()
 
-        if (!master && masterAddress != null) {
-            thread {
-                logger.info("Will connect to master at $masterAddress")
-                val subscriber = NodeSubscriber(hub, masterAddress)
 
-                hub.add(SceneryElement.NodeSubscriber, subscriber)
-                scene.discover(scene, { true }).forEachIndexed { index, node ->
-                    subscriber.nodes.put(index, node)
-                }
-
-                while (true) {
-                    subscriber.process()
-                    Thread.sleep(2)
-                }
-            }
-        } else {
-            thread {
-                publisher?.let {
-                    hub.add(SceneryElement.NodePublisher, it)
-                    scene.discover(scene, { true }).forEachIndexed { index, node ->
-                        publisher.nodes.put(index, node)
-                    }
-                }
-
-                while (true) {
-                    publisher?.publish()
-                    Thread.sleep(2)
-                }
-            }
-        }
 
         var frameTime = 0.0f
         var lastFrameTime: Float

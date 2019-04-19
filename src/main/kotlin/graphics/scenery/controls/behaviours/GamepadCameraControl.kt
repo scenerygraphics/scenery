@@ -1,7 +1,8 @@
 package graphics.scenery.controls.behaviours
 
-import cleargl.GLVector
+import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.Camera
+import graphics.scenery.utils.LazyLogger
 import net.java.games.input.Component
 import java.util.function.Supplier
 import kotlin.reflect.KProperty
@@ -22,6 +23,7 @@ open class GamepadCameraControl(private val name: String,
     private var lastX: Float = 0.0f
     private var lastY: Float = 0.0f
     private var firstEntered = true
+    private val logger by LazyLogger()
 
     /** The [graphics.scenery.Node] this behaviour class controls */
     protected var node: Camera? by CameraDelegate()
@@ -63,10 +65,12 @@ open class GamepadCameraControl(private val name: String,
      */
     @Synchronized
     override fun axisEvent(axis: Component.Identifier, value: Float) {
+        val n = node ?: return
+
         if(Math.abs(value) < threshold) {
             return
         }
-
+        
         val x: Float
         val y: Float
 
@@ -103,11 +107,17 @@ open class GamepadCameraControl(private val name: String,
             pitch = -89.0f
         }
 
-        val forward = GLVector(
-                Math.cos(Math.toRadians(yaw.toDouble())).toFloat() * Math.cos(Math.toRadians(pitch.toDouble())).toFloat(),
-                Math.sin(Math.toRadians(pitch.toDouble())).toFloat(),
-                Math.sin(Math.toRadians(yaw.toDouble())).toFloat() * Math.cos(Math.toRadians(pitch.toDouble())).toFloat())
+//        val forward = GLVector(
+//                Math.cos(Math.toRadians(yaw.toDouble())).toFloat() * Math.cos(Math.toRadians(pitch.toDouble())).toFloat(),
+//                Math.sin(Math.toRadians(pitch.toDouble())).toFloat(),
+//                Math.sin(Math.toRadians(yaw.toDouble())).toFloat() * Math.cos(Math.toRadians(pitch.toDouble())).toFloat())
 
-        node?.forward = forward.normalized
+//        node?.forward = forward.normalized
+        logger.trace("Pitch={} Yaw={}", pitch, yaw)
+
+        val yawQ = Quaternion().setFromEuler(0.0f, yaw, 0.0f)
+        val pitchQ = Quaternion().setFromEuler(pitch, 0.0f, 0.0f)
+
+        n.rotation = pitchQ.mult(n.rotation).mult(yawQ).normalize()
     }
 }

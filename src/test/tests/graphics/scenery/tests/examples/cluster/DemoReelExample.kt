@@ -1,17 +1,20 @@
 package graphics.scenery.tests.examples.cluster
 
 import cleargl.GLVector
+import coremem.enums.NativeTypeEnum
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.InputHandler
 import graphics.scenery.controls.TrackedStereoGlasses
 import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
+import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
 import org.junit.Test
 import org.scijava.ui.behaviour.ClickBehaviour
 import java.io.File
 import java.nio.file.Paths
+import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 
 /**
@@ -27,6 +30,12 @@ class DemoReelExample: SceneryBase("Demo Reel") {
     var bileScene = Mesh(name = "bile")
     var histoneScene = Mesh(name = "histone")
     var drosophilaScene = Mesh(name = "drosophila")
+    var retinaScene = Mesh(name = "retina")
+
+    lateinit var goto_scene_bile: ClickBehaviour
+    lateinit var goto_scene_drosophila: ClickBehaviour
+    lateinit var goto_scene_histone: ClickBehaviour
+    lateinit var goto_scene_retina: ClickBehaviour
 
     override fun init() {
         logger.warn("*** WARNING - EXPERIMENTAL ***")
@@ -43,8 +52,9 @@ class DemoReelExample: SceneryBase("Demo Reel") {
         with(cam) {
 //            position = GLVector(0.0f, -1.3190879f, 0.8841703f)
             position = GLVector(0.0f, 0.0f, 55.0f)
-            perspectiveCamera(50.0f, 1.0f*windowWidth, 1.0f*windowHeight)
+            perspectiveCamera(50.0f, 1.0f*windowWidth, 1.0f*windowHeight, 0.02f, 500.0f)
             active = true
+            disableCulling = true
 
             scene.addChild(this)
         }
@@ -61,7 +71,7 @@ class DemoReelExample: SceneryBase("Demo Reel") {
         // lighting setup
 
         val lights = (0..4).map {
-            PointLight(radius = 20.0f)
+            PointLight(150.0f)
         }
 
         val tetrahedron = listOf(
@@ -78,42 +88,57 @@ class DemoReelExample: SceneryBase("Demo Reel") {
         }
 
         // scene setup
-
+        val driveLetter = System.getProperty("scenery.DriveLetter", "E")
         val volumes = HashMap<String, List<String>>()
-        volumes.put(histoneScene.name, getVolumes("M:/CAVE_DATA/histones-isonet/stacks/default/"))
-        volumes.put(drosophilaScene.name, getVolumes("M:/CAVE_DATA/droso-royer-autopilot-transposed/"))
+
+        volumes.put(histoneScene.name, getVolumes("$driveLetter:/ssd-backup-inauguration/CAVE_DATA/histones-isonet/stacks/default/"))
+        volumes.put(retinaScene.name, getVolumes("$driveLetter:/ssd-backup-inauguration/CAVE_DATA/retina_test2/"))
+        volumes.put(drosophilaScene.name, getVolumes("$driveLetter:/ssd-backup-inauguration/CAVE_DATA/droso-royer-autopilot-transposed/"))
+        volumes.put(retinaScene.name, getVolumes("$driveLetter:/ssd-backup-inauguration/CAVE_DATA/retina_test2/"))
 
         val histoneVolume = Volume()
-        //histoneVolume.
+        histoneVolume.transferFunction = TransferFunction.ramp(0.1f, 1.0f)
+        histoneVolume.renderingMethod = 2
+        histoneVolume.deallocationThreshold = 50000
+        histoneVolume.colormap = "hot"
         histoneScene.addChild(histoneVolume)
         histoneScene.visible = false
         scene.addChild(histoneScene)
 
         val drosophilaVolume = Volume()
         drosophilaVolume.rotation.rotateByAngleX(1.57f)
+        drosophilaVolume.renderingMethod = 2
+        drosophilaVolume.transferFunction = TransferFunction.ramp(0.1f, 1.0f)
+        drosophilaVolume.deallocationThreshold = 50000
+        drosophilaVolume.colormap = "hot"
         drosophilaScene.addChild(drosophilaVolume)
         drosophilaScene.visible = false
         scene.addChild(drosophilaScene)
 
+        val retinaVolume = Volume()
+        retinaScene.addChild(retinaVolume)
+        retinaScene.visible = false
+        scene.addChild(retinaScene)
+
         val bile = Mesh()
         val canaliculi = Mesh()
-        canaliculi.readFrom("M:/meshes/bile-canaliculi.obj")
-        canaliculi.position = GLVector(-600.0f, -800.0f, -20.0f)
+        canaliculi.readFrom("$driveLetter:/ssd-backup-inauguration/meshes/bile-canaliculi.obj")
         canaliculi.scale = GLVector(0.1f, 0.1f, 0.1f)
+        canaliculi.position = GLVector(-80.0f, -60.0f, 10.0f)
         canaliculi.material.diffuse = GLVector(0.5f, 0.7f, 0.1f)
         bile.addChild(canaliculi)
 
         val nuclei = Mesh()
-        nuclei.readFrom("M:/meshes/bile-nuclei.obj")
-        nuclei.position = GLVector(-600.0f, -800.0f, -20.0f)
+        nuclei.readFrom("$driveLetter:/ssd-backup-inauguration/meshes/bile-nuclei.obj")
         nuclei.scale = GLVector(0.1f, 0.1f, 0.1f)
+        nuclei.position = GLVector(-80.0f, -60.0f, 10.0f)
         nuclei.material.diffuse = GLVector(0.8f, 0.8f, 0.8f)
         bile.addChild(nuclei)
 
         val sinusoidal = Mesh()
-        sinusoidal.readFrom("M:/meshes/bile-sinus.obj")
-        sinusoidal.position = GLVector(-600.0f, -800.0f, -20.0f)
+        sinusoidal.readFrom("$driveLetter:/ssd-backup-inauguration/meshes/bile-sinus.obj")
         sinusoidal.scale = GLVector(0.1f, 0.1f, 0.1f)
+        sinusoidal.position = GLVector(-80.0f, -60.0f, 10.0f)
         sinusoidal.material.ambient = GLVector(0.1f, 0.0f, 0.0f)
         sinusoidal.material.diffuse = GLVector(0.4f, 0.0f, 0.02f)
         sinusoidal.material.specular = GLVector(0.05f, 0f, 0f)
@@ -145,9 +170,11 @@ class DemoReelExample: SceneryBase("Demo Reel") {
 
         val min_delay = 200
 
+        logger.info("Publisher is: $publisher")
         if(publisher != null) {
             thread {
                 while (!scene.initialized) {
+                    logger.info("Wainting for scene init")
                     Thread.sleep(1000)
                 }
 
@@ -171,10 +198,10 @@ class DemoReelExample: SceneryBase("Demo Reel") {
 
                                     with(v) {
                                         trangemin = 0.00f
-                                        trangemax = .006f
-                                        //trangemax = .0003f
-                                        alphaBlending = 0.05f
+                                        trangemax = 1024.0f
+                                        alphaBlending = 0.5f
                                         scale = GLVector(1.0f, 1.0f, 1.0f)
+                                        stepSize = 0.05f
                                         voxelSizeX = 1.0f
                                         voxelSizeY = 5.0f
                                         voxelSizeZ = 1.0f
@@ -182,12 +209,13 @@ class DemoReelExample: SceneryBase("Demo Reel") {
                                 }
 
                                 if(it.name == "histone") {
-                                    sleepDuration = Math.max(300,min_delay-time_to_read)
+                                    sleepDuration = Math.max(30,min_delay-time_to_read)
 
                                     with(v) {
-                                        trangemin = 0.005f
-                                        trangemax = 0.04f
-                                        alphaBlending = 0.02f
+                                        trangemin = 0.0f
+                                        trangemax = 255.0f
+                                        alphaBlending = 0.2f
+                                        stepSize = 0.05f
                                         scale = GLVector(1.0f, 1.0f, 1.0f)
                                         voxelSizeX = 1.0f
                                         voxelSizeY = 1.0f
@@ -211,8 +239,8 @@ class DemoReelExample: SceneryBase("Demo Reel") {
 
         thread {
             logger.info("Preloading volumes")
-            volumes["histone"]?.map { histoneVolume.preloadRawFromPath(Paths.get(it)) }
-            volumes["drosophila"]?.map { drosophilaVolume.preloadRawFromPath(Paths.get(it)) }
+            volumes["histone"]?.map { histoneVolume.preloadRawFromPath(Paths.get(it), dataType = NativeTypeEnum.UnsignedShort) }
+            volumes["drosophila"]?.map { drosophilaVolume.preloadRawFromPath(Paths.get(it), dataType = NativeTypeEnum.UnsignedShort) }
         }
     }
 
@@ -245,7 +273,11 @@ class DemoReelExample: SceneryBase("Demo Reel") {
 
         val v = volumes[curr+1 % volumes.size]
 
-        this.currentVolume = v
+//        if(this.lock.tryLock(2, TimeUnit.MILLISECONDS)) {
+            this.currentVolume = v
+//        } else {
+//            logger.warn("Failed to advance to $v")
+//        }
 
         return v
     }
@@ -274,23 +306,23 @@ class DemoReelExample: SceneryBase("Demo Reel") {
         setupCameraModeSwitching(keybinding = "C")
         val inputHandler = (hub.get(SceneryElement.Input) as? InputHandler) ?: return
 
-        val goto_scene_bile = ClickBehaviour { _, _ ->
+        goto_scene_bile = ClickBehaviour { _, _ ->
             bileScene.showAll()
             histoneScene.hideAll()
             drosophilaScene.hideAll()
 
-            scene.findObserver()?.position = GLVector(-6.3036857f, 0.0f, 18.837109f)
+            scene.findObserver()?.position = GLVector(0.0f, 0.0f, 3.0f)
         }
 
-        val goto_scene_histone = ClickBehaviour { _, _ ->
+        goto_scene_histone = ClickBehaviour { _, _ ->
             bileScene.hideAll()
             histoneScene.showAll()
             drosophilaScene.hideAll()
 
             with(histoneScene.children[0] as Volume) {
-                trangemin = 0.005f
-                trangemax = 0.04f
-                alphaBlending = 0.02f
+                trangemin = 0.5f
+                trangemax = 2500.0f
+                alphaBlending = 0.2f
                 scale = GLVector(1.0f, 1.0f, 1.0f)
                 voxelSizeX = 1.0f
                 voxelSizeY = 1.0f
@@ -298,18 +330,17 @@ class DemoReelExample: SceneryBase("Demo Reel") {
             }
 
 
-            scene.findObserver()?.position = GLVector(-0.16273244f, -0.85279214f, 1.0995241f)
+            scene.findObserver()?.position = GLVector(0.0f, 0.0f, 3.0f)
         }
 
-        val goto_scene_drosophila = ClickBehaviour { _, _ ->
+        goto_scene_drosophila = ClickBehaviour { _, _ ->
             bileScene.hideAll()
             histoneScene.hideAll()
             drosophilaScene.showAll()
 
             with(drosophilaScene.children[0] as Volume) {
-                trangemin = 0.00f
-                //trangemax = .006f
-                trangemax = .0003f
+                trangemin = 5.0f
+                trangemax = 800.0f
                 alphaBlending = 0.05f
                 scale = GLVector(1.0f, 1.0f, 1.0f)
                 voxelSizeX = 1.0f
@@ -317,17 +348,40 @@ class DemoReelExample: SceneryBase("Demo Reel") {
                 voxelSizeZ = 1.0f
             }
 
-            scene.findObserver()?.position = GLVector(0.0f, -1.3190879f, 0.48231834f)
+            scene.findObserver()?.position = GLVector(0.0f, 0.0f, 4.0f)
 
+        }
+
+        goto_scene_retina = ClickBehaviour { _, _ ->
+            bileScene.hideAll()
+            histoneScene.hideAll()
+            drosophilaScene.hideAll()
+            retinaScene.showAll()
+
+            with(retinaScene.children[0] as Volume) {
+                trangemin = 0.00f
+                trangemax = 255.0f
+                alphaBlending = 0.01f
+                scale = GLVector(1.0f, 1.0f, 1.0f)
+                voxelSizeX = 1.0f
+                voxelSizeY = 1.0f
+                voxelSizeZ = 5.0f
+            }
+
+            //scene.findObserver().position = GLVector(-0.16273244f, -0.85279214f, 1.0995241f)
+            scene.findObserver()?.position = GLVector(0.0f,-1.1f, 2.0f)
         }
 
         inputHandler.addBehaviour("goto_scene_bile", goto_scene_bile)
         inputHandler.addBehaviour("goto_scene_histone", goto_scene_histone)
         inputHandler.addBehaviour("goto_scene_drosophila", goto_scene_drosophila)
+        inputHandler.addBehaviour("goto_scene_retina", goto_scene_retina)
+
 
         inputHandler.addKeyBinding("goto_scene_bile", "shift 1")
         inputHandler.addKeyBinding("goto_scene_histone", "shift 2")
         inputHandler.addKeyBinding("goto_scene_drosophila", "shift 3")
+        inputHandler.addKeyBinding("goto_scene_retina", "shift 4")
     }
 
     @Test override fun main() {
