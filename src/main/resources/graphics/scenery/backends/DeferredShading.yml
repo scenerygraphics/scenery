@@ -103,8 +103,8 @@ renderpasses:
     parameters:
       debugLights: 0
       reflectanceModel: 0
-      Global.displayWidth: 0
-      Global.displayHeight: 0
+      Pass.displayWidth: 0
+      Pass.displayHeight: 0
   ForwardShading:
     type: geometry
     renderTransparent: true
