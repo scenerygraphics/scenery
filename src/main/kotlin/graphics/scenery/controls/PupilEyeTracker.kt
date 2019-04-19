@@ -32,7 +32,7 @@ import kotlin.math.sin
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "localhost", val port: Int = 50020) {
+class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "localhost", val port: Int = System.getProperty("scenery.PupilEyeTracker.Port", "50020").toIntOrNull() ?: 50020) {
     /** Shall we do a screen-space or world-space calibration? */
     enum class CalibrationType { ScreenSpace, WorldSpace}
 
@@ -87,7 +87,7 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
 
         private fun FloatArray?.toGLVector(): GLVector {
             return if(this != null) {
-                GLVector(this[0], this[1], this[2])
+                GLVector(this[0], this[1], this.getOrElse(2, { 0.0f }))
             } else {
                 GLVector(0.0f, 0.0f, 0.0f)
             }
@@ -215,7 +215,11 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
                                     }
                                 }
 
-                                "gaze" -> {
+                                "gaze",
+                                "gaze.2d.0.",
+                                "gaze.2d.1.",
+                                "gaze.3d.0.",
+                                "gaze.3d.1." -> {
                                     val bytes = msg.pop().data
                                     val g = objectMapper.readValue(bytes, Gaze::class.java)
 
@@ -243,7 +247,7 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
 
     private fun unsubscribe(topic: String) = runBlocking {
         if(subscriberSockets.containsKey(topic)) {
-            logger.debug("Cancelling subscription of $topic")
+            logger.debug("Cancelling subscription of topic \"$topic\"")
             subscriberSockets.get(topic)?.cancel()
             subscriberSockets.get(topic)?.join()
 
@@ -443,6 +447,7 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
                 0.5f + 0.3f * points[index % (points.size - 1)].x(),
                 0.5f + 0.3f * points[index % (points.size - 1)].y(),
                 cam.nearPlaneDistance + 0.5f)
+
             v to cam.viewportToWorld(GLVector(v.x() * 2.0f - 1.0f, v.y() * 2.0f - 1.0f))
         }
 

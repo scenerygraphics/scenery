@@ -18,16 +18,15 @@ import kotlin.concurrent.thread
 class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280, windowHeight = 720) {
     val pupilTracker = PupilEyeTracker(calibrationType = PupilEyeTracker.CalibrationType.ScreenSpace)
     val hmd = OpenVRHMD(seated = false, useCompositor = true)
-    val referenceTarget = Box(GLVector(0.01f, 0.01f, 0.01f))
+    val referenceTarget = Box(GLVector(0.10f, 0.10f, 0.10f))
 
     override fun init() {
         hub.add(SceneryElement.HMDInput, hmd)
 
         renderer = Renderer.createRenderer(hub, applicationName, scene,
-            windowWidth, windowHeight, renderConfigFile = "DeferredShadingStereo.yml")
+            windowWidth, windowHeight)
         hub.add(SceneryElement.Renderer, renderer!!)
 
-        settings.set("vr.Active", true)
         val cam: Camera = DetachedHeadCamera(hmd)
         with(cam) {
             position = GLVector(0.0f, 0.2f, 5.0f)
@@ -61,11 +60,11 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
                 Thread.sleep(200)
             }
 
-            hmd.getTrackedDevices(TrackedDeviceType.Controller).forEach { _, device ->
-                val c = Mesh()
-                c.name = device.name
-                hmd.loadModelForMesh(device, c)
-                hmd.attachToNode(device, c, cam)
+            hmd.events.onDeviceConnect.add { hmd, device, timestamp ->
+                if(device.type == TrackedDeviceType.Controller) {
+                    logger.info("Got device ${device.name} at $timestamp")
+                    device.model?.let { hmd.attachToNode(device, it, cam) }
+                }
             }
         }
     }
@@ -137,6 +136,8 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
 
                         PupilEyeTracker.CalibrationType.WorldSpace -> { gaze ->
                             referenceTarget.position = gaze.gazePoint()
+
+                            logger.info("Got gaze: ${gaze.gazePoint()}")
 
                             when {
                                 gaze.confidence < 0.85f -> referenceTarget.material.diffuse = GLVector(0.8f, 0.0f, 0.0f)
