@@ -89,9 +89,11 @@ vec3 worldFromDepth(float depth, vec2 texcoord, const mat4 invProjection, const 
 #else
     vec3 clipSpacePosition = vec3(texcoord * 2.0 - 1.0, depth * 2.0 - 1.0);
 #endif
-    vec4 viewSpacePosition = vec4(vec2(invProjection[0][0], invProjection[1][1]) * clipSpacePosition.xy,
-                                       -1.0,
-                                       invProjection[2][3] * clipSpacePosition.z + invProjection[3][3]);
+vec4 viewSpacePosition = vec4(
+            invProjection[0][0] * clipSpacePosition.x + invProjection[3][0],
+            invProjection[1][1] * clipSpacePosition.y + invProjection[3][1],
+            -1.0,
+            invProjection[2][3] * clipSpacePosition.z + invProjection[3][3]);
 
     viewSpacePosition /= viewSpacePosition.w;
     vec4 world = invView * viewSpacePosition;

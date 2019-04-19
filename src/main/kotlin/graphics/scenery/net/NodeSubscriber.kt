@@ -8,6 +8,7 @@ import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.*
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.Statistics
+import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
 import org.objenesis.strategy.StdInstantiatorStrategy
 import org.zeromq.ZContext
@@ -15,6 +16,8 @@ import org.zeromq.ZMQ
 import java.io.ByteArrayInputStream
 import java.io.StreamCorruptedException
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
+
 
 /**
  * Created by ulrik on 4/4/2017.
@@ -22,13 +25,14 @@ import java.util.*
 class NodeSubscriber(override var hub: Hub?, val address: String = "udp://localhost:6666", val context: ZContext = ZContext(4)) : Hubable {
 
     private val logger by LazyLogger()
-    var nodes: HashMap<Int, Node> = HashMap()
+    var nodes: ConcurrentHashMap<Int, Node> = ConcurrentHashMap()
     var subscriber: ZMQ.Socket = context.createSocket(ZMQ.SUB)
     val kryo = Kryo()
 
     init {
         subscriber.connect(address)
         subscriber.subscribe(ZMQ.SUBSCRIPTION_ALL)
+        kryo.isRegistrationRequired = false
 
         kryo.register(GLMatrix::class.java)
         kryo.register(GLVector::class.java)
@@ -38,8 +42,20 @@ class NodeSubscriber(override var hub: Hub?, val address: String = "udp://localh
         kryo.register(Quaternion::class.java)
         kryo.register(Mesh::class.java)
         kryo.register(Volume::class.java)
+        kryo.register(Node.OrientedBoundingBox::class.java)
+        kryo.register(TransferFunction::class.java)
+        kryo.register(PointLight::class.java)
+        kryo.register(Light::class.java)
+        kryo.register(Sphere::class.java)
+        kryo.register(Box::class.java)
+        kryo.register(Icosphere::class.java)
+        kryo.register(Cylinder::class.java)
+        kryo.register(Arrow::class.java)
+        kryo.register(Line::class.java)
+        kryo.register(FloatArray::class.java)
+        kryo.register(GeometryType::class.java)
 
-        kryo.instantiatorStrategy = StdInstantiatorStrategy()
+        kryo.instantiatorStrategy = Kryo.DefaultInstantiatorStrategy(StdInstantiatorStrategy())
     }
 
     fun process() {
@@ -50,16 +66,16 @@ class NodeSubscriber(override var hub: Hub?, val address: String = "udp://localh
                 start = System.nanoTime()
                 val id = subscriber.recvStr().toInt()
 
-                logger.debug("Received {} for deserializiation", id)
+                logger.trace("Received {} for deserializiation", id)
                 duration = (System.nanoTime() - start)
                 val payload = subscriber.recv()
 
                 if (payload != null) {
-                    logger.debug("payload is not null, node id={}, have={}", id, nodes.containsKey(id))
+                    logger.trace("payload is not null, node id={}, have={}", id, nodes.containsKey(id))
                     nodes[id]?.let { node ->
                         val bin = ByteArrayInputStream(payload)
                         val input = Input(bin)
-                        val o = kryo.readClassAndObject(input) as Node
+                        val o = kryo.readClassAndObject(input) as? Node ?: return@let
 
                         node.position = o.position
                         node.rotation = o.rotation

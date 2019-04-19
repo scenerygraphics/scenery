@@ -145,9 +145,11 @@ vec3 worldFromDepth(float depth, vec2 texcoord, const mat4 invProjection, const 
 #else
     vec3 clipSpacePosition = vec3(texcoord * 2.0 - 1.0, depth * 2.0 - 1.0);
 #endif
-    vec4 viewSpacePosition = vec4(vec2(invProjection[0][0], invProjection[1][1]) * clipSpacePosition.xy,
-                                       -1.0,
-                                       invProjection[2][3] * clipSpacePosition.z + invProjection[3][3]);
+    vec4 viewSpacePosition = vec4(
+            invProjection[0][0] * clipSpacePosition.x + invProjection[3][0],
+            invProjection[1][1] * clipSpacePosition.y + invProjection[3][1],
+            -1.0,
+            invProjection[2][3] * clipSpacePosition.z + invProjection[3][3]);
 
     viewSpacePosition /= viewSpacePosition.w;
     vec4 world = invView * viewSpacePosition;
@@ -160,9 +162,11 @@ vec3 viewFromDepth(float depth, vec2 texcoord, const mat4 invProjection) {
 #else
     vec4 clipSpacePosition = vec4(texcoord * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
 #endif
-    vec4 viewSpacePosition = vec4(vec2(invProjection[0][0], invProjection[1][1]) * clipSpacePosition.xy,
-                                           -1.0,
-                                           invProjection[2][3] * clipSpacePosition.z + invProjection[3][3]);
+    vec4 viewSpacePosition = vec4(
+                invProjection[0][0] * clipSpacePosition.x + invProjection[3][0],
+                invProjection[1][1] * clipSpacePosition.y + invProjection[3][1],
+                -1.0,
+                invProjection[2][3] * clipSpacePosition.z + invProjection[3][3]);
     viewSpacePosition /= viewSpacePosition.w;
     return viewSpacePosition.xyz;
 }
@@ -489,9 +493,7 @@ void main()
     vec3 FragPos = worldFromDepth(Depth, uv, invProjection, invView);
     vec4 ambientOcclusion = texture(InputOcclusion, textureCoord).rgba;
 
-    mat4 headToEye = vrParameters.headShift;
-    headToEye[3][0] = -currentEye.eye * vrParameters.IPD;
-    vec3 cameraPosition = (vrParameters.stereoEnabled ^ 1) * CamPosition + vrParameters.stereoEnabled * (headToEye * vec4(CamPosition, 1.0)).xyz;
+    vec3 cameraPosition = invView[3].xyz;
 
 	float fragDist = length(FragPos - cameraPosition);
 

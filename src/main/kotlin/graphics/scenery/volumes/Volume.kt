@@ -4,6 +4,7 @@ import cleargl.GLTypeEnum
 import cleargl.GLVector
 import coremem.enums.NativeTypeEnum
 import graphics.scenery.*
+import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.vulkan.toHexString
 import graphics.scenery.numerics.OpenSimplexNoise
 import graphics.scenery.numerics.Random
@@ -260,7 +261,7 @@ open class Volume : Mesh("Volume") {
      * Preloads all volumes found in the path indicated by [file].
      * The folder is assumed to contain a `stacks.info` file containing volume metadata.
      */
-    fun preloadRawFromPath(file: Path) {
+    @JvmOverloads fun preloadRawFromPath(file: Path, dataType: NativeTypeEnum = NativeTypeEnum.UnsignedByte) {
         val id = file.fileName.toString()
 
         val infoFile = file.resolveSibling("stacks" + ".info")
@@ -282,9 +283,9 @@ open class Volume : Mesh("Volume") {
 
 
         if (volumes.containsKey(id)) {
-            logger.debug("$id is already in cache")
+            logger.info("$id is already in cache")
         } else {
-            logger.debug("Preloading $id from disk")
+            logger.info("Preloading $id from disk")
             val buffer = ByteArray(1024 * 1024)
             val stream = FileInputStream(file.toFile())
             val imageData: ByteBuffer = memAlloc((2 * dimensions[0] * dimensions[1] * dimensions[2]).toInt())
@@ -309,10 +310,26 @@ open class Volume : Mesh("Volume") {
             val descriptor = VolumeDescriptor(
                 file,
                 dimensions[0], dimensions[1], dimensions[2],
-                NativeTypeEnum.UnsignedInt, 2, data = imageData
+                dataType, dataType.bytesPerVoxel(), data = imageData
             )
 
             volumes.put(id, descriptor)
+        }
+    }
+
+    private fun NativeTypeEnum.bytesPerVoxel(): Int {
+        return when(this) {
+            NativeTypeEnum.Byte -> 1
+            NativeTypeEnum.UnsignedByte -> 1
+            NativeTypeEnum.Short -> 2
+            NativeTypeEnum.UnsignedShort -> 2
+            NativeTypeEnum.Int -> 4
+            NativeTypeEnum.UnsignedInt -> 4
+            NativeTypeEnum.Long -> 8
+            NativeTypeEnum.UnsignedLong -> 8
+            NativeTypeEnum.HalfFloat -> 2
+            NativeTypeEnum.Float -> 4
+            NativeTypeEnum.Double -> 8
         }
     }
 
@@ -432,18 +449,18 @@ open class Volume : Mesh("Volume") {
                 dataType, bytesPerVoxel, data = imageData
             )
 
-            thread {
-                val histogram = Histogram<Int>(65536)
-                val buf = imageData.asShortBuffer()
-                while (buf.hasRemaining()) {
-                    histogram.add(buf.get().toInt() + Short.MAX_VALUE + 1)
-                }
-
-                logger.info("Min/max of $id: ${histogram.min()}/${histogram.max()} in ${histogram.bins.size} bins")
-
-                this.trangemin = histogram.min().toFloat()
-                this.trangemax = histogram.max().toFloat()
-            }
+//            thread {
+//                val histogram = Histogram<Int>(65536)
+//                val buf = imageData.asShortBuffer()
+//                while (buf.hasRemaining()) {
+//                    histogram.add(buf.get().toInt() + Short.MAX_VALUE + 1)
+//                }
+//
+//                logger.info("Min/max of $id: ${histogram.min()}/${histogram.max()} in ${histogram.bins.size} bins")
+//
+//                this.trangemin = histogram.min().toFloat()
+//                this.trangemax = histogram.max().toFloat()
+//            }
 
             volumes.put(id, descriptor)
             descriptor
@@ -536,6 +553,8 @@ open class Volume : Mesh("Volume") {
         return id
     }
 
+    var assignment: (() -> Unit)? = null
+
     override fun preDraw() {
         if(transferFunction.stale) {
             logger.debug("Transfer function is stale, updating")
@@ -549,6 +568,8 @@ open class Volume : Mesh("Volume") {
 
             time = System.nanoTime().toFloat()
         }
+
+        assignment?.invoke()
     }
 
     protected fun NativeTypeEnum.toGLType() =
@@ -578,14 +599,15 @@ open class Volume : Mesh("Volume") {
         colormap = "viridis"
     }
 
-    private val deallocations = ArrayDeque<ByteBuffer>()
+    @Transient private val deallocations = ArrayDeque<ByteBuffer>()
+    var deallocationThreshold = 50000
 
     protected fun assignVolumeTexture(dimensions: LongArray, descriptor: VolumeDescriptor, replace: Boolean) {
-        while(deallocations.size > 20) {
-            val last = deallocations.pollLast()
-            logger.debug("Time series: deallocating $last from ${deallocations.map { it.hashCode() }.joinToString(", ")}")
-            logger.trace("Address is ${MemoryUtil.memAddress(last).toHexString()}")
-        }
+//        while(deallocations.size > deallocationThreshold) {
+//            val last = deallocations.pollLast()
+//            logger.debug("Time series: deallocating $last from ${deallocations.map { it.hashCode() }.joinToString(", ")}")
+//            logger.trace("Address is ${MemoryUtil.memAddress(last).toHexString()}")
+//        }
 
         val (min: Int, max: Int) = when(descriptor.dataType) {
              NativeTypeEnum.Byte -> 0 to 255
@@ -620,6 +642,7 @@ open class Volume : Mesh("Volume") {
                 deallocations.add(it.contents)
             }
         }
+
         this.material.textures.put("VolumeTextures", "fromBuffer:VolumeTextures")
         this.material.needsTextureReload = true
     }
