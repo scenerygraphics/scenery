@@ -304,7 +304,7 @@ open class VulkanRenderer(hub: Hub,
     protected var instance: VkInstance
     protected var device: VulkanDevice
 
-    protected var debugCallbackHandle: Long
+    protected var debugCallbackHandle: Long = -1L
     protected var timestampQueryPool: Long = -1L
 
     protected var semaphoreCreateInfo: VkSemaphoreCreateInfo
@@ -1037,53 +1037,57 @@ open class VulkanRenderer(hub: Hub,
             logger.debug("${node.name} will have $type texture from $texture in slot $slot")
 
             if (!textureCache.containsKey(texture) || node.material.needsTextureReload) {
-                logger.trace("Loading texture $texture for ${node.name}")
+                try {
+                    logger.trace("Loading texture $texture for ${node.name}")
 
-                val gt = node.material.transferTextures[texture.substringAfter("fromBuffer:")]
+                    val gt = node.material.transferTextures[texture.substringAfter("fromBuffer:")]
 
-                val vkTexture: VulkanTexture = if (texture.startsWith("fromBuffer:") && gt != null) {
-                    val miplevels = if (generateMipmaps && gt.mipmap) {
-                        Math.floor(Math.log(Math.min(gt.dimensions.x() * 1.0, gt.dimensions.y() * 1.0)) / Math.log(2.0)).toInt()
+                    val vkTexture: VulkanTexture = if (texture.startsWith("fromBuffer:") && gt != null) {
+                        val miplevels = if (generateMipmaps && gt.mipmap) {
+                            Math.floor(Math.log(Math.min(gt.dimensions.x() * 1.0, gt.dimensions.y() * 1.0)) / Math.log(2.0)).toInt()
+                        } else {
+                            1
+                        }
+
+                        val existingTexture = s.textures[type]
+                        val t: VulkanTexture = if (existingTexture != null && existingTexture.canBeReused(gt, miplevels, device)) {
+                            existingTexture
+                        } else {
+                            VulkanTexture(device, commandPools, queue, queue, gt, miplevels)
+                        }
+
+                        gt.contents?.let { contents ->
+                            t.copyFrom(contents)
+                        }
+
+                        if (gt.hasConsumableUpdates()) {
+                            t.copyFrom(ByteBuffer.allocate(0))
+                        }
+
+                        t.createSampler(gt)
+                        t
                     } else {
-                        1
+                        val start = System.nanoTime()
+
+                        val t = if (texture.contains("jar!")) {
+                            node.loadTextureFromJar(texture, generateMipmaps, defaultTexture)
+                        } else {
+                            VulkanTexture.loadFromFile(device,
+                                commandPools, queue, queue, texture, true, generateMipmaps)
+                        }
+
+                        val duration = System.nanoTime() - start * 1.0f
+                        stats?.add("loadTexture", duration)
+
+                        t
                     }
 
-                    val existingTexture = s.textures[type]
-                    val t: VulkanTexture = if (existingTexture != null && existingTexture.canBeReused(gt, miplevels, device)) {
-                        existingTexture
-                    } else {
-                        VulkanTexture(device, commandPools, queue, queue, gt, miplevels)
-                    }
-
-                    gt.contents?.let { contents ->
-                        t.copyFrom(contents)
-                    }
-
-                    if(gt.hasConsumableUpdates()) {
-                        t.copyFrom(ByteBuffer.allocate(0))
-                    }
-
-                    t.createSampler(gt)
-                    t
-                } else {
-                    val start = System.nanoTime()
-
-                    val t = if (texture.contains("jar!")) {
-                        node.loadTextureFromJar(texture, generateMipmaps, defaultTexture)
-                    } else {
-                        VulkanTexture.loadFromFile(device,
-                            commandPools, queue, queue, texture, true, generateMipmaps)
-                    }
-
-                    val duration = System.nanoTime() - start * 1.0f
-                    stats?.add("loadTexture", duration)
-
-                    t
+                    // add new texture to texture list and cache, and close old texture
+                    s.textures[type] = vkTexture
+                    textureCache[texture] = vkTexture
+                } catch (e: Exception) {
+                    logger.warn("Could not load texture for ${node.name}: $e")
                 }
-
-                // add new texture to texture list and cache, and close old texture
-                s.textures[type] = vkTexture
-                textureCache[texture] = vkTexture
             } else {
                 s.textures[type] = textureCache[texture]!!
             }
@@ -1425,10 +1429,10 @@ open class VulkanRenderer(hub: Hub,
             // create framebuffer
             with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
                 config.rendertargets.filter { it.key == passConfig.output }.map { rt ->
-                    logger.info("Creating render framebuffer ${rt.key} for pass $passName")
-
                     width = (settings.get<Float>("Renderer.SupersamplingFactor") * windowWidth * rt.value.size.first).toInt()
                     height = (settings.get<Float>("Renderer.SupersamplingFactor") * windowHeight * rt.value.size.second).toInt()
+
+                    logger.info("Creating render framebuffer ${rt.key} for pass $passName (${width}x${height})")
 
                     settings.set("Renderer.$passName.displayWidth", width)
                     settings.set("Renderer.$passName.displayHeight", height)
@@ -1483,7 +1487,12 @@ open class VulkanRenderer(hub: Hub,
                 if (passConfig.output == "Viewport") {
                     // create viewport renderpass with swapchain image-derived framebuffer
                     pass.isViewportRenderpass = true
-                    width = windowWidth
+                    width = if(renderConfig.stereoEnabled) {
+                        windowWidth// * 2
+                    } else {
+                        windowWidth
+                    }
+
                     height = windowHeight
 
                     swapchain.images.forEachIndexed { i, _ ->
@@ -2922,7 +2931,7 @@ open class VulkanRenderer(hub: Hub,
                 var nodeUpdated: Boolean by StickyBoolean(initial = false)
 
                 if (!node.metadata.containsKey("VulkanRenderer")) {
-                    return@withLock
+                    return@forEach
                 }
 
                 val s = node.rendererMetadata() ?: return@forEach
@@ -3104,7 +3113,7 @@ open class VulkanRenderer(hub: Hub,
 
         vkDestroyPipelineCache(device.vulkanDevice, pipelineCache, null)
 
-        if (validation) {
+        if (validation && debugCallbackHandle != -1L) {
             vkDestroyDebugReportCallbackEXT(instance, debugCallbackHandle, null)
         }
 

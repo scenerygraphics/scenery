@@ -6,6 +6,7 @@ import gnu.trove.set.hash.TLinkedHashSet
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.SystemHelpers
 import org.lwjgl.system.MemoryUtil.memAlloc
+import org.lwjgl.system.MemoryUtil.memAllocFloat
 import java.io.BufferedInputStream
 import java.io.File
 import java.io.Serializable
@@ -59,6 +60,8 @@ interface HasGeometry : Serializable {
         val logger by LazyLogger()
         val ext = filename.substringAfterLast(".").toLowerCase()
 
+//        readFromAssimp(filename)
+//        return
         when (ext) {
             "obj" -> readFromOBJ(filename, useMaterial)
             "stl" -> readFromSTL(filename)
@@ -105,8 +108,10 @@ interface HasGeometry : Serializable {
         // set up the properties of the [Material], which include e.g. textures and colors.
         lines.forEach {
             line ->
-            val tokens = line.trim().trimEnd().split(" ").filter(String::isNotEmpty)
+            val lineWithoutComments = line.substringBeforeLast("#").trim().trimEnd()
+            val tokens = lineWithoutComments.split(" ").filter(String::isNotEmpty)
             if (tokens.isNotEmpty()) {
+                val lineAfterFirstToken = lineWithoutComments.substringAfter(tokens[0])
                 when (tokens[0]) {
                     "#" -> {
                     }
@@ -133,7 +138,12 @@ interface HasGeometry : Serializable {
                         addTexture(currentMaterial, "specular", mapfile)
                     }
                     "map_Kd" -> {
-                        val mapfile = filename.substringBeforeLast("/") + "/" + tokens[1].replace('\\', '/')
+                        val mapfile = if(lineAfterFirstToken.contains(" -o ") || lineAfterFirstToken.contains(" -s ")) {
+                            filename.substringBeforeLast("/") + "/" + lineAfterFirstToken.substringAfterLast(" ").replace('\\', '/')
+                        } else {
+                            filename.substringBeforeLast("/") + "/" + tokens[1].replace('\\', '/')
+                        }
+
                         addTexture(currentMaterial, "diffuse", mapfile)
                     }
                     "map_d" -> {
@@ -145,7 +155,12 @@ interface HasGeometry : Serializable {
                         addTexture(currentMaterial, "displacement", mapfile)
                     }
                     "map_bump", "bump" -> {
-                        val mapfile = filename.substringBeforeLast("/") + "/" + tokens[1].replace('\\', '/')
+                        val mapfile = if(lineAfterFirstToken.contains(" -bm ") || lineAfterFirstToken.contains(" -o ") || lineAfterFirstToken.contains(" -s ")) {
+                            filename.substringBeforeLast("/") + "/" + lineAfterFirstToken.substringAfterLast(" ").replace('\\', '/')
+                        } else {
+                            filename.substringBeforeLast("/") + "/" + tokens[1].replace('\\', '/')
+                        }
+
                         addTexture(currentMaterial, "normal", mapfile)
                     }
                     "Tf" -> {

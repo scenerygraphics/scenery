@@ -16,6 +16,7 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.withLock
 import org.lwjgl.system.MemoryUtil
 import java.awt.BorderLayout
 import java.awt.Dimension
@@ -1067,66 +1068,64 @@ open class OpenGLRenderer(hub: Hub,
         buffers["ShaderPropertyBuffer"]!!.reset()
 
         sceneUBOs.forEach { node ->
-//            node.lock.withLock {
-                var nodeUpdated: Boolean by StickyBoolean(initial = false)
-                if (!node.metadata.containsKey(className)) {
-                    return@forEach
-                }
+            var nodeUpdated: Boolean by StickyBoolean(initial = false)
+            if (!node.metadata.containsKey(className)) {
+                return@forEach
+            }
 
-                val s = node.metadata[className] as? OpenGLObjectState
-                if(s == null) {
-                    logger.warn("Could not get OpenGLObjectState for ${node.name}")
-                    return@forEach
-                }
+            val s = node.metadata[className] as? OpenGLObjectState
+            if(s == null) {
+                logger.warn("Could not get OpenGLObjectState for ${node.name}")
+                return@forEach
+            }
 
-                val ubo = s.UBOs["Matrices"]
-                if(ubo?.backingBuffer == null) {
-                    logger.warn("Matrices UBO for ${node.name} does not exist or does not have a backing buffer")
-                    return@forEach
-                }
+            val ubo = s.UBOs["Matrices"]
+            if(ubo?.backingBuffer == null) {
+                logger.warn("Matrices UBO for ${node.name} does not exist or does not have a backing buffer")
+                return@forEach
+            }
 
-                node.updateWorld(true, false)
+            node.updateWorld(true, false)
 
-                var bufferOffset = ubo.advanceBackingBuffer()
-                ubo.offset = bufferOffset
-                node.view.copyFrom(cam.view)
-                nodeUpdated = ubo.populate(offset = bufferOffset.toLong())
+            var bufferOffset = ubo.advanceBackingBuffer()
+            ubo.offset = bufferOffset
+            node.view.copyFrom(cam.view)
+            nodeUpdated = ubo.populate(offset = bufferOffset.toLong())
 
-                val materialUbo = (node.metadata["OpenGLRenderer"]!! as OpenGLObjectState).UBOs["MaterialProperties"]!!
-                bufferOffset = ubo.advanceBackingBuffer()
-                materialUbo.offset = bufferOffset
+            val materialUbo = (node.metadata["OpenGLRenderer"]!! as OpenGLObjectState).UBOs["MaterialProperties"]!!
+            bufferOffset = ubo.advanceBackingBuffer()
+            materialUbo.offset = bufferOffset
 
-                nodeUpdated = materialUbo.populate(offset = bufferOffset.toLong())
+            nodeUpdated = materialUbo.populate(offset = bufferOffset.toLong())
 
-                if (s.UBOs.containsKey("ShaderProperties")) {
-                    val propertyUbo = s.UBOs["ShaderProperties"]!!
-                    // TODO: Correct buffer advancement
-                    val offset = propertyUbo.backingBuffer!!.advance()
-                    updated = propertyUbo.populate(offset = offset.toLong())
-                    propertyUbo.offset = offset
-                }
+            if (s.UBOs.containsKey("ShaderProperties")) {
+                val propertyUbo = s.UBOs["ShaderProperties"]!!
+                // TODO: Correct buffer advancement
+                val offset = propertyUbo.backingBuffer!!.advance()
+                updated = propertyUbo.populate(offset = offset.toLong())
+                propertyUbo.offset = offset
+            }
 
-                nodeUpdated = if (node.material.needsTextureReload) {
-                    loadTexturesForNode(node, s)
-                    true
-                } else {
-                    false
-                }
+            nodeUpdated = if (node.material.needsTextureReload) {
+                loadTexturesForNode(node, s)
+                true
+            } else {
+                false
+            }
 
-                nodeUpdated = if(node.material.hashCode() != s.materialHash) {
-                    s.initialized = false
-                    initializeNode(node)
-                    true
-                } else {
-                    false
-                }
+            nodeUpdated = if(node.material.hashCode() != s.materialHash) {
+                s.initialized = false
+                initializeNode(node)
+                true
+            } else {
+                false
+            }
 
-                if(nodeUpdated && node.getScene()?.onNodePropertiesChanged?.isNotEmpty() == true) {
-                    GlobalScope.launch { node.getScene()?.onNodePropertiesChanged?.forEach { it.value.invoke(node) } }
-                }
+            if(nodeUpdated && node.getScene()?.onNodePropertiesChanged?.isNotEmpty() == true) {
+                GlobalScope.launch { node.getScene()?.onNodePropertiesChanged?.forEach { it.value.invoke(node) } }
+            }
 
-                updated = nodeUpdated
-//            }
+            updated = nodeUpdated
         }
 
         buffers["UBOBuffer"]!!.copyFromStagingBuffer()
@@ -2116,7 +2115,7 @@ open class OpenGLRenderer(hub: Hub,
      * @return True if the initialisation went alright, False if it failed.
      */
     @Synchronized fun initializeNode(node: Node): Boolean {
-        if(!node.lock.tryLock(2, TimeUnit.MILLISECONDS)) {
+        if(!node.lock.tryLock()) {
             return false
         }
 

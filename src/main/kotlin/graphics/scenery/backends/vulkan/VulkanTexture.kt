@@ -522,6 +522,10 @@ open class VulkanTexture(val device: VulkanDevice,
      * Creates a Vulkan image view with [format] for an [image].
      */
     fun createImageView(image: VulkanImage, format: Int): Long {
+        if(image.view != -1L) {
+            vkDestroyImageView(device.vulkanDevice, image.view, null)
+        }
+
         val subresourceRange = VkImageSubresourceRange.calloc().set(VK_IMAGE_ASPECT_COLOR_BIT, 0, mipLevels, 0, 1)
 
         val vi = VkImageViewCreateInfo.calloc()

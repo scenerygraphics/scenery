@@ -43,7 +43,7 @@ import kotlin.math.absoluteValue
  * @property[useCompositor] Whether or not the compositor should be used.
  * @constructor Creates a new OpenVR HMD instance, using the compositor if requested
  */
-open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = true) : TrackerInput, Display, Hubable {
+open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = true) : TrackerInput, Display, Hubable {
 
     /** slf4j logger instance */
     protected val logger by LazyLogger()
@@ -547,18 +547,18 @@ open class OpenVRHMD(val seated: Boolean = true, val useCompositor: Boolean = tr
 
     private fun OpenVRButton.toAWTKeyCode(role: Int = 0): AWTKey {
         return when {
-            this == OpenVRHMD.OpenVRButton.Left && role == ETrackedControllerRole_TrackedControllerRole_LeftHand -> AWTKey(KeyEvent.VK_H, KeyEvent.CHAR_UNDEFINED)
-            this == OpenVRHMD.OpenVRButton.Right && role == ETrackedControllerRole_TrackedControllerRole_LeftHand -> AWTKey(KeyEvent.VK_L, KeyEvent.CHAR_UNDEFINED)
-            this == OpenVRHMD.OpenVRButton.Up  && role == ETrackedControllerRole_TrackedControllerRole_LeftHand -> AWTKey(KeyEvent.VK_K, KeyEvent.CHAR_UNDEFINED)
-            this == OpenVRHMD.OpenVRButton.Down && role == ETrackedControllerRole_TrackedControllerRole_LeftHand -> AWTKey(KeyEvent.VK_J, KeyEvent.CHAR_UNDEFINED)
+            this == OpenVRButton.Left && role == ETrackedControllerRole_TrackedControllerRole_LeftHand -> AWTKey(KeyEvent.VK_H, KeyEvent.CHAR_UNDEFINED)
+            this == OpenVRButton.Right && role == ETrackedControllerRole_TrackedControllerRole_LeftHand -> AWTKey(KeyEvent.VK_L, KeyEvent.CHAR_UNDEFINED)
+            this == OpenVRButton.Up  && role == ETrackedControllerRole_TrackedControllerRole_LeftHand -> AWTKey(KeyEvent.VK_K, KeyEvent.CHAR_UNDEFINED)
+            this == OpenVRButton.Down && role == ETrackedControllerRole_TrackedControllerRole_LeftHand -> AWTKey(KeyEvent.VK_J, KeyEvent.CHAR_UNDEFINED)
 
-            this == OpenVRHMD.OpenVRButton.Left && role == ETrackedControllerRole_TrackedControllerRole_RightHand -> AWTKey(KeyEvent.VK_A, KeyEvent.CHAR_UNDEFINED)
-            this == OpenVRHMD.OpenVRButton.Right && role == ETrackedControllerRole_TrackedControllerRole_RightHand -> AWTKey(KeyEvent.VK_D, KeyEvent.CHAR_UNDEFINED)
-            this == OpenVRHMD.OpenVRButton.Up  && role == ETrackedControllerRole_TrackedControllerRole_RightHand -> AWTKey(KeyEvent.VK_W, KeyEvent.CHAR_UNDEFINED)
-            this == OpenVRHMD.OpenVRButton.Down && role == ETrackedControllerRole_TrackedControllerRole_RightHand -> AWTKey(KeyEvent.VK_S, KeyEvent.CHAR_UNDEFINED)
+            this == OpenVRButton.Left && role == ETrackedControllerRole_TrackedControllerRole_RightHand -> AWTKey(KeyEvent.VK_A, KeyEvent.CHAR_UNDEFINED)
+            this == OpenVRButton.Right && role == ETrackedControllerRole_TrackedControllerRole_RightHand -> AWTKey(KeyEvent.VK_D, KeyEvent.CHAR_UNDEFINED)
+            this == OpenVRButton.Up  && role == ETrackedControllerRole_TrackedControllerRole_RightHand -> AWTKey(KeyEvent.VK_W, KeyEvent.CHAR_UNDEFINED)
+            this == OpenVRButton.Down && role == ETrackedControllerRole_TrackedControllerRole_RightHand -> AWTKey(KeyEvent.VK_S, KeyEvent.CHAR_UNDEFINED)
 
-            this == OpenVRHMD.OpenVRButton.Menu -> AWTKey(KeyEvent.VK_M, KeyEvent.CHAR_UNDEFINED)
-            this == OpenVRHMD.OpenVRButton.Side -> AWTKey(KeyEvent.VK_S, KeyEvent.CHAR_UNDEFINED)
+            this == OpenVRButton.Menu -> AWTKey(KeyEvent.VK_M, KeyEvent.CHAR_UNDEFINED)
+            this == OpenVRButton.Side -> AWTKey(KeyEvent.VK_S, KeyEvent.CHAR_UNDEFINED)
 
             else -> AWTKey(KeyEvent.VK_ESCAPE, KeyEvent.CHAR_UNDEFINED)
         }
