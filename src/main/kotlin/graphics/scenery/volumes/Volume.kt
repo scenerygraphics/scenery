@@ -9,6 +9,8 @@ import graphics.scenery.backends.vulkan.toHexString
 import graphics.scenery.numerics.OpenSimplexNoise
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.forEachParallel
+import graphics.scenery.volumes.Volume.Colormap.ColormapBuffer
+import graphics.scenery.volumes.Volume.Colormap.ColormapFile
 import io.scif.SCIFIO
 import io.scif.util.FormatTools
 import org.lwjgl.system.MemoryUtil
@@ -21,7 +23,6 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 import kotlin.math.abs
 import kotlin.math.sqrt
@@ -635,21 +636,15 @@ open class Volume : Mesh("Volume") {
 
         boundingBox = generateBoundingBox()
 
-
-        if (this.lock.tryLock(10, TimeUnit.MILLISECONDS)) {
-            logger.debug("$name: Assigning volume texture")
-            this.material.transferTextures.put("VolumeTextures", gtv)?.let {
-//                if (replace && it.name != "empty-volume" && !deallocations.contains(it.contents)) {
-//                    deallocations.add(it.contents)
-//                }
+        logger.debug("$name: Assigning volume texture")
+        this.material.transferTextures.put("VolumeTextures", gtv)?.let {
+            if (replace && it.name != "empty-volume" && !deallocations.contains(it.contents)) {
+                deallocations.add(it.contents)
             }
-            this.material.textures.put("VolumeTextures", "fromBuffer:VolumeTextures")
-            this.material.needsTextureReload = true
-
-            this.lock.unlock()
-        } else {
-            logger.error("Failed to lock Volume $name, lock state: $lock")
         }
+
+        this.material.textures.put("VolumeTextures", "fromBuffer:VolumeTextures")
+        this.material.needsTextureReload = true
     }
 
     /**
