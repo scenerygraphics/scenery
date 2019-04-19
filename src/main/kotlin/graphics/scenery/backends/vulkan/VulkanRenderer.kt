@@ -1030,11 +1030,6 @@ open class VulkanRenderer(hub: Hub,
         val stats = hub?.get(SceneryElement.Statistics) as Statistics?
         val defaultTexture = textureCache["DefaultTexture"] ?: throw IllegalStateException("Default fallback texture does not exist.")
 
-        if (!node.lock.tryLock()) {
-            logger.warn("Failed to lock node ${node.name} for texture update")
-            return s
-        }
-
         node.material.textures.forEach { type, texture ->
             val slot = VulkanObjectState.textureTypeToSlot(type)
             val generateMipmaps = GenericTexture.mipmappedObjectTextures.contains(type)
@@ -1108,8 +1103,6 @@ open class VulkanRenderer(hub: Hub,
         s.texturesToDescriptorSets(device,
             renderpasses.filter { it.value.passConfig.type != RenderConfigReader.RenderpassType.quad },
             descriptorPool)
-
-        node.lock.unlock()
 
         return s
     }
