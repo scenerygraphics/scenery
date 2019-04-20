@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.module.kotlin.readValue
 import graphics.scenery.Camera
+import graphics.scenery.DetachedHeadCamera
 import graphics.scenery.Node
 import graphics.scenery.backends.Display
 import graphics.scenery.numerics.Random
@@ -331,8 +332,8 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
             val samplesPerPoint = 120
 
             val (posKeyName, posGenerator: ((Camera, Int, Int) -> Pair<GLVector, GLVector>)) = when(calibrationType) {
-                CalibrationType.ScreenSpace -> "norm_pos" to PupilEyeTracker.CircularScreenSpaceCalibrationPointGenerator
-                CalibrationType.WorldSpace -> "mm_pos" to PupilEyeTracker.DefaultWorldSpaceCalibrationPointGenerator
+                CalibrationType.ScreenSpace -> "norm_pos" to CircularScreenSpaceCalibrationPointGenerator
+                CalibrationType.WorldSpace -> "mm_pos" to DefaultWorldSpaceCalibrationPointGenerator
             }
 
             val positionList = (0 until numReferencePoints).shuffled().map {
@@ -343,7 +344,7 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
                 logger.info("Subject looking at ${normalizedScreenPos.first}/${normalizedScreenPos.second}")
                 val position = normalizedScreenPos.second.clone()
 
-                calibrationTarget?.position = position
+                calibrationTarget?.position = position + cam.forward * 0.15f
 
                 if(normalizedScreenPos.first.x() == 0.5f && normalizedScreenPos.first.y() == 0.5f) {
                     calibrationTarget?.material?.diffuse = GLVector(1.0f, 1.0f, 0.0f)
@@ -413,15 +414,38 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
         /** Point generator for circular calibration points. */
         @Suppress("unused")
         val CircularScreenSpaceCalibrationPointGenerator = { cam: Camera, index: Int, referencePointCount: Int ->
+            /*
+             val v = if(index == 0) {
+                GLVector(0.0f, 0.0f, 0.0f)
+            } else {
+                GLVector(
+                    radius * cos(2 * PI.toFloat() * index.toFloat()/referencePointCount),
+                    -1.0f * radius * sin(2 * PI.toFloat() * index.toFloat()/referencePointCount),
+                    0.0f
+                )
+            }
+
+            val mvp = cam.projection.clone()
+            mvp.mult(cam.getTransformation())
+            val pos = v + if(cam is DetachedHeadCamera) {
+                cam.position + cam.headPosition
+            } else {
+                cam.position
+            }
+            var ndc = mvp.mult(pos.xyzw() + v.xyzw())
+            ndc *= 1.0f/ndc.w()
+
+//            v to cam.viewportToWorld(GLVector(v.x()*2.0f-1.0f, v.y()*2.0f-1.0f), offset = 0.0f)
+             */
             val origin = 0.5f
-            val radius = 0.07f
+            val radius = 0.5f
 
             val v = if(index == 0) {
                 GLVector(origin, origin)
             } else {
                 GLVector(
                     origin + radius * cos(2 * PI.toFloat() * index.toFloat()/referencePointCount),
-                    origin + radius * sin(2 * PI.toFloat() * index.toFloat()/referencePointCount))
+                    origin + -1.0f * radius * sin(2 * PI.toFloat() * index.toFloat()/referencePointCount))
             }
             v to cam.viewportToWorld(GLVector(v.x()*2.0f-1.0f, v.y()*2.0f-1.0f), offset = 0.5f)
         }
