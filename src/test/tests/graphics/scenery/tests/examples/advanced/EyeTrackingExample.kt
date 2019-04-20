@@ -46,7 +46,7 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
         referenceTarget.material.diffuse = GLVector(0.8f, 0.8f, 0.8f)
         scene.addChild(referenceTarget)
 
-        val lightbox = Box(GLVector(25.0f, 25.0f, 25.0f), insideNormals = true)
+        val lightbox = Box(GLVector(20.0f, 20.0f, 20.0f), insideNormals = true)
         lightbox.name = "Lightbox"
         lightbox.material.diffuse = GLVector(0.4f, 0.4f, 0.4f)
         lightbox.material.roughness = 1.0f
@@ -157,33 +157,40 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
 
                     pupilTracker.onGazeReceived = when (pupilTracker.calibrationType) {
                         PupilEyeTracker.CalibrationType.ScreenSpace -> { gaze ->
-                            referenceTarget.position = cam.viewportToWorld(
-                                GLVector(
-                                    gaze.normalizedPosition().x() * 2.0f - 1.0f,
-                                    gaze.normalizedPosition().y() * 2.0f - 1.0f),
-                                offset = 0.5f) + cam.forward * 0.15f
-
                             when {
                                 gaze.confidence < 0.85f -> referenceTarget.material.diffuse = GLVector(0.8f, 0.0f, 0.0f)
                                 gaze.confidence > 0.85f -> referenceTarget.material.diffuse = GLVector(0.0f, 0.5f, 0.5f)
                                 gaze.confidence > 0.95f -> referenceTarget.material.diffuse = GLVector(0.0f, 1.0f, 0.0f)
                             }
+
+                            if(gaze.confidence > 0.85f) {
+                                referenceTarget.position = cam.viewportToWorld(
+                                    GLVector(
+                                        gaze.normalizedPosition().x() * 2.0f - 1.0f,
+                                        gaze.normalizedPosition().y() * 2.0f - 1.0f),
+                                    offset = 0.5f) + cam.forward * 0.15f
+                            }
                         }
 
                         PupilEyeTracker.CalibrationType.WorldSpace -> { gaze ->
-                            referenceTarget.position = gaze.gazePoint()
-
                             when {
                                 gaze.confidence < 0.85f -> referenceTarget.material.diffuse = GLVector(0.8f, 0.0f, 0.0f)
                                 gaze.confidence > 0.85f -> referenceTarget.material.diffuse = GLVector(0.0f, 0.5f, 0.5f)
                                 gaze.confidence > 0.95f -> referenceTarget.material.diffuse = GLVector(0.0f, 1.0f, 0.0f)
+                            }
+
+                            if(gaze.confidence > 0.85f) {
+                                referenceTarget.position = gaze.gazePoint()
                             }
                         }
                     }
                 }
             }
+
+            logger.info("Calibration routine done.")
         }
 
+        // bind calibration start to menu key on controller
         hmd.addBehaviour("start_calibration", startCalibration)
         hmd.addKeyBinding("start_calibration", "M")
     }
