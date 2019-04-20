@@ -6,9 +6,12 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.PupilEyeTracker
 import graphics.scenery.controls.TrackedDeviceType
+import graphics.scenery.numerics.Random
 import org.junit.Test
 import org.scijava.ui.behaviour.ClickBehaviour
 import kotlin.concurrent.thread
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
  * <Description>
@@ -18,7 +21,7 @@ import kotlin.concurrent.thread
 class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280, windowHeight = 720) {
     val pupilTracker = PupilEyeTracker(calibrationType = PupilEyeTracker.CalibrationType.ScreenSpace)
     val hmd = OpenVRHMD(seated = false, useCompositor = true)
-    val referenceTarget = Box(GLVector(0.10f, 0.10f, 0.10f))
+    val referenceTarget = Icosphere(0.005f, 2)
 
     override fun init() {
         hub.add(SceneryElement.HMDInput, hmd)
@@ -26,15 +29,17 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
         renderer = Renderer.createRenderer(hub, applicationName, scene,
             windowWidth, windowHeight)
         hub.add(SceneryElement.Renderer, renderer!!)
+        renderer?.toggleVR()
 
-        val cam: Camera = DetachedHeadCamera(hmd)
+        val cam: DetachedHeadCamera = DetachedHeadCamera(hmd)
         with(cam) {
             position = GLVector(0.0f, 0.2f, 5.0f)
-            perspectiveCamera(50.0f, windowWidth.toFloat(), windowHeight.toFloat())
+            perspectiveCamera(50.0f, windowWidth.toFloat(), windowHeight.toFloat(), 0.05f, 100.0f)
             active = true
 
             scene.addChild(this)
         }
+        cam.disableCulling = true
 
         referenceTarget.material.roughness = 1.0f
         referenceTarget.material.metallic = 0.5f
@@ -43,17 +48,21 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
 
         val lightbox = Box(GLVector(25.0f, 25.0f, 25.0f), insideNormals = true)
         lightbox.name = "Lightbox"
-        lightbox.material.diffuse = GLVector(1.0f, 1.0f, 1.0f)
+        lightbox.material.diffuse = GLVector(0.4f, 0.4f, 0.4f)
         lightbox.material.roughness = 1.0f
         lightbox.material.metallic = 0.0f
         lightbox.material.cullingMode = Material.CullingMode.Front
 
         scene.addChild(lightbox)
-        val stageLight = PointLight(radius = 35.0f)
-        stageLight.name = "StageLight"
-        stageLight.intensity = 100.0f
-        stageLight.position = GLVector(0.0f, 4.0f, 4.0f)
-        scene.addChild(stageLight)
+
+        (0..10).map {
+            val light = PointLight(radius = 15.0f)
+            light.emissionColor = Random.randomVectorFromRange(3, 0.0f, 1.0f)
+            light.position = Random.randomVectorFromRange(3, -5.0f, 5.0f)
+            light.intensity = 100.0f
+
+            light
+        }.forEach { scene.addChild(it) }
 
         thread {
             while(!running) {
@@ -67,6 +76,33 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
                 }
             }
         }
+
+
+        /*
+        val calibrationTarget = Icosphere(0.1f, 2)
+        calibrationTarget.material.diffuse = GLVector(0.8f, 0.7f, 0.7f)
+        calibrationTarget.position = cam.position + cam.headPosition + GLVector(0.0f, 0.0f, -2.0f)
+        scene.addChild(calibrationTarget)
+
+        thread {
+            while(!running) {
+                Thread.sleep(200)
+            }
+
+            val originalPosition = calibrationTarget.position.clone()
+            var ticks = 0
+            while(running) {
+
+                calibrationTarget.position = originalPosition + cam.viewportToWorld(GLVector(
+                    2.0f * cos(ticks/200f) - 1.0f,
+                    -2.0f * sin(ticks/200f) - 1.0f ), 0.5f
+                )
+
+                ticks++
+                Thread.sleep(5)
+            }
+        }
+        */
     }
 
     override fun inputSetup() {
@@ -125,7 +161,7 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
                                 GLVector(
                                     gaze.normalizedPosition().x() * 2.0f - 1.0f,
                                     gaze.normalizedPosition().y() * 2.0f - 1.0f),
-                                offset = 0.5f)
+                                offset = 0.5f) + cam.forward * 0.15f
 
                             when {
                                 gaze.confidence < 0.85f -> referenceTarget.material.diffuse = GLVector(0.8f, 0.0f, 0.0f)
@@ -136,8 +172,6 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
 
                         PupilEyeTracker.CalibrationType.WorldSpace -> { gaze ->
                             referenceTarget.position = gaze.gazePoint()
-
-                            logger.info("Got gaze: ${gaze.gazePoint()}")
 
                             when {
                                 gaze.confidence < 0.85f -> referenceTarget.material.diffuse = GLVector(0.8f, 0.0f, 0.0f)
