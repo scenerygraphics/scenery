@@ -4,8 +4,6 @@ import cleargl.GLTypeEnum
 import cleargl.GLVector
 import coremem.enums.NativeTypeEnum
 import graphics.scenery.*
-import graphics.scenery.backends.Renderer
-import graphics.scenery.backends.vulkan.toHexString
 import graphics.scenery.numerics.OpenSimplexNoise
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.forEachParallel
@@ -13,7 +11,6 @@ import graphics.scenery.volumes.Volume.Colormap.ColormapBuffer
 import graphics.scenery.volumes.Volume.Colormap.ColormapFile
 import io.scif.SCIFIO
 import io.scif.util.FormatTools
-import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.memAlloc
 import sun.misc.Unsafe
 import java.io.FileInputStream
@@ -25,6 +22,7 @@ import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.concurrent.thread
 import kotlin.math.abs
+import kotlin.math.floor
 import kotlin.math.sqrt
 import kotlin.properties.Delegates
 import kotlin.reflect.KProperty
@@ -678,6 +676,88 @@ open class Volume : Mesh("Volume") {
             1.5f * sizeZ * voxelSizeZ * 0.001f + slack)
 
         return OrientedBoundingBox(min, max)
+    }
+
+    /**
+     * Samples a point from the currently used volume, [uv] is the texture coordinate of the volume, [0.0, 1.0] for
+     * all of the components.
+     *
+     * Returns the sampled value as a [Float], or null in case nothing could be sampled.
+     */
+    fun sample(uv: GLVector): Float? {
+        val gt = material.transferTextures["VolumeTextures"] ?: return null
+        val bpp = when(gt.type) {
+            GLTypeEnum.Byte -> 1
+            GLTypeEnum.UnsignedByte -> 1
+            GLTypeEnum.Short -> 2
+            GLTypeEnum.UnsignedShort -> 2
+            GLTypeEnum.Int -> 4
+            GLTypeEnum.UnsignedInt -> 4
+            GLTypeEnum.Float -> 4
+            GLTypeEnum.Double -> 8
+        }
+
+        if(uv.x() < 0.0f || uv.x() > 1.0f || uv.y() < 0.0f || uv.y() > 1.0f || uv.z() < 0.0f || uv.z() > 1.0f) {
+            logger.error("Invalid UV coords for volume access: $uv")
+            return null
+        }
+
+        val absoluteCoords = GLVector(uv.x() * gt.dimensions.x(), uv.y() * gt.dimensions.y(), uv.z() * gt.dimensions.z())
+        val index: Int = floor(gt.dimensions.x() * gt.dimensions.y() * absoluteCoords.z()).toInt()
+            + floor(gt.dimensions.x() * absoluteCoords.y()).toInt()
+            + floor(absoluteCoords.x()).toInt()
+
+        val contents = gt.contents
+        if(contents == null) {
+            logger.error("Volume contents are empty for sampling at $uv")
+            return null
+        }
+
+        if(contents.capacity() < index*bpp) {
+            logger.error("Absolute index $index from $uv exceeds data buffer size of ${contents.capacity()}")
+            return null
+        }
+
+        return when(gt.type) {
+            GLTypeEnum.Byte -> contents.get(index).toFloat()
+            GLTypeEnum.UnsignedByte -> contents.get(index).toUByte().toFloat()
+            GLTypeEnum.Short -> contents.asShortBuffer().get(index).toFloat()
+            GLTypeEnum.UnsignedShort -> contents.asShortBuffer().get(index).toUShort().toFloat()
+            GLTypeEnum.Int -> contents.asIntBuffer().get(index).toFloat()
+            GLTypeEnum.UnsignedInt -> contents.asIntBuffer().get(index).toUInt().toFloat()
+            GLTypeEnum.Float -> contents.asFloatBuffer().get(index)
+            GLTypeEnum.Double -> contents.asDoubleBuffer().get(index).toFloat()
+        }
+    }
+
+    /**
+     * Takes samples along the ray from [start] to [end] from the currently active volume.
+     *
+     * Returns the list of samples (which might include `null` values in case a sample failed),
+     * or null if the start/end coordinates are invalid.
+     */
+    fun sampleRay(start: GLVector, end: GLVector): List<Float?>? {
+        val gt = material.transferTextures["VolumeTextures"] ?: return null
+
+        if(start.x() < 0.0f || start.x() > 1.0f || start.y() < 0.0f || start.y() > 1.0f || start.z() < 0.0f || start.z() > 1.0f) {
+            logger.error("Invalid UV coords for ray start: $start")
+            return null
+        }
+
+        if(end.x() < 0.0f || end.x() > 1.0f || end.y() < 0.0f || end.y() > 1.0f || end.z() < 0.0f || end.z() > 1.0f) {
+            logger.error("Invalid UV coords for ray end: $end")
+            return null
+        }
+
+        val direction = end - start
+        val maxsteps = (gt.dimensions.toFloatArray().max() ?: 1.0f).toInt()
+        val delta = direction * (1.0f/maxsteps)
+
+        val samples = (0 until maxsteps).map {
+            sample(start + (delta * it.toFloat()))
+        }
+
+        return samples
     }
 
     /**
