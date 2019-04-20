@@ -364,7 +364,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
             val vertexBufferView = vertices.asReadOnlyBuffer()
             val boundingBoxCoords = floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
 
-            if (vertexBufferView.capacity() == 0) {
+            if (vertexBufferView.capacity() == 0 || vertexBufferView.remaining() == 0) {
                 boundingBox = if(!children.none()) {
                     getMaximumBoundingBox()
                 } else {
