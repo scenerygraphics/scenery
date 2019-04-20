@@ -232,7 +232,7 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
                                     if(msgType.contains(".0.")) {
                                         currentGazeLeft = g
                                     }
-                                    
+
                                     if(msgType.contains(".1.")) {
                                         currentGazeRight = g
                                     }
@@ -345,6 +345,7 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
         }
 
         calibrating = true
+        calibrationTarget?.visible = true
         val referenceData = arrayListOf<HashMap<String, Serializable>>()
 
         if(generateReferenceData) {
@@ -414,6 +415,7 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
 
         unsubscribe("notify.calibration.successful")
         unsubscribe("notify.calibration.failed")
+        calibrationTarget?.visible = false
 
         if(isCalibrated) {
             logger.info("Calibration succeeded, subscribing to gaze data")
