@@ -10,8 +10,6 @@ import graphics.scenery.numerics.Random
 import org.junit.Test
 import org.scijava.ui.behaviour.ClickBehaviour
 import kotlin.concurrent.thread
-import kotlin.math.cos
-import kotlin.math.sin
 
 /**
  * <Description>
@@ -31,7 +29,7 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
         hub.add(SceneryElement.Renderer, renderer!!)
         renderer?.toggleVR()
 
-        val cam: DetachedHeadCamera = DetachedHeadCamera(hmd)
+        val cam = DetachedHeadCamera(hmd)
         with(cam) {
             position = GLVector(0.0f, 0.2f, 5.0f)
             perspectiveCamera(50.0f, windowWidth.toFloat(), windowHeight.toFloat(), 0.05f, 100.0f)
@@ -76,33 +74,6 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
                 }
             }
         }
-
-
-        /*
-        val calibrationTarget = Icosphere(0.1f, 2)
-        calibrationTarget.material.diffuse = GLVector(0.8f, 0.7f, 0.7f)
-        calibrationTarget.position = cam.position + cam.headPosition + GLVector(0.0f, 0.0f, -2.0f)
-        scene.addChild(calibrationTarget)
-
-        thread {
-            while(!running) {
-                Thread.sleep(200)
-            }
-
-            val originalPosition = calibrationTarget.position.clone()
-            var ticks = 0
-            while(running) {
-
-                calibrationTarget.position = originalPosition + cam.viewportToWorld(GLVector(
-                    2.0f * cos(ticks/200f) - 1.0f,
-                    -2.0f * sin(ticks/200f) - 1.0f ), 0.5f
-                )
-
-                ticks++
-                Thread.sleep(5)
-            }
-        }
-        */
     }
 
     override fun inputSetup() {
