@@ -109,6 +109,11 @@ class Line @JvmOverloads constructor(var capacity: Int = 50, transparent: Boolea
      * @param p     The vector containing the vertex data
      */
     fun addPoint(p: GLVector) {
+        if(p.dimension != 3) {
+            logger.error("Cannot add position with dimension ${p.dimension} to line.")
+            return
+        }
+
         if(vertices.limit() + 3 > vertices.capacity()) {
             val newVertices = BufferUtils.allocateFloat(vertices.capacity() + 3*capacity)
             vertices.position(0)
