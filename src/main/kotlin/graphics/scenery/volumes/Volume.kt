@@ -30,8 +30,6 @@ import kotlin.streams.toList
 
 /**
  * Volume Rendering Node for scenery.
- * If [autosetProperties] is true, the node will automatically determine
- * the volumes' transfer function range.
  *
  * @author Ulrik Günther <hello@ulrik.is>
  * @author Martin Weigert <mweigert@mpi-cbg.de>
@@ -176,11 +174,11 @@ open class Volume : Mesh("Volume") {
             colormaps[name]?.let { cm ->
                 field = name
                 when (cm) {
-                    is Colormap.ColormapFile -> {
+                    is ColormapFile -> {
                         this@Volume.material.textures["normal"] = cm.filename
                     }
 
-                    is Colormap.ColormapBuffer -> {
+                    is ColormapBuffer -> {
                         this@Volume.material.transferTextures["colormap"] = cm.texture
                         this@Volume.material.textures["normal"] = "fromBuffer:colormap"
                     }
@@ -246,11 +244,11 @@ open class Volume : Mesh("Volume") {
         material.blending.colorBlending = Blending.BlendOp.add
         material.blending.alphaBlending = Blending.BlendOp.add
 
-        colormaps["grays"] = Colormap.ColormapFile(Volume::class.java.getResource("colormap-grays.png").file)
-        colormaps["hot"] = Colormap.ColormapFile(Volume::class.java.getResource("colormap-hot.png").file)
-        colormaps["jet"] = Colormap.ColormapFile(Volume::class.java.getResource("colormap-jet.png").file)
-        colormaps["plasma"] = Colormap.ColormapFile(Volume::class.java.getResource("colormap-plasma.png").file)
-        colormaps["viridis"] = Colormap.ColormapFile(Volume::class.java.getResource("colormap-viridis.png").file)
+        colormaps["grays"] = ColormapFile(Volume::class.java.getResource("colormap-grays.png").file)
+        colormaps["hot"] = ColormapFile(Volume::class.java.getResource("colormap-hot.png").file)
+        colormaps["jet"] = ColormapFile(Volume::class.java.getResource("colormap-jet.png").file)
+        colormaps["plasma"] = ColormapFile(Volume::class.java.getResource("colormap-plasma.png").file)
+        colormaps["viridis"] = ColormapFile(Volume::class.java.getResource("colormap-viridis.png").file)
 
         assignEmptyVolumeTexture()
     }
