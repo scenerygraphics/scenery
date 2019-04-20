@@ -39,6 +39,7 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
         }
         cam.disableCulling = true
 
+        referenceTarget.visible = false
         referenceTarget.material.roughness = 1.0f
         referenceTarget.material.metallic = 0.5f
         referenceTarget.material.diffuse = GLVector(0.8f, 0.8f, 0.8f)
@@ -135,6 +136,7 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
                             }
 
                             if(gaze.confidence > 0.85f) {
+                                referenceTarget.visible = true
                                 referenceTarget.position = cam.viewportToWorld(
                                     GLVector(
                                         gaze.normalizedPosition().x() * 2.0f - 1.0f,
@@ -151,6 +153,7 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
                             }
 
                             if(gaze.confidence > 0.85f) {
+                                referenceTarget.visible = true
                                 referenceTarget.position = gaze.gazePoint()
                             }
                         }
