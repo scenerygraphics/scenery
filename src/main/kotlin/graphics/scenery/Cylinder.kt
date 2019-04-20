@@ -1,8 +1,10 @@
 package graphics.scenery
 
+import cleargl.GLVector
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.util.*
+import kotlin.math.PI
 
 /**
  * Constructs a cylinder with the given [radius] and number of [segments].
@@ -72,6 +74,22 @@ class Cylinder(var radius: Float, var height: Float, var segments: Int) : Node("
         texcoords = BufferUtils.allocateFloatAndPut(tbuffer.toFloatArray())
 
         boundingBox = generateBoundingBox()
+    }
+
+    companion object {
+        @JvmStatic fun betweenPoints(p1: GLVector, p2: GLVector, radius: Float = 0.02f, height: Float = 1.0f, segments: Int = 16): Cylinder {
+            val cylinder = Cylinder(radius, height, segments)
+            val direction = p2 - p1
+            cylinder.rotation = cylinder.rotation
+                .setLookAt(direction.normalized.toFloatArray(),
+                    floatArrayOf(0.0f, 1.0f, 0.0f),
+                    FloatArray(3), FloatArray(3), FloatArray(3))
+                .rotateByAngleX(PI.toFloat()/2.0f)
+            cylinder.scale = GLVector(1.0f, direction.magnitude(), 1.0f)
+            cylinder.position = p1.clone()
+
+            return cylinder
+        }
     }
 
 }
