@@ -37,7 +37,7 @@ open class Camera : Node("Camera") {
     /** Right vector of the camera */
     var right: GLVector = GLVector(1.0f, 0.0f, 0.0f)
     /** FOV of the camera **/
-    var fov: Float = 70.0f
+    open var fov: Float = 70.0f
     /** Z buffer near plane */
     var nearPlaneDistance = 0.05f
     /** Z buffer far plane location */
@@ -47,9 +47,9 @@ open class Camera : Node("Camera") {
     /** Projection the camera uses */
     var projectionType: ProjectionType = ProjectionType.Undefined
     /** Width of the projection */
-    var width: Float = 0.0f
+    open var width: Float = 0.0f
     /** Height of the projection */
-    var height: Float = 0.0f
+    open var height: Float = 0.0f
     /** View-space coordinate system e.g. for frustum culling. */
     var viewSpaceTripod: Camera.Tripod
         protected set
@@ -198,20 +198,55 @@ open class Camera : Node("Camera") {
      * If the vector is 2D, [nearPlaneDistance] is assumed for the Z value, otherwise
      * the Z value from the vector is taken.
      */
-    @JvmOverloads fun viewportToWorld(vector: GLVector, offset: Float = 0.01f): GLVector {
-        val unproject = projection.clone()
-        unproject.mult(getTransformation())
-        unproject.invert()
+    @JvmOverloads fun viewportToWorld(vector: GLVector, offset: Float = 0.01f, normalized: Boolean = false): GLVector {
+        val pv = projection.clone()
+        pv.mult(getTransformation())
+        val ipv = pv.inverse
 
-        var clipSpace = unproject.mult(when (vector.dimension) {
-            1 -> GLVector(vector.x(), 1.0f, nearPlaneDistance + offset, 1.0f)
-            2 -> GLVector(vector.x(), vector.y(), nearPlaneDistance + offset, 1.0f)
+        var worldSpace = ipv.mult(when (vector.dimension) {
+            1 -> GLVector(vector.x(), 1.0f, 0.0f, 1.0f)
+            2 -> GLVector(vector.x(), vector.y(), 0.0f, 1.0f)
             3 -> GLVector(vector.x(), vector.y(), vector.z(), 1.0f)
             else -> vector
         })
 
-        clipSpace = clipSpace.times(1.0f/clipSpace.w())
-        return clipSpace.xyz()
+        worldSpace = worldSpace.times(1.0f/worldSpace.w())
+//        worldSpace.set(2, offset)
+        return worldSpace.xyz()
+        /*
+        var x = vector.x()
+        var y = vector.y()
+
+        if(normalized) {
+            x *= width
+            y *= height
+        }
+
+        val pos = if(this is DetachedHeadCamera) {
+            position + headPosition
+        } else {
+            position
+        }
+
+        val view = (target - pos).normalize()
+        var h = view.cross(up).normalize()
+        var v = h.cross(view)
+
+        val fov = fov * Math.PI / 180.0f
+        val lengthV = Math.tan(fov / 2.0).toFloat() * nearPlaneDistance
+        val lengthH = lengthV * (width / height)
+
+        v *= lengthV
+        h *= lengthH
+
+        val posX = (x - width / 2.0f) / (width / 2.0f)
+        val posY = -1.0f * (y - height / 2.0f) / (height / 2.0f)
+
+        val worldPos = pos + view * nearPlaneDistance + h * posX + v * posY
+        val worldDir = (worldPos - pos).normalized
+
+        return worldPos + worldDir * offset
+        */
     }
 
     /**
