@@ -60,6 +60,7 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
     @JsonIgnoreProperties(ignoreUnknown = true)
     data class Gaze(var confidence: Float = 0.0f,
                     var timestamp: Float = 0.0f,
+                    var eyeId: Int? = null,
 
                     var norm_pos: FloatArray = floatArrayOf(),
                     var gaze_point_3d: FloatArray? = floatArrayOf(),
@@ -135,6 +136,11 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
     /** Stores the current gaze data point. */
     var currentGaze: Gaze? = null
         private set
+    var currentGazeLeft: Gaze? = null
+        private set
+    var currentGazeRight: Gaze? = null
+        private set
+
 
     init {
         logger.info("Connecting to $host:$port ...")
@@ -186,9 +192,8 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
 
                         if(poller.isReadable(socket)) {
                             val msg = ZMsg.recvMsg(socket)
-                            val msgType = msg.popString()
 
-                            when(msgType) {
+                            when(val msgType = msg.popString()) {
                                 "notify.calibration.successful" -> {
                                     logger.info("Calibration successful.")
                                     calibrating = false
@@ -224,9 +229,24 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
                                     val bytes = msg.pop().data
                                     val g = objectMapper.readValue(bytes, Gaze::class.java)
 
+                                    if(msgType.contains(".0.")) {
+                                        currentGazeLeft = g
+                                    }
+                                    
+                                    if(msgType.contains(".1.")) {
+                                        currentGazeRight = g
+                                    }
+
                                     if(g.confidence > gazeConfidenceThreshold) {
-                                        currentGaze = g
-                                        onGazeReceived?.invoke(g)
+                                        val left = currentGazeLeft
+                                        val right = currentGazeRight
+
+                                        if(left != null && right != null) {
+                                            g.norm_pos = ((left.normalizedPosition() + right.normalizedPosition()) * 0.5f).toFloatArray()
+
+                                            currentGaze = g
+                                            onGazeReceived?.invoke(g)
+                                        }
                                     }
                                 }
                             }
@@ -438,7 +458,7 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
 //            v to cam.viewportToWorld(GLVector(v.x()*2.0f-1.0f, v.y()*2.0f-1.0f), offset = 0.0f)
              */
             val origin = 0.5f
-            val radius = 0.5f
+            val radius = 0.4f
 
             val v = if(index == 0) {
                 GLVector(origin, origin)
