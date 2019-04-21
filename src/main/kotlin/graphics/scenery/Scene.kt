@@ -1,6 +1,7 @@
 package graphics.scenery
 
 import cleargl.GLVector
+import graphics.scenery.utils.MaybeIntersects
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import java.util.*
@@ -203,9 +204,9 @@ open class Scene : Node("RootNode") {
         }).map {
             Pair(it, it.intersectAABB(position, direction))
         }.filter {
-            it.second.first && it.second.second > 0.0f
+            it.second is MaybeIntersects.Intersection && (it.second as MaybeIntersects.Intersection).distance > 0.0f
         }.map {
-            RaycastResult(it.first, it.second.second)
+            RaycastResult(it.first, (it.second as MaybeIntersects.Intersection).distance)
         }.sortedBy {
             it.distance
         }
