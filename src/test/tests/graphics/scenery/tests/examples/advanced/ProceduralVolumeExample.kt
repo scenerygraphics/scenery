@@ -45,8 +45,11 @@ class ProceduralVolumeExample: SceneryBase("Volume Rendering example", 1280, 720
 
         val volume = Volume()
         volume.name = "volume"
-        volume.position = GLVector(0.0f, 0.2f, 0.0f)
+        volume.position = GLVector(0.0f, 0.0f, 0.0f)
         volume.colormap = "plasma"
+        volume.voxelSizeX = 10.0f
+        volume.voxelSizeY = 10.0f
+        volume.voxelSizeZ = 10.0f
         with(volume.transferFunction) {
             addControlPoint(0.0f, 0.0f)
             addControlPoint(0.2f, 0.0f)
