@@ -87,33 +87,14 @@ void main()
 	mat4 nMVP;
 	mat4 projectionMatrix;
 
-    // volume is scaled in such a way that 1 pixel in volume units = 1mm in world units
-	vec3 L = vec3(sizeX, sizeY, sizeZ) * vec3(voxelSizeX, voxelSizeY, voxelSizeZ) * 0.001;
-
-	mat4 center = transpose(mat4(1.0f, 0.0f, 0.0f, L.x/2.0f,
-	                   0.0f, 1.0f, 0.0f, L.y/2.0f,
-	                   0.0f, 0.0f, 1.0f, L.z/2.0f,
-	                   0.0f, 0.0f, 0.0f, 1.0f));
-
     mv = (vrParameters.stereoEnabled ^ 1) * ViewMatrices[0] * ubo.ModelMatrix + (vrParameters.stereoEnabled * ViewMatrices[currentEye.eye] * ubo.ModelMatrix);
-    mv *= center;
 	projectionMatrix = (vrParameters.stereoEnabled ^ 1) * ProjectionMatrix + vrParameters.stereoEnabled * vrParameters.projectionMatrices[currentEye.eye];
 
-	mat4 invScale = mat4(1.0);
-	invScale[0][0] = 1.0/L.x;
-	invScale[1][1] = 1.0/L.y;
-	invScale[2][2] = 1.0/L.z;
-
-	mat4 scale = mat4(1.0);
-	scale[0][0] = L.x;
-	scale[1][1] = L.y;
-	scale[2][2] = L.z;
-
     Vertex.inverseProjection = (vrParameters.stereoEnabled ^ 1) * InverseProjectionMatrix + (vrParameters.stereoEnabled * vrParameters.inverseProjectionMatrices[currentEye.eye]);
-    Vertex.inverseModelView = invScale * inverse(mv);
-    Vertex.MVP = projectionMatrix * mv * scale;
+    Vertex.inverseModelView = inverse(mv);
+    Vertex.MVP = projectionMatrix * mv;
 
-    Vertex.modelView = mv * scale;
+    Vertex.modelView = mv;
 
     Vertex.textureCoord = vertexTexCoord;
     gl_Position = vec4(vertexPosition, 1.0f);
