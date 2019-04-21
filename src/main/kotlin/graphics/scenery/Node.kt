@@ -15,6 +15,7 @@ import java.util.concurrent.locks.ReentrantLock
 import java.util.function.Consumer
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
+import kotlin.math.PI
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.properties.Delegates
@@ -541,6 +542,28 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
         }
 
         return this.scale
+    }
+
+    /**
+     * Orients the Node between points [p1] and [p2], and optionally
+     * [rescale]s and [reposition]s it.
+     */
+    @JvmOverloads fun orientBetweenPoints(p1: GLVector, p2: GLVector, rescale: Boolean = false, reposition: Boolean = false): Quaternion {
+        val direction = p2 - p1
+        this.rotation = this.rotation
+            .setLookAt(direction.normalized.toFloatArray(),
+                floatArrayOf(0.0f, 1.0f, 0.0f),
+                FloatArray(3), FloatArray(3), FloatArray(3))
+            .rotateByAngleX(PI.toFloat()/2.0f)
+        if(rescale) {
+            this.scale = GLVector(1.0f, direction.magnitude(), 1.0f)
+        }
+
+        if(reposition) {
+            this.position = p1.clone()
+        }
+
+        return this.rotation
     }
 
     private fun expand(lhs: OrientedBoundingBox, rhs: OrientedBoundingBox): OrientedBoundingBox {
