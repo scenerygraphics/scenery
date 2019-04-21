@@ -1,0 +1,164 @@
+package graphics.scenery.tests.examples.advanced
+
+import cleargl.GLVector
+import coremem.enums.NativeTypeEnum
+import graphics.scenery.*
+import graphics.scenery.backends.Renderer
+import graphics.scenery.numerics.Random
+import graphics.scenery.utils.MaybeIntersects
+import graphics.scenery.utils.RingBuffer
+import graphics.scenery.volumes.Volume
+import org.junit.Test
+import org.lwjgl.system.MemoryUtil.memAlloc
+import org.scijava.ui.behaviour.ClickBehaviour
+import java.nio.ByteBuffer
+import kotlin.concurrent.thread
+
+/**
+ * Example that renders procedurally generated volumes and samples from it.
+ * [bitsPerVoxel] can be set to 8 or 16, to generate Byte or UnsignedShort volumes.
+ *
+ * @author Ulrik Günther <hello@ulrik.is>
+ */
+class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
+    val bitsPerVoxel = 8
+
+    override fun init() {
+        renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
+        hub.add(SceneryElement.Renderer, renderer!!)
+
+        val cam: Camera = DetachedHeadCamera()
+        with(cam) {
+            position = GLVector(0.0f, 0.5f, 5.0f)
+            perspectiveCamera(50.0f, 1.0f*windowWidth, 1.0f*windowHeight)
+            active = true
+
+            scene.addChild(this)
+        }
+
+        val shell = Box(GLVector(10.0f, 10.0f, 10.0f), insideNormals = true)
+        shell.material.cullingMode = Material.CullingMode.None
+        shell.material.diffuse = GLVector(0.2f, 0.2f, 0.2f)
+        shell.material.specular = GLVector.getNullVector(3)
+        shell.material.ambient = GLVector.getNullVector(3)
+        shell.position = GLVector(0.0f, 4.0f, 0.0f)
+        scene.addChild(shell)
+
+        val p1 = Icosphere(0.2f, 2)
+        p1.position = GLVector(-2.0f, 0.0f, 0.0f)
+        scene.addChild(p1)
+
+        val p2 = Icosphere(0.2f, 2)
+        p2.position = GLVector(2.0f, 0.0f, 0.0f)
+        scene.addChild(p2)
+
+        val connector = Cylinder.betweenPoints(p1.position, p2.position)
+        scene.addChild(connector)
+
+        p1.update.add {
+            connector.orientBetweenPoints(p1.position, p2.position, true, true)
+        }
+
+        p2.update.add {
+            connector.orientBetweenPoints(p1.position, p2.position, true, true)
+        }
+
+        val volume = Volume()
+        volume.name = "volume"
+        volume.position = GLVector(0.0f, 0.0f, 0.0f)
+        volume.colormap = "plasma"
+        volume.voxelSizeX = 10.0f
+        volume.voxelSizeY = 10.0f
+        volume.voxelSizeZ = 10.0f
+        with(volume.transferFunction) {
+            addControlPoint(0.0f, 0.0f)
+            addControlPoint(0.2f, 0.0f)
+            addControlPoint(0.4f, 1.0f)
+            addControlPoint(0.8f, 1.0f)
+            addControlPoint(1.0f, 0.0f)
+        }
+
+        volume.metadata["animating"] = true
+        scene.addChild(volume)
+
+        val bb = BoundingGrid()
+        bb.node = volume
+
+        val lights = (0 until 3).map {
+            PointLight(radius = 15.0f)
+        }
+
+        lights.mapIndexed { i, light ->
+            light.position = GLVector(2.0f * i - 4.0f,  i - 1.0f, 0.0f)
+            light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
+            light.intensity = 50.0f
+            scene.addChild(light)
+        }
+
+        thread {
+            while(!scene.initialized) { Thread.sleep(200) }
+
+            val volumeSize = 128L
+            val volumeBuffer = RingBuffer<ByteBuffer>(2) { memAlloc((volumeSize*volumeSize*volumeSize*bitsPerVoxel/8).toInt()) }
+
+            val seed = Random.randomFromRange(0.0f, 133333337.0f).toLong()
+            var shift = GLVector.getNullVector(3)
+            val shiftDelta = Random.randomVectorFromRange(3, -1.5f, 1.5f)
+
+            val dataType = if(bitsPerVoxel == 8) {
+                NativeTypeEnum.UnsignedByte
+            } else {
+                NativeTypeEnum.UnsignedShort
+            }
+
+            while(running) {
+                if(volume.metadata["animating"] == true) {
+                    val currentBuffer = volumeBuffer.get()
+
+                    Volume.generateProceduralVolume(volumeSize, 0.35f, seed = seed,
+                        intoBuffer = currentBuffer, shift = shift, use16bit = bitsPerVoxel > 8)
+
+                    volume.readFromBuffer(
+                        "procedural-cloud-${shift.hashCode()}", currentBuffer,
+                        volumeSize, volumeSize, volumeSize, 1.0f, 1.0f, 1.0f,
+                        dataType = dataType, bytesPerVoxel = bitsPerVoxel / 8)
+
+                    shift = shift + shiftDelta
+                }
+
+                val intersection = volume.intersectAABB(p1.position, p2.position - p1.position)
+                if(intersection is MaybeIntersects.Intersection) {
+                    val scale = volume.localScale()
+                    val localEntry = intersection.relativeEntry.hadamard(scale.inverse()) + GLVector.getOneVector(3) * (1.0f/2.0f)
+                    val localExit = intersection.relativeExit.hadamard(scale.inverse()) + GLVector.getOneVector(3) * (1.0f/2.0f)
+                    logger.info("Ray intersects volume at ${localEntry}/${localExit} localScale=$scale")
+                }
+
+                Thread.sleep(200)
+            }
+        }
+    }
+
+    override fun inputSetup() {
+        setupCameraModeSwitching()
+
+        val toggleRenderingMode = object : ClickBehaviour {
+            var modes = hashMapOf(0 to "Local MIP", 1 to "MIP", 2 to "Alpha Compositing")
+            var currentMode = (scene.find("volume") as? Volume)?.renderingMethod ?: 0
+
+            override fun click(x: Int, y: Int) {
+                currentMode = (currentMode + 1) % modes.size
+
+                (scene.find("volume") as? Volume)?.renderingMethod = currentMode
+                logger.info("Switched volume rendering mode to ${modes[currentMode]} (${(scene.find("volume") as? Volume)?.renderingMethod})")
+            }
+        }
+
+        inputHandler?.addBehaviour("toggle_rendering_mode", toggleRenderingMode)
+        inputHandler?.addKeyBinding("toggle_rendering_mode", "M")
+    }
+
+    @Test override fun main() {
+        super.main()
+    }
+}
