@@ -1,5 +1,6 @@
 package graphics.scenery.volumes
 
+import cleargl.GLMatrix
 import cleargl.GLTypeEnum
 import cleargl.GLVector
 import coremem.enums.NativeTypeEnum
@@ -27,6 +28,8 @@ import kotlin.math.sqrt
 import kotlin.properties.Delegates
 import kotlin.reflect.KProperty
 import kotlin.streams.toList
+
+
 
 /**
  * Volume Rendering Node for scenery.
@@ -147,6 +150,8 @@ open class Volume : Mesh("Volume") {
      */
     protected fun <R> volumePropertyChanged(property: KProperty<*>, old: R, new: R) {
         boundingBox = generateBoundingBox()
+        needsUpdate = true
+        needsUpdateWorld = true
     }
 
     /**
@@ -251,6 +256,22 @@ open class Volume : Mesh("Volume") {
         colormaps["viridis"] = ColormapFile(Volume::class.java.getResource("colormap-viridis.png").file)
 
         assignEmptyVolumeTexture()
+    }
+
+    override fun composeModel() {
+        @Suppress("SENSELESS_COMPARISON")
+        if(position != null && rotation != null && scale != null) {
+            val L = GLVector(sizeX * voxelSizeX,
+                sizeY * voxelSizeY,
+                sizeZ * voxelSizeZ) * pixelToWorldRatio
+
+            model.setIdentity()
+            model.translate(this.position.x(), this.position.y(), this.position.z())
+            model.mult(this.rotation)
+            model.scale(this.renderScale, this.renderScale, this. renderScale)
+            model.scale(this.scale.x(), this.scale.y(), this.scale.z())
+            model.scale(L.x()/2.0f, L.y()/2.0f, L.z()/2.0f)
+        }
     }
 
     /**
@@ -662,16 +683,26 @@ open class Volume : Mesh("Volume") {
      * The volume's bounding box is calculated from voxel and physical size such that
      * 1 pixel = 1mm in world units.
      */
+    val boundingBoxSlack = 0.00f
+    val pixelToWorldRatio = 0.001f
+
+    fun localScale(): GLVector {
+        return GLVector(
+            sizeX * voxelSizeX * pixelToWorldRatio,
+            sizeY * voxelSizeY * pixelToWorldRatio,
+            sizeZ * voxelSizeZ * pixelToWorldRatio)
+    }
+
     override fun generateBoundingBox(): OrientedBoundingBox? {
-        val slack = 0.02f
+        val slack = GLVector(boundingBoxSlack, boundingBoxSlack, boundingBoxSlack)
         val min = GLVector(
-            -0.5f * sizeX * voxelSizeX * 0.001f - slack,
-            -0.5f * sizeY * voxelSizeY * 0.001f - slack,
-            -0.5f * sizeZ * voxelSizeZ * 0.001f - slack)
+            -0.5f * sizeX * voxelSizeX * pixelToWorldRatio,
+            -0.5f * sizeY * voxelSizeY * pixelToWorldRatio,
+            -0.5f * sizeZ * voxelSizeZ * pixelToWorldRatio) - slack
         val max = GLVector(
-            1.5f * sizeX * voxelSizeX * 0.001f + slack,
-            1.5f * sizeY * voxelSizeY * 0.001f + slack,
-            1.5f * sizeZ * voxelSizeZ * 0.001f + slack)
+            0.5f * sizeX * voxelSizeX * pixelToWorldRatio,
+            0.5f * sizeY * voxelSizeY * pixelToWorldRatio,
+            0.5f * sizeZ * voxelSizeZ * pixelToWorldRatio) + slack
 
         return OrientedBoundingBox(min, max)
     }
