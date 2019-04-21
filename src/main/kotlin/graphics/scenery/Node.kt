@@ -5,6 +5,7 @@ import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.backends.Renderer
 import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.MaybeIntersects
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.async
 import java.io.Serializable
@@ -344,7 +345,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
      * This method composes the [model] matrices of the node from its
      * [position], [scale] and [rotation].
      */
-    fun composeModel() {
+    open fun composeModel() {
         @Suppress("SENSELESS_COMPARISON")
         if(position != null && rotation != null && scale != null) {
             model.setIdentity()
@@ -649,9 +650,9 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
      * Returns a Pair of Boolean and Float, indicating whether an intersection is possible,
      * and at which distance.
      *
-     * Code adapted from zachamarz, http://gamedev.stackexchange.com/a/18459
+     * Code adapted from [zachamarz](http://gamedev.stackexchange.com/a/18459).
      */
-    fun intersectAABB(origin: GLVector, dir: GLVector): Pair<Boolean, Float> {
+    fun intersectAABB(origin: GLVector, dir: GLVector): MaybeIntersects {
         val bbmin = getMaximumBoundingBox().min.xyzw()
         val bbmax = getMaximumBoundingBox().max.xyzw()
 
@@ -660,7 +661,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
 
         // skip if inside the bounding box
         if(origin.isInside(min, max)) {
-            return false to 0.0f
+            return MaybeIntersects.NoIntersection()
         }
 
         val invDir = GLVector(1 / dir.x(), 1 / dir.y(), 1 / dir.z())
@@ -677,16 +678,25 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
 
         // we are in front of the AABB
         if (tmax < 0) {
-            return false to tmax
+            return MaybeIntersects.NoIntersection()
         }
 
         // we have missed the AABB
         if (tmin > tmax) {
-            return false to tmax
+            return MaybeIntersects.NoIntersection()
         }
 
-        // we have a match!
-        return true to tmin
+        // we have a match! calculate entry and exit points
+        val entry = origin + dir * tmin
+        val exit = origin + dir * tmax
+        val localEntry = world.inverse.mult(entry.xyzw())
+        val localExit = world.inverse.mult(exit.xyzw())
+
+//        val relativeEntry = GLVector(
+//            localEntry.times()
+//        )
+
+        return MaybeIntersects.Intersection(tmin, entry, exit, localEntry.xyz(), localExit.xyz())
     }
 
     private fun GLVector.isInside(min: GLVector, max: GLVector): Boolean {
