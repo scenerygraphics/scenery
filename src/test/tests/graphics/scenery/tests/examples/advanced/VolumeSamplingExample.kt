@@ -126,12 +126,12 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
                     shift = shift + shiftDelta
                 }
 
-                val intersection = volume.intersectAABB(p1.position, p2.position - p1.position)
+                val intersection = volume.intersectAABB(p1.position, (p2.position - p1.position).normalize())
                 if(intersection is MaybeIntersects.Intersection) {
                     val scale = volume.localScale()
-                    val localEntry = intersection.relativeEntry.hadamard(scale.inverse()) + GLVector.getOneVector(3) * (1.0f/2.0f)
-                    val localExit = intersection.relativeExit.hadamard(scale.inverse()) + GLVector.getOneVector(3) * (1.0f/2.0f)
-                    logger.info("Ray intersects volume at ${localEntry}/${localExit} localScale=$scale")
+                    val localEntry = (intersection.relativeEntry + GLVector.getOneVector(3)) * (1.0f/2.0f)
+                    val localExit = (intersection.relativeExit + GLVector.getOneVector(3)) * (1.0f/2.0f)
+                    logger.info("Ray intersects volume at ${intersection.entry}/${intersection.exit} rel=${localEntry}/${localExit} localScale=$scale")
                 }
 
                 Thread.sleep(200)
