@@ -35,6 +35,9 @@ open class BoundingGrid : Mesh("Bounding Grid") {
     @ShaderProperty
     var ticksOnly: Int = 1
 
+    /** Slack around transparent objects, 10mm in world space by default. */
+    var slack = 0.01f
+
     /** The [Node] this bounding grid is attached to. Set to null to remove. */
     var node: Node? = null
         set(value) {
@@ -96,8 +99,15 @@ open class BoundingGrid : Mesh("Bounding Grid") {
             val maxBoundingBox = node.getMaximumBoundingBox()
             nodeBoundingBoxHash = maxBoundingBox.hashCode()
 
-            val min = maxBoundingBox.min
-            val max = maxBoundingBox.max
+
+            var min = maxBoundingBox.min
+            var max = maxBoundingBox.max
+
+            if(node.material.blending.transparent) {
+                val slack = GLVector(slack, slack, slack)
+                min = min - slack
+                max = max + slack
+            }
 
             val b = Box(max - min)
 
