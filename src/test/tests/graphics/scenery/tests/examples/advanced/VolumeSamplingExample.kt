@@ -1,5 +1,6 @@
 package graphics.scenery.tests.examples.advanced
 
+import cleargl.GLTypeEnum
 import cleargl.GLVector
 import coremem.enums.NativeTypeEnum
 import graphics.scenery.*
@@ -7,12 +8,14 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.MaybeIntersects
 import graphics.scenery.utils.RingBuffer
+import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
 import org.junit.Test
 import org.lwjgl.system.MemoryUtil.memAlloc
 import org.scijava.ui.behaviour.ClickBehaviour
 import java.nio.ByteBuffer
 import kotlin.concurrent.thread
+import kotlin.math.PI
 
 /**
  * Example that renders procedurally generated volumes and samples from it.
@@ -138,6 +141,25 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
 
                     val samples = volume.sampleRay(localEntry, localExit)
                     logger.info("Samples: ${samples?.joinToString(",") ?: "(no samples returned)"}")
+
+                    if(samples == null) {
+                        continue
+                    }
+
+                    connector.removeChild("diagram")
+                    val diagram = Line(capacity = samples.size)
+                    diagram.name = "diagram"
+                    diagram.edgeWidth = 0.005f
+                    diagram.material.diffuse = GLVector(0.05f, 0.05f, 0.05f)
+                    diagram.position = GLVector(0.0f, 0.0f, -0.5f)
+                    diagram.addPoint(GLVector(0.0f, 0.0f, 0.0f))
+                    var point = GLVector.getNullVector(3)
+                    samples.filterNotNull().forEachIndexed { i, sample ->
+                        point = GLVector(0.0f, i.toFloat()/samples.size, -sample/255.0f * 0.2f)
+                        diagram.addPoint(point)
+                    }
+                    diagram.addPoint(point)
+                    connector.addChild(diagram)
                 }
 
                 Thread.sleep(200)
