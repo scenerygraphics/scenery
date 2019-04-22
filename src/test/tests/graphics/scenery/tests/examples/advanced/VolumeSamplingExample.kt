@@ -46,13 +46,16 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
 
         val p1 = Icosphere(0.2f, 2)
         p1.position = GLVector(-2.0f, 0.0f, 0.0f)
+        p1.material.diffuse = GLVector(0.3f, 0.3f, 0.8f)
         scene.addChild(p1)
 
         val p2 = Icosphere(0.2f, 2)
         p2.position = GLVector(2.0f, 0.0f, 0.0f)
+        p2.material.diffuse = GLVector(0.3f, 0.8f, 0.3f)
         scene.addChild(p2)
 
         val connector = Cylinder.betweenPoints(p1.position, p2.position)
+        connector.material.diffuse = GLVector(1.0f, 1.0f, 1.0f)
         scene.addChild(connector)
 
         p1.update.add {
@@ -115,7 +118,7 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
                 if(volume.metadata["animating"] == true) {
                     val currentBuffer = volumeBuffer.get()
 
-                    Volume.generateProceduralVolume(volumeSize, 0.35f, seed = seed,
+                    Volume.generateProceduralVolume(volumeSize, 0.05f, seed = seed,
                         intoBuffer = currentBuffer, shift = shift, use16bit = bitsPerVoxel > 8)
 
                     volume.readFromBuffer(
@@ -132,6 +135,9 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
                     val localEntry = (intersection.relativeEntry + GLVector.getOneVector(3)) * (1.0f/2.0f)
                     val localExit = (intersection.relativeExit + GLVector.getOneVector(3)) * (1.0f/2.0f)
                     logger.info("Ray intersects volume at ${intersection.entry}/${intersection.exit} rel=${localEntry}/${localExit} localScale=$scale")
+
+                    val samples = volume.sampleRay(localEntry, localExit)
+                    logger.info("Samples: ${samples?.joinToString(",") ?: "(no samples returned)"}")
                 }
 
                 Thread.sleep(200)
