@@ -664,7 +664,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
             return MaybeIntersects.NoIntersection()
         }
 
-        val invDir = GLVector(1 / dir.x(), 1 / dir.y(), 1 / dir.z())
+        val invDir = GLVector(1 / (dir.x() + Float.MIN_VALUE), 1 / (dir.y() + Float.MIN_VALUE), 1 / (dir.z() + Float.MIN_VALUE))
 
         val t1 = (min.x() - origin.x()) * invDir.x()
         val t2 = (max.x() - origin.x()) * invDir.x()
@@ -691,10 +691,6 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
         val exit = origin + dir * tmax
         val localEntry = world.inverse.mult(entry.xyzw())
         val localExit = world.inverse.mult(exit.xyzw())
-
-//        val relativeEntry = GLVector(
-//            localEntry.times()
-//        )
 
         return MaybeIntersects.Intersection(tmin, entry, exit, localEntry.xyz(), localExit.xyz())
     }
