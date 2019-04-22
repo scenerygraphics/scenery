@@ -69,8 +69,6 @@ class Line @JvmOverloads constructor(var capacity: Int = 50, transparent: Boolea
     }
 
     protected fun activateTransparency(transparent: Boolean) {
-        logger.info("transparency changed to ${transparent}")
-
         if(transparent) {
             val newMaterial = ShaderMaterial.fromFiles(
                 "${this::class.java.simpleName}.vert",
