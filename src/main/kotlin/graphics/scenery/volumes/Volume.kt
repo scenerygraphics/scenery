@@ -142,6 +142,9 @@ open class Volume : Mesh("Volume") {
 
     @ShaderProperty var time: Float = System.nanoTime().toFloat()
 
+    /** Scale factor for voxel-to-world scaling. By default, one pixel/voxel equals 1mm in world space. */
+    var pixelToWorldRatio = 0.001f
+
     /** The transfer function to use for the volume. Flat by default. */
     var transferFunction: TransferFunction = TransferFunction.flat(1.0f)
 
@@ -261,16 +264,13 @@ open class Volume : Mesh("Volume") {
     override fun composeModel() {
         @Suppress("SENSELESS_COMPARISON")
         if(position != null && rotation != null && scale != null) {
-            val L = GLVector(sizeX * voxelSizeX,
-                sizeY * voxelSizeY,
-                sizeZ * voxelSizeZ) * pixelToWorldRatio
-
+            val L = localScale() * (1.0f/2.0f)
             model.setIdentity()
             model.translate(this.position.x(), this.position.y(), this.position.z())
             model.mult(this.rotation)
             model.scale(this.renderScale, this.renderScale, this. renderScale)
             model.scale(this.scale.x(), this.scale.y(), this.scale.z())
-            model.scale(L.x()/2.0f, L.y()/2.0f, L.z()/2.0f)
+            model.scale(L.x(), L.y(), L.z())
         }
     }
 
@@ -678,14 +678,10 @@ open class Volume : Mesh("Volume") {
         }
     }
 
-    /**
-     * Creates this volume's [Node.OrientedBoundingBox], giving 2cm slack around the edges.
-     * The volume's bounding box is calculated from voxel and physical size such that
-     * 1 pixel = 1mm in world units.
-     */
-    val boundingBoxSlack = 0.00f
-    val pixelToWorldRatio = 0.001f
 
+    /**
+     * Returns the local scaling of the volume.
+     */
     fun localScale(): GLVector {
         return GLVector(
             sizeX * voxelSizeX * pixelToWorldRatio,
@@ -693,16 +689,14 @@ open class Volume : Mesh("Volume") {
             sizeZ * voxelSizeZ * pixelToWorldRatio)
     }
 
+    /**
+     * Creates this volume's [Node.OrientedBoundingBox], giving 2cm slack around the edges.
+     * The volume's bounding box is calculated from voxel and physical size such that
+     * 1 pixel = 1mm in world units.
+     */
     override fun generateBoundingBox(): OrientedBoundingBox? {
-        val slack = GLVector(boundingBoxSlack, boundingBoxSlack, boundingBoxSlack)
-        val min = GLVector(
-            -0.5f * sizeX * voxelSizeX * pixelToWorldRatio,
-            -0.5f * sizeY * voxelSizeY * pixelToWorldRatio,
-            -0.5f * sizeZ * voxelSizeZ * pixelToWorldRatio) - slack
-        val max = GLVector(
-            0.5f * sizeX * voxelSizeX * pixelToWorldRatio,
-            0.5f * sizeY * voxelSizeY * pixelToWorldRatio,
-            0.5f * sizeZ * voxelSizeZ * pixelToWorldRatio) + slack
+        val min = GLVector(-1.0f, -1.0f, -1.0f)
+        val max = GLVector(1.0f, 1.0f, 1.0f)
 
         return OrientedBoundingBox(min, max)
     }
