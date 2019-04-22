@@ -1,6 +1,5 @@
 package graphics.scenery.volumes
 
-import cleargl.GLMatrix
 import cleargl.GLTypeEnum
 import cleargl.GLVector
 import coremem.enums.NativeTypeEnum
@@ -22,9 +21,7 @@ import java.nio.file.Paths
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.concurrent.thread
-import kotlin.math.abs
-import kotlin.math.floor
-import kotlin.math.sqrt
+import kotlin.math.*
 import kotlin.properties.Delegates
 import kotlin.reflect.KProperty
 import kotlin.streams.toList
@@ -37,6 +34,7 @@ import kotlin.streams.toList
  * @author Ulrik Günther <hello@ulrik.is>
  * @author Martin Weigert <mweigert@mpi-cbg.de>
  */
+@ExperimentalUnsignedTypes
 @Suppress("unused")
 open class Volume : Mesh("Volume") {
     data class VolumeDescriptor(val path: Path?,
@@ -726,9 +724,9 @@ open class Volume : Mesh("Volume") {
         }
 
         val absoluteCoords = GLVector(uv.x() * gt.dimensions.x(), uv.y() * gt.dimensions.y(), uv.z() * gt.dimensions.z())
-        val index: Int = floor(gt.dimensions.x() * gt.dimensions.y() * absoluteCoords.z()).toInt()
+        val index: Int = (floor(gt.dimensions.x() * gt.dimensions.y() * absoluteCoords.z()).toInt()
             + floor(gt.dimensions.x() * absoluteCoords.y()).toInt()
-            + floor(absoluteCoords.x()).toInt()
+            + floor(absoluteCoords.x()).toInt())
 
         val contents = gt.contents
         if(contents == null) {
@@ -755,6 +753,7 @@ open class Volume : Mesh("Volume") {
 
     /**
      * Takes samples along the ray from [start] to [end] from the currently active volume.
+     * Values beyond [0.0, 1.0] for [start] and [end] will be clamped to that interval.
      *
      * Returns the list of samples (which might include `null` values in case a sample failed),
      * or null if the start/end coordinates are invalid.
@@ -763,24 +762,32 @@ open class Volume : Mesh("Volume") {
         val gt = material.transferTextures["VolumeTextures"] ?: return null
 
         if(start.x() < 0.0f || start.x() > 1.0f || start.y() < 0.0f || start.y() > 1.0f || start.z() < 0.0f || start.z() > 1.0f) {
-            logger.error("Invalid UV coords for ray start: $start")
-            return null
+            logger.debug("Invalid UV coords for ray start: {} -- will clamp values to [0.0, 1.0].", start)
         }
 
         if(end.x() < 0.0f || end.x() > 1.0f || end.y() < 0.0f || end.y() > 1.0f || end.z() < 0.0f || end.z() > 1.0f) {
-            logger.error("Invalid UV coords for ray end: $end")
-            return null
+            logger.debug("Invalid UV coords for ray end: {} -- will clamp values to [0.0, 1.0].", end)
         }
 
-        val direction = end - start
-        val maxsteps = (gt.dimensions.toFloatArray().max() ?: 1.0f).toInt()
-        val delta = direction * (1.0f/maxsteps)
+        val startClamped = GLVector(
+            min(max(start.x(), 0.0f), 1.0f),
+            min(max(start.y(), 0.0f), 1.0f),
+            min(max(start.z(), 0.0f), 1.0f)
+        )
 
-        val samples = (0 until maxsteps).map {
-            sample(start + (delta * it.toFloat()))
+        val endClamped = GLVector(
+            min(max(end.x(), 0.0f), 1.0f),
+            min(max(end.y(), 0.0f), 1.0f),
+            min(max(end.z(), 0.0f), 1.0f)
+        )
+
+        val direction = (endClamped - startClamped).normalize()
+        val maxSteps = (gt.dimensions.toFloatArray().max() ?: 1.0f).toInt()
+        val delta = direction * (1.0f/maxSteps)
+
+        return (0 until maxSteps).map {
+            sample(startClamped + (delta * it.toFloat()))
         }
-
-        return samples
     }
 
     /**
