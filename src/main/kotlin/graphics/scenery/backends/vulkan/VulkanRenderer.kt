@@ -41,6 +41,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantLock
 import javax.imageio.ImageIO
+import kotlin.NoSuchElementException
 import kotlin.concurrent.thread
 import kotlin.concurrent.withLock
 import kotlin.reflect.full.findAnnotation
@@ -1665,9 +1666,16 @@ open class VulkanRenderer(hub: Hub,
                 swapchain.images[pass.getReadPosition()])
         }
 
-        if (recordMovie || screenshotRequested) {
-                // default image format is 32bit BGRA
-                val imageByteSize = window.width * window.height * 4L
+        if (recordMovie || screenshotRequested || imageRequests.isNotEmpty()) {
+            logger.info("Image request size: ${imageRequests.size}")
+            val request = try {
+                imageRequests.pop()
+            } catch(e: NoSuchElementException) {
+                null
+            }
+
+            // default image format is 32bit BGRA
+            val imageByteSize = window.width * window.height * 4L
             if(screenshotBuffer == null || screenshotBuffer?.size != imageByteSize) {
                 logger.debug("Reallocating screenshot buffer")
                 screenshotBuffer = VulkanBuffer(device, imageByteSize,
@@ -1728,7 +1736,7 @@ open class VulkanRenderer(hub: Hub,
                         flush = true, dealloc = true)
                 }
 
-                if(screenshotRequested) {
+                if(screenshotRequested || request != null) {
                     sb.copyTo(imageBuffer!!)
                 }
 
@@ -1736,13 +1744,13 @@ open class VulkanRenderer(hub: Hub,
                     encoder?.encodeFrame(sb.mapIfUnmapped().getByteBuffer(imageByteSize.toInt()))
                 }
 
-                if(screenshotRequested && !recordMovie) {
+                if((screenshotRequested || request != null) && !recordMovie) {
                     sb.close()
                     screenshotBuffer = null
                 }
             }
 
-            if(screenshotRequested) {
+            if(screenshotRequested || request != null) {
                 // reorder bytes for screenshot in a separate thread
                 thread {
                     imageBuffer?.let { ib ->
@@ -1772,8 +1780,16 @@ open class VulkanRenderer(hub: Hub,
                             val imgData = (image.raster.dataBuffer as DataBufferByte).data
                             System.arraycopy(shifted, 0, imgData, 0, shifted.size)
 
-                            ImageIO.write(image, "png", file)
-                            logger.info("Screenshot saved to ${file.absolutePath}")
+                            if(request != null && request is RenderedImage.RenderedRGBAImage) {
+                                request.width = window.width
+                                request.height = window.height
+                                request.data = imgData
+                            }
+
+                            if(screenshotRequested) {
+                                ImageIO.write(image, "png", file)
+                                logger.info("Screenshot saved to ${file.absolutePath}")
+                            }
                         } catch (e: Exception) {
                             logger.error("Unable to take screenshot: ")
                             e.printStackTrace()

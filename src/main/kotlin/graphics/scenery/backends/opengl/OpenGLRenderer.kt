@@ -22,6 +22,7 @@ import java.awt.BorderLayout
 import java.awt.Dimension
 import java.awt.event.ComponentAdapter
 import java.awt.event.ComponentEvent
+import java.awt.image.DataBufferByte
 import java.io.File
 import java.io.FileNotFoundException
 import java.io.FileOutputStream
@@ -40,6 +41,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import javax.imageio.ImageIO
 import javax.swing.JFrame
 import javax.swing.SwingUtilities
+import kotlin.NoSuchElementException
 import kotlin.collections.LinkedHashMap
 import kotlin.math.max
 import kotlin.math.roundToInt
@@ -2046,7 +2048,13 @@ open class OpenGLRenderer(hub: Hub,
         }
 
 
-        if (screenshotRequested && joglDrawable != null) {
+        val request = try {
+            imageRequests.pop()
+        } catch(e: NoSuchElementException) {
+            null
+        }
+
+        if ((screenshotRequested || request != null) && joglDrawable != null) {
             try {
                 val readBufferUtil = AWTGLReadBufferUtil(joglDrawable!!.glProfile, false)
                 val image = readBufferUtil.readPixelsToBufferedImage(gl, true)
@@ -2056,8 +2064,16 @@ open class OpenGLRenderer(hub: Hub,
                     File(screenshotFilename)
                 }, screenshotOverwriteExisting)
 
-                ImageIO.write(image, "png", file)
-                logger.info("Screenshot saved to ${file.absolutePath}")
+                if(request != null) {
+                    request.width = window.width
+                    request.height = window.height
+                    request.data = (image.raster.dataBuffer as DataBufferByte).data
+                }
+
+                if(screenshotRequested) {
+                    ImageIO.write(image, "png", file)
+                    logger.info("Screenshot saved to ${file.absolutePath}")
+                }
             } catch (e: Exception) {
                 logger.error("Unable to take screenshot: ")
                 e.printStackTrace()
