@@ -115,7 +115,7 @@ sealed class Shaders {
         ShadersFromFiles(
             shaderTypes
                 .map { it.toExtension() }.toTypedArray()
-                .map { "${clazz.simpleName}$it" }.toTypedArray())
+                .map { "${clazz.simpleName}$it" }.toTypedArray(), clazz)
 
     /**
      * Abstract functions all shader providers will have to implement, for returning
