@@ -14,7 +14,7 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
-import java.util.*
+import java.util.concurrent.ConcurrentLinkedQueue
 
 /**
  * Renderer interface. Defines the minimal set of functions a renderer has to implement.
@@ -163,7 +163,7 @@ abstract class Renderer : Hubable {
         return settings
     }
 
-    @Volatile var imageRequests = ArrayDeque<RenderedImage>(8)
+    @Volatile var imageRequests = ConcurrentLinkedQueue<RenderedImage>()
 
     fun requestScreenshot(): RenderedImage  = runBlocking {
         val reactivatePushMode = if(pushMode) {
@@ -175,7 +175,7 @@ abstract class Renderer : Hubable {
 
         val screenshot = GlobalScope.async {
             val s = RenderedImage.RenderedRGBAImage(0, 0, null)
-            imageRequests.push(s)
+            imageRequests.offer(s)
 
             while(s.data == null) {
                 delay(10)
