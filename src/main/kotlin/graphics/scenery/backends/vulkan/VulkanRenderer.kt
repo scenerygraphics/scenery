@@ -1667,9 +1667,8 @@ open class VulkanRenderer(hub: Hub,
         }
 
         if (recordMovie || screenshotRequested || imageRequests.isNotEmpty()) {
-            logger.info("Image request size: ${imageRequests.size}")
             val request = try {
-                imageRequests.pop()
+                imageRequests.poll()
             } catch(e: NoSuchElementException) {
                 null
             }

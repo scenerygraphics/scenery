@@ -2049,7 +2049,7 @@ open class OpenGLRenderer(hub: Hub,
 
 
         val request = try {
-            imageRequests.pop()
+            imageRequests.poll()
         } catch(e: NoSuchElementException) {
             null
         }
