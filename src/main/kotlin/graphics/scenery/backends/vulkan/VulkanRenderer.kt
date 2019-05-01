@@ -1750,6 +1750,7 @@ open class VulkanRenderer(hub: Hub,
             }
 
             if(screenshotRequested || request != null) {
+                val writeToFile = screenshotRequested
                 // reorder bytes for screenshot in a separate thread
                 thread {
                     imageBuffer?.let { ib ->
@@ -1785,7 +1786,7 @@ open class VulkanRenderer(hub: Hub,
                                 request.data = imgData
                             }
 
-                            if(screenshotRequested) {
+                            if(writeToFile) {
                                 ImageIO.write(image, "png", file)
                                 logger.info("Screenshot saved to ${file.absolutePath}")
                             }
