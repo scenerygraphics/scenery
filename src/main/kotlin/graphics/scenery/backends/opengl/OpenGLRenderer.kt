@@ -552,7 +552,7 @@ open class OpenGLRenderer(hub: Hub,
         // enable required features
 //        gl.glEnable(GL4.GL_TEXTURE_GATHER)
         gl.glEnable(GL4.GL_PROGRAM_POINT_SIZE)
-
+        gl.glEnable(GL4.GL_PRIMITIVE_RESTART)
 
         heartbeatTimer.scheduleAtFixedRate(object : TimerTask() {
             override fun run() {
