@@ -1,25 +1,29 @@
 package graphics.scenery.tests.examples.advanced
 
+import cleargl.GLTypeEnum
 import cleargl.GLVector
 import coremem.enums.NativeTypeEnum
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
+import graphics.scenery.utils.MaybeIntersects
 import graphics.scenery.utils.RingBuffer
+import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
 import org.junit.Test
 import org.lwjgl.system.MemoryUtil.memAlloc
 import org.scijava.ui.behaviour.ClickBehaviour
 import java.nio.ByteBuffer
 import kotlin.concurrent.thread
+import kotlin.math.PI
 
 /**
- * Example that renders procedurally generated volumes.
+ * Example that renders procedurally generated volumes and samples from it.
  * [bitsPerVoxel] can be set to 8 or 16, to generate Byte or UnsignedShort volumes.
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class ProceduralVolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
+class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
     val bitsPerVoxel = 8
 
     override fun init() {
@@ -43,6 +47,28 @@ class ProceduralVolumeExample: SceneryBase("Volume Rendering example", 1280, 720
         shell.position = GLVector(0.0f, 4.0f, 0.0f)
         scene.addChild(shell)
 
+        val p1 = Icosphere(0.2f, 2)
+        p1.position = GLVector(-2.0f, 0.0f, 0.0f)
+        p1.material.diffuse = GLVector(0.3f, 0.3f, 0.8f)
+        scene.addChild(p1)
+
+        val p2 = Icosphere(0.2f, 2)
+        p2.position = GLVector(2.0f, 0.0f, 0.0f)
+        p2.material.diffuse = GLVector(0.3f, 0.8f, 0.3f)
+        scene.addChild(p2)
+
+        val connector = Cylinder.betweenPoints(p1.position, p2.position)
+        connector.material.diffuse = GLVector(1.0f, 1.0f, 1.0f)
+        scene.addChild(connector)
+
+        p1.update.add {
+            connector.orientBetweenPoints(p1.position, p2.position, true, true)
+        }
+
+        p2.update.add {
+            connector.orientBetweenPoints(p1.position, p2.position, true, true)
+        }
+
         val volume = Volume()
         volume.name = "volume"
         volume.position = GLVector(0.0f, 0.0f, 0.0f)
@@ -60,6 +86,9 @@ class ProceduralVolumeExample: SceneryBase("Volume Rendering example", 1280, 720
 
         volume.metadata["animating"] = true
         scene.addChild(volume)
+
+        val bb = BoundingGrid()
+        bb.node = volume
 
         val lights = (0 until 3).map {
             PointLight(radius = 15.0f)
@@ -92,7 +121,7 @@ class ProceduralVolumeExample: SceneryBase("Volume Rendering example", 1280, 720
                 if(volume.metadata["animating"] == true) {
                     val currentBuffer = volumeBuffer.get()
 
-                    Volume.generateProceduralVolume(volumeSize, 0.35f, seed = seed,
+                    Volume.generateProceduralVolume(volumeSize, 0.05f, seed = seed,
                         intoBuffer = currentBuffer, shift = shift, use16bit = bitsPerVoxel > 8)
 
                     volume.readFromBuffer(
@@ -101,6 +130,36 @@ class ProceduralVolumeExample: SceneryBase("Volume Rendering example", 1280, 720
                         dataType = dataType, bytesPerVoxel = bitsPerVoxel / 8)
 
                     shift = shift + shiftDelta
+                }
+
+                val intersection = volume.intersectAABB(p1.position, (p2.position - p1.position).normalize())
+                if(intersection is MaybeIntersects.Intersection) {
+                    val scale = volume.localScale()
+                    val localEntry = (intersection.relativeEntry + GLVector.getOneVector(3)) * (1.0f/2.0f)
+                    val localExit = (intersection.relativeExit + GLVector.getOneVector(3)) * (1.0f/2.0f)
+                    logger.info("Ray intersects volume at ${intersection.entry}/${intersection.exit} rel=${localEntry}/${localExit} localScale=$scale")
+
+                    val samples = volume.sampleRay(localEntry, localExit)
+                    logger.info("Samples: ${samples?.joinToString(",") ?: "(no samples returned)"}")
+
+                    if(samples == null) {
+                        continue
+                    }
+
+                    connector.removeChild("diagram")
+                    val diagram = Line(capacity = samples.size)
+                    diagram.name = "diagram"
+                    diagram.edgeWidth = 0.005f
+                    diagram.material.diffuse = GLVector(0.05f, 0.05f, 0.05f)
+                    diagram.position = GLVector(0.0f, 0.0f, -0.5f)
+                    diagram.addPoint(GLVector(0.0f, 0.0f, 0.0f))
+                    var point = GLVector.getNullVector(3)
+                    samples.filterNotNull().forEachIndexed { i, sample ->
+                        point = GLVector(0.0f, i.toFloat()/samples.size, -sample/255.0f * 0.2f)
+                        diagram.addPoint(point)
+                    }
+                    diagram.addPoint(point)
+                    connector.addChild(diagram)
                 }
 
                 Thread.sleep(200)

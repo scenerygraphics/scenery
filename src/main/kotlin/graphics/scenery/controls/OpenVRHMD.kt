@@ -536,7 +536,8 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
         Up(EVRButtonId_k_EButton_DPad_Up),
         Down(EVRButtonId_k_EButton_DPad_Down),
         Menu(EVRButtonId_k_EButton_ApplicationMenu),
-        Side(EVRButtonId_k_EButton_Grip)
+        Side(EVRButtonId_k_EButton_Grip),
+        Trigger(EVRButtonId_k_EButton_SteamVR_Trigger)
     }
 
     data class AWTKey(val code: Int, val char: Char)
@@ -559,6 +560,8 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
 
             this == OpenVRButton.Menu -> AWTKey(KeyEvent.VK_M, KeyEvent.CHAR_UNDEFINED)
             this == OpenVRButton.Side -> AWTKey(KeyEvent.VK_S, KeyEvent.CHAR_UNDEFINED)
+
+            this == OpenVRButton.Trigger -> AWTKey(KeyEvent.VK_T, KeyEvent.CHAR_UNDEFINED)
 
             else -> AWTKey(KeyEvent.VK_ESCAPE, KeyEvent.CHAR_UNDEFINED)
         }

@@ -84,6 +84,13 @@ open class TransferFunction(val name: String = "") {
     }
 
     /**
+     * Clears all control points.
+     */
+    fun clear() {
+        controlPoints.clear()
+    }
+
+    /**
      * Finds extremal control points in a list of [points], with [left] given
      * as option to indicate whether the control point is on the left or right
      * end of the interval.
