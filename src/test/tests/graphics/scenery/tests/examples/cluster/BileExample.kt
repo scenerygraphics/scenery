@@ -22,11 +22,9 @@ class BileExample: SceneryBase("Bile Canaliculi example") {
         logger.warn("This is an experimental example, which might need additional configuration on your computer")
         logger.warn("or might not work at all. You have been warned!")
 
-        hmd = TrackedStereoGlasses("DTrack@10.1.2.201", screenConfig = "CAVEExample.yml")
-        hub.add(SceneryElement.HMDInput, hmd!!)
+        hmd = hub.add(TrackedStereoGlasses("DTrack@10.1.2.201", screenConfig = "CAVEExample.yml"))
 
-        renderer = Renderer.createRenderer(hub, applicationName, scene, 2560, 1600)
-        hub.add(SceneryElement.Renderer, renderer!!)
+        renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, 2560, 1600))
 
         val cam: Camera = DetachedHeadCamera(hmd)
         with(cam) {

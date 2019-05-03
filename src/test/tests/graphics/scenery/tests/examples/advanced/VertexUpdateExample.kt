@@ -17,9 +17,8 @@ import kotlin.concurrent.thread
 class VertexUpdateExample : SceneryBase("VertexUpdateExample") {
 
     override fun init() {
-        renderer = Renderer.createRenderer(hub, applicationName,
-            scene, 512, 512)
-        hub.add(SceneryElement.Renderer, renderer!!)
+        renderer = hub.add(Renderer.createRenderer(hub, applicationName,
+            scene, 512, 512))
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {

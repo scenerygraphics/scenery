@@ -41,8 +41,7 @@ class LocalisationExample : SceneryBase("Localisation Microscopy Rendering examp
         }
 
         latch.await()
-        renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
-        hub.add(SceneryElement.Renderer, renderer!!)
+        renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
         val cam: Camera = DetachedHeadCamera(hmd)
         with(cam) {

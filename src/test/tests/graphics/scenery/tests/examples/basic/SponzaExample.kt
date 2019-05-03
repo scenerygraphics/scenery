@@ -18,11 +18,10 @@ class SponzaExample : SceneryBase("SponzaExample", windowWidth = 1280, windowHei
     private var movingLights = true
 
     override fun init() {
-        renderer = Renderer.createRenderer(hub, applicationName,
+        renderer = hub.add(Renderer.createRenderer(hub, applicationName,
             scene,
             windowWidth,
-            windowHeight)
-        hub.add(SceneryElement.Renderer, renderer!!)
+            windowHeight))
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {

@@ -14,8 +14,7 @@ import kotlin.math.floor
  */
 class PBLExample: SceneryBase("PBLExample", windowWidth = 1280, windowHeight = 720) {
     override fun init() {
-        renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
-        hub.add(SceneryElement.Renderer, renderer!!)
+        renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
         val rowSize = 10f
         val spheres = (0 until 100).map {

@@ -24,9 +24,8 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
     override fun init() {
         hub.add(SceneryElement.HMDInput, hmd)
 
-        renderer = Renderer.createRenderer(hub, applicationName, scene,
-            windowWidth, windowHeight)
-        hub.add(SceneryElement.Renderer, renderer!!)
+        renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene,
+            windowWidth, windowHeight))
         renderer?.toggleVR()
 
         val cam = DetachedHeadCamera(hmd)
