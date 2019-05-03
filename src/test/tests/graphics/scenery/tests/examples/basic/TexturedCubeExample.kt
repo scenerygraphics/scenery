@@ -13,8 +13,8 @@ import kotlin.concurrent.thread
  */
 class TexturedCubeExample : SceneryBase("TexturedCubeExample") {
     override fun init() {
-        renderer = Renderer.createRenderer(hub, applicationName, scene, 512, 512)
-        hub.add(SceneryElement.Renderer, renderer!!)
+        renderer = hub.add(SceneryElement.Renderer,
+            Renderer.createRenderer(hub, applicationName, scene, 512, 512))
 
         val boxmaterial = Material()
         with(boxmaterial) {

@@ -41,8 +41,7 @@ class ReaderExample : SceneryBase("ReaderExample", 1280, 720) {
 
         latch.await()
 
-        renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
-        hub.add(SceneryElement.Renderer, renderer!!)
+        renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
         val b = Box(GLVector(50.0f, 0.2f, 50.0f))
         b.position = GLVector(0.0f, -1.0f, 0.0f)

@@ -94,8 +94,7 @@ class JavaFXTexturedCubeExample : SceneryBase("JavaFXTexturedCubeExample", windo
 
         latch.await()
 
-        renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight, embedIn = imagePanel)
-        hub.add(SceneryElement.Renderer, renderer!!)
+        renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight, embedIn = imagePanel))
 
         val boxmaterial = Material()
         with(boxmaterial) {

@@ -13,8 +13,7 @@ import kotlin.concurrent.thread
  */
 class IntersectionExample: SceneryBase("IntersectionExample") {
     override fun init() {
-        renderer = Renderer.createRenderer(hub, applicationName, scene, 512, 512)
-        hub.add(SceneryElement.Renderer, renderer!!)
+        renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, 512, 512))
 
         val boxmaterial = Material()
         with(boxmaterial) {

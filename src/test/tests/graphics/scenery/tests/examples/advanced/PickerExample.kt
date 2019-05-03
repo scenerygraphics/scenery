@@ -16,8 +16,7 @@ import kotlin.concurrent.thread
  */
 class PickerExample: SceneryBase("PickerExample", wantREPL = true) {
     override fun init() {
-        renderer = hub.add(SceneryElement.Renderer,
-            Renderer.createRenderer(hub, applicationName, scene, 512, 512))
+        renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, 512, 512))
 
         for(i in 0 until 200) {
             val s = Sphere(Random.randomFromRange(0.04f, 0.2f), 10)

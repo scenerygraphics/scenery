@@ -42,11 +42,8 @@ class DemoReelExample: SceneryBase("Demo Reel") {
         logger.warn("This is an experimental example, which might need additional configuration on your computer")
         logger.warn("or might not work at all. You have been warned!")
 
-        hmd = TrackedStereoGlasses("DTrack@10.1.2.201", screenConfig = "CAVEExample.yml")
-        hub.add(SceneryElement.HMDInput, hmd!!)
-
-        renderer = Renderer.createRenderer(hub, applicationName, scene, 2560, 1600)
-        hub.add(SceneryElement.Renderer, renderer!!)
+        hmd = hub.add(TrackedStereoGlasses("DTrack@10.1.2.201", screenConfig = "CAVEExample.yml"))
+        renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, 2560, 1600))
 
         cam = DetachedHeadCamera(hmd)
         with(cam) {

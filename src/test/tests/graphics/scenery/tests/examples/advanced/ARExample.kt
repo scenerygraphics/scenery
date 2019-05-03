@@ -24,10 +24,9 @@ class ARExample: SceneryBase("AR Volume Rendering example", 1280, 720) {
     val bitsPerVoxel = 16
 
     override fun init() {
-        hub.add(SceneryElement.HMDInput, hololens)
-        renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
+        hub.add(hololens)
+        renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
         renderer?.toggleVR()
-        hub.add(SceneryElement.Renderer, renderer!!)
 
         val cam: Camera = DetachedHeadCamera(hololens)
         with(cam) {

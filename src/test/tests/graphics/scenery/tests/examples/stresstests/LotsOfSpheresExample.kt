@@ -14,8 +14,7 @@ import kotlin.concurrent.thread
  */
 class LotsOfSpheresExample: SceneryBase("LotsOfSpheres", wantREPL = true) {
     override fun init() {
-        renderer = Renderer.createRenderer(hub, applicationName, scene, 512, 512)
-        hub.add(SceneryElement.Renderer, renderer!!)
+        renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, 512, 512))
 
         for(i in 0 until 12000) {
             val s = Sphere(0.1f, 10)

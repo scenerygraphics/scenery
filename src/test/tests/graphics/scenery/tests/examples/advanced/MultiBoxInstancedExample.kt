@@ -14,8 +14,7 @@ import kotlin.concurrent.thread
  */
 class MultiBoxInstancedExample : SceneryBase("MultiBoxInstancedExample") {
     override fun init() {
-        renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
-        hub.add(SceneryElement.Renderer, renderer!!)
+        renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {

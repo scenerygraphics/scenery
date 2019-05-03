@@ -22,8 +22,7 @@ import kotlin.math.sin
 class ArrowExample : SceneryBase("ArrowExample") {
 
     override fun init() {
-        renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
-        hub.add(SceneryElement.Renderer, renderer!!)
+        renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
         setupScene()
         useScene()
