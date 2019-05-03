@@ -24,9 +24,8 @@ class SwingTexturedCubeExample : SceneryBase("SwingTexturedCubeExample", windowW
         mainFrame.add(sceneryPanel, BorderLayout.CENTER)
         mainFrame.isVisible = true
 
-        renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight, embedIn = sceneryPanel)
+        renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight, embedIn = sceneryPanel))
         renderer?.pushMode = true
-        hub.add(SceneryElement.Renderer, renderer!!)
 
         val boxmaterial = Material()
         with(boxmaterial) {

@@ -19,8 +19,7 @@ class VolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
     var hmd: TrackedStereoGlasses? = null
 
     override fun init() {
-        renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
-        hub.add(SceneryElement.Renderer, renderer!!)
+        renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
         val cam: Camera = DetachedHeadCamera(hmd)
         with(cam) {

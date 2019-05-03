@@ -87,8 +87,7 @@ class JavaFXGridPaneExample : SceneryBase("JavaFXGridPaneExample", windowWidth =
 
 
 
-        renderer = Renderer.createRenderer(hub, applicationName, scene, initialWidth.get().toInt(), initialHeight.get().toInt(), embedIn = imagePanel)
-        hub.add(SceneryElement.Renderer, renderer!!)
+        renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, initialWidth.get().toInt(), initialHeight.get().toInt(), embedIn = imagePanel))
 
         val boxmaterial = Material()
         with(boxmaterial) {

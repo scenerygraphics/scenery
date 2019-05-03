@@ -23,8 +23,7 @@ class ProceduralVolumeExample: SceneryBase("Volume Rendering example", 1280, 720
     val bitsPerVoxel = 8
 
     override fun init() {
-        renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
-        hub.add(SceneryElement.Renderer, renderer!!)
+        renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {

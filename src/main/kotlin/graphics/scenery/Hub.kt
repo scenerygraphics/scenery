@@ -1,7 +1,14 @@
 package graphics.scenery
 
 import graphics.scenery.backends.Display
+import graphics.scenery.backends.Renderer
+import graphics.scenery.compute.OpenCLContext
+import graphics.scenery.controls.InputHandler
 import graphics.scenery.controls.TrackerInput
+import graphics.scenery.net.NodePublisher
+import graphics.scenery.net.NodeSubscriber
+import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.Statistics
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -11,6 +18,7 @@ import java.util.concurrent.ConcurrentHashMap
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class Hub(val name: String = "default") {
+    private val logger by LazyLogger()
     /** Hash map storage for all the [SceneryElement] and their instances */
     val elements: ConcurrentHashMap<SceneryElement, Any> = ConcurrentHashMap()
 
@@ -26,6 +34,34 @@ class Hub(val name: String = "default") {
         obj.hub = this
 
         return obj
+    }
+
+    /**
+     * Shortcut function for [add] that automatically determines
+     * the [SceneryElement] type.
+     */
+    fun <T: Hubable> add(obj: T): T {
+        val type = when(obj) {
+            is SceneryBase -> SceneryElement.Application
+            is Renderer -> SceneryElement.Renderer
+            is TrackerInput -> SceneryElement.HMDInput
+            is OpenCLContext -> SceneryElement.OpenCLContext
+            is InputHandler -> SceneryElement.Input
+            is Statistics -> SceneryElement.Statistics
+            is Settings -> SceneryElement.Settings
+            is NodeSubscriber -> SceneryElement.NodeSubscriber
+            is NodePublisher -> SceneryElement.NodePublisher
+            else -> {
+                logger.error("Don't know how to add $obj to Hub.")
+                null
+            }
+        }
+
+        return if(type != null) {
+            add(type, obj)
+        } else {
+            obj
+        }
     }
 
     /**

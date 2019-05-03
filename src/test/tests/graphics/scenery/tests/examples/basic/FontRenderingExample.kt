@@ -13,8 +13,7 @@ import kotlin.concurrent.thread
  */
 class FontRenderingExample: SceneryBase("FontRenderingExample", windowWidth = 1280, windowHeight = 720) {
     override fun init() {
-        renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
-        hub.add(SceneryElement.Renderer, renderer!!)
+        renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
         val light = PointLight(radius = 20.0f)
         light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
