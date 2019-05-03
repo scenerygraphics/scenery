@@ -20,8 +20,7 @@ class BloodCellsExample : SceneryBase("BloodCellsExample", windowWidth = 1280, w
     val positionRange = 250.0f
 
     override fun init() {
-        renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
-        hub.add(SceneryElement.Renderer, renderer!!)
+        renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
         val cam: Camera = DetachedHeadCamera()
         cam.position = GLVector(0.0f, 20.0f, -20.0f)

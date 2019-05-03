@@ -54,8 +54,7 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
 
         logger.info("Loading BDV XML from ${files.first()}")
 
-        renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
-        hub.add(SceneryElement.Renderer, renderer!!)
+        renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
