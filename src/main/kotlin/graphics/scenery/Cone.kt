@@ -1,77 +1,110 @@
 package graphics.scenery
 
+import cleargl.GLVector
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.util.*
+import kotlin.math.PI
+import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
  * Constructs a cylinder with the given [radius] and number of [segments].
+ * Main [axis] can be specified and defaults to positive Y axis.
+ * Adapted from https://www.freemancw.com/2012/06/opengl-cone-function/
  *
  * @author Ulrik Günther <hello@ulrik.is>
  * @param[radius] The radius of the sphere
  * @param[segments] Number of segments in latitude and longitude.
  */
 
-class Cone(var radius: Float, var height: Float, var segments: Int) : Node("cone"), HasGeometry {
+class Cone(val radius: Float, val height: Float, val segments: Int, axis: GLVector = GLVector(0.0f, 1.0f, 0.0f)) : Node("cone"), HasGeometry {
     override val vertexSize = 3
     override val texcoordSize = 2
-    override var geometryType = GeometryType.TRIANGLE_STRIP
+    override var geometryType = GeometryType.TRIANGLES
 
-    override var vertices: FloatBuffer = BufferUtils.allocateFloat(0)
-    override var normals: FloatBuffer = BufferUtils.allocateFloat(0)
-    override var texcoords: FloatBuffer = BufferUtils.allocateFloat(0)
+    override var vertices: FloatBuffer = BufferUtils.allocateFloat(2 * 3 * segments * 3)
+    override var normals: FloatBuffer = BufferUtils.allocateFloat(2 * 3 * segments * 3)
+    override var texcoords: FloatBuffer = BufferUtils.allocateFloat(2 * 2 * segments * 3)
     override var indices: IntBuffer = BufferUtils.allocateInt(0)
 
+    val axis = axis.normalized
+
     init {
-        var vbuffer = ArrayList<Float>(segments * segments * 2 * 3)
-        var nbuffer = ArrayList<Float>(segments * segments * 2 * 3)
-        var tbuffer = ArrayList<Float>(segments * segments * 2 * 2)
+        val vbuffer = ArrayList<GLVector>(segments * segments * 2 * 3)
+        val nbuffer = ArrayList<GLVector>(segments * segments * 2 * 3)
+        val tbuffer = ArrayList<GLVector>(segments * segments * 2 * 2)
 
-        val delta = 2.0f * Math.PI.toFloat() / segments.toFloat()
-        val c = Math.cos(delta * 1.0).toFloat()
-        val s = Math.sin(delta * 1.0).toFloat()
+        val apex = axis * height
+        val center = apex - axis * height
 
-        var x2 = radius
-        var z2 = 0.0f
+        val e0 = perp(axis)
+        val e1 = e0.cross(axis)
 
-        for (i: Int in 0..segments) {
-            val texcoord = i / segments.toFloat()
-            val normal = 1.0f / Math.sqrt(x2 * x2 * 1.0 + z2 * z2 * 1.0).toFloat()
-            val xn = x2 * normal
-            val zn = z2 * normal
+        // cone is split into [segments] sections
+        val delta = 2.0f/segments * PI.toFloat()
 
-            nbuffer.add(xn)
-            nbuffer.add(0.0f)
-            nbuffer.add(zn)
+        // draw cone by creating triangles between adjacent points on the
+        // base and connecting one triangle to the apex, and one to the center
+        for (i in 0 until segments) {
+            val rad = delta * i
+            val rad2 = delta * (i + 1)
+            val v1 = center + (e0 * cos(rad) + e1 * sin(rad)) * radius
+            val v2 = center + (e0 * cos(rad2) + e1 * sin(rad2)) * radius
 
-            tbuffer.add(texcoord)
-            tbuffer.add(0.0f)
+            vbuffer.add(v1)
+            vbuffer.add(apex)
+            vbuffer.add(v2)
 
-            vbuffer.add(0.0f + x2)
-            vbuffer.add(0.0f)
-            vbuffer.add(0.0f + z2)
+            vbuffer.add(v2)
+            vbuffer.add(center)
+            vbuffer.add(v1)
 
-            nbuffer.add(xn)
-            nbuffer.add(0.0f)
-            nbuffer.add(zn)
+            val normalSide = (apex - v2).cross(v2 - v1).normalized
+            val normalBottom = axis * (-1.0f)
+            nbuffer.add(normalSide)
+            nbuffer.add(normalSide)
+            nbuffer.add(normalSide)
 
-            tbuffer.add(texcoord)
-            tbuffer.add(1.0f)
+            nbuffer.add(normalBottom)
+            nbuffer.add(normalBottom)
+            nbuffer.add(normalBottom)
 
-            vbuffer.add(0.0f)
-            vbuffer.add(0.0f + height)
-            vbuffer.add(0.0f)
+            tbuffer.add(GLVector(cos(rad) * 0.5f + 0.5f, sin(rad) * 0.5f + 0.5f))
+            tbuffer.add(GLVector(0.5f, 0.5f))
+            tbuffer.add(GLVector(cos(rad2) * 0.5f + 0.5f, sin(rad2) * 0.5f + 0.5f))
 
-            val x3 = x2
-            x2 = c * x2 - s * z2
-            z2 = s * x3 + c * z2
+            tbuffer.add(GLVector(cos(rad2) * 0.5f + 0.5f, sin(rad2) * 0.5f + 0.5f))
+            tbuffer.add(GLVector(0.5f, 0.5f))
+            tbuffer.add(GLVector(cos(rad) * 0.5f + 0.5f, sin(rad) * 0.5f + 0.5f))
         }
 
-        vertices = BufferUtils.allocateFloatAndPut(vbuffer.toFloatArray())
-        normals = BufferUtils.allocateFloatAndPut(nbuffer.toFloatArray())
-        texcoords = BufferUtils.allocateFloatAndPut(tbuffer.toFloatArray())
+        vbuffer.forEach { v -> vertices.put(v.toFloatArray()) }
+        nbuffer.forEach { n -> normals.put(n.toFloatArray()) }
+        tbuffer.forEach { uv -> texcoords.put(uv.toFloatArray()) }
+
+        vertices.flip()
+        normals.flip()
+        texcoords.flip()
 
         boundingBox = generateBoundingBox()
+    }
+
+    fun perp(v: GLVector): GLVector {
+        var min = v.x()
+        var cardinalAxis = GLVector(1.0f, 0.0f, 0.0f)
+
+        if(abs(v.y()) < min) {
+            min = abs(v.y())
+            cardinalAxis = GLVector(0.0f, 1.0f, 0.0f)
+        }
+
+        if(abs(v.z()) < min) {
+            cardinalAxis = GLVector(0.0f, 0.0f, 1.0f)
+        }
+
+        return cardinalAxis
     }
 
 }

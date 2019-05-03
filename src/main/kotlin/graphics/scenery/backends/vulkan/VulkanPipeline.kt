@@ -1,10 +1,10 @@
 package graphics.scenery.backends.vulkan
 
+import graphics.scenery.GeometryType
+import graphics.scenery.utils.LazyLogger
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
-import graphics.scenery.GeometryType
-import graphics.scenery.utils.LazyLogger
 import java.nio.IntBuffer
 import java.util.*
 import kotlin.collections.LinkedHashMap
@@ -24,6 +24,7 @@ class VulkanPipeline(val device: VulkanDevice, val pipelineCache: Long? = null):
     val inputAssemblyState: VkPipelineInputAssemblyStateCreateInfo = VkPipelineInputAssemblyStateCreateInfo.calloc()
         .sType(VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO)
         .topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST)
+        .primitiveRestartEnable(true)
         .pNext(NULL)
 
     val rasterizationState: VkPipelineRasterizationStateCreateInfo = VkPipelineRasterizationStateCreateInfo.calloc()
