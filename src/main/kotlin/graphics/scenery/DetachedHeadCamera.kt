@@ -6,6 +6,8 @@ import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.backends.Display
 import graphics.scenery.controls.TrackerInput
 import java.io.Serializable
+import kotlin.math.PI
+import kotlin.math.atan
 import kotlin.reflect.KProperty
 
 /**
@@ -26,6 +28,54 @@ class DetachedHeadCamera(@Transient var tracker: TrackerInput? = null) : Camera(
             super.projection = value
             field = value
         }
+
+    override var width: Float = 0.0f
+        get() = if(tracker != null && tracker is Display) {
+            (tracker as? Display)?.getRenderTargetSize()?.x() ?: super.width
+        } else {
+            super.width
+        }
+        set(value) {
+            super.width = value
+            field = value
+        }
+
+    override var height: Float = 0.0f
+        get() = if(tracker != null && tracker is Display) {
+            (tracker as? Display)?.getRenderTargetSize()?.y() ?: super.width
+        } else {
+            super.width
+        }
+        set(value) {
+            super.height = value
+            field = value
+        }
+
+    override var fov: Float = 70.0f
+        get() = if(tracker != null && tracker is Display) {
+            val proj = (tracker as? Display)?.getEyeProjection(0, nearPlaneDistance, farPlaneDistance)
+            if(proj != null) {
+                atan(1.0f / proj.get(1, 1)) * 2.0f * 180.0f / PI.toFloat()
+            } else {
+                super.fov
+            }
+        } else {
+            super.fov
+        }
+        set(value) {
+            super.fov = value
+            field = value
+        }
+
+//    override var position: GLVector = GLVector(0.0f, 0.0f, 0.0f)
+//        get() = if(tracker != null) {
+//            field + headPosition
+//        } else {
+//            field
+//        }
+//        set(value) {
+//            field = value
+//        }
 
     /**
      * Delegate class for getting a head rotation from a [TrackerInput].

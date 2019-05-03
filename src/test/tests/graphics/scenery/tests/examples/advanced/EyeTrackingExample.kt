@@ -6,6 +6,7 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.PupilEyeTracker
 import graphics.scenery.controls.TrackedDeviceType
+import graphics.scenery.numerics.Random
 import org.junit.Test
 import org.scijava.ui.behaviour.ClickBehaviour
 import kotlin.concurrent.thread
@@ -18,54 +19,60 @@ import kotlin.concurrent.thread
 class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280, windowHeight = 720) {
     val pupilTracker = PupilEyeTracker(calibrationType = PupilEyeTracker.CalibrationType.ScreenSpace)
     val hmd = OpenVRHMD(seated = false, useCompositor = true)
-    val referenceTarget = Box(GLVector(0.01f, 0.01f, 0.01f))
+    val referenceTarget = Icosphere(0.005f, 2)
 
     override fun init() {
         hub.add(SceneryElement.HMDInput, hmd)
 
         renderer = Renderer.createRenderer(hub, applicationName, scene,
-            windowWidth, windowHeight, renderConfigFile = "DeferredShadingStereo.yml")
+            windowWidth, windowHeight)
         hub.add(SceneryElement.Renderer, renderer!!)
+        renderer?.toggleVR()
 
-        settings.set("vr.Active", true)
-        val cam: Camera = DetachedHeadCamera(hmd)
+        val cam = DetachedHeadCamera(hmd)
         with(cam) {
             position = GLVector(0.0f, 0.2f, 5.0f)
-            perspectiveCamera(50.0f, windowWidth.toFloat(), windowHeight.toFloat())
+            perspectiveCamera(50.0f, windowWidth.toFloat(), windowHeight.toFloat(), 0.05f, 100.0f)
             active = true
 
             scene.addChild(this)
         }
+        cam.disableCulling = true
 
+        referenceTarget.visible = false
         referenceTarget.material.roughness = 1.0f
         referenceTarget.material.metallic = 0.5f
         referenceTarget.material.diffuse = GLVector(0.8f, 0.8f, 0.8f)
         scene.addChild(referenceTarget)
 
-        val lightbox = Box(GLVector(25.0f, 25.0f, 25.0f), insideNormals = true)
+        val lightbox = Box(GLVector(20.0f, 20.0f, 20.0f), insideNormals = true)
         lightbox.name = "Lightbox"
-        lightbox.material.diffuse = GLVector(1.0f, 1.0f, 1.0f)
+        lightbox.material.diffuse = GLVector(0.4f, 0.4f, 0.4f)
         lightbox.material.roughness = 1.0f
         lightbox.material.metallic = 0.0f
         lightbox.material.cullingMode = Material.CullingMode.Front
 
         scene.addChild(lightbox)
-        val stageLight = PointLight(radius = 35.0f)
-        stageLight.name = "StageLight"
-        stageLight.intensity = 100.0f
-        stageLight.position = GLVector(0.0f, 4.0f, 4.0f)
-        scene.addChild(stageLight)
+
+        (0..10).map {
+            val light = PointLight(radius = 15.0f)
+            light.emissionColor = Random.randomVectorFromRange(3, 0.0f, 1.0f)
+            light.position = Random.randomVectorFromRange(3, -5.0f, 5.0f)
+            light.intensity = 100.0f
+
+            light
+        }.forEach { scene.addChild(it) }
 
         thread {
             while(!running) {
                 Thread.sleep(200)
             }
 
-            hmd.getTrackedDevices(TrackedDeviceType.Controller).forEach { _, device ->
-                val c = Mesh()
-                c.name = device.name
-                hmd.loadModelForMesh(device, c)
-                hmd.attachToNode(device, c, cam)
+            hmd.events.onDeviceConnect.add { hmd, device, timestamp ->
+                if(device.type == TrackedDeviceType.Controller) {
+                    logger.info("Got device ${device.name} at $timestamp")
+                    device.model?.let { hmd.attachToNode(device, it, cam) }
+                }
             }
         }
     }
@@ -122,33 +129,42 @@ class EyeTrackingExample: SceneryBase("Eye Tracking Example", windowWidth = 1280
 
                     pupilTracker.onGazeReceived = when (pupilTracker.calibrationType) {
                         PupilEyeTracker.CalibrationType.ScreenSpace -> { gaze ->
-                            referenceTarget.position = cam.viewportToWorld(
-                                GLVector(
-                                    gaze.normalizedPosition().x() * 2.0f - 1.0f,
-                                    gaze.normalizedPosition().y() * 2.0f - 1.0f),
-                                offset = 0.5f)
-
                             when {
                                 gaze.confidence < 0.85f -> referenceTarget.material.diffuse = GLVector(0.8f, 0.0f, 0.0f)
                                 gaze.confidence > 0.85f -> referenceTarget.material.diffuse = GLVector(0.0f, 0.5f, 0.5f)
                                 gaze.confidence > 0.95f -> referenceTarget.material.diffuse = GLVector(0.0f, 1.0f, 0.0f)
                             }
+
+                            if(gaze.confidence > 0.85f) {
+                                referenceTarget.visible = true
+                                referenceTarget.position = cam.viewportToWorld(
+                                    GLVector(
+                                        gaze.normalizedPosition().x() * 2.0f - 1.0f,
+                                        gaze.normalizedPosition().y() * 2.0f - 1.0f),
+                                    offset = 0.5f) + cam.forward * 0.15f
+                            }
                         }
 
                         PupilEyeTracker.CalibrationType.WorldSpace -> { gaze ->
-                            referenceTarget.position = gaze.gazePoint()
-
                             when {
                                 gaze.confidence < 0.85f -> referenceTarget.material.diffuse = GLVector(0.8f, 0.0f, 0.0f)
                                 gaze.confidence > 0.85f -> referenceTarget.material.diffuse = GLVector(0.0f, 0.5f, 0.5f)
                                 gaze.confidence > 0.95f -> referenceTarget.material.diffuse = GLVector(0.0f, 1.0f, 0.0f)
+                            }
+
+                            if(gaze.confidence > 0.85f) {
+                                referenceTarget.visible = true
+                                referenceTarget.position = gaze.gazePoint()
                             }
                         }
                     }
                 }
             }
+
+            logger.info("Calibration routine done.")
         }
 
+        // bind calibration start to menu key on controller
         hmd.addBehaviour("start_calibration", startCalibration)
         hmd.addKeyBinding("start_calibration", "M")
     }

@@ -10,6 +10,11 @@ import graphics.scenery.backends.vulkan.VulkanRenderer
 import graphics.scenery.utils.ExtractsNatives
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.SceneryPanel
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
+import java.util.concurrent.ConcurrentLinkedQueue
 
 /**
  * Renderer interface. Defines the minimal set of functions a renderer has to implement.
@@ -156,6 +161,35 @@ abstract class Renderer : Hubable {
         settings.setIfUnset("Renderer.ForceUndecoratedWindow", false)
 
         return settings
+    }
+
+    @Volatile var imageRequests = ConcurrentLinkedQueue<RenderedImage>()
+
+    fun requestScreenshot(): RenderedImage  = runBlocking {
+        val reactivatePushMode = if(pushMode) {
+            pushMode = false
+            true
+        } else {
+            false
+        }
+
+        val screenshot = GlobalScope.async {
+            val s = RenderedImage.RenderedRGBAImage(0, 0, null)
+            imageRequests.offer(s)
+
+            while(s.data == null) {
+                delay(10)
+            }
+
+            s
+        }
+
+        val result = screenshot.await()
+        if(reactivatePushMode) {
+            pushMode = true
+        }
+
+        result
     }
 
     /**
