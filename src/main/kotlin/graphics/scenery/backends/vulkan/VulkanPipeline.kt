@@ -24,7 +24,7 @@ class VulkanPipeline(val device: VulkanDevice, val pipelineCache: Long? = null):
     val inputAssemblyState: VkPipelineInputAssemblyStateCreateInfo = VkPipelineInputAssemblyStateCreateInfo.calloc()
         .sType(VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO)
         .topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST)
-        .primitiveRestartEnable(true)
+        .primitiveRestartEnable(false)
         .pNext(NULL)
 
     val rasterizationState: VkPipelineRasterizationStateCreateInfo = VkPipelineRasterizationStateCreateInfo.calloc()
