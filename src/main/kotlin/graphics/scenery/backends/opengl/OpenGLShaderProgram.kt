@@ -32,8 +32,9 @@ open class OpenGLShaderProgram(var gl: GL4, val modules: HashMap<ShaderType, Ope
 
         modules.forEach { type, module ->
             module.uboSpecs.forEach { uboName, ubo ->
-                if(uboSpecs.containsKey(uboName)) {
-                    uboSpecs[uboName]!!.members.putAll(ubo.members)
+                val spec = uboSpecs[uboName]
+                if(spec != null) {
+                    spec.members.putAll(ubo.members)
                 } else {
                     uboSpecs[uboName] = ubo
                 }

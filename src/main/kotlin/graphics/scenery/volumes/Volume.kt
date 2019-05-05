@@ -34,7 +34,6 @@ import kotlin.streams.toList
  * @author Ulrik Günther <hello@ulrik.is>
  * @author Martin Weigert <mweigert@mpi-cbg.de>
  */
-@ExperimentalUnsignedTypes
 @Suppress("unused")
 open class Volume : Mesh("Volume") {
     data class VolumeDescriptor(val path: Path?,
@@ -430,9 +429,10 @@ open class Volume : Mesh("Volume") {
             }
         }
 
-        val vol = if (volumes.containsKey(id)) {
+        val v = volumes[id]
+        val vol = if (v != null) {
             logger.info("Getting $id from cache")
-            volumes.get(id)!!
+            v
         } else {
             logger.info("Loading $id from disk")
             val imageData: ByteBuffer = memAlloc((bytesPerVoxel * sizeX * sizeY * sizeZ))
@@ -513,9 +513,10 @@ open class Volume : Mesh("Volume") {
 
         val id = file.fileName.toString()
 
-        val vol = if (volumes.containsKey(id) && cache) {
+        val v = volumes[id]
+        val vol = if (v != null && cache) {
             logger.info("Getting $id from cache")
-            volumes.get(id)!!
+            v
         } else {
             logger.info("Loading $id from disk")
             val buffer = ByteArray(1024 * 1024)

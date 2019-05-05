@@ -192,7 +192,12 @@ class OpenCLContext(override var hub: Hub?, devicePreference: String = System.ge
      * [arguments] to the kernel.
      */
     fun runKernel(name: String, wavefronts: Int, vararg arguments: Any) {
-        val k: cl_kernel = kernels[name]!!
+        val k = kernels[name]
+        if(k == null) {
+            logger.error("Kernel $name not found.")
+            return
+        }
+
         k.setArgs(*arguments)
 
         // Set the work-item dimensions

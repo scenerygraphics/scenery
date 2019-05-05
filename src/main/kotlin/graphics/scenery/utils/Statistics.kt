@@ -118,11 +118,8 @@ class Statistics(override var hub: Hub?) : Hubable {
 
     /** Returns the statistics for [name] as string */
     fun toString(name: String): String {
-        if (stats.containsKey(name)) {
-            return "$name - ${stats.get(name)!!}"
-        } else {
-            return ""
-        }
+        val stat = stats[name] ?: return ""
+        return "$name - $stat"
     }
 
     /** Logs all statistics as info via the logger infrastructure */
