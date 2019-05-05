@@ -269,7 +269,7 @@ open class VulkanRenderer(hub: Hub,
 
 
 
-    final override var hub: Hub?
+    final override var hub: Hub? = null
     protected var applicationName = ""
     final override var settings: Settings = Settings()
     override var shouldClose = false
@@ -413,7 +413,7 @@ open class VulkanRenderer(hub: Hub,
     init {
         this.hub = hub
 
-        val hmd = hub?.getWorkingHMDDisplay()
+        val hmd = hub.getWorkingHMDDisplay()
         if (hmd != null) {
             logger.debug("Setting window dimensions to bounds from HMD")
             val bounds = hmd.getRenderTargetSize()
