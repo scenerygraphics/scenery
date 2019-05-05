@@ -298,15 +298,13 @@ class SwingMouseAndKeyHandler : MouseAndKeyHandlerBase(), KeyListener, MouseList
     override fun mouseEntered(e: MouseEvent) {
         logger.trace( "MouseAndKeyHandler.mouseEntered()" )
         update()
-        if (keypressManager != null)
-            keypressManager!!.activate(receiver)
+        keypressManager?.activate(receiver)
     }
 
     override fun mouseExited(e: MouseEvent) {
         logger.trace( "MouseAndKeyHandler.mouseExited()" )
         update()
-        if (keypressManager != null)
-            keypressManager!!.deactivate(receiver)
+        keypressManager?.deactivate(receiver)
     }
 
     override fun keyPressed(e: KeyEvent) {
@@ -338,10 +336,7 @@ class SwingMouseAndKeyHandler : MouseAndKeyHandlerBase(), KeyListener, MouseList
                 keyPressTimes.put(e.keyCode, e.getWhen())
             }
 
-            if (keypressManager != null)
-                keypressManager!!.handleKeyPressed(receiver, mask, doubleClick, pressedKeys)
-            else
-                handleKeyPressed(mask, doubleClick, pressedKeys, false)
+            keypressManager?.handleKeyPressed(receiver, mask, doubleClick, pressedKeys) ?: handleKeyPressed(mask, doubleClick, pressedKeys, false)
         }
     }
 

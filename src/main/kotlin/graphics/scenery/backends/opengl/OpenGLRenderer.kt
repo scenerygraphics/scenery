@@ -16,7 +16,6 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.sync.withLock
 import org.lwjgl.system.MemoryUtil
 import java.awt.BorderLayout
 import java.awt.Dimension
@@ -36,7 +35,6 @@ import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import javax.imageio.ImageIO
 import javax.swing.JFrame
@@ -105,7 +103,7 @@ open class OpenGLRenderer(hub: Hub,
     final override var settings: Settings = Settings()
 
     /** The hub used for communication between the components */
-    final override var hub: Hub? = null
+    final override var hub: Hub?
 
     private var textureCache = HashMap<String, GLTexture>()
     private var shaderPropertyCache = HashMap<Class<*>, List<Field>>()
@@ -1189,7 +1187,7 @@ open class OpenGLRenderer(hub: Hub,
     private fun preDrawAndUpdateGeometryForNode(n: Node) {
         if (n is HasGeometry) {
             if (n.dirty) {
-                n.preUpdate(this, hub!!)
+                n.preUpdate(this, hub)
                 if (n.lock.tryLock()) {
                     if (n.vertices.remaining() > 0 && n.normals.remaining() > 0) {
                         updateVertices(n)
@@ -1602,7 +1600,7 @@ open class OpenGLRenderer(hub: Hub,
                 }
             }
 
-            val pass = renderpasses[t]!!
+            val pass = renderpasses.getValue(t)
             logger.trace("Running pass {}", pass.passName)
             val startPass = System.nanoTime()
 
@@ -1748,11 +1746,7 @@ open class OpenGLRenderer(hub: Hub,
 
                     preDrawAndUpdateGeometryForNode(n)
 
-                    val shader = if (s.shader != null) {
-                        s.shader!!
-                    } else {
-                        pass.defaultShader!!
-                    }
+                    val shader = s.shader ?: pass.defaultShader!!
 
                     if(currentShader != shader) {
                         shader.use(gl)
@@ -1964,7 +1958,7 @@ open class OpenGLRenderer(hub: Hub,
 
         logger.trace("Running viewport pass")
         val startPass = System.nanoTime()
-        val viewportPass = renderpasses[flow.last()]!!
+        val viewportPass = renderpasses.getValue(flow.last())
         gl.glBindFramebuffer(GL4.GL_DRAW_FRAMEBUFFER, 0)
 
         blitFramebuffers(viewportPass.output.values.first(), null,

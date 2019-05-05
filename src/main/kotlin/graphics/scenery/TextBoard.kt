@@ -72,8 +72,8 @@ class TextBoard(font: String = "SourceSansPro-Regular.ttf", override var isBillb
         needsPreUpdate = true
     }
 
-    override fun preUpdate(renderer: Renderer, hub: Hub) {
-        if(!needsPreUpdate) {
+    override fun preUpdate(renderer: Renderer, hub: Hub?) {
+        if(!needsPreUpdate || hub == null) {
             return
         }
 
