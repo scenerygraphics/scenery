@@ -8,6 +8,7 @@ import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.MaybeIntersects
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
 import java.io.Serializable
 import java.sql.Timestamp
 import java.util.*
@@ -245,8 +246,13 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
         child.parent = this
         this.children.add(child)
 
-        this.getScene()?.sceneSize?.incrementAndGet()
-        GlobalScope.async {  this@Node.getScene()?.onChildrenAdded?.forEach { it.value.invoke(this@Node, child) } }
+        val scene = this.getScene() ?: return
+        scene.sceneSize.incrementAndGet()
+        if(scene.onChildrenAdded.isNotEmpty()) {
+            GlobalScope.launch {
+                scene.onChildrenAdded.forEach { it.value.invoke(this@Node, child) }
+            }
+        }
     }
 
     /**
