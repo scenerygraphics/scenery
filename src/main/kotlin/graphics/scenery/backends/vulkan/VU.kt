@@ -763,7 +763,7 @@ class VU {
                     val writeDescriptorSet = VkWriteDescriptorSet.callocStack(rt.size, stack)
 
                     rt.entries.forEachIndexed { i, entry ->
-                        val attachment = target.attachments[entry.key]!!
+                        val attachment = target.attachments.getValue(entry.key)
                         val d = VkDescriptorImageInfo.callocStack(1, stack)
 
                         d
@@ -785,7 +785,7 @@ class VU {
                     val writeDescriptorSet = VkWriteDescriptorSet.callocStack(1, stack)
 
                     rt.entries.first { it.key == onlyFor }.apply {
-                        val attachment = target.attachments[this.key]!!
+                        val attachment = target.attachments.getValue(this.key)
                         val d = VkDescriptorImageInfo.callocStack(1, stack)
 
                         d
