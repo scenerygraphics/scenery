@@ -162,8 +162,10 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             }
         } else {
             thread {
-                logger.info("NodePublisher listening on 0.0.0.0:6666")
-                val p = NodePublisher(hub, "tcp://*:6666")
+                val address = settings.get("NodePublisher.ListenAddress", "tcp://127.0.0.1:6666")
+                val p = NodePublisher(hub, address)
+
+                logger.info("NodePublisher listening on ${address.substringBeforeLast(":")}:${p.port}")
                 hub.add(SceneryElement.NodePublisher, p)
 
                 scene.discover(scene, { true }).forEachIndexed { index, node ->
