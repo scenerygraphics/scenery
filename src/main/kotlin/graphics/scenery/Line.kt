@@ -102,18 +102,21 @@ class Line @JvmOverloads constructor(var capacity: Int = 50, transparent: Boolea
     }
 
     /**
-     * Adds a line point to the line.
+     * Adds points to the line.
+     * If the line's vertex buffer cannot store all o the points,
+     * a copy of it will be created that can store the additional points, plus
+     * double it's initial capacity.
      *
-     * @param p     The vector containing the vertex data
+     * @param points     The vector containing the points
      */
-    fun addPoint(p: GLVector) {
-        if(p.dimension != 3) {
-            logger.error("Cannot add position with dimension ${p.dimension} to line.")
+    fun addPoints(vararg points: GLVector) {
+        if(points.any { it.dimension != 3 }) {
+            logger.error("Cannot add position with dimension other than 3 to line.")
             return
         }
 
-        if(vertices.limit() + 3 > vertices.capacity()) {
-            val newVertices = BufferUtils.allocateFloat(vertices.capacity() + 3*capacity)
+        if(vertices.limit() + 3 * points.size >= vertices.capacity()) {
+            val newVertices = BufferUtils.allocateFloat(vertices.capacity() + points.size * 3 + 3 * capacity)
             vertices.position(0)
             vertices.limit(vertices.capacity())
             newVertices.put(vertices)
@@ -121,7 +124,7 @@ class Line @JvmOverloads constructor(var capacity: Int = 50, transparent: Boolea
 
             vertices = newVertices
 
-            val newNormals = BufferUtils.allocateFloat(vertices.capacity() + 3*capacity)
+            val newNormals = BufferUtils.allocateFloat(vertices.capacity() + points.size * 3 + 3 * capacity)
             normals.position(0)
             normals.limit(normals.capacity())
             newNormals.put(normals)
@@ -130,7 +133,7 @@ class Line @JvmOverloads constructor(var capacity: Int = 50, transparent: Boolea
             normals = newNormals
 
 
-            val newTexcoords = BufferUtils.allocateFloat(vertices.capacity() + 2*capacity)
+            val newTexcoords = BufferUtils.allocateFloat(vertices.capacity() + points.size * 2 + 2 * capacity)
             texcoords.position(0)
             texcoords.limit(texcoords.capacity())
             newTexcoords.put(texcoords)
@@ -142,25 +145,45 @@ class Line @JvmOverloads constructor(var capacity: Int = 50, transparent: Boolea
         }
 
         vertices.position(vertices.limit())
-        vertices.limit(vertices.limit() + 3)
-        vertices.put(p.toFloatArray())
+        vertices.limit(vertices.limit() + points.size * 3)
+        points.forEach { v -> vertices.put(v.toFloatArray()) }
         vertices.flip()
 
         normals.position(normals.limit())
-        normals.limit(normals.limit() + 3)
-        normals.put(p.toFloatArray())
+        normals.limit(normals.limit() + points.size * 3)
+        points.forEach { v -> normals.put(v.toFloatArray()) }
         normals.flip()
 
         texcoords.position(texcoords.limit())
-        texcoords.limit(texcoords.limit() + 2)
-        texcoords.put(0.225f)
-        texcoords.put(0.225f)
+        texcoords.limit(texcoords.limit() + points.size * 2)
+        points.forEach { _ ->
+            texcoords.put(0.0f)
+            texcoords.put(0.0f)
+        }
         texcoords.flip()
 
         dirty = true
         vertexCount = vertices.limit()/vertexSize
 
         boundingBox = generateBoundingBox()
+    }
+
+    /**
+     * Add a point to the line.
+     *
+     * @param points     The vector containing the position of the point.
+     */
+    fun addPoint(point: GLVector) {
+        addPoints(point)
+    }
+
+    /**
+     * Convenience function to add a list of vectors to the line.
+     *
+     * @param points A list of GLVectors
+     */
+    fun addPoints(points: List<GLVector>) {
+        addPoints(*points.toTypedArray())
     }
 
     /**
