@@ -67,7 +67,7 @@ sealed class Shaders {
                 return cached
             }
 
-            val baseClass = arrayOf(spirvPath, codePath).mapNotNull { safeFindBaseClass(arrayOf(clazz), it) }
+            val baseClass = arrayOf(spirvPath, codePath).mapNotNull { safeFindBaseClass(arrayOf(clazz, Renderer::class.java), it) }
 
             if (baseClass.isEmpty()) {
                 throw ShaderCompilationException("Shader files for $shaderCodePath ($spirvPath, $codePath) not found.")
