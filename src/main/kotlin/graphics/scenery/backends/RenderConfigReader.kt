@@ -46,7 +46,7 @@ fun RenderConfigReader.RenderConfig.createRenderpassFlow(): List<String> {
     dag.add(start.key)
 
     while(inputs != null) {
-        passes.filter { inputs!!.map { it.substringBefore(".") }.contains(it.value.output) }.entries.forEach {
+        passes.filter { inputs!!.map { input -> input.substringBefore(".") }.contains(it.value.output) }.entries.forEach {
             inputs = it.value.inputs
 
             dag.add(it.key.substringBefore("."))

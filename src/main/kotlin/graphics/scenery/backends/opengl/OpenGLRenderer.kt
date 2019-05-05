@@ -16,7 +16,6 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.sync.withLock
 import org.lwjgl.system.MemoryUtil
 import java.awt.BorderLayout
 import java.awt.Dimension
@@ -36,7 +35,6 @@ import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import javax.imageio.ImageIO
 import javax.swing.JFrame
@@ -105,7 +103,7 @@ open class OpenGLRenderer(hub: Hub,
     final override var settings: Settings = Settings()
 
     /** The hub used for communication between the components */
-    final override var hub: Hub? = null
+    final override var hub: Hub?
 
     private var textureCache = HashMap<String, GLTexture>()
     private var shaderPropertyCache = HashMap<Class<*>, List<Field>>()
@@ -298,7 +296,13 @@ open class OpenGLRenderer(hub: Hub,
         }
     }
 
-    protected val buffers = HashMap<String, OpenGLBuffer>()
+    data class DefaultBuffers(var UBOs: OpenGLBuffer,
+                              var LightParameters: OpenGLBuffer,
+                              var ShaderParameters: OpenGLBuffer,
+                              var VRParameters: OpenGLBuffer,
+                              var ShaderProperties: OpenGLBuffer)
+
+    protected lateinit var buffers: DefaultBuffers
     protected val sceneUBOs = CopyOnWriteArrayList<Node>()
 
     protected val resizeHandler = ResizeHandler()
@@ -539,11 +543,12 @@ open class OpenGLRenderer(hub: Hub,
 
         settings.set("ssao.FilterRadius", GLVector(5.0f / width, 5.0f / height))
 
-        buffers["UBOBuffer"] = OpenGLBuffer(gl, 10 * 1024 * 1024)
-        buffers["LightParameters"] = OpenGLBuffer(gl, 10 * 1024 * 1024)
-        buffers["VRParameters"] = OpenGLBuffer(gl, 2 * 1024)
-        buffers["ShaderPropertyBuffer"] = OpenGLBuffer(gl, 10 * 1024 * 1024)
-        buffers["ShaderParametersBuffer"] = OpenGLBuffer(gl, 128 * 1024)
+        buffers = DefaultBuffers(
+            UBOs = OpenGLBuffer(gl, 10 * 1024 * 1024),
+            LightParameters = OpenGLBuffer(gl, 10 * 1024 * 1024),
+            VRParameters = OpenGLBuffer(gl, 2 * 1024),
+            ShaderProperties = OpenGLBuffer(gl, 10 * 1024 * 1024),
+            ShaderParameters = OpenGLBuffer(gl, 128 * 1024))
 
         prepareDefaultTextures()
 
@@ -595,7 +600,7 @@ open class OpenGLRenderer(hub: Hub,
             gl.glDisable(GL4.GL_FRAMEBUFFER_SRGB)
         }
 
-        buffers["ShaderParametersBuffer"]!!.reset()
+        buffers.ShaderParameters.reset()
 
         val framebuffers = ConcurrentHashMap<String, GLFramebuffer>()
         val passes = LinkedHashMap<String, OpenGLRenderpass>()
@@ -603,7 +608,8 @@ open class OpenGLRenderer(hub: Hub,
         val flow = renderConfig.createRenderpassFlow()
 
         val supersamplingFactor = if(settings.get<Float>("Renderer.SupersamplingFactor").toInt() == 1) {
-            if(cglWindow != null && ClearGLWindow.isRetina(cglWindow!!.gl)) {
+            val window = cglWindow
+            if(window != null && ClearGLWindow.isRetina(window.gl)) {
                 logger.debug("Setting Renderer.SupersamplingFactor to 0.5, as we are rendering on a retina display.")
                 settings.set("Renderer.SupersamplingFactor", 0.5f)
                 0.5f
@@ -622,7 +628,7 @@ open class OpenGLRenderer(hub: Hub,
         settings.set("Renderer.displayHeight", (windowHeight * supersamplingFactor).toInt())
 
         flow.map { passName ->
-            val passConfig = config.renderpasses[passName]!!
+            val passConfig = config.renderpasses.getValue(passName)
             val pass = OpenGLRenderpass(passName, passConfig)
 
             var width = windowWidth
@@ -638,7 +644,7 @@ open class OpenGLRenderer(hub: Hub,
 
                 if (framebuffers.containsKey(rt.key)) {
                     logger.info("Reusing already created framebuffer")
-                    pass.output.put(rt.key, framebuffers[rt.key]!!)
+                    pass.output.put(rt.key, framebuffers.getValue(rt.key))
                 } else {
                     val framebuffer = GLFramebuffer(gl, width, height, renderConfig.sRGB)
 
@@ -710,14 +716,14 @@ open class OpenGLRenderer(hub: Hub,
             pass.defaultShader = prepareShaderProgram(
                 Shaders.ShadersFromFiles(pass.passConfig.shaders.map { "shaders/$it" }.toTypedArray()))
 
-            pass.initializeShaderParameters(settings, buffers["ShaderParametersBuffer"]!!)
+            pass.initializeShaderParameters(settings, buffers.ShaderParameters)
 
             passes.put(passName, pass)
         }
 
         // connect inputs
         passes.forEach { pass ->
-            val passConfig = config.renderpasses[pass.key]!!
+            val passConfig = config.renderpasses.getValue(pass.key)
 
             passConfig.inputs?.forEach { inputTarget ->
                 val targetName = if(inputTarget.contains(".")) {
@@ -795,7 +801,7 @@ open class OpenGLRenderer(hub: Hub,
     }
 
     override fun getClearGLWindow(): ClearGLDisplayable {
-        return cglWindow!!
+        return cglWindow ?: throw IllegalStateException("No ClearGL window available")
     }
 
     override fun reshape(pDrawable: GLAutoDrawable,
@@ -1021,10 +1027,6 @@ open class OpenGLRenderer(hub: Hub,
         }
     }
 
-    private fun findBuffer(name: String): OpenGLBuffer {
-        return buffers[name] ?: throw IllegalStateException("Required buffer $name not found")
-    }
-
     @Synchronized protected fun updateDefaultUBOs(): Boolean {
         // sticky boolean
         var updated: Boolean by StickyBoolean(initial = false)
@@ -1037,9 +1039,9 @@ open class OpenGLRenderer(hub: Hub,
         cam.view = cam.getTransformation()
         cam.updateWorld(true, false)
 
-        buffers["VRParameters"]!!.reset()
+        buffers.VRParameters.reset()
         val vrUbo = uboCache.computeIfAbsent("VRParameters") {
-            OpenGLUBO(backingBuffer = findBuffer("VRParameters"))
+            OpenGLUBO(backingBuffer = buffers.VRParameters)
         }
 
         vrUbo.add("projection0", {
@@ -1063,10 +1065,10 @@ open class OpenGLRenderer(hub: Hub,
         vrUbo.add("stereoEnabled", { renderConfig.stereoEnabled.toInt() })
 
         updated = vrUbo.populate()
-        buffers["VRParameters"]!!.copyFromStagingBuffer()
+        buffers.VRParameters.copyFromStagingBuffer()
 
-        buffers["UBOBuffer"]!!.reset()
-        buffers["ShaderPropertyBuffer"]!!.reset()
+        buffers.UBOs.reset()
+        buffers.ShaderProperties.reset()
 
         sceneUBOs.forEach { node ->
             var nodeUpdated: Boolean by StickyBoolean(initial = false)
@@ -1093,14 +1095,14 @@ open class OpenGLRenderer(hub: Hub,
             node.view.copyFrom(cam.view)
             nodeUpdated = ubo.populate(offset = bufferOffset.toLong())
 
-            val materialUbo = (node.metadata["OpenGLRenderer"]!! as OpenGLObjectState).UBOs["MaterialProperties"]!!
+            val materialUbo = (node.metadata["OpenGLRenderer"]!! as OpenGLObjectState).UBOs.getValue("MaterialProperties")
             bufferOffset = ubo.advanceBackingBuffer()
             materialUbo.offset = bufferOffset
 
             nodeUpdated = materialUbo.populate(offset = bufferOffset.toLong())
 
             if (s.UBOs.containsKey("ShaderProperties")) {
-                val propertyUbo = s.UBOs["ShaderProperties"]!!
+                val propertyUbo = s.UBOs.getValue("ShaderProperties")
                 // TODO: Correct buffer advancement
                 val offset = propertyUbo.backingBuffer!!.advance()
                 updated = propertyUbo.populate(offset = offset.toLong())
@@ -1129,13 +1131,13 @@ open class OpenGLRenderer(hub: Hub,
             updated = nodeUpdated
         }
 
-        buffers["UBOBuffer"]!!.copyFromStagingBuffer()
-        buffers["LightParameters"]!!.reset()
+        buffers.UBOs.copyFromStagingBuffer()
+        buffers.LightParameters.reset()
 
 //        val lights = sceneObjects.filter { it is PointLight }
 
         val lightUbo = uboCache.computeIfAbsent("LightParameters") {
-            OpenGLUBO(backingBuffer = findBuffer("LightParameters"))
+            OpenGLUBO(backingBuffer = buffers.LightParameters)
         }
 
         lightUbo.add("ViewMatrix0", { cam.getTransformationForEye(0) })
@@ -1162,17 +1164,15 @@ open class OpenGLRenderer(hub: Hub,
 
         updated = lightUbo.populate()
 
-        buffers["ShaderParametersBuffer"]?.let { shaderParametersBuffer ->
-            shaderParametersBuffer.reset()
-            renderpasses.forEach { name, pass ->
-                logger.trace("Updating shader parameters for {}", name)
-                updated = pass.updateShaderParameters()
-            }
-            shaderParametersBuffer.copyFromStagingBuffer()
+        buffers.ShaderParameters.reset()
+        renderpasses.forEach { name, pass ->
+            logger.trace("Updating shader parameters for {}", name)
+            updated = pass.updateShaderParameters()
         }
+        buffers.ShaderParameters.copyFromStagingBuffer()
 
-        buffers["LightParameters"]!!.copyFromStagingBuffer()
-        buffers["ShaderPropertyBuffer"]!!.copyFromStagingBuffer()
+        buffers.LightParameters.copyFromStagingBuffer()
+        buffers.ShaderProperties.copyFromStagingBuffer()
 
         return updated
     }
@@ -1186,7 +1186,7 @@ open class OpenGLRenderer(hub: Hub,
     private fun preDrawAndUpdateGeometryForNode(n: Node) {
         if (n is HasGeometry) {
             if (n.dirty) {
-                n.preUpdate(this, hub!!)
+                n.preUpdate(this, hub)
                 if (n.lock.tryLock()) {
                     if (n.vertices.remaining() > 0 && n.normals.remaining() > 0) {
                         updateVertices(n)
@@ -1599,7 +1599,7 @@ open class OpenGLRenderer(hub: Hub,
                 }
             }
 
-            val pass = renderpasses[t]!!
+            val pass = renderpasses.getValue(t)
             logger.trace("Running pass {}", pass.passName)
             val startPass = System.nanoTime()
 
@@ -1745,11 +1745,7 @@ open class OpenGLRenderer(hub: Hub,
 
                     preDrawAndUpdateGeometryForNode(n)
 
-                    val shader = if (s.shader != null) {
-                        s.shader!!
-                    } else {
-                        pass.defaultShader!!
-                    }
+                    val shader = s.shader ?: pass.defaultShader!!
 
                     if(currentShader != shader) {
                         shader.use(gl)
@@ -1839,14 +1835,12 @@ open class OpenGLRenderer(hub: Hub,
                         }
                     }
 
-                    arrayOf("VRParameters", "LightParameters").forEach uboBinding@ { name ->
-                        if (shader.uboSpecs.containsKey(name) && shader.isValid()) {
-                            val buffer = buffers[name]
-                            if(buffer == null) {
-                                logger.warn("Buffer for $name not found")
-                                return@uboBinding
-                            }
+                    arrayOf("VRParameters" to buffers.VRParameters,
+                        "LightParameters" to buffers.LightParameters).forEach uboBinding@ { b ->
+                        val buffer = b.second
+                        val name = b.first
 
+                        if (shader.uboSpecs.containsKey(name) && shader.isValid()) {
                             val index = shader.getUniformBlockIndex(name)
 
                             if (index == -1) {
@@ -1927,13 +1921,16 @@ open class OpenGLRenderer(hub: Hub,
                         binding++
                     }
 
-                    arrayOf("LightParameters", "VRParameters").forEach { name ->
+                    arrayOf("LightParameters" to buffers.LightParameters,
+                        "VRParameters" to buffers.VRParameters).forEach { b ->
+                        val name = b.first
+                        val buffer = b.second
                         if (shader.uboSpecs.containsKey(name)) {
                             val index = shader.getUniformBlockIndex(name)
                             gl.glUniformBlockBinding(shader.id, index, binding)
                             gl.glBindBufferRange(GL4.GL_UNIFORM_BUFFER, binding,
-                                buffers[name]!!.id[0],
-                                0L, buffers[name]!!.buffer.remaining().toLong())
+                                buffer.id[0],
+                                0L, buffer.buffer.remaining().toLong())
 
                             if (index == -1) {
                                 logger.error("Failed to bind shader parameter UBO $name for ${pass.passName} to $binding, though it is required by the shader")
@@ -1960,7 +1957,7 @@ open class OpenGLRenderer(hub: Hub,
 
         logger.trace("Running viewport pass")
         val startPass = System.nanoTime()
-        val viewportPass = renderpasses[flow.last()]!!
+        val viewportPass = renderpasses.getValue(flow.last())
         gl.glBindFramebuffer(GL4.GL_DRAW_FRAMEBUFFER, 0)
 
         blitFramebuffers(viewportPass.output.values.first(), null,
@@ -2177,7 +2174,7 @@ open class OpenGLRenderer(hub: Hub,
 
         s.materialHash = node.material.hashCode()
 
-        val matricesUbo = OpenGLUBO(backingBuffer = buffers["UBOBuffer"])
+        val matricesUbo = OpenGLUBO(backingBuffer = buffers.UBOs)
         with(matricesUbo) {
             name = "Matrices"
             add("ModelMatrix", { node.world })
@@ -2191,7 +2188,7 @@ open class OpenGLRenderer(hub: Hub,
 
         loadTexturesForNode(node, s)
 
-        val materialUbo = OpenGLUBO(backingBuffer = buffers["UBOBuffer"])
+        val materialUbo = OpenGLUBO(backingBuffer = buffers.UBOs)
 
         with(materialUbo) {
             name = "MaterialProperties"
@@ -2207,7 +2204,7 @@ open class OpenGLRenderer(hub: Hub,
         }
 
         if (node.javaClass.kotlin.memberProperties.filter { it.findAnnotation<ShaderProperty>() != null }.count() > 0) {
-            val shaderPropertyUBO = OpenGLUBO(backingBuffer = buffers["ShaderPropertyBuffer"])
+            val shaderPropertyUBO = OpenGLUBO(backingBuffer = buffers.ShaderProperties)
             with(shaderPropertyUBO) {
                 name = "ShaderProperties"
 

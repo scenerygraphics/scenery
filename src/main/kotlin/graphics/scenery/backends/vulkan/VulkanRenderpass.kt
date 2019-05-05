@@ -92,7 +92,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         protected set
 
     /** This renderpasses' [RenderConfigReader.RenderpassConfig]. */
-    var passConfig: RenderConfigReader.RenderpassConfig = config.renderpasses.get(name)!!
+    var passConfig: RenderConfigReader.RenderpassConfig = config.renderpasses.getValue(name)
         protected set
 
     /** Whether this renderpass will render to the viewport or to a [VulkanFramebuffer] */
@@ -351,8 +351,8 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
      */
     fun getShaderPropertyOrder(node: Node): Map<String, Int> {
         // this creates a shader property UBO for items marked @ShaderProperty in node
-        logger.debug("specs: ${this.pipelines["preferred-${node.uuid}"]!!.descriptorSpecs}")
-        val shaderPropertiesSpec = this.pipelines["preferred-${node.uuid}"]!!.descriptorSpecs.filter { it.key == "ShaderProperties" }.map { it.value.members }
+        logger.debug("specs: ${this.pipelines.getValue("preferred-${node.uuid}").descriptorSpecs}")
+        val shaderPropertiesSpec = this.pipelines.getValue("preferred-${node.uuid}").descriptorSpecs.filter { it.key == "ShaderProperties" }.map { it.value.members }
 
         if(shaderPropertiesSpec.count() == 0) {
             logger.debug("Warning: Shader file uses no declared shader properties, despite the class declaring them.")
@@ -400,7 +400,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
      * The pipeline settings are customizable using the lambda [settings].
      */
     fun initializePipeline(pipelineName: String = "default", shaders: List<VulkanShaderModule>,
-                           vertexInputType: VulkanRenderer.VertexDescription = vertexDescriptors.get(VulkanRenderer.VertexDataKinds.PositionNormalTexcoord)!!,
+                           vertexInputType: VulkanRenderer.VertexDescription = vertexDescriptors.getValue(VulkanRenderer.VertexDataKinds.PositionNormalTexcoord),
                            settings: (VulkanPipeline) -> Any = {}) {
         val p = VulkanPipeline(device, pipelineCache)
 
@@ -463,7 +463,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                 p.rasterizationState.frontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
 
                 p.createPipelines(this, framebuffer.renderPass.get(0),
-                    vertexDescriptors[VulkanRenderer.VertexDataKinds.None]!!.state,
+                    vertexDescriptors.getValue(VulkanRenderer.VertexDataKinds.None).state,
                     descriptorSetLayouts = reqDescriptorLayouts,
                     onlyForTopology = GeometryType.TRIANGLES)
             }
@@ -523,7 +523,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
             val pos = currentPosition
             currentPosition = (currentPosition + 1).rem(commandBufferCount)
 
-            output["Viewport-$pos"]!!
+            output.getValue("Viewport-$pos")
         } else {
             output.values.first()
         }
@@ -549,7 +549,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
      * Returns this renderpasses' default pipeline.
      */
     fun getDefaultPipeline(): VulkanPipeline {
-        return pipelines["default"]!!
+        return pipelines.getValue("default")
     }
 
     /**
