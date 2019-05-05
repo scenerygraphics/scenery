@@ -90,6 +90,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
     protected var currentTime = System.nanoTime()
     protected var t = 0.0f
     protected var shouldClose: Boolean = false
+    protected var gracePeriod = 0
 
     interface XLib: Library {
         fun XInitThreads()
@@ -227,7 +228,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         val frameTimes = ArrayDeque<Float>(16)
         val frameTimeKeepCount = 16
 
-        while (!shouldClose) {
+        while (!shouldClose || gracePeriod > 0) {
             runtime = (System.nanoTime() - startTime) / 1000000f
             settings.set("System.Runtime", runtime)
 
@@ -315,6 +316,9 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             }
 
             ticks++
+            if(gracePeriod > 0) {
+                gracePeriod--
+            }
         }
 
         inputHandler?.close()
@@ -369,6 +373,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
      */
     fun close() {
         shouldClose = true
+        gracePeriod = 10
         renderer?.close()
     }
 
