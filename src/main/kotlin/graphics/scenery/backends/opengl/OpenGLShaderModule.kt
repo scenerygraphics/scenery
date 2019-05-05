@@ -237,13 +237,14 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, sp: ShaderPackage) {
         @JvmStatic fun getFromCacheOrCreate(gl: GL4, entryPoint: String, sp: ShaderPackage): OpenGLShaderModule {
             val signature = ShaderSignature(gl, sp)
 
-            return if(shaderModuleCache.containsKey(signature)) {
-                shaderModuleCache[signature]!!
-            } else {
-                val module = OpenGLShaderModule(gl, entryPoint, sp)
-                shaderModuleCache[signature] = module
-
+            val module = shaderModuleCache[signature]
+            return if(module != null) {
                 module
+            } else {
+                val newModule = OpenGLShaderModule(gl, entryPoint, sp)
+                shaderModuleCache[signature] = newModule
+
+                newModule
             }
         }
     }

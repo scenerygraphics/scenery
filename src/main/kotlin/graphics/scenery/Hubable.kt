@@ -7,5 +7,5 @@ package graphics.scenery
  */
 interface Hubable {
     /** The Hub this instance belongs to */
-    var hub: Hub?
+    var hub: Hub
 }
