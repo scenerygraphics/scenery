@@ -292,7 +292,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
 
     }
 
-    internal open fun preUpdate(renderer: Renderer, hub: Hub) {
+    internal open fun preUpdate(renderer: Renderer, hub: Hub?) {
 
     }
 

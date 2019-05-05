@@ -269,7 +269,7 @@ open class VulkanRenderer(hub: Hub,
 
 
 
-    final override var hub: Hub? = null
+    final override var hub: Hub?
     protected var applicationName = ""
     final override var settings: Settings = Settings()
     override var shouldClose = false
@@ -413,7 +413,7 @@ open class VulkanRenderer(hub: Hub,
     init {
         this.hub = hub
 
-        val hmd = hub.getWorkingHMDDisplay()
+        val hmd = hub?.getWorkingHMDDisplay()
         if (hmd != null) {
             logger.debug("Setting window dimensions to bounds from HMD")
             val bounds = hmd.getRenderTargetSize()
@@ -752,9 +752,9 @@ open class VulkanRenderer(hub: Hub,
             updateInstanceBuffer(device, node, s)
             // TODO: Rewrite shader in case it does not conform to coord/normal/texcoord vertex description
             s.vertexInputType = VertexDataKinds.PositionNormalTexcoord
-            vertexDescriptionFromInstancedNode(node, vertexDescriptors[VertexDataKinds.PositionNormalTexcoord]!!)
+            vertexDescriptionFromInstancedNode(node, vertexDescriptors.getValue(VertexDataKinds.PositionNormalTexcoord))
         } else {
-            vertexDescriptors[s.vertexInputType]!!
+            vertexDescriptors.getValue(s.vertexInputType)
         }
 
         s = createVertexBuffers(device, node, s)
@@ -1425,7 +1425,7 @@ open class VulkanRenderer(hub: Hub,
             }
 
         config.createRenderpassFlow().map { passName ->
-            val passConfig = config.renderpasses[passName]!!
+            val passConfig = config.renderpasses.getValue(passName)
             val pass = VulkanRenderpass(passName, config, device, descriptorPool, pipelineCache, vertexDescriptors)
 
             var width = windowWidth
@@ -1444,7 +1444,7 @@ open class VulkanRenderer(hub: Hub,
 
                     if (framebuffers.containsKey(rt.key)) {
                         logger.info("Reusing already created framebuffer")
-                        pass.output.put(rt.key, framebuffers[rt.key]!!)
+                        pass.output.put(rt.key, framebuffers.getValue(rt.key))
                     } else {
 
                         // create framebuffer -- don't clear it, if blitting is needed
@@ -1565,7 +1565,7 @@ open class VulkanRenderer(hub: Hub,
 
         // connect inputs with each othe
         renderpasses.forEach { pass ->
-            val passConfig = config.renderpasses[pass.key]!!
+            val passConfig = config.renderpasses.getValue(pass.key)
 
             passConfig.inputs?.forEach { inputTarget ->
                 val targetName = if(inputTarget.contains(".")) {
@@ -1575,7 +1575,7 @@ open class VulkanRenderer(hub: Hub,
                 }
                 renderpasses.filter {
                     it.value.output.keys.contains(targetName)
-                }.forEach { pass.value.inputs[inputTarget] = it.value.output[targetName]!! }
+                }.forEach { pass.value.inputs[inputTarget] = it.value.output.getValue(targetName) }
             }
 
             with(pass.value) {
@@ -1620,7 +1620,7 @@ open class VulkanRenderer(hub: Hub,
 
     private fun beginFrame() {
         swapchainRecreator.mustRecreate = swapchain.next(timeout = UINT64_MAX,
-            signalSemaphore = semaphores[StandardSemaphores.PresentComplete]!![0])
+            signalSemaphore = semaphores.getValue(StandardSemaphores.PresentComplete)[0])
     }
 
     @Suppress("unused")
@@ -1897,7 +1897,7 @@ open class VulkanRenderer(hub: Hub,
                     if (it.dirty) {
                         logger.debug("Force command buffer re-recording, as geometry for {} has been updated", it.name)
 
-                        it.preUpdate(this@VulkanRenderer, hub!!)
+                        it.preUpdate(this@VulkanRenderer, hub)
                         updateNodeGeometry(it)
                         it.dirty = false
 
@@ -1946,11 +1946,11 @@ open class VulkanRenderer(hub: Hub,
         beginFrame()
 
         // firstWaitSemaphore is now the RenderComplete semaphore of the previous pass
-        firstWaitSemaphore.put(0, semaphores[StandardSemaphores.PresentComplete]!![0])
+        firstWaitSemaphore.put(0, semaphores.getValue(StandardSemaphores.PresentComplete)[0])
 
         val si = VkSubmitInfo.calloc()
 
-        var waitSemaphore = semaphores[StandardSemaphores.PresentComplete]!![0]
+        var waitSemaphore = semaphores.getValue(StandardSemaphores.PresentComplete)[0]
 
 
         flow.take(flow.size - 1).forEachIndexed { i, t ->
@@ -2037,7 +2037,7 @@ open class VulkanRenderer(hub: Hub,
 
         ph.commandBuffers.put(0, viewportCommandBuffer.commandBuffer!!)
         ph.waitStages.put(0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
-        ph.signalSemaphore.put(0, semaphores[StandardSemaphores.RenderComplete]!![0])
+        ph.signalSemaphore.put(0, semaphores.getValue(StandardSemaphores.RenderComplete)[0])
         ph.waitSemaphore.put(0, firstWaitSemaphore.get(0))
 
         submitFrame(queue, viewportPass, viewportCommandBuffer, ph)
@@ -2446,7 +2446,7 @@ open class VulkanRenderer(hub: Hub,
         // Furthermore, all sibling command buffers for this pass will be marked stale, thus
         // also forcing their re-recording.
         if(!pass.vulkanMetadata.renderLists.containsKey(commandBuffer)
-            || !renderOrderList.toTypedArray().contentDeepEquals(pass.vulkanMetadata.renderLists[commandBuffer]!!)
+            || !renderOrderList.toTypedArray().contentDeepEquals(pass.vulkanMetadata.renderLists.getValue(commandBuffer))
             || forceRerecording) {
 
             pass.vulkanMetadata.renderLists[commandBuffer] = renderOrderList.toTypedArray()
@@ -2688,9 +2688,9 @@ open class VulkanRenderer(hub: Hub,
                         else -> {
                             when {
                                 s.UBOs.containsKey(name) ->
-                                    DescriptorSet.DynamicSet(s.UBOs[name]!!.first, offset = s.UBOs[name]!!.second.offsets.get(0), setName = name)
+                                    DescriptorSet.DynamicSet(s.UBOs.getValue(name).first, offset = s.UBOs.getValue(name).second.offsets.get(0), setName = name)
                                 s.UBOs.containsKey("${pass.name}-$name") ->
-                                    DescriptorSet.DynamicSet(s.UBOs["${pass.name}-$name"]!!.first, offset = s.UBOs["${pass.name}-$name"]!!.second.offsets.get(0), setName = name)
+                                    DescriptorSet.DynamicSet(s.UBOs.getValue("${pass.name}-$name").first, offset = s.UBOs.getValue("${pass.name}-$name").second.offsets.get(0), setName = name)
                                 s.getTextureDescriptorSet(pass.passConfig.type.name, name) != null ->
                                     DescriptorSet.setOrNull(s.getTextureDescriptorSet(pass.passConfig.type.name, name), name)
                                 else -> DescriptorSet.None
