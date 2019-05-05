@@ -280,9 +280,6 @@ open class HeadlessSwapchain(device: VulkanDevice,
      * Closes the swapchain, deallocating all resources.
      */
     override fun close() {
-        KHRSwapchain.vkDestroySwapchainKHR(device.vulkanDevice, handle, null)
-        KHRSurface.vkDestroySurfaceKHR(device.instance, surface, null)
-
         presentInfo.free()
 
         MemoryUtil.memFree(swapchainImage)
