@@ -55,7 +55,7 @@ class BufferUtils {
         /**
          * Allocates a new direct [ByteBuffer] with a capacity of [num] bytes.
          */
-        fun allocateByte(num: Int): ByteBuffer {
+        @JvmStatic fun allocateByte(num: Int): ByteBuffer {
             return ByteBuffer.allocateDirect(num).order(ByteOrder.nativeOrder())
         }
 
@@ -63,7 +63,7 @@ class BufferUtils {
          * Allocates a new direct [ByteBuffer] with a capacity to fit [array], and fills it with the members
          * of [array] and returns the flipped buffer.
          */
-        fun allocateByteAndPut(array: ByteArray): ByteBuffer {
+        @JvmStatic fun allocateByteAndPut(array: ByteArray): ByteBuffer {
             val b = ByteBuffer.allocateDirect(array.size).order(ByteOrder.nativeOrder())
             b.put(array).flip()
 
