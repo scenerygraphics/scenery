@@ -105,7 +105,7 @@ open class OpenGLRenderer(hub: Hub,
     final override var settings: Settings = Settings()
 
     /** The hub used for communication between the components */
-    final override var hub: Hub? = null
+    final override var hub: Hub
 
     private var textureCache = HashMap<String, GLTexture>()
     private var shaderPropertyCache = HashMap<Class<*>, List<Field>>()
@@ -567,13 +567,13 @@ open class OpenGLRenderer(hub: Hub,
                 framesPerSec = 0
 
                 if(!pushMode) {
-                    (hub?.get(SceneryElement.Statistics) as? Statistics)?.add("Renderer.fps", fps, false)
+                    (hub.get(SceneryElement.Statistics) as? Statistics)?.add("Renderer.fps", fps, false)
                 }
 
                 gpuStats?.let {
                     it.update(0)
 
-                    hub?.get(SceneryElement.Statistics).let { s ->
+                    hub.get(SceneryElement.Statistics).let { s ->
                         val stats = s as Statistics
 
                         stats.add("GPU", it.get("GPU"), isTime = false)
@@ -1037,7 +1037,7 @@ open class OpenGLRenderer(hub: Hub,
         // find observer, if none, return
         val cam = scene.findObserver() ?: return false
 
-        val hmd = hub?.getWorkingHMDDisplay()?.wantsVR()
+        val hmd = hub.getWorkingHMDDisplay()?.wantsVR()
 
         cam.view = cam.getTransformation()
         cam.updateWorld(true, false)
@@ -1189,7 +1189,7 @@ open class OpenGLRenderer(hub: Hub,
     private fun preDrawAndUpdateGeometryForNode(n: Node) {
         if (n is HasGeometry) {
             if (n.dirty) {
-                n.preUpdate(this, hub!!)
+                n.preUpdate(this, hub)
                 if (n.lock.tryLock()) {
                     if (n.vertices.remaining() > 0 && n.normals.remaining() > 0) {
                         updateVertices(n)
@@ -1510,8 +1510,8 @@ open class OpenGLRenderer(hub: Hub,
         lastFrameTime = (System.nanoTime() - currentTime)/1e6f
         currentTime = newTime
 
-        val stats = hub?.get(SceneryElement.Statistics) as? Statistics
-        hub?.getWorkingHMD()?.update()
+        val stats = hub.get(SceneryElement.Statistics) as? Statistics
+        hub.getWorkingHMD()?.update()
 
         if (shouldClose) {
             try {
@@ -1531,7 +1531,7 @@ open class OpenGLRenderer(hub: Hub,
             return@runBlocking
         }
 
-        val running = hub?.getApplication()?.running ?: true
+        val running = hub.getApplication()?.running ?: true
 
         embedIn?.let {
             resizeHandler.queryResize()
@@ -1602,7 +1602,7 @@ open class OpenGLRenderer(hub: Hub,
                 }
             }
 
-            val pass = renderpasses[t]!!
+            val pass = renderpasses.getValue(t)
             logger.trace("Running pass {}", pass.passName)
             val startPass = System.nanoTime()
 
@@ -1748,11 +1748,7 @@ open class OpenGLRenderer(hub: Hub,
 
                     preDrawAndUpdateGeometryForNode(n)
 
-                    val shader = if (s.shader != null) {
-                        s.shader!!
-                    } else {
-                        pass.defaultShader!!
-                    }
+                    val shader = s.shader ?: pass.defaultShader!!
 
                     if(currentShader != shader) {
                         shader.use(gl)
@@ -1964,7 +1960,7 @@ open class OpenGLRenderer(hub: Hub,
 
         logger.trace("Running viewport pass")
         val startPass = System.nanoTime()
-        val viewportPass = renderpasses[flow.last()]!!
+        val viewportPass = renderpasses.getValue(flow.last())
         gl.glBindFramebuffer(GL4.GL_DRAW_FRAMEBUFFER, 0)
 
         blitFramebuffers(viewportPass.output.values.first(), null,
@@ -1974,8 +1970,8 @@ open class OpenGLRenderer(hub: Hub,
             OpenGLRenderpass.Rect2D(window.width, window.height, 0, 0))
 
         // submit to OpenVR if attached
-        if(hub?.getWorkingHMDDisplay()?.hasCompositor() == true && !mustRecreateFramebuffers) {
-            hub?.getWorkingHMDDisplay()?.wantsVR()?.submitToCompositor(
+        if(hub.getWorkingHMDDisplay()?.hasCompositor() == true && !mustRecreateFramebuffers) {
+            hub.getWorkingHMDDisplay()?.wantsVR()?.submitToCompositor(
                 viewportPass.output.values.first().getTextureId("Viewport"))
         }
 

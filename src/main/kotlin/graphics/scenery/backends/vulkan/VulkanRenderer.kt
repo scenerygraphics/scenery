@@ -269,7 +269,7 @@ open class VulkanRenderer(hub: Hub,
 
 
 
-    final override var hub: Hub? = null
+    final override var hub: Hub
     protected var applicationName = ""
     final override var settings: Settings = Settings()
     override var shouldClose = false
@@ -752,9 +752,9 @@ open class VulkanRenderer(hub: Hub,
             updateInstanceBuffer(device, node, s)
             // TODO: Rewrite shader in case it does not conform to coord/normal/texcoord vertex description
             s.vertexInputType = VertexDataKinds.PositionNormalTexcoord
-            vertexDescriptionFromInstancedNode(node, vertexDescriptors[VertexDataKinds.PositionNormalTexcoord]!!)
+            vertexDescriptionFromInstancedNode(node, vertexDescriptors.getValue(VertexDataKinds.PositionNormalTexcoord))
         } else {
-            vertexDescriptors[s.vertexInputType]!!
+            vertexDescriptors.getValue(s.vertexInputType)
         }
 
         s = createVertexBuffers(device, node, s)
@@ -1032,7 +1032,7 @@ open class VulkanRenderer(hub: Hub,
      * Loads or reloads the textures for [node], updating it's internal renderer state stored in [s].
      */
     protected fun loadTexturesForNode(node: Node, s: VulkanObjectState): VulkanObjectState {
-        val stats = hub?.get(SceneryElement.Statistics) as Statistics?
+        val stats = hub.get(SceneryElement.Statistics) as Statistics?
         val defaultTexture = textureCache["DefaultTexture"] ?: throw IllegalStateException("Default fallback texture does not exist.")
 
         node.material.textures.forEach { type, texture ->
@@ -1425,7 +1425,7 @@ open class VulkanRenderer(hub: Hub,
             }
 
         config.createRenderpassFlow().map { passName ->
-            val passConfig = config.renderpasses[passName]!!
+            val passConfig = config.renderpasses.getValue(passName)
             val pass = VulkanRenderpass(passName, config, device, descriptorPool, pipelineCache, vertexDescriptors)
 
             var width = windowWidth
@@ -1444,7 +1444,7 @@ open class VulkanRenderer(hub: Hub,
 
                     if (framebuffers.containsKey(rt.key)) {
                         logger.info("Reusing already created framebuffer")
-                        pass.output.put(rt.key, framebuffers[rt.key]!!)
+                        pass.output.put(rt.key, framebuffers.getValue(rt.key))
                     } else {
 
                         // create framebuffer -- don't clear it, if blitting is needed
@@ -1565,7 +1565,7 @@ open class VulkanRenderer(hub: Hub,
 
         // connect inputs with each othe
         renderpasses.forEach { pass ->
-            val passConfig = config.renderpasses[pass.key]!!
+            val passConfig = config.renderpasses.getValue(pass.key)
 
             passConfig.inputs?.forEach { inputTarget ->
                 val targetName = if(inputTarget.contains(".")) {
@@ -1575,7 +1575,7 @@ open class VulkanRenderer(hub: Hub,
                 }
                 renderpasses.filter {
                     it.value.output.keys.contains(targetName)
-                }.forEach { pass.value.inputs[inputTarget] = it.value.output[targetName]!! }
+                }.forEach { pass.value.inputs[inputTarget] = it.value.output.getValue(targetName) }
             }
 
             with(pass.value) {
@@ -1620,7 +1620,7 @@ open class VulkanRenderer(hub: Hub,
 
     private fun beginFrame() {
         swapchainRecreator.mustRecreate = swapchain.next(timeout = UINT64_MAX,
-            signalSemaphore = semaphores[StandardSemaphores.PresentComplete]!![0])
+            signalSemaphore = semaphores.getValue(StandardSemaphores.PresentComplete)[0])
     }
 
     @Suppress("unused")
@@ -1640,7 +1640,7 @@ open class VulkanRenderer(hub: Hub,
             return
         }
 
-        val stats = hub?.get(SceneryElement.Statistics) as? Statistics
+        val stats = hub.get(SceneryElement.Statistics) as? Statistics
         present.submitInfo
             .sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
             .pNext(NULL)
@@ -1662,8 +1662,8 @@ open class VulkanRenderer(hub: Hub,
         swapchain.postPresent(pass.getReadPosition())
 
         // submit to OpenVR if attached
-        if(hub?.getWorkingHMDDisplay()?.hasCompositor() == true) {
-            hub?.getWorkingHMDDisplay()?.wantsVR()?.submitToCompositorVulkan(
+        if(hub.getWorkingHMDDisplay()?.hasCompositor() == true) {
+            hub.getWorkingHMDDisplay()?.wantsVR()?.submitToCompositorVulkan(
                 window.width, window.height,
                 swapchain.format,
                 instance, device, queue,
@@ -1825,7 +1825,7 @@ open class VulkanRenderer(hub: Hub,
             return@runBlocking
         }
 
-        val stats = hub?.get(SceneryElement.Statistics) as? Statistics
+        val stats = hub.get(SceneryElement.Statistics) as? Statistics
         val sceneObjects = GlobalScope.async {
             scene.discover(scene, { n ->
                 n is HasGeometry
@@ -1897,7 +1897,7 @@ open class VulkanRenderer(hub: Hub,
                     if (it.dirty) {
                         logger.debug("Force command buffer re-recording, as geometry for {} has been updated", it.name)
 
-                        it.preUpdate(this@VulkanRenderer, hub!!)
+                        it.preUpdate(this@VulkanRenderer, hub)
                         updateNodeGeometry(it)
                         it.dirty = false
 
@@ -2065,7 +2065,7 @@ open class VulkanRenderer(hub: Hub,
                 .pEngineName(stack.UTF8("scenery"))
                 .apiVersion(VK_MAKE_VERSION(1, 0, 73))
 
-            val additionalExts: List<String> = hub?.getWorkingHMDDisplay()?.getVulkanInstanceExtensions() ?: listOf()
+            val additionalExts: List<String> = hub.getWorkingHMDDisplay()?.getVulkanInstanceExtensions() ?: listOf()
             val utf8Exts = additionalExts.map { stack.UTF8(it) }
 
             logger.debug("HMD required instance exts: ${additionalExts.joinToString(", ")} ${additionalExts.size}")
@@ -2910,7 +2910,7 @@ open class VulkanRenderer(hub: Hub,
             return@runBlocking false
         }
 
-        val hmd = hub?.getWorkingHMDDisplay()?.wantsVR()
+        val hmd = hub.getWorkingHMDDisplay()?.wantsVR()
 
         cam.view = cam.getTransformation()
         cam.updateWorld(true, false)
@@ -3158,7 +3158,7 @@ open class VulkanRenderer(hub: Hub,
     }
 
     fun switchFullscreen() {
-        hub?.let { hub -> swapchain.toggleFullscreen(hub, swapchainRecreator) }
+        hub.let { hub -> swapchain.toggleFullscreen(hub, swapchainRecreator) }
     }
 
     /**

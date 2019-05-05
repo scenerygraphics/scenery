@@ -275,8 +275,8 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
             (0 until charSize).forEach {
                 for(glyph in minGlyphIndex..maxGlyphIndex) {
                     val char = charset.toList()[glyph].toChar()
-                    val charBuffer = map[charset.toList()[glyph].toChar()]!!
-                    val glyphWidth = fontMap[char]!!.first
+                    val charBuffer = map.getValue(charset.toList()[glyph].toChar())
+                    val glyphWidth = fontMap.getValue(char).first
 
                     val glyphIndexOnLine = glyph-minGlyphIndex
                     glyphTexcoords.putIfAbsent(char, GLVector(
