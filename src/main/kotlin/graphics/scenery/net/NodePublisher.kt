@@ -12,6 +12,7 @@ import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
 import org.zeromq.ZContext
 import org.zeromq.ZMQ
+import org.zeromq.ZMQException
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.util.*
@@ -21,15 +22,22 @@ import java.util.concurrent.ConcurrentHashMap
  * Created by ulrik on 4/4/2017.
  */
 
-class NodePublisher(override var hub: Hub?, val address: String = "tcp://*:6666", val context: ZContext = ZContext(4)): Hubable {
+class NodePublisher(override var hub: Hub?, val address: String = "tcp://127.0.0.1:6666", val context: ZContext = ZContext(4)): Hubable {
     private val logger by LazyLogger()
 
     var nodes: ConcurrentHashMap<Int, Node> = ConcurrentHashMap()
     var publisher: ZMQ.Socket = context.createSocket(ZMQ.PUB)
     val kryo = Kryo()
+    var port: Int
 
     init {
-        publisher.bind(address)
+        port = try {
+            publisher.bind(address)
+            address.substringAfterLast(":").toInt()
+        } catch (e: ZMQException) {
+            logger.warn("Binding failed, trying random port: $e")
+            publisher.bindToRandomPort(address.substringBeforeLast(":"))
+        }
         kryo.isRegistrationRequired = false
 
         kryo.register(GLMatrix::class.java)
