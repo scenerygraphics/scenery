@@ -43,7 +43,11 @@ class Settings(override var hub: Hub? = null) : Hubable {
      */
     fun <T> get(name: String, default: T? = null): T {
         if(!settingsStore.containsKey(name)) {
-            logger.warn("WARNING: Settings don't contain '$name'")
+            if(default == null) {
+                logger.warn("Settings don't contain '$name'")
+            } else {
+                logger.debug("Settings don't contain '$name'")
+            }
         }
 
         @Suppress("UNCHECKED_CAST")
