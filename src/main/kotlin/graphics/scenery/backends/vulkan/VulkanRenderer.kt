@@ -1699,7 +1699,7 @@ open class VulkanRenderer(hub: Hub,
                 }
 
                 if (encoder == null || encoder?.frameWidth != window.width || encoder?.frameHeight != window.height) {
-                    encoder = H264Encoder(window.width, window.height, System.getProperty("user.home") + File.separator + "Desktop" + File.separator + "$applicationName - ${SimpleDateFormat("yyyy-MM-dd_HH.mm.ss").format(Date())}.mp4")
+                    encoder = H264Encoder(window.width, window.height, System.getProperty("user.home") + File.separator + "Desktop" + File.separator + "$applicationName - ${SimpleDateFormat("yyyy-MM-dd_HH.mm.ss").format(Date())}.mp4", hub = hub)
                 }
             }
 

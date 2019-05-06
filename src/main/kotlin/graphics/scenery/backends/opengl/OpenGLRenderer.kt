@@ -1981,7 +1981,7 @@ open class OpenGLRenderer(hub: Hub,
             }
 
             if (recordMovie && (encoder == null || encoder?.frameWidth != window.width || encoder?.frameHeight != window.height)) {
-                encoder = H264Encoder(window.width, window.height, System.getProperty("user.home") + File.separator + "Desktop" + File.separator + "$applicationName - ${SimpleDateFormat("yyyy-MM-dd_HH.mm.ss").format(Date())}.mp4")
+                encoder = H264Encoder(window.width, window.height, System.getProperty("user.home") + File.separator + "Desktop" + File.separator + "$applicationName - ${SimpleDateFormat("yyyy-MM-dd_HH.mm.ss").format(Date())}.mp4", hub = hub)
             }
 
             readIndex = (readIndex + 1) % pboCount
@@ -2033,7 +2033,7 @@ open class OpenGLRenderer(hub: Hub,
 
                 encoder?.let { e ->
                     pboBuffers[readIndex]?.let {
-                        e.encodeFrame(it)
+                        e.encodeFrame(it, flip = true)
                     }
                 }
             }
