@@ -4,8 +4,12 @@ import graphics.scenery.Hub
 import graphics.scenery.Hubable
 import graphics.scenery.SceneryElement
 import graphics.scenery.Settings
+import graphics.scenery.utils.H264Encoder.Companion.VideoEncodingQuality
 import graphics.scenery.utils.H264Encoder.Companion.VideoEncodingQuality.*
-import kotlinx.coroutines.*
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.bytedeco.javacpp.BytePointer
 import org.bytedeco.javacpp.DoublePointer
 import org.bytedeco.javacpp.avcodec.*
@@ -15,6 +19,7 @@ import org.bytedeco.javacpp.swscale
 import org.lwjgl.system.MemoryUtil
 import java.net.InetAddress
 import java.nio.ByteBuffer
+import java.util.*
 import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.math.absoluteValue
 
@@ -98,6 +103,7 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, f
     private var ready: Boolean = false
     private var finished: Boolean = false
     private var frameQueue = ConcurrentLinkedQueue<QueuedFrame>()
+    private val emptyScalingParams = DoublePointer()
 
     sealed class QueuedFrame {
         class Frame(val data: ByteBuffer, val timestamp: Long): QueuedFrame()
@@ -228,7 +234,7 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, f
                 logger.debug("Not opening file as not required by outputContext")
             }
 
-            logger.info("Writing movie to $outputFile, with format ${String(outputContext.oformat().long_name().stringBytes)}")
+            logger.info("Writing movie to $outputFile, ${frameWidth}x$frameHeight, with format ${String(outputContext.oformat().long_name().stringBytes)}, quality $quality, bitrate ${String.format(Locale.US, "%.2f", bitrate/1024.0f/1024.0f)} MBit")
 
 //        Don't use SDP files for the moment
 //        if(networked) {
@@ -250,11 +256,19 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, f
             ready = true
 
             while(!finished) {
+                if(frameQueue.isEmpty()) {
+                    delay(5)
+                    continue
+                }
+
                 when(val currentFrame = frameQueue.poll()) {
+                    // encoding step for each frame we received data
                     is QueuedFrame.Frame -> {
                         encode(currentFrame)
                         MemoryUtil.memFree(currentFrame.data)
                     }
+
+                    // encoding step for the final, empty frame, plus deallocation steps
                     is QueuedFrame.FinalFrame -> {
                         encode(currentFrame)
 
@@ -264,9 +278,13 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, f
 
                         logger.info("Finished recording $outputFile, wrote $frameNum frames.")
                         finished = true
+
+                        av_frame_free(frame)
+                        av_frame_free(tmpframe)
+
+                        swscale.sws_freeContext(scalingContext)
                     }
                 }
-                delay(2)
             }
         }
 
@@ -319,7 +337,7 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, f
             scalingContext = swscale.sws_getContext(
                 frameWidth, frameHeight, AV_PIX_FMT_BGRA,
                 actualFrameWidth, actualFrameHeight, AV_PIX_FMT_YUV420P, swscale.SWS_BICUBIC,
-                null, null, DoublePointer())
+                null, null, emptyScalingParams)
         }
 
         av_frame_make_writable(tmpframe)
@@ -367,12 +385,14 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, f
             }
         }
 
+        av_packet_unref(packet)
         logger.trace("Encoded frame $frameNum")
 
         frameNum++
     }
 
     fun finish() {
+        logger.info("Stopping movie recording, ${frameQueue.size} frames (${frameQueue.map { if(it is QueuedFrame.Frame) { it.data.remaining() } else { 0 }}.sum()/1024/1024} MBytes) left to encode.")
         encodeFrame(null)
     }
 
