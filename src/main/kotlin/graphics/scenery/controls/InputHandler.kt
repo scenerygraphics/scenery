@@ -283,8 +283,8 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
         adder.put("move_back_fast", "shift S")
         adder.put("move_right_fast", "shift D")
 
-        adder.put("move_up", "SPACE")
-        adder.put("move_down", "shift SPACE")
+        adder.put("move_up", "K")
+        adder.put("move_down", "J")
 
         adder.put("set_rendering_quality", "Q")
         adder.put("toggle_debug", "shift Q")
