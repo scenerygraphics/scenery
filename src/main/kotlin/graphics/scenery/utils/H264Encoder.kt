@@ -4,8 +4,6 @@ import graphics.scenery.Hub
 import graphics.scenery.Hubable
 import graphics.scenery.SceneryElement
 import graphics.scenery.Settings
-import graphics.scenery.utils.H264Encoder.Companion.VideoEncodingQuality
-import graphics.scenery.utils.H264Encoder.Companion.VideoEncodingQuality.*
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -62,23 +60,19 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, f
     protected var actualFrameHeight: Int = 512
     protected val startTimestamp: Long
 
-    val quality: VideoEncodingQuality = valueOf(hub?.get<Settings>(SceneryElement.Settings)?.get("VideoEncoder.Quality", "Medium") ?: "Medium")
+    val quality = VideoEncodingQuality.valueOf(hub?.get<Settings>(SceneryElement.Settings)?.get("VideoEncoder.Quality", "Medium") ?: "Medium")
     val networked = hub?.get<Settings>(SceneryElement.Settings)?.get("VideoEncoder.StreamVideo", false) ?: false
     val bitrate = hub?.get<Settings>(SceneryElement.Settings)?.get("VideoEncoder.Bitrate", 10000000) ?: 10000000
 
     companion object {
-        enum class VideoEncodingQuality {
-            VeryLow, Low, Medium, High, Ultra, Insane
-        }
-
         fun VideoEncodingQuality.toFFMPEGPreset(): String =
             when(this) {
-                VeryLow -> "ultrafast"
-                Low -> "veryfast"
-                Medium -> "medium"
-                High -> "slow"
-                Ultra -> "slower"
-                Insane -> "veryslow"
+                VideoEncodingQuality.VeryLow -> "ultrafast"
+                VideoEncodingQuality.Low -> "veryfast"
+                VideoEncodingQuality.Medium -> "medium"
+                VideoEncodingQuality.High -> "slow"
+                VideoEncodingQuality.Ultra -> "slower"
+                VideoEncodingQuality.Insane -> "veryslow"
             }
 
         init {
