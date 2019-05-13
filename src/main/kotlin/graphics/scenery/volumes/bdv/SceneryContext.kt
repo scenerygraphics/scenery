@@ -10,6 +10,7 @@ import graphics.scenery.backends.ShaderType
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.volumes.Volume
 import org.lwjgl.system.MemoryUtil
+import org.lwjgl.util.xxhash.XXHash
 import tpietzsch.backend.*
 import tpietzsch.cache.TextureCache
 import tpietzsch.shadergen.Shader
@@ -419,7 +420,7 @@ open class SceneryContext(val node: Volume) : GpuContext {
         val tmpStorage = (map(pbo) as ByteBuffer).duplicate().order(ByteOrder.LITTLE_ENDIAN)
         tmpStorage.position(pixels_buffer_offset.toInt())
 
-        val tmp = MemoryUtil.memCalloc(width*height*depth*2)
+        val tmp = MemoryUtil.memAlloc(width*height*depth*2)
         tmpStorage.limit(tmpStorage.position() + width*height*depth*2)
         tmp.put(tmpStorage)
         tmp.flip()
@@ -458,13 +459,24 @@ open class SceneryContext(val node: Volume) : GpuContext {
         node.material.needsTextureReload = true
     }
 
+    data class UpdateParameters(val xoffset: Int, val yoffset: Int, val zoffset: Int, val width: Int, val height: Int, val depth: Int, val hash: Int)
+    val lastUpdates = ConcurrentHashMap<Texture3D, UpdateParameters>()
+
     /**
      * Updates the memory allocated to [texture] with the contents of [pixels].
      * This function updates only the part of the texture at the offsets [xoffset], [yoffset], [zoffset], with the given
      * [width], [height], and [depth].
      */
     override fun texSubImage3D(texture: Texture3D, xoffset: Int, yoffset: Int, zoffset: Int, width: Int, height: Int, depth: Int, pixels: Buffer) {
-        logger.debug("Updating 3D texture via Texture3D from $texture: dx=$xoffset dy=$yoffset dz=$zoffset w=$width h=$height d=$depth")
+        val params = UpdateParameters(xoffset, yoffset, zoffset, width, height, depth, XXHash.XXH32(pixels as ByteBuffer, 42))
+        if(lastUpdates[texture] == params) {
+            logger.info("Updates already seen, skipping")
+            return
+        }
+
+        logger.info("Updating 3D texture via Texture3D from $texture: dx=$xoffset dy=$yoffset dz=$zoffset w=$width h=$height d=$depth")
+
+        lastUpdates[texture] = params
         val tex = bindings.entries.find { it.key == texture }
         if(tex == null) {
             logger.warn("No binding found for $texture")
@@ -479,7 +491,7 @@ open class SceneryContext(val node: Volume) : GpuContext {
 
         if(pixels is ByteBuffer) {
             val p = pixels.duplicate().order(ByteOrder.LITTLE_ENDIAN)
-            val tmp = MemoryUtil.memCalloc(width*height*depth*4)
+            val tmp = MemoryUtil.memAlloc(width*height*depth*4)
             p.limit(p.position() + width*height*depth*4)
             tmp.put(p)
             tmp.flip()

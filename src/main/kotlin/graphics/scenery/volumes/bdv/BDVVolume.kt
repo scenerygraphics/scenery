@@ -13,6 +13,7 @@ import bdv.viewer.state.ViewerState
 import graphics.scenery.*
 import graphics.scenery.volumes.Volume
 import net.imglib2.realtransform.AffineTransform3D
+import net.imglib2.type.numeric.ARGBType
 import net.imglib2.type.volatiles.VolatileUnsignedShortType
 import org.joml.Matrix4f
 import tpietzsch.backend.Texture
@@ -191,6 +192,9 @@ open class BDVVolume(bdvXMLFile: String = "", val options: VolumeViewerOptions) 
 //        updateBlocks(context)
         preDraw()
 
+        converterSetups.forEach {
+            it.color = ARGBType(kotlin.random.Random.nextInt(0, 255*255*255))
+        }
 //        convs[0].color = ARGBType(0xff8888)
 //        convs[1].color = ARGBType(0x88ff88)
 //        convs[2].color = ARGBType(0x8888ff)
