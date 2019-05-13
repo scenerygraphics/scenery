@@ -22,7 +22,7 @@ import kotlin.math.max
  */
 class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
     var volume: BDVVolume? = null
-    var currentCacheSize = 512
+    var currentCacheSize = 1024
 
     override fun init() {
         val latch = CountDownLatch(1)
@@ -105,10 +105,10 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
         }
 
         inputHandler?.addBehaviour("prev_timepoint", prevTimePoint)
-        inputHandler?.addKeyBinding("prev_timepoint", "J")
+        inputHandler?.addKeyBinding("prev_timepoint", "H")
 
         inputHandler?.addBehaviour("next_timepoint", nextTimePoint)
-        inputHandler?.addKeyBinding("next_timepoint", "K")
+        inputHandler?.addKeyBinding("next_timepoint", "L")
 
         inputHandler?.addBehaviour("more_cache", moreCache)
         inputHandler?.addKeyBinding("more_cache", "9")
