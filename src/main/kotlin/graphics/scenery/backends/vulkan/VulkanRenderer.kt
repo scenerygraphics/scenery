@@ -971,6 +971,8 @@ open class VulkanRenderer(hub: Hub,
                 lateResizeInitializers[node] = { initializeCustomShadersForNode(node, addInitializer = false) }
             }
 
+            s.clearTextureDescriptorSets()
+
             return true
         }
 
