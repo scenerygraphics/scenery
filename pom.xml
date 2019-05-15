@@ -432,7 +432,7 @@
         <dependency>
             <groupId>sc.fiji</groupId>
             <artifactId>bigvolumeviewer</artifactId>
-            <version>0.1.4</version>
+            <version>0.1.5-SNAPSHOT</version>
         </dependency>
 
         <dependency>
