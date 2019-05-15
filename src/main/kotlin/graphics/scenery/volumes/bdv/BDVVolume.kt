@@ -10,20 +10,18 @@ import bdv.viewer.SourceAndConverter
 import bdv.viewer.VisibilityAndGrouping
 import bdv.viewer.state.SourceGroup
 import bdv.viewer.state.ViewerState
+import coremem.enums.NativeTypeEnum
 import graphics.scenery.*
 import graphics.scenery.volumes.Volume
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.ARGBType
+import net.imglib2.type.numeric.integer.UnsignedByteType
 import net.imglib2.type.volatiles.VolatileUnsignedShortType
 import org.joml.Matrix4f
 import tpietzsch.backend.Texture
 import tpietzsch.cache.*
-import tpietzsch.example2.SceneryMultiVolumeShaderMip
-import tpietzsch.example2.VolumeBlocks
-import tpietzsch.example2.VolumeViewerOptions
-import tpietzsch.multires.MultiResolutionStack3D
-import tpietzsch.multires.ResolutionLevel3D
-import tpietzsch.multires.SpimDataStacks
+import tpietzsch.example2.*
+import tpietzsch.multires.*
 import java.util.*
 import java.util.concurrent.ForkJoinPool
 import kotlin.math.max
@@ -72,7 +70,10 @@ open class BDVVolume(bdvXMLFile: String = "", val options: VolumeViewerOptions) 
     protected var state: ViewerState
     protected var visibilityAndGrouping: VisibilityAndGrouping
 
-    private val renderStacks = ArrayList<MultiResolutionStack3D<VolatileUnsignedShortType>>()
+    private val renderStacks = ArrayList<Stack3D<*>>()
+    private val simpleRenderStacks = ArrayList<SimpleStack3D<VolatileUnsignedShortType>>()
+
+    private val stackManager: SimpleStackManager = DefaultSimpleStackManager()
 
     private val multiResolutionStacks = ArrayList(
         Arrays.asList<MultiResolutionStack3D<VolatileUnsignedShortType>>(null, null, null))
@@ -206,14 +207,19 @@ open class BDVVolume(bdvXMLFile: String = "", val options: VolumeViewerOptions) 
     }
 
     private fun needAtLeastNumVolumes(n: Int) {
+        val outOfCoreVolumeCount = renderStacks.count { it is MultiResolutionStack3D }
+        val regularVolumeCount = renderStacks.count { it is SimpleStack3D }
+
         while (outOfCoreVolumes.size < n) {
             outOfCoreVolumes.add(VolumeBlocks(textureCache))
-
-            val progvol = SceneryMultiVolumeShaderMip(outOfCoreVolumes.size, true, 1.0)
-            progvol.setTextureCache(textureCache)
-            progvol.setDepthTextureName("InputZBuffer")
-            prog.add(progvol)
         }
+
+
+        val progvol = SceneryMultiVolumeShaderMip(outOfCoreVolumeCount, regularVolumeCount, true, 1.0)
+        progvol.setTextureCache(textureCache)
+        progvol.setDepthTextureName("InputZBuffer")
+        logger.info("Using program for $outOfCoreVolumeCount out-of-core volumes and $regularVolumeCount regular volumes")
+        prog.add(progvol)
     }
 
     fun resizeCache(newSize: Int) {
@@ -263,6 +269,7 @@ open class BDVVolume(bdvXMLFile: String = "", val options: VolumeViewerOptions) 
         val fillTasksPerVolume = ArrayList<VolumeAndTasks>()
         for(i in 0 until renderStacks.size) {
             val stack = renderStacks[i]
+            if(stack !is MultiResolutionStack3D) continue
             val volume = outOfCoreVolumes[i]
 
             volume.init(stack, cam.width.toInt(), mvp)
@@ -302,22 +309,37 @@ open class BDVVolume(bdvXMLFile: String = "", val options: VolumeViewerOptions) 
 
         var repaint = false
         for(i in 0 until renderStacks.size) {
-            val volumeBlocks = outOfCoreVolumes[i]
-            val complete = volumeBlocks.makeLut()
-            if(!complete) {
-                repaint = true
+            if(renderStacks[i] is MultiResolutionStack3D) {
+                val volumeBlocks = outOfCoreVolumes[i]
+                val complete = volumeBlocks.makeLut()
+                if (!complete) {
+                    repaint = true
+                }
+                context.bindTexture(volumeBlocks.lookupTexture)
+                volumeBlocks.lookupTexture.upload(context)
             }
-            context.bindTexture(volumeBlocks.lookupTexture)
-            volumeBlocks.lookupTexture.upload(context)
         }
 
         var minWorldVoxelSize = Double.POSITIVE_INFINITY
 
-        renderStacks.forEachIndexed { i, it ->
-            progvol.setConverter(i, renderConverters.get(i))
-            progvol.setVolume(i, outOfCoreVolumes.get(i))
-            minWorldVoxelSize = min(minWorldVoxelSize, outOfCoreVolumes.get(i).baseLevelVoxelSizeInWorldCoordinates)
-        }
+        renderStacks
+            // sort by classname, so we get MultiResolutionStack3Ds first,
+            // then simple stacks
+            .sortedBy { it.javaClass.simpleName }
+            .forEachIndexed { i, stack ->
+                if(stack is MultiResolutionStack3D) {
+                    progvol.setConverter(i, renderConverters.get(i))
+                    progvol.setVolume(i, outOfCoreVolumes.get(i))
+                    minWorldVoxelSize = min(minWorldVoxelSize, outOfCoreVolumes.get(i).baseLevelVoxelSizeInWorldCoordinates)
+                }
+
+                if(stack is SimpleStack3D) {
+                    val volume = stackManager.getSimpleVolume( context, stack )
+                    progvol.setConverter(i, renderConverters.get(i))
+                    progvol.setVolume(i, volume)
+                    minWorldVoxelSize = min(minWorldVoxelSize, volume.voxelSizeInWorldCoordinates)
+                }
+            }
 
         progvol.setViewportWidth(cam.width.toInt())
         progvol.setEffectiveViewportSize(cam.width.toInt(), cam.height.toInt())
@@ -350,7 +372,12 @@ open class BDVVolume(bdvXMLFile: String = "", val options: VolumeViewerOptions) 
         }
 
         if(freezeRequiredBlocks == false) {
-            updateBlocks(context)
+            try {
+                updateBlocks(context)
+            } catch (e: RuntimeException) {
+                logger.warn("Probably ran out of data, corrupt BDV file? $e")
+                e.printStackTrace()
+            }
         }
 
         context.runDeferredBindings()
@@ -417,6 +444,25 @@ open class BDVVolume(bdvXMLFile: String = "", val options: VolumeViewerOptions) 
                 renderStacks.add(wrappedStack)
                 val converter = converterSetups[i]
                 renderConverters.add(converter)
+            }
+
+            if(volumes.size > 0) {
+                val vol = volumes.entries.first().value
+                if(vol.dataType == NativeTypeEnum.UnsignedByte) {
+                    val simpleStack = object : BufferedSimpleStack3D(vol.data,
+                        UnsignedByteType(),
+                        intArrayOf(vol.width.toInt(), vol.height.toInt(), vol.depth.toInt())) {
+
+                        override fun getSourceTransform(): AffineTransform3D {
+                            val w = AffineTransform3D()
+                            w.set(*world.transposedFloatArray.map { it.toDouble() }.toDoubleArray())
+                            return w
+                        }
+                    }
+                    logger.info("Added SimpleStack: $simpleStack")
+                    renderStacks.add(simpleStack)
+                    renderConverters.add(converterSetups.first())
+                }
             }
         }
     }

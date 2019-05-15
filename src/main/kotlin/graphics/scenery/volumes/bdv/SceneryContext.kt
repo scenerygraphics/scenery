@@ -56,7 +56,8 @@ open class SceneryContext(val node: Volume) : GpuContext {
          * Sets the uniform with [name] to the Integer [v0].
          */
         override fun setUniform1i(name: String, v0: Int) {
-            if(name.startsWith("volumeCache") || name.startsWith("lutSampler")) {
+            logger.info("Setting uniform $name")
+            if(name.startsWith("volumeCache") || name.startsWith("lutSampler") || name.startsWith("volume_")) {
                 val binding = bindings.entries.find { it.value.binding == v0 }
                 if(binding != null) {
                     bindings[binding.key] = BindingState(v0, name)
@@ -204,14 +205,18 @@ open class SceneryContext(val node: Volume) : GpuContext {
         }
     }
 
+    var currentShader: Shader? = null
     /**
      * Update the shader set with the new [shader] given.
      */
     override fun use(shader: Shader) {
-        factory.updateShaders(
-            hashMapOf(
-                ShaderType.VertexShader to shader,
-                ShaderType.FragmentShader to shader))
+        if(currentShader == null || currentShader != shader) {
+            factory.updateShaders(
+                hashMapOf(
+                    ShaderType.VertexShader to shader,
+                    ShaderType.FragmentShader to shader))
+            currentShader = shader
+        }
     }
 
     /**
@@ -244,8 +249,9 @@ open class SceneryContext(val node: Volume) : GpuContext {
      * @return id of previously bound texture
      */
     override fun bindTexture(texture: Texture): Int {
-        logger.debug("Binding $texture and updating GT")
+        logger.info("Binding $texture and updating GT")
         val (channels, type, normalized) = when(texture.texInternalFormat()) {
+            Texture.InternalFormat.R8 -> Triple(1, GLTypeEnum.UnsignedByte, true)
             Texture.InternalFormat.R16 -> Triple(1, GLTypeEnum.UnsignedShort, true)
             Texture.InternalFormat.RGBA8UI -> Triple(4, GLTypeEnum.UnsignedByte, false)
             Texture.InternalFormat.UNKNOWN -> TODO()
@@ -253,6 +259,7 @@ open class SceneryContext(val node: Volume) : GpuContext {
         }
 
         val repeat = when(texture.texWrap()) {
+            Texture.Wrap.CLAMP_TO_BORDER_ZERO -> false
             Texture.Wrap.CLAMP_TO_EDGE -> false
             Texture.Wrap.REPEAT -> true
             else -> throw UnsupportedOperationException("Unknown wrapping mode: ${texture.texWrap()}")
@@ -309,6 +316,8 @@ open class SceneryContext(val node: Volume) : GpuContext {
                 }
             }
 
+            logger.info("Adding deferred binding for $texture/$lutName")
+
             if(lutName == null) {
                 deferredBindings.put(texture, db)
                 return -1
@@ -352,6 +361,7 @@ open class SceneryContext(val node: Volume) : GpuContext {
      * @param unit texture unit to bind to
      */
     override fun bindTexture(texture: Texture?, unit: Int) {
+        logger.info("Binding $texture to $unit")
         if(texture != null) {
             val binding = bindings[texture]
             if(binding != null) {
@@ -407,7 +417,7 @@ open class SceneryContext(val node: Volume) : GpuContext {
         logger.debug("Updating 3D texture via PBO from $texture: dx=$xoffset dy=$yoffset dz=$zoffset w=$width h=$height d=$depth offset=$pixels_buffer_offset")
         val tex = bindings.entries.find { it.key == texture }
         if(tex == null) {
-            logger.warn("No binding found for $texture")
+            logger.warn("No binding found for $texture (PBO)")
             return
         }
         val texname = tex.value.uniformName
@@ -470,7 +480,7 @@ open class SceneryContext(val node: Volume) : GpuContext {
     override fun texSubImage3D(texture: Texture3D, xoffset: Int, yoffset: Int, zoffset: Int, width: Int, height: Int, depth: Int, pixels: Buffer) {
         val params = UpdateParameters(xoffset, yoffset, zoffset, width, height, depth, XXHash.XXH32(pixels as ByteBuffer, 42))
         if(lastUpdates[texture] == params) {
-            logger.info("Updates already seen, skipping")
+            logger.debug("Updates already seen, skipping")
             return
         }
 
@@ -479,13 +489,13 @@ open class SceneryContext(val node: Volume) : GpuContext {
         lastUpdates[texture] = params
         val tex = bindings.entries.find { it.key == texture }
         if(tex == null) {
-            logger.warn("No binding found for $texture")
+            logger.warn("No binding found for $texture (Texture3D)")
             return
         }
         val texname = tex.value.uniformName
 
         if(texname == null) {
-            logger.warn("Binding not initialiased for $texture")
+            logger.warn("Binding not initialised for $texture")
             return
         }
 
