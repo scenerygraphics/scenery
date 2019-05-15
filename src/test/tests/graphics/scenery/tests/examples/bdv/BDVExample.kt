@@ -93,6 +93,14 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
 
         val nextTimePoint = ClickBehaviour { _, _ -> volume?.nextTimepoint() }
         val prevTimePoint = ClickBehaviour { _, _ -> volume?.previousTimepoint() }
+        val tenTimePointsForward = ClickBehaviour { _, _ ->
+            val current = volume?.currentTimepoint ?: 0
+            volume?.goToTimePoint(current + 10)
+        }
+        val tenTimePointsBack = ClickBehaviour { _, _ ->
+            val current = volume?.currentTimepoint ?: 0
+            volume?.goToTimePoint(current - 10)
+        }
         val moreCache = ClickBehaviour { _, _ ->
             currentCacheSize *= 2
             logger.info("Enlarging cache size to $currentCacheSize MB")
@@ -107,8 +115,14 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
         inputHandler?.addBehaviour("prev_timepoint", prevTimePoint)
         inputHandler?.addKeyBinding("prev_timepoint", "H")
 
+        inputHandler?.addBehaviour("10_prev_timepoint", tenTimePointsBack)
+        inputHandler?.addKeyBinding("10_prev_timepoint", "shift H")
+
         inputHandler?.addBehaviour("next_timepoint", nextTimePoint)
         inputHandler?.addKeyBinding("next_timepoint", "L")
+
+        inputHandler?.addBehaviour("10_next_timepoint", tenTimePointsForward)
+        inputHandler?.addKeyBinding("10_next_timepoint", "shift L")
 
         inputHandler?.addBehaviour("more_cache", moreCache)
         inputHandler?.addKeyBinding("more_cache", "9")
