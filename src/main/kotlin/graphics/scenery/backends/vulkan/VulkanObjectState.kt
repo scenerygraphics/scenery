@@ -94,7 +94,7 @@ open class VulkanObjectState : NodeMetadata {
                 if (dsl != null) {
                     textureDescriptorSets[pass.passConfig.type.name to texture.key] = createOrUpdateTextureDescriptorSet(
                         texture.key,
-                        passName,
+                        pass.passConfig.type.name,
                         listOf(texture),
                         dsl,
                         device,
@@ -104,6 +104,10 @@ open class VulkanObjectState : NodeMetadata {
                 }
             }
         }
+    }
+
+    fun clearTextureDescriptorSets() {
+        textureDescriptorSets.clear()
     }
 
     private fun createOrUpdateTextureDescriptorSet(name: String, passName: String, textures: List<MutableMap.MutableEntry<String, VulkanTexture>>, descriptorSetLayout: Long, device: VulkanDevice, descriptorPool: Long): Long {
@@ -169,7 +173,8 @@ open class VulkanObjectState : NodeMetadata {
         val set = textureDescriptorSets[passname to texture]
         if(set == null) {
             logger.warn("$this: Could not find descriptor set for $passname and texture set $texture")
-            logger.warn("DS are: ${textureDescriptorSets.keys().asSequence().joinToString { "${it.first} in ${it.second}" }}")
+//            logger.warn("DS are: ${textureDescriptorSets.keys().asSequence().joinToString { "${it.first} in ${it.second}" }}")
+            logger.warn("DS are: ${textureDescriptorSets.keys().asSequence().groupBy { it.first }.entries.joinToString { "${it.key}: ${it.value.joinToString(", ") { ds -> ds.second }}" }}")
         }
 
         return set
