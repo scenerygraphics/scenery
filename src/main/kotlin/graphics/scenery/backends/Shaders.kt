@@ -13,6 +13,7 @@ import java.util.concurrent.ConcurrentHashMap
  */
 sealed class Shaders {
     val logger by LazyLogger()
+    var stale: Boolean = false
 
     /**
      * Enum to indicate whether a shader will target Vulkan or OpenGL.
