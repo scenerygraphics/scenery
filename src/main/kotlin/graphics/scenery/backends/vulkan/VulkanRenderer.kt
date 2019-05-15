@@ -1913,23 +1913,29 @@ open class VulkanRenderer(hub: Hub,
                         forceRerecording = true
                     }
 
-                    if (it.material.needsTextureReload) {
+                    val material = it.material
+                    if (material.needsTextureReload) {
                         logger.trace("Force command buffer re-recording, as reloading textures for ${it.name}")
-                        loadTexturesForNode(it, metadata)
+                        val reload = loadTexturesForNode(it, metadata)
 
                         it.material.needsTextureReload = false
 
-                        rerecordingCauses.add(it.name)
-                        forceRerecording = true
+                        if(reload) {
+                            rerecordingCauses.add(it.name)
+                            forceRerecording = true
+                        }
                     }
 
-                    if (it.material.blending.hashCode() != metadata.blendingHashCode) {
+                    if (material.blending.hashCode() != metadata.blendingHashCode || (material is ShaderMaterial && material.shaders.stale)) {
                         logger.trace("Force command buffer re-recording, as blending options for ${it.name} have changed")
-                        initializeCustomShadersForNode(it)
+                        val reloaded = initializeCustomShadersForNode(it)
+                        logger.info("Material is stale, re-recording, reloaded=$reloaded")
                         metadata.blendingHashCode = it.material.blending.hashCode()
 
                         rerecordingCauses.add(it.name)
                         forceRerecording = true
+
+                        (material as? ShaderMaterial)?.shaders?.stale = false
                     }
                 }
             }
