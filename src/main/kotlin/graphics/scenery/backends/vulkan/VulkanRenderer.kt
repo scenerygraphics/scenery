@@ -1033,9 +1033,10 @@ open class VulkanRenderer(hub: Hub,
     /**
      * Loads or reloads the textures for [node], updating it's internal renderer state stored in [s].
      */
-    protected fun loadTexturesForNode(node: Node, s: VulkanObjectState): VulkanObjectState {
+    protected fun loadTexturesForNode(node: Node, s: VulkanObjectState): Boolean {
         val stats = hub?.get(SceneryElement.Statistics) as Statistics?
         val defaultTexture = textureCache["DefaultTexture"] ?: throw IllegalStateException("Default fallback texture does not exist.")
+        var reqNewDS = false
 
         node.material.textures.forEach { type, texture ->
             val slot = VulkanObjectState.textureTypeToSlot(type)
@@ -1060,6 +1061,7 @@ open class VulkanRenderer(hub: Hub,
                         val t: VulkanTexture = if (existingTexture != null && existingTexture.canBeReused(gt, miplevels, device)) {
                             existingTexture
                         } else {
+                            reqNewDS = true
                             VulkanTexture(device, commandPools, queue, queue, gt, miplevels)
                         }
 
@@ -1071,7 +1073,9 @@ open class VulkanRenderer(hub: Hub,
                             t.copyFrom(ByteBuffer.allocate(0))
                         }
 
-                        t.createSampler(gt)
+                        if(reqNewDS) {
+                            t.createSampler(gt)
+                        }
                         t
                     } else {
                         val start = System.nanoTime()
@@ -1107,11 +1111,13 @@ open class VulkanRenderer(hub: Hub,
             }
         }
 
-        s.texturesToDescriptorSets(device,
-            renderpasses.filter { it.value.passConfig.type != RenderConfigReader.RenderpassType.quad },
-            descriptorPool)
+        if(reqNewDS) {
+            s.texturesToDescriptorSets(device,
+                renderpasses.filter { it.value.passConfig.type != RenderConfigReader.RenderpassType.quad },
+                descriptorPool)
+        }
 
-        return s
+        return reqNewDS
     }
 
     protected fun prepareDefaultDescriptorSetLayouts(device: VulkanDevice): ConcurrentHashMap<String, Long> {
