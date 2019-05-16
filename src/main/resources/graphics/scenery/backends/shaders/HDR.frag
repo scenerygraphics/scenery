@@ -88,7 +88,7 @@ vec3 ACESFitted(vec3 color)
 
 void main()
 {
-	vec3 hdrColor = 0.02*texture(InputColor, textureCoord).rgb;
+	vec3 hdrColor = texture(InputColor, textureCoord).rgb;
 	vec3 color = vec3(0.0f);
 
     if(hdrParams.TonemappingOperator == 0) {
