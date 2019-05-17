@@ -44,7 +44,7 @@ class DetachedHeadCamera(@Transient var tracker: TrackerInput? = null) : Camera(
         get() = if(tracker != null && tracker is Display) {
             (tracker as? Display)?.getRenderTargetSize()?.y() ?: super.width
         } else {
-            super.width
+            super.height
         }
         set(value) {
             super.height = value
