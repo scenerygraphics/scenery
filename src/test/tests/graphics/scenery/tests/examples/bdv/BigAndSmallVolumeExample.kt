@@ -96,7 +96,7 @@ class BigAndSmallVolumeExample: SceneryBase("BDV + SDV Rendering example", 1280,
 
         logger.info("Generating procedural volume")
         val volumeSize = 128L
-        val bitsPerVoxel = 8
+        val bitsPerVoxel = 16
         val volumeBuffer = RingBuffer<ByteBuffer>(2) { MemoryUtil.memAlloc((volumeSize*volumeSize*volumeSize*bitsPerVoxel/8).toInt()) }
 
         val seed = Random.randomFromRange(0.0f, 133333337.0f).toLong()
@@ -116,7 +116,7 @@ class BigAndSmallVolumeExample: SceneryBase("BDV + SDV Rendering example", 1280,
         volume.readFromBuffer(
             "procedural-cloud-${shift.hashCode()}", currentBuffer,
             volumeSize, volumeSize, volumeSize, 1.0f, 1.0f, 1.0f,
-            dataType = dataType, bytesPerVoxel = bitsPerVoxel / 8)
+            dataType = dataType, bytesPerVoxel = bitsPerVoxel / 8, assign = false)
     }
 
     override fun inputSetup() {
