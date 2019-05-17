@@ -501,6 +501,10 @@ open class VulkanRenderer(hub: Hub,
                 gpuStats = NvidiaGPUStats()
             } catch(e: NullPointerException) {
                 logger.warn("Could not initialize Nvidia GPU stats")
+                if(logger.isDebugEnabled) {
+                    logger.warn("Reason: ${e.message}, traceback follows:")
+                    e.printStackTrace()
+                }
             }
         }
 
@@ -2712,7 +2716,7 @@ open class VulkanRenderer(hub: Hub,
                         }
                     }
 
-                    if(ds == null) {
+                    if(ds == null || ds == DescriptorSet.None) {
                         logger.error("Internal consistency error for node ${node.name}: Descriptor set $name not found in renderpass, skipping node for rendering.")
                         return@drawLoop
                     }
