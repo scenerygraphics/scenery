@@ -521,7 +521,7 @@ open class VulkanTexture(val device: VulkanDevice,
             memFree(sourceBuffer)
         }
 
-        image.view = createImageView(image, format)
+//        image.view = createImageView(image, format)
 
         return this
     }
