@@ -13,6 +13,7 @@ import org.lwjgl.system.MemoryUtil
 import org.lwjgl.util.xxhash.XXHash
 import tpietzsch.backend.*
 import tpietzsch.cache.TextureCache
+import tpietzsch.example2.LookupTextureARGB
 import tpietzsch.shadergen.Shader
 import java.nio.Buffer
 import java.nio.ByteBuffer
@@ -249,7 +250,7 @@ open class SceneryContext(val node: Volume) : GpuContext {
      * @return id of previously bound texture
      */
     override fun bindTexture(texture: Texture): Int {
-        logger.info("Binding $texture and updating GT")
+        logger.debug("Binding $texture and updating GT")
         val (channels, type, normalized) = when(texture.texInternalFormat()) {
             Texture.InternalFormat.R8 -> Triple(1, GLTypeEnum.UnsignedByte, true)
             Texture.InternalFormat.R16 -> Triple(1, GLTypeEnum.UnsignedShort, true)
@@ -316,7 +317,7 @@ open class SceneryContext(val node: Volume) : GpuContext {
                 }
             }
 
-            logger.info("Adding deferred binding for $texture/$lutName")
+            logger.debug("Adding deferred binding for $texture/$lutName")
 
             if(lutName == null) {
                 deferredBindings.put(texture, db)
@@ -361,7 +362,7 @@ open class SceneryContext(val node: Volume) : GpuContext {
      * @param unit texture unit to bind to
      */
     override fun bindTexture(texture: Texture?, unit: Int) {
-        logger.info("Binding $texture to $unit")
+        logger.debug("Binding $texture to $unit")
         if(texture != null) {
             val binding = bindings[texture]
             if(binding != null) {
@@ -484,9 +485,8 @@ open class SceneryContext(val node: Volume) : GpuContext {
             return
         }
 
-        logger.info("Updating 3D texture via Texture3D from $texture: dx=$xoffset dy=$yoffset dz=$zoffset w=$width h=$height d=$depth")
+        logger.debug("Updating 3D texture via Texture3D from $texture: dx=$xoffset dy=$yoffset dz=$zoffset w=$width h=$height d=$depth")
 
-        lastUpdates[texture] = params
         val tex = bindings.entries.find { it.key == texture }
         if(tex == null) {
             logger.warn("No binding found for $texture (Texture3D)")
@@ -501,14 +501,25 @@ open class SceneryContext(val node: Volume) : GpuContext {
 
         if(pixels is ByteBuffer) {
             val p = pixels.duplicate().order(ByteOrder.LITTLE_ENDIAN)
-            val tmp = MemoryUtil.memAlloc(width*height*depth*4)
-            p.limit(p.position() + width*height*depth*4)
-            tmp.put(p)
-            tmp.flip()
+            val allocationSize = width * height * depth * when(texture.texInternalFormat()) {
+                Texture.InternalFormat.R8 -> 1
+                Texture.InternalFormat.R16 -> 2
+                Texture.InternalFormat.RGBA8UI -> 4
+                Texture.InternalFormat.UNKNOWN -> {
+                    logger.error("Don't know how to determine texture size of $texture, assuming 1 byte, 1 channel.")
+                    1
+                }
+            }
+            val tmp = MemoryUtil.memAlloc(allocationSize)
+            p.limit(p.position() + allocationSize)
+            MemoryUtil.memCopy(p, tmp)
+//            tmp.put(p)
+//            tmp.flip()
 
             // TODO: add support for different data types
             val gt = node.material.transferTextures[texname]
 
+//            logger.info("for $texture: Texname=$texname, gt=$gt")
             if(tex.value.reallocate) {
                 if (gt == null) {
                     logger.warn("$texname does not have an associated GenericTexture, cannot reallocate.")
@@ -518,7 +529,9 @@ open class SceneryContext(val node: Volume) : GpuContext {
                 gt.clearUpdates()
                 gt.dimensions = GLVector(width.toFloat(), height.toFloat(), depth.toFloat())
                 gt.contents = null
-                gt.normalized = false
+                if(texture is LookupTextureARGB) {
+                    gt.normalized = false
+                }
 
                 val update = TextureUpdate(
                     TextureExtents(xoffset, yoffset, zoffset, width, height, depth),
@@ -540,5 +553,7 @@ open class SceneryContext(val node: Volume) : GpuContext {
             node.material.textures[texname] = "fromBuffer:$texname"
             node.material.needsTextureReload = true
         }
+
+        lastUpdates[texture] = params
     }
 }
