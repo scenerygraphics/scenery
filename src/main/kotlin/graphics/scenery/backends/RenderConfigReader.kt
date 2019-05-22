@@ -1,14 +1,12 @@
 package graphics.scenery.backends
 
 import cleargl.GLVector
-import com.fasterxml.jackson.core.JsonParser
-import com.fasterxml.jackson.databind.DeserializationContext
-import com.fasterxml.jackson.databind.JsonDeserializer
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import graphics.scenery.Blending
+import graphics.scenery.utils.JsonDeserialisers
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.*
@@ -28,7 +26,7 @@ fun RenderConfigReader.RenderConfig.getOutputOfPass(passname: String): String? {
 @Suppress("unused")
 fun RenderConfigReader.RenderConfig.getInputsOfTarget(targetName: String): Set<String> {
     return rendertargets.filter {
-        it.key == renderpasses.filter { it.value.output == targetName }.keys.first()
+        it.key == renderpasses.filter { p -> p.value.output == targetName }.keys.first()
     }.keys
 }
 
@@ -64,41 +62,6 @@ fun RenderConfigReader.RenderConfig.createRenderpassFlow(): List<String> {
 class RenderConfigReader {
 
     /**
-     * Deserialiser for pairs of floats, separated by commas.
-     */
-    class FloatPairDeserializer : JsonDeserializer<Pair<Float, Float>>() {
-        override fun deserialize(p: JsonParser, ctxt: DeserializationContext?): Pair<Float, Float> {
-            val pair = p.text.split(",").map { it.trim().trimStart().toFloat() }
-
-            return Pair(pair[0], pair[1])
-        }
-    }
-
-    /**
-     * Deserialiser for vectors of various lengths, separated by commas.
-     */
-    class VectorDeserializer : JsonDeserializer<GLVector>() {
-        override fun deserialize(p: JsonParser, ctxt: DeserializationContext?): GLVector {
-            val floats = p.text.split(",").map { it.trim().trimStart().toFloat() }.toFloatArray()
-
-            return GLVector(*floats)
-        }
-    }
-
-    /**
-     * Eye description deserialiser, turns "LeftEye" to 0, "RightEye" to 1
-     */
-    class VREyeDeserializer : JsonDeserializer<Int>() {
-        override fun deserialize(p: JsonParser, ctxt: DeserializationContext?): Int {
-            return when(p.text.trim().trimEnd()) {
-                "LeftEye" -> 0
-                "RightEye" -> 1
-                else -> -1
-            }
-        }
-    }
-
-    /**
      * Render configuration top-level class, containing information about [rendertargets]
      * and [renderpasses], as well as [qualitySettings].
      */
@@ -115,7 +78,7 @@ class RenderConfigReader {
      * Configuration for a single render target, defining its [size] and [attachments].
      */
     data class RendertargetConfig(
-        @JsonDeserialize(using = FloatPairDeserializer::class) var size: Pair<Float, Float> = Pair(1.0f, 1.0f),
+        @JsonDeserialize(using = JsonDeserialisers.FloatPairDeserializer::class) var size: Pair<Float, Float> = Pair(1.0f, 1.0f),
         val attachments: Map<String, TargetFormat> = emptyMap()
     )
 
@@ -140,12 +103,12 @@ class RenderConfigReader {
         var inputs: List<String>?,
         var output: String,
         var parameters: Map<String, Any>?,
-        @JsonDeserialize(using = FloatPairDeserializer::class) var viewportSize: Pair<Float, Float> = Pair(1.0f, 1.0f),
-        @JsonDeserialize(using = FloatPairDeserializer::class) var viewportOffset: Pair<Float, Float> = Pair(0.0f, 0.0f),
-        @JsonDeserialize(using = FloatPairDeserializer::class) var scissor: Pair<Float, Float> = Pair(1.0f, 1.0f),
-        @JsonDeserialize(using = VectorDeserializer::class) var clearColor: GLVector = GLVector(0.0f, 0.0f, 0.0f, 0.0f),
+        @JsonDeserialize(using = JsonDeserialisers.FloatPairDeserializer::class) var viewportSize: Pair<Float, Float> = Pair(1.0f, 1.0f),
+        @JsonDeserialize(using = JsonDeserialisers.FloatPairDeserializer::class) var viewportOffset: Pair<Float, Float> = Pair(0.0f, 0.0f),
+        @JsonDeserialize(using = JsonDeserialisers.FloatPairDeserializer::class) var scissor: Pair<Float, Float> = Pair(1.0f, 1.0f),
+        @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class) var clearColor: GLVector = GLVector(0.0f, 0.0f, 0.0f, 0.0f),
         var depthClearValue: Float = 1.0f,
-        @JsonDeserialize(using = VREyeDeserializer::class) var eye: Int = -1
+        @JsonDeserialize(using = JsonDeserialisers.VREyeDeserializer::class) var eye: Int = -1
     )
 
     /** Rendering quality enums */
