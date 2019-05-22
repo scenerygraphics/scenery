@@ -20,6 +20,12 @@ enum class TrackedDeviceType {
     Generic
 }
 
+enum class TrackerRole {
+    Invalid,
+    LeftHand,
+    RightHand
+}
+
 /**
  * Class for tracked devices and querying information about them.
  *
@@ -57,6 +63,7 @@ class TrackedDevice(val type: TrackedDeviceType, var name: String, var pose: GLM
 
     var model: Node? = null
     var modelPath: String? = null
+    var role: TrackerRole = TrackerRole.Invalid
 }
 
 typealias TrackerInputEventHandler = (TrackerInput, TrackedDevice, Long) -> Any
