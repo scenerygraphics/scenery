@@ -1,5 +1,87 @@
 # CHANGELOG
 
+# scenery-0.7.0-beta-3 to scenery-0.7.0-beta-4
+
+We support JitPack now! Add `https://jitpack.io` to your repositories, then you can use a specific commit (e.g. `b9e43697`) as scenery version — it's a great and reproducible alternative to SNAPSHOTs.
+
+## Additions and Changes
+
+* InputHandler: Make movement speeds customizable
+* OpenVRHMD: Support loading meshes for VR system components from SteamVR's JSON files
+* TrackerInput: Introduce TrackerRole for tracking handedness
+* Factor out JSON deserialisers in own utils class, JSONDeserialisers
+* H264Encoder: Factor out VideoEncodingQuality class
+* InputHandler: Change default key bindings for moving up/down to K/J
+* H264Encoder: Output more information when starting and stopping movie recording, and deallocate packets properly
+* H264Encoder: Enable multi-threaded/non-blocking video encoding
+* Settings: Warn only about missing setting in get() if no default value is given, otherwise log a debug message
+* BufferUtils: Add @JvmStatic annotation to ByteBuffer allocators. Fixes #243.
+* Line: Allow addition of multiple points at once
+* Simplify adding objects to the Hub by adding a convenience function that does not require explicit type spec.
+* Cone: Improve cone creation code and add base
+* PupilTracker: changes to reflect new datum format since Pupil 1.10
+* Camera: allow overriding of width, height and fov
+* PupilEyeTracker: improve calibration routine
+* Node: add orientBetweenPoints function
+* Node: when creating bounding box, check for both capacity and remaining in vertex buffers
+* Volume: add functions for sampling from volumetric data
+* add MaybeIntersects helper class
+* Volume: move positioning and scaling code from shader to class
+* add VolumeSamplingExample
+* Renderer: add image requests via screenshotRequest()
+* Renderer: Add data buffer requests via requestScreenshot()
+* TransferFunction: add clear() to clear all control points
+* Volume: Create bounding boxes as -1.0f/1.0f always, and let the world matrix take care of the rest
+* Volume: Move positioning and scaling code from shader to class
+* BoundingGrid: Draw grid with a bit of (customizable) slack around transparent objects
+* Volume: Add functions for sampling a position inside a volume or values along a ray: sample(uv) and sampleRay(start, end)
+* Line: Show error in case point added has wrong dimension
+* EyeTrackingExample: Only update gaze marker position if gaze datum is above confidence threshold
+* PupilEyeTracker: Average left and right gaze positions
+* PupilEyeTracker/EyeTrackingExample: Better calibration point and gaze vis positioning
+* Camera: Make width, height and fov open
+* PupilEyeTracker: Updates to reflect changes in recent Pupil versions (1.10)
+* improves material reading in HasGeometry
+* SceneryBase: Initialize publisher/subscriber before scene init
+* VulkanRenderer: Improve framebuffer creation logging
+* Volume: allow specification of data type when preloading into main memory
+* Volume: remove locking code which is unnecessary due to use of ConcurrentHashMap
+* OpenGLSwapchain: create backing images in right size
+* OpenVRHMD: Default to standing experience and clean up
+* Add Group class
+* Renderer: Change Renderer.ForceVsync to Renderer.DisableVsync
+* Settings: Parse scenery settings from system properties, everything starting with 'scenery.' is taken into consideration
+* DeferredShading pipelines: use only 16bit for HDR targets by default
+    
+## Fixes
+
+* HDR shader: Fix erroneous scaling constant that made rendered images way too dark
+* OpenGLRenderer: Use Viewport pass and not drawable resolution for video recording
+* SceneryBase: Allow renderers final rounds for cleanup after close signal
+* HeadlessSwapchain: Do not try to deallocate non-existing swapchain
+* NodePublisher: Listen on 127.0.0.1 only by default and try to use random port if default port fails
+* Node: Check if Scene's onChildrenAdded handlers are actually used before launching coroutines
+* Shaders: Always check Renderer's resources for shader files if not found in path of the class
+* Shaders: Make ShadersFromClassName actually obey the class name for the search path
+* Update binary shaders for FXAA, Line and Volume
+* Node: when creating bounding box, check for both remaining and capacity of vertex buffers
+* Node: make only fields `@Transient` that need to be
+* DeferredLighting/HBAO shaders: fix incorrect Z reconstruction
+* VulkanRenderer: Do not fatally fail if a texture cannot be found
+* Line: Omnidirectional line lighting
+* OpenGLSwapchain: don't try to use Vulkan surface for window, this is not necessary
+* OpenGLSwapchain: initialize window dimensions correctly
+* OpenGLSwapchain: emit warning if OpenGLSwapchain is supposed to be embedded
+* OpenGLSwapchain: actually cycle through swapchain images for rendering
+
+## Dependency Updates
+
+ * bumps ClearGL to 2.2.6
+ * bumps Kotlin to 1.3.30
+ * bumps jackson-databind to 2.9.9
+ * bumps jackson-module-kotlin to 2.9.9
+ * bumps jackson-dataformat-yaml to 2.9.9
+
 # scenery-0.7.0-beta-2 to scenery-0.7.0-beta-3
 
 ## Additions and Changes
