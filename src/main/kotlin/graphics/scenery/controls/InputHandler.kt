@@ -233,8 +233,8 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
         config = InputTriggerConfig(YamlConfigIO.read(reader))
 
         val settings = hub?.get(SceneryElement.Settings) as? Settings
-        val slowMovementSpeed: Float = settings?.get<Float>("Input.SlowMovementSpeed") ?: 0.5f
-        val fastMovementSpeed: Float = settings?.get<Float>("Input.FastMovementSpeed") ?: 1.0f
+        val slowMovementSpeed: Float = settings?.get("Input.SlowMovementSpeed", 0.5f) ?: 0.5f
+        val fastMovementSpeed: Float = settings?.get("Input.FastMovementSpeed", 1.0f) ?: 1.0f
         /*
      * Create behaviours and input mappings.
      */
