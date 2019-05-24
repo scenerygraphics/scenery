@@ -8,12 +8,14 @@
 * Added unit tests for InputHandler
 * Added FauxRenderer for unit tests
 * Camera: Do not cull TextBoards
-* SceneryBase: If SCENERY_DEMO_FILES is unset, try current working directory
+* SceneryBase: If environment variable `SCENERY_DEMO_FILES` is unset, try current working directory
 
 ## Fixes
 
 * InputHandler: Fix issue where getting the default settings would trigger an exception which would stop scenery from initialising correctly
 * Update lighting in tests after discovery of HDR scaling bug
+* Node/HasGeometry/OpenGLRenderer/VulkanRenderer: Use buffer views instead of raw buffers consequently
+* SceneryBase: Fix NodePublisher and NodeSubscriber not shutting down on close()
 
 ## Dependency Updates
 
