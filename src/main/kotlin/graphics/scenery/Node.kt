@@ -396,7 +396,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
                 boundingBoxCoords[4] = vertex[2]
                 boundingBoxCoords[5] = vertex[2]
 
-                while(vertexBufferView.hasRemaining()) {
+                while(vertexBufferView.remaining() >= 3) {
                     vertexBufferView.get(vertex)
 
                     boundingBoxCoords[0] = minOf(boundingBoxCoords[0], vertex[0])
