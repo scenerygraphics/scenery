@@ -376,6 +376,9 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         shouldClose = true
         gracePeriod = 10
         renderer?.close()
+
+        (hub.get(SceneryElement.NodePublisher) as? NodePublisher)?.close()
+        (hub.get(SceneryElement.NodeSubscriber) as? NodeSubscriber)?.close()
     }
 
     /**
