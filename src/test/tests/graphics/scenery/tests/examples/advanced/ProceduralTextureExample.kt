@@ -40,7 +40,7 @@ class ProceduralTextureExample : SceneryBase("ProceduralTextureExample") {
         lights.mapIndexed { i, light ->
             light.position = GLVector(2.0f * i, 2.0f * i, 2.0f * i)
             light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
-            light.intensity = 500.2f*(i+1)
+            light.intensity = 0.5f
             scene.addChild(light)
         }
 

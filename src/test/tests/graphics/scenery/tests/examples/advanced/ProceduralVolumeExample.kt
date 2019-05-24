@@ -45,15 +45,13 @@ class ProceduralVolumeExample: SceneryBase("Volume Rendering example", 1280, 720
         val volume = Volume()
         volume.name = "volume"
         volume.position = GLVector(0.0f, 0.0f, 0.0f)
-        volume.colormap = "plasma"
-        volume.voxelSizeX = 10.0f
-        volume.voxelSizeY = 10.0f
-        volume.voxelSizeZ = 10.0f
+        volume.colormap = "viridis"
+        volume.scale = GLVector(10.0f, 10.0f, 10.0f)
         with(volume.transferFunction) {
             addControlPoint(0.0f, 0.0f)
             addControlPoint(0.2f, 0.0f)
-            addControlPoint(0.4f, 1.0f)
-            addControlPoint(0.8f, 1.0f)
+            addControlPoint(0.4f, 0.5f)
+            addControlPoint(0.8f, 0.5f)
             addControlPoint(1.0f, 0.0f)
         }
 
@@ -67,7 +65,7 @@ class ProceduralVolumeExample: SceneryBase("Volume Rendering example", 1280, 720
         lights.mapIndexed { i, light ->
             light.position = GLVector(2.0f * i - 4.0f,  i - 1.0f, 0.0f)
             light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
-            light.intensity = 50.0f
+            light.intensity = 0.5f
             scene.addChild(light)
         }
 
