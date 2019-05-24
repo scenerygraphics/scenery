@@ -606,6 +606,24 @@
                             </execution>
                         </executions>
                     </plugin>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>1.6.0</version>
+                        <executions>
+                            <execution>
+                                <id>run-shader-date-comparison</id>
+                                <phase>test</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <executable>${project.basedir}/src/main/resources/graphics/scenery/backends/shaders/check-dates.sh</executable>
+                            <workingDirectory>${project.basedir}/src/main/resources/graphics/scenery/backends/shaders</workingDirectory>
+                        </configuration>
+                    </plugin>
                 </plugins>
             </build>
         </profile>
