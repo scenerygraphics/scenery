@@ -7,6 +7,7 @@ import org.junit.Test
 import java.nio.FloatBuffer
 import java.util.*
 import kotlin.concurrent.thread
+import kotlin.concurrent.withLock
 
 /**
  * <Description>
@@ -43,7 +44,7 @@ class VertexUpdateExample : SceneryBase("VertexUpdateExample") {
         val lights = (0..2).map {
             PointLight(radius = 10.0f)
         }.mapIndexed { i, light ->
-            light.position = GLVector(2.0f * i, 2.0f * i, 2.0f * i)
+            light.position = GLVector(2.0f * i - 2.0f, 2.0f * i - 2.0f, 2.0f * i - 2.0f)
             light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
             light.intensity = 150f * (i + 1)
             scene.addChild(light)

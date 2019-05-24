@@ -95,6 +95,7 @@ class ProceduralTextureExample : SceneryBase("ProceduralTextureExample") {
      * @param[tick] The time parameter for the generated texture.
      */
     private fun ByteBuffer.generateProceduralTextureAtTick(tick: Long, width: Int, height: Int, channels: Int) {
+        val b = this.duplicate()
         val rgba = byteArrayOf(0, 0, 0, 255.toByte())
 
         (0 until width * height).forEach {
@@ -107,10 +108,8 @@ class ProceduralTextureExample : SceneryBase("ProceduralTextureExample") {
             rgba[1] = m
             rgba[2] = m
 
-            this.put(rgba.take(channels).toByteArray())
+            b.put(rgba.take(channels).toByteArray())
         }
-
-        this.flip()
     }
 
     @Test override fun main() {
