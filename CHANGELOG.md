@@ -1,5 +1,21 @@
 # CHANGELOG
 
+# scenery-0.7.0-beta-4 to scenery-0.7.0-beta-5
+
+## Additions and Changes
+
+* Added unit tests for Settings
+* Added unit tests for InputHandler
+* Added FauxRenderer for unit tests
+
+## Fixes
+
+* InputHandler: Fix issue where getting the default settings would trigger an exception which would stop scenery from initialising correctly
+
+## Dependency Updates
+
+* bumps Kotlin to 1.3.31
+
 # scenery-0.7.0-beta-3 to scenery-0.7.0-beta-4
 
 We support JitPack now! Add `https://jitpack.io` to your repositories, then you can use a specific commit (e.g. `b9e43697`) as scenery version — it's a great and reproducible alternative to SNAPSHOTs.
