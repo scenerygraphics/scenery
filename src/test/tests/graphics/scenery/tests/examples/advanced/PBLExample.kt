@@ -19,7 +19,14 @@ class PBLExample: SceneryBase("PBLExample", windowWidth = 1280, windowHeight = 7
         val rowSize = 10f
         val spheres = (0 until 100).map {
             val s = Icosphere(0.4f, 2)
-            s.position = GLVector(floor(it / rowSize), (it % rowSize.toInt()).toFloat(), 0.0f) - GLVector((rowSize - 1.0f)/2.0f, (rowSize - 1.0f)/2.0f, 0.0f)
+            s.position = GLVector(
+                floor(it / rowSize),
+                (it % rowSize.toInt()).toFloat(),
+                0.0f)
+            s.position = s.position - GLVector(
+                (rowSize - 1.0f)/2.0f,
+                (rowSize - 1.0f)/2.0f,
+                0.0f)
             s.material.roughness = (it / rowSize)/rowSize
             s.material.metallic = (it % rowSize.toInt())/rowSize
             s.material.diffuse = GLVector(1.0f, 0.0f, 0.0f)
@@ -44,8 +51,8 @@ class PBLExample: SceneryBase("PBLExample", windowWidth = 1280, windowHeight = 7
                 Random.randomFromRange(-rowSize/2.0f, rowSize/2.0f),
                 Random.randomFromRange(1.0f, 5.0f)
             )
-            l.emissionColor = Random.randomVectorFromRange(3, 0.8f, 1.0f)
-            l.intensity = Random.randomFromRange(10.0f, 75.0f)
+            l.emissionColor = Random.randomVectorFromRange(3, 0.2f, 0.8f)
+            l.intensity = Random.randomFromRange(0.2f, 0.8f)
 
             lightbox.addChild(l)
             l
@@ -53,13 +60,14 @@ class PBLExample: SceneryBase("PBLExample", windowWidth = 1280, windowHeight = 7
 
         val stageLight = PointLight(radius = 35.0f)
         stageLight.name = "StageLight"
-        stageLight.intensity = 100.0f
-        stageLight.position = GLVector(0.0f, 0.0f, -5.0f)
+        stageLight.intensity = 0.5f
+        stageLight.position = GLVector(0.0f, 0.0f, 5.0f)
         scene.addChild(stageLight)
 
         val cameraLight = PointLight(radius = 5.0f)
         cameraLight.name = "CameraLight"
-        cameraLight.intensity = 25.0f
+        cameraLight.emissionColor = GLVector(1.0f, 1.0f, 0.0f)
+        cameraLight.intensity = 0.8f
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
