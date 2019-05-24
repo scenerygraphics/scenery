@@ -7,10 +7,13 @@
 * Added unit tests for Settings
 * Added unit tests for InputHandler
 * Added FauxRenderer for unit tests
+* Camera: Do not cull TextBoards
+* SceneryBase: If SCENERY_DEMO_FILES is unset, try current working directory
 
 ## Fixes
 
 * InputHandler: Fix issue where getting the default settings would trigger an exception which would stop scenery from initialising correctly
+* Update lighting in tests after discovery of HDR scaling bug
 
 ## Dependency Updates
 
