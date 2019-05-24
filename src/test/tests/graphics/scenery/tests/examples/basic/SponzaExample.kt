@@ -44,7 +44,7 @@ class SponzaExample : SceneryBase("SponzaExample", windowWidth = 1280, windowHei
 
             val light = PointLight(radius = Random.randomFromRange(0.5f, 5.0f))
             light.emissionColor = it.material.diffuse
-            light.intensity = Random.randomFromRange(1.0f, 2.0f)
+            light.intensity = Random.randomFromRange(0.1f, 0.5f)
 
             it.addChild(light)
 

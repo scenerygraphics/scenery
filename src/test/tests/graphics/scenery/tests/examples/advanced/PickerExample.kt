@@ -19,7 +19,7 @@ class PickerExample: SceneryBase("PickerExample", wantREPL = true) {
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, 512, 512))
 
         for(i in 0 until 200) {
-            val s = Sphere(Random.randomFromRange(0.04f, 0.2f), 10)
+            val s = Icosphere(Random.randomFromRange(0.04f, 0.2f), 2)
             s.position = Random.randomVectorFromRange(3, -5.0f, 5.0f)
             scene.addChild(s)
         }
@@ -31,7 +31,7 @@ class PickerExample: SceneryBase("PickerExample", wantREPL = true) {
 
         val light = PointLight(radius = 15.0f)
         light.position = GLVector(0.0f, 0.0f, 2.0f)
-        light.intensity = 100.0f
+        light.intensity = 1.0f
         light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
         scene.addChild(light)
 
