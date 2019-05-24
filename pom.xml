@@ -10,7 +10,7 @@
 
     <groupId>graphics.scenery</groupId>
     <artifactId>scenery</artifactId>
-    <version>0.7.0-beta-5</version>
+    <version>0.7.0-beta-6-SNAPSHOT</version>
 
     <name>scenery</name>
     <description>flexible scenegraphing and rendering for scientific visualisation</description>
