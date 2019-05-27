@@ -852,17 +852,18 @@ interface HasGeometry : Serializable {
      * STL's facet storage format into account.
      */
     fun recalculateNormals() {
+        val vertexBufferView = vertices.asReadOnlyBuffer()
         var i = 0
         val normals = ArrayList<Float>()
 
-        while (i < vertices.limit() - 1) {
-            val v1 = GLVector(vertices[i], vertices[i + 1], vertices[i + 2])
+        while (i < vertexBufferView.limit() - 1) {
+            val v1 = GLVector(vertexBufferView[i], vertexBufferView[i + 1], vertexBufferView[i + 2])
             i += 3
 
-            val v2 = GLVector(vertices[i], vertices[i + 1], vertices[i + 2])
+            val v2 = GLVector(vertexBufferView[i], vertexBufferView[i + 1], vertexBufferView[i + 2])
             i += 3
 
-            val v3 = GLVector(vertices[i], vertices[i + 1], vertices[i + 2])
+            val v3 = GLVector(vertexBufferView[i], vertexBufferView[i + 1], vertexBufferView[i + 2])
             i += 3
 
             val a = v2 - v1

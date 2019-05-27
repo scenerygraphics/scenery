@@ -1,10 +1,7 @@
 package graphics.scenery.controls
 
 import com.jogamp.newt.awt.NewtCanvasAWT
-import graphics.scenery.Hub
-import graphics.scenery.Hubable
-import graphics.scenery.Scene
-import graphics.scenery.SceneryElement
+import graphics.scenery.*
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.SceneryWindow
@@ -235,6 +232,9 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
 
         config = InputTriggerConfig(YamlConfigIO.read(reader))
 
+        val settings = hub?.get(SceneryElement.Settings) as? Settings
+        val slowMovementSpeed: Float = settings?.get("Input.SlowMovementSpeed", 0.5f) ?: 0.5f
+        val fastMovementSpeed: Float = settings?.get("Input.FastMovementSpeed", 1.0f) ?: 1.0f
         /*
      * Create behaviours and input mappings.
      */
@@ -244,19 +244,19 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
 
         behaviourMap.put("select_command", SelectCommand("select_command", renderer, scene, { scene.findObserver() }))
 
-        behaviourMap.put("move_forward", MovementCommand("move_forward", "forward", { scene.findObserver() }))
-        behaviourMap.put("move_back", MovementCommand("move_back", "back", { scene.findObserver() }))
-        behaviourMap.put("move_left", MovementCommand("move_left", "left", { scene.findObserver() }))
-        behaviourMap.put("move_right", MovementCommand("move_right", "right", { scene.findObserver() }))
-        behaviourMap.put("move_up", MovementCommand("move_up", "up", { scene.findObserver() }))
-        behaviourMap.put("move_down", MovementCommand("move_down", "down", { scene.findObserver() }))
+        behaviourMap.put("move_forward", MovementCommand("move_forward", "forward", { scene.findObserver() }, slowMovementSpeed))
+        behaviourMap.put("move_back", MovementCommand("move_back", "back", { scene.findObserver() }, slowMovementSpeed))
+        behaviourMap.put("move_left", MovementCommand("move_left", "left", { scene.findObserver() }, slowMovementSpeed))
+        behaviourMap.put("move_right", MovementCommand("move_right", "right", { scene.findObserver() }, slowMovementSpeed))
+        behaviourMap.put("move_up", MovementCommand("move_up", "up", { scene.findObserver() }, slowMovementSpeed))
+        behaviourMap.put("move_down", MovementCommand("move_down", "down", { scene.findObserver() }, slowMovementSpeed))
 
-        behaviourMap.put("move_forward_fast", MovementCommand("move_forward", "forward", { scene.findObserver() }, 1.0f))
-        behaviourMap.put("move_back_fast", MovementCommand("move_back", "back", { scene.findObserver() }, 1.0f))
-        behaviourMap.put("move_left_fast", MovementCommand("move_left", "left", { scene.findObserver() }, 1.0f))
-        behaviourMap.put("move_right_fast", MovementCommand("move_right", "right", { scene.findObserver() }, 1.0f))
-        behaviourMap.put("move_up_fast", MovementCommand("move_up", "up", { scene.findObserver() }, 1.0f))
-        behaviourMap.put("move_down_fast", MovementCommand("move_down", "down", { scene.findObserver() }, 1.0f))
+        behaviourMap.put("move_forward_fast", MovementCommand("move_forward", "forward", { scene.findObserver() }, fastMovementSpeed))
+        behaviourMap.put("move_back_fast", MovementCommand("move_back", "back", { scene.findObserver() }, fastMovementSpeed))
+        behaviourMap.put("move_left_fast", MovementCommand("move_left", "left", { scene.findObserver() }, fastMovementSpeed))
+        behaviourMap.put("move_right_fast", MovementCommand("move_right", "right", { scene.findObserver() }, fastMovementSpeed))
+        behaviourMap.put("move_up_fast", MovementCommand("move_up", "up", { scene.findObserver() }, fastMovementSpeed))
+        behaviourMap.put("move_down_fast", MovementCommand("move_down", "down", { scene.findObserver() }, fastMovementSpeed))
 
         behaviourMap.put("toggle_debug", ToggleCommand("toggle_debug", renderer, "toggleDebug"))
         behaviourMap.put("toggle_fullscreen", ToggleCommand("toggle_fullscreen", renderer, "toggleFullscreen"))

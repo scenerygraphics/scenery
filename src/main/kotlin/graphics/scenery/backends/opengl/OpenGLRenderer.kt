@@ -2330,8 +2330,9 @@ open class OpenGLRenderer(hub: Hub,
                 val generateMipmaps = GenericTexture.mipmappedObjectTextures.contains(type)
                 if (texture.startsWith("fromBuffer:")) {
                     val gt = node.material.transferTextures[texture.substringAfter("fromBuffer:")]
-                    gt?.let { (_, dimensions, channels, type1, contents, repeatS, repeatT, repeatU, normalized, mipmap, minLinear, maxLinear, updates) ->
+                    gt?.let { (_, dimensions, channels, type1, contentsOriginal, repeatS, repeatT, repeatU, normalized, mipmap, minLinear, maxLinear, updates) ->
 
+                        val contents = contentsOriginal?.duplicate()
                         logger.debug("Dims of $texture: $dimensions, mipmaps=$generateMipmaps")
 
                         val mm = generateMipmaps or mipmap
@@ -2473,7 +2474,7 @@ open class OpenGLRenderer(hub: Hub,
      */
     fun setVerticesAndCreateBufferForNode(node: Node) {
         val s = getOpenGLObjectStateFromNode(node)
-        val pVertexBuffer: FloatBuffer = (node as HasGeometry).vertices
+        val pVertexBuffer: FloatBuffer = (node as HasGeometry).vertices.duplicate()
 
         s.mStoredPrimitiveCount = pVertexBuffer.remaining() / node.vertexSize
 
@@ -2507,7 +2508,7 @@ open class OpenGLRenderer(hub: Hub,
      */
     fun updateVertices(node: Node) {
         val s = getOpenGLObjectStateFromNode(node)
-        val pVertexBuffer: FloatBuffer = (node as HasGeometry).vertices
+        val pVertexBuffer: FloatBuffer = (node as HasGeometry).vertices.duplicate()
 
         s.mStoredPrimitiveCount = pVertexBuffer.remaining() / node.vertexSize
 
@@ -2538,7 +2539,7 @@ open class OpenGLRenderer(hub: Hub,
      */
     fun setNormalsAndCreateBufferForNode(node: Node) {
         val s = getOpenGLObjectStateFromNode(node)
-        val pNormalBuffer: FloatBuffer = (node as HasGeometry).normals
+        val pNormalBuffer: FloatBuffer = (node as HasGeometry).normals.duplicate()
 
         gl.glBindVertexArray(s.mVertexArrayObject[0])
         gl.glBindBuffer(GL4.GL_ARRAY_BUFFER, s.mVertexBuffers[1])
@@ -2572,7 +2573,7 @@ open class OpenGLRenderer(hub: Hub,
      */
     fun updateNormals(node: Node) {
         val s = getOpenGLObjectStateFromNode(node)
-        val pNormalBuffer: FloatBuffer = (node as HasGeometry).normals
+        val pNormalBuffer: FloatBuffer = (node as HasGeometry).normals.duplicate()
 
         gl.glBindVertexArray(s.mVertexArrayObject[0])
         gl.glBindBuffer(GL4.GL_ARRAY_BUFFER, s.mVertexBuffers[1])
@@ -2604,7 +2605,7 @@ open class OpenGLRenderer(hub: Hub,
      */
     fun setTextureCoordsAndCreateBufferForNode(node: Node) {
         val s = getOpenGLObjectStateFromNode(node)
-        val pTextureCoordsBuffer: FloatBuffer = (node as HasGeometry).texcoords
+        val pTextureCoordsBuffer: FloatBuffer = (node as HasGeometry).texcoords.duplicate()
 
         gl.glBindVertexArray(s.mVertexArrayObject[0])
         gl.glBindBuffer(GL4.GL_ARRAY_BUFFER, s.mVertexBuffers[2])
@@ -2636,7 +2637,7 @@ open class OpenGLRenderer(hub: Hub,
      */
     fun updateTextureCoords(node: Node) {
         val s = getOpenGLObjectStateFromNode(node)
-        val pTextureCoordsBuffer: FloatBuffer = (node as HasGeometry).texcoords
+        val pTextureCoordsBuffer: FloatBuffer = (node as HasGeometry).texcoords.duplicate()
 
         gl.glBindVertexArray(s.mVertexArrayObject[0])
         gl.glBindBuffer(GL4.GL_ARRAY_BUFFER,
@@ -2669,7 +2670,7 @@ open class OpenGLRenderer(hub: Hub,
      */
     fun setIndicesAndCreateBufferForNode(node: Node) {
         val s = getOpenGLObjectStateFromNode(node)
-        val pIndexBuffer: IntBuffer = (node as HasGeometry).indices
+        val pIndexBuffer: IntBuffer = (node as HasGeometry).indices.duplicate()
 
         s.mStoredIndexCount = pIndexBuffer.remaining()
 
@@ -2695,7 +2696,7 @@ open class OpenGLRenderer(hub: Hub,
      */
     fun updateIndices(node: Node) {
         val s = getOpenGLObjectStateFromNode(node)
-        val pIndexBuffer: IntBuffer = (node as HasGeometry).indices
+        val pIndexBuffer: IntBuffer = (node as HasGeometry).indices.duplicate()
 
         s.mStoredIndexCount = pIndexBuffer.remaining()
 
