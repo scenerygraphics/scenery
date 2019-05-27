@@ -43,7 +43,7 @@ class LineExample : SceneryBase("LineExample") {
 
         val lights = (0 until 2).map {
             val l = PointLight(radius = 4.0f)
-            l.intensity = 100.0f
+            l.intensity = 1.0f
             l.emissionColor = Random.randomVectorFromRange(3, 0.2f, 0.8f)
 
             scene.addChild(l)

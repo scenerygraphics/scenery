@@ -21,6 +21,7 @@ import org.scijava.Context
 import org.scijava.ui.behaviour.ClickBehaviour
 import java.lang.Boolean.parseBoolean
 import java.lang.management.ManagementFactory
+import java.nio.file.Paths
 import java.util.*
 import java.util.concurrent.CountDownLatch
 import kotlin.concurrent.thread
@@ -375,6 +376,9 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         shouldClose = true
         gracePeriod = 10
         renderer?.close()
+
+        (hub.get(SceneryElement.NodePublisher) as? NodePublisher)?.close()
+        (hub.get(SceneryElement.NodeSubscriber) as? NodeSubscriber)?.close()
     }
 
     /**
@@ -457,13 +461,24 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
          */
         @JvmStatic fun getDemoFilesPath(): String {
             val demoDir = System.getenv("SCENERY_DEMO_FILES")
+            var maybeDemoPath: String? = null
+
+            if(demoDir == null) {
+                val relativePath = Paths.get("./models")
+                maybeDemoPath = relativePath.toAbsolutePath().toString()
+            }
 
             return if (demoDir == null) {
                 logger.warn("This example needs additional model files, see https://github.com/scenerygraphics/scenery#examples")
                 logger.warn("Download the model files mentioned there and set the environment variable SCENERY_DEMO_FILES to the")
                 logger.warn("directory where you have put these files.")
 
-                ""
+                if(maybeDemoPath != null) {
+                    logger.warn("Returning $maybeDemoPath, the files you need might be there.")
+                    maybeDemoPath
+                } else {
+                    ""
+                }
             } else {
                 demoDir
             }

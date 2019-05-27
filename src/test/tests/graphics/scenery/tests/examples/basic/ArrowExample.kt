@@ -41,7 +41,7 @@ class ArrowExample : SceneryBase("ArrowExample") {
         for (i in 0..3)
         {
             val l = PointLight(radius = 200.0f)
-            l.intensity = 600.0f
+            l.intensity = 5.0f
             l.emissionColor = GLVector(1.0f,3)
 
             scene.addChild(l)

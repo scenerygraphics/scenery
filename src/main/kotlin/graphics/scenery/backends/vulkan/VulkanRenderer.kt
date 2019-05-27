@@ -1070,7 +1070,7 @@ open class VulkanRenderer(hub: Hub,
                         }
 
                         gt.contents?.let { contents ->
-                            t.copyFrom(contents)
+                            t.copyFrom(contents.duplicate())
                         }
 
                         if (gt.hasConsumableUpdates()) {
@@ -2159,23 +2159,29 @@ open class VulkanRenderer(hub: Hub,
 
     private fun createVertexBuffers(device: VulkanDevice, node: Node, state: VulkanObjectState): VulkanObjectState {
         val n = node as HasGeometry
-        if(n.vertices.remaining() == 0) {
+        val vertices = n.vertices.duplicate()
+        val normals = n.normals.duplicate()
+        var texcoords = n.texcoords.duplicate()
+        val indices = n.indices.duplicate()
+
+        if(vertices.remaining() == 0) {
             return state
         }
 
-        if (n.texcoords.remaining() == 0 && node.instances.size > 0) {
-            val buffer = je_calloc(1, 4L * n.vertices.remaining() / n.vertexSize * n.texcoordSize)
+        if (texcoords.remaining() == 0 && node.instances.size > 0) {
+            val buffer = je_calloc(1, 4L * vertices.remaining() / n.vertexSize * n.texcoordSize)
 
             if(buffer == null) {
-                logger.error("Could not allocate texcoords buffer with ${4L * n.vertices.remaining() / n.vertexSize * n.texcoordSize} bytes for ${node.name}")
+                logger.error("Could not allocate texcoords buffer with ${4L * vertices.remaining() / n.vertexSize * n.texcoordSize} bytes for ${node.name}")
                 return state
             } else {
                 n.texcoords = buffer.asFloatBuffer()
+                texcoords = n.texcoords.asReadOnlyBuffer()
             }
         }
 
-        val vertexAllocationBytes: Long = 4L * (n.vertices.remaining() + n.normals.remaining() + n.texcoords.remaining())
-        val indexAllocationBytes: Long = 4L * n.indices.remaining()
+        val vertexAllocationBytes: Long = 4L * (vertices.remaining() + normals.remaining() + texcoords.remaining())
+        val indexAllocationBytes: Long = 4L * indices.remaining()
         val fullAllocationBytes: Long = vertexAllocationBytes + indexAllocationBytes
 
         val stridedBuffer = je_malloc(fullAllocationBytes)
@@ -2188,40 +2194,35 @@ open class VulkanRenderer(hub: Hub,
         val fb = stridedBuffer.asFloatBuffer()
         val ib = stridedBuffer.asIntBuffer()
 
-        state.vertexCount = n.vertices.remaining() / n.vertexSize
-        logger.trace("${node.name} has ${n.vertices.remaining()} floats and ${n.texcoords.remaining() / n.texcoordSize} remaining")
+        state.vertexCount = vertices.remaining() / n.vertexSize
+        logger.trace("${node.name} has ${vertices.remaining()} floats and ${texcoords.remaining() / n.texcoordSize} remaining")
 
-        for (index in 0 until n.vertices.remaining() step 3) {
-            fb.put(n.vertices.get())
-            fb.put(n.vertices.get())
-            fb.put(n.vertices.get())
+        for (index in 0 until vertices.remaining() step 3) {
+            fb.put(vertices.get())
+            fb.put(vertices.get())
+            fb.put(vertices.get())
 
-            fb.put(n.normals.get())
-            fb.put(n.normals.get())
-            fb.put(n.normals.get())
+            fb.put(normals.get())
+            fb.put(normals.get())
+            fb.put(normals.get())
 
-            if (n.texcoords.remaining() > 0) {
-                fb.put(n.texcoords.get())
-                fb.put(n.texcoords.get())
+            if (texcoords.remaining() > 0) {
+                fb.put(texcoords.get())
+                fb.put(texcoords.get())
             }
         }
 
-        logger.trace("Adding {} bytes to strided buffer", n.indices.remaining() * 4)
-        if (n.indices.remaining() > 0) {
+        logger.trace("Adding {} bytes to strided buffer", indices.remaining() * 4)
+        if (indices.remaining() > 0) {
             state.isIndexed = true
             ib.position(vertexAllocationBytes.toInt() / 4)
 
-            for (index in 0 until n.indices.remaining()) {
-                ib.put(n.indices.get())
+            for (index in 0 until indices.remaining()) {
+                ib.put(indices.get())
             }
         }
 
         logger.trace("Strided buffer is now at {} bytes", stridedBuffer.remaining())
-
-        n.vertices.flip()
-        n.normals.flip()
-        n.texcoords.flip()
-        n.indices.flip()
 
         val stagingBuffer = VulkanBuffer(device,
             fullAllocationBytes * 1L,

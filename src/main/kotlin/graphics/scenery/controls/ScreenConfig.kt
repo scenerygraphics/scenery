@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.KotlinModule
+import graphics.scenery.utils.JsonDeserialisers
 import graphics.scenery.utils.LazyLogger
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -20,19 +21,6 @@ import java.util.*
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class ScreenConfig {
-    /**
-     * Deserializer class for [GLVector] objects. Takes a string, splits it at "," and
-     * serializes the results into a new GLVector.
-     */
-    class VectorDeserializer : JsonDeserializer<GLVector>() {
-        /** Runs the deserialization process with parser [p] and optional content [ctxt]. */
-        override fun deserialize(p: JsonParser, ctxt: DeserializationContext?): GLVector {
-            val floats = p.text.split(",").map { it.trim().trimStart().toFloat() }.toFloatArray()
-
-            return GLVector(*floats)
-        }
-    }
-
     /**
      * Represents a screen configuration, potentially with multiple [screens] with a
      * shared size of [screenWidth] x [screenHeight]. A [name] and [description] can be given.
@@ -53,15 +41,15 @@ class ScreenConfig {
         var match: ScreenMatcher,
 
         /** Lower left screen corner, in meters */
-        @JsonDeserialize(using = VectorDeserializer::class)
+        @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class)
         var lowerLeft: GLVector = GLVector(0.0f, 0.0f, 0.0f),
 
         /** Lower right screen corner, in meters */
-        @JsonDeserialize(using = VectorDeserializer::class)
+        @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class)
         var lowerRight: GLVector = GLVector(0.0f, 0.0f, 0.0f),
 
         /** Upper left screen corner, in meters */
-        @JsonDeserialize(using = VectorDeserializer::class)
+        @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class)
         var upperLeft: GLVector = GLVector(0.0f, 0.0f, 0.0f)
     ) {
         private var screenTransform: GLMatrix

@@ -2,6 +2,12 @@ package graphics.scenery.controls
 
 import cleargl.GLMatrix
 import cleargl.GLVector
+import com.fasterxml.jackson.annotation.JsonProperty
+import com.fasterxml.jackson.databind.DeserializationFeature
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+import com.fasterxml.jackson.module.kotlin.KotlinModule
 import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.*
 import graphics.scenery.backends.Display
@@ -9,6 +15,7 @@ import graphics.scenery.backends.vulkan.VU
 import graphics.scenery.backends.vulkan.VulkanDevice
 import graphics.scenery.backends.vulkan.VulkanTexture
 import graphics.scenery.backends.vulkan.endCommandBuffer
+import graphics.scenery.utils.JsonDeserialisers
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.openvr.*
 import org.lwjgl.openvr.VR.*
@@ -26,6 +33,7 @@ import org.scijava.ui.behaviour.MouseAndKeyHandler
 import org.scijava.ui.behaviour.io.InputTriggerConfig
 import java.awt.Component
 import java.awt.event.KeyEvent
+import java.io.File
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.nio.LongBuffer
@@ -108,6 +116,41 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
     private var commandPool = -1L
 
     override var events = TrackerInputEventHandlers()
+
+    protected data class CompositeModel(
+        val thumbnail: String,
+        val components: Map<String, CompositeModelComponents>
+    )
+
+    protected data class CompositeModelComponents(
+        val filename: String?,
+        val motion: CompositeModelMotion?,
+        @JsonProperty("component_local") val transform: CompositeModelTransform?,
+        val visibility: Map<String, Boolean>?
+    )
+
+    protected data class CompositeModelMotion(
+        val type: String,
+        @JsonProperty("controller_axis") val controllerAxis: Int,
+        @JsonProperty("component_path") val componentPath: String?,
+        @JsonProperty("pressed_path") val pressedPath: String?,
+        @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class) val center: GLVector = GLVector(0.0f, 0.0f, 0.0f),
+        @JsonProperty("rotate_xyz") @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class) val rotation: GLVector = GLVector(0.0f, 0.0f, 0.0f),
+        @JsonProperty("press_rotation_x") @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class) val pressRotationX: GLVector = GLVector(0.0f, 0.0f),
+        @JsonProperty("press_rotation_y") @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class) val pressRotationY: GLVector = GLVector(0.0f, 0.0f),
+        @JsonProperty("press_translate") @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class) val pressTranslate: GLVector = GLVector(0.0f, 0.0f, 0.0f),
+        @JsonProperty("press_translate_x") @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class) val pressTranslateX: GLVector = GLVector(0.0f, 0.0f, 0.0f),
+        @JsonProperty("press_translate_y") @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class) val pressTranslateY: GLVector = GLVector(0.0f, 0.0f, 0.0f),
+        @JsonProperty("pivot") @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class) val pivot: GLVector = GLVector(0.0f, 0.0f, 0.0f),
+        @JsonProperty("value_mapping") @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class) val valueMapping: GLVector = GLVector(0.0f, 0.0f),
+        @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class) val axis: GLVector = GLVector(1.0f, 0.0f, 0.0f),
+        @JsonProperty("controller_button") val controllerButton: Int
+    )
+
+    data class CompositeModelTransform(
+        @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class) val origin: GLVector,
+        @JsonProperty("rotate_xyz") @JsonDeserialize(using = JsonDeserialisers.VectorDeserializer::class) val rotation: GLVector
+    )
 
     init {
         inputHandler.setBehaviourMap(behaviourMap)
@@ -454,6 +497,13 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                     val td = TrackedDevice(type, deviceName, GLMatrix.getIdentity(), timestamp = timestamp)
                     td.modelPath = deviceModelPath
 
+                    val role = VRSystem_GetControllerRoleForTrackedDeviceIndex(device)
+                    td.role = when(role) {
+                        1 -> TrackerRole.LeftHand
+                        2 -> TrackerRole.RightHand
+                        else -> TrackerRole.Invalid
+                    }
+
                     try {
                         val c = Mesh()
                         c.name = deviceName
@@ -463,6 +513,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                         logger.warn("Could not load model for $deviceName, device will not be visible in the scene. ($e)")
                         td.model = null
                     }
+
 
                     events.onDeviceConnect.forEach { it.invoke(this, td, timestamp) }
 
@@ -478,17 +529,16 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                     if(state != null) {
                         VRSystem_GetControllerState(device, state)
 
-                        val role = VRSystem_GetControllerRoleForTrackedDeviceIndex(device)
 
                         when {
-                            (state.rAxis(0).x() > 0.5f && state.rAxis(0).y().absoluteValue < 0.5f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) -> OpenVRButton.Right.toKeyEvent(role)
-                            (state.rAxis(0).x() < -0.5f && state.rAxis(0).y().absoluteValue < 0.5f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) -> OpenVRButton.Left.toKeyEvent(role)
-                            (state.rAxis(0).y() > 0.5f && state.rAxis(0).x().absoluteValue < 0.5f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) -> OpenVRButton.Up.toKeyEvent(role)
-                            (state.rAxis(0).y() < -0.5f && state.rAxis(0).x().absoluteValue < 0.5f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) -> OpenVRButton.Down.toKeyEvent(role)
+                            (state.rAxis(0).x() > 0.5f && state.rAxis(0).y().absoluteValue < 0.5f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) -> OpenVRButton.Right.toKeyEvent(d.role)
+                            (state.rAxis(0).x() < -0.5f && state.rAxis(0).y().absoluteValue < 0.5f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) -> OpenVRButton.Left.toKeyEvent(d.role)
+                            (state.rAxis(0).y() > 0.5f && state.rAxis(0).x().absoluteValue < 0.5f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) -> OpenVRButton.Up.toKeyEvent(d.role)
+                            (state.rAxis(0).y() < -0.5f && state.rAxis(0).x().absoluteValue < 0.5f && (state.ulButtonPressed() and (1L shl EVRButtonId_k_EButton_SteamVR_Touchpad) != 0L)) -> OpenVRButton.Down.toKeyEvent(d.role)
                             else -> null
                         }?.let { event ->
-                            inputHandler.keyPressed(event)
-                            inputHandler.keyReleased(event)
+                            inputHandler.keyPressed(event.first)
+                            inputHandler.keyReleased(event.second)
                         }
                     }
                 }
@@ -506,15 +556,31 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
 
         val event = VREvent.calloc()
         while(VRSystem_PollNextEvent(event)) {
-            if(event.eventType() == EVREventType_VREvent_ButtonUnpress) {
+            val role = when(VRSystem_GetControllerRoleForTrackedDeviceIndex(event.trackedDeviceIndex())) {
+                ETrackedControllerRole_TrackedControllerRole_LeftHand -> TrackerRole.LeftHand
+                ETrackedControllerRole_TrackedControllerRole_RightHand -> TrackerRole.RightHand
+                ETrackedControllerRole_TrackedControllerRole_Invalid -> TrackerRole.Invalid
+                else -> TrackerRole.Invalid
+            }
+
+            if(event.eventType() == EVREventType_VREvent_ButtonPress) {
                 val button = event.data().controller().button()
-                val role = VRSystem_GetControllerRoleForTrackedDeviceIndex(event.trackedDeviceIndex())
 
                 OpenVRButton.values().find { it.internalId == button }?.let {
-                    inputHandler.keyPressed(it.toKeyEvent(role))
+                    logger.debug("Button pressed: $this on $role")
+                    val keyEvent = it.toKeyEvent(role)
+                    inputHandler.keyPressed(keyEvent.first)
                 }
+            }
 
-                logger.debug("Button $button pressed")
+            if(event.eventType() == EVREventType_VREvent_ButtonUnpress) {
+                val button = event.data().controller().button()
+
+                OpenVRButton.values().find { it.internalId == button }?.let {
+                    logger.debug("Button unpressed: $this on $role")
+                    val keyEvent = it.toKeyEvent(role)
+                    inputHandler.keyReleased(keyEvent.second)
+                }
             }
 
             if(event.eventType() == EVREventType_VREvent_MouseMove) {
@@ -540,30 +606,41 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
         Trigger(EVRButtonId_k_EButton_SteamVR_Trigger)
     }
 
-    data class AWTKey(val code: Int, val char: Char)
+    data class AWTKey(val code: Int, val modifiers: Int = 0, var time: Long = System.nanoTime(), val char: Char = KeyEvent.CHAR_UNDEFINED)
 
-    private fun OpenVRButton.toKeyEvent(role: Int): KeyEvent {
-        return KeyEvent(object: Component() {}, KeyEvent.KEY_PRESSED, 1, 0, this.toAWTKeyCode(role).code, this.toAWTKeyCode(role).char)
+    private fun OpenVRButton.toKeyEvent(role: TrackerRole): Pair<KeyEvent, KeyEvent> {
+        val keycode = this.toAWTKeyCode(role)
+        return KeyEvent(object: Component() {}, KeyEvent.KEY_PRESSED, System.nanoTime(), 0, keycode.code, keycode.char) to
+            KeyEvent(object: Component() {}, KeyEvent.KEY_RELEASED, System.nanoTime() + 10e5.toLong(), 0, keycode.code, keycode.char)
     }
 
-    private fun OpenVRButton.toAWTKeyCode(role: Int = 0): AWTKey {
+    private fun OpenVRButton.toAWTKeyCode(role: TrackerRole = TrackerRole.LeftHand): AWTKey {
+        val modifiers = when(role) {
+            TrackerRole.LeftHand -> KeyEvent.SHIFT_DOWN_MASK
+            TrackerRole.RightHand -> 0
+            else -> 0
+        }
+
         return when {
-            this == OpenVRButton.Left && role == ETrackedControllerRole_TrackedControllerRole_LeftHand -> AWTKey(KeyEvent.VK_H, KeyEvent.CHAR_UNDEFINED)
-            this == OpenVRButton.Right && role == ETrackedControllerRole_TrackedControllerRole_LeftHand -> AWTKey(KeyEvent.VK_L, KeyEvent.CHAR_UNDEFINED)
-            this == OpenVRButton.Up  && role == ETrackedControllerRole_TrackedControllerRole_LeftHand -> AWTKey(KeyEvent.VK_K, KeyEvent.CHAR_UNDEFINED)
-            this == OpenVRButton.Down && role == ETrackedControllerRole_TrackedControllerRole_LeftHand -> AWTKey(KeyEvent.VK_J, KeyEvent.CHAR_UNDEFINED)
+            this == OpenVRButton.Left && role == TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_H)
+            this == OpenVRButton.Right && role == TrackerRole.LeftHand  -> AWTKey(KeyEvent.VK_L)
+            this == OpenVRButton.Up  && role == TrackerRole.LeftHand  -> AWTKey(KeyEvent.VK_K)
+            this == OpenVRButton.Down && role == TrackerRole.LeftHand  -> AWTKey(KeyEvent.VK_J)
 
-            this == OpenVRButton.Left && role == ETrackedControllerRole_TrackedControllerRole_RightHand -> AWTKey(KeyEvent.VK_A, KeyEvent.CHAR_UNDEFINED)
-            this == OpenVRButton.Right && role == ETrackedControllerRole_TrackedControllerRole_RightHand -> AWTKey(KeyEvent.VK_D, KeyEvent.CHAR_UNDEFINED)
-            this == OpenVRButton.Up  && role == ETrackedControllerRole_TrackedControllerRole_RightHand -> AWTKey(KeyEvent.VK_W, KeyEvent.CHAR_UNDEFINED)
-            this == OpenVRButton.Down && role == ETrackedControllerRole_TrackedControllerRole_RightHand -> AWTKey(KeyEvent.VK_S, KeyEvent.CHAR_UNDEFINED)
+            this == OpenVRButton.Left && role == TrackerRole.RightHand  -> AWTKey(KeyEvent.VK_A)
+            this == OpenVRButton.Right && role == TrackerRole.RightHand -> AWTKey(KeyEvent.VK_D)
+            this == OpenVRButton.Up  && role == TrackerRole.RightHand -> AWTKey(KeyEvent.VK_W)
+            this == OpenVRButton.Down && role == TrackerRole.RightHand -> AWTKey(KeyEvent.VK_S)
 
-            this == OpenVRButton.Menu -> AWTKey(KeyEvent.VK_M, KeyEvent.CHAR_UNDEFINED)
-            this == OpenVRButton.Side -> AWTKey(KeyEvent.VK_S, KeyEvent.CHAR_UNDEFINED)
+            this == OpenVRButton.Menu -> AWTKey(KeyEvent.VK_M, modifiers)
+            this == OpenVRButton.Side -> AWTKey(KeyEvent.VK_X, modifiers)
 
-            this == OpenVRButton.Trigger -> AWTKey(KeyEvent.VK_T, KeyEvent.CHAR_UNDEFINED)
+            this == OpenVRButton.Trigger -> AWTKey(KeyEvent.VK_T, modifiers)
 
-            else -> AWTKey(KeyEvent.VK_ESCAPE, KeyEvent.CHAR_UNDEFINED)
+            else -> {
+                logger.warn("Unknown key: $this")
+                AWTKey(KeyEvent.VK_ESCAPE)
+            }
         }
     }
 
@@ -868,6 +945,56 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
         return GLMatrix(m)
     }
 
+    private fun loadMeshFromModelPath(type: TrackedDeviceType, path: String, mesh: Mesh): Mesh {
+        val compositeFile = File(path.substringBeforeLast(".") + ".json")
+
+        when {
+            compositeFile.exists() && compositeFile.length() > 1024 -> {
+                logger.info("Loading model from composite JSON, ${compositeFile.absolutePath}")
+                val mapper = ObjectMapper(YAMLFactory())
+                mapper.registerModule(KotlinModule())
+                mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+                mapper.configure(DeserializationFeature.FAIL_ON_IGNORED_PROPERTIES, false)
+
+                try {
+                    // SteamVR's JSON contains tabs, while it shouldn't. If not replacing this, jackson will freak out.
+                    val json = compositeFile.readText().replace("\t", "    ")
+                    val model = mapper.readValue(json, CompositeModel::class.java)
+                    model.components.forEach { (_, component) ->
+                        if(component.filename != null) {
+                            val m = Mesh()
+                            m.readFromOBJ(compositeFile.resolveSibling(component.filename).absolutePath, true)
+                            mesh.addChild(m)
+
+                            if(component.visibility?.getOrDefault("default", true) == false) {
+                                m.visible = false
+                            }
+                        }
+                    }
+                } catch(e: Exception) {
+                    logger.error("Exception: $e")
+                    e.printStackTrace()
+                }
+            }
+
+            mesh.name.toLowerCase().endsWith("stl") ||
+                mesh.name.toLowerCase().endsWith("obj") -> {
+                mesh.readFrom(path)
+
+                if (type == TrackedDeviceType.Controller) {
+                    mesh.material.diffuse = GLVector(0.1f, 0.1f, 0.1f)
+                    mesh.children.forEach { c ->
+                        c.material.diffuse = GLVector(0.1f, 0.1f, 0.1f)
+                    }
+                }
+            }
+            else -> logger.warn("Unknown model format: $path for $type")
+        }
+
+
+        return mesh
+    }
+
     /**
      * Loads a model representing the [TrackedDevice].
      *
@@ -891,12 +1018,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
             val modelPath = path.replace('\\', '/')
 
             mesh.name = modelPath.substringAfterLast('/')
-
-            when {
-                mesh.name.toLowerCase().endsWith("stl") -> mesh.readFromSTL(modelPath)
-                mesh.name.toLowerCase().endsWith("obj") -> mesh.readFromOBJ(modelPath, true)
-                else -> logger.warn("Unknown model format: $modelPath for $modelName")
-            }
+            loadMeshFromModelPath(device.type, modelPath, mesh)
 
             return mesh
         }
@@ -942,11 +1064,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
 
             mesh.name = modelPath.substringAfterLast('/')
 
-            when {
-                mesh.name.toLowerCase().endsWith("stl") -> mesh.readFromSTL(modelPath)
-                mesh.name.toLowerCase().endsWith("obj") -> mesh.readFromOBJ(modelPath, true)
-                else -> logger.warn("Unknown model format: $modelPath for $modelName")
-            }
+            loadMeshFromModelPath(type, modelPath, mesh)
 
             return mesh
         }

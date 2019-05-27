@@ -38,12 +38,12 @@ class BloodCellsExample : SceneryBase("BloodCellsExample", windowWidth = 1280, w
 
         scene.addChild(hull)
 
-        val lights = (0 until lightCount).map { PointLight(radius = 500.0f) }
+        val lights = (0 until lightCount).map { PointLight(radius = positionRange) }
 
         lights.map {
             it.position = Random.randomVectorFromRange(3, -positionRange/2, positionRange/2)
             it.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
-            it.intensity = 1.5f
+            it.intensity = 0.5f
 
             scene.addChild(it)
         }
