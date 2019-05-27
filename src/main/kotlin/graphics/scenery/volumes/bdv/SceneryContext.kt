@@ -504,6 +504,7 @@ open class SceneryContext(val node: Volume) : GpuContext {
             val allocationSize = width * height * depth * when(texture.texInternalFormat()) {
                 Texture.InternalFormat.R8 -> 1
                 Texture.InternalFormat.R16 -> 2
+                Texture.InternalFormat.RGBA8 -> 4
                 Texture.InternalFormat.RGBA8UI -> 4
                 Texture.InternalFormat.UNKNOWN -> {
                     logger.error("Don't know how to determine texture size of $texture, assuming 1 byte, 1 channel.")
