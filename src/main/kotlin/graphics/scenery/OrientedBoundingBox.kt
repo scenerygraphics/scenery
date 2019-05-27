@@ -1,6 +1,8 @@
 package graphics.scenery
 
 import cleargl.GLVector
+import java.lang.Math.max
+import java.lang.Math.min
 
 /**
  * Oriented bounding box class to perform easy intersection tests.
@@ -71,5 +73,18 @@ open class OrientedBoundingBox(val n: Node, val min: GLVector, val max: GLVector
         if (max.hashCode() != other.max.hashCode()) return false
 
         return true
+    }
+
+    /**
+     * Return an [OrientedBoundingBox] that covers both [lhs] and [rhs].
+     */
+    fun expand(lhs: OrientedBoundingBox, rhs: OrientedBoundingBox): OrientedBoundingBox {
+        return OrientedBoundingBox(lhs.n,
+            min(lhs.min.x(), rhs.min.x()),
+            min(lhs.min.y(), rhs.min.y()),
+            min(lhs.min.z(), rhs.min.z()),
+            max(lhs.max.x(), rhs.max.x()),
+            max(lhs.max.y(), rhs.max.y()),
+            max(lhs.max.z(), rhs.max.z()))
     }
 }
