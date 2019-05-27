@@ -117,6 +117,6 @@ open class PointCloud(var pointRadius: Float = 0.1f, override var name: String =
         this.normals.flip()
         this.texcoords.flip()
 
-        boundingBox = OrientedBoundingBox(boundingBoxCoords)
+        boundingBox = OrientedBoundingBox(this, boundingBoxCoords)
     }
 }

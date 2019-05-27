@@ -48,7 +48,7 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://127.0.0
         kryo.register(Quaternion::class.java)
         kryo.register(Mesh::class.java)
         kryo.register(Volume::class.java)
-        kryo.register(Node.OrientedBoundingBox::class.java)
+        kryo.register(OrientedBoundingBox::class.java)
         kryo.register(TransferFunction::class.java)
         kryo.register(PointLight::class.java)
         kryo.register(Light::class.java)

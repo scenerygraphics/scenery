@@ -146,78 +146,6 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
 
     val instances = CopyOnWriteArrayList<Node>()
 
-    /**
-     * Bounding sphere class, a bounding sphere is defined by an origin and a radius,
-     * to enclose all of the Node's geometry.
-     */
-    data class BoundingSphere(val origin: GLVector, val radius: Float)
-
-    /**
-     * Oriented bounding box class to perform easy intersection tests.
-     *
-     * @property[min] The x/y/z minima for the bounding box.
-     * @property[max] The x/y/z maxima for the bounding box.
-     */
-    inner class OrientedBoundingBox(val min: GLVector, val max: GLVector) {
-        /**
-         * Alternative [OrientedBoundingBox] constructor taking the [min] and [max] as a series of floats.
-         */
-        constructor(xMin: Float, yMin: Float, zMin: Float, xMax: Float, yMax: Float, zMax: Float) : this(GLVector(xMin, yMin, zMin), GLVector(xMax, yMax, zMax))
-
-        /**
-         * Alternative [OrientedBoundingBox] constructor, taking a 6-element float array for [min] and [max].
-         */
-        constructor(boundingBox: FloatArray) : this(GLVector(boundingBox[0], boundingBox[2], boundingBox[4]), GLVector(boundingBox[1], boundingBox[3], boundingBox[5]))
-
-        /**
-         * Returns the maximum bounding sphere of this bounding box.
-         */
-        fun getBoundingSphere(): BoundingSphere {
-            if(needsUpdate || needsUpdateWorld) {
-                updateWorld(true, false)
-            }
-
-            val worldMin = worldPosition(min)
-            val worldMax = worldPosition(max)
-
-            val origin = worldMin + (worldMax - worldMin) * 0.5f
-
-            val radius = (worldMax - origin).magnitude()
-
-            return BoundingSphere(origin, radius)
-        }
-
-        /**
-         * Checks this [OrientedBoundingBox] for intersection with [other], and returns
-         * true if the bounding boxes do intersect.
-         */
-        fun intersects(other: OrientedBoundingBox): Boolean {
-            return other.getBoundingSphere().radius + getBoundingSphere().radius > (other.getBoundingSphere().origin - getBoundingSphere().origin).magnitude()
-        }
-
-        /**
-         * Returns the hash code of this [OrientedBoundingBox], taking [min] and [max] into consideration.
-         */
-        override fun hashCode(): Int {
-            return min.hashCode() + max.hashCode()
-        }
-
-        /**
-         * Compares this bounding box to [other], returning true if they are equal.
-         */
-        override fun equals(other: Any?): Boolean {
-            if (this === other) return true
-            if (javaClass != other?.javaClass) return false
-
-            other as? OrientedBoundingBox ?: return false
-
-            if (min.hashCode() != other.min.hashCode()) return false
-            if (max.hashCode() != other.max.hashCode()) return false
-
-            return true
-        }
-    }
-
     @Suppress("UNUSED_PARAMETER")
     protected fun <R> propertyChanged(property: KProperty<*>, old: R, new: R) {
         if(property.name == "rotation"
@@ -377,7 +305,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
                     getMaximumBoundingBox()
                 } else {
                     logger.warn("$name: Zero vertices currently, returning empty bounding box")
-                    OrientedBoundingBox(0.0f, 0.0f, 0.0f,
+                    OrientedBoundingBox(this,0.0f, 0.0f, 0.0f,
                         0.0f, 0.0f, 0.0f)
                 }
 
@@ -409,7 +337,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
                 }
 
                 logger.debug("$name: Calculated bounding box with ${boundingBoxCoords.joinToString(", ")}")
-                return OrientedBoundingBox(GLVector(boundingBoxCoords[0], boundingBoxCoords[2], boundingBoxCoords[4]),
+                return OrientedBoundingBox(this, GLVector(boundingBoxCoords[0], boundingBoxCoords[2], boundingBoxCoords[4]),
                     GLVector(boundingBoxCoords[1], boundingBoxCoords[3], boundingBoxCoords[5]))
             }
         } else {
@@ -573,8 +501,8 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
         return this.rotation
     }
 
-    private fun expand(lhs: OrientedBoundingBox, rhs: OrientedBoundingBox): OrientedBoundingBox {
-        return OrientedBoundingBox(
+    fun expand(lhs: OrientedBoundingBox, rhs: OrientedBoundingBox): OrientedBoundingBox {
+        return OrientedBoundingBox(this,
             min(lhs.min.x(), rhs.min.x()),
             min(lhs.min.y(), rhs.min.y()),
             min(lhs.min.z(), rhs.min.z()),
@@ -588,16 +516,16 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
      */
     fun getMaximumBoundingBox(): OrientedBoundingBox {
         if(boundingBox == null && children.size == 0) {
-            return OrientedBoundingBox(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
+            return OrientedBoundingBox(this,0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
         }
 
         if(children.none { it !is BoundingGrid }) {
-            return OrientedBoundingBox(boundingBox?.min ?: GLVector(0.0f, 0.0f, 0.0f), boundingBox?.max ?: GLVector(0.0f, 0.0f, 0.0f))
+            return OrientedBoundingBox(this,boundingBox?.min ?: GLVector(0.0f, 0.0f, 0.0f), boundingBox?.max ?: GLVector(0.0f, 0.0f, 0.0f))
         }
 
         return children
             .filter { it !is BoundingGrid  }.map { it.getMaximumBoundingBox() }
-            .fold(boundingBox ?: OrientedBoundingBox(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f), { lhs, rhs -> expand(lhs, rhs) })
+            .fold(boundingBox ?: OrientedBoundingBox(this, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f), { lhs, rhs -> expand(lhs, rhs) })
     }
 
     /**
