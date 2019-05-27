@@ -697,7 +697,7 @@ open class Volume : Mesh("Volume") {
         val min = GLVector(-1.0f, -1.0f, -1.0f)
         val max = GLVector(1.0f, 1.0f, 1.0f)
 
-        return OrientedBoundingBox(min, max)
+        return OrientedBoundingBox(this, min, max)
     }
 
     /**
