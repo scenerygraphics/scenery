@@ -529,7 +529,7 @@ interface HasGeometry : Serializable {
                                 child.material = Material()
                             }
 
-                            (targetObject as? Mesh)?.boundingBox = OrientedBoundingBox(boundingBox)
+                            (targetObject as? Mesh)?.boundingBox = OrientedBoundingBox(this, boundingBox)
                             boundingBox = floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
 
                             this.addChild(child)
@@ -542,7 +542,7 @@ interface HasGeometry : Serializable {
                                 child.material = Material()
                             }
 
-                            (targetObject as? PointCloud)?.boundingBox = OrientedBoundingBox(boundingBox)
+                            (targetObject as? PointCloud)?.boundingBox = OrientedBoundingBox(this, boundingBox)
                             boundingBox = floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
 
                             this.addChild(child)
@@ -585,9 +585,9 @@ interface HasGeometry : Serializable {
         indexCount += targetObject.indices.limit()
 
         if (this is Mesh) {
-           (targetObject as? Mesh)?.boundingBox = OrientedBoundingBox(boundingBox)
+           (targetObject as? Mesh)?.boundingBox = OrientedBoundingBox(this, boundingBox)
         } else if (this is PointCloud) {
-           (targetObject as? PointCloud)?.boundingBox = OrientedBoundingBox(boundingBox)
+           (targetObject as? PointCloud)?.boundingBox = OrientedBoundingBox(this, boundingBox)
         }
 
         logger.info("Read ${vertexCount / vertexSize}/${normalCount / vertexSize}/${uvCount / texcoordSize}/$indexCount v/n/uv/i of model $name in ${(end - start) / 1e6} ms")
@@ -842,7 +842,7 @@ interface HasGeometry : Serializable {
 
         if (this is Mesh) {
             logger.info("Bounding box of $name is ${boundingBox.joinToString(",")}")
-            this.boundingBox = OrientedBoundingBox(boundingBox)
+            this.boundingBox = OrientedBoundingBox(this, boundingBox)
         }
     }
 
