@@ -4,14 +4,13 @@ import bdv.BigDataViewer.initSetups
 import bdv.spimdata.SpimDataMinimal
 import bdv.spimdata.XmlIoSpimDataMinimal
 import bdv.tools.brightness.ConverterSetup
-import bdv.tools.brightness.RealARGBColorConverterSetup
 import bdv.tools.brightness.SetupAssignments
 import bdv.viewer.DisplayMode
+import bdv.viewer.RequestRepaint
 import bdv.viewer.SourceAndConverter
 import bdv.viewer.VisibilityAndGrouping
 import bdv.viewer.state.SourceGroup
 import bdv.viewer.state.ViewerState
-import cleargl.GLVector
 import coremem.enums.NativeTypeEnum
 import graphics.scenery.*
 import graphics.scenery.volumes.Volume
@@ -19,6 +18,8 @@ import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.ARGBType
 import net.imglib2.type.numeric.integer.UnsignedByteType
 import net.imglib2.type.numeric.integer.UnsignedShortType
+import net.imglib2.type.volatiles.VolatileARGBType
+import net.imglib2.type.volatiles.VolatileUnsignedByteType
 import net.imglib2.type.volatiles.VolatileUnsignedShortType
 import org.joml.Matrix4f
 import tpietzsch.backend.Texture
@@ -76,7 +77,7 @@ open class BDVVolume(bdvXMLFile: String = "", val options: VolumeViewerOptions) 
     private val renderStacks = ArrayList<Stack3D<*>>()
     private val simpleRenderStacks = ArrayList<SimpleStack3D<VolatileUnsignedShortType>>()
 
-    private val stackManager: SimpleStackManager = DefaultSimpleStackManager()
+    private val stackManager = DefaultSimpleStackManager()
 
     private val multiResolutionStacks = ArrayList(
         Arrays.asList<MultiResolutionStack3D<VolatileUnsignedShortType>>(null, null, null))
@@ -84,8 +85,8 @@ open class BDVVolume(bdvXMLFile: String = "", val options: VolumeViewerOptions) 
     var freezeRequiredBlocks = false
 
     /** Backing shader program */
-    protected var prog = ArrayList<SceneryMultiVolumeShaderMip>()
-    protected var progvol: SceneryMultiVolumeShaderMip? = null
+    protected var prog = ArrayList<MultiVolumeShaderMip>()
+    protected var progvol: MultiVolumeShaderMip? = null
     protected var renderStateUpdated = false
     protected var cacheSizeUpdated = false
 
@@ -195,11 +196,12 @@ open class BDVVolume(bdvXMLFile: String = "", val options: VolumeViewerOptions) 
         // TODO: this might result in NULL program, is this intended?
         progvol = prog.last()//get(renderStacks.size)
         progvol?.setTextureCache(textureCache)
-        progvol?.init(context)
+        progvol?.use(context)
+        progvol?.setUniforms(context)
 
         getScene()?.activeObserver?.let { cam ->
             progvol?.setViewportWidth(cam.width.toInt())
-            progvol?.setEffectiveViewportSize(cam.width, cam.height)
+            progvol?.setEffectiveViewportSize(cam.width.toInt(), cam.height.toInt())
         }
 
 //        updateBlocks(context)
@@ -235,8 +237,31 @@ open class BDVVolume(bdvXMLFile: String = "", val options: VolumeViewerOptions) 
             outOfCoreVolumes.add(VolumeBlocks(textureCache))
         }
 
+        val signatures = renderStacks.map {
+            val dataType = when(it.type) {
+                is VolatileUnsignedByteType,
+                is UnsignedByteType -> VolumeShaderSignature.PixelType.UBYTE
 
-        val progvol = SceneryMultiVolumeShaderMip(outOfCoreVolumeCount, regularVolumeCount, true, 1.0)
+                is VolatileUnsignedShortType,
+                is UnsignedShortType -> VolumeShaderSignature.PixelType.USHORT
+
+                is VolatileARGBType,
+                is ARGBType -> VolumeShaderSignature.PixelType.ARGB
+                else -> throw IllegalStateException("Unknown volume type ${it.type}")
+            }
+
+            val volumeType = when(it) {
+                is SimpleStack3D -> SourceStacks.SourceStackType.SIMPLE
+                is MultiResolutionStack3D -> SourceStacks.SourceStackType.MULTIRESOLUTION
+                else -> SourceStacks.SourceStackType.UNDEFINED
+            }
+
+            VolumeShaderSignature.VolumeSignature(volumeType, dataType)
+        }
+
+        val progvol = MultiVolumeShaderMip(VolumeShaderSignature(signatures), true, 1.0,
+            "SceneryMultiVolume.vert", "SceneryMultiVolume.frag", "maxdepthtexture_scenery.frag", "InputZBuffer")
+
         progvol.setTextureCache(textureCache)
         progvol.setDepthTextureName("InputZBuffer")
         logger.info("Using program for $outOfCoreVolumeCount out-of-core volumes and $regularVolumeCount regular volumes")
@@ -295,6 +320,7 @@ open class BDVVolume(bdvXMLFile: String = "", val options: VolumeViewerOptions) 
         // TODO: original might result in NULL, is this intended?
         val progvol = prog.last()//get(renderStacks.size)
         progvol.use(context)
+        progvol.setUniforms(context)
 
         var numTasks = 0
         val fillTasksPerVolume = ArrayList<VolumeAndTasks>()
@@ -343,7 +369,8 @@ open class BDVVolume(bdvXMLFile: String = "", val options: VolumeViewerOptions) 
             val stack = renderStacks[i]
             if(stack is MultiResolutionStack3D) {
                 val volumeBlocks = outOfCoreVolumes[i]
-                val complete = volumeBlocks.makeLut()
+                val timestamp = textureCache.nextTimestamp()
+                val complete = volumeBlocks.makeLut(timestamp)
                 if (!complete) {
                     repaint = true
                 }
@@ -376,9 +403,10 @@ open class BDVVolume(bdvXMLFile: String = "", val options: VolumeViewerOptions) 
             }
 
         progvol.setViewportWidth(cam.width.toInt())
-        progvol.setEffectiveViewportSize(cam.width, cam.height)
+        progvol.setEffectiveViewportSize(cam.width.toInt(), cam.height.toInt())
         progvol.setProjectionViewMatrix(mvp, minWorldVoxelSize)
         progvol.use(context)
+        progvol.setUniforms(context)
         progvol.bindSamplers(context)
         logger.debug("Done updating blocks")
     }
@@ -489,15 +517,52 @@ open class BDVVolume(bdvXMLFile: String = "", val options: VolumeViewerOptions) 
 
                         override fun getSourceTransform(): AffineTransform3D {
                             val w = AffineTransform3D()
-                            val m = AffineTransform3D()
-                            m.setTranslation(0.5, 0.5, 0.5)
+//                            val m = AffineTransform3D()
+//                            m.setTranslation(0.5, 0.5, 0.5)
                             w.set(*world.transposedFloatArray.map { it.toDouble() }.toDoubleArray())
-                            return w.concatenate(m)
+                            return w
                         }
                     }
                     logger.info("Added SimpleStack: $simpleStack")
                     renderStacks.add(simpleStack)
-                    renderConverters.add(converterSetups.first())
+
+                    renderConverters.add(object: ConverterSetup {
+                        val converterColor = ARGBType(kotlin.random.Random.nextInt(0, 255*255*255))
+
+                        override fun getSetupId(): Int {
+                            TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+                        }
+
+                        override fun setColor(p0: ARGBType?) {
+                            TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+                        }
+
+                        override fun supportsColor(): Boolean {
+                            TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+                        }
+
+                        override fun getColor(): ARGBType {
+                            return converterColor
+                        }
+
+                        override fun getDisplayRangeMin(): Double {
+                            return 0.0
+                        }
+
+                        override fun setDisplayRange(p0: Double, p1: Double) {
+                            TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+                        }
+
+                        override fun getDisplayRangeMax(): Double {
+                            return 65535.0
+                        }
+
+                        override fun setViewer(p0: RequestRepaint?) {
+                            TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+                        }
+
+                    })
+
                 }
             }
         }
