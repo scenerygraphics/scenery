@@ -87,4 +87,11 @@ open class OrientedBoundingBox(val n: Node, val min: GLVector, val max: GLVector
             max(lhs.max.y(), rhs.max.y()),
             max(lhs.max.z(), rhs.max.z()))
     }
+
+    /**
+     * Return an [OrientedBoundingBox] in World coordinates.
+     */
+    fun asWorld(): OrientedBoundingBox {
+        return OrientedBoundingBox(n, n.worldPosition(min), n.worldPosition(max))
+    }
 }
