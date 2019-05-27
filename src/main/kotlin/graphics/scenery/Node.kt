@@ -501,16 +501,6 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
         return this.rotation
     }
 
-    fun expand(lhs: OrientedBoundingBox, rhs: OrientedBoundingBox): OrientedBoundingBox {
-        return OrientedBoundingBox(this,
-            min(lhs.min.x(), rhs.min.x()),
-            min(lhs.min.y(), rhs.min.y()),
-            min(lhs.min.z(), rhs.min.z()),
-            max(lhs.max.x(), rhs.max.x()),
-            max(lhs.max.y(), rhs.max.y()),
-            max(lhs.max.z(), rhs.max.z()))
-    }
-
     /**
      * Returns the maximum [OrientedBoundingBox] of this [Node] and all its children.
      */
@@ -525,7 +515,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
 
         return children
             .filter { it !is BoundingGrid  }.map { it.getMaximumBoundingBox() }
-            .fold(boundingBox ?: OrientedBoundingBox(this, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f), { lhs, rhs -> expand(lhs, rhs) })
+            .fold(boundingBox ?: OrientedBoundingBox(this, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f), { lhs, rhs -> lhs.expand(lhs, rhs) })
     }
 
     /**
