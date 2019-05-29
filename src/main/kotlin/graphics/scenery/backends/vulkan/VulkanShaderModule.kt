@@ -4,14 +4,14 @@ import graphics.scenery.backends.ShaderConsistencyException
 import graphics.scenery.backends.ShaderPackage
 import graphics.scenery.backends.ShaderType
 import graphics.scenery.backends.Shaders
-import graphics.scenery.spirvcrossj.*
+import graphics.scenery.spirvcrossj.CompilerGLSL
+import graphics.scenery.spirvcrossj.Decoration
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkPipelineShaderStageCreateInfo
 import org.lwjgl.vulkan.VkShaderModuleCreateInfo
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.collections.LinkedHashMap
 
 
 /**
@@ -76,8 +76,8 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: 
         val uniformBuffers = compiler.shaderResources.uniformBuffers
         val pushConstants = compiler.shaderResources.pushConstantBuffers
 
-        for(i in 0 until uniformBuffers.size()) {
-            val res = uniformBuffers.get(i.toInt())
+        for(i in 0 until uniformBuffers.capacity()) {
+            val res = uniformBuffers.get(i)
             logger.debug("${res.name}, set=${compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet)}, binding=${compiler.getDecoration(res.id, Decoration.DecorationBinding)}")
 
             val members = LinkedHashMap<String, UBOMemberSpec>()
@@ -85,8 +85,8 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: 
 
             // record all members of the UBO struct, order by index, and store them to UBOSpec.members
             // for further use
-            members.putAll((0 until activeRanges.size()).map {
-                val range = activeRanges.get(it.toInt())
+            members.putAll((0 until activeRanges.capacity()).map {
+                val range = activeRanges.get(it)
                 val name = compiler.getMemberName(res.baseTypeId, range.index)
 
                 name to UBOMemberSpec(
@@ -109,15 +109,15 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: 
             }
         }
 
-        for(i in 0 until pushConstants.size()) {
-            val res = pushConstants.get(i.toInt())
+        for(i in 0 until pushConstants.capacity()) {
+            val res = pushConstants.get(i)
             val activeRanges = compiler.getActiveBufferRanges(res.id)
             val members = LinkedHashMap<String, UBOMemberSpec>()
 
             logger.debug("Push constant: ${res.name}, id=${compiler.getDecoration(res.id, Decoration.DecorationConstant)}")
 
-            members.putAll((0 until activeRanges.size()).map {
-                val range = activeRanges.get(it.toInt())
+            members.putAll((0 until activeRanges.capacity()).map {
+                val range = activeRanges.get(it)
                 val name = compiler.getMemberName(res.baseTypeId, range.index)
 
                 name to UBOMemberSpec(
@@ -156,12 +156,12 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: 
          */
         // inputs are summarized into one descriptor set
         val inputSets = mutableSetOf<Long>()
-        (0 until compiler.shaderResources.sampledImages.size()).forEach { samplerId ->
-            val res = compiler.shaderResources.sampledImages.get(samplerId.toInt())
+        (0 until compiler.shaderResources.sampledImages.capacity()).forEach { samplerId ->
+            val res = compiler.shaderResources.sampledImages.get(samplerId)
             val setId = compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet)
             val type = compiler.getType(res.typeId)
 
-            val arraySize = if(type.array.size() > 0) {
+            val arraySize = if(type.array.capacity() > 0) {
                 type.array.get(0).toInt()
             } else {
                 1
@@ -207,16 +207,16 @@ open class VulkanShaderModule(val device: VulkanDevice, entryPoint: String, sp: 
         }
 
         val inputs = compiler.shaderResources.stageInputs
-        if(inputs.size() > 0) {
-            for (i in 0 until inputs.size()) {
-                logger.debug("${sp.toShortString()}: ${inputs.get(i.toInt()).name}")
+        if(inputs.capacity() > 0) {
+            for (i in 0 until inputs.capacity()) {
+                logger.debug("${sp.toShortString()}: ${inputs.get(i).name}")
             }
         }
 
         // consistency check to not have the same set used multiple twice
         uboSpecs.entries
             .groupBy { it.value.set }
-            .forEach { set, specs ->
+            .forEach { (set, specs) ->
                 if(specs.groupBy { it.value.binding }.any { it.value.size > 1 }) {
                     throw ShaderConsistencyException("Shader package defines descriptor set $set multiple times (${specs.size} times, for UBOs ${specs.joinToString { it.key }}). This is not allowed. ")
                 }
