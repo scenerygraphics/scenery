@@ -61,7 +61,7 @@ data class ShaderPackage(val baseClass: Class<*>,
         val buffer = BufferUtils.allocateByteAndPut(spirv).asIntBuffer()
 
         while(buffer.hasRemaining()) {
-            bytecode.pushBack(1L*buffer.get())
+            bytecode.add(1L*buffer.get())
         }
 
         return bytecode
