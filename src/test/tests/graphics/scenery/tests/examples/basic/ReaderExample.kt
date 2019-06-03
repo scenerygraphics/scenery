@@ -1,17 +1,15 @@
 package graphics.scenery.tests.examples.basic
 
 import cleargl.GLVector
-import com.sun.javafx.application.PlatformImpl
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
 import graphics.scenery.volumes.Volume
-import javafx.application.Platform
-import javafx.stage.FileChooser
-import javafx.stage.Stage
 import org.junit.Test
+import org.scijava.Context
+import org.scijava.ui.UIService
+import org.scijava.widget.FileWidget
 import java.nio.file.Paths
-import java.util.concurrent.CountDownLatch
 import kotlin.concurrent.thread
 
 /**
@@ -21,25 +19,12 @@ import kotlin.concurrent.thread
  */
 class ReaderExample : SceneryBase("ReaderExample", 1280, 720) {
     override fun init() {
-        val latch = CountDownLatch(1)
         val files = ArrayList<String>()
-        PlatformImpl.startup {  }
 
-        Platform.runLater {
-            val chooser = FileChooser()
-            chooser.title = "Open File"
-            chooser.extensionFilters.add(FileChooser.ExtensionFilter("OBJ 3D models", "*.obj"))
-            chooser.extensionFilters.add(FileChooser.ExtensionFilter("STL 3D models", "*.stl"))
-            chooser.extensionFilters.add(FileChooser.ExtensionFilter("Volume files", "*.tif", "*.tiff", "*.raw"))
-            val file = chooser.showOpenDialog(Stage())
-
-            if(file != null) {
-                files.add(file.absolutePath)
-            }
-            latch.countDown()
-        }
-
-        latch.await()
+        val c = Context()
+        val ui = c.getService(UIService::class.java)
+        val file = ui.chooseFile(null, FileWidget.OPEN_STYLE)
+        files.add(file.absolutePath)
 
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
