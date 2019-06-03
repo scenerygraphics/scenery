@@ -1,15 +1,14 @@
 package graphics.scenery.backends.vulkan
 
+import graphics.scenery.Hub
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.SceneryWindow
+import graphics.scenery.utils.SceneryPanel
+import org.lwjgl.system.MemoryStack
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.vulkan.*
 import java.nio.ByteBuffer
 import java.nio.LongBuffer
-import graphics.scenery.Hub
-import graphics.scenery.utils.SceneryFXPanel
-import graphics.scenery.utils.SceneryPanel
-import org.lwjgl.system.MemoryStack
 
 
 /**
@@ -287,5 +286,10 @@ open class HeadlessSwapchain(device: VulkanDevice,
         MemoryUtil.memFree(imageBuffer)
 
         sharingBuffer.close()
+    }
+
+    companion object: SwapchainParameters {
+        override var headless = true
+        override var usageCondition = { _: SceneryPanel? -> System.getProperty("scenery.Headless", "false")?.toBoolean() ?: false }
     }
 }
