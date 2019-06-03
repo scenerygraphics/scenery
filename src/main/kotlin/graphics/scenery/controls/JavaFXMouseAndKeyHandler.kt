@@ -1,17 +1,20 @@
 package graphics.scenery.controls
 
 import graphics.scenery.Hub
-import graphics.scenery.utils.SceneryFXPanel
+import graphics.scenery.backends.SceneryWindow
 import javafx.event.EventHandler
 import javafx.scene.input.*
+import org.scijava.ui.behaviour.BehaviourMap
 import org.scijava.ui.behaviour.InputTrigger
+import org.scijava.ui.behaviour.InputTriggerMap
 
 /**
  * Input handling class for JavaFX-based windows.
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-open class JavaFXMouseAndKeyHandler(protected var hub: Hub?, protected var panel: SceneryFXPanel) : MouseAndKeyHandlerBase(), EventHandler<javafx.event.Event> {
+@CanHandleInputFor([SceneryWindow.JavaFXStage::class])
+open class JavaFXMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandlerBase(), EventHandler<javafx.event.Event> {
     private var os = ""
     private var scrollSpeedMultiplier = 1.0f
 
@@ -34,12 +37,6 @@ open class JavaFXMouseAndKeyHandler(protected var hub: Hub?, protected var panel
             "windows" -> 1.0f
             else -> 3.0f
         }
-        
-        val scene = panel.scene
-        scene.addEventHandler(DragEvent.ANY, this)
-        scene.addEventHandler(MouseEvent.ANY, this)
-        scene.addEventHandler(KeyEvent.ANY, this)
-        scene.addEventHandler(ScrollEvent.ANY, this)
     }
 
     /**
@@ -395,5 +392,27 @@ open class JavaFXMouseAndKeyHandler(protected var hub: Hub?, protected var panel
         } catch (e: NoSuchMethodException) {
             KeyCode::class.java.getDeclaredMethod("getCode").invoke(this) as Int
         }
+    }
+
+    override fun attach(window: SceneryWindow, inputMap: InputTriggerMap, behaviourMap: BehaviourMap): MouseAndKeyHandlerBase {
+        val handler: MouseAndKeyHandlerBase
+        when(window) {
+            is SceneryWindow.JavaFXStage -> {
+                handler = this
+
+                handler.setInputMap(inputMap)
+                handler.setBehaviourMap(behaviourMap)
+
+                val scene = window.panel.scene
+                scene.addEventHandler(DragEvent.ANY, this)
+                scene.addEventHandler(MouseEvent.ANY, this)
+                scene.addEventHandler(KeyEvent.ANY, this)
+                scene.addEventHandler(ScrollEvent.ANY, this)
+            }
+
+            else -> throw UnsupportedOperationException("Don't know how to handle window of type $window. Supported types are: ${(this.javaClass.annotations.find { it is CanHandleInputFor } as? CanHandleInputFor)?.windowTypes?.joinToString(", ")}")
+        }
+
+        return handler
     }
 }
