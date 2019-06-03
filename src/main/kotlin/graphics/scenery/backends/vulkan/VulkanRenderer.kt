@@ -2,6 +2,7 @@ package graphics.scenery.backends.vulkan
 
 import cleargl.GLMatrix
 import cleargl.GLVector
+import com.fasterxml.jackson.module.kotlin.isKotlinClass
 import graphics.scenery.*
 import graphics.scenery.backends.*
 import graphics.scenery.spirvcrossj.Loader
@@ -25,6 +26,7 @@ import org.lwjgl.vulkan.KHRWin32Surface.VK_KHR_WIN32_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.KHRXlibSurface.VK_KHR_XLIB_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.MVKMacosSurface.VK_MVK_MACOS_SURFACE_EXTENSION_NAME
 import org.lwjgl.vulkan.VK10.*
+import org.reflections.Reflections
 import java.awt.image.BufferedImage
 import java.awt.image.DataBufferByte
 import java.io.File
@@ -41,11 +43,14 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantLock
 import javax.imageio.ImageIO
-import kotlin.NoSuchElementException
 import kotlin.concurrent.thread
 import kotlin.concurrent.withLock
+import kotlin.reflect.full.companionObject
+import kotlin.reflect.full.companionObjectInstance
+import kotlin.reflect.full.createInstance
 import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.memberProperties
+import kotlin.reflect.full.primaryConstructor
 
 
 /**
@@ -486,7 +491,12 @@ open class VulkanRenderer(hub: Hub,
             emptyArray()
         }
 
-        val headless = embedIn is SceneryFXPanel || System.getProperty("scenery.Headless", "false").toBoolean()
+        // get available swapchains, but remove default swapchain, will always be there as fallback
+        val swapchains = Reflections("graphics.scenery.backends.vulkan").getSubTypesOf(Swapchain::class.java).filter { it.isKotlinClass() && it.kotlin.companionObject != null && it.simpleName != "VulkanSwapchain" }
+
+        logger.debug("Available special-purpose swapchains are: ${swapchains.joinToString { it.simpleName }}")
+        val selectedSwapchain = swapchains.firstOrNull { (it.kotlin.companionObjectInstance as SwapchainParameters).usageCondition.invoke(embedIn) }
+        val headless = (selectedSwapchain?.kotlin?.companionObjectInstance as? SwapchainParameters)?.headless ?: false
 
         device = VulkanDevice.fromPhysicalDevice(instance,
             physicalDeviceFilter = { _, device -> device.name.contains(System.getProperty("scenery.Renderer.Device", "DOES_NOT_EXIST"))},
@@ -517,38 +527,27 @@ open class VulkanRenderer(hub: Hub,
         logger.debug("Creating command pools done")
 
         swapchainRecreator = SwapchainRecreator()
-
         swapchain = when {
-            wantsOpenGLSwapchain -> {
-                logger.info("Using OpenGL-based swapchain")
-                OpenGLSwapchain(
-                    device, queue, commandPools,
-                    renderConfig = renderConfig, useSRGB = renderConfig.sRGB,
-                    useFramelock = System.getProperty("scenery.Renderer.Framelock", "false")?.toBoolean() ?: false)
-            }
+            selectedSwapchain != null -> {
+                logger.info("Using swapchain ${selectedSwapchain.simpleName}")
+                val params = selectedSwapchain.kotlin.primaryConstructor!!.parameters.associate { param ->
+                    param to when(param.name) {
+                        "device" -> device
+                        "queue" -> queue
+                        "commandPools" -> commandPools
+                        "renderConfig" -> renderConfig
+                        "useSRGB" -> renderConfig.sRGB
+                        else -> null
+                    }
+                }.filter { it.value != null }
 
-            (System.getProperty("scenery.Headless", "false")?.toBoolean() ?: false) -> {
-                logger.info("Vulkan running in headless mode.")
-                HeadlessSwapchain(
-                    device, queue, commandPools,
-                    renderConfig = renderConfig, useSRGB = renderConfig.sRGB)
+                selectedSwapchain
+                    .kotlin
+                    .primaryConstructor!!
+                    .callBy(params) as Swapchain
             }
-
-            (System.getProperty("scenery.Renderer.UseJavaFX", "false")?.toBoolean() ?: false || embedIn is SceneryFXPanel) -> {
-                logger.info("Using JavaFX-based swapchain")
-                FXSwapchain(
-                    device, queue, commandPools,
-                    renderConfig = renderConfig, useSRGB = renderConfig.sRGB)
-            }
-
-            (System.getProperty("scenery.Renderer.UseAWT", "false")?.toBoolean() ?: false || embedIn is SceneryJPanel) -> {
-                logger.info("Using AWT swapchain")
-                SwingSwapchain(
-                    device, queue, commandPools,
-                    renderConfig = renderConfig, useSRGB = renderConfig.sRGB)
-            }
-
             else -> {
+                logger.info("Using default swapchain")
                 VulkanSwapchain(
                     device, queue, commandPools,
                     renderConfig = renderConfig, useSRGB = renderConfig.sRGB,

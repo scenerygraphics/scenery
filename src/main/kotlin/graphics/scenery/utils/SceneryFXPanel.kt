@@ -1,6 +1,9 @@
 package graphics.scenery.utils
 
 import com.sun.javafx.application.PlatformImpl
+import graphics.scenery.backends.JavaFXStage
+import graphics.scenery.backends.ResizeHandler
+import graphics.scenery.backends.SceneryWindow
 import javafx.scene.CacheHint
 import javafx.scene.image.ImageView
 import javafx.scene.layout.Pane
@@ -138,5 +141,20 @@ class SceneryFXPanel(var imageWidth: Int, var imageHeight: Int) : Pane(), Scener
     override fun setPreferredDimensions(w: Int, h: Int) {
         prefWidth = w.toDouble()
         prefHeight = h.toDouble()
+    }
+
+    /**
+     * Initialiases the panel and returns a [SceneryWindow] instance
+     */
+    override fun init(resizeHandler: ResizeHandler) : SceneryWindow {
+        widthProperty()?.addListener { _, _, newWidth ->
+            resizeHandler.lastWidth = newWidth.toInt()
+        }
+
+        heightProperty()?.addListener { _, _, newHeight ->
+            resizeHandler.lastHeight = newHeight.toInt()
+        }
+
+        return JavaFXStage(this)
     }
 }

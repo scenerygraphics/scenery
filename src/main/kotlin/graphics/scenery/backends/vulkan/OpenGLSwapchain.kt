@@ -15,7 +15,6 @@ import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.glfw.GLFWNativeGLX.glfwGetGLXWindow
 import org.lwjgl.glfw.GLFWNativeWin32.glfwGetWin32Window
 import org.lwjgl.glfw.GLFWNativeX11.glfwGetX11Display
-import org.lwjgl.glfw.GLFWVulkan
 import org.lwjgl.glfw.GLFWWindowSizeCallback
 import org.lwjgl.opengl.GL
 import org.lwjgl.opengl.GL30.*
@@ -29,7 +28,6 @@ import org.lwjgl.system.Platform
 import org.lwjgl.vulkan.VK10
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkQueue
-import java.lang.UnsupportedOperationException
 import java.nio.LongBuffer
 
 /**
@@ -43,7 +41,7 @@ class OpenGLSwapchain(val device: VulkanDevice,
                       val commandPools: VulkanRenderer.CommandPools,
                       val renderConfig: RenderConfigReader.RenderConfig,
                       val useSRGB: Boolean = true,
-                      val useFramelock: Boolean = false,
+                      val useFramelock: Boolean = System.getProperty("scenery.Renderer.Framelock", "false")?.toBoolean() ?: false,
                       val bufferCount: Int = 2) : Swapchain {
     private val logger by LazyLogger()
 
@@ -427,5 +425,10 @@ class OpenGLSwapchain(val device: VulkanDevice,
 
         windowSizeCallback.close()
         glfwDestroyWindow(window.window)
+    }
+
+    companion object: SwapchainParameters {
+        override var headless = false
+        override var usageCondition = { _: SceneryPanel? -> java.lang.Boolean.parseBoolean(System.getProperty("scenery.VulkanRenderer.UseOpenGLSwapchain", "false")) }
     }
 }

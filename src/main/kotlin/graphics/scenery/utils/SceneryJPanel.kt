@@ -1,7 +1,11 @@
 package graphics.scenery.utils
 
 import cleargl.ClearGLWindow
+import graphics.scenery.backends.ResizeHandler
+import graphics.scenery.backends.SceneryWindow
 import java.awt.Component
+import java.awt.event.ComponentAdapter
+import java.awt.event.ComponentEvent
 import java.nio.ByteBuffer
 import javax.swing.JPanel
 
@@ -44,5 +48,18 @@ class SceneryJPanel : JPanel(), SceneryPanel {
     /** Sets the preferred dimensions of the panel. */
     override fun setPreferredDimensions(w: Int, h: Int) {
         logger.info("Preferred dimensions=$w,$h")
+    }
+
+    override fun init(resizeHandler : ResizeHandler) : SceneryWindow {
+        this.addComponentListener(object: ComponentAdapter() {
+            override fun componentResized(e: ComponentEvent) {
+                super.componentResized(e)
+                logger.debug("SceneryJPanel component resized to ${e.component.width} ${e.component.height}")
+                resizeHandler.lastWidth = e.component.width
+                resizeHandler.lastHeight = e.component.height
+            }
+        })
+
+        return SceneryWindow.SwingWindow(this)
     }
 }

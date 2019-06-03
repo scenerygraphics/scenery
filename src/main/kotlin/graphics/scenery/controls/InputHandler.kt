@@ -1,6 +1,5 @@
 package graphics.scenery.controls
 
-import com.jogamp.newt.awt.NewtCanvasAWT
 import graphics.scenery.*
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.Renderer
@@ -8,7 +7,7 @@ import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.controls.behaviours.*
 import graphics.scenery.utils.LazyLogger
 import net.java.games.input.Component
-import org.lwjgl.glfw.GLFW.*
+import org.reflections.Reflections
 import org.scijava.ui.behaviour.Behaviour
 import org.scijava.ui.behaviour.BehaviourMap
 import org.scijava.ui.behaviour.InputTrigger
@@ -51,75 +50,7 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
     internal var config: InputTriggerConfig = InputTriggerConfig()
 
     init {
-
         when(window) {
-            is SceneryWindow.ClearGLWindow  -> {
-                // create Mouse & Keyboard Handler
-                handler = JOGLMouseAndKeyHandler(hub)
-                handler.setInputMap(inputMap)
-                handler.setBehaviourMap(behaviourMap)
-
-                window.window.addKeyListener(handler)
-                window.window.addMouseListener(handler)
-            }
-
-            is SceneryWindow.JOGLDrawable -> {
-                // create Mouse & Keyboard Handler
-                handler = JOGLMouseAndKeyHandler(hub)
-                handler.setInputMap(inputMap)
-                handler.setBehaviourMap(behaviourMap)
-
-                // TODO: Add listeners in appropriate place
-                // window.drawable.addKeyListener(handler)
-                // window.drawable.addMouseListener(handler)
-            }
-
-            is SceneryWindow.GLFWWindow -> {
-                handler = GLFWMouseAndKeyHandler(hub)
-
-                handler.setInputMap(inputMap)
-                handler.setBehaviourMap(behaviourMap)
-
-                glfwSetCursorPosCallback(window.window, handler.cursorCallback)
-                glfwSetKeyCallback(window.window, handler.keyCallback)
-                glfwSetScrollCallback(window.window, handler.scrollCallback)
-                glfwSetMouseButtonCallback(window.window, handler.mouseCallback)
-            }
-
-            is SceneryWindow.JavaFXStage -> {
-                handler = JavaFXMouseAndKeyHandler(hub, window.panel)
-
-                handler.setInputMap(inputMap)
-                handler.setBehaviourMap(behaviourMap)
-            }
-
-            is SceneryWindow.SwingWindow -> {
-                val component = window.panel.component
-                val cglWindow = window.panel.cglWindow
-
-                if(component is NewtCanvasAWT && cglWindow != null) {
-                    handler = JOGLMouseAndKeyHandler(hub)
-
-                    handler.setInputMap(inputMap)
-                    handler.setBehaviourMap(behaviourMap)
-
-                    cglWindow.addKeyListener(handler)
-                    cglWindow.addMouseListener(handler)
-                } else {
-                    handler = SwingMouseAndKeyHandler()
-
-                    handler.setInputMap(inputMap)
-                    handler.setBehaviourMap(behaviourMap)
-
-                    val ancestor = window.panel.component
-                    ancestor?.addKeyListener(handler)
-                    ancestor?.addMouseListener(handler)
-                    ancestor?.addMouseMotionListener(handler)
-                    ancestor?.addMouseWheelListener(handler)
-                    ancestor?.addFocusListener(handler)
-                }
-            }
-
             is SceneryWindow.UninitializedWindow -> {
                 logger.error("Uninitialized windows cannot have input handlers.")
                 handler = null
@@ -127,6 +58,14 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
 
             is SceneryWindow.HeadlessWindow -> {
                 handler = null
+            }
+
+            else -> {
+                val handlers = Reflections("graphics.scenery.controls").getTypesAnnotatedWith(CanHandleInputFor::class.java)
+                logger.debug("Found potential input handlers: ${handlers.joinToString { "${it.simpleName} -> ${it.getAnnotation(CanHandleInputFor::class.java).windowTypes.joinToString()}" }}")
+                val candidate = handlers.find { it.getAnnotation(CanHandleInputFor::class.java).windowTypes.contains(window::class) }
+                handler = candidate?.getConstructor(Hub::class.java)?.newInstance(hub) as MouseAndKeyHandlerBase?
+                handler?.attach(window, inputMap, behaviourMap)
             }
         }
 

@@ -5,19 +5,23 @@ import com.jogamp.newt.event.KeyEvent
 import com.jogamp.newt.event.MouseEvent
 import com.jogamp.newt.event.WindowEvent
 import graphics.scenery.Hub
+import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.utils.ExtractsNatives
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.glfw.GLFWCursorPosCallback
 import org.lwjgl.glfw.GLFWKeyCallback
 import org.lwjgl.glfw.GLFWMouseButtonCallback
 import org.lwjgl.glfw.GLFWScrollCallback
+import org.scijava.ui.behaviour.BehaviourMap
 import org.scijava.ui.behaviour.InputTrigger
+import org.scijava.ui.behaviour.InputTriggerMap
 
 /**
  * Input handling class for GLFW-based windows.
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
+@CanHandleInputFor([SceneryWindow.GLFWWindow::class])
 open class GLFWMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandlerBase(), AutoCloseable, ExtractsNatives {
     /** store os name */
     private var os = ""
@@ -137,7 +141,6 @@ open class GLFWMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandlerB
         } else {
             10.0f
         }
-
     }
 
     /**
@@ -469,5 +472,26 @@ open class GLFWMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandlerB
         keyCallback.close()
         mouseCallback.close()
         scrollCallback.close()
+    }
+
+    override fun attach(window: SceneryWindow, inputMap: InputTriggerMap, behaviourMap: BehaviourMap): MouseAndKeyHandlerBase {
+        val handler: MouseAndKeyHandlerBase
+        when(window) {
+            is SceneryWindow.GLFWWindow -> {
+                handler = this
+
+                handler.setInputMap(inputMap)
+                handler.setBehaviourMap(behaviourMap)
+
+                glfwSetCursorPosCallback(window.window, handler.cursorCallback)
+                glfwSetKeyCallback(window.window, handler.keyCallback)
+                glfwSetScrollCallback(window.window, handler.scrollCallback)
+                glfwSetMouseButtonCallback(window.window, handler.mouseCallback)
+            }
+
+            else -> throw UnsupportedOperationException("Don't know how to handle window of type $window. Supported types are: ${(this.javaClass.annotations.find { it is CanHandleInputFor } as? CanHandleInputFor)?.windowTypes?.joinToString(", ")}")
+        }
+
+        return handler
     }
 }
