@@ -218,7 +218,8 @@ open class VulkanSwapchain(open val device: VulkanDevice,
                 .clipped(true)
                 .compositeAlpha(KHRSurface.VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR)
 
-            if ((oldSwapchain is VulkanSwapchain || oldSwapchain is FXSwapchain) && oldHandle != null) {
+            // TODO: Add recycleable property for swapchains
+            if ((oldSwapchain is VulkanSwapchain) && oldHandle != null) {
                 swapchainCI.oldSwapchain(oldHandle)
             }
 

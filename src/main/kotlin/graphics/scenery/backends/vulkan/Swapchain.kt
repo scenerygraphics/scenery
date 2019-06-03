@@ -2,7 +2,6 @@ package graphics.scenery.backends.vulkan
 
 import graphics.scenery.Hub
 import graphics.scenery.backends.SceneryWindow
-import graphics.scenery.utils.SceneryFXPanel
 import graphics.scenery.utils.SceneryPanel
 import java.nio.LongBuffer
 
