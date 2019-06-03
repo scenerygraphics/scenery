@@ -2,6 +2,7 @@ package graphics.scenery.backends.vulkan
 
 import com.sun.javafx.application.PlatformImpl
 import graphics.scenery.Hub
+import graphics.scenery.backends.JavaFXStage
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.utils.SceneryFXPanel
@@ -60,7 +61,7 @@ class FXSwapchain(device: VulkanDevice,
             if (imagePanel == null) {
                 val s = Stage()
                 p = SceneryFXPanel(win.width, win.height)
-                window = SceneryWindow.JavaFXStage(p as SceneryFXPanel)
+                window = JavaFXStage(p as SceneryFXPanel)
 
                 s.title = "FXSwapchain"
 
@@ -142,7 +143,7 @@ class FXSwapchain(device: VulkanDevice,
 
                             stage.onCloseRequest = EventHandler { window.shouldClose = true }
 
-                            SceneryWindow.JavaFXStage(it)
+                            JavaFXStage(it)
                         }
                         is SceneryJPanel -> {
                             it.addComponentListener(object: ComponentAdapter() {
