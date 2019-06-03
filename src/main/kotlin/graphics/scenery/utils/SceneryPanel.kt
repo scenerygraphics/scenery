@@ -1,5 +1,7 @@
 package graphics.scenery.utils
 
+import graphics.scenery.backends.ResizeHandler
+import graphics.scenery.backends.SceneryWindow
 import java.nio.ByteBuffer
 
 /**
@@ -29,4 +31,7 @@ interface SceneryPanel {
 
     /** Sets the preferred dimensions of the panel. */
     fun setPreferredDimensions(w: Int, h: Int)
+
+    /** Initialises window and resize functions */
+    fun init(resizeHandler: ResizeHandler): SceneryWindow
 }
