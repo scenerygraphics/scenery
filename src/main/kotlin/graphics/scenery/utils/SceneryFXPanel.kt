@@ -1,6 +1,7 @@
 package graphics.scenery.utils
 
 import com.sun.javafx.application.PlatformImpl
+import graphics.scenery.backends.JavaFXStage
 import graphics.scenery.backends.ResizeHandler
 import graphics.scenery.backends.SceneryWindow
 import javafx.scene.CacheHint
@@ -154,6 +155,6 @@ class SceneryFXPanel(var imageWidth: Int, var imageHeight: Int) : Pane(), Scener
             resizeHandler.lastHeight = newHeight.toInt()
         }
 
-        return SceneryWindow.JavaFXStage(this)
+        return JavaFXStage(this)
     }
 }

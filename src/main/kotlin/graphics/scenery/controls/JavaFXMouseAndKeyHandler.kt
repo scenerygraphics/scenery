@@ -1,6 +1,7 @@
 package graphics.scenery.controls
 
 import graphics.scenery.Hub
+import graphics.scenery.backends.JavaFXStage
 import graphics.scenery.backends.SceneryWindow
 import javafx.event.EventHandler
 import javafx.scene.input.*
@@ -13,7 +14,7 @@ import org.scijava.ui.behaviour.InputTriggerMap
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-@CanHandleInputFor([SceneryWindow.JavaFXStage::class])
+@CanHandleInputFor([JavaFXStage::class])
 open class JavaFXMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandlerBase(), EventHandler<javafx.event.Event> {
     private var os = ""
     private var scrollSpeedMultiplier = 1.0f
@@ -397,7 +398,7 @@ open class JavaFXMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandle
     override fun attach(window: SceneryWindow, inputMap: InputTriggerMap, behaviourMap: BehaviourMap): MouseAndKeyHandlerBase {
         val handler: MouseAndKeyHandlerBase
         when(window) {
-            is SceneryWindow.JavaFXStage -> {
+            is JavaFXStage -> {
                 handler = this
 
                 handler.setInputMap(inputMap)
