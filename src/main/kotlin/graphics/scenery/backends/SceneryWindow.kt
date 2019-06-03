@@ -14,7 +14,7 @@ import javax.swing.SwingUtilities
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-sealed class SceneryWindow {
+open class SceneryWindow {
     /** The default window state, before it becomes initialized to a specific window kind */
     class UninitializedWindow : SceneryWindow()
     /** GLFW window, with [window] being the pointer to GLFW's window object. */

@@ -174,12 +174,12 @@ open class OpenGLRenderer(hub: Hub,
 
     var applicationName = ""
 
-    inner class ResizeHandler {
-        @Volatile var lastResize = -1L
-        var lastWidth = 0
-        var lastHeight = 0
+    inner class OpenGLResizeHandler: ResizeHandler {
+        @Volatile override var lastResize = -1L
+        override var lastWidth = 0
+        override var lastHeight = 0
 
-        @Synchronized fun queryResize() {
+        @Synchronized override fun queryResize() {
             if (lastWidth <= 0 || lastHeight <= 0) {
                 lastWidth = Math.max(1, lastWidth)
                 lastHeight = Math.max(1, lastHeight)
@@ -304,7 +304,7 @@ open class OpenGLRenderer(hub: Hub,
     protected lateinit var buffers: DefaultBuffers
     protected val sceneUBOs = CopyOnWriteArrayList<Node>()
 
-    protected val resizeHandler = ResizeHandler()
+    protected val resizeHandler = OpenGLResizeHandler()
 
     companion object {
         private const val WINDOW_RESIZE_TIMEOUT = 200L
@@ -440,38 +440,10 @@ open class OpenGLRenderer(hub: Hub,
 
                 embedIn?.let { panel ->
                     panel.imageScaleY = -1.0f
+                    window = panel.init(resizeHandler)
 
-                    when(panel) {
-                        is SceneryFXPanel -> {
-                            panel.widthProperty()?.addListener { _, _, newWidth ->
-                                resizeHandler.lastWidth = newWidth.toInt()
-                            }
-
-                            panel.heightProperty()?.addListener { _, _, newHeight ->
-                                resizeHandler.lastHeight = newHeight.toInt()
-                            }
-
-                            window = SceneryWindow.JavaFXStage(panel)
-                            window.width = panel.panelWidth
-                            window.height = panel.panelHeight
-                        }
-
-                        is SceneryJPanel -> {
-                            window = SceneryWindow.SwingWindow(panel)
-
-                            window.width = panel.panelWidth
-                            window.height = panel.panelHeight
-
-                            panel.addComponentListener(object: ComponentAdapter() {
-                                override fun componentResized(e: ComponentEvent) {
-                                    super.componentResized(e)
-                                    logger.debug("SceneryJPanel component resized to ${e.component.width} ${e.component.height}")
-                                    resizeHandler.lastWidth = e.component.width
-                                    resizeHandler.lastHeight = e.component.height
-                                }
-                            })
-                        }
-                    }
+                    window.width = panel.panelWidth
+                    window.height = panel.panelHeight
                 }
 
                 resizeHandler.lastWidth = window.width
