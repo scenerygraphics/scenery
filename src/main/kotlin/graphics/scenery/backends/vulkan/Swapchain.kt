@@ -70,4 +70,9 @@ interface Swapchain : AutoCloseable {
      * Returns the number of presented frames for this swapchain instance.
      */
     fun presentedFrames(): Long
+
+    companion object: SwapchainParameters {
+        override var headless: Boolean = false
+        override var usageCondition = { p: SceneryPanel? -> true }
+    }
 }

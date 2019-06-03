@@ -519,4 +519,9 @@ open class SwingSwapchain(open val device: VulkanDevice,
         MemoryUtil.memFree(swapchainImage)
         MemoryUtil.memFree(swapchainPointer)
     }
+
+    companion object: SwapchainParameters {
+        override var headless = false
+        override var usageCondition = { p: SceneryPanel? -> System.getProperty("scenery.Renderer.UseAWT", "false")?.toBoolean() ?: false || p is SceneryJPanel }
+    }
 }

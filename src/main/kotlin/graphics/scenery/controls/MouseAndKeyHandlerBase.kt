@@ -2,6 +2,7 @@ package graphics.scenery.controls
 
 import gnu.trove.map.hash.TIntLongHashMap
 import gnu.trove.set.hash.TIntHashSet
+import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.controls.behaviours.GamepadBehaviour
 import graphics.scenery.utils.ExtractsNatives
 import graphics.scenery.utils.ExtractsNatives.Platform.*
@@ -321,5 +322,9 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
                 gamepad.behaviour.axisEvent(event.component.identifier, event.component.pollData)
             }
         }
+    }
+
+    open fun attach(window: SceneryWindow, inputMap: InputTriggerMap, behaviourMap: BehaviourMap): MouseAndKeyHandlerBase {
+        throw UnsupportedOperationException("MouseAndKeyHandlerBase cannot be attached to a window.")
     }
 }
