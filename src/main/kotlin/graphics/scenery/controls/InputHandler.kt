@@ -61,7 +61,7 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
             }
 
             else -> {
-                val handlers = Reflections("graphics.scenery").getTypesAnnotatedWith(CanHandleInputFor::class.java)
+                val handlers = Reflections("graphics.scenery.controls").getTypesAnnotatedWith(CanHandleInputFor::class.java)
                 logger.debug("Found potential input handlers: ${handlers.joinToString { "${it.simpleName} -> ${it.getAnnotation(CanHandleInputFor::class.java).windowTypes.joinToString()}" }}")
                 val candidate = handlers.find { it.getAnnotation(CanHandleInputFor::class.java).windowTypes.contains(window::class) }
                 handler = candidate?.getConstructor(Hub::class.java)?.newInstance(hub) as MouseAndKeyHandlerBase?
