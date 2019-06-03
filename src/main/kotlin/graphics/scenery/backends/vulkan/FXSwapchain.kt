@@ -1,13 +1,9 @@
 package graphics.scenery.backends.vulkan
 
-import graphics.scenery.backends.RenderConfigReader
-import graphics.scenery.backends.SceneryWindow
-import org.lwjgl.system.MemoryUtil
-import org.lwjgl.vulkan.*
-import javafx.stage.Stage
-import java.util.concurrent.CountDownLatch
 import com.sun.javafx.application.PlatformImpl
 import graphics.scenery.Hub
+import graphics.scenery.backends.RenderConfigReader
+import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.utils.SceneryFXPanel
 import graphics.scenery.utils.SceneryJPanel
 import graphics.scenery.utils.SceneryPanel
@@ -21,9 +17,13 @@ import javafx.scene.control.Label
 import javafx.scene.layout.*
 import javafx.scene.paint.Color
 import javafx.scene.text.TextAlignment
+import javafx.stage.Stage
 import javafx.stage.Window
+import org.lwjgl.system.MemoryUtil
+import org.lwjgl.vulkan.VkQueue
 import java.awt.event.ComponentAdapter
 import java.awt.event.ComponentEvent
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.locks.ReentrantLock
 
 
@@ -248,5 +248,10 @@ class FXSwapchain(device: VulkanDevice,
         MemoryUtil.memFree(imageBuffer)
 
         sharingBuffer.close()
+    }
+
+    companion object: SwapchainParameters {
+        override var headless = true
+        override var usageCondition = { p: SceneryPanel? -> System.getProperty("scenery.Renderer.UseJavaFX", "false")?.toBoolean() ?: false || p is SceneryFXPanel }
     }
 }
