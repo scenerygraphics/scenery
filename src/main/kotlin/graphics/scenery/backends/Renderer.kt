@@ -210,7 +210,7 @@ abstract class Renderer : Hubable {
          * @param[scene] The initial [Scene] the renderer should display.
          * @param[windowWidth] Window width for the renderer window.
          * @param[windowHeight] Window height for the renderer window.
-         * @param[embedIn] A [SceneryWindow] to embed the renderer in, can e.g. be a JavaFX window.
+         * @param[embedIn] A [SceneryWindow] to embed the renderer in, can e.g. be a Swing or GLFW window.
          * @param[embedInDrawable] A [GLAutoDrawable] to embed the renderer in. [embedIn] and [embedInDrawable] are mutually exclusive.
          * @param[renderConfigFile] A YAML file with the render path configuration from which a [RenderConfigReader.RenderConfig] will be created.
          *

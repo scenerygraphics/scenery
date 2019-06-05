@@ -2,14 +2,12 @@ package graphics.scenery.backends
 
 import com.jogamp.opengl.GLAutoDrawable
 import graphics.scenery.utils.SceneryJPanel
-import javafx.application.Platform
-import javafx.stage.Stage
 import org.lwjgl.glfw.GLFW.*
 import javax.swing.JFrame
 import javax.swing.SwingUtilities
 
 /**
- * Abstraction class for GLFW, ClearGL and JavaFX windows
+ * Abstraction class for scenery windows.
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
@@ -49,9 +47,6 @@ open class SceneryWindow {
                 is UninitializedWindow -> {}
                 is GLFWWindow -> glfwSetWindowTitle(window, value)
                 is ClearGLWindow -> window.windowTitle = value
-                is JavaFXStage -> {
-                    Platform.runLater { (panel.scene.window as? Stage)?.title = value }
-                }
                 is SwingWindow -> {
                     val window = SwingUtilities.getWindowAncestor(panel)
                     if(window != null) {

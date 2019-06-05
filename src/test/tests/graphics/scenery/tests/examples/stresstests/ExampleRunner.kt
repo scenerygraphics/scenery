@@ -28,9 +28,6 @@ class ExampleRunner {
         // blacklist contains examples that require user interaction or additional devices
         val blacklist = listOf("LocalisationExample",
             "TexturedCubeJavaApplication",
-            "JavaFXTexturedCubeApplication",
-            "JavaFXTexturedCubeExample",
-            "JavaFXGridPaneExample",
             "XwingLiverExample",
             "VRControllerExample",
             "EyeTrackingExample",

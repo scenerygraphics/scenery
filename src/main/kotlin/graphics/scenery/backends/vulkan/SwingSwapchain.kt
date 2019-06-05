@@ -170,7 +170,8 @@ open class SwingSwapchain(open val device: VulkanDevice,
 
     private fun Swapchain?.isRecycleable(): Boolean {
         val handle = this?.handle
-        return this != null && (this is VulkanSwapchain || this is FXSwapchain || this is SwingSwapchain) && handle != null
+        // TODO: Add recycleable property for swapchains
+        return this != null && (this is VulkanSwapchain || this is SwingSwapchain) && handle != null
     }
 
     /**
