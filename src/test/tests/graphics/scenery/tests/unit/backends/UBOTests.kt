@@ -1,4 +1,4 @@
-package graphics.scenery.tests.unit
+package graphics.scenery.tests.unit.backends
 
 import cleargl.GLMatrix
 import cleargl.GLVector

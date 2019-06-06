@@ -1,4 +1,4 @@
-package graphics.scenery.tests.unit
+package graphics.scenery.tests.unit.volumes
 
 import graphics.scenery.volumes.TransferFunction
 import org.junit.Assert.assertEquals

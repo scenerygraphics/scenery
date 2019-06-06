@@ -1,10 +1,11 @@
-package graphics.scenery.tests.unit
+package graphics.scenery.tests.unit.controls
 
 import graphics.scenery.Box
 import graphics.scenery.Hub
 import graphics.scenery.Scene
 import graphics.scenery.Settings
 import graphics.scenery.controls.InputHandler
+import graphics.scenery.tests.unit.backends.FauxRenderer
 import graphics.scenery.utils.LazyLogger
 import org.junit.Test
 import org.scijava.ui.behaviour.ClickBehaviour
