@@ -51,6 +51,6 @@ class RandomTests {
         logger.info("Testing random quaternion generation ...")
         val q = Random.randomQuaternion()
 
-        assertEquals(1.0f, q.magnitude(), "Quaternion should be normalized")
+        assertTrue(q.magnitude() in (1.0f - 0.0001f)..(1.0f + 0.0001f), "Quaternion should be normalized")
     }
 }
