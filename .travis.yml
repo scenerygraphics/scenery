@@ -12,7 +12,7 @@ matrix:
   include:
     - os: linux
       dist: xenial
-      jdk: oraclejdk8
+      jdk: openjdk8
       sudo: false
     - os: osx
       osx_image: xcode8.3
