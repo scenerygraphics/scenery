@@ -11,7 +11,15 @@ import cleargl.GLVector
  * @author Ulrik Guenther <hello@ulrik.is>
  */
 sealed class MaybeIntersects(val intersects: Boolean) {
+    /**
+     * No intersection has been found.
+     */
     class NoIntersection : MaybeIntersects(false)
+
+    /**
+     * Intersection has been found at [distance], with [entry] and [exit] points, and
+     * [relativeEntry] and [relativeExit] points.
+     */
     class Intersection(val distance: Float,
                        val entry: GLVector,
                        val exit: GLVector,
