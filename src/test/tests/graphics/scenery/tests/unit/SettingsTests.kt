@@ -35,6 +35,27 @@ class SettingsTests {
     }
 
     @Test
+    fun testOverwriteSetting() {
+        logger.info("Testing setting overwriting ...")
+        val settings = prepareSettings()
+
+        settings.set("Test.IntSetting", 1337)
+        settings.set("Test.LongSetting", 1338L)
+        settings.set("Test.FloatSetting", 1339.0f)
+        settings.set("Test.DoubleSetting", 1339.0)
+
+        assertEquals(1337, settings.set("Test.IntSetting", 1337.0f))
+        assertEquals(1339.0f, settings.set("Test.FloatSetting", 1337.0))
+        assertEquals(1337, settings.set("Test.IntSetting", 10000.0))
+        assertEquals(10000, settings.set("Test.IntSetting", 10000.0f))
+
+        // these should not get overwritten
+        assertEquals(10000, settings.set("Test.DoubleSetting", 10000))
+        assertEquals(10000, settings.set("Test.FloatSetting", 10000))
+        assertEquals(10000, settings.set("Test.LongSetting", 10000))
+    }
+
+    @Test
     fun testAddSettingIfUnsetSetting() {
         logger.info("Testing adding a setting only if unset...")
         val settings = prepareSettings()
@@ -55,6 +76,10 @@ class SettingsTests {
         assertFailsWith(IllegalStateException::class, null) {
             settings.get<Float>("Test.MissingSetting")
         }
+
+        assertFailsWith(IllegalStateException::class, null) {
+            settings.getProperty<Float>("Test.MissingSetting")
+        }
     }
 
     @Test
@@ -62,8 +87,8 @@ class SettingsTests {
         logger.info("Testing not failing on missing setting if default is provided...")
         val settings = prepareSettings()
 
-        val value = settings.get("Test.MissingSetting", 1337L)
-        assertEquals(1337L, value)
+        assertEquals(1337L, settings.get("Test.MissingSetting", 1337L))
+        assertEquals(1337L, settings.getProperty("Test.MissingSetting", 1337L))
     }
 
     @Test
