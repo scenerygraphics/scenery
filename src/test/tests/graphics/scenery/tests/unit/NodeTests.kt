@@ -3,17 +3,17 @@ package graphics.scenery.tests.unit
 import cleargl.GLMatrix
 import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
-import graphics.scenery.BufferUtils
-import graphics.scenery.Material
-import graphics.scenery.Mesh
-import graphics.scenery.Node
-import graphics.scenery.Scene
+import graphics.scenery.*
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.LazyLogger
 import org.junit.Assert.*
 import org.junit.Test
 import java.util.concurrent.ThreadLocalRandom
 import java.util.function.Consumer
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /**
  * Tests for functions of [Node]
@@ -60,7 +60,7 @@ class NodeTests {
 
         logger.info(expectedResult.toString())
 
-        assert(GLMatrix.compare(expectedResult, subChild.world, true))
+        assertTrue(GLMatrix.compare(expectedResult, subChild.world, true), "Expected transforms to be equal")
     }
 
     private fun addSiblings(toNode: Node, maxSiblings: Int, currentLevel: Int, maxLevels: Int): Int {
@@ -104,8 +104,8 @@ class NodeTests {
         scene.updateWorld(true, true)
         val duration = (System.nanoTime() - start)/10e6
 
-        assert(totalNodes <= Math.pow(1.0*maxSiblings, 1.0*levels).toInt())
-        assert(totalNodes > maxSiblings)
+        assertTrue(totalNodes <= Math.pow(1.0*maxSiblings, 1.0*levels).toInt(), "Expected total nodes to be less than maximum allowed number")
+        assertTrue(totalNodes > maxSiblings, "Expected total nodes to be more than maximum sibling count")
 
         logger.info("Updating world for $totalNodes took $duration ms")
     }
@@ -129,8 +129,8 @@ class NodeTests {
         scene.updateWorld(true, true)
         var duration = (System.nanoTime() - start)/10e6
 
-        assert(totalNodes <= Math.pow(1.0*maxSiblings, 1.0*levels).toInt())
-        assert(totalNodes > maxSiblings)
+        assertTrue(totalNodes <= Math.pow(1.0*maxSiblings, 1.0*levels).toInt(), "Expected total nodes to be less than maximum allowed number")
+        assertTrue(totalNodes > maxSiblings, "Expected total nodes to be more than maximum sibling count")
 
         logger.info("Updating world for $totalNodes took $duration ms")
 
@@ -138,7 +138,7 @@ class NodeTests {
         val discoveredNodes = scene.discover(scene, { node -> node.visible })
         duration = (System.nanoTime() - start)/10e6
 
-        assert(totalNodes == discoveredNodes.size) { "$totalNodes nodes created, but only ${discoveredNodes.size} nodes discovered."}
+        assertEquals(totalNodes, discoveredNodes.size, "$totalNodes nodes created, but only ${discoveredNodes.size} nodes discovered.")
 
         logger.info("Scene discovery for $totalNodes took $duration ms, discovered ${discoveredNodes.size} nodes")
     }
@@ -226,8 +226,8 @@ class NodeTests {
         val n2 = Node()
         scene.addChild(n1)
 
-        assert(n1.getScene() == scene)
-        assert(n2.getScene() == null)
+        assertEquals(scene, n1.getScene(), "Expected node scene is attached to to be $scene, but is ${n1.getScene()}")
+        assertNull(n2.getScene(), "Expected scene of $n2 to be null, as it is not attached to a scene." )
     }
 
     /**
@@ -239,17 +239,17 @@ class NodeTests {
         val node = Node()
         scene.addChild(node)
 
-        assert(node.needsUpdate)
-        assert(node.needsUpdateWorld)
+        assertTrue(node.needsUpdate, "Expected node to need update after creation")
+        assertTrue(node.needsUpdateWorld, "Expected node to need world update after creation")
 
         node.position = Random.randomVectorFromRange(3, -100.0f, 100.0f)
-        assert(node.needsUpdate)
-        assert(node.needsUpdateWorld)
+        assertTrue(node.needsUpdate, "Expected node to need update after position change")
+        assertTrue(node.needsUpdateWorld, "Expected node to need world update after position change")
 
         scene.updateWorld(true)
 
-        assert(!node.needsUpdate)
-        assert(!node.needsUpdateWorld)
+        assertFalse(node.needsUpdate, "Expected node to not need update after updating manually")
+        assertFalse(node.needsUpdateWorld, "Expected node not to need world update after updating manually")
     }
 
     /**
@@ -261,17 +261,17 @@ class NodeTests {
         val node = Node()
         scene.addChild(node)
 
-        assert(node.needsUpdate)
-        assert(node.needsUpdateWorld)
+        assertTrue(node.needsUpdate, "Expected node to need update after creation")
+        assertTrue(node.needsUpdateWorld, "Expected node to need world update after creation")
 
         node.scale = Random.randomVectorFromRange(3, 0.0f, 1.0f)
-        assert(node.needsUpdate)
-        assert(node.needsUpdateWorld)
+        assertTrue(node.needsUpdate, "Expected node to need update after position change")
+        assertTrue(node.needsUpdateWorld, "Expected node to need world update after position change")
 
         scene.updateWorld(true)
 
-        assert(!node.needsUpdate)
-        assert(!node.needsUpdateWorld)
+        assertFalse(node.needsUpdate, "Expected node to not need update after updating manually")
+        assertFalse(node.needsUpdateWorld, "Expected node not to need world update after updating manually")
     }
 
     /**
@@ -283,17 +283,17 @@ class NodeTests {
         val node = Node()
         scene.addChild(node)
 
-        assert(node.needsUpdate)
-        assert(node.needsUpdateWorld)
+        assertTrue(node.needsUpdate, "Expected node to need update after creation")
+        assertTrue(node.needsUpdateWorld, "Expected node to need world update after creation")
 
         node.rotation = Random.randomQuaternion()
-        assert(node.needsUpdate)
-        assert(node.needsUpdateWorld)
+        assertTrue(node.needsUpdate, "Expected node to need update after position change")
+        assertTrue(node.needsUpdateWorld, "Expected node to need world update after position change")
 
         scene.updateWorld(true)
 
-        assert(!node.needsUpdate)
-        assert(!node.needsUpdateWorld)
+        assertFalse(node.needsUpdate, "Expected node to not need update after updating manually")
+        assertFalse(node.needsUpdateWorld, "Expected node not to need world update after updating manually")
     }
 
     /**

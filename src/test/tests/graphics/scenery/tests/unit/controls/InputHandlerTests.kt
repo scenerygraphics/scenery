@@ -10,6 +10,9 @@ import graphics.scenery.utils.LazyLogger
 import org.junit.Test
 import org.scijava.ui.behaviour.ClickBehaviour
 import org.scijava.ui.behaviour.InputTrigger
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /**
  * Tests for the input handler
@@ -40,7 +43,7 @@ class InputHandlerTests {
     fun testInitialisation() {
         logger.info("Testing InputHandler initialisation...")
         val inputHandler = prepareInputHandler()
-        assert(inputHandler.behaviourMap.allBindings.isNotEmpty())
+        assertTrue(inputHandler.behaviourMap.allBindings.isNotEmpty(), "InputHandler has more than zero bindings after default initialisation")
     }
 
     @Test
@@ -51,7 +54,7 @@ class InputHandlerTests {
             logger.info("Doing nothing")
         })
 
-        assert(inputHandler.getBehaviour("testbehaviour") != null)
+        assertNotNull(inputHandler.getBehaviour("testbehaviour"), "Querying behaviour from InputHandler results in non-null return after adding it")
     }
 
     @Test
@@ -64,7 +67,7 @@ class InputHandlerTests {
         })
 
         (inputHandler.getBehaviour("testbehaviour") as ClickBehaviour).click(0, 0)
-        assert(triggered)
+        assertTrue(triggered, "Behaviour is triggered")
     }
 
     @Test
@@ -76,7 +79,7 @@ class InputHandlerTests {
         })
 
         inputHandler.removeBehaviour("testbehaviour")
-        assert(inputHandler.getBehaviour("testbehaviour") == null)
+        assertNull(inputHandler.getBehaviour("testbehaviour"), "InputHandler has behaviour removed")
     }
 
     @Test
@@ -88,7 +91,7 @@ class InputHandlerTests {
         })
 
         inputHandler.addKeyBinding("testbehaviour", "A")
-        assert(inputHandler.getAllBindings().containsKey(InputTrigger.getFromString("A")))
-        assert(inputHandler.getAllBindings().entries.any { it.value.contains("testbehaviour") })
+        assertTrue(inputHandler.getAllBindings().containsKey(InputTrigger.getFromString("A")), "InputHandler contains trigger for behaviour")
+        assertTrue(inputHandler.getAllBindings().entries.any { it.value.contains("testbehaviour") }, "InputHandler contains behaviour")
     }
 }
