@@ -25,8 +25,8 @@ class Settings(override var hub: Hub? = null) : Hubable {
 
             val setting = when {
                 value.toLowerCase() == "false" || value.toLowerCase() == "true" -> value.toBoolean()
-                value.toFloatOrNull() != null -> value.toFloat()
-                value.toLongOrNull() != null -> value.toLong()
+                value.toLowerCase().contains("f") && value.toLowerCase().replace("f", "").toFloatOrNull() != null -> value.toLowerCase().replace("f", "").toFloat()
+                value.toLowerCase().contains("l") && value.toLowerCase().replace("l", "").toLongOrNull() != null -> value.toLowerCase().replace("l", "").toLong()
                 value.toIntOrNull() != null -> value.toInt()
                 else -> value
             }
