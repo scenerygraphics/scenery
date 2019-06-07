@@ -174,6 +174,24 @@ class NodeTests {
         assertArrayEquals("Bounding Box maximum",
             expectedMax.toFloatArray().toTypedArray(),
             m.boundingBox!!.max.toFloatArray().toTypedArray())
+
+        val empty = Mesh()
+        empty.boundingBox = empty.generateBoundingBox()
+        assertArrayEquals("Expected empty bounding box",
+            empty.boundingBox!!.min.toFloatArray().toTypedArray(),
+            GLVector(0.0f, 0.0f, 0.0f).toFloatArray().toTypedArray())
+        assertArrayEquals("Expected empty bounding box",
+            empty.boundingBox!!.max.toFloatArray().toTypedArray(),
+            GLVector(0.0f, 0.0f, 0.0f).toFloatArray().toTypedArray())
+
+        empty.addChild(m)
+        empty.boundingBox = empty.generateBoundingBox()
+        assertArrayEquals("Bounding Box minimum",
+            expectedMin.toFloatArray().toTypedArray(),
+            empty.boundingBox!!.min.toFloatArray().toTypedArray())
+        assertArrayEquals("Bounding Box maximum",
+            expectedMax.toFloatArray().toTypedArray(),
+            empty.boundingBox!!.max.toFloatArray().toTypedArray())
     }
 
     /**
@@ -315,10 +333,16 @@ class NodeTests {
 
         parent.runRecursive { it.material = myShinyNewMaterial }
 
+        assertEquals("Parent of $child1 should be $parent", parent, child1.parent)
+        assertEquals("Parent of $child2 should be $parent", parent, child2.parent)
+
         assertEquals("Material of parent should be $myShinyNewMaterial", myShinyNewMaterial, parent.material)
         assertEquals("Material of child1 should be $myShinyNewMaterial", myShinyNewMaterial, child1.material)
         assertEquals("Material of child2 should be $myShinyNewMaterial", myShinyNewMaterial, child2.material)
         assertEquals("Material of grandchild should be $myShinyNewMaterial", myShinyNewMaterial, grandchild.material)
+
+        parent.visible = false
+        parent.runRecursive { assertFalse(it.visible, "Child node should be invisible") }
     }
 
     /**
@@ -344,5 +368,60 @@ class NodeTests {
         assertEquals("Material of child1 should be $myShinyNewMaterial", myShinyNewMaterial, child1.material)
         assertEquals("Material of child2 should be $myShinyNewMaterial", myShinyNewMaterial, child2.material)
         assertEquals("Material of grandchild should be $myShinyNewMaterial", myShinyNewMaterial, grandchild.material)
+    }
+
+    /**
+     * Tests Node triggers
+     */
+    @Test
+    fun testNodeTriggers() {
+        val s = Scene()
+        var childrenAdded = 0
+        var childrenRemoved = 0
+        s.onChildrenAdded.put("childAddCounter") { _, _ -> childrenAdded++ }
+        s.onChildrenRemoved.put("childRemovedCounter") { _, _ -> childrenRemoved++ }
+
+        val nodesCount = addSiblings(s, 5, 0, 5)
+        Thread.sleep(200)
+        assertTrue(childrenAdded in 1..nodesCount)
+
+        s.runRecursive { p -> p.children.forEach { p.removeChild(it) } }
+        Thread.sleep(200)
+        assertTrue(childrenRemoved in 1..(nodesCount - 1))
+    }
+
+    /**
+     * Tests shader properties
+     */
+    @Test
+    fun testShaderProperties() {
+        val randomInt = kotlin.random.Random.nextInt()
+        val n = object: Node("MyNode") {
+            @ShaderProperty val myShaderProperty = randomInt
+        }
+
+        assertEquals(randomInt, n.getShaderProperty("myShaderProperty"),
+            "Expected value from shader property to be")
+
+        val m = object: Node("MyOtherNode") {
+            @ShaderProperty val shaderProperties = HashMap<String, Any>()
+        }
+
+        m.shaderProperties["myHashMapProperty"] = randomInt
+
+        assertEquals(randomInt, m.getShaderProperty("myHashMapProperty"),
+            "Expected value from shader property hash map to be")
+    }
+
+    /**
+     * Tests node DFS search
+     */
+    @Test
+    fun testNodeDepthSearch() {
+        val s = Scene()
+        val totalNodes = addSiblings(s, 10, 0, 5)
+
+        assertEquals(totalNodes, Node.discover(s, { it.visible == true }).size,
+            "Total number of nodes seen should be $totalNodes, but is ")
     }
 }
