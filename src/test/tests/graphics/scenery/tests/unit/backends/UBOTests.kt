@@ -5,11 +5,14 @@ import cleargl.GLVector
 import graphics.scenery.backends.UBO
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.VideoEncodingQuality
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.lwjgl.system.MemoryUtil
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
+import kotlin.test.assertFalse
 
 /**
  * Tests for [UBO] serialisation.
@@ -88,6 +91,14 @@ class UBOTests {
         MemoryUtil.memFree(storage)
     }
 
+    private fun Boolean.toInt(): Int {
+        return if(this) {
+            1
+        } else {
+            0
+        }
+    }
+
     /**
      * Tests repeated UBO serialisation with caching of the member hashes
      */
@@ -95,9 +106,21 @@ class UBOTests {
         logger.info("Testing hashed UBO serialisation...")
 
         val ubo = UBO()
-        val storage = MemoryUtil.memAlloc(96)
+
+        assertEquals(0, ubo.getSize())
+        val storage = MemoryUtil.memAlloc(144)
+        assertFalse(ubo.populate(storage))
         val storageView = storage.duplicate().order(ByteOrder.LITTLE_ENDIAN)
         val defaultVector = GLVector(1.0f, 2.0f, 3.0f)
+
+        val floatMember = kotlin.random.Random.nextFloat()
+        val booleanMember = kotlin.random.Random.nextBoolean()
+        val shortMember = kotlin.random.Random.nextInt().toShort()
+        val enumMember = VideoEncodingQuality.values().random()
+        val doubleMember = kotlin.random.Random.nextDouble()
+
+        val twoVector = Random.randomVectorFromRange(2, 0.0f, 1.0f)
+        val fourVector = Random.randomVectorFromRange(4, 0.0f, 1.0f)
 
         // ints are 4 byte-aligned
         ubo.add("member1", { 1337 })
@@ -105,7 +128,22 @@ class UBOTests {
         ubo.add("member2", { defaultVector })
         // Matrices as arrays of 4-vectors are 16 byte-aligned
         ubo.add("member3", { GLMatrix.getIdentity() })
+        // Float member, 4-aligned
+        ubo.add("floatMember", { floatMember })
+        // Boolean, stored as Int, 4-aligned
+        ubo.add("booleanMember", { booleanMember })
+        // short, 2-aligned
+        ubo.add("shortMember", { shortMember })
+        // enum member, as int, 4-aligned
+        ubo.add("enumMember", { enumMember })
+        // double member
+        ubo.add("doubleMember", { doubleMember })
+        // two-vector
+        ubo.add("twoVector", { twoVector })
+        // four-vector
+        ubo.add("fourVector", { fourVector })
 
+        assertEquals(144, ubo.getSize())
         ubo.populate(storage)
 
         fun verifyData(v: GLVector = defaultVector) {
@@ -123,16 +161,37 @@ class UBOTests {
             (storageView.asFloatBuffer().position(32 / 4) as FloatBuffer).get(array)
             assertEquals(4.0f, array.sum())
 
+            assertEquals(floatMember, storageView.asFloatBuffer().get(24))
+            assertEquals(booleanMember.toInt(), storageView.asIntBuffer().get(25))
+            assertEquals(shortMember, storageView.asShortBuffer().get(52))
+            assertEquals(enumMember.ordinal, storageView.asIntBuffer().get(27))
+            assertEquals(doubleMember, storageView.asDoubleBuffer().get(14), 0.00000005)
+
+            val tmpTwo = floatArrayOf(
+                storageView.asFloatBuffer().get(30),
+                storageView.asFloatBuffer().get(31))
+            val tmpFour = floatArrayOf(
+                storageView.asFloatBuffer().get(32),
+                storageView.asFloatBuffer().get(33),
+                storageView.asFloatBuffer().get(34),
+                storageView.asFloatBuffer().get(35))
+
+            assertArrayEquals(twoVector.toFloatArray().toTypedArray(), tmpTwo.toTypedArray())
+            assertArrayEquals(fourVector.toFloatArray().toTypedArray(), tmpFour.toTypedArray())
+
             // storage buffer should be at it's end now
-            assertEquals(96, storage.position())
+            assertEquals(144, storage.position())
         }
 
         verifyData(v = defaultVector)
+
+        val originalHash = ubo.hash
 
         logger.info("+ Testing 10 hashed runs and checking buffer is not being updated ...")
         for(i in 0..10) {
             storage.flip()
             assertEquals(false, ubo.populate(storage))
+            assertEquals(originalHash, ubo.hash)
 
             verifyData(v = defaultVector)
         }
