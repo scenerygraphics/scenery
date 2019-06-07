@@ -11,6 +11,7 @@ env:
 matrix:
   include:
     - os: linux
+      dist: xenial
       jdk: oraclejdk8
       sudo: false
     - os: osx
