@@ -93,6 +93,12 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
     protected var shouldClose: Boolean = false
     protected var gracePeriod = 0
 
+    enum class AssertionCheckPoint { BeforeStart, AfterClose }
+    var assertions = hashMapOf<AssertionCheckPoint, ArrayList<() -> Any>>(
+        AssertionCheckPoint.BeforeStart to arrayListOf(),
+        AssertionCheckPoint.AfterClose to arrayListOf()
+    )
+
     interface XLib: Library {
         fun XInitThreads()
 
