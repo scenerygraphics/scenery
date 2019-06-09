@@ -112,7 +112,7 @@
         <cleargl.version>2.2.6</cleargl.version>
         <slf4j.version>1.7.25</slf4j.version>
         <lwjgl.version>3.2.1</lwjgl.version>
-        <spirvcrossj.version>0.5.2-1.1.101.0</spirvcrossj.version>
+        <spirvcrossj.version>0.6.0-1.1.106.0</spirvcrossj.version>
         <jvrpn.version>1.1.0</jvrpn.version>
         <jeromq.version>0.4.3</jeromq.version>
 
@@ -426,7 +426,6 @@
             <groupId>org.reflections</groupId>
             <artifactId>reflections</artifactId>
             <version>0.9.11</version>
-            <scope>test</scope>
         </dependency>
 
         <dependency>
@@ -596,6 +595,34 @@
     </build>
 
     <profiles>
+        <profile>
+            <id>integration-tests</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <systemPropertyVariables>
+                                <jacoco-agent.destfile>${project.build.directory}/jacoco.exec</jacoco-agent.destfile>
+                            </systemPropertyVariables>
+                            <argLine>@{argLine}</argLine>
+                            <forkCount>1</forkCount>
+                            <reuseForks>true</reuseForks>
+
+                            <excludes>
+                                <exclude>**/*Example.*</exclude>
+                            </excludes>
+
+                            <includes>
+                                <include>**/*Tests.*</include>
+                                <include>**/*ExampleRunner.*</include>
+                            </includes>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
         <profile> 
             <id>release</id>
             <properties>

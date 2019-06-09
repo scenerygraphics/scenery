@@ -1,16 +1,21 @@
 package graphics.scenery.controls
 
+import com.jogamp.newt.awt.NewtCanvasAWT
 import com.jogamp.newt.event.*
 import graphics.scenery.Hub
+import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.utils.ExtractsNatives
 import net.java.games.input.ControllerListener
+import org.scijava.ui.behaviour.BehaviourMap
 import org.scijava.ui.behaviour.InputTrigger
+import org.scijava.ui.behaviour.InputTriggerMap
 
 /**
  * Input handling class for JOGL-based windows
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
+@CanHandleInputFor([SceneryWindow.ClearGLWindow::class, SceneryWindow.SwingWindow::class, SceneryWindow.JOGLDrawable::class])
 open class JOGLMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandlerBase(), MouseListener, KeyListener, WindowListener, ControllerListener, ExtractsNatives {
     /** store os name */
     private var os = ""
@@ -376,5 +381,62 @@ open class JOGLMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandlerB
         shiftPressed = false
         metaPressed = false
         winPressed = false
+    }
+
+    override fun attach(window: SceneryWindow, inputMap: InputTriggerMap, behaviourMap: BehaviourMap): MouseAndKeyHandlerBase {
+        val handler: MouseAndKeyHandlerBase
+        when(window) {
+            is SceneryWindow.SwingWindow -> {
+                val component = window.panel.component
+                val cglWindow = window.panel.cglWindow
+
+                if(component is NewtCanvasAWT && cglWindow != null) {
+                    handler = this
+
+                    handler.setInputMap(inputMap)
+                    handler.setBehaviourMap(behaviourMap)
+
+                    cglWindow.addKeyListener(handler)
+                    cglWindow.addMouseListener(handler)
+                } else {
+                    handler = SwingMouseAndKeyHandler()
+
+                    handler.setInputMap(inputMap)
+                    handler.setBehaviourMap(behaviourMap)
+
+                    val ancestor = window.panel.component
+                    ancestor?.addKeyListener(handler)
+                    ancestor?.addMouseListener(handler)
+                    ancestor?.addMouseMotionListener(handler)
+                    ancestor?.addMouseWheelListener(handler)
+                    ancestor?.addFocusListener(handler)
+                }
+            }
+
+            is SceneryWindow.ClearGLWindow  -> {
+                // create Mouse & Keyboard Handler
+                handler = this
+                handler.setInputMap(inputMap)
+                handler.setBehaviourMap(behaviourMap)
+
+                window.window.addKeyListener(handler)
+                window.window.addMouseListener(handler)
+            }
+
+            is SceneryWindow.JOGLDrawable -> {
+                // create Mouse & Keyboard Handler
+                handler = this
+                handler.setInputMap(inputMap)
+                handler.setBehaviourMap(behaviourMap)
+
+                // TODO: Add listeners in appropriate place
+                // window.drawable.addKeyListener(handler)
+                // window.drawable.addMouseListener(handler)
+            }
+
+            else -> throw UnsupportedOperationException("Don't know how to handle window of type $window. Supported types are: ${(this.javaClass.annotations.find { it is CanHandleInputFor } as? CanHandleInputFor)?.windowTypes?.joinToString(", ")}")
+        }
+
+        return handler
     }
 }
