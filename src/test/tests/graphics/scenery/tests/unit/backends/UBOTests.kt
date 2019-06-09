@@ -13,6 +13,8 @@ import org.lwjgl.system.MemoryUtil
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
 import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
+import kotlin.test.assertTrue
 
 /**
  * Tests for [UBO] serialisation.
@@ -60,6 +62,11 @@ class UBOTests {
         assertEquals(96, storage.position())
 
         MemoryUtil.memFree(storage)
+
+        // test getting the values as well
+        assertEquals(1337, ubo.get("member1")?.invoke())
+        assertEquals(GLVector(1.0f, 2.0f, 3.0f), ubo.get("member2")?.invoke())
+        assertTrue(GLMatrix.compare(GLMatrix.getIdentity(), ubo.get("member3")?.invoke() as GLMatrix, true))
     }
 
     /**
@@ -89,6 +96,12 @@ class UBOTests {
         assertEquals(storage.capacity(), storage.position())
 
         MemoryUtil.memFree(storage)
+
+        assertEquals(1337, ubo.get("member1")?.invoke())
+        assertEquals(2 * 1337, ubo.get("member2")?.invoke())
+        assertEquals(3 * 1337, ubo.get("member3")?.invoke())
+
+        assertEquals("member1, member2, member3", ubo.members())
     }
 
     private fun Boolean.toInt(): Int {
@@ -205,5 +218,47 @@ class UBOTests {
         verifyData(v = newVector)
 
         MemoryUtil.memFree(storage)
+    }
+
+    @Test
+    fun testAddIfMissing() {
+        logger.info("Testing adding members only if they do not exist yet ...")
+        val ubo = UBO()
+        ubo.add("member1", { Random.randomFromRange(0.0f, 1.0f) })
+        ubo.add("member2", { Random.randomFromRange(0.0f, 1.0f) })
+        ubo.add("member3", { GLVector.getOneVector(4) })
+
+        ubo.addIfMissing("member1", { 1337 })
+        assertNotEquals(1337, ubo.get("member1")?.invoke())
+
+        ubo.addIfMissing("member4", { GLMatrix.getIdentity() })
+        assertTrue(GLMatrix.compare(GLMatrix.getIdentity(), ubo.get("member4")?.invoke() as GLMatrix, false))
+    }
+
+    @Test
+    fun testDebuggingRoutines() {
+        logger.info("Testing UBO debugging routines ...")
+        val ubo = UBO()
+        ubo.add("member1", { Random.randomFromRange(0.0f, 1.0f) })
+        ubo.add("member2", { Random.randomFromRange(0.0f, 1.0f) })
+        ubo.add("member3", { Random.randomFromRange(0.0f, 1.0f) })
+        ubo.add("member4", { GLMatrix.getIdentity() })
+        ubo.add("member5", { GLVector.getNullVector(4) })
+
+        val members = ubo.members()
+        val membersAndContent = ubo.membersAndContent()
+
+        assertEquals("member1, member2, member3, member4, member5", members)
+        logger.info(membersAndContent)
+        assertTrue(membersAndContent.contains("GLMatrix"))
+        assertTrue(membersAndContent.contains("[[0.0, 0.0, 0.0]]"))
+        assertTrue(membersAndContent.contains("member1"))
+        assertTrue(membersAndContent.contains("member2"))
+        assertTrue(membersAndContent.contains("member3"))
+        assertTrue(membersAndContent.contains("member4"))
+        assertTrue(membersAndContent.contains("member5"))
+
+        val hashes = ubo.perMemberHashes()
+        assertTrue(hashes.isNotEmpty())
     }
 }
