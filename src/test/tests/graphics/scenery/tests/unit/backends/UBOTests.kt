@@ -249,9 +249,8 @@ class UBOTests {
         val membersAndContent = ubo.membersAndContent()
 
         assertEquals("member1, member2, member3, member4, member5", members)
-        logger.info(membersAndContent)
         assertTrue(membersAndContent.contains("GLMatrix"))
-        assertTrue(membersAndContent.contains("[[0.0, 0.0, 0.0]]"))
+        assertTrue(membersAndContent.contains("[[0.0, 0.0, 0.0, 0.0]]"))
         assertTrue(membersAndContent.contains("member1"))
         assertTrue(membersAndContent.contains("member2"))
         assertTrue(membersAndContent.contains("member3"))
