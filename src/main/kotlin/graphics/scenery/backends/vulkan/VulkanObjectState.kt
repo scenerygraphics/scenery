@@ -79,7 +79,7 @@ open class VulkanObjectState : NodeMetadata {
             if(descriptorSetLayoutObjectTextures != null && objectTextures != null) {
                 textureDescriptorSets[pass.passConfig.type.name to "ObjectTextures"] = createOrUpdateTextureDescriptorSet(
                     "ObjectTextures",
-                    passName,
+                    pass.passConfig.type.name,
                     GenericTexture.objectTextures.map { ot -> objectTextures.first { it.key == ot } },
                     descriptorSetLayoutObjectTextures,
                     device,
