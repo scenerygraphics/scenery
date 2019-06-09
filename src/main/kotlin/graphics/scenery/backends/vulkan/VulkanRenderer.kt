@@ -1039,7 +1039,8 @@ open class VulkanRenderer(hub: Hub,
     protected fun loadTexturesForNode(node: Node, s: VulkanObjectState): Boolean {
         val stats = hub?.get(SceneryElement.Statistics) as Statistics?
         val defaultTexture = textureCache["DefaultTexture"] ?: throw IllegalStateException("Default fallback texture does not exist.")
-        var reqNewDS = false
+        // if a node is not yet initialized, we'll definitely require a new DS
+        var reqNewDS = !node.initialized
 
         node.material.textures.forEach { type, texture ->
             val slot = VulkanObjectState.textureTypeToSlot(type)
@@ -1092,6 +1093,7 @@ open class VulkanRenderer(hub: Hub,
 
                         val duration = System.nanoTime() - start * 1.0f
                         stats?.add("loadTexture", duration)
+                        reqNewDS = true
 
                         t
                     }
