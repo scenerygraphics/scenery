@@ -5,10 +5,10 @@ import cleargl.GLShaderType
 import com.jogamp.opengl.GL4
 import graphics.scenery.backends.ShaderPackage
 import graphics.scenery.backends.ShaderType
-import graphics.scenery.spirvcrossj.*
+import graphics.scenery.spirvcrossj.CompilerGLSL
+import graphics.scenery.spirvcrossj.Decoration
 import graphics.scenery.utils.LazyLogger
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.collections.LinkedHashMap
 
 
 /**
@@ -41,9 +41,9 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, sp: ShaderPackage) {
 
         val uniformBuffers = compiler.shaderResources.uniformBuffers
         logger.debug("Analysing uniform buffers ...")
-        for(i in 0 until uniformBuffers.size()) {
-            logger.debug("Getting ${i.toInt()} for ${sp.toShortString()} (size: ${uniformBuffers.capacity()}/${uniformBuffers.size()})")
-            val res = uniformBuffers.get(i.toInt())
+        for(i in 0 until uniformBuffers.capacity()) {
+            logger.debug("Getting $i for ${sp.toShortString()} (size: ${uniformBuffers.capacity()}/${uniformBuffers.capacity()})")
+            val res = uniformBuffers.get(i)
             logger.debug("${res.name}, set=${compiler.getDecoration(res.id, Decoration.DecorationDescriptorSet)}, binding=${compiler.getDecoration(res.id, Decoration.DecorationBinding)}")
 
             val members = LinkedHashMap<String, UBOMemberSpec>()
@@ -51,8 +51,8 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, sp: ShaderPackage) {
 
             // record all members of the UBO struct, order by index, and store them to UBOSpec.members
             // for further use
-            members.putAll((0 until activeRanges.size()).map {
-                val range = activeRanges.get(it.toInt())
+            members.putAll((0 until activeRanges.capacity()).map {
+                val range = activeRanges.get(it)
                 val name = compiler.getMemberName(res.baseTypeId, range.index)
 
                 name to UBOMemberSpec(
@@ -93,7 +93,7 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, sp: ShaderPackage) {
                     members = LinkedHashMap<String, UBOMemberSpec>()))
          */
         // inputs are summarized into one descriptor set
-        if(compiler.shaderResources.sampledImages.size() > 0) {
+        if(compiler.shaderResources.sampledImages.capacity() > 0) {
             val res = compiler.shaderResources.sampledImages.get(0)
             if (res.name != "ObjectTextures") {
                 uboSpecs[res.name] = UBOSpec("inputs",
@@ -104,9 +104,9 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, sp: ShaderPackage) {
         }
 
         val inputs = compiler.shaderResources.stageInputs
-        if(inputs.size() > 0) {
-            for (i in 0 until inputs.size()) {
-                logger.debug("${sp.toShortString()}: ${inputs.get(i.toInt()).name}")
+        if(inputs.capacity() > 0) {
+            for (i in 0 until inputs.capacity()) {
+                logger.debug("${sp.toShortString()}: ${inputs.get(i).name}")
             }
         }
 
@@ -114,7 +114,7 @@ open class OpenGLShaderModule(gl: GL4, entryPoint: String, sp: ShaderPackage) {
         options.version = 410
         options.es = false
         options.vulkanSemantics = false
-        compiler.options = options
+        compiler.commonOptions = options
 
         this.shaderType = sp.type
 

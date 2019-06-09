@@ -4,7 +4,6 @@ import graphics.scenery.Hub
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.utils.LazyLogger
-import graphics.scenery.utils.SceneryFXPanel
 import graphics.scenery.utils.SceneryPanel
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.glfw.GLFWVulkan
@@ -219,7 +218,8 @@ open class VulkanSwapchain(open val device: VulkanDevice,
                 .clipped(true)
                 .compositeAlpha(KHRSurface.VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR)
 
-            if ((oldSwapchain is VulkanSwapchain || oldSwapchain is FXSwapchain) && oldHandle != null) {
+            // TODO: Add recycleable property for swapchains
+            if ((oldSwapchain is VulkanSwapchain) && oldHandle != null) {
                 swapchainCI.oldSwapchain(oldHandle)
             }
 

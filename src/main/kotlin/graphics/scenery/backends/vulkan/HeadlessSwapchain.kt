@@ -1,15 +1,15 @@
 package graphics.scenery.backends.vulkan
 
+import graphics.scenery.Hub
 import graphics.scenery.backends.RenderConfigReader
+import graphics.scenery.backends.ResizeHandler
 import graphics.scenery.backends.SceneryWindow
+import graphics.scenery.utils.SceneryPanel
+import org.lwjgl.system.MemoryStack
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.vulkan.*
 import java.nio.ByteBuffer
 import java.nio.LongBuffer
-import graphics.scenery.Hub
-import graphics.scenery.utils.SceneryFXPanel
-import graphics.scenery.utils.SceneryPanel
-import org.lwjgl.system.MemoryStack
 
 
 /**
@@ -42,21 +42,21 @@ open class HeadlessSwapchain(device: VulkanDevice,
      * Special resize handler for HeadlessSwapchain, as resize events
      * here are externally triggered, outside of the regular event loop.
      */
-    inner class ResizeHandler {
+    inner class VulkanResizeHandler: ResizeHandler {
         /** Timestamp of the last resize */
         @Volatile
-        var lastResize = -1L
+        override var lastResize = -1L
         /** Last reported width */
-        var lastWidth = 0
+        override var lastWidth = 0
         /** Last reported height */
-        var lastHeight = 0
+        override var lastHeight = 0
 
         /**
          * Checks whether a resize is necessary and sets the [VulkanRenderer.SwapchainRecreator.mustRecreate]
          * flag if necessary.
          */
         @Synchronized
-        fun queryResize() {
+        override fun queryResize() {
             if (lastWidth <= 0 || lastHeight <= 0) {
                 lastWidth = Math.max(1, lastWidth)
                 lastHeight = Math.max(1, lastHeight)
@@ -83,7 +83,7 @@ open class HeadlessSwapchain(device: VulkanDevice,
         }
     }
 
-    protected var resizeHandler = ResizeHandler()
+    protected var resizeHandler = VulkanResizeHandler()
 
     /**
      * Creates a window for this swapchain, and initialiases [win] as [SceneryWindow.HeadlessWindow].
@@ -287,5 +287,10 @@ open class HeadlessSwapchain(device: VulkanDevice,
         MemoryUtil.memFree(imageBuffer)
 
         sharingBuffer.close()
+    }
+
+    companion object: SwapchainParameters {
+        override var headless = true
+        override var usageCondition = { _: SceneryPanel? -> System.getProperty("scenery.Headless", "false")?.toBoolean() ?: false }
     }
 }

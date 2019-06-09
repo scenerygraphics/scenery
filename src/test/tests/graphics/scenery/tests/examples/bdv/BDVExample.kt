@@ -1,18 +1,19 @@
 package graphics.scenery.tests.examples.bdv
 
 import cleargl.GLVector
-import com.sun.javafx.application.PlatformImpl
-import graphics.scenery.*
+import graphics.scenery.Camera
+import graphics.scenery.DetachedHeadCamera
+import graphics.scenery.PointLight
+import graphics.scenery.SceneryBase
 import graphics.scenery.backends.Renderer
 import graphics.scenery.volumes.bdv.BDVVolume
-import javafx.application.Platform
-import javafx.stage.FileChooser
-import javafx.stage.Stage
 import org.junit.Test
+import org.scijava.Context
+import org.scijava.ui.UIService
 import org.scijava.ui.behaviour.ClickBehaviour
+import org.scijava.widget.FileWidget
 import tpietzsch.example2.VolumeViewerOptions
 import java.util.*
-import java.util.concurrent.CountDownLatch
 import kotlin.math.max
 
 /**
@@ -25,27 +26,16 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
     var currentCacheSize = 1024
 
     override fun init() {
-        val latch = CountDownLatch(1)
         val files = ArrayList<String>()
 
         val fileFromProperty = System.getProperty("bdvXML")
         if(fileFromProperty != null) {
             files.add(fileFromProperty)
         } else {
-            PlatformImpl.startup {  }
-            Platform.runLater {
-                val chooser = FileChooser()
-                chooser.title = "Open File"
-                chooser.extensionFilters.add(FileChooser.ExtensionFilter("BigDataViewer XML", "*.xml"))
-                val file = chooser.showOpenDialog(Stage())
-
-                if (file != null) {
-                    files.add(file.absolutePath)
-                }
-                latch.countDown()
-            }
-
-            latch.await()
+            val c = Context()
+            val ui = c.getService(UIService::class.java)
+            val file = ui.chooseFile(null, FileWidget.OPEN_STYLE)
+            files.add(file.absolutePath)
         }
 
         if(files.size == 0) {

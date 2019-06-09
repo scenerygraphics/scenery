@@ -1,20 +1,17 @@
 package graphics.scenery.backends
 
 import com.jogamp.opengl.GLAutoDrawable
-import graphics.scenery.utils.SceneryFXPanel
 import graphics.scenery.utils.SceneryJPanel
-import javafx.application.Platform
-import javafx.stage.Stage
 import org.lwjgl.glfw.GLFW.*
 import javax.swing.JFrame
 import javax.swing.SwingUtilities
 
 /**
- * Abstraction class for GLFW, ClearGL and JavaFX windows
+ * Abstraction class for scenery windows.
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-sealed class SceneryWindow {
+open class SceneryWindow {
     /** The default window state, before it becomes initialized to a specific window kind */
     class UninitializedWindow : SceneryWindow()
     /** GLFW window, with [window] being the pointer to GLFW's window object. */
@@ -23,8 +20,7 @@ sealed class SceneryWindow {
     class ClearGLWindow(var window: cleargl.ClearGLWindow): SceneryWindow()
     /** JOGL GLAutoDrawable, with [drawable] being the reference to a [GLAutoDrawable]. */
     class JOGLDrawable(var drawable: GLAutoDrawable): SceneryWindow()
-    /** JavaFX window or stage, with [panel] being the [SceneryFXPanel] scenery will render to. */
-    class JavaFXStage(var panel: SceneryFXPanel): SceneryWindow()
+
     /** Swing window with [panel] being the [SceneryJPanel] */
     class SwingWindow(var panel: SceneryJPanel): SceneryWindow()
     /** Headless window with no chrome whatsoever. */
@@ -44,16 +40,13 @@ sealed class SceneryWindow {
         internal set
 
     /** The window's title */
-    var title: String = ""
+    open var title: String = ""
         set(value) {
             field = value
             when(this) {
                 is UninitializedWindow -> {}
                 is GLFWWindow -> glfwSetWindowTitle(window, value)
                 is ClearGLWindow -> window.windowTitle = value
-                is JavaFXStage -> {
-                    Platform.runLater { (panel.scene.window as? Stage)?.title = value }
-                }
                 is SwingWindow -> {
                     val window = SwingUtilities.getWindowAncestor(panel)
                     if(window != null) {
