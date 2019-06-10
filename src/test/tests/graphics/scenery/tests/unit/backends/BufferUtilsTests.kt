@@ -19,7 +19,7 @@ class BufferUtilsTests {
     @Test
     fun testAllocateFloat() {
         logger.info("Testing allocation of a new direct float buffer ...")
-        val size = kotlin.random.Random.nextInt(0, 10000)
+        val size = kotlin.random.Random.nextInt(1, 10000)
         val floatBuf = BufferUtils.allocateFloat(size)
 
         assertEquals(size, floatBuf.capacity(), "Float buffer capacity was expected to be $size, but is ${floatBuf.capacity()}")
@@ -29,7 +29,7 @@ class BufferUtilsTests {
     @Test
     fun testAllocateFloatAndPut() {
         logger.info("Testing allocation and initialization of a new direct float buffer with elements of a given array ...")
-        val size = kotlin.random.Random.nextInt(0, 10000)
+        val size = kotlin.random.Random.nextInt(1, 10000)
         val floatArr = FloatArray(size)
 
         for(i in 0..size-1) {
@@ -58,7 +58,7 @@ class BufferUtilsTests {
     @Test
     fun testAllocateInt() {
         logger.info("Testing allocation of a new direct int buffer ...")
-        val size = kotlin.random.Random.nextInt(0, 10000)
+        val size = kotlin.random.Random.nextInt(1, 10000)
         val intBuf = BufferUtils.allocateInt(size)
 
         assertEquals(size, intBuf.capacity(), "Int buffer capacity was expected to be $size, but is ${intBuf.capacity()}")
@@ -68,7 +68,7 @@ class BufferUtilsTests {
     @Test
     fun testAllocateIntAndPut() {
         logger.info("Testing allocation and initialization of a new direct int buffer with elements of a given array ...")
-        val size = kotlin.random.Random.nextInt(0, 10000)
+        val size = kotlin.random.Random.nextInt(1, 10000)
         val intArr = IntArray(size)
 
         for(i in 0..size-1) {
@@ -97,7 +97,7 @@ class BufferUtilsTests {
     @Test
     fun testAllocateByte() {
         logger.info("Testing allocation of a new direct byte buffer ...")
-        val size = kotlin.random.Random.nextInt(0, 10000)
+        val size = kotlin.random.Random.nextInt(1, 10000)
         val byteBuf = BufferUtils.allocateByte(size)
 
         assertEquals(size, byteBuf.capacity(), "Byte buffer capacity was expected to be $size, but is ${byteBuf.capacity()}")
@@ -107,7 +107,7 @@ class BufferUtilsTests {
     @Test
     fun testAllocateByteAndPut() {
         logger.info("Testing allocation and initialization of a new direct byte buffer with elements of a given array ...")
-        val size = kotlin.random.Random.nextInt(0, 10000)
+        val size = kotlin.random.Random.nextInt(1, 10000)
         val byteArr = kotlin.random.Random.nextBytes(size)
 
         val byteBuf = BufferUtils.allocateByteAndPut(byteArr)
