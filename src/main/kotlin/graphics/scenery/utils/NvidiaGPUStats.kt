@@ -5,6 +5,7 @@ import com.sun.jna.win32.StdCallLibrary
 import com.sun.jna.Native
 import com.sun.jna.Pointer
 import com.sun.jna.ptr.IntByReference
+import org.lwjgl.system.MemoryUtil
 import java.util.*
 
 /**
