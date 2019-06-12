@@ -27,6 +27,7 @@ class ExampleRunner {
 
         // blacklist contains examples that require user interaction or additional devices
         val blacklist = listOf("LocalisationExample",
+            "SwingTexturedCubeExample",
             "TexturedCubeJavaApplication",
             "XwingLiverExample",
             "VRControllerExample",
@@ -75,6 +76,9 @@ class ExampleRunner {
 
                     try {
                         val exampleRunnable = Runnable {
+                            instance.assertions[SceneryBase.AssertionCheckPoint.BeforeStart]?.forEach {
+                                it.invoke()
+                            }
                             instance.main()
                         }
 
@@ -94,6 +98,9 @@ class ExampleRunner {
 
                         logger.info("Sending close to ${example.simpleName}")
                         instance.close()
+                        instance.assertions[SceneryBase.AssertionCheckPoint.AfterClose]?.forEach {
+                            it.invoke()
+                        }
 
                         while (instance.running) {
                             Thread.sleep(200)

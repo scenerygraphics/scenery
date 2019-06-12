@@ -73,6 +73,20 @@ abstract class Renderer : Hubable {
     abstract fun screenshot(filename: String = "", overwrite: Boolean = false)
 
     /**
+     * Records a movie with the default filename.
+     */
+    fun recordMovie() {
+        recordMovie("")
+    }
+
+    /**
+     * Starts recording a movie, and saves it as [filename].
+     *
+     * @param[filename] The filename where to save the screenshot.
+     */
+    abstract fun recordMovie(filename: String = "", overwrite: Boolean = false)
+
+    /**
      * Reshapes the window to the given sizes.
      *
      * @param[newWidth] The new width of the window.

@@ -190,7 +190,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
      */
     fun removeChild(child: Node): Boolean {
         this.getScene()?.sceneSize?.decrementAndGet()
-        GlobalScope.async { this@Node.getScene()?.onChildrenRemoved?.forEach { it.value.invoke(this@Node, child) } }
+        GlobalScope.launch { this@Node.getScene()?.onChildrenRemoved?.forEach { it.value.invoke(this@Node, child) } }
 
         return this.children.remove(child)
     }

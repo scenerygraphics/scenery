@@ -113,6 +113,7 @@ open class OpenGLRenderer(hub: Hub,
     private var screenshotFilename = ""
     private var encoder: H264Encoder? = null
     private var recordMovie = false
+    private var movieFilename = ""
 
     /**
      * Activate or deactivate push-based rendering mode (render only on scene changes
@@ -1955,7 +1956,13 @@ open class OpenGLRenderer(hub: Hub,
             }
 
             if (recordMovie && (encoder == null || encoder?.frameWidth != w || encoder?.frameHeight != h)) {
-                encoder = H264Encoder(w, h, System.getProperty("user.home") + File.separator + "Desktop" + File.separator + "$applicationName - ${SimpleDateFormat("yyyy-MM-dd_HH.mm.ss").format(Date())}.mp4", hub = hub)
+                val file = SystemHelpers.addFileCounter(if(movieFilename == "") {
+                    File(System.getProperty("user.home"), "Desktop" + File.separator + "$applicationName - ${SimpleDateFormat("yyyy-MM-dd HH.mm.ss").format(Date())}.mp4")
+                } else {
+                    File(movieFilename)
+                }, false)
+
+                encoder = H264Encoder(window.width, window.height, file.absolutePath, hub = hub)
             }
 
             readIndex = (readIndex + 1) % pboCount
@@ -2755,13 +2762,14 @@ open class OpenGLRenderer(hub: Hub,
     }
 
     @Suppress("unused")
-    fun recordMovie() {
+    override fun recordMovie(filename: String, overwrite: Boolean) {
         if(recordMovie) {
             encoder?.finish()
             encoder = null
 
             recordMovie = false
         } else {
+            movieFilename = filename
             recordMovie = true
         }
     }
