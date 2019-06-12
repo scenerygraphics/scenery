@@ -87,4 +87,14 @@ class FauxRenderer(override var hub: Hub?, var scene: Scene) : Renderer() {
     override var lastFrameTime: Float = 1.0f
     /** The file to read the [RenderConfigReader.RenderConfig] from. */
     override var renderConfigFile: String = ""
+
+    private var recordMovie = false
+    override fun recordMovie(filename: String, overwrite: Boolean) {
+        if(recordMovie) {
+            logger.info("Recording movie to $filename")
+            recordMovie = true
+        } else {
+            logger.info("Stopped recording movie")
+        }
+    }
 }
