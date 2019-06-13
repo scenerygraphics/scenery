@@ -1,7 +1,6 @@
 package graphics.scenery.tests.unit.controls.behaviours
 
 import cleargl.GLVector
-import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.Camera
 import graphics.scenery.DetachedHeadCamera
 import graphics.scenery.Hub
@@ -13,7 +12,6 @@ import graphics.scenery.tests.unit.backends.FauxRenderer
 import graphics.scenery.utils.LazyLogger
 import net.java.games.input.Component
 import org.junit.Test
-import java.io.File
 import java.io.FileWriter
 import java.io.PrintWriter
 import java.util.zip.GZIPInputStream
@@ -21,7 +19,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertEquals
 
 /**
- * Tests for Implementation of GamepadBehaviour for Camera Control
+ * Tests for [GamepadCameraControl]
  *
  * @author Aryaman Gupta <aryaman1994@gmail.com>
  */
