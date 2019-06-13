@@ -568,6 +568,10 @@ open class BDVVolume(bdvXMLFile: String = "", val options: VolumeViewerOptions) 
         }
     }
 
+    fun getStack(timepoint: Int, setupId: Int, volatile: Boolean): MultiResolutionStack3D<*> {
+        return stacks.getStack(timepoint, setupId, volatile)
+    }
+
     /** Companion object for BDVVolume */
     companion object {
         /** Static [ForkJoinPool] for fill task submission. */
