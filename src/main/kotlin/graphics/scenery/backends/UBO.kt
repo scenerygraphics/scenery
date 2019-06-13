@@ -29,9 +29,6 @@ open class UBO {
     var hash: Int = 0
         private set
 
-    /** Optional flag to indicate finished initialisation */
-    var initialized: Boolean = false
-
     /** Cached size of the UBO, -1 if the UBO has not been populated yet. */
     var sizeCached = -1
         protected set
@@ -288,7 +285,7 @@ open class UBO {
      * Returns the members of the UBO and their values as string.
      */
     fun membersAndContent(): String {
-        return members.entries.joinToString { "${it.key} -> ${it.value.invoke()}, " }
+        return members.entries.joinToString { "${it.key} -> ${it.value.invoke()}" }
     }
 
     /**
