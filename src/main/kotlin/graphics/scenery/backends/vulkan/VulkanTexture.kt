@@ -1060,6 +1060,8 @@ open class VulkanTexture(val device: VulkanDevice,
             vkFreeMemory(device.vulkanDevice, stagingImage.memory, null)
             stagingImage.memory = -1L
         }
+
+        tmpBuffer?.close()
     }
 
 
