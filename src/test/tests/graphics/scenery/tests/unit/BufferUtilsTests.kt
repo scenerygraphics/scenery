@@ -1,4 +1,4 @@
-package graphics.scenery.tests.unit.backends
+package graphics.scenery.tests.unit
 
 import graphics.scenery.BufferUtils
 import graphics.scenery.utils.LazyLogger
@@ -47,8 +47,9 @@ class BufferUtilsTests {
         var numCorrect = 0
         floatArr.forEach {
 
-            if(it == floatBuf[index])
-                numCorrect ++
+            if(it == floatBuf[index]) {
+                numCorrect++
+            }
 
             index ++
         }
@@ -85,10 +86,9 @@ class BufferUtilsTests {
         //numCorrect records how many elements in the array and buffer match
         var numCorrect = 0
         intArr.forEach {
-
-            if(it == intBuf[index])
-                numCorrect ++
-
+            if(it == intBuf[index]) {
+                numCorrect++
+            }
             index ++
         }
         assertEquals(size, numCorrect, "Int buffer is not identical to array it was initialized with")
@@ -113,7 +113,7 @@ class BufferUtilsTests {
         val byteBuf = BufferUtils.allocateByteAndPut(byteArr)
 
         assertEquals(size, byteBuf.capacity(), "Byte buffer capacity was expected to be $size, but is ${byteBuf.capacity()}")
-        assertEquals (ByteOrder.nativeOrder(), byteBuf.order(), "Byte buffer was expected to be in ${ByteOrder.nativeOrder()}, but is ${byteBuf.order()}")
+        assertEquals(ByteOrder.nativeOrder(), byteBuf.order(), "Byte buffer was expected to be in ${ByteOrder.nativeOrder()}, but is ${byteBuf.order()}")
 
         var index = 0
 
@@ -121,8 +121,9 @@ class BufferUtilsTests {
         var numCorrect = 0
         byteArr.forEach {
 
-            if(it == byteBuf[index])
-                numCorrect ++
+            if(it == byteBuf[index]) {
+                numCorrect++
+            }
 
             index ++
         }
