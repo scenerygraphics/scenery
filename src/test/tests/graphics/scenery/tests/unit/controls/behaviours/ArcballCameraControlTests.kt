@@ -36,8 +36,6 @@ class ArcballCameraControlTests {
 
         val target = scene.findObserver()?.target ?: GLVector.getNullVector(3)
 
-        logger.info("${window.width}, ${window.height}")
-
         val arcballCameraControl = ArcballCameraControl("TestController", { scene.findObserver() }, 512, 512, target)
         return arcballCameraControl
     }
@@ -108,6 +106,7 @@ class ArcballCameraControlTests {
 
     @Test
     fun testArcballControl() {
+        logger.info("Testing ArcballCameraControl...")
         val scene = Scene()
 
         val cam: Camera = DetachedHeadCamera()
