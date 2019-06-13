@@ -1,7 +1,6 @@
 package graphics.scenery.tests.examples.bdv
 
 import cleargl.GLVector
-import com.sun.javafx.application.PlatformImpl
 import coremem.enums.NativeTypeEnum
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
@@ -9,17 +8,15 @@ import graphics.scenery.numerics.Random
 import graphics.scenery.utils.RingBuffer
 import graphics.scenery.volumes.Volume
 import graphics.scenery.volumes.bdv.BDVVolume
-import javafx.application.Platform
-import javafx.stage.FileChooser
-import javafx.stage.Stage
 import org.junit.Test
 import org.lwjgl.system.MemoryUtil
+import org.scijava.Context
+import org.scijava.ui.UIService
 import org.scijava.ui.behaviour.ClickBehaviour
+import org.scijava.widget.FileWidget
 import tpietzsch.example2.VolumeViewerOptions
 import java.nio.ByteBuffer
 import java.util.*
-import java.util.concurrent.CountDownLatch
-import kotlin.concurrent.thread
 import kotlin.math.max
 
 /**
@@ -32,27 +29,16 @@ class BigAndSmallVolumeExample: SceneryBase("BDV + SDV Rendering example", 1280,
     var currentCacheSize = 1024
 
     override fun init() {
-        val latch = CountDownLatch(1)
         val files = ArrayList<String>()
 
         val fileFromProperty = System.getProperty("bdvXML")
         if(fileFromProperty != null) {
             files.add(fileFromProperty)
         } else {
-            PlatformImpl.startup {  }
-            Platform.runLater {
-                val chooser = FileChooser()
-                chooser.title = "Open File"
-                chooser.extensionFilters.add(FileChooser.ExtensionFilter("BigDataViewer XML", "*.xml"))
-                val file = chooser.showOpenDialog(Stage())
-
-                if (file != null) {
-                    files.add(file.absolutePath)
-                }
-                latch.countDown()
-            }
-
-            latch.await()
+            val c = Context()
+            val ui = c.getService(UIService::class.java)
+            val file = ui.chooseFile(null, FileWidget.OPEN_STYLE)
+            files.add(file.absolutePath)
         }
 
         if(files.size == 0) {
