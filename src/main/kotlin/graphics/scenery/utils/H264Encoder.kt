@@ -135,7 +135,18 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, f
             actualFrameWidth = frameWidth.nearestWholeMultipleOf(2)
             actualFrameHeight = frameHeight.nearestWholeMultipleOf(2)
 
-            codec = avcodec_find_encoder(outputContext.video_codec_id())
+            val nvenc = if(hub?.get<Settings>(SceneryElement.Settings)?.get("VideoEncoder.HWAccel", false) == true) {
+                avcodec_find_encoder_by_name("h264_nvenc")
+            } else {
+                null
+            }
+            codec = if(nvenc == null) {
+                logger.info("Could not find hardware-accelerated H264 encoder, falling back to software encoder.")
+                avcodec_find_encoder(outputContext.video_codec_id())
+            } else {
+                nvenc
+            }
+
             @Suppress("SENSELESS_COMPARISON")
             // codec might actually be null
             if (codec == null) {
