@@ -2,7 +2,6 @@ package graphics.scenery.tests.unit
 
 import graphics.scenery.Mesh
 import graphics.scenery.Scene
-import graphics.scenery.ShaderMaterial
 import graphics.scenery.utils.LazyLogger
 import org.junit.Test
 import kotlin.test.assertEquals
@@ -20,7 +19,7 @@ class MeshTests {
         logger.info("Testing mesh creation from OBJ file and bounding box calculation ...")
         val s = Scene()
         val erythrocyte = Mesh()
-        erythrocyte.readFromOBJ(MeshTests::class.java.getResource("models/erythrocyte_simplified.obj").file)
+        erythrocyte.readFromOBJ(Mesh::class.java.getResource("models/erythrocyte.obj").file)
 
         assertEquals(18000, erythrocyte.vertices.capacity())
         assertEquals(18000, erythrocyte.normals.capacity())
@@ -37,7 +36,7 @@ class MeshTests {
 
 
         val leukocyte = Mesh()
-        leukocyte.readFromOBJ(MeshTests::class.java.getResource("models/leukocyte_simplified.obj").file)
+        leukocyte.readFromOBJ(Mesh::class.java.getResource("models/leukocyte.obj").file)
 
         assertEquals(144000, leukocyte.vertices.capacity())
         assertEquals(144000, leukocyte.normals.capacity())
@@ -59,7 +58,7 @@ class MeshTests {
         logger.info("Testing mesh creation from STL file and bounding box calculation ...")
         val s = Scene()
         val erythrocyte = Mesh()
-        erythrocyte.readFromSTL(MeshTests::class.java.getResource("models/erythrocyte_simplified.stl").file)
+        erythrocyte.readFromSTL(Mesh::class.java.getResource("models/erythrocyte.stl").file)
 
         assertEquals(9000, erythrocyte.vertices.capacity())
         assertEquals(9000, erythrocyte.normals.capacity())
