@@ -40,6 +40,11 @@ import java.awt.Toolkit
 import java.awt.event.*
 import java.util.*
 
+/**
+ * Input handling class for Swing-based windows
+ *
+ * @author Ulrik Günther <hello@ulrik.is>
+*/
 @CanHandleInputFor([SceneryWindow.SwingWindow::class])
 class SwingMouseAndKeyHandler(var hub: Hub? = null) : MouseAndKeyHandlerBase(), KeyListener, MouseListener, MouseWheelListener, MouseMotionListener, FocusListener {
 
