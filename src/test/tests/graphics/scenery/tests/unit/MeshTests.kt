@@ -1,7 +1,6 @@
 package graphics.scenery.tests.unit
 
 import graphics.scenery.Mesh
-import graphics.scenery.Scene
 import graphics.scenery.utils.LazyLogger
 import org.junit.Test
 import kotlin.test.assertEquals
@@ -15,10 +14,13 @@ import kotlin.test.assertNotNull
 class MeshTests {
     private val logger by LazyLogger()
 
+    /**
+     * Tests reading a [Mesh] from an OBJ file and verifies correct input and
+     * bounding box creation.
+     */
     @Test
     fun testReadFromOBJ() {
         logger.info("Testing mesh creation from OBJ file and bounding box calculation ...")
-        val s = Scene()
         val erythrocyte = Mesh()
         erythrocyte.readFromOBJ(Mesh::class.java.getResource("models/erythrocyte.obj").file)
 
@@ -59,10 +61,13 @@ class MeshTests {
         assertEquals(1.109781f, leukocyteBoundingBox.max.z())
     }
 
+    /**
+     * Tests reading a [Mesh] from an STL file and verifies correct input and
+     * bounding box creation.
+     */
     @Test
     fun testReadFromSTL() {
         logger.info("Testing mesh creation from STL file and bounding box calculation ...")
-        val s = Scene()
         val erythrocyte = Mesh()
         erythrocyte.readFromSTL(Mesh::class.java.getResource("models/erythrocyte.stl").file)
 
