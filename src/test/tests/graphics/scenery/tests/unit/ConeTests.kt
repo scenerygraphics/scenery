@@ -38,11 +38,12 @@ class ConeTests {
 
         val bb = c.boundingBox
 
-        val d = -1 * ((bb!!.min.x() * axisN.x()) + (bb.min.y() * axisN.y()) + (bb.min.z() * axisN.z()))
+        assertNotNull(bb, "Bounding Box should not be null")
+
+        val d = -1 * ((bb.min.x() * axisN.x()) + (bb.min.y() * axisN.y()) + (bb.min.z() * axisN.z()))
         val expHeight = ((bb.max.x() * axisN.x()) + (bb.max.y() * axisN.y()) + (bb.max.z() * axisN.z())) + d
         //TODO: Add test for radius
 
-        assertNotNull(bb)
         assertTrue { expHeight <= height + epsilon }
     }
 }
