@@ -220,6 +220,12 @@ open class BDVVolume(bdvXMLFile: String = "", val options: VolumeViewerOptions) 
 //        }
     }
 
+    fun shuffleColors() {
+        converterSetups.forEach {
+            it.color = ARGBType(kotlin.random.Random.nextInt(0, 255*255*255))
+        }
+    }
+
     override fun assignEmptyVolumeTexture() {
 
     }
