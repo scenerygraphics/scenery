@@ -33,7 +33,7 @@ import kotlin.collections.LinkedHashMap
  * @property[distanceFieldSize] The size of the SDF in pixels
  * @constructor Generates a SDF of the given font
  */
-open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSize: Int = 512, val maxDistance: Int = 10) {
+open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSize: Int = 512, val maxDistance: Int = 10, var cache: Boolean = true) {
     protected val logger by LazyLogger()
     /** default charset for the SDF font atlas, default is ASCII charset */
     var charset = (32..127)
@@ -60,6 +60,10 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
         fontSize = distanceFieldSize*0.65f
 
         try {
+            if(!cache) {
+                throw Exception("SDF cache was disabled.")
+            }
+
             logger.debug("Trying to read SDF atlas from $sdfFileName ...")
             readMetricsFromFile("$sdfFileName.metrics", fontMap, glyphTexcoords)
             fontAtlasBacking = readAtlasFromFile(sdfFileName)
@@ -108,8 +112,10 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
             }
 
             fontAtlasBacking = toFontAtlas(fontMap, distanceFieldSize)
-            dumpToFile(fontAtlasBacking)
-            dumpMetricsToFile(fontMap, glyphTexcoords)
+            if(cache) {
+                dumpToFile(fontAtlasBacking)
+                dumpMetricsToFile(fontMap, glyphTexcoords)
+            }
         }
     }
 
