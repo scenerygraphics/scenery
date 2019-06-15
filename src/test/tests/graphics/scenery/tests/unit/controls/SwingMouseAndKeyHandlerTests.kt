@@ -504,6 +504,9 @@ class SwingMouseAndKeyHandlerTests {
     fun testUnsupportedWindowType() {
         logger.info("Testing unsupported window type ...")
 
+        /**
+         * Window class scenery has no idea about.
+         */
         class BrokenWindow: SceneryWindow()
         val broken = BrokenWindow()
 

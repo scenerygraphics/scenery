@@ -96,6 +96,9 @@ class ArcballCameraControlTests {
         printWriter.close()
     }
 
+    /**
+     * Tests initialisation of [ArcballCameraControl].
+     */
     @Test
     fun testInitialisation() {
         logger.info("Testing ArcballCameraControl initialisation...")
@@ -104,6 +107,9 @@ class ArcballCameraControlTests {
         assertNotNull(arcballCameraControl)
     }
 
+    /**
+     * Tests arcball interaction with a set of pre-created samples.
+     */
     @Test
     fun testArcballControl() {
         logger.info("Testing ArcballCameraControl...")

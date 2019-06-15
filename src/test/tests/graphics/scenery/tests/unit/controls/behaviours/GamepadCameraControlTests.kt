@@ -15,8 +15,8 @@ import org.junit.Test
 import java.io.FileWriter
 import java.io.PrintWriter
 import java.util.zip.GZIPInputStream
-import kotlin.test.assertNotNull
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 
 /**
  * Tests for [GamepadCameraControl]
@@ -70,6 +70,9 @@ class GamepadCameraControlTests {
         printWriter.close()
     }
 
+    /**
+     * Tests the initialisation of [GamepadCameraControl].
+     */
     @Test
     fun testInitialisation() {
         logger.info("Testing GamepadCameraControl initialisation...")
@@ -78,6 +81,9 @@ class GamepadCameraControlTests {
         assertNotNull(gamepadCameraControl)
     }
 
+    /**
+     * Tests translation of axis events into rotations.
+     */
     @Test
     fun testAxisEvent() {
         //TODO: Create multiple test sequences
