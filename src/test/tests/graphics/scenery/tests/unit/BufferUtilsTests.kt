@@ -42,18 +42,10 @@ class BufferUtilsTests {
         assertEquals (ByteOrder.nativeOrder(), floatBuf.order(), "Float buffer was expected to be in ${ByteOrder.nativeOrder()}, but is ${floatBuf.order()}")
 
         var index = 0
-
-       //numCorrect records how many elements in the array and buffer match
-        var numCorrect = 0
         floatArr.forEach {
-
-            if(it == floatBuf[index]) {
-                numCorrect++
-            }
-
+            assertEquals(it, floatArr[index], "Int buffer is not identical to array it was initialized with")
             index ++
         }
-        assertEquals(size, numCorrect, "Float buffer is not identical to array it was initialized with")
     }
 
     @Test
@@ -82,16 +74,10 @@ class BufferUtilsTests {
         assertEquals (ByteOrder.nativeOrder(), intBuf.order(), "Int buffer was expected to be in ${ByteOrder.nativeOrder()}, but is ${intBuf.order()}")
 
         var index = 0
-
-        //numCorrect records how many elements in the array and buffer match
-        var numCorrect = 0
         intArr.forEach {
-            if(it == intBuf[index]) {
-                numCorrect++
-            }
+            assertEquals(it, intBuf[index], "Int buffer is not identical to array it was initialized with")
             index ++
         }
-        assertEquals(size, numCorrect, "Int buffer is not identical to array it was initialized with")
     }
 
     @Test
@@ -116,18 +102,9 @@ class BufferUtilsTests {
         assertEquals(ByteOrder.nativeOrder(), byteBuf.order(), "Byte buffer was expected to be in ${ByteOrder.nativeOrder()}, but is ${byteBuf.order()}")
 
         var index = 0
-
-        //numCorrect records how many elements in the array and buffer match
-        var numCorrect = 0
         byteArr.forEach {
-
-            if(it == byteBuf[index]) {
-                numCorrect++
-            }
-
+            assertEquals(it, byteArr[index], "Int buffer is not identical to array it was initialized with")
             index ++
         }
-        assertEquals(size, numCorrect, "Byte buffer is not identical to array it was initialized with")
     }
-
 }
