@@ -3,7 +3,7 @@ package graphics.scenery.tests.unit
 import graphics.scenery.BufferUtils
 import graphics.scenery.utils.LazyLogger
 import org.junit.Test
-import java.nio.*
+import java.nio.ByteOrder
 import kotlin.test.assertEquals
 
 
@@ -16,6 +16,9 @@ import kotlin.test.assertEquals
 class BufferUtilsTests {
     private val logger by LazyLogger()
 
+    /**
+     * Tests allocation of a Float buffer
+     */
     @Test
     fun testAllocateFloat() {
         logger.info("Testing allocation of a new direct float buffer ...")
@@ -26,6 +29,9 @@ class BufferUtilsTests {
         assertEquals (ByteOrder.nativeOrder(), floatBuf.order(), "Float buffer was expected to be in ${ByteOrder.nativeOrder()}, but is ${floatBuf.order()}")
     }
 
+    /**
+     * Tests allocation of a float buffer and filling it from a pre-existing array.
+     */
     @Test
     fun testAllocateFloatAndPut() {
         logger.info("Testing allocation and initialization of a new direct float buffer with elements of a given array ...")
@@ -48,6 +54,9 @@ class BufferUtilsTests {
         }
     }
 
+    /**
+     * Tests allocation of an int buffer.
+     */
     @Test
     fun testAllocateInt() {
         logger.info("Testing allocation of a new direct int buffer ...")
@@ -58,6 +67,9 @@ class BufferUtilsTests {
         assertEquals (ByteOrder.nativeOrder(), intBuf.order(), "Int buffer was expected to be in ${ByteOrder.nativeOrder()}, but is ${intBuf.order()}")
     }
 
+    /**
+     * Tests allocation of an int buffer and filling it from a pre-existing array.
+     */
     @Test
     fun testAllocateIntAndPut() {
         logger.info("Testing allocation and initialization of a new direct int buffer with elements of a given array ...")
@@ -80,6 +92,9 @@ class BufferUtilsTests {
         }
     }
 
+    /**
+     * Tests allocation of a byte buffer.
+     */
     @Test
     fun testAllocateByte() {
         logger.info("Testing allocation of a new direct byte buffer ...")
@@ -90,6 +105,9 @@ class BufferUtilsTests {
         assertEquals (ByteOrder.nativeOrder(), byteBuf.order(), "Byte buffer was expected to be in ${ByteOrder.nativeOrder()}, but is ${byteBuf.order()}")
     }
 
+    /**
+     * Tests allocation of a byte buffer and filling it from a pre-existing array.
+     */
     @Test
     fun testAllocateByteAndPut() {
         logger.info("Testing allocation and initialization of a new direct byte buffer with elements of a given array ...")
