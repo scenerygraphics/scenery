@@ -6,7 +6,6 @@ import gnu.trove.set.hash.TLinkedHashSet
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.SystemHelpers
 import org.lwjgl.system.MemoryUtil.memAlloc
-import org.lwjgl.system.MemoryUtil.memAllocFloat
 import java.io.BufferedInputStream
 import java.io.File
 import java.io.Serializable
@@ -679,7 +678,7 @@ interface HasGeometry : Serializable {
             logger.info("Importing geometry from ASCII STL file $filename")
             lines.forEach {
                 line ->
-                val tokens = line.trim().trimEnd().split(" ")
+                val tokens = line.trim().trimEnd().split(" ").map { it.trim().trimEnd() }.filter { it.isNotEmpty() }
                 when (tokens[0]) {
                     "solid" -> name = tokens.drop(1).joinToString(" ")
                     "vertex" -> with(tokens.drop(1)) {
