@@ -4,7 +4,7 @@ import graphics.scenery.Hub
 import graphics.scenery.compute.OpenCLContext
 import graphics.scenery.fonts.SDFFontAtlas
 import graphics.scenery.utils.LazyLogger
-import org.junit.Before
+import org.junit.BeforeClass
 import org.junit.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -15,20 +15,31 @@ import kotlin.test.assertTrue
 class SDFFontAtlasTests {
     val logger by LazyLogger()
 
-    @Before
-    fun checkOpenCLAvailability() {
-        val hasOpenCL: Boolean
-        hasOpenCL = try {
-            val hub = Hub()
-            val ctx = OpenCLContext(hub)
-            true
-        } catch (e: Exception) {
-            false
-        }
+    /**
+     * Companion object for checking OpenCL availability.
+     */
+    companion object {
+        @JvmStatic @BeforeClass
+        fun checkOpenCLAvailability() {
+            val hasOpenCL: Boolean
+            hasOpenCL = try {
+                val hub = Hub()
+                OpenCLContext(hub)
+                true
+            } catch (e: UnsatisfiedLinkError) {
+                false
+            } catch (e: Exception) {
+                false
+            }
 
-        org.junit.Assume.assumeTrue(hasOpenCL)
+            org.junit.Assume.assumeTrue(hasOpenCL)
+        }
     }
 
+    /**
+     * Tests generating a SDF font atlas without caching it,
+     * and creates a mesh for it.
+     */
     @Test
     fun testAtlasAndMeshCreation() {
         logger.info("Testing SDF atlas and mesh creation ...")

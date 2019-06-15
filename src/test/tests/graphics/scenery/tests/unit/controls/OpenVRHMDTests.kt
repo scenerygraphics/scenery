@@ -4,14 +4,30 @@ import graphics.scenery.Mesh
 import graphics.scenery.controls.OpenVRHMD
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.utils.LazyLogger
-import org.junit.Before
+import org.junit.BeforeClass
 import org.junit.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
+/**
+ * Tests for [OpenVRHMD].
+ *
+ * @author Ulrik Guenther <hello@ulrik.is>
+ */
 class OpenVRHMDTests {
     private val logger by LazyLogger()
+
+    /**
+     * Companion object for checking whether OpenVR is installed.
+     */
+    companion object {
+        @JvmStatic @BeforeClass
+        fun checkForOpenVR() {
+            val hmd = OpenVRHMD()
+            org.junit.Assume.assumeTrue(hmd.initializedAndWorking())
+        }
+    }
     private fun initialiseAndWait(): OpenVRHMD {
         val hmd = OpenVRHMD()
         while(!hmd.initializedAndWorking()) {
@@ -21,12 +37,10 @@ class OpenVRHMDTests {
         return hmd
     }
 
-    @Before
-    fun checkForOpenVR() {
-        val hmd = OpenVRHMD()
-        org.junit.Assume.assumeTrue(hmd.initializedAndWorking())
-    }
 
+    /**
+     * Tests OpenVR initialisation.
+     */
     @Test
     fun testInitialisation() {
         logger.info("Testing OpenVR initialisation ...")
@@ -35,6 +49,9 @@ class OpenVRHMDTests {
         hmd.close()
     }
 
+    /**
+     * Tests querying poses from OpenVR.
+     */
     @Test
     fun testGetPosition() {
         logger.info("Testing OpenVR pose query ...")
@@ -46,6 +63,10 @@ class OpenVRHMDTests {
         hmd.close()
     }
 
+    /**
+     * Tests getting Vulkan instance extensions. These can be queried
+     * without having a Vulkan instance.
+     */
     @Test
     fun testGetVulkanInstanceExtensions() {
         logger.info("Testing getting Vulkan instance extensions from OpenVR ...")
@@ -57,6 +78,9 @@ class OpenVRHMDTests {
         hmd.close()
     }
 
+    /**
+     * Tests getting projection matrices for both eyes.
+     */
     @Test
     fun testGetProjections() {
         logger.info("Testing getting projections from OpenVR ...")
@@ -71,6 +95,9 @@ class OpenVRHMDTests {
         hmd.close()
     }
 
+    /**
+     * Tests loading of models of tracked objects.
+     */
     @Test
     fun testLoadModels() {
         logger.info("Testing loading models ...")
@@ -87,6 +114,9 @@ class OpenVRHMDTests {
         hmd.close()
     }
 
+    /**
+     * Tests getting the HMD orientation via OpenVR as quaternion.
+     */
     @Test
     fun testGetOrientation() {
         logger.info("Testing getting HMD orientation ...")
@@ -97,6 +127,9 @@ class OpenVRHMDTests {
         assertFalse(o.isIdentity, "HMD orientation should not be identity.")
     }
 
+    /**
+     * Tests getting the transformation between head and eyes for both eyes.
+     */
     @Test
     fun testGetHeadToEyeTransform() {
         logger.info("Testing querying head-to-eye transforms ...")
