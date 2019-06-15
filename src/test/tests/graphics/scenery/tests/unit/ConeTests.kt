@@ -17,6 +17,9 @@ import kotlin.test.assertTrue
 class ConeTests {
     private val logger by LazyLogger()
 
+    /**
+     * Tests the creation of cones and their bounding boxes.
+     */
     @Test
     fun testCreation() {
         logger.info("Testing Cone creating and bounding box calculation ...")
