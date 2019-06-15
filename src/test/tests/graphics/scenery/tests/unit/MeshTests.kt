@@ -5,6 +5,7 @@ import graphics.scenery.Scene
 import graphics.scenery.utils.LazyLogger
 import org.junit.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 
 /**
  * Tests for the [Mesh] class.
@@ -26,13 +27,16 @@ class MeshTests {
         assertEquals(3000, erythrocyte.indices.capacity())
         assertEquals(12000, erythrocyte.texcoords.capacity())
 
-        assertEquals(-2.820594f, erythrocyte.boundingBox!!.min.x())
-        assertEquals(-1.032556f, erythrocyte.boundingBox!!.min.y())
-        assertEquals(-2.784652f, erythrocyte.boundingBox!!.min.z())
+        val erythrocyteBoundingBox = erythrocyte.boundingBox
+        assertNotNull(erythrocyteBoundingBox)
 
-        assertEquals(2.825022f, erythrocyte.boundingBox!!.max.x())
-        assertEquals(2.788384f, erythrocyte.boundingBox!!.max.y())
-        assertEquals(1.63499f, erythrocyte.boundingBox!!.max.z())
+        assertEquals(-2.820594f, erythrocyteBoundingBox.min.x())
+        assertEquals(-1.032556f, erythrocyteBoundingBox.min.y())
+        assertEquals(-2.784652f, erythrocyteBoundingBox.min.z())
+
+        assertEquals(2.825022f, erythrocyteBoundingBox.max.x())
+        assertEquals(2.788384f, erythrocyteBoundingBox.max.y())
+        assertEquals(1.63499f, erythrocyteBoundingBox.max.z())
 
 
         val leukocyte = Mesh()
@@ -43,15 +47,17 @@ class MeshTests {
         assertEquals(24000, leukocyte.indices.capacity())
         assertEquals(96000, leukocyte.texcoords.capacity())
 
-        assertEquals(-1.121471f, leukocyte.boundingBox!!.min.x())
-        assertEquals(-1.09877f, leukocyte.boundingBox!!.min.y())
-        assertEquals(-1.087235f, leukocyte.boundingBox!!.min.z())
+        val leukocyteBoundingBox = leukocyte.boundingBox
+        assertNotNull(leukocyteBoundingBox)
 
-        assertEquals(1.121211f, leukocyte.boundingBox!!.max.x())
-        assertEquals(1.096298f, leukocyte.boundingBox!!.max.y())
-        assertEquals(1.109781f, leukocyte.boundingBox!!.max.z())
+        assertEquals(-1.121471f, leukocyteBoundingBox.min.x())
+        assertEquals(-1.09877f, leukocyteBoundingBox.min.y())
+        assertEquals(-1.087235f, leukocyteBoundingBox.min.z())
+
+        assertEquals(1.121211f, leukocyteBoundingBox.max.x())
+        assertEquals(1.096298f, leukocyteBoundingBox.max.y())
+        assertEquals(1.109781f, leukocyteBoundingBox.max.z())
     }
-
 
     @Test
     fun testReadFromSTL() {
@@ -64,12 +70,15 @@ class MeshTests {
         assertEquals(9000, erythrocyte.normals.capacity())
         /*TODO:indices and texcoords?*/
 
-        assertEquals(-2.820594f, erythrocyte.boundingBox!!.min.x())
-        assertEquals(-1.032556f, erythrocyte.boundingBox!!.min.y())
-        assertEquals(-2.784652f, erythrocyte.boundingBox!!.min.z())
+        val boundingBox = erythrocyte.boundingBox
+        assertNotNull(boundingBox)
 
-        assertEquals(2.825022f, erythrocyte.boundingBox!!.max.x())
-        assertEquals(2.788384f, erythrocyte.boundingBox!!.max.y())
-        assertEquals(1.63499f, erythrocyte.boundingBox!!.max.z())
+        assertEquals(-2.820594f, boundingBox.min.x())
+        assertEquals(-1.032556f, boundingBox.min.y())
+        assertEquals(-2.784652f, boundingBox.min.z())
+
+        assertEquals(2.825022f, boundingBox.max.x())
+        assertEquals(2.788384f, boundingBox.max.y())
+        assertEquals(1.63499f, boundingBox.max.z())
     }
 }
