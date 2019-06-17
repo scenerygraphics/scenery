@@ -489,6 +489,13 @@ open class GLFWMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandlerB
                 glfwSetMouseButtonCallback(window.window, handler.mouseCallback)
             }
 
+            is SceneryWindow.HeadlessWindow -> {
+                handler = this
+
+                handler.setInputMap(inputMap)
+                handler.setBehaviourMap(behaviourMap)
+            }
+
             else -> throw UnsupportedOperationException("Don't know how to handle window of type $window. Supported types are: ${(this.javaClass.annotations.find { it is CanHandleInputFor } as? CanHandleInputFor)?.windowTypes?.joinToString(", ")}")
         }
 
