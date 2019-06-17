@@ -29,7 +29,7 @@ import java.io.StringReader
  * @property[hub] [Hub] for handoing communication
  * @constructor Creates a default behaviour list and input map, also reads the configuration from a file.
  */
-class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : Hubable, AutoCloseable {
+class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, forceHandler: Class<*>? = null) : Hubable, AutoCloseable {
     /** logger for the InputHandler **/
     internal val logger by LazyLogger()
     /** ui-behaviour input trigger map, stores what actions (key presses, etc) trigger which actions. */
@@ -50,22 +50,27 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
     internal var config: InputTriggerConfig = InputTriggerConfig()
 
     init {
-        when(window) {
-            is SceneryWindow.UninitializedWindow -> {
-                logger.error("Uninitialized windows cannot have input handlers.")
-                handler = null
-            }
+        if(forceHandler != null) {
+            handler = forceHandler.getConstructor(Hub::class.java)?.newInstance(hub) as? MouseAndKeyHandlerBase
+            handler?.attach(window, inputMap, behaviourMap)
+        } else {
+            when (window) {
+                is SceneryWindow.UninitializedWindow -> {
+                    logger.error("Uninitialized windows cannot have input handlers.")
+                    handler = null
+                }
 
-            is SceneryWindow.HeadlessWindow -> {
-                handler = null
-            }
+                is SceneryWindow.HeadlessWindow -> {
+                    handler = null
+                }
 
-            else -> {
-                val handlers = Reflections("graphics.scenery.controls").getTypesAnnotatedWith(CanHandleInputFor::class.java)
-                logger.debug("Found potential input handlers: ${handlers.joinToString { "${it.simpleName} -> ${it.getAnnotation(CanHandleInputFor::class.java).windowTypes.joinToString()}" }}")
-                val candidate = handlers.find { it.getAnnotation(CanHandleInputFor::class.java).windowTypes.contains(window::class) }
-                handler = candidate?.getConstructor(Hub::class.java)?.newInstance(hub) as MouseAndKeyHandlerBase?
-                handler?.attach(window, inputMap, behaviourMap)
+                else -> {
+                    val handlers = Reflections("graphics.scenery.controls").getTypesAnnotatedWith(CanHandleInputFor::class.java)
+                    logger.debug("Found potential input handlers: ${handlers.joinToString { "${it.simpleName} -> ${it.getAnnotation(CanHandleInputFor::class.java).windowTypes.joinToString()}" }}")
+                    val candidate = handlers.find { it.getAnnotation(CanHandleInputFor::class.java).windowTypes.contains(window::class) }
+                    handler = candidate?.getConstructor(Hub::class.java)?.newInstance(hub) as MouseAndKeyHandlerBase?
+                    handler?.attach(window, inputMap, behaviourMap)
+                }
             }
         }
 
