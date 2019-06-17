@@ -84,15 +84,18 @@ open class VulkanSwapchain(open val device: VulkanDevice,
         glfwDefaultWindowHints()
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API)
 
-        if(undecorated) {
+        var windowPos = if(undecorated) {
             glfwWindowHint(GLFW_DECORATED, GLFW_FALSE)
+            0 to 0
+        } else {
+            100 to 100
         }
 
         window = SceneryWindow.GLFWWindow(glfwCreateWindow(win.width, win.height, "scenery", MemoryUtil.NULL, MemoryUtil.NULL)).apply {
             width = win.width
             height = win.height
 
-            glfwSetWindowPos(window, 100, 100)
+            glfwSetWindowPos(window, windowPos.first, windowPos.second)
 
             surface = VU.getLong("glfwCreateWindowSurface",
                 { GLFWVulkan.glfwCreateWindowSurface(device.instance, window, null, this) }, {})
