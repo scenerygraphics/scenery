@@ -12,6 +12,7 @@ import org.scijava.ui.behaviour.*
 import java.awt.Toolkit
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.logging.Level
 import kotlin.concurrent.thread
 
@@ -39,7 +40,7 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
 
     private var controllerThread: Thread? = null
     private var controllerAxisDown: ConcurrentHashMap<Component.Identifier, Float> = ConcurrentHashMap()
-    private val gamepads = ArrayList<BehaviourEntry<GamepadBehaviour>>()
+    private val gamepads = CopyOnWriteArrayList<BehaviourEntry<GamepadBehaviour>>()
     private val CONTROLLER_HEARTBEAT = 5L
     private val CONTROLLER_DOWN_THRESHOLD = 0.95f
 

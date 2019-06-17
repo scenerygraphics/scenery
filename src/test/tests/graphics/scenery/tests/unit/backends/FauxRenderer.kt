@@ -13,7 +13,7 @@ import graphics.scenery.utils.SceneryPanel
  *
  * @author Ulrik Guenther <hello@ulrik.is>
  */
-class FauxRenderer(override var hub: Hub?, var scene: Scene) : Renderer() {
+class FauxRenderer(override var hub: Hub?, var scene: Scene, preparedWindow: SceneryWindow? = null) : Renderer() {
     /**
      * Initializes scene and contents
      */
@@ -37,7 +37,7 @@ class FauxRenderer(override var hub: Hub?, var scene: Scene) : Renderer() {
     /** [Settings] instance the renderer is using. */
     override var settings: Settings = Settings(hub)
     /** [SceneryWindow] the renderer is drawing to. */
-    override var window: SceneryWindow = SceneryWindow.HeadlessWindow()
+    override var window: SceneryWindow = preparedWindow ?: SceneryWindow.HeadlessWindow()
     /** A [SceneryPanel] the renderer might be embedded in. */
     override var embedIn: SceneryPanel? = null
     override fun close() {
