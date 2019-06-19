@@ -973,6 +973,8 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                     }
                 } catch(e: Exception) {
                     logger.error("Exception: $e")
+                    logger.info("Loading composite JSON failed, trying to fall back to regular model.")
+                    mesh.readFrom(path)
                     e.printStackTrace()
                 }
             }
