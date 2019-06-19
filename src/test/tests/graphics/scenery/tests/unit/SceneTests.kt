@@ -6,11 +6,8 @@ import graphics.scenery.Node
 import graphics.scenery.Scene
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.LazyLogger
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.isActive
 import org.junit.Test
 import java.util.concurrent.atomic.AtomicInteger
-import javax.xml.bind.JAXBElement
 import kotlin.math.roundToInt
 import kotlin.test.assertEquals
 
