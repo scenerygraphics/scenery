@@ -2,7 +2,7 @@
 
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/graphics.scenery/scenery/badge.svg)](https://maven-badges.herokuapp.com/maven-central/graphics.scenery/scenery) [![DOI](https://zenodo.org/badge/49890276.svg)](https://zenodo.org/badge/latestdoi/49890276) [![Join the chat at https://gitter.im/scenerygraphics/SciView](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/scenerygraphics/SciView?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge) // [![Travis Build Status](https://travis-ci.org/scenerygraphics/scenery.svg?branch=master)](https://travis-ci.org/scenerygraphics/scenery) [![Appveyor Build status](https://ci.appveyor.com/api/projects/status/vysiatrptqas4cfy/branch/master?svg=true)](https://ci.appveyor.com/project/skalarproduktraum/scenery/branch/master) [![Codacy Badge](https://api.codacy.com/project/badge/Grade/3940e961b2fc41b5a6d17e2b4fff333b)](https://www.codacy.com/app/skalarproduktraum/scenery)  
 
-# scenery  // flexible scenegraphing and rendering for scientific visualisation
+# scenery  // Flexible VR Visualisation for Volumetric and Geometric Data on the Java VM
 
 ![Blood Cells Example](https://ulrik.is/scenery-bloodcells.gif)
 
@@ -22,6 +22,14 @@ Some of the examples need additional meshes, which are not part of the repositor
 ## Contributed examples
 
 * Scala - [@Sciss](https://github.com/Sciss) has translated the Kotlin and Java examples to Scala, [https://github.com/Sciss/SceneryScalaExamples](https://github.com/Sciss/SceneryScalaExamples)
+
+## Citation
+
+In case you use scenery in a scientific publication, please cite this preprint:
+
+* Ulrik Günther, Tobias Pietzsch, Aryaman Gupta, Kyle I.S. Harrington, Pavel Tomancak, Stefan Gumhold, and Ivo F. Sbalzarini: scenery — Flexible Virtual Reality Visualisation on the Java VM. _[arXiv:1906.06726](https://arxiv.org/abs/1906.06726)_, 2019.
+
+If you want to refer to a specific scenery version, e.g. for reproducibility, also can additionally cite the [DOI of the scenery version you used](https://zenodo.org/record/3228395).
 
 ## Default Key bindings
 
