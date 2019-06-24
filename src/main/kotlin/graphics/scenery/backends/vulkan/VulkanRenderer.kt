@@ -972,10 +972,19 @@ open class VulkanRenderer(hub: Hub,
             }
 
             if(addInitializer) {
-                lateResizeInitializers[node] = { initializeCustomShadersForNode(node, addInitializer = false) }
+                lateResizeInitializers[node] = {
+                    val reloaded = initializeCustomShadersForNode(node, addInitializer = false)
+
+                    if(reloaded) {
+                        node.rendererMetadata()?.texturesToDescriptorSets(device,
+                            renderpasses.filter { pass -> pass.value.passConfig.type != RenderConfigReader.RenderpassType.quad },
+                            descriptorPool)
+                    }
+                }
             }
 
-            s.clearTextureDescriptorSets()
+//             TODO: Figure out if this can be avoided for the BDV integration
+             s.clearTextureDescriptorSets()
 
             return true
         }
@@ -1944,6 +1953,13 @@ open class VulkanRenderer(hub: Hub,
                         val reloaded = initializeCustomShadersForNode(it)
                         logger.info("Material is stale, re-recording, reloaded=$reloaded")
                         metadata.blendingHashCode = it.material.blending.hashCode()
+
+                        // if we reloaded the node's shaders, we might need to recreate its texture descriptor sets
+                        if(reloaded) {
+                            it.rendererMetadata()?.texturesToDescriptorSets(device,
+                                renderpasses.filter { pass -> pass.value.passConfig.type != RenderConfigReader.RenderpassType.quad },
+                                descriptorPool)
+                        }
 
                         rerecordingCauses.add(it.name)
                         forceRerecording = true

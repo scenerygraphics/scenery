@@ -67,7 +67,7 @@ open class VulkanObjectState : NodeMetadata {
      * The set will be allocated from [descriptorPool].
      */
     fun texturesToDescriptorSets(device: VulkanDevice, passes: Map<String, VulkanRenderpass>, descriptorPool: Long) {
-        passes.forEach { passName, pass ->
+        passes.forEach { (passName, pass) ->
             if(pass.recreated > descriptorSetsRecreated) {
                 textureDescriptorSets.clear()
             }
