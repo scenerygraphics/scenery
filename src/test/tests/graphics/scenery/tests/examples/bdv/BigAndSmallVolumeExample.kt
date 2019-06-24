@@ -1,18 +1,21 @@
 package graphics.scenery.tests.examples.bdv
 
 import cleargl.GLVector
-import graphics.scenery.Camera
-import graphics.scenery.DetachedHeadCamera
-import graphics.scenery.PointLight
-import graphics.scenery.SceneryBase
+import coremem.enums.NativeTypeEnum
+import graphics.scenery.*
 import graphics.scenery.backends.Renderer
+import graphics.scenery.numerics.Random
+import graphics.scenery.utils.RingBuffer
+import graphics.scenery.volumes.Volume
 import graphics.scenery.volumes.bdv.BDVVolume
 import org.junit.Test
+import org.lwjgl.system.MemoryUtil
 import org.scijava.Context
 import org.scijava.ui.UIService
 import org.scijava.ui.behaviour.ClickBehaviour
 import org.scijava.widget.FileWidget
 import tpietzsch.example2.VolumeViewerOptions
+import java.nio.ByteBuffer
 import java.util.*
 import kotlin.math.max
 
@@ -21,8 +24,8 @@ import kotlin.math.max
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
-    var volume: BDVVolume? = null
+class BigAndSmallVolumeExample: SceneryBase("BDV + SDV Rendering example", 1280, 720) {
+    lateinit var volume: BDVVolume
     var currentCacheSize = 1024
 
     override fun init() {
@@ -76,6 +79,30 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
             light.intensity = 50.0f
             scene.addChild(light)
         }
+
+        logger.info("Generating procedural volume")
+        val volumeSize = 128L
+        val bitsPerVoxel = 16
+        val volumeBuffer = RingBuffer<ByteBuffer>(2) { MemoryUtil.memAlloc((volumeSize*volumeSize*volumeSize*bitsPerVoxel/8).toInt()) }
+
+        val seed = Random.randomFromRange(0.0f, 133333337.0f).toLong()
+        var shift = GLVector.getNullVector(3)
+
+        val dataType = if(bitsPerVoxel == 8) {
+            NativeTypeEnum.UnsignedByte
+        } else {
+            NativeTypeEnum.UnsignedShort
+        }
+
+        val currentBuffer = volumeBuffer.get()
+
+        Volume.generateProceduralVolume(volumeSize, 0.35f, seed = seed,
+            intoBuffer = currentBuffer, shift = shift, use16bit = bitsPerVoxel > 8)
+
+        volume.readFromBuffer(
+            "procedural-cloud-${shift.hashCode()}", currentBuffer,
+            volumeSize, volumeSize, volumeSize, 1.0f, 1.0f, 1.0f,
+            dataType = dataType, bytesPerVoxel = bitsPerVoxel / 8, assign = false)
     }
 
     override fun inputSetup() {

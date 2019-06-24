@@ -29,9 +29,13 @@ open class VolumeShaderFactory : Shaders.ShaderFactory() {
             }
 
             val (code, uniforms) = convertToSceneryConventions(codeBefore)
+            logger.info("New code for ${it.key}: $code")
 
             shaders[it.key] = Triple(it.value, code, uniforms)
         }
+
+        logger.info("Shaders marked as stale")
+        stale = true
     }
 
     /**
