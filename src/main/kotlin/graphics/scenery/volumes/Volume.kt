@@ -356,7 +356,7 @@ open class Volume : Mesh("Volume") {
                        x: Long, y: Long, z: Long,
                        voxelX: Float, voxelY: Float, voxelZ: Float,
                        dataType: NativeTypeEnum = NativeTypeEnum.UnsignedInt, bytesPerVoxel: Int = 2,
-                       allowDeallocation: Boolean = false) {
+                       allowDeallocation: Boolean = false, assign: Boolean = true) {
         sizeX = x.toInt()
         sizeY = y.toInt()
         sizeZ = z.toInt()
@@ -374,7 +374,7 @@ open class Volume : Mesh("Volume") {
             descriptor
         }
 
-        if (vol != null) {
+        if (vol != null && assign) {
             assignVolumeTexture( longArrayOf( x, y, z ), vol, allowDeallocation)
         }
     }
@@ -603,7 +603,7 @@ open class Volume : Mesh("Volume") {
             NativeTypeEnum.Double -> TODO()
         }
 
-    protected fun assignEmptyVolumeTexture() {
+    protected open fun assignEmptyVolumeTexture() {
         val emptyBuffer = BufferUtils.allocateByteAndPut(byteArrayOf(0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
                                                                      0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0))
         val dim = GLVector(2.0f, 2.0f, 2.0f)
@@ -618,7 +618,7 @@ open class Volume : Mesh("Volume") {
     @Transient private val deallocations = ArrayDeque<ByteBuffer>()
     var deallocationThreshold = 50000
 
-    protected fun assignVolumeTexture(dimensions: LongArray, descriptor: VolumeDescriptor, replace: Boolean) {
+    protected open fun assignVolumeTexture(dimensions: LongArray, descriptor: VolumeDescriptor, replace: Boolean) {
 //        while(deallocations.size > deallocationThreshold) {
 //            val last = deallocations.pollLast()
 //            logger.debug("Time series: deallocating $last from ${deallocations.map { it.hashCode() }.joinToString(", ")}")

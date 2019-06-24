@@ -23,6 +23,7 @@ import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.*
 import javax.imageio.ImageIO
+import kotlin.math.max
 import kotlin.streams.toList
 
 /**
@@ -47,6 +48,9 @@ open class VulkanTexture(val device: VulkanDevice,
 
     private var stagingImage: VulkanImage
     private var gt: GenericTexture? = null
+
+    var renderBarrier: VkImageMemoryBarrier? = null
+        protected set
 
     /**
      * Wrapper class for holding on to raw Vulkan [image]s backed by [memory].
@@ -274,6 +278,7 @@ open class VulkanTexture(val device: VulkanDevice,
         return VulkanImage(image, memory, memorySize)
     }
 
+    var tmpBuffer: VulkanBuffer? = null
 
     /**
      * Copies the data for this texture from a [ByteBuffer], [data].
@@ -361,13 +366,17 @@ open class VulkanTexture(val device: VulkanDevice,
                         sourceBuffer.capacity().toLong()
                     }
 
-                    buffer = VulkanBuffer(this@VulkanTexture.device,
-                        requiredCapacity,
-                        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                        wantAligned = false)
+                    if(tmpBuffer == null || (tmpBuffer?.size ?: 0) < requiredCapacity) {
+//                        logger.warn("(${this@VulkanTexture}) Reallocating tmp buffer, old size=${tmpBuffer?.size} new size = ${requiredCapacity.toFloat()/1024.0f/1024.0f} MiB")
+                        tmpBuffer?.close()
+                        tmpBuffer = VulkanBuffer(this@VulkanTexture.device,
+                            max(Math.round(requiredCapacity * 1.3), 1024*1024),
+                            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                            wantAligned = false)
+                    }
 
-                    buffer?.let { buffer ->
+                    tmpBuffer?.let { buffer ->
                         transitionLayout(image.image,
                             VK_IMAGE_LAYOUT_UNDEFINED,
                             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevels,
@@ -380,7 +389,7 @@ open class VulkanTexture(val device: VulkanDevice,
                                 val updates = genericTexture.updates.filter { !it.consumed }
                                 val contents = updates.map { it.contents }
 
-                                buffer.copyFrom(contents)
+                                buffer.copyFrom(contents, keepMapped = true)
                                 image.copyFrom(this, buffer, updates)
 
                                 genericTexture.clearConsumedUpdates()
@@ -403,7 +412,6 @@ open class VulkanTexture(val device: VulkanDevice,
                 }
 
                 endCommandBuffer(this@VulkanTexture.device, commandPools.Standard, transferQueue, flush = true, dealloc = true, block = true)
-                buffer?.close()
             }
         } else {
             val buffer = VulkanBuffer(device,
@@ -513,7 +521,7 @@ open class VulkanTexture(val device: VulkanDevice,
             memFree(sourceBuffer)
         }
 
-        image.view = createImageView(image, format)
+//        image.view = createImageView(image, format)
 
         return this
     }
@@ -1052,6 +1060,8 @@ open class VulkanTexture(val device: VulkanDevice,
             vkFreeMemory(device.vulkanDevice, stagingImage.memory, null)
             stagingImage.memory = -1L
         }
+
+        tmpBuffer?.close()
     }
 
 

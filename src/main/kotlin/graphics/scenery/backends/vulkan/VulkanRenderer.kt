@@ -512,6 +512,10 @@ open class VulkanRenderer(hub: Hub,
                 gpuStats = NvidiaGPUStats()
             } catch(e: NullPointerException) {
                 logger.warn("Could not initialize Nvidia GPU stats")
+                if(logger.isDebugEnabled) {
+                    logger.warn("Reason: ${e.message}, traceback follows:")
+                    e.printStackTrace()
+                }
             }
         }
 
@@ -971,6 +975,8 @@ open class VulkanRenderer(hub: Hub,
                 lateResizeInitializers[node] = { initializeCustomShadersForNode(node, addInitializer = false) }
             }
 
+            s.clearTextureDescriptorSets()
+
             return true
         }
 
@@ -1031,9 +1037,11 @@ open class VulkanRenderer(hub: Hub,
     /**
      * Loads or reloads the textures for [node], updating it's internal renderer state stored in [s].
      */
-    protected fun loadTexturesForNode(node: Node, s: VulkanObjectState): VulkanObjectState {
+    protected fun loadTexturesForNode(node: Node, s: VulkanObjectState): Boolean {
         val stats = hub?.get(SceneryElement.Statistics) as Statistics?
         val defaultTexture = textureCache["DefaultTexture"] ?: throw IllegalStateException("Default fallback texture does not exist.")
+        // if a node is not yet initialized, we'll definitely require a new DS
+        var reqNewDS = !node.initialized
 
         node.material.textures.forEach { type, texture ->
             val slot = VulkanObjectState.textureTypeToSlot(type)
@@ -1058,6 +1066,7 @@ open class VulkanRenderer(hub: Hub,
                         val t: VulkanTexture = if (existingTexture != null && existingTexture.canBeReused(gt, miplevels, device)) {
                             existingTexture
                         } else {
+                            reqNewDS = true
                             VulkanTexture(device, commandPools, queue, queue, gt, miplevels)
                         }
 
@@ -1069,7 +1078,9 @@ open class VulkanRenderer(hub: Hub,
                             t.copyFrom(ByteBuffer.allocate(0))
                         }
 
-                        t.createSampler(gt)
+                        if(reqNewDS) {
+                            t.createSampler(gt)
+                        }
                         t
                     } else {
                         val start = System.nanoTime()
@@ -1083,6 +1094,7 @@ open class VulkanRenderer(hub: Hub,
 
                         val duration = System.nanoTime() - start * 1.0f
                         stats?.add("loadTexture", duration)
+                        reqNewDS = true
 
                         t
                     }
@@ -1105,11 +1117,13 @@ open class VulkanRenderer(hub: Hub,
             }
         }
 
-        s.texturesToDescriptorSets(device,
-            renderpasses.filter { it.value.passConfig.type != RenderConfigReader.RenderpassType.quad },
-            descriptorPool)
+        if(reqNewDS) {
+            s.texturesToDescriptorSets(device,
+                renderpasses.filter { it.value.passConfig.type != RenderConfigReader.RenderpassType.quad },
+                descriptorPool)
+        }
 
-        return s
+        return reqNewDS
     }
 
     protected fun prepareDefaultDescriptorSetLayouts(device: VulkanDevice): ConcurrentHashMap<String, Long> {
@@ -1912,23 +1926,29 @@ open class VulkanRenderer(hub: Hub,
                         forceRerecording = true
                     }
 
-                    if (it.material.needsTextureReload) {
+                    val material = it.material
+                    if (material.needsTextureReload) {
                         logger.trace("Force command buffer re-recording, as reloading textures for ${it.name}")
-                        loadTexturesForNode(it, metadata)
+                        val reload = loadTexturesForNode(it, metadata)
 
                         it.material.needsTextureReload = false
 
-                        rerecordingCauses.add(it.name)
-                        forceRerecording = true
+                        if(reload) {
+                            rerecordingCauses.add(it.name)
+                            forceRerecording = true
+                        }
                     }
 
-                    if (it.material.blending.hashCode() != metadata.blendingHashCode) {
+                    if (material.blending.hashCode() != metadata.blendingHashCode || (material is ShaderMaterial && material.shaders.stale)) {
                         logger.trace("Force command buffer re-recording, as blending options for ${it.name} have changed")
-                        initializeCustomShadersForNode(it)
+                        val reloaded = initializeCustomShadersForNode(it)
+                        logger.info("Material is stale, re-recording, reloaded=$reloaded")
                         metadata.blendingHashCode = it.material.blending.hashCode()
 
                         rerecordingCauses.add(it.name)
                         forceRerecording = true
+
+                        (material as? ShaderMaterial)?.shaders?.stale = false
                     }
                 }
             }
@@ -2706,7 +2726,7 @@ open class VulkanRenderer(hub: Hub,
                         }
                     }
 
-                    if(ds == null) {
+                    if(ds == null || ds == DescriptorSet.None) {
                         logger.error("Internal consistency error for node ${node.name}: Descriptor set $name not found in renderpass, skipping node for rendering.")
                         return@drawLoop
                     }
