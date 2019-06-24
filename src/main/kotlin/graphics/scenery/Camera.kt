@@ -4,6 +4,7 @@ import cleargl.GLMatrix
 import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.volumes.bdv.BDVVolume
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.PI
 import kotlin.math.atan
 import kotlin.math.cos
@@ -89,6 +90,7 @@ open class Camera : Node("Camera") {
     init {
         this.nodeType = "Camera"
         this.viewSpaceTripod = cameraTripod()
+        this.name = "Camera-${counter.incrementAndGet()}"
     }
 
     /**
@@ -361,6 +363,10 @@ open class Camera : Node("Camera") {
         val y = x.cross(z).normalized
 
         return Tripod(x, y, z)
+    }
+
+    companion object {
+        protected val counter = AtomicInteger(0)
     }
 }
 
