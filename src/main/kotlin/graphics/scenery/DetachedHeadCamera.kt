@@ -6,6 +6,7 @@ import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.backends.Display
 import graphics.scenery.controls.TrackerInput
 import java.io.Serializable
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.PI
 import kotlin.math.atan
 import kotlin.reflect.KProperty
@@ -114,7 +115,7 @@ class DetachedHeadCamera(@Transient var tracker: TrackerInput? = null) : Camera(
 
     init {
         this.nodeType = "Camera"
-        this.name = "DetachedHeadCamera-${tracker ?: "0"}"
+        this.name = "DetachedHeadCamera-${tracker ?: "${counter.getAndIncrement()}"}"
     }
 
     /**
@@ -150,5 +151,9 @@ class DetachedHeadCamera(@Transient var tracker: TrackerInput? = null) : Camera(
         val r = GLMatrix.fromQuaternion(preRotation.mult(this.rotation))
 
         return r * tr
+    }
+
+    companion object {
+        protected val counter = AtomicInteger(0)
     }
 }
