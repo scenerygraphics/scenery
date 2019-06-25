@@ -21,6 +21,7 @@ import java.nio.ByteOrder
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.*
+import java.util.zip.GZIPInputStream
 import kotlin.collections.LinkedHashMap
 
 
@@ -80,7 +81,7 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
             if (ocl == null) {
                 logger.warn("Could not create OpenCL compute context -- Do you have the necessary OpenCL libraries installed? Will fall back to default font.")
                 readMetricsFromStream(this.javaClass.getResourceAsStream("SDFFontAtlas-$sdfCacheFormatVersion-SourceSansPro-Regular.ttf.sdf.metrics"), fontMap, glyphTexcoords)
-                fontAtlasBacking = readAtlasFromStream(this.javaClass.getResourceAsStream("SDFFontAtlas-$sdfCacheFormatVersion-SourceSansPro-Regular.ttf.sdf"))
+                fontAtlasBacking = readAtlasFromStream(GZIPInputStream(this.javaClass.getResourceAsStream("SDFFontAtlas-$sdfCacheFormatVersion-SourceSansPro-Regular.ttf.sdf.gz")))
             } else {
 
                 var input: cl_mem
@@ -173,11 +174,11 @@ open class SDFFontAtlas(var hub: Hub, val fontName: String, val distanceFieldSiz
      * Reads a font atlas from a stream.
      */
     protected fun readAtlasFromStream(stream: InputStream): ByteBuffer {
-        if(stream.available() != atlasWidth * atlasHeight) {
+        val contents = stream.readBytes()
+        if(contents.size != atlasWidth * atlasHeight) {
             throw IllegalStateException("Atlas file size invalid (metadata states ${atlasWidth*atlasHeight} bytes while reading from stream $stream")
         }
 
-        val contents = stream.readBytes()
         val buffer = BufferUtils.allocateByteAndPut(contents)
 
         logger.debug("Read atlas from file, ${buffer.position()}->${buffer.remaining()}")
