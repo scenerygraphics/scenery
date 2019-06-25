@@ -258,6 +258,13 @@ abstract class Renderer : Hubable {
                             e.printStackTrace()
                         }
                         OpenGLRenderer(hub, applicationName, scene, windowWidth, windowHeight, config, embedIn, embedInDrawable)
+                    } catch (e: Error) {
+                        logger.warn("Vulkan unavailable (${e.cause}, ${e.message}), Vulkan runtime not installed. Falling back to OpenGL.")
+                        logger.debug("Full exception: $e")
+                        if(logger.isDebugEnabled) {
+                            e.printStackTrace()
+                        }
+                        OpenGLRenderer(hub, applicationName, scene, windowWidth, windowHeight, config, embedIn, embedInDrawable)
                     }
                 } else {
                     OpenGLRenderer(hub, applicationName, scene, windowWidth, windowHeight, config, embedIn, embedInDrawable)
