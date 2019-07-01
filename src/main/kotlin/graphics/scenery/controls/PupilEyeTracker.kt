@@ -8,7 +8,6 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.module.kotlin.readValue
 import graphics.scenery.Camera
-import graphics.scenery.DetachedHeadCamera
 import graphics.scenery.Node
 import graphics.scenery.backends.Display
 import graphics.scenery.numerics.Random
@@ -134,8 +133,6 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
     private var currentPupilDatumRight = HashMap<Any, Any>()
 
     /** Stores the current gaze data point. */
-    var currentGaze: Gaze? = null
-        private set
     var currentGazeLeft: Gaze? = null
         private set
     var currentGazeRight: Gaze? = null
@@ -229,23 +226,24 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
                                     val bytes = msg.pop().data
                                     val g = objectMapper.readValue(bytes, Gaze::class.java)
 
-                                    if(msgType.contains(".0.")) {
-                                        currentGazeLeft = g
-                                    }
-
-                                    if(msgType.contains(".1.")) {
-                                        currentGazeRight = g
-                                    }
-
                                     if(g.confidence > gazeConfidenceThreshold) {
+
+                                        if (msgType.contains(".0.")) {
+                                            currentGazeLeft = g
+                                        }
+
+                                        if (msgType.contains(".1.")) {
+                                            currentGazeRight = g
+                                        }
+
                                         val left = currentGazeLeft
                                         val right = currentGazeRight
 
-                                        if(left != null && right != null) {
-                                            g.norm_pos = ((left.normalizedPosition() + right.normalizedPosition()) * 0.5f).toFloatArray()
+                                        if (left != null && right != null) {
+                                            val normPos = ((left.normalizedPosition() + right.normalizedPosition()) * 0.5f).toFloatArray()
+                                            val gaze = Gaze((left.confidence + right.confidence)/2.0f, g.timestamp, 2, normPos)
 
-                                            currentGaze = g
-                                            onGazeReceived?.invoke(g)
+                                            onGazeReceived?.invoke(gaze)
                                         }
                                     }
                                 }
@@ -460,7 +458,7 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
 //            v to cam.viewportToWorld(GLVector(v.x()*2.0f-1.0f, v.y()*2.0f-1.0f), offset = 0.0f)
              */
             val origin = 0.5f
-            val radius = 0.4f
+            val radius = 0.3f
 
             val v = if(index == 0) {
                 GLVector(origin, origin)
