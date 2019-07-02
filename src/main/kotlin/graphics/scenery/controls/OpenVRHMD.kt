@@ -418,7 +418,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
      */
     override fun getPosition(): GLVector {
         val m = getPose().floatArray
-        return GLVector(m[12], m[13], m[14])
+        return GLVector(-1.0f * m[12], -1.0f * m[13], -1.0f * m[14])
     }
 
     /**
@@ -627,10 +627,10 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
             this == OpenVRButton.Up  && role == TrackerRole.LeftHand  -> AWTKey(KeyEvent.VK_K)
             this == OpenVRButton.Down && role == TrackerRole.LeftHand  -> AWTKey(KeyEvent.VK_J)
 
-            this == OpenVRButton.Left && role == TrackerRole.RightHand  -> AWTKey(KeyEvent.VK_A)
-            this == OpenVRButton.Right && role == TrackerRole.RightHand -> AWTKey(KeyEvent.VK_D)
-            this == OpenVRButton.Up  && role == TrackerRole.RightHand -> AWTKey(KeyEvent.VK_W)
-            this == OpenVRButton.Down && role == TrackerRole.RightHand -> AWTKey(KeyEvent.VK_S)
+            this == OpenVRButton.Left && role != TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_A)
+            this == OpenVRButton.Right && role != TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_D)
+            this == OpenVRButton.Up  && role != TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_W)
+            this == OpenVRButton.Down && role != TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_S)
 
             this == OpenVRButton.Menu -> AWTKey(KeyEvent.VK_M, modifiers)
             this == OpenVRButton.Side -> AWTKey(KeyEvent.VK_X, modifiers)
@@ -638,7 +638,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
             this == OpenVRButton.Trigger -> AWTKey(KeyEvent.VK_T, modifiers)
 
             else -> {
-                logger.warn("Unknown key: $this")
+                logger.warn("Unknown key: $this for role $role")
                 AWTKey(KeyEvent.VK_ESCAPE)
             }
         }
