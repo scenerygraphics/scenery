@@ -57,14 +57,14 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
      * Stores gaze data, and retrieves various properties
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    data class Gaze(var confidence: Float = 0.0f,
-                    var timestamp: Float = 0.0f,
-                    var eyeId: Int? = null,
+    data class Gaze(val confidence: Float = 0.0f,
+                    val timestamp: Float = 0.0f,
+                    val eyeId: Int? = null,
 
-                    var norm_pos: FloatArray = floatArrayOf(),
-                    var gaze_point_3d: FloatArray? = floatArrayOf(),
-                    var eye_centers_3d: HashMap<Int, FloatArray>? = hashMapOf(),
-                    var gaze_normals_3d: HashMap<Int, FloatArray>? = hashMapOf()) {
+                    val norm_pos: FloatArray = floatArrayOf(),
+                    val gaze_point_3d: FloatArray? = floatArrayOf(),
+                    val eye_centers_3d: HashMap<Int, FloatArray>? = hashMapOf(),
+                    val gaze_normals_3d: HashMap<Int, FloatArray>? = hashMapOf()) {
 
 
         /** Returns the normalized gaze position. */
