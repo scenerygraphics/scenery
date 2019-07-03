@@ -1897,12 +1897,12 @@ open class VulkanRenderer(hub: Hub,
         stats?.add("Renderer.updateUBOs", System.nanoTime() - startUboUpdate)
 
         val startInstanceUpdate = System.nanoTime()
-        updateInstanceBuffers(sceneObjects)
+        val instancesUpdated = updateInstanceBuffers(sceneObjects)
         stats?.add("Renderer.updateInstanceBuffers", System.nanoTime() - startInstanceUpdate)
 
         // flag set to true if command buffer re-recording is necessary,
         // e.g. because of scene or pipeline changes
-        var forceRerecording = false
+        var forceRerecording = instancesUpdated
         val rerecordingCauses = ArrayList<String>(20)
 
         // here we discover the objects in the scene that could be relevant for the scene
@@ -2917,6 +2917,8 @@ open class VulkanRenderer(hub: Hub,
         instanceMasters.forEach { parent ->
             updateInstanceBuffer(device, parent, parent.rendererMetadata()!!)
         }
+
+        instanceMasters.isNotEmpty()
     }
 
     fun GLMatrix.applyVulkanCoordinateSystem(): GLMatrix {
