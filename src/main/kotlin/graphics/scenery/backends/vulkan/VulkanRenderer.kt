@@ -297,7 +297,7 @@ open class VulkanRenderer(hub: Hub,
     private var firstWaitSemaphore: LongBuffer = memAllocLong(1)
 
     var scene: Scene = Scene()
-    protected var sceneArray: Array<Node> = emptyArray()
+    protected var sceneArray: HashSet<Node> = HashSet(256)
 
     protected var commandPools = CommandPools()
     protected val renderpasses: MutableMap<String, VulkanRenderpass> = Collections.synchronizedMap(LinkedHashMap<String, VulkanRenderpass>())
@@ -1969,12 +1969,14 @@ open class VulkanRenderer(hub: Hub,
                 }
             }
 
-            val newSceneArray = sceneObjects.getCompleted().toTypedArray()
-            if(!newSceneArray.contentDeepEquals(sceneArray)) {
-                forceRerecording = true
-            }
+            if(pushMode) {
+                val newSceneArray = sceneObjects.getCompleted().toHashSet()
+                if (!newSceneArray.equals(sceneArray)) {
+                    forceRerecording = true
+                }
 
-            sceneArray = newSceneArray
+                sceneArray = newSceneArray
+            }
         }
 
         val presentedFrames = swapchain.presentedFrames()
