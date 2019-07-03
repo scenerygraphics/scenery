@@ -14,6 +14,7 @@ import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.utils.*
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.lwjgl.system.MemoryUtil
@@ -1441,7 +1442,7 @@ open class OpenGLRenderer(hub: Hub,
         node.initialized = false
     }
 
-    protected var previousSceneObjects: Array<Node> = emptyArray()
+    protected var previousSceneObjects: HashSet<Node> = HashSet(256)
     /**
      * Renders the [Scene].
      *
@@ -1507,7 +1508,7 @@ open class OpenGLRenderer(hub: Hub,
         }
 
         if (scene.children.count() == 0 || renderpasses.isEmpty() || mustRecreateFramebuffers || !running) {
-            Thread.sleep(200)
+            delay(200)
             return@runBlocking
         }
 
@@ -1524,10 +1525,13 @@ open class OpenGLRenderer(hub: Hub,
         val updated = updateDefaultUBOs()
         stats?.add("OpenGLRenderer.updateUBOs", System.nanoTime() - startUboUpdate)
 
-        val actualSceneObjects = sceneObjects.await().toTypedArray()
-        val sceneUpdated = !actualSceneObjects.contentDeepEquals(previousSceneObjects)
+        var sceneUpdated = true
+        if(pushMode) {
+            val actualSceneObjects = sceneObjects.await().toHashSet()
+            sceneUpdated = actualSceneObjects != previousSceneObjects
 
-        previousSceneObjects = actualSceneObjects
+            previousSceneObjects = actualSceneObjects
+        }
 
         val startInstanceUpdate = System.nanoTime()
         updateInstanceBuffers(sceneObjects.await())
@@ -1553,7 +1557,7 @@ open class OpenGLRenderer(hub: Hub,
 //                    animator.start()
 //                }
 
-                Thread.sleep(15)
+                delay(15)
                 return@runBlocking
             }
         }
@@ -1662,9 +1666,9 @@ open class OpenGLRenderer(hub: Hub,
                 }
 
                 val actualObjects = if(pass.passConfig.type == RenderConfigReader.RenderpassType.geometry) {
-                    actualSceneObjects.filter { it !is Light }
+                    sceneObjects.await().filter { it !is Light }
                 } else {
-                    actualSceneObjects.filter { it is Light }
+                    sceneObjects.await().filter { it is Light }
                 }
 
                 var currentShader: OpenGLShaderProgram? = null
