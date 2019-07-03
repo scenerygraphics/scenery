@@ -1282,7 +1282,7 @@ open class OpenGLRenderer(hub: Hub,
         gl.glBindFramebuffer(GL4.GL_FRAMEBUFFER, 0)
     }
 
-    private fun updateInstanceBuffers(sceneObjects:List<Node>) {
+    private fun updateInstanceBuffers(sceneObjects:List<Node>): Boolean {
         val instanceMasters = sceneObjects.filter { it.instances.size > 0 }
 
         instanceMasters.forEach { parent ->
@@ -1296,6 +1296,8 @@ open class OpenGLRenderer(hub: Hub,
 
             updateInstanceBuffer(parent, metadata)
         }
+
+        return instanceMasters.isNotEmpty()
     }
 
     private fun updateInstanceBuffer(parentNode: Node, state: OpenGLObjectState?): OpenGLObjectState {
@@ -1534,10 +1536,10 @@ open class OpenGLRenderer(hub: Hub,
         }
 
         val startInstanceUpdate = System.nanoTime()
-        updateInstanceBuffers(sceneObjects.await())
+        val instancesUpdated = updateInstanceBuffers(sceneObjects.await())
         stats?.add("OpenGLRenderer.updateInstanceBuffers", System.nanoTime() - startInstanceUpdate)
 
-        if(pushMode && !updated && !sceneUpdated && !screenshotRequested) {
+        if(pushMode && !updated && !sceneUpdated && !screenshotRequested && !instancesUpdated) {
             if(updateLatch == null) {
                 updateLatch = CountDownLatch(2)
             }
