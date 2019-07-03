@@ -10,7 +10,7 @@ import java.nio.IntBuffer
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-class Line @JvmOverloads constructor(var capacity: Int = 50, transparent: Boolean = false) : Node("Line"), HasGeometry {
+class Line @JvmOverloads constructor(var capacity: Int = 50, transparent: Boolean = false, val simple: Boolean = false) : Node("Line"), HasGeometry {
     /** Size of one vertex (e.g. 3 in 3D) */
     override val vertexSize: Int = 3
     /** Size of one texcoord (e.g. 2 in 3D) */
@@ -59,7 +59,11 @@ class Line @JvmOverloads constructor(var capacity: Int = 50, transparent: Boolea
     var edgeWidth = 2.0f
 
     init {
-        activateTransparency(transparent)
+        if(simple) {
+            geometryType = GeometryType.LINE
+        } else {
+            activateTransparency(transparent)
+        }
 
         vertices.limit(0)
         normals.limit(0)
@@ -69,6 +73,10 @@ class Line @JvmOverloads constructor(var capacity: Int = 50, transparent: Boolea
     }
 
     protected fun activateTransparency(transparent: Boolean) {
+        if(simple) {
+            return
+        }
+
         if(transparent) {
             val newMaterial = ShaderMaterial.fromFiles(
                 "${this::class.java.simpleName}.vert",
