@@ -752,12 +752,18 @@ open class VulkanRenderer(hub: Hub,
         }
 
         // create custom vertex description if necessary, else use one of the defaults
-        s.vertexDescription = if (node.instances.size > 0) {
+        s.vertexDescription = if (node.instances.size > 0 || node.instancedProperties.size > 0) {
             updateInstanceBuffer(device, node, s)
             // TODO: Rewrite shader in case it does not conform to coord/normal/texcoord vertex description
             s.vertexInputType = VertexDataKinds.PositionNormalTexcoord
+            s.instanced = true
             vertexDescriptionFromInstancedNode(node, vertexDescriptors.getValue(VertexDataKinds.PositionNormalTexcoord))
         } else {
+            s.instanced = false
+            s.vertexBuffers["instance"]?.close()
+            s.vertexBuffers.remove("instance")
+            s.vertexBuffers["instanceStaging"]?.close()
+            s.vertexBuffers.remove("instanceStaging")
             vertexDescriptors.getValue(s.vertexInputType)
         }
 
@@ -1935,6 +1941,15 @@ open class VulkanRenderer(hub: Hub,
                         forceRerecording = true
                     }
 
+                    // this covers cases where a master node is not given any instanced properties in the beginning
+                    // but only later, or when instancing is removed at some point.
+                    if((!metadata.instanced && (it.instancedProperties.size > 0 && it.instances.size > 0)) ||
+                        metadata.instanced && it.instancedProperties.size == 0 && it.instances.size == 0) {
+                        metadata.initialized = false
+                        initializeNode(it)
+                        return@forEach
+                    }
+
                     val material = it.material
                     if (material.needsTextureReload) {
                         logger.trace("Force command buffer re-recording, as reloading textures for ${it.name}")
@@ -2705,12 +2720,16 @@ open class VulkanRenderer(hub: Hub,
                 pass.vulkanMetadata.vertexBufferOffsets.limit(1)
                 pass.vulkanMetadata.vertexBuffers.limit(1)
 
-                if(node.instances.size > 0 && instanceBuffer != null) {
-                    pass.vulkanMetadata.vertexBuffers.limit(2)
-                    pass.vulkanMetadata.vertexBufferOffsets.limit(2)
+                if(node.instancedProperties.size > 0) {
+                    if (node.instances.size > 0 && instanceBuffer != null) {
+                        pass.vulkanMetadata.vertexBuffers.limit(2)
+                        pass.vulkanMetadata.vertexBufferOffsets.limit(2)
 
-                    pass.vulkanMetadata.vertexBufferOffsets.put(1, 0)
-                    pass.vulkanMetadata.vertexBuffers.put(1, instanceBuffer.vulkanBuffer)
+                        pass.vulkanMetadata.vertexBufferOffsets.put(1, 0)
+                        pass.vulkanMetadata.vertexBuffers.put(1, instanceBuffer.vulkanBuffer)
+                    } else {
+                        return@drawLoop
+                    }
                 }
 
                 val sets = specs.mapNotNull { (name, _) ->
