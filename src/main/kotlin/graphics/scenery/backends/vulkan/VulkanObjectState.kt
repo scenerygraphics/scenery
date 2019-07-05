@@ -61,6 +61,9 @@ open class VulkanObjectState : NodeMetadata {
     /** Time stamp of the last recreation of the texture descriptor sets */
     protected var descriptorSetsRecreated: Long = 0
 
+    /** Whether the node is rendered as instanced */
+    var instanced = false
+
     /**
      * Creates or updates the [textureDescriptorSets] describing the textures used. Will cover all the renderpasses
      * given in [passes]. The set will reside on [device] and the descriptor set layout(s) determined from the renderpass.
