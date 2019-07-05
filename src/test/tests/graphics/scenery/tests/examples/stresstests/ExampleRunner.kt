@@ -84,7 +84,7 @@ class ExampleRunner {
 
                         future = executor.submit(exampleRunnable)
 
-                        while (!instance.running || !instance.sceneInitialized()) {
+                        while (!instance.running || !instance.sceneInitialized() || instance.hub.get(SceneryElement.Renderer) == null) {
                             Thread.sleep(200)
                         }
                         val r = (instance.hub.get(SceneryElement.Renderer) as Renderer)
