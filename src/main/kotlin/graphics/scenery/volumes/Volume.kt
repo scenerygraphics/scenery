@@ -720,14 +720,18 @@ open class Volume : Mesh("Volume") {
         }
 
         if(uv.x() < 0.0f || uv.x() > 1.0f || uv.y() < 0.0f || uv.y() > 1.0f || uv.z() < 0.0f || uv.z() > 1.0f) {
-            logger.error("Invalid UV coords for volume access: $uv")
+            logger.debug("Invalid UV coords for volume access: $uv")
             return null
         }
 
         val absoluteCoords = GLVector(uv.x() * gt.dimensions.x(), uv.y() * gt.dimensions.y(), uv.z() * gt.dimensions.z())
-        val index: Int = (floor(gt.dimensions.x() * gt.dimensions.y() * absoluteCoords.z()).toInt()
-            + floor(gt.dimensions.x() * absoluteCoords.y()).toInt()
-            + floor(absoluteCoords.x()).toInt())
+//        val index: Int = (floor(gt.dimensions.x() * gt.dimensions.y() * absoluteCoords.z()).toInt()
+//            + floor(gt.dimensions.x() * absoluteCoords.y()).toInt()
+//            + floor(absoluteCoords.x()).toInt())
+
+        val index: Int = floor(absoluteCoords.x()).toInt()
+            + floor(gt.dimensions.y() * absoluteCoords.y()).toInt()
+            + floor(gt.dimensions.x() * gt.dimensions.y() * absoluteCoords.z()).toInt()
 
         val contents = gt.contents
         if(contents == null) {
@@ -735,8 +739,8 @@ open class Volume : Mesh("Volume") {
             return null
         }
 
-        if(contents.capacity() < index*bpp) {
-            logger.error("Absolute index $index from $uv exceeds data buffer size of ${contents.capacity()}")
+        if(contents.limit() < index*bpp) {
+            logger.error("Absolute index ${index*bpp} from $uv exceeds data buffer limit of ${contents.limit()} (capacity=${contents.capacity()}), coords=$absoluteCoords")
             return null
         }
 
