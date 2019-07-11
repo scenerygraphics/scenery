@@ -51,10 +51,7 @@ class Hub(val name: String = "default") {
             is Settings -> SceneryElement.Settings
             is NodeSubscriber -> SceneryElement.NodeSubscriber
             is NodePublisher -> SceneryElement.NodePublisher
-            else -> {
-                logger.error("Don't know how to add $obj to Hub.")
-                null
-            }
+            else -> SceneryElement.Custom
         }
 
         return if(type != null) {
@@ -91,6 +88,19 @@ class Hub(val name: String = "default") {
      */
     fun get(type: SceneryElement): Any? {
         return elements[type]
+    }
+
+    /**
+     * Returns a [Hubable] element if it exists in this hub.
+     */
+    inline fun <reified T: Hubable> get(): T? {
+        elements.values.forEach {
+            if(it is T) {
+                return it
+            }
+        }
+
+        return null
     }
 
     /**
