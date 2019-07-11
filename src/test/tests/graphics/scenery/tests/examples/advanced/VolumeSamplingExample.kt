@@ -8,14 +8,17 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.MaybeIntersects
 import graphics.scenery.utils.RingBuffer
-import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
 import org.junit.Test
 import org.lwjgl.system.MemoryUtil.memAlloc
+import org.scijava.Context
+import org.scijava.ui.UIService
 import org.scijava.ui.behaviour.ClickBehaviour
+import org.scijava.widget.FileWidget
+import java.io.File
 import java.nio.ByteBuffer
+import java.nio.file.Paths
 import kotlin.concurrent.thread
-import kotlin.math.PI
 
 /**
  * Example that renders procedurally generated volumes and samples from it.
@@ -26,7 +29,41 @@ import kotlin.math.PI
 class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
     val bitsPerVoxel = 8
 
+    enum class VolumeType { File, Procedural }
+
+    var volumeType = VolumeType.Procedural
+    lateinit var volumes: List<String>
+
+    var playing = true
+    var skipToNext = false
+    var skipToPrevious = false
+    var currentVolume = 0
+
     override fun init() {
+
+        val files = ArrayList<String>()
+        val fileFromProperty = System.getProperty("dataset")
+        volumeType = if(fileFromProperty != null) {
+            files.add(fileFromProperty)
+            VolumeType.File
+        } else {
+            val c = Context()
+            val ui = c.getService(UIService::class.java)
+            val file = ui.chooseFile(null, FileWidget.DIRECTORY_STYLE)
+            if(file != null) {
+                files.add(file.absolutePath)
+                VolumeType.File
+            } else {
+                VolumeType.Procedural
+            }
+        }
+
+        if(volumeType == VolumeType.File) {
+            val folder = File(files.first())
+            val stackfiles = folder.listFiles()
+            volumes = stackfiles.filter { it.isFile && it.name.toLowerCase().endsWith("raw") || it.name.substringAfterLast(".").toLowerCase().startsWith("tif") }.map { it.absolutePath }.sorted()
+        }
+
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
         val cam: Camera = DetachedHeadCamera()
@@ -47,12 +84,12 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
         scene.addChild(shell)
 
         val p1 = Icosphere(0.2f, 2)
-        p1.position = GLVector(-2.0f, 0.0f, 0.0f)
+        p1.position = GLVector(-0.5f, 0.0f, -2.0f)
         p1.material.diffuse = GLVector(0.3f, 0.3f, 0.8f)
         scene.addChild(p1)
 
         val p2 = Icosphere(0.2f, 2)
-        p2.position = GLVector(2.0f, 0.0f, 0.0f)
+        p2.position = GLVector(0.0f, 0.5f, 2.0f)
         p2.material.diffuse = GLVector(0.3f, 0.8f, 0.3f)
         scene.addChild(p2)
 
@@ -73,6 +110,7 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
         volume.position = GLVector(0.0f, 0.0f, 0.0f)
         volume.colormap = "viridis"
         volume.scale = GLVector(10.0f, 10.0f, 10.0f)
+//        volume.voxelSizeZ = 0.5f
         with(volume.transferFunction) {
             addControlPoint(0.0f, 0.0f)
             addControlPoint(0.2f, 0.0f)
@@ -115,18 +153,40 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
             }
 
             while(running) {
-                if(volume.metadata["animating"] == true) {
-                    val currentBuffer = volumeBuffer.get()
+                when(volumeType) {
+                    VolumeType.File -> if (playing || skipToNext || skipToPrevious) {
+                        val newVolume = if (skipToNext || playing) {
+                            skipToNext = false
+                            nextVolume()
+                        } else {
+                            skipToPrevious = false
+                            previousVolume()
+                        }
 
-                    Volume.generateProceduralVolume(volumeSize, 0.05f, seed = seed,
-                        intoBuffer = currentBuffer, shift = shift, use16bit = bitsPerVoxel > 8)
+                        logger.debug("Loading volume $newVolume")
+                        if (newVolume.toLowerCase().endsWith("raw")) {
+                            volume.readFromRaw(Paths.get(newVolume), autorange = false, cache = true, replace = false)
+                        } else {
+                            volume.readFrom(Paths.get(newVolume), replace = false)
+                        }
 
-                    volume.readFromBuffer(
-                        "procedural-cloud-${shift.hashCode()}", currentBuffer,
-                        volumeSize, volumeSize, volumeSize, 1.0f, 1.0f, 1.0f,
-                        dataType = dataType, bytesPerVoxel = bitsPerVoxel / 8)
+                        volume.trangemax = 1500.0f
+                    }
 
-                    shift = shift + shiftDelta
+                    VolumeType.Procedural ->
+                        if (volume.metadata["animating"] == true) {
+                            val currentBuffer = volumeBuffer.get()
+
+                            Volume.generateProceduralVolume(volumeSize, 0.05f, seed = seed,
+                                intoBuffer = currentBuffer, shift = shift, use16bit = bitsPerVoxel > 8)
+
+                            volume.readFromBuffer(
+                                "procedural-cloud-${shift.hashCode()}", currentBuffer,
+                                volumeSize, volumeSize, volumeSize, 1.0f, 1.0f, 1.0f,
+                                dataType = dataType, bytesPerVoxel = bitsPerVoxel / 8)
+
+                            shift = shift + shiftDelta
+                        }
                 }
 
                 val intersection = volume.intersectAABB(p1.position, (p2.position - p1.position).normalize())
@@ -143,8 +203,15 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
                         continue
                     }
 
-                    connector.removeChild("diagram")
-                    val diagram = Line(capacity = samples.size)
+                    val diagram = if(connector.getChildrenByName("diagram").isNotEmpty()) {
+                        connector.getChildrenByName("diagram").first() as Line
+                    } else {
+                        val l = Line(capacity = maxOf(volume.sizeX, volume.sizeY, volume.sizeZ) * 2)
+                        connector.addChild(l)
+                        l
+                    }
+
+                    diagram.clearPoints()
                     diagram.name = "diagram"
                     diagram.edgeWidth = 0.005f
                     diagram.material.diffuse = GLVector(0.05f, 0.05f, 0.05f)
@@ -152,16 +219,29 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
                     diagram.addPoint(GLVector(0.0f, 0.0f, 0.0f))
                     var point = GLVector.getNullVector(3)
                     samples.filterNotNull().forEachIndexed { i, sample ->
-                        point = GLVector(0.0f, i.toFloat()/samples.size, -sample/255.0f * 0.2f)
+                        point = GLVector(0.0f, i.toFloat()/samples.size, -sample)
                         diagram.addPoint(point)
                     }
                     diagram.addPoint(point)
-                    connector.addChild(diagram)
                 }
 
-                Thread.sleep(200)
+                Thread.sleep(20)
             }
         }
+    }
+
+    fun nextVolume(): String {
+        val v = volumes[currentVolume % volumes.size]
+        currentVolume++
+
+        return v
+    }
+
+    fun previousVolume(): String {
+        val v = volumes[currentVolume % volumes.size]
+        currentVolume--
+
+        return v
     }
 
     override fun inputSetup() {
@@ -179,8 +259,15 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
             }
         }
 
+        val togglePlaying = ClickBehaviour { _, _ ->
+            playing = !playing
+        }
+
         inputHandler?.addBehaviour("toggle_rendering_mode", toggleRenderingMode)
         inputHandler?.addKeyBinding("toggle_rendering_mode", "M")
+
+        inputHandler?.addBehaviour("toggle_playing", togglePlaying)
+        inputHandler?.addKeyBinding("toggle_playing", "G")
     }
 
     @Test override fun main() {
