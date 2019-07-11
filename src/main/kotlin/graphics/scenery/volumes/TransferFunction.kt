@@ -149,6 +149,25 @@ open class TransferFunction(val name: String = "") {
     }
 
     /**
+     * Evaluates the transfer function for the given [value] and returns the result.
+     */
+    fun evaluate(value: Float): Float {
+        val points = controlPoints.sortedBy { it.value }
+
+        val left = points.reversed().firstOrNull { it.value <= value } ?: findExtremalControlPoint(points, true)
+        val right = points.firstOrNull { it.value >= value } ?: findExtremalControlPoint(points, false)
+
+        var current = if(left == right) {
+            left.factor
+        } else {
+            -(left.factor * (right.value - value) + right.factor * (value - left.value)) / (left.value - right.value)
+        }
+        current = max(0.0f, min(current, 1.0f))
+
+        return current * value
+    }
+
+    /**
      * Returns a string representation of the transfer function.
      */
     override fun toString(): String {

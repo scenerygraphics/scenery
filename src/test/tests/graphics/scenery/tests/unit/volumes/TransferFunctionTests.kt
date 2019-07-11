@@ -74,4 +74,16 @@ class TransferFunctionTests {
         assertEquals("Function value between 1/2 should be ${(tf.getControlPoint(2).factor + tf.getControlPoint(3).factor)/2.0f}",
             (tf.getControlPoint(0).factor + tf.getControlPoint(1).factor)/2.0f, six, 0.02f)
     }
+
+    @Test
+    fun testTransferFunctionEvaluation() {
+        val tf = TransferFunction.ramp(0.3f, 0.5f)
+
+        val epsilon = 0.0001f
+        assertEquals(0.0f, tf.evaluate(0.0f), epsilon)
+        assertEquals(0.0f, tf.evaluate(0.1f), epsilon)
+        assertEquals(0.0f, tf.evaluate(0.3f), epsilon)
+        assertEquals(0.2857f, tf.evaluate(0.8f), epsilon)
+        assertEquals(0.5f, tf.evaluate(1.0f), epsilon)
+    }
 }
