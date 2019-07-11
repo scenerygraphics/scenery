@@ -115,6 +115,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
     override var scale: GLVector by Delegates.observable(GLVector(1.0f, 1.0f, 1.0f)) { property, old, new -> propertyChanged(property, old, new) }
 
     /** Rendering scale, e.g. coming from physical units of the object. Setting will trigger [world] update. */
+    @Deprecated("Do not use, see [scale] instead.")
     override var renderScale: Float by Delegates.observable(1.0f) { property, old, new -> propertyChanged(property, old, new) }
 
     /** Rotation of the Node. Setting will trigger [world] update. */
@@ -211,6 +212,13 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
         }
 
         return false
+    }
+
+    /**
+     * Returns all children with the given [name].
+     */
+    fun getChildrenByName(name: String): List<Node> {
+        return children.filter { it.name == name }
     }
 
     /**
