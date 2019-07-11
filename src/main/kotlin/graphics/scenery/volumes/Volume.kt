@@ -297,9 +297,9 @@ open class Volume : Mesh("Volume") {
 
 
         if (volumes.containsKey(id)) {
-            logger.info("$id is already in cache")
+            logger.debug("$id is already in cache")
         } else {
-            logger.info("Preloading $id from disk")
+            logger.debug("Preloading $id from disk")
             val buffer = ByteArray(1024 * 1024)
             val stream = FileInputStream(file.toFile())
             val imageData: ByteBuffer = memAlloc((2 * dimensions[0] * dimensions[1] * dimensions[2]).toInt())
@@ -431,18 +431,18 @@ open class Volume : Mesh("Volume") {
 
         val v = volumes[id]
         val vol = if (v != null) {
-            logger.info("Getting $id from cache")
+            logger.debug("Getting $id from cache")
             v
         } else {
-            logger.info("Loading $id from disk")
+            logger.debug("Loading $id from disk")
             val imageData: ByteBuffer = memAlloc((bytesPerVoxel * sizeX * sizeY * sizeZ))
 
-            logger.info("${file.fileName}: Allocated ${imageData.capacity()} bytes for $dataType ${8*bytesPerVoxel}bit image of $sizeX/$sizeY/$sizeZ")
+            logger.debug("${file.fileName}: Allocated ${imageData.capacity()} bytes for $dataType ${8*bytesPerVoxel}bit image of $sizeX/$sizeY/$sizeZ")
 
             val start = System.nanoTime()
 
 //            if(reader.openPlane(0, 0).imageMetadata.isLittleEndian) {
-                logger.info("Volume is little endian")
+                logger.debug("Volume is little endian")
                 (0 until reader.getPlaneCount(0)).forEach { plane ->
                     imageData.put(reader.openPlane(0, plane).bytes)
                 }
@@ -454,7 +454,7 @@ open class Volume : Mesh("Volume") {
 //            }
 
             val duration = (System.nanoTime() - start) / 10e5
-            logger.info("Reading took $duration ms")
+            logger.debug("Reading took $duration ms")
 
             imageData.flip()
 
@@ -518,12 +518,12 @@ open class Volume : Mesh("Volume") {
             logger.info("Getting $id from cache")
             v
         } else {
-            logger.info("Loading $id from disk")
+            logger.debug("Loading $id from disk")
             val buffer = ByteArray(1024 * 1024)
             val stream = FileInputStream(file.toFile())
             val imageData: ByteBuffer = memAlloc((2 * dimensions[0] * dimensions[1] * dimensions[2]).toInt())
 
-            logger.info("${file.fileName}: Allocated ${imageData.capacity()} bytes for UINT16 image of ${dimensions.joinToString("x")}")
+            logger.debug("${file.fileName}: Allocated ${imageData.capacity()} bytes for UINT16 image of ${dimensions.joinToString("x")}")
 
             val start = System.nanoTime()
             var bytesRead = stream.read(buffer, 0, buffer.size)
@@ -532,7 +532,7 @@ open class Volume : Mesh("Volume") {
                 bytesRead = stream.read(buffer, 0, buffer.size)
             }
             val duration = (System.nanoTime() - start) / 10e5
-            logger.info("Reading took $duration ms")
+            logger.debug("Reading took $duration ms")
 
             imageData.flip()
 
@@ -700,14 +700,17 @@ open class Volume : Mesh("Volume") {
         return OrientedBoundingBox(this, min, max)
     }
 
+    private fun Float.floorToInt() = floor(this).toInt()
+
     /**
      * Samples a point from the currently used volume, [uv] is the texture coordinate of the volume, [0.0, 1.0] for
      * all of the components.
      *
      * Returns the sampled value as a [Float], or null in case nothing could be sampled.
      */
-    fun sample(uv: GLVector): Float? {
+    fun sample(uv: GLVector, interpolate: Boolean = true): Float? {
         val gt = material.transferTextures["VolumeTextures"] ?: return null
+
         val bpp = when(gt.type) {
             GLTypeEnum.Byte -> 1
             GLTypeEnum.UnsignedByte -> 1
@@ -728,10 +731,16 @@ open class Volume : Mesh("Volume") {
 //        val index: Int = (floor(gt.dimensions.x() * gt.dimensions.y() * absoluteCoords.z()).toInt()
 //            + floor(gt.dimensions.x() * absoluteCoords.y()).toInt()
 //            + floor(absoluteCoords.x()).toInt())
+        val absoluteCoordsD = GLVector(floor(absoluteCoords.x()), floor(absoluteCoords.y()), floor(absoluteCoords.z()))
+        val diff = absoluteCoords - absoluteCoordsD
 
-        val index: Int = floor(absoluteCoords.x()).toInt()
-            + floor(gt.dimensions.y() * absoluteCoords.y()).toInt()
-            + floor(gt.dimensions.x() * gt.dimensions.y() * absoluteCoords.z()).toInt()
+        fun toIndex(absoluteCoords: GLVector): Int = (
+            absoluteCoords.x().roundToInt().dec()
+                + (gt.dimensions.x() * absoluteCoords.y()).roundToInt().dec()
+                + (gt.dimensions.x() * gt.dimensions.y() * absoluteCoords.z()).roundToInt().dec()
+            )
+
+        val index = toIndex(absoluteCoordsD)
 
         val contents = gt.contents
         if(contents == null) {
@@ -740,20 +749,47 @@ open class Volume : Mesh("Volume") {
         }
 
         if(contents.limit() < index*bpp) {
-            logger.error("Absolute index ${index*bpp} from $uv exceeds data buffer limit of ${contents.limit()} (capacity=${contents.capacity()}), coords=$absoluteCoords")
-            return null
+            logger.debug("Absolute index ${index*bpp} for data type ${gt.type} from $uv exceeds data buffer limit of ${contents.limit()} (capacity=${contents.capacity()}), coords=$absoluteCoords/${gt.dimensions}")
+            return 0.0f
         }
 
-        return when(gt.type) {
-            GLTypeEnum.Byte -> contents.get(index).toFloat()
-            GLTypeEnum.UnsignedByte -> contents.get(index).toUByte().toFloat()
-            GLTypeEnum.Short -> contents.asShortBuffer().get(index).toFloat()
-            GLTypeEnum.UnsignedShort -> contents.asShortBuffer().get(index).toUShort().toFloat()
-            GLTypeEnum.Int -> contents.asIntBuffer().get(index).toFloat()
-            GLTypeEnum.UnsignedInt -> contents.asIntBuffer().get(index).toUInt().toFloat()
-            GLTypeEnum.Float -> contents.asFloatBuffer().get(index)
-            GLTypeEnum.Double -> contents.asDoubleBuffer().get(index).toFloat()
+
+        fun density(index:Int): Float {
+            if(index*bpp >= contents.limit()) {
+                return 0.0f
+            }
+
+            val s = when(gt.type) {
+                GLTypeEnum.Byte -> contents.get(index).toFloat()
+                GLTypeEnum.UnsignedByte -> contents.get(index).toUByte().toFloat()
+                GLTypeEnum.Short -> contents.asShortBuffer().get(index).toFloat()
+                GLTypeEnum.UnsignedShort -> contents.asShortBuffer().get(index).toUShort().toFloat()
+                GLTypeEnum.Int -> contents.asIntBuffer().get(index).toFloat()
+                GLTypeEnum.UnsignedInt -> contents.asIntBuffer().get(index).toUInt().toFloat()
+                GLTypeEnum.Float -> contents.asFloatBuffer().get(index)
+                GLTypeEnum.Double -> contents.asDoubleBuffer().get(index).toFloat()
+            }
+
+            return transferFunction.evaluate(s/trangemax)
         }
+
+        return if(interpolate) {
+            val offset = 1.0f
+
+            val d00 = lerp(diff.x(), density(index), density(toIndex(absoluteCoordsD + GLVector(offset, 0.0f, 0.0f))))
+            val d10 = lerp(diff.x(), density(toIndex(absoluteCoordsD + GLVector(0.0f, offset, 0.0f))), density(toIndex(absoluteCoordsD + GLVector(offset, offset, 0.0f))))
+            val d01 = lerp(diff.x(), density(toIndex(absoluteCoordsD + GLVector(0.0f, 0.0f, offset))), density(toIndex(absoluteCoordsD + GLVector(offset, 0.0f, offset))))
+            val d11 = lerp(diff.x(), density(toIndex(absoluteCoordsD + GLVector(0.0f, offset, offset))), density(toIndex(absoluteCoordsD + GLVector(offset, offset, offset))))
+            val d0 = lerp(diff.y(), d00, d10)
+            val d1 = lerp(diff.y(), d01, d11)
+            lerp(diff.z(), d0, d1)
+        } else {
+            density(index)
+        }
+    }
+
+    private inline fun lerp(t: Float, v0: Float, v1: Float): Float {
+        return (1.0f - t) * v0 + t * v1
     }
 
     /**
@@ -787,8 +823,8 @@ open class Volume : Mesh("Volume") {
         )
 
         val direction = (endClamped - startClamped).normalize()
-        val maxSteps = (gt.dimensions.toFloatArray().max() ?: 1.0f).toInt()
-        val delta = direction * (1.0f/maxSteps)
+        val maxSteps = (direction.hadamard(gt.dimensions).magnitude() * 2.0f).roundToInt()
+        val delta = direction * (1.0f/maxSteps.toFloat())
 
         return (0 until maxSteps).map {
             sample(startClamped + (delta * it.toFloat()))
