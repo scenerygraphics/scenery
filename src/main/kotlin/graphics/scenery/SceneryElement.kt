@@ -25,5 +25,7 @@ enum class SceneryElement {
     /** Element for subscribing to Node updates */
     NodeSubscriber,
     /** Element for publishing Node updates */
-    NodePublisher
+    NodePublisher,
+    /** Custom elements that can be added to the Hub */
+    Custom
 }
