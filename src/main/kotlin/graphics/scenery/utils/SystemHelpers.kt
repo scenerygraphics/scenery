@@ -4,6 +4,8 @@ import java.io.File
 import java.lang.reflect.InvocationTargetException
 import java.net.URI
 import java.nio.file.*
+import java.text.SimpleDateFormat
+import java.time.Instant
 import java.util.*
 
 /**
@@ -212,6 +214,22 @@ class SystemHelpers {
             }
 
             return file
+        }
+
+        /**
+         * Returns the UNIX timestamp derived from [date].
+         * [date] defaults to the current date.
+         */
+        fun unixTimestampForDate(date: Date = Date()): Long {
+            return date.time/1000L
+        }
+
+        /**
+         * Returns a string in the format yyyy-MM-dd HH.mm.ss from the [date] given.
+         * [date] defaults to the current date.
+         */
+        fun formatDateTime(date: Date = Date()): String {
+            return SimpleDateFormat("yyyy-MM-dd HH.mm.ss").format(date)
         }
     }
 }

@@ -5,12 +5,11 @@ import graphics.scenery.SceneryElement
 import graphics.scenery.backends.Renderer
 import graphics.scenery.utils.ExtractsNatives
 import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.SystemHelpers
 import org.junit.Test
 import org.reflections.Reflections
 import java.nio.file.Files
 import java.nio.file.Paths
-import java.text.SimpleDateFormat
-import java.util.*
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
 
@@ -51,7 +50,7 @@ class ExampleRunner {
 
         val configurations = listOf("DeferredShading.yml", "DeferredShadingStereo.yml")
 
-        val directoryName = "ExampleRunner-${SimpleDateFormat("yyyy-MM-dd_HH.mm.ss").format(Date())}"
+        val directoryName = "ExampleRunner-${SystemHelpers.formatDateTime()}"
         Files.createDirectory(Paths.get(directoryName))
 
 
