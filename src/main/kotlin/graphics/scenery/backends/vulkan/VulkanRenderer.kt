@@ -34,7 +34,6 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.IntBuffer
 import java.nio.LongBuffer
-import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ExecutorService
@@ -47,7 +46,6 @@ import kotlin.concurrent.thread
 import kotlin.concurrent.withLock
 import kotlin.reflect.full.companionObject
 import kotlin.reflect.full.companionObjectInstance
-import kotlin.reflect.full.createInstance
 import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.full.primaryConstructor
@@ -1730,7 +1728,7 @@ open class VulkanRenderer(hub: Hub,
 
                 if (encoder == null || encoder?.frameWidth != window.width || encoder?.frameHeight != window.height) {
                     val file = SystemHelpers.addFileCounter(if(movieFilename == "") {
-                        File(System.getProperty("user.home"), "Desktop" + File.separator + "$applicationName - ${SimpleDateFormat("yyyy-MM-dd HH.mm.ss").format(Date())}.mp4")
+                        File(System.getProperty("user.home"), "Desktop" + File.separator + "$applicationName - ${SystemHelpers.formatDateTime()}.mp4")
                     } else {
                         File(movieFilename)
                     }, false)
@@ -1796,7 +1794,7 @@ open class VulkanRenderer(hub: Hub,
                     imageBuffer?.let { ib ->
                         try {
                             val file = SystemHelpers.addFileCounter(if(screenshotFilename == "") {
-                                File(System.getProperty("user.home"), "Desktop" + File.separator + "$applicationName - ${SimpleDateFormat("yyyy-MM-dd HH.mm.ss").format(Date())}.png")
+                                File(System.getProperty("user.home"), "Desktop" + File.separator + "$applicationName - ${SystemHelpers.formatDateTime()}.png")
                             } else {
                                 File(screenshotFilename)
                             }, screenshotOverwriteExisting)

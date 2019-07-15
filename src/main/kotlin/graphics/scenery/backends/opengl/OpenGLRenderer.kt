@@ -20,8 +20,6 @@ import kotlinx.coroutines.runBlocking
 import org.lwjgl.system.MemoryUtil
 import java.awt.BorderLayout
 import java.awt.Dimension
-import java.awt.event.ComponentAdapter
-import java.awt.event.ComponentEvent
 import java.awt.image.DataBufferByte
 import java.io.File
 import java.io.FileNotFoundException
@@ -31,7 +29,6 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
-import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
@@ -1963,7 +1960,7 @@ open class OpenGLRenderer(hub: Hub,
 
             if (recordMovie && (encoder == null || encoder?.frameWidth != w || encoder?.frameHeight != h)) {
                 val file = SystemHelpers.addFileCounter(if(movieFilename == "") {
-                    File(System.getProperty("user.home"), "Desktop" + File.separator + "$applicationName - ${SimpleDateFormat("yyyy-MM-dd HH.mm.ss").format(Date())}.mp4")
+                    File(System.getProperty("user.home"), "Desktop" + File.separator + "$applicationName - ${SystemHelpers.formatDateTime()}.mp4")
                 } else {
                     File(movieFilename)
                 }, false)
@@ -2044,7 +2041,7 @@ open class OpenGLRenderer(hub: Hub,
                 val readBufferUtil = AWTGLReadBufferUtil(joglDrawable!!.glProfile, false)
                 val image = readBufferUtil.readPixelsToBufferedImage(gl, true)
                 val file = SystemHelpers.addFileCounter(if(screenshotFilename == "") {
-                    File(System.getProperty("user.home"), "Desktop" + File.separator + "$applicationName - ${SimpleDateFormat("yyyy-MM-dd HH.mm.ss").format(Date())}.png")
+                    File(System.getProperty("user.home"), "Desktop" + File.separator + "$applicationName - ${SystemHelpers.formatDateTime()}.png")
                 } else {
                     File(screenshotFilename)
                 }, screenshotOverwriteExisting)
