@@ -129,17 +129,17 @@ class OpenCLContext(override var hub: Hub?, devicePreference: String = System.ge
      * Returns the OpenCL size of different JVM objects as Long.
      */
     protected fun getSizeof(obj: Any): Long {
-        return when(obj.javaClass) {
-            Float::class.java   -> Sizeof.cl_float
-            Int::class.java     -> Sizeof.cl_int
-            Integer::class.java -> Sizeof.cl_int
-            Byte::class.java    -> Sizeof.cl_uchar
-            cl_mem::class.java  -> Sizeof.cl_mem
+        return when(obj) {
+            is Float -> Sizeof.cl_float
+            is Int -> Sizeof.cl_int
+            is Integer -> Sizeof.cl_int
+            is Byte -> Sizeof.cl_uchar
+            is cl_mem -> Sizeof.cl_mem
 
             // buffers
-            FloatBuffer::class.java -> Sizeof.cl_float
-            ByteBuffer::class.java  -> Sizeof.cl_uchar
-            IntBuffer::class.java   -> Sizeof.cl_int
+            is FloatBuffer -> Sizeof.cl_float
+            is ByteBuffer -> Sizeof.cl_uchar
+            is IntBuffer -> Sizeof.cl_int
 
             else                -> {
                 // these classes are package-local and can therefore not be matched for here directly
