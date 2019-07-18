@@ -55,12 +55,12 @@ class OpenCLContext(override var hub: Hub?, devicePreference: String = System.ge
         }, { cl_device_id() })
         device = devices[devicePref]
 
-		logger.info("Selected device: ${getString(device, CL_DEVICE_NAME)} running ${getString(device, CL_DEVICE_VERSION)}")
+        logger.info("Selected device: ${getString(device, CL_DEVICE_NAME)} running ${getString(device, CL_DEVICE_VERSION)}")
 
         // Create a context for the selected device
         context = clCreateContext(
-                contextProperties, 1, arrayOf(device),
-                null, null, null)
+            contextProperties, 1, arrayOf(device),
+            null, null, null)
 
         // Create a command-queue for the selected device
         @Suppress("DEPRECATION")
@@ -206,7 +206,7 @@ class OpenCLContext(override var hub: Hub?, devicePreference: String = System.ge
 
         // Execute the kernel
         clEnqueueNDRangeKernel(this.queue, k, 1, null,
-                global_work_size, local_work_size, 0, null, null)
+            global_work_size, local_work_size, 0, null, null)
 
     }
 
@@ -242,6 +242,13 @@ class OpenCLContext(override var hub: Hub?, devicePreference: String = System.ge
         clEnqueueReadBuffer(queue, memory, CL_TRUE, 0, target.remaining() * getSizeof(target), p, 0, null, null)
     }
 
+    /**
+     * Writes from the [Buffer] [localData] to OpenCL memory specified by [memory].
+     */
+    fun writeBuffer(localData: Buffer, memory: cl_mem) {
+        val p = Pointer.to(localData)
+        clEnqueueWriteBuffer(queue, memory, CL_TRUE, 0, localData.remaining() * getSizeof(localData), p, 0, null, null)
+    }
 
     /**
      * Convenience utils for [OpenCLContext].
