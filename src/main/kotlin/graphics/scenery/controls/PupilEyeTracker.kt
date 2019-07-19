@@ -138,6 +138,9 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
     var currentGazeRight: Gaze? = null
         private set
 
+    private var frameLeft: ByteArray? = null
+    private var frameRight: ByteArray? = null
+    private var onReceiveFrame: ((Int, ByteArray) -> Any)? = null
 
     init {
         logger.info("Connecting to $host:$port ...")
@@ -247,6 +250,22 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
                                         }
                                     }
                                 }
+
+                                "frame.eye.0" -> {
+                                    msg.pop()
+                                    val bytes = msg.pop().data
+                                    frameLeft = bytes
+
+                                    onReceiveFrame?.invoke(0, bytes)
+                                }
+
+                                "frame.eye.1" -> {
+                                    msg.pop()
+                                    val bytes = msg.pop().data
+                                    frameRight = bytes
+
+                                    onReceiveFrame?.invoke(1, bytes)
+                                }
                             }
 
                             msg.destroy()
@@ -272,6 +291,28 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
 
             subscriberSockets.remove(topic)
         }
+    }
+
+    fun subscribeFrames(onReceiveAction: (Int, ByteArray) -> Unit) {
+        notify(hashMapOf(
+            "subject" to "start_plugin",
+            "name" to "Frame_Publisher",
+            "format" to "gray"
+        ))
+        subscribe("frame.eye.0")
+        subscribe("frame.eye.1")
+
+        onReceiveFrame = onReceiveAction
+    }
+
+
+    fun unsubscribeFrames() {
+        notify(hashMapOf(
+            "subject" to "stop_plugin",
+            "name" to "Frame_Publisher"
+        ))
+        unsubscribe("frame.eye.0")
+        unsubscribe("frame.eye.1")
     }
 
     /**
@@ -347,7 +388,7 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
         val referenceData = arrayListOf<HashMap<String, Serializable>>()
 
         if(generateReferenceData) {
-            val numReferencePoints = 8
+            val numReferencePoints = 6
             val samplesPerPoint = 120
 
             val (posKeyName, posGenerator: ((Camera, Int, Int) -> Pair<GLVector, GLVector>)) = when(calibrationType) {
@@ -355,7 +396,7 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
                 CalibrationType.WorldSpace -> "mm_pos" to DefaultWorldSpaceCalibrationPointGenerator
             }
 
-            val positionList = (0 until numReferencePoints).shuffled().map {
+            val positionList = (0 .. numReferencePoints).map {
                 posGenerator.invoke(cam, it, numReferencePoints)
             }
 
@@ -465,7 +506,7 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
             } else {
                 GLVector(
                     origin + radius * cos(2 * PI.toFloat() * index.toFloat()/referencePointCount),
-                    origin + -1.0f * radius * sin(2 * PI.toFloat() * index.toFloat()/referencePointCount))
+                    origin + radius * sin(2 * PI.toFloat() * index.toFloat()/referencePointCount))
             }
             v to cam.viewportToWorld(GLVector(v.x()*2.0f-1.0f, v.y()*2.0f-1.0f), offset = 0.5f)
         }
