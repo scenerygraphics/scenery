@@ -2318,6 +2318,7 @@ open class VulkanRenderer(hub: Hub,
         // parentNode.instances is a CopyOnWrite array list, and here we keep a reference to the original.
         // If it changes in the meantime, no problemo.
         val instances = parentNode.instances
+        val cam = scene.findObserver() ?: return state
 
         if (instances.isEmpty()) {
             logger.debug("$parentNode has no child instances attached, returning.")
@@ -2350,12 +2351,12 @@ open class VulkanRenderer(hub: Hub,
 
         val index = AtomicInteger(0)
         instances.parallelStream().forEach { node ->
-            node.needsUpdate = true
-            node.needsUpdateWorld = true
-            node.updateWorld(true, false)
+            if(node.visible) {
+                node.updateWorld(true, false)
 
-            stagingBuffer.stagingBuffer.duplicate().order(ByteOrder.LITTLE_ENDIAN).run {
-                ubo.populateParallel(this, offset = index.getAndIncrement() * ubo.getSize()*1L, elements = node.instancedProperties)
+                stagingBuffer.stagingBuffer.duplicate().order(ByteOrder.LITTLE_ENDIAN).run {
+                    ubo.populateParallel(this, offset = index.getAndIncrement() * ubo.getSize() * 1L, elements = node.instancedProperties)
+                }
             }
         }
 
@@ -2394,7 +2395,7 @@ open class VulkanRenderer(hub: Hub,
             this.endCommandBuffer(device, commandPools.Standard, queue, flush = true, dealloc = true)
         }
 
-        state.instanceCount = instances.size
+        state.instanceCount = index.get()//instances.size
 
         return state
     }
