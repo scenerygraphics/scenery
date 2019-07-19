@@ -400,40 +400,40 @@ open class Volume : Mesh("Volume") {
         if(file.normalize().toString().endsWith("raw")) {
             return readFromRaw(file, replace)
         }
-
-        val reader = scifio.initializer().initializeReader(file.normalize().toString())
-
-        with(reader.openPlane(0, 0)) {
-            sizeX = lengths[0].toInt()
-            sizeY = lengths[1].toInt()
-            sizeZ = reader.getPlaneCount(0).toInt()
-        }
-
         val id = file.fileName.toString()
-        val bytesPerVoxel = reader.openPlane(0, 0).imageMetadata.bitsPerPixel/8
-        reader.openPlane(0, 0).imageMetadata.pixelType
-
-        val dataType = when(reader.openPlane(0, 0).imageMetadata.pixelType) {
-            FormatTools.INT8 -> NativeTypeEnum.Byte
-            FormatTools.INT16 -> NativeTypeEnum.Short
-            FormatTools.INT32 -> NativeTypeEnum.Int
-
-            FormatTools.UINT8 -> NativeTypeEnum.UnsignedByte
-            FormatTools.UINT16 -> NativeTypeEnum.UnsignedShort
-            FormatTools.UINT32 -> NativeTypeEnum.UnsignedInt
-
-            FormatTools.FLOAT -> NativeTypeEnum.Float
-            else -> {
-                logger.error("Unknown scif.io pixel type ${reader.openPlane(0, 0).imageMetadata.pixelType}, assuming unsigned byte.")
-                NativeTypeEnum.UnsignedByte
-            }
-        }
 
         val v = volumes[id]
         val vol = if (v != null) {
             logger.debug("Getting $id from cache")
             v
         } else {
+            val reader = scifio.initializer().initializeReader(file.normalize().toString())
+
+            with(reader.openPlane(0, 0)) {
+                sizeX = lengths[0].toInt()
+                sizeY = lengths[1].toInt()
+                sizeZ = reader.getPlaneCount(0).toInt()
+            }
+
+            val bytesPerVoxel = reader.openPlane(0, 0).imageMetadata.bitsPerPixel/8
+            reader.openPlane(0, 0).imageMetadata.pixelType
+
+            val dataType = when(reader.openPlane(0, 0).imageMetadata.pixelType) {
+                FormatTools.INT8 -> NativeTypeEnum.Byte
+                FormatTools.INT16 -> NativeTypeEnum.Short
+                FormatTools.INT32 -> NativeTypeEnum.Int
+
+                FormatTools.UINT8 -> NativeTypeEnum.UnsignedByte
+                FormatTools.UINT16 -> NativeTypeEnum.UnsignedShort
+                FormatTools.UINT32 -> NativeTypeEnum.UnsignedInt
+
+                FormatTools.FLOAT -> NativeTypeEnum.Float
+                else -> {
+                    logger.error("Unknown scif.io pixel type ${reader.openPlane(0, 0).imageMetadata.pixelType}, assuming unsigned byte.")
+                    NativeTypeEnum.UnsignedByte
+                }
+            }
+
             logger.debug("Loading $id from disk")
             val imageData: ByteBuffer = memAlloc((bytesPerVoxel * sizeX * sizeY * sizeZ))
 
@@ -515,7 +515,7 @@ open class Volume : Mesh("Volume") {
 
         val v = volumes[id]
         val vol = if (v != null && cache) {
-            logger.info("Getting $id from cache")
+            logger.debug("Getting $id from cache")
             v
         } else {
             logger.debug("Loading $id from disk")
