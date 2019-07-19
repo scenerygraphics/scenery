@@ -175,11 +175,11 @@ open class UBO {
 
         val oldHash = hash
 
-        if(sizeCached > 0) {
+        if(sizeCached > 0 && elements == null) {
             // the members hash is also based on the memory address of the buffer, which is calculated at the
             // end of the routine and therefore dependent on the final buffer position.
             val newHash = getMembersHash(data.duplicate().order(ByteOrder.LITTLE_ENDIAN).position(originalPos + sizeCached) as ByteBuffer)
-            if(oldHash == newHash && elements == null) {
+            if(oldHash == newHash) {
                 data.position(originalPos + sizeCached)
                 logger.trace("UBO members of {} have not changed, {} vs {}", this, hash, newHash)
 
@@ -235,7 +235,9 @@ open class UBO {
         data.position(endPos)
 
         sizeCached = data.position() - originalPos
-        updateHash(data)
+        if(elements == null) {
+            updateHash(data)
+        }
 
         logger.trace("UBO {} updated, {} -> {}", this, oldHash, hash)
 
