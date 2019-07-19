@@ -142,4 +142,23 @@ open class Box @JvmOverloads constructor(val sizes: GLVector = GLVector(1.0f, 1.
 
         boundingBox = generateBoundingBox()
     }
+
+    companion object {
+        /**
+         * Creates a box with a hull of size [outerSize] and a wall thickness given in [wallThickness].
+         * Returns a container node containing both.
+         */
+        @JvmStatic fun hulledBox(outerSize: GLVector = GLVector(1.0f, 1.0f, 1.0f), wallThickness: Float = 0.05f): Node {
+            val container = Mesh()
+            val outer = Box(outerSize, insideNormals = false)
+            container.addChild(outer)
+
+            val innerSize = outerSize - GLVector.getOneVector(3) * wallThickness * 0.5f
+            val inner = Box(innerSize, insideNormals = true)
+            inner.material.cullingMode = Material.CullingMode.Front
+            container.addChild(inner)
+
+            return container
+        }
+    }
 }
