@@ -1335,12 +1335,14 @@ open class OpenGLRenderer(hub: Hub,
 
         val index = AtomicInteger(0)
         instances.parallelStream().forEach { node ->
-            node.needsUpdate = true
-            node.needsUpdateWorld = true
-            node.updateWorld(true, false)
+            if(node.visible) {
+                node.updateWorld(true, false)
 
-            stagingBuffer.duplicate().order(ByteOrder.LITTLE_ENDIAN).run {
-                ubo.populateParallel(this, offset = index.getAndIncrement() * ubo.getSize()*1L, elements = node.instancedProperties)
+                stagingBuffer.duplicate().order(ByteOrder.LITTLE_ENDIAN).run {
+                    ubo.populateParallel(this,
+                        offset = index.getAndIncrement() * ubo.getSize() * 1L,
+                        elements = node.instancedProperties)
+                }
             }
         }
 
@@ -1430,7 +1432,7 @@ open class OpenGLRenderer(hub: Hub,
         gl.glBufferData(GL4.GL_ARRAY_BUFFER, instanceBufferSize.toLong(), stagingBuffer, GL4.GL_DYNAMIC_DRAW)
         gl.glBindBuffer(GL4.GL_ARRAY_BUFFER, 0)
 
-        state.instanceCount = parentNode.instances.size
+        state.instanceCount = index.get()
         logger.trace("Updated instance buffer, {parentNode.name} has {} instances.", parentNode.name, state.instanceCount)
 
         return state
