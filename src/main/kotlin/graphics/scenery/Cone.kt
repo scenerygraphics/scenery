@@ -107,4 +107,12 @@ class Cone(val radius: Float, val height: Float, val segments: Int, axis: GLVect
         return cardinalAxis
     }
 
+    companion object {
+        @JvmStatic fun betweenPoints(p1: GLVector, p2: GLVector, radius: Float = 0.02f, height: Float = 1.0f, segments: Int = 16): Cone {
+            val cone = Cone(radius, height, segments, p2.minus(p1).normalized)
+            cone.orientBetweenPoints(p1, p2, rescale = true, reposition = true)
+            return cone
+        }
+    }
+
 }
