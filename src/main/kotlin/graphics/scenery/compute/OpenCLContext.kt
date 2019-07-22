@@ -243,7 +243,7 @@ class OpenCLContext(override var hub: Hub?, devicePreference: String = System.ge
     }
 
     /**
-     * Writes from the [Buffer] [localData] to OpenCL memory specified by [memory].
+     * Writes from [localData] to OpenCL memory specified by [memory].
      */
     fun writeBuffer(localData: Buffer, memory: cl_mem) {
         val p = Pointer.to(localData)
