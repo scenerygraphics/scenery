@@ -797,9 +797,9 @@ open class Volume : Mesh("Volume") {
      * Values beyond [0.0, 1.0] for [start] and [end] will be clamped to that interval.
      *
      * Returns the list of samples (which might include `null` values in case a sample failed),
-     * or null if the start/end coordinates are invalid.
+     * as well as the delta used along the ray, or null if the start/end coordinates are invalid.
      */
-    fun sampleRay(start: GLVector, end: GLVector): List<Float?>? {
+    fun sampleRay(start: GLVector, end: GLVector): Pair<List<Float?>, GLVector>? {
         val gt = material.transferTextures["VolumeTextures"] ?: return null
 
         if(start.x() < 0.0f || start.x() > 1.0f || start.y() < 0.0f || start.y() > 1.0f || start.z() < 0.0f || start.z() > 1.0f) {
@@ -828,7 +828,7 @@ open class Volume : Mesh("Volume") {
 
         return (0 until maxSteps).map {
             sample(startClamped + (delta * it.toFloat()))
-        }
+        } to delta
     }
 
     /**
