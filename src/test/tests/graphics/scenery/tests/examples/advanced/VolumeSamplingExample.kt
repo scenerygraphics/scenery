@@ -196,7 +196,7 @@ class VolumeSamplingExample: SceneryBase("Volume Sampling example", 1280, 720) {
                     val localExit = (intersection.relativeExit + GLVector.getOneVector(3)) * (1.0f/2.0f)
                     logger.info("Ray intersects volume at ${intersection.entry}/${intersection.exit} rel=${localEntry}/${localExit} localScale=$scale")
 
-                    val samples = volume.sampleRay(localEntry, localExit)
+                    val (samples, _) = volume.sampleRay(localEntry, localExit) ?: null to null
                     logger.info("Samples: ${samples?.joinToString(",") ?: "(no samples returned)"}")
 
                     if(samples == null) {
