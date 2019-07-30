@@ -5,19 +5,19 @@
 float4 calculateLocalDirection(
         __global const float4 *points,
         int begin,
-        int fiberLength,
+        int trackLength,
         int myIndex
         )
 {
-    int end = begin + fiberLength - 1;
+    int end = begin + trackLength - 1;
     int first = myIndex - 1;
     int last = myIndex + 1;
 
-    first = max( begin, first );
-    last = min( end, last );
-    float4 result = normalize( points[last] - points[first] );
+    first = max(begin, first);
+    last = min(end, last);
+    float4 result = normalize(points[last] - points[first]);
     //printf("Direction from index %d to %d is %v4f \n", first, last, result);
-    //printf("  ...calculated from p1 %v4f and p2 %v4f", points[first], points[last] );
+    //printf("  ...calculated from p1 %v4f and p2 %v4f", points[first], points[last]);
     return result;
 }
 
@@ -25,14 +25,14 @@ float4 calculateLocalDirection(
 float4 calculateOverallDirection(
         __global const float4 *points,
         int begin,
-        int fiberLength
+        int trackLength
         )
 {
-    int end = begin + fiberLength - 1;
+    int end = begin + trackLength - 1;
 
-    float4 result = normalize( points[end] - points[begin] );
+    float4 result = normalize(points[end] - points[begin]);
     //printf("Direction from index %d to %d is %v4f \n", first, last, result);
-    //printf("  ...calculated from p1 %v4f and p2 %v4f", points[first], points[last] );
+    //printf("  ...calculated from p1 %v4f and p2 %v4f", points[first], points[last]);
     return result;
 }
 
@@ -41,27 +41,27 @@ float4 calculateOverallDirection(
 float4 calculateDirection(
         __global const float4 *points,
         int begin,
-        int fiberLength,
+        int trackLength,
         int myIndex,
         int radius
         )
 {
-    int end = begin + fiberLength;
+    int end = begin + trackLength;
     float4 result = {0, 0, 0, 0};
 
-    for( int i = 0; i <= radius; i ++ )
+    for(int i = 0; i <= radius; i ++)
     {
         int first = myIndex - i;
         int last = myIndex + i + 1;
 
-        first = max( begin, first );
-        last = min( end, last );
-        result += normalize( points[last] - points[first] );
+        first = max(begin, first);
+        last = min(end, last);
+        result += normalize(points[last] - points[first]);
     }
 
     result /= radius + 1;
 
-    return normalize( result );
+    return normalize(result);
 }
 */
 
@@ -69,7 +69,7 @@ float4 calculateDirection(
 bool checkCurvature(
         __global const float4 *points,
         int begin,
-        int fiberLength,
+        int trackLength,
         int myIndex,
         float4 newPoint,
         float angleMin
@@ -79,55 +79,55 @@ bool checkCurvature(
     // like clustering only parts
     return true;
 
-    int end = begin + fiberLength - 1;
+    int end = begin + trackLength - 1;
 
     int prePrev = myIndex - 2;
     int prev = myIndex - 1;
     int next = myIndex + 1;
     int postNext = myIndex + 2;
 
-    prePrev = max( begin, prePrev );
-    prev = max( begin, prev );
-    next = min( end, next );
-    postNext = min( end, postNext );
+    prePrev = max(begin, prePrev);
+    prev = max(begin, prev);
+    next = min(end, next);
+    postNext = min(end, postNext);
 
     // Calculate curvature before index of interest, at index, and after index.
     // Calculate this for both the old and the new situation.
-    // If all angles are getting smaller (TODO allow minor changes ), return true.
+    // If all angles are getting smaller (TODO allow minor changes), return true.
 
     // Angles of status quo
-    float anglePrev1 = dot( normalize( points[prePrev] - points[prev] ), normalize( points[prev] - points[myIndex] ) );
-    float angle1     = dot( normalize( points[prev] - points[myIndex] ), normalize( points[myIndex] - points[next] ) );
-    float angleNext1 = dot( normalize( points[myIndex] - points[next] ), normalize( points[next] - points[postNext]) );
+    float anglePrev1 = dot(normalize(points[prePrev] - points[prev]), normalize(points[prev] - points[myIndex]));
+    float angle1     = dot(normalize(points[prev] - points[myIndex]), normalize(points[myIndex] - points[next]));
+    float angleNext1 = dot(normalize(points[myIndex] - points[next]), normalize(points[next] - points[postNext]));
     float angleSum1 = anglePrev1 + angle1 + angleNext1;
     // Angles after change
-    float anglePrev2 = dot( normalize( points[prePrev] - points[prev] ), normalize( points[prev] -        newPoint ) );
-    float angle2     = dot( normalize( points[prev] -        newPoint ), normalize( newPoint        - points[next] ) );
-    float angleNext2 = dot( normalize( newPoint        - points[next] ), normalize( points[next] - points[postNext]) );
+    float anglePrev2 = dot(normalize(points[prePrev] - points[prev]), normalize(points[prev] -        newPoint));
+    float angle2     = dot(normalize(points[prev] -        newPoint), normalize(newPoint        - points[next]));
+    float angleNext2 = dot(normalize(newPoint        - points[next]), normalize(points[next] - points[postNext]));
     float angleSum2 = anglePrev2 + angle2 + angleNext2;
 
     // Short cut: if it's better - straighter - over all, just do it!
-    if( angleSum2 > angleSum1 ) return true;
+    if(angleSum2 > angleSum1) return true;
 
-    return ( angleMin <= anglePrev2 ) && ( angleMin <= angle2 ) && ( angleMin <= angleNext2 );
-    // return ( anglePrev1 <= anglePrev2 ) && ( angle1 <= angle2 ) && ( angleNext1 <= angleNext2 );
+    return (angleMin <= anglePrev2) && (angleMin <= angle2) && (angleMin <= angleNext2);
+    // return (anglePrev1 <= anglePrev2) && (angle1 <= angle2) && (angleNext1 <= angleNext2);
 }
 
 
 int calculateClosestIndex(
-        int fiberStart,
-        int fiberLength,
+        int trackStart,
+        int trackLength,
         __global const float4 *points,
         float4 myPosition
         )
 {
     float minDistance = 99999;
     int bestIndex = -1;
-    for( int i = fiberStart; i < fiberStart + fiberLength; i++ )
+    for(int i = trackStart; i < trackStart + trackLength; i++)
     {
-        float newDistance = length( points[ i ] - myPosition );
+        float newDistance = length(points[i] - myPosition);
 
-        if( newDistance < minDistance )
+        if(newDistance < minDistance)
         {
             minDistance = newDistance;
             bestIndex = i;
@@ -139,7 +139,7 @@ int calculateClosestIndex(
 
 
 
-float4 transformForcePerpendicular( float4 direction, float4 force )
+float4 transformForcePerpendicular(float4 direction, float4 force)
 {
     // forceCorrected := force - t * n
     // We take the force, which points to any direction. This could lead
@@ -151,12 +151,12 @@ float4 transformForcePerpendicular( float4 direction, float4 force )
     // product of direction and force). The resulting point lies within
     // the plane.
 
-    float l = length( force );
+    float l = length(force);
     float4 forceOriginal = force;
 
     //printf("Function transform, direction is %v4f\n", direction);
 
-    if( l < 0.0001 )
+    if(l < 0.0001)
     {
         // No transform if the force is near non-existing
         return force;
@@ -165,9 +165,9 @@ float4 transformForcePerpendicular( float4 direction, float4 force )
     // Normalize the force (direction already is unit vector)
     force = force / l;
     //printf("  force orientation %v4f, length %f\n", force, l);
-    float t = dot( direction, force );
+    float t = dot(direction, force);
     float sgn = 1;
-    if( t > 0 )
+    if(t > 0)
     {
         t = t * -1.;
         sgn = 1;
@@ -180,7 +180,7 @@ float4 transformForcePerpendicular( float4 direction, float4 force )
     force.y -= t * direction.y;
     force.z -= t * direction.z;
 
-    if( dot( forceOriginal, force ) < 0 )
+    if(dot(forceOriginal, force) < 0)
     {
         //printf("    rotate adjusted force \n");
         force *= -1.f;
@@ -198,8 +198,8 @@ float4 calculateForce(
         __global const int* clusterIndices,
         int clusterStart,
         int clusterLength,
-        __global const int *fiberStarts,
-        __global const int *fiberLengths,
+        __global const int *trackStarts,
+        __global const int *trackLengths,
         __global const float4 *points,
         float4 myPosition,
         float4 myDirection,
@@ -213,51 +213,51 @@ float4 calculateForce(
     float4 force = { 0, 0, 0, 0 };
 
     // Iterate over IDs of all streamlines of this cluster
-    for( int i = clusterStart; i < clusterStart + clusterLength; i++ )
+    for(int i = clusterStart; i < clusterStart + clusterLength; i++)
     {
         // get all information about specific streamline
-        int fiberId = clusterIndices[ i ];
-        int fiberStart = fiberStarts[ fiberId ];
-        int fiberLength = fiberLengths[ fiberId ];
+        int trackId = clusterIndices[i];
+        int trackStart = trackStarts[trackId];
+        int trackLength = trackLengths[trackId];
         int closestIndex = calculateClosestIndex(
-                                fiberStart,
-                                fiberLength,
+                                trackStart,
+                                trackLength,
                                 points,
                                 myPosition
                                 );
         // ...including closest point and direction of closest passing
-        float minDistance = length( points[ closestIndex] - myPosition );
+        float minDistance = length(points[closestIndex] - myPosition);
 
-        if( minDistance > radius || minDistance < 0.01 )
+        if(minDistance > radius || minDistance < 0.01)
         {
             continue;
         }
 
         float4 direction = calculateLocalDirection(
                                points,
-                               fiberStart,
-                               fiberLength,
-                               closestIndex );
+                               trackStart,
+                               trackLength,
+                               closestIndex);
 
         // Depending on distance etc, calculate a weight
-        float weight = ( ( radius - minDistance ) / radius );
+        float weight = ((radius - minDistance) / radius);
         if(!isnan(myDirection.x) && !isnan(direction.x))
         {
-            float angle = pow( (float) dot( myDirection, direction ), (float) 2. );
-            angle = max( 0., ( angle - angleStick ) / ( 1. - angleStick )  );
+            float angle = pow((float) dot(myDirection, direction), (float) 2.);
+            angle = max(0., (angle - angleStick) / (1. - angleStick) );
             float weight = angle * weight;
         }
 
-        weight = pow( (float) weight, (float) 2. );
+        weight = pow((float) weight, (float) 2.);
         weightSum += weight;
-        force += weight * ( points[ closestIndex] - myPosition );
+        force += weight * (points[closestIndex] - myPosition);
     }
 
     force /= weightSum;
 
     if(!isnan(myDirection.x))
     {
-        force = transformForcePerpendicular( myDirection, force );
+        force = transformForcePerpendicular(myDirection, force);
     }
 
     return force;
@@ -266,14 +266,15 @@ float4 calculateForce(
 
 
 __kernel void edgeBundling(
-        __global const int* fiberStarts,
-        __global const int* fiberLengths,
+        __global const int* trackStarts,
+        __global const int* trackLengths,
         __global const int* clusterStarts,
         __global const int* clusterLengths,
         __global const int* clusterIndices,
         __global const int* clusterInverse,
         __global const float4* points,
         __global float4* pointsResult,
+        __global const int* pointToTrackIndices,
         __global const float* magnetRadius,
         __global const float* stepsize,
         __global const float* angleMin,
@@ -284,135 +285,109 @@ __kernel void edgeBundling(
 {
     // Orientation phase - who am I, to which clusters do I belong,
     // who are my colleagues?
-    int slId = get_global_id( 0 ) + *offset;
+    int pointId = get_global_id(0) + *offset;
+    int trackId = pointToTrackIndices[pointId];
+    int clusterId = clusterInverse[trackId];
+    int trackStart = trackStarts[trackId];
+    int trackLength = trackLengths[trackId];
+    int trackEnd = trackStart + trackLengths[trackId] - 1;
+    int clusterStart = clusterStarts[clusterId];
+    int clusterLength = clusterLengths[clusterId];
 
-
-    int clusterId = clusterInverse[ slId ];
-    int fiberStart = fiberStarts[ slId ];
-    int fiberLength = fiberLengths[ slId ];
-    int clusterStart = clusterStarts[ clusterId ];
-    int clusterLength = clusterLengths[ clusterId ];
-
-
-
-    // Settings
-    float angleMinLocal = *angleMin;
-    float angleStickLocal = *angleStick;
-    int radiusLocal = *magnetRadius;
-
-/*
-    pointsResult[slId].x = *angleMin;
-    pointsResult[slId].y = *angleStick;
-    pointsResult[slId].z = *magnetRadius;
-    pointsResult[slId].w = 999999;
-    return;
-*/
-
-
-    // walk along the fiber; if bundleEndPoints 0, we iterate from 1 to n-1; otherwise 0 to n
-    int skip = 1 - max(0, *bundleEndPoints);
-
-    for( int i = fiberStart + skip; i < ( fiberStart + fiberLength - skip ); i++ )
+    // If we should ignore start/end points and we are on such a point, just stop (nothing to do here)
+    if(*bundleEndPoints == 0 && (pointId == trackStart || pointId == trackEnd))
     {
-        float4 myPosition = points[ i ];
-        // Test section:
-        // float4 test = {1.0, 1.0, 1.0, 66.0};
-        // pointsResult[ i ] = myPosition;
-        // End of test section
-
-        // Get current point and tangent of this point
-        // approach 1: consider local direction
-        /*
-        float4 direction = calculateLocalDirection(
-                               points,
-                               fiberStart,
-                               fiberLength,
-                               i );
-
-        */
-        // approach 2: consider overall fiber direction
-        float4 direction = calculateOverallDirection(
-                               points,
-                               fiberStart,
-                               fiberLength);
-
-        // DEBUG LINES
-        pointsResult[i] = points[i] + direction;
-
-
-        // calculate the "pressure" from other streamlines of this cluster
-        //printf("give direction into function: %v4f\n", direction);
-        float4 force = calculateForce(
-                           clusterIndices,
-                           clusterStart,
-                           clusterLength,
-                           fiberStarts,
-                           fiberLengths,
-                           points,
-                           myPosition,
-                           direction,
-                           angleStickLocal,
-                           radiusLocal
-                           );
-        pointsResult[i] = force;
-        float4 forceWider = calculateForce(
-                           clusterIndices,
-                           clusterStart,
-                           clusterLength,
-                           fiberStarts,
-                           fiberLengths,
-                           points,
-                           myPosition,
-                           direction,
-                           angleStickLocal,
-                           2 * radiusLocal
-                           );
-        force.x -= 0.15 * forceWider.x;
-        force.y -= 0.15 * forceWider.y;
-        force.z -= 0.15 * forceWider.z;
-        //printf(" Force is %v4f \n\n", force);
-        float4 innerDirection = ( points[ i + 1 ] + points[ i - 1 ] );
-        // innerDirection /= 2;
-        // innerDirection = innerDirection - myPosition;
-        //if( dot( normalize( force ), normalize( innerDirection ) ) < -0.2 )
-        {
-            //force = 0 * innerDirection;
-        }
-        //force = innerDirection;
-
-
-        float4 resultPoint = { 0, 0, 0, 0 };
-        resultPoint.x = force.x; // DEBUG
-        resultPoint.y = force.y; // DEBUG
-        resultPoint.z = force.z; // DEBUG
-        resultPoint.w = *stepsize; // DEBUG
-
-        resultPoint.x = slId; // DEBUG
-        resultPoint.y = clusterId; // DEBUG
-        resultPoint.z = fiberLength; // DEBUG
-        resultPoint.w = 0; // DEBUG
-
-        resultPoint.x = myPosition.x + *stepsize * force.x;
-        resultPoint.y = myPosition.y + *stepsize * force.y;
-        resultPoint.z = myPosition.z + *stepsize * force.z;
-
-        pointsResult[ i ] = resultPoint;
-
-
-        /*
-        // This part is somewhat error-prone. Simple smoothing might bring
-        // better results.
-        if( checkCurvature( points,
-                            fiberStart,
-                            fiberLength,
-                            i,
-                            resultPoint,
-                            angleMinLocal ) )
-        {
-            pointsResult[ i ] = resultPoint;
-        }
-        */
+        pointsResult[pointId] = points[pointId];
+        return;
     }
+
+
+    float4 myPosition = points[pointId];
+    // Test section:
+    // float4 test = {1.0, 1.0, 1.0, 66.0};
+    // pointsResult[pointId] = myPosition;
+    // End of test section
+
+    // Get current point and tangent of this point
+    // approach 1: consider local direction
+    /*
+    float4 direction = calculateLocalDirection(
+                           points,
+                           trackStart,
+                           trackLength,
+                           pointId);
+
+    */
+    // approach 2: consider overall track direction
+    float4 direction = calculateOverallDirection(
+                           points,
+                           trackStart,
+                           trackLength);
+
+
+    // calculate the "pressure" from other trajectories of this cluster
+    //printf("give direction into function: %v4f\n", direction);
+    float4 force = calculateForce(
+                       clusterIndices,
+                       clusterStart,
+                       clusterLength,
+                       trackStarts,
+                       trackLengths,
+                       points,
+                       myPosition,
+                       direction,
+                       *angleStick,
+                       *magnetRadius
+                      );
+
+    /*
+    float4 forceWider = calculateForce(
+                       clusterIndices,
+                       clusterStart,
+                       clusterLength,
+                       trackStarts,
+                       trackLengths,
+                       points,
+                       myPosition,
+                       direction,
+                       *angleStick,
+                       2 * *magnetRadius
+                      );
+
+    force.x -= 0.15 * forceWider.x;
+    force.y -= 0.15 * forceWider.y;
+    force.z -= 0.15 * forceWider.z;
+    */
+    float4 innerDirection = (points[pointId + 1] + points[pointId - 1]);
+    // innerDirection /= 2;
+    // innerDirection = innerDirection - myPosition;
+    //if(dot(normalize(force), normalize(innerDirection)) < -0.2)
+    {
+        //force = 0 * innerDirection;
+    }
+    //force = innerDirection;
+
+
+    float4 resultPoint = { 0, 0, 0, 0 };
+    resultPoint.x = myPosition.x + *stepsize * force.x;
+    resultPoint.y = myPosition.y + *stepsize * force.y;
+    resultPoint.z = myPosition.z + *stepsize * force.z;
+    pointsResult[pointId] = resultPoint;
+
+
+    /*
+    // This part is somewhat error-prone. Simple smoothing might bring
+    // better results.
+    if(checkCurvature(points,
+                        trackStart,
+                        trackLength,
+                        pointId,
+                        resultPoint,
+                        *angleMin))
+    {
+        pointsResult[pointId] = resultPoint;
+    }
+    */
 }
 
 
@@ -422,33 +397,33 @@ __kernel void edgeBundling(
 float4 smoothPosition(
         __global const float4 *points,
         int begin,
-        int fiberLength,
+        int trackLength,
         int myIndex,
         __global const int* radius,
         __global const float* intensity
-        )
+       )
 {
-    float4 reference = points[ myIndex ];
+    float4 reference = points[myIndex];
 
     // get index of first and last index used for smoothing
-    int end = begin + fiberLength - 1;
+    int end = begin + trackLength - 1;
     int first = myIndex - *radius;
     int last = myIndex + *radius;
-    first = max( begin, first );
-    last = min( end, last );
+    first = max(begin, first);
+    last = min(end, last);
 
     float4 result = { 0, 0, 0, 0 };
 
-    for( int i = first; i < last + 1; i++ )
+    for(int i = first; i < last + 1; i++)
     {
-        result.x += points[ i ].x / ( last - first + 1 );
-        result.y += points[ i ].y / ( last - first + 1 );
-        result.z += points[ i ].z / ( last - first + 1 );
+        result.x += points[i].x / (last - first + 1);
+        result.y += points[i].y / (last - first + 1);
+        result.z += points[i].z / (last - first + 1);
     }
 
-    result.x = result.x * *intensity + reference.x * ( 1. - *intensity );
-    result.y = result.y * *intensity + reference.y * ( 1. - *intensity );
-    result.z = result.z * *intensity + reference.z * ( 1. - *intensity );
+    result.x = result.x * *intensity + reference.x * (1. - *intensity);
+    result.y = result.y * *intensity + reference.y * (1. - *intensity);
+    result.z = result.z * *intensity + reference.z * (1. - *intensity);
 
     return result;
 }
@@ -456,31 +431,37 @@ float4 smoothPosition(
 
 
 __kernel void smooth(
-        __global const int* fiberStarts,
-        __global const int* fiberLengths,
+        __global const int* trackStarts,
+        __global const int* trackLengths,
         __global const float4* points,
         __global float4* pointsResult,
+        __global const int* pointToTrackIndices,
         __global const int* radius,
         __global const float* intensity,
         __global const int* offset
-         )
+        )
 {
     // If smoothing is (practically) disabled, leave
-    if( *radius == 0 || *intensity < 0.001 )
+    if(*radius == 0 || *intensity < 0.001)
     {
         return;
     }
 
     // Orientation phase - who am I, to which clusters do I belong,
     // who are my colleagues?
-    int slId = get_global_id( 0 ) + *offset;
-    int fiberStart = fiberStarts[ slId ];
-    int fiberLength = fiberLengths[ slId ];
+    int pointId = get_global_id(0) + *offset;
+    int trackId = pointToTrackIndices[pointId];
+    int trackStart = trackStarts[trackId];
+    int trackLength = trackLengths[trackId];
+    int trackEnd = trackStart + trackLengths[trackId] - 1;;
+
+    if(pointId == trackStart || pointId == trackEnd)
+    {
+        return;
+    }
 
     // Smooth pointwise
-    for( int i = fiberStart + 1; i < ( fiberStart + fiberLength - 1 ); i++ )
-    {
-        float4 resultPoint = smoothPosition( points, fiberStart, fiberLength, i, radius, intensity );
-        pointsResult[ i ] = resultPoint;
-    }
+    float4 resultPoint = smoothPosition(points, trackStart, trackLength, pointId, radius, intensity);
+    pointsResult[pointId] = resultPoint;
+
 }

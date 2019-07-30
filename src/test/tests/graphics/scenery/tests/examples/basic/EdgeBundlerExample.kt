@@ -14,7 +14,7 @@ import kotlin.concurrent.thread
  */
 class EdgeBundlerExample : SceneryBase("EdgeBundlerExample") {
     var path =  """C:\Programming_meta\scenery\1\lines"""
-    var numClusters = 5
+    var numClusters = 3
     private var colorMap: Array<GLVector> = arrayOf(GLVector(1.0f, 1.0f, 1.0f))
 
     override fun init() {

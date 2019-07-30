@@ -122,6 +122,7 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
 
     // Arrays for containing the data flattened to basic Ints/Floats
     private var oclPoints = arrayListOf<Float>()
+    private var oclPointToTrackIndices = arrayListOf<Int>()
     private var oclPointsResult = arrayListOf<Float>()
     private var oclTrackStarts = arrayListOf<Int>()
     private var oclTrackLengths = arrayListOf<Int>()
@@ -144,11 +145,11 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
     var paramBundlingStepsize: Float = 1.0f           // Length of "magnet step". Just 1.0 is fine. Small steps require more iterations, larger might step too far.
     var paramBundlingAngleMin: Float = 0.0f           // TODO currently unused; it's a curvature threshold, but likely not really helpful
     var paramBundlingAngleStick: Float = 0.8f         // Defines how much non-parallel tracks stick together.
-    var paramBundlingChunkSize: Int = 100000           // Divides the calculation into pieces of this size
+    var paramBundlingChunkSize: Int = 10000           // Divides the calculation into pieces of this size
     var paramBundlingIncludeEndpoints: Int = 0        // 1 If lines should be bundled up to the last point; 0 if endpoints should stay at original position
     var paramBundlingSmoothingRadius: Int = 1         // Number of neighbors being considered by the smoothing window
     var paramBundlingSmoothingIntensity: Float = 0.5f // Degree how much to mix the smoothed result with the unsmooth data (1 = full smooth), 0.5 = 50:50)
-    var paramAlpha: Float = 0.1f                      // Opacity of the lines while rendering
+    var paramAlpha: Float = 0.01f                      // Opacity of the lines while rendering
 
 
     override fun init() {
@@ -187,7 +188,24 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
         return line
     }
 
-
+    /**
+     * This function is quite important. We have to do a lot of calculations and depending on the operating system
+     * (Did someone say "windows" ...hmmm?!), an OpenCL calculation is canceled by a watchdog, e.g. after 1-2s. This is
+     * of course very annoying. Especially since the error output is usually only "CL_OUT_OF_RESOURCES" - not helpful!
+     * However, to avoid trouble, the calculation pool (which contains one process per point) is splitted into chunks.
+     * A chunk size of 1000 means that 1000 points are processed in one rush, then a short break is made, and then the
+     * next 1000 points are considered, and so on. Naturally, this likely leads to a lot of overhead. So the right
+     * chunk size should be chosen in terms of keeping calculation time lower than the watchdog's kill time.
+     *
+     * TL;DR: make chunk size as big as possible (e.g. 100.000-1.000.000) but if it crashes, make it smaller.
+     * E.g. a quite weak MX150 graphics card only works with 10.000 or something like that.
+     *
+     * By the way, if nothing works, consider an increase of the number of clusters. This also dramatically decreases
+     * calculation time per point.
+     */
+    public fun setChunkSize(elementsPerCalculation:Int) {
+        paramBundlingChunkSize = elementsPerCalculation
+    }
 
     public fun getLines(): Array<Line> {
         var lines = Array<Line>(trackSetBundled.size) {Line()}
@@ -236,6 +254,7 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
      */
     private fun prepareFlattenedData() {
         oclPoints.clear()
+        oclPointToTrackIndices.clear()
         oclPointsResult.clear()
         oclTrackStarts.clear()
         oclTrackLengths.clear()
@@ -250,6 +269,7 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
             oclTrackLengths.add(trackSetBundled[t].size)
             for(p in 0 until trackSetBundled[t].size) {
                 oclPoints.addAll(arrayOf(trackSetBundled[t][p].x, trackSetBundled[t][p].y, trackSetBundled[t][p].z, 0.0f))
+                oclPointToTrackIndices.add(t)
                 oclPointsResult.addAll(arrayOf(trackSetBundled[t][p].x, trackSetBundled[t][p].y, trackSetBundled[t][p].z, 0.0f))
                 pointCounter++
             }
@@ -316,11 +336,23 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
      * 10.000 this function would return [10.000, 10.000, 5.000].
      */
     private fun getChunkSizes(): Array<Int> {
-        val num: Int = trackSetBundled.size / paramBundlingChunkSize
-        val remainder: Int =  trackSetBundled.size % paramBundlingChunkSize
+        val num: Int = oclPoints.size / paramBundlingChunkSize
+        val remainder: Int =  oclPoints.size % paramBundlingChunkSize
         var chunkSizes: Array<Int> = Array(num + 1) {_ -> paramBundlingChunkSize}
         chunkSizes[num] = remainder
         return chunkSizes
+    }
+
+
+    private fun copyResultHelper(openCLContext: OpenCLContext,
+                                 memResult: cl_mem,
+                                 memNew: cl_mem,
+                                 buffer: FloatBuffer)
+    {
+        openCLContext.readBuffer(memResult, buffer)
+        buffer.rewind()
+        openCLContext.writeBuffer(buffer, memNew)
+        buffer.rewind()
     }
 
     /**
@@ -349,6 +381,7 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
             var oclPointsInAndOut = createFloatBuffer(oclPoints)
             var points: cl_mem = ocl.wrapInput(oclPointsInAndOut, true)
             var pointsResult: cl_mem = ocl.wrapInput(oclPointsInAndOut, false)
+            var pointToTrackIndices: cl_mem = ocl.wrapInput(createIntBuffer(oclPointToTrackIndices), true)
             var trackStarts: cl_mem = ocl.wrapInput(createIntBuffer(oclTrackStarts), true)
             var trackLengths: cl_mem = ocl.wrapInput(createIntBuffer(oclTrackLengths), true)
             var clusterStarts: cl_mem = ocl.wrapInput(createIntBuffer(oclClusterStarts), true)
@@ -377,10 +410,11 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
             println(oclClusterLengths)
             println(oclClusterIndices)
             println(oclClusterInverse)
-
+            var statusCounter = 0
+            var totalCounter = 2 * paramBundlingIterations * chunksizes.size
             for(i in 0 until paramBundlingIterations) {
                 for(c in 0 until chunksizes.size) {
-                    statusPrint(i * chunksizes.size + c) // Current status; Will be called paramBundlingIterations * chunksizes.size times
+                    statusPrint(++statusCounter, totalCounter) // Current status; Will be called paramBundlingIterations * chunksizes.size times
                     var offsetBuffer = createIntBuffer(arrayListOf(c * paramBundlingChunkSize))
                     offsetBuffer.rewind()
                     ocl.writeBuffer(offsetBuffer, offset)
@@ -395,6 +429,7 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
                         clusterInverse,
                         points,
                         pointsResult,
+                        pointToTrackIndices,
                         magnetRadius,
                         stepsize,
                         angleMin,
@@ -404,14 +439,16 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
                 }
 
                 // Read result and copy it back to input, for the smoothing
-
+/*
                 ocl.readBuffer(pointsResult, oclPointsInAndOut)
                 oclPointsInAndOut.rewind()
                 ocl.writeBuffer(oclPointsInAndOut, points)
-                oclPointsInAndOut.rewind()
+                oclPointsInAndOut.rewind()*/
+                copyResultHelper(ocl, pointsResult, points, oclPointsInAndOut)
+
 
                 for(c in 0 until chunksizes.size) {
-                    statusPrint(i * chunksizes.size + c)
+                    statusPrint(++statusCounter, totalCounter)
                     var offsetBuffer = createIntBuffer(arrayListOf(c * paramBundlingChunkSize))
                     offsetBuffer.rewind()
                     ocl.writeBuffer(offsetBuffer, offset)
@@ -422,18 +459,21 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
                         trackLengths,
                         points,
                         pointsResult,
+                        pointToTrackIndices,
                         radius,
                         intensity,
                         offset)
                 }
 
                 // Read result and copy it back to input, for the next round
+                /*
                 ocl.readBuffer(pointsResult, oclPointsInAndOut)
                 oclPointsInAndOut.rewind()
                 ocl.writeBuffer(oclPointsInAndOut, points)
-                oclPointsInAndOut.rewind()
+                oclPointsInAndOut.rewind() */
+                copyResultHelper(ocl, pointsResult, points, oclPointsInAndOut)
             }
-
+            printFloatBuffer(oclPointsInAndOut)
             // Now convert the flat arrays back to "sorted" ones. TODO: renderResultUpdate each iteration?
             processOpenClResult(oclPointsInAndOut)
 
@@ -465,6 +505,7 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
             posCounter++
             localCounter++
             if(localCounter >= trackSetBundled[trackCounter].size) {
+                logger.info("Last point was " + x.toString() + ", " + y.toString() + ", "+ z.toString())
                 trackCounter++
                 localCounter = 0
             }
@@ -592,9 +633,10 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
      * Prints a single "*" as a cheap status bar. If [printEvery] is set to n, only every nth "*" is printed. This
      * reduces printing for high number of calls.
      */
-    private fun statusPrint(i: Int, printEvery: Int = 1) {
+    private fun statusPrint(i: Int, total: Int, printEvery: Int = 1) {
         if(i % printEvery == 0) {
-            print("*")
+            //print("*")
+            logger.info(i.toString() + " of " + total.toString())
         }
     }
 
@@ -626,10 +668,10 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
 
         // Now do the actual clustering
         for(i in 0 until paramClusteringIterations) {
-            statusPrint(i)
+            statusPrint(i, oclPoints.size * paramClusteringIterations)
             // Make current mapping empty
-            for(i in 0 until paramNumberOfClusters) {
-                clusters[i] = ArrayList<Int>()
+            for(j in 0 until paramNumberOfClusters) {
+                clusters[j] = ArrayList<Int>()
             }
 
             // Sort tracks into the clusters
