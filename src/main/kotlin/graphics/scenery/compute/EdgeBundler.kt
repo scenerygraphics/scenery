@@ -2,13 +2,11 @@ package graphics.scenery.compute
 
 import cleargl.GLVector
 import graphics.scenery.*
-import graphics.scenery.backends.Renderer
 import org.jocl.cl_mem
 import java.io.File
 import java.lang.Float.MAX_VALUE
 import java.nio.*
 
-import kotlin.concurrent.thread
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.pow
@@ -106,7 +104,8 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
         init()
     }
 
-    protected var trackSet: Array<Array<PointWithMeta>> = Array(0) {Array(0) { PointWithMeta() }}
+    protected var trackSetOriginal: Array<Array<PointWithMeta>> = Array(0) {Array(0) { PointWithMeta() }}
+    protected var trackSetBundled: Array<Array<PointWithMeta>> = Array(0) {Array(0) { PointWithMeta() }}
 
     // Min/max of data, from these we derive a proposal for paramBundlingRadius
     private var minX: Float = Float.MAX_VALUE
@@ -145,7 +144,7 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
     var paramBundlingStepsize: Float = 1.0f           // Length of "magnet step". Just 1.0 is fine. Small steps require more iterations, larger might step too far.
     var paramBundlingAngleMin: Float = 0.0f           // TODO currently unused; it's a curvature threshold, but likely not really helpful
     var paramBundlingAngleStick: Float = 0.8f         // Defines how much non-parallel tracks stick together.
-    var paramBundlingChunkSize: Int = 10000           // Divides the calculation into pieces of this size
+    var paramBundlingChunkSize: Int = 100000           // Divides the calculation into pieces of this size
     var paramBundlingIncludeEndpoints: Int = 0        // 1 If lines should be bundled up to the last point; 0 if endpoints should stay at original position
     var paramBundlingSmoothingRadius: Int = 1         // Number of neighbors being considered by the smoothing window
     var paramBundlingSmoothingIntensity: Float = 0.5f // Degree how much to mix the smoothed result with the unsmooth data (1 = full smooth), 0.5 = 50:50)
@@ -167,68 +166,48 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
      * on its [trackId] and the corresponding cluster.
      */
     private fun makeLine(trackId: Int): Line {
-        val renderLine = Line(transparent = true)
-        renderLine.name = trackId.toString()
-        renderLine.material.blending.opacity = paramAlpha
-        renderLine.position = GLVector(0.0f, 0.0f, 0.0f)
-        renderLine.edgeWidth = 0.01f
-        return renderLine
-    }
-
-    /*
-    /**
-     * Creates a new set of lines from the currently stored [trackSet]
-     */
-    private fun renderResultFirstTime() {
-        for(t in 0 until trackSet.size) {
-            var renderLine = makeLine(t)
-            val vertices = List<GLVector>(trackSet[t].size) {i -> GLVector(trackSet[t][i].x, trackSet[t][i].y, trackSet[t][i].z)}
-            // val tangents = List<GLVector>(trackSet[t].size) {i -> (vertices[min(vertices.size - 1, i+1)] - vertices[max(0, i-1)]).normalized}
-            renderLine.addPoints(vertices)
-            scene.addChild(renderLine)
-        }
+        val line = Line(transparent = true, simple = false)
+        line.name = trackId.toString()
+        line.material.blending.opacity = paramAlpha
+        line.position = GLVector(0.0f, 0.0f, 0.0f)
+        line.edgeWidth = 0.01f
+        return line
     }
 
     /**
-     * Removes existing lines and replaces them by the current state of them.
+     * Create a basic, empty line with the opacity defined by [paramAlpha] and a color from the [colorMap], depending
+     * on its [trackId] and the corresponding cluster.
      */
-    private fun renderResultUpdate() {
-        for(t in 0 until trackSet.size) {
-            // The next lines show the "boring" way [for the smarter one, see below]:
-            scene.removeChild(t.toString())
-            var renderLine = makeLine(t)
-            val vertices = List<GLVector>(trackSet[t].size) {i -> GLVector(trackSet[t][i].x, trackSet[t][i].y, trackSet[t][i].z)}
-            renderLine.addPoints(vertices)
-            scene.addChild(renderLine)
-            continue
-
-            // TODO see my initial idea below. I wanted to replace the FloatBuffer but I couldn't succeed (crashes, or nothing to see anymore)
-            // (so far we basically do the same as in renderResultFirstTime(), just with an extra deletion ... it's too redundant)
-            val verticesFloat = FloatArray(trackSet[t].size * 3) {i ->
-                if(i % 3 == 0) trackSet[t][i/3].x else if(i % 3 == 1) trackSet[t][i/3].y else trackSet[t][i/3].z
-            }
-
-            var lines = scene.getChildrenByName(t.toString())
-            for(line in lines) {
-                if(line is Line) {
-                    var lineCasted = line as Line
-                    var vertexBuffer = lineCasted.vertices.duplicate()
-                    vertexBuffer.rewind()
-                    vertexBuffer.put(verticesFloat)
-                }
-            }
-        }
-        scene.dirty = true
+    private fun makeLinePair(trackId: Int): LinePair {
+        val line = LinePair(transparent = true)
+        line.name = trackId.toString()
+        line.material.blending.opacity = paramAlpha
+        line.position = GLVector(0.0f, 0.0f, 0.0f)
+        line.edgeWidth = 0.01f
+        return line
     }
-   */
+
+
 
     public fun getLines(): Array<Line> {
-        var lines = Array<Line>(trackSet.size) {Line()}
-        for(t in 0 until trackSet.size) {
+        var lines = Array<Line>(trackSetBundled.size) {Line()}
+        for(t in 0 until trackSetBundled.size) {
             // The next lines show the "boring" way [for the smarter one, see below]:
             lines[t] = makeLine(t)
-            val vertices = List<GLVector>(trackSet[t].size) {i -> GLVector(trackSet[t][i].x, trackSet[t][i].y, trackSet[t][i].z)}
+            val vertices = List<GLVector>(trackSetBundled[t].size) { i -> GLVector(trackSetBundled[t][i].x, trackSetBundled[t][i].y, trackSetBundled[t][i].z)}
             lines[t].addPoints(vertices)
+        }
+        return lines
+    }
+
+    public fun getLinePairs(): Array<LinePair> {
+        var lines = Array<LinePair>(trackSetBundled.size) {LinePair()}
+        for(t in 0 until trackSetBundled.size) {
+            // The next lines show the "boring" way [for the smarter one, see below]:
+            lines[t] = makeLinePair(t)
+            val verticesOriginal = Array<GLVector>(trackSetOriginal[t].size) { i -> GLVector(trackSetOriginal[t][i].x, trackSetOriginal[t][i].y, trackSetOriginal[t][i].z)}
+            val verticesBundled = Array<GLVector>(trackSetBundled[t].size) { i -> GLVector(trackSetBundled[t][i].x, trackSetBundled[t][i].y, trackSetBundled[t][i].z)}
+            lines[t].addPointPairs(verticesOriginal, verticesBundled)
         }
         return lines
     }
@@ -238,7 +217,7 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
      */
     public fun estimateGoodParameters() {
         paramBundlingRadius = max(maxX - minX, max(maxY - minY, maxZ - minZ)) * 0.05f // 5% of data dimension
-        paramNumberOfClusters = ceil(trackSet.size.toFloat() / 500.0f).toInt() // an average of 500 lines per cluster
+        paramNumberOfClusters = ceil(trackSetBundled.size.toFloat() / 500.0f).toInt() // an average of 500 lines per cluster
         logger.info("Divide the data into " + paramNumberOfClusters.toString() + " clusters, magnetic forces over a distance of " + paramBundlingRadius)
     }
 
@@ -266,15 +245,15 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
         oclClusterLengths.clear()
 
         var pointCounter: Int = 0
-        for(t in 0 until trackSet.size) {
+        for(t in 0 until trackSetBundled.size) {
             oclTrackStarts.add(pointCounter)
-            oclTrackLengths.add(trackSet[t].size)
-            for(p in 0 until trackSet[t].size) {
-                oclPoints.addAll(arrayOf(trackSet[t][p].x, trackSet[t][p].y, trackSet[t][p].z, 0.0f))
-                oclPointsResult.addAll(arrayOf(trackSet[t][p].x, trackSet[t][p].y, trackSet[t][p].z, 0.0f))
-                oclClusterInverse.add(0) // TODO I just want to prepare a list with n elements. I think there is a (much) better way
+            oclTrackLengths.add(trackSetBundled[t].size)
+            for(p in 0 until trackSetBundled[t].size) {
+                oclPoints.addAll(arrayOf(trackSetBundled[t][p].x, trackSetBundled[t][p].y, trackSetBundled[t][p].z, 0.0f))
+                oclPointsResult.addAll(arrayOf(trackSetBundled[t][p].x, trackSetBundled[t][p].y, trackSetBundled[t][p].z, 0.0f))
                 pointCounter++
             }
+            oclClusterInverse.add(0) // TODO I just want to prepare a list with n elements. I think there is a (much) better way
         }
 
         var trackCounter: Int = 0
@@ -307,10 +286,15 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
     private fun printFloatBuffer(b: FloatBuffer) {
         var b2: FloatBuffer = b.duplicate()
         b2.rewind()
+        var counter = 0
         while(b2.hasRemaining()) {
-            print(b2.get().toString() + ",")
+            counter++
+            val x = b2.get().toString()
+            if(counter <= 10000)
+                print(x + ", ")
         }
         println()
+        if(counter > 10000) println("  [Stopped output; Total number of elements in buffer: " + counter + "]")
     }
 
     /**
@@ -332,8 +316,8 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
      * 10.000 this function would return [10.000, 10.000, 5.000].
      */
     private fun getChunkSizes(): Array<Int> {
-        val num: Int = trackSet.size / paramBundlingChunkSize
-        val remainder: Int =  trackSet.size % paramBundlingChunkSize
+        val num: Int = trackSetBundled.size / paramBundlingChunkSize
+        val remainder: Int =  trackSetBundled.size % paramBundlingChunkSize
         var chunkSizes: Array<Int> = Array(num + 1) {_ -> paramBundlingChunkSize}
         chunkSizes[num] = remainder
         return chunkSizes
@@ -385,7 +369,15 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
             ocl.loadKernel(EdgeBundler::class.java.getResource("EdgeBundler.cl"), "smooth")
             val chunksizes = getChunkSizes()
 
-            logger.info("Starting OpenCL edge bundling")
+            logger.info("Starting OpenCL edge bundling of " + oclPoints.size + " points (" + trackSetBundled.size + " tracks)")
+            printFloatBuffer(oclPointsInAndOut)
+            println(oclTrackStarts)
+            println(oclTrackLengths)
+            println(oclClusterStarts)
+            println(oclClusterLengths)
+            println(oclClusterIndices)
+            println(oclClusterInverse)
+
             for(i in 0 until paramBundlingIterations) {
                 for(c in 0 until chunksizes.size) {
                     statusPrint(i * chunksizes.size + c) // Current status; Will be called paramBundlingIterations * chunksizes.size times
@@ -412,6 +404,7 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
                 }
 
                 // Read result and copy it back to input, for the smoothing
+
                 ocl.readBuffer(pointsResult, oclPointsInAndOut)
                 oclPointsInAndOut.rewind()
                 ocl.writeBuffer(oclPointsInAndOut, points)
@@ -466,12 +459,12 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
             val z = b.get()
             b.get() // The fourth dim is (currently) 0, we throw it away
             // print("($x, $y, $z)")
-            trackSet[trackCounter][localCounter].x = x
-            trackSet[trackCounter][localCounter].y = y
-            trackSet[trackCounter][localCounter].z = z
+            trackSetBundled[trackCounter][localCounter].x = x
+            trackSetBundled[trackCounter][localCounter].y = y
+            trackSetBundled[trackCounter][localCounter].z = z
             posCounter++
             localCounter++
-            if(localCounter >= trackSet[trackCounter].size) {
+            if(localCounter >= trackSetBundled[trackCounter].size) {
                 trackCounter++
                 localCounter = 0
             }
@@ -511,10 +504,9 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
                 }
             }
         }
-        this.trackSet = Array(trackSetTemp.size, {i -> trackSetTemp[i]})
-        this.trackSet = resampleTracks(trackSet, paramResampleTo)
-
-
+        this.trackSetBundled = Array(trackSetTemp.size, { i -> trackSetTemp[i]})
+        this.trackSetBundled = resampleTracks(trackSetBundled, paramResampleTo)
+        this.trackSetOriginal = resampleTracks(trackSetBundled, paramResampleTo) // TODO just for test; make it better pls
     }
 
     public fun calculate() {
@@ -615,10 +607,10 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
         logger.info("Starting quickbundles")
 
         // First prepare a (random) starting state
-        var smallTracks: Array<Array<PointWithMeta>> = Array(trackSet.size) {Array(paramClusteringTrackSize) { PointWithMeta(0.0f, 0.0f, 0.0f) }}
-        var clustersReverse: Array<Int> = Array(trackSet.size) {0}
-        for(i in 0 until trackSet.size) {
-            smallTracks[i] = resampleTrack(trackSet[i], paramClusteringTrackSize)
+        var smallTracks: Array<Array<PointWithMeta>> = Array(trackSetBundled.size) {Array(paramClusteringTrackSize) { PointWithMeta(0.0f, 0.0f, 0.0f) }}
+        var clustersReverse: Array<Int> = Array(trackSetBundled.size) {0}
+        for(i in 0 until trackSetBundled.size) {
+            smallTracks[i] = resampleTrack(trackSetBundled[i], paramClusteringTrackSize)
         }
         var clusters: Array<ArrayList<Int>> = Array(paramNumberOfClusters) {ArrayList<Int>()}
         for(i in 0 until paramNumberOfClusters) {

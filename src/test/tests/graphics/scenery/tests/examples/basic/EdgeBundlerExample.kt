@@ -18,6 +18,7 @@ class EdgeBundlerExample : SceneryBase("EdgeBundlerExample") {
     private var colorMap: Array<GLVector> = arrayOf(GLVector(1.0f, 1.0f, 1.0f))
 
     override fun init() {
+        System.setProperty("scenery.OpenCLDevice", "1,0");
         var eb = EdgeBundler(path, numClusters)
         // eb.estimateGoodParameters() // This OR set everything manually.
         eb.calculate()
@@ -25,7 +26,7 @@ class EdgeBundlerExample : SceneryBase("EdgeBundlerExample") {
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
         initRender()
         colorMap = getRandomColors()
-        renderLines(eb.getLines(), eb.getClusterOfTracks())
+        renderLinePairs(eb.getLinePairs(), eb.getClusterOfTracks())
     }
 
     /*
@@ -66,6 +67,16 @@ class EdgeBundlerExample : SceneryBase("EdgeBundlerExample") {
                 Thread.sleep(20)
             }
         }
+
+
+        thread {
+            while (true) {
+                val t = Math.sin(runtime * Math.PI/2000.0) * 0.5 + 0.5
+                scene.children.forEach() { n-> if(n is LinePair) {n.interpolationState = t.toFloat()} }
+                Thread.sleep(20)
+            }
+        }
+
     }
 
     /**
@@ -82,6 +93,18 @@ class EdgeBundlerExample : SceneryBase("EdgeBundlerExample") {
     }
 
     private fun renderLines(lines: Array<Line>, cluster: Array<Int>) {
+        for(t in 0 until lines.size) {
+            var track = lines[t]
+            val clusterId = cluster[t]
+            track.material.ambient = colorMap[clusterId]
+            track.material.diffuse = colorMap[clusterId]
+            track.material.specular = colorMap[clusterId]
+            scene.addChild(track)
+        }
+        scene.dirty = true
+    }
+
+    private fun renderLinePairs(lines: Array<LinePair>, cluster: Array<Int>) {
         for(t in 0 until lines.size) {
             var track = lines[t]
             val clusterId = cluster[t]

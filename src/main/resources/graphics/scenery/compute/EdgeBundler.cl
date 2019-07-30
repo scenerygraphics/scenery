@@ -285,32 +285,42 @@ __kernel void edgeBundling(
     // Orientation phase - who am I, to which clusters do I belong,
     // who are my colleagues?
     int slId = get_global_id( 0 ) + *offset;
+
+
     int clusterId = clusterInverse[ slId ];
     int fiberStart = fiberStarts[ slId ];
     int fiberLength = fiberLengths[ slId ];
     int clusterStart = clusterStarts[ clusterId ];
     int clusterLength = clusterLengths[ clusterId ];
 
+
+
     // Settings
     float angleMinLocal = *angleMin;
     float angleStickLocal = *angleStick;
     int radiusLocal = *magnetRadius;
 
+/*
+    pointsResult[slId].x = *angleMin;
+    pointsResult[slId].y = *angleStick;
+    pointsResult[slId].z = *magnetRadius;
+    pointsResult[slId].w = 999999;
+    return;
+*/
+
+
     // walk along the fiber; if bundleEndPoints 0, we iterate from 1 to n-1; otherwise 0 to n
-    int index = 0;
-    int skip = 1 - *bundleEndPoints;
+    int skip = 1 - max(0, *bundleEndPoints);
 
     for( int i = fiberStart + skip; i < ( fiberStart + fiberLength - skip ); i++ )
     {
+        float4 myPosition = points[ i ];
         // Test section:
-        float4 test = {1.0, 1.0, 1.0, 66.0};
-        pointsResult[ i ] = test;
-        // continue;
+        // float4 test = {1.0, 1.0, 1.0, 66.0};
+        // pointsResult[ i ] = myPosition;
         // End of test section
 
         // Get current point and tangent of this point
-        float4 myPosition = points[ i ];
-
         // approach 1: consider local direction
         /*
         float4 direction = calculateLocalDirection(
@@ -318,6 +328,7 @@ __kernel void edgeBundling(
                                fiberStart,
                                fiberLength,
                                i );
+
         */
         // approach 2: consider overall fiber direction
         float4 direction = calculateOverallDirection(
@@ -325,10 +336,9 @@ __kernel void edgeBundling(
                                fiberStart,
                                fiberLength);
 
-
         // DEBUG LINES
-        //pointsResult[i] = points[i] + direction;
-        //continue;
+        pointsResult[i] = points[i] + direction;
+
 
         // calculate the "pressure" from other streamlines of this cluster
         //printf("give direction into function: %v4f\n", direction);
@@ -344,7 +354,7 @@ __kernel void edgeBundling(
                            angleStickLocal,
                            radiusLocal
                            );
-
+        pointsResult[i] = force;
         float4 forceWider = calculateForce(
                            clusterIndices,
                            clusterStart,
@@ -369,6 +379,7 @@ __kernel void edgeBundling(
             //force = 0 * innerDirection;
         }
         //force = innerDirection;
+
 
         float4 resultPoint = { 0, 0, 0, 0 };
         resultPoint.x = force.x; // DEBUG
@@ -401,8 +412,6 @@ __kernel void edgeBundling(
             pointsResult[ i ] = resultPoint;
         }
         */
-
-        index++;
     }
 }
 
