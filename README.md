@@ -25,9 +25,9 @@ Some of the examples need additional meshes, which are not part of the repositor
 
 ## Citation
 
-In case you use scenery in a scientific publication, please cite this preprint:
+In case you use scenery in a scientific publication, please cite this paper:
 
-* Ulrik Günther, Tobias Pietzsch, Aryaman Gupta, Kyle I.S. Harrington, Pavel Tomancak, Stefan Gumhold, and Ivo F. Sbalzarini: scenery — Flexible Virtual Reality Visualisation on the Java VM. _[arXiv:1906.06726](https://arxiv.org/abs/1906.06726)_, 2019.
+* Ulrik Günther, Tobias Pietzsch, Aryaman Gupta, Kyle I.S. Harrington, Pavel Tomancak, Stefan Gumhold, and Ivo F. Sbalzarini: scenery — Flexible Virtual Reality Visualisation on the Java VM. _IEEE VIS 2019 (accepted, [arXiv:1906.06726](https://arxiv.org/abs/1906.06726))_.
 
 If you want to refer to a specific scenery version, e.g. for reproducibility, also can additionally cite the [DOI of the scenery version you used](https://zenodo.org/record/3228395).
 
