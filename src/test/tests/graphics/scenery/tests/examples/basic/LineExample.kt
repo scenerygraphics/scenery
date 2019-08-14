@@ -20,8 +20,7 @@ class LineExample : SceneryBase("LineExample") {
     protected var lineAnimating = true
 
     override fun init() {
-        renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
-        hub.add(SceneryElement.Renderer, renderer!!)
+        renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
         val hull = Box(GLVector(50.0f, 50.0f, 50.0f), insideNormals = true)
         hull.material.diffuse = GLVector(0.2f, 0.2f, 0.2f)
@@ -44,7 +43,7 @@ class LineExample : SceneryBase("LineExample") {
 
         val lights = (0 until 2).map {
             val l = PointLight(radius = 4.0f)
-            l.intensity = 100.0f
+            l.intensity = 1.0f
             l.emissionColor = Random.randomVectorFromRange(3, 0.2f, 0.8f)
 
             scene.addChild(l)

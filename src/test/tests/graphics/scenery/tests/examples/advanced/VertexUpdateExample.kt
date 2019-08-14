@@ -7,6 +7,7 @@ import org.junit.Test
 import java.nio.FloatBuffer
 import java.util.*
 import kotlin.concurrent.thread
+import kotlin.concurrent.withLock
 
 /**
  * <Description>
@@ -17,9 +18,8 @@ import kotlin.concurrent.thread
 class VertexUpdateExample : SceneryBase("VertexUpdateExample") {
 
     override fun init() {
-        renderer = Renderer.createRenderer(hub, applicationName,
-            scene, 512, 512)
-        hub.add(SceneryElement.Renderer, renderer!!)
+        renderer = hub.add(Renderer.createRenderer(hub, applicationName,
+            scene, 512, 512))
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
@@ -44,12 +44,15 @@ class VertexUpdateExample : SceneryBase("VertexUpdateExample") {
         val lights = (0..2).map {
             PointLight(radius = 10.0f)
         }.mapIndexed { i, light ->
-            light.position = GLVector(2.0f * i, 2.0f * i, 2.0f * i)
+            light.position = GLVector(2.0f * i - 2.0f, 2.0f * i - 2.0f, 2.0f * i - 2.0f)
             light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
             light.intensity = 150f * (i + 1)
             scene.addChild(light)
             light
         }
+
+        var bb = BoundingGrid()
+        bb.node = sphere
 
         var ticks = 0
         thread {
@@ -107,6 +110,7 @@ class VertexUpdateExample : SceneryBase("VertexUpdateExample") {
                 sphere.vertices = FloatBuffer.wrap(vbuffer.toFloatArray())
                 sphere.normals = FloatBuffer.wrap(nbuffer.toFloatArray())
                 sphere.recalculateNormals()
+                sphere.boundingBox = sphere.generateBoundingBox()
 
                 sphere.dirty = true
 

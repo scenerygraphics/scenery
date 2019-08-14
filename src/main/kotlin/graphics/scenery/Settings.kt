@@ -25,8 +25,8 @@ class Settings(override var hub: Hub? = null) : Hubable {
 
             val setting = when {
                 value.toLowerCase() == "false" || value.toLowerCase() == "true" -> value.toBoolean()
-                value.toFloatOrNull() != null -> value.toFloat()
-                value.toLongOrNull() != null -> value.toLong()
+                value.toLowerCase().contains("f") && value.toLowerCase().replace("f", "").toFloatOrNull() != null -> value.toLowerCase().replace("f", "").toFloat()
+                value.toLowerCase().contains("l") && value.toLowerCase().replace("l", "").toLongOrNull() != null -> value.toLowerCase().replace("l", "").toLong()
                 value.toIntOrNull() != null -> value.toInt()
                 else -> value
             }
@@ -41,34 +41,42 @@ class Settings(override var hub: Hub? = null) : Hubable {
      * @param[name] The name of the setting
      * @return The setting as type T
      */
-    fun <T> get(name: String): T {
+    fun <T> get(name: String, default: T? = null): T {
         if(!settingsStore.containsKey(name)) {
-            logger.warn("WARNING: Settings don't contain '$name'")
+            if(default == null) {
+                logger.warn("Settings don't contain '$name'")
+            } else {
+                logger.debug("Settings don't contain '$name'")
+            }
         }
 
         @Suppress("UNCHECKED_CAST")
         val s = settingsStore[name] as? T
-        if(s != null) {
-            return s
+        return if(s != null) {
+            s
         } else {
-            throw IllegalStateException("Cast of $name failed.")
+            default ?: throw IllegalStateException("Cast of $name failed, the setting might not exist (current value: $s)")
         }
     }
 
     /**
      * Compatibility function for Java, see [get]. Returns the settings value for [name], if found.
      */
-    fun <T> getProperty(name: String): T{
+    @JvmOverloads fun <T> getProperty(name: String, default: T? = null): T{
         if(!settingsStore.containsKey(name)) {
-            logger.warn("WARNING: Settings don't contain '$name'")
+            if(default == null) {
+                logger.warn("Settings don't contain '$name'")
+            } else {
+                logger.debug("Settings don't contain '$name'")
+            }
         }
 
         @Suppress("UNCHECKED_CAST")
         val s = settingsStore[name] as? T
-        if(s != null) {
-            return s
+        return if(s != null) {
+            s
         } else {
-            throw IllegalStateException("Cast of $name failed.")
+            default ?: throw IllegalStateException("Cast of $name failed, the setting might not exist (current value: $s)")
         }
     }
 

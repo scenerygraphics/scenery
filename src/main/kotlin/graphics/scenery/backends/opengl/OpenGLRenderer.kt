@@ -14,14 +14,13 @@ import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.utils.*
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.sync.withLock
 import org.lwjgl.system.MemoryUtil
 import java.awt.BorderLayout
 import java.awt.Dimension
-import java.awt.event.ComponentAdapter
-import java.awt.event.ComponentEvent
+import java.awt.image.DataBufferByte
 import java.io.File
 import java.io.FileNotFoundException
 import java.io.FileOutputStream
@@ -30,18 +29,15 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
-import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import javax.imageio.ImageIO
 import javax.swing.JFrame
 import javax.swing.SwingUtilities
 import kotlin.collections.LinkedHashMap
-import kotlin.concurrent.withLock
 import kotlin.math.max
 import kotlin.math.roundToInt
 import kotlin.reflect.full.findAnnotation
@@ -104,7 +100,7 @@ open class OpenGLRenderer(hub: Hub,
     final override var settings: Settings = Settings()
 
     /** The hub used for communication between the components */
-    final override var hub: Hub? = null
+    final override var hub: Hub?
 
     private var textureCache = HashMap<String, GLTexture>()
     private var shaderPropertyCache = HashMap<Class<*>, List<Field>>()
@@ -115,6 +111,7 @@ open class OpenGLRenderer(hub: Hub,
     private var screenshotFilename = ""
     private var encoder: H264Encoder? = null
     private var recordMovie = false
+    private var movieFilename = ""
 
     /**
      * Activate or deactivate push-based rendering mode (render only on scene changes
@@ -176,12 +173,12 @@ open class OpenGLRenderer(hub: Hub,
 
     var applicationName = ""
 
-    inner class ResizeHandler {
-        @Volatile var lastResize = -1L
-        var lastWidth = 0
-        var lastHeight = 0
+    inner class OpenGLResizeHandler: ResizeHandler {
+        @Volatile override var lastResize = -1L
+        override var lastWidth = 0
+        override var lastHeight = 0
 
-        @Synchronized fun queryResize() {
+        @Synchronized override fun queryResize() {
             if (lastWidth <= 0 || lastHeight <= 0) {
                 lastWidth = Math.max(1, lastWidth)
                 lastHeight = Math.max(1, lastHeight)
@@ -297,10 +294,16 @@ open class OpenGLRenderer(hub: Hub,
         }
     }
 
-    protected val buffers = HashMap<String, OpenGLBuffer>()
+    data class DefaultBuffers(var UBOs: OpenGLBuffer,
+                              var LightParameters: OpenGLBuffer,
+                              var ShaderParameters: OpenGLBuffer,
+                              var VRParameters: OpenGLBuffer,
+                              var ShaderProperties: OpenGLBuffer)
+
+    protected lateinit var buffers: DefaultBuffers
     protected val sceneUBOs = CopyOnWriteArrayList<Node>()
 
-    protected val resizeHandler = ResizeHandler()
+    protected val resizeHandler = OpenGLResizeHandler()
 
     companion object {
         private const val WINDOW_RESIZE_TIMEOUT = 200L
@@ -436,38 +439,10 @@ open class OpenGLRenderer(hub: Hub,
 
                 embedIn?.let { panel ->
                     panel.imageScaleY = -1.0f
+                    window = panel.init(resizeHandler)
 
-                    when(panel) {
-                        is SceneryFXPanel -> {
-                            panel.widthProperty()?.addListener { _, _, newWidth ->
-                                resizeHandler.lastWidth = newWidth.toInt()
-                            }
-
-                            panel.heightProperty()?.addListener { _, _, newHeight ->
-                                resizeHandler.lastHeight = newHeight.toInt()
-                            }
-
-                            window = SceneryWindow.JavaFXStage(panel)
-                            window.width = panel.panelWidth
-                            window.height = panel.panelHeight
-                        }
-
-                        is SceneryJPanel -> {
-                            window = SceneryWindow.SwingWindow(panel)
-
-                            window.width = panel.panelWidth
-                            window.height = panel.panelHeight
-
-                            panel.addComponentListener(object: ComponentAdapter() {
-                                override fun componentResized(e: ComponentEvent) {
-                                    super.componentResized(e)
-                                    logger.debug("SceneryJPanel component resized to ${e.component.width} ${e.component.height}")
-                                    resizeHandler.lastWidth = e.component.width
-                                    resizeHandler.lastHeight = e.component.height
-                                }
-                            })
-                        }
-                    }
+                    window.width = panel.panelWidth
+                    window.height = panel.panelHeight
                 }
 
                 resizeHandler.lastWidth = window.width
@@ -538,11 +513,12 @@ open class OpenGLRenderer(hub: Hub,
 
         settings.set("ssao.FilterRadius", GLVector(5.0f / width, 5.0f / height))
 
-        buffers["UBOBuffer"] = OpenGLBuffer(gl, 10 * 1024 * 1024)
-        buffers["LightParameters"] = OpenGLBuffer(gl, 10 * 1024 * 1024)
-        buffers["VRParameters"] = OpenGLBuffer(gl, 2 * 1024)
-        buffers["ShaderPropertyBuffer"] = OpenGLBuffer(gl, 10 * 1024 * 1024)
-        buffers["ShaderParametersBuffer"] = OpenGLBuffer(gl, 128 * 1024)
+        buffers = DefaultBuffers(
+            UBOs = OpenGLBuffer(gl, 10 * 1024 * 1024),
+            LightParameters = OpenGLBuffer(gl, 10 * 1024 * 1024),
+            VRParameters = OpenGLBuffer(gl, 2 * 1024),
+            ShaderProperties = OpenGLBuffer(gl, 10 * 1024 * 1024),
+            ShaderParameters = OpenGLBuffer(gl, 128 * 1024))
 
         prepareDefaultTextures()
 
@@ -551,7 +527,6 @@ open class OpenGLRenderer(hub: Hub,
         // enable required features
 //        gl.glEnable(GL4.GL_TEXTURE_GATHER)
         gl.glEnable(GL4.GL_PROGRAM_POINT_SIZE)
-
 
         heartbeatTimer.scheduleAtFixedRate(object : TimerTask() {
             override fun run() {
@@ -595,7 +570,7 @@ open class OpenGLRenderer(hub: Hub,
             gl.glDisable(GL4.GL_FRAMEBUFFER_SRGB)
         }
 
-        buffers["ShaderParametersBuffer"]!!.reset()
+        buffers.ShaderParameters.reset()
 
         val framebuffers = ConcurrentHashMap<String, GLFramebuffer>()
         val passes = LinkedHashMap<String, OpenGLRenderpass>()
@@ -603,7 +578,8 @@ open class OpenGLRenderer(hub: Hub,
         val flow = renderConfig.createRenderpassFlow()
 
         val supersamplingFactor = if(settings.get<Float>("Renderer.SupersamplingFactor").toInt() == 1) {
-            if(cglWindow != null && ClearGLWindow.isRetina(cglWindow!!.gl)) {
+            val window = cglWindow
+            if(window != null && ClearGLWindow.isRetina(window.gl)) {
                 logger.debug("Setting Renderer.SupersamplingFactor to 0.5, as we are rendering on a retina display.")
                 settings.set("Renderer.SupersamplingFactor", 0.5f)
                 0.5f
@@ -622,7 +598,7 @@ open class OpenGLRenderer(hub: Hub,
         settings.set("Renderer.displayHeight", (windowHeight * supersamplingFactor).toInt())
 
         flow.map { passName ->
-            val passConfig = config.renderpasses[passName]!!
+            val passConfig = config.renderpasses.getValue(passName)
             val pass = OpenGLRenderpass(passName, passConfig)
 
             var width = windowWidth
@@ -638,7 +614,7 @@ open class OpenGLRenderer(hub: Hub,
 
                 if (framebuffers.containsKey(rt.key)) {
                     logger.info("Reusing already created framebuffer")
-                    pass.output.put(rt.key, framebuffers[rt.key]!!)
+                    pass.output.put(rt.key, framebuffers.getValue(rt.key))
                 } else {
                     val framebuffer = GLFramebuffer(gl, width, height, renderConfig.sRGB)
 
@@ -710,14 +686,14 @@ open class OpenGLRenderer(hub: Hub,
             pass.defaultShader = prepareShaderProgram(
                 Shaders.ShadersFromFiles(pass.passConfig.shaders.map { "shaders/$it" }.toTypedArray()))
 
-            pass.initializeShaderParameters(settings, buffers["ShaderParametersBuffer"]!!)
+            pass.initializeShaderParameters(settings, buffers.ShaderParameters)
 
             passes.put(passName, pass)
         }
 
         // connect inputs
         passes.forEach { pass ->
-            val passConfig = config.renderpasses[pass.key]!!
+            val passConfig = config.renderpasses.getValue(pass.key)
 
             passConfig.inputs?.forEach { inputTarget ->
                 val targetName = if(inputTarget.contains(".")) {
@@ -795,7 +771,7 @@ open class OpenGLRenderer(hub: Hub,
     }
 
     override fun getClearGLWindow(): ClearGLDisplayable {
-        return cglWindow!!
+        return cglWindow ?: throw IllegalStateException("No ClearGL window available")
     }
 
     override fun reshape(pDrawable: GLAutoDrawable,
@@ -1021,10 +997,6 @@ open class OpenGLRenderer(hub: Hub,
         }
     }
 
-    private fun findBuffer(name: String): OpenGLBuffer {
-        return buffers[name] ?: throw IllegalStateException("Required buffer $name not found")
-    }
-
     @Synchronized protected fun updateDefaultUBOs(): Boolean {
         // sticky boolean
         var updated: Boolean by StickyBoolean(initial = false)
@@ -1037,9 +1009,9 @@ open class OpenGLRenderer(hub: Hub,
         cam.view = cam.getTransformation()
         cam.updateWorld(true, false)
 
-        buffers["VRParameters"]!!.reset()
+        buffers.VRParameters.reset()
         val vrUbo = uboCache.computeIfAbsent("VRParameters") {
-            OpenGLUBO(backingBuffer = findBuffer("VRParameters"))
+            OpenGLUBO(backingBuffer = buffers.VRParameters)
         }
 
         vrUbo.add("projection0", {
@@ -1063,82 +1035,79 @@ open class OpenGLRenderer(hub: Hub,
         vrUbo.add("stereoEnabled", { renderConfig.stereoEnabled.toInt() })
 
         updated = vrUbo.populate()
-        buffers["VRParameters"]!!.copyFromStagingBuffer()
+        buffers.VRParameters.copyFromStagingBuffer()
 
-        buffers["UBOBuffer"]!!.reset()
-        buffers["ShaderPropertyBuffer"]!!.reset()
+        buffers.UBOs.reset()
+        buffers.ShaderProperties.reset()
 
         sceneUBOs.forEach { node ->
-            if(node.lock.tryLock()) {
-                var nodeUpdated: Boolean by StickyBoolean(initial = false)
-                if (!node.metadata.containsKey(className)) {
-                    return@forEach
-                }
-
-                val s = node.metadata[className] as? OpenGLObjectState
-                if(s == null) {
-                    logger.warn("Could not get OpenGLObjectState for ${node.name}")
-                    return@forEach
-                }
-
-                val ubo = s.UBOs["Matrices"]
-                if(ubo?.backingBuffer == null) {
-                    logger.warn("Matrices UBO for ${node.name} does not exist or does not have a backing buffer")
-                    return@forEach
-                }
-
-                node.updateWorld(true, false)
-
-                var bufferOffset = ubo.advanceBackingBuffer()
-                ubo.offset = bufferOffset
-                node.view.copyFrom(cam.view)
-                nodeUpdated = ubo.populate(offset = bufferOffset.toLong())
-
-                val materialUbo = (node.metadata["OpenGLRenderer"]!! as OpenGLObjectState).UBOs["MaterialProperties"]!!
-                bufferOffset = ubo.advanceBackingBuffer()
-                materialUbo.offset = bufferOffset
-
-                nodeUpdated = materialUbo.populate(offset = bufferOffset.toLong())
-
-                if (s.UBOs.containsKey("ShaderProperties")) {
-                    val propertyUbo = s.UBOs["ShaderProperties"]!!
-                    // TODO: Correct buffer advancement
-                    val offset = propertyUbo.backingBuffer!!.advance()
-                    updated = propertyUbo.populate(offset = offset.toLong())
-                    propertyUbo.offset = offset
-                }
-
-                nodeUpdated = if (node.material.needsTextureReload) {
-                    loadTexturesForNode(node, s)
-                    true
-                } else {
-                    false
-                }
-
-                nodeUpdated = if(node.material.hashCode() != s.materialHash) {
-                    s.initialized = false
-                    initializeNode(node)
-                    true
-                } else {
-                    false
-                }
-
-                if(nodeUpdated && node.getScene()?.onNodePropertiesChanged?.isNotEmpty() == true) {
-                    GlobalScope.launch { node.getScene()?.onNodePropertiesChanged?.forEach { it.value.invoke(node) } }
-                }
-
-                updated = nodeUpdated
-                node.lock.unlock()
+            var nodeUpdated: Boolean by StickyBoolean(initial = false)
+            if (!node.metadata.containsKey(className)) {
+                return@forEach
             }
+
+            val s = node.metadata[className] as? OpenGLObjectState
+            if(s == null) {
+                logger.warn("Could not get OpenGLObjectState for ${node.name}")
+                return@forEach
+            }
+
+            val ubo = s.UBOs["Matrices"]
+            if(ubo?.backingBuffer == null) {
+                logger.warn("Matrices UBO for ${node.name} does not exist or does not have a backing buffer")
+                return@forEach
+            }
+
+            node.updateWorld(true, false)
+
+            var bufferOffset = ubo.advanceBackingBuffer()
+            ubo.offset = bufferOffset
+            node.view.copyFrom(cam.view)
+            nodeUpdated = ubo.populate(offset = bufferOffset.toLong())
+
+            val materialUbo = (node.metadata["OpenGLRenderer"]!! as OpenGLObjectState).UBOs.getValue("MaterialProperties")
+            bufferOffset = ubo.advanceBackingBuffer()
+            materialUbo.offset = bufferOffset
+
+            nodeUpdated = materialUbo.populate(offset = bufferOffset.toLong())
+
+            if (s.UBOs.containsKey("ShaderProperties")) {
+                val propertyUbo = s.UBOs.getValue("ShaderProperties")
+                // TODO: Correct buffer advancement
+                val offset = propertyUbo.backingBuffer!!.advance()
+                updated = propertyUbo.populate(offset = offset.toLong())
+                propertyUbo.offset = offset
+            }
+
+            nodeUpdated = if (node.material.needsTextureReload) {
+                loadTexturesForNode(node, s)
+                true
+            } else {
+                false
+            }
+
+            nodeUpdated = if(node.material.hashCode() != s.materialHash) {
+                s.initialized = false
+                initializeNode(node)
+                true
+            } else {
+                false
+            }
+
+            if(nodeUpdated && node.getScene()?.onNodePropertiesChanged?.isNotEmpty() == true) {
+                GlobalScope.launch { node.getScene()?.onNodePropertiesChanged?.forEach { it.value.invoke(node) } }
+            }
+
+            updated = nodeUpdated
         }
 
-        buffers["UBOBuffer"]!!.copyFromStagingBuffer()
-        buffers["LightParameters"]!!.reset()
+        buffers.UBOs.copyFromStagingBuffer()
+        buffers.LightParameters.reset()
 
 //        val lights = sceneObjects.filter { it is PointLight }
 
         val lightUbo = uboCache.computeIfAbsent("LightParameters") {
-            OpenGLUBO(backingBuffer = findBuffer("LightParameters"))
+            OpenGLUBO(backingBuffer = buffers.LightParameters)
         }
 
         lightUbo.add("ViewMatrix0", { cam.getTransformationForEye(0) })
@@ -1165,17 +1134,15 @@ open class OpenGLRenderer(hub: Hub,
 
         updated = lightUbo.populate()
 
-        buffers["ShaderParametersBuffer"]?.let { shaderParametersBuffer ->
-            shaderParametersBuffer.reset()
-            renderpasses.forEach { name, pass ->
-                logger.trace("Updating shader parameters for {}", name)
-                updated = pass.updateShaderParameters()
-            }
-            shaderParametersBuffer.copyFromStagingBuffer()
+        buffers.ShaderParameters.reset()
+        renderpasses.forEach { name, pass ->
+            logger.trace("Updating shader parameters for {}", name)
+            updated = pass.updateShaderParameters()
         }
+        buffers.ShaderParameters.copyFromStagingBuffer()
 
-        buffers["LightParameters"]!!.copyFromStagingBuffer()
-        buffers["ShaderPropertyBuffer"]!!.copyFromStagingBuffer()
+        buffers.LightParameters.copyFromStagingBuffer()
+        buffers.ShaderProperties.copyFromStagingBuffer()
 
         return updated
     }
@@ -1189,7 +1156,7 @@ open class OpenGLRenderer(hub: Hub,
     private fun preDrawAndUpdateGeometryForNode(n: Node) {
         if (n is HasGeometry) {
             if (n.dirty) {
-                n.preUpdate(this, hub!!)
+                n.preUpdate(this, hub)
                 if (n.lock.tryLock()) {
                     if (n.vertices.remaining() > 0 && n.normals.remaining() > 0) {
                         updateVertices(n)
@@ -1312,7 +1279,7 @@ open class OpenGLRenderer(hub: Hub,
         gl.glBindFramebuffer(GL4.GL_FRAMEBUFFER, 0)
     }
 
-    private fun updateInstanceBuffers(sceneObjects:List<Node>) {
+    private fun updateInstanceBuffers(sceneObjects:List<Node>): Boolean {
         val instanceMasters = sceneObjects.filter { it.instances.size > 0 }
 
         instanceMasters.forEach { parent ->
@@ -1326,6 +1293,8 @@ open class OpenGLRenderer(hub: Hub,
 
             updateInstanceBuffer(parent, metadata)
         }
+
+        return instanceMasters.isNotEmpty()
     }
 
     private fun updateInstanceBuffer(parentNode: Node, state: OpenGLObjectState?): OpenGLObjectState {
@@ -1366,12 +1335,14 @@ open class OpenGLRenderer(hub: Hub,
 
         val index = AtomicInteger(0)
         instances.parallelStream().forEach { node ->
-            node.needsUpdate = true
-            node.needsUpdateWorld = true
-            node.updateWorld(true, false)
+            if(node.visible) {
+                node.updateWorld(true, false)
 
-            stagingBuffer.duplicate().order(ByteOrder.LITTLE_ENDIAN).run {
-                ubo.populateParallel(this, offset = index.getAndIncrement() * ubo.getSize()*1L, elements = node.instancedProperties)
+                stagingBuffer.duplicate().order(ByteOrder.LITTLE_ENDIAN).run {
+                    ubo.populateParallel(this,
+                        offset = index.getAndIncrement() * ubo.getSize() * 1L,
+                        elements = node.instancedProperties)
+                }
             }
         }
 
@@ -1461,7 +1432,7 @@ open class OpenGLRenderer(hub: Hub,
         gl.glBufferData(GL4.GL_ARRAY_BUFFER, instanceBufferSize.toLong(), stagingBuffer, GL4.GL_DYNAMIC_DRAW)
         gl.glBindBuffer(GL4.GL_ARRAY_BUFFER, 0)
 
-        state.instanceCount = parentNode.instances.size
+        state.instanceCount = index.get()
         logger.trace("Updated instance buffer, {parentNode.name} has {} instances.", parentNode.name, state.instanceCount)
 
         return state
@@ -1472,7 +1443,7 @@ open class OpenGLRenderer(hub: Hub,
         node.initialized = false
     }
 
-    protected var previousSceneObjects: Array<Node> = emptyArray()
+    protected var previousSceneObjects: HashSet<Node> = HashSet(256)
     /**
      * Renders the [Scene].
      *
@@ -1538,7 +1509,7 @@ open class OpenGLRenderer(hub: Hub,
         }
 
         if (scene.children.count() == 0 || renderpasses.isEmpty() || mustRecreateFramebuffers || !running) {
-            Thread.sleep(200)
+            delay(200)
             return@runBlocking
         }
 
@@ -1555,16 +1526,19 @@ open class OpenGLRenderer(hub: Hub,
         val updated = updateDefaultUBOs()
         stats?.add("OpenGLRenderer.updateUBOs", System.nanoTime() - startUboUpdate)
 
-        val actualSceneObjects = sceneObjects.await().toTypedArray()
-        val sceneUpdated = !actualSceneObjects.contentDeepEquals(previousSceneObjects)
+        var sceneUpdated = true
+        if(pushMode) {
+            val actualSceneObjects = sceneObjects.await().toHashSet()
+            sceneUpdated = actualSceneObjects != previousSceneObjects
 
-        previousSceneObjects = actualSceneObjects
+            previousSceneObjects = actualSceneObjects
+        }
 
         val startInstanceUpdate = System.nanoTime()
-        updateInstanceBuffers(sceneObjects.await())
+        val instancesUpdated = updateInstanceBuffers(sceneObjects.await())
         stats?.add("OpenGLRenderer.updateInstanceBuffers", System.nanoTime() - startInstanceUpdate)
 
-        if(pushMode && !updated && !sceneUpdated && !screenshotRequested) {
+        if(pushMode && !updated && !sceneUpdated && !screenshotRequested && !instancesUpdated) {
             if(updateLatch == null) {
                 updateLatch = CountDownLatch(2)
             }
@@ -1584,7 +1558,7 @@ open class OpenGLRenderer(hub: Hub,
 //                    animator.start()
 //                }
 
-                Thread.sleep(15)
+                delay(15)
                 return@runBlocking
             }
         }
@@ -1602,7 +1576,7 @@ open class OpenGLRenderer(hub: Hub,
                 }
             }
 
-            val pass = renderpasses[t]!!
+            val pass = renderpasses.getValue(t)
             logger.trace("Running pass {}", pass.passName)
             val startPass = System.nanoTime()
 
@@ -1693,9 +1667,9 @@ open class OpenGLRenderer(hub: Hub,
                 }
 
                 val actualObjects = if(pass.passConfig.type == RenderConfigReader.RenderpassType.geometry) {
-                    actualSceneObjects.filter { it !is Light }
+                    sceneObjects.await().filter { it !is Light }
                 } else {
-                    actualSceneObjects.filter { it is Light }
+                    sceneObjects.await().filter { it is Light }
                 }
 
                 var currentShader: OpenGLShaderProgram? = null
@@ -1748,11 +1722,7 @@ open class OpenGLRenderer(hub: Hub,
 
                     preDrawAndUpdateGeometryForNode(n)
 
-                    val shader = if (s.shader != null) {
-                        s.shader!!
-                    } else {
-                        pass.defaultShader!!
-                    }
+                    val shader = s.shader ?: pass.defaultShader!!
 
                     if(currentShader != shader) {
                         shader.use(gl)
@@ -1842,14 +1812,12 @@ open class OpenGLRenderer(hub: Hub,
                         }
                     }
 
-                    arrayOf("VRParameters", "LightParameters").forEach uboBinding@ { name ->
-                        if (shader.uboSpecs.containsKey(name) && shader.isValid()) {
-                            val buffer = buffers[name]
-                            if(buffer == null) {
-                                logger.warn("Buffer for $name not found")
-                                return@uboBinding
-                            }
+                    arrayOf("VRParameters" to buffers.VRParameters,
+                        "LightParameters" to buffers.LightParameters).forEach uboBinding@ { b ->
+                        val buffer = b.second
+                        val name = b.first
 
+                        if (shader.uboSpecs.containsKey(name) && shader.isValid()) {
                             val index = shader.getUniformBlockIndex(name)
 
                             if (index == -1) {
@@ -1930,13 +1898,16 @@ open class OpenGLRenderer(hub: Hub,
                         binding++
                     }
 
-                    arrayOf("LightParameters", "VRParameters").forEach { name ->
+                    arrayOf("LightParameters" to buffers.LightParameters,
+                        "VRParameters" to buffers.VRParameters).forEach { b ->
+                        val name = b.first
+                        val buffer = b.second
                         if (shader.uboSpecs.containsKey(name)) {
                             val index = shader.getUniformBlockIndex(name)
                             gl.glUniformBlockBinding(shader.id, index, binding)
                             gl.glBindBufferRange(GL4.GL_UNIFORM_BUFFER, binding,
-                                buffers[name]!!.id[0],
-                                0L, buffers[name]!!.buffer.remaining().toLong())
+                                buffer.id[0],
+                                0L, buffer.buffer.remaining().toLong())
 
                             if (index == -1) {
                                 logger.error("Failed to bind shader parameter UBO $name for ${pass.passName} to $binding, though it is required by the shader")
@@ -1963,7 +1934,7 @@ open class OpenGLRenderer(hub: Hub,
 
         logger.trace("Running viewport pass")
         val startPass = System.nanoTime()
-        val viewportPass = renderpasses[flow.last()]!!
+        val viewportPass = renderpasses.getValue(flow.last())
         gl.glBindFramebuffer(GL4.GL_DRAW_FRAMEBUFFER, 0)
 
         blitFramebuffers(viewportPass.output.values.first(), null,
@@ -1978,6 +1949,9 @@ open class OpenGLRenderer(hub: Hub,
                 viewportPass.output.values.first().getTextureId("Viewport"))
         }
 
+        val w = viewportPass.output.values.first().width
+        val h = viewportPass.output.values.first().height
+
         if((embedIn != null && embedIn !is SceneryJPanel) || recordMovie) {
             if (shouldClose || mustRecreateFramebuffers) {
                 encoder?.finish()
@@ -1986,8 +1960,14 @@ open class OpenGLRenderer(hub: Hub,
                 return@runBlocking
             }
 
-            if (recordMovie && (encoder == null || encoder?.frameWidth != window.width || encoder?.frameHeight != window.height)) {
-                encoder = H264Encoder(window.width, window.height, System.getProperty("user.home") + File.separator + "Desktop" + File.separator + "$applicationName - ${SimpleDateFormat("yyyy-MM-dd_HH.mm.ss").format(Date())}.mp4")
+            if (recordMovie && (encoder == null || encoder?.frameWidth != w || encoder?.frameHeight != h)) {
+                val file = SystemHelpers.addFileCounter(if(movieFilename == "") {
+                    File(System.getProperty("user.home"), "Desktop" + File.separator + "$applicationName - ${SystemHelpers.formatDateTime()}.mp4")
+                } else {
+                    File(movieFilename)
+                }, false)
+
+                encoder = H264Encoder(window.width, window.height, file.absolutePath, hub = hub)
             }
 
             readIndex = (readIndex + 1) % pboCount
@@ -1998,7 +1978,7 @@ open class OpenGLRenderer(hub: Hub,
 
                 pbos.forEachIndexed { index, pbo ->
                     gl.glBindBuffer(GL4.GL_PIXEL_PACK_BUFFER, pbos[index])
-                    gl.glBufferData(GL4.GL_PIXEL_PACK_BUFFER, window.width * window.height * 4L, null, GL4.GL_STREAM_READ)
+                    gl.glBufferData(GL4.GL_PIXEL_PACK_BUFFER, w * h * 4L, null, GL4.GL_STREAM_READ)
 
                     if(pboBuffers[index] != null) {
                         MemoryUtil.memFree(pboBuffers[index])
@@ -2011,14 +1991,16 @@ open class OpenGLRenderer(hub: Hub,
 
             pboBuffers.forEachIndexed { i, _ ->
                 if(pboBuffers[i] == null) {
-                    pboBuffers[i] = MemoryUtil.memAlloc(4 * window.width * window.height)
+                    pboBuffers[i] = MemoryUtil.memAlloc(4 * w * h)
                 }
             }
+
+            viewportPass.output.values.first().setReadBuffers(gl)
 
             val startUpdate = System.nanoTime()
             if(frames < pboCount) {
                 gl.glBindBuffer(GL4.GL_PIXEL_PACK_BUFFER, pbos[updateIndex])
-                gl.glReadPixels(0, 0, window.width, window.height, GL4.GL_BGRA, GL4.GL_UNSIGNED_BYTE, 0)
+                gl.glReadPixels(0, 0, w, h, GL4.GL_BGRA, GL4.GL_UNSIGNED_BYTE, 0)
             } else {
                 gl.glBindBuffer(GL4.GL_PIXEL_PACK_BUFFER, pbos[updateIndex])
 
@@ -2026,7 +2008,7 @@ open class OpenGLRenderer(hub: Hub,
                 MemoryUtil.memCopy(readBuffer, pboBuffers[readIndex]!!)
                 gl.glUnmapBuffer(GL4.GL_PIXEL_PACK_BUFFER)
 
-                gl.glReadPixels(0, 0, window.width, window.height, GL4.GL_BGRA, GL4.GL_UNSIGNED_BYTE, 0)
+                gl.glReadPixels(0, 0, w, h, GL4.GL_BGRA, GL4.GL_UNSIGNED_BYTE, 0)
             }
 
             if (!mustRecreateFramebuffers && frames > pboCount) {
@@ -2039,7 +2021,7 @@ open class OpenGLRenderer(hub: Hub,
 
                 encoder?.let { e ->
                     pboBuffers[readIndex]?.let {
-                        e.encodeFrame(it)
+                        e.encodeFrame(it, flip = true)
                     }
                 }
             }
@@ -2050,18 +2032,32 @@ open class OpenGLRenderer(hub: Hub,
         }
 
 
-        if (screenshotRequested && joglDrawable != null) {
+        val request = try {
+            imageRequests.poll()
+        } catch(e: NoSuchElementException) {
+            null
+        }
+
+        if ((screenshotRequested || request != null) && joglDrawable != null) {
             try {
                 val readBufferUtil = AWTGLReadBufferUtil(joglDrawable!!.glProfile, false)
                 val image = readBufferUtil.readPixelsToBufferedImage(gl, true)
                 val file = SystemHelpers.addFileCounter(if(screenshotFilename == "") {
-                    File(System.getProperty("user.home"), "Desktop" + File.separator + "$applicationName - ${SimpleDateFormat("yyyy-MM-dd HH.mm.ss").format(Date())}.png")
+                    File(System.getProperty("user.home"), "Desktop" + File.separator + "$applicationName - ${SystemHelpers.formatDateTime()}.png")
                 } else {
                     File(screenshotFilename)
                 }, screenshotOverwriteExisting)
 
-                ImageIO.write(image, "png", file)
-                logger.info("Screenshot saved to ${file.absolutePath}")
+                if(request != null) {
+                    request.width = window.width
+                    request.height = window.height
+                    request.data = (image.raster.dataBuffer as DataBufferByte).data
+                }
+
+                if(screenshotRequested) {
+                    ImageIO.write(image, "png", file)
+                    logger.info("Screenshot saved to ${file.absolutePath}")
+                }
             } catch (e: Exception) {
                 logger.error("Unable to take screenshot: ")
                 e.printStackTrace()
@@ -2166,7 +2162,7 @@ open class OpenGLRenderer(hub: Hub,
 
         s.materialHash = node.material.hashCode()
 
-        val matricesUbo = OpenGLUBO(backingBuffer = buffers["UBOBuffer"])
+        val matricesUbo = OpenGLUBO(backingBuffer = buffers.UBOs)
         with(matricesUbo) {
             name = "Matrices"
             add("ModelMatrix", { node.world })
@@ -2180,7 +2176,7 @@ open class OpenGLRenderer(hub: Hub,
 
         loadTexturesForNode(node, s)
 
-        val materialUbo = OpenGLUBO(backingBuffer = buffers["UBOBuffer"])
+        val materialUbo = OpenGLUBO(backingBuffer = buffers.UBOs)
 
         with(materialUbo) {
             name = "MaterialProperties"
@@ -2196,7 +2192,7 @@ open class OpenGLRenderer(hub: Hub,
         }
 
         if (node.javaClass.kotlin.memberProperties.filter { it.findAnnotation<ShaderProperty>() != null }.count() > 0) {
-            val shaderPropertyUBO = OpenGLUBO(backingBuffer = buffers["ShaderPropertyBuffer"])
+            val shaderPropertyUBO = OpenGLUBO(backingBuffer = buffers.ShaderProperties)
             with(shaderPropertyUBO) {
                 name = "ShaderProperties"
 
@@ -2310,122 +2306,118 @@ open class OpenGLRenderer(hub: Hub,
      */
     @Suppress("USELESS_ELVIS")
     private fun loadTexturesForNode(node: Node, s: OpenGLObjectState): OpenGLObjectState {
-        if (node.lock.tryLock()) {
-            node.material.textures.forEach {
-                type, texture ->
-                if (!textureCache.containsKey(texture) || node.material.needsTextureReload) {
-                    logger.debug("Loading texture $texture for ${node.name}")
+        node.material.textures.forEach {
+            type, texture ->
+            if (!textureCache.containsKey(texture) || node.material.needsTextureReload) {
+                logger.debug("Loading texture $texture for ${node.name}")
 
-                    val generateMipmaps = GenericTexture.mipmappedObjectTextures.contains(type)
-                    if (texture.startsWith("fromBuffer:")) {
-                        val gt = node.material.transferTextures[texture.substringAfter("fromBuffer:")]
-                        gt?.let { (_, dimensions, channels, type1, contents, repeatS, repeatT, repeatU, normalized, mipmap, minLinear, maxLinear, updates) ->
+                val generateMipmaps = GenericTexture.mipmappedObjectTextures.contains(type)
+                if (texture.startsWith("fromBuffer:")) {
+                    val gt = node.material.transferTextures[texture.substringAfter("fromBuffer:")]
+                    gt?.let { (_, dimensions, channels, type1, contentsOriginal, repeatS, repeatT, repeatU, normalized, mipmap, minLinear, maxLinear, updates) ->
 
-                            logger.debug("Dims of $texture: $dimensions, mipmaps=$generateMipmaps")
+                        val contents = contentsOriginal?.duplicate()
+                        logger.debug("Dims of $texture: $dimensions, mipmaps=$generateMipmaps")
 
-                            val mm = generateMipmaps or mipmap
-                            val miplevels = if (mm && dimensions.z().toInt() == 1) {
-                                1 + Math.floor(Math.log(Math.max(dimensions.x() * 1.0, dimensions.y() * 1.0)) / Math.log(2.0)).toInt()
-                            } else {
-                                1
-                            }
-
-                            val existingTexture = s.textures[type]
-                            val t = if(existingTexture != null && existingTexture.canBeReused(gt, miplevels)) {
-                                existingTexture
-                            } else {
-                                GLTexture(gl, type1, channels,
-                                    dimensions.x().toInt(),
-                                    dimensions.y().toInt(),
-                                    dimensions.z().toInt() ?: 1,
-                                    minLinear,
-                                    miplevels, 32, normalized, renderConfig.sRGB)
-                            }
-
-                            if (mm) {
-                                t.updateMipMaps()
-                            }
-
-                            t.setClamp(!repeatS, !repeatT)
-
-                            val unpackAlignment = intArrayOf(0)
-                            gl.glGetIntegerv(GL4.GL_UNPACK_ALIGNMENT, unpackAlignment, 0)
-
-                            // textures might have very uneven dimensions, so we adjust GL_UNPACK_ALIGNMENT here correspondingly
-                            // in case the byte count of the texture is not divisible by it.
-                            if (contents != null && !gt.hasConsumableUpdates()) {
-                                if (contents.remaining() % unpackAlignment[0] == 0 && dimensions.x().toInt() % unpackAlignment[0] == 0) {
-                                    t.copyFrom(contents)
-                                } else {
-                                    gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, 1)
-
-                                    t.copyFrom(contents)
-                                }
-                                gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, unpackAlignment[0])
-                            }
-
-                            if (gt.hasConsumableUpdates()) {
-                                gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, 1)
-                                updates.forEach { update ->
-                                    if (!update.consumed) {
-                                        t.copyFrom(update.contents,
-                                            update.extents.w, update.extents.h, update.extents.d,
-                                            update.extents.x, update.extents.y, update.extents.z, true)
-                                        update.consumed = true
-                                    }
-                                }
-
-                                gt.clearConsumedUpdates()
-                                gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, unpackAlignment[0])
-                            }
-
-                            s.textures[type] = t
-                            textureCache.put(texture, t)
-                        }
-                    } else {
-                        val glTexture = if(texture.contains("jar!")) {
-                            val f = texture.substringAfterLast("!")
-                            val stream = node.javaClass.getResourceAsStream(f)
-
-                            if(stream == null) {
-                                logger.error("Texture not found for $node: $f (from JAR)")
-                                textureCache["DefaultTexture"]!!
-                            } else {
-                                GLTexture.loadFromFile(gl, stream, texture.substringAfterLast("."), true, generateMipmaps, 8)
-                            }
+                        val mm = generateMipmaps or mipmap
+                        val miplevels = if (mm && dimensions.z().toInt() == 1) {
+                            1 + Math.floor(Math.log(Math.max(dimensions.x() * 1.0, dimensions.y() * 1.0)) / Math.log(2.0)).toInt()
                         } else {
-                            try {
-                                GLTexture.loadFromFile(gl, texture, true, generateMipmaps, 8)
-                            } catch(e: FileNotFoundException) {
-                                logger.error("Texture not found for $node: $texture")
-                                textureCache["DefaultTexture"]!!
-                            }
+                            1
                         }
 
-                        s.textures[type] = glTexture
-                        textureCache[texture] = glTexture
+                        val existingTexture = s.textures[type]
+                        val t = if(existingTexture != null && existingTexture.canBeReused(gt, miplevels)) {
+                            existingTexture
+                        } else {
+                            GLTexture(gl, type1, channels,
+                                dimensions.x().toInt(),
+                                dimensions.y().toInt(),
+                                dimensions.z().toInt() ?: 1,
+                                minLinear,
+                                miplevels, 32, normalized, renderConfig.sRGB)
+                        }
+
+                        if (mm) {
+                            t.updateMipMaps()
+                        }
+
+                        t.setClamp(!repeatS, !repeatT)
+
+                        val unpackAlignment = intArrayOf(0)
+                        gl.glGetIntegerv(GL4.GL_UNPACK_ALIGNMENT, unpackAlignment, 0)
+
+                        // textures might have very uneven dimensions, so we adjust GL_UNPACK_ALIGNMENT here correspondingly
+                        // in case the byte count of the texture is not divisible by it.
+                        if (contents != null && !gt.hasConsumableUpdates()) {
+                            if (contents.remaining() % unpackAlignment[0] == 0 && dimensions.x().toInt() % unpackAlignment[0] == 0) {
+                                t.copyFrom(contents)
+                            } else {
+                                gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, 1)
+
+                                t.copyFrom(contents)
+                            }
+                            gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, unpackAlignment[0])
+                        }
+
+                        if (gt.hasConsumableUpdates()) {
+                            gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, 1)
+                            updates.forEach { update ->
+                                if (!update.consumed) {
+                                    t.copyFrom(update.contents,
+                                        update.extents.w, update.extents.h, update.extents.d,
+                                        update.extents.x, update.extents.y, update.extents.z, true)
+                                    update.consumed = true
+                                }
+                            }
+
+                            gt.clearConsumedUpdates()
+                            gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, unpackAlignment[0])
+                        }
+
+                        s.textures[type] = t
+                        textureCache.put(texture, t)
                     }
                 } else {
-                    s.textures[type] = textureCache[texture]!!
-                }
-            }
+                    val glTexture = if(texture.contains("jar!")) {
+                        val f = texture.substringAfterLast("!")
+                        val stream = node.javaClass.getResourceAsStream(f)
 
-            // update default textures
-            // s.defaultTexturesFor = defaultTextureNames.mapNotNull { if(!s.textures.containsKey(it)) { it } else { null } }.toHashSet()
-            s.defaultTexturesFor.clear()
-            defaultTextureNames.forEach {
-                if (!s.textures.containsKey(it)) {
-                    s.defaultTexturesFor.add(it)
-                }
-            }
+                        if(stream == null) {
+                            logger.error("Texture not found for $node: $f (from JAR)")
+                            textureCache["DefaultTexture"]!!
+                        } else {
+                            GLTexture.loadFromFile(gl, stream, texture.substringAfterLast("."), true, generateMipmaps, 8)
+                        }
+                    } else {
+                        try {
+                            GLTexture.loadFromFile(gl, texture, true, generateMipmaps, 8)
+                        } catch(e: FileNotFoundException) {
+                            logger.error("Texture not found for $node: $texture")
+                            textureCache["DefaultTexture"]!!
+                        }
+                    }
 
-            node.material.needsTextureReload = false
-            s.initialized = true
-            node.lock.unlock()
-            return s
-        } else {
-            return s
+                    s.textures[type] = glTexture
+                    textureCache[texture] = glTexture
+                }
+            } else {
+                s.textures[type] = textureCache[texture]!!
+            }
         }
+
+        // update default textures
+        // s.defaultTexturesFor = defaultTextureNames.mapNotNull { if(!s.textures.containsKey(it)) { it } else { null } }.toHashSet()
+        s.defaultTexturesFor.clear()
+        defaultTextureNames.forEach {
+            if (!s.textures.containsKey(it)) {
+                s.defaultTexturesFor.add(it)
+            }
+        }
+
+        node.material.needsTextureReload = false
+        s.initialized = true
+        return s
     }
 
     /**
@@ -2466,7 +2458,7 @@ open class OpenGLRenderer(hub: Hub,
      */
     fun setVerticesAndCreateBufferForNode(node: Node) {
         val s = getOpenGLObjectStateFromNode(node)
-        val pVertexBuffer: FloatBuffer = (node as HasGeometry).vertices
+        val pVertexBuffer: FloatBuffer = (node as HasGeometry).vertices.duplicate()
 
         s.mStoredPrimitiveCount = pVertexBuffer.remaining() / node.vertexSize
 
@@ -2500,7 +2492,7 @@ open class OpenGLRenderer(hub: Hub,
      */
     fun updateVertices(node: Node) {
         val s = getOpenGLObjectStateFromNode(node)
-        val pVertexBuffer: FloatBuffer = (node as HasGeometry).vertices
+        val pVertexBuffer: FloatBuffer = (node as HasGeometry).vertices.duplicate()
 
         s.mStoredPrimitiveCount = pVertexBuffer.remaining() / node.vertexSize
 
@@ -2531,7 +2523,7 @@ open class OpenGLRenderer(hub: Hub,
      */
     fun setNormalsAndCreateBufferForNode(node: Node) {
         val s = getOpenGLObjectStateFromNode(node)
-        val pNormalBuffer: FloatBuffer = (node as HasGeometry).normals
+        val pNormalBuffer: FloatBuffer = (node as HasGeometry).normals.duplicate()
 
         gl.glBindVertexArray(s.mVertexArrayObject[0])
         gl.glBindBuffer(GL4.GL_ARRAY_BUFFER, s.mVertexBuffers[1])
@@ -2565,7 +2557,7 @@ open class OpenGLRenderer(hub: Hub,
      */
     fun updateNormals(node: Node) {
         val s = getOpenGLObjectStateFromNode(node)
-        val pNormalBuffer: FloatBuffer = (node as HasGeometry).normals
+        val pNormalBuffer: FloatBuffer = (node as HasGeometry).normals.duplicate()
 
         gl.glBindVertexArray(s.mVertexArrayObject[0])
         gl.glBindBuffer(GL4.GL_ARRAY_BUFFER, s.mVertexBuffers[1])
@@ -2597,7 +2589,7 @@ open class OpenGLRenderer(hub: Hub,
      */
     fun setTextureCoordsAndCreateBufferForNode(node: Node) {
         val s = getOpenGLObjectStateFromNode(node)
-        val pTextureCoordsBuffer: FloatBuffer = (node as HasGeometry).texcoords
+        val pTextureCoordsBuffer: FloatBuffer = (node as HasGeometry).texcoords.duplicate()
 
         gl.glBindVertexArray(s.mVertexArrayObject[0])
         gl.glBindBuffer(GL4.GL_ARRAY_BUFFER, s.mVertexBuffers[2])
@@ -2629,7 +2621,7 @@ open class OpenGLRenderer(hub: Hub,
      */
     fun updateTextureCoords(node: Node) {
         val s = getOpenGLObjectStateFromNode(node)
-        val pTextureCoordsBuffer: FloatBuffer = (node as HasGeometry).texcoords
+        val pTextureCoordsBuffer: FloatBuffer = (node as HasGeometry).texcoords.duplicate()
 
         gl.glBindVertexArray(s.mVertexArrayObject[0])
         gl.glBindBuffer(GL4.GL_ARRAY_BUFFER,
@@ -2662,7 +2654,7 @@ open class OpenGLRenderer(hub: Hub,
      */
     fun setIndicesAndCreateBufferForNode(node: Node) {
         val s = getOpenGLObjectStateFromNode(node)
-        val pIndexBuffer: IntBuffer = (node as HasGeometry).indices
+        val pIndexBuffer: IntBuffer = (node as HasGeometry).indices.duplicate()
 
         s.mStoredIndexCount = pIndexBuffer.remaining()
 
@@ -2688,7 +2680,7 @@ open class OpenGLRenderer(hub: Hub,
      */
     fun updateIndices(node: Node) {
         val s = getOpenGLObjectStateFromNode(node)
-        val pIndexBuffer: IntBuffer = (node as HasGeometry).indices
+        val pIndexBuffer: IntBuffer = (node as HasGeometry).indices.duplicate()
 
         s.mStoredIndexCount = pIndexBuffer.remaining()
 
@@ -2775,13 +2767,14 @@ open class OpenGLRenderer(hub: Hub,
     }
 
     @Suppress("unused")
-    fun recordMovie() {
+    override fun recordMovie(filename: String, overwrite: Boolean) {
         if(recordMovie) {
             encoder?.finish()
             encoder = null
 
             recordMovie = false
         } else {
+            movieFilename = filename
             recordMovie = true
         }
     }

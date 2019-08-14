@@ -16,8 +16,7 @@ import kotlin.concurrent.thread
  */
 class ProceduralTextureExample : SceneryBase("ProceduralTextureExample") {
     override fun init() {
-        renderer = Renderer.createRenderer(hub, applicationName, scene, 512, 512)
-        hub.add(SceneryElement.Renderer, renderer!!)
+        renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, 512, 512))
 
         val boxmaterial = Material()
         with(boxmaterial) {
@@ -41,7 +40,7 @@ class ProceduralTextureExample : SceneryBase("ProceduralTextureExample") {
         lights.mapIndexed { i, light ->
             light.position = GLVector(2.0f * i, 2.0f * i, 2.0f * i)
             light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
-            light.intensity = 500.2f*(i+1)
+            light.intensity = 0.5f
             scene.addChild(light)
         }
 
@@ -96,6 +95,7 @@ class ProceduralTextureExample : SceneryBase("ProceduralTextureExample") {
      * @param[tick] The time parameter for the generated texture.
      */
     private fun ByteBuffer.generateProceduralTextureAtTick(tick: Long, width: Int, height: Int, channels: Int) {
+        val b = this.duplicate()
         val rgba = byteArrayOf(0, 0, 0, 255.toByte())
 
         (0 until width * height).forEach {
@@ -108,10 +108,8 @@ class ProceduralTextureExample : SceneryBase("ProceduralTextureExample") {
             rgba[1] = m
             rgba[2] = m
 
-            this.put(rgba.take(channels).toByteArray())
+            b.put(rgba.take(channels).toByteArray())
         }
-
-        this.flip()
     }
 
     @Test override fun main() {

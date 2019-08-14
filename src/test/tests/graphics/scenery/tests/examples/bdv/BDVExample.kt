@@ -1,18 +1,19 @@
 package graphics.scenery.tests.examples.bdv
 
 import cleargl.GLVector
-import com.sun.javafx.application.PlatformImpl
-import graphics.scenery.*
+import graphics.scenery.Camera
+import graphics.scenery.DetachedHeadCamera
+import graphics.scenery.PointLight
+import graphics.scenery.SceneryBase
 import graphics.scenery.backends.Renderer
 import graphics.scenery.volumes.bdv.BDVVolume
-import javafx.application.Platform
-import javafx.stage.FileChooser
-import javafx.stage.Stage
 import org.junit.Test
+import org.scijava.Context
+import org.scijava.ui.UIService
 import org.scijava.ui.behaviour.ClickBehaviour
+import org.scijava.widget.FileWidget
 import tpietzsch.example2.VolumeViewerOptions
 import java.util.*
-import java.util.concurrent.CountDownLatch
 import kotlin.math.max
 
 /**
@@ -22,30 +23,19 @@ import kotlin.math.max
  */
 class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
     var volume: BDVVolume? = null
-    var currentCacheSize = 512
+    var currentCacheSize = 1024
 
     override fun init() {
-        val latch = CountDownLatch(1)
         val files = ArrayList<String>()
 
         val fileFromProperty = System.getProperty("bdvXML")
         if(fileFromProperty != null) {
             files.add(fileFromProperty)
         } else {
-            PlatformImpl.startup {  }
-            Platform.runLater {
-                val chooser = FileChooser()
-                chooser.title = "Open File"
-                chooser.extensionFilters.add(FileChooser.ExtensionFilter("BigDataViewer XML", "*.xml"))
-                val file = chooser.showOpenDialog(Stage())
-
-                if (file != null) {
-                    files.add(file.absolutePath)
-                }
-                latch.countDown()
-            }
-
-            latch.await()
+            val c = Context()
+            val ui = c.getService(UIService::class.java)
+            val file = ui.chooseFile(null, FileWidget.OPEN_STYLE)
+            files.add(file.absolutePath)
         }
 
         if(files.size == 0) {
@@ -54,8 +44,7 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
 
         logger.info("Loading BDV XML from ${files.first()}")
 
-        renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
-        hub.add(SceneryElement.Renderer, renderer!!)
+        renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
@@ -94,6 +83,14 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
 
         val nextTimePoint = ClickBehaviour { _, _ -> volume?.nextTimepoint() }
         val prevTimePoint = ClickBehaviour { _, _ -> volume?.previousTimepoint() }
+        val tenTimePointsForward = ClickBehaviour { _, _ ->
+            val current = volume?.currentTimepoint ?: 0
+            volume?.goToTimePoint(current + 10)
+        }
+        val tenTimePointsBack = ClickBehaviour { _, _ ->
+            val current = volume?.currentTimepoint ?: 0
+            volume?.goToTimePoint(current - 10)
+        }
         val moreCache = ClickBehaviour { _, _ ->
             currentCacheSize *= 2
             logger.info("Enlarging cache size to $currentCacheSize MB")
@@ -106,10 +103,16 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
         }
 
         inputHandler?.addBehaviour("prev_timepoint", prevTimePoint)
-        inputHandler?.addKeyBinding("prev_timepoint", "J")
+        inputHandler?.addKeyBinding("prev_timepoint", "H")
+
+        inputHandler?.addBehaviour("10_prev_timepoint", tenTimePointsBack)
+        inputHandler?.addKeyBinding("10_prev_timepoint", "shift H")
 
         inputHandler?.addBehaviour("next_timepoint", nextTimePoint)
-        inputHandler?.addKeyBinding("next_timepoint", "K")
+        inputHandler?.addKeyBinding("next_timepoint", "L")
+
+        inputHandler?.addBehaviour("10_next_timepoint", tenTimePointsForward)
+        inputHandler?.addKeyBinding("10_next_timepoint", "shift L")
 
         inputHandler?.addBehaviour("more_cache", moreCache)
         inputHandler?.addKeyBinding("more_cache", "9")

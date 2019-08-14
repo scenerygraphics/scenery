@@ -84,6 +84,13 @@ open class TransferFunction(val name: String = "") {
     }
 
     /**
+     * Clears all control points.
+     */
+    fun clear() {
+        controlPoints.clear()
+    }
+
+    /**
      * Finds extremal control points in a list of [points], with [left] given
      * as option to indicate whether the control point is on the left or right
      * end of the interval.
@@ -139,6 +146,25 @@ open class TransferFunction(val name: String = "") {
 
         stale = false
         return buffer.duplicate().order(ByteOrder.LITTLE_ENDIAN)
+    }
+
+    /**
+     * Evaluates the transfer function for the given [value] and returns the result.
+     */
+    fun evaluate(value: Float): Float {
+        val points = controlPoints.sortedBy { it.value }
+
+        val left = points.reversed().firstOrNull { it.value <= value } ?: findExtremalControlPoint(points, true)
+        val right = points.firstOrNull { it.value >= value } ?: findExtremalControlPoint(points, false)
+
+        var current = if(left == right) {
+            left.factor
+        } else {
+            -(left.factor * (right.value - value) + right.factor * (value - left.value)) / (left.value - right.value)
+        }
+        current = max(0.0f, min(current, 1.0f))
+
+        return current * value
     }
 
     /**

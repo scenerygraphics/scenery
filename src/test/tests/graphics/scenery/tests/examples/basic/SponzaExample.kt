@@ -18,11 +18,10 @@ class SponzaExample : SceneryBase("SponzaExample", windowWidth = 1280, windowHei
     private var movingLights = true
 
     override fun init() {
-        renderer = Renderer.createRenderer(hub, applicationName,
+        renderer = hub.add(Renderer.createRenderer(hub, applicationName,
             scene,
             windowWidth,
-            windowHeight)
-        hub.add(SceneryElement.Renderer, renderer!!)
+            windowHeight))
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
@@ -45,7 +44,7 @@ class SponzaExample : SceneryBase("SponzaExample", windowWidth = 1280, windowHei
 
             val light = PointLight(radius = Random.randomFromRange(0.5f, 5.0f))
             light.emissionColor = it.material.diffuse
-            light.intensity = Random.randomFromRange(1.0f, 2.0f)
+            light.intensity = Random.randomFromRange(0.1f, 0.5f)
 
             it.addChild(light)
 

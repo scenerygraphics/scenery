@@ -170,7 +170,8 @@ open class SwingSwapchain(open val device: VulkanDevice,
 
     private fun Swapchain?.isRecycleable(): Boolean {
         val handle = this?.handle
-        return this != null && (this is VulkanSwapchain || this is FXSwapchain || this is SwingSwapchain) && handle != null
+        // TODO: Add recycleable property for swapchains
+        return this != null && (this is VulkanSwapchain || this is SwingSwapchain) && handle != null
     }
 
     /**
@@ -518,5 +519,10 @@ open class SwingSwapchain(open val device: VulkanDevice,
         presentInfo.free()
         MemoryUtil.memFree(swapchainImage)
         MemoryUtil.memFree(swapchainPointer)
+    }
+
+    companion object: SwapchainParameters {
+        override var headless = false
+        override var usageCondition = { p: SceneryPanel? -> System.getProperty("scenery.Renderer.UseAWT", "false")?.toBoolean() ?: false || p is SceneryJPanel }
     }
 }

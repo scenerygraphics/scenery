@@ -3,17 +3,17 @@ package graphics.scenery.tests.unit
 import cleargl.GLMatrix
 import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
-import graphics.scenery.BufferUtils
-import graphics.scenery.Material
-import graphics.scenery.Mesh
-import graphics.scenery.Node
-import graphics.scenery.Scene
+import graphics.scenery.*
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.LazyLogger
 import org.junit.Assert.*
 import org.junit.Test
 import java.util.concurrent.ThreadLocalRandom
 import java.util.function.Consumer
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /**
  * Tests for functions of [Node]
@@ -60,7 +60,7 @@ class NodeTests {
 
         logger.info(expectedResult.toString())
 
-        assert(GLMatrix.compare(expectedResult, subChild.world, true))
+        assertTrue(GLMatrix.compare(expectedResult, subChild.world, true), "Expected transforms to be equal")
     }
 
     private fun addSiblings(toNode: Node, maxSiblings: Int, currentLevel: Int, maxLevels: Int): Int {
@@ -104,8 +104,8 @@ class NodeTests {
         scene.updateWorld(true, true)
         val duration = (System.nanoTime() - start)/10e6
 
-        assert(totalNodes <= Math.pow(1.0*maxSiblings, 1.0*levels).toInt())
-        assert(totalNodes > maxSiblings)
+        assertTrue(totalNodes <= Math.pow(1.0*maxSiblings, 1.0*levels).toInt(), "Expected total nodes to be less than maximum allowed number")
+        assertTrue(totalNodes > maxSiblings, "Expected total nodes to be more than maximum sibling count")
 
         logger.info("Updating world for $totalNodes took $duration ms")
     }
@@ -129,8 +129,8 @@ class NodeTests {
         scene.updateWorld(true, true)
         var duration = (System.nanoTime() - start)/10e6
 
-        assert(totalNodes <= Math.pow(1.0*maxSiblings, 1.0*levels).toInt())
-        assert(totalNodes > maxSiblings)
+        assertTrue(totalNodes <= Math.pow(1.0*maxSiblings, 1.0*levels).toInt(), "Expected total nodes to be less than maximum allowed number")
+        assertTrue(totalNodes > maxSiblings, "Expected total nodes to be more than maximum sibling count")
 
         logger.info("Updating world for $totalNodes took $duration ms")
 
@@ -138,7 +138,7 @@ class NodeTests {
         val discoveredNodes = scene.discover(scene, { node -> node.visible })
         duration = (System.nanoTime() - start)/10e6
 
-        assert(totalNodes == discoveredNodes.size) { "$totalNodes nodes created, but only ${discoveredNodes.size} nodes discovered."}
+        assertEquals(totalNodes, discoveredNodes.size, "$totalNodes nodes created, but only ${discoveredNodes.size} nodes discovered.")
 
         logger.info("Scene discovery for $totalNodes took $duration ms, discovered ${discoveredNodes.size} nodes")
     }
@@ -174,6 +174,24 @@ class NodeTests {
         assertArrayEquals("Bounding Box maximum",
             expectedMax.toFloatArray().toTypedArray(),
             m.boundingBox!!.max.toFloatArray().toTypedArray())
+
+        val empty = Mesh()
+        empty.boundingBox = empty.generateBoundingBox()
+        assertArrayEquals("Expected empty bounding box",
+            empty.boundingBox!!.min.toFloatArray().toTypedArray(),
+            GLVector(0.0f, 0.0f, 0.0f).toFloatArray().toTypedArray())
+        assertArrayEquals("Expected empty bounding box",
+            empty.boundingBox!!.max.toFloatArray().toTypedArray(),
+            GLVector(0.0f, 0.0f, 0.0f).toFloatArray().toTypedArray())
+
+        empty.addChild(m)
+        empty.boundingBox = empty.generateBoundingBox()
+        assertArrayEquals("Bounding Box minimum",
+            expectedMin.toFloatArray().toTypedArray(),
+            empty.boundingBox!!.min.toFloatArray().toTypedArray())
+        assertArrayEquals("Bounding Box maximum",
+            expectedMax.toFloatArray().toTypedArray(),
+            empty.boundingBox!!.max.toFloatArray().toTypedArray())
     }
 
     /**
@@ -226,8 +244,8 @@ class NodeTests {
         val n2 = Node()
         scene.addChild(n1)
 
-        assert(n1.getScene() == scene)
-        assert(n2.getScene() == null)
+        assertEquals(scene, n1.getScene(), "Expected node scene is attached to to be $scene, but is ${n1.getScene()}")
+        assertNull(n2.getScene(), "Expected scene of $n2 to be null, as it is not attached to a scene." )
     }
 
     /**
@@ -239,17 +257,17 @@ class NodeTests {
         val node = Node()
         scene.addChild(node)
 
-        assert(node.needsUpdate)
-        assert(node.needsUpdateWorld)
+        assertTrue(node.needsUpdate, "Expected node to need update after creation")
+        assertTrue(node.needsUpdateWorld, "Expected node to need world update after creation")
 
         node.position = Random.randomVectorFromRange(3, -100.0f, 100.0f)
-        assert(node.needsUpdate)
-        assert(node.needsUpdateWorld)
+        assertTrue(node.needsUpdate, "Expected node to need update after position change")
+        assertTrue(node.needsUpdateWorld, "Expected node to need world update after position change")
 
         scene.updateWorld(true)
 
-        assert(!node.needsUpdate)
-        assert(!node.needsUpdateWorld)
+        assertFalse(node.needsUpdate, "Expected node to not need update after updating manually")
+        assertFalse(node.needsUpdateWorld, "Expected node not to need world update after updating manually")
     }
 
     /**
@@ -261,17 +279,17 @@ class NodeTests {
         val node = Node()
         scene.addChild(node)
 
-        assert(node.needsUpdate)
-        assert(node.needsUpdateWorld)
+        assertTrue(node.needsUpdate, "Expected node to need update after creation")
+        assertTrue(node.needsUpdateWorld, "Expected node to need world update after creation")
 
         node.scale = Random.randomVectorFromRange(3, 0.0f, 1.0f)
-        assert(node.needsUpdate)
-        assert(node.needsUpdateWorld)
+        assertTrue(node.needsUpdate, "Expected node to need update after position change")
+        assertTrue(node.needsUpdateWorld, "Expected node to need world update after position change")
 
         scene.updateWorld(true)
 
-        assert(!node.needsUpdate)
-        assert(!node.needsUpdateWorld)
+        assertFalse(node.needsUpdate, "Expected node to not need update after updating manually")
+        assertFalse(node.needsUpdateWorld, "Expected node not to need world update after updating manually")
     }
 
     /**
@@ -283,17 +301,17 @@ class NodeTests {
         val node = Node()
         scene.addChild(node)
 
-        assert(node.needsUpdate)
-        assert(node.needsUpdateWorld)
+        assertTrue(node.needsUpdate, "Expected node to need update after creation")
+        assertTrue(node.needsUpdateWorld, "Expected node to need world update after creation")
 
         node.rotation = Random.randomQuaternion()
-        assert(node.needsUpdate)
-        assert(node.needsUpdateWorld)
+        assertTrue(node.needsUpdate, "Expected node to need update after position change")
+        assertTrue(node.needsUpdateWorld, "Expected node to need world update after position change")
 
         scene.updateWorld(true)
 
-        assert(!node.needsUpdate)
-        assert(!node.needsUpdateWorld)
+        assertFalse(node.needsUpdate, "Expected node to not need update after updating manually")
+        assertFalse(node.needsUpdateWorld, "Expected node not to need world update after updating manually")
     }
 
     /**
@@ -315,10 +333,16 @@ class NodeTests {
 
         parent.runRecursive { it.material = myShinyNewMaterial }
 
+        assertEquals("Parent of $child1 should be $parent", parent, child1.parent)
+        assertEquals("Parent of $child2 should be $parent", parent, child2.parent)
+
         assertEquals("Material of parent should be $myShinyNewMaterial", myShinyNewMaterial, parent.material)
         assertEquals("Material of child1 should be $myShinyNewMaterial", myShinyNewMaterial, child1.material)
         assertEquals("Material of child2 should be $myShinyNewMaterial", myShinyNewMaterial, child2.material)
         assertEquals("Material of grandchild should be $myShinyNewMaterial", myShinyNewMaterial, grandchild.material)
+
+        parent.visible = false
+        parent.runRecursive { assertFalse(it.visible, "Child node should be invisible") }
     }
 
     /**
@@ -344,5 +368,60 @@ class NodeTests {
         assertEquals("Material of child1 should be $myShinyNewMaterial", myShinyNewMaterial, child1.material)
         assertEquals("Material of child2 should be $myShinyNewMaterial", myShinyNewMaterial, child2.material)
         assertEquals("Material of grandchild should be $myShinyNewMaterial", myShinyNewMaterial, grandchild.material)
+    }
+
+    /**
+     * Tests Node triggers
+     */
+    @Test
+    fun testNodeTriggers() {
+        val s = Scene()
+        var childrenAdded = 0
+        var childrenRemoved = 0
+        s.onChildrenAdded.put("childAddCounter") { _, _ -> childrenAdded++ }
+        s.onChildrenRemoved.put("childRemovedCounter") { _, _ -> childrenRemoved++ }
+
+        val nodesCount = addSiblings(s, 5, 0, 5)
+        Thread.sleep(200)
+        assertTrue(childrenAdded in 1..nodesCount)
+
+        s.runRecursive { p -> p.children.forEach { p.removeChild(it) } }
+        Thread.sleep(200)
+        assertTrue(childrenRemoved in 1..(nodesCount - 1))
+    }
+
+    /**
+     * Tests shader properties
+     */
+    @Test
+    fun testShaderProperties() {
+        val randomInt = kotlin.random.Random.nextInt()
+        val n = object: Node("MyNode") {
+            @ShaderProperty val myShaderProperty = randomInt
+        }
+
+        assertEquals(randomInt, n.getShaderProperty("myShaderProperty"),
+            "Expected value from shader property to be")
+
+        val m = object: Node("MyOtherNode") {
+            @ShaderProperty val shaderProperties = HashMap<String, Any>()
+        }
+
+        m.shaderProperties["myHashMapProperty"] = randomInt
+
+        assertEquals(randomInt, m.getShaderProperty("myHashMapProperty"),
+            "Expected value from shader property hash map to be")
+    }
+
+    /**
+     * Tests node DFS search
+     */
+    @Test
+    fun testNodeDepthSearch() {
+        val s = Scene()
+        val totalNodes = addSiblings(s, 10, 0, 5)
+
+        assertEquals(totalNodes, Node.discover(s, { it.visible == true }).size,
+            "Total number of nodes seen should be $totalNodes, but is ")
     }
 }

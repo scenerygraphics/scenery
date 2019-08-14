@@ -28,8 +28,7 @@ class VRControllerExample : SceneryBase(VRControllerExample::class.java.simpleNa
 
         hub.add(SceneryElement.HMDInput, hmd)
 
-        renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
-        hub.add(SceneryElement.Renderer, renderer!!)
+        renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
         renderer?.toggleVR()
 
         val cam: Camera = DetachedHeadCamera(hmd)

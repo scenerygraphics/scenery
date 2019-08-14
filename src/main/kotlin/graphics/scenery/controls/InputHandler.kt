@@ -1,17 +1,13 @@
 package graphics.scenery.controls
 
-import com.jogamp.newt.awt.NewtCanvasAWT
-import graphics.scenery.Hub
-import graphics.scenery.Hubable
-import graphics.scenery.Scene
-import graphics.scenery.SceneryElement
+import graphics.scenery.*
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.Renderer
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.controls.behaviours.*
 import graphics.scenery.utils.LazyLogger
 import net.java.games.input.Component
-import org.lwjgl.glfw.GLFW.*
+import org.reflections.Reflections
 import org.scijava.ui.behaviour.Behaviour
 import org.scijava.ui.behaviour.BehaviourMap
 import org.scijava.ui.behaviour.InputTrigger
@@ -33,7 +29,7 @@ import java.io.StringReader
  * @property[hub] [Hub] for handoing communication
  * @constructor Creates a default behaviour list and input map, also reads the configuration from a file.
  */
-class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : Hubable, AutoCloseable {
+class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, forceHandler: Class<*>? = null) : Hubable, AutoCloseable {
     /** logger for the InputHandler **/
     internal val logger by LazyLogger()
     /** ui-behaviour input trigger map, stores what actions (key presses, etc) trigger which actions. */
@@ -54,82 +50,27 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
     internal var config: InputTriggerConfig = InputTriggerConfig()
 
     init {
-
-        when(window) {
-            is SceneryWindow.ClearGLWindow  -> {
-                // create Mouse & Keyboard Handler
-                handler = JOGLMouseAndKeyHandler(hub)
-                handler.setInputMap(inputMap)
-                handler.setBehaviourMap(behaviourMap)
-
-                window.window.addKeyListener(handler)
-                window.window.addMouseListener(handler)
-            }
-
-            is SceneryWindow.JOGLDrawable -> {
-                // create Mouse & Keyboard Handler
-                handler = JOGLMouseAndKeyHandler(hub)
-                handler.setInputMap(inputMap)
-                handler.setBehaviourMap(behaviourMap)
-
-                // TODO: Add listeners in appropriate place
-                // window.drawable.addKeyListener(handler)
-                // window.drawable.addMouseListener(handler)
-            }
-
-            is SceneryWindow.GLFWWindow -> {
-                handler = GLFWMouseAndKeyHandler(hub)
-
-                handler.setInputMap(inputMap)
-                handler.setBehaviourMap(behaviourMap)
-
-                glfwSetCursorPosCallback(window.window, handler.cursorCallback)
-                glfwSetKeyCallback(window.window, handler.keyCallback)
-                glfwSetScrollCallback(window.window, handler.scrollCallback)
-                glfwSetMouseButtonCallback(window.window, handler.mouseCallback)
-            }
-
-            is SceneryWindow.JavaFXStage -> {
-                handler = JavaFXMouseAndKeyHandler(hub, window.panel)
-
-                handler.setInputMap(inputMap)
-                handler.setBehaviourMap(behaviourMap)
-            }
-
-            is SceneryWindow.SwingWindow -> {
-                val component = window.panel.component
-                val cglWindow = window.panel.cglWindow
-
-                if(component is NewtCanvasAWT && cglWindow != null) {
-                    handler = JOGLMouseAndKeyHandler(hub)
-
-                    handler.setInputMap(inputMap)
-                    handler.setBehaviourMap(behaviourMap)
-
-                    cglWindow.addKeyListener(handler)
-                    cglWindow.addMouseListener(handler)
-                } else {
-                    handler = SwingMouseAndKeyHandler()
-
-                    handler.setInputMap(inputMap)
-                    handler.setBehaviourMap(behaviourMap)
-
-                    val ancestor = window.panel.component
-                    ancestor?.addKeyListener(handler)
-                    ancestor?.addMouseListener(handler)
-                    ancestor?.addMouseMotionListener(handler)
-                    ancestor?.addMouseWheelListener(handler)
-                    ancestor?.addFocusListener(handler)
+        if(forceHandler != null) {
+            handler = forceHandler.getConstructor(Hub::class.java)?.newInstance(hub) as? MouseAndKeyHandlerBase
+            handler?.attach(window, inputMap, behaviourMap)
+        } else {
+            when (window) {
+                is SceneryWindow.UninitializedWindow -> {
+                    logger.error("Uninitialized windows cannot have input handlers.")
+                    handler = null
                 }
-            }
 
-            is SceneryWindow.UninitializedWindow -> {
-                logger.error("Uninitialized windows cannot have input handlers.")
-                handler = null
-            }
+                is SceneryWindow.HeadlessWindow -> {
+                    handler = null
+                }
 
-            is SceneryWindow.HeadlessWindow -> {
-                handler = null
+                else -> {
+                    val handlers = Reflections("graphics.scenery.controls").getTypesAnnotatedWith(CanHandleInputFor::class.java)
+                    logger.debug("Found potential input handlers: ${handlers.joinToString { "${it.simpleName} -> ${it.getAnnotation(CanHandleInputFor::class.java).windowTypes.joinToString()}" }}")
+                    val candidate = handlers.find { it.getAnnotation(CanHandleInputFor::class.java).windowTypes.contains(window::class) }
+                    handler = candidate?.getConstructor(Hub::class.java)?.newInstance(hub) as MouseAndKeyHandlerBase?
+                    handler?.attach(window, inputMap, behaviourMap)
+                }
             }
         }
 
@@ -235,6 +176,9 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
 
         config = InputTriggerConfig(YamlConfigIO.read(reader))
 
+        val settings = hub?.get(SceneryElement.Settings) as? Settings
+        val slowMovementSpeed: Float = settings?.get("Input.SlowMovementSpeed", 0.5f) ?: 0.5f
+        val fastMovementSpeed: Float = settings?.get("Input.FastMovementSpeed", 1.0f) ?: 1.0f
         /*
      * Create behaviours and input mappings.
      */
@@ -244,19 +188,19 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
 
         behaviourMap.put("select_command", SelectCommand("select_command", renderer, scene, { scene.findObserver() }))
 
-        behaviourMap.put("move_forward", MovementCommand("move_forward", "forward", { scene.findObserver() }))
-        behaviourMap.put("move_back", MovementCommand("move_back", "back", { scene.findObserver() }))
-        behaviourMap.put("move_left", MovementCommand("move_left", "left", { scene.findObserver() }))
-        behaviourMap.put("move_right", MovementCommand("move_right", "right", { scene.findObserver() }))
-        behaviourMap.put("move_up", MovementCommand("move_up", "up", { scene.findObserver() }))
-        behaviourMap.put("move_down", MovementCommand("move_down", "down", { scene.findObserver() }))
+        behaviourMap.put("move_forward", MovementCommand("move_forward", "forward", { scene.findObserver() }, slowMovementSpeed))
+        behaviourMap.put("move_back", MovementCommand("move_back", "back", { scene.findObserver() }, slowMovementSpeed))
+        behaviourMap.put("move_left", MovementCommand("move_left", "left", { scene.findObserver() }, slowMovementSpeed))
+        behaviourMap.put("move_right", MovementCommand("move_right", "right", { scene.findObserver() }, slowMovementSpeed))
+        behaviourMap.put("move_up", MovementCommand("move_up", "up", { scene.findObserver() }, slowMovementSpeed))
+        behaviourMap.put("move_down", MovementCommand("move_down", "down", { scene.findObserver() }, slowMovementSpeed))
 
-        behaviourMap.put("move_forward_fast", MovementCommand("move_forward", "forward", { scene.findObserver() }, 1.0f))
-        behaviourMap.put("move_back_fast", MovementCommand("move_back", "back", { scene.findObserver() }, 1.0f))
-        behaviourMap.put("move_left_fast", MovementCommand("move_left", "left", { scene.findObserver() }, 1.0f))
-        behaviourMap.put("move_right_fast", MovementCommand("move_right", "right", { scene.findObserver() }, 1.0f))
-        behaviourMap.put("move_up_fast", MovementCommand("move_up", "up", { scene.findObserver() }, 1.0f))
-        behaviourMap.put("move_down_fast", MovementCommand("move_down", "down", { scene.findObserver() }, 1.0f))
+        behaviourMap.put("move_forward_fast", MovementCommand("move_forward", "forward", { scene.findObserver() }, fastMovementSpeed))
+        behaviourMap.put("move_back_fast", MovementCommand("move_back", "back", { scene.findObserver() }, fastMovementSpeed))
+        behaviourMap.put("move_left_fast", MovementCommand("move_left", "left", { scene.findObserver() }, fastMovementSpeed))
+        behaviourMap.put("move_right_fast", MovementCommand("move_right", "right", { scene.findObserver() }, fastMovementSpeed))
+        behaviourMap.put("move_up_fast", MovementCommand("move_up", "up", { scene.findObserver() }, fastMovementSpeed))
+        behaviourMap.put("move_down_fast", MovementCommand("move_down", "down", { scene.findObserver() }, fastMovementSpeed))
 
         behaviourMap.put("toggle_debug", ToggleCommand("toggle_debug", renderer, "toggleDebug"))
         behaviourMap.put("toggle_fullscreen", ToggleCommand("toggle_fullscreen", renderer, "toggleFullscreen"))
@@ -283,8 +227,8 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?) : H
         adder.put("move_back_fast", "shift S")
         adder.put("move_right_fast", "shift D")
 
-        adder.put("move_up", "SPACE")
-        adder.put("move_down", "shift SPACE")
+        adder.put("move_up", "K")
+        adder.put("move_down", "J")
 
         adder.put("set_rendering_quality", "Q")
         adder.put("toggle_debug", "shift Q")

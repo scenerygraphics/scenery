@@ -6,6 +6,9 @@ import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.backends.Display
 import graphics.scenery.controls.TrackerInput
 import java.io.Serializable
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.math.PI
+import kotlin.math.atan
 import kotlin.reflect.KProperty
 
 /**
@@ -26,6 +29,54 @@ class DetachedHeadCamera(@Transient var tracker: TrackerInput? = null) : Camera(
             super.projection = value
             field = value
         }
+
+    override var width: Float = 0.0f
+        get() = if(tracker != null && tracker is Display) {
+            (tracker as? Display)?.getRenderTargetSize()?.x() ?: super.width
+        } else {
+            super.width
+        }
+        set(value) {
+            super.width = value
+            field = value
+        }
+
+    override var height: Float = 0.0f
+        get() = if(tracker != null && tracker is Display) {
+            (tracker as? Display)?.getRenderTargetSize()?.y() ?: super.width
+        } else {
+            super.height
+        }
+        set(value) {
+            super.height = value
+            field = value
+        }
+
+    override var fov: Float = 70.0f
+        get() = if(tracker != null && tracker is Display) {
+            val proj = (tracker as? Display)?.getEyeProjection(0, nearPlaneDistance, farPlaneDistance)
+            if(proj != null) {
+                atan(1.0f / proj.get(1, 1)) * 2.0f * 180.0f / PI.toFloat()
+            } else {
+                super.fov
+            }
+        } else {
+            super.fov
+        }
+        set(value) {
+            super.fov = value
+            field = value
+        }
+
+//    override var position: GLVector = GLVector(0.0f, 0.0f, 0.0f)
+//        get() = if(tracker != null) {
+//            field + headPosition
+//        } else {
+//            field
+//        }
+//        set(value) {
+//            field = value
+//        }
 
     /**
      * Delegate class for getting a head rotation from a [TrackerInput].
@@ -59,12 +110,15 @@ class DetachedHeadCamera(@Transient var tracker: TrackerInput? = null) : Camera(
         }
     }
 
-    /** Orientation of the user's head */
+    /** Position of the user's head */
     val headPosition: GLVector by HeadPositionDelegate()
+
+    /** Orientation of the user's head */
+    val headOrientation: Quaternion by HeadOrientationDelegate()
 
     init {
         this.nodeType = "Camera"
-        this.name = "DetachedHeadCamera-${tracker ?: "0"}"
+        this.name = "DetachedHeadCamera-${tracker ?: "${counter.getAndIncrement()}"}"
     }
 
     /**
@@ -100,5 +154,9 @@ class DetachedHeadCamera(@Transient var tracker: TrackerInput? = null) : Camera(
         val r = GLMatrix.fromQuaternion(preRotation.mult(this.rotation))
 
         return r * tr
+    }
+
+    companion object {
+        protected val counter = AtomicInteger(0)
     }
 }

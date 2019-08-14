@@ -11,7 +11,8 @@ env:
 matrix:
   include:
     - os: linux
-      jdk: oraclejdk8
+      dist: xenial
+      jdk: openjdk8
       sudo: false
     - os: osx
       osx_image: xcode8.3
@@ -22,7 +23,6 @@ cache:
 
 before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then /usr/libexec/java_home -V; fi
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then wget -O ~/codacy-coverage-reporter.jar https://github.com/codacy/codacy-coverage-reporter/releases/download/4.0.1/codacy-coverage-reporter-4.0.1-assembly.jar; fi
 
 install: true
 
@@ -33,4 +33,8 @@ script:
 after_success:
     - test $TRAVIS_PULL_REQUEST == "false" && test $TRAVIS_BRANCH == "master" && mvn -B deploy --settings settings.xml
     - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then mvn -B jacoco:report; fi
-    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then java -jar ~/codacy-coverage-reporter.jar report -l Kotlin -r target/site/jacoco/jacoco.xml; fi
+    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then export LATEST_VERSION="$(curl -Ls https://api.bintray.com/packages/codacy/Binaries/codacy-coverage-reporter/versions/_latest | jq -r .name)"; fi
+    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then curl -Ls -o codacy-coverage-reporter "https://dl.bintray.com/codacy/Binaries/${LATEST_VERSION}/codacy-coverage-reporter-linux"; fi
+    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then chmod +x codacy-coverage-reporter; fi
+    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then ./codacy-coverage-reporter report -l Kotlin -r target/site/jacoco/jacoco.xml; fi
+    - bash <(curl -s https://codecov.io/bash) -c -F unittests

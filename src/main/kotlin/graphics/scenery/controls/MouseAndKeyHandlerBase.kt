@@ -2,6 +2,7 @@ package graphics.scenery.controls
 
 import gnu.trove.map.hash.TIntLongHashMap
 import gnu.trove.set.hash.TIntHashSet
+import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.controls.behaviours.GamepadBehaviour
 import graphics.scenery.controls.behaviours.GamepadClickBehaviour
 import graphics.scenery.utils.ExtractsNatives
@@ -14,6 +15,7 @@ import java.awt.Toolkit
 import java.awt.event.KeyEvent
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.logging.Level
 import kotlin.concurrent.thread
 
@@ -41,7 +43,7 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
 
     private var controllerThread: Thread? = null
     private var controllerAxisDown: ConcurrentHashMap<Component.Identifier, Float> = ConcurrentHashMap()
-    private val gamepads = ArrayList<BehaviourEntry<Behaviour>>()
+    private val gamepads = CopyOnWriteArrayList<BehaviourEntry<Behaviour>>()
     private val CONTROLLER_HEARTBEAT = 5L
     private val CONTROLLER_DOWN_THRESHOLD = 0.95f
 
@@ -365,5 +367,9 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
                 }
             }
         }
+    }
+
+    open fun attach(window: SceneryWindow, inputMap: InputTriggerMap, behaviourMap: BehaviourMap): MouseAndKeyHandlerBase {
+        throw UnsupportedOperationException("MouseAndKeyHandlerBase cannot be attached to a window.")
     }
 }

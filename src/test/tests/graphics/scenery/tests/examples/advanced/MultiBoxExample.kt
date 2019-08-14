@@ -14,8 +14,7 @@ import kotlin.concurrent.thread
  */
 class MultiBoxExample : SceneryBase("MultiBoxExample") {
     override fun init() {
-        renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
-        hub.add(SceneryElement.Renderer, renderer!!)
+        renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
@@ -49,11 +48,11 @@ class MultiBoxExample : SceneryBase("MultiBoxExample") {
         scene.addChild(m)
 
         val lights = (0..20).map {
-            PointLight(radius = 450.0f)
+            PointLight(radius = 250.0f)
         }.map {
             it.position = Random.randomVectorFromRange(3, -100.0f, 100.0f)
             it.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
-            it.intensity = Random.randomFromRange(0.1f, 5.0f)
+            it.intensity = Random.randomFromRange(0.1f, 0.5f)
 
             scene.addChild(it)
             it

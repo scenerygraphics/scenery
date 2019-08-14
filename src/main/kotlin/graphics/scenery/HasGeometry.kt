@@ -6,7 +6,6 @@ import gnu.trove.set.hash.TLinkedHashSet
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.SystemHelpers
 import org.lwjgl.system.MemoryUtil.memAlloc
-import org.lwjgl.system.MemoryUtil.memAllocFloat
 import java.io.BufferedInputStream
 import java.io.File
 import java.io.Serializable
@@ -529,7 +528,7 @@ interface HasGeometry : Serializable {
                                 child.material = Material()
                             }
 
-                            (targetObject as? Mesh)?.boundingBox = OrientedBoundingBox(boundingBox)
+                            (targetObject as? Mesh)?.boundingBox = OrientedBoundingBox(this, boundingBox)
                             boundingBox = floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
 
                             this.addChild(child)
@@ -542,7 +541,7 @@ interface HasGeometry : Serializable {
                                 child.material = Material()
                             }
 
-                            (targetObject as? PointCloud)?.boundingBox = OrientedBoundingBox(boundingBox)
+                            (targetObject as? PointCloud)?.boundingBox = OrientedBoundingBox(this, boundingBox)
                             boundingBox = floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
 
                             this.addChild(child)
@@ -585,9 +584,9 @@ interface HasGeometry : Serializable {
         indexCount += targetObject.indices.limit()
 
         if (this is Mesh) {
-           (targetObject as? Mesh)?.boundingBox = OrientedBoundingBox(boundingBox)
+           (targetObject as? Mesh)?.boundingBox = OrientedBoundingBox(this, boundingBox)
         } else if (this is PointCloud) {
-           (targetObject as? PointCloud)?.boundingBox = OrientedBoundingBox(boundingBox)
+           (targetObject as? PointCloud)?.boundingBox = OrientedBoundingBox(this, boundingBox)
         }
 
         logger.info("Read ${vertexCount / vertexSize}/${normalCount / vertexSize}/${uvCount / texcoordSize}/$indexCount v/n/uv/i of model $name in ${(end - start) / 1e6} ms")
@@ -679,7 +678,7 @@ interface HasGeometry : Serializable {
             logger.info("Importing geometry from ASCII STL file $filename")
             lines.forEach {
                 line ->
-                val tokens = line.trim().trimEnd().split(" ")
+                val tokens = line.trim().trimEnd().split(" ").map { it.trim().trimEnd() }.filter { it.isNotEmpty() }
                 when (tokens[0]) {
                     "solid" -> name = tokens.drop(1).joinToString(" ")
                     "vertex" -> with(tokens.drop(1)) {
@@ -842,7 +841,7 @@ interface HasGeometry : Serializable {
 
         if (this is Mesh) {
             logger.info("Bounding box of $name is ${boundingBox.joinToString(",")}")
-            this.boundingBox = OrientedBoundingBox(boundingBox)
+            this.boundingBox = OrientedBoundingBox(this, boundingBox)
         }
     }
 
@@ -852,17 +851,18 @@ interface HasGeometry : Serializable {
      * STL's facet storage format into account.
      */
     fun recalculateNormals() {
+        val vertexBufferView = vertices.asReadOnlyBuffer()
         var i = 0
         val normals = ArrayList<Float>()
 
-        while (i < vertices.limit() - 1) {
-            val v1 = GLVector(vertices[i], vertices[i + 1], vertices[i + 2])
+        while (i < vertexBufferView.limit() - 1) {
+            val v1 = GLVector(vertexBufferView[i], vertexBufferView[i + 1], vertexBufferView[i + 2])
             i += 3
 
-            val v2 = GLVector(vertices[i], vertices[i + 1], vertices[i + 2])
+            val v2 = GLVector(vertexBufferView[i], vertexBufferView[i + 1], vertexBufferView[i + 2])
             i += 3
 
-            val v3 = GLVector(vertices[i], vertices[i + 1], vertices[i + 2])
+            val v3 = GLVector(vertexBufferView[i], vertexBufferView[i + 1], vertexBufferView[i + 2])
             i += 3
 
             val a = v2 - v1

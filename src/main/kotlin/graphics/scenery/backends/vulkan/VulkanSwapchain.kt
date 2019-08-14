@@ -4,7 +4,6 @@ import graphics.scenery.Hub
 import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.utils.LazyLogger
-import graphics.scenery.utils.SceneryFXPanel
 import graphics.scenery.utils.SceneryPanel
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.glfw.GLFWVulkan
@@ -85,15 +84,18 @@ open class VulkanSwapchain(open val device: VulkanDevice,
         glfwDefaultWindowHints()
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API)
 
-        if(undecorated) {
+        var windowPos = if(undecorated) {
             glfwWindowHint(GLFW_DECORATED, GLFW_FALSE)
+            0 to 0
+        } else {
+            100 to 100
         }
 
         window = SceneryWindow.GLFWWindow(glfwCreateWindow(win.width, win.height, "scenery", MemoryUtil.NULL, MemoryUtil.NULL)).apply {
             width = win.width
             height = win.height
 
-            glfwSetWindowPos(window, 100, 100)
+            glfwSetWindowPos(window, windowPos.first, windowPos.second)
 
             surface = VU.getLong("glfwCreateWindowSurface",
                 { GLFWVulkan.glfwCreateWindowSurface(device.instance, window, null, this) }, {})
@@ -219,7 +221,8 @@ open class VulkanSwapchain(open val device: VulkanDevice,
                 .clipped(true)
                 .compositeAlpha(KHRSurface.VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR)
 
-            if ((oldSwapchain is VulkanSwapchain || oldSwapchain is FXSwapchain) && oldHandle != null) {
+            // TODO: Add recycleable property for swapchains
+            if ((oldSwapchain is VulkanSwapchain) && oldHandle != null) {
                 swapchainCI.oldSwapchain(oldHandle)
             }
 

@@ -21,6 +21,7 @@ import org.scijava.Context
 import org.scijava.ui.behaviour.ClickBehaviour
 import java.lang.Boolean.parseBoolean
 import java.lang.management.ManagementFactory
+import java.nio.file.Paths
 import java.util.*
 import java.util.concurrent.CountDownLatch
 import kotlin.concurrent.thread
@@ -90,6 +91,13 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
     protected var currentTime = System.nanoTime()
     protected var t = 0.0f
     protected var shouldClose: Boolean = false
+    protected var gracePeriod = 0
+
+    enum class AssertionCheckPoint { BeforeStart, AfterClose }
+    var assertions = hashMapOf<AssertionCheckPoint, ArrayList<() -> Any>>(
+        AssertionCheckPoint.BeforeStart to arrayListOf(),
+        AssertionCheckPoint.AfterClose to arrayListOf()
+    )
 
     interface XLib: Library {
         fun XInitThreads()
@@ -162,8 +170,10 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             }
         } else {
             thread {
-                logger.info("NodePublisher listening on 0.0.0.0:6666")
-                val p = NodePublisher(hub, "tcp://*:6666")
+                val address = settings.get("NodePublisher.ListenAddress", "tcp://127.0.0.1:6666")
+                val p = NodePublisher(hub, address)
+
+                logger.info("NodePublisher listening on ${address.substringBeforeLast(":")}:${p.port}")
                 hub.add(SceneryElement.NodePublisher, p)
 
                 scene.discover(scene, { true }).forEachIndexed { index, node ->
@@ -225,7 +235,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         val frameTimes = ArrayDeque<Float>(16)
         val frameTimeKeepCount = 16
 
-        while (!shouldClose) {
+        while (!shouldClose || gracePeriod > 0) {
             runtime = (System.nanoTime() - startTime) / 1000000f
             settings.set("System.Runtime", runtime)
 
@@ -313,6 +323,9 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             }
 
             ticks++
+            if(gracePeriod > 0) {
+                gracePeriod--
+            }
         }
 
         inputHandler?.close()
@@ -367,7 +380,11 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
      */
     fun close() {
         shouldClose = true
+        gracePeriod = 10
         renderer?.close()
+
+        (hub.get(SceneryElement.NodePublisher) as? NodePublisher)?.close()
+        (hub.get(SceneryElement.NodeSubscriber) as? NodeSubscriber)?.close()
     }
 
     /**
@@ -450,13 +467,24 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
          */
         @JvmStatic fun getDemoFilesPath(): String {
             val demoDir = System.getenv("SCENERY_DEMO_FILES")
+            var maybeDemoPath: String? = null
+
+            if(demoDir == null) {
+                val relativePath = Paths.get("./models")
+                maybeDemoPath = relativePath.toAbsolutePath().toString()
+            }
 
             return if (demoDir == null) {
                 logger.warn("This example needs additional model files, see https://github.com/scenerygraphics/scenery#examples")
                 logger.warn("Download the model files mentioned there and set the environment variable SCENERY_DEMO_FILES to the")
                 logger.warn("directory where you have put these files.")
 
-                ""
+                if(maybeDemoPath != null) {
+                    logger.warn("Returning $maybeDemoPath, the files you need might be there.")
+                    maybeDemoPath
+                } else {
+                    ""
+                }
             } else {
                 demoDir
             }

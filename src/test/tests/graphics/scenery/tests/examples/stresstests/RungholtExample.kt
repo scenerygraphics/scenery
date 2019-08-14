@@ -22,11 +22,8 @@ class RungholtExample : SceneryBase("RungholtExample", windowWidth = 1280, windo
         logger.warn("This example needs an additional model file, which is not available as part of the")
         logger.warn("example models zip. Please download it from: http://graphics.cs.williams.edu/data/meshes.xml#13")
 
-        hmd = OpenVRHMD(useCompositor = true)
-        hub.add(SceneryElement.HMDInput, hmd!!)
-
-        renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
-        hub.add(SceneryElement.Renderer, renderer!!)
+        hmd = hub.add(OpenVRHMD(useCompositor = true))
+        renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
         val cam: Camera = DetachedHeadCamera(hmd)
         with(cam) {

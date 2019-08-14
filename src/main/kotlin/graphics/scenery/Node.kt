@@ -5,8 +5,10 @@ import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.backends.Renderer
 import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.MaybeIntersects
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
 import java.io.Serializable
 import java.sql.Timestamp
 import java.util.*
@@ -15,6 +17,7 @@ import java.util.concurrent.locks.ReentrantLock
 import java.util.function.Consumer
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
+import kotlin.math.PI
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.properties.Delegates
@@ -112,6 +115,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
     override var scale: GLVector by Delegates.observable(GLVector(1.0f, 1.0f, 1.0f)) { property, old, new -> propertyChanged(property, old, new) }
 
     /** Rendering scale, e.g. coming from physical units of the object. Setting will trigger [world] update. */
+    @Deprecated("Do not use, see [scale] instead.")
     override var renderScale: Float by Delegates.observable(1.0f) { property, old, new -> propertyChanged(property, old, new) }
 
     /** Rotation of the Node. Setting will trigger [world] update. */
@@ -143,78 +147,6 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
 
     val instances = CopyOnWriteArrayList<Node>()
 
-    /**
-     * Bounding sphere class, a bounding sphere is defined by an origin and a radius,
-     * to enclose all of the Node's geometry.
-     */
-    data class BoundingSphere(val origin: GLVector, val radius: Float)
-
-    /**
-     * Oriented bounding box class to perform easy intersection tests.
-     *
-     * @property[min] The x/y/z minima for the bounding box.
-     * @property[max] The x/y/z maxima for the bounding box.
-     */
-    inner class OrientedBoundingBox(val min: GLVector, val max: GLVector) {
-        /**
-         * Alternative [OrientedBoundingBox] constructor taking the [min] and [max] as a series of floats.
-         */
-        constructor(xMin: Float, yMin: Float, zMin: Float, xMax: Float, yMax: Float, zMax: Float) : this(GLVector(xMin, yMin, zMin), GLVector(xMax, yMax, zMax))
-
-        /**
-         * Alternative [OrientedBoundingBox] constructor, taking a 6-element float array for [min] and [max].
-         */
-        constructor(boundingBox: FloatArray) : this(GLVector(boundingBox[0], boundingBox[2], boundingBox[4]), GLVector(boundingBox[1], boundingBox[3], boundingBox[5]))
-
-        /**
-         * Returns the maximum bounding sphere of this bounding box.
-         */
-        fun getBoundingSphere(): BoundingSphere {
-            if(needsUpdate || needsUpdateWorld) {
-                updateWorld(true, false)
-            }
-
-            val worldMin = worldPosition(min)
-            val worldMax = worldPosition(max)
-
-            val origin = worldMin + (worldMax - worldMin) * 0.5f
-
-            val radius = (worldMax - origin).magnitude()
-
-            return BoundingSphere(origin, radius)
-        }
-
-        /**
-         * Checks this [OrientedBoundingBox] for intersection with [other], and returns
-         * true if the bounding boxes do intersect.
-         */
-        fun intersects(other: OrientedBoundingBox): Boolean {
-            return other.getBoundingSphere().radius + getBoundingSphere().radius > (other.getBoundingSphere().origin - getBoundingSphere().origin).magnitude()
-        }
-
-        /**
-         * Returns the hash code of this [OrientedBoundingBox], taking [min] and [max] into consideration.
-         */
-        override fun hashCode(): Int {
-            return min.hashCode() + max.hashCode()
-        }
-
-        /**
-         * Compares this bounding box to [other], returning true if they are equal.
-         */
-        override fun equals(other: Any?): Boolean {
-            if (this === other) return true
-            if (javaClass != other?.javaClass) return false
-
-            other as? OrientedBoundingBox ?: return false
-
-            if (min.hashCode() != other.min.hashCode()) return false
-            if (max.hashCode() != other.max.hashCode()) return false
-
-            return true
-        }
-    }
-
     @Suppress("UNUSED_PARAMETER")
     protected fun <R> propertyChanged(property: KProperty<*>, old: R, new: R) {
         if(property.name == "rotation"
@@ -243,8 +175,13 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
         child.parent = this
         this.children.add(child)
 
-        this.getScene()?.sceneSize?.incrementAndGet()
-        GlobalScope.async {  this@Node.getScene()?.onChildrenAdded?.forEach { it.value.invoke(this@Node, child) } }
+        val scene = this.getScene() ?: return
+        scene.sceneSize.incrementAndGet()
+        if(scene.onChildrenAdded.isNotEmpty()) {
+            GlobalScope.launch {
+                scene.onChildrenAdded.forEach { it.value.invoke(this@Node, child) }
+            }
+        }
     }
 
     /**
@@ -254,7 +191,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
      */
     fun removeChild(child: Node): Boolean {
         this.getScene()?.sceneSize?.decrementAndGet()
-        GlobalScope.async { this@Node.getScene()?.onChildrenRemoved?.forEach { it.value.invoke(this@Node, child) } }
+        GlobalScope.launch { this@Node.getScene()?.onChildrenRemoved?.forEach { it.value.invoke(this@Node, child) } }
 
         return this.children.remove(child)
     }
@@ -278,13 +215,20 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
     }
 
     /**
+     * Returns all children with the given [name].
+     */
+    fun getChildrenByName(name: String): List<Node> {
+        return children.filter { it.name == name }
+    }
+
+    /**
      * Routine to call if the node has special requirements for drawing.
      */
     open fun draw() {
 
     }
 
-    internal open fun preUpdate(renderer: Renderer, hub: Hub) {
+    internal open fun preUpdate(renderer: Renderer, hub: Hub?) {
 
     }
 
@@ -343,7 +287,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
      * This method composes the [model] matrices of the node from its
      * [position], [scale] and [rotation].
      */
-    fun composeModel() {
+    open fun composeModel() {
         @Suppress("SENSELESS_COMPARISON")
         if(position != null && rotation != null && scale != null) {
             model.setIdentity()
@@ -364,12 +308,12 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
             val vertexBufferView = vertices.asReadOnlyBuffer()
             val boundingBoxCoords = floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
 
-            if (vertexBufferView.capacity() == 0) {
+            if (vertexBufferView.capacity() == 0 || vertexBufferView.remaining() == 0) {
                 boundingBox = if(!children.none()) {
                     getMaximumBoundingBox()
                 } else {
                     logger.warn("$name: Zero vertices currently, returning empty bounding box")
-                    OrientedBoundingBox(0.0f, 0.0f, 0.0f,
+                    OrientedBoundingBox(this,0.0f, 0.0f, 0.0f,
                         0.0f, 0.0f, 0.0f)
                 }
 
@@ -388,7 +332,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
                 boundingBoxCoords[4] = vertex[2]
                 boundingBoxCoords[5] = vertex[2]
 
-                while(vertexBufferView.hasRemaining()) {
+                while(vertexBufferView.remaining() >= 3) {
                     vertexBufferView.get(vertex)
 
                     boundingBoxCoords[0] = minOf(boundingBoxCoords[0], vertex[0])
@@ -401,7 +345,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
                 }
 
                 logger.debug("$name: Calculated bounding box with ${boundingBoxCoords.joinToString(", ")}")
-                return OrientedBoundingBox(GLVector(boundingBoxCoords[0], boundingBoxCoords[2], boundingBoxCoords[4]),
+                return OrientedBoundingBox(this, GLVector(boundingBoxCoords[0], boundingBoxCoords[2], boundingBoxCoords[4]),
                     GLVector(boundingBoxCoords[1], boundingBoxCoords[3], boundingBoxCoords[5]))
             }
         } else {
@@ -543,14 +487,26 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
         return this.scale
     }
 
-    private fun expand(lhs: OrientedBoundingBox, rhs: OrientedBoundingBox): OrientedBoundingBox {
-        return OrientedBoundingBox(
-            min(lhs.min.x(), rhs.min.x()),
-            min(lhs.min.y(), rhs.min.y()),
-            min(lhs.min.z(), rhs.min.z()),
-            max(lhs.max.x(), rhs.max.x()),
-            max(lhs.max.y(), rhs.max.y()),
-            max(lhs.max.z(), rhs.max.z()))
+    /**
+     * Orients the Node between points [p1] and [p2], and optionally
+     * [rescale]s and [reposition]s it.
+     */
+    @JvmOverloads fun orientBetweenPoints(p1: GLVector, p2: GLVector, rescale: Boolean = false, reposition: Boolean = false): Quaternion {
+        val direction = p2 - p1
+        this.rotation = this.rotation
+            .setLookAt(direction.normalized.toFloatArray(),
+                floatArrayOf(0.0f, 1.0f, 0.0f),
+                FloatArray(3), FloatArray(3), FloatArray(3))
+            .rotateByAngleX(PI.toFloat()/2.0f)
+        if(rescale) {
+            this.scale = GLVector(1.0f, direction.magnitude(), 1.0f)
+        }
+
+        if(reposition) {
+            this.position = p1.clone()
+        }
+
+        return this.rotation
     }
 
     /**
@@ -558,16 +514,16 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
      */
     fun getMaximumBoundingBox(): OrientedBoundingBox {
         if(boundingBox == null && children.size == 0) {
-            return OrientedBoundingBox(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
+            return OrientedBoundingBox(this,0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f)
         }
 
         if(children.none { it !is BoundingGrid }) {
-            return OrientedBoundingBox(boundingBox?.min ?: GLVector(0.0f, 0.0f, 0.0f), boundingBox?.max ?: GLVector(0.0f, 0.0f, 0.0f))
+            return OrientedBoundingBox(this,boundingBox?.min ?: GLVector(0.0f, 0.0f, 0.0f), boundingBox?.max ?: GLVector(0.0f, 0.0f, 0.0f))
         }
 
         return children
             .filter { it !is BoundingGrid  }.map { it.getMaximumBoundingBox() }
-            .fold(boundingBox ?: OrientedBoundingBox(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f), { lhs, rhs -> expand(lhs, rhs) })
+            .fold(boundingBox ?: OrientedBoundingBox(this, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f), { lhs, rhs -> lhs.expand(lhs, rhs) })
     }
 
     /**
@@ -626,9 +582,9 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
      * Returns a Pair of Boolean and Float, indicating whether an intersection is possible,
      * and at which distance.
      *
-     * Code adapted from zachamarz, http://gamedev.stackexchange.com/a/18459
+     * Code adapted from [zachamarz](http://gamedev.stackexchange.com/a/18459).
      */
-    fun intersectAABB(origin: GLVector, dir: GLVector): Pair<Boolean, Float> {
+    fun intersectAABB(origin: GLVector, dir: GLVector): MaybeIntersects {
         val bbmin = getMaximumBoundingBox().min.xyzw()
         val bbmax = getMaximumBoundingBox().max.xyzw()
 
@@ -637,10 +593,10 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
 
         // skip if inside the bounding box
         if(origin.isInside(min, max)) {
-            return false to 0.0f
+            return MaybeIntersects.NoIntersection()
         }
 
-        val invDir = GLVector(1 / dir.x(), 1 / dir.y(), 1 / dir.z())
+        val invDir = GLVector(1 / (dir.x() + Float.MIN_VALUE), 1 / (dir.y() + Float.MIN_VALUE), 1 / (dir.z() + Float.MIN_VALUE))
 
         val t1 = (min.x() - origin.x()) * invDir.x()
         val t2 = (max.x() - origin.x()) * invDir.x()
@@ -654,16 +610,21 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
 
         // we are in front of the AABB
         if (tmax < 0) {
-            return false to tmax
+            return MaybeIntersects.NoIntersection()
         }
 
         // we have missed the AABB
         if (tmin > tmax) {
-            return false to tmax
+            return MaybeIntersects.NoIntersection()
         }
 
-        // we have a match!
-        return true to tmin
+        // we have a match! calculate entry and exit points
+        val entry = origin + dir * tmin
+        val exit = origin + dir * tmax
+        val localEntry = world.inverse.mult(entry.xyzw())
+        val localExit = world.inverse.mult(exit.xyzw())
+
+        return MaybeIntersects.Intersection(tmin, entry, exit, localEntry.xyz(), localExit.xyz())
     }
 
     private fun GLVector.isInside(min: GLVector, max: GLVector): Boolean {

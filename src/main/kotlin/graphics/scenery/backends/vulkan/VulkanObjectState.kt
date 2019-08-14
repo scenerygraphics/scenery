@@ -61,13 +61,16 @@ open class VulkanObjectState : NodeMetadata {
     /** Time stamp of the last recreation of the texture descriptor sets */
     protected var descriptorSetsRecreated: Long = 0
 
+    /** Whether the node is rendered as instanced */
+    var instanced = false
+
     /**
      * Creates or updates the [textureDescriptorSets] describing the textures used. Will cover all the renderpasses
      * given in [passes]. The set will reside on [device] and the descriptor set layout(s) determined from the renderpass.
      * The set will be allocated from [descriptorPool].
      */
     fun texturesToDescriptorSets(device: VulkanDevice, passes: Map<String, VulkanRenderpass>, descriptorPool: Long) {
-        passes.forEach { passName, pass ->
+        passes.forEach { (passName, pass) ->
             if(pass.recreated > descriptorSetsRecreated) {
                 textureDescriptorSets.clear()
             }
@@ -79,7 +82,7 @@ open class VulkanObjectState : NodeMetadata {
             if(descriptorSetLayoutObjectTextures != null && objectTextures != null) {
                 textureDescriptorSets[pass.passConfig.type.name to "ObjectTextures"] = createOrUpdateTextureDescriptorSet(
                     "ObjectTextures",
-                    passName,
+                    pass.passConfig.type.name,
                     GenericTexture.objectTextures.map { ot -> objectTextures.first { it.key == ot } },
                     descriptorSetLayoutObjectTextures,
                     device,
@@ -94,7 +97,7 @@ open class VulkanObjectState : NodeMetadata {
                 if (dsl != null) {
                     textureDescriptorSets[pass.passConfig.type.name to texture.key] = createOrUpdateTextureDescriptorSet(
                         texture.key,
-                        passName,
+                        pass.passConfig.type.name,
                         listOf(texture),
                         dsl,
                         device,
@@ -104,6 +107,10 @@ open class VulkanObjectState : NodeMetadata {
                 }
             }
         }
+    }
+
+    fun clearTextureDescriptorSets() {
+        textureDescriptorSets.clear()
     }
 
     private fun createOrUpdateTextureDescriptorSet(name: String, passName: String, textures: List<MutableMap.MutableEntry<String, VulkanTexture>>, descriptorSetLayout: Long, device: VulkanDevice, descriptorPool: Long): Long {
@@ -169,7 +176,8 @@ open class VulkanObjectState : NodeMetadata {
         val set = textureDescriptorSets[passname to texture]
         if(set == null) {
             logger.warn("$this: Could not find descriptor set for $passname and texture set $texture")
-            logger.warn("DS are: ${textureDescriptorSets.keys().asSequence().joinToString { "${it.first} in ${it.second}" }}")
+//            logger.warn("DS are: ${textureDescriptorSets.keys().asSequence().joinToString { "${it.first} in ${it.second}" }}")
+            logger.warn("DS are: ${textureDescriptorSets.keys().asSequence().groupBy { it.first }.entries.joinToString { "${it.key}: ${it.value.joinToString(", ") { ds -> ds.second }}" }}")
         }
 
         return set

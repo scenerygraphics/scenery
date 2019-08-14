@@ -4,14 +4,13 @@ import cleargl.GLTypeEnum
 import cleargl.GLVector
 import coremem.enums.NativeTypeEnum
 import graphics.scenery.*
-import graphics.scenery.backends.Renderer
-import graphics.scenery.backends.vulkan.toHexString
 import graphics.scenery.numerics.OpenSimplexNoise
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.forEachParallel
+import graphics.scenery.volumes.Volume.Colormap.ColormapBuffer
+import graphics.scenery.volumes.Volume.Colormap.ColormapFile
 import io.scif.SCIFIO
 import io.scif.util.FormatTools
-import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.memAlloc
 import sun.misc.Unsafe
 import java.io.FileInputStream
@@ -21,18 +20,16 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
-import kotlin.math.abs
-import kotlin.math.sqrt
+import kotlin.math.*
 import kotlin.properties.Delegates
 import kotlin.reflect.KProperty
 import kotlin.streams.toList
 
+
+
 /**
  * Volume Rendering Node for scenery.
- * If [autosetProperties] is true, the node will automatically determine
- * the volumes' transfer function range.
  *
  * @author Ulrik Günther <hello@ulrik.is>
  * @author Martin Weigert <mweigert@mpi-cbg.de>
@@ -142,6 +139,9 @@ open class Volume : Mesh("Volume") {
 
     @ShaderProperty var time: Float = System.nanoTime().toFloat()
 
+    /** Scale factor for voxel-to-world scaling. By default, one pixel/voxel equals 1mm in world space. */
+    var pixelToWorldRatio = 0.001f
+
     /** The transfer function to use for the volume. Flat by default. */
     var transferFunction: TransferFunction = TransferFunction.flat(1.0f)
         set(value) {
@@ -154,6 +154,8 @@ open class Volume : Mesh("Volume") {
      */
     protected fun <R> volumePropertyChanged(property: KProperty<*>, old: R, new: R) {
         boundingBox = generateBoundingBox()
+        needsUpdate = true
+        needsUpdateWorld = true
     }
 
     /**
@@ -181,11 +183,11 @@ open class Volume : Mesh("Volume") {
             colormaps[name]?.let { cm ->
                 field = name
                 when (cm) {
-                    is Colormap.ColormapFile -> {
+                    is ColormapFile -> {
                         this@Volume.material.textures["normal"] = cm.filename
                     }
 
-                    is Colormap.ColormapBuffer -> {
+                    is ColormapBuffer -> {
                         this@Volume.material.transferTextures["colormap"] = cm.texture
                         this@Volume.material.textures["normal"] = "fromBuffer:colormap"
                     }
@@ -251,13 +253,26 @@ open class Volume : Mesh("Volume") {
         material.blending.colorBlending = Blending.BlendOp.add
         material.blending.alphaBlending = Blending.BlendOp.add
 
-        colormaps["grays"] = Colormap.ColormapFile(Volume::class.java.getResource("colormap-grays.png").file)
-        colormaps["hot"] = Colormap.ColormapFile(Volume::class.java.getResource("colormap-hot.png").file)
-        colormaps["jet"] = Colormap.ColormapFile(Volume::class.java.getResource("colormap-jet.png").file)
-        colormaps["plasma"] = Colormap.ColormapFile(Volume::class.java.getResource("colormap-plasma.png").file)
-        colormaps["viridis"] = Colormap.ColormapFile(Volume::class.java.getResource("colormap-viridis.png").file)
+        colormaps["grays"] = ColormapFile(Volume::class.java.getResource("colormap-grays.png").file)
+        colormaps["hot"] = ColormapFile(Volume::class.java.getResource("colormap-hot.png").file)
+        colormaps["jet"] = ColormapFile(Volume::class.java.getResource("colormap-jet.png").file)
+        colormaps["plasma"] = ColormapFile(Volume::class.java.getResource("colormap-plasma.png").file)
+        colormaps["viridis"] = ColormapFile(Volume::class.java.getResource("colormap-viridis.png").file)
 
         assignEmptyVolumeTexture()
+    }
+
+    override fun composeModel() {
+        @Suppress("SENSELESS_COMPARISON")
+        if(position != null && rotation != null && scale != null) {
+            val L = localScale() * (1.0f/2.0f)
+            model.setIdentity()
+            model.translate(this.position.x(), this.position.y(), this.position.z())
+            model.mult(this.rotation)
+            model.scale(this.renderScale, this.renderScale, this. renderScale)
+            model.scale(this.scale.x(), this.scale.y(), this.scale.z())
+            model.scale(L.x(), L.y(), L.z())
+        }
     }
 
     /**
@@ -286,9 +301,9 @@ open class Volume : Mesh("Volume") {
 
 
         if (volumes.containsKey(id)) {
-            logger.info("$id is already in cache")
+            logger.debug("$id is already in cache")
         } else {
-            logger.info("Preloading $id from disk")
+            logger.debug("Preloading $id from disk")
             val buffer = ByteArray(1024 * 1024)
             val stream = FileInputStream(file.toFile())
             val imageData: ByteBuffer = memAlloc((2 * dimensions[0] * dimensions[1] * dimensions[2]).toInt())
@@ -345,7 +360,7 @@ open class Volume : Mesh("Volume") {
                        x: Long, y: Long, z: Long,
                        voxelX: Float, voxelY: Float, voxelZ: Float,
                        dataType: NativeTypeEnum = NativeTypeEnum.UnsignedInt, bytesPerVoxel: Int = 2,
-                       allowDeallocation: Boolean = false) {
+                       allowDeallocation: Boolean = false, assign: Boolean = true) {
         sizeX = x.toInt()
         sizeY = y.toInt()
         sizeZ = z.toInt()
@@ -363,7 +378,7 @@ open class Volume : Mesh("Volume") {
             descriptor
         }
 
-        if (vol != null) {
+        if (vol != null && assign) {
             assignVolumeTexture( longArrayOf( x, y, z ), vol, allowDeallocation)
         }
     }
@@ -389,48 +404,49 @@ open class Volume : Mesh("Volume") {
         if(file.normalize().toString().endsWith("raw")) {
             return readFromRaw(file, replace)
         }
-
-        val reader = scifio.initializer().initializeReader(file.normalize().toString())
-
-        with(reader.openPlane(0, 0)) {
-            sizeX = lengths[0].toInt()
-            sizeY = lengths[1].toInt()
-            sizeZ = reader.getPlaneCount(0).toInt()
-        }
-
         val id = file.fileName.toString()
-        val bytesPerVoxel = reader.openPlane(0, 0).imageMetadata.bitsPerPixel/8
-        reader.openPlane(0, 0).imageMetadata.pixelType
 
-        val dataType = when(reader.openPlane(0, 0).imageMetadata.pixelType) {
-            FormatTools.INT8 -> NativeTypeEnum.Byte
-            FormatTools.INT16 -> NativeTypeEnum.Short
-            FormatTools.INT32 -> NativeTypeEnum.Int
-
-            FormatTools.UINT8 -> NativeTypeEnum.UnsignedByte
-            FormatTools.UINT16 -> NativeTypeEnum.UnsignedShort
-            FormatTools.UINT32 -> NativeTypeEnum.UnsignedInt
-
-            FormatTools.FLOAT -> NativeTypeEnum.Float
-            else -> {
-                logger.error("Unknown scif.io pixel type ${reader.openPlane(0, 0).imageMetadata.pixelType}, assuming unsigned byte.")
-                NativeTypeEnum.UnsignedByte
-            }
-        }
-
-        val vol = if (volumes.containsKey(id)) {
-            logger.info("Getting $id from cache")
-            volumes.get(id)!!
+        val v = volumes[id]
+        val vol = if (v != null) {
+            logger.debug("Getting $id from cache")
+            v
         } else {
-            logger.info("Loading $id from disk")
+            val reader = scifio.initializer().initializeReader(file.normalize().toString())
+
+            with(reader.openPlane(0, 0)) {
+                sizeX = lengths[0].toInt()
+                sizeY = lengths[1].toInt()
+                sizeZ = reader.getPlaneCount(0).toInt()
+            }
+
+            val bytesPerVoxel = reader.openPlane(0, 0).imageMetadata.bitsPerPixel/8
+            reader.openPlane(0, 0).imageMetadata.pixelType
+
+            val dataType = when(reader.openPlane(0, 0).imageMetadata.pixelType) {
+                FormatTools.INT8 -> NativeTypeEnum.Byte
+                FormatTools.INT16 -> NativeTypeEnum.Short
+                FormatTools.INT32 -> NativeTypeEnum.Int
+
+                FormatTools.UINT8 -> NativeTypeEnum.UnsignedByte
+                FormatTools.UINT16 -> NativeTypeEnum.UnsignedShort
+                FormatTools.UINT32 -> NativeTypeEnum.UnsignedInt
+
+                FormatTools.FLOAT -> NativeTypeEnum.Float
+                else -> {
+                    logger.error("Unknown scif.io pixel type ${reader.openPlane(0, 0).imageMetadata.pixelType}, assuming unsigned byte.")
+                    NativeTypeEnum.UnsignedByte
+                }
+            }
+
+            logger.debug("Loading $id from disk")
             val imageData: ByteBuffer = memAlloc((bytesPerVoxel * sizeX * sizeY * sizeZ))
 
-            logger.info("${file.fileName}: Allocated ${imageData.capacity()} bytes for $dataType ${8*bytesPerVoxel}bit image of $sizeX/$sizeY/$sizeZ")
+            logger.debug("${file.fileName}: Allocated ${imageData.capacity()} bytes for $dataType ${8*bytesPerVoxel}bit image of $sizeX/$sizeY/$sizeZ")
 
             val start = System.nanoTime()
 
 //            if(reader.openPlane(0, 0).imageMetadata.isLittleEndian) {
-                logger.info("Volume is little endian")
+                logger.debug("Volume is little endian")
                 (0 until reader.getPlaneCount(0)).forEach { plane ->
                     imageData.put(reader.openPlane(0, plane).bytes)
                 }
@@ -442,7 +458,7 @@ open class Volume : Mesh("Volume") {
 //            }
 
             val duration = (System.nanoTime() - start) / 10e5
-            logger.info("Reading took $duration ms")
+            logger.debug("Reading took $duration ms")
 
             imageData.flip()
 
@@ -501,16 +517,17 @@ open class Volume : Mesh("Volume") {
 
         val id = file.fileName.toString()
 
-        val vol = if (volumes.containsKey(id) && cache) {
-            logger.info("Getting $id from cache")
-            volumes.get(id)!!
+        val v = volumes[id]
+        val vol = if (v != null && cache) {
+            logger.debug("Getting $id from cache")
+            v
         } else {
-            logger.info("Loading $id from disk")
+            logger.debug("Loading $id from disk")
             val buffer = ByteArray(1024 * 1024)
             val stream = FileInputStream(file.toFile())
             val imageData: ByteBuffer = memAlloc((2 * dimensions[0] * dimensions[1] * dimensions[2]).toInt())
 
-            logger.info("${file.fileName}: Allocated ${imageData.capacity()} bytes for UINT16 image of ${dimensions.joinToString("x")}")
+            logger.debug("${file.fileName}: Allocated ${imageData.capacity()} bytes for UINT16 image of ${dimensions.joinToString("x")}")
 
             val start = System.nanoTime()
             var bytesRead = stream.read(buffer, 0, buffer.size)
@@ -519,7 +536,7 @@ open class Volume : Mesh("Volume") {
                 bytesRead = stream.read(buffer, 0, buffer.size)
             }
             val duration = (System.nanoTime() - start) / 10e5
-            logger.info("Reading took $duration ms")
+            logger.debug("Reading took $duration ms")
 
             imageData.flip()
 
@@ -590,7 +607,7 @@ open class Volume : Mesh("Volume") {
             NativeTypeEnum.Double -> TODO()
         }
 
-    protected fun assignEmptyVolumeTexture() {
+    protected open fun assignEmptyVolumeTexture() {
         val emptyBuffer = BufferUtils.allocateByteAndPut(byteArrayOf(0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
                                                                      0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0))
         val dim = GLVector(2.0f, 2.0f, 2.0f)
@@ -605,7 +622,7 @@ open class Volume : Mesh("Volume") {
     @Transient private val deallocations = ArrayDeque<ByteBuffer>()
     var deallocationThreshold = 50000
 
-    protected fun assignVolumeTexture(dimensions: LongArray, descriptor: VolumeDescriptor, replace: Boolean) {
+    protected open fun assignVolumeTexture(dimensions: LongArray, descriptor: VolumeDescriptor, replace: Boolean) {
 //        while(deallocations.size > deallocationThreshold) {
 //            val last = deallocations.pollLast()
 //            logger.debug("Time series: deallocating $last from ${deallocations.map { it.hashCode() }.joinToString(", ")}")
@@ -639,21 +656,15 @@ open class Volume : Mesh("Volume") {
 
         boundingBox = generateBoundingBox()
 
-
-        if (this.lock.tryLock(10, TimeUnit.MILLISECONDS)) {
-            logger.debug("$name: Assigning volume texture")
-            this.material.transferTextures.put("VolumeTextures", gtv)?.let {
-//                if (replace && it.name != "empty-volume" && !deallocations.contains(it.contents)) {
-//                    deallocations.add(it.contents)
-//                }
+        logger.debug("$name: Assigning volume texture")
+        this.material.transferTextures.put("VolumeTextures", gtv)?.let {
+            if (replace && it.name != "empty-volume" && !deallocations.contains(it.contents)) {
+                deallocations.add(it.contents)
             }
-            this.material.textures.put("VolumeTextures", "fromBuffer:VolumeTextures")
-            this.material.needsTextureReload = true
-
-            this.lock.unlock()
-        } else {
-            logger.error("Failed to lock Volume $name, lock state: $lock")
         }
+
+        this.material.textures.put("VolumeTextures", "fromBuffer:VolumeTextures")
+        this.material.needsTextureReload = true
     }
 
     /**
@@ -670,23 +681,158 @@ open class Volume : Mesh("Volume") {
         }
     }
 
+
+    /**
+     * Returns the local scaling of the volume.
+     */
+    fun localScale(): GLVector {
+        return GLVector(
+            sizeX * voxelSizeX * pixelToWorldRatio,
+            sizeY * voxelSizeY * pixelToWorldRatio,
+            sizeZ * voxelSizeZ * pixelToWorldRatio)
+    }
+
     /**
      * Creates this volume's [Node.OrientedBoundingBox], giving 2cm slack around the edges.
      * The volume's bounding box is calculated from voxel and physical size such that
      * 1 pixel = 1mm in world units.
      */
     override fun generateBoundingBox(): OrientedBoundingBox? {
-        val slack = 0.02f
-        val min = GLVector(
-            -0.5f * sizeX * voxelSizeX * 0.001f - slack,
-            -0.5f * sizeY * voxelSizeY * 0.001f - slack,
-            -0.5f * sizeZ * voxelSizeZ * 0.001f - slack)
-        val max = GLVector(
-            1.5f * sizeX * voxelSizeX * 0.001f + slack,
-            1.5f * sizeY * voxelSizeY * 0.001f + slack,
-            1.5f * sizeZ * voxelSizeZ * 0.001f + slack)
+        val min = GLVector(-1.0f, -1.0f, -1.0f)
+        val max = GLVector(1.0f, 1.0f, 1.0f)
 
-        return OrientedBoundingBox(min, max)
+        return OrientedBoundingBox(this, min, max)
+    }
+
+    private fun Float.floorToInt() = floor(this).toInt()
+
+    /**
+     * Samples a point from the currently used volume, [uv] is the texture coordinate of the volume, [0.0, 1.0] for
+     * all of the components.
+     *
+     * Returns the sampled value as a [Float], or null in case nothing could be sampled.
+     */
+    fun sample(uv: GLVector, interpolate: Boolean = true): Float? {
+        val gt = material.transferTextures["VolumeTextures"] ?: return null
+
+        val bpp = when(gt.type) {
+            GLTypeEnum.Byte -> 1
+            GLTypeEnum.UnsignedByte -> 1
+            GLTypeEnum.Short -> 2
+            GLTypeEnum.UnsignedShort -> 2
+            GLTypeEnum.Int -> 4
+            GLTypeEnum.UnsignedInt -> 4
+            GLTypeEnum.Float -> 4
+            GLTypeEnum.Double -> 8
+        }
+
+        if(uv.x() < 0.0f || uv.x() > 1.0f || uv.y() < 0.0f || uv.y() > 1.0f || uv.z() < 0.0f || uv.z() > 1.0f) {
+            logger.debug("Invalid UV coords for volume access: $uv")
+            return null
+        }
+
+        val absoluteCoords = GLVector(uv.x() * gt.dimensions.x(), uv.y() * gt.dimensions.y(), uv.z() * gt.dimensions.z())
+//        val index: Int = (floor(gt.dimensions.x() * gt.dimensions.y() * absoluteCoords.z()).toInt()
+//            + floor(gt.dimensions.x() * absoluteCoords.y()).toInt()
+//            + floor(absoluteCoords.x()).toInt())
+        val absoluteCoordsD = GLVector(floor(absoluteCoords.x()), floor(absoluteCoords.y()), floor(absoluteCoords.z()))
+        val diff = absoluteCoords - absoluteCoordsD
+
+        fun toIndex(absoluteCoords: GLVector): Int = (
+            absoluteCoords.x().roundToInt().dec()
+                + (gt.dimensions.x() * absoluteCoords.y()).roundToInt().dec()
+                + (gt.dimensions.x() * gt.dimensions.y() * absoluteCoords.z()).roundToInt().dec()
+            )
+
+        val index = toIndex(absoluteCoordsD)
+
+        val contents = gt.contents
+        if(contents == null) {
+            logger.error("Volume contents are empty for sampling at $uv")
+            return null
+        }
+
+        if(contents.limit() < index*bpp) {
+            logger.debug("Absolute index ${index*bpp} for data type ${gt.type} from $uv exceeds data buffer limit of ${contents.limit()} (capacity=${contents.capacity()}), coords=$absoluteCoords/${gt.dimensions}")
+            return 0.0f
+        }
+
+
+        fun density(index:Int): Float {
+            if(index*bpp >= contents.limit()) {
+                return 0.0f
+            }
+
+            val s = when(gt.type) {
+                GLTypeEnum.Byte -> contents.get(index).toFloat()
+                GLTypeEnum.UnsignedByte -> contents.get(index).toUByte().toFloat()
+                GLTypeEnum.Short -> contents.asShortBuffer().get(index).toFloat()
+                GLTypeEnum.UnsignedShort -> contents.asShortBuffer().get(index).toUShort().toFloat()
+                GLTypeEnum.Int -> contents.asIntBuffer().get(index).toFloat()
+                GLTypeEnum.UnsignedInt -> contents.asIntBuffer().get(index).toUInt().toFloat()
+                GLTypeEnum.Float -> contents.asFloatBuffer().get(index)
+                GLTypeEnum.Double -> contents.asDoubleBuffer().get(index).toFloat()
+            }
+
+            return transferFunction.evaluate(s/trangemax)
+        }
+
+        return if(interpolate) {
+            val offset = 1.0f
+
+            val d00 = lerp(diff.x(), density(index), density(toIndex(absoluteCoordsD + GLVector(offset, 0.0f, 0.0f))))
+            val d10 = lerp(diff.x(), density(toIndex(absoluteCoordsD + GLVector(0.0f, offset, 0.0f))), density(toIndex(absoluteCoordsD + GLVector(offset, offset, 0.0f))))
+            val d01 = lerp(diff.x(), density(toIndex(absoluteCoordsD + GLVector(0.0f, 0.0f, offset))), density(toIndex(absoluteCoordsD + GLVector(offset, 0.0f, offset))))
+            val d11 = lerp(diff.x(), density(toIndex(absoluteCoordsD + GLVector(0.0f, offset, offset))), density(toIndex(absoluteCoordsD + GLVector(offset, offset, offset))))
+            val d0 = lerp(diff.y(), d00, d10)
+            val d1 = lerp(diff.y(), d01, d11)
+            lerp(diff.z(), d0, d1)
+        } else {
+            density(index)
+        }
+    }
+
+    private inline fun lerp(t: Float, v0: Float, v1: Float): Float {
+        return (1.0f - t) * v0 + t * v1
+    }
+
+    /**
+     * Takes samples along the ray from [start] to [end] from the currently active volume.
+     * Values beyond [0.0, 1.0] for [start] and [end] will be clamped to that interval.
+     *
+     * Returns the list of samples (which might include `null` values in case a sample failed),
+     * as well as the delta used along the ray, or null if the start/end coordinates are invalid.
+     */
+    fun sampleRay(start: GLVector, end: GLVector): Pair<List<Float?>, GLVector>? {
+        val gt = material.transferTextures["VolumeTextures"] ?: return null
+
+        if(start.x() < 0.0f || start.x() > 1.0f || start.y() < 0.0f || start.y() > 1.0f || start.z() < 0.0f || start.z() > 1.0f) {
+            logger.debug("Invalid UV coords for ray start: {} -- will clamp values to [0.0, 1.0].", start)
+        }
+
+        if(end.x() < 0.0f || end.x() > 1.0f || end.y() < 0.0f || end.y() > 1.0f || end.z() < 0.0f || end.z() > 1.0f) {
+            logger.debug("Invalid UV coords for ray end: {} -- will clamp values to [0.0, 1.0].", end)
+        }
+
+        val startClamped = GLVector(
+            min(max(start.x(), 0.0f), 1.0f),
+            min(max(start.y(), 0.0f), 1.0f),
+            min(max(start.z(), 0.0f), 1.0f)
+        )
+
+        val endClamped = GLVector(
+            min(max(end.x(), 0.0f), 1.0f),
+            min(max(end.y(), 0.0f), 1.0f),
+            min(max(end.z(), 0.0f), 1.0f)
+        )
+
+        val direction = (endClamped - startClamped).normalize()
+        val maxSteps = (direction.hadamard(gt.dimensions).magnitude() * 2.0f).roundToInt()
+        val delta = direction * (1.0f/maxSteps.toFloat())
+
+        return (0 until maxSteps).map {
+            sample(startClamped + (delta * it.toFloat()))
+        } to delta
     }
 
     /**

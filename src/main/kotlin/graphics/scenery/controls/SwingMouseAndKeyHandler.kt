@@ -29,7 +29,10 @@
  */
 package graphics.scenery.controls
 
+import com.jogamp.newt.awt.NewtCanvasAWT
 import gnu.trove.set.TIntSet
+import graphics.scenery.Hub
+import graphics.scenery.backends.SceneryWindow
 import org.scijava.ui.behaviour.*
 import org.scijava.ui.behaviour.KeyPressedManager.KeyPressedReceiver
 import java.awt.Component
@@ -37,7 +40,13 @@ import java.awt.Toolkit
 import java.awt.event.*
 import java.util.*
 
-class SwingMouseAndKeyHandler : MouseAndKeyHandlerBase(), KeyListener, MouseListener, MouseWheelListener, MouseMotionListener, FocusListener {
+/**
+ * Input handling class for Swing-based windows
+ *
+ * @author Ulrik Günther <hello@ulrik.is>
+*/
+@CanHandleInputFor([SceneryWindow.SwingWindow::class])
+class SwingMouseAndKeyHandler(var hub: Hub? = null) : MouseAndKeyHandlerBase(), KeyListener, MouseListener, MouseWheelListener, MouseMotionListener, FocusListener {
 
     /*
 	 * Event handling. Forwards to registered behaviours.
@@ -59,48 +68,6 @@ class SwingMouseAndKeyHandler : MouseAndKeyHandlerBase(), KeyListener, MouseList
      * Represents this [MouseAndKeyHandler] to the [.keypressManager].
      */
     private var receiver: KeyPressedReceiver? = null
-
-    /**
-     * Build internal lists buttonDrag, keyDrags, etc from of [.inputMap]
-     * and [.behaviourMap]. The internal lists only contain entries for
-     * behaviours that can be actually triggered with the current InputMap,
-     * grouped by behaviour type, such that hopefully lookup from the event
-     * handlers is fast.
-     */
-    private fun updateInternalMaps() {
-        buttonDrags.clear()
-        keyDrags.clear()
-        buttonClicks.clear()
-        keyClicks.clear()
-        scrolls.clear()
-
-        for ((buttons, value) in inputTriggerMap.allBindings) {
-            val behaviourKeys = value ?: continue
-
-            for (behaviourKey in behaviourKeys) {
-                val behaviour = behaviours.get(behaviourKey) ?: continue
-
-                if (behaviour is DragBehaviour) {
-                    val dragEntry = BehaviourEntry(buttons, behaviour)
-                    if (buttons.isKeyTriggered)
-                        keyDrags.add(dragEntry)
-                    else
-                        buttonDrags.add(dragEntry)
-                }
-                if (behaviour is ClickBehaviour) {
-                    val clickEntry = BehaviourEntry(buttons, behaviour)
-                    if (buttons.isKeyTriggered)
-                        keyClicks.add(clickEntry)
-                    else
-                        buttonClicks.add(clickEntry)
-                }
-                if (behaviour is ScrollBehaviour) {
-                    val scrollEntry = BehaviourEntry(buttons, behaviour)
-                    scrolls.add(scrollEntry)
-                }
-            }
-        }
-    }
 
     private fun getMask(e: InputEvent): Int {
         val modifiers = e.modifiers
@@ -298,15 +265,13 @@ class SwingMouseAndKeyHandler : MouseAndKeyHandlerBase(), KeyListener, MouseList
     override fun mouseEntered(e: MouseEvent) {
         logger.trace( "MouseAndKeyHandler.mouseEntered()" )
         update()
-        if (keypressManager != null)
-            keypressManager!!.activate(receiver)
+        keypressManager?.activate(receiver)
     }
 
     override fun mouseExited(e: MouseEvent) {
         logger.trace( "MouseAndKeyHandler.mouseExited()" )
         update()
-        if (keypressManager != null)
-            keypressManager!!.deactivate(receiver)
+        keypressManager?.deactivate(receiver)
     }
 
     override fun keyPressed(e: KeyEvent) {
@@ -338,10 +303,7 @@ class SwingMouseAndKeyHandler : MouseAndKeyHandlerBase(), KeyListener, MouseList
                 keyPressTimes.put(e.keyCode, e.getWhen())
             }
 
-            if (keypressManager != null)
-                keypressManager!!.handleKeyPressed(receiver, mask, doubleClick, pressedKeys)
-            else
-                handleKeyPressed(mask, doubleClick, pressedKeys, false)
+            keypressManager?.handleKeyPressed(receiver, mask, doubleClick, pressedKeys) ?: handleKeyPressed(mask, doubleClick, pressedKeys, false)
         }
     }
 
@@ -449,6 +411,48 @@ class SwingMouseAndKeyHandler : MouseAndKeyHandlerBase(), KeyListener, MouseList
     override fun focusLost(e: FocusEvent) {
         //		logger.trace( "MouseAndKeyHandler.focusLost()" );
         pressedKeys.clear()
+    }
+
+    override fun attach(window: SceneryWindow, inputMap: InputTriggerMap, behaviourMap: BehaviourMap): MouseAndKeyHandlerBase {
+        val handler: MouseAndKeyHandlerBase
+        when (window) {
+            is SceneryWindow.SwingWindow -> {
+                val component = window.panel.component
+                val cglWindow = window.panel.cglWindow
+
+                if (component is NewtCanvasAWT && cglWindow != null) {
+                    handler = JOGLMouseAndKeyHandler(hub)
+
+                    handler.setInputMap(inputMap)
+                    handler.setBehaviourMap(behaviourMap)
+
+                    cglWindow.addKeyListener(handler)
+                    cglWindow.addMouseListener(handler)
+                } else {
+                    handler = SwingMouseAndKeyHandler()
+
+                    handler.setInputMap(inputMap)
+                    handler.setBehaviourMap(behaviourMap)
+
+                    val ancestor = window.panel.component
+                    ancestor?.addKeyListener(handler)
+                    ancestor?.addMouseListener(handler)
+                    ancestor?.addMouseMotionListener(handler)
+                    ancestor?.addMouseWheelListener(handler)
+                    ancestor?.addFocusListener(handler)
+                }
+            }
+
+            is SceneryWindow.HeadlessWindow -> {
+                handler = this
+                handler.setInputMap(inputMap)
+                handler.setBehaviourMap(behaviourMap)
+            }
+
+            else -> throw UnsupportedOperationException("Don't know how to handle window of type $window. Supported types are: ${(this.javaClass.annotations.find { it is CanHandleInputFor } as? CanHandleInputFor)?.windowTypes?.joinToString(", ")}")
+        }
+
+        return handler
     }
 
     companion object {

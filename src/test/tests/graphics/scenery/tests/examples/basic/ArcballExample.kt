@@ -1,6 +1,5 @@
 package graphics.scenery.tests.examples.basic
 
-import cleargl.GLMatrix
 import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
@@ -18,8 +17,7 @@ import kotlin.concurrent.thread
  */
 class ArcballExample : SceneryBase("ArcballExample") {
     override fun init() {
-        renderer = Renderer.createRenderer(hub, applicationName, scene, 1024, 1024)
-        hub.add(SceneryElement.Renderer, renderer!!)
+        renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, 1024, 1024))
 
         val cam: Camera = DetachedHeadCamera()
         with(cam) {
@@ -55,7 +53,7 @@ class ArcballExample : SceneryBase("ArcballExample") {
         }.map { light ->
             light.position = Random.randomVectorFromRange(3, -3.0f, 3.0f)
             light.emissionColor = Random.randomVectorFromRange(3, 0.2f, 0.8f)
-            light.intensity = Random.randomFromRange(250.0f, 500.0f)
+            light.intensity = Random.randomFromRange(0.1f, 0.8f)
             light
         }
 

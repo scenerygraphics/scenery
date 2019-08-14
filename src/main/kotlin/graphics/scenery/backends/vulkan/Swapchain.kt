@@ -2,7 +2,6 @@ package graphics.scenery.backends.vulkan
 
 import graphics.scenery.Hub
 import graphics.scenery.backends.SceneryWindow
-import graphics.scenery.utils.SceneryFXPanel
 import graphics.scenery.utils.SceneryPanel
 import java.nio.LongBuffer
 
@@ -70,4 +69,9 @@ interface Swapchain : AutoCloseable {
      * Returns the number of presented frames for this swapchain instance.
      */
     fun presentedFrames(): Long
+
+    companion object: SwapchainParameters {
+        override var headless: Boolean = false
+        override var usageCondition = { p: SceneryPanel? -> true }
+    }
 }

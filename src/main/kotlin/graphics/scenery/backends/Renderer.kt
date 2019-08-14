@@ -10,6 +10,11 @@ import graphics.scenery.backends.vulkan.VulkanRenderer
 import graphics.scenery.utils.ExtractsNatives
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.SceneryPanel
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
+import java.util.concurrent.ConcurrentLinkedQueue
 
 /**
  * Renderer interface. Defines the minimal set of functions a renderer has to implement.
@@ -66,6 +71,20 @@ abstract class Renderer : Hubable {
      * @param[filename] The filename where to save the screenshot.
      */
     abstract fun screenshot(filename: String = "", overwrite: Boolean = false)
+
+    /**
+     * Records a movie with the default filename.
+     */
+    fun recordMovie() {
+        recordMovie("")
+    }
+
+    /**
+     * Starts recording a movie, and saves it as [filename].
+     *
+     * @param[filename] The filename where to save the screenshot.
+     */
+    abstract fun recordMovie(filename: String = "", overwrite: Boolean = false)
 
     /**
      * Reshapes the window to the given sizes.
@@ -158,6 +177,35 @@ abstract class Renderer : Hubable {
         return settings
     }
 
+    @Volatile var imageRequests = ConcurrentLinkedQueue<RenderedImage>()
+
+    fun requestScreenshot(): RenderedImage  = runBlocking {
+        val reactivatePushMode = if(pushMode) {
+            pushMode = false
+            true
+        } else {
+            false
+        }
+
+        val screenshot = GlobalScope.async {
+            val s = RenderedImage.RenderedRGBAImage(0, 0, null)
+            imageRequests.offer(s)
+
+            while(s.data == null) {
+                delay(10)
+            }
+
+            s
+        }
+
+        val result = screenshot.await()
+        if(reactivatePushMode) {
+            pushMode = true
+        }
+
+        result
+    }
+
     /**
      * Factory methods for creating renderers.
      */
@@ -176,7 +224,7 @@ abstract class Renderer : Hubable {
          * @param[scene] The initial [Scene] the renderer should display.
          * @param[windowWidth] Window width for the renderer window.
          * @param[windowHeight] Window height for the renderer window.
-         * @param[embedIn] A [SceneryWindow] to embed the renderer in, can e.g. be a JavaFX window.
+         * @param[embedIn] A [SceneryWindow] to embed the renderer in, can e.g. be a Swing or GLFW window.
          * @param[embedInDrawable] A [GLAutoDrawable] to embed the renderer in. [embedIn] and [embedInDrawable] are mutually exclusive.
          * @param[renderConfigFile] A YAML file with the render path configuration from which a [RenderConfigReader.RenderConfig] will be created.
          *
@@ -205,6 +253,13 @@ abstract class Renderer : Hubable {
                         VulkanRenderer(hub, applicationName, scene, windowWidth, windowHeight, embedIn, config)
                     } catch (e: Exception) {
                         logger.warn("Vulkan unavailable (${e.cause}, ${e.message}), falling back to OpenGL.")
+                        logger.debug("Full exception: $e")
+                        if(logger.isDebugEnabled) {
+                            e.printStackTrace()
+                        }
+                        OpenGLRenderer(hub, applicationName, scene, windowWidth, windowHeight, config, embedIn, embedInDrawable)
+                    } catch (e: Error) {
+                        logger.warn("Vulkan unavailable (${e.cause}, ${e.message}), Vulkan runtime not installed. Falling back to OpenGL.")
                         logger.debug("Full exception: $e")
                         if(logger.isDebugEnabled) {
                             e.printStackTrace()

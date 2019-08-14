@@ -13,6 +13,7 @@ import java.util.concurrent.ConcurrentHashMap
  */
 sealed class Shaders {
     val logger by LazyLogger()
+    var stale: Boolean = false
 
     /**
      * Enum to indicate whether a shader will target Vulkan or OpenGL.
@@ -67,7 +68,7 @@ sealed class Shaders {
                 return cached
             }
 
-            val baseClass = arrayOf(spirvPath, codePath).mapNotNull { safeFindBaseClass(arrayOf(clazz), it) }
+            val baseClass = arrayOf(spirvPath, codePath).mapNotNull { safeFindBaseClass(arrayOf(clazz, Renderer::class.java), it) }
 
             if (baseClass.isEmpty()) {
                 throw ShaderCompilationException("Shader files for $shaderCodePath ($spirvPath, $codePath) not found.")
@@ -115,7 +116,7 @@ sealed class Shaders {
         ShadersFromFiles(
             shaderTypes
                 .map { it.toExtension() }.toTypedArray()
-                .map { "${clazz.simpleName}$it" }.toTypedArray())
+                .map { "${clazz.simpleName}$it" }.toTypedArray(), clazz)
 
     /**
      * Abstract functions all shader providers will have to implement, for returning
@@ -245,7 +246,7 @@ sealed class Shaders {
 
     private fun compileFromSPIRVBytecode(shaderPackage: ShaderPackage, target: ShaderTarget): Pair<IntVec, String> {
         val bytecode = shaderPackage.getSPIRVBytecode() ?: throw IllegalStateException("SPIRV bytecode not found")
-        logger.debug("Using SPIRV version, ${bytecode.size()} opcodes")
+        logger.debug("Using SPIRV version, ${bytecode.size} opcodes")
         val compiler = CompilerGLSL(bytecode)
 
         val options = CompilerGLSL.Options()
@@ -261,7 +262,7 @@ sealed class Shaders {
                 options.vulkanSemantics = false
             }
         }
-        compiler.options = options
+        compiler.commonOptions = options
         val sourceCode = compiler.compile()
 
         return Pair(bytecode, sourceCode)
@@ -271,11 +272,11 @@ sealed class Shaders {
      * Converts an glslang-compatible IntVec to a [ByteBuffer].
      */
     protected fun IntVec.toByteBuffer(): ByteBuffer {
-        val buf = BufferUtils.allocateByte(this.size().toInt()*4)
+        val buf = BufferUtils.allocateByte(this.size*4)
         val ib = buf.asIntBuffer()
 
-        for (i in 0 until this.size()) {
-            ib.put(this[i.toInt()].toInt())
+        for (i in 0 until this.size) {
+            ib.put(this[i].toInt())
         }
 
         return buf

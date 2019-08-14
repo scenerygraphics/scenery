@@ -2,7 +2,7 @@
 
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/graphics.scenery/scenery/badge.svg)](https://maven-badges.herokuapp.com/maven-central/graphics.scenery/scenery) [![DOI](https://zenodo.org/badge/49890276.svg)](https://zenodo.org/badge/latestdoi/49890276) [![Join the chat at https://gitter.im/scenerygraphics/SciView](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/scenerygraphics/SciView?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge) // [![Travis Build Status](https://travis-ci.org/scenerygraphics/scenery.svg?branch=master)](https://travis-ci.org/scenerygraphics/scenery) [![Appveyor Build status](https://ci.appveyor.com/api/projects/status/vysiatrptqas4cfy/branch/master?svg=true)](https://ci.appveyor.com/project/skalarproduktraum/scenery/branch/master) [![Codacy Badge](https://api.codacy.com/project/badge/Grade/3940e961b2fc41b5a6d17e2b4fff333b)](https://www.codacy.com/app/skalarproduktraum/scenery)  
 
-# scenery  // flexible scenegraphing and rendering for scientific visualisation
+# scenery  // Flexible VR Visualisation for Volumetric and Geometric Data on the Java VM
 
 ![Blood Cells Example](https://ulrik.is/scenery-bloodcells.gif)
 
@@ -23,23 +23,33 @@ Some of the examples need additional meshes, which are not part of the repositor
 
 * Scala - [@Sciss](https://github.com/Sciss) has translated the Kotlin and Java examples to Scala, [https://github.com/Sciss/SceneryScalaExamples](https://github.com/Sciss/SceneryScalaExamples)
 
+## Citation
+
+In case you use scenery in a scientific publication, please cite this paper:
+
+* Ulrik Günther, Tobias Pietzsch, Aryaman Gupta, Kyle I.S. Harrington, Pavel Tomancak, Stefan Gumhold, and Ivo F. Sbalzarini: scenery — Flexible Virtual Reality Visualisation on the Java VM. _IEEE VIS 2019 (accepted, [arXiv:1906.06726](https://arxiv.org/abs/1906.06726))_.
+
+If you want to refer to a specific scenery version, e.g. for reproducibility, also can additionally cite the [DOI of the scenery version you used](https://zenodo.org/record/3228395).
+
 ## Default Key bindings
 
 Most of the demos use the following key bindings:
 
 ### Movement
+
 | Key | Action |
 | --- | --- |
 | Mouse drag | Look-around |
 | `W, A, S, D` | Move forward, left, back, right |
 | `Shift` - `W, A, S, D` | Move forward, left, back, right fast |
-| `Space` | Move upwards |
-| `Shift` - `Space` | Move downwards |
-| `C` | Switch between FPS and Arcball camera control modes (only used in `SponzaExample`) |
+| `K`, `Shift`+`K` | Move upwards, move upwards fast |
+| `J`, `Shift`+`J` | Move downwards, move downwards fast |
+| `C` | Switch between FPS and Arcball camera control modes (only used in some examples) |
 
 If a gamepad is connected (such as a PlayStation 3 or 4 controller), the hats can be used for movement and look-around.
 
 ### Rendering
+
 | Key | Action |
 | --- | --- |
 | `F` | Toggle fullscreen |
@@ -51,6 +61,7 @@ If a gamepad is connected (such as a PlayStation 3 or 4 controller), the hats ca
 All keybindings are also listed in the [InputHandler class](./src/main/kotlin/graphics/scenery/controls/InputHandler.kt#L198).
 
 ## Selecting a renderer
+
 On Windows and Linux, scenery defaults to using the high-performance Vulkan renderer, while on macOS, it'll default to the OpenGL renderer.
 
 If you would like to override this, set the system property `scenery.Renderer` to either `VulkanRenderer` or `OpenGLRenderer`. 
@@ -77,7 +88,9 @@ If you want to compile the provided shader files offline on your own, please mak
 
 ### Maven artifacts
 
-Artifacts are currently published to the Sonatype OSS repository, and synchronised with Maven Central. For all commits on master, a new SNAPSHOT build is automatically created.
+Release artifacts are currently published to the Sonatype OSS repository, and synchronised with Maven Central. 
+
+The recommended way to use non-release (unstable) builds is to use jitpack. jitpack provides better build reproducibility than using SNAPSHOT builds, as they may change at any point in time or might become unavailable. With jitpack, you can use any commit from the repository as package version.
 
 ### Using _scenery_ in a Maven project
 
@@ -88,16 +101,40 @@ Add scenery and ClearGL to your project's `pom.xml`:
   <dependency>
     <groupId>graphics.scenery</groupId>
     <artifactId>scenery</artifactId>
-    <version>0.7.0-beta-3</version>
+    <version>0.7.0-beta-5</version>
   </dependency>
 
   <dependency>
     <groupId>net.clearvolume</groupId>
     <artifactId>cleargl</artifactId>
-    <version>2.2.5</version>
+    <version>2.2.6</version>
   </dependency>
 </dependencies>
 ```
+
+#### Non-release builds / jitpack
+
+To use jitpack, add jitpack.io to your repositories in `pom.xml`:
+
+```xml
+<repositories>
+  <repository>
+      <id>jitpack</id>
+      <url>https://jitpack.io</url>
+  </repository>
+</repositories>
+```
+
+You can then use any commit from the repository as scenery version, e.g.:
+
+```xml
+<dependency>
+  <groupId>graphics.scenery</groupId>
+  <artifactId>scenery</artifactId>
+  <version>b9e43697b0</version>
+</dependency>
+```
+
 
 ### Using _scenery_ in a Gradle project
 
@@ -105,8 +142,29 @@ Add scenery and ClearGL to your project's `build.gradle`:
 
 ```groovy
 compile group: 'graphics.scenery', name: 'scenery', version:
-'0.7.0-beta-3'
-compile group: 'net.clearvolume', name: 'cleargl', version: '2.2.5'
+'0.7.0-beta-5'
+compile group: 'net.clearvolume', name: 'cleargl', version: '2.2.6'
+```
+
+#### Non-release builds / jitpack
+
+To use jitpack, add jitpack.io to your repositories in `build.gradle`:
+
+```groovy
+allprojects {
+		repositories {
+			...
+			maven { url 'https://jitpack.io' }
+		}
+	}
+```
+
+You can then use any commit from the repository as scenery version, e.g.:
+
+```groovy
+dependencies {
+  implementation 'com.github.scenerygraphics:scenery:b9e43697b0'
+}
 ```
 
 ### Logging

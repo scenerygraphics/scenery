@@ -24,9 +24,8 @@ class SwingTexturedCubeExample : SceneryBase("SwingTexturedCubeExample", windowW
         mainFrame.add(sceneryPanel, BorderLayout.CENTER)
         mainFrame.isVisible = true
 
-        renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight, embedIn = sceneryPanel)
+        renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight, embedIn = sceneryPanel))
         renderer?.pushMode = true
-        hub.add(SceneryElement.Renderer, renderer!!)
 
         val boxmaterial = Material()
         with(boxmaterial) {
@@ -46,7 +45,7 @@ class SwingTexturedCubeExample : SceneryBase("SwingTexturedCubeExample", windowW
 
         val light = PointLight(radius = 15.0f)
         light.position = GLVector(0.0f, 0.0f, 2.0f)
-        light.intensity = 100.0f
+        light.intensity = 5.0f
         light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
         scene.addChild(light)
 

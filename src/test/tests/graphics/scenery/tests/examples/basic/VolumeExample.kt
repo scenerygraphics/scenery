@@ -4,6 +4,7 @@ import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.TrackedStereoGlasses
+import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
 import org.junit.Test
 import java.io.File
@@ -19,8 +20,7 @@ class VolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
     var hmd: TrackedStereoGlasses? = null
 
     override fun init() {
-        renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
-        hub.add(SceneryElement.Renderer, renderer!!)
+        renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
         val cam: Camera = DetachedHeadCamera(hmd)
         with(cam) {
@@ -48,7 +48,8 @@ class VolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
         volume.colormap = "jet"
         volume.position = GLVector(0.0f, 0.0f, -3.5f)
         volume.rotation = volume.rotation.rotateByEuler(0.05f, 0.05f, 0.05f)
-        volume.scale = GLVector(2.0f, 2.0f, 2.0f)
+        volume.scale = GLVector(20.0f, 20.0f, 20.0f)
+        volume.transferFunction = TransferFunction.ramp(0.1f, 0.5f)
         scene.addChild(volume)
 
         val lights = (0 until 3).map {
@@ -58,7 +59,7 @@ class VolumeExample: SceneryBase("Volume Rendering example", 1280, 720) {
         lights.mapIndexed { i, light ->
             light.position = GLVector(2.0f * i - 4.0f,  i - 1.0f, 0.0f)
             light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
-            light.intensity = 150.0f
+            light.intensity = 0.5f
             scene.addChild(light)
         }
 

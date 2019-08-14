@@ -1,17 +1,14 @@
 package graphics.scenery.tests.examples.advanced
 
 import cleargl.GLVector
-import com.sun.javafx.application.PlatformImpl
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.TrackedStereoGlasses
 import graphics.scenery.numerics.Random
-import javafx.application.Platform
-import javafx.stage.FileChooser
-import javafx.stage.Stage
 import org.junit.Test
-import java.util.concurrent.CountDownLatch
-
+import org.scijava.Context
+import org.scijava.ui.UIService
+import org.scijava.widget.FileWidget
 
 
 /**
@@ -24,25 +21,16 @@ class LocalisationExample : SceneryBase("Localisation Microscopy Rendering examp
     var hmd: TrackedStereoGlasses? = null
 
     override fun init() {
-        val latch = CountDownLatch(1)
         val files = ArrayList<String>()
-        PlatformImpl.startup {  }
 
-        Platform.runLater {
-            val chooser = FileChooser()
-            chooser.title = "Open File"
-            chooser.extensionFilters.addAll(FileChooser.ExtensionFilter("CSV/TSV files", "*.txt", "*.csv", "*.tsv", "*.xls"))
-            val file = chooser.showOpenMultipleDialog(Stage())
+        val c = Context()
+        val ui = c.getService(UIService::class.java)
+        val file = ui.chooseFiles(null, emptyList(),
+            { it.isFile && (it.name.endsWith(".csv") || it.name.endsWith(".tsv") || it.name.endsWith(".xls")) },
+            FileWidget.OPEN_STYLE)
+        file.forEach { files.add(it.absolutePath) }
 
-            if(file != null) {
-                files.addAll(file.map { it.absolutePath })
-            }
-            latch.countDown()
-        }
-
-        latch.await()
-        renderer = Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight)
-        hub.add(SceneryElement.Renderer, renderer!!)
+        renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
 
         val cam: Camera = DetachedHeadCamera(hmd)
         with(cam) {
