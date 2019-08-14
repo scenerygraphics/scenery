@@ -519,7 +519,8 @@ open class VulkanRenderer(hub: Hub,
                 OpenGLSwapchain(
                     device, queue, commandPools,
                     renderConfig = renderConfig, useSRGB = renderConfig.sRGB,
-                    useFramelock = System.getProperty("scenery.Renderer.Framelock", "false")?.toBoolean() ?: false)
+                    useFramelock = System.getProperty("scenery.Renderer.Framelock", "false")?.toBoolean() ?: false,
+                    undecorated = settings.get("Renderer.ForceUndecoratedWindow"))
             }
 
             (System.getProperty("scenery.Headless", "false")?.toBoolean() ?: false) -> {

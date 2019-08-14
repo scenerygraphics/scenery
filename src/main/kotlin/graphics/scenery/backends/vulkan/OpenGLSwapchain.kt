@@ -44,7 +44,8 @@ class OpenGLSwapchain(val device: VulkanDevice,
                       val renderConfig: RenderConfigReader.RenderConfig,
                       val useSRGB: Boolean = true,
                       val useFramelock: Boolean = false,
-                      val bufferCount: Int = 2) : Swapchain {
+                      val bufferCount: Int = 2,
+                      val undecorated: Boolean = false) : Swapchain {
     private val logger by LazyLogger()
 
     /** Swapchain handle. */
@@ -87,6 +88,10 @@ class OpenGLSwapchain(val device: VulkanDevice,
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5)
         glfwWindowHint(GLFW_SRGB_CAPABLE, if(useSRGB) { GLFW_TRUE } else { GLFW_FALSE })
         glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE)
+
+        if(undecorated) {
+            glfwWindowHint(GLFW_DECORATED, GLFW_FALSE)
+        }
 
         glfwWindowHint(GLFW_STEREO, if (renderConfig.stereoEnabled) {
             GLFW_TRUE
@@ -159,7 +164,7 @@ class OpenGLSwapchain(val device: VulkanDevice,
         }
 
         val windowWidth = if(renderConfig.stereoEnabled && window.width < 10000) {
-            window.width * 2
+            window.width
         } else {
             window.width
         }
