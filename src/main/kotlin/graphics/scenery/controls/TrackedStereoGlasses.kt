@@ -23,7 +23,7 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
 
     var vrpnTracker = VRPNTrackerInput(address)
     var currentOrientation = GLMatrix()
-    var ipd = -0.065f
+    var ipd = -0.055f
 
     var config: ScreenConfig.Config = ScreenConfig.loadFromFile(screenConfig)
     var screen: ScreenConfig.SingleScreenConfig? = null
@@ -59,7 +59,8 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
             val position = getPosition() + GLVector(eyeShift, 0.0f, 0.0f)
             val position4 = GLVector(position.x(), position.y(), position.z(), 1.0f)
 
-            val result = screen.getTransform().mult(position4)
+            val screenTransform = screen.getTransform()
+            val result = screenTransform.mult(position4)
 
             val left = -result.x()
             val right = screen.width - result.x()
@@ -73,7 +74,7 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
 
             val scaledNear = nearPlane / maxOf(near, 0.001f)
 
-            //logger.info(eye.toString() + ", " + screen.width + "/" + screen.height + " => " + near + " -> " + left + "/" + right + "/" + bottom + "/" + top + ", s=" + scaledNear)
+            //logger.info(eye.toString() + ", " + screen.width + "/" + screen.height + " => nearPlane=$nearPlane scaledNearPlane=" + near*scaledNear + " -> " + left + "/" + right + "/" + bottom + "/" + top + ", s=" + scaledNear)
 
             val projection = GLMatrix().setFrustumMatrix(left * scaledNear, right * scaledNear, bottom * scaledNear, top * scaledNear, near * scaledNear, farPlane)
             projection.mult(rotation)
