@@ -144,6 +144,10 @@ open class Volume : Mesh("Volume") {
 
     /** The transfer function to use for the volume. Flat by default. */
     var transferFunction: TransferFunction = TransferFunction.flat(1.0f)
+        set(value) {
+            field = value
+            field.stale = true
+        }
 
     /**
      * Regenerates the [boundingBox] in case any relevant properties have changed.

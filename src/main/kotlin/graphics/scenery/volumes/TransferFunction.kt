@@ -33,7 +33,7 @@ open class TransferFunction(val name: String = "") {
 
     /** Indicator whether the auxiliary texture needs to be reuploaded. */
     var stale = true
-        protected set
+        internal set
 
     /**
      * Adds a new control point for position [value], with [factor].
