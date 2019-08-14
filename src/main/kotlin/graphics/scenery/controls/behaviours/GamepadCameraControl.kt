@@ -3,6 +3,7 @@ package graphics.scenery.controls.behaviours
 import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.Camera
+import graphics.scenery.Node
 import graphics.scenery.utils.LazyLogger
 import net.java.games.input.Component
 import java.util.function.Supplier
@@ -15,28 +16,26 @@ import kotlin.reflect.KProperty
  * @property[name] Name of the behaviour
  * @property[axis] List of axis that are assigned to this behaviour
  * @property[node] The camera to control
- * @property[w] The window width
- * @property[h] The window height
  */
 open class GamepadCameraControl(private val name: String,
                            override val axis: List<Component.Identifier.Axis>,
-                           private val n: () -> Camera?, private val w: Int, private val h: Int) : GamepadBehaviour {
+                           private val n: () -> Node?) : GamepadBehaviour {
     private var lastX: Float = 0.0f
     private var lastY: Float = 0.0f
     private var firstEntered = true
     private val logger by LazyLogger()
 
     /** The [graphics.scenery.Node] this behaviour class controls */
-    protected var node: Camera? by CameraDelegate()
+    protected var node: Node? by NodeDelegate()
 
-    protected inner class CameraDelegate {
+    protected inner class NodeDelegate {
         /** Returns the [graphics.scenery.Node] resulting from the evaluation of [n] */
-        operator fun getValue(thisRef: Any?, property: KProperty<*>): Camera? {
+        operator fun getValue(thisRef: Any?, property: KProperty<*>): Node? {
             return n.invoke()
         }
 
         /** Setting the value is not supported */
-        operator fun setValue(thisRef: Any?, property: KProperty<*>, value: Camera?) {
+        operator fun setValue(thisRef: Any?, property: KProperty<*>, value: Node?) {
             throw UnsupportedOperationException()
         }
     }
@@ -52,8 +51,8 @@ open class GamepadCameraControl(private val name: String,
     /**
      * Gamepad camera control, supplying a Camera via a Java [Supplier] lambda.
      */
-    @Suppress("unused")
-    constructor(name: String, axis: List<Component.Identifier.Axis>, n: Supplier<Camera?>, w: Int, h: Int) : this(name, axis, { n.get() }, w, h)
+//    @Suppress("unused")
+//    constructor(name: String, axis: List<Component.Identifier.Axis>, n: Supplier<Node?>, w: Int, h: Int) : this(name, axis, { n.get() }, w, h)
 
     /**
      * This function is trigger upon arrival of an axis event that
@@ -66,10 +65,11 @@ open class GamepadCameraControl(private val name: String,
      */
     @Synchronized
     override fun axisEvent(axis: Component.Identifier, value: Float) {
+        logger.info("Rotation AxisEvent! v=$value")
         if(Math.abs(value) < threshold) {
             return
         }
-        
+
         val x: Float
         val y: Float
 
@@ -106,6 +106,7 @@ open class GamepadCameraControl(private val name: String,
             pitch = -89.0f
         }
 
+        logger.info("yaw=$yaw, pitch=$pitch")
 //        val forward = GLVector(
 //                Math.cos(Math.toRadians(yaw.toDouble())).toFloat() * Math.cos(Math.toRadians(pitch.toDouble())).toFloat(),
 //                Math.sin(Math.toRadians(pitch.toDouble())).toFloat(),
