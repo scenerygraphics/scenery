@@ -47,6 +47,7 @@ class DemoReelExample: SceneryBase("Demo Reel") {
 
         renderer = Renderer.createRenderer(hub, applicationName, scene, 2560, 1600)
         hub.add(SceneryElement.Renderer, renderer!!)
+        settings.set("Renderer.HDR.Exposure", 5.0f)
 
         cam = DetachedHeadCamera(hmd)
         with(cam) {
@@ -66,7 +67,7 @@ class DemoReelExample: SceneryBase("Demo Reel") {
         shell.material.diffuse = GLVector(0.0f, 0.0f, 0.0f)
         shell.material.specular = GLVector.getNullVector(3)
         shell.material.ambient = GLVector.getNullVector(3)
-        scene.addChild(shell)
+        //scene.addChild(shell)
 
         // lighting setup
 
@@ -97,10 +98,11 @@ class DemoReelExample: SceneryBase("Demo Reel") {
         volumes.put(retinaScene.name, getVolumes("$driveLetter:/ssd-backup-inauguration/CAVE_DATA/retina_test2/"))
 
         val histoneVolume = Volume()
-        histoneVolume.transferFunction = TransferFunction.ramp(0.1f, 1.0f)
+        histoneVolume.transferFunction = TransferFunction.ramp(0.3f, 0.8f)
+        histoneVolume.trangemax = 3000.0f
         histoneVolume.renderingMethod = 2
         histoneVolume.deallocationThreshold = 50000
-        histoneVolume.colormap = "hot"
+        histoneVolume.colormap = "viridis"
         histoneScene.addChild(histoneVolume)
         histoneScene.visible = false
         scene.addChild(histoneScene)
@@ -108,7 +110,10 @@ class DemoReelExample: SceneryBase("Demo Reel") {
         val drosophilaVolume = Volume()
         drosophilaVolume.rotation.rotateByAngleX(1.57f)
         drosophilaVolume.renderingMethod = 2
-        drosophilaVolume.transferFunction = TransferFunction.ramp(0.1f, 1.0f)
+        drosophilaVolume.transferFunction = TransferFunction.ramp(0.15f, 1.0f)
+        drosophilaVolume.trangemin = 5.0f
+        drosophilaVolume.trangemax = 500.0f
+        drosophilaVolume.stepSize = 0.005f
         drosophilaVolume.deallocationThreshold = 50000
         drosophilaVolume.colormap = "hot"
         drosophilaScene.addChild(drosophilaVolume)
@@ -121,6 +126,7 @@ class DemoReelExample: SceneryBase("Demo Reel") {
         scene.addChild(retinaScene)
 
         val bile = Mesh()
+        bile.position = GLVector(0.0f, 0.0f, -10.0f)
         val canaliculi = Mesh()
         canaliculi.readFrom("$driveLetter:/ssd-backup-inauguration/meshes/bile-canaliculi.obj")
         canaliculi.scale = GLVector(0.1f, 0.1f, 0.1f)
@@ -170,6 +176,9 @@ class DemoReelExample: SceneryBase("Demo Reel") {
 
         val min_delay = 200
 
+        scene.metadata["DrosophilaSpeed"] = 40
+        scene.metadata["HistoneSpeed"] = 30
+
         logger.info("Publisher is: $publisher")
         if(publisher != null) {
             thread {
@@ -194,14 +203,13 @@ class DemoReelExample: SceneryBase("Demo Reel") {
                                 val time_to_read  = System.currentTimeMillis()-start
 
                                 if(it.name == "drosophila") {
-                                    sleepDuration = Math.max(40,min_delay-time_to_read)
+                                    sleepDuration = Math.max((scene.metadata["DrosophilaSpeed"] as? Int ?: 40).toLong(), min_delay-time_to_read)
 
                                     with(v) {
-                                        trangemin = 0.00f
-                                        trangemax = 1024.0f
-                                        alphaBlending = 0.5f
+                                        //trangemin = 0.00f
+                                        //trangemax = 1024.0f
+                                        //alphaBlending = 0.5f
                                         scale = GLVector(1.0f, 1.0f, 1.0f)
-                                        stepSize = 0.05f
                                         voxelSizeX = 1.0f
                                         voxelSizeY = 5.0f
                                         voxelSizeZ = 1.0f
@@ -209,13 +217,12 @@ class DemoReelExample: SceneryBase("Demo Reel") {
                                 }
 
                                 if(it.name == "histone") {
-                                    sleepDuration = Math.max(30,min_delay-time_to_read)
+                                    sleepDuration = Math.max((scene.metadata["HistoneSpeed"] as? Int ?: 30).toLong(),min_delay-time_to_read)
 
                                     with(v) {
-                                        trangemin = 0.0f
-                                        trangemax = 255.0f
-                                        alphaBlending = 0.2f
-                                        stepSize = 0.05f
+                                        //trangemin = 0.0f
+                                        //trangemax = 255.0f
+                                        //alphaBlending = 0.2f
                                         scale = GLVector(1.0f, 1.0f, 1.0f)
                                         voxelSizeX = 1.0f
                                         voxelSizeY = 1.0f
@@ -305,11 +312,13 @@ class DemoReelExample: SceneryBase("Demo Reel") {
     override fun inputSetup() {
         setupCameraModeSwitching(keybinding = "C")
         val inputHandler = (hub.get(SceneryElement.Input) as? InputHandler) ?: return
+        var activeScene = bileScene
 
         goto_scene_bile = ClickBehaviour { _, _ ->
             bileScene.showAll()
             histoneScene.hideAll()
             drosophilaScene.hideAll()
+            activeScene = bileScene
 
             scene.findObserver()?.position = GLVector(0.0f, 0.0f, 3.0f)
         }
@@ -318,11 +327,13 @@ class DemoReelExample: SceneryBase("Demo Reel") {
             bileScene.hideAll()
             histoneScene.showAll()
             drosophilaScene.hideAll()
+            activeScene = histoneScene
 
             with(histoneScene.children[0] as Volume) {
                 trangemin = 0.5f
                 trangemax = 2500.0f
                 alphaBlending = 0.2f
+                stepSize = 0.005f
                 scale = GLVector(1.0f, 1.0f, 1.0f)
                 voxelSizeX = 1.0f
                 voxelSizeY = 1.0f
@@ -337,11 +348,12 @@ class DemoReelExample: SceneryBase("Demo Reel") {
             bileScene.hideAll()
             histoneScene.hideAll()
             drosophilaScene.showAll()
+            activeScene = drosophilaScene
 
             with(drosophilaScene.children[0] as Volume) {
                 trangemin = 5.0f
-                trangemax = 800.0f
-                alphaBlending = 0.05f
+                trangemax = 500.0f
+                alphaBlending = 0.005f
                 scale = GLVector(1.0f, 1.0f, 1.0f)
                 voxelSizeX = 1.0f
                 voxelSizeY = 5.0f
@@ -357,6 +369,7 @@ class DemoReelExample: SceneryBase("Demo Reel") {
             histoneScene.hideAll()
             drosophilaScene.hideAll()
             retinaScene.showAll()
+            activeScene = retinaScene
 
             with(retinaScene.children[0] as Volume) {
                 trangemin = 0.00f
@@ -372,16 +385,64 @@ class DemoReelExample: SceneryBase("Demo Reel") {
             scene.findObserver()?.position = GLVector(0.0f,-1.1f, 2.0f)
         }
 
+        val rotateLeft = ClickBehaviour { _, _ ->
+            activeScene.rotation = activeScene.rotation.rotateByAngleY(0.05f)
+        }
+
+        val rotateRight = ClickBehaviour { _, _ ->
+            activeScene.rotation = activeScene.rotation.rotateByAngleY(-0.05f)
+        }
+
+        val rotateUp = ClickBehaviour { _, _ ->
+            activeScene.rotation = activeScene.rotation.rotateByAngleX(-0.05f)
+        }
+
+        val rotateDown = ClickBehaviour { _, _ ->
+            activeScene.rotation = activeScene.rotation.rotateByAngleX(0.05f)
+        }
+
+        val faster = ClickBehaviour { _, _ ->
+            if(activeScene == drosophilaScene) {
+                scene.metadata["DrosophilaSpeed"] = Math.max(scene.metadata["DrosophilaSpeed"] as Int/2, 10)
+            }
+
+            if(activeScene == histoneScene) {
+                scene.metadata["HistoneSpeed"] = Math.max(scene.metadata["HistoneSpeed"] as Int/2, 10)
+            }
+        }
+
+        val slower = ClickBehaviour { _, _ ->
+            if(activeScene == drosophilaScene) {
+                scene.metadata["DrosophilaSpeed"] = Math.min(scene.metadata["DrosophilaSpeed"] as Int*2, 500000)
+            }
+
+            if(activeScene == histoneScene) {
+                scene.metadata["HistoneSpeed"] = Math.min(scene.metadata["HistoneSpeed"] as Int*2, 500000)
+            }
+        }
+
         inputHandler.addBehaviour("goto_scene_bile", goto_scene_bile)
         inputHandler.addBehaviour("goto_scene_histone", goto_scene_histone)
         inputHandler.addBehaviour("goto_scene_drosophila", goto_scene_drosophila)
         inputHandler.addBehaviour("goto_scene_retina", goto_scene_retina)
+        inputHandler.addBehaviour("rotate_left", rotateLeft)
+        inputHandler.addBehaviour("rotate_right", rotateRight)
+        inputHandler.addBehaviour("rotate_up", rotateUp)
+        inputHandler.addBehaviour("rotate_down", rotateDown)
+        inputHandler.addBehaviour("faster", faster)
+        inputHandler.addBehaviour("slower", slower)
 
 
         inputHandler.addKeyBinding("goto_scene_bile", "shift 1")
         inputHandler.addKeyBinding("goto_scene_histone", "shift 2")
         inputHandler.addKeyBinding("goto_scene_drosophila", "shift 3")
         inputHandler.addKeyBinding("goto_scene_retina", "shift 4")
+        inputHandler.addKeyBinding("rotate_left", "J")
+        inputHandler.addKeyBinding("rotate_right", "L")
+        inputHandler.addKeyBinding("rotate_up", "I")
+        inputHandler.addKeyBinding("rotate_down", "K")
+        inputHandler.addKeyBinding("faster", "O")
+        inputHandler.addKeyBinding("slower", "U")
     }
 
     @Test override fun main() {
