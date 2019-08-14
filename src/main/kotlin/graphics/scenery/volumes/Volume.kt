@@ -529,7 +529,7 @@ open class Volume : Mesh("Volume") {
                 NativeTypeEnum.UnsignedShort, 2, data = imageData
             )
 
-            if(autorange) {
+            /*if(autorange) {
                 thread {
                     val histogram = Histogram<Int>(65536)
                     val buf = imageData.asShortBuffer()
@@ -542,7 +542,7 @@ open class Volume : Mesh("Volume") {
                     this.trangemin = histogram.min().toFloat()
                     this.trangemax = histogram.max().toFloat()
                 }
-            }
+            }*/
 
             if(cache) {
                 volumes.put(id, descriptor)
@@ -630,8 +630,8 @@ open class Volume : Mesh("Volume") {
         dataRangeMin = min
         dataRangeMax = max
 
-        trangemin = min.toFloat()
-        trangemax = max.toFloat()
+        //trangemin = min.toFloat()
+        //trangemax = max.toFloat()
 
         val dim = GLVector(dimensions[0].toFloat(), dimensions[1].toFloat(), dimensions[2].toFloat())
         val gtv = GenericTexture("VolumeTextures", dim,
