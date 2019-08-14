@@ -108,6 +108,11 @@ class NodeSubscriber(override var hub: Hub?, val address: String = "udp://localh
                                 node.sizeX = o.sizeX
                                 node.sizeY = o.sizeY
                                 node.sizeZ = o.sizeZ
+
+                                node.transferFunction = o.transferFunction
+                                node.renderingMethod = o.renderingMethod
+                                node.colormap = o.colormap
+                                node.colormaps = o.colormaps
                             }
                         }
 
@@ -116,12 +121,21 @@ class NodeSubscriber(override var hub: Hub?, val address: String = "udp://localh
                             node.lightRadius = o.lightRadius
                         }
 
+                        if(o is BoundingGrid && node is BoundingGrid) {
+                            node.gridColor = o.gridColor
+                            node.lineWidth = o.lineWidth
+                            node.numLines = o.numLines
+                            node.ticksOnly = o.ticksOnly
+                        }
+
                         input.close()
                         bin.close()
                     }
                 }
             } catch(e: StreamCorruptedException) {
                 logger.warn("Corrupted stream")
+            } catch(e: NullPointerException) {
+                logger.warn("NPE while receiving payload: ${e.toString()}")
             }
 
             hub?.get<Statistics>(SceneryElement.Statistics)?.add("Deserialise", duration.toFloat())
