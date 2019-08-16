@@ -34,7 +34,7 @@ class GamepadCameraControlTests {
 
         val window: SceneryWindow = renderer.window
 
-        val gamepadCameraControl = GamepadCameraControl("TestController", listOf(Component.Identifier.Axis.X, Component.Identifier.Axis.Y), { scene.findObserver() }, window.width, window.height)
+        val gamepadCameraControl = GamepadCameraControl("TestController", listOf(Component.Identifier.Axis.X, Component.Identifier.Axis.Y), { scene.findObserver() })
         return gamepadCameraControl
     }
 
