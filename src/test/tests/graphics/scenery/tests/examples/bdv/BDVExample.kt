@@ -6,13 +6,14 @@ import graphics.scenery.DetachedHeadCamera
 import graphics.scenery.PointLight
 import graphics.scenery.SceneryBase
 import graphics.scenery.backends.Renderer
-import graphics.scenery.volumes.bdv.BDVVolume
+import graphics.scenery.volumes.bdv.BDVNode
 import org.junit.Test
 import org.scijava.Context
 import org.scijava.ui.UIService
 import org.scijava.ui.behaviour.ClickBehaviour
 import org.scijava.widget.FileWidget
 import tpietzsch.example2.VolumeViewerOptions
+import java.io.FileFilter
 import java.util.*
 import kotlin.math.max
 
@@ -22,7 +23,7 @@ import kotlin.math.max
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
-    var volume: BDVVolume? = null
+    var volume: BDVNode? = null
     var currentCacheSize = 1024
 
     override fun init() {
@@ -58,9 +59,9 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
         }
 
         val options = VolumeViewerOptions().maxCacheSizeInMB(1024)
-        val v = BDVVolume(files.first(), options)
+        val v = BDVNode(files.first(), options, hub)
         v.name = "volume"
-        v.colormap = "plasma"
+//        v.colormap = "plasma"
         v.scale = GLVector(0.02f, 0.02f, 0.02f)
         scene.addChild(v)
 
@@ -91,16 +92,6 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
             val current = volume?.currentTimepoint ?: 0
             volume?.goToTimePoint(current - 10)
         }
-        val moreCache = ClickBehaviour { _, _ ->
-            currentCacheSize *= 2
-            logger.info("Enlarging cache size to $currentCacheSize MB")
-            volume?.resizeCache(currentCacheSize)
-        }
-        val lessCache = ClickBehaviour { _, _ ->
-            currentCacheSize = max(currentCacheSize / 2, 256)
-            logger.info("Cutting cache size to $currentCacheSize MB")
-            volume?.resizeCache(max(currentCacheSize / 2, 256))
-        }
 
         inputHandler?.addBehaviour("prev_timepoint", prevTimePoint)
         inputHandler?.addKeyBinding("prev_timepoint", "H")
@@ -113,12 +104,6 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
 
         inputHandler?.addBehaviour("10_next_timepoint", tenTimePointsForward)
         inputHandler?.addKeyBinding("10_next_timepoint", "shift L")
-
-        inputHandler?.addBehaviour("more_cache", moreCache)
-        inputHandler?.addKeyBinding("more_cache", "9")
-
-        inputHandler?.addBehaviour("less_cache", lessCache)
-        inputHandler?.addKeyBinding("less_cache", "0")
     }
 
     @Test override fun main() {

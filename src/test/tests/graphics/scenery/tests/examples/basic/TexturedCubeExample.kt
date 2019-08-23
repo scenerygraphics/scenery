@@ -20,6 +20,8 @@ class TexturedCubeExample : SceneryBase("TexturedCubeExample") {
         with(box) {
             box.name = "le box du win"
             box.material.textures.put("diffuse", TexturedCubeExample::class.java.getResource("textures/helix.png").file)
+            box.material.metallic = 0.3f
+            box.material.roughness = 0.9f
             scene.addChild(this)
         }
 
