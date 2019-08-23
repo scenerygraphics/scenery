@@ -430,16 +430,16 @@
 
         <!-- TODO: Replace with official dependency after https://github.com/tpietzsch/jogl-minimal/pull/7
              is merged or otherwise addressed -->
-        <dependency>
-            <groupId>sc.fiji</groupId>
-            <artifactId>bigvolumeviewer</artifactId>
-            <version>0.1.6-SNAPSHOT</version>
-        </dependency>
 <!--        <dependency>-->
-<!--            <groupId>com.github.skalarproduktraum</groupId>-->
-<!--            <artifactId>jogl-minimal</artifactId>-->
-<!--            <version>1f8cbf9ca7</version>-->
+<!--            <groupId>sc.fiji</groupId>-->
+<!--            <artifactId>bigvolumeviewer</artifactId>-->
+<!--            <version>0.1.6-SNAPSHOT</version>-->
 <!--        </dependency>-->
+        <dependency>
+            <groupId>com.github.skalarproduktraum</groupId>
+            <artifactId>jogl-minimal</artifactId>
+            <version>9996ec3</version>
+        </dependency>
 
         <dependency>
             <groupId>org.lwjglx</groupId>
