@@ -4,6 +4,7 @@ import cleargl.GLMatrix
 import cleargl.GLTypeEnum
 import cleargl.GLVector
 import graphics.scenery.GenericTexture
+import graphics.scenery.Node
 import graphics.scenery.TextureExtents
 import graphics.scenery.TextureUpdate
 import graphics.scenery.backends.ShaderType
@@ -27,7 +28,7 @@ import java.util.concurrent.ConcurrentHashMap
  * @author Ulrik Günther <hello@ulrik.is>
  * @author Tobias Pietzsch <pietzsch@mpi-cbg.de>
  */
-open class SceneryContext(val node: Volume) : GpuContext {
+open class SceneryContext(val node: VolumeManager) : GpuContext {
     private val logger by LazyLogger()
 
     data class BindingState(var binding: Int, var uniformName: String?, var reallocate: Boolean = false)

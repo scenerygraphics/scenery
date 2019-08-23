@@ -831,6 +831,10 @@ open class Volume : Mesh("Volume") {
         } to delta
     }
 
+    fun getDescriptor(): VolumeDescriptor? {
+        return volumes[currentVolume]
+    }
+
     /**
      * Volume node companion object for static functions.
      */
