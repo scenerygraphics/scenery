@@ -77,7 +77,7 @@ open class BDVVolume(bdvXMLFile: String = "", val options: VolumeViewerOptions) 
     private val renderStacks = ArrayList<Stack3D<*>>()
     private val simpleRenderStacks = ArrayList<SimpleStack3D<VolatileUnsignedShortType>>()
 
-    private val stackManager = DefaultSimpleStackManager()
+    private val stackManager = SceneryStackManager()
 
     private val multiResolutionStacks = ArrayList(
         Arrays.asList<MultiResolutionStack3D<VolatileUnsignedShortType>>(null, null, null))
@@ -265,8 +265,13 @@ open class BDVVolume(bdvXMLFile: String = "", val options: VolumeViewerOptions) 
             VolumeShaderSignature.VolumeSignature(volumeType, dataType)
         }
 
-        val progvol = MultiVolumeShaderMip(VolumeShaderSignature(signatures), true, 1.0,
-            "SceneryMultiVolume.vert", "SceneryMultiVolume.frag", "maxdepthtexture_scenery.frag", "InputZBuffer")
+        val progvol = MultiVolumeShaderMip(VolumeShaderSignature(signatures),
+            true, 1.0,
+            this.javaClass,
+            "BDVVolume.vert",
+            "BDVVolume.frag",
+            "MaxDepth.frag",
+            "InputZBuffer")
 
         progvol.setTextureCache(textureCache)
         progvol.setDepthTextureName("InputZBuffer")
@@ -517,7 +522,7 @@ open class BDVVolume(bdvXMLFile: String = "", val options: VolumeViewerOptions) 
             if(volumes.size > 0) {
                 val vol = volumes.entries.first().value
                 if(vol.dataType == NativeTypeEnum.UnsignedShort) {
-                    val simpleStack = object : BufferedSimpleStack3D(vol.data,
+                    val simpleStack = object : BufferedSimpleStack3D<UnsignedShortType>(vol.data,
                         UnsignedShortType(),
                         intArrayOf(vol.width.toInt(), vol.height.toInt(), vol.depth.toInt())) {
 
