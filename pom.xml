@@ -446,6 +446,12 @@
             <artifactId>lwjgl3-awt</artifactId>
             <version>0.1.1</version>
         </dependency>
+
+        <dependency>
+            <groupId>org.openmpi</groupId>
+            <artifactId>openmpi</artifactId>
+            <version>4.0.0</version>
+        </dependency>
     </dependencies>
 
     <repositories>

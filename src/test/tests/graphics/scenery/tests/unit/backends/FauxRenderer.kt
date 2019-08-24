@@ -14,6 +14,10 @@ import graphics.scenery.utils.SceneryPanel
  * @author Ulrik Guenther <hello@ulrik.is>
  */
 class FauxRenderer(override var hub: Hub?, var scene: Scene, preparedWindow: SceneryWindow? = null) : Renderer() {
+    override fun activateParallelRendering() {
+        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    }
+
     /**
      * Initializes scene and contents
      */

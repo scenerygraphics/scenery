@@ -73,6 +73,11 @@ abstract class Renderer : Hubable {
     abstract fun screenshot(filename: String = "", overwrite: Boolean = false)
 
     /**
+     * Activates the image compositing procedures required for parallel rendering.
+     */
+    abstract fun activateParallelRendering()
+
+    /**
      * Records a movie with the default filename.
      */
     fun recordMovie() {

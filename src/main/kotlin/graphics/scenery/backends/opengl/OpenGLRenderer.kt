@@ -6,6 +6,7 @@ import com.jogamp.newt.event.WindowAdapter
 import com.jogamp.newt.event.WindowEvent
 import com.jogamp.opengl.*
 import com.jogamp.opengl.util.FPSAnimator
+import com.jogamp.opengl.util.GLReadBufferUtil
 import com.jogamp.opengl.util.awt.AWTGLReadBufferUtil
 import graphics.scenery.*
 import graphics.scenery.backends.*
@@ -20,10 +21,6 @@ import kotlinx.coroutines.runBlocking
 import org.lwjgl.system.MemoryUtil
 import java.awt.BorderLayout
 import java.awt.Dimension
-import java.awt.image.DataBufferByte
-import java.io.File
-import java.io.FileNotFoundException
-import java.io.FileOutputStream
 import java.lang.reflect.Field
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -42,6 +39,11 @@ import kotlin.math.max
 import kotlin.math.roundToInt
 import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.memberProperties
+import mpi.MPI
+import java.awt.Point
+import java.awt.image.*
+import java.awt.image.RenderedImage
+import java.io.*
 
 /**
  * Deferred Lighting Renderer for scenery
@@ -112,6 +114,7 @@ open class OpenGLRenderer(hub: Hub,
     private var encoder: H264Encoder? = null
     private var recordMovie = false
     private var movieFilename = ""
+    private var parallelRenderingMode = false
 
     /**
      * Activate or deactivate push-based rendering mode (render only on scene changes
@@ -157,6 +160,8 @@ open class OpenGLRenderer(hub: Hub,
 
     private var renderpasses = LinkedHashMap<String, OpenGLRenderpass>()
     private var flow: List<String>
+
+    private var firstCall = true
 
     /**
      * Extension function of Boolean to use Booleans in GLSL
@@ -2067,6 +2072,67 @@ open class OpenGLRenderer(hub: Hub,
             screenshotRequested = false
         }
 
+        if (parallelRenderingMode && joglDrawable != null) {
+            if(MPI.COMM_WORLD.rank != 0) {
+                if(firstCall) {
+                    //firstCall = false
+                    val readBufferUtil = GLReadBufferUtil(false, false)
+                    readBufferUtil.readPixels(gl, true)
+                    val image = readBufferUtil.textureData.buffer as ByteBuffer
+
+                    // switch to depth buffer
+                    val fbWithDepth = renderpasses.entries
+                        .first { it.value.output.any { it.value.hasDepthAttachment() }}
+                        .value.output.entries
+                        .first { it.value.hasDepthAttachment() }
+
+                    gl.glBindFramebuffer(GL.GL_READ_FRAMEBUFFER, fbWithDepth.value.id)
+
+                    val depth = BufferUtils.allocateByte(512 * 512 * 4)
+                    gl.glReadPixels(0, 0, 512, 512, GL4.GL_DEPTH_COMPONENT, GL4.GL_FLOAT, depth)
+//                a[0] = 1
+
+                    logger.debug("Sending ${depth.remaining()} bytes for depth buffer from fb id ${fbWithDepth.key}/${fbWithDepth.value.id}")
+
+                    val array = ByteArray(image.remaining() + depth.remaining())
+                    image.get(array, 0, image.remaining()).flip()
+                    depth.get(array, image.remaining(), depth.remaining())
+
+                    MPI.COMM_WORLD.send(array, array.size, MPI.BYTE, 0, 0)
+//                MPI.COMM_WORLD.send(a, 1, MPI.INT, 2, 0)
+//                logger.info("Process 1 has sent")
+
+                    // switch back to viewport
+                    gl.glBindFramebuffer(GL.GL_READ_FRAMEBUFFER, 0)
+                    gl.glBindFramebuffer(GL.GL_DRAW_FRAMEBUFFER, 0)
+                }
+            }
+//            if(MPI.COMM_WORLD.rank == 0) {
+//                if(firstCall) {
+//                    //firstCall = false
+//                    var image = ByteArray(512 * 512 * 3 + 512 * 512 * 4)
+//                    MPI.COMM_WORLD.recv(image, 512 * 512 * 3 + 512 * 512 * 4, MPI.BYTE, 1, 0)
+//
+//                    var result = BufferedImage(512, 512, BufferedImage.TYPE_3BYTE_BGR)
+//                    result.data = Raster.createRaster(result.getSampleModel(), DataBufferByte(image.sliceArray(0..512*512*3), 512 * 512 * 3), Point() )
+//
+//                    ImageIO.write(result, "png",File("/Users/argupta/result1.png"))
+//                    FileOutputStream(File("/Users/argupta/depth1.raw")).write(image, 512 * 512 * 3, 512 * 512 * 4)
+//
+//                    MPI.COMM_WORLD.recv(image, 512 * 512 * 3 + 512 * 512 * 4, MPI.BYTE, 2, 0)
+//
+//                    result.data = Raster.createRaster(result.getSampleModel(), DataBufferByte(image.sliceArray(0..512*512*3), 512 * 512 * 3), Point() )
+//
+//                    ImageIO.write(result, "png",File("/Users/argupta/result2.png"))
+//                    FileOutputStream(File("/Users/argupta/depth2.raw")).write(image, 512 * 512 * 3, 512 * 512 * 4)
+////                val a = IntArray(1)
+////                a[0] = 2
+////                MPI.COMM_WORLD.recv(a, 1, MPI.INT, 1, 0)
+////                logger.info("New val of a: " + a[0])
+//                }
+//            }
+        }
+
         stats?.add("Renderer.${flow.last()}.renderTiming", System.nanoTime() - startPass)
 
         updateLatch?.countDown()
@@ -2764,6 +2830,10 @@ open class OpenGLRenderer(hub: Hub,
         screenshotRequested = true
         screenshotOverwriteExisting = overwrite
         screenshotFilename = filename
+    }
+
+    override fun activateParallelRendering() {
+        parallelRenderingMode = true
     }
 
     @Suppress("unused")

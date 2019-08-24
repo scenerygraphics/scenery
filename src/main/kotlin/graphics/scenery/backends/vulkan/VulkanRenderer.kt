@@ -3087,6 +3087,10 @@ open class VulkanRenderer(hub: Hub,
         screenshotFilename = filename
     }
 
+    override fun activateParallelRendering() {
+        TODO("not implemented")
+    }
+
     fun Int.toggle(): Int {
         if (this == 0) {
             return 1

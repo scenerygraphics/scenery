@@ -141,6 +141,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
     open fun main() {
         hub.addApplication(this)
         logger.info("Started application as PID ${getProcessID()}")
+        logger.info("Hello World")
         running = true
 
         val headless = parseBoolean(System.getProperty("scenery.Headless", "false"))
