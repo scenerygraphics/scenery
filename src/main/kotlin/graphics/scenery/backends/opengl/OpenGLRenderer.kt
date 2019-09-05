@@ -21,6 +21,7 @@ import org.lwjgl.system.MemoryUtil
 import java.awt.BorderLayout
 import java.awt.Dimension
 import java.awt.image.DataBufferByte
+import java.awt.image.DataBufferInt
 import java.io.File
 import java.io.FileNotFoundException
 import java.io.FileOutputStream
@@ -2051,7 +2052,19 @@ open class OpenGLRenderer(hub: Hub,
                 if(request != null) {
                     request.width = window.width
                     request.height = window.height
-                    request.data = (image.raster.dataBuffer as DataBufferByte).data
+                    val data = (image.raster.dataBuffer as DataBufferInt).data
+                    val tmp = ByteBuffer.allocate(data.size * 4)
+                    data.forEach { value ->
+                        val r = (value shr 16).toByte()
+                        val g = (value shr 8).toByte()
+                        val b = value.toByte()
+                        tmp.put(0)
+                        tmp.put(b)
+                        tmp.put(g)
+                        tmp.put(r)
+                    }
+
+                    request.data = tmp.array()
                 }
 
                 if(screenshotRequested) {
