@@ -70,8 +70,8 @@ open class SwingSwapchain(open val device: VulkanDevice,
     var sceneryPanel: SceneryPanel? = null
 
     /** Time in ns of the last resize event. */
-    var lastResize = -1L
-    private val WINDOW_RESIZE_TIMEOUT = 200 * 10e6
+    @Volatile var lastResize = -1L
+    private val WINDOW_RESIZE_TIMEOUT: Long = 500_000_000
 
     private val retiredSwapchains: Queue<Pair<VulkanDevice, Long>> = ArrayDeque()
 
@@ -127,8 +127,7 @@ open class SwingSwapchain(open val device: VulkanDevice,
         // might be uninitialized.
         p.addComponentListener(object : ComponentListener {
             override fun componentResized(e: ComponentEvent) {
-                if(lastResize > 0L && lastResize + WINDOW_RESIZE_TIMEOUT < System.nanoTime()) {
-                    lastResize = System.nanoTime()
+                if(lastResize > 0L && lastResize + WINDOW_RESIZE_TIMEOUT > System.nanoTime()) {
                     return
                 }
 
@@ -141,7 +140,7 @@ open class SwingSwapchain(open val device: VulkanDevice,
 
                 logger.debug("Resizing panel to ${window.width}x${window.height}")
                 swapchainRecreator.mustRecreate = true
-                lastResize = -1L
+                lastResize = System.nanoTime()
             }
 
             override fun componentMoved(e: ComponentEvent) {}

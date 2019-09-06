@@ -50,6 +50,9 @@ interface Renderable {
 
     /** Whether the object has been initialized. Used by renderers. */
     var initialized: Boolean
+
+    /** State of the Node **/
+    var state: State
     /** Whether the object is dirty and somehow needs to be updated. Used by renderers. */
     var dirty: Boolean
     /** Flag to set whether the object is visible or not. */
