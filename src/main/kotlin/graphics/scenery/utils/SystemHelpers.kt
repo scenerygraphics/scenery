@@ -3,6 +3,8 @@ package graphics.scenery.utils
 import java.io.File
 import java.lang.reflect.InvocationTargetException
 import java.net.URI
+import java.net.URL
+import java.net.URLEncoder
 import java.nio.file.*
 import java.text.SimpleDateFormat
 import java.time.Instant
@@ -148,7 +150,17 @@ class SystemHelpers {
          */
         fun getPathFromString(path: String): Path {
             // replace backslash occurrences with forward slashes for URI not to stumble
-            return getPath(URI.create(path.replace("\\", "/")))
+            var p = path.replace("\\", "/").replace(" ", "%20")
+            p = if(p.contains("://")) {
+                p
+            } else {
+                if(p.startsWith("/")) {
+                    "file://$p"
+                } else {
+                    "file:///$p"
+                }
+            }
+            return getPath(URI.create(p))
         }
 
         /**
@@ -172,16 +184,7 @@ class SystemHelpers {
                 }
             } catch (e : IllegalArgumentException) {
                 // handle the case when no scheme is given
-                when(ExtractsNatives.getPlatform()) {
-                    // on macOS and Linux, we'll just use the default file system and hand over the scheme-less path
-                    ExtractsNatives.Platform.MACOS,
-                    ExtractsNatives.Platform.LINUX -> FileSystems.getDefault().getPath(path.toString())
-                    // on Windows, a leading slash is added, which we remove
-                    ExtractsNatives.Platform.WINDOWS -> FileSystems.getDefault().getPath(path.toString().substring(1))
-                    else -> {
-                        throw IllegalStateException("Don't know how to sanitize path $path on unknown platform.")
-                    }
-                }
+                FileSystems.getDefault().getPath(path.toString())
             }
         }
 
