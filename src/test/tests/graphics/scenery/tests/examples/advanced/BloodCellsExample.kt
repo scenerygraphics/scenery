@@ -53,7 +53,7 @@ class BloodCellsExample : SceneryBase("BloodCellsExample", windowWidth = 1280, w
         }
 
         val erythrocyte = Mesh()
-        erythrocyte.readFromOBJ(getDemoFilesPath() + "/erythrocyte_simplified.obj")
+        erythrocyte.readFromOBJ(Mesh::class.java.getResource("models/erythrocyte.obj").file)
         erythrocyte.material = ShaderMaterial.fromFiles("DefaultDeferredInstanced.vert", "DefaultDeferred.frag")
         erythrocyte.material.ambient = GLVector(0.1f, 0.0f, 0.0f)
         erythrocyte.material.diffuse = GLVector(0.9f, 0.0f, 0.02f)
@@ -65,7 +65,7 @@ class BloodCellsExample : SceneryBase("BloodCellsExample", windowWidth = 1280, w
         scene.addChild(erythrocyte)
 
         val leucocyte = Mesh()
-        leucocyte.readFromOBJ(getDemoFilesPath() + "/leukocyte_simplified.obj")
+        leucocyte.readFromOBJ(Mesh::class.java.getResource("models/leukocyte.obj").file)
         leucocyte.name = "leucocyte_Master"
         leucocyte.material = ShaderMaterial.fromFiles("DefaultDeferredInstanced.vert", "DefaultDeferred.frag")
         leucocyte.material.ambient = GLVector(0.1f, 0.0f, 0.0f)
