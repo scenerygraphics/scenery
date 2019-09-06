@@ -63,9 +63,16 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
         v.name = "volume"
 //        v.colormap = "plasma"
         v.scale = GLVector(0.02f, 0.02f, 0.02f)
+        v.updateWorld(true, true)
         scene.addChild(v)
 
         volume = v
+
+        val v2 = BDVNode(files.first(), options, hub)
+        v2.scale = GLVector(0.001f, 0.001f, 0.001f)
+        v2.rotation = v2.rotation.rotateByAngleX(0.5f)
+        v2.updateWorld(true, true)
+        scene.addChild(v2)
 
         val lights = (0 until 3).map {
             PointLight(radius = 15.0f)

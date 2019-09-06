@@ -677,8 +677,7 @@ open class VulkanRenderer(hub: Hub,
 //            .parallelMap(numThreads = System.getProperty("scenery.MaxInitThreads", "1").toInt()) { node ->
             .map { node ->
                 // skip initialization for nodes that are only instance slaves
-                logger.debug("Initializing object '${node.name}'")
-                node.metadata["VulkanRenderer"] = VulkanObjectState()
+                logger.info("Initializing object '${node.name}'")
 
                 initializeNode(node)
             }
@@ -734,10 +733,28 @@ open class VulkanRenderer(hub: Hub,
     /**
      * Initialises a given [node] with the metadata required by the [VulkanRenderer].
      */
-    fun initializeNode(node: Node): Boolean {
+    fun initializeNode(n: Node): Boolean {
+        val node = if(n is DelegatesRendering) {
+            val delegate = n.delegate ?: return false
+
+            logger.info("Initialising node $n with delegate $delegate (state=${delegate.state})")
+            delegate
+        } else {
+            logger.info("Initialising node $n")
+            n
+        }
+
+        if(node.rendererMetadata() == null) {
+            node.metadata["VulkanRenderer"] = VulkanObjectState()
+        }
+
         var s: VulkanObjectState = node.rendererMetadata() ?: throw IllegalStateException("Node ${node.name} does not contain metadata object")
 
         if (s.initialized) return true
+
+        if(node.state != State.Ready) {
+            return false
+        }
 
         logger.debug("Initializing ${node.name} (${(node as HasGeometry).vertices.remaining() / node.vertexSize} vertices/${node.indices.remaining()} indices)")
 
@@ -1863,7 +1880,7 @@ open class VulkanRenderer(hub: Hub,
         val sceneObjects = GlobalScope.async {
             scene.discover(scene, { n ->
                 n is HasGeometry
-                    && n.visible
+                    && n.visible && n.state == State.Ready
             }, useDiscoveryBarriers = true)
         }
 
@@ -1911,7 +1928,13 @@ open class VulkanRenderer(hub: Hub,
 
         // here we discover the objects in the scene that could be relevant for the scene
         if (renderpasses.filter { it.value.passConfig.type != RenderConfigReader.RenderpassType.quad }.any()) {
-            sceneObjects.await().forEach {
+            sceneObjects.await().forEach { node ->
+                val it = if(node is DelegatesRendering) {
+                    node.delegate ?: return@forEach
+                } else {
+                    node
+                }
+
                 // if a node is not initialized yet, it'll be initialized here and it's UBO updated
                 // in the next round
                 if (it.rendererMetadata() == null) {
@@ -2489,7 +2512,17 @@ open class VulkanRenderer(hub: Hub,
         // e.g. which have the same transparency settings as the pass,
         // and filter according to any custom filters applicable to this pass
         // (e.g. to discern geometry from lighting passes)
-        sceneObjects.await().filter { customNodeFilter?.invoke(it) ?: true }.forEach { n ->
+        sceneObjects.await().filter { customNodeFilter?.invoke(it) ?: true }.forEach { node ->
+            val n = if(node is DelegatesRendering) {
+                node.delegate ?: return@forEach
+            } else {
+                node
+            }
+
+            if(n.state != State.Ready) {
+                return@forEach
+            }
+
             n.rendererMetadata()?.let {
                 if (!((pass.passConfig.renderOpaque && n.material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) ||
                         (pass.passConfig.renderTransparent && !n.material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent))) {
@@ -2763,7 +2796,7 @@ open class VulkanRenderer(hub: Hub,
                     }
 
                     if(ds == null || ds == DescriptorSet.None) {
-                        logger.error("Internal consistency error for node ${node.name}: Descriptor set $name not found in renderpass, skipping node for rendering.")
+                        logger.error("Internal consistency error for node ${node.name}: Descriptor set $name not found in renderpass ${pass.name}, skipping node for rendering.")
                         return@drawLoop
                     }
 

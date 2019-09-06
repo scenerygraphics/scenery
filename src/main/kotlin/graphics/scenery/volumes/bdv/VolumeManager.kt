@@ -3,12 +3,19 @@ package graphics.scenery.volumes.bdv
 import bdv.tools.brightness.ConverterSetup
 import bdv.viewer.RequestRepaint
 import coremem.enums.NativeTypeEnum
+import graphics.scenery.Blending
+import graphics.scenery.BufferUtils
+import graphics.scenery.GeometryType
+import graphics.scenery.HasGeometry
 import graphics.scenery.Hub
 import graphics.scenery.Hubable
+import graphics.scenery.Material
 import graphics.scenery.Node
 import graphics.scenery.SceneryElement
 import graphics.scenery.Settings
+import graphics.scenery.ShaderMaterial
 import graphics.scenery.ShaderProperty
+import graphics.scenery.State
 import graphics.scenery.volumes.Volume
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.ARGBType
@@ -32,13 +39,45 @@ import tpietzsch.multires.ResolutionLevel3D
 import tpietzsch.multires.SimpleStack3D
 import tpietzsch.multires.SourceStacks
 import tpietzsch.multires.Stack3D
+import java.nio.FloatBuffer
+import java.nio.IntBuffer
 import java.util.*
 import java.util.concurrent.ForkJoinPool
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.random.Random
 
-class VolumeManager(override var hub : Hub?) : Node(), Hubable {
+class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
+    /** How many elements does a vertex store? */
+    override val vertexSize : Int = 3
+    /** How many elements does a texture coordinate store? */
+    override val texcoordSize : Int = 2
+    /** The [GeometryType] of the [Node] */
+    override var geometryType : GeometryType = GeometryType.TRIANGLES
+    /** Array of the vertices. This buffer is _required_, but may empty. */
+    override var vertices : FloatBuffer = BufferUtils.allocateFloatAndPut(
+        floatArrayOf(
+            -1.0f, -1.0f, 0.0f,
+            1.0f, -1.0f, 0.0f,
+            1.0f, 1.0f, 0.0f,
+            -1.0f, 1.0f, 0.0f))
+    /** Array of the normals. This buffer is _required_, and may _only_ be empty if [vertices] is empty as well. */
+    override var normals : FloatBuffer = BufferUtils.allocateFloatAndPut(
+        floatArrayOf(
+            1.0f, 0.0f, 0.0f,
+            0.0f, 1.0f, 0.0f,
+            0.0f, 0.0f, 1.0f,
+            0.0f, 0.0f, 1.0f))
+    /** Array of the texture coordinates. Texture coordinates are optional. */
+    override var texcoords : FloatBuffer = BufferUtils.allocateFloatAndPut(
+        floatArrayOf(
+            0.0f, 0.0f,
+            1.0f, 0.0f,
+            1.0f, 1.0f,
+            0.0f, 1.0f))
+    /** Array of the indices to create an indexed mesh. Optional, but advisable to use to minimize the number of submitted vertices. */
+    override var indices : IntBuffer = BufferUtils.allocateIntAndPut(
+        intArrayOf(0, 1, 2, 0, 2, 3))
     /**
      *  The rendering method used in the shader, can be
      *
@@ -89,6 +128,12 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable {
     protected var currentVolumeCount: Pair<Int, Int>
 
     init {
+        state = State.Created
+        name = "VolumeManager"
+        // fake geometry
+
+        this.geometryType = GeometryType.TRIANGLES
+
         currentVolumeCount = 0 to 0
 
         val maxCacheSize = (hub?.get(SceneryElement.Settings) as? Settings)?.get("Renderer.MaxVolumeCacheSize", 512) ?: 512
@@ -104,7 +149,27 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable {
 
         logger.info("Progs: ${prog.size}")
         // TODO: this might result in NULL program, is this intended?
-        progvol = prog.last()//get(renderStacks.size)
+        progvol = prog.lastOrNull()
+
+        if(progvol != null) {
+            updateProgram()
+        }
+
+        material = ShaderMaterial(context.factory)
+        material.cullingMode = Material.CullingMode.None
+        material.blending.transparent = true
+        material.blending.sourceColorBlendFactor = Blending.BlendFactor.One
+        material.blending.destinationColorBlendFactor = Blending.BlendFactor.OneMinusSrcAlpha
+        material.blending.sourceAlphaBlendFactor = Blending.BlendFactor.One
+        material.blending.destinationAlphaBlendFactor = Blending.BlendFactor.OneMinusSrcAlpha
+        material.blending.colorBlending = Blending.BlendOp.add
+        material.blending.alphaBlending = Blending.BlendOp.add
+
+        preDraw()
+    }
+
+    fun updateProgram() {
+        logger.info("Updating effective shader program to $progvol")
         progvol?.setTextureCache(textureCache)
         progvol?.use(context)
         progvol?.setUniforms(context)
@@ -113,8 +178,6 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable {
             progvol?.setViewportWidth(cam.width.toInt())
             progvol?.setEffectiveViewportSize(cam.width.toInt(), cam.height.toInt())
         }
-
-        preDraw()
     }
 
     private fun needAtLeastNumVolumes(n: Int) {
@@ -152,7 +215,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable {
             VolumeShaderSignature.VolumeSignature(volumeType, dataType)
         }
 
-        val progvol = MultiVolumeShaderMip(VolumeShaderSignature(signatures),
+        val newProgvol = MultiVolumeShaderMip(VolumeShaderSignature(signatures),
             true, 1.0,
             this.javaClass,
             "BDVVolume.vert",
@@ -160,10 +223,10 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable {
             "MaxDepth.frag",
             "InputZBuffer")
 
-        progvol.setTextureCache(textureCache)
-        progvol.setDepthTextureName("InputZBuffer")
+        newProgvol.setTextureCache(textureCache)
+        newProgvol.setDepthTextureName("InputZBuffer")
         logger.info("Using program for $outOfCoreVolumeCount out-of-core volumes and $regularVolumeCount regular volumes")
-        prog.add(progvol)
+        prog.add(newProgvol)
 
         val oldKeys = this.material.textures.keys()
             .asSequence()
@@ -174,6 +237,16 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable {
         }
 
         currentVolumeCount = outOfCoreVolumeCount to regularVolumeCount
+
+        if(prog.size > 0) {
+            logger.info("We have ${prog.size} shaders ready")
+            progvol = prog.last()
+            state = State.Ready
+
+            updateProgram()
+        } else {
+            state = State.Created
+        }
     }
 
     /**
@@ -181,21 +254,29 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable {
      * facilitate the updates on the GPU.
      */
     protected fun updateBlocks(context: SceneryContext) {
-        logger.debug("Updating blocks")
-        bdvNodes.forEach { bdvNode ->
-            bdvNode.prepareNextFrame()
+        val currentProg = progvol
+        if(currentProg == null) {
+            logger.info("Not updating blocks, no prog")
+            return
         }
 
-        val cam = getScene()?.activeObserver ?: return
+        logger.info("Updating blocks with ${renderStacks.size} stacks")
+        bdvNodes.forEach { bdvNode ->
+            logger.info("Preparing next frame for $bdvNode")
+            bdvNode.prepareNextFrame()
+            logger.info("Done preparing")
+        }
+
+        val cam = bdvNodes.firstOrNull()?.getScene()?.activeObserver ?: return
         val viewProjection = cam.projection.clone()
         viewProjection.mult(cam.getTransformation())
         val mvp = Matrix4f().set(viewProjection.floatArray)
 
         // TODO: original might result in NULL, is this intended?
-        val progvol = prog.last()//get(renderStacks.size)
-        progvol.use(context)
-        progvol.setUniforms(context)
+        currentProg.use(context)
+        currentProg.setUniforms(context)
 
+        logger.info("Generating fill tasks")
         var numTasks = 0
         val fillTasksPerVolume = ArrayList<VolumeAndTasks>()
         for(i in 0 until renderStacks.size) {
@@ -261,27 +342,27 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable {
             .sortedBy { it.javaClass.simpleName }
             .forEachIndexed { i, stack ->
                 if(stack is MultiResolutionStack3D) {
-                    progvol.setConverter(i, renderConverters.get(i))
-                    progvol.setVolume(i, outOfCoreVolumes.get(i))
+                    currentProg.setConverter(i, renderConverters.get(i))
+                    currentProg.setVolume(i, outOfCoreVolumes.get(i))
                     minWorldVoxelSize = min(minWorldVoxelSize, outOfCoreVolumes.get(i).baseLevelVoxelSizeInWorldCoordinates)
                 }
 
                 if(stack is SimpleStack3D) {
                     val volume = stackManager.getSimpleVolume( context, stack )
-                    progvol.setConverter(i, renderConverters.get(i))
-                    progvol.setVolume(i, volume)
+                    currentProg.setConverter(i, renderConverters.get(i))
+                    currentProg.setVolume(i, volume)
                     context.bindTexture(volume.volumeTexture)
                     val uploaded = stackManager.upload(context, stack)
                     minWorldVoxelSize = min(minWorldVoxelSize, volume.voxelSizeInWorldCoordinates)
                 }
             }
 
-        progvol.setViewportWidth(cam.width.toInt())
-        progvol.setEffectiveViewportSize(cam.width.toInt(), cam.height.toInt())
-        progvol.setProjectionViewMatrix(mvp, minWorldVoxelSize)
-        progvol.use(context)
-        progvol.setUniforms(context)
-        progvol.bindSamplers(context)
+        currentProg.setViewportWidth(cam.width.toInt())
+        currentProg.setEffectiveViewportSize(cam.width.toInt(), cam.height.toInt())
+        currentProg.setProjectionViewMatrix(mvp, minWorldVoxelSize)
+        currentProg.use(context)
+        currentProg.setUniforms(context)
+        currentProg.bindSamplers(context)
         logger.debug("Done updating blocks")
     }
 
@@ -323,24 +404,24 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable {
      * Updates the current stack given a set of [stacks] to [currentTimepoint].
      */
     protected fun updateRenderState() {
-        val visibleSourceIndices: List<Int>
-        val currentTimepoint: Int
-
         // check if synchronized block is necessary here
+        logger.info("Updating state for ${bdvNodes.size} BDV nodes")
+        renderStacks.clear()
+        renderConverters.clear()
+
         bdvNodes.forEach { bdvNode ->
-            val visibleSourceIndices = bdvNode.state.visibleSourceIndices
-            val currentTimepoint = bdvNode.state.currentTimepoint
+            val visibleSourceIndices = bdvNode.viewerState.visibleSourceIndices
+            val currentTimepoint = bdvNode.viewerState.currentTimepoint
 
             logger.info("Visible: at t=$currentTimepoint: ${visibleSourceIndices.joinToString(", ")}")
-            renderStacks.clear()
-            renderConverters.clear()
             for (i in visibleSourceIndices) {
                 val stack = bdvNode.stacks.getStack(
                     bdvNode.stacks.timepointId(currentTimepoint),
                     bdvNode.stacks.setupId(i),
                     true) as MultiResolutionStack3D<VolatileUnsignedShortType>
+
                 val sourceTransform = AffineTransform3D()
-                bdvNode.state.sources[i].spimSource.getSourceTransform(currentTimepoint, 0, sourceTransform)
+                bdvNode.viewerState.sources[i].spimSource.getSourceTransform(currentTimepoint, 0, sourceTransform)
                 val wrappedStack = object : MultiResolutionStack3D<VolatileUnsignedShortType> {
                     override fun getType() : VolatileUnsignedShortType {
                         return stack.type
@@ -348,7 +429,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable {
 
                     override fun getSourceTransform() : AffineTransform3D {
                         val w = AffineTransform3D()
-                        w.set(*world.transposedFloatArray.map { it.toDouble() }.toDoubleArray())
+                        w.set(*bdvNode.world.transposedFloatArray.map { it.toDouble() }.toDoubleArray())
                         return w.concatenate(sourceTransform)
                     }
 
@@ -374,7 +455,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable {
                         val w = AffineTransform3D()
 //                            val m = AffineTransform3D()
 //                            m.setTranslation(0.5, 0.5, 0.5)
-                        w.set(*world.transposedFloatArray.map { it.toDouble() }.toDoubleArray())
+                        w.set(*volume.world.transposedFloatArray.map { it.toDouble() }.toDoubleArray())
                         return w
                     }
                 }
@@ -424,11 +505,17 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable {
 
 
     fun add(node: BDVNode) {
+        logger.info("Adding $node to OOC nodes")
         bdvNodes.add(node)
+        updateRenderState()
+        needAtLeastNumVolumes(renderStacks.size)
     }
 
     fun add(node: Volume) {
+        logger.info("Adding $node to regular volume nodes")
         regularVolumeNodes.add(node)
+        updateRenderState()
+        needAtLeastNumVolumes(renderStacks.size)
     }
 
     fun notifyUpdate(node: Node) {

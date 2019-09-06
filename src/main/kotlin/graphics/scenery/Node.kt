@@ -49,6 +49,8 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
     final override var material: Material = Material.DefaultMaterial()
     /** Initialisation flag. */
     override var initialized: Boolean = false
+    /** State of the Node **/
+    override var state : State = State.Ready
     /** Whether the Node is dirty and needs updating. */
     override var dirty: Boolean = true
     /** Flag to set whether the Node is visible or not, recursively affects children. */
