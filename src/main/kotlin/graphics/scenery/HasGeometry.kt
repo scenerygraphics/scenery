@@ -500,6 +500,17 @@ interface HasGeometry : Serializable {
                         val vb = vertexBuffers[name] ?: throw IllegalStateException("Vertex buffer map does not contain $name, broken file?")
                         val ib = indexBuffers[name] ?: throw IllegalStateException("Index buffer map does not contain $name, broken file?")
 
+                        // this prevents the same geometry added twice if both a object and group
+                        // are given to a particular object
+                        if(this is Node) {
+                            if (vb.first.position() == 0
+                                && vb.second.position() == 0
+                                && vb.third.position() == 0
+                                && this.children.find { it.name == name } != null) {
+                                return@forEach
+                            }
+                        }
+
                         if (vb.second.position() == 0) {
                             calculateNormals(vb.first, vb.second)
                         }
