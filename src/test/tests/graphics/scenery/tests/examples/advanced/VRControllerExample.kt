@@ -50,7 +50,7 @@ class VRControllerExample : SceneryBase(VRControllerExample::class.java.simpleNa
             val light = PointLight(radius = 15.0f)
             light.emissionColor = Random.randomVectorFromRange(3, 0.0f, 1.0f)
             light.position = Random.randomVectorFromRange(3, -5.0f, 5.0f)
-            light.intensity = 500.0f
+            light.intensity = 1.0f
 
             light
         }.forEach { scene.addChild(it) }
