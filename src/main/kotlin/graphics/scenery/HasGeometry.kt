@@ -222,7 +222,7 @@ interface HasGeometry : Serializable {
      * @param[importMaterials] Whether a accompanying MTL file shall be used, defaults to true.
      * @param[flipNormals] Whether to flip the normals after reading them.
      */
-    fun readFromOBJ(filename: String, importMaterials: Boolean = true, flipNormals: Boolean = false) {
+    fun readFromOBJ(filename: String, importMaterials: Boolean = true, flipNormals: Boolean = false, useObjGroups: Boolean = true) {
         val logger by LazyLogger()
 
         var name = ""
@@ -237,6 +237,12 @@ interface HasGeometry : Serializable {
 
         var materials = HashMap<String, Material>()
         val normalSign = if(flipNormals) { -1.0f } else { 1.0f }
+
+        val groupDelimiter = if(useObjGroups) {
+            'g'
+        } else {
+            'o'
+        }
 
         /**
          * Recalculates normals, assuming CCW winding order.
@@ -316,9 +322,9 @@ interface HasGeometry : Serializable {
                             else -> 0
                         }
                     }
-                    'g', 'o' -> {
-                        vertexCountMap.put(currentName, vertexCount)
-                        faceCountMap.put(currentName, faceCount)
+                    groupDelimiter -> {
+                        vertexCountMap.putIfAbsent(currentName, vertexCount)
+                        faceCountMap.putIfAbsent(currentName, faceCount)
                         vertexCount = 0
                         faceCount = 0
                         currentName = tokens.substringAfter(" ").trim().trimEnd()
@@ -496,20 +502,9 @@ interface HasGeometry : Serializable {
                         // TODO: Implement smooth shading across faces
                     }
 
-                    'g', 'o' -> {
+                    groupDelimiter -> {
                         val vb = vertexBuffers[name] ?: throw IllegalStateException("Vertex buffer map does not contain $name, broken file?")
                         val ib = indexBuffers[name] ?: throw IllegalStateException("Index buffer map does not contain $name, broken file?")
-
-                        // this prevents the same geometry added twice if both a object and group
-                        // are given to a particular object
-                        if(this is Node) {
-                            if (vb.first.position() == 0
-                                && vb.second.position() == 0
-                                && vb.third.position() == 0
-                                && this.children.find { it.name == name } != null) {
-                                return@forEach
-                            }
-                        }
 
                         if (vb.second.position() == 0) {
                             calculateNormals(vb.first, vb.second)
