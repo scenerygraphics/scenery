@@ -266,7 +266,11 @@ open class BDVVolume(bdvXMLFile: String = "", val options: VolumeViewerOptions) 
         }
 
         val progvol = MultiVolumeShaderMip(VolumeShaderSignature(signatures), true, 1.0,
-            "SceneryMultiVolume.vert", "SceneryMultiVolume.frag", "maxdepthtexture_scenery.frag", "InputZBuffer")
+            MultiVolumeShaderMip::class.java,
+            "BDVVolume.vert",
+            "BDVVolume.frag",
+            "MaxDepth.frag",
+            "InputZBuffer")
 
         progvol.setTextureCache(textureCache)
         progvol.setDepthTextureName("InputZBuffer")
@@ -403,7 +407,7 @@ open class BDVVolume(bdvXMLFile: String = "", val options: VolumeViewerOptions) 
                     progvol.setConverter(i, renderConverters.get(i))
                     progvol.setVolume(i, volume)
                     context.bindTexture(volume.volumeTexture)
-                    val uploaded = stackManager.upload(context, stack)
+//                    val uploaded = stackManager.upload(context, stack)
                     minWorldVoxelSize = min(minWorldVoxelSize, volume.voxelSizeInWorldCoordinates)
                 }
             }
@@ -514,6 +518,7 @@ open class BDVVolume(bdvXMLFile: String = "", val options: VolumeViewerOptions) 
                 renderConverters.add(converter)
             }
 
+            /*
             if(volumes.size > 0) {
                 val vol = volumes.entries.first().value
                 if(vol.dataType == NativeTypeEnum.UnsignedShort) {
@@ -521,7 +526,7 @@ open class BDVVolume(bdvXMLFile: String = "", val options: VolumeViewerOptions) 
                         UnsignedShortType(),
                         intArrayOf(vol.width.toInt(), vol.height.toInt(), vol.depth.toInt())) {
 
-                        override fun getSourceTransform(): AffineTransform3D {
+                        fun getSourceTransform(): AffineTransform3D {
                             val w = AffineTransform3D()
 //                            val m = AffineTransform3D()
 //                            m.setTranslation(0.5, 0.5, 0.5)
@@ -570,7 +575,7 @@ open class BDVVolume(bdvXMLFile: String = "", val options: VolumeViewerOptions) 
                     })
 
                 }
-            }
+            }*/
         }
     }
 
