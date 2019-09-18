@@ -428,17 +428,10 @@
             <version>0.9.11</version>
         </dependency>
 
-        <!-- TODO: Replace with official dependency after https://github.com/tpietzsch/jogl-minimal/pull/7
-             is merged or otherwise addressed
         <dependency>
             <groupId>sc.fiji</groupId>
             <artifactId>bigvolumeviewer</artifactId>
-            <version>0.1.5-SNAPSHOT</version>
-        </dependency>-->
-        <dependency>
-            <groupId>com.github.skalarproduktraum</groupId>
-            <artifactId>jogl-minimal</artifactId>
-            <version>1f8cbf9ca7</version>
+            <version>0.1.6</version>
         </dependency>
 
         <dependency>
