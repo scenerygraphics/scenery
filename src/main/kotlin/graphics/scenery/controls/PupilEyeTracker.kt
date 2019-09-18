@@ -286,7 +286,7 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
     private fun unsubscribe(topic: String) = runBlocking {
         if(subscriberSockets.containsKey(topic)) {
             logger.debug("Cancelling subscription of topic \"$topic\"")
-            subscriberSockets.get(topic)?.cancel()
+            subscriberSockets.get(topic)?.cancelAndJoin()
             subscriberSockets.get(topic)?.join()
 
             subscriberSockets.remove(topic)
