@@ -2933,7 +2933,11 @@ open class VulkanRenderer(hub: Hub,
         val instanceMasters = sceneObjects.await().filter { it.instances.size > 0 }
 
         instanceMasters.forEach { parent ->
-            updateInstanceBuffer(device, parent, parent.rendererMetadata()!!)
+            val metadata = parent.rendererMetadata()
+
+            if(metadata != null && metadata.initialized) {
+                updateInstanceBuffer(device, parent, parent.rendererMetadata()!!)
+            }
         }
 
         instanceMasters.isNotEmpty()
