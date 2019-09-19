@@ -193,7 +193,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         settings.set("System.PID", getProcessID())
 
         if (wantREPL && !headless) {
-            repl = REPL(scijavaContext, scene, stats, hub)
+            repl = REPL(hub, scijavaContext, scene, stats, hub)
             repl?.addAccessibleObject(settings)
         }
 
