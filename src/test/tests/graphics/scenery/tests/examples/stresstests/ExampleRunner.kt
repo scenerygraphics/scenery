@@ -33,7 +33,9 @@ class ExampleRunner {
             "EyeTrackingExample",
             "ARExample",
             "ReaderExample",
-            "BDVExample")
+            "BDVExample",
+            "BigAndSmallVolumeExample",
+            "VolumeSamplingExample")
 
         // find all basic and advanced examples, exclude blacklist
         val examples = reflections
