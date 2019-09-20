@@ -2074,11 +2074,13 @@ open class OpenGLRenderer(hub: Hub,
 
         if (parallelRenderingMode && joglDrawable != null) {
             if(MPI.COMM_WORLD.rank != 0) {
+                val windowSize = 700
                 if(firstCall) {
                     //firstCall = false
                     val readBufferUtil = GLReadBufferUtil(false, false)
                     readBufferUtil.readPixels(gl, true)
                     val image = readBufferUtil.textureData.buffer as ByteBuffer
+                    val imageSize = image.remaining()
 
                     // switch to depth buffer
                     val fbWithDepth = renderpasses.entries
@@ -2088,8 +2090,8 @@ open class OpenGLRenderer(hub: Hub,
 
                     gl.glBindFramebuffer(GL.GL_READ_FRAMEBUFFER, fbWithDepth.value.id)
 
-                    val depth = BufferUtils.allocateByte(512 * 512 * 4)
-                    gl.glReadPixels(0, 0, 512, 512, GL4.GL_DEPTH_COMPONENT, GL4.GL_FLOAT, depth)
+                    val depth = BufferUtils.allocateByte(windowSize * windowSize * 4)
+                    gl.glReadPixels(0, 0, windowSize, windowSize, GL4.GL_DEPTH_COMPONENT, GL4.GL_FLOAT, depth)
 //                a[0] = 1
 
                     logger.debug("Sending ${depth.remaining()} bytes for depth buffer from fb id ${fbWithDepth.key}/${fbWithDepth.value.id}")
@@ -2097,8 +2099,12 @@ open class OpenGLRenderer(hub: Hub,
                     val array = ByteArray(image.remaining() + depth.remaining())
                     image.get(array, 0, image.remaining()).flip()
                     depth.get(array, image.remaining(), depth.remaining())
-
-                    MPI.COMM_WORLD.send(array, array.size, MPI.BYTE, 0, 0)
+                    if(imageSize == windowSize*windowSize*3) {
+                        MPI.COMM_WORLD.send(array, array.size, MPI.BYTE, 0, 0)
+                    }
+                    else {
+                        logger.info("The image size is: $imageSize")
+                    }
 //                MPI.COMM_WORLD.send(a, 1, MPI.INT, 2, 0)
 //                logger.info("Process 1 has sent")
 
