@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.scijava</groupId>
         <artifactId>pom-scijava</artifactId>
-        <version>25.0.0</version>
+        <version>27.0.1</version>
     </parent>
 
     <groupId>graphics.scenery</groupId>
@@ -101,6 +101,8 @@
     </distributionManagement>
 
     <properties>
+        <package-name>graphics.scenery</package-name>
+
         <scijava.jvm.version>1.8</scijava.jvm.version>
         <javac.target>1.8</javac.target>
         <kotlin.version>1.3.50</kotlin.version>
@@ -115,6 +117,8 @@
         <spirvcrossj.version>0.6.0-1.1.106.0</spirvcrossj.version>
         <jvrpn.version>1.1.0</jvrpn.version>
         <jeromq.version>0.4.3</jeromq.version>
+
+        <lwjgl.natives>natives-${scijava.platform.family.long}</lwjgl.natives>
 
         <license.licenseName>lgpl_v3</license.licenseName>
         <license.copyrightOwners>the scenery development team</license.copyrightOwners>
@@ -701,39 +705,6 @@
                     </plugin>
                 </plugins>
             </build>
-        </profile>
-        <profile>
-            <id>lwjgl-natives-linux&gt;</id>
-            <activation>
-                <os>
-                    <family>unix</family>
-                </os>
-            </activation>
-            <properties>
-                <lwjgl.natives>natives-linux</lwjgl.natives>
-            </properties>
-        </profile>
-        <profile>
-            <id>lwjgl-natives-macos&gt;</id>
-            <activation>
-                <os>
-                    <family>mac</family>
-                </os>
-            </activation>
-            <properties>
-                <lwjgl.natives>natives-macos</lwjgl.natives>
-            </properties>
-        </profile>
-        <profile>
-            <id>lwjgl-natives-windows&gt;</id>
-            <activation>
-                <os>
-                    <family>windows</family>
-                </os>
-            </activation>
-            <properties>
-                <lwjgl.natives>natives-windows</lwjgl.natives>
-            </properties>
         </profile>
     </profiles>
 </project>
