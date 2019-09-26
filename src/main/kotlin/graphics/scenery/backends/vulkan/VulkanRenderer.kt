@@ -2708,7 +2708,9 @@ open class VulkanRenderer(hub: Hub,
                 val pipeline = p.getPipelineForGeometryType((node as HasGeometry).geometryType)
                 val specs = p.orderedDescriptorSpecs()
 
-                logger.trace("node {} has: {} / pipeline needs: {}", node.name, s.UBOs.keys.joinToString(", "), specs.joinToString { it.key })
+                if(logger.isTraceEnabled) {
+                    logger.trace("node {} has: {} / pipeline needs: {}", node.name, s.UBOs.keys.joinToString(", "), specs.joinToString { it.key })
+                }
 
                 pass.vulkanMetadata.descriptorSets.rewind()
                 pass.vulkanMetadata.uboOffsets.rewind()
@@ -2769,7 +2771,10 @@ open class VulkanRenderer(hub: Hub,
 
                     ds
                 }
-                logger.debug("${node.name} requires DS ${specs.joinToString { "${it.key}, " }}")
+
+                if(logger.isDebugEnabled) {
+                    logger.debug("${node.name} requires DS ${specs.joinToString { "${it.key}, " }}")
+                }
 
                 val requiredSets = sets.filter { it !is DescriptorSet.None }.map { it.id }.toLongArray()
                 if(pass.vulkanMetadata.descriptorSets.capacity() < requiredSets.size) {
