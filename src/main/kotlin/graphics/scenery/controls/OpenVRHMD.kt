@@ -433,44 +433,6 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
             return
         }
 
-        VRCompositor_WaitGetPoses(hmdTrackedDevicePoses, gamePoses)
-        if (latencyWaitTime > 0) {
-            Thread.sleep(0, latencyWaitTime.toInt())
-        }
-
-        VRSystem_GetTimeSinceLastVsync(lastVsync, frameCount)
-
-        val secondsUntilPhotons = timePerFrame - lastVsync.get(0) + vsyncToPhotons
-
-        if (debugLatency) {
-            if (frames == 10) {
-                logger.info("Wait:  $latencyWaitTime ns")
-                logger.info("Ahead: $secondsUntilPhotons ns")
-            }
-
-            frames = (frames + 1) % 60
-        }
-
-        val countNow = frameCount.get(0)
-        if (countNow - frameCount.get(0) > 1) {
-            // skipping!
-            if (debugLatency) {
-                logger.info("FRAMEDROP!")
-            }
-
-            frameCountRun = 0
-            if (latencyWaitTime > 0) {
-                latencyWaitTime -= TimeUnit.MILLISECONDS.toNanos(1)
-            }
-        } else if (latencyWaitTime < timePerFrame * 1000000000.0f) {
-            frameCountRun++
-            latencyWaitTime += Math.round(Math.pow(frameCountRun / 10.0, 2.0))
-        }
-
-        frameCount.put(0, countNow)
-
-        VRSystem_GetDeviceToAbsoluteTrackingPose(getExperience(), secondsUntilPhotons, hmdTrackedDevicePoses)
-
         for (device in (0 until k_unMaxTrackedDeviceCount)) {
             val isValid = hmdTrackedDevicePoses.get(device).bPoseIsValid()
 
@@ -666,6 +628,13 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
      * @param[textureId] OpenGL Texture ID of the left eye texture
      */
     @Synchronized override fun submitToCompositor(textureId: Int) {
+        VRCompositor_WaitGetPoses(hmdTrackedDevicePoses, gamePoses)
+        update()
+        if (disableSubmission || !readyForSubmission) {
+            return
+        }
+
+
         stackPush().use { stack ->
             try {
                 if (disableSubmission || !readyForSubmission) {
@@ -699,6 +668,12 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
     override fun submitToCompositorVulkan(width: Int, height: Int, format: Int,
                                           instance: VkInstance, device: VulkanDevice,
                                           queue: VkQueue, image: Long) {
+        VRCompositor_WaitGetPoses(hmdTrackedDevicePoses, gamePoses)
+        update()
+        if (disableSubmission || !readyForSubmission) {
+            return
+        }
+
         stackPush().use { stack ->
             val textureData = VRVulkanTextureData.callocStack(stack)
                 .m_nImage(image)
@@ -716,10 +691,6 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                 .handle(textureData.address())
                 .eColorSpace(EColorSpace_ColorSpace_Gamma)
                 .eType(ETextureType_TextureType_Vulkan)
-
-            if (disableSubmission || !readyForSubmission) {
-                return
-            }
 
             readyForSubmission = false
 
@@ -752,11 +723,11 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
 
             logger.trace("Submitting left...")
             val boundsLeft = VRTextureBounds.callocStack(stack).set(0.0f, 0.0f, 0.5f, 1.0f)
-            val errorLeft = VRCompositor_Submit(EVREye_Eye_Left, texture, boundsLeft, 0)
+            val errorLeft = VRCompositor_Submit(EVREye_Eye_Left, texture, boundsLeft, EVRSubmitFlags_Submit_Default)
 
             logger.trace("Submitting right...")
             val boundsRight = VRTextureBounds.callocStack(stack).set(0.5f, 0.0f, 1.0f, 1.0f)
-            val errorRight = VRCompositor_Submit(EVREye_Eye_Right, texture, boundsRight, 0)
+            val errorRight = VRCompositor_Submit(EVREye_Eye_Right, texture, boundsRight, EVRSubmitFlags_Submit_Default)
 
             // NOTE: Here, an "unsupported texture type" error can be thrown if the required Vulkan
             // device or instance extensions have not been loaded -- even if the texture has the correct

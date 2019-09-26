@@ -1483,7 +1483,6 @@ open class OpenGLRenderer(hub: Hub,
         currentTime = newTime
 
         val stats = hub?.get(SceneryElement.Statistics) as? Statistics
-        hub?.getWorkingHMD()?.update()
 
         if (shouldClose) {
             try {

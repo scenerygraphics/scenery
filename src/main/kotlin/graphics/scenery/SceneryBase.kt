@@ -239,10 +239,6 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             runtime = (System.nanoTime() - startTime) / 1000000f
             settings.set("System.Runtime", runtime)
 
-            if(renderer?.managesRenderLoop == false) {
-                hub.getWorkingHMD()?.update()
-            }
-
             if (renderer?.managesRenderLoop != false) {
                 Thread.sleep(5)
             } else {
