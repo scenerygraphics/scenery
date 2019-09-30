@@ -12,15 +12,10 @@ import graphics.scenery.backends.*
 import graphics.scenery.spirvcrossj.Loader
 import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.utils.*
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.async
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 import org.lwjgl.system.MemoryUtil
 import java.awt.BorderLayout
 import java.awt.Dimension
-import java.awt.image.DataBufferByte
 import java.awt.image.DataBufferInt
 import java.io.File
 import java.io.FileNotFoundException
@@ -1362,6 +1357,12 @@ open class OpenGLRenderer(hub: Hub,
             // instance data starts after vertex, normal, texcoord
             val locationBase = 3
             var location = locationBase
+            var baseOffset = 0L
+            val stride = parentNode.instances.first().instancedProperties.map {
+                var res = it.value.invoke()
+                ubo.getSizeAndAlignment(res).first
+            }.sum()
+
             parentNode.instances.first().instancedProperties.entries.forEachIndexed { locationOffset, element ->
                 val result = element.value.invoke()
                 val sizeAlignment = ubo.getSizeAndAlignment(result)
@@ -1397,8 +1398,8 @@ open class OpenGLRenderer(hub: Hub,
 
                 logger.trace("{} needs {} locations with {} elements:", result.javaClass, necessaryAttributes, count)
                 (0 until necessaryAttributes).forEach { attributeLocation ->
-                    val stride = sizeAlignment.first
-                    val offset = 1L * attributeLocation * (sizeAlignment.first/necessaryAttributes)
+                    //                    val stride = sizeAlignment.first
+                    val offset = baseOffset + 1L * attributeLocation * (sizeAlignment.first/necessaryAttributes)
 
                     logger.trace("{}, stride={}, offset={}",
                         location + attributeLocation,
@@ -1418,9 +1419,13 @@ open class OpenGLRenderer(hub: Hub,
                     gl.glVertexAttribPointer(location + attributeLocation, count, glType, false,
                         stride, offset)
                     gl.glVertexAttribDivisor(location + attributeLocation, 1)
+
+                    if(attributeLocation == necessaryAttributes - 1) {
+                        baseOffset += sizeAlignment.first
+                    }
                 }
 
-                location += necessaryAttributes
+                location += necessaryAttributes - 1
             }
 
             gl.glBindVertexArray(0)
