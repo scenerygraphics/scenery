@@ -150,6 +150,7 @@ open class VulkanObjectState : NodeMetadata {
                 .dstArrayElement(i)
                 .pImageInfo(d[i])
                 .descriptorType(VK10.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+                .descriptorCount(1)
 
             i++
         }
