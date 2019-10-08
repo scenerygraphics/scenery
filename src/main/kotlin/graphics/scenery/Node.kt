@@ -634,7 +634,7 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
     }
 
     override fun toString(): String {
-        return "$name($nodeType)"
+        return "$name(${javaClass?.simpleName})"
     }
 
     companion object NodeHelpers {
