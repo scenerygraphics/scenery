@@ -607,7 +607,11 @@ open class Volume : Mesh("Volume") {
         val emptyBuffer = BufferUtils.allocateByteAndPut(byteArrayOf(0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
                                                                      0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0))
         val dim = GLVector(2.0f, 2.0f, 2.0f)
-        val gtv = GenericTexture("empty-volume", dim, 1, GLTypeEnum.UnsignedByte, emptyBuffer, false, false, normalized = true)
+        val gtv = GenericTexture("empty-volume", dim, 1, GLTypeEnum.UnsignedByte, emptyBuffer,
+            repeatS = false,
+            repeatT = false,
+            repeatU = false,
+            normalized = true)
 
         material.transferTextures.put("empty-volume", gtv)
         material.textures.put("VolumeTextures", "fromBuffer:empty-volume")
@@ -648,7 +652,11 @@ open class Volume : Mesh("Volume") {
 
         val dim = GLVector(dimensions[0].toFloat(), dimensions[1].toFloat(), dimensions[2].toFloat())
         val gtv = GenericTexture("VolumeTextures", dim,
-            1, descriptor.dataType.toGLType(), descriptor.data, false, false, normalized = true)
+            1, descriptor.dataType.toGLType(), descriptor.data,
+            repeatS = false,
+            repeatT = false,
+            repeatU = false,
+            normalized = true)
 
         boundingBox = generateBoundingBox()
 
