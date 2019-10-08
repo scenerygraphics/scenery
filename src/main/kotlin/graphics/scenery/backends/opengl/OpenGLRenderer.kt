@@ -1691,6 +1691,18 @@ open class OpenGLRenderer(hub: Hub,
                         Material.CullingMode.FrontAndBack -> gl.glCullFace(GL4.GL_FRONT_AND_BACK)
                     }
 
+                   val depthTest = when(n.material.depthTest) {
+                        Material.DepthTest.Less -> GL4.GL_LESS
+                        Material.DepthTest.Greater -> GL4.GL_GREATER
+                        Material.DepthTest.LessEqual -> GL4.GL_LEQUAL
+                        Material.DepthTest.GreaterEqual -> GL4.GL_GEQUAL
+                        Material.DepthTest.Always -> GL4.GL_ALWAYS
+                        Material.DepthTest.Never -> GL4.GL_NEVER
+                        Material.DepthTest.Equal -> GL4.GL_EQUAL
+                    }
+
+                    gl.glDepthFunc(depthTest)
+
                     if (n.material.blending.transparent) {
                         with(n.material.blending) {
                             gl.glBlendFuncSeparate(
@@ -1714,11 +1726,6 @@ open class OpenGLRenderer(hub: Hub,
                     }
 
                     val s = getOpenGLObjectStateFromNode(n)
-
-                    if (n is Skybox) {
-                        gl.glCullFace(GL4.GL_FRONT)
-                        gl.glDepthFunc(GL4.GL_LEQUAL)
-                    }
 
                     preDrawAndUpdateGeometryForNode(n)
 
