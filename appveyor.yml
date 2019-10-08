@@ -11,7 +11,7 @@ install:
         (new-object System.Net.WebClient).DownloadFile('https://repo1.maven.org/maven2/org/apache/maven/apache-maven/3.5.4/apache-maven-3.5.4-bin.zip', 'C:\maven-bin.zip')
         [System.IO.Compression.ZipFile]::ExtractToDirectory("C:\maven-bin.zip", "C:\maven")
       }
-  - cmd: SET PATH=C:\maven\apache-maven-3.3.9\bin;%JAVA_HOME%\bin;%PATH%
+  - cmd: SET PATH=C:\Program Files\Git\usr\bin;C:\maven\apache-maven-3.3.9\bin;%JAVA_HOME%\bin;%PATH%
   - cmd: SET MAVEN_OPTS=-Xmx2g
   - cmd: SET JAVA_OPTS=-Xmx2g
   - cmd: mvn --version
