@@ -289,7 +289,7 @@
         <dependency>
             <groupId>org.lwjgl</groupId>
             <artifactId>lwjgl-xxhash</artifactId>
-            <version>3.2.1</version>
+            <version>${lwjgl.version}</version>
         </dependency>
         <dependency>
             <groupId>org.lwjgl</groupId>
@@ -329,7 +329,7 @@
         <dependency>
             <groupId>org.lwjgl</groupId>
             <artifactId>lwjgl-xxhash</artifactId>
-            <version>3.2.1</version>
+            <version>${lwjgl.version}</version>
             <classifier>${lwjgl.natives}</classifier>
         </dependency>
         <!-- LWJGL dependencies END -->
@@ -439,9 +439,9 @@
         </dependency>
 
         <dependency>
-            <groupId>org.lwjglx</groupId>
+            <groupId>com.github.lwjglx</groupId>
             <artifactId>lwjgl3-awt</artifactId>
-            <version>0.1.6</version>
+            <version>45a85af</version>
         </dependency>
     </dependencies>
 
