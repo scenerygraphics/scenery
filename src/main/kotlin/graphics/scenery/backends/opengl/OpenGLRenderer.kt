@@ -142,6 +142,8 @@ open class OpenGLRenderer(hub: Hub,
     private var readIndex = 0
     private var updateIndex = 1
 
+    private var renderCalled = false
+
     private var renderConfig: RenderConfigReader.RenderConfig
     final override var renderConfigFile = ""
         set(config) {
@@ -759,7 +761,7 @@ open class OpenGLRenderer(hub: Hub,
             mustRecreateFramebuffers = false
         }
 
-        this@OpenGLRenderer.render()
+        this@OpenGLRenderer.renderInternal()
     }
 
     override fun setClearGLWindow(pClearGLWindow: ClearGLWindow) {
@@ -1446,6 +1448,15 @@ open class OpenGLRenderer(hub: Hub,
 
     protected fun destroyNode(node: Node) {
         node.metadata.remove("OpenGLRenderer")
+        val s = node.metadata["OpenGLRenderer"] as? OpenGLObjectState ?: return
+
+        gl.glDeleteBuffers(s.mVertexBuffers.size, s.mVertexBuffers, 0)
+        gl.glDeleteBuffers(1, s.mIndexBuffer, 0)
+
+        s.additionalBufferIds.forEach { _, id ->
+            gl.glDeleteBuffers(1, intArrayOf(id), 0)
+        }
+
         node.initialized = false
     }
 
@@ -1473,8 +1484,12 @@ open class OpenGLRenderer(hub: Hub,
      * 7) The resulting image is drawn to the screen, or -- if a HMD is present -- submitted to the OpenVR
      *    compositor.
      */
-    @Synchronized override fun render() = runBlocking {
-        if(!initialized) {
+    override fun render() {
+        renderCalled = true
+    }
+
+    @Synchronized fun renderInternal() = runBlocking {
+        if(!initialized || !renderCalled) {
             return@runBlocking
         }
 
@@ -1490,6 +1505,7 @@ open class OpenGLRenderer(hub: Hub,
         val stats = hub?.get(SceneryElement.Statistics) as? Statistics
 
         if (shouldClose) {
+            initialized = false
             try {
                 logger.info("Closing window")
 
@@ -1499,8 +1515,18 @@ open class OpenGLRenderer(hub: Hub,
 
                 scene.initialized = false
 
-                joglDrawable?.animator?.stop()
-                cglWindow?.close()
+                if(cglWindow == null) {
+                    joglDrawable?.animator?.stop()
+                    joglDrawable?.destroy()
+                } else {
+                    cglWindow?.close()
+                }
+
+                gl.glDeleteBuffers(1, buffers.LightParameters.id, 0)
+                gl.glDeleteBuffers(1, buffers.VRParameters.id, 0)
+                gl.glDeleteBuffers(1, buffers.UBOs.id, 0)
+                gl.glDeleteBuffers(1, buffers.ShaderParameters.id, 0)
+                gl.glDeleteBuffers(1, buffers.ShaderProperties.id, 0)
             } catch(e: ThreadDeath) {
                 logger.debug("Caught JOGL ThreadDeath, ignoring.")
             }
