@@ -240,7 +240,8 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             settings.set("System.Runtime", runtime)
 
             if (renderer?.managesRenderLoop != false) {
-                Thread.sleep(5)
+                renderer?.render()
+                Thread.sleep(1)
             } else {
                 stats.addTimed("render") { renderer?.render() ?: 0.0f }
             }
@@ -438,6 +439,12 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
 
         if(wait) {
             latch?.await()
+        }
+    }
+
+    fun waitForSceneInitialisation() {
+        while(!sceneInitialized()) {
+            Thread.sleep(200)
         }
     }
 
