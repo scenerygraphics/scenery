@@ -1082,7 +1082,7 @@ open class OpenGLRenderer(hub: Hub,
                 false
             }
 
-            nodeUpdated = if(node.material.hashCode() != s.materialHash) {
+            nodeUpdated = if(node.material.materialHashCode() != s.materialHash) {
                 s.initialized = false
                 initializeNode(node)
                 true
@@ -1708,6 +1708,12 @@ open class OpenGLRenderer(hub: Hub,
 
                     gl.glDepthFunc(depthTest)
 
+                    if(n.material.wireframe) {
+                        gl.glPolygonMode(GL4.GL_FRONT_AND_BACK, GL4.GL_LINE)
+                    } else {
+                        gl.glPolygonMode(GL4.GL_FRONT_AND_BACK, GL4.GL_FILL)
+                    }
+
                     if (n.material.blending.transparent) {
                         with(n.material.blending) {
                             gl.glBlendFuncSeparate(
@@ -2184,7 +2190,7 @@ open class OpenGLRenderer(hub: Hub,
 
         }
 
-        s.materialHash = node.material.hashCode()
+        s.materialHash = node.material.materialHashCode()
 
         val matricesUbo = OpenGLUBO(backingBuffer = buffers.UBOs)
         with(matricesUbo) {

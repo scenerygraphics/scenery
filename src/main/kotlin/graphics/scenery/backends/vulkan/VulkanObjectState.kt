@@ -41,8 +41,8 @@ open class VulkanObjectState : NodeMetadata {
     /** [VulkanTexture]s used by the [graphics.scenery.Node] this metadata object is attached to. */
     var textures = ConcurrentHashMap<String, VulkanTexture>()
 
-    /** Hash code for the blending options used in the last command buffer recording. */
-    var blendingHashCode = 0
+    /** Material hash code, does not include textures. */
+    var materialHashCode = 0
 
     /** Whether this [graphics.scenery.Node] will use any default textures for any of its texture slots. */
     var defaultTexturesFor = HashSet<String>()
