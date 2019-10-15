@@ -3,16 +3,16 @@ cache:
     - maven.repository/
  
 variables:
-  MAVEN_OPTS: "-B -Dmaven.repo.local=maven.repository -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN"
+  MAVEN_OPTS: "-Dmaven.repo.local=maven.repository -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN -Xmx4g"
  
 .base-job: &base-job
   before_script:
-    - apt-get update
-    - apt-get install -qq --force-yes maven openjdk-8-jdk libvulkan1 libvulkan-dev vulkan-utils
+    - apt-get update -qq > /dev/null
+    - apt-get install -qq --force-yes maven openjdk-8-jdk libvulkan1 libvulkan-dev vulkan-utils > /dev/null
   script:
-    - mvn package
-    - mvn test
-    - mvn test -Dtest=ExampleRunner
+    - mvn -B package
+    - mvn -B test
+    - mvn -B test -Dtest=ExampleRunner
 
 scenery-nvidia:
   image: nvidia/cuda:latest
