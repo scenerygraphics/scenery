@@ -39,7 +39,7 @@ class TexturedCubeExample : SceneryBase("TexturedCubeExample") {
         }
 
         thread {
-            while (true) {
+            while (running) {
                 box.rotation.rotateByAngleY(0.01f)
                 box.needsUpdate = true
 
