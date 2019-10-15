@@ -13,7 +13,7 @@ variables:
   script:
     - mvn -B package
     - mvn -B test
-    - mvn -B test -Dtest=ExampleRunner
+    - mvn -B test -Dtest=ExampleRunner -Dscenery.Renderer=VulkanRenderer
 
 scenery-nvidia:
   image: nvidia/cuda:latest
@@ -38,6 +38,8 @@ scenery-amd:
     - $SUDO usermod -a -G video rocm-user
     - $SUDO apt-get -qy update
     - $SUDO apt-get -qy install sysbench
+    - $SUDO apt-get update -qq > /dev/null
+    - $SUDO apt-get install -qq --force-yes maven openjdk-8-jdk libvulkan1 libvulkan-dev vulkan-utils > /dev/null
   after_script:
     - rocm-smi
   tags:
