@@ -8,11 +8,11 @@ variables:
  
 .base-job: &base-job
   before_script:
-    - apt-get update -qq > /dev/null
+    - apt-get update -qq --force-yes > /dev/null
     - apt-get install -qq --force-yes maven openjdk-8-jdk libvulkan1 libvulkan-dev vulkan-utils > /dev/null
+    - vulkaninfo
   script:
     - mvn -B package
-    - mvn -B test
     - mvn -B test -Dtest=ExampleRunner -Dscenery.Renderer=VulkanRenderer
 
 scenery-nvidia:
@@ -36,10 +36,9 @@ scenery-amd:
     # has no known option for doing that. Therefore, it manually has to happen in
     # the job description. 
     - $SUDO usermod -a -G video rocm-user
-    - $SUDO apt-get -qy update
-    - $SUDO apt-get -qy install sysbench
-    - $SUDO apt-get update -qq > /dev/null
+    - $SUDO apt-get -qq --force-yes update > /dev/null
     - $SUDO apt-get install -qq --force-yes maven openjdk-8-jdk libvulkan1 libvulkan-dev vulkan-utils > /dev/null
+    - vulkaninfo
   after_script:
     - rocm-smi
   tags:
