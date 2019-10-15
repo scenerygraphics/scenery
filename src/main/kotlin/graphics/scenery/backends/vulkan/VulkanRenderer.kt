@@ -805,7 +805,7 @@ open class VulkanRenderer(hub: Hub,
 
         loadTexturesForNode(node, s)
 
-        s.blendingHashCode = node.material.blending.hashCode()
+        s.materialHashCode = node.material.materialHashCode()
 
         val materialUbo = VulkanUBO(device, backingBuffer = buffers.UBOs)
         with(materialUbo) {
@@ -831,8 +831,15 @@ open class VulkanRenderer(hub: Hub,
 
     private fun initializeCustomShadersForNode(node: Node, addInitializer: Boolean = true): Boolean {
 
-        if(!(node.material.blending.transparent || node.material is ShaderMaterial || node.material.cullingMode != Material.CullingMode.Back)) {
+        if(!(node.material.blending.transparent || node.material is ShaderMaterial || node.material.cullingMode != Material.CullingMode.Back || node.material.wireframe)) {
             logger.debug("Using default renderpass material for ${node.name}")
+            renderpasses
+                .filter { it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry || it.value.passConfig.type == RenderConfigReader.RenderpassType.lights }
+                .forEach {
+                    it.value.removePipeline(node)
+                }
+
+            lateResizeInitializers.remove(node)
             return false
         }
 
@@ -924,6 +931,12 @@ open class VulkanRenderer(hub: Hub,
                                 Material.DepthTest.GreaterEqual -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_GREATER_OR_EQUAL)
                                 Material.DepthTest.Always -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_ALWAYS)
                                 Material.DepthTest.Never -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_NEVER)
+                            }
+
+                            if(node.material.wireframe) {
+                                pipeline.rasterizationState.polygonMode(VK_POLYGON_MODE_LINE)
+                            } else {
+                                pipeline.rasterizationState.polygonMode(VK_POLYGON_MODE_FILL)
                             }
 
                             if(node.material.blending.transparent) {
@@ -1959,11 +1972,11 @@ open class VulkanRenderer(hub: Hub,
                         }
                     }
 
-                    if (material.blending.hashCode() != metadata.blendingHashCode || (material is ShaderMaterial && material.shaders.stale)) {
+                    if (material.materialHashCode() != metadata.materialHashCode || (material is ShaderMaterial && material.shaders.stale)) {
                         logger.trace("Force command buffer re-recording, as blending options for ${it.name} have changed")
                         val reloaded = initializeCustomShadersForNode(it)
-                        logger.info("Material is stale, re-recording, reloaded=$reloaded")
-                        metadata.blendingHashCode = it.material.blending.hashCode()
+                        logger.debug("Material is stale, re-recording, reloaded=$reloaded")
+                        metadata.materialHashCode = it.material.materialHashCode()
 
                         // if we reloaded the node's shaders, we might need to recreate its texture descriptor sets
                         if(reloaded) {
