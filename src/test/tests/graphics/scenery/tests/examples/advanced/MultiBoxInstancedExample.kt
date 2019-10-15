@@ -82,11 +82,7 @@ class MultiBoxInstancedExample : SceneryBase("MultiBoxInstancedExample") {
         scene.addChild(hullbox)
 
         thread {
-            while(!sceneInitialized()) {
-                Thread.sleep(200)
-            }
-
-            while (true) {
+            while (running) {
                 container.rotation.rotateByEuler(0.001f, 0.001f, 0.0f)
                 container.needsUpdateWorld = true
                 container.needsUpdate = true
