@@ -43,7 +43,8 @@ class ExampleRunner {
             .filter { !it.canonicalName.contains("stresstests") && !it.canonicalName.contains("cluster") }
             .filter { !blacklist.contains(it.simpleName) }
 
-        val renderers = when(ExtractsNatives.getPlatform()) {
+        val rendererProperty = System.getProperty("scenery.Renderer")
+        val renderers = rendererProperty?.split(",") ?: when(ExtractsNatives.getPlatform()) {
             ExtractsNatives.Platform.WINDOWS,
             ExtractsNatives.Platform.LINUX -> listOf("VulkanRenderer", "OpenGLRenderer")
             ExtractsNatives.Platform.MACOS -> listOf("OpenGLRenderer")
