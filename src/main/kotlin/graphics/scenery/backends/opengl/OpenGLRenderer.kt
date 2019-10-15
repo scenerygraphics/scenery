@@ -342,7 +342,7 @@ open class OpenGLRenderer(hub: Hub,
 
         this.flow = this.renderConfig.createRenderpassFlow()
 
-        logger.info("Loaded ${renderConfig.name} (${renderConfig.description ?: "no description"}")
+        logger.info("Loaded ${renderConfig.name} (${renderConfig.description ?: "no description"})")
 
         this.scene = scene
         this.applicationName = applicationName
