@@ -1,0 +1,52 @@
+.base-job: &base-job
+  before_script:
+    - apt-get update
+    - apt-get install -qy sysbench
+  script:
+    - sysbench --test=cpu --cpu-max-prime=100000 --num-threads=1 run
+
+sysbench-arm64:
+  image: ubuntu:bionic
+  <<: *base-job
+  tags:
+    - arm64
+
+sysbench-ppc64le:
+  image: nvidia/cuda-ppc64le:10.1-base-ubuntu18.04
+  <<: *base-job
+  after_script:
+    - nvidia-smi
+  tags:
+    - cuda
+    - ppc64le
+
+sysbench-intel:
+  image: nvidia/cuda:latest
+  <<: *base-job
+  after_script:
+    - nvidia-smi
+  tags:
+    - cuda
+    - intel
+
+sysbench-amd:
+  image: rocm/rocm-terminal
+  <<: *base-job
+  variables:
+    SUDO: "sudo"
+    GPURUN: "sudo su -m - rocm-user -c"
+  before_script:
+    # The rocm docker container requires the user to be in the video group which
+    # can usually be set via docker's --group-add option. GitLab-Runner currently
+    # has no known option for doing that. Therefore, it manually has to happen in
+    # the job description. 
+    - $SUDO usermod -a -G video rocm-user
+    - $SUDO apt-get -qy update
+    - $SUDO apt-get -qy install sysbench
+  after_script:
+    - rocm-smi
+  tags:
+    - amd
+    - rocm
+
+
