@@ -1,26 +1,13 @@
 .base-job: &base-job
   before_script:
     - apt-get update
-    - apt-get install -qy sysbench
+    - apt-get install -qy maven openjdk-8-jdk libvulkan1 libvulkan-dev vulkan-utils
   script:
-    - sysbench --test=cpu --cpu-max-prime=100000 --num-threads=1 run
+    - mvn package
+    - mvn test
+    - mvn test -Dtest=ExampleRunner
 
-sysbench-arm64:
-  image: ubuntu:bionic
-  <<: *base-job
-  tags:
-    - arm64
-
-sysbench-ppc64le:
-  image: nvidia/cuda-ppc64le:10.1-base-ubuntu18.04
-  <<: *base-job
-  after_script:
-    - nvidia-smi
-  tags:
-    - cuda
-    - ppc64le
-
-sysbench-intel:
+scenery-nvidia:
   image: nvidia/cuda:latest
   <<: *base-job
   after_script:
@@ -29,7 +16,7 @@ sysbench-intel:
     - cuda
     - intel
 
-sysbench-amd:
+scenery-amd:
   image: rocm/rocm-terminal
   <<: *base-job
   variables:
