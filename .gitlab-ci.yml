@@ -3,12 +3,12 @@ cache:
     - maven.repository/
  
 variables:
-  MAVEN_OPTS: "--batch-mode -Dmaven.repo.local=maven.repository -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN"
+  MAVEN_OPTS: "-B -Dmaven.repo.local=maven.repository -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN"
  
 .base-job: &base-job
   before_script:
     - apt-get update
-    - apt-get install -qy maven openjdk-8-jdk libvulkan1 libvulkan-dev vulkan-utils
+    - apt-get install -qq --force-yes maven openjdk-8-jdk libvulkan1 libvulkan-dev vulkan-utils
   script:
     - mvn package
     - mvn test
