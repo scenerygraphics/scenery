@@ -10,6 +10,7 @@ import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.utils.*
 import kotlinx.coroutines.*
 import org.lwjgl.PointerBuffer
+import org.lwjgl.glfw.GLFW.glfwGetError
 import org.lwjgl.glfw.GLFW.glfwInit
 import org.lwjgl.glfw.GLFWVulkan.glfwGetRequiredInstanceExtensions
 import org.lwjgl.glfw.GLFWVulkan.glfwVulkanSupported
@@ -460,7 +461,15 @@ open class VulkanRenderer(hub: Hub,
             createInstance(null)
         } else {
             if (!glfwInit()) {
-                throw RuntimeException("Failed to initialize GLFW")
+                val buffer = PointerBuffer.allocateDirect(255)
+                val error = glfwGetError(buffer)
+                val description = if(error != 0) {
+                    buffer.stringUTF8
+                } else {
+                    "no error"
+                }
+                buffer.free()
+                throw RuntimeException("Failed to initialize GLFW: $description ($error)")
             }
             if (!glfwVulkanSupported()) {
                 throw UnsupportedOperationException("Failed to find Vulkan loader. Is Vulkan supported by your GPU and do you have the most recent graphics drivers installed?")
