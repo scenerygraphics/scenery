@@ -462,7 +462,9 @@ open class VulkanRenderer(hub: Hub,
         } else {
             if (!glfwInit()) {
                 val buffer = PointerBuffer.allocateDirect(255)
+                logger.warn("GLFW initialisation failed, checking origin...")
                 val error = glfwGetError(buffer)
+                logger.warn("GLFW failed with error code $error")
                 val description = if(error != 0) {
                     buffer.stringUTF8
                 } else {
