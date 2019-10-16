@@ -457,19 +457,20 @@ open class VulkanRenderer(hub: Hub,
 
 
         // Create the Vulkan instance
-        instance = if(embedIn != null) {
+        instance = if(embedIn != null || System.getProperty("scenery.Headless")?.toBoolean() == true) {
+            logger.debug("Running embedded or headless, skipping GLFW initialisation.")
             createInstance(null)
         } else {
             if (!glfwInit()) {
                 val buffer = PointerBuffer.allocateDirect(255)
-                logger.warn("GLFW initialisation failed, checking origin...")
                 val error = glfwGetError(buffer)
-                logger.warn("GLFW failed with error code $error")
+
                 val description = if(error != 0) {
                     buffer.stringUTF8
                 } else {
                     "no error"
                 }
+                
                 throw RuntimeException("Failed to initialize GLFW: $description ($error)")
             }
             if (!glfwVulkanSupported()) {
