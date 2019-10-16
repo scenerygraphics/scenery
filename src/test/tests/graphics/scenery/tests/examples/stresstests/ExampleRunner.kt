@@ -56,7 +56,7 @@ class ExampleRunner {
         val directoryName = "ExampleRunner-${SystemHelpers.formatDateTime()}"
         Files.createDirectory(Paths.get(directoryName))
 
-        logger.info("ExampleRunner: Running ${examples.size} examples with ${configurations.size} configurations. Memory: ${Runtime.getRuntime().freeMemory().toFloat()/1024.0f/1024.0f}M of ${Runtime.getRuntime().totalMemory().toFloat()/1024.0f/1024.0f}M available.")
+        logger.info("ExampleRunner: Running ${examples.size} examples with ${configurations.size} configurations. Memory: ${Runtime.getRuntime().freeMemory().toFloat()/1024.0f/1024.0f}M/${Runtime.getRuntime().totalMemory().toFloat()/1024.0f/1024.0f}/${Runtime.getRuntime().maxMemory().toFloat()/1024.0f/1024.0f}M (free/total/max) available.")
 
         renderers.shuffled().forEach { renderer ->
             System.setProperty("scenery.Renderer", renderer)
@@ -69,7 +69,7 @@ class ExampleRunner {
 
                 examples.shuffled().forEachIndexed { i, example ->
                     logger.info("Running ${example.simpleName} with $renderer ($i/${examples.size}) ...")
-                    logger.info("Memory: ${Runtime.getRuntime().freeMemory().toFloat()/1024.0f/1024.0f}M of ${Runtime.getRuntime().totalMemory().toFloat()/1024.0f/1024.0f}M available.")
+                    logger.info("Memory: ${Runtime.getRuntime().freeMemory().toFloat()/1024.0f/1024.0f}M/${Runtime.getRuntime().totalMemory().toFloat()/1024.0f/1024.0f}/${Runtime.getRuntime().maxMemory().toFloat()/1024.0f/1024.0f}M (free/total/max) available.")
 
                     if (!example.simpleName.contains("JavaFX")) {
                         System.setProperty("scenery.Headless", "true")
