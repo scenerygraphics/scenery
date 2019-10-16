@@ -470,7 +470,6 @@ open class VulkanRenderer(hub: Hub,
                 } else {
                     "no error"
                 }
-                buffer.free()
                 throw RuntimeException("Failed to initialize GLFW: $description ($error)")
             }
             if (!glfwVulkanSupported()) {
