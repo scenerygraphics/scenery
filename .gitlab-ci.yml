@@ -19,6 +19,11 @@ variables:
   script:
     - mvn -B package
     - mvn -B test -Dtest=ExampleRunner -Dscenery.Renderer=VulkanRenderer
+  artifacts:
+    when: always
+    expire_in: 48h
+    paths:
+      - ExampleRunner*/
 
 scenery-nvidia:
   image: nvidia/vulkan:1.1.121-cuda-10.1-alpha
