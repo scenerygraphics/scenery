@@ -26,7 +26,7 @@ class ExampleRunner {
 
         // blacklist contains examples that require user interaction or additional devices
         val blacklist = listOf("LocalisationExample",
-//            "SwingTexturedCubeExample",
+            "SwingTexturedCubeExample",
             "TexturedCubeJavaApplication",
             "XwingLiverExample",
             "VRControllerExample",
@@ -69,6 +69,7 @@ class ExampleRunner {
 
                 examples.shuffled().forEachIndexed { i, example ->
                     logger.info("Running ${example.simpleName} with $renderer ($i/${examples.size}) ...")
+                    logger.info("Memory: ${Runtime.getRuntime().freeMemory().toFloat()/1024.0f/1024.0f}M of ${Runtime.getRuntime().totalMemory().toFloat()/1024.0f/1024.0f}M available.")
 
                     if (!example.simpleName.contains("JavaFX")) {
                         System.setProperty("scenery.Headless", "true")
