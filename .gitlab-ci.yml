@@ -16,7 +16,7 @@ variables:
     - mvn -B test -Dtest=ExampleRunner -Dscenery.Renderer=VulkanRenderer
 
 scenery-nvidia:
-  image: nvidia/vulkan
+  image: nvidia/vulkan:1.1.121-cuda-10.1-alpha
   <<: *base-job
   after_script:
     - nvidia-smi
