@@ -14,8 +14,8 @@ variables:
     # Output Vulkan driver information, but do not fail in case of non-zero
     # return (happens e.g. if $DISPLAY is not set)
     - vulkaninfo || true
-    - wget https://ulrik.is/scenery-demo-models.zip
-    - unzip scenery-demo-models.zip
+    - wget -q https://ulrik.is/scenery-demo-models.zip
+    - unzip -q scenery-demo-models.zip
   script:
     - mvn -B package
     - mvn -B test -Dtest=ExampleRunner -Dscenery.Renderer=VulkanRenderer
@@ -57,8 +57,8 @@ scenery-amd:
     # Output Vulkan driver information, but do not fail in case of non-zero
     # return (happens e.g. if $DISPLAY is not set)
     - vulkaninfo || true
-    - wget https://ulrik.is/scenery-demo-models.zip
-    - unzip scenery-demo-models.zip
+    - wget -q https://ulrik.is/scenery-demo-models.zip
+    - unzip -q scenery-demo-models.zip
   after_script:
     - rocm-smi
   tags:
