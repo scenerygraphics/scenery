@@ -10,7 +10,7 @@ variables:
   before_script:
     - apt-get update -qq --force-yes > /dev/null
     - apt-get install -qq --force-yes maven openjdk-8-jdk libvulkan1 libvulkan-dev vulkan-utils > /dev/null
-    - vulkaninfo
+    - vulkaninfo || true
   script:
     - mvn -B package
     - mvn -B test -Dtest=ExampleRunner -Dscenery.Renderer=VulkanRenderer
