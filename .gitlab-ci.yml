@@ -10,7 +10,7 @@ variables:
   before_script:
     # Installs Maven, Vulkan development libraries, etc.
     - apt-get update -qq --force-yes > /dev/null
-    - apt-get install -qq --force-yes wget git maven openjdk-8-jdk libvulkan1 libvulkan-dev vulkan-utils > /dev/null
+    - apt-get install -qq --force-yes unzip wget git maven openjdk-8-jdk libvulkan1 libvulkan-dev vulkan-utils > /dev/null
     # Output Vulkan driver information, but do not fail in case of non-zero
     # return (happens e.g. if $DISPLAY is not set)
     - vulkaninfo || true
@@ -43,13 +43,12 @@ scenery-amd:
     - $SUDO usermod -a -G video rocm-user
     # Installs Maven, Vulkan development libraries, etc.
     - $SUDO apt-get -qq --force-yes update > /dev/null
-    - $SUDO apt-get install -qq --force-yes kmod wget git maven openjdk-8-jdk libvulkan1 libvulkan-dev vulkan-utils > /dev/null
+    - $SUDO apt-get install -qq --force-yes unzip kmod wget git maven openjdk-8-jdk libvulkan1 libvulkan-dev vulkan-utils > /dev/null
     # Installs the AMD GPUopen Vulkan driver
     - wget https://github.com/GPUOpen-Drivers/AMDVLK/releases/download/v-2019.Q3.6/amdvlk_2019.Q3.6_amd64.deb
     - $SUDO dpkg -i amdvlk_2019.Q3.6_amd64.deb
     - $SUDO apt-get -f install
     - $SUDO lsmod
-    - $SUDO dmesg
     # Output Vulkan driver information, but do not fail in case of non-zero
     # return (happens e.g. if $DISPLAY is not set)
     - vulkaninfo || true
