@@ -56,6 +56,7 @@ class ExampleRunner {
         val directoryName = "ExampleRunner-${SystemHelpers.formatDateTime()}"
         Files.createDirectory(Paths.get(directoryName))
 
+        logger.info("ExampleRunner: Running ${examples.size} examples with ${configurations.size} configurations. Memory: ${Runtime.getRuntime().freeMemory()/Runtime.getRuntime().totalMemory()}")
 
         renderers.shuffled().forEach { renderer ->
             System.setProperty("scenery.Renderer", renderer)
