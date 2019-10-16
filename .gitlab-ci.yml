@@ -39,13 +39,13 @@ scenery-amd:
     # has no known option for doing that. Therefore, it manually has to happen in
     # the job description. 
     - $SUDO usermod -a -G video rocm-user
+    # Installs Maven, Vulkan development libraries, etc.
+    - $SUDO apt-get -qq --force-yes update > /dev/null
+    - $SUDO apt-get install -qq --force-yes wget git maven openjdk-8-jdk libvulkan1 libvulkan-dev vulkan-utils > /dev/null
     # Installs the AMD GPUopen Vulkan driver
     - wget https://github.com/GPUOpen-Drivers/AMDVLK/releases/download/v-2019.Q3.6/amdvlk_2019.Q3.6_amd64.deb
     - $SUDO dpkg -i amdvlk_2019.Q3.6_amd64.deb
     - $SUDO apt-get -f install
-    # Installs Maven, Vulkan development libraries, etc.
-    - $SUDO apt-get -qq --force-yes update > /dev/null
-    - $SUDO apt-get install -qq --force-yes git maven openjdk-8-jdk libvulkan1 libvulkan-dev vulkan-utils > /dev/null
     # Output Vulkan driver information, but do not fail in case of non-zero
     # return (happens e.g. if $DISPLAY is not set)
     - vulkaninfo || true
