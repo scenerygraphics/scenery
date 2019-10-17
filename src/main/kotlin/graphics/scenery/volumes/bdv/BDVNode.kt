@@ -28,6 +28,7 @@ import net.imglib2.RandomAccessible
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.ARGBType
+import net.imglib2.type.numeric.NumericType
 import net.imglib2.util.Util
 import tpietzsch.example2.VolumeViewerOptions
 import tpietzsch.multires.MultiResolutionStack3D
@@ -133,7 +134,7 @@ class BDVNode(val source: String, val options: VolumeViewerOptions, val hub: Hub
             }
         }
 
-        class RAII<T>(val img: RandomAccessibleInterval<T>, val options: VolumeViewerOptions, val axisOrder: AxisOrder, val name = "") {
+        class RAII<T: NumericType<T>>(val img: RandomAccessibleInterval<T>, val options: VolumeViewerOptions, val axisOrder: AxisOrder, val name: String = "") {
             val converterSetups = ArrayList<ConverterSetup>()
             val numTimepoints: Int
             val stacks = ArrayList<Stack3D<T>>()
@@ -152,10 +153,10 @@ class BDVNode(val source: String, val options: VolumeViewerOptions, val hub: Hub
                 split.forEach { stack ->
                     val source: Source<T> = if(stack.numDimensions() > 3) {
                         tp = stack.max(3).toInt() + 1
-                        RandomAccessibleIntervalSource4D(stack, type, sourceTransform, name)
+                        RandomAccessibleIntervalSource4D<T>(stack, type, sourceTransform, name)
                     } else {
                         tp = 1
-                        RandomAccessibleIntervalSource(stack, type, sourceTransform, name)
+                        RandomAccessibleIntervalSource<T>(stack, type, sourceTransform, name)
                     }
 
                     val s = object: SimpleStack3D<T> {
