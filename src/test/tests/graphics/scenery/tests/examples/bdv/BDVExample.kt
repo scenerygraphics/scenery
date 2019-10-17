@@ -1,5 +1,6 @@
 package graphics.scenery.tests.examples.bdv
 
+import bdv.spimdata.XmlIoSpimDataMinimal
 import cleargl.GLVector
 import graphics.scenery.Camera
 import graphics.scenery.DetachedHeadCamera
@@ -59,7 +60,7 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
         }
 
         val options = VolumeViewerOptions().maxCacheSizeInMB(1024)
-        val v = BDVNode(files.first(), options, hub)
+        val v = BDVNode(XmlIoSpimDataMinimal().load(files.first()), options, hub)
         v.name = "volume"
 //        v.colormap = "plasma"
         v.scale = GLVector(0.02f, 0.02f, 0.02f)
@@ -68,7 +69,7 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
 
         volume = v
 
-        val v2 = BDVNode(files.first(), options, hub)
+        val v2 = BDVNode(XmlIoSpimDataMinimal().load(files.first()), options, hub)
         v2.scale = GLVector(0.001f, 0.001f, 0.001f)
         v2.rotation = v2.rotation.rotateByAngleX(0.5f)
         v2.updateWorld(true, true)

@@ -1,5 +1,6 @@
 package graphics.scenery.tests.examples.bdv
 
+import bdv.spimdata.XmlIoSpimDataMinimal
 import cleargl.GLVector
 import coremem.enums.NativeTypeEnum
 import graphics.scenery.*
@@ -61,7 +62,7 @@ class BigAndSmallVolumeExample: SceneryBase("BDV + SDV Rendering example", 1280,
         }
 
         val options = VolumeViewerOptions().maxCacheSizeInMB(1024)
-        val v = BDVNode(files.first(), options, hub)
+        val v = BDVNode(XmlIoSpimDataMinimal().load(files.first()), options, hub)
         v.name = "volume"
 //        v.colormap = "plasma"
         v.scale = GLVector(0.02f, 0.02f, 0.02f)
