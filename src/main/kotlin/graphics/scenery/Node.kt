@@ -635,6 +635,10 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
             && this.z() > min.z() && this.z() < max.z()
     }
 
+    override fun toString(): String {
+        return "$name(${javaClass?.simpleName})"
+    }
+
     companion object NodeHelpers {
         /**
          * Depth-first search for elements in a Scene.

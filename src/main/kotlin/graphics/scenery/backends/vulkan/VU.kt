@@ -653,6 +653,7 @@ class VU {
                         .dstArrayElement(0)
                         .pBufferInfo(d)
                         .descriptorType(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC)
+                        .descriptorCount(1)
                 }
 
                 vkUpdateDescriptorSets(device.vulkanDevice, writeDescriptorSet, null)
@@ -685,6 +686,7 @@ class VU {
                         .dstArrayElement(0)
                         .pBufferInfo(d)
                         .descriptorType(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC)
+                        .descriptorCount(1)
                 }
 
                 vkUpdateDescriptorSets(device.vulkanDevice, writeDescriptorSet, null)
@@ -729,6 +731,7 @@ class VU {
                         .dstBinding(i)
                         .pBufferInfo(d)
                         .descriptorType(type)
+                        .descriptorCount(1)
                 }
 
                 vkUpdateDescriptorSets(device.vulkanDevice, writeDescriptorSet, null)
@@ -779,6 +782,7 @@ class VU {
                             .dstArrayElement(0)
                             .pImageInfo(d)
                             .descriptorType(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+                            .descriptorCount(1)
                     }
                     writeDescriptorSet
                 } else {
@@ -801,6 +805,7 @@ class VU {
                             .dstArrayElement(0)
                             .pImageInfo(d)
                             .descriptorType(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+                            .descriptorCount(1)
                     }
                     writeDescriptorSet
                 }

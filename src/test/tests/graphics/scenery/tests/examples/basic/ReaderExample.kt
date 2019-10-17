@@ -77,7 +77,7 @@ class ReaderExample : SceneryBase("ReaderExample", 1280, 720) {
         tetrahedron.mapIndexed { i, position ->
             lights[i].position = position * 5.0f
             lights[i].emissionColor = Random.randomVectorFromRange(3, 0.8f, 1.0f)
-            lights[i].intensity = 200.2f
+            lights[i].intensity = 0.5f
             scene.addChild(lights[i])
         }
 
