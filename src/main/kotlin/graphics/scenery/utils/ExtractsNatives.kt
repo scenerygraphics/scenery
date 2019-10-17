@@ -138,7 +138,7 @@ interface ExtractsNatives {
         val res = Thread.currentThread().contextClassLoader.getResource(hint)
 
         if (res == null) {
-            LoggerFactory.getLogger(this.javaClass.simpleName).error("Could not find JAR with native libraries.")
+            LoggerFactory.getLogger(this.javaClass.simpleName).error("Could not find JAR matching \"" + searchName + "\" with native libraries.")
             return listOf()
         }
 

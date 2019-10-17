@@ -1,5 +1,7 @@
 package graphics.scenery.repl
 
+import graphics.scenery.Hub
+import graphics.scenery.Hubable
 import org.scijava.Context
 import org.scijava.`object`.ObjectService
 import org.scijava.ui.swing.script.InterpreterWindow
@@ -13,7 +15,7 @@ import java.util.*
  * @property[addAccessibleObject] A list of objects that should be accessible right away in the REPL
  * @constructor Returns a REPL, equipped with a window for input/output.
  */
-class REPL @JvmOverloads constructor(scijavaContext: Context? = null, vararg accessibleObjects: Any) {
+class REPL @JvmOverloads constructor(override var hub : Hub?, scijavaContext: Context? = null, vararg accessibleObjects: Any) : Hubable {
 
     /** SciJava context for the REPL */
     protected var context: Context
@@ -27,6 +29,7 @@ class REPL @JvmOverloads constructor(scijavaContext: Context? = null, vararg acc
     protected var startupScriptClass: Class<*> = REPL::class.java
 
     init {
+        hub?.add(this)
         context = scijavaContext ?: Context()
         interpreterWindow = InterpreterWindow(context)
         interpreterWindow.isVisible = false

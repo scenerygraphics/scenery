@@ -6,6 +6,8 @@ package graphics.scenery
 * @author Ulrik Günther <hello@ulrik.is>
 */
 enum class SceneryElement {
+    /** Custom elements that can be added to the Hub */
+    Custom,
     /** The application base object itself */
     Application,
     /** Element for any renderers */
@@ -26,6 +28,6 @@ enum class SceneryElement {
     NodeSubscriber,
     /** Element for publishing Node updates */
     NodePublisher,
-    /** Custom elements that can be added to the Hub */
-    Custom
+    /** Element for a REPL */
+    REPL
 }

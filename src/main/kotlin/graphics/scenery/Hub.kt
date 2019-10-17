@@ -7,6 +7,7 @@ import graphics.scenery.controls.InputHandler
 import graphics.scenery.controls.TrackerInput
 import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
+import graphics.scenery.repl.REPL
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.Statistics
 import java.util.concurrent.ConcurrentHashMap
@@ -51,6 +52,7 @@ class Hub(val name: String = "default") {
             is Settings -> SceneryElement.Settings
             is NodeSubscriber -> SceneryElement.NodeSubscriber
             is NodePublisher -> SceneryElement.NodePublisher
+            is REPL -> SceneryElement.REPL
             else -> SceneryElement.Custom
         }
 

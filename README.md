@@ -54,6 +54,7 @@ If a gamepad is connected (such as a PlayStation 3 or 4 controller), the hats ca
 | --- | --- |
 | `F` | Toggle fullscreen |
 | `Q` | Toggle rendering quality (low, medium, high, ultra), if supported by the current rendering pipeline |
+| `Shift`-`V` | Toggle stereo rendering and rendering to VR headsets, if supported by the current rendering pipeline |
 | `Shift`-`Q` | Toggle buffer debug view |
 | `P` | Save screenshot to Desktop as PNG |
 | `Shift`-`P` | Record a H264-encoded video to the Desktop |

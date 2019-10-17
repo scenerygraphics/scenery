@@ -12,15 +12,10 @@ import graphics.scenery.backends.*
 import graphics.scenery.spirvcrossj.Loader
 import graphics.scenery.spirvcrossj.libspirvcrossj
 import graphics.scenery.utils.*
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.async
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 import org.lwjgl.system.MemoryUtil
 import java.awt.BorderLayout
 import java.awt.Dimension
-import java.awt.image.DataBufferByte
 import java.awt.image.DataBufferInt
 import java.io.File
 import java.io.FileNotFoundException
@@ -146,6 +141,8 @@ open class OpenGLRenderer(hub: Hub,
     private var pboBuffers: Array<ByteBuffer?> = Array(pboCount) { null }
     private var readIndex = 0
     private var updateIndex = 1
+
+    private var renderCalled = false
 
     private var renderConfig: RenderConfigReader.RenderConfig
     final override var renderConfigFile = ""
@@ -345,7 +342,7 @@ open class OpenGLRenderer(hub: Hub,
 
         this.flow = this.renderConfig.createRenderpassFlow()
 
-        logger.info("Loaded ${renderConfig.name} (${renderConfig.description ?: "no description"}")
+        logger.info("Loaded ${renderConfig.name} (${renderConfig.description ?: "no description"})")
 
         this.scene = scene
         this.applicationName = applicationName
@@ -764,7 +761,7 @@ open class OpenGLRenderer(hub: Hub,
             mustRecreateFramebuffers = false
         }
 
-        this@OpenGLRenderer.render()
+        this@OpenGLRenderer.renderInternal()
     }
 
     override fun setClearGLWindow(pClearGLWindow: ClearGLWindow) {
@@ -1087,7 +1084,7 @@ open class OpenGLRenderer(hub: Hub,
                 false
             }
 
-            nodeUpdated = if(node.material.hashCode() != s.materialHash) {
+            nodeUpdated = if(node.material.materialHashCode() != s.materialHash) {
                 s.initialized = false
                 initializeNode(node)
                 true
@@ -1362,6 +1359,12 @@ open class OpenGLRenderer(hub: Hub,
             // instance data starts after vertex, normal, texcoord
             val locationBase = 3
             var location = locationBase
+            var baseOffset = 0L
+            val stride = parentNode.instances.first().instancedProperties.map {
+                var res = it.value.invoke()
+                ubo.getSizeAndAlignment(res).first
+            }.sum()
+
             parentNode.instances.first().instancedProperties.entries.forEachIndexed { locationOffset, element ->
                 val result = element.value.invoke()
                 val sizeAlignment = ubo.getSizeAndAlignment(result)
@@ -1397,8 +1400,8 @@ open class OpenGLRenderer(hub: Hub,
 
                 logger.trace("{} needs {} locations with {} elements:", result.javaClass, necessaryAttributes, count)
                 (0 until necessaryAttributes).forEach { attributeLocation ->
-                    val stride = sizeAlignment.first
-                    val offset = 1L * attributeLocation * (sizeAlignment.first/necessaryAttributes)
+                    //                    val stride = sizeAlignment.first
+                    val offset = baseOffset + 1L * attributeLocation * (sizeAlignment.first/necessaryAttributes)
 
                     logger.trace("{}, stride={}, offset={}",
                         location + attributeLocation,
@@ -1418,9 +1421,13 @@ open class OpenGLRenderer(hub: Hub,
                     gl.glVertexAttribPointer(location + attributeLocation, count, glType, false,
                         stride, offset)
                     gl.glVertexAttribDivisor(location + attributeLocation, 1)
+
+                    if(attributeLocation == necessaryAttributes - 1) {
+                        baseOffset += sizeAlignment.first
+                    }
                 }
 
-                location += necessaryAttributes
+                location += necessaryAttributes - 1
             }
 
             gl.glBindVertexArray(0)
@@ -1441,6 +1448,15 @@ open class OpenGLRenderer(hub: Hub,
 
     protected fun destroyNode(node: Node) {
         node.metadata.remove("OpenGLRenderer")
+        val s = node.metadata["OpenGLRenderer"] as? OpenGLObjectState ?: return
+
+        gl.glDeleteBuffers(s.mVertexBuffers.size, s.mVertexBuffers, 0)
+        gl.glDeleteBuffers(1, s.mIndexBuffer, 0)
+
+        s.additionalBufferIds.forEach { _, id ->
+            gl.glDeleteBuffers(1, intArrayOf(id), 0)
+        }
+
         node.initialized = false
     }
 
@@ -1468,8 +1484,12 @@ open class OpenGLRenderer(hub: Hub,
      * 7) The resulting image is drawn to the screen, or -- if a HMD is present -- submitted to the OpenVR
      *    compositor.
      */
-    @Synchronized override fun render() = runBlocking {
-        if(!initialized) {
+    override fun render() {
+        renderCalled = true
+    }
+
+    @Synchronized fun renderInternal() = runBlocking {
+        if(!initialized || !renderCalled) {
             return@runBlocking
         }
 
@@ -1483,9 +1503,9 @@ open class OpenGLRenderer(hub: Hub,
         currentTime = newTime
 
         val stats = hub?.get(SceneryElement.Statistics) as? Statistics
-        hub?.getWorkingHMD()?.update()
 
         if (shouldClose) {
+            initialized = false
             try {
                 logger.info("Closing window")
 
@@ -1495,8 +1515,18 @@ open class OpenGLRenderer(hub: Hub,
 
                 scene.initialized = false
 
-                joglDrawable?.animator?.stop()
-                cglWindow?.close()
+                if(cglWindow == null) {
+                    joglDrawable?.animator?.stop()
+                    joglDrawable?.destroy()
+                } else {
+                    cglWindow?.close()
+                }
+
+                gl.glDeleteBuffers(1, buffers.LightParameters.id, 0)
+                gl.glDeleteBuffers(1, buffers.VRParameters.id, 0)
+                gl.glDeleteBuffers(1, buffers.UBOs.id, 0)
+                gl.glDeleteBuffers(1, buffers.ShaderParameters.id, 0)
+                gl.glDeleteBuffers(1, buffers.ShaderProperties.id, 0)
             } catch(e: ThreadDeath) {
                 logger.debug("Caught JOGL ThreadDeath, ignoring.")
             }
@@ -1692,6 +1722,24 @@ open class OpenGLRenderer(hub: Hub,
                         Material.CullingMode.FrontAndBack -> gl.glCullFace(GL4.GL_FRONT_AND_BACK)
                     }
 
+                   val depthTest = when(n.material.depthTest) {
+                        Material.DepthTest.Less -> GL4.GL_LESS
+                        Material.DepthTest.Greater -> GL4.GL_GREATER
+                        Material.DepthTest.LessEqual -> GL4.GL_LEQUAL
+                        Material.DepthTest.GreaterEqual -> GL4.GL_GEQUAL
+                        Material.DepthTest.Always -> GL4.GL_ALWAYS
+                        Material.DepthTest.Never -> GL4.GL_NEVER
+                        Material.DepthTest.Equal -> GL4.GL_EQUAL
+                    }
+
+                    gl.glDepthFunc(depthTest)
+
+                    if(n.material.wireframe) {
+                        gl.glPolygonMode(GL4.GL_FRONT_AND_BACK, GL4.GL_LINE)
+                    } else {
+                        gl.glPolygonMode(GL4.GL_FRONT_AND_BACK, GL4.GL_FILL)
+                    }
+
                     if (n.material.blending.transparent) {
                         with(n.material.blending) {
                             gl.glBlendFuncSeparate(
@@ -1715,11 +1763,6 @@ open class OpenGLRenderer(hub: Hub,
                     }
 
                     val s = getOpenGLObjectStateFromNode(n)
-
-                    if (n is Skybox) {
-                        gl.glCullFace(GL4.GL_FRONT)
-                        gl.glDepthFunc(GL4.GL_LEQUAL)
-                    }
 
                     preDrawAndUpdateGeometryForNode(n)
 
@@ -2173,7 +2216,7 @@ open class OpenGLRenderer(hub: Hub,
 
         }
 
-        s.materialHash = node.material.hashCode()
+        s.materialHash = node.material.materialHashCode()
 
         val matricesUbo = OpenGLUBO(backingBuffer = buffers.UBOs)
         with(matricesUbo) {
