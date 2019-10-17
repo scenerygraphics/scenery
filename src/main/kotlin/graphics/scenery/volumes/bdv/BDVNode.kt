@@ -83,8 +83,7 @@ class BDVNode(val source: String, val options: VolumeViewerOptions, val hub: Hub
         abstract val visibilityAndGrouping: VisibilityAndGrouping
         abstract val maxTimepoint: Int
 
-        class BigDataViewer(val xmlFile: String, val options: VolumeViewerOptions) {
-            val spimData = XmlIoSpimDataMinimal().load(xmlFile)
+        class SpimData(val spimData: SpimDataMinimal, val options: VolumeViewerOptions) {
             val converterSetups = ArrayList<ConverterSetup>()
             val setupAssignments: SetupAssignments
             val viewerState: ViewerState
