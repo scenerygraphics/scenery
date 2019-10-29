@@ -367,10 +367,17 @@ open class VulkanTexture(val device: VulkanDevice,
                     }
 
                     if(tmpBuffer == null || (tmpBuffer?.size ?: 0) < requiredCapacity) {
-//                        logger.warn("(${this@VulkanTexture}) Reallocating tmp buffer, old size=${tmpBuffer?.size} new size = ${requiredCapacity.toFloat()/1024.0f/1024.0f} MiB")
+                        logger.warn("(${this@VulkanTexture}) Reallocating tmp buffer, old size=${tmpBuffer?.size} new size = ${requiredCapacity.toFloat()/1024.0f/1024.0f} MiB")
                         tmpBuffer?.close()
+                        // reserve a bit more space if the texture is small, to avoid reallocations
+                        val reservedSize = if(requiredCapacity < 1024*1024*8) {
+                            Math.round(requiredCapacity.toDouble() * 1.33)
+                        } else {
+                            requiredCapacity
+                        }
+
                         tmpBuffer = VulkanBuffer(this@VulkanTexture.device,
-                            max(Math.round(requiredCapacity * 1.3), 1024*1024),
+                            max(reservedSize, 1024*1024),
                             VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                             wantAligned = false)
