@@ -887,7 +887,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
      * @param[type] Type of the tracked device to get the pose for
      * @return HMD pose as GLMatrix
      */
-    fun getPose(type: TrackedDeviceType): List<TrackedDevice> {
+    override fun getPose(type: TrackedDeviceType): List<TrackedDevice> {
         return this.trackedDevices.values.filter { it.type == type }
     }
 
