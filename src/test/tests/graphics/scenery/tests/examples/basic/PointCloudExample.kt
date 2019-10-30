@@ -18,7 +18,7 @@ class PointCloudExample : SceneryBase("PointCloudExample") {
 
     override fun init() {
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
-        renderer!!.pushMode = true
+        renderer?.pushMode = true
 
         val hull = Box(GLVector(50.0f, 50.0f, 50.0f), insideNormals = true)
         hull.material.diffuse = GLVector(0.2f, 0.2f, 0.2f)
