@@ -18,6 +18,7 @@ class PointCloudExample : SceneryBase("PointCloudExample") {
 
     override fun init() {
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
+        renderer!!.pushMode = true
 
         val hull = Box(GLVector(50.0f, 50.0f, 50.0f), insideNormals = true)
         hull.material.diffuse = GLVector(0.2f, 0.2f, 0.2f)
@@ -49,18 +50,11 @@ class PointCloudExample : SceneryBase("PointCloudExample") {
 
         scene.addChild(cam)
 
-        val pcmaterial = Material()
-        pcmaterial.ambient = GLVector(1.0f, 1.0f, 1.0f)
-        pcmaterial.diffuse = GLVector(1.0f, 1.0f, 0.0f)
-        pcmaterial.specular = GLVector(1.0f, 1.0f, 1.0f)
-        pcmaterial.cullingMode = Material.CullingMode.None
-
         val pointCloud = PointCloud(pointRadius = 0.025f)
         with(pointCloud) {
             readFromOBJ( TexturedCubeExample::class.java.getResource("models/sphere.obj").file, importMaterials = false)
             position = GLVector(0.0f, 0.0f, 0.0f)
             name = "Sphere Mesh"
-            material = pcmaterial
             setupPointCloud()
 
             scene.addChild(this)
