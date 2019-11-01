@@ -119,6 +119,11 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
 
     override var events = TrackerInputEventHandlers()
 
+    /** Set of keys that are allowed to be repeated. */
+    val allowRepeats = HashSet<Pair<OpenVRButton, TrackerRole>>(5, 0.8f)
+    protected val keysDown = HashSet<Pair<OpenVRButton, TrackerRole>>(5, 0.8f)
+
+
     protected data class CompositeModel(
         val thumbnail: String,
         val components: Map<String, CompositeModelComponents>
@@ -535,6 +540,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                     logger.debug("Button pressed: $this on $role")
                     val keyEvent = it.toKeyEvent(role)
                     inputHandler.keyPressed(keyEvent.first)
+                    keysDown.add(it to role)
                 }
             }
 
@@ -545,6 +551,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                     logger.debug("Button unpressed: $this on $role")
                     val keyEvent = it.toKeyEvent(role)
                     inputHandler.keyReleased(keyEvent.second)
+                    keysDown.remove(it to role)
                 }
             }
 
@@ -558,6 +565,12 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
         }
         event.free()
 
+        keysDown.forEach {
+            if(it in allowRepeats) {
+                val e = it.first.toKeyEvent(it.second)
+                inputHandler.keyPressed(e.first)
+            }
+        }
         readyForSubmission = true
     }
 
@@ -591,17 +604,17 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
             this == OpenVRButton.Right && role == TrackerRole.LeftHand  -> AWTKey(KeyEvent.VK_L)
             this == OpenVRButton.Up  && role == TrackerRole.LeftHand  -> AWTKey(KeyEvent.VK_K)
             this == OpenVRButton.Down && role == TrackerRole.LeftHand  -> AWTKey(KeyEvent.VK_J)
-            this == OpenVRButton.Menu && role == TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_M, modifiers)
-            this == OpenVRButton.Trigger && role == TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_T, modifiers)
-            this == OpenVRButton.Side && role == TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_X, modifiers)
+            this == OpenVRButton.Menu && role == TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_M)
+            this == OpenVRButton.Trigger && role == TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_T)
+            this == OpenVRButton.Side && role == TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_X)
 
             this == OpenVRButton.Left && role != TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_A)
             this == OpenVRButton.Right && role != TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_D)
             this == OpenVRButton.Up  && role != TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_W)
             this == OpenVRButton.Down && role != TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_S)
-            this == OpenVRButton.Menu && role != TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_N, modifiers)
-            this == OpenVRButton.Trigger && role != TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_U, modifiers)
-            this == OpenVRButton.Side && role != TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_Y, modifiers)
+            this == OpenVRButton.Menu && role != TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_N)
+            this == OpenVRButton.Trigger && role != TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_U)
+            this == OpenVRButton.Side && role != TrackerRole.LeftHand -> AWTKey(KeyEvent.VK_Y)
 
             else -> {
                 logger.warn("Unknown key: $this for role $role")
@@ -671,7 +684,6 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
     override fun submitToCompositorVulkan(width: Int, height: Int, format: Int,
                                           instance: VkInstance, device: VulkanDevice,
                                           queue: VkQueue, image: Long) {
-        VRCompositor_WaitGetPoses(hmdTrackedDevicePoses, gamePoses)
         update()
         if (disableSubmission || !readyForSubmission) {
             return
@@ -721,27 +733,22 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                     dstStage = VK10.VK_PIPELINE_STAGE_TRANSFER_BIT
                 )
 
-                endCommandBuffer(device, commandPool, queue, true, true)
-            }
+                logger.trace("Submitting left...")
+                val boundsLeft = VRTextureBounds.callocStack(stack).set(0.0f, 0.0f, 0.5f, 1.0f)
+                val errorLeft = VRCompositor_Submit(EVREye_Eye_Left, texture, boundsLeft, EVRSubmitFlags_Submit_Default)
 
-            logger.trace("Submitting left...")
-            val boundsLeft = VRTextureBounds.callocStack(stack).set(0.0f, 0.0f, 0.5f, 1.0f)
-            val errorLeft = VRCompositor_Submit(EVREye_Eye_Left, texture, boundsLeft, EVRSubmitFlags_Submit_Default)
+                logger.trace("Submitting right...")
+                val boundsRight = VRTextureBounds.callocStack(stack).set(0.5f, 0.0f, 1.0f, 1.0f)
+                val errorRight = VRCompositor_Submit(EVREye_Eye_Right, texture, boundsRight, EVRSubmitFlags_Submit_Default)
 
-            logger.trace("Submitting right...")
-            val boundsRight = VRTextureBounds.callocStack(stack).set(0.5f, 0.0f, 1.0f, 1.0f)
-            val errorRight = VRCompositor_Submit(EVREye_Eye_Right, texture, boundsRight, EVRSubmitFlags_Submit_Default)
+                // NOTE: Here, an "unsupported texture type" error can be thrown if the required Vulkan
+                // device or instance extensions have not been loaded -- even if the texture has the correct
+                // format. The solution is to reinitialize the renderer then, in order to pick up these extensions.
+                if (errorLeft != EVRCompositorError_VRCompositorError_None
+                    || errorRight != EVRCompositorError_VRCompositorError_None) {
+                    logger.error("Compositor error: ${translateError(errorLeft)} ($errorLeft)/${translateError(errorRight)} ($errorRight)")
+                }
 
-            // NOTE: Here, an "unsupported texture type" error can be thrown if the required Vulkan
-            // device or instance extensions have not been loaded -- even if the texture has the correct
-            // format. The solution is to reinitialize the renderer then, in order to pick up these extensions.
-            if (errorLeft != EVRCompositorError_VRCompositorError_None
-                || errorRight != EVRCompositorError_VRCompositorError_None) {
-                logger.error("Compositor error: ${translateError(errorLeft)} ($errorLeft)/${translateError(errorRight)} ($errorRight)")
-            }
-
-            // transition texture back to VK_IMAGE_LAYOUT_PRESENT_SRC_KHR.
-            with(VU.newCommandBuffer(device, commandPool, autostart = true)) {
                 // transition source attachment
                 VulkanTexture.transitionLayout(image,
                     VK10.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
@@ -755,6 +762,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                 endCommandBuffer(device, commandPool, queue, true, true)
             }
         }
+        VRCompositor_WaitGetPoses(hmdTrackedDevicePoses, gamePoses)
     }
 
     private fun translateError(error: Int): String {
