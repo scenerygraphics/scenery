@@ -5,6 +5,7 @@ import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.volumes.bdv.BDVVolume
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.concurrent.thread
 import kotlin.math.PI
 import kotlin.math.atan
 import kotlin.math.cos
@@ -363,6 +364,36 @@ open class Camera : Node("Camera") {
         val y = x.cross(z).normalized
 
         return Tripod(x, y, z)
+    }
+
+    fun showMessage(message: String, distance: Float = 0.75f, size: Float = 0.05f, duration: Int = 3000, color: GLVector = GLVector.getOneVector(3), background: GLVector = GLVector.getNullVector(3)) {
+        val tb = TextBoard()
+        tb.fontColor = color
+        tb.backgroundColor = background
+        tb.text = message
+        tb.scale = GLVector(size, size, size)
+        tb.update.add {
+            tb.position = this.viewportToWorld(GLVector(0.3f, 0.7f), 1.0f) + this.forward * distance
+            if(this is DetachedHeadCamera) {
+                tb.rotation = headOrientation.conjugate().normalize()
+            } else {
+                tb.rotation = rotation.conjugate().normalize()
+            }
+        }
+
+        val messages = metadata.getOrPut("messages", { mutableListOf<Node>() }) as? MutableList<Node>
+        messages?.forEach { getScene()?.removeChild(it) }
+        messages?.clear()
+
+        messages?.add(tb)
+        this.getScene()?.addChild(tb)
+
+        thread {
+            Thread.sleep(duration.toLong())
+
+            this.getScene()?.removeChild(tb)
+            messages?.remove(tb)
+        }
     }
 
     companion object {
