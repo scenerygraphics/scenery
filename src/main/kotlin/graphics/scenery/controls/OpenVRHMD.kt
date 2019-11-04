@@ -17,6 +17,8 @@ import graphics.scenery.backends.vulkan.VulkanTexture
 import graphics.scenery.backends.vulkan.endCommandBuffer
 import graphics.scenery.utils.JsonDeserialisers
 import graphics.scenery.utils.LazyLogger
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import org.lwjgl.openvr.*
 import org.lwjgl.openvr.VR.*
 import org.lwjgl.openvr.VRCompositor.*
@@ -466,18 +468,19 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                         else -> TrackerRole.Invalid
                     }
 
-                    try {
-                        val c = Mesh()
-                        c.name = deviceName
-                        loadModelForMesh(td, c)
-                        td.model = c
-                    } catch(e: Exception) {
-                        logger.warn("Could not load model for $deviceName, device will not be visible in the scene. ($e)")
-                        td.model = null
+                    GlobalScope.launch {
+                        try {
+                            val c = Mesh()
+                            c.name = deviceName
+                            loadModelForMesh(td, c)
+                            td.model = c
+                        } catch(e: Exception) {
+                            logger.warn("Could not load model for $deviceName, device will not be visible in the scene. ($e)")
+                            td.model = null
+                        }
+
+                        events.onDeviceConnect.forEach { it.invoke(this@OpenVRHMD, td, timestamp) }
                     }
-
-
-                    events.onDeviceConnect.forEach { it.invoke(this, td, timestamp) }
 
                     td
                 }
@@ -884,7 +887,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
      * @param[type] Type of the tracked device to get the pose for
      * @return HMD pose as GLMatrix
      */
-    fun getPose(type: TrackedDeviceType): List<TrackedDevice> {
+    override fun getPose(type: TrackedDeviceType): List<TrackedDevice> {
         return this.trackedDevices.values.filter { it.type == type }
     }
 
