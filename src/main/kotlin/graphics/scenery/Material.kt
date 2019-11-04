@@ -73,7 +73,6 @@ open class Material : Serializable {
     fun materialHashCode() : Int {
         var result = blending.hashCode()
         result = 31 * result + textures.hashCode()
-        result = 31 * result + transferTextures.hashCode()
         result = 31 * result + cullingMode.hashCode()
         result = 31 * result + depthTest.hashCode()
         result = 31 * result + wireframe.hashCode()
