@@ -70,8 +70,6 @@ class ProceduralVolumeExample: SceneryBase("Volume Rendering example", 1280, 720
         }
 
         thread {
-            while(!scene.initialized) { Thread.sleep(200) }
-
             val volumeSize = 128L
             val volumeBuffer = RingBuffer<ByteBuffer>(2) { memAlloc((volumeSize*volumeSize*volumeSize*bitsPerVoxel/8).toInt()) }
 
