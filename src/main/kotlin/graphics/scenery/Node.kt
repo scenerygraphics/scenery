@@ -637,6 +637,47 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
         return "$name(${javaClass?.simpleName})"
     }
 
+    /**
+     * Returns this Node's transformation matrix.
+     */
+    open fun getTransformation(): GLMatrix {
+        val tr = GLMatrix.getTranslation(this.position * (-1.0f)).transpose()
+        val r = GLMatrix.fromQuaternion(this.rotation)
+
+        return r * tr
+    }
+
+    /**
+     * Returns this Node's transformation matrix, including a
+     * [preRotation] that is applied before the Node's transformation.
+     */
+    open fun getTransformation(preRotation: Quaternion): GLMatrix {
+        val tr = GLMatrix.getTranslation(this.position * (-1.0f)).transpose()
+        val r = GLMatrix.fromQuaternion(preRotation.mult(this.rotation))
+
+        return r * tr
+    }
+
+    /**
+     * Returns this Node's transformation for eye with index [eye].
+     */
+    open fun getTransformationForEye(eye: Int): GLMatrix {
+        val tr = GLMatrix.getTranslation(this.position * (-1.0f)).transpose()
+        val r = GLMatrix.fromQuaternion(this.rotation)
+
+        return r * tr
+    }
+
+    /**
+     * Multiplies this matrix with [GLMatrix] [rhs].
+     */
+    infix operator fun GLMatrix.times(rhs: GLMatrix): GLMatrix {
+        val m = this.clone()
+        m.mult(rhs)
+
+        return m
+    }
+
     companion object NodeHelpers {
         /**
          * Depth-first search for elements in a Scene.
