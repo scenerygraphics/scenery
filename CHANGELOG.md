@@ -1,5 +1,115 @@
 # CHANGELOG
 
+# scenery-0.7.0-beta-5 to scenery-0.7.0-beta-6
+
+## Additions and Changes
+
+* GenericTexture: Support all Vulkan/OpenGL-supported repeat modes via TextureRepeatMode and TextureBorderColor (**BREAKING CHANGE**)
+* Factor out JavaFX -- see github.com/scenerygraphics/scenery-javafx for the new, experimental JavaFX support (**BREAKING CHANGE**)
+* BDVVolume: Preliminary support for rendering regular volumes side-by-side with out-of-core volumes
+* TrackerInput: Add getPose(deviceType) to interface
+* OpenVRHMD: Load model files asynchronously
+* VulkanTexture: Only reserve larger staging texture if texture is smaller than 8M
+* Material: Introduce wireframe rendering, to be activated via `Material.wireframe`
+* ExampleRunner: Allow manual specification of renderers
+* TexturedCubeExample/MultiBoxInstancedExample: Simplify thread code
+* SceneryBase: Always call render and add waitForSceneInitialisation() method
+* Node: New toString() method which includes name and class name
+* REPL: Make Hubable
+* VRControllerExample: Adjust lighting
+* HasGeometry: Allow user to choose between using groups or objects for sub-nodes when importing OBJ
+* BloodCellsExample: Update to use models from repository
+* OpenVRHMD: Use different keycodes for left/right hand triggers, menu, and side buttons
+* DetachedHeadCamera: Expose head orientation from HMD
+* PupilEyeTracker: Enable subscribing to camera frames
+* Volume: When a volume was cached before, don't open the file again
+* OpenGLRenderer/VulkanRenderer: Instances can be hidden now
+* UBO: Don't try to hash if elements are not persistent in populate()
+* Box: add static method hulledBox() to create a box with two walls
+* OpenCLContext: use less strict version of type check in getSizeof() that includes subclasses etc.
+* SystemHelpers: Add date formatting helper functions
+* Volume: add functionality to CPU-based ray sampling
+* Volume: Limit logging and improve CPU-based ray sampling
+* Node: Deprecate renderScale and add getChildrenByName(String) method
+* Light: Add createLightTetrahedron() function to create four lights in a tetrahedral shape
+* Hub: Allow to add custom elements and add generic get() function
+* TransferFunction: Add evaluate() function
+* VulkanRenderer/OpenGLRenderer: Improve push mode scene change detection code
+* PupilEyeTracker: Make Gaze members immutable
+* PupilEyeTracker: Improve subscription to received gazes
+* SDFFontAtlas: Prepackage GZIP'ed SDFs, and include SDF for Source Sans Pro by default, and fall back to it in case OpenCL initialisation fails
+* OpenVRHMD: Support loading of composite JSON models and fall back to regular OBJ/STL model in case loading JSON composite fails, and make thumbnails optional for composite models
+* VulkanSwapchain: put undecorated window in screen corner
+* InputHandler: Enable forcing a particular MouseAndKeyHandler
+* H264Encoder: Allow NVenc-accelerated video encoding by specifying VideoEncoder.HWAccel
+* VulkanBuffer: Close temporary storage buffer on texture close
+* SceneryBase/ExampleRunner: add assertions hash map, which can contain lambdas that are run as part of unit or integration tests
+* Renderer: recordMovie() can now take an optional file name
+* VulkanRenderer: Dynamically determine which swapchain to use
+* Add SwapchainParameters class for determination of headlessness and swapchain usage conditions
+* InputHandler: Dynamically determine what handler is to be used for a certain window type and add @CanHandleInputFor annotation
+* BDVVolume: adapt for changes in BigVolumeViewer
+* VulkanRenderer: Skip nodes with incomplete descriptor sets when rendering
+* VulkanTexture: Keep temporary buffer recreations to a minimum
+* VulkanBuffer: Support permanently mapped buffers
+* Shaders: Add stale flag to signal shader reload is necessary
+
+
+## Fixes
+
+* Blending: Use better default blend modes
+* VulkanRenderer: Do not try to recreate swapchain once closing process is initiated
+* SceneryBase: Set running to false before closing subsystems
+* ProceduralVolumeExample: Don't wait for scene init before generating volume data
+* CycleRenderQualityExample: Wait for scene initialisation before changing rendering quality
+* PointCloud: Fix incorrect handling of per-point colors
+* OpenGLRenderer: Fix missing bracket when outputting render config name
+* OpenGLRenderer: Correctly clean up on close, and improve JOGL window close handling
+* CI: Generate more stable coverage reports
+* Volume: Fixes an issue where the volume would be repeated instead of clamped
+* OpenGLRenderer: fixes issue where renderer did not heed depth test mode specified in `Material.depthTest`
+* VulkanRenderer: Fix GPU bubbles, resulting in improved performance
+* ExtractsNatives: Log name of failed search paths during native library extraction
+* VulkanObjectState/VU: Set descriptorCount value correctly when updating descriptor sets
+* OpenGLRenderer: Fix attribute location calculation for instance buffers
+* VulkanDevice: Request geometry shader feature by default
+* VulkanRenderer: Limit trace and debug string construction in recordSceneRenderCommands()
+* OpenVRHMD: Fix issue with wrong API call ordering for WaitGetPoses and Submit
+* VulkanRenderer: Safeguard against uninitialised instance masters
+* ReaderExample: Fix lighting
+* SystemHelpers: More carefully encode file paths
+* OpenGLRenderer: Fix wrong data type for image requests
+* Renderer: Catch Errors in the Renderer factory (e.g. as might happen when Vulkan runtime is not found)
+* VulkanRenderer: Recreate texture descriptor sets after resize if necessary
+* VulkanRenderer: Always create texture descriptor sets if node is not initialized
+* VulkanTexture: Do not recreate image view on every update
+* DetachedHeadCamera: Fix bug where height would return the width
+* VulkanRenderer: Check custom shaders whether they need to be reloaded
+* VulkanRenderer: Recreate image descriptor sets only if the image changes, not if it's just updated in a compatible manner
+* VulkanRenderer: Clear descriptor sets on custom shader reload
+
+## Tests and Examples 
+
+* adds unit tests for classes: Cone, SDFFontAtlas, OpenVRHMD, Mesh, GLFWMouseAndKeyHandler, SwingMouseAndKeyHandler, BufferUtils, JOGLMouseAndKeyHandler, ArcballCameraControl, HasGeometry, GamepadCameraControl, UBO, Scene, OpenSimplexNoise, Box, Cylinder, Icosphere, PointLight, Settings, Random, Node, InputHandler
+* adds VideoRecordingExample
+* adds CycleRenderingQualityExample
+* adds VolumeSamplingExample
+* adds codecov.io coverage testing
+* add `check-dates.sh` script which prevents a release in case of outdated SPV shaders
+
+## Dependency Updates
+
+* bumps ClearGL to 2.2.8
+* bumps jackson-databind to 2.9.10.1
+* bumps jacoco to 0.8.5
+* bumps lwjgl3-awt to latest repository version via jitpack
+* bumps lwjgl to 3.2.3
+* bumps BigVolumeViewer to 0.1.6
+* bumps Kotlin to 1.3.50
+* bumps kotlinx-coroutines to 1.3.1
+* bumps spirvcrossj to 1.1.106.0
+* bumps javacpp-ffmpeg to 4.1-1.4.4
+
 # scenery-0.7.0-beta-4 to scenery-0.7.0-beta-5
 
 ## Additions and Changes
