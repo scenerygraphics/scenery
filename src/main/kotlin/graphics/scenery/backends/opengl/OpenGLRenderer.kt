@@ -2353,6 +2353,23 @@ open class OpenGLRenderer(hub: Hub,
         MemoryUtil.memFree(buffer)
     }
 
+    private fun TextureRepeatMode.toOpenGL(): Int {
+        return when(this) {
+            TextureRepeatMode.Repeat -> GL4.GL_REPEAT
+            TextureRepeatMode.MirroredRepeat -> GL4.GL_MIRRORED_REPEAT
+            TextureRepeatMode.ClampToEdge -> GL4.GL_CLAMP_TO_EDGE
+            TextureRepeatMode.ClampToBorder -> GL4.GL_CLAMP_TO_BORDER
+        }
+    }
+
+    private fun TextureBorderColor.toOpenGL(type: GLTypeEnum): FloatArray {
+        return when(this) {
+            TextureBorderColor.TransparentBlack -> floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f)
+            TextureBorderColor.OpaqueBlack -> floatArrayOf(0.0f, 0.0f, 0.0f, 1.0f)
+            TextureBorderColor.OpaqueWhite -> floatArrayOf(1.0f, 1.0f, 1.0f, 1.0f)
+        }
+    }
+
     /**
      * Loads textures for a [Node]. The textures either come from a [Material.transferTextures] buffer,
      * or from a file. This is indicated by stating fromBuffer:bufferName in the textures hash map.
@@ -2370,7 +2387,7 @@ open class OpenGLRenderer(hub: Hub,
                 val generateMipmaps = GenericTexture.mipmappedObjectTextures.contains(type)
                 if (texture.startsWith("fromBuffer:")) {
                     val gt = node.material.transferTextures[texture.substringAfter("fromBuffer:")]
-                    gt?.let { (_, dimensions, channels, type1, contentsOriginal, repeatS, repeatT, repeatU, normalized, mipmap, minLinear, maxLinear, updates) ->
+                    gt?.let { (_, dimensions, channels, type1, contentsOriginal, repeatS, repeatT, repeatU, borderColor, normalized, mipmap, minLinear, maxLinear, updates) ->
 
                         val contents = contentsOriginal?.duplicate()
                         logger.debug("Dims of $texture: $dimensions, mipmaps=$generateMipmaps")
@@ -2391,14 +2408,19 @@ open class OpenGLRenderer(hub: Hub,
                                 dimensions.y().toInt(),
                                 dimensions.z().toInt() ?: 1,
                                 minLinear,
-                                miplevels, 32, normalized, renderConfig.sRGB)
+                                miplevels, 32,
+                                normalized, renderConfig.sRGB)
                         }
 
                         if (mm) {
                             t.updateMipMaps()
                         }
 
-                        t.setClamp(!repeatS, !repeatT)
+                        t.setRepeatModeS(repeatS.toOpenGL())
+                        t.setRepeatModeT(repeatT.toOpenGL())
+                        t.setRepeatModeR(repeatU.toOpenGL())
+
+                        t.setTextureBorderColor(borderColor.toOpenGL(type1))
 
                         val unpackAlignment = intArrayOf(0)
                         gl.glGetIntegerv(GL4.GL_UNPACK_ALIGNMENT, unpackAlignment, 0)
