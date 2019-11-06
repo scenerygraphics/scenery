@@ -325,10 +325,10 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             }
         }
 
+        running = false
         inputHandler?.close()
         renderer?.close()
         renderdoc?.close()
-        running = false
     }
 
     /**
