@@ -95,7 +95,7 @@ class TextBoard(font: String = "SourceSansPro-Regular.ttf", override var isBillb
             material.transferTextures["diffuse"] = GenericTexture("diffuse",
                 GLVector(atlasSize.x(), atlasSize.y(), 1.0f),
                 channels = 1, contents = this.getAtlas(),
-                repeatS = false, repeatT = false,
+                repeatS = TextureRepeatMode.ClampToBorder, repeatT = TextureRepeatMode.ClampToBorder,
                 normalized = true,
                 mipmap = true)
 
