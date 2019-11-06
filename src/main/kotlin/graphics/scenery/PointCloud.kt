@@ -1,7 +1,5 @@
 package graphics.scenery
 
-import org.lwjgl.system.MemoryUtil.memAlloc
-import java.nio.ByteOrder
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.nio.file.FileSystems
@@ -13,7 +11,7 @@ import java.nio.file.Files
  * @author Kyle Harrington <kharrington@uidaho.edu>
  * @author Ulrik Günther <hello@ulrik.is>
  */
-open class PointCloud(var pointRadius: Float = 0.1f, override var name: String = "PointCloud") : Node(name), HasGeometry {
+open class PointCloud(var pointRadius: Float = 1.0f, override var name: String = "PointCloud") : Node(name), HasGeometry {
     /** Array for the stored localisations. */
     override var vertices: FloatBuffer = FloatBuffer.allocate(0)
     /** Normal buffer, here (ab)used to store size and sigmas. */
@@ -36,14 +34,7 @@ open class PointCloud(var pointRadius: Float = 0.1f, override var name: String =
         // we are going to use shader files whose name is derived from the class name.
         // -> PointCloud.vert, PointCloud.frag
         material = ShaderMaterial.fromClass(this::class.java)
-        material.cullingMode = Material.CullingMode.None
         material.blending.transparent = true
-        material.blending.sourceColorBlendFactor = Blending.BlendFactor.One
-        material.blending.destinationColorBlendFactor = Blending.BlendFactor.OneMinusSrcAlpha
-        material.blending.sourceAlphaBlendFactor = Blending.BlendFactor.One
-        material.blending.destinationAlphaBlendFactor = Blending.BlendFactor.OneMinusSrcAlpha
-        material.blending.colorBlending = Blending.BlendOp.add
-        material.blending.alphaBlending = Blending.BlendOp.add
     }
 
     /**
@@ -51,16 +42,16 @@ open class PointCloud(var pointRadius: Float = 0.1f, override var name: String =
      */
     fun setupPointCloud() {
         if( this.texcoords.limit() == 0 ) {// Only preinitialize if texcoords has not been preinialized
-            this.texcoords = memAlloc(vertices.limit() * texcoordSize * 4).order(ByteOrder.nativeOrder()).asFloatBuffer()
+            this.texcoords = BufferUtils.allocateFloat(vertices.limit()/3 * 2)
             var i = 0
             while (i < this.texcoords.limit() - 1) {
                 this.texcoords.put(i, this.pointRadius)
                 this.texcoords.put(i + 1, this.pointRadius)
-                i += 3
+                i += 2
             }
         }
         if( this.normals.limit() == 0 ) {// Only preinitialize if need be
-            this.normals = BufferUtils.allocateFloatAndPut( FloatArray(vertices.limit()*2/3, {1.0f} ) )
+            this.normals = BufferUtils.allocateFloatAndPut( FloatArray(vertices.limit(), { 1.0f } ) )
         }
     }
 
