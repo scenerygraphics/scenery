@@ -150,7 +150,7 @@ open class VulkanRenderer(hub: Hub,
         private val lock = ReentrantLock()
 
         @Synchronized fun recreate() {
-            if(lock.tryLock()) {
+            if(lock.tryLock() && !shouldClose) {
                 logger.info("Recreating Swapchain at frame $frames (${swapchain.javaClass.simpleName})")
                 // create new swapchain with changed surface parameters
                 vkQueueWaitIdle(queue)
