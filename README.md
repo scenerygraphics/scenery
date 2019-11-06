@@ -23,6 +23,10 @@ Some of the examples need additional meshes, which are not part of the repositor
 
 * Scala - [@Sciss](https://github.com/Sciss) has translated the Kotlin and Java examples to Scala, [https://github.com/Sciss/SceneryScalaExamples](https://github.com/Sciss/SceneryScalaExamples)
 
+## Documentation
+
+Documentation for scenery is published at [docs.scenery.graphics/scenery/](https://docs.scenery.graphics/scenery/), but is in a very minimal state at the moment. Contributions are very welcome! The documentation is created using [Gitbook](https://www.gitbook.com/), and the corresponding repository can be found at [github.com/scenerygraphics/scenery-docs/](https://github.com/scenerygraphics/scenery-docs/).
+
 ## Citation
 
 In case you use scenery in a scientific publication, please cite this paper:
@@ -102,13 +106,13 @@ Add scenery and ClearGL to your project's `pom.xml`:
   <dependency>
     <groupId>graphics.scenery</groupId>
     <artifactId>scenery</artifactId>
-    <version>0.7.0-beta-5</version>
+    <version>0.7.0-beta-6</version>
   </dependency>
 
   <dependency>
     <groupId>net.clearvolume</groupId>
     <artifactId>cleargl</artifactId>
-    <version>2.2.6</version>
+    <version>2.2.8</version>
   </dependency>
 </dependencies>
 ```
@@ -143,8 +147,8 @@ Add scenery and ClearGL to your project's `build.gradle`:
 
 ```groovy
 compile group: 'graphics.scenery', name: 'scenery', version:
-'0.7.0-beta-5'
-compile group: 'net.clearvolume', name: 'cleargl', version: '2.2.6'
+'0.7.0-beta-6'
+compile group: 'net.clearvolume', name: 'cleargl', version: '2.2.8'
 ```
 
 #### Non-release builds / jitpack
