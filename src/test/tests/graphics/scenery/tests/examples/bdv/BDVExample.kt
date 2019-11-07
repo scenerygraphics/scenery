@@ -7,16 +7,14 @@ import graphics.scenery.DetachedHeadCamera
 import graphics.scenery.PointLight
 import graphics.scenery.SceneryBase
 import graphics.scenery.backends.Renderer
-import graphics.scenery.volumes.bdv.BDVNode
+import graphics.scenery.volumes.bdv.Volume
 import org.junit.Test
 import org.scijava.Context
 import org.scijava.ui.UIService
 import org.scijava.ui.behaviour.ClickBehaviour
 import org.scijava.widget.FileWidget
 import tpietzsch.example2.VolumeViewerOptions
-import java.io.FileFilter
 import java.util.*
-import kotlin.math.max
 
 /**
  * BDV Rendering Example
@@ -24,7 +22,7 @@ import kotlin.math.max
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
-    var volume: BDVNode? = null
+    var volume: Volume? = null
     var currentCacheSize = 1024
 
     override fun init() {
@@ -60,7 +58,7 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
         }
 
         val options = VolumeViewerOptions().maxCacheSizeInMB(1024)
-        val v = BDVNode(XmlIoSpimDataMinimal().load(files.first()), options, hub)
+        val v = Volume(XmlIoSpimDataMinimal().load(files.first()), options, hub)
         v.name = "volume"
 //        v.colormap = "plasma"
         v.scale = GLVector(0.02f, 0.02f, 0.02f)
@@ -69,7 +67,7 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
 
         volume = v
 
-        val v2 = BDVNode(XmlIoSpimDataMinimal().load(files.first()), options, hub)
+        val v2 = Volume(XmlIoSpimDataMinimal().load(files.first()), options, hub)
         v2.scale = GLVector(0.001f, 0.001f, 0.001f)
         v2.rotation = v2.rotation.rotateByAngleX(0.5f)
         v2.updateWorld(true, true)

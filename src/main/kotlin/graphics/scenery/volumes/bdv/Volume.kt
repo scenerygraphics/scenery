@@ -45,7 +45,7 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.random.Random
 
-class BDVNode(val spimData: SpimDataMinimal, val options: VolumeViewerOptions, val hub: Hub) : DelegatesRendering(), HasGeometry {
+class Volume(val spimData: SpimDataMinimal, val options: VolumeViewerOptions, val hub: Hub) : DelegatesRendering(), HasGeometry {
     /** How many elements does a vertex store? */
     override val vertexSize : Int = 3
     /** How many elements does a texture coordinate store? */

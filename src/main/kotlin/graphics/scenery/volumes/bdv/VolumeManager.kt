@@ -102,7 +102,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
 
     /** Set of [VolumeBlocks]. */
     protected var outOfCoreVolumes = ArrayList<VolumeBlocks>()
-    protected var bdvNodes = ArrayList<BDVNode>()
+    protected var bdvNodes = ArrayList<graphics.scenery.volumes.bdv.Volume>()
     protected var regularVolumeNodes = ArrayList<Volume>()
     /** Stacks loaded from a BigDataViewer XML file. */
     val renderConverters = ArrayList<ConverterSetup>()
@@ -504,7 +504,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
     }
 
 
-    fun add(node: BDVNode) {
+    fun add(node: graphics.scenery.volumes.bdv.Volume) {
         logger.info("Adding $node to OOC nodes")
         bdvNodes.add(node)
         updateRenderState()
