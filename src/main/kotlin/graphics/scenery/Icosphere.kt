@@ -4,10 +4,7 @@ import cleargl.GLVector
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.util.*
-import kotlin.math.PI
-import kotlin.math.asin
-import kotlin.math.atan2
-import kotlin.math.sqrt
+import kotlin.math.*
 
 /**
  * Constructs a Icosphere with the given [radius] and number of [subdivisions].
@@ -83,7 +80,7 @@ open class Icosphere(val radius: Float, val subdivisions: Int) : Node("Icosphere
 
     protected fun refineTriangles(recursionLevel: Int,
                                   vertices: MutableList<GLVector>,
-                                  indices: MutableList<Triple<Int, Int, Int>>): List<Triple<Int, Int, Int>> {
+                                  indices: MutableList<Triple<Int, Int, Int>>): MutableList<Triple<Int, Int, Int>> {
         // refine triangles
         var faces = indices
         (0 until recursionLevel).forEach {
@@ -138,6 +135,12 @@ open class Icosphere(val radius: Float, val subdivisions: Int) : Node("Icosphere
         return i
     }
 
+    private fun vertexToUV(n: GLVector): GLVector {
+        val u = 0.5f - 0.5f * atan2(n.x(), -n.z())/ PI.toFloat()
+        val v = 1.0f - acos(n.y()) / PI.toFloat()
+        return GLVector(u, v, 0.0f)
+    }
+
     init {
         val vertexBuffer = ArrayList<GLVector>()
         val indexBuffer = ArrayList<Triple<Int, Int, Int>>()
@@ -145,28 +148,48 @@ open class Icosphere(val radius: Float, val subdivisions: Int) : Node("Icosphere
         createBaseVertices(vertexBuffer, indexBuffer)
         val faces = refineTriangles(subdivisions, vertexBuffer, indexBuffer)
 
-        vertices = BufferUtils.allocateFloat(vertexBuffer.size * 3)
-        normals = BufferUtils.allocateFloat(vertexBuffer.size * 3)
-        texcoords = BufferUtils.allocateFloat(vertexBuffer.size * 2)
-        indices = BufferUtils.allocateInt(faces.size * 3)
+        vertices = BufferUtils.allocateFloat(faces.size * 3 * 3)
+        normals = BufferUtils.allocateFloat(faces.size * 3 * 3)
+        texcoords = BufferUtils.allocateFloat(faces.size * 3 * 2)
+        indices = BufferUtils.allocateInt(0)
 
         faces.forEach { f ->
-            indices.put(f.first)
-            indices.put(f.second)
-            indices.put(f.third)
-        }
+            val v1 = vertexBuffer[f.first]
+            val v2 = vertexBuffer[f.second]
+            val v3 = vertexBuffer[f.third]
+            val uv1 = vertexToUV(v1.normalize())
+            val uv2 = vertexToUV(v2.normalize())
+            val uv3 = vertexToUV(v3.normalize())
 
-        vertexBuffer.forEach { v ->
-            vertices.put((v * radius).toFloatArray())
-            normals.put(v.toFloatArray())
-            texcoords.put(0.5f - atan2(v.x(), v.z())/(2.0f * PI.toFloat()))
-            texcoords.put(0.5f - asin(v.x()) / PI.toFloat())
+            vertices.put((v1 * radius).toFloatArray())
+            vertices.put((v2 * radius).toFloatArray())
+            vertices.put((v3 * radius).toFloatArray())
+
+            normals.put(v1.toFloatArray())
+            normals.put(v2.toFloatArray())
+            normals.put(v3.toFloatArray())
+
+            val uvNormal = (uv2 - uv1).cross(uv3 - uv1)
+            if(uvNormal.z() < 0.0f) {
+                if(uv1.x() < 0.25f) {
+                    uv1.set(0, uv1.x() + 1.0f)
+                }
+                if(uv2.x() < 0.25f) {
+                    uv2.set(0, uv2.x() + 1.0f)
+                }
+                if(uv3.x() < 0.25f) {
+                    uv3.set(0, uv3.x() + 1.0f)
+                }
+            }
+
+            texcoords.put(uv1.toFloatArray(), 0, 2)
+            texcoords.put(uv2.toFloatArray(), 0, 2)
+            texcoords.put(uv3.toFloatArray(), 0, 2)
         }
 
         vertices.flip()
         normals.flip()
         texcoords.flip()
-        indices.flip()
 
         boundingBox = generateBoundingBox()
     }
