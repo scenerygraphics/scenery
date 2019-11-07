@@ -8,7 +8,6 @@ import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.RingBuffer
 import graphics.scenery.volumes.Volume
-import graphics.scenery.volumes.bdv.BDVNode
 import org.junit.Test
 import org.lwjgl.system.MemoryUtil
 import org.scijava.Context
@@ -18,7 +17,6 @@ import org.scijava.widget.FileWidget
 import tpietzsch.example2.VolumeViewerOptions
 import java.nio.ByteBuffer
 import java.util.*
-import kotlin.math.max
 
 /**
  * BDV Rendering Example
@@ -26,7 +24,7 @@ import kotlin.math.max
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class BigAndSmallVolumeExample: SceneryBase("BDV + SDV Rendering example", 1280, 720) {
-    lateinit var volume: BDVNode
+    lateinit var volume: graphics.scenery.volumes.bdv.Volume
     var currentCacheSize = 1024
 
     override fun init() {
@@ -62,7 +60,7 @@ class BigAndSmallVolumeExample: SceneryBase("BDV + SDV Rendering example", 1280,
         }
 
         val options = VolumeViewerOptions().maxCacheSizeInMB(1024)
-        val v = BDVNode(XmlIoSpimDataMinimal().load(files.first()), options, hub)
+        val v = graphics.scenery.volumes.bdv.Volume(XmlIoSpimDataMinimal().load(files.first()), options, hub)
         v.name = "volume"
 //        v.colormap = "plasma"
         v.scale = GLVector(0.02f, 0.02f, 0.02f)
