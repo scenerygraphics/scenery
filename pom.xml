@@ -10,7 +10,7 @@
 
     <groupId>graphics.scenery</groupId>
     <artifactId>scenery</artifactId>
-    <version>0.7.0-beta-6-SNAPSHOT</version>
+    <version>0.7.0-beta-7-SNAPSHOT</version>
 
     <name>scenery</name>
     <description>flexible scenegraphing and rendering for scientific visualisation</description>
@@ -111,7 +111,7 @@
         <dokka.version>0.9.18</dokka.version>
         <dokka.skip>true</dokka.skip>
 
-        <cleargl.version>2.2.7</cleargl.version>
+        <cleargl.version>2.2.8</cleargl.version>
         <slf4j.version>1.7.25</slf4j.version>
         <lwjgl.version>3.2.3</lwjgl.version>
         <spirvcrossj.version>0.6.0-1.1.106.0</spirvcrossj.version>
@@ -338,7 +338,7 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>2.9.10</version>
+            <version>2.9.10.1</version>
         </dependency>
 
         <dependency>

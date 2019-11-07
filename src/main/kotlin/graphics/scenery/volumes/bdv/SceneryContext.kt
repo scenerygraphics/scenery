@@ -4,12 +4,12 @@ import cleargl.GLMatrix
 import cleargl.GLTypeEnum
 import cleargl.GLVector
 import graphics.scenery.GenericTexture
-import graphics.scenery.Node
+import graphics.scenery.TextureBorderColor
 import graphics.scenery.TextureExtents
+import graphics.scenery.TextureRepeatMode
 import graphics.scenery.TextureUpdate
 import graphics.scenery.backends.ShaderType
 import graphics.scenery.utils.LazyLogger
-import graphics.scenery.volumes.Volume
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.util.xxhash.XXHash
 import tpietzsch.backend.*
@@ -261,9 +261,9 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
         }
 
         val repeat = when(texture.texWrap()) {
-            Texture.Wrap.CLAMP_TO_BORDER_ZERO -> false
-            Texture.Wrap.CLAMP_TO_EDGE -> false
-            Texture.Wrap.REPEAT -> true
+            Texture.Wrap.CLAMP_TO_BORDER_ZERO -> TextureRepeatMode.ClampToBorder
+            Texture.Wrap.CLAMP_TO_EDGE -> TextureRepeatMode.ClampToEdge
+            Texture.Wrap.REPEAT -> TextureRepeatMode.Repeat
             else -> throw UnsupportedOperationException("Unknown wrapping mode: ${texture.texWrap()}")
         }
 
@@ -279,6 +279,7 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
                 type,
                 null,
                 repeat, repeat, repeat,
+                TextureBorderColor.TransparentBlack,
                 normalized,
                 false,
                 minFilterLinear = true,
@@ -304,6 +305,7 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
                         type,
                         null,
                         repeat, repeat, repeat,
+                        TextureBorderColor.TransparentBlack,
                         normalized,
                         false,
                         minFilterLinear = false,
