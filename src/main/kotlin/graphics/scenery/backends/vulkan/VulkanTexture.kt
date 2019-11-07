@@ -3,7 +3,9 @@ package graphics.scenery.backends.vulkan
 import cleargl.GLTypeEnum
 import cleargl.TGAReader
 import graphics.scenery.GenericTexture
+import graphics.scenery.TextureBorderColor
 import graphics.scenery.TextureExtents
+import graphics.scenery.TextureRepeatMode
 import graphics.scenery.TextureUpdate
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.system.MemoryUtil.*
@@ -367,7 +369,7 @@ open class VulkanTexture(val device: VulkanDevice,
                     }
 
                     if(tmpBuffer == null || (tmpBuffer?.size ?: 0) < requiredCapacity) {
-                        logger.warn("(${this@VulkanTexture}) Reallocating tmp buffer, old size=${tmpBuffer?.size} new size = ${requiredCapacity.toFloat()/1024.0f/1024.0f} MiB")
+                        logger.debug("(${this@VulkanTexture}) Reallocating tmp buffer, old size=${tmpBuffer?.size} new size = ${requiredCapacity.toFloat()/1024.0f/1024.0f} MiB")
                         tmpBuffer?.close()
                         // reserve a bit more space if the texture is small, to avoid reallocations
                         val reservedSize = if(requiredCapacity < 1024*1024*8) {
@@ -564,6 +566,29 @@ open class VulkanTexture(val device: VulkanDevice,
             { vi.free(); subresourceRange.free(); })
     }
 
+    private fun TextureRepeatMode.toVulkan(): Int {
+        return when(this) {
+            TextureRepeatMode.Repeat -> VK_SAMPLER_ADDRESS_MODE_REPEAT
+            TextureRepeatMode.MirroredRepeat -> VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT
+            TextureRepeatMode.ClampToEdge -> VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE
+            TextureRepeatMode.ClampToBorder -> VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER
+        }
+    }
+
+    private fun TextureBorderColor.toVulkan(type: GLTypeEnum): Int {
+        var color = when(this) {
+            TextureBorderColor.TransparentBlack -> VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK
+            TextureBorderColor.OpaqueBlack -> VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK
+            TextureBorderColor.OpaqueWhite -> VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE
+        }
+
+        if(type != GLTypeEnum.Float) {
+            color += 1
+        }
+
+        return color
+    }
+
     /**
      * Creates a default sampler for this texture.
      */
@@ -572,9 +597,9 @@ open class VulkanTexture(val device: VulkanDevice,
 
         val (repeatS, repeatT, repeatU) = if(t != null) {
             Triple(
-                if(t.repeatS) { VK_SAMPLER_ADDRESS_MODE_REPEAT } else { VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE },
-                if(t.repeatT) { VK_SAMPLER_ADDRESS_MODE_REPEAT } else { VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE },
-                if(t.repeatU) { VK_SAMPLER_ADDRESS_MODE_REPEAT } else { VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE }
+                t.repeatS.toVulkan(),
+                t.repeatT.toVulkan(),
+                t.repeatU.toVulkan()
             )
         } else {
             if(depth == 1) {
@@ -600,6 +625,10 @@ open class VulkanTexture(val device: VulkanDevice,
             .maxLod(if(depth == 1) {mipLevels * 1.0f} else { 0.0f })
             .borderColor(VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE)
             .compareOp(VK_COMPARE_OP_NEVER)
+
+        if(t != null) {
+            samplerInfo.borderColor(t.textureBorderColor.toVulkan(t.type))
+        }
 
         val sampler = VU.getLong("creating sampler",
             { vkCreateSampler(device.vulkanDevice, samplerInfo, null, this) },
