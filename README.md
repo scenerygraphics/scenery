@@ -4,7 +4,7 @@
 
 # scenery  // Flexible VR Visualisation for Volumetric and Geometric Data on the Java VM
 
-![Blood Cells Example](https://ulrik.is/scenery-bloodcells.gif)
+![Blood Cells Example](https://ulrik.is/scenery-teaser-2019.gif)
 
 
 ## Synopsis
