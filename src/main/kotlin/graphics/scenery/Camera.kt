@@ -257,7 +257,7 @@ open class Camera : Node("Camera") {
      */
     @JvmOverloads fun getNodesForScreenSpacePosition(x: Int, y: Int,
                                                        ignoredObjects: List<Class<*>> = emptyList(),
-                                                       debug: Boolean = false): List<Scene.RaycastResult> {
+                                                       debug: Boolean = false): Scene.RaycastResult {
         val view = (target - position).normalize()
         var h = view.cross(up).normalize()
         var v = h.cross(view)
@@ -278,7 +278,7 @@ open class Camera : Node("Camera") {
         val scene = getScene()
         if(scene == null) {
             logger.warn("No scene found for $this, returning empty list for raycast.")
-            return emptyList()
+            return Scene.RaycastResult(emptyList(), worldPos, worldDir)
         }
 
         return scene.raycast(worldPos, worldDir, ignoredObjects, debug)

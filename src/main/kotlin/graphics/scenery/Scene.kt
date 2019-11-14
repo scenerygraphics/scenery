@@ -2,8 +2,10 @@ package graphics.scenery
 
 import cleargl.GLVector
 import graphics.scenery.utils.MaybeIntersects
-import kotlinx.coroutines.*
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
@@ -171,10 +173,15 @@ open class Scene : Node("RootNode") {
     }
 
     /**
-     * Data class for selection results, contains the [Node] as well as the distance
+     * Data class for selection matches, contains the [Node] as well as the distance
      * from the observer to it.
      */
-    data class RaycastResult(val node: Node, val distance: Float)
+    data class RaycastMatch(val node: Node, val distance: Float)
+
+    /**
+     * Data class for raycast results, including all matches, and the ray's origin and direction.
+     */
+    data class RaycastResult(val matches: List<RaycastMatch>, val initialPosition: GLVector, val initialDirection: GLVector)
 
     /**
      * Performs a raycast to discover objects in this [Scene] that would be intersected
@@ -184,7 +191,7 @@ open class Scene : Node("RootNode") {
      */
     @JvmOverloads fun raycast(position: GLVector, direction: GLVector,
                               ignoredObjects: List<Class<*>>,
-                              debug: Boolean = false): List<RaycastResult> {
+                              debug: Boolean = false): RaycastResult {
         if (debug) {
             val indicatorMaterial = Material()
             indicatorMaterial.diffuse = GLVector(1.0f, 0.2f, 0.2f)
@@ -206,7 +213,7 @@ open class Scene : Node("RootNode") {
         }.filter {
             it.second is MaybeIntersects.Intersection && (it.second as MaybeIntersects.Intersection).distance > 0.0f
         }.map {
-            RaycastResult(it.first, (it.second as MaybeIntersects.Intersection).distance)
+            RaycastMatch(it.first, (it.second as MaybeIntersects.Intersection).distance)
         }.sortedBy {
             it.distance
         }
@@ -225,6 +232,6 @@ open class Scene : Node("RootNode") {
             }
         }
 
-        return matches
+        return RaycastResult(matches, position, direction)
     }
 }
