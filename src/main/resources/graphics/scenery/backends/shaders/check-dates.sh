@@ -9,9 +9,9 @@ for i in $files; do
     textfile="${i%.*}"
     textdate=`git log -1 --format="%at" $textfile`
 
-    if test $textdate -ge $spvdate
+    if test $textdate -gt $spvdate
     then
-        echo "ERROR: Last commit to $i is older than $textfile"
+        echo "ERROR: Last commit to $i is older than $textfile ($spvdate vs $textdate)"
         retval=$((retval+1))
     fi
 done;

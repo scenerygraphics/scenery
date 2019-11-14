@@ -144,6 +144,7 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
             val enabledFeatures = VkPhysicalDeviceFeatures.callocStack(stack)
                 .samplerAnisotropy(true)
                 .largePoints(true)
+                .geometryShader(true)
 
             val deviceCreateInfo = VkDeviceCreateInfo.callocStack(stack)
                 .sType(VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO)

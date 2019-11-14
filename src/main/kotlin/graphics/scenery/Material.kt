@@ -57,6 +57,9 @@ open class Material : Serializable {
     /** Flag to check whether the [transferTextures] need reloading */
     var needsTextureReload: Boolean = false
 
+    /** Flag to make the object wireframe */
+    var wireframe: Boolean = false
+
     /** Companion object for Material, emulating static methods */
     companion object Factory {
         /**
@@ -65,5 +68,14 @@ open class Material : Serializable {
          * @return Material with default properties
          */
         @JvmStatic fun DefaultMaterial(): Material = Material()
+    }
+
+    fun materialHashCode() : Int {
+        var result = blending.hashCode()
+        result = 31 * result + textures.hashCode()
+        result = 31 * result + cullingMode.hashCode()
+        result = 31 * result + depthTest.hashCode()
+        result = 31 * result + wireframe.hashCode()
+        return result
     }
 }

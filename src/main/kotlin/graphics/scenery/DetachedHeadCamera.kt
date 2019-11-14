@@ -110,8 +110,11 @@ class DetachedHeadCamera(@Transient var tracker: TrackerInput? = null) : Camera(
         }
     }
 
-    /** Orientation of the user's head */
+    /** Position of the user's head */
     val headPosition: GLVector by HeadPositionDelegate()
+
+    /** Orientation of the user's head */
+    val headOrientation: Quaternion by HeadOrientationDelegate()
 
     init {
         this.nodeType = "Camera"
