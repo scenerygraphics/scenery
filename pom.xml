@@ -114,7 +114,8 @@
         <bigvolumeviewer.version>0.1.6</bigvolumeviewer.version>
         <cleargl.version>2.2.9</cleargl.version>
         <coremem.version>0.4.6</coremem.version>
-        <ffmpeg-platform.version>4.1-1.4.4</ffmpeg-platform.version>
+        <ffmpeg.version>4.1-1.4.4</ffmpeg.version>
+        <gluegen-rt.version>${gluegen-rt-main.version}</gluegen-rt.version>
         <jackson-databind.version>2.9.10.1</jackson-databind.version>
         <jackson-dataformat-msgpack.version>0.8.16</jackson-dataformat-msgpack.version>
         <jackson-dataformat-yaml.version>2.9.9</jackson-dataformat-yaml.version>
@@ -124,6 +125,7 @@
         <jna-platform.version>4.5.2</jna-platform.version>
         <jna.version>4.5.2</jna.version>
         <jocl.version>2.0.1</jocl.version>
+        <jogl-all.version>${jogl.version}</jogl-all.version>
         <jvrpn.version>1.1.0</jvrpn.version>
         <kotlinx-coroutines-core.version>1.3.1</kotlinx-coroutines-core.version>
         <kryo.version>4.0.2</kryo.version>
@@ -160,11 +162,62 @@
 
         <dependency>
             <groupId>org.jogamp.gluegen</groupId>
-            <artifactId>gluegen-rt-main</artifactId>
+            <artifactId>gluegen-rt</artifactId>
+            <version>${gluegen-rt.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jogamp.gluegen</groupId>
+            <artifactId>gluegen-rt</artifactId>
+            <version>${gluegen-rt.version}</version>
+            <classifier>natives-linux-amd64</classifier>
+        </dependency>
+        <dependency>
+            <groupId>org.jogamp.gluegen</groupId>
+            <artifactId>gluegen-rt</artifactId>
+            <version>${gluegen-rt.version}</version>
+            <classifier>natives-linux-i586</classifier>
+        </dependency>
+        <dependency>
+            <groupId>org.jogamp.gluegen</groupId>
+            <artifactId>gluegen-rt</artifactId>
+            <version>${gluegen-rt.version}</version>
+            <classifier>natives-macosx-universal</classifier>
+        </dependency>
+        <dependency>
+            <groupId>org.jogamp.gluegen</groupId>
+            <artifactId>gluegen-rt</artifactId>
+            <version>${gluegen-rt.version}</version>
+            <classifier>natives-windows-amd64</classifier>
+        </dependency>
+
+        <dependency>
+            <groupId>org.jogamp.jogl</groupId>
+            <artifactId>jogl-all</artifactId>
+            <version>${jogl-all.version}</version>
         </dependency>
         <dependency>
             <groupId>org.jogamp.jogl</groupId>
-            <artifactId>jogl-all-main</artifactId>
+            <artifactId>jogl-all</artifactId>
+            <version>${jogl-all.version}</version>
+            <classifier>natives-linux-amd64</classifier>
+        </dependency>
+        <dependency>
+            <groupId>org.jogamp.jogl</groupId>
+            <artifactId>jogl-all</artifactId>
+            <version>${jogl-all.version}</version>
+            <classifier>natives-linux-i586</classifier>
+        </dependency>
+        <dependency>
+            <groupId>org.jogamp.jogl</groupId>
+            <artifactId>jogl-all</artifactId>
+            <version>${jogl-all.version}</version>
+            <classifier>natives-macosx-universal</classifier>
+        </dependency>
+        <dependency>
+            <groupId>org.jogamp.jogl</groupId>
+            <artifactId>jogl-all</artifactId>
+            <version>${jogl-all.version}</version>
+            <classifier>natives-windows-amd64</classifier>
         </dependency>
 
         <dependency>
@@ -431,8 +484,32 @@
 
         <dependency>
             <groupId>org.bytedeco.javacpp-presets</groupId>
-            <artifactId>ffmpeg-platform</artifactId>
-            <version>${ffmpeg-platform.version}</version>
+            <artifactId>ffmpeg</artifactId>
+            <version>${ffmpeg.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.bytedeco.javacpp-presets</groupId>
+            <artifactId>ffmpeg</artifactId>
+            <version>${ffmpeg.version}</version>
+            <classifier>linux-x86</classifier>
+        </dependency>
+        <dependency>
+            <groupId>org.bytedeco.javacpp-presets</groupId>
+            <artifactId>ffmpeg</artifactId>
+            <version>${ffmpeg.version}</version>
+            <classifier>linux-x86_64</classifier>
+        </dependency>
+        <dependency>
+            <groupId>org.bytedeco.javacpp-presets</groupId>
+            <artifactId>ffmpeg</artifactId>
+            <version>${ffmpeg.version}</version>
+            <classifier>macosx-x86_64</classifier>
+        </dependency>
+        <dependency>
+            <groupId>org.bytedeco.javacpp-presets</groupId>
+            <artifactId>ffmpeg</artifactId>
+            <version>${ffmpeg.version}</version>
+            <classifier>windows-x86_64</classifier>
         </dependency>
 
         <dependency>
