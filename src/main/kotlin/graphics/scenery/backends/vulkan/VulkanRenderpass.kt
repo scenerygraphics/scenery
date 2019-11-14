@@ -546,6 +546,13 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
     }
 
     /**
+     * Removes any preferred [VulkanPipeline] for the node given in [forNode].
+     */
+    fun removePipeline(forNode: Node): Boolean {
+        return pipelines.remove("preferred-${forNode.uuid}") != null
+    }
+
+    /**
      * Returns this renderpasses' default pipeline.
      */
     fun getDefaultPipeline(): VulkanPipeline {

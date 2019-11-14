@@ -164,6 +164,16 @@ class Hololens: TrackerInput, Display, Hubable {
     }
 
     /**
+     * Returns a list of poses for the devices [type] given.
+     *
+     * @return Pose as GLMatrix
+     */
+    override fun getPose(type: TrackedDeviceType): List<TrackedDevice> {
+        // TODO: Improve this
+        return emptyList()
+    }
+
+    /**
      * Returns the inter-pupillary distance (IPD)
      *
      * @return IPD as Float

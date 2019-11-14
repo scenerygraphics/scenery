@@ -115,6 +115,15 @@ class VRPNTrackerInput(trackerAddress: String = "device@locahost:5500") : Tracke
     }
 
     /**
+     * Returns a list of poses for the devices [type] given.
+     *
+     * @return Pose as GLMatrix
+     */
+    override fun getPose(type: TrackedDeviceType): List<TrackedDevice> {
+        return listOf(TrackedDevice(TrackedDeviceType.HMD, "VRPN", getPose(), System.nanoTime()))
+    }
+
+    /**
      * Returns the HMD pose per eye
      *
      * @return HMD pose as GLMatrix

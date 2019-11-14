@@ -86,8 +86,7 @@ void main()
 	    p.w = 0.000001;
 	}
 
-    gl_PointSize = (max(vertexTexCoord.x, vertexTexCoord.y)/10.0) / p.w;
-
+    gl_PointSize = (max(vertexTexCoord.x, vertexTexCoord.y)) / p.w;
 }
 
 

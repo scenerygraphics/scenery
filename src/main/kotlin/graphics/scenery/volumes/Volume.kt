@@ -400,40 +400,40 @@ open class Volume : Mesh("Volume") {
         if(file.normalize().toString().endsWith("raw")) {
             return readFromRaw(file, replace)
         }
-
-        val reader = scifio.initializer().initializeReader(file.normalize().toString())
-
-        with(reader.openPlane(0, 0)) {
-            sizeX = lengths[0].toInt()
-            sizeY = lengths[1].toInt()
-            sizeZ = reader.getPlaneCount(0).toInt()
-        }
-
         val id = file.fileName.toString()
-        val bytesPerVoxel = reader.openPlane(0, 0).imageMetadata.bitsPerPixel/8
-        reader.openPlane(0, 0).imageMetadata.pixelType
-
-        val dataType = when(reader.openPlane(0, 0).imageMetadata.pixelType) {
-            FormatTools.INT8 -> NativeTypeEnum.Byte
-            FormatTools.INT16 -> NativeTypeEnum.Short
-            FormatTools.INT32 -> NativeTypeEnum.Int
-
-            FormatTools.UINT8 -> NativeTypeEnum.UnsignedByte
-            FormatTools.UINT16 -> NativeTypeEnum.UnsignedShort
-            FormatTools.UINT32 -> NativeTypeEnum.UnsignedInt
-
-            FormatTools.FLOAT -> NativeTypeEnum.Float
-            else -> {
-                logger.error("Unknown scif.io pixel type ${reader.openPlane(0, 0).imageMetadata.pixelType}, assuming unsigned byte.")
-                NativeTypeEnum.UnsignedByte
-            }
-        }
 
         val v = volumes[id]
         val vol = if (v != null) {
             logger.debug("Getting $id from cache")
             v
         } else {
+            val reader = scifio.initializer().initializeReader(file.normalize().toString())
+
+            with(reader.openPlane(0, 0)) {
+                sizeX = lengths[0].toInt()
+                sizeY = lengths[1].toInt()
+                sizeZ = reader.getPlaneCount(0).toInt()
+            }
+
+            val bytesPerVoxel = reader.openPlane(0, 0).imageMetadata.bitsPerPixel/8
+            reader.openPlane(0, 0).imageMetadata.pixelType
+
+            val dataType = when(reader.openPlane(0, 0).imageMetadata.pixelType) {
+                FormatTools.INT8 -> NativeTypeEnum.Byte
+                FormatTools.INT16 -> NativeTypeEnum.Short
+                FormatTools.INT32 -> NativeTypeEnum.Int
+
+                FormatTools.UINT8 -> NativeTypeEnum.UnsignedByte
+                FormatTools.UINT16 -> NativeTypeEnum.UnsignedShort
+                FormatTools.UINT32 -> NativeTypeEnum.UnsignedInt
+
+                FormatTools.FLOAT -> NativeTypeEnum.Float
+                else -> {
+                    logger.error("Unknown scif.io pixel type ${reader.openPlane(0, 0).imageMetadata.pixelType}, assuming unsigned byte.")
+                    NativeTypeEnum.UnsignedByte
+                }
+            }
+
             logger.debug("Loading $id from disk")
             val imageData: ByteBuffer = memAlloc((bytesPerVoxel * sizeX * sizeY * sizeZ))
 
@@ -515,7 +515,7 @@ open class Volume : Mesh("Volume") {
 
         val v = volumes[id]
         val vol = if (v != null && cache) {
-            logger.info("Getting $id from cache")
+            logger.debug("Getting $id from cache")
             v
         } else {
             logger.debug("Loading $id from disk")
@@ -577,7 +577,7 @@ open class Volume : Mesh("Volume") {
             material.transferTextures["transferFunction"] = GenericTexture(
                 "transferFunction", GLVector(transferFunction.textureSize.toFloat(), transferFunction.textureHeight.toFloat(), 1.0f),
                 channels = 1, type = GLTypeEnum.Float, contents = transferFunction.serialise(),
-                repeatS = false, repeatT = false, repeatU = false)
+                repeatS = TextureRepeatMode.ClampToEdge, repeatT = TextureRepeatMode.ClampToEdge, repeatU = TextureRepeatMode.ClampToEdge)
 
             material.textures["diffuse"] = "fromBuffer:transferFunction"
             material.needsTextureReload = true
@@ -607,7 +607,11 @@ open class Volume : Mesh("Volume") {
         val emptyBuffer = BufferUtils.allocateByteAndPut(byteArrayOf(0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
                                                                      0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0))
         val dim = GLVector(2.0f, 2.0f, 2.0f)
-        val gtv = GenericTexture("empty-volume", dim, 1, GLTypeEnum.UnsignedByte, emptyBuffer, false, false, normalized = true)
+        val gtv = GenericTexture("empty-volume", dim, 1, GLTypeEnum.UnsignedByte, emptyBuffer,
+            repeatS = TextureRepeatMode.ClampToEdge,
+            repeatT = TextureRepeatMode.ClampToEdge,
+            repeatU = TextureRepeatMode.ClampToEdge,
+            normalized = true)
 
         material.transferTextures.put("empty-volume", gtv)
         material.textures.put("VolumeTextures", "fromBuffer:empty-volume")
@@ -648,7 +652,11 @@ open class Volume : Mesh("Volume") {
 
         val dim = GLVector(dimensions[0].toFloat(), dimensions[1].toFloat(), dimensions[2].toFloat())
         val gtv = GenericTexture("VolumeTextures", dim,
-            1, descriptor.dataType.toGLType(), descriptor.data, false, false, normalized = true)
+            1, descriptor.dataType.toGLType(), descriptor.data,
+            repeatS = TextureRepeatMode.ClampToEdge,
+            repeatT = TextureRepeatMode.ClampToEdge,
+            repeatU = TextureRepeatMode.ClampToEdge,
+            normalized = true)
 
         boundingBox = generateBoundingBox()
 
@@ -797,9 +805,9 @@ open class Volume : Mesh("Volume") {
      * Values beyond [0.0, 1.0] for [start] and [end] will be clamped to that interval.
      *
      * Returns the list of samples (which might include `null` values in case a sample failed),
-     * or null if the start/end coordinates are invalid.
+     * as well as the delta used along the ray, or null if the start/end coordinates are invalid.
      */
-    fun sampleRay(start: GLVector, end: GLVector): List<Float?>? {
+    fun sampleRay(start: GLVector, end: GLVector): Pair<List<Float?>, GLVector>? {
         val gt = material.transferTextures["VolumeTextures"] ?: return null
 
         if(start.x() < 0.0f || start.x() > 1.0f || start.y() < 0.0f || start.y() > 1.0f || start.z() < 0.0f || start.z() > 1.0f) {
@@ -828,7 +836,7 @@ open class Volume : Mesh("Volume") {
 
         return (0 until maxSteps).map {
             sample(startClamped + (delta * it.toFloat()))
-        }
+        } to delta
     }
 
     /**
