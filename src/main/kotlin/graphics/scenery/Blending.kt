@@ -63,7 +63,7 @@ data class Blending(
      * Sets Photoshop overlay-like blending options.
      */
     fun setOverlayBlending() {
-        sourceColorBlendFactor = Blending.BlendFactor.One
+        sourceColorBlendFactor = Blending.BlendFactor.SrcAlpha
         destinationColorBlendFactor = Blending.BlendFactor.OneMinusSrcAlpha
         sourceAlphaBlendFactor = Blending.BlendFactor.One
         destinationAlphaBlendFactor = Blending.BlendFactor.Zero
