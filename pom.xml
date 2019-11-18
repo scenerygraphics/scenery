@@ -111,12 +111,31 @@
         <dokka.version>0.9.18</dokka.version>
         <dokka.skip>true</dokka.skip>
 
+        <bigvolumeviewer.version>0.1.6</bigvolumeviewer.version>
         <cleargl.version>2.2.9</cleargl.version>
-        <slf4j.version>1.7.25</slf4j.version>
-        <lwjgl.version>3.2.3</lwjgl.version>
-        <spirvcrossj.version>0.6.0-1.1.106.0</spirvcrossj.version>
-        <jvrpn.version>1.1.0</jvrpn.version>
+        <coremem.version>0.4.6</coremem.version>
+        <ffmpeg.version>4.1-1.4.4</ffmpeg.version>
+        <gluegen-rt.version>${gluegen-rt-main.version}</gluegen-rt.version>
+        <jackson-databind.version>2.9.10.1</jackson-databind.version>
+        <jackson-dataformat-msgpack.version>0.8.16</jackson-dataformat-msgpack.version>
+        <jackson-dataformat-yaml.version>2.9.9</jackson-dataformat-yaml.version>
+        <jackson-module-kotlin.version>2.9.9</jackson-module-kotlin.version>
         <jeromq.version>0.4.3</jeromq.version>
+        <jinput.version>2.0.9</jinput.version>
+        <jna-platform.version>4.5.2</jna-platform.version>
+        <jna.version>4.5.2</jna.version>
+        <jocl.version>2.0.1</jocl.version>
+        <jogl-all.version>${jogl.version}</jogl-all.version>
+        <jvrpn.version>1.1.0</jvrpn.version>
+        <kotlinx-coroutines-core.version>1.3.1</kotlinx-coroutines-core.version>
+        <kryo.version>4.0.2</kryo.version>
+        <lwjgl.version>3.2.3</lwjgl.version>
+        <lwjgl3-awt.version>45a85af</lwjgl3-awt.version>
+        <msgpack-core.version>0.8.16</msgpack-core.version>
+        <reflections.version>0.9.11</reflections.version>
+        <slf4j.version>1.7.25</slf4j.version>
+        <spirvcrossj.version>0.6.0-1.1.106.0</spirvcrossj.version>
+        <trove4j.version>3.0.3</trove4j.version>
 
         <lwjgl.natives>natives-${scijava.platform.family.long}</lwjgl.natives>
 
@@ -128,28 +147,77 @@
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
             <artifactId>kotlin-stdlib-jdk8</artifactId>
-            <version>${kotlin.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
             <artifactId>kotlin-reflect</artifactId>
-            <version>${kotlin.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.jetbrains.kotlinx</groupId>
             <artifactId>kotlinx-coroutines-core</artifactId>
-            <version>1.3.1</version>
+            <version>${kotlinx-coroutines-core.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.jogamp.gluegen</groupId>
-            <artifactId>gluegen-rt-main</artifactId>
+            <artifactId>gluegen-rt</artifactId>
+            <version>${gluegen-rt.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jogamp.gluegen</groupId>
+            <artifactId>gluegen-rt</artifactId>
+            <version>${gluegen-rt.version}</version>
+            <classifier>natives-linux-amd64</classifier>
+        </dependency>
+        <dependency>
+            <groupId>org.jogamp.gluegen</groupId>
+            <artifactId>gluegen-rt</artifactId>
+            <version>${gluegen-rt.version}</version>
+            <classifier>natives-linux-i586</classifier>
+        </dependency>
+        <dependency>
+            <groupId>org.jogamp.gluegen</groupId>
+            <artifactId>gluegen-rt</artifactId>
+            <version>${gluegen-rt.version}</version>
+            <classifier>natives-macosx-universal</classifier>
+        </dependency>
+        <dependency>
+            <groupId>org.jogamp.gluegen</groupId>
+            <artifactId>gluegen-rt</artifactId>
+            <version>${gluegen-rt.version}</version>
+            <classifier>natives-windows-amd64</classifier>
+        </dependency>
+
+        <dependency>
+            <groupId>org.jogamp.jogl</groupId>
+            <artifactId>jogl-all</artifactId>
+            <version>${jogl-all.version}</version>
         </dependency>
         <dependency>
             <groupId>org.jogamp.jogl</groupId>
-            <artifactId>jogl-all-main</artifactId>
+            <artifactId>jogl-all</artifactId>
+            <version>${jogl-all.version}</version>
+            <classifier>natives-linux-amd64</classifier>
+        </dependency>
+        <dependency>
+            <groupId>org.jogamp.jogl</groupId>
+            <artifactId>jogl-all</artifactId>
+            <version>${jogl-all.version}</version>
+            <classifier>natives-linux-i586</classifier>
+        </dependency>
+        <dependency>
+            <groupId>org.jogamp.jogl</groupId>
+            <artifactId>jogl-all</artifactId>
+            <version>${jogl-all.version}</version>
+            <classifier>natives-macosx-universal</classifier>
+        </dependency>
+        <dependency>
+            <groupId>org.jogamp.jogl</groupId>
+            <artifactId>jogl-all</artifactId>
+            <version>${jogl-all.version}</version>
+            <classifier>natives-windows-amd64</classifier>
         </dependency>
 
         <dependency>
@@ -161,26 +229,22 @@
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
-            <version>${slf4j.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-simple</artifactId>
-            <version>${slf4j.version}</version>
             <scope>test</scope>
         </dependency>
 
         <dependency>
             <groupId>net.clearvolume</groupId>
             <artifactId>cleargl</artifactId>
-            <version>${cleargl.version}</version>
         </dependency>
 
         <dependency>
             <groupId>net.clearcontrol</groupId>
             <artifactId>coremem</artifactId>
-            <version>0.4.6</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.google.android.tools</groupId>
@@ -192,13 +256,13 @@
         <dependency>
             <groupId>net.java.jinput</groupId>
             <artifactId>jinput</artifactId>
-            <version>2.0.9</version>
+            <version>${jinput.version}</version>
         </dependency>
 
         <dependency>
             <groupId>net.java.jinput</groupId>
             <artifactId>jinput</artifactId>
-            <version>2.0.9</version>
+            <version>${jinput.version}</version>
             <classifier>natives-all</classifier>
         </dependency>
 
@@ -220,7 +284,6 @@
         <dependency>
             <groupId>net.sf.trove4j</groupId>
             <artifactId>trove4j</artifactId>
-            <version>3.0.3</version>
         </dependency>
 
         <dependency>
@@ -231,19 +294,18 @@
         <dependency>
             <groupId>net.java.dev.jna</groupId>
             <artifactId>jna</artifactId>
-            <version>4.5.2</version>
         </dependency>
 
         <dependency>
             <groupId>net.java.dev.jna</groupId>
             <artifactId>jna-platform</artifactId>
-            <version>4.5.2</version>
+            <version>${jna-platform.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.jocl</groupId>
             <artifactId>jocl</artifactId>
-            <version>2.0.1</version>
+            <version>${jocl.version}</version>
         </dependency>
 
         <!-- LWJGL dependencies START -->
@@ -338,19 +400,19 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>2.9.10.1</version>
+            <version>${jackson-databind.version}</version>
         </dependency>
 
         <dependency>
             <groupId>com.fasterxml.jackson.module</groupId>
             <artifactId>jackson-module-kotlin</artifactId>
-            <version>2.9.9</version>
+            <version>${jackson-module-kotlin.version}</version>
         </dependency>
 
         <dependency>
             <groupId>com.fasterxml.jackson.dataformat</groupId>
             <artifactId>jackson-dataformat-yaml</artifactId>
-            <version>2.9.9</version>
+            <version>${jackson-dataformat-yaml.version}</version>
         </dependency>
 
         <!-- jackson dependencies end -->
@@ -386,19 +448,19 @@
         <dependency>
             <groupId>com.esotericsoftware</groupId>
             <artifactId>kryo</artifactId>
-            <version>4.0.2</version>
+            <version>${kryo.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.msgpack</groupId>
             <artifactId>msgpack-core</artifactId>
-            <version>0.8.16</version>
+            <version>${msgpack-core.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.msgpack</groupId>
             <artifactId>jackson-dataformat-msgpack</artifactId>
-            <version>0.8.16</version>
+            <version>${jackson-dataformat-msgpack.version}</version>
         </dependency>
 
         <dependency>
@@ -422,26 +484,50 @@
 
         <dependency>
             <groupId>org.bytedeco.javacpp-presets</groupId>
-            <artifactId>ffmpeg-platform</artifactId>
-            <version>4.1-1.4.4</version>
+            <artifactId>ffmpeg</artifactId>
+            <version>${ffmpeg.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.bytedeco.javacpp-presets</groupId>
+            <artifactId>ffmpeg</artifactId>
+            <version>${ffmpeg.version}</version>
+            <classifier>linux-x86</classifier>
+        </dependency>
+        <dependency>
+            <groupId>org.bytedeco.javacpp-presets</groupId>
+            <artifactId>ffmpeg</artifactId>
+            <version>${ffmpeg.version}</version>
+            <classifier>linux-x86_64</classifier>
+        </dependency>
+        <dependency>
+            <groupId>org.bytedeco.javacpp-presets</groupId>
+            <artifactId>ffmpeg</artifactId>
+            <version>${ffmpeg.version}</version>
+            <classifier>macosx-x86_64</classifier>
+        </dependency>
+        <dependency>
+            <groupId>org.bytedeco.javacpp-presets</groupId>
+            <artifactId>ffmpeg</artifactId>
+            <version>${ffmpeg.version}</version>
+            <classifier>windows-x86_64</classifier>
         </dependency>
 
         <dependency>
             <groupId>org.reflections</groupId>
             <artifactId>reflections</artifactId>
-            <version>0.9.11</version>
+            <version>${reflections.version}</version>
         </dependency>
 
         <dependency>
             <groupId>sc.fiji</groupId>
             <artifactId>bigvolumeviewer</artifactId>
-            <version>0.1.6</version>
+            <version>${bigvolumeviewer.version}</version>
         </dependency>
 
         <dependency>
             <groupId>com.github.lwjglx</groupId>
             <artifactId>lwjgl3-awt</artifactId>
-            <version>45a85af</version>
+            <version>${lwjgl3-awt.version}</version>
         </dependency>
     </dependencies>
 
@@ -450,10 +536,10 @@
             <id>scijava.public</id>
             <url>https://maven.scijava.org/content/groups/public</url>
         </repository>
-		<repository>
-		    <id>jitpack.io</id>
-		    <url>https://jitpack.io</url>
-		</repository>
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </repository>
     </repositories>
 
     <build>
@@ -515,9 +601,7 @@
             </plugin>
 
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.5.1</version>
                 <configuration>
                     <source>1.8</source>
                     <target>1.8</target>
@@ -545,16 +629,13 @@
             </plugin>
 
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-release-plugin</artifactId>
-                <version>2.5.3</version>
                 <configuration>
                     <goals>dokka:javadocJar deploy</goals>
                 </configuration>
             </plugin>
 
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <systemPropertyVariables>
@@ -576,7 +657,6 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.5</version>
                 <configuration>
                     <destFile>${project.build.directory}/jacoco.exec</destFile>
                     <dataFile>${project.build.directory}/jacoco.exec</dataFile>
@@ -608,7 +688,6 @@
             <build>
                 <plugins>
                     <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
                             <systemPropertyVariables>
@@ -639,9 +718,7 @@
             <build>
                 <plugins>
                     <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-gpg-plugin</artifactId>
-                        <version>1.6</version>
                         <executions>
                             <execution>
                                 <id>sign-artifacts</id>
@@ -655,7 +732,6 @@
                     <plugin>
                         <groupId>org.codehaus.mojo</groupId>
                         <artifactId>exec-maven-plugin</artifactId>
-                        <version>1.6.0</version>
                         <executions>
                             <execution>
                                 <id>run-shader-date-comparison</id>
@@ -695,7 +771,6 @@
                     <plugin>
                         <groupId>org.sonatype.plugins</groupId>
                         <artifactId>nexus-staging-maven-plugin</artifactId>
-                        <version>1.6.8</version>
                         <extensions>true</extensions>
                         <configuration>
                             <serverId>ossrh</serverId>
