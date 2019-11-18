@@ -9,8 +9,6 @@ import graphics.scenery.controls.TrackerRole
 import graphics.scenery.controls.behaviours.ControllerDrag
 import graphics.scenery.numerics.Random
 import graphics.scenery.volumes.Volume
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
 import org.junit.Test
 import org.scijava.Context
 import org.scijava.ui.UIService
@@ -225,6 +223,10 @@ class ReaderExample : SceneryBase("ReaderExample", 1280, 720) {
         hmd.allowRepeats += OpenVRHMD.OpenVRButton.Trigger to TrackerRole.RightHand
     }
 
+    /**
+     * Loads the next dataset with the same extension from the directory the current
+     * dataset resides in. If [forward] is true, the direction is forward, otherwise backwards.
+     */
     fun loadNext(forward: Boolean = true) {
         val extension = loadedFilename.substringAfterLast(".").toLowerCase()
         val current = Paths.get(loadedFilename)
