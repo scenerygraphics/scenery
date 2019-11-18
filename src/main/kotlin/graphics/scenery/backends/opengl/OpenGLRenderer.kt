@@ -561,6 +561,23 @@ open class OpenGLRenderer(hub: Hub,
         return this.metadata["OpenGLRenderer"] as? OpenGLObjectState
     }
 
+    private fun getSupersamplingFactor(window: ClearGLWindow?): Float {
+        val supersamplingFactor = if(settings.get<Float>("Renderer.SupersamplingFactor").toInt() == 1) {
+            val window = cglWindow
+            if(window != null && ClearGLWindow.isRetina(window.gl)) {
+                logger.debug("Setting Renderer.SupersamplingFactor to 0.5, as we are rendering on a retina display.")
+                settings.set("Renderer.SupersamplingFactor", 0.5f)
+                0.5f
+            } else {
+                settings.get("Renderer.SupersamplingFactor")
+            }
+        } else {
+            settings.get("Renderer.SupersamplingFactor")
+        }
+
+        return supersamplingFactor
+    }
+
     fun prepareRenderpasses(config: RenderConfigReader.RenderConfig, windowWidth: Int, windowHeight: Int): LinkedHashMap<String, OpenGLRenderpass> {
         if(config.sRGB) {
             gl.glEnable(GL4.GL_FRAMEBUFFER_SRGB)
@@ -575,18 +592,7 @@ open class OpenGLRenderer(hub: Hub,
 
         val flow = renderConfig.createRenderpassFlow()
 
-        val supersamplingFactor = if(settings.get<Float>("Renderer.SupersamplingFactor").toInt() == 1) {
-            val window = cglWindow
-            if(window != null && ClearGLWindow.isRetina(window.gl)) {
-                logger.debug("Setting Renderer.SupersamplingFactor to 0.5, as we are rendering on a retina display.")
-                settings.set("Renderer.SupersamplingFactor", 0.5f)
-                0.5f
-            } else {
-                settings.get("Renderer.SupersamplingFactor")
-            }
-        } else {
-            settings.get("Renderer.SupersamplingFactor")
-        }
+        val supersamplingFactor = getSupersamplingFactor(cglWindow)
 
         scene.findObserver()?.let { cam ->
             cam.perspectiveCamera(cam.fov, windowWidth * supersamplingFactor, windowHeight * supersamplingFactor, cam.nearPlaneDistance, cam.farPlaneDistance)
@@ -2011,7 +2017,12 @@ open class OpenGLRenderer(hub: Hub,
                     File(movieFilename)
                 }, false)
 
-                encoder = H264Encoder(window.width, window.height, file.absolutePath, hub = hub)
+                val supersamplingFactor = getSupersamplingFactor(cglWindow)
+                encoder = H264Encoder(
+                    (supersamplingFactor * window.width).toInt(),
+                    (supersamplingFactor * window.height).toInt(),
+                    file.absolutePath,
+                    hub = hub)
             }
 
             readIndex = (readIndex + 1) % pboCount

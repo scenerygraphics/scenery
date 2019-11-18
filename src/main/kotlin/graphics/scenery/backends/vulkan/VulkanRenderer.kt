@@ -44,11 +44,7 @@ import java.util.concurrent.locks.ReentrantLock
 import javax.imageio.ImageIO
 import kotlin.concurrent.thread
 import kotlin.concurrent.withLock
-import kotlin.reflect.full.companionObject
-import kotlin.reflect.full.companionObjectInstance
-import kotlin.reflect.full.findAnnotation
-import kotlin.reflect.full.memberProperties
-import kotlin.reflect.full.primaryConstructor
+import kotlin.reflect.full.*
 
 
 /**
@@ -1744,7 +1740,11 @@ open class VulkanRenderer(hub: Hub,
                         File(movieFilename)
                     }, false)
 
-                    encoder = H264Encoder(window.width, window.height, file.absolutePath, hub = hub)
+                    encoder = H264Encoder(
+                        (window.width * settings.get<Float>("Renderer.SupersamplingFactor")).toInt(),
+                        (window.height* settings.get<Float>("Renderer.SupersamplingFactor")).toInt(),
+                        file.absolutePath,
+                        hub = hub)
                 }
             }
 
