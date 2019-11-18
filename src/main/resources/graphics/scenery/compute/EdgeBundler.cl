@@ -47,7 +47,7 @@ float4 calculateDirection(
         )
 {
     int end = begin + trackLength;
-    float4 result = {0, 0, 0, 0};
+    float4 result = {0., 0., 0., 0.};
 
     for(int i = 0; i <= radius; i ++)
     {
@@ -156,21 +156,21 @@ float4 transformForcePerpendicular(float4 direction, float4 force)
 
     //printf("Function transform, direction is %v4f\n", direction);
 
-    if(l < 0.0001)
+    if(l <= 0.0)
     {
         // No transform if the force is near non-existing
         return force;
     }
 
     // Normalize the force (direction already is unit vector)
-    force = force / l;
+    force /= l;
     //printf("  force orientation %v4f, length %f\n", force, l);
     float t = dot(direction, force);
-    float sgn = 1;
+    float sgn = 1.;
     if(t > 0)
     {
         t = t * -1.;
-        sgn = 1;
+        sgn = 1.;
     }
 
     //printf("    similarity between direction and force is %f\n", t);
@@ -180,7 +180,7 @@ float4 transformForcePerpendicular(float4 direction, float4 force)
     force.y -= t * direction.y;
     force.z -= t * direction.z;
 
-    if(dot(forceOriginal, force) < 0)
+    if(dot(forceOriginal, force) < 0.)
     {
         //printf("    rotate adjusted force \n");
         force *= -1.f;
@@ -210,7 +210,7 @@ float4 calculateForce(
     //printf("  Function calculating force, my direction is now %v4f \n", myDirection);
 
     float weightSum = 1.;
-    float4 force = { 0, 0, 0, 0 };
+    float4 force = { 0., 0., 0., 0. };
 
     // Iterate over IDs of all streamlines of this cluster
     for(int i = clusterStart; i < clusterStart + clusterLength; i++)
@@ -228,7 +228,7 @@ float4 calculateForce(
         // ...including closest point and direction of closest passing
         float minDistance = length(points[closestIndex] - myPosition);
 
-        if(minDistance > radius || minDistance < 0.01)
+        if(minDistance > radius || minDistance < 0.00001)
         {
             continue;
         }
@@ -351,7 +351,7 @@ __kernel void edgeBundling(
                        myPosition,
                        direction,
                        *angleStick,
-                       2 * *magnetRadius
+                       2.0 * *magnetRadius
                       );
 
     force.x -= 0.15 * forceWider.x;
@@ -368,7 +368,7 @@ __kernel void edgeBundling(
     //force = innerDirection;
 
 
-    float4 resultPoint = { 0, 0, 0, 0 };
+    float4 resultPoint = { 0., 0., 0., 0. };
     resultPoint.x = myPosition.x + *stepsize * force.x;
     resultPoint.y = myPosition.y + *stepsize * force.y;
     resultPoint.z = myPosition.z + *stepsize * force.z;
@@ -412,7 +412,7 @@ float4 smoothPosition(
     first = max(begin, first);
     last = min(end, last);
 
-    float4 result = { 0, 0, 0, 0 };
+    float4 result = { 0., 0., 0., 0. };
 
     for(int i = first; i < last + 1; i++)
     {
@@ -442,7 +442,7 @@ __kernel void smooth(
         )
 {
     // If smoothing is (practically) disabled, leave
-    if(*radius == 0 || *intensity < 0.001)
+    if(*radius == 0 || *intensity <= 0.0)
     {
         return;
     }

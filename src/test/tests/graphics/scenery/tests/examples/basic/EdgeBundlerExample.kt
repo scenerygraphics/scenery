@@ -19,8 +19,7 @@ class EdgeBundlerExample : SceneryBase("EdgeBundlerExample") {
 
     override fun init() {
         System.setProperty("scenery.OpenCLDevice", "1,0");
-        var eb = EdgeBundler(path, numClusters)
-        // eb.estimateGoodParameters() // This OR set everything manually.
+        var eb = EdgeBundler(path)
         eb.calculate()
 
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))

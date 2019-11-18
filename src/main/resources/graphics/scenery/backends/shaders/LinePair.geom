@@ -31,6 +31,7 @@ layout(set = 4, binding = 0) uniform ShaderProperties {
     int capLength;
     int vertexCount;
     float edgeWidth;
+    float interpolationState;
 };
 
 layout(push_constant) uniform currentEye_t {
@@ -55,8 +56,8 @@ void main() {
     vec4 c = vec4( p2.xy + 0.5*n, p2.z, 1.0);
     vec4 d = vec4( p2.xy - 0.5*n, p2.z, 1.0);
 
-    //    vec3 N = normalize(cross(normalize(a.xyz-b.xyz), normalize(c.xyz)));
-    vec3 N = vec3(-1.0/0.0, -1.0/0.0, -1.0/0.0);
+    vec3 N = normalize(cross(normalize(a.xyz-b.xyz), normalize(c.xyz)));
+    //vec3 N = vec3(-1.0/0.0, -1.0/0.0, -1.0/0.0);
 
     gl_Position = a;
     Vertex.Position = gl_Position.xyz;
