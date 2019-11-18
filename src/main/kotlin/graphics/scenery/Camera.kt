@@ -366,10 +366,16 @@ open class Camera : Node("Camera") {
         return Tripod(x, y, z)
     }
 
-    fun showMessage(message: String, distance: Float = 0.75f, size: Float = 0.05f, duration: Int = 3000, color: GLVector = GLVector.getOneVector(3), background: GLVector = GLVector.getNullVector(3)) {
+    /**
+     * Shows a [message] to the user, at a distance of [distance] meters.
+     * The message can by styled by [size] (in meters), [messageColor] and [backgroundColor].
+     *
+     * It will be shown for [duration] milliseconds, with a default of 3000.
+     */
+    @JvmOverloads fun showMessage(message: String, distance: Float = 0.75f, size: Float = 0.05f, messageColor: GLVector = GLVector.getOneVector(3), backgroundColor: GLVector = GLVector.getNullVector(3), duration: Int = 3000) {
         val tb = TextBoard()
-        tb.fontColor = color
-        tb.backgroundColor = background
+        tb.fontColor = messageColor
+        tb.backgroundColor = backgroundColor
         tb.text = message
         tb.scale = GLVector(size, size, size)
         tb.update.add {
