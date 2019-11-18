@@ -45,6 +45,7 @@ vec4 lineColor;
 int capLength;
 int vertexCount;
 float edgeWidth;
+    float interpolationState;
 };
 
 layout(location = 0) out vec4 FragColor;
@@ -54,4 +55,5 @@ void main()
     // mix together line colors and black background.
     // everything apart from the lines should be transparent.
     FragColor = vec4(Material.Kd, Material.Opacity);
+    //FragColor = vec4(Vertex.Normal, 0.5);
 }

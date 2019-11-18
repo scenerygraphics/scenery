@@ -20,20 +20,8 @@ import kotlin.math.max
  * attributes and use them for color mapping
  * @author Johannes Waschke <jowaschke@cbs.mpg.de>
  */
-class PointWithMeta {
-    public var y: Float
-    public var z: Float
-    public var x: Float
-    public var attributes: ArrayList<Float> = ArrayList()
-
-    /**
-     * Sets up a point, with 0 as default values if no x/y/z specified
-     */
-    constructor(x: Float = 0.0f, y: Float = 0.0f, z: Float = 0.0f) {
-        this.x = x
-        this.y = y
-        this.z = z
-    }
+class PointWithMeta(var x: Float = 0.0f, var y: Float = 0.0f, var z: Float = 0.0f) {
+    private var attributes: ArrayList<Float> = ArrayList()
 
     /**
      * Adds a new attribute. Note, attributes are always stored as Floats. Besides that, consider that all points should
@@ -97,15 +85,24 @@ class PointWithMeta {
  */
 class EdgeBundler(): SceneryBase("EdgeBundler") {
 
-    constructor(csvPath: String, numberOfClusters: Int) : this() {
+    /**
+     *  Creates lines from a folder full of csv files. Each file is a track, each line
+     *  must look like "x,y,z[,attribute1[,attribute2[, ...]]]"
+     */
+    constructor(csvPath: String) : this() {
         logger.info("Create EdgeBundler with csv path")
-        paramCsvPath = csvPath
-        paramNumberOfClusters = numberOfClusters
-        init()
+        loadTrajectoriesFromCSV(csvPath)
+        estimateGoodParameters()
     }
 
-    protected var trackSetOriginal: Array<Array<PointWithMeta>> = Array(0) {Array(0) { PointWithMeta() }}
-    protected var trackSetBundled: Array<Array<PointWithMeta>> = Array(0) {Array(0) { PointWithMeta() }}
+    constructor(lines: Array<Line>) : this() {
+        logger.info("Create EdgeBundler with line set")
+        loadTrajectoriesFromLines(lines)
+        estimateGoodParameters()
+    }
+
+    private var trackSetOriginal: Array<Array<PointWithMeta>> = Array(0) {Array(0) { PointWithMeta() }}
+    private var trackSetBundled: Array<Array<PointWithMeta>> = Array(0) {Array(0) { PointWithMeta() }}
 
     // Min/max of data, from these we derive a proposal for paramBundlingRadius
     private var minX: Float = Float.MAX_VALUE
@@ -131,17 +128,15 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
     private var oclClusterStarts = arrayListOf<Int>()
     private var oclClusterLengths = arrayListOf<Int>()
 
-    // Anything to be set up by user. Import are especially
-    // - paramCsvPath. A folder full of csv files. Each file is a track, each line must be "x,y,z[,attribute1[,attribute2[, ...]]]"
+    // Anything to be set up by user. Important are especially
     // - paramNumberOfClusters. The more clusters, the lower is the (quadratic) runtime per "data piece".
-    // - paramBundlingRadius. The distance in which magnetic forces work. Should be something like 5% of the data width
-    var paramCsvPath = """"""
+    // - paramBundlingRadius. The distance in which magnetic forces work. Should be something like 3% of the data width
     var paramResampleTo = 30                          // Length of streamlines for edge bundling (and the result)
-    var paramNumberOfClusters = 1      // Number of clusters during edge bundling. More are quicker.
+    var paramNumberOfClusters = 1                     // Number of clusters during edge bundling. More are quicker.
     var paramClusteringTrackSize = 6                  // Length of the reference track for edge bundling.
     var paramClusteringIterations = 20                // Iterations for defining the clusters.
-    var paramBundlingIterations = 20                  // Iterations for edge bundling. Each iteration includes one smoothing step! Hence, for more iterations, reduce smoothing.
-    var paramBundlingRadius: Float = 10.0f            // Radius in which magnet forces apply. Should be something link 5% of data space width
+    var paramBundlingIterations = 10                   // Iterations for edge bundling. Each iteration includes one smoothing step! Hence, for more iterations, reduce smoothing.
+    var paramBundlingRadius: Float = 10.0f            // Radius in which magnet forces apply. Should be something link 2% of data space width
     var paramBundlingStepsize: Float = 1.0f           // Length of "magnet step". Just 1.0 is fine. Small steps require more iterations, larger might step too far.
     var paramBundlingAngleMin: Float = 0.0f           // TODO currently unused; it's a curvature threshold, but likely not really helpful
     var paramBundlingAngleStick: Float = 0.8f         // Defines how much non-parallel tracks stick together.
@@ -152,14 +147,6 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
     var paramAlpha: Float = 0.01f                      // Opacity of the lines while rendering
 
 
-    override fun init() {
-        loadTrajectories(paramCsvPath)
-        logger.info("Load tracks from " + paramCsvPath)
-    }
-
-    /**
-     * Create the environment for the 3D output
-     */
 
 
     /**
@@ -183,6 +170,7 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
         val line = LinePair(transparent = true)
         line.name = trackId.toString()
         line.material.blending.opacity = paramAlpha
+        line.material.depthTest = Material.DepthTest.Always
         line.position = GLVector(0.0f, 0.0f, 0.0f)
         line.edgeWidth = 0.01f
         return line
@@ -203,11 +191,11 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
      * By the way, if nothing works, consider an increase of the number of clusters. This also dramatically decreases
      * calculation time per point.
      */
-    public fun setChunkSize(elementsPerCalculation:Int) {
+    fun setChunkSize(elementsPerCalculation:Int) {
         paramBundlingChunkSize = elementsPerCalculation
     }
 
-    public fun getLines(): Array<Line> {
+    fun getLines(): Array<Line> {
         var lines = Array<Line>(trackSetBundled.size) {Line()}
         for(t in 0 until trackSetBundled.size) {
             // The next lines show the "boring" way [for the smarter one, see below]:
@@ -218,7 +206,7 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
         return lines
     }
 
-    public fun getLinePairs(): Array<LinePair> {
+    fun getLinePairs(): Array<LinePair> {
         var lines = Array<LinePair>(trackSetBundled.size) {LinePair()}
         for(t in 0 until trackSetBundled.size) {
             // The next lines show the "boring" way [for the smarter one, see below]:
@@ -233,19 +221,17 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
     /**
      * Some parameters must be set up according to data properties. We try some basic guessing here.
      */
-    public fun estimateGoodParameters() {
-        paramBundlingRadius = max(maxX - minX, max(maxY - minY, maxZ - minZ)) * 0.05f // 5% of data dimension
+    fun estimateGoodParameters() {
+        paramBundlingRadius = max(maxX - minX, max(maxY - minY, maxZ - minZ)) * 0.03f // 3% of data dimension
         paramNumberOfClusters = ceil(trackSetBundled.size.toFloat() / 500.0f).toInt() // an average of 500 lines per cluster
         logger.info("Divide the data into " + paramNumberOfClusters.toString() + " clusters, magnetic forces over a distance of " + paramBundlingRadius)
     }
 
-    public fun getClusterOfTrack(trackIndex: Int): Int
-    {
+    fun getClusterOfTrack(trackIndex: Int): Int {
         return resultClustersReverse[trackIndex]
     }
 
-    public fun getClusterOfTracks(): Array<Int>
-    {
+    fun getClusterOfTracks(): Array<Int> {
         return resultClustersReverse
     }
 
@@ -347,12 +333,20 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
     private fun copyResultHelper(openCLContext: OpenCLContext,
                                  memResult: cl_mem,
                                  memNew: cl_mem,
-                                 buffer: FloatBuffer)
-    {
+                                 buffer: FloatBuffer) {
         openCLContext.readBuffer(memResult, buffer)
         buffer.rewind()
         openCLContext.writeBuffer(buffer, memNew)
         buffer.rewind()
+    }
+
+    private fun writeOffsetHelper(openCLContext: OpenCLContext,
+                                  memObject: cl_mem,
+                                  offset: Int) {
+        var offsetBuffer = createIntBuffer(arrayListOf(offset))
+        offsetBuffer.rewind()
+        openCLContext.writeBuffer(offsetBuffer, memObject)
+        offsetBuffer.rewind()
     }
 
     /**
@@ -360,7 +354,7 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
      * to [paramBundlingIterations], and splitted into chunks according to [paramBundlingChunkSize]). For each
      * iteration, edge bundling is performed first and smoothing is performed afterwards.
      */
-    public fun runEdgeBundling(): Boolean {
+    fun runEdgeBundling(): Boolean {
         prepareFlattenedData()
 
         var ocl: OpenCLContext?
@@ -415,10 +409,7 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
             for(i in 0 until paramBundlingIterations) {
                 for(c in 0 until chunksizes.size) {
                     statusPrint(++statusCounter, totalCounter) // Current status; Will be called paramBundlingIterations * chunksizes.size times
-                    var offsetBuffer = createIntBuffer(arrayListOf(c * paramBundlingChunkSize))
-                    offsetBuffer.rewind()
-                    ocl.writeBuffer(offsetBuffer, offset)
-                    offsetBuffer.rewind()
+                    writeOffsetHelper(ocl, offset, c * paramBundlingChunkSize)
 
                     ocl.runKernel("edgeBundling", chunksizes[c],
                         trackStarts,
@@ -437,22 +428,11 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
                         offset,
                         bundleEndPoints)
                 }
-
-                // Read result and copy it back to input, for the smoothing
-/*
-                ocl.readBuffer(pointsResult, oclPointsInAndOut)
-                oclPointsInAndOut.rewind()
-                ocl.writeBuffer(oclPointsInAndOut, points)
-                oclPointsInAndOut.rewind()*/
                 copyResultHelper(ocl, pointsResult, points, oclPointsInAndOut)
-
 
                 for(c in 0 until chunksizes.size) {
                     statusPrint(++statusCounter, totalCounter)
-                    var offsetBuffer = createIntBuffer(arrayListOf(c * paramBundlingChunkSize))
-                    offsetBuffer.rewind()
-                    ocl.writeBuffer(offsetBuffer, offset)
-                    offsetBuffer.rewind()
+                    writeOffsetHelper(ocl, offset, c * paramBundlingChunkSize)
 
                     ocl.runKernel("smooth", chunksizes[c],
                         trackStarts,
@@ -464,20 +444,10 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
                         intensity,
                         offset)
                 }
-
-                // Read result and copy it back to input, for the next round
-                /*
-                ocl.readBuffer(pointsResult, oclPointsInAndOut)
-                oclPointsInAndOut.rewind()
-                ocl.writeBuffer(oclPointsInAndOut, points)
-                oclPointsInAndOut.rewind() */
                 copyResultHelper(ocl, pointsResult, points, oclPointsInAndOut)
             }
             printFloatBuffer(oclPointsInAndOut)
-            // Now convert the flat arrays back to "sorted" ones. TODO: renderResultUpdate each iteration?
             processOpenClResult(oclPointsInAndOut)
-
-            println() // Newline after status-***
             logger.info("Finished OpenCL edge bundling.")
         }
         return true
@@ -505,7 +475,6 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
             posCounter++
             localCounter++
             if(localCounter >= trackSetBundled[trackCounter].size) {
-                logger.info("Last point was " + x.toString() + ", " + y.toString() + ", "+ z.toString())
                 trackCounter++
                 localCounter = 0
             }
@@ -517,7 +486,7 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
      * first three columns are x/y/z respectively. Every additional column is stored as attribute, but currently not
      * further processed/used.
      */
-    private fun loadTrajectories(path: String) {
+    private fun loadTrajectoriesFromCSV(path: String) {
         var trackSetTemp: ArrayList<Array<PointWithMeta>> = ArrayList()
         File(path).walkBottomUp().forEach {file ->
             if(file.absoluteFile.extension.toLowerCase() == "csv") {
@@ -540,17 +509,41 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
                         }
                         trackTemp.add(point)
                     }
-                    var track = Array<PointWithMeta>(trackTemp.size, { i -> trackTemp[i]})
+                    var track = Array<PointWithMeta>(trackTemp.size) {i -> trackTemp[i]}
                     trackSetTemp.add(track)
                 }
             }
         }
-        this.trackSetBundled = Array(trackSetTemp.size, { i -> trackSetTemp[i]})
+        this.trackSetBundled = Array(trackSetTemp.size) {i -> trackSetTemp[i]}
         this.trackSetBundled = resampleTracks(trackSetBundled, paramResampleTo)
         this.trackSetOriginal = resampleTracks(trackSetBundled, paramResampleTo) // TODO just for test; make it better pls
     }
 
-    public fun calculate() {
+    private fun loadTrajectoriesFromLines(lines: Array<Line>) {
+        var trackSetTemp: ArrayList<Array<PointWithMeta>> = ArrayList()
+        for(line in lines)
+        {
+            var track = Array<PointWithMeta>(line.vertices.limit() / 3) {i -> PointWithMeta()}
+            for(i in 0 until (line.vertices.limit() / 3)) {
+                val point = PointWithMeta(line.vertices[3 * i] + 0,
+                    line.vertices[3 * i] + 1,
+                    line.vertices[3 * i] + 2)
+                minX = min(minX, point.x)
+                minY = min(minY, point.y)
+                minZ = min(minZ, point.z)
+                maxX = max(maxX, point.x)
+                maxY = max(maxY, point.y)
+                maxZ = max(maxZ, point.z)
+                track[i] = point
+            }
+        }
+
+        this.trackSetBundled = Array(trackSetTemp.size) {i -> trackSetTemp[i]}
+        this.trackSetBundled = resampleTracks(trackSetBundled, paramResampleTo)
+        this.trackSetOriginal = resampleTracks(trackSetBundled, paramResampleTo) // TODO just for test; make it better pls
+    }
+
+    fun calculate() {
         quickBundles()
         runEdgeBundling()
     }
