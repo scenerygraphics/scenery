@@ -192,8 +192,10 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
 
                         if(poller.isReadable(socket)) {
                             val msg = ZMsg.recvMsg(socket)
+                            val msgType = msg.popString()
+                            logger.info("Received message type $msgType")
 
-                            when(val msgType = msg.popString()) {
+                            when(msgType) {
                                 "notify.calibration.successful" -> {
                                     logger.info("Calibration successful.")
                                     calibrating = false
@@ -228,6 +230,7 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
                                 "gaze.3d.1." -> {
                                     val bytes = msg.pop().data
                                     val g = objectMapper.readValue(bytes, Gaze::class.java)
+                                    logger.info("Received data: ${String(bytes)}")
 
                                     if(g.confidence > gazeConfidenceThreshold) {
 
@@ -388,7 +391,12 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
         val referenceData = arrayListOf<HashMap<String, Serializable>>()
 
         if(generateReferenceData) {
-            val numReferencePoints = 6
+            val numReferencePoints = if(calibrationType == CalibrationType.ScreenSpace) {
+                6
+            } else {
+                10
+            }
+
             val samplesPerPoint = 120
 
             val (posKeyName, posGenerator: ((Camera, Int, Int) -> Pair<GLVector, GLVector>)) = when(calibrationType) {
@@ -475,29 +483,6 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
         /** Point generator for circular calibration points. */
         @Suppress("unused")
         val CircularScreenSpaceCalibrationPointGenerator = { cam: Camera, index: Int, referencePointCount: Int ->
-            /*
-             val v = if(index == 0) {
-                GLVector(0.0f, 0.0f, 0.0f)
-            } else {
-                GLVector(
-                    radius * cos(2 * PI.toFloat() * index.toFloat()/referencePointCount),
-                    -1.0f * radius * sin(2 * PI.toFloat() * index.toFloat()/referencePointCount),
-                    0.0f
-                )
-            }
-
-            val mvp = cam.projection.clone()
-            mvp.mult(cam.getTransformation())
-            val pos = v + if(cam is DetachedHeadCamera) {
-                cam.position + cam.headPosition
-            } else {
-                cam.position
-            }
-            var ndc = mvp.mult(pos.xyzw() + v.xyzw())
-            ndc *= 1.0f/ndc.w()
-
-//            v to cam.viewportToWorld(GLVector(v.x()*2.0f-1.0f, v.y()*2.0f-1.0f), offset = 0.0f)
-             */
             val origin = 0.5f
             val radius = 0.3f
 
@@ -538,11 +523,25 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
 
         /** Point generator for random world-space points. */
         @Suppress("unused")
-        val DefaultWorldSpaceCalibrationPointGenerator = { _: Camera, _: Int, _: Int ->
-            val v = GLVector(Random.randomFromRange(-4.0f, 4.0f),
-                Random.randomFromRange(-4.0f, 4.0f),
-                Random.randomFromRange(0.0f, -3.0f))
-            v to v
+        val DefaultWorldSpaceCalibrationPointGenerator = { cam: Camera, index: Int, referencePointCount: Int ->
+            val origin = 0.5f
+            val radius = 0.4f
+            val layer = kotlin.random.Random(System.nanoTime()).nextInt(0, 3)
+            val pointsPerCircle = 5
+
+            val z = -1.0f * (1.0f + layer * 1.5f)
+
+            val v = if(index == 0) {
+                GLVector(origin, origin, z)
+            } else {
+                GLVector(
+                    origin + radius * cos(2 * PI.toFloat() * index.toFloat()/pointsPerCircle),
+                    origin + radius * sin(2 * PI.toFloat() * index.toFloat()/pointsPerCircle),
+                    z
+                )
+            }
+
+            v to cam.viewportToWorld(GLVector(v.x() * 2.0f - 1.0f, v.y() * 2.0f - 1.0f, v.z()))
         }
     }
 }
