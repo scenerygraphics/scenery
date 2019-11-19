@@ -96,7 +96,7 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
     }
 
     constructor(lines: Array<Line>) : this() {
-        logger.info("Create EdgeBundler with line set")
+        logger.info("Create EdgeBundler with line set, number of lines:" + lines.size.toString())
         loadTrajectoriesFromLines(lines)
         estimateGoodParameters()
     }
@@ -410,7 +410,6 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
                 for(c in 0 until chunksizes.size) {
                     statusPrint(++statusCounter, totalCounter) // Current status; Will be called paramBundlingIterations * chunksizes.size times
                     writeOffsetHelper(ocl, offset, c * paramBundlingChunkSize)
-
                     ocl.runKernel("edgeBundling", chunksizes[c],
                         trackStarts,
                         trackLengths,
@@ -524,10 +523,12 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
         for(line in lines)
         {
             var track = Array<PointWithMeta>(line.vertices.limit() / 3) {i -> PointWithMeta()}
-            for(i in 0 until (line.vertices.limit() / 3)) {
-                val point = PointWithMeta(line.vertices[3 * i] + 0,
-                    line.vertices[3 * i] + 1,
-                    line.vertices[3 * i] + 2)
+            line.vertices.rewind()
+            var i = 0
+            while(line.vertices.hasRemaining()) {
+                val point = PointWithMeta(line.vertices.get(),
+                    line.vertices.get(),
+                    line.vertices.get())
                 minX = min(minX, point.x)
                 minY = min(minY, point.y)
                 minZ = min(minZ, point.z)
@@ -535,7 +536,9 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
                 maxY = max(maxY, point.y)
                 maxZ = max(maxZ, point.z)
                 track[i] = point
+                i++
             }
+            trackSetTemp.add(track)
         }
 
         this.trackSetBundled = Array(trackSetTemp.size) {i -> trackSetTemp[i]}
