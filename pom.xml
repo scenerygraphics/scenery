@@ -591,9 +591,9 @@
                     <jdkVersion>8</jdkVersion>
                     <sourceLinks>
                         <link>
-                            <dir>${project.basedir}/src/main/kotlin</dir>
+                            <path>${project.basedir}/src/main/kotlin</path>
                             <url>https://github.com/scenerygraphics/scenery</url>
-                            <urlSuffix>#L</urlSuffix>
+                            <lineSuffix>#L</lineSuffix>
                         </link>
                     </sourceLinks>
                     <skip>${dokka.skip}</skip>
