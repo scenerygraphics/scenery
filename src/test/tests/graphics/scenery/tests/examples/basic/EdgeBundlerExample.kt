@@ -13,34 +13,47 @@ import kotlin.concurrent.thread
  * @author Johannes Waschke <jowaschke@cbs.mpg.de>
  */
 class EdgeBundlerExample : SceneryBase("EdgeBundlerExample") {
-    var path =  """C:\Programming_meta\scenery\1\lines"""
-    var numClusters = 3
+    var numClusters = 1
     private var colorMap: Array<GLVector> = arrayOf(GLVector(1.0f, 1.0f, 1.0f))
 
     override fun init() {
-        System.setProperty("scenery.OpenCLDevice", "1,0");
-        var eb = EdgeBundler(path)
+        System.setProperty("scenery.OpenCLDevice", "1,0"); // Set a custom device (if wanted)
+        //var eb = EdgeBundler("""C:\Programming_meta\scenery\1\lines""") // From CSV
+        var eb = EdgeBundler(createLines(800, 50, 10, 0.2f)) // From Line set
         eb.calculate()
 
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
         initRender()
+        numClusters = eb.paramNumberOfClusters // Look how many clusters were created, use this information for colormap
         colorMap = getRandomColors()
         renderLinePairs(eb.getLinePairs(), eb.getClusterOfTracks())
     }
 
-    /*
-
-
-
+    /**
+     * Creates a set of lines with a specified number of points per line. The distance between points
+     * can be set by [step] and the overall scale can be defined by [scale].
+     * Note, the lines are generated with an additional random offset between them (to make the data
+     * a bit less uniform).
      */
+    private fun createLines(numLines: Int, numPositions: Int, step: Int, scale: Float): Array<Line> {
+        var lines = Array<Line>(numLines) {i -> Line()}
+        for(i in 0 until numLines) {
+            var randOffset = Random.randomFromRange(0.0f, 2.0f) - (numLines/2).toFloat()
+            for(j in -numPositions/2 until numPositions/2) {
+                lines[i].addPoint(GLVector(scale * (randOffset + i.toFloat()), scale * (step * j).toFloat(), -100.0f))
+                //logger.info("Add point" + (scale * i.toFloat()).toString() + ", " + (scale *(step * j).toFloat()).toString())
+            }
+        }
+        return lines
+    }
 
     private fun initRender() {
-        val hull = Box(GLVector(50.0f, 50.0f, 50.0f), insideNormals = true)
+        val hull = Box(GLVector(250.0f, 250.0f, 250.0f), insideNormals = true)
         hull.material.diffuse = GLVector(0.2f, 0.2f, 0.2f)
         hull.material.cullingMode = Material.CullingMode.Front
         scene.addChild(hull)
         val lights = (0 until 3).map {
-            val l = PointLight(radius = 40.0f)
+            val l = PointLight(radius = 240.0f)
             l.intensity = 0.5f
             l.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
             scene.addChild(l)
@@ -54,6 +67,7 @@ class EdgeBundlerExample : SceneryBase("EdgeBundlerExample") {
         cam.active = true
         scene.addChild(cam)
 
+        // Light show
         thread {
             while(true) {
                 val t = runtime/100
@@ -67,7 +81,7 @@ class EdgeBundlerExample : SceneryBase("EdgeBundlerExample") {
             }
         }
 
-
+        // Bundling ... de-bundling ... bundling ... de-bundling...
         thread {
             while (true) {
                 val t = Math.sin(runtime * Math.PI/2000.0) * 0.5 + 0.5
@@ -75,7 +89,6 @@ class EdgeBundlerExample : SceneryBase("EdgeBundlerExample") {
                 Thread.sleep(20)
             }
         }
-
     }
 
     /**
