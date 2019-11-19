@@ -44,11 +44,7 @@ import java.util.concurrent.locks.ReentrantLock
 import javax.imageio.ImageIO
 import kotlin.concurrent.thread
 import kotlin.concurrent.withLock
-import kotlin.reflect.full.companionObject
-import kotlin.reflect.full.companionObjectInstance
-import kotlin.reflect.full.findAnnotation
-import kotlin.reflect.full.memberProperties
-import kotlin.reflect.full.primaryConstructor
+import kotlin.reflect.full.*
 
 
 /**
@@ -150,7 +146,7 @@ open class VulkanRenderer(hub: Hub,
         private val lock = ReentrantLock()
 
         @Synchronized fun recreate() {
-            if(lock.tryLock()) {
+            if(lock.tryLock() && !shouldClose) {
                 logger.info("Recreating Swapchain at frame $frames (${swapchain.javaClass.simpleName})")
                 // create new swapchain with changed surface parameters
                 vkQueueWaitIdle(queue)
@@ -805,7 +801,7 @@ open class VulkanRenderer(hub: Hub,
 
         loadTexturesForNode(node, s)
 
-        s.blendingHashCode = node.material.blending.hashCode()
+        s.materialHashCode = node.material.materialHashCode()
 
         val materialUbo = VulkanUBO(device, backingBuffer = buffers.UBOs)
         with(materialUbo) {
@@ -831,8 +827,15 @@ open class VulkanRenderer(hub: Hub,
 
     private fun initializeCustomShadersForNode(node: Node, addInitializer: Boolean = true): Boolean {
 
-        if(!(node.material.blending.transparent || node.material is ShaderMaterial || node.material.cullingMode != Material.CullingMode.Back)) {
+        if(!(node.material.blending.transparent || node.material is ShaderMaterial || node.material.cullingMode != Material.CullingMode.Back || node.material.wireframe)) {
             logger.debug("Using default renderpass material for ${node.name}")
+            renderpasses
+                .filter { it.value.passConfig.type == RenderConfigReader.RenderpassType.geometry || it.value.passConfig.type == RenderConfigReader.RenderpassType.lights }
+                .forEach {
+                    it.value.removePipeline(node)
+                }
+
+            lateResizeInitializers.remove(node)
             return false
         }
 
@@ -924,6 +927,12 @@ open class VulkanRenderer(hub: Hub,
                                 Material.DepthTest.GreaterEqual -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_GREATER_OR_EQUAL)
                                 Material.DepthTest.Always -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_ALWAYS)
                                 Material.DepthTest.Never -> pipeline.depthStencilState.depthCompareOp(VK_COMPARE_OP_NEVER)
+                            }
+
+                            if(node.material.wireframe) {
+                                pipeline.rasterizationState.polygonMode(VK_POLYGON_MODE_LINE)
+                            } else {
+                                pipeline.rasterizationState.polygonMode(VK_POLYGON_MODE_FILL)
                             }
 
                             if(node.material.blending.transparent) {
@@ -1684,8 +1693,6 @@ open class VulkanRenderer(hub: Hub,
         val startPresent = System.nanoTime()
         commandBuffer.submitted = true
         swapchain.present(ph.signalSemaphore)
-        // TODO: Figure out whether this waitForFence call is strictly necessary -- actually, the next renderloop iteration should wait for it.
-        commandBuffer.waitForFence()
 
         swapchain.postPresent(pass.getReadPosition())
 
@@ -1733,7 +1740,11 @@ open class VulkanRenderer(hub: Hub,
                         File(movieFilename)
                     }, false)
 
-                    encoder = H264Encoder(window.width, window.height, file.absolutePath, hub = hub)
+                    encoder = H264Encoder(
+                        (window.width * settings.get<Float>("Renderer.SupersamplingFactor")).toInt(),
+                        (window.height* settings.get<Float>("Renderer.SupersamplingFactor")).toInt(),
+                        file.absolutePath,
+                        hub = hub)
                 }
             }
 
@@ -1961,11 +1972,11 @@ open class VulkanRenderer(hub: Hub,
                         }
                     }
 
-                    if (material.blending.hashCode() != metadata.blendingHashCode || (material is ShaderMaterial && material.shaders.stale)) {
+                    if (material.materialHashCode() != metadata.materialHashCode || (material is ShaderMaterial && material.shaders.stale)) {
                         logger.trace("Force command buffer re-recording, as blending options for ${it.name} have changed")
                         val reloaded = initializeCustomShadersForNode(it)
-                        logger.info("Material is stale, re-recording, reloaded=$reloaded")
-                        metadata.blendingHashCode = it.material.blending.hashCode()
+                        logger.debug("Material is stale, re-recording, reloaded=$reloaded")
+                        metadata.materialHashCode = it.material.materialHashCode()
 
                         // if we reloaded the node's shaders, we might need to recreate its texture descriptor sets
                         if(reloaded) {
@@ -2068,6 +2079,9 @@ open class VulkanRenderer(hub: Hub,
 
         val viewportPass = renderpasses.values.last()
         val viewportCommandBuffer = viewportPass.commandBuffer
+        if(viewportCommandBuffer.submitted) {
+            viewportCommandBuffer.waitForFence()
+        }
         logger.trace("Running viewport pass {}", renderpasses.keys.last())
 
         val start = System.nanoTime()
@@ -2708,7 +2722,9 @@ open class VulkanRenderer(hub: Hub,
                 val pipeline = p.getPipelineForGeometryType((node as HasGeometry).geometryType)
                 val specs = p.orderedDescriptorSpecs()
 
-                logger.trace("node {} has: {} / pipeline needs: {}", node.name, s.UBOs.keys.joinToString(", "), specs.joinToString { it.key })
+                if(logger.isTraceEnabled) {
+                    logger.trace("node {} has: {} / pipeline needs: {}", node.name, s.UBOs.keys.joinToString(", "), specs.joinToString { it.key })
+                }
 
                 pass.vulkanMetadata.descriptorSets.rewind()
                 pass.vulkanMetadata.uboOffsets.rewind()
@@ -2769,7 +2785,10 @@ open class VulkanRenderer(hub: Hub,
 
                     ds
                 }
-                logger.debug("${node.name} requires DS ${specs.joinToString { "${it.key}, " }}")
+
+                if(logger.isDebugEnabled) {
+                    logger.debug("${node.name} requires DS ${specs.joinToString { "${it.key}, " }}")
+                }
 
                 val requiredSets = sets.filter { it !is DescriptorSet.None }.map { it.id }.toLongArray()
                 if(pass.vulkanMetadata.descriptorSets.capacity() < requiredSets.size) {
@@ -2933,7 +2952,11 @@ open class VulkanRenderer(hub: Hub,
         val instanceMasters = sceneObjects.await().filter { it.instances.size > 0 }
 
         instanceMasters.forEach { parent ->
-            updateInstanceBuffer(device, parent, parent.rendererMetadata()!!)
+            val metadata = parent.rendererMetadata()
+
+            if(metadata != null && metadata.initialized) {
+                updateInstanceBuffer(device, parent, parent.rendererMetadata()!!)
+            }
         }
 
         instanceMasters.isNotEmpty()

@@ -19,11 +19,11 @@ data class Blending(
     /** Source color blend factor. */
     var sourceColorBlendFactor: BlendFactor = BlendFactor.One,
     /** Destination color blend factor. */
-    var destinationColorBlendFactor: BlendFactor = BlendFactor.One,
+    var destinationColorBlendFactor: BlendFactor = BlendFactor.Zero,
     /** Source Alpha blend factor. */
     var sourceAlphaBlendFactor: BlendFactor = BlendFactor.One,
     /** Destination Alpha blend factor. */
-    var destinationAlphaBlendFactor: BlendFactor = BlendFactor.One
+    var destinationAlphaBlendFactor: BlendFactor = BlendFactor.Zero
 ) {
     /** Blending operations. */
     enum class BlendOp { add, subtract, reverse_subtract, min, max }
@@ -63,7 +63,7 @@ data class Blending(
      * Sets Photoshop overlay-like blending options.
      */
     fun setOverlayBlending() {
-        sourceColorBlendFactor = Blending.BlendFactor.One
+        sourceColorBlendFactor = Blending.BlendFactor.SrcAlpha
         destinationColorBlendFactor = Blending.BlendFactor.OneMinusSrcAlpha
         sourceAlphaBlendFactor = Blending.BlendFactor.One
         destinationAlphaBlendFactor = Blending.BlendFactor.Zero

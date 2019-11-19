@@ -13,6 +13,25 @@ data class TextureExtents(val x: Int, val y: Int, val z: Int, val w: Int, val h:
 data class TextureUpdate(val extents: TextureExtents, val contents: ByteBuffer, var consumed: Boolean = false, var deallocate: Boolean = false)
 
 /**
+ * Enum class defining available texture repeat modes.
+ */
+enum class TextureRepeatMode {
+    Repeat,
+    MirroredRepeat,
+    ClampToEdge,
+    ClampToBorder
+}
+
+/**
+ * Enum class defining which colors are available for a texture's border.
+ */
+enum class TextureBorderColor {
+    TransparentBlack,
+    OpaqueBlack,
+    OpaqueWhite
+}
+
+/**
  * Data class for storing renderer-agnostic textures
  *
  * @author Ulrik Günther <hello@ulrik.is>
@@ -29,11 +48,13 @@ data class GenericTexture @JvmOverloads constructor(
     /** Byte contents of the texture */
     @Transient var contents: ByteBuffer?,
     /** Shall the texture be repeated on the U/S coordinate? */
-    var repeatS: Boolean = true,
+    var repeatS: TextureRepeatMode = TextureRepeatMode.Repeat,
     /** Shall the texture be repeated on the V/T coordinate? */
-    var repeatT: Boolean = true,
+    var repeatT: TextureRepeatMode = TextureRepeatMode.Repeat,
     /** Shall the texture be repeated on the W/U coordinate? */
-    var repeatU: Boolean = true,
+    var repeatU: TextureRepeatMode = TextureRepeatMode.Repeat,
+    /** Texture border color */
+    var textureBorderColor : TextureBorderColor = TextureBorderColor.TransparentBlack,
     /** Should the texture data be interpreted as normalized? Default is true, non-normalisation is better for volume data, though */
     var normalized: Boolean = true,
     /** Should mipmaps be generated? */

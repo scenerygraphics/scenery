@@ -84,6 +84,8 @@ class CycleRenderQualityExample: SceneryBase("CycleRenderQualityExample", window
 
         var quality = 0
         thread {
+            waitForSceneInitialisation()
+
             while(running) {
                 renderer?.setRenderingQuality(RenderConfigReader.RenderingQuality.values().get(quality))
                 quality = (quality + 1) % RenderConfigReader.RenderingQuality.values().size

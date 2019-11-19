@@ -42,7 +42,7 @@ class SceneTests {
             direction = GLVector(0.0f, 0.0f, -1.0f),
             ignoredObjects = emptyList())
 
-        assertEquals(count, results.size, "Raycast should have hit $count objects")
+        assertEquals(count, results.matches.size, "Raycast should have hit $count objects")
     }
 
     @Test

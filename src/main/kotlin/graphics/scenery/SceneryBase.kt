@@ -5,7 +5,6 @@ import cleargl.GLVector
 import com.sun.jna.Library
 import com.sun.jna.Native
 import graphics.scenery.backends.Renderer
-import graphics.scenery.backends.opengl.OpenGLRenderer
 import graphics.scenery.controls.InputHandler
 import graphics.scenery.controls.behaviours.ArcballCameraControl
 import graphics.scenery.controls.behaviours.FPSCameraControl
@@ -194,7 +193,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         settings.set("System.PID", getProcessID())
 
         if (wantREPL && !headless) {
-            repl = REPL(scijavaContext, scene, stats, hub)
+            repl = REPL(hub, scijavaContext, scene, stats, hub)
             repl?.addAccessibleObject(settings)
         }
 
@@ -240,12 +239,9 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             runtime = (System.nanoTime() - startTime) / 1000000f
             settings.set("System.Runtime", runtime)
 
-            if(renderer?.managesRenderLoop == false) {
-                hub.getWorkingHMD()?.update()
-            }
-
             if (renderer?.managesRenderLoop != false) {
-                Thread.sleep(5)
+                renderer?.render()
+                Thread.sleep(1)
             } else {
                 stats.addTimed("render") { renderer?.render() ?: 0.0f }
             }
@@ -329,10 +325,10 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             }
         }
 
+        running = false
         inputHandler?.close()
         renderer?.close()
         renderdoc?.close()
-        running = false
     }
 
     /**
@@ -443,6 +439,12 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
 
         if(wait) {
             latch?.await()
+        }
+    }
+
+    fun waitForSceneInitialisation() {
+        while(!sceneInitialized()) {
+            Thread.sleep(200)
         }
     }
 
