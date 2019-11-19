@@ -1,5 +1,36 @@
 # CHANGELOG
 
+# scenery-0.7.0-beta-6 to scenery-0.7.0-beta-7
+
+## Additions and Changes
+
+* RaycastResult: include world direction and world position of the initial ray into RaycastResult and extends SelectCommand to also hand over the click x/y to the function called on the matched object(s) (**BREAKING CHANGE**)
+* Camera: add showMessage method to show text to the user
+* VulkanSwapchain: print names of supported swapchain modes
+* OpenVRHMD: add support for key repeats
+* OpenVRHMD: only use a single command buffer for Vulkan image submission
+* Add ControllerDrag behaviour for 3D dragging and rotational movements
+
+## Fixes
+
+* H264Encoder: Write global headers to improve video compatibility with e.g. QuickTime
+* OpenGLRenderer/VulkanRenderer: Take supersampling factors correctly into account when recording video (#279)
+* Blending/TextBoard: Fix wrong source blending factor
+* Icosphere: Fix UV coordinate generation and texture seams
+
+## Tests and Examples
+
+* ReaderExample: make more flexible, allow cycling through files in the same folder that have the same extension as the loaded dataset
+* Camera: Add tests for Camera.canSee() and Camera.showMessage()
+
+## Dependency Updates
+
+* remove dependencies on native artifacts of platforms that are not supported by scenery (scenery support Windows, Linux, and macOS on 64bit machines)
+* bumps Kotlin to 1.3.60
+* bumps kotlinx-coroutines to 1.3.2
+* bumps dokka to 0.10.0
+* bumps ClearGL to 2.2.9
+
 # scenery-0.7.0-beta-5 to scenery-0.7.0-beta-6
 
 ## Additions and Changes
