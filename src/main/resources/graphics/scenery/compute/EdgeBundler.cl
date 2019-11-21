@@ -290,7 +290,7 @@ __kernel void edgeBundling(
     int clusterId = clusterInverse[trackId];
     int trackStart = trackStarts[trackId];
     int trackLength = trackLengths[trackId];
-    int trackEnd = trackStart + trackLengths[trackId] - 1;
+    int trackEnd = trackStart + trackLength - 1;
     int clusterStart = clusterStarts[clusterId];
     int clusterLength = clusterLengths[clusterId];
 

@@ -19,6 +19,9 @@ import kotlin.math.max
  * TODO: so far the attributes are not used, but for future releases it would be possible to pass them as vertex
  * attributes and use them for color mapping
  * @author Johannes Waschke <jowaschke@cbs.mpg.de>
+ * @property x Spatial position, x coordinate
+ * @property y Spatial position, y coordinate
+ * @property z Spatial position, z coordinate
  */
 class PointWithMeta(var x: Float = 0.0f, var y: Float = 0.0f, var z: Float = 0.0f) {
     private var attributes: ArrayList<Float> = ArrayList()
@@ -26,6 +29,7 @@ class PointWithMeta(var x: Float = 0.0f, var y: Float = 0.0f, var z: Float = 0.0
     /**
      * Adds a new attribute. Note, attributes are always stored as Floats. Besides that, consider that all points should
      * have the same number (and order) of attributes!
+     * @param v Numerical value of an attribute (e.g. a time point, measurement,...)
      */
     fun addAttribute(v: Float) {
         this.attributes.add(v)
@@ -34,6 +38,8 @@ class PointWithMeta(var x: Float = 0.0f, var y: Float = 0.0f, var z: Float = 0.0
     /**
      * Element-wise addition of two such objects. This includes their attributes.
      * (A use case for application of this function is averaging/interpolation of multiple points.)
+     * @param v Another point to be added on this
+     * @return A new object containing the sum of this one and [v]
      */
     operator fun plus(v: PointWithMeta): PointWithMeta
     {
@@ -48,6 +54,8 @@ class PointWithMeta(var x: Float = 0.0f, var y: Float = 0.0f, var z: Float = 0.0
     /**
      * Multiplication of x/y/z and attributes with a scalar value.
      * (A use case for application of this function is averaging/interpolation of multiple points.)
+     * @param v A scalar to be multiplied with this point's coordinates and attributes
+     * @return A new object with the result
      */
     operator fun times(v: Float): PointWithMeta
     {
@@ -61,6 +69,8 @@ class PointWithMeta(var x: Float = 0.0f, var y: Float = 0.0f, var z: Float = 0.0
 
     /**
      * Simple Euclidian distance measure
+     * @param v Another point to which the distance should be calculated
+     * @return The distance
      */
     fun distanceTo(v: PointWithMeta): Float
     {
@@ -68,11 +78,8 @@ class PointWithMeta(var x: Float = 0.0f, var y: Float = 0.0f, var z: Float = 0.0
     }
 
     /**
-     * Complete workflow of reading, sorting by clustering, edge bundling, rendering of trajectory data.
-     * The workflow that must be followed by the user:
-     * - create an instance of this class
-     * - set
-     * Deep copy of the current instance
+     * Provide a copy of this object
+     * @return a copy of this object
      */
     fun clone(): PointWithMeta
     {
@@ -81,6 +88,7 @@ class PointWithMeta(var x: Float = 0.0f, var y: Float = 0.0f, var z: Float = 0.0
 }
 
 /**
+ * Class to prepare data, perform edge bundling in OpenCL, deliver the results
  * @author Johannes Waschke <jowaschke@cbs.mpg.de>
  */
 class EdgeBundler(): SceneryBase("EdgeBundler") {
@@ -88,6 +96,7 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
     /**
      *  Creates lines from a folder full of csv files. Each file is a track, each line
      *  must look like "x,y,z[,attribute1[,attribute2[, ...]]]"
+     *  @param csvPath The path to a folder of CSV files
      */
     constructor(csvPath: String) : this() {
         logger.info("Create EdgeBundler with csv path")
@@ -95,6 +104,10 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
         estimateGoodParameters()
     }
 
+    /**
+     * Prepares the EdgeBundler from a given set of lines
+     * @param lines A set of lines
+     */
     constructor(lines: Array<Line>) : this() {
         logger.info("Create EdgeBundler with line set, number of lines:" + lines.size.toString())
         loadTrajectoriesFromLines(lines)
@@ -112,10 +125,8 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
     private var maxY: Float = Float.MIN_VALUE
     private var maxZ: Float = Float.MIN_VALUE
 
-
     private var resultClustersReverse: Array<Int> = arrayOf<Int>()
     private var resultClusters: Array<ArrayList<Int>> = arrayOf()
-
 
     // Arrays for containing the data flattened to basic Ints/Floats
     private var oclPoints = arrayListOf<Float>()
@@ -152,6 +163,8 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
     /**
      * Create a basic, empty line with the opacity defined by [paramAlpha] and a color from the [colorMap], depending
      * on its [trackId] and the corresponding cluster.
+     * @param trackId The ID of the track, but currently only used for naming the line
+     * @return And empty line with basic properties
      */
     private fun makeLine(trackId: Int): Line {
         val line = Line(transparent = true, simple = false)
@@ -163,8 +176,10 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
     }
 
     /**
-     * Create a basic, empty line with the opacity defined by [paramAlpha] and a color from the [colorMap], depending
-     * on its [trackId] and the corresponding cluster.
+     * Create a basic, empty LinePair with the opacity defined by [paramAlpha] and a color from the [colorMap],
+     * depending on its [trackId] and the corresponding cluster.
+     * @param trackId The ID of the track, but currently only used for naming the line
+     * @return And empty LinePair with basic properties
      */
     private fun makeLinePair(trackId: Int): LinePair {
         val line = LinePair(transparent = true)
@@ -190,11 +205,17 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
      *
      * By the way, if nothing works, consider an increase of the number of clusters. This also dramatically decreases
      * calculation time per point.
+     *
+     * @param elementsPerCalculation Number of elements that OpenCL should handle at once
      */
     fun setChunkSize(elementsPerCalculation:Int) {
         paramBundlingChunkSize = elementsPerCalculation
     }
 
+    /**
+     * Get the results as array of lines (=only bundled lines!)
+     * @return The bundled lines
+     */
     fun getLines(): Array<Line> {
         var lines = Array<Line>(trackSetBundled.size) {Line()}
         for(t in 0 until trackSetBundled.size) {
@@ -206,20 +227,32 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
         return lines
     }
 
+    /**
+     * Get the results as array of LinePairs (=original and bundled lines combined)
+     * @return The array of LinePairs
+     */
     fun getLinePairs(): Array<LinePair> {
         var lines = Array<LinePair>(trackSetBundled.size) {LinePair()}
         for(t in 0 until trackSetBundled.size) {
             // The next lines show the "boring" way [for the smarter one, see below]:
             lines[t] = makeLinePair(t)
-            val verticesOriginal = Array<GLVector>(trackSetOriginal[t].size) { i -> GLVector(trackSetOriginal[t][i].x, trackSetOriginal[t][i].y, trackSetOriginal[t][i].z)}
-            val verticesBundled = Array<GLVector>(trackSetBundled[t].size) { i -> GLVector(trackSetBundled[t][i].x, trackSetBundled[t][i].y, trackSetBundled[t][i].z)}
+            val verticesOriginal = Array<GLVector>(trackSetOriginal[t].size) { i ->
+                GLVector(trackSetOriginal[t][i].x, trackSetOriginal[t][i].y, trackSetOriginal[t][i].z)}
+            val verticesBundled = Array<GLVector>(trackSetBundled[t].size) { i ->
+                GLVector(trackSetBundled[t][i].x, trackSetBundled[t][i].y, trackSetBundled[t][i].z)}
             lines[t].addPointPairs(verticesOriginal, verticesBundled)
+            for(i in 0 until trackSetBundled[t].size) {
+                logger.info("Line " + i.toString() + ": " + (trackSetBundled[t][i].x - trackSetOriginal[t][i].x).toString())
+            }
         }
         return lines
     }
 
     /**
      * Some parameters must be set up according to data properties. We try some basic guessing here.
+     * This basically calculates some percent of the maximum width of the data's bounding box for bundling radius.
+     * The number of clusters is simply chosen to have an average of 500 items per cluster.
+     * The results are stored in the members of this class (and can be overwritten afterwards, if needed)
      */
     fun estimateGoodParameters() {
         paramBundlingRadius = max(maxX - minX, max(maxY - minY, maxZ - minZ)) * 0.03f // 3% of data dimension
@@ -227,16 +260,26 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
         logger.info("Divide the data into " + paramNumberOfClusters.toString() + " clusters, magnetic forces over a distance of " + paramBundlingRadius)
     }
 
+    /**
+     * Find the clusterId of a specific track
+     * @param trackIndex The index of the track
+     * @return The index of the track's cluster
+     */
     fun getClusterOfTrack(trackIndex: Int): Int {
         return resultClustersReverse[trackIndex]
     }
 
+    /**
+     * Get the whole mapping of trackId to clusterId
+     * @return Array where the trackId^th position contains its respective clusterId
+     */
     fun getClusterOfTracks(): Array<Int> {
         return resultClustersReverse
     }
 
     /**
-     * Creates basic Int/Float-Arrays from the hierarchical structures (e.g. the cluster-track relationship) and 3D data points
+     * Creates basic Int/Float-Arrays from the hierarchical structures (e.g. the cluster-track relationship) and 3D
+     * data points. The results are stored internally.
      */
     private fun prepareFlattenedData() {
         oclPoints.clear()
@@ -275,7 +318,8 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
     }
 
     /**
-     * Debug: print buffer contents
+     * Debug: print buffer contents to console/logger
+     * @param b The buffer object
      */
     private fun printIntBuffer(b: IntBuffer) {
         var b2: IntBuffer = b.duplicate()
@@ -287,7 +331,8 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
     }
 
     /**
-     * Debug: print buffer contents
+     * Debug: print buffer contents to console/logger
+     * @param b The buffer object
      */
     private fun printFloatBuffer(b: FloatBuffer) {
         var b2: FloatBuffer = b.duplicate()
@@ -304,22 +349,29 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
     }
 
     /**
-     * Create a new IntBuffer from an array of Ints, and report the result
+     * Create a new IntBuffer from an array of Ints
+     * TODO Actually there is no real need for this function anymore; I used to perform additional processing
+     * @param values The integer values
+     * @return Buffer with these values
      */
     private fun createIntBuffer(values: ArrayList<Int>): IntBuffer {
         return IntBuffer.wrap(values.toIntArray())
     }
 
     /**
-     * Create a new FloatBuffer from an array of Floats, and report the result
+     * Create a new FloatBuffer from an array of Floats
+     * TODO Actually there is no real need for this function anymore; I used to perform additional processing
+     * @param values The float values
+     * @return Buffer with these values
      */
     private fun createFloatBuffer(values: ArrayList<Float>): FloatBuffer {
         return FloatBuffer.wrap(values.toFloatArray())
     }
 
     /**
-     * Create working packages according to the chosen [paramBundlingChunkSize]. For 25.000 tracks and a chunk size of
+     * Create work packages according to the chosen [paramBundlingChunkSize]. For 25.000 tracks and a chunk size of
      * 10.000 this function would return [10.000, 10.000, 5.000].
+     * @return An array of numbers saying how many elements should be handled in each OpenCL call
      */
     private fun getChunkSizes(): Array<Int> {
         val num: Int = oclPoints.size / paramBundlingChunkSize
@@ -330,6 +382,13 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
     }
 
 
+    /**
+     * Helper to read values and copy them somewhere else (within in the OpenCL context)
+     * @param openCLContext The OpenCL context
+     * @param memResult The memory object holding the result that should be read
+     * @param memNew The memory object that needs to be updated with the new values (read from [memResult])
+     * @param buffer The buffer object in which the values from [memResult] should be stored as well
+     */
     private fun copyResultHelper(openCLContext: OpenCLContext,
                                  memResult: cl_mem,
                                  memNew: cl_mem,
@@ -340,6 +399,12 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
         buffer.rewind()
     }
 
+    /**
+     * Helper to update the offset with a new integer value
+     * @param openCLContext The OpenCL context
+     * @param memObject The memory object holding the offset value
+     * @param offset The new offset value
+     */
     private fun writeOffsetHelper(openCLContext: OpenCLContext,
                                   memObject: cl_mem,
                                   offset: Int) {
@@ -353,6 +418,7 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
      * The whole OpenCL-pipeline. Converting the data, create buffers, perform the calculation multiple times (according
      * to [paramBundlingIterations], and splitted into chunks according to [paramBundlingChunkSize]). For each
      * iteration, edge bundling is performed first and smoothing is performed afterwards.
+     * @return True if everythin went well, false if note
      */
     fun runEdgeBundling(): Boolean {
         prepareFlattenedData()
@@ -369,9 +435,9 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
             return false
         } else {
             // Create buffers based on the flattened data arrays.
-            // Note: [pointsResult] is also wrapped as input! The result is only calculated for positions affected by
-            // the currently chosen parameters [...]. That means, we have to init the result with the full valid data
-            // to avoid gaps in our results.
+            // Note: the result array must be initialized with the input data at first, since some points (e.g.
+            // the endpoints of lines) are not processed at all and their values are not copied automatically. Thus,
+            // to avoid missing/empty data, we create the result buffer filled with the original line data.
             var oclPointsInAndOut = createFloatBuffer(oclPoints)
             var points: cl_mem = ocl.wrapInput(oclPointsInAndOut, true)
             var pointsResult: cl_mem = ocl.wrapInput(oclPointsInAndOut, false)
@@ -394,23 +460,17 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
             // Get kernels for edge bundling and smoothing
             ocl.loadKernel(EdgeBundler::class.java.getResource("EdgeBundler.cl"), "edgeBundling")
             ocl.loadKernel(EdgeBundler::class.java.getResource("EdgeBundler.cl"), "smooth")
-            val chunksizes = getChunkSizes()
+            val chunkSizes = getChunkSizes()
 
             logger.info("Starting OpenCL edge bundling of " + oclPoints.size + " points (" + trackSetBundled.size + " tracks)")
-            printFloatBuffer(oclPointsInAndOut)
-            println(oclTrackStarts)
-            println(oclTrackLengths)
-            println(oclClusterStarts)
-            println(oclClusterLengths)
-            println(oclClusterIndices)
-            println(oclClusterInverse)
+
             var statusCounter = 0
-            var totalCounter = 2 * paramBundlingIterations * chunksizes.size
+            var totalCounter = 2 * paramBundlingIterations * chunkSizes.size
             for(i in 0 until paramBundlingIterations) {
-                for(c in 0 until chunksizes.size) {
+                for(c in 0 until chunkSizes.size) {
                     statusPrint(++statusCounter, totalCounter) // Current status; Will be called paramBundlingIterations * chunksizes.size times
                     writeOffsetHelper(ocl, offset, c * paramBundlingChunkSize)
-                    ocl.runKernel("edgeBundling", chunksizes[c],
+                    ocl.runKernel("edgeBundling", chunkSizes[c],
                         trackStarts,
                         trackLengths,
                         clusterStarts,
@@ -429,11 +489,11 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
                 }
                 copyResultHelper(ocl, pointsResult, points, oclPointsInAndOut)
 
-                for(c in 0 until chunksizes.size) {
+                for(c in 0 until chunkSizes.size) {
                     statusPrint(++statusCounter, totalCounter)
                     writeOffsetHelper(ocl, offset, c * paramBundlingChunkSize)
 
-                    ocl.runKernel("smooth", chunksizes[c],
+                    ocl.runKernel("smooth", chunkSizes[c],
                         trackStarts,
                         trackLengths,
                         points,
@@ -453,21 +513,21 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
     }
 
     /**
-     *
+     * Read the data from the (flat) buffer and write it into an array of arrays of points.
      */
     private fun processOpenClResult(buffer: FloatBuffer) {
         var b = buffer.duplicate()
         b.rewind()
-        var posCounter: Int = 0
-        var localCounter: Int = 0
-        var trackCounter: Int = 0
+        var posCounter = 0
+        var localCounter = 0
+        var trackCounter = 0
 
         while(b.hasRemaining()) {
             val x = b.get()
             val y = b.get()
             val z = b.get()
             b.get() // The fourth dim is (currently) 0, we throw it away
-            // print("($x, $y, $z)")
+
             trackSetBundled[trackCounter][localCounter].x = x
             trackSetBundled[trackCounter][localCounter].y = y
             trackSetBundled[trackCounter][localCounter].z = z
@@ -481,9 +541,24 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
     }
 
     /**
-     * Look for csv files in [path]. Eacb file should contain exactly one track. The values are comma-separated. The
+     * Updates the bounding box
+     * @param point A new point being added to the bounding box
+     */
+    private fun updateMinMax(point: PointWithMeta) {
+        minX = min(minX, point.x)
+        minY = min(minY, point.y)
+        minZ = min(minZ, point.z)
+        maxX = max(maxX, point.x)
+        maxY = max(maxY, point.y)
+        maxZ = max(maxZ, point.z)
+    }
+
+    /**
+     * Look for csv files in [path]. Each file should contain exactly one track. The values are comma-separated. The
      * first three columns are x/y/z respectively. Every additional column is stored as attribute, but currently not
-     * further processed/used.
+     * further processed/used. The loaded data is stored in a class member. Furthermore, the output data structure
+     * is created.
+     * @param path Path to the folder containing CSV files
      */
     private fun loadTrajectoriesFromCSV(path: String) {
         var trackSetTemp: ArrayList<Array<PointWithMeta>> = ArrayList()
@@ -494,12 +569,7 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
                     file.absoluteFile.forEachLine {line ->
                         val entry = line.split(",")
                         val point = PointWithMeta(entry[0].toFloat(), entry[1].toFloat(), entry[2].toFloat())
-                        minX = min(minX, point.x)
-                        minY = min(minY, point.y)
-                        minZ = min(minZ, point.z)
-                        maxX = max(maxX, point.x)
-                        maxY = max(maxY, point.y)
-                        maxZ = max(maxZ, point.z)
+                        updateMinMax(point)
 
                         // Use every column behind the third one as attribute (TODO: however, so far we don't use the attributes)
                         for(i in 3 until entry.size)
@@ -515,9 +585,14 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
         }
         this.trackSetBundled = Array(trackSetTemp.size) {i -> trackSetTemp[i]}
         this.trackSetBundled = resampleTracks(trackSetBundled, paramResampleTo)
-        this.trackSetOriginal = resampleTracks(trackSetBundled, paramResampleTo) // TODO just for test; make it better pls
+        this.trackSetOriginal = resampleTracks(trackSetBundled, paramResampleTo) // TODO I don't know a good way for deep copy
     }
 
+    /**
+     * Load line data from a set of Line objects. The loaded data is stored in a class member. Furthermore, the output
+     * data structure is created.
+     * @param lines Array of Line objects
+     */
     private fun loadTrajectoriesFromLines(lines: Array<Line>) {
         var trackSetTemp: ArrayList<Array<PointWithMeta>> = ArrayList()
         for(line in lines)
@@ -529,12 +604,8 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
                 val point = PointWithMeta(line.vertices.get(),
                     line.vertices.get(),
                     line.vertices.get())
-                minX = min(minX, point.x)
-                minY = min(minY, point.y)
-                minZ = min(minZ, point.z)
-                maxX = max(maxX, point.x)
-                maxY = max(maxY, point.y)
-                maxZ = max(maxZ, point.z)
+                updateMinMax(point)
+
                 track[i] = point
                 i++
             }
@@ -543,19 +614,23 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
 
         this.trackSetBundled = Array(trackSetTemp.size) {i -> trackSetTemp[i]}
         this.trackSetBundled = resampleTracks(trackSetBundled, paramResampleTo)
-        this.trackSetOriginal = resampleTracks(trackSetBundled, paramResampleTo) // TODO just for test; make it better pls
+        this.trackSetOriginal = resampleTracks(trackSetBundled, paramResampleTo) // TODO I don't know a good way for deep copy
     }
 
+    /**
+     * Triggers the major calculation steps
+     */
     fun calculate() {
         quickBundles()
         runEdgeBundling()
     }
 
-
-
     /**
-     * Resizes tracks to a fixed size. Needed for Quickbundles, also optionally used for (quicker) processing of
-     * edge bundling.
+     * Resizes tracks to a fixed size. Needed for Quickbundles, since it requires a fixed-length reference object.
+     * The function is also useful for downsampling tracks in order to speed up the calculation.
+     * @param tracks The line data
+     * @param numElements The number of elements that each track should have after resampling (must be > 2, otherwise no resampling)
+     * @return New, resampled tracks (or the original tracks, if [numElements] was < 2)
      */
     private fun resampleTracks(tracks: Array<Array<PointWithMeta>>, numElements: Int): Array<Array<PointWithMeta>> {
         if(numElements < 2) {
@@ -571,7 +646,10 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
     }
 
     /**
-     * Resamples a single track by linear interpolation of new positions between two original positons.
+     * Resamples a single track by linear interpolation of new positions between two original positions.
+     * @param track A single track
+     * @param numElements The intended number of elements for this track
+     * @return Resampled track
      */
     private fun resampleTrack(track: Array<PointWithMeta>, numElements: Int): Array<PointWithMeta> {
         val trackOut: Array<PointWithMeta> = Array(numElements) { PointWithMeta() }
@@ -591,7 +669,11 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
 
     /**
      * Calculates a set of averaged tracks (each of size [paramClusteringTrackSize]), used for track comparison in
-     * Quickbundles
+     * Quickbundles.
+     * Provide [clustersReverse] array filled with |[tracks]| times 0 to average all tracks (= provide one big cluster)
+     * @param tracks The set of tracks that should be averaged
+     * @param clustersReverse The cluster structure. Averaging happens only within the same clusters.
+     * @return A set of mean tracks, one for each cluster
      */
     private fun calculateMeanTracks(tracks: Array<Array<PointWithMeta>>,
                                     clustersReverse:  Array<Int>): Array<Array<PointWithMeta>> {
@@ -616,6 +698,9 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
 
     /**
      * Sum of distances between the points of two tracks (pairwise comparison of ith point with ith point)
+     * @param t1 Track 1
+     * @param t2 Track 2
+     * @return Sum of pairwise distances
      */
     private fun distanceBetweenTracks(t1: Array<PointWithMeta>, t2: Array<PointWithMeta>): Float {
         var dist = 0.0f
@@ -626,11 +711,13 @@ class EdgeBundler(): SceneryBase("EdgeBundler") {
     }
 
     /**
-     * Prints a single "*" as a cheap status bar. If [printEvery] is set to n, only every nth "*" is printed. This
-     * reduces printing for high number of calls.
+     * Simple status print
+     * @param i The number of already performed operations
+     * @param total The expected number of operations
+     * @param printEveryN If not updates should be printed only after n performed operations, set it here
      */
-    private fun statusPrint(i: Int, total: Int, printEvery: Int = 1) {
-        if(i % printEvery == 0) {
+    private fun statusPrint(i: Int, total: Int, printEveryN: Int = 1) {
+        if(i % printEveryN == 0) {
             //print("*")
             logger.info(i.toString() + " of " + total.toString())
         }

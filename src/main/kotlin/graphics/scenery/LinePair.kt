@@ -108,7 +108,11 @@ class LinePair @JvmOverloads constructor(var capacity: Int = 50, transparent: Bo
         material.cullingMode = Material.CullingMode.None
     }
 
-
+    /**
+     * Adds new positions to the line, plus their bundled "partner". They are currently stored in the normals array.
+     * @param points1 Original points
+     * @param points2 Bundled points
+     */
     fun addPointPairs(points1: Array<GLVector>, points2: Array<GLVector>) {
         if(vertices.limit() + 3 * points1.size >= vertices.capacity()) {
             val newVertices = BufferUtils.allocateFloat(vertices.capacity() + points1.size * 3 + 3 * capacity)
