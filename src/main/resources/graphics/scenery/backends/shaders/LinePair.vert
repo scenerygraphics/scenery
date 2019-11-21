@@ -61,6 +61,9 @@ void main()
 
     Vertex.Normal = mat3(ubo.NormalMatrix) * normalize(vertexNormal);
     float mixDegree = interpolationState;
+
+    // We interpolate the vertex position from the actual position and a second (e.g. bundled) position stored in the
+    // normal array
     Vertex.Position = nMVP * vec4(mix(vertexPosition, vertexNormal, mixDegree), 1.0);
     gl_Position = Vertex.Position;
 
