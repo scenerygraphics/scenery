@@ -2121,7 +2121,7 @@ open class OpenGLRenderer(hub: Hub,
                     request.data = tmp.array()
                 }
 
-                if(screenshotRequested) {
+                if(screenshotRequested && image != null) {
                     ImageIO.write(image, "png", file)
                     logger.info("Screenshot saved to ${file.absolutePath}")
                 }

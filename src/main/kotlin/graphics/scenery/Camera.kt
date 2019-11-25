@@ -70,6 +70,9 @@ open class Camera : Node("Camera") {
 
                 this.viewSpaceTripod = cameraTripod()
 
+                this.needsUpdate = true
+                this.needsUpdateWorld = true
+
                 if(!targeted) {
                     this.target = this.position + this.forward
                 }
@@ -85,6 +88,9 @@ open class Camera : Node("Camera") {
                 val m = GLMatrix.fromQuaternion(q)
                 this.forward = GLVector(m.get(0, 2), m.get(1, 2), m.get(2, 2)).normalize() * -1.0f
                 this.viewSpaceTripod = cameraTripod()
+
+                this.needsUpdate = true
+                this.needsUpdateWorld = true
             }
         }
 
@@ -400,6 +406,10 @@ open class Camera : Node("Camera") {
             this.getScene()?.removeChild(tb)
             messages?.remove(tb)
         }
+    }
+
+    override fun composeModel() {
+        model = getTransformation().inverse
     }
 
     companion object {
