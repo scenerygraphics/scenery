@@ -111,6 +111,7 @@
         <dokka.version>0.10.0</dokka.version>
         <dokka.skip>true</dokka.skip>
 
+        <bigdataviewer-core.version>7.0.0</bigdataviewer-core.version>
         <bigvolumeviewer.version>0.1.6</bigvolumeviewer.version>
         <cleargl.version>2.2.9</cleargl.version>
         <coremem.version>0.4.6</coremem.version>

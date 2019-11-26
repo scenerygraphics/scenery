@@ -412,12 +412,13 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
         bdvNodes.forEach { bdvNode ->
             val visibleSourceIndices = bdvNode.viewerState.visibleSourceIndices
             val currentTimepoint = bdvNode.viewerState.currentTimepoint
+            val stacks = bdvNode.outOfCoreStacks ?: return@forEach
 
             logger.info("Visible: at t=$currentTimepoint: ${visibleSourceIndices.joinToString(", ")}")
             for (i in visibleSourceIndices) {
-                val stack = bdvNode.stacks.getStack(
-                    bdvNode.stacks.timepointId(currentTimepoint),
-                    bdvNode.stacks.setupId(i),
+                val stack = stacks.getStack(
+                    stacks.timepointId(currentTimepoint),
+                    stacks.setupId(i),
                     true) as MultiResolutionStack3D<VolatileUnsignedShortType>
 
                 val sourceTransform = AffineTransform3D()
