@@ -171,15 +171,7 @@ class H264Encoder(val frameWidth: Int, val frameHeight: Int, filename: String, f
             codecContext.pix_fmt(AV_PIX_FMT_YUV420P)
             codecContext.codec_tag(0)
             codecContext.codec_type(AVMEDIA_TYPE_VIDEO)
-
-            if (networked) {
-                codecContext.flags(AV_CODEC_FLAG_GLOBAL_HEADER)
-            }
-
-            if (outputContext.oformat().flags() and AVFMT_GLOBALHEADER == 1) {
-                logger.debug("Output format requires global format header")
-                codecContext.flags(codecContext.flags() or AV_CODEC_FLAG_GLOBAL_HEADER)
-            }
+            codecContext.flags(AV_CODEC_FLAG_GLOBAL_HEADER)
 
             av_opt_set(codecContext.priv_data(), "preset", quality.toFFMPEGPreset(), 0)
             av_opt_set(codecContext.priv_data(), "tune", "zerolatency", 0)

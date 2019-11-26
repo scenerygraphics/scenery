@@ -4,7 +4,9 @@
 
 # scenery  // Flexible VR Visualisation for Volumetric and Geometric Data on the Java VM
 
-![Blood Cells Example](https://ulrik.is/scenery-bloodcells.gif)
+![Blood Cells Example, scenery running on a CAVE with a scientist exploring a Drosophila melanogaster microscopy dataset, APR representation of Zebrafish head vasculature, Rendering multiple volumes in a single scene, Interacting with microscopy data in realtime](https://ulrik.is/scenery-teaser-2019.gif)
+
+[BloodCellsExample](./src/test/tests/graphics/scenery/tests/examples/advanced/BloodCellsExample.kt) / [scenery running on a CAVE](./src/test/tests/graphics/scenery/tests/examples/cluster/DemoReelExample.kt) with a scientist exploring a Drosophila melanogaster microscopy dataset / [Adaptive Particle Representation](https://www.nature.com/articles/s41467-018-07390-9) rendering of Zebrafish head vasculature / [Rendering six different out-of-core volumes from two datasets in a single scene](./src/test/tests/graphics/scenery/tests/examples/bdv/BDVExample.kt) / VR interaction with microscopy data in realtime
 
 
 ## Synopsis
@@ -106,13 +108,13 @@ Add scenery and ClearGL to your project's `pom.xml`:
   <dependency>
     <groupId>graphics.scenery</groupId>
     <artifactId>scenery</artifactId>
-    <version>0.7.0-beta-6</version>
+    <version>0.7.0-beta-7</version>
   </dependency>
 
   <dependency>
     <groupId>net.clearvolume</groupId>
     <artifactId>cleargl</artifactId>
-    <version>2.2.8</version>
+    <version>2.2.9</version>
   </dependency>
 </dependencies>
 ```
@@ -136,7 +138,7 @@ You can then use any commit from the repository as scenery version, e.g.:
 <dependency>
   <groupId>graphics.scenery</groupId>
   <artifactId>scenery</artifactId>
-  <version>b9e43697b0</version>
+  <version>ff4c8ddd</version>
 </dependency>
 ```
 
@@ -147,8 +149,8 @@ Add scenery and ClearGL to your project's `build.gradle`:
 
 ```groovy
 compile group: 'graphics.scenery', name: 'scenery', version:
-'0.7.0-beta-6'
-compile group: 'net.clearvolume', name: 'cleargl', version: '2.2.8'
+'0.7.0-beta-7'
+compile group: 'net.clearvolume', name: 'cleargl', version: '2.2.9'
 ```
 
 #### Non-release builds / jitpack
@@ -168,7 +170,7 @@ You can then use any commit from the repository as scenery version, e.g.:
 
 ```groovy
 dependencies {
-  implementation 'com.github.scenerygraphics:scenery:b9e43697b0'
+  implementation 'com.github.scenerygraphics:scenery:ff4c8ddd'
 }
 ```
 
