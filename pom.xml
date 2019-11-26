@@ -133,6 +133,7 @@
         <lwjgl3-awt.version>45a85af</lwjgl3-awt.version>
         <msgpack-core.version>0.8.16</msgpack-core.version>
         <reflections.version>0.9.11</reflections.version>
+        <script-editor.version>0.5.3</script-editor.version>
         <slf4j.version>1.7.25</slf4j.version>
         <spirvcrossj.version>0.6.0-1.1.106.0</spirvcrossj.version>
         <trove4j.version>3.0.3</trove4j.version>
