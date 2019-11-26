@@ -5,7 +5,6 @@ import cleargl.GLVector
 import com.sun.jna.Library
 import com.sun.jna.Native
 import graphics.scenery.backends.Renderer
-import graphics.scenery.backends.opengl.OpenGLRenderer
 import graphics.scenery.controls.InputHandler
 import graphics.scenery.controls.behaviours.ArcballCameraControl
 import graphics.scenery.controls.behaviours.FPSCameraControl
