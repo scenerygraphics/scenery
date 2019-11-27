@@ -384,26 +384,19 @@ open class Camera : Node("Camera") {
         tb.backgroundColor = backgroundColor
         tb.text = message
         tb.scale = GLVector(size, size, size)
-        tb.update.add {
-            tb.position = this.viewportToWorld(GLVector(0.3f, 0.7f), 1.0f) + this.forward * distance
-            if(this is DetachedHeadCamera) {
-                tb.rotation = headOrientation.conjugate().normalize()
-            } else {
-                tb.rotation = rotation.conjugate().normalize()
-            }
-        }
+        tb.position = GLVector(0.0f, 0.0f, -1.0f * distance)
 
         val messages = metadata.getOrPut("messages", { mutableListOf<Node>() }) as? MutableList<Node>
-        messages?.forEach { getScene()?.removeChild(it) }
+        messages?.forEach { this.removeChild(it) }
         messages?.clear()
 
         messages?.add(tb)
-        this.getScene()?.addChild(tb)
+        this.addChild(tb)
 
         thread {
             Thread.sleep(duration.toLong())
 
-            this.getScene()?.removeChild(tb)
+            this.removeChild(tb)
             messages?.remove(tb)
         }
     }
