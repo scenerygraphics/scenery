@@ -29,11 +29,11 @@ class CameraTests {
         s.addChild(cam)
 
         cam.showMessage("hello camera", duration = duration)
-        assertTrue("Scene contains messages TextBoard from Camera") { (s.children.last() as? TextBoard)?.text == "hello camera" }
+        assertTrue("Scene contains messages TextBoard from Camera") { (cam.children.last() as? TextBoard)?.text == "hello camera" }
         assertTrue("Camera contains messages metadata object") { cam.metadata.containsKey("messages") }
         Thread.sleep(2L * duration)
 
-        assertTrue("TextBoard was removed from scene after showing duration") { s.children.size == 1 }
+        assertTrue("TextBoard was removed from scene after showing duration") { cam.children.size == 0 }
         assertTrue("Messages metadata object contains no more entries") { (cam.metadata.get("messages") as MutableList<Node>).isEmpty() }
     }
 
