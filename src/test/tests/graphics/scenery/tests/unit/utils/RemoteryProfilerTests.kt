@@ -2,26 +2,27 @@ package graphics.scenery.tests.unit.utils
 
 import graphics.scenery.Hub
 import graphics.scenery.numerics.Random
-import graphics.scenery.utils.Remotery
+import graphics.scenery.utils.Profiler
+import graphics.scenery.utils.RemoteryProfiler
 import org.junit.Test
 import kotlin.test.assertTrue
 
 /**
- * Unit tests for [Remotery] integration.
+ * Unit tests for [RemoteryProfiler] integration.
  *
  * @author Ulrik Guenther <hello@ulrik.is>
  */
-class RemoteryTests {
+class RemoteryProfilerTests {
     /**
      * Tests standard remotery functionality.
      */
     @Test
     fun testRemotery() {
         val hub = Hub()
-        val profiler = Remotery(hub)
+        val profiler = RemoteryProfiler(hub)
         hub.add(profiler)
 
-        assertTrue { hub.get<Remotery>() == profiler }
+        assertTrue { hub.get<Profiler>() == profiler }
 
         profiler.setThreadName("MainThread")
 
