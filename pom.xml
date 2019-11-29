@@ -395,7 +395,18 @@
             <version>${lwjgl.version}</version>
             <classifier>${lwjgl.natives}</classifier>
         </dependency>
-        <!-- LWJGL dependencies END -->
+		<dependency>
+			<groupId>org.lwjgl</groupId>
+			<artifactId>lwjgl-remotery</artifactId>
+			<version>${lwjgl.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.lwjgl</groupId>
+			<artifactId>lwjgl-remotery</artifactId>
+			<version>${lwjgl.version}</version>
+			<classifier>${lwjgl.natives}</classifier>
+		</dependency>
+		<!-- LWJGL dependencies END -->
 
         <!-- jackson dependencies -->
         <dependency>
