@@ -1,4 +1,4 @@
-package graphics.scenery.controls
+package graphics.scenery.controls.eyetracking
 
 import cleargl.GLVector
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
@@ -10,7 +10,6 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import graphics.scenery.Camera
 import graphics.scenery.Node
 import graphics.scenery.backends.Display
-import graphics.scenery.numerics.Random
 import graphics.scenery.utils.LazyLogger
 import kotlinx.coroutines.*
 import org.msgpack.jackson.dataformat.MessagePackFactory
@@ -409,22 +408,22 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
 
             val samplesPerPoint = 120
 
-            val (posKeyName, posGenerator: ((Camera, Int, Int) -> Pair<GLVector, GLVector>)) = when(calibrationType) {
-                CalibrationType.ScreenSpace -> "norm_pos" to CircularScreenSpaceCalibrationPointGenerator
-                CalibrationType.WorldSpace -> "mm_pos" to DefaultWorldSpaceCalibrationPointGenerator
+            val (posKeyName, posGenerator: CalibrationPointGenerator) = when(calibrationType) {
+                CalibrationType.ScreenSpace -> "norm_pos" to CircleScreenSpaceCalibrationPointGenerator()
+                CalibrationType.WorldSpace -> "mm_pos" to LayeredCircleWorldSpaceCalibrationPointGenerator()
             }
 
             val positionList = (0 .. numReferencePoints).map {
-                posGenerator.invoke(cam, it, numReferencePoints)
+                posGenerator.generatePoint(cam, it, numReferencePoints)
             }
 
             positionList.map { normalizedScreenPos ->
-                logger.info("Subject looking at ${normalizedScreenPos.first}/${normalizedScreenPos.second}")
-                val position = normalizedScreenPos.second.clone()
+                logger.info("Subject looking at ${normalizedScreenPos.local}/${normalizedScreenPos.world}")
+                val position = normalizedScreenPos.world.clone()
 
                 calibrationTarget?.position = position + cam.forward * 0.15f
 
-                if(normalizedScreenPos.first.x() == 0.5f && normalizedScreenPos.first.y() == 0.5f) {
+                if(normalizedScreenPos.local.x() == 0.5f && normalizedScreenPos.local.y() == 0.5f) {
                     calibrationTarget?.material?.diffuse = GLVector(1.0f, 1.0f, 0.0f)
                 } else {
                     calibrationTarget?.material?.diffuse = GLVector(1.0f, 1.0f, 1.0f)
@@ -434,13 +433,13 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
                     val timestamp = getPupilTimestamp()
 
                     val datum0 = hashMapOf<String, Serializable>(
-                        posKeyName to normalizedScreenPos.first.toFloatArray(),
+                        posKeyName to normalizedScreenPos.local.toFloatArray(),
                         "timestamp" to timestamp,
                         "id" to 0
                     )
 
                     val datum1 = hashMapOf<String, Serializable>(
-                        posKeyName to normalizedScreenPos.first.toFloatArray(),
+                        posKeyName to normalizedScreenPos.local.toFloatArray(),
                         "timestamp" to timestamp,
                         "id" to 1
                     )
@@ -484,76 +483,5 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
         }
 
         return false
-    }
-
-    /**
-     * Utilities for eye tracking.
-     */
-    companion object {
-        /** Point generator for circular calibration points. */
-        @Suppress("unused")
-        val CircularScreenSpaceCalibrationPointGenerator = { cam: Camera, index: Int, referencePointCount: Int ->
-            val origin = 0.5f
-            val radius = 0.3f
-
-            val v = if(index == 0) {
-                GLVector(origin, origin)
-            } else {
-                GLVector(
-                    origin + radius * cos(2 * PI.toFloat() * index.toFloat()/referencePointCount),
-                    origin + radius * sin(2 * PI.toFloat() * index.toFloat()/referencePointCount))
-            }
-            v to cam.viewportToWorld(GLVector(v.x()*2.0f-1.0f, v.y()*2.0f-1.0f), offset = 0.5f)
-        }
-
-        /** Point generator for equidistributed calibration points. */
-        @Suppress("unused")
-        val EquidistributedScreenSpaceCalibrationPointGenerator = { cam: Camera, index: Int, _: Int ->
-            val points = arrayOf(
-                GLVector(0.0f, 0.5f),
-                GLVector(0.0f, 0.5f),
-
-                GLVector(-0.5f, 0.5f),
-                GLVector(-0.5f, -0.5f),
-
-                GLVector(0.5f, 0.5f),
-                GLVector(0.5f, -0.5f),
-
-                GLVector(-0.25f, 0.0f),
-                GLVector(0.25f, 0.0f)
-            )
-
-            val v = GLVector(
-                0.5f + 0.3f * points[index % (points.size - 1)].x(),
-                0.5f + 0.3f * points[index % (points.size - 1)].y(),
-                cam.nearPlaneDistance + 0.5f)
-
-            v to cam.viewportToWorld(GLVector(v.x() * 2.0f - 1.0f, v.y() * 2.0f - 1.0f))
-        }
-
-        /** Point generator for random world-space points. */
-        @Suppress("unused")
-        val DefaultWorldSpaceCalibrationPointGenerator = { cam: Camera, index: Int, referencePointCount: Int ->
-            val origin = 0.0f
-            val radius = 0.4f
-            val layer = kotlin.random.Random(System.nanoTime()).nextInt(0, 3)
-            val pointsPerCircle = 5
-
-            val z = -1.0f * (0.75f + layer * 1.0f)
-
-            val v = if(index == 0) {
-                GLVector(origin, origin, z)
-            } else {
-                GLVector(
-                    origin + radius * cos(2 * PI.toFloat() * index.toFloat()/pointsPerCircle),
-                    origin + radius * sin(2 * PI.toFloat() * index.toFloat()/pointsPerCircle),
-                    z
-                )
-            }
-
-            // Pupil's world-space calibration expects points in mm units, while
-            // scenery's units are in meters
-            GLVector(v.x(), v.y(), -1.0f * v.z()) * 1000.0f to v
-        }
     }
 }

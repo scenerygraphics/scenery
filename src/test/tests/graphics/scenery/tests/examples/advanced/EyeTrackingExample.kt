@@ -4,7 +4,7 @@ import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.controls.OpenVRHMD
-import graphics.scenery.controls.PupilEyeTracker
+import graphics.scenery.controls.eyetracking.PupilEyeTracker
 import graphics.scenery.controls.TrackedDeviceType
 import graphics.scenery.numerics.Random
 import org.junit.Test
