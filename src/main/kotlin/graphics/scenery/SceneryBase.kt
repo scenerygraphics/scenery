@@ -12,6 +12,7 @@ import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.repl.REPL
 import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.Remotery
 import graphics.scenery.utils.Renderdoc
 import graphics.scenery.utils.SceneryPanel
 import graphics.scenery.utils.Statistics
@@ -21,6 +22,7 @@ import org.scijava.ui.behaviour.ClickBehaviour
 import java.lang.Boolean.parseBoolean
 import java.lang.management.ManagementFactory
 import java.nio.file.Paths
+import java.rmi.Remote
 import java.util.*
 import java.util.concurrent.CountDownLatch
 import kotlin.concurrent.thread
@@ -142,6 +144,10 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         logger.info("Started application as PID ${getProcessID()}")
         running = true
 
+        if(parseBoolean(System.getProperty("scenery.Profiler", "false"))) {
+            hub.add(Remotery(hub))
+        }
+
         val headless = parseBoolean(System.getProperty("scenery.Headless", "false"))
         val renderdoc = if(System.getProperty("scenery.AttachRenderdoc")?.toBoolean() == true) {
             Renderdoc()
@@ -234,16 +240,20 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         val frameTimes = ArrayDeque<Float>(16)
         val frameTimeKeepCount = 16
 
+        val profiler = hub.get<Remotery>()
+
         while (!shouldClose || gracePeriod > 0) {
             runtime = (System.nanoTime() - startTime) / 1000000f
             settings.set("System.Runtime", runtime)
 
+            profiler?.begin("Render")
             if (renderer?.managesRenderLoop != false) {
                 renderer?.render()
                 Thread.sleep(1)
             } else {
                 stats.addTimed("render") { renderer?.render() ?: 0.0f }
             }
+            profiler?.end()
 
             // only run loop if we are either in standalone mode, or master
             // for details about the interpolation code, see
@@ -328,6 +338,8 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         inputHandler?.close()
         renderer?.close()
         renderdoc?.close()
+
+        hub.get<Remotery>()?.close()
     }
 
     /**
