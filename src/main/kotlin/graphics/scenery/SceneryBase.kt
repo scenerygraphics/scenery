@@ -12,7 +12,8 @@ import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.repl.REPL
 import graphics.scenery.utils.LazyLogger
-import graphics.scenery.utils.Remotery
+import graphics.scenery.utils.Profiler
+import graphics.scenery.utils.RemoteryProfiler
 import graphics.scenery.utils.Renderdoc
 import graphics.scenery.utils.SceneryPanel
 import graphics.scenery.utils.Statistics
@@ -22,7 +23,6 @@ import org.scijava.ui.behaviour.ClickBehaviour
 import java.lang.Boolean.parseBoolean
 import java.lang.management.ManagementFactory
 import java.nio.file.Paths
-import java.rmi.Remote
 import java.util.*
 import java.util.concurrent.CountDownLatch
 import kotlin.concurrent.thread
@@ -145,7 +145,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         running = true
 
         if(parseBoolean(System.getProperty("scenery.Profiler", "false"))) {
-            hub.add(Remotery(hub))
+            hub.add(RemoteryProfiler(hub))
         }
 
         val headless = parseBoolean(System.getProperty("scenery.Headless", "false"))
@@ -240,7 +240,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         val frameTimes = ArrayDeque<Float>(16)
         val frameTimeKeepCount = 16
 
-        val profiler = hub.get<Remotery>()
+        val profiler = hub.get<Profiler>()
 
         while (!shouldClose || gracePeriod > 0) {
             runtime = (System.nanoTime() - startTime) / 1000000f
@@ -339,7 +339,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         renderer?.close()
         renderdoc?.close()
 
-        hub.get<Remotery>()?.close()
+        hub.get<Profiler>()?.close()
     }
 
     /**
