@@ -1863,7 +1863,7 @@ open class VulkanRenderer(hub: Hub,
      * This function renders the scene
      */
     override fun render() = runBlocking {
-        val profiler = hub?.get<Remotery>()
+        val profiler = hub?.get<Profiler>()
 //        profiler?.begin("Renderer.Housekeeping")
         val swapchainChanged = pollEvents()
 
