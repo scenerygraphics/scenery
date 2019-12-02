@@ -13,18 +13,24 @@ import kotlin.math.sin
  * @author Ulrik Guenther <hello@ulrik.is>
  */
 class LayeredCircleWorldSpaceCalibrationPointGenerator(val layerCount: Int = 3, val pointsPerCircle: Int = 5) : CalibrationPointGenerator {
+    data class RadiusDistance(val radius: Float, val distance: Float)
+    val radiiAndDistances = hashMapOf<Int, RadiusDistance>(
+        0 to RadiusDistance(0.18f, -0.6f),
+        1 to RadiusDistance(0.24f, -1.0f),
+        2 to RadiusDistance(0.42f, -2.0f)
+    )
+
     /**
      * Returns a single point on one of the three randomly-determined layers. Points on a single
      * circle are equidistributed according to [index] out of [pointsPerCircle].
      */
     override fun generatePoint(cam : Camera, index : Int, totalPointCount : Int): CalibrationPointGenerator.CalibrationPoint {
         val origin = 0.0f
-        val radius = 0.4f
-        val layer = kotlin.random.Random(System.nanoTime()).nextInt(0, layerCount)
+        val layer = index % layerCount
 
-        val z = -1.0f * (0.75f + layer * 1.0f)
+        val (radius, z) = radiiAndDistances.getOrDefault(layer, RadiusDistance(0.5f, 1.0f))
 
-        val v = if (index == 0) {
+        val v = if (index < 3) {
             GLVector(origin, origin, z)
         } else {
             GLVector(
@@ -34,8 +40,6 @@ class LayeredCircleWorldSpaceCalibrationPointGenerator(val layerCount: Int = 3, 
             )
         }
 
-        // Pupil's world-space calibration expects points in mm units, while
-        // scenery's units are in meters
-        return CalibrationPointGenerator.CalibrationPoint(GLVector(v.x(), v.y(), -1.0f * v.z()) * 1000.0f, v)
+        return CalibrationPointGenerator.CalibrationPoint(v, v)
     }
 }
