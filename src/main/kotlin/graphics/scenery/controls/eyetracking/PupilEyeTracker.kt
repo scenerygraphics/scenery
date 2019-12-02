@@ -119,7 +119,7 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
         override fun hashCode(): Int {
             var result = confidence.hashCode()
             result = 31 * result + timestamp.hashCode()
-            result = 31 * result + Arrays.hashCode(norm_pos)
+            result = 31 * result + norm_pos.contentHashCode()
             result = 31 * result + Arrays.hashCode(gaze_point_3d)
             result = 31 * result + (eye_centers_3d?.hashCode() ?: 0)
             result = 31 * result + (gaze_normals_3d?.hashCode() ?: 0)
@@ -142,7 +142,7 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
     private var onReceiveFrame: ((Int, ByteArray) -> Any)? = null
 
     init {
-        logger.info("Connecting to $host:$port ...")
+        logger.info("Connecting to Pupil at $host:$port (if this takes a long time, it's a good idea to start Pupil first and make sure it's listening on the right port ;)) ...")
         req.connect("tcp://$host:$port")
         req.send("SUB_PORT")
 
@@ -185,6 +185,8 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
                     CalibrationType.ScreenSpace -> "gaze.3d.1." to "gaze3d.2."
                     CalibrationType.WorldSpace -> "gaze.3d.01." to "gaze.3d.02."
                 }
+
+                var gazeMode = 0
 
                 try {
                     socket.connect("tcp://$host:$subscriptionPort")
@@ -239,25 +241,41 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
                                     if(g.confidence > gazeConfidenceThreshold) {
 
                                         if(msgType.contains(".01.")) {
-                                            logger.info("Received binocular gaze")
-                                            onGazeReceived?.invoke(g)
+                                            gazeMode = 1
+//                                            logger.info("Received binocular gaze")
+
+                                            val p = g.gaze_point_3d ?: floatArrayOf(0.0f, 0.0f, 0.0f)
+                                            var vp = GLVector(*p)
+
+//                                            if(vp.times(GLVector(0.0f, 0.0f, -1.0f)) >= PI/2.0f) {
+//                                                logger.info("Inverting gaze direction")
+//                                                vp *= (-1.0f)
+//                                            }
+
+                                            vp *= (1.0f/ pupilToSceneryRatio)
+
+                                            val ng = Gaze(g.confidence, g.timestamp, 2, g.norm_pos, vp.toFloatArray(), g.eye_centers_3d, g.gaze_normals_3d)
+
+                                            onGazeReceived?.invoke(ng)
                                         } else {
-                                            if (msgType.contains(".0.")) {
-                                                currentGazeLeft = g
-                                            }
+                                            if(gazeMode == 0) {
+                                                if (msgType.contains(".0.")) {
+                                                    currentGazeLeft = g
+                                                }
 
-                                            if (msgType.contains(".1.")) {
-                                                currentGazeRight = g
-                                            }
+                                                if (msgType.contains(".1.")) {
+                                                    currentGazeRight = g
+                                                }
 
-                                            val left = currentGazeLeft
-                                            val right = currentGazeRight
+                                                val left = currentGazeLeft
+                                                val right = currentGazeRight
 
-                                            if (left != null && right != null) {
-                                                val normPos = ((left.normalizedPosition() + right.normalizedPosition()) * 0.5f).toFloatArray()
-                                                val gaze = Gaze((left.confidence + right.confidence) / 2.0f, g.timestamp, 2, normPos)
+                                                if (left != null && right != null) {
+                                                    val normPos = ((left.normalizedPosition() + right.normalizedPosition()) * 0.5f).toFloatArray()
+                                                    val gaze = Gaze((left.confidence + right.confidence) / 2.0f, g.timestamp, 2, normPos)
 
-                                                onGazeReceived?.invoke(gaze)
+                                                    onGazeReceived?.invoke(gaze)
+                                                }
                                             }
                                         }
                                     }
@@ -375,22 +393,24 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
                     "args" to emptyMap<String, Any>()
                 ))
 
-                val shiftLeftEye = floatArrayOf(
-                    hmd.getHeadToEyeTransform(0)[0, 3],
-                    hmd.getHeadToEyeTransform(0)[1, 3],
-                    hmd.getHeadToEyeTransform(0)[2, 3])
+                val shiftLeftEye = GLVector(
+                    hmd.getHeadToEyeTransform(0)[3, 0],
+                    hmd.getHeadToEyeTransform(0)[3, 1],
+                    hmd.getHeadToEyeTransform(0)[3, 2]) * 1000.0f
 
-                val shiftRightEye = floatArrayOf(
-                    hmd.getHeadToEyeTransform(1)[0, 3],
-                    hmd.getHeadToEyeTransform(1)[1, 3],
-                    hmd.getHeadToEyeTransform(1)[2, 3])
+                val shiftRightEye = GLVector(
+                    hmd.getHeadToEyeTransform(1)[3, 0],
+                    hmd.getHeadToEyeTransform(1)[3, 1],
+                    hmd.getHeadToEyeTransform(1)[3, 2]) * 1000.0f
+
+                logger.info("Eye shifts are L:$shiftLeftEye/R:$shiftRightEye")
 
                 notify(hashMapOf(
                     "subject" to "calibration.should_start",
                     "hmd_video_frame_size" to listOf(hmd.getRenderTargetSize().x().toInt(), hmd.getRenderTargetSize().y().toInt()),
                     "outlier_threshold" to 35,
-                    "translation_eye0" to shiftLeftEye,
-                    "translation_eye1" to shiftRightEye
+                    "translation_eye0" to shiftLeftEye.toFloatArray(),
+                    "translation_eye1" to shiftRightEye.toFloatArray()
                 ))
             }
         }
@@ -403,7 +423,7 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
             val numReferencePoints = if(calibrationType == CalibrationType.ScreenSpace) {
                 6
             } else {
-                10
+                18
             }
 
             val samplesPerPoint = 120
@@ -421,7 +441,17 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
                 logger.info("Subject looking at ${normalizedScreenPos.local}/${normalizedScreenPos.world}")
                 val position = normalizedScreenPos.world.clone()
 
-                calibrationTarget?.position = position + cam.forward * 0.15f
+                val calibrationPosition = if(calibrationType == CalibrationType.ScreenSpace) {
+                    calibrationTarget?.position = position + cam.forward * 0.15f
+                    normalizedScreenPos.local.toFloatArray()
+                } else {
+                    calibrationTarget?.position = position
+                    val p = normalizedScreenPos.local.clone() * pupilToSceneryRatio
+                    p.set(0, p.get(0) * 1.0f)
+                    p.set(1, p.get(1) * -1.0f * cam.aspectRatio())
+                    p.set(2, p.get(2) * 1.0f)
+                    p.toFloatArray()
+                }
 
                 if(normalizedScreenPos.local.x() == 0.5f && normalizedScreenPos.local.y() == 0.5f) {
                     calibrationTarget?.material?.diffuse = GLVector(1.0f, 1.0f, 0.0f)
@@ -433,13 +463,13 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
                     val timestamp = getPupilTimestamp()
 
                     val datum0 = hashMapOf<String, Serializable>(
-                        posKeyName to normalizedScreenPos.local.toFloatArray(),
+                        posKeyName to calibrationPosition,
                         "timestamp" to timestamp,
                         "id" to 0
                     )
 
                     val datum1 = hashMapOf<String, Serializable>(
-                        posKeyName to normalizedScreenPos.local.toFloatArray(),
+                        posKeyName to calibrationPosition,
                         "timestamp" to timestamp,
                         "id" to 1
                     )
@@ -483,5 +513,10 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
         }
 
         return false
+    }
+
+    companion object {
+        /** Pupil uses a millimeter-based coordinate system, while scenery uses meters, this ratio translates between them. */
+        const val pupilToSceneryRatio = 1000.0f
     }
 }
