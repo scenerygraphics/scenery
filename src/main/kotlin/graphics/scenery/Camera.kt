@@ -303,7 +303,7 @@ open class Camera : Node("Camera") {
      */
     fun canSee(node: Node): Boolean {
         // TODO: Figure out how to efficiently cull instances
-        if(disableCulling || node.instances.size > 0 || node is BDVVolume || node is TextBoard) {
+        if(disableCulling || node.instances.size > 0 || node is BDVVolume || node is TextBoard || true) {
             return true
         }
 
