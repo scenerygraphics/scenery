@@ -48,9 +48,10 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
     private var calibrating = false
 
     var onGazeReceived: ((Gaze) -> Unit)? = null
+    var onCalibrationInProgress: (() -> Unit)? = null
     var onCalibrationFailed: (() -> Unit)? = null
     var onCalibrationSuccess: (() -> Unit)? = null
-    var gazeConfidenceThreshold = 0.8f
+    var gazeConfidenceThreshold = 0.65f
 
     /**
      * Stores gaze data, and retrieves various properties
@@ -181,11 +182,6 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
                 val poller = ZPoller(zmqContext)
                 poller.register(socket, ZMQ.Poller.POLLIN)
 
-                val gazeDatumNames = when(calibrationType) {
-                    CalibrationType.ScreenSpace -> "gaze.3d.1." to "gaze3d.2."
-                    CalibrationType.WorldSpace -> "gaze.3d.01." to "gaze.3d.02."
-                }
-
                 var gazeMode = 0
 
                 try {
@@ -229,11 +225,14 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
                                     }
                                 }
 
-                                "gaze",
                                 "gaze.2d.0.",
-                                "gaze.2d.1.",
-                                gazeDatumNames.first,
-                                gazeDatumNames.second -> {
+                                "gaze.2d.1." -> {
+                                    TODO("2D gaze mapping needs a revamp")
+                                }
+
+                                "gaze.3d.0.",
+                                "gaze.3d.1.",
+                                "gaze.3d.01." -> {
                                     val bytes = msg.pop().data
                                     val g = objectMapper.readValue(bytes, Gaze::class.java)
 //                                    logger.info("Received data: ${String(bytes)}")
@@ -241,7 +240,7 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
                                     if(g.confidence > gazeConfidenceThreshold) {
 
                                         if(msgType.contains(".01.")) {
-                                            gazeMode = 1
+//                                            gazeMode = 1
 //                                            logger.info("Received binocular gaze")
 
                                             val p = g.gaze_point_3d ?: floatArrayOf(0.0f, 0.0f, 0.0f)
@@ -252,31 +251,44 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
 //                                                vp *= (-1.0f)
 //                                            }
 
-                                            vp *= (1.0f/ pupilToSceneryRatio)
+                                            vp *= (1.0f/pupilToSceneryRatio)
 
-                                            val ng = Gaze(g.confidence, g.timestamp, 2, g.norm_pos, vp.toFloatArray(), g.eye_centers_3d, g.gaze_normals_3d)
+                                            val ng = Gaze(
+                                                g.confidence,
+                                                g.timestamp,
+                                                2,
+                                                g.norm_pos,
+                                                vp.toFloatArray(),
+                                                g.eye_centers_3d,
+                                                g.gaze_normals_3d
+                                            )
 
                                             onGazeReceived?.invoke(ng)
                                         } else {
-                                            if(gazeMode == 0) {
-                                                if (msgType.contains(".0.")) {
-                                                    currentGazeLeft = g
-                                                }
-
-                                                if (msgType.contains(".1.")) {
-                                                    currentGazeRight = g
-                                                }
-
-                                                val left = currentGazeLeft
-                                                val right = currentGazeRight
-
-                                                if (left != null && right != null) {
-                                                    val normPos = ((left.normalizedPosition() + right.normalizedPosition()) * 0.5f).toFloatArray()
-                                                    val gaze = Gaze((left.confidence + right.confidence) / 2.0f, g.timestamp, 2, normPos)
-
-                                                    onGazeReceived?.invoke(gaze)
-                                                }
+                                            if (msgType.contains(".0.")) {
+                                                currentGazeLeft = g
                                             }
+
+                                            if (msgType.contains(".1.")) {
+                                                currentGazeRight = g
+                                            }
+
+                                            val p = g.gaze_point_3d ?: floatArrayOf(0.0f, 0.0f, 0.0f)
+                                            var vp = GLVector(*p)
+
+                                            vp *= (1.0f/pupilToSceneryRatio)
+
+                                            val ng = Gaze(
+                                                g.confidence,
+                                                g.timestamp,
+                                                msgType.substringAfterLast("d.").replace(".", "").toInt(),
+                                                g.norm_pos,
+                                                vp.toFloatArray(),
+                                                g.eye_centers_3d,
+                                                g.gaze_normals_3d
+                                            )
+
+                                            onGazeReceived?.invoke(ng)
                                         }
                                     }
                                 }
@@ -495,13 +507,16 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
             "subject" to "calibration.should_stop"
         ))
 
+        calibrationTarget?.visible = false
+        logger.info("Done collecting calibration data, running fitting now.")
+        onCalibrationInProgress?.invoke()
+
         while(calibrating) {
             Thread.sleep(100)
         }
 
         unsubscribe("notify.calibration.successful")
         unsubscribe("notify.calibration.failed")
-        calibrationTarget?.visible = false
 
         if(isCalibrated) {
             logger.info("Calibration succeeded, subscribing to gaze data")
