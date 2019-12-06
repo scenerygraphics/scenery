@@ -495,6 +495,14 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                         d.metadata = VRControllerState.calloc()
                     }
 
+                    // role might change during use
+                    val role = VRSystem_GetControllerRoleForTrackedDeviceIndex(device)
+                    d.role = when(role) {
+                        1 -> TrackerRole.LeftHand
+                        2 -> TrackerRole.RightHand
+                        else -> TrackerRole.Invalid
+                    }
+
                     val state = d.metadata as? VRControllerState
                     if(state != null) {
                         VRSystem_GetControllerState(device, state)
