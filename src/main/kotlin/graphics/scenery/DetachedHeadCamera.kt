@@ -2,6 +2,9 @@ package graphics.scenery
 
 import cleargl.GLMatrix
 import cleargl.GLVector
+import com.fasterxml.jackson.annotation.JsonIdentityInfo
+import com.fasterxml.jackson.annotation.JsonIgnore
+import com.fasterxml.jackson.annotation.ObjectIdGenerators
 import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.backends.Display
 import graphics.scenery.controls.TrackerInput
@@ -17,8 +20,8 @@ import kotlin.reflect.KProperty
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
-
-class DetachedHeadCamera(@Transient var tracker: TrackerInput? = null) : Camera() {
+@JsonIdentityInfo(generator = ObjectIdGenerators.IntSequenceGenerator::class, property="@id")
+class DetachedHeadCamera(@Transient @JsonIgnore var tracker: TrackerInput? = null) : Camera() {
     override var projection: GLMatrix = GLMatrix.getIdentity()
         get() = if(tracker != null && tracker is Display) {
             (tracker as? Display)?.getEyeProjection(0) ?: super.projection
