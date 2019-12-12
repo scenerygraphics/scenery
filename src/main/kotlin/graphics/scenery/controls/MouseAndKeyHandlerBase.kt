@@ -44,6 +44,8 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
     private val CONTROLLER_HEARTBEAT = 5L
     private val CONTROLLER_DOWN_THRESHOLD = 0.95f
 
+    protected var shouldClose = false
+
     /**
      * Managing internal behaviour lists.
      *
@@ -155,7 +157,7 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
             var queue: EventQueue
             val event = Event()
 
-            while (true) {
+            while (!shouldClose) {
                 controller?.let { c ->
                     c.poll()
 
@@ -327,5 +329,12 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
 
     open fun attach(window: SceneryWindow, inputMap: InputTriggerMap, behaviourMap: BehaviourMap): MouseAndKeyHandlerBase {
         throw UnsupportedOperationException("MouseAndKeyHandlerBase cannot be attached to a window.")
+    }
+
+    open fun close() {
+        shouldClose = true
+        controllerThread?.join()
+        controllerThread = null
+        logger.debug("MouseAndKeyHandlerBase closed.")
     }
 }

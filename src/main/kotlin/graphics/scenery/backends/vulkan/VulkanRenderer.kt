@@ -3250,6 +3250,7 @@ open class VulkanRenderer(hub: Hub,
         vkDestroyInstance(instance, null)
 
         heartbeatTimer.cancel()
+        heartbeatTimer.purge()
         logger.info("Renderer teardown complete.")
     }
 

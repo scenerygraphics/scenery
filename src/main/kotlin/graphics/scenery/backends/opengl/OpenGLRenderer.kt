@@ -5,7 +5,7 @@ import com.jogamp.nativewindow.WindowClosingProtocol
 import com.jogamp.newt.event.WindowAdapter
 import com.jogamp.newt.event.WindowEvent
 import com.jogamp.opengl.*
-import com.jogamp.opengl.util.FPSAnimator
+import com.jogamp.opengl.util.Animator
 import com.jogamp.opengl.util.awt.AWTGLReadBufferUtil
 import graphics.scenery.*
 import graphics.scenery.backends.*
@@ -421,8 +421,8 @@ open class OpenGLRenderer(hub: Hub,
 
                 addGLEventListener(this@OpenGLRenderer)
 
-                animator = FPSAnimator(this, 60)
-                animator.setUpdateFPSFrames(60, null)
+                animator = Animator()
+                animator.add(this)
                 animator.start()
 
                 embedInDrawable?.let { glAutoDrawable ->
@@ -465,6 +465,7 @@ open class OpenGLRenderer(hub: Hub,
                         override fun windowDestroyNotify(e: WindowEvent?) {
                             shouldClose = true
                             cglWindow?.close()
+                            e?.isConsumed = true
                         }
                     }
 
@@ -1513,7 +1514,7 @@ open class OpenGLRenderer(hub: Hub,
         if (shouldClose) {
             initialized = false
             try {
-                logger.info("Closing window")
+                logger.info("Closing window now")
 
                 scene.discover(scene, { _ -> true }).forEach {
                     destroyNode(it)
@@ -1522,10 +1523,14 @@ open class OpenGLRenderer(hub: Hub,
                 scene.initialized = false
 
                 if(cglWindow == null) {
+                    logger.info("ClearGL window is null, stopping animator here")
                     joglDrawable?.animator?.stop()
                     joglDrawable?.destroy()
                 } else {
-                    cglWindow?.close()
+                    logger.info("ClearGL window is not null, closing it regularly")
+//                    cglWindow?.close()
+                    joglDrawable?.animator?.stop()
+//                    joglDrawable?.destroy()
                 }
 
                 gl.glDeleteBuffers(1, buffers.LightParameters.id, 0)
@@ -2952,6 +2957,7 @@ open class OpenGLRenderer(hub: Hub,
     override fun close() {
         shouldClose = true
 
+        lastResizeTimer.cancel()
         encoder?.finish()
     }
 }

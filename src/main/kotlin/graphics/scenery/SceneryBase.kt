@@ -340,6 +340,7 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         renderdoc?.close()
 
         hub.get<Profiler>()?.close()
+        hub.get<Statistics>()?.close()
     }
 
     /**
@@ -390,6 +391,8 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         shouldClose = true
         gracePeriod = 10
         renderer?.close()
+
+        renderer = null
 
         (hub.get(SceneryElement.NodePublisher) as? NodePublisher)?.close()
         (hub.get(SceneryElement.NodeSubscriber) as? NodeSubscriber)?.close()
