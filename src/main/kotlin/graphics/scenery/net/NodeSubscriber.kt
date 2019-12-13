@@ -131,5 +131,6 @@ class NodeSubscriber(override var hub: Hub?, val address: String = "udp://localh
 
     fun close() {
         context.destroySocket(subscriber)
+        context.close()
     }
 }
