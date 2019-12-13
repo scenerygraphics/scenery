@@ -112,7 +112,7 @@
         <dokka.skip>true</dokka.skip>
 
         <bigvolumeviewer.version>0.1.6</bigvolumeviewer.version>
-        <cleargl.version>2.2.9</cleargl.version>
+        <cleargl.version>2.2.10</cleargl.version>
         <coremem.version>0.4.6</coremem.version>
         <ffmpeg.version>4.1-1.4.4</ffmpeg.version>
         <gluegen-rt.version>${gluegen-rt-main.version}</gluegen-rt.version>
