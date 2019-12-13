@@ -468,6 +468,7 @@ open class GLFWMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandlerB
     }
 
     override fun close() {
+        super.close()
         cursorCallback.close()
         keyCallback.close()
         mouseCallback.close()

@@ -15,8 +15,10 @@ import kotlin.concurrent.thread
  * @author Ulrik Günther <hello@ulrik.is>
  */
 class SwingTexturedCubeExample : SceneryBase("SwingTexturedCubeExample", windowWidth = 512, windowHeight = 512) {
+    lateinit var mainFrame: JFrame
+
     override fun init() {
-        val mainFrame = JFrame(applicationName)
+        mainFrame = JFrame(applicationName)
         mainFrame.setSize(windowWidth, windowHeight)
         mainFrame.layout = BorderLayout()
 
@@ -72,6 +74,11 @@ class SwingTexturedCubeExample : SceneryBase("SwingTexturedCubeExample", windowW
                 Thread.sleep(200)
             }
         }
+    }
+
+    override fun close() {
+        mainFrame.dispose()
+        super.close()
     }
 
     @Test override fun main() {

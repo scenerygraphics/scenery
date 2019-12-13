@@ -9,6 +9,8 @@ import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedDeque
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+
 
 /**
  * Statistics class, attached to a [hub].
@@ -18,7 +20,7 @@ import java.util.concurrent.Executors
 class Statistics(override var hub: Hub?) : Hubable {
     private val logger by LazyLogger()
     private val dataSize = 100
-    private val threadContext = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
+    private val threadContext = Executors.newSingleThreadExecutor()
 
     /**
      * Keeps statistical data, such as time points, and
@@ -68,7 +70,7 @@ class Statistics(override var hub: Hub?) : Hubable {
      * Set [isTime] to true if the datum contains time information.
      */
     fun add(name: String, value: Float, isTime: Boolean = true) {
-        GlobalScope.launch(threadContext) {
+        GlobalScope.launch(threadContext.asCoroutineDispatcher()) {
             stats.computeIfAbsent(name) {
                 val d = StatisticData(isTime)
                 d.data.push(value)
@@ -125,5 +127,23 @@ class Statistics(override var hub: Hub?) : Hubable {
     /** Logs all statistics as info via the logger infrastructure */
     @Suppress("unused") fun log() {
          logger.info(this.toString())
+    }
+
+    /** Closes the Statistics */
+    fun close() {
+        threadContext.shutdown()
+        try {
+            if (!threadContext.awaitTermination(2, TimeUnit.SECONDS)) {
+                threadContext.shutdownNow()
+                if (!threadContext.awaitTermination(2, TimeUnit.SECONDS)) {
+                    logger.error("Pool did not terminate")
+                }
+            }
+        } catch (ie: InterruptedException) {
+            threadContext.shutdownNow()
+            Thread.currentThread().interrupt()
+        }
+
+        logger.debug("Closed Statistics")
     }
 }

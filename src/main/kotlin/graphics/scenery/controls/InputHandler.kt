@@ -242,5 +242,6 @@ class InputHandler(scene: Scene, renderer: Renderer, override var hub: Hub?, for
 
     override fun close() {
         logger.debug("Closing InputHandler")
+        handler?.close()
     }
 }
