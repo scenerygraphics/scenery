@@ -327,10 +327,18 @@ open class MouseAndKeyHandlerBase : ControllerListener, ExtractsNatives {
         }
     }
 
+    /**
+     * Attaches this handler to a given [window], with input bindings and behaviours given in [inputMap] and
+     * [behaviourMap]. MouseAndKeyHandlerBase itself cannot be attached to any windows.
+     */
     open fun attach(window: SceneryWindow, inputMap: InputTriggerMap, behaviourMap: BehaviourMap): MouseAndKeyHandlerBase {
         throw UnsupportedOperationException("MouseAndKeyHandlerBase cannot be attached to a window.")
     }
 
+    /**
+     * Closes this instance of MouseAndKeyHandlerBase.
+     * This function needs to be called as super.close() by derived classes in order to clean up gamepad handling logic.
+     */
     open fun close() {
         shouldClose = true
         controllerThread?.join()
