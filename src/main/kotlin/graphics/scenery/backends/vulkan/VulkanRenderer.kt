@@ -3190,6 +3190,14 @@ open class VulkanRenderer(hub: Hub,
         buffers.UBOs.close()
         buffers.VRParameters.close()
 
+        logger.debug("Closing default UBOs...")
+        defaultUBOs.forEach { ubo ->
+            ubo.value.close()
+        }
+
+        logger.debug("Closing memory pools ...")
+        geometryPool.close()
+
         logger.debug("Closing vertex descriptors ...")
         vertexDescriptors.forEach {
             logger.debug("Closing vertex descriptor ${it.key}...")
@@ -3235,6 +3243,7 @@ open class VulkanRenderer(hub: Hub,
             device.destroyCommandPool(Render)
             device.destroyCommandPool(Compute)
             device.destroyCommandPool(Standard)
+            device.destroyCommandPool(Transfer)
         }
 
         vkDestroyPipelineCache(device.vulkanDevice, pipelineCache, null)
