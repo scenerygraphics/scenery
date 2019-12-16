@@ -115,6 +115,8 @@ open class VulkanBuffer(val device: VulkanDevice, var size: Long,
         MemoryUtil.memFree(memTypeIndex)
         MemoryUtil.memFree(memory)
 
+        logger.debug("Created Vulkan Buffer ${buffer.toHexString()} with memory ${r.memory.toHexString()}")
+
         return r
     }
 
@@ -321,7 +323,7 @@ open class VulkanBuffer(val device: VulkanDevice, var size: Long,
             return
         }
 
-        logger.trace("Closing buffer $this ...")
+        logger.trace("Closing buffer $this (${vulkanBuffer.toHexString()}, mem=${memory.toHexString()}...")
 
         if(mapped) {
             unmap()
