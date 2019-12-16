@@ -2572,6 +2572,7 @@ open class VulkanRenderer(hub: Hub,
         // command buffer cannot be null here anymore, otherwise this is clearly in error
         with(commandBuffer.prepareAndStartRecording(commandPools.Render)) {
 
+            vkCmdResetQueryPool(this, timestampQueryPool, 2*renderpasses.values.indexOf(pass), 2)
             vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
                 timestampQueryPool, 2*renderpasses.values.indexOf(pass))
 
@@ -2875,6 +2876,7 @@ open class VulkanRenderer(hub: Hub,
         // prepare command buffer and start recording
         with(commandBuffer.prepareAndStartRecording(commandPools.Render)) {
 
+            vkCmdResetQueryPool(this, timestampQueryPool, 2*renderpasses.values.indexOf(pass), 2)
             vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
                 timestampQueryPool, 2*renderpasses.values.indexOf(pass))
             vkCmdBeginRenderPass(this, pass.vulkanMetadata.renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE)
