@@ -10,6 +10,7 @@ import graphics.scenery.utils.JsonDeserialisers
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.*
+import kotlin.collections.LinkedHashMap
 
 
 /**
@@ -44,14 +45,18 @@ fun RenderConfigReader.RenderConfig.createRenderpassFlow(): List<String> {
     dag.add(start.key)
 
     while(inputs != null) {
-        passes.filter { inputs!!.map { input -> input.substringBefore(".") }.contains(it.value.output) }.entries.forEach {
-            inputs = it.value.inputs
+        passes.filter {
+            inputs!!
+                .map { input -> input.substringBefore(".") }
+                .contains(it.value.output)
+        }.forEach {
+                inputs = it.value.inputs
 
-            dag.add(it.key.substringBefore("."))
+                dag.add(it.key.substringBefore("."))
         }
     }
 
-    return dag.reversed().toSet().toList()
+    return dag.reversed().distinct().toList()
 }
 
 /**
@@ -71,7 +76,7 @@ class RenderConfigReader {
         var description: String?,
         var stereoEnabled: Boolean = false,
         var rendertargets: Map<String, RendertargetConfig> = emptyMap(),
-        var renderpasses: Map<String, RenderpassConfig>,
+        var renderpasses: LinkedHashMap<String, RenderpassConfig>,
         var qualitySettings: Map<RenderingQuality, Map<String, Any>> = emptyMap())
 
     /**
