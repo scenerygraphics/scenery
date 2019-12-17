@@ -203,7 +203,7 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
             VK_ATTACHMENT_LOAD_OP_CLEAR to VK_ATTACHMENT_LOAD_OP_CLEAR
         }
 
-        val initialImageLayout = VK_IMAGE_LAYOUT_UNDEFINED
+        val initialImageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
 
         att.desc.samples(VK_SAMPLE_COUNT_1_BIT)
             .loadOp(loadOp)
@@ -235,7 +235,7 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
         val initialImageLayout = if(!shouldClear) {
             VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
         } else {
-            VK_IMAGE_LAYOUT_UNDEFINED
+            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
         }
 
         att.desc.samples(VK_SAMPLE_COUNT_1_BIT)

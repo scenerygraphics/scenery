@@ -234,6 +234,7 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
                 throw IllegalStateException("Failed to create command pool: " + VU.translate(err))
             }
 
+            logger.debug("Created command pool ${commandPool.toHexString()}")
             commandPool
         }
     }
