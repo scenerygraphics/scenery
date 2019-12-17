@@ -2704,6 +2704,7 @@ open class VulkanRenderer(hub: Hub,
             pass.vulkanMetadata.uboOffsets.limit(16)
             (0 until pass.vulkanMetadata.uboOffsets.limit()).forEach { pass.vulkanMetadata.uboOffsets.put(it, 0) }
 
+            var previousPipeline: Pipeline? = null
             renderOrderList.forEach drawLoop@ { node ->
                 val s = node.rendererMetadata() ?: return@drawLoop
 
@@ -2738,6 +2739,11 @@ open class VulkanRenderer(hub: Hub,
                 val p = pass.getActivePipeline(node)
                 val pipeline = p.getPipelineForGeometryType((node as HasGeometry).geometryType)
                 val specs = p.orderedDescriptorSpecs()
+
+                if(pipeline != previousPipeline) {
+                    vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline)
+                    previousPipeline = pipeline
+                }
 
                 if(logger.isTraceEnabled) {
                     logger.trace("node {} has: {} / pipeline needs: {}", node.name, s.UBOs.keys.joinToString(", "), specs.joinToString { it.key })
