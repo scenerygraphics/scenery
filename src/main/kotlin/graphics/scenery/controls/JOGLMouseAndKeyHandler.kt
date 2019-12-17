@@ -17,7 +17,7 @@ import org.scijava.ui.behaviour.InputTriggerMap
  * @author Ulrik Günther <hello@ulrik.is>
  */
 @CanHandleInputFor([SceneryWindow.ClearGLWindow::class, SceneryWindow.SwingWindow::class, SceneryWindow.JOGLDrawable::class])
-open class JOGLMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandlerBase(), MouseListener, KeyListener, WindowListener, ControllerListener, ExtractsNatives {
+open class JOGLMouseAndKeyHandler(var hub: Hub?) : MouseAndKeyHandlerBase(), MouseListener, KeyListener, WindowListener, ControllerListener, ExtractsNatives {
     /** store os name */
     private var os = ""
 
@@ -396,7 +396,7 @@ open class JOGLMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandlerB
         winPressed = false
     }
 
-    override fun attach(window: SceneryWindow, inputMap: InputTriggerMap, behaviourMap: BehaviourMap): MouseAndKeyHandlerBase {
+    override fun attach(hub: Hub?, window: SceneryWindow, inputMap: InputTriggerMap, behaviourMap: BehaviourMap): MouseAndKeyHandlerBase {
         val handler: MouseAndKeyHandlerBase
         when(window) {
             is SceneryWindow.SwingWindow -> {
@@ -404,6 +404,7 @@ open class JOGLMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandlerB
                 val cglWindow = window.panel.cglWindow
 
                 if(component is NewtCanvasAWT && cglWindow != null) {
+                    this.hub = hub
                     handler = this
 
                     handler.setInputMap(inputMap)
@@ -412,7 +413,7 @@ open class JOGLMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandlerB
                     cglWindow.addKeyListener(handler)
                     cglWindow.addMouseListener(handler)
                 } else {
-                    handler = SwingMouseAndKeyHandler()
+                    handler = SwingMouseAndKeyHandler(hub)
 
                     handler.setInputMap(inputMap)
                     handler.setBehaviourMap(behaviourMap)

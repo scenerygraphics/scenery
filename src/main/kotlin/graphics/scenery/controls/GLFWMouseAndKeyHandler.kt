@@ -22,7 +22,7 @@ import org.scijava.ui.behaviour.InputTriggerMap
  * @author Ulrik Günther <hello@ulrik.is>
  */
 @CanHandleInputFor([SceneryWindow.GLFWWindow::class])
-open class GLFWMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandlerBase(), AutoCloseable, ExtractsNatives {
+open class GLFWMouseAndKeyHandler(var hub: Hub?) : MouseAndKeyHandlerBase(), AutoCloseable, ExtractsNatives {
     /** store os name */
     private var os = ""
 
@@ -475,10 +475,11 @@ open class GLFWMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandlerB
         scrollCallback.close()
     }
 
-    override fun attach(window: SceneryWindow, inputMap: InputTriggerMap, behaviourMap: BehaviourMap): MouseAndKeyHandlerBase {
+    override fun attach(hub: Hub?, window: SceneryWindow, inputMap: InputTriggerMap, behaviourMap: BehaviourMap): MouseAndKeyHandlerBase {
         val handler: MouseAndKeyHandlerBase
         when(window) {
             is SceneryWindow.GLFWWindow -> {
+                this.hub = hub
                 handler = this
 
                 handler.setInputMap(inputMap)
@@ -491,6 +492,7 @@ open class GLFWMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandlerB
             }
 
             is SceneryWindow.HeadlessWindow -> {
+                this.hub = hub
                 handler = this
 
                 handler.setInputMap(inputMap)
