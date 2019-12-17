@@ -45,11 +45,7 @@ import java.util.concurrent.locks.ReentrantLock
 import javax.imageio.ImageIO
 import kotlin.concurrent.thread
 import kotlin.concurrent.withLock
-import kotlin.reflect.full.companionObject
-import kotlin.reflect.full.companionObjectInstance
-import kotlin.reflect.full.findAnnotation
-import kotlin.reflect.full.memberProperties
-import kotlin.reflect.full.primaryConstructor
+import kotlin.reflect.full.*
 
 
 /**
@@ -151,7 +147,7 @@ open class VulkanRenderer(hub: Hub,
         private val lock = ReentrantLock()
 
         @Synchronized fun recreate() {
-            if(lock.tryLock()) {
+            if(lock.tryLock() && !shouldClose) {
                 logger.info("Recreating Swapchain at frame $frames (${swapchain.javaClass.simpleName})")
                 // create new swapchain with changed surface parameters
                 vkQueueWaitIdle(queue)
@@ -1755,7 +1751,11 @@ open class VulkanRenderer(hub: Hub,
                         File(movieFilename)
                     }, false)
 
-                    encoder = H264Encoder(window.width, window.height, file.absolutePath, hub = hub)
+                    encoder = H264Encoder(
+                        (window.width * settings.get<Float>("Renderer.SupersamplingFactor")).toInt(),
+                        (window.height* settings.get<Float>("Renderer.SupersamplingFactor")).toInt(),
+                        file.absolutePath,
+                        hub = hub)
                 }
             }
 
@@ -1874,6 +1874,8 @@ open class VulkanRenderer(hub: Hub,
      * This function renders the scene
      */
     override fun render() = runBlocking {
+        val profiler = hub?.get<Profiler>()
+//        profiler?.begin("Renderer.Housekeeping")
         val swapchainChanged = pollEvents()
 
         if(shouldClose) {
@@ -1916,21 +1918,26 @@ open class VulkanRenderer(hub: Hub,
             logger.warn("Delaying next frame for $renderDelay ms, as one or more validation error have occured in the previous frame.")
             delay(renderDelay)
         }
+//        profiler?.end()
 
-
+        profiler?.begin("Renderer.updateUBOs")
         val startUboUpdate = System.nanoTime()
         val ubosUpdated = updateDefaultUBOs(device)
         stats?.add("Renderer.updateUBOs", System.nanoTime() - startUboUpdate)
+        profiler?.end()
 
+        profiler?.begin("Renderer.updateInstanceBuffers")
         val startInstanceUpdate = System.nanoTime()
         val instancesUpdated = updateInstanceBuffers(sceneObjects)
         stats?.add("Renderer.updateInstanceBuffers", System.nanoTime() - startInstanceUpdate)
+        profiler?.end()
 
         // flag set to true if command buffer re-recording is necessary,
         // e.g. because of scene or pipeline changes
         var forceRerecording = instancesUpdated
         val rerecordingCauses = ArrayList<String>(20)
 
+        profiler?.begin("Renderer.PreDraw")
         // here we discover the objects in the scene that could be relevant for the scene
         if (renderpasses.filter { it.value.passConfig.type != RenderConfigReader.RenderpassType.quad }.any()) {
             sceneObjects.await().forEach {
@@ -2013,7 +2020,9 @@ open class VulkanRenderer(hub: Hub,
                 sceneArray = newSceneArray
             }
         }
+        profiler?.end()
 
+        profiler?.begin("Renderer.BeginFrame")
         val presentedFrames = swapchain.presentedFrames()
         // return if neither UBOs were updated, nor the scene was modified
         if (pushMode && !swapchainChanged && !ubosUpdated && !forceRerecording && !screenshotRequested && totalFrames > 3 && presentedFrames > 3) {
@@ -2032,8 +2041,10 @@ open class VulkanRenderer(hub: Hub,
 
         var waitSemaphore = semaphores.getValue(StandardSemaphores.PresentComplete)[0]
 
+        profiler?.end()
 
         flow.take(flow.size - 1).forEachIndexed { i, t ->
+            profiler?.begin("Renderer.$t")
             logger.trace("Running pass {}", t)
             val target = renderpasses[t]!!
             val commandBuffer = target.commandBuffer
@@ -2084,10 +2095,12 @@ open class VulkanRenderer(hub: Hub,
             firstWaitSemaphore.put(0, target.semaphore)
             waitSemaphore = target.semaphore
 
+            profiler?.end()
         }
 
         si.free()
 
+        profiler?.begin("Renderer.${renderpasses.keys.last()}")
         val viewportPass = renderpasses.values.last()
         val viewportCommandBuffer = viewportPass.commandBuffer
         if(viewportCommandBuffer.submitted) {
@@ -2122,10 +2135,13 @@ open class VulkanRenderer(hub: Hub,
         ph.waitStages.put(0, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT)
         ph.signalSemaphore.put(0, semaphores.getValue(StandardSemaphores.RenderComplete)[0])
         ph.waitSemaphore.put(0, firstWaitSemaphore.get(0))
+        profiler?.end()
 
+        profiler?.begin("Renderer.SubmitFrame")
         submitFrame(queue, viewportPass, viewportCommandBuffer, ph)
 
         updateTimings()
+        profiler?.end()
     }
 
     private fun updateTimings() {
@@ -2567,6 +2583,7 @@ open class VulkanRenderer(hub: Hub,
         // command buffer cannot be null here anymore, otherwise this is clearly in error
         with(commandBuffer.prepareAndStartRecording(commandPools.Render)) {
 
+            vkCmdResetQueryPool(this, timestampQueryPool, 2*renderpasses.values.indexOf(pass), 2)
             vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
                 timestampQueryPool, 2*renderpasses.values.indexOf(pass))
 
@@ -2602,7 +2619,7 @@ open class VulkanRenderer(hub: Hub,
 
                             val outputAspectDstType = when(outputAttachment.type) {
                                 VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-                                VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+                                VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
                             }
 
                             val inputAspectType = when(inputAttachment.type) {
@@ -2698,6 +2715,7 @@ open class VulkanRenderer(hub: Hub,
             pass.vulkanMetadata.uboOffsets.limit(16)
             (0 until pass.vulkanMetadata.uboOffsets.limit()).forEach { pass.vulkanMetadata.uboOffsets.put(it, 0) }
 
+            var previousPipeline: Pipeline? = null
             renderOrderList.forEach drawLoop@ { node ->
                 val s = node.rendererMetadata() ?: return@drawLoop
 
@@ -2732,6 +2750,11 @@ open class VulkanRenderer(hub: Hub,
                 val p = pass.getActivePipeline(node)
                 val pipeline = p.getPipelineForGeometryType((node as HasGeometry).geometryType)
                 val specs = p.orderedDescriptorSpecs()
+
+                if(pipeline != previousPipeline) {
+                    vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline)
+                    previousPipeline = pipeline
+                }
 
                 if(logger.isTraceEnabled) {
                     logger.trace("node {} has: {} / pipeline needs: {}", node.name, s.UBOs.keys.joinToString(", "), specs.joinToString { it.key })
@@ -2870,6 +2893,7 @@ open class VulkanRenderer(hub: Hub,
         // prepare command buffer and start recording
         with(commandBuffer.prepareAndStartRecording(commandPools.Render)) {
 
+            vkCmdResetQueryPool(this, timestampQueryPool, 2*renderpasses.values.indexOf(pass), 2)
             vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
                 timestampQueryPool, 2*renderpasses.values.indexOf(pass))
             vkCmdBeginRenderPass(this, pass.vulkanMetadata.renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE)
@@ -3183,6 +3207,14 @@ open class VulkanRenderer(hub: Hub,
         buffers.UBOs.close()
         buffers.VRParameters.close()
 
+        logger.debug("Closing default UBOs...")
+        defaultUBOs.forEach { ubo ->
+            ubo.value.close()
+        }
+
+        logger.debug("Closing memory pools ...")
+        geometryPool.close()
+
         logger.debug("Closing vertex descriptors ...")
         vertexDescriptors.forEach {
             logger.debug("Closing vertex descriptor ${it.key}...")
@@ -3228,6 +3260,7 @@ open class VulkanRenderer(hub: Hub,
             device.destroyCommandPool(Render)
             device.destroyCommandPool(Compute)
             device.destroyCommandPool(Standard)
+            device.destroyCommandPool(Transfer)
         }
 
         vkDestroyPipelineCache(device.vulkanDevice, pipelineCache, null)
@@ -3245,6 +3278,7 @@ open class VulkanRenderer(hub: Hub,
         vkDestroyInstance(instance, null)
 
         heartbeatTimer.cancel()
+        heartbeatTimer.purge()
         logger.info("Renderer teardown complete.")
     }
 

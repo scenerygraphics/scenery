@@ -61,7 +61,7 @@ class TextBoard(font: String = "SourceSansPro-Regular.ttf", override var isBillb
         fontFamily = font
         material = ShaderMaterial.fromFiles("DefaultForward.vert", "TextBoard.frag")
         material.blending.transparent = true
-        material.blending.sourceColorBlendFactor = Blending.BlendFactor.One
+        material.blending.sourceColorBlendFactor = Blending.BlendFactor.SrcAlpha
         material.blending.destinationColorBlendFactor = Blending.BlendFactor.OneMinusSrcAlpha
         material.blending.sourceAlphaBlendFactor = Blending.BlendFactor.One
         material.blending.destinationAlphaBlendFactor = Blending.BlendFactor.Zero
@@ -95,7 +95,7 @@ class TextBoard(font: String = "SourceSansPro-Regular.ttf", override var isBillb
             material.transferTextures["diffuse"] = GenericTexture("diffuse",
                 GLVector(atlasSize.x(), atlasSize.y(), 1.0f),
                 channels = 1, contents = this.getAtlas(),
-                repeatS = false, repeatT = false,
+                repeatS = TextureRepeatMode.ClampToBorder, repeatT = TextureRepeatMode.ClampToBorder,
                 normalized = true,
                 mipmap = true)
 

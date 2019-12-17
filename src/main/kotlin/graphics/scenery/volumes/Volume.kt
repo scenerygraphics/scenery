@@ -577,7 +577,7 @@ open class Volume : Mesh("Volume") {
             material.transferTextures["transferFunction"] = GenericTexture(
                 "transferFunction", GLVector(transferFunction.textureSize.toFloat(), transferFunction.textureHeight.toFloat(), 1.0f),
                 channels = 1, type = GLTypeEnum.Float, contents = transferFunction.serialise(),
-                repeatS = false, repeatT = false, repeatU = false)
+                repeatS = TextureRepeatMode.ClampToEdge, repeatT = TextureRepeatMode.ClampToEdge, repeatU = TextureRepeatMode.ClampToEdge)
 
             material.textures["diffuse"] = "fromBuffer:transferFunction"
             material.needsTextureReload = true
@@ -608,9 +608,9 @@ open class Volume : Mesh("Volume") {
                                                                      0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0))
         val dim = GLVector(2.0f, 2.0f, 2.0f)
         val gtv = GenericTexture("empty-volume", dim, 1, GLTypeEnum.UnsignedByte, emptyBuffer,
-            repeatS = false,
-            repeatT = false,
-            repeatU = false,
+            repeatS = TextureRepeatMode.ClampToEdge,
+            repeatT = TextureRepeatMode.ClampToEdge,
+            repeatU = TextureRepeatMode.ClampToEdge,
             normalized = true)
 
         material.transferTextures.put("empty-volume", gtv)
@@ -653,9 +653,9 @@ open class Volume : Mesh("Volume") {
         val dim = GLVector(dimensions[0].toFloat(), dimensions[1].toFloat(), dimensions[2].toFloat())
         val gtv = GenericTexture("VolumeTextures", dim,
             1, descriptor.dataType.toGLType(), descriptor.data,
-            repeatS = false,
-            repeatT = false,
-            repeatU = false,
+            repeatS = TextureRepeatMode.ClampToEdge,
+            repeatT = TextureRepeatMode.ClampToEdge,
+            repeatU = TextureRepeatMode.ClampToEdge,
             normalized = true)
 
         boundingBox = generateBoundingBox()

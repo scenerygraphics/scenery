@@ -5,6 +5,7 @@ import cleargl.GLVector
 import com.jogamp.opengl.math.Quaternion
 import graphics.scenery.volumes.bdv.BDVVolume
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.concurrent.thread
 import kotlin.math.PI
 import kotlin.math.atan
 import kotlin.math.cos
@@ -69,6 +70,9 @@ open class Camera : Node("Camera") {
 
                 this.viewSpaceTripod = cameraTripod()
 
+                this.needsUpdate = true
+                this.needsUpdateWorld = true
+
                 if(!targeted) {
                     this.target = this.position + this.forward
                 }
@@ -84,6 +88,9 @@ open class Camera : Node("Camera") {
                 val m = GLMatrix.fromQuaternion(q)
                 this.forward = GLVector(m.get(0, 2), m.get(1, 2), m.get(2, 2)).normalize() * -1.0f
                 this.viewSpaceTripod = cameraTripod()
+
+                this.needsUpdate = true
+                this.needsUpdateWorld = true
             }
         }
 
@@ -257,7 +264,7 @@ open class Camera : Node("Camera") {
      */
     @JvmOverloads fun getNodesForScreenSpacePosition(x: Int, y: Int,
                                                        ignoredObjects: List<Class<*>> = emptyList(),
-                                                       debug: Boolean = false): List<Scene.RaycastResult> {
+                                                       debug: Boolean = false): Scene.RaycastResult {
         val view = (target - position).normalize()
         var h = view.cross(up).normalize()
         var v = h.cross(view)
@@ -278,7 +285,7 @@ open class Camera : Node("Camera") {
         val scene = getScene()
         if(scene == null) {
             logger.warn("No scene found for $this, returning empty list for raycast.")
-            return emptyList()
+            return Scene.RaycastResult(emptyList(), worldPos, worldDir)
         }
 
         return scene.raycast(worldPos, worldDir, ignoredObjects, debug)
@@ -363,6 +370,39 @@ open class Camera : Node("Camera") {
         val y = x.cross(z).normalized
 
         return Tripod(x, y, z)
+    }
+
+    /**
+     * Shows a [message] to the user, at a distance of [distance] meters.
+     * The message can by styled by [size] (in meters), [messageColor] and [backgroundColor].
+     *
+     * It will be shown for [duration] milliseconds, with a default of 3000.
+     */
+    @JvmOverloads fun showMessage(message: String, distance: Float = 0.75f, size: Float = 0.05f, messageColor: GLVector = GLVector.getOneVector(3), backgroundColor: GLVector = GLVector.getNullVector(3), duration: Int = 3000) {
+        val tb = TextBoard()
+        tb.fontColor = messageColor
+        tb.backgroundColor = backgroundColor
+        tb.text = message
+        tb.scale = GLVector(size, size, size)
+        tb.position = GLVector(0.0f, 0.0f, -1.0f * distance)
+
+        val messages = metadata.getOrPut("messages", { mutableListOf<Node>() }) as? MutableList<Node>
+        messages?.forEach { this.removeChild(it) }
+        messages?.clear()
+
+        messages?.add(tb)
+        this.addChild(tb)
+
+        thread {
+            Thread.sleep(duration.toLong())
+
+            this.removeChild(tb)
+            messages?.remove(tb)
+        }
+    }
+
+    override fun composeModel() {
+        model = getTransformation().inverse
     }
 
     companion object {
