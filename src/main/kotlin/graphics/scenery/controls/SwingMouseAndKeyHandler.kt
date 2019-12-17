@@ -32,9 +32,7 @@ package graphics.scenery.controls
 import com.jogamp.newt.awt.NewtCanvasAWT
 import gnu.trove.set.TIntSet
 import graphics.scenery.Hub
-import graphics.scenery.Settings
 import graphics.scenery.backends.SceneryWindow
-import kotlinx.coroutines.supervisorScope
 import org.scijava.ui.behaviour.*
 import org.scijava.ui.behaviour.KeyPressedManager.KeyPressedReceiver
 import java.awt.Component
@@ -162,39 +160,36 @@ class SwingMouseAndKeyHandler(var hub: Hub? = null) : MouseAndKeyHandlerBase(), 
 
 
     override fun mouseDragged(e: MouseEvent) {
-        val supersamplingFactor = hub?.get<Settings>()?.get("Renderer.SupersamplingFactor", 1.0f) ?: 1.0f
-        logger.trace( "MouseAndKeyHandler.mouseDragged()" );
+        		logger.trace( "MouseAndKeyHandler.mouseDragged()" );
         //		logger.trace( e );
         update()
 
-        val x = (e.x * supersamplingFactor).toInt()
-        val y = (e.y * supersamplingFactor).toInt()
+        val x = e.x
+        val y = e.y
 
         for (drag in activeButtonDrags)
             drag.behaviour.drag(x, y)
     }
 
     override fun mouseMoved(e: MouseEvent) {
-        val supersamplingFactor = hub?.get<Settings>()?.get("Renderer.SupersamplingFactor", 1.0f) ?: 1.0f
-        logger.trace( "MouseAndKeyHandler.mouseMoved()" );
+        		logger.trace( "MouseAndKeyHandler.mouseMoved()" );
         update()
 
-        mouseX = (e.x * supersamplingFactor).toInt()
-        mouseY = (e.y * supersamplingFactor).toInt()
+        mouseX = e.x
+        mouseY = e.y
 
         for (drag in activeKeyDrags)
             drag.behaviour.drag(mouseX, mouseY)
     }
 
     override fun mouseWheelMoved(e: MouseWheelEvent) {
-        val supersamplingFactor = hub?.get<Settings>()?.get("Renderer.SupersamplingFactor", 1.0f) ?: 1.0f
-        logger.trace( "MouseAndKeyHandler.mouseWheelMoved()" );
+        		logger.trace( "MouseAndKeyHandler.mouseWheelMoved()" );
         //		logger.trace( e );
         update()
 
         val mask = getMask(e)
-        val x = (e.x * supersamplingFactor).toInt()
-        val y = (e.y * supersamplingFactor).toInt()
+        val x = e.x
+        val y = e.y
         val wheelRotation = e.preciseWheelRotation
 
         /*
@@ -215,15 +210,13 @@ class SwingMouseAndKeyHandler(var hub: Hub? = null) : MouseAndKeyHandlerBase(), 
     }
 
     override fun mouseClicked(e: MouseEvent) {
-        val supersamplingFactor = hub?.get<Settings>()?.get("Renderer.SupersamplingFactor", 1.0f) ?: 1.0f
-
         logger.trace( "MouseAndKeyHandler.mouseClicked()" );
         //		logger.trace( e );
         update()
 
         val mask = getMask(e)
-        val x = (e.x * supersamplingFactor).toInt()
-        val y = (e.y * supersamplingFactor).toInt()
+        val x = e.x
+        val y = e.y
 
         val clickMask = mask and InputTrigger.DOUBLE_CLICK_MASK.inv()
         for (click in buttonClicks) {
@@ -234,15 +227,13 @@ class SwingMouseAndKeyHandler(var hub: Hub? = null) : MouseAndKeyHandlerBase(), 
     }
 
     override fun mousePressed(e: MouseEvent) {
-        val supersamplingFactor = hub?.get<Settings>()?.get("Renderer.SupersamplingFactor", 1.0f) ?: 1.0f
-
         logger.trace( "MouseAndKeyHandler.mousePressed()" )
         //		logger.trace( e );
         update()
 
         val mask = getMask(e)
-        val x = (e.x * supersamplingFactor).toInt()
-        val y = (e.y * supersamplingFactor).toInt()
+        val x = e.x
+        val y = e.y
 
         for (drag in buttonDrags) {
             if (drag.buttons.matches(mask, globalKeys.pressedKeys())) {
@@ -253,14 +244,12 @@ class SwingMouseAndKeyHandler(var hub: Hub? = null) : MouseAndKeyHandlerBase(), 
     }
 
     override fun mouseReleased(e: MouseEvent) {
-        val supersamplingFactor = hub?.get<Settings>()?.get("Renderer.SupersamplingFactor", 1.0f) ?: 1.0f
-
         logger.trace( "MouseAndKeyHandler.mouseReleased()" )
         //		logger.trace( e );
         update()
 
-        val x = (e.x * supersamplingFactor).toInt()
-        val y = (e.y * supersamplingFactor).toInt()
+        val x = e.x
+        val y = e.y
         val mask = getMask(e)
 
         val ended = ArrayList<BehaviourEntry<*>>()
