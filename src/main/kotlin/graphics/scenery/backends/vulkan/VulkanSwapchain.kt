@@ -12,6 +12,8 @@ import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.memFree
 import org.lwjgl.vulkan.*
+import org.lwjgl.vulkan.KHRGetSurfaceCapabilities2.*
+import org.lwjgl.vulkan.KHRSurface.vkDestroySurfaceKHR
 import org.lwjgl.vulkan.KHRSwapchain.VK_ERROR_OUT_OF_DATE_KHR
 import org.lwjgl.vulkan.KHRSwapchain.vkAcquireNextImageKHR
 import java.nio.IntBuffer
@@ -135,12 +137,22 @@ open class VulkanSwapchain(open val device: VulkanDevice,
         val modes = IntArray(presentModes.capacity())
         presentModes.get(modes)
 
-        logger.debug("Available swapchain present modes: ${modes.joinToString(", ")}")
+        logger.debug("Available swapchain present modes: ${modes.joinToString(", ") { swapchainModeToName(it) }}")
         return if(modes.contains(preferredMode) || preferredMode == KHRSurface.VK_PRESENT_MODE_IMMEDIATE_KHR) {
             preferredMode
         } else {
             // VK_PRESENT_MODE_FIFO_KHR is always guaranteed to be available
             KHRSurface.VK_PRESENT_MODE_FIFO_KHR
+        }
+    }
+
+    private fun swapchainModeToName(id: Int): String {
+        return when(id) {
+            0 -> "VK_PRESENT_MODE_IMMEDIATE_KHR"
+            1 -> "VK_PRESENT_MODE_MAILBOX_KHR"
+            2 -> "VK_PRESENT_MODE_FIFO_KHR"
+            3 -> "VK_PRESENT_MODE_FIFO_RELAXED_KHR"
+            else -> "(unknown swapchain mode)"
         }
     }
 
@@ -179,11 +191,11 @@ open class VulkanSwapchain(open val device: VulkanDevice,
             val swapchainPresentMode = findBestPresentMode(presentModes,
                 preferredSwapchainPresentMode)
 
-            logger.debug("Selected present mode: $swapchainPresentMode")
+            logger.debug("Selected present mode: ${swapchainModeToName(swapchainPresentMode)}")
 
             // Determine the number of images
-            var desiredNumberOfSwapchainImages = surfCaps.minImageCount() + 1
-            if (surfCaps.maxImageCount() in 1..(desiredNumberOfSwapchainImages - 1)) {
+            var desiredNumberOfSwapchainImages = surfCaps.minImageCount()
+            if (surfCaps.maxImageCount() in 1 until desiredNumberOfSwapchainImages) {
                 desiredNumberOfSwapchainImages = surfCaps.maxImageCount()
             }
 
@@ -528,6 +540,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
     override fun close() {
         logger.debug("Closing swapchain $this")
         KHRSwapchain.vkDestroySwapchainKHR(device.vulkanDevice, handle, null)
+        vkDestroySurfaceKHR(device.instance, surface, null)
 
         presentInfo.free()
         MemoryUtil.memFree(swapchainImage)

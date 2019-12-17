@@ -5,7 +5,6 @@ import cleargl.GLVector
 import com.sun.jna.Library
 import com.sun.jna.Native
 import graphics.scenery.backends.Renderer
-import graphics.scenery.backends.opengl.OpenGLRenderer
 import graphics.scenery.controls.InputHandler
 import graphics.scenery.controls.behaviours.ArcballCameraControl
 import graphics.scenery.controls.behaviours.FPSCameraControl
@@ -13,6 +12,8 @@ import graphics.scenery.net.NodePublisher
 import graphics.scenery.net.NodeSubscriber
 import graphics.scenery.repl.REPL
 import graphics.scenery.utils.LazyLogger
+import graphics.scenery.utils.Profiler
+import graphics.scenery.utils.RemoteryProfiler
 import graphics.scenery.utils.Renderdoc
 import graphics.scenery.utils.SceneryPanel
 import graphics.scenery.utils.Statistics
@@ -143,6 +144,10 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         logger.info("Started application as PID ${getProcessID()}")
         running = true
 
+        if(parseBoolean(System.getProperty("scenery.Profiler", "false"))) {
+            hub.add(RemoteryProfiler(hub))
+        }
+
         val headless = parseBoolean(System.getProperty("scenery.Headless", "false"))
         val renderdoc = if(System.getProperty("scenery.AttachRenderdoc")?.toBoolean() == true) {
             Renderdoc()
@@ -235,16 +240,20 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
         val frameTimes = ArrayDeque<Float>(16)
         val frameTimeKeepCount = 16
 
+        val profiler = hub.get<Profiler>()
+
         while (!shouldClose || gracePeriod > 0) {
             runtime = (System.nanoTime() - startTime) / 1000000f
             settings.set("System.Runtime", runtime)
 
+            profiler?.begin("Render")
             if (renderer?.managesRenderLoop != false) {
                 renderer?.render()
                 Thread.sleep(1)
             } else {
                 stats.addTimed("render") { renderer?.render() ?: 0.0f }
             }
+            profiler?.end()
 
             // only run loop if we are either in standalone mode, or master
             // for details about the interpolation code, see
@@ -325,10 +334,12 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
             }
         }
 
-        inputHandler?.close()
-        renderer?.close()
-        renderdoc?.close()
         running = false
+        inputHandler?.close()
+        renderdoc?.close()
+
+        hub.get<Profiler>()?.close()
+        hub.get<Statistics>()?.close()
     }
 
     /**
@@ -375,10 +386,17 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
     /**
      * Sets the shouldClose flag on renderer, causing it to shut down and thereby ending the main loop.
      */
-    fun close() {
+    open fun close() {
         shouldClose = true
-        gracePeriod = 10
+        gracePeriod = 60
         renderer?.close()
+
+        while(gracePeriod > 0 || renderer?.initialized == true) {
+            logger.debug("Waiting for grace period to go to 0, current=$gracePeriod")
+            Thread.sleep(100)
+        }
+
+        renderer = null
 
         (hub.get(SceneryElement.NodePublisher) as? NodePublisher)?.close()
         (hub.get(SceneryElement.NodeSubscriber) as? NodeSubscriber)?.close()

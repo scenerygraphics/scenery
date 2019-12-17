@@ -1,7 +1,8 @@
 package graphics.scenery.controls.behaviours
 
-import cleargl.GLVector
-import graphics.scenery.*
+import graphics.scenery.BoundingGrid
+import graphics.scenery.Camera
+import graphics.scenery.Scene
 import graphics.scenery.backends.Renderer
 import graphics.scenery.utils.LazyLogger
 import org.scijava.ui.behaviour.ClickBehaviour
@@ -26,7 +27,7 @@ open class SelectCommand @JvmOverloads constructor(protected val name: String,
                                                    protected val camera: () -> Camera?,
                                                    protected var debugRaycast: Boolean = false,
                                                    var ignoredObjects: List<Class<*>> = listOf<Class<*>>(BoundingGrid::class.java),
-                                                   protected var action: ((List<Scene.RaycastResult>) -> Unit) = {}) : ClickBehaviour {
+                                                   protected var action: ((Scene.RaycastResult, Int, Int) -> Unit) = { _, _, _ -> Unit }) : ClickBehaviour {
     protected val logger by LazyLogger()
 
     protected val cam: Camera? by CameraDelegate()
@@ -52,7 +53,7 @@ open class SelectCommand @JvmOverloads constructor(protected val name: String,
     override fun click(x: Int, y: Int) {
         cam?.let { cam ->
             val matches = cam.getNodesForScreenSpacePosition(x, y, ignoredObjects, debugRaycast)
-            action.invoke(matches)
+            action.invoke(matches, x, y)
         }
     }
 }

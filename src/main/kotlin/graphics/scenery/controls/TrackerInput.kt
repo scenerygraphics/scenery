@@ -119,6 +119,13 @@ interface TrackerInput {
     fun getPose(): GLMatrix
 
     /**
+     * Returns a list of poses for the devices [type] given.
+     *
+     * @return Pose as GLMatrix
+     */
+    fun getPose(type: TrackedDeviceType): List<TrackedDevice>
+
+    /**
      * Returns the HMD pose for a given eye.
      *
      * @param[eye] The eye to return the pose for.

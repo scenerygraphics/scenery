@@ -92,5 +92,6 @@ class NodePublisher(override var hub: Hub?, val address: String = "tcp://127.0.0
 
     fun close() {
         context.destroySocket(publisher)
+        context.close()
     }
 }

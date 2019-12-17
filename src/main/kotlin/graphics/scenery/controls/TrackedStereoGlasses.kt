@@ -200,6 +200,15 @@ class TrackedStereoGlasses(var address: String = "device@localhost:5500", var sc
     }
 
     /**
+     * Returns a list of poses for the devices [type] given.
+     *
+     * @return Pose as GLMatrix
+     */
+    override fun getPose(type: TrackedDeviceType): List<TrackedDevice> {
+        return listOf(TrackedDevice(TrackedDeviceType.HMD, "StereoGlasses", getPose(), System.nanoTime()))
+    }
+
+    /**
      * Check whether the HMD is initialized and working
      *
      * @return True if HMD is initialised correctly and working properly

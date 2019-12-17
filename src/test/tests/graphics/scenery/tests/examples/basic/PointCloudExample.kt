@@ -3,6 +3,7 @@ package graphics.scenery.tests.examples.basic
 import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
+import graphics.scenery.numerics.Random
 import org.junit.Test
 
 /**
@@ -14,53 +15,41 @@ import org.junit.Test
  * @author Kyle Harrington <kharrington@uidaho.edu>
  */
 class PointCloudExample : SceneryBase("PointCloudExample") {
-    protected var lineAnimating = true
-
     override fun init() {
         renderer = hub.add(Renderer.createRenderer(hub, applicationName, scene, windowWidth, windowHeight))
+        renderer?.pushMode = true
 
-        val hull = Box(GLVector(50.0f, 50.0f, 50.0f), insideNormals = true)
+        val hull = Box(GLVector(20.0f, 20.0f, 20.0f), insideNormals = true)
         hull.material.diffuse = GLVector(0.2f, 0.2f, 0.2f)
         hull.material.cullingMode = Material.CullingMode.Front
         scene.addChild(hull)
 
-
-        val colors = arrayOf(
-            GLVector(1.0f, 0.0f, 0.0f),
-            GLVector(0.0f, 1.0f, 0.0f),
-            GLVector(0.0f, 0.0f, 1.0f)
-        )
-
-        val lights = (0..2).map {
-            PointLight()
-        }
+        val lights = Light.createLightTetrahedron<PointLight>(spread = 5.0f, radius = 15.0f)
 
         lights.mapIndexed { i, light ->
-            light.position = GLVector(2.0f * i, 2.0f * i, 2.0f * i)
-            light.emissionColor = GLVector(1.0f, 1.0f, 1.0f)
-            light.intensity = 5000.2f*(i+1)
+            light.emissionColor = Random.randomVectorFromRange(3, 0.2f, 0.8f)
+            light.intensity = 0.5f
             scene.addChild(light)
         }
 
         val cam: Camera = DetachedHeadCamera()
-        cam.position = GLVector(0.0f, 0.0f, 15.0f)
+        cam.position = GLVector(0.0f, 0.0f, 5.0f)
         cam.perspectiveCamera(50.0f, windowWidth.toFloat(), windowHeight.toFloat())
         cam.active = true
 
         scene.addChild(cam)
 
-        val pcmaterial = Material()
-        pcmaterial.ambient = GLVector(1.0f, 1.0f, 1.0f)
-        pcmaterial.diffuse = GLVector(1.0f, 1.0f, 0.0f)
-        pcmaterial.specular = GLVector(1.0f, 1.0f, 1.0f)
-        pcmaterial.cullingMode = Material.CullingMode.None
-
-        val pointCloud = PointCloud(pointRadius = 0.025f)
+        val pointCloud = PointCloud()
         with(pointCloud) {
             readFromOBJ( TexturedCubeExample::class.java.getResource("models/sphere.obj").file, importMaterials = false)
-            position = GLVector(0.0f, 0.0f, 0.0f)
             name = "Sphere Mesh"
-            material = pcmaterial
+            for(i in 0 until pointCloud.texcoords.limit()) {
+                pointCloud.texcoords.put(i, Random.randomFromRange(10.0f, 25.0f))
+            }
+
+            for(i in 0 until pointCloud.normals.limit()) {
+                pointCloud.normals.put(i, Random.randomFromRange(0.2f, 0.8f))
+            }
             setupPointCloud()
 
             scene.addChild(this)

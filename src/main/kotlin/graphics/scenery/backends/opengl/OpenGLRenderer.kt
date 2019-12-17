@@ -5,7 +5,7 @@ import com.jogamp.nativewindow.WindowClosingProtocol
 import com.jogamp.newt.event.WindowAdapter
 import com.jogamp.newt.event.WindowEvent
 import com.jogamp.opengl.*
-import com.jogamp.opengl.util.FPSAnimator
+import com.jogamp.opengl.util.Animator
 import com.jogamp.opengl.util.awt.AWTGLReadBufferUtil
 import graphics.scenery.*
 import graphics.scenery.backends.*
@@ -76,7 +76,7 @@ open class OpenGLRenderer(hub: Hub,
     /** [GL4] instance handed over, coming from [ClearGLDefaultEventListener]*/
     private lateinit var gl: GL4
     /** should the window close on next looping? */
-    override var shouldClose = false
+    @Volatile override var shouldClose = false
     /** the scenery window */
     final override var window: SceneryWindow = SceneryWindow.UninitializedWindow()
     /** separately stored ClearGLWindow */
@@ -128,7 +128,7 @@ open class OpenGLRenderer(hub: Hub,
     override var lastFrameTime = System.nanoTime() * 1.0f
     private var currentTime = System.nanoTime()
 
-    override var initialized = false
+    @Volatile override var initialized = false
     override var firstImageReady: Boolean = false
         protected set
 
@@ -421,8 +421,8 @@ open class OpenGLRenderer(hub: Hub,
 
                 addGLEventListener(this@OpenGLRenderer)
 
-                animator = FPSAnimator(this, 60)
-                animator.setUpdateFPSFrames(60, null)
+                animator = Animator()
+                animator.add(this)
                 animator.start()
 
                 embedInDrawable?.let { glAutoDrawable ->
@@ -454,7 +454,8 @@ open class OpenGLRenderer(hub: Hub,
             @Suppress("LeakingThis")
             cglWindow = ClearGLWindow("",
                 w,
-                h, this).apply {
+                h, this,
+                false).apply {
 
                 if(embedIn == null) {
                     window = SceneryWindow.ClearGLWindow(this)
@@ -463,8 +464,8 @@ open class OpenGLRenderer(hub: Hub,
 
                     val windowAdapter = object: WindowAdapter() {
                         override fun windowDestroyNotify(e: WindowEvent?) {
-                            shouldClose = true
-                            cglWindow?.close()
+                            logger.debug("Signalling close from window event")
+                            e?.isConsumed = true
                         }
                     }
 
@@ -472,7 +473,7 @@ open class OpenGLRenderer(hub: Hub,
 
                     this.setFPS(60)
                     this.start()
-                    this.setDefaultCloseOperation(WindowClosingProtocol.WindowClosingMode.DO_NOTHING_ON_CLOSE)
+                    this.setDefaultCloseOperation(WindowClosingProtocol.WindowClosingMode.DISPOSE_ON_CLOSE)
 
                     this.isVisible = true
                 }
@@ -561,6 +562,23 @@ open class OpenGLRenderer(hub: Hub,
         return this.metadata["OpenGLRenderer"] as? OpenGLObjectState
     }
 
+    private fun getSupersamplingFactor(window: ClearGLWindow?): Float {
+        val supersamplingFactor = if(settings.get<Float>("Renderer.SupersamplingFactor").toInt() == 1) {
+            val window = cglWindow
+            if(window != null && ClearGLWindow.isRetina(window.gl)) {
+                logger.debug("Setting Renderer.SupersamplingFactor to 0.5, as we are rendering on a retina display.")
+                settings.set("Renderer.SupersamplingFactor", 0.5f)
+                0.5f
+            } else {
+                settings.get("Renderer.SupersamplingFactor")
+            }
+        } else {
+            settings.get("Renderer.SupersamplingFactor")
+        }
+
+        return supersamplingFactor
+    }
+
     fun prepareRenderpasses(config: RenderConfigReader.RenderConfig, windowWidth: Int, windowHeight: Int): LinkedHashMap<String, OpenGLRenderpass> {
         if(config.sRGB) {
             gl.glEnable(GL4.GL_FRAMEBUFFER_SRGB)
@@ -575,18 +593,7 @@ open class OpenGLRenderer(hub: Hub,
 
         val flow = renderConfig.createRenderpassFlow()
 
-        val supersamplingFactor = if(settings.get<Float>("Renderer.SupersamplingFactor").toInt() == 1) {
-            val window = cglWindow
-            if(window != null && ClearGLWindow.isRetina(window.gl)) {
-                logger.debug("Setting Renderer.SupersamplingFactor to 0.5, as we are rendering on a retina display.")
-                settings.set("Renderer.SupersamplingFactor", 0.5f)
-                0.5f
-            } else {
-                settings.get("Renderer.SupersamplingFactor")
-            }
-        } else {
-            settings.get("Renderer.SupersamplingFactor")
-        }
+        val supersamplingFactor = getSupersamplingFactor(cglWindow)
 
         scene.findObserver()?.let { cam ->
             cam.perspectiveCamera(cam.fov, windowWidth * supersamplingFactor, windowHeight * supersamplingFactor, cam.nearPlaneDistance, cam.farPlaneDistance)
@@ -786,7 +793,26 @@ open class OpenGLRenderer(hub: Hub,
     }
 
     override fun dispose(pDrawable: GLAutoDrawable) {
-        cglWindow?.stop()
+        initialized = false
+        try {
+
+            scene.discover(scene, { _ -> true }).forEach {
+                destroyNode(it)
+            }
+
+            scene.initialized = false
+
+            if(cglWindow != null) {
+                logger.debug("Closing window")
+                joglDrawable?.animator?.stop()
+            } else {
+                logger.debug("Closing drawable")
+                joglDrawable?.animator?.stop()
+            }
+
+        } catch(e: ThreadDeath) {
+            logger.debug("Caught JOGL ThreadDeath, ignoring.")
+        }
     }
 
     /**
@@ -1506,30 +1532,6 @@ open class OpenGLRenderer(hub: Hub,
 
         if (shouldClose) {
             initialized = false
-            try {
-                logger.info("Closing window")
-
-                scene.discover(scene, { _ -> true }).forEach {
-                    destroyNode(it)
-                }
-
-                scene.initialized = false
-
-                if(cglWindow == null) {
-                    joglDrawable?.animator?.stop()
-                    joglDrawable?.destroy()
-                } else {
-                    cglWindow?.close()
-                }
-
-                gl.glDeleteBuffers(1, buffers.LightParameters.id, 0)
-                gl.glDeleteBuffers(1, buffers.VRParameters.id, 0)
-                gl.glDeleteBuffers(1, buffers.UBOs.id, 0)
-                gl.glDeleteBuffers(1, buffers.ShaderParameters.id, 0)
-                gl.glDeleteBuffers(1, buffers.ShaderProperties.id, 0)
-            } catch(e: ThreadDeath) {
-                logger.debug("Caught JOGL ThreadDeath, ignoring.")
-            }
             return@runBlocking
         }
 
@@ -2011,7 +2013,12 @@ open class OpenGLRenderer(hub: Hub,
                     File(movieFilename)
                 }, false)
 
-                encoder = H264Encoder(window.width, window.height, file.absolutePath, hub = hub)
+                val supersamplingFactor = getSupersamplingFactor(cglWindow)
+                encoder = H264Encoder(
+                    (supersamplingFactor * window.width).toInt(),
+                    (supersamplingFactor * window.height).toInt(),
+                    file.absolutePath,
+                    hub = hub)
             }
 
             readIndex = (readIndex + 1) % pboCount
@@ -2110,7 +2117,7 @@ open class OpenGLRenderer(hub: Hub,
                     request.data = tmp.array()
                 }
 
-                if(screenshotRequested) {
+                if(screenshotRequested && image != null) {
                     ImageIO.write(image, "png", file)
                     logger.info("Screenshot saved to ${file.absolutePath}")
                 }
@@ -2353,6 +2360,23 @@ open class OpenGLRenderer(hub: Hub,
         MemoryUtil.memFree(buffer)
     }
 
+    private fun TextureRepeatMode.toOpenGL(): Int {
+        return when(this) {
+            TextureRepeatMode.Repeat -> GL4.GL_REPEAT
+            TextureRepeatMode.MirroredRepeat -> GL4.GL_MIRRORED_REPEAT
+            TextureRepeatMode.ClampToEdge -> GL4.GL_CLAMP_TO_EDGE
+            TextureRepeatMode.ClampToBorder -> GL4.GL_CLAMP_TO_BORDER
+        }
+    }
+
+    private fun TextureBorderColor.toOpenGL(type: GLTypeEnum): FloatArray {
+        return when(this) {
+            TextureBorderColor.TransparentBlack -> floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f)
+            TextureBorderColor.OpaqueBlack -> floatArrayOf(0.0f, 0.0f, 0.0f, 1.0f)
+            TextureBorderColor.OpaqueWhite -> floatArrayOf(1.0f, 1.0f, 1.0f, 1.0f)
+        }
+    }
+
     /**
      * Loads textures for a [Node]. The textures either come from a [Material.transferTextures] buffer,
      * or from a file. This is indicated by stating fromBuffer:bufferName in the textures hash map.
@@ -2370,7 +2394,7 @@ open class OpenGLRenderer(hub: Hub,
                 val generateMipmaps = GenericTexture.mipmappedObjectTextures.contains(type)
                 if (texture.startsWith("fromBuffer:")) {
                     val gt = node.material.transferTextures[texture.substringAfter("fromBuffer:")]
-                    gt?.let { (_, dimensions, channels, type1, contentsOriginal, repeatS, repeatT, repeatU, normalized, mipmap, minLinear, maxLinear, updates) ->
+                    gt?.let { (_, dimensions, channels, type1, contentsOriginal, repeatS, repeatT, repeatU, borderColor, normalized, mipmap, minLinear, maxLinear, updates) ->
 
                         val contents = contentsOriginal?.duplicate()
                         logger.debug("Dims of $texture: $dimensions, mipmaps=$generateMipmaps")
@@ -2391,14 +2415,19 @@ open class OpenGLRenderer(hub: Hub,
                                 dimensions.y().toInt(),
                                 dimensions.z().toInt() ?: 1,
                                 minLinear,
-                                miplevels, 32, normalized, renderConfig.sRGB)
+                                miplevels, 32,
+                                normalized, renderConfig.sRGB)
                         }
 
                         if (mm) {
                             t.updateMipMaps()
                         }
 
-                        t.setClamp(!repeatS, !repeatT)
+                        t.setRepeatModeS(repeatS.toOpenGL())
+                        t.setRepeatModeT(repeatT.toOpenGL())
+                        t.setRepeatModeR(repeatU.toOpenGL())
+
+                        t.setTextureBorderColor(borderColor.toOpenGL(type1))
 
                         val unpackAlignment = intArrayOf(0)
                         gl.glGetIntegerv(GL4.GL_UNPACK_ALIGNMENT, unpackAlignment, 0)
@@ -2917,8 +2946,16 @@ open class OpenGLRenderer(hub: Hub,
      * Closes this renderer instance.
      */
     override fun close() {
+        if (shouldClose || !initialized) {
+            return
+        }
+
         shouldClose = true
 
+        lastResizeTimer.cancel()
         encoder?.finish()
+
+        cglWindow?.closeNoEDT()
+        joglDrawable?.destroy()
     }
 }
