@@ -3,6 +3,7 @@ package graphics.scenery.controls
 import com.jogamp.newt.awt.NewtCanvasAWT
 import com.jogamp.newt.event.*
 import graphics.scenery.Hub
+import graphics.scenery.Settings
 import graphics.scenery.backends.SceneryWindow
 import graphics.scenery.utils.ExtractsNatives
 import net.java.games.input.ControllerListener
@@ -114,10 +115,12 @@ open class JOGLMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandlerB
      * @param[e] The incoming MouseEvent
      */
     override fun mouseMoved(e: MouseEvent) {
+        val supersamplingFactor = hub?.get<Settings>()?.get("Renderer.SupersamplingFactor", 1.0f) ?: 1.0f
+
         update()
 
-        mouseX = e.x
-        mouseY = e.y
+        mouseX = (e.x * supersamplingFactor).toInt()
+        mouseY = (e.y * supersamplingFactor).toInt()
 
         for (drag in activeKeyDrags)
             drag.behaviour.drag(mouseX, mouseY)
@@ -138,11 +141,13 @@ open class JOGLMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandlerB
      * @param[e] The incoming MouseEvent
      */
     override fun mouseClicked(e: MouseEvent) {
+        val supersamplingFactor = hub?.get<Settings>()?.get("Renderer.SupersamplingFactor", 1.0f) ?: 1.0f
+
         update()
 
         val mask = getMask(e)
-        val x = e.x
-        val y = e.y
+        val x = (e.x * supersamplingFactor).toInt()
+        val y = (e.y * supersamplingFactor).toInt()
 
         val clickMask = mask and InputTrigger.DOUBLE_CLICK_MASK.inv()
         buttonClicks
@@ -156,11 +161,13 @@ open class JOGLMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandlerB
      * @param[e] The incoming mouse event
      */
     override fun mouseWheelMoved(e: MouseEvent) {
+        val supersamplingFactor = hub?.get<Settings>()?.get("Renderer.SupersamplingFactor", 1.0f) ?: 1.0f
+
         update()
 
         val mask = getMask(e)
-        val x = e.x
-        val y = e.y
+        val x = (e.x * supersamplingFactor).toInt()
+        val y = (e.y * supersamplingFactor).toInt()
         val wheelRotation = e.rotation
 
         /*
@@ -190,10 +197,12 @@ open class JOGLMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandlerB
      * @param[e] The incoming mouse event
      */
     override fun mouseReleased(e: MouseEvent) {
+        val supersamplingFactor = hub?.get<Settings>()?.get("Renderer.SupersamplingFactor", 1.0f) ?: 1.0f
+
         update()
 
-        val x = e.x
-        val y = e.y
+        val x = (e.x * supersamplingFactor).toInt()
+        val y = (e.y * supersamplingFactor).toInt()
 
         for (drag in activeButtonDrags)
             drag.behaviour.end(x, y)
@@ -206,10 +215,12 @@ open class JOGLMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandlerB
      * @param[e] The incoming mouse event
      */
     override fun mouseDragged(e: MouseEvent) {
+        val supersamplingFactor = hub?.get<Settings>()?.get("Renderer.SupersamplingFactor", 1.0f) ?: 1.0f
+
         update()
 
-        val x = e.x
-        val y = e.y
+        val x = (e.x * supersamplingFactor).toInt()
+        val y = (e.y * supersamplingFactor).toInt()
 
         for (drag in activeButtonDrags) {
             drag.behaviour.drag(x, y)
@@ -231,11 +242,13 @@ open class JOGLMouseAndKeyHandler(protected var hub: Hub?) : MouseAndKeyHandlerB
      * @param[e] The incoming mouse event
      */
     override fun mousePressed(e: MouseEvent) {
+        val supersamplingFactor = hub?.get<Settings>()?.get("Renderer.SupersamplingFactor", 1.0f) ?: 1.0f
+
         update()
 
         val mask = getMask(e)
-        val x = e.x
-        val y = e.y
+        val x = (e.x * supersamplingFactor).toInt()
+        val y = (e.y * supersamplingFactor).toInt()
 
         for (drag in buttonDrags) {
             if (drag.buttons.matches(mask, pressedKeys)) {
