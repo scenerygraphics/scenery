@@ -5,7 +5,7 @@ import com.jogamp.nativewindow.WindowClosingProtocol
 import com.jogamp.newt.event.WindowAdapter
 import com.jogamp.newt.event.WindowEvent
 import com.jogamp.opengl.*
-import com.jogamp.opengl.util.FPSAnimator
+import com.jogamp.opengl.util.Animator
 import com.jogamp.opengl.util.awt.AWTGLReadBufferUtil
 import graphics.scenery.*
 import graphics.scenery.backends.*
@@ -76,7 +76,7 @@ open class OpenGLRenderer(hub: Hub,
     /** [GL4] instance handed over, coming from [ClearGLDefaultEventListener]*/
     private lateinit var gl: GL4
     /** should the window close on next looping? */
-    override var shouldClose = false
+    @Volatile override var shouldClose = false
     /** the scenery window */
     final override var window: SceneryWindow = SceneryWindow.UninitializedWindow()
     /** separately stored ClearGLWindow */
@@ -128,7 +128,7 @@ open class OpenGLRenderer(hub: Hub,
     override var lastFrameTime = System.nanoTime() * 1.0f
     private var currentTime = System.nanoTime()
 
-    override var initialized = false
+    @Volatile override var initialized = false
     override var firstImageReady: Boolean = false
         protected set
 
@@ -421,8 +421,8 @@ open class OpenGLRenderer(hub: Hub,
 
                 addGLEventListener(this@OpenGLRenderer)
 
-                animator = FPSAnimator(this, 60)
-                animator.setUpdateFPSFrames(60, null)
+                animator = Animator()
+                animator.add(this)
                 animator.start()
 
                 embedInDrawable?.let { glAutoDrawable ->
@@ -454,7 +454,8 @@ open class OpenGLRenderer(hub: Hub,
             @Suppress("LeakingThis")
             cglWindow = ClearGLWindow("",
                 w,
-                h, this).apply {
+                h, this,
+                false).apply {
 
                 if(embedIn == null) {
                     window = SceneryWindow.ClearGLWindow(this)
@@ -463,8 +464,8 @@ open class OpenGLRenderer(hub: Hub,
 
                     val windowAdapter = object: WindowAdapter() {
                         override fun windowDestroyNotify(e: WindowEvent?) {
-                            shouldClose = true
-                            cglWindow?.close()
+                            logger.debug("Signalling close from window event")
+                            e?.isConsumed = true
                         }
                     }
 
@@ -472,7 +473,7 @@ open class OpenGLRenderer(hub: Hub,
 
                     this.setFPS(60)
                     this.start()
-                    this.setDefaultCloseOperation(WindowClosingProtocol.WindowClosingMode.DO_NOTHING_ON_CLOSE)
+                    this.setDefaultCloseOperation(WindowClosingProtocol.WindowClosingMode.DISPOSE_ON_CLOSE)
 
                     this.isVisible = true
                 }
@@ -792,7 +793,26 @@ open class OpenGLRenderer(hub: Hub,
     }
 
     override fun dispose(pDrawable: GLAutoDrawable) {
-        cglWindow?.stop()
+        initialized = false
+        try {
+
+            scene.discover(scene, { _ -> true }).forEach {
+                destroyNode(it)
+            }
+
+            scene.initialized = false
+
+            if(cglWindow != null) {
+                logger.debug("Closing window")
+                joglDrawable?.animator?.stop()
+            } else {
+                logger.debug("Closing drawable")
+                joglDrawable?.animator?.stop()
+            }
+
+        } catch(e: ThreadDeath) {
+            logger.debug("Caught JOGL ThreadDeath, ignoring.")
+        }
     }
 
     /**
@@ -1512,30 +1532,6 @@ open class OpenGLRenderer(hub: Hub,
 
         if (shouldClose) {
             initialized = false
-            try {
-                logger.info("Closing window")
-
-                scene.discover(scene, { _ -> true }).forEach {
-                    destroyNode(it)
-                }
-
-                scene.initialized = false
-
-                if(cglWindow == null) {
-                    joglDrawable?.animator?.stop()
-                    joglDrawable?.destroy()
-                } else {
-                    cglWindow?.close()
-                }
-
-                gl.glDeleteBuffers(1, buffers.LightParameters.id, 0)
-                gl.glDeleteBuffers(1, buffers.VRParameters.id, 0)
-                gl.glDeleteBuffers(1, buffers.UBOs.id, 0)
-                gl.glDeleteBuffers(1, buffers.ShaderParameters.id, 0)
-                gl.glDeleteBuffers(1, buffers.ShaderProperties.id, 0)
-            } catch(e: ThreadDeath) {
-                logger.debug("Caught JOGL ThreadDeath, ignoring.")
-            }
             return@runBlocking
         }
 
@@ -2950,8 +2946,16 @@ open class OpenGLRenderer(hub: Hub,
      * Closes this renderer instance.
      */
     override fun close() {
+        if (shouldClose || !initialized) {
+            return
+        }
+
         shouldClose = true
 
+        lastResizeTimer.cancel()
         encoder?.finish()
+
+        cglWindow?.closeNoEDT()
+        joglDrawable?.destroy()
     }
 }

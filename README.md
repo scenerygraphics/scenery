@@ -199,9 +199,11 @@ scenery has been tested with a number of different systems and GPUs. If you have
 | AMD FirePro W9100 (Hawaii XT) | ✅ | ✅ | ⬜ | ⬜ | ⬜ |
 | Intel HD Graphics 4400 (Haswell) | ✅ | 🚫 | ✅ | ✅ | ⬜ |
 | Intel HD Graphics 5500 (Broadwell) | ⬜ | 🚫 | ✅ | ⬜ | ⬜ |
+| Intel Iris Plus Graphics (Ice Lake) | ✅ | ✅ | ⬜ | ⬜ | ⬜ |
+| Nvidia GeForce RTX 2070 (Turing) | ✅ | ✅ | ⬜ | ⬜	 | ⬜	 |
 | Nvidia Geforce Titan X (Maxwell) | ✅ | ✅ | ✅ | ✅ | ⬜	 |
 | Nvidia Titan Xp (Pascal) | ✅ | ✅ | ⬜ | ⬜	 | ⬜	 |
-| Nvidia Geforce 1080 Ti (Pascal) | ✅ | ✅ | ✅ | ✅| ⬜	 |
+| Nvidia Geforce 1080 Ti (Pascal) | ✅ | ✅ | ✅ | ✅ | ⬜	 |
 | Nvidia Geforce 1070 (Pascal) | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Nvidia Geforce 960 (Maxwell) | ✅ | ✅ | ⬜ | ⬜ | ⬜ |
 | Nvidia Quadro K6000 (Kepler) | ✅ | ✅ | ⬜ | ⬜ | ⬜ |

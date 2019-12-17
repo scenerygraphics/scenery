@@ -1079,14 +1079,17 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
         }
 
         logger.info("Adding child $node to $camera")
-        camera?.addChild(node)
+        camera?.getScene()?.addChild(node)
 
         node.update.add {
             this.getPose(TrackedDeviceType.Controller).firstOrNull { it.name == device.name }?.let { controller ->
 
                 node.wantsComposeModel = false
                 node.model.setIdentity()
-                node.model.mult(controller.pose.invert())
+                camera?.let {
+                    node.model.translate(it.position)
+                }
+                node.model.mult(controller.pose)
 
 //                logger.info("Updating pose of $controller, ${node.model}")
 
