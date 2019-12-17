@@ -71,5 +71,14 @@ class VulkanBufferPool(val device: VulkanDevice,
             "Backing store buffer $i: $it"
         }.joinToString("\n")
     }
+
+    /**
+     * Closes this buffer pool.
+     */
+    fun close() {
+        backingStore.forEach { store ->
+            store.buffer.close()
+        }
+    }
 }
 
