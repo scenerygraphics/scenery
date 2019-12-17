@@ -413,7 +413,7 @@ class SwingMouseAndKeyHandler(var hub: Hub? = null) : MouseAndKeyHandlerBase(), 
         pressedKeys.clear()
     }
 
-    override fun attach(window: SceneryWindow, inputMap: InputTriggerMap, behaviourMap: BehaviourMap): MouseAndKeyHandlerBase {
+    override fun attach(hub: Hub?, window: SceneryWindow, inputMap: InputTriggerMap, behaviourMap: BehaviourMap): MouseAndKeyHandlerBase {
         val handler: MouseAndKeyHandlerBase
         when (window) {
             is SceneryWindow.SwingWindow -> {
@@ -429,7 +429,7 @@ class SwingMouseAndKeyHandler(var hub: Hub? = null) : MouseAndKeyHandlerBase(), 
                     cglWindow.addKeyListener(handler)
                     cglWindow.addMouseListener(handler)
                 } else {
-                    handler = SwingMouseAndKeyHandler()
+                    handler = SwingMouseAndKeyHandler(hub)
 
                     handler.setInputMap(inputMap)
                     handler.setBehaviourMap(behaviourMap)
