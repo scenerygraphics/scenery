@@ -99,7 +99,8 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
             val queueCreateInfo = VkDeviceQueueCreateInfo.callocStack(requiredFamilies.size, stack)
 
             requiredFamilies.entries.forEachIndexed { i, (familyIndex, group) ->
-                logger.debug("Adding queue with familyIndex=$familyIndex, size=${group.size}")
+                val size = minOf(queueProps.get(familyIndex).queueCount(), group.size)
+                logger.debug("Adding queue with familyIndex=$familyIndex, size=$size")
 
                 val pQueuePriorities = stack.callocFloat(group.size)
                 for(pr in 0 until group.size) { pQueuePriorities.put(pr, 1.0f) }
@@ -108,8 +109,7 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
                     .sType(VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO)
                     .queueFamilyIndex(familyIndex)
                     .pQueuePriorities(pQueuePriorities)
-                    // TODO: Check the queue size does not exceed the device's available queue count
-                    .queueCount(group.size)
+                    .queueCount(size)
             }
 
             val extensionsRequested = extensionsQuery.invoke(physicalDevice)
@@ -234,6 +234,7 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
                 throw IllegalStateException("Failed to create command pool: " + VU.translate(err))
             }
 
+            logger.debug("Created command pool ${commandPool.toHexString()}")
             commandPool
         }
     }

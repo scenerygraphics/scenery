@@ -4,6 +4,7 @@ import graphics.scenery.GenericTexture
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
 import graphics.scenery.NodeMetadata
+import graphics.scenery.backends.RenderConfigReader
 import graphics.scenery.utils.LazyLogger
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
@@ -88,7 +89,11 @@ open class VulkanObjectState : NodeMetadata {
                     device,
                     descriptorPool)
             } else {
-                logger.warn("$this: DSL for ObjectTextures not found for pass $passName")
+                if(pass.passConfig.type == RenderConfigReader.RenderpassType.geometry) {
+                    logger.warn("$this: DSL for ObjectTextures not found for pass $passName")
+                } else {
+                    logger.debug("$this: DSL for ObjectTextures not found for pass $passName")
+                }
             }
 
             others?.forEach { texture ->

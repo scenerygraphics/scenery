@@ -12,6 +12,8 @@ import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil
 import org.lwjgl.system.MemoryUtil.memFree
 import org.lwjgl.vulkan.*
+import org.lwjgl.vulkan.KHRGetSurfaceCapabilities2.*
+import org.lwjgl.vulkan.KHRSurface.vkDestroySurfaceKHR
 import org.lwjgl.vulkan.KHRSwapchain.VK_ERROR_OUT_OF_DATE_KHR
 import org.lwjgl.vulkan.KHRSwapchain.vkAcquireNextImageKHR
 import java.nio.IntBuffer
@@ -538,6 +540,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
     override fun close() {
         logger.debug("Closing swapchain $this")
         KHRSwapchain.vkDestroySwapchainKHR(device.vulkanDevice, handle, null)
+        vkDestroySurfaceKHR(device.instance, surface, null)
 
         presentInfo.free()
         MemoryUtil.memFree(swapchainImage)
