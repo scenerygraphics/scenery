@@ -21,7 +21,7 @@ variables:
     - unzip -q scenery-demo-models.zip
   script:
     - mvn -B package
-    - mvn -B -Pintegration-tests test -Dscenery.Renderer=VulkanRenderer -Dscenery.LogLevel=info 
+    - mvn -B -Pintegration-tests test -Dscenery.Renderer=VulkanRenderer -Dscenery.LogLevel=info -Dscenery.ExampleRunner.Blacklist=VertexUpdateExample,SponzaExample,FontRenderingExample
     - tar cvjf results.tar.bz2 ExampleRunner-*
     - argos upload ExampleRunner* --token $ARGOS_TOKEN || true
   artifacts:
