@@ -10,20 +10,22 @@ variables:
   before_script:
     # Installs Maven, Vulkan development libraries, etc.
     - apt-get update -qq --force-yes > /dev/null
-    - apt-get install -qq --force-yes unzip wget git maven openjdk-8-jdk libvulkan1 libvulkan-dev vulkan-utils > /dev/null
+    - apt-get install -qq --force-yes unzip wget git maven openjdk-8-jdk libvulkan1 libvulkan-dev vulkan-utils clinfo > /dev/null
     # Output Vulkan driver information, but do not fail in case of non-zero
     # return (happens e.g. if $DISPLAY is not set)
     - vulkaninfo || true
+    - clinfo || true
     - wget -q https://ulrik.is/scenery-demo-models.zip
     - unzip -q scenery-demo-models.zip
   script:
     - mvn -B package
     - mvn -B -Pintegration-tests test -Dscenery.Renderer=VulkanRenderer -Dscenery.LogLevel=info -Dscenery.ExampleRunner.Blacklist=SponzaExample,FontRenderingExample,VertexUpdateExample
+    - tar cvjf results.tar.bz2 ExampleRunner-*
   artifacts:
     when: always
     expire_in: 48h
     paths:
-      - ExampleRunner*/
+      - results.tar.bz2
 
 scenery-nvidia:
   image: nvidia/vulkan:1.1.121-cuda-10.1-alpha
