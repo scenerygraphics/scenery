@@ -18,7 +18,7 @@ variables:
     - unzip -q scenery-demo-models.zip
   script:
     - mvn -B package
-    - mvn -B -Pintegration-tests test -Dscenery.Renderer=VulkanRenderer -Dscenery.LogLevel=debug
+    - mvn -B -Pintegration-tests test -Dscenery.Renderer=VulkanRenderer -Dscenery.LogLevel=info
   artifacts:
     when: always
     expire_in: 48h
