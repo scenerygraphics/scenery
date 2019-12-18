@@ -9,11 +9,10 @@ variables:
 .base-job: &base-job
   before_script:
     # Installs Maven, Vulkan development libraries, etc.
-    - echo "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64 xenial nvidiacuda" > /etc/apt/sources.list.d/cuda.list
-    -  echo "deb https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1604/x86_64 xenial nvidiaml" > /etc/apt/sources.list.d/nvidia-ml.list
     - apt-get update -qq --force-yes > /dev/null
-    - apt-get install -qq --force-yes unzip wget git maven openjdk-8-jdk libvulkan1 libvulkan-dev vulkan-utils nvidia-opencl-icd nvidia-libopencl1 clinfo npm > /dev/null
+    - apt-get install -qq --force-yes unzip wget git maven openjdk-8-jdk libvulkan1 libvulkan-dev vulkan-utils ocl-icd-libopencl1 clinfo npm > /dev/null
     - npm install --save argos-cli
+    - mkdir -p /etc/OpenCL/vendors && echo "libnvidia-opencl.so.1" > /etc/OpenCL/vendors/nvidia.icd
     # Output Vulkan driver information, but do not fail in case of non-zero
     # return (happens e.g. if $DISPLAY is not set)
     - vulkaninfo || true
