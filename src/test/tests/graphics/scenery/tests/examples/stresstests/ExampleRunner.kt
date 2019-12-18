@@ -25,7 +25,7 @@ class ExampleRunner {
         val reflections = Reflections("graphics.scenery.tests")
 
         // blacklist contains examples that require user interaction or additional devices
-        val blacklist = listOf("LocalisationExample",
+        val blacklist = mutableListOf("LocalisationExample",
             "SwingTexturedCubeExample",
             "TexturedCubeJavaApplication",
             "XwingLiverExample",
@@ -36,6 +36,8 @@ class ExampleRunner {
             "BDVExample",
             "BigAndSmallVolumeExample",
             "VolumeSamplingExample")
+
+        blacklist.addAll(System.getProperty("scenery.ExampleRunner.Blacklist", "").split(","))
 
         // find all basic and advanced examples, exclude blacklist
         val examples = reflections
