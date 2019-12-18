@@ -31,8 +31,7 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicInteger
 import javax.imageio.ImageIO
-import javax.swing.JFrame
-import javax.swing.SwingUtilities
+import javax.swing.BorderFactory
 import kotlin.collections.LinkedHashMap
 import kotlin.math.max
 import kotlin.math.roundToInt
@@ -202,6 +201,8 @@ open class OpenGLRenderer(hub: Hub,
             if(drawable is GLOffscreenAutoDrawable) {
                 (drawable as? GLOffscreenAutoDrawable)?.setSurfaceSize(window.width, window.height)
             }
+
+            logger.debug("queryResize: $lastWidth/$lastHeight")
 
             lastResize = -1L
         }
@@ -393,17 +394,29 @@ open class OpenGLRenderer(hub: Hub,
                     canvas!!.glAutoDrawable
                  */
                 drawable = if (panel is SceneryJPanel) {
-                    val canvas = ClearGLWindow("", width, height, null)
+                    val surfaceScale = hub.get<Settings>()?.get("Renderer.SurfaceScale", GLVector(1.0f, 1.0f)) ?: GLVector(1.0f, 1.0f)
+                    this.window.width = (panel.width * surfaceScale.x()).toInt()
+                    this.window.height = (panel.height * surfaceScale.y()).toInt()
+
+                    panel.panelWidth = this.window.width
+                    panel.panelHeight = this.window.height
+
+                    logger.debug("Surface scale: $surfaceScale")
+                    val canvas = ClearGLWindow("",
+                        this.window.width,
+                        this.window.height, null)
                     canvas.newtCanvasAWT.shallUseOffscreenLayer = true
                     panel.component = canvas.newtCanvasAWT
                     panel.cglWindow = canvas
                     panel.layout = BorderLayout()
-                    panel.add(canvas.newtCanvasAWT, BorderLayout.CENTER)
-                    panel.preferredSize = Dimension(width, height)
+                    panel.preferredSize = Dimension(
+                        (window.width * surfaceScale.x()).toInt(),
+                        (window.height * surfaceScale.y()).toInt())
+                    canvas.newtCanvasAWT.preferredSize = panel.preferredSize
 
-                    val frame = SwingUtilities.getAncestorOfClass(JFrame::class.java, panel) as JFrame
-                    frame.preferredSize = Dimension(width, height)
-                    frame.pack()
+                    panel.border = BorderFactory.createEmptyBorder()
+                    panel.add(canvas.newtCanvasAWT, BorderLayout.CENTER)
+
 
                     cglWindow = canvas
                     canvas.glAutoDrawable
@@ -438,9 +451,10 @@ open class OpenGLRenderer(hub: Hub,
                 embedIn?.let { panel ->
                     panel.imageScaleY = -1.0f
                     window = panel.init(resizeHandler)
+                    val surfaceScale = hub.get<Settings>()?.get("Renderer.SurfaceScale", GLVector(1.0f, 1.0f)) ?: GLVector(1.0f, 1.0f)
 
-                    window.width = panel.panelWidth
-                    window.height = panel.panelHeight
+                    window.width = (panel.panelWidth * surfaceScale.x()).toInt()
+                    window.height = (panel.panelHeight * surfaceScale.y()).toInt()
                 }
 
                 resizeHandler.lastWidth = window.width
@@ -758,7 +772,14 @@ open class OpenGLRenderer(hub: Hub,
         this.joglDrawable = pDrawable
 
         if (mustRecreateFramebuffers) {
-            logger.info("Recreating framebuffers (${window.width}x${window.height}")
+            val surfaceScale = hub?.get<Settings>()?.get("Renderer.SurfaceScale", GLVector(1.0f, 1.0f)) ?: GLVector(1.0f, 1.0f)
+            logger.info("Recreating framebuffers (${window.width}x${window.height})")
+
+            // FIXME: This needs to be done here in order to be able to run on HiDPI screens correctly
+            if(embedIn != null) {
+                cglWindow?.newtCanvasAWT?.setBounds(0, 0, window.width, window.height)
+            }
+
             renderpasses = prepareRenderpasses(renderConfig, window.width, window.height)
             flow = renderConfig.createRenderpassFlow()
 
@@ -2527,8 +2548,19 @@ open class OpenGLRenderer(hub: Hub,
         lastResizeTimer = Timer()
         lastResizeTimer.schedule(object : TimerTask() {
             override fun run() {
-                window.width = newWidth
-                window.height = newHeight
+                val surfaceScale = hub?.get<Settings>()?.get("Renderer.SurfaceScale", GLVector(1.0f, 1.0f))
+                    ?: GLVector(1.0f, 1.0f)
+
+                val panel = embedIn
+
+                if(panel is SceneryJPanel && panel.width != (newWidth/surfaceScale.x()).toInt() && panel.height != (newWidth/surfaceScale.y()).toInt()) {
+                    logger.debug("Panel is ${panel.width}x${panel.height} vs $newWidth x $newHeight")
+                    window.width = (newWidth * surfaceScale.x()).toInt()
+                    window.height = (newHeight * surfaceScale.y()).toInt()
+                } else {
+                    window.width = newWidth
+                    window.height = newHeight
+                }
 
                 logger.debug("Resizing window to ${newWidth}x$newHeight")
                 mustRecreateFramebuffers = true
