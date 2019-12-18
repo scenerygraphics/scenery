@@ -9,17 +9,11 @@ variables:
 .base-job: &base-job
   before_script:
     # Installs Maven, Vulkan development libraries, etc.
-    - apt-get update && apt-get install -y --no-install-recommends ca-certificates gnupg-curl && \
-      rm -rf /var/lib/apt/lists/* && \
-      NVIDIA_GPGKEY_SUM=d1be581509378368edeec8c1eb2958702feedf3bc3d17011adbf24efacce4ab5 && \
-      NVIDIA_GPGKEY_FPR=ae09fe4bbd223a84b2ccfce3f60f4b3d7fa2af80 && \
-      apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64/7fa2af80.pub && \
-      apt-key adv --export --no-emit-version -a $NVIDIA_GPGKEY_FPR | tail -n +5 > cudasign.pub && \
-      echo "$NVIDIA_GPGKEY_SUM  cudasign.pub" | sha256sum -c --strict - && rm cudasign.pub && \
-      echo "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64 /" > /etc/apt/sources.list.d/cuda.list && \
-      echo "deb https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1604/x86_64 /" > /etc/apt/sources.list.d/nvidia-ml.list
+    - echo "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64 xenial nvidiacuda" > /etc/apt/sources.list.d/cuda.list
+    -  echo "deb https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1604/x86_64 xenial nvidiaml" > /etc/apt/sources.list.d/nvidia-ml.list
     - apt-get update -qq --force-yes > /dev/null
-    - apt-get install -qq --force-yes unzip wget git maven openjdk-8-jdk libvulkan1 libvulkan-dev vulkan-utils nvidia-opencl-icd nvidia-libopencl1 clinfo > /dev/null
+    - apt-get install -qq --force-yes unzip wget git maven openjdk-8-jdk libvulkan1 libvulkan-dev vulkan-utils nvidia-opencl-icd nvidia-libopencl1 clinfo npm > /dev/null
+    - npm install --save argos-cli
     # Output Vulkan driver information, but do not fail in case of non-zero
     # return (happens e.g. if $DISPLAY is not set)
     - vulkaninfo || true
@@ -30,6 +24,7 @@ variables:
     - mvn -B package
     - mvn -B -Pintegration-tests test -Dscenery.Renderer=VulkanRenderer -Dscenery.LogLevel=info 
     - tar cvjf results.tar.bz2 ExampleRunner-*
+    - argos upload ExampleRunner* --token $ARGOS_TOKEN || true
   artifacts:
     when: always
     expire_in: 48h
