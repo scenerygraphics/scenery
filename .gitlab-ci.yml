@@ -22,7 +22,7 @@ variables:
   script:
     - mvn -B -Pintegration-tests package test -Dscenery.Renderer=VulkanRenderer -Dscenery.LogLevel=info -Dscenery.ExampleRunner.Blacklist=FontRenderingExample,SponzaExample,VertexUpdateExample
     - tar cvjf results.tar.bz2 ExampleRunner-*
-    - ARGOS_COMMIT=$CI_COMMIT_SHA ARGOS_BRANCH=$CI_COMMIT_REF_NAME argos upload `ls | grep Example | tail`/ --token $ARGOS_TOKEN || true
+    - ARGOS_COMMIT=$CI_COMMIT_SHA ARGOS_BRANCH=$CI_COMMIT_REF_NAME ./node_modules/argos-cli/bin/argos upload `ls | grep Example | tail`/ --token $ARGOS_TOKEN || true
   artifacts:
     when: always
     expire_in: 48h
