@@ -40,35 +40,35 @@ scenery-nvidia:
     - cuda
     - intel
 
-scenery-amd:
-  image: rocm/rocm-terminal
-  <<: *base-job
-  variables:
-    SUDO: "sudo"
-    GPURUN: "sudo su -m - rocm-user -c"
-  before_script:
-    # The rocm docker container requires the user to be in the video group which
-    # can usually be set via docker's --group-add option. GitLab-Runner currently
-    # has no known option for doing that. Therefore, it manually has to happen in
-    # the job description. 
-    - $SUDO usermod -a -G video rocm-user
-    # Installs Maven, Vulkan development libraries, etc.
-    - $SUDO apt-get -qq --force-yes update > /dev/null
-    - $SUDO apt-get install -qq --force-yes unzip kmod wget git maven openjdk-8-jdk libvulkan1 libvulkan-dev vulkan-utils > /dev/null
-    # Installs the AMD GPUopen Vulkan driver
-    - wget https://github.com/GPUOpen-Drivers/AMDVLK/releases/download/v-2019.Q3.6/amdvlk_2019.Q3.6_amd64.deb
-    - $SUDO dpkg -i amdvlk_2019.Q3.6_amd64.deb
-    - $SUDO apt-get -f install
-    - $SUDO lsmod
-    # Output Vulkan driver information, but do not fail in case of non-zero
-    # return (happens e.g. if $DISPLAY is not set)
-    - vulkaninfo || true
-    - wget -q https://ulrik.is/scenery-demo-models.zip
-    - unzip -q scenery-demo-models.zip
-  after_script:
-    - rocm-smi
-  tags:
-    - amd
-    - rocm
-
-
+#scenery-amd:
+#  image: rocm/rocm-terminal
+#  <<: *base-job
+#  variables:
+#    SUDO: "sudo"
+#    GPURUN: "sudo su -m - rocm-user -c"
+#  before_script:
+#    # The rocm docker container requires the user to be in the video group which
+#    # can usually be set via docker's --group-add option. GitLab-Runner currently
+#    # has no known option for doing that. Therefore, it manually has to happen in
+#    # the job description. 
+#    - $SUDO usermod -a -G video rocm-user
+#    # Installs Maven, Vulkan development libraries, etc.
+#    - $SUDO apt-get -qq --force-yes update > /dev/null
+#    - $SUDO apt-get install -qq --force-yes unzip kmod wget git maven openjdk-8-jdk libvulkan1 libvulkan-dev vulkan-utils > /dev/null
+#    # Installs the AMD GPUopen Vulkan driver
+#    - wget https://github.com/GPUOpen-Drivers/AMDVLK/releases/download/v-2019.Q3.6/amdvlk_2019.Q3.6_amd64.deb
+#    - $SUDO dpkg -i amdvlk_2019.Q3.6_amd64.deb
+#    - $SUDO apt-get -f install
+#    - $SUDO lsmod
+#    # Output Vulkan driver information, but do not fail in case of non-zero
+#    # return (happens e.g. if $DISPLAY is not set)
+#    - vulkaninfo || true
+#    - wget -q https://ulrik.is/scenery-demo-models.zip
+#    - unzip -q scenery-demo-models.zip
+#  after_script:
+#    - rocm-smi
+#  tags:
+#    - amd
+#    - rocm
+#
+#
