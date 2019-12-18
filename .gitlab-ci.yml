@@ -23,8 +23,6 @@ variables:
     - unzip -q scenery-demo-models.zip
   script:
     - mvn -B -Pintegration-tests package test -Dscenery.Renderer=VulkanRenderer -Dscenery.LogLevel=info -Dscenery.ExampleRunner.Blacklist=FontRenderingExample,SponzaExample,VertexUpdateExample -Dscenery.ExampleRunner.OutputDir=screenshots
-    - tar cvjf results.tar.bz2 ExampleRunner-*
-    - ARGOS_COMMIT=$CI_COMMIT_SHA ARGOS_BRANCH=$CI_COMMIT_REF_NAME ./node_modules/argos-cli/bin/argos upload screenshots/ --token $ARGOS_TOKEN || true
   artifacts:
     when: always
     expire_in: 48h
@@ -36,6 +34,8 @@ scenery-nvidia:
   <<: *base-job
   after_script:
     - nvidia-smi
+    - tar cvjf results.tar.bz2 screenshots/
+    - ARGOS_COMMIT=$CI_COMMIT_SHA ARGOS_BRANCH=$CI_COMMIT_REF_NAME ./node_modules/argos-cli/bin/argos upload screenshots/ --token $ARGOS_TOKEN || true
   tags:
     - cuda
     - intel
