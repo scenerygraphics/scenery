@@ -143,6 +143,10 @@
 
         <license.licenseName>lgpl_v3</license.licenseName>
         <license.copyrightOwners>the scenery development team</license.copyrightOwners>
+
+        <!-- TODO: Remove after https://github.com/tpietzsch/jogl-minimal/pull/9 is merged
+             and duplicate classes are cleaned up -->
+        <enforcer.skip>True</enforcer.skip>
     </properties>
 
     <dependencies>
@@ -532,9 +536,9 @@
         </dependency>
 
         <dependency>
-            <groupId>sc.fiji</groupId>
-            <artifactId>bigvolumeviewer</artifactId>
-            <version>${bigvolumeviewer.version}</version>
+            <groupId>com.github.ctrueden</groupId>
+            <artifactId>jogl-minimal</artifactId>
+            <version>d31f310</version>
         </dependency>
 
         <dependency>
