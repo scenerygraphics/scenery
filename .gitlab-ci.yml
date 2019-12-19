@@ -10,7 +10,7 @@ variables:
   before_script:
     # Installs Maven, Vulkan development libraries, etc.
     - apt-get update -qq --force-yes > /dev/null
-    - apt-get install -qq --force-yes unzip wget git maven openjdk-8-jdk libvulkan1 libvulkan-dev vulkan-utils ocl-icd-libopencl1 clinfo curl > /dev/null
+    - apt-get install -qq -y --allow-downgrades --allow-remove-essential --allow-change-held-packages unzip wget git maven openjdk-8-jdk-headless libvulkan1 libvulkan-dev vulkan-utils ocl-icd-opencl-dev clinfo curl > /dev/null
     - curl -sL https://deb.nodesource.com/setup_13.x | bash -
     - apt-get install -qq --force-yes nodejs
     - npm install --save argos-cli
@@ -22,7 +22,7 @@ variables:
     - wget -q https://ulrik.is/scenery-demo-models.zip
     - unzip -q scenery-demo-models.zip
   script:
-    - mvn -B -Pintegration-tests package test -Dscenery.Renderer=VulkanRenderer -Dscenery.LogLevel=info -Dscenery.ExampleRunner.Blacklist=FontRenderingExample,SponzaExample,VertexUpdateExample -Dscenery.ExampleRunner.OutputDir=screenshots
+    - mvn -B -Pintegration-tests package test -Dscenery.Renderer=VulkanRenderer -Dscenery.LogLevel=info -Dscenery.ExampleRunner.OutputDir=screenshots
   artifacts:
     when: always
     expire_in: 48h
