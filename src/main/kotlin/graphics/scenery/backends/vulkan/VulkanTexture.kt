@@ -7,6 +7,7 @@ import graphics.scenery.TextureBorderColor
 import graphics.scenery.TextureExtents
 import graphics.scenery.TextureRepeatMode
 import graphics.scenery.TextureUpdate
+import graphics.scenery.utils.Image
 import graphics.scenery.utils.LazyLogger
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
@@ -698,60 +699,18 @@ open class VulkanTexture(val device: VulkanDevice,
                          stream: InputStream, type: String,
                          linearMin: Boolean, linearMax: Boolean,
                          generateMipmaps: Boolean = true): VulkanTexture {
-            var bi: BufferedImage
-            val flippedImage: BufferedImage
-            val imageData: ByteBuffer
-            val pixels: IntArray
-            val buffer: ByteArray
-
-            if (type.endsWith("tga")) {
-                try {
-                    val reader = BufferedInputStream(stream)
-                    buffer = ByteArray(stream.available())
-                    reader.read(buffer)
-                    reader.close()
-
-                    pixels = TGAReader.read(buffer, TGAReader.ARGB)
-                    val width = TGAReader.getWidth(buffer)
-                    val height = TGAReader.getHeight(buffer)
-                    bi = BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
-                    bi.setRGB(0, 0, width, height, pixels, 0, width)
-                } catch (e: Exception) {
-                    logger.error("Could not read image from TGA. ${e.message}")
-                    bi = BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB)
-                    bi.setRGB(0, 0, 1, 1, intArrayOf(255, 0, 0), 0, 1)
-                }
-
-            } else {
-                try {
-                    val reader = BufferedInputStream(stream)
-                    bi = ImageIO.read(stream)
-                    reader.close()
-
-                } catch (e: Exception) {
-                    logger.error("Could not read image: ${e.message}")
-                    bi = BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB)
-                    bi.setRGB(0, 0, 1, 1, intArrayOf(255, 0, 0), 0, 1)
-                }
-
-            }
-
-            stream.close()
-
-            // convert to OpenGL UV space
-            flippedImage = createFlipped(bi)
-            imageData = bufferedImageToRGBABuffer(flippedImage)
+            val image = Image.readFromStream(stream, type, true)
 
             var texWidth = 2
             var texHeight = 2
             var levelsW = 1
             var levelsH = 1
 
-            while (texWidth < bi.width) {
+            while (texWidth < image.width) {
                 texWidth *= 2
                 levelsW++
             }
-            while (texHeight < bi.height) {
+            while (texHeight < image.height) {
                 texHeight *= 2
                 levelsH++
             }
@@ -766,14 +725,11 @@ open class VulkanTexture(val device: VulkanDevice,
                 device,
                 commandPools, queue, transferQueue,
                 texWidth, texHeight, 1,
-                if (bi.colorModel.hasAlpha()) {
-                    VK_FORMAT_R8G8B8A8_SRGB
-                } else {
-                    VK_FORMAT_R8G8B8A8_SRGB
-                }, mipmapLevels, linearMin, linearMax)
+                VK_FORMAT_R8G8B8A8_SRGB,
+                mipmapLevels,
+                linearMin, linearMax)
 
-            tex.copyFrom(imageData)
-            memFree(imageData)
+            tex.copyFrom(image.contents)
 
             return tex
         }
@@ -805,70 +761,6 @@ open class VulkanTexture(val device: VulkanDevice,
             stream.close()
 
             return tex
-        }
-
-        /**
-         * Converts a buffered image to an RGBA byte buffer.
-         */
-        protected fun bufferedImageToRGBABuffer(bufferedImage: BufferedImage): ByteBuffer {
-            val imageBuffer: ByteBuffer
-            val raster: WritableRaster
-            val texImage: BufferedImage
-
-            var texWidth = 2
-            var texHeight = 2
-
-            while (texWidth < bufferedImage.width) {
-                texWidth *= 2
-            }
-            while (texHeight < bufferedImage.height) {
-                texHeight *= 2
-            }
-
-            if (bufferedImage.colorModel.hasAlpha()) {
-                raster = Raster.createInterleavedRaster(DataBuffer.TYPE_BYTE, texWidth, texHeight, 4, null)
-                texImage = BufferedImage(StandardAlphaColorModel, raster, false, Hashtable<Any, Any>())
-            } else {
-                raster = Raster.createInterleavedRaster(DataBuffer.TYPE_BYTE, texWidth, texHeight, 3, null)
-                texImage = BufferedImage(StandardColorModel, raster, false, Hashtable<Any, Any>())
-            }
-
-            val g = texImage.graphics
-            g.color = Color(0.0f, 0.0f, 0.0f, 1.0f)
-            g.fillRect(0, 0, texWidth, texHeight)
-            g.drawImage(bufferedImage, 0, 0, null)
-            g.dispose()
-
-            val data = (texImage.raster.dataBuffer as DataBufferByte).data
-
-            imageBuffer = memAlloc(data.size)
-            imageBuffer.order(ByteOrder.nativeOrder())
-            imageBuffer.put(data, 0, data.size)
-            imageBuffer.rewind()
-
-            return imageBuffer
-        }
-
-        // the following three routines are from
-        // http://stackoverflow.com/a/23458883/2129040,
-        // authored by MarcoG
-        private fun createFlipped(image: BufferedImage): BufferedImage {
-            val at = AffineTransform()
-            at.concatenate(AffineTransform.getScaleInstance(1.0, -1.0))
-            at.concatenate(AffineTransform.getTranslateInstance(0.0, (-image.height).toDouble()))
-            return createTransformed(image, at)
-        }
-
-        private fun createTransformed(
-            image: BufferedImage, at: AffineTransform): BufferedImage {
-            val newImage = BufferedImage(
-                image.width, image.height,
-                BufferedImage.TYPE_INT_ARGB)
-            val g = newImage.createGraphics()
-            g.transform(at)
-            g.drawImage(image, 0, 0, null)
-            g.dispose()
-            return newImage
         }
 
         /**
