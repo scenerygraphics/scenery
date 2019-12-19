@@ -17,6 +17,8 @@ import bdv.viewer.state.ViewerState
 import bvv.util.BvvFunctions
 import coremem.enums.NativeTypeEnum
 import graphics.scenery.*
+import graphics.scenery.volumes.Colormap
+import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.bdv.Volume.VolumeDataSource.SpimDataMinimalSource
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.realtransform.AffineTransform3D
@@ -62,6 +64,12 @@ class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions,
     val outOfCoreStacks: SpimDataStacks?
     val regularStacks: List<BufferedSimpleStack3D<*>>?
     var renderStateUpdated: Boolean = false
+
+    /** The transfer function to use for the volume. Flat by default. */
+    var transferFunction: TransferFunction = TransferFunction.flat(1.0f)
+
+    /** The color map for the volume. */
+    var colormap: Colormap = Colormap.get("viridis")
 
     val volumeManager: VolumeManager
 
