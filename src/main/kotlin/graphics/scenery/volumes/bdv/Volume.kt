@@ -1,7 +1,11 @@
 package graphics.scenery.volumes.bdv
 
 import bdv.BigDataViewer
+import bdv.ViewerImgLoader
+import bdv.cache.CacheControl
+import bdv.img.cache.VolatileGlobalCellCache
 import bdv.spimdata.SpimDataMinimal
+import bdv.spimdata.WrapBasicImgLoader
 import bdv.spimdata.XmlIoSpimDataMinimal
 import bdv.tools.brightness.ConverterSetup
 import bdv.tools.brightness.SetupAssignments
@@ -13,13 +17,15 @@ import bdv.viewer.Source
 import bdv.viewer.SourceAndConverter
 import bdv.viewer.VisibilityAndGrouping
 import bdv.viewer.state.SourceGroup
+import bdv.viewer.state.SourceState
 import bdv.viewer.state.ViewerState
-import bvv.util.BvvFunctions
+import bvv.util.BvvStackSource
 import coremem.enums.NativeTypeEnum
 import graphics.scenery.*
 import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.bdv.Volume.VolumeDataSource.SpimDataMinimalSource
+import mpicbg.spim.data.generic.sequence.AbstractSequenceDescription
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.ARGBType
@@ -30,7 +36,6 @@ import net.imglib2.type.numeric.integer.UnsignedByteType
 import net.imglib2.type.numeric.integer.UnsignedShortType
 import tpietzsch.example2.VolumeViewerOptions
 import tpietzsch.multires.MultiResolutionStack3D
-import tpietzsch.multires.SpimDataStacks
 import java.nio.ByteBuffer
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
@@ -61,7 +66,6 @@ class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions,
     val visibilityAndGrouping: VisibilityAndGrouping
     val maxTimepoint: Int
     val viewerState: ViewerState
-    val outOfCoreStacks: SpimDataStacks?
     val regularStacks: List<BufferedSimpleStack3D<*>>?
     var renderStateUpdated: Boolean = false
 
@@ -72,6 +76,10 @@ class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions,
     var colormap: Colormap = Colormap.get("viridis")
 
     val volumeManager: VolumeManager
+
+    val sources = ArrayList<SourceState<*>>()
+
+    var cacheControl: CacheControl? = null
 
     /** Current timepoint in the set of [stacks]. */
     var currentTimepoint: Int
@@ -229,24 +237,45 @@ class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions,
 
 
     init {
-        val sources = ArrayList<SourceAndConverter<*>>()
+        val socs = ArrayList<SourceAndConverter<*>>()
+
+        // data-source independent part
+        val opts = options.values
+
+        val numGroups = opts.numSourceGroups
+        val groups = ArrayList<SourceGroup>(numGroups)
+        for (i in 0 until numGroups)
+            groups.add(SourceGroup("group " + Integer.toString(i + 1)))
 
         when(dataSource) {
             is SpimDataMinimalSource -> {
                 val spimData = dataSource.spimData
-                outOfCoreStacks = SpimDataStacks(spimData)
-                regularStacks = null
 
-                BigDataViewer.initSetups(spimData, converterSetups, sources)
+                val seq: AbstractSequenceDescription<*, *, *> = spimData.getSequenceDescription()
+                maxTimepoint = seq.getTimePoints().size()
+                cacheControl = (seq.getImgLoader() as ViewerImgLoader).cacheControl
+                val cache = (seq.getImgLoader() as ViewerImgLoader).cacheControl as VolatileGlobalCellCache
+//                handle.getBvvHandle().getCacheControls().addCacheControl(cache)
+                cache.clearCache()
+
+                WrapBasicImgLoader.wrapImgLoaderIfNecessary(spimData)
+                val s = ArrayList<SourceAndConverter<*>>()
+                BigDataViewer.initSetups(spimData, ArrayList(), s)
+
+                viewerState = ViewerState(socs, groups, maxTimepoint)
+                val bvvSources: MutableList<BvvStackSource<*>> = ArrayList()
+                for (source in s) {
+                    val setup = BigDataViewer.createConverterSetup(source, setupId.getAndIncrement())
+                    val setups = listOf(setup)
+
+                    converterSetups.add(setup)
+                    sources.add(SourceState.create(source, viewerState))
+                }
 
                 setupAssignments = SetupAssignments(converterSetups, 0.0, 65535.0)
-                if (setupAssignments.minMaxGroups.size > 0) {
-                    val group = setupAssignments.minMaxGroups[0]
-                    setupAssignments.converterSetups.forEach {
-                        setupAssignments.moveSetupToGroup(it, group)
-                    }
-                }
-                maxTimepoint = spimData.sequenceDescription.timePoints.timePointsOrdered.size - 1
+
+                WrapBasicImgLoader.removeWrapperIfPresent(spimData)
+                regularStacks = null
             }
 
             is VolumeDataSource.RAIISource<*> -> {
@@ -259,9 +288,14 @@ class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions,
                     }
                 }
 
-                sources.addAll(dataSource.sources)
+                viewerState = ViewerState(socs, groups, maxTimepoint)
+                socs.addAll(dataSource.sources)
                 TODO("How to generate SpimDataStacks here?")
 //                outOfCoreStacks = SpimDataStacks(SpimDataMinimal)
+                dataSource.sources.forEach { source ->
+                    sources.add(SourceState.create(source, viewerState))
+                }
+
                 regularStacks = null
             }
 
@@ -271,7 +305,6 @@ class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions,
                     dataSource.descriptor.height,
                     dataSource.descriptor.depth)
 
-                outOfCoreStacks = null
                 regularStacks = when(dataSource.descriptor.dataType) {
                     NativeTypeEnum.Byte ->
                         dataSource.volumes
@@ -306,23 +339,17 @@ class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions,
                 val converterSetups = ArrayList<ConverterSetup>()
                 setupAssignments = SetupAssignments(converterSetups, 0.0, 65535.0)
                 maxTimepoint = dataSource.volumes.size
+
+                viewerState = ViewerState(socs, groups, maxTimepoint)
             }
         }
 
 
-        // data-source independent part
-        val opts = options.values
-
-        val numGroups = opts.numSourceGroups
-        val groups = ArrayList<SourceGroup>(numGroups)
-        for (i in 0 until numGroups)
-            groups.add(SourceGroup("group " + Integer.toString(i + 1)))
-        viewerState = ViewerState(sources, groups, maxTimepoint)
-        for (i in Math.min(numGroups, sources.size) - 1 downTo 0)
+        for (i in Math.min(numGroups, socs.size) - 1 downTo 0)
             viewerState.sourceGroups[i].addSource(i)
 
         visibilityAndGrouping = VisibilityAndGrouping(viewerState)
-        for (i in 0 until sources.size) {
+        for (i in 0 until socs.size) {
             visibilityAndGrouping.sources[i].isActive = true
         }
 
@@ -338,7 +365,9 @@ class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions,
     }
 
     fun getStack(timepoint: Int, setupId: Int, volatile: Boolean): MultiResolutionStack3D<*>? {
-        return outOfCoreStacks?.getStack(timepoint, setupId, volatile)
+//        return outOfCoreStacks?.getStack(timepoint, setupId, volatile)
+        //FIXME
+        return null
     }
 
     /**
@@ -367,7 +396,7 @@ class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions,
     }
 
     fun prepareNextFrame() {
-        outOfCoreStacks?.cacheControl?.prepareNextFrame()
+        cacheControl?.prepareNextFrame()
     }
 
     fun shuffleColors() {
@@ -405,11 +434,10 @@ class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions,
                 } else {
                     s = RandomAccessibleIntervalSource<T>(stack, type, sourceTransform, name)
                 }
-//                BvvFunctions.addSourceToListsGenericType(s, handle.getUnusedSetupId(), converterSetups, sources)
-                val soc: SourceAndConverter<T> = BigDataViewer.wrapWithTransformedSource(
+                val source: SourceAndConverter<T> = BigDataViewer.wrapWithTransformedSource(
                     SourceAndConverter<T>(s, BigDataViewer.createConverterToARGB(type)))
-                converterSetups.add(BigDataViewer.createConverterSetup(soc, setupId.getAndIncrement()))
-                sources.add(soc)
+                converterSetups.add(BigDataViewer.createConverterSetup(source, setupId.getAndIncrement()))
+                sources.add(source)
             }
 
             val ds = VolumeDataSource.RAIISource<T>(img, type, sources, converterSetups, axisOrder, numTimepoints)
