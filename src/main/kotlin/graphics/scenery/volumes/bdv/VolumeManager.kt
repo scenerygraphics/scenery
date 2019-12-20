@@ -412,20 +412,21 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
         bdvNodes.forEach { bdvNode ->
             val visibleSourceIndices = bdvNode.viewerState.visibleSourceIndices
             val currentTimepoint = bdvNode.viewerState.currentTimepoint
-            val stacks = bdvNode.outOfCoreStacks ?: return@forEach
 
             logger.info("Visible: at t=$currentTimepoint: ${visibleSourceIndices.joinToString(", ")}")
             for (i in visibleSourceIndices) {
-                val stack = stacks.getStack(
-                    stacks.timepointId(currentTimepoint),
-                    stacks.setupId(i),
-                    true) as MultiResolutionStack3D<VolatileUnsignedShortType>
+//                val stack = stacks.getStack(
+//                    stacks.timepointId(currentTimepoint),
+//                    stacks.setupId(i),
+//                    true) as MultiResolutionStack3D<VolatileUnsignedShortType>
+
+                val stack = SourceStacks.getStack3D(bdvNode.sources[i].spimSource, currentTimepoint) as MultiResolutionStack3D<*>
 
                 val sourceTransform = AffineTransform3D()
                 bdvNode.viewerState.sources[i].spimSource.getSourceTransform(currentTimepoint, 0, sourceTransform)
-                val wrappedStack = object : MultiResolutionStack3D<VolatileUnsignedShortType> {
-                    override fun getType() : VolatileUnsignedShortType {
-                        return stack.type
+                val wrappedStack = object<T> : MultiResolutionStack3D<T> {
+                    override fun getType() : T {
+                        return stack.type as T
                     }
 
                     override fun getSourceTransform() : AffineTransform3D {
@@ -434,8 +435,8 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
                         return w.concatenate(sourceTransform)
                     }
 
-                    override fun resolutions() : List<ResolutionLevel3D<VolatileUnsignedShortType>> {
-                        return stack.resolutions()
+                    override fun resolutions() : List<ResolutionLevel3D<T>> {
+                        return stack.resolutions() as List<ResolutionLevel3D<T>>
                     }
                 }
                 renderStacks.add(wrappedStack)
