@@ -20,7 +20,7 @@ import tpietzsch.example2.VolumeViewerOptions
  * BDV Rendering Example loading a RAII
  *
  * @author Ulrik Günther <hello@ulrik.is>
- * @author Tobias Pietzsch <tpietzsch@mpi-cbg.de>
+ * @author Tobias Pietzsch <pietzsch@mpi-cbg.de>
  */
 class RAIIExample: SceneryBase("BDV Rendering example", 1280, 720) {
     lateinit var volume: Volume

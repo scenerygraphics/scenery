@@ -8,15 +8,19 @@ import bdv.spimdata.WrapBasicImgLoader
 import bdv.spimdata.XmlIoSpimDataMinimal
 import bdv.tools.brightness.ConverterSetup
 import bdv.util.AxisOrder
+import bdv.util.AxisOrder.DEFAULT
 import bdv.util.RandomAccessibleIntervalSource
 import bdv.util.RandomAccessibleIntervalSource4D
 import bdv.viewer.DisplayMode
 import bdv.viewer.Source
 import bdv.viewer.SourceAndConverter
-import bdv.viewer.state.SourceState
 import bdv.viewer.state.ViewerState
 import coremem.enums.NativeTypeEnum
-import graphics.scenery.*
+import graphics.scenery.DelegatesRendering
+import graphics.scenery.GeometryType
+import graphics.scenery.HasGeometry
+import graphics.scenery.Hub
+import graphics.scenery.Node
 import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.bdv.Volume.VolumeDataSource.SpimDataMinimalSource
@@ -80,7 +84,11 @@ class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions,
 
     sealed class VolumeDataSource {
         class SpimDataMinimalSource(val spimData : SpimDataMinimal) : VolumeDataSource()
-        class RAIISource<T: NumericType<T>>(val img: RandomAccessibleInterval<T>, val type: NumericType<T>, val sources: List<SourceAndConverter<T>>, val converterSetups: ArrayList<ConverterSetup>, val axisOrder: AxisOrder, val numTimepoints: Int, val name: String = "") : VolumeDataSource()
+        class RAIISource<T: NumericType<T>>(
+            val type: NumericType<T>,
+            val sources: List<SourceAndConverter<T>>,
+            val converterSetups: ArrayList<ConverterSetup>,
+            val numTimepoints: Int ) : VolumeDataSource()
         class BufferSource(val volumes: HashMap<String, ByteBuffer>, val descriptor: VolumeDescriptor) : VolumeDataSource()
     }
 
@@ -103,12 +111,12 @@ class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions,
                 // wraps legacy image formats (e.g., TIFF) if referenced in BDV XML
                 WrapBasicImgLoader.wrapImgLoaderIfNecessary(spimData)
 
-                val sources_ = ArrayList<SourceAndConverter<*>>()
+                val sources = ArrayList<SourceAndConverter<*>>()
                 // initialises setups and converters for all channels, and creates source.
                 // These are then stored in [converterSetups] and [sources_].
-                BigDataViewer.initSetups(spimData, converterSetups, sources_)
+                BigDataViewer.initSetups(spimData, converterSetups, sources)
 
-                viewerState = ViewerState(sources_, maxTimepoint)
+                viewerState = ViewerState(sources, maxTimepoint)
 
                 WrapBasicImgLoader.removeWrapperIfPresent(spimData)
                 regularStacks = null
@@ -116,11 +124,9 @@ class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions,
 
             is VolumeDataSource.RAIISource<*> -> {
                 maxTimepoint = dataSource.numTimepoints
-
-                val sources_ = ArrayList<SourceAndConverter<*>>()
-                viewerState = ViewerState(sources_, maxTimepoint)
-                sources_.addAll(dataSource.sources)
-                TODO("How to generate SpimDataStacks here?")
+                viewerState = ViewerState(dataSource.sources, maxTimepoint)
+                converterSetups.addAll( dataSource.converterSetups );
+//                TODO("How to generate SpimDataStacks here?")
 //                outOfCoreStacks = SpimDataStacks(SpimDataMinimal)
 
                 regularStacks = null
@@ -238,9 +244,9 @@ class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions,
             return Volume(ds, options, hub)
         }
 
-        fun <T: NumericType<T>> fromRAII(img: RandomAccessibleInterval<T>, type: T, axisOrder: AxisOrder, name: String, hub: Hub, options: VolumeViewerOptions = VolumeViewerOptions()): Volume {
+        fun <T: NumericType<T>> fromRAII(img: RandomAccessibleInterval<T>, type: T, axisOrder: AxisOrder = DEFAULT, name: String, hub: Hub, options: VolumeViewerOptions = VolumeViewerOptions()): Volume {
             val converterSetups: ArrayList<ConverterSetup> = ArrayList()
-            val stacks: ArrayList<RandomAccessibleInterval<T>> = AxisOrder.splitInputStackIntoSourceStacks(img, axisOrder)
+            val stacks: ArrayList<RandomAccessibleInterval<T>> = AxisOrder.splitInputStackIntoSourceStacks(img, AxisOrder.getAxisOrder(axisOrder, img, false))
             val sourceTransform = AffineTransform3D()
             val sources: ArrayList<SourceAndConverter<T>> = ArrayList()
 
@@ -259,7 +265,7 @@ class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions,
                 sources.add(source)
             }
 
-            val ds = VolumeDataSource.RAIISource<T>(img, type, sources, converterSetups, axisOrder, numTimepoints)
+            val ds = VolumeDataSource.RAIISource<T>(type, sources, converterSetups, numTimepoints)
             return Volume(ds, options, hub)
         }
 
