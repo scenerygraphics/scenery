@@ -1728,7 +1728,13 @@ open class OpenGLRenderer(hub: Hub,
 
                 var currentShader: OpenGLShaderProgram? = null
 
-                actualObjects.forEach renderLoop@ { n ->
+                actualObjects.forEach renderLoop@ { node ->
+                    val n = if(node is DelegatesRendering) {
+                        node.delegate ?: return@renderLoop
+                    } else {
+                        node
+                    }
+
                     if (pass.passConfig.renderOpaque && n.material.blending.transparent && pass.passConfig.renderOpaque != pass.passConfig.renderTransparent) {
                         return@renderLoop
                     }
@@ -2198,9 +2204,19 @@ open class OpenGLRenderer(hub: Hub,
      * @param[node]: The [Node] to initialise.
      * @return True if the initialisation went alright, False if it failed.
      */
-    @Synchronized fun initializeNode(node: Node): Boolean {
+    @Synchronized fun initializeNode(n: Node): Boolean {
+        val node = if(n is DelegatesRendering) {
+            n.delegate ?: return false
+        } else {
+            n
+        }
+
         if(!node.lock.tryLock()) {
             return false
+        }
+
+        if(node.rendererMetadata() == null) {
+            node.metadata["OpenGLRenderer"] = OpenGLObjectState()
         }
 
         val s = node.metadata["OpenGLRenderer"] as OpenGLObjectState
