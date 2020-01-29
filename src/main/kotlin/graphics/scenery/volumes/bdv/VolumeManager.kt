@@ -420,7 +420,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
 //                    stacks.setupId(i),
 //                    true) as MultiResolutionStack3D<VolatileUnsignedShortType>
 
-                val stack = SourceStacks.getStack3D(bdvNode.sources[i].spimSource, currentTimepoint) as MultiResolutionStack3D<*>
+                val stack = SourceStacks.getStack3D(bdvNode.viewerState.sources[i].spimSource, currentTimepoint) as MultiResolutionStack3D<*>
 
                 val sourceTransform = AffineTransform3D()
                 bdvNode.viewerState.sources[i].spimSource.getSourceTransform(currentTimepoint, 0, sourceTransform)
