@@ -536,9 +536,9 @@
         </dependency>
 
         <dependency>
-            <groupId>com.github.ctrueden</groupId>
-            <artifactId>jogl-minimal</artifactId>
-            <version>d31f310</version>
+            <groupId>sc.fiji</groupId>
+            <artifactId>bigvolumeviewer</artifactId>
+            <version>0.1.7</version>
         </dependency>
 
         <dependency>
