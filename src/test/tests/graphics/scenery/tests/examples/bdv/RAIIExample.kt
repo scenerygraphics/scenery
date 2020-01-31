@@ -22,7 +22,7 @@ import tpietzsch.example2.VolumeViewerOptions
  * @author Ulrik Günther <hello@ulrik.is>
  * @author Tobias Pietzsch <pietzsch@mpi-cbg.de>
  */
-class RAIIExample: SceneryBase("BDV Rendering example", 1280, 720) {
+class RAIIExample: SceneryBase("RAII Rendering example", 1280, 720) {
     lateinit var volume: Volume
 
     override fun init() {
