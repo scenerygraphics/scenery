@@ -17,6 +17,7 @@ import graphics.scenery.ShaderMaterial
 import graphics.scenery.ShaderProperty
 import graphics.scenery.State
 import graphics.scenery.volumes.Volume
+import net.imglib2.RandomAccessibleInterval
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.ARGBType
 import net.imglib2.type.numeric.integer.UnsignedByteType
@@ -114,15 +115,13 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
 
     private val stackManager = SceneryStackManager()
 
-    private val multiResolutionStacks = ArrayList(
-        Arrays.asList<MultiResolutionStack3D<VolatileUnsignedShortType>>(null, null, null))
     /** Whether to freeze the current set of blocks in-place. */
     var freezeRequiredBlocks = false
 
     /** Backing shader program */
     protected var prog = ArrayList<MultiVolumeShaderMip>()
     protected var progvol: MultiVolumeShaderMip? = null
-    protected var renderStateUpdated = false
+    protected var renderStateUpdated = true
     protected var cacheSizeUpdated = false
 
     protected var currentVolumeCount: Pair<Int, Int>
@@ -241,9 +240,9 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
         if(prog.size > 0) {
             logger.info("We have ${prog.size} shaders ready")
             progvol = prog.last()
-            state = State.Ready
 
             updateProgram()
+            state = State.Ready
         } else {
             state = State.Created
         }
@@ -260,11 +259,8 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
             return
         }
 
-        logger.info("Updating blocks with ${renderStacks.size} stacks")
         bdvNodes.forEach { bdvNode ->
-            logger.info("Preparing next frame for $bdvNode")
             bdvNode.prepareNextFrame()
-            logger.info("Done preparing")
         }
 
         val cam = bdvNodes.firstOrNull()?.getScene()?.activeObserver ?: return
@@ -276,7 +272,6 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
         currentProg.use(context)
         currentProg.setUniforms(context)
 
-        logger.info("Generating fill tasks")
         var numTasks = 0
         val fillTasksPerVolume = ArrayList<VolumeAndTasks>()
         for(i in 0 until renderStacks.size) {
@@ -335,24 +330,27 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
         }
 
         var minWorldVoxelSize = Double.POSITIVE_INFINITY
+        val ready = readyToRender()
 
         renderStacks
             // sort by classname, so we get MultiResolutionStack3Ds first,
             // then simple stacks
             .sortedBy { it.javaClass.simpleName }
             .forEachIndexed { i, stack ->
-                if(stack is MultiResolutionStack3D) {
+                if (stack is MultiResolutionStack3D) {
                     currentProg.setConverter(i, renderConverters.get(i))
                     currentProg.setVolume(i, outOfCoreVolumes.get(i))
                     minWorldVoxelSize = min(minWorldVoxelSize, outOfCoreVolumes.get(i).baseLevelVoxelSizeInWorldCoordinates)
                 }
 
-                if(stack is SimpleStack3D) {
-                    val volume = stackManager.getSimpleVolume( context, stack )
+                if (stack is SimpleStack3D) {
+                    val volume = stackManager.getSimpleVolume(context, stack)
                     currentProg.setConverter(i, renderConverters.get(i))
                     currentProg.setVolume(i, volume)
                     context.bindTexture(volume.volumeTexture)
-                    val uploaded = stackManager.upload(context, stack)
+                    if(ready) {
+                        stackManager.upload(context, stack)
+                    }
                     minWorldVoxelSize = min(minWorldVoxelSize, volume.voxelSizeInWorldCoordinates)
                 }
             }
@@ -364,6 +362,23 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
         currentProg.setUniforms(context)
         currentProg.bindSamplers(context)
         logger.debug("Done updating blocks")
+    }
+
+    fun readyToRender(): Boolean {
+        val multiResCount = renderStacks.count { it is MultiResolutionStack3D }
+        val regularCount = renderStacks.count { it is SimpleStack3D }
+
+        val multiResMatch = material.textures.count { it.key.startsWith("volumeCache") } == 1
+            && material.textures.count { it.key.startsWith("lutSampler_") }  == multiResCount
+        val regularMatch = material.textures.count { it.key.startsWith("volume_") } == regularCount
+
+//        logger.info("$multiResCount->$multiResMatch/$regularCount->$regularMatch (${shaderProperties.keys.joinToString(",")})")
+//        if(multiResMatch && regularMatch) {
+//            state = State.Ready
+//        } else {
+//            state = State.
+//        }
+        return multiResMatch && regularMatch
     }
 
     internal class VolumeAndTasks(tasks: List<FillTask>, val volume: VolumeBlocks, val maxLevel: Int) {
@@ -379,7 +394,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
      * Pre-draw routine to be called by the rendered just before drawing.
      * Updates texture cache and used blocks.
      */
-    override fun preDraw() {
+    override fun preDraw(): Boolean {
         context.bindTexture(textureCache)
 
         if(renderStateUpdated) {
@@ -398,6 +413,8 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
         }
 
         context.runDeferredBindings()
+
+        return readyToRender()
     }
 
     /**
@@ -420,26 +437,65 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
 //                    stacks.setupId(i),
 //                    true) as MultiResolutionStack3D<VolatileUnsignedShortType>
 
-                val stack = SourceStacks.getStack3D(bdvNode.viewerState.sources[i].spimSource, currentTimepoint) as MultiResolutionStack3D<*>
+                val stack = SourceStacks.getStack3D(bdvNode.viewerState.sources[i].spimSource, currentTimepoint)// as MultiResolutionStack3D<*>
 
                 val sourceTransform = AffineTransform3D()
                 bdvNode.viewerState.sources[i].spimSource.getSourceTransform(currentTimepoint, 0, sourceTransform)
-                val wrappedStack = object<T> : MultiResolutionStack3D<T> {
-                    override fun getType() : T {
-                        return stack.type as T
+
+                if(stack is MultiResolutionStack3D) {
+                    val o = object<T> : MultiResolutionStack3D<T> {
+                        override fun getType(): T {
+                            return stack.type as T
+                        }
+
+                        override fun getSourceTransform(): AffineTransform3D {
+                            val w = AffineTransform3D()
+                            w.set(*bdvNode.world.transposedFloatArray.map { it.toDouble() }.toDoubleArray())
+                            return w.concatenate(sourceTransform)
+                        }
+
+                        override fun resolutions(): List<ResolutionLevel3D<T>> {
+                            return stack.resolutions() as List<ResolutionLevel3D<T>>
+                        }
+
+                        override fun equals(other: Any?): Boolean {
+                            return stack.equals(other)
+                        }
+
+                        override fun hashCode(): Int {
+                            return stack.hashCode()
+                        }
                     }
 
-                    override fun getSourceTransform() : AffineTransform3D {
-                        val w = AffineTransform3D()
-                        w.set(*bdvNode.world.transposedFloatArray.map { it.toDouble() }.toDoubleArray())
-                        return w.concatenate(sourceTransform)
+                    renderStacks.add(o)
+                } else if(stack is SimpleStack3D) {
+                    val o = object<T> : SimpleStack3D<T> {
+                        override fun getType(): T {
+                            return stack.type as T
+                        }
+
+                        override fun getSourceTransform(): AffineTransform3D {
+                            val w = AffineTransform3D()
+                            w.set(*bdvNode.world.transposedFloatArray.map { it.toDouble() }.toDoubleArray())
+                            return w.concatenate(sourceTransform)
+                        }
+
+                        override fun getImage(): RandomAccessibleInterval<T> {
+                            return stack.image as RandomAccessibleInterval<T>
+                        }
+
+                        override fun equals(other: Any?): Boolean {
+                            return stack.equals(other)
+                        }
+
+                        override fun hashCode(): Int {
+                            return stack.hashCode()
+                        }
                     }
 
-                    override fun resolutions() : List<ResolutionLevel3D<T>> {
-                        return stack.resolutions() as List<ResolutionLevel3D<T>>
-                    }
+                    renderStacks.add(o)
                 }
-                renderStacks.add(wrappedStack)
+
                 val converter = bdvNode.converterSetups[i]
                 renderConverters.add(converter)
             }
