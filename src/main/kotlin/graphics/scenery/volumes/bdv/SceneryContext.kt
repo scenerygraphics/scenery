@@ -58,7 +58,7 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
          * Sets the uniform with [name] to the Integer [v0].
          */
         override fun setUniform1i(name: String, v0: Int) {
-            logger.info("Setting uniform $name")
+            logger.debug("Setting uniform $name")
             if(name.startsWith("volumeCache") || name.startsWith("lutSampler") || name.startsWith("volume_")) {
                 val binding = bindings.entries.find { it.value.binding == v0 }
                 if(binding != null) {
@@ -347,7 +347,9 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
                 func.invoke(samplerName)
                 removals.add(texture)
             } else {
-                logger.error("Binding for $texture not found, despite trying deferred binding. (binding=$binding/sampler=$samplerName)")
+                if(node.readyToRender()) {
+                    logger.error("Binding for $texture not found, despite trying deferred binding. (binding=$binding/sampler=$samplerName)")
+                }
             }
         }
 
@@ -421,7 +423,9 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
         logger.debug("Updating 3D texture via PBO from $texture: dx=$xoffset dy=$yoffset dz=$zoffset w=$width h=$height d=$depth offset=$pixels_buffer_offset")
         val tex = bindings.entries.find { it.key == texture }
         if(tex == null) {
-            logger.warn("No binding found for $texture (PBO)")
+            if(node.readyToRender()) {
+                logger.warn("No binding found for $texture (PBO)")
+            }
             return
         }
         val texname = tex.value.uniformName
@@ -492,7 +496,9 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
 
         val tex = bindings.entries.find { it.key == texture }
         if(tex == null) {
-            logger.warn("No binding found for $texture (Texture3D)")
+            if(node.readyToRender()) {
+                logger.warn("No binding found for $texture/${texture.hashCode()} (Texture3D). Bindings exist for ${bindings.keys.joinToString { it.toString() }}.")
+            }
             return
         }
         val texname = tex.value.uniformName
