@@ -85,13 +85,15 @@ open class BoundingGrid : Mesh("Bounding Grid") {
         }
     }
 
-    override fun preDraw() {
+    override fun preDraw(): Boolean {
         super.preDraw()
 
         if(node?.getMaximumBoundingBox()?.hashCode() != nodeBoundingBoxHash) {
             logger.debug("Updating bounding box (${node?.getMaximumBoundingBox()?.hashCode()} vs $nodeBoundingBoxHash")
             node = node
         }
+
+        return true
     }
 
     protected fun updateFromNode() {
