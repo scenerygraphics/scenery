@@ -1,6 +1,7 @@
 package graphics.scenery.tests.examples.bdv
 
 import bdv.spimdata.XmlIoSpimDataMinimal
+import bdv.util.AxisOrder
 import cleargl.GLVector
 import graphics.scenery.Camera
 import graphics.scenery.DetachedHeadCamera
@@ -8,6 +9,11 @@ import graphics.scenery.PointLight
 import graphics.scenery.SceneryBase
 import graphics.scenery.backends.Renderer
 import graphics.scenery.volumes.bdv.Volume
+import ij.IJ
+import ij.ImagePlus
+import net.imglib2.img.Img
+import net.imglib2.img.display.imagej.ImageJFunctions
+import net.imglib2.type.numeric.integer.UnsignedShortType
 import org.junit.Test
 import org.scijava.Context
 import org.scijava.ui.UIService
@@ -23,7 +29,7 @@ import java.util.*
  */
 class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
     var volume: Volume? = null
-    var currentCacheSize = 1024
+    var maxCacheSize = 512
 
     override fun init() {
         val files = ArrayList<String>()
@@ -51,27 +57,17 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
             perspectiveCamera(50.0f, 1.0f*windowWidth, 1.0f*windowHeight)
             active = true
 
-//            position = GLVector(170.067406f, -138.45601f, -455.9538f)
-//            rotation = Quaternion(-0.05395214f, 0.94574946f, -0.23843345f, 0.21400182f)
-
             scene.addChild(this)
         }
 
-        val options = VolumeViewerOptions().maxCacheSizeInMB(1024)
+        val options = VolumeViewerOptions().maxCacheSizeInMB(maxCacheSize)
         val v = Volume.fromSpimData(XmlIoSpimDataMinimal().load(files.first()), hub, options)
         v.name = "volume"
-//        v.colormap = "plasma"
         v.scale = GLVector(0.02f, 0.02f, 0.02f)
         v.updateWorld(true, true)
         scene.addChild(v)
 
         volume = v
-
-        val v2 = Volume.fromSpimData(XmlIoSpimDataMinimal().load(files.first()), hub, options)
-        v2.scale = GLVector(0.001f, 0.001f, 0.001f)
-        v2.rotation = v2.rotation.rotateByAngleX(0.5f)
-        v2.updateWorld(true, true)
-        scene.addChild(v2)
 
         val lights = (0 until 3).map {
             PointLight(radius = 15.0f)
