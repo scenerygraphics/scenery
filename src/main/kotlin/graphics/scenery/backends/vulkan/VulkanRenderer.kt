@@ -673,7 +673,7 @@ open class VulkanRenderer(hub: Hub,
 //            .parallelMap(numThreads = System.getProperty("scenery.MaxInitThreads", "1").toInt()) { node ->
             .map { node ->
                 // skip initialization for nodes that are only instance slaves
-                logger.info("Initializing object '${node.name}'")
+                logger.debug("Initializing object '${node.name}'")
 
                 initializeNode(node)
             }
@@ -733,10 +733,10 @@ open class VulkanRenderer(hub: Hub,
         val node = if(n is DelegatesRendering) {
             val delegate = n.delegate ?: return false
 
-            logger.info("Initialising node $n with delegate $delegate (state=${delegate.state})")
+            logger.debug("Initialising node $n with delegate $delegate (state=${delegate.state})")
             delegate
         } else {
-            logger.info("Initialising node $n")
+            logger.debug("Initialising node $n")
             n
         }
 
@@ -746,11 +746,12 @@ open class VulkanRenderer(hub: Hub,
 
         var s: VulkanObjectState = node.rendererMetadata() ?: throw IllegalStateException("Node ${node.name} does not contain metadata object")
 
-        if (s.initialized) return true
-
         if(node.state != State.Ready) {
+            logger.info("Not initialising node $node because state=${node.state}")
             return false
         }
+
+        if (s.initialized) return true
 
         logger.debug("Initializing ${node.name} (${(node as HasGeometry).vertices.remaining() / node.vertexSize} vertices/${node.indices.remaining()} indices)")
 
@@ -1955,7 +1956,7 @@ open class VulkanRenderer(hub: Hub,
 
                 // if a node is not initialized yet, it'll be initialized here and it's UBO updated
                 // in the next round
-                if (it.rendererMetadata() == null) {
+                if (it.rendererMetadata() == null || it.state == State.Created || it.rendererMetadata()?.initialized == false) {
                     logger.debug("${it.name} is not initialized, doing that now")
                     it.metadata["VulkanRenderer"] = VulkanObjectState()
                     initializeNode(it)
@@ -1963,7 +1964,12 @@ open class VulkanRenderer(hub: Hub,
                     return@forEach
                 }
 
-                it.preDraw()
+                if(!it.preDraw()) {
+                    it.rendererMetadata()?.preDrawSkip = true
+                    return@forEach
+                } else {
+                    it.rendererMetadata()?.preDrawSkip = false
+                }
 
                 // the current command buffer will be forced to be re-recorded if either geometry, blending or
                 // texturing of a given node have changed, as these might change pipelines or descriptor sets, leading
@@ -2542,14 +2548,25 @@ open class VulkanRenderer(hub: Hub,
         // e.g. which have the same transparency settings as the pass,
         // and filter according to any custom filters applicable to this pass
         // (e.g. to discern geometry from lighting passes)
+        val seenDelegates = ArrayList<Node>(5)
         sceneObjects.await().filter { customNodeFilter?.invoke(it) ?: true }.forEach { node ->
             val n = if(node is DelegatesRendering) {
-                node.delegate ?: return@forEach
+                val delegate = node.delegate
+                if(node.delegationType == DelegationType.OncePerDelegate && delegate != null) {
+                    if(delegate in seenDelegates) {
+                        return@forEach
+                    } else {
+                        seenDelegates.add(delegate)
+                        delegate
+                    }
+                } else {
+                    node.delegate ?: return@forEach
+                }
             } else {
                 node
             }
 
-            if(n.state != State.Ready) {
+            if(n.state != State.Ready || n.rendererMetadata()?.preDrawSkip == true) {
                 return@forEach
             }
 

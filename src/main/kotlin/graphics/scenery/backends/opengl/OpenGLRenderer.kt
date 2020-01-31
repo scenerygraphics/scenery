@@ -1728,9 +1728,20 @@ open class OpenGLRenderer(hub: Hub,
 
                 var currentShader: OpenGLShaderProgram? = null
 
+                val seenDelegates = ArrayList<Node>(5)
                 actualObjects.forEach renderLoop@ { node ->
                     val n = if(node is DelegatesRendering) {
-                        node.delegate ?: return@renderLoop
+                        val delegate = node.delegate
+                        if(node.delegationType == DelegationType.OncePerDelegate && delegate != null) {
+                            if(delegate in seenDelegates) {
+                                return@renderLoop
+                            } else {
+                                seenDelegates.add(delegate)
+                                delegate
+                            }
+                        } else {
+                            node.delegate ?: return@renderLoop
+                        }
                     } else {
                         node
                     }
