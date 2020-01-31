@@ -65,6 +65,9 @@ open class VulkanObjectState : NodeMetadata {
     /** Whether the node is rendered as instanced */
     var instanced = false
 
+    /** Skip for rendering if this is set. */
+    var preDrawSkip = false
+
     /**
      * Creates or updates the [textureDescriptorSets] describing the textures used. Will cover all the renderpasses
      * given in [passes]. The set will reside on [device] and the descriptor set layout(s) determined from the renderpass.
