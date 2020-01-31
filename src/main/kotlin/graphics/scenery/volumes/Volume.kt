@@ -571,7 +571,7 @@ open class Volume : Mesh("Volume") {
 
     var assignment: (() -> Unit)? = null
 
-    override fun preDraw() {
+    override fun preDraw(): Boolean {
         if(transferFunction.stale) {
             logger.debug("Transfer function is stale, updating")
             material.transferTextures["transferFunction"] = GenericTexture(
@@ -586,6 +586,7 @@ open class Volume : Mesh("Volume") {
         }
 
         assignment?.invoke()
+        return true
     }
 
     protected fun NativeTypeEnum.toGLType() =

@@ -238,8 +238,8 @@ open class Node(open var name: String = "Node") : Renderable, Serializable {
      * PreDraw function, to be called before the actual rendering, useful for
      * per-timestep preparation.
      */
-    open fun preDraw() {
-
+    open fun preDraw(): Boolean {
+        return true
     }
 
     /**
