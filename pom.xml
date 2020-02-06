@@ -112,7 +112,7 @@
         <dokka.skip>true</dokka.skip>
 
         <bigdataviewer-core.version>7.0.0</bigdataviewer-core.version>
-        <bigvolumeviewer.version>0.1.6</bigvolumeviewer.version>
+        <bigvolumeviewer.version>0.1.8-SNAPSHOT</bigvolumeviewer.version>
         <cleargl.version>2.2.10</cleargl.version>
         <coremem.version>0.4.6</coremem.version>
         <ffmpeg.version>4.1-1.4.4</ffmpeg.version>
@@ -538,7 +538,7 @@
         <dependency>
             <groupId>sc.fiji</groupId>
             <artifactId>bigvolumeviewer</artifactId>
-            <version>0.1.7</version>
+            <version>${bigvolumeviewer.version}</version>
         </dependency>
 
         <dependency>
