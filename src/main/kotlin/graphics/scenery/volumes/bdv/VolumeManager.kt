@@ -40,6 +40,8 @@ import tpietzsch.multires.ResolutionLevel3D
 import tpietzsch.multires.SimpleStack3D
 import tpietzsch.multires.SourceStacks
 import tpietzsch.multires.Stack3D
+import tpietzsch.shadergen.generate.SegmentTemplate
+import tpietzsch.shadergen.generate.SegmentType
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.util.*
@@ -125,6 +127,8 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
     protected var cacheSizeUpdated = false
 
     protected var currentVolumeCount: Pair<Int, Int>
+
+    var maxAllowedStepInVoxels = 1.0
 
     init {
         state = State.Created
@@ -214,12 +218,21 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
             VolumeShaderSignature.VolumeSignature(volumeType, dataType)
         }
 
+        val segments = MultiVolumeShaderMip.getDefaultSegments(true);
+        segments[SegmentType.VertexShader] = SegmentTemplate(
+            this.javaClass,
+            "BDVVolume.vert")
+        segments[SegmentType.FragmentShader] = SegmentTemplate(
+            this.javaClass,
+            "BDVVolume.frag",
+            "intersectBoundingBox", "vis", "SampleVolume", "Convert", "Accumulate")
+        segments[SegmentType.MaxDepth] = SegmentTemplate(
+            this.javaClass,
+            "MaxDepth.frag")
+
         val newProgvol = MultiVolumeShaderMip(VolumeShaderSignature(signatures),
             true, 1.0,
-            this.javaClass,
-            "BDVVolume.vert",
-            "BDVVolume.frag",
-            "MaxDepth.frag",
+            segments,
             "InputZBuffer")
 
         newProgvol.setTextureCache(textureCache)
@@ -357,11 +370,11 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
 
         currentProg.setViewportWidth(cam.width.toInt())
         currentProg.setEffectiveViewportSize(cam.width.toInt(), cam.height.toInt())
-        currentProg.setProjectionViewMatrix(mvp, minWorldVoxelSize)
+        currentProg.setProjectionViewMatrix(mvp, maxAllowedStepInVoxels * minWorldVoxelSize)
         currentProg.use(context)
         currentProg.setUniforms(context)
         currentProg.bindSamplers(context)
-        logger.debug("Done updating blocks")
+        logger.info("Done updating blocks with minVoxelSize=$minWorldVoxelSize")
     }
 
     fun readyToRender(): Boolean {
