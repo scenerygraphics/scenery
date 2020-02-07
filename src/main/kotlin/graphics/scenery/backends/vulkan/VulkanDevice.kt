@@ -39,7 +39,9 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
      * @property[apiVersion] The Vulkan API version supported by the device, represented as string.
      * @property[type] The [DeviceType] of the GPU.
      */
-    data class DeviceData(val vendor: String, val name: String, val driverVersion: String, val apiVersion: String, val type: DeviceType)
+    data class DeviceData(val vendor: String, val name: String, val driverVersion: String, val apiVersion: String, val type: DeviceType) {
+        fun toFullString() = "$vendor $name ($type, driver version $driverVersion, Vulkan API $apiVersion)"
+    }
 
     /**
      * Data class to store device-specific queue indices.
@@ -367,6 +369,7 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
                         type = toDeviceType(properties.deviceType()))
 
                     if(physicalDeviceFilter.invoke(i, deviceData)) {
+                        logger.debug("Device filter matches device $i, $deviceData")
                         devicePreference = i
                     }
 
@@ -380,7 +383,7 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
                         ""
                     }
 
-                    logger.info("  $i: ${device.vendor} ${device.name} (${device.type}, driver version ${device.driverVersion}, Vulkan API ${device.apiVersion}) $selected")
+                    logger.info("  $i: ${device.toFullString()} $selected")
                 }
 
                 val selectedDevice = physicalDevices.get(devicePreference)
