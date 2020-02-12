@@ -494,7 +494,7 @@ open class VulkanRenderer(hub: Hub,
         val headless = (selectedSwapchain?.kotlin?.companionObjectInstance as? SwapchainParameters)?.headless ?: false
 
         device = VulkanDevice.fromPhysicalDevice(instance,
-            physicalDeviceFilter = { _, device -> device.name.contains(System.getProperty("scenery.Renderer.Device", "DOES_NOT_EXIST"))},
+            physicalDeviceFilter = { _, device -> "${device.vendor} ${device.name}".contains(System.getProperty("scenery.Renderer.Device", "DOES_NOT_EXIST"))},
             additionalExtensions = { physicalDevice -> hub.getWorkingHMDDisplay()?.getVulkanDeviceExtensions(physicalDevice)?.toTypedArray() ?: arrayOf() },
             validationLayers = requestedValidationLayers,
             headless = headless)
@@ -2572,6 +2572,7 @@ open class VulkanRenderer(hub: Hub,
         // command buffer cannot be null here anymore, otherwise this is clearly in error
         with(commandBuffer.prepareAndStartRecording(commandPools.Render)) {
 
+            vkCmdResetQueryPool(this, timestampQueryPool, 2*renderpasses.values.indexOf(pass), 2)
             vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
                 timestampQueryPool, 2*renderpasses.values.indexOf(pass))
 
@@ -2607,7 +2608,7 @@ open class VulkanRenderer(hub: Hub,
 
                             val outputAspectDstType = when(outputAttachment.type) {
                                 VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-                                VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+                                VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
                             }
 
                             val inputAspectType = when(inputAttachment.type) {
@@ -2703,6 +2704,7 @@ open class VulkanRenderer(hub: Hub,
             pass.vulkanMetadata.uboOffsets.limit(16)
             (0 until pass.vulkanMetadata.uboOffsets.limit()).forEach { pass.vulkanMetadata.uboOffsets.put(it, 0) }
 
+            var previousPipeline: Pipeline? = null
             renderOrderList.forEach drawLoop@ { node ->
                 val s = node.rendererMetadata() ?: return@drawLoop
 
@@ -2737,6 +2739,11 @@ open class VulkanRenderer(hub: Hub,
                 val p = pass.getActivePipeline(node)
                 val pipeline = p.getPipelineForGeometryType((node as HasGeometry).geometryType)
                 val specs = p.orderedDescriptorSpecs()
+
+                if(pipeline != previousPipeline) {
+                    vkCmdBindPipeline(this, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline)
+                    previousPipeline = pipeline
+                }
 
                 if(logger.isTraceEnabled) {
                     logger.trace("node {} has: {} / pipeline needs: {}", node.name, s.UBOs.keys.joinToString(", "), specs.joinToString { it.key })
@@ -2875,6 +2882,7 @@ open class VulkanRenderer(hub: Hub,
         // prepare command buffer and start recording
         with(commandBuffer.prepareAndStartRecording(commandPools.Render)) {
 
+            vkCmdResetQueryPool(this, timestampQueryPool, 2*renderpasses.values.indexOf(pass), 2)
             vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
                 timestampQueryPool, 2*renderpasses.values.indexOf(pass))
             vkCmdBeginRenderPass(this, pass.vulkanMetadata.renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE)
@@ -3188,6 +3196,14 @@ open class VulkanRenderer(hub: Hub,
         buffers.UBOs.close()
         buffers.VRParameters.close()
 
+        logger.debug("Closing default UBOs...")
+        defaultUBOs.forEach { ubo ->
+            ubo.value.close()
+        }
+
+        logger.debug("Closing memory pools ...")
+        geometryPool.close()
+
         logger.debug("Closing vertex descriptors ...")
         vertexDescriptors.forEach {
             logger.debug("Closing vertex descriptor ${it.key}...")
@@ -3233,6 +3249,7 @@ open class VulkanRenderer(hub: Hub,
             device.destroyCommandPool(Render)
             device.destroyCommandPool(Compute)
             device.destroyCommandPool(Standard)
+            device.destroyCommandPool(Transfer)
         }
 
         vkDestroyPipelineCache(device.vulkanDevice, pipelineCache, null)
@@ -3250,6 +3267,7 @@ open class VulkanRenderer(hub: Hub,
         vkDestroyInstance(instance, null)
 
         heartbeatTimer.cancel()
+        heartbeatTimer.purge()
         logger.info("Renderer teardown complete.")
     }
 

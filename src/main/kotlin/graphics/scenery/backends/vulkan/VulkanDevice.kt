@@ -39,7 +39,9 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
      * @property[apiVersion] The Vulkan API version supported by the device, represented as string.
      * @property[type] The [DeviceType] of the GPU.
      */
-    data class DeviceData(val vendor: String, val name: String, val driverVersion: String, val apiVersion: String, val type: DeviceType)
+    data class DeviceData(val vendor: String, val name: String, val driverVersion: String, val apiVersion: String, val type: DeviceType) {
+        fun toFullString() = "$vendor $name ($type, driver version $driverVersion, Vulkan API $apiVersion)"
+    }
 
     /**
      * Data class to store device-specific queue indices.
@@ -99,7 +101,8 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
             val queueCreateInfo = VkDeviceQueueCreateInfo.callocStack(requiredFamilies.size, stack)
 
             requiredFamilies.entries.forEachIndexed { i, (familyIndex, group) ->
-                logger.debug("Adding queue with familyIndex=$familyIndex, size=${group.size}")
+                val size = minOf(queueProps.get(familyIndex).queueCount(), group.size)
+                logger.debug("Adding queue with familyIndex=$familyIndex, size=$size")
 
                 val pQueuePriorities = stack.callocFloat(group.size)
                 for(pr in 0 until group.size) { pQueuePriorities.put(pr, 1.0f) }
@@ -108,8 +111,7 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
                     .sType(VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO)
                     .queueFamilyIndex(familyIndex)
                     .pQueuePriorities(pQueuePriorities)
-                    // TODO: Check the queue size does not exceed the device's available queue count
-                    .queueCount(group.size)
+                    .queueCount(size)
             }
 
             val extensionsRequested = extensionsQuery.invoke(physicalDevice)
@@ -234,6 +236,7 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
                 throw IllegalStateException("Failed to create command pool: " + VU.translate(err))
             }
 
+            logger.debug("Created command pool ${commandPool.toHexString()}")
             commandPool
         }
     }
@@ -366,6 +369,7 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
                         type = toDeviceType(properties.deviceType()))
 
                     if(physicalDeviceFilter.invoke(i, deviceData)) {
+                        logger.debug("Device filter matches device $i, $deviceData")
                         devicePreference = i
                     }
 
@@ -379,7 +383,7 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
                         ""
                     }
 
-                    logger.info("  $i: ${device.vendor} ${device.name} (${device.type}, driver version ${device.driverVersion}, Vulkan API ${device.apiVersion}) $selected")
+                    logger.info("  $i: ${device.toFullString()} $selected")
                 }
 
                 val selectedDevice = physicalDevices.get(devicePreference)

@@ -5,7 +5,7 @@ import com.jogamp.nativewindow.WindowClosingProtocol
 import com.jogamp.newt.event.WindowAdapter
 import com.jogamp.newt.event.WindowEvent
 import com.jogamp.opengl.*
-import com.jogamp.opengl.util.FPSAnimator
+import com.jogamp.opengl.util.Animator
 import com.jogamp.opengl.util.awt.AWTGLReadBufferUtil
 import graphics.scenery.*
 import graphics.scenery.backends.*
@@ -31,8 +31,7 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicInteger
 import javax.imageio.ImageIO
-import javax.swing.JFrame
-import javax.swing.SwingUtilities
+import javax.swing.BorderFactory
 import kotlin.collections.LinkedHashMap
 import kotlin.math.max
 import kotlin.math.roundToInt
@@ -76,7 +75,7 @@ open class OpenGLRenderer(hub: Hub,
     /** [GL4] instance handed over, coming from [ClearGLDefaultEventListener]*/
     private lateinit var gl: GL4
     /** should the window close on next looping? */
-    override var shouldClose = false
+    @Volatile override var shouldClose = false
     /** the scenery window */
     final override var window: SceneryWindow = SceneryWindow.UninitializedWindow()
     /** separately stored ClearGLWindow */
@@ -128,7 +127,7 @@ open class OpenGLRenderer(hub: Hub,
     override var lastFrameTime = System.nanoTime() * 1.0f
     private var currentTime = System.nanoTime()
 
-    override var initialized = false
+    @Volatile override var initialized = false
     override var firstImageReady: Boolean = false
         protected set
 
@@ -202,6 +201,8 @@ open class OpenGLRenderer(hub: Hub,
             if(drawable is GLOffscreenAutoDrawable) {
                 (drawable as? GLOffscreenAutoDrawable)?.setSurfaceSize(window.width, window.height)
             }
+
+            logger.debug("queryResize: $lastWidth/$lastHeight")
 
             lastResize = -1L
         }
@@ -393,17 +394,29 @@ open class OpenGLRenderer(hub: Hub,
                     canvas!!.glAutoDrawable
                  */
                 drawable = if (panel is SceneryJPanel) {
-                    val canvas = ClearGLWindow("", width, height, null)
+                    val surfaceScale = hub.get<Settings>()?.get("Renderer.SurfaceScale", GLVector(1.0f, 1.0f)) ?: GLVector(1.0f, 1.0f)
+                    this.window.width = (panel.width * surfaceScale.x()).toInt()
+                    this.window.height = (panel.height * surfaceScale.y()).toInt()
+
+                    panel.panelWidth = this.window.width
+                    panel.panelHeight = this.window.height
+
+                    logger.debug("Surface scale: $surfaceScale")
+                    val canvas = ClearGLWindow("",
+                        this.window.width,
+                        this.window.height, null)
                     canvas.newtCanvasAWT.shallUseOffscreenLayer = true
                     panel.component = canvas.newtCanvasAWT
                     panel.cglWindow = canvas
                     panel.layout = BorderLayout()
-                    panel.add(canvas.newtCanvasAWT, BorderLayout.CENTER)
-                    panel.preferredSize = Dimension(width, height)
+                    panel.preferredSize = Dimension(
+                        (window.width * surfaceScale.x()).toInt(),
+                        (window.height * surfaceScale.y()).toInt())
+                    canvas.newtCanvasAWT.preferredSize = panel.preferredSize
 
-                    val frame = SwingUtilities.getAncestorOfClass(JFrame::class.java, panel) as JFrame
-                    frame.preferredSize = Dimension(width, height)
-                    frame.pack()
+                    panel.border = BorderFactory.createEmptyBorder()
+                    panel.add(canvas.newtCanvasAWT, BorderLayout.CENTER)
+
 
                     cglWindow = canvas
                     canvas.glAutoDrawable
@@ -421,8 +434,8 @@ open class OpenGLRenderer(hub: Hub,
 
                 addGLEventListener(this@OpenGLRenderer)
 
-                animator = FPSAnimator(this, 60)
-                animator.setUpdateFPSFrames(60, null)
+                animator = Animator()
+                animator.add(this)
                 animator.start()
 
                 embedInDrawable?.let { glAutoDrawable ->
@@ -438,9 +451,10 @@ open class OpenGLRenderer(hub: Hub,
                 embedIn?.let { panel ->
                     panel.imageScaleY = -1.0f
                     window = panel.init(resizeHandler)
+                    val surfaceScale = hub.get<Settings>()?.get("Renderer.SurfaceScale", GLVector(1.0f, 1.0f)) ?: GLVector(1.0f, 1.0f)
 
-                    window.width = panel.panelWidth
-                    window.height = panel.panelHeight
+                    window.width = (panel.panelWidth * surfaceScale.x()).toInt()
+                    window.height = (panel.panelHeight * surfaceScale.y()).toInt()
                 }
 
                 resizeHandler.lastWidth = window.width
@@ -454,7 +468,8 @@ open class OpenGLRenderer(hub: Hub,
             @Suppress("LeakingThis")
             cglWindow = ClearGLWindow("",
                 w,
-                h, this).apply {
+                h, this,
+                false).apply {
 
                 if(embedIn == null) {
                     window = SceneryWindow.ClearGLWindow(this)
@@ -463,8 +478,8 @@ open class OpenGLRenderer(hub: Hub,
 
                     val windowAdapter = object: WindowAdapter() {
                         override fun windowDestroyNotify(e: WindowEvent?) {
-                            shouldClose = true
-                            cglWindow?.close()
+                            logger.debug("Signalling close from window event")
+                            e?.isConsumed = true
                         }
                     }
 
@@ -472,7 +487,7 @@ open class OpenGLRenderer(hub: Hub,
 
                     this.setFPS(60)
                     this.start()
-                    this.setDefaultCloseOperation(WindowClosingProtocol.WindowClosingMode.DO_NOTHING_ON_CLOSE)
+                    this.setDefaultCloseOperation(WindowClosingProtocol.WindowClosingMode.DISPOSE_ON_CLOSE)
 
                     this.isVisible = true
                 }
@@ -757,7 +772,14 @@ open class OpenGLRenderer(hub: Hub,
         this.joglDrawable = pDrawable
 
         if (mustRecreateFramebuffers) {
-            logger.info("Recreating framebuffers (${window.width}x${window.height}")
+            val surfaceScale = hub?.get<Settings>()?.get("Renderer.SurfaceScale", GLVector(1.0f, 1.0f)) ?: GLVector(1.0f, 1.0f)
+            logger.info("Recreating framebuffers (${window.width}x${window.height})")
+
+            // FIXME: This needs to be done here in order to be able to run on HiDPI screens correctly
+            if(embedIn != null) {
+                cglWindow?.newtCanvasAWT?.setBounds(0, 0, window.width, window.height)
+            }
+
             renderpasses = prepareRenderpasses(renderConfig, window.width, window.height)
             flow = renderConfig.createRenderpassFlow()
 
@@ -792,7 +814,26 @@ open class OpenGLRenderer(hub: Hub,
     }
 
     override fun dispose(pDrawable: GLAutoDrawable) {
-        cglWindow?.stop()
+        initialized = false
+        try {
+
+            scene.discover(scene, { _ -> true }).forEach {
+                destroyNode(it)
+            }
+
+            scene.initialized = false
+
+            if(cglWindow != null) {
+                logger.debug("Closing window")
+                joglDrawable?.animator?.stop()
+            } else {
+                logger.debug("Closing drawable")
+                joglDrawable?.animator?.stop()
+            }
+
+        } catch(e: ThreadDeath) {
+            logger.debug("Caught JOGL ThreadDeath, ignoring.")
+        }
     }
 
     /**
@@ -1512,30 +1553,6 @@ open class OpenGLRenderer(hub: Hub,
 
         if (shouldClose) {
             initialized = false
-            try {
-                logger.info("Closing window")
-
-                scene.discover(scene, { _ -> true }).forEach {
-                    destroyNode(it)
-                }
-
-                scene.initialized = false
-
-                if(cglWindow == null) {
-                    joglDrawable?.animator?.stop()
-                    joglDrawable?.destroy()
-                } else {
-                    cglWindow?.close()
-                }
-
-                gl.glDeleteBuffers(1, buffers.LightParameters.id, 0)
-                gl.glDeleteBuffers(1, buffers.VRParameters.id, 0)
-                gl.glDeleteBuffers(1, buffers.UBOs.id, 0)
-                gl.glDeleteBuffers(1, buffers.ShaderParameters.id, 0)
-                gl.glDeleteBuffers(1, buffers.ShaderProperties.id, 0)
-            } catch(e: ThreadDeath) {
-                logger.debug("Caught JOGL ThreadDeath, ignoring.")
-            }
             return@runBlocking
         }
 
@@ -2531,8 +2548,19 @@ open class OpenGLRenderer(hub: Hub,
         lastResizeTimer = Timer()
         lastResizeTimer.schedule(object : TimerTask() {
             override fun run() {
-                window.width = newWidth
-                window.height = newHeight
+                val surfaceScale = hub?.get<Settings>()?.get("Renderer.SurfaceScale", GLVector(1.0f, 1.0f))
+                    ?: GLVector(1.0f, 1.0f)
+
+                val panel = embedIn
+
+                if(panel is SceneryJPanel && panel.width != (newWidth/surfaceScale.x()).toInt() && panel.height != (newWidth/surfaceScale.y()).toInt()) {
+                    logger.debug("Panel is ${panel.width}x${panel.height} vs $newWidth x $newHeight")
+                    window.width = (newWidth * surfaceScale.x()).toInt()
+                    window.height = (newHeight * surfaceScale.y()).toInt()
+                } else {
+                    window.width = newWidth
+                    window.height = newHeight
+                }
 
                 logger.debug("Resizing window to ${newWidth}x$newHeight")
                 mustRecreateFramebuffers = true
@@ -2950,8 +2978,16 @@ open class OpenGLRenderer(hub: Hub,
      * Closes this renderer instance.
      */
     override fun close() {
+        if (shouldClose || !initialized) {
+            return
+        }
+
         shouldClose = true
 
+        lastResizeTimer.cancel()
         encoder?.finish()
+
+        cglWindow?.closeNoEDT()
+        joglDrawable?.destroy()
     }
 }
