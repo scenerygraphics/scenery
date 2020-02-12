@@ -129,6 +129,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
     protected var currentVolumeCount: Pair<Int, Int>
 
     var maxAllowedStepInVoxels = 1.0
+    var farPlaneDegradation = 5.0
 
     init {
         state = State.Created
@@ -218,7 +219,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
             VolumeShaderSignature.VolumeSignature(volumeType, dataType)
         }
 
-        val segments = MultiVolumeShaderMip.getDefaultSegments(true);
+        val segments = MultiVolumeShaderMip.getDefaultSegments(true)
         segments[SegmentType.VertexShader] = SegmentTemplate(
             this.javaClass,
             "BDVVolume.vert")
@@ -231,7 +232,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
             "MaxDepth.frag")
 
         val newProgvol = MultiVolumeShaderMip(VolumeShaderSignature(signatures),
-            true, 1.0,
+            true, farPlaneDegradation,
             segments,
             "InputZBuffer")
 
@@ -370,6 +371,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
 
         currentProg.setViewportWidth(cam.width.toInt())
         currentProg.setEffectiveViewportSize(cam.width.toInt(), cam.height.toInt())
+        currentProg.setDegrade(farPlaneDegradation)
         currentProg.setProjectionViewMatrix(mvp, maxAllowedStepInVoxels * minWorldVoxelSize)
         currentProg.use(context)
         currentProg.setUniforms(context)
