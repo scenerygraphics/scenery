@@ -244,7 +244,7 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
 //                                            logger.info("Received binocular gaze")
 
                                             val p = g.gaze_point_3d ?: floatArrayOf(0.0f, 0.0f, 0.0f)
-                                            var vp = GLVector(*p)
+                                            var vp = GLVector(p[0], p[1], p[2])
 
 //                                            if(vp.times(GLVector(0.0f, 0.0f, -1.0f)) >= PI/2.0f) {
 //                                                logger.info("Inverting gaze direction")
@@ -274,7 +274,7 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
                                             }
 
                                             val p = g.gaze_point_3d ?: floatArrayOf(0.0f, 0.0f, 0.0f)
-                                            var vp = GLVector(*p)
+                                            var vp = GLVector(p[0], p[1], p[2])
 
                                             vp *= (1.0f/pupilToSceneryRatio)
 
