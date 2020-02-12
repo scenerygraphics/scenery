@@ -336,10 +336,10 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
 
         running = false
         inputHandler?.close()
-        renderer?.close()
         renderdoc?.close()
 
         hub.get<Profiler>()?.close()
+        hub.get<Statistics>()?.close()
     }
 
     /**
@@ -386,10 +386,17 @@ open class SceneryBase @JvmOverloads constructor(var applicationName: String,
     /**
      * Sets the shouldClose flag on renderer, causing it to shut down and thereby ending the main loop.
      */
-    fun close() {
+    open fun close() {
         shouldClose = true
-        gracePeriod = 10
+        gracePeriod = 60
         renderer?.close()
+
+        while(gracePeriod > 0 || renderer?.initialized == true) {
+            logger.debug("Waiting for grace period to go to 0, current=$gracePeriod")
+            Thread.sleep(100)
+        }
+
+        renderer = null
 
         (hub.get(SceneryElement.NodePublisher) as? NodePublisher)?.close()
         (hub.get(SceneryElement.NodeSubscriber) as? NodeSubscriber)?.close()
