@@ -13,7 +13,12 @@ import kotlin.math.sin
  * @author Ulrik Guenther <hello@ulrik.is>
  */
 class LayeredCircleWorldSpaceCalibrationPointGenerator(val layerCount: Int = 3, val pointsPerCircle: Int = 5) : CalibrationPointGenerator {
+    /**
+     * Data class for storing [radius] and [distance] to the user for representing
+     * circles that are layered in Z direction.
+     */
     data class RadiusDistance(val radius: Float, val distance: Float)
+
     val radiiAndDistances = hashMapOf<Int, RadiusDistance>(
         0 to RadiusDistance(0.18f, -0.6f),
         1 to RadiusDistance(0.24f, -1.0f),
