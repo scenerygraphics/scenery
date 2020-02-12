@@ -335,6 +335,15 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
         }
     }
 
+    /**
+     * Subscribes to the frames seen by the eye tracking cameras, which
+     * [onReceiveAction] containing a lambda that takes the eye ID and a byte
+     * array containing the compressed RGB texture data from one frame. [onReceiveAction]
+     * will be called for each frame receive by all eye cameras, until
+     * [unsubscribeFrames] is called.
+     *
+     * TODO: Automatically decompress the frame data received from Pupil.
+     */
     fun subscribeFrames(onReceiveAction: (Int, ByteArray) -> Unit) {
         notify(hashMapOf(
             "subject" to "start_plugin",
@@ -347,7 +356,9 @@ class PupilEyeTracker(val calibrationType: CalibrationType, val host: String = "
         onReceiveFrame = onReceiveAction
     }
 
-
+    /**
+     * Unsubscribes from receiving frames from the eye tracking cameras.
+     */
     fun unsubscribeFrames() {
         notify(hashMapOf(
             "subject" to "stop_plugin",
