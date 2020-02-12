@@ -20,7 +20,7 @@ import kotlin.reflect.KProperty
 
 class DetachedHeadCamera(@Transient var tracker: TrackerInput? = null) : Camera() {
     override var projection: GLMatrix = GLMatrix.getIdentity()
-        get() = if(tracker != null && tracker is Display) {
+        get() = if(tracker != null && tracker is Display && tracker?.initializedAndWorking() == true) {
             (tracker as? Display)?.getEyeProjection(0) ?: super.projection
         } else {
             super.projection
@@ -31,7 +31,7 @@ class DetachedHeadCamera(@Transient var tracker: TrackerInput? = null) : Camera(
         }
 
     override var width: Float = 0.0f
-        get() = if(tracker != null && tracker is Display) {
+        get() = if(tracker != null && tracker is Display && tracker?.initializedAndWorking() == true) {
             (tracker as? Display)?.getRenderTargetSize()?.x() ?: super.width
         } else {
             super.width
@@ -42,7 +42,7 @@ class DetachedHeadCamera(@Transient var tracker: TrackerInput? = null) : Camera(
         }
 
     override var height: Float = 0.0f
-        get() = if(tracker != null && tracker is Display) {
+        get() = if(tracker != null && tracker is Display && tracker?.initializedAndWorking() == true) {
             (tracker as? Display)?.getRenderTargetSize()?.y() ?: super.width
         } else {
             super.height
@@ -53,7 +53,7 @@ class DetachedHeadCamera(@Transient var tracker: TrackerInput? = null) : Camera(
         }
 
     override var fov: Float = 70.0f
-        get() = if(tracker != null && tracker is Display) {
+        get() = if(tracker != null && tracker is Display && tracker?.initializedAndWorking() == true) {
             val proj = (tracker as? Display)?.getEyeProjection(0, nearPlaneDistance, farPlaneDistance)
             if(proj != null) {
                 atan(1.0f / proj.get(1, 1)) * 2.0f * 180.0f / PI.toFloat()
@@ -67,16 +67,6 @@ class DetachedHeadCamera(@Transient var tracker: TrackerInput? = null) : Camera(
             super.fov = value
             field = value
         }
-
-//    override var position: GLVector = GLVector(0.0f, 0.0f, 0.0f)
-//        get() = if(tracker != null) {
-//            field + headPosition
-//        } else {
-//            field
-//        }
-//        set(value) {
-//            field = value
-//        }
 
     /**
      * Delegate class for getting a head rotation from a [TrackerInput].
