@@ -2,20 +2,11 @@ package graphics.scenery.volumes.bdv
 
 import bdv.tools.brightness.ConverterSetup
 import bdv.viewer.RequestRepaint
+import bdv.viewer.state.SourceState
 import coremem.enums.NativeTypeEnum
-import graphics.scenery.Blending
-import graphics.scenery.BufferUtils
-import graphics.scenery.GeometryType
-import graphics.scenery.HasGeometry
-import graphics.scenery.Hub
-import graphics.scenery.Hubable
-import graphics.scenery.Material
-import graphics.scenery.Node
-import graphics.scenery.SceneryElement
-import graphics.scenery.Settings
-import graphics.scenery.ShaderMaterial
-import graphics.scenery.ShaderProperty
-import graphics.scenery.State
+import graphics.scenery.*
+import graphics.scenery.volumes.Colormap
+import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.Volume
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.realtransform.AffineTransform3D
@@ -26,22 +17,17 @@ import net.imglib2.type.volatiles.VolatileARGBType
 import net.imglib2.type.volatiles.VolatileUnsignedByteType
 import net.imglib2.type.volatiles.VolatileUnsignedShortType
 import org.joml.Matrix4f
+import tpietzsch.backend.GpuContext
 import tpietzsch.backend.Texture
-import tpietzsch.cache.CacheSpec
-import tpietzsch.cache.FillTask
-import tpietzsch.cache.PboChain
-import tpietzsch.cache.ProcessFillTasks
-import tpietzsch.cache.TextureCache
+import tpietzsch.backend.Texture3D
+import tpietzsch.cache.*
 import tpietzsch.example2.MultiVolumeShaderMip
 import tpietzsch.example2.VolumeBlocks
 import tpietzsch.example2.VolumeShaderSignature
-import tpietzsch.multires.MultiResolutionStack3D
-import tpietzsch.multires.ResolutionLevel3D
-import tpietzsch.multires.SimpleStack3D
-import tpietzsch.multires.SourceStacks
-import tpietzsch.multires.Stack3D
+import tpietzsch.multires.*
 import tpietzsch.shadergen.generate.SegmentTemplate
 import tpietzsch.shadergen.generate.SegmentType
+import java.nio.ByteBuffer
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.util.*
@@ -106,13 +92,14 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
     /** Set of [VolumeBlocks]. */
     protected var outOfCoreVolumes = ArrayList<VolumeBlocks>()
     protected var bdvNodes = ArrayList<graphics.scenery.volumes.bdv.Volume>()
+    protected var transferFunctionTextures = HashMap<SourceState<*>, Texture>()
     protected var regularVolumeNodes = ArrayList<Volume>()
     /** Stacks loaded from a BigDataViewer XML file. */
     val renderConverters = ArrayList<ConverterSetup>()
     /** Cache specification. */
     private val cacheSpec = CacheSpec(Texture.InternalFormat.R16, intArrayOf(32, 32, 32))
 
-    private val renderStacks = ArrayList<Stack3D<*>>()
+    private val renderStacks = ArrayList<Triple<Stack3D<*>, Texture, Colormap?>>()
     private val simpleRenderStacks = ArrayList<SimpleStack3D<VolatileUnsignedShortType>>()
 
     private val stackManager = SceneryStackManager()
@@ -185,8 +172,8 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
     }
 
     private fun needAtLeastNumVolumes(n: Int) {
-        val outOfCoreVolumeCount = renderStacks.count { it is MultiResolutionStack3D }
-        val regularVolumeCount = renderStacks.count { it is SimpleStack3D }
+        val outOfCoreVolumeCount = renderStacks.count { it.first is MultiResolutionStack3D }
+        val regularVolumeCount = renderStacks.count { it.first is SimpleStack3D }
         logger.info("$currentVolumeCount -> ooc:$outOfCoreVolumeCount reg:$regularVolumeCount")
 
         if(currentVolumeCount.first == outOfCoreVolumeCount && currentVolumeCount.second == regularVolumeCount) {
@@ -198,7 +185,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
         }
 
         val signatures = renderStacks.map {
-            val dataType = when(it.type) {
+            val dataType = when(it.first.type) {
                 is VolatileUnsignedByteType,
                 is UnsignedByteType -> VolumeShaderSignature.PixelType.UBYTE
 
@@ -207,10 +194,10 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
 
                 is VolatileARGBType,
                 is ARGBType -> VolumeShaderSignature.PixelType.ARGB
-                else -> throw IllegalStateException("Unknown volume type ${it.type}")
+                else -> throw IllegalStateException("Unknown volume type ${it.first.type}")
             }
 
-            val volumeType = when(it) {
+            val volumeType = when(it.first) {
                 is SimpleStack3D -> SourceStacks.SourceStackType.SIMPLE
                 is MultiResolutionStack3D -> SourceStacks.SourceStackType.MULTIRESOLUTION
                 else -> SourceStacks.SourceStackType.UNDEFINED
@@ -230,6 +217,10 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
         segments[SegmentType.MaxDepth] = SegmentTemplate(
             this.javaClass,
             "MaxDepth.frag")
+        segments[SegmentType.SampleMultiresolutionVolume] = SegmentTemplate(
+            "SampleBlockVOlume.frag",
+            "im", "sourcemin", "sourcemax", "intersectBoundingBox",
+            "lutSampler", "transferFunction", "blockScales", "lutSize", "lutOffset", "sampleVolume")
 
         val newProgvol = MultiVolumeShaderMip(VolumeShaderSignature(signatures),
             true, farPlaneDegradation,
@@ -289,7 +280,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
         var numTasks = 0
         val fillTasksPerVolume = ArrayList<VolumeAndTasks>()
         for(i in 0 until renderStacks.size) {
-            val stack = renderStacks[i]
+            val stack = renderStacks[i].first
             if(stack !is MultiResolutionStack3D) continue
             val volume = outOfCoreVolumes[i]
 
@@ -331,7 +322,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
         var repaint = false
         for(i in 0 until renderStacks.size) {
             val stack = renderStacks[i]
-            if(stack is MultiResolutionStack3D) {
+            if(stack.first is MultiResolutionStack3D) {
                 val volumeBlocks = outOfCoreVolumes[i]
                 val timestamp = textureCache.nextTimestamp()
                 val complete = volumeBlocks.makeLut(timestamp)
@@ -351,19 +342,22 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
             // then simple stacks
             .sortedBy { it.javaClass.simpleName }
             .forEachIndexed { i, stack ->
-                if (stack is MultiResolutionStack3D) {
+                val s = stack.first
+                if (s is MultiResolutionStack3D) {
                     currentProg.setConverter(i, renderConverters.get(i))
+                    currentProg.setCustomSampler(i, "transferFunction", stack.second)
+                    context.bindTexture(stack.second)
                     currentProg.setVolume(i, outOfCoreVolumes.get(i))
                     minWorldVoxelSize = min(minWorldVoxelSize, outOfCoreVolumes.get(i).baseLevelVoxelSizeInWorldCoordinates)
                 }
 
-                if (stack is SimpleStack3D) {
-                    val volume = stackManager.getSimpleVolume(context, stack)
+                if (s is SimpleStack3D) {
+                    val volume = stackManager.getSimpleVolume(context, s)
                     currentProg.setConverter(i, renderConverters.get(i))
                     currentProg.setVolume(i, volume)
                     context.bindTexture(volume.volumeTexture)
                     if(ready) {
-                        stackManager.upload(context, stack)
+                        stackManager.upload(context, s)
                     }
                     minWorldVoxelSize = min(minWorldVoxelSize, volume.voxelSizeInWorldCoordinates)
                 }
@@ -376,12 +370,42 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
         currentProg.use(context)
         currentProg.setUniforms(context)
         currentProg.bindSamplers(context)
-        logger.info("Done updating blocks with minVoxelSize=$minWorldVoxelSize")
+//        logger.info("Done updating blocks with minVoxelSize=$minWorldVoxelSize")
+    }
+
+    class SimpleTexture2D(
+        val data: ByteBuffer,
+        val width: Int,
+        val height: Int,
+        val format: Texture.InternalFormat,
+        val wrap: Texture.Wrap,
+        val minFilter: Texture.MinFilter,
+        val magFilter: Texture.MagFilter
+    ) : Texture3D {
+        override fun texMinFilter(): Texture.MinFilter = minFilter
+        override fun texMagFilter(): Texture.MagFilter = magFilter
+        override fun texWrap(): Texture.Wrap = wrap
+        override fun texWidth(): Int = width
+        override fun texHeight(): Int = height
+        override fun texDepth(): Int = 1
+        override fun texInternalFormat(): Texture.InternalFormat = format
+
+        fun upload(context: GpuContext) {
+            context.delete(this)
+            context.texSubImage3D(this, 0, 0, 0, texWidth(), texHeight(), texDepth(), data)
+        }
+    }
+
+    private fun TransferFunction.toTexture(): Texture3D {
+        val data = this.serialise()
+        return SimpleTexture2D(data, textureSize, textureHeight,
+            Texture.InternalFormat.FLOAT32, Texture.Wrap.CLAMP_TO_EDGE,
+            Texture.MinFilter.LINEAR, Texture.MagFilter.LINEAR)
     }
 
     fun readyToRender(): Boolean {
-        val multiResCount = renderStacks.count { it is MultiResolutionStack3D }
-        val regularCount = renderStacks.count { it is SimpleStack3D }
+        val multiResCount = renderStacks.count { it.first is MultiResolutionStack3D }
+        val regularCount = renderStacks.count { it.first is SimpleStack3D }
 
         val multiResMatch = material.textures.count { it.key.startsWith("volumeCache") } == 1
             && material.textures.count { it.key.startsWith("lutSampler_") }  == multiResCount
@@ -411,6 +435,13 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
      */
     override fun preDraw(): Boolean {
         context.bindTexture(textureCache)
+
+        if(bdvNodes.any { it.transferFunction.stale }) {
+            transferFunctionTextures.clear()
+            val keys = material.transferTextures.filter { it.key.startsWith("transferFunction") }.keys
+            keys.forEach { material.transferTextures.remove(it) }
+            renderStateUpdated = true
+        }
 
         if(renderStateUpdated) {
             updateRenderState()
@@ -482,7 +513,8 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
                         }
                     }
 
-                    renderStacks.add(o)
+                    val tf = transferFunctionTextures.getOrPut(bdvNode.viewerState.sources[i], { bdvNode.transferFunction.toTexture() })
+                    renderStacks.add(Triple(o, tf, null))
                 } else if(stack is SimpleStack3D) {
                     val o = object<T> : SimpleStack3D<T> {
                         override fun getType(): T {
@@ -508,7 +540,8 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
                         }
                     }
 
-                    renderStacks.add(o)
+                    val tf = transferFunctionTextures.getOrPut(bdvNode.viewerState.sources[i], { bdvNode.transferFunction.toTexture() })
+                    renderStacks.add(Triple(o, tf, null))
                 }
 
                 val converter = bdvNode.converterSetups[i]
@@ -533,7 +566,8 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
                     }
                 }
                 logger.info("Added SimpleStack: $simpleStack")
-                renderStacks.add(simpleStack)
+                //val tf = transferFunctionTextures.getOrPut(bdvNode.viewerState.sources[i], { transferFunctions[bdvNode]!!.toTexture() })
+                renderStacks.add(Triple(simpleStack, volume.transferFunction.toTexture(), null))
 
                 renderConverters.add(object: ConverterSetup {
                     val converterColor = ARGBType(Random.nextInt(0, 255*255*255))
