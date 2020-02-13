@@ -13,6 +13,7 @@ import org.lwjgl.vulkan.VK11.VK_FORMAT_G16_B16_R16_3PLANE_444_UNORM
 import org.lwjgl.vulkan.VK11.VK_FORMAT_G8B8G8R8_422_UNORM
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.collections.ArrayList
 
 typealias QueueIndexWithProperties = Pair<Int, VkQueueFamilyProperties>
 
@@ -855,6 +856,7 @@ open class VulkanDevice(
         @JvmStatic fun fromPhysicalDevice(instance: VkInstance, physicalDeviceFilter: (Int, DeviceData) -> Boolean,
                                           additionalExtensions: (VkPhysicalDevice) -> Array<String> = { arrayOf() },
                                           validationLayers: Array<String> = arrayOf(),
+                                          discoveredDevices: ArrayList<String>,
                                           headless: Boolean = false, debugEnabled: Boolean = false): VulkanDevice {
 
             val physicalDeviceCount = VU.getInt("Enumerate physical devices") {
@@ -909,6 +911,7 @@ open class VulkanDevice(
                 }
 
                 deviceList.add(deviceData)
+                discoveredDevices.add("Vulkan: "+deviceData.name)
             }
 
             deviceList.forEachIndexed { i, device ->

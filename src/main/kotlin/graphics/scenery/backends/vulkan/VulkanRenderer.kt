@@ -343,6 +343,8 @@ open class VulkanRenderer(hub: Hub,
 
     protected var instance: VkInstance
     protected var device: VulkanDevice
+    /** list of all vulkan devices discovered during VulkanDevice.fromPhysicalDevice() */
+    val discoveredDevices = ArrayList<String>(10)
 
     protected var debugCallbackHandle: Long = -1L
 
@@ -579,6 +581,7 @@ open class VulkanRenderer(hub: Hub,
                 physicalDeviceFilter = { _, device -> "${device.vendor} ${device.name}".contains(System.getProperty("scenery.Renderer.Device", "DOES_NOT_EXIST"))},
                 additionalExtensions = { physicalDevice -> hub.getWorkingHMDDisplay()?.getVulkanDeviceExtensions(physicalDevice)?.toTypedArray() ?: arrayOf() },
                 validationLayers = requestedValidationLayers,
+                discoveredDevices = discoveredDevices,
                 headless = headless,
                 debugEnabled = validation
             )
