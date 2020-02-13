@@ -67,7 +67,7 @@ class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions,
     var renderStateUpdated: Boolean = false
 
     /** The transfer function to use for the volume. Flat by default. */
-    var transferFunction: TransferFunction = TransferFunction.flat(1.0f)
+    var transferFunction: TransferFunction = TransferFunction.flat(0.5f)
 
     /** The color map for the volume. */
     var colormap: Colormap = Colormap.get("viridis")
