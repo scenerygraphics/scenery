@@ -47,6 +47,9 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
     /** Storage for deferred bindings, where the association between uniform and texture unit is not known upfront. */
     protected var deferredBindings = ConcurrentHashMap<Texture, (String) -> Unit>()
 
+    protected var samplerKeys = listOf("volumeCache", "lutSampler", "volume_", "transferFunction_")
+
+    val uniformSetter = SceneryUniformSetter()
     /**
      * Uniform setter class
      */
@@ -58,8 +61,8 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
          * Sets the uniform with [name] to the Integer [v0].
          */
         override fun setUniform1i(name: String, v0: Int) {
-            logger.debug("Setting uniform $name")
-            if(name.startsWith("volumeCache") || name.startsWith("lutSampler") || name.startsWith("volume_")) {
+            logger.info("Setting uniform $name to $v0")
+            if(samplerKeys.any { name.startsWith(it) }) {
                 val binding = bindings.entries.find { it.value.binding == v0 }
                 if(binding != null) {
                     bindings[binding.key] = BindingState(v0, name)
@@ -225,7 +228,7 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
      * Returns the uniform setter for [shader].
      */
     override fun getUniformSetter(shader: Shader): SetUniforms {
-        return SceneryUniformSetter()
+        return uniformSetter
     }
 
     /**
@@ -256,6 +259,7 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
             Texture.InternalFormat.R8 -> Triple(1, GLTypeEnum.UnsignedByte, true)
             Texture.InternalFormat.R16 -> Triple(1, GLTypeEnum.UnsignedShort, true)
             Texture.InternalFormat.RGBA8UI -> Triple(4, GLTypeEnum.UnsignedByte, false)
+            Texture.InternalFormat.FLOAT32 -> Triple(1, GLTypeEnum.Float, false)
             Texture.InternalFormat.UNKNOWN -> TODO()
             else -> throw UnsupportedOperationException("Unknown internal format ${texture.texInternalFormat()}")
         }
@@ -293,17 +297,23 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
             node.material.needsTextureReload = true
         } else {
             val lutName = bindings[texture]?.uniformName
+            logger.debug("lutName is $lutName for $texture")
 
             val db = { lut: String ->
                 if (node.material.transferTextures.get(lut) != null
                     && currentlyBoundLuts.get(lut) != null
                     && node.material.transferTextures.get(lut) == currentlyBoundLuts[lut]) {
                 } else {
+                    val contents = when(texture) {
+                        is LookupTextureARGB -> null
+                        is VolumeManager.SimpleTexture2D -> texture.data
+                        else -> null
+                    }
                     val gt = GenericTexture(lut,
                         GLVector(texture.texWidth().toFloat(), texture.texHeight().toFloat(), texture.texDepth().toFloat()),
                         channels,
                         type,
-                        null,
+                        contents,
                         repeat, repeat, repeat,
                         TextureBorderColor.TransparentBlack,
                         normalized,
@@ -373,7 +383,8 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
             if(binding != null) {
                 bindings[texture] = BindingState(unit, binding.uniformName)
             } else {
-                bindings[texture] = BindingState(unit, null)
+                val previousName = bindings.filter { it.value.binding == unit }.entries.firstOrNull()?.value?.uniformName
+                bindings[texture] = BindingState(unit, previousName)
             }
         }
     }
@@ -504,7 +515,7 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
         val texname = tex.value.uniformName
 
         if(texname == null) {
-            logger.warn("Binding not initialised for $texture")
+            logger.warn("Binding not initialised for $texture.")
             return
         }
 
@@ -515,6 +526,7 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
                 Texture.InternalFormat.R16 -> 2
                 Texture.InternalFormat.RGBA8 -> 4
                 Texture.InternalFormat.RGBA8UI -> 4
+                Texture.InternalFormat.FLOAT32 -> 4
                 Texture.InternalFormat.UNKNOWN -> {
                     logger.error("Don't know how to determine texture size of $texture, assuming 1 byte, 1 channel.")
                     1
