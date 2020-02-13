@@ -226,6 +226,7 @@ sealed class Shaders {
         val compileFail = !shader.parse(defaultResources, 450, false, messages)
         if (compileFail) {
             logger.error("Error in shader compilation of ${shaderPackage.codePath} for ${base.simpleName}: ${shader.infoLog}")
+            logger.error("Shader code was: \n${shaderCode.joinToString("\n")}")
         }
 
         program.addShader(shader)
