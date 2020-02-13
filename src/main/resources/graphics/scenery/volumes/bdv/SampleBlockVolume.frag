@@ -17,7 +17,7 @@ uniform vec3 blockScales[ NUM_BLOCK_SCALES ];
 uniform vec3 lutSize;
 uniform vec3 lutOffset;
 
-float sampleVolume( vec4 wpos, sampler3D volumeCache, vec3 cacheSize, vec3 blockSize, vec3 paddedBlockSize, vec3 padOffset )
+vec2 sampleVolume( vec4 wpos, sampler3D volumeCache, vec3 cacheSize, vec3 blockSize, vec3 paddedBlockSize, vec3 padOffset )
 {
     vec3 pos = (im * wpos).xyz + 0.5;
     vec3 q = floor( pos / blockSize ) - lutOffset + 0.5;
@@ -30,5 +30,5 @@ float sampleVolume( vec4 wpos, sampler3D volumeCache, vec3 cacheSize, vec3 block
     // + 0.5 ( sj - 1 )   + 0.5 for tex coord offset
 
     float vsample = texture( volumeCache, c0 / cacheSize ).r;
-    return texture(transferFunction, vec2(vsample + 0.001f, 0.5f)).r;
+    return vec2(vsample, texture(transferFunction, vec2(vsample + 0.001f, 0.5f)).r);
 }

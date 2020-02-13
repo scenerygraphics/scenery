@@ -218,9 +218,19 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
             this.javaClass,
             "MaxDepth.frag")
         segments[SegmentType.SampleMultiresolutionVolume] = SegmentTemplate(
-            "SampleBlockVOlume.frag",
+            "SampleBlockVolume.frag",
             "im", "sourcemin", "sourcemax", "intersectBoundingBox",
             "lutSampler", "transferFunction", "blockScales", "lutSize", "lutOffset", "sampleVolume")
+        segments[SegmentType.SampleVolume] = SegmentTemplate(
+            "SampleSimpleVolume.frag",
+            "im", "sourcemax", "intersectBoundingBox",
+            "volume", "transferFunction", "sampleVolume")
+        segments[SegmentType.AccumulatorMultiresolution] = SegmentTemplate(
+            "AccumulateBlockVolume.frag",
+            "vis", "sampleVolume", "convert")
+        segments[SegmentType.Accumulator] = SegmentTemplate(
+            "AccumulateSimpleVolume.frag",
+            "vis", "sampleVolume", "convert")
 
         val newProgvol = MultiVolumeShaderMip(VolumeShaderSignature(signatures),
             true, farPlaneDegradation,
@@ -347,6 +357,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
                     currentProg.setConverter(i, renderConverters.get(i))
                     currentProg.setCustomSampler(i, "transferFunction", stack.second)
                     context.bindTexture(stack.second)
+
                     currentProg.setVolume(i, outOfCoreVolumes.get(i))
                     minWorldVoxelSize = min(minWorldVoxelSize, outOfCoreVolumes.get(i).baseLevelVoxelSizeInWorldCoordinates)
                 }
@@ -354,6 +365,9 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
                 if (s is SimpleStack3D) {
                     val volume = stackManager.getSimpleVolume(context, s)
                     currentProg.setConverter(i, renderConverters.get(i))
+                    currentProg.setCustomSampler(i, "transferFunction", stack.second)
+                    context.bindTexture(stack.second)
+
                     currentProg.setVolume(i, volume)
                     context.bindTexture(volume.volumeTexture)
                     if(ready) {
@@ -541,6 +555,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
                     }
 
                     val tf = transferFunctionTextures.getOrPut(bdvNode.viewerState.sources[i], { bdvNode.transferFunction.toTexture() })
+                    logger.info("TF for ${bdvNode.viewerState.sources[i]} is $tf")
                     renderStacks.add(Triple(o, tf, null))
                 }
 
