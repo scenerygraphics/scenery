@@ -2,6 +2,7 @@ package graphics.scenery.repl
 
 import graphics.scenery.Hub
 import graphics.scenery.Hubable
+import net.imagej.lut.LUTService
 import org.scijava.Context
 import org.scijava.`object`.ObjectService
 import org.scijava.ui.swing.script.InterpreterWindow
@@ -30,7 +31,7 @@ class REPL @JvmOverloads constructor(override var hub : Hub?, scijavaContext: Co
 
     init {
         hub?.add(this)
-        context = scijavaContext ?: Context()
+        context = scijavaContext ?: Context(ObjectService::class.java, LUTService::class.java)
         interpreterWindow = InterpreterWindow(context)
         interpreterWindow.isVisible = false
 
