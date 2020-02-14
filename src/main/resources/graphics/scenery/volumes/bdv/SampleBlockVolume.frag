@@ -13,11 +13,12 @@ void intersectBoundingBox( vec4 wfront, vec4 wback, out float tnear, out float t
 
 uniform usampler3D lutSampler;
 uniform sampler2D transferFunction;
+uniform sampler2D colorMap;
 uniform vec3 blockScales[ NUM_BLOCK_SCALES ];
 uniform vec3 lutSize;
 uniform vec3 lutOffset;
 
-vec2 sampleVolume( vec4 wpos, sampler3D volumeCache, vec3 cacheSize, vec3 blockSize, vec3 paddedBlockSize, vec3 padOffset )
+vec4 sampleVolume( vec4 wpos, sampler3D volumeCache, vec3 cacheSize, vec3 blockSize, vec3 paddedBlockSize, vec3 padOffset )
 {
     vec3 pos = (im * wpos).xyz + 0.5;
     vec3 q = floor( pos / blockSize ) - lutOffset + 0.5;
@@ -29,6 +30,8 @@ vec2 sampleVolume( vec4 wpos, sampler3D volumeCache, vec3 cacheSize, vec3 blockS
     vec3 c0 = B0 + mod( pos * sj, blockSize ) + 0.5 * sj;
     // + 0.5 ( sj - 1 )   + 0.5 for tex coord offset
 
-    float vsample = texture( volumeCache, c0 / cacheSize ).r;
-    return vec2(vsample, texture(transferFunction, vec2(vsample + 0.001f, 0.5f)).r);
+    float rawsample = texture( volumeCache, c0 / cacheSize ).r;
+    float tf = texture(transferFunction, vec2(rawsample + 0.001f, 0.5f)).r;
+    vec3 cmapplied = tf * texture(colorMap, vec2(rawsample + 0.001f, 0.5f)).rgb;
+    return vec4(cmapplied, rawsample);
 }

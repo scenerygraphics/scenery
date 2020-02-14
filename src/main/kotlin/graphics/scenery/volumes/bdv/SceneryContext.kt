@@ -47,7 +47,7 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
     /** Storage for deferred bindings, where the association between uniform and texture unit is not known upfront. */
     protected var deferredBindings = ConcurrentHashMap<Texture, (String) -> Unit>()
 
-    protected var samplerKeys = listOf("volumeCache", "lutSampler", "volume_", "transferFunction_")
+    protected var samplerKeys = listOf("volumeCache", "lutSampler", "volume_", "transferFunction_", "colorMap_")
 
     val uniformSetter = SceneryUniformSetter()
     /**
@@ -258,6 +258,7 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
         val (channels, type, normalized) = when(texture.texInternalFormat()) {
             Texture.InternalFormat.R8 -> Triple(1, GLTypeEnum.UnsignedByte, true)
             Texture.InternalFormat.R16 -> Triple(1, GLTypeEnum.UnsignedShort, true)
+            Texture.InternalFormat.RGBA8 -> Triple(4, GLTypeEnum.UnsignedByte, true)
             Texture.InternalFormat.RGBA8UI -> Triple(4, GLTypeEnum.UnsignedByte, false)
             Texture.InternalFormat.FLOAT32 -> Triple(1, GLTypeEnum.Float, false)
             Texture.InternalFormat.UNKNOWN -> TODO()
