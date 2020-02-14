@@ -105,15 +105,15 @@ open class Image(val contents: ByteBuffer, val width: Int, val height: Int) {
             val raster: WritableRaster
             val texImage: BufferedImage
 
-            var texWidth = 2
-            var texHeight = 2
+            var texWidth = bufferedImage.width
+            var texHeight = bufferedImage.height
 
-            while (texWidth < bufferedImage.width) {
-                texWidth *= 2
-            }
-            while (texHeight < bufferedImage.height) {
-                texHeight *= 2
-            }
+//            while (texWidth < bufferedImage.width) {
+//                texWidth *= 2
+//            }
+//            while (texHeight < bufferedImage.height) {
+//                texHeight *= 2
+//            }
 
             if (bufferedImage.colorModel.hasAlpha()) {
                 raster = Raster.createInterleavedRaster(DataBuffer.TYPE_BYTE, texWidth, texHeight, 4, null)
