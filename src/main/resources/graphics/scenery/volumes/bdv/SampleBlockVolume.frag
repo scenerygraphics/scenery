@@ -30,8 +30,8 @@ vec4 sampleVolume( vec4 wpos, sampler3D volumeCache, vec3 cacheSize, vec3 blockS
     vec3 c0 = B0 + mod( pos * sj, blockSize ) + 0.5 * sj;
     // + 0.5 ( sj - 1 )   + 0.5 for tex coord offset
 
-    float rawsample = texture( volumeCache, c0 / cacheSize ).r;
+    float rawsample = convert(texture( volumeCache, c0 / cacheSize ).r);
     float tf = texture(transferFunction, vec2(rawsample + 0.001f, 0.5f)).r;
     vec3 cmapplied = tf * texture(colorMap, vec2(rawsample + 0.001f, 0.5f)).rgb;
-    return vec4(cmapplied, rawsample);
+    return vec4(cmapplied, tf);
 }

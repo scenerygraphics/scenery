@@ -181,7 +181,7 @@ class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions,
         viewerState.displayMode = DisplayMode.FUSED
 
         converterSetups.forEach {
-            it.color = ARGBType(Random.nextInt(0, 255*255*255))
+            it.color = ARGBType(Int.MAX_VALUE)
         }
 
         volumeManager = hub.get<VolumeManager>() ?: hub.add(VolumeManager(hub))

@@ -25,6 +25,7 @@ import tpietzsch.example2.MultiVolumeShaderMip
 import tpietzsch.example2.VolumeBlocks
 import tpietzsch.example2.VolumeShaderSignature
 import tpietzsch.multires.*
+import tpietzsch.shadergen.generate.Segment
 import tpietzsch.shadergen.generate.SegmentTemplate
 import tpietzsch.shadergen.generate.SegmentType
 import java.nio.ByteBuffer
@@ -32,11 +33,11 @@ import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.util.*
 import java.util.concurrent.ForkJoinPool
+import java.util.function.BiConsumer
 import kotlin.math.max
 import kotlin.math.min
-import kotlin.random.Random
 
-class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
+class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, RequestRepaint {
     /** How many elements does a vertex store? */
     override val vertexSize : Int = 3
     /** How many elements does a texture coordinate store? */
@@ -221,11 +222,14 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
         segments[SegmentType.SampleMultiresolutionVolume] = SegmentTemplate(
             "SampleBlockVolume.frag",
             "im", "sourcemin", "sourcemax", "intersectBoundingBox",
-            "lutSampler", "transferFunction", "colorMap", "blockScales", "lutSize", "lutOffset", "sampleVolume")
+            "lutSampler", "transferFunction", "colorMap", "blockScales", "lutSize", "lutOffset", "sampleVolume", "convert")
         segments[SegmentType.SampleVolume] = SegmentTemplate(
             "SampleSimpleVolume.frag",
             "im", "sourcemax", "intersectBoundingBox",
-            "volume", "transferFunction", "colorMap", "sampleVolume")
+            "volume", "transferFunction", "colorMap", "sampleVolume", "convert")
+        segments[SegmentType.Convert] = SegmentTemplate(
+            "Converter.frag",
+            "convert", "offset", "scale")
         segments[SegmentType.AccumulatorMultiresolution] = SegmentTemplate(
             "AccumulateBlockVolume.frag",
             "vis", "sampleVolume", "convert")
@@ -233,9 +237,16 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
             "AccumulateSimpleVolume.frag",
             "vis", "sampleVolume", "convert")
 
+        val additionalBindings = BiConsumer { _: Map<SegmentType, SegmentTemplate>, instances: Map<SegmentType, Segment> ->
+            logger.debug("Connecting additional bindings")
+            instances.get(SegmentType.SampleMultiresolutionVolume)?.bind("convert", instances.get(SegmentType.Convert))
+            instances.get(SegmentType.SampleVolume)?.bind("convert", instances.get(SegmentType.Convert))
+        }
+
         val newProgvol = MultiVolumeShaderMip(VolumeShaderSignature(signatures),
             true, farPlaneDegradation,
             segments,
+            additionalBindings,
             "InputZBuffer")
 
         newProgvol.setTextureCache(textureCache)
@@ -573,6 +584,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
                 }
 
                 val converter = bdvNode.converterSetups[i]
+                converter.setViewer(this)
                 renderConverters.add(converter)
             }
         }
@@ -598,7 +610,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
                 renderStacks.add(Triple(simpleStack, volume.transferFunction.toTexture(), Colormap.get("viridis").toTexture()))
 
                 renderConverters.add(object: ConverterSetup {
-                    val converterColor = ARGBType(Random.nextInt(0, 255*255*255))
+                    val converterColor = ARGBType(Int.MAX_VALUE)
 
                     override fun getSetupId(): Int {
                         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
@@ -654,6 +666,10 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
     }
 
     fun notifyUpdate(node: Node) {
+        renderStateUpdated = true
+    }
+
+    override fun requestRepaint() {
         renderStateUpdated = true
     }
 
