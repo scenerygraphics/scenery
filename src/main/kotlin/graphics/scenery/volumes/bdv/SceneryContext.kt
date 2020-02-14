@@ -61,7 +61,7 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
          * Sets the uniform with [name] to the Integer [v0].
          */
         override fun setUniform1i(name: String, v0: Int) {
-            logger.info("Setting uniform $name to $v0")
+            logger.debug("Setting uniform $name to $v0")
             if(samplerKeys.any { name.startsWith(it) }) {
                 val binding = bindings.entries.find { it.value.binding == v0 }
                 if(binding != null) {

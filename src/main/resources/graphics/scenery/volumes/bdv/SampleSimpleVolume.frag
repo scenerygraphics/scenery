@@ -16,8 +16,8 @@ vec4 sampleVolume( vec4 wpos )
 {
     vec3 pos = (im * wpos).xyz + 0.5;
 
-    float rawsample = texture( volume, pos / textureSize( volume, 0 ) ).r;
+    float rawsample = convert(texture( volume, pos / textureSize( volume, 0 ) ).r);
     float tf = texture(transferFunction, vec2(rawsample + 0.001f, 0.5f)).r;
-    vec3 cmapplied = tf * texture(colorMap, vec2(rawsample + 0.001f, 0.5f)).rgb;
-    return vec4(cmapplied, rawsample);
+    vec3 cmapplied = texture(colorMap, vec2(rawsample + 0.001f, 0.5f)).rgb;
+    return vec4(cmapplied, tf);
 }
