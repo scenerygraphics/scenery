@@ -536,9 +536,14 @@
         </dependency>
 
         <dependency>
-            <groupId>sc.fiji</groupId>
-            <artifactId>bigvolumeviewer</artifactId>
-            <version>${bigvolumeviewer.version}</version>
+            <!-- TODO: Revert back when https://github.com/tpietzsch/jogl-minimal/pull/10 is merged
+                <groupId>sc.fiji</groupId>
+                <artifactId>bigvolumeviewer</artifactId>
+                <version>${bigvolumeviewer.version}</version>
+            -->
+            <groupId>com.github.skalarproduktraum</groupId>
+            <artifactId>jogl-minimal</artifactId>
+            <version>29cc044e</version>
         </dependency>
 
         <dependency>
