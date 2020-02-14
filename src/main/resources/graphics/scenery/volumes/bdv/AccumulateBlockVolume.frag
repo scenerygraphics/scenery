@@ -1,8 +1,8 @@
 if (vis)
 {
-    vec2 x = sampleVolume(wpos, volumeCache, cacheSize, blockSize, paddedBlockSize, cachePadOffset);
-    float newAlpha = x.y;
-    vec3 newColor = convert(x.x).rgb;
+    vec4 x = sampleVolume(wpos, volumeCache, cacheSize, blockSize, paddedBlockSize, cachePadOffset);
+    float newAlpha = x.a;
+    vec3 newColor = x.rgb;
 
     v.rgb = v.rgb + (1.0f - v.a) * newColor * newAlpha;
     v.a = v.a + (1.0f - v.a) * newAlpha;

@@ -93,13 +93,14 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
     protected var outOfCoreVolumes = ArrayList<VolumeBlocks>()
     protected var bdvNodes = ArrayList<graphics.scenery.volumes.bdv.Volume>()
     protected var transferFunctionTextures = HashMap<SourceState<*>, Texture>()
+    protected var colorMapTextures = HashMap<SourceState<*>, Texture>()
     protected var regularVolumeNodes = ArrayList<Volume>()
     /** Stacks loaded from a BigDataViewer XML file. */
     val renderConverters = ArrayList<ConverterSetup>()
     /** Cache specification. */
     private val cacheSpec = CacheSpec(Texture.InternalFormat.R16, intArrayOf(32, 32, 32))
 
-    private val renderStacks = ArrayList<Triple<Stack3D<*>, Texture, Colormap?>>()
+    private val renderStacks = ArrayList<Triple<Stack3D<*>, Texture, Texture>>()
     private val simpleRenderStacks = ArrayList<SimpleStack3D<VolatileUnsignedShortType>>()
 
     private val stackManager = SceneryStackManager()
@@ -220,11 +221,11 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
         segments[SegmentType.SampleMultiresolutionVolume] = SegmentTemplate(
             "SampleBlockVolume.frag",
             "im", "sourcemin", "sourcemax", "intersectBoundingBox",
-            "lutSampler", "transferFunction", "blockScales", "lutSize", "lutOffset", "sampleVolume")
+            "lutSampler", "transferFunction", "colorMap", "blockScales", "lutSize", "lutOffset", "sampleVolume")
         segments[SegmentType.SampleVolume] = SegmentTemplate(
             "SampleSimpleVolume.frag",
             "im", "sourcemax", "intersectBoundingBox",
-            "volume", "transferFunction", "sampleVolume")
+            "volume", "transferFunction", "colorMap", "sampleVolume")
         segments[SegmentType.AccumulatorMultiresolution] = SegmentTemplate(
             "AccumulateBlockVolume.frag",
             "vis", "sampleVolume", "convert")
@@ -356,7 +357,9 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
                 if (s is MultiResolutionStack3D) {
                     currentProg.setConverter(i, renderConverters.get(i))
                     currentProg.setCustomSampler(i, "transferFunction", stack.second)
+                    currentProg.setCustomSampler(i, "colorMap", stack.third)
                     context.bindTexture(stack.second)
+                    context.bindTexture(stack.third)
 
                     currentProg.setVolume(i, outOfCoreVolumes.get(i))
                     minWorldVoxelSize = min(minWorldVoxelSize, outOfCoreVolumes.get(i).baseLevelVoxelSizeInWorldCoordinates)
@@ -366,7 +369,9 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
                     val volume = stackManager.getSimpleVolume(context, s)
                     currentProg.setConverter(i, renderConverters.get(i))
                     currentProg.setCustomSampler(i, "transferFunction", stack.second)
+                    currentProg.setCustomSampler(i, "colorMap", stack.third)
                     context.bindTexture(stack.second)
+                    context.bindTexture(stack.third)
 
                     currentProg.setVolume(i, volume)
                     context.bindTexture(volume.volumeTexture)
@@ -414,6 +419,12 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
         val data = this.serialise()
         return SimpleTexture2D(data, textureSize, textureHeight,
             Texture.InternalFormat.FLOAT32, Texture.Wrap.CLAMP_TO_EDGE,
+            Texture.MinFilter.LINEAR, Texture.MagFilter.LINEAR)
+    }
+
+    private fun Colormap.toTexture(): Texture3D {
+        return SimpleTexture2D(buffer, width, height,
+            Texture.InternalFormat.RGBA8, Texture.Wrap.CLAMP_TO_EDGE,
             Texture.MinFilter.LINEAR, Texture.MagFilter.LINEAR)
     }
 
@@ -528,7 +539,8 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
                     }
 
                     val tf = transferFunctionTextures.getOrPut(bdvNode.viewerState.sources[i], { bdvNode.transferFunction.toTexture() })
-                    renderStacks.add(Triple(o, tf, null))
+                    val colormap = colorMapTextures.getOrPut(bdvNode.viewerState.sources[i], { bdvNode.colormap.toTexture() })
+                    renderStacks.add(Triple(o, tf, colormap))
                 } else if(stack is SimpleStack3D) {
                     val o = object<T> : SimpleStack3D<T> {
                         override fun getType(): T {
@@ -555,8 +567,9 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
                     }
 
                     val tf = transferFunctionTextures.getOrPut(bdvNode.viewerState.sources[i], { bdvNode.transferFunction.toTexture() })
+                    val colormap = colorMapTextures.getOrPut(bdvNode.viewerState.sources[i], { bdvNode.colormap.toTexture() })
                     logger.info("TF for ${bdvNode.viewerState.sources[i]} is $tf")
-                    renderStacks.add(Triple(o, tf, null))
+                    renderStacks.add(Triple(o, tf, colormap))
                 }
 
                 val converter = bdvNode.converterSetups[i]
@@ -581,8 +594,8 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry {
                     }
                 }
                 logger.info("Added SimpleStack: $simpleStack")
-                //val tf = transferFunctionTextures.getOrPut(bdvNode.viewerState.sources[i], { transferFunctions[bdvNode]!!.toTexture() })
-                renderStacks.add(Triple(simpleStack, volume.transferFunction.toTexture(), null))
+//                val tf = transferFunctionTextures.getOrPut(bdvNode.viewerState.sources[i], { transferFunctions[bdvNode]!!.toTexture() })
+                renderStacks.add(Triple(simpleStack, volume.transferFunction.toTexture(), Colormap.get("viridis").toTexture()))
 
                 renderConverters.add(object: ConverterSetup {
                     val converterColor = ARGBType(Random.nextInt(0, 255*255*255))
