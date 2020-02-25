@@ -28,7 +28,7 @@ open class SceneryStackManager: SimpleStackManager {
 
     private var currentTimestamp : Int = 0
 
-    fun getImageDimensions(stack: SimpleStack3D<*>): Pair<Vector3f, Vector3f> {
+    protected open fun getImageDimensions(stack: SimpleStack3D<*>): Pair<Vector3f, Vector3f> {
         return if(stack is BufferedSimpleStack3D) {
             val dim = stack.dimensions
             val sourceMin = Vector3f(0.0f, 0.0f, 0.0f)
@@ -45,10 +45,10 @@ open class SceneryStackManager: SimpleStackManager {
     }
 
     private fun GpuContext.contextReadyForUpload(): Boolean {
-        if(this is SceneryContext) {
-            return this.node.readyToRender()
+        return if(this is SceneryContext) {
+            this.node.readyToRender()
         } else {
-            return true
+            true
         }
     }
 
@@ -57,6 +57,8 @@ open class SceneryStackManager: SimpleStackManager {
         val texture: Texture3D
         val (sourceMin, sourceMax) = getImageDimensions(stack)
 
+//        logger.info("Existing textures: ${texturesU8.keys.joinToString { "$it (${it.hashCode().toString()})" }}")
+//        logger.info("Getting volume for stack $stack/${stack.hashCode()}")
         if (stack.type is UnsignedByteType) {
             val existing = texturesU8[stack]
             if (existing == null) {
@@ -77,9 +79,17 @@ open class SceneryStackManager: SimpleStackManager {
             } else {
                 texture = existing
 
+                if(stack is BufferedSimpleStack3D && stack.stale) {
+                    uploaded.remove(texture)
+                }
+
                 if(context.contextReadyForUpload() && uploaded.getOrDefault(texture, false)) {
                     upload(context, stack)
                     uploaded.put(texture, true)
+                }
+
+                if(stack is BufferedSimpleStack3D) {
+                    stack.stale = uploaded.getOrDefault(texture, false)
                 }
             }
         } else if (stack.type is UnsignedShortType) {
@@ -103,9 +113,18 @@ open class SceneryStackManager: SimpleStackManager {
             } else {
                 texture = existing
 
+                if(stack is BufferedSimpleStack3D && stack.stale) {
+                    uploaded.remove(texture)
+                }
+
                 if(context.contextReadyForUpload() && uploaded.getOrDefault(texture, false)) {
                     upload(context, stack)
-                    uploaded.put(texture, true)
+                    uploaded[texture] = true
+                }
+
+                if(stack is BufferedSimpleStack3D) {
+                    stack.stale = uploaded.getOrDefault(texture, false)
+                    logger.info("$stack.stale = ${stack.stale}")
                 }
             }
         } else {
@@ -128,8 +147,9 @@ open class SceneryStackManager: SimpleStackManager {
      * @param stack The stack to upload.
      * @return True, if data was uploaded. False, if not.
      */
+    @Suppress("UNCHECKED_CAST", "USELESS_ELVIS")
     fun upload(context : GpuContext, stack : SimpleStack3D<*>) : Boolean {
-        if(context is SceneryContext && !context.node.readyToRender()) {
+        if(context is SceneryContext && !context.contextReadyForUpload()) {
             return false
         }
 
@@ -138,12 +158,12 @@ open class SceneryStackManager: SimpleStackManager {
         val texARGB = texturesRGBA8[stack]
 
         val type = stack.type
-//        logger.info("$type, $tex8, $tex16, $texARGB")
+//        logger.info("$stack, $type -> $tex8, $tex16, $texARGB, ${uploaded.getOrDefault(tex8 as? Texture3D, false)}")
 
         if (type is UnsignedByteType && !(tex8 == null || uploaded.getOrDefault(tex8, false))) {
             return if (stack is BufferedSimpleStack3D) {
-                logger.debug("Uploading U8 buffered texture")
-                val tex = VolumeTextureU8()
+                logger.info("Uploading U8 buffered texture")
+                val tex = tex8 ?: VolumeTextureU8()
                 tex.init(stack.dimensions)
                 tex.upload(context, stack.buffer)
                 timestamps[tex] = currentTimestamp
@@ -162,8 +182,8 @@ open class SceneryStackManager: SimpleStackManager {
 
         if (type is UnsignedShortType && !(tex16 == null || uploaded.getOrDefault(tex16, false))) {
             return if (stack is BufferedSimpleStack3D) {
-                logger.debug("Uploading U16 buffered texture")
-                val tex = VolumeTextureU16()
+                logger.info("Uploading U16 buffered texture")
+                val tex = tex16 ?: VolumeTextureU16()
                 tex.init(stack.dimensions)
                 tex.upload(context, stack.buffer)
                 timestamps[tex] = currentTimestamp
@@ -228,9 +248,9 @@ open class SceneryStackManager: SimpleStackManager {
 
     private fun uploadToTextureU16(context : GpuContext, rai : RandomAccessibleInterval<UnsignedShortType>, t: VolumeTextureU16? = null) : VolumeTextureU16 {
         val texture = if(t == null) {
-            val t = VolumeTextureU16()
-            t.init(Intervals.dimensionsAsIntArray(rai))
-            t
+            val vt = VolumeTextureU16()
+            vt.init(Intervals.dimensionsAsIntArray(rai))
+            vt
         } else {
             t
         }
@@ -255,9 +275,9 @@ open class SceneryStackManager: SimpleStackManager {
 
     private fun uploadToTextureU8(context : GpuContext, rai : RandomAccessibleInterval<UnsignedByteType>, t: VolumeTextureU8? = null) : VolumeTextureU8 {
         val texture = if(t == null) {
-            val t = VolumeTextureU8()
-            t.init(Intervals.dimensionsAsIntArray(rai))
-            t
+            val vt = VolumeTextureU8()
+            vt.init(Intervals.dimensionsAsIntArray(rai))
+            vt
         } else {
             t
         }
@@ -281,9 +301,9 @@ open class SceneryStackManager: SimpleStackManager {
 
     private fun uploadToTextureRGBA8(context : GpuContext, rai : RandomAccessibleInterval<ARGBType>, t: VolumeTextureRGBA8? = null) : VolumeTextureRGBA8 {
         val texture = if(t == null) {
-            val t = VolumeTextureRGBA8()
-            t.init(Intervals.dimensionsAsIntArray(rai))
-            t
+            val vt = VolumeTextureRGBA8()
+            vt.init(Intervals.dimensionsAsIntArray(rai))
+            vt
         } else {
             t
         }

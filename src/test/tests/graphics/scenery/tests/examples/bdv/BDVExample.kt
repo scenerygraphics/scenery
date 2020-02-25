@@ -63,7 +63,7 @@ class BDVExample: SceneryBase("BDV Rendering example", 1280, 720) {
         val options = VolumeViewerOptions().maxCacheSizeInMB(maxCacheSize)
         val v = Volume.fromSpimData(XmlIoSpimDataMinimal().load(files.first()), hub, options)
         v.name = "volume"
-        v.scale = GLVector(0.02f, 0.02f, 0.02f)
+//        v.scale = GLVector(0.02f, 0.02f, 0.02f)
         v.updateWorld(true, true)
         scene.addChild(v)
 

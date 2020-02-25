@@ -10,6 +10,8 @@ open class BufferedSimpleStack3D<T>(internal val backingBuffer : ByteBuffer, int
     val buffer : ByteBuffer
         get() = backingBuffer.duplicate()
 
+    var stale: Boolean = true
+
     /**
      * Get the image data.
      *

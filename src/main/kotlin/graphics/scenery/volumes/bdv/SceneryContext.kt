@@ -310,6 +310,12 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
                         is VolumeManager.SimpleTexture2D -> texture.data
                         else -> null
                     }
+
+                    val filterLinear = when(texture) {
+                        is LookupTextureARGB -> false
+                        else -> true
+                    }
+
                     val gt = GenericTexture(lut,
                         GLVector(texture.texWidth().toFloat(), texture.texHeight().toFloat(), texture.texDepth().toFloat()),
                         channels,
@@ -319,8 +325,8 @@ open class SceneryContext(val node: VolumeManager) : GpuContext {
                         TextureBorderColor.TransparentBlack,
                         normalized,
                         false,
-                        minFilterLinear = false,
-                        maxFilterLinear = false)
+                        minFilterLinear = filterLinear,
+                        maxFilterLinear = filterLinear)
 
                     node.material.transferTextures.put(lut, gt)
 

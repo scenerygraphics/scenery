@@ -1,12 +1,13 @@
 package graphics.scenery.tests.examples.advanced
 
 import cleargl.GLVector
-import coremem.enums.NativeTypeEnum
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.RingBuffer
-import graphics.scenery.volumes.Volume
+import graphics.scenery.volumes.Colormap
+import graphics.scenery.volumes.bdv.Volume
+import net.imglib2.type.numeric.integer.UnsignedByteType
 import org.junit.Test
 import org.lwjgl.system.MemoryUtil.memAlloc
 import org.scijava.ui.behaviour.ClickBehaviour
@@ -42,11 +43,12 @@ class ProceduralVolumeExample: SceneryBase("Volume Rendering example", 1280, 720
         shell.position = GLVector(0.0f, 4.0f, 0.0f)
         scene.addChild(shell)
 
-        val volume = Volume()
+        val volumes = LinkedHashMap<String, ByteBuffer>()
+        val volume = Volume.fromBuffer(volumes, 128, 128, 128, UnsignedByteType(), hub)
         volume.name = "volume"
         volume.position = GLVector(0.0f, 0.0f, 0.0f)
-        volume.colormap = "viridis"
-        volume.scale = GLVector(10.0f, 10.0f, 10.0f)
+        volume.colormap = Colormap.get("viridis")
+//        volume.scale = GLVector(10.0f, 10.0f, 10.0f)
         with(volume.transferFunction) {
             addControlPoint(0.0f, 0.0f)
             addControlPoint(0.2f, 0.0f)
@@ -77,25 +79,21 @@ class ProceduralVolumeExample: SceneryBase("Volume Rendering example", 1280, 720
             var shift = GLVector.getNullVector(3)
             val shiftDelta = Random.randomVectorFromRange(3, -1.5f, 1.5f)
 
-            val dataType = if(bitsPerVoxel == 8) {
-                NativeTypeEnum.UnsignedByte
-            } else {
-                NativeTypeEnum.UnsignedShort
-            }
-
+            var count = 0
             while(running) {
                 if(volume.metadata["animating"] == true) {
                     val currentBuffer = volumeBuffer.get()
 
-                    Volume.generateProceduralVolume(volumeSize, 0.35f, seed = seed,
+                    graphics.scenery.volumes.Volume.generateProceduralVolume(volumeSize, 0.35f, seed = seed,
                         intoBuffer = currentBuffer, shift = shift, use16bit = bitsPerVoxel > 8)
 
-                    volume.readFromBuffer(
-                        "procedural-cloud-${shift.hashCode()}", currentBuffer,
-                        volumeSize, volumeSize, volumeSize, 1.0f, 1.0f, 1.0f,
-                        dataType = dataType, bytesPerVoxel = bitsPerVoxel / 8)
+                    volume.addTimepoint("t-${count}", currentBuffer)
+                    volume.goToTimePoint(volumes.size-1)
+
+                    volume.purgeFirst(10, 10)
 
                     shift = shift + shiftDelta
+                    count++
                 }
 
                 Thread.sleep(200)
@@ -107,13 +105,13 @@ class ProceduralVolumeExample: SceneryBase("Volume Rendering example", 1280, 720
         setupCameraModeSwitching()
 
         val toggleRenderingMode = object : ClickBehaviour {
-            var modes = hashMapOf(0 to "Local MIP", 1 to "MIP", 2 to "Alpha Compositing")
-            var currentMode = (scene.find("volume") as? Volume)?.renderingMethod ?: 0
+            var modes = Volume.RenderingMethod.values()
+            var currentMode = (scene.find("volume") as? Volume)?.renderingMethod?.ordinal ?: 0
 
             override fun click(x: Int, y: Int) {
                 currentMode = (currentMode + 1) % modes.size
 
-                (scene.find("volume") as? Volume)?.renderingMethod = currentMode
+                (scene.find("volume") as? Volume)?.renderingMethod = Volume.RenderingMethod.values().get(currentMode)
                 logger.info("Switched volume rendering mode to ${modes[currentMode]} (${(scene.find("volume") as? Volume)?.renderingMethod})")
             }
         }

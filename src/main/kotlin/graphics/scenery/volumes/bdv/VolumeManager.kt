@@ -1,13 +1,12 @@
 package graphics.scenery.volumes.bdv
 
 import bdv.tools.brightness.ConverterSetup
+import bdv.tools.transformation.TransformedSource
 import bdv.viewer.RequestRepaint
 import bdv.viewer.state.SourceState
-import coremem.enums.NativeTypeEnum
 import graphics.scenery.*
 import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.TransferFunction
-import graphics.scenery.volumes.Volume
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.ARGBType
@@ -95,7 +94,6 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
     protected var bdvNodes = ArrayList<graphics.scenery.volumes.bdv.Volume>()
     protected var transferFunctionTextures = HashMap<SourceState<*>, Texture>()
     protected var colorMapTextures = HashMap<SourceState<*>, Texture>()
-    protected var regularVolumeNodes = ArrayList<Volume>()
     /** Stacks loaded from a BigDataViewer XML file. */
     val renderConverters = ArrayList<ConverterSetup>()
     /** Cache specification. */
@@ -119,6 +117,10 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
 
     var maxAllowedStepInVoxels = 1.0
     var farPlaneDegradation = 5.0
+
+    // TODO: What happens when changing this? And should it change the mode for the current node only
+    // or for all VolumeManager-managed nodes?
+    var renderingMethod = Volume.RenderingMethod.AlphaBlending
 
     init {
         state = State.Created
@@ -447,7 +449,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
             && material.textures.count { it.key.startsWith("lutSampler_") }  == multiResCount
         val regularMatch = material.textures.count { it.key.startsWith("volume_") } == regularCount
 
-//        logger.info("$multiResCount->$multiResMatch/$regularCount->$regularMatch (${shaderProperties.keys.joinToString(",")})")
+//        logger.info("ReadyToRender: $multiResCount->$multiResMatch/$regularCount->$regularMatch (${shaderProperties.keys.joinToString(",")})")
 //        if(multiResMatch && regularMatch) {
 //            state = State.Ready
 //        } else {
@@ -512,17 +514,18 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
             val visibleSourceIndices = bdvNode.viewerState.visibleSourceIndices
             val currentTimepoint = bdvNode.viewerState.currentTimepoint
 
-            logger.info("Visible: at t=$currentTimepoint: ${visibleSourceIndices.joinToString(", ")}")
+            logger.debug("Visible: at t=$currentTimepoint: ${visibleSourceIndices.joinToString(", ")}")
             for (i in visibleSourceIndices) {
 //                val stack = stacks.getStack(
 //                    stacks.timepointId(currentTimepoint),
 //                    stacks.setupId(i),
 //                    true) as MultiResolutionStack3D<VolatileUnsignedShortType>
 
-                val stack = SourceStacks.getStack3D(bdvNode.viewerState.sources[i].spimSource, currentTimepoint)// as MultiResolutionStack3D<*>
+                val source = bdvNode.viewerState.sources[i]
+                val stack = SourceStacks.getStack3D(source.spimSource, currentTimepoint)// as MultiResolutionStack3D<*>
 
                 val sourceTransform = AffineTransform3D()
-                bdvNode.viewerState.sources[i].spimSource.getSourceTransform(currentTimepoint, 0, sourceTransform)
+                source.spimSource.getSourceTransform(currentTimepoint, 0, sourceTransform)
 
                 if(stack is MultiResolutionStack3D) {
                     val o = object<T> : MultiResolutionStack3D<T> {
@@ -553,99 +556,74 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
                     val colormap = colorMapTextures.getOrPut(bdvNode.viewerState.sources[i], { bdvNode.colormap.toTexture() })
                     renderStacks.add(Triple(o, tf, colormap))
                 } else if(stack is SimpleStack3D) {
-                    val o = object<T> : SimpleStack3D<T> {
-                        override fun getType(): T {
-                            return stack.type as T
+                    val o: SimpleStack3D<*>
+                    val ss = source.spimSource as? TransformedSource
+                    val wrapped = ss?.wrappedSource
+                    if(wrapped is graphics.scenery.volumes.bdv.Volume.BufferDummySource) {
+                        if(wrapped.timepoints.isEmpty()) {
+                            logger.info("Timepoints is empty, skipping node")
+                            return@forEach
                         }
 
-                        override fun getSourceTransform(): AffineTransform3D {
-                            val w = AffineTransform3D()
-                            w.set(*bdvNode.world.transposedFloatArray.map { it.toDouble() }.toDoubleArray())
-                            return w.concatenate(sourceTransform)
-                        }
+                        val tp = min(max(0, currentTimepoint), wrapped.timepoints.size-1)
+                        o = object<T> : BufferedSimpleStack3D<T>(wrapped.timepoints.toList().get(tp).second, wrapped.sourceType as T, intArrayOf(wrapped.width, wrapped.height, wrapped.depth)) {
+                            override fun getType(): T {
+                                return stack.type as T
+                            }
 
-                        override fun getImage(): RandomAccessibleInterval<T> {
-                            return stack.image as RandomAccessibleInterval<T>
-                        }
+                            override fun getSourceTransform(): AffineTransform3D {
+                                val w = AffineTransform3D()
+                                w.set(*bdvNode.world.transposedFloatArray.map { it.toDouble() }.toDoubleArray())
+                                return w.concatenate(sourceTransform)
+                            }
 
-                        override fun equals(other: Any?): Boolean {
-                            return stack.equals(other)
-                        }
+                            override fun getImage(): RandomAccessibleInterval<T> {
+                                throw UnsupportedOperationException("Cannot get RAI of BufferedSimpleStack3D")
+                            }
 
-                        override fun hashCode(): Int {
-                            return stack.hashCode()
+                            override fun equals(other: Any?): Boolean {
+                                return stack.hashCode() == other.hashCode()
+                            }
+
+                            override fun hashCode(): Int {
+                                return stack.hashCode()
+                            }
+                        }
+                    } else {
+                        o = object<T> : SimpleStack3D<T> {
+                            override fun getType(): T {
+                                return stack.type as T
+                            }
+
+                            override fun getSourceTransform(): AffineTransform3D {
+                                val w = AffineTransform3D()
+                                w.set(*bdvNode.world.transposedFloatArray.map { it.toDouble() }.toDoubleArray())
+                                return w.concatenate(sourceTransform)
+                            }
+
+                            override fun getImage(): RandomAccessibleInterval<T> {
+                                return stack.image as RandomAccessibleInterval<T>
+                            }
+
+                            override fun equals(other: Any?): Boolean {
+                                return stack.equals(other)
+                            }
+
+                            override fun hashCode(): Int {
+                                return stack.hashCode()
+                            }
                         }
                     }
 
                     val tf = transferFunctionTextures.getOrPut(bdvNode.viewerState.sources[i], { bdvNode.transferFunction.toTexture() })
                     val colormap = colorMapTextures.getOrPut(bdvNode.viewerState.sources[i], { bdvNode.colormap.toTexture() })
-                    logger.info("TF for ${bdvNode.viewerState.sources[i]} is $tf")
+                    logger.debug("TF for ${bdvNode.viewerState.sources[i]} is $tf")
                     renderStacks.add(Triple(o, tf, colormap))
                 }
 
                 val converter = bdvNode.converterSetups[i]
                 converter.setViewer(this)
                 renderConverters.add(converter)
-            }
-        }
-
-        regularVolumeNodes.forEach { volume ->
-            val vol = volume.getDescriptor() ?: return@forEach
-
-            if(vol.dataType == NativeTypeEnum.UnsignedShort) {
-                val simpleStack = object : BufferedSimpleStack3D<UnsignedShortType>(vol.data,
-                    UnsignedShortType(),
-                    intArrayOf(vol.width.toInt(), vol.height.toInt(), vol.depth.toInt())) {
-
-                    override fun getSourceTransform(): AffineTransform3D {
-                        val w = AffineTransform3D()
-//                            val m = AffineTransform3D()
-//                            m.setTranslation(0.5, 0.5, 0.5)
-                        w.set(*volume.world.transposedFloatArray.map { it.toDouble() }.toDoubleArray())
-                        return w
-                    }
-                }
-                logger.info("Added SimpleStack: $simpleStack")
-//                val tf = transferFunctionTextures.getOrPut(bdvNode.viewerState.sources[i], { transferFunctions[bdvNode]!!.toTexture() })
-                renderStacks.add(Triple(simpleStack, volume.transferFunction.toTexture(), Colormap.get("viridis").toTexture()))
-
-                renderConverters.add(object: ConverterSetup {
-                    val converterColor = ARGBType(Int.MAX_VALUE)
-
-                    override fun getSetupId(): Int {
-                        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-                    }
-
-                    override fun setColor(p0: ARGBType?) {
-                        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-                    }
-
-                    override fun supportsColor(): Boolean {
-                        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-                    }
-
-                    override fun getColor(): ARGBType {
-                        return converterColor
-                    }
-
-                    override fun getDisplayRangeMin(): Double {
-                        return 0.0
-                    }
-
-                    override fun setDisplayRange(p0: Double, p1: Double) {
-                        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-                    }
-
-                    override fun getDisplayRangeMax(): Double {
-                        return 65535.0
-                    }
-
-                    override fun setViewer(p0: RequestRepaint?) {
-                        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-                    }
-
-                })
-
             }
         }
     }
@@ -658,15 +636,10 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
         needAtLeastNumVolumes(renderStacks.size)
     }
 
-    fun add(node: Volume) {
-        logger.info("Adding $node to regular volume nodes")
-        regularVolumeNodes.add(node)
-        updateRenderState()
-        needAtLeastNumVolumes(renderStacks.size)
-    }
-
     fun notifyUpdate(node: Node) {
         renderStateUpdated = true
+        updateRenderState()
+        needAtLeastNumVolumes(renderStacks.size)
     }
 
     override fun requestRepaint() {
