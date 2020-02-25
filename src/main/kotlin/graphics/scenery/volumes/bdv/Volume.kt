@@ -264,18 +264,18 @@ class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions,
     companion object {
         val setupId = AtomicInteger(0)
 
-        fun fromSpimData(spimData: SpimDataMinimal, hub : Hub, options : VolumeViewerOptions = VolumeViewerOptions()): Volume {
+        @JvmStatic @JvmOverloads fun fromSpimData(spimData: SpimDataMinimal, hub : Hub, options : VolumeViewerOptions = VolumeViewerOptions()): Volume {
             val ds = VolumeDataSource.SpimDataMinimalSource(spimData)
             return Volume(ds, options, hub)
         }
 
-        fun fromXML(path: String, hub: Hub, options : VolumeViewerOptions = VolumeViewerOptions()): Volume {
+        @JvmStatic @JvmOverloads fun fromXML(path: String, hub: Hub, options : VolumeViewerOptions = VolumeViewerOptions()): Volume {
             val spimData = XmlIoSpimDataMinimal().load(path)
             val ds = VolumeDataSource.SpimDataMinimalSource(spimData)
             return Volume(ds, options, hub)
         }
 
-        fun <T: NumericType<T>> fromRAII(img: RandomAccessibleInterval<T>, type: T, axisOrder: AxisOrder = DEFAULT, name: String, hub: Hub, options: VolumeViewerOptions = VolumeViewerOptions()): Volume {
+        @JvmStatic @JvmOverloads fun <T: NumericType<T>> fromRAII(img: RandomAccessibleInterval<T>, type: T, axisOrder: AxisOrder = DEFAULT, name: String, hub: Hub, options: VolumeViewerOptions = VolumeViewerOptions()): Volume {
             val converterSetups: ArrayList<ConverterSetup> = ArrayList()
             val stacks: ArrayList<RandomAccessibleInterval<T>> = AxisOrder.splitInputStackIntoSourceStacks(img, AxisOrder.getAxisOrder(axisOrder, img, false))
             val sourceTransform = AffineTransform3D()
@@ -300,7 +300,7 @@ class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions,
             return Volume(ds, options, hub)
         }
 
-        fun fromBuffer(): Volume {
+        @JvmStatic @JvmOverloads fun fromBuffer(): Volume {
             TODO("Still need to implement buffer support")
         }
     }
