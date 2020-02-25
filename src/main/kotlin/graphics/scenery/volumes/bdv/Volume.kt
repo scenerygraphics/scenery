@@ -15,6 +15,7 @@ import bdv.viewer.DisplayMode
 import bdv.viewer.Source
 import bdv.viewer.SourceAndConverter
 import bdv.viewer.state.ViewerState
+import cleargl.GLVector
 import coremem.enums.NativeTypeEnum
 import graphics.scenery.DelegatesRendering
 import graphics.scenery.GeometryType
@@ -71,6 +72,9 @@ class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions,
 
     /** The color map for the volume. */
     var colormap: Colormap = Colormap.get("viridis")
+
+    /** Pixel-to-world scaling ratio */
+    var pixelToWorldRatio = 0.001f
 
     val volumeManager: VolumeManager
 
@@ -227,6 +231,33 @@ class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions,
     fun shuffleColors() {
         converterSetups.forEach {
             it.color = ARGBType(Random.nextInt(0, 255*255*255))
+        }
+    }
+
+    /**
+     * Returns the local scaling of the volume.
+     */
+    fun localScale(): GLVector {
+        // TODO: Ask Tobi how to reliably get source
+//        return GLVector(
+//            sizeX * voxelSizeX * pixelToWorldRatio,
+//            sizeY * voxelSizeY * pixelToWorldRatio,
+//            sizeZ * voxelSizeZ * pixelToWorldRatio)
+        return GLVector(
+            pixelToWorldRatio,
+            pixelToWorldRatio,
+            pixelToWorldRatio)
+    }
+
+    override fun composeModel() {
+        @Suppress("SENSELESS_COMPARISON")
+        if(position != null && rotation != null && scale != null) {
+            val L = localScale() * (1.0f/2.0f)
+            model.setIdentity()
+            model.translate(this.position.x(), this.position.y(), this.position.z())
+            model.mult(this.rotation)
+            model.scale(this.scale.x(), this.scale.y(), this.scale.z())
+            model.scale(L.x(), L.y(), L.z())
         }
     }
 
