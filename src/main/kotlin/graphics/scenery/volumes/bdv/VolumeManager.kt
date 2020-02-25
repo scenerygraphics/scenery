@@ -196,7 +196,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
 
                 is VolatileARGBType,
                 is ARGBType -> VolumeShaderSignature.PixelType.ARGB
-                else -> throw IllegalStateException("Unknown volume type ${it.first.type}")
+                else -> throw IllegalStateException("Unknown volume type ${it.first.type.javaClass}")
             }
 
             val volumeType = when(it.first) {
