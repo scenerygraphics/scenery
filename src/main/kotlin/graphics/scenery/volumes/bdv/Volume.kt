@@ -7,16 +7,17 @@ import bdv.spimdata.SpimDataMinimal
 import bdv.spimdata.WrapBasicImgLoader
 import bdv.spimdata.XmlIoSpimDataMinimal
 import bdv.tools.brightness.ConverterSetup
+import bdv.tools.transformation.TransformedSource
 import bdv.util.AxisOrder
 import bdv.util.AxisOrder.DEFAULT
 import bdv.util.RandomAccessibleIntervalSource
 import bdv.util.RandomAccessibleIntervalSource4D
 import bdv.viewer.DisplayMode
+import bdv.viewer.Interpolation
 import bdv.viewer.Source
 import bdv.viewer.SourceAndConverter
 import bdv.viewer.state.ViewerState
 import cleargl.GLVector
-import coremem.enums.NativeTypeEnum
 import graphics.scenery.DelegatesRendering
 import graphics.scenery.GeometryType
 import graphics.scenery.HasGeometry
@@ -26,26 +27,24 @@ import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.bdv.Volume.VolumeDataSource.SpimDataMinimalSource
 import mpicbg.spim.data.generic.sequence.AbstractSequenceDescription
+import mpicbg.spim.data.sequence.FinalVoxelDimensions
+import mpicbg.spim.data.sequence.VoxelDimensions
 import net.imglib2.RandomAccessibleInterval
+import net.imglib2.RealRandomAccessible
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.ARGBType
 import net.imglib2.type.numeric.NumericType
-import net.imglib2.type.numeric.integer.ByteType
-import net.imglib2.type.numeric.integer.ShortType
-import net.imglib2.type.numeric.integer.UnsignedByteType
-import net.imglib2.type.numeric.integer.UnsignedShortType
 import tpietzsch.example2.VolumeViewerOptions
-import tpietzsch.multires.MultiResolutionStack3D
 import java.nio.ByteBuffer
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.collections.LinkedHashMap
 import kotlin.math.max
 import kotlin.math.min
-import kotlin.random.Random
 
-class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions, val hub: Hub) : DelegatesRendering(), HasGeometry {
+open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions, val hub: Hub) : DelegatesRendering(), HasGeometry {
     /** How many elements does a vertex store? */
     override val vertexSize : Int = 3
     /** How many elements does a texture coordinate store? */
@@ -62,10 +61,8 @@ class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions,
     override var indices : IntBuffer = IntBuffer.allocate(0)
 
     val converterSetups = ArrayList<ConverterSetup>()
-    val maxTimepoint: Int
+    open val maxTimepoint: Int
     val viewerState: ViewerState
-    val regularStacks: List<BufferedSimpleStack3D<*>>?
-    var renderStateUpdated: Boolean = false
 
     /** The transfer function to use for the volume. Flat by default. */
     var transferFunction: TransferFunction = TransferFunction.flat(0.5f)
@@ -76,12 +73,19 @@ class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions,
     /** Pixel-to-world scaling ratio */
     var pixelToWorldRatio = 0.001f
 
+    /** Rendering method */
+    var renderingMethod = RenderingMethod.AlphaBlending
+        set(value) {
+            field = value
+            volumeManager.renderingMethod = value
+        }
+
     val volumeManager: VolumeManager
 
     // TODO IS THIS REQUIRED??
     var cacheControl: CacheControl? = null
 
-    /** Current timepoint in the set of [stacks]. */
+    /** Current timepoint. */
     var currentTimepoint: Int
         get() { return viewerState.currentTimepoint }
         set(value) {viewerState.currentTimepoint = value}
@@ -93,22 +97,63 @@ class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions,
             val sources: List<SourceAndConverter<T>>,
             val converterSetups: ArrayList<ConverterSetup>,
             val numTimepoints: Int ) : VolumeDataSource()
-        class BufferSource(val volumes: HashMap<String, ByteBuffer>, val descriptor: VolumeDescriptor) : VolumeDataSource()
     }
 
-    data class VolumeDescriptor(val width: Int,
-                                val height: Int,
-                                val depth: Int,
-                                val dataType: NativeTypeEnum,
-                                val bytesPerVoxel: Int)
+    /**
+     * Enum class for selecting a rendering method.
+     */
+    enum class RenderingMethod {
+        MaxProjection,
+        MinProjection,
+        AlphaBlending
+    }
 
+    class BufferDummySource<T: NumericType<T>>(val timepoints: LinkedHashMap<String, ByteBuffer>,
+                                               val width: Int,
+                                               val height: Int,
+                                               val depth: Int,
+                               val dimensions: VoxelDimensions,
+                               val sourceName: String,
+                               val sourceType: T): Source<T> {
+        override fun isPresent(t: Int): Boolean {
+            return t in 0 .. timepoints.size
+        }
+
+        override fun getNumMipmapLevels(): Int {
+            return 1
+        }
+
+        override fun getInterpolatedSource(t: Int, level: Int, method: Interpolation?): RealRandomAccessible<T> {
+            TODO("Can't get interpolated source for BufferDummySource")
+        }
+
+        override fun getSourceTransform(t: Int, level: Int, transform: AffineTransform3D?) {
+            transform?.set(AffineTransform3D())
+        }
+
+        override fun getVoxelDimensions(): VoxelDimensions {
+            return dimensions
+        }
+
+        override fun getSource(t: Int, level: Int): RandomAccessibleInterval<T> {
+            TODO("Can't get source for BufferDummySource")
+        }
+
+        override fun getName(): String {
+            return sourceName
+        }
+
+        override fun getType(): T {
+            return sourceType
+        }
+    }
 
     init {
         when(dataSource) {
             is SpimDataMinimalSource -> {
                 val spimData = dataSource.spimData
 
-                val seq: AbstractSequenceDescription<*, *, *> = spimData.getSequenceDescription()
+                val seq: AbstractSequenceDescription<*, *, *> = spimData.sequenceDescription
                 maxTimepoint = seq.getTimePoints().size()
                 cacheControl = (seq.getImgLoader() as ViewerImgLoader).cacheControl
 
@@ -123,61 +168,12 @@ class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions,
                 viewerState = ViewerState(sources, maxTimepoint)
 
                 WrapBasicImgLoader.removeWrapperIfPresent(spimData)
-                regularStacks = null
             }
 
             is VolumeDataSource.RAIISource<*> -> {
                 maxTimepoint = dataSource.numTimepoints
                 viewerState = ViewerState(dataSource.sources, maxTimepoint)
                 converterSetups.addAll( dataSource.converterSetups );
-//                TODO("How to generate SpimDataStacks here?")
-//                outOfCoreStacks = SpimDataStacks(SpimDataMinimal)
-
-                regularStacks = null
-            }
-
-            is VolumeDataSource.BufferSource -> {
-                val dimensions = intArrayOf(
-                    dataSource.descriptor.width,
-                    dataSource.descriptor.height,
-                    dataSource.descriptor.depth)
-
-                regularStacks = when(dataSource.descriptor.dataType) {
-                    NativeTypeEnum.Byte ->
-                        dataSource.volumes
-                            .map { BufferedSimpleStack3D<ByteType>(it.value, ByteType(), dimensions) }
-                            .toList()
-
-                    NativeTypeEnum.UnsignedByte ->
-                        dataSource.volumes
-                            .map { BufferedSimpleStack3D<UnsignedByteType>(it.value, UnsignedByteType(), dimensions) }
-                            .toList()
-
-                    NativeTypeEnum.Short ->
-                        dataSource.volumes
-                            .map { BufferedSimpleStack3D<ShortType>(it.value, ShortType(), dimensions) }
-                            .toList()
-
-                    NativeTypeEnum.UnsignedShort ->
-                        dataSource.volumes
-                            .map { BufferedSimpleStack3D<UnsignedShortType>(it.value, UnsignedShortType(), dimensions) }
-                            .toList()
-
-                    NativeTypeEnum.Int -> TODO()
-                    NativeTypeEnum.UnsignedInt -> TODO()
-                    NativeTypeEnum.Long -> TODO()
-                    NativeTypeEnum.UnsignedLong -> TODO()
-                    NativeTypeEnum.HalfFloat -> TODO()
-                    NativeTypeEnum.Float -> TODO()
-                    NativeTypeEnum.Double -> TODO()
-                }
-
-                // TODO: Correctly generate ConverterSetups
-                val converterSetups = ArrayList<ConverterSetup>()
-                maxTimepoint = dataSource.volumes.size
-
-                val sources_ = ArrayList<SourceAndConverter<*>>()
-                viewerState = ViewerState(sources_, maxTimepoint)
             }
         }
 
@@ -193,12 +189,6 @@ class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions,
         delegate = volumeManager
     }
 
-    fun getStack(timepoint: Int, setupId: Int, volatile: Boolean): MultiResolutionStack3D<*>? {
-//        return outOfCoreStacks?.getStack(timepoint, setupId, volatile)
-        //FIXME
-        return null
-    }
-
     /**
      * Goes to the next available timepoint, returning the number of the updated timepoint.
      */
@@ -212,7 +202,7 @@ class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions,
     }
 
     /** Goes to the [timepoint] given, returning the number of the updated timepoint. */
-    fun goToTimePoint(timepoint: Int): Int {
+    open fun goToTimePoint(timepoint: Int): Int {
         val current = viewerState.currentTimepoint
         viewerState.currentTimepoint = min(max(timepoint, 0), maxTimepoint)
         logger.info("Going to timepoint ${viewerState.currentTimepoint} of $maxTimepoint")
@@ -228,14 +218,8 @@ class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions,
         cacheControl?.prepareNextFrame()
     }
 
-    fun shuffleColors() {
-        converterSetups.forEach {
-            it.color = ARGBType(Random.nextInt(0, 255*255*255))
-        }
-    }
-
     /**
-     * Returns the local scaling of the volume.
+     * Returns the local scaling of the volume, taking voxel size and [pixelToWorldRatio] into account.
      */
     fun localScale(): GLVector {
         // TODO: Ask Tobi how to reliably get source
@@ -249,7 +233,12 @@ class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions,
             pixelToWorldRatio)
     }
 
+    /**
+     * Composes the world matrix for this volume node, taken ivoxel size and [pixelToWorldRatio]
+     * into account.
+     */
     override fun composeModel() {
+        logger.info("Composing model for $this")
         @Suppress("SENSELESS_COMPARISON")
         if(position != null && rotation != null && scale != null) {
             val L = localScale() * (1.0f/2.0f)
@@ -261,17 +250,88 @@ class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions,
         }
     }
 
+    /**
+     * Convenience class to handle buffer-based volumes. Data descriptor is stored in [ds], similar
+     * to [RAISource], with [options] and a required [hub].
+     */
+    class BufferedVolume(val ds: VolumeDataSource.RAIISource<*>, options: VolumeViewerOptions, hub: Hub): Volume(ds, options, hub) {
+        init {
+            logger.debug("Data source is $ds")
+        }
+
+        /**
+         * Access all the timepoints this volume has attached.
+         */
+        var timepoints: LinkedHashMap<String, ByteBuffer>?
+            get() = ((ds?.sources?.firstOrNull()?.spimSource as? TransformedSource)?.wrappedSource as? BufferDummySource)?.timepoints
+            set(value) {}
+
+        /**
+         * Returns the maximum timepoint.
+         */
+        override var maxTimepoint: Int
+            get() = (timepoints?.size) ?: 0
+            set(value) {}
+
+        /**
+         * Adds a new timepoint with a given [name], with data stored in [buffer].
+         */
+        fun addTimepoint(name: String, buffer: ByteBuffer) {
+            timepoints?.put(name, buffer)
+            volumeManager.notifyUpdate(this)
+        }
+
+        /**
+         * Removes the timepoint with the given [name].
+         */
+        fun removeTimepoint(name: String): Boolean {
+            val result = timepoints?.remove(name)
+            return result != null
+        }
+
+        /**
+         * Purges the first [count] timepoints, while always leaving [leave] timepoints
+         * in the list.
+         */
+        fun purgeFirst(count: Int, leave: Int = 0) {
+            val elements = if(timepoints?.size ?: 0 - count < leave) {
+                0
+            } else {
+                max(1, count - leave)
+            }
+
+            val keys = timepoints?.keys?.take(elements)
+            keys?.forEach { removeTimepoint(it) }
+        }
+
+        /**
+         * Purges the last [count] timepoints, while always leaving [leave] timepoints
+         * in the list.
+         */
+        fun purgeLast(count: Int, leave: Int = 0) {
+            val elements = if(timepoints?.size ?: 0 - count < leave) {
+                0
+            } else {
+                max(1, count - leave)
+            }
+
+            val n = timepoints?.size ?: 0 - elements
+            val keys = timepoints?.keys?.drop(n)
+            keys?.forEach { removeTimepoint(it) }
+        }
+    }
+
     companion object {
         val setupId = AtomicInteger(0)
 
         @JvmStatic @JvmOverloads fun fromSpimData(spimData: SpimDataMinimal, hub : Hub, options : VolumeViewerOptions = VolumeViewerOptions()): Volume {
-            val ds = VolumeDataSource.SpimDataMinimalSource(spimData)
+            val ds = SpimDataMinimalSource(spimData)
             return Volume(ds, options, hub)
         }
 
         @JvmStatic @JvmOverloads fun fromXML(path: String, hub: Hub, options : VolumeViewerOptions = VolumeViewerOptions()): Volume {
             val spimData = XmlIoSpimDataMinimal().load(path)
-            val ds = VolumeDataSource.SpimDataMinimalSource(spimData)
+            val ds = SpimDataMinimalSource(spimData)
             return Volume(ds, options, hub)
         }
 
@@ -300,8 +360,18 @@ class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOptions,
             return Volume(ds, options, hub)
         }
 
-        @JvmStatic @JvmOverloads fun fromBuffer(): Volume {
-            TODO("Still need to implement buffer support")
+        @JvmStatic @JvmOverloads fun <T: NumericType<T>> fromBuffer(volumes: LinkedHashMap<String, ByteBuffer>, width: Int, height: Int, depth: Int, type: T, hub: Hub, options: VolumeViewerOptions = VolumeViewerOptions()): BufferedVolume {
+            val converterSetups: ArrayList<ConverterSetup> = ArrayList()
+            val sources: ArrayList<SourceAndConverter<T>> = ArrayList()
+
+            val s = BufferDummySource(volumes, width, height, depth, FinalVoxelDimensions("um", 1.0, 1.0, 1.0), "", type)
+            val source: SourceAndConverter<T> = BigDataViewer.wrapWithTransformedSource(
+                    SourceAndConverter<T>(s, BigDataViewer.createConverterToARGB(type)))
+           converterSetups.add(BigDataViewer.createConverterSetup(source, setupId.getAndIncrement()))
+           sources.add(source)
+
+            val ds = VolumeDataSource.RAIISource<T>(type, sources, converterSetups, volumes.size)
+            return BufferedVolume(ds, options, hub)
         }
     }
 }
