@@ -11,11 +11,12 @@ env:
 matrix:
   include:
     - os: linux
-      dist: xenial
+      dist: bionic
       jdk: openjdk8
       sudo: false
     - os: osx
-      osx_image: xcode8.3
+      osx_image: xcode10.1
+      jdk: openjdk8
 
 cache:
   directories:
