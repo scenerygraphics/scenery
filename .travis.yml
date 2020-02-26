@@ -13,10 +13,11 @@ matrix:
     - os: linux
       dist: bionic
       jdk: openjdk8
+      services:
+        - xvfb
       sudo: false
     - os: osx
-      osx_image: xcode10.1
-      jdk: openjdk8
+      osx_image: xcode9.3
 
 cache:
   directories:
@@ -28,7 +29,9 @@ before_install:
 install: true
 
 script: 
-  - mvn -B clean package
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then echo $DISPLAY; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then mvn -B clean package -Djava.awt.headless=false; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then mvn -B clean package; fi
 
 # deploy on success, but only if we are on master
 after_success:
