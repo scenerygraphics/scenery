@@ -92,7 +92,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
 
     sealed class VolumeDataSource {
         class SpimDataMinimalSource(val spimData : SpimDataMinimal) : VolumeDataSource()
-        class RAIISource<T: NumericType<T>>(
+        class RAISource<T: NumericType<T>>(
             val type: NumericType<T>,
             val sources: List<SourceAndConverter<T>>,
             val converterSetups: ArrayList<ConverterSetup>,
@@ -170,7 +170,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
                 WrapBasicImgLoader.removeWrapperIfPresent(spimData)
             }
 
-            is VolumeDataSource.RAIISource<*> -> {
+            is VolumeDataSource.RAISource<*> -> {
                 maxTimepoint = dataSource.numTimepoints
                 viewerState = ViewerState(dataSource.sources, maxTimepoint)
                 converterSetups.addAll( dataSource.converterSetups );
@@ -252,9 +252,9 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
 
     /**
      * Convenience class to handle buffer-based volumes. Data descriptor is stored in [ds], similar
-     * to [RAISource], with [options] and a required [hub].
+     * to [VolumeDataSource.RAISource], with [options] and a required [hub].
      */
-    class BufferedVolume(val ds: VolumeDataSource.RAIISource<*>, options: VolumeViewerOptions, hub: Hub): Volume(ds, options, hub) {
+    class BufferedVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewerOptions, hub: Hub): Volume(ds, options, hub) {
         init {
             logger.debug("Data source is $ds")
         }
@@ -262,6 +262,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
         /**
          * Access all the timepoints this volume has attached.
          */
+        @Suppress("UNNECESSARY_SAFE_CALL")
         var timepoints: LinkedHashMap<String, ByteBuffer>?
             get() = ((ds?.sources?.firstOrNull()?.spimSource as? TransformedSource)?.wrappedSource as? BufferDummySource)?.timepoints
             set(value) {}
@@ -356,7 +357,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
                 sources.add(source)
             }
 
-            val ds = VolumeDataSource.RAIISource<T>(type, sources, converterSetups, numTimepoints)
+            val ds = VolumeDataSource.RAISource<T>(type, sources, converterSetups, numTimepoints)
             return Volume(ds, options, hub)
         }
 
@@ -370,7 +371,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
            converterSetups.add(BigDataViewer.createConverterSetup(source, setupId.getAndIncrement()))
            sources.add(source)
 
-            val ds = VolumeDataSource.RAIISource<T>(type, sources, converterSetups, volumes.size)
+            val ds = VolumeDataSource.RAISource<T>(type, sources, converterSetups, volumes.size)
             return BufferedVolume(ds, options, hub)
         }
     }
