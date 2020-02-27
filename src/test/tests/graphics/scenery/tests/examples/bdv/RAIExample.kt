@@ -7,6 +7,7 @@ import graphics.scenery.DetachedHeadCamera
 import graphics.scenery.PointLight
 import graphics.scenery.SceneryBase
 import graphics.scenery.backends.Renderer
+import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.bdv.Volume
 import ij.IJ
 import ij.ImagePlus
@@ -22,7 +23,7 @@ import tpietzsch.example2.VolumeViewerOptions
  * @author Ulrik Günther <hello@ulrik.is>
  * @author Tobias Pietzsch <pietzsch@mpi-cbg.de>
  */
-class RAIIExample: SceneryBase("RAII Rendering example", 1280, 720) {
+class RAIExample: SceneryBase("RAII Rendering example", 1280, 720) {
     lateinit var volume: Volume
 
     override fun init() {
@@ -33,6 +34,7 @@ class RAIIExample: SceneryBase("RAII Rendering example", 1280, 720) {
             perspectiveCamera(50.0f, 1.0f*windowWidth, 1.0f*windowHeight)
             active = true
 
+            position = GLVector(0.0f, 0.0f, 5.0f)
             scene.addChild(this)
         }
 
@@ -40,7 +42,7 @@ class RAIIExample: SceneryBase("RAII Rendering example", 1280, 720) {
         val img: Img<UnsignedShortType> = ImageJFunctions.wrapShort(imp)
 
         volume = Volume.fromRAII(img, UnsignedShortType(), AxisOrder.DEFAULT, "T1 head", hub, VolumeViewerOptions())
-        volume.updateWorld(recursive = true, force = true)
+        volume.transferFunction = TransferFunction.ramp(0.001f, 0.5f)
         scene.addChild(volume)
 
         val lights = (0 until 3).map {
