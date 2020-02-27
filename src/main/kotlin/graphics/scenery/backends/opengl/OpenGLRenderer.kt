@@ -1042,17 +1042,13 @@ open class OpenGLRenderer(hub: Hub,
         }
     }
 
-    @Synchronized protected fun updateDefaultUBOs(): Boolean {
+    @Synchronized protected fun updateDefaultUBOs(cam: Camera): Boolean {
         // sticky boolean
         var updated: Boolean by StickyBoolean(initial = false)
-
-        // find observer, if none, return
-        val cam = scene.findObserver() ?: return false
 
         val hmd = hub?.getWorkingHMDDisplay()?.wantsVR()
 
         cam.view = cam.getTransformation()
-        cam.updateWorld(true, false)
 
         buffers.VRParameters.reset()
         val vrUbo = uboCache.computeIfAbsent("VRParameters") {
@@ -1102,8 +1098,6 @@ open class OpenGLRenderer(hub: Hub,
                 logger.warn("Matrices UBO for ${node.name} does not exist or does not have a backing buffer")
                 return@forEach
             }
-
-            node.updateWorld(true, false)
 
             var bufferOffset = ubo.advanceBackingBuffer()
             ubo.offset = bufferOffset
@@ -1531,9 +1525,14 @@ open class OpenGLRenderer(hub: Hub,
      * 7) The resulting image is drawn to the screen, or -- if a HMD is present -- submitted to the OpenVR
      *    compositor.
      */
-    override fun render() {
+    override fun render(activeCamera: Camera, sceneNodes: List<Node>) {
+        currentObserver = activeCamera
+        currentSceneNodes = sceneNodes
         renderCalled = true
     }
+
+    var currentObserver: Camera? = null
+    var currentSceneNodes: List<Node> = emptyList()
 
     @Synchronized fun renderInternal() = runBlocking {
         if(!initialized || !renderCalled) {
@@ -1567,29 +1566,23 @@ open class OpenGLRenderer(hub: Hub,
             return@runBlocking
         }
 
-        val cam = scene.findObserver() ?: return@runBlocking
-        val sceneObjects = async {
-            scene.discover(scene, { n ->
-                n is HasGeometry
-                    && n.visible
-                    && cam.canSee(n)
-            }, useDiscoveryBarriers = true)
-        }
+        val cam = currentObserver ?: return@runBlocking
+        val sceneObjects = currentSceneNodes
 
         val startUboUpdate = System.nanoTime()
-        val updated = updateDefaultUBOs()
+        val updated = updateDefaultUBOs(cam)
         stats?.add("OpenGLRenderer.updateUBOs", System.nanoTime() - startUboUpdate)
 
         var sceneUpdated = true
         if(pushMode) {
-            val actualSceneObjects = sceneObjects.await().toHashSet()
+            val actualSceneObjects = sceneObjects.toHashSet()
             sceneUpdated = actualSceneObjects != previousSceneObjects
 
             previousSceneObjects = actualSceneObjects
         }
 
         val startInstanceUpdate = System.nanoTime()
-        val instancesUpdated = updateInstanceBuffers(sceneObjects.await())
+        val instancesUpdated = updateInstanceBuffers(sceneObjects)
         stats?.add("OpenGLRenderer.updateInstanceBuffers", System.nanoTime() - startInstanceUpdate)
 
         if(pushMode && !updated && !sceneUpdated && !screenshotRequested && !instancesUpdated) {
@@ -1721,9 +1714,9 @@ open class OpenGLRenderer(hub: Hub,
                 }
 
                 val actualObjects = if(pass.passConfig.type == RenderConfigReader.RenderpassType.geometry) {
-                    sceneObjects.await().filter { it !is Light }
+                    sceneObjects.filter { it !is Light }
                 } else {
-                    sceneObjects.await().filter { it is Light }
+                    sceneObjects.filter { it is Light }
                 }
 
                 var currentShader: OpenGLShaderProgram? = null
