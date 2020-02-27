@@ -7,6 +7,7 @@ import java.awt.color.ColorSpace
 import java.awt.geom.AffineTransform
 import java.awt.image.*
 import java.io.BufferedInputStream
+import java.io.IOException
 import java.io.InputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -64,7 +65,7 @@ open class Image(val contents: ByteBuffer, val width: Int, val height: Int) {
                     val height = TGAReader.getHeight(buffer)
                     bi = BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
                     bi.setRGB(0, 0, width, height, pixels, 0, width)
-                } catch (e: Exception) {
+                } catch (e: IOException) {
                     Colormap.logger.error("Could not read image from TGA. ${e.message}")
                     bi = BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB)
                     bi.setRGB(0, 0, 1, 1, intArrayOf(255, 0, 0), 0, 1)
@@ -76,7 +77,7 @@ open class Image(val contents: ByteBuffer, val width: Int, val height: Int) {
                     bi = ImageIO.read(stream)
                     reader.close()
 
-                } catch (e: Exception) {
+                } catch (e: IOException) {
                     Colormap.logger.error("Could not read image: ${e.message}")
                     bi = BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB)
                     bi.setRGB(0, 0, 1, 1, intArrayOf(255, 0, 0), 0, 1)
