@@ -115,7 +115,9 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
 
     protected var currentVolumeCount: Pair<Int, Int>
 
+    /** Sets the maximum allowed step size in voxels. */
     var maxAllowedStepInVoxels = 1.0
+    /** Numeric factor by which the step size may degrade on the far plane. */
     var farPlaneDegradation = 5.0
 
     // TODO: What happens when changing this? And should it change the mode for the current node only
@@ -163,7 +165,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
         preDraw()
     }
 
-    fun updateProgram() {
+    private fun updateProgram() {
         logger.info("Updating effective shader program to $progvol")
         progvol?.setTextureCache(textureCache)
         progvol?.use(context)
@@ -544,7 +546,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
                         }
 
                         override fun equals(other: Any?): Boolean {
-                            return stack.equals(other)
+                            return stack == other
                         }
 
                         override fun hashCode(): Int {
@@ -559,14 +561,14 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
                     val o: SimpleStack3D<*>
                     val ss = source.spimSource as? TransformedSource
                     val wrapped = ss?.wrappedSource
-                    if(wrapped is graphics.scenery.volumes.bdv.Volume.BufferDummySource) {
+                    if(wrapped is Volume.BufferDummySource) {
                         if(wrapped.timepoints.isEmpty()) {
                             logger.info("Timepoints is empty, skipping node")
                             return@forEach
                         }
 
                         val tp = min(max(0, currentTimepoint), wrapped.timepoints.size-1)
-                        o = object<T> : BufferedSimpleStack3D<T>(wrapped.timepoints.toList().get(tp).second, wrapped.sourceType as T, intArrayOf(wrapped.width, wrapped.height, wrapped.depth)) {
+                        o = object<T> : BufferedSimpleStack3D<T>(wrapped.timepoints.toList()[tp].second, wrapped.sourceType as T, intArrayOf(wrapped.width, wrapped.height, wrapped.depth)) {
                             override fun getType(): T {
                                 return stack.type as T
                             }
@@ -606,7 +608,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
                             }
 
                             override fun equals(other: Any?): Boolean {
-                                return stack.equals(other)
+                                return stack == other
                             }
 
                             override fun hashCode(): Int {
@@ -629,6 +631,10 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
     }
 
 
+    /**
+     * Adds a new volume [node] to the [VolumeManager]. Will trigger an update of the rendering state,
+     * and recreation of the shaders.
+     */
     fun add(node: graphics.scenery.volumes.bdv.Volume) {
         logger.info("Adding $node to OOC nodes")
         bdvNodes.add(node)
@@ -636,17 +642,24 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
         needAtLeastNumVolumes(renderStacks.size)
     }
 
+    /**
+     * Notifies the [VolumeManager] of any updates coming from [node],
+     * will trigger an update of the rendering state, and potentially creation of new shaders.
+     */
     fun notifyUpdate(node: Node) {
         renderStateUpdated = true
         updateRenderState()
         needAtLeastNumVolumes(renderStacks.size)
     }
 
+    /**
+     * Requests re-rendering.
+     */
     override fun requestRepaint() {
         renderStateUpdated = true
     }
 
-    /** Companion object for BDVVolume */
+    /** Companion object for Volume */
     companion object {
         /** Static [ForkJoinPool] for fill task submission. */
         protected val forkJoinPool: ForkJoinPool = ForkJoinPool(max(1, Runtime.getRuntime().availableProcessors()/2))
