@@ -1880,7 +1880,7 @@ open class VulkanRenderer(hub: Hub,
     /**
      * This function renders the scene
      */
-    override fun render() = runBlocking {
+    override fun render(activeCamera: Camera, sceneNodes: List<Node>) = runBlocking {
         val profiler = hub?.get<Profiler>()
 //        profiler?.begin("Renderer.Housekeeping")
         val swapchainChanged = pollEvents()
@@ -1891,12 +1891,6 @@ open class VulkanRenderer(hub: Hub,
         }
 
         val stats = hub?.get(SceneryElement.Statistics) as? Statistics
-        val sceneObjects = GlobalScope.async {
-            scene.discover(scene, { n ->
-                n is HasGeometry
-                    && n.visible && n.state == State.Ready
-            }, useDiscoveryBarriers = true)
-        }
 
         // check whether scene is already initialized
         if (scene.children.count() == 0 || !scene.initialized) {
@@ -1929,13 +1923,13 @@ open class VulkanRenderer(hub: Hub,
 
         profiler?.begin("Renderer.updateUBOs")
         val startUboUpdate = System.nanoTime()
-        val ubosUpdated = updateDefaultUBOs(device)
+        val ubosUpdated = updateDefaultUBOs(device, activeCamera)
         stats?.add("Renderer.updateUBOs", System.nanoTime() - startUboUpdate)
         profiler?.end()
 
         profiler?.begin("Renderer.updateInstanceBuffers")
         val startInstanceUpdate = System.nanoTime()
-        val instancesUpdated = updateInstanceBuffers(sceneObjects)
+        val instancesUpdated = updateInstanceBuffers(sceneNodes)
         stats?.add("Renderer.updateInstanceBuffers", System.nanoTime() - startInstanceUpdate)
         profiler?.end()
 
@@ -1947,7 +1941,7 @@ open class VulkanRenderer(hub: Hub,
         profiler?.begin("Renderer.PreDraw")
         // here we discover the objects in the scene that could be relevant for the scene
         if (renderpasses.filter { it.value.passConfig.type != RenderConfigReader.RenderpassType.quad }.any()) {
-            sceneObjects.await().forEach { node ->
+            sceneNodes.forEach { node ->
                 val it = if(node is DelegatesRendering) {
                     node.delegate ?: return@forEach
                 } else {
@@ -2030,7 +2024,7 @@ open class VulkanRenderer(hub: Hub,
             }
 
             if(pushMode) {
-                val newSceneArray = sceneObjects.getCompleted().toHashSet()
+                val newSceneArray = sceneNodes.toHashSet()
                 if (!newSceneArray.equals(sceneArray)) {
                     forceRerecording = true
                 }
@@ -2081,8 +2075,8 @@ open class VulkanRenderer(hub: Hub,
             val start = System.nanoTime()
 
             when (target.passConfig.type) {
-                RenderConfigReader.RenderpassType.geometry -> recordSceneRenderCommands(target, commandBuffer, sceneObjects, { it !is Light }, forceRerecording)
-                RenderConfigReader.RenderpassType.lights -> recordSceneRenderCommands(target, commandBuffer, sceneObjects, { it is Light }, forceRerecording)
+                RenderConfigReader.RenderpassType.geometry -> recordSceneRenderCommands(target, commandBuffer, sceneNodes, { it !is Light }, forceRerecording)
+                RenderConfigReader.RenderpassType.lights -> recordSceneRenderCommands(target, commandBuffer, sceneNodes, { it is Light }, forceRerecording)
                 RenderConfigReader.RenderpassType.quad -> recordPostprocessRenderCommands(target, commandBuffer)
             }
 
@@ -2129,8 +2123,8 @@ open class VulkanRenderer(hub: Hub,
         val start = System.nanoTime()
 
         when (viewportPass.passConfig.type) {
-            RenderConfigReader.RenderpassType.geometry -> recordSceneRenderCommands(viewportPass, viewportCommandBuffer, sceneObjects, { it !is Light }, forceRerecording)
-            RenderConfigReader.RenderpassType.lights -> recordSceneRenderCommands(viewportPass, viewportCommandBuffer, sceneObjects, { it is Light })
+            RenderConfigReader.RenderpassType.geometry -> recordSceneRenderCommands(viewportPass, viewportCommandBuffer, sceneNodes, { it !is Light }, forceRerecording)
+            RenderConfigReader.RenderpassType.lights -> recordSceneRenderCommands(viewportPass, viewportCommandBuffer, sceneNodes, { it is Light })
             RenderConfigReader.RenderpassType.quad -> recordPostprocessRenderCommands(viewportPass, viewportCommandBuffer)
         }
 
@@ -2528,7 +2522,7 @@ open class VulkanRenderer(hub: Hub,
     }
 
     private fun recordSceneRenderCommands(pass: VulkanRenderpass,
-                                          commandBuffer: VulkanCommandBuffer, sceneObjects: Deferred<List<Node>>,
+                                          commandBuffer: VulkanCommandBuffer, sceneObjects: List<Node>,
                                           customNodeFilter: ((Node) -> Boolean)? = null, forceRerecording: Boolean = false) = runBlocking {
         val target = pass.getOutput()
 
@@ -2549,7 +2543,7 @@ open class VulkanRenderer(hub: Hub,
         // and filter according to any custom filters applicable to this pass
         // (e.g. to discern geometry from lighting passes)
         val seenDelegates = ArrayList<Node>(5)
-        sceneObjects.await().filter { customNodeFilter?.invoke(it) ?: true }.forEach { node ->
+        sceneObjects.filter { customNodeFilter?.invoke(it) ?: true }.forEach { node ->
             val n = if(node is DelegatesRendering) {
                 val delegate = node.delegate
                 if(node.delegationType == DelegationType.OncePerDelegate && delegate != null) {
@@ -3022,8 +3016,8 @@ open class VulkanRenderer(hub: Hub,
         return requiredDynamicOffsets
     }
 
-    private fun updateInstanceBuffers(sceneObjects: Deferred<List<Node>>) = runBlocking {
-        val instanceMasters = sceneObjects.await().filter { it.instances.size > 0 }
+    private fun updateInstanceBuffers(sceneObjects: List<Node>) = runBlocking {
+        val instanceMasters = sceneObjects.filter { it.instances.size > 0 }
 
         instanceMasters.forEach { parent ->
             val metadata = parent.rendererMetadata()
@@ -3058,14 +3052,12 @@ open class VulkanRenderer(hub: Hub,
         } as? ConcurrentHashMap<String, Long> ?: throw IllegalStateException("Could not retrieve descriptor cache from scene")
     }
 
-    private fun updateDefaultUBOs(device: VulkanDevice): Boolean = runBlocking {
+    private fun updateDefaultUBOs(device: VulkanDevice, cam: Camera): Boolean = runBlocking {
         if(shouldClose) {
             return@runBlocking false
         }
 
         logger.trace("Updating default UBOs for {}", device)
-        // find observer, if none, return
-        val cam = scene.findObserver() ?: return@runBlocking false
         // sticky boolean
         var updated: Boolean by StickyBoolean(initial = false)
 
@@ -3076,7 +3068,7 @@ open class VulkanRenderer(hub: Hub,
         val hmd = hub?.getWorkingHMDDisplay()?.wantsVR()
 
         cam.view = cam.getTransformation()
-        cam.updateWorld(true, false)
+//        cam.updateWorld(true, false)
 
         buffers.VRParameters.reset()
         val vrUbo = defaultUBOs["VRParameters"]!!
@@ -3116,8 +3108,6 @@ open class VulkanRenderer(hub: Hub,
                 val s = node.rendererMetadata() ?: return@forEach
 
                 val ubo = s.UBOs["Matrices"]!!.second
-
-                node.updateWorld(true, false)
 
                 ubo.offsets.limit(1)
 
