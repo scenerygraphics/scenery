@@ -528,6 +528,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
 
                 val sourceTransform = AffineTransform3D()
                 source.spimSource.getSourceTransform(currentTimepoint, 0, sourceTransform)
+                logger.info("ST is $sourceTransform")
 
                 if(stack is MultiResolutionStack3D) {
                     val o = object<T> : MultiResolutionStack3D<T> {

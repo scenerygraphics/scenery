@@ -70,7 +70,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
     /** The color map for the volume. */
     var colormap: Colormap = Colormap.get("viridis")
 
-    /** Pixel-to-world scaling ratio */
+    /** Pixel-to-world scaling ratio. Default: 1 px = 1mm in world space*/
     var pixelToWorldRatio = 0.001f
 
     /** Rendering method */
@@ -221,20 +221,29 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
     /**
      * Returns the local scaling of the volume, taking voxel size and [pixelToWorldRatio] into account.
      */
-    fun localScale(): GLVector {
-        // TODO: Ask Tobi how to reliably get source
-//        return GLVector(
-//            sizeX * voxelSizeX * pixelToWorldRatio,
-//            sizeY * voxelSizeY * pixelToWorldRatio,
-//            sizeZ * voxelSizeZ * pixelToWorldRatio)
+    open fun localScale(): GLVector {
+        // we are using the first visible source here, which might of course change.
+        // TODO: Figure out a better way to do this. It might be an issue for multi-view datasets.
+        var voxelSizes: VoxelDimensions = FinalVoxelDimensions("um", 1.0, 1.0, 1.0)
+
+        val index = viewerState.visibleSourceIndices.firstOrNull()
+        if(index != null) {
+            val source = viewerState.sources[index]
+            voxelSizes = source.spimSource.voxelDimensions ?: voxelSizes
+        }
+
         return GLVector(
+//            voxelSizes.dimension(0).toFloat() * pixelToWorldRatio,
+//            voxelSizes.dimension(1).toFloat() * pixelToWorldRatio,
+//            voxelSizes.dimension(2).toFloat() * pixelToWorldRatio
             pixelToWorldRatio,
             pixelToWorldRatio,
-            pixelToWorldRatio)
+            pixelToWorldRatio
+        )
     }
 
     /**
-     * Composes the world matrix for this volume node, taken ivoxel size and [pixelToWorldRatio]
+     * Composes the world matrix for this volume node, taken voxel size and [pixelToWorldRatio]
      * into account.
      */
     override fun composeModel() {
@@ -247,6 +256,43 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             model.mult(this.rotation)
             model.scale(this.scale.x(), this.scale.y(), this.scale.z())
             model.scale(L.x(), L.y(), L.z())
+        }
+    }
+
+    class RAIVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewerOptions, hub: Hub): Volume(ds, options, hub) {
+        override fun localScale(): GLVector {
+            var size = GLVector(1.0f, 1.0f, 1.0f)
+            val source = ds.sources.firstOrNull()
+
+            if(source != null) {
+                val s = source.spimSource.getSource(0, 0)
+                val min = GLVector(s.min(0).toFloat(), s.min(1).toFloat(), s.min(2).toFloat())
+                val max = GLVector(s.max(0).toFloat(), s.max(1).toFloat(), s.max(2).toFloat())
+                size = max - min
+            }
+            logger.info("Sizes are $size")
+
+            return GLVector(
+                size.x() * pixelToWorldRatio / 10.0f,
+                size.y() * pixelToWorldRatio / 10.0f,
+                size.z() * pixelToWorldRatio / 10.0f
+            )
+        }
+
+        override fun composeModel() {
+            logger.info("Composing model for $this")
+            @Suppress("SENSELESS_COMPARISON")
+            if(position != null && rotation != null && scale != null) {
+                val L = localScale()
+                logger.info("Local scale is $L")
+                val Lh = L * (1.0f/2.0f)
+                model.setIdentity()
+                model.translate(this.position.x(), this.position.y(), this.position.z())
+                model.mult(this.rotation)
+                model.scale(this.scale.x(), this.scale.y(), this.scale.z())
+                model.scale(Lh.x(), Lh.y(), Lh.z())
+                model.translate(-L.x()/pixelToWorldRatio*5.0f, -L.y()/pixelToWorldRatio*5.0f, -L.z()/pixelToWorldRatio*5.0f)
+            }
         }
     }
 
@@ -325,18 +371,33 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
     companion object {
         val setupId = AtomicInteger(0)
 
-        @JvmStatic @JvmOverloads fun fromSpimData(spimData: SpimDataMinimal, hub : Hub, options : VolumeViewerOptions = VolumeViewerOptions()): Volume {
+        @JvmStatic @JvmOverloads fun fromSpimData(
+            spimData: SpimDataMinimal,
+            hub : Hub,
+            options : VolumeViewerOptions = VolumeViewerOptions()
+        ): Volume {
             val ds = SpimDataMinimalSource(spimData)
             return Volume(ds, options, hub)
         }
 
-        @JvmStatic @JvmOverloads fun fromXML(path: String, hub: Hub, options : VolumeViewerOptions = VolumeViewerOptions()): Volume {
+        @JvmStatic @JvmOverloads fun fromXML(
+            path: String,
+            hub: Hub,
+            options : VolumeViewerOptions = VolumeViewerOptions()
+        ): Volume {
             val spimData = XmlIoSpimDataMinimal().load(path)
             val ds = SpimDataMinimalSource(spimData)
             return Volume(ds, options, hub)
         }
 
-        @JvmStatic @JvmOverloads fun <T: NumericType<T>> fromRAII(img: RandomAccessibleInterval<T>, type: T, axisOrder: AxisOrder = DEFAULT, name: String, hub: Hub, options: VolumeViewerOptions = VolumeViewerOptions()): Volume {
+        @JvmStatic @JvmOverloads fun <T: NumericType<T>> fromRAII(
+            img: RandomAccessibleInterval<T>,
+            type: T,
+            axisOrder: AxisOrder = DEFAULT,
+            name: String,
+            hub: Hub,
+            options: VolumeViewerOptions = VolumeViewerOptions()
+        ): Volume {
             val converterSetups: ArrayList<ConverterSetup> = ArrayList()
             val stacks: ArrayList<RandomAccessibleInterval<T>> = AxisOrder.splitInputStackIntoSourceStacks(img, AxisOrder.getAxisOrder(axisOrder, img, false))
             val sourceTransform = AffineTransform3D()
@@ -358,14 +419,24 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             }
 
             val ds = VolumeDataSource.RAISource<T>(type, sources, converterSetups, numTimepoints)
-            return Volume(ds, options, hub)
+            return RAIVolume(ds, options, hub)
         }
 
-        @JvmStatic @JvmOverloads fun <T: NumericType<T>> fromBuffer(volumes: LinkedHashMap<String, ByteBuffer>, width: Int, height: Int, depth: Int, type: T, hub: Hub, options: VolumeViewerOptions = VolumeViewerOptions()): BufferedVolume {
+        @JvmStatic @JvmOverloads fun <T: NumericType<T>> fromBuffer(
+            volumes: LinkedHashMap<String, ByteBuffer>,
+            width: Int,
+            height: Int,
+            depth: Int,
+            type: T,
+            hub: Hub,
+            voxelDimensions: FloatArray = floatArrayOf(1.0f, 1.0f, 1.0f),
+            voxelUnit: String = "um",
+            options: VolumeViewerOptions = VolumeViewerOptions()
+        ): BufferedVolume {
             val converterSetups: ArrayList<ConverterSetup> = ArrayList()
             val sources: ArrayList<SourceAndConverter<T>> = ArrayList()
 
-            val s = BufferDummySource(volumes, width, height, depth, FinalVoxelDimensions("um", 1.0, 1.0, 1.0), "", type)
+            val s = BufferDummySource(volumes, width, height, depth, FinalVoxelDimensions(voxelUnit, *(voxelDimensions.map { it.toDouble() }.toDoubleArray())), "", type)
             val source: SourceAndConverter<T> = BigDataViewer.wrapWithTransformedSource(
                     SourceAndConverter<T>(s, BigDataViewer.createConverterToARGB(type)))
            converterSetups.add(BigDataViewer.createConverterSetup(source, setupId.getAndIncrement()))
