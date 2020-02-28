@@ -40,6 +40,8 @@ import kotlin.math.roundToInt
 import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.memberProperties
 import mpi.MPI
+import mpi.MPIException
+import mpi.Request
 import java.awt.Point
 import java.awt.image.*
 import java.awt.image.RenderedImage
@@ -164,6 +166,11 @@ open class OpenGLRenderer(hub: Hub,
     private var flow: List<String>
 
     private var firstCall = true
+    private lateinit var sendReq: Request
+    val windowSize = 700
+    var imageBuf: ByteBuffer = MemoryUtil.memAlloc(windowSize * windowSize * 7)
+//    var imageBuf: ByteBuffer = ByteBuffer.allocateDirect(windowSize * windowSize * 7)
+
 
     /**
      * Extension function of Boolean to use Booleans in GLSL
@@ -2145,69 +2152,53 @@ open class OpenGLRenderer(hub: Hub,
 
         if (parallelRenderingMode && joglDrawable != null) {
             if(MPI.COMM_WORLD.rank != 0) {
-                val windowSize = 700
-                if(firstCall) {
-                    //firstCall = false
-                    val readBufferUtil = GLReadBufferUtil(false, false)
-                    readBufferUtil.readPixels(gl, true)
-                    val image = readBufferUtil.textureData.buffer as ByteBuffer
-                    val imageSize = image.remaining()
 
-                    // switch to depth buffer
-                    val fbWithDepth = renderpasses.entries
-                        .first { it.value.output.any { it.value.hasDepthAttachment() }}
-                        .value.output.entries
-                        .first { it.value.hasDepthAttachment() }
-
-                    gl.glBindFramebuffer(GL.GL_READ_FRAMEBUFFER, fbWithDepth.value.id)
-
-                    val depth = BufferUtils.allocateByte(windowSize * windowSize * 4)
-                    gl.glReadPixels(0, 0, windowSize, windowSize, GL4.GL_DEPTH_COMPONENT, GL4.GL_FLOAT, depth)
-//                a[0] = 1
-
-                    logger.debug("Sending ${depth.remaining()} bytes for depth buffer from fb id ${fbWithDepth.key}/${fbWithDepth.value.id}")
-
-                    val array = ByteArray(image.remaining() + depth.remaining())
-                    image.get(array, 0, image.remaining()).flip()
-                    depth.get(array, image.remaining(), depth.remaining())
-                    if(imageSize == windowSize*windowSize*3) {
-                        MPI.COMM_WORLD.send(array, array.size, MPI.BYTE, 0, 0)
-                    }
-                    else {
-                        logger.info("The image size is: $imageSize")
-                    }
-//                MPI.COMM_WORLD.send(a, 1, MPI.INT, 2, 0)
-//                logger.info("Process 1 has sent")
-
-                    // switch back to viewport
-                    gl.glBindFramebuffer(GL.GL_READ_FRAMEBUFFER, 0)
-                    gl.glBindFramebuffer(GL.GL_DRAW_FRAMEBUFFER, 0)
+                if(!firstCall) {
+                    sendReq.waitFor()
                 }
+
+                firstCall = false
+                val readBufferUtil = GLReadBufferUtil(false, false)
+                readBufferUtil.readPixels(gl, true)
+                val image = readBufferUtil.textureData.buffer as ByteBuffer
+                val imageSize = image.remaining()
+
+                // switch to depth buffer
+                val fbWithDepth = renderpasses.entries
+                    .first { it.value.output.any { it.value.hasDepthAttachment() }}
+                    .value.output.entries
+                    .first { it.value.hasDepthAttachment() }
+
+                gl.glBindFramebuffer(GL.GL_READ_FRAMEBUFFER, fbWithDepth.value.id)
+
+                val depth = BufferUtils.allocateByte(windowSize * windowSize * 4)
+                gl.glReadPixels(0, 0, windowSize, windowSize, GL4.GL_DEPTH_COMPONENT, GL4.GL_FLOAT, depth)
+
+                val array = ByteArray(image.remaining() + depth.remaining())
+                image.get(array, 0, image.remaining()).flip()
+                depth.get(array, image.remaining(), depth.remaining())
+                imageBuf.position(0)
+
+                imageBuf.put(array)
+                if (imageSize == windowSize * windowSize * 3) {
+                    try {
+                        sendReq = MPI.COMM_WORLD.iSend(imageBuf, imageBuf.limit(), MPI.BYTE, 0, 0)
+                    }
+                    catch(e: MPIException)
+                    {
+                        logger.info("Exceptioon in MPI Isend")
+                        e.printStackTrace()
+                    }
+
+                } else {
+                    logger.info("The image size is: $imageSize")
+                }
+
+                // switch back to viewport
+                gl.glBindFramebuffer(GL.GL_READ_FRAMEBUFFER, 0)
+                gl.glBindFramebuffer(GL.GL_DRAW_FRAMEBUFFER, 0)
+
             }
-//            if(MPI.COMM_WORLD.rank == 0) {
-//                if(firstCall) {
-//                    //firstCall = false
-//                    var image = ByteArray(512 * 512 * 3 + 512 * 512 * 4)
-//                    MPI.COMM_WORLD.recv(image, 512 * 512 * 3 + 512 * 512 * 4, MPI.BYTE, 1, 0)
-//
-//                    var result = BufferedImage(512, 512, BufferedImage.TYPE_3BYTE_BGR)
-//                    result.data = Raster.createRaster(result.getSampleModel(), DataBufferByte(image.sliceArray(0..512*512*3), 512 * 512 * 3), Point() )
-//
-//                    ImageIO.write(result, "png",File("/Users/argupta/result1.png"))
-//                    FileOutputStream(File("/Users/argupta/depth1.raw")).write(image, 512 * 512 * 3, 512 * 512 * 4)
-//
-//                    MPI.COMM_WORLD.recv(image, 512 * 512 * 3 + 512 * 512 * 4, MPI.BYTE, 2, 0)
-//
-//                    result.data = Raster.createRaster(result.getSampleModel(), DataBufferByte(image.sliceArray(0..512*512*3), 512 * 512 * 3), Point() )
-//
-//                    ImageIO.write(result, "png",File("/Users/argupta/result2.png"))
-//                    FileOutputStream(File("/Users/argupta/depth2.raw")).write(image, 512 * 512 * 3, 512 * 512 * 4)
-////                val a = IntArray(1)
-////                a[0] = 2
-////                MPI.COMM_WORLD.recv(a, 1, MPI.INT, 1, 0)
-////                logger.info("New val of a: " + a[0])
-//                }
-//            }
         }
 
         stats?.add("Renderer.${flow.last()}.renderTiming", System.nanoTime() - startPass)
