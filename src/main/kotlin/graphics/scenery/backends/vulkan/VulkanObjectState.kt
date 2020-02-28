@@ -5,6 +5,7 @@ import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
 import graphics.scenery.NodeMetadata
 import graphics.scenery.backends.RenderConfigReader
+import graphics.scenery.backends.RendererFlags
 import graphics.scenery.utils.LazyLogger
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
@@ -65,6 +66,7 @@ open class VulkanObjectState : NodeMetadata {
     /** Whether the node is rendered as instanced */
     var instanced = false
 
+    var flags = EnumSet.noneOf(RendererFlags::class.java)
     /** Skip for rendering if this is set. */
     var preDrawSkip = false
 
