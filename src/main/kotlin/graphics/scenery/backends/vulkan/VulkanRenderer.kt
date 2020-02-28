@@ -753,6 +753,8 @@ open class VulkanRenderer(hub: Hub,
 
         if (s.initialized) return true
 
+        s.flags.add(RendererFlags.Seen)
+
         logger.debug("Initializing ${node.name} (${(node as HasGeometry).vertices.remaining() / node.vertexSize} vertices/${node.indices.remaining()} indices)")
 
         // determine vertex input type
@@ -837,6 +839,7 @@ open class VulkanRenderer(hub: Hub,
         }
 
         s.initialized = true
+        s.flags.add(RendererFlags.Initialised)
         node.initialized = true
         node.metadata["VulkanRenderer"] = s
 
@@ -2752,6 +2755,11 @@ open class VulkanRenderer(hub: Hub,
             renderOrderList.forEach drawLoop@ { node ->
                 val s = node.rendererMetadata() ?: return@drawLoop
 
+                // nodes that just have been initialised will also be skipped
+                if(!s.flags.contains(RendererFlags.Updated)) {
+                    return@drawLoop
+                }
+
                 // instanced nodes will not be drawn directly, but only the master node.
                 // nodes with no vertices will also not be drawn.
                 if(s.vertexCount == 0) {
@@ -3142,6 +3150,7 @@ open class VulkanRenderer(hub: Hub,
                 }
 
                 updated = nodeUpdated
+                s.flags.add(RendererFlags.Updated)
             }
         }
 
