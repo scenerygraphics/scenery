@@ -541,6 +541,7 @@
             <artifactId>lwjgl3-awt</artifactId>
             <version>${lwjgl3-awt.version}</version>
         </dependency>
+
     </dependencies>
 
     <repositories>
