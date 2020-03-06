@@ -154,7 +154,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
                 val spimData = dataSource.spimData
 
                 val seq: AbstractSequenceDescription<*, *, *> = spimData.sequenceDescription
-                maxTimepoint = seq.getTimePoints().size()
+                maxTimepoint = seq.getTimePoints().size() - 1
                 cacheControl = (seq.getImgLoader() as ViewerImgLoader).cacheControl
 
                 // wraps legacy image formats (e.g., TIFF) if referenced in BDV XML
