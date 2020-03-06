@@ -43,8 +43,6 @@ interface Renderable {
     var position: GLVector
     /** X/Y/Z scale of the object. */
     var scale: GLVector
-    /** Rendering scale, e.g. coming from physical units of the object. */
-    var renderScale: Float
     /** Quaternion defining the rotation of the object in local coordinates. */
     var rotation: Quaternion
 
