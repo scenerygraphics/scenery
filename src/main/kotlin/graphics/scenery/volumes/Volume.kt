@@ -265,7 +265,6 @@ open class Volume : Mesh("Volume") {
             model.setIdentity()
             model.translate(this.position.x(), this.position.y(), this.position.z())
             model.mult(this.rotation)
-            model.scale(this.renderScale, this.renderScale, this. renderScale)
             model.scale(this.scale.x(), this.scale.y(), this.scale.z())
             model.scale(L.x(), L.y(), L.z())
         }
