@@ -3,10 +3,12 @@ package graphics.scenery
 import cleargl.GLMatrix
 import cleargl.GLVector
 import com.jogamp.opengl.math.FloatUtil.makeRotationAxis
+import java.lang.IllegalArgumentException
 import java.lang.IllegalStateException
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import kotlin.math.acos
+
 /**
  * Constructs a geometry along the calculates points of a Spline (in this case a Catmull Rom Spline).
  * This class inherits from Node and HasGeometry
@@ -28,7 +30,8 @@ class CurveGeometry(curve: CatmullRomSpline, n: Int = 100): Node("CurveGeometry"
     /**
      * This function renders the spline.
      * [baseShape] It takes a lambda as a parameter, which is the shape of the
-     * curve. If you choose, for example, to have a square as a base shape, your spline will look like
+     * curve.
+     * If you choose, for example, to have a square as a base shape, your spline will look like
      * a banister. Please not that the base shape needs an equal number of points in each segments but it
      * can very well vary in thickness.
      */
@@ -64,26 +67,8 @@ class CurveGeometry(curve: CatmullRomSpline, n: Int = 100): Node("CurveGeometry"
             }
         }
 
-        val verticesVectors = ArrayList<GLVector>()
-        curveGeometry.dropLast(1).forEachIndexed { shapeIndex, shape ->
-            shape.dropLast(1).forEachIndexed { vertexIndex, _ ->
+        val verticesVectors = calculateTriangles(curveGeometry)
 
-                verticesVectors.add(curveGeometry[shapeIndex][vertexIndex])
-                verticesVectors.add(curveGeometry[shapeIndex][vertexIndex + 1])
-                verticesVectors.add(curveGeometry[shapeIndex + 1][vertexIndex])
-
-                verticesVectors.add(curveGeometry[shapeIndex][vertexIndex + 1])
-                verticesVectors.add(curveGeometry[shapeIndex + 1][vertexIndex + 1])
-                verticesVectors.add(curveGeometry[shapeIndex + 1][vertexIndex])
-            }
-            verticesVectors.add(curveGeometry[shapeIndex][0])
-            verticesVectors.add(curveGeometry[shapeIndex + 1][0])
-            verticesVectors.add(curveGeometry[shapeIndex + 1][shape.lastIndex])
-
-            verticesVectors.add(curveGeometry[shapeIndex + 1][shape.lastIndex])
-            verticesVectors.add(curveGeometry[shapeIndex][shape.lastIndex])
-            verticesVectors.add(curveGeometry[shapeIndex][0])
-        }
         vertices = BufferUtils.allocateFloat(verticesVectors.size*3)
         verticesVectors.forEach{
             vertices.put(it.xyz().toFloatArray())
@@ -119,6 +104,10 @@ class CurveGeometry(curve: CatmullRomSpline, n: Int = 100): Node("CurveGeometry"
     fun computeFrenetFrames(curv: ArrayList<GLVector>): List<FrenetFrame> {
 
         val frenetFrameList = ArrayList<FrenetFrame>(curv.size)
+
+        if(curv.isEmpty()) {
+            return frenetFrameList
+        }
 
         //adds all the tangent vectors
         curv.forEachIndexed { index, _ ->
@@ -169,6 +158,44 @@ class CurveGeometry(curve: CatmullRomSpline, n: Int = 100): Node("CurveGeometry"
             secondFrame.bitangent = secondFrame.tangent.cross(secondFrame.normal).normalized
         }
         return frenetFrameList
+    }
+
+    /**
+     * This function calculates the triangles for the the rendering. It takes as a parameter
+     * the [curveGeometry] List which contains all the baseShapes transformed and translated
+     * along the curve.
+     */
+    private fun calculateTriangles(curveGeometry: List<List<GLVector>>): ArrayList<GLVector> {
+        val verticesVectors = ArrayList<GLVector>()
+        if(curveGeometry.isEmpty()) {
+            return verticesVectors
+        }
+        //if none of the lists in the curveGeometry differ in size, distinctBy leaves only one element
+        if(curveGeometry.distinctBy{ it.size }.size == 1) {
+            curveGeometry.dropLast(1).forEachIndexed { shapeIndex, shape ->
+                shape.dropLast(1).forEachIndexed { vertexIndex, _ ->
+
+                    verticesVectors.add(curveGeometry[shapeIndex][vertexIndex])
+                    verticesVectors.add(curveGeometry[shapeIndex][vertexIndex + 1])
+                    verticesVectors.add(curveGeometry[shapeIndex + 1][vertexIndex])
+
+                    verticesVectors.add(curveGeometry[shapeIndex][vertexIndex + 1])
+                    verticesVectors.add(curveGeometry[shapeIndex + 1][vertexIndex + 1])
+                    verticesVectors.add(curveGeometry[shapeIndex + 1][vertexIndex])
+                }
+                verticesVectors.add(curveGeometry[shapeIndex][0])
+                verticesVectors.add(curveGeometry[shapeIndex + 1][0])
+                verticesVectors.add(curveGeometry[shapeIndex + 1][shape.lastIndex])
+
+                verticesVectors.add(curveGeometry[shapeIndex + 1][shape.lastIndex])
+                verticesVectors.add(curveGeometry[shapeIndex][shape.lastIndex])
+                verticesVectors.add(curveGeometry[shapeIndex][0])
+            }
+        }
+        else {
+            throw IllegalArgumentException("The baseShapes must not differ in size!")
+        }
+        return verticesVectors
     }
 
     /**
