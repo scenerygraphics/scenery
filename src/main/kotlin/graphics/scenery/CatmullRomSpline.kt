@@ -39,17 +39,23 @@ class CatmullRomSpline(val controlPoints: List<GLVector>, val alpha: Float = 0.5
 
         var t = t1
         while(t<t2) {
-            val A1 = p0.times((t1-t)/(t1-t0)) + p1.times((t-t0)/(t1-t0));
-            val A2 = p1.times((t2-t)/(t2-t1)) + p2.times((t-t1)/(t2-t1));
-            val A3 = p2.times((t3-t)/(t3-t2)) + p3.times((t-t2)/(t3-t2));
+            if(t1 != t0 && t2 != t1 && t2 != t0 && t3 != t1 && t3 != t2) {
+                val A1 = p0.times((t1 - t) / (t1 - t0)) + p1.times((t - t0) / (t1 - t0));
+                val A2 = p1.times((t2 - t) / (t2 - t1)) + p2.times((t - t1) / (t2 - t1));
+                val A3 = p2.times((t3 - t) / (t3 - t2)) + p3.times((t - t2) / (t3 - t2));
 
-            val B1 = A1.times((t2-t)/(t2-t0)) + A2.times((t-t0)/(t2-t0));
-            val B2 = A2.times((t3-t)/(t3-t1)) + A3.times((t-t1)/(t3-t1));
+                val B1 = A1.times((t2 - t) / (t2 - t0)) + A2.times((t - t0) / (t2 - t0));
+                val B2 = A2.times((t3 - t) / (t3 - t1)) + A3.times((t - t1) / (t3 - t1));
 
-            val C = B1.times((t2-t)/(t2-t1)) + B2.times((t-t1)/(t2-t1));
-            curvePoints.add(C)
+                val C = B1.times((t2 - t) / (t2 - t1)) + B2.times((t - t1) / (t2 - t1));
+                curvePoints.add(C)
 
-            t += ((t2-t1)/n)
+                t += ((t2 - t1) / n)
+            }
+            else {
+                throw IllegalArgumentException("The intermediate products of the calculations must not be equal!" +
+                    "Otherwise we devide by zero.")
+            }
         }
 
         return curvePoints
@@ -61,7 +67,6 @@ class CatmullRomSpline(val controlPoints: List<GLVector>, val alpha: Float = 0.5
      */
     fun catMullRomChain(n: Int = 100): ArrayList<GLVector> {
         val chainPoints = ArrayList<GLVector>()
-        val j = controlPoints.size-4
         controlPoints.dropLast(3).forEachIndexed {  index, _ ->
             val c = CatmulRomSpline(controlPoints[index], controlPoints[index+1],
                 controlPoints[index+2], controlPoints[index+3], n)
@@ -71,4 +76,3 @@ class CatmullRomSpline(val controlPoints: List<GLVector>, val alpha: Float = 0.5
     }
 
 }
-
