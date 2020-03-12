@@ -39,6 +39,7 @@ class CatmullRomSpline(val controlPoints: List<GLVector>, val alpha: Float = 0.5
 
         var t = t1
         while(t<t2) {
+            //The t's must not be equal, otherwise we divide by zero
             if(t1 != t0 && t2 != t1 && t2 != t0 && t3 != t1 && t3 != t2) {
                 val A1 = p0.times((t1 - t) / (t1 - t0)) + p1.times((t - t0) / (t1 - t0));
                 val A2 = p1.times((t2 - t) / (t2 - t1)) + p2.times((t - t1) / (t2 - t1));

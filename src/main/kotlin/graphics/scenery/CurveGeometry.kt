@@ -67,32 +67,8 @@ class CurveGeometry(curve: CatmullRomSpline, n: Int = 100): Node("CurveGeometry"
             }
         }
 
-        val verticesVectors = ArrayList<GLVector>()
-        //if none of the lists in the curveGeometry differ in size, distinctBy leaves only one element
-        if(curveGeometry.distinctBy{ it.size }.size == 1) {
-            curveGeometry.dropLast(1).forEachIndexed { shapeIndex, shape ->
-                shape.dropLast(1).forEachIndexed { vertexIndex, _ ->
+        val verticesVectors = calculateTriangles(curveGeometry)
 
-                    verticesVectors.add(curveGeometry[shapeIndex][vertexIndex])
-                    verticesVectors.add(curveGeometry[shapeIndex][vertexIndex + 1])
-                    verticesVectors.add(curveGeometry[shapeIndex + 1][vertexIndex])
-
-                    verticesVectors.add(curveGeometry[shapeIndex][vertexIndex + 1])
-                    verticesVectors.add(curveGeometry[shapeIndex + 1][vertexIndex + 1])
-                    verticesVectors.add(curveGeometry[shapeIndex + 1][vertexIndex])
-                }
-                verticesVectors.add(curveGeometry[shapeIndex][0])
-                verticesVectors.add(curveGeometry[shapeIndex + 1][0])
-                verticesVectors.add(curveGeometry[shapeIndex + 1][shape.lastIndex])
-
-                verticesVectors.add(curveGeometry[shapeIndex + 1][shape.lastIndex])
-                verticesVectors.add(curveGeometry[shapeIndex][shape.lastIndex])
-                verticesVectors.add(curveGeometry[shapeIndex][0])
-            }
-        }
-        else {
-            throw IllegalArgumentException("The baseShapes must not differ in size!")
-        }
         vertices = BufferUtils.allocateFloat(verticesVectors.size*3)
         verticesVectors.forEach{
             vertices.put(it.xyz().toFloatArray())
@@ -178,6 +154,41 @@ class CurveGeometry(curve: CatmullRomSpline, n: Int = 100): Node("CurveGeometry"
             secondFrame.bitangent = secondFrame.tangent.cross(secondFrame.normal).normalized
         }
         return frenetFrameList
+    }
+
+    /**
+     * This function calculates the triangles for the the rendering. It takes as a parameter
+     * the [curveGeometry] List which contains all the baseShapes transformed and translated
+     * along the curve.
+     */
+    private fun calculateTriangles(curveGeometry: List<List<GLVector>>): ArrayList<GLVector> {
+        val verticesVectors = ArrayList<GLVector>()
+        //if none of the lists in the curveGeometry differ in size, distinctBy leaves only one element
+        if(curveGeometry.distinctBy{ it.size }.size == 1) {
+            curveGeometry.dropLast(1).forEachIndexed { shapeIndex, shape ->
+                shape.dropLast(1).forEachIndexed { vertexIndex, _ ->
+
+                    verticesVectors.add(curveGeometry[shapeIndex][vertexIndex])
+                    verticesVectors.add(curveGeometry[shapeIndex][vertexIndex + 1])
+                    verticesVectors.add(curveGeometry[shapeIndex + 1][vertexIndex])
+
+                    verticesVectors.add(curveGeometry[shapeIndex][vertexIndex + 1])
+                    verticesVectors.add(curveGeometry[shapeIndex + 1][vertexIndex + 1])
+                    verticesVectors.add(curveGeometry[shapeIndex + 1][vertexIndex])
+                }
+                verticesVectors.add(curveGeometry[shapeIndex][0])
+                verticesVectors.add(curveGeometry[shapeIndex + 1][0])
+                verticesVectors.add(curveGeometry[shapeIndex + 1][shape.lastIndex])
+
+                verticesVectors.add(curveGeometry[shapeIndex + 1][shape.lastIndex])
+                verticesVectors.add(curveGeometry[shapeIndex][shape.lastIndex])
+                verticesVectors.add(curveGeometry[shapeIndex][0])
+            }
+        }
+        else {
+            throw IllegalArgumentException("The baseShapes must not differ in size!")
+        }
+        return verticesVectors
     }
 
     /**
