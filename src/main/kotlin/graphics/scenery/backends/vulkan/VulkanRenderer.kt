@@ -2636,6 +2636,7 @@ open class VulkanRenderer(hub: Hub,
 
             if(pass.passConfig.blitInputs) {
                 stackPush().use { stack ->
+                    val imageBlit = VkImageBlit.callocStack(1, stack)
 
                     for((name, input) in pass.inputs) {
                         val attachmentList = if(name.contains(".")) {
@@ -2674,7 +2675,7 @@ open class VulkanRenderer(hub: Hub,
                             }
 
                             val outputDstStage = when(outputAttachment.type) {
-                                VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
+                                VulkanFramebuffer.VulkanFramebufferType.COLOR_ATTACHMENT -> VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
                                 VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT
                             }
 
@@ -2683,6 +2684,14 @@ open class VulkanRenderer(hub: Hub,
 
                             val sizeX = offsetX + (input.width * pass.passConfig.viewportSize.first).toInt()
                             val sizeY = offsetY + (input.height * pass.passConfig.viewportSize.second).toInt()
+
+                            imageBlit.srcSubresource().set(type, 0, 0, 1)
+                            imageBlit.srcOffsets(0).set(offsetX, offsetY, 0)
+                            imageBlit.srcOffsets(1).set(sizeX, sizeY, 1)
+
+                            imageBlit.dstSubresource().set(type, 0, 0, 1)
+                            imageBlit.dstOffsets(0).set(offsetX, offsetY, 0)
+                            imageBlit.dstOffsets(1).set(sizeX, sizeY, 1)
 
                             val transitionBuffer = this@with
 
@@ -2713,83 +2722,23 @@ open class VulkanRenderer(hub: Hub,
                                 dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT
                             )
 
-                            when (outputAttachment.type) {
-                                VulkanFramebuffer . VulkanFramebufferType . COLOR_ATTACHMENT -> {
-                                    val clearColor = VkClearColorValue.calloc()
-                                    clearColor.float32().put(pass.passConfig.clearColor.toFloatArray())
+                            vkCmdBlitImage(this@with,
+                                inputAttachment.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                outputAttachment.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                imageBlit, VK_FILTER_NEAREST
+                            )
 
-                                    vkCmdClearColorImage(
-                                        this@with,
-                                        outputAttachment.image,
-                                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                        clearColor,
-                                        subresourceRange
-                                    )
-                                }
-
-                                VulkanFramebuffer.VulkanFramebufferType.DEPTH_ATTACHMENT -> {
-                                    val clearDepth = VkClearDepthStencilValue.calloc()
-                                    clearDepth.set(pass.passConfig.depthClearValue, 0)
-
-                                    vkCmdClearDepthStencilImage(
-                                        this@with,
-                                        outputAttachment.image,
-                                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                        clearDepth,
-                                        subresourceRange
-                                    )
-                                }
-                            }
-
-                            if(inputAttachment.compatibleWith(input, outputAttachment, pass.getOutput())) {
-                                logger.info("Using image copy because of compatible framebuffer dimensions")
-                                val copyRegion = VkImageCopy.callocStack(1, stack)
-                                copyRegion.srcSubresource().set(type, 0, 0, 1)
-                                copyRegion.srcOffset().set(offsetX, offsetY, 0)
-                                copyRegion.dstSubresource().set(type, 0, 0, 1)
-                                copyRegion.dstOffset().set(offsetX, offsetY, 0)
-                                copyRegion.extent().set(sizeX, sizeY, 1)
-
-                                vkCmdCopyImage(
-                                    this@with,
-                                    inputAttachment.image,
-                                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                                    outputAttachment.image,
-                                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                    copyRegion
-                                )
-                            } else {
-                                val imageBlit = VkImageBlit.callocStack(1, stack)
-                                imageBlit.srcSubresource().set(type, 0, 0, 1)
-                                imageBlit.srcOffsets(0).set(offsetX, offsetY, 0)
-                                imageBlit.srcOffsets(1).set(sizeX, sizeY, 1)
-
-                                imageBlit.dstSubresource().set(type, 0, 0, 1)
-                                imageBlit.dstOffsets(0).set(offsetX, offsetY, 0)
-                                imageBlit.dstOffsets(1).set(sizeX, sizeY, 1)
-
-                                vkCmdBlitImage(
-                                    this@with,
-                                    inputAttachment.image,
-                                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                                    outputAttachment.image,
-                                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                    imageBlit,
-                                    VK_FILTER_NEAREST
-                                )
-                            }
-
-//                             transition destination attachment back to attachment
+                            // transition destination attachment back to attachment
                             VulkanTexture.transitionLayout(outputAttachment.image,
                                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                                 outputAspectDstType,
                                 subresourceRange = subresourceRange,
                                 commandBuffer = transitionBuffer,
                                 srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                dstStage = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT
+                                dstStage = outputDstStage
                             )
 
-//                             transition source attachment back to shader read-only
+                            // transition source attachment back to shader read-only
                             VulkanTexture.transitionLayout(inputAttachment.image,
                                 VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                                 outputAspectSrcType,
@@ -2798,6 +2747,7 @@ open class VulkanRenderer(hub: Hub,
                                 srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
                                 dstStage = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT
                             )
+
                         }
                     }
                 }
