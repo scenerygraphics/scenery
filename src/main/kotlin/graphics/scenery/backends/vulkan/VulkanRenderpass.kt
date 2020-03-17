@@ -31,7 +31,8 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                        val device: VulkanDevice,
                        val descriptorPool: Long,
                        val pipelineCache: Long,
-                       val vertexDescriptors: ConcurrentHashMap<VulkanRenderer.VertexDataKinds, VulkanRenderer.VertexDescription>): AutoCloseable {
+                       val vertexDescriptors: ConcurrentHashMap<VulkanRenderer.VertexDataKinds, VulkanRenderer.VertexDescription>,
+                       val ringBufferSize: Int = 2): AutoCloseable {
 
     protected val logger by LazyLogger()
 
@@ -84,7 +85,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
             commandBufferBacking.put(b)
         }
 
-    private var commandBufferBacking = RingBuffer(size = 3,
+    private var commandBufferBacking = RingBuffer(size = ringBufferSize,
         default = { VulkanCommandBuffer(device, null, true) })
 
     /** This renderpasses' semaphore */

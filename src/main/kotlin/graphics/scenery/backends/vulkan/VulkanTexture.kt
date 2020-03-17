@@ -9,6 +9,7 @@ import graphics.scenery.TextureRepeatMode
 import graphics.scenery.TextureUpdate
 import graphics.scenery.utils.Image
 import graphics.scenery.utils.LazyLogger
+import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
@@ -108,6 +109,7 @@ open class VulkanTexture(val device: VulkanDevice,
          * within a given [commandBuffer].
          */
         fun copyFrom(commandBuffer: VkCommandBuffer, buffer: VulkanBuffer, updates: List<TextureUpdate>, bufferOffset: Long = 0) {
+            logger.info("Got ${updates.size} texture updates for $this")
             with(commandBuffer) {
                 val bufferImageCopy = VkBufferImageCopy.calloc(1)
                 var offset = bufferOffset
@@ -368,6 +370,8 @@ open class VulkanTexture(val device: VulkanDevice,
                     } else {
                         sourceBuffer.capacity().toLong()
                     }
+
+                    logger.info("$this has ${genericTexture?.updates?.size} consumeable updates")
 
                     if(tmpBuffer == null || (tmpBuffer?.size ?: 0) < requiredCapacity) {
                         logger.debug("(${this@VulkanTexture}) Reallocating tmp buffer, old size=${tmpBuffer?.size} new size = ${requiredCapacity.toFloat()/1024.0f/1024.0f} MiB")
@@ -761,6 +765,51 @@ open class VulkanTexture(val device: VulkanDevice,
             stream.close()
 
             return tex
+        }
+
+        /**
+         * Transitions Vulkan image layouts, with [srcAccessMask] and [dstAccessMask] explicitly specified.
+         */
+        fun transitionLayout(image: Long, oldLayout: Int, newLayout: Int, mipLevels: Int = 1,
+                             subresourceRange: VkImageSubresourceRange? = null,
+                             srcStage: Int = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, dstStage: Int = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                             srcAccessMask: Int, dstAccessMask: Int,
+                             commandBuffer: VkCommandBuffer) {
+            stackPush().use { stack ->
+                val barrier = VkImageMemoryBarrier.callocStack(1, stack)
+                    .sType(VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER)
+                    .pNext(NULL)
+                    .oldLayout(oldLayout)
+                    .newLayout(newLayout)
+                    .srcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+                    .dstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+                    .srcAccessMask(srcAccessMask)
+                    .dstAccessMask(dstAccessMask)
+                    .image(image)
+
+                if (subresourceRange == null) {
+                    barrier.subresourceRange()
+                        .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
+                        .baseMipLevel(0)
+                        .levelCount(mipLevels)
+                        .baseArrayLayer(0)
+                        .layerCount(1)
+                } else {
+                    barrier.subresourceRange(subresourceRange)
+                }
+
+                logger.trace("Transition: {} -> {} with srcAccessMark={}, dstAccessMask={}, srcStage={}, dstStage={}", oldLayout, newLayout, barrier.srcAccessMask(), barrier.dstAccessMask(), srcStage, dstStage)
+
+                vkCmdPipelineBarrier(
+                    commandBuffer,
+                    srcStage,
+                    dstStage,
+                    0,
+                    null,
+                    null,
+                    barrier
+                )
+            }
         }
 
         /**

@@ -94,6 +94,14 @@ open class VulkanFramebuffer(protected val device: VulkanDevice,
 
             desc.free()
         }
+
+        fun compatibleWith(thisFramebuffer: VulkanFramebuffer, other: VulkanFramebufferAttachment, otherFramebuffer: VulkanFramebuffer): Boolean {
+            return (this.format == other.format
+                && this.type == other.type
+                && thisFramebuffer.width == otherFramebuffer.width
+                && thisFramebuffer.height == otherFramebuffer.height
+                && thisFramebuffer.sRGB == otherFramebuffer.sRGB)
+        }
     }
 
     /** Linked hash map of this framebuffer's [VulkanFramebufferAttachment]s. */
