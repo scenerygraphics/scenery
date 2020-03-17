@@ -35,6 +35,9 @@ import java.util.concurrent.ForkJoinPool
 import java.util.function.BiConsumer
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.system.measureTimeMillis
+import kotlin.time.ExperimentalTime
+import kotlin.time.measureTime
 
 class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, RequestRepaint {
     /** How many elements does a vertex store? */
@@ -183,6 +186,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
         logger.info("$currentVolumeCount -> ooc:$outOfCoreVolumeCount reg:$regularVolumeCount")
 
         if(currentVolumeCount.first == outOfCoreVolumeCount && currentVolumeCount.second == regularVolumeCount) {
+            logger.info("Not updating shader, current one compatible with ooc:$outOfCoreVolumeCount reg:$regularVolumeCount")
             return
         }
 
@@ -283,6 +287,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
      * Updates the currently-used set of blocks using [context] to
      * facilitate the updates on the GPU.
      */
+    @UseExperimental(ExperimentalTime::class)
     protected fun updateBlocks(context: SceneryContext) {
         val currentProg = progvol
         if(currentProg == null) {
@@ -305,105 +310,124 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
 
         var numTasks = 0
         val fillTasksPerVolume = ArrayList<VolumeAndTasks>()
-        for(i in 0 until renderStacks.size) {
-            val stack = renderStacks[i].first
-            if(stack !is MultiResolutionStack3D) continue
-            val volume = outOfCoreVolumes[i]
 
-            volume.init(stack, cam.width.toInt(), mvp)
+        val taskCreationDuration = measureTimeMillis {
+            for (i in 0 until renderStacks.size) {
+                val stack = renderStacks[i].first
+                if (stack !is MultiResolutionStack3D) continue
+                val volume = outOfCoreVolumes[i]
 
-            val tasks = volume.fillTasks
-            numTasks += tasks.size
-            fillTasksPerVolume.add(VolumeAndTasks(tasks, volume, stack.resolutions().size - 1))
-        }
+                volume.init(stack, cam.width.toInt(), mvp)
 
-        while(numTasks > textureCache.maxNumTiles) {
-            fillTasksPerVolume.sortedBy { it.numTasks() }
-                .reversed()
-                .forEach {
-                    val baseLevel = it.volume.baseLevel
-                    if(baseLevel < it.maxLevel) {
-                        numTasks -= it.numTasks()
-                        it.tasks.clear()
-                        it.tasks.addAll(it.volume.fillTasks)
-
-                        // TODO: Ask Tobi -- potentially solved
-                        return@forEach
-                    }
-                }
-            break
-        }
-
-        val fillTasks = ArrayList<FillTask>()
-        fillTasksPerVolume.forEach {
-            fillTasks.addAll(it.tasks)
-        }
-
-        if(fillTasks.size > textureCache.maxNumTiles) {
-            fillTasks.subList(textureCache.maxNumTiles, fillTasks.size).clear()
-        }
-
-        ProcessFillTasks.parallel(textureCache, pboChain, context, forkJoinPool, fillTasks)
-
-        var repaint = false
-        for(i in 0 until renderStacks.size) {
-            val stack = renderStacks[i]
-            if(stack.first is MultiResolutionStack3D) {
-                val volumeBlocks = outOfCoreVolumes[i]
-                val timestamp = textureCache.nextTimestamp()
-                val complete = volumeBlocks.makeLut(timestamp)
-                if (!complete) {
-                    repaint = true
-                }
-                context.bindTexture(volumeBlocks.lookupTexture)
-                volumeBlocks.lookupTexture.upload(context)
+                val tasks = volume.fillTasks
+                numTasks += tasks.size
+                fillTasksPerVolume.add(VolumeAndTasks(tasks, volume, stack.resolutions().size - 1))
             }
         }
+
+        val fillTasksDuration = measureTimeMillis {
+            while (numTasks > textureCache.maxNumTiles) {
+                fillTasksPerVolume.sortedByDescending { it.numTasks() }
+                    .forEach {
+                        val baseLevel = it.volume.baseLevel
+                        if (baseLevel < it.maxLevel) {
+                            numTasks -= it.numTasks()
+                            it.tasks.clear()
+                            it.tasks.addAll(it.volume.fillTasks)
+
+                            // TODO: Ask Tobi -- potentially solved
+                            return@forEach
+                        }
+                    }
+                break
+            }
+        }
+
+//        logger.info("Task creation took $taskCreationDuration ms")
+//        logger.info("Fill Task creation took $fillTasksDuration ms")
+
+        val duration = measureTime {
+            val fillTasks = ArrayList<FillTask>()
+            fillTasksPerVolume.forEach {
+                fillTasks.addAll(it.tasks)
+            }
+            logger.debug("Got ${fillTasks.size} fill tasks (vs max=${textureCache.maxNumTiles})")
+
+            if (fillTasks.size > textureCache.maxNumTiles) {
+                fillTasks.subList(textureCache.maxNumTiles, fillTasks.size).clear()
+            }
+
+            ProcessFillTasks.parallel(textureCache, pboChain, context, forkJoinPool, fillTasks)
+        }
+
+//        logger.info("Processing fill tasks took ${duration.inMilliseconds}")
+
+        val durationLutUpdate = measureTimeMillis {
+            var repaint = false
+            for (i in 0 until renderStacks.size) {
+                val stack = renderStacks[i]
+                if (stack.first is MultiResolutionStack3D) {
+                    val volumeBlocks = outOfCoreVolumes[i]
+                    val timestamp = textureCache.nextTimestamp()
+                    val complete = volumeBlocks.makeLut(timestamp)
+                    if (!complete) {
+                        repaint = true
+                    }
+                    context.bindTexture(volumeBlocks.lookupTexture)
+                    volumeBlocks.lookupTexture.upload(context)
+                }
+            }
+        }
+
+//        logger.info("Updating LUTs took ${durationLutUpdate} ms")
 
         var minWorldVoxelSize = Double.POSITIVE_INFINITY
         val ready = readyToRender()
 
-        renderStacks
-            // sort by classname, so we get MultiResolutionStack3Ds first,
-            // then simple stacks
-            .sortedBy { it.javaClass.simpleName }
-            .forEachIndexed { i, stack ->
-                val s = stack.first
-                if (s is MultiResolutionStack3D) {
-                    currentProg.setConverter(i, renderConverters.get(i))
-                    currentProg.setCustomSampler(i, "transferFunction", stack.second)
-                    currentProg.setCustomSampler(i, "colorMap", stack.third)
-                    context.bindTexture(stack.second)
-                    context.bindTexture(stack.third)
+        val durationBinding = measureTimeMillis {
+            renderStacks
+                // sort by classname, so we get MultiResolutionStack3Ds first,
+                // then simple stacks
+                .sortedBy { it.javaClass.simpleName }
+                .forEachIndexed { i, stack ->
+                    val s = stack.first
+                    if (s is MultiResolutionStack3D) {
+                        currentProg.setConverter(i, renderConverters.get(i))
+                        currentProg.setCustomSampler(i, "transferFunction", stack.second)
+                        currentProg.setCustomSampler(i, "colorMap", stack.third)
+                        context.bindTexture(stack.second)
+                        context.bindTexture(stack.third)
 
-                    currentProg.setVolume(i, outOfCoreVolumes.get(i))
-                    minWorldVoxelSize = min(minWorldVoxelSize, outOfCoreVolumes.get(i).baseLevelVoxelSizeInWorldCoordinates)
-                }
-
-                if (s is SimpleStack3D) {
-                    val volume = stackManager.getSimpleVolume(context, s)
-                    currentProg.setConverter(i, renderConverters.get(i))
-                    currentProg.setCustomSampler(i, "transferFunction", stack.second)
-                    currentProg.setCustomSampler(i, "colorMap", stack.third)
-                    context.bindTexture(stack.second)
-                    context.bindTexture(stack.third)
-
-                    currentProg.setVolume(i, volume)
-                    context.bindTexture(volume.volumeTexture)
-                    if(ready) {
-                        stackManager.upload(context, s)
+                        currentProg.setVolume(i, outOfCoreVolumes.get(i))
+                        minWorldVoxelSize = min(minWorldVoxelSize, outOfCoreVolumes.get(i).baseLevelVoxelSizeInWorldCoordinates)
                     }
-                    minWorldVoxelSize = min(minWorldVoxelSize, volume.voxelSizeInWorldCoordinates)
-                }
-            }
 
-        currentProg.setViewportWidth(cam.width.toInt())
-        currentProg.setEffectiveViewportSize(cam.width.toInt(), cam.height.toInt())
-        currentProg.setDegrade(farPlaneDegradation)
-        currentProg.setProjectionViewMatrix(mvp, maxAllowedStepInVoxels * minWorldVoxelSize)
-        currentProg.use(context)
-        currentProg.setUniforms(context)
-        currentProg.bindSamplers(context)
+                    if (s is SimpleStack3D) {
+                        val volume = stackManager.getSimpleVolume(context, s)
+                        currentProg.setConverter(i, renderConverters.get(i))
+                        currentProg.setCustomSampler(i, "transferFunction", stack.second)
+                        currentProg.setCustomSampler(i, "colorMap", stack.third)
+                        context.bindTexture(stack.second)
+                        context.bindTexture(stack.third)
+
+                        currentProg.setVolume(i, volume)
+                        context.bindTexture(volume.volumeTexture)
+                        if (ready) {
+                            stackManager.upload(context, s)
+                        }
+                        minWorldVoxelSize = min(minWorldVoxelSize, volume.voxelSizeInWorldCoordinates)
+                    }
+                }
+
+            currentProg.setViewportWidth(cam.width.toInt())
+            currentProg.setEffectiveViewportSize(cam.width.toInt(), cam.height.toInt())
+            currentProg.setDegrade(farPlaneDegradation)
+            currentProg.setProjectionViewMatrix(mvp, maxAllowedStepInVoxels * minWorldVoxelSize)
+            currentProg.use(context)
+            currentProg.setUniforms(context)
+            currentProg.bindSamplers(context)
+        }
+//        logger.info("Binding took $durationBinding ms")
 //        logger.info("Done updating blocks with minVoxelSize=$minWorldVoxelSize")
     }
 
@@ -489,14 +513,18 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
             renderStateUpdated = false
         }
 
-        if(freezeRequiredBlocks == false) {
-            try {
-                updateBlocks(context)
-            } catch (e: RuntimeException) {
-                logger.warn("Probably ran out of data, corrupt BDV file? $e")
-                e.printStackTrace()
+        val blockUpdateDuration = measureTimeMillis {
+            if (freezeRequiredBlocks == false) {
+                try {
+                    updateBlocks(context)
+                } catch (e: RuntimeException) {
+                    logger.warn("Probably ran out of data, corrupt BDV file? $e")
+                    e.printStackTrace()
+                }
             }
         }
+
+//        logger.info("Block updates took $blockUpdateDuration ms")
 
         context.runDeferredBindings()
 
@@ -508,7 +536,7 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
      */
     protected fun updateRenderState() {
         // check if synchronized block is necessary here
-        logger.info("Updating state for ${bdvNodes.size} BDV nodes")
+//        logger.info("Updating state for ${bdvNodes.size} BDV nodes")
         renderStacks.clear()
         renderConverters.clear()
 

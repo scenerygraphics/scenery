@@ -12,17 +12,16 @@ import bdv.util.AxisOrder
 import bdv.util.AxisOrder.DEFAULT
 import bdv.util.RandomAccessibleIntervalSource
 import bdv.util.RandomAccessibleIntervalSource4D
+import bdv.util.volatiles.VolatileView
+import bdv.util.volatiles.VolatileViewData
 import bdv.viewer.DisplayMode
 import bdv.viewer.Interpolation
 import bdv.viewer.Source
 import bdv.viewer.SourceAndConverter
 import bdv.viewer.state.ViewerState
 import cleargl.GLVector
-import graphics.scenery.DelegatesRendering
-import graphics.scenery.GeometryType
-import graphics.scenery.HasGeometry
-import graphics.scenery.Hub
-import graphics.scenery.Node
+import graphics.scenery.*
+import graphics.scenery.utils.LazyLogger
 import graphics.scenery.volumes.Colormap
 import graphics.scenery.volumes.TransferFunction
 import graphics.scenery.volumes.bdv.Volume.VolumeDataSource.SpimDataMinimalSource
@@ -31,16 +30,17 @@ import mpicbg.spim.data.sequence.FinalVoxelDimensions
 import mpicbg.spim.data.sequence.VoxelDimensions
 import net.imglib2.RandomAccessibleInterval
 import net.imglib2.RealRandomAccessible
+import net.imglib2.Volatile
 import net.imglib2.realtransform.AffineTransform3D
 import net.imglib2.type.numeric.ARGBType
 import net.imglib2.type.numeric.NumericType
+import net.imglib2.util.Util
 import tpietzsch.example2.VolumeViewerOptions
 import java.nio.ByteBuffer
 import java.nio.FloatBuffer
 import java.nio.IntBuffer
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.collections.LinkedHashMap
 import kotlin.math.max
 import kotlin.math.min
 
@@ -83,7 +83,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
     val volumeManager: VolumeManager
 
     // TODO IS THIS REQUIRED??
-    var cacheControl: CacheControl? = null
+    var cacheControls = CacheControl.CacheControls()
 
     /** Current timepoint. */
     var currentTimepoint: Int
@@ -96,7 +96,8 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
             val type: NumericType<T>,
             val sources: List<SourceAndConverter<T>>,
             val converterSetups: ArrayList<ConverterSetup>,
-            val numTimepoints: Int ) : VolumeDataSource()
+            val numTimepoints: Int,
+            val cacheControl: CacheControl? = null) : VolumeDataSource()
     }
 
     /**
@@ -155,7 +156,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
 
                 val seq: AbstractSequenceDescription<*, *, *> = spimData.sequenceDescription
                 maxTimepoint = seq.getTimePoints().size() - 1
-                cacheControl = (seq.getImgLoader() as ViewerImgLoader).cacheControl
+                cacheControls?.addCacheControl((seq.getImgLoader() as ViewerImgLoader).cacheControl)
 
                 // wraps legacy image formats (e.g., TIFF) if referenced in BDV XML
                 WrapBasicImgLoader.wrapImgLoaderIfNecessary(spimData)
@@ -215,7 +216,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
     }
 
     fun prepareNextFrame() {
-        cacheControl?.prepareNextFrame()
+        cacheControls?.prepareNextFrame()
     }
 
     /**
@@ -260,6 +261,13 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
     }
 
     class RAIVolume(val ds: VolumeDataSource.RAISource<*>, options: VolumeViewerOptions, hub: Hub): Volume(ds, options, hub) {
+        init {
+            if(ds.cacheControl != null) {
+                logger.info("Adding cache control")
+                cacheControls?.addCacheControl(ds.cacheControl)
+            }
+        }
+
         override fun localScale(): GLVector {
             var size = GLVector(1.0f, 1.0f, 1.0f)
             val source = ds.sources.firstOrNull()
@@ -370,6 +378,7 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
 
     companion object {
         val setupId = AtomicInteger(0)
+        private val logger by LazyLogger()
 
         @JvmStatic @JvmOverloads fun fromSpimData(
             spimData: SpimDataMinimal,
@@ -418,7 +427,15 @@ open class Volume(val dataSource: VolumeDataSource, val options: VolumeViewerOpt
                 sources.add(source)
             }
 
-            val ds = VolumeDataSource.RAISource<T>(type, sources, converterSetups, numTimepoints)
+            val cacheControl = if (img is VolatileView<*, *>) {
+                logger.info("Got a nice volatile view!")
+                val viewData: VolatileViewData<T, Volatile<T>> = (img as VolatileView<T, Volatile<T>>).volatileViewData
+                viewData.getCacheControl()
+            } else {
+                null
+            }
+
+            val ds = VolumeDataSource.RAISource<T>(type, sources, converterSetups, numTimepoints, cacheControl)
             return RAIVolume(ds, options, hub)
         }
 
