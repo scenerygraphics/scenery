@@ -41,15 +41,15 @@ class CatmullRomSpline(val controlPoints: List<GLVector>, val alpha: Float = 0.5
         while(t<t2) {
             //The t's must not be equal, otherwise we divide by zero
             if(t1 != t0 && t2 != t1 && t2 != t0 && t3 != t1 && t3 != t2) {
-                val A1 = p0.times((t1 - t) / (t1 - t0)) + p1.times((t - t0) / (t1 - t0));
-                val A2 = p1.times((t2 - t) / (t2 - t1)) + p2.times((t - t1) / (t2 - t1));
-                val A3 = p2.times((t3 - t) / (t3 - t2)) + p3.times((t - t2) / (t3 - t2));
+                val a1 = p0.times((t1 - t) / (t1 - t0)) + p1.times((t - t0) / (t1 - t0))
+                val a2 = p1.times((t2 - t) / (t2 - t1)) + p2.times((t - t1) / (t2 - t1))
+                val a3 = p2.times((t3 - t) / (t3 - t2)) + p3.times((t - t2) / (t3 - t2))
 
-                val B1 = A1.times((t2 - t) / (t2 - t0)) + A2.times((t - t0) / (t2 - t0));
-                val B2 = A2.times((t3 - t) / (t3 - t1)) + A3.times((t - t1) / (t3 - t1));
+                val b1 = a1.times((t2 - t) / (t2 - t0)) + a2.times((t - t0) / (t2 - t0))
+                val b2 = a2.times((t3 - t) / (t3 - t1)) + a3.times((t - t1) / (t3 - t1))
 
-                val C = B1.times((t2 - t) / (t2 - t1)) + B2.times((t - t1) / (t2 - t1));
-                curvePoints.add(C)
+                val c = b1.times((t2 - t) / (t2 - t1)) + b2.times((t - t1) / (t2 - t1))
+                curvePoints.add(c)
 
                 t += ((t2 - t1) / n)
             }

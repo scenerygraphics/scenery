@@ -105,6 +105,10 @@ class CurveGeometry(curve: CatmullRomSpline, n: Int = 100): Node("CurveGeometry"
 
         val frenetFrameList = ArrayList<FrenetFrame>(curv.size)
 
+        if(curv.isEmpty()) {
+            return frenetFrameList
+        }
+
         //adds all the tangent vectors
         curv.forEachIndexed { index, _ ->
             val frenetFrame = FrenetFrame(getTangent(index), null, null, curv[index])
@@ -163,6 +167,9 @@ class CurveGeometry(curve: CatmullRomSpline, n: Int = 100): Node("CurveGeometry"
      */
     private fun calculateTriangles(curveGeometry: List<List<GLVector>>): ArrayList<GLVector> {
         val verticesVectors = ArrayList<GLVector>()
+        if(curveGeometry.isEmpty()) {
+            return verticesVectors
+        }
         //if none of the lists in the curveGeometry differ in size, distinctBy leaves only one element
         if(curveGeometry.distinctBy{ it.size }.size == 1) {
             curveGeometry.dropLast(1).forEachIndexed { shapeIndex, shape ->

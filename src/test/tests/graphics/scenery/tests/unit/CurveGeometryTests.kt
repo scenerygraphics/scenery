@@ -20,11 +20,10 @@ class CurveGeometryTests {
 
     /**
      * Tests if the vectors are normalized and if the bitangent and normal vector are becoming null.
-     * Moreover it asserts that a erroneous baseShape function leads to an exception.
      */
     @Test
-    fun testCreation() {
-        logger.info("This is the test for the CurveGeometry.")
+    fun testCurve() {
+        logger.info("This is the test for the Curve.")
         val point1 = Random.randomVectorFromRange(3, -30f, -10f)
         val point2 = Random.randomVectorFromRange(3, -9f, 20f)
         val point3 = Random.randomVectorFromRange(3, 21f, 30f)
@@ -36,6 +35,34 @@ class CurveGeometryTests {
 
         val geometry = CurveGeometry(curve)
         val frenetFrames = geometry.computeFrenetFrames(geometry.getCurve())
+
+        assertEquals(curve.catMullRomChain(), geometry.getCurve())
+        assertNotNull(frenetFrames.forEach { it.normal })
+        assertNotNull(frenetFrames.forEach{ it.bitangent })
+        assertEquals(frenetFrames.filter { it.bitangent?.length2()!! < 1.0001f && it.bitangent?.length2()!! > 0.99999f },
+                frenetFrames)
+        assertEquals(frenetFrames.filter { it.normal?.length2()!! < 1.0001f && it.normal?.length2()!! > 0.99999f },
+                frenetFrames)
+        assertEquals(frenetFrames.filter { it.tangent.length2() < 1.0001f && it.tangent.length2() > 0.99999f },
+                frenetFrames)
+    }
+
+    /**
+     * Tests if the baseShape throws an exception if the number of points in different baseShapes differ.s
+     */
+    @Test
+    fun testDrawSpline() {
+        logger.info("This is the test for the CurveGeometry.")
+        val point1 = Random.randomVectorFromRange(3, -30f, -10f)
+        val point2 = Random.randomVectorFromRange(3, -9f, 20f)
+        val point3 = Random.randomVectorFromRange(3, 21f, 30f)
+        val point4 = Random.randomVectorFromRange(3, 31f, 100f)
+
+        val controlPoints = arrayListOf(point1, point2, point3, point4)
+
+        val curve = CatmullRomSpline(controlPoints)
+
+        val geometry = CurveGeometry(curve)
 
         /*
         For this baseShape function the number of points may differ each time
@@ -57,15 +84,6 @@ class CurveGeometryTests {
             }
         }
 
-        assertEquals(curve.catMullRomChain(), geometry.getCurve())
-        assertNotNull(frenetFrames.forEach { it.normal })
-        assertNotNull(frenetFrames.forEach{ it.bitangent })
-        assertEquals(frenetFrames.filter { it.bitangent?.length2()!! < 1.0001f && it.bitangent?.length2()!! > 0.99999f },
-                frenetFrames)
-        assertEquals(frenetFrames.filter { it.normal?.length2()!! < 1.0001f && it.normal?.length2()!! > 0.99999f },
-                frenetFrames)
-        assertEquals(frenetFrames.filter { it.tangent.length2() < 1.0001f && it.tangent.length2() > 0.99999f },
-                frenetFrames)
         assertFails {  geometry.drawSpline { triangleFalse() } }
     }
 

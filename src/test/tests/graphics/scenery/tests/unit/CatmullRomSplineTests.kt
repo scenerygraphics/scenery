@@ -1,6 +1,5 @@
 package graphics.scenery.tests.unit
 
-import cleargl.GLVector
 import graphics.scenery.utils.LazyLogger
 import org.junit.Test
 import kotlin.test.assertNotNull
@@ -31,7 +30,10 @@ class CatmullRomSplineTests {
 
         val curve = CatmullRomSpline(controlPoints)
         assertNotNull(curve)
-        //The computation of the Catmull Rom Spline can deliver sometimes one additional point
+        /*
+        The computation of the Catmull Rom Spline delivers an additional point if the
+        distance between the point1 and point2 is small relative to point2 and point3
+         */
         assertTrue(curve.catMullRomChain().size == 100 || curve.catMullRomChain().size == 101)
     }
 
