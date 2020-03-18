@@ -451,7 +451,7 @@ open class VulkanSwapchain(open val device: VulkanDevice,
     override fun next(timeout: Long, signalSemaphore: Long): Boolean {
         // wait for the present queue to become idle - by doing this here
         // we avoid stalling the GPU and gain a few FPS
-        VK10.vkQueueWaitIdle(presentQueue)
+        // VK10.vkQueueWaitIdle(presentQueue)
 
         val err = vkAcquireNextImageKHR(device.vulkanDevice, handle, timeout,
             signalSemaphore,

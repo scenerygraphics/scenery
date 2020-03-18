@@ -589,7 +589,11 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
         Down(EVRButtonId_k_EButton_DPad_Down),
         Menu(EVRButtonId_k_EButton_ApplicationMenu),
         Side(EVRButtonId_k_EButton_Grip),
-        Trigger(EVRButtonId_k_EButton_SteamVR_Trigger)
+        Trigger(EVRButtonId_k_EButton_SteamVR_Trigger),
+    }
+
+    fun OpenVRButton.toKey(hand: TrackerRole): String {
+        return this.toAWTKeyCode(hand).code.toString(16)
     }
 
     data class AWTKey(val code: Int, val modifiers: Int = 0, var time: Long = System.nanoTime(), val char: Char = KeyEvent.CHAR_UNDEFINED)
@@ -704,7 +708,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
                 .m_pPhysicalDevice(device.physicalDevice.address())
                 .m_pDevice(device.vulkanDevice.address())
                 .m_pQueue(queue.address())
-                .m_nQueueFamilyIndex(device.queueIndices.graphicsQueue)
+                .m_nQueueFamilyIndex(device.queues.graphicsQueue.first)
                 .m_nWidth(width)
                 .m_nHeight(height)
                 .m_nFormat(format)
@@ -718,7 +722,7 @@ open class OpenVRHMD(val seated: Boolean = false, val useCompositor: Boolean = t
             readyForSubmission = false
 
             if(commandPool == -1L) {
-                commandPool = device.createCommandPool(device.queueIndices.graphicsQueue)
+                commandPool = device.createCommandPool(device.queues.graphicsQueue.first)
             }
 
             val subresourceRange = VkImageSubresourceRange.callocStack(stack)
