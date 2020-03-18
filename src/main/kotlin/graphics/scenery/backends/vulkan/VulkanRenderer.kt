@@ -132,7 +132,7 @@ open class VulkanRenderer(hub: Hub,
                 return if(id == null) {
                     null
                 } else {
-                    DescriptorSet.Set(id, setName)
+                    Set(id, setName)
                 }
             }
         }
@@ -196,20 +196,6 @@ open class VulkanRenderer(hub: Hub,
 
                     logger.debug("Calling late resize initializers for ${lateResizeInitializers.keys.joinToString(", ")}")
                     lateResizeInitializers.map { it.value.invoke() }
-
-                    if (timestampQueryPool != -1L) {
-                        vkDestroyQueryPool(device.vulkanDevice, timestampQueryPool, null)
-                    }
-
-                    val queryPoolCreateInfo = VkQueryPoolCreateInfo.calloc()
-                        .sType(VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO)
-                        .pNext(NULL)
-                        .queryType(VK_QUERY_TYPE_TIMESTAMP)
-                        .queryCount(renderConfig.renderpasses.size * 2)
-
-                    timestampQueryPool = VU.getLong("Create timestamp query pool",
-                        { vkCreateQueryPool(device.vulkanDevice, queryPoolCreateInfo, null, this) },
-                        { queryPoolCreateInfo.free() })
                 }
 
                 refreshResolutionDependentResources.invoke()
@@ -251,11 +237,11 @@ open class VulkanRenderer(hub: Hub,
             if(strictValidation.first && strictValidation.second.isEmpty() ||
                 strictValidation.first && strictValidation.second.contains(objectType)) {
                 // set 15s of delay until the next frame is rendered if a validation error happens
-                renderDelay = 1500L
+                renderDelay = System.getProperty("scenery.VulkanRenderer.DefaultRenderDelay", "1500").toLong()
 
                 try {
-                    throw Exception("Vulkan validation layer exception, see validation layer error messages above. To disable these exceptions, set scenery.VulkanRenderer.StrictValidation=false. Stack trace:")
-                } catch (e: Exception) {
+                    throw VulkanValidationLayerException("Vulkan validation layer exception, see validation layer error messages above. To disable these exceptions, set scenery.VulkanRenderer.StrictValidation=false. Stack trace:")
+                } catch (e: VulkanValidationLayerException) {
                     logger.error(e.message)
                     e.printStackTrace()
                 }
@@ -307,7 +293,6 @@ open class VulkanRenderer(hub: Hub,
     protected var device: VulkanDevice
 
     protected var debugCallbackHandle: Long = -1L
-    protected var timestampQueryPool: Long = -1L
 
     protected var semaphoreCreateInfo: VkSemaphoreCreateInfo
 
@@ -455,7 +440,7 @@ open class VulkanRenderer(hub: Hub,
 
         // Create the Vulkan instance
         instance = if(embedIn != null) {
-            createInstance(null)
+            createInstance(null, validation)
         } else {
             if (!glfwInit()) {
                 throw RuntimeException("Failed to initialize GLFW")
@@ -466,12 +451,15 @@ open class VulkanRenderer(hub: Hub,
 
             /* Look for instance extensions */
             val requiredExtensions = glfwGetRequiredInstanceExtensions() ?: throw RuntimeException("Failed to find list of required Vulkan extensions")
-            createInstance(requiredExtensions)
+            createInstance(requiredExtensions, validation)
         }
 
         debugCallbackHandle = if(validation) {
             setupDebugging(instance,
-                VK_DEBUG_REPORT_ERROR_BIT_EXT or VK_DEBUG_REPORT_WARNING_BIT_EXT,
+                VK_DEBUG_REPORT_WARNING_BIT_EXT
+                    or VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT
+                    or VK_DEBUG_REPORT_ERROR_BIT_EXT
+                    or VK_DEBUG_REPORT_WARNING_BIT_EXT,
                 debugCallback)
         } else {
             -1L
@@ -515,15 +503,15 @@ open class VulkanRenderer(hub: Hub,
             }
         }
 
-        queue = VU.createDeviceQueue(device, device.queueIndices.graphicsQueue)
-        logger.debug("Creating transfer queue with ${device.queueIndices.transferQueue} (vs ${device.queueIndices.graphicsQueue})")
-        transferQueue = VU.createDeviceQueue(device, device.queueIndices.transferQueue)
+        queue = VU.createDeviceQueue(device, device.queues.graphicsQueue.first)
+        logger.debug("Creating transfer queue with ${device.queues.transferQueue.first} (vs ${device.queues.graphicsQueue})")
+        transferQueue = VU.createDeviceQueue(device, device.queues.transferQueue.first)
 
         with(commandPools) {
-            Render = device.createCommandPool(device.queueIndices.graphicsQueue)
-            Standard = device.createCommandPool(device.queueIndices.graphicsQueue)
-            Compute = device.createCommandPool(device.queueIndices.computeQueue)
-            Transfer = device.createCommandPool(device.queueIndices.transferQueue)
+            Render = device.createCommandPool(device.queues.graphicsQueue.first)
+            Standard = device.createCommandPool(device.queues.graphicsQueue.first)
+            Compute = device.createCommandPool(device.queues.computeQueue.first)
+            Transfer = device.createCommandPool(device.queues.transferQueue.first)
         }
         logger.debug("Creating command pools done")
 
@@ -729,7 +717,7 @@ open class VulkanRenderer(hub: Hub,
     }
 
     /**
-     * Initialises a given [node] with the metadata required by the [VulkanRenderer].
+     * Initialises a given [Node] with the metadata required by the [VulkanRenderer].
      */
     fun initializeNode(n: Node): Boolean {
         val node = if(n is DelegatesRendering) {
@@ -1341,23 +1329,23 @@ open class VulkanRenderer(hub: Hub,
                 GLVector::class.java -> {
                     val v = value as GLVector
                     when {
-                        v.toFloatArray().size == 2 -> graphics.scenery.backends.vulkan.VulkanRenderer.AttributeInfo(VK_FORMAT_R32G32_SFLOAT, 4 * 2, 1)
-                        v.toFloatArray().size == 4 -> graphics.scenery.backends.vulkan.VulkanRenderer.AttributeInfo(VK_FORMAT_R32G32B32A32_SFLOAT, 4 * 4, 1)
+                        v.toFloatArray().size == 2 -> AttributeInfo(VK_FORMAT_R32G32_SFLOAT, 4 * 2, 1)
+                        v.toFloatArray().size == 4 -> AttributeInfo(VK_FORMAT_R32G32B32A32_SFLOAT, 4 * 4, 1)
                         else -> {
                             logger.error("Unsupported vector length for instancing: ${v.toFloatArray().size}")
-                            graphics.scenery.backends.vulkan.VulkanRenderer.AttributeInfo(-1, -1, -1)
+                            AttributeInfo(-1, -1, -1)
                         }
                     }
                 }
 
                 GLMatrix::class.java -> {
                     val m = value as GLMatrix
-                    graphics.scenery.backends.vulkan.VulkanRenderer.AttributeInfo(VK_FORMAT_R32G32B32A32_SFLOAT, 4 * 4, m.floatArray.size / 4)
+                    AttributeInfo(VK_FORMAT_R32G32B32A32_SFLOAT, 4 * 4, m.floatArray.size / 4)
                 }
 
                 else -> {
                     logger.error("Unsupported type for instancing: ${value.javaClass.simpleName}")
-                    graphics.scenery.backends.vulkan.VulkanRenderer.AttributeInfo(-1, -1, -1)
+                    AttributeInfo(-1, -1, -1)
                 }
             }
         }
@@ -2058,12 +2046,11 @@ open class VulkanRenderer(hub: Hub,
         beginFrame()
 
         // firstWaitSemaphore is now the RenderComplete semaphore of the previous pass
-        val previousFrame = if(currentFrame - 1 < 0) { swapchain.images.size - 1 } else { currentFrame - 1 }
-        firstWaitSemaphore.put(0, semaphores.getValue(StandardSemaphores.PresentComplete)[previousFrame])
+        firstWaitSemaphore.put(0, semaphores.getValue(StandardSemaphores.PresentComplete)[currentFrame])
 
         val si = VkSubmitInfo.calloc()
 
-        var waitSemaphore = semaphores.getValue(StandardSemaphores.PresentComplete)[previousFrame]
+        var waitSemaphore = semaphores.getValue(StandardSemaphores.PresentComplete)[currentFrame]
 
         profiler?.end()
 
@@ -2078,10 +2065,7 @@ open class VulkanRenderer(hub: Hub,
                 commandBuffer.submitted = false
                 commandBuffer.resetFence()
 
-                val timing = intArrayOf(0,0)
-                VU.run("getting query pool results", { vkGetQueryPoolResults(device.vulkanDevice, timestampQueryPool, 2*i, 2, timing, 0, VK_FLAGS_NONE)})
-
-                stats?.add("Renderer.$t.gpuTiming", timing[1] - timing[0])
+                stats?.add("Renderer.$t.gpuTiming", commandBuffer.runtime)
             }
 
             val start = System.nanoTime()
@@ -2103,11 +2087,11 @@ open class VulkanRenderer(hub: Hub,
 
             si.sType(VK_STRUCTURE_TYPE_SUBMIT_INFO)
                 .pNext(NULL)
-                .waitSemaphoreCount(1)
+                .waitSemaphoreCount(0)
                 .pWaitDstStageMask(target.waitStages)
                 .pCommandBuffers(target.submitCommandBuffers)
-                .pSignalSemaphores(target.signalSemaphores)
-                .pWaitSemaphores(target.waitSemaphores)
+//                .pSignalSemaphores(target.signalSemaphores)
+//                .pWaitSemaphores(target.waitSemaphores)
 
             if(swapchainRecreator.mustRecreate) {
                 return@runBlocking
@@ -2116,7 +2100,7 @@ open class VulkanRenderer(hub: Hub,
             VU.run("Submit pass $t render queue", { vkQueueSubmit(queue, si, commandBuffer.getFence() )})
 
             commandBuffer.submitted = true
-            firstWaitSemaphore.put(0, target.semaphore)
+//            firstWaitSemaphore.put(0, target.semaphore)
             waitSemaphore = target.semaphore
 
             profiler?.end()
@@ -2127,9 +2111,9 @@ open class VulkanRenderer(hub: Hub,
         profiler?.begin("Renderer.${renderpasses.keys.last()}")
         val viewportPass = renderpasses.values.last()
         val viewportCommandBuffer = viewportPass.commandBuffer
-        if(viewportCommandBuffer.submitted) {
-            viewportCommandBuffer.waitForFence()
-        }
+//        if(viewportCommandBuffer.submitted) {
+//            viewportCommandBuffer.waitForFence()
+//        }
         logger.trace("Running viewport pass {}", renderpasses.keys.last())
 
         val start = System.nanoTime()
@@ -2147,10 +2131,7 @@ open class VulkanRenderer(hub: Hub,
             viewportCommandBuffer.submitted = false
             viewportCommandBuffer.resetFence()
 
-            val timing = intArrayOf(0,0)
-            VU.run("getting query pool results", { vkGetQueryPoolResults(device.vulkanDevice, timestampQueryPool, 2*(flow.size-1), 2, timing, 0, VK_FLAGS_NONE)})
-
-            stats?.add("Renderer.${viewportPass.name}.gpuTiming", timing[1] - timing[0])
+            stats?.add("Renderer.${viewportPass.name}.gpuTiming", viewportCommandBuffer.runtime)
         }
 
         viewportPass.updateShaderParameters()
@@ -2182,7 +2163,7 @@ open class VulkanRenderer(hub: Hub,
         totalFrames++
     }
 
-    private fun createInstance(requiredExtensions: PointerBuffer? = null): VkInstance {
+    private fun createInstance(requiredExtensions: PointerBuffer? = null, enableValidations: Boolean = false): VkInstance {
         return stackPush().use { stack ->
             val appInfo = VkApplicationInfo.callocStack(stack)
                 .sType(VK_STRUCTURE_TYPE_APPLICATION_INFO)
@@ -2190,7 +2171,13 @@ open class VulkanRenderer(hub: Hub,
                 .pEngineName(stack.UTF8("scenery"))
                 .apiVersion(VK_MAKE_VERSION(1, 0, 73))
 
-            val additionalExts: List<String> = hub?.getWorkingHMDDisplay()?.getVulkanInstanceExtensions() ?: listOf()
+            val additionalExts = ArrayList<String>()
+            hub?.getWorkingHMDDisplay()?.getVulkanInstanceExtensions()?.forEach { additionalExts.add(it) }
+
+            if(enableValidations) {
+                additionalExts.add(VK_EXT_DEBUG_REPORT_EXTENSION_NAME)
+            }
+
             val utf8Exts = additionalExts.map { stack.UTF8(it) }
 
             logger.debug("HMD required instance exts: ${additionalExts.joinToString(", ")} ${additionalExts.size}")
@@ -2239,6 +2226,7 @@ open class VulkanRenderer(hub: Hub,
         }
     }
 
+    @Suppress("SameParameterValue")
     private fun setupDebugging(instance: VkInstance, flags: Int, callback: VkDebugReportCallbackEXT): Long {
         val dbgCreateInfo = VkDebugReportCallbackCreateInfoEXT.calloc()
             .sType(VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT)
@@ -2260,6 +2248,7 @@ open class VulkanRenderer(hub: Hub,
 
             callbackHandle
         } catch(e: NullPointerException) {
+            logger.warn("Caught NPE on creating debug callback, is extension $VK_EXT_DEBUG_REPORT_EXTENSION_NAME available?")
             -1
         }
     }
@@ -2385,7 +2374,6 @@ open class VulkanRenderer(hub: Hub,
         // parentNode.instances is a CopyOnWrite array list, and here we keep a reference to the original.
         // If it changes in the meantime, no problemo.
         val instances = parentNode.instances
-        val cam = scene.findObserver() ?: return state
 
         if (instances.isEmpty()) {
             logger.debug("$parentNode has no child instances attached, returning.")
@@ -2629,11 +2617,6 @@ open class VulkanRenderer(hub: Hub,
 
         // command buffer cannot be null here anymore, otherwise this is clearly in error
         with(commandBuffer.prepareAndStartRecording(commandPools.Render)) {
-
-            vkCmdResetQueryPool(this, timestampQueryPool, 2*renderpasses.values.indexOf(pass), 2)
-            vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-                timestampQueryPool, 2*renderpasses.values.indexOf(pass))
-
             if(pass.passConfig.blitInputs) {
                 stackPush().use { stack ->
                     val imageBlit = VkImageBlit.callocStack(1, stack)
@@ -2916,12 +2899,9 @@ open class VulkanRenderer(hub: Hub,
 
             vkCmdEndRenderPass(this)
 
-            vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-                timestampQueryPool, 2*renderpasses.values.indexOf(pass)+1)
-
             // finish command buffer recording by marking this buffer non-stale
             commandBuffer.stale = false
-            this.endCommandBuffer()
+            commandBuffer.endCommandBuffer()
         }
     }
 
@@ -2944,10 +2924,6 @@ open class VulkanRenderer(hub: Hub,
 
         // prepare command buffer and start recording
         with(commandBuffer.prepareAndStartRecording(commandPools.Render)) {
-
-            vkCmdResetQueryPool(this, timestampQueryPool, 2*renderpasses.values.indexOf(pass), 2)
-            vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-                timestampQueryPool, 2*renderpasses.values.indexOf(pass))
             vkCmdBeginRenderPass(this, pass.vulkanMetadata.renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE)
 
             vkCmdSetViewport(this, 0, pass.vulkanMetadata.viewport)
@@ -2988,11 +2964,9 @@ open class VulkanRenderer(hub: Hub,
             vkCmdDraw(this, 3, 1, 0, 0)
 
             vkCmdEndRenderPass(this)
-            vkCmdWriteTimestamp(this, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-                timestampQueryPool, 2*renderpasses.values.indexOf(pass)+1)
 
             commandBuffer.stale = false
-            this.endCommandBuffer()
+            commandBuffer.endCommandBuffer()
         }
     }
 
@@ -3283,11 +3257,6 @@ open class VulkanRenderer(hub: Hub,
         memFree(ph.signalSemaphore)
         memFree(ph.waitSemaphore)
         memFree(ph.waitStages)
-
-        if(timestampQueryPool != -1L) {
-            logger.debug("Closing query pools...")
-            vkDestroyQueryPool(device.vulkanDevice, timestampQueryPool, null)
-        }
 
         semaphores.forEach { it.value.forEach { semaphore -> vkDestroySemaphore(device.vulkanDevice, semaphore, null) } }
 

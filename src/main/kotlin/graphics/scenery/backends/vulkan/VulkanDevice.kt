@@ -8,6 +8,8 @@ import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
 import java.util.*
 
+typealias QueueIndexWithProperties = Pair<Int, VkQueueFamilyProperties>
+
 /**
  * Describes a Vulkan device attached to an [instance] and a [physicalDevice].
  *
@@ -21,7 +23,7 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
     /** Stores the Vulkan-internal device. */
     val vulkanDevice: VkDevice
     /** Stores available queue indices. */
-    val queueIndices: QueueIndices
+    val queues: Queues
     /** Stores available extensions */
     val extensions = ArrayList<String>()
 
@@ -39,7 +41,7 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
      * @property[apiVersion] The Vulkan API version supported by the device, represented as string.
      * @property[type] The [DeviceType] of the GPU.
      */
-    data class DeviceData(val vendor: String, val name: String, val driverVersion: String, val apiVersion: String, val type: DeviceType) {
+    data class DeviceData(val vendor: String, val name: String, val driverVersion: String, val apiVersion: String, val type: DeviceType, val properties: VkPhysicalDeviceProperties) {
         fun toFullString() = "$vendor $name ($type, driver version $driverVersion, Vulkan API $apiVersion)"
     }
 
@@ -50,14 +52,14 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
      * @property[graphicsQueue] The index of the graphics queue
      * @property[computeQueue] The index of the compute queue
      */
-    data class QueueIndices(val presentQueue: Int, val transferQueue: Int, val graphicsQueue: Int, val computeQueue: Int)
+    data class Queues(val presentQueue: QueueIndexWithProperties, val transferQueue: QueueIndexWithProperties, val graphicsQueue: QueueIndexWithProperties, val computeQueue: QueueIndexWithProperties)
 
     init {
         val result = stackPush().use { stack ->
             val pQueueFamilyPropertyCount = stack.callocInt(1)
             vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, pQueueFamilyPropertyCount, null)
             val queueCount = pQueueFamilyPropertyCount.get(0)
-            val queueProps = VkQueueFamilyProperties.callocStack(queueCount, stack)
+            val queueProps = VkQueueFamilyProperties.calloc(queueCount)
             vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, pQueueFamilyPropertyCount, queueProps)
 
             var graphicsQueueFamilyIndex = 0
@@ -173,17 +175,17 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
                 graphicsQueueFamilyIndex, computeQueueFamilyIndex, presentQueueFamilyIndex, transferQueueFamilyIndex, memoryProperties)
 
             Triple(VkDevice(device, physicalDevice, deviceCreateInfo),
-                QueueIndices(
-                    presentQueue = presentQueueFamilyIndex,
-                    transferQueue = transferQueueFamilyIndex,
-                    computeQueue = computeQueueFamilyIndex,
-                    graphicsQueue = graphicsQueueFamilyIndex),
+                Queues(
+                    presentQueue = presentQueueFamilyIndex to queueProps[presentQueueFamilyIndex],
+                    transferQueue = transferQueueFamilyIndex to queueProps[transferQueueFamilyIndex],
+                    computeQueue = computeQueueFamilyIndex to queueProps[computeQueueFamilyIndex],
+                    graphicsQueue = graphicsQueueFamilyIndex to queueProps[graphicsQueueFamilyIndex]),
                 memoryProperties
             )
         }
 
         vulkanDevice = result.first
-        queueIndices = result.second
+        queues = result.second
         memoryProperties = result.third
 
         extensions.addAll(extensionsQuery.invoke(physicalDevice))
@@ -353,11 +355,11 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
                 var devicePreference = 0
 
                 logger.info("Physical devices: ")
-                val properties: VkPhysicalDeviceProperties = VkPhysicalDeviceProperties.callocStack(stack)
                 val deviceList = ArrayList<DeviceData>(10)
 
                 for (i in 0 until physicalDeviceCount) {
                     val device = VkPhysicalDevice(physicalDevices.get(i), instance)
+                    val properties: VkPhysicalDeviceProperties = VkPhysicalDeviceProperties.calloc()
 
                     vkGetPhysicalDeviceProperties(device, properties)
 
@@ -366,7 +368,8 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
                         name = properties.deviceNameString(),
                         driverVersion = driverVersionToString(properties.driverVersion()),
                         apiVersion = driverVersionToString(properties.apiVersion()),
-                        type = toDeviceType(properties.deviceType()))
+                        type = toDeviceType(properties.deviceType()),
+                        properties = properties)
 
                     if(physicalDeviceFilter.invoke(i, deviceData)) {
                         logger.debug("Device filter matches device $i, $deviceData")
@@ -380,6 +383,7 @@ open class VulkanDevice(val instance: VkInstance, val physicalDevice: VkPhysical
                     val selected = if (devicePreference == i) {
                         "(selected)"
                     } else {
+                        device.properties.free()
                         ""
                     }
 
