@@ -131,8 +131,9 @@ class CurveGeometry(curve: CatmullRomSpline, n: Int = 100): Node("CurveGeometry"
         frenetFrameList.windowed(2,1).forEach { (firstFrame, secondFrame) ->
             val b = firstFrame.tangent.cross(secondFrame.tangent).normalized
             //if there is no substantial difference between two tangent vectors, the frenet frame need not to change
-            if (b.length2() < 0.00001f) {
+            if (b.length2() < 0.0001f) {
                 secondFrame.normal = firstFrame.normal
+                secondFrame.bitangent = firstFrame.bitangent
             } else {
                 val firstNormal = firstFrame.normal
 
@@ -154,10 +155,11 @@ class CurveGeometry(curve: CatmullRomSpline, n: Int = 100): Node("CurveGeometry"
                 else {
                     throw IllegalStateException("Normals must not be null!")
                 }
+                secondFrame.bitangent = secondFrame.tangent.cross(secondFrame.normal).normalized
             }
-            secondFrame.bitangent = secondFrame.tangent.cross(secondFrame.normal).normalized
         }
-        return frenetFrameList
+        return frenetFrameList.filterNot { it.bitangent!!.toFloatArray().all { value -> value.isNaN() } &&
+                                            it.normal!!.toFloatArray().all{ value -> value.isNaN()}}
     }
 
     /**
