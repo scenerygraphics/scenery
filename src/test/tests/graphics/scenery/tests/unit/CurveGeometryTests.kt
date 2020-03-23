@@ -39,11 +39,11 @@ class CurveGeometryTests {
         assertEquals(curve.catMullRomChain(), geometry.getCurve())
         assertNotNull(frenetFrames.forEach { it.normal })
         assertNotNull(frenetFrames.forEach{ it.bitangent })
-        assertEquals(frenetFrames.filter { it.bitangent?.length2()!! < 1.0001f && it.bitangent?.length2()!! > 0.99999f },
+        assertEquals(frenetFrames.filter { it.bitangent?.length2()!! < 1.001f && it.bitangent?.length2()!! > 0.999f },
                 frenetFrames)
-        assertEquals(frenetFrames.filter { it.normal?.length2()!! < 1.0001f && it.normal?.length2()!! > 0.99999f },
+        assertEquals(frenetFrames.filter { it.normal?.length2()!! < 1.001f && it.normal?.length2()!! > 0.999f },
                 frenetFrames)
-        assertEquals(frenetFrames.filter { it.tangent.length2() < 1.0001f && it.tangent.length2() > 0.99999f },
+        assertEquals(frenetFrames.filter { it.tangent.length2() < 1.001f && it.tangent.length2() > 0.999f },
                 frenetFrames)
     }
 
