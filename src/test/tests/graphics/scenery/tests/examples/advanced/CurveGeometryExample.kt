@@ -13,7 +13,7 @@ import org.junit.Test
  *
  * @author Justin Bürger
  */
-class CurveGeometryBaseShapeTest: SceneryBase("CurveGeometryBaseShapeTest", windowWidth = 1280, windowHeight = 720) {
+class CurveBaseShapeTest: SceneryBase("CurveGeometryBaseShapeTest", windowWidth = 1280, windowHeight = 720) {
 
     override fun init() {
 
@@ -31,10 +31,6 @@ class CurveGeometryBaseShapeTest: SceneryBase("CurveGeometryBaseShapeTest", wind
         points.add(GLVector(0f, 0f, 0f))
         points.add(GLVector(2f, 1f, 0f))
 
-
-
-        val catmullRom = CatmullRomSpline(points)
-        val geo = CurveGeometry(catmullRom, 200)
         fun triangle(): ArrayList<GLVector> {
             val list = ArrayList<GLVector>()
             list.add(GLVector(0.3f, 0.3f, 0f))
@@ -43,9 +39,8 @@ class CurveGeometryBaseShapeTest: SceneryBase("CurveGeometryBaseShapeTest", wind
             return list
         }
 
-
-        geo.drawSpline { triangle() }
-
+        val catmullRom = CatmullRomSpline(points)
+        val geo = Curve(catmullRom) { triangle() }
 
         scene.addChild(geo)
 

@@ -15,7 +15,7 @@ import kotlin.math.acos
  * The number n corresponds to the number of segments you wish to have between you control points.
  * @author  Justin Buerger <burger@mpi-cbg.de>
  */
-class CurveGeometry(curve: CatmullRomSpline, n: Int = 100): Node("CurveGeometry"), HasGeometry {
+class Curve(curve: CatmullRomSpline, baseShape: () -> ArrayList<GLVector>): Node("CurveGeometry"), HasGeometry {
     override val vertexSize = 3
     override val texcoordSize = 2
     override var geometryType = GeometryType.TRIANGLES
@@ -25,7 +25,7 @@ class CurveGeometry(curve: CatmullRomSpline, n: Int = 100): Node("CurveGeometry"
     override var texcoords: FloatBuffer = BufferUtils.allocateFloat(0)
     override var indices: IntBuffer = BufferUtils.allocateInt(0)
 
-    private val curve = curve.catMullRomChain()
+    private val chain = curve.catMullRomChain()
 
     /**
      * This function renders the spline.
@@ -35,9 +35,9 @@ class CurveGeometry(curve: CatmullRomSpline, n: Int = 100): Node("CurveGeometry"
      * a banister. Please not that the base shape needs an equal number of points in each segments but it
      * can very well vary in thickness.
      */
-    fun drawSpline(baseShape: (() -> List<GLVector>)) {
+    init {
         val bases = ArrayList<GLMatrix>()
-        computeFrenetFrames(curve).forEach { (t, n, b, tr) ->
+        computeFrenetFrames(chain).forEach { (t, n, b, tr) ->
             if(n != null && b != null) {
                 val inverseMatrix = GLMatrix(floatArrayOf(
                     n.x(), b.x(), t.x(), 0f,
@@ -83,12 +83,12 @@ class CurveGeometry(curve: CatmullRomSpline, n: Int = 100): Node("CurveGeometry"
      * [i] index of the curve (not the geometry!)
      */
     private fun getTangent(i: Int): GLVector {
-        val s = curve.size
+        val s = chain.size
         return when(i) {
-            0 -> ((curve[i+1] - curve[i]).normalized)
-            (s-2) -> ((curve[i+1] - curve[i]).normalized)
-            (s-1) -> ((curve[i] - curve[i-1]).normalized)
-            else -> ((curve[i+1] - curve[i-1]).normalized)
+            0 -> ((chain[i+1] - chain[i]).normalized)
+            (s-2) -> ((chain[i+1] - chain[i]).normalized)
+            (s-1) -> ((chain[i] - chain[i-1]).normalized)
+            else -> ((chain[i+1] - chain[i-1]).normalized)
         }
     }
 
@@ -204,6 +204,6 @@ class CurveGeometry(curve: CatmullRomSpline, n: Int = 100): Node("CurveGeometry"
      * Getter for the curve.
      */
     fun getCurve(): ArrayList<GLVector> {
-        return curve
+        return chain
     }
 }
