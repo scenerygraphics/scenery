@@ -3,7 +3,7 @@ package graphics.scenery.tests.unit
 import cleargl.GLVector
 import graphics.scenery.numerics.Random
 import graphics.scenery.CatmullRomSpline
-import graphics.scenery.CurveGeometry
+import graphics.scenery.Curve
 import graphics.scenery.utils.LazyLogger
 import org.junit.Test
 import kotlin.test.assertEquals
@@ -11,11 +11,11 @@ import kotlin.test.assertFails
 import kotlin.test.assertNotNull
 
 /**
- * This is the test class for the [CurveGeometry]
+ * This is the test class for the [Curve]
  *
  * @author Justin Bürger, burger@mpi-cbg.com
  */
-class CurveGeometryTests {
+class CurveTests {
     private val logger by LazyLogger()
 
     /**
@@ -33,7 +33,15 @@ class CurveGeometryTests {
 
         val curve = CatmullRomSpline(controlPoints)
 
-        val geometry = CurveGeometry(curve)
+        fun triangle(): ArrayList<GLVector> {
+            val list = ArrayList<GLVector>()
+            list.add(GLVector(0.3f, 0.3f, 0f))
+            list.add(GLVector(0.3f, -0.3f, 0f))
+            list.add(GLVector(-0.3f, -0.3f, 0f))
+            return list
+        }
+
+        val geometry = Curve(curve) { triangle() }
         val frenetFrames = geometry.computeFrenetFrames(geometry.getCurve())
 
         assertEquals(curve.catMullRomChain(), geometry.getCurve())
@@ -62,8 +70,6 @@ class CurveGeometryTests {
 
         val curve = CatmullRomSpline(controlPoints)
 
-        val geometry = CurveGeometry(curve)
-
         /*
         For this baseShape function the number of points may differ each time
         the baseShape function is invoked. However, the algorithm for calculating
@@ -84,7 +90,7 @@ class CurveGeometryTests {
             }
         }
 
-        assertFails {  geometry.drawSpline { triangleFalse() } }
+        assertFails {  Curve(curve) { triangleFalse() } }
     }
 
 }
