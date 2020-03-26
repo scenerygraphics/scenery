@@ -47,19 +47,19 @@ void main()
     mv = (vrParameters.stereoEnabled ^ 1) * ViewMatrices[0] * ubo.ModelMatrix + (vrParameters.stereoEnabled * ViewMatrices[currentEye.eye] * ubo.ModelMatrix);
 	projectionMatrix = (vrParameters.stereoEnabled ^ 1) * ProjectionMatrix + vrParameters.stereoEnabled * vrParameters.projectionMatrices[currentEye.eye];
 
-	if(ubo.isBillboard > 0) {
-		mv[0][0] = 1.0f;
-		mv[0][1] = .0f;
-		mv[0][2] = .0f;
-
-		mv[1][0] = .0f;
-		mv[1][1] = 1.0f;
-		mv[1][2] = .0f;
-
-		mv[2][0] = .0f;
-		mv[2][1] = .0f;
-		mv[2][2] = 1.0f;
-	}
+//	if(ubo.isBillboard > 0) {
+//		mv[0][0] = 1.0f;
+//		mv[0][1] = .0f;
+//		mv[0][2] = .0f;
+//
+//		mv[1][0] = .0f;
+//		mv[1][1] = 1.0f;
+//		mv[1][2] = .0f;
+//
+//		mv[2][0] = .0f;
+//		mv[2][1] = .0f;
+//		mv[2][2] = 1.0f;
+//	}
 
 	nMVP = projectionMatrix*mv;
 
@@ -67,6 +67,7 @@ void main()
     Vertex.Normal = mat3(ubo.NormalMatrix) * normalize(vertexNormal);
     Vertex.TexCoord = vertexTexCoord;
 
+    gl_PointSize = 1.0;
 	gl_Position = nMVP * vec4(vertexPosition, 1.0);
 }
 
