@@ -3,6 +3,8 @@ package graphics.scenery
 import cleargl.GLVector
 import graphics.scenery.backends.Renderer
 import graphics.scenery.fonts.SDFFontAtlas
+import graphics.scenery.textures.Texture
+import graphics.scenery.textures.Texture.RepeatMode
 
 /**
  * TextBoard is a possibly billboarded display of a string of text,
@@ -91,11 +93,10 @@ class TextBoard(font: String = "SourceSansPro-Regular.ttf", override var isBillb
             texcoords = m.texcoords
             atlasSize = GLVector(this.atlasWidth.toFloat(), this.atlasHeight.toFloat(), 0.0f, 0.0f)
 
-            material.textures["diffuse"] = "fromBuffer:diffuse"
-            material.transferTextures["diffuse"] = GenericTexture("diffuse",
+            material.textures["diffuse"] = Texture(
                 GLVector(atlasSize.x(), atlasSize.y(), 1.0f),
                 channels = 1, contents = this.getAtlas(),
-                repeatS = TextureRepeatMode.ClampToBorder, repeatT = TextureRepeatMode.ClampToBorder,
+                repeatUVW = RepeatMode.ClampToBorder.all(),
                 normalized = true,
                 mipmap = true)
 

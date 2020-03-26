@@ -2,6 +2,7 @@ package graphics.scenery
 
 import cleargl.GLVector
 import graphics.scenery.Material.CullingMode.*
+import graphics.scenery.textures.Texture
 import java.io.Serializable
 import java.util.concurrent.ConcurrentHashMap
 
@@ -42,11 +43,8 @@ open class Material : Serializable {
 
     /** Hash map storing the type and origin of the material's textures. Key is the
      * type, e.g. ("diffuse", "normal", "displacement"...), value can be a file path or
-     * via "fromBuffer:[transferTextureName], a named [GenericTexture] in [transferTextures]. */
-    @Volatile var textures: ConcurrentHashMap<String, String> = ConcurrentHashMap()
-    /** Storage for textures to be transfered to a concrete texture by the renderer. [GenericTexture]
-     * stores the data and settings of the texture, a renderer will consume them later. */
-    @Volatile var transferTextures: ConcurrentHashMap<String, GenericTexture> = ConcurrentHashMap()
+     * via "fromBuffer:[transferTextureName], a named [Texture] in [transferTextures]. */
+    @Volatile var textures: ConcurrentHashMap<String, Texture> = ConcurrentHashMap()
 
     /** Culling mode of the material. @see[CullingMode] */
     var cullingMode: CullingMode = CullingMode.Back

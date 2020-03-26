@@ -1,16 +1,17 @@
 package graphics.scenery.tests.examples.advanced
 
-import cleargl.GLTypeEnum
 import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
+import graphics.scenery.textures.Texture
+import net.imglib2.type.numeric.integer.UnsignedByteType
 import org.junit.Test
 import java.nio.ByteBuffer
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 
 /**
- * Example demonstrating procedural texturing using [GenericTexture].
+ * Example demonstrating procedural texturing using [Texture].
  *
  * @author Ulrik Günther <hello@ulrik.is>
  */
@@ -68,13 +69,11 @@ class ProceduralTextureExample : SceneryBase("ProceduralTextureExample") {
                     textureBuffer.generateProceduralTextureAtTick(ticks,
                         imageSizeX, imageSizeY, imageChannels)
 
-                    box.material.transferTextures.put("diffuse",
-                        GenericTexture(
-                            "myProceduralTexture",
+                    box.material.textures.put("diffuse",
+                        Texture(
                             GLVector(imageSizeX.toFloat(), imageSizeY.toFloat(), 1.0f),
                             channels = imageChannels, contents = textureBuffer,
-                            type = GLTypeEnum.UnsignedByte))
-                    box.material.textures.put("diffuse", "fromBuffer:diffuse")
+                            type = UnsignedByteType()))
                     box.material.needsTextureReload = true
 
 

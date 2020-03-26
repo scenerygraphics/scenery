@@ -5,6 +5,8 @@ import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
 import graphics.scenery.tests.examples.basic.TexturedCubeExample
+import graphics.scenery.textures.Texture
+import graphics.scenery.utils.Image
 import org.junit.Test
 import java.io.File
 import kotlin.concurrent.thread
@@ -23,7 +25,7 @@ class VideoRecordingExample: SceneryBase("VideoRecordingExample") {
         val box = Box(GLVector(1.0f, 1.0f, 1.0f))
         with(box) {
             box.name = "le box du win"
-            box.material.textures.put("diffuse", TexturedCubeExample::class.java.getResource("textures/helix.png").file)
+            box.material.textures["diffuse"] = Texture.fromImage(Image.fromResource("textures/helix.png", this::class.java))
             scene.addChild(this)
         }
 

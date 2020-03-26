@@ -7,6 +7,8 @@ import graphics.scenery.*
 import graphics.scenery.backends.*
 import graphics.scenery.spirvcrossj.Loader
 import graphics.scenery.spirvcrossj.libspirvcrossj
+import graphics.scenery.textures.Texture
+import graphics.scenery.textures.UpdatableTexture
 import graphics.scenery.utils.*
 import kotlinx.coroutines.*
 import org.lwjgl.PointerBuffer
@@ -44,6 +46,9 @@ import java.util.concurrent.locks.ReentrantLock
 import javax.imageio.ImageIO
 import kotlin.concurrent.thread
 import kotlin.concurrent.withLock
+import kotlin.math.floor
+import kotlin.math.ln
+import kotlin.math.min
 import kotlin.reflect.full.*
 import kotlin.system.measureTimeMillis
 
@@ -319,7 +324,8 @@ open class VulkanRenderer(hub: Hub,
                               var ShaderProperties: VulkanBuffer)
     protected var buffers: DefaultBuffers
     protected var defaultUBOs = ConcurrentHashMap<String, VulkanUBO>()
-    protected var textureCache = ConcurrentHashMap<String, VulkanTexture>()
+    protected var textureCache = ConcurrentHashMap<Texture, VulkanTexture>()
+    protected var defaultTextures = ConcurrentHashMap<String, VulkanTexture>()
     protected var descriptorSetLayouts = ConcurrentHashMap<String, Long>()
     protected var descriptorSets = ConcurrentHashMap<String, Long>()
 
@@ -1037,10 +1043,10 @@ open class VulkanRenderer(hub: Hub,
     }
 
     /**
-     * Returns true if the current VulkanTexture can be reused to store the information in the [GenericTexture]
+     * Returns true if the current VulkanTexture can be reused to store the information in the [Texture]
      * [other]. Returns false otherwise.
      */
-    protected fun VulkanTexture.canBeReused(other: GenericTexture, miplevels: Int, device: VulkanDevice): Boolean {
+    protected fun VulkanTexture.canBeReused(other: Texture, miplevels: Int, device: VulkanDevice): Boolean {
         return this.device == device &&
             this.width == other.dimensions.x().toInt() &&
             this.height == other.dimensions.y().toInt() &&
@@ -1072,13 +1078,13 @@ open class VulkanRenderer(hub: Hub,
      */
     protected fun loadTexturesForNode(node: Node, s: VulkanObjectState): Boolean {
         val stats = hub?.get(SceneryElement.Statistics) as Statistics?
-        val defaultTexture = textureCache["DefaultTexture"] ?: throw IllegalStateException("Default fallback texture does not exist.")
+        val defaultTexture = defaultTextures["DefaultTexture"] ?: throw IllegalStateException("Default fallback texture does not exist.")
         // if a node is not yet initialized, we'll definitely require a new DS
         var reqNewDS = !node.initialized
 
-        node.material.textures.forEach { type, texture ->
+        node.material.textures.forEach { (type, texture) ->
             val slot = VulkanObjectState.textureTypeToSlot(type)
-            val generateMipmaps = GenericTexture.mipmappedObjectTextures.contains(type)
+            val generateMipmaps = Texture.mipmappedObjectTextures.contains(type)
 
             logger.debug("${node.name} will have $type texture from $texture in slot $slot")
 
@@ -1086,55 +1092,38 @@ open class VulkanRenderer(hub: Hub,
                 try {
                     logger.trace("Loading texture $texture for ${node.name}")
 
-                    val gt = node.material.transferTextures[texture.substringAfter("fromBuffer:")]
+                    val gt = texture
 
-                    val vkTexture: VulkanTexture = if (texture.startsWith("fromBuffer:") && gt != null) {
-                        val miplevels = if (generateMipmaps && gt.mipmap) {
-                            Math.floor(Math.log(Math.min(gt.dimensions.x() * 1.0, gt.dimensions.y() * 1.0)) / Math.log(2.0)).toInt()
-                        } else {
-                            1
-                        }
-
-                        val existingTexture = s.textures[type]
-                        val t: VulkanTexture = if (existingTexture != null && existingTexture.canBeReused(gt, miplevels, device)) {
-                            existingTexture
-                        } else {
-                            reqNewDS = true
-                            VulkanTexture(device, commandPools, queue, queue, gt, miplevels)
-                        }
-
-                        gt.contents?.let { contents ->
-                            t.copyFrom(contents.duplicate())
-                        }
-
-                        if (gt.hasConsumableUpdates()) {
-                            t.copyFrom(ByteBuffer.allocate(0))
-                        }
-
-                        if(reqNewDS) {
-                            t.createSampler(gt)
-                        }
-                        t
+                    val miplevels = if (generateMipmaps && gt.mipmap) {
+                        floor(ln(min(gt.dimensions.x() * 1.0, gt.dimensions.y() * 1.0)) / ln(2.0)).toInt()
                     } else {
-                        val start = System.nanoTime()
-
-                        val t = if (texture.contains("jar!")) {
-                            node.loadTextureFromJar(texture, generateMipmaps, defaultTexture)
-                        } else {
-                            VulkanTexture.loadFromFile(device,
-                                commandPools, queue, queue, texture, true, generateMipmaps)
-                        }
-
-                        val duration = System.nanoTime() - start * 1.0f
-                        stats?.add("loadTexture", duration)
-                        reqNewDS = true
-
-                        t
+                        1
                     }
+
+                    val existingTexture = s.textures[type]
+                    val t: VulkanTexture = if (existingTexture != null && existingTexture.canBeReused(gt, miplevels, device)) {
+                        existingTexture
+                    } else {
+                        reqNewDS = true
+                        VulkanTexture(device, commandPools, queue, queue, gt, miplevels)
+                    }
+
+                    gt.contents?.let { contents ->
+                        t.copyFrom(contents.duplicate())
+                    }
+
+                    if (gt is UpdatableTexture && gt.hasConsumableUpdates()) {
+                        t.copyFrom(ByteBuffer.allocate(0))
+                    }
+
+                    if(reqNewDS) {
+                        t.createSampler(gt)
+                    }
+                    val vkTexture = t
 
                     // add new texture to texture list and cache, and close old texture
                     s.textures[type] = vkTexture
-                    textureCache[texture] = vkTexture
+//                    textureCache[texture] = vkTexture
                 } catch (e: Exception) {
                     logger.warn("Could not load texture for ${node.name}: $e")
                 }
@@ -1143,7 +1132,7 @@ open class VulkanRenderer(hub: Hub,
             }
         }
 
-        GenericTexture.objectTextures.forEach {
+        Texture.objectTextures.forEach {
             if (!s.textures.containsKey(it)) {
                 s.textures.putIfAbsent(it, defaultTexture)
                 s.defaultTexturesFor.add(it)
@@ -1423,7 +1412,8 @@ open class VulkanRenderer(hub: Hub,
         val t = VulkanTexture.loadFromFile(device, commandPools, queue, queue,
             Renderer::class.java.getResourceAsStream("DefaultTexture.png"), "png", true, true)
 
-        textureCache["DefaultTexture"] = t
+        // TODO: Do an asset manager or sth here?
+        defaultTextures["DefaultTexture"] = t
     }
 
     protected fun prepareRenderpassesFromConfig(config: RenderConfigReader.RenderConfig, windowWidth: Int, windowHeight: Int) {

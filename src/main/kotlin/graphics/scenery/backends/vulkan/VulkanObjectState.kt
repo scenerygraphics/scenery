@@ -1,6 +1,6 @@
 package graphics.scenery.backends.vulkan
 
-import graphics.scenery.GenericTexture
+import graphics.scenery.textures.Texture
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
 import graphics.scenery.NodeMetadata
@@ -80,7 +80,7 @@ open class VulkanObjectState : NodeMetadata {
             if(pass.recreated > descriptorSetsRecreated) {
                 textureDescriptorSets.clear()
             }
-            val textures = textures.entries.groupBy { GenericTexture.objectTextures.contains(it.key) }
+            val textures = textures.entries.groupBy { Texture.objectTextures.contains(it.key) }
             val objectTextures = textures[true]
             val others = textures[false]
 
@@ -89,7 +89,7 @@ open class VulkanObjectState : NodeMetadata {
                 textureDescriptorSets[pass.passConfig.type.name to "ObjectTextures"] = createOrUpdateTextureDescriptorSet(
                     "ObjectTextures",
                     pass.passConfig.type.name,
-                    GenericTexture.objectTextures.map { ot -> objectTextures.first { it.key == ot } },
+                    Texture.objectTextures.map { ot -> objectTextures.first { it.key == ot } },
                     descriptorSetLayoutObjectTextures,
                     device,
                     descriptorPool)

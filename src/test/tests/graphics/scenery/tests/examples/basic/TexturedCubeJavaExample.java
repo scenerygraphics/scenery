@@ -3,6 +3,8 @@ package graphics.scenery.tests.examples.basic;
 import cleargl.GLVector;
 import graphics.scenery.*;
 import graphics.scenery.backends.Renderer;
+import graphics.scenery.textures.Texture;
+import graphics.scenery.utils.Image;
 import org.junit.Test;
 
 /**
@@ -29,7 +31,7 @@ public class TexturedCubeJavaExample {
             boxmaterial.setAmbient( new GLVector(1.0f, 0.0f, 0.0f) );
             boxmaterial.setDiffuse( new GLVector(0.0f, 1.0f, 0.0f) );
             boxmaterial.setSpecular( new GLVector(1.0f, 1.0f, 1.0f) );
-            boxmaterial.getTextures().put("diffuse", TexturedCubeJavaApplication.class.getResource("textures/helix.png").getFile() );
+            boxmaterial.getTextures().put("diffuse", Texture.fromImage(Image.fromResource("textures/helix.png", this.getClass())));
 
             final Box box = new Box(new GLVector(1.0f, 1.0f, 1.0f), false);
             box.setMaterial( boxmaterial );

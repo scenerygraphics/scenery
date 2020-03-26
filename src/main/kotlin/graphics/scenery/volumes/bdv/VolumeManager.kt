@@ -267,7 +267,6 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
             .filter { it.endsWith("_") }
         oldKeys.map {
             this.material.textures.remove(it)
-            this.material.transferTextures.remove(it)
         }
 
         currentVolumeCount = outOfCoreVolumeCount to regularVolumeCount
@@ -502,8 +501,8 @@ class VolumeManager(override var hub : Hub?) : Node(), Hubable, HasGeometry, Req
 
         if(bdvNodes.any { it.transferFunction.stale }) {
             transferFunctionTextures.clear()
-            val keys = material.transferTextures.filter { it.key.startsWith("transferFunction") }.keys
-            keys.forEach { material.transferTextures.remove(it) }
+            val keys = material.textures.filter { it.key.startsWith("transferFunction") }.keys
+            keys.forEach { material.textures.remove(it) }
             renderStateUpdated = true
         }
 

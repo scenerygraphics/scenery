@@ -380,11 +380,10 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
     fun initializePipeline(pipelineName: String = "default", shaders: List<VulkanShaderModule>,
                            vertexInputType: VulkanRenderer.VertexDescription = vertexDescriptors.getValue(VulkanRenderer.VertexDataKinds.PositionNormalTexcoord),
                            settings: (VulkanPipeline) -> Any = {}) {
-        val p = VulkanPipeline(device, pipelineCache)
-
         val reqDescriptorLayouts = ArrayList<Long>()
 
         val framebuffer = output.values.first()
+        val p = VulkanPipeline(device, this, framebuffer.renderPass.get(0), pipelineCache)
 
         p.addShaderStages(shaders)
 
@@ -412,7 +411,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
         p.colorBlendState.pAttachments()?.free()
         p.colorBlendState
             .sType(VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO)
-            .pNext(MemoryUtil.NULL)
+            .pNext(NULL)
             .pAttachments(blendMasks)
 
         p.depthStencilState
@@ -440,7 +439,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
                 p.rasterizationState.cullMode(VK_CULL_MODE_FRONT_BIT)
                 p.rasterizationState.frontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
 
-                p.createPipelines(this, framebuffer.renderPass.get(0),
+                p.createPipelines(
                     vertexDescriptors.getValue(VulkanRenderer.VertexDataKinds.None).state,
                     descriptorSetLayouts = reqDescriptorLayouts,
                     onlyForTopology = GeometryType.TRIANGLES)
@@ -448,7 +447,7 @@ open class VulkanRenderpass(val name: String, var config: RenderConfigReader.Ren
 
             RenderConfigReader.RenderpassType.geometry,
             RenderConfigReader.RenderpassType.lights -> {
-                p.createPipelines(this, framebuffer.renderPass.get(0),
+                p.createPipelines(
                     vertexInputType.state,
                     descriptorSetLayouts = reqDescriptorLayouts)
             }

@@ -3,11 +3,14 @@ package graphics.scenery
 import cleargl.GLVector
 import gnu.trove.map.hash.THashMap
 import gnu.trove.set.hash.TLinkedHashSet
+import graphics.scenery.textures.Texture
+import graphics.scenery.utils.Image
 import graphics.scenery.utils.LazyLogger
 import graphics.scenery.utils.SystemHelpers
 import org.lwjgl.system.MemoryUtil
 import java.io.BufferedInputStream
 import java.io.File
+import java.io.FileInputStream
 import java.io.FileNotFoundException
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -98,7 +101,7 @@ open class Mesh(override var name: String = "Mesh") : Node(name), HasGeometry {
             if(material == null) {
                 logger.warn("No current material, but trying to set texture $slot to $file. Broken material file?")
             } else {
-                material.textures[slot] = file
+                material.textures[slot] = Texture.fromImage(Image.fromStream(FileInputStream(file), file.substringAfterLast(".")))
             }
         }
 

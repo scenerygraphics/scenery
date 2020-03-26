@@ -4,6 +4,8 @@ import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
 import graphics.scenery.numerics.Random
+import graphics.scenery.textures.Texture
+import graphics.scenery.utils.Image
 import org.junit.Test
 import org.scijava.ui.behaviour.ClickBehaviour
 import kotlin.concurrent.thread
@@ -43,7 +45,7 @@ class ArcballExample : SceneryBase("ArcballExample") {
             material.ambient = GLVector(1.0f, 0.0f, 0.0f)
             material.diffuse = GLVector(0.0f, 1.0f, 0.0f)
             material.specular = GLVector(1.0f, 1.0f, 1.0f)
-            material.textures.put("diffuse", TexturedCubeExample::class.java.getResource("textures/helix.png").file)
+            material.textures["diffuse"] = Texture.fromImage(Image.fromResource("textures/helix.png", this::class.java))
 
             scene.addChild(this)
         }

@@ -3,6 +3,8 @@ package graphics.scenery.tests.examples.basic
 import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
+import graphics.scenery.textures.Texture
+import graphics.scenery.utils.Image
 import org.junit.Test
 import kotlin.concurrent.thread
 
@@ -17,13 +19,11 @@ class TexturedCubeExample : SceneryBase("TexturedCubeExample") {
             Renderer.createRenderer(hub, applicationName, scene, 512, 512))
 
         val box = Box(GLVector(1.0f, 1.0f, 1.0f))
-        with(box) {
-            box.name = "le box du win"
-            box.material.textures.put("diffuse", TexturedCubeExample::class.java.getResource("textures/helix.png").file)
-            box.material.metallic = 0.3f
-            box.material.roughness = 0.9f
-            scene.addChild(this)
-        }
+        box.name = "le box du win"
+        box.material.textures["diffuse"] = Texture.fromImage(Image.fromResource("textures/helix.png", this::class.java))
+        box.material.metallic = 0.3f
+        box.material.roughness = 0.9f
+        scene.addChild(box)
 
         val light = PointLight(radius = 15.0f)
         light.position = GLVector(0.0f, 0.0f, 2.0f)
