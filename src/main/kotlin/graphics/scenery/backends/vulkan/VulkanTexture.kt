@@ -1,32 +1,29 @@
 package graphics.scenery.backends.vulkan
 
-import cleargl.GLTypeEnum
-import cleargl.TGAReader
-import graphics.scenery.GenericTexture
-import graphics.scenery.TextureBorderColor
-import graphics.scenery.TextureExtents
-import graphics.scenery.TextureRepeatMode
-import graphics.scenery.TextureUpdate
+import graphics.scenery.textures.Texture
+import graphics.scenery.textures.Texture.BorderColor
+import graphics.scenery.textures.UpdatableTexture.TextureExtents
+import graphics.scenery.textures.Texture.RepeatMode
+import graphics.scenery.textures.UpdatableTexture
+import graphics.scenery.textures.UpdatableTexture.TextureUpdate
 import graphics.scenery.utils.Image
 import graphics.scenery.utils.LazyLogger
+import net.imglib2.type.numeric.NumericType
+import net.imglib2.type.numeric.integer.*
+import net.imglib2.type.numeric.real.DoubleType
+import net.imglib2.type.numeric.real.FloatType
 import org.lwjgl.system.MemoryStack.stackPush
 import org.lwjgl.system.MemoryUtil.*
 import org.lwjgl.vulkan.*
 import org.lwjgl.vulkan.VK10.*
 import org.lwjgl.vulkan.VkImageCreateInfo
-import java.awt.Color
 import java.awt.color.ColorSpace
-import java.awt.geom.AffineTransform
 import java.awt.image.*
-import java.io.BufferedInputStream
 import java.io.FileInputStream
 import java.io.InputStream
 import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import java.nio.file.Files
 import java.nio.file.Paths
-import java.util.*
-import javax.imageio.ImageIO
 import kotlin.math.max
 import kotlin.streams.toList
 
@@ -46,12 +43,14 @@ open class VulkanTexture(val device: VulkanDevice,
                     val minFilterLinear: Boolean = true, val maxFilterLinear: Boolean = true) : AutoCloseable {
     //protected val logger by LazyLogger()
 
+    private var initialised: Boolean = false
+
     /** The Vulkan image associated with this texture. */
     var image: VulkanImage
         protected set
 
     private var stagingImage: VulkanImage
-    private var gt: GenericTexture? = null
+    private var gt: Texture? = null
 
     var renderBarrier: VkImageMemoryBarrier? = null
         protected set
@@ -174,6 +173,10 @@ open class VulkanTexture(val device: VulkanDevice,
                 region.free()
             }
         }
+
+        override fun toString(): String {
+            return "VulkanImage (${this.image.toHexString()}, ${width}x${height}x${depth}, format=$format, maxSize=${this.maxSize})"
+        }
     }
 
     init {
@@ -182,7 +185,8 @@ open class VulkanTexture(val device: VulkanDevice,
                 format, VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
                 VK_IMAGE_TILING_LINEAR,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT or VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
-                mipLevels = 1)
+                mipLevels = 1
+            )
         } else {
             createImage(16, 16, 1,
                 format, VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
@@ -206,21 +210,21 @@ open class VulkanTexture(val device: VulkanDevice,
     }
 
     /**
-     * Alternative constructor to create a [VulkanTexture] from a [GenericTexture].
+     * Alternative constructor to create a [VulkanTexture] from a [Texture].
      */
     @Suppress("USELESS_ELVIS", "UNNECESSARY_SAFE_CALL")
     constructor(device: VulkanDevice,
                 commandPools: VulkanRenderer.CommandPools, queue: VkQueue, transferQueue: VkQueue,
-                genericTexture: GenericTexture, mipLevels: Int = 1) : this(device,
+                texture: Texture, mipLevels: Int = 1) : this(device,
         commandPools,
         queue,
         transferQueue,
-        genericTexture.dimensions.x().toInt(),
-        genericTexture.dimensions.y().toInt(),
-        genericTexture.dimensions.z()?.toInt() ?: 1,
-        genericTexture.toVulkanFormat(),
-        mipLevels, genericTexture.minFilterLinear, genericTexture.maxFilterLinear) {
-        gt = genericTexture
+        texture.dimensions.x().toInt(),
+        texture.dimensions.y().toInt(),
+        texture.dimensions.z()?.toInt() ?: 1,
+        texture.toVulkanFormat(),
+        mipLevels, texture.minFilter == Texture.FilteringMode.Linear, texture.maxFilter == Texture.FilteringMode.Linear) {
+        gt = texture
     }
 
     /**
@@ -230,6 +234,7 @@ open class VulkanTexture(val device: VulkanDevice,
      */
     fun createImage(width: Int, height: Int, depth: Int, format: Int,
                     usage: Int, tiling: Int, memoryFlags: Int, mipLevels: Int,
+                    initialLayout: Int? = null,
                     customAllocator: ((VkMemoryRequirements, Long) -> Long)? = null, imageCreateInfo: VkImageCreateInfo? = null): VulkanImage {
         val imageInfo = if(imageCreateInfo != null) {
             imageCreateInfo
@@ -253,6 +258,10 @@ open class VulkanTexture(val device: VulkanDevice,
 
             i.extent().set(width, height, depth)
             i
+        }
+
+        if(initialLayout != null) {
+            imageInfo.initialLayout(initialLayout)
         }
 
         val image = VU.getLong("create staging image",
@@ -294,6 +303,7 @@ open class VulkanTexture(val device: VulkanDevice,
             return this
         }
 
+
         var deallocate = false
         var sourceBuffer = data
 
@@ -301,14 +311,15 @@ open class VulkanTexture(val device: VulkanDevice,
             if (gt.channels == 3) {
                 logger.debug("Loading RGB texture, padding channels to 4 to fit RGBA")
                 val pixelByteSize = when (gt.type) {
-                    GLTypeEnum.Byte -> 1
-                    GLTypeEnum.UnsignedByte -> 1
-                    GLTypeEnum.Short -> 2
-                    GLTypeEnum.UnsignedShort -> 2
-                    GLTypeEnum.Int -> 4
-                    GLTypeEnum.UnsignedInt -> 4
-                    GLTypeEnum.Float -> 4
-                    GLTypeEnum.Double -> 8
+                    is UnsignedByteType -> 1
+                    is ByteType -> 1
+                    is UnsignedShortType -> 2
+                    is ShortType -> 2
+                    is UnsignedIntType -> 4
+                    is IntType -> 4
+                    is FloatType -> 4
+                    is DoubleType -> 8
+                    else -> throw UnsupportedOperationException("Don't know how to handle textures of type ${gt.type.javaClass.simpleName}")
                 }
 
                 val storage = memAlloc(data.remaining() / 3 * 4)
@@ -332,9 +343,18 @@ open class VulkanTexture(val device: VulkanDevice,
             }
         }
 
+        logger.info("Updating $this with $mipLevels miplevels")
         if (mipLevels == 1) {
-            var buffer: VulkanBuffer? = null
             with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
+                if(!initialised) {
+                    transitionLayout(stagingImage.image,
+                        VK_IMAGE_LAYOUT_PREINITIALIZED,
+                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, mipLevels,
+                        srcStage = VK_PIPELINE_STAGE_HOST_BIT,
+                        dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
+                        commandBuffer = this)
+                }
+
                 if (depth == 1) {
                     val dest = memAllocPointer(1)
                     vkMapMemory(device, stagingImage.memory, 0, sourceBuffer.remaining() * 1L, 0, dest)
@@ -342,14 +362,8 @@ open class VulkanTexture(val device: VulkanDevice,
                     vkUnmapMemory(device, stagingImage.memory)
                     memFree(dest)
 
-                    transitionLayout(stagingImage.image,
-                        VK_IMAGE_LAYOUT_PREINITIALIZED,
-                        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, mipLevels,
-                        srcStage = VK_PIPELINE_STAGE_HOST_BIT,
-                        dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
-                        commandBuffer = this)
                     transitionLayout(image.image,
-                        VK_IMAGE_LAYOUT_PREINITIALIZED,
+                        VK_IMAGE_LAYOUT_UNDEFINED,
                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevels,
                         srcStage = VK_PIPELINE_STAGE_HOST_BIT,
                         dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
@@ -363,15 +377,16 @@ open class VulkanTexture(val device: VulkanDevice,
                         srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
                         dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                         commandBuffer = this)
+
                 } else {
                     val genericTexture = gt
-                    val requiredCapacity = if(genericTexture != null && genericTexture.hasConsumableUpdates()) {
+                    val requiredCapacity = if(genericTexture is UpdatableTexture && genericTexture.hasConsumableUpdates()) {
                         genericTexture.updates.map { if(!it.consumed) { it.contents.remaining() } else { 0 } }.sum().toLong()
                     } else {
                         sourceBuffer.capacity().toLong()
                     }
 
-                    logger.info("$this has ${genericTexture?.updates?.size} consumeable updates")
+                    logger.info("${this@VulkanTexture} has ${(genericTexture as? UpdatableTexture)?.updates?.size} consumeable updates")
 
                     if(tmpBuffer == null || (tmpBuffer?.size ?: 0) < requiredCapacity) {
                         logger.debug("(${this@VulkanTexture}) Reallocating tmp buffer, old size=${tmpBuffer?.size} new size = ${requiredCapacity.toFloat()/1024.0f/1024.0f} MiB")
@@ -398,7 +413,7 @@ open class VulkanTexture(val device: VulkanDevice,
                             dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT,
                             commandBuffer = this)
 
-                        if(genericTexture != null) {
+                        if(genericTexture is UpdatableTexture) {
                             if(genericTexture.hasConsumableUpdates()) {
                                 val updates = genericTexture.updates.filter { !it.consumed }
                                 val contents = updates.map { it.contents }
@@ -435,7 +450,6 @@ open class VulkanTexture(val device: VulkanDevice,
                 wantAligned = false)
 
             with(VU.newCommandBuffer(device, commandPools.Standard, autostart = true)) {
-
                 buffer.copyFrom(sourceBuffer)
 
                 transitionLayout(image.image, VK_IMAGE_LAYOUT_UNDEFINED,
@@ -537,6 +551,7 @@ open class VulkanTexture(val device: VulkanDevice,
 
 //        image.view = createImageView(image, format)
 
+        initialised = true
         return this
     }
 
@@ -571,23 +586,23 @@ open class VulkanTexture(val device: VulkanDevice,
             { vi.free(); subresourceRange.free(); })
     }
 
-    private fun TextureRepeatMode.toVulkan(): Int {
+    private fun RepeatMode.toVulkan(): Int {
         return when(this) {
-            TextureRepeatMode.Repeat -> VK_SAMPLER_ADDRESS_MODE_REPEAT
-            TextureRepeatMode.MirroredRepeat -> VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT
-            TextureRepeatMode.ClampToEdge -> VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE
-            TextureRepeatMode.ClampToBorder -> VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER
+            RepeatMode.Repeat -> VK_SAMPLER_ADDRESS_MODE_REPEAT
+            RepeatMode.MirroredRepeat -> VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT
+            RepeatMode.ClampToEdge -> VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE
+            RepeatMode.ClampToBorder -> VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER
         }
     }
 
-    private fun TextureBorderColor.toVulkan(type: GLTypeEnum): Int {
+    private fun BorderColor.toVulkan(type: NumericType<*>): Int {
         var color = when(this) {
-            TextureBorderColor.TransparentBlack -> VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK
-            TextureBorderColor.OpaqueBlack -> VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK
-            TextureBorderColor.OpaqueWhite -> VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE
+            BorderColor.TransparentBlack -> VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK
+            BorderColor.OpaqueBlack -> VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK
+            BorderColor.OpaqueWhite -> VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE
         }
 
-        if(type != GLTypeEnum.Float) {
+        if(type !is FloatType) {
             color += 1
         }
 
@@ -597,14 +612,14 @@ open class VulkanTexture(val device: VulkanDevice,
     /**
      * Creates a default sampler for this texture.
      */
-    fun createSampler(genericTexture: GenericTexture? = null): Long {
-        val t = genericTexture ?: gt
+    fun createSampler(texture: Texture? = null): Long {
+        val t = texture ?: gt
 
         val (repeatS, repeatT, repeatU) = if(t != null) {
             Triple(
-                t.repeatS.toVulkan(),
-                t.repeatT.toVulkan(),
-                t.repeatU.toVulkan()
+                t.repeatUVW.first.toVulkan(),
+                t.repeatUVW.second.toVulkan(),
+                t.repeatUVW.third.toVulkan()
             )
         } else {
             if(depth == 1) {
@@ -632,7 +647,7 @@ open class VulkanTexture(val device: VulkanDevice,
             .compareOp(VK_COMPARE_OP_NEVER)
 
         if(t != null) {
-            samplerInfo.borderColor(t.textureBorderColor.toVulkan(t.type))
+            samplerInfo.borderColor(t.borderColor.toVulkan(t.type))
         }
 
         val sampler = VU.getLong("creating sampler",
@@ -703,7 +718,7 @@ open class VulkanTexture(val device: VulkanDevice,
                          stream: InputStream, type: String,
                          linearMin: Boolean, linearMax: Boolean,
                          generateMipmaps: Boolean = true): VulkanTexture {
-            val image = Image.readFromStream(stream, type, true)
+            val image = Image.fromStream(stream, type, true)
 
             var texWidth = 2
             var texHeight = 2
@@ -931,9 +946,9 @@ open class VulkanTexture(val device: VulkanDevice,
             }
         }
 
-        private fun GenericTexture.toVulkanFormat(): Int {
+        private fun Texture.toVulkanFormat(): Int {
             var format = when(this.type) {
-                GLTypeEnum.Byte -> when(this.channels) {
+                is ByteType -> when(this.channels) {
                     1 -> VK_FORMAT_R8_SNORM
                     2 -> VK_FORMAT_R8G8_SNORM
                     3 -> VK_FORMAT_R8G8B8A8_SNORM
@@ -942,7 +957,7 @@ open class VulkanTexture(val device: VulkanDevice,
                     else -> { logger.warn("Unknown texture type: $type, with $channels channels, falling back to default"); VK_FORMAT_R8G8B8A8_UNORM }
                 }
 
-                GLTypeEnum.UnsignedByte -> when(this.channels) {
+                is UnsignedByteType -> when(this.channels) {
                     1 -> VK_FORMAT_R8_UNORM
                     2 -> VK_FORMAT_R8G8_UNORM
                     3 -> VK_FORMAT_R8G8B8A8_UNORM
@@ -951,7 +966,7 @@ open class VulkanTexture(val device: VulkanDevice,
                     else -> { logger.warn("Unknown texture type: $type, with $channels channels, falling back to default"); VK_FORMAT_R8G8B8A8_UNORM }
                 }
 
-                GLTypeEnum.Short ->  when(this.channels) {
+                is ShortType ->  when(this.channels) {
                     1 -> VK_FORMAT_R16_SNORM
                     2 -> VK_FORMAT_R16G16_SNORM
                     3 -> VK_FORMAT_R16G16B16A16_SNORM
@@ -960,7 +975,7 @@ open class VulkanTexture(val device: VulkanDevice,
                     else -> { logger.warn("Unknown texture type: $type, with $channels channels, falling back to default"); VK_FORMAT_R8G8B8A8_UNORM }
                 }
 
-                GLTypeEnum.UnsignedShort -> when(this.channels) {
+                is UnsignedShortType -> when(this.channels) {
                     1 -> VK_FORMAT_R16_UNORM
                     2 -> VK_FORMAT_R16G16_UNORM
                     3 -> VK_FORMAT_R16G16B16A16_UNORM
@@ -969,7 +984,7 @@ open class VulkanTexture(val device: VulkanDevice,
                     else -> { logger.warn("Unknown texture type: $type, with $channels channels, falling back to default"); VK_FORMAT_R8G8B8A8_UNORM }
                 }
 
-                GLTypeEnum.Int ->  when(this.channels) {
+                is IntType ->  when(this.channels) {
                     1 -> VK_FORMAT_R32_SINT
                     2 -> VK_FORMAT_R32G32_SINT
                     3 -> VK_FORMAT_R32G32B32A32_SINT
@@ -978,7 +993,7 @@ open class VulkanTexture(val device: VulkanDevice,
                     else -> { logger.warn("Unknown texture type: $type, with $channels channels, falling back to default"); VK_FORMAT_R8G8B8A8_UNORM }
                 }
 
-                GLTypeEnum.UnsignedInt ->  when(this.channels) {
+                is UnsignedIntType ->  when(this.channels) {
                     1 -> VK_FORMAT_R32_UINT
                     2 -> VK_FORMAT_R32G32_UINT
                     3 -> VK_FORMAT_R32G32B32A32_UINT
@@ -987,7 +1002,7 @@ open class VulkanTexture(val device: VulkanDevice,
                     else -> { logger.warn("Unknown texture type: $type, with $channels channels, falling back to default"); VK_FORMAT_R8G8B8A8_UNORM }
                 }
 
-                GLTypeEnum.Float ->  when(this.channels) {
+                is FloatType ->  when(this.channels) {
                     1 -> VK_FORMAT_R32_SFLOAT
                     2 -> VK_FORMAT_R32G32_SFLOAT
                     3 -> VK_FORMAT_R32G32B32A32_SFLOAT
@@ -996,15 +1011,21 @@ open class VulkanTexture(val device: VulkanDevice,
                     else -> { logger.warn("Unknown texture type: $type, with $channels channels, falling back to default"); VK_FORMAT_R8G8B8A8_UNORM }
                 }
 
-                GLTypeEnum.Double -> TODO("Double format textures are not supported")
+                is DoubleType -> TODO("Double format textures are not supported")
+
+                else -> throw UnsupportedOperationException("Type ${type.javaClass.simpleName} is not supported")
             }
 
-            if(!this.normalized && this.type != GLTypeEnum.Float && this.type != GLTypeEnum.Byte && this.type != GLTypeEnum.Int) {
+            if(!this.normalized && this.type !is FloatType && this.type !is ByteType && this.type !is IntType) {
                 format += 4
             }
 
             return format
         }
+    }
+
+    override fun toString(): String {
+        return "VulkanTexture on $device (${this.image.image.toHexString()}, ${width}x${height}x$depth, format=${this.format}, mipLevels=${mipLevels}, gt=${this.gt != null} minFilter=${this.minFilterLinear} maxFilter=${this.maxFilterLinear})"
     }
 
     /**

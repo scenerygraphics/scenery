@@ -44,7 +44,7 @@ class OutOfCoreRAIExample: SceneryBase("Out-of-core RAI Rendering example", 1280
             perspectiveCamera(50.0f, 1.0f*windowWidth, 1.0f*windowHeight)
             active = true
 
-            position = GLVector(0.0f, 0.0f, 5.0f)
+            position = GLVector(0.0f, 0.0f, 10.0f)
             scene.addChild(this)
         }
 

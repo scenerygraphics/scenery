@@ -1,19 +1,26 @@
 package graphics.scenery.volumes
 
-import cleargl.GLTypeEnum
 import cleargl.GLVector
 import coremem.enums.NativeTypeEnum
 import graphics.scenery.*
 import graphics.scenery.numerics.OpenSimplexNoise
 import graphics.scenery.numerics.Random
+import graphics.scenery.textures.Texture
+import graphics.scenery.textures.Texture.RepeatMode
+import graphics.scenery.utils.Image
 import graphics.scenery.utils.forEachParallel
 import graphics.scenery.volumes.Volume.Colormap.ColormapBuffer
 import graphics.scenery.volumes.Volume.Colormap.ColormapFile
 import io.scif.SCIFIO
 import io.scif.util.FormatTools
+import net.imglib2.type.numeric.NumericType
+import net.imglib2.type.numeric.integer.*
+import net.imglib2.type.numeric.real.DoubleType
+import net.imglib2.type.numeric.real.FloatType
 import org.lwjgl.system.MemoryUtil.memAlloc
 import sun.misc.Unsafe
 import java.io.FileInputStream
+import java.lang.IllegalStateException
 import java.nio.ByteBuffer
 import java.nio.file.Files
 import java.nio.file.Path
@@ -167,7 +174,7 @@ open class Volume : Mesh("Volume") {
         /**
          * Buffer-based color map.
          */
-        class ColormapBuffer(val texture: GenericTexture) : Colormap()
+        class ColormapBuffer(val texture: Texture) : Colormap()
     }
 
     /** Stores the available colormaps for transfer functions */
@@ -180,12 +187,11 @@ open class Volume : Mesh("Volume") {
                 field = name
                 when (cm) {
                     is ColormapFile -> {
-                        this@Volume.material.textures["normal"] = cm.filename
+                        this@Volume.material.textures["normal"] = Texture.fromImage(Image.fromStream(FileInputStream(cm.filename), cm.filename.substringAfterLast(".").toLowerCase()))
                     }
 
                     is ColormapBuffer -> {
-                        this@Volume.material.transferTextures["colormap"] = cm.texture
-                        this@Volume.material.textures["normal"] = "fromBuffer:colormap"
+                        this@Volume.material.textures["normal"] = cm.texture
                     }
                 }
 
@@ -573,12 +579,11 @@ open class Volume : Mesh("Volume") {
     override fun preDraw(): Boolean {
         if(transferFunction.stale) {
             logger.debug("Transfer function is stale, updating")
-            material.transferTextures["transferFunction"] = GenericTexture(
-                "transferFunction", GLVector(transferFunction.textureSize.toFloat(), transferFunction.textureHeight.toFloat(), 1.0f),
-                channels = 1, type = GLTypeEnum.Float, contents = transferFunction.serialise(),
-                repeatS = TextureRepeatMode.ClampToEdge, repeatT = TextureRepeatMode.ClampToEdge, repeatU = TextureRepeatMode.ClampToEdge)
+            material.textures["diffuse"] = Texture(
+                GLVector(transferFunction.textureSize.toFloat(), transferFunction.textureHeight.toFloat(), 1.0f),
+                channels = 1, type = FloatType(), contents = transferFunction.serialise(),
+                repeatUVW = RepeatMode.ClampToEdge.all())
 
-            material.textures["diffuse"] = "fromBuffer:transferFunction"
             material.needsTextureReload = true
 
             time = System.nanoTime().toFloat()
@@ -588,33 +593,31 @@ open class Volume : Mesh("Volume") {
         return true
     }
 
-    protected fun NativeTypeEnum.toGLType() =
-        when (this) {
-            NativeTypeEnum.UnsignedInt -> GLTypeEnum.UnsignedInt
-            NativeTypeEnum.Byte -> GLTypeEnum.Byte
-            NativeTypeEnum.UnsignedByte -> GLTypeEnum.UnsignedByte
-            NativeTypeEnum.Short -> GLTypeEnum.Short
-            NativeTypeEnum.UnsignedShort -> GLTypeEnum.UnsignedShort
-            NativeTypeEnum.Int -> GLTypeEnum.Int
+    protected fun NativeTypeEnum.toGLType(): NumericType<*> {
+        return when (this) {
+            NativeTypeEnum.UnsignedInt -> UnsignedIntType()
+            NativeTypeEnum.Byte -> ByteType()
+            NativeTypeEnum.UnsignedByte -> UnsignedByteType()
+            NativeTypeEnum.Short -> ShortType()
+            NativeTypeEnum.UnsignedShort -> UnsignedShortType()
+            NativeTypeEnum.Int -> IntType()
             NativeTypeEnum.Long -> TODO()
             NativeTypeEnum.UnsignedLong -> TODO()
             NativeTypeEnum.HalfFloat -> TODO()
-            NativeTypeEnum.Float -> GLTypeEnum.Float
+            NativeTypeEnum.Float -> FloatType()
             NativeTypeEnum.Double -> TODO()
         }
+    }
 
     protected open fun assignEmptyVolumeTexture() {
         val emptyBuffer = BufferUtils.allocateByteAndPut(byteArrayOf(0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
                                                                      0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0))
         val dim = GLVector(2.0f, 2.0f, 2.0f)
-        val gtv = GenericTexture("empty-volume", dim, 1, GLTypeEnum.UnsignedByte, emptyBuffer,
-            repeatS = TextureRepeatMode.ClampToEdge,
-            repeatT = TextureRepeatMode.ClampToEdge,
-            repeatU = TextureRepeatMode.ClampToEdge,
+        val gtv = Texture(dim, 1, UnsignedByteType(), emptyBuffer,
+            repeatUVW = RepeatMode.ClampToEdge.all(),
             normalized = true)
 
-        material.transferTextures.put("empty-volume", gtv)
-        material.textures.put("VolumeTextures", "fromBuffer:empty-volume")
+        material.textures.put("VolumeTextures", gtv)
 
         colormap = "viridis"
     }
@@ -651,23 +654,20 @@ open class Volume : Mesh("Volume") {
         trangemax = max.toFloat()
 
         val dim = GLVector(dimensions[0].toFloat(), dimensions[1].toFloat(), dimensions[2].toFloat())
-        val gtv = GenericTexture("VolumeTextures", dim,
+        val gtv = Texture(dim,
             1, descriptor.dataType.toGLType(), descriptor.data,
-            repeatS = TextureRepeatMode.ClampToEdge,
-            repeatT = TextureRepeatMode.ClampToEdge,
-            repeatU = TextureRepeatMode.ClampToEdge,
+            repeatUVW = RepeatMode.ClampToEdge.all(),
             normalized = true)
 
         boundingBox = generateBoundingBox()
 
         logger.debug("$name: Assigning volume texture")
-        this.material.transferTextures.put("VolumeTextures", gtv)?.let {
-            if (replace && it.name != "empty-volume" && !deallocations.contains(it.contents)) {
+        this.material.textures.put("VolumeTextures", gtv)?.let {
+            if (replace && /*it.name != "empty-volume" &&*/ !deallocations.contains(it.contents)) {
                 deallocations.add(it.contents)
             }
         }
 
-        this.material.textures.put("VolumeTextures", "fromBuffer:VolumeTextures")
         this.material.needsTextureReload = true
     }
 
@@ -717,17 +717,18 @@ open class Volume : Mesh("Volume") {
      * Returns the sampled value as a [Float], or null in case nothing could be sampled.
      */
     fun sample(uv: GLVector, interpolate: Boolean = true): Float? {
-        val gt = material.transferTextures["VolumeTextures"] ?: return null
+        val gt = material.textures["VolumeTextures"] ?: return null
 
         val bpp = when(gt.type) {
-            GLTypeEnum.Byte -> 1
-            GLTypeEnum.UnsignedByte -> 1
-            GLTypeEnum.Short -> 2
-            GLTypeEnum.UnsignedShort -> 2
-            GLTypeEnum.Int -> 4
-            GLTypeEnum.UnsignedInt -> 4
-            GLTypeEnum.Float -> 4
-            GLTypeEnum.Double -> 8
+            is ByteType -> 1
+            is UnsignedByteType -> 1
+            is ShortType -> 2
+            is UnsignedShortType -> 2
+            is IntType -> 4
+            is UnsignedIntType -> 4
+            is FloatType -> 4
+            is DoubleType -> 8
+            else -> throw IllegalStateException("Can't sample from a volume texture of type ${gt.type.javaClass.simpleName}")
         }
 
         if(uv.x() < 0.0f || uv.x() > 1.0f || uv.y() < 0.0f || uv.y() > 1.0f || uv.z() < 0.0f || uv.z() > 1.0f) {
@@ -768,14 +769,15 @@ open class Volume : Mesh("Volume") {
             }
 
             val s = when(gt.type) {
-                GLTypeEnum.Byte -> contents.get(index).toFloat()
-                GLTypeEnum.UnsignedByte -> contents.get(index).toUByte().toFloat()
-                GLTypeEnum.Short -> contents.asShortBuffer().get(index).toFloat()
-                GLTypeEnum.UnsignedShort -> contents.asShortBuffer().get(index).toUShort().toFloat()
-                GLTypeEnum.Int -> contents.asIntBuffer().get(index).toFloat()
-                GLTypeEnum.UnsignedInt -> contents.asIntBuffer().get(index).toUInt().toFloat()
-                GLTypeEnum.Float -> contents.asFloatBuffer().get(index)
-                GLTypeEnum.Double -> contents.asDoubleBuffer().get(index).toFloat()
+                is ByteType -> contents.get(index).toFloat()
+                is UnsignedByteType -> contents.get(index).toUByte().toFloat()
+                is ShortType -> contents.asShortBuffer().get(index).toFloat()
+                is UnsignedShortType -> contents.asShortBuffer().get(index).toUShort().toFloat()
+                is IntType -> contents.asIntBuffer().get(index).toFloat()
+                is UnsignedIntType -> contents.asIntBuffer().get(index).toUInt().toFloat()
+                is FloatType -> contents.asFloatBuffer().get(index)
+                is DoubleType -> contents.asDoubleBuffer().get(index).toFloat()
+                else -> throw UnsupportedOperationException("Sampling from volumes with type ${gt.type.javaClass.simpleName} is not supported")
             }
 
             return transferFunction.evaluate(s/trangemax)
@@ -808,7 +810,7 @@ open class Volume : Mesh("Volume") {
      * as well as the delta used along the ray, or null if the start/end coordinates are invalid.
      */
     fun sampleRay(start: GLVector, end: GLVector): Pair<List<Float?>, GLVector>? {
-        val gt = material.transferTextures["VolumeTextures"] ?: return null
+        val gt = material.textures["VolumeTextures"] ?: return null
 
         if(start.x() < 0.0f || start.x() > 1.0f || start.y() < 0.0f || start.y() > 1.0f || start.z() < 0.0f || start.z() > 1.0f) {
             logger.debug("Invalid UV coords for ray start: {} -- will clamp values to [0.0, 1.0].", start)

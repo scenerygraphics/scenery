@@ -11,8 +11,16 @@ import graphics.scenery.*
 import graphics.scenery.backends.*
 import graphics.scenery.spirvcrossj.Loader
 import graphics.scenery.spirvcrossj.libspirvcrossj
+import graphics.scenery.textures.Texture
+import graphics.scenery.textures.Texture.BorderColor
+import graphics.scenery.textures.Texture.RepeatMode
+import graphics.scenery.textures.UpdatableTexture
 import graphics.scenery.utils.*
 import kotlinx.coroutines.*
+import net.imglib2.type.numeric.NumericType
+import net.imglib2.type.numeric.integer.*
+import net.imglib2.type.numeric.real.DoubleType
+import net.imglib2.type.numeric.real.FloatType
 import org.lwjgl.system.MemoryUtil
 import java.awt.BorderLayout
 import java.awt.Dimension
@@ -33,6 +41,8 @@ import java.util.concurrent.atomic.AtomicInteger
 import javax.imageio.ImageIO
 import javax.swing.BorderFactory
 import kotlin.collections.LinkedHashMap
+import kotlin.math.floor
+import kotlin.math.ln
 import kotlin.math.max
 import kotlin.math.roundToInt
 import kotlin.reflect.full.findAnnotation
@@ -1821,7 +1831,7 @@ open class OpenGLRenderer(hub: Hub,
 
                     val unboundSamplers = (unit until maxTextureUnits).toMutableList()
                     var maxSamplerIndex = 0
-                    val textures = s.textures.entries.groupBy { GenericTexture.objectTextures.contains(it.key) }
+                    val textures = s.textures.entries.groupBy { Texture.objectTextures.contains(it.key) }
                     val objectTextures = textures[true]
                     val others = textures[false]
 
@@ -2372,10 +2382,10 @@ open class OpenGLRenderer(hub: Hub,
     }
 
     /**
-     * Returns true if the current [GLTexture] can be reused to store the information in the [GenericTexture]
+     * Returns true if the current [GLTexture] can be reused to store the information in the [Texture]
      * [other]. Returns false otherwise.
      */
-    protected fun GLTexture.canBeReused(other: GenericTexture, miplevels: Int): Boolean {
+    protected fun GLTexture.canBeReused(other: Texture, miplevels: Int): Boolean {
         return this.width == other.dimensions.x().toInt() &&
             this.height == other.dimensions.y().toInt() &&
             this.depth == other.dimensions.z().toInt() &&
@@ -2401,20 +2411,34 @@ open class OpenGLRenderer(hub: Hub,
         MemoryUtil.memFree(buffer)
     }
 
-    private fun TextureRepeatMode.toOpenGL(): Int {
+    private fun RepeatMode.toOpenGL(): Int {
         return when(this) {
-            TextureRepeatMode.Repeat -> GL4.GL_REPEAT
-            TextureRepeatMode.MirroredRepeat -> GL4.GL_MIRRORED_REPEAT
-            TextureRepeatMode.ClampToEdge -> GL4.GL_CLAMP_TO_EDGE
-            TextureRepeatMode.ClampToBorder -> GL4.GL_CLAMP_TO_BORDER
+            RepeatMode.Repeat -> GL4.GL_REPEAT
+            RepeatMode.MirroredRepeat -> GL4.GL_MIRRORED_REPEAT
+            RepeatMode.ClampToEdge -> GL4.GL_CLAMP_TO_EDGE
+            RepeatMode.ClampToBorder -> GL4.GL_CLAMP_TO_BORDER
         }
     }
 
-    private fun TextureBorderColor.toOpenGL(type: GLTypeEnum): FloatArray {
+    private fun BorderColor.toOpenGL(type: NumericType<*>): FloatArray {
         return when(this) {
-            TextureBorderColor.TransparentBlack -> floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f)
-            TextureBorderColor.OpaqueBlack -> floatArrayOf(0.0f, 0.0f, 0.0f, 1.0f)
-            TextureBorderColor.OpaqueWhite -> floatArrayOf(1.0f, 1.0f, 1.0f, 1.0f)
+            BorderColor.TransparentBlack -> floatArrayOf(0.0f, 0.0f, 0.0f, 0.0f)
+            BorderColor.OpaqueBlack -> floatArrayOf(0.0f, 0.0f, 0.0f, 1.0f)
+            BorderColor.OpaqueWhite -> floatArrayOf(1.0f, 1.0f, 1.0f, 1.0f)
+        }
+    }
+
+    private fun NumericType<*>.toOpenGL(): GLTypeEnum {
+        return when(this) {
+            is UnsignedByteType -> GLTypeEnum.UnsignedByte
+            is ByteType -> GLTypeEnum.Byte
+            is UnsignedShortType -> GLTypeEnum.UnsignedShort
+            is ShortType -> GLTypeEnum.Short
+            is UnsignedIntType -> GLTypeEnum.UnsignedInt
+            is IntType -> GLTypeEnum.Int
+            is FloatType -> GLTypeEnum.Float
+            is DoubleType -> GLTypeEnum.Double
+            else -> throw IllegalStateException("Type ${this.javaClass.simpleName} is not supported as OpenGL texture type")
         }
     }
 
@@ -2427,108 +2451,77 @@ open class OpenGLRenderer(hub: Hub,
      */
     @Suppress("USELESS_ELVIS")
     private fun loadTexturesForNode(node: Node, s: OpenGLObjectState): OpenGLObjectState {
-        node.material.textures.forEach {
-            type, texture ->
-            if (!textureCache.containsKey(texture) || node.material.needsTextureReload) {
+        node.material.textures.forEach { type, texture ->
+            if (node.material.needsTextureReload) {
                 logger.debug("Loading texture $texture for ${node.name}")
 
-                val generateMipmaps = GenericTexture.mipmappedObjectTextures.contains(type)
-                if (texture.startsWith("fromBuffer:")) {
-                    val gt = node.material.transferTextures[texture.substringAfter("fromBuffer:")]
-                    gt?.let { (_, dimensions, channels, type1, contentsOriginal, repeatS, repeatT, repeatU, borderColor, normalized, mipmap, minLinear, maxLinear, updates) ->
+                val generateMipmaps = Texture.mipmappedObjectTextures.contains(type)
+                val contentsNew = texture.contents?.duplicate()
+                logger.debug("Dims of $texture: ${texture.dimensions}, mipmaps=$generateMipmaps")
 
-                        val contents = contentsOriginal?.duplicate()
-                        logger.debug("Dims of $texture: $dimensions, mipmaps=$generateMipmaps")
-
-                        val mm = generateMipmaps or mipmap
-                        val miplevels = if (mm && dimensions.z().toInt() == 1) {
-                            1 + Math.floor(Math.log(Math.max(dimensions.x() * 1.0, dimensions.y() * 1.0)) / Math.log(2.0)).toInt()
-                        } else {
-                            1
-                        }
-
-                        val existingTexture = s.textures[type]
-                        val t = if(existingTexture != null && existingTexture.canBeReused(gt, miplevels)) {
-                            existingTexture
-                        } else {
-                            GLTexture(gl, type1, channels,
-                                dimensions.x().toInt(),
-                                dimensions.y().toInt(),
-                                dimensions.z().toInt() ?: 1,
-                                minLinear,
-                                miplevels, 32,
-                                normalized, renderConfig.sRGB)
-                        }
-
-                        if (mm) {
-                            t.updateMipMaps()
-                        }
-
-                        t.setRepeatModeS(repeatS.toOpenGL())
-                        t.setRepeatModeT(repeatT.toOpenGL())
-                        t.setRepeatModeR(repeatU.toOpenGL())
-
-                        t.setTextureBorderColor(borderColor.toOpenGL(type1))
-
-                        val unpackAlignment = intArrayOf(0)
-                        gl.glGetIntegerv(GL4.GL_UNPACK_ALIGNMENT, unpackAlignment, 0)
-
-                        // textures might have very uneven dimensions, so we adjust GL_UNPACK_ALIGNMENT here correspondingly
-                        // in case the byte count of the texture is not divisible by it.
-                        if (contents != null && !gt.hasConsumableUpdates()) {
-                            if (contents.remaining() % unpackAlignment[0] == 0 && dimensions.x().toInt() % unpackAlignment[0] == 0) {
-                                t.copyFrom(contents)
-                            } else {
-                                gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, 1)
-
-                                t.copyFrom(contents)
-                            }
-                            gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, unpackAlignment[0])
-                        }
-
-                        if (gt.hasConsumableUpdates()) {
-                            gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, 1)
-                            updates.forEach { update ->
-                                if (!update.consumed) {
-                                    t.copyFrom(update.contents,
-                                        update.extents.w, update.extents.h, update.extents.d,
-                                        update.extents.x, update.extents.y, update.extents.z, true)
-                                    update.consumed = true
-                                }
-                            }
-
-                            gt.clearConsumedUpdates()
-                            gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, unpackAlignment[0])
-                        }
-
-                        s.textures[type] = t
-                        textureCache.put(texture, t)
-                    }
+                val mm = generateMipmaps or texture.mipmap
+                val miplevels = if (mm && texture.dimensions.z().toInt() == 1) {
+                    1 + floor(ln(max(texture.dimensions.x() * 1.0, texture.dimensions.y() * 1.0)) / ln(2.0)).toInt()
                 } else {
-                    val glTexture = if(texture.contains("jar!")) {
-                        val f = texture.substringAfterLast("!")
-                        val stream = node.javaClass.getResourceAsStream(f)
+                    1
+                }
 
-                        if(stream == null) {
-                            logger.error("Texture not found for $node: $f (from JAR)")
-                            textureCache["DefaultTexture"]!!
-                        } else {
-                            GLTexture.loadFromFile(gl, stream, texture.substringAfterLast("."), true, generateMipmaps, 8)
-                        }
+                val existingTexture = s.textures[type]
+                val t = if(existingTexture != null && existingTexture.canBeReused(texture, miplevels)) {
+                    existingTexture
+                } else {
+                    GLTexture(gl, texture.type.toOpenGL(), texture.channels,
+                        texture.dimensions.x().toInt(),
+                        texture.dimensions.y().toInt(),
+                        texture.dimensions.z().toInt() ?: 1,
+                        texture.minFilter == Texture.FilteringMode.Linear,
+                        miplevels, 32,
+                        texture.normalized, renderConfig.sRGB)
+                }
+
+                if (mm) {
+                    t.updateMipMaps()
+                }
+
+                t.setRepeatModeS(texture.repeatUVW.first.toOpenGL())
+                t.setRepeatModeT(texture.repeatUVW.second.toOpenGL())
+                t.setRepeatModeR(texture.repeatUVW.third.toOpenGL())
+
+                t.setTextureBorderColor(texture.borderColor.toOpenGL(texture.type))
+
+                val unpackAlignment = intArrayOf(0)
+                gl.glGetIntegerv(GL4.GL_UNPACK_ALIGNMENT, unpackAlignment, 0)
+
+                // textures might have very uneven dimensions, so we adjust GL_UNPACK_ALIGNMENT here correspondingly
+                // in case the byte count of the texture is not divisible by it.
+                if (contentsNew != null && texture is UpdatableTexture && !texture.hasConsumableUpdates()) {
+                    if (contentsNew.remaining() % unpackAlignment[0] == 0 && texture.dimensions.x().toInt() % unpackAlignment[0] == 0) {
+                        t.copyFrom(contentsNew)
                     } else {
-                        try {
-                            GLTexture.loadFromFile(gl, texture, true, generateMipmaps, 8)
-                        } catch(e: FileNotFoundException) {
-                            logger.error("Texture not found for $node: $texture")
-                            textureCache["DefaultTexture"]!!
+                        gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, 1)
+
+                        t.copyFrom(contentsNew)
+                    }
+                    gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, unpackAlignment[0])
+                }
+
+                if (texture is UpdatableTexture && texture.hasConsumableUpdates()) {
+                    gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, 1)
+                    texture.updates.forEach { update ->
+                        if (!update.consumed) {
+                            t.copyFrom(update.contents,
+                                update.extents.w, update.extents.h, update.extents.d,
+                                update.extents.x, update.extents.y, update.extents.z, true)
+                            update.consumed = true
                         }
                     }
 
-                    s.textures[type] = glTexture
-                    textureCache[texture] = glTexture
+                    texture.clearConsumedUpdates()
+                    gl.glPixelStorei(GL4.GL_UNPACK_ALIGNMENT, unpackAlignment[0])
                 }
-            } else {
-                s.textures[type] = textureCache[texture]!!
+
+                s.textures[type] = t
+//                textureCache.put(texture, t)
             }
         }
 

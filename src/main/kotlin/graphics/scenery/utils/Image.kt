@@ -45,7 +45,7 @@ open class Image(val contents: ByteBuffer, val width: Int, val height: Int) {
          * Creates a new [Image] from a [stream], with the [extension] given. The image
          * can be [flip]ped to accomodate Vulkan and OpenGL coordinate systems.
          */
-        fun readFromStream(stream: InputStream, extension: String, flip: Boolean = true): Image  {
+        @JvmStatic @JvmOverloads fun fromStream(stream: InputStream, extension: String, flip: Boolean = true): Image  {
 
             var bi: BufferedImage
             val flippedImage: BufferedImage
@@ -96,6 +96,14 @@ open class Image(val contents: ByteBuffer, val width: Int, val height: Int) {
             }
 
             return Image(imageData, bi.width, bi.height)
+        }
+
+        /**
+         * Creates an Image from a resource given in [path], with [baseClass] as basis for the search path.
+         * [path] is expected to end in an extension (e.g., ".png"), such that the file type can be determined.
+         */
+        @JvmStatic fun fromResource(path: String, baseClass: Class<*>): Image {
+            return fromStream(baseClass.getResourceAsStream(path), path.substringAfterLast(".").toLowerCase())
         }
 
         /**

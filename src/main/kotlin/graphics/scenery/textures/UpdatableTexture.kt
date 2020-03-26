@@ -1,0 +1,46 @@
+package graphics.scenery.textures
+
+import cleargl.GLTypeEnum
+import cleargl.GLVector
+import net.imglib2.type.numeric.NumericType
+import net.imglib2.type.numeric.integer.UnsignedByteType
+import org.lwjgl.system.MemoryUtil
+import java.nio.ByteBuffer
+
+class UpdatableTexture(
+    dimensions: GLVector,
+    channels: Int = 4,
+    type: NumericType<*> = UnsignedByteType(),
+    contents: ByteBuffer?,
+    repeatUVW: Triple<RepeatMode, RepeatMode, RepeatMode> = Triple(RepeatMode.Repeat, RepeatMode.Repeat, RepeatMode.Repeat),
+    borderColor: BorderColor = BorderColor.TransparentBlack,
+    normalized: Boolean = true,
+    mipmap: Boolean = true,
+    minFilter: FilteringMode = FilteringMode.Linear,
+    maxFilter: FilteringMode = FilteringMode.Linear
+) : Texture(dimensions, channels, type, contents, repeatUVW, borderColor, normalized, mipmap, minFilter, maxFilter) {
+    /** Data class for encapsulating partial transfers. */
+    data class TextureExtents(val x: Int, val y: Int, val z: Int, val w: Int, val h: Int, val d: Int)
+
+    /** Update class for partial updates. */
+    data class TextureUpdate(val extents: TextureExtents, val contents: ByteBuffer, var consumed: Boolean = false, var deallocate: Boolean = false)
+
+    /** List of [TextureUpdate]s for the currently active texture. */
+    var updates: ArrayList<TextureUpdate> = ArrayList()
+
+    /** Returns true if the generic texture does have any non-consumed updates */
+    fun hasConsumableUpdates(): Boolean {
+        return updates.any { !it.consumed }
+    }
+
+    /** Clears all consumed updates */
+    fun clearConsumedUpdates() {
+        updates.forEach { if(it.consumed && it.deallocate) { MemoryUtil.memFree(it.contents) } }
+        updates.removeIf { it.consumed }
+    }
+
+    /** Clears all updates */
+    fun clearUpdates() {
+        updates.clear()
+    }
+}

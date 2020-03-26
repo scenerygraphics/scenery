@@ -39,7 +39,7 @@ class Colormap(val buffer: ByteBuffer, val width: Int, val height: Int) {
          * Creates a new colormap from an [stream], with the file type/extension given in [extension].
          */
         @JvmStatic fun fromStream(stream: InputStream, extension: String): Colormap {
-            val image = Image.readFromStream(stream, extension)
+            val image = Image.fromStream(stream, extension)
             logger.info("Read image from $stream with ${image.contents.remaining()} bytes, size=${image.width}x${image.height}")
             return Colormap(image.contents, image.width, image.height)
         }

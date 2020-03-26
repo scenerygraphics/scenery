@@ -3,6 +3,8 @@ package graphics.scenery.tests.examples.basic
 import cleargl.GLVector
 import graphics.scenery.*
 import graphics.scenery.backends.Renderer
+import graphics.scenery.textures.Texture
+import graphics.scenery.utils.Image
 import graphics.scenery.utils.SceneryJPanel
 import org.junit.Test
 import java.awt.BorderLayout
@@ -34,7 +36,7 @@ class SwingTexturedCubeExample : SceneryBase("SwingTexturedCubeExample", windowW
             ambient = GLVector(1.0f, 0.0f, 0.0f)
             diffuse = GLVector(0.0f, 1.0f, 0.0f)
             specular = GLVector(1.0f, 1.0f, 1.0f)
-            textures.put("diffuse", TexturedCubeExample::class.java.getResource("textures/helix.png").file)
+            textures["diffuse"] = Texture.fromImage(Image.fromResource("textures/helix.png", this::class.java))
         }
 
         val box = Box(GLVector(1.0f, 1.0f, 1.0f))
