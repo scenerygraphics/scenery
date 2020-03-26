@@ -79,6 +79,8 @@ void main()
 //    float near = 0.05;
 //    pos.z = min(pos.z, -near - 0.0001);
 
+    gl_PointSize = 1.0;
+
     if(lightType == 0) {
 	    gl_Position = projectionMatrix * pos;
 	} else {
