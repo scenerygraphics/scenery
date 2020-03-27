@@ -35,7 +35,7 @@ class CatmullRomSplineTests {
         The computation of the Catmull Rom Spline delivers an additional point if the
         distance between the point1 and point2 is small relative to point2 and point3
          */
-        assertTrue(curve.catMullRomChain().size == 100 || curve.catMullRomChain().size == 101)
+        assertTrue(curve.splinePoints().size == 100 || curve.splinePoints().size == 101)
     }
 
     /**
@@ -52,12 +52,16 @@ class CatmullRomSplineTests {
         val controlPoints = arrayListOf(point1, point2, point3, point4)
 
         val curve = CatmullRomSpline(controlPoints)
-        val chain = curve.catMullRomChain()
+        val chain = curve.splinePoints()
         val i = Random.randomFromRange(1f, 98f).toInt()
         val distance = chain[i].minus(chain[i+1]).length()
         val distanceDifferences = chain.windowed(2, 1) {
+<<<<<<< HEAD
             it[0].minus(it[1]).length().minus(distance) }.toList()
         println(distanceDifferences)
+=======
+            it[0].minus(it[1]).length2().minus(distance) }.toList()
+>>>>>>> Added UniformBSplineTests and documentation for the Spline.
         assertTrue { distanceDifferences.filter { it < 0.1 } == distanceDifferences }
     }
 

@@ -9,12 +9,14 @@ import cleargl.GLVector
  * control points, use the Catmull Rom Spline instead. However, if this is not required and you prefer a
  * smoother curve over the exact one, this is the spline to draw.
  * The control points are represented by a List of Vectors ([controlPoints]) and the number of points the
- * curve shall contain is [n], which is the hundred times the number of controlPoints by default.
+ * curve shall contain is [n], which is the hundred by default.
  * The following code calculates firstly equidistant parameters for the curve calculation (the t in C(t)). Then we
  * calculate the curve segment by segment with four points each. The maths of uniform B-Splines are described, for
  * example, in: "Computer Graphics: Principles and Practice, Third Edition" by James D. Foley et al.
+ *
+ * @author Justin Bürger <burger@mpi-cbg.de>
  */
-class UniformBSpline(override val controlPoints: ArrayList<GLVector>, override val n: Int = controlPoints.size*100): Spline(controlPoints, n) {
+class UniformBSpline(override val controlPoints: ArrayList<GLVector>, override val n: Int = 100): Spline(controlPoints, n) {
 
     /**
      * This is a list of the equidistant parameters at which the curve is calculated.

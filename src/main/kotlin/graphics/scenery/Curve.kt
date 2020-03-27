@@ -18,7 +18,7 @@ import kotlin.math.acos
  * @author  Justin Buerger <burger@mpi-cbg.de>
  */
 <<<<<<< HEAD
-class Curve(curve: CatmullRomSpline, baseShape: () -> ArrayList<Vector3f>): Node("CurveGeometry"), HasGeometry {
+class Curve(curve: Spline, baseShape: () -> ArrayList<Vector3f>): Node("CurveGeometry"), HasGeometry {
 =======
 class Curve(curve: Spline, baseShape: () -> ArrayList<Vector3f>): Node("CurveGeometry"), HasGeometry {
 >>>>>>> Refactored the necessary filenames and functions so that the Spline class works as intended.
