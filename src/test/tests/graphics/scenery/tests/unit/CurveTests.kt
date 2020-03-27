@@ -44,6 +44,7 @@ class CurveTests {
         val geometry = Curve(curve) { triangle() }
         val frenetFrames = geometry.computeFrenetFrames(geometry.getCurve())
 
+<<<<<<< HEAD
         assertEquals(curve.catMullRomChain(), geometry.getCurve())
 
         frenetFrames.forEach {
@@ -52,6 +53,12 @@ class CurveTests {
         }
 
         assertEquals(frenetFrames.filter { it.bitangent?.length()!! < 1.001f && it.bitangent?.length()!! > 0.999f },
+=======
+        assertEquals(curve.splinePoints(), geometry.getCurve())
+        assertNotNull(frenetFrames.forEach { it.normal })
+        assertNotNull(frenetFrames.forEach{ it.bitangent })
+        assertEquals(frenetFrames.filter { it.bitangent?.length2()!! < 1.001f && it.bitangent?.length2()!! > 0.999f },
+>>>>>>> Refactored the necessary filenames and functions so that the Spline class works as intended.
                 frenetFrames)
         assertEquals(frenetFrames.filter { it.normal?.length()!! < 1.001f && it.normal?.length()!! > 0.999f },
                 frenetFrames)
