@@ -2,6 +2,7 @@ package graphics.scenery
 
 import cleargl.GLMatrix
 import cleargl.GLVector
+import org.lwjgl.opengl.GL
 import java.lang.IllegalArgumentException
 
 /**
@@ -48,7 +49,7 @@ class UniformBSpline(override val controlPoints: ArrayList<GLVector>, override v
         }
         return if(controlPoints.size < 4) {
             println("The list of controlPoints provided for the Uniform BSpline is empty or has less than four points.")
-            controlPoints
+            ArrayList()
         }
         else {
             calculateT()
