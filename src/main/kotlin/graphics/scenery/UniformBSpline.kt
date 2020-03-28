@@ -2,6 +2,7 @@ package graphics.scenery
 
 import cleargl.GLMatrix
 import cleargl.GLVector
+import java.lang.IllegalArgumentException
 
 /**
  * This class generates a smooth curve within the convex hull of the control points. Note that the spline
@@ -41,14 +42,24 @@ class UniformBSpline(override val controlPoints: ArrayList<GLVector>, override v
      * Returns the [n]*(numberOf([controlPoints])-3)+1 curve points the B-Spline has.
      */
     override fun splinePoints(): ArrayList<GLVector> {
-        calculateT()
-        val curvePoints = ArrayList<GLVector>((controlPoints.size-3)*n +1)
-        controlPoints.dropLast(3).forEachIndexed{ index, _ ->
-            val spline = partialSpline(controlPoints[index], controlPoints[index +1],
-            controlPoints[index+2], controlPoints[index+3])
-            curvePoints.addAll(spline)
+        //checks if the controlpoints contain only a list of the same vectors
+        if(controlPoints.toSet().size == 1) {
+            throw IllegalArgumentException("The UniformBSpline got a list of the same points.")
         }
-        return curvePoints
+        return if(controlPoints.isEmpty()) {
+            println("The list of controlPoints provided for the Uniform BSpline is empty.")
+            controlPoints
+        }
+        else {
+            calculateT()
+            val curvePoints = ArrayList<GLVector>((controlPoints.size - 3) * n + 1)
+            controlPoints.dropLast(3).forEachIndexed { index, _ ->
+                val spline = partialSpline(controlPoints[index], controlPoints[index + 1],
+                    controlPoints[index + 2], controlPoints[index + 3])
+                curvePoints.addAll(spline)
+            }
+            return curvePoints
+        }
     }
 
     /**

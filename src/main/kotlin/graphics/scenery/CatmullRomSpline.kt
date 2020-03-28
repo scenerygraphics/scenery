@@ -17,7 +17,7 @@ import kotlin.math.pow
  * a chordal Catmull Rom Spline.
  */
 <<<<<<< HEAD
-class CatmullRomSpline(override val controlPoints: List<Vector3f>, override val n: Int = 100, val alpha: Float = 0.5f): Spline(controlPoints, n) { {
+class CatmullRomSpline(override val controlPoints: List<Vector3f>, override val n: Int = 100, val alpha: Float = 0.5f): Spline(controlPoints, n) {
 =======
 class CatmullRomSpline(override val controlPoints: List<Vector3f>, override val n: Int = 100, val alpha: Float = 0.5f): Spline(controlPoints, n) {
 >>>>>>> Added the abstract class Spline; added UniformBSpline; made CatmullRomSpline implement Spline

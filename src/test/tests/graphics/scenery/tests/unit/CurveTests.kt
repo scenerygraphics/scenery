@@ -3,9 +3,11 @@ package graphics.scenery.tests.unit
 import graphics.scenery.numerics.Random
 import graphics.scenery.CatmullRomSpline
 import graphics.scenery.Curve
+import graphics.scenery.UniformBSpline
 import graphics.scenery.utils.LazyLogger
 import org.joml.Vector3f
 import org.junit.Test
+import org.lwjgl.BufferUtils
 import kotlin.test.assertEquals
 import kotlin.test.assertFails
 import kotlin.test.assertNotNull
@@ -104,4 +106,23 @@ class CurveTests {
         assertFails {  Curve(curve) { triangleFalse() } }
     }
 
+    /**
+     * Tests if the curve works properly even with an empty spline.
+     */
+    @Test
+    fun testEmptySpline() {
+        logger.info("Tests the curve with an empty spline")
+        val emptyList = ArrayList<GLVector>()
+        val spline = UniformBSpline(emptyList)
+        fun triangle(): ArrayList<GLVector> {
+            val list = ArrayList<GLVector>()
+            list.add(GLVector(0.3f, 0.3f, 0f))
+            list.add(GLVector(0.3f, -0.3f, 0f))
+            list.add(GLVector(-0.3f, -0.3f, 0f))
+            return list
+        }
+        val emptyFloatBuffer = BufferUtils.createFloatBuffer(0)
+        val curve = Curve(spline) { triangle() }
+        assertEquals(curve.vertices, emptyFloatBuffer)
+    }
 }

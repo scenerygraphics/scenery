@@ -1,10 +1,13 @@
 package graphics.scenery.tests.unit
 
+import cleargl.GLVector
 import graphics.scenery.UniformBSpline
 import graphics.scenery.numerics.Random
 import graphics.scenery.utils.LazyLogger
 import org.junit.Test
+import kotlin.math.roundToInt
 import kotlin.test.assertEquals
+import kotlin.test.assertFails
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -57,5 +60,34 @@ class UniformBSplineTests {
             it[0].minus(it[1]).length2().minus(distance) }.toList()
         println(distanceDifferences)
         assertTrue { distanceDifferences.filter { it < 0.5 } == distanceDifferences }
+    }
+
+    /**
+     * Tests what happens if the Uniform B-Spline gets created with not enough information, meaning
+     * either an empty list, a list with only the same points, and a list with less then four points.
+     */
+    @Test
+    fun invalidControlPoints() {
+        logger.info("Tests Uniform BSpline with invalid control points.")
+        val samePointList = ArrayList<GLVector>(10)
+        val point = GLVector(1f, 1f, 1f)
+        for(i in 0..9) {
+            samePointList.add(point)
+        }
+        val samePointSpline = UniformBSpline(samePointList)
+        assertFails{ samePointSpline.splinePoints() }
+
+        val emptyList = ArrayList<GLVector>()
+        val emptySpline = UniformBSpline(emptyList)
+        assertTrue(emptySpline.splinePoints().isEmpty())
+
+        val notEnoughList = ArrayList<GLVector>()
+        val j = Random.randomFromRange(1f, 2f).roundToInt()
+        for(i in 0..j) {
+            val vector = Random.randomVectorFromRange(3, 0f, 5f)
+            notEnoughList.add(vector)
+        }
+        val notEnoughSpline = UniformBSpline(notEnoughList)
+        assertTrue(notEnoughSpline.splinePoints().isEmpty())
     }
 }
