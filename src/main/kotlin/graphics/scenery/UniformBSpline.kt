@@ -46,8 +46,8 @@ class UniformBSpline(override val controlPoints: ArrayList<GLVector>, override v
         if(controlPoints.toSet().size == 1) {
             throw IllegalArgumentException("The UniformBSpline got a list of the same points.")
         }
-        return if(controlPoints.isEmpty()) {
-            println("The list of controlPoints provided for the Uniform BSpline is empty.")
+        return if(controlPoints.size < 4) {
+            println("The list of controlPoints provided for the Uniform BSpline is empty or has less than four points.")
             controlPoints
         }
         else {
